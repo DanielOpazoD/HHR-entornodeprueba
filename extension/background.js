@@ -986,7 +986,6 @@ const {
 const clinicalScoreWriteRuntime = self.HhrClinicalScoreWriteRuntime.create({
   scoreWriteModel: self.HhrClinicalScoreWriteModel,
   fetchWithTimeout,
-  getFichaFetchInfo,
   fetchFichaClaims,
   hasFichaClaim,
   verifyEncounterStillHospitalized,
@@ -1426,25 +1425,27 @@ const runtimeMessageRoutes = Object.freeze({
     'No se pudo preparar el reporte de turno.'
   ),
   [RUNTIME_MESSAGES.SCORES_OPTIONS_REQUEST]: runtimeRoute(
-    message => handleScoresOptionsRequest({ currentEncId: message.currentEncId }),
+    (message, sender) => handleScoresOptionsRequest({ currentEncId: message.currentEncId, sender }),
     'No se pudieron cargar los instrumentos clínicos.'
   ),
   [RUNTIME_MESSAGES.SCORE_FORM_REQUEST]: runtimeRoute(
-    message =>
+    (message, sender) =>
       handleScoreFormRequest({
         batchId: message.batchId,
         encId: message.encId,
         instrument: message.instrument,
+        sender,
       }),
     'No se pudo cargar el formulario clínico.'
   ),
   [RUNTIME_MESSAGES.SCORE_SAVE_REQUEST]: runtimeRoute(
-    message =>
+    (message, sender) =>
       handleScoreSaveRequest({
         batchId: message.batchId,
         encId: message.encId,
         instrument: message.instrument,
         answers: message.answers,
+        sender,
       }),
     'No se pudo completar el guardado del instrumento.'
   ),

@@ -11,13 +11,19 @@ const backgroundSource = readFileSync(path.resolve('extension/background.js'), '
 
 type RuntimeDependencies = Record<string, unknown>;
 type RuntimeApi = {
+  handleOptionsRequest: (request: Record<string, unknown>) => Promise<Record<string, unknown>>;
   handleCudyrCategoriesRequest: () => Promise<Record<string, unknown>>;
   handleFormRequest: (request: {
     batchId: string;
     encId: string;
     instrument: string;
+    sender?: Record<string, unknown>;
   }) => Promise<Record<string, unknown>>;
-  readScoresBatch: (batchId: string, encId: string) => Promise<Record<string, unknown>>;
+  readScoresBatch: (
+    batchId: string,
+    encId: string,
+    sender?: Record<string, unknown>
+  ) => Promise<Record<string, unknown>>;
 };
 
 const loadFactory = () => {
@@ -76,7 +82,136 @@ const gestionCamasRecord = {
   token: 'fixture',
 };
 
+const sender = { tab: { id: 5, url: 'https://hhr-entorno-prueba.netlify.app/' } };
+const sessionIdentity = (info: Record<string, unknown>) =>
+  JSON.stringify(
+    [info.apiOrigin, info.facId, info.practitionerId, info.practitionerRoleId].map(value =>
+      String(value || '')
+    )
+  );
+
 describe('clinical Scores read runtime owner', () => {
+  it.each([
+    ['practitionerId', '78'],
+    ['practitionerRoleId', '89'],
+    ['facId', '1343'],
+    ['apiOrigin', 'https://other.example.invalid'],
+    ['token', 'renewed-synthetic-token'],
+  ])(
+    'binds the actual options batch and revalidates %s before form access',
+    async (field, value) => {
+      const info = {
+        apiOrigin: 'https://example.invalid',
+        facId: '1342',
+        practitionerId: '77',
+        practitionerRoleId: '88',
+        identityVerified: true,
+        role: 'Enfermera',
+        token: 'synthetic-token',
+      };
+      let liveInfo = info;
+      const stored: Record<string, unknown> = {};
+      const getFichaFetchInfo = vi.fn(async () => ({ info: liveInfo }));
+      const dependencies = createDependencies({
+        chrome: {
+          storage: {
+            session: {
+              set: vi.fn(async (values: Record<string, unknown>) => {
+                Object.assign(stored, values);
+              }),
+              get: vi.fn(async () => stored),
+            },
+          },
+        },
+        getFichaFetchInfo,
+        hasFichaClaim: vi.fn(() => true),
+        fetchActiveHospitalizedPatients: vi.fn(async () => ({
+          patients: [{ encounterId: '901' }],
+        })),
+      });
+      const runtime = loadFactory().create(dependencies);
+      const options = await runtime.handleOptionsRequest({ currentEncId: '901', sender });
+      expect(options.ok).toBe(true);
+      const batchId = String(options.batchId);
+      expect(stored[`hhr-scores-batch-${batchId}`]).toMatchObject({
+        senderTabId: 5,
+        sessionIdentity: sessionIdentity(info),
+      });
+      expect(JSON.stringify(stored)).not.toContain('synthetic-token');
+      liveInfo = { ...info, [field]: value };
+      const result = await runtime.handleFormRequest({
+        batchId,
+        encId: '901',
+        instrument: 'BRADEN',
+        sender,
+      });
+      expect(getFichaFetchInfo).toHaveBeenLastCalledWith(sender);
+      if (field === 'token') {
+        expect(dependencies.verifyEncounterStillHospitalized).toHaveBeenCalledWith('901', liveInfo);
+      } else {
+        expect(result.error).toContain('sesión clínica cambió');
+        expect(dependencies.verifyEncounterStillHospitalized).not.toHaveBeenCalled();
+      }
+    }
+  );
+
+  it.each([undefined, { tab: { id: 6 } }])(
+    'rejects a different or missing sender before resolving any session',
+    async otherSender => {
+      const batchId = '12345678-1234-1234-1234-123456789012';
+      const getFichaFetchInfo = vi.fn();
+      const runtime = loadFactory().create(
+        createDependencies({
+          getFichaFetchInfo,
+          chrome: {
+            storage: {
+              session: {
+                get: vi.fn(async () => ({
+                  [`hhr-scores-batch-${batchId}`]: {
+                    createdAt: 1_000_000,
+                    senderTabId: 5,
+                    patients: [{ encounterId: '901' }],
+                  },
+                })),
+                set: vi.fn(),
+              },
+            },
+          },
+        })
+      );
+      expect((await runtime.readScoresBatch(batchId, '901', otherSender)).error).toContain(
+        'esta pestaña'
+      );
+      expect(getFichaFetchInfo).not.toHaveBeenCalled();
+    }
+  );
+
+  it('fails closed for a pre-upgrade batch with no identity binding', async () => {
+    const batchId = '12345678-1234-1234-1234-123456789012';
+    const runtime = loadFactory().create(
+      createDependencies({
+        getFichaFetchInfo: vi.fn(async () => ({ info: {} })),
+        chrome: {
+          storage: {
+            session: {
+              get: vi.fn(async () => ({
+                [`hhr-scores-batch-${batchId}`]: {
+                  createdAt: 1_000_000,
+                  senderTabId: 5,
+                  patients: [{ encounterId: '901' }],
+                },
+              })),
+              set: vi.fn(),
+            },
+          },
+        },
+      })
+    );
+    expect((await runtime.readScoresBatch(batchId, '901', sender)).error).toContain(
+      'sesión clínica cambió'
+    );
+  });
+
   it('loads before background orchestration, fails closed and removes the former inline owner', () => {
     const startup = backgroundSource.slice(0, backgroundSource.indexOf('const REPORT_FILE'));
 
@@ -315,23 +450,32 @@ describe('clinical Scores read runtime owner', () => {
   it('preserves the 30-minute batch TTL and encounter allowlist', async () => {
     const batchId = '12345678-1234-1234-1234-123456789012';
     const key = `hhr-scores-batch-${batchId}`;
+    const info = {
+      practitionerId: '77',
+      practitionerRoleId: '88',
+      facId: '1342',
+      apiOrigin: 'https://example.invalid',
+    };
     const get = vi.fn(async () => ({
       [key]: {
         createdAt: 1_000_000 - 30 * 60 * 1000,
+        senderTabId: sender.tab.id,
+        sessionIdentity: sessionIdentity(info),
         patients: [{ encounterId: '901', hospitalDepartmentId: '44' }],
       },
     }));
     const runtime = loadFactory().create(
       createDependencies({
         chrome: { storage: { session: { get, set: vi.fn(async () => undefined) } } },
+        getFichaFetchInfo: vi.fn(async () => ({ info })),
       })
     );
 
-    await expect(runtime.readScoresBatch(batchId, '901')).resolves.toMatchObject({
+    await expect(runtime.readScoresBatch(batchId, '901', sender)).resolves.toMatchObject({
       patient: { encounterId: '901' },
       storageKey: key,
     });
-    await expect(runtime.readScoresBatch(batchId, '902')).resolves.toEqual({
+    await expect(runtime.readScoresBatch(batchId, '902', sender)).resolves.toEqual({
       error: 'El paciente no pertenece a esta lista activa.',
     });
 
@@ -341,7 +485,7 @@ describe('clinical Scores read runtime owner', () => {
         now: vi.fn(() => 1_000_001),
       })
     );
-    await expect(expired.readScoresBatch(batchId, '901')).resolves.toEqual({
+    await expect(expired.readScoresBatch(batchId, '901', sender)).resolves.toEqual({
       error: 'La sesión de Scores expiró. Actualiza el módulo.',
     });
   });
@@ -404,7 +548,12 @@ describe('clinical Scores read runtime owner', () => {
           storage: {
             session: {
               get: vi.fn(async () => ({
-                [key]: { createdAt: 1_000_000, patients: [{ encounterId: '901' }] },
+                [key]: {
+                  createdAt: 1_000_000,
+                  senderTabId: sender.tab.id,
+                  sessionIdentity: sessionIdentity(info),
+                  patients: [{ encounterId: '901' }],
+                },
               })),
               set: vi.fn(async () => undefined),
             },
@@ -422,6 +571,7 @@ describe('clinical Scores read runtime owner', () => {
       batchId,
       encId: '901',
       instrument: 'DOWNTON',
+      sender,
     });
 
     expect(result).toMatchObject({

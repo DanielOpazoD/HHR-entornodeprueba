@@ -19,6 +19,7 @@ type SaveRequest = {
   encId: string;
   instrument: string;
   answers: Record<string, string | number>;
+  sender?: Record<string, unknown>;
 };
 type RuntimeApi = {
   handleSaveRequest: (request: SaveRequest) => Promise<Record<string, unknown>>;
@@ -83,7 +84,6 @@ const createDependencies = (overrides: RuntimeDependencies = {}) => ({
       .HhrClinicalScoreWriteModel;
   })(),
   fetchWithTimeout: vi.fn(async () => response()),
-  getFichaFetchInfo: vi.fn(async () => ({ info: sessionInfo })),
   fetchFichaClaims: vi.fn(async () => ({ claims: [] })),
   hasFichaClaim: vi.fn(() => true),
   verifyEncounterStillHospitalized: vi.fn(async () => ({
@@ -111,7 +111,7 @@ const createDependencies = (overrides: RuntimeDependencies = {}) => ({
       results: [{ minScore: 0, maxScore: 5, valueId: '99', valueName: 'Riesgo bajo' }],
     },
   })),
-  readScoresBatch: vi.fn(async () => ({ patient: { ...patient } })),
+  readScoresBatch: vi.fn(async () => ({ patient: { ...patient }, info: sessionInfo })),
   fetchScaleHistoryEvents: vi.fn(async () => ({ events: [] })),
   fetchEvaluationForms: vi.fn(async () => ({ forms: [] })),
   withClinicalWriteLock: vi.fn(
@@ -134,6 +134,31 @@ const createDependencies = (overrides: RuntimeDependencies = {}) => ({
 });
 
 describe('clinical Scores write runtime owner', () => {
+  it('propagates the real save route sender and rejects a changed batch before any POST', async () => {
+    const sender = { tab: { id: 5, url: 'https://hhr-entorno-prueba.netlify.app/' } };
+    const readScoresBatch = vi.fn(async () => ({ error: 'La sesión clínica cambió.' }));
+    const dependencies = createDependencies({ readScoresBatch });
+    const runtime = loadOwner().create(dependencies);
+    const start = backgroundSource.indexOf('[RUNTIME_MESSAGES.SCORE_SAVE_REQUEST]: runtimeRoute(');
+    const end = backgroundSource.indexOf('[RUNTIME_MESSAGES.CLINICAL_WRITE_ACK]', start);
+    const context = vm.createContext({
+      RUNTIME_MESSAGES: { SCORE_SAVE_REQUEST: 'save' },
+      runtimeRoute: (handle: unknown) => handle,
+      handleScoreSaveRequest: runtime.handleSaveRequest,
+    });
+    const routes = vm.runInContext('({' + backgroundSource.slice(start, end) + '})', context);
+    const request = {
+      batchId: 'batch-1',
+      encId: '901',
+      instrument: 'CUDYR',
+      answers: cudyrAnswers,
+    };
+    expect(await routes.save(request, sender)).toEqual({ error: 'La sesión clínica cambió.' });
+    expect(readScoresBatch).toHaveBeenCalledWith('batch-1', '901', sender);
+    expect(dependencies.fetchWithTimeout).not.toHaveBeenCalled();
+    expect(dependencies.verifyEncounterStillHospitalized).not.toHaveBeenCalled();
+  });
+
   it('loads fail-closed before background wiring and removes the inline write owner', () => {
     const startup = backgroundSource.slice(0, backgroundSource.indexOf('const REPORT_FILE'));
 

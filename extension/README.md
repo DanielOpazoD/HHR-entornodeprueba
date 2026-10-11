@@ -342,6 +342,9 @@ la tabla de fármacos de Gestión de cuidados.
   entrega Eloísa y cargan dinámicamente el formulario oficial. CUDYR usa su formulario clínico oficial
   y muestra explícitamente solo el último valor, porque el servicio disponible no expone historial.
   Los tres instrumentos exigen el permiso clínico de ingreso antes de habilitar una escritura.
+  El lote pertenece a la pestaña que abrió Scores y conserva origen API, establecimiento, profesional
+  y rol (sin token). Formularios y guardados releen la sesión y rechazan cambios de identidad; un lote
+  anterior sin esta vinculación exige actualizar Scores. Renovar el token no cambia la identidad.
 - Toda escritura requiere una identidad clínica verificable en la sesión. El estado **Sincronizado en
   Eloísa** aparece únicamente después de releer y comprobar el valor guardado; ante una respuesta
   ambigua se conserva una protección persistente por paciente e instrumento hasta confirmar su estado,
