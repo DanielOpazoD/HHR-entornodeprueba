@@ -89,3 +89,16 @@ other chunk limits remain unchanged. Keep the size warning visible and run
 `build`, `check:bundle-budget` and startup performance checks before release.
 Rollback: move the specialty entry back behind the deferred census table and
 restore the 627,000-byte ceiling if the header change regresses startup.
+
+## RN y recuperación del archivo CUDYR (2026-10-10)
+
+Owner: census/sync. The patient contract reuses immutable optional-string Zod
+validators to avoid duplicating the same validator in the authenticated shell.
+No accepted values or validation behavior change. Server-verified CUDYR archive
+recovery and shared report facts stay available as on-demand assets and are
+excluded from install-time precache, like their online-only report and sync owners.
+Offline clinical writes and their durable outbox remain cached. All byte ceilings
+remain unchanged. Validate with schema tests, `pwaPrecachePolicy`, `build`,
+`check:bundle-budget`, `check:chunk-graph` and preview/runtime performance checks.
+Rollback: restore the two precache entries and the repeated field constructors;
+archive payloads and Firebase records require no migration.

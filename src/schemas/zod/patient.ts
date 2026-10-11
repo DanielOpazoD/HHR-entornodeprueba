@@ -9,6 +9,10 @@ import {
   resolveLegacyNameParts,
 } from './helpers';
 
+// Zod schemas are immutable; reuse these identical field validators across the patient contract.
+const OptionalStringSchema = z.string().optional();
+const NullableOptionalStringSchema = nullableOptional(z.string());
+
 export const BedTypeSchema = z.nativeEnum(BedType) as z.ZodType<BedType>;
 export const PatientStatusSchema = z.nativeEnum(PatientStatus);
 
@@ -43,9 +47,9 @@ export const CudyrScoreSchema = z.object({
 });
 
 export const DeviceInfoSchema = z.object({
-  installationDate: nullableOptional(z.string()),
-  removalDate: nullableOptional(z.string()),
-  note: nullableOptional(z.string()),
+  installationDate: NullableOptionalStringSchema,
+  removalDate: NullableOptionalStringSchema,
+  note: NullableOptionalStringSchema,
 });
 
 /**
@@ -59,8 +63,8 @@ const dischargeVerificationStateSchema = z
 export const DischargeVerificationSchema = z.object({
   medicalEpicrisis: dischargeVerificationStateSchema,
   nursingEpicrisis: dischargeVerificationStateSchema,
-  encounterId: nullableOptional(z.string()),
-  registeredAt: nullableOptional(z.string()),
+  encounterId: NullableOptionalStringSchema,
+  registeredAt: NullableOptionalStringSchema,
 });
 
 export const DeviceDetailsSchema = z.preprocess(
@@ -89,7 +93,7 @@ export const ClinicalEventSchema = z
     id: z.string(),
     name: z.string(),
     date: z.string(),
-    note: nullableOptional(z.string()),
+    note: NullableOptionalStringSchema,
     createdAt: z.string(),
   })
   .passthrough();
@@ -97,7 +101,7 @@ export const ClinicalEventSchema = z
 export const FhirResourceSchema = z
   .object({
     resourceType: z.string(),
-    id: nullableOptional(z.string()),
+    id: NullableOptionalStringSchema,
     meta: nullableOptional(
       z.object({
         profile: nullableOptional(z.array(z.string())),
@@ -110,18 +114,18 @@ const MedicalHandoffAuditActorSchema = z.object({
   uid: z.string(),
   displayName: z.string(),
   email: z.string(),
-  role: nullableOptional(z.string()),
+  role: NullableOptionalStringSchema,
 });
 
 const MedicalHandoffAuditSchema = z.object({
-  lastSpecialistUpdateAt: nullableOptional(z.string()),
+  lastSpecialistUpdateAt: NullableOptionalStringSchema,
   lastSpecialistUpdateBy: nullableOptional(MedicalHandoffAuditActorSchema),
   lastSpecialistUpdateSpecialty: nullableOptional(z.union([z.nativeEnum(Specialty), z.string()])),
-  originalNoteAt: nullableOptional(z.string()),
+  originalNoteAt: NullableOptionalStringSchema,
   originalNoteBy: nullableOptional(MedicalHandoffAuditActorSchema),
   currentStatus: z.enum(['updated_by_specialist', 'confirmed_current']).optional(),
-  currentStatusDate: nullableOptional(z.string()),
-  currentStatusAt: nullableOptional(z.string()),
+  currentStatusDate: NullableOptionalStringSchema,
+  currentStatusAt: NullableOptionalStringSchema,
   currentStatusBy: nullableOptional(MedicalHandoffAuditActorSchema),
   currentStatusSpecialty: nullableOptional(z.union([z.nativeEnum(Specialty), z.string()])),
 });
@@ -130,27 +134,27 @@ const MedicalHandoffEntrySchema = z.object({
   id: z.string(),
   specialty: z.union([z.nativeEnum(Specialty), z.string()]),
   note: z.string().default(''),
-  originalNoteAt: nullableOptional(z.string()),
+  originalNoteAt: NullableOptionalStringSchema,
   originalNoteBy: nullableOptional(MedicalHandoffAuditActorSchema),
-  updatedAt: nullableOptional(z.string()),
+  updatedAt: NullableOptionalStringSchema,
   updatedBy: nullableOptional(MedicalHandoffAuditActorSchema),
   currentStatus: z.enum(['updated_by_specialist', 'confirmed_current']).optional(),
-  currentStatusDate: nullableOptional(z.string()),
-  currentStatusAt: nullableOptional(z.string()),
+  currentStatusDate: NullableOptionalStringSchema,
+  currentStatusAt: NullableOptionalStringSchema,
   currentStatusBy: nullableOptional(MedicalHandoffAuditActorSchema),
 });
 
 const ClinicalSyncFactCheckpointSchema = z.object({
   identity: z.string(),
   fingerprint: z.string(),
-  watermark: nullableOptional(z.string()),
+  watermark: NullableOptionalStringSchema,
 });
 
 const ClinicalSyncSourceCheckpointSchema = z.object({
-  watermark: nullableOptional(z.string()),
-  lastFullValidationAt: nullableOptional(z.string()),
+  watermark: NullableOptionalStringSchema,
+  lastFullValidationAt: NullableOptionalStringSchema,
   lastFullValidationLookbackDays: nullableOptional(z.number().int().positive()),
-  lastFullValidationAttemptAt: nullableOptional(z.string()),
+  lastFullValidationAttemptAt: NullableOptionalStringSchema,
   lastFullValidationAttemptLookbackDays: nullableOptional(z.number().int().positive()),
   packedFacts: z.array(z.string()).optional(),
   facts: z.array(ClinicalSyncFactCheckpointSchema).optional(),
@@ -175,23 +179,23 @@ export const PatientDataSchema: z.ZodType<PatientData, z.ZodTypeDef, unknown> = 
     .object({
       bedId: z.string().default(''),
       isBlocked: z.boolean().default(false),
-      blockedReason: nullableOptional(z.string()),
+      blockedReason: NullableOptionalStringSchema,
       bedMode: z.enum(['Cama', 'Cuna']).default('Cama'),
-      neonatalMaternalRut: nullableOptional(z.string()).catch(undefined),
+      neonatalMaternalRut: NullableOptionalStringSchema.catch(undefined),
       neonatalPlacementDecision: nullableOptional(
         z.object({
           clinicalEpisodeId: z.string().min(1),
           kind: z.enum(['mother', 'independent']),
           bedId: z.string().min(1),
-          parentEpisodeId: z.string().optional(),
+          parentEpisodeId: OptionalStringSchema,
           effectiveAt: z.string().datetime({ offset: true }),
           reviewedAt: z.string().datetime({ offset: true }),
           reviewedBy: z.string(),
-          sourcePlacementKey: z.string().optional(),
-          sourceService: z.string().optional(),
-          sourceRun: z.string().optional(),
+          sourcePlacementKey: OptionalStringSchema,
+          sourceService: OptionalStringSchema,
+          sourceRun: OptionalStringSchema,
           sourceRunIsMaternal: z.boolean().optional(),
-          maternalRut: z.string().optional(),
+          maternalRut: OptionalStringSchema,
         })
       ).catch(undefined),
       hasCompanionCrib: z.boolean().default(false),
@@ -208,7 +212,7 @@ export const PatientDataSchema: z.ZodType<PatientData, z.ZodTypeDef, unknown> = 
       rut: z.string().default(''),
       documentType: nullableOptional(emptyStringToUndefined(z.enum(['RUT', 'Pasaporte']))),
       age: z.string().default(''),
-      birthDate: nullableOptional(z.string()),
+      birthDate: NullableOptionalStringSchema,
       biologicalSex: nullableOptional(
         emptyStringToUndefined(z.enum(['Masculino', 'Femenino', 'Indeterminado']))
       ),
@@ -218,24 +222,24 @@ export const PatientDataSchema: z.ZodType<PatientData, z.ZodTypeDef, unknown> = 
       admissionOrigin: nullableOptional(
         emptyStringToUndefined(z.enum(['CAE', 'APS', 'Urgencias', 'Pabellón', 'Otro']))
       ),
-      admissionOriginDetails: nullableOptional(z.string()),
+      admissionOriginDetails: NullableOptionalStringSchema,
       origin: nullableOptional(
         emptyStringToUndefined(z.enum(['Residente', 'Turista Nacional', 'Turista Extranjero']))
       ),
       isRapanui: nullableOptional(z.boolean()),
       pathology: z.string().default(''),
-      snomedCode: nullableOptional(z.string()),
-      cie10Code: nullableOptional(z.string()),
-      cie10Description: nullableOptional(z.string()),
-      diagnosisComments: nullableOptional(z.string()),
-      treatingPhysicianId: nullableOptional(z.string()),
-      treatingPhysicianName: nullableOptional(z.string()),
+      snomedCode: NullableOptionalStringSchema,
+      cie10Code: NullableOptionalStringSchema,
+      cie10Description: NullableOptionalStringSchema,
+      diagnosisComments: NullableOptionalStringSchema,
+      treatingPhysicianId: NullableOptionalStringSchema,
+      treatingPhysicianName: NullableOptionalStringSchema,
       dismissedTreatingPhysician: nullableOptional(
         z.object({
           episodeId: z.string().min(1),
-          practitionerId: nullableOptional(z.string()),
-          name: nullableOptional(z.string()),
-          displayName: nullableOptional(z.string()),
+          practitionerId: NullableOptionalStringSchema,
+          name: NullableOptionalStringSchema,
+          displayName: NullableOptionalStringSchema,
         })
       ),
       specialty: SpecialtySchema.default(Specialty.EMPTY),
@@ -271,7 +275,7 @@ export const PatientDataSchema: z.ZodType<PatientData, z.ZodTypeDef, unknown> = 
       status: z.nativeEnum(PatientStatus).default(PatientStatus.EMPTY),
       admissionDate: z.string().default(''),
       admissionTime: z.string().default(''),
-      clinicalEpisodeId: nullableOptional(z.string()),
+      clinicalEpisodeId: NullableOptionalStringSchema,
       eloisaManualImportAudit: nullableOptional(
         z.object({
           method: z.literal('eloisa_manual_code'),
@@ -292,19 +296,19 @@ export const PatientDataSchema: z.ZodType<PatientData, z.ZodTypeDef, unknown> = 
       isUPC: z.boolean().default(false),
       upcChecklist: nullableOptional(UpcChecklistSchema).catch(undefined),
       isIsolated: nullableOptional(z.boolean()),
-      isolationType: nullableOptional(z.string()),
-      isolationMicroorganism: nullableOptional(z.string()),
+      isolationType: NullableOptionalStringSchema,
+      isolationMicroorganism: NullableOptionalStringSchema,
       dischargeVerification: nullableOptional(DischargeVerificationSchema).catch(undefined),
-      location: nullableOptional(z.string()),
+      location: NullableOptionalStringSchema,
       cudyr: nullableOptional(CudyrScoreSchema),
-      handoffNote: nullableOptional(z.string()),
-      handoffNoteDayShift: nullableOptional(z.string()),
-      handoffNoteNightShift: nullableOptional(z.string()),
-      medicalHandoffNote: nullableOptional(z.string()),
+      handoffNote: NullableOptionalStringSchema,
+      handoffNoteDayShift: NullableOptionalStringSchema,
+      handoffNoteNightShift: NullableOptionalStringSchema,
+      medicalHandoffNote: NullableOptionalStringSchema,
       medicalHandoffAudit: nullableOptional(MedicalHandoffAuditSchema),
       medicalHandoffEntries: nullableOptional(z.array(MedicalHandoffEntrySchema)),
       deliveryRoute: nullableOptional(emptyStringToUndefined(z.enum(['Vaginal', 'Cesárea']))),
-      deliveryDate: nullableOptional(z.string()),
+      deliveryDate: NullableOptionalStringSchema,
       deliveryCesareanLabor: nullableOptional(
         emptyStringToUndefined(z.enum(['Sin TdP', 'Con TdP']))
       ),
