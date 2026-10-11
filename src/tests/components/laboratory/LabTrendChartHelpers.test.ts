@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   formatLabTrendAxisDate,
   formatLabTrendValue,
+  groupVariablesByScale,
   resolveSharedReferenceBand,
 } from '@/features/laboratory/components/LabTrendChartHelpers';
 import type { LabTrendPoint } from '@/types/domain/labAnalyticsTypes';
@@ -58,5 +59,25 @@ describe('LabTrendChartHelpers clinical presentation', () => {
         incomplete: [point(12, 4, 14), { ...point(13, 4, 14), refMax: undefined }],
       })
     ).toBeNull();
+  });
+
+  it('splits each analyte by the unit of every point without converting values or ranges', () => {
+    const first = { ...point(1, 0, 0.5), unit: 'mg/dL', rawValue: '1' };
+    const second = { ...point(10, 0, 5), unit: 'mg/L', rawValue: '10' };
+    const groups = groupVariablesByScale({ PCR: [first, second] });
+    expect(groups).toEqual([
+      { unit: 'mg/dL', vars: { PCR: [first] } },
+      { unit: 'mg/L', vars: { PCR: [second] } },
+    ]);
+  });
+
+  it('keeps missing units separate while tolerating case and spacing aliases', () => {
+    const first = { ...point(12, 0, 20), unit: 'U/L' };
+    const alias = { ...point(13, 0, 20), unit: ' u/l ' };
+    const unknown = { ...point(14, 0, 20), unit: '' };
+    expect(groupVariablesByScale({ enzyme: [first, alias, unknown], empty: [] })).toEqual([
+      { unit: 'U/L', vars: { enzyme: [first, alias] } },
+      { unit: '', vars: { enzyme: [unknown] } },
+    ]);
   });
 });

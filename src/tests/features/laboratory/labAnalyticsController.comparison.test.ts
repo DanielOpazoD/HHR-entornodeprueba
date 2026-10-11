@@ -2,6 +2,7 @@ import './labAnalyticsController.testSupport';
 
 import { describe, expect, it } from 'vitest';
 import { buildAnalysisData } from '@/features/laboratory/controllers/labAnalyticsController';
+import { groupVariablesByScale } from '@/features/laboratory/components/LabTrendChartHelpers';
 import { buildDetail, buildExam, buildFinding } from './labAnalyticsController.testSupport';
 
 describe('labAnalyticsController comparison output', () => {
@@ -79,6 +80,53 @@ describe('labAnalyticsController comparison output', () => {
 
     expect(result.comparison.Hemoglobina).toBeDefined();
     expect(result.comparison.Baciliformes).toBeUndefined();
+  });
+
+  it.each(['10:00:59', '10:00:01'])('preserves distinct orders in the same minute: %s', time => {
+    const first = buildExam({ id: '200', link: 'http://example.com/200', time: '10:00:01' });
+    const second = buildExam({ id: '100', link: 'http://example.com/100', time });
+    const result = buildAnalysisData(
+      [
+        buildDetail({ url: 'http://example.com/100', findings: [buildFinding({ result: '9' })] }),
+        buildDetail({ url: 'http://example.com/200', findings: [buildFinding({ result: '13' })] }),
+        buildDetail({ url: 'http://example.com/200', findings: [buildFinding({ result: '13' })] }),
+      ],
+      [first, second]
+    );
+    expect(Object.values(result.comparison.Hemoglobina).map(row => row.result)).toEqual([
+      '9',
+      '13',
+    ]);
+    expect(result.examDates).toHaveLength(2);
+    expect(result.examDates).toContain(`06/04/2026 ${time} (#100)`);
+    expect(result.examDates).toContain('06/04/2026 10:00:01 (#200)');
+    const trend = result.trendGroups.find(group => group.variables.Hemoglobina)!.variables
+      .Hemoglobina;
+    expect(trend).toHaveLength(2);
+    expect(new Set(trend.map(point => point.date)).size).toBe(2);
+    if (time !== first.time) expect(result.examDates[0]).toBe('06/04/2026 10:00:01 (#200)');
+  });
+
+  it('splits the chart output when the same analyte changes unit between orders', () => {
+    const result = buildAnalysisData(
+      [
+        buildDetail({
+          url: 'http://example.com/100',
+          findings: [buildFinding({ analysis: 'PCR', result: '1', unit: 'mg/dL' })],
+        }),
+        buildDetail({
+          url: 'http://example.com/200',
+          findings: [buildFinding({ analysis: 'PCR', result: '10', unit: 'mg/L' })],
+        }),
+      ],
+      [examWithTime, examWithTime2]
+    );
+    const groups = result.trendGroups.flatMap(group => groupVariablesByScale(group.variables));
+    expect(groups).toHaveLength(2);
+    expect(new Set(groups.map(group => group.unit))).toEqual(new Set(['mg/dL', 'mg/L']));
+    expect(
+      groups.flatMap(group => Object.values(group.vars).flat()).map(point => point.value)
+    ).toEqual([10, 1]);
   });
 
   it('orders Hemoglobina before Creatinina before ASAT/GOT', () => {
