@@ -10,7 +10,7 @@ import { RayenImportFlowStatus } from './RayenImportFlowStatus';
 import { RayenNursingShiftProposalModal } from './RayenNursingShiftProposalModal';
 import { RayenConnectionMonitor } from './RayenConnectionMonitor';
 import { useSyncQueueMonitor } from '@/hooks/useSyncQueueMonitor';
-import { buildSyncQueueChipModel } from './syncQueueStatusPresentation';
+import { hasLocalSyncAttention } from './localSyncPresentation';
 import { RayenSyncQueueDetails, RayenSyncStatusLine } from './RayenSyncQueueDetails';
 import { presentRayenSyncRecovery, rayenPrimaryActionLabel } from './rayenSyncPresentation';
 import { formatLastSync } from './formatRayenLastSync';
@@ -55,10 +55,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
   const [recoveryBusy, setRecoveryBusy] = React.useState(false);
   const [connectionMonitorOpen, setConnectionMonitorOpen] = React.useState(false);
   const queue = useSyncQueueMonitor({ operationLimit: 12 });
-  const queueAttention =
-    buildSyncQueueChipModel(queue.stats).tone !== 'hidden' ||
-    queue.stats.retrying > 0 ||
-    queue.stats.readState === 'unavailable';
+  const queueAttention = hasLocalSyncAttention(queue.stats);
   const [staffingReviewOpen, setStaffingReviewOpen] = React.useState(false);
   const historyTriggerRef = React.useRef<HTMLButtonElement>(null);
   const syncPreflightInFlightRef = React.useRef(false);

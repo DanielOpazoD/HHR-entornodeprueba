@@ -1,3 +1,7 @@
+import {
+  REVIEWED_AT as at,
+  unassociatedNeonatalSources as sources,
+} from './neonatalPlacementReview.fixtures';
 import { describe, expect, it } from 'vitest';
 import { reconcileCensus } from '@/features/rayen-import';
 import { resolveNeonatalPlacements } from '@/features/rayen-import/domain/neonatalPlacementReview';
@@ -6,24 +10,12 @@ import { assertNeonatalSourceChangesReviewed } from '@/features/rayen-import/dom
 import { createEmptyCensusImportDiff } from '@/features/rayen-import/domain/censusImportDiffFactory';
 import {
   encounter,
-  newborn,
   recordWith,
   seed,
   snapshotOf,
   REFERENCE,
 } from './clinicalCribDischargePromotion.fixtures';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-const at = '2026-07-08T20:00:00-06:00';
-const sources = () => {
-  const mother = encounter(),
-    child = {
-      ...newborn(),
-      run: '222222222',
-      firstGivenName: 'RN de Desconocida',
-      firstFamilyName: 'Otra',
-    };
-  return { mother, child };
-};
 
 describe('RN review concurrency protection', () => {
   it.each([false, true])(
