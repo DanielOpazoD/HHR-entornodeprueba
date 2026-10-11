@@ -92,6 +92,12 @@ Las curvas se construyen con tres contratos explícitos:
    como `7,28`.
 3. **Trazabilidad:** cada punto conserva el texto original y la sección del PDF. El tooltip muestra
    esa procedencia y el rango propio del análisis.
+4. **Unidad:** cada punto se agrupa por su unidad, incluso si un análisis cambia de unidad entre
+   órdenes. No se conectan valores de unidades distintas ni se infieren conversiones; una unidad
+   ausente permanece separada.
+5. **Orden:** si dos órdenes tienen la misma fecha y minuto, las columnas conservan la hora completa
+   y el ID de orden. Repetir el mismo detalle no duplica el punto. Las columnas únicas mantienen su
+   formato histórico `DD/MM/YYYY HH:MM`.
 
 Una banda verde de referencia sólo se dibuja cuando todas las variables del subgráfico comparten
 exactamente el mismo rango. Las líneas son rectas entre mediciones; no se suavizan valores clínicos.

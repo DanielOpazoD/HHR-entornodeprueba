@@ -86,9 +86,12 @@ export const groupVariablesByScale = (
   const byUnit: Record<string, Record<string, LabTrendPoint[]>> = {};
 
   for (const [name, points] of Object.entries(variables)) {
-    const unit = (points[0]?.unit || '').toLowerCase().replace(/\s/g, '');
-    if (!byUnit[unit]) byUnit[unit] = {};
-    byUnit[unit][name] = points;
+    for (const point of points) {
+      const unit = (point.unit || '').toLowerCase().replace(/\s/g, '');
+      if (!byUnit[unit]) byUnit[unit] = {};
+      if (!byUnit[unit][name]) byUnit[unit][name] = [];
+      byUnit[unit][name].push(point);
+    }
   }
 
   const result: UnitVariableGroup[] = [];
