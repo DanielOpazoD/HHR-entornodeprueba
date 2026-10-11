@@ -1,5 +1,9 @@
+import {
+  REVIEWED_AT as at,
+  applyNeonatalReview as apply,
+} from './neonatalPlacementReview.fixtures';
 import { describe, expect, it } from 'vitest';
-import { applyCensusImportDiff, reconcileCensus } from '@/features/rayen-import';
+import { reconcileCensus } from '@/features/rayen-import';
 import { resolveNeonatalPlacements } from '@/features/rayen-import/domain/neonatalPlacementReview';
 import { requiresReview } from '@/features/rayen-import/domain/censusReconciliationPredicates';
 import {
@@ -10,14 +14,6 @@ import {
   snapshotOf,
   REFERENCE,
 } from './clinicalCribDischargePromotion.fixtures';
-const at = '2026-07-08T20:00:00-06:00';
-const apply = (current: ReturnType<typeof recordWith>, diff: ReturnType<typeof reconcileCensus>) =>
-  applyCensusImportDiff(current, diff, {
-    now: new Date(at),
-    idFactory: () => 'review',
-    syncRunId: 'review',
-    actor: 'Nurse',
-  }).record;
 
 describe('reviewed maternal identity correction', () => {
   it('accepts a newly registered personal RUN without repeating the accepted bed review', () => {
