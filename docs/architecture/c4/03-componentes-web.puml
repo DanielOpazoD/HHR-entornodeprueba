@@ -1,0 +1,60 @@
+@startuml 03-componentes-web
+!include  https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+!include style.puml
+LAYOUT_TOP_DOWN()
+title HHR · Componentes principales del cliente web (C4 / nivel 3)
+
+Person(staff, "Personal hospitalario", "Navegador")
+Container_Boundary(web, "Aplicación web / PWA · src/") {
+  Component(shell, "Shell, acceso y sesión", "React / providers", "App.tsx; features/auth; context; shared/access")
+  Component(features, "Módulos clínicos y operativos", "src/features/", "Census, handoff, Rayen import, laboratory, clinical-documents; CUDYR, recetas, heridas, backup, analytics y admin")
+  Component(queries, "Estado de consultas / comandos de día", "TanStack Query · src/hooks/", "Consultas, mutaciones, suscripciones y controllers de DailyRecord; no es persistencia")
+  Component(domain, "Decisiones y contratos de dominio", "src/domain/ + dominios por feature", "Identidad / episodio; camas; movimientos; validación de payloads y resultados")
+  Component(ports, "Casos de uso y ports", "src/application/", "Ports de repositorio; wiring en RepositoryContext. No exige capas vacías a cada feature.")
+  Component(repos, "Repositorios y reconciliación", "src/services/repositories/", "Lectura, escritura, sync y golden path del registro; ClinicalDocumentRepository y otros repositorios")
+  Component(sync, "Motor de outbox", "src/services/storage/sync/", "syncQueueEngine; store Dexie; transporte Firestore / callable; reintentos y confirmación")
+  Component(adapters, "Adaptadores Firebase y storage", "services/storage + firebase-runtime", "Lecturas, writes directos o con autoridad; runtime Firestore, Functions y Storage")
+  Component(integration, "Clientes de integraciones", "Features + src/services/", "Puentes Rayen / Syslab; radiología; IA; Gmail / Drive; exportadores")
+  Component(localStore, "Storage local", "services/storage/indexeddb/", "Persistencia de registros y cola; IndexedDB / Dexie")
+}
+ContainerDb(local, "IndexedDB", "Navegador", "Registros y tareas locales")
+ContainerDb(firestore, "Firestore clínico", "Firebase", "Autoridad remota", $tags="managed")
+Container(auth, "Firebase Auth", "Firebase", "Sesión e identidad", $tags="managed")
+Container(cf, "Cloud Functions", "Firebase", "Autoridad / operaciones especializadas")
+ContainerDb(storage, "Firebase Storage", "Firebase", "Archivos", $tags="managed")
+Container(ext, "Extensión Chrome", "MV3", "Rayen / Syslab")
+Container(nf, "Netlify Functions", "HTTP", "Proxies / IA / email")
+System_Ext(google, "Google Drive", "Exportación OAuth")
+
+Rel(staff, shell, "Abre la aplicación")
+Rel(shell, features, "Monta vistas según acceso")
+Rel(shell, auth, "Usa la sesión", "Firebase SDK")
+Rel(features, queries, "Consulta / muta el registro diario")
+Rel(features, ports, "Ejecuta casos de uso del módulo")
+Rel(features, domain, "Aplica contratos y decisiones clínicas")
+Rel(queries, ports, "Consume el port dailyRecord")
+Rel(ports, repos, "Resuelve implementación inyectada")
+Rel(repos, domain, "Aplica consistencia / autoridad")
+Rel(repos, adapters, "Persiste / consulta remoto")
+Rel(repos, localStore, "Persiste / consulta local")
+Rel(repos, sync, "Encola según política")
+Rel(sync, localStore, "Store de tareas")
+Rel(sync, adapters, "Transporte + confirmación")
+Rel(localStore, local, "Lee / escribe", "Dexie")
+Rel(adapters, firestore, "Lee / escucha / escribe directo", "SDK + reglas")
+Rel(adapters, cf, "Deriva escrituras con autoridad", "HTTPS callable")
+Rel(adapters, storage, "Carga / descarga", "SDK + reglas")
+Rel(features, integration, "Solicita operaciones externas")
+Rel(integration, ext, "Captura / consultas", "postMessage")
+Rel(integration, nf, "Consume endpoints", "HTTP")
+Rel(integration, cf, "PDF / firma / exportación", "HTTPS callable")
+Rel(integration, google, "Exporta documentos", "API Drive", $tags="optional")
+
+note bottom of ports
+  Agregación de responsabilidades, no grafo exhaustivo de imports.
+  Las features también conservan controllers y servicios propios.
+  No todos los flujos atraviesan todas las cajas.
+end note
+SHOW_LEGEND()
+@enduml

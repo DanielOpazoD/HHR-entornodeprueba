@@ -130,6 +130,7 @@ Documentos útiles para contexto, pero no fuente primaria de reglas activas.
 
 Artefactos producidos por tooling o reportes automáticos. Son útiles para consulta, pero no son la fuente primaria de diseño.
 
+- [Mapa arquitectónico C4](architecture/c4/README.md) — SVG generados y fuentes PlantUML; snapshot por SHA, no reemplaza la guía canónica
 - `docs/dependency-debt.md` — snapshot generado; verificar su fecha y regenerar antes de evaluar
 - `docs/api/**`
 - `reports/**/*.md`

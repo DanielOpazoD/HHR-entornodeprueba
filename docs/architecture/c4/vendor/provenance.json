@@ -1,0 +1,25 @@
+{
+  "fetched_at": "2026-10-11T08:23:38.196206+00:00",
+  "files": {
+    "C4.puml": {
+      "url": "https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4.puml",
+      "sha256": "ab12c815f4a7d12e90e3583a0967ffb88c3617803810d5569b06e136d701afc6"
+    },
+    "C4_Context.puml": {
+      "url": "https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml",
+      "sha256": "7e0b039f1a669d7fc3d9f26e806e2387327781c92718764902ac30efe479ae47"
+    },
+    "C4_Container.puml": {
+      "url": "https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml",
+      "sha256": "219f235cd59307763aa00dfb8667d9c719c1fa1ab3f5e7b36cdc33ae3f363b84"
+    },
+    "C4_Component.puml": {
+      "url": "https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml",
+      "sha256": "c20a5cff063862cdb8d2955cca37e9225bf24f4b8b19bbca21774d5c7d3a5602"
+    },
+    "LICENSE": {
+      "url": "https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/LICENSE",
+      "sha256": "72b90d259fedc994910705546590d07ab5bc850581f89e5a4d96ee4052e6747f"
+    }
+  }
+}
