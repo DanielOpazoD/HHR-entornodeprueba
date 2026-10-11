@@ -3,10 +3,9 @@ name: Deploy Firebase Functions
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
-# Deploys the Firebase Cloud Functions in `functions/` to the
-# `hhr-pruebas` project on every push to `main` that touches
-# function-relevant code. Manual `workflow_dispatch` is also available for
-# emergency redeploys without a code change.
+# Deploys the exact main revision after ci-summary has passed. CI calls this
+# workflow only for Functions-related changes; manual retries use the same gate.
+# No deploy credentials are exposed until the preflight succeeds.
 #
 # ----------------------------------------------------------------------------
 # Required GitHub repo secret
@@ -36,31 +35,45 @@ env:
 # ----------------------------------------------------------------------------
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'functions/**'
-      - 'firebase.json'
-      - 'scripts/build-cudyr-source-parser.mjs'
-      - 'src/services/cudyr/cudyrSourceServerEntry.ts'
-      - 'src/services/cudyr/cudyrSupplementBinary.ts'
-      - 'src/services/cudyr/cudyrSupplementParser.ts'
-      - 'src/services/cudyr/cudyrCensusParser.ts'
-      - '.github/workflows/deploy-functions.yml'
-      - 'scripts/check-deployed-firebase-functions.mjs'
-      - 'scripts/check-firebase-function-regions.mjs'
-      - 'scripts/check-firebase-function-delete-result.mjs'
-      - 'scripts/list-firebase-function-targets.mjs'
+  workflow_call:
+    secrets:
+      FIREBASE_SERVICE_ACCOUNT_HHR:
+        required: true
   workflow_dispatch:
 
-# Avoid overlapping deploys; the latest push always wins.
+# Serialize automatic deploys and manual retries of the same test project.
 concurrency:
-  group: deploy-functions-${{ github.ref }}
+  group: deploy-functions-hhr-pruebas
+  queue: max
   cancel-in-progress: false
 
 jobs:
+  preflight:
+    name: verify-functions-ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      eligible: ${{ steps.guard.outputs.eligible }}
+    steps:
+      - name: Checkout validated revision
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify exact CI and current Functions source
+        id: guard
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/check-function-deployment-ci.mjs --guard
+
   deploy:
     name: deploy-firebase-functions
+    needs: [preflight]
+    if: needs.preflight.outputs.eligible == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -69,6 +82,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
 
       - name: Verify deployment credentials
         env:
@@ -134,7 +150,7 @@ jobs:
           for function_name in "${RETIRED_FUNCTIONS[@]}"; do
             echo "Deleting retired Firebase function if present: ${function_name}"
             set +e
-            output="$(npx --yes firebase-tools@latest functions:delete "${function_name}" \
+            output="$(npx --no-install firebase functions:delete "${function_name}" \
               --project hhr-pruebas \
               --non-interactive \
               --force 2>&1)"
@@ -172,7 +188,7 @@ jobs:
           for function_name in "${ORPHANED_US_CENTRAL1_FUNCTIONS[@]}"; do
             echo "Deleting orphaned us-central1 copy if present: ${function_name}"
             set +e
-            output="$(npx --yes firebase-tools@latest functions:delete "${function_name}" \
+            output="$(npx --no-install firebase functions:delete "${function_name}" \
               --region us-central1 \
               --project hhr-pruebas \
               --non-interactive \
@@ -196,7 +212,7 @@ jobs:
         run: |
           FUNCTION_TARGETS="$(node scripts/list-firebase-function-targets.mjs)"
           echo "Deploying Firebase function targets: ${FUNCTION_TARGETS}"
-          npx --yes firebase-tools@latest deploy \
+          npx --no-install firebase deploy \
             --only "${FUNCTION_TARGETS}" \
             --project hhr-pruebas \
             --non-interactive \
@@ -206,7 +222,7 @@ jobs:
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase/service-account.json
         run: |
-          npx --yes firebase-tools@latest functions:list \
+          npx --no-install firebase functions:list \
             --project hhr-pruebas \
             --json > "$RUNNER_TEMP/firebase/functions-list.json"
           node scripts/check-deployed-firebase-functions.mjs \

@@ -1060,3 +1060,34 @@ jobs:
           name: api-documentation
           path: './docs/api'
           retention-days: 7
+
+  function-deploy-scope:
+    name: function-deploy-scope
+    needs: [ci-strict-summary]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      changed: ${{ steps.scope.outputs.changed }}
+    steps:
+      - name: Checkout validated revision
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Detect Functions-related changes
+        id: scope
+        run: node scripts/check-function-deployment-ci.mjs --scope
+
+  deploy-functions:
+    name: validated-functions-deployment
+    needs: [ci-strict-summary, function-deploy-scope]
+    if: needs.function-deploy-scope.outputs.changed == 'true'
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/deploy-functions.yml
+    secrets:
+      FIREBASE_SERVICE_ACCOUNT_HHR: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_HHR }}
