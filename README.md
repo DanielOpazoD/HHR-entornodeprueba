@@ -2,6 +2,10 @@
 
 Aplicación web médica para censo hospitalario, entrega de turno y gestión operativa clínica.
 
+Antes de cambiar un flujo, leer el [contrato operativo](docs/DOMAIN_RULES.md) y el
+[glosario de dominio](docs/GLOSSARY.md): explican las reglas que el código debe
+conservar y por qué. Son la entrada para personas e IA; no sustituyen los controles técnicos.
+
 Modelo de acceso:
 
 - [Auth Access Model](docs/AUTH_ACCESS_MODEL.md)

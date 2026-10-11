@@ -1,12 +1,64 @@
 # Glosario de Dominio HHR
 
+## Significado operativo
+
+Definiciones para entender el programa antes de leer su código. El comportamiento
+esperado y sus motivos están en el [contrato operativo](DOMAIN_RULES.md).
+
+| Término | Significado en HHR |
+| --- | --- |
+| Regla de negocio | Decisión sobre cómo debe comportarse el programa en la operación del hospital. |
+| Invariante del dominio | Regla que un cambio técnico debe conservar. Ejemplo: una cama no identifica a la madre. |
+| Política operativa | Regla vigente que puede cambiar mediante decisión explícita. Ejemplo: ventana de registro. |
+| Persona / paciente | Individuo atendido; no su cama ni cada una de sus hospitalizaciones. |
+| Documento de identidad | RUN/RUT, pasaporte u otro identificador, conservando su tipo. No son intercambiables. |
+| Episodio | Una hospitalización desde el ingreso hasta su salida. Un reingreso abre otro episodio. |
+| Fecha real del evento | Fecha y hora en que ocurrió el ingreso, movimiento o egreso. No se cambia para acomodarlo a un turno. |
+| Día calendario | Fecha del evento o de la columna del informe de Eloísa. |
+| Día del censo / turno nocturno | Día operativo al que HHR atribuye el turno. Puede contener eventos de la madrugada siguiente. |
+| Censo local original | Copia que HHR conservó de un día; puede contener omisiones de sincronización. |
+| Censo incompleto | Representación que omite pacientes o episodios que correspondían al día/turno. Es una brecha de población, no necesariamente un error de lectura. |
+| Población reconstruida | Pacientes y episodios del turno establecidos al cotejar las fuentes y resolver omisiones. |
+| Fuente clínica | Registro que aporta evidencia: Gestión de Camas o Ficha Clínica de Eloísa. HHR conserva esa evidencia y datos locales identificados como tales. |
+| Canal de extracción | Medio que rescata la información, como la extensión. No es una fuente clínica adicional. |
+| Persistencia | Conservación de datos para reutilizarlos: local en HHR o compartida en Firebase. No crea un registro clínico nuevo. |
+| Egreso estadístico | Salida registrada cuando se libera la cama en Gestión de Camas. Aporta la fecha y hora que HHR muestra como alta. |
+| Epicrisis | Resumen clínico de la hospitalización. Su hora de emisión no es la hora de liberación de cama. |
+| RN | Recién nacido. Su identidad y clasificación son propias, distintas de las de su madre. |
+| Asociación materna | Vínculo entre RN y madre respaldado por identidad, no sólo por ubicación. |
+| Cuna RN sano | Ubicación de un RN sano, excluida del cumplimiento CUDYR. Se muestra su código, por ejemplo C-R3. |
+| Cama independiente del RN | Cama hospitalaria ocupada por el RN con su clasificación propia. Ser RN no lo excluye automáticamente de CUDYR. |
+| Cama media / intermedia | En el área médico-quirúrgica: medias NEO1–2 y H1C1–H6C2; intermedias R1–R4. El código de cama no sustituye la modalidad de atención. |
+| CMA | Cirugía Mayor Ambulatoria. No elegible para cumplimiento CUDYR, tanto en Pabellón como en Hospitalizados. |
+| UEA | Ubicación de Urgencias. Excluye CUDYR mientras corresponda esa situación; no toda la hospitalización posterior. |
+| Registro CUDYR | Categorización existente en Eloísa. Se conserva aunque no sea elegible; HHR no permite llenarla manualmente. |
+| Origen histórico | Resultado recuperado de un informe de Eloísa. Su procedencia se distingue; sigue siendo válido. |
+| Elegibilidad | Decisión por paciente, episodio y turno sobre si entra al cálculo de cumplimiento. No decide si el registro existe. |
+| Paciente-día | Un paciente en un día/turno evaluado. Una persona puede aportar varios pacientes-día en un mes. |
+| Referencia 01:00 | Instante fijo para calcular duración hospitalaria CUDYR. No exige aplicar el instrumento a esa hora. |
+| Ventana abierta / cerrada | El turno admite registros de 00:01 a 11:59 del día siguiente; desde las 12:00 se puede verificar el resultado final. |
+| Consulta completa | Se leyeron las partes necesarias de la fuente para el caso y período, sin fallos pendientes. No certifica por sí sola toda la población censal. |
+| Consulta incompleta / fallida | Falta leer una parte o hubo un error. No permite concluir que no existe CUDYR. |
+| Registrado | Se encontró CUDYR válido. No significa que el paciente sea elegible. |
+| No registrado | Consulta final completa, con paciente y episodio inequívocos, sin CUDYR encontrado. |
+| Verificación pendiente | Falta una lectura o resolver una discrepancia. No equivale a «No registrado». |
+| No aplica | Caso excluido al que no se exige registro para cumplimiento. Si existe CUDYR, se conserva y se muestra. |
+| Exclusión manual justificada | Decisión documentada que cambia elegibilidad, conservando autor y motivo. No modifica el puntaje CUDYR. |
+| Cumplimiento | Pacientes-día elegibles con CUDYR dividido por pacientes-día elegibles. No es el porcentaje de toda la ocupación hospitalaria. |
+| Mes oficial | Población y cálculo aprobados con trazabilidad, conservados en una proyección de Firebase. No significa 100% de cumplimiento. |
+| Guardado local pendiente | Cambio conservado en el equipo que aún no tiene confirmación compartida. No es dato perdido ni guardado remoto confirmado. |
+| Sincronización completa | Finalizaron las operaciones previstas de esa ejecución. No significa que todo el mes histórico o todas las fuentes del hospital estén verificados. |
+| Conflicto | Dos datos o decisiones no pueden conciliarse de forma segura. Requiere evidencia o confirmación; no se resuelve por el último navegador que escribió. |
+
+## Convenciones técnicas existentes
+
 > Vocabulario canónico del proyecto. Si un concepto aparece con un nombre
 > distinto en código nuevo, es deuda — alinear con esta tabla. Aplica
 > tanto a strings de UI (en español) como a identificadores de código
 > (típicamente en inglés). Los pares "código vs UI" están explicitados
 > donde divergen.
 
-Última actualización: 2026-05-03.
+Las tablas siguientes conservan las convenciones de nombres de código y UI.
 
 ## Cómo usar este documento
 
