@@ -443,9 +443,9 @@ const handleDeviceReportSave = async args => {
 // / Downton scales) and VITAL_SIGNS (latest vitals: PA, FC, SatO2, Temp, FR, EVA) — to stay lean. The
 // practitionerId is the logged-in viewer (from the list URL).
 const handleScalesReportRequest = async ({ encId, sender }) => {
+  if (!patientFlowRuntime.canRequestClinicalEpisode(sender, encId)) return { error: 'Las escalas no fueron autorizadas para el episodio de esta pestaña.' };
   const infoResult = await resolveFichaClinicalSession({ sender });
-  if (infoResult.error) return { error: infoResult.error };
-  return fetchScalesReportWithInfo(encId, infoResult.info);
+  return infoResult.error ? { error: infoResult.error } : fetchScalesReportWithInfo(encId, infoResult.info);
 };
 
 // Fill an official imaging-request template (solicitud / encuesta de contraste / consentimiento)

@@ -332,6 +332,10 @@ la tabla de fármacos de Gestión de cuidados.
 
 ### Entrega de turno y Scores
 
+La lectura individual de escalas desde HHR requiere que el episodio pertenezca al snapshot vigente
+de la misma pestaña (también caduca su autorización). El panel interno de Ficha Médico conserva
+su acceso con la sesión autenticada de su propia pestaña; no se confía en un origen enviado por HHR.
+
 - **Turno** presenta a todos los hospitalizados en una tabla global, con su última entrega, fecha/hora,
   profesional y estado. El ingreso respeta el límite oficial de 255 caracteres. Después de enviar una
   entrega, la extensión vuelve a consultar Eloísa y solo muestra **Guardado en Eloísa** si encuentra el

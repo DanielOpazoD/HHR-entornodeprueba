@@ -28,6 +28,14 @@
     const authorizeSnapshotResponse = (sender, promise) => authorizeResponse(sender, promise, false);
     const authorizeBundleResponse = (sender, promise) => authorizeResponse(sender, promise, true);
     const isAuthorized = authorization.has;
+    const canRequestClinicalEpisode = (sender, encId) => {
+      if (isAuthorized(sender, encId)) return true;
+      try {
+        const origin = sender?.origin || new URL(sender?.url || sender?.tab?.url).origin;
+        return Number.isInteger(sender?.tab?.id) && /^\d+$/.test(String(encId || '')) &&
+          origin === 'https://fichamedico.rayensalud.cl';
+      } catch { return false; }
+    };
     const authorizeVerifiedEncounter = authorization.add;
     const handle = async (message, sender) => {
       const encId = String(message && message.encId || '');
@@ -60,6 +68,7 @@
       authorizeBundleResponse,
       authorizeVerifiedEncounter,
       isAuthorized,
+      canRequestClinicalEpisode,
       route: Object.freeze({
         handle,
         fallback: 'No se pudo leer la trazabilidad de camas.',
