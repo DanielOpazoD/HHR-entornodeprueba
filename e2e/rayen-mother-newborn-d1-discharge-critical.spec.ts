@@ -141,6 +141,14 @@ const installSyntheticEloisa = async (page: Page) => {
                 },
               ],
               isComplete: true,
+              clinicalCoverage: {
+                total: 1,
+                completed: 1,
+                errors: 0,
+                headerErrors: 0,
+                diagnosisErrors: 0,
+                isolationErrors: 0,
+              },
             },
             bundle: {
               id: `e2e-bundle-${event.data.requestId}`,

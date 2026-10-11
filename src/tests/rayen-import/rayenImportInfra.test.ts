@@ -114,6 +114,20 @@ describe('Rayen synchronized source bundle bridge', () => {
     sourceSkewMs: 3000,
     egresoRows: [],
   };
+  const snapshot: RayenCensusSnapshot = {
+    capturedAt: bundle.fichaMedicoCapturedAt,
+    facilityId: bundle.facilityId,
+    encounters: [],
+    isComplete: true,
+    clinicalCoverage: {
+      total: 0,
+      completed: 0,
+      errors: 0,
+      headerErrors: 0,
+      diagnosisErrors: 0,
+      isolationErrors: 0,
+    },
+  };
 
   it('validates temporal evidence and rejects malformed report rows', () => {
     expect(isRayenSyncBundle(bundle)).toBe(true);
@@ -128,12 +142,6 @@ describe('Rayen synchronized source bundle bridge', () => {
   it('ignores standalone snapshots and accepts only the matching guarded bundle', () => {
     const handler = vi.fn();
     const unsubscribe = subscribeToRayenSnapshots(handler);
-    const snapshot: RayenCensusSnapshot = {
-      capturedAt: bundle.fichaMedicoCapturedAt,
-      facilityId: bundle.facilityId,
-      encounters: [],
-      isComplete: true,
-    };
     const requestId = requestRayenSyncBundle(bundle.dateStart, bundle.dateEnd);
 
     // A same-origin frame cannot impersonate the extension relay.
@@ -184,12 +192,6 @@ describe('Rayen synchronized source bundle bridge', () => {
     const unsubscribe = subscribeToRayenSnapshots(handler);
     const staleRequestId = requestRayenSyncBundle(bundle.dateStart, bundle.dateEnd);
     const activeRequestId = requestRayenSyncBundle(bundle.dateStart, bundle.dateEnd);
-    const snapshot: RayenCensusSnapshot = {
-      capturedAt: bundle.fichaMedicoCapturedAt,
-      facilityId: bundle.facilityId,
-      encounters: [],
-      isComplete: true,
-    };
 
     window.dispatchEvent(
       new MessageEvent('message', {
