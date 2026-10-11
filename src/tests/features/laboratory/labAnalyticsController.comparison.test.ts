@@ -93,7 +93,7 @@ describe('labAnalyticsController comparison output', () => {
     const result = buildAnalysisData(
       [
         buildDetail({
-          url: examWithTime.link,
+          url: 'http://example.com/100',
           findings: analyses.map(analysis =>
             buildFinding({ analysis, result: values[analysis], unit: 'mg/dL' })
           ),
