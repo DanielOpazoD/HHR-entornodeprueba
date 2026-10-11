@@ -61,7 +61,8 @@ interface UseRayenClinicalFillInput {
   patchDailyRecord: (
     patch: DailyRecordPatch,
     target: ClinicalFillPatchTarget,
-    writeGuard: RayenClinicalWriteGuard
+    writeGuard: RayenClinicalWriteGuard,
+    baseRecord: DailyRecord
   ) => Promise<unknown>;
   applyHistoricalCudyr: (
     encId: string,
@@ -263,7 +264,7 @@ export const useRayenClinicalFill = ({
               record: freshRecord,
               runId: runPolicy.runId,
               applyPatch: operation =>
-                patchDailyRecord(operation.patch, operation.target, runPolicy).then(
+                patchDailyRecord(operation.patch, operation.target, runPolicy, freshRecord).then(
                   () => undefined
                 ),
               refreshRecord: () => loadDailyRecord(freshRecord.date),
@@ -279,7 +280,7 @@ export const useRayenClinicalFill = ({
                 ...createClinicalFillReaders(watchdog.signal),
                 extractDeviceItems: extractDeviceTextItems,
                 applyPatch: async (patch, target) => {
-                  await patchDailyRecord(patch, target, runPolicy);
+                  await patchDailyRecord(patch, target, runPolicy, freshRecord);
                 },
                 persistenceStrategy,
                 ...historicalCudyrPersistence,

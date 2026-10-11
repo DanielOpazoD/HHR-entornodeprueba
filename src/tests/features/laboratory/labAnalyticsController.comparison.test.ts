@@ -325,5 +325,4 @@ describe('labAnalyticsController comparison output', () => {
       groups.flatMap(group => Object.values(group.vars).flat()).map(point => point.value)
     ).toEqual([10, 1]);
   });
-
 });

@@ -5,6 +5,9 @@
 - El engine coordina runtime, store y transport mediante puertos.
 - `@/services/storage/sync` es la fachada pública; este directorio no debe ser importado desde UI.
 - Los errores de sync deben salir tipados por politica/runtime, no como strings ad hoc.
+- El transporte devuelve el registro confirmado; el store adopta el ACK y cierra su
+  claim en una transacción. Una tarea posterior sin resolver conserva su proyección
+  local, incluso en `FAILED`/`CONFLICT`; un claim obsoleto no puede escribir caché.
 - `publicSyncQueue.ts` es la fuente canónica del singleton y de la telemetría pública.
 - El surface público canónico del outbox está en `@/services/storage/sync`.
 

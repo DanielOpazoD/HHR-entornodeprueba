@@ -74,6 +74,120 @@ export function registerFirestoreRulesAccessGroups({
     const recordPath = `hospitals/H1/dailyRecords/${CURRENT_RECORD_DATE}`;
     const historyPath = `hospitals/H1/dailyRecords/${CURRENT_RECORD_DATE}/history/h-1`;
 
+    it.each(['nurse', 'specialist'] as const)(
+      '%s cannot reopen historical records by replacing the persisted timestamp',
+      async role => {
+        const path = 'hospitals/H1/dailyRecords/2001-01-01';
+        await setupDoc(admin(), path, {
+          date: '2001-01-01',
+          dateTimestamp: Date.parse('2001-01-01T00:00:00Z'),
+          beds: { R1: { medicalHandoffNote: '' } },
+        });
+        const client = role === 'nurse' ? nurse() : specialist();
+        const change =
+          role === 'nurse'
+            ? { nursesDayShift: ['SYNTHETIC'] }
+            : { 'beds.R1.medicalHandoffNote': 'SYNTHETIC' };
+        await assertFails(client.doc(path).update({ ...change, dateTimestamp: NOW_MS }));
+      }
+    );
+
+    it.each(['nurse', 'specialist'] as const)(
+      '%s rejects historical legacy notes with missing or null timestamps',
+      async role => {
+        const client = role === 'nurse' ? nurse() : specialist();
+        for (const dateTimestamp of [undefined, null]) {
+          const path = 'hospitals/H1/dailyRecords/2001-01-01';
+          await setupDoc(admin(), path, {
+            date: '2001-01-01',
+            ...(dateTimestamp === undefined ? {} : { dateTimestamp }),
+            beds: { R1: { medicalHandoffNote: '' } },
+          });
+          const change =
+            role === 'nurse'
+              ? { nursesDayShift: ['SYNTHETIC'] }
+              : { 'beds.R1.medicalHandoffNote': 'SYNTHETIC' };
+          await assertFails(client.doc(path).update(change));
+          await assertFails(client.doc(path).update({ ...change, dateTimestamp: NOW_MS }));
+          await assertFails(
+            client.doc(path).update({
+              ...change,
+              dateTimestamp: NOW_MS,
+              date: CURRENT_RECORD_DATE,
+            })
+          );
+        }
+      }
+    );
+
+    it.each(['nurse', 'specialist'] as const)(
+      '%s repairs current legacy records with a timestamp matching the document date',
+      async role => {
+        const client = role === 'nurse' ? nurse() : specialist();
+        for (const dateTimestamp of [undefined, null]) {
+          await setupDoc(admin(), recordPath, {
+            date: CURRENT_RECORD_DATE,
+            ...(dateTimestamp === undefined ? {} : { dateTimestamp }),
+            beds: { R1: { medicalHandoffNote: '' } },
+          });
+          const change =
+            role === 'nurse'
+              ? { nursesDayShift: ['SYNTHETIC'] }
+              : { 'beds.R1.medicalHandoffNote': 'SYNTHETIC' };
+          await assertSucceeds(client.doc(recordPath).update({ ...change, dateTimestamp: NOW_MS }));
+        }
+      }
+    );
+
+    it.each(['nurse', 'specialist'] as const)(
+      '%s cannot repair a legacy timestamp with an invalid type or an unrelated date',
+      async role => {
+        await setupDoc(admin(), recordPath, {
+          date: CURRENT_RECORD_DATE,
+          beds: { R1: { medicalHandoffNote: '' } },
+        });
+        const client = role === 'nurse' ? nurse() : specialist();
+        const change =
+          role === 'nurse'
+            ? { nursesDayShift: ['SYNTHETIC'] }
+            : { 'beds.R1.medicalHandoffNote': 'SYNTHETIC' };
+        for (const dateTimestamp of [null, String(NOW_MS), NOW_MS + 0.5, NOW_MS - THREE_DAYS_MS]) {
+          await assertFails(client.doc(recordPath).update({ ...change, dateTimestamp }));
+        }
+      }
+    );
+
+    it('Nurses cannot move the immutable timestamp within the same record day', async () => {
+      await setupDoc(admin(), recordPath, { date: CURRENT_RECORD_DATE, dateTimestamp: NOW_MS });
+      await assertFails(
+        nurse()
+          .doc(recordPath)
+          .update({ dateTimestamp: NOW_MS + 1 })
+      );
+    });
+
+    it.each(['nurse', 'specialist'] as const)(
+      '%s cannot repair legacy records with a persisted date/path mismatch',
+      async role => {
+        await setupDoc(admin(), recordPath, {
+          date: PREVIOUS_RECORD_DATE,
+          beds: { R1: { medicalHandoffNote: '' } },
+        });
+        const client = role === 'nurse' ? nurse() : specialist();
+        const change =
+          role === 'nurse'
+            ? { nursesDayShift: ['SYNTHETIC'] }
+            : { 'beds.R1.medicalHandoffNote': 'SYNTHETIC' };
+        await assertFails(client.doc(recordPath).update({ ...change, dateTimestamp: NOW_MS }));
+      }
+    );
+
+    it('Configured admins retain historical timestamp repair access', async () => {
+      const path = 'hospitals/H1/dailyRecords/2001-01-01';
+      await setupDoc(admin(), path, { date: '2001-01-01', dateTimestamp: null });
+      await assertSucceeds(adminWithoutClaim().doc(path).update({ dateTimestamp: NOW_MS }));
+    });
+
     it('Authenticated users can read daily records', async () => {
       await setupDoc(admin(), recordPath, { date: CURRENT_RECORD_DATE });
       await assertSucceeds(authed().doc(recordPath).get());
@@ -250,36 +364,61 @@ export function registerFirestoreRulesAccessGroups({
 
     it('fences direct bed clients only with server-owned specialty policy', async () => {
       await setupDocBypass('hospitals/H1/settings/specialtyAssignment', {
-        schemaVersion: 1, revision: 99, autoEnabled: true,
-        memoryEnabled: false, aiMode: 'off', rules: [], memory: [],
+        schemaVersion: 1,
+        revision: 99,
+        autoEnabled: true,
+        memoryEnabled: false,
+        aiMode: 'off',
+        rules: [],
+        memory: [],
       });
       await setupDocBypass(recordPath, {
-        date: CURRENT_RECORD_DATE, dateTimestamp: NOW_MS,
-        beds: { R1: { bedId: 'R1', clinicalEpisodeId: 'synthetic-episode',
-          specialty: 'Cirugía' } },
+        date: CURRENT_RECORD_DATE,
+        dateTimestamp: NOW_MS,
+        beds: { R1: { bedId: 'R1', clinicalEpisodeId: 'synthetic-episode', specialty: 'Cirugía' } },
       });
-      await assertSucceeds(nurse().doc(recordPath).update({
-        beds: { R1: { bedId: 'R1', clinicalEpisodeId: 'synthetic-episode',
-          specialty: 'Pediatría' } },
-      }));
-      await assertFails(admin().doc('hospitals/H1/specialtyPolicies/active')
-        .set({ schemaVersion: 1, revision: 1 }));
+      await assertSucceeds(
+        nurse()
+          .doc(recordPath)
+          .update({
+            beds: {
+              R1: { bedId: 'R1', clinicalEpisodeId: 'synthetic-episode', specialty: 'Pediatría' },
+            },
+          })
+      );
+      await assertFails(
+        admin().doc('hospitals/H1/specialtyPolicies/active').set({ schemaVersion: 1, revision: 1 })
+      );
       await setupDocBypass('hospitals/H1/specialtyPolicies/active', {
-        schemaVersion: 1, revision: 1, autoEnabled: false,
-        memoryEnabled: false, aiMode: 'off', rules: [], memory: [],
+        schemaVersion: 1,
+        revision: 1,
+        autoEnabled: false,
+        memoryEnabled: false,
+        aiMode: 'off',
+        rules: [],
+        memory: [],
       });
-      await assertFails(nurse().doc(recordPath).update({
-        beds: { R1: { bedId: 'R1', clinicalEpisodeId: 'synthetic-episode',
-          specialty: 'Cirugía' } },
-      }));
-      await assertFails(admin().doc('hospitals/H1/specialtyPolicies/active')
-        .update({ autoEnabled: true }));
-      await assertFails(admin().doc('hospitals/H1/settings/specialtyAssignment')
-        .update({ autoEnabled: false }));
-      await assertFails(nurse().doc(`${recordPath}/specialtyDecisions/decision-1`)
-        .set({ source: 'manual' }));
-      await assertFails(nurse().doc('hospitals/H1/specialtyAiRequests/request-1')
-        .set({ status: 'complete' }));
+      await assertFails(
+        nurse()
+          .doc(recordPath)
+          .update({
+            beds: {
+              R1: { bedId: 'R1', clinicalEpisodeId: 'synthetic-episode', specialty: 'Cirugía' },
+            },
+          })
+      );
+      await assertFails(
+        admin().doc('hospitals/H1/specialtyPolicies/active').update({ autoEnabled: true })
+      );
+      await assertFails(
+        admin().doc('hospitals/H1/settings/specialtyAssignment').update({ autoEnabled: false })
+      );
+      await assertFails(
+        nurse().doc(`${recordPath}/specialtyDecisions/decision-1`).set({ source: 'manual' })
+      );
+      await assertFails(
+        nurse().doc('hospitals/H1/specialtyAiRequests/request-1').set({ status: 'complete' })
+      );
     });
 
     it('keeps non-clinical staffing edits available while clinical batching is enforced', async () => {

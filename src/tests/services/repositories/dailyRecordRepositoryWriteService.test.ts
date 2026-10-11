@@ -416,7 +416,7 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
     );
   });
 
-  it('repairs drifted dateTimestamp during partial updates before the remote write', async () => {
+  it('preserves a valid persisted dateTimestamp during partial updates before the remote write', async () => {
     const current = buildRecord('2026-02-11');
     current.dateTimestamp = Date.parse('2026-02-11T00:00:00.000Z');
     current.beds = { R1: buildPatient('R1', 'Paciente local') };
@@ -431,7 +431,7 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
       '2026-02-11',
       expect.objectContaining({
         medicalHandoffNovedades: 'Nota especialista',
-        dateTimestamp: Date.parse('2026-02-11T00:00:00'),
+        dateTimestamp: Date.parse('2026-02-11T00:00:00.000Z'),
       }),
       current.lastUpdated,
       expectSyncContract(current.lastUpdated, ['medicalHandoffNovedades'])
@@ -440,7 +440,7 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
 
   it('keeps dateTimestamp in partial remote patches to repair legacy Firestore records', async () => {
     const current = buildRecord('2026-02-10');
-    current.dateTimestamp = Date.parse('2026-02-10T00:00:00');
+    current.dateTimestamp = Date.parse('2026-02-10T00:00:00Z');
     current.beds = { R1: buildPatient('R1', 'Paciente local') };
 
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
@@ -453,7 +453,7 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
       '2026-02-10',
       expect.objectContaining({
         'beds.R1.patientName': 'Paciente actualizado',
-        dateTimestamp: Date.parse('2026-02-10T00:00:00'),
+        dateTimestamp: Date.parse('2026-02-10T00:00:00Z'),
       }),
       current.lastUpdated,
       expectSyncContract(current.lastUpdated, ['beds.R1.patientName'])

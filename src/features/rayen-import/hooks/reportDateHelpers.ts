@@ -1,7 +1,6 @@
 /**
- * Date helpers for the Rayen egreso-report range, extracted from useRayenImport to keep the hook
- * lean. Formatting is LOCAL (Rapa Nui) — toISOString() would shift to UTC and ask for the wrong day
- * from ~18:00 local onward.
+ * Persisted record timestamps identify a UTC calendar date. Live clinical-day resolution remains
+ * in Rapa Nui through historicalCensusSync, independently of the device clock.
  */
 
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
@@ -15,14 +14,10 @@ const pad = (n: number): string => String(n).padStart(2, '0');
 
 /** The record's date as ISO YYYY-MM-DD for the egreso report range (accepts ISO or DD/MM/YYYY). */
 export const toIsoReportDate = (record: DailyRecord): string => {
-  const fromDate = (d: Date): string =>
-    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  // Canonical source: the record's OWN day (its local-midnight timestamp), never "today" — this is
-  // what makes a late sync of a PAST census still ask the report for that census day. Guard against a
-  // non-finite timestamp (e.g. Infinity), which would yield an Invalid Date → "NaN-NaN-NaN".
+  // Use the persisted UTC date, never today's date or the device's local calendar.
   if (typeof record.dateTimestamp === 'number' && Number.isFinite(record.dateTimestamp)) {
     const fromTimestamp = new Date(record.dateTimestamp);
-    if (!Number.isNaN(fromTimestamp.getTime())) return fromDate(fromTimestamp);
+    if (!Number.isNaN(fromTimestamp.getTime())) return fromTimestamp.toISOString().slice(0, 10);
   }
   const raw = (record.date ?? '').trim();
   const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);

@@ -121,7 +121,7 @@ export interface RayenCensusSnapshot {
   physicians?: RayenTreatingPhysician[];
   /** Episode-first fallback when Ficha Médico omits an active episode after a service/bed change. */
   activeBedAssignments?: RayenActiveBedAssignment[];
-  /** Per-patient read coverage. Omitted only by legacy extension versions. */
+  /** Per-patient read coverage. Legacy snapshots without it are accepted only as partial captures. */
   clinicalCoverage?: RayenClinicalCoverage;
   /**
    * True ONLY when this snapshot is the FULL active census (every service/ward) and every
@@ -130,6 +130,7 @@ export interface RayenCensusSnapshot {
    * only when this is `true`. Omitted / `false` is treated conservatively (partial):
    * absent patients are left untouched, never auto-discharged. The extension MUST set
    * this to `true` only after assembling the complete census.
+   * HHR requires matching, error-free `clinicalCoverage` before accepting `true` at the bridge.
    */
   isComplete?: boolean;
 }

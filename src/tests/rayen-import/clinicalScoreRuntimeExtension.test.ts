@@ -1,80 +1,14 @@
 // @vitest-environment node
-
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
-import vm from 'node:vm';
-
 import { describe, expect, it, vi } from 'vitest';
-
-const runtimeSource = readFileSync(path.resolve('extension/clinical-score-runtime.js'), 'utf8');
-const backgroundSource = readFileSync(path.resolve('extension/background.js'), 'utf8');
-
-type RuntimeDependencies = Record<string, unknown>;
-type RuntimeApi = {
-  handleCudyrCategoriesRequest: () => Promise<Record<string, unknown>>;
-  handleFormRequest: (request: {
-    batchId: string;
-    encId: string;
-    instrument: string;
-  }) => Promise<Record<string, unknown>>;
-  readScoresBatch: (batchId: string, encId: string) => Promise<Record<string, unknown>>;
-};
-
-const loadFactory = () => {
-  const context = vm.createContext({ URL, Date, Set, Map, Promise, encodeURIComponent });
-  vm.runInContext(
-    readFileSync(path.resolve('extension/cudyr-capture-support.js'), 'utf8'),
-    context
-  );
-  vm.runInContext(runtimeSource, context, { filename: 'clinical-score-runtime.js' });
-  return (
-    context as unknown as {
-      HhrClinicalScoreRuntime: { create: (dependencies: RuntimeDependencies) => RuntimeApi };
-    }
-  ).HhrClinicalScoreRuntime;
-};
-
-const createDependencies = (overrides: RuntimeDependencies = {}) => ({
-  chrome: {
-    storage: {
-      session: {
-        get: vi.fn(async () => ({})),
-        set: vi.fn(async () => undefined),
-      },
-    },
-  },
-  crypto: { randomUUID: vi.fn(() => '12345678-1234-1234-1234-123456789012') },
-  fetchWithTimeout: vi.fn(async () => ({ ok: true, status: 200, json: async () => [] })),
-  getFichaFetchInfo: vi.fn(async () => ({ error: 'Ficha Médico no disponible.' })),
-  resolveGestionCamasSession: vi.fn(async () => ({ error: 'Gestión de Camas no disponible.' })),
-  classifyGestionCamasRejection: vi.fn(async () => ''),
-  nursingWorklists: ['noveltyNurseList', 'uneventfulNurseList', 'incomeNurseList'],
-  resolveSessionHandoffKind: vi.fn(() => 'nursing'),
-  fetchFichaClaims: vi.fn(async () => ({ claims: [] })),
-  hasFichaClaim: vi.fn(() => false),
-  fetchActiveHospitalizedPatients: vi.fn(async () => ({ patients: [] })),
-  mapWithConcurrency: vi.fn(
-    async (items: unknown[], _limit: number, worker: (item: unknown) => Promise<unknown>) =>
-      Promise.all(items.map(worker))
-  ),
-  fetchScaleHistoryEvents: vi.fn(async () => ({ events: [] })),
-  fetchEvaluationForms: vi.fn(async () => ({ forms: [] })),
-  serializeClinicalWriteProtection: vi.fn(async () => ({})),
-  verifyEncounterStillHospitalized: vi.fn(async () => ({ encounter: {} })),
-  prescriptionPrint: { deriveScaleHistory: vi.fn(() => []) },
-  gestionCamasCudyr: {
-    buildSnapshot: vi.fn(() => []),
-    mergeEncounterSnapshots: vi.fn((official: unknown[]) => official),
-  },
-  now: vi.fn(() => 1_000_000),
-  ...overrides,
-});
-
-const gestionCamasRecord = {
-  apiBase: 'https://hospbackend.rayensalud.cl/api',
-  facId: '1342',
-  token: 'fixture',
-};
+import {
+  runtimeSource,
+  backgroundSource,
+  loadFactory,
+  createDependencies,
+  gestionCamasRecord,
+  sender,
+  sessionIdentity,
+} from './clinicalScoreRuntimeExtension.fixture';
 
 describe('clinical Scores read runtime owner', () => {
   it('loads before background orchestration, fails closed and removes the former inline owner', () => {
@@ -315,23 +249,32 @@ describe('clinical Scores read runtime owner', () => {
   it('preserves the 30-minute batch TTL and encounter allowlist', async () => {
     const batchId = '12345678-1234-1234-1234-123456789012';
     const key = `hhr-scores-batch-${batchId}`;
+    const info = {
+      practitionerId: '77',
+      practitionerRoleId: '88',
+      facId: '1342',
+      apiOrigin: 'https://example.invalid',
+    };
     const get = vi.fn(async () => ({
       [key]: {
         createdAt: 1_000_000 - 30 * 60 * 1000,
+        senderTabId: sender.tab.id,
+        sessionIdentity: sessionIdentity(info),
         patients: [{ encounterId: '901', hospitalDepartmentId: '44' }],
       },
     }));
     const runtime = loadFactory().create(
       createDependencies({
         chrome: { storage: { session: { get, set: vi.fn(async () => undefined) } } },
+        getFichaFetchInfo: vi.fn(async () => ({ info })),
       })
     );
 
-    await expect(runtime.readScoresBatch(batchId, '901')).resolves.toMatchObject({
+    await expect(runtime.readScoresBatch(batchId, '901', sender)).resolves.toMatchObject({
       patient: { encounterId: '901' },
       storageKey: key,
     });
-    await expect(runtime.readScoresBatch(batchId, '902')).resolves.toEqual({
+    await expect(runtime.readScoresBatch(batchId, '902', sender)).resolves.toEqual({
       error: 'El paciente no pertenece a esta lista activa.',
     });
 
@@ -341,7 +284,7 @@ describe('clinical Scores read runtime owner', () => {
         now: vi.fn(() => 1_000_001),
       })
     );
-    await expect(expired.readScoresBatch(batchId, '901')).resolves.toEqual({
+    await expect(expired.readScoresBatch(batchId, '901', sender)).resolves.toEqual({
       error: 'La sesión de Scores expiró. Actualiza el módulo.',
     });
   });
@@ -404,7 +347,12 @@ describe('clinical Scores read runtime owner', () => {
           storage: {
             session: {
               get: vi.fn(async () => ({
-                [key]: { createdAt: 1_000_000, patients: [{ encounterId: '901' }] },
+                [key]: {
+                  createdAt: 1_000_000,
+                  senderTabId: sender.tab.id,
+                  sessionIdentity: sessionIdentity(info),
+                  patients: [{ encounterId: '901' }],
+                },
               })),
               set: vi.fn(async () => undefined),
             },
@@ -422,6 +370,7 @@ describe('clinical Scores read runtime owner', () => {
       batchId,
       encId: '901',
       instrument: 'DOWNTON',
+      sender,
     });
 
     expect(result).toMatchObject({

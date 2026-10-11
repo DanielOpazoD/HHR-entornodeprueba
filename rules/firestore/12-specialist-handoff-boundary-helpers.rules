@@ -4,13 +4,13 @@
 
     function isWithinSpecialistMedicalHandoffWindow(effectiveRecordTimestamp) {
       let now = request.time.toMillis();
-      return effectiveRecordTimestamp == null ||
+      return effectiveRecordTimestamp is int &&
              (now >= effectiveRecordTimestamp && now < (effectiveRecordTimestamp + 86400000));
     }
 
     function resolveSpecialistMedicalHandoffRecordTimestamp() {
-      let currentRecordTimestamp = resource.data.dateTimestamp;
-      let nextRecordTimestamp = request.resource.data.dateTimestamp;
+      let currentRecordTimestamp = resource.data.get('dateTimestamp', null);
+      let nextRecordTimestamp = request.resource.data.get('dateTimestamp', null);
       return nextRecordTimestamp != null
         ? nextRecordTimestamp
         : currentRecordTimestamp;
@@ -42,7 +42,8 @@
       let affectedRecordKeys = request.resource.data.diff(resource.data).affectedKeys();
       let effectiveRecordTimestamp = resolveSpecialistMedicalHandoffRecordTimestamp();
 
-      return isWithinSpecialistMedicalHandoffWindow(effectiveRecordTimestamp) &&
+      return hasValidDailyRecordTimestamp() &&
+             isWithinSpecialistMedicalHandoffWindow(effectiveRecordTimestamp) &&
              hasValidSpecialistRecordTimestampChange(affectedRecordKeys) &&
              (
                isSpecialistStructuredMedicalHandoffPayload(affectedRecordKeys) ||

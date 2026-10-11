@@ -1,6 +1,9 @@
 import { getDoc, setDoc } from 'firebase/firestore';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
-import type { SyncTransportPort } from '@/services/storage/sync/syncQueuePorts';
+import type {
+  SyncTransportPort,
+  SyncTransportResult,
+} from '@/services/storage/sync/syncQueuePorts';
 import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
 import { measureRepositoryOperation } from '@/services/repositories/repositoryPerformance';
 import {
@@ -27,11 +30,7 @@ import {
   resolveEffectiveDailyRecordAuthorityMode,
 } from '@/services/storage/firestore/firestoreRayenClinicalAuthorityMode';
 import { saveDailyRecordWithClinicalAuthorityCallable } from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
-import { saveRecordStrict } from '@/services/storage/indexeddb/indexedDbRecordService';
-import {
-  recordSyncQueueTruthSelectionTelemetry,
-  type SyncQueueSelectedTruth,
-} from '@/services/storage/sync/syncQueueTelemetryController';
+import { recordSyncQueueTruthSelectionTelemetry } from '@/services/storage/sync/syncQueueTelemetryController';
 import {
   assertNoSamePathRemoteMutation,
   hasRemoteAppliedMutation,
@@ -97,10 +96,9 @@ const shouldRevalidateAgainstRemote = (
 };
 
 interface ResolvedSyncRecordForTask {
-  record: DailyRecord | null;
+  record: DailyRecord;
   resolution: NonNullable<SyncTask['syncContract']>['resolution'];
   acceptedVersion?: string;
-  selectedTruth?: SyncQueueSelectedTruth;
 }
 
 const resolveRecordForSyncTask = async (
@@ -122,10 +120,9 @@ const resolveRecordForSyncTask = async (
   const remoteLastUpdated = getRemoteLastUpdated(remoteData);
   if (hasRemoteAppliedMutation(task, remoteData.meta as Record<string, unknown> | undefined)) {
     return {
-      record: null,
+      record: docToRecord(remoteData, record.date),
       resolution: 'already_applied',
       acceptedVersion: remoteLastUpdated,
-      selectedTruth: 'remote_already_applied',
     };
   }
 
@@ -183,19 +180,19 @@ const syncDailyRecord = async (
   task: SyncTask,
   record: DailyRecord,
   runtime: FirestoreServiceRuntimePort
-): Promise<void> => {
+): Promise<SyncTransportResult | void> => {
   if (await runE2ESyncTransport(task)) return;
-  await measureRepositoryOperation(
+  return measureRepositoryOperation(
     'syncQueue.writeDailyRecord',
     async () => {
       const resolved = await resolveRecordForSyncTask(task, record, runtime);
-      if (!resolved.record) {
+      if (resolved.resolution === 'already_applied') {
         recordSyncQueueTruthSelectionTelemetry(task, {
           resolution: resolved.resolution,
           acceptedVersion: resolved.acceptedVersion,
-          selectedTruth: resolved.selectedTruth || 'remote_already_applied',
+          selectedTruth: 'remote_already_applied',
         });
-        return;
+        return { authoritativeRecord: resolved.record };
       }
       const recordToWrite = resolved.record;
 
@@ -241,19 +238,13 @@ const syncDailyRecord = async (
             `Sync queue: authority omitted the committed record for ${recordToWrite.date}.`
           );
         }
-        const localWrite = await saveRecordStrict(authoritativeRecord);
-        if (!localWrite.ok) {
-          throw new Error(
-            `Sync queue: remote commit succeeded but local cache failed for ${recordToWrite.date}.`
-          );
-        }
         recordSyncQueueTruthSelectionTelemetry(task, {
           resolution: resolved.resolution,
           acceptedVersion: authoritativeRecord.lastUpdated,
           acceptedRevision: response?.revision,
           selectedTruth: 'authority_intent_invariants',
         });
-        return;
+        return { authoritativeRecord };
       }
 
       if (effectiveAuthorityMode === 'shadow') {
@@ -298,8 +289,7 @@ export const createFirestoreSyncTransport = (
         );
         return;
       case 'UPDATE_DAILY_RECORD':
-        await syncDailyRecord(task, task.payload as DailyRecord, runtime);
-        return;
+        return syncDailyRecord(task, task.payload as DailyRecord, runtime);
       default:
         throw new Error(`[SyncQueue] Unsupported task type: ${String(task.type)}`);
     }

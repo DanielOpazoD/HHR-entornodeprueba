@@ -11,6 +11,12 @@ fechas de importaciones antiguas que guardaron D como fecha del movimiento,
 sin consultar Eloísa ni escribir el documento remoto al abrirlo. Los ajustes
 manuales y las fechas ya correctas se conservan.
 
+El ingreso conserva su fecha calendario y hora reales en Rapa Nui: los instantes UTC/con offset
+se convierten con `encounterWallClockInRapaNui`, igual que la selección del día clínico y el
+fallback de identidad de movimientos legacy. Los valores ya locales no se convierten de nuevo.
+El día clínico puede ser el anterior durante la madrugada; no reemplaza la fecha del evento.
+`birthDate` sigue siendo una fecha calendario, sin desplazamiento de zona horaria.
+
 ## Propósito
 
 Importar el censo y los movimientos de camas desde **Rayen / Ficha Médico** (sistema
@@ -18,6 +24,12 @@ externo) hacia el `DailyRecord` del HHR. La extensión de navegador lee Rayen y 
 `RayenCensusSnapshot`; este módulo lo **reconcilia** contra el censo actual y genera un
 `CensusImportDiff` (ingresos / actualizaciones / traslados / egresos / conflictos) para
 **revisión y confirmación** del usuario.
+
+El bridge valida los tipos opcionales y las fechas antes del mapper. Una captura marcada completa
+requiere cobertura de todos sus encuentros, sin errores de cabecera, diagnóstico ni aislamiento.
+Los snapshots legacy sin `clinicalCoverage` sólo se aceptan como parciales; no autorizan una
+sincronización completa ni una retirada implícita de aislamiento. La extensión debe emitir la
+evidencia de cobertura para usar el bundle correlacionado de sincronización.
 
 ## Modos de sincronización
 
@@ -59,6 +71,10 @@ En `off` y `shadow`, cada parche individual demuestra atómicamente mediante el 
 revisión congelada sigue vigente antes de tocar la caché local. Una promoción concurrente a
 `enforced` cancela los parches restantes y no deja escrituras antiguas en la cola para un replay
 posterior.
+Antes de cada intento, estos modos también comparan los campos clínicos completos con la base
+original de la lectura y el censo recién obtenido. Un tercer valor concurrente bloquea el parche
+y deja el objetivo reintentable; un valor ya persistido no se vuelve a escribir. El reintento de
+versión conserva esa base original, igual que el rebase de `enforced`.
 En `enforced`, el CUDYR de D−1 usa el mismo callable en un lote separado: modifica el documento
 histórico, pero demuestra autoridad con el `runId` congelado en el día de la sincronización. Sólo se
 admite el día inmediatamente anterior y nunca se degrada al escritor individual. Si cambia la

@@ -1,6 +1,7 @@
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import { extractTime } from '../mapping/rayenToPatientData';
+import { encounterWallClockInRapaNui } from '../mapping/encounterWallClock';
 import { createRecordedOutcomeMatcher } from './censusDischargeHistory';
 
 /**
@@ -65,7 +66,8 @@ export const filterRecordedOutcomeActions = (
             entry.expectedOccupant?.clinicalEpisodeId,
           rut: entry.rut || entry.source?.run,
           admissionDay:
-            entry.expectedOccupant?.admissionDate ?? entry.source?.admissionDatetime?.slice(0, 10),
+            entry.expectedOccupant?.admissionDate ??
+            encounterWallClockInRapaNui(entry.source?.admissionDatetime)?.slice(0, 10),
           admissionTime:
             entry.expectedOccupant?.admissionTime ?? extractTime(entry.source?.admissionDatetime),
         })
