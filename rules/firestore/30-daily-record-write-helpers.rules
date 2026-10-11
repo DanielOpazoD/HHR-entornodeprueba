@@ -2,12 +2,10 @@
     // ---------------------------------------------
     // Nurse window: can edit yesterday, today and tomorrow.
     // Calculation: (CurrentTime - RecordTime) should be between -24h and +48h.
-    // If dateTimestamp is null (legacy record), allow the edit (grace mode).
 
     function isWithinEditingWindow(recordTS) {
       let now = request.time.toMillis();
-      // Legacy records without dateTimestamp are allowed (they'll be fixed on save)
-      return recordTS == null || (
+      return recordTS is int && (
              now > (recordTS - 86400000) && 
              now < (recordTS + 172800000)
       );
@@ -31,8 +29,25 @@
       ]);
     }
 
+    function dailyRecordTimestampDate(recordTS) {
+      let recordTime = timestamp.value(recordTS);
+      return string(recordTime.year()) + '-' +
+             (recordTime.month() < 10 ? '0' : '') + string(recordTime.month()) + '-' +
+             (recordTime.day() < 10 ? '0' : '') + string(recordTime.day());
+    }
+
+    function hasValidDailyRecordTimestamp() {
+      let currentTS = resource.data.get('dateTimestamp', null);
+      let nextTS = request.resource.data.get('dateTimestamp', null);
+      return nextTS is int &&
+             (currentTS == null || nextTS == currentTS) &&
+             resource.data.get('date', '') == resource.id &&
+             request.resource.data.get('date', '') == resource.id &&
+             dailyRecordTimestampDate(nextTS) == resource.id;
+    }
+
     function canNurseUpdatePersistedDailyRecord() {
-      return hasPersistedRecordTimestampPayload() &&
+      return hasValidDailyRecordTimestamp() &&
              isWithinEditingWindow(request.resource.data.dateTimestamp);
     }
 
@@ -64,11 +79,6 @@
                     : false
           )
         : false;
-    }
-
-    function hasPersistedRecordTimestampPayload() {
-      return request.resource.data.keys().hasAll(['dateTimestamp']) &&
-             request.resource.data.dateTimestamp != null;
     }
 
     function canAdminMaintainHospitalDocument() {

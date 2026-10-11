@@ -1,16 +1,14 @@
 import type { DailyRecordMetadataState } from '@/types/domain/dailyRecordSlices';
 
-export const createRecordDateTimestamp = (date: string): number =>
-  new Date(`${date}T00:00:00`).getTime();
+export const createRecordDateTimestamp = (date: string): number => Date.parse(`${date}T00:00:00`);
 
 export const ensureDailyRecordDateTimestamp = (record: DailyRecordMetadataState): void => {
-  if (!record.date) {
-    return;
-  }
-
-  const canonicalTimestamp = createRecordDateTimestamp(record.date);
-  if (record.dateTimestamp !== canonicalTimestamp) {
-    record.dateTimestamp = canonicalTimestamp;
+  const { date, dateTimestamp } = record;
+  if (
+    date &&
+    (!Number.isInteger(dateTimestamp) || new Date(dateTimestamp!).toJSON()?.slice(0, 10) !== date)
+  ) {
+    record.dateTimestamp = createRecordDateTimestamp(date);
   }
 };
 
