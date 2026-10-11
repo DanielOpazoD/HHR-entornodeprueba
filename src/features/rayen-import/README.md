@@ -19,6 +19,12 @@ externo) hacia el `DailyRecord` del HHR. La extensión de navegador lee Rayen y 
 `CensusImportDiff` (ingresos / actualizaciones / traslados / egresos / conflictos) para
 **revisión y confirmación** del usuario.
 
+El bridge valida los tipos opcionales y las fechas antes del mapper. Una captura marcada completa
+requiere cobertura de todos sus encuentros, sin errores de cabecera, diagnóstico ni aislamiento.
+Los snapshots legacy sin `clinicalCoverage` sólo se aceptan como parciales; no autorizan una
+sincronización completa ni una retirada implícita de aislamiento. La extensión debe emitir la
+evidencia de cobertura para usar el bundle correlacionado de sincronización.
+
 ## Modos de sincronización
 
 - **`preview` (default, SIEMPRE seguro):** muestra el diff en un modal y requiere confirmación.

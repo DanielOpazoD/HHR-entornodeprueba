@@ -3,6 +3,8 @@ import type {
   RayenEncounter,
   RayenSyncBundle,
 } from '../contracts/rayenSnapshot';
+import { encounterWallClockInRapaNui } from '../mapping/encounterWallClock';
+import { parseStrictIsoInstant } from '../mapping/localTimestamp';
 
 export const RAYEN_IMPORT_MESSAGE_TYPE = 'HHR_RAYEN_CENSUS_SNAPSHOT';
 export const RAYEN_IMPORT_ERROR_MESSAGE_TYPE = 'HHR_RAYEN_IMPORT_ERROR';
@@ -25,10 +27,36 @@ const isEncounter = (value: unknown): value is RayenEncounter => {
     typeof candidate.run === 'string' &&
     typeof candidate.firstGivenName === 'string' &&
     typeof candidate.firstFamilyName === 'string' &&
-    (candidate.treatingPhysicianId === undefined ||
-      typeof candidate.treatingPhysicianId === 'string') &&
-    (candidate.treatingPhysicianName === undefined ||
-      typeof candidate.treatingPhysicianName === 'string') &&
+    [
+      'nextGivenNames',
+      'secondFamilyName',
+      'birthDate',
+      'administrativeSex',
+      'gender',
+      'service',
+      'room',
+      'bed',
+      'clinicalCribParentBedId',
+      'admissionDatetime',
+      'diagnosis',
+      'diagnosisCode',
+      'diagnosisDescription',
+      'dischargeDatetime',
+      'isolationType',
+      'isolationMicroorganism',
+      'treatingPhysicianId',
+      'treatingPhysicianName',
+    ].every(field => candidate[field] === undefined || typeof candidate[field] === 'string') &&
+    ['hasMedicalDischarge', 'hasNurseDischarge', 'isDead', 'isIsolated', 'isGes'].every(
+      field => candidate[field] === undefined || typeof candidate[field] === 'boolean'
+    ) &&
+    ['birthDate', 'admissionDatetime', 'dischargeDatetime'].every(
+      field =>
+        candidate[field] === undefined ||
+        candidate[field] === '' ||
+        (typeof candidate[field] === 'string' &&
+          encounterWallClockInRapaNui(candidate[field]) !== null)
+    ) &&
     // Placement proof and configured specialty are HHR-only enrichments produced after the raw
     // snapshot is validated. The extension is never authoritative for either value.
     candidate.verifiedBedPlacement === undefined &&
@@ -60,7 +88,11 @@ const isActiveBedAssignment = (value: unknown): boolean => {
   );
 };
 
-const isClinicalCoverage = (value: unknown): boolean => {
+const isClinicalCoverage = (
+  value: unknown,
+  encounterCount: number,
+  isComplete: boolean
+): boolean => {
   if (typeof value !== 'object' || value === null) return false;
   const coverage = value as Record<string, unknown>;
   const fields = [
@@ -71,14 +103,17 @@ const isClinicalCoverage = (value: unknown): boolean => {
     'diagnosisErrors',
     'isolationErrors',
   ];
-  if (!fields.every(field => Number.isInteger(coverage[field]) && Number(coverage[field]) >= 0)) {
+  if (
+    !fields.every(field => Number.isSafeInteger(coverage[field]) && Number(coverage[field]) >= 0)
+  ) {
     return false;
   }
   return (
     Number(coverage.completed) + Number(coverage.errors) === Number(coverage.total) &&
     Number(coverage.headerErrors) <= Number(coverage.errors) &&
     Number(coverage.diagnosisErrors) <= Number(coverage.errors) &&
-    Number(coverage.isolationErrors) <= Number(coverage.errors)
+    Number(coverage.isolationErrors) <= Number(coverage.errors) &&
+    (!isComplete || (coverage.errors === 0 && coverage.total === encounterCount))
   );
 };
 
@@ -87,7 +122,11 @@ export const isRayenCensusSnapshot = (value: unknown): value is RayenCensusSnaps
   const candidate = value as Record<string, unknown>;
   return (
     typeof candidate.facilityId === 'number' &&
+    Number.isSafeInteger(candidate.facilityId) &&
+    candidate.facilityId > 0 &&
     typeof candidate.capturedAt === 'string' &&
+    parseStrictIsoInstant(candidate.capturedAt) !== null &&
+    (candidate.isComplete === undefined || typeof candidate.isComplete === 'boolean') &&
     Array.isArray(candidate.encounters) &&
     candidate.encounters.every(isEncounter) &&
     (candidate.physicians === undefined ||
@@ -98,7 +137,13 @@ export const isRayenCensusSnapshot = (value: unknown): value is RayenCensusSnaps
       (Array.isArray(candidate.activeBedAssignments) &&
         candidate.activeBedAssignments.length <= 30 &&
         candidate.activeBedAssignments.every(isActiveBedAssignment))) &&
-    (candidate.clinicalCoverage === undefined || isClinicalCoverage(candidate.clinicalCoverage))
+    (candidate.clinicalCoverage === undefined
+      ? candidate.isComplete !== true
+      : isClinicalCoverage(
+          candidate.clinicalCoverage,
+          candidate.encounters.length,
+          candidate.isComplete === true
+        ))
   );
 };
 
