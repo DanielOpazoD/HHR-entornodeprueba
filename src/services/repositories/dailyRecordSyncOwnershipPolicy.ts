@@ -59,6 +59,8 @@ const PATIENT_FIELD_OWNERSHIP = {
   isBlocked: 'adminRemote',
   blockedReason: 'adminRemote',
   bedMode: 'adminRemote',
+  neonatalMaternalRut: 'adminRemote',
+  neonatalPlacementDecision: 'adminRemote',
   hasCompanionCrib: 'adminRemote',
   location: 'adminRemote',
   admissionDate: 'adminRemote',

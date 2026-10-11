@@ -111,7 +111,7 @@ describe('applyCensusImportDiff', () => {
     const newborn = makeEncounter({
       encounterId: 'NEWBORN',
       run: '222222222',
-      firstGivenName: 'Bebe',
+      firstGivenName: 'RN de Ana',
       firstFamilyName: 'Perez',
       birthDate: '2026-07-08',
       room: 'Cunas',
@@ -125,7 +125,7 @@ describe('applyCensusImportDiff', () => {
     expect(result.record.beds.H5C1).toMatchObject({
       clinicalEpisodeId: 'MOTHER',
       clinicalCrib: {
-        patientName: 'Bebe Perez',
+        patientName: 'Rn De Ana Perez',
         clinicalEpisodeId: 'NEWBORN',
         bedMode: 'Cuna',
       },

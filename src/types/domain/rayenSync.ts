@@ -289,6 +289,8 @@ export interface RayenSyncPerformanceDelta {
 /** Aggregate-only structural evidence retained when clinical enrichment can still complete. */
 export interface RayenSyncStructuralReviewEvidence {
   /** Explicit proof that the structural census reached an authoritative confirmed handoff. */
+  /** Source capture explicitly declared a complete census for this exact run. */
+  snapshotComplete?: boolean;
   structureConfirmed?: boolean;
   historicalCorrectionsPending: boolean;
   historicalCorrectionsRequireFreshCapture: boolean;

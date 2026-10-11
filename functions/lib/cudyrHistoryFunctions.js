@@ -10,7 +10,7 @@ const { isDeepStrictEqual } = require('node:util');
 const { FieldPath } = require('firebase-admin/firestore');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
 const { assertAuthorizedDailyRecordWriter } = require('./dailyRecordWriteAuthorityFunctions');
-const { assertRayenClinicalBatchAuthority } = require('./rayenClinicalBatchAuthority');
+const { assertCudyrArchiveAuthority } = require('./rayenClinicalBatchAuthority');
 const {
   parseArchiveRequest,
   parseHistoryQuery,
@@ -165,7 +165,7 @@ const createCudyrHistoryFunctions = ({
             'Synchronization census is missing.'
           );
         const record = recordSnapshot.data();
-        assertRayenClinicalBatchAuthority({
+        assertCudyrArchiveAuthority({
           record,
           policySnapshot,
           payload: {

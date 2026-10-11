@@ -45,10 +45,27 @@ export const startCudyrSyncCapture = (input: {
                     const facts = collectCudyrDailyFacts(record).filter(
                       f => f.patient.clinicalEpisodeId === episode
                     );
+                    const maternalFor = (fact: (typeof facts)[number]) => {
+                      const parent = record.beds[fact.placement.bedId ?? ''];
+                      const decision = fact.patient.neonatalPlacementDecision;
+                      const storedMaternal = fact.patient.neonatalMaternalRut;
+                      const reviewedMaternal =
+                        decision?.clinicalEpisodeId === episode ? decision.maternalRut : undefined;
+                      if (reviewedMaternal || storedMaternal)
+                        return reviewedMaternal || storedMaternal!;
+                      if (decision?.clinicalEpisodeId === episode) {
+                        if (decision.parentEpisodeId !== parent?.clinicalEpisodeId) return '';
+                      }
+                      return fact.placement.section === 'crib' &&
+                        parent?.clinicalCrib?.clinicalEpisodeId === episode
+                        ? parent.rut
+                        : decision?.clinicalEpisodeId === episode
+                          ? decision.maternalRut || fact.patient.neonatalMaternalRut || ''
+                          : fact.patient.neonatalMaternalRut || '';
+                    };
+                    const key = (rut: string) => rut.replace(/[^0-9kK]/g, '').toUpperCase();
                     const identities = new Set(
-                      facts
-                        .map(f => (f.patient.rut || '').replace(/[^0-9kK]/g, '').toUpperCase())
-                        .filter(Boolean)
+                      facts.map(f => key(f.patient.rut || maternalFor(f))).filter(Boolean)
                     );
                     if (identities.size !== 1)
                       return Promise.reject(new Error('Identidad de episodio ambigua.'));
@@ -56,13 +73,18 @@ export const startCudyrSyncCapture = (input: {
                       f =>
                         f.placement.section === 'crib' ||
                         f.placement.isClinicalCrib ||
-                        f.patient.bedMode === 'Cuna'
+                        f.patient.bedMode === 'Cuna' ||
+                        Boolean(f.patient.neonatalMaternalRut) ||
+                        (f.patient.neonatalPlacementDecision?.clinicalEpisodeId === episode &&
+                          Boolean(f.patient.neonatalPlacementDecision.maternalRut))
                     );
+                    const parents = new Set(facts.map(f => key(maternalFor(f))).filter(Boolean));
                     return deps.recoverCudyrPlacements!(
                       episode,
                       [...identities][0],
                       observedAt,
-                      maternal ? 'maternal' : 'patient'
+                      maternal ? 'maternal' : 'patient',
+                      maternal && parents.size === 1 ? [...parents][0] : undefined
                     );
                   },
                 }

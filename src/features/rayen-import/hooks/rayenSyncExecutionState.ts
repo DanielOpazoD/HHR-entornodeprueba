@@ -106,6 +106,8 @@ export type RayenSyncExecutionAction =
       selectedDate?: string;
       structuralConflicts?: number;
       skippedItems?: number;
+      /** The persisted plan replaces preview findings after the user's review. */
+      committed?: boolean;
     }
   | { type: 'cancel'; runId?: string }
   | { type: 'reset' };
@@ -246,11 +248,12 @@ export const rayenSyncExecutionReducer = (
       return {
         ...state,
         outcome: {
-          structuralConflicts: Math.max(
-            state.outcome.structuralConflicts,
-            action.structuralConflicts ?? 0
-          ),
-          skippedItems: Math.max(state.outcome.skippedItems, action.skippedItems ?? 0),
+          structuralConflicts: action.committed
+            ? (action.structuralConflicts ?? 0)
+            : Math.max(state.outcome.structuralConflicts, action.structuralConflicts ?? 0),
+          skippedItems: action.committed
+            ? (action.skippedItems ?? 0)
+            : Math.max(state.outcome.skippedItems, action.skippedItems ?? 0),
         },
       };
     case 'cancel':

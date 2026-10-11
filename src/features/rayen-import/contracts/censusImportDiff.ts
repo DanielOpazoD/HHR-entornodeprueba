@@ -6,6 +6,7 @@
  * it does not persist anything.
  */
 
+import type { NeonatalPlacementReview } from './neonatalPlacementReview';
 import type { RayenSyncCaseContext } from '@/types/domain/rayenSync';
 import type { PatientData } from './rayenDomainContracts';
 import type { DischargeData } from '@/types/domain/movements';
@@ -187,6 +188,7 @@ export interface ConflictEntry {
   patientName?: string;
   /** Domain scope used when a later reconciliation stage must preserve an unresolved conflict. */
   scope?: 'clinical-crib';
+  neonatalAssociationReview?: boolean;
   /** Stable machine-readable discriminator for conflicts consumed across reconciliation stages. */
   code?:
     | 'unconfirmed-principal-bed'
@@ -255,6 +257,15 @@ export interface CensusImportSummary {
 }
 
 export interface CensusImportDiff {
+  neonatalPlacementReviews?: NeonatalPlacementReview[];
+  neonatalSourceChanges?: Array<{
+    episodeId: string;
+    patientName: string;
+    hhrBedId: string;
+    sourceBedId: string;
+    sourceMode: string;
+    hhrMode: string;
+  }>;
   admissions: AdmissionEntry[];
   updates: UpdateEntry[];
   moves: MoveEntry[];

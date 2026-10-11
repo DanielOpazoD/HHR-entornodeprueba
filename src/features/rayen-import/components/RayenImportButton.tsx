@@ -9,9 +9,11 @@ import { RayenImportPreviewModal } from './RayenImportPreviewModal';
 import { RayenImportFlowStatus } from './RayenImportFlowStatus';
 import { RayenNursingShiftProposalModal } from './RayenNursingShiftProposalModal';
 import { RayenConnectionMonitor } from './RayenConnectionMonitor';
-import { SyncQueueStatusChip } from './SyncQueueStatusChip';
+import { useSyncQueueMonitor } from '@/hooks/useSyncQueueMonitor';
+import { buildSyncQueueChipModel } from './syncQueueStatusPresentation';
+import { RayenSyncQueueDetails, RayenSyncStatusLine } from './RayenSyncQueueDetails';
 import { presentRayenSyncRecovery, rayenPrimaryActionLabel } from './rayenSyncPresentation';
-import type { RayenSyncMeta } from '../contracts/rayenDomainContracts';
+import { formatLastSync } from './formatRayenLastSync';
 import type {
   RayenImportCaptureOptions,
   RayenImportTriggerOutcome,
@@ -21,7 +23,6 @@ import {
   isRayenSyncExecutionActive,
   rayenSyncExecutionDate,
 } from '../hooks/rayenSyncExecutionState';
-import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 // The sync history is an on-demand panel that only matters while Eloísa is connected, so its
 // sections and technical metrics stay out of the census view and the PWA precache.
@@ -39,23 +40,6 @@ const LazyRayenSyncHistoryModal = lazy(() =>
  * "Sincronizando…" state so it's clear the sync is actually in progress.
  */
 
-/** Last-sync instant formatted in island time (Pacific/Easter), e.g. "12-07-2026 · 14:32 h". */
-const formatLastSync = (meta: RayenSyncMeta): string | null => {
-  const when = new Date(meta.at);
-  if (Number.isNaN(when.getTime())) return null;
-  const parts = new Intl.DateTimeFormat('es-CL', {
-    timeZone: CLINICAL_TIME_ZONE,
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(when);
-  const get = (type: string): string => parts.find(part => part.type === type)?.value ?? '';
-  return `${get('day')}-${get('month')}-${get('year')} · ${get('hour')}:${get('minute')} h`;
-};
-
 interface RayenImportButtonProps {
   selectedDate?: string;
   autoStartRequestId?: number;
@@ -70,7 +54,11 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
   const [historyOpen, setHistoryOpen] = React.useState(false);
   const [recoveryBusy, setRecoveryBusy] = React.useState(false);
   const [connectionMonitorOpen, setConnectionMonitorOpen] = React.useState(false);
-  const [queuePanelOpen, setQueuePanelOpen] = React.useState(false);
+  const queue = useSyncQueueMonitor({ operationLimit: 12 });
+  const queueAttention =
+    buildSyncQueueChipModel(queue.stats).tone !== 'hidden' ||
+    queue.stats.retrying > 0 ||
+    queue.stats.readState === 'unavailable';
   const [staffingReviewOpen, setStaffingReviewOpen] = React.useState(false);
   const historyTriggerRef = React.useRef<HTMLButtonElement>(null);
   const syncPreflightInFlightRef = React.useRef(false);
@@ -243,37 +231,49 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
   return (
     <div
       className={`h-full min-h-20 w-full rounded-xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] ${
-        connectionMonitorOpen || queuePanelOpen ? 'relative z-[70]' : ''
+        connectionMonitorOpen ? 'relative z-[70]' : ''
       }`}
       data-testid="rayen-operations-bar"
       // El header del censo (stacking context por animate-fade-in) se eleva vía
       // has-[[data-overlay-open]] SOLO mientras un popover de la barra está
       // abierto; un z estático en el header tapaba los menús de la primera fila
       // y del toolbar (cazado por e2e-critical).
-      data-overlay-open={connectionMonitorOpen || queuePanelOpen ? 'true' : undefined}
+      data-overlay-open={connectionMonitorOpen ? 'true' : undefined}
     >
       <div className="flex h-full min-w-0 flex-col justify-between gap-1 px-2 py-1">
         <RayenConnectionMonitor
           extension={extension}
           working={working}
-          lastSyncLine={
-            <RayenImportFlowStatus
-              diff={diff}
-              fill={fill}
-              error={error}
-              hasPersistedSync={Boolean(lastSync)}
-              persistedSync={recordForSelectedDate?.rayenSync}
-              executionStage={execution?.stage}
-              targetDate={targetDate}
-              compactFallback={lastSync ? `Última ${lastSync}` : 'Aún sin sincronizar hoy'}
+          syncQueueDetail={
+            <RayenSyncQueueDetails
+              stats={queue.stats}
+              operations={queue.operations}
+              refresh={queue.refresh}
+              working={working}
             />
+          }
+          lastSyncLine={
+            <RayenSyncStatusLine
+              pending={queueAttention && !working}
+              onOpen={() => setConnectionMonitorOpen(true)}
+            >
+              <RayenImportFlowStatus
+                diff={diff}
+                fill={fill}
+                error={error}
+                hasPersistedSync={Boolean(lastSync)}
+                persistedSync={recordForSelectedDate?.rayenSync}
+                executionStage={execution?.stage}
+                targetDate={targetDate}
+                compactFallback={lastSync ? `Última ${lastSync}` : 'Aún sin sincronizar hoy'}
+              />
+            </RayenSyncStatusLine>
           }
           open={connectionMonitorOpen}
           onOpenChange={setConnectionMonitorOpen}
         />
 
         <div className="flex min-w-0 items-center justify-end gap-1">
-          <SyncQueueStatusChip open={queuePanelOpen} onOpenChange={setQueuePanelOpen} />
           <button
             ref={historyTriggerRef}
             type="button"
@@ -284,7 +284,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
             className="relative inline-flex size-8 min-h-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-colors hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
           >
             <History size={14} aria-hidden="true" />
-            {recovery && (
+            {(recovery || queueAttention) && (
               <span
                 className={`absolute -right-0.5 -top-0.5 size-2 rounded-full border border-white ${
                   working ? 'bg-slate-300' : 'bg-amber-500'

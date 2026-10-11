@@ -17,8 +17,8 @@ export const createClinicalFillReaders = (signal: AbortSignal) =>
     fetchScalesForms: encId => requestScalesReport(encId, undefined, signal),
     fetchPatientClinicalBundle: (encId, date, options) =>
       requestPatientClinicalBundle(encId, date, options, undefined, signal),
-    recoverCudyrPlacements: (episode, rut, observedAt, identityKind) =>
-      recoverCudyrHospitalHistory(episode, rut, signal, observedAt, identityKind),
+    recoverCudyrPlacements: (episode, rut, observedAt, identityKind, maternalRut) =>
+      recoverCudyrHospitalHistory(episode, rut, signal, observedAt, identityKind, maternalRut),
     fetchCudyrCategories: () => requestCudyrCategories(undefined, signal),
   }) satisfies Pick<
     ClinicalFillDeps,

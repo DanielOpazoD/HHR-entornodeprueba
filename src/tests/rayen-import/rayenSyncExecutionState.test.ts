@@ -201,6 +201,39 @@ describe('rayenSyncExecutionReducer', () => {
     expect(next.outcome).toEqual({ structuralConflicts: 0, skippedItems: 0 });
   });
 
+  it('replaces resolved preview conflicts with the committed plan outcome', () => {
+    let state = activate(context('run-1', 'request-1'));
+    const identity = { runId: 'run-1', requestId: 'request-1' };
+    state = rayenSyncExecutionReducer(state, {
+      type: 'record_outcome',
+      ...identity,
+      structuralConflicts: 1,
+    });
+    for (const type of ['planning_structure', 'awaiting_review', 'persisting_structure'] as const) {
+      state = rayenSyncExecutionReducer(state, {
+        type: 'transition',
+        ...identity,
+        stage: { type },
+      });
+    }
+    state = rayenSyncExecutionReducer(state, {
+      type: 'record_outcome',
+      ...identity,
+      committed: true,
+      structuralConflicts: 0,
+      skippedItems: 0,
+    });
+    expect(state.outcome).toEqual({ structuralConflicts: 0, skippedItems: 0 });
+    const unresolved = rayenSyncExecutionReducer(state, {
+      type: 'record_outcome',
+      ...identity,
+      committed: true,
+      structuralConflicts: 1,
+      skippedItems: 2,
+    });
+    expect(unresolved.outcome).toEqual({ structuralConflicts: 1, skippedItems: 2 });
+  });
+
   it('keeps a newer execution lock when an obsolete apply settles', () => {
     const oldKey = rayenSyncExecutionKey({
       runId: 'run-old',

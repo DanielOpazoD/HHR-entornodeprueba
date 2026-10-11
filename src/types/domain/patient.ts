@@ -1,3 +1,4 @@
+import type { NeonatalPlacementDecision } from './neonatalPlacementDecision';
 import type { PatientIdentityStatus } from './patientIdentity';
 import type { Specialty, PatientStatus } from './patientClassification';
 import type { ClinicalEvent } from './clinicalEvents';
@@ -62,6 +63,9 @@ export interface PatientData {
 
   // Nested Patient Data for Clinical Crib (Sick Newborn sharing room with Mother)
   clinicalCrib?: PatientData;
+  /** Proven parental identity for source PDF validation, never the RN personal document. */
+  neonatalMaternalRut?: string;
+  neonatalPlacementDecision?: NeonatalPlacementDecision;
 
   patientName: string;
   firstName?: string;
