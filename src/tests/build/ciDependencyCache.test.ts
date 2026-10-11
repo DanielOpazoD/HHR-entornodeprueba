@@ -73,6 +73,7 @@ it('reuses exact dependencies across compatible jobs with only one pristine-cach
     'census-startup-performance',
     'clinical-sync-release-gate',
     'critical-coverage-report',
+    'critical-coverage-shards',
     'docs',
     'docs-scope-gate',
     'e2e-critical-emulator',
@@ -100,7 +101,7 @@ it('reuses exact dependencies across compatible jobs with only one pristine-cach
     const checkoutIndex = job.steps.findIndex(step => step.uses?.startsWith('actions/checkout@'));
     const firstCommandIndex = job.steps.findIndex(
       step =>
-        /\b(?:npm|npx)\b/.test(step.run ?? '') ||
+        /\b(?:npm|npx|node)\b/.test(step.run ?? '') ||
         step.uses?.startsWith('treosh/lighthouse-ci-action@')
     );
     expect(checkoutIndex).toBeGreaterThanOrEqual(0);
@@ -119,7 +120,7 @@ it('preserves docs-only conditions and parallel cold-miss fallbacks without a pr
   const independent = [
     'docs',
     'docs-scope-gate',
-    'critical-coverage-report',
+    'critical-coverage-shards',
     'quality-static-groups',
     'clinical-sync-release-gate',
     'unit-risk-shards',
