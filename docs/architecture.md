@@ -5,6 +5,14 @@ centralizados en [Codebase Canon](CODEBASE_CANON.md); las decisiones de cada
 subsistema viven en sus ADR, enlazadas desde [Documentation Map](DOCUMENTATION_MAP.md).
 `ARCHITECTURE.md` conserva sólo el enlace a esta guía.
 
+## Mapa visual
+
+Las [cuatro vistas C4](architecture/c4/README.md) muestran contexto, contenedores,
+componentes web y Horas Extras independiente. Incluyen SVG visibles en GitHub,
+fuentes PlantUML y regeneración local. Son un snapshot explícito del commit
+`fd06b55824194ad0f8fc5f6d04c31e1c8608c1d3`, no evidencia de despliegue ni sustituto
+de los flujos vigentes y ADR descritos aquí.
+
 ## Simplificar antes de añadir
 
 Resolver primero con el módulo dueño y el camino existente. Crear una separación

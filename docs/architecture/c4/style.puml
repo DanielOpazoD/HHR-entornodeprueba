@@ -1,0 +1,22 @@
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName Helvetica
+skinparam defaultFontSize 14
+skinparam ArrowFontSize 12
+skinparam shadowing false
+skinparam dpi 150
+skinparam nodesep 35
+skinparam ranksep 45
+skinparam wrapWidth 220
+skinparam maxMessageSize 65
+skinparam titleFontColor #17324D
+skinparam titleFontSize 23
+skinparam footerFontSize 11
+skinparam footerFontColor #52657A
+UpdateElementStyle("person", $bgColor="#17324D", $borderColor="#17324D")
+UpdateElementStyle("system", $bgColor="#155E75", $borderColor="#164E63")
+UpdateElementStyle("container", $bgColor="#216B9B", $borderColor="#155675")
+UpdateElementStyle("component", $bgColor="#E0F2FE", $fontColor="#17324D", $borderColor="#73A9C5")
+UpdateElementStyle("external_system", $bgColor="#63758A", $borderColor="#52657A")
+AddElementTag("managed", $bgColor="#6D5A91", $fontColor="#FFFFFF", $borderColor="#584775", $legendText="Servicio gestionado de Firebase")
+AddRelTag("optional", $lineStyle=DashedLine(), $legendText="Ruta alternativa o dependiente de configuración")
+footer HHR · DanielOpazoD/HHR-entornodeprueba · SHA fd06b5582419\nLectura estática del código; no representa verificación de un despliegue productivo.

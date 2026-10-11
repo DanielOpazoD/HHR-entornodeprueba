@@ -1,0 +1,33 @@
+@startuml 04-horas-extras
+!include  https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+!include style.puml
+LAYOUT_TOP_DOWN()
+title Horas Extras · Sistema auxiliar independiente (C4 / nivel 2)
+
+Person(worker, "Funcionario", "TENS, Enfermería o Médico; turnos y Excel propios")
+Person(admin, "Administrador de Horas Extras", "Permiso independiente de la profesión; descarga mensual por grupo")
+System_Boundary(overtime, "apps/horas-extras/ · separado de HHR clínico") {
+  Container(ui, "Cliente Horas Extras", "React 19 · Vite · ExcelJS", "src/ · Calendario, turnos y generación de Excel. Build cloud y demo son modos distintos.")
+  Container(api, "API propia", "Node.js · Netlify Function", "server/api.mjs · Sesiones, cambios de clave, permisos y escrituras por propietario")
+  ContainerDb(db, "Firestore de Horas Extras", "Proyecto Firebase independiente", "Personas / turnos; sesiones; límites de intentos. Acceso de servidor con Admin SDK.", $tags="managed")
+}
+System_Ext(clinical, "HHR clínico", "Runtime, login y Firebase independientes; sin conexión dibujada")
+
+Rel(worker, ui, "Registra turnos / descarga su Excel", "HTTPS")
+Rel(admin, ui, "Descarga planillas TENS / Enfermería", "HTTPS")
+Rel(ui, api, "Login, consultas y mutaciones", "/api/overtime/*; cookie de sesión")
+Rel(api, db, "Consulta y escribe transaccionalmente", "Firebase Admin SDK")
+Lay_R(db, clinical)
+note bottom of api
+  La API verifica sesión, propietario y revisión.
+  El navegador no accede directamente a Firestore.
+  Demo: datos ficticios en memoria, sin esta API.
+end note
+note right of clinical
+  El empaquetado alternativo worker/index.js
+  sirve assets; no implementa esta API.
+  No se infiere un backend Cloudflare.
+end note
+SHOW_LEGEND()
+@enduml
