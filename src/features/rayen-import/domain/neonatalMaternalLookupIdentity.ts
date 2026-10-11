@@ -1,4 +1,4 @@
-import { isValidRut } from '@/utils/rutUtils';
+import { isValidRut, normalizeRut } from '@/utils/rutUtils';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import { ageFromBirthDate } from '../mapping/rayenToPatientData';
@@ -13,7 +13,7 @@ const maternalCandidates = (
   sourceRun: string
 ): Array<{ episode: string; rut: string }> => {
   if (!isValidRut(sourceRun)) return [];
-  const key = (run: string) => run.replace(/[^0-9kK]/g, '').toUpperCase();
+
   const candidates = [
     ...Object.values(current.beds)
       .filter(
@@ -44,7 +44,7 @@ const maternalCandidates = (
           !/^(?:Hombre|Masculino|Male)$/i.test(s.administrativeSex || '')
       )
       .map(s => ({ episode: s.encounterId, rut: s.run })),
-  ].filter(p => key(p.rut) === key(sourceRun));
+  ].filter(p => normalizeRut(p.rut) === normalizeRut(sourceRun));
   return candidates;
 };
 

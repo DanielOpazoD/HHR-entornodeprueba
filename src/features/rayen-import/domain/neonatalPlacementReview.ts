@@ -2,7 +2,7 @@ import { EMPTY_PATIENT } from '@/constants/patient';
 import { isMaternalCandidatePatient } from './clinicalCribMaternalAssociation';
 import { occupied, plannedCribOccupied } from './neonatalPlacementAvailability';
 import { neonatalSourcePlacementKey } from './reviewedNeonatalSourcePlacement';
-import { isValidRut } from '@/utils/rutUtils';
+import { isValidRut, normalizeRut } from '@/utils/rutUtils';
 import type { NeonatalPlacementDecision } from '@/types/domain/neonatalPlacementDecision';
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
@@ -145,7 +145,7 @@ export const resolveNeonatalPlacements = (
       sourceService: review.source.service,
       sourceRun: review.source.run,
     };
-    const runKey = (rut: string) => rut.replace(/[^0-9kK]/g, '').toUpperCase();
+
     const maternalMatches = [
       ...Object.values(current.beds),
       ...next.admissions.map(a => a.patient),
@@ -156,7 +156,7 @@ export const resolveNeonatalPlacements = (
         isMaternalCandidatePatient(p) &&
         !p.isBlocked &&
         isValidRut(review.source.run) &&
-        runKey(p.rut) === runKey(review.source.run)
+        normalizeRut(p.rut) === normalizeRut(review.source.run)
     );
     const distinctMaternalEpisodes = new Set(maternalMatches.map(p => p.clinicalEpisodeId));
     const selectedMaternal = mother
@@ -175,18 +175,19 @@ export const resolveNeonatalPlacements = (
     decision.sourceRunIsMaternal = Boolean(
       (maternalMatches.length > 0 &&
         (distinctMaternalEpisodes.size === 1 ||
-          runKey(review.patient.rut) !== runKey(review.source.run))) ||
-      (maternalRut && runKey(maternalRut) === runKey(review.source.run)) ||
+          normalizeRut(review.patient.rut) !== normalizeRut(review.source.run))) ||
+      (maternalRut && normalizeRut(maternalRut) === normalizeRut(review.source.run)) ||
       (existing?.neonatalPlacementDecision?.sourceRunIsMaternal &&
-        runKey(existing.neonatalPlacementDecision.sourceRun ?? '') === runKey(review.source.run))
+        normalizeRut(existing.neonatalPlacementDecision.sourceRun ?? '') ===
+          normalizeRut(review.source.run))
     );
     const carriesMaternalRun = Boolean(
       ((distinctMaternalEpisodes.size === 1 && maternalMatches.length > 0) ||
-        (maternalRut && runKey(maternalRut) === runKey(review.source.run)) ||
+        (maternalRut && normalizeRut(maternalRut) === normalizeRut(review.source.run)) ||
         (existing?.neonatalPlacementDecision?.sourceRunIsMaternal &&
-          runKey(existing.neonatalPlacementDecision.sourceRun ?? '') ===
-            runKey(review.source.run))) &&
-      runKey(review.patient.rut) === runKey(review.source.run)
+          normalizeRut(existing.neonatalPlacementDecision.sourceRun ?? '') ===
+            normalizeRut(review.source.run))) &&
+      normalizeRut(review.patient.rut) === normalizeRut(review.source.run)
     );
     if (maternalRut) decision.maternalRut = maternalRut;
     else if (!mother && existing?.neonatalPlacementDecision?.maternalRut)

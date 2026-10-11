@@ -1,3 +1,4 @@
+import { normalizeRut } from '@/utils/rutUtils';
 import { neonatalMaternalLookupRut } from './neonatalMaternalLookupIdentity';
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
@@ -38,10 +39,10 @@ export const planReviewedNeonatalSourceChanges = (
             ? principal.rut
             : decision.maternalRut
           : neonatalMaternalLookupRut(current, sources, source.encounterId, source.run);
-      const runKey = (rut: string) => rut.replace(/[^0-9kK]/g, '').toUpperCase();
+
       if (
         key === decision.sourcePlacementKey &&
-        runKey(source.run) === runKey(decision.sourceRun ?? '') &&
+        normalizeRut(source.run) === normalizeRut(decision.sourceRun ?? '') &&
         (!maternalRut || maternalRut === decision.maternalRut)
       )
         continue;
@@ -90,9 +91,10 @@ export const planReviewedNeonatalSourceChanges = (
         sourceRun: source.run,
         sourceRunIsMaternal:
           Boolean(neonatalMaternalLookupRut(current, sources, source.encounterId, source.run)) ||
-          Boolean(maternalRut && runKey(maternalRut) === runKey(source.run)) ||
+          Boolean(maternalRut && normalizeRut(maternalRut) === normalizeRut(source.run)) ||
           Boolean(
-            decision.sourceRunIsMaternal && runKey(decision.sourceRun ?? '') === runKey(source.run)
+            decision.sourceRunIsMaternal &&
+            normalizeRut(decision.sourceRun ?? '') === normalizeRut(source.run)
           ),
         bedId: updateBedId,
         ...(maternalRut ? { maternalRut } : {}),

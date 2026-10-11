@@ -3,7 +3,7 @@ import React from 'react';
 import type { SyncQueueOperation, SyncQueueStats } from '@/hooks/useSyncQueueMonitor';
 import { retryQuarantinedSyncTask } from '@/services/storage/sync';
 import { isPolicyBlockedCudyrArchive } from '@/services/storage/sync/cudyrPolicyBlockedRecovery';
-import { listQuarantinedOperations } from './syncQueueStatusPresentation';
+import { listQuarantinedOperations } from './localSyncPresentation';
 
 /** On-demand detail inside the existing Eloísa panel; never another census overlay. */
 export const RayenSyncQueueDetails: React.FC<{
