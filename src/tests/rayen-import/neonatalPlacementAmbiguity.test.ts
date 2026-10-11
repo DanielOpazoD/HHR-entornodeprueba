@@ -1,5 +1,9 @@
+import {
+  REVIEWED_AT as at,
+  applyNeonatalReview as apply,
+} from './neonatalPlacementReview.fixtures';
 import { describe, expect, it } from 'vitest';
-import { applyCensusImportDiff, reconcileCensus } from '@/features/rayen-import';
+import { reconcileCensus } from '@/features/rayen-import';
 import { resolveNeonatalPlacements } from '@/features/rayen-import/domain/neonatalPlacementReview';
 import {
   encounter,
@@ -9,7 +13,6 @@ import {
   snapshotOf,
   REFERENCE,
 } from './clinicalCribDischargePromotion.fixtures';
-const at = '2026-07-08T20:00:00-06:00';
 
 describe('neonatal identity and known-association ambiguity', () => {
   it.each(['mother', 'independent'] as const)(
@@ -47,12 +50,7 @@ describe('neonatal identity and known-association ambiguity', () => {
         at,
         'Nurse'
       );
-      const saved = applyCensusImportDiff(current, resolved, {
-        now: new Date(at),
-        idFactory: () => 'review',
-        syncRunId: 'review',
-        actor: 'Nurse',
-      }).record;
+      const saved = apply(current, resolved);
       const rn = kind === 'mother' ? saved.beds.H5C1.clinicalCrib! : saved.beds.NEO1;
       expect(rn.rut).toBe('');
       expect(rn.identityStatus).toBe('provisional');
@@ -93,12 +91,7 @@ describe('neonatal identity and known-association ambiguity', () => {
     const diff = reconcileCensus(current, snapshotOf([mother, other, corrected]), {
       reference: REFERENCE,
     });
-    const saved = applyCensusImportDiff(current, diff, {
-      now: new Date(at),
-      idFactory: () => 'review',
-      syncRunId: 'review',
-      actor: 'Nurse',
-    }).record;
+    const saved = apply(current, diff);
     expect(saved.beds.NEO1.rut).toBe(own.rut);
     expect(saved.beds.NEO1.neonatalPlacementDecision?.maternalRut).toBeUndefined();
   });
@@ -141,12 +134,7 @@ describe('neonatal identity and known-association ambiguity', () => {
     expect(diff.neonatalPlacementReviews?.find(r => r.episodeId === 'NEWBORN')?.mothers).toEqual(
       []
     );
-    const saved = applyCensusImportDiff(current, diff, {
-      now: new Date(at),
-      idFactory: () => 'review',
-      syncRunId: 'review',
-      actor: 'Nurse',
-    }).record;
+    const saved = apply(current, diff);
     expect(saved.beds.NEO1.clinicalCrib).toBeUndefined();
     expect(saved.beds.NEO1.rut).toBe(patient.rut);
   });
@@ -180,12 +168,7 @@ describe('neonatal identity and known-association ambiguity', () => {
         at,
         'Nurse'
       );
-      const saved = applyCensusImportDiff(current, resolved, {
-        now: new Date(at),
-        idFactory: () => 'review',
-        syncRunId: 'review',
-        actor: 'Nurse',
-      }).record;
+      const saved = apply(current, resolved);
       const rn = saved.beds[selected === 'OTHER' ? 'R3' : 'H5C1'].clinicalCrib!;
       expect(rn.clinicalEpisodeId).toBe('NEWBORN');
       expect(rn.rut).toBe(seed(child).rut);
