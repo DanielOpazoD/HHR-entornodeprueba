@@ -155,7 +155,9 @@ export const evaluateSyncInvariants = root => {
         transport.includes('record: docToRecord(remoteData, record.date)') &&
         transport.includes("resolved.resolution === 'already_applied'") &&
         transport.includes('return { authoritativeRecord: resolved.record }') &&
-        engine.includes('store.deleteClaimed(task.id, claim, result.authoritativeRecord)') &&
+        /store\.deleteClaimed\(\s*task\.id,\s*claim,\s*result\.authoritativeRecord\s*\)/.test(
+          engine
+        ) &&
         conflictPolicy.includes('lastMutationId'),
       'Sync queue replay must return the already-applied remote record to claimed completion so local outbox can drain atomically.',
       [

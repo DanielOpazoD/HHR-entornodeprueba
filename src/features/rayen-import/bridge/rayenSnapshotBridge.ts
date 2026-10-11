@@ -23,10 +23,9 @@ const isEncounter = (value: unknown): value is RayenEncounter => {
   if (typeof value !== 'object' || value === null) return false;
   const candidate = value as Record<string, unknown>;
   return (
-    typeof candidate.encounterId === 'string' &&
-    typeof candidate.run === 'string' &&
-    typeof candidate.firstGivenName === 'string' &&
-    typeof candidate.firstFamilyName === 'string' &&
+    ['encounterId', 'run', 'firstGivenName', 'firstFamilyName'].every(
+      field => typeof candidate[field] === 'string'
+    ) &&
     [
       'nextGivenNames',
       'secondFamilyName',
@@ -108,12 +107,14 @@ const isClinicalCoverage = (
   ) {
     return false;
   }
+  // All counters were checked as nonnegative safe integers above.
+  const counts = coverage as Record<string, number>;
   return (
-    Number(coverage.completed) + Number(coverage.errors) === Number(coverage.total) &&
-    Number(coverage.headerErrors) <= Number(coverage.errors) &&
-    Number(coverage.diagnosisErrors) <= Number(coverage.errors) &&
-    Number(coverage.isolationErrors) <= Number(coverage.errors) &&
-    (!isComplete || (coverage.errors === 0 && coverage.total === encounterCount))
+    counts.completed + counts.errors === counts.total &&
+    ['headerErrors', 'diagnosisErrors', 'isolationErrors'].every(
+      field => counts[field] <= counts.errors
+    ) &&
+    (!isComplete || (counts.errors === 0 && counts.total === encounterCount))
   );
 };
 

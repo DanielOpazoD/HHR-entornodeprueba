@@ -33,6 +33,9 @@ const normalizeMessage = (error: unknown): string => {
   return typeof value === 'string' ? value : String(error || '');
 };
 
+const hasNetworkMessage = (message: string): boolean =>
+  ['network', 'timeout', 'failed to fetch', 'offline'].some(fragment => message.includes(fragment));
+
 const getCategory = (code: string, messageLower: string, name: string): SyncErrorCategory => {
   if (
     code === 'sync_ack_projection_conflict' ||
@@ -59,10 +62,7 @@ const getCategory = (code: string, messageLower: string, name: string): SyncErro
     code.includes('resource-exhausted') ||
     code.includes('aborted') ||
     code.includes('internal') ||
-    messageLower.includes('network') ||
-    messageLower.includes('timeout') ||
-    messageLower.includes('failed to fetch') ||
-    messageLower.includes('offline')
+    hasNetworkMessage(messageLower)
   ) {
     return 'network';
   }
@@ -72,19 +72,12 @@ const getCategory = (code: string, messageLower: string, name: string): SyncErro
 const getSeverity = (category: SyncErrorCategory): ErrorSeverity =>
   category === 'authorization' ? 'high' : 'medium';
 
-const getRecommendedAction = (category: SyncErrorCategory): string => {
-  switch (category) {
-    case 'conflict':
-      return 'Revisar y resolver conflicto antes de reintentar.';
-    case 'authorization':
-      return 'Revisar permisos/reglas y sesión del usuario.';
-    case 'validation':
-      return 'Validar datos antes de reenviar la operación.';
-    case 'network':
-      return 'Esperar reconexión y reintentar automáticamente.';
-    default:
-      return 'Revisar error y escalar si persiste.';
-  }
+const recommendedActions: Record<SyncErrorCategory, string> = {
+  conflict: 'Revisar y resolver conflicto antes de reintentar.',
+  authorization: 'Revisar permisos/reglas y sesión del usuario.',
+  validation: 'Validar datos antes de reenviar la operación.',
+  network: 'Esperar reconexión y reintentar automáticamente.',
+  unknown: 'Revisar error y escalar si persiste.',
 };
 
 export const classifySyncError = (error: unknown): SyncErrorClassification => {
@@ -95,12 +88,7 @@ export const classifySyncError = (error: unknown): SyncErrorClassification => {
   const category = getCategory(code, messageLower, name);
 
   const retryableByCode = !NON_RETRYABLE_CODES.some(nonRetryable => code.includes(nonRetryable));
-  const retryableByFallback =
-    isRetryableError(error) ||
-    messageLower.includes('network') ||
-    messageLower.includes('timeout') ||
-    messageLower.includes('failed to fetch') ||
-    messageLower.includes('offline');
+  const retryableByFallback = isRetryableError(error) || hasNetworkMessage(messageLower);
 
   return {
     code: code || 'unknown',
@@ -108,7 +96,7 @@ export const classifySyncError = (error: unknown): SyncErrorClassification => {
     category,
     severity: getSeverity(category),
     retryable: category !== 'conflict' && retryableByCode && retryableByFallback,
-    recommendedAction: getRecommendedAction(category),
+    recommendedAction: recommendedActions[category],
   };
 };
 

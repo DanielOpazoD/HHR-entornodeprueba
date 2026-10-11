@@ -285,12 +285,14 @@ export const createSyncQueueEngine = ({
                   continue;
                 }
                 task.leaseUntil = leaseUntil;
-                const result = await transport.run(task);
+                const result = (await transport.run(task)) || {};
                 const claim = buildTaskClaim(task);
                 if (claim) {
-                  const deleted = result?.authoritativeRecord
-                    ? await store.deleteClaimed(task.id, claim, result.authoritativeRecord)
-                    : await store.deleteClaimed(task.id, claim);
+                  const deleted = await store.deleteClaimed(
+                    task.id,
+                    claim,
+                    result.authoritativeRecord
+                  );
                   if (!deleted) {
                     recordSyncQueueStaleClaimTelemetry(task, 'delete');
                   }

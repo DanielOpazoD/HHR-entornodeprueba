@@ -21,36 +21,6 @@ class SyncQueueAckError extends Error {
   }
 }
 
-const shouldAdoptDailyRecordAck = (
-  task: SyncTask,
-  authoritativeRecord: DailyRecord,
-  local: DailyRecord | undefined,
-  hasUnresolvedWrites: boolean
-): boolean => {
-  const payload = task.payload as Partial<DailyRecord> | undefined;
-  if (
-    task.type !== 'UPDATE_DAILY_RECORD' ||
-    task.key !== `daily:${authoritativeRecord.date}` ||
-    payload?.date !== authoritativeRecord.date
-  ) {
-    throw new SyncQueueAckError('sync_ack_invalid_record', 'ACK record mismatch.');
-  }
-  if (hasUnresolvedWrites) {
-    if (!local) {
-      throw new SyncQueueAckError('sync_ack_missing_projection', 'Missing local projection.');
-    }
-    return false;
-  }
-  if (
-    local &&
-    local.lastUpdated !== payload.lastUpdated &&
-    local.lastUpdated !== authoritativeRecord.lastUpdated
-  ) {
-    throw new SyncQueueAckError('sync_ack_projection_conflict', 'ACK version conflict.');
-  }
-  return true;
-};
-
 export const completeClaimedSyncTask = (
   { db, matchesClaim, pending }: AckRuntime,
   taskId: number,
@@ -62,12 +32,30 @@ export const completeClaimedSyncTask = (
     if (!matchesClaim(task, claim)) return { deleted: false, adopted: false };
     let adopted = false;
     if (authoritativeRecord) {
+      const payload = task.payload as Partial<DailyRecord> | undefined;
+      if (
+        task.type !== 'UPDATE_DAILY_RECORD' ||
+        task.key !== `daily:${authoritativeRecord.date}` ||
+        payload?.date !== authoritativeRecord.date
+      )
+        throw new SyncQueueAckError('sync_ack_invalid_record', 'Invalid ACK record.');
+      const local = await db.dailyRecords.get(authoritativeRecord.date);
       const unresolved = (await pending(authoritativeRecord.date)).some(
         candidate => candidate.id !== taskId
       );
-      const local = await db.dailyRecords.get(authoritativeRecord.date);
-      adopted = shouldAdoptDailyRecordAck(task, authoritativeRecord, local, unresolved);
-      if (adopted) await db.dailyRecords.put(authoritativeRecord);
+      if (unresolved) {
+        if (!local)
+          throw new SyncQueueAckError('sync_ack_missing_projection', 'Missing local projection.');
+      } else {
+        if (
+          local &&
+          local.lastUpdated !== payload.lastUpdated &&
+          local.lastUpdated !== authoritativeRecord.lastUpdated
+        )
+          throw new SyncQueueAckError('sync_ack_projection_conflict', 'ACK version conflict.');
+        await db.dailyRecords.put(authoritativeRecord);
+        adopted = true;
+      }
     }
     await db.syncQueue.delete(taskId);
     return { deleted: true, adopted };
