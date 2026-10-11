@@ -29,11 +29,9 @@ export const matchesOwner = (
  */
 export const REUSABLE_TASK_STATES = new Set<SyncTask['status']>(['PENDING', 'FAILED', 'CONFLICT']);
 
-// Completed writes leave the queue; every retained task is unresolved.
+// Keys are namespaced by type; completed writes leave the queue.
 export const listUnresolvedDailyRecordTasks = async (date: string): Promise<SyncTask[]> =>
-  (await hospitalDB.syncQueue.where('type').equals('UPDATE_DAILY_RECORD').toArray()).filter(
-    task => task.key === `daily:${date}`
-  );
+  hospitalDB.syncQueue.where('key').equals(`daily:${date}`).toArray();
 
 const QUARANTINED_TASK_STATES = new Set<SyncTask['status']>(['FAILED', 'CONFLICT']);
 
