@@ -1,5 +1,6 @@
 import { createRequire } from 'node:module';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { resolveCurrentClinicalDay } from '@/utils/clinicalDayUtils';
 
 vi.mock('firebase-functions/v1', () => ({
   https: {
@@ -44,6 +45,106 @@ const createFirebaseServices = ({
 describe('functions specialistMedicalHandoffFunctions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-04-11T15:00:00-06:00'));
+  });
+
+  afterEach(() => vi.useRealTimers());
+
+  const context = { auth: { token: { email: 'synthetic@example.com' } } };
+  const patch = { 'beds.R4.medicalHandoffNote': 'Nota sintética' };
+
+  it.each(['2026-04-10', '2026-04-12'])(
+    'rejects non-current clinical date %s before reading the record',
+    async date => {
+      const get = vi.fn();
+      const update = vi.fn();
+      const api = createSpecialistMedicalHandoffFunctions({
+        ...createFirebaseServices({ get, update }),
+        resolveRoleForEmail: vi.fn().mockResolvedValue('doctor_specialist'),
+      });
+      await expect(
+        api.updateSpecialistMedicalHandoff.run({ date, patch }, context)
+      ).rejects.toMatchObject({ code: 'permission-denied' });
+      expect(get).not.toHaveBeenCalled();
+      expect(update).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(['2026-4-11', '2026-02-30', '2026-04-11/other', '2026-04-11T00:00:00Z'])(
+    'rejects malformed or impossible dates: %s',
+    async date => {
+      const get = vi.fn();
+      const api = createSpecialistMedicalHandoffFunctions({
+        ...createFirebaseServices({ get }),
+        resolveRoleForEmail: vi.fn().mockResolvedValue('admin'),
+      });
+      await expect(
+        api.updateSpecialistMedicalHandoff.run({ date, patch }, context)
+      ).rejects.toMatchObject({ code: 'invalid-argument' });
+      expect(get).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([
+    ['2026-04-13T07:59:00-06:00', '2026-04-12'],
+    ['2026-04-13T08:00:00-06:00', '2026-04-13'],
+    ['2026-04-11T08:59:00-06:00', '2026-04-10'],
+    ['2026-04-11T09:00:00-06:00', '2026-04-11'],
+    ['2026-04-03T08:59:00-05:00', '2026-04-02'],
+    ['2026-04-03T09:00:00-05:00', '2026-04-03'],
+    ['2026-09-07T07:59:00-05:00', '2026-09-06'],
+    ['2026-09-07T08:00:00-05:00', '2026-09-07'],
+    ['2026-04-13T00:01:00-06:00', '2026-04-12'],
+  ])('matches the client clinical day at hospital time %s', async (now, date) => {
+    vi.setSystemTime(new Date(now));
+    expect(resolveCurrentClinicalDay()).toBe(date);
+    const update = vi.fn().mockResolvedValue(undefined);
+    const get = vi.fn().mockResolvedValue({ exists: true, data: () => ({ beds: { R4: {} } }) });
+    const api = createSpecialistMedicalHandoffFunctions({
+      ...createFirebaseServices({ get, update }),
+      resolveRoleForEmail: vi.fn().mockResolvedValue('doctor_specialist'),
+    });
+    expect(await api.updateSpecialistMedicalHandoff.run({ date, patch }, context)).toMatchObject({
+      success: true,
+      date,
+    });
+    expect(update).toHaveBeenCalledOnce();
+    const otherDate = date === '2026-04-11' ? '2026-04-10' : '2026-04-11';
+    await expect(
+      api.updateSpecialistMedicalHandoff.run({ date: otherDate, patch }, context)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(update).toHaveBeenCalledOnce();
+  });
+
+  it('rechecks the clinical day after a read crossing the shift rollover', async () => {
+    vi.setSystemTime(new Date('2026-04-13T07:59:59-06:00'));
+    const update = vi.fn();
+    const get = vi.fn().mockImplementation(async () => {
+      vi.setSystemTime(new Date('2026-04-13T08:00:00-06:00'));
+      return { exists: true, data: () => ({ beds: { R4: {} } }) };
+    });
+    const api = createSpecialistMedicalHandoffFunctions({
+      ...createFirebaseServices({ get, update }),
+      resolveRoleForEmail: vi.fn().mockResolvedValue('doctor_specialist'),
+    });
+    await expect(
+      api.updateSpecialistMedicalHandoff.run({ date: '2026-04-12', patch }, context)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('preserves administrative access to historical records through the same whitelist', async () => {
+    const update = vi.fn().mockResolvedValue(undefined);
+    const get = vi.fn().mockResolvedValue({ exists: true, data: () => ({ beds: { R4: {} } }) });
+    const api = createSpecialistMedicalHandoffFunctions({
+      ...createFirebaseServices({ get, update }),
+      resolveRoleForEmail: vi.fn().mockResolvedValue('admin'),
+    });
+    expect(
+      await api.updateSpecialistMedicalHandoff.run({ date: '2026-01-01', patch }, context)
+    ).toMatchObject({ success: true });
+    expect(update).toHaveBeenCalledOnce();
   });
 
   it('updates a single specialist medical handoff bed via backend', async () => {

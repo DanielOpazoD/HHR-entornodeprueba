@@ -66,7 +66,10 @@ describe('labDetailProcessingController', () => {
 
     const processed = processLabExamDetails(details, examList);
 
-    expect(processed.columnKeys).toEqual(['06/04/2026 10:00']);
+    expect(processed.columnKeys).toEqual([
+      '06/04/2026 10:00:00 (#100)',
+      '06/04/2026 10:00:00 (#200)',
+    ]);
     expect(processed.comparison.Hemoglobina).toBeDefined();
     expect(processed.comparison.Creatinina).toBeDefined();
   });

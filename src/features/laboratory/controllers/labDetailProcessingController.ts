@@ -47,7 +47,7 @@ const buildDetailProcessingContext = (
 ): DetailProcessingContext => {
   const exam = examList.find(e => e.link === detail.url);
   const examDate = exam?.date || 'Desconocido';
-  const colKey = buildExamColumnKey(exam, examDate);
+  const colKey = buildExamColumnKey(exam, examDate, examList);
   const microbiologyCategories = resolveMicrobiologyCategoriesForExam(exam);
   const suppressedAnalyses = buildSuppressedAnalysesForDetail(detail.findings);
 

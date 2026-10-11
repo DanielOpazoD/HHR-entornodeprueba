@@ -88,7 +88,6 @@ export const resolveHandoffCudyrPrintDisplay = (
     .trim()
     .toUpperCase();
   const hasValidImportedCudyr =
-    isEligible &&
     importedCudyrBelongsToCensus(importedCudyr, recordDate) &&
     /^[A-D][1-3]$/.test(importedCategory);
   const visibleScores = isEligible && !hasValidImportedCudyr ? patient?.cudyr : undefined;
@@ -108,6 +107,7 @@ export const resolveHandoffCudyrPrintDisplay = (
 
   return {
     isEligible,
+    hasValidImportedCudyr,
     visibleScores,
     categorization,
   };
