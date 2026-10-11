@@ -1,5 +1,20 @@
 # Safe Change Checklist
 
+### CLI de despliegue Firebase (2026-10-11)
+
+- **Owner:** CI/Functions HHR.
+- **Reason:** 15.15.0 comparte tokens de fuente entre grupos; Firebase rechazó
+  el despliegue de la región clínica con `source_token: Invalid source token`.
+- **TargetVersion:** `firebase-tools` 15.16.0, fijado en manifest y lockfile raíz.
+  Es el único paquete resuelto que cambia; SDK, Functions y overrides se conservan.
+- **RiskLevel:** medio: herramienta de despliegue y emulador, con corrección
+  [upstream #10432](https://github.com/firebase/firebase-tools/pull/10432).
+- **RollbackPlan:** revertir el PR y ejecutar `npm ci`; no volver a desplegar
+  varias regiones con el CLI afectado. No borrar datos ni ampliar permisos.
+- **VerificationGate:** `dependency_upgrade`: instalación limpia, audit de ambos
+  paquetes, prueba de aislamiento de tokens, `ci:merge-gate`, suites Functions,
+  emuladores sintéticos, revisión independiente, CI y despliegue en hhr-pruebas.
+
 Antes de cerrar una modificación relevante en este repo:
 
 ### Iterar sin repetir los gates completos
