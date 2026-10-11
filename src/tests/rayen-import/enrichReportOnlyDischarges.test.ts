@@ -24,6 +24,36 @@ Informe Estadístico de Egreso Hospitalario
 `;
 
 describe('report-only short-stay enrichment', () => {
+  it('identifies a later discharge by its own day when reconstructing an earlier census', async () => {
+    const lookupEgresos = vi
+      .fn()
+      .mockResolvedValue([{ run: row.run, encounterId: '143322', egreso: { id: 143322 } }]);
+    const result = await enrichReportOnlyDischarges([row], '2026-08-12', {
+      includeOtherReportDays: true,
+      lookupEgresos,
+      fetchStatisticalDischarge: vi.fn().mockResolvedValue({ base64: 'cGRm' }),
+      extractText: vi.fn().mockResolvedValue(statisticalText),
+    });
+    expect(lookupEgresos).toHaveBeenCalledWith([
+      { run: row.run, encounterId: '', dischargeDay: '2026-08-13' },
+    ]);
+    expect(result[0]).toMatchObject({
+      encounterId: '143322',
+      exactEpisodeVerification: 'verified',
+      correctedDay: '2026-08-13',
+    });
+  });
+
+  it('does not expand discharge queries beyond the selected day for a current census', async () => {
+    const lookupEgresos = vi.fn();
+    const result = await enrichReportOnlyDischarges([row], '2026-08-12', {
+      lookupEgresos,
+      fetchStatisticalDischarge: vi.fn(),
+    });
+    expect(lookupEgresos).not.toHaveBeenCalled();
+    expect(result).toEqual([row]);
+  });
+
   it('keeps an exact next-morning PDF discharge in the prior nursing census', async () => {
     const nextMorningText = statisticalText.replace(
       '29 EGRESO 2 0 - 2 9 1 3 - 0 8 - 2 6',

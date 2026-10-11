@@ -74,6 +74,7 @@ export const prepareRayenStructuralPlan = async ({
       fetchStatisticalDischarge,
       lookupEgresos,
       previousCensusCandidates,
+      includeOtherReportDays: isHistoricalDay,
       extractText: extractStatisticalText,
       alreadyApplied: (row, exactCandidate) => {
         const run = normalizeRut(row.run);

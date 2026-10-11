@@ -33,6 +33,8 @@ interface ReportOnlyDischargeDependencies {
   ) => boolean;
   /** Exact D-1 episodes that can disambiguate mother/newborn rows sharing maternal RUN + day. */
   previousCensusCandidates?: readonly PreviousCensusEgresoCandidate[];
+  /** Historical reconstruction also needs episodes discharged after the requested cutoff. */
+  includeOtherReportDays?: boolean;
 }
 
 const exactDay = (timestamp: string): string => timestamp.slice(0, 10);
@@ -65,11 +67,17 @@ const exactLookupMatches = (
   return Boolean(lookup.egreso && exactLookupDischargeStamp(lookup.egreso)?.iso === dischargeDay);
 };
 
-const candidateKey = (row: EgresoReportRow, reportDate: string): string => {
+const candidateKey = (
+  row: EgresoReportRow,
+  reportDate: string,
+  includeOtherDays = false
+): string => {
   if (row.encounterId || isPavilionRecoveryLocation(row.bedLabel)) return '';
   const run = normalizeRut(row.run);
   const stamp = correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime);
-  return run && stamp.correctedDay === reportDate ? `${run}|${reportDate}` : '';
+  return run && stamp.correctedDay && (includeOtherDays || stamp.correctedDay === reportDate)
+    ? `${run}|${stamp.correctedDay}`
+    : '';
 };
 
 // Jasper repeats one administrative event for each principal diagnosis. This only groups
@@ -106,6 +114,8 @@ export const enrichReportOnlyDischarges = async (
   reportDate: string,
   dependencies: ReportOnlyDischargeDependencies
 ): Promise<EgresoReportRow[]> => {
+  const rowKey = (row: EgresoReportRow) =>
+    candidateKey(row, reportDate, dependencies.includeOtherReportDays);
   const exactCandidatesByIdentity = new Map(
     (dependencies.previousCensusCandidates ?? []).map(candidate => [
       previousCensusEgresoIdentity(
@@ -129,7 +139,7 @@ export const enrichReportOnlyDischarges = async (
   const ambiguousKeys = new Set<string>();
   for (const row of rows) {
     if (exactCandidateByRow.has(row)) continue;
-    const key = candidateKey(row, reportDate);
+    const key = rowKey(row);
     if (!key || ambiguousKeys.has(key) || dependencies.alreadyApplied?.(row)) continue;
     if (keys.has(key) && !sameDischargeEvent(keys.get(key)!, row)) {
       keys.delete(key);
@@ -144,7 +154,7 @@ export const enrichReportOnlyDischarges = async (
     if (exactCandidateByRow.has(row)) {
       return enrichedByRow.get(row) ?? { ...row, exactEpisodeVerification: 'unverified' };
     }
-    const key = candidateKey(row, reportDate);
+    const key = rowKey(row);
     if (!key) return row;
     const enriched = enrichedByKey.get(key);
     return enriched
@@ -155,7 +165,12 @@ export const enrichReportOnlyDischarges = async (
   const keyedTargets = [...keys.entries()].map(([key, row]) => ({
     key,
     row,
-    target: { run: row.run, encounterId: '', dischargeDay: reportDate },
+    target: {
+      run: row.run,
+      encounterId: '',
+      dischargeDay: correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime)
+        .correctedDay,
+    },
   }));
   const exactTargets = [...exactCandidateByRow.entries()].map(([row, candidate]) => ({
     key: `episode:${candidate.encounterId}`,
