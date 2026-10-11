@@ -286,7 +286,7 @@ export const createSyncQueueEngine = ({
                   continue;
                 }
                 task.leaseUntil = leaseUntil;
-                const result: SyncTransportResult = (await transport.run(task)) || {};
+                const result: Partial<SyncTransportResult> = (await transport.run(task)) || {};
                 const claim = buildTaskClaim(task);
                 if (claim) {
                   const deleted = await store.deleteClaimed(

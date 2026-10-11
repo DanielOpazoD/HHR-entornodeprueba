@@ -5,10 +5,12 @@ import { registerFirestoreRulesDomainGroups } from './firestoreRulesDomainGroups
 import { registerFirestoreRulesIdentityGroups } from './firestoreRulesIdentityGroups';
 import { registerFirestoreRulesSuite } from './firestoreRulesTestHarness';
 import { registerClinicalDocumentIntegrityRules } from './firestoreRulesClinicalDocumentIntegrity';
+import { registerFirestoreRulesTemporalBoundaries } from './firestoreRulesTemporalBoundaries';
 
 registerFirestoreRulesSuite(harness => {
   registerFirestoreRulesAccessGroups(harness);
   registerFirestoreRulesDomainGroups(harness);
   registerFirestoreRulesIdentityGroups(harness);
   registerClinicalDocumentIntegrityRules(harness);
+  registerFirestoreRulesTemporalBoundaries();
 });
