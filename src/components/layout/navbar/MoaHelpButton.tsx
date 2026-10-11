@@ -4,6 +4,7 @@ import { ErrorBoundary } from 'react-error-boundary';
 import { reloadMoaHelp } from './moaHelpRecovery';
 import type { ModuleType } from '@/constants/navigationConfig';
 import { useNavbarDisclosure } from './useNavbarDisclosure';
+import { MoaMascot } from './MoaMascot';
 const MoaHelpPanel = React.lazy(() =>
   import('./MoaHelpPanel').then(module => ({ default: module.MoaHelpPanel }))
 );
@@ -12,8 +13,24 @@ interface MoaHelpButtonProps {
   currentModule?: ModuleType;
 }
 
-/** B1: local help only. No patient context, storage, AI, or clinical actions. */
+/** Local help with an optional mascot. No patient context, AI, or clinical actions. */
 export const MoaHelpButton: React.FC<MoaHelpButtonProps> = ({ currentModule }) => {
+  const [showMascot, setShowMascot] = React.useState(() => {
+    try {
+      return localStorage.getItem('hhr_moa_visible_v1') !== 'false';
+    } catch {
+      return true;
+    }
+  });
+  const toggleMascot = () => {
+    const next = !showMascot;
+    setShowMascot(next);
+    try {
+      localStorage.setItem('hhr_moa_visible_v1', String(next));
+    } catch {
+      // The control still works when browser storage is unavailable.
+    }
+  };
   const { isOpen, menuRef, triggerRef, panelId, toggle, closeAndRestoreFocus, onKeyDown, onBlur } =
     useNavbarDisclosure(currentModule);
 
@@ -32,9 +49,13 @@ export const MoaHelpButton: React.FC<MoaHelpButtonProps> = ({ currentModule }) =
         aria-expanded={isOpen}
         aria-controls={isOpen ? panelId : undefined}
         title="Ayuda de Moa"
-        className="flex h-8 min-w-8 items-center justify-center gap-1.5 rounded-lg border border-white/20 px-2 text-white/90 transition-colors duration-150 hover:bg-white/10 aria-expanded:border-white/40 aria-expanded:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white motion-reduce:transition-none"
+        className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/20 text-white/90 transition-colors duration-150 hover:bg-white/10 aria-expanded:border-white/40 aria-expanded:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white motion-reduce:transition-none"
       >
-        <CircleHelp size={16} aria-hidden="true" />
+        {showMascot ? (
+          <MoaMascot className="h-7 w-7" />
+        ) : (
+          <CircleHelp size={16} aria-hidden="true" />
+        )}
       </button>
       {isOpen && (
         <ErrorBoundary
@@ -69,6 +90,8 @@ export const MoaHelpButton: React.FC<MoaHelpButtonProps> = ({ currentModule }) =
               currentModule={currentModule}
               panelId={panelId}
               onClose={closeAndRestoreFocus}
+              showMascot={showMascot}
+              onToggleMascot={toggleMascot}
             />
           </React.Suspense>
         </ErrorBoundary>

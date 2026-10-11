@@ -84,7 +84,7 @@ export const NavbarMenu: React.FC<NavbarMenuProps> = ({
       <button
         onClick={toggle}
         className={clsx(
-          'hhr-navbar-brand flex items-center gap-2 sm:gap-3 py-2 px-2 sm:px-3 rounded-xl transition-all duration-200',
+          'hhr-navbar-brand flex items-center gap-2 sm:gap-3 py-1 px-2 sm:px-3 rounded-xl transition-all duration-200',
           'hover:bg-white/[0.07]'
         )}
       >
@@ -92,7 +92,7 @@ export const NavbarMenu: React.FC<NavbarMenuProps> = ({
           <img src="/images/logos/logo_HHR.svg" alt="HHR" className="w-7 h-7 object-contain" />
         </div>
         <div className="hidden text-left sm:block">
-          <h1 className="text-[15px] font-display font-bold leading-tight tracking-tight text-white/95">
+          <h1 className="text-sm font-display font-bold leading-tight tracking-tight text-white/95">
             Hospital Hanga Roa
           </h1>
         </div>

@@ -144,11 +144,11 @@ export const Navbar: React.FC<NavbarProps> = ({
         />
 
         <img
-          src="/images/navbar/rapa-nui-coast.webp"
+          src="/images/navbar/rapa-nui-coast-v2.webp"
           alt=""
           aria-hidden="true"
-          width={430}
-          height={80}
+          width={270}
+          height={54}
           className="hhr-navbar-landscape"
         />
 

@@ -202,6 +202,8 @@ export default defineConfig(({ mode }) => {
           // precache. They remain available as normal on-demand assets, while
           // first-run PWA install stays focused on app shell/critical runtime.
           globIgnores: [
+            // Optional mascot artwork is cached on use by the existing image route.
+            '**/images/moa/**',
             '**/downloads/**',
             '**/docs/**',
             '**/templates/**',
