@@ -120,7 +120,7 @@ describe('extension heavy runtime loading', () => {
     });
     expect(identityGuards.filter(guard => guard.includes('&& handoffKind'))).toHaveLength(2);
     const scoresGuard = clinicalScoreRuntimeSource.match(
-      /const scoresIdentityReady = info => Boolean\(([\s\S]*?)\n {2}\);/
+      /const scoresIdentityReady = info => Boolean\(([\s\S]*?)\);/
     )?.[1];
     expect(scoresGuard).toContain('info.identityVerified');
     expect(scoresGuard).toContain('info.practitionerId');
