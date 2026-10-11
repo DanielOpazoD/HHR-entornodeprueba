@@ -57,6 +57,12 @@ Laboratorio (08/04/2026 14:00): Hb 13 HTO 40% RGB 7.000 PMN 70% Creat 1 ...
 
 Archivos: `ClinicalDocumentLabInsertDialog.tsx`, `ClinicalDocumentFormattingToolbar.tsx`
 
+Las siglas sistémicas se aplican sólo a resultados no identificados como orina u otros fluidos;
+la normalización conserva la sección del informe. Si no hay resultados abreviables, el resumen
+mantiene el texto explícito y las unidades, también para muestras no sanguíneas. La fila combinada
+de bilirrubinas conserva las fracciones total/directa/indirecta en posiciones independientes,
+sin depender del orden de extracción.
+
 ## Exportación Excel
 
 La exportación de comparación genera una hoja `Comparación Lab` con:

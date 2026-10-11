@@ -43,6 +43,37 @@ describe('buildLabSummaryText', () => {
     expect(result).toContain('Plaq 192.000');
   });
 
+  it.each(['SEDIMENTO URINARIO', 'ORINA FISICO-QUIMICO', 'LIQUIDO PLEURAL'])(
+    'does not label non-blood leukocytes as RGB: %s',
+    section => {
+      const result = buildLabSummaryText(
+        [{ ...makeFinding('Leucocitos', '25', '/uL'), section }],
+        '08/04/2026',
+        '10:00:00'
+      );
+      expect(result).not.toContain('RGB');
+      expect(result).toContain('25');
+      expect(result).toContain('/uL');
+    }
+  );
+
+  it('uses blood findings even when urine aliases precede them', () => {
+    const result = buildLabSummaryText(
+      [
+        { ...makeFinding('Recuento Leucocitos', '25', '/uL'), section: 'SEDIMENTO URINARIO' },
+        { ...makeFinding('Creatinina', '120', 'mg/dL'), section: 'ORINA' },
+        { ...makeFinding('Leucocitos', '7.5', 'x10^3/uL'), section: 'HEMOGRAMA' },
+        { ...makeFinding('Creatinina', '1.2', 'mg/dL'), section: 'BIOQUIMICA' },
+      ],
+      '08/04/2026',
+      '10:00:00'
+    );
+    expect(result).toContain('RGB 7.500');
+    expect(result).toContain('Creat 1.2');
+    expect(result).not.toContain('25');
+    expect(result).not.toContain('120');
+  });
+
   it('shows unit only for variable-unit exams', () => {
     const findings: LabResultRow[] = [
       makeFinding('Sodio', '140', 'mmol/L'),

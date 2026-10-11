@@ -22,8 +22,8 @@ const collectBilirubinFinding = (
 
   if (!bilirubinByCol[colKey]) bilirubinByCol[colKey] = {};
   if (lowerAnalysis.includes('total')) bilirubinByCol[colKey].total = result;
-  else if (lowerAnalysis.includes('directa')) bilirubinByCol[colKey].directa = result;
   else if (lowerAnalysis.includes('indirecta')) bilirubinByCol[colKey].indirecta = result;
+  else if (lowerAnalysis.includes('directa')) bilirubinByCol[colKey].directa = result;
 };
 
 const collectComparisonFinding = (
