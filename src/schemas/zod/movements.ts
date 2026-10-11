@@ -4,7 +4,6 @@ import { DischargeData, TransferData, CMAData, MovementProvenance } from '@/type
 import {
   nullableOptional,
   StringSchema,
-  OptionalStringSchema,
   NullableOptionalStringSchema,
   DefaultEmptyStringSchema,
 } from './helpers';

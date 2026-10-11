@@ -5,7 +5,6 @@ import {
   nullableOptional,
   nullishDefault,
   StringSchema,
-  OptionalStringSchema,
   NullableOptionalStringSchema,
   DefaultEmptyStringSchema,
 } from './helpers';
