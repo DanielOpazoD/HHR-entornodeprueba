@@ -34,7 +34,10 @@ export const evaluateSyncInvariants = root => {
   const packageJson = JSON.parse(readText(root, 'package.json'));
   const ports = readText(root, 'src/services/storage/sync/syncQueuePorts.ts');
   const engine = readText(root, 'src/services/storage/sync/syncQueueEngine.ts');
-  const standaloneEnqueue = readText(root, 'src/services/storage/sync/enqueueStandaloneSyncTask.ts');
+  const standaloneEnqueue = readText(
+    root,
+    'src/services/storage/sync/enqueueStandaloneSyncTask.ts'
+  );
   const enqueuePolicy = readText(root, 'src/services/storage/sync/syncQueueEnqueuePolicy.ts');
   const publicQueue = readText(root, 'src/services/storage/sync/publicSyncQueue.ts');
   const contractPolicy = readText(root, 'src/services/storage/sync/syncTaskContractPolicy.ts');
@@ -147,14 +150,18 @@ export const evaluateSyncInvariants = root => {
     ),
     buildInvariant(
       'idempotent-mutation-drain',
-      transport.includes('hasRemoteAppliedMutation') &&
+      transport.includes('if (hasRemoteAppliedMutation(') &&
         transport.includes("resolution: 'already_applied'") &&
-        transport.includes('record: null') &&
+        transport.includes('record: docToRecord(remoteData, record.date)') &&
+        transport.includes("resolved.resolution === 'already_applied'") &&
+        transport.includes('return { authoritativeRecord: resolved.record }') &&
+        engine.includes('store.deleteClaimed(task.id, claim, result.authoritativeRecord)') &&
         conflictPolicy.includes('lastMutationId'),
-      'Sync queue replay must treat a remote matching mutationId as an already-applied success so local outbox can drain.',
+      'Sync queue replay must return the already-applied remote record to claimed completion so local outbox can drain atomically.',
       [
         'src/services/storage/sync/firestoreSyncTransport.ts',
         'src/services/storage/sync/firestoreSyncConflictPolicy.ts',
+        'src/services/storage/sync/syncQueueEngine.ts',
       ]
     ),
   ];
