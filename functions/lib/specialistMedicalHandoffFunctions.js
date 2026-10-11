@@ -79,6 +79,31 @@ const isAllowedSpecialistPath = nestedPath =>
     prefix => nestedPath === prefix || nestedPath.startsWith(`${prefix}.`)
   );
 
+const assertRecordDate = date => {
+  const parsed = Date.parse(`${date}T00:00:00.000Z`);
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+    !Number.isFinite(parsed) ||
+    new Date(parsed).toISOString().slice(0, 10) !== date
+  ) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'Invalid medical handoff record date.'
+    );
+  }
+};
+
+const assertSpecialistClinicalDay = (date, role) => {
+  if (role !== 'doctor_specialist') return;
+  const { iso, hhmm } = calendarStampInClinicalTimeZone();
+  if (date !== resolveClinicalDayForDateTime(iso, hhmm)) {
+    throw new functions.https.HttpsError(
+      'permission-denied',
+      'Specialists can only update the current clinical day.'
+    );
+  }
+};
+
 const parseSpecialistPatch = rawPatch => {
   if (!isPlainObject(rawPatch)) {
     throw new functions.https.HttpsError(
@@ -179,26 +204,8 @@ const createSpecialistMedicalHandoffFunctions = ({
     }
 
     const date = assertStringField(data?.date, 'date');
-    if (
-      !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
-      !Number.isFinite(Date.parse(`${date}T00:00:00Z`)) ||
-      new Date(`${date}T00:00:00Z`).toISOString().slice(0, 10) !== date
-    ) {
-      throw new functions.https.HttpsError('invalid-argument', 'Invalid daily record date.');
-    }
-    const assertEditingDay = () => {
-      const { iso, hhmm } = calendarStampInClinicalTimeZone();
-      if (
-        resolvedRole === 'doctor_specialist' &&
-        date !== resolveClinicalDayForDateTime(iso, hhmm)
-      ) {
-        throw new functions.https.HttpsError(
-          'permission-denied',
-          'Specialists can only update the current clinical day.'
-        );
-      }
-    };
-    assertEditingDay();
+    assertRecordDate(date);
+    assertSpecialistClinicalDay(date, resolvedRole);
     const { bedId, patch } = parseSpecialistPatch(data?.patch);
 
     const docRef = firestore
@@ -232,7 +239,7 @@ const createSpecialistMedicalHandoffFunctions = ({
       );
     }
 
-    assertEditingDay();
+    assertSpecialistClinicalDay(date, resolvedRole);
     try {
       await docRef.update({
         ...patch,

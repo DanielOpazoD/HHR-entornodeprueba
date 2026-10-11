@@ -65,7 +65,11 @@ Desde `2026-04-11`, el especialista usa una ruta server-side acotada via callabl
    - vuelve a resolver rol;
    - valida que el patch toque solo una cama permitida;
    - valida que los paths esten en la whitelist;
+   - exige fecha ISO canónica y día clínico vigente al especialista, usando reloj de
+     servidor en `Pacific/Easter` y el mismo calendario/horario de turnos del cliente
+     (08:00 hábil, 09:00 fin de semana o feriado);
    - confirma que el bed existe en el documento remoto;
+   - revalida el día clínico después de la lectura, antes de escribir;
    - escribe los cambios y estampa `lastUpdated` de servidor.
 5. La cache local ya fue actualizada optimisticamente; la suscripcion realtime solo debe aceptar
    snapshots iguales o mas nuevos.
@@ -100,6 +104,10 @@ Desde `2026-04-11`, el especialista usa una ruta server-side acotada via callabl
 - no se crea un bed inexistente desde este flujo;
 - el write queda acotado al hospital configurado en runtime;
 - `admin` puede pasar por la callable, pero no depende de ella para funcionar;
+- `admin` conserva el acceso histórico con fecha canónica y la misma whitelist;
+- la política temporal reutiliza `calendarStampInClinicalTimeZone` y
+  `resolveClinicalDayForDateTime` del bundle generado existente, sin duplicar feriados
+  o confiar en `dateTimestamp` del cliente;
 - la callable no reemplaza el flujo estructurado top-level `medicalHandoffBySpecialty`; cubre
   especificamente el handoff medico por paciente/cama.
 
