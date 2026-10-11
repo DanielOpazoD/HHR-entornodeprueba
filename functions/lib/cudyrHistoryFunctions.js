@@ -41,8 +41,16 @@ const createCudyrHistoryFunctions = ({
         return await firestore.runTransaction(write);
       } catch (error) {
         // Concurrent creates of an absent content-addressed document can surface as gRPC 6.
+        // Emulator 1.20.4 also returns gRPC 3 for a closed transaction, unlike the SDK's
+        // retryable "transaction has expired" response. Restrict this compatibility case
+        // to loopback emulators; other INVALID_ARGUMENT errors must still fail immediately.
+        const closedEmulatorTransaction =
+          error.code === 3 &&
+          /^(127\.0\.0\.1|localhost):\d+$/.test(process.env.FIRESTORE_EMULATOR_HOST || '') &&
+          (error.details || String(error.message).replace(/^3 INVALID_ARGUMENT: /, '')) ===
+            'Transaction is invalid or closed.';
         // Reread the entire authority and archive; never turn this error into an assumed ack.
-        if (error.code !== 6 || attempt >= 2) throw error;
+        if ((error.code !== 6 && !closedEmulatorTransaction) || attempt >= 2) throw error;
       }
     }
   };

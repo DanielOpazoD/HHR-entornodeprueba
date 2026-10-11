@@ -1098,9 +1098,36 @@ Se conserva la serialización del proyecto `hhr-pruebas`, los destinos explícit
 la comprobación regional y la limpieza de credenciales. Este control corresponde
 a Firebase Functions; no cambia la configuración externa de publicación de Netlify.
 
+El CLI de despliegue queda fijado a `firebase-tools` 15.16.0 en manifest y lockfile.
+La versión 15.15.0 compartía el token de fuente entre grupos: el run `38170880023`
+actualizó `us-central1`, pero Firebase rechazó las ocho actualizaciones de
+`southamerica-east1` con el error `Invalid source token`.
+La [corrección del fabricante](https://github.com/firebase/firebase-tools/pull/10432)
+crea un recolector de tokens por grupo; el test
+`src/tests/build/firebaseSourceTokenIsolation.test.ts` comprueba el aislamiento
+entre regiones, codebases y generaciones, sin desplegar ni usar credenciales.
+
 **Fallo:** revisar el resumen del preflight y el CI indicado antes de reintentar.
 Una API inaccesible, un SHA distinto o un resumen pendiente/fallido detienen el
 despliegue. No omitir el control ni ampliar permisos. **Rollback:** revertir este
 bloque restaura el workflow anterior; no modifica datos clínicos ni IAM.
 
 Referencia de cola: [concurrencia de GitHub Actions](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency).
+
+## Transacción cerrada en el emulador CUDYR
+
+Los runs `38166306055` y `38169209959` fallaron en la prueba concurrente de
+recibos CUDYR con `3 INVALID_ARGUMENT: Transaction is invalid or closed.`.
+El emulador Firestore 1.20.4 devuelve ese mensaje para una transacción que ya
+no está activa; el SDK reintenta otro mensaje de expiración, pero no éste.
+
+El archivo CUDYR admite hasta dos reintentos adicionales únicamente ante ese
+mensaje exacto y con `FIRESTORE_EMULATOR_HOST` apuntando a `localhost` o
+`127.0.0.1`. Cada intento abre una transacción nueva y vuelve a comprobar la
+autoridad. No reconoce un guardado sin confirmación. Los errores de argumentos
+distintos y el comportamiento fuera del emulador local permanecen intactos.
+
+Validar con `npx vitest run src/tests/functions/cudyrHistoryFunctions.test.ts`
+y `npm run test:emulator:sync:ci`. Conservar los escenarios concurrentes y sus
+asserts; no añadir reintentos de suite ni serializarlos. Rollback: revertir el
+parche y repetir esas pruebas, sin modificar datos, permisos ni umbrales.

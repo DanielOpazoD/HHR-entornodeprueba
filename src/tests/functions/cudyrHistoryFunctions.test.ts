@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const require = createRequire(import.meta.url);
 const { createCudyrHistoryFunctions } = require('../../../functions/lib/cudyrHistoryFunctions.js');
@@ -83,6 +83,8 @@ const harness = () => {
 };
 
 describe('CUDYR archive callable boundaries', () => {
+  afterEach(() => vi.unstubAllEnvs());
+
   it.each(['complete', 'partial'])('archives under an already settled %s run', async status => {
     const h = harness();
     h.record.rayenSyncHistory[0].status = status;
@@ -125,6 +127,72 @@ describe('CUDYR archive callable boundaries', () => {
     expect(await h.archiveCudyrHistory.run(payload, context)).toMatchObject({ persisted: true });
     expect(h.firestore.runTransaction).toHaveBeenCalledTimes(2);
     expect(h.writes).toHaveLength(1);
+  });
+
+  const closedTransaction = () =>
+    Object.assign(new Error('3 INVALID_ARGUMENT: Transaction is invalid or closed.'), {
+      code: 3,
+      details: 'Transaction is invalid or closed.',
+    });
+
+  it.each(['127.0.0.1:18080', 'localhost:8080'])(
+    'starts a fresh transaction after the loopback emulator %s closes one',
+    async host => {
+      vi.stubEnv('FIRESTORE_EMULATOR_HOST', host);
+      const h = harness();
+      h.firestore.runTransaction.mockRejectedValueOnce(closedTransaction());
+      expect(await h.archiveCudyrHistory.run(payload, context)).toMatchObject({ persisted: true });
+      expect(h.firestore.runTransaction).toHaveBeenCalledTimes(2);
+      expect(h.writes).toHaveLength(1);
+    }
+  );
+
+  it('does not acknowledge a closed transaction after exhausting the bounded retries', async () => {
+    vi.stubEnv('FIRESTORE_EMULATOR_HOST', '127.0.0.1:18080');
+    const h = harness();
+    const error = closedTransaction();
+    h.firestore.runTransaction.mockRejectedValue(error);
+    await expect(h.archiveCudyrHistory.run(payload, context)).rejects.toBe(error);
+    expect(h.firestore.runTransaction).toHaveBeenCalledTimes(3);
+    expect(h.writes).toHaveLength(0);
+  });
+
+  it('rechecks authority after the emulator closes a transaction', async () => {
+    vi.stubEnv('FIRESTORE_EMULATOR_HOST', '127.0.0.1:18080');
+    const h = harness();
+    h.record.rayenSyncHistory[0].policy = { ...h.policy };
+    h.firestore.runTransaction.mockImplementationOnce(async () => {
+      h.policy.revision = 2;
+      throw closedTransaction();
+    });
+    await expect(h.archiveCudyrHistory.run(payload, context)).rejects.toMatchObject({
+      code: 'failed-precondition',
+    });
+    expect(h.firestore.runTransaction).toHaveBeenCalledTimes(2);
+    expect(h.writes).toHaveLength(0);
+  });
+
+  it.each(['', 'firestore.googleapis.com:443', '192.168.1.2:8080'])(
+    'preserves production error behavior without a loopback emulator (%s)',
+    async host => {
+      vi.stubEnv('FIRESTORE_EMULATOR_HOST', host);
+      const h = harness();
+      const error = closedTransaction();
+      h.firestore.runTransaction.mockRejectedValueOnce(error);
+      await expect(h.archiveCudyrHistory.run(payload, context)).rejects.toBe(error);
+      expect(h.firestore.runTransaction).toHaveBeenCalledTimes(1);
+      expect(h.writes).toHaveLength(0);
+    }
+  );
+
+  it('does not retry an unrelated INVALID_ARGUMENT even in a local emulator', async () => {
+    vi.stubEnv('FIRESTORE_EMULATOR_HOST', '127.0.0.1:18080');
+    const h = harness();
+    const error = Object.assign(new Error('Invalid field path'), { code: 3 });
+    h.firestore.runTransaction.mockRejectedValueOnce(error);
+    await expect(h.archiveCudyrHistory.run(payload, context)).rejects.toBe(error);
+    expect(h.firestore.runTransaction).toHaveBeenCalledTimes(1);
+    expect(h.writes).toHaveLength(0);
   });
 
   const capture = {

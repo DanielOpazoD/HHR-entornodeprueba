@@ -5,14 +5,14 @@ export const BRACES_EXCEPTION = Object.freeze({
   authorizedBy: 'Daniel Opazo, explicit approval in the CUDYR task on 2026-10-07',
   startsAt: '2026-10-07T00:00:00Z',
   expiresAt: '2026-10-15T00:00:00Z',
-  lockSha256: '78f0237c8fec6efa06b4e4ddb1135386c933ac7e148c8b4431f7adeeb0a12f06',
+  lockSha256: 'a868d9aacaaf37d80bc5f1a4bba83f6216fa2c4a80e479a890f169d1ab6c54fd',
 });
 const versions = {
   '@boundaries/elements': '2.0.1',
   braces: '3.0.3',
   chokidar: '3.6.0',
   'eslint-plugin-boundaries': '6.0.2',
-  'firebase-tools': '15.15.0',
+  'firebase-tools': '15.16.0',
   'lint-staged': '16.2.7',
   micromatch: '4.0.8',
 };
