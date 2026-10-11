@@ -382,10 +382,11 @@
       return { error: 'Eloísa no informó un formulario vigente para ' + instrument + '.' };
     };
 
+    const scoresTabId = sender => sender?.tab?.id;
     const scoresIdentityReady = info => Boolean(info.identityVerified &&
       /^\d+$/.test(String(info.practitionerId || '')) && /^\d+$/.test(String(info.practitionerRoleId || '')));
     const handleScoresOptionsRequest = async ({ currentEncId, sender }) => {
-      const senderTabId = sender?.tab?.id;
+      const senderTabId = scoresTabId(sender);
       if (!Number.isInteger(senderTabId)) return { error: 'La pestaña de Scores no es válida.' };
       const infoResult = await getFichaFetchInfo(sender);
       if (infoResult.error) return infoResult;
@@ -470,20 +471,18 @@
         cudyrUnavailableReason: cudyrResult.error || '',
       };
     };
-    const scoresSessionIdentity = info => JSON.stringify(
-      [info.apiOrigin, info.facId, info.practitionerId, info.practitionerRoleId]
+    const scoresSessionIdentity = info => JSON.stringify([info.apiOrigin, info.facId, info.practitionerId, info.practitionerRoleId]
         .map(value => String(value || '')));
     const readScoresBatch = async (batchId, encId, sender) => {
       if (!/^[a-f0-9-]{20,}$/i.test(String(batchId || '')) || !/^\d+$/.test(String(encId || ''))) {
         return { error: 'La sesión de Scores no es válida.' };
       }
       const key = `hhr-scores-batch-${batchId}`;
-      const stored = await chromeApi.storage.session.get(key);
-      const batch = stored && stored[key];
+      const batch = (await chromeApi.storage.session.get(key))[key];
       if (!batch || now() - Number(batch.createdAt || 0) > 30 * 60 * 1000) {
         return { error: 'La sesión de Scores expiró. Actualiza el módulo.' };
       }
-      const senderTabId = sender?.tab?.id;
+      const senderTabId = scoresTabId(sender);
       if (!Number.isInteger(senderTabId) || batch.senderTabId !== senderTabId) {
         return { error: 'La lista de Scores no pertenece a esta pestaña. Actualiza el módulo.' };
       }

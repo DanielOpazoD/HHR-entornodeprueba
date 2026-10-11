@@ -1444,8 +1444,7 @@ const runtimeMessageRoutes = Object.freeze({
         batchId: message.batchId,
         encId: message.encId,
         instrument: message.instrument,
-        answers: message.answers,
-        sender,
+        answers: message.answers, sender,
       }),
     'No se pudo completar el guardado del instrumento.'
   ),
