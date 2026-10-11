@@ -17,7 +17,7 @@ const props = {
 describe('Navbar B1 disclosure and selection', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('announces the active clinical module and preserves the CUDYR alias', () => {
+  it('announces the active clinical module and maps CUDYR to the current census entry', () => {
     const { rerender } = render(<NavbarTabs {...props} />);
     const census = screen.getByRole('button', { name: 'Censo Diario' });
     const nursing = screen.getByRole('button', { name: 'Entrega Turno Enfermería' });
@@ -25,8 +25,8 @@ describe('Navbar B1 disclosure and selection', () => {
     expect(nursing).not.toHaveAttribute('aria-current');
 
     rerender(<NavbarTabs {...props} currentModule="CUDYR" />);
-    expect(nursing).toHaveAttribute('aria-current', 'page');
-    expect(census).not.toHaveAttribute('aria-current');
+    expect(census).toHaveAttribute('aria-current', 'page');
+    expect(nursing).not.toHaveAttribute('aria-current');
   });
 
   it('links the expanded utility trigger to its panel', () => {
