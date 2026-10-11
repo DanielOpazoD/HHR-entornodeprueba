@@ -35,7 +35,6 @@ export const MoaHelpButton: React.FC<MoaHelpButtonProps> = ({ currentModule }) =
         className="flex h-8 min-w-8 items-center justify-center gap-1.5 rounded-lg border border-white/20 px-2 text-white/90 transition-colors duration-150 hover:bg-white/10 aria-expanded:border-white/40 aria-expanded:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white motion-reduce:transition-none"
       >
         <CircleHelp size={16} aria-hidden="true" />
-        <span className="hidden md:inline text-[13px] font-medium">Moa</span>
       </button>
       {isOpen && (
         <ErrorBoundary

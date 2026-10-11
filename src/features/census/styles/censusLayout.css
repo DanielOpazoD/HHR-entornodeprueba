@@ -95,7 +95,7 @@
   }
 
   .census-table-scroll[data-horizontal-overflow='false'] > table > thead {
-    top: 96px; /* Main navigation (56px) + date strip (40px). */
+    top: var(--hhr-chrome-height); /* Matches navigation and date strip, including refresh. */
     z-index: 38;
   }
 

@@ -50,7 +50,7 @@ export const HandoffSaveDropdown: React.FC<HandoffSaveDropdownProps> = ({
         onClick={toggle}
         disabled={isBackingUp}
         className={clsx(
-          'btn !px-2 !py-1.5 text-[10px] flex items-center justify-center transition-all',
+          'hhr-toolbar-control btn !px-2 !py-0 flex items-center justify-center transition-all',
           uiState.buttonClassName,
           uiState.widthClassName
         )}

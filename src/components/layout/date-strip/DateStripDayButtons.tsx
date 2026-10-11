@@ -121,12 +121,12 @@ export const DateStripDayButtons: React.FC<DateStripDayButtonsProps> = ({
           aria-label={isClinicalToday ? `${fullDate} (hoy)` : fullDate}
           title={fullDate}
           className={clsx(
-            'flex items-center justify-center w-10 h-[30px] rounded-lg text-[10px] font-semibold transition-all shrink-0 relative border',
+            'hhr-toolbar-day flex items-center justify-center w-10 h-[30px] rounded-lg text-[10px] font-semibold transition-all shrink-0 relative border',
             isFutureBlocked
               ? 'bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed'
               : isSelected
                 ? isClinicalToday
-                  ? 'bg-gradient-to-br from-blue-500 to-cyan-500 text-white font-bold border-transparent shadow-lg shadow-blue-500/30 scale-105 ring-2 ring-blue-400/30'
+                  ? 'bg-blue-50 text-blue-600 font-bold border-blue-500 ring-1 ring-blue-300/40'
                   : isSelectedPast
                     ? 'bg-amber-100 text-amber-800 font-bold border-amber-400 shadow-sm ring-2 ring-amber-300/60 scale-[1.03]'
                     : 'bg-slate-500 text-white font-bold border-slate-500 shadow-sm scale-[1.03]'

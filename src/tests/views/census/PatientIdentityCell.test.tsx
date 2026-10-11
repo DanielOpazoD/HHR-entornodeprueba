@@ -68,6 +68,27 @@ describe('PatientIdentityCell', () => {
     expect(screen.getByRole('button', { name: 'Abrir MMRAD de Juana Rapu' })).toBeVisible();
   });
 
+  it.each(['provisional', 'official'] as const)(
+    'keeps newborn age beside its name and offers only the clinical panel (%s identity)',
+    identityStatus => {
+      const { container } = renderCell({
+        isSubRow: true,
+        data: DataFactory.createMockPatient('R1', {
+          patientName: 'RN Sintético',
+          age: '1d',
+          identityStatus: identityStatus === 'official' ? undefined : identityStatus,
+          clinicalEpisodeId: 'synthetic-newborn-episode',
+        }),
+      });
+      const name = container.querySelector('.census-identity-name');
+      expect(name).toContainElement(screen.getByText('(1d)'));
+      expect(screen.getByTestId('clinical-panel-trigger-R1-clinical-crib')).toBeVisible();
+      expect(container.querySelector('.lucide-arrow-right')).toBeNull();
+      expect(container.querySelector('[data-testid^="patient-laboratory-trigger"]')).toBeNull();
+      expect(container.querySelector('[data-testid^="patient-radiology-trigger"]')).toBeNull();
+    }
+  );
+
   it('includes the stored calendar date and admission time without timezone conversion', () => {
     renderCell({
       data: DataFactory.createMockPatient('R1', {

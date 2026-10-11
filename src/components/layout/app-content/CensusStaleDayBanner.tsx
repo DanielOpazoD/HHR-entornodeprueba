@@ -23,7 +23,7 @@ interface CensusStaleDayBannerProps {
  * non-modal cue in smaller type. Renders nothing when already on the clinical day, so
  * the night shift working its own clinical day before the rollover never sees it.
  *
- * Sticky offset 96px = navbar (56) + date strip (40); z below the date strip's z-40.
+ * Shares the responsive chrome offset; z below the date strip's z-40.
  */
 export const CensusStaleDayBanner: React.FC<CensusStaleDayBannerProps> = ({
   currentDateString,
@@ -41,7 +41,7 @@ export const CensusStaleDayBanner: React.FC<CensusStaleDayBannerProps> = ({
     <div
       data-app-top-bar
       role="alert"
-      className="sticky top-[96px] z-30 flex items-center gap-2 border-b border-slate-200 bg-slate-50 px-4 py-1 text-slate-600 print:hidden"
+      className="sticky top-[var(--hhr-chrome-height)] z-30 flex items-center gap-2 border-b border-slate-200 bg-slate-50 px-4 py-1 text-slate-600 print:hidden"
     >
       <CalendarClock size={13} className="shrink-0 text-slate-500" aria-hidden="true" />
       <p className="flex-1 text-[11px] leading-tight">

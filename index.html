@@ -5,13 +5,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HHR Hospital Tracker</title>
+    <link rel="stylesheet" href="/app-chrome.css">
     <script src="/startup-surface.js"></script>
     <!--
       Startup UX contract:
       - modulo origen desde React bootstrap, no una recreacion del chrome en index.html
       - public/startup-surface.js owns document.documentElement.dataset.prebootSurface =
       - public/startup-surface.js owns APP_SURFACE_BACKGROUND
-      - authenticated app preboot background keeps size: '100% 56px, 100% 44px, 100% calc(100vh - 100px)'
+      - authenticated app preboot background keeps shared app chrome dimensions and coastal asset come from /app-chrome.css
       - keep html[data-preboot-surface="app"] body styling here as the minimal shell surface
     -->
     <style>

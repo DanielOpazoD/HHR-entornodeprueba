@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { LayoutGrid, LucideIcon } from 'lucide-react';
+import { ChevronDown, LayoutGrid, LucideIcon } from 'lucide-react';
 import clsx from 'clsx';
 import { ModuleType, NavItemConfig } from '@/constants/navigationConfig';
 import { useNavbarNavigation } from '@/hooks/useNavbarNavigation';
@@ -32,9 +32,9 @@ const NavTab: React.FC<NavTabProps> = ({ label, icon: Icon, isActive, onClick, t
     title={label}
     className={clsx(
       controlInteractionClass,
-      'flex shrink-0 items-center gap-2 whitespace-nowrap px-2 lg:px-4 py-1.5 duration-200 text-[13px] tracking-tight rounded-lg ring-1 ring-transparent focus-visible:outline-offset-2 focus-visible:outline-white',
+      'hhr-nav-tab flex shrink-0 items-center gap-2 whitespace-nowrap px-2 lg:px-4 py-1.5 duration-200 text-[13px] tracking-tight rounded-lg ring-1 ring-transparent focus-visible:outline-offset-2 focus-visible:outline-white',
       isActive
-        ? 'text-white font-semibold bg-white/[0.16] ring-white/18 underline underline-offset-4 decoration-2'
+        ? 'text-white font-semibold bg-white/[0.16] ring-white/18'
         : 'text-white/85 hover:text-white hover:bg-white/[0.08] hover:ring-white/12 font-medium'
     )}
   >
@@ -124,7 +124,7 @@ export const NavbarTabs: React.FC<NavbarTabsProps> = ({
   };
 
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-1">
+    <div className="hhr-navbar-tabs flex min-w-0 items-center gap-1">
       {/* Clinical Modules - Prominent tabs */}
       <div className="flex min-w-0 items-center gap-1 overflow-x-auto p-1">
         {clinicalTabs.map(item => (
@@ -162,7 +162,7 @@ export const NavbarTabs: React.FC<NavbarTabsProps> = ({
             data-testid="navbar-utility-menu-button"
             className={clsx(
               controlInteractionClass,
-              'flex items-center justify-center gap-1.5 min-w-8 h-8 px-2 rounded-lg duration-200 focus-visible:outline-offset-2 focus-visible:outline-white',
+              'hhr-nav-tab flex items-center justify-center gap-1.5 min-w-8 h-8 px-2 rounded-lg duration-200 focus-visible:outline-offset-2 focus-visible:outline-white',
               isUtilityActive || currentModule === 'CUDYR'
                 ? 'bg-white/[0.16] text-white ring-1 ring-white/20 shadow-sm shadow-black/10'
                 : 'text-white/85 hover:bg-white/[0.08] hover:text-white'
@@ -171,6 +171,7 @@ export const NavbarTabs: React.FC<NavbarTabsProps> = ({
           >
             <LayoutGrid size={16} aria-hidden="true" />
             <span className="hidden md:inline text-[13px] font-medium">Más</span>
+            <ChevronDown size={14} aria-hidden="true" className="hidden md:block" />
           </button>
 
           {/* Dropdown Menu */}

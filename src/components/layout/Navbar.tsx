@@ -115,10 +115,10 @@ export const Navbar: React.FC<NavbarProps> = ({
     <nav
       data-app-top-bar
       aria-label="Navegación principal HHR"
-      className="bg-[#102d43] text-white shadow-sm sticky top-0 z-[60] print:hidden h-[56px] flex items-center border-b border-white/10"
+      className="hhr-navbar text-white shadow-sm sticky top-0 z-[60] print:hidden flex items-center border-b border-white/10"
       style={{ transform: 'translateZ(0)' }}
     >
-      <div className="w-full max-w-screen-2xl mx-auto px-3 sm:px-4 flex flex-nowrap min-w-0 gap-2 sm:gap-4 justify-between items-center">
+      <div className="hhr-navbar-inner w-full mx-auto px-3 sm:px-5 flex flex-nowrap min-w-0 gap-2 sm:gap-4 justify-between items-center">
         {/* Brand with Dropdown Menu */}
         <NavbarMenu
           currentModule={currentModule}
@@ -143,8 +143,17 @@ export const Navbar: React.FC<NavbarProps> = ({
           setCensusViewMode={setCensusViewMode}
         />
 
+        <img
+          src="/images/navbar/rapa-nui-coast.webp"
+          alt=""
+          aria-hidden="true"
+          width={430}
+          height={80}
+          className="hhr-navbar-landscape"
+        />
+
         {/* Status Indicators & User Menu */}
-        <div className="flex shrink-0 items-center gap-2 sm:gap-4 py-2 ml-auto">
+        <div className="hhr-navbar-utilities flex shrink-0 items-center gap-2 sm:gap-4 py-2 ml-auto">
           {runtimeIndicatorSlot}
           {!hideRuntimeIndicators && (
             <ErrorBoundary

@@ -1,0 +1,197 @@
+/* Shared by the document preboot surface, bootstrap chrome and active app. */
+:root {
+  --hhr-navbar-height: 64px;
+  --hhr-date-strip-height: 56px;
+  --hhr-chrome-height: calc(var(--hhr-navbar-height) + var(--hhr-date-strip-height));
+  --hhr-navbar-blue: #3f74a5;
+  --hhr-preboot-background:
+    url('/images/navbar/rapa-nui-coast.webp'),
+    linear-gradient(var(--hhr-navbar-blue), var(--hhr-navbar-blue)), linear-gradient(#fff, #fff),
+    linear-gradient(#eef4f8, #e8eef5);
+  --hhr-preboot-position:
+    right 250px top, left top, left var(--hhr-navbar-height), left var(--hhr-chrome-height);
+  --hhr-preboot-size:
+    auto var(--hhr-navbar-height), 100% var(--hhr-navbar-height), 100% var(--hhr-date-strip-height),
+    100% calc(100vh - var(--hhr-chrome-height));
+}
+
+.hhr-navbar {
+  height: var(--hhr-navbar-height);
+  background: var(--hhr-navbar-blue);
+}
+.hhr-navbar-inner {
+  height: 100%;
+}
+.hhr-navbar-brand {
+  padding-inline: 0;
+}
+.hhr-navbar-brand img {
+  width: 32px;
+  height: 32px;
+}
+.hhr-navbar-brand h1 {
+  font-size: 16px;
+}
+.hhr-navbar-brand > svg {
+  color: #bad2e8;
+}
+.hhr-navbar-tabs {
+  flex: 0 1 auto;
+}
+.hhr-nav-tab {
+  min-height: 40px;
+  font-size: 14px;
+  border-radius: 10px;
+}
+.hhr-nav-tab > svg:first-child {
+  width: 18px;
+  height: 18px;
+}
+.hhr-nav-tab[aria-current='page'] {
+  background-color: #548fc2;
+}
+.hhr-navbar-landscape {
+  display: block;
+  min-width: 0;
+  height: 100%;
+  width: auto;
+  flex: 1 1 260px;
+  max-width: 430px;
+  object-fit: cover;
+  object-position: center;
+  pointer-events: none;
+  mask-image: linear-gradient(90deg, transparent, #000 15%, #000 88%, transparent);
+}
+.hhr-navbar-utilities {
+  border-left: 1px solid #ffffff40;
+  padding-left: 16px;
+}
+.hhr-date-strip {
+  height: var(--hhr-date-strip-height);
+  top: var(--hhr-navbar-height);
+}
+.hhr-date-strip-inner {
+  min-width: 0;
+  gap: 12px;
+}
+.hhr-date-navigation {
+  scrollbar-width: thin;
+  padding-block: 4px;
+}
+.hhr-date-navigation > div:has(> .hhr-toolbar-day) {
+  overflow: visible;
+}
+.hhr-toolbar-control,
+.hhr-toolbar-period,
+.hhr-toolbar-day {
+  height: 40px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+.hhr-toolbar-control {
+  gap: 7px;
+}
+.hhr-toolbar-control > svg {
+  width: 17px;
+  height: 17px;
+}
+.hhr-toolbar-control:not([data-email-status]):not([data-save-status]):not(.btn-secondary),
+.hhr-toolbar-save[data-save-status='idle'] {
+  color: #365d87;
+}
+.hhr-toolbar-save,
+.hhr-toolbar-options {
+  width: 44px;
+}
+.hhr-toolbar-control[data-email-status] {
+  min-width: 146px;
+}
+.hhr-toolbar-period {
+  background: #fff;
+  padding-inline: 4px;
+}
+.hhr-toolbar-period > button {
+  font-size: 13px;
+  color: #365d87;
+}
+.hhr-toolbar-period > button > svg {
+  width: 15px;
+  height: 15px;
+}
+.hhr-toolbar-day {
+  width: 48px;
+}
+.hhr-toolbar-day span {
+  font-size: 11px;
+}
+.hhr-toolbar-day[disabled] {
+  color: #b8c8d9;
+}
+
+@media (max-width: 1100px) {
+  :root {
+    --hhr-preboot-background:
+      linear-gradient(var(--hhr-navbar-blue), var(--hhr-navbar-blue)), linear-gradient(#fff, #fff),
+      linear-gradient(#eef4f8, #e8eef5);
+    --hhr-preboot-position: left top, left var(--hhr-navbar-height), left var(--hhr-chrome-height);
+    --hhr-preboot-size:
+      100% var(--hhr-navbar-height), 100% var(--hhr-date-strip-height),
+      100% calc(100vh - var(--hhr-chrome-height));
+  }
+  .hhr-navbar-landscape {
+    display: none;
+  }
+  .hhr-navbar-tabs {
+    flex: 1 1 auto;
+  }
+  .hhr-date-strip-inner {
+    gap: 8px;
+  }
+  .hhr-date-navigation {
+    gap: 4px;
+  }
+  .hhr-toolbar-control,
+  .hhr-toolbar-period,
+  .hhr-toolbar-day {
+    height: 36px;
+    font-size: 11px;
+  }
+  .hhr-toolbar-save,
+  .hhr-toolbar-options {
+    width: 36px;
+  }
+  .hhr-toolbar-control[data-email-status] {
+    min-width: 116px;
+  }
+  .hhr-toolbar-period {
+    padding-inline: 0;
+  }
+  .hhr-toolbar-period > button {
+    font-size: 11px;
+  }
+  .hhr-toolbar-day {
+    width: 40px;
+  }
+  .hhr-toolbar-control[aria-label='Ir a hoy'] > span,
+  .hhr-toolbar-control[aria-label='Documentos'] > span {
+    display: none;
+  }
+}
+@media (max-width: 639px) {
+  :root {
+    --hhr-navbar-height: 56px;
+  }
+  .hhr-navbar-brand img {
+    width: 26px;
+    height: 26px;
+  }
+  .hhr-navbar-utilities {
+    padding-left: 8px;
+  }
+  .hhr-date-strip-inner {
+    gap: 4px;
+  }
+  .hhr-toolbar-day {
+    width: 44px;
+  }
+}
