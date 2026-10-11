@@ -55,6 +55,7 @@ export const chunkForModule = (moduleId: string): string | undefined => {
     if (
       has('/node_modules/react/') ||
       has('/node_modules/react-dom/') ||
+      has('/node_modules/react-error-boundary/') ||
       has('/node_modules/lucide-react/') ||
       has('/node_modules/@tanstack/react-query/') ||
       has('/node_modules/@tanstack/query-core/') ||
