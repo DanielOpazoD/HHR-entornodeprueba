@@ -81,6 +81,43 @@ describe('labAnalyticsController comparison output', () => {
     expect(result.comparison.Baciliformes).toBeUndefined();
   });
 
+  it.each([
+    ['Bilirrubina Total', 'Bilirrubina Directa', 'Bilirrubina Indirecta'],
+    ['Bilirrubina Indirecta', 'Bilirrubina Total', 'Bilirrubina Directa'],
+  ])('preserves T/D/I values regardless of finding order: %s, %s, %s', (...analyses) => {
+    const values: Record<string, string> = {
+      'Bilirrubina Total': '1.2',
+      'Bilirrubina Directa': '0.3',
+      'Bilirrubina Indirecta': '0.9',
+    };
+    const result = buildAnalysisData(
+      [
+        buildDetail({
+          url: examWithTime.link,
+          findings: analyses.map(analysis =>
+            buildFinding({ analysis, result: values[analysis], unit: 'mg/dL' })
+          ),
+        }),
+      ],
+      [examWithTime]
+    );
+    expect(Object.values(result.comparison['Bilirrubinas (T/D/I)'])[0].result).toBe(
+      '1.2 / 0.3 / 0.9'
+    );
+  });
+
+  it('does not fill the direct slot from an isolated indirect bilirubin', () => {
+    const result = buildAnalysisData(
+      [
+        buildDetail({
+          findings: [buildFinding({ analysis: 'Bilirrubina Indirecta', result: '0.9' })],
+        }),
+      ],
+      [examWithTime]
+    );
+    expect(Object.values(result.comparison['Bilirrubinas (T/D/I)'])[0].result).toBe('- / - / 0.9');
+  });
+
   it('orders Hemoglobina before Creatinina before ASAT/GOT', () => {
     const result = buildAnalysisData(
       [
