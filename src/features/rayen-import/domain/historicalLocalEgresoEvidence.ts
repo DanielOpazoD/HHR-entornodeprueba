@@ -1,3 +1,4 @@
+import { extractPdfTextFromBuffer } from '@/services/pdf/pdfTextExtractionRuntime';
 import { normalizeRut } from '@/utils/rutUtils';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { EgresoLookupResult, EgresoLookupTarget } from '../contracts/egresoLookup';
@@ -5,6 +6,14 @@ import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import { encounterWallClockInRapaNui } from '../mapping/encounterWallClock';
 import { historicalEncounterFromLocal } from './historicalEncounterFromLocal';
 import { isPavilionRecoveryLocation } from './pavilionRecoverySyncPolicy';
+import type { PatientFlowReportResult } from '../bedTraceabilityResolver';
+import { parseStatisticalDischargeEvidence } from '../mapping/parseStatisticalDischargeReport';
+import { decodePdfBase64 } from './historicalStatisticalDischargeRecovery';
+
+interface IndividualDischargeProof {
+  fetchDischargeReport?: (encounterId: string) => Promise<PatientFlowReportResult>;
+  extractText?: (buffer: ArrayBuffer) => Promise<string>;
+}
 
 export interface LocalHistoricalOccupant {
   encounter: RayenEncounter;
@@ -51,19 +60,41 @@ export const collectUnreferencedLocalOccupants = (
   return occupants;
 };
 
-const exactVerifiedDischargeAt = (
+const exactVerifiedDischargeAt = async (
   occupant: LocalHistoricalOccupant,
-  result: EgresoLookupResult | undefined
-): string | null => {
+  result: EgresoLookupResult | undefined,
+  proof?: IndividualDischargeProof
+): Promise<string | null> => {
   const egreso = result?.egreso;
   if (
     !egreso ||
+    result?.error ||
     result?.encounterId !== occupant.encounter.encounterId ||
     normalizeRut(result?.run) !== normalizeRut(occupant.encounter.run) ||
-    egreso.hasAdministrativeDischarge !== true
+    egreso.hasAdministrativeDischarge === false ||
+    String(egreso.id ?? occupant.encounter.encounterId) !== occupant.encounter.encounterId
   )
     return null;
-  return encounterWallClockInRapaNui(String(egreso.dateDischarge || egreso.endPeriod || ''));
+  const dischargeAt = encounterWallClockInRapaNui(
+    String(egreso.dateDischarge || egreso.endPeriod || '')
+  );
+  if (!dischargeAt || egreso.hasAdministrativeDischarge === true) return dischargeAt;
+  // Sparse lookup metadata is not proof of discharge. Require the exact official PDF,
+  // its RUN, complete interval, and agreement with the lookup timestamp to the printed minute.
+  if (!proof?.fetchDischargeReport) return null;
+  try {
+    const report = await proof.fetchDischargeReport(occupant.encounter.encounterId);
+    if (!report.base64 || report.error) return null;
+    const evidence = parseStatisticalDischargeEvidence(
+      await (proof.extractText ?? extractPdfTextFromBuffer)(decodePdfBase64(report.base64))
+    );
+    return evidence?.run === normalizeRut(occupant.encounter.run) &&
+      evidence.dischargeAt.slice(0, 16) === dischargeAt.slice(0, 16)
+      ? dischargeAt
+      : null;
+  } catch {
+    return null;
+  }
 };
 
 /**
@@ -72,7 +103,8 @@ const exactVerifiedDischargeAt = (
  */
 export const verifyLocalOccupantsByExactEgreso = async (
   occupants: LocalHistoricalOccupant[],
-  lookup?: (targets: EgresoLookupTarget[]) => Promise<EgresoLookupResult[]>
+  lookup?: (targets: EgresoLookupTarget[]) => Promise<EgresoLookupResult[]>,
+  proof?: IndividualDischargeProof
 ): Promise<ExactLocalEgresoResolution> => {
   if (!lookup) return { verified: [], unresolved: occupants };
   const eligible = occupants.filter(
@@ -101,7 +133,7 @@ export const verifyLocalOccupantsByExactEgreso = async (
     const result = results.find(
       candidate => candidate.encounterId === occupant.encounter.encounterId
     );
-    const dischargeAt = exactVerifiedDischargeAt(occupant, result);
+    const dischargeAt = await exactVerifiedDischargeAt(occupant, result, proof);
     if (!dischargeAt) continue;
     verified.push({ ...occupant, exactEgresoVerified: true, dischargeAt });
     verifiedEpisodes.add(occupant.encounter.encounterId);

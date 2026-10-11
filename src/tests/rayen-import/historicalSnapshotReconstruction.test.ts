@@ -341,7 +341,7 @@ Flujo del Paciente RUN: 222222222
     ]);
   });
 
-  it('preserves a known D-1 bed when the exact egreso proves the interval and no transfer', async () => {
+  it.each([true, undefined])('preserves a proven D-1 bed with flag %s', async flag => {
     const localRecord = {
       date: '2026-07-24',
       beds: {
@@ -363,7 +363,7 @@ Flujo del Paciente RUN: 222222222
         egreso: {
           id: 142083,
           dateDischarge: '2026-07-25T14:28:00',
-          hasAdministrativeDischarge: true,
+          hasAdministrativeDischarge: flag,
         },
       },
     ]);

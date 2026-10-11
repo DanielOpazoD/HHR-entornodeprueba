@@ -171,7 +171,8 @@ export const reconstructHistoricalSnapshotAtClose = async (
   );
   const exactLocalEgresos = await verifyLocalOccupantsByExactEgreso(
     unreferencedLocal,
-    dependencies.lookupEgresos
+    dependencies.lookupEgresos,
+    dependencies
   );
   for (const occupant of exactLocalEgresos.unresolved) {
     conflicts.push(

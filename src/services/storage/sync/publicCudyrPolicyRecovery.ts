@@ -8,6 +8,17 @@ import { createObsoleteCudyrCaptureRecovery } from './cudyrObsoleteCaptureRecove
 import { getDocFromServer } from 'firebase/firestore';
 import { getRecordDocRef } from '@/services/storage/firestore/firestoreShared';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { createMisdatedCudyrAuthorityRecovery } from './cudyrMisdatedAuthorityRecovery';
+
+const repairMisdatedArchives = createMisdatedCudyrAuthorityRecovery({
+  store: createDexieSyncQueueStore(),
+  getOwner: getStoredSessionOwnerKey,
+  getGeneration: getSessionGeneration,
+  readConfirmedCensus: async date => {
+    const snapshot = await getDocFromServer(getRecordDocRef(date));
+    return snapshot.exists() ? (snapshot.data() as DailyRecord) : null;
+  },
+});
 
 const retireObsoleteChecks = createObsoleteCudyrCaptureRecovery({
   store: createDexieSyncQueueStore(),
@@ -20,15 +31,18 @@ const retireObsoleteChecks = createObsoleteCudyrCaptureRecovery({
   },
 });
 
+// Keep one selective dynamic import: duplicate namespace imports retain unrelated queue APIs.
+async function processRecoveredArchives(): Promise<void> {
+  const { processSyncQueue } = await import('./publicSyncQueue');
+  await processSyncQueue();
+}
+
 const recoverPolicyBlockedArchives = createCudyrPolicyBlockedRecovery({
   ensureReady: ensureDbReady,
   store: createDexieSyncQueueStore(),
   getOwner: getStoredSessionOwnerKey,
   getGeneration: getSessionGeneration,
-  process: async () => {
-    const { processSyncQueue } = await import('./publicSyncQueue');
-    await processSyncQueue();
-  },
+  process: processRecoveredArchives,
 });
 export const recoverPolicyBlockedCudyrArchives = async (
   authorized: boolean,
@@ -36,9 +50,14 @@ export const recoverPolicyBlockedCudyrArchives = async (
   isAuthorized: () => boolean
 ): Promise<number> => {
   try {
+    await ensureDbReady();
+    const repaired = authorized
+      ? await repairMisdatedArchives(expectedGeneration, isAuthorized)
+      : 0;
     const count = await recoverPolicyBlockedArchives(authorized, expectedGeneration, isAuthorized);
+    if (repaired && !count) await processRecoveredArchives();
     if (authorized && isAuthorized()) await retireObsoleteChecks(expectedGeneration, isAuthorized);
-    return count;
+    return count + repaired;
   } catch {
     recordOperationalTelemetry({
       category: 'sync',
