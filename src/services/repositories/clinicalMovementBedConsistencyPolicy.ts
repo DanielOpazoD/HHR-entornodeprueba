@@ -69,16 +69,16 @@ const matchesMovementPatient = (
     return false;
   }
 
+  const patientEpisodeId = normalizeIdentity(patient?.clinicalEpisodeId);
+  const movementEpisodeId = normalizeIdentity(movement.clinicalEpisodeId);
+  if (patientEpisodeId && movementEpisodeId && patientEpisodeId !== movementEpisodeId) {
+    return false;
+  }
+
   const patientRut = normalizeIdentity(patient?.rut);
   const movementRut = normalizeIdentity(movement.rut);
   if (patientRut && movementRut) {
     if (patientRut !== movementRut) {
-      return false;
-    }
-
-    const patientEpisodeId = normalizeIdentity(patient?.clinicalEpisodeId);
-    const movementEpisodeId = normalizeIdentity(movement.clinicalEpisodeId);
-    if (patientEpisodeId && movementEpisodeId && patientEpisodeId !== movementEpisodeId) {
       return false;
     }
 
