@@ -1,5 +1,6 @@
 const functions = require('firebase-functions/v1');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
+const { projectPublicMedicalHandoffRecord } = require('./handoffPublicProjection');
 
 const VALID_SCOPES = new Set(['all', 'upc', 'no-upc']);
 const CLOSED_SCOPE_LABELS = {
@@ -105,7 +106,12 @@ const createHandoffSignatureFunctions = ({ firestore }) => ({
     assertSignatureToken(record, scope, token);
 
     return {
-      record,
+      record: projectPublicMedicalHandoffRecord(
+        record,
+        date,
+        scope,
+        resolveScopedMedicalSignature(record, scope)
+      ),
       scope,
       alreadySigned: Boolean(resolveScopedMedicalSignature(record, scope)),
     };
@@ -118,61 +124,40 @@ const createHandoffSignatureFunctions = ({ firestore }) => ({
     const doctorName = assertStringField(data?.doctorName, 'doctorName');
 
     const docRef = getDailyRecordRef(firestore).doc(date);
-    const snapshot = await docRef.get();
-    if (!snapshot.exists) {
-      throw new functions.https.HttpsError('not-found', 'Medical handoff record not found.');
-    }
+    return firestore.runTransaction(async transaction => {
+      const snapshot = await transaction.get(docRef);
+      if (!snapshot.exists) {
+        throw new functions.https.HttpsError('not-found', 'Medical handoff record not found.');
+      }
 
-    const record = normalizeFirestoreValue(snapshot.data());
-    assertSignatureToken(record, scope, token);
+      const record = normalizeFirestoreValue(snapshot.data());
+      assertSignatureToken(record, scope, token);
+      const existingSignature = resolveScopedMedicalSignature(record, scope);
+      if (existingSignature) {
+        return { scope, signature: existingSignature, alreadySigned: true };
+      }
 
-    const existingSignature = resolveScopedMedicalSignature(record, scope);
-    if (existingSignature) {
-      return {
-        scope,
-        signature: existingSignature,
-        alreadySigned: true,
-      };
-    }
-
-    const signedAt = new Date().toISOString();
-    const signature = {
-      doctorName,
-      signedAt,
-      userAgent: typeof data?.userAgent === 'string' ? data.userAgent.slice(0, 512) : undefined,
-    };
-
-    const updatePayload = {
-      medicalSignatureByScope: {
-        ...(record.medicalSignatureByScope || {}),
-        [scope]: signature,
-      },
-      lastUpdated: signedAt,
-    };
-
-    if (scope === 'all') {
-      updatePayload.medicalSignature = signature;
-    }
-
-    await docRef.set(updatePayload, { merge: true });
-
-    const auditEntry = createAuditEntry({
-      action: 'MEDICAL_HANDOFF_SIGNED',
-      entityId: date,
-      details: {
+      const signedAt = new Date().toISOString();
+      const signature = {
         doctorName,
         signedAt,
-        scope,
-        source: 'public_signature_link',
-      },
-    });
-    await getAuditLogsRef(firestore).doc(auditEntry.id).set(auditEntry);
+        ...(typeof data?.userAgent === 'string' ? { userAgent: data.userAgent.slice(0, 512) } : {}),
+      };
+      const updatePayload = {
+        [`medicalSignatureByScope.${scope}`]: signature,
+        lastUpdated: signedAt,
+        ...(scope === 'all' ? { medicalSignature: signature } : {}),
+      };
+      const auditEntry = createAuditEntry({
+        action: 'MEDICAL_HANDOFF_SIGNED',
+        entityId: date,
+        details: { doctorName, signedAt, scope, source: 'public_signature_link' },
+      });
 
-    return {
-      scope,
-      signature,
-      alreadySigned: false,
-    };
+      transaction.update(docRef, updatePayload);
+      transaction.set(getAuditLogsRef(firestore).doc(auditEntry.id), auditEntry);
+      return { scope, signature, alreadySigned: false };
+    });
   }),
 });
 

@@ -2,6 +2,10 @@ const functions = require('firebase-functions/v1');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
 const { requireAuthenticatedEmail } = require('./auth/authPolicies');
 const { sanitizeLogValue } = require('./logging/redaction');
+const {
+  calendarStampInClinicalTimeZone,
+  resolveClinicalDayForDateTime,
+} = require('./generated/cudyrSourceParser.cjs');
 
 /**
  * Productive write path for specialist medical handoff notes.
@@ -74,6 +78,31 @@ const isAllowedSpecialistPath = nestedPath =>
   ALLOWED_SPECIALIST_BED_PATH_PREFIXES.some(
     prefix => nestedPath === prefix || nestedPath.startsWith(`${prefix}.`)
   );
+
+const assertRecordDate = date => {
+  const parsed = Date.parse(`${date}T00:00:00.000Z`);
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+    !Number.isFinite(parsed) ||
+    new Date(parsed).toISOString().slice(0, 10) !== date
+  ) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'Invalid medical handoff record date.'
+    );
+  }
+};
+
+const assertSpecialistClinicalDay = (date, role) => {
+  if (role !== 'doctor_specialist') return;
+  const { iso, hhmm } = calendarStampInClinicalTimeZone();
+  if (date !== resolveClinicalDayForDateTime(iso, hhmm)) {
+    throw new functions.https.HttpsError(
+      'permission-denied',
+      'Specialists can only update the current clinical day.'
+    );
+  }
+};
 
 const parseSpecialistPatch = rawPatch => {
   if (!isPlainObject(rawPatch)) {
@@ -158,7 +187,11 @@ const parseSpecialistPatch = rawPatch => {
   };
 };
 
-const createSpecialistMedicalHandoffFunctions = ({ firestore, Timestamp, resolveRoleForEmail }) => ({
+const createSpecialistMedicalHandoffFunctions = ({
+  firestore,
+  Timestamp,
+  resolveRoleForEmail,
+}) => ({
   updateSpecialistMedicalHandoff: functions.https.onCall(async (data, context) => {
     const email = requireAuthenticatedEmail(context);
     const resolvedRole = await resolveRoleForEmail(email);
@@ -172,6 +205,8 @@ const createSpecialistMedicalHandoffFunctions = ({ firestore, Timestamp, resolve
 
     const date = assertStringField(data?.date, 'date');
     const { bedId, patch } = parseSpecialistPatch(data?.patch);
+    assertRecordDate(date);
+    assertSpecialistClinicalDay(date, resolvedRole);
 
     const docRef = firestore
       .collection('hospitals')
@@ -192,6 +227,7 @@ const createSpecialistMedicalHandoffFunctions = ({ firestore, Timestamp, resolve
       );
     }
 
+    assertSpecialistClinicalDay(date, resolvedRole);
     try {
       await docRef.update({
         ...patch,

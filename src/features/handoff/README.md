@@ -46,6 +46,20 @@ Entrega de turno de enfermeria y medicos, con flujos de gestion, delivery y hand
 - El handoff medico por paciente/cama del especialista ya no depende de un write directo a
   Firestore Rules; usa una callable backend acotada y validada por rol.
 
+## Firma pública
+
+`getMedicalHandoffSignaturePayload` valida el token entrante y devuelve una proyección
+médica construida con allowlists en servidor, no el censo persistido. Filtra camas con
+la clasificación UPC efectiva y conserva la cuna clínica de la cama incluida. Nunca
+devuelve tokens, notas de enfermería, movimientos, FHIR ni datos de sincronización.
+Las notas médicas globales/de especialidad no se pueden atribuir a un alcance de camas:
+se muestran sólo en enlaces `all`. Firma y timestamp se limitan al alcance solicitado.
+
+`submitMedicalHandoffSignature` revalida token y firma dentro de una transacción.
+Firma y auditoría se confirman juntas; un envío simultáneo del mismo alcance recibe
+la firma ya aceptada, sin sustituirla ni duplicar la auditoría. El alcance `all`
+mantiene el campo legacy `medicalSignature`; alcances distintos conservan sus firmas.
+
 ## Ruta especialista
 
 Cuando el usuario actual es `doctor_specialist` y el patch toca solo una cama con campos medicos
@@ -86,6 +100,14 @@ Detalles, limites y errores historicos documentados en:
 El consumo externo a la feature debe entrar por `@/features/handoff`. Los imports profundos a
 `components/`, `controllers/`, `hooks/` o bridges internos quedan reservados para implementación
 interna del feature.
+
+## CUDYR registrado y elegibilidad
+
+La impresión CUDYR conserva una categoría importada válida del censo/turno aun
+cuando el paciente no sea elegible: muestra «Registrado» y la exclusión juntos.
+`isEligible` sigue controlando los puntajes manuales visibles y el denominador de
+`buildCudyrPrintMetrics`; ni un resultado desfasado ni una categoría inválida se
+presentan como registro válido. Esto aplica CUD-02/CUD-07 sólo en el límite de handoff.
 
 ## Checks recomendados
 

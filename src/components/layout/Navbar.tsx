@@ -4,8 +4,9 @@
  */
 
 import React, { useRef, useState } from 'react';
-import { BellRing, WifiOff } from 'lucide-react';
-import clsx from 'clsx';
+import { BellRing, CircleHelp, WifiOff } from 'lucide-react';
+import { ErrorBoundary } from 'react-error-boundary';
+import { reloadMoaHelp } from './navbar/moaHelpRecovery';
 import { useAuth } from '@/context/AuthContext';
 import { NavbarMenu } from './NavbarMenu';
 import { NavbarTabs } from './NavbarTabs';
@@ -22,6 +23,8 @@ import {
 
 import { ModuleType } from '@/constants/navigationConfig';
 type ViewMode = 'REGISTER' | 'ANALYTICS';
+
+const MoaHelpButton = React.lazy(() => import('./navbar/MoaHelpButton'));
 
 const ReminderBadge = lazyWithRetry(() =>
   import('@/components/reminders/ReminderBadge').then(module => ({
@@ -108,43 +111,11 @@ export const Navbar: React.FC<NavbarProps> = ({
     }
   };
 
-  // Module Color Map
-  const getNavColor = () => {
-    switch (currentModule) {
-      case 'CENSUS':
-        return 'bg-gradient-to-r from-[#0c4a6e] via-[#0369a1] to-[#0c4a6e]';
-      case 'ANALYTICS':
-        return 'bg-gradient-to-r from-sky-800 via-sky-700 to-cyan-700';
-      case 'NURSING_HANDOFF':
-        return 'bg-gradient-to-r from-[#0369a1] via-[#0284c7] to-[#0369a1]';
-      case 'MEDICAL_HANDOFF':
-        return 'bg-gradient-to-r from-teal-800 via-teal-700 to-teal-800';
-      case 'AUDIT':
-        return 'bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800';
-      case 'BACKUP_FILES':
-        return 'bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700';
-      case 'PATIENT_MASTER_INDEX':
-        return 'bg-gradient-to-r from-blue-700 via-blue-600 to-blue-700';
-      case 'DATA_MAINTENANCE':
-        return 'bg-gradient-to-r from-emerald-800 via-emerald-700 to-emerald-800';
-      case 'DIAGNOSTICS':
-        return 'bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900';
-      case 'ROLE_MANAGEMENT':
-        return 'bg-gradient-to-r from-indigo-800 via-indigo-700 to-indigo-800';
-      case 'REMINDERS':
-        return 'bg-gradient-to-r from-amber-800 via-amber-700 to-amber-800';
-      default:
-        return 'bg-gradient-to-r from-[#0c4a6e] via-[#0369a1] to-[#0c4a6e]';
-    }
-  };
-
   return (
     <nav
       data-app-top-bar
-      className={clsx(
-        getNavColor(),
-        'text-white shadow-md shadow-black/10 sticky top-0 z-[60] print:hidden transition-colors duration-300 h-[56px] flex items-center border-b border-white/[0.08]'
-      )}
+      aria-label="Navegación principal HHR"
+      className="bg-[#102d43] text-white shadow-sm sticky top-0 z-[60] print:hidden h-[56px] flex items-center border-b border-white/10"
       style={{ transform: 'translateZ(0)' }}
     >
       <div className="w-full max-w-screen-2xl mx-auto px-3 sm:px-4 flex flex-nowrap min-w-0 gap-2 sm:gap-4 justify-between items-center">
@@ -175,6 +146,38 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Status Indicators & User Menu */}
         <div className="flex shrink-0 items-center gap-2 sm:gap-4 py-2 ml-auto">
           {runtimeIndicatorSlot}
+          {!hideRuntimeIndicators && (
+            <ErrorBoundary
+              fallbackRender={() => (
+                <button
+                  type="button"
+                  className="h-8 w-8"
+                  aria-label="Recargar ayuda de Moa"
+                  title="Guarda tus cambios antes de recargar"
+                  onClick={reloadMoaHelp}
+                >
+                  <CircleHelp size={16} />
+                </button>
+              )}
+            >
+              <React.Suspense
+                fallback={
+                  <span
+                    role="status"
+                    aria-label="Cargando ayuda de Moa"
+                    className="flex h-8 w-8 items-center justify-center"
+                  >
+                    <CircleHelp size={16} aria-hidden="true" />
+                  </span>
+                }
+              >
+                <MoaHelpButton
+                  key={`${currentUser?.uid ?? 'anonymous'}:${role ?? 'unknown'}`}
+                  currentModule={currentModule}
+                />
+              </React.Suspense>
+            </ErrorBoundary>
+          )}
 
           {userEmail && onLogout && (
             <UserMenu
