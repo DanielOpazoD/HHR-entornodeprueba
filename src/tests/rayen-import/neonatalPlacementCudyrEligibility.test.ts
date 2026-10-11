@@ -1,5 +1,11 @@
+import {
+  REVIEWED_AT as at,
+  INDEPENDENT_CARE_AT as effectiveAt,
+  prepareNeonatalReview as prepare,
+  applyNeonatalReview as apply,
+} from './neonatalPlacementReview.fixtures';
 import { describe, expect, it } from 'vitest';
-import { reconcileCensus, applyCensusImportDiff } from '@/features/rayen-import';
+import { reconcileCensus } from '@/features/rayen-import';
 import { resolveNeonatalPlacements } from '@/features/rayen-import/domain/neonatalPlacementReview';
 import {
   encounter,
@@ -7,32 +13,8 @@ import {
   snapshotOf,
   REFERENCE,
   recordWith,
-  seed,
 } from './clinicalCribDischargePromotion.fixtures';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { resolveCudyrDailyPlacement } from '@/domain/cudyr/cudyrDailyPlacement';
-
-const at = '2026-07-08T20:00:00-06:00';
-const effectiveAt = '2026-07-08T14:00:00-06:00';
-const prepare = () => {
-  const mother = encounter();
-  const child = {
-    ...newborn(),
-    run: '222222222',
-    firstGivenName: 'RN de Desconocida',
-    firstFamilyName: 'Otra',
-  };
-  const record = { ...recordWith(mother, child), beds: { H5C1: seed(mother) } };
-  const diff = reconcileCensus(record, snapshotOf([mother, child]), { reference: REFERENCE });
-  return { record, diff, mother, child };
-};
-const apply = (record: DailyRecord, diff: ReturnType<typeof reconcileCensus>) =>
-  applyCensusImportDiff(record, diff, {
-    now: new Date(at),
-    idFactory: () => 'review',
-    syncRunId: 'review',
-    actor: 'Nurse',
-  }).record;
 
 describe('reviewed RN CUDYR eligibility', () => {
   it('offers and accepts the source hospital bed when an already nested RN becomes independent', () => {
