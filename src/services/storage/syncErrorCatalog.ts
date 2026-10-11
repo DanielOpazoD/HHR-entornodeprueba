@@ -2,6 +2,19 @@ import { ErrorSeverity, isRetryableError } from '@/services/utils/errorService';
 
 export type SyncErrorCategory = 'conflict' | 'authorization' | 'validation' | 'network' | 'unknown';
 
+export class SyncQueueAckError extends Error {
+  constructor(
+    public readonly code:
+      | 'sync_ack_invalid_record'
+      | 'sync_ack_missing_projection'
+      | 'sync_ack_projection_conflict',
+    message: string
+  ) {
+    super(message);
+    this.name = 'SyncQueueAckError';
+  }
+}
+
 export interface SyncErrorClassification {
   code: string;
   message: string;
@@ -28,6 +41,7 @@ const normalizeMessage = (error: unknown): string => {
 
 const getCategory = (code: string, messageLower: string, name: string): SyncErrorCategory => {
   if (
+    code === 'sync_ack_projection_conflict' ||
     name === 'concurrencyerror' ||
     messageLower.includes('concurrency conflict') ||
     messageLower.includes('modificado por otro usuario')
@@ -37,7 +51,12 @@ const getCategory = (code: string, messageLower: string, name: string): SyncErro
   if (code.includes('permission-denied') || code.includes('unauthenticated')) {
     return 'authorization';
   }
-  if (code.includes('invalid-argument') || code.includes('failed-precondition')) {
+  if (
+    code === 'sync_ack_invalid_record' ||
+    code === 'sync_ack_missing_projection' ||
+    code.includes('invalid-argument') ||
+    code.includes('failed-precondition')
+  ) {
     return 'validation';
   }
   if (

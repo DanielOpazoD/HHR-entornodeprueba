@@ -85,7 +85,12 @@ export interface SyncQueueStorePort {
     claim: SyncQueueLeaseClaim
   ): Promise<boolean>;
   delete(taskId: number): Promise<void>;
-  deleteClaimed(taskId: number, claim: SyncQueueLeaseClaim): Promise<boolean>;
+  /** Complete the claim and optionally adopt its ACK without replacing unresolved projections. */
+  deleteClaimed(
+    taskId: number,
+    claim: SyncQueueLeaseClaim,
+    authoritativeRecord?: DailyRecord
+  ): Promise<boolean>;
   deleteAll(): Promise<void>;
   deleteByOwner(ownerKey: string | null): Promise<void>;
   countForeign(ownerKey: string | null): Promise<number>;
@@ -98,5 +103,9 @@ export interface SyncRuntimePort {
 }
 
 export interface SyncTransportPort {
-  run(task: SyncTask): Promise<void>;
+  run(task: SyncTask): Promise<SyncTransportResult | void>;
+}
+
+export interface SyncTransportResult {
+  authoritativeRecord: DailyRecord;
 }
