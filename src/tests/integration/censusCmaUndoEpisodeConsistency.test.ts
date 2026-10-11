@@ -69,20 +69,25 @@ describe('CMA undo episode isolation', () => {
     }
   );
 
-  it('restores the current episode through real persistence preparation without retiring prior movements', () => {
-    const { current, item } = createScenario();
-    const { record } = preparePatchedRecordPersistence(
-      current,
-      date,
-      buildUndoCmaPatch(current, item)!
-    );
+  it.each(['11.111.111-1', ''])(
+    'restores the current episode through persistence without retiring prior movements (document=%s)',
+    rut => {
+      const { current, item } = createScenario(rut);
+      const { record } = preparePatchedRecordPersistence(
+        current,
+        date,
+        buildUndoCmaPatch(current, item)!
+      );
 
-    expect(record.beds.R1.clinicalEpisodeId).toBe('ep-current');
-    expect(record.discharges[0].deletedAt).toBeUndefined();
-    expect(record.transfers[0].deletedAt).toBeUndefined();
-    expect(record.cma[0].deletedAt).toBeUndefined();
-    expect(record.cma[1].deletedAt).toEqual(expect.any(String));
-  });
+      expect(record.beds.R1.clinicalEpisodeId).toBe('ep-current');
+      expect(record.beds.R1.patientName).toBe('Paciente Sintetico');
+      expect(record.beds.R1.rut).toBe(rut);
+      expect(record.discharges[0].deletedAt).toBeUndefined();
+      expect(record.transfers[0].deletedAt).toBeUndefined();
+      expect(record.cma[0].deletedAt).toBeUndefined();
+      expect(record.cma[1].deletedAt).toEqual(expect.any(String));
+    }
+  );
 
   it('still retires destinations in the same episode and source bed', () => {
     const { current, item } = createScenario();

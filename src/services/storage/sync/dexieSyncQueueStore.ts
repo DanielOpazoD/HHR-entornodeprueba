@@ -9,7 +9,6 @@ import { localPersistence } from '@/services/storage/localpersistence/localPersi
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
-import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 import { matchesTaskClaim } from '@/services/storage/sync/syncQueueTaskFactory';
 import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
 import {
@@ -38,6 +37,27 @@ const isReadyForClaim = (task: SyncTask, now: number): boolean => {
 
 const matchesMutation = (task: SyncTask, mutationId?: string): boolean =>
   !mutationId || task.syncContract?.mutationId === mutationId;
+
+/** Key-scoped lookups retain the owner, mutation and state fences inside one transaction. */
+const withPendingTask = (
+  type: SyncTask['type'],
+  key: string,
+  ownerKey: string | null | undefined,
+  mutationId: string | undefined,
+  operation: (task: SyncTask & { id: number }) => Promise<boolean>,
+  accept: (task: SyncTask) => boolean = () => true
+): Promise<boolean> =>
+  hospitalDB.transaction('rw', hospitalDB.syncQueue, async () => {
+    const task = (await hospitalDB.syncQueue.where('key').equals(key).toArray()).find(
+      candidate =>
+        candidate.type === type &&
+        matchesOwner(ownerKey, candidate.ownerKey) &&
+        candidate.status === 'PENDING' &&
+        matchesMutation(candidate, mutationId) &&
+        accept(candidate)
+    );
+    return task?.id ? operation({ ...task, id: task.id }) : false;
+  });
 
 const mirrorTransactionalDailyRecordWrite = (record: DailyRecord): void => {
   if (isE2ERuntimeEnabled() && typeof window !== 'undefined' && window.__HHR_E2E_OVERRIDE__) {
@@ -208,35 +228,14 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
     if (outcome.record) mirrorTransactionalDailyRecordWrite(outcome.record);
     return outcome;
   },
-  async deletePendingByKey(type, key, ownerKey, mutationId) {
-    return hospitalDB.transaction('rw', hospitalDB.syncQueue, async () => {
-      const existing = (await hospitalDB.syncQueue.where('type').equals(type).toArray()).find(
-        task =>
-          matchesOwner(ownerKey, task.ownerKey) &&
-          task.key === key &&
-          task.status === 'PENDING' &&
-          matchesMutation(task, mutationId)
-      );
-      if (!existing?.id) {
-        return false;
-      }
-      await hospitalDB.syncQueue.delete(existing.id);
+  deletePendingByKey: (type, key, ownerKey, mutationId) =>
+    withPendingTask(type, key, ownerKey, mutationId, async task => {
+      await hospitalDB.syncQueue.delete(task.id);
       return true;
-    });
-  },
-  async releasePreOutboxHoldByKey(type, key, ownerKey, mutationId) {
-    return hospitalDB.transaction('rw', hospitalDB.syncQueue, async () => {
-      const existing = (await hospitalDB.syncQueue.where('type').equals(type).toArray()).find(
-        task =>
-          matchesOwner(ownerKey, task.ownerKey) &&
-          task.key === key &&
-          task.status === 'PENDING' &&
-          matchesMutation(task, mutationId)
-      );
-      if (!existing?.id) {
-        return false;
-      }
-      await hospitalDB.syncQueue.update(existing.id, {
+    }),
+  releasePreOutboxHoldByKey: (type, key, ownerKey, mutationId) =>
+    withPendingTask(type, key, ownerKey, mutationId, async task => {
+      await hospitalDB.syncQueue.update(task.id, {
         nextAttemptAt: 0,
         preOutboxHoldState: undefined,
         preOutboxHoldOwner: undefined,
@@ -245,32 +244,27 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
         preOutboxHoldHeartbeatAt: undefined,
       });
       return true;
-    });
-  },
-  async renewPreOutboxHoldByKey(type, key, ownerKey, mutationId, holdOwner, now, holdForMs) {
-    return hospitalDB.transaction('rw', hospitalDB.syncQueue, async () => {
-      const existing = (await hospitalDB.syncQueue.where('type').equals(type).toArray()).find(
-        task =>
-          matchesOwner(ownerKey, task.ownerKey) &&
-          task.key === key &&
-          task.status === 'PENDING' &&
-          task.preOutboxHoldState === 'AWAITING_REMOTE_ACK' &&
-          task.preOutboxHoldOwner === holdOwner &&
-          (task.preOutboxHoldUntil || 0) > now &&
-          matchesMutation(task, mutationId)
-      );
-      if (!existing?.id) {
-        return false;
-      }
-      const nextHoldUntil = now + holdForMs;
-      await hospitalDB.syncQueue.update(existing.id, {
-        nextAttemptAt: nextHoldUntil,
-        preOutboxHoldUntil: nextHoldUntil,
-        preOutboxHoldHeartbeatAt: now,
-      });
-      return true;
-    });
-  },
+    }),
+  renewPreOutboxHoldByKey: (type, key, ownerKey, mutationId, holdOwner, now, holdForMs) =>
+    withPendingTask(
+      type,
+      key,
+      ownerKey,
+      mutationId,
+      async task => {
+        const nextHoldUntil = now + holdForMs;
+        await hospitalDB.syncQueue.update(task.id, {
+          nextAttemptAt: nextHoldUntil,
+          preOutboxHoldUntil: nextHoldUntil,
+          preOutboxHoldHeartbeatAt: now,
+        });
+        return true;
+      },
+      task =>
+        task.preOutboxHoldState === 'AWAITING_REMOTE_ACK' &&
+        task.preOutboxHoldOwner === holdOwner &&
+        (task.preOutboxHoldUntil || 0) > now
+    ),
   requeueQuarantinedTask,
   discardQuarantinedTask,
   async update(taskId, patch) {
@@ -296,7 +290,6 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
         db: hospitalDB,
         matchesClaim: matchesTaskClaim,
         pending: listUnresolvedDailyRecordTasks,
-        conflict: ConcurrencyError,
       },
       taskId,
       claim,

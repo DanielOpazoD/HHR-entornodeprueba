@@ -1,7 +1,6 @@
 import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
-import type { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 import type { matchesTaskClaim } from '@/services/storage/sync/syncQueueTaskFactory';
 import type { listUnresolvedDailyRecordTasks } from '@/services/storage/sync/dexieSyncQueueQuarantine';
 import type { SyncQueueLeaseClaim } from '@/services/storage/sync/syncQueuePorts';
@@ -10,15 +9,23 @@ interface AckRuntime {
   db: typeof hospitalDB;
   matchesClaim: typeof matchesTaskClaim;
   pending: typeof listUnresolvedDailyRecordTasks;
-  conflict: typeof ConcurrencyError;
+}
+
+class SyncQueueAckError extends Error {
+  constructor(
+    public readonly code: string,
+    message: string
+  ) {
+    super(message);
+    this.name = 'SyncQueueAckError';
+  }
 }
 
 const shouldAdoptDailyRecordAck = (
   task: SyncTask,
   authoritativeRecord: DailyRecord,
   local: DailyRecord | undefined,
-  hasUnresolvedWrites: boolean,
-  ConflictError: typeof ConcurrencyError
+  hasUnresolvedWrites: boolean
 ): boolean => {
   const payload = task.payload as Partial<DailyRecord> | undefined;
   if (
@@ -26,11 +33,11 @@ const shouldAdoptDailyRecordAck = (
     task.key !== `daily:${authoritativeRecord.date}` ||
     payload?.date !== authoritativeRecord.date
   ) {
-    throw new ConflictError('ACK record mismatch.');
+    throw new SyncQueueAckError('sync_ack_invalid_record', 'ACK record mismatch.');
   }
   if (hasUnresolvedWrites) {
     if (!local) {
-      throw new ConflictError('Missing local projection.');
+      throw new SyncQueueAckError('sync_ack_missing_projection', 'Missing local projection.');
     }
     return false;
   }
@@ -39,13 +46,13 @@ const shouldAdoptDailyRecordAck = (
     local.lastUpdated !== payload.lastUpdated &&
     local.lastUpdated !== authoritativeRecord.lastUpdated
   ) {
-    throw new ConflictError('ACK version conflict.');
+    throw new SyncQueueAckError('sync_ack_projection_conflict', 'ACK version conflict.');
   }
   return true;
 };
 
 export const completeClaimedSyncTask = (
-  { db, matchesClaim, pending, conflict }: AckRuntime,
+  { db, matchesClaim, pending }: AckRuntime,
   taskId: number,
   claim: SyncQueueLeaseClaim,
   authoritativeRecord?: DailyRecord
@@ -59,7 +66,7 @@ export const completeClaimedSyncTask = (
         candidate => candidate.id !== taskId
       );
       const local = await db.dailyRecords.get(authoritativeRecord.date);
-      adopted = shouldAdoptDailyRecordAck(task, authoritativeRecord, local, unresolved, conflict);
+      adopted = shouldAdoptDailyRecordAck(task, authoritativeRecord, local, unresolved);
       if (adopted) await db.dailyRecords.put(authoritativeRecord);
     }
     await db.syncQueue.delete(taskId);

@@ -178,7 +178,7 @@ describe('transactional outbox authority ACK', () => {
 
     expect(await hospitalDB.dailyRecords.get(date)).toEqual(newer());
     expect(await hospitalDB.syncQueue.toArray()).toMatchObject([
-      { status: 'CONFLICT', lastErrorCategory: 'conflict', payload: first() },
+      { status: 'CONFLICT', lastErrorCode: 'sync_ack_projection_conflict', payload: first() },
     ]);
   });
 
@@ -195,8 +195,9 @@ describe('transactional outbox authority ACK', () => {
     const tasks = await hospitalDB.syncQueue.toArray();
     expect(tasks).toHaveLength(2);
     expect(tasks[0]).toMatchObject({
-      status: 'CONFLICT',
-      lastErrorCategory: 'conflict',
+      status: 'FAILED',
+      lastErrorCode: 'sync_ack_missing_projection',
+      lastErrorCategory: 'validation',
     });
     expect(tasks[1].payload).toEqual(newer());
     expect(await hospitalDB.dailyRecords.get(date)).toBeUndefined();
@@ -210,7 +211,11 @@ describe('transactional outbox authority ACK', () => {
 
     expect(await hospitalDB.dailyRecords.get(date)).toEqual(first());
     expect(await hospitalDB.syncQueue.toArray()).toMatchObject([
-      { status: 'CONFLICT', lastErrorCategory: 'conflict' },
+      {
+        status: 'FAILED',
+        lastErrorCode: 'sync_ack_invalid_record',
+        lastErrorCategory: 'validation',
+      },
     ]);
   });
 
@@ -236,6 +241,84 @@ describe('transactional outbox authority ACK', () => {
     expect(await hospitalDB.dailyRecords.get(date)).toEqual(authorizedB);
     expect(await hospitalDB.syncQueue.count()).toBe(0);
   });
+
+  it.each(['nursesDayShift', 'tensDayShift'] as const)(
+    'preserves B on %s when A is already persisted remotely before its ACK',
+    async changedPath => {
+      const { engine, processing, finish, task } = await beginAck();
+      const pendingB = {
+        ...first(),
+        [changedPath]: ['Sintetica B'],
+        lastUpdated: `${date}T10:00:02.000Z`,
+      };
+      await engine.queueDailyRecordTaskWithLocalRecord(
+        pendingB,
+        {
+          syncContract: {
+            mutationId: 'synthetic-mutation-B',
+            expectedVersion: first().lastUpdated,
+            changedPaths: [changedPath],
+          },
+        },
+        { deferProcessing: true, holdForMs: 60000 }
+      );
+      const later = (await hospitalDB.syncQueue.toArray()).find(row => row.id !== task.id)!;
+      const persistedA = {
+        ...committed(),
+        meta: {
+          lastMutationId: 'synthetic-mutation-A',
+          lastChangedPaths: ['nursesDayShift'],
+        },
+      };
+      getDocMock.mockResolvedValue({ exists: () => true, data: () => persistedA });
+      finish();
+      await processing;
+      expect(await hospitalDB.dailyRecords.get(date)).toEqual(pendingB);
+      expect(await hospitalDB.syncQueue.toArray()).toMatchObject([
+        { id: later.id, syncContract: { mutationId: 'synthetic-mutation-B' } },
+      ]);
+
+      callable.mockReset().mockImplementation(async input => {
+        const authorizedB = { ...input.record, lastUpdated: `${date}T10:00:04.000Z` };
+        return {
+          recordState: {
+            record: authorizedB,
+            lastUpdated: authorizedB.lastUpdated,
+            meta: {
+              lastMutationId: 'synthetic-mutation-B',
+              lastChangedPaths: [changedPath],
+            },
+          },
+        };
+      });
+      await hospitalDB.syncQueue.update(later.id!, { preOutboxHoldUntil: 0, nextAttemptAt: 0 });
+      await engine.processQueue();
+
+      if (changedPath === 'nursesDayShift') {
+        expect(callable).not.toHaveBeenCalled();
+        expect(await hospitalDB.dailyRecords.get(date)).toEqual(pendingB);
+        expect(await hospitalDB.syncQueue.toArray()).toMatchObject([
+          {
+            id: later.id,
+            status: 'CONFLICT',
+            payload: pendingB,
+            syncContract: { mutationId: 'synthetic-mutation-B' },
+          },
+        ]);
+      } else {
+        expect(callable).toHaveBeenCalledOnce();
+        const request = callable.mock.calls[0][0];
+        expect(request.syncContract.mutationId).toBe('synthetic-mutation-B');
+        expect(request.record.nursesDayShift).toEqual(committed().nursesDayShift);
+        expect(request.record.tensDayShift).toContain('Sintetica B');
+        expect((await hospitalDB.dailyRecords.get(date))?.tensDayShift).toContain('Sintetica B');
+        expect((await hospitalDB.dailyRecords.get(date))?.lastUpdated).toBe(
+          `${date}T10:00:04.000Z`
+        );
+        expect(await hospitalDB.syncQueue.count()).toBe(0);
+      }
+    }
+  );
 
   it('rolls back a failed completion and adopts an already-applied ACK on explicit retry', async () => {
     const { engine, processing, finish } = await beginAck();
