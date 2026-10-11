@@ -190,20 +190,25 @@ for (const report of selectedReports) {
   }
 
   const matchingMergeParentSha = findMatchingAllowedCommit(reportSha, directMergeParentShas);
-  if (matchingMergeParentSha) {
+  const recordedFingerprintValue = normalizeDependencyFingerprintValue(
+    parsedReport?.generatedFor?.dependencyFingerprint
+  );
+  if (!recordedFingerprintValue) {
+    const recordedCommit = matchingMergeParentSha
+      ? `direct merge parent ${matchingMergeParentSha}`
+      : `commit ${reportSha}`;
+    issues.push(
+      `${report.file} was generated for ${recordedCommit} without dependency fingerprint; refresh with npm run ${report.refreshScript} or run npm run postmerge:evidence on main.`
+    );
+  } else if (recordedFingerprintValue) {
+    // A matching commit or preserved mtime cannot prove unchanged report inputs.
     const expectedFingerprint = buildDependencyFingerprint({
       root: ROOT,
       dependencyFiles: report.dependsOn || [],
     });
-    const recordedFingerprint = parsedReport?.generatedFor?.dependencyFingerprint;
-    const recordedFingerprintValue = normalizeDependencyFingerprintValue(recordedFingerprint);
-    if (!recordedFingerprintValue) {
+    if (recordedFingerprintValue !== expectedFingerprint.value) {
       issues.push(
-        `${report.file} was generated for direct merge parent ${matchingMergeParentSha} without dependency fingerprint; refresh with npm run ${report.refreshScript} or run npm run postmerge:evidence on main.`
-      );
-    } else if (recordedFingerprintValue !== expectedFingerprint.value) {
-      issues.push(
-        `${report.file} is stale by real dependency fingerprint: generated for direct merge parent ${matchingMergeParentSha} with ${recordedFingerprintValue}, expected ${expectedFingerprint.value}; refresh with npm run ${report.refreshScript}.`
+        `${report.file} is stale by real dependency fingerprint: generated for ${reportSha} with ${recordedFingerprintValue}, expected ${expectedFingerprint.value}; refresh with npm run ${report.refreshScript}.`
       );
     }
   }

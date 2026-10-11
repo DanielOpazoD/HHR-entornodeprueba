@@ -32,6 +32,14 @@ puente HHR. Endurecer de forma común todos los bridges locales requiere una aut
 por la extensión y debe abordarse como PR de seguridad independiente; un nonce visible para la misma
 página no resolvería el riesgo. En producción sólo se acepta `https://testinghhr.netlify.app`.
 
+## Seguimiento de inicio de sesión
+
+Mientras el panel espera el acceso a Syslab, comprueba el estado cada dos segundos
+solo con HHR visible. Una pestaña oculta pausa ese seguimiento; al volver a ella
+se comprueba inmediatamente. El chequeo inicial, el refresco manual y una petición
+ya en curso mantienen su comportamiento. Cerrar el panel o completar la sesión
+retira el intervalo y el listener de visibilidad; no debe iniciar más consultas.
+
 ## Síntomas comunes
 
 ### "Failed to fetch" al buscar exámenes

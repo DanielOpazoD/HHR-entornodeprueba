@@ -2,7 +2,10 @@ import React, { useEffect, useId, useRef } from 'react';
 import { MoreHorizontal } from 'lucide-react';
 import { useDropdownMenu } from '@/hooks/useDropdownMenu';
 
-export const CensusOptionsMenu: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const CensusOptionsMenu: React.FC<{ children?: React.ReactNode; disabled?: boolean }> = ({
+  children,
+  disabled,
+}) => {
   const { isOpen, menuRef, toggle, close } = useDropdownMenu();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -63,6 +66,7 @@ export const CensusOptionsMenu: React.FC<{ children: React.ReactNode }> = ({ chi
     >
       <button
         ref={triggerRef}
+        disabled={disabled}
         type="button"
         onClick={toggle}
         aria-expanded={isOpen}

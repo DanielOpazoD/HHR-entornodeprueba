@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { useMoveCopyModalState } from '@/features/census/hooks/useMoveCopyModalState';
+import { useMoveCopyModalState } from '@/hooks/useMoveCopyModalState';
 
 describe('useMoveCopyModalState', () => {
   it('initializes selected date from current record date when modal opens', async () => {

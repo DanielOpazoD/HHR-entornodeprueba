@@ -42,6 +42,7 @@ vi.mock('@/services/storage/sessionScopedStorageService', () => ({
 describe('BootstrapRouteChrome', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    document.documentElement.className = '';
     window.localStorage.clear();
     window.sessionStorage.clear();
     window.history.replaceState({}, '', '/');
@@ -52,6 +53,7 @@ describe('BootstrapRouteChrome', () => {
 
     render(<BootstrapRouteChrome />);
 
+    expect(document.documentElement).toHaveClass('aesthetic-typography');
     expect(screen.getByTestId('bootstrap-navbar')).toHaveTextContent('CENSUS');
     expect(screen.getByTestId('bootstrap-date-strip')).toHaveTextContent('CENSUS');
     expect(mockNavbar).toHaveBeenCalledWith(
@@ -67,10 +69,22 @@ describe('BootstrapRouteChrome', () => {
         selectedYear: 2026,
         selectedMonth: 3,
         selectedDay: 22,
+        isLoading: true,
+        hideQuickActions: true,
+        trailingActions: expect.anything(),
+        clinicalToday: expect.any(String),
+        goToClinicalToday: expect.any(Function),
       })
     );
     expect(screen.queryByTestId('census-operational-state-banner')).not.toBeInTheDocument();
     expect(screen.queryByTestId('view-loader')).not.toBeInTheDocument();
+  });
+
+  it('honors the saved typography preference during bootstrap', () => {
+    window.history.replaceState({}, '', '/census');
+    window.localStorage.setItem('hhr_ui_settings', JSON.stringify({ modernTypography: false }));
+    render(<BootstrapRouteChrome />);
+    expect(document.documentElement).not.toHaveClass('aesthetic-typography');
   });
 
   it('renders the nursing handoff chrome for nursing-handoff refreshes', () => {

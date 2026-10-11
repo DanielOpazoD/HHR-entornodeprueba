@@ -1,3 +1,5 @@
+import { clinicalCribConflictBeds } from './clinicalCribConflictBeds';
+
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { CensusImportDiff, DischargeEntry } from '../contracts/censusImportDiff';
 import { hasRecordedMovement } from './egresoReportPolicy';
@@ -85,16 +87,26 @@ export const attachAssociatedClinicalCribDischarges = (
   discharges: DischargeEntry[],
   record: DailyRecord
 ): DischargeEntry[] => {
-  if (diff.snapshotComplete !== true) return discharges;
+  // An explicit newborn outcome takes precedence, including when a later report enriches
+  // a diff that already inferred an associated discharge from an earlier complete snapshot.
+  const reportedEpisodes = new Set(
+    (diff.reportEgresos ?? [])
+      .filter(entry => !entry.correctedDay || entry.correctedDay === record.date.slice(0, 10))
+      .map(entry => episodeIdOf(entry.encounterId))
+      .filter(Boolean)
+  );
+  const independentDischarges = discharges.map(entry =>
+    entry.associatedClinicalCrib &&
+    reportedEpisodes.has(episodeIdOf(entry.associatedClinicalCrib.clinicalEpisodeId))
+      ? { ...entry, associatedClinicalCrib: undefined }
+      : entry
+  );
+  if (diff.snapshotComplete !== true) return independentDischarges;
 
   const activeEpisodes = activeClinicalEpisodes(diff);
-  const conflictedParentBeds = new Set(
-    diff.conflicts
-      .filter(entry => entry.scope === 'clinical-crib')
-      .flatMap(entry => entry.bedId ?? [])
-  );
+  const conflictedParentBeds = clinicalCribConflictBeds(diff, record);
 
-  return discharges.map(entry => {
+  return independentDischarges.map(entry => {
     const candidateBeds = parentBedCandidates(diff, entry, record);
     if (
       entry.kind !== 'alta' ||
@@ -107,7 +119,12 @@ export const attachAssociatedClinicalCribDischarges = (
     const parentBedId = candidateBeds.find(bedId => samePrincipal(record.beds[bedId], entry));
     const crib = parentBedId ? record.beds[parentBedId]?.clinicalCrib : undefined;
     const clinicalEpisodeId = episodeIdOf(crib?.clinicalEpisodeId);
-    if (!crib?.patientName?.trim() || !clinicalEpisodeId || activeEpisodes.has(clinicalEpisodeId)) {
+    if (
+      !crib?.patientName?.trim() ||
+      !clinicalEpisodeId ||
+      activeEpisodes.has(clinicalEpisodeId) ||
+      reportedEpisodes.has(clinicalEpisodeId)
+    ) {
       return entry;
     }
     if (hasRecordedMovement(record, crib.rut, clinicalEpisodeId)) return entry;

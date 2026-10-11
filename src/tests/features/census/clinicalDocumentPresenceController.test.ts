@@ -12,6 +12,7 @@ import {
   buildActiveClinicalDocumentEpisodeKeys,
   buildBedEpisodeBindings,
   buildClinicalDocumentPresenceByBed,
+  buildClinicalDocumentPresenceProjection,
   buildClinicalDocumentPresenceInfoByBed,
   type BedEpisodeBinding,
 } from '@/features/census/controllers/clinicalDocumentPresenceController';
@@ -194,5 +195,54 @@ describe('clinicalDocumentPresenceController', () => {
 
       expect(Object.keys(result)).toHaveLength(0);
     });
+  });
+});
+
+it('visits each document at most twice across 20 beds instead of rescanning the full collection', () => {
+  let statusReads = 0;
+  const beds = Array.from({ length: 20 }, (_, i) => ({ bedId: `B${i}`, episodeKey: `ep${i}` }));
+  const documents = Array.from({ length: 300 }, (_, i) => ({
+    episodeKey: `ep${i % 20}`,
+    get status() {
+      statusReads++;
+      return 'draft';
+    },
+  }));
+  const result = buildClinicalDocumentPresenceInfoByBed(beds, documents);
+  expect(
+    Object.values(result).every(info => info.totalCount === 15 && info.draftCount === 15)
+  ).toBe(true);
+  console.info('DOCUMENT_STATUS_VISITS', statusReads);
+  expect(statusReads).toBeLessThanOrEqual(600);
+});
+
+it('preserves episode aliases, archived exclusion and patient identity in the combined projection', () => {
+  const projection = buildClinicalDocumentPresenceProjection(
+    [
+      {
+        bedId: 'R1',
+        episodeKey: 'canonical',
+        episodeKeys: ['canonical', 'legacy', 'legacy'],
+        currentPatientRut: '12.345.678-K',
+      },
+      { bedId: 'R2', episodeKey: 'canonical', currentPatientRut: '9-0' },
+      { bedId: 'R3', episodeKey: 'absent' },
+    ],
+    [
+      { episodeKey: 'canonical', status: 'draft', patientRut: '12345678-k' },
+      { episodeKey: 'legacy', status: 'published', patientRut: '12.345.678-K' },
+      { episodeKey: 'canonical', status: 'archived', patientRut: '12.345.678-K' },
+      { episodeKey: 'canonical', status: 'published', patientRut: '9-0' },
+      { episodeKey: 'canonical', status: 'draft' },
+      { episodeKey: 'unrelated', status: 'published', patientRut: '12.345.678-K' },
+    ]
+  );
+  expect(projection).toEqual({
+    byBedId: { R1: true, R2: true, R3: false },
+    infoByBedId: {
+      R1: { present: true, totalCount: 3, draftCount: 2 },
+      R2: { present: true, totalCount: 2, draftCount: 1 },
+      R3: { present: false, totalCount: 0, draftCount: 0 },
+    },
   });
 });

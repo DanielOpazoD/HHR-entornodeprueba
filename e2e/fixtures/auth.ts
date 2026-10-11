@@ -44,6 +44,17 @@ interface BootstrapSeededRecordOptions {
   forceAuthorityCallable?: boolean;
 }
 
+// Firestore can keep requests open after the UI is ready. This only proves the
+// auth surface mounted; each scenario still asserts its record and persistence.
+export const waitForAuthSurface = async (page: Page) => {
+  await page
+    .getByTestId('login-google-button')
+    .or(page.getByTestId('authenticated-user-menu-button'))
+    .filter({ visible: true })
+    .first()
+    .waitFor({ state: 'visible', timeout: 15000 });
+};
+
 const BASE_BED_IDS = [
   'R1',
   'R2',
@@ -281,9 +292,8 @@ export async function setupE2EContext(
     await page.waitForLoadState('domcontentloaded', { timeout: 30000 }).catch(() => {});
   }
 
-  // Refuerzo: esperar a que no haya llamadas de red pendientes agresivas
-  await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
   await page.waitForLoadState('domcontentloaded');
+  await waitForAuthSurface(page);
 
   // 4. If login screen is still visible, complete deterministic E2E popup login
   const googleLoginButton = page.getByTestId('login-google-button');
@@ -545,8 +555,8 @@ export async function bootstrapSeededRecord(
     await page.waitForLoadState('domcontentloaded', { timeout: 30000 }).catch(() => {});
   }
 
-  await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
   await page.waitForLoadState('domcontentloaded');
+  await waitForAuthSurface(page);
 }
 
 export async function ensureAuthenticated(page: Page) {

@@ -6,13 +6,17 @@ Utilidades y contratos transversales compartidos entre múltiples capas/features
 
 ## Mapa
 
-| Path                              | Propósito                                                                           |
-| --------------------------------- | ----------------------------------------------------------------------------------- |
-| `contracts/*.ts`                  | Contratos transversales reales y helpers genéricos reutilizables entre features     |
-| `access/*.ts`                     | Policies compartidas de acceso/capabilities                                         |
-| `*/**/*Presentation*.ts`          | Helpers de presentación reutilizados por más de un módulo                           |
-| `runtime/browserWindowRuntime.ts` | Adapter para efectos browser (`alert`, `confirm`, `open`, `reload`, `localStorage`) |
-| `ui/anchoredOverlayTypes.ts`      | Tipos de overlays/posicionamiento reutilizables                                     |
+| Path                                  | Propósito                                                                           |
+| ------------------------------------- | ----------------------------------------------------------------------------------- |
+| `contracts/*.ts`                      | Contratos transversales reales y helpers genéricos reutilizables entre features     |
+| `access/*.ts`                         | Policies compartidas de acceso/capabilities                                         |
+| `*/**/*Presentation*.ts`              | Helpers de presentación reutilizados por más de un módulo                           |
+| `runtime/browserWindowRuntimeCore.ts` | Adapter para efectos browser (`alert`, `confirm`, `open`, `reload`, `localStorage`) |
+| `ui/anchoredOverlayTypes.ts`          | Tipos de overlays/posicionamiento reutilizables                                     |
+
+El portapapeles y la identificación del navegador pertenecen a
+`runtime/browserClipboardRuntime.ts`. Importar cada adaptador desde su propietario;
+la fachada histórica `browserWindowRuntime.ts` fue retirada.
 
 ## Patrón
 
@@ -25,6 +29,6 @@ Utilidades y contratos transversales compartidos entre múltiples capas/features
 ## Ejemplo
 
 ```ts
-import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntime';
+import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
 defaultBrowserWindowRuntime.alert('Mensaje');
 ```

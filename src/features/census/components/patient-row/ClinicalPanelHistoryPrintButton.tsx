@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Loader2, Printer } from 'lucide-react';
 
 import { useNotification } from '@/context/UIContext';
-import { requestRayenHospitalizationDocument } from '@/features/rayen-import';
+import { requestRayenHospitalizationDocument } from '@/features/rayen-import/clinical-panel';
 
 interface ClinicalPanelHistoryPrintButtonProps {
   patientName: string;

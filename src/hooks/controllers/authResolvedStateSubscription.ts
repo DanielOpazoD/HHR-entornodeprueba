@@ -16,6 +16,7 @@
  * Returns the unsubscribe function the caller must invoke on unmount.
  */
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
+import type { AuthUser } from '@/types/authRoleTypes';
 import type { AuthSessionState } from '@/types/authSessionTypes';
 import {
   clearAuthBootstrapPending,
@@ -74,7 +75,7 @@ const resolveBootstrapDirectChecks = async ({
   | 'setSessionState'
   | 'setAuthLoading'
   | 'isActive'
->): Promise<{ resolved: boolean }> => {
+>): Promise<{ resolved: boolean; sessionState?: AuthSessionState }> => {
   try {
     markPerf('auth-bootstrap:redirect-start');
     const redirectOutcome = await resolveRedirectAuthSessionOutcome();
@@ -90,7 +91,7 @@ const resolveBootstrapDirectChecks = async ({
         setSessionState,
         setAuthLoading,
       });
-      return { resolved: true };
+      return { resolved: true, sessionState: redirectSessionState };
     }
 
     markPerf('auth-bootstrap:current-session-start');
@@ -106,7 +107,7 @@ const resolveBootstrapDirectChecks = async ({
         setSessionState,
         setAuthLoading,
       });
-      return { resolved: true };
+      return { resolved: true, sessionState: currentSessionOutcome.data };
     }
 
     if (
@@ -207,6 +208,17 @@ const handleSessionStateChange = ({
   return { handled: false, isBootstrapLoading };
 };
 
+const isSameAuthorizedUser = (first: AuthUser, next: AuthUser): boolean =>
+  first.uid === next.uid &&
+  first.email === next.email &&
+  first.displayName === next.displayName &&
+  first.photoURL === next.photoURL &&
+  first.role === next.role &&
+  (first.medicalSpecialties?.length ?? 0) === (next.medicalSpecialties?.length ?? 0) &&
+  (first.medicalSpecialties ?? []).every(
+    (specialty, index) => specialty === next.medicalSpecialties?.[index]
+  );
+
 export const subscribeToResolvedAuthState = async (
   input: SubscribeToResolvedAuthStateInput
 ): Promise<() => void> => {
@@ -218,9 +230,22 @@ export const subscribeToResolvedAuthState = async (
     isBootstrapLoading = false;
   }
 
+  // Firebase emits the restored session once when its observer subscribes.
+  // Direct checks have already submitted it for owner admission; that original
+  // admission must still complete before the shell becomes authorized.
+  // Suppress only that first identical echo; later events and any changed
+  // identity/permissions still go through admission and revocation normally.
+  let isInitialObserverEvent = true;
   markPerf('auth-bootstrap:observer-subscribe');
   return input.onAuthSessionStateChange(async sessionState => {
     if (input.isActive?.() === false) return;
+    const isInitialEcho =
+      isInitialObserverEvent &&
+      directChecks.sessionState?.status === 'authorized' &&
+      sessionState.status === 'authorized' &&
+      isSameAuthorizedUser(directChecks.sessionState.user, sessionState.user);
+    isInitialObserverEvent = false;
+    if (isInitialEcho) return;
     markPerf('auth-bootstrap:observer-event', sessionState.status);
     recordOperationalTelemetry(
       {

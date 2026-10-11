@@ -18,8 +18,15 @@ type LegacyFirebaseEnvSource = Partial<Record<LegacyFirebaseEnvKey, string | und
 const LEGACY_FIREBASE_APP_NAME = 'legacy-production';
 const BLOCKED_LEGACY_PROJECT_IDS = new Set(['hospital-hanga-roa']);
 
-const readLegacyFirebaseEnv = (): LegacyFirebaseEnvSource =>
-  import.meta.env as LegacyFirebaseEnvSource;
+const readLegacyFirebaseEnv = (): LegacyFirebaseEnvSource => ({
+  VITE_LEGACY_FIREBASE_API_KEY: import.meta.env.VITE_LEGACY_FIREBASE_API_KEY,
+  VITE_LEGACY_FIREBASE_AUTH_DOMAIN: import.meta.env.VITE_LEGACY_FIREBASE_AUTH_DOMAIN,
+  VITE_LEGACY_FIREBASE_PROJECT_ID: import.meta.env.VITE_LEGACY_FIREBASE_PROJECT_ID,
+  VITE_LEGACY_FIREBASE_STORAGE_BUCKET: import.meta.env.VITE_LEGACY_FIREBASE_STORAGE_BUCKET,
+  VITE_LEGACY_FIREBASE_MESSAGING_SENDER_ID: import.meta.env
+    .VITE_LEGACY_FIREBASE_MESSAGING_SENDER_ID,
+  VITE_LEGACY_FIREBASE_APP_ID: import.meta.env.VITE_LEGACY_FIREBASE_APP_ID,
+});
 
 const readLegacyFirebaseEnvValue = (
   env: LegacyFirebaseEnvSource,

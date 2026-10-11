@@ -1,3 +1,4 @@
+// @vitest-environment node
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -15,6 +16,19 @@ const readBundleBudgetConfig = (): BundleBudgetConfig =>
   ) as BundleBudgetConfig;
 
 describe('PWA precache policy', () => {
+  it('keeps server-verified archive recovery and shared online report facts on demand', () => {
+    for (const chunk of ['publicCudyrPolicyRecovery', 'cudyrReportFacts']) {
+      expect(readViteConfig()).toContain(`**/assets/${chunk}-*.js`);
+      expect(readBundleBudgetConfig().precacheIgnoredAssetPatterns).toContain(
+        `^assets/${chunk}-.*\\.js$`
+      );
+    }
+    const source = fs.readFileSync(
+      'src/features/rayen-import/hooks/recoverCudyrArchivesAfterClinicalSync.ts',
+      'utf8'
+    );
+    expect(source).toContain("import('@/services/storage/sync/publicCudyrPolicyRecovery')");
+  });
   it('keeps heavyweight optional references and runtimes out of the install-time precache', () => {
     const viteConfig = readViteConfig();
 
@@ -43,6 +57,20 @@ describe('PWA precache policy', () => {
     expect(viteConfig).toContain('**/assets/clinicalEnrichmentPersistenceStrategy-*.js');
     expect(viteConfig).toContain('**/assets/PatientDocumentManagerDialog-*.js');
     expect(viteConfig).toContain('**/assets/ClinicalPanelDrawer-*.js');
+  });
+
+  it('loads the optional census monthly indicator on demand, like its historical reader', () => {
+    expect(readViteConfig()).toContain('**/assets/CudyrMonthlyIndicator-*.js');
+    expect(readViteConfig()).toContain('**/assets/useCudyrReport-*.js');
+    expect(readBundleBudgetConfig().precacheIgnoredAssetPatterns).toContain(
+      '^assets/CudyrMonthlyIndicator-.*\\.js$'
+    );
+    expect(readBundleBudgetConfig().precacheIgnoredAssetPatterns).toContain(
+      '^assets/useCudyrReport-.*\\.js$'
+    );
+    const publicApi = fs.readFileSync('src/features/cudyr/public.ts', 'utf8');
+    expect(publicApi).toContain("import('./components/CudyrMonthlyIndicator')");
+    expect(publicApi).toContain("import('./components/CudyrView')");
   });
 
   it('keeps callable Functions on demand because every invocation requires network access', () => {

@@ -7,6 +7,7 @@ import { toTitleCaseName } from '../mapping/rayenToPatientData';
 import { parseStatisticalEgresoStamp } from '../mapping/reportEgresoDateTime';
 import { resolveReportBedId } from '../mapping/resolveReportBed';
 import { normalizeRut } from '@/utils/rutUtils';
+import { recordedOutcomeEpisodeId } from './censusDischargeHistory';
 export interface OccupiedBedEvidence {
   bedId: string;
   patientName: string;
@@ -103,13 +104,6 @@ export const indexPrincipalBeds = (
   return result;
 };
 
-export const clinicalCribConflictBeds = (diff: CensusImportDiff): Set<string> =>
-  new Set(diff.conflicts
-    .filter(entry => entry.bedId && (
-      entry.code === 'principal-bed-collision' ||
-      (entry.scope === 'clinical-crib' && entry.code !== 'unconfirmed-principal-bed')
-    ))
-    .map(entry => entry.bedId as string));
 
 export const hasPlannedPatientIdentity = (
   diff: CensusImportDiff,
@@ -227,7 +221,6 @@ export const collectRecordedMovementRuns = (record: DailyRecord): Set<string> =>
   }
   return runs;
 };
-
 export const hasRecordedMovement = (
   record: DailyRecord,
   run: string,
@@ -238,9 +231,9 @@ export const hasRecordedMovement = (
     ...(record.discharges ?? []),
     ...(record.cma ?? []),
     ...(record.transfers ?? []),
-  ].some(movement => encounterId
-    ? movement.clinicalEpisodeId === encounterId
-    : normalizeRut(movement.rut) === normalizedRun);
+  ].some(movement => !movement.deletedAt && (encounterId
+    ? recordedOutcomeEpisodeId(movement) === encounterId
+    : normalizeRut(movement.rut) === normalizedRun));
 };
 
 export const toIsoDay = (raw: string): string => {
@@ -284,12 +277,12 @@ export const reportPredatesActiveAdmission = (
   if (reportedEpisode && activeEpisode && reportedEpisode !== activeEpisode) return false;
   return reportPredatesAdmission(stamp, evidence);
 };
-
 export const resolveReportDischarge = (
   row: EgresoReportRow,
   evidence: CmaOriginEvidence = {}
 ) => {
   const mapped = mapDestinoDeAlta(row.destino, row.motivo);
+  mapped.status = row.dischargeStatus ?? mapped.status;
   const dischargeDay = correctedStamp(
     row.fechaEgreso,
     row.correctedDay,

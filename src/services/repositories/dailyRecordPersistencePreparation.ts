@@ -4,10 +4,8 @@ import { normalizeDailyRecordInvariants } from '@/utils/recordInvariants';
 import { normalizeMovementBedConsistency } from '@/services/repositories/clinicalMovementBedConsistencyPolicy';
 import { validateAndSalvageRecord } from '@/services/repositories/helpers/validationHelper';
 import { logError } from '@/services/utils/errorService';
-import {
-  ensureDailyRecordDateTimestamp,
-  syncDailyRecordClinicalResources,
-} from '@/services/repositories/dailyRecordDomainServices';
+import { ensureDailyRecordDateTimestamp } from '@/services/repositories/dailyRecordMetadataDomainService';
+import { syncDailyRecordClinicalResources } from '@/services/repositories/dailyRecordClinicalDomainService';
 import { assertAdmissionDatePersistencePolicy } from '@/services/repositories/dailyRecordAdmissionDateWritePolicy';
 import { buildInvariantRepairReviewContext } from '@/services/repositories/invariantRepairReviewContext';
 import { ensureDailyRecordClinicalEpisodeIds } from '@/application/patient-flow/clinicalEpisodeIdPolicy';

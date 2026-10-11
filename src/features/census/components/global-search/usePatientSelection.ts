@@ -5,7 +5,7 @@
  * their movement history and clinical episode documents.
  */
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import type { MasterPatient } from '@/types/domain/patientMaster';
 import type {
   PatientHistoryResult,
@@ -75,10 +75,35 @@ export function usePatientSelection(): UsePatientSelectionReturn {
   const [selectedPatient, setSelectedPatient] = useState<SelectedPatientDetail | null>(null);
   const [episodeDocuments, setEpisodeDocuments] = useState<Record<string, EpisodeDocuments>>({});
   const historyCacheRef = useRef(new Map<string, PatientHistoryResult | null>());
-  const historyRequestRef = useRef(new Map<string, Promise<PatientHistoryReadResult>>());
+  const historyRequestRef = useRef(
+    new Map<
+      string,
+      {
+        promise: Promise<PatientHistoryReadResult>;
+        controller: AbortController;
+      }
+    >()
+  );
+  const selectionRevisionRef = useRef(0);
+  const activeControllerRef = useRef<AbortController | null>(null);
+
+  const cancelHistory = useCallback(() => {
+    selectionRevisionRef.current++;
+    for (const request of historyRequestRef.current.values()) request.controller.abort();
+    historyRequestRef.current.clear();
+    activeControllerRef.current = null;
+  }, []);
+  useEffect(() => cancelHistory, [cancelHistory]);
 
   const selectPatient = useCallback(async (patient: MasterPatient) => {
     const cacheKey = buildPatientHistoryCacheKey(patient);
+    const selectionRevision = ++selectionRevisionRef.current;
+    for (const [key, request] of historyRequestRef.current) {
+      if (key !== cacheKey) {
+        request.controller.abort();
+        historyRequestRef.current.delete(key);
+      }
+    }
     const cachedHistory = historyCacheRef.current.get(cacheKey);
     if (historyCacheRef.current.has(cacheKey)) {
       setSelectedPatient({
@@ -90,32 +115,56 @@ export function usePatientSelection(): UsePatientSelectionReturn {
       return;
     }
 
-    setSelectedPatient({
+    const pendingHistoryRequest = historyRequestRef.current.get(cacheKey);
+    setSelectedPatient(prev => ({
       master: patient,
       history: null,
       isLoadingHistory: true,
+      historyRecordsRead:
+        pendingHistoryRequest && prev && buildPatientHistoryCacheKey(prev.master) === cacheKey
+          ? prev.historyRecordsRead
+          : 0,
       timelineState: buildPatientEpisodeTimelineState(patient, null),
-    });
+    }));
 
     try {
-      let historyRequest = historyRequestRef.current.get(cacheKey);
+      let historyRequest = pendingHistoryRequest;
       if (!historyRequest) {
-        historyRequest = loadPatientHistory()
+        const controller = new AbortController();
+        const promise = loadPatientHistory()
           .then(historyModule =>
             historyModule.getPatientMovementHistoryDetailed(patient.rut, {
               forceFullRemoteHydration: true,
               hospitalizationHints: patient.hospitalizations ?? [],
               lastAdmission: patient.lastAdmission,
               lastDischarge: patient.lastDischarge,
+              signal: controller.signal,
+              onProgress: recordsRead => {
+                if (controller.signal.aborted || activeControllerRef.current !== controller) return;
+                setSelectedPatient(prev =>
+                  prev && buildPatientHistoryCacheKey(prev.master) === cacheKey
+                    ? { ...prev, historyRecordsRead: recordsRead }
+                    : prev
+                );
+              },
             })
           )
           .finally(() => {
-            historyRequestRef.current.delete(cacheKey);
+            if (historyRequestRef.current.get(cacheKey)?.controller === controller) {
+              historyRequestRef.current.delete(cacheKey);
+            }
           });
+        historyRequest = { promise, controller };
         historyRequestRef.current.set(cacheKey, historyRequest);
       }
+      activeControllerRef.current = historyRequest.controller;
 
-      const { history, source } = await historyRequest;
+      const { history, source } = await historyRequest.promise;
+      if (
+        historyRequest.controller.signal.aborted ||
+        selectionRevisionRef.current !== selectionRevision
+      )
+        return;
       if (source === 'server') historyCacheRef.current.set(cacheKey, history);
       setSelectedPatient(prev =>
         prev && prev.master.rut === patient.rut
@@ -132,6 +181,7 @@ export function usePatientSelection(): UsePatientSelectionReturn {
           : prev
       );
     } catch (err) {
+      if (selectionRevisionRef.current !== selectionRevision) return;
       globalPatientSearchLogger.warn(`Failed to load history for ${patient.rut}`, err);
       setSelectedPatient(prev =>
         prev && prev.master.rut === patient.rut
@@ -147,9 +197,10 @@ export function usePatientSelection(): UsePatientSelectionReturn {
   }, []);
 
   const clearSelection = useCallback(() => {
+    cancelHistory();
     setSelectedPatient(null);
     setEpisodeDocuments({});
-  }, []);
+  }, [cancelHistory]);
 
   const loadEpisodeDocuments = useCallback(async (compositeKey: string) => {
     const parsed = parsePatientSelectionEpisodeLookupKey(compositeKey);
@@ -211,11 +262,12 @@ export function usePatientSelection(): UsePatientSelectionReturn {
   }, []);
 
   const resetSelection = useCallback(() => {
+    cancelHistory();
     setSelectedPatient(null);
     setEpisodeDocuments({});
     historyCacheRef.current.clear();
     historyRequestRef.current.clear();
-  }, []);
+  }, [cancelHistory]);
 
   return {
     selectedPatient,

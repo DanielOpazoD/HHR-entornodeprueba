@@ -16,7 +16,7 @@ type AIRecipe<T> = (signal?: AbortSignal) => Promise<T>;
 interface InternalTask {
   id: string;
   execute: () => Promise<void>;
-  cancel: (reason: Error) => void;
+  cancel: (reason: unknown) => void;
   signal?: AbortSignal;
 }
 
@@ -67,7 +67,11 @@ class AIRequestManager {
             aiTelemetryService.onSuccess();
             resolve(result);
           } catch (error) {
-            aiTelemetryService.onFailed(error instanceof Error ? error.message : String(error));
+            if (signal?.aborted || (error instanceof Error && error.name === 'AbortError')) {
+              aiTelemetryService.onCanceled(false);
+            } else {
+              aiTelemetryService.onFailed(error instanceof Error ? error.message : String(error));
+            }
             reject(error);
           }
         },
@@ -90,7 +94,7 @@ class AIRequestManager {
     }
 
     if (task.signal?.aborted) {
-      task.cancel(new DOMException('Aborted', 'AbortError'));
+      task.cancel(task.signal.reason);
       aiTelemetryService.onCanceled();
       this.isProcessing = false;
       this.processQueue();
@@ -98,23 +102,44 @@ class AIRequestManager {
     }
 
     aiTelemetryService.onProcessingStart();
+    let executionStarted = false;
 
     try {
       const now = Date.now();
       const elapsed = now - this.lastRequestTime;
       if (elapsed < this.MIN_INTERVAL_MS) {
-        await new Promise(r => setTimeout(r, this.MIN_INTERVAL_MS - elapsed));
+        await this.wait(this.MIN_INTERVAL_MS - elapsed, task.signal);
       }
 
+      task.signal?.throwIfAborted();
+      executionStarted = true;
       await task.execute();
-    } catch (_error) {
-      // Error is handled inside task.execute (rejects the promise)
+    } catch (error) {
+      // execute settles its own errors; only the throttle wait can reject here.
+      task.cancel(error);
+      aiTelemetryService.onCanceled(false);
     } finally {
       aiTelemetryService.onProcessingEnd();
-      this.lastRequestTime = Date.now();
+      if (executionStarted) this.lastRequestTime = Date.now();
       this.isProcessing = false;
       setTimeout(() => this.processQueue(), 100);
     }
+  }
+
+  private wait(delay: number, signal?: AbortSignal): Promise<void> {
+    return new Promise((resolve, reject) => {
+      signal?.throwIfAborted();
+      const timer = setTimeout(() => {
+        signal?.removeEventListener('abort', onAbort);
+        resolve();
+      }, delay);
+      const onAbort = () => {
+        clearTimeout(timer);
+        signal?.removeEventListener('abort', onAbort);
+        reject(signal?.reason);
+      };
+      signal?.addEventListener('abort', onAbort, { once: true });
+    });
   }
 
   private async executeWithRetries<T>(
@@ -122,9 +147,13 @@ class AIRequestManager {
     signal?: AbortSignal,
     attempt = 0
   ): Promise<T> {
+    signal?.throwIfAborted();
     try {
-      return await recipe(signal);
+      const result = await recipe(signal);
+      signal?.throwIfAborted();
+      return result;
     } catch (error: unknown) {
+      signal?.throwIfAborted();
       const errorMessage = error instanceof Error ? error.message : String(error);
       const errorObj = error as Record<string, unknown>;
       const errorStatus = typeof errorObj?.status === 'number' ? errorObj.status : undefined;
@@ -135,7 +164,7 @@ class AIRequestManager {
       if ((isRateLimit || isOverloaded) && attempt < this.MAX_RETRIES) {
         aiTelemetryService.onRateLimit();
         const delay = this.BACKOFF_BASE_MS * Math.pow(2, attempt);
-        await new Promise(r => setTimeout(r, delay));
+        await this.wait(delay, signal);
         return this.executeWithRetries(recipe, signal, attempt + 1);
       }
       throw error;

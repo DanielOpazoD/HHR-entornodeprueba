@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ScoresCell } from '@/features/census/components/patient-row/ScoresCell';
 import { DataFactory } from '@/tests/factories/DataFactory';
@@ -40,7 +40,60 @@ describe('ScoresCell', () => {
     expect(status).not.toHaveClass('border-amber-200', 'bg-amber-50', 'text-amber-700');
   });
 
-  it('shows Eloísa risk wording without changing the local Braden cadence', () => {
+  it.each([false, true])('does not schedule CUDYR for a crib (attached: %s)', isSubRow => {
+    render(
+      <table>
+        <tbody>
+          <tr>
+            <ScoresCell
+              data={DataFactory.createMockPatient('H2C1', {
+                bedMode: 'Cuna',
+                admissionDate: '2026-07-15',
+                evaluationScores: undefined,
+                cudyr: undefined,
+              })}
+              isSubRow={isSubRow}
+              currentDateString="2026-07-16"
+            />
+          </tr>
+        </tbody>
+      </table>
+    );
+    expect(screen.queryByTestId('cudyr-pending-status')).not.toBeInTheDocument();
+  });
+
+  it('keeps a synchronized CUDYR visible even for an excluded crib', () => {
+    render(
+      <table>
+        <tbody>
+          <tr>
+            <ScoresCell
+              data={DataFactory.createMockPatient('H2C1', {
+                bedMode: 'Cuna',
+                admissionDate: '2026-07-15',
+                evaluationScores: {
+                  cudyr: {
+                    category: 'C2',
+                    dependencyScore: 9,
+                    riskScore: 7,
+                    recordedDate: '2026-07-16',
+                    recordedAt: '2026-07-17T04:00:00-06:00',
+                    source: 'gestión camas',
+                  },
+                },
+              })}
+              isSubRow
+              currentDateString="2026-07-16"
+            />
+          </tr>
+        </tbody>
+      </table>
+    );
+    expect(screen.getByText('C2')).toBeVisible();
+    expect(screen.queryByTestId('cudyr-pending-status')).not.toBeInTheDocument();
+  });
+
+  it('shows Eloísa risk wording without changing the local Braden cadence', async () => {
     render(
       <table>
         <tbody>
@@ -67,7 +120,11 @@ describe('ScoresCell', () => {
       </table>
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ver detalle de escalas de enfermería' }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Ver detalle de escalas de enfermería' }));
+      // Wait for the real lazy module, not a wall-clock-dependent query timeout.
+      await import('@/features/census/components/patient-row/ScoresDetailModal');
+    });
 
     expect(screen.getByText('Riesgo alto')).toBeInTheDocument();
     expect(screen.getByText('Faltan 2 días para repetir la escala')).toBeInTheDocument();

@@ -9,7 +9,7 @@
 - feature screens stay presentational
 - screen orchestration belongs in local feature hooks
 - business rules live in `application/handoff` and `domain/handoff`
-- deprecated controllers remain compatibility bridges only
+- controllers remain only when they own active presentation or orchestration behavior
 - external consumers enter through `src/features/handoff/public.ts`
 
 ## Why
@@ -23,7 +23,10 @@
 - Business rules:
   - `src/application/handoff`
   - `src/domain/handoff`
-- Compatibility-only bridges: `src/features/handoff/controllers`
+- Active presentation/orchestration controllers: `src/features/handoff/controllers`
+- Management and patient-entry callers use the domain modules directly; the unused
+  `handoffManagementController`, `medicalPatientHandoffController` and
+  `medicalPatientHandoffMutationController` re-export bridges have been removed.
 
 ## Invariants
 
@@ -31,6 +34,9 @@
 - Screen `.tsx` files should consume read models/bindings, not recreate policy decisions.
 - Day restrictions and specialist restrictions must be enforced both in visible UI flow and mutation layer.
 - Audit-compatible payload shape must be preserved while legacy consumers still exist.
+- Record changes and persistence use `application/handoff/handoffManagementUseCases.ts`;
+  `handoffManagementPersistenceController.ts` only builds audit payloads. Do not
+  restore test-only persistence builders alongside the canonical use cases.
 
 ## How To Change Safely
 

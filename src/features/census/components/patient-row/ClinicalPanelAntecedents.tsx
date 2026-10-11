@@ -1,9 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
-import { requestClinicalAction, type ClinicalActionResult } from '@/features/rayen-import';
+import {
+  requestClinicalAction,
+  type ClinicalActionResult,
+} from '@/features/rayen-import/clinical-panel';
 import { ClinicalPanelUnavailable } from './ClinicalPanelUnavailable';
 import { ClinicalAntecedentCard } from './ClinicalAntecedentCard';
 import { formatClinicalAntecedentDate } from './clinicalAntecedentDate';
+import {
+  clinicalAntecedentEntryKey,
+  uniqueClinicalAntecedentEntries,
+} from './clinicalAntecedentEntries';
 const sameResult = (left: ClinicalActionResult | null, right: ClinicalActionResult): boolean =>
   JSON.stringify(left) === JSON.stringify(right);
 type OlderPage = { requestedEnd: string; data: ClinicalActionResult };
@@ -22,15 +29,20 @@ const mergePartialResult = (
                 value.unavailableSources?.includes(entry.source as 'Primaria' | 'Secundaria')
               ),
               ...(value.entries ?? []),
-            ].map(entry => [`${entry.source}:${entry.id}`, entry])
+            ].map(entry => [clinicalAntecedentEntryKey(entry), entry])
           ).values(),
         ],
       }
     : value;
 
-const ClinicalPanelAntecedentsForEpisode: React.FC<{ clinicalEpisodeId: string }> = ({
+type AntecedentsProps = { clinicalEpisodeId: string; isActive?: boolean };
+
+const ClinicalPanelAntecedentsForEpisode: React.FC<AntecedentsProps> = ({
   clinicalEpisodeId,
+  isActive = true,
 }) => {
+  const active = useRef(isActive);
+  const updateRefreshSchedule = useRef<() => void>(() => undefined);
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState<ClinicalActionResult | null>(null);
   const [olderPages, setOlderPages] = useState<OlderPage[]>([]);
@@ -43,8 +55,13 @@ const ClinicalPanelAntecedentsForEpisode: React.FC<{ clinicalEpisodeId: string }
   useEffect(() => {
     const controller = new AbortController();
     let refreshing = false;
+    let timer: number | undefined;
+    let lastRefreshStarted = Number.NEGATIVE_INFINITY;
     const refresh = (): void => {
-      if (refreshing) return;
+      if (refreshing || !active.current || document.visibilityState === 'hidden') return;
+      lastRefreshStarted = Date.now();
+      window.clearInterval(timer);
+      timer = window.setInterval(refresh, 300000);
       refreshing = true;
       void requestClinicalAction(clinicalEpisodeId, 'list', undefined, controller.signal)
         .then(value => {
@@ -64,17 +81,35 @@ const ClinicalPanelAntecedentsForEpisode: React.FC<{ clinicalEpisodeId: string }
         })
         .finally(() => {
           refreshing = false;
+          if (!controller.signal.aborted && Date.now() - lastRefreshStarted >= 300000) refresh();
         });
     };
     refresh();
-    // El historial rara vez cambia durante una ficha abierta: refrescar en segundo plano,
-    // sin desmontar la vista ni repetir el recorrido completo al cambiar de pestaña.
-    const timer = window.setInterval(refresh, 300000);
+    // Retain the original deadline and pending request while the panel tab is inactive.
+    const onVisibilityChange = (): void => {
+      window.clearInterval(timer);
+      if (!active.current || document.visibilityState === 'hidden') return;
+      const remaining = 300000 - (Date.now() - lastRefreshStarted);
+      if (remaining > 0) {
+        timer = window.setTimeout(refresh, remaining);
+      } else {
+        timer = window.setInterval(refresh, 300000);
+        refresh();
+      }
+    };
+    updateRefreshSchedule.current = onVisibilityChange;
+    document.addEventListener('visibilitychange', onVisibilityChange);
     return () => {
       window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
       controller.abort();
+      updateRefreshSchedule.current = () => undefined;
     };
   }, [clinicalEpisodeId, attempt]);
+  useEffect(() => {
+    active.current = isActive;
+    updateRefreshSchedule.current();
+  }, [isActive]);
   const lastOlderPage = olderPages.at(-1);
   const nextBeforeDate = lastOlderPage
     ? lastOlderPage.data.warnings?.length
@@ -114,27 +149,26 @@ const ClinicalPanelAntecedentsForEpisode: React.FC<{ clinicalEpisodeId: string }
       if (!controller.signal.aborted) setOlderLoading(false);
     }
   };
-  const currentKeys = new Set((result?.entries ?? []).map(entry => `${entry.source}:${entry.id}`));
-  const entries = [
+  const currentKeys = new Set((result?.entries ?? []).map(clinicalAntecedentEntryKey));
+  const entries = uniqueClinicalAntecedentEntries([
     ...(result?.entries ?? []),
     ...olderPages.flatMap(page => page.data.entries ?? []),
-  ].filter(
-    (entry, index, all) =>
-      all.findIndex(other => other.source === entry.source && other.id === entry.id) === index
-  );
+  ]);
   return (
     <div className="space-y-2">
-      <div className="rounded-lg border border-teal-100 bg-teal-50 p-2.5">
-        <p className="text-xs font-semibold text-teal-900">Antecedentes de Eloísa</p>
+      <div className="px-1 py-1.5">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+          Antecedentes de Eloísa
+        </p>
       </div>
       {!result ? (
         <p className="flex items-center justify-center gap-2 py-8 text-xs text-slate-500">
           <Loader2 size={16} className="animate-spin" />
           Consultando antecedentes…
         </p>
-      ) : result.error ? (
+      ) : !result.ok ? (
         <ClinicalPanelUnavailable
-          message={result.error}
+          message={result.error || 'No se pudieron consultar los antecedentes.'}
           onRetry={() => setAttempt(value => value + 1)}
         />
       ) : (
@@ -147,15 +181,32 @@ const ClinicalPanelAntecedentsForEpisode: React.FC<{ clinicalEpisodeId: string }
               {refreshError} Se conserva la última información cargada.
             </p>
           )}
-          {result.warnings?.map(warning => (
-            <p
-              key={warning}
-              role="status"
-              className="rounded-md bg-amber-50 px-2.5 py-2 text-[11px] text-amber-800"
+          {!!result.warnings?.length && (
+            <aside className="rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-[11px] text-slate-600">
+              <p role="status" className="font-medium">
+                Historial parcial · Los antecedentes cargados siguen disponibles.
+              </p>
+              <details className="mt-1">
+                <summary className="cursor-pointer text-slate-500">
+                  Ver estado de las fuentes
+                </summary>
+                {result.warnings.map(warning => (
+                  <p key={warning} className="mt-1">
+                    {warning}
+                  </p>
+                ))}
+              </details>
+            </aside>
+          )}
+          {(refreshError || !!result.warnings?.length) && (
+            <button
+              type="button"
+              onClick={() => setAttempt(value => value + 1)}
+              className="text-xs font-semibold text-teal-700"
             >
-              {warning}
-            </p>
-          ))}
+              Reintentar antecedentes
+            </button>
+          )}
           {olderPages.flatMap(page =>
             (page.data.warnings ?? []).map(warning => (
               <p
@@ -167,15 +218,6 @@ const ClinicalPanelAntecedentsForEpisode: React.FC<{ clinicalEpisodeId: string }
               </p>
             ))
           )}
-          {!!result.warnings?.length && (
-            <button
-              type="button"
-              onClick={() => setAttempt(value => value + 1)}
-              className="text-xs font-semibold text-teal-700"
-            >
-              Reintentar antecedentes
-            </button>
-          )}
           {!entries.length && !result.warnings?.length && (
             <p className="py-8 text-center text-xs text-slate-500">
               No se encontraron atenciones en los períodos consultados.
@@ -183,10 +225,10 @@ const ClinicalPanelAntecedentsForEpisode: React.FC<{ clinicalEpisodeId: string }
           )}
           {entries.map(entry => (
             <ClinicalAntecedentCard
-              key={`${entry.source}:${entry.id}`}
+              key={clinicalAntecedentEntryKey(entry)}
               entry={entry}
               episode={clinicalEpisodeId}
-              autoLoadDetail={currentKeys.has(`${entry.source}:${entry.id}`)}
+              autoLoadDetail={currentKeys.has(clinicalAntecedentEntryKey(entry))}
             />
           ))}
           {olderError && (
@@ -214,11 +256,13 @@ const ClinicalPanelAntecedentsForEpisode: React.FC<{ clinicalEpisodeId: string }
   );
 };
 
-export const ClinicalPanelAntecedents: React.FC<{ clinicalEpisodeId: string }> = ({
+export const ClinicalPanelAntecedents: React.FC<AntecedentsProps> = ({
   clinicalEpisodeId,
+  isActive = true,
 }) => (
   <ClinicalPanelAntecedentsForEpisode
     key={clinicalEpisodeId}
     clinicalEpisodeId={clinicalEpisodeId}
+    isActive={isActive}
   />
 );

@@ -4,6 +4,7 @@ import type { Statistics } from '@/types/domain/statistics';
 import type { DailyRecord } from '@/features/census/contracts/censusRecordContracts';
 import { CensusActionsProvider } from './CensusActionsContext';
 import { CensusPrintHeader } from './CensusPrintHeader';
+import { CensusAttentionBar } from './CensusAttentionBar';
 import { CensusStaffHeader } from './CensusStaffHeader';
 import { CensusRegisterMainContent } from './CensusRegisterMainContent';
 import { CensusOperationalStateBanner } from './CensusOperationalStateBanner';
@@ -76,8 +77,6 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
           readOnly={readOnly}
           stats={stats}
           accessProfile={accessProfile}
-          attentionFilter={attentionFilter}
-          onAttentionFilterChange={setAttentionFilter}
           visibleBeds={visibleBeds}
           renderMedicalHandoffAction={renderMedicalHandoffAction}
           rayenBootstrapRequestId={rayenBootstrapRequestId}
@@ -92,6 +91,15 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
           accessProfile={accessProfile}
           attentionFilter={attentionFilter}
           onClearAttentionFilter={() => setAttentionFilter('all')}
+          scoresAction={
+            <CensusAttentionBar
+              compact
+              beds={beds}
+              censusIsoDay={currentDateString}
+              activeFilter={attentionFilter}
+              onFilterChange={setAttentionFilter}
+            />
+          }
         />
 
         {shouldRenderDeferredSections ? (

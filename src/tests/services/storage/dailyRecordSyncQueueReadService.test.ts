@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexedDBService';
 import {
   getDailyRecordWriteStateForVersion,
@@ -24,13 +24,17 @@ const task = (payload: DailyRecord, status: SyncTask['status']): SyncTask => ({
   type: 'UPDATE_DAILY_RECORD',
   payload,
   key: `daily:${payload.date}`,
-  timestamp: Date.now(),
+  timestamp: Date.parse('2026-08-17T20:00:00.000Z'),
   retryCount: 0,
   status,
 });
 
 describe('dailyRecordSyncQueueReadService', () => {
   beforeEach(async () => {
+    await hospitalDB.syncQueue.clear();
+  });
+
+  afterEach(async () => {
     await hospitalDB.syncQueue.clear();
   });
 

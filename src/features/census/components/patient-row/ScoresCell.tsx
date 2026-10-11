@@ -7,18 +7,20 @@
  * Ficha Médico is the source of truth (ownership `remoteCanonical`).
  */
 
-import React, { useState } from 'react';
+import React, { lazy, useState } from 'react';
 import { Bandage, ClipboardList, Footprints } from 'lucide-react';
 import type { BaseCellProps } from './inputCellTypes';
 import { PatientEmptyCell } from './PatientEmptyCell';
-import { ScoresDetailModal } from './ScoresDetailModal';
+import { ClinicalDetailLoadBoundary } from './ClinicalDetailLoadBoundary';
 import { ScaleChip } from './ScaleChip';
-import { CellSyncIndicator } from './CellSyncIndicator';
 import { buildScoresCellModel } from '@/features/census/controllers/evaluationScoresCellController';
-import { useRayenFillStatus } from '@/features/rayen-import/census-status';
 import { isCudyrPatientEligible } from '@/domain/cudyr/cudyrEligibility';
 import { isCudyrScoreComplete } from '@/domain/cudyr/cudyrCompletion';
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
+
+const ScoresDetailModal = lazy(() =>
+  import('./ScoresDetailModal').then(module => ({ default: module.ScoresDetailModal }))
+);
 
 interface ScoresCellProps extends BaseCellProps {
   currentDateString: string;
@@ -44,7 +46,6 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
   currentDateString,
 }) => {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const isFilling = useRayenFillStatus();
 
   if (isEmpty && !isSubRow) {
     return <PatientEmptyCell tdClassName="py-0.5 px-1 border-r border-slate-200 relative" />;
@@ -53,15 +54,17 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
   const model = buildScoresCellModel(data, currentDateString);
   const hasCompleteManualCudyr = isCudyrScoreComplete(data.cudyr);
   const cudyrPending =
-    !model.cudyr && !hasCompleteManualCudyr && isCudyrPatientEligible(currentDateString, data)
+    !isSubRow &&
+    data.bedMode !== 'Cuna' &&
+    !model.cudyr &&
+    !hasCompleteManualCudyr &&
+    isCudyrPatientEligible(currentDateString, data)
       ? resolveCudyrPendingStatus(currentDateString)
       : null;
   const hasCellContent = model.hasAny || cudyrPending != null;
 
   return (
     <td className="py-0.5 px-1 border-r border-slate-200 relative">
-      {/* Show the syncing indicator on top of existing data too, so a re-sync gives feedback. */}
-      {isFilling && hasCellContent && <CellSyncIndicator />}
       {hasCellContent ? (
         <div className="flex w-full flex-col items-stretch gap-0.5">
           {model.hasAny && (
@@ -155,15 +158,6 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
             </div>
           )}
         </div>
-      ) : isFilling ? (
-        <div
-          className="flex flex-col gap-0.5 animate-pulse"
-          title="Sincronizando escalas desde Eloísa…"
-          aria-label="Cargando escalas"
-        >
-          <span className="h-2.5 rounded bg-slate-200" />
-          <span className="h-2.5 w-2/3 rounded bg-slate-200" />
-        </div>
       ) : (
         <div
           className="text-center text-slate-300 text-[9px] select-none"
@@ -174,13 +168,18 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
       )}
 
       {isDetailOpen && (
-        <ScoresDetailModal
-          patientName={data.patientName}
-          admissionDate={data.admissionDate}
-          importedCudyr={data.evaluationScores?.cudyr}
-          model={model}
+        <ClinicalDetailLoadBoundary
+          title={`Escalas de enfermería — ${data.patientName}`}
           onClose={() => setIsDetailOpen(false)}
-        />
+        >
+          <ScoresDetailModal
+            patientName={data.patientName}
+            admissionDate={data.admissionDate}
+            importedCudyr={data.evaluationScores?.cudyr}
+            model={model}
+            onClose={() => setIsDetailOpen(false)}
+          />
+        </ClinicalDetailLoadBoundary>
       )}
     </td>
   );

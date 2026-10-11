@@ -54,12 +54,12 @@ describe('CensusConflictQuickAction', () => {
     expect(mocks.control).not.toHaveBeenCalled();
   });
 
-  it('does not render without a loaded daily record', () => {
+  it('keeps a disabled entrypoint without initializing conflicts while the record loads', () => {
     mocks.record = null;
 
-    const { container } = render(<CensusConflictQuickAction />);
+    render(<CensusConflictQuickAction />);
 
-    expect(container).toBeEmptyDOMElement();
+    expect(screen.getByTestId('conflict-versions-loading')).toBeDisabled();
     expect(mocks.control).not.toHaveBeenCalled();
   });
 });

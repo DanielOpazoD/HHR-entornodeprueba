@@ -107,6 +107,46 @@ describe('synchronization issue navigation and shareable code', () => {
     expect(screen.getByText('HHR-SYNC-1/census/historical-reconstruction')).toBeVisible();
   });
 
+  it('identifies the prior census patient and links the original bed without copying clinical context', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
+    show({
+      ...event,
+      coverage: undefined,
+      structuralReview: {
+        historicalCorrectionsPending: false,
+        historicalCorrectionsRequireFreshCapture: false,
+        isolatedConflicts: 1,
+        issues: [
+          {
+            bedId: null,
+            reason: 'previous-census-continuity',
+            caseContext: {
+              patientName: 'Paciente Sintético',
+              censusDate: '2026-09-26',
+              bedId: 'H6C2',
+            },
+          },
+        ],
+      },
+    });
+    expect(screen.getByText('Paciente Sintético · Cama H6C2')).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Ver cama H6C2 · 26-09-2026' })).toHaveAttribute(
+      'href',
+      '/census?date=2026-09-26&focusBed=H6C2'
+    );
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Copiar código HHR-SYNC-1/census/previous-census-continuity',
+      })
+    );
+    await waitFor(() =>
+      expect(writeText).toHaveBeenCalledExactlyOnceWith(
+        'HHR-SYNC-1/census/previous-census-continuity'
+      )
+    );
+  });
+
   it('keeps a selectable code when clipboard access fails and supports run-level failures', async () => {
     vi.stubGlobal('navigator', {
       clipboard: { writeText: vi.fn().mockRejectedValue(new Error('denied')) },

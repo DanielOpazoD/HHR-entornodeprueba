@@ -1,11 +1,14 @@
 import { renderHook, act } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCensusContext } from '@/context/CensusContext';
 import { useAuth } from '@/context/AuthContext';
 import { useExportManager } from '@/hooks/useExportManager';
 import { useAppContentRuntime } from '@/components/layout/app-content/useAppContentRuntime';
 
 const mockGenerateCensusMasterExcel = vi.fn();
+const warning = vi.fn();
+const info = vi.fn();
+const error = vi.fn();
 
 vi.mock('@/services/exporters/censusMasterExport', () => ({
   generateCensusMasterExcel: (...args: unknown[]) => mockGenerateCensusMasterExcel(...args),
@@ -23,9 +26,9 @@ vi.mock('@/context/UIContext', () => ({
   useNotification: () => ({
     notify: vi.fn(),
     success: vi.fn(),
-    error: vi.fn(),
-    warning: vi.fn(),
-    info: vi.fn(),
+    error,
+    warning,
+    info,
     dismiss: vi.fn(),
     dismissAll: vi.fn(),
   }),
@@ -39,8 +42,10 @@ describe('useAppContentRuntime', () => {
   type CensusValue = ReturnType<typeof useCensusContext>;
   type AuthValue = ReturnType<typeof useAuth>;
   type ExportManagerValue = ReturnType<typeof useExportManager>;
-  let syncStatusValue: 'synced' | 'saving';
+  let syncStatusValue: 'saved' | 'saving' | 'error';
 
+  let selectedDate = '2026-03-27';
+  let recordAvailable = true;
   const ui = {
     currentModule: 'CENSUS',
     setCurrentModule: vi.fn(),
@@ -59,7 +64,9 @@ describe('useAppContentRuntime', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    syncStatusValue = 'synced';
+    syncStatusValue = 'saved';
+    selectedDate = '2026-03-27';
+    recordAvailable = true;
     // Default to a successful outcome so existing specs do not need to set
     // it explicitly. The new handler reads result.outcome before deciding
     // whether to notify; without this default the mock would return
@@ -74,13 +81,13 @@ describe('useAppContentRuntime', () => {
       () =>
         ({
           dailyRecord: {
-            record: { date: '2026-03-27' },
+            record: recordAvailable ? { date: selectedDate } : null,
             syncStatus: syncStatusValue,
             lastSyncTime: 'now',
           },
           dateNav: {
             isSignatureMode: false,
-            currentDateString: '2026-03-27',
+            currentDateString: selectedDate,
             selectedYear: 2026,
             selectedMonth: 2,
             selectedDay: 27,
@@ -137,6 +144,10 @@ describe('useAppContentRuntime', () => {
       handleBackupExcel: vi.fn(),
       handleBackupHandoff: vi.fn(),
     } as unknown as ExportManagerValue);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('flushes the active editor before exporting excel', async () => {
@@ -241,7 +252,7 @@ describe('useAppContentRuntime', () => {
       await vi.advanceTimersByTimeAsync(200);
     });
 
-    syncStatusValue = 'synced';
+    syncStatusValue = 'saved';
     rerender();
 
     await act(async () => {
@@ -253,4 +264,88 @@ describe('useAppContentRuntime', () => {
     expect(mockGenerateCensusMasterExcel).toHaveBeenCalledTimes(1);
     vi.useRealTimers();
   });
+
+  it('does not export a census still saving after the bounded wait', async () => {
+    vi.useFakeTimers();
+    syncStatusValue = 'saving';
+    const { result } = renderHook(() => useAppContentRuntime({ ui: ui as never }));
+    const exportPromise = result.current.handleExportExcel();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+      await exportPromise;
+    });
+
+    expect(mockGenerateCensusMasterExcel).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+  it('blocks export when a pending save fails', async () => {
+    vi.useFakeTimers();
+    syncStatusValue = 'saving';
+    const { result, rerender } = renderHook(() => useAppContentRuntime({ ui: ui as never }));
+    const pending = result.current.handleExportExcel();
+    syncStatusValue = 'error';
+    rerender();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100);
+      await pending;
+    });
+    expect(mockGenerateCensusMasterExcel).not.toHaveBeenCalled();
+    expect(warning).toHaveBeenCalledWith(
+      'No se inició la exportación',
+      expect.stringContaining('guardado falló')
+    );
+  });
+
+  it('blocks the original action if the selected census day changes while saving', async () => {
+    vi.useFakeTimers();
+    syncStatusValue = 'saving';
+    const { result, rerender } = renderHook(() => useAppContentRuntime({ ui: ui as never }));
+    const pending = result.current.handleExportExcel();
+    selectedDate = '2026-03-28';
+    syncStatusValue = 'saved';
+    rerender();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100);
+      await pending;
+    });
+    expect(mockGenerateCensusMasterExcel).not.toHaveBeenCalled();
+    expect(warning).toHaveBeenCalledWith(
+      'No se inició la exportación',
+      expect.stringContaining('Cambió el día')
+    );
+  });
+  it('preserves monthly export of earlier days when the selected day is empty', async () => {
+    recordAvailable = false;
+    const { result } = renderHook(() => useAppContentRuntime({ ui: ui as never }));
+    await act(async () => {
+      await result.current.handleExportExcel();
+    });
+    expect(mockGenerateCensusMasterExcel).toHaveBeenCalledWith(2026, 2, 27);
+    expect(warning).not.toHaveBeenCalled();
+  });
+  it.each(['no_data', 'failed'] as const)(
+    'presents the exporter %s outcome without claiming a download',
+    async outcome => {
+      mockGenerateCensusMasterExcel.mockResolvedValueOnce({
+        outcome,
+        userSafeMessage: 'Synthetic export outcome',
+        reason: 'synthetic_failure',
+      });
+      const { result } = renderHook(() => useAppContentRuntime({ ui: ui as never }));
+      await act(async () => {
+        await result.current.handleExportExcel();
+      });
+      if (outcome === 'no_data') {
+        expect(info).toHaveBeenCalledWith('Sin datos para exportar', 'Synthetic export outcome');
+        expect(error).not.toHaveBeenCalled();
+      } else {
+        expect(error).toHaveBeenCalledWith(
+          'No se pudo exportar el censo',
+          'Synthetic export outcome'
+        );
+        expect(info).not.toHaveBeenCalled();
+      }
+    }
+  );
 });

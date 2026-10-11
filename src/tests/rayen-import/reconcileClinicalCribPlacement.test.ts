@@ -39,7 +39,7 @@ const newborn = (): RayenEncounter =>
   makeEncounter({
     encounterId: 'NEWBORN',
     run: '222222222',
-    firstGivenName: 'Bebe',
+    firstGivenName: 'RN de Ana',
     birthDate: '2026-07-08',
     room: 'Cunas',
     bed: 'CH5C1',
@@ -113,7 +113,7 @@ describe('reconcileClinicalCribs placement and retained principals', () => {
     expect(diff.conflicts).toHaveLength(0);
   });
 
-  it('attaches a crib to a provisional clinically closed principal admission', () => {
+  it('requests RN review when a clinically closed mother is not yet present locally', () => {
     const closedMother = { ...makeEncounter(), hasMedicalDischarge: true };
     const diff = reconcileCensus(makeRecord({}), snapshotOf([closedMother, newborn()]), {
       reference: REFERENCE,
@@ -124,11 +124,14 @@ describe('reconcileClinicalCribs placement and retained principals', () => {
         bedId: 'H5C1',
         patient: expect.objectContaining({
           clinicalEpisodeId: 'MOTHER',
-          clinicalCrib: expect.objectContaining({ clinicalEpisodeId: 'NEWBORN' }),
+          clinicalCrib: undefined,
         }),
       }),
     ]);
-    expect(diff.conflicts).toHaveLength(0);
+    expect(diff.conflicts).toEqual(
+      expect.arrayContaining([expect.objectContaining({ neonatalAssociationReview: true })])
+    );
+    expect(diff.neonatalPlacementReviews?.[0].mothers).toEqual([]);
   });
 
   it('accepts a matched closed principal when Ficha omits its location', () => {

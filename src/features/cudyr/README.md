@@ -41,3 +41,45 @@ Feature de categorización CUDYR para enfermería, con vista web, exportación y
 
 - `Ver Instrumento CUDYR` abre el PDF dentro de un visor modal interno.
 - No debe abrirse en una ventana externa salvo que cambie explícitamente el contrato de UX.
+
+## Exportación contextual del explorador
+
+- **Excel para Estadística** es el perfil habitual: detalle de 30 columnas, nombre
+  completo, cama en una celda y fecha/hora de ingreso y alta real unificadas. Las
+  horas desconocidas se indican, nunca se completan con medianoche.
+- Conserva autor del CUDYR, sincronizador, fechas de evaluación y captura, egreso
+  del sistema y alta física como hechos separados. Los instantes se presentan en
+  Rapa Nui; el perfil de auditoría conserva los valores ISO originales.
+- **Excel de auditoría** conserva las 54 columnas originales y todas las hojas de
+  versiones, capturas, contextos, asignaciones, movimientos, ítems y correcciones.
+- Ambos usan el mismo dataset y los mismos resúmenes mensual/diarios, con exclusión
+  diaria de cunas/CMA y medias/intermedias independientes de UPC. Los filtros web
+  no reducen el período exportado.
+- El respaldo mensual sigue siendo consultivo. En Estadística usa 10 columnas y
+  referencias legibles hacia Archivos complementarios; en Auditoría conserva sus
+  22 columnas y huellas/IDs. Las versiones nunca se suman al resumen principal.
+- Exportar no sincroniza Eloísa ni modifica los registros guardados en HHR.
+
+## Conciliación histórica en lectura
+
+El explorador incluye una sección plegable para inventariar HHR y cotejar una versión
+mensual de categorización y altas administrativas locales. La selección se descarta
+al cambiar sesión/período; no modifica registros, elegibilidad, totales ni Excel.
+Los estados se resuelven en `cudyrMonthlyComparison`, sin vinculación clínica implícita
+por RUT o categoría. Ver [flujo y bloques](../../../docs/CUDYR_HISTORICAL_RECONCILIATION.md).
+
+## Indicador compacto del censo
+
+- El selector ofrece meses desde agosto de 2026 hasta el mes actual de Rapa Nui.
+  Cambiarlo no cambia el día del censo. El mes del censo vuelve a seleccionarse al
+  cambiar de mes en la navegación principal.
+- Reutiliza `useCudyrReport`: copia de sesión y datos guardados en Firebase, sin
+  consultar Eloísa. Los meses oficiales usan la proyección mensual ya guardada.
+- El acumulado anual suma CUDYR registrados y pacientes-día elegibles del año
+  hasta el mes elegido. Es una tasa ponderada, no el promedio de porcentajes.
+  En 2026 empieza en agosto; el período y los conteos se consultan al pasar sobre el acumulado.
+- Se conservan las exclusiones de días actuales y ventanas de aplicación abiertas.
+  Un mes que falta leer impide mostrar el porcentaje anual; copias sin verificar
+  conservan una indicación compacta de lectura local. El resumen no añade etiquetas de provisionalidad.
+- Se lee primero el mes elegido y como máximo un mes adicional en segundo plano;
+  los lectores cargados permanecen montados al recorrer el historial.

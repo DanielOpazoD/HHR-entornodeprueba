@@ -84,7 +84,10 @@ const eligibleLookups = (
   return eligible;
 };
 
-const reportRowFromLookup = ({ result, pending }: EligibleLookup): EgresoReportRow => {
+export const reportRowFromLookup = (
+  result: EgresoLookupResult,
+  pending: Pick<PendingDischarge, 'patientName' | 'bedId'>
+): EgresoReportRow => {
   const egreso = result.egreso as EgresoRecord;
   const stamp = lookupStamp(egreso);
   return {
@@ -97,6 +100,9 @@ const reportRowFromLookup = ({ result, pending }: EligibleLookup): EgresoReportR
     destino: lookupDestination(egreso),
     motivo: String(egreso.dischargeReasonName || ''),
     ...stamp,
+    ...(typeof egreso.isDead === 'boolean'
+      ? { dischargeStatus: egreso.isDead ? ('Fallecido' as const) : ('Vivo' as const) }
+      : {}),
   };
 };
 
@@ -112,7 +118,11 @@ export const applyEgresoLookupFallback = (
   const eligible = eligibleLookups(diff, lookupResults);
   if (eligible.size === 0) return diff;
 
-  const enriched = applyEgresoReport(diff, [...eligible.values()].map(reportRowFromLookup), record);
+  const enriched = applyEgresoReport(
+    diff,
+    [...eligible.values()].map(({ result, pending }) => reportRowFromLookup(result, pending)),
+    record
+  );
   return {
     ...enriched,
     reportEgresos: mergeReportEgresos(diff.reportEgresos ?? [], enriched.reportEgresos ?? []),

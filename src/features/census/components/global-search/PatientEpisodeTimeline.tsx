@@ -27,6 +27,7 @@ interface PatientEpisodeTimelineProps {
   history: PatientHistoryResult | null;
   isLoadingHistory: boolean;
   historyWarning?: string | null;
+  historyRecordsRead?: number;
   onRetryHistory?: () => void;
   timelineState: PatientEpisodeTimelineState;
   episodeDocuments: Record<string, EpisodeDocuments>;
@@ -46,6 +47,7 @@ export const PatientEpisodeTimeline: React.FC<PatientEpisodeTimelineProps> = ({
   history,
   isLoadingHistory,
   historyWarning,
+  historyRecordsRead = 0,
   onRetryHistory,
   timelineState,
   episodeDocuments,
@@ -69,9 +71,13 @@ export const PatientEpisodeTimeline: React.FC<PatientEpisodeTimelineProps> = ({
       <DemographicsCard patient={patient} />
 
       {isLoadingHistory && (
-        <div className="flex items-center gap-2 py-4 text-sm text-slate-400 justify-center">
+        <div
+          role="status"
+          className="flex items-center gap-2 py-4 text-sm text-slate-400 justify-center"
+        >
           <Loader2 size={16} className="animate-spin" />
           Cargando historial...
+          {historyRecordsRead > 0 && <span>{historyRecordsRead} censos revisados</span>}
         </div>
       )}
 

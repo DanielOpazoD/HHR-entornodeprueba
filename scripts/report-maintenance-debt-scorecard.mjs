@@ -20,10 +20,10 @@ const HOOK_LIMITS_PATH = path.join(ROOT, 'scripts', 'hook-hotspots-limits.json')
 
 const WATCHLIST_FILES = [
   'firestore.rules',
-  'src/services/repositories/dailyRecordWriteSupport.ts',
+  'src/services/repositories/dailyRecordPatchPersistenceController.ts',
   'src/hooks/useCensusEmailRecipientLists.ts',
   'src/hooks/useBedManagementReducer.ts',
-  'src/features/handoff/components/HandoffRowCells.tsx',
+  'src/features/handoff/components/HandoffMedicalObservationsCell.tsx',
   'src/features/laboratory/controllers/labAnalyticsController.ts',
 ];
 

@@ -1,65 +1,37 @@
-# HHR Hospital Tracker - Estado del Proyecto
+# Estado verificable del proyecto
 
-> **Última actualización:** 2026-04-17
+Esta página explica dónde consultar el estado; no conserva una copia manual de
+métricas ni certifica aptitud clínica. Un ciclo histórico cerrado no demuestra
+que el commit actual esté validado o libre de deuda.
 
-## Métricas objetivas
+## Consultar el estado actual
 
-Cifras verificables en el repo a la fecha de actualización. No se incluye una nota global auto-asignada: la evaluación técnica debe derivarse de estas métricas, no de un número resumen.
+1. Identificar el commit y el árbol de trabajo (`git rev-parse HEAD`, `git status`).
+2. Consultar la ejecución de [CI](.github/workflows/ci-cd.yml) correspondiente a ese
+   commit. Comprobar los resultados y los artefactos, no solo el título del PR.
+3. Leer `quality-metrics`, `maintenance-debt-scorecard` y
+   `release-readiness-scorecard` de esa ejecución. Revisar commit, procedencia,
+   entradas y controles pendientes. Una fecha de generación reciente no basta.
+4. Para una medición local, seguir los comandos de
+   [evidencia y mantenimiento](docs/FOUNDATION_MAINTENANCE_CADENCE.md). Un resultado
+   local no acredita por sí solo el despliegue ni la operación clínica real.
 
-| Métrica                             | Valor           | Fuente                                                          |
-| ----------------------------------- | --------------- | --------------------------------------------------------------- |
-| Archivos `.ts`/`.tsx` en `src/`     | 2.858           | `find src -type f \( -name "*.ts" -o -name "*.tsx" \) \| wc -l` |
-| Archivos de test (unit/integration) | 1.003           | `find src -name "*.test.*" -o -name "*.spec.*" \| wc -l`        |
-| Specs E2E Playwright                | ver `e2e/`      | `ls e2e/*.spec.ts`                                              |
-| `TODO`/`FIXME`/`HACK` en `src/`     | 3               | `grep -rE "TODO\|FIXME\|HACK" src`                              |
-| Vulnerabilidades npm (runtime)      | 0               | `npm audit --omit=dev`                                          |
-| Vulnerabilidades npm (dev-only)     | ver `npm audit` | transitivas en tooling                                          |
-| Features activas                    | 13              | `ls src/features/`                                              |
+Los archivos versionados en `reports/` y los informes generados en `docs/` son
+snapshots. No atribuir sus cifras al código actual sin verificar su procedencia.
 
-Cobertura de tests, presupuesto de bundle y checks de arquitectura viven en CI (`ci-cd.yml`). Si se necesita una nota ejecutiva, debe venir de una auditoría externa fechada, no de una autoevaluación sin evidencia.
+## Deuda y decisiones
 
-## Resumen
+- [Registro de deuda](docs/TECHNICAL_DEBT_REGISTER.md): contexto y fuentes para
+  consultar deuda activa; los elementos cerrados conservan su alcance histórico.
+- [Política de cambios](docs/ENGINEERING_CHANGE_DECISION_POLICY.md): priorizar por
+  riesgo, testabilidad y acoplamiento; no por número de archivos o PR.
+- [Arquitectura vigente](docs/architecture.md) y
+  [contribución](CONTRIBUTING.md): límites y controles aplicables.
+- [Mapa documental](docs/DOCUMENTATION_MAP.md): distinguir guías, historia y
+  evidencia generada.
 
-El proyecto es **operable y robusto para uso clínico**: tipado estricto, checks de arquitectura automatizados, suite amplia de tests y cobertura de flujos críticos con emuladores y E2E. Riesgos residuales conocidos en la sección "Deuda técnica principal".
+## Historia
 
-Las mejoras recientes se han concentrado en:
-
-- eliminar rutas Gemini cliente no utilizadas;
-- modularizar `functions/index.js` en dominios internos;
-- reducir imports de compatibilidad desde `dataService.ts`;
-- limpiar artefactos trackeados y endurecer la higiene del repositorio;
-- cerrar el roadmap estructural `B01-B26` y dejar cadencia mensual de convergencia.
-
-## Fortalezas actuales
-
-- Arquitectura orientada por features y servicios.
-- Controles automáticos de calidad y boundaries.
-- Estrategia offline-first con respaldo de Firestore/IndexedDB.
-- Suite de tests amplia para riesgos clínicos y operativos.
-
-## Deuda técnica principal
-
-- Complejidad estructural alta en módulos críticos de runtime y storage.
-- Compatibilidad legacy todavía necesaria como protección de migración hasta que la app sea oficial, con costo de mantenimiento controlado.
-- Documentación técnica histórica que puede desalinearse si no se regenera con disciplina.
-- Features experimentales presentes en el repo, aunque ya no expuestas en el acceso principal.
-
-## Próximo foco recomendado
-
-1. Mantener verdes `typecheck`, `lint`, `check:quality`, build y cobertura crítica.
-2. Mantener documentación canónica y READMEs sin rutas absolutas locales.
-3. Mantener la convergencia con la rutina de [docs/FOUNDATION_MAINTENANCE_CADENCE.md](docs/FOUNDATION_MAINTENANCE_CADENCE.md).
-4. No cerrar compatibilidades legacy de auth/roles/rules hasta que la app sea oficial y exista auditoría de producción sin consumidores activos.
-
-## Tracker de cimientos
-
-El seguimiento persistente del roadmap estructural vive en:
-
-- [docs/FOUNDATION_TRACKER.md](docs/FOUNDATION_TRACKER.md)
-- Taxonomía canónica: [docs/CODEBASE_CANON.md](docs/CODEBASE_CANON.md)
-- Mapa documental: [docs/DOCUMENTATION_MAP.md](docs/DOCUMENTATION_MAP.md)
-
-## Fuente de verdad
-
-- Pipeline activa: [ci-cd.yml](.github/workflows/ci-cd.yml)
-- Reportes generados: [reports/](reports/) (runtime-contracts, legacy-bridge-governance)
+Los cierres [B01–B26](docs/FOUNDATION_TRACKER.md) y
+[R00–R06](docs/FOUNDATION_CONTINUATION_TRACKER.md) describen sus propias etapas.
+Sus porcentajes, resultados y próximos pasos no son el estado de la versión actual.

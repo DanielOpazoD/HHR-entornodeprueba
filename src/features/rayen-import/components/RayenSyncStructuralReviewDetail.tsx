@@ -37,16 +37,25 @@ export const RayenSyncStructuralReviewDetail: React.FC<RayenSyncStructuralReview
           <ul className="mt-1 space-y-1">
             {details.map((detail, index) => (
               <li key={`${detail}-${index}`} className="py-1">
+                {review?.issues?.[index]?.caseContext && (
+                  <p className="font-semibold text-slate-900">
+                    {review.issues[index].caseContext.patientName}
+                    {' · '}
+                    {review.issues[index].caseContext.isClinicalCrib ? 'Cuna RN de ' : 'Cama '}
+                    {review.issues[index].caseContext.bedId}
+                  </p>
+                )}
                 <p>{detail}</p>
                 {review?.issues?.[index] && (
                   <RayenSyncIssueActions
                     code={rayenSyncTechnicalCode('census', review.issues[index].reason)}
                     date={
-                      rayenStructuralIssueHasCurrentBed(review.issues[index].reason)
+                      review.issues[index].caseContext?.censusDate ??
+                      (rayenStructuralIssueHasCurrentBed(review.issues[index].reason)
                         ? censusDate
-                        : null
+                        : null)
                     }
-                    bedId={review.issues[index].bedId}
+                    bedId={review.issues[index].caseContext?.bedId ?? review.issues[index].bedId}
                   />
                 )}
               </li>

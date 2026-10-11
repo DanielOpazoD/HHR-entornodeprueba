@@ -1,5 +1,6 @@
 import { extractPdfTextFromBuffer } from '@/services/pdf/pdfTextExtractionRuntime';
 import { normalizeRut } from '@/utils/rutUtils';
+import { resolveClinicalDayForDateTime } from '@/utils/clinicalDayAdmissionUtils';
 import type {
   EgresoLookupResult,
   EgresoLookupTarget,
@@ -36,6 +37,8 @@ interface ReportOnlyDischargeDependencies {
 
 const exactDay = (timestamp: string): string => timestamp.slice(0, 10);
 const exactTime = (timestamp: string): string => timestamp.slice(11, 16);
+const censusDay = (timestamp: string): string | undefined =>
+  resolveClinicalDayForDateTime(exactDay(timestamp), exactTime(timestamp));
 
 const exactLookupDischargeStamp = (egreso: EgresoRecord) => {
   if (egreso.hasAdministrativeDischarge === false) return null;
@@ -68,6 +71,29 @@ const candidateKey = (row: EgresoReportRow, reportDate: string): string => {
   const stamp = correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime);
   return run && stamp.correctedDay === reportDate ? `${run}|${reportDate}` : '';
 };
+
+// Jasper repeats one administrative event for each principal diagnosis. This only groups
+// lookup work: a unique source episode and the official PDF must still verify every row.
+const sameDischargeEvent = (left: EgresoReportRow, right: EgresoReportRow): boolean =>
+  (
+    [
+      'run',
+      'patientName',
+      'bedLabel',
+      'servicio',
+      'edad',
+      'destino',
+      'motivo',
+      'fechaEgreso',
+      'encounterId',
+      'correctedDay',
+      'correctedTime',
+      'admissionDay',
+      'admissionTime',
+      'dischargeStatus',
+      'fromClinicalCrib',
+    ] as const
+  ).every(key => left[key] === right[key]);
 
 /**
  * Resolves report-only discharges to an exact episode and replaces the bulk report's shifted
@@ -105,7 +131,7 @@ export const enrichReportOnlyDischarges = async (
     if (exactCandidateByRow.has(row)) continue;
     const key = candidateKey(row, reportDate);
     if (!key || ambiguousKeys.has(key) || dependencies.alreadyApplied?.(row)) continue;
-    if (keys.has(key)) {
+    if (keys.has(key) && !sameDischargeEvent(keys.get(key)!, row)) {
       keys.delete(key);
       ambiguousKeys.add(key);
     } else {
@@ -120,7 +146,10 @@ export const enrichReportOnlyDischarges = async (
     }
     const key = candidateKey(row, reportDate);
     if (!key) return row;
-    return enrichedByKey.get(key) ?? { ...row, exactEpisodeVerification: 'unverified' };
+    const enriched = enrichedByKey.get(key);
+    return enriched
+      ? { ...enriched, diagnostico: row.diagnostico }
+      : { ...row, exactEpisodeVerification: 'unverified' };
   };
 
   const keyedTargets = [...keys.entries()].map(([key, row]) => ({
@@ -180,7 +209,7 @@ export const enrichReportOnlyDischarges = async (
         if (
           evidence &&
           (evidence.run !== normalizeRut(row.run) ||
-            exactDay(evidence.dischargeAt) !== target.dischargeDay)
+            censusDay(evidence.dischargeAt) !== target.dischargeDay)
         ) {
           return;
         }
@@ -201,7 +230,7 @@ export const enrichReportOnlyDischarges = async (
             ? {
                 admissionDay: exactDay(exactPdf.admissionAt),
                 admissionTime: exactTime(exactPdf.admissionAt),
-                correctedDay: exactDay(exactPdf.dischargeAt),
+                correctedDay: censusDay(exactPdf.dischargeAt),
                 correctedTime: exactTime(exactPdf.dischargeAt),
               }
             : lookupStamp

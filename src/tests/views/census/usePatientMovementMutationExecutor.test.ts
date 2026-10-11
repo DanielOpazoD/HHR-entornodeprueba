@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { usePatientMovementMutationExecutor } from '@/features/census/hooks/usePatientMovementMutationExecutor';
+import { usePatientMovementMutationExecutor } from '@/hooks/usePatientMovementMutationExecutor';
 
 describe('usePatientMovementMutationExecutor', () => {
   it('does not persist when there is no current record', () => {

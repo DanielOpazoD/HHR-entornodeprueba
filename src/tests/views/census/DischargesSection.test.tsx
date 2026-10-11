@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 import { DischargesSection } from '@/features/census/components/DischargesSection';
 import { useCensusActionCommands } from '@/features/census/context/censusActionContexts';
-import { useDailyRecordData, useDailyRecordMovements } from '@/context/DailyRecordContext';
+import { useDailyRecordStaff, useDailyRecordMovements } from '@/context/DailyRecordContext';
 import { useDailyRecordMovementActions } from '@/context/useDailyRecordScopedActions';
 import { useConfirmDialog, useNotification } from '@/context/UIContext';
 import { DataFactory } from '../../factories/DataFactory';
@@ -13,7 +13,7 @@ vi.mock('@/features/census/context/censusActionContexts', () => ({
 }));
 
 vi.mock('@/context/DailyRecordContext', () => ({
-  useDailyRecordData: vi.fn(),
+  useDailyRecordStaff: vi.fn(),
   useDailyRecordMovements: vi.fn(),
 }));
 
@@ -28,7 +28,7 @@ vi.mock('@/context/UIContext', () => ({
 
 describe('DischargesSection', () => {
   type CensusActionCommandsValue = ReturnType<typeof useCensusActionCommands>;
-  type DataValue = ReturnType<typeof useDailyRecordData>;
+  type DataValue = ReturnType<typeof useDailyRecordStaff>;
   type MovementActionsValue = ReturnType<typeof useDailyRecordMovementActions>;
   type MovementsValue = ReturnType<typeof useDailyRecordMovements>;
   type ConfirmDialogValue = ReturnType<typeof useConfirmDialog>;
@@ -63,8 +63,8 @@ describe('DischargesSection', () => {
       error: mockNotifyError,
     } as unknown as NotificationValue);
     mockConfirm.mockResolvedValue(true);
-    vi.mocked(useDailyRecordData).mockReturnValue({
-      record: { date: '2024-12-11' },
+    vi.mocked(useDailyRecordStaff).mockReturnValue({
+      date: '2024-12-11',
     } as unknown as DataValue);
     vi.mocked(useDailyRecordMovementActions).mockReturnValue({
       undoDischarge: mockOnUndo,

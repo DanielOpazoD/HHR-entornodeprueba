@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { DataFactory } from '@/tests/factories/DataFactory';
 import {
   executeConfirmMedicalSpecialtyNoChanges,
   executeEnsureMedicalHandoffSignatureLink,
@@ -7,8 +8,7 @@ import {
 } from '@/application/handoff';
 
 const createRecord = (): DailyRecord =>
-  ({
-    date: '2026-03-15',
+  DataFactory.createMockDailyRecord('2026-03-15', {
     beds: {},
     handoffDayChecklist: {},
     handoffNightChecklist: {},
@@ -30,7 +30,7 @@ const createRecord = (): DailyRecord =>
       },
     },
     lastUpdated: '2026-03-15T08:00:00.000Z',
-  }) as unknown as DailyRecord;
+  });
 
 describe('handoffManagementUseCases', () => {
   it('returns a validation outcome when continuity confirmation has no base note', async () => {

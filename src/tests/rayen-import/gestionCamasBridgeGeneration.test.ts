@@ -17,7 +17,6 @@ const manifest = JSON.parse(readFileSync(path.resolve('extension/manifest.json')
   version: string;
 };
 const generation = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
-const flush = () => new Promise(resolve => setTimeout(resolve, 0));
 
 type Listener = (event: {
   source: unknown;
@@ -92,11 +91,14 @@ const createRelay = (documentGeneration = '') => {
   vm.runInContext(bridgeHealthSource, context);
   vm.runInContext(relaySource, context);
 
-  const answerBridge = (
+  const answerBridge = async (
     bridgeGeneration: string,
     injectVersion = manifest.version,
     pageState = 'authenticated'
   ) => {
+    await vi.waitFor(() =>
+      expect(pageRequests.some(item => item.type === 'RAYEN_GC_BRIDGE_STATUS_REQUEST')).toBe(true)
+    );
     const request = [...pageRequests]
       .reverse()
       .find(item => item.type === 'RAYEN_GC_BRIDGE_STATUS_REQUEST') as { reqId: string };
@@ -130,7 +132,12 @@ const createRelay = (documentGeneration = '') => {
         listener(message, {}, value => resolve(value as Record<string, unknown>))
       );
     });
-  const answerLatest = (requestType: string, resultType: string, bridgeGeneration: string) => {
+  const answerLatest = async (
+    requestType: string,
+    resultType: string,
+    bridgeGeneration: string
+  ) => {
+    await vi.waitFor(() => expect(pageRequests.some(item => item.type === requestType)).toBe(true));
     const request = [...pageRequests].reverse().find(item => item.type === requestType) as {
       reqId: string;
     };
@@ -148,18 +155,20 @@ const createRelay = (documentGeneration = '') => {
       })
     );
   };
-  const announceSession = (bridgeGeneration: string) => {
-    pageListeners.forEach(listener =>
-      listener({
-        source: windowStub,
-        origin: 'https://hospitalizado.rayensalud.cl',
-        data: {
-          type: 'RAYEN_GC_SESSION_CAPTURED',
-          injectVersion: manifest.version,
-          bridgeGeneration,
-          info: { ['to' + 'ken']: 'not-forwarded-in-test' },
-        },
-      })
+  const announceSession = async (bridgeGeneration: string) => {
+    await Promise.all(
+      pageListeners.map(listener =>
+        listener({
+          source: windowStub,
+          origin: 'https://hospitalizado.rayensalud.cl',
+          data: {
+            type: 'RAYEN_GC_SESSION_CAPTURED',
+            injectVersion: manifest.version,
+            bridgeGeneration,
+            info: { ['to' + 'ken']: 'not-forwarded-in-test' },
+          },
+        })
+      )
     );
   };
   return {
@@ -179,11 +188,13 @@ describe('Gestión de Camas bridge generation', () => {
     const relay = createRelay();
     relay.reinject();
     const result = relay.ping();
-    await flush();
-    expect(
-      relay.pageRequests.filter(item => item.type === 'RAYEN_GC_BRIDGE_STATUS_REQUEST')
-    ).toHaveLength(1);
-    relay.answerBridge(generation);
+
+    await vi.waitFor(() =>
+      expect(
+        relay.pageRequests.filter(item => item.type === 'RAYEN_GC_BRIDGE_STATUS_REQUEST')
+      ).toHaveLength(1)
+    );
+    await relay.answerBridge(generation);
     await expect(result).resolves.toMatchObject({ ready: true, reason: 'connected' });
   });
 
@@ -199,8 +210,7 @@ describe('Gestión de Camas bridge generation', () => {
   it('accepts the current bridge and rejects the same-version bridge from an old lifecycle', async () => {
     const current = createRelay();
     const currentPing = current.ping();
-    await flush();
-    current.answerBridge(generation);
+    await current.answerBridge(generation);
     await expect(currentPing).resolves.toMatchObject({
       ready: true,
       reason: 'connected',
@@ -210,16 +220,14 @@ describe('Gestión de Camas bridge generation', () => {
 
     const stale = createRelay();
     const stalePing = stale.ping();
-    await flush();
-    stale.answerBridge('ffffffff-1111-4222-8333-444444444444');
+    await stale.answerBridge('ffffffff-1111-4222-8333-444444444444');
     await expect(stalePing).resolves.toMatchObject({ ready: false, reason: 'outdated_tab' });
   });
 
   it('reports the visible login page independently from bridge readiness', async () => {
     const relay = createRelay();
     const result = relay.ping();
-    await flush();
-    relay.answerBridge(generation, manifest.version, 'login');
+    await relay.answerBridge(generation, manifest.version, 'login');
     await expect(result).resolves.toMatchObject({
       ready: true,
       reason: 'connected',
@@ -232,19 +240,16 @@ describe('Gestión de Camas bridge generation', () => {
     const oldGeneration = 'ffffffff-1111-4222-8333-444444444444';
     const stale = createRelay(oldGeneration);
     const stalePing = stale.ping();
-    await flush();
-    stale.answerBridge(oldGeneration);
+    await stale.answerBridge(oldGeneration);
     await expect(stalePing).resolves.toMatchObject({ ready: false, reason: 'outdated_tab' });
   });
 
   it('never forwards a token announcement from an old bridge generation', async () => {
     const relay = createRelay();
-    relay.announceSession('ffffffff-1111-4222-8333-444444444444');
-    await flush();
+    await relay.announceSession('ffffffff-1111-4222-8333-444444444444');
     expect(relay.runtimeMessages).toHaveLength(0);
 
-    relay.announceSession(generation);
-    await flush();
+    await relay.announceSession(generation);
     expect(relay.runtimeMessages).toHaveLength(1);
     expect(relay.runtimeMessages[0]?.type).toBe('RAYEN_GC_SESSION_CAPTURED');
   });
@@ -252,8 +257,7 @@ describe('Gestión de Camas bridge generation', () => {
   it('rejects privileged lookup results emitted by an old bridge generation', async () => {
     const relay = createRelay();
     const lookup = relay.requestRuntime({ type: 'RAYEN_GC_LOOKUP', runs: [] });
-    await flush();
-    relay.answerLatest(
+    await relay.answerLatest(
       'RAYEN_GC_LOOKUP_REQUEST',
       'RAYEN_GC_LOOKUP_RESULT',
       'ffffffff-1111-4222-8333-444444444444'

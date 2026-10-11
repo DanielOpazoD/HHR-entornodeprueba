@@ -1,452 +1,407 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, render, fireEvent, within } from '@testing-library/react';
-import React from 'react';
-
-vi.mock('@/context/UIContext', () => ({
-  useNotification: () => ({
-    notify: vi.fn(),
-    success: vi.fn(),
-    error: vi.fn(),
-    warning: vi.fn(),
-    info: vi.fn(),
-    dismiss: vi.fn(),
-    dismissAll: vi.fn(),
-  }),
-}));
-
+import { confirmedReportInput } from '@/tests/services/cudyr/reportFixtures';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { CudyrView } from '@/features/cudyr/components/CudyrView';
-import { DataFactory } from '../../factories/DataFactory';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
-
-// Mock the useCudyrLogic hook directly
-const mockUseCudyrLogic = vi.fn();
-
-vi.mock('@/features/cudyr/hooks/useCudyrLogic', () => ({
-  useCudyrLogic: () => mockUseCudyrLogic(),
+import { buildCudyrReport } from '@/services/cudyr/cudyrReportModel';
+import { reportInput, reportPatient, reportRecord } from '@/tests/services/cudyr/reportFixtures';
+const mocks = vi.hoisted(() => ({ load: vi.fn(), setModule: vi.fn(), report: vi.fn() }));
+vi.mock('@/context/DailyRecordContext', () => ({
+  useDailyRecordData: () => ({ record: { date: '2026-10-02' } }),
 }));
-
-const emptyCategoryCounts = {
-  A1: 0,
-  A2: 0,
-  A3: 0,
-  B1: 0,
-  B2: 0,
-  B3: 0,
-  C1: 0,
-  C2: 0,
-  C3: 0,
-  D1: 0,
-  D2: 0,
-  D3: 0,
-};
-
-const createMockCudyrLogicReturn = (record: DailyRecord | null, overrides = {}) => ({
-  record,
-  visibleBeds: record
-    ? [
-        { id: 'R1', name: 'R1', type: 'UTI', isCuna: false },
-        { id: 'R2', name: 'R2', type: 'UTI', isCuna: false },
-      ]
-    : [],
-  stats: { total: 2, occupiedCount: 0, categorizedCount: 0 },
-  cudyrSummary: {
-    counts: {
-      uti: { ...emptyCategoryCounts },
-      media: { ...emptyCategoryCounts },
-    },
-    utiTotal: 0,
-    mediaTotal: 0,
-    totalDep: 0,
-    totalRisk: 0,
-    avgDep: 0,
-    avgRisk: 0,
-  },
-  isEditingLocked: false,
-  isCompletionLocked: false,
-  persistedCompletion: { eligibleCount: 0, completedCount: 0, isComplete: false },
-  pendingCudyrChangeCount: 0,
-  isSavingCudyrChanges: false,
-  handleScoreChange: vi.fn(),
-  handleCribScoreChange: vi.fn(),
-  saveCudyrChanges: vi.fn(),
-  discardCudyrChanges: vi.fn(),
-  resolveCudyrEligibility: vi.fn().mockReturnValue({
-    isEligible: true,
-    isBlocked: false,
-    blockedReason: undefined,
-  }),
-  ...overrides,
-});
-
-describe('CudyrView Component', () => {
+vi.mock('@/context/AuthContext', () => ({
+  useAuth: () => ({ role: 'admin', currentUser: { uid: 'synthetic' } }),
+}));
+vi.mock('@/hooks/useUIState', () => ({
+  useUIState: () => ({ setCurrentModule: mocks.setModule }),
+}));
+vi.mock('@/features/cudyr/hooks/useCudyrReport', () => ({ useCudyrReport: () => mocks.report() }));
+vi.mock('@/features/cudyr/components/CudyrExclusionDialog', () => ({
+  CudyrExclusionDialog: ({ row }: { row: { patientName: string } }) => (
+    <div role="dialog">Revisando {row.patientName}</div>
+  ),
+}));
+const fixture = () =>
+  buildCudyrReport(
+    confirmedReportInput({
+      records: [
+        reportRecord('2026-10-02', {
+          R1: reportPatient(),
+          H1C1: reportPatient({
+            bedId: 'H1C1',
+            clinicalEpisodeId: 'crib',
+            bedMode: 'Cuna',
+            patientName: 'RN sintético',
+          }),
+        }),
+      ],
+    })
+  );
+describe('CUDYR daily control', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.report.mockReturnValue({ data: fixture(), busy: false, error: '', load: mocks.load });
   });
-
-  it('renders empty message when no record is selected', () => {
-    mockUseCudyrLogic.mockReturnValue(createMockCudyrLogicReturn(null));
-
+  it('shows historical provenance without changing eligibility or compliance', () => {
+    const data = fixture();
+    data.rows.find(r => r.patientName === 'Paciente Sintético')!.monthlyEvidence = {
+      reportId: 'source',
+      sourceDate: '2026-10-03',
+      checkedAt: '2026-10-08T18:00:00Z',
+      state: 'found',
+    };
+    mocks.report.mockReturnValue({ data, busy: false, error: '', load: mocks.load });
     render(<CudyrView />);
-    expect(screen.getByText(/Seleccione una fecha con registros/i)).toBeInTheDocument();
-  });
-
-  it('renders patient rows correctly', () => {
-    const record = DataFactory.createMockDailyRecord('2024-12-11');
-    record.beds['R1'] = DataFactory.createMockPatient('R1', {
-      patientName: 'JUAN TEST',
-      rut: '1-1',
-    });
-
-    mockUseCudyrLogic.mockReturnValue(
-      createMockCudyrLogicReturn(record, {
-        stats: { total: 2, occupiedCount: 1, categorizedCount: 0 },
-      })
+    expect(screen.getAllByText('100%')).toHaveLength(2);
+    fireEvent.click(screen.getByRole('button', { name: 'Fuente del CUDYR de Paciente Sintético' }));
+    expect(screen.getByRole('dialog')).toHaveTextContent('Resultado válido de Eloísa');
+    expect(screen.getByRole('dialog')).toHaveTextContent('2026-10-03');
+    expect(screen.getByRole('dialog')).toHaveTextContent('2026-10-02 · noche');
+    expect(screen.getByRole('dialog')).toHaveTextContent('Día en Eloísa');
+    expect(screen.getByRole('dialog')).toHaveTextContent(
+      'Gestión de Camas → Informes → Categorización de riesgo dependencia'
     );
-
-    render(<CudyrView />);
-
-    expect(screen.getByText('R1')).toBeInTheDocument();
-    expect(screen.getByText('JUAN TEST')).toBeInTheDocument();
   });
-
-  it('shows official CUDYR professional and registration time in the imported tooltip', () => {
-    const record = DataFactory.createMockDailyRecord('2026-07-16');
-    record.beds['R1'] = DataFactory.createMockPatient('R1', {
-      patientName: 'PACIENTE IMPORTADO',
-      evaluationScores: {
-        cudyr: {
-          category: 'C2',
-          recordedDate: '2026-07-16',
-          recordedAt: '2026-07-17T07:00:00.000Z',
-          author: 'Constanza Guajardo',
-          authorRole: 'Enfermería',
-          source: 'Eloísa · Gestión de Camas',
-          items: [],
-        },
-      },
+  it('keeps verified CUDYR distinct from census completeness with detail collapsed', () => {
+    const data = fixture();
+    data.coverage = data.coverage.filter(day => day.date === '2026-10-02');
+    data.from = '2026-10-02';
+    data.to = '2026-10-02';
+    data.rows.forEach(row => {
+      row.monthlyEvidence = {
+        reportId: 'source',
+        sourceDate: '2026-10-03',
+        checkedAt: '2026-10-08T18:00:00Z',
+        state: 'found',
+      };
     });
-    mockUseCudyrLogic.mockReturnValue(createMockCudyrLogicReturn(record));
-
+    mocks.report.mockReturnValue({ data, busy: false, error: '', load: mocks.load });
     render(<CudyrView />);
-
-    const provenance = screen.getByText('Importado Eloísa ⓘ');
-    expect(provenance).toHaveAttribute('title', expect.stringContaining('Constanza Guajardo'));
-    expect(provenance).toHaveAttribute('title', expect.stringContaining('Registrado:'));
+    const summary = screen.getByLabelText('Estado del archivo CUDYR');
+    expect(summary).toHaveTextContent('CUDYR verificados · 1/1 días');
+    expect(summary).toHaveTextContent('Pacientes del censo por confirmar');
+    expect(summary.closest('details')).not.toHaveAttribute('open');
+    expect(screen.queryByText(/censos por cotejar/)).not.toBeInTheDocument();
   });
-
-  it('calculates occupied and categorized counts correctly', () => {
-    const record = DataFactory.createMockDailyRecord('2024-12-11');
-    record.beds['R1'] = DataFactory.createMockPatient('R1', {
-      patientName: 'PACIENTE 1',
-      cudyr: {
-        changeClothes: 1,
-        mobilization: 1,
-        feeding: 1,
-        elimination: 1,
-        psychosocial: 1,
-        surveillance: 1,
-        vitalSigns: 1,
-        fluidBalance: 1,
-        oxygenTherapy: 1,
-        airway: 1,
-        proInterventions: 1,
-        skinCare: 1,
-        pharmacology: 1,
-        invasiveElements: 1,
-      },
-    });
-    record.beds['R2'] = DataFactory.createMockPatient('R2', {
-      patientName: 'PACIENTE 2',
-    });
-
-    mockUseCudyrLogic.mockReturnValue(
-      createMockCudyrLogicReturn(record, {
-        stats: { total: 2, occupiedCount: 2, categorizedCount: 1 },
-      })
-    );
-
+  it('labels confirmed absence without treating an incomplete query as unregistered', () => {
+    const data = fixture();
+    const own = data.rows.find(row => row.patientName === 'Paciente Sintético')!;
+    own.evaluation = null;
+    own.cudyrStatus = 'sin_registro_observado';
+    const crib = data.rows.find(row => row.patientName === 'RN sintético')!;
+    crib.evaluation = null;
+    crib.cudyrStatus = 'sin_captura';
+    mocks.report.mockReturnValue({ data, busy: false, error: '', load: mocks.load });
     render(<CudyrView />);
-
-    expect(screen.getAllByText(/Ocupadas/i).at(-1)?.parentElement).toHaveTextContent(/2/);
-    expect(screen.getAllByText(/Categorizadas/i).at(-1)?.parentElement).toHaveTextContent(/1/);
-  });
-
-  it('updates CUDYR field when a radio button is clicked', () => {
-    const record = DataFactory.createMockDailyRecord('2024-12-11');
-    record.beds['R1'] = DataFactory.createMockPatient('R1', {
-      patientName: 'JUAN TEST',
-    });
-
-    const mockHandleScoreChange = vi.fn();
-    mockUseCudyrLogic.mockReturnValue(
-      createMockCudyrLogicReturn(record, {
-        handleScoreChange: mockHandleScoreChange,
-        stats: { total: 1, occupiedCount: 1, categorizedCount: 0 },
-      })
-    );
-
-    render(<CudyrView />);
-
-    const inputs = screen.getAllByRole('spinbutton');
-    fireEvent.change(inputs[0], { target: { value: '1' } });
-
-    expect(mockHandleScoreChange).toHaveBeenCalled();
-  });
-
-  it('shows manual CUDYR save controls when there are pending cell changes', () => {
-    const record = DataFactory.createMockDailyRecord('2024-12-11');
-    record.beds['R1'] = DataFactory.createMockPatient('R1', {
-      patientName: 'JUAN TEST',
-    });
-    const saveCudyrChanges = vi.fn();
-    const discardCudyrChanges = vi.fn();
-
-    mockUseCudyrLogic.mockReturnValue(
-      createMockCudyrLogicReturn(record, {
-        pendingCudyrChangeCount: 2,
-        saveCudyrChanges,
-        discardCudyrChanges,
-        stats: { total: 1, occupiedCount: 1, categorizedCount: 0 },
-      })
-    );
-
-    render(<CudyrView />);
-
-    const pendingRow = screen.getByTestId('cudyr-pending-save-row');
-    expect(pendingRow).toHaveTextContent(/2 cambios pendientes/i);
-    expect(pendingRow.parentElement?.tagName).toBe('TBODY');
-    expect(pendingRow.parentElement?.firstElementChild).toBe(pendingRow);
-    expect(pendingRow.compareDocumentPosition(screen.getByText('R1').closest('tr')!)).toBe(
-      Node.DOCUMENT_POSITION_FOLLOWING
-    );
     expect(
-      screen
-        .getByText(/Cuidados Cambio Ropa/i)
-        .closest('tr')
-        ?.compareDocumentPosition(pendingRow)
-    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
-
-    expect(screen.getByRole('button', { name: /descartar/i })).toHaveClass(
-      'px-3.5',
-      'py-1.5',
-      'text-[13px]'
-    );
-    expect(screen.getByRole('button', { name: /guardar cudyr/i })).toHaveClass(
-      'px-4',
-      'py-1.5',
-      'text-[13px]'
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: /guardar cudyr/i }));
-    expect(saveCudyrChanges).toHaveBeenCalledTimes(1);
-
-    fireEvent.click(screen.getByRole('button', { name: /descartar/i }));
-    expect(discardCudyrChanges).toHaveBeenCalledTimes(1);
+      within(screen.getByRole('row', { name: /Paciente Sintético/ })).getByText('No registrado')
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('row', { name: /RN sintético/ })).getByText('Verificación pendiente')
+    ).toBeInTheDocument();
   });
-
-  it('shows explicit CUDYR saving feedback while the batch is being persisted', () => {
-    const record = DataFactory.createMockDailyRecord('2024-12-11');
-    record.beds['R1'] = DataFactory.createMockPatient('R1', {
-      patientName: 'JUAN TEST',
+  it('shows No aplica for an excluded open-window case without hiding recorded results', () => {
+    const data = fixture();
+    const crib = data.rows.find(row => row.patientName === 'RN sintético')!;
+    crib.applicationPending = true;
+    crib.evaluation = null;
+    crib.cudyrStatus = 'sin_captura';
+    const eligible = data.rows.find(row => row.patientName === 'Paciente Sintético')!;
+    eligible.applicationPending = true;
+    eligible.evaluation = null;
+    eligible.cudyrStatus = 'sin_captura';
+    data.rows.push({
+      ...crib,
+      key: 'recorded-crib',
+      patientName: 'RN registrado',
+      cudyrStatus: 'registrado',
+      evaluation: fixture().rows[0].evaluation,
     });
-
-    mockUseCudyrLogic.mockReturnValue(
-      createMockCudyrLogicReturn(record, {
-        pendingCudyrChangeCount: 2,
-        isSavingCudyrChanges: true,
-        stats: { total: 1, occupiedCount: 1, categorizedCount: 0 },
-      })
-    );
-
+    mocks.report.mockReturnValue({ data, busy: false, error: '', load: mocks.load });
     render(<CudyrView />);
-
-    expect(screen.getByRole('button', { name: /guardando/i })).toBeDisabled();
+    expect(
+      within(screen.getByRole('row', { name: /RN sintético/ })).getByText('No aplica')
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('row', { name: /RN sintético/ })).queryByText(
+        'Pendiente de aplicación'
+      )
+    ).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole('row', { name: /Paciente Sintético/ })).getByText(
+        'Pendiente de aplicación'
+      )
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('row', { name: /RN registrado/ })).getByText('Registrado')
+    ).toBeInTheDocument();
   });
-
-  it('renders and manages clinical cribs in CUDYR table', () => {
-    const record = DataFactory.createMockDailyRecord('2024-12-11');
-    record.beds['R1'] = DataFactory.createMockPatient('R1', {
-      patientName: 'MADRE',
-      clinicalCrib: DataFactory.createMockPatient('R1-C', {
-        patientName: 'BEBE',
-        cudyr: {
-          changeClothes: 2,
-          mobilization: 0,
-          feeding: 0,
-          elimination: 0,
-          psychosocial: 0,
-          surveillance: 0,
-          vitalSigns: 0,
-          fluidBalance: 0,
-          oxygenTherapy: 0,
-          airway: 0,
-          proInterventions: 0,
-          skinCare: 0,
-          pharmacology: 0,
-          invasiveElements: 0,
-        },
-      }),
-    });
-
-    mockUseCudyrLogic.mockReturnValue(
-      createMockCudyrLogicReturn(record, {
-        stats: { total: 2, occupiedCount: 2, categorizedCount: 1 },
-      })
-    );
-
+  it('shows cumulative eligible compliance and read-only totals without entry or bulk deletion controls', () => {
     render(<CudyrView />);
-
-    expect(screen.getByText('R1')).toBeInTheDocument();
-    expect(screen.getByText('R1 (CC)')).toBeInTheDocument();
-
-    expect(screen.getAllByText(/Ocupadas/i).at(-1)?.parentElement).toHaveTextContent(/2/);
-    expect(screen.getAllByText(/Categorizadas/i).at(-1)?.parentElement).toHaveTextContent(/1/);
+    expect(screen.getAllByText('100%')).toHaveLength(2);
+    expect(screen.getByText('Cumplimiento del día')).toBeInTheDocument();
+    expect(screen.getByText('RN sintético')).toBeInTheDocument();
+    expect(screen.getByText('Cuna RN')).toBeInTheDocument();
+    expect(
+      screen.getByText(/1 CUDYR disponibles \/ 1 pacientes-día elegibles/)
+    ).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'P. DEP' })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /Guardar CUDYR|Eliminar varios|Editar/ })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument();
   });
-
-  it('shows blocked CUDYR rows instead of hiding patients excluded by the night-shift rule', () => {
-    const record = DataFactory.createMockDailyRecord('2024-12-11');
-    record.beds['R1'] = DataFactory.createMockPatient('R1', {
-      patientName: 'PACIENTE BLOQUEADO',
-      admissionDate: '2024-12-11',
-      admissionTime: '23:30',
-      cudyr: {
-        changeClothes: 3,
-        mobilization: 3,
-        feeding: 3,
-        elimination: 3,
-        psychosocial: 3,
-        surveillance: 3,
-        vitalSigns: 3,
-        fluidBalance: 3,
-        oxygenTherapy: 3,
-        airway: 3,
-        proInterventions: 3,
-        skinCare: 3,
-        pharmacology: 3,
-        invasiveElements: 3,
+  it('shows registration separately from pending and excluded eligibility', () => {
+    const data = fixture();
+    const pending = data.rows.find(row => row.patientName === 'Paciente Sintético')!;
+    pending.eligibility = 'por_revisar';
+    pending.applicationPending = true;
+    mocks.report.mockReturnValue({ data, busy: false, error: '', load: mocks.load });
+    render(<CudyrView />);
+    const row = screen.getByRole('row', { name: /Paciente Sintético/ });
+    expect(within(row).getByText('Registrado')).toBeInTheDocument();
+    expect(within(row).getByText('Elegibilidad pendiente')).toBeInTheDocument();
+    const crib = screen.getByRole('row', { name: /RN sintético/ });
+    expect(within(crib).getByText('Registrado')).toBeInTheDocument();
+    expect(within(crib).getByText('Cuna RN')).toBeInTheDocument();
+  });
+  it('places the medico-surgical bed type beside the exact Eloísa name, without classifying CMA or cribs as media/intermedia', () => {
+    const data = fixture();
+    const hospital = data.rows.find(row => row.patientName === 'Paciente Sintético')!;
+    const crib = data.rows.find(row => row.patientName === 'RN sintético')!;
+    data.rows = [
+      { ...hospital, bedName: 'R1', group: 'intermedia' },
+      {
+        ...hospital,
+        key: 'neo',
+        patientName: 'Caso media',
+        bedName: 'Neo1',
+        bedId: 'NEO1',
+        group: 'media',
       },
+      {
+        ...hospital,
+        key: 'cma',
+        patientName: 'Caso CMA',
+        bedName: 'CMA R1 Hospitalizados',
+        modality: 'cma',
+        eligibility: 'no_elegible',
+      },
+      {
+        ...hospital,
+        key: 'pabellon',
+        patientName: 'Caso pabellón',
+        bedName: 'Pabellón-R1 CMA',
+        modality: 'cma',
+        eligibility: 'no_elegible',
+      },
+      crib,
+    ];
+    mocks.report.mockReturnValue({ data, busy: false, error: '', load: mocks.load });
+    render(<CudyrView />);
+    expect(
+      within(screen.getByRole('table', { name: /Medias:/ }))
+        .getAllByRole('columnheader')
+        .slice(0, 3)
+        .map(header => header.textContent)
+    ).toEqual(['Cama · Eloísa', 'Tipo de cama', 'Paciente']);
+    expect(
+      within(screen.getByRole('row', { name: /Paciente Sintético/ })).getByText('Intermedia')
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('row', { name: /Caso media/ })).getByText('Media')
+    ).toBeInTheDocument();
+    for (const name of ['Caso CMA', 'Caso pabellón', 'RN sintético']) {
+      const cells = within(screen.getByRole('row', { name: new RegExp(name) })).getAllByRole(
+        'cell'
+      );
+      expect(cells[1]).toHaveTextContent('—');
+    }
+    expect(screen.getByText('CMA R1 Hospitalizados')).toBeInTheDocument();
+    expect(screen.getByText('Pabellón-R1 CMA')).toBeInTheDocument();
+  });
+  it('keeps exclusions visible, allows patient review, and returns to census', () => {
+    render(<CudyrView />);
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'no_elegible' } });
+    expect(screen.getByText('RN sintético')).toBeInTheDocument();
+    expect(screen.queryByText('Paciente Sintético')).not.toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Agregar excepción manual de RN sintético' })
+    );
+    expect(screen.getByRole('dialog')).toHaveTextContent('RN sintético');
+    fireEvent.click(screen.getByRole('button', { name: 'Volver al censo' }));
+    expect(mocks.setModule).toHaveBeenCalledWith('CENSUS');
+  });
+  it('blocks downloads on incomplete exclusions and refreshes stored data only', () => {
+    mocks.report.mockReturnValue({
+      data: { ...fixture(), issues: ['Exclusiones diarias: lectura incompleta.'] },
+      busy: false,
+      error: '',
+      load: mocks.load,
     });
-
-    mockUseCudyrLogic.mockReturnValue(
-      createMockCudyrLogicReturn(record, {
-        stats: { total: 1, occupiedCount: 0, categorizedCount: 0 },
-        resolveCudyrEligibility: vi.fn().mockReturnValue({
-          isEligible: false,
-          isBlocked: true,
-          blockedReason: 'Ingreso menor a 8 h al corte fijo 01:00.',
-        }),
+    render(<CudyrView />);
+    expect(screen.getByRole('button', { name: 'Excel mensual' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Actualizar vista' }));
+    expect(mocks.load).toHaveBeenCalledWith('2026-10-01', '2026-10-02');
+  });
+  it('keeps today outside daily and monthly compliance while preserving past days', () => {
+    const data = buildCudyrReport(
+      confirmedReportInput({
+        generatedAt: '2026-10-03T20:00:00-05:00',
+        records: [reportRecord('2026-10-02'), reportRecord('2026-10-03')],
       })
     );
-
-    render(<CudyrView />);
-
-    const blockedRow = screen.getByText('PACIENTE BLOQUEADO').closest('tr');
-    expect(screen.getByText('PACIENTE BLOQUEADO')).toBeInTheDocument();
-    expect(screen.getByText(/Bloqueado CUDYR/i)).toBeInTheDocument();
-    expect(blockedRow).not.toBeNull();
-    expect(within(blockedRow as HTMLTableRowElement).queryByText(/^A1$/)).not.toBeInTheDocument();
-    expect(screen.getAllByRole('spinbutton').every(input => input.hasAttribute('disabled'))).toBe(
-      true
-    );
-    expect((screen.getAllByRole('spinbutton')[0] as HTMLInputElement).value).toBe('');
+    mocks.report.mockReturnValue({ data, busy: false, error: '', load: mocks.load });
+    render(<CudyrView currentDate="2026-10-03" />);
+    expect(screen.getAllByText('100%')).toHaveLength(1);
+    expect(screen.getAllByText('Pendiente de aplicación').length).toBeGreaterThan(0);
+    expect(
+      screen.getByText(/1 CUDYR disponibles \/ 1 pacientes-día elegibles/)
+    ).toBeInTheDocument();
   });
-
-  it('leaves the table read-only when the record is outside the editable window', () => {
-    const record = DataFactory.createMockDailyRecord('2024-12-09');
-    record.beds['R1'] = DataFactory.createMockPatient('R1', {
-      patientName: 'PACIENTE ANTIGUO',
+  it.each([
+    ['2026-10-03', true],
+    ['2026-10-02', false],
+  ] as const)(
+    'only blocks export when the failed census %s belongs to a closed day',
+    (failedDate, enabled) => {
+      const data = buildCudyrReport(
+        reportInput({
+          generatedAt: '2026-10-03T20:00:00-05:00',
+          records: [reportRecord('2026-10-02')],
+        })
+      );
+      data.coverage.find(day => day.date === failedDate)!.state = 'error';
+      mocks.report.mockReturnValue({ data, busy: false, error: '', load: mocks.load });
+      render(<CudyrView currentDate="2026-10-03" />);
+      const download = screen.getByRole('button', { name: 'Excel mensual' });
+      if (enabled) expect(download).toBeEnabled();
+      else expect(download).toBeDisabled();
+    }
+  );
+  it('shows yesterday progress before noon without including the day in closed monthly totals', () => {
+    const data = fixture();
+    data.generatedAt = '2026-10-03T09:00:00-05:00';
+    data.rows.forEach(row => {
+      row.applicationPending = true;
     });
-
-    mockUseCudyrLogic.mockReturnValue(
-      createMockCudyrLogicReturn(record, {
-        isEditingLocked: true,
-        stats: { total: 1, occupiedCount: 1, categorizedCount: 0 },
-      })
-    );
-
-    render(<CudyrView />);
-
-    expect(screen.getAllByRole('spinbutton').every(input => input.hasAttribute('disabled'))).toBe(
-      true
-    );
+    data.rows.push({
+      ...data.rows.find(row => row.eligibility === 'elegible')!,
+      key: 'missing',
+      patientName: 'Sin resultado',
+      cudyrStatus: 'sin_captura',
+      evaluation: null,
+    });
+    data.rows.push({
+      ...data.rows.find(row => row.eligibility === 'elegible')!,
+      key: 'review',
+      patientName: 'Contexto pendiente',
+      eligibility: 'por_revisar',
+    });
+    mocks.report.mockReturnValue({ data, busy: false, error: '', load: mocks.load });
+    render(<CudyrView currentDate="2026-10-02" />);
+    const daily = within(screen.getByRole('group', { name: 'Cumplimiento del día' }));
+    expect(daily.getByText('50%')).toBeInTheDocument();
+    expect(daily.getByText('1 / 2 elegibles')).toBeInTheDocument();
+    expect(daily.getByLabelText('Verificación pendiente')).toBeInTheDocument();
+    expect(screen.queryByText(/provisional/i)).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/0 CUDYR disponibles \/ 0 pacientes-día elegibles/)
+    ).toBeInTheDocument();
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'no_elegible' } });
+    expect(daily.getByText('50%')).toBeInTheDocument();
   });
-
-  it('shows the synchronized completion owner and keeps the completed sheet read-only', () => {
-    const record = DataFactory.createMockDailyRecord('2026-07-16', {
-      cudyrUpdatedAt: '2026-07-17T01:05:00.000Z',
-      cudyrUpdatedBy: 'Enfermera Noche',
-      cudyrCompletedAt: '2026-07-17T01:05:00.000Z',
-      cudyrCompletedBy: 'Enfermera Noche',
-      cudyrLocked: true,
-    });
-    record.beds.R1 = DataFactory.createMockPatient('R1', {
-      patientName: 'PACIENTE COMPLETO',
-      cudyr: DataFactory.createMockCudyr({ changeClothes: 1 }),
-    });
-    mockUseCudyrLogic.mockReturnValue(
-      createMockCudyrLogicReturn(record, {
-        isEditingLocked: true,
-        isCompletionLocked: true,
-        persistedCompletion: { eligibleCount: 1, completedCount: 1, isComplete: true },
-        stats: { total: 1, occupiedCount: 1, categorizedCount: 1 },
-      })
-    );
-
+  it('does not invent 100 percent for a day containing only exclusions', () => {
+    const data = fixture();
+    data.rows = data.rows.filter(row => row.eligibility === 'no_elegible');
+    mocks.report.mockReturnValue({ data, busy: false, error: '', load: mocks.load });
     render(<CudyrView />);
-
-    expect(screen.getByTestId('cudyr-completion-lock-notice')).toHaveTextContent(
-      /turno noche 2026-07-16/i
-    );
-    expect(screen.getByText(/Completado por Enfermera Noche/i)).toBeInTheDocument();
-    expect(screen.getAllByRole('spinbutton').every(input => input.hasAttribute('disabled'))).toBe(
-      true
-    );
+    const daily = within(screen.getByRole('group', { name: 'Cumplimiento del día' }));
+    expect(daily.getByText('—')).toBeInTheDocument();
+    expect(daily.getByText(/0 \/ 0 elegibles/)).toBeInTheDocument();
   });
-
-  it('shows the legacy notice when an older completed record has no atomic attribution', () => {
-    const record = DataFactory.createMockDailyRecord('2026-07-16', {
-      cudyrLocked: true,
-      cudyrLockedAt: '2026-07-17T01:05:00.000Z',
-      cudyrLockedBy: 'usuario-enfermeria-legado',
+  it('hides confirmed system departures even in all/excluded filters, keeping manual exceptions visible', () => {
+    const data = fixture();
+    data.rows.push({
+      ...data.rows[0],
+      key: 'resolved',
+      patientName: 'Salida confirmada',
+      resolvedSystemDeparture: true,
+      eligibility: 'no_elegible',
     });
-    record.beds.R1 = DataFactory.createMockPatient('R1', {
-      patientName: 'PACIENTE LEGADO COMPLETO',
-      cudyr: DataFactory.createMockCudyr(),
-    });
-    mockUseCudyrLogic.mockReturnValue(
-      createMockCudyrLogicReturn(record, {
-        isEditingLocked: true,
-        isCompletionLocked: true,
-        persistedCompletion: { eligibleCount: 1, completedCount: 1, isComplete: true },
-      })
-    );
-
+    mocks.report.mockReturnValue({ data, busy: false, error: '', load: mocks.load });
     render(<CudyrView />);
-
-    expect(screen.getByTestId('cudyr-legacy-lock-notice')).toHaveTextContent(
-      /completo sin cierre atribuido/i
-    );
-    expect(screen.queryByText(/Completado por/i)).not.toBeInTheDocument();
+    expect(screen.queryByText('Salida confirmada')).not.toBeInTheDocument();
+    expect(screen.getByText('RN sintético')).toBeInTheDocument();
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'no_elegible' } });
+    expect(screen.queryByText('Salida confirmada')).not.toBeInTheDocument();
   });
-
-  it('labels an incomplete legacy manual lock without claiming synchronized completion', () => {
-    const record = DataFactory.createMockDailyRecord('2026-07-16', {
-      cudyrLocked: true,
-      cudyrLockedAt: '2026-07-17T01:05:00.000Z',
-      cudyrLockedBy: 'usuario-legado',
-    });
-    mockUseCudyrLogic.mockReturnValue(
-      createMockCudyrLogicReturn(record, {
-        isEditingLocked: true,
-        isCompletionLocked: true,
-        persistedCompletion: { eligibleCount: 2, completedCount: 1, isComplete: false },
-      })
-    );
-
+  it('opens archived bed movements without loading again or changing an exclusion', () => {
     render(<CudyrView />);
-
-    expect(screen.getByTestId('cudyr-legacy-lock-notice')).toHaveTextContent(/1 de 2/i);
-    expect(screen.queryByTestId('cudyr-completion-lock-notice')).not.toBeInTheDocument();
-    expect(screen.queryByText(/Completado por/i)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Movimientos de Paciente Sintético' }));
+    expect(screen.getByText('Primer ingreso registrado a Hospitalizados')).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Entrada' })).toBeInTheDocument();
+    expect(screen.getByText(/La lista puede estar incompleta/)).toBeInTheDocument();
+    expect(mocks.load).not.toHaveBeenCalled();
   });
+  it('keeps the cached table visible while verifying Firebase and disables unverified export', () => {
+    mocks.report.mockReturnValue({ data: fixture(), busy: true, error: '', load: mocks.load });
+    const { rerender } = render(<CudyrView />);
+    expect(screen.getByText('Paciente Sintético')).toBeInTheDocument();
+    expect(screen.getByText('Actualizando…')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Excel mensual' })).toBeDisabled();
+    mocks.report.mockReturnValue({
+      data: fixture(),
+      busy: false,
+      error: 'Sin conexión',
+      load: mocks.load,
+    });
+    rerender(<CudyrView />);
+    expect(screen.getByText('Paciente Sintético')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Excel mensual' })).toBeDisabled();
+  });
+  it('shows missing component scores as unknown instead of zero', () => {
+    const data = fixture();
+    const patient = data.rows.find(row => row.eligibility === 'elegible')!;
+    patient.evaluation = {
+      ...patient.evaluation!,
+      dependencyScore: null,
+      riskScore: undefined,
+    };
+    mocks.report.mockReturnValue({ data, busy: false, error: '', load: mocks.load });
+    render(<CudyrView />);
+    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+it('shows an approved reconstruction as official while retaining the original mismatch only in details', () => {
+  const data = fixture();
+  data.coverage.forEach(day => {
+    day.censusVerification = {
+      state: 'mismatch',
+      missing: 1,
+      extra: 1,
+      reason: 'Diferencia histórica con informe Eloísa',
+    };
+    day.reconstructionApproval = {
+      approvedAt: '2026-10-08T20:00:00Z',
+      approvedBy: 'Responsable',
+      reason: 'Reconstrucción aceptada',
+    };
+  });
+  data.rows
+    .filter(r => r.eligibility !== 'no_elegible')
+    .forEach(row => {
+      row.monthlyEvidence = {
+        reportId: 'source',
+        sourceDate: '2026-10-03',
+        checkedAt: '2026-10-08T20:00:00Z',
+        state: 'found',
+      };
+    });
+  mocks.report.mockReturnValue({ data, busy: false, error: '', load: mocks.load });
+  render(<CudyrView />);
+  expect(screen.getByText('Oficial · reparado')).toBeInTheDocument();
+  expect(screen.queryByText('Pacientes del censo por confirmar')).not.toBeInTheDocument();
+  expect(screen.getByText('Nota del cotejo original con Eloísa')).not.toBeVisible();
+  expect(screen.getByText(/No elegibles del mes/)).toBeInTheDocument();
 });

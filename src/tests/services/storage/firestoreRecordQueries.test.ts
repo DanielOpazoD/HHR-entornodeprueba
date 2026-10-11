@@ -13,6 +13,8 @@ vi.mock('firebase/firestore', async () => {
     getDocFromServer: vi.fn(),
     getDocs: vi.fn(),
     getDocsFromServer: vi.fn(),
+    limit: vi.fn((count: number) => ({ limit: count })),
+    startAfter: vi.fn((cursor: unknown) => ({ cursor })),
     onSnapshot: vi.fn(),
     orderBy: vi.fn((field: string, direction: string) => ({ field, direction })),
     query: vi.fn((...args: unknown[]) => ({ args })),
@@ -52,9 +54,13 @@ import {
   getDocs,
   getDocsFromServer,
   onSnapshot,
+  query,
+  startAfter,
 } from 'firebase/firestore';
+import { getRecordsCollection } from '@/services/storage/firestore/firestoreShared';
 import {
   getAllRecordsFromFirestore,
+  getRecordPagesFromFirestore,
   getAvailableDatesFromFirestore,
   getMonthRecordsFromFirestore,
   getRecordFromFirestore,
@@ -67,6 +73,108 @@ import {
 describe('firestoreRecordQueries', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getRecordsCollection)
+      .mockReset()
+      .mockReturnValue('records-collection' as never);
+  });
+
+  it('traverses every server page with a snapshot cursor and a bounded limit', async () => {
+    const docs = Array.from({ length: 20 }, (_, index) => ({
+      id: `day-${index}`,
+      data: () => ({ date: '2026-01-01', beds: {} }),
+    }));
+    vi.mocked(getDocsFromServer)
+      .mockResolvedValueOnce({ docs, size: 20 } as never)
+      .mockResolvedValueOnce({
+        docs: [{ id: 'older', data: () => ({ beds: {} }) }],
+        size: 1,
+      } as never);
+    vi.mocked(getRecordsCollection)
+      .mockReturnValueOnce('first-hospital' as never)
+      .mockReturnValueOnce('other-hospital' as never);
+    const pages = [];
+    for await (const page of getRecordPagesFromFirestore()) pages.push(page);
+    expect(getRecordsCollection).toHaveBeenCalledOnce();
+    expect(
+      vi
+        .mocked(query)
+        .mock.calls.slice(0, 2)
+        .map(call => call[0])
+    ).toEqual(['first-hospital', 'first-hospital']);
+    expect(pages.map(page => page.length)).toEqual([20, 1]);
+    expect(getDocsFromServer).toHaveBeenCalledTimes(2);
+    expect(getDocs).not.toHaveBeenCalled();
+    // A snapshot cursor retains the document tie-breaker even when dates are identical.
+    expect(startAfter).toHaveBeenCalledExactlyOnceWith(docs[19]);
+    expect(vi.mocked(query).mock.calls[0]).toContainEqual({ limit: 20 });
+    expect(vi.mocked(query).mock.calls[1]).toContainEqual({ cursor: docs[19] });
+  });
+
+  it('checks an empty final page after an exact multiple instead of truncating history', async () => {
+    const docs = Array.from({ length: 20 }, (_, index) => ({
+      id: `${index}`,
+      data: () => ({ beds: {} }),
+    }));
+    vi.mocked(getDocsFromServer)
+      .mockResolvedValueOnce({ docs, size: 20 } as never)
+      .mockResolvedValueOnce({ docs: [], size: 0 } as never);
+    vi.mocked(getRecordsCollection)
+      .mockReturnValueOnce('first-hospital' as never)
+      .mockReturnValueOnce('other-hospital' as never);
+    const pages = [];
+    for await (const page of getRecordPagesFromFirestore()) pages.push(page);
+    expect(getRecordsCollection).toHaveBeenCalledOnce();
+    expect(
+      vi
+        .mocked(query)
+        .mock.calls.slice(0, 2)
+        .map(call => call[0])
+    ).toEqual(['first-hospital', 'first-hospital']);
+    expect(pages.map(page => page.length)).toEqual([20, 0]);
+    expect(getDocsFromServer).toHaveBeenCalledTimes(2);
+  });
+
+  it('stops after cancellation without reading the next page or logging a query failure', async () => {
+    const controller = new AbortController();
+    const docs = Array.from({ length: 20 }, (_, index) => ({
+      id: `${index}`,
+      data: () => ({ beds: {} }),
+    }));
+    vi.mocked(getDocsFromServer).mockResolvedValueOnce({ docs, size: 20 } as never);
+    const pages = getRecordPagesFromFirestore(controller.signal);
+    expect((await pages.next()).value).toHaveLength(20);
+    controller.abort();
+    await expect(pages.next()).rejects.toMatchObject({ name: 'AbortError' });
+    expect(getDocsFromServer).toHaveBeenCalledTimes(1);
+    expect(firestoreQueryLoggerError).not.toHaveBeenCalled();
+  });
+
+  it('discards an in-flight response after cancellation and makes no additional query', async () => {
+    const controller = new AbortController();
+    let finish!: (value: never) => void;
+    vi.mocked(getDocsFromServer).mockReturnValueOnce(
+      new Promise(resolve => {
+        finish = resolve;
+      })
+    );
+    const result = getRecordPagesFromFirestore(controller.signal).next();
+    controller.abort();
+    finish({ docs: [], size: 0 } as never);
+    await expect(result).rejects.toMatchObject({ name: 'AbortError' });
+    expect(getDocsFromServer).toHaveBeenCalledTimes(1);
+  });
+
+  it('propagates a later server failure instead of completing a partial traversal', async () => {
+    const docs = Array.from({ length: 20 }, (_, index) => ({
+      id: `${index}`,
+      data: () => ({ beds: {} }),
+    }));
+    vi.mocked(getDocsFromServer)
+      .mockResolvedValueOnce({ docs, size: 20 } as never)
+      .mockRejectedValueOnce(new Error('later page unavailable'));
+    const pages = getRecordPagesFromFirestore();
+    await pages.next();
+    await expect(pages.next()).rejects.toThrow('later page unavailable');
   });
 
   it('distinguishes server history failures from genuinely empty ranges', async () => {

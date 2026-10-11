@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { useBedManagerModalModel } from '@/features/census/hooks/useBedManagerModalModel';
+import { useBedManagerModalModel } from '@/hooks/useBedManagerModalModel';
 
 describe('useBedManagerModalModel', () => {
   it('handles block flow with validation and success path', () => {

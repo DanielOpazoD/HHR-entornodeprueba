@@ -1,3 +1,4 @@
+import { clinicalCribConflictBeds } from './clinicalCribConflictBeds';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { EgresoReportRow, ReportEgreso } from '../contracts/egresoReport';
@@ -5,7 +6,6 @@ import { confirmHospitalDischarge } from './dischargeVerification';
 import {
   correctedStamp,
   createReportEpisodeMatcher,
-  clinicalCribConflictBeds,
   findPlannedBedByEpisode,
   findOccupiedBed,
   findOccupiedClinicalCrib,
@@ -62,7 +62,7 @@ export const applyEgresoReport = (
   const reportConfirmsEpisode = createReportEpisodeMatcher(byRun);
   const activeCribsByParent = buildClinicalCribPromotionCandidates(checkedDiff, occupiedCribs);
   const principalBedByRun = indexPrincipalBeds(checkedDiff, occupied);
-  const conflictedCribParents = clinicalCribConflictBeds(checkedDiff);
+  const conflictedCribParents = clinicalCribConflictBeds(checkedDiff, record);
   const promotedCribs = new Map<string, PromotionCandidate>();
   for (const [, reportRow] of byRun) {
     const run = normalizeRut(reportRow.run);
@@ -342,7 +342,11 @@ export const applyEgresoReport = (
       reportEgresos.push(reportEgresoFromRow(row));
     }
   }
-  const finalDischarges = finalizeDischargePlan(checkedDiff, discharges, record);
+  const finalDischarges = finalizeDischargePlan(
+    { ...checkedDiff, reportEgresos },
+    discharges,
+    record
+  );
   const releasedBeds = resolveReleasedBedPlacements(
     admissions,
     moves,

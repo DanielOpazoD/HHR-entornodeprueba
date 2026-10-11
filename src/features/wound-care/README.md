@@ -25,7 +25,7 @@ fotografico completo del paciente (hospitalizacion actual y previas).
 ## API publica
 
 ```typescript
-// Desde HandoffRowCells.tsx:
+// Desde HandoffPatientCell.tsx:
 import { WoundCareModal } from '@/features/wound-care/components/WoundCareModal';
 ```
 

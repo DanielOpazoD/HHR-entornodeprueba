@@ -105,6 +105,18 @@
       return { items: [...byEnc.values()] };
     };
 
+    // Retry one transient read only. Authorization and schema errors stay actionable.
+    // This reads source history; an empty history before tomorrow's shift is valid.
+    const readOfficialCudyr = async (url, options) => {
+      try {
+        const response = await fetchWithTimeout(url, options);
+        if (response.status !== 408 && response.status !== 429 && response.status < 500) return response;
+      } catch (error) {
+        if (!(error instanceof TypeError) && !/fetch|network|tiempo de espera|timeout/i.test(String(error && error.message || error))) throw error;
+      }
+      return fetchWithTimeout(url, options);
+    };
+
     const fetchGestionCamasCudyrCategories = async () => {
       const session = await resolveGestionCamasSession();
       if (!session.record) {
@@ -119,7 +131,7 @@
         `${info.apiBase}/facility/${encodeURIComponent(info.facId)}/healthCarePractitioners?tid=${now()}`,
         `${info.apiBase}/formCategorizationOfRisk?tid=${now()}`,
       ];
-      const requests = requestUrls.map(url => fetchWithTimeout(url, {
+      const requests = requestUrls.map(url => readOfficialCudyr(url, {
         headers: { Authorization: info.token, Accept: 'application/json' },
         credentials: 'omit',
         cache: 'no-store',
@@ -142,35 +154,20 @@
           };
         }
         const beds = await bedsResult.value.json();
+        if (!Array.isArray(beds)) throw new Error('Respuesta de camas inválida.');
         const warnings = [];
-        const readOptionalMetadata = async (result, label) => {
-          if (result.status === 'rejected') {
-            warnings.push(`No se pudo consultar ${label}; el historial se conserva sin esos metadatos.`);
-            return [];
-          }
-          if (!result.value.ok) {
-            warnings.push(
-              `Gestión de Camas respondió HTTP ${result.value.status} al consultar ${label}; ` +
-              'el historial se conserva sin esos metadatos.'
-            );
-            return [];
-          }
-          try {
-            return await result.value.json();
-          } catch (_error) {
-            warnings.push(`Gestión de Camas entregó ${label} inválidos; el historial se conserva sin esos metadatos.`);
-            return [];
-          }
-        };
         const [practitioners, definitions] = await Promise.all([
-          readOptionalMetadata(practitionersResult, 'los autores CUDYR'),
-          readOptionalMetadata(definitionsResult, 'las definiciones CUDYR'),
+          root.HhrCudyrCaptureSupport.readMetadata(practitionersResult, 'los autores CUDYR', warnings),
+          root.HhrCudyrCaptureSupport.readMetadata(definitionsResult, 'las definiciones CUDYR', warnings),
         ]);
-        const items = gestionCamasCudyr.buildSnapshot({ beds, practitioners, definitions });
+        const items = gestionCamasCudyr.buildSnapshot({ beds, practitioners, definitions, includeObservations: true });
         return {
           items,
           source: 'gestion_camas',
           historyAvailable: true,
+          captureContract: 1,
+          observedEpisodeIds: items.map(item => item.encId),
+          metadataStatus: warnings.length ? 'partial' : 'complete',
           warning: warnings.join(' '),
         };
       } catch (error) {

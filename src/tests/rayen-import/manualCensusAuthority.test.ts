@@ -295,7 +295,12 @@ describe('manual HHR census authority', () => {
         rut: patient.rut,
         clinicalEpisodeId: encounter.encounterId,
         admissionDate: '2026-07-07',
-        originalData: { ...patient, admissionDate: '2026-07-07', admissionTime: '09:00' },
+        originalData: {
+          ...patient,
+          clinicalEpisodeId: undefined,
+          admissionDate: '2026-07-07',
+          admissionTime: '09:00',
+        },
       } as never,
     ];
     const diff = makeDiff({
@@ -328,7 +333,12 @@ describe('manual HHR census authority', () => {
         id: 'legacy-manual-discharge',
         rut: patient.rut,
         admissionDate: '2026-07-07',
-        originalData: { ...patient, admissionDate: '2026-07-07', admissionTime: '09:00' },
+        originalData: {
+          ...patient,
+          clinicalEpisodeId: undefined,
+          admissionDate: '2026-07-07',
+          admissionTime: '09:00',
+        },
       } as never,
     ];
     const diff = makeDiff({
@@ -356,7 +366,7 @@ describe('manual HHR census authority', () => {
         id: 'legacy-manual-discharge',
         rut: patient.rut,
         admissionDate: patient.admissionDate,
-        originalData: patient,
+        originalData: { ...patient, clinicalEpisodeId: undefined },
       } as never,
     ];
 
@@ -373,6 +383,7 @@ describe('manual HHR census authority', () => {
         rut: patient.rut,
         originalData: {
           ...patient,
+          clinicalEpisodeId: undefined,
           firstSeenDate: '2026-07-09',
           admissionDate: patient.admissionDate,
         },
@@ -405,7 +416,7 @@ describe('manual HHR census authority', () => {
         id: 'legacy-manual-discharge',
         rut: patient.rut,
         admissionDate: patient.admissionDate,
-        originalData: { ...patient, admissionTime: '' },
+        originalData: { ...patient, clinicalEpisodeId: undefined, admissionTime: '' },
       } as never,
     ];
     const diff = makeDiff({

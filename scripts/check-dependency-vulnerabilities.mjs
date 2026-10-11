@@ -11,6 +11,8 @@ import {
   shouldRetryAuditWithSystemCa,
 } from './lib/dependencyAuditSupport.mjs';
 
+import { evaluateBracesException } from './lib/bracesAuditException.mjs';
+
 const root = process.cwd();
 const reportsDir = path.join(root, 'reports', 'security');
 const outputJsonPath = path.join(reportsDir, 'dependency-audit.json');
@@ -77,7 +79,9 @@ const summarizeVulnerablePackages = report => {
   return Object.entries(vulnerabilities)
     .map(([name, vulnerability]) => {
       const via = Array.isArray(vulnerability?.via)
-        ? vulnerability.via.map(item => (typeof item === 'string' ? item : item?.title || 'unknown'))
+        ? vulnerability.via.map(item =>
+            typeof item === 'string' ? item : item?.title || 'unknown'
+          )
         : [];
       const fixAvailable =
         vulnerability?.fixAvailable === true
@@ -200,9 +204,7 @@ const runAuditForWorkspace = workspace => {
     recoveryAttempted: retriedWithSystemCa ? 'system_ca_retry' : null,
     issues:
       status === 'vulnerable'
-        ? [
-            `Detected ${counts.high} high and ${counts.critical} critical vulnerabilities.`,
-          ]
+        ? [`Detected ${counts.high} high and ${counts.critical} critical vulnerabilities.`]
         : combinedOutput
           ? [combinedOutput]
           : [],
@@ -212,7 +214,33 @@ const runAuditForWorkspace = workspace => {
 };
 
 const workspaceResults = workspaceConfigs.map(runAuditForWorkspace);
-const overallStatus = workspaceResults.every(result => result.status === 'ok') ? 'ok' : 'failed';
+const readJsonOrNull = file => {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(root, file), 'utf8'));
+  } catch {
+    return null;
+  }
+};
+let lockText = '';
+try {
+  lockText = fs.readFileSync(path.join(root, 'package-lock.json'), 'utf8');
+} catch {
+  /* Keep the gate closed. */
+}
+const exception = evaluateBracesException({
+  workspace: workspaceResults.find(result => result.id === 'root'),
+  lockText,
+  functionsLock: readJsonOrNull('functions/package-lock.json'),
+});
+const auditPassed = workspaceResults.every(result => result.status === 'ok');
+const gatePassed =
+  auditPassed ||
+  (exception.accepted &&
+    workspaceResults.every(result => result.id === 'root' || result.status === 'ok'));
+const overallStatus = auditPassed ? 'ok' : gatePassed ? 'accepted_with_exception' : 'failed';
+const exceptionNotice = exception.accepted
+  ? `TEMPORARY RISK ACCEPTANCE: ${exception.advisory}; ${exception.packages.length} high findings remain. Development dependencies only. Expires ${exception.expiresAt}. Authorized by ${exception.authorizedBy}. The vulnerability is NOT fixed.`
+  : null;
 const reproducibility = buildAuditReproducibilityMetadata({
   failureCategories: workspaceResults.flatMap(result =>
     [result.firstFailureCategory, result.failureCategory].filter(Boolean)
@@ -229,6 +257,7 @@ const summary = {
     workspaces: workspaceConfigs.map(workspace => workspace.id),
   },
   reproducibility,
+  exception,
   workspaces: workspaceResults,
 };
 
@@ -236,6 +265,7 @@ const markdown = [
   '# Dependency Audit',
   '',
   `- Overall status: \`${overallStatus}\``,
+  ...(exceptionNotice ? [`> ${exceptionNotice}`, ''] : []),
   '- Scope: `all dependencies`',
   '- Blocking severities: `high`, `critical`',
   '',
@@ -270,7 +300,9 @@ const markdown = [
             ),
         ]
       : ['- Top vulnerable packages: none']),
-    ...(result.issues.length > 0 ? ['- Notes:', ...result.issues.map(issue => `  - ${issue}`)] : ['- Notes: none']),
+    ...(result.issues.length > 0
+      ? ['- Notes:', ...result.issues.map(issue => `  - ${issue}`)]
+      : ['- Notes: none']),
     '',
   ]),
   '## Reproducibility',
@@ -292,11 +324,17 @@ if (process.env.GITHUB_STEP_SUMMARY) {
   fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${markdown}\n`, 'utf8');
 }
 
-if (overallStatus !== 'ok') {
+if (exceptionNotice) console.warn(`[dependency-vulnerabilities] ${exceptionNotice}`);
+
+if (!gatePassed) {
   console.error('[dependency-vulnerabilities] Dependency audit failed.');
-  console.error(`[dependency-vulnerabilities] Summary written to ${path.relative(root, outputJsonPath)}`);
+  console.error(
+    `[dependency-vulnerabilities] Summary written to ${path.relative(root, outputJsonPath)}`
+  );
   process.exit(1);
 }
 
-console.log('[dependency-vulnerabilities] OK');
-console.log(`[dependency-vulnerabilities] Report generated at ${path.relative(root, outputJsonPath)}`);
+console.log(`[dependency-vulnerabilities] ${overallStatus}`);
+console.log(
+  `[dependency-vulnerabilities] Report generated at ${path.relative(root, outputJsonPath)}`
+);

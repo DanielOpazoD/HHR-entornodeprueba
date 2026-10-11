@@ -52,6 +52,7 @@ export const RAYEN_SYNC_ISSUE_SOURCES = [
   'vitals',
   'staffing',
   'cudyr',
+  'bed_history',
   'patch',
 ] as const;
 export type RayenSyncIssueSource = (typeof RAYEN_SYNC_ISSUE_SOURCES)[number];
@@ -84,10 +85,19 @@ export type RayenSyncStructuralIssueReason =
   | 'crib-conflict-blocks-discharge'
   | 'unclassified';
 
-/** Privacy-safe structural diagnostic. It deliberately omits patient and episode identifiers. */
+/** Clinical case displayed only in the protected census history, never in copied diagnostics. */
+export interface RayenSyncCaseContext {
+  patientName: string;
+  censusDate: string;
+  bedId: string;
+  isClinicalCrib?: boolean;
+}
+
+/** Structured diagnostic; optional clinical context is separate from the technical code. */
 export interface RayenSyncStructuralIssue {
   bedId: string | null;
   reason: RayenSyncStructuralIssueReason;
+  caseContext?: RayenSyncCaseContext;
 }
 
 /** Sanitized patient-scoped diagnostic. Raw Eloísa/Firestore errors are never persisted. */
@@ -279,6 +289,8 @@ export interface RayenSyncPerformanceDelta {
 /** Aggregate-only structural evidence retained when clinical enrichment can still complete. */
 export interface RayenSyncStructuralReviewEvidence {
   /** Explicit proof that the structural census reached an authoritative confirmed handoff. */
+  /** Source capture explicitly declared a complete census for this exact run. */
+  snapshotComplete?: boolean;
   structureConfirmed?: boolean;
   historicalCorrectionsPending: boolean;
   historicalCorrectionsRequireFreshCapture: boolean;

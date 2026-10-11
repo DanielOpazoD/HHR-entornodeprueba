@@ -1,7 +1,6 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { buildCanonicalE2ERecord } from './fixtures/auth';
-import { loadPreviewFirebaseConfig } from './fixtures/previewFirebase';
 
 const origin = 'http://127.0.0.1:4318';
 const date = '2026-02-20';
@@ -13,25 +12,65 @@ if (!Number.isInteger(samplesPerAction) || samplesPerAction < 3) {
 
 const record = buildCanonicalE2ERecord(date);
 const beds = record.beds as Record<string, Record<string, unknown>>;
-beds.R1 = {
-  ...beds.R1,
-  patientName: patient,
-  firstName: patient,
-  pathology: 'SYNTHETIC DIAGNOSIS',
-  clinicalEpisodeId: 'synthetic-episode-R1',
-  status: 'Estable',
-  age: '40',
-  admissionDate: date,
-};
+const occupiedBedIds = Object.keys(beds).filter(id => !id.startsWith('E') || id === 'E1');
+const cribBedIds = ['H6C1', 'H6C2'];
+if (occupiedBedIds.length !== 19) throw new Error('Full census fixture must have 19 main rows');
+for (const [index, bedId] of occupiedBedIds.entries()) {
+  const name = bedId === 'R1' ? patient : `SYNTHETIC PATIENT ${bedId}`;
+  beds[bedId] = {
+    ...beds[bedId],
+    patientName: name,
+    firstName: name,
+    pathology: 'SYNTHETIC DIAGNOSIS',
+    clinicalEpisodeId: `synthetic-episode-${bedId}`,
+    specialty: 'Med Interna',
+    status: 'Estable',
+    age: '40',
+    admissionDate: date,
+    devices: index % 2 === 0 ? ['VVP#1', 'CUP'] : [],
+    vitalSigns:
+      index % 2 === 0
+        ? {
+            recordedDate: date,
+            recordedAt: `${date}T10:00:00`,
+            systolic: 120,
+            diastolic: 80,
+            heartRate: 70,
+            spo2: 98,
+            temperature: 36.5,
+            respiratoryRate: 16,
+            painEva: 0,
+            hgt: null,
+            insulinUnits: null,
+            insulinQuadrant: null,
+            observations: null,
+            author: 'Synthetic',
+            authorRole: 'Synthetic',
+          }
+        : undefined,
+  };
+}
+for (const bedId of cribBedIds) {
+  beds[bedId].clinicalCrib = {
+    ...beds[bedId],
+    patientName: `SYNTHETIC CRIB ${bedId}`,
+    firstName: `SYNTHETIC CRIB ${bedId}`,
+    clinicalEpisodeId: `synthetic-crib-episode-${bedId}`,
+    identityStatus: 'provisional',
+    bedMode: 'Cuna',
+    specialty: 'Pediatría',
+    age: '0',
+    devices: [],
+    vitalSigns: undefined,
+  };
+}
+record.activeExtraBeds = ['E1'];
 
 async function isolate(context: BrowserContext) {
-  const previewConfig = loadPreviewFirebaseConfig();
-  if (!previewConfig.projectId.startsWith('demo-') || !previewConfig.apiKey.startsWith('demo-')) {
-    throw new Error('Census interaction benchmark requires a demo Firebase configuration');
-  }
   const firebase = {
-    ...previewConfig,
+    apiKey: 'demo-api-key',
     projectId: 'demo-census-performance',
+    appId: '1:1234567890:web:synthetic',
     authDomain: 'demo-census-performance.invalid',
   };
   await context.route('**/*', route => {
@@ -144,10 +183,23 @@ test('synthetic census interactions produce a privacy-safe timing baseline', asy
     await isolate(context);
     const page = await context.newPage();
     for (let index = 0; index < samplesPerAction; index++) {
-      await page.goto(`/censo?date=${date}`, { waitUntil: 'domcontentloaded' });
-      await expect(
-        page.locator('[data-testid="patient-row"][data-bed-id="R1"] input[name="patientName"]')
-      ).toHaveValue(patient, { timeout: 30_000 });
+      await page.goto(`/census?date=${date}`, { waitUntil: 'domcontentloaded' });
+      const mainRows = page.locator('[data-testid="patient-row"][data-bed-id]');
+      const cribRows = page.locator('[data-testid="patient-row"]:not([data-bed-id])');
+      await expect(mainRows).toHaveCount(19, { timeout: 30_000 });
+      await expect(cribRows).toHaveCount(2);
+      for (const bedId of occupiedBedIds) {
+        await expect(
+          mainRows
+            .and(page.locator(`[data-bed-id="${bedId}"]`))
+            .locator('input[name="patientName"]')
+        ).toHaveValue(String(beds[bedId].patientName));
+      }
+      for (const [cribIndex, bedId] of cribBedIds.entries()) {
+        await expect(cribRows.nth(cribIndex).locator('input[name="patientName"]')).toHaveValue(
+          `SYNTHETIC CRIB ${bedId}`
+        );
+      }
       results.diagnosisEditor.push(
         await measureOpen(
           page,
@@ -170,7 +222,8 @@ test('synthetic census interactions produce a privacy-safe timing baseline', asy
 
   const report = {
     contract: 'census-interaction-opportunity-v1',
-    fixture: 'isolated-synthetic-no-real-auth-v1',
+    fixture: 'isolated-synthetic-full-census-v1',
+    cohort: { mainRows: 19, clinicalCribs: 2, occupiedRows: 21, activeExtraBeds: 1 },
     semantics: 'click-to-visible-double-rAF-opportunity-not-physical-paint',
     samplesPerAction,
     actions: Object.fromEntries(

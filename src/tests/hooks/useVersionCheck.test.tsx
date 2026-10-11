@@ -1,5 +1,6 @@
-import { act, renderHook } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { StrictMode } from 'react';
+import { act, cleanup, renderHook } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockWarn = vi.fn();
 const mockReconcileBootstrapRuntime = vi.fn();
@@ -23,6 +24,11 @@ describe('useVersionCheck', () => {
     vi.clearAllMocks();
     vi.useFakeTimers();
     mockReconcileBootstrapRuntime.mockResolvedValue({ status: 'continue', reason: null });
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
   });
 
   it('runs bootstrap reconciliation once after mount', async () => {
@@ -59,5 +65,28 @@ describe('useVersionCheck', () => {
     });
 
     expect(mockReconcileBootstrapRuntime).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps one live subscription after StrictMode setup-cleanup-setup and cleans up on unmount', async () => {
+    const view = renderHook(() => useVersionCheck(), { wrapper: StrictMode });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+    expect(mockReconcileBootstrapRuntime).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      window.dispatchEvent(new Event('focus'));
+    });
+    expect(mockReconcileBootstrapRuntime).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5 * 60 * 1000);
+    });
+    expect(mockReconcileBootstrapRuntime).toHaveBeenCalledTimes(3);
+    view.unmount();
+    await act(async () => {
+      window.dispatchEvent(new Event('focus'));
+      document.dispatchEvent(new Event('visibilitychange'));
+      await vi.advanceTimersByTimeAsync(5 * 60 * 1000);
+    });
+    expect(mockReconcileBootstrapRuntime).toHaveBeenCalledTimes(3);
   });
 });

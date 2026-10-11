@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { usePatientMovementAudit } from '@/features/census/hooks/usePatientMovementAudit';
+import { usePatientMovementAudit } from '@/hooks/usePatientMovementAudit';
 import { useAuditContext } from '@/context/AuditContext';
 
 vi.mock('@/context/AuditContext', () => ({

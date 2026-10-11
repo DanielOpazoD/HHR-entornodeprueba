@@ -2,11 +2,11 @@ import { renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useCensusMovementData } from '@/features/census/hooks/useCensusMovementData';
-import { useDailyRecordData, useDailyRecordMovements } from '@/context/DailyRecordContext';
+import { useDailyRecordStaff, useDailyRecordMovements } from '@/context/DailyRecordContext';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
 vi.mock('@/context/DailyRecordContext', () => ({
-  useDailyRecordData: vi.fn(),
+  useDailyRecordStaff: vi.fn(),
   useDailyRecordMovements: vi.fn(),
 }));
 
@@ -18,9 +18,9 @@ describe('useCensusMovementData', () => {
   });
 
   it('returns record date and movement buckets from fragmented context hooks', () => {
-    vi.mocked(useDailyRecordData).mockReturnValue(
-      asHookValue<ReturnType<typeof useDailyRecordData>>({
-        record: DataFactory.createMockDailyRecord('2026-02-15'),
+    vi.mocked(useDailyRecordStaff).mockReturnValue(
+      asHookValue<ReturnType<typeof useDailyRecordStaff>>({
+        date: '2026-02-15',
       })
     );
     vi.mocked(useDailyRecordMovements).mockReturnValue(
@@ -40,13 +40,15 @@ describe('useCensusMovementData', () => {
     expect(result.current.transfers).toEqual(
       expect.arrayContaining([expect.objectContaining({ id: 't1' })])
     );
-    expect(result.current.cma).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'c1' })]));
+    expect(result.current.cma).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'c1' })])
+    );
   });
 
   it('returns safe defaults when record and movements are absent', () => {
-    vi.mocked(useDailyRecordData).mockReturnValue(
-      asHookValue<ReturnType<typeof useDailyRecordData>>({
-        record: null,
+    vi.mocked(useDailyRecordStaff).mockReturnValue(
+      asHookValue<ReturnType<typeof useDailyRecordStaff>>({
+        date: undefined,
       })
     );
     vi.mocked(useDailyRecordMovements).mockReturnValue(

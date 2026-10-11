@@ -80,9 +80,9 @@ export const usePatientHospitalizationReports = (): PatientHospitalizationReport
           return;
         }
         success(
-          documentType === 'epicrisis' ? 'Epicrisis descargada' : 'Ficha clínica abierta',
-          documentType === 'epicrisis'
-            ? `Se descargó la epicrisis de ${context.patientName}.`
+          documentType !== 'history' ? 'Epicrisis descargada' : 'Ficha clínica abierta',
+          documentType !== 'history'
+            ? `Se descargó la epicrisis ${documentType === 'nursing-epicrisis' ? 'de enfermería' : 'médica'} de ${context.patientName}.`
             : 'Eloísa abrió la ficha completa del episodio en una pestaña nueva.'
         );
       } catch (error) {

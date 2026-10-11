@@ -8,7 +8,6 @@
 
 import { CIE10Entry } from './cie10SpanishDatabase';
 import { aiRequestManager } from '../ai/aiRequestManager';
-import { GoogleGenAI } from '@google/genai';
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import { resolveCurrentUserAuthHeaders } from '@/services/auth/authRequestHeaders';
 import {
@@ -17,8 +16,20 @@ import {
   type Cie10SearchRequest,
 } from '@/contracts/serverless';
 
-let aiAvailabilityChecked = false;
 let aiIsAvailable = false;
+let availabilityExpiresAt = 0;
+let availabilityVersion = 0;
+let availabilityCheck: Promise<boolean> | null = null;
+const AVAILABLE_CACHE_MS = 60_000;
+const UNAVAILABLE_CACHE_MS = 30_000;
+const AVAILABILITY_TIMEOUT_MS = 10_000;
+
+function rememberAvailability(available: boolean): boolean {
+  aiIsAvailable = available;
+  availabilityExpiresAt = Date.now() + (available ? AVAILABLE_CACHE_MS : UNAVAILABLE_CACHE_MS);
+  availabilityVersion += 1;
+  return available;
+}
 
 type LocalAIProvider = 'gemini' | 'openai' | 'anthropic';
 
@@ -84,6 +95,7 @@ async function searchWithServerlessFunction(
 ): Promise<{ available: boolean; results: CIE10Entry[] }> {
   try {
     const authHeaders = await resolveCurrentUserAuthHeaders();
+    signal?.throwIfAborted();
     const requestBody: Cie10SearchRequest = Cie10SearchRequestSchema.parse({ query });
     const response = await fetch('/.netlify/functions/cie10-ai-search', {
       method: 'POST',
@@ -102,6 +114,7 @@ async function searchWithServerlessFunction(
       results: data.results || [],
     };
   } catch {
+    signal?.throwIfAborted();
     return { available: false, results: [] };
   }
 }
@@ -145,15 +158,21 @@ Ejemplo:
 `;
 
 async function searchWithLocalDevAPI(query: string, signal?: AbortSignal): Promise<CIE10Entry[]> {
+  // A build-time guard also removes the local SDK import from production assets.
+  if (!import.meta.env.DEV) return [];
+  signal?.throwIfAborted();
   const providerConfig = getLocalDevProviderConfig();
-  if (!providerConfig || signal?.aborted) return [];
+  if (!providerConfig) return [];
 
   try {
     if (providerConfig.provider === 'gemini') {
+      const { GoogleGenAI } = await import('@google/genai');
+      signal?.throwIfAborted();
       const ai = new GoogleGenAI({ apiKey: providerConfig.apiKey });
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: buildLocalPrompt(query),
+        config: { abortSignal: signal },
       });
 
       return parseAIResults(response.text || '');
@@ -229,6 +248,7 @@ async function searchWithLocalDevAPI(query: string, signal?: AbortSignal): Promi
         .trim() || '';
     return parseAIResults(text);
   } catch (error) {
+    signal?.throwIfAborted();
     recordOperationalErrorTelemetry('integration', 'cie10_ai_local_fallback', error, {
       code: 'cie10_ai_local_fallback_failed',
       message: 'Fallo el fallback local de IA para CIE-10.',
@@ -255,22 +275,21 @@ export async function searchCIE10WithAI(
     async innerSignal => {
       const joinedSignal = innerSignal || signal;
       const serverlessResult = await searchWithServerlessFunction(query, joinedSignal);
+      joinedSignal?.throwIfAborted();
 
       if (serverlessResult.available) {
-        aiAvailabilityChecked = true;
-        aiIsAvailable = true;
+        rememberAvailability(true);
         return serverlessResult.results;
       }
 
       const localResults = await searchWithLocalDevAPI(query, joinedSignal);
+      joinedSignal?.throwIfAborted();
       if (localResults.length > 0) {
-        aiAvailabilityChecked = true;
-        aiIsAvailable = true;
+        rememberAvailability(true);
         return localResults;
       }
 
-      aiAvailabilityChecked = true;
-      aiIsAvailable = false;
+      rememberAvailability(false);
       return [];
     },
     signal
@@ -278,32 +297,39 @@ export async function searchCIE10WithAI(
 }
 
 export async function checkAIAvailability(): Promise<boolean> {
-  if (aiAvailabilityChecked) {
-    return aiIsAvailable;
-  }
+  if (Date.now() < availabilityExpiresAt) return aiIsAvailable;
+  if (availabilityCheck) return availabilityCheck;
 
-  try {
-    const authHeaders = await resolveCurrentUserAuthHeaders();
-    const requestBody: Cie10SearchRequest = Cie10SearchRequestSchema.parse({ query: '' });
-    const response = await fetch('/.netlify/functions/cie10-ai-search', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders },
-      body: JSON.stringify(requestBody),
-    });
+  const version = availabilityVersion;
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<{ available: boolean }>(resolve => {
+    timer = setTimeout(() => {
+      controller.abort();
+      resolve({ available: false });
+    }, AVAILABILITY_TIMEOUT_MS);
+  });
 
-    if (response.ok) {
-      const data = Cie10SearchResponseSchema.parse(await response.json());
-      const isAvailable = data.available === true;
-      aiAvailabilityChecked = true;
-      aiIsAvailable = isAvailable;
-      if (isAvailable) return true;
+  availabilityCheck = (async () => {
+    let available = false;
+    try {
+      const result = await Promise.race([
+        searchWithServerlessFunction('', controller.signal),
+        deadline,
+      ]);
+      available = result.available;
+    } catch {
+      // A deadline or unavailable endpoint must not disable AI for the whole session.
+    } finally {
+      clearTimeout(timer);
     }
-  } catch {
-    // Serverless unavailable in local dev
-  }
 
-  const hasLocalFallback = Boolean(getLocalDevProviderConfig());
-  aiAvailabilityChecked = true;
-  aiIsAvailable = hasLocalFallback;
-  return hasLocalFallback;
+    // A completed search is newer evidence than this probe.
+    if (version !== availabilityVersion) return aiIsAvailable;
+    return rememberAvailability(available || Boolean(getLocalDevProviderConfig()));
+  })().finally(() => {
+    availabilityCheck = null;
+  });
+
+  return availabilityCheck;
 }

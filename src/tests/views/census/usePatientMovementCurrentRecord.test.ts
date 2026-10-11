@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { usePatientMovementCurrentRecord } from '@/features/census/hooks/usePatientMovementCurrentRecord';
+import { usePatientMovementCurrentRecord } from '@/hooks/usePatientMovementCurrentRecord';
 
 describe('usePatientMovementCurrentRecord', () => {
   it('returns undefined and does not execute operation when current record is null', () => {

@@ -91,8 +91,16 @@ todas las muestras. Si output existe se falla, no se reutiliza ni borra automát
 Scripts integrados: `npm run test:e2e:census-performance` y `npm run test:census-performance-report`.
 
 El banco complementario `npm run test:e2e:census-interactions` usa el mismo servidor aislado
-con un registro sintético. Mide cinco aperturas del editor de diagnóstico y del panel clínico;
-`test-results/census-interactions/summary.json` conserva únicamente tiempos y nombres de acción.
+con un censo sintético de 18 camas regulares ocupadas, una cama extra activa y dos cunas clínicas.
+Su configuración Firebase también es sintética y explícita: no lee credenciales de archivos
+`.env` ni requiere sobrescribirlas para ejecutar la medición local. Navega por `/census` y
+conserva el bloqueo de tráfico externo, escrituras HTTP y WebSockets externos.
+Verifica los 21 pacientes renderizados antes de cada muestra, incluyendo filas con y sin signos
+vitales y dispositivos. Mide cinco aperturas del editor de diagnóstico y del panel clínico;
+`test-results/census-interactions/summary.json` conserva tiempos, nombres de acción y recuentos
+de la cohorte. La etiqueta `isolated-synthetic-full-census-v1` distingue esta medición del banco
+anterior de un paciente: sus tiempos no se mezclan. El banco de arranque y sus presupuestos
+permanecen independientes y conservan su fixture y tamaño de muestra.
 El resultado es una señal de comparación, no un presupuesto de aprobación: cinco muestras no
 justifican un umbral estadístico y el doble `requestAnimationFrame` indica oportunidad de pintado,
 no presentación física de píxeles. CI lo adjunta al artefacto de performance de producción.
@@ -157,7 +165,7 @@ La etiqueta runner no verifica hardware/carga/configuración: el operador debe i
 Recolectar baseline genuino y estabilizar runner antes de imponer este gate adicional.
 Cualquier tolerancia futura necesita datos y revisión, no umbrales inventados.
 
-## Evidencia de implementación
+## Evidencia histórica de implementación inicial
 
 - 32 tests del validador pasan, incluyendo muestras faltantes, NaN, scopes/IDs duplicados,
   incomplete, mismatch de entorno/baseline, smoke y lectura de budgets existentes.
@@ -167,9 +175,9 @@ Cualquier tolerancia futura necesita datos y revisión, no umbrales inventados.
 - Playwright discovery identifica 1 test de medición con 30 muestras por escenario.
 - Smoke development intentado: servidor arrancó, pero Chromium no pudo iniciar por
   `MachPortRendezvousServer: Permission denied (1100)` del entorno de ejecución.
-- **No hay ejecución integrada válida ni cifras p50/p95 reales de la aplicación.** No se
-  inventan reportes ni mejoras. Ejecutar en runner con permiso para lanzar Chromium una
-  vez integrada la instrumentación.
+- En aquella ejecución no se obtuvieron cifras integradas: el arranque de Chromium quedó
+  bloqueado por el entorno. Este resultado histórico no describe las ejecuciones posteriores
+  ni permite inferir mejoras de latencia.
 
 ## Captura en la aplicación real
 
@@ -207,3 +215,62 @@ Cuando la tabla no llega a estar poblada, el banco adjunta un estado estructural
 sesión de una compilación lenta. Se conservan captura y traza solo en fallo; el fixture es
 sintético, sin pacientes ni credenciales reales. El tiempo máximo del job de CI es un techo,
 no una expectativa.
+
+## Continuidad al ingresar y recargar (1 octubre 2026)
+
+En Chrome local con sesión real en `hhr-pruebas`, una recarga reproducía tres
+montajes DOM distintos de la cabecera del censo: el primer render, una readmisión
+de la sesión restaurada y la inserción tardía del proveedor de recordatorios.
+El HAR asociado mostraba una sola navegación; no era una segunda descarga del
+documento. La instrumentación temporal midió identidad de nodos y estados de
+auth, sin contenidos clínicos, y se retiró antes del commit.
+
+La resolución directa de auth y el primer evento del observer pueden representar
+la misma sesión. Se omite solamente ese primer eco autorizado si coinciden UID,
+perfil, rol y especialidades. La admisión original sigue esperando el almacenamiento;
+no se omiten cambios de permisos, identidad, eventos posteriores ni revocaciones.
+El contexto ligero de recordatorios permanece montado desde el primer render y
+recibe el valor del runtime diferido sin envolver de nuevo la interfaz clínica.
+Si ese chunk opcional falla, el censo permanece utilizable.
+
+La comprobación local posterior observó un solo montaje de la cabecera. Esto
+acredita continuidad de la interfaz en el recorrido probado, no un porcentaje de
+mejora de latencia ni un resultado equivalente en cada navegador o despliegue.
+Las regresiones automatizadas comprueban identidad DOM, conservación de un
+borrador, actualización de recordatorios, fallo del chunk y las barreras de
+admisión/cierre de sesión.
+
+## Revisión del coste de CI — 2026-10-02 (America/Santiago)
+
+Se revisaron tres ejecuciones de `main`:
+[37081755881](https://github.com/DanielOpazoD/HHR-entornodeprueba/actions/runs/37081755881),
+[37081345404](https://github.com/DanielOpazoD/HHR-entornodeprueba/actions/runs/37081345404) y
+[37078273780](https://github.com/DanielOpazoD/HHR-entornodeprueba/actions/runs/37078273780).
+La etapa de medición en development duró respectivamente 471, 698 y 898 segundos;
+fue el principal coste observado. Son observaciones históricas, no un presupuesto
+nuevo ni el tiempo esperado de cada ejecución futura.
+
+El banco conserva un solo servidor, un calentamiento excluido y navegaciones
+secuenciales con 30 muestras por escenario en pushes. No hay una espera fija ni
+un build repetido por muestra que retirar. No se cambió el banco para reducir su
+tiempo: paralelizar muestras, activar HTTP cache o reducirlas alteraría el contrato.
+Una optimización posterior debe investigar el arranque de la aplicación con
+mediciones comparables; no atribuir al CI un ahorro obtenido cambiando la prueba.
+
+## Lecturas del cuadro de copia bajo demanda — 2026-10-03
+
+`useCensusLogic` habilita `useCensusPromptState` solamente cuando no existe un objeto
+`beds`, la misma condición que selecciona `EmptyDayPrompt`. Con un registro cargado
+no se consultan el día previo ni las fechas recientes para un cuadro invisible, y
+no se escuchan cambios de almacenamiento destinados a refrescar ese cuadro.
+Al pasar a un día vacío vuelven a ejecutarse ambos lectores existentes; se conservan
+sus fallbacks, límites y controles de acceso. Una lectura ya iniciada no se cancela
+en el repositorio, pero su respuesta se descarta si deja de ser pertinente.
+
+La regresión `src/tests/hooks/useCensusPromptState.test.ts` reprodujo cinco
+invocaciones del lector de día previo durante montaje, cambio de día, remontaje
+(equivalente al ciclo del hook tras F5) y eventos de almacenamiento, aun sin necesitar
+el cuadro. Después del cambio exige cero invocaciones de ambos lectores en ese
+recorrido, y verifica reactivación y aislamiento por fecha. Es evidencia de trabajo
+eliminado en el hook, no una medida de segundos ahorrados en F5 ni de latencia remota.
+Los bancos de navegador mantienen sus escenarios y presupuestos sin cambios.

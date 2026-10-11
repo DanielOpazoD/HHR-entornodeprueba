@@ -60,12 +60,27 @@ export interface RayenClinicalEnrichmentBatchResponse {
   targetScope?: 'current' | 'historical';
   transactionAttempts?: number;
   transactionRetries?: number;
+  /** Optional numeric server phases. Older deployed callables omit these measurements. */
+  serverTimingsMs?: {
+    authorizationMs?: number;
+    transactionMs?: number;
+    telemetryMs?: number;
+    handlerMs?: number;
+  };
+  /** Aggregate across transaction attempts. No clinical fields or document identifiers. */
+  transactionTimingsMs?: {
+    callbackMs: number;
+    documentReadMs: number;
+    specialtyAuditMs: number;
+    otherCallbackMs: number;
+    outsideCallbackMs: number;
+  };
 }
 
 export const callRayenClinicalEnrichmentBatch = async (
   payload: RayenClinicalEnrichmentBatchPayload
 ): Promise<RayenClinicalEnrichmentBatchResponse> => {
-  const functions = await defaultFunctionsRuntime.getFunctions();
+  const functions = await defaultFunctionsRuntime.getRegionalFunctions('southamerica-east1');
   const callable = httpsCallable<
     RayenClinicalEnrichmentBatchPayload,
     RayenClinicalEnrichmentBatchResponse

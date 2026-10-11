@@ -106,6 +106,16 @@ export const buildStructuralReviewEvidence = (
     .map(conflict => ({
       bedId: conflict.bedId,
       reason: conflict.code ?? ('unclassified' as const),
+      ...(conflict.caseContext
+        ? {
+            caseContext: {
+              patientName: conflict.caseContext.patientName,
+              censusDate: conflict.caseContext.censusDate,
+              bedId: conflict.caseContext.bedId,
+              isClinicalCrib: conflict.caseContext.isClinicalCrib === true,
+            },
+          }
+        : {}),
     }));
   const deferredHistoricalAdmissionBedIds = handoff.deferredHistoricalAdmissionBedIds?.slice(
     0,
@@ -113,6 +123,7 @@ export const buildStructuralReviewEvidence = (
   );
   return {
     structureConfirmed: true,
+    snapshotComplete: handoff.snapshotComplete === true,
     historicalCorrectionsPending: handoff.historicalCorrectionsPending === true,
     historicalCorrectionsRequireFreshCapture:
       handoff.historicalCorrectionsRequireFreshCapture === true,
@@ -132,12 +143,14 @@ export const resolveClinicalStageResult = (
 ): ClinicalStageResult => {
   if (summary.errors.length === 0 && !completionFailed) return { status: 'complete' };
   const hasRetryableCudyrOutage = summary.errors.some(
-    error => error.bedId === '*' && error.source === 'cudyr'
+    error => error.bedId === '*' && (error.source === 'cudyr' || error.source === 'bed_history')
   );
   const hasGlobalFailure = completionFailed || summary.errors.some(error => error.bedId === '*');
   const hasTerminalGlobalFailure =
     completionFailed ||
-    summary.errors.some(error => error.bedId === '*' && error.source !== 'cudyr');
+    summary.errors.some(
+      error => error.bedId === '*' && error.source !== 'cudyr' && error.source !== 'bed_history'
+    );
   const failedBedIds = hasGlobalFailure
     ? undefined
     : new Set(summary.errors.map(error => error.bedId));

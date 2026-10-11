@@ -73,7 +73,10 @@ export const MoveCopyModal: React.FC<MoveCopyModalProps> = ({
         : [],
     [currentRecord, selectedDate, sourceBedId, targetBedId, resolvedTargetRecord]
   );
-  const canConfirm = canConfirmSelection && !isTargetLoading;
+  const canConfirm =
+    canConfirmSelection &&
+    !isTargetLoading &&
+    bedOptions.some(bed => bed.id === targetBedId && !bed.isDisabled);
   const handleConfirmAction = () => {
     if (!canConfirm) {
       return;

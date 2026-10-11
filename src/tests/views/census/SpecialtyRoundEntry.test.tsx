@@ -1,22 +1,60 @@
+import { SpecialtyRoundLoadingTrigger } from '@/features/census/components/specialty-round/SpecialtyRoundTrigger';
 import React from 'react';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SpecialtyRoundEntry } from '@/features/census/components/specialty-round/SpecialtyRoundEntry';
 
 const role = vi.hoisted(() => ({ value: 'admin' }));
+const enabled = vi.hoisted(() => ({ value: true }));
 const candidates = vi.hoisted(() => ({ count: 1 }));
 vi.mock('@/context/DailyRecordContext', () => ({ useDailyRecordBeds: () => ({}) }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ role: role.value }) }));
-vi.mock('@/hooks/useFeatureFlag', () => ({ useFeatureFlag: () => true }));
+vi.mock('@/hooks/useFeatureFlag', () => ({ useFeatureFlag: () => enabled.value }));
 vi.mock('@/utils/clinicalTimeZone', () => ({ getClinicalCalendarDateISO: () => '2026-09-24' }));
 vi.mock('@/features/census/components/specialty-round/specialtyRoundModel', () => ({
   buildSpecialtyRoundCandidates: () => Array.from({ length: candidates.count }),
 }));
 
+vi.mock('@/features/census/components/specialty-round/SpecialtyRulesWindow', () => ({
+  SpecialtyRulesWindow: ({ onClose }: { onClose: () => void }) => (
+    <div role="dialog" aria-label="Reglas de especialidades">
+      <button onClick={onClose}>Cerrar reglas</button>
+    </div>
+  ),
+}));
+
 describe('SpecialtyRoundEntry', () => {
   beforeEach(() => {
+    enabled.value = true;
     role.value = 'admin';
     candidates.count = 1;
+  });
+
+  it('offers the same admin actions as an icon and reports window lifetime', async () => {
+    const onWindowChange = vi.fn();
+    render(
+      <SpecialtyRoundEntry
+        date="2026-09-24"
+        disabled={false}
+        compact
+        onWindowChange={onWindowChange}
+      />
+    );
+    expect(screen.queryByText('Especialidades')).toBeNull();
+    fireEvent.click(screen.getByTitle('Opciones de especialidades del censo'));
+    fireEvent.click(screen.getByRole('button', { name: 'Reglas automáticas' }));
+    expect(await screen.findByRole('dialog', { name: 'Reglas de especialidades' })).toBeVisible();
+    expect(onWindowChange).toHaveBeenCalledWith(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar reglas' }));
+    await waitFor(() => expect(onWindowChange).toHaveBeenLastCalledWith(false));
+  });
+
+  it('reserves a disabled specialty trigger only when the feature is enabled', () => {
+    const { rerender } = render(<SpecialtyRoundLoadingTrigger />);
+    expect(screen.getByRole('button', { name: 'Especialidades' })).toBeDisabled();
+    enabled.value = false;
+    rerender(<SpecialtyRoundLoadingTrigger />);
+    expect(screen.queryByText('Especialidades')).not.toBeInTheDocument();
   });
 
   it('shows one quiet menu with rules and round actions for an administrator', () => {

@@ -77,7 +77,11 @@ export const buildOperationalTelemetrySummary = (
         isObservedOperationalTelemetryStatus(event.status)
     ).length,
     dailyRecordRecoveredRealtimeNullCount: countOperation('recovered_null_realtime_record'),
-    dailyRecordConfirmedRealtimeNullCount: countOperation('confirmed_null_realtime_record'),
+    // Previous producers also used this operation for blocked, unavailable reads.
+    dailyRecordConfirmedRealtimeNullCount: recentEvents.filter(
+      event =>
+        event.operation === 'confirmed_null_realtime_record' && event.runtimeState === 'retryable'
+    ).length,
     syncReadUnavailableCount:
       countOperation('sync_queue_telemetry_unavailable') +
       countOperation('sync_queue_stats_unavailable') +

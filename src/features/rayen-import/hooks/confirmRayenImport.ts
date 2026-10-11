@@ -28,6 +28,8 @@ const stableStringify = (value: unknown): string => {
 };
 
 const comparableStructuralPlan = (diff: CensusImportDiff) => ({
+  neonatalSourceChanges: diff.neonatalSourceChanges ?? [],
+  neonatalPlacementReviews: diff.neonatalPlacementReviews ?? [],
   admissions: diff.admissions,
   updates: diff.updates,
   moves: diff.moves,
@@ -38,6 +40,7 @@ const comparableStructuralPlan = (diff: CensusImportDiff) => ({
   bedOccupancyCollisionResolutions: diff.bedOccupancyCollisionResolutions,
   activeClinicalCribs: diff.activeClinicalCribs,
   reportEgresos: diff.reportEgresos,
+  clinicalCribDischargeRepairs: diff.clinicalCribDischargeRepairs ?? [],
   previousDayEdits: diff.previousDayEdits,
   previousDayAdmissionCandidates: diff.previousDayAdmissionCandidates,
   deferredHistoricalAdmissionBedIds: diff.deferredHistoricalAdmissionBedIds,

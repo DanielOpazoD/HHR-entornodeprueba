@@ -1,3 +1,4 @@
+import { isNeonatalPatient } from './clinicalCribMaternalAssociation';
 import type { FieldChange } from '../contracts/censusImportDiff';
 import type { PatientData } from '../contracts/rayenDomainContracts';
 import { normalizeRut } from '@/utils/rutUtils';
@@ -64,6 +65,29 @@ export const diffSyncablePatientFields = (
     )
       continue;
     if (String(from ?? '') !== String(to ?? '')) changes.push({ field, from, to });
+  }
+  if (
+    incoming.neonatalMaternalRut &&
+    current.neonatalMaternalRut !== incoming.neonatalMaternalRut
+  ) {
+    changes.push({
+      field: 'neonatalMaternalRut',
+      from: current.neonatalMaternalRut,
+      to: incoming.neonatalMaternalRut,
+    });
+  }
+  // Keep identity status consistent for this exact neonatal episode.
+  if (
+    (isNeonatalPatient(current) || isNeonatalPatient(incoming)) &&
+    current.clinicalEpisodeId === incoming.clinicalEpisodeId &&
+    incoming.identityStatus &&
+    current.identityStatus !== incoming.identityStatus
+  ) {
+    changes.push({
+      field: 'identityStatus',
+      from: current.identityStatus,
+      to: incoming.identityStatus,
+    });
   }
   return changes;
 };

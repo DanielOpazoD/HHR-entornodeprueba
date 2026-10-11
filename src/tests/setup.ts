@@ -1,19 +1,16 @@
 import 'fake-indexeddb/auto';
-import '@testing-library/jest-dom';
-import { expect, afterEach, vi } from 'vitest';
-import { cleanup } from '@testing-library/react';
-import * as matchers from '@testing-library/jest-dom/matchers';
+import { afterEach, vi } from 'vitest';
 import { wrapConsoleForOperationalNoise } from '@/tests/utils/operationalConsoleNoiseFilter';
 
-// Extend Vitest's expect with jest-dom matchers
-expect.extend(matchers);
+// DOM matchers and React cleanup are only needed by suites with a document.
+// Keep persistence/auth fixtures below available in both jsdom and Node.
+if (typeof document !== 'undefined') {
+  await import('@testing-library/jest-dom/vitest');
+  const { cleanup } = await import('@testing-library/react');
+  afterEach(() => cleanup());
+}
 
 wrapConsoleForOperationalNoise(['log', 'warn', 'error', 'info', 'debug']);
-
-// Cleanup after each test case
-afterEach(() => {
-  cleanup();
-});
 
 // Mock localStorage and sessionStorage for JSDOM
 // We use a more direct approach here to ensure availability during module evaluation

@@ -14,6 +14,7 @@ const readsForIssue = (
     case 'staffing':
       return ['history'];
     case 'cudyr':
+    case 'bed_history':
       return ['cudyr'];
     default:
       return undefined;
@@ -28,7 +29,11 @@ export const selectClinicalRetryReads = (
   if (
     !errors.length ||
     errors.some(
-      error => error.bedId === '*' && error.source !== 'cudyr' && error.source !== 'staffing'
+      error =>
+        error.bedId === '*' &&
+        error.source !== 'cudyr' &&
+        error.source !== 'bed_history' &&
+        error.source !== 'staffing'
     )
   ) {
     return undefined;

@@ -75,6 +75,23 @@ describe('mapDestinoDeAlta', () => {
   });
 });
 describe('applyEgresoReport', () => {
+  it('preserves the exact episode death flag for an occupied bed instead of defaulting to alive', () => {
+    const current = makeRecord({ R2: { ...patient('11111111-1'), clinicalEpisodeId: 'case-1' } });
+    const result = applyEgresoReport(
+      makeDiff(),
+      [
+        row({
+          run: '11111111-1',
+          encounterId: 'case-1',
+          destino: 'Domicilio',
+          dischargeStatus: 'Fallecido',
+        }),
+      ],
+      current
+    );
+    expect(result.discharges).toMatchObject([{ status: 'Fallecido', encounterId: 'case-1' }]);
+  });
+
   it('creates the definitive movement for an occupied patient and removes provisional Ficha plans', () => {
     const current = makeRecord({ R2: patient('28.663.707-8', 'Isidora Soto') });
     const diff = makeDiff({

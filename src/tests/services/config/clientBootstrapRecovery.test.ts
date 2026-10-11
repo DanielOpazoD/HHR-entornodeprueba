@@ -87,6 +87,50 @@ describe('prepareClientBootstrap', () => {
     );
   });
 
+  it('shares concurrent recovery and releases it after completion', async () => {
+    const response = Promise.withResolvers<Response>();
+    vi.mocked(fetch).mockReturnValueOnce(response.promise);
+    mockGetLocalStorageItem.mockReturnValue('deploy-001');
+    const first = prepareClientBootstrap();
+    const second = prepareClientBootstrap();
+    const third = prepareClientBootstrap();
+    response.resolve(
+      new Response(JSON.stringify({ version: 'deploy-002' }), {
+        headers: { 'content-type': 'application/json' },
+      })
+    );
+    await Promise.all([first, second, third]);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(mockReload).toHaveBeenCalledTimes(1);
+    expect(mockSetLocalStorageItem).toHaveBeenCalledTimes(1);
+    mockGetLocalStorageItem.mockReturnValue('deploy-002');
+    await prepareClientBootstrap();
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(mockReload).toHaveBeenCalledTimes(1);
+  });
+
+  it('shares a failed worker read without preventing the next attempt', async () => {
+    const registrations = Promise.withResolvers<readonly ServiceWorkerRegistration[]>();
+    vi.mocked(navigator.serviceWorker.getRegistrations).mockReturnValueOnce(registrations.promise);
+    const first = prepareClientBootstrap();
+    const second = prepareClientBootstrap();
+    const outcomes = Promise.allSettled([first, second]);
+    registrations.reject(new Error('worker read unavailable'));
+    expect((await outcomes).map(result => result.status)).toEqual(['rejected', 'rejected']);
+    expect(navigator.serviceWorker.getRegistrations).toHaveBeenCalledTimes(1);
+    await expect(prepareClientBootstrap()).resolves.toEqual({ status: 'continue', reason: null });
+    expect(navigator.serviceWorker.getRegistrations).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not cache an offline version response across later checks', async () => {
+    vi.mocked(fetch).mockRejectedValueOnce(new Error('offline'));
+    mockGetLocalStorageItem.mockReturnValue(null);
+    await expect(prepareClientBootstrap()).resolves.toMatchObject({ status: 'continue' });
+    await expect(prepareClientBootstrap()).resolves.toMatchObject({ status: 'continue' });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(mockSetLocalStorageItem).toHaveBeenLastCalledWith('hhr_app_version', 'deploy-002');
+  });
+
   it('stores the current version on first bootstrap visit', async () => {
     mockGetLocalStorageItem.mockReturnValue(null);
 

@@ -45,6 +45,7 @@ describe('useDailyRecordQuery', () => {
   });
 
   beforeEach(() => {
+    vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-04-03T12:00:00.000Z'));
     setFirestoreEnabled(true);
     resetDailyRecordFreshnessGateForTests();
     focusManager.setFocused(true);
@@ -85,7 +86,7 @@ describe('useDailyRecordQuery', () => {
       });
       await waitFor(() => expect(result.current.isSuccess).toBe(true));
       expect(dailyRecord.getForDateWithMeta).toHaveBeenCalledTimes(1);
-      const startedAt = Date.now();
+      const startedAt = Date.parse('2026-04-03T12:00:00.000Z');
       act(() => {
         if (reconnect) onlineManager.setOnline(false);
         else {

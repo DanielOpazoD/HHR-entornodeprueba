@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -243,7 +244,8 @@ describe('ci runtime telemetry support', () => {
       observedProfile: {
         ...buildCiRuntimeObservedProfile({ jobs: completedShardJobs, tolerancePercent: 25 }),
         summary: {
-          ...buildCiRuntimeObservedProfile({ jobs: completedShardJobs, tolerancePercent: 25 }).summary,
+          ...buildCiRuntimeObservedProfile({ jobs: completedShardJobs, tolerancePercent: 25 })
+            .summary,
           totalDurationMs: 1000000,
         },
         shards: [{ index: 1, durationMs: 1600 }],

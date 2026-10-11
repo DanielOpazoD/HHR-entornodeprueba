@@ -14,7 +14,7 @@ import type {
   ClinicalPanelEntry,
   ClinicalPanelIndicationDay,
   EvolutionProfession,
-} from '@/features/rayen-import';
+} from '@/features/rayen-import/clinical-panel';
 
 /** Soft role-chip color per profession bucket, so the author's discipline reads without shouting. */
 const PROFESSION_CHIP: Record<EvolutionProfession, string> = {

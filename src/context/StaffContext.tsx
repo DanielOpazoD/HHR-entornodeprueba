@@ -4,7 +4,7 @@
  * Now integrated with TanStack Query for data fetching and sync.
  */
 
-import React, { createContext, useContext, useMemo, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useCallback, useMemo, useState, ReactNode } from 'react';
 import {
   useNursesQuery,
   useTensQuery,
@@ -19,6 +19,8 @@ import type { EloisaStaffIdentity } from '@/services/staff/eloisaStaffIdentity';
 import { useStaffUsage } from '@/hooks/useStaffUsage';
 import type { StaffUsage } from '@/services/staff/staffUsage';
 
+const NO_STAFF_NAMES: string[] = [];
+const NO_PROFESSIONALS: ProfessionalCatalogItem[] = [];
 const NO_STAFF_IDENTITIES: EloisaStaffIdentity[] = [];
 
 // ============================================================================
@@ -63,54 +65,81 @@ interface StaffProviderProps {
 export const StaffProvider: React.FC<StaffProviderProps> = ({ children }) => {
   // 1. Data Fetching via TanStack Query
   const {
-    data: nurses = [],
+    data: nurses = NO_STAFF_NAMES,
     isLoading: nursesLoading,
     identities: staffIdentities = NO_STAFF_IDENTITIES,
   } = useNursesQuery();
   const staffUsage = useStaffUsage(staffIdentities);
-  const { data: tens = [], isLoading: tensLoading } = useTensQuery();
-  const { data: professionals = [], isLoading: professionalsLoading } = useProfessionalsQuery();
+  const { data: tens = NO_STAFF_NAMES, isLoading: tensLoading } = useTensQuery();
+  const { data: professionals = NO_PROFESSIONALS, isLoading: professionalsLoading } =
+    useProfessionalsQuery();
   const reconciledNurses = useMemo(() => reconcileNurseCatalogNames(nurses), [nurses]);
 
   // 2. Mutations for saving
-  const saveNursesMutation = useSaveNursesMutation();
-  const saveTensMutation = useSaveTensMutation();
-  const saveProfessionalsMutation = useSaveProfessionalsMutation();
+  const { mutate: saveNurses } = useSaveNursesMutation();
+  const { mutate: saveTens } = useSaveTensMutation();
+  const { mutate: saveProfessionals } = useSaveProfessionalsMutation();
 
   // 3. Manager modal visibility state
   const [showNurseManager, setShowNurseManager] = useState(false);
   const [showTensManager, setShowTensManager] = useState(false);
 
   // Compatibility setters (now trigger mutations)
-  const setNursesList = (updatedNurses: string[]) => {
-    saveNursesMutation.mutate(reconcileNurseCatalogNames(updatedNurses));
-  };
+  const setNursesList = useCallback(
+    (updatedNurses: string[]) => {
+      saveNurses(reconcileNurseCatalogNames(updatedNurses));
+    },
+    [saveNurses]
+  );
 
-  const setTensList = (updatedTens: string[]) => {
-    saveTensMutation.mutate(updatedTens);
-  };
+  const setTensList = useCallback(
+    (updatedTens: string[]) => {
+      saveTens(updatedTens);
+    },
+    [saveTens]
+  );
 
-  const setProfessionalsCatalog = (updatedProfessionals: ProfessionalCatalogItem[]) => {
-    saveProfessionalsMutation.mutate(updatedProfessionals);
-  };
+  const setProfessionalsCatalog = useCallback(
+    (updatedProfessionals: ProfessionalCatalogItem[]) => {
+      saveProfessionals(updatedProfessionals);
+    },
+    [saveProfessionals]
+  );
 
-  const value: StaffContextType = {
-    staffIdentities,
-    staffUsage,
-    nursesList: reconciledNurses,
-    setNursesList,
-    nursesLoading,
-    tensList: tens,
-    setTensList,
-    tensLoading,
-    professionalsCatalog: professionals,
-    setProfessionalsCatalog,
-    professionalsLoading,
-    showNurseManager,
-    setShowNurseManager,
-    showTensManager,
-    setShowTensManager,
-  };
+  const value = useMemo<StaffContextType>(
+    () => ({
+      staffIdentities,
+      staffUsage,
+      nursesList: reconciledNurses,
+      setNursesList,
+      nursesLoading,
+      tensList: tens,
+      setTensList,
+      tensLoading,
+      professionalsCatalog: professionals,
+      setProfessionalsCatalog,
+      professionalsLoading,
+      showNurseManager,
+      setShowNurseManager,
+      showTensManager,
+      setShowTensManager,
+    }),
+    [
+      staffIdentities,
+      staffUsage,
+      reconciledNurses,
+      setNursesList,
+      nursesLoading,
+      tens,
+      setTensList,
+      tensLoading,
+      professionals,
+      setProfessionalsCatalog,
+      professionalsLoading,
+      showNurseManager,
+      showTensManager,
+    ]
+  );
 
   return <StaffContext.Provider value={value}>{children}</StaffContext.Provider>;
 };

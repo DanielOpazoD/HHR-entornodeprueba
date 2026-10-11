@@ -151,7 +151,6 @@ updates:
       css-toolchain-minor:
         patterns:
           - '@tailwindcss/*'
-          - autoprefixer
           - postcss
           - tailwindcss
         update-types:
@@ -159,7 +158,6 @@ updates:
           - minor
       typescript-docs-toolchain-minor:
         patterns:
-          - '@types/jspdf'
           - '@types/node'
           - '@types/qrcode'
           - ts-node

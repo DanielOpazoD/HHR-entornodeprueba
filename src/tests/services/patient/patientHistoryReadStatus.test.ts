@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
@@ -22,6 +24,9 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   saveRecords,
 }));
 vi.mock('@/services/storage/firestore', () => ({
+  getRecordPagesFromFirestore: async function* () {
+    yield Object.values(await getAllRecordsFromFirestore({ requireServer: true }));
+  },
   getAllRecordsFromFirestore,
   getRecordsRangeFromFirestore,
 }));

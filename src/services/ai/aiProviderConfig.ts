@@ -57,6 +57,8 @@ export const isLocalAIAvailable = (): boolean => !!getLocalDevProviderConfig();
  * @returns Raw text response from the AI provider, or empty string on failure.
  */
 export const callLocalAI = async (prompt: string): Promise<string> => {
+  // A build-time guard keeps local-only providers out of the production bundle.
+  if (!import.meta.env.DEV) return '';
   const config = getLocalDevProviderConfig();
   if (!config) return '';
 

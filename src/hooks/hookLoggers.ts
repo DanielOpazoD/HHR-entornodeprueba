@@ -9,7 +9,6 @@ export const excelParserLogger = createScopedLogger('useExcelParser');
 export const existingDaysLogger = createScopedLogger('useExistingDays');
 export const medicalHandoffHandlersLogger = createScopedLogger('useMedicalHandoffHandlers');
 export const patientAnalysisLogger = createScopedLogger('usePatientAnalysis');
-export const patientAutocompleteLogger = createScopedLogger('usePatientAutocomplete');
 export const storageMigrationLogger = createScopedLogger('useStorageMigration');
 export const syncQueueMonitorLogger = createScopedLogger('useSyncQueueMonitor');
 export const systemHealthReporterLogger = createScopedLogger('SystemHealthReporter');

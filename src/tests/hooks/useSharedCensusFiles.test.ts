@@ -1,6 +1,7 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { useSharedCensusFiles } from '@/hooks/useSharedCensusFiles';
+import type { CensusAccessUser } from '@/types/censusAccess';
 import type { StoredCensusFile } from '@/types/backupArtifacts';
 import {
   executeLoadSharedCensusFiles,
@@ -33,6 +34,8 @@ describe('useSharedCensusFiles', () => {
     size: 1200,
   };
 
+  afterEach(() => vi.restoreAllMocks());
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(executeLoadSharedCensusFiles).mockResolvedValue({
@@ -42,13 +45,11 @@ describe('useSharedCensusFiles', () => {
     });
   });
 
-  it('uses runtime alert for unauthorized download attempts', async () => {
-    const runtime = {
-      alert: vi.fn(),
-      open: vi.fn(),
-    };
+  it('uses browser alert for unauthorized download attempts', async () => {
+    const alert = vi.spyOn(window, 'alert').mockImplementation(() => undefined);
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null);
 
-    const { result } = renderHook(() => useSharedCensusFiles(accessUser, runtime));
+    const { result } = renderHook(() => useSharedCensusFiles(accessUser));
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -58,20 +59,18 @@ describe('useSharedCensusFiles', () => {
       await result.current.handlers.handleDownload(sampleFile);
     });
 
-    expect(runtime.alert).toHaveBeenCalledWith(
+    expect(alert).toHaveBeenCalledWith(
       'No tienes permisos de descarga. Contacta al administrador si necesitas el archivo.'
     );
-    expect(runtime.open).not.toHaveBeenCalled();
+    expect(open).not.toHaveBeenCalled();
   });
 
-  it('uses runtime open for downloader role', async () => {
-    const runtime = {
-      alert: vi.fn(),
-      open: vi.fn(),
-    };
+  it('opens an authorized download through the browser runtime', async () => {
+    const alert = vi.spyOn(window, 'alert').mockImplementation(() => undefined);
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null);
     const downloaderUser = { ...accessUser, role: 'downloader' as const };
 
-    const { result } = renderHook(() => useSharedCensusFiles(downloaderUser, runtime));
+    const { result } = renderHook(() => useSharedCensusFiles(downloaderUser));
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -81,7 +80,8 @@ describe('useSharedCensusFiles', () => {
       await result.current.handlers.handleDownload(sampleFile);
     });
 
-    expect(runtime.open).toHaveBeenCalledWith('https://example.com/file.xlsx', '_blank');
+    expect(alert).not.toHaveBeenCalled();
+    expect(open).toHaveBeenCalledWith('https://example.com/file.xlsx', '_blank');
     expect(executeLogSharedCensusAccess).toHaveBeenCalledWith(
       expect.objectContaining({
         action: 'download_file',
@@ -176,4 +176,28 @@ describe('useSharedCensusFiles', () => {
 
     expect(result.current.filteredFiles[0]?.fullPath).toBe('/censo/2026/02/new-file.xlsx');
   });
+  it.each(['success', 'failed'] as const)(
+    'discards a pending %s response after access is removed',
+    async status => {
+      let resolveLoad!: (value: Awaited<ReturnType<typeof executeLoadSharedCensusFiles>>) => void;
+      vi.mocked(executeLoadSharedCensusFiles).mockImplementationOnce(
+        () =>
+          new Promise(resolve => {
+            resolveLoad = resolve;
+          })
+      );
+      const { result, rerender } = renderHook(
+        ({ user }: { user: CensusAccessUser | null }) => useSharedCensusFiles(user),
+        { initialProps: { user: accessUser as CensusAccessUser | null } }
+      );
+      rerender({ user: null });
+      await act(async () => {
+        resolveLoad({ status, data: [sampleFile], issues: [] });
+      });
+      expect(result.current.files).toEqual([]);
+      expect(result.current.loadError).toBeNull();
+      expect(result.current.isLoading).toBe(false);
+      expect(executeLogSharedCensusAccess).not.toHaveBeenCalled();
+    }
+  );
 });

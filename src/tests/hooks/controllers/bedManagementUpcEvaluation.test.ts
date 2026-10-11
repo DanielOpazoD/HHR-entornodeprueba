@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect, vi } from 'vitest';
 import { executeBedManagementAction } from '@/hooks/controllers/bedManagementDispatchController';
 import { DataFactory } from '@/tests/factories/DataFactory';

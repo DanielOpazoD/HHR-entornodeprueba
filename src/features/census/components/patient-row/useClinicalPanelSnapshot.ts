@@ -5,7 +5,7 @@ import {
   type ClinicalPanel,
   type RayenClinicalPanelResult,
   type RayenPatientDocument,
-} from '@/features/rayen-import';
+} from '@/features/rayen-import/clinical-panel';
 
 export type PanelState =
   | { phase: 'loading' }

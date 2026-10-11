@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getGitReportState, formatWorktreeState } from './gitReportState.mjs';
-import { buildClinicalReleaseSignoffReport } from './clinicalReleaseSignoffSupport.mjs';
+import { collectClinicalReleaseCandidateIssues } from './clinicalReleaseSignoffSupport.mjs';
 
 const ROOT = process.cwd();
 const trackedReports = [
@@ -97,7 +97,11 @@ export const collectReleaseEvidenceIssues = (root = ROOT) => {
   }
 
   issues.push(...collectClinicalVisualReleaseEvidenceIssues(root));
-  issues.push(...collectClinicalReleaseSignoffEvidenceIssues(root));
+  issues.push(
+    ...collectClinicalReleaseCandidateIssues(root).map(
+      issue => `clinical release signoff: ${issue}`
+    )
+  );
 
   return issues;
 };
@@ -183,19 +187,6 @@ const collectClinicalVisualReleaseEvidenceIssues = root => {
   }
 
   return issues;
-};
-
-const collectClinicalReleaseSignoffEvidenceIssues = root => {
-  try {
-    const report = buildClinicalReleaseSignoffReport(root, { requirePassed: true });
-    return report.issues.map(issue => `clinical release signoff: ${issue}`);
-  } catch (error) {
-    return [
-      `clinical release signoff could not be validated: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    ];
-  }
 };
 
 const isMainModule = fileURLToPath(import.meta.url) === process.argv[1];

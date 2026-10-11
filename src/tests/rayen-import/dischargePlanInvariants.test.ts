@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { EMPTY_PATIENT } from '@/constants/patient';
 import type { CensusImportDiff } from '@/features/rayen-import';
-import { dedupeDischargesByBed } from '@/features/rayen-import/domain/dischargePlanInvariants';
+import {
+  dedupeDischargesByBed,
+  finalizeDischargePlan,
+} from '@/features/rayen-import/domain/dischargePlanInvariants';
 import { resolveReportedOccupant } from '@/features/rayen-import/domain/reportedOccupant';
 import {
   occupiedBedsByRun,
@@ -117,3 +120,66 @@ describe('dedupeDischargesByBed', () => {
   });
 });
 // @vitest-environment node
+
+// A fallback/report can arrive after the first preview already inferred the RN departure.
+describe('explicit newborn outcome precedence', () => {
+  it.each([true, false])(
+    'removes an earlier inferred association for the exact reported episode (complete=%s)',
+    snapshotComplete => {
+      const associated = { clinicalEpisodeId: '1002', patientName: 'RN sintético', rut: RUN };
+      const entry = discharge({ associatedClinicalCrib: associated });
+      const report = {
+        encounterId: '1002',
+        run: RUN,
+        patientName: 'RN sintético',
+        bedLabel: 'Cuna H5C1',
+        destino: 'Domicilio',
+        fechaEgreso: '02-09-2026 11:21',
+        kind: 'alta' as const,
+        status: 'Vivo' as const,
+        fromClinicalCrib: true,
+      };
+      const diff: CensusImportDiff = {
+        snapshotComplete,
+        admissions: [],
+        updates: [],
+        moves: [],
+        discharges: [],
+        pendingAdministrativeDischarges: [],
+        conflicts: [],
+        unchangedCount: 0,
+        summary: {
+          admissions: 0,
+          updates: 0,
+          moves: 0,
+          discharges: 0,
+          pendingAdministrativeDischarges: 0,
+          conflicts: 0,
+          unchanged: 0,
+        },
+        reportEgresos: [report],
+      };
+      const final = finalizeDischargePlan(diff, [entry], record);
+      expect(final).toHaveLength(1);
+      expect(final[0].associatedClinicalCrib).toBeUndefined();
+      expect(entry.associatedClinicalCrib).toBe(associated);
+      for (const correctedDay of ['2026-09-01', '2026-09-03']) {
+        const otherDay = finalizeDischargePlan(
+          { ...diff, reportEgresos: [{ ...report, correctedDay }] },
+          [entry],
+          record
+        );
+        expect(otherDay[0].associatedClinicalCrib?.clinicalEpisodeId).toBe('1002');
+      }
+      const unrelated = finalizeDischargePlan(
+        {
+          ...diff,
+          reportEgresos: [{ ...report, encounterId: 'another-episode' }],
+        },
+        [entry],
+        record
+      );
+      expect(unrelated[0].associatedClinicalCrib?.clinicalEpisodeId).toBe('1002');
+    }
+  );
+});

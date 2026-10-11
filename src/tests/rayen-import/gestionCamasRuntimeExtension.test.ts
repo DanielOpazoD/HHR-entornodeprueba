@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFixture, FINITE_SESSION_TIMESTAMP } from './gestionCamasRuntimeTestHarness';
 
 // Deliberately unsigned, generated test data; never an actual session credential.
@@ -7,6 +7,13 @@ const sessionTokenFixture = (expiresAt: number, signature: string) => {
   const payload = Buffer.from(JSON.stringify({ exp: expiresAt / 1000 })).toString('base64url');
   return ['Bearer fixture', payload, signature].join('.');
 };
+
+// Control Date only; preserve native timers and asynchronous I/O.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-09-30T12:00:00.000Z'));
+});
+afterEach(() => vi.useRealTimers());
 
 describe('Gestión de Camas connection runtime', () => {
   it('fails closed when its required dependencies are incomplete', () => {

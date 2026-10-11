@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
 import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
 import type { RayenImportState } from '@/features/rayen-import/hooks/rayenImportState';
@@ -200,6 +200,13 @@ const appliedState = (setState: ReturnType<typeof vi.fn>): RayenImportState =>
     (state, [update]) => (typeof update === 'function' ? update(state) : update),
     initialState
   );
+
+// Control Date only; preserve native timers and asynchronous I/O.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-09-30T12:00:00.000Z'));
+});
+afterEach(() => vi.useRealTimers());
 
 describe('useRayenSnapshotPreview structural persistence routes', () => {
   beforeEach(() => {

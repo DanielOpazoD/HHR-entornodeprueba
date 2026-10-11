@@ -2,6 +2,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { findTestModifiers } from './testGovernanceSupport.mjs';
 import { buildReleaseConfidenceMatrixReport } from './releaseConfidenceMatrixSupport.mjs';
 import { buildEvidenceProvenance } from './evidenceProvenanceSupport.mjs';
 import { getGitReportState } from './gitReportState.mjs';
@@ -103,6 +104,9 @@ const walkFiles = dirPath => {
   return files;
 };
 
+// Collect the source inventory once per CLI run; metric-specific filters stay unchanged.
+const sourceFiles = walkFiles(SRC_ROOT);
+
 const countLines = text => (text.length === 0 ? 0 : text.split('\n').length);
 
 const isTestFile = relative =>
@@ -139,7 +143,7 @@ const getStaticImportPaths = source => {
 };
 
 const getSourceMetrics = () => {
-  const files = walkFiles(SRC_ROOT).filter(filePath => {
+  const files = sourceFiles.filter(filePath => {
     const extension = path.extname(filePath);
     if (!SOURCE_EXTENSIONS.has(extension)) return false;
     if (filePath.endsWith('.d.ts')) return false;
@@ -179,7 +183,7 @@ const getModuleSizeMetrics = () => {
     ([, limit]) => typeof limit === 'number' && limit > globalMax
   );
 
-  const files = walkFiles(SRC_ROOT).filter(filePath => {
+  const files = sourceFiles.filter(filePath => {
     const extension = path.extname(filePath);
     if (!['.ts', '.tsx'].includes(extension)) return false;
     if (filePath.endsWith('.d.ts')) return false;
@@ -252,7 +256,7 @@ const getFolderDependencyDebtMetrics = () => {
   }
 
   const knownZones = new Set(Object.keys(matrix.zones));
-  const files = walkFiles(SRC_ROOT).filter(filePath => {
+  const files = sourceFiles.filter(filePath => {
     const extension = path.extname(filePath);
     if (!SOURCE_EXTENSIONS.has(extension)) return false;
     if (filePath.endsWith('.d.ts')) return false;
@@ -341,9 +345,6 @@ const getTestMetrics = () => {
   const flakeRiskFilePaths = [];
   let megatestFilesOver500 = 0;
 
-  const skipPattern = /\b(?:it|test|describe)\.skip\s*\(/g;
-  const onlyPattern = /\b(?:it|test|describe)\.only\s*\(/g;
-
   for (const filePath of testFiles) {
     const relative = toPosix(path.relative(ROOT, filePath));
     const content = fs.readFileSync(filePath, 'utf8');
@@ -352,12 +353,13 @@ const getTestMetrics = () => {
       megatestFilesOver500 += 1;
     }
 
-    const skipMatches = content.match(skipPattern)?.length || 0;
+    const modifiers = findTestModifiers(relative, content);
+    const skipMatches = modifiers.filter(modifier => modifier.rule === 'skip').length;
     if (!ALLOWED_SKIP_FILES.has(relative)) {
       skipCount += skipMatches;
     }
 
-    onlyCount += content.match(onlyPattern)?.length || 0;
+    onlyCount += modifiers.filter(modifier => modifier.rule === 'only').length;
 
     const hasNonDeterministicSignals =
       /Math\.random\s*\(/.test(content) ||
@@ -398,7 +400,7 @@ const getTestMetrics = () => {
 };
 
 const getTypeSafetySignals = () => {
-  const files = walkFiles(SRC_ROOT).filter(filePath => {
+  const files = sourceFiles.filter(filePath => {
     const extension = path.extname(filePath);
     return extension === '.ts' || extension === '.tsx';
   });
@@ -452,7 +454,7 @@ const getConvergenceSignals = () => {
       ];
     })
   );
-  const files = walkFiles(SRC_ROOT).filter(filePath => {
+  const files = sourceFiles.filter(filePath => {
     const extension = path.extname(filePath);
     if (!SOURCE_EXTENSIONS.has(extension)) return false;
     if (filePath.endsWith('.d.ts')) return false;

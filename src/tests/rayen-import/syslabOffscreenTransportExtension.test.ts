@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import '../../../extension/syslab-offscreen-transport.js';
 
 type Relay = {
@@ -15,6 +15,8 @@ const create = (
     HhrSyslabOffscreenTransport: { create: (dependencies: unknown) => Relay };
   }
 ).HhrSyslabOffscreenTransport.create;
+
+const ownedRelays = new Set<Relay>();
 
 const harness = () => {
   const listeners = new Map<string, (event: unknown) => void>();
@@ -32,6 +34,7 @@ const harness = () => {
     clearTimeout: (timer: ReturnType<typeof setTimeout>) => clearTimeout(timer),
   };
   const relay = create({ frame, window: windowApi });
+  ownedRelays.add(relay);
   const respond = (index: number, response: unknown, overrides: Record<string, unknown> = {}) => {
     const request = frame.contentWindow.postMessage.mock.calls[index][0];
     listeners.get('message')?.({
@@ -45,7 +48,18 @@ const harness = () => {
 };
 const status = { type: 'RAYEN_SYSLAB_STATUS' };
 
-afterEach(() => vi.useRealTimers());
+beforeEach(() => vi.useFakeTimers());
+
+afterEach(() => {
+  try {
+    for (const relay of ownedRelays) relay.dispose();
+    expect(vi.getTimerCount()).toBe(0);
+  } finally {
+    ownedRelays.clear();
+    vi.clearAllTimers();
+    vi.useRealTimers();
+  }
+});
 
 describe('shared-document Syslab iframe relay', () => {
   it('correlates simultaneous replies delivered out of order', async () => {
@@ -60,6 +74,7 @@ describe('shared-document Syslab iframe relay', () => {
     await expect(first).resolves.toEqual({ marker: 'first' });
     await expect(second).resolves.toEqual({ marker: 'second' });
     expect(h.relay.getDiagnostics().pending).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
     h.relay.dispose();
   });
 
@@ -103,12 +118,15 @@ describe('shared-document Syslab iframe relay', () => {
   });
 
   it('times out once, cleans memory and does not resend', async () => {
-    vi.useFakeTimers();
     const h = harness();
     const request = h.relay.request(status, { timeoutMs: 250 });
     const rejected = expect(request).rejects.toMatchObject({ code: 'SYSLAB_REQUEST_TIMEOUT' });
-    await vi.advanceTimersByTimeAsync(251);
+    await vi.advanceTimersByTimeAsync(249);
+    expect(h.relay.getDiagnostics().pending).toBe(1);
+    expect(vi.getTimerCount()).toBe(1);
+    await vi.advanceTimersByTimeAsync(1);
     await rejected;
+    h.respond(0, { marker: 'late-timeout-response' });
     expect(h.frame.contentWindow.postMessage).toHaveBeenCalledTimes(1);
     expect(h.relay.getDiagnostics().pending).toBe(0);
     expect(vi.getTimerCount()).toBe(0);
@@ -130,7 +148,6 @@ describe('shared-document Syslab iframe relay', () => {
   });
 
   it('disposes all listeners, pending work and timers', async () => {
-    vi.useFakeTimers();
     const h = harness();
     const request = h.relay.request(status);
     const rejected = expect(request).rejects.toMatchObject({ code: 'SYSLAB_FRAME_DISPOSED' });
@@ -168,6 +185,7 @@ describe('shared-document Syslab iframe relay', () => {
       code: 'SYSLAB_FRAME_UNAVAILABLE',
     });
     expect(h.relay.getDiagnostics().pending).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
     h.relay.dispose();
   });
 });

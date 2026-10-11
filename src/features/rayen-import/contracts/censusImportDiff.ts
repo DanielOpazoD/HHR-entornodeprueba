@@ -6,11 +6,20 @@
  * it does not persist anything.
  */
 
+import type { NeonatalPlacementReview } from './neonatalPlacementReview';
+import type { RayenSyncCaseContext } from '@/types/domain/rayenSync';
 import type { PatientData } from './rayenDomainContracts';
+import type { DischargeData } from '@/types/domain/movements';
 import type { RayenEncounter } from './rayenSnapshot';
 import type { DischargeKind } from '../mapping/dischargeMapping';
 import type { ReportEgreso } from './egresoReport';
 import type { RayenBedCollisionResolutionReceipt } from '@/types/domain/rayenBedCollision';
+
+/** Exact selected-day movements reviewed before retiring a malformed imported RN copy. */
+export interface ClinicalCribDischargeRepair {
+  kept: DischargeData;
+  duplicate: DischargeData;
+}
 
 export type DischargeVerificationState = 'confirmed' | 'not-detected' | 'unknown';
 
@@ -172,11 +181,14 @@ export interface PendingAdministrativeDischargeEntry {
 export interface ConflictEntry {
   /** Transient, episode-aware identity for prior-census continuity review (not a source capture). */
   continuityKey?: string;
+  /** Original case location, separate from the current bed used for conflict isolation. */
+  caseContext?: RayenSyncCaseContext;
   bedId: string | null;
   rut?: string;
   patientName?: string;
   /** Domain scope used when a later reconciliation stage must preserve an unresolved conflict. */
   scope?: 'clinical-crib';
+  neonatalAssociationReview?: boolean;
   /** Stable machine-readable discriminator for conflicts consumed across reconciliation stages. */
   code?:
     | 'unconfirmed-principal-bed'
@@ -245,6 +257,15 @@ export interface CensusImportSummary {
 }
 
 export interface CensusImportDiff {
+  neonatalPlacementReviews?: NeonatalPlacementReview[];
+  neonatalSourceChanges?: Array<{
+    episodeId: string;
+    patientName: string;
+    hhrBedId: string;
+    sourceBedId: string;
+    sourceMode: string;
+    hhrMode: string;
+  }>;
   admissions: AdmissionEntry[];
   updates: UpdateEntry[];
   moves: MoveEntry[];
@@ -277,6 +298,8 @@ export interface CensusImportDiff {
    * once the report has been consulted (see `applyEgresoReport`).
    */
   reportEgresos?: ReportEgreso[];
+  /** Reviewed corrections of existing duplicates; never represents a new statistical discharge. */
+  clinicalCribDischargeRepairs?: ClinicalCribDischargeRepair[];
   /**
    * Previous days this sync would modify — a discharge whose official island egreso day is earlier
    * than the census day. Surfaced in the preview behind an explicit "modify previous days" confirm;

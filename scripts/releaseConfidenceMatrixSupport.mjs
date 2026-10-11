@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { buildEvidenceProvenance } from './evidenceProvenanceSupport.mjs';
+
 import fs from 'node:fs';
 import path from 'node:path';
 import { formatWorktreeState, getGitReportState } from './gitReportState.mjs';
@@ -217,6 +219,7 @@ export const buildReleaseConfidenceMatrixReport = root => {
   return {
     generatedAt: new Date().toISOString(),
     ...gitState,
+    generatedFor: buildEvidenceProvenance({ root, reportId: 'release-confidence-matrix', gitState }),
     overall: issues.length === 0 ? 'ok' : 'degraded',
     counts: {
       areaCount: areas.length,

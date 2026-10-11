@@ -287,6 +287,8 @@ describe('deterministic sanitized clinical replay', () => {
   it('keeps mother and newborn as two clinical episodes in one principal bed', async () => {
     const mother = syntheticEncounter('mother', { room: 'H5', bed: 'C1' });
     const newborn = syntheticEncounter('newborn', {
+      firstGivenName: `RN de ${mother.firstGivenName}`,
+      firstFamilyName: mother.firstFamilyName,
       birthDate: CURRENT_CLINICAL_DAY,
       room: 'Cunas',
       bed: 'CH5C1',

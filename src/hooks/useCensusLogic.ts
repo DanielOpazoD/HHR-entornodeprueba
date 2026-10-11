@@ -31,7 +31,8 @@ export const useCensusLogic = (currentDateString: string) => {
 
   const { nursesList, tensList } = useStaffContext();
 
-  const promptState = useCensusPromptState(currentDateString);
+  // Copy-source dates are only consumed by the empty-day prompt.
+  const promptState = useCensusPromptState(currentDateString, !beds);
 
   // Calculate statistics when record changes
   const stats = useMemo(() => {

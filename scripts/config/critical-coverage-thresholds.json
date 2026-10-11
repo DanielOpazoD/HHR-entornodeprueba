@@ -122,6 +122,7 @@
       "label": "src/services/patient-history",
       "sources": [
         "src/services/patient/patientHistoryService.ts",
+        "src/services/patient/patientHistoryRecordLoader.ts",
         "src/features/census/components/global-search/patientEpisodeTimelineController.ts"
       ],
       "tests": "src/tests/services/patient",
@@ -137,13 +138,23 @@
       "label": "src/services/export-manager",
       "sources": [
         "src/hooks/useExportManager.ts",
-        "src/components/layout/app-content/useAppContentRuntime.ts"
+        "src/components/layout/app-content/useAppContentRuntime.ts",
+        "src/hooks/controllers/exportReadinessController.ts"
       ],
-      "tests": "src/tests",
+      "tests": [
+        "src/tests/hooks/useExportManager.test.ts",
+        "src/tests/hooks/useExportManager.handoffNotices.test.ts",
+        "src/tests/components/useAppContentRuntime.test.tsx",
+        "src/tests/components/AppContent.test.tsx",
+        "src/tests/hooks/useExportManager.readiness.test.ts",
+        "src/tests/hooks/controllers/exportReadinessController.test.ts"
+      ],
       "coverageTests": [
         "src/tests/hooks/useExportManager.test.ts",
         "src/tests/hooks/useExportManager.handoffNotices.test.ts",
-        "src/tests/components/useAppContentRuntime.test.tsx"
+        "src/tests/components/useAppContentRuntime.test.tsx",
+        "src/tests/hooks/useExportManager.readiness.test.ts",
+        "src/tests/hooks/controllers/exportReadinessController.test.ts"
       ],
       "minTestFileCount": 4,
       "minTestToSourceRatio": 1.0,
@@ -160,7 +171,12 @@
         "src/hooks/controllers/bedManagementPatchController.ts",
         "src/features/census/components/patient-row/upcClassificationWindowModel.ts"
       ],
-      "tests": "src/tests",
+      "tests": [
+        "src/tests/shared/census/upcBedPolicy.test.ts",
+        "src/tests/hooks/controllers/bedManagementPatchController.test.ts",
+        "src/tests/features/census/components/patient-row/upcClassificationWindowModel.test.ts",
+        "src/tests/shared/census/upcEvaluationPolicy.test.ts"
+      ],
       "coverageTests": [
         "src/tests/shared/census/upcBedPolicy.test.ts",
         "src/tests/hooks/controllers/bedManagementPatchController.test.ts",

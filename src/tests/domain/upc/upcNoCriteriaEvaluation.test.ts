@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { describe, expect, it } from 'vitest';
 import { buildUpcNoCriteriaEvaluation } from '@/domain/upc/upcNoCriteriaEvaluation';
 import type { UpcChecklistRecord } from '@/domain/upc/upcContracts';

@@ -22,6 +22,14 @@ vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
   recordOperationalTelemetry: vi.fn(),
 }));
 
+const createSignal = () => {
+  let resolve!: () => void;
+  const promise = new Promise<void>(complete => {
+    resolve = complete;
+  });
+  return { promise, resolve };
+};
+
 const defaultLocalStorage = globalThis.localStorage;
 const defaultSessionStorage = globalThis.sessionStorage;
 const defaultNavigator = globalThis.navigator;
@@ -43,11 +51,13 @@ describe('session cleanup isolation', () => {
 
   it('does not admit a new owner while the previous cleanup is pending', async () => {
     localStorage.setItem('hhr_session_owner_v1', 'user:old');
+    const cleanupStarted = createSignal();
     let finishCleanup!: () => void;
     vi.mocked(clearAllRecords).mockImplementationOnce(
       () =>
         new Promise<void>(resolve => {
           finishCleanup = resolve;
+          cleanupStarted.resolve();
         })
     );
     const cleanup = clearSessionScopedClientState('manual');
@@ -56,8 +66,8 @@ describe('session cleanup isolation', () => {
       admitted = true;
       localStorage.setItem('hhr_new_session_data', 'keep');
     });
-    // Let the competing admission reach its first asynchronous boundary.
-    await new Promise(resolve => setTimeout(resolve, 0));
+    // Observe the held cleanup before checking admission.
+    await cleanupStarted.promise;
     const admittedBeforeCleanup = admitted;
     finishCleanup();
     await Promise.all([cleanup, admission]);
@@ -163,19 +173,22 @@ describe('session cleanup isolation', () => {
     vi.resetModules();
     const tabB = await import('@/services/storage/sessionScopedStorageService');
     await tabA.reconcileAuthorizedSessionOwner('user:old');
+    const closureStarted = createSignal();
     let finish!: () => void;
     const closing = tabA.clearSessionScopedClientState(
       'manual',
       () =>
         new Promise<void>(resolve => {
           finish = resolve;
+          closureStarted.resolve();
         })
     );
     let admitted = false;
     const opening = tabB.reconcileAuthorizedSessionOwner('user:new').then(() => {
       admitted = true;
     });
-    await new Promise(resolve => setTimeout(resolve, 0));
+    await closureStarted.promise;
+    await vi.waitFor(() => expect(request).toHaveBeenCalledTimes(3));
     expect(admitted).toBe(false);
     finish();
     await Promise.all([closing, opening]);
@@ -225,16 +238,18 @@ describe('session cleanup isolation', () => {
 
   it('waits for local Firebase closure as well as storage before admitting a user', async () => {
     await reconcileAuthorizedSessionOwner('user:old');
+    const closureStarted = createSignal();
     let finish!: () => void;
     const closing = clearSessionScopedClientState(
       'manual',
       () =>
         new Promise<void>(resolve => {
           finish = resolve;
+          closureStarted.resolve();
         })
     );
     const admission = reconcileAuthorizedSessionOwner('user:new');
-    await new Promise(resolve => setTimeout(resolve, 0));
+    await closureStarted.promise;
     expect(getStoredSessionOwnerKey()).toBe('user:old');
     finish();
     await Promise.all([closing, admission]);

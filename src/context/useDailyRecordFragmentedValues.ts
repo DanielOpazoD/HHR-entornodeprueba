@@ -78,30 +78,52 @@ export const useDailyRecordFragmentedValues = (
   const bedsValue = useMemo(() => value?.record?.beds || null, [value?.record?.beds]);
 
   const record = value?.record;
+  const hasRecord = !!record;
+  const {
+    discharges,
+    transfers,
+    cma,
+    date,
+    nursesDayShift,
+    nursesNightShift,
+    tensDayShift,
+    tensNightShift,
+    staffingDetailsV1,
+    activeExtraBeds,
+  } = record || {};
   const movementsValue = useMemo(() => {
-    if (!record) return null;
+    if (!hasRecord) return null;
     return {
-      discharges: getActiveDischarges(record.discharges),
-      transfers: getActiveTransfers(record.transfers),
-      cma: getActiveCma(record.cma),
+      discharges: getActiveDischarges(discharges),
+      transfers: getActiveTransfers(transfers),
+      cma: getActiveCma(cma),
     };
-  }, [record]);
+  }, [hasRecord, discharges, transfers, cma]);
 
   const stabilityValue = useMemo(() => value?.stabilityRules || null, [value?.stabilityRules]);
   const inventoryValue = useMemo(() => value?.inventory || null, [value?.inventory]);
 
   const staffValue = useMemo(() => {
-    if (!record) return null;
+    if (!hasRecord) return null;
     return {
-      date: record.date,
-      nursesDayShift: record.nursesDayShift || ['', ''],
-      nursesNightShift: record.nursesNightShift || ['', ''],
-      tensDayShift: record.tensDayShift || ['', '', ''],
-      tensNightShift: record.tensNightShift || ['', '', ''],
-      staffingDetailsV1: record.staffingDetailsV1,
-      activeExtraBeds: record.activeExtraBeds || [],
+      date,
+      nursesDayShift: nursesDayShift || ['', ''],
+      nursesNightShift: nursesNightShift || ['', ''],
+      tensDayShift: tensDayShift || ['', '', ''],
+      tensNightShift: tensNightShift || ['', '', ''],
+      staffingDetailsV1,
+      activeExtraBeds: activeExtraBeds || [],
     };
-  }, [record]);
+  }, [
+    hasRecord,
+    date,
+    nursesDayShift,
+    nursesNightShift,
+    tensDayShift,
+    tensNightShift,
+    staffingDetailsV1,
+    activeExtraBeds,
+  ]);
 
   const overridesValue = useMemo(
     () => value?.record?.bedTypeOverrides || {},

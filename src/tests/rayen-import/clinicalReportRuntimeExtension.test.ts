@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -35,6 +36,11 @@ const loadFactory = () => {
   vm.runInContext(hospitalizationReportsSource, context, {
     filename: 'hospitalization-reports-runtime.js',
   });
+  vm.runInContext(
+    readFileSync(path.resolve('extension/epicrisis-pdf-download.js'), 'utf8'),
+    context,
+    { filename: 'epicrisis-pdf-download.js' }
+  );
   vm.runInContext(epicrisisDownloadSource, context, { filename: 'epicrisis-download-runtime.js' });
   vm.runInContext(runtimeSource, context, { filename: 'clinical-report-runtime.js' });
   return (
@@ -365,7 +371,7 @@ describe('clinical report runtime owner', () => {
         delivery: 'download',
       })
     ).resolves.toEqual({
-      error: expect.stringContaining('no aparece entre los informes de este RUN'),
+      error: expect.stringContaining('no corresponde al RUN seleccionado'),
     });
     expect(fetchWithTimeout).toHaveBeenCalledTimes(2);
   });

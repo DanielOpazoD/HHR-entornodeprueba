@@ -142,8 +142,35 @@ describeEmulator('patient history range and authoritative reads', () => {
       '2026-03-06:admission',
       '2026-03-08:discharge',
     ]);
-    expect(reads.sizes).toEqual([3, 365]);
-    expect(reads.attempts).toBe(2);
+    expect(full.source).toBe('server');
+    const fullPages = reads.sizes.slice(1);
+    expect(fullPages.reduce((sum, size) => sum + size, 0)).toBe(365);
+    expect(fullPages.every(size => size > 0 && size <= 20)).toBe(true);
+    expect(fullPages.at(-1)).toBe(5);
+    expect(reads.attempts).toBe(1 + Math.ceil(365 / 20));
+    expect(await getAllRecords()).toEqual({});
+  });
+
+  it('stops the real SDK traversal after cancellation without falling back locally', async () => {
+    await environment.withSecurityRulesDisabled(async context => {
+      const db = context.firestore();
+      const batch = db.batch();
+      for (let day = 0; day < 21; day++) {
+        const date = new Date(Date.UTC(2026, 0, 1 + day)).toISOString().slice(0, 10);
+        batch.set(db.doc(recordPath(date)), record(date));
+      }
+      await batch.commit();
+    });
+    const controller = new AbortController();
+    await expect(
+      getPatientMovementHistoryDetailed(patientId, {
+        forceFullRemoteHydration: true,
+        signal: controller.signal,
+        onProgress: () => controller.abort(),
+      })
+    ).rejects.toMatchObject({ name: 'AbortError' });
+    expect(reads.attempts).toBe(1);
+    expect(reads.sizes).toEqual([20]);
     expect(await getAllRecords()).toEqual({});
   });
 

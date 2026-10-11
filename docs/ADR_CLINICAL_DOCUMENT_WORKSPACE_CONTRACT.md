@@ -48,3 +48,12 @@ No new document-type behavior should be reintroduced through ad hoc `if` branche
 - `npm run check:quality`
 - `npm run test:clinical-documents`
 - boundary checks for clinical-documents feature
+
+## Persisted content hash
+
+`src/domain/clinical-documents/hash.ts` owns the content hash used by draft factories,
+AI import and repository integrity rendering. Consumers use `createClinicalDocumentHash`
+directly; do not duplicate the algorithm in feature utilities. The existing UTF-16,
+32-bit arithmetic and `h` prefix are compatibility behavior for stored documents.
+This hash is a change/integrity marker, not a cryptographic authenticity guarantee.
+Golden vectors cover accents, surrogate pairs, line endings and integer overflow.

@@ -40,7 +40,7 @@ describe('shared Rayen runtime-message contract', () => {
   it('registers every service-worker request type once', () => {
     const values = Object.values(contract.types);
 
-    expect(values).toHaveLength(59);
+    expect(values).toHaveLength(60);
     expect(new Set(values).size).toBe(values.length);
     expect(values.every(value => /^RAYEN_[A-Z0-9_]+$/.test(value))).toBe(true);
   });
@@ -365,6 +365,7 @@ describe('shared Rayen runtime-message contract', () => {
       'http://localhost:3000/*',
       'http://localhost:3001/*',
       'https://testinghhr.netlify.app/*',
+      'https://hhr-entorno-prueba.netlify.app/*',
     ]);
     expect(background).toContain('const readAuthorizedSnapshot = sender =>');
     expect(background).toContain('patientFlowRuntime.authorizeSnapshotResponse(');

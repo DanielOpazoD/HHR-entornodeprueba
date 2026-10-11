@@ -4,22 +4,6 @@
 
   const reports = root.HhrHospitalizationReportsRuntime;
 
-  const downloadEpicrisis = async (request, resolved) => {
-    const reportUrl = new URL('/api/report/Reporte_Epicrisis.pdf', request.info.apiOrigin);
-    reportUrl.searchParams.set('enc_id', resolved.encId);
-    const report = await request.fetchOfficialPdf({
-      url: reportUrl.toString(),
-      token: request.info.token,
-      label: 'la epicrisis médica',
-    });
-    if (report.error) return { error: report.error };
-    const downloaded = await request.downloadPdfBuffer({
-      buffer: report.buffer,
-      filename: 'Epicrisis_medica_' + resolved.encId + '.pdf',
-    });
-    return downloaded.error ? downloaded : { ...downloaded, encId: resolved.encId };
-  };
-
   const resolveDirectEpisode = request => {
     const encId = /^\d+$/.test(String(request.encId || '')) ? String(request.encId) : '';
     if (!encId) return { error: 'El paciente no tiene un episodio clínico válido.' };
@@ -38,8 +22,9 @@
     const documentType = request.documentType || 'epicrisis';
     if (documentType === 'history')
       return reports.openHistoryReport({ chrome: request.chrome || root.chrome, now: request.now, resolved });
-    if (documentType !== 'epicrisis') return { error: 'El tipo de informe no es válido.' };
-    return downloadEpicrisis(request, resolved);
+    if (documentType !== 'epicrisis' && documentType !== 'nursing-epicrisis')
+      return { error: 'El tipo de informe no es válido.' };
+    return root.HhrEpicrisisPdfDownload.download(request, resolved);
   };
 
   const handleDirectRequest = (request, resolved, operation) => {
@@ -51,7 +36,19 @@
   const handleRunRequest = async (request, operation) => {
     const rowsResult = await reports.resolveRows(request);
     if (rowsResult.error) return rowsResult;
-    if (operation === 'list') return reports.listEpisodes({ ...request, rows: rowsResult.rows });
+    const listed = reports.listEpisodes({ ...request, rows: rowsResult.rows });
+    const direct = resolveDirectEpisode(request);
+    // The report index can omit an ongoing hospitalization. Verify the exact episode against
+    // Eloisa before supplementing that index; never substitute the patient's latest discharge.
+    if (!direct.error && !listed.episodes.some(episode => episode.encId === direct.encId)) {
+      const context = await request.getClinicalReportContext(direct.encId, request.info, null, request.sender);
+      if (context && context.error) return context;
+      if (reports.normalizeRun(context && context.patient && context.patient.run) !== request.patientRun)
+        return { error: 'El episodio no corresponde al RUN seleccionado. Actualiza el censo y reintenta.' };
+      if (operation === 'list') return { ok: true, episodes: [direct.episode, ...listed.episodes] };
+      return handleDirectRequest(request, { ...direct, context }, operation);
+    }
+    if (operation === 'list') return listed;
     if (operation !== 'download') return { error: 'La operación de informes no es válida.' };
     const resolved = reports.selectEncounter({ ...request, rows: rowsResult.rows });
     return resolved.error ? resolved : openDocument(request, resolved);

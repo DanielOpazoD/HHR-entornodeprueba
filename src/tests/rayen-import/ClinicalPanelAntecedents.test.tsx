@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { requestClinicalAction } = vi.hoisted(() => ({ requestClinicalAction: vi.fn() }));
-vi.mock('@/features/rayen-import', () => ({ requestClinicalAction }));
+vi.mock('@/features/rayen-import/clinical-panel', () => ({ requestClinicalAction }));
 
 import { ClinicalPanelAntecedents } from '@/features/census/components/patient-row/ClinicalPanelAntecedents';
 
@@ -117,6 +117,69 @@ describe('ClinicalPanelAntecedents', () => {
       screen.queryByRole('button', { name: 'Cargar período anterior' })
     ).not.toBeInTheDocument();
   });
+
+  it.each([
+    ['Primaria', '8', 'Secundaria', '8'],
+    ['Primaria:8', '99', 'Primaria', '8:99'],
+  ])(
+    'conserva la atención actual (%s/%s) al solaparse con un período anterior y distingue la fuente',
+    async (source, id, otherSource, otherId) => {
+      const current = {
+        id,
+        source,
+        date: '20260930 10:00',
+        diagnosis: 'Atención actual',
+        facility: 'Hospital',
+        type: 'Consulta',
+      };
+      requestClinicalAction.mockImplementation(
+        async (
+          _episode: string,
+          operation: string,
+          _entryId?: string,
+          _signal?: AbortSignal,
+          beforeDate?: string
+        ) => {
+          if (operation === 'list')
+            return {
+              ok: true,
+              warnings: [],
+              entries: beforeDate
+                ? [
+                    { ...current, diagnosis: 'Copia antigua' },
+                    {
+                      ...current,
+                      source: otherSource,
+                      id: otherId,
+                      diagnosis: 'Atención de otra fuente',
+                    },
+                  ]
+                : [current],
+              nextBeforeDate: beforeDate ? null : '20231007',
+            };
+          return {
+            ok: true,
+            detail: { reason: '', history: 'Detalle sintético', professional: '', attachments: [] },
+          };
+        }
+      );
+      render(<ClinicalPanelAntecedents clinicalEpisodeId="12" />);
+      expect(await screen.findByText('Atención actual')).toBeInTheDocument();
+      if (source === 'Primaria') await screen.findByText('Detalle sintético');
+      fireEvent.click(screen.getByRole('button', { name: 'Cargar período anterior' }));
+      expect(await screen.findByText('Atención de otra fuente')).toBeInTheDocument();
+      expect(screen.getAllByText('Atención actual')).toHaveLength(1);
+      expect(screen.queryByText('Copia antigua')).not.toBeInTheDocument();
+      expect(requestClinicalAction.mock.calls.filter(call => call[1] === 'detail')).toHaveLength(
+        source === 'Primaria' ? 1 : 0
+      );
+      if (otherSource === 'Primaria') {
+        expect(
+          screen.getByRole('button', { name: 'Ver detalle de la atención' })
+        ).toBeInTheDocument();
+      }
+    }
+  );
 
   it('reintenta un período parcial y conserva los datos ya obtenidos de la otra fuente', async () => {
     let olderCalls = 0;
@@ -307,5 +370,65 @@ describe('ClinicalPanelAntecedents', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('offers the same retry action after a failed background refresh without losing data', async () => {
+    vi.useFakeTimers();
+    try {
+      const normal = requestClinicalAction.getMockImplementation()!;
+      let listCalls = 0;
+      requestClinicalAction.mockImplementation((...args: unknown[]) => {
+        if (args[1] === 'list' && ++listCalls === 2)
+          return Promise.resolve({ ok: false, error: 'Actualización interrumpida' });
+        return normal(...args);
+      });
+      render(<ClinicalPanelAntecedents clinicalEpisodeId="12" />);
+      await act(async () => undefined);
+      expect(screen.getByText('Evolución sintética')).toBeInTheDocument();
+      await act(async () => vi.advanceTimersByTimeAsync(300000));
+      expect(screen.getByText(/Actualización interrumpida/)).toBeInTheDocument();
+      expect(screen.getByText('Evolución sintética')).toBeInTheDocument();
+      expect(screen.getAllByRole('button', { name: 'Reintentar antecedentes' })).toHaveLength(1);
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Reintentar antecedentes' }));
+      });
+      expect(listCalls).toBe(3);
+      expect(screen.queryByText(/Actualización interrumpida/)).not.toBeInTheDocument();
+      expect(screen.getByText('Evolución sintética')).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('presents a failed initial result without a message as retryable, not as empty history', async () => {
+    requestClinicalAction.mockResolvedValue({ ok: false });
+    render(<ClinicalPanelAntecedents clinicalEpisodeId="12" />);
+    expect(
+      await screen.findByText('No se pudieron consultar los antecedentes.')
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reintentar' })).toBeInTheDocument();
+    expect(screen.queryByText(/No se encontraron atenciones/)).not.toBeInTheDocument();
+  });
+
+  it('ignores a pending retry when switching episodes', async () => {
+    let finish!: (value: unknown) => void;
+    const pending = new Promise(resolve => {
+      finish = resolve;
+    });
+    let firstCalls = 0;
+    requestClinicalAction.mockImplementation((episode: string, operation: string) => {
+      if (operation !== 'list') return Promise.resolve({ ok: true });
+      if (episode === '13') return Promise.resolve({ ok: true, entries: [], warnings: [] });
+      if (++firstCalls === 1) return Promise.resolve({ ok: false, error: 'Fallo temporal' });
+      return pending;
+    });
+    const view = render(<ClinicalPanelAntecedents clinicalEpisodeId="12" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Reintentar' }));
+    await waitFor(() => expect(firstCalls).toBe(2));
+    view.rerender(<ClinicalPanelAntecedents clinicalEpisodeId="13" />);
+    await screen.findByText(/No se encontraron atenciones/);
+    await act(async () => finish({ ok: false, error: 'Error del episodio anterior' }));
+    expect(screen.queryByText('Error del episodio anterior')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Reintentar' })).not.toBeInTheDocument();
   });
 });

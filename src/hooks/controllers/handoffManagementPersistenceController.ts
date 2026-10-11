@@ -5,17 +5,9 @@ import type {
 } from '@/application/shared/dailyRecordMedicalContracts';
 import type { MedicalHandoffScope } from '@/types/medicalHandoff';
 import { getAttributedAuthors } from '@/services/admin/attributionService';
-import {
-  buildUpdatedHandoffStaffRecord,
-  buildMedicalNoChangesRecord,
-  buildMedicalSpecialtyNoteRecord,
-  normalizeMedicalHandoffActor,
-} from '@/domain/handoff/management';
-import type { ConfirmMedicalSpecialtyNoChangesInput } from '@/hooks/handoffManagementTypes';
+import { normalizeMedicalHandoffActor } from '@/domain/handoff/management';
 
 type HandoffShift = 'day' | 'night' | 'medical';
-type StaffShift = 'day' | 'night';
-type StaffType = 'delivers' | 'receives' | 'tens';
 
 export interface HandoffAuditEventPayload {
   action: 'HANDOFF_NOVEDADES_MODIFIED' | 'MEDICAL_HANDOFF_SIGNED' | 'MEDICAL_HANDOFF_RESTORED';
@@ -87,19 +79,6 @@ export const buildMedicalSpecialtyNoteAuditPayload = (
   },
 });
 
-export const buildMedicalSpecialtyPersistencePayload = (
-  record: DailyRecord,
-  specialty: MedicalSpecialty,
-  value: string,
-  actor: Partial<MedicalHandoffActor>
-): { updatedRecord: DailyRecord; auditDetails: Record<string, unknown> } => {
-  const updatedRecord = buildMedicalSpecialtyNoteRecord(record, specialty, value, actor);
-  return {
-    updatedRecord,
-    auditDetails: buildMedicalSpecialtyNoteAuditPayload(record, specialty, value),
-  };
-};
-
 export const buildMedicalSpecialtyAuditEvent = (
   record: DailyRecord,
   specialty: MedicalSpecialty,
@@ -133,39 +112,6 @@ export const buildMedicalNoChangesAuditPayload = (
   };
 };
 
-export const buildMedicalNoChangesPersistencePayload = (
-  record: DailyRecord,
-  input: ConfirmMedicalSpecialtyNoChangesInput
-): {
-  updatedRecord: DailyRecord;
-  auditDetails: Record<string, unknown>;
-  effectiveDateKey: string;
-  confirmedAt: string;
-} => {
-  const effectiveDateKey = input.dateKey || record.date;
-  const confirmedAt = new Date().toISOString();
-  const updatedRecord = buildMedicalNoChangesRecord(
-    record,
-    input.specialty,
-    input.actor,
-    input.comment,
-    effectiveDateKey
-  );
-
-  return {
-    updatedRecord,
-    auditDetails: buildMedicalNoChangesAuditPayload(
-      updatedRecord,
-      input.specialty,
-      input.actor,
-      effectiveDateKey,
-      confirmedAt
-    ),
-    effectiveDateKey,
-    confirmedAt,
-  };
-};
-
 export const buildMedicalNoChangesAuditEvent = (
   record: DailyRecord,
   auditDetails: Record<string, unknown>
@@ -176,17 +122,6 @@ export const buildMedicalNoChangesAuditEvent = (
   details: auditDetails,
   recordDate: record.date,
 });
-
-export const buildUpdatedHandoffStaffPersistencePayload = (
-  currentRecord: DailyRecord,
-  shift: StaffShift,
-  type: StaffType,
-  staffList: string[]
-): { updatedRecord: DailyRecord } => ({
-  updatedRecord: buildUpdatedHandoffStaffRecord(currentRecord, shift, type, staffList),
-});
-
-export { buildUpdatedHandoffStaffRecord };
 
 export const buildMedicalSignatureAuditPayload = (
   updatedRecord: DailyRecord,
@@ -209,22 +144,6 @@ export const buildMedicalSignatureAuditEvent = (
   entityId: record.date,
   details: buildMedicalSignatureAuditPayload(updatedRecord, doctorName, scope),
   recordDate: record.date,
-});
-
-export const buildUpdatedMedicalHandoffDoctorRecord = (
-  currentRecord: DailyRecord,
-  doctorName: string
-): DailyRecord => ({
-  ...currentRecord,
-  medicalHandoffDoctor: doctorName,
-  lastUpdated: new Date().toISOString(),
-});
-
-export const buildMedicalHandoffDoctorPersistencePayload = (
-  currentRecord: DailyRecord,
-  doctorName: string
-): { updatedRecord: DailyRecord } => ({
-  updatedRecord: buildUpdatedMedicalHandoffDoctorRecord(currentRecord, doctorName),
 });
 
 export const buildResetMedicalHandoffAuditPayload = (

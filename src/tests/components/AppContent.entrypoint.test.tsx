@@ -1,7 +1,50 @@
 import React from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { act, render } from '@testing-library/react';
+import { act, render, screen, fireEvent } from '@testing-library/react';
 import { AppContent } from '@/components/layout/AppContent';
+import {
+  ReminderCenterContext,
+  unavailableReminderCenterValue,
+  useReminderCenter,
+} from '@/context/reminderCenterContextContract';
+
+let rejectReminderProvider: (reason: Error) => void;
+let resolveReminderProvider: (provider: React.FC<{ children: React.ReactNode }>) => void;
+const mockChromeMount = vi.fn();
+const mockChromeUnmount = vi.fn();
+const StartupChromeProbe = () => {
+  const [draft, setDraft] = React.useState('');
+  const reminders = useReminderCenter();
+  React.useEffect(() => {
+    mockChromeMount();
+    return () => {
+      mockChromeUnmount();
+    };
+  }, []);
+  return (
+    <div data-testid="app-content-chrome">
+      <input aria-label="Draft" value={draft} onChange={event => setDraft(event.target.value)} />
+      <button onClick={reminders.openCenter}>Open reminders</button>
+      <span data-testid="reminder-open">{String(reminders.isOpen)}</span>
+      <span data-testid="reminder-count">{reminders.unreadCount}</span>
+    </div>
+  );
+};
+const LoadedReminderProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const value = React.useMemo(
+    () => ({
+      ...unavailableReminderCenterValue,
+      loading: false,
+      isAvailable: true,
+      unreadCount: 3,
+      isOpen,
+      openCenter: () => setIsOpen(true),
+    }),
+    [isOpen]
+  );
+  return <ReminderCenterContext.Provider value={value}>{children}</ReminderCenterContext.Provider>;
+};
 
 const mockUseAppContentRuntime = vi.fn();
 const mockUseAppContentShellEffects = vi.fn();
@@ -19,7 +62,11 @@ vi.mock('@/context/ReminderCenterContext', () => ({
 }));
 
 vi.mock('@/components/layout/app-content/reminderCenterProviderLoader', () => ({
-  loadReminderCenterProvider: () => new Promise(() => {}),
+  loadReminderCenterProvider: () =>
+    new Promise((resolve, reject) => {
+      rejectReminderProvider = reject;
+      resolveReminderProvider = resolve;
+    }),
 }));
 
 vi.mock('@/components/layout/app-content/useAppContentRuntime', () => ({
@@ -41,7 +88,7 @@ vi.mock('@/components/layout/app-content/moduleThemeController', () => ({
 vi.mock('@/components/layout/app-content/AppContentChrome', () => ({
   AppContentChrome: (props: unknown) => {
     mockAppContentChrome(props);
-    return <div data-testid="app-content-chrome" />;
+    return <StartupChromeProbe />;
   },
 }));
 
@@ -102,6 +149,31 @@ describe('AppContent entrypoint wiring', () => {
       dateNav,
     });
     mockResolveModuleTheme.mockReturnValue('census');
+  });
+
+  it('preserves the mounted chrome and draft when deferred reminders become available', async () => {
+    render(<AppContent ui={ui as never} />);
+    const input = screen.getByRole('textbox', { name: 'Draft' });
+    fireEvent.change(input, { target: { value: 'unsaved selection' } });
+    await act(async () => resolveReminderProvider(LoadedReminderProvider));
+    expect(screen.getByRole('textbox', { name: 'Draft' })).toBe(input);
+    expect(input).toHaveValue('unsaved selection');
+    expect(mockChromeMount).toHaveBeenCalledTimes(1);
+    expect(mockChromeUnmount).not.toHaveBeenCalled();
+    expect(screen.getByTestId('reminder-count')).toHaveTextContent('3');
+    fireEvent.click(screen.getByRole('button', { name: 'Open reminders' }));
+    expect(screen.getByTestId('reminder-open')).toHaveTextContent('true');
+  });
+
+  it('keeps the chrome usable if the optional reminder module fails', async () => {
+    render(<AppContent ui={ui as never} />);
+    const input = screen.getByRole('textbox', { name: 'Draft' });
+    fireEvent.change(input, { target: { value: 'keep' } });
+    await act(async () => rejectReminderProvider(new Error('chunk unavailable')));
+    expect(screen.getByRole('textbox', { name: 'Draft' })).toBe(input);
+    expect(input).toHaveValue('keep');
+    expect(mockChromeMount).toHaveBeenCalledTimes(1);
+    expect(mockChromeUnmount).not.toHaveBeenCalled();
   });
 
   it('does not navigate the census date when the selection cannot be resolved', async () => {

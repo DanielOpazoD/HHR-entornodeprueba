@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EloisaPatientCodeImportModal } from '@/features/rayen-manual-import/components/EloisaPatientCodeImportModal';
 import {
   createEloisaPatientCode,
@@ -8,7 +8,7 @@ import {
 
 const payload: EloisaManualPatientPayload = {
   version: 2,
-  capturedAt: new Date().toISOString(),
+  capturedAt: '2026-08-29T12:00:00.000Z',
   encounterId: '98765',
   firstName: 'José',
   middleNames: 'Ángel',
@@ -24,6 +24,13 @@ const payload: EloisaManualPatientPayload = {
   deviceEntries: [{ name: 'VVP', installationDatetime: '2026-08-28T07:15:00-06:00' }],
   encounterRoute: 'nurse',
 };
+
+// Control Date only; preserve native timers and asynchronous I/O.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-08-29T12:00:00.000Z'));
+});
+afterEach(() => vi.useRealTimers());
 
 describe('EloisaPatientCodeImportModal', () => {
   it('requires validation and an explicit bed selection before one confirmed write', async () => {

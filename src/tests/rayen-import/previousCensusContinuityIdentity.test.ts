@@ -7,6 +7,10 @@ import type {
   PatientData,
 } from '@/features/rayen-import/contracts/rayenDomainContracts';
 import { previousCensusContinuityConflicts } from '@/features/rayen-import/domain/previousCensusContinuity';
+import { RayenSyncEventSchema } from '@/schemas/zod/dailyRecord';
+import { buildStructuralReviewEvidence } from '@/features/rayen-import/domain/clinicalStageResolution';
+import { describeStructuralConflicts } from '@/features/rayen-import/hooks/rayenStructuralConvergence';
+import type { ConfirmedRayenCensusHandoff } from '@/features/rayen-import/hooks/rayenCensusPersistenceGuard';
 import { replanRayenStructure } from '@/features/rayen-import/hooks/replanRayenStructure';
 
 // Synthetic identities only. Equal RUNs are intentional: they must not collapse distinct subjects.
@@ -333,4 +337,38 @@ describe('previous census continuity through structural replan', () => {
     expect(setup.getAuthoritativeForDate).toHaveBeenCalledWith(YESTERDAY);
     expect(setup.getForDate).not.toHaveBeenCalled();
   });
+});
+
+it('preserves the historical case through conflict handoff and history parsing, without assigning the current bed', () => {
+  const conflicts = previousCensusContinuityConflicts(
+    record(YESTERDAY, { H4C1: legacyPatient({ clinicalEpisodeId: '1001' }) }),
+    record(TODAY, {
+      H4C1: legacyPatient({ clinicalEpisodeId: '2002', patientName: 'Otro Paciente' }),
+    }),
+    emptyDiff()
+  );
+  expect(conflicts).toHaveLength(1);
+  expect(conflicts[0].bedId).toBeNull();
+  const structuralReview = buildStructuralReviewEvidence({
+    isolatedConflicts: describeStructuralConflicts(conflicts),
+  } as unknown as ConfirmedRayenCensusHandoff);
+  const parsed = RayenSyncEventSchema.parse({
+    id: 'synthetic',
+    startedAt: '2026-09-02T12:00:00Z',
+    by: 'Test',
+    status: 'partial',
+    structuralReview,
+  });
+  expect(parsed.structuralReview?.issues?.[0]).toEqual({
+    bedId: null,
+    reason: 'previous-census-continuity',
+    caseContext: {
+      patientName: 'Paciente Identidad Sintetica',
+      censusDate: YESTERDAY,
+      bedId: 'H4C1',
+      isClinicalCrib: false,
+    },
+  });
+  expect(JSON.stringify(parsed.structuralReview)).not.toContain('11.111.111-1');
+  expect(JSON.stringify(parsed.structuralReview)).not.toContain('1001');
 });

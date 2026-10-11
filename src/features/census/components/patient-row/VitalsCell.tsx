@@ -4,18 +4,20 @@
  * modal (FR, EVA, observations). Read-only: Ficha Médico is the source of truth.
  */
 
-import React, { useState } from 'react';
+import React, { lazy, useState } from 'react';
 import type { BaseCellProps } from './inputCellTypes';
 import { PatientEmptyCell } from './PatientEmptyCell';
-import { VitalsDetailModal } from './VitalsDetailModal';
-import { CellSyncIndicator } from './CellSyncIndicator';
+import { ClinicalDetailLoadBoundary } from './ClinicalDetailLoadBoundary';
 import {
   buildVitalSignsView,
   type VitalReadingView,
   type VitalStatus,
 } from '@/features/census/controllers/vitalSignsView';
 import { resolveVitalSignsProfile } from '@/utils/vitalSignsProfileResolver';
-import { useRayenFillStatus } from '@/features/rayen-import/census-status';
+
+const VitalsDetailModal = lazy(() =>
+  import('./VitalsDetailModal').then(module => ({ default: module.VitalsDetailModal }))
+);
 
 /** The four readings surfaced inline in the census cell (the rest live in the modal). */
 const CELL_READINGS: ReadonlyArray<{ key: VitalReadingView['key']; label: string }> = [
@@ -43,7 +45,6 @@ export const VitalsCell: React.FC<BaseCellProps> = ({
   isEmpty = false,
 }) => {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const isFilling = useRayenFillStatus();
 
   if (isEmpty && !isSubRow) {
     return <PatientEmptyCell tdClassName="py-0.5 px-1 border-r border-slate-200 relative" />;
@@ -59,8 +60,6 @@ export const VitalsCell: React.FC<BaseCellProps> = ({
     vitals?.readings.find(reading => reading.key === key);
   return (
     <td className="py-0.5 px-1 border-r border-slate-200 relative">
-      {/* Syncing feedback over existing readings too (a re-sync of a patient who already has vitals). */}
-      {isFilling && vitals && <CellSyncIndicator />}
       {vitals ? (
         <button
           type="button"
@@ -87,15 +86,6 @@ export const VitalsCell: React.FC<BaseCellProps> = ({
             })}
           </span>
         </button>
-      ) : isFilling ? (
-        <div className={GRID_CLASS} aria-label="Cargando signos vitales">
-          {CELL_READINGS.map(({ key, label }) => (
-            <span key={key} className={READING_CLASS}>
-              <span className="text-slate-500">{label}</span>
-              <span aria-hidden="true" className="mx-auto h-2 w-4 rounded bg-slate-100" />
-            </span>
-          ))}
-        </div>
       ) : (
         <div className={GRID_CLASS}>
           {CELL_READINGS.map(({ key, label }) => (
@@ -108,21 +98,26 @@ export const VitalsCell: React.FC<BaseCellProps> = ({
       )}
 
       {isDetailOpen && vitals && (
-        <VitalsDetailModal
-          patientName={data.patientName}
-          vitals={vitals}
-          history={
-            data.vitalSignsHistory?.length
-              ? data.vitalSignsHistory
-              : data.vitalSigns
-                ? [data.vitalSigns]
-                : []
-          }
-          age={data.age}
-          birthDate={data.birthDate}
-          profile={vitalProfile}
+        <ClinicalDetailLoadBoundary
+          title={`Signos vitales — ${data.patientName}`}
           onClose={() => setIsDetailOpen(false)}
-        />
+        >
+          <VitalsDetailModal
+            patientName={data.patientName}
+            vitals={vitals}
+            history={
+              data.vitalSignsHistory?.length
+                ? data.vitalSignsHistory
+                : data.vitalSigns
+                  ? [data.vitalSigns]
+                  : []
+            }
+            age={data.age}
+            birthDate={data.birthDate}
+            profile={vitalProfile}
+            onClose={() => setIsDetailOpen(false)}
+          />
+        </ClinicalDetailLoadBoundary>
       )}
     </td>
   );

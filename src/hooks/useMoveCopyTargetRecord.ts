@@ -25,13 +25,13 @@ export const useMoveCopyTargetRecord = ({
   const [targetRecord, setTargetRecord] = useState<DailyRecord | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const requestIdRef = useRef(0);
-  const currentRecordRef = useLatestRef(currentRecord);
   const getRecordForDateRef = useLatestRef(getRecordForDate);
   const onErrorRef = useLatestRef(onError);
   const currentRecordDate = currentRecord?.date ?? '';
+  const useCurrentRecord = !selectedDate || selectedDate === currentRecordDate;
 
   useEffect(() => {
-    if (!isOpen) {
+    if (!isOpen || useCurrentRecord) {
       setTargetRecord(null);
       setIsLoading(false);
       return;
@@ -41,14 +41,6 @@ export const useMoveCopyTargetRecord = ({
     let disposed = false;
 
     const loadTargetRecord = async () => {
-      const record = currentRecordRef.current;
-
-      if (!selectedDate || selectedDate === record?.date) {
-        setTargetRecord(record);
-        setIsLoading(false);
-        return;
-      }
-
       // Prevent stale availability from previous date while loading a new target day.
       setTargetRecord(null);
       setIsLoading(true);
@@ -75,10 +67,10 @@ export const useMoveCopyTargetRecord = ({
     return () => {
       disposed = true;
     };
-  }, [currentRecordDate, currentRecordRef, getRecordForDateRef, isOpen, onErrorRef, selectedDate]);
+  }, [currentRecordDate, getRecordForDateRef, isOpen, onErrorRef, selectedDate, useCurrentRecord]);
 
   return {
-    targetRecord,
-    isLoading,
+    targetRecord: !isOpen ? null : useCurrentRecord ? currentRecord : targetRecord,
+    isLoading: isOpen && !useCurrentRecord && isLoading,
   };
 };

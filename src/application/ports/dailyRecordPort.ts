@@ -22,14 +22,14 @@ type DailyRecordWriteService =
   typeof import('@/services/repositories/dailyRecordRepositoryWriteService');
 type DailyRecordSyncService =
   typeof import('@/services/repositories/dailyRecordRepositorySyncService');
-type DailyRecordFacadeSupportService =
-  typeof import('@/services/repositories/dailyRecordRepositoryFacadeSupport');
+type DailyRecordDeletionService =
+  typeof import('@/services/repositories/dailyRecordDeletionService');
 
 let readServicePromise: Promise<DailyRecordReadService> | null = null;
 let initializationServicePromise: Promise<DailyRecordInitializationService> | null = null;
 let writeServicePromise: Promise<DailyRecordWriteService> | null = null;
 let syncServicePromise: Promise<DailyRecordSyncService> | null = null;
-let facadeSupportServicePromise: Promise<DailyRecordFacadeSupportService> | null = null;
+let deletionServicePromise: Promise<DailyRecordDeletionService> | null = null;
 
 const loadDailyRecordReadService = (): Promise<DailyRecordReadService> =>
   (readServicePromise ??= import('@/services/repositories/dailyRecordRepositoryReadService'));
@@ -44,9 +44,8 @@ const loadDailyRecordWriteService = (): Promise<DailyRecordWriteService> =>
 const loadDailyRecordSyncService = (): Promise<DailyRecordSyncService> =>
   (syncServicePromise ??= import('@/services/repositories/dailyRecordRepositorySyncService'));
 
-const loadDailyRecordFacadeSupportService = (): Promise<DailyRecordFacadeSupportService> =>
-  (facadeSupportServicePromise ??=
-    import('@/services/repositories/dailyRecordRepositoryFacadeSupport'));
+const loadDailyRecordDeletionService = (): Promise<DailyRecordDeletionService> =>
+  (deletionServicePromise ??= import('@/services/repositories/dailyRecordDeletionService'));
 
 const withReadService = <T>(
   operation: (service: DailyRecordReadService) => Promise<T> | T
@@ -64,9 +63,9 @@ const withSyncService = <T>(
   operation: (service: DailyRecordSyncService) => Promise<T> | T
 ): Promise<T> => loadDailyRecordSyncService().then(operation);
 
-const withFacadeSupportService = <T>(
-  operation: (service: DailyRecordFacadeSupportService) => Promise<T> | T
-): Promise<T> => loadDailyRecordFacadeSupportService().then(operation);
+const withDeletionService = <T>(
+  operation: (service: DailyRecordDeletionService) => Promise<T> | T
+): Promise<T> => loadDailyRecordDeletionService().then(operation);
 
 const createLazySubscription = (
   start: (service: DailyRecordSyncService) => () => void
@@ -114,7 +113,7 @@ const saveDailyRecord = (
   );
 
 const deleteDailyRecord = (date: string): Promise<void> =>
-  withFacadeSupportService(service => service.deleteDailyRecordAcrossStores(date));
+  withDeletionService(service => service.deleteDailyRecordAcrossStores(date));
 
 const syncDailyRecordWithFirestore = (date: string): Promise<SyncDailyRecordResult | null> =>
   withSyncService(service => service.syncWithFirestoreDetailed(date));

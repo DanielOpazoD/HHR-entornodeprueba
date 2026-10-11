@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { describe, it, expect } from 'vitest';
 import { calculateDensity, checkRegression } from '@/utils/integrityGuard';
 import type { DailyRecord } from '@/types/domain/dailyRecord';

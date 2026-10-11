@@ -29,7 +29,6 @@ export const useExistingDaysQuery = (
   options: UseExistingDaysQueryOptions = {}
 ) => {
   const queryClient = useQueryClient();
-  const queryKey = queryKeys.existingDays.byMonth(selectedYear, selectedMonth);
   const enabled = options.enabled ?? true;
 
   useEffect(() => {
@@ -37,6 +36,7 @@ export const useExistingDaysQuery = (
       return;
     }
 
+    const queryKey = queryKeys.existingDays.byMonth(selectedYear, selectedMonth);
     const handleStoreChanged = (event: Event) => {
       const detail = (event as CustomEvent<DailyRecordStoreChangedEventDetail>).detail;
       if (!isDailyRecordStoreChangeRelevantToMonth(detail, selectedYear, selectedMonth + 1)) {
@@ -48,10 +48,10 @@ export const useExistingDaysQuery = (
 
     window.addEventListener(DAILY_RECORD_STORE_CHANGED_EVENT, handleStoreChanged);
     return () => window.removeEventListener(DAILY_RECORD_STORE_CHANGED_EVENT, handleStoreChanged);
-  }, [enabled, queryClient, queryKey, selectedYear, selectedMonth]);
+  }, [enabled, queryClient, selectedYear, selectedMonth]);
 
   return useQuery({
-    queryKey,
+    queryKey: queryKeys.existingDays.byMonth(selectedYear, selectedMonth),
     queryFn: async () => {
       // selectedMonth is 0-indexed in JS (0=Jan), but our records use 1-indexed strings (01=Jan)
       return await fetchExistingDaysInMonth(selectedYear, selectedMonth + 1);

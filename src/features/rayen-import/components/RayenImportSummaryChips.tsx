@@ -27,6 +27,13 @@ export const RayenImportSummaryChips: React.FC<RayenImportSummaryChipsProps> = (
       value={diff.summary.pendingAdministrativeDischarges}
       tone="indigo"
     />
+    {(diff.clinicalCribDischargeRepairs?.length ?? 0) > 0 && (
+      <Chip
+        label="Duplicados RN por corregir"
+        value={diff.clinicalCribDischargeRepairs?.length ?? 0}
+        tone="amber"
+      />
+    )}
     <Chip label="Sin cambios" value={diff.summary.unchanged} tone="gray" />
     {historicalConflicts > 0 && (
       <Chip label="Por revisar" value={historicalConflicts} tone="amber" />

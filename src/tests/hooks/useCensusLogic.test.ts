@@ -98,7 +98,7 @@ describe('useCensusLogic', () => {
     it('should check for previous day on mount', () => {
       renderHook(() => useCensusLogic('2025-01-10'));
 
-      expect(censusPromptStateHook.useCensusPromptState).toHaveBeenCalledWith('2025-01-10');
+      expect(censusPromptStateHook.useCensusPromptState).toHaveBeenCalledWith('2025-01-10', false);
     });
 
     it('should set previousRecordAvailable when previous exists', () => {
@@ -122,12 +122,6 @@ describe('useCensusLogic', () => {
   });
 
   describe('Available Dates', () => {
-    it('should fetch available dates on mount', () => {
-      renderHook(() => useCensusLogic('2025-01-10'));
-
-      expect(censusPromptStateHook.useCensusPromptState).toHaveBeenCalledWith('2025-01-10');
-    });
-
     it('should filter out current date from available dates', () => {
       const { result } = renderHook(() => useCensusLogic('2025-01-10'));
 

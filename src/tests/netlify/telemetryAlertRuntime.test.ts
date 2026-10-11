@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createAlertQueue } from '../../../netlify/functions/lib/telemetry-alerts/queue';
 import {
   alertStoreName,
@@ -15,6 +15,13 @@ const event: AlertEvent = {
   issues: [],
   droppedContextKeys: [],
 };
+
+// Control Date only; preserve native timers and asynchronous I/O.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-09-30T12:00:00.000Z'));
+});
+afterEach(() => vi.useRealTimers());
 
 describe('runtime alert safety', () => {
   it('does not consume an attempt or lease when invocation time is insufficient', async () => {

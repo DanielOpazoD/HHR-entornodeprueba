@@ -1,248 +1,205 @@
-# Arquitectura Técnica HHR
+# Arquitectura de HHR
 
-Documento de referencia para entender cómo se organiza el sistema, cómo fluyen los datos y cómo se validan cambios.
+Esta guía explica el flujo vigente. La taxonomía y el ownership de carpetas están
+centralizados en [Codebase Canon](CODEBASE_CANON.md); las decisiones de cada
+subsistema viven en sus ADR, enlazadas desde [Documentation Map](DOCUMENTATION_MAP.md).
+`ARCHITECTURE.md` conserva sólo el enlace a esta guía.
 
-## 1) Diagrama de Capas (ASCII)
+## Simplificar antes de añadir
 
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ Presentation Layer                                                         │
-│ - src/views                                                                │
-│ - src/components                                                           │
-│ - src/features/*/components                                                │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                  │
-                                  ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ Application Layer                                                          │
-│ - src/application                                                          │
-│ - src/hooks                                                                │
-│ - src/context                                                              │
-│ - src/features/*/hooks                                                     │
-│ - src/features/*/controllers                                                │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                  │
-                                  ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ Domain Layer                                                               │
-│ - src/domain                                                               │
-│ - src/features/*/domain                                                    │
-│ - src/types                                                                │
-│ - src/schemas                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                  │
-                                  ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ Infrastructure/Data Layer                                                  │
-│ - src/services/repositories                                                │
-│ - src/services/storage                                                     │
-│ - src/infrastructure                                                       │
-│ - Firebase (Firestore/Auth/Storage)                                        │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+Resolver primero con el módulo dueño y el camino existente. Crear una separación
+sólo cuando delimite una responsabilidad, un efecto o un contrato que ya importe.
+No es obligatorio añadir controller, caso de uso, port y repositorio a cada función.
+Las escrituras clínicas tienen controles propios que sí deben conservarse:
+[comandos canónicos](ADR_CANONICAL_WRITE_COMMANDS.md) y
+[facades de adopción](ADR_CANONICAL_WRITE_ADOPTION_FACADES.md).
 
-## 2) Reglas de Dependencia entre Capas
+- Eliminar wrappers sin comportamiento y código sin consumidores comprobados.
+  La preparación de escrituras importa sus reglas clínicas y metadatos desde los
+  módulos dueños; `dailyRecordDomainServices` y `dailyRecordWriteSupport` fueron
+  retirados. No recrear esos agregadores internos.
+- Los efectos del navegador usan `shared/runtime/browserWindowRuntimeCore`; el
+  portapapeles usa `browserClipboardRuntime`. No recrear la fachada agregadora
+  `browserWindowRuntime` retirada. Los adaptadores y sus fallbacks permanecen.
+- Las reglas puras de rutas/usuario del acceso al censo compartido viven en
+  `shared/access/sharedCensusAccess`, sin importar la fachada clínica del censo
+  desde el arranque. Las reglas de listado/filtro/permisos de sus archivos viven
+  con su caso de uso en `application/backup-export/sharedCensusFilesController`.
+- Se retiraron los aliases huérfanos y los del acceso/archivos/runtime del censo
+  compartido. Se conservan tres aliases de formularios/fechas/mover-copiar: su
+  migración a la fachada general aumentaba el shell sobre su presupuesto. No
+  ampliar esa fachada desde los consumidores hasta demostrar margen suficiente.
+- El censo compartido usa directamente el runtime de navegador de `shared/runtime`,
+  conservando su dependencia inyectable y reglas de acceso, sin adaptadores que sólo
+  reenvíen `alert` y `open`.
+- Unificar reglas repetidas en su dueño; evitar utilidades transversales de un solo uso.
+- Separar efectos de decisiones cuando permita verificar un comportamiento real.
+- Mantener entrypoints públicos acotados. Dentro de una feature, usar sus módulos
+  internos; desde otra, usar su API pública existente.
+- No reintroducir los barrels retirados de `repositories`, la fachada histórica
+  `DailyRecordRepository` ni la capa inactiva `src/infrastructure`.
+- La compatibilidad con datos y sesiones históricos es una protección activa.
+  No retirarla por antigüedad aparente ni confundirla con código muerto.
 
-| Desde                     | Puede depender de                          | No debe depender de                                                  |
-| ------------------------- | ------------------------------------------ | -------------------------------------------------------------------- | ------- | --------------------------------------- | -------------------------------------------- |
-| `components` / `views`    | hooks, context, feature controllers, types | services de bajo nivel directo (salvo casos legacy), infraestructura |
-| `hooks`                   | controllers, services, types, utils        | implementación de componentes (`.tsx`)                               |
-| `application`             | repositories, domain, types, utils         | componentes React, JSX, runtime UI directo                           |
-| `controllers`             | domain, types, utils, contratos            | componentes React                                                    |
-| `domain`                  | types, utils puros                         | React, context, UI                                                   |
-| `services/repositories`   | services/storage, integrations, types      | componentes/hook de UI                                               |
-| `features/\*/(controllers | hooks                                      | domain                                                               | types)` | su propia feature + shared/domain común | cross-feature acoplado (reglas restringidas) |
+Los límites verificables se ejecutan con `npm run check:quality:group -- boundaries`.
+La política completa vive en [Quality Guardrails](QUALITY_GUARDRAILS.md).
 
-### Reglas verificadas automáticamente
-
-- `scripts/check-architecture.mjs`
-- `scripts/check-module-size.mjs`
-- `scripts/check-census-runtime-boundary.mjs`
-- `scripts/check-runtime-adapter-boundary.mjs`
-- `scripts/check-auth-feature-boundary.mjs`
-- `scripts/check-clinical-documents-feature-boundary.mjs`
-- `scripts/check-lazy-views-feature-entrypoints.mjs`
-
-Reglas específicas adicionales:
-
-- En código productivo (`src/**` fuera de tests y `DailyRecordContext`) no se permite `useDailyRecordActions`; deben usarse hooks acotados (`useDailyRecordBedActions`, `useDailyRecordMovementActions`, `useDailyRecordDayActions`, etc.).
-- En código productivo, si ya existe un use-case o port equivalente, `hooks`, `components` y `features` no deben importar directo `auditService`, `DailyRecordRepository`, `ClinicalDocumentRepository` ni `censusEmailService`.
-- El consumo externo a una feature debe entrar por `index.ts` o `public.ts`; dentro de la feature,
-  preferir imports relativos para distinguir implementación interna de API pública. El primer
-  guardrail específico de esta familia empezó por `auth` y `clinical-documents`
-  (`npm run check:auth-feature-boundary`, `npm run check:clinical-documents-feature-boundary`).
-- El router/lazy loading también debe consumir features por entrypoint público; `LazyViews.ts`
-  no debe volver a importar `components/...` directos cuando la feature ya expone `index.ts`
-  o `public.ts`.
-- `src/application/ports/*` es el boundary permitido para adapters por defecto a servicios concretos.
-- El guardrail automático correspondiente es `npm run check:application-port-boundary`.
-
-### ADRs de cambio seguro por subsistema
-
-- `daily-record/sync`: [ADR_DAILY_RECORD_RUNTIME_PATH.md](ADR_DAILY_RECORD_RUNTIME_PATH.md)
-- `auth`: [ADR_AUTH_RUNTIME_RECOVERY.md](ADR_AUTH_RUNTIME_RECOVERY.md)
-- `clinical-documents`: [ADR_CLINICAL_DOCUMENT_WORKSPACE_CONTRACT.md](ADR_CLINICAL_DOCUMENT_WORKSPACE_CONTRACT.md)
-- `handoff`: [ADR_HANDOFF_RUNTIME_SURFACES.md](ADR_HANDOFF_RUNTIME_SURFACES.md)
-
-## 3) Flujo de Datos (Write)
-
-### Write path principal (censo)
+## Lectura del censo
 
 ```text
-UI (Modal/Row Action)
-  -> feature hook (useCensus*Command / use*ModalForm)
-  -> controller (resolve*Command / validation)
-  -> runtime command executor
-  -> dailyRecord actions (useDailyRecord)
-  -> usePatientDischarges / usePatientTransfers / useBedManagement
-  -> Repository (DailyRecordRepository.save/updatePartial)
-  -> IndexedDB + Firestore sync
-  -> Query cache invalidation/subscription
-  -> UI refresh reactivo
+UI / contexto de día
+  -> useDailyRecordQuery y useDailyRecordSyncQuery
+  -> query controllers + port dailyRecord inyectado
+  -> dailyRecordRepositoryReadService / dailyRecordRepositorySyncService
+  -> dailyRecordPersistenceGoldenPath y políticas de consistencia
+  -> caché de consulta -> hooks/contextos derivados -> UI
 ```
 
-### Write path parcial (optimista)
+`useDailyRecord` compone directamente su contrato público dentro del `useMemo`;
+no requiere un constructor que vuelva a copiar el mismo objeto. La validación de
+cama de origen y el destino por defecto de la copia viven en
+`useDailyRecordCopyActions`, junto a la única operación que los consume.
+
+`useCensusActionsProviderModel` compone los parámetros de los comandos y del
+contexto en el mismo hook. `useCensusActionCommandsController` conserva su
+`useMemo` y las referencias actuales; no necesita constructores intermedios que
+sólo vuelvan a copiar campos. Las reglas y facades de movimientos permanecen.
+
+`dailyRecordReadResultController` proyecta una sola vez los metadatos de consistencia
+del golden path. Cada rama conserva el registro y la compatibilidad de su fuente;
+una lectura indisponible sigue siendo distinta de una ausencia confirmada.
+
+Firestore es la autoridad remota. IndexedDB conserva persistencia local y la
+proyección de cambios pendientes; TanStack Query publica el estado que consume la
+interfaz. Son responsabilidades distintas, no tres autoridades intercambiables.
+
+Una lectura remota más antigua o un `null` transitorio no debe borrar una copia
+válida o un cambio pendiente. La selección local/remota y la clasificación de
+registro ausente pertenecen al repositorio y sus contratos, no a cada componente.
+Los estados, precedencia y recuperación se definen en
+[Daily Record Runtime Path](ADR_DAILY_RECORD_RUNTIME_PATH.md) y
+[Daily Census Truth Contract](ADR_DAILY_CENSUS_TRUTH_CONTRACT.md).
+
+`recordQueryService` consulta calendario e historial local sin cargar Firestore;
+la sincronización explícita por rango carga `firestoreRecordQueries` bajo demanda
+antes de persistir el resultado localmente. Un calendario local no certifica por
+sí solo que se haya leído todo el historial remoto.
+
+## Escritura y sincronización
 
 ```text
-patchRecord(partial)
-  -> usePatchDailyRecordMutation.onMutate (optimistic update)
-  -> repository.updatePartial
-  -> Firestore subscription confirma estado final
+acción clínica -> hook/comando existente -> port dailyRecord
+  -> dailyRecordRepositoryWriteService
+  -> validación, concurrencia y autoridad según el tipo de comando
+  -> confirmación / proyección local / outbox según su política
+  -> caché y suscripción -> UI
 ```
 
-## 4) Flujo de Datos (Read)
+No existe una regla universal de «guardar primero local y luego remoto».
+Los comandos que requieren autoridad remota confirman esa operación antes de
+publicar o persistir una propuesta rechazada. Las escrituras locales admitidas
+mantienen sus políticas de outbox y recuperación; no se cambian por conveniencia
+de un componente. El acknowledgement y el resultado del repositorio deben
+conservarse hasta el consumidor.
 
-```text
-Date navigation / module load
-  -> useDailyRecordSyncQuery
-  -> useDailyRecordQuery(date)
-  -> dailyRecord.getForDate(date)
-  -> Repository read service
-  -> IndexedDB/Firestore según disponibilidad
-  -> query cache
-  -> contexts/hooks derivados
-  -> components/views
-```
+Las mutaciones optimistas usan `usePatchDailyRecordMutation` y sus controllers.
+No se debe interpretar una proyección optimista como confirmación del servidor,
+ni añadir un segundo coordinador o una caché paralela para resolver un conflicto.
 
-## 5) State Management
+Eliminar un día entra por el port existente y `dailyRecordDeletionService`:
+exclusión de escritura por fecha, protección del outbox, validación del comando,
+confirmación local y posterior traslado remoto a papelera. Los constructores de
+comandos permanecen en `contracts/*`; no precisan otro wrapper.
 
-| Tipo de estado                   | Ubicación                                           | Estrategia                                |
-| -------------------------------- | --------------------------------------------------- | ----------------------------------------- |
-| Estado remoto/cache              | TanStack Query (`src/hooks/useDailyRecordQuery.ts`) | Query/mutation con invalidación y refetch |
-| Estado global de sesión/UI       | Contexts (`src/context/*.tsx`)                      | Providers con hooks de acceso             |
-| Estado de negocio por feature    | `src/features/*/hooks` + `controllers`              | Modelo de estado local + comandos tipados |
-| Estado transitorio de formulario | `useModalFormFlow` + controllers                    | `init -> validate -> submit`              |
+La extensión Eloísa captura información; los flujos HHR validan y aplican cada
+operación con sus protecciones de identidad, episodio, fecha y autoridad. Una
+captura completa no equivale a persistencia confirmada. Consultar el
+[runbook de sync](RUNBOOK_SYNC_RESILIENCE.md) para diagnosticar captura,
+propuesta, persistencia y estado visible sin mezclarlos.
 
-### Contextos relevantes
+`useMovementSectionModel` compone el estado derivado y las acciones sin un
+wrapper de runtime. `useMovementSectionActions` conserva un único
+`useConfirmedMovementAction` para deshacer y eliminar: la exclusión cubre la
+confirmación y la mutación de ambas acciones. `null` sigue siendo distinto de
+una colección ausente o vacía.
 
-- `AuthContext`
-- `DailyRecordContext` (fragmentado para reducir re-renders)
-- `UIContext`
-- `CensusActionsContext` (estado y comandos desacoplados en hooks/controllers)
+## Estado, errores y efectos
 
-## 6) Estrategia de Persistencia
+| Responsabilidad                       | Dueño                                               |
+| ------------------------------------- | --------------------------------------------------- |
+| Consultas y mutaciones del registro   | TanStack Query y controllers de `src/hooks/`        |
+| Sesión, acceso y estado UI compartido | Providers existentes de `src/context/`              |
+| Decisión de dominio                   | Controller/contrato del contexto dueño              |
+| Persistencia y proveedores externos   | `src/services/` detrás del port/adaptador permitido |
+| Efectos del navegador                 | Runtime adapters existentes                         |
 
-### Fuentes de datos
+No añadir estado global para datos derivados ni duplicar la clasificación de un
+fallo en UI. Conservar los outcomes del contrato y distinguir operación rechazada,
+fallida, local pendiente y confirmada. Los mensajes seguros se presentan al usuario;
+la causa técnica se conserva en observabilidad sin incorporar contenido clínico.
 
-| Nivel          | Implementación                                               | Rol                                             |
-| -------------- | ------------------------------------------------------------ | ----------------------------------------------- |
-| Repositorio    | `src/services/repositories/dailyRecordRepository*Service.ts` | Split canónico de lectura/escritura/suscripción |
-| Local primario | IndexedDB (`src/services/storage/indexedDBService.ts`)       | Offline-first                                   |
-| Local fallback | localStorage (`src/services/storage/localStorageService.ts`) | Degradación controlada                          |
-| Remoto         | Firestore services                                           | Sincronización multi-dispositivo                |
+`StaffProvider` conserva la identidad del valor mientras datos, carga, acciones y
+estado de sus gestores no cambien. Cambios reales siguen notificando consumidores.
+El calendario conserva un listener por mes activo y QueryClient, con cleanup al
+cambiar mes, deshabilitar o desmontar. No añadir stores para sustituir esas garantías.
 
-### Características
+## Decisiones por subsistema
 
-- Optimistic updates para latencia baja.
-- Suscripción en tiempo real para convergencia de estado.
-- Sync status expuesto a UI.
-- Demo mode y rutas de migración para datos legacy.
+- [Censo, precedencia y recuperación](ADR_DAILY_RECORD_RUNTIME_PATH.md)
+- [Auth y recuperación de sesión](ADR_AUTH_RUNTIME_RECOVERY.md)
+- [Documentos clínicos](ADR_CLINICAL_DOCUMENT_WORKSPACE_CONTRACT.md)
+- [Handoff](ADR_HANDOFF_RUNTIME_SURFACES.md)
+- [Índice de ADR y runbooks](DOCUMENTATION_MAP.md)
+- [Repositorios y compatibilidad](../src/services/repositories/README.md)
+- [Storage y outbox](../src/services/storage/README.md)
 
-## 7) Estrategia de Testing
+## Validar y evolucionar
 
-| Nivel            | Ubicación                                    | Herramienta       | Objetivo                                   |
-| ---------------- | -------------------------------------------- | ----------------- | ------------------------------------------ |
-| Unit             | `src/tests/**`                               | Vitest            | Lógica de controllers/hooks/utils/services |
-| Integración      | `src/tests/integration/**`                   | Vitest + RTL      | Flujos entre hooks, repositorios y UI      |
-| Seguridad reglas | `src/tests/security/firestore-rules.test.ts` | Vitest + emulator | Validar reglas Firestore                   |
-| E2E              | `e2e/**`                                     | Playwright        | Flujo de usuario extremo a extremo         |
+[CONTRIBUTING.md](../CONTRIBUTING.md) contiene instalación, selección de pruebas y
+publicación. [Safe Change Checklist](SAFE_CHANGE_CHECKLIST.md) y la
+[Definition of Done](ENGINEERING_DEFINITION_OF_DONE.md) gobiernan el cierre.
 
-### Comandos recomendados por pipeline
+Preferir pruebas de comportamiento del dueño y una integración que alcance el
+límite real. No añadir tests que sólo repitan delegaciones. No reducir umbrales,
+excepciones o compatibilidad para que una simplificación pase. El loader mockeado,
+el conteo de renders y el grafo de imports miden propiedades distintas: ninguno
+por sí solo demuestra mejor latencia de una sesión clínica real.
 
-```bash
-npm run typecheck
-npm run check:quality
-npm run test
-```
+La acción `.github/actions/setup-ci-dependencies` reutiliza una instalación sólo
+con clave exacta de runner, arquitectura, Node, manifests, lockfile, `.npmrc` y
+acción. Un miss/fallo mantiene `npm ci`; Functions conserva instalación separada.
+No compartir emuladores ni builds de escenarios distintos ni alterar la política
+de gates al simplificar el código.
 
-## 8) Patrones de Arquitectura en uso
+### Caminos internos de camas y entrega
 
-- **Feature-first híbrido**: módulos por feature + capas transversales (`services`, `shared`, `types`).
-- **Controller pattern**: lógica de validación, transformación y comandos fuera de componentes.
-- **Application use cases**: coordinación explícita de operaciones críticas sobre repositorios y outcomes homogéneos.
-- **Operational telemetry**: el core reporta eventos estructurados (`auth`, `daily_record`, `sync`, `indexeddb`, `export`, `backup`, `clinical_document`, `reminders`, `transfers`, `create_day`, `handoff`) a una telemetría local persistida y puede reenviarlos a un adapter externo opt-in vía `VITE_OPERATIONAL_TELEMETRY_ENDPOINT`.
-- **Domain observability adapters**: los contextos críticos deben emitir eventos a través de wrappers por dominio (`authOperationalTelemetry`, `dailyRecordObservability`, `reminderObservability`, `clinicalDocumentObservability`, `storage`/`sync` adapters) y no depender directamente del servicio genérico salvo en sinks/base infra.
-- **Error service facade**: `src/services/utils/errorService.ts` expone la API pública estable; `errorServiceController.ts` clasifica/reintenta y `errorServiceSinks.ts` decide persistencia IndexedDB, auditoría, consola de desarrollo y reenvío externo.
-- **Sync queue orchestration**: `syncQueueEngine.ts` orquesta; `syncQueueFailurePolicy.ts` decide transiciones y retry budget; `syncQueueTelemetryController.ts` concentra snapshots y reporting operativo.
-- **Configuración de observabilidad externa**:
-  - `VITE_OPERATIONAL_TELEMETRY_ENDPOINT`: endpoint HTTP `POST` vendor-agnostic para reenviar eventos del core.
-  - `VITE_OPERATIONAL_TELEMETRY_SAMPLE_RATE`: fracción `0..1` usada por el adapter para muestrear eventos.
-  - Política de emisión:
-    - `failed`: siempre.
-    - `partial` / `degraded`: siempre que afecten operación clínica, sync o respaldo.
-    - `success`: solo para operaciones críticas seleccionadas.
-  - El payload reenviado mantiene `category`, `status`, `operation`, `date`, `issues`, `context` y `source=hhr_operational_telemetry`.
-- **Ports/adapters**: los use-cases hablan con contratos (`AuditPort`, `DailyRecordReadPort`, `DailyRecordWritePort`, `CensusEmailDeliveryPort`, `ClinicalDocumentPort`) y los adapters por defecto viven en `src/application/ports/*`.
-- Casos ya migrados en primera ola:
-  - inicialización/sync de `dailyRecord`
-  - episodio clínico compartido
-  - envío médico de handoff
-  - análisis/migración de pacientes
-- Casos ya migrados en segunda ola:
-  - escritura/lectura de auditoría
-  - bootstrap/sync/CRUD de listas de destinatarios de censo
-  - persistencia/firma/desfirma/exportación de documentos clínicos
-- Casos ya modularizados por bounded context:
-  - `backup-export/backupExportStorageUseCases`
-  - `backup-export/backupExportArchiveUseCases`
-  - `backup-export/backupExportMaintenanceUseCases`
-- **Repository pattern**: acceso a datos desacoplado de la UI.
-- **Runtime adapter pattern**: encapsulación de efectos de browser (`alert`, `confirm`, `reload`, `open`).
-- **Form flow unificado**: `useModalFormFlow` en modales críticos.
+El dispatch de camas llama a `bedManagementReducer` en `useBedManagementReducer.ts`.
+Ese único reducer puro conserva el rechazo de un registro nulo y delega las reglas
+clínicas a los builders existentes, sin el antiguo controller intermediario.
+`HandoffRow` importa cada celda de su módulo propietario; el antiguo barrel
+`HandoffRowCells` no define una frontera pública ni debe recrearse.
 
-### Boundary operativo actual
+### Antecedentes conservados al cambiar de pestaña
 
-```text
-components/features
-  -> hooks facade
-  -> controllers puros
-  -> application use cases
-  -> application ports
-  -> services / repositories / storage
-```
+El drawer conserva la sección de antecedentes montada para mantener historia y
+paginación, pero comunica si está activa. La consulta periódica se pausa cuando
+la sección o el documento están ocultos. Al volver se conserva el plazo desde
+el último inicio; una solicitud pendiente no se cancela por cambiar de pestaña
+ni se duplica. Cambiar episodio o reintentar conserva su cancelación existente.
 
-Regla práctica:
+### Apertura de documentos a través de la extensión
 
-```text
-Si una operación remota ya tiene use-case o port,
-la UI no importa el servicio concreto.
-```
+El puente conserva el ID opaco y el protocolo existente. Solo acepta respuestas
+del mismo window, origen e identificador de solicitud. Respuesta, fallo de envío
+y timeout terminan por el mismo camino idempotente y liberan listener y timer.
+Un timeout no cancela una apertura ya enviada a la extensión ni autoriza reenviarla.
 
-## 9) Riesgos técnicos actuales (no seguridad)
+### Comprobación de compatibilidad del runtime
 
-| Riesgo                                  | Impacto                | Mitigación sugerida                                                                                                   |
-| --------------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Tamaño del módulo en feature `census`   | Complejidad alta       | Seguir extrayendo controllers por bounded context                                                                     |
-| Coexistencia de capas legacy y nuevas   | Curva de mantenimiento | Consolidar readmes + reglas de arquitectura por capa                                                                  |
-| Acoplamiento histórico en algunos hooks | Riesgo de regresión    | Aumentar tests de borde + contracts tests                                                                             |
-| Outcomes remotos heterogéneos           | UX inconsistente       | Traducir sync/export a `ApplicationOutcome`                                                                           |
-| Hotspots legacy de coordinación         | Mantenimiento costoso  | Seguir migrando `useAudit`, `useCensusEmail`, `ClinicalDocumentsWorkspace` y `useBedManagement` a fachada + use-cases |
-
-## 10) Guía rápida para cambios nuevos
-
-1. Definir contrato de entrada/salida en `types` o `domain/contracts`.
-2. Implementar lógica en `controllers` (sin React ni efectos runtime directos).
-3. Conectar con hook de feature.
-4. Integrar en componente presentacional.
-5. Agregar test unitario del controller + test de integración mínimo.
-6. Ejecutar `typecheck`, `check:quality`, `test`.
+VersionProvider comparte una sola comprobación en curso entre montaje, foco,
+visibilidad, intervalo y solicitud explícita. Cambiar su estado no reinicia
+el efecto ni dispara otra consulta. Una observación de esquema más nuevo no
+se borra por una respuesta compatible que estaba pendiente; los errores liberan
+la petición para reintentar. Al desmontar, no se aplican respuestas tardías ni
+se inicia trabajo mediante callbacks anteriores. El endpoint y sus contratos
+permanecen intactos; no se añade caché ni se cancela el bootstrap de la sesión.

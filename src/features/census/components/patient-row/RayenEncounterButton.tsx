@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useNotification } from '@/context/UIContext';
-import { requestRayenEncounterNavigation } from '@/features/rayen-import';
+import { requestRayenEncounterNavigation } from '@/features/rayen-import/clinical-panel';
 
 interface RayenEncounterButtonProps {
   bedId: string;

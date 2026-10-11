@@ -2,6 +2,8 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
+import { collectPlaywrightReportIssues } from './check-playwright-report-clean.mjs';
 
 const args = process.argv.slice(2);
 const enforce = args.includes('--enforce');
@@ -11,8 +13,7 @@ const defaultInput = process.env.PLAYWRIGHT_JSON_OUTPUT || 'reports/e2e/playwrig
 const inputPath = positional[0] || defaultInput;
 const outputJsonPath = positional[1] || 'reports/e2e/critical-operational-metrics.json';
 const outputMarkdownPath = positional[2] || 'reports/e2e/critical-operational-summary.md';
-const historyDirPath =
-  positional[3] || process.env.E2E_HISTORY_DIR || 'reports/e2e/history';
+const historyDirPath = positional[3] || process.env.E2E_HISTORY_DIR || 'reports/e2e/history';
 const thresholdsPath =
   process.env.E2E_THRESHOLDS_CONFIG || 'scripts/config/e2e-operational-thresholds.json';
 const baselinePath = process.env.E2E_BASELINE_METRICS_PATH || '';
@@ -47,6 +48,7 @@ const thresholds = {
 };
 
 const nowIso = new Date().toISOString();
+const evidenceIssues = collectPlaywrightReportIssues(inputPath, { label: 'critical E2E' });
 
 const emptyMetrics = {
   generatedAt: nowIso,
@@ -62,7 +64,7 @@ const emptyMetrics = {
   flaky: 0,
   retriesUsed: 0,
   durationMs: 0,
-  projects: {},
+  projects: Object.create(null),
   thresholds,
   baseline: null,
   status: 'warn',
@@ -80,24 +82,49 @@ const normalizeStatus = status => {
   return 'unknown';
 };
 
-const collectTests = (suite, acc) => {
+const collectTests = (suite, acc, parentTitles = []) => {
   if (!suite || typeof suite !== 'object') return;
 
+  const titlePath = [...parentTitles, suite.title || ''];
   const specs = Array.isArray(suite.specs) ? suite.specs : [];
   for (const spec of specs) {
     const tests = Array.isArray(spec.tests) ? spec.tests : [];
     for (const test of tests) {
-      acc.push(test);
+      acc.push({
+        test,
+        titlePath: [...titlePath, spec.title || ''],
+        file: spec.file || suite.file || 'unknown',
+        title: spec.title || '',
+        line: spec.line ?? null,
+      });
     }
   }
 
   const nestedSuites = Array.isArray(suite.suites) ? suite.suites : [];
   for (const nested of nestedSuites) {
-    collectTests(nested, acc);
+    collectTests(nested, acc, titlePath);
   }
 };
 
-const computeBaselineFromHistory = historyDir => {
+const getProjectName = test =>
+  (typeof test?.projectName === 'string' && test.projectName) ||
+  (typeof test?.projectId === 'string' && test.projectId) ||
+  'unknown';
+
+const isComparableBaseline = (candidate, current) =>
+  candidate?.reportFound === true &&
+  ['pass', 'warn'].includes(candidate.status) &&
+  candidate.totalTests === current.totalTests &&
+  candidate.suiteFingerprint === current.suiteFingerprint &&
+  candidate.failed === 0 &&
+  candidate.timedOut === 0 &&
+  candidate.interrupted === 0 &&
+  candidate.flaky === 0 &&
+  candidate.passed + candidate.skipped === candidate.totalTests &&
+  Number.isFinite(candidate.durationMs) &&
+  candidate.durationMs > 0;
+
+const computeBaselineFromHistory = (historyDir, current) => {
   if (!fs.existsSync(historyDir)) return null;
 
   const historyFiles = fs
@@ -109,7 +136,7 @@ const computeBaselineFromHistory = historyDir => {
       payload: readJsonSafe(filePath),
       mtimeMs: fs.statSync(filePath).mtimeMs,
     }))
-    .filter(entry => entry.payload && entry.payload.reportFound)
+    .filter(entry => isComparableBaseline(entry.payload, current))
     .sort((a, b) => b.mtimeMs - a.mtimeMs)
     .slice(0, thresholds.historyWindow)
     .map(entry => entry.payload);
@@ -130,22 +157,27 @@ const computeBaselineFromHistory = historyDir => {
 };
 
 const evaluateThresholds = metrics => {
-  const violations = [];
+  const violations = [...evidenceIssues];
   const warnings = [...metrics.warnings];
 
   if (!metrics.reportFound) {
     return {
       ...metrics,
-      status: 'warn',
+      status: violations.length > 0 ? 'fail' : 'warn',
       violations,
       warnings,
     };
   }
 
+  if (metrics.totalTests === 0) {
+    violations.push('Critical E2E report has no test entries.');
+  }
+  if (metrics.failed + metrics.timedOut + metrics.interrupted > 0) {
+    violations.push('Critical E2E report contains failed, timed out, or interrupted tests.');
+  }
+
   if (metrics.flaky > thresholds.maxFlaky) {
-    violations.push(
-      `Flaky tests ${metrics.flaky} exceed maxFlaky ${thresholds.maxFlaky}.`
-    );
+    violations.push(`Flaky tests ${metrics.flaky} exceed maxFlaky ${thresholds.maxFlaky}.`);
   }
 
   if (metrics.retriesUsed > thresholds.maxRetriesUsed) {
@@ -161,7 +193,8 @@ const evaluateThresholds = metrics => {
   }
 
   if (metrics.baseline && metrics.baseline.durationMs > 0) {
-    const deltaPct = ((metrics.durationMs - metrics.baseline.durationMs) / metrics.baseline.durationMs) * 100;
+    const deltaPct =
+      ((metrics.durationMs - metrics.baseline.durationMs) / metrics.baseline.durationMs) * 100;
     metrics.durationRegressionPct = Number(deltaPct.toFixed(2));
     if (deltaPct > thresholds.maxDurationRegressionPct) {
       warnings.push(
@@ -201,7 +234,8 @@ const writeOutputs = metrics => {
     `- Attempts (incl. retries): ${metrics.totalAttempts}`,
     `- Flaky tests: ${metrics.flaky}`,
     `- Retries used: ${metrics.retriesUsed}`,
-    `- Duration: ${toSeconds(metrics.durationMs)} s`,
+    `- Duration (sum of test attempts): ${toSeconds(metrics.durationMs)} s`,
+    `- Playwright wall duration: ${metrics.wallDurationMs === null || metrics.wallDurationMs === undefined ? 'unavailable' : `${toSeconds(metrics.wallDurationMs)} s`}`,
     '',
     '## Thresholds',
     '',
@@ -244,6 +278,39 @@ const writeOutputs = metrics => {
     );
   }
 
+  if (metrics.slowestTests?.length) {
+    lines.push(
+      '',
+      '## Slowest tests (all attempts)',
+      '',
+      '| File | Test | Project | Attempts | Duration (s) |',
+      '| --- | --- | --- | ---: | ---: |'
+    );
+    const cell = value =>
+      String(value)
+        .replace(/[\r\n]/g, ' ')
+        .replace(/\|/g, '\\|');
+    for (const test of metrics.slowestTests) {
+      lines.push(
+        `| ${cell(test.file)}:${test.line ?? '?'} | ${cell(test.title)} | ${cell(test.project)} | ${test.attempts} | ${toSeconds(test.durationMs)} |`
+      );
+    }
+    lines.push(
+      '',
+      '## File costs (all attempts)',
+      '',
+      '| File | Tests | Attempts | Duration (s) |',
+      '| --- | ---: | ---: | ---: |'
+    );
+    for (const [file, cost] of Object.entries(metrics.files).sort(
+      (a, b) => b[1].durationMs - a[1].durationMs || a[0].localeCompare(b[0])
+    )) {
+      lines.push(
+        `| ${cell(file)} | ${cost.tests} | ${cost.attempts} | ${toSeconds(cost.durationMs)} |`
+      );
+    }
+  }
+
   if (metrics.violations.length > 0) {
     lines.push('', '## Violations', '');
     for (const violation of metrics.violations) {
@@ -271,7 +338,7 @@ if (!fs.existsSync(inputPath)) {
   const finalMetrics = evaluateThresholds(emptyMetrics);
   writeOutputs(finalMetrics);
   console.warn('[e2e-metrics] Playwright JSON report not found. Wrote empty metrics artifact.');
-  process.exit(0);
+  process.exit(enforce && finalMetrics.status === 'fail' ? 1 : 0);
 }
 
 let payload;
@@ -285,7 +352,7 @@ try {
   });
   writeOutputs(metrics);
   console.warn('[e2e-metrics] Invalid report JSON. Wrote empty metrics artifact.');
-  process.exit(0);
+  process.exit(enforce && metrics.status === 'fail' ? 1 : 0);
 }
 
 const testEntries = [];
@@ -299,6 +366,29 @@ const metrics = {
   source: inputPath,
   reportFound: true,
   totalTests: testEntries.length,
+  suiteFingerprint: createHash('sha256')
+    .update(
+      JSON.stringify(
+        testEntries
+          .map(({ test, file, titlePath }) =>
+            JSON.stringify([
+              file,
+              titlePath,
+              getProjectName(test),
+              (Array.isArray(test?.results) ? test.results.at(-1)?.status : undefined) ||
+                test?.status,
+            ])
+          )
+          .sort()
+      )
+    )
+    .digest('hex'),
+  wallDurationMs:
+    Number.isFinite(payload?.stats?.duration) && payload.stats.duration >= 0
+      ? payload.stats.duration
+      : null,
+  slowestTests: [],
+  files: Object.create(null),
   totalAttempts: 0,
   passed: 0,
   failed: 0,
@@ -308,7 +398,7 @@ const metrics = {
   flaky: 0,
   retriesUsed: 0,
   durationMs: 0,
-  projects: {},
+  projects: Object.create(null),
   thresholds,
   baseline: null,
   status: 'pass',
@@ -316,7 +406,7 @@ const metrics = {
   warnings: [],
 };
 
-for (const test of testEntries) {
+for (const { test, file, title, line } of testEntries) {
   const results = Array.isArray(test?.results) ? test.results : [];
   const attempts = Math.max(1, results.length);
   const statuses = results.map(result => normalizeStatus(result?.status));
@@ -329,9 +419,7 @@ for (const test of testEntries) {
   const retriesUsed = Math.max(0, attempts - 1);
   const isFlaky = finalStatus === 'passed' && hasFailureAttempt;
 
-  const projectName =
-    results.find(result => typeof result?.projectName === 'string')?.projectName ||
-    'unknown';
+  const projectName = getProjectName(test);
 
   if (!metrics.projects[projectName]) {
     metrics.projects[projectName] = {
@@ -343,6 +431,12 @@ for (const test of testEntries) {
   }
 
   const durationMs = results.reduce((sum, result) => sum + Number(result?.duration || 0), 0);
+
+  metrics.slowestTests.push({ file, title, line, project: projectName, attempts, durationMs });
+  metrics.files[file] ||= { tests: 0, attempts: 0, durationMs: 0 };
+  metrics.files[file].tests += 1;
+  metrics.files[file].attempts += attempts;
+  metrics.files[file].durationMs += durationMs;
 
   metrics.totalAttempts += attempts;
   metrics.retriesUsed += retriesUsed;
@@ -363,8 +457,17 @@ for (const test of testEntries) {
   else if (finalStatus === 'skipped') metrics.skipped += 1;
 }
 
+metrics.slowestTests.sort(
+  (a, b) =>
+    b.durationMs - a.durationMs ||
+    a.file.localeCompare(b.file) ||
+    a.title.localeCompare(b.title) ||
+    a.project.localeCompare(b.project)
+);
+metrics.slowestTests = metrics.slowestTests.slice(0, 10);
+
 const explicitBaseline = readJsonSafe(baselinePath);
-if (explicitBaseline && explicitBaseline.reportFound) {
+if (isComparableBaseline(explicitBaseline, metrics)) {
   metrics.baseline = {
     source: baselinePath,
     durationMs: Number(explicitBaseline.durationMs || 0),
@@ -372,7 +475,11 @@ if (explicitBaseline && explicitBaseline.reportFound) {
     retriesUsed: Number(explicitBaseline.retriesUsed || 0),
   };
 } else {
-  metrics.baseline = computeBaselineFromHistory(historyDirPath);
+  metrics.baseline = computeBaselineFromHistory(historyDirPath, metrics);
+  if (baselinePath)
+    metrics.warnings.push(
+      'Explicit E2E baseline is incomplete or covers a different test cohort; using comparable history only.'
+    );
 }
 
 const evaluatedMetrics = evaluateThresholds(metrics);

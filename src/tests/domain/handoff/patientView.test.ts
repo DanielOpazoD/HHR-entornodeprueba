@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { describe, expect, it } from 'vitest';
 import type { MedicalHandoffEntry, PatientData } from '@/types/domain/patient';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
@@ -79,6 +81,7 @@ describe('handoff patient view domain', () => {
     const metadata = resolveMedicalEntryMetadataViewModel(entry, '2026-03-03');
 
     expect(metadata.primaryLabel).toContain('Nota base: Daniel Opazo');
+    expect(metadata.printLabel).toContain('Vigente por: Admin Test');
     expect(metadata.showInfoButton).toBe(true);
     expect(metadata.detailLines).toEqual([
       expect.stringContaining('Nota original: Daniel Opazo'),

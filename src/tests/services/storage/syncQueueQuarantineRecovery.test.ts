@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { afterEach, describe, it, expect, beforeEach, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexedDBService';
 import { logError } from '@/services/utils/errorService';
 
@@ -48,6 +48,13 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
  * bloquear la adopción autoritativa), y (2) el usuario puede reintentarla o
  * descartarla explícitamente desde el indicador de la barra.
  */
+// Control Date only; preserve native timers and asynchronous I/O.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-09-30T12:00:00.000Z'));
+});
+afterEach(() => vi.useRealTimers());
+
 describe('storage/sync cuarentena y recuperación', () => {
   const makeRecord = (date: string, marker: string): DailyRecord => ({
     date,

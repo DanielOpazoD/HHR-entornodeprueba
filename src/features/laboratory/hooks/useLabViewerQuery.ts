@@ -45,6 +45,7 @@ export const useLabViewerQuery = ({
   const [pdfExam, setPdfExam] = useState<SyslabExamItem | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [manualPatientExtra, setManualPatientExtra] = useState<{
+    rut: string;
     fullName?: string;
     birthDate?: string;
   } | null>(null);
@@ -94,6 +95,7 @@ export const useLabViewerQuery = ({
 
       try {
         const { getPatientByRut } = await import('@/services/repositories/PatientMasterRepository');
+        if (cancelled) return;
         const master = await getPatientByRut(selectedRut);
         if (cancelled) {
           return;
@@ -105,12 +107,15 @@ export const useLabViewerQuery = ({
         // External RUTs can still be enriched from the Syslab PDF below.
       }
 
+      if (cancelled) return;
+
       if (!birthDate) {
         birthDate = await resolveLabPatientBirthDateFromPdf(examList);
       }
 
-      if (!cancelled && (fullName || birthDate)) {
+      if (!cancelled) {
         setManualPatientExtra({
+          rut: selectedRut,
           fullName,
           birthDate,
         });
@@ -132,12 +137,13 @@ export const useLabViewerQuery = ({
 
     if (selectedRut && examList.length > 0) {
       const syslabName = examList[0]?.patientName;
+      const extra = manualPatientExtra?.rut === selectedRut ? manualPatientExtra : null;
       return {
         bedId: '',
-        label: manualPatientExtra?.fullName || syslabName || selectedRut,
-        patientName: manualPatientExtra?.fullName || syslabName || '',
+        label: extra?.fullName || syslabName || selectedRut,
+        patientName: extra?.fullName || syslabName || '',
         rut: selectedRut,
-        birthDate: manualPatientExtra?.birthDate,
+        birthDate: extra?.birthDate,
       } satisfies LabPatient;
     }
 

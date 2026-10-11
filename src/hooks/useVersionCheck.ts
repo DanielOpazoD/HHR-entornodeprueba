@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { reconcileBootstrapRuntime } from '@/app-shell/bootstrap/bootstrapAppRuntime';
 import { versionCheckLogger } from '@/hooks/hookLoggers';
 
@@ -6,14 +6,7 @@ const VERSION_CHECK_DELAY_MS = 1000;
 const VERSION_CHECK_INTERVAL_MS = 5 * 60 * 1000;
 
 export const useVersionCheck = (): void => {
-  const hasChecked = useRef(false);
-
   useEffect(() => {
-    if (hasChecked.current) {
-      return;
-    }
-    hasChecked.current = true;
-
     const checkVersion = async () => {
       try {
         await reconcileBootstrapRuntime();

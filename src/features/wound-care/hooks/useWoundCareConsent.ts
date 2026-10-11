@@ -1,13 +1,10 @@
 /**
  * Hook: Subscribe to wound care consent for an episode.
  *
- * Uses the standard subscription-in-effect pattern. The setIsLoading(true)
- * call triggers a React 19 lint warning (react-hooks/set-state-in-effect)
- * but is intentional — it resets loading state when the episodeKey changes
- * before the new subscription emits.
+ * Results belong to the current episode, hospital and subscription port.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { WoundCareConsent } from '@/types/domain/woundCare';
 import {
   defaultWoundCareConsentPort,
@@ -42,24 +39,32 @@ export const useWoundCareConsent = ({
   hospitalId,
   consentPort = defaultWoundCareConsentPort,
 }: UseWoundCareConsentOptions): UseWoundCareConsentReturn => {
-  const [consent, setConsent] = useState<WoundCareConsent | null>(null);
-  const [isLoading, setIsLoading] = useState(Boolean(episodeKey));
-
-  const handleConsentUpdate = useCallback((updatedConsent: WoundCareConsent | null) => {
-    setConsent(updatedConsent);
-    setIsLoading(false);
-  }, []);
-
+  const scope = useMemo(
+    () => ({ episodeKey, hospitalId, consentPort }),
+    [episodeKey, hospitalId, consentPort]
+  );
+  const [result, setResult] = useState<{
+    scope: typeof scope;
+    value: WoundCareConsent | null;
+  } | null>(null);
   useEffect(() => {
-    if (!episodeKey) return;
-
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: reset loading on subscription change
-    setIsLoading(true);
-    return consentPort.subscribeByEpisode(episodeKey, handleConsentUpdate, hospitalId);
-  }, [episodeKey, hospitalId, consentPort, handleConsentUpdate]);
-
+    if (!scope.episodeKey) return;
+    let active = true;
+    const unsubscribe = scope.consentPort.subscribeByEpisode(
+      scope.episodeKey,
+      value => {
+        if (active) setResult({ scope, value });
+      },
+      scope.hospitalId
+    );
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [scope]);
+  const isCurrent = result?.scope === scope;
   return {
-    consent: episodeKey ? consent : null,
-    isLoading: episodeKey ? isLoading : false,
+    consent: episodeKey && isCurrent ? result.value : null,
+    isLoading: Boolean(episodeKey) && !isCurrent,
   };
 };

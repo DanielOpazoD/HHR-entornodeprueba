@@ -6,10 +6,18 @@ export interface PatientRowResolvedIndicators {
   isNewAdmission: boolean;
 }
 
-export const EMPTY_PATIENT_ROW_INDICATORS: PatientRowResolvedIndicators = {
-  hasClinicalDocument: false,
-  isNewAdmission: false,
-};
+// Four immutable value combinations keep React.memo effective when another bed's
+// document presence changes. No per-patient cache or custom row comparator.
+const INDICATOR_VALUES = [false, true].flatMap(hasClinicalDocument =>
+  [false, true].map(isNewAdmission => Object.freeze({ hasClinicalDocument, isNewAdmission }))
+);
+const stableIndicators = (hasClinicalDocument: boolean, isNewAdmission: boolean) =>
+  INDICATOR_VALUES[Number(hasClinicalDocument) * 2 + Number(isNewAdmission)];
+
+export const EMPTY_PATIENT_ROW_INDICATORS: PatientRowResolvedIndicators = stableIndicators(
+  false,
+  false
+);
 
 interface ResolvePatientRowIndicatorsParams {
   indicators?: PatientActionMenuIndicators;
@@ -19,10 +27,11 @@ interface ResolvePatientRowIndicatorsParams {
 export const resolvePatientRowIndicators = ({
   indicators,
   canShowClinicalDocumentIndicator,
-}: ResolvePatientRowIndicatorsParams): PatientRowResolvedIndicators => ({
-  hasClinicalDocument: Boolean(indicators?.hasClinicalDocument) && canShowClinicalDocumentIndicator,
-  isNewAdmission: Boolean(indicators?.isNewAdmission),
-});
+}: ResolvePatientRowIndicatorsParams): PatientRowResolvedIndicators =>
+  stableIndicators(
+    Boolean(indicators?.hasClinicalDocument) && canShowClinicalDocumentIndicator,
+    Boolean(indicators?.isNewAdmission)
+  );
 
 interface BuildOccupiedPatientRowIndicatorsParams {
   isSubRow: boolean;
@@ -46,17 +55,17 @@ const buildMainRowIndicators = ({
   admissionTime,
   hasClinicalDocument,
   wasDischargedSameDay,
-}: Omit<BuildOccupiedPatientRowIndicatorsParams, 'isSubRow'>): PatientRowResolvedIndicators => ({
-  hasClinicalDocument,
-  isNewAdmission:
-    wasDischargedSameDay ||
-    resolveIsNewAdmissionForRecord({
-      recordDate: currentDateString,
-      firstSeenDate,
-      admissionDate,
-      admissionTime,
-    }),
-});
+}: Omit<BuildOccupiedPatientRowIndicatorsParams, 'isSubRow'>): PatientRowResolvedIndicators =>
+  stableIndicators(
+    hasClinicalDocument,
+    Boolean(wasDischargedSameDay) ||
+      resolveIsNewAdmissionForRecord({
+        recordDate: currentDateString,
+        firstSeenDate,
+        admissionDate,
+        admissionTime,
+      })
+  );
 
 export const buildOccupiedPatientRowIndicators = ({
   isSubRow,

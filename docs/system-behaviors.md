@@ -43,6 +43,11 @@ los callbacks de registro de `clinicalFillRunner` / `collectNursingStaffingPropo
 
 ## 1. Auto-Detección de Versión
 
+`useVersionCheck` crea temporizadores y suscripciones por montaje del efecto y los
+retira al limpiarlo. Si React vuelve a montar el efecto (incluido StrictMode),
+restablece la comprobación sin acumular listeners. No se conserva una bandera de
+“ya iniciado” después de destruir esos recursos.
+
 ### Descripción
 
 El sistema detecta automáticamente cuando hay una nueva versión desplegada y actualiza el navegador del usuario sin intervención manual.
@@ -61,6 +66,9 @@ El sistema detecta automáticamente cuando hay una nueva versión desplegada y a
    - al recuperar foco;
    - al volver la pestaña a estado visible;
    - y en un polling liviano periódico.
+     Las comprobaciones simultáneas comparten una única reconciliación en curso por pestaña,
+     incluido el arranque. Al resolverse o rechazarse, la siguiente comprobación puede volver
+     a consultar la versión; no se conserva una caché indefinida ni se añaden reintentos automáticos.
 4. Si el deploy es compatible, la reconciliación sigue siendo silenciosa.
 5. Si el contrato runtime o el schema remoto quedan por delante del cliente:
    - se bloquea escritura sensible;
@@ -190,6 +198,8 @@ Usuarios con "passport" pueden trabajar sin conexión a internet.
 ### Límites deliberados
 
 - Se restaura navegación funcional mínima, no modales efímeros ni estado interno transitorio.
+- Las preferencias visuales se aplican antes del primer pintado del bootstrap. La barra de fechas comparte la presentación de los controles con sus menús diferidos y, durante el bootstrap, los mantiene inactivos hasta disponer del runtime. En censo conserva Documentos, Más opciones y el espacio de conflictos para administración; no muestra un buscador provisional.
+- La tarjeta de Eloísa conserva las acciones Historial, Dotación, Sincronizar y descarga durante la carga del módulo, deshabilitadas y sin afirmar conectividad. Especialidades conserva su botón mientras se carga su módulo, respetando el feature flag.
 - La URL actúa como contrato mínimo de restauración usando `module` y `date`.
 
 ### Archivos Relacionados
@@ -432,6 +442,14 @@ La interfaz se adapta dinámicamente según el rol del usuario y el contexto cl�
 **Causa posible:** Primera vez que se abre ese día sin datos previos.
 **Acción:** Usar "Copiar del día anterior" o "Registro en blanco".
 
+### Verificación de respaldo al cambiar de vista
+
+La consulta diferida de respaldo pertenece a la fecha, módulo y turno que la
+iniciaron. Si ese contexto cambia o la vista se desmonta mientras carga el módulo,
+no se inicia la consulta remota. Las respuestas y avisos tardíos del contexto
+anterior se descartan, también si el presentador del aviso aún estaba cargando.
+La verificación vigente conserva su estado, telemetría y avisos habituales.
+
 ### "El botón de respaldo aparece en verde"
 
 **Causa:** El sistema ya realizó un respaldo automático exitoso para esa fecha.
@@ -450,3 +468,13 @@ La interfaz se adapta dinámicamente según el rol del usuario y el contexto cl�
 ---
 
 _Última actualización: 4 de Abril 2026_
+
+### Migración local y repetición de efectos
+
+`useStorageMigration` puede esperar la autenticación antes de habilitarse. La limpieza
+de un efecto invalida únicamente su respuesta; no bloquea los montajes posteriores.
+Si React repite el efecto o se vuelve a habilitar durante una migración pendiente,
+se comparte esa operación hasta que termine, sin duplicar escrituras. Una operación
+ya terminada no se conserva como caché: el servicio mantiene su indicador persistente
+de migración y sus contratos de recuperación. Las regresiones viven en
+`useStorageMigration.test.ts`; `indexedDBService.test.ts` verifica los datos migrados.

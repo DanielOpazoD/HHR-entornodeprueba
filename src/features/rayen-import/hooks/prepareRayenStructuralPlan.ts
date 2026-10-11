@@ -56,15 +56,19 @@ export const prepareRayenStructuralPlan = async ({
   const { normalizeRut } = await import('@/utils/rutUtils');
   const occupied = occupiedBedsByRun(baseRecord);
   const occupiedCribs = occupiedClinicalCribsByRun(baseRecord);
+  const { previousCensusDate } = await import('../domain/previousCensusContinuity');
+  const { previousCensusEgresoCandidates } =
+    await import('../domain/previousCensusEgresoCandidates');
+  const previousDate = previousCensusDate(reportDate);
+  const previous = isHistoricalDay
+    ? null
+    : await measureEvidence(() => dailyRecord.getAuthoritativeForDate(previousDate));
+  if (previous && previous.date !== previousDate) {
+    throw new Error('No se pudo verificar el censo previo: la fecha recibida no corresponde.');
+  }
   const previousCensusCandidates = isHistoricalDay
     ? []
-    : await measureEvidence(async () => {
-        const { previousCensusDate } = await import('../domain/previousCensusContinuity');
-        const { previousCensusEgresoCandidates } =
-          await import('../domain/previousCensusEgresoCandidates');
-        const previous = await dailyRecord.getAuthoritativeForDate(previousCensusDate(reportDate));
-        return previousCensusEgresoCandidates(previous, bundle.egresoRows, reportDate);
-      });
+    : previousCensusEgresoCandidates(previous, bundle.egresoRows, reportDate);
   const egresoRows = await measureEvidence(() =>
     enrichReportOnlyDischarges(bundle.egresoRows, reportDate, {
       fetchStatisticalDischarge,
@@ -83,9 +87,28 @@ export const prepareRayenStructuralPlan = async ({
     })
   );
 
+  const { planRayenCensusImport } = await import('../importRayenCensusUseCase');
+  const { applyEgresoReport } = await import('../domain/applyEgresoReport');
+  const { recoverPreviousCensusDischarges } =
+    await import('../domain/recoverPreviousCensusDischarges');
+  const preliminaryDiff = applyEgresoReport(
+    planRayenCensusImport({ current: baseRecord, snapshot: planningSnapshot }).diff,
+    egresoRows,
+    baseRecord
+  );
+  const recoveredRows = await measureEvidence(() =>
+    recoverPreviousCensusDischarges(
+      previous,
+      baseRecord,
+      preliminaryDiff,
+      planningSnapshot,
+      lookupEgresos
+    )
+  );
+
   const capturedEvidence: CapturedRayenStructuralEvidence = {
     sourceSnapshot: planningSnapshot,
-    egresoRows,
+    egresoRows: [...egresoRows, ...recoveredRows],
     reportDate,
     isHistoricalDay,
   };

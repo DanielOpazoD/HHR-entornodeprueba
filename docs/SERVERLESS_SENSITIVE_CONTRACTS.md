@@ -23,6 +23,7 @@
 - Toda Function sensible debe responder con envelope consistente por runtime.
 - Ninguna Function Netlify debe depender de `firebase-functions/v1`.
 - Toda Function Netlify sensible que dependa del rol del usuario debe converger con el callable `checkUserRole`, no con una lectura paralela de `config/roles`.
+- `mmrad-search` sólo envía credenciales/cookies a `https://ris.mmrad.cl`, sin usuario o contraseña en la URL. Valida enlaces antes del login y cada destino de redirección; conserva rutas relativas institucionales y limita a cinco las redirecciones automáticas. Un enlace externo devuelve `400`; un destino inválido recibido del portal falla sin consultarlo.
 
 ## Firebase callable clínico
 
@@ -43,6 +44,20 @@ control optimista de versión; conserva las demás escalas y guarda historia y a
 arbitrarias, valida claves estables y envía la carga únicamente a una URL institucional
 de Apps Script configurada en el backend. El secreto compartido nunca se expone al navegador.
 
+## Historial CUDYR
+
+`archiveCudyrHistory` conserva observaciones oficiales por episodio/evaluación con
+los roles existentes de escritura clínica y autoridad de sincronización verificada
+en transacción. `readCudyrHistory` exige acceso clínico callable y pagina por período
+o por un conjunto de hasta 30 episodios (100 recibos por página) para el contexto temporal.
+Ambos fijan el establecimiento en el servidor y viven en `southamerica-east1`.
+No alteran censos históricos ni habilitan acceso directo a la colección.
+La operación `correct-discharge` exige `admin` o `nurse_hospital`, confirmación, motivo,
+identidad exacta del episodio y revisión optimista. Persiste alta real y auditoría atómicamente,
+sin modificar el egreso fuente ni el censo. Las lecturas `discharge-corrections` y
+`discharge-audit` conservan el guard clínico. No se añaden endpoints ni permisos IAM.
+Contrato, límites y validación: [CUDYR_HISTORY.md](./CUDYR_HISTORY.md).
+
 ## Convergencia obligatoria de rol
 
 Para `syslab-proxy` y `mmrad-search`:
@@ -55,3 +70,18 @@ Para `syslab-proxy` y `mmrad-search`:
 Referencia:
 
 - [docs/architecture/NETLIFY_AUTH_ROLE_CONVERGENCE.md](./architecture/NETLIFY_AUTH_ROLE_CONVERGENCE.md)
+
+## Complemento mensual CUDYR (documental)
+
+`archiveCudyrHistory`, operación `import-monthly-supplement`, admite únicamente
+`admin` o `nurse_hospital`, sesión y confirmación. Valida estructura normalizada,
+período, establecimiento, límite de 500 pacientes/500 KB y archivo XLS/XLSX de
+hasta 256 KiB. Conserva bytes, SHA-256, versión y recibo idempotente por usuario y
+operación. No decodifica el binario en el servidor: la evidencia queda rotulada
+`user_imported`, nunca aplicación clínica verificada. No acepta hospital del cliente.
+
+`readCudyrHistory`, operación `monthly-supplements`, conserva el guard clínico,
+filtra un mes y pagina hasta cinco versiones. No devuelve los bytes del original.
+Las tres colecciones documentales quedan inaccesibles por las reglas cliente;
+ninguna operación escribe censos, evaluaciones, altas ni categorías estadísticas.
+No se añaden endpoints o permisos IAM. El importador no es autor del CUDYR fuente.

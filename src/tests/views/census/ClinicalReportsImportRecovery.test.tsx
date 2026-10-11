@@ -52,7 +52,7 @@ describe('reports import recovery', () => {
     fireEvent.click(openReports);
     await screen.findByRole('alert');
     expect(screen.getByTestId('reports-module-loading').parentElement).toHaveStyle({
-      zIndex: 10000,
+      zIndex: '10000',
     });
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();

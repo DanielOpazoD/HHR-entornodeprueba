@@ -59,6 +59,9 @@ export const useBackupArchiveStatus = ({
     const runLookup = () => {
       void (async () => {
         const { executeLookupBackupArchiveStatus } = await loadBackupStorageUseCases();
+        if (isDisposed) {
+          return;
+        }
         const outcome = await executeLookupBackupArchiveStatus({
           backupType,
           date: currentDateString,
@@ -77,6 +80,9 @@ export const useBackupArchiveStatus = ({
           isArchived: buildArchiveStatusState(outcome.data.lookup),
         });
         const presentBackupLookupOutcome = await loadBackupLookupOutcomePresenter();
+        if (isDisposed) {
+          return;
+        }
         const notice = presentBackupLookupOutcome(outcome);
         // Background archive verification is opportunistic. Timeouts should stay silent and rely on
         // telemetry instead of interrupting the user when the main data flow is already healthy.

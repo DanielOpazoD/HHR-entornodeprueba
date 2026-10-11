@@ -1,8 +1,7 @@
+import { EmailButton } from '../DateStripButtonControls';
 import React from 'react';
-import { Send, Mail, ChevronDown, Settings } from 'lucide-react';
-import clsx from 'clsx';
+import { Mail, Settings } from 'lucide-react';
 import { useDropdownMenu } from '@/hooks/useDropdownMenu';
-import { resolveEmailButtonUiState } from './dateStripActionStateController';
 import { DateStripDropdownPanel } from './DateStripDropdownPanel';
 import { DateStripActionItem } from './DateStripActionItem';
 import type { EmailDropdownProps } from './types';
@@ -20,31 +19,15 @@ export const EmailDropdown: React.FC<EmailDropdownProps> = ({
     return null;
   }
 
-  const uiState = resolveEmailButtonUiState({
-    status: emailStatus,
-    errorMessage: emailErrorMessage,
-  });
-
   return (
     <div className="relative" ref={menuRef}>
       <div className="flex">
-        <button
+        <EmailButton
           onClick={toggle}
-          disabled={emailStatus === 'loading'}
-          className={clsx(
-            'btn h-[30px] !py-0 text-[10px] flex items-center justify-center gap-1',
-            '!px-2 rounded-lg border-r',
-            uiState.buttonClassName,
-            uiState.widthClassName
-          )}
-          title={uiState.title}
-          aria-live="polite"
-          data-email-status={emailStatus}
-        >
-          <Send size={13} />
-          {uiState.label}
-          <ChevronDown size={13} className={clsx('transition-transform', isOpen && 'rotate-180')} />
-        </button>
+          emailStatus={emailStatus}
+          emailErrorMessage={emailErrorMessage}
+          isOpen={isOpen}
+        />
       </div>
 
       {isOpen && (

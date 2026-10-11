@@ -130,9 +130,9 @@ botón IEEH
 | `controllers/bedManagerGridItemsController.ts`                  | Mapeo puro de `DailyRecord` a props de grillas de camas         |
 | `controllers/censusMovementActionIconController.ts`             | Resolución de iconografía para acciones de movimientos          |
 | `components/patient-row/nameInputController.ts`                 | Contrato puro de display/edición del nombre del paciente        |
-| `hooks/useDischargeModalForm.ts`                                | Form flow de altas                                              |
-| `hooks/useTransferModalForm.ts`                                 | Form flow de traslados                                          |
-| `hooks/useBedManagerModalModel.ts`                              | Orquestación UI vs dominio del modal de camas                   |
+| `src/hooks/useDischargeModalForm.ts`                            | Form flow de altas                                              |
+| `src/hooks/useTransferModalForm.ts`                             | Form flow de traslados                                          |
+| `src/hooks/useBedManagerModalModel.ts`                          | Orquestación UI vs dominio del modal de camas                   |
 | `hooks/useCensusMovementActionsCellModel.ts`                    | View-model para celda de acciones de movimientos                |
 | `hooks/useCensusViewScreenModel.ts`                             | Fachada de pantalla para ramas `empty/register`                 |
 | `hooks/useCensusTableRuntime.ts`                                | Runtime unificado de tabla (dependencias + resize + activación) |
@@ -202,8 +202,8 @@ botón IEEH
 - Las camas vacías siguen despejadas: el ingreso aparece al pasar el cursor o recibir foco.
 - Signos usan una cuadrícula estable; los valores alterados conservan su color, detalle textual y
   un subrayado punteado. Las escalas alinean resultado y vencimiento sin colorear todo el control.
-- Enfermería, TENS, Eloísa y estadísticas comparten contornos discretos; Escalas y Especialidades
-  son controles compactos centrados. El estado inicial de Eloísa conserva su espacio reservado.
+- Enfermería, TENS, Eloísa y estadísticas comparten contornos discretos. El estado inicial de
+  Eloísa conserva su espacio reservado. Escalas y Especialidades se ubican en sus superficies de edición.
 - `CensusTableViewport` observa el ancho real de tabla y contenedor. Si cabe, permite al encabezado
   permanecer bajo navegación y fechas (96 px); si no, conserva desplazamiento horizontal con
   teclado. No oculta columnas ni modifica preferencias de ancho. Impresión mantiene proporciones.
@@ -234,3 +234,64 @@ Una vez cargada la tabla del día solicitado, se enfoca y centra la fila (ocupad
 con un contorno, sin activar sus acciones ni colorear toda la fila. El parámetro `focusBed`
 se consume para no repetir el desplazamiento. Si una cama conocida no tiene fila visible,
 se informa sin enfocar otra cama ni modificar el censo.
+
+### Recuperación de antecedentes
+
+`ClinicalPanelAntecedents` usa `ok` como resultado de la consulta, incluso cuando
+la extensión no acompaña el fallo con un mensaje. Un fallo inicial ofrece reintento;
+un fallo de actualización conserva los datos ya cargados. Los resultados parciales
+y los fallos de actualización comparten una sola acción `Reintentar antecedentes`.
+Cada episodio mantiene su propio estado y aborta el interés en respuestas anteriores
+al cambiar de paciente; el reintento no modifica datos clínicos ni el protocolo de la extensión.
+
+### Fuentes para copiar un día vacío
+
+El recorrido activo es `useCensusViewModel` → `src/hooks/useCensusLogic.ts` →
+`src/hooks/useCensusPromptState.ts` → `src/hooks/controllers/censusPromptController.ts`.
+Este flujo histórico conserva su owner actual; no requiere otra API pública ni una
+segunda implementación dentro de la feature. Las copias antiguas `hooks/useCensusPromptState`
+y `controllers/censusLogicController` de esta feature no tenían consumidores productivos
+y se retiraron. Sus pruebas ahora ejercitan el owner activo: el hook con los lectores
+como puertos simulados, y el controller puro en su suite propia.
+
+### Disponibilidad al mover o copiar
+
+El modal usa `src/hooks/useMoveCopyTargetRecord.ts` como único owner. Para el día
+actual proyecta directamente el registro vigente: no conserva una copia local de
+las camas ni consulta almacenamiento. Para otra fecha mantiene la lectura asíncrona
+y descarta respuestas obsoletas. Los cambios del objeto del día actual no vuelven
+a consultar un destino externo. Si la cama seleccionada pasa a estar ocupada o deja
+de ser visible, Confirmar se deshabilita; las protecciones de persistencia se conservan.
+
+### Formularios de alta y traslado
+
+Las pantallas `DischargeModal` y `TransferModal` usan los hooks de `src/hooks`, que
+comparten `src/hooks/useModalFormFlow.ts`. Las reglas de validación y payload siguen
+en los controllers existentes, a través de sus superficies actuales. Las pruebas de
+formulario importan esos mismos hooks productivos; no se mantiene una segunda copia
+en esta feature. Se conserva la inicialización al abrir, limpieza de errores por
+campo, callbacks actualizados y validación de fecha/turno antes de confirmar.
+
+### Ejecución de movimientos
+
+`src/hooks/usePatientDischarges.ts`, `usePatientTransfers.ts` y `useCMA.ts` usan
+los auxiliares de movimientos de `src/hooks`: registro vigente, feedback, auditoría
+y ejecutores de creación, modificación y deshacer. Las pruebas importan esos mismos
+owners. No se mantienen copias ni reexports locales en esta feature para los tests;
+los controllers y contratos de aplicación conservan sus responsabilidades actuales.
+
+### Estado de los modales de camas
+
+`BedManagerModal` y `MoveCopyModal` mantienen su estado en
+`src/hooks/useBedManagerModalModel.ts` y `src/hooks/useMoveCopyModalState.ts`.
+Los tests del modelo apuntan a esas mismas implementaciones, junto con las pruebas
+del modal. Los controllers de transición y las reglas de bloqueo, selección y
+confirmación permanecen en sus capas actuales.
+
+### Controles compactos del censo
+
+- El reloj del encabezado de Scores filtra escalas por reaplicar y permite volver al censo completo.
+- El selector de especialidad del paciente incorpora el icono de opciones del censo: conserva los permisos, reglas automáticas y asignación asistida existentes.
+- La esquina del resumen alterna camas/movimientos y cumplimiento CUDYR del mes seleccionado. La vista mensual se carga sólo al abrirla, reutiliza el reporte guardado de HHR y su caché por sesión, sin consultar Eloísa. Excluye hoy y días futuros en Rapa Nui; las ventanas de aplicación abiertas tampoco contribuyen al consolidado. Una lectura pendiente o fallida nunca se presenta como oficial.
+
+El lector mensual es un chunk opcional bajo demanda, igual que el lector histórico CUDYR del que depende. No aumenta el precache de instalación; una primera apertura sin red puede no disponer del módulo. El censo y los controles de escalas mantienen su precache.

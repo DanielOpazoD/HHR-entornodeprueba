@@ -1,6 +1,6 @@
 # Documentation Map
 
-Última actualización: 2026-09-26
+Última actualización: 2026-10-02
 
 > Índice único del repositorio. Si un documento nuevo no aparece aquí, o queda
 > sin categoría, debe añadirse en el mismo PR que lo crea. `check:docs-drift`
@@ -10,11 +10,13 @@
 ## Lectura recomendada
 
 1. [README.md](../README.md)
-2. [docs/RUNBOOK_INDEX.md](RUNBOOK_INDEX.md)
-3. [docs/CODEBASE_CANON.md](CODEBASE_CANON.md)
-4. [docs/FOUNDATION_TRACKER.md](FOUNDATION_TRACKER.md)
-5. [PROJECT_STATUS.md](../PROJECT_STATUS.md)
-6. README del módulo que vas a tocar en `src/features/*/README.md` o `src/*/README.md`
+2. [Contrato operativo](DOMAIN_RULES.md) y [glosario](GLOSSARY.md); después, [arquitectura y flujos vigentes](architecture.md)
+3. [Cómo contribuir y validar](../CONTRIBUTING.md)
+4. [docs/CODEBASE_CANON.md](CODEBASE_CANON.md)
+5. README del módulo que vas a tocar en `src/features/*/README.md` o `src/*/README.md`
+6. [docs/RUNBOOK_INDEX.md](RUNBOOK_INDEX.md)
+7. [Cadencia de mantenimiento](FOUNDATION_MAINTENANCE_CADENCE.md)
+8. [PROJECT_STATUS.md](../PROJECT_STATUS.md)
 
 ## Módulos canónicos por área
 
@@ -31,12 +33,14 @@
 Documentos que gobiernan decisiones activas y estructura actual del repo.
 
 - [README.md](../README.md)
-- [ARCHITECTURE.md](../ARCHITECTURE.md)
+- [ARCHITECTURE.md](../ARCHITECTURE.md) — punto de entrada a la guía canónica
+- [docs/architecture.md](architecture.md) — flujos, autoridad y límites vigentes
+- [CONTRIBUTING.md](../CONTRIBUTING.md) — entorno, selección de pruebas y publicación
 - [PROJECT_STATUS.md](../PROJECT_STATUS.md)
 - [docs/CODEBASE_CANON.md](CODEBASE_CANON.md)
+- [docs/DOMAIN_RULES.md](DOMAIN_RULES.md) — intención, invariantes y políticas operativas; leer antes de modificar un flujo
 - [docs/GLOSSARY.md](GLOSSARY.md) — vocabulario canónico del dominio (paciente/cama/alta/traslado/CUDYR/CMA/MINSAL…)
 - [docs/TODO_TRIAGE_PROCESS.md](TODO_TRIAGE_PROCESS.md) — playbook para mantener cero markers `TODO`/`FIXME` en código
-- [docs/FOUNDATION_TRACKER.md](FOUNDATION_TRACKER.md)
 - [docs/QUALITY_GUARDRAILS.md](QUALITY_GUARDRAILS.md)
 - [docs/SAFE_CHANGE_CHECKLIST.md](SAFE_CHANGE_CHECKLIST.md)
 - [docs/CLINICAL_MUTATION_AUDIT_POLICY.md](CLINICAL_MUTATION_AUDIT_POLICY.md) — postura de auditoría declarada por `AuditAction` (gate `check:clinical-mutation-audit-policy`)
@@ -93,6 +97,8 @@ actualizar el `Estado` y apuntar al ADR reemplazante.
 
 ### Operativa
 
+- [Cadencia de mantenimiento](FOUNDATION_MAINTENANCE_CADENCE.md)
+
 Documentos que ayudan a ejecutar trabajo, validar cambios o entender un área concreta.
 
 - `docs/testing/*`
@@ -116,13 +122,15 @@ Documentos útiles para contexto, pero no fuente primaria de reglas activas.
 - `docs/superpowers/plans/*.md`
 - `docs/superpowers/specs/*.md`
 - `docs/FOUNDATION_IMPROVEMENT_PLAN.md`
-- `docs/FOUNDATION_CONTINUATION_TRACKER.md`
+- [docs/FOUNDATION_TRACKER.md](FOUNDATION_TRACKER.md) — cierre histórico B01–B26
+- [docs/FOUNDATION_CONTINUATION_TRACKER.md](FOUNDATION_CONTINUATION_TRACKER.md) — ciclos cerrados
 - `docs/MAINTENANCE_ITERATION_LOG.md`
 
 ### Generada
 
 Artefactos producidos por tooling o reportes automáticos. Son útiles para consulta, pero no son la fuente primaria de diseño.
 
+- `docs/dependency-debt.md` — snapshot generado; verificar su fecha y regenerar antes de evaluar
 - `docs/api/**`
 - `reports/**/*.md`
 - `reports/**/*.json`
@@ -149,3 +157,14 @@ Artefactos producidos por tooling o reportes automáticos. Son útiles para cons
 - `reports/` se mantiene versionado mientras siga siendo parte del flujo local de gobernanza.
 - Cada reporte es un snapshot generado, no un documento narrativo de arquitectura.
 - Las decisiones activas deben resumirse en documentación canónica, no delegarse a un reporte.
+
+### Aprobaciones clínicas históricas
+
+`report:clinical-release-signoff` regenera la representación del registro de
+`scripts/config/clinical-release-signoff.json`; no registra una nueva revisión humana.
+El commit y la fecha de generación pertenecen al informe, no a las aprobaciones.
+`Record completeness` describe la integridad del registro histórico.
+`currentCandidateApproved: false` indica que ese registro no acredita el candidato
+actual. Conservar autores, fechas y referencias originales sin sustituirlos por
+el agente o por la fecha de ejecución. Los nombres genéricos tampoco constituyen
+una identidad de revisor verificada.

@@ -10,6 +10,7 @@ import type { DailyRecord } from './contracts/rayenDomainContracts';
 import type { RayenCensusSnapshot } from './contracts/rayenSnapshot';
 import type { CensusImportDiff } from './contracts/censusImportDiff';
 import { reconcileCensus } from './domain/reconcileCensus';
+import { planClinicalCribDischargeRepairs } from './domain/clinicalCribDischargeRepairs';
 
 export interface PlanRayenCensusImportInput {
   /** The HHR daily record the snapshot will be reconciled against (usually today). */
@@ -27,5 +28,8 @@ export interface PlanRayenCensusImportResult {
 export const planRayenCensusImport = (
   input: PlanRayenCensusImportInput
 ): PlanRayenCensusImportResult => ({
-  diff: reconcileCensus(input.current, input.snapshot, { reference: input.reference }),
+  diff: {
+    ...reconcileCensus(input.current, input.snapshot, { reference: input.reference }),
+    clinicalCribDischargeRepairs: planClinicalCribDischargeRepairs(input.current),
+  },
 });

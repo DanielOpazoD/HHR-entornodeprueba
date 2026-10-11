@@ -54,7 +54,7 @@ export const HandoffMedicalObservationsCell: React.FC<HandoffMedicalObservations
 
   // Track outstanding prune timers so they are cleared on unmount (they call
   // setState, which would otherwise fire on a gone component).
-  const pruneTimersRef = React.useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+  const pruneTimersRef = React.useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   React.useEffect(
     () => () => {
       pruneTimersRef.current.forEach(timerId => clearTimeout(timerId));
@@ -64,8 +64,10 @@ export const HandoffMedicalObservationsCell: React.FC<HandoffMedicalObservations
   );
 
   const prunePendingEntryDraft = React.useCallback((entryId: string, expiresAt: number) => {
+    const previousTimer = pruneTimersRef.current.get(entryId);
+    if (previousTimer !== undefined) clearTimeout(previousTimer);
     const timerId = setTimeout(() => {
-      pruneTimersRef.current.delete(timerId);
+      pruneTimersRef.current.delete(entryId);
       setPendingEntryDrafts(current => {
         const pendingDraft = current[entryId];
         if (!pendingDraft || pendingDraft.expiresAt !== expiresAt) {
@@ -77,7 +79,7 @@ export const HandoffMedicalObservationsCell: React.FC<HandoffMedicalObservations
         return next;
       });
     }, MEDICAL_DRAFT_CONTINUITY_MS);
-    pruneTimersRef.current.add(timerId);
+    pruneTimersRef.current.set(entryId, timerId);
   }, []);
 
   const registerPendingEntryDraft = React.useCallback(
@@ -115,18 +117,16 @@ export const HandoffMedicalObservationsCell: React.FC<HandoffMedicalObservations
     });
   }, [entries, pendingEntryDrafts]);
 
-  // `now` as state (not Date.now() inside useMemo) keeps the memo pure for
-  // React Compiler and lets the display re-evaluate draft expirations on a
-  // predictable tick. The interval only runs while there are pending drafts
-  // to avoid idle re-renders.
+  // Draft changes and their expiry timers already drive rendering; no periodic tick is needed.
   const [now, setNow] = React.useState(0);
   React.useEffect(() => {
     setNow(Date.now());
-    if (!shouldAttemptPendingMedicalDraftPrune(pendingEntryDrafts)) {
-      return;
+    for (const [entryId, timerId] of pruneTimersRef.current) {
+      if (!pendingEntryDrafts[entryId]) {
+        clearTimeout(timerId);
+        pruneTimersRef.current.delete(entryId);
+      }
     }
-    const interval = window.setInterval(() => setNow(Date.now()), 500);
-    return () => window.clearInterval(interval);
   }, [pendingEntryDrafts]);
 
   const medicalObservationCellState = React.useMemo(

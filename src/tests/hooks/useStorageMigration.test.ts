@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { useStorageMigration } from '@/hooks/useStorageMigration';
 import * as storageCore from '@/services/storage/indexeddb/indexedDbCore';
 import * as storageMigration from '@/services/storage/indexeddb/indexedDbMigrationService';
@@ -121,47 +121,67 @@ describe('useStorageMigration', () => {
     expect(result.current.error).toBe('Unknown error');
   });
 
-  it('keeps the newest migration result when an older run resolves later', async () => {
+  it.each([true, false])(
+    'completes after StrictMode replay with enabled initially %s',
+    async initiallyEnabled => {
+      vi.mocked(storageCore.isIndexedDBAvailable).mockReturnValue(true);
+      const migration = createDeferred<boolean>();
+      vi.mocked(storageMigration.migrateFromLocalStorage).mockReturnValue(migration.promise);
+      const { result, rerender } = renderHook(({ enabled }) => useStorageMigration({ enabled }), {
+        initialProps: { enabled: initiallyEnabled },
+        reactStrictMode: true,
+      });
+      if (!initiallyEnabled) rerender({ enabled: true });
+      await act(async () => {
+        migration.resolve(true);
+      });
+      expect(result.current).toEqual({
+        isComplete: true,
+        isMigrating: false,
+        didMigrate: true,
+        error: null,
+      });
+      expect(storageMigration.migrateFromLocalStorage).toHaveBeenCalledTimes(1);
+    }
+  );
+
+  it('reuses a pending migration across disabling and re-enabling', async () => {
     vi.mocked(storageCore.isIndexedDBAvailable).mockReturnValue(true);
-
-    const firstMigration = createDeferred<boolean>();
-    const secondMigration = createDeferred<boolean>();
-
-    vi.mocked(storageMigration.migrateFromLocalStorage)
-      .mockImplementationOnce(() => firstMigration.promise)
-      .mockImplementationOnce(() => secondMigration.promise);
-
-    const { result, rerender } = renderHook(
-      ({ enabled }: { enabled: boolean }) => useStorageMigration({ enabled }),
-      {
-        initialProps: { enabled: true },
-      }
-    );
-
-    await waitFor(() => {
-      expect(result.current.isMigrating).toBe(true);
+    const migration = createDeferred<boolean>();
+    vi.mocked(storageMigration.migrateFromLocalStorage).mockReturnValue(migration.promise);
+    const { result, rerender } = renderHook(({ enabled }) => useStorageMigration({ enabled }), {
+      initialProps: { enabled: true },
     });
-
     rerender({ enabled: false });
+    expect(result.current.isMigrating).toBe(false);
     rerender({ enabled: true });
-
-    await waitFor(() => {
-      expect(storageMigration.migrateFromLocalStorage).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      migration.resolve(true);
     });
-
-    secondMigration.resolve(false);
-
-    await waitFor(() => {
-      expect(result.current.isComplete).toBe(true);
-      expect(result.current.isMigrating).toBe(false);
-      expect(result.current.didMigrate).toBe(false);
+    expect(result.current.didMigrate).toBe(true);
+    expect(result.current.isMigrating).toBe(false);
+    expect(storageMigration.migrateFromLocalStorage).toHaveBeenCalledTimes(1);
+  });
+  it('ignores a disabled run and permits a fresh attempt after it settles', async () => {
+    vi.mocked(storageCore.isIndexedDBAvailable).mockReturnValue(true);
+    const migration = createDeferred<boolean>();
+    vi.mocked(storageMigration.migrateFromLocalStorage)
+      .mockReturnValueOnce(migration.promise)
+      .mockResolvedValueOnce(false);
+    const { result, rerender } = renderHook(({ enabled }) => useStorageMigration({ enabled }), {
+      initialProps: { enabled: true },
     });
-
-    firstMigration.resolve(true);
-
-    await waitFor(() => {
-      expect(result.current.didMigrate).toBe(false);
-      expect(result.current.error).toBeNull();
+    rerender({ enabled: false });
+    await act(async () => {
+      migration.reject(new Error('stale failure'));
     });
+    expect(result.current.error).toBeNull();
+    expect(result.current.didMigrate).toBe(false);
+    await act(async () => {
+      rerender({ enabled: true });
+    });
+    expect(result.current.isComplete).toBe(true);
+    expect(result.current.error).toBeNull();
+    expect(storageMigration.migrateFromLocalStorage).toHaveBeenCalledTimes(2);
   });
 });

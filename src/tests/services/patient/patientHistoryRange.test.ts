@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const { allLocal, rangeLocal, allRemote, rangeRemote } = vi.hoisted(() => ({
   allLocal: vi.fn(),
@@ -10,6 +12,9 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordsRange: rangeLocal,
 }));
 vi.mock('@/services/storage/firestore', () => ({
+  getRecordPagesFromFirestore: async function* () {
+    yield Object.values(await allRemote({ requireServer: true }));
+  },
   getAllRecordsFromFirestore: allRemote,
   getRecordsRangeFromFirestore: rangeRemote,
 }));

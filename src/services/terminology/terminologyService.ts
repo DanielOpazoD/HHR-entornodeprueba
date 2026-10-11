@@ -50,11 +50,14 @@ export async function searchDiagnoses(
   query: string,
   signal?: AbortSignal
 ): Promise<TerminologyConcept[]> {
-  if (!query || query.length < 2 || signal?.aborted) return [];
+  if (!query || query.length < 2) return [];
+  signal?.throwIfAborted();
 
   try {
     // 1. First, search local database (now async from JSON cache)
+    signal?.throwIfAborted();
     const localResults = await searchCIE10(query);
+    signal?.throwIfAborted();
 
     const localConcepts = localResults.map((entry: CIE10Entry) => ({
       code: entry.code,
@@ -88,6 +91,7 @@ export async function searchDiagnoses(
 
     return localConcepts;
   } catch (error) {
+    signal?.throwIfAborted();
     recordOperationalErrorTelemetry('integration', 'search_diagnoses', error, {
       code: 'terminology_search_failed',
       message: 'No fue posible buscar diagnosticos en CIE-10.',
@@ -115,6 +119,7 @@ export async function searchDiagnosesAI(
     const results = await forceAISearch(query, signal);
     return results;
   } catch (error) {
+    signal?.throwIfAborted();
     recordOperationalErrorTelemetry('integration', 'search_diagnoses_ai', error, {
       code: 'terminology_search_ai_failed',
       message: 'No fue posible buscar diagnosticos con IA.',
@@ -150,7 +155,9 @@ export async function forceAISearch(
 
   try {
     // Get local results first (async)
+    signal?.throwIfAborted();
     const localResults = await searchCIE10(query);
+    signal?.throwIfAborted();
     const localConcepts = localResults.map((entry: CIE10Entry) => ({
       code: entry.code,
       display: entry.description,
@@ -161,6 +168,7 @@ export async function forceAISearch(
 
     // Force AI call (bypass cache but save new results)
     const aiResults = await searchCIE10WithAI(query, signal);
+    signal?.throwIfAborted();
 
     if (aiResults.length > 0) {
       // Save fresh results to cache
@@ -181,6 +189,7 @@ export async function forceAISearch(
 
     return localConcepts;
   } catch (error) {
+    signal?.throwIfAborted();
     recordOperationalErrorTelemetry('integration', 'force_ai_search', error, {
       code: 'terminology_force_ai_failed',
       message: 'No fue posible forzar una busqueda IA de diagnosticos.',

@@ -10,7 +10,8 @@ export const hasApplicableCensusChanges = (diff: CensusImportDiff | null): boole
       diff.discharges.length +
       (diff.previousDayAdmissionCandidates?.length ?? 0) +
       (diff.previousDayEdits?.length ?? 0) +
-      (diff.reportEgresos?.length ?? 0) >
+      (diff.reportEgresos?.length ?? 0) +
+      (diff.clinicalCribDischargeRepairs?.length ?? 0) >
       0
   );
 

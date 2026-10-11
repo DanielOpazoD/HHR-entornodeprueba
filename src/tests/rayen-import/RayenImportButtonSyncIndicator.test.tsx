@@ -80,10 +80,10 @@ describe('RayenImportButton sync indicator', () => {
   it('uses a neutral processing indicator instead of an amber warning while synchronizing', () => {
     render(<RayenImportButton />);
 
-    expect(screen.getByTestId('rayen-sync-history-indicator')).toHaveClass(
-      'bg-slate-300',
+    expect(screen.getByTestId('rayen-sync-history-indicator')).toHaveClass('bg-slate-300');
+    expect(screen.getByTestId('rayen-sync-history-indicator')).not.toHaveClass(
+      'bg-amber-500',
       'animate-pulse'
     );
-    expect(screen.getByTestId('rayen-sync-history-indicator')).not.toHaveClass('bg-amber-500');
   });
 });

@@ -5,13 +5,11 @@ import { AlertCircle } from 'lucide-react';
 import clsx from 'clsx';
 import { calculateOperationalHospitalizedDays } from '@/utils/clinicalDayUtils';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
-import {
-  HandoffBedCell,
-  HandoffPatientCell,
-  HandoffDiagnosisCell,
-  HandoffDevicesCell,
-  HandoffObservationsCell,
-} from './HandoffRowCells';
+import { HandoffBedCell } from './HandoffBedCell';
+import { HandoffPatientCell } from './HandoffPatientCell';
+import { HandoffDiagnosisCell } from './HandoffDiagnosisCell';
+import { HandoffDevicesCell } from './HandoffDevicesCell';
+import { HandoffObservationsCell } from './HandoffObservationsCell';
 import { HandoffMedicalObservationsCell } from './HandoffMedicalObservationsCell';
 import {
   hasActiveMedicalMutationPaths,

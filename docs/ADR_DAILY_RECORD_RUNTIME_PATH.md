@@ -37,8 +37,12 @@ The most fragile boundary in the app is the intersection of TanStack Query cache
 
 ## Invariants
 
+- Query, prefetch and null-realtime recovery require `getForDateWithMeta`. The repository owns availability and provenance; consumers must not fabricate metadata from a bare record or interpret an unavailable read as confirmed absence. The production repository port already requires this method.
+
 - UI must not decide by itself whether a day is really missing.
+- A null-realtime recovery may publish only while its subscription emission and captured query instance and state remain current. Later snapshots or cache edits invalidate its result and error fallback; recovered records retain pending explicit patches. Recovery uses the same result precedence policy as query/refetch: unavailability retains the last known record and exposes the error, older confirmed data cannot roll it back, and confirmed absence still clears it. Retaining cached data is not a remote acknowledgement and must not release pending explicit edits.
 - Realtime `null` must not evict a valid local record unless repository reconciliation confirms absence.
+- A no-record recovery emits `confirmed_null_realtime_record` only for `confirmed_missing`; unavailable reads emit `unavailable_null_realtime_record` with blocked state. Historical blocked events using the old confirmed name do not count as confirmed absences. This classification does not change read precedence or acknowledge writes.
 - Recovery policy belongs in repository/query contracts, not duplicated across hooks and views.
 - Remote cache hydration checks the outbox and writes IndexedDB in one transaction. It preserves the local projection while any unresolved daily write exists; only command acknowledgement/reconciliation may replace that projection. This prevents a realtime echo arriving before the command response from invalidating its own acknowledgement.
 - A server-confirmed command acknowledgement is published with remote-authoritative cache semantics. An older realtime/refetch result cannot replace that acknowledgement, while a newer local outbox projection or a newer remote snapshot keeps precedence.
@@ -71,3 +75,13 @@ The most fragile boundary in the app is the intersection of TanStack Query cache
   - `src/tests/hooks/controllers/dailyRecordQueryController.test.ts`
   - `src/tests/hooks/useDailyRecordSyncQuery.test.tsx`
   - relevant census empty-state tests
+
+## Fallos de módulos durante desconexión
+
+Un fallo de carga diferida no autoriza recargar automáticamente una sesión editable.
+`lazyWithRetry` conserva la espera y el reintento al recuperar conectividad; si el
+módulo sigue fallando, presenta un aviso dentro de esa sección. La recarga completa
+requiere una acción explícita y confirmación de que puede perder cambios sin guardar.
+Los errores ajenos a carga de módulos siguen llegando al error boundary existente.
+Esto conserva las mutaciones pausadas y el censo durante una desconexión; no confirma
+que un cambio esté persistido ni reemplaza las protecciones de escritura.

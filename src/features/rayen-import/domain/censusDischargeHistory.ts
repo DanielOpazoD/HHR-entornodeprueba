@@ -1,7 +1,23 @@
+import { z } from 'zod';
+import { BEDS } from '@/constants/beds';
+import { PatientDataSchema } from '@/schemas/zod/patient';
+import { getActiveDischarges } from '@/application/census/movementTombstonePolicy';
+import { normalizeRut } from '@/utils/rutUtils';
+import {
+  calendarDateForMovement,
+  recoverImportedMovementCalendarDate,
+} from '@/utils/movementCalendarDate';
+import type { DischargeData } from '@/types/domain/movements';
+import { resolveReportBedId } from '../mapping/resolveReportBed';
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
-import type { DischargeEntry } from '../contracts/censusImportDiff';
+import type {
+  CensusImportDiff,
+  DischargeEntry,
+  ClinicalCribDischargeRepair,
+} from '../contracts/censusImportDiff';
 import { matchesDischargeSubject } from './dischargeSubjectIdentity';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
+import type { ReportEgreso } from '../contracts/egresoReport';
 import { extractTime } from '../mapping/rayenToPatientData';
 import { normalizePatientRut } from './censusPatientIdentityIndex';
 
@@ -50,7 +66,7 @@ export const createRecordedOutcomeMatcher = (
     if (record.deletedAt) continue;
     const recordRut = normalizePatientRut(record.rut);
     outcomes.push({
-      clinicalEpisodeId: record.clinicalEpisodeId,
+      clinicalEpisodeId: recordedOutcomeEpisodeId(record),
       rut: recordRut,
       admissionDay:
         ('admissionDate' in record ? record.admissionDate : undefined) ||
@@ -91,4 +107,156 @@ export const createDischargedEncounterMatcher = (
       admissionDay: encounter.admissionDatetime?.slice(0, 10),
       admissionTime: extractTime(encounter.admissionDatetime),
     });
+};
+
+/** Check the current accumulated movements, including outcomes created earlier in this import. */
+export const hasRecordedReportOutcome = (current: DailyRecord, report: ReportEgreso): boolean =>
+  createRecordedOutcomeMatcher(current)({
+    clinicalEpisodeId: report.encounterId,
+    rut: report.run,
+    admissionDay: report.admissionDay,
+    admissionTime: report.admissionTime,
+  });
+
+/** A reported or already resolved crib episode must not be inferred again from its mother's alta. */
+export const hasIndependentClinicalCribOutcome = (
+  current: DailyRecord,
+  reports: readonly ReportEgreso[] | undefined,
+  crib: PatientData | undefined
+): boolean => {
+  if (!crib?.clinicalEpisodeId) return false;
+  return Boolean(
+    reports?.some(
+      report =>
+        report.fromClinicalCrib === true &&
+        (!report.correctedDay || report.correctedDay === current.date.slice(0, 10)) &&
+        report.encounterId === crib.clinicalEpisodeId
+    ) ||
+    createRecordedOutcomeMatcher(current)({
+      clinicalEpisodeId: crib.clinicalEpisodeId,
+      rut: crib.rut,
+      admissionDay: crib.admissionDate,
+      admissionTime: crib.admissionTime,
+    })
+  );
+};
+
+// Historical repair eligibility reads undo provenance only within this governed boundary.
+const bedIds = new Set(BEDS.map(bed => bed.id));
+const sparseSnapshotFields = new Set([
+  'patientName',
+  'rut',
+  'pathology',
+  'specialty',
+  'age',
+  'clinicalEpisodeId',
+  'admissionDate',
+  'admissionTime',
+]);
+const isImportedCribDeparture = (row: DischargeData, date: string): boolean =>
+  row.isNested === true &&
+  recoverImportedMovementCalendarDate(row, date).movementDate ===
+    calendarDateForMovement(date, row.time) &&
+  row.movementProvenance?.source === 'gestion_camas' &&
+  Boolean(row.clinicalEpisodeId?.trim()) &&
+  row.originalData?.clinicalEpisodeId === row.clinicalEpisodeId &&
+  /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(row.time);
+const isCanonicalDeparture = (row: DischargeData): boolean =>
+  bedIds.has(row.bedId) &&
+  Boolean(row.admissionDate && row.originalData?.admissionDate === row.admissionDate);
+// Repository parsing adds defaults and derives name parts even to report-only snapshots.
+// Compare those extra fields against the actual schema, never against arbitrary empty values:
+// devices, notes, manual identity corrections and unknown fields still prevent a repair.
+const hasOnlyReportSnapshotData = (snapshot: PatientData | undefined): boolean => {
+  if (!snapshot) return false;
+  const entries = Object.entries(snapshot);
+  const minimal = Object.fromEntries(entries.filter(([key]) => sparseSnapshotFields.has(key)));
+  const normalized = PatientDataSchema.safeParse(minimal);
+  if (!normalized.success) return false;
+  const defaults = new Map(Object.entries(normalized.data));
+  return entries.every(
+    ([key, value]) =>
+      sparseSnapshotFields.has(key) ||
+      (defaults.has(key) && JSON.stringify(value) === JSON.stringify(defaults.get(key)))
+  );
+};
+const importClassificationTimestampSchema = z.string().datetime({ offset: true });
+const isSameImportBatch = (left: DischargeData, right: DischargeData): boolean => {
+  const a = left.movementProvenance;
+  const b = right.movementProvenance;
+  return Boolean(
+    a?.source === 'gestion_camas' &&
+    b?.source === 'gestion_camas' &&
+    a.syncRunId.trim() &&
+    a.syncRunId === b.syncRunId &&
+    importClassificationTimestampSchema.safeParse(a.classifiedAt).success &&
+    a.classifiedAt === b.classifiedAt
+  );
+};
+const isMalformedReportCopy = (row: DischargeData): boolean =>
+  /^cuna\s+/i.test(row.bedId) &&
+  !row.admissionDate &&
+  !row.originalData?.admissionDate &&
+  !row.ieehData &&
+  hasOnlyReportSnapshotData(row.originalData);
+
+/** Only the known two-path import defect; ambiguous identities or enriched rows are not repaired. */
+export const planClinicalCribDischargeRepairs = (
+  record: DailyRecord
+): ClinicalCribDischargeRepair[] => {
+  const active = getActiveDischarges(record.discharges);
+  const candidates = active.filter(row => isImportedCribDeparture(row, record.date));
+  const repairs: ClinicalCribDischargeRepair[] = [];
+  for (const duplicate of candidates.filter(isMalformedReportCopy)) {
+    const parentBedId = resolveReportBedId(duplicate.bedId.replace(/^cuna\s+/i, ''));
+    const keepers = candidates.filter(
+      row =>
+        row.id !== duplicate.id &&
+        isCanonicalDeparture(row) &&
+        row.clinicalEpisodeId === duplicate.clinicalEpisodeId &&
+        row.bedId === parentBedId &&
+        // The associated row used the mother's time; the report copy used the RN's own time.
+        // Different times require proof of the same import, never a fuzzy minute tolerance.
+        (row.time === duplicate.time || isSameImportBatch(row, duplicate)) &&
+        row.status === duplicate.status &&
+        normalizeRut(row.rut) === normalizeRut(duplicate.rut) &&
+        (!duplicate.diagnosis?.trim() || duplicate.diagnosis.trim() === row.diagnosis?.trim())
+    );
+    if (keepers.length !== 1 || !duplicate.id || !keepers[0].id) continue;
+    const kept = keepers[0];
+    if (
+      [kept.id, duplicate.id].some(
+        id => record.discharges.filter(row => row.id === id).length !== 1
+      )
+    )
+      continue;
+    repairs.push({ kept: structuredClone(kept), duplicate: structuredClone(duplicate) });
+  }
+  return repairs;
+};
+
+/** Missing Ficha presence is a signal, never statistical-discharge authority. */
+export const appendMissingFichaSignals = (
+  current: DailyRecord,
+  diff: CensusImportDiff,
+  occupiedBedIds: ReadonlySet<string>,
+  consumedBedIds: ReadonlySet<string>
+): void => {
+  for (const bedId of occupiedBedIds) {
+    if (consumedBedIds.has(bedId)) continue;
+    const patient = current.beds[bedId];
+    if (!patient?.patientName?.trim() || patient.isBlocked) continue;
+    diff.pendingAdministrativeDischarges.push({
+      bedId,
+      rut: patient.rut,
+      patientName: patient.patientName,
+      signal: 'missing-from-ficha',
+      encounterId: patient.clinicalEpisodeId,
+      verification: {
+        medicalEpicrisis: 'unknown',
+        nursingEpicrisis: 'unknown',
+        hospitalDischarge: 'unknown',
+      },
+    });
+  }
 };

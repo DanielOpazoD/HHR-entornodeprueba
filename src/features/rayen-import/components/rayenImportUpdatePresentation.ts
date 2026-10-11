@@ -1,6 +1,9 @@
-import type { FieldChange, UpdateEntry } from '../contracts/censusImportDiff';
+import type { PatientData } from '../contracts/rayenDomainContracts';
+import type { CensusImportDiff, FieldChange, UpdateEntry } from '../contracts/censusImportDiff';
 
 const INTERNAL_SYNC_FIELDS = new Set<FieldChange['field']>([
+  'neonatalPlacementDecision',
+  'neonatalMaternalRut',
   'clinicalEpisodeId',
   'clinicalCrib',
   'treatingPhysicianId',
@@ -45,5 +48,20 @@ export const presentPatientUpdates = (updates: UpdateEntry[]): PresentedUpdateEn
           .map(change => FIELD_LABELS[change.field] ?? 'información del paciente')
       )
     );
+    for (const change of entry.changes.filter(c => c.field === 'clinicalCrib')) {
+      const before = change.from as PatientData | undefined;
+      const after = change.to as PatientData | undefined;
+      if (
+        after?.patientName &&
+        (!before?.patientName || before.clinicalEpisodeId !== after.clinicalEpisodeId)
+      )
+        visibleLabels.push(`cuna C-${entry.bedId} · ${after.patientName}`);
+    }
     return visibleLabels.length > 0 ? [{ ...entry, visibleLabels }] : [];
   });
+
+export const updateEntryKey = (entry: CensusImportDiff['updates'][number]): string => {
+  const subject = entry.source?.encounterId || entry.rut || entry.patientName;
+  const fields = entry.changes.map(change => String(change.field)).sort();
+  return JSON.stringify([entry.bedId, subject, fields]);
+};

@@ -44,6 +44,7 @@ export interface StructuralConflict {
   bedId: string | null;
   clinicalEpisodeId?: string;
   code?: ConflictEntry['code'];
+  caseContext?: ConflictEntry['caseContext'];
   reason: string;
 }
 
@@ -60,6 +61,7 @@ export const describeStructuralConflicts = (
     bedId: conflict.bedId,
     clinicalEpisodeId: episodeIdFromConflict(conflict),
     code: conflict.code,
+    ...(conflict.caseContext ? { caseContext: conflict.caseContext } : {}),
     reason: conflict.reason,
   }));
 

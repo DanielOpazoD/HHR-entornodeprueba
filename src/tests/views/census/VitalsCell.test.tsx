@@ -42,7 +42,7 @@ const renderCell = (vitalSigns?: PatientVitalSigns, bedId = 'R1', patient?: Part
   );
 
 describe('VitalsCell', () => {
-  it('shows PA · FC · SAT · T° inline and opens the vitals modal on click', () => {
+  it('shows PA · FC · SAT · T° inline and opens the vitals modal on click', async () => {
     renderCell(VITALS);
 
     expect(screen.getByText('130/82')).toBeInTheDocument();
@@ -61,7 +61,7 @@ describe('VitalsCell', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Ver signos vitales' }));
     // The detail modal surfaces FR / EVA / observations that are not inline in the cell.
-    expect(screen.getByText('PAM 94')).toBeInTheDocument();
+    expect(await screen.findByText('PAM 94')).toBeInTheDocument();
   });
 
   it('renders an empty marker when there are no vitals', () => {
@@ -71,14 +71,14 @@ describe('VitalsCell', () => {
     expect(screen.queryByTitle('Sin signos vitales')).not.toBeInTheDocument();
   });
 
-  it('keeps detail-only readings available without adding an inline warning', () => {
+  it('keeps detail-only readings available without adding an inline warning', async () => {
     renderCell({ ...VITALS, spo2: 98, painEva: 8 }, 'R1', { age: '44' });
 
     expect(screen.getByRole('button', { name: 'Ver signos vitales' })).not.toHaveAttribute(
       'aria-description'
     );
     fireEvent.click(screen.getByRole('button', { name: 'Ver signos vitales' }));
-    expect(screen.getByText('8')).toBeInTheDocument();
+    expect(await screen.findByText('8')).toBeInTheDocument();
     expect(screen.queryByText('Fuera de rango')).toBeNull();
   });
 
@@ -95,7 +95,7 @@ describe('VitalsCell', () => {
     expect(screen.getByText('45')).toHaveClass('text-amber-600');
   });
 
-  it('uses neonatal ranges by age regardless of the bed and shows no population label', () => {
+  it('uses neonatal ranges by age regardless of the bed and shows no population label', async () => {
     renderCell(
       {
         ...VITALS,
@@ -107,11 +107,11 @@ describe('VitalsCell', () => {
 
     expect(screen.getByText('126')).toHaveClass('text-slate-600');
     fireEvent.click(screen.getByRole('button', { name: 'Ver signos vitales' }));
-    expect(screen.getByText('Última toma')).toBeInTheDocument();
+    expect(await screen.findByText('Última toma')).toBeInTheDocument();
     expect(screen.queryByText(/rangos RN/i)).not.toBeInTheDocument();
   });
 
-  it('uses the historical paediatric profile without adding a visible age label', () => {
+  it('uses the historical paediatric profile without adding a visible age label', async () => {
     renderCell(
       {
         ...VITALS,
@@ -124,6 +124,7 @@ describe('VitalsCell', () => {
 
     expect(screen.getByText('145')).toHaveClass('text-amber-600');
     fireEvent.click(screen.getByRole('button', { name: 'Ver signos vitales' }));
+    await screen.findByText('Última toma');
     expect(screen.queryByText(/pediátrico|años|perfil/i)).not.toBeInTheDocument();
   });
 
@@ -133,7 +134,7 @@ describe('VitalsCell', () => {
     expect(screen.getByText('88')).toHaveClass('text-red-600');
   });
 
-  it('keeps age-only readings neutral and aligned between the cell and history table', () => {
+  it('keeps age-only readings neutral and aligned between the cell and history table', async () => {
     const latest = { ...VITALS, heartRate: 79 };
     renderCell(latest, 'R3', {
       age: '21d',
@@ -150,7 +151,7 @@ describe('VitalsCell', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Ver signos vitales' }));
-    const historySection = screen.getByText('Historial · 2 tomas').closest('section');
+    const historySection = (await screen.findByText('Historial · 2 tomas')).closest('section');
     expect(historySection).not.toBeNull();
     const history = within(historySection as HTMLElement);
     expect(history.getByText('79').closest('td')).toHaveClass('text-slate-700');

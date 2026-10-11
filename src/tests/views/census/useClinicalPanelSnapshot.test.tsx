@@ -3,8 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RayenClinicalPanelResult } from '@/features/rayen-import/bridge/clinicalPanelBridge';
 
 const mocks = vi.hoisted(() => ({ request: vi.fn() }));
-vi.mock('@/features/rayen-import', async importOriginal => ({
-  ...(await importOriginal<typeof import('@/features/rayen-import')>()),
+vi.mock('@/features/rayen-import/clinical-panel', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/rayen-import/clinical-panel')>()),
   requestClinicalPanel: (...args: unknown[]) => mocks.request(...args),
 }));
 import { useClinicalPanelSnapshot } from '@/features/census/components/patient-row/useClinicalPanelSnapshot';

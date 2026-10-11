@@ -18,7 +18,6 @@ type RuntimeListener = (
   sender: unknown,
   respond: (data: unknown) => void
 ) => unknown;
-const flush = () => new Promise(resolve => setTimeout(resolve, 0));
 
 // Separate globals model Chrome's ISOLATED context; only DOM attributes survive reload.
 const createWorld = (
@@ -30,6 +29,8 @@ const createWorld = (
   const pageListeners = new Set<(event: PageEvent) => void>();
   const runtimeListeners: RuntimeListener[] = [];
   const posts: Message[] = [];
+  let announcementSequence = 0;
+  let expectedAnnouncementSequence = 0;
   const windowObject = {
     location: { origin: 'https://relay.test' },
     addEventListener: vi.fn((type: string, listener: (event: PageEvent) => void) => {
@@ -37,7 +38,10 @@ const createWorld = (
     }),
     removeEventListener: (_type: string, listener: (event: PageEvent) => void) =>
       pageListeners.delete(listener),
-    postMessage: (message: Message) => posts.push(message),
+    postMessage: (message: Message) => {
+      posts.push(message);
+      if (message.type === 'RAYEN_GC_CONNECTION_ATTEMPT') announcementSequence += 1;
+    },
   };
   const sendMessage = vi.fn((message: Message, callback?: (value: unknown) => void) => {
     const response =
@@ -78,6 +82,8 @@ const createWorld = (
     console,
   });
   const inject = (dependencies = true) => {
+    if (dependencies && relay === 'gestioncamas')
+      expectedAnnouncementSequence = announcementSequence + 1;
     if (dependencies) {
       for (const file of [
         'message-contract.js',
@@ -112,6 +118,10 @@ const createWorld = (
     });
   return {
     inject,
+    waitForReady: async () => {
+      if (relay === 'gestioncamas')
+        await vi.waitFor(() => expect(announcementSequence).toBe(expectedAnnouncementSequence));
+    },
     attributes,
     pageListeners,
     runtimeListeners,
@@ -129,19 +139,21 @@ const exerciseForwarding = async (
   world: ReturnType<typeof createWorld>,
   expectedGeneration = generation
 ) => {
+  await world.waitForReady();
   world.posts.length = 0;
   world.sendMessage.mockClear();
   if (relay === 'hhr') {
     world.dispatchPage({ type: 'HHR_RAYEN_GC_CONNECT_REQUEST', reqId: 'connect-1', renew: true });
-    await flush();
-    expect(world.sendMessage).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() =>
+      expect(world.posts).toEqual([
+        { type: 'HHR_RAYEN_GC_CONNECT_RESULT', reqId: 'connect-1', ok: true, error: undefined },
+      ])
+    );
+    await vi.waitFor(() => expect(world.sendMessage).toHaveBeenCalledTimes(1));
     expect(world.sendMessage).toHaveBeenCalledWith({
       type: 'RAYEN_GC_CONNECT_REQUEST',
       renew: true,
     });
-    expect(world.posts).toEqual([
-      { type: 'HHR_RAYEN_GC_CONNECT_RESULT', reqId: 'connect-1', ok: true, error: undefined },
-    ]);
     world.posts.length = 0;
     world.dispatchRuntime({
       type: 'RAYEN_EXTENSION_HEALTH_PUSH',
@@ -149,14 +161,15 @@ const exerciseForwarding = async (
       reason: 'test',
       publicationSequence: ++publicationSequence,
     });
-    expect(world.posts).toHaveLength(1);
+    await vi.waitFor(() => expect(world.posts).toHaveLength(1));
     const respond = world.dispatchRuntime({
       type: 'RAYEN_EXTENSION_HHR_HEALTH_PING',
       runtimeGeneration: expectedGeneration,
     });
-    await flush();
-    expect(respond).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({ ready: true, bridgeGeneration: expectedGeneration })
+    await vi.waitFor(() =>
+      expect(respond).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ ready: true, bridgeGeneration: expectedGeneration })
+      )
     );
     return;
   }
@@ -164,16 +177,16 @@ const exerciseForwarding = async (
     type: relay === 'fichamedico' ? 'RAYEN_READ' : 'RAYEN_GC_LOOKUP',
     runs: ['test-run'],
   });
-  await flush();
-  expect(world.posts).toHaveLength(1);
+  await vi.waitFor(() => expect(world.posts).toHaveLength(1));
   expect(world.posts[0]).toMatchObject({
     type: relay === 'fichamedico' ? 'RAYEN_EXT_READ_REQUEST' : 'RAYEN_GC_LOOKUP_REQUEST',
     runtimeGeneration: expectedGeneration,
   });
   world.answer(world.posts[0]);
-  await flush();
-  expect(respond).toHaveBeenCalledExactlyOnceWith(
-    relay === 'fichamedico' ? { snapshot: { encounters: [] } } : { results: [] }
+  await vi.waitFor(() =>
+    expect(respond).toHaveBeenCalledExactlyOnceWith(
+      relay === 'fichamedico' ? { snapshot: { encounters: [] } } : { results: [] }
+    )
   );
   expect(world.pageListeners.size).toBe(relay === 'fichamedico' ? 0 : 1);
   if (relay === 'gestioncamas') {
@@ -183,8 +196,7 @@ const exerciseForwarding = async (
       bridgeGeneration: expectedGeneration,
       info: { apiBase: 'https://relay.test' },
     });
-    await flush();
-    expect(world.sendMessage).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(world.sendMessage).toHaveBeenCalledTimes(1));
   }
 };
 
@@ -194,7 +206,6 @@ describe('ISOLATED relay same-world reentry', () => {
       const world = createWorld(relay);
       world.inject();
       world.inject(); // Before the generation handshake resolves, as in an onInstalled race.
-      await flush();
       expect(world.runtimeListeners).toHaveLength(1);
       expect(world.pageListeners.size).toBe(relay === 'fichamedico' ? 0 : 1);
       expect(
@@ -203,14 +214,15 @@ describe('ISOLATED relay same-world reentry', () => {
         )
       ).toHaveLength(2);
       if (relay === 'gestioncamas') {
-        expect(
-          world.sendMessage.mock.calls.filter(([m]) => m.type === 'RAYEN_GC_DOCUMENT_READY')
-        ).toHaveLength(1);
+        await vi.waitFor(() =>
+          expect(
+            world.sendMessage.mock.calls.filter(([m]) => m.type === 'RAYEN_GC_DOCUMENT_READY')
+          ).toHaveLength(1)
+        );
         expect(world.posts.filter(m => m.type === 'RAYEN_GC_CONNECTION_ATTEMPT')).toHaveLength(1);
       }
       await exerciseForwarding(relay, world);
       world.inject(); // Settled reentry replaces the listener without duplicating forwarding.
-      await flush();
       await exerciseForwarding(relay, world);
       expect(world.runtimeListeners).toHaveLength(1);
     });
@@ -220,7 +232,6 @@ describe('ISOLATED relay same-world reentry', () => {
       world.inject(false);
       expect(world.runtimeListeners).toHaveLength(0);
       world.inject();
-      await flush();
       expect(world.runtimeListeners).toHaveLength(1);
       await exerciseForwarding(relay, world);
     });
@@ -229,7 +240,6 @@ describe('ISOLATED relay same-world reentry', () => {
       it(`${relay}: a fresh context restores the same runtime id with version ${installedVersion} and a new generation`, async () => {
         const oldWorld = createWorld(relay);
         oldWorld.inject();
-        await flush();
         const replacement = createWorld(
           relay,
           nextGeneration,
@@ -238,7 +248,6 @@ describe('ISOLATED relay same-world reentry', () => {
         );
         replacement.inject();
         replacement.inject();
-        await flush();
         expect(replacement.runtimeListeners).toHaveLength(1);
         await exerciseForwarding(relay, replacement, nextGeneration);
       });
@@ -250,17 +259,18 @@ describe('ISOLATED relay same-world reentry', () => {
       const world = createWorld(relay);
       world.inject();
       world.inject();
-      await flush();
+      await world.waitForReady();
       world.posts.length = 0;
       const respond = world.dispatchRuntime({
         type: relay === 'fichamedico' ? 'RAYEN_READ' : 'RAYEN_GC_LOOKUP',
       });
-      await flush();
+      await vi.waitFor(() => expect(world.posts).toHaveLength(1));
       world.inject(); // Reentry while the request's temporary listener is active.
       expect(world.runtimeListeners).toHaveLength(1);
       world.answer(world.posts[0], nextGeneration);
-      await flush();
-      expect(respond).toHaveBeenCalledExactlyOnceWith({ error: expect.any(String) });
+      await vi.waitFor(() =>
+        expect(respond).toHaveBeenCalledExactlyOnceWith({ error: expect.any(String) })
+      );
       await exerciseForwarding(relay, world);
     });
   }

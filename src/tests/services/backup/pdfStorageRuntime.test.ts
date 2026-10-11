@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getMetadata, getDownloadURL, deleteObject, uploadBytes } from 'firebase/storage';
 import {

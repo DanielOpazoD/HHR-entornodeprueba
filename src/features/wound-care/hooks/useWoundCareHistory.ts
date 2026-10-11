@@ -6,7 +6,7 @@
  * collapsible sections. The current episode always sorts first.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { WoundCareConsent, WoundCarePhoto } from '@/types/domain/woundCare';
 import {
   defaultWoundCarePhotoPort,
@@ -70,37 +70,55 @@ export const useWoundCareHistory = ({
   photoPort = defaultWoundCarePhotoPort,
   consentPort = defaultWoundCareConsentPort,
 }: UseWoundCareHistoryOptions): UseWoundCareHistoryReturn => {
-  const [allPhotos, setAllPhotos] = useState<WoundCarePhoto[]>([]);
-  const [allConsents, setAllConsents] = useState<WoundCareConsent[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const scope = useMemo(
+    () => ({ patientRut, photoPort, consentPort }),
+    [patientRut, photoPort, consentPort]
+  );
+  const [result, setResult] = useState<{
+    scope: typeof scope;
+    photos: WoundCarePhoto[];
+    consents: WoundCareConsent[];
+    isLoading: boolean;
+  } | null>(null);
+  const allPhotos = result?.scope === scope ? result.photos : [];
+  const allConsents = result?.scope === scope ? result.consents : [];
+  const isLoading = Boolean(patientRut) && (result?.scope !== scope || result.isLoading);
   const [loadKey, setLoadKey] = useState(0);
 
   const reload = useCallback(() => setLoadKey(k => k + 1), []);
 
   useEffect(() => {
-    if (!patientRut) return;
+    if (!scope.patientRut) return;
 
     let cancelled = false;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: reset loading for new fetch
-    setIsLoading(true);
+    setResult(previous => ({
+      scope,
+      photos: previous?.scope === scope ? previous.photos : [],
+      consents: previous?.scope === scope ? previous.consents : [],
+      isLoading: true,
+    }));
 
-    Promise.all([photoPort.listByPatientRut(patientRut), consentPort.listByPatientRut(patientRut)])
+    Promise.all([
+      scope.photoPort.listByPatientRut(scope.patientRut),
+      scope.consentPort.listByPatientRut(scope.patientRut),
+    ])
       .then(([photos, consents]) => {
         if (cancelled) return;
-        setAllPhotos(photos);
-        setAllConsents(consents);
-        setIsLoading(false);
+        setResult({ scope, photos, consents, isLoading: false });
       })
       .catch(error => {
         if (cancelled) return;
         woundCareHistoryLogger.error('Error loading wound care history', error);
-        setIsLoading(false);
+        setResult(previous =>
+          previous?.scope === scope ? { ...previous, isLoading: false } : previous
+        );
       });
 
     return () => {
       cancelled = true;
     };
-  }, [patientRut, photoPort, consentPort, loadKey]);
+  }, [scope, loadKey]);
 
   // Group by episode
   const episodes: EpisodePhotoGroup[] = (() => {

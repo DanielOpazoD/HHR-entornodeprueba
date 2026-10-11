@@ -3,8 +3,12 @@ import { createPortal } from 'react-dom';
 import type { Statistics } from '@/types/domain/statistics';
 import { NurseSelector } from './NurseSelector';
 import { TensSelector } from './TensSelector';
-import { StaffShiftDetailsModal } from './StaffShiftDetailsModal';
-import { CombinedSummaryCard } from '@/components/layout/SummaryCard';
+import { BaseModal } from '@/components/shared/BaseModal';
+import { lazyWithRetry } from '@/utils/lazyWithRetry';
+const StaffShiftDetailsModal = lazyWithRetry(() =>
+  import('./StaffShiftDetailsModal').then(module => ({ default: module.StaffShiftDetailsModal }))
+);
+import { CensusSummarySwitcher } from './CensusSummarySwitcher';
 import {
   useDailyRecordData,
   useDailyRecordBeds,
@@ -19,41 +23,12 @@ import type { DetailedStaffingRole } from '@/types/domain/dailyRecordStaffingDet
 // The Rayen import machinery is only needed once the operator uses it, so the census
 // table no longer downloads it just to render the toolbar.
 const RayenImportButton = lazy(() =>
-  import('@/features/rayen-import').then(module => ({ default: module.RayenImportButton }))
-);
-const SpecialtyRoundEntry = lazy(() =>
-  import('./specialty-round/SpecialtyRoundEntry').then(module => ({
-    default: module.SpecialtyRoundEntry,
+  import('@/features/rayen-import/RayenImportButton').then(module => ({
+    default: module.RayenImportButton,
   }))
 );
-
-// Keep the Eloísa card in place while its heavier synchronization module loads.
-// This shell has no controls or connection claim until the extension has been checked.
-const RayenOperationsLoadingCard = () => (
-  <div
-    className="flex h-full min-h-20 w-full flex-col justify-between rounded-xl border border-slate-200/90 bg-white px-2 py-1.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
-    role="status"
-    aria-busy="true"
-    aria-label="Cargando panel de Eloísa"
-    data-testid="rayen-operations-loading"
-  >
-    <div className="flex min-h-8 items-center gap-2">
-      <img src="/images/logos/rayen-mark.png" alt="" className="size-8 shrink-0 object-contain" />
-      <div className="min-w-0">
-        <p className="text-[13px] font-semibold leading-tight text-slate-800">Eloísa</p>
-        <p className="text-[10px] leading-tight text-slate-500">Cargando controles…</p>
-      </div>
-    </div>
-    <div aria-hidden="true" className="flex h-7 items-center gap-1.5">
-      <span className="h-7 w-7 rounded-md bg-slate-100" />
-      <span className="h-7 w-16 rounded-md bg-slate-100" />
-      <span className="h-7 min-w-0 flex-1 rounded-md bg-slate-100" />
-    </div>
-  </div>
-);
+import { RayenOperationsLoadingCard } from './RayenOperationsLoadingCard';
 import { useCensusToolbarMenuTarget } from '@/shared/ui/CensusToolbarMenuTargetContext';
-import { CensusAttentionBar } from './CensusAttentionBar';
-import type { CensusAttentionFilter } from '@/features/census/controllers/rowAcuityController';
 import type { BedDefinition } from '@/features/census/contracts/censusBedContracts';
 import type { RenderCensusMedicalHandoffAction } from '@/features/census/contracts/censusMedicalHandoffAction';
 
@@ -62,8 +37,6 @@ interface CensusStaffHeaderProps {
   readOnly?: boolean;
   stats: Statistics | null;
   accessProfile?: CensusAccessProfile;
-  attentionFilter?: CensusAttentionFilter;
-  onAttentionFilterChange?: (filter: CensusAttentionFilter) => void;
   visibleBeds?: readonly BedDefinition[];
   renderMedicalHandoffAction?: RenderCensusMedicalHandoffAction;
   rayenBootstrapRequestId?: number;
@@ -80,8 +53,6 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
   readOnly = false,
   stats,
   accessProfile = 'default',
-  attentionFilter = 'all',
-  onAttentionFilterChange,
   visibleBeds = [],
   renderMedicalHandoffAction,
   rayenBootstrapRequestId,
@@ -95,9 +66,15 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
 
   const { updateNurse, updateTens, updateDetailedStaffing } = useDailyRecordStaffActions();
   const { nursesList, tensList, professionalsCatalog = [] } = useStaffContext();
-  const [activeDetailedRole, setActiveDetailedRole] = React.useState<DetailedStaffingRole | null>(
-    null
-  );
+  const [activeDetail, setActiveDetail] = React.useState<{
+    role: DetailedStaffingRole;
+    date: string;
+  } | null>(null);
+  const recordDate = dailyRecordData.record?.date;
+  const openDetail = (role: DetailedStaffingRole) => {
+    if (recordDate && canEditDetail) setActiveDetail({ role, date: recordDate });
+  };
+  const closeDetail = () => setActiveDetail(null);
   const readModel = buildCensusStaffHeaderReadModel({
     readOnly,
     stats,
@@ -107,6 +84,11 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
     staffData,
     movementsData,
   });
+  const canEditDetail = !readOnly && !readModel.specialistAccess;
+  React.useEffect(() => {
+    // Discard the edit intent when its date or edit access changes.
+    setActiveDetail(previous => (canEditDetail && previous?.date === recordDate ? previous : null));
+  }, [canEditDetail, recordDate]);
 
   return (
     // animate-fade-in crea un stacking context propio (z auto), así que los
@@ -129,7 +111,7 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
               nursesList={nursesList}
               onUpdateNurse={updateNurse}
               shiftIndicators={readModel.staffIndicatorsState.nurseIndicators}
-              onOpenDetailedStaffing={readOnly ? undefined : () => setActiveDetailedRole('nurse')}
+              onOpenDetailedStaffing={readOnly ? undefined : () => openDetail('nurse')}
               className={`self-stretch ${readModel.selectorsClassName}`}
             />
           )}
@@ -141,7 +123,7 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
               tensList={tensList}
               onUpdateTens={updateTens}
               shiftIndicators={readModel.staffIndicatorsState.tensIndicators}
-              onOpenDetailedStaffing={readOnly ? undefined : () => setActiveDetailedRole('tens')}
+              onOpenDetailedStaffing={readOnly ? undefined : () => openDetail('tens')}
               className={`self-stretch ${readModel.selectorsClassName}`}
             />
           )}
@@ -161,7 +143,8 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
           {/* Combined Stats Summary Card */}
           <div className="census-toolbar-summary flex min-w-0 shrink-0 items-stretch justify-center gap-2">
             {readModel.showSummary && stats && (
-              <CombinedSummaryCard
+              <CensusSummarySwitcher
+                date={recordDate ?? selectedDate ?? ''}
                 stats={stats}
                 discharges={readModel.movementSummaryState.discharges}
                 transfers={readModel.movementSummaryState.transfers}
@@ -169,22 +152,6 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
                 newAdmissions={readModel.movementSummaryState.admissionsCount}
               />
             )}
-            <div className="census-toolbar-quick-actions flex items-center gap-2 border-l border-slate-200 pl-2">
-              <CensusAttentionBar
-                beds={beds ?? {}}
-                censusIsoDay={dailyRecordData.record?.date ?? ''}
-                activeFilter={attentionFilter}
-                onFilterChange={onAttentionFilterChange}
-              />
-              {dailyRecordData.record?.date && (
-                <Suspense fallback={null}>
-                  <SpecialtyRoundEntry
-                    date={dailyRecordData.record.date}
-                    disabled={Boolean(readOnly)}
-                  />
-                </Suspense>
-              )}
-            </div>
           </div>
         </div>
       </div>
@@ -200,19 +167,36 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
           )
         : null}
 
-      {activeDetailedRole && dailyRecordData.record?.date && readModel.staffDetailsState && (
-        <StaffShiftDetailsModal
-          isOpen={true}
-          onClose={() => setActiveDetailedRole(null)}
-          role={activeDetailedRole}
-          initialShift="day"
-          recordDate={dailyRecordData.record.date}
-          detail={readModel.staffDetailsState}
-          nursesList={nursesList}
-          tensList={tensList}
-          onSave={updateDetailedStaffing}
-        />
-      )}
+      {canEditDetail &&
+        activeDetail &&
+        activeDetail.date === recordDate &&
+        readModel.staffDetailsState && (
+          <Suspense
+            fallback={
+              <BaseModal
+                isOpen
+                onClose={closeDetail}
+                title={`Configuración detallada ${activeDetail.role === 'nurse' ? 'Enfermería' : 'TENS'}`}
+                size="3xl"
+                variant="white"
+              >
+                <p role="status">Cargando dotación…</p>
+              </BaseModal>
+            }
+          >
+            <StaffShiftDetailsModal
+              isOpen={true}
+              onClose={closeDetail}
+              role={activeDetail.role}
+              initialShift="day"
+              recordDate={activeDetail.date}
+              detail={readModel.staffDetailsState}
+              nursesList={nursesList}
+              tensList={tensList}
+              onSave={updateDetailedStaffing}
+            />
+          </Suspense>
+        )}
     </div>
   );
 };

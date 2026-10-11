@@ -4,11 +4,14 @@ import type { RayenSyncStage } from './rayenSyncExecutionState';
 /** Preserves main's no-change audit/checkpoint path, including conflict-only review plans. */
 export const hasNoApplicableRayenStructuralChanges = (diff: CensusImportDiff): boolean => {
   const applicableChanges =
+    (diff.neonatalSourceChanges?.length ?? 0) +
+    (diff.neonatalPlacementReviews?.length ?? 0) +
     diff.admissions.length +
     diff.updates.length +
     diff.moves.length +
     diff.discharges.length +
     (diff.reportEgresos?.length ?? 0) +
+    (diff.clinicalCribDischargeRepairs?.length ?? 0) +
     (diff.previousDayEdits?.length ?? 0);
   return applicableChanges === 0;
 };

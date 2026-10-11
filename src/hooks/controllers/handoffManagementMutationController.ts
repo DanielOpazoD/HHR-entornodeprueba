@@ -1,9 +1,6 @@
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
 import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
-import {
-  presentHandoffManagementFailure,
-  type HandoffManagementOutcomeNotice,
-} from '@/hooks/controllers/handoffManagementOutcomeController';
+import { presentHandoffManagementFailure } from '@/hooks/controllers/handoffManagementOutcomeController';
 
 interface HandoffMutationFailureOptions {
   fallbackMessage: string;
@@ -34,11 +31,6 @@ export const shouldNotifyHandoffMutationFailure = <TData>(
   outcome: ApplicationOutcome<TData | null>
 ): boolean => outcome.reason !== 'missing_record';
 
-export const buildHandoffMutationFailureNotice = <TData>(
-  outcome: ApplicationOutcome<TData | null>,
-  options: HandoffMutationFailureOptions
-): HandoffManagementOutcomeNotice => presentHandoffManagementFailure(outcome, options);
-
 // Handoff persistence actions share the same control flow: snapshot the active record,
 // execute the use-case, ignore missing-record races, surface user-safe failures, then audit.
 export const runHandoffMutation = async <TData>({
@@ -54,7 +46,7 @@ export const runHandoffMutation = async <TData>({
 
   if (outcome.status === 'failed' || !currentRecord || !data) {
     if (shouldNotifyHandoffMutationFailure(outcome)) {
-      const notice = buildHandoffMutationFailureNotice(outcome, failureOptions);
+      const notice = presentHandoffManagementFailure(outcome, failureOptions);
       notifyError(notice.title, notice.message);
     }
 

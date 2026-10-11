@@ -92,6 +92,9 @@ const readCiRuntimeObservedSignal = root => {
     summary: observed.summary,
     recommendation: observed.recommendation,
     comparison: observed.comparison || null,
+    source: observed.source || null,
+    generatedAt: observed.generatedAt || null,
+    gitSha: observed.gitSha || null,
   };
 };
 
@@ -199,8 +202,7 @@ export const buildTestRuntimeGovernanceReport = root => {
     summary: {
       prBlockingSuites: prBlockingSuites.length,
       nightlySuites: nightlySuites.length,
-      unitShardCount:
-        prBlockingSuites.find(suite => suite.id === 'unit-risk-shards')?.shards || 0,
+      unitShardCount: prBlockingSuites.find(suite => suite.id === 'unit-risk-shards')?.shards || 0,
       fixtureWatchlistItems: config.fixtureGovernance.duplicationWatchlist.length,
     },
     prBlockingSuites,
@@ -381,12 +383,16 @@ export const formatTestRuntimeGovernanceMarkdown = report => {
     const comparison = observed.comparison;
     lines.push(
       '',
-      `- CI observed unit shard runtime: ${observed.status}, ${summary.observedShardCount || 0}/${summary.expectedShardCount || 4} shard(s), ${summary.spreadPercent || 0}% observed spread.`
+      '- CI observed unit shard runtime (stored observation; not a measurement of this report run):',
+      `  - Result: ${observed.status}, ${summary.observedShardCount || 0}/${summary.expectedShardCount || 4} shard(s), ${summary.spreadPercent || 0}% observed spread.`
+    );
+    lines.push(
+      `  - Source: ${observed.source?.provider || 'unknown'}; repository: ${observed.source?.repository || 'unknown'}; run: ${observed.source?.runId || 'unknown'}; collection: ${observed.source?.status || 'unknown'}.`,
+      `  - Stored profile generated: ${observed.generatedAt || 'unknown'}; profile commit: ${observed.gitSha || 'unknown'}.`,
+      '  - Use the ci-runtime-telemetry artifact for the completed workflow being evaluated; missing provenance cannot establish freshness.'
     );
     if (comparison?.advisoryFindings?.length > 0) {
-      lines.push(
-        ...comparison.advisoryFindings.map(finding => `  - Advisory: ${finding}`)
-      );
+      lines.push(...comparison.advisoryFindings.map(finding => `  - Advisory: ${finding}`));
     } else if (observed.recommendation) {
       lines.push(`  - Advisory: ${observed.recommendation}`);
     }

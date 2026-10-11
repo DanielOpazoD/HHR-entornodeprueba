@@ -98,7 +98,14 @@ export const PatientBedConfig: React.FC<PatientBedConfigProps> = ({
           />
         )}
 
-        <RayenDischargeBadges verification={data.dischargeVerification} />
+        <RayenDischargeBadges
+          verification={data.dischargeVerification}
+          patientName={data.patientName}
+          patientRun={data.rut}
+          clinicalEpisodeId={data.clinicalEpisodeId || data.dischargeVerification?.encounterId}
+          admissionDate={data.admissionDate}
+          censusDate={currentDateString}
+        />
 
         {/* Static Indicators (Persistent information) */}
         {sections.display.showIndicators && (
