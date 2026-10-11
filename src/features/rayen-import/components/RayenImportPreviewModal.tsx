@@ -57,7 +57,8 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
   onConfirm,
   onCancel,
 }) => {
-  const previousDayEdits = diff?.previousDayEdits ?? [];
+  const allPreviousDayEdits = diff?.previousDayEdits ?? [];
+  const previousDayEdits = allPreviousDayEdits.filter(edit => !edit.automaticNightAdmission);
   const needsPreviousDayAck = previousDayEdits.length > 0;
   const hasActionablePreviousDayEdit = previousDayEdits.some(
     edit =>
@@ -79,9 +80,10 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
       (diff.bedOccupancyCollisions?.length ?? 0) > 0 ||
       (diff.neonatalPlacementReviews?.length ?? 0) > 0 ||
       (diff.neonatalSourceChanges?.length ?? 0) > 0 ||
-      hasActionablePreviousDayEdit);
+      hasActionablePreviousDayEdit ||
+      allPreviousDayEdits.some(edit => edit.automaticNightAdmission));
   const hasReviewContent = hasChanges || needsPreviousDayAck;
-  const previousDays = new Set(previousDayEdits.map(edit => edit.day));
+  const previousDays = new Set(allPreviousDayEdits.map(edit => edit.day));
   const [neonatalResolutions, setNeonatalResolutions] = React.useState<
     NeonatalPlacementResolution[]
   >([]);

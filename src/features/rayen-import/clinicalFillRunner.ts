@@ -88,7 +88,7 @@ export const runClinicalFill = async (
   }
   const { preflight: cudyrPreflight, archive: permanentArchive } = startCudyrSyncCapture({
     record,
-    censusDate: fecha,
+    censusDate: record.date,
     deps,
     captureEpisodes,
     needsRead: Boolean(cudyrEpisodeIds.length || captureEpisodes.length),
@@ -112,7 +112,7 @@ export const runClinicalFill = async (
   const cudyr = cudyrPreflight.then(({ source, unavailableError }) => {
     if (unavailableError) summary.errors.unshift(unavailableError);
     return createClinicalCudyrCoordinator({
-      censusDate: fecha,
+      censusDate: record.date,
       clinicalEpisodeIds: cudyrEpisodeIds,
       source,
       applyBatch: deps.applyHistoricalCudyrBatch,

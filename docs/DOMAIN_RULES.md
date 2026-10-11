@@ -38,6 +38,8 @@ decisión clínica u operativa explícita. Los identificadores siguientes son es
 | TIME-03 | Mostrar el alta con fecha y hora del egreso estadístico que libera la cama. No sustituirlas por la hora de emisión de la epicrisis ni por la hora de sincronización. | Son hechos distintos, aunque pertenezcan al mismo episodio. |
 | CEN-01 | Una lectura sin errores no demuestra que un censo histórico contenga a todos los pacientes. Reconstruir presencia con ingresos, movimientos, egresos y otras fuentes disponibles. | Una sincronización antigua puede haber omitido pacientes. |
 | CEN-02 | Si la evidencia acredita una hospitalización omitida, incluirla en la reconstrucción del turno correspondiente, manteniendo el censo original y la trazabilidad. | La ausencia en una copia local no demuestra ausencia del hospital. |
+| CEN-03 | Un ingreso de madrugada con cama comprobada se incorpora al turno nocturno anterior al confirmar la sincronización habitual, si ese censo existe, no está firmado y el operador puede editarlo. Conserva el indicador amarillo de ingreso en su turno. | Es una asignación de turno; no requiere una segunda aceptación. Los días protegidos conservan sus controles. |
+| CEN-04 | Si una fila administrativa carece de episodio, completar esa identidad desde Eloísa antes de reconstruir el censo, aunque HHR ya tenga un alta del mismo RUT. Un episodio ya egresado no vuelve a ocupar cama. | La coincidencia de RUT no identifica una hospitalización; repetir una captura no debe reabrir un alta ni confundir reingresos. |
 
 ## Recién nacidos: identidad primero, ubicación después
 
@@ -62,6 +64,7 @@ decisión clínica u operativa explícita. Los identificadores siguientes son es
 | CUD-07 | Distinguir resultado encontrado, consulta final completa sin resultado y consulta pendiente/fallida. Usar «No registrado» sólo en el segundo caso. Para un excluido sin registro esperado, mostrar «No aplica»; si tiene CUDYR, conservar «Registrado» y la exclusión. | Un fallo técnico no demuestra ausencia; una exclusión no es una tarea pendiente de aplicación. |
 | CUD-08 | Admitir el resultado del Excel mensual aunque falten autor u hora. Marcar su procedencia y recuperar también la mañana del primer día del mes siguiente. | Es un registro válido; el último turno del mes cruza la medianoche. |
 | CUD-09 | Cumplimiento = pacientes-día elegibles con CUDYR / pacientes-día elegibles. Separar personas de pacientes-día y excluir el día abierto del acumulado cerrado. | Evita sumar personas repetidas o penalizar registros aún dentro de ventana. |
+| CUD-10 | Separar el día de lectura de Eloísa del censo confirmado que autoriza el guardado. Sincronizar D en la mañana de D+1 conserva la autoridad de D; cada CUDYR se atribuye por su fecha de aplicación al turno correspondiente. | Evita rechazos de archivo y desplazar resultados al día de la consulta. |
 
 ## Guardado y condición oficial
 

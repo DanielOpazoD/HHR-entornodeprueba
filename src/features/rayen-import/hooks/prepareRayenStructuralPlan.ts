@@ -77,8 +77,10 @@ export const prepareRayenStructuralPlan = async ({
       extractText: extractStatisticalText,
       alreadyApplied: (row, exactCandidate) => {
         const run = normalizeRut(row.run);
-        const episode = exactCandidate?.encounterId;
-        if (!run || !hasRecordedMovement(baseRecord, run, episode)) return false;
+        const episode = row.encounterId || exactCandidate?.encounterId;
+        // A recorded RUN alone cannot identify the bulk row's hospitalization. Complete its
+        // episode from Eloísa before reconstruction, including when HHR already has an alta.
+        if (!run || !episode || !hasRecordedMovement(baseRecord, run, episode)) return false;
         return (
           !findOccupiedBed(occupied, row.run, episode ?? '') &&
           !findOccupiedClinicalCrib(occupiedCribs, row.run, episode ?? '')

@@ -147,7 +147,9 @@ describe('runClinicalFill', () => {
       applyHistoricalCudyr,
     });
 
-    const summary = await runClinicalFill(record({ H1C2: { encId: 'E1' } }), '2026-07-16', deps);
+    const selectedRecord = record({ H1C2: { encId: 'E1' } });
+    selectedRecord.date = '2026-07-16';
+    const summary = await runClinicalFill(selectedRecord, '2026-07-16', deps);
 
     expect(summary).toMatchObject({ total: 1, patched: 1, errors: [] });
     expect(applyHistoricalCudyr).toHaveBeenCalledWith(

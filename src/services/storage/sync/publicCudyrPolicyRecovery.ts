@@ -8,6 +8,17 @@ import { createObsoleteCudyrCaptureRecovery } from './cudyrObsoleteCaptureRecove
 import { getDocFromServer } from 'firebase/firestore';
 import { getRecordDocRef } from '@/services/storage/firestore/firestoreShared';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { createMisdatedCudyrAuthorityRecovery } from './cudyrMisdatedAuthorityRecovery';
+
+const repairMisdatedArchives = createMisdatedCudyrAuthorityRecovery({
+  store: createDexieSyncQueueStore(),
+  getOwner: getStoredSessionOwnerKey,
+  getGeneration: getSessionGeneration,
+  readConfirmedCensus: async date => {
+    const snapshot = await getDocFromServer(getRecordDocRef(date));
+    return snapshot.exists() ? (snapshot.data() as DailyRecord) : null;
+  },
+});
 
 const retireObsoleteChecks = createObsoleteCudyrCaptureRecovery({
   store: createDexieSyncQueueStore(),
@@ -36,9 +47,17 @@ export const recoverPolicyBlockedCudyrArchives = async (
   isAuthorized: () => boolean
 ): Promise<number> => {
   try {
+    await ensureDbReady();
+    const repaired = authorized
+      ? await repairMisdatedArchives(expectedGeneration, isAuthorized)
+      : 0;
     const count = await recoverPolicyBlockedArchives(authorized, expectedGeneration, isAuthorized);
+    if (repaired && !count) {
+      const { processSyncQueue } = await import('./publicSyncQueue');
+      await processSyncQueue();
+    }
     if (authorized && isAuthorized()) await retireObsoleteChecks(expectedGeneration, isAuthorized);
-    return count;
+    return count + repaired;
   } catch {
     recordOperationalTelemetry({
       category: 'sync',

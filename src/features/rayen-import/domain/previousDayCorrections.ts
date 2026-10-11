@@ -1,7 +1,7 @@
 /**
  * Plans and files reviewed corrections on their official historical day.
  * Reads authoritative records, preserves existing outcomes and nurse/admin editing limits,
- * and applies idempotent movement/admission patches only after explicit acknowledgment.
+ * Applies verified night admissions after ordinary sync confirmation; other corrections need acknowledgment.
  */
 import { planPreviousDayEdits } from './planPreviousDayEdits';
 import {
