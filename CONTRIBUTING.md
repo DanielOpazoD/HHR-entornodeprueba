@@ -4,6 +4,11 @@ Antes de crear una capa, módulo o dependencia, comprobar si el problema se resu
 eliminando, unificando o simplificando una implementación existente. El objetivo es
 preservar el comportamiento con menos caminos y responsabilidades explícitas.
 
+Leer el [contrato operativo](docs/DOMAIN_RULES.md) y el [glosario](docs/GLOSSARY.md).
+En cambios de flujo, indicar las reglas afectadas y los ejemplos de comportamiento
+que deben conservarse. Si una regla necesita cambiar, registrar primero la decisión
+explícita del responsable del producto; no deducirla de un refactor o de un error existente.
+
 ## Preparar el entorno
 
 El runtime declarado en `package.json` es Node **22.x**. Usar el lockfile vigente:
