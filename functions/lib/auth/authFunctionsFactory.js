@@ -23,7 +23,7 @@ const applyRoleClaim = async (adminAuth, uid, role) => {
 const createAuthFunctions = ({ auth, helpers }) => ({
   onUserCreated: functions.auth.user().onCreate(async user => helpers.assignRole(user)),
   setUserRole: functions.https.onCall(async (data, context) => {
-    assertRoleMutationAccess({ context });
+    await assertRoleMutationAccess({ context, resolveRoleForEmail: helpers.resolveRoleForEmail });
 
     const { rawEmail, rawRole } = parseRoleMutationRequest(data);
     const email = helpers.normalizeEmail(rawEmail);
