@@ -23,6 +23,7 @@
 - Toda Function sensible debe responder con envelope consistente por runtime.
 - Ninguna Function Netlify debe depender de `firebase-functions/v1`.
 - Toda Function Netlify sensible que dependa del rol del usuario debe converger con el callable `checkUserRole`, no con una lectura paralela de `config/roles`.
+- `mmrad-search` sólo envía credenciales/cookies a `https://ris.mmrad.cl`, sin usuario o contraseña en la URL. Valida enlaces antes del login y cada destino de redirección; conserva rutas relativas institucionales y limita a cinco las redirecciones automáticas. Un enlace externo devuelve `400`; un destino inválido recibido del portal falla sin consultarlo.
 
 ## Firebase callable clínico
 

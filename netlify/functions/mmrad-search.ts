@@ -227,11 +227,41 @@ const extractSearchActionUrl = (html: string): string | null => {
   return match?.[1] ?? null;
 };
 
-const fetchWithHeaders = (url: string, options: RequestInit = {}) =>
-  fetch(url, {
+const fetchWithHeaders = async (
+  url: string,
+  options: RequestInit = {},
+  redirects = 0
+): Promise<Response> => {
+  const safeUrl = normalizeMmradUrl(url);
+  if (!safeUrl) throw new Error('Destino MMRAD no permitido');
+
+  const response = await fetch(safeUrl, {
     ...options,
+    redirect: 'manual',
     headers: { 'User-Agent': USER_AGENT, ...(options.headers as Record<string, string>) },
   });
+  if (options.redirect === 'manual' || ![301, 302, 303, 307, 308].includes(response.status)) {
+    return response;
+  }
+
+  const location = response.headers.get('location');
+  if (!location || redirects >= 5) throw new Error('Redirección MMRAD no válida');
+  const nextUrl = new URL(location, safeUrl).href;
+  const nextOptions = { ...options };
+  const method = (options.method || 'GET').toUpperCase();
+  if (
+    (response.status === 303 && method !== 'HEAD') ||
+    ([301, 302].includes(response.status) && method === 'POST')
+  ) {
+    nextOptions.method = 'GET';
+    delete nextOptions.body;
+    const headers = { ...(options.headers as Record<string, string>) };
+    delete headers['Content-Type'];
+    delete headers['content-type'];
+    nextOptions.headers = headers;
+  }
+  return fetchWithHeaders(nextUrl, nextOptions, redirects + 1);
+};
 
 const decodeResponseHtml = async (
   response: Response,
@@ -259,7 +289,13 @@ const normalizeMmradUrl = (rawUrl: string | null | undefined): string | null => 
     normalized = javascriptWindowOpenMatch[1];
   }
 
-  return normalized.startsWith('/') ? `${MMRAD_BASE_URL}${normalized}` : normalized;
+  try {
+    const url = new URL(normalized, MMRAD_BASE_URL);
+    if (url.origin !== MMRAD_BASE_URL || url.username || url.password) return null;
+    return url.href;
+  } catch {
+    return null;
+  }
 };
 
 const extractActionUrlFromFragment = (fragment: string): string | null => {
@@ -461,7 +497,7 @@ const parseExamsFromHTML = (html: string): MMRADExam[] => {
     // PDF download link (direct download)
     const pdfMatch = rowHtml.match(/href="([^"]*informePDF[^"]*)"/i);
     let pdfUrl: string | null = pdfMatch?.[1] ?? null;
-    if (pdfUrl?.startsWith('/')) pdfUrl = MMRAD_BASE_URL + pdfUrl;
+    pdfUrl = normalizeMmradUrl(pdfUrl);
 
     // DICOM HTML5 viewer link — uses UtilServlet?a=3 (image viewer)
     // Pattern: window.open('/ingrad-ris-informehtml/UtilServlet?a=3&u=...&idexamen=...&idprestacion=...')
@@ -579,7 +615,11 @@ export const createMMRADSearchHandler = (
     if (action === 'pdf') {
       const pdfUrl = normalizeMmradUrl(queryParams.get('link'));
       if (!pdfUrl) {
-        return buildJsonResponse(400, { error: 'link es requerido' }, { requestOrigin });
+        return buildJsonResponse(
+          400,
+          { error: 'link MMRAD es requerido o no permitido' },
+          { requestOrigin }
+        );
       }
 
       try {
@@ -605,7 +645,11 @@ export const createMMRADSearchHandler = (
     if (action === 'portalReceipt') {
       const receiptUrl = normalizeMmradUrl(queryParams.get('link'));
       if (!receiptUrl) {
-        return buildJsonResponse(400, { error: 'link es requerido' }, { requestOrigin });
+        return buildJsonResponse(
+          400,
+          { error: 'link MMRAD es requerido o no permitido' },
+          { requestOrigin }
+        );
       }
 
       try {
