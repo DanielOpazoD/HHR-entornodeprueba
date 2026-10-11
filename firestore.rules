@@ -179,12 +179,12 @@ service cloud.firestore {
     }
     function isWithinSpecialistMedicalHandoffWindow(effectiveRecordTimestamp) {
       let now = request.time.toMillis();
-      return effectiveRecordTimestamp == null ||
+      return effectiveRecordTimestamp is int &&
              (now >= effectiveRecordTimestamp && now < (effectiveRecordTimestamp + 86400000));
     }
     function resolveSpecialistMedicalHandoffRecordTimestamp() {
-      let currentRecordTimestamp = resource.data.dateTimestamp;
-      let nextRecordTimestamp = request.resource.data.dateTimestamp;
+      let currentRecordTimestamp = resource.data.get('dateTimestamp', null);
+      let nextRecordTimestamp = request.resource.data.get('dateTimestamp', null);
       return nextRecordTimestamp != null
         ? nextRecordTimestamp
         : currentRecordTimestamp;
@@ -210,7 +210,8 @@ service cloud.firestore {
     function isSpecialistMedicalHandoffPayload() {
       let affectedRecordKeys = request.resource.data.diff(resource.data).affectedKeys();
       let effectiveRecordTimestamp = resolveSpecialistMedicalHandoffRecordTimestamp();
-      return isWithinSpecialistMedicalHandoffWindow(effectiveRecordTimestamp) &&
+      return hasValidDailyRecordTimestamp() &&
+             isWithinSpecialistMedicalHandoffWindow(effectiveRecordTimestamp) &&
              hasValidSpecialistRecordTimestampChange(affectedRecordKeys) &&
              (
                isSpecialistStructuredMedicalHandoffPayload(affectedRecordKeys) ||
@@ -531,7 +532,7 @@ service cloud.firestore {
     }
     function isWithinEditingWindow(recordTS) {
       let now = request.time.toMillis();
-      return recordTS == null || (
+      return recordTS is int && (
              now > (recordTS - 86400000) && 
              now < (recordTS + 172800000)
       );
@@ -540,8 +541,23 @@ service cloud.firestore {
       let affectedKeys = request.resource.data.diff(resource.data).affectedKeys();
       return affectedKeys.hasOnly(['medicalSignature', 'medicalSignatureByScope', 'medicalHandoffDoctor', 'medicalHandoffSentAt', 'medicalHandoffSentAtByScope', 'medicalSignatureLinkTokenByScope', 'lastUpdated']);
     }
+    function dailyRecordTimestampDate(recordTS) {
+      let recordTime = timestamp.value(recordTS);
+      return string(recordTime.year()) + '-' +
+             (recordTime.month() < 10 ? '0' : '') + string(recordTime.month()) + '-' +
+             (recordTime.day() < 10 ? '0' : '') + string(recordTime.day());
+    }
+    function hasValidDailyRecordTimestamp() {
+      let currentTS = resource.data.get('dateTimestamp', null);
+      let nextTS = request.resource.data.get('dateTimestamp', null);
+      return nextTS is int &&
+             (currentTS == null || nextTS == currentTS) &&
+             resource.data.get('date', '') == resource.id &&
+             request.resource.data.get('date', '') == resource.id &&
+             dailyRecordTimestampDate(nextTS) == resource.id;
+    }
     function canNurseUpdatePersistedDailyRecord() {
-      return hasPersistedRecordTimestampPayload() &&
+      return hasValidDailyRecordTimestamp() &&
              isWithinEditingWindow(request.resource.data.dateTimestamp);
     }
     function canDoctorUpdatePersistedDailyRecord() {
@@ -568,10 +584,6 @@ service cloud.firestore {
                     : false
           )
         : false;
-    }
-    function hasPersistedRecordTimestampPayload() {
-      return request.resource.data.keys().hasAll(['dateTimestamp']) &&
-             request.resource.data.dateTimestamp != null;
     }
     function canAdminMaintainHospitalDocument() {
       return isAdmin();
