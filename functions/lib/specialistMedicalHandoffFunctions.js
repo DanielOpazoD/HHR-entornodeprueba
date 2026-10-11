@@ -2,7 +2,10 @@ const functions = require('firebase-functions/v1');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
 const { requireAuthenticatedEmail } = require('./auth/authPolicies');
 const { sanitizeLogValue } = require('./logging/redaction');
-const { isCurrentRapaNuiDay } = require('./specialtyRules');
+const {
+  calendarStampInClinicalTimeZone,
+  resolveClinicalDayForDateTime,
+} = require('./generated/cudyrSourceParser.cjs');
 
 /**
  * Productive write path for specialist medical handoff notes.
@@ -184,7 +187,11 @@ const createSpecialistMedicalHandoffFunctions = ({
       throw new functions.https.HttpsError('invalid-argument', 'Invalid daily record date.');
     }
     const assertEditingDay = () => {
-      if (resolvedRole === 'doctor_specialist' && !isCurrentRapaNuiDay(date)) {
+      const { iso, hhmm } = calendarStampInClinicalTimeZone();
+      if (
+        resolvedRole === 'doctor_specialist' &&
+        date !== resolveClinicalDayForDateTime(iso, hhmm)
+      ) {
         throw new functions.https.HttpsError(
           'permission-denied',
           'Specialists can only update the current clinical day.'

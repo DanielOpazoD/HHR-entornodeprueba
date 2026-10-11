@@ -270,10 +270,18 @@ describe('functions specialistMedicalHandoffFunctions', () => {
 
   it.each([
     ['2026-04-12T05:59:59Z', '2026-04-11', true],
-    ['2026-04-12T06:00:00Z', '2026-04-11', false],
+    ['2026-04-12T06:00:00Z', '2026-04-11', true],
+    ['2026-04-12T14:59:59Z', '2026-04-11', true],
+    ['2026-04-12T15:00:00Z', '2026-04-11', false],
+    ['2026-04-13T13:59:59Z', '2026-04-12', true],
+    ['2026-04-13T14:00:00Z', '2026-04-12', false],
     ['2026-10-12T04:59:59Z', '2026-10-11', true],
-    ['2026-10-12T05:00:00Z', '2026-10-11', false],
-  ])('uses Pacific/Easter midnight at %s', async (now, date, allowed) => {
+    ['2026-10-12T05:00:00Z', '2026-10-11', true],
+    ['2026-10-13T12:59:59Z', '2026-10-12', true],
+    ['2026-10-13T13:00:00Z', '2026-10-12', false],
+    ['2026-07-16T14:59:59Z', '2026-07-15', true],
+    ['2026-07-16T15:00:00Z', '2026-07-15', false],
+  ])('uses shared Pacific/Easter clinical rollover at %s', async (now, date, allowed) => {
     vi.setSystemTime(new Date(now as string));
     const update = vi.fn().mockResolvedValue(undefined);
     const get = vi
@@ -292,10 +300,10 @@ describe('functions specialistMedicalHandoffFunctions', () => {
     expect(update).toHaveBeenCalledTimes(allowed ? 1 : 0);
   });
 
-  it('rejects a specialist write if midnight passes while fetching the record', async () => {
+  it('rejects a specialist write if clinical rollover passes while fetching the record', async () => {
     const update = vi.fn();
     const get = vi.fn().mockImplementation(async () => {
-      vi.setSystemTime(new Date('2026-04-12T06:00:00Z'));
+      vi.setSystemTime(new Date('2026-04-12T15:00:00Z'));
       return { exists: true, data: () => ({ date: '2026-04-11', beds: { R4: {} } }) };
     });
     const api = createSpecialistMedicalHandoffFunctions({
