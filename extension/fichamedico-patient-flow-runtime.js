@@ -28,14 +28,9 @@
     const authorizeSnapshotResponse = (sender, promise) => authorizeResponse(sender, promise, false);
     const authorizeBundleResponse = (sender, promise) => authorizeResponse(sender, promise, true);
     const isAuthorized = authorization.has;
-    const canRequestClinicalEpisode = (sender, encId) => {
-      if (isAuthorized(sender, encId)) return true;
-      try {
-        const origin = sender?.origin || new URL(sender?.url || sender?.tab?.url).origin;
-        return Number.isInteger(sender?.tab?.id) && /^\d+$/.test(String(encId || '')) &&
-          origin === 'https://fichamedico.rayensalud.cl';
-      } catch { return false; }
-    };
+    const canRequestClinicalEpisode = (sender, encId) => isAuthorized(sender, encId) ||
+      (Number.isInteger(sender?.tab?.id) && /^\d+$/.test(String(encId || '')) &&
+        /^https:\/\/fichamedico\.rayensalud\.cl(?:\/|$)/.test(sender?.origin || sender?.url || ''));
     const authorizeVerifiedEncounter = authorization.add;
     const handle = async (message, sender) => {
       const encId = String(message && message.encId || '');
@@ -50,11 +45,7 @@
           query: { enc_id: encId },
           cache: 'no-store',
         });
-        return {
-          ok: true,
-          length: result.data.byteLength,
-          base64: bufferToBase64(result.data),
-        };
+        return { ok: true, length: result.data.byteLength, base64: bufferToBase64(result.data) };
       } catch (error) {
         if (error && error.kind === 'http') {
           return { error: 'El servidor de Ficha Médico respondió HTTP ' + error.status + '.' };
