@@ -2,7 +2,7 @@
 
 Estado: activo
 Owner: architecture
-Última actualización: 2026-09-22
+Última actualización: 2026-10-11
 
 ## Scope
 
@@ -102,3 +102,16 @@ remain unchanged. Validate with schema tests, `pwaPrecachePolicy`, `build`,
 `check:bundle-budget`, `check:chunk-graph` and preview/runtime performance checks.
 Rollback: restore the two precache entries and the repeated field constructors;
 archive payloads and Firebase records require no migration.
+
+## Moa y cabecera compacta (2026-10-11)
+
+Owner: app-shell/navbar. La mascota opcional usa un atlas de seis poses de
+37.318 bytes, sin nuevas dependencias. Solo `images/moa/` queda fuera del
+precache de instalación; la ruta de imágenes existente lo almacena al usarlo.
+La ayuda y su icono alternativo siguen en el precache y funcionan cuando la
+imagen falla o se oculta. No se excluyen módulos clínicos ni se elevan límites.
+El paisaje costero se optimiza de 6.634 a 2.538 bytes para reducir la descarga
+inicial; las secuencias CSS usan pasos sobre un único atlas. Comprobar `check:bundle-budget`,
+`check:chunk-graph`, `check:runtime-asset-margin` y las pruebas de ayuda,
+movimiento reducido y recarga. Revertir las imágenes, estilos y componentes
+de Moa juntos para deshacer esta integración.

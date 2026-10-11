@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MoaHelpButton } from '@/components/layout/navbar/MoaHelpButton';
 
@@ -11,6 +11,54 @@ const openHelp = async () => {
 };
 
 describe('MoaHelpButton', () => {
+  beforeEach(() => localStorage.removeItem('hhr_moa_visible_v1'));
+
+  it('shows the selected mascot and restores its visibility preference on remount', async () => {
+    const first = render(<MoaHelpButton />);
+    expect(screen.getByTestId('moa-mascot')).toHaveAttribute(
+      'src',
+      '/images/moa/moa-poses-v1.webp'
+    );
+    await openHelp();
+    const preference = screen.getByRole('checkbox', { name: 'Mostrar mascota Moa' });
+    expect(preference).toBeChecked();
+    fireEvent.click(preference);
+    expect(screen.queryByTestId('moa-mascot')).not.toBeInTheDocument();
+    expect(localStorage.getItem('hhr_moa_visible_v1')).toBe('false');
+    first.unmount();
+
+    render(<MoaHelpButton />);
+    expect(screen.queryByTestId('moa-mascot')).not.toBeInTheDocument();
+    await openHelp();
+    expect(screen.getByRole('checkbox', { name: 'Mostrar mascota Moa' })).not.toBeChecked();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Mostrar mascota Moa' }));
+    expect(screen.getAllByTestId('moa-mascot')).toHaveLength(2);
+    expect(localStorage.getItem('hhr_moa_visible_v1')).toBe('true');
+  });
+
+  it('keeps the visibility control working when preference storage fails', async () => {
+    const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('Storage unavailable');
+    });
+    try {
+      render(<MoaHelpButton />);
+      await openHelp();
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Mostrar mascota Moa' }));
+      expect(screen.queryByTestId('moa-mascot')).not.toBeInTheDocument();
+      expect(screen.getByRole('region', { name: 'Moa · Ayuda de HHR' })).toBeInTheDocument();
+    } finally {
+      write.mockRestore();
+    }
+  });
+
+  it('keeps help available when the optional artwork cannot load', async () => {
+    render(<MoaHelpButton />);
+    fireEvent.error(screen.getByTestId('moa-mascot'));
+    expect(screen.queryByTestId('moa-mascot')).not.toBeInTheDocument();
+    await openHelp();
+    expect(screen.getByRole('region', { name: 'Moa · Ayuda de HHR' })).toBeInTheDocument();
+  });
+
   it('contains a rejected import and requires confirmation before reloading', async () => {
     vi.resetModules();
     const { defaultBrowserWindowRuntime } =

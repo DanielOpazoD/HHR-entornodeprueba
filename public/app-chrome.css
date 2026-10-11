@@ -1,11 +1,11 @@
 /* Shared by the document preboot surface, bootstrap chrome and active app. */
 :root {
-  --hhr-navbar-height: 64px;
+  --hhr-navbar-height: 52px;
   --hhr-date-strip-height: 56px;
   --hhr-chrome-height: calc(var(--hhr-navbar-height) + var(--hhr-date-strip-height));
   --hhr-navbar-blue: #3f74a5;
   --hhr-preboot-background:
-    url('/images/navbar/rapa-nui-coast.webp'),
+    url('/images/navbar/rapa-nui-coast-v2.webp'),
     linear-gradient(var(--hhr-navbar-blue), var(--hhr-navbar-blue)), linear-gradient(#fff, #fff),
     linear-gradient(#eef4f8, #e8eef5);
   --hhr-preboot-position:
@@ -25,13 +25,6 @@
 .hhr-navbar-brand {
   padding-inline: 0;
 }
-.hhr-navbar-brand img {
-  width: 32px;
-  height: 32px;
-}
-.hhr-navbar-brand h1 {
-  font-size: 16px;
-}
 .hhr-navbar-brand > svg {
   color: #bad2e8;
 }
@@ -39,13 +32,9 @@
   flex: 0 1 auto;
 }
 .hhr-nav-tab {
-  min-height: 40px;
-  font-size: 14px;
-  border-radius: 10px;
-}
-.hhr-nav-tab > svg:first-child {
-  width: 18px;
-  height: 18px;
+  min-height: 36px;
+  font-size: 13px;
+  border-radius: 8px;
 }
 .hhr-nav-tab[aria-current='page'] {
   background-color: #548fc2;
@@ -56,15 +45,48 @@
   height: 100%;
   width: auto;
   flex: 1 1 260px;
-  max-width: 430px;
+  max-width: 270px;
   object-fit: cover;
   object-position: center;
   pointer-events: none;
   mask-image: linear-gradient(90deg, transparent, #000 15%, #000 88%, transparent);
 }
-.hhr-navbar-utilities {
-  border-left: 1px solid #ffffff40;
-  padding-left: 16px;
+/* Six exported poses. Brief sequences end in the selected neutral pose. */
+.hhr-moa {
+  display: flex;
+  justify-content: center;
+}
+.hhr-moa-window {
+  flex: none;
+  height: 100%;
+  aspect-ratio: 136 / 152;
+  overflow: hidden;
+}
+.moa-frames {
+  height: 100%;
+  width: 600%;
+  max-width: none;
+  image-rendering: pixelated;
+  animation: moa-welcome 4.8s steps(6, end);
+}
+button:is(:hover, :focus-visible) .moa-frames,
+.hhr-moa:hover .moa-frames {
+  animation: moa-greet 2.4s steps(6, end);
+}
+@keyframes moa-welcome {
+  to {
+    transform: translateX(-100%);
+  }
+}
+@keyframes moa-greet {
+  to {
+    transform: translateX(-100%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .moa-frames {
+    animation: none !important;
+  }
 }
 .hhr-date-strip {
   height: var(--hhr-date-strip-height);
@@ -179,14 +201,11 @@
 }
 @media (max-width: 639px) {
   :root {
-    --hhr-navbar-height: 56px;
+    --hhr-navbar-height: 48px;
   }
   .hhr-navbar-brand img {
     width: 26px;
     height: 26px;
-  }
-  .hhr-navbar-utilities {
-    padding-left: 8px;
   }
   .hhr-date-strip-inner {
     gap: 4px;

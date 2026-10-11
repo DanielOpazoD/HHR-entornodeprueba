@@ -2,14 +2,23 @@ import React, { useId } from 'react';
 import { CircleHelp, X } from 'lucide-react';
 import type { ModuleType } from '@/constants/navigationConfig';
 import { getMoaHelpContext } from './moaHelpContent';
+import { MoaMascot } from './MoaMascot';
 
 interface MoaHelpPanelProps {
   currentModule?: ModuleType;
   panelId: string;
   onClose: () => void;
+  showMascot?: boolean;
+  onToggleMascot?: () => void;
 }
 
-export const MoaHelpPanel: React.FC<MoaHelpPanelProps> = ({ currentModule, panelId, onClose }) => {
+export const MoaHelpPanel: React.FC<MoaHelpPanelProps> = ({
+  currentModule,
+  panelId,
+  onClose,
+  showMascot = true,
+  onToggleMascot,
+}) => {
   const titleId = useId();
   const context = getMoaHelpContext(currentModule);
 
@@ -22,8 +31,12 @@ export const MoaHelpPanel: React.FC<MoaHelpPanelProps> = ({ currentModule, panel
     >
       <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-slate-100 bg-slate-50 p-4">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-800">
-            <CircleHelp size={20} aria-hidden="true" />
+          <div className="flex h-14 w-11 shrink-0 items-center justify-center text-sky-800">
+            {showMascot ? (
+              <MoaMascot className="h-14 w-11" />
+            ) : (
+              <CircleHelp size={20} aria-hidden="true" />
+            )}
           </div>
           <div className="min-w-0">
             <h2 id={titleId} className="text-sm font-semibold leading-5 text-slate-900">
@@ -65,6 +78,19 @@ export const MoaHelpPanel: React.FC<MoaHelpPanelProps> = ({ currentModule, panel
           </div>
         </dl>
       </div>
+      {onToggleMascot && (
+        <div className="border-t border-slate-100 px-4 py-2">
+          <label className="flex min-h-9 cursor-pointer items-center justify-between gap-3 text-sm text-slate-700">
+            Mostrar mascota Moa
+            <input
+              type="checkbox"
+              checked={showMascot}
+              onChange={onToggleMascot}
+              className="h-4 w-4 accent-teal-700"
+            />
+          </label>
+        </div>
+      )}
       <p className="border-t border-slate-100 bg-slate-50 px-4 py-3 text-xs leading-5 text-slate-600">
         Esta ayuda no consulta pacientes ni modifica registros. Las herramientas habituales siguen
         disponibles fuera de Moa.
