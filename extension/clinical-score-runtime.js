@@ -382,16 +382,19 @@
       return { error: 'Eloísa no informó un formulario vigente para ' + instrument + '.' };
     };
 
-    const handleScoresOptionsRequest = async ({ currentEncId }) => {
-      const infoResult = await getFichaFetchInfo();
+    const scoresTabId = sender => sender?.tab?.id;
+    const scoresIdentityReady = info => Boolean(info.identityVerified &&
+      /^\d+$/.test(String(info.practitionerId || '')) && /^\d+$/.test(String(info.practitionerRoleId || '')));
+    const handleScoresOptionsRequest = async ({ currentEncId, sender }) => {
+      const senderTabId = scoresTabId(sender);
+      if (!Number.isInteger(senderTabId)) return { error: 'La pestaña de Scores no es válida.' };
+      const infoResult = await getFichaFetchInfo(sender);
       if (infoResult.error) return infoResult;
       const info = infoResult.info;
       const clinicalRoleKind = resolveSessionHandoffKind(info);
-      const identityReady = Boolean(
-        info.identityVerified && /^\d+$/.test(String(info.practitionerId || '')) &&
-          /^\d+$/.test(String(info.practitionerRoleId || '')) && clinicalRoleKind
-      );
-      if (!identityReady) return { error: 'No se pudo verificar una sesión médica o de enfermería.' };
+      if (!scoresIdentityReady(info) || !clinicalRoleKind) {
+        return { error: 'No se pudo verificar una sesión médica o de enfermería.' };
+      }
       const claimsResult = clinicalRoleKind === 'medical' ? { claims: [] } : await fetchFichaClaims(info);
       if (claimsResult.error) return claimsResult;
       if (clinicalRoleKind !== 'medical' && !hasFichaClaim(claimsResult, 'Ver_Instrumento_Evaluacion')) {
@@ -445,7 +448,7 @@
       const batchId = cryptoApi.randomUUID();
       await chromeApi.storage.session.set({
         [`hhr-scores-batch-${batchId}`]: {
-          createdAt: now(),
+          createdAt: now(), senderTabId, sessionIdentity: scoresSessionIdentity(info),
           patients: patients.map(patient => ({
             encounterId: patient.encounterId,
             birthDate: patient.birthDate,
@@ -459,11 +462,7 @@
         batchId,
         patients,
         canWrite: canWriteEvaluation,
-        canWriteByInstrument: {
-          CUDYR: canWriteEvaluation,
-          BRADEN: canWriteEvaluation,
-          DOWNTON: canWriteEvaluation,
-        },
+        canWriteByInstrument: { CUDYR: canWriteEvaluation, BRADEN: canWriteEvaluation, DOWNTON: canWriteEvaluation },
         currentProfessional: info.fullName || '',
         writeBlockedReason: canWriteEvaluation ? '' : 'El perfil no tiene permiso para ingresar instrumentos de evaluación.',
         cudyrHistoryAvailable: Boolean(cudyrResult.historyAvailable),
@@ -472,34 +471,38 @@
         cudyrUnavailableReason: cudyrResult.error || '',
       };
     };
-
-    const readScoresBatch = async (batchId, encId) => {
+    const scoresSessionIdentity = info => JSON.stringify([info.apiOrigin, info.facId, info.practitionerId, info.practitionerRoleId]
+        .map(value => String(value || '')));
+    const readScoresBatch = async (batchId, encId, sender) => {
       if (!/^[a-f0-9-]{20,}$/i.test(String(batchId || '')) || !/^\d+$/.test(String(encId || ''))) {
         return { error: 'La sesión de Scores no es válida.' };
       }
       const key = `hhr-scores-batch-${batchId}`;
-      const stored = await chromeApi.storage.session.get(key);
-      const batch = stored && stored[key];
+      const batch = (await chromeApi.storage.session.get(key))[key];
       if (!batch || now() - Number(batch.createdAt || 0) > 30 * 60 * 1000) {
         return { error: 'La sesión de Scores expiró. Actualiza el módulo.' };
       }
+      const senderTabId = scoresTabId(sender);
+      if (!Number.isInteger(senderTabId) || batch.senderTabId !== senderTabId) {
+        return { error: 'La lista de Scores no pertenece a esta pestaña. Actualiza el módulo.' };
+      }
       const patient = (Array.isArray(batch.patients) ? batch.patients : [])
         .find(item => String(item.encounterId) === String(encId));
-      return patient
-        ? { patient, storageKey: key, batch }
-        : { error: 'El paciente no pertenece a esta lista activa.' };
+      if (!patient) return { error: 'El paciente no pertenece a esta lista activa.' };
+      const session = await getFichaFetchInfo(sender);
+      if (session.error) return session;
+      return batch.sessionIdentity !== scoresSessionIdentity(session.info)
+        ? { error: 'La sesión clínica cambió. Actualiza Scores antes de continuar.' }
+        : { patient, storageKey: key, batch, info: session.info };
     };
-
-    const handleScoreFormRequest = async ({ batchId, encId, instrument }) => {
+    const handleScoreFormRequest = async ({ batchId, encId, instrument, sender }) => {
       const normalizedInstrument = ['CUDYR', 'BRADEN', 'DOWNTON'].includes(String(instrument || '').toUpperCase())
         ? String(instrument).toUpperCase()
         : '';
       if (!normalizedInstrument) return { error: 'El instrumento no es válido.' };
-      const batch = await readScoresBatch(batchId, encId);
+      const batch = await readScoresBatch(batchId, encId, sender);
       if (batch.error) return batch;
-      const infoResult = await getFichaFetchInfo();
-      if (infoResult.error) return infoResult;
-      const info = infoResult.info;
+      const info = batch.info;
       if (!info.identityVerified || !/enfermer/i.test(String(info.role || ''))) {
         return { error: 'No se pudo verificar la sesión de enfermería.' };
       }

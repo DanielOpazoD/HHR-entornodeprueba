@@ -74,7 +74,6 @@
     const {
       scoreWriteModel,
       fetchWithTimeout,
-      getFichaFetchInfo,
       fetchFichaClaims,
       hasFichaClaim,
       verifyEncounterStillHospitalized,
@@ -95,7 +94,6 @@
 
     const requiredFunctions = [
       fetchWithTimeout,
-      getFichaFetchInfo,
       fetchFichaClaims,
       hasFichaClaim,
       verifyEncounterStillHospitalized,
@@ -422,16 +420,15 @@
       encId,
       instrument,
       answers,
+      sender,
     }, writeGuard) => {
       const normalizedInstrument = ['CUDYR', 'BRADEN', 'DOWNTON'].includes(
         String(instrument || '').toUpperCase()
       ) ? String(instrument).toUpperCase() : '';
       if (!normalizedInstrument) return { error: 'El instrumento no es válido.' };
-      const batch = await readScoresBatch(batchId, encId);
+      const batch = await readScoresBatch(batchId, encId, sender);
       if (batch.error) return batch;
-      const infoResult = await getFichaFetchInfo();
-      if (infoResult.error) return infoResult;
-      const info = infoResult.info;
+      const info = batch.info;
       if (!info.identityVerified || !/enfermer/i.test(String(info.role || '')) ||
           !/^\d+$/.test(String(info.practitionerId || '')) ||
           !/^\d+$/.test(String(info.practitionerRoleId || ''))) {
