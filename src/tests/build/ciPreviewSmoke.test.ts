@@ -15,9 +15,8 @@ it('runs census, library, clinical-panel and sync-navigation preview smoke toget
     'npm run check:runtime-asset-margin',
     'npm run ci:preview-smoke:built',
   ]);
-  expect(fs.readFileSync('.github/workflows/preview.yml', 'utf8')).toContain(
-    'run: npm run ci:preview-gate'
-  );
+  // The canonical build already runs the complete smoke pack and persists its evidence.
+  expect(fs.existsSync('.github/workflows/preview.yml')).toBe(false);
   expect(fs.readFileSync('.github/workflows/ci-cd.yml', 'utf8')).toContain(
     'run: npm run ci:preview-smoke:built'
   );
@@ -64,7 +63,7 @@ it('does not present an empty or malformed report as a successful run', () => {
     'No se ejecutaron pruebas'
   );
   expect(() => renderPreviewSummary({})).toThrow('Informe incompleto');
-  for (const workflow of ['preview.yml', 'ci-cd.yml']) {
+  for (const workflow of ['ci-cd.yml']) {
     expect(fs.readFileSync(`.github/workflows/${workflow}`, 'utf8')).toContain(
       'name: Summarize census and library results\n        if: always()\n        run: node scripts/report-preview-summary.mjs'
     );

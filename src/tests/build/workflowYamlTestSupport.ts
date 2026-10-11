@@ -3,11 +3,12 @@ import { parse } from 'yaml';
 
 export interface WorkflowJob {
   name?: string;
+  uses?: string;
   needs?: string | string[];
   if?: string;
   permissions?: Record<string, string>;
   env?: Record<string, string>;
-  strategy?: { matrix: { group: string[] } };
+  strategy?: { 'fail-fast'?: boolean; matrix: Record<string, Array<string | number>> };
   steps: Array<{
     name?: string;
     run?: string;
@@ -18,7 +19,14 @@ export interface WorkflowJob {
   }>;
 }
 
-export const parseWorkflow = (text: string): { jobs: Record<string, WorkflowJob> } => parse(text);
+export const parseWorkflow = (text: string): { jobs: Record<string, WorkflowJob> } => {
+  const workflow = parse(text);
+  for (const job of Object.values(workflow.jobs) as WorkflowJob[]) {
+    // Reusable workflow calls have no local steps; preserve their uses field.
+    job.steps ??= [];
+  }
+  return workflow;
+};
 export const jobNeeds = (job: WorkflowJob): string[] =>
   Array.isArray(job.needs) ? job.needs : job.needs ? [job.needs] : [];
 

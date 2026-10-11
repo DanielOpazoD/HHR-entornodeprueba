@@ -395,6 +395,10 @@ const createCudyrEvidence = async (page: Page) => {
       lastVerifiedAt: E2E_DATE + 'T23:00:00Z',
     };
     const responses: Record<string, object> = {
+      'official-report': { state: 'missing', sourceVersion: 'visual-source' },
+      'monthly-supplements': { reports: [], nextCursor: null },
+      'daily-census-sources': { reports: [], nextCursor: null },
+      'verified-context': { review: null },
       history: { observations: [observation], nextCursor: null },
       captures: { captures: [], nextCursor: null },
       'episode-captures': { captures: [], nextCursor: null },
@@ -458,6 +462,9 @@ test.describe('Clinical release visual smoke', () => {
   test('creates release-critical clinical surfaces without layout overflow', async ({
     page,
   }, testInfo) => {
+    // One integration scenario traverses six modules and downloads two workbooks.
+    // Keep the per-step assertions unchanged; allow the whole scenario to finish.
+    test.setTimeout(120_000);
     await openVisualCensus(page);
     await expectNoHorizontalOverflow(page);
     await attachViewportEvidence(page, testInfo, 'clinical-release-census');

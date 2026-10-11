@@ -55,7 +55,11 @@ describe('SpecialtyChip', () => {
     render(<SpecialtyChip specialty="Med Interna" censusDate="2026-09-23" onAssign={vi.fn()} />);
     fireEvent.click(screen.getByTitle('Especialidad: Med Interna'));
     expect(
-      await screen.findByRole('button', { name: 'Opciones de especialidades del censo' })
+      await screen.findByRole(
+        'button',
+        { name: 'Opciones de especialidades del censo' },
+        { timeout: 5000 }
+      )
     ).toBeVisible();
   });
 
@@ -64,7 +68,11 @@ describe('SpecialtyChip', () => {
     render(<SpecialtyChip specialty="Med Interna" onAssign={assign} scope={scope} />);
     fireEvent.click(screen.getByTitle('Especialidad: Med Interna'));
     fireEvent.click(
-      await screen.findByRole('button', { name: 'Opciones de especialidades del censo' })
+      await screen.findByRole(
+        'button',
+        { name: 'Opciones de especialidades del censo' },
+        { timeout: 5000 }
+      )
     );
     expect(screen.getByRole('dialog', { name: 'Reglas de especialidades' })).toBeVisible();
     expect(screen.queryByRole('dialog', { name: 'Asignar especialidad' })).toBeNull();

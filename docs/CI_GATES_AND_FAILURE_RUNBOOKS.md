@@ -599,15 +599,18 @@ independiente. Los manifiestos de Functions siempre disparan `full`.
 
 ## Superseded pull-request runs
 
-`CI/CD Pipeline` and `Preview Validation` share a concurrency group only for revisions
-of the same pull request within the same workflow. A newer revision cancels that
+`CI/CD Pipeline` uses a concurrency group only for revisions
+of the same pull request. A newer revision cancels that
 PR's obsolete run; reviewers must inspect checks for the current head SHA.
 Push validations use a unique run ID, preserving every `main` and `develop` run
 (including pending runs). This does not change jobs, required checks, or test scope.
 
 ### Reutilización acotada de dependencias instaladas
 
-`quality-static-base` guarda `node_modules` inmediatamente después de `npm ci`.
+`quality-static-base` ejecuta lint y TypeScript en dos runners independientes,
+sin cancelación del segundo ante un fallo del primero. Sólo la rama lint guarda
+`node_modules` inmediatamente después de `npm ci`. Ambos deben aprobar antes
+de generar la evidencia que consume la compilación.
 `quality-static-governance-snapshots`, `build-budget` y `lighthouse-ci` reutilizan
 esa instalación mediante `.github/actions/setup-ci-dependencies`; sus dependencias
 entre jobs, pruebas y umbrales permanecen iguales. La clave exige imagen/revisión del runner, sistema,
@@ -633,6 +636,22 @@ los tiempos del paso `Setup CI dependencies` y del workflow completo, separando
 la primera instalación de las restauraciones; una reducción del paso no garantiza
 igual reducción global si otra rama pasa a dominar el tiempo. Reversión: reemplazar
 la acción por `setup-node` + `npm ci` en esos cuatro jobs y retirar su acción local.
+
+### Una sola validación de vista previa
+
+`build-budget` compila y verifica las cuatro suites del pack `ci:preview-smoke:built`,
+registra su procedencia y publica los artefactos para la comprobación final y
+posterior al merge. Se retira el workflow duplicado `Preview Validation`:
+no cambia el pack ni sus presupuestos. La regla activa de main exige `ci-summary`,
+que conserva la dependencia de `build-budget` y falla si falta una validación.
+Los cambios `docs-only` y `functions-only` conservan sus controles propios;
+ya no pagan otra compilación de frontend en un workflow separado.
+
+Owner: CI HHR. Reversión: restaurar `preview.yml` y el job estático secuencial.
+Referencia anterior: run 38162693481 (CI 10 min 19 s) y run 38162693384
+(vista previa duplicada, aproximadamente 4 min). Son observaciones de una revisión,
+no una promesa de tiempo para las siguientes. Comparar caché fría/caliente,
+tiempo total, minutos de runner y fallos sobre revisiones equivalentes.
 
 ### Evidencia de reconexión y conflictos (2026-09-29)
 
@@ -1035,3 +1054,53 @@ comprueba la dependencia del consumidor respecto a sus productores de la misma e
 Conservar estos contratos y sus casos negativos al optimizar CI. El benchmark de
 arranque también rechaza sobrescribir evidencia: para repetir, usar una ruta nueva
 con `CENSUS_PERF_OUTPUT`, sin borrar el resultado anterior para hacerlo parecer vigente.
+
+## Cobertura crítica en dos grupos
+
+El CI ejecuta el mismo selector crítico en dos shards de Vitest. Cada uno debe
+pasar y entregar su blob del mismo run. El job `critical-coverage-report` espera
+ambos, rechaza archivos faltantes o adicionales y utiliza la unión nativa de
+Vitest para generar la cobertura sin repetir las pruebas. Los umbrales y el
+artefacto canónico se conservan; la evidencia de release espera el informe unido.
+La ejecución local sin argumentos conserva la suite completa habitual.
+
+Para reproducir: `node scripts/run-critical-coverage.mjs --shard=1/2`, después
+`--shard=2/2` y `--merge-shards`; finalmente ejecutar los scripts
+`report-critical-coverage.mjs` y `check-critical-coverage.mjs`. Detenerse si falla
+cualquiera de los grupos. No publicar cobertura parcial ni promediar porcentajes.
+
+El smoke visual de release simula explícitamente las consultas nuevas de CUDYR
+(informe oficial, suplementos mensuales, censo y contexto verificado). Conserva
+el rechazo de consultas desconocidas, las comprobaciones de interfaz y las dos
+descargas. Su presupuesto total permite recorrer los seis módulos del escenario;
+los límites de cada comprobación y los controles de rendimiento no cambian.
+
+## Despliegue de Functions después del CI
+
+`ci-summary` valida una revisión antes de que el CI de `main` llame al workflow
+reutilizable de Functions. El filtro conserva los archivos del despliegue anterior
+y añade los manifests/lockfile raíz y el propio verificador. Un cambio exclusivo
+del frontend o documentación no inicia un despliegue de Functions.
+
+El preflight comprueba el SHA, la rama, el workflow y el `ci-summary` del último
+intento de ese CI mediante un token de solo lectura. No se entregan credenciales
+Firebase hasta superar esta comprobación. Si desde entonces `main` tiene cambios
+en Functions, omite la revisión antigua para evitar revertir un despliegue nuevo.
+Los reintentos manuales en `main` deben superar el mismo control; se permite
+reintentar un despliegue fallido si el resumen de validación sí pasó.
+
+El CLI Firebase procede de `npm ci` y del lockfile raíz (`npx --no-install firebase`);
+no se descarga `latest` durante los pasos de borrado, despliegue o verificación.
+La cola `queue: max` conserva hasta 100 despliegues pendientes sin que una revisión
+antigua desplace a una más reciente. El fetch usa autenticación efímera de solo
+lectura y el diff incluye las eliminaciones cuando se renombra un archivo.
+Se conserva la serialización del proyecto `hhr-pruebas`, los destinos explícitos,
+la comprobación regional y la limpieza de credenciales. Este control corresponde
+a Firebase Functions; no cambia la configuración externa de publicación de Netlify.
+
+**Fallo:** revisar el resumen del preflight y el CI indicado antes de reintentar.
+Una API inaccesible, un SHA distinto o un resumen pendiente/fallido detienen el
+despliegue. No omitir el control ni ampliar permisos. **Rollback:** revertir este
+bloque restaura el workflow anterior; no modifica datos clínicos ni IAM.
+
+Referencia de cola: [concurrencia de GitHub Actions](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency).
