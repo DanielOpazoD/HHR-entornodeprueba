@@ -87,9 +87,12 @@ it('reuses exact dependencies across compatible jobs with only one pristine-cach
     'unit-risk-shards',
   ]);
   const writers = reusable.filter(([, job]) =>
-    job.steps.some(step => step.with?.['save-cache'] === 'true')
+    job.steps.some(step => String(step.with?.['save-cache'] ?? '').includes("'true'"))
   );
   expect(writers.map(([name]) => name)).toEqual(['quality-static-base']);
+  expect(jobs['quality-static-base'].steps.find(step => step.with?.['save-cache'])?.with).toEqual({
+    'save-cache': "${{ matrix.check == 'lint' && 'true' || 'false' }}",
+  });
   for (const [, job] of reusable) {
     const setupIndex = job.steps.findIndex(
       step => step.uses === './.github/actions/setup-ci-dependencies'
