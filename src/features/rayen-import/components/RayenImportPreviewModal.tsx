@@ -1,3 +1,8 @@
+import { RayenPreviousDayReview } from './RayenPreviousDayReview';
+import { NeonatalSourceChanges } from './NeonatalSourceChanges';
+import { NeonatalPlacementReview } from './NeonatalPlacementReview';
+import { RayenImportConfirmButton } from './RayenImportConfirmButton';
+import type { NeonatalPlacementResolution } from '../contracts/neonatalPlacementReview';
 import React from 'react';
 import { RefreshCw } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
@@ -12,7 +17,7 @@ import {
   Section,
   VerificationBadges,
 } from './RayenImportDiffReviewParts';
-import { presentPatientUpdates } from './rayenImportUpdatePresentation';
+import { presentPatientUpdates, updateEntryKey } from './rayenImportUpdatePresentation';
 import type { RayenSyncStage } from '../hooks/rayenSyncExecutionState';
 import { EquivalentBedCollisionReview } from './EquivalentBedCollisionReview';
 import { RayenImportSummaryChips } from './RayenImportSummaryChips';
@@ -31,7 +36,9 @@ export interface RayenImportPreviewModalProps {
   onConfirm: (
     applyPreviousDays: boolean,
     bedCollisionResolutions?: BedOccupancyCollisionResolution[],
-    cmaAdmissionResolutions?: CmaAdmissionResolution[]
+    cmaAdmissionResolutions?: CmaAdmissionResolution[],
+    neonatalResolutions?: NeonatalPlacementResolution[],
+    neonatalSourceAcknowledgements?: string[]
   ) => void;
   onCancel: () => void;
 }
@@ -39,11 +46,6 @@ const dischargeKindLabel: Record<string, string> = {
   alta: 'Alta',
   traslado: 'Traslado a otro hospital',
   cma: 'Egreso CMA',
-};
-const updateEntryKey = (entry: CensusImportDiff['updates'][number]): string => {
-  const subject = entry.source?.encounterId || entry.rut || entry.patientName;
-  const fields = entry.changes.map(change => String(change.field)).sort();
-  return JSON.stringify([entry.bedId, subject, fields]);
 };
 export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = ({
   isOpen,
@@ -75,9 +77,17 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
       (diff.clinicalCribDischargeRepairs?.length ?? 0) >
       0 ||
       (diff.bedOccupancyCollisions?.length ?? 0) > 0 ||
+      (diff.neonatalPlacementReviews?.length ?? 0) > 0 ||
+      (diff.neonatalSourceChanges?.length ?? 0) > 0 ||
       hasActionablePreviousDayEdit);
   const hasReviewContent = hasChanges || needsPreviousDayAck;
   const previousDays = new Set(previousDayEdits.map(edit => edit.day));
+  const [neonatalResolutions, setNeonatalResolutions] = React.useState<
+    NeonatalPlacementResolution[]
+  >([]);
+  const [neonatalSourceAcknowledgements, setNeonatalSourceAcknowledgements] = React.useState<
+    string[]
+  >([]);
   const [acceptedPreviousDays, setAcceptedPreviousDays] = React.useState(false);
   const [cmaAdmissionResolutions, setCmaAdmissionResolutions] = React.useState<
     CmaAdmissionResolution[]
@@ -88,10 +98,18 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
   React.useEffect(() => {
     if (isOpen) {
       setAcceptedPreviousDays(false);
+      setNeonatalResolutions([]);
+      setNeonatalSourceAcknowledgements([]);
       setCmaAdmissionResolutions([]);
       setCollisionResolutions([]);
     }
-  }, [isOpen, diff?.admissions, diff?.bedOccupancyCollisions]);
+  }, [
+    isOpen,
+    diff?.admissions,
+    diff?.bedOccupancyCollisions,
+    diff?.neonatalPlacementReviews,
+    diff?.neonatalSourceChanges,
+  ]);
   const hasConflicts = Boolean(diff?.summary.conflicts);
   const presentedUpdates = React.useMemo(
     () => presentPatientUpdates(diff?.updates ?? []),
@@ -157,6 +175,11 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                   cmaAdmissionResolutions={cmaAdmissionResolutions}
                   onCmaAdmissionResolutionsChange={setCmaAdmissionResolutions}
                 />
+                <NeonatalPlacementReview
+                  reviews={diff.neonatalPlacementReviews ?? []}
+                  choices={neonatalResolutions}
+                  onChange={setNeonatalResolutions}
+                />
                 <Section title="Actualizaciones" count={presentedUpdates.length}>
                   {presentedUpdates.map(entry => (
                     <li key={updateEntryKey(entry)}>
@@ -165,7 +188,6 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                     </li>
                   ))}
                 </Section>
-
                 <Section title="Movimientos de cama" count={diff.moves.length}>
                   {diff.moves.map(entry => (
                     <li key={`mov-${entry.fromBedId}-${entry.toBedId}`}>
@@ -174,7 +196,6 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                     </li>
                   ))}
                 </Section>
-
                 <Section title="Egresos" count={diff.discharges.length}>
                   {diff.discharges.map(entry => (
                     <li key={`dis-${entry.bedId}-${entry.rut}`}>
@@ -211,7 +232,6 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                     </li>
                   ))}
                 </Section>
-
                 <Section
                   title="Pendientes de alta administrativa (se mantienen en cama)"
                   count={diff.pendingAdministrativeDischarges.length}
@@ -244,7 +264,11 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                 <Section title="Cambios que requieren revisión" count={blockingConflicts.length}>
                   {blockingConflicts.map((entry, index) => (
                     <li key={`con-${index}`} className="text-red-700">
-                      {entry.bedId ? `${entry.bedId}: ` : ''}
+                      {entry.scope === 'clinical-crib'
+                        ? `${entry.patientName}: `
+                        : entry.bedId
+                          ? `${entry.bedId}: `
+                          : ''}
                       {entry.reason}
                     </li>
                   ))}
@@ -279,68 +303,12 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                 </Section>
 
                 <ClinicalCribDischargeRepairReview repairs={diff.clinicalCribDischargeRepairs} />
-                {needsPreviousDayAck && (
-                  <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3">
-                    <h4 className="mb-1 text-sm font-semibold text-amber-800">
-                      Modificar días previos ({previousDayEdits.length})
-                    </h4>
-                    <p className="mb-2 text-xs text-amber-700">
-                      Los ingresos de madrugada pertenecen al turno noche anterior y los egresos
-                      conservan su día clínico oficial. Se registrarán los movimientos pendientes y
-                      se retirarán las ocupaciones incompatibles con egresos ya registrados, sin
-                      duplicarlos.
-                    </p>
-                    <ul className="space-y-1 text-sm text-amber-900">
-                      {previousDayEdits.map(edit => (
-                        <li key={`${edit.day}-${edit.reason}`}>
-                          <span className="font-semibold tabular-nums">{ddmmyyyy(edit.day)}</span> —{' '}
-                          <span className="font-medium">
-                            {edit.reason === 'admission-night-shift-correction'
-                              ? 'Ingreso turno noche: '
-                              : 'Conciliar egreso: '}
-                          </span>
-                          {edit.patientNames.length > 0
-                            ? edit.patientNames.join(', ')
-                            : 'sin cambios aplicables'}
-                          {!edit.withinEditingWindow && (
-                            <span className="ml-1 font-medium text-red-600">
-                              (requiere administrador — se omitirá)
-                            </span>
-                          )}
-                          {edit.isSigned && (
-                            <span className="ml-1 font-medium text-red-600">
-                              (día ya firmado — se omitirá)
-                            </span>
-                          )}
-                          {!edit.recordExists && (
-                            <span className="ml-1 font-medium text-red-600">
-                              (no existe registro para ese día — se omitirá)
-                            </span>
-                          )}
-                          {(edit.omittedAdmissions ?? []).map(omission => (
-                            <div
-                              key={`${edit.day}-om-${omission.patientName}`}
-                              className="ml-4 font-medium text-red-600"
-                            >
-                              ↳ {omission.patientName}: {omission.reason} — se omitirá
-                            </div>
-                          ))}
-                        </li>
-                      ))}
-                    </ul>
-                    {hasActionablePreviousDayEdit && (
-                      <label className="mt-2 flex items-center gap-2 text-sm font-medium text-amber-900">
-                        <input
-                          type="checkbox"
-                          checked={acceptedPreviousDays}
-                          onChange={event => setAcceptedPreviousDays(event.target.checked)}
-                          className="h-4 w-4"
-                        />
-                        Acepto modificar los días previos indicados
-                      </label>
-                    )}
-                  </div>
-                )}
+                <RayenPreviousDayReview
+                  edits={previousDayEdits}
+                  hasActionablePreviousDayEdit={hasActionablePreviousDayEdit}
+                  accepted={acceptedPreviousDays}
+                  onChange={setAcceptedPreviousDays}
+                />
               </div>
             )}
           </>
@@ -359,6 +327,11 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
         )}
       </div>
 
+      <NeonatalSourceChanges
+        changes={diff?.neonatalSourceChanges}
+        acceptedEpisodes={neonatalSourceAcknowledgements}
+        onChange={setNeonatalSourceAcknowledgements}
+      />
       <div className="mt-6 flex justify-end gap-3 border-t pt-4">
         <button
           type="button"
@@ -368,30 +341,24 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
           {!hasChanges || isApplied ? 'Listo' : 'Cancelar'}
         </button>
         {showReview && hasChanges && (
-          <button
-            type="button"
-            onClick={() => {
-              if (needsCmaAdmissionAck) {
-                onConfirm(
-                  acceptedPreviousDays,
-                  bedCollisions.length > 0 ? collisionResolutions : undefined,
-                  cmaAdmissionResolutions
-                );
-              } else if (bedCollisions.length > 0) {
-                onConfirm(acceptedPreviousDays, collisionResolutions);
-              } else {
-                onConfirm(acceptedPreviousDays);
-              }
-            }}
+          <RayenImportConfirmButton
+            onConfirm={onConfirm}
+            previousDays={acceptedPreviousDays}
+            collisions={collisionResolutions}
+            hasCollisions={bedCollisions.length > 0}
+            cma={cmaAdmissionResolutions}
+            needsCma={needsCmaAdmissionAck}
+            neonatal={neonatalResolutions}
+            neonatalReviews={diff.neonatalPlacementReviews ?? []}
+            neonatalSourceChanges={diff.neonatalSourceChanges ?? []}
+            neonatalSourceAcknowledgements={neonatalSourceAcknowledgements}
             disabled={
               !hasChanges ||
               !allBedCollisionsResolved ||
               (needsCmaAdmissionAck && !areCmaAdmissionsResolved(diff, cmaAdmissionResolutions))
             }
-            className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
-          >
-            {confirmLabel}
-          </button>
+            label={confirmLabel}
+          />
         )}
       </div>
     </BaseModal>

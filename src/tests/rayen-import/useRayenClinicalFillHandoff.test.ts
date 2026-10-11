@@ -166,6 +166,7 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
         retry: false,
         structuralReview: {
           structureConfirmed: true,
+          snapshotComplete: false,
           historicalCorrectionsPending: true,
           historicalCorrectionsRequireFreshCapture: false,
           isolatedConflicts: 0,
@@ -215,6 +216,7 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
         retry: false,
         structuralReview: {
           structureConfirmed: true,
+          snapshotComplete: false,
           historicalCorrectionsPending: false,
           historicalCorrectionsRequireFreshCapture: true,
           isolatedConflicts: 0,
@@ -279,6 +281,7 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
         retry: false,
         structuralReview: {
           structureConfirmed: true,
+          snapshotComplete: false,
           historicalCorrectionsPending: false,
           historicalCorrectionsRequireFreshCapture: false,
           isolatedConflicts: 1,

@@ -355,3 +355,69 @@ Si el informe imprime un RUN personal, ese identificador prevalece y debe coinci
 Los fallos de movimientos se registran como `bed_history`, separados de la lectura y el
 guardado del CUDYR. El archivo de resultados continúa aunque la recuperación falle;
 los reintentos conservan la selección de lectura CUDYR sin repetir otros datos clínicos.
+
+### Asociación RN–madre y recuperación del archivo CUDYR
+
+Las cunas se concilian primero con el RUN materno cuando el episodio RN lo usa como
+identificador y coincide con una única paciente principal activa. Sin esa coincidencia,
+se utiliza «RN de …»: nombre completo o primer nombre y primer apellido, con coincidencia
+única entre madres activas. Se normalizan tildes, separadores y nombres unidos; también
+se considera el nombre local del mismo episodio materno. El RUN propio del RN se
+conserva; un RN nuevo identificado con RUN materno queda sin RUN propio, con identidad
+provisional. El RUN de su madre puede usarse para consultar su informe por episodio,
+sin incorporarlo a la identidad del RN. La ubicación original de Eloísa se mantiene
+en `location`. Un vínculo ambiguo requiere revisión; la cama no lo desempata. Si faltan identificadores
+maternos, solo se conserva el vínculo local del episodio RN exacto; una cuna nueva no
+se anida por ubicación. Los RN
+hospitalizados en camas independientes mantienen su ubicación y elegibilidad propias.
+
+El detalle de envíos locales vive dentro del panel habitual de Eloísa, sin un chip
+flotante. Una sincronización clínica completa, con política confirmada en modo clínico `enforced`,
+reintenta como máximo 50 archivos CUDYR del propietario autenticado bloqueados por el mensaje
+exacto de autorización global anterior. No reactiva conflictos, otros rechazos ni
+archivos ajenos/sin propietario. La cola es durable: admite envíos de una sesión anterior
+del mismo usuario; una generación admitida estable protege el intento actual. El transporte normal verifica nuevamente la autoridad
+del censo y conserva el instante/origen de la observación; solo un acuse válido elimina
+el envío. Abrir censos o informes no inicia esta recuperación.
+La misma acción retira de los envíos activos las comprobaciones vacías obsoletas: exige
+un rechazo exacto por episodio ausente, cero evaluaciones y movimientos de fuente, una
+consulta completa de una sola parte y una lectura fresca de Firebase con ejecución completa
+que confirme la ausencia en camas, cunas y movimientos vigentes. Se conserva íntegro el
+payload y el error original con estado `RETIRED`, motivo, fecha y ejecución comprobada.
+Ese estado no acredita guardado remoto, registro ni ausencia de CUDYR para el informe.
+Las capturas con resultados, movimientos, lectura incompleta o contexto vigente no se retiran.
+
+### Revisión de ubicación neonatal
+
+Una madre identificada y una cuna coincidente se sincronizan sin confirmación adicional.
+Si las ubicaciones difieren, o la identidad materna no está comprobada, el RN se revisa dentro de la confirmación habitual:
+seleccionar madre o una cama independiente. Se muestran todas las unidades; las camas independientes ocupadas o reservadas quedan deshabilitadas.
+Una cuna ocupada puede elegirse solo si su RN se reasigna explícitamente en el mismo plan:
+primero se verifican y liberan todos esos vínculos, luego se adjuntan los RN a los destinos.
+No se usa la cama como prueba de identidad materna. Si falta información,
+se exige elegir explícitamente «Revisar después»; el RN queda sin nueva asociación. No se ocupa una cuna ya
+asignada ni una cama reservada. La decisión queda en `neonatalPlacementDecision`, ligada
+al episodio, cama, madre (cuando corresponde), operador y hora de revisión; el CAS vuelve
+a comprobar los destinos antes de guardar. La copia original de Eloísa no se modifica.
+Para una cama independiente, el equipo debe indicar desde cuándo comenzó esa hospitalización
+(hora de Rapa Nui, posterior al ingreso y no futura). Solo desde ese instante se evalúan
+las ocho horas de hospitalización; no se reescriben las noches anteriores ni se crea CUDYR.
+Una cama independiente ya configurada en HHR se conserva y solicita confirmar ese inicio
+una vez. Las sincronizaciones posteriores respetan la decisión del episodio; una asignación
+ordinaria corregida en Eloísa vuelve a seguir sus movimientos. La revisión recuerda corregir
+la cama/tipo de cama en Gestión de Camas. Los errores ajenos siguen visibles en su propio detalle.
+
+Una corrección de Gestión de Camas que coincide con la ubicación ya confirmada solo
+actualiza la referencia de origen. Un cambio posterior a otra ubicación obliga a revisar
+antes de aplicar el censo, incluso en modo automático. El cambio de cuna anidada a cama
+independiente usa la decisión neonatal y libera la asociación anterior sin duplicar al RN.
+
+Los traslados continuos entre camas hospitalarias conservan el inicio revisado para las
+ocho horas; el contexto de cama/servicio sigue la evidencia de Eloísa. Un tramo excluido
+o una interrupción comprobada inicia otra permanencia. No se solicita una hora manual
+cuando una cama ordinaria de origen ya coincide con HHR: su historia oficial aporta el inicio.
+El RUN materno usado para recuperar movimientos se conserva como identidad de consulta
+separada (`maternalRut`) en la decisión del episodio, también para RN en cama independiente;
+si la cama ordinaria ya era correcta y no exigió decisión manual, se conserva en
+`neonatalMaternalRut` sin inventar una decisión de ubicación ni un CUDYR.
+nunca se incorpora como un nuevo RUN personal ni se crea un CUDYR manual.

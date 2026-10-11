@@ -104,13 +104,6 @@ export const indexPrincipalBeds = (
   return result;
 };
 
-export const clinicalCribConflictBeds = (diff: CensusImportDiff): Set<string> =>
-  new Set(diff.conflicts
-    .filter(entry => entry.bedId && (
-      entry.code === 'principal-bed-collision' ||
-      (entry.scope === 'clinical-crib' && entry.code !== 'unconfirmed-principal-bed')
-    ))
-    .map(entry => entry.bedId as string));
 
 export const hasPlannedPatientIdentity = (
   diff: CensusImportDiff,

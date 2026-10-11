@@ -6,6 +6,58 @@ import { RayenImportPreviewModal } from '@/features/rayen-import/components/Raye
 import type { CensusImportDiff } from '@/features/rayen-import';
 
 describe('RayenImportPreviewModal update presentation', () => {
+  it('shows an automatically recovered RN instead of reporting zero visible updates', () => {
+    const mother = { ...EMPTY_PATIENT, bedId: 'H5C1', patientName: 'Ana Perez' };
+    const diff: CensusImportDiff = {
+      admissions: [],
+      updates: [
+        {
+          bedId: 'H5C1',
+          rut: '',
+          patientName: 'RN de Ana Perez',
+          patient: mother,
+          changes: [
+            {
+              field: 'clinicalCrib',
+              from: undefined,
+              to: {
+                ...EMPTY_PATIENT,
+                bedId: 'H5C1',
+                patientName: 'RN de Ana Perez',
+                clinicalEpisodeId: 'RN',
+              },
+            },
+          ],
+        },
+      ],
+      moves: [],
+      discharges: [],
+      pendingAdministrativeDischarges: [],
+      conflicts: [],
+      unchangedCount: 1,
+      summary: {
+        admissions: 0,
+        updates: 1,
+        moves: 0,
+        discharges: 0,
+        pendingAdministrativeDischarges: 0,
+        conflicts: 0,
+        unchanged: 1,
+      },
+    };
+    render(
+      <RayenImportPreviewModal
+        isOpen
+        diff={diff}
+        error={null}
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    );
+    expect(screen.getByText(/cuna C-H5C1 · RN de Ana Perez/)).toBeVisible();
+    expect(screen.getAllByText('Actualizaciones')[0]).toHaveTextContent('1Actualizaciones');
+    expect(screen.queryByText('Confirma la ubicación del RN')).not.toBeInTheDocument();
+  });
   it('keeps persistence-only identifiers out of the nurse-facing update list', () => {
     const diff: CensusImportDiff = {
       admissions: [],

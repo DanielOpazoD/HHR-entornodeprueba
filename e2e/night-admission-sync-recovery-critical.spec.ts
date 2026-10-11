@@ -266,11 +266,15 @@ test.describe('Night admission critical sync recovery', () => {
     await expect
       .poll(() => readQueuedDiagnosisRuntime(page), { timeout: 10_000 })
       .toEqual({ status: 'FAILED', hasLease: false });
-    const syncChip = page.getByTestId('sync-queue-status-chip');
-    await expect(syncChip).toContainText('1 sin sincronizar', { timeout: 10_000 });
+    const pendingSave = page.getByRole('button', { name: 'Guardado pendiente · Ver detalle' });
+    await expect(pendingSave).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId('sync-queue-status-chip')).toHaveCount(0);
     expect(authority.queuedCallCount()).toBe(0);
-    await syncChip.click();
-    await page.getByTestId('sync-queue-op-retry').click();
+    await pendingSave.click();
+    const localSaveDetails = page.getByTestId('rayen-local-sync-details');
+    await expect(localSaveDetails).toContainText('1 por enviar');
+    await localSaveDetails.locator('summary').click();
+    await localSaveDetails.getByRole('button', { name: 'Reintentar', exact: true }).click();
     expect(await page.evaluate(() => navigator.onLine)).toBe(true);
     const retryCall = await syncTransport.nextCall();
     expect((retryCall.task.syncContract as { mutationId?: string } | undefined)?.mutationId).toBe(
@@ -278,7 +282,8 @@ test.describe('Night admission critical sync recovery', () => {
     );
     retryCall.succeed();
     await waitForEmptyQueue(page);
-    await expect(syncChip).toHaveCount(0, { timeout: 10_000 });
+    await expect(pendingSave).toHaveCount(0, { timeout: 10_000 });
+    await expect(localSaveDetails).toHaveCount(0, { timeout: 10_000 });
     await syncTransport.disable();
 
     await clearPatient(page);

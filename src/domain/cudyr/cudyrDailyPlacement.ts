@@ -1,3 +1,7 @@
+import {
+  reviewedNeonatalHospitalPlacement,
+  reviewedNeonatalHospitalAdmission,
+} from './cudyrReviewedNeonatalPlacement';
 import { resolveCudyrHospitalAdmission, sourceCudyrModality } from './cudyrHospitalAdmission';
 import { resolveClinicalDayForDateTime } from '@/utils/clinicalDayAdmissionUtils';
 import { getNextDay } from '@/utils/clinicalDayUtils';
@@ -57,8 +61,37 @@ export const resolveCudyrDailyPlacement = (input: CudyrDailyPlacementInput) => {
     referenceAt ?? '',
     input.sourcePlacements
   );
-  const contexts =
-    source.status === 'resuelta'
+  // Matching source corrections retain the reviewed onset of independent care.
+  // Other source beds/services and conflicting intervals remain authoritative.
+  const reviewedCandidate = reviewedNeonatalHospitalPlacement(
+    input.placements,
+    input.clinicalEpisodeId || '',
+    referenceAt || ''
+  );
+  const reviewed =
+    reviewedCandidate &&
+    source.status !== 'conflicto' &&
+    source.evidence.every(
+      item =>
+        cudyrModality(sourceContext(item)) === 'cuna' &&
+        reviewedCandidate.sourcePlacementKey === `${item.placement.bedId ?? ''}:cuna` &&
+        (reviewedCandidate.sourceService || '').trim() ===
+          item.placement.sourceDepartmentLabel.trim()
+    )
+      ? reviewedCandidate
+      : undefined;
+  const validDailyContexts = input.placements.filter(p => {
+    const d = p.neonatalPlacementDecision;
+    return !(
+      d?.kind === 'independent' &&
+      d.clinicalEpisodeId === input.clinicalEpisodeId &&
+      referenceAt &&
+      Date.parse(d.effectiveAt) > Date.parse(referenceAt)
+    );
+  });
+  const contexts = reviewed
+    ? [reviewed.context]
+    : source.status === 'resuelta'
       ? [
           ...new Map(
             [...source.evidence]
@@ -73,7 +106,7 @@ export const resolveCudyrDailyPlacement = (input: CudyrDailyPlacementInput) => {
               ])
           ).values(),
         ]
-      : input.placements;
+      : validDailyContexts;
   let admission = resolveCudyrHospitalAdmission(
     input.clinicalEpisodeId || '',
     input.sourcePlacements,
@@ -85,6 +118,20 @@ export const resolveCudyrDailyPlacement = (input: CudyrDailyPlacementInput) => {
       ? { date: input.admissionDate || '', time: input.admissionTime || '' }
       : undefined
   );
+  if (
+    reviewedCandidate &&
+    source.status !== 'conflicto' &&
+    contexts.length &&
+    contexts.every(context => cudyrModality(context) === 'hospitalizacion')
+  ) {
+    admission = reviewedNeonatalHospitalAdmission(
+      input.clinicalEpisodeId || '',
+      reviewedCandidate.admissionAt,
+      cutoffAt || '',
+      input.sourcePlacements,
+      reviewedCandidate.context.bedId || ''
+    );
+  }
   // The patient belongs to this night even when admitted after the CUDYR cutoff.
   // Only a daily hospital census and no prior/invalid source movements may use this fallback.
   if (
@@ -134,11 +181,13 @@ export const resolveCudyrDailyPlacement = (input: CudyrDailyPlacementInput) => {
   }
   return {
     ...eligibility,
+    ...(reviewed ? { reason: `Ubicación RN confirmada en HHR. ${eligibility.reason}` } : {}),
     referenceAt,
     hospitalStayAdmissionAt: admission.at,
     contexts,
-    contextSource:
-      source.status === 'resuelta'
+    contextSource: reviewed
+      ? ('hhr_daily' as const)
+      : source.status === 'resuelta'
         ? ('eloisa_interval' as const)
         : source.status === 'conflicto'
           ? ('unresolved' as const)

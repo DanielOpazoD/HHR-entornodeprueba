@@ -107,6 +107,7 @@ interface RayenConnectionMonitorProps {
   };
   working: boolean;
   lastSyncLine: React.ReactNode;
+  syncQueueDetail?: React.ReactNode;
   /** Estado del popover, controlado por la barra (otros flujos pueden abrirlo). */
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -116,6 +117,7 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
   extension,
   working,
   lastSyncLine,
+  syncQueueDetail,
   open,
   onOpenChange,
 }) => {
@@ -334,6 +336,7 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
                 detail={gestionDetailParts.length > 0 ? gestionDetailParts.join(' · ') : null}
               />
             </div>
+            {syncQueueDetail}
             <RayenCompatibleReaderNotice report={report} connection={connection} />
             {actionError && (
               <p className="mt-2 text-[11px] leading-snug text-amber-700" role="alert">

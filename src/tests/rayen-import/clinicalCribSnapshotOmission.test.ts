@@ -41,6 +41,7 @@ const seed = (encounter: RayenEncounter) => rayenToPatientData(encounter, REFERE
 const clinicalCribSeed = (encounter: RayenEncounter) => ({
   ...seed(encounter),
   specialty: Specialty.PEDIATRIA,
+  identityStatus: 'provisional' as const,
 });
 
 const record: DailyRecord = {
@@ -73,7 +74,7 @@ const motherDischarge: EgresoReportRow = {
 
 describe('clinical crib snapshot omission', () => {
   it('retains a promoted newborn when verified bed enrichment is temporarily unavailable', () => {
-    const promoted = { ...seed(child), bedId: 'H5C1', bedMode: 'Cuna' as const };
+    const promoted = { ...clinicalCribSeed(child), bedId: 'H5C1', bedMode: 'Cuna' as const };
     const current: DailyRecord = { ...record, beds: { H5C1: promoted } };
     const unenrichedChild = { ...child, clinicalCribParentBedId: undefined };
     const diff = reconcileCensus(

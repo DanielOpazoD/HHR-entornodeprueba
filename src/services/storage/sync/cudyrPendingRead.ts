@@ -15,7 +15,9 @@ export const readPendingCudyrEpisodes = async () => {
   if (owner !== getStoredSessionOwnerKey() || generation !== getSessionGeneration())
     throw new Error('La sesión cambió durante la lectura de pendientes.');
   return rows
-    .filter(row => row.ownerKey === owner && row.type === 'ARCHIVE_CUDYR')
+    .filter(
+      row => row.ownerKey === owner && row.type === 'ARCHIVE_CUDYR' && row.status !== 'RETIRED'
+    )
     .map(row => {
       const request = (row.payload as CudyrArchiveOutboxPayload).request;
       return {

@@ -28,15 +28,15 @@ export const cudyrPlacementsFromPatientFlow = (
   episode: string,
   rut: string,
   observedAt: string,
-  identityKind: 'patient' | 'maternal' = 'patient'
+  identityKind: 'patient' | 'maternal' = 'patient',
+  maternalRut?: string
 ): CudyrSourcePlacement[] => {
   const personalRun = patientRunFromFlowReport(text);
   // A personal RUN, if printed, must match; never override it with a parental identifier.
-  const reportRun =
-    identityKind === 'maternal' && !/\bRUN\s*:/i.test(text)
-      ? maternalRunFromFlowReport(text)
-      : personalRun;
-  if (!/^\d+$/.test(episode) || !normalizeRut(rut) || reportRun !== normalizeRut(rut))
+  const usesMaternalHeader = identityKind === 'maternal' && !/\bRUN\s*:/i.test(text);
+  const reportRun = usesMaternalHeader ? maternalRunFromFlowReport(text) : personalRun;
+  const expectedRun = normalizeRut((usesMaternalHeader ? maternalRut : rut) ?? '');
+  if (!/^\d+$/.test(episode) || !expectedRun || reportRun !== expectedRun)
     throw new Error('El informe no corresponde al paciente del episodio solicitado.');
   const rows = parsePatientFlowTimeline(text);
   if (!rows.length) throw new Error('Historial de camas incompleto.');

@@ -123,6 +123,7 @@ export const buildStructuralReviewEvidence = (
   );
   return {
     structureConfirmed: true,
+    snapshotComplete: handoff.snapshotComplete === true,
     historicalCorrectionsPending: handoff.historicalCorrectionsPending === true,
     historicalCorrectionsRequireFreshCapture:
       handoff.historicalCorrectionsRequireFreshCapture === true,

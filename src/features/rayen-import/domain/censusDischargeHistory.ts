@@ -10,7 +10,11 @@ import {
 import type { DischargeData } from '@/types/domain/movements';
 import { resolveReportBedId } from '../mapping/resolveReportBed';
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
-import type { DischargeEntry, ClinicalCribDischargeRepair } from '../contracts/censusImportDiff';
+import type {
+  CensusImportDiff,
+  DischargeEntry,
+  ClinicalCribDischargeRepair,
+} from '../contracts/censusImportDiff';
 import { matchesDischargeSubject } from './dischargeSubjectIdentity';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import type { ReportEgreso } from '../contracts/egresoReport';
@@ -229,4 +233,30 @@ export const planClinicalCribDischargeRepairs = (
     repairs.push({ kept: structuredClone(kept), duplicate: structuredClone(duplicate) });
   }
   return repairs;
+};
+
+/** Missing Ficha presence is a signal, never statistical-discharge authority. */
+export const appendMissingFichaSignals = (
+  current: DailyRecord,
+  diff: CensusImportDiff,
+  occupiedBedIds: ReadonlySet<string>,
+  consumedBedIds: ReadonlySet<string>
+): void => {
+  for (const bedId of occupiedBedIds) {
+    if (consumedBedIds.has(bedId)) continue;
+    const patient = current.beds[bedId];
+    if (!patient?.patientName?.trim() || patient.isBlocked) continue;
+    diff.pendingAdministrativeDischarges.push({
+      bedId,
+      rut: patient.rut,
+      patientName: patient.patientName,
+      signal: 'missing-from-ficha',
+      encounterId: patient.clinicalEpisodeId,
+      verification: {
+        medicalEpicrisis: 'unknown',
+        nursingEpicrisis: 'unknown',
+        hospitalDischarge: 'unknown',
+      },
+    });
+  }
 };
