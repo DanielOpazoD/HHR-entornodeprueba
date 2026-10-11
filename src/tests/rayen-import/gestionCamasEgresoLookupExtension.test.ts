@@ -91,4 +91,18 @@ describe('Gestión de Camas exact-episode discharge lookup', () => {
       dischargeDestinationName: 'Domicilio',
     });
   });
+
+  it('matches an overnight discharge to the preceding nursing census day', () => {
+    const payload = [{ id: 143322, endPeriod: '2026-10-10T01:42:01.370-05:00' }];
+    expect(lookup.selectEncounter(payload, '', '2026-10-09')).toMatchObject({ id: 143322 });
+    expect(lookup.selectEncounter(payload, '', '2026-10-10')).toBeNull();
+  });
+
+  it('respects the weekend night boundary and rejects ambiguous episodes', () => {
+    const early = { id: 143322, endPeriod: '2026-10-10T08:59:00-05:00' };
+    const later = { id: 143323, endPeriod: '2026-10-10T09:00:00-05:00' };
+    expect(lookup.selectEncounter([early, later], '', '2026-10-09')).toEqual(early);
+    expect(lookup.selectEncounter([early, later], '', '2026-10-10')).toEqual(later);
+    expect(lookup.selectEncounter([early, { ...early, id: 143324 }], '', '2026-10-09')).toBeNull();
+  });
 });

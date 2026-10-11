@@ -582,3 +582,15 @@ A las 22:41 del día D se recupera el historial previo: el CUDYR del turno D
 corresponde a la mañana D+1. Una captura vacía válida no es un error y no
 inventa un resultado para hoy. El archivo conserva la trazabilidad por episodio.
 Actualizar la extensión cargada en Chrome y recargar HHR para activar este relé.
+
+### Puente 0.48.50: egresos de madrugada
+
+La búsqueda de episodios sin identificador usa el día del censo de enfermería de Rapa Nui
+para timestamps con zona horaria. Un egreso ocurrido durante la madrugada pertenece
+al turno previo; su fecha y hora oficiales se conservan. Si hay dos episodios candidatos,
+la búsqueda sigue sin elegir uno automáticamente. No cambia permisos ni el protocolo.
+
+En HHR, la reconstrucción de un episodio local puede completar metadatos de egreso
+incompletos mediante el informe estadístico individual: exige episodio exacto, RUN,
+intervalo completo y fecha/hora coincidente al minuto. Una marca administrativa negativa
+y los traslados sin ubicación comprobada siguen requiriendo revisión.

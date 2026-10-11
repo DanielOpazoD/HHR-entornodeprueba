@@ -37,7 +37,7 @@ export interface EgresoLookupTarget {
   run: string;
   /** Exact hospitalization to verify. Empty only while resolving a report-only short stay. */
   encounterId: string;
-  /** Rapa Nui discharge day used to resolve one exact episode when the bulk report lacks its id. */
+  /** Rapa Nui nursing-census day (including the following dawn), not the calendar discharge date. */
   dischargeDay?: string;
 }
 
