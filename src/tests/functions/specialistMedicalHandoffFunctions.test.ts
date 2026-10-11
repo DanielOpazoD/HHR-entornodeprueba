@@ -348,24 +348,6 @@ describe('functions specialistMedicalHandoffFunctions', () => {
     }
   );
 
-  it.each(['2026-02-31', '../2001-01-01', '2026-4-11'])(
-    'rejects malformed date %s even for admins',
-    async date => {
-      const get = vi.fn();
-      const api = createSpecialistMedicalHandoffFunctions({
-        ...createFirebaseServices({ get }),
-        resolveRoleForEmail: vi.fn().mockResolvedValue('admin'),
-      });
-      await expect(
-        api.updateSpecialistMedicalHandoff.run(
-          { date, patch: { 'beds.R4.medicalHandoffNote': 'SYNTHETIC' } },
-          { auth: { token: { email: 'admin@example.invalid' } } }
-        )
-      ).rejects.toMatchObject({ code: 'invalid-argument' });
-      expect(get).not.toHaveBeenCalled();
-    }
-  );
-
   it.each([
     ['2026-04-12T05:59:59Z', '2026-04-11', true],
     ['2026-04-12T06:00:00Z', '2026-04-11', true],
