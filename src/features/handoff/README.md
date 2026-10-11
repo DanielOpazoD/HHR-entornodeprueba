@@ -87,7 +87,7 @@ El consumo externo a la feature debe entrar por `@/features/handoff`. Los import
 `components/`, `controllers/`, `hooks/` o bridges internos quedan reservados para implementación
 interna del feature.
 
-## Checks recomendados
+## CUDYR registrado y elegibilidad
 
 La impresión CUDYR conserva una categoría importada válida del censo/turno aun
 cuando el paciente no sea elegible: muestra «Registrado» y la exclusión juntos.
