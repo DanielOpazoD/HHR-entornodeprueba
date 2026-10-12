@@ -2,9 +2,10 @@ import { createHash } from 'node:crypto';
 
 export const BRACES_EXCEPTION = Object.freeze({
   advisory: 'GHSA-vfj7-8cjw-p6xm',
-  authorizedBy: 'Daniel Opazo, explicit approval in the CUDYR task on 2026-10-07',
+  authorizedBy: 'Daniel Opazo, approved 2026-10-07; calendar expiry removed explicitly 2026-10-12',
   startsAt: '2026-10-07T00:00:00Z',
-  expiresAt: '2026-10-15T00:00:00Z',
+  // Accepted until an official fix or withdrawal is verified; scope checks still fail closed.
+  expiresAt: null,
   lockSha256: 'a868d9aacaaf37d80bc5f1a4bba83f6216fa2c4a80e479a890f169d1ab6c54fd',
 });
 const versions = {
@@ -29,11 +30,7 @@ export function evaluateBracesException({ workspace, lockText, functionsLock, no
     workspace.firstFailureCategory !== 'audit_failed'
   )
     return reject('not_an_eligible_root_audit');
-  if (
-    !Number.isFinite(now) ||
-    now < Date.parse(BRACES_EXCEPTION.startsAt) ||
-    now >= Date.parse(BRACES_EXCEPTION.expiresAt)
-  )
+  if (!Number.isFinite(now) || now < Date.parse(BRACES_EXCEPTION.startsAt))
     return reject('outside_authorized_window');
   if (
     typeof lockText !== 'string' ||

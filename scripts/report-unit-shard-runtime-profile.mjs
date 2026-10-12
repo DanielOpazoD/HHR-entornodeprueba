@@ -8,7 +8,9 @@ import {
 } from './unitShardBalanceSupport.mjs';
 
 const root = process.cwd();
-const report = buildUnitShardBalanceReport(root);
+const report = buildUnitShardBalanceReport(root, {
+  useLocalMeasurements: process.argv.includes('--measured'),
+});
 const reportDir = path.join(root, 'reports');
 
 fs.mkdirSync(reportDir, { recursive: true });
@@ -23,4 +25,6 @@ fs.writeFileSync(
   'utf8'
 );
 
-console.log('[unit-shard-runtime-profile] Report generated at reports/unit-shard-runtime-profile.{json,md}');
+console.log(
+  '[unit-shard-runtime-profile] Report generated at reports/unit-shard-runtime-profile.{json,md}'
+);
