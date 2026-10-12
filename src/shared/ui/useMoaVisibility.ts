@@ -7,9 +7,9 @@ let sessionPreference: boolean | undefined;
 const getVisible = (): boolean => {
   if (sessionPreference !== undefined) return sessionPreference;
   try {
-    return localStorage.getItem(preferenceKey) !== 'false';
+    return localStorage.getItem(preferenceKey) === 'true';
   } catch {
-    return true;
+    return false;
   }
 };
 

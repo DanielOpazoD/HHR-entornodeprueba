@@ -3,21 +3,20 @@
   --hhr-navbar-height: 52px;
   --hhr-date-strip-height: 56px;
   --hhr-chrome-height: calc(var(--hhr-navbar-height) + var(--hhr-date-strip-height));
-  --hhr-navbar-blue: #3f74a5;
+  --hhr-navbar-blue: #205777;
+  --hhr-navbar-gradient: linear-gradient(112deg, #173e5c 0%, #205777 48%, #286d89 100%);
   --hhr-preboot-background:
-    url('/images/navbar/rapa-nui-coast-v3.webp'),
-    linear-gradient(var(--hhr-navbar-blue), var(--hhr-navbar-blue)), linear-gradient(#fff, #fff),
-    linear-gradient(#eef4f8, #e8eef5);
-  --hhr-preboot-position:
-    right 250px top, left top, left var(--hhr-navbar-height), left var(--hhr-chrome-height);
+    var(--hhr-navbar-gradient), linear-gradient(#fff, #fff), linear-gradient(#eef4f8, #e8eef5);
+  --hhr-preboot-position: left top, left var(--hhr-navbar-height), left var(--hhr-chrome-height);
   --hhr-preboot-size:
-    430px var(--hhr-navbar-height), 100% var(--hhr-navbar-height),
-    100% var(--hhr-date-strip-height), 100% calc(100vh - var(--hhr-chrome-height));
+    100% var(--hhr-navbar-height), 100% var(--hhr-date-strip-height),
+    100% calc(100vh - var(--hhr-chrome-height));
 }
 
 .hhr-navbar {
   height: var(--hhr-navbar-height);
-  background: var(--hhr-navbar-blue);
+  background-color: var(--hhr-navbar-blue);
+  background-image: var(--hhr-navbar-gradient);
 }
 .hhr-navbar-inner {
   height: 100%;
@@ -37,19 +36,8 @@
   border-radius: 8px;
 }
 .hhr-nav-tab[aria-current='page'] {
-  background-color: #548fc2;
-}
-.hhr-navbar-landscape {
-  display: block;
-  min-width: 0;
-  height: 100%;
-  width: auto;
-  flex: 1 1 430px;
-  max-width: 430px;
-  object-fit: cover;
-  object-position: center;
-  pointer-events: none;
-  mask-image: linear-gradient(90deg, transparent, #000 15%, #000 88%, transparent);
+  background-color: #315f7d;
+  box-shadow: inset 0 0 0 1px #ffffff24;
 }
 .hhr-date-strip {
   height: var(--hhr-date-strip-height);
@@ -114,18 +102,6 @@
 }
 
 @media (max-width: 1100px) {
-  :root {
-    --hhr-preboot-background:
-      linear-gradient(var(--hhr-navbar-blue), var(--hhr-navbar-blue)), linear-gradient(#fff, #fff),
-      linear-gradient(#eef4f8, #e8eef5);
-    --hhr-preboot-position: left top, left var(--hhr-navbar-height), left var(--hhr-chrome-height);
-    --hhr-preboot-size:
-      100% var(--hhr-navbar-height), 100% var(--hhr-date-strip-height),
-      100% calc(100vh - var(--hhr-chrome-height));
-  }
-  .hhr-navbar-landscape {
-    display: none;
-  }
   .hhr-navbar-tabs {
     flex: 1 1 auto;
   }

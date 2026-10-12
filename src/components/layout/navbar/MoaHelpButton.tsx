@@ -1,4 +1,4 @@
-import { CircleHelp } from 'lucide-react';
+import { MoaIcon } from './MoaIcon';
 import type { ModuleType } from '@/constants/navigationConfig';
 import { setMoaVisible, useMoaVisibility } from '@/shared/ui/useMoaVisibility';
 
@@ -17,7 +17,7 @@ export const MoaHelpButton = ({ currentModule }: { currentModule?: ModuleType })
       title={label}
       className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/20 text-white/90 transition-colors hover:bg-white/10 aria-pressed:border-white/40 aria-pressed:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white motion-reduce:transition-none print:hidden"
     >
-      <CircleHelp size={16} aria-hidden="true" />
+      <MoaIcon />
     </button>
   );
 };

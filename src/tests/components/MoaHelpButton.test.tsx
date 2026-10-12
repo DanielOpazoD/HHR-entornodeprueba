@@ -44,19 +44,19 @@ describe('Moa visibility and companion', () => {
   });
 
   it('keeps both surfaces in sync when storage is unavailable', async () => {
-    const read = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+    const read = vi.spyOn(localStorage, 'getItem').mockImplementation(() => {
       throw new Error('Blocked');
     });
-    const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+    const write = vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
       throw new Error('Blocked');
     });
     try {
       renderMoa();
-      await screen.findByRole('region', { name: 'Moa' });
-      fireEvent.click(document.querySelector('[data-moa-toggle]')!);
       expect(screen.queryByRole('region')).not.toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: 'Mostrar Moa' }));
       expect(await screen.findByRole('region', { name: 'Moa' })).toBeInTheDocument();
+      fireEvent.click(document.querySelector('[data-moa-toggle]')!);
+      expect(screen.queryByRole('region')).not.toBeInTheDocument();
     } finally {
       read.mockRestore();
       write.mockRestore();
@@ -82,5 +82,119 @@ describe('Moa visibility and companion', () => {
   it('keeps the toggle scoped to the census', () => {
     render(<MoaHelpButton currentModule="ANALYTICS" />);
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('starts hidden with no preference or an invalid value and uses its own portrait', () => {
+    localStorage.clear();
+    const first = renderMoa();
+    expect(screen.queryByRole('region')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Mostrar Moa' }).querySelector('svg')).toBeTruthy();
+    first.unmount();
+    localStorage.setItem('hhr_moa_visible_v1', 'unexpected');
+    renderMoa();
+    expect(screen.queryByRole('region')).not.toBeInTheDocument();
+  });
+
+  it('offers only the close control and pauses automatically in a hidden document', async () => {
+    renderMoa();
+    const companion = await screen.findByRole('region', { name: 'Moa' });
+    expect(within(companion).getAllByRole('button')).toHaveLength(2);
+    expect(within(companion).queryByRole('button', { name: /Pausar/ })).toBeNull();
+    const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(true);
+    try {
+      act(() => document.dispatchEvent(new Event('visibilitychange')));
+      expect(companion).toHaveAttribute('data-paused', 'true');
+      hidden.mockReturnValue(false);
+      act(() => document.dispatchEvent(new Event('visibilitychange')));
+      expect(companion).toHaveAttribute('data-paused', 'false');
+    } finally {
+      hidden.mockRestore();
+    }
+  });
+
+  it('returns quietly to rest when a scene image cannot load', async () => {
+    renderMoa();
+    const companion = await screen.findByRole('region', { name: 'Moa' });
+    const character = within(companion).getByRole('button', { name: 'Jugar con Moa' });
+    fireEvent.click(character);
+    fireEvent.error(companion.querySelector('.moa-scene-frames')!);
+    expect(character).toHaveAttribute('data-gesture', 'idle');
+    expect(within(companion).queryByRole('alert')).toBeNull();
+    expect(within(companion).getByRole('button', { name: 'Ocultar Moa' })).toBeInTheDocument();
+  });
+
+  it('uses the same illustrated sequence for the welcome and returns to its neutral portrait', async () => {
+    renderMoa();
+    const companion = await screen.findByRole('region', { name: 'Moa' });
+    const character = within(companion).getByRole('button', { name: 'Jugar con Moa' });
+    expect(character).toHaveAttribute('data-gesture', 'welcome');
+    const welcome = companion.querySelector('.moa-scene-frames')!;
+    expect(welcome).toHaveAttribute('src', '/images/moa/moa-wave-v2.png');
+    fireEvent.load(welcome);
+    fireEvent.animationEnd(welcome);
+    expect(character).toHaveAttribute('data-gesture', 'idle');
+    expect(within(companion).getByTestId('moa-mascot')).toHaveAttribute(
+      'src',
+      '/images/moa/moa-wave-v2.png'
+    );
+  });
+
+  it('restarts the curious scene on a tap even when hover already started it', async () => {
+    renderMoa();
+    const companion = await screen.findByRole('region', { name: 'Moa' });
+    const character = within(companion).getByRole('button', { name: 'Jugar con Moa' });
+    // The next explicit scene is curious, after the fourteen stories and wave.
+    for (let index = 0; index < 15; index++) {
+      fireEvent.click(character);
+      fireEvent.animationEnd(companion.querySelector('.moa-scene-frames')!);
+    }
+    fireEvent.pointerEnter(character);
+    const incidental = companion.querySelector('.moa-scene-frames')!;
+    expect(character).toHaveAttribute('data-gesture', 'curious');
+    fireEvent.click(character);
+    const replay = companion.querySelector('.moa-scene-frames')!;
+    expect(replay).not.toBe(incidental);
+    expect(character).toHaveAttribute('data-gesture', 'curious');
+    fireEvent.load(replay);
+    fireEvent.animationEnd(replay);
+    expect(character).toHaveAttribute('data-gesture', 'idle');
+    fireEvent.click(character);
+    expect(character).toHaveAttribute('data-gesture', 'stroll');
+  });
+
+  it('plays all scenes, including the former gestures, and returns to a quiet rest', async () => {
+    renderMoa();
+    const companion = await screen.findByRole('region', { name: 'Moa' });
+    const character = within(companion).getByRole('button', { name: 'Jugar con Moa' });
+    for (const scene of [
+      'drink',
+      'juggle',
+      'care',
+      'sleep',
+      'yawn',
+      'pushups',
+      'roll',
+      'jump',
+      'run',
+      'wink',
+      'love',
+      'angry',
+      'mother',
+      'surf',
+      'wave',
+      'curious',
+      'stroll',
+      'happy',
+    ]) {
+      fireEvent.click(character);
+      expect(character).toHaveAttribute('data-gesture', scene);
+      expect(companion.querySelector(`[data-moa-scene="${scene}"]`)).toBeTruthy();
+      const frames = companion.querySelector('.moa-scene-frames')!;
+      fireEvent.load(frames);
+      expect(frames).toHaveAttribute('data-ready', 'true');
+      fireEvent.animationEnd(frames);
+      expect(character).toHaveAttribute('data-gesture', 'idle');
+      expect(companion.querySelector('[data-moa-scene]')).toBeNull();
+    }
   });
 });

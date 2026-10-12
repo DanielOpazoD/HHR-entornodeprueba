@@ -16,6 +16,14 @@ const readBundleBudgetConfig = (): BundleBudgetConfig =>
   ) as BundleBudgetConfig;
 
 describe('PWA precache policy', () => {
+  it('keeps the opt-in decorative companion out of install-time precache accounting', () => {
+    for (const extension of ['js', 'css']) {
+      expect(readViteConfig()).toContain(`**/assets/MoaCompanion-*.${extension}`);
+      expect(readBundleBudgetConfig().precacheIgnoredAssetPatterns).toContain(
+        `^assets/MoaCompanion-.*\\.${extension}$`
+      );
+    }
+  });
   it('keeps server-verified archive recovery and shared online report facts on demand', () => {
     for (const chunk of ['publicCudyrPolicyRecovery', 'cudyrReportFacts']) {
       expect(readViteConfig()).toContain(`**/assets/${chunk}-*.js`);

@@ -275,11 +275,11 @@ test.describe('Production Preview Bootstrap', () => {
         const style = getComputedStyle(element);
         return { image: style.backgroundImage, size: style.backgroundSize };
       });
-      expect(background.image).toContain('rapa-nui-coast-v3.webp');
-      expect(background.image).toContain('rgb(63, 116, 165)');
+      expect(background.image).not.toContain('url(');
+      expect(background.image).toContain('linear-gradient(112deg');
+      expect(background.image).toContain('rgb(23, 62, 92)');
       expect(background.size).toContain('52px');
       expect(background.size).toContain('56px');
-      expect(background.size).toContain('430px');
       // Capture the actual preboot paint while the app chunk is held. Playwright's
       // screenshot waits for document.fonts.ready, which depends on releasing it.
       const cdp = await page.context().newCDPSession(page);
@@ -342,18 +342,17 @@ test.describe('Production Preview Bootstrap', () => {
     ).toBeLessThanOrEqual(1);
     await expect(secondCrib.locator('input[name="patientName"]')).toHaveValue('RN de Madre');
     const nav = page.getByRole('navigation', { name: 'Navegación principal HHR' });
-    await expect(nav).toHaveCSS('background-color', 'rgb(63, 116, 165)');
-    await expect(nav.locator('.hhr-navbar-landscape')).toBeVisible();
-    expect(
-      (await nav.locator('.hhr-navbar-landscape').boundingBox())!.width
-    ).toBeGreaterThanOrEqual(400);
+    await expect(nav).toHaveCSS('background-color', 'rgb(32, 87, 119)');
+    await expect(nav).toHaveCSS('background-image', /linear-gradient/);
+    await expect(nav.locator('.hhr-navbar-landscape')).toHaveCount(0);
     await test.info().attach('new-navbar-and-newborn', {
       body: await page.screenshot(),
       contentType: 'image/png',
     });
     await page.reload();
     await expectSeededPatientVisible(page);
-    await expect(nav).toHaveCSS('background-color', 'rgb(63, 116, 165)');
+    await expect(nav).toHaveCSS('background-color', 'rgb(32, 87, 119)');
+    await expect(nav).toHaveCSS('background-image', /linear-gradient/);
     await expect(crib.getByTestId('clinical-panel-trigger-R1-clinical-crib')).toBeVisible();
     await test.info().attach('new-navbar-after-reload', {
       body: await page.screenshot(),
@@ -529,8 +528,10 @@ test.describe('Production Preview Bootstrap', () => {
       await utility.click();
       await moaToggle.click();
       await expect(utilityPanel).toBeHidden();
-      await expect(page.getByRole('region', { name: 'Moa', exact: true })).toBeHidden();
+      await expect(page.getByRole('region', { name: 'Moa', exact: true })).toBeVisible();
       await expect(moaToggle).toBeFocused();
+      await page.keyboard.press('Enter');
+      await expect(page.getByRole('region', { name: 'Moa', exact: true })).toBeHidden();
       await page.keyboard.press('Enter');
       await expect(page.getByRole('region', { name: 'Moa', exact: true })).toBeVisible();
       await expect(page.getByRole('region', { name: 'Moa · Ayuda de HHR' })).toHaveCount(0);
@@ -561,12 +562,19 @@ test.describe('Production Preview Bootstrap', () => {
       await page.goto(`/?date=${PREVIEW_BOOTSTRAP_DATE}`);
       await expectSeededPatientVisible(page);
       const toggle = page.locator('[data-moa-toggle]');
+      await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+      await expect(page.getByRole('region', { name: 'Moa', exact: true })).toHaveCount(0);
+      await toggle.click();
       const companion = page.getByRole('region', { name: 'Moa', exact: true });
+      await expect(companion.getByRole('button', { name: 'Jugar con Moa' })).toHaveAttribute(
+        'data-gesture',
+        'idle'
+      );
       const mascot = companion.getByTestId('moa-mascot');
       await expect(mascot).toBeVisible();
       await expect
         .poll(() => mascot.evaluate((image: HTMLImageElement) => image.naturalWidth))
-        .toBe(816);
+        .toBe(1728);
       const summary = await page.getByTestId('census-summary-switcher').boundingBox();
       const area = await companion.boundingBox();
       if (width >= 640) {
@@ -610,6 +618,7 @@ test.describe('Production Preview Bootstrap', () => {
     await seedPersistedSessionAndRecord(page);
     await page.goto(`/?date=${PREVIEW_BOOTSTRAP_DATE}`);
     await expectSeededPatientVisible(page);
+    await page.locator('[data-moa-toggle]').click();
     const companion = page.getByRole('region', { name: 'Moa', exact: true });
     await expect(companion.getByTestId('moa-mascot')).toHaveCount(0);
     await companion.getByRole('button', { name: 'Ocultar Moa' }).click();
@@ -617,33 +626,104 @@ test.describe('Production Preview Bootstrap', () => {
     await expectSeededPatientVisible(page);
   });
 
-  test('plays distinct gestures, pauses motion and respects reduced motion', async ({ page }) => {
+  test('plays eighteen consistent scenes, rests quietly and respects reduced motion', async ({
+    page,
+  }) => {
     await seedPersistedSessionAndRecord(page);
     await page.goto(`/?date=${PREVIEW_BOOTSTRAP_DATE}`);
     await expectSeededPatientVisible(page);
+    await page.locator('[data-moa-toggle]').click();
     const companion = page.getByRole('region', { name: 'Moa', exact: true });
     const character = companion.getByRole('button', { name: 'Jugar con Moa' });
     const sprite = companion.getByTestId('moa-mascot');
+    await expect(companion.getByRole('button', { name: /Pausar|Reanudar/ })).toHaveCount(0);
     await expect(character).toHaveAttribute('data-gesture', 'idle', { timeout: 6000 });
-    await companion.getByRole('button', { name: 'Pausar animación de Moa' }).click();
-    await expect(sprite).toHaveCSS('animation-play-state', 'paused');
-    await expect(companion.locator('.moa-motion')).toHaveCSS('animation-play-state', 'paused');
-    await companion.getByRole('button', { name: 'Reanudar animación de Moa' }).click();
-    await expect(sprite).toHaveCSS('animation-play-state', 'running');
-    for (const gesture of ['wave', 'curious', 'stroll', 'happy']) {
-      await character.click();
-      await expect(character).toHaveAttribute('data-gesture', gesture);
-    }
-    await character.click(); // The next tap returns to the greeting.
-    await page.emulateMedia({ reducedMotion: 'reduce' });
     await expect(sprite).toHaveCSS('animation-name', 'none');
-    await expect(companion.locator('.moa-motion')).toHaveCSS('animation-name', 'none');
-    const firstFace = await sprite.evaluate(image => getComputedStyle(image).transform);
+    const scenes = [
+      'drink',
+      'juggle',
+      'care',
+      'sleep',
+      'yawn',
+      'pushups',
+      'roll',
+      'jump',
+      'run',
+      'wink',
+      'love',
+      'angry',
+      'mother',
+      'surf',
+      'wave',
+      'curious',
+      'stroll',
+      'happy',
+    ];
+    await character.evaluate(button => {
+      button.addEventListener(
+        'pointerdown',
+        event => {
+          button.dataset.pointerTarget = event.target === button ? 'button' : 'child';
+        },
+        { once: true }
+      );
+    });
+    for (const scene of scenes) {
+      await character.click();
+      await expect(character).toHaveAttribute('data-pointer-target', 'button');
+      await expect(character).toHaveAttribute('data-gesture', scene);
+      await expect(companion.locator(`[data-moa-scene="${scene}"]`)).toBeVisible();
+      await expect(companion.locator('.moa-scene-frames')).toHaveAttribute('data-ready', 'true');
+      await expect
+        .poll(() =>
+          companion
+            .locator('.moa-scene-frames')
+            .evaluate((image: HTMLImageElement) => image.naturalWidth)
+        )
+        .toBe(1728);
+      // Let the browser install the new CSS animation before seeking its frame.
+      await page.evaluate(
+        () =>
+          new Promise<void>(resolve => {
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+          })
+      );
+      // Freeze actual browser animations at a representative frame; no wall-clock sleep.
+      await character.evaluate((element, name) => {
+        for (const animation of element.getAnimations({ subtree: true })) {
+          animation.pause();
+          animation.currentTime = name === 'sleep' ? 4000 : 1500;
+        }
+      }, scene);
+      await test.info().attach(`moa-${scene}`, {
+        body: await companion.screenshot(),
+        contentType: 'image/png',
+      });
+    }
+    await page.evaluate(() => {
+      Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await expect(companion.locator('.moa-scene-frames')).toHaveCSS(
+      'animation-play-state',
+      'paused'
+    );
+    await page.evaluate(() => {
+      Reflect.deleteProperty(document, 'hidden');
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     await character.click();
-    await expect(character).toHaveAttribute('data-gesture', 'curious');
-    await expect
-      .poll(() => sprite.evaluate(image => getComputedStyle(image).transform))
-      .not.toBe(firstFace);
+    const activeFrames = companion.locator('.moa-scene-frames');
+    await expect(activeFrames).toHaveCSS('animation-name', 'moa-still');
+    const stillTransform = await activeFrames.evaluate(image => getComputedStyle(image).transform);
+    await activeFrames.evaluate(image => {
+      const clock = image.getAnimations()[0];
+      clock.currentTime = 700;
+    });
+    await expect(activeFrames).toHaveCSS('transform', stillTransform);
+    await expect(character).toHaveAttribute('data-gesture', 'idle', { timeout: 6000 });
+    await expect(sprite).toHaveCSS('animation-name', 'none');
     await character.focus();
     await page.keyboard.press('Escape');
     await expect(companion).toBeHidden();
@@ -657,6 +737,7 @@ test.describe('Production Preview Bootstrap', () => {
     await seedPersistedSessionAndRecord(page);
     await page.goto(`/?date=${PREVIEW_BOOTSTRAP_DATE}`);
     await expectSeededPatientVisible(page);
+    await page.locator('[data-moa-toggle]').click();
     const companion = page.getByRole('region', { name: 'Moa', exact: true });
     await companion.scrollIntoViewIfNeeded();
     await expect(companion).toBeInViewport({ ratio: 1 });
@@ -825,6 +906,7 @@ test.describe('Production Preview Bootstrap', () => {
     await seedPersistedSessionAndRecord(page);
     await page.goto(`/?date=${PREVIEW_BOOTSTRAP_DATE}`);
     await expectSeededPatientVisible(page);
+    await page.locator('[data-moa-toggle]').click();
     await expect(page.locator('#census-moa').getByRole('alert')).toHaveText(
       'No se pudo mostrar Moa.'
     );
