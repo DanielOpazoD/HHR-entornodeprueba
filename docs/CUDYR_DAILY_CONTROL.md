@@ -40,8 +40,15 @@ estado, elegibilidad, motivo y origen, en blanco y negro y sin rellenos de color
 visibles fuera del cálculo. Un resultado histórico no inventa autor, hora ni puntajes.
 El porcentaje mensual es la suma de registros de elegibles dividida por la suma de
 pacientes-día elegibles. Sin elegibles se deja vacío; días abiertos y censos faltantes
-se identifican, sin presentarlos como 0% de cumplimiento. Los criterios y la cobertura
-figuran en el resumen mensual. La descarga no consulta Eloísa ni envía correos.
+se identifican, sin presentarlos como 0% de cumplimiento. El resumen mensual conserva
+solo la fórmula del cálculo y los criterios de elegibilidad. La descarga no consulta Eloísa ni envía correos.
+
+El indicador pequeño del censo conserva una lectura diaria por mes, cuenta y sesión.
+Editar el censo, recuperar el foco o volver a mostrar el cuadro no repite la lectura.
+La primera sincronización clínica terminada del día para ese censo actualiza el indicador
+una vez; las posteriores conservan el estado. El día 1 también actualiza el último
+turno del mes anterior. El nuevo día se determina en Rapa Nui.
+La vista detallada mantiene su actualización explícita y el control del plazo de registro.
 
 Al cambiar de mes se selecciona el último día disponible.
 

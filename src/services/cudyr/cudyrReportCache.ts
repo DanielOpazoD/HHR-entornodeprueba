@@ -1,6 +1,10 @@
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
 
-type CachedReport = CudyrReportDataset & { cacheVerificationRequired?: boolean };
+type CachedReport = CudyrReportDataset & {
+  cacheVerificationRequired?: boolean;
+  readStartedAt?: string;
+  indicatorSyncAt?: string;
+};
 
 const STORAGE_KEY = 'hhr_cudyr_report_cache_v11';
 const caches = new WeakMap<object, { scope: string; reports: Map<string, CachedReport> }>();
@@ -85,7 +89,7 @@ export const cudyrReportCache = (owner: object, scope: string, persist: boolean)
         rows,
       };
     },
-    put(report: CudyrReportDataset) {
+    put(report: CudyrReportDataset & { readStartedAt?: string; indicatorSyncAt?: string }) {
       if (report.issues.length || report.coverage.some(day => day.state === 'error')) return;
       // A derived official prefix must not evict its reusable full-month projection.
       const full =
@@ -100,6 +104,8 @@ export const cudyrReportCache = (owner: object, scope: string, persist: boolean)
         reports.set(key(full.from, full.to), {
           ...full,
           loadedAt: report.loadedAt || full.loadedAt,
+          readStartedAt: report.readStartedAt,
+          indicatorSyncAt: report.indicatorSyncAt,
           cacheVerificationRequired: false,
         });
         save();

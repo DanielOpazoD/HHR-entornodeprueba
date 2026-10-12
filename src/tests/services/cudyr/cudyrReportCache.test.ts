@@ -83,3 +83,18 @@ it('preserves the authoritative generation timestamp and pending state on cache 
   expect(cache.get(report.from, report.to)?.generatedAt).toBe(report.generatedAt);
   expect(cache.get(report.from, report.to)?.rows[0].applicationPending).toBe(true);
 });
+
+it('retains the actual read start when a refreshed official prefix keeps its full projection', () => {
+  const report = buildCudyrReport(reportInput());
+  report.officialSnapshot = { version: 'read-start', savedAt: report.generatedAt };
+  const cache = cudyrReportCache({}, 'start-stamp:1', true);
+  cache.put({ ...report, readStartedAt: '2026-10-10T19:00:00Z' });
+  const prefix = cache.get(report.from, '2026-10-02')!;
+  cache.put({
+    ...prefix,
+    readStartedAt: '2026-10-10T20:01:00Z',
+    indicatorSyncAt: '2026-10-10T20:00:00Z',
+  });
+  expect(cache.get(report.from, report.to)?.readStartedAt).toBe('2026-10-10T20:01:00Z');
+  expect(cache.get(report.from, report.to)?.indicatorSyncAt).toBe('2026-10-10T20:00:00Z');
+});
