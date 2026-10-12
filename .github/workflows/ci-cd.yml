@@ -248,7 +248,7 @@ jobs:
           save-cache: ${{ matrix.check == 'lint' && 'true' || 'false' }}
 
       - name: Run release-blocking static check
-        run: npm run ${{ matrix.check }} ${{ matrix.check == 'lint' && '-- --max-warnings 0' || '' }}
+        run: npm run ${{ matrix.check }} ${{ matrix.check == 'lint' && '-- --max-warnings 0 --concurrency 2' || '' }}
 
   quality-static-governance-snapshots:
     name: quality-static-governance-snapshots
