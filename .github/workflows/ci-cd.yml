@@ -135,15 +135,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: [1, 2, 3, 4]
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
       - name: Setup CI dependencies
         uses: ./.github/actions/setup-ci-dependencies
       - name: Run critical coverage shard
-        run: node scripts/run-critical-coverage.mjs --shard=${{ matrix.shard }}/2
-      - name: Upload first complete shard report
+        run: node scripts/run-critical-coverage.mjs --shard=${{ matrix.shard }}/4
+      - name: Upload complete shard 1 report
         if: matrix.shard == 1
         uses: actions/upload-artifact@v7
         with:
@@ -152,12 +152,30 @@ jobs:
           if-no-files-found: error
           overwrite: true
           retention-days: 7
-      - name: Upload second complete shard report
+      - name: Upload complete shard 2 report
         if: matrix.shard == 2
         uses: actions/upload-artifact@v7
         with:
           name: critical-coverage-shard-2
           path: reports/critical-coverage-blobs/shard-2.json
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 7
+      - name: Upload complete shard 3 report
+        if: matrix.shard == 3
+        uses: actions/upload-artifact@v7
+        with:
+          name: critical-coverage-shard-3
+          path: reports/critical-coverage-blobs/shard-3.json
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 7
+      - name: Upload complete shard 4 report
+        if: matrix.shard == 4
+        uses: actions/upload-artifact@v7
+        with:
+          name: critical-coverage-shard-4
+          path: reports/critical-coverage-blobs/shard-4.json
           if-no-files-found: error
           overwrite: true
           retention-days: 7
@@ -175,15 +193,25 @@ jobs:
       - name: Setup CI dependencies
         uses: ./.github/actions/setup-ci-dependencies
 
-      - name: Download first same-run shard report
+      - name: Download same-run shard 1 report
         uses: actions/download-artifact@v7
         with:
           name: critical-coverage-shard-1
           path: reports/critical-coverage-blobs
-      - name: Download second same-run shard report
+      - name: Download same-run shard 2 report
         uses: actions/download-artifact@v7
         with:
           name: critical-coverage-shard-2
+          path: reports/critical-coverage-blobs
+      - name: Download same-run shard 3 report
+        uses: actions/download-artifact@v7
+        with:
+          name: critical-coverage-shard-3
+          path: reports/critical-coverage-blobs
+      - name: Download same-run shard 4 report
+        uses: actions/download-artifact@v7
+        with:
+          name: critical-coverage-shard-4
           path: reports/critical-coverage-blobs
 
       - name: Merge coverage without rerunning tests
