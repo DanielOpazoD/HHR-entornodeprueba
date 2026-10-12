@@ -51,3 +51,8 @@ y [conciliación clínica](CUDYR_CLINICAL_DAY_RECONCILIATION.md).
 El modelo de reconstrucción histórico se descarga bajo demanda, igual que el explorador
 y su cargador. Se excluye del precaché de instalación; el límite global no aumenta.
 La copia de datos por sesión y la proyección oficial siguen disponibles tras abrir el módulo.
+
+El generador de «Excel mensual» se carga al descargar, igual que ExcelJS; queda fuera
+del precaché de instalación y tiene un límite propio de 12 KB. Esto no cambia las
+fuentes ni la caché de datos del censo. La primera descarga requiere acceso a esos
+recursos estáticos; no realiza una sincronización con Eloísa.
