@@ -38,7 +38,7 @@ describe('CUDYR closed census days', () => {
         excluded: 1,
       });
       const { workbook } = await buildCudyrEssentialWorkbook(data);
-      expect(workbook.getWorksheet('Pacientes elegibles')!.rowCount).toBe(1);
+      expect(workbook.getWorksheet('02-10-2026')!.rowCount).toBe(24);
     }
   );
   it('allows daily provisional progress without changing closed-day statistics or the source rows', () => {
@@ -115,7 +115,7 @@ describe('CUDYR closed census days', () => {
     expect(data.rows[0].applicationPending).toBe(pending);
     expect(cudyrReportTotals(data.rows).eligible).toBe(pending ? 0 : 1);
   });
-  it('omits the current and future census days from totals and essential detail even if they have results', async () => {
+  it('keeps open-day detail visible but outside the monthly calculation', async () => {
     const data = buildCudyrReport(
       confirmedReportInput({
         generatedAt: '2026-10-03T20:00:00-05:00',
@@ -124,9 +124,11 @@ describe('CUDYR closed census days', () => {
     );
     expect(cudyrReportTotals(data.rows)).toMatchObject({ eligible: 1, categorized: 1 });
     const { workbook } = await buildCudyrEssentialWorkbook(data);
-    expect(workbook.getWorksheet('Pacientes elegibles')!.rowCount).toBe(2);
-    const summary = workbook.getWorksheet('Resumen')!;
-    expect(summary.getCell('D4').value).toBe('');
-    expect(summary.getCell('G4').value).toContain('Pendiente de aplicación');
+    expect(workbook.getWorksheet('03-10-2026')!.getCell('C25').value).toBe('Paciente Sintético');
+    expect(workbook.getWorksheet('03-10-2026')!.getCell('B19').value).toBeNull();
+    expect(workbook.getWorksheet('03-10-2026')!.getCell('A2').value).toContain(
+      'Ventana de aplicación abierta'
+    );
+    expect(workbook.getWorksheet('Resumen CUDYR Mensual')!.getCell('B20').result).toBe(1);
   });
 });

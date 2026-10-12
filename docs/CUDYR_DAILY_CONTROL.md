@@ -17,7 +17,7 @@ El cambio de cuenta no reutiliza los datos clínicos de la sesión anterior.
 - **Registrado:** existe una categorización en Eloísa; no implica elegibilidad.
 - **No registrado:** la fuente final completa no contiene una categorización para ese caso.
 - **Verificación pendiente:** falta completar una consulta o resolver una discrepancia.
-- **No elegible:** el caso permanece visible, pero queda fuera del cumplimiento y del Excel de elegibles.
+- **No elegible:** el caso permanece visible, pero queda fuera del cumplimiento; conserva su detalle en el Excel mensual.
 - **Oficial:** población reconstruida y resultados aprobados con trazabilidad, no cumplimiento del 100%.
 
 Los días abiertos muestran progreso; no penalizan el acumulado cerrado. La aplicación
@@ -33,7 +33,17 @@ Altas, traslados externos y fallecimientos resueltos se consultan en el explorad
 
 El desglose mensual de exclusiones separa personas de pacientes-día y permite abrir los
 casos. El Excel usa el mismo conjunto de datos y las mismas reglas de días cerrados que
-la pantalla. Al cambiar de mes se selecciona el último día disponible.
+la pantalla. «Excel mensual» conserva el resumen de categorías A1–D3 y una hoja por
+fecha; usa **Cama intermedia** y **Cama media**. Debajo del resumen diario incluye
+paciente, documento, cama, puntajes, categoría, ingreso, autor/fecha del registro,
+estado, elegibilidad, motivo y origen, en blanco y negro y sin rellenos de color. Excluidos y casos por revisar permanecen
+visibles fuera del cálculo. Un resultado histórico no inventa autor, hora ni puntajes.
+El porcentaje mensual es la suma de registros de elegibles dividida por la suma de
+pacientes-día elegibles. Sin elegibles se deja vacío; días abiertos y censos faltantes
+se identifican, sin presentarlos como 0% de cumplimiento. Los criterios y la cobertura
+figuran en el resumen mensual. La descarga no consulta Eloísa ni envía correos.
+
+Al cambiar de mes se selecciona el último día disponible.
 
 Ver [cierre oficial](CUDYR_OFFICIAL_MONTH.md), [recuperación de fuentes](CUDYR_MONTHLY_RECOVERY.md)
 y [conciliación clínica](CUDYR_CLINICAL_DAY_RECONCILIATION.md).
