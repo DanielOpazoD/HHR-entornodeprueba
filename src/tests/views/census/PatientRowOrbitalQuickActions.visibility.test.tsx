@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import React from 'react';
+import { PatientRowOrbitalQuickActions } from '@/features/census/components/patient-row/PatientRowOrbitalQuickActions';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import {
   mockMatchMedia,
@@ -12,6 +14,63 @@ describe('PatientRowOrbitalQuickActions visibility', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockMatchMedia(true);
+  });
+
+  it('does not measure every other row while the pointer moves inside a patient row', async () => {
+    render(
+      <table>
+        <tbody>
+          {['R1', 'R2'].map(bedId => (
+            <tr key={bedId} data-testid="patient-row" data-bed-id={bedId}>
+              <td>
+                <PatientRowOrbitalQuickActions
+                  showClinicalDocumentsAction
+                  showExamRequestAction={false}
+                  showImagingRequestAction={false}
+                  onViewClinicalDocuments={vi.fn()}
+                />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+    const triggers = await screen.findAllByRole('button', { name: /acciones clínicas rápidas/i });
+    expect(triggers).toHaveLength(2);
+    const rows = screen.getAllByTestId('patient-row');
+    const bounds = vi.spyOn(rows[1], 'getBoundingClientRect');
+
+    fireEvent.mouseMove(rows[0], { clientX: 1, clientY: 1 });
+
+    expect(bounds).not.toHaveBeenCalled();
+  });
+
+  it('does not commit launcher updates when resize leaves its position unchanged', async () => {
+    const onRender = vi.fn();
+    render(
+      <React.Profiler id="launcher" onRender={onRender}>
+        <table>
+          <tbody>
+            <tr data-testid="patient-row" data-bed-id="R1">
+              <td>
+                <PatientRowOrbitalQuickActions
+                  showClinicalDocumentsAction
+                  showExamRequestAction={false}
+                  showImagingRequestAction={false}
+                  onViewClinicalDocuments={vi.fn()}
+                />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </React.Profiler>
+    );
+    await screen.findByRole('button', { name: /acciones clínicas rápidas/i });
+    onRender.mockClear();
+
+    fireEvent.resize(window);
+
+    expect(onRender).not.toHaveBeenCalled();
   });
 
   it('keeps the trigger visible on touch-like devices', async () => {
