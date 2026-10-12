@@ -530,6 +530,9 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
+      - name: Prepare verified Firestore emulator artifact
+        uses: ./.github/actions/setup-ci-firestore-emulator
+
       - name: Run Firestore rules tests with emulator
         run: npm run test:rules:ci
         env:
@@ -560,6 +563,9 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '21'
+
+      - name: Prepare verified Firestore emulator artifact
+        uses: ./.github/actions/setup-ci-firestore-emulator
 
       - name: Install Playwright browser for critical E2E gate
         uses: ./.github/actions/setup-ci-chromium
