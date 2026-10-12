@@ -1,0 +1,48 @@
+name: Setup CI Chromium
+description: Reuse the exact Playwright browser while always preparing its system dependencies.
+runs:
+  using: composite
+  steps:
+    - name: Identify Chromium cache
+      id: browser
+      shell: bash
+      run: |
+        printf 'image=%s-%s\n' "${ImageOS:?}" "${ImageVersion:?}" >> "$GITHUB_OUTPUT"
+        printf 'version=%s\n' "$(node -p "require('playwright-core/package.json').version")" >> "$GITHUB_OUTPUT"
+    - name: Restore exact Chromium installation
+      id: chromium
+      uses: actions/cache/restore@v6.1.0
+      continue-on-error: true
+      with:
+        path: ~/.cache/ms-playwright
+        key: chromium-v1-${{ steps.browser.outputs.image }}-${{ runner.os }}-${{ runner.arch }}-${{ steps.browser.outputs.version }}-${{ hashFiles('.github/actions/setup-ci-chromium/action.yml') }}
+    # Mandatory on hits, misses and cache outages. A browser cache never supplies apt libraries.
+    - name: Prepare Playwright Chromium and system dependencies
+      shell: bash
+      run: npx playwright install --with-deps chromium
+    - name: Verify Chromium can launch
+      shell: bash
+      run: |
+        node --input-type=module - <<'JS'
+        import { chromium } from 'playwright';
+        import { execFileSync } from 'node:child_process';
+        const verify = async () => {
+          const browser = await chromium.launch();
+          await browser.close();
+        };
+        try {
+          await verify();
+        } catch {
+          // A damaged cache must be repaired through the same pinned Playwright CLI.
+          execFileSync(process.execPath, ['node_modules/playwright/cli.js', 'install', '--force', 'chromium'], { stdio: 'inherit' });
+          await verify();
+        }
+        JS
+    # Publish before any caller executes browser tests, which may mutate profiles or artifacts.
+    - name: Save prepared Chromium installation
+      if: steps.chromium.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v6.1.0
+      continue-on-error: true
+      with:
+        path: ~/.cache/ms-playwright
+        key: ${{ steps.chromium.outputs.cache-primary-key }}
