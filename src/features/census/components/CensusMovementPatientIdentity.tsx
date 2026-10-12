@@ -1,5 +1,6 @@
 import React from 'react';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
+import { formatCensusPatientName } from '@/utils/patientNameDisplayUtils';
 
 interface CensusMovementPatientIdentityProps {
   name: string;
@@ -15,7 +16,7 @@ export const CensusMovementPatientIdentity: React.FC<CensusMovementPatientIdenti
 }) => (
   <td className="min-w-52 p-2 align-middle">
     <div className="break-words text-[13px] font-semibold leading-4 text-slate-700">
-      {name || '—'}
+      {formatCensusPatientName(name) || '—'}
     </div>
     <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] leading-tight text-slate-500">
       <span className="whitespace-nowrap tabular-nums">{identifier || '—'}</span>

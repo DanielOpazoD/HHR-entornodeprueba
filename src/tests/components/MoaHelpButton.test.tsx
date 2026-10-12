@@ -1,222 +1,86 @@
-import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { MoaHelpButton } from '@/components/layout/navbar/MoaHelpButton';
+import { MoaCompanionSlot } from '@/components/layout/MoaCompanionSlot';
+import { setMoaVisible } from '@/shared/ui/useMoaVisibility';
 
-const openHelp = async () => {
-  const trigger = screen.getByRole('button', { name: 'Ayuda de Moa' });
-  fireEvent.click(trigger);
-  await screen.findByRole('region', { name: 'Moa · Ayuda de HHR' });
-  return trigger;
-};
+const renderMoa = () =>
+  render(
+    <>
+      <MoaHelpButton currentModule="CENSUS" />
+      <MoaCompanionSlot />
+    </>
+  );
 
-describe('MoaHelpButton', () => {
-  beforeEach(() => localStorage.removeItem('hhr_moa_visible_v1'));
-
-  it('shows the selected mascot and restores its visibility preference on remount', async () => {
-    const first = render(<MoaHelpButton />);
-    expect(screen.getByTestId('moa-mascot')).toHaveAttribute(
-      'src',
-      '/images/moa/moa-poses-v1.webp'
-    );
-    await openHelp();
-    const preference = screen.getByRole('checkbox', { name: 'Mostrar mascota Moa' });
-    expect(preference).toBeChecked();
-    fireEvent.click(preference);
-    expect(screen.queryByTestId('moa-mascot')).not.toBeInTheDocument();
-    expect(localStorage.getItem('hhr_moa_visible_v1')).toBe('false');
-    first.unmount();
-
-    render(<MoaHelpButton />);
-    expect(screen.queryByTestId('moa-mascot')).not.toBeInTheDocument();
-    await openHelp();
-    expect(screen.getByRole('checkbox', { name: 'Mostrar mascota Moa' })).not.toBeChecked();
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Mostrar mascota Moa' }));
-    expect(screen.getAllByTestId('moa-mascot')).toHaveLength(2);
-    expect(localStorage.getItem('hhr_moa_visible_v1')).toBe('true');
+describe('Moa visibility and companion', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    setMoaVisible(true);
   });
 
-  it('keeps the visibility control working when preference storage fails', async () => {
+  it('toggles the census companion directly and preserves the preference on remount', async () => {
+    const first = renderMoa();
+    const companion = await screen.findByRole('region', { name: 'Moa' });
+    const toggle = document.querySelector('[data-moa-toggle]')!;
+    expect(toggle).toHaveAttribute('aria-controls', companion.id);
+    expect(screen.queryByText('Guía local, sin IA clínica.')).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    fireEvent.click(toggle);
+    expect(screen.queryByRole('region')).not.toBeInTheDocument();
+    expect(localStorage.getItem('hhr_moa_visible_v1')).toBe('false');
+    first.unmount();
+    renderMoa();
+    expect(screen.queryByRole('region')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Mostrar Moa' }));
+    expect(await screen.findByRole('region', { name: 'Moa' })).toBeInTheDocument();
+  });
+
+  it('hides from the companion and restores focus to the navbar toggle', async () => {
+    renderMoa();
+    const companion = await screen.findByRole('region', { name: 'Moa' });
+    fireEvent.click(within(companion).getByRole('button', { name: 'Ocultar Moa' }));
+    expect(screen.getByRole('button', { name: 'Mostrar Moa' })).toHaveFocus();
+    expect(screen.queryByRole('region')).not.toBeInTheDocument();
+  });
+
+  it('keeps both surfaces in sync when storage is unavailable', async () => {
+    const read = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('Blocked');
+    });
     const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new Error('Storage unavailable');
+      throw new Error('Blocked');
     });
     try {
-      render(<MoaHelpButton />);
-      await openHelp();
-      fireEvent.click(screen.getByRole('checkbox', { name: 'Mostrar mascota Moa' }));
-      expect(screen.queryByTestId('moa-mascot')).not.toBeInTheDocument();
-      expect(screen.getByRole('region', { name: 'Moa · Ayuda de HHR' })).toBeInTheDocument();
+      renderMoa();
+      await screen.findByRole('region', { name: 'Moa' });
+      fireEvent.click(document.querySelector('[data-moa-toggle]')!);
+      expect(screen.queryByRole('region')).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Mostrar Moa' }));
+      expect(await screen.findByRole('region', { name: 'Moa' })).toBeInTheDocument();
     } finally {
+      read.mockRestore();
       write.mockRestore();
     }
   });
 
-  it('keeps help available when the optional artwork cannot load', async () => {
-    render(<MoaHelpButton />);
-    fireEvent.error(screen.getByTestId('moa-mascot'));
-    expect(screen.queryByTestId('moa-mascot')).not.toBeInTheDocument();
-    await openHelp();
-    expect(screen.getByRole('region', { name: 'Moa · Ayuda de HHR' })).toBeInTheDocument();
-  });
-
-  it('contains a rejected import and requires confirmation before reloading', async () => {
-    vi.resetModules();
-    const { defaultBrowserWindowRuntime } =
-      await import('@/shared/runtime/browserWindowRuntimeCore');
-    const originalLazy = React.lazy;
-    const load = vi
-      .spyOn(React, 'lazy')
-      .mockImplementationOnce(() =>
-        originalLazy(() => Promise.reject(new Error('Help chunk unavailable')))
+  it('responds to a preference changed in another tab', async () => {
+    renderMoa();
+    await screen.findByRole('region', { name: 'Moa' });
+    act(() => {
+      localStorage.setItem('hhr_moa_visible_v1', 'false');
+      window.dispatchEvent(
+        new StorageEvent('storage', { key: 'hhr_moa_visible_v1', newValue: 'false' })
       );
-    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    const confirm = vi.spyOn(defaultBrowserWindowRuntime, 'confirm').mockReturnValue(false);
-    const reload = vi
-      .spyOn(defaultBrowserWindowRuntime, 'reload')
-      .mockImplementation(() => undefined);
-    try {
-      // A fresh module load lets the controlled rejection initialise the lazy panel.
-      const { MoaHelpButton: Help } = await import('@/components/layout/navbar/MoaHelpButton');
-      render(
-        <>
-          <Help />
-          <button type="button">Censo disponible</button>
-        </>
-      );
-      const trigger = screen.getByRole('button', { name: 'Ayuda de Moa' });
-      fireEvent.click(trigger);
-      expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo abrir la ayuda.');
-      expect(screen.getByRole('button', { name: 'Censo disponible' })).toBeInTheDocument();
-      const recovery = screen.getByRole('button', { name: 'Recargar aplicación' });
-      recovery.focus();
-      fireEvent.click(recovery);
-      expect(confirm).toHaveBeenCalledOnce();
-      expect(reload).not.toHaveBeenCalled();
-      expect(recovery).toHaveFocus();
-      confirm.mockReturnValue(true);
-      fireEvent.click(recovery);
-      expect(reload).toHaveBeenCalledOnce();
-      fireEvent.click(screen.getByRole('button', { name: 'Cerrar ayuda de Moa' }));
-      expect(trigger).toHaveFocus();
-    } finally {
-      load.mockRestore();
-      errors.mockRestore();
-      confirm.mockRestore();
-      reload.mockRestore();
-    }
-  });
-
-  it('starts closed and explains the limited scope when explicitly opened', async () => {
-    render(<MoaHelpButton />);
-    expect(screen.getByRole('button', { name: 'Ayuda de Moa' })).toHaveAttribute(
-      'aria-expanded',
-      'false'
-    );
-    expect(screen.queryByRole('region')).not.toBeInTheDocument();
-
-    const trigger = await openHelp();
-    const panel = screen.getByRole('region', { name: 'Moa · Ayuda de HHR' });
-    expect(trigger).toHaveAttribute('aria-expanded', 'true');
-    expect(trigger).toHaveAttribute('aria-controls', panel.id);
-    expect(screen.getByText('Guía local, sin IA clínica.')).toBeInTheDocument();
-    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
-  });
-
-  it('closes with Escape and restores the trigger focus', async () => {
-    render(<MoaHelpButton />);
-    const trigger = await openHelp();
-    const closeButton = screen.getByRole('button', { name: 'Cerrar ayuda de Moa' });
-    closeButton.focus();
-    fireEvent.keyDown(closeButton, { key: 'Escape' });
-
-    expect(screen.queryByRole('region')).not.toBeInTheDocument();
-    expect(trigger).toHaveFocus();
-    expect(trigger).toHaveAttribute('aria-expanded', 'false');
-  });
-
-  it('closes from its close button without leaving focus on a removed element', async () => {
-    render(<MoaHelpButton />);
-    const trigger = await openHelp();
-    fireEvent.click(screen.getByRole('button', { name: 'Cerrar ayuda de Moa' }));
-    expect(screen.queryByRole('region')).not.toBeInTheDocument();
-    expect(trigger).toHaveFocus();
-  });
-
-  it('dismisses on outside click', async () => {
-    render(<MoaHelpButton />);
-    await openHelp();
-    fireEvent.mouseDown(document.body);
-    expect(screen.queryByRole('region')).not.toBeInTheDocument();
-  });
-
-  it('dismisses when keyboard focus leaves but not when it moves inside', async () => {
-    render(
-      <>
-        <MoaHelpButton />
-        <button type="button">Otra herramienta</button>
-      </>
-    );
-    const trigger = await openHelp();
-    const closeButton = screen.getByRole('button', { name: 'Cerrar ayuda de Moa' });
-    fireEvent.blur(trigger, { relatedTarget: closeButton });
-    expect(screen.getByRole('region')).toBeInTheDocument();
-    fireEvent.blur(closeButton, {
-      relatedTarget: screen.getByRole('button', { name: 'Otra herramienta' }),
     });
     expect(screen.queryByRole('region')).not.toBeInTheDocument();
-  });
-
-  it('assigns distinct controls and labels to separate instances', async () => {
-    render(
-      <>
-        <MoaHelpButton />
-        <MoaHelpButton />
-      </>
+    expect(screen.getByRole('button', { name: 'Mostrar Moa' })).toHaveAttribute(
+      'aria-pressed',
+      'false'
     );
-    const triggers = screen.getAllByRole('button', { name: 'Ayuda de Moa' });
-    triggers.forEach(trigger => fireEvent.click(trigger));
-    const panels = await screen.findAllByRole('region', { name: 'Moa · Ayuda de HHR' });
-    expect(panels).toHaveLength(2);
-    expect(panels[0].id).not.toBe(panels[1].id);
-    expect(triggers[0]).toHaveAttribute('aria-controls', panels[0].id);
-    expect(triggers[1]).toHaveAttribute('aria-controls', panels[1].id);
   });
 
-  it('keeps readable content open when blur has no next focus target', async () => {
-    render(<MoaHelpButton />);
-    const trigger = await openHelp();
-    fireEvent.blur(trigger, { relatedTarget: null });
-    expect(screen.getByRole('region')).toBeInTheDocument();
-    fireEvent.mouseDown(document.body);
-    expect(screen.queryByRole('region')).not.toBeInTheDocument();
-  });
-
-  it.each([
-    ['CENSUS', 'Censo diario'],
-    ['NURSING_HANDOFF', 'Entrega de enfermería'],
-    ['MEDICAL_HANDOFF', 'Entrega médica'],
-    ['CUDYR', 'Categorización CUDYR'],
-  ] as const)('offers local guidance for %s without a patient context', async (module, title) => {
-    render(<MoaHelpButton currentModule={module} />);
-    await openHelp();
-    expect(screen.getByRole('heading', { name: title })).toBeInTheDocument();
-    expect(screen.getByText('Guía local, sin IA clínica.')).toBeInTheDocument();
-    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
-  });
-
-  it('closes old guidance when the module changes, then shows the new context', async () => {
-    const { rerender } = render(<MoaHelpButton currentModule="CENSUS" />);
-    await openHelp();
-    rerender(<MoaHelpButton currentModule="MEDICAL_HANDOFF" />);
-    expect(screen.queryByRole('region')).not.toBeInTheDocument();
-    await openHelp();
-    expect(screen.getByRole('heading', { name: 'Entrega médica' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Censo diario' })).not.toBeInTheDocument();
-  });
-
-  it('uses general guidance for modules without a dedicated guide', async () => {
+  it('keeps the toggle scoped to the census', () => {
     render(<MoaHelpButton currentModule="ANALYTICS" />);
-    await openHelp();
-    expect(screen.getByRole('heading', { name: 'Herramientas de HHR' })).toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 });

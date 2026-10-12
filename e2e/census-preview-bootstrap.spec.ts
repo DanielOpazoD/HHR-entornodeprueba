@@ -218,7 +218,7 @@ test.describe('Production Preview Bootstrap', () => {
     const newborn = {
       ...beds.R1,
       bedId: 'R1',
-      patientName: 'RN DE PACIENTE VALIDACION',
+      patientName: 'Rn DE PACIENTE VALIDACION',
       firstName: '',
       lastName: '',
       secondLastName: '',
@@ -245,6 +245,19 @@ test.describe('Production Preview Bootstrap', () => {
           specialty: 'Ginecobstetricia',
           clinicalCrib: newborn,
         },
+        R2: {
+          ...beds.R2,
+          patientName:
+            'Paciente normal con un nombre largo y dos apellidos para comprobar su alineación',
+          age: '68',
+          clinicalEpisodeId: 'synthetic-wrapped-mother',
+          clinicalCrib: {
+            ...newborn,
+            bedId: 'R2',
+            patientName: 'rn de Madre',
+            clinicalEpisodeId: 'synthetic-second-newborn',
+          },
+        },
       },
     });
     let releaseApp!: () => void;
@@ -262,10 +275,11 @@ test.describe('Production Preview Bootstrap', () => {
         const style = getComputedStyle(element);
         return { image: style.backgroundImage, size: style.backgroundSize };
       });
-      expect(background.image).toContain('rapa-nui-coast-v2.webp');
+      expect(background.image).toContain('rapa-nui-coast-v3.webp');
       expect(background.image).toContain('rgb(63, 116, 165)');
       expect(background.size).toContain('52px');
       expect(background.size).toContain('56px');
+      expect(background.size).toContain('430px');
       // Capture the actual preboot paint while the app chunk is held. Playwright's
       // screenshot waits for document.fonts.ready, which depends on releasing it.
       const cdp = await page.context().newCDPSession(page);
@@ -283,6 +297,9 @@ test.describe('Production Preview Bootstrap', () => {
     const parent = page.locator('[data-bed-id="R1"][data-testid="patient-row"]');
     const crib = page.locator('tr[data-testid="patient-row"]').filter({ hasText: 'C-R1' });
     await expect(crib.getByTestId('clinical-panel-trigger-R1-clinical-crib')).toBeVisible();
+    await expect(crib.locator('input[name="patientName"]')).toHaveValue(
+      'RN DE PACIENTE VALIDACION'
+    );
     await expect(crib.locator('.lucide-arrow-right')).toHaveCount(0);
     await expect(crib.locator('[data-testid^="patient-laboratory-trigger"]')).toHaveCount(0);
     await expect(crib.locator('[data-testid^="patient-radiology-trigger"]')).toHaveCount(0);
@@ -309,9 +326,27 @@ test.describe('Production Preview Bootstrap', () => {
       );
     }
     expect(newbornGeometry.age.x).toBeLessThan(newbornGeometry.clinical.x);
+    expect(Math.abs(newbornGeometry.clinical.x - motherGeometry.clinical.x)).toBeLessThanOrEqual(1);
+    const wrappedParent = page.locator('[data-bed-id="R2"][data-testid="patient-row"]');
+    const secondCrib = page.locator('tr[data-testid="patient-row"]').filter({ hasText: 'C-R2' });
+    expect(
+      (await wrappedParent.locator('.census-identity-name').boundingBox())!.height
+    ).toBeGreaterThan(28);
+    const wrappedGeometry = await geometry(wrappedParent);
+    const secondCribGeometry = await geometry(secondCrib);
+    expect(
+      Math.abs(wrappedGeometry.clinical.y - secondCribGeometry.clinical.y)
+    ).toBeLessThanOrEqual(1);
+    expect(
+      Math.abs(wrappedGeometry.clinical.x - secondCribGeometry.clinical.x)
+    ).toBeLessThanOrEqual(1);
+    await expect(secondCrib.locator('input[name="patientName"]')).toHaveValue('RN de Madre');
     const nav = page.getByRole('navigation', { name: 'Navegación principal HHR' });
     await expect(nav).toHaveCSS('background-color', 'rgb(63, 116, 165)');
     await expect(nav.locator('.hhr-navbar-landscape')).toBeVisible();
+    expect(
+      (await nav.locator('.hhr-navbar-landscape').boundingBox())!.width
+    ).toBeGreaterThanOrEqual(400);
     await test.info().attach('new-navbar-and-newborn', {
       body: await page.screenshot(),
       contentType: 'image/png',
@@ -489,31 +524,16 @@ test.describe('Production Preview Bootstrap', () => {
         await year.first().click();
       }
 
-      const help = topBar.getByRole('button', { name: 'Ayuda de Moa', exact: true });
-      await expect(help).toBeInViewport({ ratio: 1 });
+      const moaToggle = topBar.locator('[data-moa-toggle]');
+      await expect(moaToggle).toBeInViewport({ ratio: 1 });
       await utility.click();
-      await help.click();
+      await moaToggle.click();
       await expect(utilityPanel).toBeHidden();
-      const helpPanel = page.getByRole('region', { name: 'Moa · Ayuda de HHR' });
-      await expect(helpPanel).toBeInViewport({ ratio: 1 });
-      await expect(helpPanel.getByRole('heading', { name: 'Censo diario' })).toBeVisible();
-      // Reading a non-interactive paragraph must not dismiss the guide on blur.
-      await helpPanel.getByText('Guardado y conexión', { exact: true }).click();
-      await expect(helpPanel).toBeVisible();
-      await page.keyboard.press('Escape');
-      await expect(helpPanel).toBeHidden();
-      await expect(help).toBeFocused();
+      await expect(page.getByRole('region', { name: 'Moa', exact: true })).toBeHidden();
+      await expect(moaToggle).toBeFocused();
       await page.keyboard.press('Enter');
-      await test.info().attach(`moa-help-${width}px`, {
-        body: await page.screenshot(),
-        contentType: 'image/png',
-      });
-      await page.keyboard.press('Tab');
-      await expect(helpPanel.getByRole('button', { name: 'Cerrar ayuda de Moa' })).toBeFocused();
-      await page.keyboard.press('Tab');
-      await expect(helpPanel.getByRole('checkbox', { name: 'Mostrar mascota Moa' })).toBeFocused();
-      await page.keyboard.press('Tab');
-      await expect(helpPanel).toBeHidden();
+      await expect(page.getByRole('region', { name: 'Moa', exact: true })).toBeVisible();
+      await expect(page.getByRole('region', { name: 'Moa · Ayuda de HHR' })).toHaveCount(0);
       await expectSeededPatientVisible(page);
 
       const options = page.getByRole('button', { name: 'Más opciones del censo' });
@@ -534,144 +554,121 @@ test.describe('Production Preview Bootstrap', () => {
   }
 
   for (const width of [375, 768, 1440]) {
-    test(`persists mascot visibility without hiding help at ${width}px`, async ({ page }) => {
+    test(`persists the census companion visibility at ${width}px`, async ({ page }) => {
       const runtimeCollector = createPreviewRuntimeFailureCollector(page);
       await page.setViewportSize({ width, height: 900 });
       await seedPersistedSessionAndRecord(page);
       await page.goto(`/?date=${PREVIEW_BOOTSTRAP_DATE}`);
       await expectSeededPatientVisible(page);
-      const help = page.getByRole('button', { name: 'Ayuda de Moa', exact: true });
-      const mascot = help.getByTestId('moa-mascot');
+      const toggle = page.locator('[data-moa-toggle]');
+      const companion = page.getByRole('region', { name: 'Moa', exact: true });
+      const mascot = companion.getByTestId('moa-mascot');
       await expect(mascot).toBeVisible();
       await expect
         .poll(() => mascot.evaluate((image: HTMLImageElement) => image.naturalWidth))
-        .toBeGreaterThan(0);
-      await help.click();
-      const panel = page.getByRole('region', { name: 'Moa · Ayuda de HHR' });
-      const preference = panel.getByRole('checkbox', { name: 'Mostrar mascota Moa' });
-      await expect(preference).toBeChecked();
-      await expect(panel).toBeInViewport({ ratio: 1 });
-      await test.info().attach(`moa-shown-${width}px`, {
+        .toBe(816);
+      const summary = await page.getByTestId('census-summary-switcher').boundingBox();
+      const area = await companion.boundingBox();
+      if (width >= 640) {
+        expect(area!.x).toBeGreaterThanOrEqual(summary!.x + summary!.width + 6);
+        expect(Math.abs(area!.y - summary!.y)).toBeLessThanOrEqual(1);
+      } else {
+        expect(area!.y).toBeGreaterThanOrEqual(summary!.y + summary!.height);
+      }
+      expect(area!.x + area!.width).toBeLessThanOrEqual(width);
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      await test.info().attach(`moa-companion-${width}px`, {
         body: await page.screenshot(),
         contentType: 'image/png',
       });
-      await preference.uncheck();
-      await expect(page.getByTestId('moa-mascot')).toHaveCount(0);
-      await panel.getByRole('button', { name: 'Cerrar ayuda de Moa' }).click();
-      await expect(help).toBeFocused();
+      await toggle.click();
+      await expect(companion).toBeHidden();
+      await expect(toggle).toHaveAttribute('aria-pressed', 'false');
       await page.reload();
       await expectSeededPatientVisible(page);
-      await expect(page.getByTestId('moa-mascot')).toHaveCount(0);
-      await help.click();
-      await expect(preference).not.toBeChecked();
-      await test.info().attach(`moa-hidden-${width}px`, {
-        body: await page.screenshot(),
-        contentType: 'image/png',
-      });
-      await preference.check();
-      await panel.getByRole('button', { name: 'Cerrar ayuda de Moa' }).click();
+      await expect(companion).toBeHidden();
+      await toggle.click();
+      await expect(companion).toBeVisible();
+      await companion.getByRole('button', { name: 'Ocultar Moa', exact: true }).click();
+      await expect(toggle).toBeFocused();
+      await toggle.click();
       await page.reload();
       await expectSeededPatientVisible(page);
-      await expect(mascot).toBeVisible();
+      await expect(companion).toBeVisible();
       await assertPreviewBootCompleted(page, runtimeCollector.failures);
       runtimeCollector.detach();
       await page.emulateMedia({ media: 'print' });
-      await expect(help).toBeHidden();
+      await expect(companion).toBeHidden();
+      await expect(toggle).toBeHidden();
     });
   }
 
-  test('keeps help usable when the optional mascot image is unavailable', async ({ page }) => {
+  test('keeps the census and visibility control usable without the optional mascot image', async ({
+    page,
+  }) => {
     await page.route('**/images/moa/**', route => route.fulfill({ status: 404, body: '' }));
     await seedPersistedSessionAndRecord(page);
     await page.goto(`/?date=${PREVIEW_BOOTSTRAP_DATE}`);
     await expectSeededPatientVisible(page);
-    const help = page.getByRole('button', { name: 'Ayuda de Moa', exact: true });
-    await expect(help.getByTestId('moa-mascot')).toHaveCount(0);
-    await help.click();
-    await expect(page.getByRole('region', { name: 'Moa · Ayuda de HHR' })).toBeVisible();
-    await page.getByRole('button', { name: 'Cerrar ayuda de Moa' }).click();
-    await expect(help).toBeFocused();
+    const companion = page.getByRole('region', { name: 'Moa', exact: true });
+    await expect(companion.getByTestId('moa-mascot')).toHaveCount(0);
+    await companion.getByRole('button', { name: 'Ocultar Moa' }).click();
+    await expect(page.locator('[data-moa-toggle]')).toBeFocused();
+    await expectSeededPatientVisible(page);
   });
 
-  test('animates Moa briefly and respects reduced motion', async ({ page }) => {
+  test('plays distinct gestures, pauses motion and respects reduced motion', async ({ page }) => {
     await seedPersistedSessionAndRecord(page);
     await page.goto(`/?date=${PREVIEW_BOOTSTRAP_DATE}`);
     await expectSeededPatientVisible(page);
-    const help = page.getByRole('button', { name: 'Ayuda de Moa', exact: true });
-    const mascot = help.getByTestId('moa-mascot');
-    await expect(mascot).toBeVisible();
-    await expect.poll(() => mascot.evaluate(image => image.getAnimations().length)).toBe(1);
-    const positions = await mascot.evaluate(image => {
-      const animation = image.getAnimations()[0];
-      animation.pause();
-      return [0, 900, 1800, 2600, 3400, 4200, 4800].map(time => {
-        animation.currentTime = time;
-        const transform = getComputedStyle(image).transform;
-        return transform === 'none' ? 0 : new DOMMatrixReadOnly(transform).m41;
-      });
-    });
-    expect(new Set(positions).size).toBe(6);
-    expect(positions[0]).toBe(positions.at(-1));
-    await help.hover();
-    await expect(mascot).toHaveCSS('animation-name', 'moa-greet');
-    await expect(mascot).toHaveCSS('animation-iteration-count', '1');
+    const companion = page.getByRole('region', { name: 'Moa', exact: true });
+    const character = companion.getByRole('button', { name: 'Jugar con Moa' });
+    const sprite = companion.getByTestId('moa-mascot');
+    await expect(character).toHaveAttribute('data-gesture', 'idle', { timeout: 6000 });
+    await companion.getByRole('button', { name: 'Pausar animación de Moa' }).click();
+    await expect(sprite).toHaveCSS('animation-play-state', 'paused');
+    await expect(companion.locator('.moa-motion')).toHaveCSS('animation-play-state', 'paused');
+    await companion.getByRole('button', { name: 'Reanudar animación de Moa' }).click();
+    await expect(sprite).toHaveCSS('animation-play-state', 'running');
+    for (const gesture of ['wave', 'curious', 'stroll', 'happy']) {
+      await character.click();
+      await expect(character).toHaveAttribute('data-gesture', gesture);
+    }
+    await character.click(); // The next tap returns to the greeting.
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await expect(mascot).toHaveCSS('animation-name', 'none');
-    await expect(mascot).toHaveCSS('transform', 'none');
-    await help.click();
-    const panel = page.getByRole('region', { name: 'Moa · Ayuda de HHR' });
-    await expect(panel.getByTestId('moa-mascot')).toHaveCSS('animation-name', 'none');
-    await expect(panel).toBeVisible();
-    await test.info().attach('moa-neutral-rendered', {
-      body: await panel.locator('.hhr-moa-window').screenshot(),
-      contentType: 'image/png',
-    });
+    await expect(sprite).toHaveCSS('animation-name', 'none');
+    await expect(companion.locator('.moa-motion')).toHaveCSS('animation-name', 'none');
+    const firstFace = await sprite.evaluate(image => getComputedStyle(image).transform);
+    await character.click();
+    await expect(character).toHaveAttribute('data-gesture', 'curious');
+    await expect
+      .poll(() => sprite.evaluate(image => getComputedStyle(image).transform))
+      .not.toBe(firstFace);
+    await character.focus();
+    await page.keyboard.press('Escape');
+    await expect(companion).toBeHidden();
+    await expect(page.locator('[data-moa-toggle]')).toBeFocused();
   });
 
-  test('keeps Moa scrollable on a short viewport and excludes it from print', async ({ page }) => {
+  test('keeps Moa in the document on a short viewport and excludes it from print', async ({
+    page,
+  }) => {
     await page.setViewportSize({ width: 375, height: 340 });
     await seedPersistedSessionAndRecord(page);
     await page.goto(`/?date=${PREVIEW_BOOTSTRAP_DATE}`);
     await expectSeededPatientVisible(page);
-    const help = page.getByRole('button', { name: 'Ayuda de Moa', exact: true });
-    await help.click();
-    const panel = page.getByRole('region', { name: 'Moa · Ayuda de HHR' });
-    await expect(panel).toBeInViewport({ ratio: 1 });
-    const closeButton = panel.getByRole('button', { name: 'Cerrar ayuda de Moa' });
-    const initialCloseBounds = await closeButton.boundingBox();
-    await panel.evaluate(element => {
-      element.scrollTop = element.scrollHeight;
-    });
-    await expect.poll(() => panel.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
-    await expect(panel.getByText(/Esta ayuda no consulta pacientes/)).toBeInViewport({ ratio: 1 });
-    // The close control must remain visible before Playwright can scroll it into view.
-    await expect(closeButton).toBeInViewport({ ratio: 1 });
-    const scrolledCloseBounds = await closeButton.boundingBox();
-    expect(scrolledCloseBounds!.y).toBeCloseTo(initialCloseBounds!.y, 0);
-    expect(
-      await closeButton.evaluate(element => {
-        const rect = element.getBoundingClientRect();
-        return element.contains(
-          document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)
-        );
-      })
-    ).toBe(true);
-    await test.info().attach('moa-help-short-scroll', {
-      body: await page.screenshot(),
-      contentType: 'image/png',
-    });
-    await closeButton.click();
-    await expect(panel).toBeHidden();
-    await expect(help).toBeFocused();
-    await help.click();
-    await expect(panel).toBeVisible();
-    await page.emulateMedia({ media: 'print' });
-    await expect(panel).toBeHidden();
-    await page.emulateMedia({ media: 'screen' });
-    await help.focus();
+    const companion = page.getByRole('region', { name: 'Moa', exact: true });
+    await companion.scrollIntoViewIfNeeded();
+    await expect(companion).toBeInViewport({ ratio: 1 });
+    await expect(page.getByRole('region', { name: 'Moa · Ayuda de HHR' })).toHaveCount(0);
+    await companion.getByRole('button', { name: 'Jugar con Moa' }).focus();
     await page.keyboard.press('Escape');
-    await expect(panel).toBeHidden();
-    await expect(help).toBeFocused();
+    await expect(companion).toBeHidden();
+    await expect(page.locator('[data-moa-toggle]')).toBeFocused();
+    await page.locator('[data-moa-toggle]').click();
+    await expect(companion).toBeVisible();
+    await page.emulateMedia({ media: 'print' });
+    await expect(companion).toBeHidden();
   });
 
   test('loads persisted census state without falling into empty state after initial bootstrap', async ({
@@ -820,37 +817,31 @@ test.describe('Production Preview Bootstrap', () => {
       runtimeCollector.detach();
     });
   }
-  test('keeps the census usable after a real failed help chunk and recovers by confirmed reload', async ({
+  test('keeps the census usable after an unavailable companion chunk and recovers by confirmed reload', async ({
     page,
   }) => {
-    const helpChunk = /\/assets\/MoaHelpPanel-[^/]+\.js$/;
-    await page.route(helpChunk, route => route.abort());
+    const companionChunk = /\/assets\/MoaCompanion-[^/]+\.js$/;
+    await page.route(companionChunk, route => route.abort());
     await seedPersistedSessionAndRecord(page);
     await page.goto(`/?date=${PREVIEW_BOOTSTRAP_DATE}`);
     await expectSeededPatientVisible(page);
-    const help = page.getByRole('button', { name: 'Ayuda de Moa', exact: true });
-    await help.click();
-    await expect(
-      page.getByRole('region', { name: 'Ayuda de Moa no disponible' }).getByRole('alert')
-    ).toHaveText('No se pudo abrir la ayuda.');
-    await expectSeededPatientVisible(page);
+    await expect(page.locator('#census-moa').getByRole('alert')).toHaveText(
+      'No se pudo mostrar Moa.'
+    );
     page.once('dialog', dialog => dialog.dismiss());
     await page.getByRole('button', { name: 'Recargar aplicación', exact: true }).click();
     await expectSeededPatientVisible(page);
-    await page.getByRole('button', { name: 'Cerrar ayuda de Moa' }).click();
-    await expect(help).toBeFocused();
-    await help.click();
-    await expect(
-      page.getByRole('region', { name: 'Ayuda de Moa no disponible' }).getByRole('alert')
-    ).toHaveText('No se pudo abrir la ayuda.');
-    await page.unroute(helpChunk);
+    await page.getByRole('button', { name: 'Ocultar Moa', exact: true }).last().click();
+    await expect(page.locator('[data-moa-toggle]')).toBeFocused();
+    await page.locator('[data-moa-toggle]').click();
+    await expect(page.locator('#census-moa').getByRole('alert')).toBeVisible();
+    await page.unroute(companionChunk);
     page.once('dialog', dialog => dialog.accept());
     await Promise.all([
       page.waitForEvent('domcontentloaded'),
       page.getByRole('button', { name: 'Recargar aplicación', exact: true }).click(),
     ]);
     await expectSeededPatientVisible(page);
-    await page.getByRole('button', { name: 'Ayuda de Moa', exact: true }).click();
-    await expect(page.getByRole('region', { name: 'Moa · Ayuda de HHR' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Moa', exact: true })).toBeVisible();
   });
 });

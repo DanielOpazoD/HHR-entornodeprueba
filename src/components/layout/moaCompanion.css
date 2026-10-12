@@ -1,0 +1,199 @@
+.moa-companion {
+  position: relative;
+  flex: 0 0 144px;
+  width: 144px;
+  height: 84px;
+  overflow: hidden;
+}
+.moa-controls {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
+  display: flex;
+}
+.moa-controls button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  color: #64748b;
+}
+.moa-controls button:hover {
+  background: #e2e8f0;
+}
+.moa-controls button:focus-visible,
+.moa-character:focus-visible {
+  outline: 2px solid #0f766e;
+  outline-offset: -2px;
+}
+.moa-character {
+  position: absolute;
+  inset: 0;
+  border-radius: 10px;
+}
+.moa-motion {
+  position: absolute;
+  bottom: 0;
+  left: 36px;
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 76px;
+  translate: 0 0;
+  rotate: 0deg;
+  animation: var(--moa-move, moa-arrive) var(--moa-time, 3s) ease-in-out var(--moa-repeat, 1);
+}
+.hhr-moa {
+  display: flex;
+  justify-content: center;
+}
+.hhr-moa-window {
+  flex: none;
+  height: 100%;
+  aspect-ratio: 136 / 152;
+  overflow: hidden;
+}
+.moa-frames {
+  height: 100%;
+  width: 600%;
+  max-width: none;
+  image-rendering: pixelated;
+  transform: translateX(0);
+  animation: var(--moa-face, moa-wave) var(--moa-time, 3s) steps(1, end) var(--moa-repeat, 1);
+}
+[data-gesture='idle'] {
+  --moa-move: moa-breathe;
+  --moa-face: moa-blink;
+  --moa-time: 12s;
+  --moa-repeat: infinite;
+}
+[data-gesture='idle'] .moa-motion {
+  animation-duration: 6s;
+}
+[data-gesture='wave'],
+[data-gesture='happy'] {
+  --moa-move: moa-bounce;
+  --moa-time: 2.8s;
+}
+[data-gesture='happy'] {
+  --moa-face: moa-smile;
+}
+[data-gesture='curious'] {
+  --moa-move: moa-peek;
+  --moa-face: moa-think;
+  --moa-time: 3.2s;
+}
+[data-gesture='stroll'] {
+  --moa-move: moa-walk;
+  --moa-face: moa-think;
+  --moa-time: 4s;
+}
+[data-paused='true'] .moa-motion,
+[data-paused='true'] .moa-frames {
+  animation-play-state: paused;
+}
+@keyframes moa-arrive {
+  0% {
+    translate: -24px 0;
+    opacity: 0;
+  }
+  35% {
+    translate: 0 -3px;
+    opacity: 1;
+  }
+}
+@keyframes moa-breathe {
+  50% {
+    translate: 0 -1px;
+  }
+}
+@keyframes moa-bounce {
+  25%,
+  65% {
+    translate: 0 -5px;
+    rotate: -3deg;
+  }
+  45%,
+  85% {
+    translate: 0 0;
+    rotate: 3deg;
+  }
+}
+@keyframes moa-peek {
+  35%,
+  65% {
+    translate: 12px -2px;
+    rotate: 5deg;
+  }
+}
+@keyframes moa-walk {
+  20% {
+    translate: -26px -2px;
+    rotate: -4deg;
+  }
+  40% {
+    translate: -12px 0;
+    rotate: 3deg;
+  }
+  65% {
+    translate: 26px -3px;
+    rotate: 4deg;
+  }
+  85% {
+    translate: 12px 0;
+    rotate: -3deg;
+  }
+}
+@keyframes moa-wave {
+  20%,
+  60% {
+    transform: translateX(-50%);
+  }
+  40%,
+  80% {
+    transform: translateX(-83.333333%);
+  }
+}
+@keyframes moa-smile {
+  15%,
+  80% {
+    transform: translateX(-83.333333%);
+  }
+}
+@keyframes moa-think {
+  15%,
+  75% {
+    transform: translateX(-33.333333%);
+  }
+  35%,
+  60% {
+    transform: translateX(-66.666667%);
+  }
+}
+@keyframes moa-blink {
+  45%,
+  48% {
+    transform: translateX(-16.666667%);
+  }
+  0%,
+  49% {
+    transform: translateX(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .moa-motion,
+  .moa-frames {
+    animation: none !important;
+  }
+  [data-gesture='wave'] .moa-frames {
+    transform: translateX(-50%);
+  }
+  [data-gesture='curious'] .moa-frames {
+    transform: translateX(-66.666667%);
+  }
+  [data-gesture='happy'] .moa-frames {
+    transform: translateX(-83.333333%);
+  }
+}

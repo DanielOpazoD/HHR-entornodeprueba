@@ -1,4 +1,5 @@
 import type { PatientData } from '@/features/census/components/patient-row/patientRowContracts';
+import { formatCensusPatientName } from '@/utils/patientNameDisplayUtils';
 
 export interface ResolveNameInputStateParams {
   data: PatientData;
@@ -64,7 +65,7 @@ export const resolveNameInputState = ({
   const canEditInlineName = !readOnly && !isEmpty && isProvisionalClinicalCrib;
 
   return {
-    fullName: resolveFullName(data, isProvisionalClinicalCrib),
+    fullName: formatCensusPatientName(resolveFullName(data, isProvisionalClinicalCrib)),
     canEditInlineName,
   };
 };
