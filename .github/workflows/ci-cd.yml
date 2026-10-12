@@ -562,7 +562,7 @@ jobs:
           java-version: '21'
 
       - name: Install Playwright browser for critical E2E gate
-        run: npx playwright install --with-deps chromium
+        uses: ./.github/actions/setup-ci-chromium
 
       - name: Fetch pinned previous extension release
         run: git fetch --depth=1 origin eb77f41ae151251f7158fc28721cefe15145926c
@@ -655,7 +655,7 @@ jobs:
         run: npm run check:runtime-asset-margin
 
       - name: Install Playwright browsers for preview bootstrap smoke
-        run: npx playwright install --with-deps chromium
+        uses: ./.github/actions/setup-ci-chromium
 
       - name: Validate census and clinical library preview
         run: npm run ci:preview-smoke:built
@@ -784,7 +784,7 @@ jobs:
       - name: Setup CI dependencies
         uses: ./.github/actions/setup-ci-dependencies
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        uses: ./.github/actions/setup-ci-chromium
       - name: Validate measurement report contracts
         run: npm run test:census-performance-report
       - name: Measure populated census navigations per scenario
