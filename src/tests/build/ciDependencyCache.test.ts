@@ -9,6 +9,7 @@ const actionPath = '.github/actions/setup-ci-dependencies/action.yml';
 const action = parse(fs.readFileSync(actionPath, 'utf8'));
 
 type Step = {
+  name?: string;
   id?: string;
   uses?: string;
   run?: string;
@@ -157,4 +158,24 @@ it('preserves docs-only conditions and parallel cold-miss fallbacks without a pr
     path: './docs/api',
     'retention-days': 7,
   });
+});
+
+it('restores npm downloads only when an exact installed dependency restore cannot be used', () => {
+  const activate = steps.find(step => step.id === 'node')!;
+  const restore = steps.find(step => step.id === 'dependencies')!;
+  const downloads = steps.find(
+    step => step.name === 'Restore npm downloads for a clean installation'
+  )!;
+  const install = steps.find(step => step.run === 'npm ci')!;
+  expect(activate.with).not.toHaveProperty('cache');
+  expect(activate['continue-on-error']).not.toBe(true);
+  expect(downloads.if).toBe(install.if);
+  expect(downloads.with).toEqual({
+    'node-version': '${{ steps.node.outputs.node-version }}',
+    cache: 'npm',
+  });
+  expect(downloads['continue-on-error']).toBe(true);
+  expect(steps.indexOf(downloads)).toBeGreaterThan(steps.indexOf(restore));
+  expect(steps.indexOf(downloads)).toBeLessThan(steps.indexOf(install));
+  expect(install['continue-on-error']).not.toBe(true);
 });

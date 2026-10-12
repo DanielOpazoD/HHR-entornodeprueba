@@ -12,7 +12,6 @@ runs:
       uses: actions/setup-node@v7
       with:
         node-version: '22'
-        cache: npm
 
     - name: Identify runner image
       id: image
@@ -27,6 +26,16 @@ runs:
         path: node_modules
         # No prefix fallback: native modules and install scripts must match exactly.
         key: installed-v1-${{ steps.image.outputs.version }}-${{ runner.os }}-${{ runner.arch }}-${{ steps.node.outputs.node-version }}-${{ hashFiles('package.json', 'package-lock.json', '.npmrc', '.github/actions/setup-ci-dependencies/action.yml') }}
+
+    # Downloaded packages are unnecessary when the exact installed tree was restored.
+    # Keep Node activation mandatory; an optional download-cache outage must not skip npm ci.
+    - name: Restore npm downloads for a clean installation
+      if: steps.dependencies.outputs.cache-hit != 'true' || steps.dependencies.outcome != 'success'
+      uses: actions/setup-node@v7
+      continue-on-error: true
+      with:
+        node-version: ${{ steps.node.outputs.node-version }}
+        cache: npm
 
     - name: Install dependencies on cache miss or failure
       if: steps.dependencies.outputs.cache-hit != 'true' || steps.dependencies.outcome != 'success'
