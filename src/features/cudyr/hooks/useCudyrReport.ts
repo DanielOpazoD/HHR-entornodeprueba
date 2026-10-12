@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
 import { loadCudyrReport } from '@/services/cudyr/cudyrReportLoader';
 import { cudyrReportCache } from '@/services/cudyr/cudyrReportCache';
@@ -11,19 +12,43 @@ const sessionScope = () => {
   const generation = getSessionGeneration();
   return owner && generation ? `${owner}:${generation}` : '';
 };
+const dailyReadIsFresh = (
+  report:
+    | (CudyrReportDataset & { readStartedAt?: string; indicatorSyncAt?: string })
+    | null
+    | undefined,
+  day: string,
+  firstSyncAt: string
+) => {
+  const startedAt = Date.parse(
+    report?.readStartedAt || report?.loadedAt || report?.generatedAt || ''
+  );
+  return Boolean(
+    day &&
+    Number.isFinite(startedAt) &&
+    getClinicalCalendarDateISO(new Date(startedAt)) === day &&
+    (!firstSyncAt ||
+      report?.indicatorSyncAt === firstSyncAt ||
+      Date.parse(report?.readStartedAt || '') > Date.parse(firstSyncAt))
+  );
+};
+
 export const useCudyrReport = (
   initialDate: string,
   loader = loadCudyrReport,
   revision?: { date: string; version: string },
-  refreshWindow = false
+  refreshWindow = false,
+  dailyRead?: { day: string; firstSyncAt: string }
 ) => {
   const scope = sessionScope();
+  const dailyDay = dailyRead?.day || '';
+  const firstSyncAt = dailyRead?.firstSyncAt || '';
   const cache = () => cudyrReportCache(loader, scope, Boolean(scope) && loader === loadCudyrReport);
   const [data, setData] = useState<CudyrReportDataset | null>(() =>
     scope ? cache().get(initialDate.slice(0, 7) + '-01', initialDate) || null : null
   );
   const dataScope = useRef(scope);
-  const [busy, setBusy] = useState(true);
+  const [busy, setBusy] = useState(() => !dailyReadIsFresh(data, dailyDay, firstSyncAt));
   const [error, setError] = useState('');
   const active = useRef<AbortController | null>(null);
   const visibleData = useRef(data);
@@ -44,12 +69,16 @@ export const useCudyrReport = (
       const visible = visibleData.current;
       const lastGood = cached || (visible?.from === from && visible.to === to ? visible : null);
       setData(lastGood);
+      const loadedAt = Date.parse(cached?.loadedAt || cached?.generatedAt || '');
+      // The compact card keeps its daily snapshot; interactive verification remains unchanged.
       const mustVerify =
-        !mountedRead.current ||
         !reuse ||
         !cached ||
-        cached.cacheVerificationRequired ||
-        Date.now() - Date.parse(cached.loadedAt || cached.generatedAt) >= 120_000;
+        (dailyDay
+          ? !dailyReadIsFresh(cached, dailyDay, firstSyncAt)
+          : !mountedRead.current ||
+            cached.cacheVerificationRequired ||
+            Date.now() - loadedAt >= 120_000);
       mountedRead.current = true;
       if (!mustVerify) {
         setBusy(false);
@@ -57,8 +86,16 @@ export const useCudyrReport = (
       }
       setBusy(true);
       try {
+        const readStartedAt = new Date().toISOString();
         const loaded = await loader(from, to, request.signal);
-        const result = { ...loaded, loadedAt: new Date().toISOString() };
+        const result = {
+          ...loaded,
+          readStartedAt,
+          // The completed sync was already observed before this request began.
+          // This proves ordering even when the clock serializes both times equally.
+          indicatorSyncAt: dailyDay ? firstSyncAt : undefined,
+          loadedAt: new Date().toISOString(),
+        };
         if (!request.signal.aborted && active.current === request && sessionScope() === scope) {
           if (scope) {
             if (result.issues.length || result.coverage.some(day => day.state === 'error'))
@@ -85,7 +122,7 @@ export const useCudyrReport = (
         if (!request.signal.aborted && active.current === request) setBusy(false);
       }
     },
-    [loader, scope]
+    [loader, scope, dailyDay, firstSyncAt]
   );
   useEffect(() => {
     revisions.current.clear();

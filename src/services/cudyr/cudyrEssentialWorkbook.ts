@@ -6,7 +6,6 @@ import { XLSX_MIME_TYPE, validateExcelExport } from '@/services/exporters/excelV
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
 import { cudyrCensusAccepted } from './cudyrCensusApproval';
 import { cudyrArchiveCoverage } from './cudyrArchiveCoverage';
-import { cudyrMomentLabel } from './cudyrReportPresentation';
 import { cudyrReportTotals } from './cudyrReportModel';
 import { buildCudyrWorkbook } from './cudyrWorkbookBuilder';
 import { cudyrWorkbookSummary } from './cudyrWorkbookSummary';
@@ -108,7 +107,7 @@ export const buildCudyrEssentialWorkbook = async (data: CudyrReportDataset) => {
     summary,
     2,
     unresolved.length
-      ? `Cálculo con información disponible · ${unresolved.length} días por verificar. Ver cobertura al pie.`
+      ? `Cálculo con información disponible · ${unresolved.length} días por verificar.`
       : 'Categorías A1–D3 · solo pacientes elegibles con CUDYR registrado'
   );
   summary.getCell('A19').value = 'Cumplimiento acumulado';
@@ -122,25 +121,11 @@ export const buildCudyrEssentialWorkbook = async (data: CudyrReportDataset) => {
       : '',
   };
   const notes = [
-    `Generado: ${cudyrMomentLabel(data.generatedAt)} · horario de Rapa Nui. Fuente: datos guardados en HHR desde Eloísa.`,
     'Cálculo: CUDYR registrados de elegibles / pacientes-día elegibles. Se suman los días; no se promedian sus porcentajes.',
     'Elegibilidad: más de 8 horas desde el ingreso hospitalario al corte virtual de las 01:00 del día siguiente al censo.',
     'No elegibles: RN sano en cuna; Urgencias/UEA; CMA en pabellón u hospitalización; exclusión manual justificada.',
-    'RN enfermo en cama hospitalaria: se evalúa su clasificación propia y los demás criterios de elegibilidad.',
-    'El CUDYR de la madrugada del día siguiente corresponde al turno nocturno del censo. La ventana cierra a las 11:59 del día siguiente; antes no entra al cumplimiento.',
-    'Cada hoja diaria incluye el detalle del censo. Excluidos y casos por revisar quedan fuera del cálculo. Egresos resueltos: consultar el explorador de HHR.',
-    'No registrado: consulta completa sin resultado. Verificación pendiente: consulta sin completar. Sin elegibles, el porcentaje queda vacío.',
-    'El Excel mensual de categorización de Gestión de Camas de Eloísa es válido aunque no informe autor, hora o puntajes. Los datos ausentes no equivalen a cero.',
   ];
   notes.forEach((value, index) => note(summary, 24 + index, value, 34));
-  note(
-    summary,
-    34,
-    'Cobertura del período · los días sin censo o por verificar no se consideran resueltos'
-  );
-  states.forEach((item, index) =>
-    note(summary, 35 + index, `${formatDateDMY(item.date)} · ${item.state}`, 25)
-  );
   summary.pageSetup = {
     paperSize: 9,
     orientation: 'portrait',

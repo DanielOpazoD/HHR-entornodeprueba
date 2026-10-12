@@ -3,7 +3,11 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { CudyrMonthlyIndicator } from '@/features/cudyr/components/CudyrMonthlyIndicator';
 import { buildCudyrReport } from '@/services/cudyr/cudyrReportModel';
 import { confirmedReportInput } from '../../services/cudyr/reportFixtures';
+import type { RayenSyncMeta } from '@/types/domain/rayenSync';
 import { loadCudyrReport } from '@/services/cudyr/cudyrReportLoader';
+const context = vi.hoisted(() => ({
+  record: null as { date: string; lastUpdated?: string; rayenSync?: RayenSyncMeta } | null,
+}));
 const session = vi.hoisted(() => ({ owner: 'owner-a', generation: 'a' }));
 vi.mock('@/services/storage/sessionScopedStorageService', () => ({
   getStoredSessionOwnerKey: () => session.owner,
@@ -12,7 +16,7 @@ vi.mock('@/services/storage/sessionStorageTransition', () => ({
   getSessionGeneration: () => session.generation,
 }));
 vi.mock('@/context/DailyRecordContext', () => ({
-  useDailyRecordData: () => ({ record: null, bootstrapPhase: 'confirmed_empty' }),
+  useDailyRecordData: () => ({ record: context.record, bootstrapPhase: 'confirmed_empty' }),
 }));
 vi.mock('@/services/cudyr/cudyrReportLoader', () => ({ loadCudyrReport: vi.fn() }));
 const dataset = (from: string, to: string, count: number, categorized: number) => {
@@ -34,10 +38,20 @@ const dataset = (from: string, to: string, count: number, categorized: number) =
     coverage: [{ date, state: 'disponible' as const, lastSyncedAt: '', runId: '' }],
   };
 };
+const synced = (completedAt: string) => ({
+  date: '2026-10-10',
+  rayenSync: {
+    at: completedAt,
+    by: 'Operador sintético',
+    status: 'complete' as const,
+    coverage: { total: 1, completed: 1, errors: 0, sourceErrors: 0, completedAt },
+  },
+});
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-10-10T20:00:00Z'));
   session.generation += 'a';
+  context.record = null;
   sessionStorage.clear();
   vi.mocked(loadCudyrReport)
     .mockReset()
@@ -78,10 +92,12 @@ describe('Interactive census CUDYR card', () => {
     expect(screen.getByText('50/100 elegibles')).toBeVisible();
     expect(loadCudyrReport).toHaveBeenCalledTimes(3);
   });
-  it('keeps a cached read visibly local with compact footer wording', async () => {
+  it('keeps the last good snapshot visibly local if the first completed sync refresh fails', async () => {
     const view = render(<CudyrMonthlyIndicator date="2026-10-10" />);
     await screen.findByText('50/100 elegibles');
     view.unmount();
+    vi.setSystemTime(new Date('2026-10-10T21:01:00Z'));
+    context.record = synced('2026-10-10T21:00:00Z');
     vi.mocked(loadCudyrReport).mockRejectedValue(new Error('Lectura fallida'));
     render(<CudyrMonthlyIndicator date="2026-10-10" />);
     await waitFor(() =>
@@ -90,6 +106,68 @@ describe('Interactive census CUDYR card', () => {
     expect(screen.getByText('50/100 elegibles')).toBeVisible();
     expect(screen.getByTestId('cudyr-indicator-footer')).not.toHaveTextContent('Copia local');
     expect(screen.queryByText(/Provisional|desde ago\./i)).not.toBeInTheDocument();
+  });
+
+  it('reuses the daily snapshot across census edits, focus changes and remounts', async () => {
+    context.record = { date: '2026-10-10', lastUpdated: 'before' };
+    const view = render(<CudyrMonthlyIndicator date="2026-10-10" />);
+    await waitFor(() => expect(screen.getByText(/Acum\. 2026/)).toHaveTextContent('56%'));
+    expect(loadCudyrReport).toHaveBeenCalledTimes(3);
+    context.record = { ...context.record, lastUpdated: 'after-edit' };
+    vi.setSystemTime(new Date('2026-10-11T04:30:00Z')); // Still October 10 in Rapa Nui.
+    view.rerender(<CudyrMonthlyIndicator date="2026-10-09" />);
+    fireEvent.focus(window);
+    expect(screen.getByText('50/100 elegibles')).toBeVisible();
+    view.unmount();
+    render(<CudyrMonthlyIndicator date="2026-10-10" />);
+    await screen.findByText('50/100 elegibles');
+    expect(loadCudyrReport).toHaveBeenCalledTimes(3);
+    expect(screen.getByTestId('cudyr-indicator-footer')).not.toHaveTextContent('Leyendo');
+  });
+
+  it('updates on the first finished sync, ignores later ones and starts a new Rapa Nui day', async () => {
+    context.record = { date: '2026-10-10', lastUpdated: 'before' };
+    const view = render(<CudyrMonthlyIndicator date="2026-10-10" />);
+    await waitFor(() => expect(screen.getByText(/Acum\. 2026/)).toHaveTextContent('56%'));
+    vi.mocked(loadCudyrReport).mockImplementation(async (from, to) => dataset(from, to, 100, 60));
+    vi.setSystemTime(new Date('2026-10-10T20:06:00Z'));
+    context.record = {
+      date: '2026-10-10',
+      rayenSync: { at: '2026-10-10T20:05:00Z', by: 'Sintético', status: 'applied' },
+    };
+    view.rerender(<CudyrMonthlyIndicator date="2026-10-10" />);
+    expect(loadCudyrReport).toHaveBeenCalledTimes(3); // Clinical save not finished yet.
+    context.record = synced('2026-10-10T20:05:00Z');
+    view.rerender(<CudyrMonthlyIndicator date="2026-10-10" />);
+    await screen.findByText('60/100 elegibles');
+    expect(loadCudyrReport).toHaveBeenCalledTimes(4);
+    vi.setSystemTime(new Date('2026-10-10T22:01:00Z'));
+    context.record = synced('2026-10-10T22:00:00Z');
+    view.rerender(<CudyrMonthlyIndicator date="2026-10-10" />);
+    view.unmount();
+    const reopened = render(<CudyrMonthlyIndicator date="2026-10-10" />);
+    await screen.findByText('60/100 elegibles');
+    expect(loadCudyrReport).toHaveBeenCalledTimes(4);
+    vi.setSystemTime(new Date('2026-10-11T05:01:00Z')); // Next clinical day.
+    fireEvent.focus(window);
+    await waitFor(() => expect(loadCudyrReport).toHaveBeenCalledTimes(7));
+    reopened.unmount();
+  });
+
+  it('updates the previous month when the first-day sync archives its final night', async () => {
+    vi.setSystemTime(new Date('2026-10-01T20:00:00Z'));
+    context.record = { date: '2026-10-01' };
+    const view = render(<CudyrMonthlyIndicator date="2026-10-01" />);
+    await waitFor(() => expect(screen.getByText(/Acum\. 2026/)).toHaveTextContent('85%'));
+    expect(loadCudyrReport).toHaveBeenCalledTimes(2);
+    vi.mocked(loadCudyrReport).mockImplementation(async (from, to) =>
+      dataset(from, to, 10, from.startsWith('2026-09') ? 10 : 8)
+    );
+    vi.setSystemTime(new Date('2026-10-01T20:06:00Z'));
+    context.record = { ...synced('2026-10-01T20:05:00Z'), date: '2026-10-01' };
+    view.rerender(<CudyrMonthlyIndicator date="2026-10-01" />);
+    await waitFor(() => expect(screen.getByText(/Acum\. 2026/)).toHaveTextContent('90%'));
+    expect(loadCudyrReport).toHaveBeenCalledTimes(3);
   });
 
   it('does not publish an annual percentage when a monthly read fails', async () => {

@@ -7,6 +7,7 @@ import {
   type CudyrIndicatorRead,
 } from '@/services/cudyr/cudyrIndicatorHistory';
 import { useCudyrIndicatorRead } from '../hooks/useCudyrIndicatorRead';
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 
@@ -20,7 +21,13 @@ const monthLabel = (month: string) =>
 export const CudyrMonthlyIndicator = ({ date }: { date: string }) => {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
-    const refresh = () => setNow(new Date());
+    const refresh = () =>
+      setNow(previous => {
+        const current = new Date();
+        return getClinicalCalendarDateISO(previous) === getClinicalCalendarDateISO(current)
+          ? previous
+          : current;
+      });
     const timer = window.setInterval(refresh, 60_000);
     window.addEventListener('focus', refresh);
     return () => {
