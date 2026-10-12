@@ -32,19 +32,28 @@ const run = (root: string, args: string[], code = 0) =>
     env: { ...process.env, TEST_CHILD_EXIT: String(code) },
   });
 
-it.each([1, 2])('runs coverage shard %s without changing the configured test selectors', index => {
-  const root = sandbox();
-  const result = run(root, [`--shard=${index}/2`]);
-  expect(result.status, result.stderr).toBe(0);
-  const args = JSON.parse(result.stdout);
-  expect(args).toContain('src/tests/synthetic.test.ts');
-  expect(args).toContain(`--shard=${index}/2`);
-  expect(args).toContain(`--outputFile.blob=reports/critical-coverage-blobs/shard-${index}.json`);
-  expect(args).toContain(`--coverage.reportsDirectory=coverage/critical-${index}`);
-  expect(run(root, [`--shard=${index}/2`], 7).status).toBe(7);
-});
+it.each([1, 2, 3, 4])(
+  'runs coverage shard %s without changing the configured test selectors',
+  index => {
+    const root = sandbox();
+    const result = run(root, [`--shard=${index}/4`]);
+    expect(result.status, result.stderr).toBe(0);
+    const args = JSON.parse(result.stdout);
+    expect(args).toContain('src/tests/synthetic.test.ts');
+    expect(args).toContain(`--shard=${index}/4`);
+    expect(args).toContain(`--outputFile.blob=reports/critical-coverage-blobs/shard-${index}.json`);
+    expect(args).toContain(`--coverage.reportsDirectory=coverage/critical-${index}`);
+    expect(run(root, [`--shard=${index}/4`], 7).status).toBe(7);
+  }
+);
 it.each(
-  [[], ['shard-1.json'], ['shard-1.json', 'shard-2.json', 'stale.json']].map(files => ({ files }))
+  [
+    [],
+    ['shard-1.json'],
+    ['shard-1.json', 'shard-2.json'],
+    ['shard-1.json', 'shard-2.json', 'shard-3.json'],
+    ['shard-1.json', 'shard-2.json', 'shard-3.json', 'shard-4.json', 'stale.json'],
+  ].map(files => ({ files }))
 )('rejects an incomplete or contaminated merge: %j', ({ files }) => {
   const root = sandbox();
   fs.mkdirSync(path.join(root, 'reports/critical-coverage-blobs'), { recursive: true });
@@ -53,10 +62,10 @@ it.each(
   );
   expect(run(root, ['--merge-shards']).status).toBe(1);
 });
-it('merges the exact two reports without running tests again and propagates failures', () => {
+it('merges the exact four reports without running tests again and propagates failures', () => {
   const root = sandbox();
   fs.mkdirSync(path.join(root, 'reports/critical-coverage-blobs'), { recursive: true });
-  for (const file of ['shard-1.json', 'shard-2.json'])
+  for (const file of ['shard-1.json', 'shard-2.json', 'shard-3.json', 'shard-4.json'])
     fs.writeFileSync(path.join(root, 'reports/critical-coverage-blobs', file), '{}');
   const result = run(root, ['--merge-shards']);
   expect(result.status, result.stderr).toBe(0);
@@ -67,15 +76,15 @@ it('merges the exact two reports without running tests again and propagates fail
   ]);
   expect(run(root, ['--merge-shards'], 8).status).toBe(8);
 });
-it.each(['--shard=0/2', '--shard=1/3', '--merge-reports=elsewhere'])(
+it.each(['--shard=0/4', '--shard=5/4', '--shard=1/2', '--shard=1/3', '--merge-reports=elsewhere'])(
   'rejects unsupported arguments: %s',
   arg => {
     expect(run(sandbox(), [arg]).status).toBe(1);
   }
 );
-it('waits for both same-run shards before enforcing the original coverage gate', () => {
+it('waits for all same-run shards before enforcing the original coverage gate', () => {
   const { jobs } = parseWorkflow(fs.readFileSync('.github/workflows/ci-cd.yml', 'utf8'));
-  expect(jobs['critical-coverage-shards'].strategy?.matrix.shard).toEqual([1, 2]);
+  expect(jobs['critical-coverage-shards'].strategy?.matrix.shard).toEqual([1, 2, 3, 4]);
   expect(jobNeeds(jobs['critical-coverage-report'])).toEqual([
     'ci-scope',
     'critical-coverage-shards',
@@ -85,6 +94,19 @@ it('waits for both same-run shards before enforcing the original coverage gate',
       step => step.run === 'node scripts/run-critical-coverage.mjs --merge-shards'
     )
   ).toBe(true);
+  const downloads = jobs['critical-coverage-report'].steps.filter(step =>
+    step.uses?.startsWith('actions/download-artifact@')
+  );
+  expect(downloads.map(step => step.with)).toEqual(
+    [1, 2, 3, 4].map(index => ({
+      name: `critical-coverage-shard-${index}`,
+      path: 'reports/critical-coverage-blobs',
+    }))
+  );
+  for (const download of downloads) {
+    expect(download.with).not.toHaveProperty('run-id');
+    expect(download.with).not.toHaveProperty('github-token');
+  }
   expect(
     jobs['critical-coverage-report'].steps.some(
       step =>
