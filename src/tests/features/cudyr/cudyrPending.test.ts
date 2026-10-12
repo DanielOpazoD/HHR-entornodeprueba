@@ -2,6 +2,19 @@ import { describe, expect, it } from 'vitest';
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
 
 describe('resolveCudyrPendingStatus', () => {
+  it('keeps the current instant and the Rapa Nui seasonal offset on repeated calls', () => {
+    const cases = [
+      ['2026-07-16', '2026-07-17T17:59:00Z', 'application_window'],
+      ['2026-07-16', '2026-07-17T18:00:00Z', 'overdue'],
+      ['2026-10-11', '2026-10-12T16:59:00Z', 'application_window'],
+      ['2026-10-11', '2026-10-12T17:00:00Z', 'overdue'],
+      ['2026-07-16', '2026-07-17T17:59:00Z', 'application_window'],
+    ] as const;
+    for (const [date, instant, phase] of cases) {
+      expect(resolveCudyrPendingStatus(date, new Date(instant)).phase).toBe(phase);
+    }
+  });
+
   it('shows the score as scheduled before the night shift begins', () => {
     expect(
       resolveCudyrPendingStatus('2026-07-16', new Date('2026-07-16T23:00:00.000Z'))
