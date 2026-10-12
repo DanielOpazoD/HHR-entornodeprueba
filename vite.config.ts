@@ -204,6 +204,9 @@ export default defineConfig(({ mode }) => {
           globIgnores: [
             // Optional mascot artwork is cached on use by the existing image route.
             '**/images/moa/**',
+            // Opt-in decorative scenes; no clinical dependency lives in this chunk.
+            '**/assets/MoaCompanion-*.js',
+            '**/assets/MoaCompanion-*.css',
             '**/downloads/**',
             '**/docs/**',
             '**/templates/**',

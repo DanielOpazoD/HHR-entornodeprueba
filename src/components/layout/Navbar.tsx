@@ -143,15 +143,6 @@ export const Navbar: React.FC<NavbarProps> = ({
           setCensusViewMode={setCensusViewMode}
         />
 
-        <img
-          src="/images/navbar/rapa-nui-coast-v3.webp"
-          alt=""
-          aria-hidden="true"
-          width={430}
-          height={52}
-          className="hhr-navbar-landscape"
-        />
-
         {/* Status Indicators & User Menu */}
         <div className="hhr-navbar-utilities flex shrink-0 items-center gap-2 sm:gap-4 py-2 ml-auto">
           {runtimeIndicatorSlot}

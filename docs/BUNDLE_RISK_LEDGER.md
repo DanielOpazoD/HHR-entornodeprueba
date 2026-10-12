@@ -103,17 +103,21 @@ remain unchanged. Validate with schema tests, `pwaPrecachePolicy`, `build`,
 Rollback: restore the two precache entries and the repeated field constructors;
 archive payloads and Firebase records require no migration.
 
-## Moa y cabecera panorámica (2026-10-11)
+## Moa opcional y barra azul (2026-10-11)
 
-Owner: app-shell/navbar. El atlas opcional conserva sus seis poses y 37.318 bytes.
-La costa ampliada mide 430 × 52 px y 6.920 bytes, con URL versionada para F5.
-Se elimina el módulo de ayuda textual y Moa se carga aparte junto al resumen
-cuando está visible. Su código permanece en el precache; solo el atlas sigue
-fuera de la instalación y utiliza la ruta de imágenes existente. No se excluyen
-módulos clínicos, no se amplían límites y no se añaden dependencias ni cachés.
-Los gestos y el parpadeo usan CSS; el área táctil permanece fija. La pausa y
-el movimiento reducido detienen la animación. Una descarga fallida conserva
-el censo y permite ocultar la mascota o recargar con confirmación.
-Comprobar `check:bundle-budget`, `check:chunk-graph`, `check:runtime-asset-margin`
-y las pruebas de visibilidad, gestos, teclado y recarga. Revertir los estilos,
-imágenes y componentes de Moa juntos; no hay migración de datos clínicos.
+Owner: app-shell/navbar. Las secuencias comparten la identidad y el renderer. La barra
+usa un degradado compartido con el preboot; ya no solicita el paisaje.
+El activador es un retrato SVG estático. Moa comienza oculto. Sus dieciocho escenas
+tienen seis fotogramas ilustrados cada una en PNG con transparencia y resolución
+doble; se solicita el saludo común para el reposo y la escena seleccionada, con un máximo de 300 KB por atlas
+y 4 MiB para el conjunto. El módulo decorativo se descarga al activarlo. Su JS, CSS y atlas quedan
+fuera del precache; el censo y el activador siguen disponibles si falla la descarga.
+No se excluyen dependencias clínicas, no se amplían límites y no se añaden librerías
+ni cachés. La primera activación requiere acceso al módulo, incluido el caso offline.
+
+La X y Escape cierran Moa; la pestaña oculta pausa el movimiento y el movimiento
+reducido muestra escenas estáticas. El reposo no tiene animaciones recurrentes.
+Comprobar `pwaPrecachePolicy`, `check:bundle-budget`, `check:chunk-graph`,
+`check:runtime-asset-margin` y las pruebas de gestos, teclado, recarga y fallo de chunk.
+Rollback: revertir componentes, estilos y las dos exclusiones de Moa en Vite y el
+inventario de presupuesto. No hay migración de información clínica.
