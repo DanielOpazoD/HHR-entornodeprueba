@@ -610,7 +610,7 @@ test('prepares a bounded recovery list without querying Eloisa or changing stati
 });
 
 // Replaces the retired batch-entry screen: CUDYR values are now read-only in this view.
-test('reviews a daily exclusion, persists it after reload and omits it from the essential Excel', async ({
+test('reviews a daily exclusion, persists it after reload and retains it outside Excel compliance', async ({
   page,
 }) => {
   test.setTimeout(90000);
@@ -665,10 +665,16 @@ test('reviews a daily exclusion, persists it after reload and omits it from the 
   const file = await (await event).path();
   const book = new Workbook();
   await book.xlsx.readFile(file!);
-  expect(book.worksheets.map(sheet => sheet.name)).toEqual(['Resumen', 'Pacientes elegibles']);
-  const detail = book.getWorksheet('Pacientes elegibles')!;
-  expect(detail.rowCount).toBe(2);
-  expect(detail.getCell('B2').value).toBe('PACIENTE SINTÉTICO NEO1');
+  expect(book.worksheets[0].name).toBe('Resumen CUDYR Mensual');
+  const detail = book.getWorksheet('20-02-2026')!;
+  const patientRows = detail.getRows(25, 4)!;
+  expect(patientRows.map(row => row.getCell(3).value)).toEqual(
+    expect.arrayContaining(['PACIENTE SINTÉTICO NEO1', 'PACIENTE SINTÉTICO R1'])
+  );
+  const excluded = patientRows.find(row => row.getCell(3).value === 'PACIENTE SINTÉTICO R1')!;
+  expect(excluded.getCell(11).value).toBe('No elegible');
+  expect(detail.getCell('B19').value).toBe(1);
+  expect(detail.getCell('B20').value).toBe(0); // The remaining eligible case has no confirmed CUDYR.
   expect(errors).toEqual([]);
 });
 
