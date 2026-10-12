@@ -236,6 +236,7 @@ arquitectónicos. Sharp: GHSA-wq5f-xc86-pv6w. SDK MCP: GHSA-6qxp-vccf-f47h.
 ### Aceptación temporal de braces (2026-10-07)
 
 Excepción autorizada explícitamente por Daniel Opazo, limitada al aviso y árbol
-de desarrollo aprobados, con vencimiento 2026-10-15T00:00:00Z. Se conservan
+de desarrollo aprobados. Daniel retiró explícitamente el vencimiento el 12-10-2026
+para esperar una actualización oficial de braces. Se conservan
 los hallazgos originales y un aviso visible; otros riesgos siguen bloqueando.
 Owner, riesgo residual, rollback y validación: [registro de aceptación](BRACES_TEMPORARY_RISK_ACCEPTANCE.md).

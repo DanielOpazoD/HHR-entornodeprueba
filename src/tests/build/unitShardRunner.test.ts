@@ -14,6 +14,31 @@ afterEach(() => {
 
 describe('unit shard process outcome', () => {
   it.each([
+    'src/tests/rayen-import/neonatalPlacementReview.test.ts',
+    'src/tests/rayen-import/NeonatalPlacementReview.test.tsx',
+  ])('selects only the exact file, including case and extension: %s', file => {
+    const result = spawnSync(
+      process.execPath,
+      [
+        path.resolve('node_modules/vitest/vitest.mjs'),
+        'list',
+        '--config',
+        'vitest.unit-shard.config.ts',
+        '--filesOnly',
+      ],
+      {
+        cwd: process.cwd(),
+        encoding: 'utf8',
+        timeout: 10000,
+        env: { ...process.env, HHR_UNIT_SHARD_FILES: JSON.stringify([file]) },
+      }
+    );
+    expect(result.error).toBeUndefined();
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout.trim().split('\n')).toEqual([file]);
+  });
+
+  it.each([
     ['success', 'process.exit(0)', 0],
     ['failed tests', 'process.exit(7)', 7],
     ['terminated child', "process.kill(process.pid, 'SIGTERM')", 1],

@@ -239,7 +239,7 @@ const gatePassed =
     workspaceResults.every(result => result.id === 'root' || result.status === 'ok'));
 const overallStatus = auditPassed ? 'ok' : gatePassed ? 'accepted_with_exception' : 'failed';
 const exceptionNotice = exception.accepted
-  ? `TEMPORARY RISK ACCEPTANCE: ${exception.advisory}; ${exception.packages.length} high findings remain. Development dependencies only. Expires ${exception.expiresAt}. Authorized by ${exception.authorizedBy}. The vulnerability is NOT fixed.`
+  ? `TEMPORARY RISK ACCEPTANCE: ${exception.advisory}; ${exception.packages.length} high findings remain. Development dependencies only. No calendar expiry; review when an official fix or withdrawal is verified. Authorized by ${exception.authorizedBy}. The vulnerability is NOT fixed.`
   : null;
 const reproducibility = buildAuditReproducibilityMetadata({
   failureCategories: workspaceResults.flatMap(result =>

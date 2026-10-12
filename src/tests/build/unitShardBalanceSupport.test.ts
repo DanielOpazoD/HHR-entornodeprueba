@@ -1,12 +1,21 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 import {
   assignUnitTestFilesToShards,
+  buildUnitShardBalanceReport,
   buildUnitShardRuntimeProfile,
   collectUnitShardBalanceIssues,
   normalizePersistedDurationByFile,
   parseUnitShardRunArguments,
 } from '../../../scripts/unitShardBalanceSupport.mjs';
+
+const roots: string[] = [];
+afterEach(() => {
+  for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
+});
 
 type ShardSummary = {
   index: number;
@@ -15,6 +24,46 @@ type ShardSummary = {
 };
 
 describe('unit shard balance support', () => {
+  it('keeps published calibration stable despite stale snapshots and private measurements', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'hhr-calibrated-shards-'));
+    roots.push(root);
+    fs.mkdirSync(path.join(root, 'scripts/config'), { recursive: true });
+    fs.mkdirSync(path.join(root, 'src/tests'), { recursive: true });
+    fs.mkdirSync(path.join(root, 'reports'));
+    const files = ['a', 'b', 'c', 'd'].map(name => `src/tests/${name}.test.ts`);
+    for (const file of files) fs.writeFileSync(path.join(root, file), '// synthetic');
+    fs.writeFileSync(
+      path.join(root, 'scripts/config/unit-shard-balance.json'),
+      JSON.stringify({
+        shardCount: 4,
+        durationSource: 'hints',
+        perFileOverheadMs: 100,
+        durationHints: [{ globs: ['src/tests/**'], estimatedDurationMs: 20 }],
+      })
+    );
+    const stable = buildUnitShardBalanceReport(root);
+    fs.writeFileSync(
+      path.join(root, 'reports/unit-shard-runtime-profile.json'),
+      JSON.stringify({
+        summary: { perFileOverheadMs: 100 },
+        durationByFile: { [files[0]]: 900_100 },
+      })
+    );
+    fs.writeFileSync(
+      path.join(root, 'reports/unit-shard-vitest-profile.json'),
+      JSON.stringify({
+        testResults: [{ name: path.join(root, files[0]), startTime: 0, endTime: 500_000 }],
+      })
+    );
+    const reused = buildUnitShardBalanceReport(root);
+    expect(reused.shards).toEqual(stable.shards);
+    expect(reused.durationByFile).toEqual(Object.fromEntries(files.map(file => [file, 120])));
+    expect(reused.shards.flatMap(shard => shard.files).sort()).toEqual(files);
+    // Profiling remains an explicit experiment, without changing normal CI inputs.
+    const measured = buildUnitShardBalanceReport(root, { useLocalMeasurements: true });
+    expect(measured.durationByFile).toMatchObject({ [files[0]]: 500_100 });
+    expect(buildUnitShardBalanceReport(root).shards).toEqual(stable.shards);
+  });
   it('balances files by measured duration instead of file count', () => {
     const files = [
       'src/tests/a/heavy-a.test.ts',

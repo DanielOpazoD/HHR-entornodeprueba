@@ -8,7 +8,11 @@ const REPORT_PATH = 'reports/unit-shard-runtime-profile.json';
 
 const TEST_FILE_PATTERN = /\.(test|spec)\.(ts|tsx|js|jsx)$/;
 
-const normalizePath = value => String(value || '').split(path.sep).join('/').replace(/^\.\//, '');
+const normalizePath = value =>
+  String(value || '')
+    .split(path.sep)
+    .join('/')
+    .replace(/^\.\//, '');
 
 const readText = (root, relativePath) => fs.readFileSync(path.join(root, relativePath), 'utf8');
 
@@ -53,7 +57,8 @@ const matchesAnyGlob = (file, globs = []) => {
 
 const isTestFile = file => TEST_FILE_PATTERN.test(file);
 
-const sortFiles = files => [...new Set(files.map(normalizePath))].sort((a, b) => a.localeCompare(b));
+const sortFiles = files =>
+  [...new Set(files.map(normalizePath))].sort((a, b) => a.localeCompare(b));
 
 export const loadUnitShardBalanceConfig = root => readJson(root, CONFIG_PATH);
 
@@ -156,7 +161,12 @@ export const parseUnitShardRunArguments = args => {
   };
 };
 
-export const estimateDurationByFile = ({ root = process.cwd(), files, config, measuredDurations = {} }) => {
+export const estimateDurationByFile = ({
+  root = process.cwd(),
+  files,
+  config,
+  measuredDurations = {},
+}) => {
   const durationByFile = {};
   const perFileOverheadMs = Number(config?.perFileOverheadMs || 0);
   for (const file of sortFiles(files)) {
@@ -187,7 +197,9 @@ const buildAffinityItems = ({ files, config, durationByFile, lockedFiles }) => {
   const items = [];
 
   for (const group of config.affinityGroups || []) {
-    const groupFiles = sortFiles([...remaining].filter(file => matchesAnyGlob(file, group.globs || [])));
+    const groupFiles = sortFiles(
+      [...remaining].filter(file => matchesAnyGlob(file, group.globs || []))
+    );
     if (groupFiles.length === 0) continue;
     for (const file of groupFiles) {
       remaining.delete(file);
@@ -195,7 +207,10 @@ const buildAffinityItems = ({ files, config, durationByFile, lockedFiles }) => {
     items.push({
       id: group.id,
       files: groupFiles,
-      estimatedDurationMs: groupFiles.reduce((sum, file) => sum + Number(durationByFile[file] || 0), 0),
+      estimatedDurationMs: groupFiles.reduce(
+        (sum, file) => sum + Number(durationByFile[file] || 0),
+        0
+      ),
     });
   }
 
@@ -315,7 +330,9 @@ export const collectUnitShardBalanceIssues = ({ allFiles, config, assignments })
     }
   }
 
-  for (const file of normalizedFiles.filter(file => matchesAnyGlob(file, config?.criticalTestGlobs || []))) {
+  for (const file of normalizedFiles.filter(file =>
+    matchesAnyGlob(file, config?.criticalTestGlobs || [])
+  )) {
     if (!assignedSet.has(file)) {
       issues.push(`Critical unit test is not assigned to any shard: ${file}.`);
     }
@@ -325,7 +342,9 @@ export const collectUnitShardBalanceIssues = ({ allFiles, config, assignments })
   for (const [shard, files] of Object.entries(config?.lockedAssignments || {})) {
     for (const file of sortFiles(files || [])) {
       if (lockedSeen.has(file)) {
-        issues.push(`${file} is locked to multiple unit shards (${lockedSeen.get(file)}, ${shard}).`);
+        issues.push(
+          `${file} is locked to multiple unit shards (${lockedSeen.get(file)}, ${shard}).`
+        );
       }
       lockedSeen.set(file, shard);
     }
@@ -416,14 +435,19 @@ export const buildUnitShardRuntimeProfile = ({
   };
 };
 
-export const buildUnitShardBalanceReport = root => {
+export const buildUnitShardBalanceReport = (root, { useLocalMeasurements = false } = {}) => {
   const config = loadUnitShardBalanceConfig(root);
   const files = discoverUnitTestFiles(root, config);
   const persistedProfile = safeReadJson(root, REPORT_PATH);
-  const measuredDurations = {
-    ...normalizePersistedDurationByFile(persistedProfile, config),
-    ...readVitestJsonDurations(root, RAW_VITEST_PROFILE_PATH),
-  };
+  // Published calibration makes every runner use the same inputs. Historical
+  // snapshots and private profiling output must not silently reshuffle CI files.
+  const measuredDurations =
+    config.durationSource === 'hints' && !useLocalMeasurements
+      ? {}
+      : {
+          ...normalizePersistedDurationByFile(persistedProfile, config),
+          ...readVitestJsonDurations(root, RAW_VITEST_PROFILE_PATH),
+        };
   const profile = buildUnitShardRuntimeProfile({
     root,
     files,

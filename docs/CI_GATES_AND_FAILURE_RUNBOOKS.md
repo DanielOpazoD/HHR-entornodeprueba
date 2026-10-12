@@ -1131,3 +1131,28 @@ Validar con `npx vitest run src/tests/functions/cudyrHistoryFunctions.test.ts`
 y `npm run test:emulator:sync:ci`. Conservar los escenarios concurrentes y sus
 asserts; no añadir reintentos de suite ni serializarlos. Rollback: revertir el
 parche y repetir esas pruebas, sin modificar datos, permisos ni umbrales.
+
+## Calibración unitaria publicada (12-10-2026)
+
+El reparto conserva cuatro particiones, afinidades, exclusiones de emulador,
+tolerancia y presupuestos. `scripts/config/unit-shard-balance.json` publica los
+pesos de ejecución obtenidos de los CI aprobados 38276199931 y 38274966947,
+con Node 22 y la base 89d2395e1. Los casos lentos usan medianas redondeadas a
+100 ms; el resto comparte su media observada. El coste fijo de preparación
+sigue separado. Son estimaciones para repartir trabajo, no tiempos garantizados.
+
+`durationSource: hints` evita que un snapshot de julio o un perfil privado cambie
+el reparto del mismo commit. `profile:unit-shard-runtime` conserva el experimento
+local mediante `--measured`; sus resultados deben revisarse antes de publicar
+una nueva calibración. No se añaden jobs ni se cambian umbrales.
+
+El runner utiliza `vitest.unit-shard.config.ts` con `include` exacto. Los filtros
+posicionales de Vitest son coincidencias parciales: el filtro de un archivo
+`.test.ts` podía seleccionar también su hermano `.test.tsx` y ejecutar una suite
+en dos particiones. El listado real debe coincidir con cada partición y su unión
+con toda la selección. El reporte observado calcula la estimación del checkout
+actual, en vez de comparar los tiempos de CI con el antiguo snapshot versionado.
+
+Validar la selección, ejecutar las cuatro particiones completas y comparar
+ejecuciones equivalentes. Las variaciones del runner, los imports y la preparación
+no permiten atribuir el tiempo total únicamente al reparto de casos.

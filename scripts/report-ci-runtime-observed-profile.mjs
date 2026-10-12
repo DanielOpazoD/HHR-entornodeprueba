@@ -8,9 +8,9 @@ import {
   formatCiRuntimeObservedProfileMarkdown,
 } from './ciRuntimeTelemetrySupport.mjs';
 import { getGitReportState } from './gitReportState.mjs';
+import { buildUnitShardBalanceReport } from './unitShardBalanceSupport.mjs';
 
 const DEFAULT_INPUT_PATH = 'reports/ci-runtime-observed-input.json';
-const ESTIMATED_PROFILE_PATH = 'reports/unit-shard-runtime-profile.json';
 const OUTPUT_JSON_PATH = 'reports/ci-runtime-observed-profile.json';
 const OUTPUT_MD_PATH = 'reports/ci-runtime-observed-profile.md';
 
@@ -30,11 +30,18 @@ const readObservedJobsInput = input => {
   if (input === null) return [];
   if (Array.isArray(input)) return input;
   if (typeof input === 'object' && Array.isArray(input.jobs)) return input.jobs;
-  throw new Error('CI runtime observed input must be an array of jobs or an object with a jobs array.');
+  throw new Error(
+    'CI runtime observed input must be an array of jobs or an object with a jobs array.'
+  );
 };
 
 const readObservedInputSource = input => {
-  if (input && typeof input === 'object' && !Array.isArray(input) && typeof input.source === 'object') {
+  if (
+    input &&
+    typeof input === 'object' &&
+    !Array.isArray(input) &&
+    typeof input.source === 'object'
+  ) {
     return input.source;
   }
   return {};
@@ -50,7 +57,7 @@ try {
   const input = readJsonIfExists(inputPath);
   const jobs = readObservedJobsInput(input);
   const inputSource = readObservedInputSource(input);
-  const estimatedProfile = readJsonIfExists(ESTIMATED_PROFILE_PATH);
+  const estimatedProfile = buildUnitShardBalanceReport(root);
   const profile = {
     ...buildCiRuntimeObservedProfile({
       jobs,
@@ -75,10 +82,20 @@ try {
   };
 
   fs.mkdirSync(path.join(root, 'reports'), { recursive: true });
-  fs.writeFileSync(path.join(root, OUTPUT_JSON_PATH), `${JSON.stringify(report, null, 2)}\n`, 'utf8');
-  fs.writeFileSync(path.join(root, OUTPUT_MD_PATH), formatCiRuntimeObservedProfileMarkdown(report), 'utf8');
+  fs.writeFileSync(
+    path.join(root, OUTPUT_JSON_PATH),
+    `${JSON.stringify(report, null, 2)}\n`,
+    'utf8'
+  );
+  fs.writeFileSync(
+    path.join(root, OUTPUT_MD_PATH),
+    formatCiRuntimeObservedProfileMarkdown(report),
+    'utf8'
+  );
 
-  console.log('[ci-runtime-observed-profile] Report generated at reports/ci-runtime-observed-profile.{json,md}');
+  console.log(
+    '[ci-runtime-observed-profile] Report generated at reports/ci-runtime-observed-profile.{json,md}'
+  );
 } catch (error) {
   console.error(`[ci-runtime-observed-profile] ${error.message}`);
   process.exit(1);
