@@ -11,6 +11,11 @@ import { buildCudyrWorkbook } from './cudyrWorkbookBuilder';
 import { cudyrWorkbookSummary } from './cudyrWorkbookSummary';
 import { formatDateDMY } from './cudyrWorkbookSections';
 import { addCudyrEssentialDetail } from './cudyrEssentialDetail';
+import {
+  addCudyrSourceSheets,
+  loadCudyrSourceSheets,
+  type CudyrSourceSheet,
+} from './cudyrSourceWorkbook';
 
 const note = (sheet: Worksheet, row: number, value: string, height = 30) => {
   sheet.mergeCells(`A${row}:D${row}`);
@@ -22,7 +27,10 @@ const note = (sheet: Worksheet, row: number, value: string, height = 30) => {
 };
 
 /** Same report rows as the screen: no reads or new eligibility decisions during download. */
-export const buildCudyrEssentialWorkbook = async (data: CudyrReportDataset) => {
+export const buildCudyrEssentialWorkbook = async (
+  data: CudyrReportDataset,
+  sources?: CudyrSourceSheet[]
+) => {
   if (data.issues.length || data.coverage.some(day => day.state === 'error'))
     throw new Error('No se completó la lectura. Actualice antes de descargar.');
   const [year, month] = data.from.split('-').map(Number);
@@ -35,6 +43,7 @@ export const buildCudyrEssentialWorkbook = async (data: CudyrReportDataset) => {
     year,
     month,
     endDate: data.to,
+    afterSummary: sources ? workbook => addCudyrSourceSheets(workbook, sources) : undefined,
     monthlySummary: {
       year,
       month,
@@ -64,7 +73,7 @@ export const buildCudyrEssentialWorkbook = async (data: CudyrReportDataset) => {
                 verification.find(item => item.date === date)?.state !== 'complete'
               ? 'Censo o CUDYR por verificar'
               : day.reconstructionApproval
-                ? 'Oficial · censo reconstruido aprobado'
+                ? 'Oficial'
                 : 'Verificado con Eloísa';
     const sheet = workbook.getWorksheet(formatDateDMY(date))!;
     sheet.getCell('A1').value = `CUDYR · turno noche ${formatDateDMY(date)}`;
@@ -87,6 +96,7 @@ export const buildCudyrEssentialWorkbook = async (data: CudyrReportDataset) => {
     return { date, state, pending, available: day?.state === 'disponible' };
   });
   workbook.worksheets.forEach(sheet => {
+    if (sheet.name.startsWith('Eloísa ')) return;
     sheet.getCell('B3').value = 'Cama intermedia';
     sheet.getCell('C3').value = 'Cama media';
     sheet.getRow(3).height = 30;
@@ -99,9 +109,7 @@ export const buildCudyrEssentialWorkbook = async (data: CudyrReportDataset) => {
   summary.getCell('A1').value =
     `CUDYR mensual · ${formatDateDMY(data.from)} al ${formatDateDMY(data.to)}`;
   const unresolved = states.filter(
-    item =>
-      !item.pending &&
-      !['Verificado con Eloísa', 'Oficial · censo reconstruido aprobado'].includes(item.state)
+    item => !item.pending && !['Verificado con Eloísa', 'Oficial'].includes(item.state)
   );
   note(
     summary,
@@ -137,7 +145,8 @@ export const buildCudyrEssentialWorkbook = async (data: CudyrReportDataset) => {
   return { workbook, fileName };
 };
 export const downloadCudyrEssential = async (data: CudyrReportDataset) => {
-  const { workbook, fileName } = await buildCudyrEssentialWorkbook(data);
+  const sources = await loadCudyrSourceSheets(data, new AbortController().signal);
+  const { workbook, fileName } = await buildCudyrEssentialWorkbook(data, sources);
   const buffer = await workbook.xlsx.writeBuffer();
   if (!validateExcelExport(buffer, fileName).valid) throw new Error('Excel no válido.');
   const { saveAs } = await import('file-saver');

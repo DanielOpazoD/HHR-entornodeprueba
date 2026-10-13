@@ -17,7 +17,7 @@ const exclusion: CudyrDailyExclusion = {
   updatedBy: { uid: 'user', name: 'Revisor', email: '', role: 'admin' },
 };
 describe('essential CUDYR export and daily exclusions', () => {
-  it('exports historical origin while retaining the original author and statistical validity', async () => {
+  it('retains the original author and statistical validity without an origin column', async () => {
     const data = buildCudyrReport(confirmedReportInput({ records: [reportRecord()] }));
     data.rows[0].monthlyEvidence = {
       reportId: 'report',
@@ -27,10 +27,8 @@ describe('essential CUDYR export and daily exclusions', () => {
     };
     const author = data.rows[0].evaluation!.author;
     const { workbook } = await buildCudyrEssentialWorkbook(data);
-    expect(workbook.getWorksheet('02-10-2026')!.getCell('M25').value).toBe(
-      'Eloísa · Excel de categorización'
-    );
-    expect(workbook.getWorksheet('02-10-2026')!.getCell('I25').value).toContain(author);
+    expect(workbook.getWorksheet('02-10-2026')!.columnCount).toBe(10);
+    expect(workbook.getWorksheet('02-10-2026')!.getCell('G25').value).toContain(author);
     expect(cudyrReportTotals(data.rows).categorized).toBe(1);
   });
   it('limits a manual exclusion to its episode and day, retaining results for review', async () => {
@@ -70,10 +68,10 @@ describe('essential CUDYR export and daily exclusions', () => {
     ]);
     const detail = workbook.getWorksheet('02-10-2026')!;
     expect(detail.rowCount).toBe(26);
-    expect(detail.columnCount).toBe(13);
+    expect(detail.columnCount).toBe(10);
     expect(detail.getCell('C25').value).toBe('Segundo sintético');
-    expect(detail.getCell('K26').value).toBe('No elegible');
-    expect(detail.getCell('J26').value).toBe('Registrado');
+    expect(detail.getCell('I26').value).toBe('No elegible');
+    expect(detail.getCell('H26').value).toBe('Registrado');
     expect(detail.getCell('B19').value).toBe(1);
     expect(detail.getCell('B20').value).toBe(1);
     expect(data.rows).toHaveLength(3);
@@ -92,7 +90,9 @@ describe('essential CUDYR export and daily exclusions', () => {
     const data = buildCudyrReport(confirmedReportInput({ records: [reportRecord()] }));
     data.rows[0].evaluation!.dependencyScore = null;
     const { workbook } = await buildCudyrEssentialWorkbook(data);
-    expect(workbook.getWorksheet('02-10-2026')!.getCell('E25').value).toBeNull();
+    expect(workbook.getWorksheet('02-10-2026')!.getCell('E25').value).toBe(
+      data.rows[0].evaluation!.category
+    );
     await expect(
       buildCudyrEssentialWorkbook({ ...data, issues: ['Exclusions unavailable'] })
     ).rejects.toThrow('lectura');
@@ -121,7 +121,5 @@ it('exports approved reconstructed days as official without requiring the histor
     };
   });
   const { workbook } = await buildCudyrEssentialWorkbook(data);
-  expect(workbook.getWorksheet('02-10-2026')!.getCell('A2').value).toBe(
-    'Oficial · censo reconstruido aprobado'
-  );
+  expect(workbook.getWorksheet('02-10-2026')!.getCell('A2').value).toBe('Oficial');
 });

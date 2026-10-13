@@ -24,7 +24,11 @@ const { prepareCaptureManifest } = require('./cudyrCaptureManifest');
 const { readEpisodeCaptures } = require('./cudyrPlacementContract');
 const { saveDischargeCorrection } = require('./cudyrDischargeStore');
 const { readDischargeCorrections, readDischargeAudit } = require('./cudyrDischargeRead');
-const { saveCudyrSupplement, readCudyrSupplements } = require('./cudyrSupplementStore');
+const {
+  saveCudyrSupplement,
+  readCudyrSupplements,
+  readCudyrSupplementFile,
+} = require('./cudyrSupplementStore');
 const { saveCudyrReview, readCudyrReviews } = require('./cudyrReviewStore');
 
 const createCudyrHistoryFunctions = ({
@@ -296,6 +300,7 @@ const createCudyrHistoryFunctions = ({
       if (data?.kind === 'monthly-reviews') return readCudyrReviews(hospital, data);
       if (data?.kind === 'daily-census-sources') return readCudyrCensusSources(hospital, data);
       if (data?.kind === 'monthly-supplements') return readCudyrSupplements(hospital, data);
+      if (data?.kind === 'monthly-supplement-file') return readCudyrSupplementFile(hospital, data);
       const { from, to, limit, cursor, kind } = parseHistoryQuery(data);
       let query = (kind === 'captures' ? captures : history)
         .where('censusDate', '>=', from)
