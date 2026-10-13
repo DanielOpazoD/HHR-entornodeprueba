@@ -1,4 +1,5 @@
 import { createRequire } from 'node:module';
+import { execFileSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 import { supplementRequest, supplementBytes } from '@/tests/fixtures/cudyrSupplementFixture';
 const require = createRequire(import.meta.url);
@@ -8,6 +9,14 @@ const {
 } = require('../../../functions/lib/cudyrSupplementStore.js');
 const { parseSupplementImport } = require('../../../functions/lib/cudyrSupplementContract.js');
 describe('documentary supplement boundary', () => {
+  it('keeps the committed server parser equal to its shared source before deployment', () => {
+    expect(() =>
+      execFileSync(process.execPath, ['scripts/build-cudyr-source-parser.mjs', '--check'], {
+        cwd: process.cwd(),
+        stdio: 'pipe',
+      })
+    ).not.toThrow();
+  });
   it('revalidates old archived reports against their stored bytes on read', async () => {
     const request = supplementRequest();
     const parsed = parseSupplementImport(request);
