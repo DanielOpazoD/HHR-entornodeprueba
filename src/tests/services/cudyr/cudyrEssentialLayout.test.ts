@@ -64,9 +64,9 @@ describe('monthly CUDYR format and calculation reconciliation', () => {
     expect(summary.getCell('B11').result).toBe(1); // C2, intermedia.
     expect(summary.getCell('C11').result).toBe(1); // C2, media.
     expect(day.getCell('A24').value).toBe('Cama · Eloísa');
-    expect(day.getCell('J30').value).toBe('No aplica');
-    expect(day.getCell('K29').value).toBe('No elegible');
-    expect(day.getCell('G29').value).toBeTruthy(); // Excluded result retained.
+    expect(day.getCell('H30').value).toBe('No aplica');
+    expect(day.getCell('I29').value).toBe('No elegible');
+    expect(day.getCell('E29').value).toBeTruthy(); // Excluded result retained.
     for (const sheet of workbook.worksheets) {
       expect(sheet.getCell('B3').value).toBe('Cama intermedia');
       expect(sheet.getCell('C3').value).toBe('Cama media');
@@ -99,10 +99,12 @@ describe('monthly CUDYR format and calculation reconciliation', () => {
     expect(day.getCell('C25').value).toBe(row.patientName);
     expect(day.getCell('C25').formula).toBeUndefined();
     expect(day.getCell('D25').value).toBe('0012345-K');
-    expect(day.getCell('E25').value).not.toBe(0);
-    expect(day.getCell('F25').value).not.toBe(0);
-    expect(day.getCell('I25').value).toBe('Autor no informado\nNo informado');
-    expect(day.getCell('M25').value).toBe('Eloísa · Excel de categorización');
+    expect(day.getCell('E25').value).toBe(row.evaluation.category);
+    expect(day.getCell('G25').value).toBe('No informado');
+    expect(day.getRow(24).values).not.toEqual(
+      expect.arrayContaining(['P. dependencia', 'P. riesgo', 'Origen CUDYR'])
+    );
+    expect(day.columnCount).toBe(10);
     expect(day.getCell('B20').value).toBe(1);
   });
 

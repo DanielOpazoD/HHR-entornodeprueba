@@ -130,7 +130,7 @@ export const buildCudyrReportWorkbook = async (
         preliminary
           ? 'Revisión pendiente'
           : data.coverage.every(day => day.reconstructionApproval)
-            ? 'Oficial · censo reconstruido aprobado'
+            ? 'Oficial'
             : 'Lectura completa',
       ],
       ['Filas', totals.rows],

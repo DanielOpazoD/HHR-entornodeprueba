@@ -91,6 +91,14 @@ describeEmulator('passive monthly supplement archive', () => {
       report: r.report,
     });
     expect(read.reports[0].file).not.toHaveProperty('base64');
+    const original = await fns.readCudyrHistory.run(
+      { kind: 'monthly-supplement-file', id: results[0].id },
+      context
+    );
+    expect(original.base64).toBe(r.file.base64);
+    await expect(
+      fns.readCudyrHistory.run({ kind: 'monthly-supplement-file', id: results[0].id }, {})
+    ).rejects.toMatchObject({ code: 'unauthenticated' });
     await expect(
       fns.archiveCudyrHistory.run({ ...r, file: { ...r.file, name: 'another.xls' } }, context)
     ).rejects.toMatchObject({ code: 'already-exists' });

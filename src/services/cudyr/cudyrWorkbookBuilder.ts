@@ -122,6 +122,7 @@ interface BuildCudyrWorkbookParams {
   month: number;
   endDate?: string;
   monthlySummary: CudyrMonthlySummary;
+  afterSummary?: (workbook: Workbook) => void;
 }
 
 export const buildCudyrWorkbook = async ({
@@ -129,6 +130,7 @@ export const buildCudyrWorkbook = async ({
   month,
   endDate,
   monthlySummary,
+  afterSummary,
 }: BuildCudyrWorkbookParams): Promise<{ workbook: Workbook; fileName: string }> => {
   const workbook = await createWorkbook();
   workbook.creator = 'Hospital Hanga Roa';
@@ -157,6 +159,7 @@ export const buildCudyrWorkbook = async ({
     dailySheetNames,
     BORDER_THIN
   );
+  afterSummary?.(workbook);
   addDailySheets(workbook, monthlySummary.dailySummaries);
 
   return {

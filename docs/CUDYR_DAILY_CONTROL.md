@@ -35,13 +35,21 @@ El desglose mensual de exclusiones separa personas de pacientes-día y permite a
 casos. El Excel usa el mismo conjunto de datos y las mismas reglas de días cerrados que
 la pantalla. «Excel mensual» conserva el resumen de categorías A1–D3 y una hoja por
 fecha; usa **Cama intermedia** y **Cama media**. Debajo del resumen diario incluye
-paciente, documento, cama, puntajes, categoría, ingreso, autor/fecha del registro,
-estado, elegibilidad, motivo y origen, en blanco y negro y sin rellenos de color. Excluidos y casos por revisar permanecen
+paciente, documento, cama, categoría, ingreso, autor/fecha del registro,
+estado, elegibilidad y motivo, en blanco y negro y sin rellenos de color. Excluidos y casos por revisar permanecen
 visibles fuera del cálculo. Un resultado histórico no inventa autor, hora ni puntajes.
 El porcentaje mensual es la suma de registros de elegibles dividida por la suma de
 pacientes-día elegibles. Sin elegibles se deja vacío; días abiertos y censos faltantes
 se identifican, sin presentarlos como 0% de cumplimiento. El resumen mensual conserva
 solo la fórmula del cálculo y los criterios de elegibilidad. La descarga no consulta Eloísa ni envía correos.
+
+La segunda hoja conserva las celdas del Excel original de Eloísa guardado en Firebase,
+con sus fechas calendario y combinaciones, sin ajustes de elegibilidad ni turno HHR.
+Se leen los bytes verificados solo al descargar. Se incluyen las versiones utilizadas
+y, si aporta el último turno, el informe del mes siguiente; no se duplican archivos idénticos.
+Si no hay archivo guardado, se indica su ausencia, sin fabricar un informe.
+Los días aprobados muestran «Oficial». Sin autor ni fecha de aplicación, el detalle
+indica «No informado» una sola vez; conserva cualquier metadato que sí esté disponible.
 
 El indicador pequeño del censo conserva una lectura diaria por mes, cuenta y sesión.
 Editar el censo, recuperar el foco o volver a mostrar el cuadro no repite la lectura.

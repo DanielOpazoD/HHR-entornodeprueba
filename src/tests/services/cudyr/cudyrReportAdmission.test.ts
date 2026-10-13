@@ -13,7 +13,7 @@ describe('CUDYR admission evidence', () => {
     expect(cudyrReportTotals(data.rows)).toMatchObject({ eligible: 0, categorized: 0, review: 1 });
     const { buildCudyrEssentialWorkbook } = await import('@/services/cudyr/cudyrEssentialWorkbook');
     const { workbook } = await buildCudyrEssentialWorkbook(data);
-    expect(workbook.getWorksheet('02-10-2026')!.getCell('K25').value).toBe('Por revisar');
+    expect(workbook.getWorksheet('02-10-2026')!.getCell('I25').value).toBe('Por revisar');
   });
   it('uses daily demographic admission when historical bed movements are missing', () => {
     const data = buildCudyrReport(

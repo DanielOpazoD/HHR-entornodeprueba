@@ -2,7 +2,10 @@ import { createRequire } from 'node:module';
 import { describe, expect, it } from 'vitest';
 import { supplementRequest, supplementBytes } from '@/tests/fixtures/cudyrSupplementFixture';
 const require = createRequire(import.meta.url);
-const { readCudyrSupplements } = require('../../../functions/lib/cudyrSupplementStore.js');
+const {
+  readCudyrSupplements,
+  readCudyrSupplementFile,
+} = require('../../../functions/lib/cudyrSupplementStore.js');
 const { parseSupplementImport } = require('../../../functions/lib/cudyrSupplementContract.js');
 describe('documentary supplement boundary', () => {
   it('revalidates old archived reports against their stored bytes on read', async () => {
@@ -32,9 +35,30 @@ describe('documentary supplement boundary', () => {
     expect(
       (await readCudyrSupplements(hospital, { month: '2026-10' })).reports[0].bytesVerified
     ).toBe(true);
+    const originalHospital = {
+      collection: (name: string) => ({
+        doc: () => ({
+          get: async () => ({
+            exists: true,
+            data: () =>
+              name === 'cudyrMonthlySupplements' ? report : { base64: request.file.base64 },
+          }),
+        }),
+      }),
+    };
+    expect(await readCudyrSupplementFile(originalHospital, { id: parsed.versionId })).toMatchObject(
+      { sha256: parsed.fileHash, base64: request.file.base64 }
+    );
+    await expect(
+      readCudyrSupplementFile(originalHospital, { id: parsed.versionId, hospitalId: 'other' })
+    ).rejects.toThrow();
+    await expect(readCudyrSupplementFile(originalHospital, { id: '../other' })).rejects.toThrow();
     report.report.patients[0].days[0].category = 'A1';
     report.report.patients[0].days[0].originalValue = 'A1';
     await expect(readCudyrSupplements(hospital, { month: '2026-10' })).rejects.toThrow();
+    await expect(
+      readCudyrSupplementFile(originalHospital, { id: parsed.versionId })
+    ).rejects.toThrow();
   });
   it('preserves extension capture provenance separately from clinical completeness', () => {
     const capture = { source: 'extension_monthly_report', observedAt: '2026-08-01T18:00:00Z' };

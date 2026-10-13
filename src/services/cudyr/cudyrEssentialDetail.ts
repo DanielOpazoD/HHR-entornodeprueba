@@ -5,7 +5,6 @@ import {
   CUDYR_ELIGIBILITY_LABELS,
   CUDYR_MODALITY_LABELS,
   cudyrMomentLabel,
-  cudyrResultOrigin,
 } from './cudyrReportPresentation';
 
 /** Below the unchanged daily grid; strings stay literal, never executable Excel formulas. */
@@ -15,21 +14,18 @@ export const addCudyrEssentialDetail = (sheet: Worksheet, rows: CudyrReportRow[]
     'Tipo de cama',
     'Paciente',
     'RUT o documento',
-    'P. dependencia',
-    'P. riesgo',
     'Categoría',
     'Ingreso hospitalario · Rapa Nui',
     'Registro CUDYR · autor / fecha y hora',
     'Estado CUDYR',
     'Elegibilidad',
     'Criterio / motivo de exclusión',
-    'Origen CUDYR',
   ];
-  const widths = [28, 22, 34, 20, 11, 11, 11, 25, 32, 25, 18, 46, 32];
+  const widths = [28, 22, 34, 20, 11, 25, 32, 25, 18, 46];
   widths.forEach((width, index) => {
     sheet.getColumn(index + 1).width = width;
   });
-  sheet.mergeCells('A23:M23');
+  sheet.mergeCells('A23:J23');
   sheet.getCell('A23').value =
     'Detalle del censo · excluidos y casos por revisar fuera del cumplimiento';
   sheet.getCell('A23').font = { bold: true, size: 11 };
@@ -53,19 +49,21 @@ export const addCudyrEssentialDetail = (sheet: Worksheet, rows: CudyrReportRow[]
           : CUDYR_MODALITY_LABELS[row.modality],
         row.patientName,
         row.rut,
-        row.evaluation?.dependencyScore ?? null,
-        row.evaluation?.riskScore ?? null,
         row.evaluation?.category || null,
         row.hospitalAdmissionAt ? cudyrMomentLabel(row.hospitalAdmissionAt) : 'Por confirmar',
         row.evaluation
-          ? `${row.evaluation.author || 'Autor no informado'}\n${cudyrMomentLabel(row.evaluation.recordedAt || '')}`
+          ? [
+              row.evaluation.author.trim(),
+              row.evaluation.recordedAt && cudyrMomentLabel(row.evaluation.recordedAt),
+            ]
+              .filter(Boolean)
+              .join('\n') || 'No informado'
           : null,
         row.eligibility === 'no_elegible' && !row.evaluation
           ? 'No aplica'
           : cudyrControlStatus(row),
         CUDYR_ELIGIBILITY_LABELS[row.eligibility],
         row.eligibilityReason,
-        cudyrResultOrigin(row).replace('gestion_camas', 'Eloísa · Gestión de Camas') || null,
       ];
       detail.eachCell(cell => {
         cell.font = { size: 11, color: { argb: 'FF000000' } };
@@ -88,7 +86,7 @@ export const addCudyrEssentialDetail = (sheet: Worksheet, rows: CudyrReportRow[]
       detail.height = Math.max(36, lines * 15 + 8);
     });
   sheet.views = [{ state: 'frozen', xSplit: 3, ySplit: 0 }];
-  sheet.autoFilter = { from: 'A24', to: `M${Math.max(24, sheet.rowCount)}` };
+  sheet.autoFilter = { from: 'A24', to: `J${Math.max(24, sheet.rowCount)}` };
   sheet.pageSetup = {
     paperSize: 9,
     orientation: 'landscape',
@@ -96,6 +94,6 @@ export const addCudyrEssentialDetail = (sheet: Worksheet, rows: CudyrReportRow[]
     scale: 100,
     fitToWidth: 0,
     fitToHeight: 0,
-    printArea: `A1:M${sheet.rowCount}`,
+    printArea: `A1:J${sheet.rowCount}`,
   };
 };

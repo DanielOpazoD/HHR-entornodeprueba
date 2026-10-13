@@ -70,6 +70,29 @@ const saveCudyrSupplement = async ({ hospital, data, actor, runTransaction }) =>
   });
 };
 
+const verifiedSupplementFile = async (hospital, report) => {
+  const file = await hospital.collection('cudyrSupplementFiles').doc(report.file.sha256).get();
+  if (!file.exists) invalid();
+  const bytes = Buffer.from(file.data().base64, 'base64');
+  if (digest(bytes) !== report.file.sha256) invalid();
+  verifySupplementBytes(bytes, report.report);
+  return { ...report.file, base64: bytes.toString('base64') };
+};
+
+// The callable's existing clinical-access guard also protects original file downloads.
+const readCudyrSupplementFile = async (hospital, data) => {
+  if (
+    data.hospitalId !== undefined ||
+    typeof data.id !== 'string' ||
+    !/^[a-f0-9]{64}$/.test(data.id)
+  )
+    invalid();
+  const report = await hospital.collection('cudyrMonthlySupplements').doc(data.id).get();
+  if (!report.exists)
+    throw new functions.https.HttpsError('not-found', 'Monthly source not found.');
+  return verifiedSupplementFile(hospital, report.data());
+};
+
 const readCudyrSupplements = async (hospital, data) => {
   if (data.hospitalId !== undefined) invalid();
   const month = monthValue(data.month);
@@ -86,13 +109,9 @@ const readCudyrSupplements = async (hospital, data) => {
   const snapshot = await query.limit(limit + 1).get();
   const reports = snapshot.docs.slice(0, limit).map(doc => doc.data());
   for (const report of reports) {
-    const file = await hospital.collection('cudyrSupplementFiles').doc(report.file.sha256).get();
-    if (!file.exists) invalid();
-    const bytes = Buffer.from(file.data().base64, 'base64');
-    if (digest(bytes) !== report.file.sha256) invalid();
-    verifySupplementBytes(bytes, report.report);
+    await verifiedSupplementFile(hospital, report);
     report.bytesVerified = true;
   }
   return { reports, nextCursor: snapshot.size > limit ? reports.at(-1).id : null };
 };
-module.exports = { saveCudyrSupplement, readCudyrSupplements };
+module.exports = { saveCudyrSupplement, readCudyrSupplements, readCudyrSupplementFile };

@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { utils, write } from 'xlsx';
-import { parseCudyrSupplementBinary } from '@/services/cudyr/cudyrSupplementBinary';
+import {
+  parseCudyrSupplementBinary,
+  readCudyrWorkbookMatrix,
+} from '@/services/cudyr/cudyrSupplementBinary';
 import { buildCudyrReportWorkbook } from '@/services/cudyr/cudyrReportWorkbook';
 import { buildCudyrReport } from '@/services/cudyr/cudyrReportModel';
 import { reportInput } from './reportFixtures';
@@ -67,6 +70,22 @@ const archive = (): ArchivedCudyrSupplement => {
   };
 };
 describe('monthly binary reader and passive export', () => {
+  it('keeps existing parser matrices relative to the used range, while source copies preserve absolute positions', () => {
+    const source = utils.book_new();
+    utils.book_append_sheet(
+      source,
+      { C3: { t: 's', v: 'Origen' }, D4: { t: 's', v: 'Dato' }, '!ref': 'C3:D4' },
+      'Offset'
+    );
+    const bytes = write(source, { type: 'array', bookType: 'xlsx' });
+    expect(readCudyrWorkbookMatrix(bytes).rows).toEqual([
+      ['Origen', ''],
+      ['', 'Dato'],
+    ]);
+    const copy = readCudyrWorkbookMatrix(bytes, true).rows;
+    expect(copy[2][2]).toBe('Origen');
+    expect(copy[3][3]).toBe('Dato');
+  });
   it.each(['biff8', 'xlsx'] as const)(
     'reads real %s bytes with source cells and no fabricated hour',
     bookType => {
