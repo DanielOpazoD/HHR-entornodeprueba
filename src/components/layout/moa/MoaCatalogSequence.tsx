@@ -130,6 +130,8 @@ export function MoaCatalogSequence({
           data-ready={ready}
           style={{
             width: `${scene.frames * 100}%`,
+            // Sprite poses and readiness must not inherit the application's aesthetic transitions.
+            transition: 'none',
             imageRendering: scene.renderMode === 'smooth' ? 'auto' : 'pixelated',
           }}
           onLoad={event => {

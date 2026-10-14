@@ -57,6 +57,7 @@ describe('HD Moa lifecycle', () => {
     expect(HTMLElement.prototype.animate).not.toHaveBeenCalled();
     const img = await load(container);
     expect(img.style.imageRendering).toBe('auto');
+    expect(img.style.transition).toBe('none');
     expect(img.style.width).toBe('2400%');
     expect(HTMLElement.prototype.animate).toHaveBeenCalledWith(
       expect.any(Array),

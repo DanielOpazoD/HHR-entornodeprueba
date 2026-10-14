@@ -1012,6 +1012,7 @@ for (const width of [1440, 375]) {
     const frames = companion.locator('.moa-catalog-frames');
     await expect(frames).toHaveAttribute('data-ready', 'true');
     await expect(frames).toHaveCSS('image-rendering', 'auto');
+    await expect(frames).toHaveCSS('transition-duration', '0s');
     await expect
       .poll(() => frames.evaluate((img: HTMLImageElement) => img.naturalWidth))
       .toBe(13824);
@@ -1025,8 +1026,15 @@ for (const width of [1440, 375]) {
           .raw()
           .toBuffer()
       );
+    // Select the transform clock, never a transient opacity transition from the surrounding app.
     await frames.evaluate(img => {
-      const a = img.getAnimations()[0];
+      const a = img
+        .getAnimations()
+        .find(
+          animation =>
+            animation.effect instanceof KeyframeEffect &&
+            animation.effect.getKeyframes().some(frame => frame.transform !== undefined)
+        )!;
       a.pause();
       a.currentTime = 0;
     });
