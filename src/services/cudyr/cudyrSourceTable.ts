@@ -1,4 +1,4 @@
-import type { CudyrSourceSheet } from './cudyrSourceWorkbook';
+import type { CudyrSourceSheet } from './cudyrSourceTypes';
 import { parseCudyrSupplementMatrix } from './cudyrSupplementParser';
 
 /** Parser joins Jasper page continuations; patient episodes are never deduplicated. */

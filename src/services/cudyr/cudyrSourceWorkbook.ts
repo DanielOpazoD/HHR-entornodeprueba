@@ -1,6 +1,7 @@
 import type { Workbook } from 'exceljs';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
-import type { CudyrSupplementMatrix } from '@/types/domain/cudyrSupplement';
+import type { CudyrSourceSheet } from './cudyrSourceTypes';
+export type { CudyrSourceSheet } from './cudyrSourceTypes';
 import { getNextDay } from '@/utils/clinicalDayUtils';
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
@@ -12,18 +13,6 @@ import {
   loadCudyrSupplements,
   type ArchivedCudyrSupplement,
 } from './cudyrSupplementService';
-
-export interface CudyrSourceSheet {
-  month: string;
-  reportId?: string;
-  file: ArchivedCudyrSupplement['file'];
-  matrix: CudyrSupplementMatrix & {
-    merges: string[];
-    widths: Array<number | undefined>;
-    heights: Array<number | undefined>;
-    formats: Record<string, string>;
-  };
-}
 
 /** Calendar-day values, without HHR eligibility or night-shift transformations. */
 export const addCudyrSourceSheets = (

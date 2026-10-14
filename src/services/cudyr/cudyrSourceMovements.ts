@@ -2,7 +2,7 @@ import type { Worksheet } from 'exceljs';
 import type { CudyrReportRow } from '@/types/domain/cudyrReport';
 import type { CudyrSupplementPatient } from '@/types/domain/cudyrSupplement';
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
-import type { CudyrSourceSheet } from './cudyrSourceWorkbook';
+import type { CudyrSourceSheet } from './cudyrSourceTypes';
 
 type Marker = { date: string; time: string; kind: 'Ingreso' | 'Egreso' };
 const validDate = (date: string) =>
