@@ -1,0 +1,12 @@
+[
+  {
+    "name": "remove-old-untagged-builds",
+    "action": { "type": "Delete" },
+    "condition": { "tagState": "untagged", "olderThan": "14d" }
+  },
+  {
+    "name": "keep-ten-recent-builds",
+    "action": { "type": "Keep" },
+    "mostRecentVersions": { "keepCount": 10 }
+  }
+]
