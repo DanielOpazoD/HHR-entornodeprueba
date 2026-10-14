@@ -15,6 +15,12 @@ const assert = (valid, message) => {
   if (!valid) throw new Error(message);
 };
 
+export function serializeCatalog(catalog) {
+  const json = JSON.stringify(catalog) + '\n';
+  assert(Buffer.byteLength(json) <= 512 * 1024, 'Catalog exceeds 512 KiB');
+  return json;
+}
+
 export async function exportCatalog(source, output) {
   const root = await fs.realpath(source);
   const original = JSON.parse(await fs.readFile(path.join(root, 'scenes.json'), 'utf8'));
@@ -26,7 +32,10 @@ export async function exportCatalog(source, output) {
   const scenes = [];
   await fs.mkdir(path.join(output, 'assets'), { recursive: true });
   for (const s of original) {
-    assert(/^[A-Za-z0-9_-]{1,64}$/.test(s.id) && !ids.has(s.id), 'Invalid or duplicate ID');
+    assert(
+      typeof s.id === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(s.id) && !ids.has(s.id),
+      'Invalid or duplicate ID'
+    );
     ids.add(s.id);
     assert(['approved', 'preserved'].includes(s.status), `${s.id}: unpublished artwork`);
     assert(
@@ -88,9 +97,7 @@ export async function exportCatalog(source, output) {
     });
   }
   const catalog = { schemaVersion: 1, version: hash(JSON.stringify(scenes)), scenes };
-  const json = JSON.stringify(catalog);
-  assert(Buffer.byteLength(json) <= 512 * 1024, 'Catalog exceeds 512 KiB');
-  await fs.writeFile(path.join(output, 'catalog.json'), json + '\n');
+  await fs.writeFile(path.join(output, 'catalog.json'), serializeCatalog(catalog));
   return catalog;
 }
 

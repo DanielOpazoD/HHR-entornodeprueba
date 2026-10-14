@@ -945,14 +945,22 @@ for (const width of [1440, 375]) {
     await page.setViewportSize({ width, height: 900 });
     const catalog = structuredClone(moaCatalogFixture);
     const hd = catalog.scenes.find(scene => scene.id === 'E08')!;
-    const png = await sharp({
-      create: {
-        width: hd.frames * 576,
-        height: 336,
-        channels: 4,
-        background: { r: 30, g: 130, b: 150, alpha: 0.7 },
-      },
-    })
+    const colors = Array.from({ length: hd.frames }, (_, i) => [
+      30 + i * 7,
+      130 - i * 3,
+      150 + i * 4,
+    ]);
+    const rectangles = colors
+      .map(
+        (color, i) =>
+          `<rect x="${i * 576}" width="576" height="336" fill="rgb(${color.join(',')})"/>`
+      )
+      .join('');
+    const png = await sharp(
+      Buffer.from(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="${hd.frames * 576}" height="336">${rectangles}</svg>`
+      )
+    )
       .png()
       .toBuffer();
     hd.sha256 = createHash('sha256').update(png).digest('hex');
@@ -992,7 +1000,15 @@ for (const width of [1440, 375]) {
     const menu = await page.getByRole('dialog', { name: 'Biblioteca de Moa' }).boundingBox();
     expect(menu!.x).toBeGreaterThanOrEqual(0);
     expect(menu!.x + menu!.width).toBeLessThanOrEqual(width);
+    await select.press('ArrowDown');
+    await select.press('ArrowDown');
+    await expect(select).toBeFocused();
+    await expect(select).toBeVisible();
+    expect(requests.filter(url => url.endsWith('.png'))).toHaveLength(0);
     await select.selectOption('E08');
+    await expect(select).toBeVisible();
+    await select.press('Enter');
+    await expect(select).toHaveCount(0);
     const frames = companion.locator('.moa-catalog-frames');
     await expect(frames).toHaveAttribute('data-ready', 'true');
     await expect(frames).toHaveCSS('image-rendering', 'auto');
@@ -1000,6 +1016,29 @@ for (const width of [1440, 375]) {
       .poll(() => frames.evaluate((img: HTMLImageElement) => img.naturalWidth))
       .toBe(13824);
     expect(requests.filter(url => url.endsWith('.png'))).toHaveLength(1);
+    const sequence = companion.locator('.moa-sequence');
+    const visiblePixel = async () =>
+      Array.from(
+        await sharp(await sequence.screenshot())
+          .extract({ left: 72, top: 42, width: 1, height: 1 })
+          .removeAlpha()
+          .raw()
+          .toBuffer()
+      );
+    await frames.evaluate(img => {
+      const a = img.getAnimations()[0];
+      a.pause();
+      a.currentTime = 0;
+    });
+    await expect.poll(visiblePixel).toEqual(colors[0]);
+    await frames.evaluate(
+      (img, time) => {
+        img.getAnimations()[0].currentTime = time;
+      },
+      hd.durations[0] + hd.durations[1] / 2
+    );
+    await expect.poll(visiblePixel).toEqual(colors[1]);
+    await frames.evaluate(img => img.getAnimations()[0].play());
     await page.evaluate(() => {
       Object.defineProperty(document, 'hidden', { configurable: true, value: true });
       document.dispatchEvent(new Event('visibilitychange'));

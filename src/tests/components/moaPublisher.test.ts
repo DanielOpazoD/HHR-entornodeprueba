@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import sharp from 'sharp';
-import { exportCatalog } from '../../../scripts/moa/publish-catalog.mjs';
+import { exportCatalog, serializeCatalog } from '../../../scripts/moa/publish-catalog.mjs';
 import { parseMoaCatalog } from '@/components/layout/moa/moaCatalog';
 let root: string;
 let scene: Record<string, unknown>;
@@ -35,6 +35,12 @@ async function run() {
   return exportCatalog(root, path.join(root, 'export'));
 }
 describe('Moa publication validation', () => {
+  it('counts the trailing newline at the exact UTF-8 publication limit', () => {
+    const overhead = Buffer.byteLength(JSON.stringify({ pad: '' }));
+    const pad = 'x'.repeat(512 * 1024 - overhead - 1);
+    expect(Buffer.byteLength(serializeCatalog({ pad }))).toBe(512 * 1024);
+    expect(() => serializeCatalog({ pad: pad + 'x' })).toThrow('512 KiB');
+  });
   it('exports content-addressed inert data accepted by the actual application contract', async () => {
     const catalog = parseMoaCatalog(await run());
     expect(catalog.scenes).toHaveLength(1);
@@ -47,6 +53,7 @@ describe('Moa publication validation', () => {
     expect((await run()).version).toBe(catalog.version);
   });
   it.each([
+    ['id', 123],
     ['status', 'draft'],
     ['frames', 7],
     ['cycles', 20],

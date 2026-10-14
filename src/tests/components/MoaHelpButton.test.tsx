@@ -104,6 +104,13 @@ describe('Moa visibility and companion', () => {
     const select = within(companion).getByLabelText('Animación de Moa');
     expect(within(select).getAllByRole('option')).toHaveLength(18);
     expect(select).toHaveFocus();
+    fireEvent.change(select, { target: { value: 'run' } });
+    expect(select).toHaveFocus();
+    expect(within(companion).getByRole('dialog')).toBeInTheDocument();
+    expect(within(companion).getByRole('button', { name: 'Jugar con Moa' })).toHaveAttribute(
+      'data-gesture',
+      'welcome'
+    );
     fireEvent.keyDown(select, { key: 'Escape' });
     expect(library).toHaveFocus();
     expect(within(companion).queryByRole('dialog')).toBeNull();

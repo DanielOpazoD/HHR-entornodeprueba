@@ -15,6 +15,7 @@ type Gesture = string;
 const MoaCompanion = () => {
   const catalog = useMoaCatalog();
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [choiceId, setChoiceId] = useState('');
   const [selected, setSelected] = useState<MoaCatalogScene | null>(null);
   const libraryButton = useRef<HTMLButtonElement>(null);
   const choices =
@@ -38,6 +39,14 @@ const MoaCompanion = () => {
     setSelected(catalog?.scenes.find(item => item.id === choice.id) || null);
     setGesture(choice.id);
     setPlaybackId(value => value + 1);
+  };
+  const confirmChoice = () => {
+    const id = choices.find(item => item.id === choiceId)?.id || choices[0].id;
+    setSelected(catalog?.scenes.find(item => item.id === id) || null);
+    setGesture(id);
+    setPlaybackId(value => value + 1);
+    setLibraryOpen(false);
+    libraryButton.current?.focus();
   };
   const notice = () => {
     if (gesture === 'idle') {
@@ -90,14 +99,13 @@ const MoaCompanion = () => {
             id="moa-scene-choice"
             aria-label="Animación de Moa"
             size={8}
-            value={gesture === 'idle' || gesture === 'welcome' ? '' : gesture}
-            onChange={event => {
-              const id = event.target.value;
-              setSelected(catalog?.scenes.find(item => item.id === id) || null);
-              setGesture(id);
-              setPlaybackId(value => value + 1);
-              setLibraryOpen(false);
-              libraryButton.current?.focus();
+            value={choiceId || choices[0].id}
+            onChange={event => setChoiceId(event.target.value)}
+            onKeyDown={event => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                confirmChoice();
+              }
             }}
           >
             {choices.map(item => (
@@ -106,6 +114,9 @@ const MoaCompanion = () => {
               </option>
             ))}
           </select>
+          <button type="button" className="moa-library-play" onClick={confirmChoice}>
+            Reproducir animación
+          </button>
         </div>
       )}
       <button
