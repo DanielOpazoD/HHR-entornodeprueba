@@ -213,10 +213,7 @@ test.describe('Production Preview Bootstrap', () => {
   test.describe.configure({ timeout: 60_000 });
   test.beforeEach(async ({ page }) => {
     // Existing regression tests exercise the bundled fallback, independent of network/content releases.
-    await page.route(
-      'https://raw.githubusercontent.com/DanielOpazoD/Moa-HHR/moa-catalog/**',
-      route => route.fulfill({ status: 503, body: 'offline' })
-    );
+    await page.route('**/moa-library/**', route => route.fulfill({ status: 503, body: 'offline' }));
   });
 
   test('aligns newborn identity with normal beds and preserves the new chrome on reload', async ({
@@ -640,10 +637,7 @@ test.describe('Production Preview Bootstrap', () => {
     page,
   }) => {
     // This regression exercises the original offline fallback, not the independent live release.
-    await page.route(
-      'https://raw.githubusercontent.com/DanielOpazoD/Moa-HHR/moa-catalog/**',
-      route => route.fulfill({ status: 503, body: '' })
-    );
+    await page.route('**/moa-library/**', route => route.fulfill({ status: 503, body: '' }));
     await seedPersistedSessionAndRecord(page);
     await page.goto(`/?date=${PREVIEW_BOOTSTRAP_DATE}`);
     await expectSeededPatientVisible(page);
@@ -964,27 +958,24 @@ for (const width of [1440, 375]) {
     hd.sha256 = createHash('sha256').update(png).digest('hex');
     hd.bytes = png.length;
     const requests: string[] = [];
-    await page.route(
-      'https://raw.githubusercontent.com/DanielOpazoD/Moa-HHR/moa-catalog/**',
-      async route => {
-        requests.push(route.request().url());
-        expect(route.request().headers()['authorization']).toBeUndefined();
-        expect(route.request().headers()['cookie']).toBeUndefined();
-        expect(route.request().headers()['referer']).toBeUndefined();
-        if (route.request().url().endsWith('/catalog.json'))
-          await route.fulfill({
-            contentType: 'application/json',
-            body: JSON.stringify(catalog),
-            headers: { 'access-control-allow-origin': '*' },
-          });
-        else
-          await route.fulfill({
-            contentType: 'image/png',
-            body: png,
-            headers: { 'access-control-allow-origin': '*' },
-          });
-      }
-    );
+    await page.route('**/moa-library/**', async route => {
+      requests.push(route.request().url());
+      expect(route.request().headers()['authorization']).toBeUndefined();
+      expect(route.request().headers()['cookie']).toBeUndefined();
+      expect(route.request().headers()['referer']).toBeUndefined();
+      if (route.request().url().endsWith('/catalog.json'))
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify(catalog),
+          headers: { 'access-control-allow-origin': '*' },
+        });
+      else
+        await route.fulfill({
+          contentType: 'image/png',
+          body: png,
+          headers: { 'access-control-allow-origin': '*' },
+        });
+    });
     await seedPersistedSessionAndRecord(page);
     await page.goto(`/?date=${PREVIEW_BOOTSTRAP_DATE}`);
     await expectSeededPatientVisible(page);

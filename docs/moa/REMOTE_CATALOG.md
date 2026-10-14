@@ -10,7 +10,7 @@ el retorno de foco; la impresión no muestra Moa.
 
 - Repositorio de autoría: `DanielOpazoD/Moa-HHR`, rama `main`.
 - Rama de distribución: `moa-catalog`, solo `catalog.json`, `README.md` y `assets/<sha256>.png`.
-- URL del catálogo: `https://raw.githubusercontent.com/DanielOpazoD/Moa-HHR/moa-catalog/catalog.json`.
+- URL de origen del catálogo: `https://raw.githubusercontent.com/DanielOpazoD/Moa-HHR/moa-catalog/catalog.json`.
 - Primer commit de distribución: `0849337fab0f493d02950b3091afc13078aca3b0`.
 - Versión de contenido: `dd97fe7f109874e6137da40b105af4a3810aef9287e7630dad1378beaddfea5c`.
 - 222 animaciones, 2634 poses; 70 KB de catálogo y 40.10 MB de atlas en el servidor.
@@ -21,6 +21,11 @@ el retorno de foco; la impresión no muestra Moa.
 La rama de distribución no contiene workflows ni código ejecutable. Una publicación
 normal de datos no dispara CI de HHR ni la suite de autoría de Moa. No se han cambiado
 protecciones de ramas ni desactivado checks del código de ninguna aplicación.
+El cliente consulta `/moa-library/catalog.json` en el mismo origen de HHR. Dos rutas
+proxy de Netlify, antes del fallback SPA, sirven únicamente el catálogo y los atlas de
+la rama fija. Así se conserva intacta la política CSP: no se agrega ningún dominio a
+`connect-src` ni se ejecuta contenido remoto. Vite local no proporciona esas rutas;
+las pruebas de navegador las simulan y el despliegue Netlify las sirve realmente.
 GitHub Raw sirve aquí archivos públicos estáticos; no se le atribuye SLA de CDN.
 Un fallo, límite de servicio o desconexión no bloquea el censo.
 
@@ -73,7 +78,7 @@ navegador. La última versión válida del catálogo se conserva como dato en lo
 si está corrupta o el almacenamiento está denegado, quedan las 18 escenas locales.
 Un error de imagen regresa al retrato local, sin alertas clínicas. Las peticiones tienen
 timeout, omiten credenciales y referrer, y no incluyen nombres, RUT, fechas del censo ni
-identificadores clínicos. Como en cualquier descarga externa, el servidor ve la IP de red.
+identificadores clínicos. El navegador solicita los archivos a Netlify, que ve la IP de red como en el resto del sitio.
 
 El reproductor admite tiempos distintos por pose y HD suave; usa Web Animations API con
 pasos discretos, pausa con pestaña oculta y cuadro quieto con movimiento reducido. Cambiar

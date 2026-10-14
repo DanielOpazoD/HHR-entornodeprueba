@@ -157,7 +157,10 @@
 
 @media (max-width: 640px) {
   .moa-library {
-    left: 0;
-    right: auto;
+    position: fixed;
+    top: 80px;
+    left: 16px;
+    right: 16px;
+    width: auto;
   }
 }

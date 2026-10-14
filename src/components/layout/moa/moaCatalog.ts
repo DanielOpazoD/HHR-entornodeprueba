@@ -1,5 +1,6 @@
 /** Versioned, inert decoration data. This module never reads clinical state or auth. */
-export const MOA_DATA_BASE = 'https://raw.githubusercontent.com/DanielOpazoD/Moa-HHR/moa-catalog/';
+// Same-origin data proxy preserves the application's existing strict connect-src policy.
+export const MOA_DATA_BASE = '/moa-library/';
 export const MOA_CATALOG_URL = `${MOA_DATA_BASE}catalog.json`;
 export const MOA_CATALOG_KEY = 'hhr_moa_catalog_v1';
 export const MAX_CATALOG_BYTES = 512 * 1024;
