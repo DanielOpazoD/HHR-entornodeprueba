@@ -43,7 +43,9 @@ export const buildCudyrEssentialWorkbook = async (
     year,
     month,
     endDate: data.to,
-    afterSummary: sources ? workbook => addCudyrSourceSheets(workbook, sources) : undefined,
+    afterSummary: sources
+      ? workbook => addCudyrSourceSheets(workbook, sources, data.from.slice(0, 7))
+      : undefined,
     monthlySummary: {
       year,
       month,

@@ -45,8 +45,12 @@ solo la fórmula del cálculo y los criterios de elegibilidad. La descarga no co
 
 La segunda hoja conserva las celdas del Excel original de Eloísa guardado en Firebase,
 con sus fechas calendario y combinaciones, sin ajustes de elegibilidad ni turno HHR.
+Los anchos y altos se ajustan para que los valores sean legibles, incluidas las
+celdas combinadas; se conservan las alturas originales de las filas vacías.
 Se leen los bytes verificados solo al descargar. Se incluyen las versiones utilizadas
-y, si aporta el último turno, el informe del mes siguiente; no se duplican archivos idénticos.
+y, si aporta el último turno, un extracto del día 1 del mes siguiente con las filas
+que tienen valores ese día, incluidos «S/C». El extracto identifica el archivo
+original, que permanece guardado completo. No se duplican archivos idénticos.
 Si no hay archivo guardado, se indica su ausencia, sin fabricar un informe.
 Los días aprobados muestran «Oficial». Sin autor ni fecha de aplicación, el detalle
 indica «No informado» una sola vez; conserva cualquier metadato que sí esté disponible.

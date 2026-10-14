@@ -8,6 +8,7 @@ import { readCudyrWorkbookMatrix } from '@/services/cudyr/cudyrSupplementBinary'
 import {
   loadCudyrSourceSheets,
   selectCudyrSourceReports,
+  addCudyrSourceSheets,
 } from '@/services/cudyr/cudyrSourceWorkbook';
 import type { ArchivedCudyrSupplement } from '@/services/cudyr/cudyrSupplementService';
 import { confirmedReportInput } from './reportFixtures';
@@ -36,6 +37,163 @@ beforeEach(() => {
   mocks.generation = 1;
 });
 describe('original Eloísa source in monthly Excel', () => {
+  it('retains the original heights of blank spacer rows after binary export', async () => {
+    const workbook = new Workbook();
+    addCudyrSourceSheets(
+      workbook,
+      [
+        {
+          month: '2026-08',
+          file: archive().file,
+          matrix: {
+            sheet: 'Original',
+            rows: [['Título'], [], ['Datos']],
+            merges: [],
+            widths: [12],
+            heights: [24, 42, 20, 35],
+            formats: {},
+          },
+        },
+      ],
+      '2026-08'
+    );
+    const reopened = new Workbook();
+    await reopened.xlsx.load(await workbook.xlsx.writeBuffer());
+    expect(reopened.worksheets[0].getRow(2).height).toBe(42);
+    expect(reopened.worksheets[0].getRow(4).height).toBe(35);
+  });
+  it('widens narrow source columns and merged patient fields without changing values', async () => {
+    const workbook = new Workbook();
+    const rows = [
+      ['MINISTERIO DE SALUD', '', '', '', ''],
+      ['N°', 'Nombre Paciente', '', 'RUN o Nro. Ident.', 'Día 31'],
+      [104, 'Paciente Sintético Apellido Largo', '', 'ID-SINTETICO-001', 'C2'],
+    ];
+    const before = structuredClone(rows);
+    addCudyrSourceSheets(
+      workbook,
+      [
+        {
+          month: '2026-08',
+          file: archive().file,
+          matrix: {
+            sheet: 'Original',
+            rows,
+            merges: ['A1:E1', 'B2:C2', 'B3:C3'],
+            widths: [2, 5, 2, 4, 2],
+            heights: [18, 18, 18],
+            formats: {},
+          },
+        },
+      ],
+      '2026-08'
+    );
+    const reopened = new Workbook();
+    await reopened.xlsx.load(await workbook.xlsx.writeBuffer());
+    const sheet = reopened.worksheets[0];
+    expect(rows).toEqual(before);
+    expect(sheet.getColumn(1).width).toBeGreaterThanOrEqual(8);
+    expect(sheet.getColumn(1).width).toBeLessThanOrEqual(8);
+    expect(sheet.getColumn(4).width).toBeGreaterThanOrEqual('ID-SINTETICO-001'.length + 2);
+    expect(sheet.getColumn(5).width).toBeGreaterThanOrEqual(8);
+    expect(sheet.getColumn(2).width! + sheet.getColumn(3).width!).toBeGreaterThanOrEqual(34);
+    expect(sheet.getCell('E3').value).toBe('C2');
+    expect(sheet.getCell('B3').value).toBe(rows[2][1]);
+    expect(sheet.getRow(3).height).toBeLessThan(40);
+    expect(sheet.getCell('C3').isMerged).toBe(true);
+  });
+
+  it.each([
+    ['2026-08', '2026-09', 'Septiembre de 2026'],
+    ['2026-12', '2027-01', 'Enero de 2027'],
+  ])(
+    'includes only next-month day 1 for %s, retaining S/C and excluding later-only patients',
+    async (exportMonth, sourceMonth, label) => {
+      const rows: unknown[][] = [
+        ['MINISTERIO DE SALUD', 'Fecha Hora Impresión: 07-10-2026 02:35'],
+        ['Hospital Hanga Roa (Isla De Pascua)', 'Categorización Riesgo Dependencia'],
+        [`Mes consultado: ${label}`],
+        [
+          'N°',
+          'Nombre Paciente',
+          'Ficha Clínica',
+          'RUN o Nro. Ident.',
+          'Diagnóstico de Ingreso',
+          'Días Hosp.',
+          'Servicio Clínico',
+          'Condición Alta',
+          ...Array.from({ length: 31 }, (_, i) => `Día ${i + 1}`),
+        ],
+        [1, 'Paciente Día Uno', 'FICHA-A', 'DOC-A', 'Diagnóstico A', '2', 'MQ', 'Vivo', 'C2', 'A1'],
+        [
+          2,
+          'Paciente Solo Día Dos',
+          'FICHA-B',
+          'DOC-B',
+          'Diagnóstico B',
+          '1',
+          'MQ',
+          'Vivo',
+          '',
+          'B1',
+        ],
+        [
+          3,
+          'Paciente Sin Categorizar',
+          'FICHA-C',
+          'DOC-C',
+          'Diagnóstico C',
+          '1',
+          'MQ',
+          'Vivo',
+          'S/C',
+          'D3',
+        ],
+      ];
+      const matrix = { sheet: 'Original', rows, merges: [], widths: [], heights: [], formats: {} };
+      const before = structuredClone(matrix);
+      const workbook = new Workbook();
+      addCudyrSourceSheets(
+        workbook,
+        [{ month: sourceMonth, file: archive().file, matrix }],
+        exportMonth
+      );
+      const reopened = new Workbook();
+      await reopened.xlsx.load(await workbook.xlsx.writeBuffer());
+      const sheet = reopened.worksheets[0];
+      expect(matrix).toEqual(before);
+      expect(sheet.name).toBe(`Eloísa ${sourceMonth}`);
+      expect(sheet.columnCount).toBe(9);
+      expect(sheet.getCell('I5').value).toBe('Día 1');
+      expect(sheet.getCell('A4').value).toBe(
+        `Día incluido: 01-${sourceMonth.slice(5)}-${sourceMonth.slice(0, 4)}`
+      );
+      expect(sheet.getCell('I6').value).toBe('C2');
+      expect(sheet.getCell('I7').value).toBe('S/C');
+      expect(sheet.rowCount).toBe(7);
+      expect(sheet.getCell('A1').note).toContain('Extracto: solo el día 1');
+      expect(sheet.getCell('B7').value).toBe('Paciente Sin Categorizar');
+    }
+  );
+
+  it('rejects an unreadable next-month source rather than exporting the entire month', () => {
+    const source = {
+      month: '2026-09',
+      file: archive().file,
+      matrix: {
+        sheet: 'Unexpected',
+        rows: [['Día 1', 'Día 2']],
+        merges: [],
+        widths: [],
+        heights: [],
+        formats: {},
+      },
+    };
+    expect(() => addCudyrSourceSheets(new Workbook(), [source], '2026-08')).toThrow(
+      /aislar el día 1/
+    );
+  });
+
   it.each([
     ['biff8', false],
     ['biff8', true],
