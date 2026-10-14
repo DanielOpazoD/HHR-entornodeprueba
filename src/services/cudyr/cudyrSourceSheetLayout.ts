@@ -1,4 +1,9 @@
-import type { Worksheet } from 'exceljs';
+import type { Cell, Worksheet } from 'exceljs';
+
+const displayText = (cell: Cell) =>
+  cell.value instanceof Date && cell.numFmt === 'dd-mm-yyyy'
+    ? cell.value.toISOString().slice(0, 10).split('-').reverse().join('-')
+    : cell.text;
 
 /** Source widths are a starting point, not a constraint on readable values. */
 export const fitCudyrSourceSheet = (
@@ -42,7 +47,11 @@ export const fitCudyrSourceSheet = (
       row.eachCell(cell => {
         if (cell.isMerged !== merged || (merged && cell.master.address !== cell.address)) return;
         const span = columnsFor(cell.address, Number(cell.col));
-        const longest = Math.max(...cell.text.split(/\r?\n/).map(line => line.length));
+        const longest = Math.max(
+          ...displayText(cell)
+            .split(/\r?\n/)
+            .map(line => line.length)
+        );
         const desired = Math.min(48, Math.max(8, longest + 2));
         const missing = desired - widthFor(span);
         if (missing > 0) sheet.getColumn(span.first).width! += missing;
@@ -58,7 +67,7 @@ export const fitCudyrSourceSheet = (
       const width = Math.max(1, widthFor(columnsFor(cell.address, Number(cell.col))) - 2);
       lines = Math.max(
         lines,
-        cell.text
+        displayText(cell)
           .split(/\r?\n/)
           .reduce((sum, line) => sum + Math.max(1, Math.ceil(line.length / width)), 0)
       );

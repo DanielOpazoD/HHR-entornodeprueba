@@ -15,9 +15,12 @@ export const prepareCudyrSourceTable = (source: CudyrSourceSheet, excerpt: boole
     p => !excerpt || p.days.some(d => d.sourceDay === 1 && d.originalValue)
   );
   const days = report.patients[0].days.filter(d => !excerpt || d.sourceDay === 1);
+  const monthName = new Intl.DateTimeFormat('es-CL', { month: 'long', timeZone: 'UTC' }).format(
+    new Date(`${source.month}-01T00:00:00Z`)
+  );
   const label = excerpt
     ? `Día incluido: 01-${source.month.slice(5)}-${source.month.slice(0, 4)}`
-    : `Mes: ${source.month}`;
+    : `${monthName[0].toUpperCase()}${monthName.slice(1)} ${source.month.slice(0, 4)}`;
   return {
     patients,
     label,
@@ -29,10 +32,9 @@ export const prepareCudyrSourceTable = (source: CudyrSourceSheet, excerpt: boole
           [
             'N°',
             'Nombre Paciente',
-            'Ficha Clínica',
             'RUN o Nro. Ident.',
             'Diagnóstico de Ingreso',
-            'Días Hosp.',
+            'Fecha de ingreso',
             'Servicio Clínico',
             'Condición Alta',
             ...days.map(d => `Día ${d.sourceDay}`),
@@ -40,10 +42,9 @@ export const prepareCudyrSourceTable = (source: CudyrSourceSheet, excerpt: boole
           ...patients.map(p => [
             p.ordinal,
             p.patientName,
-            p.clinicalRecord,
             p.document,
             p.diagnosis,
-            p.hospitalDays,
+            'No informado',
             p.service,
             p.dischargeCondition,
             ...p.days.filter(d => !excerpt || d.sourceDay === 1).map(d => d.originalValue),
@@ -57,9 +58,9 @@ export const prepareCudyrSourceTable = (source: CudyrSourceSheet, excerpt: boole
         ],
         merges: Array.from(
           { length: 4 },
-          (_, i) => `A${patients.length + 2 + i}:H${patients.length + 2 + i}`
+          (_, i) => `A${patients.length + 2 + i}:G${patients.length + 2 + i}`
         ),
-        widths: [8, 32, 14, 18, 40, 10, 26, 16, ...days.map(() => 10)],
+        widths: [8, 32, 18, 40, 18, 26, 16, ...days.map(() => 10)],
         heights: [],
         formats: {},
       },

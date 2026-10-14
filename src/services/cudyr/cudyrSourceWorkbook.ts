@@ -42,7 +42,7 @@ export const addCudyrSourceSheets = (
     source.matrix.merges.forEach(merge => sheet.mergeCells(merge));
     if (prepared.patients) {
       markCudyrSourceMovements(sheet, original, prepared.patients, reportRows, excerpt);
-      sheet.views = [{ state: 'frozen', xSplit: 4, ySplit: 1, topLeftCell: 'E2' }];
+      sheet.views = [{ state: 'frozen', xSplit: 3, ySplit: 1, topLeftCell: 'D2' }];
       sheet.autoFilter = {
         from: { row: 1, column: 1 },
         to: { row: prepared.patients.length + 1, column: sheet.columnCount },

@@ -45,6 +45,9 @@ solo la fórmula del cálculo y los criterios de elegibilidad. La descarga no co
 
 La segunda hoja presenta los valores del informe de Eloísa guardado en Firebase
 como tabla legible: encabezado único fijo y columnas de identificación inmovilizadas.
+Omite Ficha Clínica y reemplaza Días Hosp. por Fecha de ingreso (dd-mm-aaaa),
+obtenida del episodio HHR vinculado; sin evidencia inequívoca indica No informado.
+El período se muestra como Agosto 2026, con nombre del mes y año.
 Elimina encabezados de página repetidos, conservando las filas de pacientes y episodios.
 Los formatos antiguos no reconocidos mantienen sus celdas originales completas.
 Si se utiliza el mes siguiente, incluye solo el día 1 y filas con valores (incluido S/C).

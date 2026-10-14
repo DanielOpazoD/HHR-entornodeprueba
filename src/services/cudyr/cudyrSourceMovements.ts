@@ -54,6 +54,10 @@ export const markCudyrSourceMovements = (
       const at = [...admissions][0];
       if (/(Z|[+-]\d{2}:\d{2})$/.test(at) && Number.isFinite(Date.parse(at))) {
         const stamp = calendarStampInClinicalTimeZone(new Date(at));
+        const admissionCell = sheet.getCell(index + 2, 5);
+        admissionCell.value = new Date(`${stamp.iso}T00:00:00Z`);
+        admissionCell.numFmt = 'dd-mm-yyyy';
+        admissionCell.note = `Ingreso confirmado en HHR: ${stamp.iso} ${stamp.hhmm} (Rapa Nui), mismo episodio vinculado.`;
         markers.push({ date: stamp.iso, time: stamp.hhmm, kind: 'Ingreso' });
       }
     }
@@ -92,7 +96,7 @@ export const markCudyrSourceMovements = (
     for (const day of patient.days.filter(d => !excerpt || d.sourceDay === 1)) {
       const matches = markers.filter(m => m.date === day.sourceDate);
       if (!matches.length) continue;
-      const cell = sheet.getCell(index + 2, 8 + day.sourceDay);
+      const cell = sheet.getCell(index + 2, 7 + day.sourceDay);
       cell.value = {
         richText: [
           ...matches.map(m => ({
