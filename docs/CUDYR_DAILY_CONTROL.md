@@ -43,17 +43,18 @@ pacientes-día elegibles. Sin elegibles se deja vacío; días abiertos y censos 
 se identifican, sin presentarlos como 0% de cumplimiento. El resumen mensual conserva
 solo la fórmula del cálculo y los criterios de elegibilidad. La descarga no consulta Eloísa ni envía correos.
 
-La segunda hoja conserva las celdas del Excel original de Eloísa guardado en Firebase,
-con sus fechas calendario y combinaciones, sin ajustes de elegibilidad ni turno HHR.
-Los anchos y altos se ajustan para que los valores sean legibles, incluidas las
-celdas combinadas; se conservan las alturas originales de las filas vacías.
-Se leen los bytes verificados solo al descargar. Se incluyen las versiones utilizadas
-y, si aporta el último turno, un extracto del día 1 del mes siguiente con las filas
-que tienen valores ese día, incluidos «S/C». El extracto identifica el archivo
-original, que permanece guardado completo. No se duplican archivos idénticos.
-Si no hay archivo guardado, se indica su ausencia, sin fabricar un informe.
-Los días aprobados muestran «Oficial». Sin autor ni fecha de aplicación, el detalle
-indica «No informado» una sola vez; conserva cualquier metadato que sí esté disponible.
+La segunda hoja presenta los valores del informe de Eloísa guardado en Firebase
+como tabla legible: encabezado único fijo y columnas de identificación inmovilizadas.
+Elimina encabezados de página repetidos, conservando las filas de pacientes y episodios.
+Los formatos antiguos no reconocidos mantienen sus celdas originales completas.
+Si se utiliza el mes siguiente, incluye solo el día 1 y filas con valores (incluido S/C).
+Los originales se conservan completos. La nota del encabezado identifica archivo y huella.
+Los símbolos ▼ ingreso y ▲ egreso son anotaciones de HHR, con fecha calendario de Rapa Nui,
+solo cuando existe vínculo inequívoco entre fila del informe y episodio. No se infieren
+movimientos desde las categorías, no se asocian por nombre y no se sustituyen valores CUDYR.
+La nota de cada marcador informa fecha/hora disponible y valor original. Sin evidencia
+suficiente o con fechas contradictorias, se omite el marcador; eso no acredita ausencia
+de movimiento. No cambia el turno censal ni el cálculo del cumplimiento.
 
 El indicador pequeño del censo conserva una lectura diaria por mes, cuenta y sesión.
 Editar el censo, recuperar el foco o volver a mostrar el cuadro no repite la lectura.

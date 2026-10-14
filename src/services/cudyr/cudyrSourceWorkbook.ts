@@ -4,7 +4,8 @@ import type { CudyrSupplementMatrix } from '@/types/domain/cudyrSupplement';
 import { getNextDay } from '@/utils/clinicalDayUtils';
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
-import { parseCudyrSupplementMatrix } from './cudyrSupplementParser';
+import { prepareCudyrSourceTable } from './cudyrSourceTable';
+import { markCudyrSourceMovements } from './cudyrSourceMovements';
 import { fitCudyrSourceSheet } from './cudyrSourceSheetLayout';
 import {
   callCudyrArchive,
@@ -14,6 +15,7 @@ import {
 
 export interface CudyrSourceSheet {
   month: string;
+  reportId?: string;
   file: ArchivedCudyrSupplement['file'];
   matrix: CudyrSupplementMatrix & {
     merges: string[];
@@ -23,63 +25,12 @@ export interface CudyrSourceSheet {
   };
 }
 
-/** A documentary excerpt only: no change to the stored file or HHR calculation. */
-const firstDaySource = (source: CudyrSourceSheet): CudyrSourceSheet => {
-  const parsed = parseCudyrSupplementMatrix(source.matrix);
-  if (!parsed.ok || parsed.report.month !== source.month)
-    throw new Error('No se pudo aislar el día 1 del informe original del mes siguiente.');
-  const { report } = parsed;
-  return {
-    ...source,
-    matrix: {
-      sheet: source.matrix.sheet,
-      rows: [
-        ['MINISTERIO DE SALUD', '', '', '', '', report.generatedLabel],
-        [report.establishment],
-        ['Categorización Riesgo Dependencia'],
-        [`Día incluido: 01-${source.month.slice(5)}-${source.month.slice(0, 4)}`],
-        [
-          'N°',
-          'Nombre Paciente',
-          'Ficha Clínica',
-          'RUN o Nro. Ident.',
-          'Diagnóstico de Ingreso',
-          'Días Hosp.',
-          'Servicio Clínico',
-          'Condición Alta',
-          'Día 1',
-        ],
-        ...report.patients.flatMap(patient => {
-          const day = patient.days.find(item => item.sourceDay === 1);
-          if (!day?.originalValue) return [];
-          return [
-            [
-              patient.ordinal,
-              patient.patientName,
-              patient.clinicalRecord,
-              patient.document,
-              patient.diagnosis,
-              patient.hospitalDays,
-              patient.service,
-              patient.dischargeCondition,
-              day.originalValue,
-            ],
-          ];
-        }),
-      ],
-      merges: ['A1:E1', 'F1:I1', 'A2:E2', 'A3:E3', 'A4:E4'],
-      widths: [6, 32, 14, 18, 40, 10, 26, 16, 8],
-      heights: [],
-      formats: {},
-    },
-  };
-};
-
 /** Calendar-day values, without HHR eligibility or night-shift transformations. */
 export const addCudyrSourceSheets = (
   workbook: Workbook,
   sources: CudyrSourceSheet[],
-  reportMonth: string
+  reportMonth: string,
+  reportRows: CudyrReportDataset['rows'] = []
 ) => {
   if (!sources.length) {
     workbook.addWorksheet('Eloísa · sin archivo').getCell('A1').value =
@@ -90,7 +41,8 @@ export const addCudyrSourceSheets = (
   const nextMonth = new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 7);
   sources.forEach((original, index) => {
     const excerpt = original.month === nextMonth;
-    const source = excerpt ? firstDaySource(original) : original;
+    const prepared = prepareCudyrSourceTable(original, excerpt);
+    const source = prepared.source;
     const sheet = workbook.addWorksheet(
       `Eloísa ${source.month}${sources.filter(s => s.month === source.month).length > 1 ? ` (${index + 1})` : ''}`
     );
@@ -99,13 +51,33 @@ export const addCudyrSourceSheets = (
       sheet.getCell(address).numFmt = format;
     });
     source.matrix.merges.forEach(merge => sheet.mergeCells(merge));
+    if (prepared.patients) {
+      markCudyrSourceMovements(sheet, original, prepared.patients, reportRows, excerpt);
+      sheet.views = [{ state: 'frozen', xSplit: 4, ySplit: 1, topLeftCell: 'E2' }];
+      sheet.autoFilter = {
+        from: { row: 1, column: 1 },
+        to: { row: prepared.patients.length + 1, column: sheet.columnCount },
+      };
+      sheet.getRow(1).font = { bold: true };
+      sheet.pageSetup.printTitlesRow = '1:1';
+    }
     fitCudyrSourceSheet(sheet, source.matrix);
     sheet.getCell('A1').note =
       `Archivo original: ${source.file.name}\nHoja: ${source.matrix.sheet}\nSHA-256: ${source.file.sha256}` +
+      (prepared.patients
+        ? '\nVista tabular: encabezados de página unificados; símbolos añadidos desde HHR. ' +
+          prepared.label
+        : '') +
       (excerpt
         ? '\nExtracto: solo el día 1 y sus filas con valores; archivo original guardado sin cambios.'
         : '');
-    sheet.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+    sheet.pageSetup = {
+      ...sheet.pageSetup,
+      orientation: 'landscape',
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 0,
+    };
   });
 };
 
@@ -199,7 +171,12 @@ export const loadCudyrSourceSheets = async (data: CudyrReportDataset, signal: Ab
     )
       throw new Error('No se pudo verificar el informe original.');
     const buffer = Uint8Array.from(atob(file.base64), character => character.charCodeAt(0)).buffer;
-    sources.push({ month: archive.month, file, matrix: await readSourceMatrix(buffer, signal) });
+    sources.push({
+      month: archive.month,
+      reportId: archive.id,
+      file,
+      matrix: await readSourceMatrix(buffer, signal),
+    });
   }
   check();
   return sources;

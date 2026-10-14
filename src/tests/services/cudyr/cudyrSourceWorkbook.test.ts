@@ -164,15 +164,15 @@ describe('original Eloísa source in monthly Excel', () => {
       expect(matrix).toEqual(before);
       expect(sheet.name).toBe(`Eloísa ${sourceMonth}`);
       expect(sheet.columnCount).toBe(9);
-      expect(sheet.getCell('I5').value).toBe('Día 1');
+      expect(sheet.getCell('I1').value).toBe('Día 1');
       expect(sheet.getCell('A4').value).toBe(
         `Día incluido: 01-${sourceMonth.slice(5)}-${sourceMonth.slice(0, 4)}`
       );
-      expect(sheet.getCell('I6').value).toBe('C2');
-      expect(sheet.getCell('I7').value).toBe('S/C');
+      expect(sheet.getCell('I2').value).toBe('C2');
+      expect(sheet.getCell('I3').value).toBe('S/C');
       expect(sheet.rowCount).toBe(7);
       expect(sheet.getCell('A1').note).toContain('Extracto: solo el día 1');
-      expect(sheet.getCell('B7').value).toBe('Paciente Sin Categorizar');
+      expect(sheet.getCell('B3').value).toBe('Paciente Sin Categorizar');
     }
   );
 
