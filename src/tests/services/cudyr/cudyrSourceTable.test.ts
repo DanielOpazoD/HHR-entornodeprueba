@@ -118,6 +118,13 @@ describe('readable source table and documentary movement annotations', () => {
       richText: [{ font: { color: { argb: 'FF047857' } } }, { text: 'C2' }],
     });
   });
+  it('marks confirmed external transfers as departures', async () => {
+    const r = row();
+    r.movements[0].section = 'transfers';
+    const sheet = await exportSheet([r]);
+    expect(sheet.getCell('I2').text).toBe('▲ S/C');
+    expect(sheet.getCell('I2').note).toContain('2026-10-02 01:47');
+  });
   it('shows both symbols for a same-day stay, including a blank original category', async () => {
     const r = row();
     r.hospitalAdmissionAt = '2026-10-02T05:30:00Z';

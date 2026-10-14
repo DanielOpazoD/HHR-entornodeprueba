@@ -66,7 +66,7 @@ export const markCudyrSourceMovements = (
         .filter(
           m =>
             m.clinicalEpisodeId === episode &&
-            m.section === 'discharges' &&
+            ['discharges', 'transfers'].includes(m.section) &&
             m.source === 'gestion_camas' &&
             validDate(m.date)
         )
