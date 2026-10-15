@@ -1,4 +1,5 @@
 import type { PDFFont, TextPosition } from 'pdf-lib';
+import { loadPdfLibGenerationRuntime } from '@/services/pdf/pdfLibRuntime';
 import { MEDIF_FIELDS, type MedifField } from '../domain/medifSchema';
 import { validateMedifValues, type MedifValues } from '../domain/medifDraft';
 import { filterMedifExportValues, type MedifPreferences } from '../domain/medifPreferences';
@@ -19,7 +20,8 @@ const layoutText = async (
   font: PDFFont,
   size: number
 ): Promise<TextPosition[]> => {
-  const { layoutMultilineText, layoutSinglelineText, TextAlignment } = await import('pdf-lib');
+  const { layoutMultilineText, layoutSinglelineText, TextAlignment } =
+    await loadPdfLibGenerationRuntime();
   const bounds = {
     x: PADDING,
     y: PADDING,
@@ -100,7 +102,7 @@ export const createMedifPdf = async (
   mode: MedifPdfMode
 ): Promise<Uint8Array> => {
   const values = filterMedifExportValues(validateMedifValues(input), preferences);
-  const { PDFDocument, StandardFonts, drawTextField, rgb } = await import('pdf-lib');
+  const { PDFDocument, StandardFonts, drawTextField, rgb } = await loadPdfLibGenerationRuntime();
   const pdf = await PDFDocument.load(template);
   const form = pdf.getForm();
   if (

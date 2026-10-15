@@ -16,6 +16,33 @@ const readBundleBudgetConfig = (): BundleBudgetConfig =>
   ) as BundleBudgetConfig;
 
 describe('PWA precache policy', () => {
+  it('loads MEDIF on demand with its PDF template while retaining the offline clinical library', () => {
+    const viteConfig = readViteConfig();
+    const patterns = readBundleBudgetConfig().precacheIgnoredAssetPatterns.map(
+      pattern => new RegExp(pattern)
+    );
+    const isExcluded = (asset: string): boolean => patterns.some(pattern => pattern.test(asset));
+
+    expect(viteConfig).toContain('**/assets/MedifTool-*.js');
+    expect(isExcluded('assets/MedifTool-fixture.js')).toBe(true);
+    expect(isExcluded('docs/biblioteca/medif-latam-rellenable.pdf')).toBe(true);
+    expect(isExcluded('images/forms/medif/page-1.png')).toBe(true);
+    expect(isExcluded('assets/ClinicalLibraryDrawer-fixture.js')).toBe(false);
+    expect(viteConfig).not.toContain('**/assets/ClinicalLibraryDrawer-*.js');
+    for (const tool of ['TransferCoverTool', 'CriticalMedicationsTool', 'ScoresTool']) {
+      expect(isExcluded(`assets/${tool}-fixture.js`)).toBe(false);
+      expect(viteConfig).not.toContain(`**/assets/${tool}-*.js`);
+    }
+
+    const registry = fs.readFileSync(
+      'src/features/clinical-library/components/toolRegistry.tsx',
+      'utf8'
+    );
+    expect(registry).toContain('const MedifTool = React.lazy(');
+    expect(registry).toContain("import('./tools/MedifTool')");
+    expect(registry).not.toMatch(/import\s+\{\s*MedifTool\s*\}\s+from/);
+  });
+
   it('keeps the opt-in decorative companion out of install-time precache accounting', () => {
     for (const extension of ['js', 'css']) {
       expect(readViteConfig()).toContain(`**/assets/MoaCompanion-*.${extension}`);
