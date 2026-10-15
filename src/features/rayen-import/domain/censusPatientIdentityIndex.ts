@@ -4,6 +4,22 @@ import type { RayenEncounter } from '../contracts/rayenSnapshot';
 export const normalizePatientRut = (rut?: string): string =>
   (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
 
+/** Exact episode, or a legacy RUN with a complete matching admission stamp. */
+export const matchesCensusEpisodeIdentity = (
+  stored: PatientData,
+  incoming: PatientData
+): boolean =>
+  stored.clinicalEpisodeId
+    ? stored.clinicalEpisodeId === incoming.clinicalEpisodeId
+    : Boolean(
+        normalizePatientRut(stored.rut) &&
+        normalizePatientRut(stored.rut) === normalizePatientRut(incoming.rut) &&
+        stored.admissionDate &&
+        stored.admissionTime &&
+        stored.admissionDate === incoming.admissionDate &&
+        stored.admissionTime === incoming.admissionTime
+      );
+
 const isOccupied = (patient: PatientData | undefined): patient is PatientData =>
   !!patient && !!patient.patientName?.trim() && !patient.isBlocked;
 
@@ -11,6 +27,17 @@ export interface CurrentPatientRef {
   bedId: string;
   patient: PatientData;
 }
+
+export const hasUnverifiedCmaAliasIdentity = (
+  current: CurrentPatientRef | undefined,
+  bedId: string | null,
+  incoming: PatientData
+): boolean =>
+  Boolean(
+    current &&
+    bedId === `CMA_${current.bedId}` &&
+    !matchesCensusEpisodeIdentity(current.patient, incoming)
+  );
 
 export interface CensusPatientIdentityIndex {
   occupiedBedIds: ReadonlySet<string>;
@@ -28,10 +55,15 @@ export const createCensusPatientIdentityIndex = (
   const cribByEpisode = new Map<string, CurrentPatientRef>();
   const legacyCribsByRut = new Map<string, CurrentPatientRef[]>();
   const incomingRunCounts = new Map<string, number>();
+  const seenRunEpisodes = new Set<string>();
   const occupiedBedIds = new Set<string>();
 
   for (const encounter of encounters) {
     const rut = normalizePatientRut(encounter.run);
+    const episodeId = encounter.encounterId?.trim();
+    const key = `${rut}:${episodeId}`;
+    if (episodeId && seenRunEpisodes.has(key)) continue;
+    if (episodeId) seenRunEpisodes.add(key);
     if (rut) incomingRunCounts.set(rut, (incomingRunCounts.get(rut) ?? 0) + 1);
   }
 

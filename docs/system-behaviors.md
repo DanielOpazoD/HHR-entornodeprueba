@@ -2,6 +2,22 @@
 
 Documentación de comportamientos automáticos y esperados del sistema HHR.
 
+## Ocupaciones y traslados desde Eloísa
+
+- CMA y hospitalización pueden compartir un nombre de cama en origen. HHR conserva y muestra
+  ambos episodios en filas distintas, por ejemplo `CMA NEO1` y `NEO1`; la coincidencia del nombre
+  no autoriza eliminar ni dar de alta a un paciente.
+- Urgencias reconoce `B1UEA`–`B4UEA`. Estas ubicaciones y las filas CMA aparecen cuando están
+  ocupadas, sin aumentar las 18 camas instaladas ni convertir esos casos en elegibles CUDYR.
+- Antes de bloquear un ingreso por cama ocupada, se verifica si el ocupante ya se trasladó.
+  Una ubicación oficial comprobada por episodio permite moverlo primero, conservando sus notas,
+  incluso entre Hospitalizados y Urgencias. Una evidencia ausente o ambigua mantiene la revisión.
+- La identidad del episodio prevalece sobre el nombre de la cama. Un episodio con dos alias no
+  se duplica; un registro antiguo sin episodio exige RUN y sello de ingreso completos y coincidentes
+  para separar una ocupación CMA antes confundida con la hospitalaria.
+
+Contrato y pruebas: [sincronización de censo](../src/features/rayen-import/README.md).
+
 ## Profesionales descubiertos desde Eloísa
 
 La sincronización clínica y la revisión de Dotación registran automáticamente los autores

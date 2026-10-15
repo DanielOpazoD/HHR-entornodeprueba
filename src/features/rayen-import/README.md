@@ -178,10 +178,13 @@ clínicos en esa telemetría.
   Un traslado explícito o un fallecimiento conservan su clasificación administrativa.
 - **Sin inferencias por ausencia:** un snapshot completo puede mostrar el pendiente administrativo;
   un snapshot parcial no genera ni siquiera ese pendiente.
-- **Reubicación tardía con evidencia:** si una cama local bloquea un ingreso y el ocupante pertenece
-  a un episodio clínicamente cerrado, HHR consulta solo para ese episodio el informe oficial
+- **Reubicación tardía con evidencia:** antes de declarar una cama ocupada, HHR verifica si su
+  ocupante ya se trasladó, aunque el episodio siga activo y Ficha Médico muestre la cama anterior.
+  Consulta solo para ese episodio el informe oficial
   `Flujo_del_Paciente.pdf`. Se exige RUN coincidente y un movimiento entre el ingreso y la captura
   del snapshot. Un PDF ausente, inválido, ambiguo o con una ubicación no mapeable conserva el conflicto.
+  Un traslado verificado a Urgencias u otra unidad se aplica antes del nuevo ingreso; no genera
+  una alta ficticia ni pierde las notas del paciente trasladado.
 - **El registro producido pasa el Zod del propio HHR** y preserva `dateTimestamp` (test
   `producedRecordValidity.test.ts`), así el `save` no es rechazado por validación ni por reglas Firestore.
 
@@ -262,15 +265,21 @@ la del registro completo; no aplica tolerancias de minutos ni inventa una hora c
   Nunca infiere un médico desde la cama, el diagnóstico o la especialidad. Una fila visible sin
   médico también es autoritativa y elimina una asignación antigua.
 - **Camas:** `Habitacion N`+`Cn`→`H{N}C{n}`; `Recuperacion k`/`Rk`→`Rk` (UTI); `Neo k`→`NEOk`.
-  Las ubicaciones `B1UEA`/`B2UEA`/`B3UEA` de Hospitalización de Urgencias se representan como
-  `BOX1`/`BOX2`/`BOX3`: son camas extra activadas por ocupación y nunca se ofrecen vacías como
+  Las ubicaciones `B1UEA`–`B4UEA` de Hospitalización de Urgencias se representan con sus nombres
+  oficiales y las claves compatibles `BOX1`–`BOX4`: son camas extra activadas por ocupación y nunca se ofrecen vacías como
   disponibilidad manual. Su `location` ("servicio / sala / cama", p. ej. `AMQI / B1UEA`) la escribe
   la conciliación, por lo que la celda de cama no muestra el editor manual ámbar de ubicación que
   sí conservan las camas extra `E1`–`E5`. Al copiar el día, una ocupación vigente se conserva hasta
   que una conciliación segura confirme su egreso o traslado; HHR no oculta pacientes sólo por
   ausencia o ambigüedad de una captura.
-- **CMA = tipo de egreso, no ubicación:** un paciente del servicio CMA (`CMA*`) ocupa la misma
-  cama real (`CMAR1→R1`, `CMAN1→NEO1`, …); solo su egreso se traduce a tipo CMA (`record.cma[]`).
+- **CMA y hospitalización conservan ocupaciones distintas:** `CMA NEO1` y `NEO1`, por ejemplo,
+  se muestran simultáneamente como filas independientes (`CMA_NEO1` y `NEO1`). No se elimina,
+  traslada ni da de alta a una persona solo para hacer coincidir esos nombres. Las filas CMA se
+  activan únicamente al estar ocupadas, sin aumentar las 18 camas instaladas; CMA y UEA conservan
+  su exclusión del cumplimiento CUDYR. Un mismo episodio con dos alias sigue siendo un paciente.
+  Los registros antiguos se separan conservando notas y correcciones: se exige el episodio exacto
+  o RUN y sello completo de ingreso coincidentes. Las decisiones manuales antiguas mantienen su
+  trazabilidad, pero no fuerzan a retirar un episodio que las fuentes todavía muestran activo.
 - **Apply defensivo:** nunca sobrescribe una cama ocupada; reporta lo omitido (`skipped`).
 - **Traspaso estructural→clínico:** el guardado entrega un comprobante en memoria de la versión
   exacta y aplicada del mismo día/run. Sólo ese comprobante evita una lectura redundante; los

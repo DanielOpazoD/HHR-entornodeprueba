@@ -224,7 +224,7 @@ describe('occupied-bed traceability reconciliation', () => {
     expect(resolved.diff.admissions).toEqual([expect.objectContaining({ bedId: 'NEO1' })]);
   });
 
-  it('preserves CMA origin while overriding only the verified physical bed', () => {
+  it('preserves a verified CMA assignment independently of its physical namesake', () => {
     expect(
       rayenToPatientData(
         {
@@ -232,13 +232,30 @@ describe('occupied-bed traceability reconciliation', () => {
           service: 'Área quirúrgica indiferenciada',
           verifiedBedPlacement: {
             source: 'patient-flow-report',
-            bedId: 'R1',
+            bedId: 'CMA_R1',
             changedAt: '2026-07-23T23:10:09',
           },
         },
         REFERENCE
       )
-    ).toMatchObject({ bedId: 'R1', isCma: true });
+    ).toMatchObject({ bedId: 'CMA_R1', isCma: true });
+  });
+
+  it('uses the verified hospital assignment instead of a stale CMA service label', () => {
+    const mapped = rayenToPatientData(
+      {
+        ...closedMovedPatient,
+        service: 'Área quirúrgica indiferenciada',
+        verifiedBedPlacement: {
+          source: 'patient-flow-report',
+          bedId: 'R1',
+          changedAt: '2026-07-23T23:10:09',
+        },
+      },
+      REFERENCE
+    );
+    expect(mapped).toMatchObject({ bedId: 'R1', isCma: false });
+    expect(mapped.patient.location).toBe('R1');
   });
 
   it('keeps the conflict when the report is missing, malformed or still points to Neo1', async () => {

@@ -17,6 +17,7 @@ import { buildScoresCellModel } from '@/features/census/controllers/evaluationSc
 import { isCudyrPatientEligible } from '@/domain/cudyr/cudyrEligibility';
 import { isCudyrScoreComplete } from '@/domain/cudyr/cudyrCompletion';
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
+import { cudyrModality } from '@/domain/cudyr/cudyrModality';
 
 const ScoresDetailModal = lazy(() =>
   import('./ScoresDetailModal').then(module => ({ default: module.ScoresDetailModal }))
@@ -56,6 +57,7 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
   const cudyrPending =
     !isSubRow &&
     data.bedMode !== 'Cuna' &&
+    !['cma', 'uea'].includes(cudyrModality(data)) &&
     !model.cudyr &&
     !hasCompleteManualCudyr &&
     isCudyrPatientEligible(currentDateString, data)
