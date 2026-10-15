@@ -34,6 +34,15 @@ export const makeInventoryReader = (token, fetchImpl = fetch) => {
       headers: { Authorization: `Bearer ${token}` },
       signal: AbortSignal.timeout(30000),
     });
+    if (
+      response.status === 404 &&
+      PROTECTED_MONTHS.some(
+        month =>
+          new URL(url).pathname ===
+          new URL(base(TARGET_PROJECT) + `cudyrOfficialReports/${month}`).pathname
+      )
+    )
+      return null;
     if (!response.ok) throw new Error('inventory_read_failed');
     return response.json();
   };
@@ -66,11 +75,11 @@ const officialVersions = async read => {
     for (const field of ['month', 'version']) params.append('mask.fieldPaths', field);
     const document = await read(base(TARGET_PROJECT) + `cudyrOfficialReports/${month}?` + params);
     if (
-      !document.updateTime ||
-      !document.fields?.version?.stringValue ||
-      document.fields?.month?.stringValue !== month
+      !document?.updateTime ||
+      !document?.fields?.version?.stringValue ||
+      document?.fields?.month?.stringValue !== month
     )
-      throw new Error('protected_cudyr_metadata_unavailable');
+      continue;
     result[month] = {
       updateTime: document.updateTime,
       version: document.fields.version.stringValue,
@@ -122,7 +131,7 @@ export const collectMigrationInventory = async ({
   });
 };
 
-export const runInventoryCli = async args => {
+export const runInventoryCli = async (args, collect = collectMigrationInventory) => {
   const { values } = parseArgs({
     args,
     options: { out: { type: 'string' }, help: { type: 'boolean' } },
@@ -133,7 +142,7 @@ export const runInventoryCli = async args => {
     );
     return 0;
   }
-  const report = await collectMigrationInventory();
+  const report = await collect();
   if (values.out) {
     const destination = resolve(values.out);
     mkdirSync(dirname(destination), { recursive: true, mode: 0o700 });

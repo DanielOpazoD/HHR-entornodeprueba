@@ -10,6 +10,7 @@ import {
 import {
   collectMigrationInventory,
   makeInventoryReader,
+  runInventoryCli,
 } from '../../../scripts/migration/readInventory.mjs';
 
 const wire = (value: unknown): object =>
@@ -150,27 +151,62 @@ describe('migration inventory', () => {
     expect(runGcloud).toHaveBeenCalledTimes(1);
     expect(fetcher).not.toHaveBeenCalled();
   });
-  it('rejects a protected report with the wrong embedded month', async () => {
-    const runGcloud = (args: string[]) =>
-      args[0] === 'auth'
-        ? 'test-token-placeholder'
-        : JSON.stringify({
-            projectId: args[2],
-            projectNumber: args[2] === SOURCE_PROJECT ? '179072085914' : '339724354374',
-            lifecycleState: 'ACTIVE',
-          });
-    const fetcher = vi.fn<typeof fetch>(async () =>
-      Response.json({
-        updateTime: '2026-10-09T00:00:00Z',
-        fields: { version: { stringValue: 'fixture' }, month: { stringValue: '2026-09' } },
-      })
-    );
-    await expect(collectMigrationInventory({ runGcloud, fetchImpl: fetcher })).rejects.toThrow(
-      'protected_cudyr_metadata_unavailable'
-    );
-    expect(fetcher).toHaveBeenCalledTimes(1);
+  it.each(['wrong_month', 'missing_version', 'missing_document', 'invalid_types'])(
+    'reports unavailable protected evidence: %s',
+    problem => {
+      const runGcloud = (args: string[]) =>
+        args[0] === 'auth'
+          ? 'test-token-placeholder'
+          : JSON.stringify({
+              projectId: args[2],
+              projectNumber: args[2] === SOURCE_PROJECT ? '179072085914' : '339724354374',
+              lifecycleState: 'ACTIVE',
+            });
+      const fetcher = vi.fn<typeof fetch>(async url => {
+        if (!String(url).includes('cudyrOfficialReports')) return Response.json({ documents: [] });
+        if (problem === 'missing_document') return new Response('', { status: 404 });
+        return Response.json({
+          updateTime: problem === 'invalid_types' ? 42 : '2026-10-09T00:00:00Z',
+          fields: {
+            version: {
+              stringValue:
+                problem === 'invalid_types' ? 42 : problem === 'missing_version' ? '' : 'fixture',
+            },
+            month: { stringValue: '2026-09' },
+          },
+        });
+      });
+      return collectMigrationInventory({ runGcloud, fetchImpl: fetcher }).then(report => {
+        expect(report.checks.officialCudyrUnchanged).toBe(false);
+        expect(report.canUseForPlanning).toBe(false);
+        expect(fetcher).toHaveBeenCalledTimes(8);
+      });
+    }
+  );
+  it('uses CLI code 2 for a completed inventory with unavailable CUDYR evidence', async () => {
+    const args = input();
+    args.officialAfter = {};
+    const report = buildMigrationInventory(args);
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      expect(await runInventoryCli([], async () => report)).toBe(2);
+      expect(JSON.parse(log.mock.calls[0][0]).checks.officialCudyrUnchanged).toBe(false);
+    } finally {
+      log.mockRestore();
+    }
   });
-  it('collects a stable empty inventory with paginated reads and protected metadata', async () => {
+  it('keeps network/access failures distinct from unavailable evidence', async () => {
+    const read = makeInventoryReader(
+      'test-token-placeholder',
+      vi.fn<typeof fetch>(async () => new Response('', { status: 403 }))
+    );
+    await expect(
+      read(
+        `https://firestore.googleapis.com/v1/projects/${TARGET_PROJECT}/databases/(default)/documents/hospitals/hanga_roa/cudyrOfficialReports/2026-08`
+      )
+    ).rejects.toThrow('inventory_read_failed');
+  });
+  it('collects all pages in both projects and in both version checks', async () => {
     const runGcloud = (args: string[]) =>
       args[0] === 'auth'
         ? 'test-token-placeholder'
@@ -179,23 +215,36 @@ describe('migration inventory', () => {
             projectNumber: args[2] === SOURCE_PROJECT ? '179072085914' : '339724354374',
             lifecycleState: 'ACTIVE',
           });
-    const fetcher = vi.fn<typeof fetch>(async url =>
-      Response.json(
-        String(url).includes('cudyrOfficialReports')
-          ? {
-              updateTime: '2026-10-09T00:00:00Z',
-              fields: {
-                version: { stringValue: 'fixture' },
-                month: { stringValue: String(url).includes('2026-08') ? '2026-08' : '2026-09' },
-              },
-            }
-          : { documents: [] }
-      )
-    );
+    const fetcher = vi.fn<typeof fetch>(async inputUrl => {
+      const url = new URL(String(inputUrl));
+      if (url.pathname.includes('cudyrOfficialReports'))
+        return Response.json({
+          updateTime: '2026-10-09T00:00:00Z',
+          fields: {
+            version: { stringValue: 'fixture' },
+            month: { stringValue: url.pathname.endsWith('2026-08') ? '2026-08' : '2026-09' },
+          },
+        });
+      const project = url.pathname.includes(SOURCE_PROJECT) ? SOURCE_PROJECT : TARGET_PROJECT;
+      const secondPage = url.searchParams.get('pageToken') === 'page-2';
+      return Response.json({
+        documents: [doc(project, secondPage ? '2026-09-20' : '2026-09-19')],
+        ...(!secondPage ? { nextPageToken: 'page-2' } : {}),
+      });
+    });
     const report = await collectMigrationInventory({ runGcloud, fetchImpl: fetcher });
-    expect(report.sourceDays).toBe(0);
-    expect(report.targetDays).toBe(0);
+    expect(report.sourceDays).toBe(2);
+    expect(report.targetDays).toBe(2);
     expect(report.canUseForPlanning).toBe(true);
-    expect(fetcher).toHaveBeenCalledTimes(8);
+    expect(fetcher).toHaveBeenCalledTimes(12);
+    expect(report.days.map(day => day.date)).toEqual(['2026-09-19', '2026-09-20']);
+    const later = fetcher.mock.calls
+      .map(([url]) => new URL(String(url)))
+      .filter(url => url.searchParams.has('pageToken'));
+    expect(later).toHaveLength(4);
+    expect(later.every(url => url.searchParams.get('pageToken') === 'page-2')).toBe(true);
+    expect(
+      later.filter(url => url.searchParams.getAll('mask.fieldPaths').length === 1)
+    ).toHaveLength(2);
   });
 });
