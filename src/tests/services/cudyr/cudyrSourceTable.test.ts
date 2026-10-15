@@ -198,6 +198,57 @@ describe('readable source table and documentary movement annotations', () => {
     expect(sheet.getCell('J2').text).toBe('▲ ');
     expect(sheet.getCell('J2').note).toContain('2026-10-03 · hora no informada');
   });
+  it.each(['cma', 'uea', 'cuna'] as const)(
+    'omits fully excluded %s episodes even with CUDYR, without removing another episode of the person',
+    async modality => {
+      const r = row();
+      r.eligibility = 'no_elegible';
+      r.modality = modality;
+      const second = { ...r, monthlyEvidence: { ...r.monthlyEvidence!, sourceDate: '2026-10-02' } };
+      const sheet = await exportSheet([r, second]);
+      expect(sheet.getCell('B2').value).toBe('Paciente Sintético');
+      expect(sheet.getCell('D2').value).toBe('Otro episodio');
+      expect(sheet.getCell('I2').value).toBe('D3');
+      expect(sheet.autoFilter).toBe('A1:AL2');
+    }
+  );
+  it('omits excluded source days of a mixed episode without restoring their movement markers', async () => {
+    const excluded = row();
+    excluded.eligibility = 'no_elegible';
+    excluded.date = '2026-09-30';
+    const eligible = {
+      ...excluded,
+      date: '2026-10-01',
+      eligibility: 'elegible' as const,
+      monthlyEvidence: { ...excluded.monthlyEvidence!, sourceDate: '2026-10-02' },
+    };
+    const sheet = await exportSheet([excluded, eligible]);
+    expect(sheet.getCell('H2').value).toBeNull();
+    expect(sheet.getCell('I2').text).toBe('▲ S/C');
+    expect(sheet.getCell('E2').numFmt).toBe('dd-mm-yyyy');
+    expect(sheet.getCell('A1').note).toContain('exclusiones confirmadas');
+  });
+  it('does not infer exclusions when the source day is unlinked or decisions conflict', async () => {
+    const excluded = row();
+    excluded.eligibility = 'no_elegible';
+    const eligible = { ...excluded, eligibility: 'elegible' as const };
+    const sheet = await exportSheet([excluded, eligible]);
+    expect(sheet.getCell('H2').text).toBe('▼ C2');
+    expect(sheet.getCell('I2').text).toBe('▲ S/C');
+  });
+  it('filters the next-month day 1 using its linked night, even if later days were eligible', async () => {
+    const excluded = row();
+    excluded.eligibility = 'no_elegible';
+    excluded.date = '2026-09-30';
+    const eligible = {
+      ...excluded,
+      eligibility: 'elegible' as const,
+      monthlyEvidence: { ...excluded.monthlyEvidence!, sourceDate: '2026-10-02' },
+    };
+    const sheet = await exportSheet([excluded, eligible], source(), '2026-09');
+    expect(sheet.getCell('A2').value).toBe('Día incluido: 01-10-2026');
+    expect(sheet.autoFilter).toBe('A1:H1');
+  });
   it('keeps only day 1 in the following month, without leaking later movement markers', async () => {
     const sheet = await exportSheet([row()], source(), '2026-09');
     expect(sheet.columnCount).toBe(8);

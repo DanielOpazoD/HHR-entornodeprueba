@@ -14,7 +14,7 @@ import {
   type ArchivedCudyrSupplement,
 } from './cudyrSupplementService';
 
-/** Calendar-day values, without HHR eligibility or night-shift transformations. */
+/** Calendar-day source view, omitting only explicitly linked HHR exclusions. */
 export const addCudyrSourceSheets = (
   workbook: Workbook,
   sources: CudyrSourceSheet[],
@@ -30,7 +30,7 @@ export const addCudyrSourceSheets = (
   const nextMonth = new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 7);
   sources.forEach((original, index) => {
     const excerpt = original.month === nextMonth;
-    const prepared = prepareCudyrSourceTable(original, excerpt);
+    const prepared = prepareCudyrSourceTable(original, excerpt, reportRows);
     const source = prepared.source;
     const sheet = workbook.addWorksheet(
       `Eloísa ${source.month}${sources.filter(s => s.month === source.month).length > 1 ? ` (${index + 1})` : ''}`
@@ -41,7 +41,14 @@ export const addCudyrSourceSheets = (
     });
     source.matrix.merges.forEach(merge => sheet.mergeCells(merge));
     if (prepared.patients) {
-      markCudyrSourceMovements(sheet, original, prepared.patients, reportRows, excerpt);
+      markCudyrSourceMovements(
+        sheet,
+        original,
+        prepared.patients,
+        reportRows,
+        excerpt,
+        prepared.excludedDates
+      );
       sheet.views = [{ state: 'frozen', xSplit: 3, ySplit: 1, topLeftCell: 'D2' }];
       sheet.autoFilter = {
         from: { row: 1, column: 1 },
@@ -54,7 +61,7 @@ export const addCudyrSourceSheets = (
     sheet.getCell('A1').note =
       `Archivo original: ${source.file.name}\nHoja: ${source.matrix.sheet}\nSHA-256: ${source.file.sha256}` +
       (prepared.patients
-        ? '\nVista tabular: encabezados de página unificados; símbolos añadidos desde HHR. ' +
+        ? '\nVista filtrada: exclusiones confirmadas en HHR omitidas; detalle completo en hojas diarias. Encabezado único y símbolos añadidos desde HHR. ' +
           prepared.label
         : '') +
       (excerpt

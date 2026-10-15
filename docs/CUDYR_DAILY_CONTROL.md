@@ -48,7 +48,11 @@ como tabla legible: encabezado único fijo y columnas de identificación inmovil
 Omite Ficha Clínica y reemplaza Días Hosp. por Fecha de ingreso (dd-mm-aaaa),
 obtenida del episodio HHR vinculado; sin evidencia inequívoca indica No informado.
 El período se muestra como Agosto 2026, con nombre del mes y año.
-Elimina encabezados de página repetidos, conservando las filas de pacientes y episodios.
+Elimina encabezados de página repetidos. Omite las exclusiones confirmadas por fila
+del informe, episodio y fecha de aplicación (no por nombre ni fecha censal). Un
+episodio mixto conserva sus días no excluidos; si todos sus días con información
+están excluidos, se omite la fila. Vínculos ambiguos o sin clasificación no se
+presumen excluidos. Las hojas diarias y los archivos originales conservan el detalle.
 Los formatos antiguos no reconocidos mantienen sus celdas originales completas.
 Si se utiliza el mes siguiente, incluye solo el día 1 y filas con valores (incluido S/C).
 Los originales se conservan completos. La nota del encabezado identifica archivo y huella.

@@ -1,19 +1,52 @@
+import type { CudyrReportRow } from '@/types/domain/cudyrReport';
 import type { CudyrSourceSheet } from './cudyrSourceTypes';
 import { parseCudyrSupplementMatrix } from './cudyrSupplementParser';
 
 /** Parser joins Jasper page continuations; patient episodes are never deduplicated. */
-export const prepareCudyrSourceTable = (source: CudyrSourceSheet, excerpt: boolean) => {
+export const prepareCudyrSourceTable = (
+  source: CudyrSourceSheet,
+  excerpt: boolean,
+  rows: CudyrReportRow[] = []
+) => {
   const parsed = parseCudyrSupplementMatrix(source.matrix);
   if (!parsed.ok || parsed.report.month !== source.month) {
     if (excerpt)
       throw new Error('No se pudo aislar el día 1 del informe original del mes siguiente.');
     // Unknown legacy layouts retain their complete original cells and formatting.
-    return { source, patients: null, label: '' };
+    return { source, patients: null, label: '', excludedDates: new Map<number, Set<string>>() };
   }
   const { report } = parsed;
-  const patients = report.patients.filter(
-    p => !excerpt || p.days.some(d => d.sourceDay === 1 && d.originalValue)
-  );
+  const excludedDates = new Map<number, Set<string>>();
+  const patients = report.patients.filter(p => {
+    const days = p.days.filter(d => !excerpt || d.sourceDay === 1);
+    if (excerpt && !days.some(d => d.originalValue)) return false;
+    const own = source.reportId
+      ? rows.filter(
+          r =>
+            r.monthlyEvidence?.reportId === source.reportId &&
+            r.monthlyEvidence?.sourceRow === p.sourceRow
+        )
+      : [];
+    const episodes = new Set(own.map(r => r.clinicalEpisodeId));
+    const excluded = new Set<string>();
+    if (episodes.size === 1 && !episodes.has('')) {
+      for (const day of days) {
+        const matches = own.filter(r => r.monthlyEvidence?.sourceDate === day.sourceDate);
+        if (
+          matches.length &&
+          matches.every(
+            r => r.eligibility === 'no_elegible' && r.monthlyEvidence?.state !== 'conflict'
+          )
+        )
+          excluded.add(day.sourceDate);
+      }
+    }
+    excludedDates.set(p.sourceRow, excluded);
+    const relevant = days.filter(
+      d => d.originalValue || own.some(r => r.monthlyEvidence?.sourceDate === d.sourceDate)
+    );
+    return !relevant.length || !relevant.every(d => excluded.has(d.sourceDate));
+  });
   const days = report.patients[0].days.filter(d => !excerpt || d.sourceDay === 1);
   const monthName = new Intl.DateTimeFormat('es-CL', { month: 'long', timeZone: 'UTC' }).format(
     new Date(`${source.month}-01T00:00:00Z`)
@@ -24,6 +57,7 @@ export const prepareCudyrSourceTable = (source: CudyrSourceSheet, excerpt: boole
   return {
     patients,
     label,
+    excludedDates,
     source: {
       ...source,
       matrix: {
@@ -47,7 +81,9 @@ export const prepareCudyrSourceTable = (source: CudyrSourceSheet, excerpt: boole
             'No informado',
             p.service,
             p.dischargeCondition,
-            ...p.days.filter(d => !excerpt || d.sourceDay === 1).map(d => d.originalValue),
+            ...p.days
+              .filter(d => !excerpt || d.sourceDay === 1)
+              .map(d => (excludedDates.get(p.sourceRow)?.has(d.sourceDate) ? '' : d.originalValue)),
           ]),
           [label],
           [
