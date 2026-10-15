@@ -1,6 +1,5 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { MAX_HISTORICAL_CENSUS_LOOKBACK_DAYS } from '@/features/rayen-import/domain/historicalCensusSync';
 
 import '../../../extension/clinical-day-runtime.js';
 import '../../../extension/census-sync-horizon-runtime.js';
@@ -8,7 +7,6 @@ import '../../../extension/rayen-sync-bundle-runtime.js';
 
 interface SyncBundleRuntime {
   MAX_SOURCE_SKEW_MS: number;
-  MAX_HISTORICAL_LOOKBACK_DAYS: number;
   capture: (input: Record<string, unknown>) => Promise<Record<string, any>>;
 }
 
@@ -136,17 +134,18 @@ describe('Rayen synchronized source bundle', () => {
     });
   });
 
-  it('accepts the seventh prior clinical day and rejects D-8', async () => {
-    expect(runtime.MAX_HISTORICAL_LOOKBACK_DAYS).toBe(MAX_HISTORICAL_CENSUS_LOOKBACK_DAYS);
+  it('captures older historical targets without interpreting age as evidence', async () => {
     await expect(
       capture({ dateStart: '2026-07-17', dateEnd: '2026-07-25' })
     ).resolves.toMatchObject({
       ok: true,
       bundle: { dateStart: '2026-07-17', dateEnd: '2026-07-25' },
     });
-    await expect(capture({ dateStart: '2026-07-16', dateEnd: '2026-07-25' })).resolves.toEqual({
-      error:
-        'La reconstrucción automática admite el censo vigente y hasta siete días clínicos anteriores.',
+    await expect(
+      capture({ dateStart: '2026-06-01', dateEnd: '2026-07-25' })
+    ).resolves.toMatchObject({
+      ok: true,
+      bundle: { dateStart: '2026-06-01' },
     });
   });
 
@@ -334,9 +333,8 @@ describe('Rayen synchronized source bundle', () => {
     await expect(capture({ dateEnd: '2026-07-31' })).resolves.toEqual({
       error: 'El intervalo solicitado para sincronizar no es válido.',
     });
-    await expect(capture({ dateStart: '2026-07-16', dateEnd: '2026-07-25' })).resolves.toEqual({
-      error:
-        'La reconstrucción automática admite el censo vigente y hasta siete días clínicos anteriores.',
-    });
+    await expect(
+      capture({ dateStart: '2026-02-31', dateEnd: '2026-07-25' })
+    ).resolves.toHaveProperty('error');
   });
 });

@@ -75,7 +75,7 @@ describe('useRayenClinicalFillRetry', () => {
     expect(result.current.state.error).toBeNull();
   });
 
-  it('resumes a clinical-only retry from a structurally confirmed partial run', async () => {
+  it('does not send a terminal partial run to the clinical writer despite structural confirmation', async () => {
     const partialRecord = {
       ...record,
       rayenSync: { ...record.rayenSync, status: 'partial' as const },
@@ -94,15 +94,13 @@ describe('useRayenClinicalFillRetry', () => {
         },
       ],
     } as DailyRecord;
-    const { result } = renderHook(() =>
-      useRetryHarness(() => true, null, partialRecord)
-    );
+    const { result } = renderHook(() => useRetryHarness(() => true, null, partialRecord));
 
     await act(async () => result.current.retry());
 
-    expect(result.current.runClinicalStage).toHaveBeenCalledWith(partialRecord);
-    expect(result.current.state.isSyncing).toBe(true);
-    expect(result.current.state.error).toBeNull();
+    expect(result.current.runClinicalStage).not.toHaveBeenCalled();
+    expect(result.current.state.isSyncing).toBe(false);
+    expect(result.current.state.error).toContain('Vuelve a sincronizar');
   });
 
   it('does not bypass structural review for a partial run without a confirmed handoff', async () => {
@@ -123,9 +121,7 @@ describe('useRayenClinicalFillRetry', () => {
       ...record,
       rayenSync: { ...record.rayenSync, status: 'complete' as const },
     } as DailyRecord;
-    const { result } = renderHook(() =>
-      useRetryHarness(() => true, null, completedRecord)
-    );
+    const { result } = renderHook(() => useRetryHarness(() => true, null, completedRecord));
 
     await act(async () => result.current.retry());
 

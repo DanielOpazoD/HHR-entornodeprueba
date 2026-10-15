@@ -191,7 +191,7 @@ export const requestScalesReport = (
 /**
  * Ask the extension for one patient's evaluation scales (Braden/Downton) as clinical-history events
  * from Ficha Médico's "panel de historial" (`getPatientEncounterHistoryReportServer`). The census
- * date lets the extension bound the remote history window without losing D-7 or its morning handoff.
+ * date lets the extension reach the selected census and its morning handoff in the history window.
  * Each event's `publishDatetime` is real, so HHR (`parseHistoryScales`) can select the
  * last score applied ON the census day, including same-day re-applications encounterFormEntry
  * misses. Resolves to `{ events: [] }` if the extension / Ficha Médico tab is

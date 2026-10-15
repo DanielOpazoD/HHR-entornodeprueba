@@ -175,8 +175,8 @@
       const session = await resolveSession({ info });
       if (session.error) return session;
       const requestedLookback = Number(lookbackDays);
-      const boundedLookback = Number.isFinite(requestedLookback)
-        ? Math.min(180, Math.max(1, Math.floor(requestedLookback)))
+      const boundedLookback = Number.isSafeInteger(requestedLookback) && requestedLookback > 0
+        ? requestedLookback
         : root.HhrClinicalDayRuntime.historyLookbackDays(censusDate);
       const withCoverage = root.HhrClinicalHistoryCoverage.responseAttacher(boundedLookback);
       try {
@@ -187,12 +187,10 @@
             `getPatientEncounterHistoryReportServer/false/0/0/-${boundedLookback}`,
         });
         if (result.status === 204) return withCoverage({ ok: true, events: [], nursingActivity: [] });
+        if (!Array.isArray(result.data)) throw clinicalReadError('invalid-json', 'Historial clínico no verificable.');
         const projection = root.HhrFichaMedicoHistoryReadModel.project(result.data);
         return withCoverage({ ok: true, ...projection });
       } catch (error) {
-        if (error.kind === 'http' && error.status === 204) {
-          return withCoverage({ ok: true, events: [], nursingActivity: [] });
-        }
         if (error.kind === 'http') {
           return { error: 'El servidor de Ficha Médico respondió HTTP ' + error.status + '.' };
         }
@@ -336,7 +334,7 @@
       }
       const session = await resolveSession({ info: knownInfo });
       if (session.error) return session;
-      const boundedLookback = Math.min(180, Math.max(1, Number(lookbackDays) || 30));
+      const boundedLookback = Number.isSafeInteger(lookbackDays) && lookbackDays > 0 ? lookbackDays : 30;
       try {
         const result = await readJson({
           info: session.info,
@@ -344,7 +342,8 @@
             `/api/encounter/${encodeURIComponent(encId)}/` +
             `getPatientEncounterHistoryReportServer/false/0/0/-${boundedLookback}`,
         });
-        const events = (Array.isArray(result.data) ? result.data : []).flatMap(event => {
+        if (result.status !== 204 && !Array.isArray(result.data)) throw clinicalReadError('invalid-json', 'Historial clínico no verificable.');
+        const events = (result.data || []).flatMap(event => {
           const rows = (Array.isArray(event && event.evaluationInstrumentsResume)
             ? event.evaluationInstrumentsResume
             : []
