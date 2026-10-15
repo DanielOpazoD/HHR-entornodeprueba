@@ -3,7 +3,7 @@ import type { CensusImportDiff } from './contracts/censusImportDiff';
 import type { DailyRecord, PatientData } from './contracts/rayenDomainContracts';
 import type { RayenCensusSnapshot, RayenEncounter } from './contracts/rayenSnapshot';
 import type { EgresoLookupResult } from './contracts/egresoLookup';
-import { toIsoCensusDay } from './domain/censusDayPolicy';
+import { censusNightCloseTimestamp, toIsoCensusDay } from './domain/censusDayPolicy';
 import { isOccupiedCensusPatient as isOccupied } from './domain/censusReconciliationPredicates';
 import { latestPatientFlowMovement, patientRunFromFlowReport } from './mapping/parsePatientFlow';
 import {
@@ -54,7 +54,7 @@ export const resolveOccupiedBedTraceability = async (
   const placementCutoff = absoluteInstantInRapaNui(snapshot.capturedAt);
   const censusDay = toIsoCensusDay(current.date);
   if (!placementCutoff || !censusDay) return snapshot;
-  const effectiveCutoff = [placementCutoff, `${censusDay}T23:59:59`].sort()[0];
+  const effectiveCutoff = [placementCutoff, censusNightCloseTimestamp(censusDay)].sort()[0];
   const candidates = new Map<string, RayenEncounter>();
   for (const conflict of diff.conflicts) {
     if (

@@ -12,6 +12,9 @@ Documentación de comportamientos automáticos y esperados del sistema HHR.
 - Antes de bloquear un ingreso por cama ocupada, se verifica si el ocupante ya se trasladó.
   Una ubicación oficial comprobada por episodio permite moverlo primero, conservando sus notas,
   incluso entre Hospitalizados y Urgencias. Una evidencia ausente o ambigua mantiene la revisión.
+- La madrugada pertenece al turno anterior hasta el relevo de las 08:00/09:00 de Rapa Nui.
+  La ubicación histórica se obtiene de los movimientos anteriores a ese relevo; nunca se sustituye
+  por la cama actual de Gestión de Camas. Tampoco se usan movimientos posteriores a la captura.
 - La identidad del episodio prevalece sobre el nombre de la cama. Un episodio con dos alias no
   se duplica; un registro antiguo sin episodio exige RUN y sello de ingreso completos y coincidentes
   para separar una ocupación CMA antes confundida con la hospitalaria.

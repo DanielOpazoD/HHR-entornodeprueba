@@ -60,10 +60,15 @@ export const createRayenSnapshotEvidenceClient = (
       if (!supportsPatientFlowReport(health.report)) {
         return { base64: '', error: 'La extensión instalada no admite trazabilidad de camas.' };
       }
-      counters.requests += 1;
-      const result = await requestPatientFlowReport(encId, isHistoricalDay ? 15_000 : 30_000);
-      if (isRayenTimeoutMessage(result.error)) counters.timeouts += 1;
-      return result;
+      const read = async (timeoutMs: number) => {
+        counters.requests += 1;
+        const result = await requestPatientFlowReport(encId, timeoutMs);
+        if (isRayenTimeoutMessage(result.error)) counters.timeouts += 1;
+        return result;
+      };
+      const first = await read(isHistoricalDay ? 15_000 : 30_000);
+      // Coalesced by the run-scoped cache. Retry only a timeout, once, for the same episode.
+      return isRayenTimeoutMessage(first.error) ? read(30_000) : first;
     },
     {
       onHit: () => {
