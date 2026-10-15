@@ -35,12 +35,14 @@ no es permiso para un corte ni una verificación independiente de los comprobant
 
 ## Orden operativo
 
-1. Actualizar el inventario; resolver solo candidatos con identidad y episodio
-   comprobados. Documentar los casos que siguen pendientes.
-2. Completar textos de enfermería vacíos por paciente, día y turno, preservando el
-   destino. Conservar versiones originales de los PDF, incluso si comparten ruta.
-3. En un cambio autorizado aparte, detener el espejo antiguo y comprobar ausencia
-   de escrituras nuevas. No arreglar su autenticación para reactivarlo.
+1. Actualizar el inventario y validar identidad y episodio de los candidatos.
+   Documentar los pendientes; todavía no aplicar importaciones.
+2. Preparar la recuperación de textos vacíos por paciente, día y turno y el archivo
+   de versiones originales de PDF. Estas propuestas siguen siendo de solo lectura.
+3. Antes de aplicar cualquier lote, detener el espejo antiguo en un cambio
+   autorizado aparte y comprobar ausencia de escrituras nuevas. No arreglar su
+   autenticación para reactivarlo. Después, aplicar solo los lotes verificados con
+   precondiciones y recibos, conservando el censo corregido y el CUDYR saneado.
 4. Alinear despliegue, reglas, personal y accesos. Resolver antes el aislamiento de
    caché por proyecto: una clave basada solo en UID no es suficiente.
 5. Ensayar con respaldo restaurable y comprobaciones de lectura, sincronización
