@@ -112,11 +112,21 @@ describe('preservation of original nursing PDFs', () => {
             projectNumber: args[2] === 'hhr-pruebas' ? '339724354374' : '179072085914',
             lifecycleState: 'ACTIVE',
           });
-    const fetcher = vi.fn<typeof fetch>(async input =>
-      Response.json(String(input).includes(sourceBucket) ? { items: [object()] } : { items: [] })
-    );
+    const fetcher = vi.fn<typeof fetch>(async input => {
+      const url = new URL(String(input));
+      if (!String(input).includes(sourceBucket)) return Response.json({ items: [] });
+      const second = url.searchParams.get('pageToken') === 'page-2';
+      return Response.json({
+        items: [object({ generation: second ? '11' : '10' })],
+        ...(!second ? { nextPageToken: 'page-2' } : {}),
+      });
+    });
     const result = await collectNursingOriginals({ runGcloud: cloud, fetchImpl: fetcher });
-    expect(result.report.archiveCandidates).toBe(1);
+    expect(result.report.archiveCandidates).toBe(2);
+    expect(result.proposals.map(item => item.sourceGeneration)).toEqual(['10', '11']);
+    expect(new Set(result.proposals.map(item => item.targetName)).size).toBe(2);
+    expect(fetcher).toHaveBeenCalledTimes(3);
+    expect(new URL(String(fetcher.mock.calls[1][0])).searchParams.get('pageToken')).toBe('page-2');
     for (const [url, options] of fetcher.mock.calls) {
       expect(String(url)).not.toContain('alt=media');
       expect(new URL(String(url)).searchParams.get('versions')).toBe(
