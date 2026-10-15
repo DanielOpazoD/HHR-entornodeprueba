@@ -4,8 +4,8 @@ import {
   MEDIF_IDENTITY_ALIASES,
   getMedifGroupFieldIds,
   isMedifFieldId,
+  type MedifValues,
 } from './medifSchema';
-import type { MedifValues } from './medifDraft';
 
 export interface MedifPreferences {
   version: 1;

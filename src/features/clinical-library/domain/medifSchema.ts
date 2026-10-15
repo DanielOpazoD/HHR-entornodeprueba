@@ -1,5 +1,7 @@
 import schema from './medifSchema.json';
 
+export type MedifValues = Record<string, string>;
+
 export interface MedifField {
   id: string;
   name: string;

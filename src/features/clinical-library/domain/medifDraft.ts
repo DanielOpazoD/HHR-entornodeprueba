@@ -4,11 +4,12 @@ import {
   MEDIF_GROUPS,
   MEDIF_IDENTITY_ALIASES,
   isMedifFieldId,
+  type MedifValues,
 } from './medifSchema';
 import { emptyMedifPreferences, filterMedifExportValues } from './medifPreferences';
 import type { MedifPreferences } from './medifPreferences';
 
-export type MedifValues = Record<string, string>;
+export type { MedifValues } from './medifSchema';
 export interface MedifDraft {
   version: 1;
   values: MedifValues;

@@ -1,10 +1,10 @@
 import { BEDS } from '@/constants/beds';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
-import type { PatientData } from '@/types/domain/patient';
+import type { DailyRecordRawExportState } from '@/services/contracts/dailyRecordServiceContracts';
+import type { PatientData } from '@/shared/contracts/patientDomainContracts';
 
 /** Read-only census projection. No remote lookups or patient writes belong here. */
-export type MedifSourceRecord = Pick<DailyRecord, 'date' | 'beds'> &
-  Partial<Pick<DailyRecord, 'activeExtraBeds' | 'lastUpdated'>>;
+export type MedifSourceRecord = Pick<DailyRecordRawExportState, 'date' | 'beds'> &
+  Partial<Pick<DailyRecordRawExportState, 'activeExtraBeds' | 'lastUpdated'>>;
 
 export type MedifPatientLocation = 'bed' | 'clinicalCrib';
 
