@@ -25,7 +25,12 @@ describe('PWA precache policy', () => {
     }
   });
   it('keeps server-verified archive recovery and shared online report facts on demand', () => {
-    for (const chunk of ['publicCudyrPolicyRecovery', 'cudyrReportFacts']) {
+    for (const chunk of [
+      'publicCudyrPolicyRecovery',
+      'cudyrReportFacts',
+      'cudyrEssentialWorkbook',
+      'cudyrSourceWorkbook',
+    ]) {
       expect(readViteConfig()).toContain(`**/assets/${chunk}-*.js`);
       expect(readBundleBudgetConfig().precacheIgnoredAssetPatterns).toContain(
         `^assets/${chunk}-.*\\.js$`
