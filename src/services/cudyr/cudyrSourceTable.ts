@@ -1,3 +1,4 @@
+import { CUDYR_EXCLUSION_LABELS } from '@/types/domain/cudyrExclusion';
 import { getPreviousDay } from '@/utils/clinicalDayUtils';
 import { cudyrExclusionSummary } from './cudyrExclusionSummary';
 import type { CudyrReportRow } from '@/types/domain/cudyrReport';
@@ -48,11 +49,13 @@ export const prepareCudyrSourceTable = (
           )
         ) {
           excluded.add(day.sourceDate);
-          const labels = matches
-            .flatMap(r => cudyrExclusionSummary([r]).groups)
-            .map(group =>
-              group.key.startsWith('cma') ? 'CMA · cirugía mayor ambulatoria' : group.label
-            );
+          const labels = matches.flatMap(r =>
+            r.exclusion?.reason
+              ? [CUDYR_EXCLUSION_LABELS[r.exclusion.reason]]
+              : cudyrExclusionSummary([r]).groups.map(group =>
+                  group.key.startsWith('cma') ? 'CMA · cirugía mayor ambulatoria' : group.label
+                )
+          );
           reasons.set(day.sourceDate, [...new Set(labels)].join('; '));
         }
       }
