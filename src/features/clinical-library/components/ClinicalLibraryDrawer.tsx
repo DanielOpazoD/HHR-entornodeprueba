@@ -18,7 +18,12 @@ import { filterLibraryEntries, type LibraryCategoryFilter } from '../domain/libr
 import { printLibraryDocument } from '../services/libraryDocumentActions';
 import { LibraryEntryList } from './LibraryEntryList';
 import { TOOL_REGISTRY } from './toolRegistry';
-import { LibraryExitConfirmation } from './LibraryExitConfirmation';
+
+// A dirty MEDIF has already loaded this module, including its exit guard.
+// Keep the guard in that same on-demand chunk instead of fetching it on exit.
+const LibraryExitConfirmation = React.lazy(() =>
+  import('./tools/MedifTool').then(module => ({ default: module.LibraryExitConfirmation }))
+);
 
 export interface LibraryDocumentActions {
   print: (entry: LibraryDocumentEntry) => void;
@@ -152,16 +157,29 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
           Documentos y herramientas
         </h2>
         {pendingExit && (
-          <LibraryExitConfirmation
-            onCancel={cancelExit}
-            onConfirm={() => {
-              const target = pendingExit;
-              setPendingExit(null);
-              setMedifDirty(false);
-              if (target === 'back') setActiveToolId(null);
-              else onClose();
-            }}
-          />
+          <React.Suspense
+            fallback={
+              <button
+                type="button"
+                autoFocus
+                onClick={cancelExit}
+                className="m-4 text-sm text-medical-700"
+              >
+                Seguir editando
+              </button>
+            }
+          >
+            <LibraryExitConfirmation
+              onCancel={cancelExit}
+              onConfirm={() => {
+                const target = pendingExit;
+                setPendingExit(null);
+                setMedifDirty(false);
+                if (target === 'back') setActiveToolId(null);
+                else onClose();
+              }}
+            />
+          </React.Suspense>
         )}
         {!activeTool && (
           <header className="shrink-0 border-b border-slate-200 bg-white px-3 pb-2 pt-2">

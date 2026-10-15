@@ -9,7 +9,7 @@ vi.mock('@/context/DailyRecordContext', () => ({
 const openDirtyMedif = async () => {
   const onClose = vi.fn();
   render(<ClinicalLibraryDrawer onClose={onClose} initialToolId="medif" />);
-  const editor = await screen.findByTestId('library-tool-medif');
+  const editor = await screen.findByTestId('library-tool-medif', {}, { timeout: 5000 });
   const input = within(editor).getByLabelText(/Seguro de viaje/);
   fireEvent.change(input, { target: { value: 'BORRADOR DE PRUEBA' } });
   return { input, onClose };
@@ -19,7 +19,7 @@ describe('MEDIF drawer integration', () => {
   it('cancels Escape and overlay exits without losing the current form', async () => {
     const { input, onClose } = await openDirtyMedif();
     fireEvent.keyDown(input, { key: 'Escape' });
-    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
     expect(screen.getByTestId('clinical-library-content')).toHaveAttribute('inert');
     expect(screen.getByRole('button', { name: 'Seguir editando' })).toHaveFocus();
     fireEvent.keyDown(screen.getByRole('button', { name: 'Seguir editando' }), { key: 'Escape' });
@@ -34,7 +34,7 @@ describe('MEDIF drawer integration', () => {
   it('returns to the library only after confirming discard and starts a blank next draft', async () => {
     await openDirtyMedif();
     fireEvent.click(screen.getByRole('button', { name: 'Volver a la biblioteca' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Salir y descartar' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Salir y descartar' }));
     expect(screen.getByRole('searchbox')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('library-tool-medif'));
     const editor = await screen.findByTestId('library-tool-medif');
@@ -45,7 +45,7 @@ describe('MEDIF drawer integration', () => {
     const { onClose } = await openDirtyMedif();
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar documentos' }));
     expect(onClose).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Salir y descartar' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Salir y descartar' }));
     expect(onClose).toHaveBeenCalledOnce();
   });
 });

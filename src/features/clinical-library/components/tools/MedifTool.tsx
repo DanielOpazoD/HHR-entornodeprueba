@@ -6,6 +6,8 @@ import { downloadMedifPdf } from '../../services/medifDownload';
 import type { ToolComponentProps } from './ToolFrame';
 import { MedifEditor } from './medif/MedifEditor';
 
+export { LibraryExitConfirmation } from '../LibraryExitConfirmation';
+
 const PREVIEWS = [1, 2, 3].map(page => `/images/forms/medif/page-${page}.png`);
 
 /** Read-only snapshot of the authorized census. MEDIF never writes back to beds. */
