@@ -3,7 +3,11 @@ import type { CudyrReportRow } from '@/types/domain/cudyrReport';
 import type { CudyrSupplementPatient } from '@/types/domain/cudyrSupplement';
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 import type { CudyrSourceSheet } from './cudyrSourceTypes';
-import { cudyrSourceAdmissionInstant, resolveCudyrSourceEpisode } from './cudyrSourceEpisode';
+import {
+  cudyrSourceAdmissionInstant,
+  cudyrSourceNonHospitalAdmission,
+  resolveCudyrSourceEpisode,
+} from './cudyrSourceEpisode';
 
 type Marker = { date: string; time: string; kind: 'Ingreso' | 'Egreso' };
 const validDate = (date: string) =>
@@ -34,13 +38,14 @@ export const markCudyrSourceMovements = (
     const { own, episode, boundary } = context;
     const markers: Marker[] = [];
     const at = cudyrSourceAdmissionInstant(own);
-    if (at !== null) {
-      const stamp = calendarStampInClinicalTimeZone(new Date(at));
+    const nonHospital = at === null ? cudyrSourceNonHospitalAdmission(own) : null;
+    const stamp = at !== null ? calendarStampInClinicalTimeZone(new Date(at)) : nonHospital;
+    if (stamp) {
       const admissionCell = sheet.getCell(index + 2, 5);
       admissionCell.value = new Date(`${stamp.iso}T00:00:00Z`);
       admissionCell.numFmt = 'dd-mm-yyyy';
       admissionCell.note =
-        `Ingreso confirmado en HHR: ${stamp.iso} ${stamp.hhmm} (Rapa Nui), mismo episodio vinculado.` +
+        `${nonHospital ? 'Ingreso del episodio CMA/UEA registrado en Datos demográficos HHR' : 'Ingreso confirmado en HHR'}: ${stamp.iso}${stamp.hhmm ? ` ${stamp.hhmm}` : ' · hora no informada'} (Rapa Nui), mismo episodio vinculado.` +
         (boundary
           ? ' Cruce de mes: documento y nombre completo coincidentes con un único episodio y egreso confirmado del día 1.'
           : '');

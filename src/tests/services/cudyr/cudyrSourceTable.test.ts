@@ -42,6 +42,7 @@ const source = (): CudyrSourceSheet => ({
 const row = (): CudyrReportRow => ({
   ...buildCudyrReport(confirmedReportInput()).rows[0],
   clinicalEpisodeId: 'episode',
+  date: '2026-09-30',
   hospitalAdmissionAt: '2026-10-01T06:47:00Z',
   admissionEvidenceConflict: false,
   monthlyEvidence: {
@@ -288,14 +289,21 @@ describe('readable source table and documentary movement annotations', () => {
       const r = row();
       r.eligibility = 'no_elegible';
       r.modality = modality;
-      const second = { ...r, monthlyEvidence: { ...r.monthlyEvidence!, sourceDate: '2026-10-02' } };
+      const second = {
+        ...r,
+        date: '2026-10-01',
+        monthlyEvidence: { ...r.monthlyEvidence!, sourceDate: '2026-10-02' },
+      };
       const sheet = await exportSheet([r, second]);
       expect(sheet.getCell('B3').value).toBe('Paciente Sintético');
       expect(sheet.getCell('D3').value).toBe('Otro episodio');
       expect(sheet.getCell('I3').value).toBe('D3');
       expect(sheet.getCell('H2').text).toBe('▼ C2');
       expect(sheet.getCell('I2').text).toBe('▲ S/C');
-      expect(sheet.getCell('AM2').value).toBe('Excluido');
+      expect(sheet.getCell('AM2').text).toMatch(/^Excluido: /);
+      expect(sheet.getCell('AM2').text).toContain(
+        modality === 'cma' ? 'CMA' : modality === 'uea' ? 'Urgencias / UEA' : 'Cuna RN sano'
+      );
       expect(sheet.getCell('B2').fill).toMatchObject({ fgColor: { argb: 'FFFFF4DC' } });
       expect(sheet.getCell('AM3').value).toBeNull();
       expect(sheet.getCell('B3').fill).not.toMatchObject({ fgColor: { argb: 'FFFFF4DC' } });
@@ -315,8 +323,8 @@ describe('readable source table and documentary movement annotations', () => {
     const sheet = await exportSheet([excluded, eligible]);
     expect(sheet.getCell('H2').text).toBe('▼ C2');
     expect(sheet.getCell('H2').fill).toMatchObject({ fgColor: { argb: 'FFFFF4DC' } });
-    expect(sheet.getCell('H2').note).toContain('Excluido del cumplimiento');
-    expect(sheet.getCell('AM2').value).toBe('Exclusión parcial');
+    expect(sheet.getCell('H2').note).toContain('Aplicación 2026-10-01 → turno noche 2026-09-30');
+    expect(sheet.getCell('AM2').text).toMatch(/^Exclusión parcial: /);
     expect(sheet.getCell('B2').fill).not.toMatchObject({ fgColor: { argb: 'FFFFF4DC' } });
     expect(sheet.getCell('I2').fill).not.toMatchObject({ fgColor: { argb: 'FFFFF4DC' } });
     expect(sheet.getCell('I2').text).toBe('▲ S/C');
@@ -359,10 +367,84 @@ describe('readable source table and documentary movement annotations', () => {
     };
     const sheet = await exportSheet([excluded, eligible], source(), '2026-09');
     expect(sheet.getCell('H2').text).toBe('▼ C2');
-    expect(sheet.getCell('I2').value).toBe('Excluido');
+    expect(sheet.getCell('I2').text).toMatch(/^Excluido: /);
     expect(sheet.getCell('A3').value).toBe('Día incluido: 01-10-2026');
     expect(sheet.autoFilter).toBe('A1:I2');
   });
+  it('does not color the day after a resolved discharge or call it an exclusion', async () => {
+    const r = row();
+    r.date = '2026-10-01';
+    r.eligibility = 'no_elegible';
+    r.resolvedSystemDeparture = true;
+    r.monthlyEvidence!.sourceDate = '2026-10-02';
+    r.movements[0].date = '2026-10-01';
+    const sheet = await exportSheet([r]);
+    expect(sheet.getCell('H2').text).toBe('▼ ▲ C2');
+    expect(sheet.getCell('I2').text).toBe('S/C');
+    expect(sheet.getCell('I2').fill).not.toMatchObject({ fgColor: { argb: 'FFFFF4DC' } });
+    expect(sheet.getCell('AM2').value).toBeNull();
+  });
+  it('explains short-stay exclusion without coloring an empty application cell', async () => {
+    const current = source();
+    current.matrix.rows[3][8] = '';
+    const r = row();
+    r.eligibility = 'no_elegible';
+    r.eligibilityReason = 'Hospitalización menor de 8 horas al corte.';
+    const sheet = await exportSheet([r], current);
+    expect(sheet.getCell('AM2').text).toContain('Hospitalización < 8 horas');
+    expect(sheet.getCell('H2').fill).not.toMatchObject({ fgColor: { argb: 'FFFFF4DC' } });
+    expect(sheet.getCell('H2').note).toContain('turno noche 2026-09-30');
+  });
+  it('does not apply a census-day exclusion to a mismatched application date', async () => {
+    const r = row();
+    r.date = '2026-10-01';
+    r.eligibility = 'no_elegible';
+    const sheet = await exportSheet([r]);
+    expect(sheet.getCell('AM2').value).toBeNull();
+  });
+  it.each(['cma', 'uea'] as const)(
+    'shows the documented %s episode admission when hospital admission is absent',
+    async modality => {
+      const r = row();
+      r.hospitalAdmissionAt = '';
+      r.modality = modality;
+      r.admissionDate = '2026-09-29';
+      r.admissionTime = '17:43';
+      const sheet = await exportSheet([r]);
+      expect(sheet.getCell('E2').value).toEqual(new Date('2026-09-29T00:00:00Z'));
+      expect(sheet.getCell('E2').note).toContain('Ingreso del episodio CMA/UEA');
+      expect(sheet.getCell('E2').note).toContain('17:43');
+    }
+  );
+  it('keeps the real early-morning CMA admission date on the previous night census', async () => {
+    const r = row();
+    r.modality = 'cma';
+    r.hospitalAdmissionAt = '';
+    r.admissionDate = '2026-10-01';
+    r.admissionTime = '01:47';
+    const sheet = await exportSheet([r]);
+    expect(sheet.getCell('E2').value).toEqual(new Date('2026-10-01T00:00:00Z'));
+    expect(sheet.getCell('H2').text).toBe('▼ C2');
+  });
+  it.each(['hospitalizacion', 'conflict', 'dates', 'invalid', 'future', 'times'])(
+    'does not invent episode admission for %s',
+    async scenario => {
+      const r = row();
+      r.hospitalAdmissionAt = '';
+      r.modality = 'cma';
+      r.admissionDate = '2026-09-29';
+      r.admissionTime = '17:43';
+      const other = { ...r };
+      if (scenario === 'hospitalizacion') r.modality = 'hospitalizacion';
+      if (scenario === 'conflict') r.admissionEvidenceConflict = true;
+      if (scenario === 'dates') other.admissionDate = '2026-09-28';
+      if (scenario === 'invalid') r.admissionDate = other.admissionDate = '2026-02-30';
+      if (scenario === 'future') r.admissionDate = other.admissionDate = '2026-10-02';
+      if (scenario === 'times') other.admissionTime = '18:43';
+      const sheet = await exportSheet([r, other]);
+      expect(sheet.getCell('E2').value).toBe('No informado');
+    }
+  );
   it('keeps only day 1 in the following month, without leaking later movement markers', async () => {
     const sheet = await exportSheet([row()], source(), '2026-09');
     expect(sheet.columnCount).toBe(9);

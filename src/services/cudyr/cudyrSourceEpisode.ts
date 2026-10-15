@@ -1,3 +1,4 @@
+import { getNextDay } from '@/utils/clinicalDayUtils';
 import type { CudyrReportRow } from '@/types/domain/cudyrReport';
 import type { CudyrSupplementPatient } from '@/types/domain/cudyrSupplement';
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
@@ -19,6 +20,33 @@ export const cudyrSourceAdmissionInstant = (rows: CudyrReportRow[]): number | nu
   );
   const instant = [...instants][0];
   return instants.size === 1 && Number.isFinite(instant) ? instant : null;
+};
+
+/** CMA/UEA have an episode admission even when no hospital-stay admission exists. */
+export const cudyrSourceNonHospitalAdmission = (rows: CudyrReportRow[]) => {
+  if (
+    !rows.length ||
+    rows.some(
+      r =>
+        r.admissionEvidenceConflict || r.hospitalAdmissionAt || !['cma', 'uea'].includes(r.modality)
+    )
+  )
+    return null;
+  const dates = new Set(rows.map(r => r.admissionDate).filter(Boolean));
+  const date = [...dates][0];
+  if (
+    dates.size !== 1 ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+    !Number.isFinite(Date.parse(date)) ||
+    new Date(date).toISOString().slice(0, 10) !== date
+  )
+    return null;
+  const times = new Set(rows.map(r => r.admissionTime).filter(Boolean));
+  const time = [...times][0] || '';
+  if (times.size > 1 || (time && !/^([01]\d|2[0-3]):[0-5]\d$/.test(time))) return null;
+  if (rows.some(r => date > getNextDay(r.date) || (date > r.date && (!time || time >= '08:00'))))
+    return null;
+  return { iso: date, hhmm: time };
 };
 
 /** Export-only context. Never creates monthly evidence or changes eligibility/results. */

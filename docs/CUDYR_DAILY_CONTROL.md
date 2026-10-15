@@ -51,15 +51,21 @@ Las fechas con zona horaria se comparan por instante: UTC y hora local equivalen
 no son una contradicción. En filas con información solo el día 1, se puede recuperar
 el ingreso del mes anterior desde un egreso confirmado ese día: exige documento y
 nombre completo coincidentes, una sola fila fuente y un único episodio, sin conflictos.
+Para episodios exclusivamente CMA/UEA sin ingreso hospitalario, utiliza el ingreso
+demográfico del mismo episodio si fecha y hora no son contradictorias; no lo convierte
+en hospitalización ni altera elegibilidad.
 Este cruce solo anota el Excel; no crea evidencia mensual ni modifica elegibilidad.
 El período se muestra como Agosto 2026, con nombre del mes y año.
 Elimina encabezados de página repetidos y conserva todos los pacientes/episodios y
-sus valores originales, incluidos los excluidos. La columna Exclusión HHR y un fondo
-ámbar identifican exclusiones confirmadas por fila, episodio y fecha de aplicación
-(no por nombre ni fecha censal). Un episodio mixto indica Exclusión parcial y resalta
-solo los días excluidos; Excluido indica que todos sus días con información visible
-están excluidos. Vínculos ambiguos o sin clasificación no se presumen excluidos;
-sin marca no acredita elegibilidad. Estas anotaciones no cambian el resumen ni las hojas diarias.
+sus valores originales. La columna Exclusión · motivo informa CMA (cirugía mayor
+ambulatoria), Urgencias/UEA, cuna RN sano o el motivo correspondiente. Las exclusiones
+parciales indican que solo afectan a algunos días. El ámbar destaca valores CUDYR
+existentes excluidos, sin pintar casillas vacías ni egresos del sistema ya resueltos.
+Las columnas siguen la fecha de aplicación del original: X+1 corresponde al turno
+nocturno X; el vínculo debe coincidir con ambas fechas. Los símbolos de ingreso y
+egreso usan la fecha real del movimiento, sin desplazar categorías de Eloísa.
+Vínculos ambiguos no se presumen excluidos; sin marca no acredita elegibilidad.
+Estas anotaciones no cambian el resumen ni las hojas diarias.
 Los formatos antiguos no reconocidos mantienen sus celdas originales completas.
 Si se utiliza el mes siguiente, incluye solo el día 1 y filas con valores (incluido S/C).
 Los originales se conservan completos. La nota del encabezado identifica archivo y huella.

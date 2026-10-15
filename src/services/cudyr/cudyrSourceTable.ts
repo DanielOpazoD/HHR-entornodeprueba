@@ -1,3 +1,5 @@
+import { getPreviousDay } from '@/utils/clinicalDayUtils';
+import { cudyrExclusionSummary } from './cudyrExclusionSummary';
 import type { CudyrReportRow } from '@/types/domain/cudyrReport';
 import type { CudyrSourceSheet } from './cudyrSourceTypes';
 import { parseCudyrSupplementMatrix } from './cudyrSupplementParser';
@@ -18,6 +20,7 @@ export const prepareCudyrSourceTable = (
   const { report } = parsed;
   const excludedDates = new Map<number, Set<string>>();
   const exclusionLabels = new Map<number, string>();
+  const exclusionReasons = new Map<number, Map<string, string>>();
   const patients = report.patients.filter(p => {
     const days = p.days.filter(d => !excerpt || d.sourceDay === 1);
     if (excerpt && !days.some(d => d.originalValue)) return false;
@@ -30,21 +33,36 @@ export const prepareCudyrSourceTable = (
       : [];
     const episodes = new Set(own.map(r => r.clinicalEpisodeId));
     const excluded = new Set<string>();
+    const reasons = new Map<string, string>();
     if (episodes.size === 1 && own.every(r => Boolean(r.clinicalEpisodeId))) {
       for (const day of days) {
         const matches = own.filter(r => r.monthlyEvidence?.sourceDate === day.sourceDate);
         if (
           matches.length &&
           matches.every(
-            r => r.eligibility === 'no_elegible' && r.monthlyEvidence?.state !== 'conflict'
+            r =>
+              r.eligibility === 'no_elegible' &&
+              !r.resolvedSystemDeparture &&
+              r.date === getPreviousDay(day.sourceDate) &&
+              r.monthlyEvidence?.state !== 'conflict'
           )
-        )
+        ) {
           excluded.add(day.sourceDate);
+          const labels = matches
+            .flatMap(r => cudyrExclusionSummary([r]).groups)
+            .map(group =>
+              group.key.startsWith('cma') ? 'CMA · cirugía mayor ambulatoria' : group.label
+            );
+          reasons.set(day.sourceDate, [...new Set(labels)].join('; '));
+        }
       }
     }
     excludedDates.set(p.sourceRow, excluded);
+    exclusionReasons.set(p.sourceRow, reasons);
     const relevant = days.filter(
-      d => d.originalValue || own.some(r => r.monthlyEvidence?.sourceDate === d.sourceDate)
+      d =>
+        d.originalValue ||
+        own.some(r => !r.resolvedSystemDeparture && r.monthlyEvidence?.sourceDate === d.sourceDate)
     );
     if (excluded.size)
       exclusionLabels.set(
@@ -60,12 +78,17 @@ export const prepareCudyrSourceTable = (
   const label = excerpt
     ? `Día incluido: 01-${source.month.slice(5)}-${source.month.slice(0, 4)}`
     : `${monthName[0].toUpperCase()}${monthName.slice(1)} ${source.month.slice(0, 4)}`;
+  const reasonsLabel = (sourceRow: number) => {
+    const reason = [...new Set(exclusionReasons.get(sourceRow)?.values())].join('; ');
+    return reason ? `${exclusionLabels.get(sourceRow)}: ${reason}` : '';
+  };
   return {
     patients,
     allPatients: report.patients,
     label,
     excludedDates,
     exclusionLabels,
+    exclusionReasons,
     source: {
       ...source,
       matrix: {
@@ -80,7 +103,7 @@ export const prepareCudyrSourceTable = (
             'Servicio Clínico',
             'Condición Alta',
             ...days.map(d => `Día ${d.sourceDay}`),
-            'Exclusión HHR',
+            'Exclusión · motivo',
           ],
           ...patients.map(p => [
             p.ordinal,
@@ -91,14 +114,14 @@ export const prepareCudyrSourceTable = (
             p.service,
             p.dischargeCondition,
             ...p.days.filter(d => !excerpt || d.sourceDay === 1).map(d => d.originalValue),
-            exclusionLabels.get(p.sourceRow) || '',
+            reasonsLabel(p.sourceRow),
           ]),
           [label],
           [
-            '▼ Ingreso · ▲ Egreso — fechas calendario de HHR (Rapa Nui). Sin símbolo: movimiento no confirmado o no vinculado.',
+            'Día = aplicación en Eloísa. CUDYR aplicado en X+1 → turno noche X. ▼ Ingreso · ▲ Egreso: fecha real (Rapa Nui).',
           ],
           [
-            'Ámbar: exclusión confirmada en HHR para los días señalados; no cuentan en el cumplimiento. Sin marca no acredita elegibilidad.',
+            'Ámbar: valor de Eloísa excluido del cálculo; motivo a la derecha. Los egresos resueltos no se colorean. Sin marca no acredita elegibilidad.',
           ],
           [report.establishment],
           [report.generatedLabel],
@@ -107,7 +130,7 @@ export const prepareCudyrSourceTable = (
           { length: 5 },
           (_, i) => `A${patients.length + 2 + i}:G${patients.length + 2 + i}`
         ),
-        widths: [8, 32, 18, 40, 18, 26, 16, ...days.map(() => 10), 23],
+        widths: [8, 32, 18, 40, 18, 26, 16, ...days.map(() => 10), 45],
         heights: [],
         formats: {},
       },

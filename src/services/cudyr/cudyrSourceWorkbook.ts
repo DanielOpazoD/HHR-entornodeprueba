@@ -2,7 +2,7 @@ import type { Workbook } from 'exceljs';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
 import type { CudyrSourceSheet } from './cudyrSourceTypes';
 export type { CudyrSourceSheet } from './cudyrSourceTypes';
-import { getNextDay } from '@/utils/clinicalDayUtils';
+import { getNextDay, getPreviousDay } from '@/utils/clinicalDayUtils';
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { prepareCudyrSourceTable } from './cudyrSourceTable';
@@ -69,14 +69,19 @@ export const addCudyrSourceSheets = (
         for (const day of patient.days.filter(d => !excerpt || d.sourceDay === 1)) {
           if (!excluded.has(day.sourceDate)) continue;
           const column = 7 + day.sourceDay;
-          highlight(column);
+          if (day.originalValue.trim()) highlight(column);
           const cell = row.getCell(column);
-          cell.note = `${typeof cell.note === 'string' ? cell.note + '\n' : ''}Excluido del cumplimiento HHR en esta fecha. Se conserva el valor de Eloísa.`;
+          cell.note = `${typeof cell.note === 'string' ? cell.note + '\n' : ''}${prepared.exclusionReasons?.get(patient.sourceRow)?.get(day.sourceDate)}. Aplicación ${day.sourceDate} → turno noche ${getPreviousDay(day.sourceDate)}. Se conserva el valor de Eloísa.`;
         }
         highlight(statusColumn);
         row.getCell(statusColumn).font = { bold: true, color: { argb: 'FF854D0E' } };
-        row.getCell(statusColumn).note =
-          'Exclusión confirmada únicamente en los días resaltados. Los días sin marca no acreditan elegibilidad.';
+        row.getCell(statusColumn).note = [...excluded]
+          .sort()
+          .map(
+            date =>
+              `${prepared.exclusionReasons?.get(patient.sourceRow)?.get(date)}: aplicación ${date} → turno noche ${getPreviousDay(date)}`
+          )
+          .join('\n');
       });
       sheet.views = [{ state: 'frozen', xSplit: 3, ySplit: 1, topLeftCell: 'D2' }];
       sheet.autoFilter = {
@@ -84,6 +89,11 @@ export const addCudyrSourceSheets = (
         to: { row: prepared.patients.length + 1, column: sheet.columnCount },
       };
       sheet.getRow(1).font = { bold: true };
+      const days = prepared.patients[0]?.days.filter(d => !excerpt || d.sourceDay === 1) || [];
+      for (const day of days) {
+        sheet.getCell(1, 7 + day.sourceDay).note =
+          `Fecha de aplicación en Eloísa: ${day.sourceDate}. Corresponde al turno nocturno del ${getPreviousDay(day.sourceDate)}. Los símbolos de ingreso/egreso usan la fecha real del movimiento.`;
+      }
       sheet.pageSetup.printTitlesRow = '1:1';
     }
     fitCudyrSourceSheet(sheet, source.matrix);
