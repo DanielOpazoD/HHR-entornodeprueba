@@ -55,7 +55,12 @@ const parsePatientFlowRows = (text: string): PatientFlowParseResult => {
     if (!row) continue;
 
     const sourceLocation = row[3];
-    const sourceBedLabel = sourceLocation.split(' ').at(-1) ?? '';
+    // Jasper prints the entire bed name (e.g. "BOX 4 UEA") in its final column.
+    // Match only that suffix: an earlier room label cannot replace an unknown final bed.
+    const sourceBedLabel =
+      /\bBOX\s*\d+(?:\s*UEA)?$/i.exec(sourceLocation)?.[0] ??
+      sourceLocation.split(' ').at(-1) ??
+      '';
     const changedAt = toSortableLocalTimestamp(row[1], row[2]);
     if (!changedAt) {
       hasMalformedMovementRow = true;

@@ -129,6 +129,9 @@ clínicos en esa telemetría.
   el egreso individual puede probar el intervalo ingreso–egreso. Solo cuando no registra traslado
   previo al corte se conserva la cama que ya constaba en HHR; nunca se inventa una ubicación.
   Episodios no demostrables quedan en revisión; D−8 y anteriores permanecen bloqueados.
+  Las asignaciones actuales de Gestión de Camas sirven para localizar episodios omitidos, pero no
+  pasan al snapshot histórico como ubicaciones. La cama y sala de cada episodio reconstruido son
+  las acreditadas al cierre, aunque hoy esté en otra unidad o en recuperación de Pabellón.
 - **Sin fallback fragmentado:** HHR rechaza snapshots sueltos o paquetes que no coincidan
   exactamente en establecimiento, rango y marca de captura; nunca vuelve a combinar lecturas
   independientes después de iniciar una sincronización dual.
@@ -182,7 +185,13 @@ clínicos en esa telemetría.
   ocupante ya se trasladó, aunque el episodio siga activo y Ficha Médico muestre la cama anterior.
   Consulta solo para ese episodio el informe oficial
   `Flujo_del_Paciente.pdf`. Se exige RUN coincidente y un movimiento entre el ingreso y la captura
-  del snapshot. Un PDF ausente, inválido, ambiguo o con una ubicación no mapeable conserva el conflicto.
+  del snapshot, anterior al relevo de las 08:00/09:00 que cierra el censo seleccionado. El lector
+  conserva completa la última columna de cama, incluido `BOX 1 UEA`…`BOX 4 UEA`; no toma una sala
+  anterior como sustituto de una cama desconocida. Un PDF ausente, inválido, ambiguo o con una ubicación
+  no mapeable conserva el conflicto.
+  Si la lectura vence por timeout, se repite una sola vez para el mismo episodio, compartiendo
+  la solicitud entre consumidores. Una sesión vencida o evidencia contradictoria no se reintenta
+  como si fuera válida; si persiste el fallo, el paciente y sus notas permanecen sin cambios.
   Un traslado verificado a Urgencias u otra unidad se aplica antes del nuevo ingreso; no genera
   una alta ficticia ni pierde las notas del paciente trasladado.
 - **El registro producido pasa el Zod del propio HHR** y preserva `dateTimestamp` (test

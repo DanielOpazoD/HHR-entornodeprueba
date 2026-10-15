@@ -15,6 +15,27 @@ Pág. 1 de 1
 `;
 
 describe('patient-flow parser', () => {
+  it.each([1, 2, 3, 4])('reads the complete multiword BOX %s UEA bed column', number => {
+    const label = `BOX ${number} UEA`;
+    expect(
+      latestPatientFlowMovement(`
+      14/10/2026 23:10:09 Area Medico Quirurgica Hospitalizacion Urgencias ${label} Media ${label}
+    `)
+    ).toEqual({ changedAt: '2026-10-14T23:10:09', bedId: `BOX${number}`, sourceBedLabel: label });
+  });
+
+  it.each(['BOX 5 UEA', 'DESCONOCIDA'])(
+    'does not infer a bed from the room when the final column is %s',
+    label => {
+      expect(
+        latestPatientFlowMovement(`
+      14/10/2026 22:00:00 Servicio Hospitalizados H6C1
+      14/10/2026 23:10:09 Servicio Urgencias BOX 4 UEA Media ${label}
+    `)
+      ).toBeNull();
+    }
+  );
+
   it('distinguishes CMA and inpatient placements before a move to B4UEA', () => {
     expect(
       parsePatientFlowMovements(`
