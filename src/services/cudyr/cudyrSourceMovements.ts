@@ -1,3 +1,4 @@
+import { CUDYR_SOURCE_COLUMNS as columns } from './cudyrSourceColumns';
 import type { Worksheet } from 'exceljs';
 import type { CudyrReportRow } from '@/types/domain/cudyrReport';
 import type { CudyrSupplementPatient } from '@/types/domain/cudyrSupplement';
@@ -41,7 +42,7 @@ export const markCudyrSourceMovements = (
     const nonHospital = at === null ? cudyrSourceNonHospitalAdmission(own) : null;
     const stamp = at !== null ? calendarStampInClinicalTimeZone(new Date(at)) : nonHospital;
     if (stamp) {
-      const admissionCell = sheet.getCell(index + 2, 5);
+      const admissionCell = sheet.getCell(index + 2, columns.admission);
       admissionCell.value = new Date(`${stamp.iso}T00:00:00Z`);
       admissionCell.numFmt = 'dd-mm-yyyy';
       admissionCell.note =
@@ -86,7 +87,7 @@ export const markCudyrSourceMovements = (
     for (const day of patient.days.filter(d => !excerpt || d.sourceDay === 1)) {
       const matches = markers.filter(m => m.date === day.sourceDate);
       if (!matches.length) continue;
-      const cell = sheet.getCell(index + 2, 7 + day.sourceDay);
+      const cell = sheet.getCell(index + 2, columns.firstDay + day.sourceDay - 1);
       cell.value = {
         richText: [
           ...matches.map(m => ({

@@ -8,6 +8,7 @@ import { cudyrCensusAccepted } from './cudyrCensusApproval';
 import { cudyrArchiveCoverage } from './cudyrArchiveCoverage';
 import { cudyrReportTotals } from './cudyrReportModel';
 import { buildCudyrWorkbook } from './cudyrWorkbookBuilder';
+import { validateCudyrWorkbookTotals } from './cudyrWorkbookValidation';
 import { cudyrWorkbookSummary } from './cudyrWorkbookSummary';
 import { formatDateDMY } from './cudyrWorkbookSections';
 import { addCudyrEssentialDetail } from './cudyrEssentialDetail';
@@ -131,7 +132,9 @@ export const buildCudyrEssentialWorkbook = async (
       : '',
   };
   const notes = [
-    'Cálculo: CUDYR registrados de elegibles / pacientes-día elegibles. Se suman los días; no se promedian sus porcentajes.',
+    total.occupiedCount
+      ? `${total.categorizedCount} / ${total.occupiedCount} pacientes-día elegibles = ${Math.round((100 * total.categorizedCount) / total.occupiedCount)}%. Acumulado ponderado por pacientes-día.`
+      : 'Sin pacientes-día elegibles en el período; no se calcula porcentaje.',
     'Elegibilidad: más de 8 horas desde el ingreso hospitalario al corte virtual de las 01:00 del día siguiente al censo.',
     'No elegibles: RN sano en cuna; Urgencias/UEA; CMA en pabellón u hospitalización; exclusión manual justificada.',
   ];
@@ -144,6 +147,7 @@ export const buildCudyrEssentialWorkbook = async (
     fitToHeight: 0,
     printArea: `A1:D${summary.rowCount}`,
   };
+  validateCudyrWorkbookTotals(workbook, data, dates);
   return { workbook, fileName };
 };
 export const downloadCudyrEssential = async (data: CudyrReportDataset) => {

@@ -7,6 +7,8 @@ import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorag
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { prepareCudyrSourceTable } from './cudyrSourceTable';
 import { markCudyrSourceMovements } from './cudyrSourceMovements';
+import { validateCudyrSourceSheet } from './cudyrSourceValidation';
+import { CUDYR_SOURCE_COLUMNS as columns } from './cudyrSourceColumns';
 import { fitCudyrSourceSheet } from './cudyrSourceSheetLayout';
 import {
   callCudyrArchive,
@@ -49,7 +51,7 @@ export const addCudyrSourceSheets = (
         excerpt,
         prepared.allPatients
       );
-      const statusColumn = sheet.columnCount;
+      const statusColumn = columns.exclusion;
       prepared.patients.forEach((patient, index) => {
         const excluded = prepared.excludedDates.get(patient.sourceRow);
         const label = prepared.exclusionLabels?.get(patient.sourceRow);
@@ -64,11 +66,11 @@ export const addCudyrSourceSheets = (
         };
         // Partial exclusion belongs to specific dates, not to the entire episode.
         if (label === 'Excluido') {
-          for (let column = 1; column <= 7; column++) highlight(column);
+          for (let column = 1; column < columns.firstDay; column++) highlight(column);
         }
         for (const day of patient.days.filter(d => !excerpt || d.sourceDay === 1)) {
           if (!excluded.has(day.sourceDate)) continue;
-          const column = 7 + day.sourceDay;
+          const column = columns.firstDay + day.sourceDay - 1;
           if (day.originalValue.trim()) highlight(column);
           const cell = row.getCell(column);
           cell.note = `${typeof cell.note === 'string' ? cell.note + '\n' : ''}${prepared.exclusionReasons?.get(patient.sourceRow)?.get(day.sourceDate)}. Aplicación ${day.sourceDate} → turno noche ${getPreviousDay(day.sourceDate)}. Se conserva el valor de Eloísa.`;
@@ -83,7 +85,7 @@ export const addCudyrSourceSheets = (
           )
           .join('\n');
       });
-      sheet.views = [{ state: 'frozen', xSplit: 3, ySplit: 1, topLeftCell: 'D2' }];
+      sheet.views = [{ state: 'frozen', xSplit: 4, ySplit: 1, topLeftCell: 'E2' }];
       sheet.autoFilter = {
         from: { row: 1, column: 1 },
         to: { row: prepared.patients.length + 1, column: sheet.columnCount },
@@ -91,11 +93,12 @@ export const addCudyrSourceSheets = (
       sheet.getRow(1).font = { bold: true };
       const days = prepared.patients[0]?.days.filter(d => !excerpt || d.sourceDay === 1) || [];
       for (const day of days) {
-        sheet.getCell(1, 7 + day.sourceDay).note =
+        sheet.getCell(1, columns.firstDay + day.sourceDay - 1).note =
           `Fecha de aplicación en Eloísa: ${day.sourceDate}. Corresponde al turno nocturno del ${getPreviousDay(day.sourceDate)}. Los símbolos de ingreso/egreso usan la fecha real del movimiento.`;
       }
       sheet.pageSetup.printTitlesRow = '1:1';
     }
+    validateCudyrSourceSheet(sheet, original, excerpt);
     fitCudyrSourceSheet(sheet, source.matrix);
     sheet.getCell('A1').note =
       `Archivo original: ${source.file.name}\nHoja: ${source.matrix.sheet}\nSHA-256: ${source.file.sha256}` +
