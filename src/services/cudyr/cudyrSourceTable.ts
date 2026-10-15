@@ -56,6 +56,7 @@ export const prepareCudyrSourceTable = (
     : `${monthName[0].toUpperCase()}${monthName.slice(1)} ${source.month.slice(0, 4)}`;
   return {
     patients,
+    allPatients: report.patients,
     label,
     excludedDates,
     source: {

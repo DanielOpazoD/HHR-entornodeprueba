@@ -47,6 +47,11 @@ La segunda hoja presenta los valores del informe de Eloísa guardado en Firebase
 como tabla legible: encabezado único fijo y columnas de identificación inmovilizadas.
 Omite Ficha Clínica y reemplaza Días Hosp. por Fecha de ingreso (dd-mm-aaaa),
 obtenida del episodio HHR vinculado; sin evidencia inequívoca indica No informado.
+Las fechas con zona horaria se comparan por instante: UTC y hora local equivalentes
+no son una contradicción. En filas con información solo el día 1, se puede recuperar
+el ingreso del mes anterior desde un egreso confirmado ese día: exige documento y
+nombre completo coincidentes, una sola fila fuente y un único episodio, sin conflictos.
+Este cruce solo anota el Excel; no crea evidencia mensual ni modifica elegibilidad.
 El período se muestra como Agosto 2026, con nombre del mes y año.
 Elimina encabezados de página repetidos. Omite las exclusiones confirmadas por fila
 del informe, episodio y fecha de aplicación (no por nombre ni fecha censal). Un
@@ -58,7 +63,7 @@ Si se utiliza el mes siguiente, incluye solo el día 1 y filas con valores (incl
 Los originales se conservan completos. La nota del encabezado identifica archivo y huella.
 Los símbolos ▼ ingreso y ▲ egreso son anotaciones de HHR, con fecha calendario de Rapa Nui,
 solo cuando existe vínculo inequívoco entre fila del informe y episodio. No se infieren
-movimientos desde las categorías, no se asocian por nombre y no se sustituyen valores CUDYR.
+movimientos desde las categorías, no se asocian solo por nombre y no se sustituyen valores CUDYR.
 La nota de cada marcador informa fecha/hora disponible y valor original. Sin evidencia
 suficiente o con fechas contradictorias, se omite el marcador; eso no acredita ausencia
 de movimiento. No cambia el turno censal ni el cálculo del cumplimiento.

@@ -82,7 +82,91 @@ const exportSheet = async (rows: CudyrReportRow[] = [], current = source(), mont
   return reopened.worksheets[0];
 };
 
+const boundaryCase = () => {
+  const current = source();
+  current.matrix.rows = current.matrix.rows.slice(0, 4);
+  current.matrix.rows[3][9] = '';
+  const r = row();
+  r.rut = 'DOC';
+  r.patientName = 'Paciente Sintético';
+  r.date = '2026-10-01';
+  r.monthlyEvidence = undefined;
+  r.hospitalAdmissionAt = '2026-09-29T15:35:00Z';
+  r.resolvedSystemDeparture = true;
+  r.movements[0].date = '2026-10-01';
+  r.correction = undefined;
+  return { r, current };
+};
+
 describe('readable source table and documentary movement annotations', () => {
+  it('recovers day-1 admission from the preceding stay with a confirmed departure and exact full identity', async () => {
+    const { r, current } = boundaryCase();
+    const rn = {
+      ...r,
+      patientName: 'RN de Paciente Sintético',
+      clinicalEpisodeId: 'newborn',
+      hospitalAdmissionAt: '2026-09-30T06:18:00Z',
+    };
+    const sheet = await exportSheet([r, rn], current);
+    expect(sheet.getCell('E2').value).toEqual(new Date('2026-09-29T00:00:00Z'));
+    expect(sheet.getCell('E2').note).toContain('Cruce de mes');
+    expect(sheet.getCell('H2').text).toBe('▲ C2');
+  });
+  it.each([
+    'name',
+    'document',
+    'episode',
+    'later_day',
+    'unconfirmed_exit',
+    'other_exit',
+    'admission_conflict',
+    'duplicate_source',
+  ])('keeps boundary admission unavailable with %s ambiguity', async issue => {
+    const { r, current } = boundaryCase();
+    const rows = [r];
+    if (issue === 'name') r.patientName = 'Otra Persona';
+    if (issue === 'document') r.rut = 'OTHER';
+    if (issue === 'episode') rows.push({ ...r, clinicalEpisodeId: 'second' });
+    if (issue === 'later_day') current.matrix.rows[3][9] = 'C2';
+    if (issue === 'unconfirmed_exit') r.movements[0].source = 'unknown';
+    if (issue === 'other_exit') r.movements.push({ ...r.movements[0], date: '2026-10-02' });
+    if (issue === 'admission_conflict') r.admissionEvidenceConflict = true;
+    if (issue === 'duplicate_source')
+      current.matrix.rows.push([
+        2,
+        'Paciente Sintético',
+        'FICHA',
+        'DOC',
+        'Otro episodio',
+        1,
+        'MQ',
+        'Vivo',
+        'C2',
+      ]);
+    const sheet = await exportSheet(rows, current);
+    expect(sheet.getCell('E2').value).toBe('No informado');
+    expect(sheet.getCell('H2').text).toBe('C2');
+  });
+  it('recognizes UTC and local offsets as the same admission instant across a date boundary', async () => {
+    const first = { ...row(), hospitalAdmissionAt: '2026-10-02T03:46:00.000Z' };
+    const same = { ...first, hospitalAdmissionAt: '2026-10-01T22:46:00-05:00' };
+    const sheet = await exportSheet([first, same]);
+    expect(sheet.getCell('E2').value).toEqual(new Date('2026-10-01T00:00:00Z'));
+    expect(sheet.getCell('E2').note).toContain('2026-10-01 22:46');
+    expect(sheet.getCell('H2').text).toBe('▼ C2');
+  });
+  it('does not hide a genuinely different admission behind the same calendar date', async () => {
+    const first = row();
+    const different = { ...first, hospitalAdmissionAt: '2026-10-01T07:47:00Z' };
+    const sheet = await exportSheet([first, different]);
+    expect(sheet.getCell('E2').value).toBe('No informado');
+  });
+  it('rejects ambiguous timezone-less admission evidence alongside a valid instant', async () => {
+    const first = row();
+    const invalid = { ...first, hospitalAdmissionAt: '2026-10-01T01:47:00' };
+    const sheet = await exportSheet([first, invalid]);
+    expect(sheet.getCell('E2').value).toBe('No informado');
+  });
   it('keeps one frozen header, joins page continuations and retains separate episodes of the same person', async () => {
     const sheet = await exportSheet();
     expect(sheet.getRow(1).values).not.toContain('Ficha Clínica');

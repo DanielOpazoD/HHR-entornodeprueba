@@ -47,7 +47,8 @@ export const addCudyrSourceSheets = (
         prepared.patients,
         reportRows,
         excerpt,
-        prepared.excludedDates
+        prepared.excludedDates,
+        prepared.allPatients
       );
       sheet.views = [{ state: 'frozen', xSplit: 3, ySplit: 1, topLeftCell: 'D2' }];
       sheet.autoFilter = {

@@ -3,6 +3,7 @@ import type { CudyrReportRow } from '@/types/domain/cudyrReport';
 import type { CudyrSupplementPatient } from '@/types/domain/cudyrSupplement';
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 import type { CudyrSourceSheet } from './cudyrSourceTypes';
+import { cudyrSourceAdmissionInstant, resolveCudyrSourceEpisode } from './cudyrSourceEpisode';
 
 type Marker = { date: string; time: string; kind: 'Ingreso' | 'Egreso' };
 const validDate = (date: string) =>
@@ -11,56 +12,40 @@ const validDate = (date: string) =>
   new Date(date).toISOString().slice(0, 10) === date;
 const validTime = (time: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(time);
 
-/** Use only an existing, unambiguous source-row/episode link. Never match by name or first category. */
+/** Use proven episode context. Never infer an admission date from the first category. */
 export const markCudyrSourceMovements = (
   sheet: Worksheet,
   source: CudyrSourceSheet,
   patients: CudyrSupplementPatient[],
   rows: CudyrReportRow[],
   excerpt: boolean,
-  excludedDates: Map<number, Set<string>> = new Map()
+  excludedDates: Map<number, Set<string>> = new Map(),
+  allPatients: CudyrSupplementPatient[] = patients
 ) => {
   if (!source.reportId) return;
   patients.forEach((patient, index) => {
-    const linked = rows.filter(
-      r =>
-        r.monthlyEvidence?.reportId === source.reportId &&
-        r.monthlyEvidence?.sourceRow === patient.sourceRow
+    const context = resolveCudyrSourceEpisode(
+      source.reportId!,
+      source.month,
+      patient,
+      allPatients,
+      rows
     );
-    const episodes = new Set(linked.map(r => r.clinicalEpisodeId));
-    if (
-      !linked.length ||
-      episodes.size !== 1 ||
-      episodes.has('') ||
-      linked.some(r => r.monthlyEvidence?.state === 'conflict')
-    )
-      return;
-    const episode = linked[0].clinicalEpisodeId;
-    // One episode cannot safely annotate two different source rows in the same report.
-    if (
-      rows.some(
-        r =>
-          r.clinicalEpisodeId === episode &&
-          r.monthlyEvidence?.reportId === source.reportId &&
-          r.monthlyEvidence?.sourceRow !== patient.sourceRow
-      )
-    )
-      return;
-    const own = rows.filter(r => r.clinicalEpisodeId === episode);
+    if (!context) return;
+    const { own, episode, boundary } = context;
     const markers: Marker[] = [];
-    const admissions = new Set(
-      own.flatMap(r => (r.hospitalAdmissionAt ? [r.hospitalAdmissionAt] : []))
-    );
-    if (admissions.size === 1 && !own.some(r => r.admissionEvidenceConflict)) {
-      const at = [...admissions][0];
-      if (/(Z|[+-]\d{2}:\d{2})$/.test(at) && Number.isFinite(Date.parse(at))) {
-        const stamp = calendarStampInClinicalTimeZone(new Date(at));
-        const admissionCell = sheet.getCell(index + 2, 5);
-        admissionCell.value = new Date(`${stamp.iso}T00:00:00Z`);
-        admissionCell.numFmt = 'dd-mm-yyyy';
-        admissionCell.note = `Ingreso confirmado en HHR: ${stamp.iso} ${stamp.hhmm} (Rapa Nui), mismo episodio vinculado.`;
-        markers.push({ date: stamp.iso, time: stamp.hhmm, kind: 'Ingreso' });
-      }
+    const at = cudyrSourceAdmissionInstant(own);
+    if (at !== null) {
+      const stamp = calendarStampInClinicalTimeZone(new Date(at));
+      const admissionCell = sheet.getCell(index + 2, 5);
+      admissionCell.value = new Date(`${stamp.iso}T00:00:00Z`);
+      admissionCell.numFmt = 'dd-mm-yyyy';
+      admissionCell.note =
+        `Ingreso confirmado en HHR: ${stamp.iso} ${stamp.hhmm} (Rapa Nui), mismo episodio vinculado.` +
+        (boundary
+          ? ' Cruce de mes: documento y nombre completo coincidentes con un único episodio y egreso confirmado del día 1.'
+          : '');
+      markers.push({ date: stamp.iso, time: stamp.hhmm, kind: 'Ingreso' });
     }
     const discharges = own.flatMap(r =>
       r.movements
