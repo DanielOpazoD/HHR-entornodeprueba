@@ -17,7 +17,7 @@ import { buildScoresCellModel } from '@/features/census/controllers/evaluationSc
 import { isCudyrPatientEligible } from '@/domain/cudyr/cudyrEligibility';
 import { isCudyrScoreComplete } from '@/domain/cudyr/cudyrCompletion';
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
-import { cudyrModality } from '@/domain/cudyr/cudyrStatisticalContext';
+import { cudyrModality } from '@/domain/cudyr/cudyrModality';
 
 const ScoresDetailModal = lazy(() =>
   import('./ScoresDetailModal').then(module => ({ default: module.ScoresDetailModal }))

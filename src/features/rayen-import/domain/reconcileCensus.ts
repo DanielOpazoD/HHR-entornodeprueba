@@ -126,7 +126,6 @@ export const reconcileCensus = (
     placements: eligibleActivePrincipals,
     findCurrent,
     diff,
-    consumedBedIds,
   });
   const principalPlacementIntents = activePrincipalBedPlacementIntents(
     principalPlacements,
