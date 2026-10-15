@@ -19,7 +19,6 @@ export const markCudyrSourceMovements = (
   patients: CudyrSupplementPatient[],
   rows: CudyrReportRow[],
   excerpt: boolean,
-  excludedDates: Map<number, Set<string>> = new Map(),
   allPatients: CudyrSupplementPatient[] = patients
 ) => {
   if (!source.reportId) return;
@@ -80,7 +79,6 @@ export const markCudyrSourceMovements = (
     const unique = new Map(departures.map(m => [`${m.date}|${m.time}`, m]));
     if (unique.size === 1) markers.push([...unique.values()][0]);
     for (const day of patient.days.filter(d => !excerpt || d.sourceDay === 1)) {
-      if (excludedDates.get(patient.sourceRow)?.has(day.sourceDate)) continue;
       const matches = markers.filter(m => m.date === day.sourceDate);
       if (!matches.length) continue;
       const cell = sheet.getCell(index + 2, 7 + day.sourceDay);

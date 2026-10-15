@@ -53,11 +53,13 @@ el ingreso del mes anterior desde un egreso confirmado ese día: exige documento
 nombre completo coincidentes, una sola fila fuente y un único episodio, sin conflictos.
 Este cruce solo anota el Excel; no crea evidencia mensual ni modifica elegibilidad.
 El período se muestra como Agosto 2026, con nombre del mes y año.
-Elimina encabezados de página repetidos. Omite las exclusiones confirmadas por fila
-del informe, episodio y fecha de aplicación (no por nombre ni fecha censal). Un
-episodio mixto conserva sus días no excluidos; si todos sus días con información
-están excluidos, se omite la fila. Vínculos ambiguos o sin clasificación no se
-presumen excluidos. Las hojas diarias y los archivos originales conservan el detalle.
+Elimina encabezados de página repetidos y conserva todos los pacientes/episodios y
+sus valores originales, incluidos los excluidos. La columna Exclusión HHR y un fondo
+ámbar identifican exclusiones confirmadas por fila, episodio y fecha de aplicación
+(no por nombre ni fecha censal). Un episodio mixto indica Exclusión parcial y resalta
+solo los días excluidos; Excluido indica que todos sus días con información visible
+están excluidos. Vínculos ambiguos o sin clasificación no se presumen excluidos;
+sin marca no acredita elegibilidad. Estas anotaciones no cambian el resumen ni las hojas diarias.
 Los formatos antiguos no reconocidos mantienen sus celdas originales completas.
 Si se utiliza el mes siguiente, incluye solo el día 1 y filas con valores (incluido S/C).
 Los originales se conservan completos. La nota del encabezado identifica archivo y huella.

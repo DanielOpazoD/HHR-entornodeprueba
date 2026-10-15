@@ -182,7 +182,7 @@ describe('readable source table and documentary movement annotations', () => {
     expect(sheet.getCell('H2').value).toBe('C2');
     expect(sheet.getCell('I2').value).toBe('S/C');
     expect(sheet.views[0]).toMatchObject({ state: 'frozen', xSplit: 3, ySplit: 1 });
-    expect(sheet.autoFilter).toBe('A1:AL3');
+    expect(sheet.autoFilter).toBe('A1:AM3');
     expect(sheet.pageSetup.printTitlesRow).toBe('1:1');
     expect(sheet.getColumn(8).width).toBeGreaterThanOrEqual(10);
   });
@@ -283,20 +283,26 @@ describe('readable source table and documentary movement annotations', () => {
     expect(sheet.getCell('J2').note).toContain('2026-10-03 · hora no informada');
   });
   it.each(['cma', 'uea', 'cuna'] as const)(
-    'omits fully excluded %s episodes even with CUDYR, without removing another episode of the person',
+    'retains and highlights excluded %s episodes without marking another episode of the person',
     async modality => {
       const r = row();
       r.eligibility = 'no_elegible';
       r.modality = modality;
       const second = { ...r, monthlyEvidence: { ...r.monthlyEvidence!, sourceDate: '2026-10-02' } };
       const sheet = await exportSheet([r, second]);
-      expect(sheet.getCell('B2').value).toBe('Paciente Sintético');
-      expect(sheet.getCell('D2').value).toBe('Otro episodio');
-      expect(sheet.getCell('I2').value).toBe('D3');
-      expect(sheet.autoFilter).toBe('A1:AL2');
+      expect(sheet.getCell('B3').value).toBe('Paciente Sintético');
+      expect(sheet.getCell('D3').value).toBe('Otro episodio');
+      expect(sheet.getCell('I3').value).toBe('D3');
+      expect(sheet.getCell('H2').text).toBe('▼ C2');
+      expect(sheet.getCell('I2').text).toBe('▲ S/C');
+      expect(sheet.getCell('AM2').value).toBe('Excluido');
+      expect(sheet.getCell('B2').fill).toMatchObject({ fgColor: { argb: 'FFFFF4DC' } });
+      expect(sheet.getCell('AM3').value).toBeNull();
+      expect(sheet.getCell('B3').fill).not.toMatchObject({ fgColor: { argb: 'FFFFF4DC' } });
+      expect(sheet.autoFilter).toBe('A1:AM3');
     }
   );
-  it('omits excluded source days of a mixed episode without restoring their movement markers', async () => {
+  it('highlights only excluded dates of a mixed episode while retaining categories and movements', async () => {
     const excluded = row();
     excluded.eligibility = 'no_elegible';
     excluded.date = '2026-09-30';
@@ -307,7 +313,12 @@ describe('readable source table and documentary movement annotations', () => {
       monthlyEvidence: { ...excluded.monthlyEvidence!, sourceDate: '2026-10-02' },
     };
     const sheet = await exportSheet([excluded, eligible]);
-    expect(sheet.getCell('H2').value).toBeNull();
+    expect(sheet.getCell('H2').text).toBe('▼ C2');
+    expect(sheet.getCell('H2').fill).toMatchObject({ fgColor: { argb: 'FFFFF4DC' } });
+    expect(sheet.getCell('H2').note).toContain('Excluido del cumplimiento');
+    expect(sheet.getCell('AM2').value).toBe('Exclusión parcial');
+    expect(sheet.getCell('B2').fill).not.toMatchObject({ fgColor: { argb: 'FFFFF4DC' } });
+    expect(sheet.getCell('I2').fill).not.toMatchObject({ fgColor: { argb: 'FFFFF4DC' } });
     expect(sheet.getCell('I2').text).toBe('▲ S/C');
     expect(sheet.getCell('E2').numFmt).toBe('dd-mm-yyyy');
     expect(sheet.getCell('A1').note).toContain('exclusiones confirmadas');
@@ -319,8 +330,25 @@ describe('readable source table and documentary movement annotations', () => {
     const sheet = await exportSheet([excluded, eligible]);
     expect(sheet.getCell('H2').text).toBe('▼ C2');
     expect(sheet.getCell('I2').text).toBe('▲ S/C');
+    expect(sheet.getCell('AM2').value).toBeNull();
+    expect(sheet.getCell('AM3').value).toBeNull();
+    expect(sheet.getCell('H2').fill).not.toMatchObject({ fgColor: { argb: 'FFFFF4DC' } });
   });
-  it('filters the next-month day 1 using its linked night, even if later days were eligible', async () => {
+  it.each(['missing-episode', 'conflicting-source', 'different-episode'])(
+    'does not label ambiguous excluded evidence: %s',
+    async scenario => {
+      const r = row();
+      r.eligibility = 'no_elegible';
+      if (scenario === 'missing-episode') r.clinicalEpisodeId = '';
+      if (scenario === 'conflicting-source') r.monthlyEvidence!.state = 'conflict';
+      const other = { ...r, clinicalEpisodeId: 'another-episode' };
+      const sheet = await exportSheet(scenario === 'different-episode' ? [r, other] : [r]);
+      expect(sheet.getCell('AM2').value).toBeNull();
+      expect(sheet.getCell('H2').fill).not.toMatchObject({ fgColor: { argb: 'FFFFF4DC' } });
+      expect(sheet.getCell('D3').value).toBe('Otro episodio');
+    }
+  );
+  it('retains excluded next-month day 1 without using later-day eligibility', async () => {
     const excluded = row();
     excluded.eligibility = 'no_elegible';
     excluded.date = '2026-09-30';
@@ -330,14 +358,16 @@ describe('readable source table and documentary movement annotations', () => {
       monthlyEvidence: { ...excluded.monthlyEvidence!, sourceDate: '2026-10-02' },
     };
     const sheet = await exportSheet([excluded, eligible], source(), '2026-09');
-    expect(sheet.getCell('A2').value).toBe('Día incluido: 01-10-2026');
-    expect(sheet.autoFilter).toBe('A1:H1');
+    expect(sheet.getCell('H2').text).toBe('▼ C2');
+    expect(sheet.getCell('I2').value).toBe('Excluido');
+    expect(sheet.getCell('A3').value).toBe('Día incluido: 01-10-2026');
+    expect(sheet.autoFilter).toBe('A1:I2');
   });
   it('keeps only day 1 in the following month, without leaking later movement markers', async () => {
     const sheet = await exportSheet([row()], source(), '2026-09');
-    expect(sheet.columnCount).toBe(8);
+    expect(sheet.columnCount).toBe(9);
     expect(sheet.getCell('H2').text).toBe('▼ C2');
     expect(sheet.getCell('H3').value).toBeNull();
-    expect(sheet.autoFilter).toBe('A1:H2');
+    expect(sheet.autoFilter).toBe('A1:I2');
   });
 });

@@ -14,7 +14,7 @@ import {
   type ArchivedCudyrSupplement,
 } from './cudyrSupplementService';
 
-/** Calendar-day source view, omitting only explicitly linked HHR exclusions. */
+/** Complete calendar-day source view with explicitly linked HHR exclusions annotated. */
 export const addCudyrSourceSheets = (
   workbook: Workbook,
   sources: CudyrSourceSheet[],
@@ -47,9 +47,37 @@ export const addCudyrSourceSheets = (
         prepared.patients,
         reportRows,
         excerpt,
-        prepared.excludedDates,
         prepared.allPatients
       );
+      const statusColumn = sheet.columnCount;
+      prepared.patients.forEach((patient, index) => {
+        const excluded = prepared.excludedDates.get(patient.sourceRow);
+        const label = prepared.exclusionLabels?.get(patient.sourceRow);
+        if (!excluded?.size || !label) return;
+        const row = sheet.getRow(index + 2);
+        const highlight = (column: number) => {
+          row.getCell(column).fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFFFF4DC' },
+          };
+        };
+        // Partial exclusion belongs to specific dates, not to the entire episode.
+        if (label === 'Excluido') {
+          for (let column = 1; column <= 7; column++) highlight(column);
+        }
+        for (const day of patient.days.filter(d => !excerpt || d.sourceDay === 1)) {
+          if (!excluded.has(day.sourceDate)) continue;
+          const column = 7 + day.sourceDay;
+          highlight(column);
+          const cell = row.getCell(column);
+          cell.note = `${typeof cell.note === 'string' ? cell.note + '\n' : ''}Excluido del cumplimiento HHR en esta fecha. Se conserva el valor de Eloísa.`;
+        }
+        highlight(statusColumn);
+        row.getCell(statusColumn).font = { bold: true, color: { argb: 'FF854D0E' } };
+        row.getCell(statusColumn).note =
+          'Exclusión confirmada únicamente en los días resaltados. Los días sin marca no acreditan elegibilidad.';
+      });
       sheet.views = [{ state: 'frozen', xSplit: 3, ySplit: 1, topLeftCell: 'D2' }];
       sheet.autoFilter = {
         from: { row: 1, column: 1 },
@@ -62,7 +90,7 @@ export const addCudyrSourceSheets = (
     sheet.getCell('A1').note =
       `Archivo original: ${source.file.name}\nHoja: ${source.matrix.sheet}\nSHA-256: ${source.file.sha256}` +
       (prepared.patients
-        ? '\nVista filtrada: exclusiones confirmadas en HHR omitidas; detalle completo en hojas diarias. Encabezado único y símbolos añadidos desde HHR. ' +
+        ? '\nPacientes y valores de Eloísa conservados en el período mostrado; exclusiones confirmadas en HHR resaltadas. Encabezado único y símbolos añadidos desde HHR. ' +
           prepared.label
         : '') +
       (excerpt

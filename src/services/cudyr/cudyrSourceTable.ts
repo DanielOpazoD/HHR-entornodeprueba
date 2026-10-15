@@ -17,6 +17,7 @@ export const prepareCudyrSourceTable = (
   }
   const { report } = parsed;
   const excludedDates = new Map<number, Set<string>>();
+  const exclusionLabels = new Map<number, string>();
   const patients = report.patients.filter(p => {
     const days = p.days.filter(d => !excerpt || d.sourceDay === 1);
     if (excerpt && !days.some(d => d.originalValue)) return false;
@@ -29,7 +30,7 @@ export const prepareCudyrSourceTable = (
       : [];
     const episodes = new Set(own.map(r => r.clinicalEpisodeId));
     const excluded = new Set<string>();
-    if (episodes.size === 1 && !episodes.has('')) {
+    if (episodes.size === 1 && own.every(r => Boolean(r.clinicalEpisodeId))) {
       for (const day of days) {
         const matches = own.filter(r => r.monthlyEvidence?.sourceDate === day.sourceDate);
         if (
@@ -45,7 +46,12 @@ export const prepareCudyrSourceTable = (
     const relevant = days.filter(
       d => d.originalValue || own.some(r => r.monthlyEvidence?.sourceDate === d.sourceDate)
     );
-    return !relevant.length || !relevant.every(d => excluded.has(d.sourceDate));
+    if (excluded.size)
+      exclusionLabels.set(
+        p.sourceRow,
+        relevant.every(d => excluded.has(d.sourceDate)) ? 'Excluido' : 'Exclusión parcial'
+      );
+    return true;
   });
   const days = report.patients[0].days.filter(d => !excerpt || d.sourceDay === 1);
   const monthName = new Intl.DateTimeFormat('es-CL', { month: 'long', timeZone: 'UTC' }).format(
@@ -59,6 +65,7 @@ export const prepareCudyrSourceTable = (
     allPatients: report.patients,
     label,
     excludedDates,
+    exclusionLabels,
     source: {
       ...source,
       matrix: {
@@ -73,6 +80,7 @@ export const prepareCudyrSourceTable = (
             'Servicio Clínico',
             'Condición Alta',
             ...days.map(d => `Día ${d.sourceDay}`),
+            'Exclusión HHR',
           ],
           ...patients.map(p => [
             p.ordinal,
@@ -82,22 +90,24 @@ export const prepareCudyrSourceTable = (
             'No informado',
             p.service,
             p.dischargeCondition,
-            ...p.days
-              .filter(d => !excerpt || d.sourceDay === 1)
-              .map(d => (excludedDates.get(p.sourceRow)?.has(d.sourceDate) ? '' : d.originalValue)),
+            ...p.days.filter(d => !excerpt || d.sourceDay === 1).map(d => d.originalValue),
+            exclusionLabels.get(p.sourceRow) || '',
           ]),
           [label],
           [
             '▼ Ingreso · ▲ Egreso — fechas calendario de HHR (Rapa Nui). Sin símbolo: movimiento no confirmado o no vinculado.',
           ],
+          [
+            'Ámbar: exclusión confirmada en HHR para los días señalados; no cuentan en el cumplimiento. Sin marca no acredita elegibilidad.',
+          ],
           [report.establishment],
           [report.generatedLabel],
         ],
         merges: Array.from(
-          { length: 4 },
+          { length: 5 },
           (_, i) => `A${patients.length + 2 + i}:G${patients.length + 2 + i}`
         ),
-        widths: [8, 32, 18, 40, 18, 26, 16, ...days.map(() => 10)],
+        widths: [8, 32, 18, 40, 18, 26, 16, ...days.map(() => 10), 23],
         heights: [],
         formats: {},
       },
