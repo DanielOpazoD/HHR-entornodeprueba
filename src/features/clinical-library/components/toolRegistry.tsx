@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calculator, ListChecks, Mail, Pill, Syringe } from 'lucide-react';
+import { Calculator, ListChecks, Mail, Pill, Syringe, PlaneTakeoff } from 'lucide-react';
 import type { LibraryToolId } from '../domain/libraryCatalogTypes';
 import { CriticalMedicationsTool } from './tools/CriticalMedicationsTool';
 import { DosingCalculatorTool } from './tools/DosingCalculatorTool';
@@ -8,6 +8,10 @@ import { ScoresTool } from './tools/ScoresTool';
 import { TransferCoverTool } from './tools/TransferCoverTool';
 import type { ToolComponentProps } from './tools/ToolFrame';
 
+const MedifTool = React.lazy(() =>
+  import('./tools/MedifTool').then(module => ({ default: module.MedifTool }))
+);
+
 interface ToolRegistration {
   icon: React.ReactNode;
   Component: React.ComponentType<ToolComponentProps>;
@@ -15,6 +19,7 @@ interface ToolRegistration {
 
 /** Única tabla que conecta el id del catálogo con su icono y su componente. */
 export const TOOL_REGISTRY: Readonly<Record<LibraryToolId, ToolRegistration>> = {
+  medif: { icon: <PlaneTakeoff size={16} aria-hidden="true" />, Component: MedifTool },
   'transfer-cover': { icon: <Mail size={16} aria-hidden="true" />, Component: TransferCoverTool },
   'critical-medications': {
     icon: <Pill size={16} aria-hidden="true" />,

@@ -1,0 +1,3115 @@
+{
+  "schemaVersion": "1.0.0",
+  "title": "MEDIF · formulario y diccionario",
+  "sourceTemplate": "FORMULARIO_MEDIF_ES_rellenable.pdf",
+  "fieldCount": 137,
+  "textFieldCount": 69,
+  "markFieldCount": 68,
+  "sections": [
+    {
+      "id": "pasajero",
+      "title": "Paciente",
+      "part": 1,
+      "page": 1,
+      "description": "Identificación del pasajero en ambas partes del formulario y seguro de viaje.",
+      "groups": [
+        {
+          "id": "pasajero_datos",
+          "label": "Datos del pasajero",
+          "type": "fields",
+          "fields": ["p1_nombre_pasajero", "p1_edad", "p1_seguro_viaje"]
+        },
+        {
+          "id": "identificacion_medica",
+          "label": "Identificación del paciente",
+          "type": "fields",
+          "fields": ["p2_nombre_paciente", "p2_genero", "p2_edad"]
+        }
+      ],
+      "pages": [1, 2],
+      "parts": [1, 2]
+    },
+    {
+      "id": "itinerario",
+      "title": "Itinerario y contacto",
+      "part": 1,
+      "page": 1,
+      "description": "Tramos del viaje y contacto con la oficina o agencia.",
+      "groups": [
+        {
+          "id": "tramo_1",
+          "label": "Tramo 1",
+          "type": "fields",
+          "fields": [
+            "p1_itinerario_1_desde",
+            "p1_itinerario_1_hacia",
+            "p1_itinerario_1_fecha",
+            "p1_itinerario_1_pnr"
+          ]
+        },
+        {
+          "id": "tramo_2",
+          "label": "Tramo 2",
+          "type": "fields",
+          "fields": [
+            "p1_itinerario_2_desde",
+            "p1_itinerario_2_hacia",
+            "p1_itinerario_2_fecha",
+            "p1_itinerario_2_pnr"
+          ]
+        },
+        {
+          "id": "agencia",
+          "label": "Oficina o agencia",
+          "type": "fields",
+          "fields": ["p1_oficina_agencia", "p1_telefono_agencia"]
+        }
+      ]
+    },
+    {
+      "id": "asistencia",
+      "title": "Asistencia y acompañante",
+      "part": 1,
+      "page": 1,
+      "description": "Movilidad, acompañante, traslado y necesidades del pasajero durante el vuelo.",
+      "groups": [
+        {
+          "id": "silla_pasajero",
+          "label": "¿Necesita silla de ruedas?",
+          "type": "choice",
+          "multiple": false,
+          "options": [
+            {
+              "label": "Sí",
+              "fieldId": "p1_silla_si"
+            },
+            {
+              "label": "No",
+              "fieldId": "p1_silla_no"
+            }
+          ]
+        },
+        {
+          "id": "camina_pasajero",
+          "label": "¿Puede desplazarse por sí solo distancias cortas?",
+          "type": "choice",
+          "multiple": false,
+          "options": [
+            {
+              "label": "Sí",
+              "fieldId": "p1_camina_si"
+            },
+            {
+              "label": "No",
+              "fieldId": "p1_camina_no"
+            }
+          ]
+        },
+        {
+          "id": "acompanante_datos",
+          "label": "Acompañante propuesto",
+          "type": "fields",
+          "fields": [
+            "p1_acompanante_1",
+            "p1_acompanante_2",
+            "p1_acompanante_3",
+            "p1_acompanante_4"
+          ],
+          "help": "Anote nombre, sexo, edad, profesión u oficio y los tramos si son diferentes a los del pasajero. Si no es personal calificado, el formulario indica anotar «Acompañante de viaje»."
+        },
+        {
+          "id": "contacto_solo",
+          "label": "Contacto si viaja solo",
+          "type": "fields",
+          "fields": ["p1_contacto_sin_acompanante_1", "p1_contacto_sin_acompanante_2"],
+          "help": "Indique nombre y teléfono de la persona de contacto."
+        },
+        {
+          "id": "perro_asistencia",
+          "label": "Perro de asistencia",
+          "type": "fields",
+          "fields": ["p1_perro_asistencia"]
+        },
+        {
+          "id": "coordinacion_ambulancia",
+          "label": "¿Requiere coordinación para ingresar la ambulancia al aeropuerto?",
+          "type": "choice",
+          "multiple": false,
+          "options": [
+            {
+              "label": "Sí",
+              "fieldId": "p1_coord_ambulancia_si"
+            },
+            {
+              "label": "No",
+              "fieldId": "p1_coord_ambulancia_no"
+            }
+          ]
+        },
+        {
+          "id": "ambulancia_datos",
+          "label": "Ambulancia y destino",
+          "type": "fields",
+          "fields": ["p1_compania_ambulancia", "p1_telefono_ambulancia", "p1_direccion_destino"]
+        },
+        {
+          "id": "hipoxia_pasajero",
+          "label": "¿La reducción de oxígeno durante el vuelo afectará su condición?",
+          "type": "choice",
+          "multiple": false,
+          "options": [
+            {
+              "label": "Sí",
+              "fieldId": "p1_hipoxia_si"
+            },
+            {
+              "label": "No",
+              "fieldId": "p1_hipoxia_no"
+            },
+            {
+              "label": "No estoy seguro",
+              "fieldId": "p1_hipoxia_inseguro"
+            }
+          ]
+        },
+        {
+          "id": "requerimientos_especiales",
+          "label": "¿Tiene requerimientos especiales en vuelo?",
+          "type": "choice",
+          "multiple": false,
+          "options": [
+            {
+              "label": "Sí",
+              "fieldId": "p1_especiales_si"
+            },
+            {
+              "label": "No",
+              "fieldId": "p1_especiales_no"
+            }
+          ]
+        },
+        {
+          "id": "requerimientos_detalle",
+          "label": "Detalle de requerimientos especiales",
+          "type": "fields",
+          "fields": ["p1_requerimientos_detalle"]
+        }
+      ]
+    },
+    {
+      "id": "declaracion_pasajero",
+      "title": "Declaración del pasajero",
+      "part": 1,
+      "page": 1,
+      "description": "Datos que acompañan la declaración impresa del pasajero. Revise el texto completo en el PDF.",
+      "groups": [
+        {
+          "id": "declaracion_pasajero_datos",
+          "label": "Datos de la declaración",
+          "type": "fields",
+          "fields": [
+            "p1_medico_autorizado",
+            "p1_declaracion_lugar",
+            "p1_declaracion_fecha",
+            "p1_declaracion_firma",
+            "p1_declaracion_telefono"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "diagnostico",
+      "title": "Médico y diagnóstico",
+      "part": 2,
+      "page": 2,
+      "description": "Informe, diagnóstico actual, antecedentes y evolución. Su contenido requiere revisión del médico tratante.",
+      "groups": [
+        {
+          "id": "medico_datos",
+          "label": "Datos del médico",
+          "type": "fields",
+          "fields": [
+            "p2_nombre_medico",
+            "p2_identificacion_medico",
+            "p2_telefono_medico",
+            "p2_especialidad_medico",
+            "p2_email_medico"
+          ]
+        },
+        {
+          "id": "diagnostico_informe",
+          "label": "Informe médico y diagnóstico",
+          "type": "fields",
+          "fields": ["p2_informe_medico", "p2_diagnostico_actual"]
+        },
+        {
+          "id": "antecedentes",
+          "label": "Antecedentes mórbidos",
+          "type": "fields",
+          "fields": [
+            "p2_antecedente_1",
+            "p2_antecedente_2",
+            "p2_antecedente_3",
+            "p2_antecedente_4",
+            "p2_antecedente_5"
+          ]
+        },
+        {
+          "id": "evolucion",
+          "label": "Síntomas y evolución",
+          "type": "fields",
+          "fields": ["p2_primeros_sintomas", "p2_fecha_diagnostico"]
+        },
+        {
+          "id": "condiciones_volar",
+          "label": "¿Está en condiciones de transportarse en avión?",
+          "type": "choice",
+          "multiple": false,
+          "options": [
+            {
+              "label": "Sí",
+              "fieldId": "p2_condiciones_volar_si"
+            },
+            {
+              "label": "No",
+              "fieldId": "p2_condiciones_volar_no"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "riesgo_autonomia",
+      "title": "Riesgo y autonomía",
+      "part": 2,
+      "page": 2,
+      "description": "Evaluación médica para el viaje. Las opciones no se calculan a partir de los datos importados.",
+      "groups": [
+        {
+          "id": "prognosis",
+          "label": "Prognosis para el viaje",
+          "type": "fields",
+          "fields": ["p2_prognosis"]
+        },
+        {
+          "id": "riesgo_vital",
+          "label": "Riesgo vital durante el viaje",
+          "type": "choice",
+          "multiple": false,
+          "options": [
+            {
+              "label": "Bajo o sin riesgo",
+              "fieldId": "p2_riesgo_bajo"
+            },
+            {
+              "label": "Medio",
+              "fieldId": "p2_riesgo_medio"
+            },
+            {
+              "label": "Alto",
+              "fieldId": "p2_riesgo_alto"
+            },
+            {
+              "label": "Se recomienda no volar",
+              "fieldId": "p2_riesgo_no_volar"
+            }
+          ]
+        },
+        {
+          "id": "contagiosa",
+          "label": "¿Tiene una enfermedad contagiosa o transmisible al momento del viaje?",
+          "type": "choice",
+          "multiple": false,
+          "options": [
+            {
+              "label": "Sí",
+              "fieldId": "p2_contagiosa_si"
+            },
+            {
+              "label": "No",
+              "fieldId": "p2_contagiosa_no"
+            }
+          ]
+        },
+        {
+          "id": "contagiosa_detalle",
+          "label": "Enfermedad y fecha de inicio",
+          "type": "fields",
+          "fields": ["p2_contagiosa_fecha_tipo"]
+        },
+        {
+          "id": "alteracion_esfinter",
+          "label": "¿Presenta alteración del control de esfínter?",
+          "type": "choice",
+          "multiple": false,
+          "options": [
+            {
+              "label": "Sí",
+              "fieldId": "p2_esfinter_si"
+            },
+            {
+              "label": "No",
+              "fieldId": "p2_esfinter_no"
+            }
+          ]
+        },
+        {
+          "id": "alteracion_conducta",
+          "label": "¿Presenta alteración de conducta?",
+          "type": "choice",
+          "multiple": false,
+          "options": [
+            {
+              "label": "Sí",
+              "fieldId": "p2_conducta_si"
+            },
+            {
+              "label": "No",
+              "fieldId": "p2_conducta_no"
+            }
+          ]
+        },
+        {
+          "id": "alteracion_otra",
+          "label": "Otra alteración asociada al diagnóstico",
+          "type": "fields",
+          "fields": ["p2_otra_alteracion"]
+        },
+        {
+          "id": "autonomia_comer",
+          "label": "¿Es independiente para comer durante el vuelo?",
+          "type": "choice",
+          "multiple": false,
+          "options": [
+            {
+              "label": "Sí",
+              "fieldId": "p2_comer_si"
+            },
+            {
+              "label": "No",
+              "fieldId": "p2_comer_no"
+            }
+          ]
+        },
+        {
+          "id": "autonomia_bano",
+          "label": "¿Es independiente para ir al baño durante el vuelo?",
+          "type": "choice",
+          "multiple": false,
+          "options": [
+            {
+              "label": "Sí",
+              "fieldId": "p2_bano_si"
+            },
+            {
+              "label": "No",
+              "fieldId": "p2_bano_no"
+            }
+          ]
+        },
+        {
+          "id": "autonomia_instrucciones",
+          "label": "¿Puede entender las instrucciones de seguridad?",
+          "type": "choice",
+          "multiple": false,
+          "options": [
+            {
+              "label": "Sí",
+              "fieldId": "p2_instrucciones_si"
+            },
+            {
+              "label": "No",
+              "fieldId": "p2_instrucciones_no"
+            }
+          ]
+        },
+        {
+          "id": "autonomia_otras",
+          "label": "Otras necesidades de autonomía",
+          "type": "fields",
+          "fields": ["p2_autonomia_otros"]
+        },
+        {
+          "id": "tipo_acompanante",
+          "label": "Tipo de acompañante",
+          "type": "choice",
+          "multiple": false,
+          "options": [
+            {
+              "label": "Familiar",
+              "fieldId": "p2_acompanante_familiar"
+            },
+            {
+              "label": "Médico",
+              "fieldId": "p2_acompanante_medico"
+            },
+            {
+              "label": "Enfermera",
+              "fieldId": "p2_acompanante_enfermera"
+            },
+            {
+              "label": "Paramédico",
+              "fieldId": "p2_acompanante_paramedico"
+            }
+          ],
+          "help": "Seleccione el tipo de acompañante que corresponde a este formulario. Si es otro, descríbalo en el campo siguiente."
+        },
+        {
+          "id": "tipo_acompanante_otro",
+          "label": "Otro acompañante",
+          "type": "fields",
+          "fields": ["p2_acompanante_otro"]
+        }
+      ]
+    },
+    {
+      "id": "oxigeno",
+      "title": "Oxígeno y equipo portátil",
+      "part": 2,
+      "page": 2,
+      "description": "Requerimiento de oxígeno, concentrador, autonomía de batería y desconexión breve.",
+      "groups": [
+        {
+          "id": "oxigeno_requerido",
+          "label": "¿Requiere oxígeno y concentrador portátil propio?",
+          "type": "choice",
+          "multiple": false,
+          "options": [
+            {
+              "label": "Sí",
+              "fieldId": "p2_oxigeno_si"
+            },
+            {
+              "label": "No",
+              "fieldId": "p2_oxigeno_no"
+            }
+          ]
+        },
+        {
+          "id": "oxigeno_equipo",
+          "label": "Concentrador portátil y uso",
+          "type": "fields",
+          "fields": [
+            "p2_oxigeno_modelo",
+            "p2_oxigeno_marca",
+            "p2_oxigeno_flujo",
+            "p2_oxigeno_bateria_duracion",
+            "p2_oxigeno_horas_requeridas"
+          ]
+        },
+        {
+          "id": "oxigeno_desconexion",
+          "label": "¿Se puede desconectar del oxígeno por lapsos breves?",
+          "type": "choice",
+          "multiple": false,
+          "options": [
+            {
+              "label": "Sí",
+              "fieldId": "p2_oxigeno_desconexion_si"
+            },
+            {
+              "label": "No",
+              "fieldId": "p2_oxigeno_desconexion_no"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "medicacion_hospitalizacion",
+      "title": "Medicación y hospitalización",
+      "part": 2,
+      "page": 2,
+      "description": "Medicamentos, vía de administración, hospitalización y coordinación en escalas o destino.",
+      "groups": [
+        {
+          "id": "medicacion_lista",
+          "label": "Medicación y vía de administración",
+          "type": "fields",
+          "fields": [
+            "p2_medicacion_1",
+            "p2_medicacion_2",
+            "p2_medicacion_3",
+            "p2_medicacion_4",
+            "p2_medicacion_5",
+            "p2_medicacion_6"
+          ]
+        },
+        {
+          "id": "medicacion_previa",
+          "label": "¿Requiere medicación previa al vuelo?",
+          "type": "choice",
+          "multiple": false,
+          "options": [
+            {
+              "label": "Sí",
+              "fieldId": "p2_medicacion_previa_si"
+            },
+            {
+              "label": "No",
+              "fieldId": "p2_medicacion_previa_no"
+            }
+          ]
+        },
+        {
+          "id": "medicacion_durante",
+          "label": "¿Requiere medicación durante el vuelo?",
+          "type": "choice",
+          "multiple": false,
+          "options": [
+            {
+              "label": "Sí",
+              "fieldId": "p2_medicacion_durante_si"
+            },
+            {
+              "label": "No",
+              "fieldId": "p2_medicacion_durante_no"
+            }
+          ]
+        },
+        {
+          "id": "hospitalizacion",
+          "label": "¿Requiere hospitalización?",
+          "type": "choice",
+          "multiple": false,
+          "options": [
+            {
+              "label": "Sí",
+              "fieldId": "p2_hospitalizacion_si"
+            },
+            {
+              "label": "No",
+              "fieldId": "p2_hospitalizacion_no"
+            }
+          ]
+        },
+        {
+          "id": "hospitalizacion_escalas",
+          "label": "¿Requiere hospitalización durante las escalas?",
+          "type": "choice",
+          "multiple": false,
+          "options": [
+            {
+              "label": "Sí",
+              "fieldId": "p2_hospitalizacion_escalas_si"
+            },
+            {
+              "label": "No",
+              "fieldId": "p2_hospitalizacion_escalas_no"
+            }
+          ]
+        },
+        {
+          "id": "hospitalizacion_destino",
+          "label": "¿Requiere hospitalización o ambulancia al llegar al destino?",
+          "type": "choice",
+          "multiple": false,
+          "options": [
+            {
+              "label": "Sí",
+              "fieldId": "p2_hospitalizacion_destino_si"
+            },
+            {
+              "label": "No",
+              "fieldId": "p2_hospitalizacion_destino_no"
+            }
+          ]
+        },
+        {
+          "id": "hospitalizacion_arreglos",
+          "label": "Arreglos para hospitalización",
+          "type": "fields",
+          "fields": ["p2_hospitalizacion_arreglos"],
+          "help": "Registre los arreglos efectuados o «Acción no tomada», según corresponda al formulario."
+        },
+        {
+          "id": "anticoagulante",
+          "label": "¿Utiliza anticoagulante al momento del viaje?",
+          "type": "choice",
+          "multiple": false,
+          "options": [
+            {
+              "label": "Sí",
+              "fieldId": "p2_anticoagulante_si"
+            },
+            {
+              "label": "No",
+              "fieldId": "p2_anticoagulante_no"
+            }
+          ]
+        },
+        {
+          "id": "anticoagulante_detalle",
+          "label": "Anticoagulante utilizado",
+          "type": "fields",
+          "fields": ["p2_anticoagulante_cual"]
+        },
+        {
+          "id": "estabilidad_viaje",
+          "label": "¿Está estable para tolerar todo el vuelo y las escalas?",
+          "type": "choice",
+          "multiple": false,
+          "options": [
+            {
+              "label": "Sí",
+              "fieldId": "p2_estable_si"
+            },
+            {
+              "label": "No",
+              "fieldId": "p2_estable_no"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cirugia_movilidad",
+      "title": "Cirugía y movilidad",
+      "part": 2,
+      "page": 3,
+      "description": "Tipo de cirugía, complicaciones y movilidad durante el viaje.",
+      "groups": [
+        {
+          "id": "cirugia_tipo",
+          "label": "Tipo de cirugía",
+          "type": "choice",
+          "multiple": false,
+          "options": [
+            {
+              "label": "Abierta",
+              "fieldId": "p3_cirugia_abierta"
+            },
+            {
+              "label": "Laparoscópica",
+              "fieldId": "p3_cirugia_laparoscopica"
+            },
+            {
+              "label": "Otra",
+              "fieldId": "p3_cirugia_otra"
+            }
+          ]
+        },
+        {
+          "id": "cirugia_complicaciones",
+          "label": "¿Hubo complicaciones durante la cirugía?",
+          "type": "choice",
+          "multiple": false,
+          "options": [
+            {
+              "label": "Sí",
+              "fieldId": "p3_complicaciones_si"
+            },
+            {
+              "label": "No",
+              "fieldId": "p3_complicaciones_no"
+            }
+          ]
+        },
+        {
+          "id": "silla_medico",
+          "label": "¿Necesita silla de ruedas?",
+          "type": "choice",
+          "multiple": false,
+          "options": [
+            {
+              "label": "Sí",
+              "fieldId": "p3_silla_ruedas_si"
+            },
+            {
+              "label": "No",
+              "fieldId": "p3_silla_ruedas_no"
+            }
+          ]
+        },
+        {
+          "id": "rodillas",
+          "label": "¿Puede flectar las rodillas durante el viaje?",
+          "type": "choice",
+          "multiple": false,
+          "options": [
+            {
+              "label": "Sí",
+              "fieldId": "p3_flectar_rodillas_si"
+            },
+            {
+              "label": "No",
+              "fieldId": "p3_flectar_rodillas_no"
+            }
+          ]
+        },
+        {
+          "id": "cadera",
+          "label": "¿Puede flectar la cadera durante el viaje?",
+          "type": "choice",
+          "multiple": false,
+          "options": [
+            {
+              "label": "Sí",
+              "fieldId": "p3_flectar_cadera_si"
+            },
+            {
+              "label": "No",
+              "fieldId": "p3_flectar_cadera_no"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "psiquiatria",
+      "title": "Psiquiatría y declaración",
+      "part": 2,
+      "page": 3,
+      "description": "Antecedentes psiquiátricos, estabilidad y declaración del médico tratante. Revise la declaración completa en el PDF.",
+      "groups": [
+        {
+          "id": "patologia_psiquiatrica",
+          "label": "¿Posee alguna patología psiquiátrica?",
+          "type": "choice",
+          "multiple": false,
+          "options": [
+            {
+              "label": "Sí",
+              "fieldId": "p3_patologia_psiquiatrica_si"
+            },
+            {
+              "label": "No",
+              "fieldId": "p3_patologia_psiquiatrica_no"
+            }
+          ]
+        },
+        {
+          "id": "patologia_psiquiatrica_tipo",
+          "label": "Patología psiquiátrica",
+          "type": "choice",
+          "multiple": false,
+          "options": [
+            {
+              "label": "Esquizofrenia",
+              "fieldId": "p3_esquizofrenia"
+            },
+            {
+              "label": "Bipolaridad",
+              "fieldId": "p3_bipolaridad"
+            }
+          ],
+          "help": "El formulario presenta una selección de tipo y un campo para otra patología. Describa otra patología en el campo siguiente si corresponde."
+        },
+        {
+          "id": "patologia_psiquiatrica_otra",
+          "label": "Otra patología psiquiátrica",
+          "type": "fields",
+          "fields": ["p3_otra_patologia_psiquiatrica"]
+        },
+        {
+          "id": "patologia_estable",
+          "label": "¿Se encuentra estable o bien controlada?",
+          "type": "choice",
+          "multiple": false,
+          "options": [
+            {
+              "label": "Sí",
+              "fieldId": "p3_patologia_estable_si"
+            },
+            {
+              "label": "No",
+              "fieldId": "p3_patologia_estable_no"
+            }
+          ]
+        },
+        {
+          "id": "declaracion_medica_datos",
+          "label": "Datos de la declaración",
+          "type": "fields",
+          "fields": [
+            "p3_medico_declaracion",
+            "p3_fecha_declaracion",
+            "p3_lugar_declaracion",
+            "p3_firma_medico_texto"
+          ]
+        }
+      ]
+    }
+  ],
+  "fields": [
+    {
+      "name": "p1_nombre_pasajero",
+      "label": "A. Nombre del pasajero",
+      "rect": [135, 131.7, 416.8, 142.8],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 1,
+      "id": "p1_nombre_pasajero",
+      "sectionId": "pasajero",
+      "groupId": "pasajero_datos",
+      "shortLabel": "Nombre completo",
+      "inputType": "text",
+      "suggestedSource": "hhr",
+      "requiresMedicalReview": false,
+      "help": "Puede proponerse desde los datos del paciente. Confirmar el valor antes de usarlo en el formulario."
+    },
+    {
+      "name": "p1_edad",
+      "label": "A. Edad del pasajero",
+      "rect": [445, 131.7, 574.6, 142.8],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 1,
+      "id": "p1_edad",
+      "sectionId": "pasajero",
+      "groupId": "pasajero_datos",
+      "shortLabel": "Edad",
+      "inputType": "text",
+      "suggestedSource": "hhr",
+      "requiresMedicalReview": false,
+      "help": "Puede proponerse desde los datos del paciente. Confirmar el valor antes de usarlo en el formulario.",
+      "placeholder": "Ej. 46 años"
+    },
+    {
+      "name": "p1_seguro_viaje",
+      "label": "A. Seguro de viaje / número de seguro de viaje",
+      "rect": [188, 144.2, 574.6, 155.5],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 1,
+      "id": "p1_seguro_viaje",
+      "sectionId": "pasajero",
+      "groupId": "pasajero_datos",
+      "shortLabel": "Seguro de viaje / número de póliza",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false
+    },
+    {
+      "name": "p1_itinerario_1_desde",
+      "label": "B. Itinerario, tramo 1: Desde",
+      "rect": [115.12, 179.22, 152.57, 190.58],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 1,
+      "id": "p1_itinerario_1_desde",
+      "sectionId": "itinerario",
+      "groupId": "tramo_1",
+      "shortLabel": "Desde",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false
+    },
+    {
+      "name": "p1_itinerario_1_hacia",
+      "label": "B. Itinerario, tramo 1: Hacia",
+      "rect": [154.57, 179.22, 208.66, 190.58],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 1,
+      "id": "p1_itinerario_1_hacia",
+      "sectionId": "itinerario",
+      "groupId": "tramo_1",
+      "shortLabel": "Hacia",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false
+    },
+    {
+      "name": "p1_itinerario_1_fecha",
+      "label": "B. Itinerario, tramo 1: Fecha",
+      "rect": [210.66, 179.22, 324.13, 190.58],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 1,
+      "id": "p1_itinerario_1_fecha",
+      "sectionId": "itinerario",
+      "groupId": "tramo_1",
+      "shortLabel": "Fecha",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false,
+      "placeholder": "Día/mes/año"
+    },
+    {
+      "name": "p1_itinerario_1_pnr",
+      "label": "B. Itinerario, tramo 1: PNR (código de reserva)",
+      "rect": [326.13, 179.22, 395, 190.58],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 1,
+      "id": "p1_itinerario_1_pnr",
+      "sectionId": "itinerario",
+      "groupId": "tramo_1",
+      "shortLabel": "PNR / código de reserva",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false
+    },
+    {
+      "name": "p1_itinerario_2_desde",
+      "label": "B. Itinerario, tramo 2: Desde",
+      "rect": [115.12, 191.98, 152.57, 203.56],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 1,
+      "id": "p1_itinerario_2_desde",
+      "sectionId": "itinerario",
+      "groupId": "tramo_2",
+      "shortLabel": "Desde",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false
+    },
+    {
+      "name": "p1_itinerario_2_hacia",
+      "label": "B. Itinerario, tramo 2: Hacia",
+      "rect": [154.57, 191.98, 208.66, 203.56],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 1,
+      "id": "p1_itinerario_2_hacia",
+      "sectionId": "itinerario",
+      "groupId": "tramo_2",
+      "shortLabel": "Hacia",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false
+    },
+    {
+      "name": "p1_itinerario_2_fecha",
+      "label": "B. Itinerario, tramo 2: Fecha",
+      "rect": [210.66, 191.98, 324.13, 203.56],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 1,
+      "id": "p1_itinerario_2_fecha",
+      "sectionId": "itinerario",
+      "groupId": "tramo_2",
+      "shortLabel": "Fecha",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false,
+      "placeholder": "Día/mes/año"
+    },
+    {
+      "name": "p1_itinerario_2_pnr",
+      "label": "B. Itinerario, tramo 2: PNR (código de reserva)",
+      "rect": [326.13, 191.98, 395, 203.56],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 1,
+      "id": "p1_itinerario_2_pnr",
+      "sectionId": "itinerario",
+      "groupId": "tramo_2",
+      "shortLabel": "PNR / código de reserva",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false
+    },
+    {
+      "name": "p1_oficina_agencia",
+      "label": "C. Oficina o agencia",
+      "rect": [123, 205, 323.9, 216.3],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 1,
+      "id": "p1_oficina_agencia",
+      "sectionId": "itinerario",
+      "groupId": "agencia",
+      "shortLabel": "Oficina o agencia",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false
+    },
+    {
+      "name": "p1_telefono_agencia",
+      "label": "C. Teléfono de oficina o agencia",
+      "rect": [364, 205, 574.6, 216.3],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 1,
+      "id": "p1_telefono_agencia",
+      "sectionId": "itinerario",
+      "groupId": "agencia",
+      "shortLabel": "Teléfono de la agencia",
+      "inputType": "tel",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false
+    },
+    {
+      "name": "p1_silla_si",
+      "label": "D. Necesita silla de ruedas: Sí (escriba X)",
+      "rect": [160.479, 221.422, 169.727, 227.288],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 1,
+      "id": "p1_silla_si",
+      "sectionId": "asistencia",
+      "groupId": "silla_pasajero",
+      "shortLabel": "Necesita silla de ruedas · Sí",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false,
+      "maxLength": 1
+    },
+    {
+      "name": "p1_camina_si",
+      "label": "D. Puede desplazarse por sí solo distancias cortas: Sí (escriba X)",
+      "rect": [316.573, 221.422, 325.82, 227.288],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 1,
+      "id": "p1_camina_si",
+      "sectionId": "asistencia",
+      "groupId": "camina_pasajero",
+      "shortLabel": "Puede desplazarse por sí solo distancias cortas · Sí",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false,
+      "maxLength": 1
+    },
+    {
+      "name": "p1_silla_no",
+      "label": "D. Necesita silla de ruedas: No (escriba X)",
+      "rect": [160.479, 235.586, 169.727, 241.452],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 1,
+      "id": "p1_silla_no",
+      "sectionId": "asistencia",
+      "groupId": "silla_pasajero",
+      "shortLabel": "Necesita silla de ruedas · No",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false,
+      "maxLength": 1
+    },
+    {
+      "name": "p1_camina_no",
+      "label": "D. Puede desplazarse por sí solo distancias cortas: No (escriba X)",
+      "rect": [316.573, 235.586, 325.82, 241.452],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 1,
+      "id": "p1_camina_no",
+      "sectionId": "asistencia",
+      "groupId": "camina_pasajero",
+      "shortLabel": "Puede desplazarse por sí solo distancias cortas · No",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false,
+      "maxLength": 1
+    },
+    {
+      "name": "p1_acompanante_1",
+      "label": "E. Acompañante propuesto: datos, línea 1",
+      "rect": [252.3, 248.24, 445.6, 256.61],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 1,
+      "id": "p1_acompanante_1",
+      "sectionId": "asistencia",
+      "groupId": "acompanante_datos",
+      "shortLabel": "Datos del acompañante · línea 1",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false
+    },
+    {
+      "name": "p1_acompanante_2",
+      "label": "E. Acompañante propuesto: datos, línea 2",
+      "rect": [252.3, 257.90999999999997, 445.6, 269.37],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 1,
+      "id": "p1_acompanante_2",
+      "sectionId": "asistencia",
+      "groupId": "acompanante_datos",
+      "shortLabel": "Datos del acompañante · línea 2",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false
+    },
+    {
+      "name": "p1_acompanante_3",
+      "label": "E. Acompañante propuesto: datos, línea 3",
+      "rect": [252.3, 270.66999999999996, 445.6, 282.13],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 1,
+      "id": "p1_acompanante_3",
+      "sectionId": "asistencia",
+      "groupId": "acompanante_datos",
+      "shortLabel": "Datos del acompañante · línea 3",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false
+    },
+    {
+      "name": "p1_acompanante_4",
+      "label": "E. Acompañante propuesto: datos, línea 4",
+      "rect": [252.3, 283.42999999999995, 445.6, 294.47],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 1,
+      "id": "p1_acompanante_4",
+      "sectionId": "asistencia",
+      "groupId": "acompanante_datos",
+      "shortLabel": "Datos del acompañante · línea 4",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false
+    },
+    {
+      "name": "p1_perro_asistencia",
+      "label": "E. Indique si viaja con perro de asistencia",
+      "rect": [452.3, 284.5, 569.6, 316.8],
+      "kind": "text",
+      "multiline": true,
+      "font_size": 8,
+      "page": 1,
+      "id": "p1_perro_asistencia",
+      "sectionId": "asistencia",
+      "groupId": "perro_asistencia",
+      "shortLabel": "Indique si viaja con perro de asistencia",
+      "inputType": "textarea",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false
+    },
+    {
+      "name": "p1_contacto_sin_acompanante_1",
+      "label": "E. Persona de contacto, nombre y teléfono, línea 1",
+      "rect": [252.3, 295.82, 445.6, 305.63],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 1,
+      "id": "p1_contacto_sin_acompanante_1",
+      "sectionId": "asistencia",
+      "groupId": "contacto_solo",
+      "shortLabel": "Nombre y teléfono · línea 1",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false
+    },
+    {
+      "name": "p1_contacto_sin_acompanante_2",
+      "label": "E. Persona de contacto, nombre y teléfono, línea 2",
+      "rect": [252.3, 307.03, 445.6, 317.13],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 1,
+      "id": "p1_contacto_sin_acompanante_2",
+      "sectionId": "asistencia",
+      "groupId": "contacto_solo",
+      "shortLabel": "Nombre y teléfono · línea 2",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false
+    },
+    {
+      "name": "p1_compania_ambulancia",
+      "label": "F. Compañía de ambulancia",
+      "rect": [350.5, 318.55, 574.6, 329.5],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 1,
+      "id": "p1_compania_ambulancia",
+      "sectionId": "asistencia",
+      "groupId": "ambulancia_datos",
+      "shortLabel": "Compañía de ambulancia",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false
+    },
+    {
+      "name": "p1_telefono_ambulancia",
+      "label": "F. Teléfono de contacto de la ambulancia",
+      "rect": [378, 330.8, 574.6, 342.2],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 1,
+      "id": "p1_telefono_ambulancia",
+      "sectionId": "asistencia",
+      "groupId": "ambulancia_datos",
+      "shortLabel": "Teléfono de la ambulancia",
+      "inputType": "tel",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false
+    },
+    {
+      "name": "p1_coord_ambulancia_si",
+      "label": "F. Requiere coordinación para ingreso de ambulancia: Sí (escriba X)",
+      "rect": [78.159, 342.752, 87.407, 348.618],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 1,
+      "id": "p1_coord_ambulancia_si",
+      "sectionId": "asistencia",
+      "groupId": "coordinacion_ambulancia",
+      "shortLabel": "Requiere coordinación para ingresar la ambulancia al aeropuerto · Sí",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false,
+      "maxLength": 1
+    },
+    {
+      "name": "p1_coord_ambulancia_no",
+      "label": "F. Requiere coordinación para ingreso de ambulancia: No (escriba X)",
+      "rect": [150.131, 342.752, 159.379, 348.618],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 1,
+      "id": "p1_coord_ambulancia_no",
+      "sectionId": "asistencia",
+      "groupId": "coordinacion_ambulancia",
+      "shortLabel": "Requiere coordinación para ingresar la ambulancia al aeropuerto · No",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false,
+      "maxLength": 1
+    },
+    {
+      "name": "p1_direccion_destino",
+      "label": "F. Dirección de destino",
+      "rect": [334, 343.6, 574.6, 353.8],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 1,
+      "id": "p1_direccion_destino",
+      "sectionId": "asistencia",
+      "groupId": "ambulancia_datos",
+      "shortLabel": "Dirección de destino",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false
+    },
+    {
+      "name": "p1_hipoxia_si",
+      "label": "G. La reducción de oxígeno afectará su condición: Sí (escriba X)",
+      "rect": [367.545, 359.844, 376.794, 365.71],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 1,
+      "id": "p1_hipoxia_si",
+      "sectionId": "asistencia",
+      "groupId": "hipoxia_pasajero",
+      "shortLabel": "La reducción de oxígeno durante el vuelo afectará su condición · Sí",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false,
+      "maxLength": 1
+    },
+    {
+      "name": "p1_hipoxia_inseguro",
+      "label": "G. La reducción de oxígeno afectará su condición: No estoy seguro (escriba X)",
+      "rect": [472.058, 359.844, 481.307, 365.71],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 1,
+      "id": "p1_hipoxia_inseguro",
+      "sectionId": "asistencia",
+      "groupId": "hipoxia_pasajero",
+      "shortLabel": "La reducción de oxígeno durante el vuelo afectará su condición · No estoy seguro",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false,
+      "maxLength": 1
+    },
+    {
+      "name": "p1_hipoxia_no",
+      "label": "G. La reducción de oxígeno afectará su condición: No (escriba X)",
+      "rect": [367.545, 374.008, 376.794, 379.874],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 1,
+      "id": "p1_hipoxia_no",
+      "sectionId": "asistencia",
+      "groupId": "hipoxia_pasajero",
+      "shortLabel": "La reducción de oxígeno durante el vuelo afectará su condición · No",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false,
+      "maxLength": 1
+    },
+    {
+      "name": "p1_especiales_si",
+      "label": "H. Requerimientos especiales en vuelo: Sí (escriba X)",
+      "rect": [255.666, 396.118, 264.914, 401.984],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 1,
+      "id": "p1_especiales_si",
+      "sectionId": "asistencia",
+      "groupId": "requerimientos_especiales",
+      "shortLabel": "Tiene requerimientos especiales en vuelo · Sí",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false,
+      "maxLength": 1
+    },
+    {
+      "name": "p1_requerimientos_detalle",
+      "label": "H. Especifique los requerimientos especiales en vuelo",
+      "rect": [305.9, 407.3, 565.35, 415.8],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 1,
+      "id": "p1_requerimientos_detalle",
+      "sectionId": "asistencia",
+      "groupId": "requerimientos_detalle",
+      "shortLabel": "Especifique los requerimientos",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false
+    },
+    {
+      "name": "p1_especiales_no",
+      "label": "H. Requerimientos especiales en vuelo: No (escriba X)",
+      "rect": [255.666, 410.282, 264.914, 416.148],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 1,
+      "id": "p1_especiales_no",
+      "sectionId": "asistencia",
+      "groupId": "requerimientos_especiales",
+      "shortLabel": "Tiene requerimientos especiales en vuelo · No",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false,
+      "maxLength": 1
+    },
+    {
+      "name": "p1_medico_autorizado",
+      "label": "Declaración del pasajero: nombre del médico autorizado",
+      "rect": [98, 447.2, 293.4, 452.85],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 1,
+      "id": "p1_medico_autorizado",
+      "sectionId": "declaracion_pasajero",
+      "groupId": "declaracion_pasajero_datos",
+      "shortLabel": "Médico autorizado",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false
+    },
+    {
+      "name": "p1_declaracion_lugar",
+      "label": "Declaración del pasajero: lugar",
+      "rect": [62, 537.55, 150.3, 548.4],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 1,
+      "id": "p1_declaracion_lugar",
+      "sectionId": "declaracion_pasajero",
+      "groupId": "declaracion_pasajero_datos",
+      "shortLabel": "Lugar",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false
+    },
+    {
+      "name": "p1_declaracion_fecha",
+      "label": "Declaración del pasajero: fecha",
+      "rect": [181, 537.55, 230.8, 548.4],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 1,
+      "id": "p1_declaracion_fecha",
+      "sectionId": "declaracion_pasajero",
+      "groupId": "declaracion_pasajero_datos",
+      "shortLabel": "Fecha",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false,
+      "placeholder": "Día/mes/año"
+    },
+    {
+      "name": "p1_declaracion_firma",
+      "label": "Declaración del pasajero: firma (texto)",
+      "rect": [296, 537.55, 397.8, 548.4],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 1,
+      "id": "p1_declaracion_firma",
+      "sectionId": "declaracion_pasajero",
+      "groupId": "declaracion_pasajero_datos",
+      "shortLabel": "Firma del pasajero (texto)",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false,
+      "help": "Campo de texto del PDF. Escribir un nombre no constituye una firma electrónica."
+    },
+    {
+      "name": "p1_declaracion_telefono",
+      "label": "Declaración del pasajero: teléfono del contacto",
+      "rect": [470, 537.55, 564.3, 548.4],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 1,
+      "id": "p1_declaracion_telefono",
+      "sectionId": "declaracion_pasajero",
+      "groupId": "declaracion_pasajero_datos",
+      "shortLabel": "Teléfono del contacto",
+      "inputType": "tel",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false
+    },
+    {
+      "name": "p2_nombre_paciente",
+      "label": "Nombre completo del paciente",
+      "rect": [221, 164.1, 574.4, 174.4],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 2,
+      "id": "p2_nombre_paciente",
+      "sectionId": "pasajero",
+      "groupId": "identificacion_medica",
+      "shortLabel": "Nombre completo",
+      "inputType": "text",
+      "suggestedSource": "hhr",
+      "requiresMedicalReview": false,
+      "help": "Puede proponerse desde los datos del paciente. Confirmar el valor antes de usarlo en el formulario."
+    },
+    {
+      "name": "p2_genero",
+      "label": "Género del paciente",
+      "rect": [139, 176.5, 392, 187.0],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 2,
+      "id": "p2_genero",
+      "sectionId": "pasajero",
+      "groupId": "identificacion_medica",
+      "shortLabel": "Género",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false,
+      "help": "Complete manualmente. El sexo biológico registrado en el censo no determina el género."
+    },
+    {
+      "name": "p2_edad",
+      "label": "Edad del paciente",
+      "rect": [421, 176.5, 574.4, 187.0],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 2,
+      "id": "p2_edad",
+      "sectionId": "pasajero",
+      "groupId": "identificacion_medica",
+      "shortLabel": "Edad",
+      "inputType": "text",
+      "suggestedSource": "hhr",
+      "requiresMedicalReview": false,
+      "help": "Puede proponerse desde los datos del paciente. Confirmar el valor antes de usarlo en el formulario.",
+      "placeholder": "Ej. 46 años"
+    },
+    {
+      "name": "p2_nombre_medico",
+      "label": "Nombre del médico tratante",
+      "rect": [212, 189.2, 574.4, 200.0],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 2,
+      "id": "p2_nombre_medico",
+      "sectionId": "diagnostico",
+      "groupId": "medico_datos",
+      "shortLabel": "Nombre del médico tratante",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false
+    },
+    {
+      "name": "p2_identificacion_medico",
+      "label": "RUT, ID o DNI del médico",
+      "rect": [155, 202.3, 392, 212.8],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 2,
+      "id": "p2_identificacion_medico",
+      "sectionId": "diagnostico",
+      "groupId": "medico_datos",
+      "shortLabel": "RUT / ID / DNI",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false
+    },
+    {
+      "name": "p2_telefono_medico",
+      "label": "Teléfono de contacto del médico",
+      "rect": [476, 202.3, 574.4, 212.8],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 2,
+      "id": "p2_telefono_medico",
+      "sectionId": "diagnostico",
+      "groupId": "medico_datos",
+      "shortLabel": "Teléfono del médico",
+      "inputType": "tel",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false
+    },
+    {
+      "name": "p2_especialidad_medico",
+      "label": "Especialidad del médico",
+      "rect": [198, 215.0, 392, 225.7],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 2,
+      "id": "p2_especialidad_medico",
+      "sectionId": "diagnostico",
+      "groupId": "medico_datos",
+      "shortLabel": "Especialidad",
+      "inputType": "text",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false
+    },
+    {
+      "name": "p2_email_medico",
+      "label": "Correo electrónico del médico",
+      "rect": [423, 215.0, 574.4, 225.7],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 2,
+      "id": "p2_email_medico",
+      "sectionId": "diagnostico",
+      "groupId": "medico_datos",
+      "shortLabel": "Correo electrónico",
+      "inputType": "email",
+      "suggestedSource": "manual",
+      "requiresMedicalReview": false
+    },
+    {
+      "name": "p2_informe_medico",
+      "label": "Informe médico y diagnóstico detallado",
+      "rect": [299, 228.3, 574.2, 247.5],
+      "kind": "text",
+      "multiline": true,
+      "font_size": 8,
+      "page": 2,
+      "id": "p2_informe_medico",
+      "sectionId": "diagnostico",
+      "groupId": "diagnostico_informe",
+      "shortLabel": "Informe médico y diagnóstico detallado",
+      "inputType": "textarea",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "help": "El formulario indica adjuntar un diagnóstico detallado. Este campo permite consignar el informe o su referencia."
+    },
+    {
+      "name": "p2_diagnostico_actual",
+      "label": "Diagnóstico médico o quirúrgico actual; indicar si está resuelto o de alta",
+      "rect": [299, 250.2, 574.2, 269.6],
+      "kind": "text",
+      "multiline": true,
+      "font_size": 8,
+      "page": 2,
+      "id": "p2_diagnostico_actual",
+      "sectionId": "diagnostico",
+      "groupId": "diagnostico_informe",
+      "shortLabel": "Diagnóstico médico o quirúrgico actual",
+      "inputType": "textarea",
+      "suggestedSource": "hhr",
+      "requiresMedicalReview": true,
+      "help": "Revise el diagnóstico importado y precise si el cuadro está resuelto o de alta. Requiere revisión del médico tratante."
+    },
+    {
+      "name": "p2_antecedente_1",
+      "label": "Antecedente mórbido 1",
+      "rect": [315, 273.0, 410, 281.6],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 2,
+      "id": "p2_antecedente_1",
+      "sectionId": "diagnostico",
+      "groupId": "antecedentes",
+      "shortLabel": "Antecedente 1",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true
+    },
+    {
+      "name": "p2_antecedente_2",
+      "label": "Antecedente mórbido 2",
+      "rect": [423, 273.0, 518, 281.6],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 2,
+      "id": "p2_antecedente_2",
+      "sectionId": "diagnostico",
+      "groupId": "antecedentes",
+      "shortLabel": "Antecedente 2",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true
+    },
+    {
+      "name": "p2_antecedente_3",
+      "label": "Antecedente mórbido 3",
+      "rect": [531, 273.0, 574, 281.6],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 2,
+      "id": "p2_antecedente_3",
+      "sectionId": "diagnostico",
+      "groupId": "antecedentes",
+      "shortLabel": "Antecedente 3",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true
+    },
+    {
+      "name": "p2_antecedente_4",
+      "label": "Antecedente mórbido 4",
+      "rect": [315, 281.9, 410, 291.8],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 2,
+      "id": "p2_antecedente_4",
+      "sectionId": "diagnostico",
+      "groupId": "antecedentes",
+      "shortLabel": "Antecedente 4",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true
+    },
+    {
+      "name": "p2_antecedente_5",
+      "label": "Antecedente mórbido 5",
+      "rect": [423, 281.9, 574, 291.8],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 2,
+      "id": "p2_antecedente_5",
+      "sectionId": "diagnostico",
+      "groupId": "antecedentes",
+      "shortLabel": "Antecedente 5",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true
+    },
+    {
+      "name": "p2_primeros_sintomas",
+      "label": "Fecha de los primeros síntomas",
+      "rect": [299, 294.4, 574.2, 304.7],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 2,
+      "id": "p2_primeros_sintomas",
+      "sectionId": "diagnostico",
+      "groupId": "evolucion",
+      "shortLabel": "Fecha de los primeros síntomas",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "placeholder": "Día/mes/año"
+    },
+    {
+      "name": "p2_fecha_diagnostico",
+      "label": "Fecha de diagnóstico actual o tiempo de evolución",
+      "rect": [299, 307.1, 574.2, 317.6],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 2,
+      "id": "p2_fecha_diagnostico",
+      "sectionId": "diagnostico",
+      "groupId": "evolucion",
+      "shortLabel": "Fecha de diagnóstico o tiempo de evolución",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "placeholder": "Día/mes/año o tiempo de evolución"
+    },
+    {
+      "name": "p2_condiciones_volar_si",
+      "label": "En condiciones de transportarse en avión: Sí (X)",
+      "rect": [363.43, 322.42, 372.48, 328.09],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_condiciones_volar_si",
+      "sectionId": "diagnostico",
+      "groupId": "condiciones_volar",
+      "shortLabel": "Está en condiciones de transportarse en avión · Sí",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_condiciones_volar_no",
+      "label": "En condiciones de transportarse en avión: No (X)",
+      "rect": [397.71, 322.42, 406.76, 328.09],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_condiciones_volar_no",
+      "sectionId": "diagnostico",
+      "groupId": "condiciones_volar",
+      "shortLabel": "Está en condiciones de transportarse en avión · No",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_prognosis",
+      "label": "Prognosis para el viaje",
+      "rect": [191, 333.3, 574.2, 344.3],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 2,
+      "id": "p2_prognosis",
+      "sectionId": "riesgo_autonomia",
+      "groupId": "prognosis",
+      "shortLabel": "Prognosis para el viaje",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true
+    },
+    {
+      "name": "p2_riesgo_bajo",
+      "label": "Riesgo vital: bajo o sin riesgo (X)",
+      "rect": [175.41, 358.95, 184.45, 364.62],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_riesgo_bajo",
+      "sectionId": "riesgo_autonomia",
+      "groupId": "riesgo_vital",
+      "shortLabel": "Riesgo vital durante el viaje · Bajo o sin riesgo",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_riesgo_medio",
+      "label": "Riesgo vital: medio (X)",
+      "rect": [243.24, 358.95, 252.28, 364.62],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_riesgo_medio",
+      "sectionId": "riesgo_autonomia",
+      "groupId": "riesgo_vital",
+      "shortLabel": "Riesgo vital durante el viaje · Medio",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_riesgo_alto",
+      "label": "Riesgo vital: alto (X)",
+      "rect": [313.82, 358.95, 322.87, 364.62],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_riesgo_alto",
+      "sectionId": "riesgo_autonomia",
+      "groupId": "riesgo_vital",
+      "shortLabel": "Riesgo vital durante el viaje · Alto",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_riesgo_no_volar",
+      "label": "Riesgo vital: se recomienda no volar (X)",
+      "rect": [446.25, 358.95, 455.3, 364.62],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_riesgo_no_volar",
+      "sectionId": "riesgo_autonomia",
+      "groupId": "riesgo_vital",
+      "shortLabel": "Riesgo vital durante el viaje · Se recomienda no volar",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_contagiosa_si",
+      "label": "Enfermedad contagiosa o transmisible al momento del viaje: Sí (X)",
+      "rect": [379.02, 372.37, 388.07, 378.03],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_contagiosa_si",
+      "sectionId": "riesgo_autonomia",
+      "groupId": "contagiosa",
+      "shortLabel": "Tiene una enfermedad contagiosa o transmisible al momento del viaje · Sí",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_contagiosa_no",
+      "label": "Enfermedad contagiosa o transmisible al momento del viaje: No (X)",
+      "rect": [413.3, 372.37, 422.35, 378.03],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_contagiosa_no",
+      "sectionId": "riesgo_autonomia",
+      "groupId": "contagiosa",
+      "shortLabel": "Tiene una enfermedad contagiosa o transmisible al momento del viaje · No",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_contagiosa_fecha_tipo",
+      "label": "Fecha de inicio de la enfermedad contagiosa y cuál",
+      "rect": [253, 382.8, 574.2, 393.1],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 2,
+      "id": "p2_contagiosa_fecha_tipo",
+      "sectionId": "riesgo_autonomia",
+      "groupId": "contagiosa_detalle",
+      "shortLabel": "Enfermedad y fecha de inicio",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "placeholder": "Día/mes/año"
+    },
+    {
+      "name": "p2_otra_alteracion",
+      "label": "Otra alteración asociada al diagnóstico",
+      "rect": [427, 409.3, 574.2, 418.5],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 2,
+      "id": "p2_otra_alteracion",
+      "sectionId": "riesgo_autonomia",
+      "groupId": "alteracion_otra",
+      "shortLabel": "Otra alteración",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true
+    },
+    {
+      "name": "p2_esfinter_si",
+      "label": "Alteración del control de esfínter: Sí (X)",
+      "rect": [198.61, 410.51, 207.66, 416.17],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_esfinter_si",
+      "sectionId": "riesgo_autonomia",
+      "groupId": "alteracion_esfinter",
+      "shortLabel": "Presenta alteración del control de esfínter · Sí",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_esfinter_no",
+      "label": "Alteración del control de esfínter: No (X)",
+      "rect": [232.89, 410.51, 241.94, 416.17],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_esfinter_no",
+      "sectionId": "riesgo_autonomia",
+      "groupId": "alteracion_esfinter",
+      "shortLabel": "Presenta alteración del control de esfínter · No",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_conducta_si",
+      "label": "Alteración de conducta: Sí (X)",
+      "rect": [327.06, 410.51, 336.11, 416.17],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_conducta_si",
+      "sectionId": "riesgo_autonomia",
+      "groupId": "alteracion_conducta",
+      "shortLabel": "Presenta alteración de conducta · Sí",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_conducta_no",
+      "label": "Alteración de conducta: No (X)",
+      "rect": [361.34, 410.51, 370.39, 416.17],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_conducta_no",
+      "sectionId": "riesgo_autonomia",
+      "groupId": "alteracion_conducta",
+      "shortLabel": "Presenta alteración de conducta · No",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_comer_si",
+      "label": "Independiente para comer: Sí (X)",
+      "rect": [155.1, 435.82, 164.15, 441.49],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_comer_si",
+      "sectionId": "riesgo_autonomia",
+      "groupId": "autonomia_comer",
+      "shortLabel": "Es independiente para comer durante el vuelo · Sí",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_comer_no",
+      "label": "Independiente para comer: No (X)",
+      "rect": [183.0, 435.82, 192.05, 441.49],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_comer_no",
+      "sectionId": "riesgo_autonomia",
+      "groupId": "autonomia_comer",
+      "shortLabel": "Es independiente para comer durante el vuelo · No",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_bano_si",
+      "label": "Independiente para ir al baño: Sí (X)",
+      "rect": [274.23, 435.82, 283.28, 441.49],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_bano_si",
+      "sectionId": "riesgo_autonomia",
+      "groupId": "autonomia_bano",
+      "shortLabel": "Es independiente para ir al baño durante el vuelo · Sí",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_bano_no",
+      "label": "Independiente para ir al baño: No (X)",
+      "rect": [302.13, 435.82, 311.18, 441.49],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_bano_no",
+      "sectionId": "riesgo_autonomia",
+      "groupId": "autonomia_bano",
+      "shortLabel": "Es independiente para ir al baño durante el vuelo · No",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_instrucciones_si",
+      "label": "Independiente para entender instrucciones de seguridad: Sí (X)",
+      "rect": [489.93, 435.82, 498.98, 441.49],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_instrucciones_si",
+      "sectionId": "riesgo_autonomia",
+      "groupId": "autonomia_instrucciones",
+      "shortLabel": "Puede entender las instrucciones de seguridad · Sí",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_instrucciones_no",
+      "label": "Independiente para entender instrucciones de seguridad: No (X)",
+      "rect": [517.83, 435.82, 526.88, 441.49],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_instrucciones_no",
+      "sectionId": "riesgo_autonomia",
+      "groupId": "autonomia_instrucciones",
+      "shortLabel": "Puede entender las instrucciones de seguridad · No",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_autonomia_otros",
+      "label": "Otras necesidades de autonomía durante el vuelo",
+      "rect": [133.5, 446.5, 215.4, 453.4],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 2,
+      "id": "p2_autonomia_otros",
+      "sectionId": "riesgo_autonomia",
+      "groupId": "autonomia_otras",
+      "shortLabel": "Otras necesidades",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true
+    },
+    {
+      "name": "p2_acompanante_familiar",
+      "label": "Acompañante: familiar (X)",
+      "rect": [147.17, 471.69, 156.22, 477.35],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_acompanante_familiar",
+      "sectionId": "riesgo_autonomia",
+      "groupId": "tipo_acompanante",
+      "shortLabel": "Tipo de acompañante · Familiar",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_acompanante_medico",
+      "label": "Acompañante: médico (X)",
+      "rect": [221.17, 471.69, 230.22, 477.35],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_acompanante_medico",
+      "sectionId": "riesgo_autonomia",
+      "groupId": "tipo_acompanante",
+      "shortLabel": "Tipo de acompañante · Médico",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_acompanante_enfermera",
+      "label": "Acompañante: enfermera (X)",
+      "rect": [303.15, 471.69, 312.2, 477.35],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_acompanante_enfermera",
+      "sectionId": "riesgo_autonomia",
+      "groupId": "tipo_acompanante",
+      "shortLabel": "Tipo de acompañante · Enfermera",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_acompanante_paramedico",
+      "label": "Acompañante: paramédico (X)",
+      "rect": [394.94, 471.69, 403.99, 477.35],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_acompanante_paramedico",
+      "sectionId": "riesgo_autonomia",
+      "groupId": "tipo_acompanante",
+      "shortLabel": "Tipo de acompañante · Paramédico",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_acompanante_otro",
+      "label": "Otro tipo de acompañante",
+      "rect": [457, 470.6, 574.2, 481.7],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 2,
+      "id": "p2_acompanante_otro",
+      "sectionId": "riesgo_autonomia",
+      "groupId": "tipo_acompanante_otro",
+      "shortLabel": "Otro tipo de acompañante",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true
+    },
+    {
+      "name": "p2_oxigeno_si",
+      "label": "Requiere oxígeno y concentrador portátil propio: Sí (X)",
+      "rect": [244.07, 512.14, 253.12, 517.81],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_oxigeno_si",
+      "sectionId": "oxigeno",
+      "groupId": "oxigeno_requerido",
+      "shortLabel": "Requiere oxígeno y concentrador portátil propio · Sí",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_oxigeno_no",
+      "label": "Requiere oxígeno y concentrador portátil propio: No (X)",
+      "rect": [244.07, 526.3, 253.12, 531.97],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_oxigeno_no",
+      "sectionId": "oxigeno",
+      "groupId": "oxigeno_requerido",
+      "shortLabel": "Requiere oxígeno y concentrador portátil propio · No",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_oxigeno_flujo",
+      "label": "Cantidad de flujo de oxígeno en litros por minuto",
+      "rect": [295, 526.5, 382, 561.7],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 2,
+      "id": "p2_oxigeno_flujo",
+      "sectionId": "oxigeno",
+      "groupId": "oxigeno_equipo",
+      "shortLabel": "Flujo de oxígeno (L/min)",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true
+    },
+    {
+      "name": "p2_oxigeno_bateria_duracion",
+      "label": "Duración de la batería del equipo",
+      "rect": [429.2, 526.1, 510.7, 536.1],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 2,
+      "id": "p2_oxigeno_bateria_duracion",
+      "sectionId": "oxigeno",
+      "groupId": "oxigeno_equipo",
+      "shortLabel": "Duración de la batería",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true
+    },
+    {
+      "name": "p2_oxigeno_modelo",
+      "label": "Modelo del concentrador de oxígeno portátil",
+      "rect": [142, 548.7, 269.5, 556.9],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 2,
+      "id": "p2_oxigeno_modelo",
+      "sectionId": "oxigeno",
+      "groupId": "oxigeno_equipo",
+      "shortLabel": "Modelo del concentrador",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true
+    },
+    {
+      "name": "p2_oxigeno_horas_requeridas",
+      "label": "Horas correspondientes al 150 por ciento de la duración del viaje",
+      "rect": [532.6, 552.1, 549.5, 559.0],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 2,
+      "id": "p2_oxigeno_horas_requeridas",
+      "sectionId": "oxigeno",
+      "groupId": "oxigeno_equipo",
+      "shortLabel": "Horas del 150 % del viaje",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "help": "Consigne las horas indicadas por el formulario, considerando el viaje, las escalas y los tiempos de espera. Verificar manualmente."
+    },
+    {
+      "name": "p2_oxigeno_marca",
+      "label": "Marca del concentrador de oxígeno portátil",
+      "rect": [137, 557.4, 269.5, 566.5],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 2,
+      "id": "p2_oxigeno_marca",
+      "sectionId": "oxigeno",
+      "groupId": "oxigeno_equipo",
+      "shortLabel": "Marca del concentrador",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true
+    },
+    {
+      "name": "p2_oxigeno_desconexion_si",
+      "label": "Se puede desconectar del oxígeno por lapsos breves: Sí (X)",
+      "rect": [356.9, 579.29, 365.95, 584.96],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_oxigeno_desconexion_si",
+      "sectionId": "oxigeno",
+      "groupId": "oxigeno_desconexion",
+      "shortLabel": "Se puede desconectar del oxígeno por lapsos breves · Sí",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_oxigeno_desconexion_no",
+      "label": "Se puede desconectar del oxígeno por lapsos breves: No (X)",
+      "rect": [391.18, 579.29, 400.23, 584.96],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_oxigeno_desconexion_no",
+      "sectionId": "oxigeno",
+      "groupId": "oxigeno_desconexion",
+      "shortLabel": "Se puede desconectar del oxígeno por lapsos breves · No",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_medicacion_1",
+      "label": "Medicación y vía de administración 1",
+      "rect": [120, 608.4, 251, 617],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 2,
+      "id": "p2_medicacion_1",
+      "sectionId": "medicacion_hospitalizacion",
+      "groupId": "medicacion_lista",
+      "shortLabel": "Medicamento y vía 1",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true
+    },
+    {
+      "name": "p2_medicacion_2",
+      "label": "Medicación y vía de administración 2",
+      "rect": [264, 608.4, 395, 617],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 2,
+      "id": "p2_medicacion_2",
+      "sectionId": "medicacion_hospitalizacion",
+      "groupId": "medicacion_lista",
+      "shortLabel": "Medicamento y vía 2",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true
+    },
+    {
+      "name": "p2_medicacion_3",
+      "label": "Medicación y vía de administración 3",
+      "rect": [408, 608.4, 574.2, 617],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 2,
+      "id": "p2_medicacion_3",
+      "sectionId": "medicacion_hospitalizacion",
+      "groupId": "medicacion_lista",
+      "shortLabel": "Medicamento y vía 3",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true
+    },
+    {
+      "name": "p2_medicacion_4",
+      "label": "Medicación y vía de administración 4",
+      "rect": [120, 617.5, 251, 627.4],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 2,
+      "id": "p2_medicacion_4",
+      "sectionId": "medicacion_hospitalizacion",
+      "groupId": "medicacion_lista",
+      "shortLabel": "Medicamento y vía 4",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true
+    },
+    {
+      "name": "p2_medicacion_5",
+      "label": "Medicación y vía de administración 5",
+      "rect": [264, 617.5, 395, 627.4],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 2,
+      "id": "p2_medicacion_5",
+      "sectionId": "medicacion_hospitalizacion",
+      "groupId": "medicacion_lista",
+      "shortLabel": "Medicamento y vía 5",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true
+    },
+    {
+      "name": "p2_medicacion_6",
+      "label": "Medicación y vía de administración 6",
+      "rect": [408, 617.5, 574.2, 627.4],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 2,
+      "id": "p2_medicacion_6",
+      "sectionId": "medicacion_hospitalizacion",
+      "groupId": "medicacion_lista",
+      "shortLabel": "Medicamento y vía 6",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true
+    },
+    {
+      "name": "p2_medicacion_previa_si",
+      "label": "Requiere medicación previa al vuelo: Sí (X)",
+      "rect": [266.44, 633.7, 275.49, 639.37],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_medicacion_previa_si",
+      "sectionId": "medicacion_hospitalizacion",
+      "groupId": "medicacion_previa",
+      "shortLabel": "Requiere medicación previa al vuelo · Sí",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_medicacion_previa_no",
+      "label": "Requiere medicación previa al vuelo: No (X)",
+      "rect": [300.72, 633.7, 309.77, 639.37],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_medicacion_previa_no",
+      "sectionId": "medicacion_hospitalizacion",
+      "groupId": "medicacion_previa",
+      "shortLabel": "Requiere medicación previa al vuelo · No",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_medicacion_durante_si",
+      "label": "Requiere medicación durante el vuelo: Sí (X)",
+      "rect": [519.27, 633.7, 528.31, 639.37],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_medicacion_durante_si",
+      "sectionId": "medicacion_hospitalizacion",
+      "groupId": "medicacion_durante",
+      "shortLabel": "Requiere medicación durante el vuelo · Sí",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_medicacion_durante_no",
+      "label": "Requiere medicación durante el vuelo: No (X)",
+      "rect": [553.55, 633.7, 562.59, 639.37],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_medicacion_durante_no",
+      "sectionId": "medicacion_hospitalizacion",
+      "groupId": "medicacion_durante",
+      "shortLabel": "Requiere medicación durante el vuelo · No",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_hospitalizacion_si",
+      "label": "Requiere hospitalización: Sí (X)",
+      "rect": [320.89, 649.01, 329.94, 654.67],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_hospitalizacion_si",
+      "sectionId": "medicacion_hospitalizacion",
+      "groupId": "hospitalizacion",
+      "shortLabel": "Requiere hospitalización · Sí",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_hospitalizacion_escalas_si",
+      "label": "Requiere hospitalización durante las escalas: Sí (X)",
+      "rect": [433.69, 649.01, 442.74, 654.67],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_hospitalizacion_escalas_si",
+      "sectionId": "medicacion_hospitalizacion",
+      "groupId": "hospitalizacion_escalas",
+      "shortLabel": "Requiere hospitalización durante las escalas · Sí",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_hospitalizacion_destino_si",
+      "label": "Requiere hospitalización o ambulancia a la llegada al destino: Sí (X)",
+      "rect": [556.04, 649.01, 565.09, 654.67],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_hospitalizacion_destino_si",
+      "sectionId": "medicacion_hospitalizacion",
+      "groupId": "hospitalizacion_destino",
+      "shortLabel": "Requiere hospitalización o ambulancia al llegar al destino · Sí",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_hospitalizacion_no",
+      "label": "Requiere hospitalización: No (X)",
+      "rect": [320.89, 663.17, 329.94, 668.84],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_hospitalizacion_no",
+      "sectionId": "medicacion_hospitalizacion",
+      "groupId": "hospitalizacion",
+      "shortLabel": "Requiere hospitalización · No",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_hospitalizacion_escalas_no",
+      "label": "Requiere hospitalización durante las escalas: No (X)",
+      "rect": [433.69, 663.17, 442.74, 668.84],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_hospitalizacion_escalas_no",
+      "sectionId": "medicacion_hospitalizacion",
+      "groupId": "hospitalizacion_escalas",
+      "shortLabel": "Requiere hospitalización durante las escalas · No",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_hospitalizacion_destino_no",
+      "label": "Requiere hospitalización o ambulancia a la llegada al destino: No (X)",
+      "rect": [556.04, 663.17, 565.09, 668.84],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_hospitalizacion_destino_no",
+      "sectionId": "medicacion_hospitalizacion",
+      "groupId": "hospitalizacion_destino",
+      "shortLabel": "Requiere hospitalización o ambulancia al llegar al destino · No",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_hospitalizacion_arreglos",
+      "label": "Arreglos efectuados para hospitalización o acción no tomada",
+      "rect": [111.1, 681.1, 294.2, 687.9],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 2,
+      "id": "p2_hospitalizacion_arreglos",
+      "sectionId": "medicacion_hospitalizacion",
+      "groupId": "hospitalizacion_arreglos",
+      "shortLabel": "Arreglos efectuados o acción no tomada",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true
+    },
+    {
+      "name": "p2_anticoagulante_cual",
+      "label": "Especifique qué anticoagulante utiliza",
+      "rect": [254, 713.6, 426.3, 721.4],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 2,
+      "id": "p2_anticoagulante_cual",
+      "sectionId": "medicacion_hospitalizacion",
+      "groupId": "anticoagulante_detalle",
+      "shortLabel": "Nombre del anticoagulante",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true
+    },
+    {
+      "name": "p2_anticoagulante_si",
+      "label": "En tratamiento con anticoagulante al momento del viaje: Sí (X)",
+      "rect": [122.19, 715.6, 131.23, 721.26],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_anticoagulante_si",
+      "sectionId": "medicacion_hospitalizacion",
+      "groupId": "anticoagulante",
+      "shortLabel": "Utiliza anticoagulante al momento del viaje · Sí",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_anticoagulante_no",
+      "label": "En tratamiento con anticoagulante al momento del viaje: No (X)",
+      "rect": [156.47, 715.6, 165.51, 721.26],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_anticoagulante_no",
+      "sectionId": "medicacion_hospitalizacion",
+      "groupId": "anticoagulante",
+      "shortLabel": "Utiliza anticoagulante al momento del viaje · No",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_estable_si",
+      "label": "Estable para tolerar todo el vuelo y las escalas: Sí (X)",
+      "rect": [510.34, 734.34, 519.38, 740.0],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_estable_si",
+      "sectionId": "medicacion_hospitalizacion",
+      "groupId": "estabilidad_viaje",
+      "shortLabel": "Está estable para tolerar todo el vuelo y las escalas · Sí",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p2_estable_no",
+      "label": "Estable para tolerar todo el vuelo y las escalas: No (X)",
+      "rect": [544.62, 734.34, 553.66, 740.0],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 2,
+      "id": "p2_estable_no",
+      "sectionId": "medicacion_hospitalizacion",
+      "groupId": "estabilidad_viaje",
+      "shortLabel": "Está estable para tolerar todo el vuelo y las escalas · No",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p3_cirugia_abierta",
+      "label": "MEDA 16: cirugía abierta (marcar X)",
+      "rect": [228.459, 61.465, 237.507, 67.131],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 3,
+      "id": "p3_cirugia_abierta",
+      "sectionId": "cirugia_movilidad",
+      "groupId": "cirugia_tipo",
+      "shortLabel": "Tipo de cirugía · Abierta",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p3_cirugia_laparoscopica",
+      "label": "MEDA 16: cirugía laparoscópica (marcar X)",
+      "rect": [347.469, 61.465, 356.517, 67.131],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 3,
+      "id": "p3_cirugia_laparoscopica",
+      "sectionId": "cirugia_movilidad",
+      "groupId": "cirugia_tipo",
+      "shortLabel": "Tipo de cirugía · Laparoscópica",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p3_cirugia_otra",
+      "label": "MEDA 16: otro tipo de cirugía (marcar X)",
+      "rect": [434.476, 61.465, 443.524, 67.131],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 3,
+      "id": "p3_cirugia_otra",
+      "sectionId": "cirugia_movilidad",
+      "groupId": "cirugia_tipo",
+      "shortLabel": "Tipo de cirugía · Otra",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p3_complicaciones_si",
+      "label": "MEDA 16: complicaciones durante la cirugía, sí (marcar X)",
+      "rect": [259.989, 77.132, 269.037, 82.798],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 3,
+      "id": "p3_complicaciones_si",
+      "sectionId": "cirugia_movilidad",
+      "groupId": "cirugia_complicaciones",
+      "shortLabel": "Hubo complicaciones durante la cirugía · Sí",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p3_complicaciones_no",
+      "label": "MEDA 16: complicaciones durante la cirugía, no (marcar X)",
+      "rect": [294.269, 77.132, 303.317, 82.798],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 3,
+      "id": "p3_complicaciones_no",
+      "sectionId": "cirugia_movilidad",
+      "groupId": "cirugia_complicaciones",
+      "shortLabel": "Hubo complicaciones durante la cirugía · No",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p3_silla_ruedas_si",
+      "label": "MEDA 17: necesita silla de ruedas, sí (marcar X)",
+      "rect": [279.832, 91.708, 288.88, 97.374],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 3,
+      "id": "p3_silla_ruedas_si",
+      "sectionId": "cirugia_movilidad",
+      "groupId": "silla_medico",
+      "shortLabel": "Necesita silla de ruedas · Sí",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p3_silla_ruedas_no",
+      "label": "MEDA 17: necesita silla de ruedas, no (marcar X)",
+      "rect": [314.112, 91.708, 323.16, 97.374],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 3,
+      "id": "p3_silla_ruedas_no",
+      "sectionId": "cirugia_movilidad",
+      "groupId": "silla_medico",
+      "shortLabel": "Necesita silla de ruedas · No",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p3_flectar_rodillas_si",
+      "label": "MEDA 17: puede flectar rodillas durante el viaje, sí (marcar X)",
+      "rect": [279.832, 103.655, 288.88, 109.321],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 3,
+      "id": "p3_flectar_rodillas_si",
+      "sectionId": "cirugia_movilidad",
+      "groupId": "rodillas",
+      "shortLabel": "Puede flectar las rodillas durante el viaje · Sí",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p3_flectar_rodillas_no",
+      "label": "MEDA 17: puede flectar rodillas durante el viaje, no (marcar X)",
+      "rect": [314.112, 103.655, 323.16, 109.321],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 3,
+      "id": "p3_flectar_rodillas_no",
+      "sectionId": "cirugia_movilidad",
+      "groupId": "rodillas",
+      "shortLabel": "Puede flectar las rodillas durante el viaje · No",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p3_flectar_cadera_si",
+      "label": "MEDA 17: puede flectar cadera durante el viaje, sí (marcar X)",
+      "rect": [279.832, 115.603, 288.88, 121.269],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 3,
+      "id": "p3_flectar_cadera_si",
+      "sectionId": "cirugia_movilidad",
+      "groupId": "cadera",
+      "shortLabel": "Puede flectar la cadera durante el viaje · Sí",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p3_flectar_cadera_no",
+      "label": "MEDA 17: puede flectar cadera durante el viaje, no (marcar X)",
+      "rect": [314.112, 115.603, 323.16, 121.269],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 3,
+      "id": "p3_flectar_cadera_no",
+      "sectionId": "cirugia_movilidad",
+      "groupId": "cadera",
+      "shortLabel": "Puede flectar la cadera durante el viaje · No",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p3_patologia_psiquiatrica_si",
+      "label": "MEDA 18: posee alguna patología psiquiátrica, sí (marcar X)",
+      "rect": [279.832, 132.975, 288.88, 138.641],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 3,
+      "id": "p3_patologia_psiquiatrica_si",
+      "sectionId": "psiquiatria",
+      "groupId": "patologia_psiquiatrica",
+      "shortLabel": "Posee alguna patología psiquiátrica · Sí",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p3_patologia_psiquiatrica_no",
+      "label": "MEDA 18: posee alguna patología psiquiátrica, no (marcar X)",
+      "rect": [314.112, 132.975, 323.16, 138.641],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 3,
+      "id": "p3_patologia_psiquiatrica_no",
+      "sectionId": "psiquiatria",
+      "groupId": "patologia_psiquiatrica",
+      "shortLabel": "Posee alguna patología psiquiátrica · No",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p3_esquizofrenia",
+      "label": "MEDA 18: esquizofrenia (marcar X)",
+      "rect": [279.832, 145.06, 288.88, 150.726],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 3,
+      "id": "p3_esquizofrenia",
+      "sectionId": "psiquiatria",
+      "groupId": "patologia_psiquiatrica_tipo",
+      "shortLabel": "Patología psiquiátrica · Esquizofrenia",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p3_bipolaridad",
+      "label": "MEDA 18: bipolaridad (marcar X)",
+      "rect": [363.893, 145.06, 372.941, 150.726],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 3,
+      "id": "p3_bipolaridad",
+      "sectionId": "psiquiatria",
+      "groupId": "patologia_psiquiatrica_tipo",
+      "shortLabel": "Patología psiquiátrica · Bipolaridad",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p3_otra_patologia_psiquiatrica",
+      "label": "MEDA 18: otra patología psiquiátrica",
+      "rect": [414.6, 143.0, 564.8, 150.1],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 3,
+      "id": "p3_otra_patologia_psiquiatrica",
+      "sectionId": "psiquiatria",
+      "groupId": "patologia_psiquiatrica_otra",
+      "shortLabel": "Otra patología",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true
+    },
+    {
+      "name": "p3_patologia_estable_si",
+      "label": "MEDA 18: patología estable o bien controlada, sí (marcar X)",
+      "rect": [279.832, 157.069, 288.88, 162.735],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 3,
+      "id": "p3_patologia_estable_si",
+      "sectionId": "psiquiatria",
+      "groupId": "patologia_estable",
+      "shortLabel": "Se encuentra estable o bien controlada · Sí",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p3_patologia_estable_no",
+      "label": "MEDA 18: patología estable o bien controlada, no (marcar X)",
+      "rect": [314.112, 157.069, 323.16, 162.735],
+      "kind": "mark",
+      "multiline": false,
+      "font_size": 5,
+      "page": 3,
+      "id": "p3_patologia_estable_no",
+      "sectionId": "psiquiatria",
+      "groupId": "patologia_estable",
+      "shortLabel": "Se encuentra estable o bien controlada · No",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "maxLength": 1
+    },
+    {
+      "name": "p3_medico_declaracion",
+      "label": "Nombre del médico tratante que firma la declaración",
+      "rect": [136, 215.7, 284, 222.3],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 3,
+      "id": "p3_medico_declaracion",
+      "sectionId": "psiquiatria",
+      "groupId": "declaracion_medica_datos",
+      "shortLabel": "Nombre del médico tratante",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true
+    },
+    {
+      "name": "p3_fecha_declaracion",
+      "label": "Fecha de la declaración",
+      "rect": [69, 243.2, 160.2, 253.4],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 3,
+      "id": "p3_fecha_declaracion",
+      "sectionId": "psiquiatria",
+      "groupId": "declaracion_medica_datos",
+      "shortLabel": "Fecha",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "placeholder": "Día/mes/año"
+    },
+    {
+      "name": "p3_lugar_declaracion",
+      "label": "Lugar de la declaración",
+      "rect": [197, 243.2, 343.2, 253.4],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 3,
+      "id": "p3_lugar_declaracion",
+      "sectionId": "psiquiatria",
+      "groupId": "declaracion_medica_datos",
+      "shortLabel": "Lugar",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true
+    },
+    {
+      "name": "p3_firma_medico_texto",
+      "label": "Firma del médico tratante (texto)",
+      "rect": [429, 243.2, 563.9, 253.4],
+      "kind": "text",
+      "multiline": false,
+      "font_size": 0,
+      "page": 3,
+      "id": "p3_firma_medico_texto",
+      "sectionId": "psiquiatria",
+      "groupId": "declaracion_medica_datos",
+      "shortLabel": "Firma del médico (texto)",
+      "inputType": "text",
+      "suggestedSource": "medical-review",
+      "requiresMedicalReview": true,
+      "help": "Campo de texto del PDF. Escribir un nombre no constituye una firma electrónica."
+    }
+  ]
+}
