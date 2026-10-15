@@ -74,7 +74,7 @@ describe('readable source table and documentary movement annotations', () => {
     const same = { ...first, hospitalAdmissionAt: '2026-10-01T22:46:00-05:00' };
     const sheet = await exportSheet([first, same]);
     expect(sheet.getCell('F2').value).toEqual(new Date('2026-10-01T00:00:00Z'));
-    expect(sheet.getCell('F2').note).toContain('2026-10-01 22:46');
+    expect(sheet.getCell('F2').note).toContain('01-10-2026 22:46');
     expect(sheet.getCell('I2').text).toBe('▼ C2');
   });
   it('does not hide a genuinely different admission behind the same calendar date', async () => {
@@ -115,10 +115,10 @@ describe('readable source table and documentary movement annotations', () => {
     expect(sheet.getColumn(6).width).toBeLessThanOrEqual(20);
     expect(sheet.getCell('F3').value).toBe('No informado');
     expect(sheet.getCell('I2').text).toBe('▼ C2');
-    expect(sheet.getCell('I2').note).toContain('2026-10-01 01:47');
+    expect(sheet.getCell('I2').note).toContain('01-10-2026 01:47');
     expect(sheet.getCell('J2').text).toBe('▲ S/C');
-    expect(sheet.getCell('J2').note).toContain('2026-10-02 01:47');
-    expect(sheet.getCell('J2').note).not.toContain('2026-10-03');
+    expect(sheet.getCell('J2').note).toContain('02-10-2026 01:47');
+    expect(sheet.getCell('J2').note).not.toContain('03-10-2026');
     expect(sheet.getCell('J3').value).toBe('D3');
     expect(sheet.getCell('I2').value).toMatchObject({
       richText: [{ font: { color: { argb: 'FF047857' } } }, { text: 'C2' }],
@@ -129,7 +129,7 @@ describe('readable source table and documentary movement annotations', () => {
     r.movements[0].section = 'transfers';
     const sheet = await exportSheet([r]);
     expect(sheet.getCell('J2').text).toBe('▲ S/C');
-    expect(sheet.getCell('J2').note).toContain('2026-10-02 01:47');
+    expect(sheet.getCell('J2').note).toContain('02-10-2026 01:47');
   });
   it('shows both symbols for a same-day stay, including a blank original category', async () => {
     const r = row();
@@ -202,7 +202,7 @@ describe('readable source table and documentary movement annotations', () => {
     const sheet = await exportSheet([r, old]);
     expect(sheet.getCell('J2').value).toBe('S/C');
     expect(sheet.getCell('K2').text).toBe('▲ ');
-    expect(sheet.getCell('K2').note).toContain('2026-10-03 · hora no informada');
+    expect(sheet.getCell('K2').note).toContain('03-10-2026 · hora no informada');
   });
   it.each(['cma', 'uea', 'cuna'] as const)(
     'retains and highlights excluded %s episodes without marking another episode of the person',
@@ -244,7 +244,7 @@ describe('readable source table and documentary movement annotations', () => {
     const sheet = await exportSheet([excluded, eligible]);
     expect(sheet.getCell('I2').text).toBe('▼ C2');
     expect(sheet.getCell('I2').fill).toMatchObject({ fgColor: { argb: 'FFFFF4DC' } });
-    expect(sheet.getCell('I2').note).toContain('Aplicación 2026-10-01 → turno noche 2026-09-30');
+    expect(sheet.getCell('I2').note).toContain('Aplicación 01-10-2026 → turno noche 30-09-2026');
     expect(sheet.getCell('D2').text).toMatch(/^Exclusión parcial: /);
     expect(sheet.getCell('B2').fill).not.toMatchObject({ fgColor: { argb: 'FFFFF4DC' } });
     expect(sheet.getCell('J2').fill).not.toMatchObject({ fgColor: { argb: 'FFFFF4DC' } });
@@ -314,7 +314,7 @@ describe('readable source table and documentary movement annotations', () => {
     const sheet = await exportSheet([r], current);
     expect(sheet.getCell('D2').text).toContain('Hospitalización < 8 horas');
     expect(sheet.getCell('I2').fill).not.toMatchObject({ fgColor: { argb: 'FFFFF4DC' } });
-    expect(sheet.getCell('I2').note).toContain('turno noche 2026-09-30');
+    expect(sheet.getCell('I2').note).toContain('turno noche 30-09-2026');
   });
   it('does not apply a census-day exclusion to a mismatched application date', async () => {
     const r = row();

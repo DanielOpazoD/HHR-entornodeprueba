@@ -248,7 +248,7 @@ describe('original Eloísa source in monthly Excel', () => {
       expect((copied.getCell('A4').value as Date).toISOString().slice(0, 10)).toBe(
         new Date((46500 + (date1904 ? 1462 : 0) - 25569) * 86400000).toISOString().slice(0, 10)
       );
-      expect(copied.getCell('A4').numFmt).toBe('yyyy-mm-dd');
+      expect(copied.getCell('A4').numFmt).toBe('dd-mm-yyyy');
       expect(copied.getCell('B4').value).toBe(0.25);
       expect(copied.getCell('B4').numFmt).toBe('0%');
       expect(Number.isFinite(copied.getRow(4).height)).toBe(true);

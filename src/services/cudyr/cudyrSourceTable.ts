@@ -1,3 +1,4 @@
+import { cudyrExcelDateText } from './cudyrExcelDates';
 import { CUDYR_EXCLUSION_LABELS } from '@/types/domain/cudyrExclusion';
 import { getPreviousDay } from '@/utils/clinicalDayUtils';
 import { cudyrExclusionSummary } from './cudyrExclusionSummary';
@@ -127,7 +128,7 @@ export const prepareCudyrSourceTable = (
             'Ámbar: valor de Eloísa excluido del cálculo; motivo junto al nombre. Los egresos resueltos no se colorean. Sin marca no acredita elegibilidad.',
           ],
           [report.establishment],
-          [report.generatedLabel],
+          [cudyrExcelDateText(report.generatedLabel)],
         ],
         merges: Array.from(
           { length: 5 },

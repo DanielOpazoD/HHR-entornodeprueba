@@ -1,3 +1,4 @@
+import { cudyrExcelDate } from './cudyrExcelDates';
 import { CUDYR_SOURCE_COLUMNS as columns } from './cudyrSourceColumns';
 import type { Worksheet } from 'exceljs';
 import type { CudyrReportRow } from '@/types/domain/cudyrReport';
@@ -46,7 +47,7 @@ export const markCudyrSourceMovements = (
       admissionCell.value = new Date(`${stamp.iso}T00:00:00Z`);
       admissionCell.numFmt = 'dd-mm-yyyy';
       admissionCell.note =
-        `${nonHospital ? 'Ingreso del episodio CMA/UEA registrado en Datos demográficos HHR' : 'Ingreso confirmado en HHR'}: ${stamp.iso}${stamp.hhmm ? ` ${stamp.hhmm}` : ' · hora no informada'} (Rapa Nui), mismo episodio vinculado.` +
+        `${nonHospital ? 'Ingreso del episodio CMA/UEA registrado en Datos demográficos HHR' : 'Ingreso confirmado en HHR'}: ${cudyrExcelDate(stamp.iso)}${stamp.hhmm ? ` ${stamp.hhmm}` : ' · hora no informada'} (Rapa Nui), mismo episodio vinculado.` +
         (boundary
           ? ' Cruce de mes: documento y nombre completo coincidentes con un único episodio y egreso confirmado del día 1.'
           : '');
@@ -101,7 +102,7 @@ export const markCudyrSourceMovements = (
         matches
           .map(
             m =>
-              `${m.kind}: ${m.date}${m.time ? ` ${m.time}` : ' · hora no informada'} (Rapa Nui) · HHR, episodio vinculado.\n`
+              `${m.kind}: ${cudyrExcelDate(m.date)}${m.time ? ` ${m.time}` : ' · hora no informada'} (Rapa Nui) · HHR, episodio vinculado.\n`
           )
           .join('') + `Valor original Eloísa: ${day.originalValue || '(vacío)'}`;
     }

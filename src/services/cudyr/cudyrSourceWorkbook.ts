@@ -1,3 +1,4 @@
+import { cudyrExcelDate } from './cudyrExcelDates';
 import type { Workbook } from 'exceljs';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
 import type { CudyrSourceSheet } from './cudyrSourceTypes';
@@ -42,6 +43,15 @@ export const addCudyrSourceSheets = (
       sheet.getCell(address).numFmt = format;
     });
     source.matrix.merges.forEach(merge => sheet.mergeCells(merge));
+    sheet.eachRow(row =>
+      row.eachCell(cell => {
+        const format = (cell.numFmt || '')
+          .replace(/"[^"]*"|\\.|_.|\*./g, '')
+          .replace(/\[[^\]]*\]/g, '');
+        if (cell.value instanceof Date || (typeof cell.value === 'number' && /[yd]/i.test(format)))
+          cell.numFmt = /h|s/i.test(format) ? 'dd-mm-yyyy hh:mm:ss' : 'dd-mm-yyyy';
+      })
+    );
     if (prepared.patients) {
       markCudyrSourceMovements(
         sheet,
@@ -73,7 +83,7 @@ export const addCudyrSourceSheets = (
           const column = columns.firstDay + day.sourceDay - 1;
           if (day.originalValue.trim()) highlight(column);
           const cell = row.getCell(column);
-          cell.note = `${typeof cell.note === 'string' ? cell.note + '\n' : ''}${prepared.exclusionReasons?.get(patient.sourceRow)?.get(day.sourceDate)}. Aplicación ${day.sourceDate} → turno noche ${getPreviousDay(day.sourceDate)}. Se conserva el valor de Eloísa.`;
+          cell.note = `${typeof cell.note === 'string' ? cell.note + '\n' : ''}${prepared.exclusionReasons?.get(patient.sourceRow)?.get(day.sourceDate)}. Aplicación ${cudyrExcelDate(day.sourceDate)} → turno noche ${cudyrExcelDate(getPreviousDay(day.sourceDate))}. Se conserva el valor de Eloísa.`;
         }
         highlight(statusColumn);
         row.getCell(statusColumn).font = { bold: true, color: { argb: 'FF854D0E' } };
@@ -81,7 +91,7 @@ export const addCudyrSourceSheets = (
           .sort()
           .map(
             date =>
-              `${prepared.exclusionReasons?.get(patient.sourceRow)?.get(date)}: aplicación ${date} → turno noche ${getPreviousDay(date)}`
+              `${prepared.exclusionReasons?.get(patient.sourceRow)?.get(date)}: aplicación ${cudyrExcelDate(date)} → turno noche ${cudyrExcelDate(getPreviousDay(date))}`
           )
           .join('\n');
       });
@@ -94,7 +104,7 @@ export const addCudyrSourceSheets = (
       const days = prepared.patients[0]?.days.filter(d => !excerpt || d.sourceDay === 1) || [];
       for (const day of days) {
         sheet.getCell(1, columns.firstDay + day.sourceDay - 1).note =
-          `Fecha de aplicación en Eloísa: ${day.sourceDate}. Corresponde al turno nocturno del ${getPreviousDay(day.sourceDate)}. Los símbolos de ingreso/egreso usan la fecha real del movimiento.`;
+          `Fecha de aplicación en Eloísa: ${cudyrExcelDate(day.sourceDate)}. Corresponde al turno nocturno del ${cudyrExcelDate(getPreviousDay(day.sourceDate))}. Los símbolos de ingreso/egreso usan la fecha real del movimiento.`;
       }
       sheet.pageSetup.printTitlesRow = '1:1';
     }
