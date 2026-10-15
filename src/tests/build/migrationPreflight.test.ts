@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
+import { spawnSync } from 'node:child_process';
 import { assessMigrationPreflight } from '../../../scripts/migration/cutoverPreflight.mjs';
 
 const now = '2026-10-15T12:00:00Z',
@@ -114,7 +115,42 @@ describe('migration preflight evidence', () => {
     Object.assign(data.localSession, { projectIsolationVerified: 'true' });
     data.access.evidenceRef = ' ';
     data.restore.restoreTestPassed = false;
-    expect(assessMigrationPreflight(data, now).readyForRehearsal).toBe(false);
+    expect(
+      assessMigrationPreflight(data, now)
+        .checks.filter(item => !item.passed)
+        .map(item => item.id)
+    ).toEqual(['localSession', 'access', 'restore']);
     expect(assessMigrationPreflight({}, now).checks.every(item => !item.passed)).toBe(true);
   });
+  it.each(['ready', 'pending', 'malformed', 'extra_arguments'])(
+    'validates the real CLI contract: %s',
+    scenario => {
+      const data = fixture();
+      for (const item of Object.values(data)) item.verifiedAt = new Date().toISOString();
+      const result = spawnSync(
+        process.execPath,
+        [
+          'scripts/migration/cutoverPreflight.mjs',
+          ...(scenario === 'extra_arguments' ? ['--apply'] : []),
+        ],
+        {
+          input:
+            scenario === 'malformed'
+              ? '{"PRIVATE_INPUT":'
+              : JSON.stringify(scenario === 'pending' ? {} : data),
+          encoding: 'utf8',
+        }
+      );
+      const expected = scenario === 'ready' ? 0 : scenario === 'pending' ? 2 : 1;
+      expect(result.status, result.stderr).toBe(expected);
+      expect(result.stdout + result.stderr).not.toContain('/private/checked-evidence');
+      expect(result.stdout + result.stderr).not.toContain('PRIVATE_INPUT');
+      if (expected === 1) expect(result.stdout).toBe('');
+      else {
+        const report = JSON.parse(result.stdout);
+        expect(report.readyForRehearsal).toBe(scenario === 'ready');
+        expect(report.authorizesProductionCutover).toBe(false);
+      }
+    }
+  );
 });
