@@ -85,15 +85,15 @@ describe('mapRayenBed', () => {
     });
   });
 
-  it('maps CMA beds to the same physical bed and flags isCma', () => {
+  it('maps CMA beds to separate census assignments and flags isCma', () => {
     expect(mapRayenBed({ room: 'CMA R1', bed: 'CMAR1' })).toEqual({
-      bedId: 'R1',
+      bedId: 'CMA_R1',
       isCma: true,
       isClinicalCrib: false,
       matchedBy: 'recovery',
     });
     expect(mapRayenBed({ bed: 'CMAN1' })).toEqual({
-      bedId: 'NEO1',
+      bedId: 'CMA_NEO1',
       isCma: true,
       isClinicalCrib: false,
       matchedBy: 'neo',
@@ -107,7 +107,7 @@ describe('mapRayenBed', () => {
       service: 'Área quirúrgica indiferenciada',
     });
     expect(result.isCma).toBe(true);
-    expect(result.bedId).toBe('R2');
+    expect(result.bedId).toBe('CMA_R2');
   });
 
   it('does NOT flag the real "Área Médico Quirúrgica Indiferenciada" as CMA', () => {
@@ -129,7 +129,7 @@ describe('mapRayenBed', () => {
       service: 'Área quirúrgica indiferenciada',
     });
     expect(result.isCma).toBe(true);
-    expect(result.bedId).toBe('R2');
+    expect(result.bedId).toBe('CMA_R2');
   });
 
   it('matches accented room long-forms (Habitación / Recuperación)', () => {

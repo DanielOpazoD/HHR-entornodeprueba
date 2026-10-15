@@ -5,6 +5,7 @@ import type {
   BedOccupancyCollisionResolution,
   CmaEquivalentBedId,
   CensusImportDiff,
+  ConflictEntry,
 } from '../contracts/censusImportDiff';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { RayenBedCollisionResolutionReceipt } from '@/types/domain/rayenBedCollision';
@@ -47,6 +48,45 @@ const collisionId = (bedId: string, candidates: BedOccupancyCollisionCandidate[]
     .sort()
     .join(':')}`;
 
+/** Conflicting destinations of one episode are not two patients or evidence of a move. */
+const uniqueEpisodePlacements = (
+  placements: ActivePrincipalPlacement[]
+): {
+  remaining: ActivePrincipalPlacement[];
+  conflicts: ConflictEntry[];
+} => {
+  const byEpisode = new Map<string, ActivePrincipalPlacement[]>();
+  for (const item of placements) {
+    const id = item.encounter.encounterId;
+    byEpisode.set(id, [...(byEpisode.get(id) ?? []), item]);
+  }
+  const remaining: ActivePrincipalPlacement[] = [];
+  const conflicts: ConflictEntry[] = [];
+  for (const aliases of byEpisode.values()) {
+    const medical = aliases.filter(item => !item.mapped.isCma);
+    const candidates =
+      medical.length &&
+      aliases.every(item => item.mapped.bedId?.replace(/^CMA_/, '') === medical[0].mapped.bedId)
+        ? medical
+        : aliases;
+    const destinations = new Set(candidates.map(item => item.mapped.bedId));
+    if (destinations.size === 1) {
+      remaining.push(candidates[0]);
+      continue;
+    }
+    const first = aliases[0];
+    conflicts.push({
+      bedId: null,
+      patientName: first.mapped.patient.patientName,
+      source: first.encounter,
+      code: 'principal-bed-collision',
+      reason:
+        'Eloísa informa ubicaciones distintas para el mismo episodio; confirma su ubicación antes de sincronizarlo.',
+    });
+  }
+  return { remaining, conflicts };
+};
+
 /**
  * Extracts only the exceptional alias collisions where Rayen reports a CMA virtual location and
  * its equivalent physical HHR bed as simultaneously occupied. Ordinary same-bed collisions keep
@@ -60,9 +100,29 @@ export const extractEquivalentBedSourceCollisions = (
   remaining: ActivePrincipalPlacement[];
   collisions: BedOccupancyCollision[];
   retainedResolutions: RayenBedCollisionResolutionReceipt[];
+  conflicts: ConflictEntry[];
 } => {
+  const unique = uniqueEpisodePlacements(placements);
+  placements = unique.remaining;
   const collisions: BedOccupancyCollision[] = [];
   const retainedResolutions: RayenBedCollisionResolutionReceipt[] = [];
+  // Keep the stale-discharge protection of an earlier manual decision while its exact
+  // selected episode is still active. Its former forced bed/removal is not replayed.
+  for (const receipt of current.rayenBedCollisionResolutions ?? []) {
+    const selected = placements.find(
+      item => item.encounter.encounterId === receipt.selectedEpisodeId
+    );
+    const other = placements.find(item => item.encounter.encounterId === receipt.otherEpisodeId);
+    if (
+      selected &&
+      other &&
+      findCurrent(selected.encounter) &&
+      selected.mapped.bedId !== other.mapped.bedId &&
+      selected.mapped.bedId?.replace(/^CMA_/, '') === other.mapped.bedId?.replace(/^CMA_/, '')
+    ) {
+      retainedResolutions.push(receipt);
+    }
+  }
   const consumedEpisodes = new Set<string>();
   const resolvedPlacements: ActivePrincipalPlacement[] = [];
 
@@ -180,6 +240,7 @@ export const extractEquivalentBedSourceCollisions = (
     ],
     collisions,
     retainedResolutions,
+    conflicts: unique.conflicts,
   };
 };
 
@@ -191,6 +252,7 @@ export const prepareEquivalentBedSourceCollisions = ({
   consumedBedIds,
 }: CollisionPreparationOptions): ActivePrincipalPlacement[] => {
   const prepared = extractEquivalentBedSourceCollisions(current, placements, findCurrent);
+  diff.conflicts.push(...prepared.conflicts);
   diff.bedOccupancyCollisions = prepared.collisions;
   diff.retainedBedCollisionResolutions = prepared.retainedResolutions;
   for (const collision of prepared.collisions) {

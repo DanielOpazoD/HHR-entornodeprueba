@@ -5,6 +5,9 @@ import type {
 } from '../contracts/censusImportDiff';
 import { cmaAdmissionReviewKey } from '../domain/cmaAdmissionReview';
 import { Section } from './RayenImportDiffReviewParts';
+import { BEDS } from '@/constants/beds';
+
+const bedName = (bedId: string): string => BEDS.find(bed => bed.id === bedId)?.name ?? bedId;
 
 interface RayenAdmissionReviewProps {
   admissions: CensusImportDiff['admissions'];
@@ -34,7 +37,8 @@ export const RayenAdmissionReview = ({
         {admissions.map(entry => (
           <li key={`adm-${entry.bedId}`}>
             <div>
-              <span className="font-semibold">{entry.bedId}</span> — {entry.patient.patientName}
+              <span className="font-semibold">{bedName(entry.bedId)}</span> —{' '}
+              {entry.patient.patientName}
               {entry.isCma && <span className="ml-1 text-teal-600">(procedencia CMA)</span>}
             </div>
             {entry.patient.clinicalCrib?.patientName && (
@@ -52,8 +56,8 @@ export const RayenAdmissionReview = ({
             Revisar ingresos provenientes de CMA ({cmaAdmissions.length})
           </h4>
           <p className="mb-2 text-xs leading-relaxed text-amber-800">
-            Eloísa usa CMA como ubicación administrativa. Confirma que cada paciente ocupa realmente
-            la cama física indicada antes de incorporarlo al censo HHR.
+            Las ubicaciones CMA se muestran por separado de las camas hospitalarias. Confirma su
+            incorporación al censo.
           </p>
           <ul className="space-y-3 text-sm text-amber-950">
             {cmaAdmissions.map(entry => {
@@ -62,7 +66,7 @@ export const RayenAdmissionReview = ({
               return (
                 <li key={admissionKey} className="rounded border border-amber-200 bg-white/60 p-2">
                   <div className="mb-2">
-                    <span className="font-semibold">{entry.bedId}</span> —{' '}
+                    <span className="font-semibold">{bedName(entry.bedId)}</span> —{' '}
                     {entry.patient.patientName}
                   </div>
                   <label className="mb-1 flex items-start gap-2">
@@ -73,7 +77,7 @@ export const RayenAdmissionReview = ({
                       onChange={() => selectDisposition(admissionKey, 'admit')}
                       className="mt-0.5 h-4 w-4"
                     />
-                    Incorporar al censo en la cama {entry.bedId}
+                    Incorporar al censo en la cama {bedName(entry.bedId)}
                   </label>
                   <label className="flex items-start gap-2">
                     <input

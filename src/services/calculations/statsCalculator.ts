@@ -58,10 +58,16 @@ export const calculateStats = (beds: Record<string, PatientData>): CensusStatist
   let companionCribs = 0;
   let resourceCribs = 0;
   let clinicalCribsCount = 0;
+  let availableCapacity = HOSPITAL_CAPACITY;
 
   BEDS.forEach(bed => {
     const data = beds[bed.id];
     if (!data) return;
+    // Administrative CMA and Urgencias assignments retain their patients in the census;
+    // they do not consume another installed Hospitalizados bed.
+    if (bed.activationMode !== 'occupied' && (data.isBlocked || data.patientName?.trim())) {
+      availableCapacity--;
+    }
 
     if (data.isBlocked) {
       blockedBeds++;
@@ -103,7 +109,6 @@ export const calculateStats = (beds: Record<string, PatientData>): CensusStatist
         companionCribs++;
         resourceCribs++;
       }
-
     }
   });
 
@@ -116,7 +121,6 @@ export const calculateStats = (beds: Record<string, PatientData>): CensusStatist
     totalHospitalized: occupiedBeds + occupiedCribs,
     blockedBeds,
     serviceCapacity: HOSPITAL_CAPACITY,
-    // Camas Libres = Total - Bloqueadas - Ocupadas
-    availableCapacity: HOSPITAL_CAPACITY - blockedBeds - occupiedBeds,
+    availableCapacity,
   };
 };

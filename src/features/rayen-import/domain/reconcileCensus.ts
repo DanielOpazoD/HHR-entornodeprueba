@@ -8,13 +8,18 @@ import { stateFromBoolean } from './dischargeVerification';
 import { reconcileClinicalCribs } from './reconcileClinicalCribs';
 import { diffSyncablePatientFields } from './patientSyncPolicy';
 import {
+  activePrincipalBedPlacementIntents,
   blockedPrincipalMoveConflict,
   feasiblePrincipalMoveSourceBedIds,
   finalizeAdmissionsAgainstAcceptedMoves,
   occupiedLocalBedConflict,
   planVerifiedClosedBedMove,
+  unverifiedCmaAliasConflict,
 } from './principalBedMovePlan';
-import { createCensusPatientIdentityIndex } from './censusPatientIdentityIndex';
+import {
+  createCensusPatientIdentityIndex,
+  hasUnverifiedCmaAliasIdentity,
+} from './censusPatientIdentityIndex';
 import { admittedAfterCensusDay, toIsoCensusDay } from './censusDayPolicy';
 import {
   pendingClinicalCribDischargeIdentities,
@@ -70,9 +75,7 @@ export const reconcileCensus = (
     claimedTargets.set(bedId, patientName);
     return true;
   };
-  // Place a Rayen patient into their mapped bed as an admission, if the target is free. `isCma`
-  // remains transient source provenance for explicit first-sync review; it never changes the real
-  // HHR bed or persists the patient as a CMA movement before the administrative discharge.
+  // CMA provenance remains available for first-sync review; it does not imply an egreso.
   const tryAdmit = (
     encounter: RayenEncounter,
     patient: PatientData,
@@ -125,13 +128,10 @@ export const reconcileCensus = (
     diff,
     consumedBedIds,
   });
-  const principalPlacementIntents = principalPlacements.flatMap(({ encounter, mapped }) => {
-    const match = findCurrent(encounter);
-    if (!match && (admittedAfterCensusDay(encounter, censusDay) || wasDischargedInHhr(encounter)))
-      return [];
-    if (!mapped.bedId) return [];
-    return [{ sourceBedId: match?.bedId, targetBedId: mapped.bedId }];
-  });
+  const principalPlacementIntents = activePrincipalBedPlacementIntents(
+    principalPlacements,
+    findCurrent
+  );
   for (const encounter of discharged) {
     const match = findCurrent(encounter);
     if (!match) continue;
@@ -170,7 +170,6 @@ export const reconcileCensus = (
   for (const { encounter, mapped } of principalPlacements) {
     const { patient, bedId } = mapped;
     const match = findCurrent(encounter);
-    if (!match && wasDischargedInHhr(encounter)) continue;
     const movingNestedCrib =
       bedId && !mapped.isClinicalCrib ? findCurrentCrib(encounter) : undefined;
     if (movingNestedCrib) {
@@ -213,6 +212,8 @@ export const reconcileCensus = (
             source: encounter,
           });
         }
+      } else if (hasUnverifiedCmaAliasIdentity(match, bedId, patient)) {
+        diff.conflicts.push(unverifiedCmaAliasConflict(match.bedId, patient, encounter));
       } else if (claimTarget(bedId, patient.patientName, encounter)) {
         if (!feasibleMoveSourceBedIds.has(match.bedId)) {
           diff.conflicts.push(

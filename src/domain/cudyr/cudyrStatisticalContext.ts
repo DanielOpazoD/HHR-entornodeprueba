@@ -55,9 +55,9 @@ export const cudyrModality = (placement: CudyrPlacement): CudyrModality => {
   )
     return 'cma';
   if (
-    /(?:^|[^A-Z])(?:B[1-3])?UEA(?:$|[^A-Z])/.test(normalized) ||
+    /(?:^|[^A-Z])(?:B[1-4])?UEA(?:$|[^A-Z])/.test(normalized) ||
     [placement.bedId, placement.bedName, placement.sourceBedId, placement.location].some(value =>
-      /^BOX[1-3]$/.test(fold(value || '').replace(/\s/g, ''))
+      /^BOX[1-4]$/.test(fold(value || '').replace(/\s/g, ''))
     )
   )
     return 'uea';

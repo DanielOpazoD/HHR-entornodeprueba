@@ -40,6 +40,7 @@ const toSortableLocalTimestamp = (date: string, time: string): string => {
 };
 
 const roomFromFlowLocation = (location: string): string | undefined =>
+  /\bCMA\s*(?:R[1-4]|N(?:EO)?[12]|H[1-6]C[12])\b/i.exec(location)?.[0] ??
   /\bHabitaci[oó]n\s*0*[1-6]\b/i.exec(location)?.[0] ??
   /\bRecuperaci[oó]n\s*0*[1-4]\b/i.exec(location)?.[0] ??
   /\bNeo\s*0*[12]\b/i.exec(location)?.[0];
@@ -66,6 +67,7 @@ const parsePatientFlowRows = (text: string): PatientFlowParseResult => {
       bedId: mapRayenBed({
         room: roomFromFlowLocation(sourceLocation),
         bed: sourceBedLabel,
+        service: sourceLocation,
       }).bedId,
       sourceBedLabel,
       sourceLocation,
