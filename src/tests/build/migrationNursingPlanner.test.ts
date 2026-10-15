@@ -6,6 +6,7 @@ import { planNursingRecovery } from '../../../scripts/migration/planNursing.mjs'
 const day = '2026-09-19';
 const patient = (extra = {}) => ({
   patientName: 'Persona Ficticia',
+  age: '45',
   rut: '12.345.678-5',
   clinicalEpisodeId: 'ep_local',
   admissionDate: '2026-09-18',
@@ -71,6 +72,44 @@ describe('nursing recovery planning', () => {
     Object.assign(data.source[day].beds.R1, extra);
     expect(planNursingRecovery(data).patches).toEqual([]);
   });
+  it('holds different or missing admission dates without a shared real episode', () => {
+    for (const date of ['2026-09-19', '', undefined]) {
+      const data = fixture();
+      Object.assign(data.target[day].beds.H1, { admissionDate: date });
+      expect(planNursingRecovery(data).patches).toEqual([]);
+    }
+    const data = fixture();
+    Object.assign(data.source[day].beds.R1, { clinicalEpisodeId: 'real-episode-one' });
+    Object.assign(data.target[day].beds.H1, {
+      clinicalEpisodeId: 'real-episode-one',
+      admissionDate: '2026-09-19',
+    });
+    expect(planNursingRecovery(data).patches).toHaveLength(1);
+    expect(data.target[day].beds.H1.admissionDate).toBe('2026-09-19');
+  });
+  it.each(['5', '17a', '17 años', '', undefined, '11m', 'unknown'])(
+    'holds children or unconfirmed age: %s',
+    age => {
+      const data = fixture();
+      Object.assign(data.source[day].beds.R1, { age });
+      expect(planNursingRecovery(data).patches).toEqual([]);
+    }
+  );
+  it('checks adulthood on the census date using birth date when available', () => {
+    const data = fixture();
+    Object.assign(data.source[day].beds.R1, { birthDate: '2008-09-20', age: '45' });
+    expect(planNursingRecovery(data).patches).toEqual([]);
+    Object.assign(data.source[day].beds.R1, { birthDate: '2008-09-19' });
+    expect(planNursingRecovery(data).patches).toHaveLength(1);
+  });
+  it.each(['not-a-date', '2026-02-30', '2026-09-20'])(
+    'validates every target-only date: %s',
+    key => {
+      const data = fixture();
+      Object.assign(data.target, { [key]: { ...record(), date: '2026-09-21' } });
+      expect(() => planNursingRecovery(data)).toThrow('invalid_nursing_day');
+    }
+  );
   it('holds different real episodes, even with the same valid document', () => {
     const data = fixture();
     data.source[day].beds.R1.clinicalEpisodeId = 'real-episode-one';

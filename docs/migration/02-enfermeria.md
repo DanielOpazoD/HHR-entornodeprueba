@@ -12,7 +12,10 @@ en Git ni en artefactos CI. No requiere credenciales ni accede a Firebase.
 
 Esta primera vía propone únicamente completar textos diurnos/nocturnos vacíos de
 pacientes adultos con RUT válido coincidente, mismo día y turno, sin conflicto
-de episodio real o fecha de nacimiento. No utiliza la cama como identidad. Los IDs
+de episodio real o fecha de nacimiento. Se confirma mayoría de edad al día del
+censo, mediante nacimiento o edad en años informada. Sin un episodio real común,
+se exige fecha de ingreso válida e igual; una diferencia de hora no reemplaza el
+ingreso corregido del destino. Se validan también los días exclusivos del destino. No utiliza la cama como identidad. Los IDs
 locales `ep_` y `legacy_ep_` no prueban un episodio común entre proyectos.
 
 Los RN, documentos compartidos con RN en cualquier día del lote, pasaportes sin

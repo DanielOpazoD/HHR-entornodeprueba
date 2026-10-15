@@ -42,6 +42,18 @@ const neonatal = patient =>
   /^(?:rn\b|r\.n\.)/.test(normalized(patient.patientName)) ||
   /^(?:[0-9]|1[0-9]|2[0-8])\s*(?:d|dias?)$/.test(normalized(patient.age));
 
+const adultAt = (patient, date) => {
+  if (validDay(patient.birthDate)) {
+    const years =
+      Number(date.slice(0, 4)) -
+      Number(patient.birthDate.slice(0, 4)) -
+      (date.slice(5) < patient.birthDate.slice(5) ? 1 : 0);
+    return years >= 18 && years <= 120;
+  }
+  const age = normalized(patient.age).match(/^(\d{1,3})(?:\s*(?:a|anos?))?$/);
+  return Boolean(age && Number(age[1]) >= 18 && Number(age[1]) <= 120);
+};
+
 const occurrences = record => {
   const result = [];
   const walk = (patient, path, inCrib = false) => {
@@ -66,6 +78,13 @@ const compatible = (a, b) => {
     right = episode(b);
   if (left && right && left !== right) return false;
   if (validDay(a.birthDate) && validDay(b.birthDate) && a.birthDate !== b.birthDate) return false;
+  if (
+    !(left && left === right) &&
+    (!validDay(a.admissionDate) ||
+      !validDay(b.admissionDate) ||
+      a.admissionDate !== b.admissionDate)
+  )
+    return false;
   return true;
 };
 
@@ -80,6 +99,16 @@ export const planNursingRecovery = ({ source, target }) => {
     Array.isArray(target)
   )
     throw new Error('invalid_nursing_input');
+  for (const records of [source, target])
+    for (const [date, record] of Object.entries(records))
+      if (
+        !validDay(date) ||
+        !record ||
+        typeof record !== 'object' ||
+        Array.isArray(record) ||
+        record.date !== date
+      )
+        throw new Error('invalid_nursing_day');
   // Context spans the supplied batch: a maternal document reused by an RN on
   // another day still cannot serve as an unambiguous person key here.
   const sharedNeonatal = new Set(
@@ -96,8 +125,6 @@ export const planNursingRecovery = ({ source, target }) => {
   const patches = [],
     cases = [];
   for (const [date, record] of Object.entries(source)) {
-    if (!validDay(date) || record?.date !== date || (target[date] && target[date].date !== date))
-      throw new Error('invalid_nursing_day');
     const old = occurrences(record),
       current = target[date] ? occurrences(target[date]) : [];
     const byDocument = new Map();
@@ -131,6 +158,7 @@ export const planNursingRecovery = ({ source, target }) => {
         key.startsWith('rut:') &&
         !sharedNeonatal.has(key) &&
         ![...group, ...candidates].some(item => item.neonatal) &&
+        [...group, ...candidates].every(item => adultAt(item.patient, date)) &&
         sourceUnique &&
         unique &&
         ids.size <= 1 &&
