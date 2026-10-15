@@ -5,11 +5,11 @@ import { supplementRequest } from '@/tests/fixtures/cudyrSupplementFixture';
 import { buildCudyrReport } from '@/services/cudyr/cudyrReportModel';
 import { buildCudyrEssentialWorkbook } from '@/services/cudyr/cudyrEssentialWorkbook';
 import { readCudyrWorkbookMatrix } from '@/services/cudyr/cudyrSupplementBinary';
+import { addCudyrSourceSheets } from '@/services/cudyr/cudyrSourceWorkbook';
 import {
   loadCudyrSourceSheets,
   selectCudyrSourceReports,
-  addCudyrSourceSheets,
-} from '@/services/cudyr/cudyrSourceWorkbook';
+} from '@/services/cudyr/cudyrSourceLoader';
 import type { ArchivedCudyrSupplement } from '@/services/cudyr/cudyrSupplementService';
 import { confirmedReportInput } from './reportFixtures';
 const mocks = vi.hoisted(() => ({ load: vi.fn(), call: vi.fn(), generation: 1 }));
@@ -286,7 +286,9 @@ describe('original Eloísa source in monthly Excel', () => {
     data.rows[1].monthlyEvidence!.reportId = 'copy';
     const copy = archive('copy');
     copy.file.sha256 = 'old';
-    expect(selectCudyrSourceReports(data, [archive('old'), copy])).toHaveLength(1);
+    const selected = selectCudyrSourceReports(data, [archive('old'), copy]);
+    expect(selected).toHaveLength(1);
+    expect(selected[0]).toMatchObject({ equivalentReportIds: ['old', 'copy'] });
     delete data.rows[0].monthlyEvidence;
     delete data.rows[1].monthlyEvidence;
     expect(

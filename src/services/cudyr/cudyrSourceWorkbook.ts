@@ -3,19 +3,12 @@ import type { Workbook } from 'exceljs';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
 import type { CudyrSourceSheet } from './cudyrSourceTypes';
 export type { CudyrSourceSheet } from './cudyrSourceTypes';
-import { getNextDay, getPreviousDay } from '@/utils/clinicalDayUtils';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { getPreviousDay } from '@/utils/clinicalDayUtils';
 import { prepareCudyrSourceTable } from './cudyrSourceTable';
 import { markCudyrSourceMovements } from './cudyrSourceMovements';
 import { validateCudyrSourceSheet } from './cudyrSourceValidation';
 import { CUDYR_SOURCE_COLUMNS as columns } from './cudyrSourceColumns';
 import { fitCudyrSourceSheet } from './cudyrSourceSheetLayout';
-import {
-  callCudyrArchive,
-  loadCudyrSupplements,
-  type ArchivedCudyrSupplement,
-} from './cudyrSupplementService';
 
 /** Complete calendar-day source view with explicitly linked HHR exclusions annotated. */
 export const addCudyrSourceSheets = (
@@ -33,7 +26,16 @@ export const addCudyrSourceSheets = (
   const nextMonth = new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 7);
   sources.forEach((original, index) => {
     const excerpt = original.month === nextMonth;
-    const prepared = prepareCudyrSourceTable(original, excerpt, reportRows);
+    // Equal source bytes may have several archive IDs. Normalize only the annotation copy.
+    const reportIds = new Set([original.reportId, ...(original.equivalentReportIds || [])]);
+    const linkedRows = original.reportId
+      ? reportRows.map(row =>
+          row.monthlyEvidence && reportIds.has(row.monthlyEvidence.reportId)
+            ? { ...row, monthlyEvidence: { ...row.monthlyEvidence, reportId: original.reportId! } }
+            : row
+        )
+      : reportRows;
+    const prepared = prepareCudyrSourceTable(original, excerpt, linkedRows);
     const source = prepared.source;
     const sheet = workbook.addWorksheet(
       `Eloísa ${source.month}${sources.filter(s => s.month === source.month).length > 1 ? ` (${index + 1})` : ''}`
@@ -57,7 +59,7 @@ export const addCudyrSourceSheets = (
         sheet,
         original,
         prepared.patients,
-        reportRows,
+        linkedRows,
         excerpt,
         prepared.allPatients
       );
@@ -127,105 +129,4 @@ export const addCudyrSourceSheets = (
       fitToHeight: 0,
     };
   });
-};
-
-export const selectCudyrSourceReports = (
-  data: CudyrReportDataset,
-  reports: ArchivedCudyrSupplement[]
-) => {
-  const used = new Set(
-    data.rows.flatMap(row => (row.monthlyEvidence ? [row.monthlyEvidence.reportId] : []))
-  );
-  if ([...used].some(id => !reports.some(report => report.id === id)))
-    throw new Error(
-      'Falta un informe original utilizado en este período. Actualice antes de descargar.'
-    );
-  const month = data.from.slice(0, 7);
-  const current = reports
-    .filter(report => report.month === month)
-    .sort((a, b) => b.importedAt.localeCompare(a.importedAt));
-  const selected = reports.filter(report => used.has(report.id));
-  if (!selected.some(report => report.month === month) && current[0]) selected.push(current[0]);
-  const hashes = new Set<string>();
-  return selected
-    .sort((a, b) => a.month.localeCompare(b.month) || a.importedAt.localeCompare(b.importedAt))
-    .filter(report => {
-      if (hashes.has(report.file.sha256)) return false;
-      hashes.add(report.file.sha256);
-      return true;
-    });
-};
-
-const readSourceMatrix = (
-  buffer: ArrayBuffer,
-  signal: AbortSignal
-): Promise<CudyrSourceSheet['matrix']> => {
-  signal.throwIfAborted();
-  return new Promise((resolve, reject) => {
-    const worker = new Worker(new URL('./cudyrSupplement.worker.ts', import.meta.url), {
-      type: 'module',
-    });
-    const finish = () => {
-      clearTimeout(timer);
-      signal.removeEventListener('abort', abort);
-      worker.terminate();
-    };
-    const abort = () => {
-      finish();
-      reject(new Error('Consulta cancelada.'));
-    };
-    const timer = setTimeout(() => {
-      finish();
-      reject(new Error('Tiempo de lectura del informe agotado.'));
-    }, 10000);
-    signal.addEventListener('abort', abort, { once: true });
-    worker.onerror = () => {
-      finish();
-      reject(new Error('No se pudo leer el informe original.'));
-    };
-    worker.onmessage = event => {
-      finish();
-      if (event.data.kind === 'workbook' && event.data.matrix) resolve(event.data.matrix);
-      else reject(new Error(event.data.error || 'Informe original no válido.'));
-    };
-    worker.postMessage({ buffer, kind: 'workbook' }, [buffer]);
-  });
-};
-
-export const loadCudyrSourceSheets = async (data: CudyrReportDataset, signal: AbortSignal) => {
-  const generation = getSessionGeneration(),
-    owner = getStoredSessionOwnerKey();
-  const check = () => {
-    signal.throwIfAborted();
-    if (generation !== getSessionGeneration() || owner !== getStoredSessionOwnerKey())
-      throw new Error('La sesión cambió.');
-  };
-  check();
-  const reports = await loadCudyrSupplements(data.from, getNextDay(data.to), signal);
-  check();
-  const selected = selectCudyrSourceReports(data, reports);
-  const sources: CudyrSourceSheet[] = [];
-  for (const archive of selected) {
-    check();
-    const file = await callCudyrArchive<ArchivedCudyrSupplement['file'] & { base64: string }>(
-      'readCudyrHistory',
-      { kind: 'monthly-supplement-file', id: archive.id }
-    );
-    check();
-    if (
-      file.sha256 !== archive.file.sha256 ||
-      typeof file.base64 !== 'string' ||
-      file.base64.length > 349528
-    )
-      throw new Error('No se pudo verificar el informe original.');
-    const buffer = Uint8Array.from(atob(file.base64), character => character.charCodeAt(0)).buffer;
-    sources.push({
-      month: archive.month,
-      reportId: archive.id,
-      file,
-      matrix: await readSourceMatrix(buffer, signal),
-    });
-  }
-  check();
-  return sources;
 };

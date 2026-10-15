@@ -241,6 +241,7 @@ export default defineConfig(({ mode }) => {
             '**/assets/cudyrReportWorkbook-*.js',
             // The simplified Excel uses the same on-demand ExcelJS runtime.
             '**/assets/cudyrEssentialWorkbook-*.js',
+            '**/assets/cudyrSourceWorkbook-*.js',
             '**/assets/cudyrReportLoader-*.js',
             // Shared historical reconstruction split from the report loader; same on-demand policy.
             '**/assets/cudyrReportModel-*.js',

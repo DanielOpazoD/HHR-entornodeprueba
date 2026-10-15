@@ -10,11 +10,13 @@ export const validateCudyrSourceSheet = (
   excerpt: boolean
 ) => {
   const parsed = parseCudyrSupplementMatrix(source.matrix);
-  if (!parsed.ok || parsed.report.month !== source.month) {
+  if (!parsed.ok) {
     // Unrecognized legacy layouts are copied verbatim, not projected into this table.
     if (!excerpt) return;
     throw new Error('No se pudo comprobar el extracto de Eloísa.');
   }
+  if (parsed.report.month !== source.month)
+    throw new Error('El mes del informe de Eloísa no coincide con el archivo guardado.');
   const fail = () => {
     throw new Error('El Excel no conserva todos los episodios y valores de Eloísa.');
   };

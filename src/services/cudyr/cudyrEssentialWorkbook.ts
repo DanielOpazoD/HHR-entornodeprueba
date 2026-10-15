@@ -12,11 +12,8 @@ import { validateCudyrWorkbookTotals } from './cudyrWorkbookValidation';
 import { cudyrWorkbookSummary } from './cudyrWorkbookSummary';
 import { formatDateDMY } from './cudyrWorkbookSections';
 import { addCudyrEssentialDetail } from './cudyrEssentialDetail';
-import {
-  addCudyrSourceSheets,
-  loadCudyrSourceSheets,
-  type CudyrSourceSheet,
-} from './cudyrSourceWorkbook';
+import type { CudyrSourceSheet } from './cudyrSourceTypes';
+import { loadCudyrSourceSheets } from './cudyrSourceLoader';
 
 const note = (sheet: Worksheet, row: number, value: string, height = 30) => {
   sheet.mergeCells(`A${row}:D${row}`);
@@ -40,12 +37,21 @@ export const buildCudyrEssentialWorkbook = async (
     throw new Error('Seleccione un período dentro del mismo mes.');
   const byDay = new Map(dates.map(date => [date, data.rows.filter(row => row.date === date)]));
   const total = cudyrWorkbookSummary([...byDay.values()].flat());
+  // The source-table parser and annotations are optional; keep them outside the core export.
+  const addSourceSheets = sources?.length
+    ? (await import('./cudyrSourceWorkbook')).addCudyrSourceSheets
+    : undefined;
   const { workbook, fileName } = await buildCudyrWorkbook({
     year,
     month,
     endDate: data.to,
     afterSummary: sources
-      ? workbook => addCudyrSourceSheets(workbook, sources, data.from.slice(0, 7), data.rows)
+      ? workbook => {
+          if (addSourceSheets)
+            return addSourceSheets(workbook, sources, data.from.slice(0, 7), data.rows);
+          workbook.addWorksheet('Eloísa · sin archivo').getCell('A1').value =
+            'Informe original de Eloísa no guardado para este período.';
+        }
       : undefined,
     monthlySummary: {
       year,

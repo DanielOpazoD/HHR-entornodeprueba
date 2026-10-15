@@ -21,6 +21,48 @@ const boundaryCase = () => {
 };
 
 describe('readable source table and documentary movement annotations', () => {
+  it.each(['2026-10', '2026-11'])(
+    'rejects a recognized source with conflicting archive month when exporting %s',
+    async reportMonth => {
+      const current = source();
+      current.month = '2026-11';
+      await expect(exportSheet([], current, reportMonth)).rejects.toThrow(/mes.*no coincide/i);
+    }
+  );
+  it.each([false, true])(
+    'independently rejects conflicting month metadata (excerpt %s)',
+    async excerpt => {
+      const current = source();
+      const sheet = await exportSheet([], current);
+      current.month = '2026-11';
+      expect(() => validateCudyrSourceSheet(sheet, current, excerpt)).toThrow(/mes.*no coincide/i);
+    }
+  );
+  it('retains exclusions and movements linked through an identical re-imported source', async () => {
+    const current = { ...source(), equivalentReportIds: ['source', 'copy'] };
+    const excluded = row();
+    excluded.eligibility = 'no_elegible';
+    excluded.monthlyEvidence!.reportId = 'copy';
+    const sheet = await exportSheet([excluded], current);
+    expect(sheet.getCell('D2').text).toContain('Exclusión');
+    expect(sheet.getCell('I2').text).toBe('▼ C2');
+    expect(sheet.getCell('I2').fill).toMatchObject({ fgColor: { argb: 'FFFFF4DC' } });
+    expect(sheet.getCell('F2').value).toEqual(new Date('2026-10-01T00:00:00Z'));
+  });
+  it('still rejects conflicting row links across equivalent source IDs', async () => {
+    const current = { ...source(), equivalentReportIds: ['source', 'copy'] };
+    const excluded = row();
+    excluded.eligibility = 'no_elegible';
+    const other = {
+      ...excluded,
+      monthlyEvidence: { ...excluded.monthlyEvidence!, reportId: 'copy', sourceRow: 8 },
+    };
+    const sheet = await exportSheet([excluded, other], current);
+    expect(sheet.getCell('D2').value).toBeNull();
+    expect(sheet.getCell('D3').value).toBeNull();
+    expect(sheet.getCell('F2').value).toBe('No informado');
+    expect(sheet.getCell('I2').text).toBe('C2');
+  });
   it('recovers day-1 admission from the preceding stay with a confirmed departure and exact full identity', async () => {
     const { r, current } = boundaryCase();
     const rn = {
@@ -263,7 +305,7 @@ describe('readable source table and documentary movement annotations', () => {
     expect(sheet.getCell('D3').value).toBeNull();
     expect(sheet.getCell('I2').fill).not.toMatchObject({ fgColor: { argb: 'FFFFF4DC' } });
   });
-  it.each(['missing-episode', 'conflicting-source', 'different-episode'])(
+  it.each(['missing-episode', 'conflicting-source', 'different-episode', 'two-source-rows'])(
     'does not label ambiguous excluded evidence: %s',
     async scenario => {
       const r = row();
@@ -271,7 +313,10 @@ describe('readable source table and documentary movement annotations', () => {
       if (scenario === 'missing-episode') r.clinicalEpisodeId = '';
       if (scenario === 'conflicting-source') r.monthlyEvidence!.state = 'conflict';
       const other = { ...r, clinicalEpisodeId: 'another-episode' };
-      const sheet = await exportSheet(scenario === 'different-episode' ? [r, other] : [r]);
+      const rows = scenario === 'different-episode' ? [r, other] : [r];
+      if (scenario === 'two-source-rows')
+        rows.push({ ...r, monthlyEvidence: { ...r.monthlyEvidence!, sourceRow: 8 } });
+      const sheet = await exportSheet(rows);
       expect(sheet.getCell('D2').value).toBeNull();
       expect(sheet.getCell('I2').fill).not.toMatchObject({ fgColor: { argb: 'FFFFF4DC' } });
       expect(sheet.getCell('E3').value).toBe('Otro episodio');

@@ -69,6 +69,9 @@ Estas anotaciones no cambian el resumen ni las hojas diarias.
 Los formatos antiguos no reconocidos mantienen sus celdas originales completas.
 Si se utiliza el mes siguiente, incluye solo el día 1 y filas con valores (incluido S/C).
 Los originales se conservan completos. La nota del encabezado identifica archivo y huella.
+Las copias de un mismo archivo se muestran una sola vez, conservando los vínculos de
+todas sus importaciones. Un informe reconocido con mes distinto al archivado bloquea
+la descarga; no se trata como un formato antiguo desconocido.
 Los símbolos ▼ ingreso y ▲ egreso son anotaciones de HHR, con fecha calendario de Rapa Nui,
 solo cuando existe vínculo inequívoco entre fila del informe y episodio. No se infieren
 movimientos desde las categorías, no se asocian solo por nombre y no se sustituyen valores CUDYR.
@@ -96,3 +99,9 @@ El generador de «Excel mensual» se carga al descargar, igual que ExcelJS; qued
 del precaché de instalación y tiene un límite propio de 12 KB. Esto no cambia las
 fuentes ni la caché de datos del censo. La primera descarga requiere acceso a esos
 recursos estáticos; no realiza una sincronización con Eloísa.
+La consulta de archivos se mantiene separada de su presentación. El lector de la tabla
+y las anotaciones del respaldo original forman un módulo separado, cargado
+solo cuando se adjunta ese respaldo, con un límite de 20 KB y fuera del precaché.
+La descarga espera su lectura y validación antes de ofrecer el archivo; no omite el
+respaldo ni sus comprobaciones si hay un fallo. Los límites de arranque e instalación
+se mantienen.

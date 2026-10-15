@@ -13,12 +13,14 @@ export const prepareCudyrSourceTable = (
   rows: CudyrReportRow[] = []
 ) => {
   const parsed = parseCudyrSupplementMatrix(source.matrix);
-  if (!parsed.ok || parsed.report.month !== source.month) {
+  if (!parsed.ok) {
     if (excerpt)
       throw new Error('No se pudo aislar el día 1 del informe original del mes siguiente.');
     // Unknown legacy layouts retain their complete original cells and formatting.
     return { source, patients: null, label: '', excludedDates: new Map<number, Set<string>>() };
   }
+  if (parsed.report.month !== source.month)
+    throw new Error('El mes del informe de Eloísa no coincide con el archivo guardado.');
   const { report } = parsed;
   const excludedDates = new Map<number, Set<string>>();
   const exclusionLabels = new Map<number, string>();
@@ -36,7 +38,13 @@ export const prepareCudyrSourceTable = (
     const episodes = new Set(own.map(r => r.clinicalEpisodeId));
     const excluded = new Set<string>();
     const reasons = new Map<string, string>();
-    if (episodes.size === 1 && own.every(r => Boolean(r.clinicalEpisodeId))) {
+    const linkedElsewhere = rows.some(
+      r =>
+        episodes.has(r.clinicalEpisodeId) &&
+        r.monthlyEvidence?.reportId === source.reportId &&
+        r.monthlyEvidence?.sourceRow !== p.sourceRow
+    );
+    if (episodes.size === 1 && own.every(r => Boolean(r.clinicalEpisodeId)) && !linkedElsewhere) {
       for (const day of days) {
         const matches = own.filter(r => r.monthlyEvidence?.sourceDate === day.sourceDate);
         if (
