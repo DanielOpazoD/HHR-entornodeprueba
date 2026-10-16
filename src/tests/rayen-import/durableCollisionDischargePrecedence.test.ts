@@ -3,146 +3,113 @@ import { EMPTY_PATIENT } from '@/constants/patient';
 import {
   applyCensusImportDiff,
   reconcileCensus,
+  type CensusImportDiff,
   type RayenCensusSnapshot,
   type RayenEncounter,
 } from '@/features/rayen-import';
-import { resolveBedOccupancyCollisions } from '@/features/rayen-import/domain/bedOccupancyCollisionPolicy';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import type { PatientData } from '@/types/domain/patient';
 
-const encounter = (encounterId: string, source: 'cma' | 'physical'): RayenEncounter => ({
-  encounterId,
-  run: source === 'cma' ? '11.111.111-1' : '22.222.222-2',
-  firstGivenName: source === 'cma' ? 'Camila' : 'Mario',
-  firstFamilyName: 'Paciente',
-  admissionDatetime: '2026-08-21T08:00:00-06:00',
-  service:
-    source === 'cma' ? 'Área quirúrgica indiferenciada' : 'Área Médico Quirúrgica Indiferenciada',
-  room: source === 'cma' ? 'CMA R3' : 'Recuperación 3',
-  bed: source === 'cma' ? 'CMAR3' : 'R3',
-});
-
-const patient = (source: RayenEncounter, bedId: string): PatientData => ({
-  ...EMPTY_PATIENT,
-  bedId,
-  patientName: `${source.firstGivenName} Paciente`,
-  rut: source.run ?? '',
-  clinicalEpisodeId: source.encounterId,
-});
-
+const fixture = () => {
+  const cma: RayenEncounter = {
+    encounterId: 'CMA-R3',
+    run: '111111111',
+    firstGivenName: 'Paciente CMA',
+    firstFamilyName: 'Prueba',
+    admissionDatetime: '2026-08-21T08:00:00-06:00',
+    service: 'Área quirúrgica indiferenciada',
+    room: 'CMA R3',
+    bed: 'CMAR3',
+  };
+  const hospital: RayenEncounter = {
+    ...cma,
+    encounterId: 'MQ-R3',
+    run: '222222222',
+    firstGivenName: 'Paciente Hospitalizado',
+    service: 'Área Médico Quirúrgica Indiferenciada',
+    room: 'R3',
+    bed: 'R3',
+  };
+  // Persisted state from the former forced-choice policy, rather than asking the new planner
+  // to create an obsolete removal decision.
+  const current: DailyRecord = {
+    date: '2026-08-21',
+    beds: {
+      R3: {
+        ...EMPTY_PATIENT,
+        bedId: 'R3',
+        patientName: 'Paciente CMA Prueba',
+        rut: cma.run,
+        clinicalEpisodeId: cma.encounterId,
+      },
+    },
+    discharges: [],
+    transfers: [],
+    cma: [],
+    activeExtraBeds: [],
+    lastUpdated: '',
+    rayenBedCollisionResolutions: [
+      {
+        id: 'R3:CMA-R3:MQ-R3',
+        selectedEpisodeId: 'CMA-R3',
+        otherEpisodeId: 'MQ-R3',
+        otherDisposition: { kind: 'remove' },
+      },
+    ],
+  };
+  const snapshot: RayenCensusSnapshot = {
+    capturedAt: '2026-08-21T12:00:00-06:00',
+    facilityId: 1342,
+    encounters: [cma, hospital],
+    isComplete: true,
+  };
+  return { current, snapshot };
+};
 const context = () => ({
   idFactory: () => 'movement-1',
   now: new Date('2026-08-21T12:30:00-06:00'),
   actor: 'Nurse Test',
   syncRunId: 'run-durable-collision-discharge',
 });
-
-describe('durable collision decision and discharge precedence', () => {
-  it('keeps the active retained episode when a later report repeats a stale discharge', () => {
-    const cma = encounter('CMA-R3', 'cma');
-    const physical = encounter('MQ-R3', 'physical');
-    const current: DailyRecord = {
-      date: '2026-08-21',
-      beds: { R3: patient(cma, 'R3'), H2C1: patient(physical, 'H2C1') },
-      discharges: [],
-      transfers: [],
-      cma: [],
-      activeExtraBeds: [],
-      lastUpdated: '',
-    };
-    const snapshot: RayenCensusSnapshot = {
-      capturedAt: '2026-08-21T12:00:00-06:00',
-      facilityId: 1342,
-      encounters: [cma, physical],
-      isComplete: true,
-    };
-    const initial = reconcileCensus(current, snapshot);
-    const collision = initial.bedOccupancyCollisions?.[0];
-    if (!collision) throw new Error('Expected R3 source collision');
-    const resolved = resolveBedOccupancyCollisions(initial, [
-      {
-        collisionId: collision.id,
-        selectedEpisodeId: 'CMA-R3',
-        otherDisposition: { kind: 'remove' },
-      },
-    ]);
-    const applied = applyCensusImportDiff(current, resolved, context());
-    const repeated = reconcileCensus(applied.record, snapshot);
-    repeated.discharges.push({
-      bedId: 'R3',
-      rut: applied.record.beds.R3.rut,
-      patientName: applied.record.beds.R3.patientName,
-      kind: 'alta',
-      status: 'Vivo',
-      reason: 'administrative-discharge',
-      encounterId: 'CMA-R3',
-      expectedOccupant: {
-        clinicalEpisodeId: 'CMA-R3',
-        rut: applied.record.beds.R3.rut,
-      },
-    });
-
-    const reapplied = applyCensusImportDiff(applied.record, repeated, context());
-
-    expect(repeated.retainedBedCollisionResolutions).toContainEqual(
-      expect.objectContaining({ id: collision.id, selectedEpisodeId: 'CMA-R3' })
-    );
-    expect(reapplied.record.beds.R3.clinicalEpisodeId).toBe('CMA-R3');
-    expect(reapplied.record.discharges).toHaveLength(0);
+const addDischarge = (diff: CensusImportDiff, bedId: string) =>
+  diff.discharges.push({
+    bedId,
+    rut: '111111111',
+    patientName: 'Paciente CMA Prueba',
+    kind: 'alta',
+    status: 'Vivo',
+    reason: 'administrative-discharge',
+    encounterId: 'CMA-R3',
+    expectedOccupant: { clinicalEpisodeId: 'CMA-R3', rut: '111111111' },
   });
 
-  it('allows a later discharge once the retained episode is no longer active', () => {
-    const cma = encounter('CMA-R3', 'cma');
-    const physical = encounter('MQ-R3', 'physical');
-    const current: DailyRecord = {
-      date: '2026-08-21',
-      beds: { R3: patient(cma, 'R3'), H2C1: patient(physical, 'H2C1') },
-      discharges: [],
-      transfers: [],
-      cma: [],
-      activeExtraBeds: [],
-      lastUpdated: '',
-    };
-    const snapshot: RayenCensusSnapshot = {
-      capturedAt: '2026-08-21T12:00:00-06:00',
-      facilityId: 1342,
-      encounters: [cma, physical],
-      isComplete: true,
-    };
-    const initial = reconcileCensus(current, snapshot);
-    const collision = initial.bedOccupancyCollisions?.[0];
-    if (!collision) throw new Error('Expected R3 source collision');
-    const resolved = resolveBedOccupancyCollisions(initial, [
-      {
-        collisionId: collision.id,
-        selectedEpisodeId: 'CMA-R3',
-        otherDisposition: { kind: 'remove' },
-      },
-    ]);
-    const applied = applyCensusImportDiff(current, resolved, context());
-    const later = reconcileCensus(applied.record, {
+describe('existing collision receipts during migration to separate CMA assignments', () => {
+  it('keeps stale-discharge protection while retaining both active source episodes', () => {
+    const { current, snapshot } = fixture();
+    const diff = reconcileCensus(current, snapshot);
+    addDischarge(diff, 'R3');
+    const result = applyCensusImportDiff(current, diff, context());
+    expect(diff.retainedBedCollisionResolutions).toContainEqual(
+      expect.objectContaining({ id: 'R3:CMA-R3:MQ-R3', selectedEpisodeId: 'CMA-R3' })
+    );
+    expect(result.record.beds.CMA_R3.clinicalEpisodeId).toBe('CMA-R3');
+    expect(result.record.beds.R3.clinicalEpisodeId).toBe('MQ-R3');
+    expect(result.record.discharges).toEqual([]);
+    expect(result.skipped).toEqual([]);
+  });
+
+  it('permits a verified discharge once the selected episode is no longer active', () => {
+    const { current, snapshot } = fixture();
+    const first = applyCensusImportDiff(current, reconcileCensus(current, snapshot), context());
+    const later = reconcileCensus(first.record, {
       ...snapshot,
       capturedAt: '2026-08-21T18:00:00-06:00',
-      encounters: [],
+      encounters: [snapshot.encounters[1]],
     });
-    later.discharges.push({
-      bedId: 'R3',
-      rut: applied.record.beds.R3.rut,
-      patientName: applied.record.beds.R3.patientName,
-      kind: 'alta',
-      status: 'Vivo',
-      reason: 'administrative-discharge',
-      encounterId: 'CMA-R3',
-      expectedOccupant: {
-        clinicalEpisodeId: 'CMA-R3',
-        rut: applied.record.beds.R3.rut,
-      },
-    });
-
-    const reapplied = applyCensusImportDiff(applied.record, later, context());
-
+    addDischarge(later, 'CMA_R3');
+    const result = applyCensusImportDiff(first.record, later, context());
     expect(later.retainedBedCollisionResolutions).toEqual([]);
-    expect(reapplied.record.beds.R3).toBeUndefined();
-    expect(reapplied.record.discharges).toHaveLength(1);
+    expect(result.record.beds.CMA_R3).toBeUndefined();
+    expect(result.record.beds.R3.clinicalEpisodeId).toBe('MQ-R3');
+    expect(result.record.discharges).toHaveLength(1);
   });
 });

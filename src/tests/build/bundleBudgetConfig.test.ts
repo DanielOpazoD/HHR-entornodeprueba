@@ -30,6 +30,16 @@ const findBudget = (config: BundleBudgetConfig, pattern: string) =>
   config.chunkPatternBudgets.find(budget => budget.pattern === pattern);
 
 describe('bundle budget config', () => {
+  it('bounds the core monthly export and optional Eloisa source separately', () => {
+    const config = readBundleBudgetConfig();
+    expect(findBudget(config, '^cudyrEssentialWorkbook-.*\\.js$')).toMatchObject({
+      maxBytes: 12000,
+    });
+    expect(findBudget(config, '^cudyrSourceWorkbook-.*\\.js$')).toMatchObject({
+      maxBytes: 20000,
+    });
+  });
+
   it('keeps explicit ceilings for the heavy Excel runtime asset and PDF async chunk', () => {
     const config = readBundleBudgetConfig();
 

@@ -460,10 +460,10 @@ describe('RayenImportButton', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('Información clínica pendiente')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Reintentar información clínica' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar sincronización' }));
     expect(screen.getByRole('button', { name: 'Sincronizando…' })).toBeDisabled();
-    await waitFor(() => expect(mocks.retryClinicalFill).toHaveBeenCalledTimes(1));
-    expect(mocks.refreshHealth).not.toHaveBeenCalled();
-    expect(mocks.triggerImport).not.toHaveBeenCalled();
+    await waitFor(() => expect(mocks.triggerImport).toHaveBeenCalledTimes(1));
+    expect(mocks.refreshHealth).toHaveBeenCalledTimes(1);
+    expect(mocks.retryClinicalFill).not.toHaveBeenCalled();
   });
 });

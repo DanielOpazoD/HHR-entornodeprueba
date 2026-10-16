@@ -21,8 +21,10 @@ describe('census startup payload', () => {
 
   it('keeps the Rayen import machinery out of the census toolbar', () => {
     const header = read('src/features/census/components/CensusStaffHeader.tsx');
-    expect(header).not.toContain("import { RayenImportButton } from '@/features/rayen-import'");
-    expect(header).toContain("lazy(() =>\n  import('@/features/rayen-import/RayenImportButton')");
+    expect(header).not.toMatch(/from\s+['"]@\/features\/rayen-import(?:\/RayenImportButton)?['"]/);
+    expect(header).toMatch(
+      /const RayenImportButton = lazyWithRetry\(\(\) =>\s*import\('@\/features\/rayen-import\/RayenImportButton'\)/
+    );
     expect(header).not.toContain("import('@/features/rayen-import')");
     expect(read('src/features/rayen-import/RayenImportButton.ts')).toContain(
       "from './components/RayenImportButton'"

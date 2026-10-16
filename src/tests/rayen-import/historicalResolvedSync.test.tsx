@@ -83,6 +83,7 @@ describe('resolved historical synchronization', () => {
       counters: { requests: 0, cacheHits: 0, timeouts: 0 },
       measureEvidence: operation => operation(),
       evidenceClient: {
+        lookupHospitalizations: vi.fn().mockResolvedValue({ ok: false }),
         lookupEgresos,
         fetchStatisticalDischarge,
         fetchPatientFlowReport: vi.fn(),

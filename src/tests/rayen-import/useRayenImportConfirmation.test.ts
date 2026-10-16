@@ -52,8 +52,6 @@ const record = {
 const initialState: RayenImportState = {
   diff,
   isPreviewOpen: true,
-  isBusy: false,
-  isSyncing: false,
   result: null,
   hasSkippedItems: false,
   error: null,
@@ -188,8 +186,6 @@ describe('useRayenImportConfirmation execution ownership', () => {
     });
     expect(appliedState(harness.setState)).toMatchObject({
       isPreviewOpen: false,
-      isBusy: true,
-      isSyncing: true,
     });
     await act(async () => {
       completePersistence();
@@ -332,8 +328,6 @@ describe('useRayenImportConfirmation execution ownership', () => {
     expect(harness.runClinicalStage).not.toHaveBeenCalled();
     expect(appliedState(harness.setState)).toMatchObject({
       isPreviewOpen: true,
-      isBusy: false,
-      isSyncing: false,
       error: 'write failed',
     });
   });

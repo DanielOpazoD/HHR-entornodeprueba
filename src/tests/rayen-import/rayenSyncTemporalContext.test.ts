@@ -95,17 +95,17 @@ describe('prepareRayenSyncTemporalContext', () => {
     ).rejects.toThrow('día de censo seleccionado');
   });
 
-  it('rejects a census outside the seven-day reconstruction window', async () => {
+  it('rejects a future census before reading the sources', async () => {
     await expect(
       prepareRayenSyncTemporalContext({
-        displayedRecord: recordFor('2026-07-30', '2026-08-08T10:00:00.000Z'),
+        displayedRecord: recordFor('2026-08-09', '2026-08-08T10:00:00.000Z'),
         runId: 'run-too-old',
         loadFreshRecord: vi
           .fn()
-          .mockResolvedValue(recordFor('2026-07-30', '2026-08-08T12:00:00.000Z')),
+          .mockResolvedValue(recordFor('2026-08-09', '2026-08-08T12:00:00.000Z')),
         now: () => new Date('2026-08-08T18:00:00.000Z'),
       })
-    ).rejects.toThrow('hasta siete días clínicos anteriores');
+    ).rejects.toThrow('Selecciona una fecha de censo válida, actual o pasada.');
   });
 
   it('keeps a prepared context valid while the same clinical shift remains active', async () => {

@@ -70,8 +70,6 @@ describe('RayenImportButton staffing review', () => {
       mode: 'preview',
       diff: null,
       isPreviewOpen: false,
-      isBusy: false,
-      isSyncing: false,
       result: null,
       hasSkippedItems: false,
       error: null,

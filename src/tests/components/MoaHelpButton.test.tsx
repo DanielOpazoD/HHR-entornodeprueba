@@ -95,10 +95,25 @@ describe('Moa visibility and companion', () => {
     expect(screen.queryByRole('region')).not.toBeInTheDocument();
   });
 
-  it('offers only the close control and pauses automatically in a hidden document', async () => {
+  it('offers the library and close controls and pauses automatically in a hidden document', async () => {
     renderMoa();
     const companion = await screen.findByRole('region', { name: 'Moa' });
-    expect(within(companion).getAllByRole('button')).toHaveLength(2);
+    expect(within(companion).getAllByRole('button')).toHaveLength(3);
+    const library = within(companion).getByRole('button', { name: 'Elegir animación de Moa' });
+    fireEvent.click(library);
+    const select = within(companion).getByLabelText('Animación de Moa');
+    expect(within(select).getAllByRole('option')).toHaveLength(18);
+    expect(select).toHaveFocus();
+    fireEvent.change(select, { target: { value: 'run' } });
+    expect(select).toHaveFocus();
+    expect(within(companion).getByRole('dialog')).toBeInTheDocument();
+    expect(within(companion).getByRole('button', { name: 'Jugar con Moa' })).toHaveAttribute(
+      'data-gesture',
+      'welcome'
+    );
+    fireEvent.keyDown(select, { key: 'Escape' });
+    expect(library).toHaveFocus();
+    expect(within(companion).queryByRole('dialog')).toBeNull();
     expect(within(companion).queryByRole('button', { name: /Pausar/ })).toBeNull();
     const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(true);
     try {

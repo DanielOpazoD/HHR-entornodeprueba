@@ -1,5 +1,5 @@
 import { extractPdfTextFromBuffer } from '@/services/pdf/pdfTextExtractionRuntime';
-import { normalizeRut } from '@/utils/rutUtils';
+import { isPassportFormat, normalizeRut } from '@/utils/rutUtils';
 import { resolveClinicalDayForDateTime } from '@/utils/clinicalDayAdmissionUtils';
 import type { EgresoLookupResult, EgresoLookupTarget } from '../contracts/egresoLookup';
 import type { EgresoReportRow } from '../contracts/egresoReport';
@@ -9,6 +9,10 @@ import { parseStatisticalEgresoInstant } from '../mapping/reportEgresoDateTime';
 import { correctedStamp } from './egresoReportPolicy';
 import { decodePdfBase64 } from './historicalStatisticalDischargeRecovery';
 import { isPavilionRecoveryLocation } from './pavilionRecoverySyncPolicy';
+import {
+  recoverHistoricalReportEpisodes,
+  type HistoricalReportEpisodeDependencies,
+} from './historicalReportEpisodeRecovery';
 import {
   previousCensusEgresoIdentity,
   previousCensusEgresoRowIdentity,
@@ -31,6 +35,7 @@ interface ReportOnlyDischargeDependencies {
   previousCensusCandidates?: readonly PreviousCensusEgresoCandidate[];
   /** Historical reconstruction also needs episodes discharged after the requested cutoff. */
   allReportDays?: boolean;
+  lookupHospitalizations?: HistoricalReportEpisodeDependencies['lookupHospitalizations'];
 }
 
 const exactDay = (timestamp: string): string => timestamp.slice(0, 10);
@@ -67,13 +72,14 @@ const sameDischargeEvent = (left: EgresoReportRow, right: EgresoReportRow): bool
  * A uniquely identified D-1 occupant may also use an exact episode lookup when a neonatal PDF uses
  * the alternate maternal-identifier layout; every other ambiguous or mismatching row stays blocked.
  */
-export const enrichReportOnlyDischarges = async (
+const enrichFromGestionCamas = async (
   rows: readonly EgresoReportRow[],
   reportDate: string,
   dependencies: ReportOnlyDischargeDependencies
 ): Promise<EgresoReportRow[]> => {
   const rowKey = (row: EgresoReportRow): string => {
-    if (row.encounterId || isPavilionRecoveryLocation(row.bedLabel)) return '';
+    if (row.encounterId || isPavilionRecoveryLocation(row.bedLabel) || isPassportFormat(row.run))
+      return '';
     const run = normalizeRut(row.run);
     const { correctedDay } = correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime);
     return run && correctedDay && (dependencies.allReportDays || correctedDay === reportDate)
@@ -92,6 +98,7 @@ export const enrichReportOnlyDischarges = async (
   );
   const exactCandidateByRow = new Map<EgresoReportRow, PreviousCensusEgresoCandidate>();
   for (const row of rows) {
+    if (isPassportFormat(row.run)) continue;
     const identity = previousCensusEgresoRowIdentity(row);
     const candidate = exactCandidatesByIdentity.get(identity);
     if (candidate && !row.encounterId && !dependencies.alreadyApplied?.(row, candidate)) {
@@ -222,4 +229,19 @@ export const enrichReportOnlyDischarges = async (
   );
 
   return rows.map(withVerificationState);
+};
+
+export const enrichReportOnlyDischarges = async (
+  rows: readonly EgresoReportRow[],
+  reportDate: string,
+  dependencies: ReportOnlyDischargeDependencies
+): Promise<EgresoReportRow[]> => {
+  const enriched = await enrichFromGestionCamas(rows, reportDate, dependencies);
+  return dependencies.allReportDays && dependencies.lookupHospitalizations
+    ? recoverHistoricalReportEpisodes(enriched, reportDate, {
+        ...dependencies,
+        lookupHospitalizations: dependencies.lookupHospitalizations,
+        extractText: dependencies.extractText ?? extractPdfTextFromBuffer,
+      })
+    : enriched;
 };

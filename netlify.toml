@@ -15,6 +15,20 @@
   node_bundler = "esbuild"
   external_node_modules = ["xlsx-populate", "exceljs", "sharp"]
 
+# Public decorative data only, served same-origin without expanding connect-src.
+# Keep these exact routes above the SPA fallback. The renderer validates hashes and sizes.
+[[redirects]]
+  from = "/moa-library/catalog.json"
+  to = "https://raw.githubusercontent.com/DanielOpazoD/Moa-HHR/moa-catalog/catalog.json"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/moa-library/assets/:file"
+  to = "https://raw.githubusercontent.com/DanielOpazoD/Moa-HHR/moa-catalog/assets/:file"
+  status = 200
+  force = true
+
 [[redirects]]
   from = "/*"
   to = "/index.html"

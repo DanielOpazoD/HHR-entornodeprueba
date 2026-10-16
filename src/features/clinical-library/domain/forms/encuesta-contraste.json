@@ -1,0 +1,427 @@
+{
+  "id": "encuesta-contraste",
+  "title": "Encuesta de seguridad para contraste",
+  "revision": 1,
+  "catalogVersion": "1.1.0",
+  "templateUrl": "/docs/encuesta-contraste.pdf",
+  "sourceUrl": "/docs/encuesta-contraste.pdf",
+  "pages": [
+    {
+      "width": 612,
+      "height": 792
+    }
+  ],
+  "fields": [
+    {
+      "id": "paciente_nombre_completo",
+      "label": "Nombre y apellidos",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [100, 136, 229, 12]
+        }
+      ]
+    },
+    {
+      "id": "paciente_rut",
+      "label": "RUT",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [418, 136, 145, 12]
+        }
+      ]
+    },
+    {
+      "id": "paciente_edad_texto",
+      "label": "Edad (con unidad)",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [361, 136, 31, 12]
+        }
+      ]
+    },
+    {
+      "id": "paciente_fecha_nacimiento",
+      "label": "Fecha de nacimiento",
+      "section": "Paciente",
+      "kind": "date",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [163, 197, 15, 12],
+          "format": "date_day"
+        },
+        {
+          "page": 0,
+          "rect": [184, 197, 16, 12],
+          "format": "date_month"
+        },
+        {
+          "page": 0,
+          "rect": [205, 197, 23, 12],
+          "format": "date_year"
+        }
+      ]
+    },
+    {
+      "id": "paciente_telefono",
+      "label": "Teléfono",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [103, 166, 125, 12]
+        }
+      ]
+    },
+    {
+      "id": "paciente_peso_kg",
+      "label": "Peso (kg)",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [261, 166, 54, 12]
+        }
+      ]
+    },
+    {
+      "id": "medico_tratante_nombre",
+      "label": "Médico tratante",
+      "section": "Profesional",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [403, 166, 156, 12]
+        }
+      ]
+    },
+    {
+      "id": "contraste_procedencia",
+      "label": "Procedencia",
+      "section": "Solicitud",
+      "kind": "choice",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [307, 197, 21, 12],
+          "equals": "urgencia"
+        },
+        {
+          "page": 0,
+          "rect": [380, 197, 21, 12],
+          "equals": "hospitalizado"
+        },
+        {
+          "page": 0,
+          "rect": [481, 197, 21, 12],
+          "equals": "policlinico"
+        }
+      ],
+      "options": [
+        {
+          "value": "urgencia",
+          "label": "Urgencia"
+        },
+        {
+          "value": "hospitalizado",
+          "label": "Hospitalizados"
+        },
+        {
+          "value": "policlinico",
+          "label": "Policlínico"
+        }
+      ]
+    },
+    {
+      "id": "diagnostico_texto",
+      "label": "Diagnóstico por el que se solicita el examen",
+      "section": "Solicitud",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [57, 299, 508, 23]
+        }
+      ],
+      "multiline": true
+    },
+    {
+      "id": "contraste_operado",
+      "label": "¿Ha sido operado?",
+      "section": "Antecedentes",
+      "kind": "boolean",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [212, 336, 22, 12],
+          "equals": true
+        },
+        {
+          "page": 0,
+          "rect": [283, 336, 21, 12],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "contraste_cirugia_1",
+      "label": "Cirugía 1",
+      "section": "Antecedentes",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [102, 359, 312, 12]
+        }
+      ]
+    },
+    {
+      "id": "contraste_cirugia_fecha_1",
+      "label": "Cuándo (cirugía 1)",
+      "section": "Antecedentes",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [464, 359, 71, 12]
+        }
+      ]
+    },
+    {
+      "id": "contraste_cirugia_2",
+      "label": "Cirugía 2",
+      "section": "Antecedentes",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [102, 382, 312, 12]
+        }
+      ]
+    },
+    {
+      "id": "contraste_cirugia_fecha_2",
+      "label": "Cuándo (cirugía 2)",
+      "section": "Antecedentes",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [464, 382, 71, 12]
+        }
+      ]
+    },
+    {
+      "id": "contraste_enfermedad_1",
+      "label": "Hipertensión arterial",
+      "section": "Enfermedades",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [57, 453, 21, 12],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "contraste_enfermedad_2",
+      "label": "Asma",
+      "section": "Enfermedades",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [198, 453, 21, 12],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "contraste_enfermedad_3",
+      "label": "Diabetes",
+      "section": "Enfermedades",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [269, 453, 21, 12],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "contraste_enfermedad_4",
+      "label": "Enfermedad renal",
+      "section": "Enfermedades",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [350, 453, 21, 12],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "contraste_enfermedad_5",
+      "label": "Cáncer",
+      "section": "Enfermedades",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [481, 453, 21, 12],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "contraste_enfermedad_6",
+      "label": "Mieloma múltiple",
+      "section": "Enfermedades",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [57, 477, 21, 12],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "contraste_otras_enfermedades",
+      "label": "Otras enfermedades",
+      "section": "Enfermedades",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [224, 477, 311, 12]
+        }
+      ]
+    },
+    {
+      "id": "contraste_creatinina",
+      "label": "Creatinina (con unidad)",
+      "section": "Antecedentes",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [193, 496, 101, 20]
+        }
+      ]
+    },
+    {
+      "id": "contraste_alergia",
+      "label": "¿Tiene alguna alergia?",
+      "section": "Seguridad",
+      "kind": "boolean",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [57, 524, 20, 12],
+          "equals": true
+        },
+        {
+          "page": 0,
+          "rect": [128, 524, 20, 12],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "contraste_previo",
+      "label": "¿Ha recibido contraste yodado antes?",
+      "section": "Seguridad",
+      "kind": "boolean",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [57, 547, 20, 12],
+          "equals": true
+        },
+        {
+          "page": 0,
+          "rect": [128, 547, 20, 12],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "contraste_reaccion",
+      "label": "¿Presentó reacción al contraste?",
+      "section": "Seguridad",
+      "kind": "boolean",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [57, 570, 20, 12],
+          "equals": true
+        },
+        {
+          "page": 0,
+          "rect": [128, 570, 20, 12],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "contraste_premedicacion",
+      "label": "¿Recibió premedicación?",
+      "section": "Seguridad",
+      "kind": "boolean",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [57, 594, 20, 12],
+          "equals": true
+        },
+        {
+          "page": 0,
+          "rect": [128, 594, 20, 12],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "contraste_alergia_detalle",
+      "label": "Cuál alergia",
+      "section": "Seguridad",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [367, 524, 185, 12]
+        }
+      ]
+    },
+    {
+      "id": "contraste_ayuno_horas",
+      "label": "Horas de ayuno",
+      "section": "Seguridad",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [209, 617, 120, 12]
+        }
+      ]
+    }
+  ],
+  "templateSha256": "dc59fb93bff9a2e3d9cd460e4767fa9aa07f31bd4c2186c3c5aa925bbe87cc0d",
+  "sourceSha256": "dc59fb93bff9a2e3d9cd460e4767fa9aa07f31bd4c2186c3c5aa925bbe87cc0d"
+}

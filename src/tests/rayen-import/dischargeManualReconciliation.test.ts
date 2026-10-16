@@ -286,6 +286,7 @@ describe('absent D-1 patient with diagnosis-expanded discharge report', () => {
           counters: { requests: 0, cacheHits: 0, timeouts: 0 },
           measureEvidence: operation => operation(),
           evidenceClient: {
+            lookupHospitalizations: vi.fn().mockResolvedValue({ ok: false }),
             lookupEgresos,
             fetchStatisticalDischarge,
             fetchPatientFlowReport: vi.fn().mockResolvedValue({ base64: '', error: 'unavailable' }),
