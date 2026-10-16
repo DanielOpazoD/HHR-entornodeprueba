@@ -10,6 +10,7 @@ export const CUDYR_MODALITY_LABELS = {
   hospitalizacion: 'Hospitalización',
   cuna: 'Cuna',
   cma: 'CMA',
+  uea: 'UEA · Urgencias',
   desconocida: 'Sin confirmar',
 };
 export const CUDYR_ELIGIBILITY_LABELS = {
@@ -19,9 +20,9 @@ export const CUDYR_ELIGIBILITY_LABELS = {
 };
 export const CUDYR_STATUS_LABELS: Record<CudyrReportStatus, string> = {
   registrado: 'Registrado',
-  sin_registro_observado: 'Sin registro observado',
+  sin_registro_observado: 'No registrado',
   fuente_no_disponible: 'Fuente no disponible',
-  sin_captura: 'Sin captura',
+  sin_captura: 'Verificación pendiente',
   captura_incompleta: 'Captura incompleta',
   guardado_pendiente: 'Guardado pendiente',
   por_revisar: 'Por revisar',
@@ -81,3 +82,10 @@ export const filterCudyrReportRows = (rows: CudyrReportRow[], filters: CudyrRepo
       (!filters.eligibility || row.eligibility === filters.eligibility) &&
       (!filters.status || row.cudyrStatus === filters.status)
   );
+
+export const cudyrHasHistoricalEvidence = (row: CudyrReportRow) =>
+  !!row.monthlyEvidence && row.monthlyEvidence.state !== 'conflict';
+export const cudyrResultOrigin = (row: CudyrReportRow) =>
+  cudyrHasHistoricalEvidence(row)
+    ? 'Eloísa · Excel de categorización'
+    : row.evaluation?.source || '';

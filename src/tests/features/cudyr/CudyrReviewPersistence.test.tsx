@@ -131,7 +131,7 @@ describe('resume monthly review without modifying clinical data', () => {
         screen.getByRole('button', { name: 'Guardar revisión en HHR', hidden: true })
       ).toBeDisabled()
     );
-    expect(screen.queryByText(/Decisión anotada/)).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText(/Decisión anotada/)).not.toBeInTheDocument());
     expect(api.save).toHaveBeenCalledTimes(1);
   });
   it('allows authorized readers to see saved decisions and history without editing controls', async () => {

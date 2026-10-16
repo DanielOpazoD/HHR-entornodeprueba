@@ -1,3 +1,4 @@
+import { confirmedReportInput } from './reportFixtures';
 import { describe, expect, it } from 'vitest';
 import { buildCudyrReport, cudyrReportTotals } from '@/services/cudyr/cudyrReportModel';
 import {
@@ -22,7 +23,7 @@ describe('CUDYR canonical report', () => {
       H1C1: p({ clinicalEpisodeId: 'crib', bedId: 'H1C1', bedMode: 'Cuna' }),
       CMA1: p({ clinicalEpisodeId: 'cma', bedId: 'CMA1', location: 'CMA recuperación' }),
     });
-    const data = buildCudyrReport(reportInput({ records: [record] }));
+    const data = buildCudyrReport(confirmedReportInput({ records: [record] }));
     expect(data.rows.find(row => row.bedId === 'R1')?.group).toBe('intermedia');
     expect(data.rows.find(row => row.bedId === 'NEO1')?.group).toBe('media');
     expect(cudyrReportTotals(data.rows)).toMatchObject({
@@ -33,6 +34,86 @@ describe('CUDYR canonical report', () => {
       categories: { D3: { media: 1, intermedia: 1 } },
     });
     expect(data.rows.every(row => row.rut && row.diagnosis)).toBe(true);
+  });
+  it('does not change a confirmed CUDYR into review for contradictory admission times alone', () => {
+    const data = buildCudyrReport(
+      reportInput({
+        records: [
+          reportRecord('2026-10-02', {
+            R1: reportPatient(),
+            R2: reportPatient({ bedId: 'R2', admissionTime: '22:23' }),
+          }),
+        ],
+        observations: [reportObservation()],
+      })
+    );
+    expect(data.rows[0].admissionEvidenceConflict).toBe(true);
+    expect(data.rows[0].eligibility).toBe('por_revisar');
+    expect(data.rows[0].cudyrStatus).toBe('registrado');
+    expect(data.rows[0].hospitalAdmissionAt).toBe('');
+  });
+  it('uses the hospital bed of each day instead of retaining the episode admission location UEA', () => {
+    const patient = reportPatient({ bedId: 'H5C1', location: 'Área Médico Quirúrgica / B1UEA' });
+    const data = buildCudyrReport(
+      reportInput({
+        records: [
+          reportRecord('2026-10-01', { BOX1: { ...patient, bedId: 'BOX1' } }),
+          reportRecord('2026-10-02', { H5C1: patient }),
+        ],
+      })
+    );
+    const uea = data.rows.find(row => row.date === '2026-10-01')!;
+    const hospital = data.rows.find(row => row.date === '2026-10-02')!;
+    expect(uea).toMatchObject({ modality: 'uea', eligibility: 'no_elegible' });
+    expect(hospital).toMatchObject({
+      bedId: 'H5C1',
+      group: 'media',
+      modality: 'hospitalizacion',
+      eligibility: 'elegible',
+      cudyrStatus: 'registrado',
+    });
+    expect(hospital.hospitalAdmissionSource).toContain('Censo HHR');
+    expect(patient.location).toContain('B1UEA');
+  });
+  it.each([
+    { location: 'UEA / B1UEA', bedMode: 'Cuna' as const, modality: 'cuna' },
+    { location: 'CMA Hospitalizados', modality: 'cma' },
+    { bedName: 'B1UEA', location: 'UEA', modality: 'uea' },
+  ])(
+    'retains explicit excluded contexts despite a parent hospital bed: $modality',
+    ({ modality, ...patch }) => {
+      const data = buildCudyrReport(
+        reportInput({
+          records: [
+            reportRecord('2026-10-02', {
+              H5C1: reportPatient({ bedId: 'H5C1', ...patch }),
+            }),
+          ],
+        })
+      );
+      expect(data.rows[0]).toMatchObject({ modality, eligibility: 'no_elegible' });
+    }
+  );
+  it('does not override an authoritative UEA interval using the daily hospital bed', () => {
+    const capture = reportCapture();
+    capture.capture.sourcePlacements = [
+      reportPlacement({ bedId: 'BOX1', sourceBedLabel: 'B1UEA', modality: 'desconocida' }),
+    ];
+    const data = buildCudyrReport(
+      reportInput({
+        records: [
+          reportRecord('2026-10-02', {
+            H5C1: reportPatient({ bedId: 'H5C1', location: 'UEA' }),
+          }),
+        ],
+        captures: [capture],
+      })
+    );
+    expect(data.rows[0]).toMatchObject({
+      bedId: 'BOX1',
+      modality: 'uea',
+      eligibility: 'no_elegible',
+    });
   });
   it('does not merge episodes sharing a RUT or unidentified legacy rows', () => {
     const data = buildCudyrReport(
@@ -82,7 +163,7 @@ describe('CUDYR canonical report', () => {
       [original, copy('same', 'C2'), copy('different', 'B1')],
       [original, copy('unknown-time', 'C2', 'invalid')],
     ]) {
-      const row = buildCudyrReport(reportInput({ observations })).rows[0];
+      const row = buildCudyrReport(confirmedReportInput({ observations })).rows[0];
       expect(row.evaluation).toBeNull();
       expect(row.eligibility).toBe('elegible');
       expect(cudyrReportTotals([row])).toMatchObject({
@@ -109,7 +190,8 @@ describe('CUDYR canonical report', () => {
         evaluation: { ...original.evaluation, authorRole: 'Médico' },
       }),
     ]) {
-      const row = buildCudyrReport(reportInput({ observations: [original, other] })).rows[0];
+      const row = buildCudyrReport(confirmedReportInput({ observations: [original, other] }))
+        .rows[0];
       expect(row.evaluation).toBeNull();
       expect(row.cudyrStatus).toBe('por_revisar');
       expect(cudyrReportTotals([row])).toMatchObject({
@@ -154,7 +236,7 @@ describe('CUDYR canonical report', () => {
       },
     });
     const data = buildCudyrReport(
-      reportInput({
+      confirmedReportInput({
         observations: [observation, { ...observation, id: 'metadata' }, older],
         captures: [reportCapture()],
       })
@@ -291,7 +373,7 @@ describe('CUDYR canonical report', () => {
     expect(data.rows.map(row => row.eligibility)).toEqual([
       'no_elegible',
       'no_elegible',
-      'por_revisar',
+      'elegible', // Ten confirmed hours in the hospital service before the 01:00 cutoff.
       'elegible',
     ]);
     expect(data.rows[3].group).toBe('media');
@@ -379,7 +461,7 @@ describe('CUDYR canonical report', () => {
   });
   it('uses the same totals after filtering accented names, punctuated RUT and statistical group', () => {
     const data = buildCudyrReport(
-      reportInput({
+      confirmedReportInput({
         records: [
           reportRecord('2026-10-02', {
             R1: reportPatient({ rut: '12.345.678-9' }),

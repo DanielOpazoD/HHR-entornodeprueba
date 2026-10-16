@@ -1,3 +1,6 @@
+import { assertNeonatalSourceChangesReviewed } from '../domain/reviewedNeonatalSourcePlacement';
+import { resolveNeonatalPlacements } from '../domain/neonatalPlacementReview';
+import type { NeonatalPlacementResolution } from '../contracts/neonatalPlacementReview';
 import { useCallback, type RefObject } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
 import { finalizeRayenHistoricalDischarges } from './finalizeRayenHistoricalDischarges';
@@ -90,12 +93,31 @@ export const useRayenImportConfirmation = ({
     async (
       applyPreviousDays: boolean = true,
       bedCollisionResolutions: BedOccupancyCollisionResolution[] = [],
-      cmaAdmissionResolutions: CmaAdmissionResolution[] = []
+      cmaAdmissionResolutions: CmaAdmissionResolution[] = [],
+      neonatalResolutions: NeonatalPlacementResolution[] = [],
+      neonatalSourceAcknowledgements: string[] = []
     ) => {
       const base =
         preparedSyncContextRef.current?.record ?? currentRecordRef.current ?? currentRecord;
       if (!base || !state.diff) return;
-      const diff = resolveBedOccupancyCollisions(state.diff, bedCollisionResolutions);
+      const reviewedAt = new Date().toISOString();
+      let diff;
+      try {
+        assertNeonatalSourceChangesReviewed(state.diff, neonatalSourceAcknowledgements);
+        diff = resolveNeonatalPlacements(
+          base,
+          resolveBedOccupancyCollisions(state.diff, bedCollisionResolutions),
+          neonatalResolutions,
+          reviewedAt,
+          ensureRun().by ?? ''
+        );
+      } catch (error) {
+        setState(previous => ({
+          ...previous,
+          error: getRayenImportErrorMessage(error),
+        }));
+        return;
+      }
       const unresolvedBedCollision = (diff.bedOccupancyCollisions ?? []).some(
         collision =>
           !(diff.bedOccupancyCollisionResolutions ?? []).some(
@@ -105,8 +127,6 @@ export const useRayenImportConfirmation = ({
       if (unresolvedBedCollision) {
         setState(previous => ({
           ...previous,
-          isBusy: false,
-          isSyncing: false,
           error:
             'La distribución elegida usa una cama que ya está reservada. Revisa las camas destino antes de confirmar.',
         }));
@@ -135,13 +155,13 @@ export const useRayenImportConfirmation = ({
           dispatchExecution({
             type: 'record_outcome',
             ...executionIdentity,
+            committed: true,
             structuralConflicts: outcome.commit.structuralConflicts,
             skippedItems: outcome.commit.skippedItems,
           });
           const isExecutionDateVisible = selectedDateRef.current === executionIdentity.selectedDate;
           setState(previous => ({
             ...previous,
-            isBusy: false,
             ...(isExecutionDateVisible
               ? {
                   diff: outcome.commit.diff,
@@ -191,8 +211,6 @@ export const useRayenImportConfirmation = ({
             ...previous,
             diff: error.replannedDiff,
             isPreviewOpen: true,
-            isBusy: false,
-            isSyncing: false,
             result: null,
             error: error.message,
           }));
@@ -206,8 +224,6 @@ export const useRayenImportConfirmation = ({
         const isExecutionDateVisible = selectedDateRef.current === executionIdentity.selectedDate;
         setState(previous => ({
           ...previous,
-          isBusy: false,
-          isSyncing: false,
           ...(isExecutionDateVisible
             ? {
                 isPreviewOpen: true,
@@ -245,8 +261,6 @@ export const useRayenImportConfirmation = ({
           setState(previous => ({
             ...previous,
             isPreviewOpen: false,
-            isBusy: true,
-            isSyncing: true,
             hasSkippedItems: false,
             error: null,
           }));
@@ -275,11 +289,17 @@ export const useRayenImportConfirmation = ({
                   applyPreviousDays
                 ),
               getFreshRecord: () => loadAuthoritativeStructuralRecord(base.date),
-              replanDiff: async record =>
-                resolveBedOccupancyCollisions(
-                  await structuralReplan.replan(record),
-                  bedCollisionResolutions
-                ),
+              replanDiff: async record => {
+                const replanned = await structuralReplan.replan(record);
+                assertNeonatalSourceChangesReviewed(replanned, neonatalSourceAcknowledgements);
+                return resolveNeonatalPlacements(
+                  record,
+                  resolveBedOccupancyCollisions(replanned, bedCollisionResolutions),
+                  neonatalResolutions,
+                  reviewedAt,
+                  run.by ?? ''
+                );
+              },
               clinicalDay: structuralReplan.clinicalDay,
               createId: () => crypto.randomUUID(),
               onRetry: () =>

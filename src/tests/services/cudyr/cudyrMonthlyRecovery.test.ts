@@ -9,6 +9,7 @@ vi.mock('@/services/cudyr/cudyrSupplementService', () => ({
   importCudyrSupplement: vi.fn(),
   loadCudyrSupplements: vi.fn(),
 }));
+vi.mock('@/services/cudyr/cudyrReportLoader', () => ({ loadCudyrReport: vi.fn() }));
 const now = new Date('2026-10-08T18:00:00Z');
 const source = (month: string) => ({ month, base64: 'AA==', capturedAt: now.toISOString() });
 const stored = (month: string, observedAt = '2026-09-02T18:00:00Z') =>
@@ -19,6 +20,13 @@ const stored = (month: string, observedAt = '2026-09-02T18:00:00Z') =>
     capture: { source: 'extension_monthly_report', observedAt },
   }) as unknown as ArchivedCudyrSupplement;
 const setup = () => ({
+  readCensus: vi.fn().mockResolvedValue({
+    from: '2026-08-01',
+    to: '2026-08-31',
+    rows: [],
+    coverage: [],
+    issues: [],
+  }),
   load: vi.fn().mockResolvedValue([]),
   fetchReport: vi.fn().mockImplementation(async (month: string) => source(month)),
   readFile: vi.fn().mockImplementation(async (file: File) => ({
@@ -142,6 +150,25 @@ describe('monthly documentary recovery', () => {
       failures: ['2026-08'],
       verification: 'documentary',
     });
+  });
+  it('preserves saved sources and partial failures if final reconciliation cannot be read', async () => {
+    const ports = setup();
+    ports.fetchReport.mockRejectedValueOnce(new Error('network'));
+    ports.readCensus.mockRejectedValue(new Error('firebase unavailable'));
+    expect(await run(ports)).toMatchObject({
+      recovered: 1,
+      failures: ['2026-08'],
+      verificationError: expect.stringContaining('Fuentes guardadas'),
+    });
+  });
+  it('propagates cancellation during the final reconciliation read', async () => {
+    const ports = setup();
+    const control = new AbortController();
+    ports.readCensus.mockImplementation(async () => {
+      control.abort();
+      throw new Error('aborted');
+    });
+    await expect(run(ports, control.signal)).rejects.toThrow();
   });
   it('rejects a mismatched report and unacknowledged/old-server writes', async () => {
     const ports = setup();

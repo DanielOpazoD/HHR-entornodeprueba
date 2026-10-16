@@ -45,13 +45,24 @@ export const comparisonSortIndex = (name: string): number => {
 /**
  * Build a unique column key for each exam occurrence.
  * Uses "DD/MM/YYYY HH:MM" when time is available, otherwise "DD/MM/YYYY (#ID)".
+ * Colliding orders in the same minute retain their full time and order ID.
  */
 export const buildExamColumnKey = (
   exam: SyslabExamItem | undefined,
-  fallbackDate: string
+  fallbackDate: string,
+  examList: SyslabExamItem[] = []
 ): string => {
   if (!exam) return fallbackDate;
   const date = exam.date || fallbackDate;
   const time = exam.time ? exam.time.substring(0, 5) : '';
+  const collides =
+    time &&
+    examList.some(
+      candidate =>
+        candidate.id !== exam.id &&
+        (candidate.date || fallbackDate) === date &&
+        candidate.time?.substring(0, 5) === time
+    );
+  if (collides) return `${date} ${exam.time} (#${exam.id})`;
   return time ? `${date} ${time}` : `${date} (#${exam.id})`;
 };

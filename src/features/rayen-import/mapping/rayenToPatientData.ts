@@ -6,10 +6,12 @@
  */
 
 import { EMPTY_PATIENT } from '@/constants/patient';
+import { BEDS } from '@/constants/beds';
 import { PatientStatus } from '@/types/domain/patientClassification';
 import type { PatientData } from '../contracts/rayenDomainContracts';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import { mapRayenBed } from './bedMapping';
+import { encounterWallClockInRapaNui } from './encounterWallClock';
 
 /** Format a RUN as "14.470.055-4" from raw ("144700554") or already-formatted input. */
 export const formatRun = (raw?: string): string => {
@@ -114,65 +116,21 @@ export const cleanDiagnosis = (diagnosis?: string): string =>
     .replace(/\s+/g, ' ')
     .trim();
 
-/**
- * Normalize a person name to "primera letra mayúscula, resto minúscula" per word
- * ("JUAN PÉREZ" or "juan pérez" → "Juan Pérez"). Rayen commonly returns names in
- * uppercase. Capitalizes the first letter after a space, hyphen or apostrophe, and is
- * accent-aware (á → Á).
- */
-export const toTitleCaseName = (value?: string): string =>
-  (value ?? '')
-    .trim()
-    // Colapsa espacios internos: los campos de nombre de Rayen llegan con
-    // relleno y, al unirlos, el censo mostraba «Jorge  Urgencias Aroca».
-    .replace(/\s+/g, ' ')
-    .toLowerCase()
-    .replace(/(^|[\s'’-])(\p{L})/gu, (_match, sep: string, ch: string) => sep + ch.toUpperCase());
+import {
+  toTitleCaseName,
+  composeRayenGivenNames,
+  normalizeOptionalPersonName,
+} from '@/utils/eloisaPersonName';
+export {
+  toTitleCaseName,
+  composeRayenGivenNames,
+  normalizeOptionalPersonName,
+} from '@/utils/eloisaPersonName';
 
-/**
- * Marcadores administrativos que Rayen deja dentro de los NOMBRES cuando el
- * paciente se registró en un punto de atención (típicamente un ingreso por
- * urgencias que después se completa con la identidad real). No son identidad
- * clínica y en el censo aparecían como un segundo nombre —«Jorge Urgencias
- * Aroca Benavides» por «Jorge Aroca Benavides» (reportado el 01-09, H2C2).
- *
- * La lista es EXACTA y por palabra completa, igual que el criterio de
- * `normalizeOptionalPersonName`: nunca se recorta una subcadena, para no
- * mutilar un nombre real que contenga estas letras.
- */
-const ADMINISTRATIVE_NAME_TOKENS = new Set(['urgencia', 'urgencias', 'sapu']);
-
-const stripAdministrativeNameTokens = (value: string): string =>
-  value
-    .split(' ')
-    .filter(word => word && !ADMINISTRATIVE_NAME_TOKENS.has(word.toLowerCase()))
-    .join(' ');
-
-/**
- * Nombres de pila ya normalizados (title case, sin relleno ni marcadores).
- * Si TODOS eran marcadores, el resultado es vacío a propósito: el paciente
- * queda identificado por apellidos (y RUT), igual que un nombre de pila no
- * informado. No se inventa un nombre ni se conserva el marcador.
- */
-export const composeRayenGivenNames = (firstGivenName?: string, nextGivenNames?: string): string =>
-  stripAdministrativeNameTokens(
-    toTitleCaseName([firstGivenName, nextGivenNames].filter(Boolean).join(' '))
-  );
-
-/**
- * Rayen sometimes serializes a missing optional surname as a display placeholder.
- * Placeholders are absence, not clinical identity data, so they must never be persisted in HHR.
- */
-export const normalizeOptionalPersonName = (value?: string): string => {
-  const normalized = toTitleCaseName(value);
-  return /^(?:no\s*informad[oa]?|sin\s+informaci[oó]n)$/i.test(normalized) ? '' : normalized;
-};
-
-/** Extract "HH:MM" from an ISO datetime, if present. */
+/** Rayen admission time in the hospital wall clock; date-only values have no known time. */
 export const extractTime = (isoDatetime?: string): string => {
-  if (!isoDatetime) return '';
-  const match = /T(\d{2}:\d{2})/.exec(isoDatetime);
-  return match ? match[1] : '';
+  if (!/[T\s]\d{1,2}:\d{2}/.test(isoDatetime ?? '')) return '';
+  return encounterWallClockInRapaNui(isoDatetime)?.slice(11, 16) ?? '';
 };
 
 const toIsoDate = (isoDatetime?: string): string => (isoDatetime ? isoDatetime.slice(0, 10) : '');
@@ -192,14 +150,15 @@ export const rayenToPatientData = (
   reference: Date = new Date()
 ): MappedPatient => {
   const verifiedBedId = encounter.verifiedBedPlacement?.bedId;
+  const reportedBed = mapRayenBed({
+    room: encounter.room,
+    bed: encounter.bed,
+    service: encounter.service,
+    clinicalCribParentBedId: encounter.clinicalCribParentBedId,
+  });
   const { bedId, isCma, isClinicalCrib } = verifiedBedId
-    ? mapRayenBed({ bed: verifiedBedId, service: encounter.service })
-    : mapRayenBed({
-        room: encounter.room,
-        bed: encounter.bed,
-        service: encounter.service,
-        clinicalCribParentBedId: encounter.clinicalCribParentBedId,
-      });
+    ? mapRayenBed({ bed: verifiedBedId })
+    : reportedBed;
 
   // Los marcadores administrativos se podan de los NOMBRES (donde Rayen
   // concatena varios y donde apareció el caso real); los apellidos se
@@ -208,6 +167,7 @@ export const rayenToPatientData = (
   const firstFamily = toTitleCaseName(encounter.firstFamilyName);
   const secondFamily = normalizeOptionalPersonName(encounter.secondFamilyName);
   const fullName = [givenNames, firstFamily, secondFamily].filter(Boolean).join(' ').trim();
+  const admission = encounterWallClockInRapaNui(encounter.admissionDatetime);
 
   const patient: PatientData = {
     ...EMPTY_PATIENT,
@@ -231,7 +191,7 @@ export const rayenToPatientData = (
       ? encounter.treatingPhysicianName?.trim() || undefined
       : undefined,
     specialty: encounter.treatingPhysicianSpecialty?.trim() || EMPTY_PATIENT.specialty,
-    admissionDate: toIsoDate(encounter.admissionDatetime),
+    admissionDate: admission?.slice(0, 10) ?? '',
     admissionTime: extractTime(encounter.admissionDatetime),
     // A synced patient defaults to "Estable"; `status` is not in SYNCABLE_FIELDS, so a re-sync
     // never overwrites the nurse's manual classification (Grave / De cuidado).
@@ -246,7 +206,10 @@ export const rayenToPatientData = (
     isolationMicroorganism: encounter.isIsolated
       ? encounter.isolationMicroorganism?.trim() || undefined
       : undefined,
-    location: [encounter.service, encounter.room, encounter.bed].filter(Boolean).join(' / '),
+    location:
+      verifiedBedId && bedId !== reportedBed.bedId
+        ? (BEDS.find(bed => bed.id === bedId)?.name ?? verifiedBedId)
+        : [encounter.service, encounter.room, encounter.bed].filter(Boolean).join(' / '),
     bedMode: isClinicalCrib ? 'Cuna' : EMPTY_PATIENT.bedMode,
     hasCompanionCrib: false,
   };

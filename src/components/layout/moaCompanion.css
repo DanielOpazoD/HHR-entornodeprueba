@@ -1,0 +1,178 @@
+.moa-companion {
+  position: relative;
+  flex: 0 0 144px;
+  width: 144px;
+  height: 84px;
+  overflow: visible;
+}
+.moa-controls {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
+  display: flex;
+}
+.moa-controls button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  color: #64748b;
+}
+.moa-controls button:hover {
+  background: #e2e8f0;
+}
+.moa-controls button:focus-visible,
+.moa-character:focus-visible {
+  outline: 2px solid #0f766e;
+  outline-offset: -2px;
+}
+.moa-character {
+  position: absolute;
+  inset: 0;
+  border-radius: 10px;
+}
+/* Changing decorative frames must never replace the pointer's click target. */
+.moa-character > * {
+  pointer-events: none;
+}
+/* The neutral portrait is the first frame of the same welcome atlas. */
+.hhr-moa {
+  display: flex;
+  justify-content: center;
+}
+.hhr-moa-window {
+  flex: none;
+  height: 100%;
+  aspect-ratio: 288 / 168;
+  overflow: hidden;
+}
+.moa-rest-frames {
+  height: 100%;
+  width: 600%;
+  max-width: none;
+  image-rendering: pixelated;
+}
+[data-paused='true'] .moa-scene-frames[data-ready='true'] {
+  animation-play-state: paused;
+}
+.moa-sequence {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.moa-sequence-placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+.moa-scene-frames {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 600%;
+  height: 100%;
+  max-width: none;
+  opacity: 0;
+  image-rendering: pixelated;
+}
+.moa-scene-frames[data-ready='true'] {
+  opacity: 1;
+  animation: moa-story var(--scene-time) steps(1, end) var(--scene-cycles);
+}
+@keyframes moa-story {
+  0% {
+    transform: translateX(0);
+  }
+  16.6667% {
+    transform: translateX(-16.666667%);
+  }
+  33.3334% {
+    transform: translateX(-33.333333%);
+  }
+  50% {
+    transform: translateX(-50%);
+  }
+  66.6667% {
+    transform: translateX(-66.666667%);
+  }
+  83.3334%,
+  100% {
+    transform: translateX(-83.333333%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .moa-scene-frames[data-ready='true'] {
+    /* Keep the finite completion clock without any visible movement. */
+    animation-name: moa-still;
+    transform: translateX(var(--scene-still));
+  }
+}
+@keyframes moa-still {
+  from,
+  to {
+    transform: translateX(var(--scene-still));
+  }
+}
+
+.moa-catalog-frames {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  max-width: none;
+  opacity: 0;
+}
+.moa-catalog-frames[data-ready='true'] {
+  opacity: 1;
+}
+.moa-library {
+  position: absolute;
+  right: 0;
+  top: 26px;
+  z-index: 20;
+  width: min(290px, calc(100vw - 32px));
+  padding: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #fff;
+  color: #334155;
+  box-shadow: 0 6px 18px #0f172a20;
+  font-size: 12px;
+}
+.moa-library label {
+  display: block;
+  margin-bottom: 6px;
+}
+.moa-library select {
+  width: 100%;
+  max-height: 200px;
+  font-size: 12px;
+}
+.moa-library select:focus-visible {
+  outline: 2px solid #0f766e;
+}
+
+@media (max-width: 640px) {
+  .moa-library {
+    position: fixed;
+    top: 80px;
+    left: 16px;
+    right: 16px;
+    width: auto;
+  }
+}
+
+.moa-library-play {
+  margin-top: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #0f766e;
+  color: white;
+}
+.moa-library-play:focus-visible {
+  outline: 2px solid #0f766e;
+  outline-offset: 2px;
+}

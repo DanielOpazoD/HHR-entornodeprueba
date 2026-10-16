@@ -7,7 +7,7 @@ importScripts(
   'encounter-navigation.js',
   'hhr-request-forms.js',
   'health-check.js', 'clinical-day-runtime.js', 'clinical-history-coverage.js', 'census-sync-horizon-runtime.js', 'rayen-sync-bundle-runtime.js', 'sync-bundle-cancellation-runtime.js',
-  'connection-relay-recovery.js', 'fichamedico-transport-runtime.js', 'fichamedico-history-read-model.js', 'fichamedico-device-evidence-runtime.js', 'fichamedico-clinical-client.js', 'tab-encounter-authorization.js', 'fichamedico-patient-flow-runtime.js',
+  'connection-relay-recovery.js', 'fichamedico-transport-runtime.js', 'fichamedico-history-read-model.js', 'fichamedico-device-evidence-runtime.js', 'clinical-read-error-contract.js', 'fichamedico-clinical-client.js', 'tab-encounter-authorization.js', 'fichamedico-patient-flow-runtime.js',
   'fichamedico-patient-context.js',
   'patient-document-manager-runtime.js',
   'gestion-camas-session.js', 'gestion-camas-health.js',
@@ -167,7 +167,7 @@ const fetchWithTimeout = async (
     return await fetch(url, { ...(options || {}), signal: controller.signal });
   } catch (error) {
     if (controller.signal.aborted) {
-      throw new Error(timeoutMessage);
+      throw Object.assign(new Error(timeoutMessage), { code: 'source_timeout' });
     }
     throw error;
   } finally {
@@ -443,9 +443,9 @@ const handleDeviceReportSave = async args => {
 // / Downton scales) and VITAL_SIGNS (latest vitals: PA, FC, SatO2, Temp, FR, EVA) — to stay lean. The
 // practitionerId is the logged-in viewer (from the list URL).
 const handleScalesReportRequest = async ({ encId, sender }) => {
+  if (!patientFlowRuntime.canRequestClinicalEpisode(sender, encId)) return { error: 'Las escalas no fueron autorizadas para el episodio de esta pestaña.', errorCode: 'episode_not_authorized' };
   const infoResult = await resolveFichaClinicalSession({ sender });
-  if (infoResult.error) return { error: infoResult.error };
-  return fetchScalesReportWithInfo(encId, infoResult.info);
+  return infoResult.error ? { error: infoResult.error, errorCode: 'session_required' } : fetchScalesReportWithInfo(encId, infoResult.info);
 };
 
 // Fill an official imaging-request template (solicitud / encuesta de contraste / consentimiento)
@@ -986,7 +986,6 @@ const {
 const clinicalScoreWriteRuntime = self.HhrClinicalScoreWriteRuntime.create({
   scoreWriteModel: self.HhrClinicalScoreWriteModel,
   fetchWithTimeout,
-  getFichaFetchInfo,
   fetchFichaClaims,
   hasFichaClaim,
   verifyEncounterStillHospitalized,
@@ -1243,7 +1242,7 @@ const runtimeMessageRoutes = Object.freeze({
     'No se pudo leer el informe estadístico de egreso.'
   ),
   [RUNTIME_MESSAGES.DEVICE_REPORT_REQUEST]: runtimeRoute(
-    message => handleDeviceReportRequest({ encId: message.encId, fecha: message.fecha }),
+    message => handleDeviceReportRequest({ encId: message.encId, fecha: message.fecha, acceptEntries: message.acceptEntries === true }),
     'No se pudo leer el reporte de dispositivos.'
   ),
   [RUNTIME_MESSAGES.PATIENT_FLOW_REPORT_REQUEST]: patientFlowRuntime.route,
@@ -1426,25 +1425,26 @@ const runtimeMessageRoutes = Object.freeze({
     'No se pudo preparar el reporte de turno.'
   ),
   [RUNTIME_MESSAGES.SCORES_OPTIONS_REQUEST]: runtimeRoute(
-    message => handleScoresOptionsRequest({ currentEncId: message.currentEncId }),
+    (message, sender) => handleScoresOptionsRequest({ currentEncId: message.currentEncId, sender }),
     'No se pudieron cargar los instrumentos clínicos.'
   ),
   [RUNTIME_MESSAGES.SCORE_FORM_REQUEST]: runtimeRoute(
-    message =>
+    (message, sender) =>
       handleScoreFormRequest({
         batchId: message.batchId,
         encId: message.encId,
         instrument: message.instrument,
+        sender,
       }),
     'No se pudo cargar el formulario clínico.'
   ),
   [RUNTIME_MESSAGES.SCORE_SAVE_REQUEST]: runtimeRoute(
-    message =>
+    (message, sender) =>
       handleScoreSaveRequest({
         batchId: message.batchId,
         encId: message.encId,
         instrument: message.instrument,
-        answers: message.answers,
+        answers: message.answers, sender,
       }),
     'No se pudo completar el guardado del instrumento.'
   ),

@@ -210,15 +210,19 @@ export const planPreviousDayAdmissionEdits = (
     // Un día donde TODO quedó omitido no es una edición: confirmar no escribiría
     // nada, y mostrarlo con casilla de aceptación era ruido en cada corrida.
     if (subjects.length === 0) continue;
+    const isSigned = Boolean(
+      (record as { medicalSignature?: unknown } | null | undefined)?.medicalSignature
+    );
     edits.push({
       day,
       reason: 'admission-night-shift-correction',
       patientNames: subjects.map(subject => subject.patient.patientName),
       recordExists: !!record,
       withinEditingWindow: canWrite(day, isAdmin),
-      isSigned: Boolean(
-        (record as { medicalSignature?: unknown } | null | undefined)?.medicalSignature
-      ),
+      isSigned,
+      ...(record && !isSigned && canWrite(day, isAdmin)
+        ? { automaticNightAdmission: true as const }
+        : {}),
       admissionSubjects: subjects.map(subject => ({
         kind: subject.kind,
         bedId: subject.bedId,

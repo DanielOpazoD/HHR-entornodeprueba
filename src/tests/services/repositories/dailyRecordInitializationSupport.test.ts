@@ -163,7 +163,7 @@ describe('dailyRecordInitializationSupport', () => {
 
     const result = buildInitializedDayRecord('2026-02-19', previous);
 
-    expect(result.dateTimestamp).toBe(Date.parse('2026-02-19T00:00:00'));
+    expect(result.dateTimestamp).toBe(Date.parse('2026-02-19T05:00:00Z'));
     expect(result.nursesDayShift).toEqual(['', '']);
     expect(result.tensDayShift).toEqual(['', '', '']);
     expect(result.handoffNovedadesDayShift).toBe('Novedades noche');

@@ -1,87 +1,87 @@
-# Design QA — barra de sincronización Eloísa
-
-- Visual references were reviewed interactively and intentionally not committed because clinical
-  screenshots can contain patient data. This document retains only anonymized measurements and
-  reproducible implementation details.
-- Logo source: committed first-party asset `public/images/logos/rayen-mark.png`.
-- Viewport: 1470 × 695 CSS px, desktop Chrome, device pixel ratio 2
-- State: censo diario autenticado, Eloísa conectada, cinco módulos verificados, una escala por reaplicar
-- Source pixels: 1908 × 138; normalized to 1054 × 76 for comparison
-- Implementation pixels: 1054 × 66; rendered component measured 1050.5 × 62 CSS px
-
-## Full-view comparison evidence
-
-The final bar remains one continuous operational surface: Eloísa identity and latest synchronization, five clinical modules, history, the primary action and the scale reminder. The combined comparison places the supplied reference above the final capture at the same 1054 px width. The implementation is 10 px shorter after normalization while preserving the same horizontal hierarchy.
-
-The five module tracks are equal-width. Their measured centers are 497.8, 602.0, 706.2, 810.3 and 914.5 CSS px: a constant 104.2 px interval with no wrapping or clipping. `Scores` is included between Dispositivos and Enfermería.
-
-## Focused region comparison evidence
-
-- Fonts and typography: compact 10–13 px UI text preserves the existing Inter/Outfit hierarchy. Module labels use the same size, weight and line height. The latest synchronization uses tabular numerals and remains secondary to `Eloísa`.
-- Spacing and layout rhythm: the component is 62 CSS px high. Five equal grid tracks create symmetric spacing; action controls remain 32 px high and align to the same centerline.
-- Colors and tokens: teal is reserved for connectivity and the primary action, emerald for verified modules, slate for history and secondary copy, and amber only for the scale reminder or actionable attention.
-- Image and icon fidelity: the existing first-party asset `public/images/logos/rayen-mark.png` is the same supplied 256 × 256 Eloísa/Rayen mark. It replaces the generic database icon without custom SVG or CSS approximation.
-- Copy and content: the bar visibly shows the date and time of the last synchronization, adds `Scores`, and omits responsible name, extension version and Ficha/Camas detail from the idle surface. Those details remain available in History.
-
-## Interaction and state evidence
-
-- History opened from the compact icon and showed grouped no-change runs, responsible professional, clinical coverage, extension version and Ficha/Camas provenance.
-- Five consecutive no-change checks were grouped into one history card instead of five repetitive entries.
-- The history dialog closed without changing census data.
-- Active progress is covered by component tests: the 3 px rail appears only while reading or applying; idle success has no visible 100% rail or duplicate `Todo al día` label.
-- Browser console review found no new application error from the redesigned bar or History interaction. The only current error was produced by an unrelated annotation extension; one Firestore write failure predates this QA session.
-
-## Findings
-
-No actionable P0, P1 or P2 issue remains in the tested complete desktop state.
-
-## Comparison history
-
-1. Baseline: four modules, no Scores, generic source icon, no visible last-sync timestamp and uneven content-width spacing.
-2. First compact iteration: reduced the vertical footprint, integrated scales into the action cluster and removed permanent 100% progress and the history count badge.
-3. Final fixes: used the supplied Eloísa/Rayen mark, added Scores, moved the timestamp below the source state and changed modules to five equal tracks.
-4. Post-fix measurement confirmed the shorter 62 px bar, uniform module intervals, complete copy and aligned controls.
-
-## Follow-up polish
-
-- P3: if module names grow in future releases, define reviewed short labels below the `xl` breakpoint instead of allowing arbitrary truncation.
-
----
-
-# Design QA — panel clínico claro
-
-- The clinical-panel reference and implementation captures were reviewed interactively and are not
-  versioned because they can contain patient data. The measurements below are anonymized.
-- Viewport: 1470 × 695 CSS px, authenticated desktop Chrome
-- State: panel de signos vitales abierto para un paciente de prueba anonimizado
-- Source pixels: 1062 × 1064 at 144 dpi; normalized to 512 × 515
-- Implementation pixels: 512 × 531 at 72 dpi; dialog measured 512 × 531.5 CSS px
-
-## Full-view and focused comparison evidence
-
-The supplied screenshot documents the low-contrast translucent state. The revised implementation
-keeps the same compact information architecture, card grid, table density, typography and semantic
-alert colors while replacing the gray glass surface with an opaque white clinical surface.
-
-- Fonts and typography: hierarchy, weights, tabular numerals and compact labels remain unchanged.
-- Spacing and layout rhythm: the six-card grid, observation band and history columns retain their
-  alignment; the 16 px outer radius and section rhythm remain consistent with the application.
-- Colors and visual tokens: white is now the stable modal surface, slate separates hierarchy, amber
-  and red remain reserved for abnormal clinical values, and the dark backdrop preserves focus.
-- Image and icon fidelity: the existing Activity icon from the product icon set remains crisp; no
-  raster placeholder, custom SVG or CSS approximation was introduced.
-- Copy and content: all clinical values, dates, observations and history labels remain visible and
-  unchanged.
-
-## Findings and comparison history
-
-1. Baseline finding [P2]: the glass default inherited the darkened page through the modal, turning
-   nominally light clinical panels gray and reducing contrast across dense tables.
-2. Fix: `BaseModal` now defaults to the opaque white variant; glass remains available only when a
-   caller chooses it explicitly. `VitalsDetailModal` states the white variant as a local contract.
-3. Post-fix evidence: `07-vitals-white-comparison.png` shows the original gray surface beside the
-   final white surface with the information layout preserved.
-
-No actionable P0, P1 or P2 visual issue remains in the tested desktop state.
+# Revisión visual: Moa en el censo y paisaje panorámico
 
 final result: passed
+
+## Fuentes y comparación
+
+La referencia de ubicación es la imagen de camas/movimientos adjunta por el
+usuario: Moa debe aprovechar el espacio libre junto a esa tarjeta. La otra
+imagen identifica el panel de texto que se elimina. El personaje conserva
+la opción 2 elegida; no se redefine su aspecto.
+
+- Fuente del personaje: `/workspace/generated_images/exec-631c10c8-dfa2-4f36-bcd9-c6b4855fb726.png` (1280 × 1280, transparente; no se presupone una densidad de captura).
+- Fuente del censo anterior: `/workspace/.hhr-cloud/evidence/moa-final/new-navbar-and-newborn.png`.
+- Implementación: `/workspace/.hhr-cloud/evidence/moa-companion-final/new-navbar-and-newborn.png`.
+- Comparación conjunta completa: `/workspace/.hhr-cloud/evidence/moa-companion-final/full-view-comparison.png`.
+- Comparación de cabecera y RN: `/workspace/.hhr-cloud/evidence/moa-companion-final/header-and-rn-comparison.png`.
+- Detalle de la ubicación: `/workspace/.hhr-cloud/evidence/moa-companion-final/moa-summary-detail.png`.
+- Móvil: `/workspace/.hhr-cloud/evidence/moa-companion-final/moa-companion-375px.png`.
+- Paisaje y exportación: `/workspace/.hhr-cloud/assets/rapa-nui-coast-v3-comparison.png`.
+
+Los dos censos completos se capturaron en 1672 × 941 CSS px, Chromium, DPR 1,
+mismo módulo y fecha, sin zoom. La comparación junta ambos archivos originales
+(3344 × 941 px); el recorte de cabecera apila regiones de 1672 × 440 px sin
+reescalar. Los pacientes son sintéticos. La implementación añade una segunda
+cama/cuna con nombre largo para comprobar alineación; las cifras del resumen y
+la altura de la tabla cambian por ese fixture y no son objetivos de igualdad.
+La imagen proporcionada de camas/movimientos se usa para la ubicación, no para
+atribuirle una densidad desconocida ni igualar cifras de pacientes.
+
+## Resultado y cambios verificados
+
+El paisaje ocupa hasta 430 × 52 px frente a los 270 px anteriores, conservando
+las proporciones de los moáis. La URL v3 se usa también antes de React y después
+de F5. La barra mantiene sus 52/48 px y los controles no quedan tapados.
+
+Moa dispone de 144 × 84 px junto al resumen y una ilustración de 72 px de alto.
+En teléfono ocupa la fila siguiente para mantener legibles las cifras. Su
+botón de la barra es (?), sin panel de texto. Mostrar/ocultar persiste con F5;
+la X y Escape devuelven el foco al botón. Hay saludo inicial, respiración y
+parpadeo discretos, curiosidad al acercarse, paseo y alegría al tocarla.
+La pausa y el movimiento reducido se respetan, y no aparece al imprimir.
+
+Los RN presentan la etiqueta en mayúsculas sin alterar la identidad guardada.
+Su ficha clínica se ancla a la primera línea, en la misma columna que las
+camas normales. La geometría coincide dentro de 1 px también frente a un
+nombre que ocupa varias líneas. Las cunas no incorporan exámenes ni imágenes.
+
+## Iteraciones y hallazgos
+
+1. P2: el área pulsable se movía con la ilustración e impedía una pulsación
+   estable durante el reposo animado. Se dejó fijo el botón y se trasladaron
+   los movimientos a su contenido. La suite completa posterior aprobó los
+   gestos, la navegación y los controles; la revisión final mantuvo ese resultado.
+2. Se redujo la repetición de reglas CSS manteniendo gestos y duraciones. Una
+   comprobación de expresión leía el estilo antes de completar la actualización
+   de React; ahora espera el gesto y la expresión visibles. La comprobación
+   final del mismo código aprobó pausa, cuatro gestos y movimiento reducido.
+
+No quedan hallazgos P0/P1/P2. No se representa IA ni se dan instrucciones clínicas
+mediante la mascota. La ayuda textual se elimina como solicitó el usuario.
+
+## Validación y límites
+
+Flujo: abrir el censo -> (?) muestra/oculta Moa -> tocar o enfocar cambia su
+comportamiento -> pausar, ocultar y recargar conserva el control esperado.
+
+Pasaron 60 pruebas unitarias y las 22 pruebas completas de navegador del censo
+y biblioteca. Después del último ajuste CSS se comprobaron nuevamente las
+siete rutas afectadas y la prueba de gestos, que terminó aprobada con la espera
+del estado visible. Se revisaron 375, 768, 1280, 1440 y 1672 px, y 375 × 340 px.
+Se verificaron contenido, navegación, ausencia de errores fatales de framework,
+consola en los flujos normales, imágenes y código indisponibles, foco, impresión,
+movimiento reducido y recarga. Los errores de descarga de las pruebas negativas
+son deliberados y están contenidos; no se sustituyen por una afirmación de cero
+mensajes en esas pruebas.
+
+También aprobaron TypeScript, ESLint de los archivos modificados, formato,
+arquitectura, límites del censo, compilación, presupuesto y grafo de chunks.
+El precache final mide 4.951.929 de 4.952.064 bytes (135 bytes de margen): sigue
+muy cerca del límite sin ampliarlo ni excluir más código. La ilustración
+opcional conserva el caché de imágenes existente.
+
+Browser plugin not available: se utilizó el Playwright/Chromium ya instalado.
+La revisión usa fixtures sintéticos; no certifica sesiones reales de Eloísa.
+Resultados: `/workspace/.hhr-cloud/evidence/moa-companion-ready/report.json`,
+`/workspace/.hhr-cloud/evidence/moa-companion-final/report.json` y
+`/workspace/.hhr-cloud/evidence/moa-companion-gestures-final/report.json`.

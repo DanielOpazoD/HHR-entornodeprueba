@@ -19,8 +19,9 @@ export const useRayenSyncRecordAccess = (dailyRecord: DailyRecordRepository) => 
     (
       patch: DailyRecordPatch,
       target: ClinicalFillPatchTarget,
-      writeGuard: RayenClinicalWriteGuard
-    ) => patchFreshClinicalRecord(dailyRecord, patch, target, writeGuard),
+      writeGuard: RayenClinicalWriteGuard,
+      baseRecord: DailyRecord
+    ) => patchFreshClinicalRecord(dailyRecord, patch, target, writeGuard, baseRecord),
     [dailyRecord]
   );
 

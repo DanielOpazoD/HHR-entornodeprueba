@@ -6,6 +6,22 @@ Médico** y lo entrega al **censo local HHR** para importarlo con revisión. Ade
 vigente oficial de Eloísa. Como respaldo sin backend intermedio, cada paciente activo puede copiarse
 como un código versionado que HHR valida antes de una admisión manual y de la elección de cama.
 
+## Puente 0.48.52: identidad en el índice de informes
+
+La lista de hospitalizaciones transmite también el nombre y el tipo de identificador de cada
+episodio (RUN propio o materno). HHR usa esa evidencia para revisar filas administrativas
+ambiguas de censos anteriores; conserva la revisión si la identidad o las fechas no coinciden.
+No amplía permisos, no modifica informes de Eloísa ni altera el CUDYR oficial guardado.
+
+## Puente 0.48.51: sincronización histórica por evidencia
+
+La captura admite fechas actuales o pasadas válidas sin el antiguo bloqueo de siete días.
+HHR verifica cada episodio antes de reconstruirlo: la antigüedad no garantiza la disponibilidad
+de los datos. El historial clínico alcanza la fecha solicitada sin el recorte local de 180 días,
+y un formato de respuesta inesperado se informa como fallo de fuente, nunca como ausencia.
+Los controles de sesión, establecimiento, corte del turno y timeout se mantienen.
+Actualizar/recargar la extensión y las pestañas abiertas para usar estas correcciones.
+
 ## Cunas creadas en Gestión de Camas (0.48.45)
 
 Las cunas no requieren un catálogo separado: `CH2C2`, `Cuna H2C2` y las demás
@@ -332,6 +348,10 @@ la tabla de fármacos de Gestión de cuidados.
 
 ### Entrega de turno y Scores
 
+La lectura individual de escalas desde HHR requiere que el episodio pertenezca al snapshot vigente
+de la misma pestaña (también caduca su autorización). El panel interno de Ficha Médico conserva
+su acceso con la sesión autenticada de su propia pestaña; no se confía en un origen enviado por HHR.
+
 - **Turno** presenta a todos los hospitalizados en una tabla global, con su última entrega, fecha/hora,
   profesional y estado. El ingreso respeta el límite oficial de 255 caracteres. Después de enviar una
   entrega, la extensión vuelve a consultar Eloísa y solo muestra **Guardado en Eloísa** si encuentra el
@@ -342,6 +362,9 @@ la tabla de fármacos de Gestión de cuidados.
   entrega Eloísa y cargan dinámicamente el formulario oficial. CUDYR usa su formulario clínico oficial
   y muestra explícitamente solo el último valor, porque el servicio disponible no expone historial.
   Los tres instrumentos exigen el permiso clínico de ingreso antes de habilitar una escritura.
+  El lote pertenece a la pestaña que abrió Scores y conserva origen API, establecimiento, profesional
+  y rol (sin token). Formularios y guardados releen la sesión y rechazan cambios de identidad; un lote
+  anterior sin esta vinculación exige actualizar Scores. Renovar el token no cambia la identidad.
 - Toda escritura requiere una identidad clínica verificable en la sesión. El estado **Sincronizado en
   Eloísa** aparece únicamente después de releer y comprobar el valor guardado; ante una respuesta
   ambigua se conserva una protección persistente por paciente e instrumento hasta confirmar su estado,
@@ -562,3 +585,38 @@ El ingreso Google y el reconocimiento de la extensión son comprobaciones distin
 Owner: integración HHR/Eloísa. Rollback: volver al paquete anterior; el dominio
 hhr-entorno-prueba dejaría de enlazarse. Cierre: release gate, pruebas de los cuatro
 orígenes y rechazo de dominios ajenos, smoke MV3 sintético y reconocimiento en Chrome.
+
+### Puente 0.48.49: lectura CUDYR y evidencia de captura
+
+El relé HHR conserva `captureContract`, `observedEpisodeIds` y `metadataStatus`;
+una captura moderna no debe archivarse como una extensión antigua por perder esos campos.
+Las lecturas de camas, autores y definiciones reintentan una vez errores de red,
+HTTP 408/429 o 5xx. Un rechazo de autorización o una respuesta inválida siguen
+informándose; un fallo persistente no se convierte en ausencia de CUDYR.
+
+A las 22:41 del día D se recupera el historial previo: el CUDYR del turno D
+corresponde a la mañana D+1. Una captura vacía válida no es un error y no
+inventa un resultado para hoy. El archivo conserva la trazabilidad por episodio.
+Actualizar la extensión cargada en Chrome y recargar HHR para activar este relé.
+
+### Puente 0.48.50: egresos de madrugada
+
+La búsqueda de episodios sin identificador usa el día del censo de enfermería de Rapa Nui
+para timestamps con zona horaria. Un egreso ocurrido durante la madrugada pertenece
+al turno previo; su fecha y hora oficiales se conservan. Si hay dos episodios candidatos,
+la búsqueda sigue sin elegir uno automáticamente. No cambia permisos ni el protocolo.
+
+En HHR, la reconstrucción de un episodio local puede completar metadatos de egreso
+incompletos mediante el informe estadístico individual: exige episodio exacto, RUN,
+intervalo completo y fecha/hora coincidente al minuto. Una marca administrativa negativa
+y los traslados sin ubicación comprobada siguen requiriendo revisión.
+
+### Errores de formularios · 0.48.53
+
+Las respuestas individuales de escalas y la sección `forms` del paquete clínico incluyen
+un `errorCode` estable además del mensaje `error` existente. HHR anterior puede ignorar
+el campo adicional; HHR actualizado admite extensiones anteriores sin ese campo.
+El contrato y la recuperación compatible se documentan en
+[`rayen-import`](../src/features/rayen-import/README.md#códigos-estables-de-errores-de-lectura).
+El módulo `clinical-read-error-contract.js` se carga antes del cliente de Ficha Médico.
+No cambian permisos, vigencia de autorización, escrituras ni reglas de CUDYR.

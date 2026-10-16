@@ -5,6 +5,7 @@ import {
   type cudyrReportLoaderPorts,
 } from '@/services/cudyr/cudyrReportLoader';
 import { reportRecord, reportCapture, reportObservation, reportPlacement } from './reportFixtures';
+import { cudyrPlacementsFromPatientFlow } from '@/features/rayen-import/mapping/cudyrPatientFlowPlacements';
 
 const ports = () => ({
   readRecord: vi.fn(async (date: string) => ({
@@ -100,6 +101,32 @@ describe('persisted-only report loader', () => {
       contextSource: 'eloisa_interval',
     });
     expect(p.readRecord).toHaveBeenCalledWith('2026-10-02', { source: 'server' });
+  });
+  it('fills an old October admission from subsequently archived patient-flow evidence', async () => {
+    const p = ports();
+    const capture = reportCapture({ censusDate: '2026-10-08', observationIds: [] });
+    capture.capture.observedAt = '2026-10-08T15:00:00Z';
+    capture.capture.sourcePlacements = cudyrPlacementsFromPatientFlow(
+      `RUN: 111111111
+01/10/2026 08:00:00 Urgencias B1UEA
+02/10/2026 14:15:37 Servicio Hospitalizados Habitacion 1 Básica H1C1
+07/10/2026 20:41:00 Servicio Hospitalizados Habitacion 6 Básica H6C2`,
+      '1001',
+      '111111111',
+      capture.capture.observedAt
+    ).map(placement => ({ ...placement, clinicalEpisodeId: 'synthetic-episode' }));
+    const result = await loadCudyrReport('2026-10-03', '2026-10-03', undefined, {
+      ...p,
+      readEpisodeCaptures: vi.fn().mockResolvedValue({ captures: [capture], nextCursor: null }),
+    });
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]).toMatchObject({
+      date: '2026-10-03',
+      hospitalAdmissionAt: '2026-10-02T14:15:37-05:00',
+      eligibility: 'elegible',
+    });
+    expect(result.rows[0].hospitalAdmissionSource).toContain('Flujo del Paciente');
+    expect(result.rows[0].bedHistory).toHaveLength(3);
   });
   it('separates absent censuses, failed days and archive read failures without manufacturing patient-days', async () => {
     const p: typeof cudyrReportLoaderPorts = {

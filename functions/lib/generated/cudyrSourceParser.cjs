@@ -21,9 +21,11 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // src/services/cudyr/cudyrSourceServerEntry.ts
 var cudyrSourceServerEntry_exports = {};
 __export(cudyrSourceServerEntry_exports, {
+  calendarStampInClinicalTimeZone: () => calendarStampInClinicalTimeZone,
   parseCudyrCensusSource: () => parseCudyrCensusSource,
   parseCudyrSupplementBinary: () => parseCudyrSupplementBinary,
-  readCudyrWorkbookMatrix: () => readCudyrWorkbookMatrix
+  readCudyrWorkbookMatrix: () => readCudyrWorkbookMatrix,
+  resolveClinicalDayForDateTime: () => resolveClinicalDayForDateTime
 });
 module.exports = __toCommonJS(cudyrSourceServerEntry_exports);
 
@@ -237,7 +239,7 @@ var validateZip = (bytes) => {
     offset += 46 + view.getUint16(offset + 28, true) + view.getUint16(offset + 30, true) + view.getUint16(offset + 32, true);
   }
 };
-var readCudyrWorkbookMatrix = (buffer) => {
+var readCudyrWorkbookMatrix = (buffer, normalizeDateEpoch = false) => {
   if (buffer.byteLength > 262144 || buffer.byteLength < 8)
     throw new Error("Use un XLS/XLSX de hasta 256 KiB.");
   const signature = Array.from(new Uint8Array(buffer, 0, 8)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -248,6 +250,8 @@ var readCudyrWorkbookMatrix = (buffer) => {
     type: "array",
     cellFormula: true,
     cellDates: false,
+    cellStyles: normalizeDateEpoch,
+    cellNF: normalizeDateEpoch,
     sheetRows: 5001
   });
   const names = book.SheetNames.filter((name) => book.Sheets[name]["!ref"]);
@@ -259,13 +263,39 @@ var readCudyrWorkbookMatrix = (buffer) => {
   for (const [key, cell] of Object.entries(sheet))
     if (!key.startsWith("!") && cell?.f)
       throw new Error("No se admiten f\xF3rmulas en el informe fuente.");
-  const rows = import_xlsx.utils.sheet_to_json(sheet, {
+  if (normalizeDateEpoch && book.Workbook?.WBProps?.date1904)
+    for (const [key, cell] of Object.entries(sheet)) {
+      const format = (cell?.z || "").replace(/"[^"]*"|\\.|_.|\*./g, "");
+      const calendar = /[yd]|m{3}/i.test(format.replace(/\[[^\]]*\]/g, "")) || /m/i.test(format) && !/[hs]|\[[hms]+\]/i.test(format);
+      if (!key.startsWith("!") && typeof cell?.v === "number" && import_xlsx.SSF.is_date(cell.z || "") && calendar)
+        cell.v += 1462;
+    }
+  const rows = normalizeDateEpoch ? Array.from(
+    { length: range.e.r + 1 },
+    (_, r) => Array.from({ length: range.e.c + 1 }, (_2, c) => {
+      const cell = sheet[import_xlsx.utils.encode_cell({ r, c })];
+      return cell?.t === "e" ? cell.w || "" : cell?.v ?? "";
+    })
+  ) : import_xlsx.utils.sheet_to_json(sheet, {
     header: 1,
     raw: true,
     defval: "",
     blankrows: true
   });
-  return { sheet: names[0], rows };
+  return {
+    sheet: names[0],
+    rows,
+    formats: Object.fromEntries(
+      Object.entries(sheet).filter(([key, cell]) => !key.startsWith("!") && cell?.z).map(([key, cell]) => [key, cell.z])
+    ),
+    merges: (sheet["!merges"] || []).map((merge) => {
+      if (merge.s.r < 0 || merge.s.c < 0 || merge.e.r >= 5e3 || merge.e.c >= 100)
+        throw new Error("El informe contiene una combinaci\xF3n fuera de l\xEDmites.");
+      return import_xlsx.utils.encode_range(merge);
+    }),
+    widths: (sheet["!cols"] || []).map((column) => column?.wch),
+    heights: (sheet["!rows"] || []).map((row) => row?.hpt)
+  };
 };
 var parseCudyrSupplementBinary = (buffer) => parseCudyrSupplementMatrix(readCudyrWorkbookMatrix(buffer));
 
@@ -307,9 +337,213 @@ var parseCudyrCensusSource = (matrix) => {
   });
   return { date, patients };
 };
+
+// src/utils/clinicalDateUtils.ts
+var normalizeDateOnly = (value) => {
+  if (!value) return void 0;
+  return value.split("T")[0];
+};
+var addCalendarDays = (dateString, days) => {
+  const date = /* @__PURE__ */ new Date(`${dateString}T12:00:00`);
+  date.setDate(date.getDate() + days);
+  return date.toISOString().split("T")[0];
+};
+
+// src/utils/chileanHolidays.ts
+var CHILEAN_HOLIDAYS = [
+  // 2024
+  "2024-01-01",
+  "2024-03-29",
+  "2024-03-30",
+  "2024-05-01",
+  "2024-05-21",
+  "2024-06-09",
+  "2024-06-20",
+  "2024-06-29",
+  "2024-07-16",
+  "2024-08-15",
+  "2024-09-18",
+  "2024-09-19",
+  "2024-09-20",
+  "2024-10-12",
+  "2024-10-27",
+  "2024-10-31",
+  "2024-11-01",
+  "2024-12-08",
+  "2024-12-25",
+  // 2025
+  "2025-01-01",
+  "2025-04-18",
+  "2025-04-19",
+  "2025-05-01",
+  "2025-05-21",
+  "2025-06-20",
+  "2025-06-29",
+  "2025-06-30",
+  "2025-07-16",
+  "2025-08-15",
+  "2025-09-18",
+  "2025-09-19",
+  "2025-10-12",
+  "2025-10-13",
+  "2025-10-31",
+  "2025-11-01",
+  "2025-12-08",
+  "2025-12-25",
+  // 2026
+  "2026-01-01",
+  "2026-04-03",
+  "2026-04-04",
+  "2026-05-01",
+  "2026-05-21",
+  "2026-06-20",
+  "2026-06-29",
+  "2026-07-16",
+  "2026-08-15",
+  "2026-09-18",
+  "2026-09-19",
+  "2026-10-12",
+  "2026-10-31",
+  "2026-11-01",
+  "2026-11-02",
+  "2026-12-08",
+  "2026-12-25",
+  // 2027
+  "2027-01-01",
+  "2027-03-26",
+  "2027-03-27",
+  "2027-05-01",
+  "2027-05-21",
+  "2027-06-20",
+  "2027-06-21",
+  "2027-06-28",
+  "2027-07-16",
+  "2027-08-15",
+  "2027-08-16",
+  "2027-09-18",
+  "2027-09-19",
+  "2027-09-20",
+  "2027-10-11",
+  "2027-10-31",
+  "2027-11-01",
+  "2027-12-08",
+  "2027-12-25",
+  // 2028
+  "2028-01-01",
+  "2028-04-14",
+  "2028-04-15",
+  "2028-05-01",
+  "2028-05-21",
+  "2028-05-22",
+  "2028-06-20",
+  "2028-06-29",
+  "2028-07-16",
+  "2028-07-17",
+  "2028-08-15",
+  "2028-09-18",
+  "2028-09-19",
+  "2028-10-12",
+  "2028-10-31",
+  "2028-11-01",
+  "2028-12-08",
+  "2028-12-25"
+];
+
+// src/utils/clinicalDayScheduleUtils.ts
+var parseTimeMinutes = (value) => {
+  if (!value) return null;
+  const [hourPart = "", minutePart = ""] = value.trim().split(":");
+  const hour = parseInt(hourPart, 10);
+  const minute = parseInt(minutePart, 10);
+  if (isNaN(hour) || isNaN(minute)) return null;
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+  return hour * 60 + minute;
+};
+var isBusinessDay = (dateString) => {
+  if (CHILEAN_HOLIDAYS.includes(dateString)) {
+    return false;
+  }
+  const date = /* @__PURE__ */ new Date(`${dateString}T12:00:00`);
+  const day = date.getDay();
+  return day !== 0 && day !== 6;
+};
+var getNextDay = (dateString) => {
+  return addCalendarDays(dateString, 1);
+};
+var getPreviousDay = (dateString) => {
+  return addCalendarDays(dateString, -1);
+};
+var getShiftSchedule = (dateString) => {
+  const todayIsBusinessDay = isBusinessDay(dateString);
+  const nextDay = getNextDay(dateString);
+  const tomorrowIsBusinessDay = isBusinessDay(nextDay);
+  const dayStart = todayIsBusinessDay ? "08:00" : "09:00";
+  const dayEnd = "20:00";
+  const nightStart = "20:00";
+  const nightEnd = tomorrowIsBusinessDay ? "08:00" : "09:00";
+  let description = todayIsBusinessDay ? "D\xEDa H\xE1bil" : "Fin de Semana / Feriado";
+  if (todayIsBusinessDay !== tomorrowIsBusinessDay) {
+    description += tomorrowIsBusinessDay ? " \u2192 D\xEDa H\xE1bil" : " \u2192 No H\xE1bil";
+  }
+  return {
+    dayStart,
+    dayEnd,
+    nightStart,
+    nightEnd,
+    description
+  };
+};
+var resolveClinicalDayBounds = (recordDate) => {
+  const schedule = getShiftSchedule(recordDate);
+  const dayStartMinutes = parseTimeMinutes(schedule.dayStart) ?? 8 * 60;
+  const nightEndMinutes = parseTimeMinutes(schedule.nightEnd) ?? 8 * 60;
+  return {
+    dayStart: schedule.dayStart,
+    dayStartMinutes,
+    nextDay: getNextDay(recordDate),
+    nightEnd: schedule.nightEnd,
+    nightEndMinutes
+  };
+};
+
+// src/utils/clinicalTimeZone.ts
+var CLINICAL_TIME_ZONE = "Pacific/Easter";
+var clinicalStampFormatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: CLINICAL_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23"
+});
+var calendarStampInClinicalTimeZone = (now = /* @__PURE__ */ new Date()) => {
+  const parts = clinicalStampFormatter.formatToParts(now);
+  const value = (type) => parts.find((part) => part.type === type)?.value ?? "";
+  return {
+    iso: `${value("year")}-${value("month")}-${value("day")}`,
+    hhmm: `${value("hour")}:${value("minute")}`
+  };
+};
+
+// src/utils/clinicalDayAdmissionUtils.ts
+var resolveClinicalDayForDateTime = (eventDate, eventTime) => {
+  const normalizedEventDate = normalizeDateOnly(eventDate);
+  if (!normalizedEventDate) {
+    return void 0;
+  }
+  const eventTimeMinutes = parseTimeMinutes(eventTime);
+  if (eventTimeMinutes === null) {
+    return normalizedEventDate;
+  }
+  const { dayStartMinutes } = resolveClinicalDayBounds(normalizedEventDate);
+  return eventTimeMinutes < dayStartMinutes ? getPreviousDay(normalizedEventDate) : normalizedEventDate;
+};
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
+  calendarStampInClinicalTimeZone,
   parseCudyrCensusSource,
   parseCudyrSupplementBinary,
-  readCudyrWorkbookMatrix
+  readCudyrWorkbookMatrix,
+  resolveClinicalDayForDateTime
 });

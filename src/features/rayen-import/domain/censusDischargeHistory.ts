@@ -3,14 +3,23 @@ import { BEDS } from '@/constants/beds';
 import { PatientDataSchema } from '@/schemas/zod/patient';
 import { getActiveDischarges } from '@/application/census/movementTombstonePolicy';
 import { normalizeRut } from '@/utils/rutUtils';
+import {
+  calendarDateForMovement,
+  recoverImportedMovementCalendarDate,
+} from '@/utils/movementCalendarDate';
 import type { DischargeData } from '@/types/domain/movements';
 import { resolveReportBedId } from '../mapping/resolveReportBed';
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
-import type { DischargeEntry, ClinicalCribDischargeRepair } from '../contracts/censusImportDiff';
+import type {
+  CensusImportDiff,
+  DischargeEntry,
+  ClinicalCribDischargeRepair,
+} from '../contracts/censusImportDiff';
 import { matchesDischargeSubject } from './dischargeSubjectIdentity';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import type { ReportEgreso } from '../contracts/egresoReport';
 import { extractTime } from '../mapping/rayenToPatientData';
+import { encounterWallClockInRapaNui } from '../mapping/encounterWallClock';
 import { normalizePatientRut } from './censusPatientIdentityIndex';
 
 interface RecordedOutcomeSubject {
@@ -96,7 +105,7 @@ export const createDischargedEncounterMatcher = (
     hasRecordedOutcome({
       clinicalEpisodeId: encounter.encounterId,
       rut: encounter.run,
-      admissionDay: encounter.admissionDatetime?.slice(0, 10),
+      admissionDay: encounterWallClockInRapaNui(encounter.admissionDatetime)?.slice(0, 10),
       admissionTime: extractTime(encounter.admissionDatetime),
     });
 };
@@ -147,7 +156,8 @@ const sparseSnapshotFields = new Set([
 ]);
 const isImportedCribDeparture = (row: DischargeData, date: string): boolean =>
   row.isNested === true &&
-  row.movementDate === date &&
+  recoverImportedMovementCalendarDate(row, date).movementDate ===
+    calendarDateForMovement(date, row.time) &&
   row.movementProvenance?.source === 'gestion_camas' &&
   Boolean(row.clinicalEpisodeId?.trim()) &&
   row.originalData?.clinicalEpisodeId === row.clinicalEpisodeId &&
@@ -224,4 +234,30 @@ export const planClinicalCribDischargeRepairs = (
     repairs.push({ kept: structuredClone(kept), duplicate: structuredClone(duplicate) });
   }
   return repairs;
+};
+
+/** Missing Ficha presence is a signal, never statistical-discharge authority. */
+export const appendMissingFichaSignals = (
+  current: DailyRecord,
+  diff: CensusImportDiff,
+  occupiedBedIds: ReadonlySet<string>,
+  consumedBedIds: ReadonlySet<string>
+): void => {
+  for (const bedId of occupiedBedIds) {
+    if (consumedBedIds.has(bedId)) continue;
+    const patient = current.beds[bedId];
+    if (!patient?.patientName?.trim() || patient.isBlocked) continue;
+    diff.pendingAdministrativeDischarges.push({
+      bedId,
+      rut: patient.rut,
+      patientName: patient.patientName,
+      signal: 'missing-from-ficha',
+      encounterId: patient.clinicalEpisodeId,
+      verification: {
+        medicalEpicrisis: 'unknown',
+        nursingEpicrisis: 'unknown',
+        hospitalDischarge: 'unknown',
+      },
+    });
+  }
 };

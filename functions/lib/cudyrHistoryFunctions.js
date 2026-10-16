@@ -1,3 +1,8 @@
+const { saveOfficialReport, readOfficialReport } = require('./cudyrOfficialReportStore');
+const {
+  saveCudyrVerifiedContext,
+  readCudyrVerifiedContext,
+} = require('./cudyrVerifiedContextStore');
 const { saveCudyrCensusSource, readCudyrCensusSources } = require('./cudyrCensusSourceStore');
 const { saveCudyrExclusion, readCudyrExclusions } = require('./cudyrExclusionStore');
 const functions = require('firebase-functions/v1');
@@ -5,7 +10,7 @@ const { isDeepStrictEqual } = require('node:util');
 const { FieldPath } = require('firebase-admin/firestore');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
 const { assertAuthorizedDailyRecordWriter } = require('./dailyRecordWriteAuthorityFunctions');
-const { assertRayenClinicalBatchAuthority } = require('./rayenClinicalBatchAuthority');
+const { assertCudyrArchiveAuthority } = require('./rayenClinicalBatchAuthority');
 const {
   parseArchiveRequest,
   parseHistoryQuery,
@@ -19,7 +24,11 @@ const { prepareCaptureManifest } = require('./cudyrCaptureManifest');
 const { readEpisodeCaptures } = require('./cudyrPlacementContract');
 const { saveDischargeCorrection } = require('./cudyrDischargeStore');
 const { readDischargeCorrections, readDischargeAudit } = require('./cudyrDischargeRead');
-const { saveCudyrSupplement, readCudyrSupplements } = require('./cudyrSupplementStore');
+const {
+  saveCudyrSupplement,
+  readCudyrSupplements,
+  readCudyrSupplementFile,
+} = require('./cudyrSupplementStore');
 const { saveCudyrReview, readCudyrReviews } = require('./cudyrReviewStore');
 
 const createCudyrHistoryFunctions = ({
@@ -36,8 +45,16 @@ const createCudyrHistoryFunctions = ({
         return await firestore.runTransaction(write);
       } catch (error) {
         // Concurrent creates of an absent content-addressed document can surface as gRPC 6.
+        // Emulator 1.20.4 also returns gRPC 3 for a closed transaction, unlike the SDK's
+        // retryable "transaction has expired" response. Restrict this compatibility case
+        // to loopback emulators; other INVALID_ARGUMENT errors must still fail immediately.
+        const closedEmulatorTransaction =
+          error.code === 3 &&
+          /^(127\.0\.0\.1|localhost):\d+$/.test(process.env.FIRESTORE_EMULATOR_HOST || '') &&
+          (error.details || String(error.message).replace(/^3 INVALID_ARGUMENT: /, '')) ===
+            'Transaction is invalid or closed.';
         // Reread the entire authority and archive; never turn this error into an assumed ack.
-        if (error.code !== 6 || attempt >= 2) throw error;
+        if ((error.code !== 6 && !closedEmulatorTransaction) || attempt >= 2) throw error;
       }
     }
   };
@@ -48,6 +65,17 @@ const createCudyrHistoryFunctions = ({
         context,
         resolveRoleForEmail,
       });
+      if (data?.kind === 'save-official-report')
+        return saveOfficialReport({
+          hospital,
+          data,
+          actor: {
+            uid: context.auth.uid,
+            email,
+            role,
+            name: String(context.auth.token.name || email).slice(0, 200),
+          },
+        });
       if (data?.kind === 'save-daily-exclusion') {
         if (!['admin', 'nurse_hospital'].includes(role))
           throw new functions.https.HttpsError(
@@ -66,23 +94,25 @@ const createCudyrHistoryFunctions = ({
           },
         });
       }
-      if (data?.kind === 'save-monthly-review') {
+      if (data?.kind === 'save-monthly-review' || data?.kind === 'save-verified-context') {
         if (!['admin', 'nurse_hospital'].includes(role))
           throw new functions.https.HttpsError(
             'permission-denied',
             'Review permission is required.'
           );
-        return saveCudyrReview({
-          hospital,
-          data,
-          runTransaction: runArchiveTransaction,
-          actor: {
-            uid: context.auth.uid,
-            email,
-            role,
-            name: String(context.auth.token.name || email).slice(0, 200),
-          },
-        });
+        return (data.kind === 'save-verified-context' ? saveCudyrVerifiedContext : saveCudyrReview)(
+          {
+            hospital,
+            data,
+            runTransaction: runArchiveTransaction,
+            actor: {
+              uid: context.auth.uid,
+              email,
+              role,
+              name: String(context.auth.token.name || email).slice(0, 200),
+            },
+          }
+        );
       }
       if (
         data?.kind === 'import-monthly-supplement' ||
@@ -147,7 +177,7 @@ const createCudyrHistoryFunctions = ({
             'Synchronization census is missing.'
           );
         const record = recordSnapshot.data();
-        assertRayenClinicalBatchAuthority({
+        assertCudyrArchiveAuthority({
           record,
           policySnapshot,
           payload: {
@@ -212,7 +242,10 @@ const createCudyrHistoryFunctions = ({
           if (existing[index].exists) {
             // Identical source content is immutable. Updating verification cannot erase its author.
             if (now >= existing[index].data().lastVerifiedAt) {
-              transaction.update(ref, { lastVerifiedAt: now, lastVerifiedRunId: payload.runId });
+              transaction.update(ref, {
+                lastVerifiedAt: now,
+                lastVerifiedRunId: payload.runId,
+              });
             }
             return { id, eventKey, status: 'already-recorded' };
           }
@@ -258,13 +291,16 @@ const createCudyrHistoryFunctions = ({
       if (!(await hasCallableClinicalAccess(context))) {
         throw new functions.https.HttpsError('permission-denied', 'Clinical access is required.');
       }
+      if (data?.kind === 'official-report') return readOfficialReport(hospital, data);
       if (data?.kind === 'daily-exclusions') return readCudyrExclusions(hospital, data);
       if (data?.kind === 'episode-captures') return readEpisodeCaptures(captures, data);
       if (data?.kind === 'discharge-corrections') return readDischargeCorrections(hospital, data);
       if (data?.kind === 'discharge-audit') return readDischargeAudit(hospital, data);
+      if (data?.kind === 'verified-context') return readCudyrVerifiedContext(hospital, data);
       if (data?.kind === 'monthly-reviews') return readCudyrReviews(hospital, data);
       if (data?.kind === 'daily-census-sources') return readCudyrCensusSources(hospital, data);
       if (data?.kind === 'monthly-supplements') return readCudyrSupplements(hospital, data);
+      if (data?.kind === 'monthly-supplement-file') return readCudyrSupplementFile(hospital, data);
       const { from, to, limit, cursor, kind } = parseHistoryQuery(data);
       let query = (kind === 'captures' ? captures : history)
         .where('censusDate', '>=', from)

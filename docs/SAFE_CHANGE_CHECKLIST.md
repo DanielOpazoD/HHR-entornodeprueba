@@ -1,5 +1,20 @@
 # Safe Change Checklist
 
+### CLI de despliegue Firebase (2026-10-11)
+
+- **Owner:** CI/Functions HHR.
+- **Reason:** 15.15.0 comparte tokens de fuente entre grupos; Firebase rechazó
+  el despliegue de la región clínica con el error `Invalid source token`.
+- **TargetVersion:** `firebase-tools` 15.16.0, fijado en manifest y lockfile raíz.
+  Es el único paquete resuelto que cambia; SDK, Functions y overrides se conservan.
+- **RiskLevel:** medio: herramienta de despliegue y emulador, con corrección
+  [upstream #10432](https://github.com/firebase/firebase-tools/pull/10432).
+- **RollbackPlan:** revertir el PR y ejecutar `npm ci`; no volver a desplegar
+  varias regiones con el CLI afectado. No borrar datos ni ampliar permisos.
+- **VerificationGate:** `dependency_upgrade`: instalación limpia, audit de ambos
+  paquetes, prueba de aislamiento de tokens, `ci:merge-gate`, suites Functions,
+  emuladores sintéticos, revisión independiente, CI y despliegue en hhr-pruebas.
+
 Antes de cerrar una modificación relevante en este repo:
 
 ### Iterar sin repetir los gates completos
@@ -221,6 +236,7 @@ arquitectónicos. Sharp: GHSA-wq5f-xc86-pv6w. SDK MCP: GHSA-6qxp-vccf-f47h.
 ### Aceptación temporal de braces (2026-10-07)
 
 Excepción autorizada explícitamente por Daniel Opazo, limitada al aviso y árbol
-de desarrollo aprobados, con vencimiento 2026-10-15T00:00:00Z. Se conservan
+de desarrollo aprobados. Daniel retiró explícitamente el vencimiento el 12-10-2026
+para esperar una actualización oficial de braces. Se conservan
 los hallazgos originales y un aviso visible; otros riesgos siguen bloqueando.
 Owner, riesgo residual, rollback y validación: [registro de aceptación](BRACES_TEMPORARY_RISK_ACCEPTANCE.md).

@@ -1,5 +1,22 @@
 # `src/features/rayen-import`
 
+## Fecha del egreso y día del censo
+
+La fecha/hora del alta corresponde al egreso estadístico de Gestión de Camas
+(liberación de cama por Enfermería), no a la emisión de la epicrisis ni a la
+confirmación de HHR. `correctedDay` identifica el censo del turno; `movementDate`
+conserva la fecha calendario real en Rapa Nui. Un egreso de madrugada D+1 se
+archiva en D y muestra D+1. Los lectores de Firebase y caché local recuperan las
+fechas de importaciones antiguas que guardaron D como fecha del movimiento,
+sin consultar Eloísa ni escribir el documento remoto al abrirlo. Los ajustes
+manuales y las fechas ya correctas se conservan.
+
+El ingreso conserva su fecha calendario y hora reales en Rapa Nui: los instantes UTC/con offset
+se convierten con `encounterWallClockInRapaNui`, igual que la selección del día clínico y el
+fallback de identidad de movimientos legacy. Los valores ya locales no se convierten de nuevo.
+El día clínico puede ser el anterior durante la madrugada; no reemplaza la fecha del evento.
+`birthDate` sigue siendo una fecha calendario, sin desplazamiento de zona horaria.
+
 ## Propósito
 
 Importar el censo y los movimientos de camas desde **Rayen / Ficha Médico** (sistema
@@ -7,6 +24,12 @@ externo) hacia el `DailyRecord` del HHR. La extensión de navegador lee Rayen y 
 `RayenCensusSnapshot`; este módulo lo **reconcilia** contra el censo actual y genera un
 `CensusImportDiff` (ingresos / actualizaciones / traslados / egresos / conflictos) para
 **revisión y confirmación** del usuario.
+
+El bridge valida los tipos opcionales y las fechas antes del mapper. Una captura marcada completa
+requiere cobertura de todos sus encuentros, sin errores de cabecera, diagnóstico ni aislamiento.
+Los snapshots legacy sin `clinicalCoverage` sólo se aceptan como parciales; no autorizan una
+sincronización completa ni una retirada implícita de aislamiento. La extensión debe emitir la
+evidencia de cobertura para usar el bundle correlacionado de sincronización.
 
 ## Modos de sincronización
 
@@ -48,6 +71,10 @@ En `off` y `shadow`, cada parche individual demuestra atómicamente mediante el 
 revisión congelada sigue vigente antes de tocar la caché local. Una promoción concurrente a
 `enforced` cancela los parches restantes y no deja escrituras antiguas en la cola para un replay
 posterior.
+Antes de cada intento, estos modos también comparan los campos clínicos completos con la base
+original de la lectura y el censo recién obtenido. Un tercer valor concurrente bloquea el parche
+y deja el objetivo reintentable; un valor ya persistido no se vuelve a escribir. El reintento de
+versión conserva esa base original, igual que el rebase de `enforced`.
 En `enforced`, el CUDYR de D−1 usa el mismo callable en un lote separado: modifica el documento
 histórico, pero demuestra autoridad con el `runId` congelado en el día de la sincronización. Sólo se
 admite el día inmediatamente anterior y nunca se degrada al escritor individual. Si cambia la
@@ -77,8 +104,9 @@ heredado de otra ejecución no puede mostrar un modal vacío ni reemplazar el re
 
 Después de confirmar la estructura, signos vitales, escalas y dispositivos se encadenan al mismo
 `runId` y al censo autoritativo leído de vuelta. Un fallo clínico conserva ese censo y ofrece
-**Reintentar información clínica** sólo para los objetivos pendientes: no recaptura Eloísa ni
-reimporta pacientes. Los conflictos estructurales reales permanecen en revisión y bloquean sólo
+**Reintentar información clínica** sólo mientras el mismo intento conserve autoridad `applied`.
+Si ya terminó como parcial, **Reintentar sincronización** realiza una captura nueva y obtiene otro
+`runId` autorizado; no se reabre ni se rebaja la política de una ejecución cerrada. Los conflictos estructurales reales permanecen en revisión y bloquean sólo
 los episodios afectados. La dotación Enfermería/TENS conserva su botón y decisión independientes.
 
 `rayenSyncHistory` guarda únicamente agregados de coordinación: contexto actual/histórico,
@@ -95,13 +123,18 @@ clínicos en esa telemetría.
   exige un censo completo, valida que el establecimiento coincida y rechaza capturas separadas por
   más de dos minutos. Snapshot e informe de egresos viajan juntos como un `RayenSyncBundle`; HHR no
   interpreta la falla de una fuente como ausencia de eventos.
-- **Horizonte D/D−7:** el día vigente usa el snapshot completo. Cada uno de los siete días clínicos
-  anteriores se reconstruye como una fotografía al cierre de su turno: cada episodio requiere RUN coincidente y
+- **Fecha y evidencia:** el día vigente usa el snapshot completo. Un día pasado, sin un límite
+  artificial por antigüedad, se reconstruye como una fotografía al cierre de su turno: cada episodio requiere RUN coincidente y
   ubicación en `Flujo_del_Paciente.pdf` anterior a las 08:00 del día hábil siguiente o 09:00 del
   inhábil. Si un egresado ya no figura en las fuentes masivas, se valida su `ENC_ID` + RUN exactos y
   el egreso individual puede probar el intervalo ingreso–egreso. Solo cuando no registra traslado
   previo al corte se conserva la cama que ya constaba en HHR; nunca se inventa una ubicación.
-  Episodios no demostrables quedan en revisión; D−8 y anteriores permanecen bloqueados.
+  Episodios no demostrables quedan en revisión, cualquiera sea la antigüedad. Poder consultar una
+  fecha no garantiza que Eloísa conserve todos sus datos. El informe **Censo diario** de Gestión
+  de Camas no prueba por sí solo la población ni reemplaza un episodio ya verificado.
+  Las asignaciones actuales de Gestión de Camas sirven para localizar episodios omitidos, pero no
+  pasan al snapshot histórico como ubicaciones. La cama y sala de cada episodio reconstruido son
+  las acreditadas al cierre, aunque hoy esté en otra unidad o en recuperación de Pabellón.
 - **Sin fallback fragmentado:** HHR rechaza snapshots sueltos o paquetes que no coincidan
   exactamente en establecimiento, rango y marca de captura; nunca vuelve a combinar lecturas
   independientes después de iniciar una sincronización dual.
@@ -145,16 +178,37 @@ clínicos en esa telemetría.
   descubre episodios que ocupaban D pero egresaron varios días después. La hora se convierte de
   `America/Santiago` a `Pacific/Easter` y luego se asigna al día censal de enfermería: antes de las
   08:00/09:00 pertenece a D−1.
+- **Filas administrativas sin episodio:** si Gestión de Camas no puede identificarlas, se consulta
+  el índice de informes de hospitalización de Ficha Médico. Se exige una única coincidencia de RUN,
+  nombre y fecha calendario del alta. Un ingreso posterior al cierre no pertenece al censo consultado;
+  una fecha sin hora del día siguiente no excluye la madrugada. Para recuperar un episodio del período,
+  se verifican además el episodio administrativo exacto y el intervalo del egreso individual.
+  El índice nunca acredita una cama histórica ni una asociación materna. Si el reporte omite sólo el
+  último apellido, una coincidencia única con RUN propio explícito permite descartar exclusivamente
+  un episodio futuro; nunca reconstruir ni cambiar pacientes. Pasaportes no se convierten en RUN.
+  Respuestas fallidas, nombres ambiguos o una extensión antigua sin esta metadata conservan la revisión.
+- **Pabellón en el informe de flujo:** se conserva el sufijo completo `Pabellón-R1/R2 CMA`.
+  Sólo una ubicación oficial anterior al cierre acredita que el episodio estaba en Pabellón;
+  `R1/R2 CMA` sin la identificación de Pabellón mantiene su tratamiento hospitalario habitual.
 - **CMA por origen exacto:** un alta administrativa viva se clasifica como CMA cuando ingreso y
   egreso estadístico ocurren el mismo día y la cama exacta `CMA R1`…`CMA R4` o `CMA NEO1/2` consta
   en la ubicación Eloísa guardada o en el informe de altas. `R1`/`NEO1` sin prefijo CMA no cuentan.
   Un traslado explícito o un fallecimiento conservan su clasificación administrativa.
 - **Sin inferencias por ausencia:** un snapshot completo puede mostrar el pendiente administrativo;
   un snapshot parcial no genera ni siquiera ese pendiente.
-- **Reubicación tardía con evidencia:** si una cama local bloquea un ingreso y el ocupante pertenece
-  a un episodio clínicamente cerrado, HHR consulta solo para ese episodio el informe oficial
+- **Reubicación tardía con evidencia:** antes de declarar una cama ocupada, HHR verifica si su
+  ocupante ya se trasladó, aunque el episodio siga activo y Ficha Médico muestre la cama anterior.
+  Consulta solo para ese episodio el informe oficial
   `Flujo_del_Paciente.pdf`. Se exige RUN coincidente y un movimiento entre el ingreso y la captura
-  del snapshot. Un PDF ausente, inválido, ambiguo o con una ubicación no mapeable conserva el conflicto.
+  del snapshot, anterior al relevo de las 08:00/09:00 que cierra el censo seleccionado. El lector
+  conserva completa la última columna de cama, incluido `BOX 1 UEA`…`BOX 4 UEA`; no toma una sala
+  anterior como sustituto de una cama desconocida. Un PDF ausente, inválido, ambiguo o con una ubicación
+  no mapeable conserva el conflicto.
+  Si la lectura vence por timeout, se repite una sola vez para el mismo episodio, compartiendo
+  la solicitud entre consumidores. Una sesión vencida o evidencia contradictoria no se reintenta
+  como si fuera válida; si persiste el fallo, el paciente y sus notas permanecen sin cambios.
+  Un traslado verificado a Urgencias u otra unidad se aplica antes del nuevo ingreso; no genera
+  una alta ficticia ni pierde las notas del paciente trasladado.
 - **El registro producido pasa el Zod del propio HHR** y preserva `dateTimestamp` (test
   `producedRecordValidity.test.ts`), así el `save` no es rechazado por validación ni por reglas Firestore.
 
@@ -192,7 +246,7 @@ la del registro completo; no aplica tolerancias de minutos ni inventa una hora c
 | `mapping/parseStatisticalDischargeReport.ts`    | Valida intervalo y traslados del egreso individual                         |
 | `mapping/encounterWallClock.ts`                 | Normaliza instantes Rayen al reloj local de Rapa Nui                       |
 | `bedTraceabilityResolver.ts`                    | Consulta selectiva y fail-closed ante un conflicto de cama                 |
-| `domain/historicalSnapshotReconstruction.ts`    | Reconstruye D−1…D−7 al cierre con trazabilidad por episodio                |
+| `domain/historicalSnapshotReconstruction.ts`    | Reconstruye fechas pasadas al cierre con trazabilidad por episodio         |
 | `domain/historicalLocalEgresoEvidence.ts`       | Verifica episodios locales ausentes por ENC_ID + RUN exactos               |
 | `domain/applyCensusImportDiff.ts`               | Aplica el diff → siguiente `DailyRecord` (puro, defensivo)                 |
 | `domain/rayenSyncHistory.ts`                    | Historial diario agregado, idempotente y acotado                           |
@@ -235,15 +289,21 @@ la del registro completo; no aplica tolerancias de minutos ni inventa una hora c
   Nunca infiere un médico desde la cama, el diagnóstico o la especialidad. Una fila visible sin
   médico también es autoritativa y elimina una asignación antigua.
 - **Camas:** `Habitacion N`+`Cn`→`H{N}C{n}`; `Recuperacion k`/`Rk`→`Rk` (UTI); `Neo k`→`NEOk`.
-  Las ubicaciones `B1UEA`/`B2UEA`/`B3UEA` de Hospitalización de Urgencias se representan como
-  `BOX1`/`BOX2`/`BOX3`: son camas extra activadas por ocupación y nunca se ofrecen vacías como
+  Las ubicaciones `B1UEA`–`B4UEA` de Hospitalización de Urgencias se representan con sus nombres
+  oficiales y las claves compatibles `BOX1`–`BOX4`: son camas extra activadas por ocupación y nunca se ofrecen vacías como
   disponibilidad manual. Su `location` ("servicio / sala / cama", p. ej. `AMQI / B1UEA`) la escribe
   la conciliación, por lo que la celda de cama no muestra el editor manual ámbar de ubicación que
   sí conservan las camas extra `E1`–`E5`. Al copiar el día, una ocupación vigente se conserva hasta
   que una conciliación segura confirme su egreso o traslado; HHR no oculta pacientes sólo por
   ausencia o ambigüedad de una captura.
-- **CMA = tipo de egreso, no ubicación:** un paciente del servicio CMA (`CMA*`) ocupa la misma
-  cama real (`CMAR1→R1`, `CMAN1→NEO1`, …); solo su egreso se traduce a tipo CMA (`record.cma[]`).
+- **CMA y hospitalización conservan ocupaciones distintas:** `CMA NEO1` y `NEO1`, por ejemplo,
+  se muestran simultáneamente como filas independientes (`CMA_NEO1` y `NEO1`). No se elimina,
+  traslada ni da de alta a una persona solo para hacer coincidir esos nombres. Las filas CMA se
+  activan únicamente al estar ocupadas, sin aumentar las 18 camas instaladas; CMA y UEA conservan
+  su exclusión del cumplimiento CUDYR. Un mismo episodio con dos alias sigue siendo un paciente.
+  Los registros antiguos se separan conservando notas y correcciones: se exige el episodio exacto
+  o RUN y sello completo de ingreso coincidentes. Las decisiones manuales antiguas mantienen su
+  trazabilidad, pero no fuerzan a retirar un episodio que las fuentes todavía muestran activo.
 - **Apply defensivo:** nunca sobrescribe una cama ocupada; reporta lo omitido (`skipped`).
 - **Traspaso estructural→clínico:** el guardado entrega un comprobante en memoria de la versión
   exacta y aplicada del mismo día/run. Sólo ese comprobante evita una lectura redundante; los
@@ -271,8 +331,8 @@ la del registro completo; no aplica tolerancias de minutos ni inventa una hora c
   normalizada ni modificar Braden, Downton u otros puntajes. Si la historia oficial contiene un
   CUDYR de la noche anterior pero HHR no tiene un censo para ese día, el archivo histórico se
   considera no aplicable: el CUDYR vigente puede guardarse sin marcar la ejecución como parcial.
-- **Horizonte temporal acotado:** `RayenSyncBundle` demuestra la coherencia de una captura, no
-  promete retención ilimitada. D−1…D−7 combinan snapshot vivo, reporte administrativo, censo local
+- **Consulta histórica por evidencia:** `RayenSyncBundle` demuestra la coherencia de una captura, no
+  promete retención ilimitada. Las fechas pasadas combinan snapshot vivo, reporte administrativo, censo local
   y flujo oficial por episodio; el snapshot actual nunca proyecta por sí solo la cama vigente hacia atrás.
 - **Dos fechas vigentes antes del relevo:** antes de las 08:00 en día hábil o 09:00 en inhábil se
   puede crear y sincronizar tanto el día clínico aún activo como una copia manual del día calendario
@@ -333,3 +393,153 @@ incompatible con su alta puede bloquear el lote CUDYR de ese día: se concilia a
 enriquecimiento clínico, sin relajar la autoridad. Una nueva captura no debe repetir la
 corrección una vez confirmadas ambas liberaciones. El estado explícito del egreso y un
 fallecimiento ya registrado para el episodio exacto se conservan en la propuesta.
+
+### Identidad de RN en la recuperación de movimientos para CUDYR
+
+El PDF «Flujo del Paciente» puede identificar un RN mediante «RUN Materno/progenitor(a)».
+La recuperación CUDYR acepta ese encabezado únicamente si el episodio corresponde a una
+cuna en todos sus contextos locales y el identificador coincide. La autorización del PDF
+sigue ligada al episodio; el RUN materno no convierte al RN en el episodio de su madre.
+Si el informe imprime un RUN personal, ese identificador prevalece y debe coincidir.
+Los fallos de movimientos se registran como `bed_history`, separados de la lectura y el
+guardado del CUDYR. El archivo de resultados continúa aunque la recuperación falle;
+los reintentos conservan la selección de lectura CUDYR sin repetir otros datos clínicos.
+
+### Asociación RN–madre y recuperación del archivo CUDYR
+
+Las cunas se concilian primero con el RUN materno cuando el episodio RN lo usa como
+identificador y coincide con una única paciente principal activa. Sin esa coincidencia,
+se utiliza «RN de …»: nombre completo o primer nombre y primer apellido, con coincidencia
+única entre madres activas. Se normalizan tildes, separadores y nombres unidos; también
+se considera el nombre local del mismo episodio materno. El RUN propio del RN se
+conserva; un RN nuevo identificado con RUN materno queda sin RUN propio, con identidad
+provisional. El RUN de su madre puede usarse para consultar su informe por episodio,
+sin incorporarlo a la identidad del RN. La ubicación original de Eloísa se mantiene
+en `location`. Un vínculo ambiguo requiere revisión; la cama no lo desempata. Si faltan identificadores
+maternos, solo se conserva el vínculo local del episodio RN exacto; una cuna nueva no
+se anida por ubicación. Los RN
+hospitalizados en camas independientes mantienen su ubicación y elegibilidad propias.
+
+El detalle de envíos locales vive dentro del panel habitual de Eloísa, sin un chip
+flotante. Una sincronización clínica completa, con política confirmada en modo clínico `enforced`,
+reintenta como máximo 50 archivos CUDYR del propietario autenticado bloqueados por el mensaje
+exacto de autorización global anterior. No reactiva conflictos, otros rechazos ni
+archivos ajenos/sin propietario. La cola es durable: admite envíos de una sesión anterior
+del mismo usuario; una generación admitida estable protege el intento actual. El transporte normal verifica nuevamente la autoridad
+del censo y conserva el instante/origen de la observación; solo un acuse válido elimina
+el envío. Abrir censos o informes no inicia esta recuperación.
+La misma acción retira de los envíos activos las comprobaciones vacías obsoletas: exige
+un rechazo exacto por episodio ausente, cero evaluaciones y movimientos de fuente, una
+consulta completa de una sola parte y una lectura fresca de Firebase con ejecución completa
+que confirme la ausencia en camas, cunas y movimientos vigentes. Se conserva íntegro el
+payload y el error original con estado `RETIRED`, motivo, fecha y ejecución comprobada.
+Ese estado no acredita guardado remoto, registro ni ausencia de CUDYR para el informe.
+Las capturas con resultados, movimientos, lectura incompleta o contexto vigente no se retiran.
+
+### Revisión de ubicación neonatal
+
+Una madre identificada y una cuna coincidente se sincronizan sin confirmación adicional.
+Si las ubicaciones difieren, o la identidad materna no está comprobada, el RN se revisa dentro de la confirmación habitual:
+seleccionar madre o una cama independiente. Se muestran todas las unidades; las camas independientes ocupadas o reservadas quedan deshabilitadas.
+Una cuna ocupada puede elegirse solo si su RN se reasigna explícitamente en el mismo plan:
+primero se verifican y liberan todos esos vínculos, luego se adjuntan los RN a los destinos.
+No se usa la cama como prueba de identidad materna. Si falta información,
+se exige elegir explícitamente «Revisar después»; el RN queda sin nueva asociación. No se ocupa una cuna ya
+asignada ni una cama reservada. La decisión queda en `neonatalPlacementDecision`, ligada
+al episodio, cama, madre (cuando corresponde), operador y hora de revisión; el CAS vuelve
+a comprobar los destinos antes de guardar. La copia original de Eloísa no se modifica.
+Para una cama independiente, el equipo debe indicar desde cuándo comenzó esa hospitalización
+(hora de Rapa Nui, posterior al ingreso y no futura). Solo desde ese instante se evalúan
+las ocho horas de hospitalización; no se reescriben las noches anteriores ni se crea CUDYR.
+Una cama independiente ya configurada en HHR se conserva y solicita confirmar ese inicio
+una vez. Las sincronizaciones posteriores respetan la decisión del episodio; una asignación
+ordinaria corregida en Eloísa vuelve a seguir sus movimientos. La revisión recuerda corregir
+la cama/tipo de cama en Gestión de Camas. Los errores ajenos siguen visibles en su propio detalle.
+
+Una corrección de Gestión de Camas que coincide con la ubicación ya confirmada solo
+actualiza la referencia de origen. Un cambio posterior a otra ubicación obliga a revisar
+antes de aplicar el censo, incluso en modo automático. El cambio de cuna anidada a cama
+independiente usa la decisión neonatal y libera la asociación anterior sin duplicar al RN.
+
+Los traslados continuos entre camas hospitalarias conservan el inicio revisado para las
+ocho horas; el contexto de cama/servicio sigue la evidencia de Eloísa. Un tramo excluido
+o una interrupción comprobada inicia otra permanencia. No se solicita una hora manual
+cuando una cama ordinaria de origen ya coincide con HHR: su historia oficial aporta el inicio.
+El RUN materno usado para recuperar movimientos se conserva como identidad de consulta
+separada (`maternalRut`) en la decisión del episodio, también para RN en cama independiente;
+si la cama ordinaria ya era correcta y no exigió decisión manual, se conserva en
+`neonatalMaternalRut` sin inventar una decisión de ubicación ni un CUDYR.
+nunca se incorpora como un nuevo RUN personal ni se crea un CUDYR manual.
+
+### Escenarios de regresión de sincronización
+
+| Situación                                                                       | Comportamiento esperado                                                                                                        | Pruebas de referencia en `src/tests/rayen-import/`                                   |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| Hoy, ayer y fechas anteriores                                                   | Consulta permitida; futuro y fecha inválida se rechazan antes de capturar.                                                     | `historicalSyncEvidencePolicy`, `rayenSyncBundleRuntime`, `rayenSyncTemporalContext` |
+| Madrugada, fin de semana, feriado o cambio de turno durante la captura          | Reloj de Rapa Nui; corte 08:00/09:00; una captura que cruza el corte se repite.                                                | `clinicalDayRuntimeExtension`, `rayenSyncTemporalContext`                            |
+| Repetir un censo antiguo con un checkpoint reciente                             | La ventana sigue alcanzando el día elegido; no vuelve al valor corto de hoy.                                                   | `clinicalHistoryReadPolicy`, `historicalSyncEvidencePolicy`                          |
+| Rango administrativo con muchos pacientes                                       | Consultas de hasta cuatro pacientes, dos lotes simultáneos; un lote incompleto no elimina ni cambia la identidad de los demás. | `rayenHistoricalLookupBatching`                                                      |
+| Historial HTTP 200 con formato inesperado                                       | Error de fuente; nunca se certifica como ausencia. HTTP 204 y una lista vacía válida conservan su contrato propio.             | `fichamedicoClinicalClientExtension`                                                 |
+| Paciente ausente del listado actual, episodio cerrado o reingreso del mismo RUN | Verificación del episodio exacto y sus fechas; no se toma cualquier hospitalización de esa persona.                            | `historicalSnapshotReconstructionIdentity`, `historicalLocalEgresoEvidence`          |
+| Traslados encadenados, cama ocupada, UEA o CMA simultánea                       | Primero resolver movimientos comprobados; conservar episodios y notas. Una cama actual no prueba una cama pasada.              | `historicalUrgencyBedChain`, `historicalSnapshotPavilionRecovery`                    |
+| RN con madre, RN independiente o vínculo incompleto                             | Identidad materna y ubicación comprobadas; clasificación propia del RN independiente; no inferir madre sólo por cama.          | `historicalSnapshotClinicalCrib`, `reconcileClinicalCribs`                           |
+| Último movimiento desconocido o posterior al corte                              | Revisión del caso; no sustituirlo por una cama anterior conocida.                                                              | `bedTraceabilityReconciliation`, `patientFlowParser`                                 |
+| Sesión vencida, timeout, cancelación o respuesta tardía                         | Conservar lo guardado; reintentos acotados; una respuesta obsoleta no modifica otra ejecución.                                 | `rayenSnapshotEvidenceClient`, `syncBundleCancellationRuntime`                       |
+| Otro usuario modifica el censo durante la sincronización                        | Releer y replantear con control de concurrencia; no sobrescribir su cambio.                                                    | `rayenSyncTemporalContext`, `rayenCensusPersistenceGuard`                            |
+| Fuente clínica falla después de guardar camas                                   | Conservar la estructura. Si el intento quedó terminal, recuperar mediante una captura y autorización nuevas.                   | `useRayenClinicalFillRetry`, `RayenImportButton`, `deterministicClinicalReplay`      |
+| Mes CUDYR oficial o datos locales corregidos                                    | Conservar el informe oficial y las decisiones locales verificadas; no recalcular ni reemplazar desde una fuente más débil.     | `historicalResolvedSync`, `applyHistoricalCudyr.authority`                           |
+
+La consulta del historial usa los días necesarios hasta la fecha elegida, con los timeouts y la
+concurrencia existentes. La validación completa se programa una vez al día; una validación fallida
+puede reintentarse a los 15 minutos. Esto no agrega consultas periódicas por renderizado.
+
+Una propuesta abierta puede sobrevivir al permiso temporal de lectura de la extensión o a su
+suspensión por Chrome. Si las escalas rechazan específicamente la autorización, el reintento
+existente comparte una captura nueva, de sólo lectura, y comprueba el RUN y episodio del censo
+confirmado. Si el episodio ya no está activo, lo verifica exactamente en Gestión de Camas.
+La renovación se intenta una vez por episodio, sólo ante ese rechazo; no agrega consultas a una
+lectura normal ni amplía permisos o vencimientos. Identidad ambigua, consulta fallida o cancelación
+conservan el error. Un RUN materno explícito sirve sólo para consultar el episodio del RN, nunca
+para cambiar su identidad, asociación, ubicación o elegibilidad. El CUDYR oficial no se modifica.
+
+Los informes individuales, el historial de episodios y los reportes de Gestión de Camas son
+fuentes complementarias. Un informe vacío no acredita que un día estuviera sin pacientes. Si un día histórico no tiene
+episodios reconstruidos, conflictos que revisar, movimientos exactos de ese día ni contenido
+local previo, la sincronización se detiene sin confirmarlo como un censo vacío.
+Los registros no escritos, movimientos ausentes y posibles desfases de reloj entre informes
+requieren evidencia adicional: no se inventan ni se corrigen con una resta horaria fija.
+
+### Códigos estables de errores de lectura
+
+El puente normaliza `errorCode` y conserva `error` como mensaje compatible. El productor
+actual de formularios distingue `episode_not_authorized`, `session_required`,
+`permission_denied`, `source_timeout`, `source_unavailable`, `invalid_request`,
+`invalid_response` y `unexpected`. El canal individual y la sección `forms` del paquete
+por paciente comparten este contrato. Un HTTP 204 o una lista vacía válida siguen siendo
+respuestas completas; un JSON con forma inesperada no acredita ausencia de formularios.
+
+HHR prefiere un código explícito sobre el mensaje. Con una extensión anterior, sólo la
+frase exacta histórica de rechazo del episodio habilita la recuperación de autorización.
+Un código desconocido queda como fallo `unexpected` y nunca habilita esa recuperación.
+El código no concede permisos: siguen siendo obligatorias la identidad y la evidencia del
+episodio. Se conservan vigencia, cancelación, máximo de reintentos y datos CUDYR oficiales.
+Los estados visuales y las categorías persistidas del historial conservan su contrato actual.
+
+### Estado visual de la sincronización
+
+La máquina `rayenSyncExecutionState` es la autoridad para la etapa activa y su resultado.
+El botón y la barra usan `buildRayenSyncBarViewModel`; no se mantienen indicadores
+paralelos `isBusy` o `isSyncing` en el estado de importación. Los contadores de lectura
+aportan progreso, pero no prueban por sí solos que el guardado haya terminado.
+
+La visibilidad del modal es una decisión de presentación limitada por la etapa: cerrar
+una ventana después del commit no cancela la convergencia. El candado clínico compartido
+sigue impidiendo otra captura mientras un trabajador anterior termina, sin convertir un
+resultado terminal en «Sincronizando». Tras remontar la vista sin una ejecución contextual,
+la barra puede mostrar ese trabajo compartido. La revisión de dotación es independiente;
+el historial conserva la evidencia persistida de cada intento.
+
+La preparación anterior a la captura pertenece a la vista y a la sesión que la iniciaron.
+Si la vista se desmonta o cambia la sesión mientras se lee el censo, la respuesta tardía
+no puede iniciar otra solicitud de extensión ni guardar un fallo en nombre del intento
+anterior. Esta invalidación no cancela el trabajo clínico que ya superó el commit.

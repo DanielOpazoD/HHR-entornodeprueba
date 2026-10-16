@@ -82,9 +82,7 @@ export const createRayenSyncExecutionContext = (
   policy: RayenImportPolicy
 ): RayenSyncExecutionContext => {
   if (prepared.target.kind === 'unsupported' || prepared.target.lookbackDays === null) {
-    throw new Error(
-      'Solo se puede sincronizar el censo vigente o uno de los siete días anteriores.'
-    );
+    throw new Error('Selecciona una fecha de censo válida, actual o pasada.');
   }
   return {
     runId: prepared.runId,

@@ -1,5 +1,4 @@
-import React, { lazy, Suspense } from 'react';
-import { createPortal } from 'react-dom';
+import React, { Suspense } from 'react';
 import type { Statistics } from '@/types/domain/statistics';
 import { NurseSelector } from './NurseSelector';
 import { TensSelector } from './TensSelector';
@@ -8,9 +7,9 @@ import { lazyWithRetry } from '@/utils/lazyWithRetry';
 const StaffShiftDetailsModal = lazyWithRetry(() =>
   import('./StaffShiftDetailsModal').then(module => ({ default: module.StaffShiftDetailsModal }))
 );
-import { CombinedSummaryCard } from '@/components/layout/SummaryCard';
+import { CensusSummarySwitcher } from './CensusSummarySwitcher';
+import { MoaCompanionSlot } from '@/components/layout/MoaCompanionSlot';
 import {
-  useDailyRecordData,
   useDailyRecordBeds,
   useDailyRecordStaff,
   useDailyRecordMovements,
@@ -20,24 +19,15 @@ import { useStaffContext } from '@/context/StaffContext';
 import { buildCensusStaffHeaderReadModel } from '@/application/census/censusStaffHeaderReadModel';
 import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
 import type { DetailedStaffingRole } from '@/types/domain/dailyRecordStaffingDetails';
-// The Rayen import machinery is only needed once the operator uses it, so the census
-// table no longer downloads it just to render the toolbar.
-const RayenImportButton = lazy(() =>
+// Keep the first paint responsive and recover interrupted panel downloads without
+// automatically reloading an editable census.
+const RayenImportButton = lazyWithRetry(() =>
   import('@/features/rayen-import/RayenImportButton').then(module => ({
     default: module.RayenImportButton,
   }))
 );
-import { SpecialtyRoundLoadingTrigger } from './specialty-round/SpecialtyRoundTrigger';
-const SpecialtyRoundEntry = lazy(() =>
-  import('./specialty-round/SpecialtyRoundEntry').then(module => ({
-    default: module.SpecialtyRoundEntry,
-  }))
-);
-
 import { RayenOperationsLoadingCard } from './RayenOperationsLoadingCard';
-import { useCensusToolbarMenuTarget } from '@/shared/ui/CensusToolbarMenuTargetContext';
-import { CensusAttentionBar } from './CensusAttentionBar';
-import type { CensusAttentionFilter } from '@/features/census/controllers/rowAcuityController';
+import { CensusMedicalHandoffPortal } from './CensusMedicalHandoffPortal';
 import type { BedDefinition } from '@/features/census/contracts/censusBedContracts';
 import type { RenderCensusMedicalHandoffAction } from '@/features/census/contracts/censusMedicalHandoffAction';
 
@@ -46,8 +36,6 @@ interface CensusStaffHeaderProps {
   readOnly?: boolean;
   stats: Statistics | null;
   accessProfile?: CensusAccessProfile;
-  attentionFilter?: CensusAttentionFilter;
-  onAttentionFilterChange?: (filter: CensusAttentionFilter) => void;
   visibleBeds?: readonly BedDefinition[];
   renderMedicalHandoffAction?: RenderCensusMedicalHandoffAction;
   rayenBootstrapRequestId?: number;
@@ -59,20 +47,16 @@ interface CensusStaffHeaderProps {
  * Displays staff selectors (Nurse/TENS) and summary statistics.
  * Optimized to consume fragmented context.
  */
-export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
+export const CensusStaffHeader = React.memo(function CensusStaffHeader({
   selectedDate,
   readOnly = false,
   stats,
   accessProfile = 'default',
-  attentionFilter = 'all',
-  onAttentionFilterChange,
   visibleBeds = [],
   renderMedicalHandoffAction,
   rayenBootstrapRequestId,
   onRayenBootstrapHandled,
-}) => {
-  const dailyRecordData = useDailyRecordData();
-  const handoffTarget = useCensusToolbarMenuTarget();
+}: CensusStaffHeaderProps) {
   const beds = useDailyRecordBeds();
   const staffData = useDailyRecordStaff();
   const movementsData = useDailyRecordMovements();
@@ -83,7 +67,7 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
     role: DetailedStaffingRole;
     date: string;
   } | null>(null);
-  const recordDate = dailyRecordData.record?.date;
+  const recordDate = staffData?.date;
   const openDetail = (role: DetailedStaffingRole) => {
     if (recordDate && canEditDetail) setActiveDetail({ role, date: recordDate });
   };
@@ -93,7 +77,7 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
     stats,
     accessProfile,
     beds,
-    recordDate: dailyRecordData.record?.date,
+    recordDate,
     staffData,
     movementsData,
   });
@@ -154,9 +138,10 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
           )}
 
           {/* Combined Stats Summary Card */}
-          <div className="census-toolbar-summary flex min-w-0 shrink-0 items-stretch justify-center gap-2">
+          <div className="census-toolbar-summary flex min-w-0 max-w-full shrink-0 flex-wrap items-stretch justify-center gap-2 sm:flex-nowrap">
             {readModel.showSummary && stats && (
-              <CombinedSummaryCard
+              <CensusSummarySwitcher
+                date={recordDate ?? selectedDate ?? ''}
                 stats={stats}
                 discharges={readModel.movementSummaryState.discharges}
                 transfers={readModel.movementSummaryState.transfers}
@@ -164,36 +149,18 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
                 newAdmissions={readModel.movementSummaryState.admissionsCount}
               />
             )}
-            <div className="census-toolbar-quick-actions flex items-center gap-2 border-l border-slate-200 pl-2">
-              <CensusAttentionBar
-                beds={beds ?? {}}
-                censusIsoDay={dailyRecordData.record?.date ?? ''}
-                activeFilter={attentionFilter}
-                onFilterChange={onAttentionFilterChange}
-              />
-              {dailyRecordData.record?.date && (
-                <Suspense fallback={<SpecialtyRoundLoadingTrigger />}>
-                  <SpecialtyRoundEntry
-                    date={dailyRecordData.record.date}
-                    disabled={Boolean(readOnly)}
-                  />
-                </Suspense>
-              )}
-            </div>
+            {readModel.showSummary && stats && <MoaCompanionSlot />}
           </div>
         </div>
       </div>
 
-      {handoffTarget && renderMedicalHandoffAction && dailyRecordData.record
-        ? createPortal(
-            renderMedicalHandoffAction({
-              record: dailyRecordData.record,
-              visibleBeds,
-              professionalsCatalog,
-            }),
-            handoffTarget
-          )
-        : null}
+      {renderMedicalHandoffAction && (
+        <CensusMedicalHandoffPortal
+          renderAction={renderMedicalHandoffAction}
+          visibleBeds={visibleBeds}
+          professionalsCatalog={professionalsCatalog}
+        />
+      )}
 
       {canEditDetail &&
         activeDetail &&
@@ -227,4 +194,4 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
         )}
     </div>
   );
-};
+});

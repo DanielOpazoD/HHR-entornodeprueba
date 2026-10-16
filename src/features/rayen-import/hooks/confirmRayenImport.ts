@@ -28,6 +28,8 @@ const stableStringify = (value: unknown): string => {
 };
 
 const comparableStructuralPlan = (diff: CensusImportDiff) => ({
+  neonatalSourceChanges: diff.neonatalSourceChanges ?? [],
+  neonatalPlacementReviews: diff.neonatalPlacementReviews ?? [],
   admissions: diff.admissions,
   updates: diff.updates,
   moves: diff.moves,
@@ -74,7 +76,9 @@ export const hasSkippedPreviousDayCorrections = (
   diff: CensusImportDiff,
   applyPreviousDays: boolean
 ): boolean => {
-  const previousDayEdits = diff.previousDayEdits ?? [];
+  const previousDayEdits = (diff.previousDayEdits ?? []).filter(
+    edit => !edit.automaticNightAdmission
+  );
   return (
     previousDayEdits.length > 0 &&
     (!applyPreviousDays ||
@@ -192,7 +196,16 @@ export const applyConfirmedRayenImport = async <TApplyResult extends ApplyResult
   // them before the selected-day save can persist an obsolete plan and a later replan can then be
   // reported as applied even though its historical changes never ran.
   let historicalCorrectionsPending = false;
-  if (applyPreviousDays) {
+  const historicalDiff = applyPreviousDays
+    ? candidateDiff
+    : {
+        ...candidateDiff,
+        previousDayEdits: candidateDiff.previousDayEdits?.filter(
+          edit => edit.automaticNightAdmission
+        ),
+      };
+  const writesPreviousDays = applyPreviousDays || Boolean(historicalDiff.previousDayEdits?.length);
+  if (writesPreviousDays) {
     const run = ensureRun();
     let lastHistoricalConflict: unknown;
     for (let attempt = 0; attempt <= MAX_FRESH_RECORD_RETRIES; attempt += 1) {
@@ -200,14 +213,14 @@ export const applyConfirmedRayenImport = async <TApplyResult extends ApplyResult
         const correctionResult = await fileCrossDayCorrections(
           dailyRecord,
           candidate,
-          candidateDiff,
+          historicalDiff,
           clinicalDay ?? toIsoReportDate(candidate),
           isAdmin,
           createId,
           { actor: run.by, syncRunId: run.id }
         );
         historicalCorrectionsPending = correctionResult.durablyQueued > 0;
-        if (!historicalCorrectionsPending && finalizeHistoricalDischarges) {
+        if ((!historicalCorrectionsPending || !applyPreviousDays) && finalizeHistoricalDischarges) {
           appliedResult = await finalizeHistoricalDischarges(appliedResult);
         }
         lastHistoricalConflict = undefined;
@@ -233,7 +246,7 @@ export const applyConfirmedRayenImport = async <TApplyResult extends ApplyResult
 
   // Already-filed historical movements need no previous-day write or checkbox, but the
   // reviewed carried occupant still needs removal from the selected census.
-  if (!applyPreviousDays && finalizeHistoricalDischarges) {
+  if (!writesPreviousDays && finalizeHistoricalDischarges) {
     try {
       appliedResult = await finalizeHistoricalDischarges(appliedResult);
     } catch (error) {

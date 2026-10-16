@@ -13,6 +13,8 @@ export const isDischargedEncounter = (encounter: RayenEncounter): boolean =>
 
 /** True when the generated diff still requires an explicit human decision. */
 export const requiresReview = (diff: CensusImportDiff): boolean =>
+  (diff.neonatalSourceChanges?.length ?? 0) > 0 ||
+  (diff.neonatalPlacementReviews?.length ?? 0) > 0 ||
   diff.conflicts.length > 0 ||
   diff.pendingAdministrativeDischarges.length > 0 ||
   (diff.reportEgresos?.length ?? 0) > 0 ||

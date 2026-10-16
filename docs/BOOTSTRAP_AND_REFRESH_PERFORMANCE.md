@@ -82,3 +82,40 @@ configuration values, another CI job, or a full application build per test. The
 existing unit suite discovers it automatically. Continue to use the full build
 budget and flow-performance gates for bundle size and user-visible timings;
 this narrow regression check does not replace either one.
+
+## Census pointer and CUDYR profiling (2026-10-11)
+
+Owner: Census UI. Baseline: `c8265492`; Node 22.22.2. Measurements used the
+existing synthetic full-census cohort (19 occupied main rows and two clinical
+cribs), isolated storage, demo Firebase configuration and blocked remote writes.
+Chrome Performance and a temporary production React profiling build were used;
+the application source retains no profiling callbacks or clinical telemetry.
+
+| Operation                                  | Baseline                  | Candidate         | Meaning                                                                        |
+| ------------------------------------------ | ------------------------- | ----------------- | ------------------------------------------------------------------------------ |
+| Move pointer into one diagnosis control    | 21 row-bound reads        | 2 row-bound reads | Avoid probing unrelated rows; retain the external left-gutter path             |
+| Resize with unchanged launcher coordinates | 20 React Profiler entries | 0 entries         | Do not schedule position updates with identical coordinates                    |
+| 2,000 CUDYR status resolutions             | 334.63 ms median          | 33.73 ms median   | Seven alternating paired runs of the pure function; identical output checksums |
+
+The formatter result is a local microbenchmark, not an application speedup.
+It reuses the canonical clinical-clock `Intl.DateTimeFormat` instance, never the current time or eligibility
+result. Repeated winter/summer calls still cross the 11:59/12:00 boundary in
+`Pacific/Easter` correctly.
+
+The diagnostic Chrome captures identified the decorative navbar image as LCP;
+it does not prove populated census readiness. Capture timings varied between
+runs, so no before/after startup latency claim is made. The existing populated
+census paint-opportunity and interaction measurements remain the acceptance
+signals; their budgets, auth checks and observation semantics are unchanged.
+
+Focused behavior checks:
+
+```sh
+npx vitest run src/tests/views/census/PatientRowOrbitalQuickActions.visibility.test.tsx src/tests/views/census/PatientRowOrbitalQuickActions.behavior.test.tsx src/tests/views/census/patientRowOrbitalLauncherRuntimeSupport.test.ts src/tests/features/cudyr/cudyrPending.test.ts
+```
+
+For a new comparable baseline, use `npm run test:e2e:census-performance` with the
+same environment, sample count, record fixture, Node/lockfile and cache policy.
+Diagnostic profilers must be local and removed before the merge gate. The normal
+production build and remote CI determine readiness; profiler build payloads are
+not release-budget evidence.

@@ -9,6 +9,7 @@ describe('dateStripDayWindowController', () => {
   it('resolves visible days by viewport width', () => {
     expect(resolveDateStripVisibleDays(375)).toBe(5);
     expect(resolveDateStripVisibleDays(900)).toBe(7);
+    expect(resolveDateStripVisibleDays(768, 'CENSUS')).toBe(3);
     expect(resolveDateStripVisibleDays(1280)).toBe(13);
     expect(resolveDateStripVisibleDays(1280, 'CENSUS')).toBe(9);
     expect(resolveDateStripVisibleDays(1280, 'NURSING_HANDOFF')).toBe(9);

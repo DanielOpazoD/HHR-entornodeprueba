@@ -10,7 +10,7 @@
 ## Lectura recomendada
 
 1. [README.md](../README.md)
-2. [Arquitectura y flujos vigentes](architecture.md)
+2. [Contrato operativo](DOMAIN_RULES.md) y [glosario](GLOSSARY.md); después, [arquitectura y flujos vigentes](architecture.md)
 3. [Cómo contribuir y validar](../CONTRIBUTING.md)
 4. [docs/CODEBASE_CANON.md](CODEBASE_CANON.md)
 5. README del módulo que vas a tocar en `src/features/*/README.md` o `src/*/README.md`
@@ -38,6 +38,7 @@ Documentos que gobiernan decisiones activas y estructura actual del repo.
 - [CONTRIBUTING.md](../CONTRIBUTING.md) — entorno, selección de pruebas y publicación
 - [PROJECT_STATUS.md](../PROJECT_STATUS.md)
 - [docs/CODEBASE_CANON.md](CODEBASE_CANON.md)
+- [docs/DOMAIN_RULES.md](DOMAIN_RULES.md) — intención, invariantes y políticas operativas; leer antes de modificar un flujo
 - [docs/GLOSSARY.md](GLOSSARY.md) — vocabulario canónico del dominio (paciente/cama/alta/traslado/CUDYR/CMA/MINSAL…)
 - [docs/TODO_TRIAGE_PROCESS.md](TODO_TRIAGE_PROCESS.md) — playbook para mantener cero markers `TODO`/`FIXME` en código
 - [docs/QUALITY_GUARDRAILS.md](QUALITY_GUARDRAILS.md)
@@ -129,6 +130,7 @@ Documentos útiles para contexto, pero no fuente primaria de reglas activas.
 
 Artefactos producidos por tooling o reportes automáticos. Son útiles para consulta, pero no son la fuente primaria de diseño.
 
+- [Mapa arquitectónico C4](architecture/c4/README.md) — SVG generados y fuentes PlantUML; snapshot por SHA, no reemplaza la guía canónica
 - `docs/dependency-debt.md` — snapshot generado; verificar su fecha y regenerar antes de evaluar
 - `docs/api/**`
 - `reports/**/*.md`

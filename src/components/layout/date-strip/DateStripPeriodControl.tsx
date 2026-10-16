@@ -20,7 +20,7 @@ export const DateStripPeriodControl = ({
   children?: React.ReactNode;
 }) => (
   <div
-    className="relative flex h-[30px] items-center shrink-0 rounded-lg bg-slate-50 border border-slate-200/80 px-0 py-0.5"
+    className="hhr-toolbar-period relative flex h-[30px] items-center shrink-0 rounded-lg bg-slate-50 border border-slate-200/80 px-0 py-0.5"
     ref={containerRef}
   >
     <button

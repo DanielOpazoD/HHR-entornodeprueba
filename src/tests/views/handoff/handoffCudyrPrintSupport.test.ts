@@ -67,4 +67,37 @@ describe('handoffCudyrPrintSupport', () => {
 
     expect(display.categorization.isCategorized).toBe(false);
   });
+
+  it('preserves a valid imported result for an excluded patient without showing manual scores', () => {
+    const display = resolveHandoffCudyrPrintDisplay('2026-04-12', {
+      patientName: 'Sintético excluido',
+      admissionDate: '2026-04-12',
+      admissionTime: '23:30',
+      evaluationScores: { cudyr: { category: ' c1 ', recordedDate: '2026-04-12' } },
+      cudyr: DataFactory.createMockCudyr({ changeClothes: 3 }),
+    });
+    expect(display.isEligible).toBe(false);
+    expect(display.hasValidImportedCudyr).toBe(true);
+    expect(display.visibleScores).toBeUndefined();
+    expect(display.categorization).toMatchObject({ finalCat: 'C1', isCategorized: true });
+  });
+
+  it.each([
+    { category: 'C1', recordedDate: '2026-04-13' },
+    { category: 'E4', recordedDate: '2026-04-12' },
+    { category: '', recordedDate: '2026-04-12' },
+  ])(
+    'does not preserve an invalid or other-shift imported result for an excluded patient: %j',
+    cudyr => {
+      const display = resolveHandoffCudyrPrintDisplay('2026-04-12', {
+        patientName: 'Sintético excluido',
+        admissionDate: '2026-04-12',
+        admissionTime: '23:30',
+        evaluationScores: { cudyr },
+      });
+      expect(display.isEligible).toBe(false);
+      expect(display.hasValidImportedCudyr).toBe(false);
+      expect(display.categorization.isCategorized).toBe(false);
+    }
+  );
 });

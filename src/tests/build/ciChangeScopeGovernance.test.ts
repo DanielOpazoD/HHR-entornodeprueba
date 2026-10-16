@@ -11,7 +11,7 @@ describe('CI change scope governance', () => {
     const workflow = readText('.github/workflows/ci-cd.yml');
     const scopeConfig = JSON.parse(readText('scripts/config/ci-change-scope.json'));
     const gatedJobs = [
-      'critical-coverage-report',
+      'critical-coverage-shards',
       'quality-static-base',
       'clinical-sync-release-gate',
       'unit-risk-shards',

@@ -64,6 +64,56 @@ describe('functions authFunctionsFactory', () => {
     expect(assignRole).toHaveBeenCalledWith({ uid: 'u1', email: 'user@example.com' });
   });
 
+  it.each(['viewer', 'unauthorized', 'error'])(
+    'does not mutate claims when current caller role is %s',
+    async role => {
+      const getUserByEmail = vi.fn();
+      const setCustomUserClaims = vi.fn();
+      const resolveRoleForEmail =
+        role === 'error'
+          ? vi.fn().mockRejectedValue(new Error('config unavailable'))
+          : vi.fn().mockResolvedValue(role);
+      const functionsApi = createAuthFunctions({
+        auth: { getUserByEmail, setCustomUserClaims },
+        helpers: { normalizeEmail: (value: string) => value.toLowerCase(), resolveRoleForEmail },
+      });
+      await expect(
+        functionsApi.setUserRole.run(
+          { email: 'target@example.invalid', role: 'admin' },
+          { auth: { token: { email: 'revoked@example.invalid', role: 'admin' } } }
+        )
+      ).rejects.toThrow();
+      expect(resolveRoleForEmail).toHaveBeenCalledWith('revoked@example.invalid');
+      expect(getUserByEmail).not.toHaveBeenCalled();
+      expect(setCustomUserClaims).not.toHaveBeenCalled();
+    }
+  );
+
+  it('allows a configured admin with an outdated claim and preserves unrelated target claims', async () => {
+    const setCustomUserClaims = vi.fn().mockResolvedValue(undefined);
+    const functionsApi = createAuthFunctions({
+      auth: {
+        getUserByEmail: vi.fn().mockResolvedValue({ uid: 'target' }),
+        getUser: vi.fn().mockResolvedValue({ customClaims: { featureFlag: true } }),
+        setCustomUserClaims,
+      },
+      helpers: {
+        normalizeEmail: (value: string) => value.toLowerCase(),
+        resolveRoleForEmail: vi.fn().mockResolvedValue('admin'),
+      },
+    });
+    await expect(
+      functionsApi.setUserRole.run(
+        { email: 'target@example.invalid', role: 'viewer' },
+        { auth: { token: { email: 'admin@example.invalid', role: 'viewer' } } }
+      )
+    ).resolves.toMatchObject({ success: true });
+    expect(setCustomUserClaims).toHaveBeenCalledWith('target', {
+      featureFlag: true,
+      role: 'viewer',
+    });
+  });
+
   it('syncs current user role claim from config/roles for the caller', async () => {
     const getUser = vi.fn().mockResolvedValue({ customClaims: { featureFlag: true } });
     const setCustomUserClaims = vi.fn().mockResolvedValue(undefined);

@@ -86,7 +86,7 @@ describe('Gestión de Camas clinical-crib mapping', () => {
         ...mother,
         encounterId: '900002',
         run: '222222222',
-        firstGivenName: 'Bebe',
+        firstGivenName: 'RN de Madre',
         birthDate: '2026-07-08',
         room: 'Cunas',
         bed: `C${parentBedId}`,

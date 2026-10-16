@@ -106,7 +106,7 @@ describe('compact synchronization presentation', () => {
       const view = render(
         <RayenImportFlowStatus {...base} fill={fill({ running: true, done: 1, total: 2 })} />
       );
-      expect(screen.getByRole('status')).toHaveTextContent('Actualizando');
+      expect(screen.getByRole('status')).toHaveTextContent('Lectura clínica · 1/2');
       const arc = view.container.querySelector('svg')!;
       expect(arc).toHaveClass('invisible', 'motion-reduce:animate-none', '[animation-duration:2s]');
       act(() => vi.advanceTimersByTime(300));
@@ -125,6 +125,47 @@ describe('compact synchronization presentation', () => {
       vi.useRealTimers();
     }
   });
+  it('shows measured reading progress, then confirmation without a false 100% claim', () => {
+    const base = {
+      diff: null,
+      error: null,
+      hasPersistedSync: false,
+      compactFallback: 'Anterior',
+      executionStage: { type: 'syncing_clinical' as const },
+    };
+    const view = render(
+      <RayenImportFlowStatus {...base} fill={fill({ running: true, done: 3, total: 12 })} />
+    );
+    expect(screen.getByRole('progressbar')).toBeVisible();
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '3');
+    expect(screen.getByRole('progressbar').firstElementChild).toHaveStyle({ width: '25%' });
+    view.rerender(
+      <RayenImportFlowStatus {...base} fill={fill({ running: true, done: 12, total: 12 })} />
+    );
+    expect(screen.getByRole('status')).toHaveTextContent('Confirmando datos clínicos');
+    expect(screen.getByRole('progressbar')).not.toHaveAttribute('aria-valuenow');
+    expect(view.container.querySelector('.rayen-sync-scan')).toBeInTheDocument();
+    view.rerender(
+      <RayenImportFlowStatus {...base} fill={fill()} executionStage={{ type: 'complete' }} />
+    );
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+  });
+
+  it('shows capture activity without inventing a progress value', () => {
+    render(
+      <RayenImportFlowStatus
+        diff={null}
+        error={null}
+        hasPersistedSync={false}
+        compactFallback="Anterior"
+        fill={fill()}
+        executionStage={{ type: 'capturing' }}
+      />
+    );
+    expect(screen.getByRole('status')).toHaveTextContent('Leyendo Eloísa');
+    expect(screen.getByRole('progressbar')).not.toHaveAttribute('aria-valuenow');
+  });
+
   it('does not label a partial result as updated and retains accessible detail', () => {
     render(
       <RayenImportFlowStatus

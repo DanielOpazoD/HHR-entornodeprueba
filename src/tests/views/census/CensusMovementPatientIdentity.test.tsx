@@ -4,6 +4,18 @@ import { render, screen } from '@testing-library/react';
 import { CensusMovementPatientIdentity } from '@/features/census/components/CensusMovementPatientIdentity';
 
 describe('CensusMovementPatientIdentity', () => {
+  it('also normalizes the RN label in historical movements', () => {
+    render(
+      <table>
+        <tbody>
+          <tr>
+            <CensusMovementPatientIdentity name="Rn de Fernanda" identifier="123" />
+          </tr>
+        </tbody>
+      </table>
+    );
+    expect(screen.getByText('RN de Fernanda')).toBeVisible();
+  });
   it('keeps the identifier intact with the historical admission date under the patient name', () => {
     render(
       <table>

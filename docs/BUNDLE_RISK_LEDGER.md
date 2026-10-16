@@ -2,7 +2,7 @@
 
 Estado: activo
 Owner: architecture
-Última actualización: 2026-09-22
+Última actualización: 2026-10-11
 
 ## Scope
 
@@ -89,3 +89,35 @@ other chunk limits remain unchanged. Keep the size warning visible and run
 `build`, `check:bundle-budget` and startup performance checks before release.
 Rollback: move the specialty entry back behind the deferred census table and
 restore the 627,000-byte ceiling if the header change regresses startup.
+
+## RN y recuperación del archivo CUDYR (2026-10-10)
+
+Owner: census/sync. The patient, census and movement contracts share immutable string Zod
+validators to avoid duplicating the same validator in the authenticated shell.
+No accepted values or validation behavior change. Server-verified CUDYR archive
+recovery and shared report facts stay available as on-demand assets and are
+excluded from install-time precache, like their online-only report and sync owners.
+Offline clinical writes and their durable outbox remain cached. All byte ceilings
+remain unchanged. Validate with schema tests, `pwaPrecachePolicy`, `build`,
+`check:bundle-budget`, `check:chunk-graph` and preview/runtime performance checks.
+Rollback: restore the two precache entries and the repeated field constructors;
+archive payloads and Firebase records require no migration.
+
+## Moa opcional y barra azul (2026-10-11)
+
+Owner: app-shell/navbar. Las secuencias comparten la identidad y el renderer. La barra
+usa un degradado compartido con el preboot; ya no solicita el paisaje.
+El activador es un retrato SVG estático. Moa comienza oculto. Sus dieciocho escenas
+tienen seis fotogramas ilustrados cada una en PNG con transparencia y resolución
+doble; se solicita el saludo común para el reposo y la escena seleccionada, con un máximo de 300 KB por atlas
+y 4 MiB para el conjunto. El módulo decorativo se descarga al activarlo. Su JS, CSS y atlas quedan
+fuera del precache; el censo y el activador siguen disponibles si falla la descarga.
+No se excluyen dependencias clínicas, no se amplían límites y no se añaden librerías
+ni cachés. La primera activación requiere acceso al módulo, incluido el caso offline.
+
+La X y Escape cierran Moa; la pestaña oculta pausa el movimiento y el movimiento
+reducido muestra escenas estáticas. El reposo no tiene animaciones recurrentes.
+Comprobar `pwaPrecachePolicy`, `check:bundle-budget`, `check:chunk-graph`,
+`check:runtime-asset-margin` y las pruebas de gestos, teclado, recarga y fallo de chunk.
+Rollback: revertir componentes, estilos y las dos exclusiones de Moa en Vite y el
+inventario de presupuesto. No hay migración de información clínica.

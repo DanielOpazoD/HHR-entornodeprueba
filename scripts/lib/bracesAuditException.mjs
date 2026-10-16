@@ -2,17 +2,18 @@ import { createHash } from 'node:crypto';
 
 export const BRACES_EXCEPTION = Object.freeze({
   advisory: 'GHSA-vfj7-8cjw-p6xm',
-  authorizedBy: 'Daniel Opazo, explicit approval in the CUDYR task on 2026-10-07',
+  authorizedBy: 'Daniel Opazo, approved 2026-10-07; calendar expiry removed explicitly 2026-10-12',
   startsAt: '2026-10-07T00:00:00Z',
-  expiresAt: '2026-10-15T00:00:00Z',
-  lockSha256: '78f0237c8fec6efa06b4e4ddb1135386c933ac7e148c8b4431f7adeeb0a12f06',
+  // Accepted until an official fix or withdrawal is verified; scope checks still fail closed.
+  expiresAt: null,
+  lockSha256: 'a868d9aacaaf37d80bc5f1a4bba83f6216fa2c4a80e479a890f169d1ab6c54fd',
 });
 const versions = {
   '@boundaries/elements': '2.0.1',
   braces: '3.0.3',
   chokidar: '3.6.0',
   'eslint-plugin-boundaries': '6.0.2',
-  'firebase-tools': '15.15.0',
+  'firebase-tools': '15.16.0',
   'lint-staged': '16.2.7',
   micromatch: '4.0.8',
 };
@@ -29,11 +30,7 @@ export function evaluateBracesException({ workspace, lockText, functionsLock, no
     workspace.firstFailureCategory !== 'audit_failed'
   )
     return reject('not_an_eligible_root_audit');
-  if (
-    !Number.isFinite(now) ||
-    now < Date.parse(BRACES_EXCEPTION.startsAt) ||
-    now >= Date.parse(BRACES_EXCEPTION.expiresAt)
-  )
+  if (!Number.isFinite(now) || now < Date.parse(BRACES_EXCEPTION.startsAt))
     return reject('outside_authorized_window');
   if (
     typeof lockText !== 'string' ||

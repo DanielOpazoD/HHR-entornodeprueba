@@ -1,3 +1,5 @@
+import { loadCudyrReport } from './cudyrReportLoader';
+import { verifyCudyrMonthlySources } from './cudyrMonthlyVerification';
 import {
   loadCudyrCensusSources,
   saveCudyrCensusSource,
@@ -57,6 +59,8 @@ export interface MonthlyRecoveryProgress {
   status: 'reading' | 'reused' | 'saved' | 'failed';
 }
 export interface MonthlyRecoveryResult {
+  verificationResult?: ReturnType<typeof verifyCudyrMonthlySources>;
+  verificationError?: string;
   reports: ArchivedCudyrSupplement[];
   recovered: number;
   reused: number;
@@ -69,6 +73,7 @@ const dependencies = {
   readFile: readCudyrSupplementFile,
   save: importCudyrSupplement,
   load: loadCudyrSupplements,
+  readCensus: loadCudyrReport,
 };
 
 /** Explicit action only. Each server-acknowledged source report is the resumable checkpoint. */
@@ -222,5 +227,14 @@ export const recoverCudyrMonthlyReports = async (
       )
       .slice(0, 1);
   });
+  try {
+    const census = await ports.readCensus(period.from, period.last, signal);
+    check();
+    result.verificationResult = verifyCudyrMonthlySources(census, result.reports);
+  } catch {
+    check(); // Cancellation/session changes still invalidate this caller.
+    result.verificationError =
+      'Fuentes guardadas. Falta completar la conciliación; puede reintentar.';
+  }
   return result;
 };

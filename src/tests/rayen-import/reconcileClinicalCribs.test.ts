@@ -40,7 +40,7 @@ const newborn = (): RayenEncounter =>
   makeEncounter({
     encounterId: 'NEWBORN',
     run: '222222222',
-    firstGivenName: 'Bebe',
+    firstGivenName: 'RN de Ana',
     birthDate: '2026-07-08',
     room: 'Cunas',
     bed: 'CH5C1',
@@ -93,7 +93,7 @@ describe('reconcileClinicalCribs', () => {
       ...newborn(),
       encounterId: 'NEWBORN-2',
       run: '333333333',
-      firstGivenName: 'Otro bebe',
+      firstGivenName: 'RN de Ana',
     };
     const diff = reconcileCensus(makeRecord({}), snapshotOf([mother, firstChild, secondChild]), {
       reference: REFERENCE,
@@ -147,7 +147,7 @@ describe('reconcileClinicalCribs', () => {
       changes: [{ field: 'clinicalCrib' }],
     });
     expect(diff.updates[0].changes[0].to).toMatchObject({
-      patientName: 'Bebe Perez',
+      patientName: 'Rn De Ana Perez',
       bedMode: 'Cuna',
       clinicalEpisodeId: 'NEWBORN',
       specialty: Specialty.PEDIATRIA,
@@ -202,6 +202,7 @@ describe('reconcileClinicalCribs', () => {
     const localChild = {
       ...seed(child),
       patientName: 'Amanda Valladares',
+      identityStatus: 'provisional' as const,
       specialty: Specialty.PEDIATRIA,
     };
     const diff = reconcileCensus(
@@ -274,8 +275,8 @@ describe('reconcileClinicalCribs', () => {
         field: 'clinicalCrib',
         to: expect.objectContaining({
           rut: '22.222.222-2',
-          patientName: 'Bebe Perez',
-          firstName: 'Bebe',
+          patientName: 'Rn De Ana Perez',
+          firstName: 'Rn De Ana',
           lastName: 'Perez',
           identityStatus: 'official',
           handoffNote: 'Dato neonatal local',
@@ -349,7 +350,7 @@ describe('reconcileClinicalCribs', () => {
       expect.objectContaining({
         bedId: 'H5C1',
         patient: expect.objectContaining({
-          patientName: 'Bebe Perez',
+          patientName: 'Rn De Ana Perez',
           bedMode: 'Cuna',
           specialty: Specialty.PEDIATRIA,
         }),
@@ -375,8 +376,7 @@ describe('reconcileClinicalCribs', () => {
       expect.objectContaining({
         bedId: 'H5C1',
         scope: 'clinical-crib',
-        code: 'unconfirmed-principal-bed',
-        reason: expect.stringContaining('no fue confirmada'),
+        reason: expect.stringContaining('Sin coincidencia materna'),
       }),
     ]);
   });

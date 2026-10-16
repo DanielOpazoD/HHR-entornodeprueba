@@ -33,21 +33,39 @@ describe('functions authCallablePolicy', () => {
     });
   });
 
-  it('allows role mutation for admin claims and rejects invalid roles', () => {
-    expect(() =>
+  it('allows role mutation for current configured admins and rejects invalid roles', async () => {
+    const resolveRoleForEmail = vi.fn().mockResolvedValue('admin');
+    await expect(
       assertRoleMutationAccess({
-        context: { auth: { token: { email: 'admin@example.com', role: 'admin' } } },
+        context: { auth: { token: { email: ' Admin@example.invalid ', role: 'viewer' } } },
+        resolveRoleForEmail,
       })
-    ).not.toThrow();
+    ).resolves.toBeUndefined();
+    expect(resolveRoleForEmail).toHaveBeenCalledWith('admin@example.invalid');
 
     expect(() => assertAssignableRole('user@example.com', 'not-a-role')).toThrow(/Invalid role/);
   });
 
-  it('rejects role mutation when caller has no admin claim', () => {
-    expect(() =>
-      assertRoleMutationAccess({
-        context: { auth: { token: { email: 'viewer@example.com', role: 'viewer' } } },
-      })
-    ).toThrow(/Only admins can set roles/);
-  });
+  it.each(['viewer', 'unauthorized'])(
+    'rejects a stale admin claim when configured role is %s',
+    async role => {
+      await expect(
+        assertRoleMutationAccess({
+          context: { auth: { token: { email: 'revoked@example.invalid', role: 'admin' } } },
+          resolveRoleForEmail: vi.fn().mockResolvedValue(role),
+        })
+      ).rejects.toMatchObject({ code: 'permission-denied' });
+    }
+  );
+
+  it.each([null, { token: { role: 'admin' } }])(
+    'rejects callers without an authenticated email',
+    async auth => {
+      const resolveRoleForEmail = vi.fn();
+      await expect(
+        assertRoleMutationAccess({ context: { auth }, resolveRoleForEmail })
+      ).rejects.toMatchObject({ code: 'permission-denied' });
+      expect(resolveRoleForEmail).not.toHaveBeenCalled();
+    }
+  );
 });

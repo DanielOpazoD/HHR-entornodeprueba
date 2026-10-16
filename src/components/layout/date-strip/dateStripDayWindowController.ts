@@ -36,7 +36,7 @@ export const resolveDateStripVisibleDays = (
   }
 
   if (windowWidth < DATE_STRIP_TABLET_BREAKPOINT) {
-    return TABLET_VISIBLE_DAYS;
+    return currentModule && COMPACT_DAY_STRIP_MODULES.has(currentModule) ? 3 : TABLET_VISIBLE_DAYS;
   }
 
   if (currentModule && COMPACT_DAY_STRIP_MODULES.has(currentModule)) {

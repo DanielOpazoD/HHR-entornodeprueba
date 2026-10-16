@@ -14,11 +14,12 @@
 
 import React, { useEffect, useState } from 'react';
 import clsx from 'clsx';
-import { ArrowRight, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { DebouncedInput } from '@/components/ui/DebouncedInput';
 import { PatientInputSchema } from '@/schemas/inputSchemas';
 import { isValidRut } from '@/utils/rutUtils';
 import { formatAge } from '@/utils/ageDisplayUtils';
+import { parseTimeMinutes } from '@/utils/clinicalDayUtils';
 import { writeClipboardText } from '@/shared/runtime/browserClipboardRuntime';
 import { useStaffContext } from '@/context/StaffContext';
 import {
@@ -98,6 +99,12 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
   const isRutValid = isRutMode && hasRutValue && isValidRut(rutValue);
   const isRutInvalid = isRutMode && hasRutValue && !isRutValid;
   const admissionShort = formatAdmissionShort(data.admissionDate);
+  const admissionMinutes = parseTimeMinutes(data.admissionTime);
+  const admissionTime =
+    admissionMinutes === null
+      ? 'Hora no informada'
+      : `${String(Math.floor(admissionMinutes / 60)).padStart(2, '0')}:${String(admissionMinutes % 60).padStart(2, '0')}`;
+  const admissionDetail = `Ingreso: ${admissionShort} · ${admissionTime} (Rapa Nui)`;
   // Especialidad como etiqueta de texto (rediseño 2026): ya no tiene columna propia; se muestra
   // junto a la fecha de ingreso y se edita desde el editor de Diagnóstico.
   const specialtyLabel = (data.specialty || '').trim();
@@ -164,20 +171,15 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
           isEmpty ? 'grid-cols-1' : 'grid-cols-[minmax(0,1fr)_84px]'
         )}
       >
-        {isSubRow && (
-          <div className="absolute left-[-15px] top-2 text-slate-300">
-            <ArrowRight size={14} />
-          </div>
-        )}
         <div className="col-start-1 row-start-1 flex min-w-0 items-center gap-1">
           {canEditInlineName ? (
             <div
               className={clsx(
-                'census-identity-name flex min-h-7 w-full min-w-0 flex-1 items-start gap-1 rounded border border-slate-200 bg-slate-50 p-0.5 text-[13px] font-semibold text-slate-700 transition-all duration-200 focus-within:border-medical-400 focus-within:ring-2 focus-within:ring-medical-100',
+                'census-identity-name flex w-full min-w-0 flex-1 items-start gap-1 rounded border border-slate-200 bg-slate-50 p-0.5 text-[13px] font-semibold text-slate-700 transition-all duration-200 focus-within:border-medical-400 focus-within:ring-2 focus-within:ring-medical-100',
                 hasNameValidationError && 'border-red-400 bg-red-50/50 text-red-700'
               )}
             >
-              <div className="group/name relative min-h-6 min-w-0 flex-1">
+              <div className="group/name relative min-h-4 min-w-0">
                 <DebouncedInput
                   type="text"
                   name="patientName"
@@ -291,7 +293,8 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
             {admissionShort && (
               <span
                 className="flex shrink-0 items-center gap-0.5 tabular-nums text-slate-400"
-                title="Fecha de ingreso"
+                title={admissionDetail}
+                aria-label={admissionDetail}
               >
                 {hasRutValue && <span className="text-slate-300">/</span>}
                 <span className="text-[9px] font-semibold uppercase tracking-wide text-slate-400/90">
@@ -303,6 +306,7 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
             <span className="flex min-w-0 items-center gap-1">
               {(hasRutValue || admissionShort) && <span className="text-slate-300">/</span>}
               <SpecialtyChip
+                censusDate={currentDateString}
                 specialty={specialtyLabel}
                 decision={data.specialtyAssignment}
                 cie10Code={data.cie10Code}
@@ -351,7 +355,7 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
           </div>
         )}
         {!isEmpty && (
-          <span className="census-identity-actions col-start-2 row-span-2 row-start-1 inline-flex w-[84px] shrink-0 items-center justify-end whitespace-nowrap">
+          <span className="census-identity-actions col-start-2 row-start-1 inline-flex w-[84px] shrink-0 self-start items-center justify-start whitespace-nowrap">
             <ClinicalPanelTrigger
               bedId={data.bedId}
               triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
@@ -362,15 +366,19 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
               admissionDate={data.admissionDate}
               censusDate={currentDateString}
             />
-            <PatientLaboratoryTrigger
-              patient={data}
-              triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
-              censusDate={currentDateString}
-            />
-            <PatientRadiologyTrigger
-              patient={data}
-              triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
-            />
+            {!isSubRow && (
+              <PatientLaboratoryTrigger
+                patient={data}
+                triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
+                censusDate={currentDateString}
+              />
+            )}
+            {!isSubRow && (
+              <PatientRadiologyTrigger
+                patient={data}
+                triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
+              />
+            )}
           </span>
         )}
       </div>

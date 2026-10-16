@@ -48,6 +48,15 @@ describe('source CUDYR bed evidence', () => {
       },
     ]);
   });
+  it.each(['CMA R1 Hospitalizados', 'Pabellón-R1 CMA'])(
+    'archives the full Eloísa name %s instead of its abbreviation',
+    name => {
+      expect(api.buildPlacements([{ ...bed, name, shortName: 'CMAR1' }])[0]).toMatchObject({
+        sourceBedLabel: name,
+        modality: 'cma',
+      });
+    }
+  );
   it('retains a stale nested assignment as historical evidence without claiming current occupancy', () => {
     expect(api.buildPlacements([{ ...bed, encounterId: 0 }])[0].currentAssignment).toBe(false);
   });

@@ -52,6 +52,7 @@ export const RAYEN_SYNC_ISSUE_SOURCES = [
   'vitals',
   'staffing',
   'cudyr',
+  'bed_history',
   'patch',
 ] as const;
 export type RayenSyncIssueSource = (typeof RAYEN_SYNC_ISSUE_SOURCES)[number];
@@ -288,6 +289,8 @@ export interface RayenSyncPerformanceDelta {
 /** Aggregate-only structural evidence retained when clinical enrichment can still complete. */
 export interface RayenSyncStructuralReviewEvidence {
   /** Explicit proof that the structural census reached an authoritative confirmed handoff. */
+  /** Source capture explicitly declared a complete census for this exact run. */
+  snapshotComplete?: boolean;
   structureConfirmed?: boolean;
   historicalCorrectionsPending: boolean;
   historicalCorrectionsRequireFreshCapture: boolean;

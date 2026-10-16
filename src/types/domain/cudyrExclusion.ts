@@ -29,6 +29,6 @@ export interface SaveCudyrExclusionRequest {
 export const CUDYR_EXCLUSION_LABELS: Record<CudyrExclusionReason, string> = {
   cma: 'Cama CMA',
   healthy_crib: 'Cuna RN sano',
-  not_hospitalized: 'Paciente fuera del hospital, pendiente de regularización',
-  under_eight_hours: 'Hospitalización menor de 8 horas',
+  not_hospitalized: 'UEA / fuera del servicio de hospitalización',
+  under_eight_hours: 'Hospitalización < 8 horas al corte de 01:00 del día siguiente',
 };

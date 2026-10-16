@@ -1,5 +1,4 @@
 import { extractPdfTextFromBuffer } from '@/services/pdf/pdfTextExtractionRuntime';
-import { resolveClinicalDayBounds } from '@/utils/clinicalDayScheduleUtils';
 import { normalizeRut } from '@/utils/rutUtils';
 import type { ConflictEntry } from '../contracts/censusImportDiff';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
@@ -39,13 +38,9 @@ import {
   type HistoricalCandidate,
 } from './historicalAdministrativeEvidence';
 import { isPavilionRecoveryLocation } from './pavilionRecoverySyncPolicy';
+import { censusNightCloseTimestamp } from './censusDayPolicy';
 
 const MAX_PARALLEL_REPORTS = 4;
-const secondBefore = (localTimestamp: string): string => {
-  const parsed = new Date(`${localTimestamp}Z`);
-  if (Number.isNaN(parsed.getTime())) return localTimestamp;
-  return new Date(parsed.getTime() - 1000).toISOString().slice(0, 19);
-};
 const mapWithConcurrency = async <T, R>(
   values: T[],
   worker: (value: T) => Promise<R>
@@ -147,8 +142,7 @@ export const reconstructHistoricalSnapshotAtClose = async (
   reportRows: EgresoReportRow[],
   dependencies: HistoricalSnapshotDependencies
 ): Promise<HistoricalSnapshotReconstruction> => {
-  const { nextDay, nightEnd } = resolveClinicalDayBounds(censusDay);
-  const cutoff = secondBefore(`${nextDay}T${nightEnd}:00`);
+  const cutoff = censusNightCloseTimestamp(censusDay);
   const eligible: HistoricalCandidate[] = [];
   const eligibleClinicalCribs: HistoricalClinicalCribCandidate[] = [];
   const conflicts: ConflictEntry[] = [];
@@ -171,7 +165,8 @@ export const reconstructHistoricalSnapshotAtClose = async (
   );
   const exactLocalEgresos = await verifyLocalOccupantsByExactEgreso(
     unreferencedLocal,
-    dependencies.lookupEgresos
+    dependencies.lookupEgresos,
+    dependencies
   );
   for (const occupant of exactLocalEgresos.unresolved) {
     conflicts.push(
@@ -391,7 +386,9 @@ export const reconstructHistoricalSnapshotAtClose = async (
   }
 
   return {
-    snapshot: { ...liveSnapshot, encounters, isComplete: false },
+    // Current assignments locate candidate episodes, but carry no historical timestamp.
+    // Only the reconstructed encounters may establish occupancy at the past handoff.
+    snapshot: { ...liveSnapshot, encounters, activeBedAssignments: [], isComplete: false },
     conflicts: deduplicateHistoricalConflicts(conflicts),
   };
 };

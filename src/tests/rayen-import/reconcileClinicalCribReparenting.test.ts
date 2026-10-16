@@ -27,7 +27,7 @@ const newborn = (): RayenEncounter =>
   makeEncounter({
     encounterId: 'NEWBORN',
     run: '222222222',
-    firstGivenName: 'Bebe',
+    firstGivenName: 'RN de Ana',
     birthDate: '2026-07-08',
     room: 'Cunas',
     bed: 'CH5C1',

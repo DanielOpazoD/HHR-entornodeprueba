@@ -3,8 +3,9 @@ import { BaseModal } from '@/components/shared/BaseModal';
 import type { CudyrReportRow } from '@/types/domain/cudyrReport';
 import { CUDYR_EXCLUSION_LABELS, type CudyrExclusionReason } from '@/types/domain/cudyrExclusion';
 import { saveCudyrExclusion } from '@/services/cudyr/cudyrExclusionService';
-import { cudyrControlStatus, cudyrEligibilityOrigin } from '@/services/cudyr/cudyrDailyControl';
-import { cudyrMomentLabel } from '@/services/cudyr/cudyrReportPresentation';
+import { cudyrEligibilityOrigin } from '@/services/cudyr/cudyrDailyControl';
+import { Info } from 'lucide-react';
+import { CudyrCaseInfo } from './CudyrCaseInfo';
 
 export const CudyrExclusionDialog = ({
   row,
@@ -17,6 +18,7 @@ export const CudyrExclusionDialog = ({
   onClose: () => void;
   onSaved: () => void;
 }) => {
+  const [showInfo, setShowInfo] = useState(false);
   const [reason, setReason] = useState<CudyrExclusionReason | ''>(row.exclusion?.reason || '');
   const [note, setNote] = useState('');
   const [confirmed, setConfirmed] = useState(false);
@@ -80,7 +82,8 @@ export const CudyrExclusionDialog = ({
       onClose={() => {
         if (!busy) onClose();
       }}
-      title="Revisar elegibilidad CUDYR"
+      title="Excepción CUDYR"
+      size="md"
       closeOnBackdrop={!busy}
       showCloseButton={!busy}
     >
@@ -88,40 +91,28 @@ export const CudyrExclusionDialog = ({
         <p className="font-semibold">
           {row.patientName} · {row.date} · {row.bedName || row.bedId}
         </p>
-        <div className="rounded-lg bg-slate-50 p-3">
-          <p>
-            {row.rut} · {row.diagnosis || 'Diagnóstico no informado'}
-          </p>
-          <p className="mt-2">
-            {cudyrControlStatus(row)} · {row.evaluation?.category || 'Sin categoría'}
-          </p>
-          <p className="text-xs text-slate-500">
-            {row.evaluation?.author || 'Autor no informado'} ·{' '}
-            {cudyrMomentLabel(row.evaluation?.recordedAt || '')}
-            <br />
-            Origen: {row.evaluation?.source || 'Sin resultado confirmado'}
-            <br />
-            Última consulta: {cudyrMomentLabel(row.lastCaptureAt)}
-          </p>
-          {row.warnings.map(warning => (
-            <p key={warning} className="mt-1 text-xs text-amber-800">
-              {warning}
-            </p>
-          ))}
-          <p>{row.eligibilityReason}</p>
-          <p className="mt-1 text-xs text-slate-500">{cudyrEligibilityOrigin(row)}</p>
-          {row.exclusion && (
-            <p className="mt-2">
-              Última revisión: {row.exclusion.updatedBy.name} ·{' '}
-              {cudyrMomentLabel(row.exclusion.updatedAt)}
-              <br />
-              {row.exclusion.note}
-            </p>
-          )}
+        <div className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2 text-xs">
+          <span>
+            {row.eligibility === 'no_elegible'
+              ? 'Excluido'
+              : row.eligibility === 'por_revisar'
+                ? 'Sin confirmar'
+                : 'Elegible'}{' '}
+            · {cudyrEligibilityOrigin(row)}
+          </span>
+          <button
+            type="button"
+            aria-label="Información del caso"
+            aria-expanded={showInfo}
+            onClick={() => setShowInfo(!showInfo)}
+            className="rounded-full p-1 text-slate-500 hover:bg-slate-200 focus-visible:outline focus-visible:outline-2"
+          >
+            <Info size={18} />
+          </button>
         </div>
-        <p>
-          La decisión afecta solo este paciente y este día. No elimina el CUDYR ni da de alta al
-          paciente.
+        {showInfo && <CudyrCaseInfo row={row} />}
+        <p className="text-xs text-slate-500">
+          Solo si falta una exclusión automática. Se aplica a este paciente y este día.
         </p>
         <fieldset disabled={busy || !canEdit || !row.clinicalEpisodeId} className="space-y-3">
           <label className="block">
@@ -144,31 +135,29 @@ export const CudyrExclusionDialog = ({
             </select>
           </label>
           <label className="block">
-            Observación que respalda la decisión
+            Observación breve
             <textarea
               required
               maxLength={500}
-              rows={3}
+              rows={2}
               value={note}
               onChange={e => setNote(e.target.value)}
               className="mt-1 w-full rounded-lg border p-2"
             />
           </label>
-          <p className="text-xs text-slate-500">
-            La falta de epicrisis no demuestra un alta. Si salió del hospital, indique la fecha y la
-            evidencia revisada.
-          </p>
           <label className="flex gap-2">
             <input
               type="checkbox"
               checked={confirmed}
               onChange={e => setConfirmed(e.target.checked)}
             />
-            Confirmo la revisión de este día y su efecto en el cumplimiento y el Excel.
+            Confirmo esta excepción para el día seleccionado.
           </label>
         </fieldset>
         {!row.clinicalEpisodeId && (
-          <p role="alert">Falta un episodio confirmado; actualice el censo antes de revisar.</p>
+          <p role="alert">
+            Falta un episodio confirmado; actualice el censo antes de agregar una excepción.
+          </p>
         )}
         {error && (
           <p role="alert" className="text-red-700">
@@ -187,7 +176,11 @@ export const CudyrExclusionDialog = ({
           }
           className="rounded-lg bg-teal-700 px-4 py-2 font-semibold text-white disabled:opacity-40"
         >
-          {busy ? 'Confirmando en HHR…' : 'Guardar revisión'}
+          {busy
+            ? 'Confirmando en HHR…'
+            : !reason && row.exclusion?.reason
+              ? 'Retirar excepción'
+              : 'Guardar excepción'}
         </button>
       </form>
     </BaseModal>

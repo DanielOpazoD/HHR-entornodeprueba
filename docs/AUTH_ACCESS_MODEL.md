@@ -281,3 +281,34 @@ Reglas operativas:
 Para soporte operativo rápido:
 
 - [Runbook Auth Access Incidents](./RUNBOOK_AUTH_ACCESS_INCIDENTS.md)
+
+## 14. Metadatos temporales del censo
+
+Las actualizaciones directas de enfermería y especialista requieren que `date`, el ID
+del documento y la fecha UTC de `dateTimestamp` coincidan. Un timestamp persistido no
+se reemplaza; si falta o es null, sólo puede repararse con un entero coherente con
+esa fecha y dentro de la ventana de edición del rol. El cliente conserva timestamps
+válidos al normalizar, aunque difieran de la medianoche de la zona horaria del dispositivo.
+Los timestamps nuevos o reparados se generan a medianoche en `Pacific/Easter` de la
+fecha del documento (05:00Z en verano; 06:00Z en invierno), independientemente del
+dispositivo. Conservan así el anclaje hospitalario de las ventanas rolling; la fecha
+UTC sigue coincidiendo con el ID. No se migran timestamps persistidos válidos.
+Metadatos existentes inconsistentes requieren reparación administrativa antes de editar;
+no se debe corregirlos asignando la hora actual a un registro histórico.
+
+La escritura productiva del especialista usa el callable con día clínico del calendario
+compartido: `Pacific/Easter`, cambio a las 08:00 hábiles y 09:00 fines de semana/feriados.
+Las reglas de escritura directa conservan sus ventanas rolling, no el calendario completo.
+
+La enfermería conserva el intervalo abierto desde 24 horas antes hasta 48 horas
+después del timestamp; el especialista directo conserva `[timestamp, timestamp + 24h)`.
+Son duraciones absolutas y no se cambian a ventanas 08:00/09:00: ese corte pertenece
+al callable clínico. En un cambio de horario, 24 horas rolling no equivalen necesariamente
+a volver a la misma hora local.
+
+Para un registro legacy inconsistente: confirmar ID y fecha del censo, conservar copia
+previa, y reparar sólo esos metadatos mediante la ruta administrativa autorizada,
+anclando al día correcto (nunca a la hora actual). Después, comprobar que la edición
+ordinaria respeta la ventana y que un usuario no administrador no puede cambiar el
+timestamp. Esta integración no ejecuta reparaciones ni acredita cuántos registros
+legacy existen: no se consultó un inventario clínico real.

@@ -61,7 +61,8 @@ interface UseRayenClinicalFillInput {
   patchDailyRecord: (
     patch: DailyRecordPatch,
     target: ClinicalFillPatchTarget,
-    writeGuard: RayenClinicalWriteGuard
+    writeGuard: RayenClinicalWriteGuard,
+    baseRecord: DailyRecord
   ) => Promise<unknown>;
   applyHistoricalCudyr: (
     encId: string,
@@ -242,10 +243,9 @@ export const useRayenClinicalFill = ({
             };
           }
           const attemptId = getRayenFillAttemptId();
-          const retriedBedIds = new Set(
-            collectClinicalFillCandidates(freshRecord, allowedClinicalEpisodeIds).map(
-              candidate => candidate.bedId
-            )
+          const clinicalCandidates = collectClinicalFillCandidates(
+            freshRecord,
+            allowedClinicalEpisodeIds
           );
 
           let summary: ClinicalFillSummary;
@@ -263,7 +263,7 @@ export const useRayenClinicalFill = ({
               record: freshRecord,
               runId: runPolicy.runId,
               applyPatch: operation =>
-                patchDailyRecord(operation.patch, operation.target, runPolicy).then(
+                patchDailyRecord(operation.patch, operation.target, runPolicy, freshRecord).then(
                   () => undefined
                 ),
               refreshRecord: () => loadDailyRecord(freshRecord.date),
@@ -276,10 +276,10 @@ export const useRayenClinicalFill = ({
                 signal: watchdog.signal,
                 allowedClinicalEpisodeIds,
                 pendingReads: retryRequest?.pendingReads,
-                ...createClinicalFillReaders(watchdog.signal),
+                ...createClinicalFillReaders(watchdog.signal, clinicalCandidates),
                 extractDeviceItems: extractDeviceTextItems,
                 applyPatch: async (patch, target) => {
-                  await patchDailyRecord(patch, target, runPolicy);
+                  await patchDailyRecord(patch, target, runPolicy, freshRecord);
                 },
                 persistenceStrategy,
                 ...historicalCudyrPersistence,
@@ -321,7 +321,8 @@ export const useRayenClinicalFill = ({
           summary = mergeClinicalRetrySummary(
             retryRequest?.previousSummary,
             summary,
-            retriedBedIds
+            new Set(clinicalCandidates.map(candidate => candidate.bedId)),
+            new Set(clinicalCandidates.map(({ patient }) => patient.clinicalEpisodeId!))
           );
 
           if (summary.errors.length > 0) {

@@ -24,6 +24,58 @@ Informe Estadístico de Egreso Hospitalario
 `;
 
 describe('report-only short-stay enrichment', () => {
+  it('identifies a later discharge by its own day when reconstructing an earlier census', async () => {
+    const lookupEgresos = vi
+      .fn()
+      .mockResolvedValue([{ run: row.run, encounterId: '143322', egreso: { id: 143322 } }]);
+    const result = await enrichReportOnlyDischarges([row], '2026-08-12', {
+      allReportDays: true,
+      lookupEgresos,
+      fetchStatisticalDischarge: vi.fn().mockResolvedValue({ base64: 'cGRm' }),
+      extractText: vi.fn().mockResolvedValue(statisticalText),
+    });
+    expect(lookupEgresos).toHaveBeenCalledWith([
+      { run: row.run, encounterId: '', dischargeDay: '2026-08-13' },
+    ]);
+    expect(result[0]).toMatchObject({
+      encounterId: '143322',
+      exactEpisodeVerification: 'verified',
+      correctedDay: '2026-08-13',
+    });
+  });
+
+  it('does not expand discharge queries beyond the selected day for a current census', async () => {
+    const lookupEgresos = vi.fn();
+    const result = await enrichReportOnlyDischarges([row], '2026-08-12', {
+      lookupEgresos,
+      fetchStatisticalDischarge: vi.fn(),
+    });
+    expect(lookupEgresos).not.toHaveBeenCalled();
+    expect(result).toEqual([row]);
+  });
+
+  it('keeps an exact next-morning PDF discharge in the prior nursing census', async () => {
+    const nextMorningText = statisticalText.replace(
+      '29 EGRESO 2 0 - 2 9 1 3 - 0 8 - 2 6',
+      '29 EGRESO 0 1 - 4 2 1 4 - 0 8 - 2 6'
+    );
+    const result = await enrichReportOnlyDischarges(
+      [{ ...row, fechaEgreso: '14-08-2026 03:42' }],
+      '2026-08-13',
+      {
+        lookupEgresos: vi
+          .fn()
+          .mockResolvedValue([{ run: row.run, encounterId: '143322', egreso: { id: 143322 } }]),
+        fetchStatisticalDischarge: vi.fn().mockResolvedValue({ base64: 'cGRm' }),
+        extractText: vi.fn().mockResolvedValue(nextMorningText),
+      }
+    );
+    expect(result[0]).toMatchObject({
+      exactEpisodeVerification: 'verified',
+      correctedDay: '2026-08-13',
+      correctedTime: '01:42',
+    });
+  });
   it('uses the range report only for discovery and persists the exact episode interval', async () => {
     const lookupEgresos = vi
       .fn()
@@ -242,6 +294,38 @@ describe('report-only short-stay enrichment', () => {
     });
 
     expect(result).toEqual([{ ...row, exactEpisodeVerification: 'unverified' }]);
+  });
+
+  it.each([
+    { run: '11.111.111-1' },
+    { encounterId: '143323' },
+    { egreso: { id: '143323', endPeriod: '2026-08-13T22:29:00-03:00' } },
+    { error: 'source unavailable' },
+  ])('rejects mismatching exact lookup before an unparseable PDF fallback: %j', async change => {
+    const fetchStatisticalDischarge = vi.fn().mockResolvedValue({ base64: 'cGRm' });
+    const result = await enrichReportOnlyDischarges([row], '2026-08-13', {
+      lookupEgresos: vi.fn().mockResolvedValue([
+        {
+          run: row.run,
+          encounterId: '143322',
+          egreso: { id: '143322', endPeriod: '2026-08-13T22:29:00-03:00' },
+          ...change,
+        },
+      ]),
+      fetchStatisticalDischarge,
+      extractText: vi.fn().mockResolvedValue('Formato no parseable'),
+      previousCensusCandidates: [
+        {
+          run: row.run,
+          patientName: row.patientName,
+          encounterId: '143322',
+          dischargeDay: '2026-08-13',
+          fromClinicalCrib: false,
+        },
+      ],
+    });
+    expect(result).toEqual([{ ...row, exactEpisodeVerification: 'unverified' }]);
+    expect(fetchStatisticalDischarge).not.toHaveBeenCalled();
   });
 
   it('rejects a parsed PDF that contradicts the expected RUN instead of falling back', async () => {

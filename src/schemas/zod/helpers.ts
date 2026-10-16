@@ -12,6 +12,12 @@ export const nullableOptional = <T extends z.ZodTypeAny>(schema: T) =>
     .optional()
     .transform(v => v ?? undefined);
 
+// Immutable validators shared by patient, census and movement contracts.
+export const StringSchema = z.string();
+export const OptionalStringSchema = StringSchema.optional();
+export const NullableOptionalStringSchema = nullableOptional(StringSchema);
+export const DefaultEmptyStringSchema = StringSchema.default('');
+
 export const nullishDefault = <T extends z.ZodTypeAny>(
   schema: T,
   createDefault: () => z.input<T>

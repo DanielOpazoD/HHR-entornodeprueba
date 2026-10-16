@@ -83,15 +83,28 @@ describe('authorized development-only braces exception', () => {
     const original = JSON.stringify(input);
     expect(evaluateBracesException(input)).toMatchObject({
       accepted: true,
-      expiresAt: '2026-10-15T00:00:00Z',
+      expiresAt: null,
       packages: expect.arrayContaining(['firebase-tools', 'braces']),
     });
     expect(JSON.stringify(input)).toBe(original);
   });
-  it.each(['2026-10-06T23:59:59Z', '2026-10-15T00:00:00Z', '2027-01-01T00:00:00Z'])(
-    'blocks outside the authorized window: %s',
+  it.each(['2026-10-06T23:59:59Z', 'not-a-date'])(
+    'blocks before authorization or with an invalid clock: %s',
     time => {
       expect(evaluateBracesException({ ...fixture(), now: Date.parse(time) }).accepted).toBe(false);
+    }
+  );
+  it.each(['2026-10-15T00:00:00Z', '2027-01-01T00:00:00Z'])(
+    'retains the exact authorized scope without a calendar deadline: %s',
+    time => {
+      expect(evaluateBracesException({ ...fixture(), now: Date.parse(time) })).toMatchObject({
+        accepted: true,
+        expiresAt: null,
+      });
+      expect(
+        evaluateBracesException({ ...fixture(), lockText: lockText + '\n', now: Date.parse(time) })
+          .accepted
+      ).toBe(false);
     }
   );
   it('blocks a changed lockfile, production reclassification, or braces in Functions', () => {
@@ -226,7 +239,10 @@ describe('authorized development-only braces exception', () => {
       expect(
         fs.readFileSync(path.join(root, 'reports/security/dependency-audit.md'), 'utf8')
       ).toContain('The vulnerability is NOT fixed');
-      expect(run('2026-10-15T00:00:00Z').status).toBe(1);
+      const afterFormerExpiry = run('2026-10-15T00:00:00Z');
+      expect(afterFormerExpiry.status).toBe(0);
+      expect(afterFormerExpiry.stderr).toContain('No calendar expiry');
+      expect(afterFormerExpiry.stderr).not.toContain('Expires null');
       const cleanFunctions = fs.readFileSync(path.join(root, 'functions/audit.json'), 'utf8');
       fs.writeFileSync(
         path.join(root, 'functions/audit.json'),

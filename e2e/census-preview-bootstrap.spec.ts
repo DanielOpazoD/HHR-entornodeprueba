@@ -1,3 +1,6 @@
+import moaCatalogFixture from '../src/tests/fixtures/moa/catalog.json' with { type: 'json' };
+import sharp from 'sharp';
+import { createHash } from 'node:crypto';
 import { checkCensusToolbarRefresh } from './fixtures/censusToolbarRefresh';
 import { test, expect, type Page } from '@playwright/test';
 import { buildCanonicalE2ERecord, MOCK_USERS } from './fixtures/auth';
@@ -208,6 +211,161 @@ const assertPreviewBootCompleted = async (page: Page, runtimeFailures: PreviewRu
 
 test.describe('Production Preview Bootstrap', () => {
   test.describe.configure({ timeout: 60_000 });
+  test.beforeEach(async ({ page }) => {
+    // Existing regression tests exercise the bundled fallback, independent of network/content releases.
+    await page.route('**/moa-library/**', route => route.fulfill({ status: 503, body: 'offline' }));
+  });
+
+  test('aligns newborn identity with normal beds and preserves the new chrome on reload', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1672, height: 941 });
+    const base = buildCanonicalE2ERecord(PREVIEW_BOOTSTRAP_DATE);
+    const beds = base.beds as Record<string, Record<string, unknown>>;
+    const newborn = {
+      ...beds.R1,
+      bedId: 'R1',
+      patientName: 'Rn DE PACIENTE VALIDACION',
+      firstName: '',
+      lastName: '',
+      secondLastName: '',
+      age: '1d',
+      rut: '',
+      identityStatus: 'provisional',
+      clinicalEpisodeId: 'synthetic-newborn-episode',
+      admissionDate: PREVIEW_BOOTSTRAP_DATE,
+      specialty: 'Pediatría',
+      bedMode: 'Cuna',
+    };
+    await seedPersistedSessionAndRecord(page, {
+      beds: {
+        ...beds,
+        R1: {
+          ...beds.R1,
+          patientName: SEEDED_PATIENT_NAME,
+          firstName: '',
+          lastName: '',
+          secondLastName: '',
+          age: '28',
+          clinicalEpisodeId: 'synthetic-mother-episode',
+          admissionDate: PREVIEW_BOOTSTRAP_DATE,
+          specialty: 'Ginecobstetricia',
+          clinicalCrib: newborn,
+        },
+        R2: {
+          ...beds.R2,
+          patientName:
+            'Paciente normal con un nombre largo y dos apellidos para comprobar su alineación',
+          age: '68',
+          clinicalEpisodeId: 'synthetic-wrapped-mother',
+          clinicalCrib: {
+            ...newborn,
+            bedId: 'R2',
+            patientName: 'rn de Madre',
+            clinicalEpisodeId: 'synthetic-second-newborn',
+          },
+        },
+      },
+    });
+    let releaseApp!: () => void;
+    const appReady = new Promise<void>(resolve => {
+      releaseApp = resolve;
+    });
+    await page.route(/\/assets\/index-[^/]+\.js$/, async route => {
+      await appReady;
+      await route.continue();
+    });
+    try {
+      await page.goto(`/census?date=${PREVIEW_BOOTSTRAP_DATE}`, { waitUntil: 'commit' });
+      await expect(page.locator('html')).toHaveAttribute('data-preboot-surface', 'app');
+      const background = await page.locator('html').evaluate(element => {
+        const style = getComputedStyle(element);
+        return { image: style.backgroundImage, size: style.backgroundSize };
+      });
+      expect(background.image).not.toContain('url(');
+      expect(background.image).toContain('linear-gradient(112deg');
+      expect(background.image).toContain('rgb(23, 62, 92)');
+      expect(background.size).toContain('52px');
+      expect(background.size).toContain('56px');
+      // Capture the actual preboot paint while the app chunk is held. Playwright's
+      // screenshot waits for document.fonts.ready, which depends on releasing it.
+      const cdp = await page.context().newCDPSession(page);
+      const preboot = await cdp.send('Page.captureScreenshot', { format: 'png' });
+      await cdp.detach();
+      await test.info().attach('new-navbar-preboot', {
+        body: Buffer.from(preboot.data, 'base64'),
+        contentType: 'image/png',
+      });
+    } finally {
+      releaseApp();
+    }
+    await expectSeededPatientVisible(page);
+    await page.evaluate(() => document.fonts.ready);
+    const parent = page.locator('[data-bed-id="R1"][data-testid="patient-row"]');
+    const crib = page.locator('tr[data-testid="patient-row"]').filter({ hasText: 'C-R1' });
+    await expect(crib.getByTestId('clinical-panel-trigger-R1-clinical-crib')).toBeVisible();
+    await expect(crib.locator('input[name="patientName"]')).toHaveValue(
+      'RN DE PACIENTE VALIDACION'
+    );
+    await expect(crib.locator('.lucide-arrow-right')).toHaveCount(0);
+    await expect(crib.locator('[data-testid^="patient-laboratory-trigger"]')).toHaveCount(0);
+    await expect(crib.locator('[data-testid^="patient-radiology-trigger"]')).toHaveCount(0);
+    const geometry = async (row: ReturnType<Page['locator']>) =>
+      row.evaluate(element => {
+        const cell = element.querySelector('.census-identity-cell')!;
+        const name = cell.querySelector('.census-identity-name')!;
+        const age = cell.querySelector(
+          '[aria-label="Edad del paciente, abre datos demográficos"]'
+        )!;
+        const clinical = cell.querySelector('[data-testid^="clinical-panel-trigger"]')!;
+        const origin = element.getBoundingClientRect();
+        const relative = (node: Element) => {
+          const box = node.getBoundingClientRect();
+          return { x: box.x - origin.x, y: box.y - origin.y };
+        };
+        return { name: relative(name), age: relative(age), clinical: relative(clinical) };
+      });
+    const motherGeometry = await geometry(parent);
+    const newbornGeometry = await geometry(crib);
+    for (const part of ['name', 'age', 'clinical'] as const) {
+      expect(Math.abs(newbornGeometry[part].y - motherGeometry[part].y), part).toBeLessThanOrEqual(
+        1
+      );
+    }
+    expect(newbornGeometry.age.x).toBeLessThan(newbornGeometry.clinical.x);
+    expect(Math.abs(newbornGeometry.clinical.x - motherGeometry.clinical.x)).toBeLessThanOrEqual(1);
+    const wrappedParent = page.locator('[data-bed-id="R2"][data-testid="patient-row"]');
+    const secondCrib = page.locator('tr[data-testid="patient-row"]').filter({ hasText: 'C-R2' });
+    expect(
+      (await wrappedParent.locator('.census-identity-name').boundingBox())!.height
+    ).toBeGreaterThan(28);
+    const wrappedGeometry = await geometry(wrappedParent);
+    const secondCribGeometry = await geometry(secondCrib);
+    expect(
+      Math.abs(wrappedGeometry.clinical.y - secondCribGeometry.clinical.y)
+    ).toBeLessThanOrEqual(1);
+    expect(
+      Math.abs(wrappedGeometry.clinical.x - secondCribGeometry.clinical.x)
+    ).toBeLessThanOrEqual(1);
+    await expect(secondCrib.locator('input[name="patientName"]')).toHaveValue('RN de Madre');
+    const nav = page.getByRole('navigation', { name: 'Navegación principal HHR' });
+    await expect(nav).toHaveCSS('background-color', 'rgb(32, 87, 119)');
+    await expect(nav).toHaveCSS('background-image', /linear-gradient/);
+    await expect(nav.locator('.hhr-navbar-landscape')).toHaveCount(0);
+    await test.info().attach('new-navbar-and-newborn', {
+      body: await page.screenshot(),
+      contentType: 'image/png',
+    });
+    await page.reload();
+    await expectSeededPatientVisible(page);
+    await expect(nav).toHaveCSS('background-color', 'rgb(32, 87, 119)');
+    await expect(nav).toHaveCSS('background-image', /linear-gradient/);
+    await expect(crib.getByTestId('clinical-panel-trigger-R1-clinical-crib')).toBeVisible();
+    await test.info().attach('new-navbar-after-reload', {
+      body: await page.screenshot(),
+      contentType: 'image/png',
+    });
+  });
 
   for (const width of [768, 1440]) {
     test(`preserves toolbar controls and geometry during refresh at ${width}px`, async ({
@@ -273,6 +431,10 @@ test.describe('Production Preview Bootstrap', () => {
     await admission.blur();
     await expect(admission).toHaveCSS('opacity', '0');
 
+    await page
+      .locator('[data-testid="patient-row"][data-bed-id="R1"]')
+      .getByTitle('Asignar especialidad', { exact: true })
+      .click();
     const specialty = page.getByTestId('specialty-actions').locator('summary');
     await specialty.click();
     const rules = page.getByRole('button', { name: 'Reglas automáticas', exact: true });
@@ -285,10 +447,14 @@ test.describe('Production Preview Bootstrap', () => {
     });
     expect(hitTest).toBe(true);
     await specialty.click();
+    await page.getByRole('button', { name: 'Cerrar selector de especialidad' }).click();
 
     await page.evaluate(() => window.scrollTo(0, 360));
     const header = page.getByTestId('census-table').locator('thead');
-    await expect.poll(async () => (await header.boundingBox())?.y).toBeCloseTo(96, 0);
+    const chromeHeight = await page
+      .locator('.hhr-date-strip')
+      .evaluate(element => element.getBoundingClientRect().bottom);
+    await expect.poll(async () => (await header.boundingBox())?.y).toBeCloseTo(chromeHeight, 0);
     await expect(header).toBeInViewport({ ratio: 1 });
     await assertPreviewBootCompleted(page, runtimeCollector.failures);
     runtimeCollector.detach();
@@ -309,8 +475,9 @@ test.describe('Production Preview Bootstrap', () => {
         bottom: element.getBoundingClientRect().bottom,
         scrollHeight: element.scrollHeight,
       }));
-      expect(geometry.height).toBe(56);
-      expect(geometry.scrollHeight).toBeLessThanOrEqual(56);
+      const expectedHeight = width < 640 ? 48 : 52;
+      expect(geometry.height).toBe(expectedHeight);
+      expect(geometry.scrollHeight).toBeLessThanOrEqual(expectedHeight);
       for (const name of ['Censo Diario', 'Entrega Turno Enfermería']) {
         const tab = topBar.getByRole('button', { name, exact: true });
         if (width === 768) {
@@ -325,6 +492,57 @@ test.describe('Production Preview Bootstrap', () => {
         const bounds = await tab.boundingBox();
         expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(geometry.bottom);
       }
+
+      // Full hit targets and panels must remain usable, not just their icons.
+      const utility = topBar.getByRole('button', { name: 'Abrir módulos utilitarios' });
+      await expect(utility).toBeInViewport({ ratio: 1 });
+      await utility.click();
+      const utilityPanel = page.getByRole('group', { name: 'Módulos adicionales' });
+      await expect(utilityPanel).toBeInViewport({ ratio: 1 });
+      await utilityPanel.getByRole('button', { name: 'Estadísticas' }).focus();
+      await page.keyboard.press('Escape');
+      await expect(utilityPanel).toBeHidden();
+      await expect(utility).toBeFocused();
+
+      if (width >= 768) {
+        const save = page.getByTitle('Opciones de guardado');
+        await save.click();
+        await page.getByRole('button', { name: /Descargar Excel/ }).click({ trial: true });
+        await save.click();
+        const email = page.getByTitle('Enviar censo');
+        await email.click();
+        // The synthetic session has no configured recipients. Validate the menu
+        // placement without enabling or sending a real census email.
+        const sendItem = page.getByRole('button', { name: /Enviar Archivo Excel/ });
+        await expect(sendItem).toBeInViewport({ ratio: 1 });
+        expect(
+          await sendItem.evaluate(element => {
+            const rect = element.getBoundingClientRect();
+            return element.contains(
+              document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)
+            );
+          })
+        ).toBe(true);
+        await email.click();
+        const year = page.getByRole('button', { name: '2026', exact: true });
+        await year.click();
+        await page.getByRole('button', { name: '2025', exact: true }).click({ trial: true });
+        await year.first().click();
+      }
+
+      const moaToggle = topBar.locator('[data-moa-toggle]');
+      await expect(moaToggle).toBeInViewport({ ratio: 1 });
+      await utility.click();
+      await moaToggle.click();
+      await expect(utilityPanel).toBeHidden();
+      await expect(page.getByRole('region', { name: 'Moa', exact: true })).toBeVisible();
+      await expect(moaToggle).toBeFocused();
+      await page.keyboard.press('Enter');
+      await expect(page.getByRole('region', { name: 'Moa', exact: true })).toBeHidden();
+      await page.keyboard.press('Enter');
+      await expect(page.getByRole('region', { name: 'Moa', exact: true })).toBeVisible();
+      await expect(page.getByRole('region', { name: 'Moa · Ayuda de HHR' })).toHaveCount(0);
+      await expectSeededPatientVisible(page);
 
       const options = page.getByRole('button', { name: 'Más opciones del censo' });
       const bounds = await options.boundingBox();
@@ -342,6 +560,206 @@ test.describe('Production Preview Bootstrap', () => {
       runtimeCollector.detach();
     });
   }
+
+  for (const width of [375, 768, 1440]) {
+    test(`persists the census companion visibility at ${width}px`, async ({ page }) => {
+      const runtimeCollector = createPreviewRuntimeFailureCollector(page);
+      await page.setViewportSize({ width, height: 900 });
+      await seedPersistedSessionAndRecord(page);
+      await page.goto(`/?date=${PREVIEW_BOOTSTRAP_DATE}`);
+      await expectSeededPatientVisible(page);
+      const toggle = page.locator('[data-moa-toggle]');
+      await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+      await expect(page.getByRole('region', { name: 'Moa', exact: true })).toHaveCount(0);
+      await toggle.click();
+      const companion = page.getByRole('region', { name: 'Moa', exact: true });
+      await expect(companion.getByRole('button', { name: 'Jugar con Moa' })).toHaveAttribute(
+        'data-gesture',
+        'idle'
+      );
+      const mascot = companion.getByTestId('moa-mascot');
+      await expect(mascot).toBeVisible();
+      await expect
+        .poll(() => mascot.evaluate((image: HTMLImageElement) => image.naturalWidth))
+        .toBe(1728);
+      const summary = await page.getByTestId('census-summary-switcher').boundingBox();
+      const area = await companion.boundingBox();
+      if (width >= 640) {
+        expect(area!.x).toBeGreaterThanOrEqual(summary!.x + summary!.width + 6);
+        expect(Math.abs(area!.y - summary!.y)).toBeLessThanOrEqual(1);
+      } else {
+        expect(area!.y).toBeGreaterThanOrEqual(summary!.y + summary!.height);
+      }
+      expect(area!.x + area!.width).toBeLessThanOrEqual(width);
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      await test.info().attach(`moa-companion-${width}px`, {
+        body: await page.screenshot(),
+        contentType: 'image/png',
+      });
+      await toggle.click();
+      await expect(companion).toBeHidden();
+      await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+      await page.reload();
+      await expectSeededPatientVisible(page);
+      await expect(companion).toBeHidden();
+      await toggle.click();
+      await expect(companion).toBeVisible();
+      await companion.getByRole('button', { name: 'Ocultar Moa', exact: true }).click();
+      await expect(toggle).toBeFocused();
+      await toggle.click();
+      await page.reload();
+      await expectSeededPatientVisible(page);
+      await expect(companion).toBeVisible();
+      await assertPreviewBootCompleted(page, runtimeCollector.failures);
+      runtimeCollector.detach();
+      await page.emulateMedia({ media: 'print' });
+      await expect(companion).toBeHidden();
+      await expect(toggle).toBeHidden();
+    });
+  }
+
+  test('keeps the census and visibility control usable without the optional mascot image', async ({
+    page,
+  }) => {
+    await page.route('**/images/moa/**', route => route.fulfill({ status: 404, body: '' }));
+    await seedPersistedSessionAndRecord(page);
+    await page.goto(`/?date=${PREVIEW_BOOTSTRAP_DATE}`);
+    await expectSeededPatientVisible(page);
+    await page.locator('[data-moa-toggle]').click();
+    const companion = page.getByRole('region', { name: 'Moa', exact: true });
+    await expect(companion.getByTestId('moa-mascot')).toHaveCount(0);
+    await companion.getByRole('button', { name: 'Ocultar Moa' }).click();
+    await expect(page.locator('[data-moa-toggle]')).toBeFocused();
+    await expectSeededPatientVisible(page);
+  });
+
+  test('plays eighteen consistent scenes, rests quietly and respects reduced motion', async ({
+    page,
+  }) => {
+    // This regression exercises the original offline fallback, not the independent live release.
+    await page.route('**/moa-library/**', route => route.fulfill({ status: 503, body: '' }));
+    await seedPersistedSessionAndRecord(page);
+    await page.goto(`/?date=${PREVIEW_BOOTSTRAP_DATE}`);
+    await expectSeededPatientVisible(page);
+    await page.locator('[data-moa-toggle]').click();
+    const companion = page.getByRole('region', { name: 'Moa', exact: true });
+    const character = companion.getByRole('button', { name: 'Jugar con Moa' });
+    const sprite = companion.getByTestId('moa-mascot');
+    await expect(companion.getByRole('button', { name: /Pausar|Reanudar/ })).toHaveCount(0);
+    await expect(character).toHaveAttribute('data-gesture', 'idle', { timeout: 6000 });
+    await expect(sprite).toHaveCSS('animation-name', 'none');
+    const scenes = [
+      'drink',
+      'juggle',
+      'care',
+      'sleep',
+      'yawn',
+      'pushups',
+      'roll',
+      'jump',
+      'run',
+      'wink',
+      'love',
+      'angry',
+      'mother',
+      'surf',
+      'wave',
+      'curious',
+      'stroll',
+      'happy',
+    ];
+    await character.evaluate(button => {
+      button.addEventListener(
+        'pointerdown',
+        event => {
+          button.dataset.pointerTarget = event.target === button ? 'button' : 'child';
+        },
+        { once: true }
+      );
+    });
+    for (const scene of scenes) {
+      await character.click();
+      await expect(character).toHaveAttribute('data-pointer-target', 'button');
+      await expect(character).toHaveAttribute('data-gesture', scene);
+      await expect(companion.locator(`[data-moa-scene="${scene}"]`)).toBeVisible();
+      await expect(companion.locator('.moa-scene-frames')).toHaveAttribute('data-ready', 'true');
+      await expect
+        .poll(() =>
+          companion
+            .locator('.moa-scene-frames')
+            .evaluate((image: HTMLImageElement) => image.naturalWidth)
+        )
+        .toBe(1728);
+      // Let the browser install the new CSS animation before seeking its frame.
+      await page.evaluate(
+        () =>
+          new Promise<void>(resolve => {
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+          })
+      );
+      // Freeze actual browser animations at a representative frame; no wall-clock sleep.
+      await character.evaluate((element, name) => {
+        for (const animation of element.getAnimations({ subtree: true })) {
+          animation.pause();
+          animation.currentTime = name === 'sleep' ? 4000 : 1500;
+        }
+      }, scene);
+      await test.info().attach(`moa-${scene}`, {
+        body: await companion.screenshot(),
+        contentType: 'image/png',
+      });
+    }
+    await page.evaluate(() => {
+      Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await expect(companion.locator('.moa-scene-frames')).toHaveCSS(
+      'animation-play-state',
+      'paused'
+    );
+    await page.evaluate(() => {
+      Reflect.deleteProperty(document, 'hidden');
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await character.click();
+    const activeFrames = companion.locator('.moa-scene-frames');
+    await expect(activeFrames).toHaveCSS('animation-name', 'moa-still');
+    const stillTransform = await activeFrames.evaluate(image => getComputedStyle(image).transform);
+    await activeFrames.evaluate(image => {
+      const clock = image.getAnimations()[0];
+      clock.currentTime = 700;
+    });
+    await expect(activeFrames).toHaveCSS('transform', stillTransform);
+    await expect(character).toHaveAttribute('data-gesture', 'idle', { timeout: 6000 });
+    await expect(sprite).toHaveCSS('animation-name', 'none');
+    await character.focus();
+    await page.keyboard.press('Escape');
+    await expect(companion).toBeHidden();
+    await expect(page.locator('[data-moa-toggle]')).toBeFocused();
+  });
+
+  test('keeps Moa in the document on a short viewport and excludes it from print', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 375, height: 340 });
+    await seedPersistedSessionAndRecord(page);
+    await page.goto(`/?date=${PREVIEW_BOOTSTRAP_DATE}`);
+    await expectSeededPatientVisible(page);
+    await page.locator('[data-moa-toggle]').click();
+    const companion = page.getByRole('region', { name: 'Moa', exact: true });
+    await companion.scrollIntoViewIfNeeded();
+    await expect(companion).toBeInViewport({ ratio: 1 });
+    await expect(page.getByRole('region', { name: 'Moa · Ayuda de HHR' })).toHaveCount(0);
+    await companion.getByRole('button', { name: 'Jugar con Moa' }).focus();
+    await page.keyboard.press('Escape');
+    await expect(companion).toBeHidden();
+    await expect(page.locator('[data-moa-toggle]')).toBeFocused();
+    await page.locator('[data-moa-toggle]').click();
+    await expect(companion).toBeVisible();
+    await page.emulateMedia({ media: 'print' });
+    await expect(companion).toBeHidden();
+  });
 
   test('loads persisted census state without falling into empty state after initial bootstrap', async ({
     page,
@@ -431,7 +849,14 @@ test.describe('Production Preview Bootstrap', () => {
     const statusHeader = page.getByRole('columnheader', { name: 'Estado clínico' });
     await expect(statusHeader).toBeEmpty();
     expect(await statusHeader.evaluate(element => element.clientWidth)).toBeLessThanOrEqual(40);
-    await expect(page.getByRole('button', { name: /viernes.*3 de abril de 2026/i })).toBeVisible();
+    const selectedDateLabel = new Intl.DateTimeFormat('es-CL', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC',
+    }).format(new Date(`${PREVIEW_BOOTSTRAP_DATE}T12:00:00Z`));
+    await expect(page.getByRole('button', { name: selectedDateLabel })).toBeVisible();
     await expect(page.getByTitle('Opciones de guardado')).toHaveClass(/bg-white/);
     await expect(page.getByTitle('Enviar censo')).toHaveClass(/bg-teal-600/);
     runtimeCollector.detach();
@@ -482,4 +907,183 @@ test.describe('Production Preview Bootstrap', () => {
       runtimeCollector.detach();
     });
   }
+  test('keeps the census usable after an unavailable companion chunk and recovers by confirmed reload', async ({
+    page,
+  }) => {
+    const companionChunk = /\/assets\/MoaCompanion-[^/]+\.js$/;
+    await page.route(companionChunk, route => route.abort());
+    await seedPersistedSessionAndRecord(page);
+    await page.goto(`/?date=${PREVIEW_BOOTSTRAP_DATE}`);
+    await expectSeededPatientVisible(page);
+    await page.locator('[data-moa-toggle]').click();
+    await expect(page.locator('#census-moa').getByRole('alert')).toHaveText(
+      'No se pudo mostrar Moa.'
+    );
+    page.once('dialog', dialog => dialog.dismiss());
+    await page.getByRole('button', { name: 'Recargar aplicación', exact: true }).click();
+    await expectSeededPatientVisible(page);
+    await page.getByRole('button', { name: 'Ocultar Moa', exact: true }).last().click();
+    await expect(page.locator('[data-moa-toggle]')).toBeFocused();
+    await page.locator('[data-moa-toggle]').click();
+    await expect(page.locator('#census-moa').getByRole('alert')).toBeVisible();
+    await page.unroute(companionChunk);
+    page.once('dialog', dialog => dialog.accept());
+    await Promise.all([
+      page.waitForEvent('domcontentloaded'),
+      page.getByRole('button', { name: 'Recargar aplicación', exact: true }).click(),
+    ]);
+    await expectSeededPatientVisible(page);
+    await expect(page.getByRole('region', { name: 'Moa', exact: true })).toBeVisible();
+  });
 });
+
+for (const width of [1440, 375]) {
+  test(`loads the independent Moa library and plays HD without a clinical reload at ${width}px`, async ({
+    page,
+  }) => {
+    test.setTimeout(60_000);
+    await page.setViewportSize({ width, height: 900 });
+    const catalog = structuredClone(moaCatalogFixture);
+    const hd = catalog.scenes.find(scene => scene.id === 'E08')!;
+    const colors = Array.from({ length: hd.frames }, (_, i) => [
+      30 + i * 7,
+      130 - i * 3,
+      150 + i * 4,
+    ]);
+    const rectangles = colors
+      .map(
+        (color, i) =>
+          `<rect x="${i * 576}" width="576" height="336" fill="rgb(${color.join(',')})"/>`
+      )
+      .join('');
+    const png = await sharp(
+      Buffer.from(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="${hd.frames * 576}" height="336">${rectangles}</svg>`
+      )
+    )
+      .png()
+      .toBuffer();
+    hd.sha256 = createHash('sha256').update(png).digest('hex');
+    hd.bytes = png.length;
+    const requests: string[] = [];
+    await page.route('**/moa-library/**', async route => {
+      requests.push(route.request().url());
+      expect(route.request().headers()['authorization']).toBeUndefined();
+      expect(route.request().headers()['cookie']).toBeUndefined();
+      expect(route.request().headers()['referer']).toBeUndefined();
+      if (route.request().url().endsWith('/catalog.json'))
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify(catalog),
+          headers: { 'access-control-allow-origin': '*' },
+        });
+      else
+        await route.fulfill({
+          contentType: 'image/png',
+          body: png,
+          headers: { 'access-control-allow-origin': '*' },
+        });
+    });
+    await seedPersistedSessionAndRecord(page);
+    await page.goto(`/?date=${PREVIEW_BOOTSTRAP_DATE}`);
+    await expectSeededPatientVisible(page);
+    expect(requests).toHaveLength(0);
+    await page.locator('[data-moa-toggle]').click();
+    const companion = page.getByRole('region', { name: 'Moa', exact: true });
+    const library = companion.getByRole('button', { name: 'Elegir animación de Moa' });
+    await expect(library).toHaveAttribute('title', '222 animaciones');
+    expect(requests).toHaveLength(1);
+    await library.click();
+    const select = page.getByLabel('Animación de Moa', { exact: true });
+    await expect(select.locator('option')).toHaveCount(222);
+    await expect(select).toBeFocused();
+    const menu = await page.getByRole('dialog', { name: 'Biblioteca de Moa' }).boundingBox();
+    expect(menu!.x).toBeGreaterThanOrEqual(0);
+    expect(menu!.x + menu!.width).toBeLessThanOrEqual(width);
+    await select.press('ArrowDown');
+    await select.press('ArrowDown');
+    await expect(select).toBeFocused();
+    await expect(select).toBeVisible();
+    expect(requests.filter(url => url.endsWith('.png'))).toHaveLength(0);
+    await select.selectOption('E08');
+    await expect(select).toBeVisible();
+    await select.press('Enter');
+    await expect(select).toHaveCount(0);
+    const frames = companion.locator('.moa-catalog-frames');
+    await expect(frames).toHaveAttribute('data-ready', 'true');
+    await expect(frames).toHaveCSS('image-rendering', 'auto');
+    await expect(frames).toHaveCSS('transition-duration', '0s');
+    await expect
+      .poll(() => frames.evaluate((img: HTMLImageElement) => img.naturalWidth))
+      .toBe(13824);
+    expect(requests.filter(url => url.endsWith('.png'))).toHaveLength(1);
+    const sequence = companion.locator('.moa-sequence');
+    const visiblePixel = async () =>
+      Array.from(
+        await sharp(await sequence.screenshot())
+          .extract({ left: 72, top: 42, width: 1, height: 1 })
+          .removeAlpha()
+          .raw()
+          .toBuffer()
+      );
+    // Select the transform clock, never a transient opacity transition from the surrounding app.
+    await frames.evaluate(img => {
+      const a = img
+        .getAnimations()
+        .find(
+          animation =>
+            animation.effect instanceof KeyframeEffect &&
+            animation.effect.getKeyframes().some(frame => frame.transform !== undefined)
+        )!;
+      a.pause();
+      a.currentTime = 0;
+    });
+    await expect.poll(visiblePixel).toEqual(colors[0]);
+    await frames.evaluate(
+      (img, time) => {
+        img.getAnimations()[0].currentTime = time;
+      },
+      hd.durations[0] + hd.durations[1] / 2
+    );
+    await expect.poll(visiblePixel).toEqual(colors[1]);
+    await frames.evaluate(img => img.getAnimations()[0].play());
+    await page.evaluate(() => {
+      Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await expect
+      .poll(() => frames.evaluate(img => img.getAnimations()[0]?.playState))
+      .toBe('paused');
+    await page.evaluate(() => {
+      Reflect.deleteProperty(document, 'hidden');
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await expect
+      .poll(() =>
+        frames.evaluate(img => {
+          const effect = img.getAnimations()[0]?.effect as KeyframeEffect | null;
+          return new Set(effect?.getKeyframes().map(frame => frame.transform)).size;
+        })
+      )
+      .toBe(1);
+    const still = await frames.evaluate(img => getComputedStyle(img).transform);
+    await frames.evaluate(img => {
+      img.getAnimations()[0].currentTime = 1000;
+    });
+    await expect(frames).toHaveCSS('transform', still);
+    await frames.evaluate(img => img.getAnimations()[0].finish());
+    await expect(companion.getByRole('button', { name: 'Jugar con Moa' })).toHaveAttribute(
+      'data-gesture',
+      'idle'
+    );
+    await library.click();
+    await select.focus();
+    await page.keyboard.press('Escape');
+    await expect(library).toBeFocused();
+    await expect(select).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    await expect(companion).toHaveCount(0);
+    await expectSeededPatientVisible(page);
+  });
+}

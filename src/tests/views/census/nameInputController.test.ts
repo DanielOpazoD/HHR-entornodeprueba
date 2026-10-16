@@ -4,6 +4,19 @@ import { DataFactory } from '@/tests/factories/DataFactory';
 import { resolveNameInputState } from '@/features/census/components/patient-row/nameInputController';
 
 describe('nameInputController', () => {
+  it.each(['rn', 'Rn', 'rN', 'RN'])(
+    'displays %s as RN without rewriting stored identity',
+    prefix => {
+      const data = DataFactory.createMockPatient('R1', {
+        patientName: `${prefix} de Madre`,
+        firstName: '',
+        lastName: '',
+        secondLastName: '',
+      });
+      expect(resolveNameInputState({ data }).fullName).toBe('RN de Madre');
+      expect(data.patientName).toBe(`${prefix} de Madre`);
+    }
+  );
   it('builds the full name from split identity fields when legacy name is empty', () => {
     const data = DataFactory.createMockPatient('R1', {
       patientName: '',

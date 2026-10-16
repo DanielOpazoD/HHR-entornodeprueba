@@ -3,10 +3,23 @@ import { resolveCensusSyncTarget } from '@/features/rayen-import/domain/historic
 import {
   resolveSyncReportRequest,
   syncReportRange,
+  toIsoReportDate,
 } from '@/features/rayen-import/hooks/reportDateHelpers';
 import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
 
 describe('Rayen sync report range', () => {
+  it.each(['2026-07-17T00:00:00Z', '2026-07-17T06:00:00Z'])(
+    'keeps the persisted UTC census day for timestamp %s',
+    timestamp => {
+      const record = { date: '2026-07-17', dateTimestamp: Date.parse(timestamp) } as DailyRecord;
+      expect(toIsoReportDate(record)).toBe('2026-07-17');
+      expect(resolveSyncReportRequest(record, new Date('2026-07-24T18:00:00Z')).range).toEqual({
+        dateStart: '2026-07-17',
+        dateEnd: '2026-07-25',
+      });
+    }
+  );
+
   it('covers every possible discharge from D-7 through the current clinical day', () => {
     const now = new Date('2026-07-24T18:00:00.000Z');
     const target = resolveCensusSyncTarget('2026-07-17', now);
@@ -28,8 +41,8 @@ describe('Rayen sync report range', () => {
   });
 
   it('rejects an unsupported target', () => {
-    const target = resolveCensusSyncTarget('2026-07-16', new Date('2026-07-24T18:00:00.000Z'));
-    expect(() => syncReportRange('2026-07-16', target)).toThrow('intervalo administrativo');
+    const target = resolveCensusSyncTarget('2026-07-25', new Date('2026-07-24T18:00:00.000Z'));
+    expect(() => syncReportRange('2026-07-25', target)).toThrow('intervalo administrativo');
   });
 
   it('resolves the target and range as one guarded request', () => {

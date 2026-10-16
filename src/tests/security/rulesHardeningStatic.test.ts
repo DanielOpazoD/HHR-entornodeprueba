@@ -63,14 +63,16 @@ describe('Security hardening static guards', () => {
     );
   });
 
-  it('uses robust admin check in setUserRole callable', () => {
+  it('authorizes setUserRole against the current configured admin role', () => {
     const authCallablePolicy = readProjectFile('functions/lib/auth/authCallablePolicy.js');
+    const authFunctionsFactory = readProjectFile('functions/lib/auth/authFunctionsFactory.js');
 
     // Regression guard for precedence bug: !context.auth.token.role === 'admin'
     expect(authCallablePolicy).not.toContain('!context.auth.token.role ===');
-    expect(authCallablePolicy).toContain(
-      "const hasAdminClaim = context.auth?.token?.role === 'admin'"
-    );
+    expect(authCallablePolicy).toContain("(await resolveRoleForEmail(email)) !== 'admin'");
+    expect(authCallablePolicy).not.toContain("context.auth?.token?.role === 'admin'");
+    expect(authFunctionsFactory).toContain('await assertRoleMutationAccess({');
+    expect(authFunctionsFactory).toContain('resolveRoleForEmail: helpers.resolveRoleForEmail');
   });
 
   it('restricts dailyRecords delete operation to admins only', () => {

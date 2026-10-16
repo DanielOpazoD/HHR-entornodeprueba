@@ -69,7 +69,6 @@ export const cudyrCaptureState = (
 
 /** Source egreso, its later entry timestamp, epicrisis and verified physical departure are distinct facts. */
 export const reconcileCudyrDischarge = (row: CudyrReportRow): CudyrReportRow => {
-  if (row.eligibility === 'no_elegible') return row;
   const reference =
     row.referenceAt && Number.isFinite(Date.parse(row.referenceAt))
       ? calendarStampInClinicalTimeZone(new Date(row.referenceAt))
@@ -86,8 +85,9 @@ export const reconcileCudyrDischarge = (row: CudyrReportRow): CudyrReportRow => 
   const warnings = [...row.warnings];
   const review = (reason: string) => ({
     ...row,
-    eligibility: 'por_revisar' as const,
-    eligibilityReason: reason,
+    eligibility:
+      row.eligibility === 'no_elegible' ? ('no_elegible' as const) : ('por_revisar' as const),
+    eligibilityReason: row.eligibility === 'no_elegible' ? row.eligibilityReason : reason,
     warnings: [...warnings, reason],
   });
   if (!actual && discharges.some(item => !item.date))
@@ -105,6 +105,12 @@ export const reconcileCudyrDischarge = (row: CudyrReportRow): CudyrReportRow => 
   if (!dateValid) return review('Fecha de egreso inválida.');
   const timeValid = /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(departure.time || '');
   const source = actual ? 'Alta real verificada' : 'Egreso del sistema';
+  // A manual correction alone is still a visible exception. If a formal departure
+  // independently resolves the case too, it remains hidden from the daily list.
+  const resolvedSystemDeparture =
+    !actual ||
+    reconcileCudyrDischarge({ ...row, correction: undefined, resolvedSystemDeparture: false })
+      .resolvedSystemDeparture === true;
   // The census night excludes all effective departures on/before its calendar day,
   // even if an evaluation was recorded earlier that day. Later days stay independent.
   if (departure.date <= row.date)
@@ -112,6 +118,7 @@ export const reconcileCudyrDischarge = (row: CudyrReportRow): CudyrReportRow => 
       ...row,
       eligibility: 'no_elegible',
       eligibilityReason: source + ': salida en el día censal o antes.',
+      resolvedSystemDeparture,
       warnings,
     };
   if (!reference) return row;
@@ -125,6 +132,7 @@ export const reconcileCudyrDischarge = (row: CudyrReportRow): CudyrReportRow => 
       ...row,
       eligibility: 'no_elegible',
       eligibilityReason: source + ' anterior o igual al momento de referencia.',
+      resolvedSystemDeparture,
       warnings,
     };
   return row;

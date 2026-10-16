@@ -5,7 +5,10 @@
 
 import React, { useRef } from 'react';
 import { CalendarClock, Search } from 'lucide-react';
-import { resolveShiftedMonthYear } from '@/components/layout/date-strip/dateStripNavigationController';
+import {
+  resolveShiftedMonthYear,
+  resolveMonthLandingDay,
+} from '@/components/layout/date-strip/dateStripNavigationController';
 import { DateStripDayButtons } from '@/components/layout/date-strip/DateStripDayButtons';
 import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
 import { useDateStripWheelNavigation } from '@/components/layout/date-strip/useDateStripWheelNavigation';
@@ -64,7 +67,7 @@ const DateStripMonthNavigator = React.lazy(() =>
 
 const DateStripActionFallback = ({ widthClassName }: { widthClassName: string }) => (
   <div
-    className={`h-[30px] shrink-0 rounded-lg border border-slate-100 bg-slate-50/70 ${widthClassName}`}
+    className={`hhr-toolbar-control shrink-0 rounded-lg border border-slate-100 bg-slate-50/70 ${widthClassName}`}
     aria-hidden="true"
   />
 );
@@ -189,7 +192,7 @@ export const DateStrip: React.FC<DateStripProps> = ({
 
     setSelectedMonth(nextMonthYear.month);
     setSelectedYear(nextMonthYear.year);
-    setSelectedDay(1);
+    setSelectedDay(resolveMonthLandingDay(nextMonthYear.year, nextMonthYear.month, currentModule));
   };
 
   const today = new Date();
@@ -200,11 +203,10 @@ export const DateStrip: React.FC<DateStripProps> = ({
     currentModule === 'NURSING_HANDOFF' || currentModule === 'MEDICAL_HANDOFF';
   const canShowRoleRestrictedActions = !isGuest && !specialistCensusAccess;
 
-  // "Ir a hoy" is census-only (where editing the wrong day corrupts a clinical
-  // record) and only when the viewed day is not the clinical today.
+  // Keep the census shortcut visible, including on today, so the toolbar
+  // retains its layout across day changes and refresh bootstrap.
   const isViewingClinicalToday = !clinicalToday || currentDateString === clinicalToday;
-  const showGoToToday =
-    currentModule === 'CENSUS' && !isViewingClinicalToday && Boolean(goToClinicalToday);
+  const showGoToToday = currentModule === 'CENSUS' && Boolean(goToClinicalToday);
 
   useDateStripWheelNavigation({ containerRef: daysContainerRef, navigateDays });
 
@@ -213,11 +215,11 @@ export const DateStrip: React.FC<DateStripProps> = ({
       data-app-top-bar
       inert={isLoading || undefined}
       aria-busy={isLoading || undefined}
-      className="bg-white border-b border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.06)] sticky top-[56px] z-40 print:hidden h-[40px] flex items-center"
+      className="hhr-date-strip bg-white border-b border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.06)] sticky z-40 print:hidden flex items-center"
       style={{ transform: 'translateZ(0)' }}
     >
-      <div className="max-w-screen-2xl mx-auto px-2 py-0.5 w-full flex items-center">
-        <div className="flex min-w-0 flex-1 items-center justify-center gap-2 max-md:justify-start max-md:overflow-x-auto">
+      <div className="hhr-date-strip-inner mx-auto px-3 sm:px-5 py-0.5 w-full flex items-center">
+        <div className="hhr-date-navigation flex min-w-0 flex-1 items-center gap-2 max-md:overflow-x-auto">
           <div className="flex items-center gap-1 shrink-0 min-w-0">
             {!isGuest && onToggleBookmarks && (
               <React.Suspense fallback={<BookmarkButton disabled showBookmarks={showBookmarks} />}>
@@ -309,7 +311,7 @@ export const DateStrip: React.FC<DateStripProps> = ({
               onChangeMonth={changeMonth}
               onSelectMonth={(month: number) => {
                 setSelectedMonth(month);
-                setSelectedDay(1);
+                setSelectedDay(resolveMonthLandingDay(selectedYear, month, currentModule));
               }}
             />
           </React.Suspense>
@@ -338,7 +340,8 @@ export const DateStrip: React.FC<DateStripProps> = ({
             <button
               onClick={goToClinicalToday}
               aria-label="Ir a hoy"
-              className="flex h-[30px] shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-slate-300 bg-white px-2.5 py-0 text-[10px] font-semibold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-800"
+              aria-current={isViewingClinicalToday ? 'date' : undefined}
+              className="hhr-toolbar-control flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-slate-200 bg-white px-2.5 py-0 font-semibold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-800"
               title="Volver al día de hoy"
             >
               <CalendarClock size={13} aria-hidden="true" />
@@ -353,7 +356,7 @@ export const DateStrip: React.FC<DateStripProps> = ({
               {!isHandoffModule && onOpenPatientSearch && (
                 <button
                   onClick={onOpenPatientSearch}
-                  className="flex h-[30px] items-center justify-center gap-1 px-3 py-0 bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-700 rounded-lg border border-slate-200 transition-colors text-[10px] font-semibold min-w-[96px]"
+                  className="hhr-toolbar-control flex items-center justify-center gap-1 px-3 py-0 bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-700 rounded-lg border border-slate-200 transition-colors font-semibold min-w-[96px]"
                   title="Buscar paciente (Ctrl+K)"
                 >
                   <Search size={13} />
@@ -364,7 +367,7 @@ export const DateStrip: React.FC<DateStripProps> = ({
               <React.Suspense
                 fallback={
                   <div
-                    className="h-[30px] w-[168px] shrink-0 rounded-lg border border-slate-100 bg-slate-50/70"
+                    className="hhr-toolbar-control w-[168px] shrink-0 rounded-lg border border-slate-100 bg-slate-50/70"
                     aria-hidden="true"
                   />
                 }

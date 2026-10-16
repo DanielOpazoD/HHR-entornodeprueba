@@ -1,3 +1,4 @@
+import { createCudyrIdentityResolver } from './cudyrNameReconciliation';
 import type { CudyrReportDataset, CudyrReportRow } from '@/types/domain/cudyrReport';
 import type { CudyrSupplementReport } from '@/types/domain/cudyrSupplement';
 import type {
@@ -17,13 +18,6 @@ export const CUDYR_COMPARISON_LABELS: Record<CudyrComparisonStatus, string> = {
   hhr_only: 'HHR sin contraparte cotejada',
 };
 const documentKey = (v: string) => v.replace(/[.\s-]/g, '').toUpperCase();
-const nameKey = (v: string) =>
-  v
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .toUpperCase();
 const sourceDate = (r: CudyrReportRow) => {
   const at = r.evaluation?.recordedAt || '';
   return /^\d{4}-\d{2}-\d{2}T.+(?:Z|[+-]\d{2}:\d{2})$/.test(at) && Number.isFinite(Date.parse(at))
@@ -35,13 +29,14 @@ const sourceDate = (r: CudyrReportRow) => {
 export const compareCudyrMonth = (
   data: CudyrReportDataset,
   categories?: CudyrSupplementReport,
-  discharges?: CudyrDischargeReport
+  discharges?: CudyrDischargeReport,
+  resolveIdentity?: ReturnType<typeof createCudyrIdentityResolver>
 ): CudyrComparisonItem[] => {
   const result: CudyrComparisonItem[] = [];
   const compared = new Set<string>();
   const sourceIdentities = new Map<string, number>();
-  const identityKey = (document: string, name: string) =>
-    JSON.stringify([documentKey(document), nameKey(name)]);
+  const identityKey =
+    resolveIdentity || createCudyrIdentityResolver(data, categories ? [categories] : []);
   for (const patient of categories?.patients || []) {
     const key = identityKey(patient.document, patient.patientName);
     sourceIdentities.set(key, (sourceIdentities.get(key) || 0) + 1);
@@ -53,18 +48,22 @@ export const compareCudyrMonth = (
   }
   const identity = (document: string, patientName: string) => {
     const rows = document ? byDocument.get(documentKey(document)) || [] : [];
-    const names = new Set(rows.map(r => nameKey(r.patientName)));
+    const names = new Set(rows.map(r => identityKey(r.rut, r.patientName)));
     const sourceNames = new Set(
       [...(categories?.patients || []), ...(discharges?.rows || [])]
         .filter(r => documentKey(r.document) === documentKey(document))
-        .map(r => nameKey(r.patientName))
+        .map(r => identityKey(r.document, r.patientName))
     );
     const ambiguous =
       !document ||
       !patientName ||
       names.size > 1 ||
       sourceNames.size > 1 ||
-      rows.some(r => !r.clinicalEpisodeId || nameKey(r.patientName) !== nameKey(patientName));
+      rows.some(
+        r =>
+          !r.clinicalEpisodeId ||
+          identityKey(r.rut, r.patientName) !== identityKey(document, patientName)
+      );
     return { rows, ambiguous };
   };
   for (const p of categories?.patients || [])

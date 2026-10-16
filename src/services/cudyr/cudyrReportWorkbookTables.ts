@@ -1,3 +1,4 @@
+import { cudyrResultOrigin } from './cudyrReportPresentation';
 import { addCudyrDataSheet } from './cudyrDataSheet';
 import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 import type { Workbook } from 'exceljs';
@@ -100,7 +101,7 @@ export const addCudyrReportTables = (workbook: Workbook, data: CudyrReportDatase
       row.evaluation?.dependencyScore,
       row.evaluation?.riskScore,
       row.evaluationCount,
-      row.evaluation?.source,
+      cudyrResultOrigin(row),
       row.evaluation?.sourceEvaluationId,
       row.evaluation?.recordedAt,
       row.evaluation?.author,
@@ -215,7 +216,7 @@ export const addCudyrReportTables = (workbook: Workbook, data: CudyrReportDatase
             item.typeId,
             item.value,
             row.date,
-            row.evaluation?.source,
+            cudyrResultOrigin(row),
           ])
         ),
     ]

@@ -36,6 +36,14 @@ No se debe leer, copiar, escribir ni eliminar información desde `hospital-hanga
 
 ## 📊 Flujo de Datos
 
+### Almacenamiento e índices
+
+La política de [control de almacenamiento](FIRESTORE_STORAGE_COST_CONTROL.md)
+conserva datos y auditoría, excluye de índices los contenidos que no se consultan
+por campo y activa el TTL de las copias de conflicto que ya vencen a las 48 horas.
+Los cambios del proyecto publicado se aplican como operación explícita de
+metadatos; el despliegue beta no cambia su destino ni sus permisos.
+
 ```
 ┌─────────────────────────────────────┐
 │      hhr-pruebas (BETA)             │

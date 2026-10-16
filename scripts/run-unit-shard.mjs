@@ -51,11 +51,19 @@ console.log(
 );
 
 const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
-const result = spawnSync(npx, ['vitest', 'run', ...passthroughArgs, ...shard.files], {
-  cwd: root,
-  stdio: 'inherit',
-  env: { ...process.env, CI: process.env.CI || 'true' },
-});
+const result = spawnSync(
+  npx,
+  ['vitest', 'run', '--config', 'vitest.unit-shard.config.ts', ...passthroughArgs],
+  {
+    cwd: root,
+    stdio: 'inherit',
+    env: {
+      ...process.env,
+      CI: process.env.CI || 'true',
+      HHR_UNIT_SHARD_FILES: JSON.stringify(shard.files),
+    },
+  }
+);
 
 if (result.error || result.signal) {
   console.error(`[unit-shard] Runner did not complete: ${result.error?.message || result.signal}`);

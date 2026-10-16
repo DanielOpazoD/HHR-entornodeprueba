@@ -18,10 +18,11 @@ export interface PatientFlowTimeWindow {
   notAfter?: string;
 }
 
-interface PatientFlowRow {
+export interface PatientFlowRow {
   changedAt: string;
   bedId: string | null;
   sourceBedLabel: string;
+  sourceLocation: string;
 }
 
 interface PatientFlowParseResult {
@@ -39,6 +40,7 @@ const toSortableLocalTimestamp = (date: string, time: string): string => {
 };
 
 const roomFromFlowLocation = (location: string): string | undefined =>
+  /\bCMA\s*(?:R[1-4]|N(?:EO)?[12]|H[1-6]C[12])\b/i.exec(location)?.[0] ??
   /\bHabitaci[oó]n\s*0*[1-6]\b/i.exec(location)?.[0] ??
   /\bRecuperaci[oó]n\s*0*[1-4]\b/i.exec(location)?.[0] ??
   /\bNeo\s*0*[12]\b/i.exec(location)?.[0];
@@ -53,7 +55,13 @@ const parsePatientFlowRows = (text: string): PatientFlowParseResult => {
     if (!row) continue;
 
     const sourceLocation = row[3];
-    const sourceBedLabel = sourceLocation.split(' ').at(-1) ?? '';
+    // Jasper prints the entire bed name (e.g. "BOX 4 UEA") in its final column.
+    // Match only that suffix: an earlier room label cannot replace an unknown final bed.
+    const sourceBedLabel =
+      /\b(?:Pabell[oó]n[-\s]*R[12]|P[-\s]*R[12])(?:\s+CMA)?$/i.exec(sourceLocation)?.[0] ??
+      /\bBOX\s*\d+(?:\s*UEA)?$/i.exec(sourceLocation)?.[0] ??
+      sourceLocation.split(' ').at(-1) ??
+      '';
     const changedAt = toSortableLocalTimestamp(row[1], row[2]);
     if (!changedAt) {
       hasMalformedMovementRow = true;
@@ -65,8 +73,10 @@ const parsePatientFlowRows = (text: string): PatientFlowParseResult => {
       bedId: mapRayenBed({
         room: roomFromFlowLocation(sourceLocation),
         bed: sourceBedLabel,
+        service: sourceLocation,
       }).bedId,
       sourceBedLabel,
+      sourceLocation,
     });
   }
 
@@ -117,7 +127,9 @@ export const latestPatientFlowPlacement = (
       row.bedId ? `bed:${row.bedId}` : `external:${row.sourceBedLabel.trim().toUpperCase()}`
     )
   );
-  return distinctPlacements.size === 1 ? latestRows[0] : null;
+  if (distinctPlacements.size !== 1) return null;
+  const { changedAt, bedId, sourceBedLabel } = latestRows[0];
+  return { changedAt, bedId, sourceBedLabel };
 };
 
 export const latestPatientFlowMovement = (
@@ -145,6 +157,23 @@ export const firstPatientFlowTimestamp = (text: string): string | null => {
 export const patientRunFromFlowReport = (text: string): string => {
   const runs = new Set(
     [...String(text || '').matchAll(/\bRUN\s*:\s*([0-9.kK-]+)/gi)]
+      .map(match => match[1].replace(/[^0-9kK]/g, '').toUpperCase())
+      .filter(Boolean)
+  );
+  return runs.size === 1 ? [...runs][0] : '';
+};
+
+/** Complete movement rows, including excluded/unknown locations: never bridge across them. */
+export const parsePatientFlowTimeline = (text: string): PatientFlowRow[] => {
+  const parsed = parsePatientFlowRows(text);
+  if (parsed.hasMalformedMovementRow) return [];
+  return parsed.rows;
+};
+
+/** Parental RUN is a separate identity, valid only for an explicitly known newborn episode. */
+export const maternalRunFromFlowReport = (text: string): string => {
+  const runs = new Set(
+    [...String(text || '').matchAll(/\bRUN\s+Materno\/progenitor\(a\)\s*:\s*([0-9.kK-]+)/gi)]
       .map(match => match[1].replace(/[^0-9kK]/g, '').toUpperCase())
       .filter(Boolean)
   );

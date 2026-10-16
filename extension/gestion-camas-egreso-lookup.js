@@ -27,7 +27,7 @@
   const dischargeDayOf = value => {
     const raw = String(value || '').trim();
     if (/^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:\d{2})$/i.test(raw))
-      return clinicalDayRuntime?.calendarDayAt(new Date(raw)) || '';
+      return Number.isNaN(Date.parse(raw)) ? '' : clinicalDayRuntime?.clinicalDayAt(new Date(raw)) || '';
     const iso = /^(\d{4}-\d{2}-\d{2})/.exec(raw);
     if (iso) return iso[1];
     const dmy = /^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/.exec(raw);

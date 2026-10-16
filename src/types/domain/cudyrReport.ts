@@ -6,7 +6,7 @@ import type { CudyrDischargeCorrection, CudyrDischargeAudit } from './cudyrDisch
 export type CudyrReportExportMode = 'statistics' | 'audit';
 
 export type CudyrReportGroup = 'media' | 'intermedia' | 'sin_grupo';
-export type CudyrReportModality = 'hospitalizacion' | 'cuna' | 'cma' | 'desconocida';
+export type CudyrReportModality = 'hospitalizacion' | 'cuna' | 'cma' | 'uea' | 'desconocida';
 export type CudyrReportEligibility = 'elegible' | 'no_elegible' | 'por_revisar';
 export type CudyrReportStatus =
   | 'registrado'
@@ -51,10 +51,39 @@ export interface CudyrReportMovement {
   epicrisisRegisteredAt: string;
 }
 
+export interface CudyrBedHistoryEntry {
+  key: string;
+  bed: string;
+  service: string;
+  modality: CudyrReportModality;
+  startAt: string;
+  endAt: string;
+  observedAt: string;
+  status: 'observada' | 'finalizada' | 'anulada' | 'contradictoria';
+}
+
 /** Exactly one computable row per source episode and census day; unidentified legacy rows stay separate. */
 export interface CudyrReportRow {
+  verifiedContext?: {
+    revision: number;
+    reviewedAt: string;
+    reviewedBy: string;
+    reason: string;
+    evidenceHashes: string[];
+    applicationTimingBasis: 'recorded_time' | 'assumed_before_0800';
+  };
   /** Derived from report generation time; an open application window is not a compliance failure. */
   applicationPending?: boolean;
+  monthlyEvidence?: {
+    reportId: string;
+    sourceDate: string;
+    checkedAt: string;
+    sourceRow?: number;
+    linkMethod?: 'episode_timeline';
+    identityMatch?: 'census_name_normalization';
+    sourcePatientName?: string;
+    state: 'found' | 'absent' | 'conflict';
+  };
   key: string;
   date: string;
   clinicalEpisodeId: string;
@@ -69,8 +98,15 @@ export interface CudyrReportRow {
   diagnosisCode: string;
   identitySource: string;
   identitySourceDate: string;
+  admissionEvidenceConflict?: boolean;
   admissionDate: string;
   admissionTime: string;
+  hospitalAdmissionAt?: string;
+  hospitalStayAdmissionAt?: string;
+  bedHistory?: CudyrBedHistoryEntry[];
+  resolvedSystemDeparture?: boolean;
+  hospitalAdmissionSource?: string;
+  evaluationCapturedAt?: string;
   bedId: string;
   bedName: string;
   service: string;
@@ -101,12 +137,29 @@ export interface CudyrReportRow {
 }
 
 export interface CudyrReportDayCoverage {
+  documentaryReconstruction?: { date: string; reason: string; evidenceHashes: string[] };
+  reconstructionApproval?: { approvedAt: string; approvedBy: string; reason: string };
+  censusVerification?: {
+    state: 'pending' | 'verified' | 'mismatch';
+    reportId?: string;
+    reportIds?: string[];
+    matched?: number;
+    nightShiftMatched?: number;
+    resultBacked?: number;
+    unlinkedResults?: number;
+    missing: number;
+    extra: number;
+    reason: string;
+  };
+  recordVersion?: string;
   date: string;
   state: 'disponible' | 'sin_censo' | 'error';
   lastSyncedAt: string;
   runId: string;
 }
 export interface CudyrReportDataset {
+  officialSnapshot?: { version: string; savedAt: string; packed?: string };
+  loadedAt?: string;
   schemaVersion: 1;
   from: string;
   to: string;

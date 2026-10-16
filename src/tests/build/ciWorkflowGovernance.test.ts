@@ -120,7 +120,7 @@ describe('CI workflow governance', () => {
     const workflow = readText('.github/workflows/ci-cd.yml');
 
     expect(workflow).toContain(
-      'run: npm run report:critical-coverage && node scripts/check-critical-coverage.mjs'
+      'run: node scripts/report-critical-coverage.mjs && node scripts/check-critical-coverage.mjs'
     );
     expect(workflow).toContain('name: critical-coverage');
     expect(workflow).toContain('path: reports/critical-coverage.*');

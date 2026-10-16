@@ -1,5 +1,5 @@
 import { getNextDay } from '@/utils/clinicalDayUtils';
-import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
+import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 
 export type CudyrPendingPhase = 'scheduled' | 'application_window' | 'overdue';
 
@@ -12,24 +12,9 @@ export interface CudyrPendingStatus {
 const CUDYR_WAITING_LABEL = 'Programado · turno noche';
 
 const rapaNuiClock = (now: Date): { day: string; minutes: number } => {
-  const parts = Object.fromEntries(
-    new Intl.DateTimeFormat('en-CA', {
-      timeZone: CLINICAL_TIME_ZONE,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hourCycle: 'h23',
-    })
-      .formatToParts(now)
-      .filter(part => part.type !== 'literal')
-      .map(part => [part.type, part.value])
-  );
-  return {
-    day: `${parts.year}-${parts.month}-${parts.day}`,
-    minutes: Number(parts.hour) * 60 + Number(parts.minute),
-  };
+  const { iso, hhmm } = calendarStampInClinicalTimeZone(now);
+  const [hours, minutes] = hhmm.split(':').map(Number);
+  return { day: iso, minutes: hours * 60 + minutes };
 };
 
 const formatIsoDay = (isoDay: string): string => {

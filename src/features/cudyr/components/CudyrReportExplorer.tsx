@@ -48,8 +48,13 @@ export default function CudyrReportExplorer({
   const totals = useMemo(() => cudyrReportTotals(rows), [rows]);
   const currentPage = Math.min(page, Math.max(0, Math.ceil(rows.length / 50) - 1));
   const selectedRow = data?.rows.find(row => row.key === selected);
+  const unverified =
+    busy ||
+    Boolean(error) ||
+    Boolean(data?.issues.length) ||
+    Boolean(data?.coverage.some(day => day.state === 'error'));
   const exportExcel = async (mode: CudyrReportExportMode) => {
-    if (!data || exporting || !supplements.ready) return;
+    if (!data || unverified || exporting || !supplements.ready) return;
     setExporting(true);
     setExportError('');
     try {
@@ -90,7 +95,7 @@ export default function CudyrReportExplorer({
           <div className="flex flex-col items-start gap-2">
             <button
               type="button"
-              disabled={!data || busy || exporting || !supplements.ready}
+              disabled={!data || unverified || exporting || !supplements.ready}
               onClick={() => void exportExcel('statistics')}
               className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-teal-950 disabled:opacity-50"
             >
@@ -99,7 +104,7 @@ export default function CudyrReportExplorer({
             </button>
             <button
               type="button"
-              disabled={!data || busy || exporting || !supplements.ready}
+              disabled={!data || unverified || exporting || !supplements.ready}
               onClick={() => void exportExcel('audit')}
               className="rounded-lg border border-teal-200 px-3 py-2 text-sm text-teal-100 disabled:opacity-50"
             >

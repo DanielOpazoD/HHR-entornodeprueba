@@ -39,6 +39,7 @@ export const usePatientRowOrbitalLauncherRuntime = ({
   const [isLauncherHovered, setIsLauncherHovered] = React.useState(false);
   const [isHoverGraceActive, setIsHoverGraceActive] = React.useState(false);
   const [position, setPosition] = React.useState<LauncherPosition | null>(null);
+  const positionRef = React.useRef<LauncherPosition | null>(null);
   const [rowId, setRowId] = React.useState<string | null>(null);
   const [activeLauncherRowId, setActiveLauncherRowId] = React.useState<string | null>(null);
   const [ownerLauncherRowId, setOwnerLauncherRowId] = React.useState<string | null>(null);
@@ -195,16 +196,21 @@ export const usePatientRowOrbitalLauncherRuntime = ({
     setRowId(resolvedRowId);
 
     const syncPosition = () => {
-      setPosition(
-        resolveLauncherPosition(
-          row,
-          launcherOffset,
-          wrapperWidth,
-          wrapperHeight,
-          triggerCenterX,
-          triggerCenterY
-        )
+      const nextPosition = resolveLauncherPosition(
+        row,
+        launcherOffset,
+        wrapperWidth,
+        wrapperHeight,
+        triggerCenterX,
+        triggerCenterY
       );
+      if (
+        positionRef.current?.left === nextPosition?.left &&
+        positionRef.current?.top === nextPosition?.top
+      )
+        return;
+      positionRef.current = nextPosition;
+      setPosition(nextPosition);
     };
 
     /**
@@ -234,6 +240,16 @@ export const usePatientRowOrbitalLauncherRuntime = ({
     };
 
     const handleGlobalMouseMove = (event: MouseEvent) => {
+      // A table row already handles its own pointer activation. Other rows only
+      // need to release hover; probing every row's bounds adds layout work per move.
+      const pointerRow =
+        event.target instanceof Element
+          ? event.target.closest('tr[data-testid="patient-row"]')
+          : null;
+      if (pointerRow) {
+        if (pointerRow !== row) deactivateRowHover();
+        return;
+      }
       const targetInsideRow = event.target instanceof Node && row.contains(event.target);
       const hoverAction = resolveRowHoverActionFromGlobalPointer({
         pointerX: event.clientX,

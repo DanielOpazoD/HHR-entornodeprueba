@@ -1,35 +1,172 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
+import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
 import { loadCudyrReport } from '@/services/cudyr/cudyrReportLoader';
+import { cudyrReportCache } from '@/services/cudyr/cudyrReportCache';
+import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
+import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
 
-export const useCudyrReport = (initialDate: string, loader = loadCudyrReport) => {
-  const [data, setData] = useState<CudyrReportDataset | null>(null);
-  const [busy, setBusy] = useState(false);
+const sessionScope = () => {
+  const owner = getStoredSessionOwnerKey();
+  const generation = getSessionGeneration();
+  return owner && generation ? `${owner}:${generation}` : '';
+};
+const dailyReadIsFresh = (
+  report:
+    | (CudyrReportDataset & { readStartedAt?: string; indicatorSyncAt?: string })
+    | null
+    | undefined,
+  day: string,
+  firstSyncAt: string
+) => {
+  const startedAt = Date.parse(
+    report?.readStartedAt || report?.loadedAt || report?.generatedAt || ''
+  );
+  return Boolean(
+    day &&
+    Number.isFinite(startedAt) &&
+    getClinicalCalendarDateISO(new Date(startedAt)) === day &&
+    (!firstSyncAt ||
+      report?.indicatorSyncAt === firstSyncAt ||
+      Date.parse(report?.readStartedAt || '') > Date.parse(firstSyncAt))
+  );
+};
+
+export const useCudyrReport = (
+  initialDate: string,
+  loader = loadCudyrReport,
+  revision?: { date: string; version: string },
+  refreshWindow = false,
+  dailyRead?: { day: string; firstSyncAt: string }
+) => {
+  const scope = sessionScope();
+  const dailyDay = dailyRead?.day || '';
+  const firstSyncAt = dailyRead?.firstSyncAt || '';
+  const cache = () => cudyrReportCache(loader, scope, Boolean(scope) && loader === loadCudyrReport);
+  const [data, setData] = useState<CudyrReportDataset | null>(() =>
+    scope ? cache().get(initialDate.slice(0, 7) + '-01', initialDate) || null : null
+  );
+  const dataScope = useRef(scope);
+  const [busy, setBusy] = useState(() => !dailyReadIsFresh(data, dailyDay, firstSyncAt));
   const [error, setError] = useState('');
   const active = useRef<AbortController | null>(null);
+  const visibleData = useRef(data);
+  visibleData.current = dataScope.current === scope ? data : null;
+  const revisions = useRef(new Map<string, string>());
+  const mountedRead = useRef(false);
   const load = useCallback(
-    async (from: string, to: string) => {
+    async (from: string, to: string, reuse = false) => {
       active.current?.abort();
       const request = new AbortController();
       active.current = request;
-      setBusy(true);
+      const store = cudyrReportCache(loader, scope, Boolean(scope) && loader === loadCudyrReport);
+      const cached = scope ? store.get(from, to) : undefined;
+      // Invalidate freshness, retaining the last good persisted copy if verification fails.
+      if (!reuse) store.requireVerification();
       setError('');
-      setData(null);
+      dataScope.current = scope;
+      const visible = visibleData.current;
+      const lastGood = cached || (visible?.from === from && visible.to === to ? visible : null);
+      setData(lastGood);
+      const loadedAt = Date.parse(cached?.loadedAt || cached?.generatedAt || '');
+      // The compact card keeps its daily snapshot; interactive verification remains unchanged.
+      const mustVerify =
+        !reuse ||
+        !cached ||
+        (dailyDay
+          ? !dailyReadIsFresh(cached, dailyDay, firstSyncAt)
+          : !mountedRead.current ||
+            cached.cacheVerificationRequired ||
+            Date.now() - loadedAt >= 120_000);
+      mountedRead.current = true;
+      if (!mustVerify) {
+        setBusy(false);
+        return;
+      }
+      setBusy(true);
       try {
-        const result = await loader(from, to, request.signal);
-        if (!request.signal.aborted && active.current === request) setData(result);
+        const readStartedAt = new Date().toISOString();
+        const loaded = await loader(from, to, request.signal);
+        const result = {
+          ...loaded,
+          readStartedAt,
+          // The completed sync was already observed before this request began.
+          // This proves ordering even when the clock serializes both times equally.
+          indicatorSyncAt: dailyDay ? firstSyncAt : undefined,
+          loadedAt: new Date().toISOString(),
+        };
+        if (!request.signal.aborted && active.current === request && sessionScope() === scope) {
+          if (scope) {
+            if (result.issues.length || result.coverage.some(day => day.state === 'error'))
+              store.requireVerification();
+            store.put(result);
+          }
+          const incomplete =
+            result.issues.length || result.coverage.some(day => day.state === 'error');
+          if (incomplete) {
+            setData(lastGood || result);
+            setError(
+              lastGood
+                ? 'Lectura incompleta de Firebase. Se conserva la copia anterior.'
+                : 'Lectura incompleta de Firebase.'
+            );
+          } else setData(result);
+        }
       } catch (caught) {
-        if (!request.signal.aborted && active.current === request)
+        if (!request.signal.aborted && active.current === request && sessionScope() === scope) {
+          store.requireVerification();
           setError(caught instanceof Error ? caught.message : 'No se pudo leer el reporte.');
+        }
       } finally {
         if (!request.signal.aborted && active.current === request) setBusy(false);
       }
     },
-    [loader]
+    [loader, scope, dailyDay, firstSyncAt]
   );
   useEffect(() => {
-    void load(initialDate.slice(0, 7) + '-01', initialDate);
+    revisions.current.clear();
+    mountedRead.current = false;
+  }, [scope, loader]);
+  const revisionDate = revision?.date || '';
+  const revisionVersion = revision?.version || '';
+  useEffect(() => {
+    const store = cudyrReportCache(loader, scope, Boolean(scope) && loader === loadCudyrReport);
+    if (revisionDate && revisionVersion) {
+      const previous = revisions.current.get(revisionDate);
+      // Approved months freeze the repaired census. Their documentary revisions
+      // are checked by the server probe, not by later dailyRecord refreshes.
+      const official = store.get(revisionDate.slice(0, 7) + '-01', revisionDate)?.officialSnapshot;
+      if (
+        !official &&
+        ((previous !== undefined && previous !== revisionVersion) ||
+          store.hasDifferentRevision(revisionDate, revisionVersion))
+      )
+        store.requireVerification();
+      revisions.current.set(revisionDate, revisionVersion);
+    }
+    void load(initialDate.slice(0, 7) + '-01', initialDate, true);
     return () => active.current?.abort();
-  }, [initialDate, load]);
-  return { data, busy, error, load };
+  }, [initialDate, load, revisionDate, revisionVersion, loader, scope]);
+  // Crossing the application deadline requires a real read, not a newer label on old data.
+  useEffect(() => {
+    if (!refreshWindow) return;
+    const attempted = new Set<string>();
+    const timer = window.setInterval(() => {
+      const current = visibleData.current;
+      if (!current) return;
+      const newlyClosed = current.coverage.filter(
+        day =>
+          resolveCudyrPendingStatus(day.date, new Date(current.generatedAt)).phase !== 'overdue' &&
+          resolveCudyrPendingStatus(day.date).phase === 'overdue' &&
+          !attempted.has(day.date)
+      );
+      if (newlyClosed.length) {
+        newlyClosed.forEach(day => attempted.add(day.date));
+        void load(current.from, current.to);
+      }
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [refreshWindow, load]);
+  return { data: dataScope.current === scope ? data : null, busy, error, load };
 };

@@ -212,7 +212,8 @@ describe('CensusStaffHeader', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Detalle TENS' }));
     mockedUseDailyRecordData.mockReturnValue({ record: { date: '2026-02-16' } });
     mockedUseDailyRecordStaff.mockReturnValue({ date: '2026-02-16' });
-    rerender(<CensusStaffHeader stats={null} />);
+    // Mocked hooks do not publish context updates; change the actual date prop too.
+    rerender(<CensusStaffHeader stats={null} selectedDate="2026-02-16" />);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     await act(async () => {
       staffModule.pending = null;
@@ -260,54 +261,11 @@ describe('CensusStaffHeader', () => {
     expect(screen.queryByTestId('summary-card')).not.toBeInTheDocument();
   });
 
-  it('keeps the scale filter beside the census summary without a dedicated row', async () => {
-    mockedUseDailyRecordBeds.mockReturnValue({
-      R1: DataFactory.createMockPatient('R1', {
-        patientName: 'Paciente con escala pendiente',
-        evaluationScores: {
-          braden: {
-            code: 'BRADEN',
-            name: 'Escala de riesgo UPP (Braden)',
-            encounterEventId: 1,
-            total: 17,
-            severity: 'Riesgo bajo',
-            recordedDate: '2026-02-01',
-            recordedAt: '01-02-2026 08:00',
-          },
-        },
-      }),
-    });
-
+  it('keeps specialty and scale controls out of the staffing toolbar', async () => {
     render(<CensusStaffHeader stats={DataFactory.createMockStatistics()} />);
-
-    const rayen = await screen.findByTestId('rayen-operations-bar');
-    const scales = screen.getByTestId('census-attention-bar');
-    expect(rayen).not.toContainElement(scales);
-    expect(screen.getByTestId('census-staff-and-sync')).toContainElement(scales);
-  });
-
-  it('keeps scale surveillance available in read-only mode without showing synchronization', async () => {
-    mockedUseDailyRecordBeds.mockReturnValue({
-      R1: DataFactory.createMockPatient('R1', {
-        patientName: 'Paciente con escala pendiente',
-        evaluationScores: {
-          downton: {
-            code: 'DOWNTON',
-            name: 'Escala de riesgo de caídas (Downton)',
-            encounterEventId: 2,
-            total: 3,
-            severity: 'Riesgo alto',
-            recordedDate: '2026-02-01',
-            recordedAt: '01-02-2026 08:00',
-          },
-        },
-      }),
-    });
-
-    render(<CensusStaffHeader stats={DataFactory.createMockStatistics()} readOnly={true} />);
-
-    expect(await screen.findByTestId('census-attention-bar')).toBeInTheDocument();
-    expect(screen.queryByTestId('rayen-operations-bar')).not.toBeInTheDocument();
+    expect(await screen.findByTestId('rayen-operations-bar')).toBeInTheDocument();
+    expect(screen.queryByTestId('census-attention-bar')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('specialty-actions')).not.toBeInTheDocument();
   });
 
   it('offers the spreadsheet action directly from the selected census day', () => {

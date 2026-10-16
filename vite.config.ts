@@ -12,6 +12,7 @@ import { minsalSharedInteropPlugin } from './scripts/config/minsalSharedInteropP
 import { netlifyFunctionDevServerPlugin } from './scripts/config/netlifyFunctionDevServer';
 import { bindReleaseEvidenceToBuild } from './scripts/config/releaseEvidenceRuntimeAsset';
 import { versionRuntimePlugin } from './scripts/config/versionRuntimePlugin';
+import { startupPublicAssetsPlugin } from './scripts/config/startupPublicAssetsPlugin';
 
 const RELEASE_EVIDENCE_ASSET = 'release-evidence.json';
 const RELEASE_EVIDENCE_SOURCE = path.resolve(
@@ -176,6 +177,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     plugins: [
+      startupPublicAssetsPlugin(),
       extensionDownloadPlugin(__dirname),
       versionRuntimePlugin(buildVersionInfo),
       releaseEvidenceRuntimePlugin(),
@@ -200,10 +202,23 @@ export default defineConfig(({ mode }) => {
           // precache. They remain available as normal on-demand assets, while
           // first-run PWA install stays focused on app shell/critical runtime.
           globIgnores: [
+            // Optional mascot artwork is cached on use by the existing image route.
+            '**/images/moa/**',
+            // Opt-in decorative scenes; no clinical dependency lives in this chunk.
+            '**/assets/MoaCompanion-*.js',
+            '**/assets/MoaCompanion-*.css',
             '**/downloads/**',
             '**/docs/**',
             '**/templates/**',
             '**/images/forms/**',
+            // MEDIF is opened explicitly and needs the original PDF under docs/,
+            // already fetched on demand. Keep its editor under the same policy;
+            // the library's offline calculators and transfer cover stay cached.
+            '**/assets/MedifTool-*.js',
+            '**/assets/MedifTool-*.css',
+            // The additional PDF editors use the same explicit-load policy as MEDIF.
+            '**/assets/ClinicalFormTool-*.js',
+            '**/assets/ClinicalFormTool-*.css',
             '**/vendor/exceljs.bare.min.js',
             '**/assets/exceljs.min-*.js',
             '**/assets/pdf.worker-*.mjs',
@@ -228,8 +243,19 @@ export default defineConfig(({ mode }) => {
             // Contextual CUDYR reports read server-authoritative history and cannot
             // load offline. Keep the new explorer and workbook on demand as well.
             '**/assets/CudyrReportExplorer-*.js',
+            // Optional census indicator uses the same on-demand historical reader.
+            '**/assets/CudyrMonthlyIndicator-*.js',
+            '**/assets/useCudyrReport-*.js',
             '**/assets/cudyrReportWorkbook-*.js',
+            // The simplified Excel uses the same on-demand ExcelJS runtime.
+            '**/assets/cudyrEssentialWorkbook-*.js',
+            '**/assets/cudyrSourceWorkbook-*.js',
             '**/assets/cudyrReportLoader-*.js',
+            // Shared historical reconstruction split from the report loader; same on-demand policy.
+            '**/assets/cudyrReportModel-*.js',
+            // Shared report facts and recovery require a verified Firebase/Eloisa read.
+            '**/assets/cudyrReportFacts-*.js',
+            '**/assets/publicCudyrPolicyRecovery-*.js',
             // Rayen enrichment only runs while Eloisa is connected, so it is
             // an on-demand online workflow rather than PWA install payload.
             '**/assets/applyClinicalEnrichmentBatch-*.js',

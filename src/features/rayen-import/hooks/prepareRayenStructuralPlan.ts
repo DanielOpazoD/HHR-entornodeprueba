@@ -43,9 +43,13 @@ export const prepareRayenStructuralPlan = async ({
   // Structural reconstruction depends on live Eloisa evidence, so keep its comparatively large
   // resolver graph out of the offline census shell and load it only when a sync is requested.
   const { replanRayenStructure } = await import('./replanRayenStructure');
-  const { fetchPatientFlowReport, fetchStatisticalDischarge, lookupEgresos } =
-    evidenceClient ?? createRayenSnapshotEvidenceClient(isHistoricalDay, counters);
   const { enrichReportOnlyDischarges } = await import('../domain/enrichReportOnlyDischarges');
+  const {
+    fetchPatientFlowReport,
+    fetchStatisticalDischarge,
+    lookupEgresos,
+    lookupHospitalizations,
+  } = evidenceClient ?? createRayenSnapshotEvidenceClient(isHistoricalDay, counters);
   const {
     hasRecordedMovement,
     occupiedBedsByRun,
@@ -74,11 +78,15 @@ export const prepareRayenStructuralPlan = async ({
       fetchStatisticalDischarge,
       lookupEgresos,
       previousCensusCandidates,
+      allReportDays: isHistoricalDay,
+      lookupHospitalizations,
       extractText: extractStatisticalText,
       alreadyApplied: (row, exactCandidate) => {
         const run = normalizeRut(row.run);
-        const episode = exactCandidate?.encounterId;
-        if (!run || !hasRecordedMovement(baseRecord, run, episode)) return false;
+        const episode = row.encounterId || exactCandidate?.encounterId;
+        // A recorded RUN alone cannot identify the bulk row's hospitalization. Complete its
+        // episode from Eloísa before reconstruction, including when HHR already has an alta.
+        if (!run || !episode || !hasRecordedMovement(baseRecord, run, episode)) return false;
         return (
           !findOccupiedBed(occupied, row.run, episode ?? '') &&
           !findOccupiedClinicalCrib(occupiedCribs, row.run, episode ?? '')

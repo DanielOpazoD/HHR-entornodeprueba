@@ -1,0 +1,36 @@
+@startuml 01-contexto
+!include  https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+!include style.puml
+LAYOUT_TOP_DOWN()
+title HHR · Contexto del sistema (C4 / nivel 1)
+
+Person(staff, "Personal hospitalario", "Medicina, enfermería y administración")
+Person(linkUser, "Usuario de enlace público", "Firma de entrega o captura móvil mediante enlace / PIN")
+System(hhr, "HHR clínico", "Censo y camas; entregas; documentos; laboratorio; escalas; recetas y respaldos")
+System_Ext(rayen, "Rayen / Eloísa", "Ficha Médico y Gestión de Camas; captura y operaciones mediante extensión")
+System_Ext(syslab, "Syslab", "Exámenes e informes de laboratorio")
+System_Ext(mmrad, "MMRAD", "Resultados e informes radiológicos")
+System_Ext(google, "Servicios Google", "Drive, Sheets, Apps Script y Gmail")
+System_Ext(ai, "Proveedores de IA", "Gemini, OpenAI, Anthropic o DeepSeek; según configuración")
+System_Ext(bot, "Bot de WhatsApp", "Servidor externo configurado para mensajería")
+System(overtime, "Horas Extras · aplicación independiente", "Registro de turnos y Excel; cuentas, sesiones y Firebase propios")
+
+Rel(staff, hhr, "Trabaja con los módulos clínicos", "Navegador")
+Rel(linkUser, hhr, "Usa el flujo del enlace recibido", "Navegador")
+Rel(hhr, rayen, "Captura censo / clínica y ejecuta flujos", "Extensión Chrome MV3")
+Rel(hhr, syslab, "Consulta exámenes e informes", "Extensión; proxy alternativo")
+Rel(hhr, mmrad, "Consulta informes", "Netlify Function")
+Rel(hhr, google, "Exporta y envía documentos", "APIs / Apps Script", $tags="optional")
+Rel(hhr, ai, "Solicita asistencia clínica / documental", "Netlify Functions", $tags="optional")
+Rel(hhr, bot, "Solicita mensajería", "Proxy Netlify", $tags="optional")
+Rel(staff, overtime, "Registra turnos y descarga planillas", "Sitio independiente")
+
+Lay_R(hhr, overtime)
+note right of overtime
+  Comparte repositorio, no runtime clínico.
+  No se dibuja conexión HHR ↔ Horas Extras:
+  no usa su login ni su Firebase.
+end note
+SHOW_LEGEND()
+@enduml

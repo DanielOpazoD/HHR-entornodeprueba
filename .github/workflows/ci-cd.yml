@@ -127,10 +127,63 @@ jobs:
           npm run check:serverless-runtime-governance
           npm --prefix functions run check:clinical-pdf-runtime
 
+  critical-coverage-shards:
+    name: critical-coverage-shard-${{ matrix.shard }}
+    runs-on: ubuntu-latest
+    needs: [ci-scope]
+    if: needs.ci-scope.outputs.scope == 'full'
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      - name: Setup CI dependencies
+        uses: ./.github/actions/setup-ci-dependencies
+      - name: Run critical coverage shard
+        run: node scripts/run-critical-coverage.mjs --shard=${{ matrix.shard }}/4
+      - name: Upload complete shard 1 report
+        if: matrix.shard == 1
+        uses: actions/upload-artifact@v7
+        with:
+          name: critical-coverage-shard-1
+          path: reports/critical-coverage-blobs/shard-1.json
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 7
+      - name: Upload complete shard 2 report
+        if: matrix.shard == 2
+        uses: actions/upload-artifact@v7
+        with:
+          name: critical-coverage-shard-2
+          path: reports/critical-coverage-blobs/shard-2.json
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 7
+      - name: Upload complete shard 3 report
+        if: matrix.shard == 3
+        uses: actions/upload-artifact@v7
+        with:
+          name: critical-coverage-shard-3
+          path: reports/critical-coverage-blobs/shard-3.json
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 7
+      - name: Upload complete shard 4 report
+        if: matrix.shard == 4
+        uses: actions/upload-artifact@v7
+        with:
+          name: critical-coverage-shard-4
+          path: reports/critical-coverage-blobs/shard-4.json
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 7
+
   critical-coverage-report:
     name: critical-coverage-report
     runs-on: ubuntu-latest
-    needs: [ci-scope]
+    needs: [ci-scope, critical-coverage-shards]
     if: needs.ci-scope.outputs.scope == 'full'
 
     steps:
@@ -140,8 +193,32 @@ jobs:
       - name: Setup CI dependencies
         uses: ./.github/actions/setup-ci-dependencies
 
+      - name: Download same-run shard 1 report
+        uses: actions/download-artifact@v7
+        with:
+          name: critical-coverage-shard-1
+          path: reports/critical-coverage-blobs
+      - name: Download same-run shard 2 report
+        uses: actions/download-artifact@v7
+        with:
+          name: critical-coverage-shard-2
+          path: reports/critical-coverage-blobs
+      - name: Download same-run shard 3 report
+        uses: actions/download-artifact@v7
+        with:
+          name: critical-coverage-shard-3
+          path: reports/critical-coverage-blobs
+      - name: Download same-run shard 4 report
+        uses: actions/download-artifact@v7
+        with:
+          name: critical-coverage-shard-4
+          path: reports/critical-coverage-blobs
+
+      - name: Merge coverage without rerunning tests
+        run: node scripts/run-critical-coverage.mjs --merge-shards
+
       - name: Generate and enforce critical coverage artifact
-        run: npm run report:critical-coverage && node scripts/check-critical-coverage.mjs
+        run: node scripts/report-critical-coverage.mjs && node scripts/check-critical-coverage.mjs
 
       - name: Upload critical coverage artifact
         if: always()
@@ -152,10 +229,14 @@ jobs:
           retention-days: 30
 
   quality-static-base:
-    name: quality-static-base
+    name: quality-static-base (${{ matrix.check }})
     runs-on: ubuntu-latest
     needs: [ci-scope]
     if: needs.ci-scope.outputs.scope == 'full'
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [lint, typecheck]
 
     steps:
       - name: Checkout code
@@ -164,13 +245,10 @@ jobs:
       - name: Setup CI dependencies
         uses: ./.github/actions/setup-ci-dependencies
         with:
-          save-cache: 'true'
+          save-cache: ${{ matrix.check == 'lint' && 'true' || 'false' }}
 
-      - name: Run ESLint (release-blocking)
-        run: npm run lint -- --max-warnings 0
-
-      - name: Run TypeScript type checking
-        run: npm run typecheck
+      - name: Run release-blocking static check
+        run: npm run ${{ matrix.check }} ${{ matrix.check == 'lint' && '-- --max-warnings 0 --concurrency 2' || '' }}
 
   quality-static-governance-snapshots:
     name: quality-static-governance-snapshots
@@ -452,6 +530,9 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
+      - name: Prepare verified Firestore emulator artifact
+        uses: ./.github/actions/setup-ci-firestore-emulator
+
       - name: Run Firestore rules tests with emulator
         run: npm run test:rules:ci
         env:
@@ -483,8 +564,11 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
+      - name: Prepare verified Firestore emulator artifact
+        uses: ./.github/actions/setup-ci-firestore-emulator
+
       - name: Install Playwright browser for critical E2E gate
-        run: npx playwright install --with-deps chromium
+        uses: ./.github/actions/setup-ci-chromium
 
       - name: Fetch pinned previous extension release
         run: git fetch --depth=1 origin eb77f41ae151251f7158fc28721cefe15145926c
@@ -577,7 +661,7 @@ jobs:
         run: npm run check:runtime-asset-margin
 
       - name: Install Playwright browsers for preview bootstrap smoke
-        run: npx playwright install --with-deps chromium
+        uses: ./.github/actions/setup-ci-chromium
 
       - name: Validate census and clinical library preview
         run: npm run ci:preview-smoke:built
@@ -706,7 +790,7 @@ jobs:
       - name: Setup CI dependencies
         uses: ./.github/actions/setup-ci-dependencies
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        uses: ./.github/actions/setup-ci-chromium
       - name: Validate measurement report contracts
         run: npm run test:census-performance-report
       - name: Measure populated census navigations per scenario
@@ -1010,3 +1094,34 @@ jobs:
           name: api-documentation
           path: './docs/api'
           retention-days: 7
+
+  function-deploy-scope:
+    name: function-deploy-scope
+    needs: [ci-strict-summary]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      changed: ${{ steps.scope.outputs.changed }}
+    steps:
+      - name: Checkout validated revision
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Detect Functions-related changes
+        id: scope
+        run: node scripts/check-function-deployment-ci.mjs --scope
+
+  deploy-functions:
+    name: validated-functions-deployment
+    needs: [ci-strict-summary, function-deploy-scope]
+    if: needs.function-deploy-scope.outputs.changed == 'true'
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/deploy-functions.yml
+    secrets:
+      FIREBASE_SERVICE_ACCOUNT_HHR: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_HHR }}

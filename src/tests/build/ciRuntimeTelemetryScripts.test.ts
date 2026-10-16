@@ -17,6 +17,20 @@ const writeTempInput = (content: string) => {
     path.resolve('reports/unit-shard-runtime-profile.json'),
     path.join(reportDirectory, 'unit-shard-runtime-profile.json')
   );
+  fs.mkdirSync(path.join(workspace, 'scripts/config'), { recursive: true });
+  fs.mkdirSync(path.join(workspace, 'src/tests'), { recursive: true });
+  fs.writeFileSync(
+    path.join(workspace, 'scripts/config/unit-shard-balance.json'),
+    JSON.stringify({
+      shardCount: 4,
+      durationSource: 'hints',
+      perFileOverheadMs: 100,
+      durationHints: [{ globs: ['src/tests/**'], estimatedDurationMs: 20 }],
+    })
+  );
+  for (const name of ['a', 'b', 'c', 'd']) {
+    fs.writeFileSync(path.join(workspace, `src/tests/${name}.test.ts`), '// synthetic');
+  }
   const filePath = path.join(workspace, 'ci-runtime-observed-input.json');
   fs.writeFileSync(filePath, content, 'utf8');
   return filePath;
@@ -111,7 +125,8 @@ describe('CI runtime telemetry scripts', () => {
       status: 'collected',
     });
     expect(report.comparison.summary.observedTotalDurationMs).toBeGreaterThan(0);
-    expect(report.comparison.summary.estimatedTotalDurationMs).toBeGreaterThan(0);
+    // The historical snapshot copied above must not supply the active estimate.
+    expect(report.comparison.summary.estimatedTotalDurationMs).toBe(480);
     expect(report.comparison.shards).toHaveLength(4);
     expect(
       fs.readFileSync(path.join(reportDirectory, 'ci-runtime-observed-profile.md'), 'utf8')

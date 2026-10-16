@@ -1,0 +1,26 @@
+name: Setup verified Firestore emulator
+description: Reuse only a Firestore artifact matching the installed SDK's size and checksums.
+runs:
+  using: composite
+  steps:
+    - name: Read pinned emulator metadata
+      id: emulator
+      shell: bash
+      run: node scripts/setup-firestore-emulator-cache.mjs --metadata
+    - name: Restore exact emulator artifact
+      id: artifact
+      uses: actions/cache/restore@v6.1.0
+      continue-on-error: true
+      with:
+        path: ${{ steps.emulator.outputs.path }}
+        key: ${{ steps.emulator.outputs.key }}
+    - name: Verify or download the pinned emulator
+      shell: bash
+      run: node scripts/setup-firestore-emulator-cache.mjs
+    - name: Save verified emulator before tests
+      if: steps.artifact.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v6.1.0
+      continue-on-error: true
+      with:
+        path: ${{ steps.emulator.outputs.path }}
+        key: ${{ steps.emulator.outputs.key }}

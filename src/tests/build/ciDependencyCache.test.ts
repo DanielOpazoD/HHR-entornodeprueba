@@ -9,6 +9,7 @@ const actionPath = '.github/actions/setup-ci-dependencies/action.yml';
 const action = parse(fs.readFileSync(actionPath, 'utf8'));
 
 type Step = {
+  name?: string;
   id?: string;
   uses?: string;
   run?: string;
@@ -73,6 +74,7 @@ it('reuses exact dependencies across compatible jobs with only one pristine-cach
     'census-startup-performance',
     'clinical-sync-release-gate',
     'critical-coverage-report',
+    'critical-coverage-shards',
     'docs',
     'docs-scope-gate',
     'e2e-critical-emulator',
@@ -87,9 +89,12 @@ it('reuses exact dependencies across compatible jobs with only one pristine-cach
     'unit-risk-shards',
   ]);
   const writers = reusable.filter(([, job]) =>
-    job.steps.some(step => step.with?.['save-cache'] === 'true')
+    job.steps.some(step => String(step.with?.['save-cache'] ?? '').includes("'true'"))
   );
   expect(writers.map(([name]) => name)).toEqual(['quality-static-base']);
+  expect(jobs['quality-static-base'].steps.find(step => step.with?.['save-cache'])?.with).toEqual({
+    'save-cache': "${{ matrix.check == 'lint' && 'true' || 'false' }}",
+  });
   for (const [, job] of reusable) {
     const setupIndex = job.steps.findIndex(
       step => step.uses === './.github/actions/setup-ci-dependencies'
@@ -97,7 +102,7 @@ it('reuses exact dependencies across compatible jobs with only one pristine-cach
     const checkoutIndex = job.steps.findIndex(step => step.uses?.startsWith('actions/checkout@'));
     const firstCommandIndex = job.steps.findIndex(
       step =>
-        /\b(?:npm|npx)\b/.test(step.run ?? '') ||
+        /\b(?:npm|npx|node)\b/.test(step.run ?? '') ||
         step.uses?.startsWith('treosh/lighthouse-ci-action@')
     );
     expect(checkoutIndex).toBeGreaterThanOrEqual(0);
@@ -116,7 +121,7 @@ it('preserves docs-only conditions and parallel cold-miss fallbacks without a pr
   const independent = [
     'docs',
     'docs-scope-gate',
-    'critical-coverage-report',
+    'critical-coverage-shards',
     'quality-static-groups',
     'clinical-sync-release-gate',
     'unit-risk-shards',
@@ -153,4 +158,24 @@ it('preserves docs-only conditions and parallel cold-miss fallbacks without a pr
     path: './docs/api',
     'retention-days': 7,
   });
+});
+
+it('restores npm downloads only when an exact installed dependency restore cannot be used', () => {
+  const activate = steps.find(step => step.id === 'node')!;
+  const restore = steps.find(step => step.id === 'dependencies')!;
+  const downloads = steps.find(
+    step => step.name === 'Restore npm downloads for a clean installation'
+  )!;
+  const install = steps.find(step => step.run === 'npm ci')!;
+  expect(activate.with).not.toHaveProperty('cache');
+  expect(activate['continue-on-error']).not.toBe(true);
+  expect(downloads.if).toBe(install.if);
+  expect(downloads.with).toEqual({
+    'node-version': '${{ steps.node.outputs.node-version }}',
+    cache: 'npm',
+  });
+  expect(downloads['continue-on-error']).toBe(true);
+  expect(steps.indexOf(downloads)).toBeGreaterThan(steps.indexOf(restore));
+  expect(steps.indexOf(downloads)).toBeLessThan(steps.indexOf(install));
+  expect(install['continue-on-error']).not.toBe(true);
 });

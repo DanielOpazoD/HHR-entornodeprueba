@@ -1,10 +1,11 @@
+import { cudyrCensusAccepted } from './cudyrCensusApproval';
+import { cudyrArchiveCoverage } from './cudyrArchiveCoverage';
 import type { ArchivedCudyrSupplement } from './cudyrSupplementService';
 import { addCudyrSupplementWorkbook } from './cudyrSupplementWorkbook';
 import type { CudyrReportDataset, CudyrReportExportMode } from '@/types/domain/cudyrReport';
 import { buildCudyrWorkbook } from './cudyrWorkbookBuilder';
 import { cudyrReportTotals } from './cudyrReportModel';
-import { CATEGORIES } from './cudyrWorkbookSections';
-import type { CategoryCounts } from './cudyrSummary';
+import { cudyrWorkbookSummary as summary } from './cudyrWorkbookSummary';
 import { addCudyrReportContextTable } from './cudyrReportContextTable';
 import { addCudyrReportTables } from './cudyrReportWorkbookTables';
 import { addCudyrStatisticsTables } from './cudyrStatisticsWorkbook';
@@ -24,25 +25,6 @@ export const buildCudyrReportWorkbook = async (
       ...data.rows.map(row => row.date),
     ]),
   ].sort();
-  const summary = (rows: typeof data.rows) => {
-    const totals = cudyrReportTotals(rows);
-    // Adapter for the original workbook formula layout only. "uti" is not a classification rule.
-    const counts: CategoryCounts = {
-      uti: Object.fromEntries(
-        CATEGORIES.map(cat => [cat, totals.categories[cat].intermedia])
-      ) as CategoryCounts['uti'],
-      media: Object.fromEntries(
-        CATEGORIES.map(cat => [cat, totals.categories[cat].media])
-      ) as CategoryCounts['media'],
-    };
-    return {
-      counts,
-      utiTotal: Object.values(counts.uti).reduce((a, b) => a + b, 0),
-      mediaTotal: Object.values(counts.media).reduce((a, b) => a + b, 0),
-      occupiedCount: totals.eligible,
-      categorizedCount: totals.categorized,
-    };
-  };
   const total = summary(data.rows);
   const { workbook } = await buildCudyrWorkbook({
     year,
@@ -65,11 +47,13 @@ export const buildCudyrReportWorkbook = async (
   workbook.created = new Date(data.generatedAt);
   const preliminary =
     data.issues.length > 0 ||
-    data.coverage.some(day => day.state !== 'disponible') ||
+    data.coverage.some(day => day.state !== 'disponible' || !cudyrCensusAccepted(day)) ||
+    cudyrArchiveCoverage(data, new Date(data.generatedAt)).some(day => day.state !== 'complete') ||
     data.rows.some(
       row =>
         row.eligibility === 'por_revisar' ||
-        !['registrado', 'sin_registro_observado'].includes(row.cudyrStatus)
+        (row.eligibility !== 'no_elegible' &&
+          !['registrado', 'sin_registro_observado'].includes(row.cudyrStatus))
     );
   workbook.worksheets.forEach(sheet => {
     sheet.pageSetup = {
@@ -141,7 +125,14 @@ export const buildCudyrReportWorkbook = async (
       ['Generado en HHR (ISO)', data.generatedAt],
       ['Período', data.from + ' a ' + data.to],
       ['Exportación', mode === 'audit' ? 'Auditoría completa' : 'Estadística simplificada'],
-      ['Estado', preliminary ? 'Revisión pendiente' : 'Lectura completa'],
+      [
+        'Estado',
+        preliminary
+          ? 'Revisión pendiente'
+          : data.coverage.every(day => day.reconstructionApproval)
+            ? 'Oficial'
+            : 'Lectura completa',
+      ],
       ['Filas', totals.rows],
       ['Elegibles conocidos', totals.eligible],
       ['Categorizados elegibles', totals.categorized],

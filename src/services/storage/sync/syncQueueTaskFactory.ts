@@ -2,6 +2,17 @@ import type { SyncQueueLeaseClaim } from '@/services/storage/sync/syncQueuePorts
 import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 
+export const matchesTaskClaim = (
+  task: SyncTask | undefined,
+  claim: SyncQueueLeaseClaim
+): task is SyncTask =>
+  Boolean(
+    task &&
+    task.status === 'PROCESSING' &&
+    task.leaseOwner === claim.leaseOwner &&
+    task.attemptId === claim.attemptId
+  );
+
 export const createSyncQueueWorkerId = (): string =>
   `sync_worker_${Math.random().toString(36).slice(2)}`;
 

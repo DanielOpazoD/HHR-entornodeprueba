@@ -4,9 +4,16 @@
   "precacheMaxBytes": 4952064,
   "_precacheMaxBytesComment": "PR #353 integrated with #356-358 (2026-09-06): preserve both bounded allowances over the 4840192-byte baseline: +2048 bytes for shared inactivity and +67840 bytes for the offline clinical library. Total 4910080; no additional merge allowance. PR #374 adds an explicit 2 KB safety allowance for sync-notification orchestration changes and transient TSX diffing in the authenticated bootstrap path. Auth monitoring and calculators stay cached; documents remain outside precache under docs/ and templates/. No new exclusions or relaxed warning bands. Auth evidence/rollback: docs/AUTH_ACCESS_MODEL.md; library evidence: src/features/clinical-library/README.md. Clinical library v2 (2026-09-06): +31744 bytes (0.65%) more for the transfer cover, the critical medications sheet and three additional scores inside the lazy ClinicalLibraryDrawer chunk (84.8 KB), kept in the precache so they work offline. PR #384 adds a bounded 8192-byte allowance for explicit Eloisa page-state/freshness messaging and clinical-coverage validation; it adds no ignored asset pattern. Total 4952064.",
   "precacheIgnoredAssetPatterns": [
+    "^images/moa/",
+    "^assets/MoaCompanion-.*\\.js$",
+    "^assets/MoaCompanion-.*\\.css$",
     "^docs/",
     "^templates/",
     "^images/forms/",
+    "^assets/MedifTool-.*\\.js$",
+    "^assets/MedifTool-.*\\.css$",
+    "^assets/ClinicalFormTool-.*\\.js$",
+    "^assets/ClinicalFormTool-.*\\.css$",
     "^vendor/exceljs\\.bare\\.min\\.js$",
     "^assets/exceljs\\.min-.*\\.js$",
     "^assets/pdf\\.worker-.*\\.mjs$",
@@ -35,7 +42,14 @@
     "^assets/healthService-.*\\.js$",
     "^assets/DiagnosisCie10Cell-.*\\.js$",
     "^assets/RayenImportButton-.*\\.js$",
-    "^assets/cudyrSupplement\\.worker-.*\\.js$"
+    "^assets/cudyrSupplement\\.worker-.*\\.js$",
+    "^assets/cudyrReportModel-.*\\.js$",
+    "^assets/CudyrMonthlyIndicator-.*\\.js$",
+    "^assets/useCudyrReport-.*\\.js$",
+    "^assets/cudyrReportFacts-.*\\.js$",
+    "^assets/publicCudyrPolicyRecovery-.*\\.js$",
+    "^assets/cudyrEssentialWorkbook-.*\\.js$",
+    "^assets/cudyrSourceWorkbook-.*\\.js$"
   ],
   "forbiddenAssetPatterns": ["^assets/exceljs\\.min-.*\\.js$"],
   "assetPatternBudgets": [
@@ -144,6 +158,16 @@
       "pattern": "^RayenImportButton-.*\\.js$",
       "_comment": "Online-only Rayen import workflow, deferred out of the census startup. Measured 202 KB; the ceiling keeps drift visible without relaxing the global chunk budget.",
       "maxBytes": 260000
+    },
+    {
+      "pattern": "^cudyrEssentialWorkbook-.*\\.js$",
+      "_comment": "Optional monthly Excel download, loaded on demand like the existing ExcelJS runtime. Keep growth bounded without increasing install-time payload.",
+      "maxBytes": 12000
+    },
+    {
+      "pattern": "^cudyrSourceWorkbook-.*\\.js$",
+      "_comment": "Optional Eloisa source-table parser, episode annotations and validation. Measured 17861 bytes; bounded separately without raising the existing 12000-byte core export ceiling. Loaded only for an attached source, outside install-time precache.",
+      "maxBytes": 20000
     }
   ]
 }

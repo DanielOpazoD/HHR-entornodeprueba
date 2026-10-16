@@ -3,7 +3,11 @@ import type { PatientData } from '@/types/domain/patient';
 import type { CudyrHistoryObservation } from '@/types/domain/cudyrHistory';
 import type { CudyrCaptureReceipt } from '@/types/domain/cudyrCapture';
 import type { CudyrReportMovement } from '@/types/domain/cudyrReport';
-import { cudyrModality, type CudyrPlacement } from '@/domain/cudyr/cudyrStatisticalContext';
+import {
+  cudyrModality,
+  cudyrStatisticalGroup,
+  type CudyrPlacement,
+} from '@/domain/cudyr/cudyrStatisticalContext';
 
 type Context = CudyrHistoryObservation['captureContexts'][number];
 type ReportPatient = Omit<Partial<PatientData>, 'documentType' | 'specialty' | 'bedMode'> & {
@@ -32,6 +36,21 @@ const epicrisis = (patient: Pick<ReportPatient, 'dischargeVerification' | 'clini
   const verification = patient.dischargeVerification;
   return verification?.encounterId === patient.clinicalEpisodeId ? verification : undefined;
 };
+/** A daily hospital bed is distinct from the episode's retained admission-location text.
+ * This only normalizes HHR census contexts; authoritative Eloísa intervals are resolved separately.
+ */
+const dailyCensusPlacement = (placement: CudyrPlacement): CudyrPlacement => {
+  const currentBed = { ...placement, location: undefined };
+  if (
+    placement.section === 'census' &&
+    cudyrStatisticalGroup(placement.bedId) !== 'sin_grupo' &&
+    cudyrModality(placement) === 'uea' &&
+    cudyrModality(currentBed) === 'hospitalizacion'
+  )
+    return currentBed;
+  return placement;
+};
+
 export const collectCudyrDailyFacts = (record: DailyRecordCudyrExportState): CudyrReportFact[] => {
   const facts: CudyrReportFact[] = [];
   const add = (
@@ -46,7 +65,7 @@ export const collectCudyrDailyFacts = (record: DailyRecordCudyrExportState): Cud
       authorityDate: record.date,
       key: episodeKey(record.date, patient.clinicalEpisodeId, id),
       patient,
-      placement,
+      placement: dailyCensusPlacement(placement),
       identitySource: 'Censo HHR del día',
       identitySourceDate: record.date,
       contextIsDaily: true,
@@ -154,7 +173,7 @@ export const collectCudyrArchiveFacts = (
         key: episodeKey(date, context.clinicalEpisodeId, id),
         patient: { ...context },
         archivedEpicrisis: context,
-        placement: context,
+        placement: dailyCensusPlacement(context),
         identitySource: 'Archivo HHR de captura Eloísa',
         identitySourceDate: authorityDate,
         contextIsDaily: date === authorityDate,

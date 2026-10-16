@@ -68,6 +68,51 @@ describe('PatientIdentityCell', () => {
     expect(screen.getByRole('button', { name: 'Abrir MMRAD de Juana Rapu' })).toBeVisible();
   });
 
+  it.each(['provisional', 'official'] as const)(
+    'keeps newborn age beside its name and offers only the clinical panel (%s identity)',
+    identityStatus => {
+      const { container } = renderCell({
+        isSubRow: true,
+        data: DataFactory.createMockPatient('R1', {
+          patientName: 'RN Sintético',
+          age: '1d',
+          identityStatus: identityStatus === 'official' ? undefined : identityStatus,
+          clinicalEpisodeId: 'synthetic-newborn-episode',
+        }),
+      });
+      const name = container.querySelector('.census-identity-name');
+      expect(name).toContainElement(screen.getByText('(1d)'));
+      expect(screen.getByTestId('clinical-panel-trigger-R1-clinical-crib')).toBeVisible();
+      expect(container.querySelector('.lucide-arrow-right')).toBeNull();
+      expect(container.querySelector('[data-testid^="patient-laboratory-trigger"]')).toBeNull();
+      expect(container.querySelector('[data-testid^="patient-radiology-trigger"]')).toBeNull();
+    }
+  );
+
+  it('includes the stored calendar date and admission time without timezone conversion', () => {
+    renderCell({
+      data: DataFactory.createMockPatient('R1', {
+        admissionDate: '2026-10-10',
+        admissionTime: '01:47',
+      }),
+    });
+    expect(screen.getByTitle('Ingreso: 10-10-2026 · 01:47 (Rapa Nui)')).toHaveTextContent(
+      '10-10-2026'
+    );
+  });
+
+  it('states when the admission time is unavailable instead of inventing midnight', () => {
+    renderCell({
+      data: DataFactory.createMockPatient('R1', {
+        admissionDate: '2026-10-10',
+        admissionTime: undefined,
+      }),
+    });
+    expect(
+      screen.getByTitle('Ingreso: 10-10-2026 · Hora no informada (Rapa Nui)')
+    ).toBeInTheDocument();
+  });
+
   it('shows the specialty as a small chip next to the admission date', () => {
     const data = DataFactory.createMockPatient('R1', {
       patientName: 'Juana Rapu',

@@ -1,0 +1,55 @@
+@startuml 02-contenedores
+!include  https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+!include style.puml
+LAYOUT_TOP_DOWN()
+title HHR clínico · Contenedores y flujos (C4 / nivel 2)
+
+Person(staff, "Personal hospitalario", "Usuarios autenticados")
+Person(linkUser, "Usuario de enlace público", "Firma / captura móvil por enlace o PIN")
+System_Boundary(hhr, "HHR clínico · frontera lógica del sistema") {
+  Boundary(browser, "En el navegador / puesto de trabajo") {
+    Container(spa, "Aplicación web / PWA", "React 19 · TypeScript · Vite 6", "UI y Query; PWA con Workbox. Build servido por Netlify.")
+    Container(extension, "Puente Rayen → HHR", "Chrome MV3 · extension/", "Content scripts + service worker; captura y flujos institucionales")
+    ContainerDb(local, "Persistencia local / outbox", "Dexie / IndexedDB", "Registros y tareas pendientes; no es autoridad remota")
+  }
+  Boundary(cloud, "Backend y servicios gestionados") {
+    Container(cf, "Cloud Functions", "Node.js · functions/", "Autoridad clínica; roles; firma; recetas; PDF y exportación")
+    Container(nf, "Netlify Functions", "TypeScript / JavaScript", "Proxies; IA; email; FHIR y telemetría")
+    Container(auth, "Firebase Auth", "Servicio gestionado", "Login, sesión e ID tokens", $tags="managed")
+    ContainerDb(firestore, "Firestore clínico", "Servicio gestionado", "Autoridad remota; registros, documentos y config/roles", $tags="managed")
+    ContainerDb(storage, "Firebase Storage", "Servicio gestionado", "Archivos, respaldos e imágenes", $tags="managed")
+  }
+}
+System_Ext(clinical, "Sistemas clínicos externos", "Rayen / Eloísa · Syslab · MMRAD\nDetalle por sistema en la vista 1")
+System_Ext(proxies, "Proxy Syslab / bot WhatsApp", "Servicios externos configurables; fuera de este checkout")
+System_Ext(providers, "Servicios complementarios", "Google Drive / Sheets / Gmail; Apps Script y proveedores de IA")
+
+Rel(staff, spa, "Opera los módulos", "HTTPS")
+Rel(linkUser, spa, "Abre un flujo público", "HTTPS")
+Rel(spa, extension, "Captura / resultados", "postMessage ↔ chrome.runtime")
+Rel(extension, clinical, "Rayen y Syslab", "Sesión institucional / APIs")
+Rel(spa, local, "Persistencia por política", "Dexie")
+Rel(spa, auth, "Login / ID token", "SDK")
+Rel(spa, firestore, "Lecturas y writes directos", "SDK + firestore.rules")
+Rel(spa, cf, "Autoridad / operaciones", "Callable")
+Rel(spa, nf, "Endpoints y proxies", "HTTP / ID token")
+Rel(spa, storage, "Archivos", "SDK + storage.rules")
+Rel(cf, firestore, "Datos / roles", "Admin SDK")
+Rel(cf, auth, "Gestiona claims de rol", "Admin SDK")
+Rel(cf, storage, "Archivos móviles", "Admin SDK")
+Rel(nf, auth, "Verifica ID tokens", "JWT / certificados")
+Rel(nf, firestore, "Roles / datos / config", "SDK de servidor")
+Rel(nf, clinical, "Informes MMRAD", "HTTP")
+Rel(nf, proxies, "Syslab / mensajería", "HTTP", $tags="optional")
+Rel(proxies, clinical, "Syslab", "HTTP", $tags="optional")
+Rel(nf, providers, "IA / Gmail", "HTTPS", $tags="optional")
+Rel(spa, providers, "Exportación Drive", "API / OAuth", $tags="optional")
+Rel(cf, providers, "Entrega a Sheets", "Apps Script", $tags="optional")
+
+Lay_R(cf, nf)
+Lay_R(clinical, proxies)
+Lay_R(proxies, providers)
+caption El outbox se ejecuta en la web y sincroniza vía SDK o callable según política. Ver componentes en la vista 3.
+SHOW_LEGEND()
+@enduml

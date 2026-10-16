@@ -2,6 +2,8 @@ import {
   CUDYR_IMPORT_SOURCE,
   CUDYR_FALLBACK_SOURCE,
 } from '@/domain/evaluationScales/importedCudyr';
+import { buildCudyrBedHistory } from '@/domain/cudyr/cudyrBedHistory';
+import { resolveCudyrHospitalAdmission } from '@/domain/cudyr/cudyrHospitalAdmission';
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
 import { CUDYR_EXCLUSION_LABELS } from '@/types/domain/cudyrExclusion';
 import type { DailyRecordCudyrExportState } from '@/services/contracts/dailyRecordServiceContracts';
@@ -24,6 +26,7 @@ import { selectCudyrReportEvaluation } from './cudyrReportEvaluations';
 import { cudyrCaptureState, reconcileCudyrDischarge } from './cudyrReportReconciliation';
 
 export interface CudyrReportInput extends Omit<CudyrReportDataset, 'schemaVersion' | 'rows'> {
+  sourcePolicy?: 'eloisa_only';
   records: DailyRecordCudyrExportState[];
   pending: Array<{ clinicalEpisodeId: string; dates: string[] }>;
 }
@@ -62,7 +65,19 @@ export const buildCudyrReport = (input: CudyrReportInput): CudyrReportDataset =>
       const selected = selectCudyrReportEvaluation(
         first.date,
         episode,
-        contexts.map(item => item.patient),
+        contexts.map(item =>
+          input.sourcePolicy === 'eloisa_only'
+            ? {
+                ...item.patient,
+                cudyr: undefined,
+                evaluationScores: [CUDYR_IMPORT_SOURCE, CUDYR_FALLBACK_SOURCE].includes(
+                  item.patient.evaluationScores?.cudyr?.source || ''
+                )
+                  ? item.patient.evaluationScores
+                  : undefined,
+              }
+            : item.patient
+        ),
         input.observations
       );
       const observation = input.observations.find(
@@ -98,11 +113,18 @@ export const buildCudyrReport = (input: CudyrReportInput): CudyrReportDataset =>
         capture.warnings.push(
           'Resultado de Eloísa disponible; la última consulta no pudo completarse.'
         );
+      const patientIdentityConflict =
+        new Set(contexts.map(item => item.patient.rut).filter(Boolean)).size > 1;
+      const identityConflict =
+        patientIdentityConflict ||
+        new Set(contexts.map(item => item.patient.admissionDate).filter(Boolean)).size > 1 ||
+        new Set(contexts.map(item => item.patient.admissionTime).filter(Boolean)).size > 1;
       const placement = resolveCudyrDailyPlacement({
         date: first.date,
         patientName: p.patientName,
         admissionDate: p.admissionDate,
         admissionTime: p.admissionTime,
+        useCensusAdmission: first.contextIsDaily && !identityConflict,
         isBlocked: contexts.some(item => item.patient.isBlocked),
         clinicalEpisodeId: episode,
         sourcePlacements: episode ? placements : [],
@@ -113,10 +135,20 @@ export const buildCudyrReport = (input: CudyrReportInput): CudyrReportDataset =>
           cutoffs.get(first.date) ||
           undefined,
       });
-      const identityConflict =
-        new Set(contexts.map(item => item.patient.rut).filter(Boolean)).size > 1 ||
-        new Set(contexts.map(item => item.patient.admissionDate).filter(Boolean)).size > 1 ||
-        new Set(contexts.map(item => item.patient.admissionTime).filter(Boolean)).size > 1;
+      const hospitalAdmission = resolveCudyrHospitalAdmission(
+        episode,
+        placements,
+        placement.hospitalStayAdmissionAt &&
+          Date.parse(placement.hospitalStayAdmissionAt) > Date.parse(placement.referenceAt || '')
+          ? placement.hospitalStayAdmissionAt
+          : placement.referenceAt || '',
+        false,
+        first.contextIsDaily &&
+          !identityConflict &&
+          ['hospitalizacion', 'cuna'].includes(placement.modality)
+          ? { date: p.admissionDate || '', time: p.admissionTime || '' }
+          : undefined
+      );
       const pending = input.pending.some(
         item =>
           Boolean(episode) && item.clinicalEpisodeId === episode && item.dates.includes(first.date)
@@ -142,7 +174,7 @@ export const buildCudyrReport = (input: CudyrReportInput): CudyrReportDataset =>
         ).values(),
       ];
       const verified = cudyrFactEpicrisis(p);
-      const conflict = selected.conflict || identityConflict;
+      const conflict = selected.conflict || patientIdentityConflict;
       const row: CudyrReportRow = {
         key,
         date: first.date,
@@ -160,8 +192,13 @@ export const buildCudyrReport = (input: CudyrReportInput): CudyrReportDataset =>
         diagnosisCode: p.cie10Code || '',
         identitySource: first.identitySource,
         identitySourceDate: first.identitySourceDate,
+        admissionEvidenceConflict: identityConflict,
         admissionDate: p.admissionDate || '',
         admissionTime: p.admissionTime || '',
+        hospitalAdmissionAt: hospitalAdmission.at,
+        hospitalStayAdmissionAt: placement.hospitalStayAdmissionAt,
+        hospitalAdmissionSource: hospitalAdmission.source,
+        evaluationCapturedAt: observation?.firstCapturedAt || '',
         bedId: [...new Set(placement.contexts.map(item => item.bedId))].join(' / '),
         bedName: [...new Set(placement.contexts.map(item => item.bedName || item.bedId))].join(
           ' / '
@@ -203,6 +240,7 @@ export const buildCudyrReport = (input: CudyrReportInput): CudyrReportDataset =>
         epicrisisRegisteredAt:
           verified?.registeredAt || first.archivedEpicrisis?.epicrisisRegisteredAt || '',
         movements,
+        bedHistory: buildCudyrBedHistory(episode, placements),
         correction: input.corrections.find(
           item => Boolean(episode) && item.clinicalEpisodeId === episode
         ),
@@ -227,7 +265,7 @@ export const buildCudyrReport = (input: CudyrReportInput): CudyrReportDataset =>
       (a, b) =>
         a.date.localeCompare(b.date) || a.bedId.localeCompare(b.bedId) || a.key.localeCompare(b.key)
     );
-  const { records: _records, pending: _pending, ...data } = input;
+  const { records: _records, pending: _pending, sourcePolicy: _sourcePolicy, ...data } = input;
   const unlinkedArchive =
     input.observations.some(
       item =>
@@ -256,7 +294,11 @@ export const buildCudyrReport = (input: CudyrReportInput): CudyrReportDataset =>
   };
 };
 
-export const cudyrReportTotals = (rows: CudyrReportRow[]): CudyrReportTotals => {
+/** Closed-day statistics by default; daily progress may explicitly include an open application window. */
+export const cudyrReportTotals = (
+  rows: CudyrReportRow[],
+  options: { includePendingApplication?: boolean } = {}
+): CudyrReportTotals => {
   const totals: CudyrReportTotals = {
     rows: rows.length,
     eligible: 0,
@@ -271,7 +313,7 @@ export const cudyrReportTotals = (rows: CudyrReportRow[]): CudyrReportTotals => 
     ),
   };
   for (const row of rows) {
-    if (row.applicationPending) continue;
+    if (row.applicationPending && !options.includePendingApplication) continue;
     if (row.eligibility === 'no_elegible') {
       totals.excluded++;
       continue;

@@ -15,13 +15,15 @@ export const buildClinicalRetryToken = (
   source: DailyRecord | ConfirmedRayenCensusHandoff,
   record: DailyRecord,
   allowedClinicalEpisodeIds: readonly string[] | undefined,
-  failedBedIds?: ReadonlySet<string>,
+  failedEpisodeIds?: ReadonlySet<string>,
   previousSummary?: ClinicalFillSummary,
   completionFailed = false,
   clinicalCohortEpisodeIds = allowedClinicalEpisodeIds
 ): ClinicalRetryToken => {
   const candidates = collectClinicalFillCandidates(record, allowedClinicalEpisodeIds);
-  let pending = candidates.filter(candidate => !failedBedIds || failedBedIds.has(candidate.bedId));
+  let pending = candidates.filter(
+    ({ patient }) => !failedEpisodeIds || failedEpisodeIds.has(patient.clinicalEpisodeId!)
+  );
   let pendingReads =
     !completionFailed && previousSummary
       ? selectClinicalRetryReads(candidates, previousSummary.errors)
@@ -79,11 +81,16 @@ const addIncrementalMetrics = (
 export const mergeClinicalRetrySummary = (
   previous: ClinicalFillSummary | undefined,
   current: ClinicalFillSummary,
-  retriedBedIds: ReadonlySet<string>
+  retriedBedIds: ReadonlySet<string>,
+  retriedEpisodeIds: ReadonlySet<string>
 ): ClinicalFillSummary => {
   if (!previous) return current;
   const retainedErrors = previous.errors.filter(
-    error => error.bedId !== '*' && !retriedBedIds.has(error.bedId)
+    error =>
+      error.bedId !== '*' &&
+      !(error.clinicalEpisodeId
+        ? retriedEpisodeIds.has(error.clinicalEpisodeId)
+        : retriedBedIds.has(error.bedId))
   );
   return {
     total: previous.total,
@@ -123,6 +130,7 @@ export const buildStructuralReviewEvidence = (
   );
   return {
     structureConfirmed: true,
+    snapshotComplete: handoff.snapshotComplete === true,
     historicalCorrectionsPending: handoff.historicalCorrectionsPending === true,
     historicalCorrectionsRequireFreshCapture:
       handoff.historicalCorrectionsRequireFreshCapture === true,
@@ -142,15 +150,14 @@ export const resolveClinicalStageResult = (
 ): ClinicalStageResult => {
   if (summary.errors.length === 0 && !completionFailed) return { status: 'complete' };
   const hasRetryableCudyrOutage = summary.errors.some(
-    error => error.bedId === '*' && error.source === 'cudyr'
+    error => error.bedId === '*' && (error.source === 'cudyr' || error.source === 'bed_history')
   );
   const hasGlobalFailure = completionFailed || summary.errors.some(error => error.bedId === '*');
   const hasTerminalGlobalFailure =
     completionFailed ||
-    summary.errors.some(error => error.bedId === '*' && error.source !== 'cudyr');
-  const failedBedIds = hasGlobalFailure
-    ? undefined
-    : new Set(summary.errors.map(error => error.bedId));
+    summary.errors.some(
+      error => error.bedId === '*' && error.source !== 'cudyr' && error.source !== 'bed_history'
+    );
   const eligibleCandidates = collectClinicalFillCandidates(record, allowedClinicalEpisodeIds);
   const eligibleEpisodeIds = new Set(
     eligibleCandidates.flatMap(candidate =>
@@ -178,7 +185,7 @@ export const resolveClinicalStageResult = (
     source,
     record,
     allowedClinicalEpisodeIds,
-    failedBedIds,
+    hasGlobalFailure ? undefined : failedEpisodeIds,
     summary,
     completionFailed,
     clinicalCohortEpisodeIds

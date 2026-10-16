@@ -53,6 +53,14 @@ export const snapshotFor = (
   facilityId: 1342,
   encounters,
   isComplete,
+  clinicalCoverage: {
+    total: encounters.length,
+    completed: encounters.length,
+    errors: 0,
+    headerErrors: 0,
+    diagnosisErrors: 0,
+    isolationErrors: 0,
+  },
 });
 
 /** Guarded, synthetic dual-source evidence matching the snapshot capture instant. */

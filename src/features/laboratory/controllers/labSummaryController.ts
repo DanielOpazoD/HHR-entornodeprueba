@@ -16,6 +16,7 @@
  */
 
 import type { LabResultRow } from '@/types/domain/labExamTypes';
+import { classifyLabSpecimen } from './labSpecimenController';
 import {
   formatLabResult,
   normalizeAnalysisName,
@@ -166,10 +167,15 @@ export const buildLabSummaryText = (
   time: string
 ): string => {
   // Normalize names first
-  const normalized = findings.map(f => ({
-    ...f,
-    analysis: normalizeAnalysisName(f.analysis),
-  }));
+  const normalized = findings
+    .filter(f => {
+      const specimen = classifyLabSpecimen(f);
+      return specimen !== 'urine' && specimen !== 'other-fluid';
+    })
+    .map(f => ({
+      ...f,
+      analysis: normalizeAnalysisName(f.analysis, f.section),
+    }));
 
   // Build ordered summary parts — follow SUMMARY_ABBREVIATIONS order
   const parts: string[] = [];
