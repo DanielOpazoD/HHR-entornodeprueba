@@ -1,3 +1,4 @@
+import type { RayenScalesFormsResult } from '../contracts/patientClinicalBundle';
 /**
  * Bridge between the browser extension (which reads Rayen) and the HHR app.
  *
@@ -171,11 +172,11 @@ export const requestScalesReport = (
   encId: string,
   timeoutMs = CLINICAL_READ_TIMEOUT_MS,
   signal?: AbortSignal
-): Promise<{ forms: unknown[]; error?: string }> => {
+): Promise<RayenScalesFormsResult> => {
   if (typeof window === 'undefined' || !encId) {
     return Promise.resolve({ forms: [] });
   }
-  return requestViaBridgeChannel<{ forms: unknown[]; error?: string }>({
+  return requestViaBridgeChannel<RayenScalesFormsResult>({
     prefix: 'scales',
     requestType: RAYEN_SCALES_REPORT_REQUEST_TYPE,
     resultType: RAYEN_SCALES_REPORT_RESULT_TYPE,
@@ -185,6 +186,7 @@ export const requestScalesReport = (
     onTimeout: () => ({
       forms: [],
       error: 'Tiempo de espera agotado bajando las escalas de evaluación.',
+      errorCode: 'source_timeout',
     }),
     mapResult: mapScalesFormsPayload,
   });

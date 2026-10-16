@@ -199,6 +199,7 @@ describe('Ficha Médico patient-flow runtime', () => {
     resolve.mockResolvedValueOnce({ error: 'Sin sesión.' } as unknown as { info: typeof session });
     await expect(handle({ encId: '142040', sender: fichaSender })).resolves.toEqual({
       error: 'Sin sesión.',
+      errorCode: 'session_required',
     });
     expect(fetchForms).toHaveBeenCalledTimes(2);
   });
