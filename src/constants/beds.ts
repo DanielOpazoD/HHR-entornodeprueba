@@ -7,7 +7,7 @@ import { BedDefinition, BedType } from '@/types/domain/beds';
 
 export const HOSPITAL_CAPACITY = 18;
 
-export const BEDS: BedDefinition[] = [
+const INSTALLED_BEDS: BedDefinition[] = [
   // UTI (4 beds)
   { id: 'R1', name: 'R1', type: BedType.UTI, isCuna: false },
   { id: 'R2', name: 'R2', type: BedType.UTI, isCuna: false },
@@ -29,6 +29,21 @@ export const BEDS: BedDefinition[] = [
   { id: 'H5C2', name: 'H5C2', type: BedType.MEDIA, isCuna: false },
   { id: 'H6C1', name: 'H6C1', type: BedType.MEDIA, isCuna: false },
   { id: 'H6C2', name: 'H6C2', type: BedType.MEDIA, isCuna: false },
+];
+
+export const BEDS: BedDefinition[] = [
+  ...INSTALLED_BEDS.flatMap(bed => [
+    bed,
+    // CMA and inpatient assignments can coexist operationally. Keep both episodes visible
+    // without treating the administrative CMA location as additional installed capacity.
+    {
+      ...bed,
+      id: `CMA_${bed.id}`,
+      name: `CMA ${bed.id}`,
+      isExtra: true,
+      activationMode: 'occupied' as const,
+    },
+  ]),
   // Extra Beds (overflow)
   { id: 'E1', name: 'E1', type: BedType.MEDIA, isCuna: false, isExtra: true },
   { id: 'E2', name: 'E2', type: BedType.MEDIA, isCuna: false, isExtra: true },
@@ -40,7 +55,7 @@ export const BEDS: BedDefinition[] = [
   // while day carryover keeps a patient visible until a safe reconciliation confirms a change.
   {
     id: 'BOX1',
-    name: 'BOX 1 UEA',
+    name: 'B1UEA',
     type: BedType.MEDIA,
     isCuna: false,
     isExtra: true,
@@ -48,7 +63,7 @@ export const BEDS: BedDefinition[] = [
   },
   {
     id: 'BOX2',
-    name: 'BOX 2 UEA',
+    name: 'B2UEA',
     type: BedType.MEDIA,
     isCuna: false,
     isExtra: true,
@@ -56,7 +71,15 @@ export const BEDS: BedDefinition[] = [
   },
   {
     id: 'BOX3',
-    name: 'BOX 3 UEA',
+    name: 'B3UEA',
+    type: BedType.MEDIA,
+    isCuna: false,
+    isExtra: true,
+    activationMode: 'occupied',
+  },
+  {
+    id: 'BOX4',
+    name: 'B4UEA',
     type: BedType.MEDIA,
     isCuna: false,
     isExtra: true,
@@ -70,5 +93,5 @@ export const OCCUPANCY_ONLY_EXTRA_BEDS = EXTRA_BEDS.filter(
 );
 export const OCCUPANCY_ONLY_EXTRA_BED_IDS = new Set(OCCUPANCY_ONLY_EXTRA_BEDS.map(bed => bed.id));
 export const REGULAR_BEDS = BEDS.filter(b => !b.isExtra);
-export const UTI_BEDS = BEDS.filter(b => b.type === BedType.UTI);
+export const UTI_BEDS = REGULAR_BEDS.filter(b => b.type === BedType.UTI);
 export const MEDIA_BEDS = BEDS.filter(b => b.type === BedType.MEDIA && !b.isExtra);

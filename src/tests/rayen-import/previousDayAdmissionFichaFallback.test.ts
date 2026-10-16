@@ -87,7 +87,7 @@ describe('previous-day admission Ficha fallback', () => {
         .mockResolvedValue(
           [
             'RUN: 17.059.646-3',
-            '26/07/2026 03:30:00 Servicio de Urgencia Box 4',
+            '26/07/2026 03:30:00 Recuperacion Pabellon P-R1',
             '26/07/2026 10:00:00 Habitación 4 C2',
           ].join('\n')
         ),

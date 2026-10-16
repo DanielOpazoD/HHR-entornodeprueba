@@ -8,11 +8,11 @@ import {
   formatRayenSyncDuration,
   presentRayenCoverage,
   presentRayenSyncOutcome,
-  presentRayenSyncRecovery,
   rayenFailureReasonLabel,
   rayenPrimaryActionLabel,
   rayenSyncStatusLabel,
 } from '@/features/rayen-import/components/rayenSyncPresentation';
+import { presentRayenSyncRecovery } from '@/features/rayen-import/components/rayenSyncRecoveryPresentation';
 import type { RayenSyncEvent } from '@/types/domain/rayenSync';
 
 describe('rayen sync presentation', () => {
@@ -315,7 +315,7 @@ describe('rayen sync presentation', () => {
     expect(presentRayenSyncRecovery({ ...event, status: 'complete' }, 'ready')).toBeNull();
   });
 
-  it('retries only clinical data after the census was already confirmed', () => {
+  it('starts a fresh authorized run after terminal partial coverage', () => {
     const event: RayenSyncEvent = {
       id: 'run-clinical-partial',
       startedAt: '2026-07-14T10:00:00.000Z',
@@ -338,8 +338,8 @@ describe('rayen sync presentation', () => {
 
     expect(presentRayenSyncRecovery(event, 'ready')).toMatchObject({
       title: 'Información clínica pendiente',
-      action: 'retry_clinical',
-      actionLabel: 'Reintentar información clínica',
+      action: 'retry_full',
+      actionLabel: 'Reintentar sincronización',
     });
   });
 

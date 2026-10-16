@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context';
-import { useDailyRecordData } from '@/context/DailyRecordContext';
+import { useDailyRecordSync } from '@/context/DailyRecordContext';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 import { useCensusMigrationBootstrap } from './useCensusMigrationBootstrap';
 import { useCensusViewRouteModel } from './useCensusViewRouteModel';
@@ -36,7 +36,7 @@ export const useCensusViewScreenModel = ({
   accessProfile,
 }: UseCensusViewScreenModelParams) => {
   const auth = useAuth();
-  const { bootstrapPhase } = useDailyRecordData();
+  const { bootstrapPhase } = useDailyRecordSync();
   const [hasPostDeployRefreshMarker, setHasPostDeployRefreshMarker] = useState(false);
   const routeModel = useCensusViewRouteModel({
     selectedDay,

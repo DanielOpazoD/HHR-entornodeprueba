@@ -71,18 +71,18 @@ describe('ClinicalLibraryDrawer', () => {
     const { documentActions } = renderDrawer();
     const consent = within(screen.getByTestId('library-document-consentimiento-informado'));
     expect(consent.getByText('PDF · 1 pág.')).toBeInTheDocument();
-    expect(consent.getByRole('button', { name: /^Imprimir/ })).toHaveTextContent('Imprimir');
+    expect(consent.getByRole('button', { name: /^Completar/ })).toHaveTextContent('Completar');
     fireEvent.click(consent.getByRole('button', { name: /^Imprimir/ }));
     expect(documentActions.print).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'consentimiento-informado' })
     );
     expect(consent.queryByRole('link')).not.toBeInTheDocument();
-    expect(consent.getAllByRole('button')).toHaveLength(1);
+    expect(consent.getAllByRole('button')).toHaveLength(2);
 
     const vmi = within(screen.getByTestId('library-document-planilla-monitorizacion-ventilatoria'));
     expect(vmi.getByText('Word')).toBeInTheDocument();
-    expect(vmi.getByRole('link', { name: /^Descargar/ })).toHaveTextContent('Descargar');
-    expect(vmi.queryByRole('button')).not.toBeInTheDocument();
+    expect(vmi.getByRole('link', { name: /^Descargar/ })).toHaveAttribute('download');
+    expect(vmi.getByRole('button', { name: /^Completar/ })).toBeInTheDocument();
     expect(vmi.getByRole('link', { name: /^Descargar/ })).toHaveAttribute(
       'href',
       '/docs/biblioteca/planilla-monitorizacion-ventilatoria-vmi.docx'

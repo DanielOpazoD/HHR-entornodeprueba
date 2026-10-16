@@ -6,187 +6,98 @@ import {
   type RayenCensusSnapshot,
   type RayenEncounter,
 } from '@/features/rayen-import';
-import { resolveBedOccupancyCollisions } from '@/features/rayen-import/domain/bedOccupancyCollisionPolicy';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
-const encounter = (
-  encounterId: string,
-  run: string,
-  firstGivenName: string,
-  source: 'cma' | 'physical'
-): RayenEncounter => ({
-  encounterId,
-  run,
-  firstGivenName,
-  firstFamilyName: 'Paciente',
-  admissionDatetime: '2026-08-21T08:00:00-06:00',
-  service:
-    source === 'cma' ? 'Área quirúrgica indiferenciada' : 'Área Médico Quirúrgica Indiferenciada',
-  room: source === 'cma' ? 'CMA R2' : 'Recuperación 2',
-  bed: source === 'cma' ? 'CMAR2' : 'R2',
-});
+const fixture = () => {
+  const encounters: RayenEncounter[] = ['CMA-R2', 'MQ-R2'].map((encounterId, index) => ({
+    encounterId,
+    run: index ? '222222222' : '111111111',
+    firstGivenName: index ? 'Paciente Hospitalizado' : 'Paciente CMA',
+    firstFamilyName: 'Prueba',
+    admissionDatetime: '2026-08-21T08:00:00-06:00',
+    service: index ? 'Área Médico Quirúrgica Indiferenciada' : 'Área quirúrgica indiferenciada',
+    room: index ? 'R2' : 'CMA R2',
+    bed: index ? 'R2' : 'CMAR2',
+  }));
+  const current: DailyRecord = {
+    date: '2026-08-21',
+    beds: Object.fromEntries(
+      encounters.map((entry, index) => {
+        const bedId = index ? 'H2C1' : 'R2';
+        return [
+          bedId,
+          {
+            ...EMPTY_PATIENT,
+            bedId,
+            patientName: `${entry.firstGivenName} Prueba`,
+            rut: entry.run,
+            admissionDate: '2026-08-21',
+            admissionTime: '08:00',
+            handoffNote: `nota-${index}`,
+          },
+        ];
+      })
+    ),
+    discharges: [],
+    transfers: [],
+    cma: [],
+    activeExtraBeds: [],
+    lastUpdated: '',
+  };
+  const snapshot: RayenCensusSnapshot = {
+    capturedAt: '2026-08-21T12:00:00-06:00',
+    facilityId: 1342,
+    encounters,
+    isComplete: true,
+  };
+  return { current, snapshot };
+};
+const apply = (current: DailyRecord, snapshot: RayenCensusSnapshot) =>
+  applyCensusImportDiff(current, reconcileCensus(current, snapshot), {
+    idFactory: () => 'movement-legacy',
+    now: new Date('2026-08-21T12:30:00-06:00'),
+    syncRunId: 'legacy-test',
+  });
 
-describe('legacy equivalent-bed collision occupants', () => {
-  it('offers the proven current bed so a legacy occupant can remain there', () => {
-    const cma = encounter('CMA-R2', '111111111', 'Camila', 'cma');
-    const physical = encounter('MQ-R2', '222222222', 'Mario', 'physical');
-    const current: DailyRecord = {
-      date: '2026-08-21',
-      beds: {
-        R2: {
-          ...EMPTY_PATIENT,
-          bedId: 'R2',
-          patientName: 'Camila Paciente',
-          rut: cma.run,
-          admissionDate: '2026-08-21',
-          admissionTime: '08:00',
-        },
-        H2C1: {
-          ...EMPTY_PATIENT,
-          bedId: 'H2C1',
-          patientName: 'Mario Paciente',
-          rut: physical.run,
-          admissionDate: '2026-08-21',
-          admissionTime: '08:00',
-        },
-      },
-      discharges: [],
-      transfers: [],
-      cma: [],
-      activeExtraBeds: [],
-      lastUpdated: '',
-    };
-    const diff = reconcileCensus(current, {
-      capturedAt: '2026-08-21T12:00:00-06:00',
-      facilityId: 1342,
-      encounters: [cma, physical],
-      isComplete: true,
-    });
-    const collision = diff.bedOccupancyCollisions?.[0];
-    if (!collision) throw new Error('Expected R2 source collision');
-
-    expect(collision.availableAlternativeBedIds).toContain('H2C1');
-    const reviewedDiff = resolveBedOccupancyCollisions(diff, [
-      {
-        collisionId: collision.id,
-        selectedEpisodeId: cma.encounterId,
-        otherDisposition: { kind: 'move', targetBedId: 'H2C1' },
-      },
-    ]);
-    const result = applyCensusImportDiff(current, reviewedDiff, {
-      idFactory: () => 'movement-stay',
-      now: new Date('2026-08-21T12:30:00-06:00'),
-      actor: 'Nurse Test',
-      syncRunId: 'run-legacy-stay',
-    });
-
-    expect(result.record.beds.R2.clinicalEpisodeId).toBe(cma.encounterId);
-    expect(result.record.beds.H2C1.clinicalEpisodeId).toBe(physical.encounterId);
+describe('legacy occupants before CMA assignments were separated', () => {
+  it('uses a matching complete admission stamp to keep both patients and their notes', () => {
+    const { current, snapshot } = fixture();
+    const result = apply(current, snapshot);
     expect(result.skipped).toEqual([]);
-  });
-
-  it('removes the legacy source bed and backfills both authoritative episode IDs', () => {
-    const cma = encounter('CMA-R2', '111111111', 'Camila', 'cma');
-    const physical = encounter('MQ-R2', '222222222', 'Mario', 'physical');
-    const current: DailyRecord = {
-      date: '2026-08-21',
-      beds: {
-        R2: {
-          ...EMPTY_PATIENT,
-          bedId: 'R2',
-          patientName: 'Camila Paciente',
-          rut: cma.run,
-          admissionDate: '2026-08-21',
-          admissionTime: '08:00',
-        },
-        H2C1: {
-          ...EMPTY_PATIENT,
-          bedId: 'H2C1',
-          patientName: 'Mario Paciente',
-          rut: physical.run,
-          admissionDate: '2026-08-21',
-          admissionTime: '08:00',
-        },
-      },
-      discharges: [],
-      transfers: [],
-      cma: [],
-      activeExtraBeds: [],
-      lastUpdated: '',
-    };
-    const snapshot: RayenCensusSnapshot = {
-      capturedAt: '2026-08-21T12:00:00-06:00',
-      facilityId: 1342,
-      encounters: [cma, physical],
-      isComplete: true,
-    };
-    const diff = reconcileCensus(current, snapshot);
-    const collision = diff.bedOccupancyCollisions?.[0];
-    if (!collision) throw new Error('Expected R2 source collision');
-    const reviewedDiff = resolveBedOccupancyCollisions(diff, [
-      {
-        collisionId: collision.id,
-        selectedEpisodeId: cma.encounterId,
-        otherDisposition: { kind: 'move', targetBedId: 'H3C1' },
-      },
-    ]);
-
-    const result = applyCensusImportDiff(current, reviewedDiff, {
-      idFactory: () => 'movement-1',
-      now: new Date('2026-08-21T12:30:00-06:00'),
-      actor: 'Nurse Test',
-      syncRunId: 'run-legacy-collision',
+    expect(result.record.beds.CMA_R2).toMatchObject({
+      clinicalEpisodeId: 'CMA-R2',
+      handoffNote: 'nota-0',
     });
-
-    expect(result.record.beds.R2.clinicalEpisodeId).toBe(cma.encounterId);
-    expect(result.record.beds.H3C1.clinicalEpisodeId).toBe(physical.encounterId);
+    expect(result.record.beds.R2).toMatchObject({
+      clinicalEpisodeId: 'MQ-R2',
+      handoffNote: 'nota-1',
+    });
     expect(result.record.beds.H2C1).toBeUndefined();
-    expect(result.skipped).toHaveLength(0);
+    expect(result.record.discharges).toEqual([]);
   });
 
-  it('fails closed when the legacy admission timestamp cannot prove the reviewed episode', () => {
-    const cma = encounter('CMA-R2', '111111111', 'Camila', 'cma');
-    const physical = encounter('MQ-R2', '222222222', 'Mario', 'physical');
-    const current: DailyRecord = {
-      date: '2026-08-21',
-      beds: {
-        R2: { ...EMPTY_PATIENT, bedId: 'R2', patientName: 'Camila Paciente', rut: cma.run },
-        H2C1: { ...EMPTY_PATIENT, bedId: 'H2C1', patientName: 'Mario Paciente', rut: physical.run },
-      },
-      discharges: [],
-      transfers: [],
-      cma: [],
-      activeExtraBeds: [],
-      lastUpdated: '',
-    };
-    const snapshot: RayenCensusSnapshot = {
-      capturedAt: '2026-08-21T12:00:00-06:00',
-      facilityId: 1342,
-      encounters: [cma, physical],
-      isComplete: true,
-    };
-    const diff = reconcileCensus(current, snapshot);
-    const collision = diff.bedOccupancyCollisions?.[0];
-    if (!collision) throw new Error('Expected R2 source collision');
-    const reviewedDiff = resolveBedOccupancyCollisions(diff, [
-      {
-        collisionId: collision.id,
-        selectedEpisodeId: cma.encounterId,
-        otherDisposition: { kind: 'move', targetBedId: 'H3C1' },
-      },
-    ]);
-
-    const result = applyCensusImportDiff(current, reviewedDiff, {
-      idFactory: () => 'movement-1',
-      now: new Date('2026-08-21T12:30:00-06:00'),
-      actor: 'Nurse Test',
-      syncRunId: 'run-legacy-collision',
-    });
-
-    expect(result.record.beds.H2C1.patientName).toBe('Mario Paciente');
-    expect(result.record.beds.H3C1).toBeUndefined();
-    expect(result.skipped).toEqual([
-      expect.objectContaining({ kind: 'bed-collision', bedId: 'R2' }),
-    ]);
+  it('does not repeat legacy moves or duplicate patients on the next sync', () => {
+    const { current, snapshot } = fixture();
+    const first = apply(current, snapshot);
+    const diff = reconcileCensus(first.record, snapshot);
+    expect(diff.moves).toEqual([]);
+    expect(diff.admissions).toEqual([]);
+    expect(diff.conflicts).toEqual([]);
+    expect(Object.values(first.record.beds).filter(patient => patient.patientName)).toHaveLength(2);
   });
+
+  it.each(['missing', 'different'] as const)(
+    'keeps both existing occupants when the admission stamp is %s',
+    kind => {
+      const { current, snapshot } = fixture();
+      current.beds.R2.admissionTime = kind === 'missing' ? '' : '09:00';
+      const diff = reconcileCensus(current, snapshot);
+      const result = apply(current, snapshot);
+      expect(diff.conflicts.length).toBeGreaterThan(0);
+      expect(result.record.beds.R2).toMatchObject({ rut: '111111111', handoffNote: 'nota-0' });
+      expect(result.record.beds.H2C1).toMatchObject({ rut: '222222222', handoffNote: 'nota-1' });
+      expect(result.record.beds.CMA_R2).toBeUndefined();
+      expect(result.record.discharges).toEqual([]);
+    }
+  );
 });

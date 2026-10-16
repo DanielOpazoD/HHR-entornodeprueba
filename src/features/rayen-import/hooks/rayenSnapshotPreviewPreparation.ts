@@ -43,7 +43,7 @@ export const prepareRayenSnapshotEvidence = (
       error:
         temporalValidation.reason === 'clinical_day_changed'
           ? 'El turno de enfermería cambió durante la captura. Vuelve a sincronizar para usar un único corte temporal.'
-          : 'Solo se puede reconciliar el censo vigente o uno de los siete días clínicos anteriores.',
+          : 'Selecciona una fecha de censo válida, actual o pasada.',
     };
   }
   const matchesRequest =
@@ -87,8 +87,6 @@ export const returnRayenReplanToReview = ({
   setState({
     diff: error.replannedDiff,
     isPreviewOpen: true,
-    isBusy: false,
-    isSyncing: false,
     result: null,
     hasSkippedItems: false,
     error: error.message,

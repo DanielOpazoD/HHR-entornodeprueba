@@ -1,13 +1,16 @@
 # Moa: mascota de HHR
 
-Moa acompaña el resumen de camas del censo. La piedra gris, el contorno pixelado
+Moa acompaña el resumen de camas del censo. La biblioteca remota independiente añade
+las escenas publicadas en Moa-HHR: ver [integración y publicación](moa/REMOTE_CATALOG.md).
+Los párrafos siguientes describen las 18 escenas locales de respaldo. La piedra gris, el contorno pixelado
 y la ola turquesa conservan su identidad. Todas las escenas, incluidos los cuatro gestos originales, utilizan
 dieciocho atlas propios, cada uno con seis fotogramas ilustrados
 con expresiones y posturas distintas. Las tiras PNG con transparencia se presentan
 al tamaño de 144 × 84 px con resolución doble para pantallas Retina.
 
 Está **desactivado por defecto**. Su retrato en la barra lo muestra u oculta.
-Solo la X acompaña a Moa; Escape también lo oculta y devuelve el foco al activador.
+La biblioteca permite elegir una escena; la X oculta a Moa. Escape cierra primero
+la biblioteca y luego oculta a Moa, devolviendo el foco al activador.
 Una elección explícita se conserva en `hhr_moa_visible_v1` y se comunica entre pestañas.
 Sin almacenamiento, comienza oculto y permite elegir durante la sesión.
 
@@ -29,13 +32,15 @@ sus animaciones. No hay sonido, destellos, gestos automáticos repetitivos ni pa
 El área táctil sigue midiendo 144 × 84 px, dentro del flujo del censo. En teléfonos
 se coloca debajo del resumen. La impresión excluye tanto Moa como su activador.
 La mascota paciente es ilustrada, independiente de los pacientes del hospital.
-Moa no recibe información clínica, consulta servicios ni modifica registros.
+Moa no recibe información clínica ni modifica registros. Cuando está activado consulta
+un catálogo público de decoración y descarga solo la escena elegida, sin credenciales
+ni datos del censo. El retrato y las escenas originales sirven de respaldo.
 
 El código, los estilos de las escenas y el atlas son opcionales y quedan fuera del
 precache de instalación. El retrato estático permanece disponible. La primera
 activación requiere descargar el módulo; si no puede cargarse, el censo permanece
-usable y se puede ocultar Moa o confirmar una recarga. No se añaden estrategias de
-caché ni se cambian presupuestos. La barra y el preboot comparten el degradado azul,
+usable y se puede ocultar Moa o confirmar una recarga. No se añaden estrategias al service worker ni se cambian presupuestos.
+El catálogo remoto conserva una última copia válida en almacenamiento local. La barra y el preboot comparten el degradado azul,
 sin solicitar el antiguo paisaje de Rapa Nui.
 
 Las flexiones y la carrera repiten un ciclo corto durante un tiempo limitado;

@@ -10,6 +10,24 @@ const extractHeaderBlock = (content: string, route: string): string => {
 };
 
 describe('netlify security headers', () => {
+  it('proxies only fixed public Moa data routes before the SPA without relaxing CSP', () => {
+    const content = readFileSync('netlify.toml', 'utf-8');
+    const spa = content.indexOf('from = "/*"');
+    for (const route of ['/moa-library/catalog.json', '/moa-library/assets/:file']) {
+      const position = content.indexOf(`from = "${route}"`);
+      expect(position).toBeGreaterThanOrEqual(0);
+      expect(position).toBeLessThan(spa);
+    }
+    expect(content).toContain(
+      'to = "https://raw.githubusercontent.com/DanielOpazoD/Moa-HHR/moa-catalog/catalog.json"'
+    );
+    expect(content).toContain(
+      'to = "https://raw.githubusercontent.com/DanielOpazoD/Moa-HHR/moa-catalog/assets/:file"'
+    );
+    const shell = extractHeaderBlock(content, '/*');
+    expect(shell).not.toContain('raw.githubusercontent.com');
+    expect(shell).toContain("connect-src 'self' https://apis.google.com");
+  });
   it('keeps CSP compatible with Google Auth (fonts bundled locally)', () => {
     const content = readFileSync('netlify.toml', 'utf-8');
 

@@ -1,0 +1,112 @@
+import schema from './medifSchema.json';
+
+export type MedifValues = Record<string, string>;
+
+export interface MedifField {
+  id: string;
+  name: string;
+  label: string;
+  shortLabel: string;
+  rect: number[];
+  kind: 'text' | 'mark';
+  multiline: boolean;
+  font_size: number;
+  page: number;
+  sectionId: string;
+  groupId: string;
+  inputType: 'text' | 'textarea' | 'date' | 'tel' | 'email' | 'number';
+  suggestedSource: 'manual' | 'hhr' | 'medical-review';
+  requiresMedicalReview: boolean;
+  help?: string;
+  placeholder?: string;
+  maxLength?: number;
+}
+
+interface MedifGroupBase {
+  id: string;
+  label: string;
+  help?: string;
+}
+
+export interface MedifFieldsGroup extends MedifGroupBase {
+  type: 'fields';
+  fields: string[];
+}
+
+export interface MedifChoiceGroup extends MedifGroupBase {
+  type: 'choice';
+  multiple: boolean;
+  options: { label: string; fieldId: string }[];
+}
+
+export type MedifGroup = MedifFieldsGroup | MedifChoiceGroup;
+
+export interface MedifSection {
+  id: string;
+  title: string;
+  part: number;
+  page: number;
+  pages?: number[];
+  parts?: number[];
+  description: string;
+  groups: MedifGroup[];
+}
+
+export interface MedifSchema {
+  schemaVersion: string;
+  title: string;
+  sourceTemplate: string;
+  fieldCount: number;
+  textFieldCount: number;
+  markFieldCount: number;
+  sections: MedifSection[];
+  fields: MedifField[];
+}
+
+export const MEDIF_SCHEMA = schema as MedifSchema;
+export const MEDIF_FIELDS: readonly MedifField[] = MEDIF_SCHEMA.fields;
+export const MEDIF_SECTIONS: readonly MedifSection[] = MEDIF_SCHEMA.sections;
+export const MEDIF_GROUPS: readonly MedifGroup[] = MEDIF_SECTIONS.flatMap(
+  section => section.groups
+);
+export const MEDIF_FIELD_BY_ID: Readonly<Record<string, MedifField>> = Object.fromEntries(
+  MEDIF_FIELDS.map(field => [field.id, field])
+);
+
+export const getMedifGroupFieldIds = (group: MedifGroup): string[] =>
+  group.type === 'choice' ? group.options.map(option => option.fieldId) : [...group.fields];
+
+/** Patient identity appears on both parts. */
+export const MEDIF_IDENTITY_ALIASES: readonly (readonly string[])[] = [
+  ['p1_nombre_pasajero', 'p2_nombre_paciente'],
+  ['p1_edad', 'p2_edad'],
+];
+
+/** The physician's name is entered in Datos del médico and copied to both declarations. */
+export const MEDIF_PHYSICIAN_ALIASES: readonly string[] = [
+  'p2_nombre_medico',
+  'p1_medico_autorizado',
+  'p3_medico_declaracion',
+];
+
+export const MEDIF_DECLARATION_DATE_ALIASES: readonly string[] = [
+  'p3_fecha_declaracion',
+  'p1_declaracion_fecha',
+];
+
+/** This service only operates the fixed Isla de Pascua to Santiago route. */
+export const MEDIF_FIXED_ROUTE: Readonly<MedifValues> = {
+  p1_itinerario_1_desde: 'Isla de Pascua',
+  p1_itinerario_1_hacia: 'Santiago',
+};
+export const isMedifFixedField = (id: string): boolean => Object.hasOwn(MEDIF_FIXED_ROUTE, id);
+
+/** Only these explicitly shared values use one editor control. */
+export const MEDIF_FIELD_ALIASES: readonly (readonly string[])[] = [
+  ...MEDIF_IDENTITY_ALIASES,
+  MEDIF_PHYSICIAN_ALIASES,
+  MEDIF_DECLARATION_DATE_ALIASES,
+];
+
+export const isMedifFieldId = (fieldId: string): boolean =>
+  Object.hasOwn(MEDIF_FIELD_BY_ID, fieldId);

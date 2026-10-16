@@ -3,7 +3,7 @@
   flex: 0 0 144px;
   width: 144px;
   height: 84px;
-  overflow: hidden;
+  overflow: visible;
 }
 .moa-controls {
   position: absolute;
@@ -115,4 +115,64 @@
   to {
     transform: translateX(var(--scene-still));
   }
+}
+
+.moa-catalog-frames {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  max-width: none;
+  opacity: 0;
+}
+.moa-catalog-frames[data-ready='true'] {
+  opacity: 1;
+}
+.moa-library {
+  position: absolute;
+  right: 0;
+  top: 26px;
+  z-index: 20;
+  width: min(290px, calc(100vw - 32px));
+  padding: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #fff;
+  color: #334155;
+  box-shadow: 0 6px 18px #0f172a20;
+  font-size: 12px;
+}
+.moa-library label {
+  display: block;
+  margin-bottom: 6px;
+}
+.moa-library select {
+  width: 100%;
+  max-height: 200px;
+  font-size: 12px;
+}
+.moa-library select:focus-visible {
+  outline: 2px solid #0f766e;
+}
+
+@media (max-width: 640px) {
+  .moa-library {
+    position: fixed;
+    top: 80px;
+    left: 16px;
+    right: 16px;
+    width: auto;
+  }
+}
+
+.moa-library-play {
+  margin-top: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #0f766e;
+  color: white;
+}
+.moa-library-play:focus-visible {
+  outline: 2px solid #0f766e;
+  outline-offset: 2px;
 }

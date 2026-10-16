@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   CLINICAL_FULL_REVALIDATION_LOOKBACK_DAYS,
   CLINICAL_FULL_REVALIDATION_RETRY_INTERVAL_MS,
-  CLINICAL_MAX_HISTORY_LOOKBACK_DAYS,
   confirmAuthoritativeHistoryWindow,
   confirmFullWindow,
   resolveClinicalHistoryReadPolicy,
@@ -104,7 +103,7 @@ describe('resolveClinicalHistoryReadPolicy', () => {
     }
   );
 
-  it.each([Infinity, NaN, 14.5, -1, '14', true, undefined, 181])(
+  it.each([Infinity, NaN, 14.5, -1, '14', true, undefined, Number.MAX_SAFE_INTEGER + 1])(
     'does not certify a malformed effective window (%s)',
     window => {
       expect(
@@ -165,32 +164,36 @@ describe('resolveClinicalHistoryReadPolicy', () => {
     });
   });
 
-  it('keeps the adaptive window when the recent validation already covers the older census', () => {
+  it('keeps the historical window while throttling a fresh full validation', () => {
     expect(
       resolveClinicalHistoryReadPolicy(
         checkpoint('2026-07-29T06:00:00.000Z', '2026-07-29T07:00:00.000Z', 22),
         '2026-07-09',
         now
       )
-    ).toEqual({});
+    ).toEqual({ lookbackDays: 22 });
   });
 
-  it('does not certify a full validation beyond the endpoint history limit', () => {
+  it('requests an older date without the former 180-day truncation', () => {
     expect(resolveClinicalHistoryReadPolicy(checkpoint(), '2025-12-01', now)).toEqual({
-      lookbackDays: CLINICAL_MAX_HISTORY_LOOKBACK_DAYS,
+      lookbackDays: 242,
+      fullValidationAt: now.toISOString(),
       fullValidationAttemptAt: now.toISOString(),
     });
   });
 
-  it('throttles a recent capped attempt without certifying a full baseline', () => {
+  it('does not let a narrower legacy capped attempt suppress historical revalidation', () => {
     const cappedAttempt = checkpoint();
     cappedAttempt.sources.scales = {
       facts: [],
       lastFullValidationAttemptAt: '2026-07-29T07:00:00.000Z',
-      lastFullValidationAttemptLookbackDays: CLINICAL_MAX_HISTORY_LOOKBACK_DAYS,
+      lastFullValidationAttemptLookbackDays: 180,
     };
 
-    expect(resolveClinicalHistoryReadPolicy(cappedAttempt, '2025-12-01', now)).toEqual({});
+    expect(resolveClinicalHistoryReadPolicy(cappedAttempt, '2025-12-01', now)).toMatchObject({
+      lookbackDays: 242,
+      fullValidationAt: now.toISOString(),
+    });
   });
 
   it('briefly throttles an ordinary full-window attempt that was not certified', () => {

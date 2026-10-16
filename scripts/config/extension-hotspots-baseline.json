@@ -81,6 +81,10 @@
         "iife>variable:create>variable:handleRequest": 35
       }
     },
+    "clinical-read-error-contract.js": {
+      "maxLines": 35,
+      "hotspots": {}
+    },
     "clinical-report-runtime.js": {
       "maxLines": 485,
       "hotspots": {

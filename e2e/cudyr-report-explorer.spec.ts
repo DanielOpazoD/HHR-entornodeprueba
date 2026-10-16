@@ -672,7 +672,10 @@ test('reviews a daily exclusion, persists it after reload and retains it outside
     expect.arrayContaining(['PACIENTE SINTÉTICO NEO1', 'PACIENTE SINTÉTICO R1'])
   );
   const excluded = patientRows.find(row => row.getCell(3).value === 'PACIENTE SINTÉTICO R1')!;
-  expect(excluded.getCell(11).value).toBe('No elegible');
+  const headers = detail.getRow(24).values as ExcelJS.CellValue[];
+  const eligibilityColumn = headers.indexOf('Elegibilidad');
+  expect(eligibilityColumn).toBeGreaterThan(0);
+  expect(excluded.getCell(eligibilityColumn).value).toBe('No elegible');
   expect(detail.getCell('B19').value).toBe(1);
   expect(detail.getCell('B20').value).toBe(0); // The remaining eligible case has no confirmed CUDYR.
   expect(errors).toEqual([]);

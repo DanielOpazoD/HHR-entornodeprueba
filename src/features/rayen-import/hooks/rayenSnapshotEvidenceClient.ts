@@ -10,6 +10,8 @@ import {
 } from '../bridge/extensionHealthBridge';
 import { createPatientFlowRequestCache } from '../domain/patientFlowRequestCache';
 import { isRayenTimeoutMessage } from '../domain/rayenSyncPerformance';
+import { normalizeRut } from '@/utils/rutUtils';
+import type { EgresoLookupResult } from '../contracts/egresoLookup';
 
 interface EvidenceCounters {
   requests: number;
@@ -60,10 +62,15 @@ export const createRayenSnapshotEvidenceClient = (
       if (!supportsPatientFlowReport(health.report)) {
         return { base64: '', error: 'La extensión instalada no admite trazabilidad de camas.' };
       }
-      counters.requests += 1;
-      const result = await requestPatientFlowReport(encId, isHistoricalDay ? 15_000 : 30_000);
-      if (isRayenTimeoutMessage(result.error)) counters.timeouts += 1;
-      return result;
+      const read = async (timeoutMs: number) => {
+        counters.requests += 1;
+        const result = await requestPatientFlowReport(encId, timeoutMs);
+        if (isRayenTimeoutMessage(result.error)) counters.timeouts += 1;
+        return result;
+      };
+      const first = await read(isHistoricalDay ? 15_000 : 30_000);
+      // Coalesced by the run-scoped cache. Retry only a timeout, once, for the same episode.
+      return isRayenTimeoutMessage(first.error) ? read(30_000) : first;
     },
     {
       onHit: () => {
@@ -89,9 +96,48 @@ export const createRayenSnapshotEvidenceClient = (
 
   const lookupEgresos = async (targets: Parameters<typeof requestEgresoLookup>[0]) => {
     if (targets.length === 0) return [];
-    counters.requests += 1;
-    return requestEgresoLookup(targets);
+    // Gestión de Camas reads each target serially (RUN and maternal RUN). A month's
+    // population cannot share one 30-second bridge deadline. Bound each request and
+    // parallelism, preserving a slot per identity even when one request is incomplete.
+    const batchSize = 4;
+    const results = new Array<EgresoLookupResult>(targets.length);
+    let cursor = 0;
+    await Promise.all(
+      Array.from({ length: Math.min(2, Math.ceil(targets.length / batchSize)) }, async () => {
+        while (cursor < targets.length) {
+          const start = cursor;
+          cursor += batchSize;
+          const batch = targets.slice(start, start + batchSize);
+          counters.requests += 1;
+          const response = await requestEgresoLookup(batch).catch(() => []);
+          batch.forEach((target, index) => {
+            const run = typeof target === 'string' ? target : target.run;
+            const encounterId = typeof target === 'string' ? '' : target.encounterId;
+            const result = response[index];
+            const matches =
+              result &&
+              normalizeRut(result.run) === normalizeRut(run) &&
+              (!encounterId || result.encounterId === encounterId);
+            results[start + index] = matches
+              ? result
+              : { run, encounterId, error: 'No se pudo completar la consulta de este egreso.' };
+          });
+        }
+      })
+    );
+    return results;
   };
 
-  return { fetchPatientFlowReport, fetchStatisticalDischarge, lookupEgresos };
+  const lookupHospitalizations = async (patientRun: string) => {
+    const { requestRayenHospitalizationEpisodes } =
+      await import('../bridge/hospitalizationReportsBridge');
+    counters.requests += 1;
+    return requestRayenHospitalizationEpisodes({ patientRun }, 30_000);
+  };
+  return {
+    fetchPatientFlowReport,
+    fetchStatisticalDischarge,
+    lookupEgresos,
+    lookupHospitalizations,
+  };
 };

@@ -353,4 +353,33 @@ describe('RayenImportButton history and progress', () => {
     expect(progress).toHaveAttribute('aria-valuenow', '2');
     expect(progress).toHaveAttribute('aria-valuemax', '5');
   });
+  it.each(['complete', 'partial', 'cancelled'] as const)(
+    'keeps canonical %s visuals while a surviving worker only blocks a duplicate capture',
+    type => {
+      mocks.useDailyRecordData.mockReturnValue({ record: {} });
+      mocks.useRayenImport.mockReturnValue({
+        ...mocks.useRayenImport(),
+        execution: {
+          context: null,
+          pending: null,
+          stage: type === 'partial' ? { type, retry: 'clinical_only' } : { type },
+          outcome: { structuralConflicts: 0, skippedItems: 0 },
+        },
+      });
+      mocks.useRayenFillProgress.mockReturnValue({
+        running: true,
+        done: 2,
+        total: 5,
+        errors: 0,
+        lastCompletedAt: null,
+      });
+      render(<RayenImportButton />);
+      const button = screen.getByTestId('rayen-import-button');
+      expect(button).toHaveTextContent('Sincronizar');
+      expect(button).toHaveAttribute('aria-busy', 'false');
+      expect(button).toBeDisabled();
+      expect(screen.getByTestId('rayen-sync-pulse')).toHaveAttribute('aria-busy', 'false');
+      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+    }
+  );
 });

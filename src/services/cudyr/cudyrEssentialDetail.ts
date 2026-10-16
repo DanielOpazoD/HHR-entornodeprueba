@@ -1,11 +1,8 @@
+import { cudyrExcelMoment, cudyrExcelDateText } from './cudyrExcelDates';
 import type { Worksheet } from 'exceljs';
 import type { CudyrReportRow } from '@/types/domain/cudyrReport';
 import { cudyrControlStatus } from './cudyrDailyControl';
-import {
-  CUDYR_ELIGIBILITY_LABELS,
-  CUDYR_MODALITY_LABELS,
-  cudyrMomentLabel,
-} from './cudyrReportPresentation';
+import { CUDYR_ELIGIBILITY_LABELS, CUDYR_MODALITY_LABELS } from './cudyrReportPresentation';
 
 /** Below the unchanged daily grid; strings stay literal, never executable Excel formulas. */
 export const addCudyrEssentialDetail = (sheet: Worksheet, rows: CudyrReportRow[]) => {
@@ -50,11 +47,11 @@ export const addCudyrEssentialDetail = (sheet: Worksheet, rows: CudyrReportRow[]
         row.patientName,
         row.rut,
         row.evaluation?.category || null,
-        row.hospitalAdmissionAt ? cudyrMomentLabel(row.hospitalAdmissionAt) : 'Por confirmar',
+        row.hospitalAdmissionAt ? cudyrExcelMoment(row.hospitalAdmissionAt) : 'Por confirmar',
         row.evaluation
           ? [
               row.evaluation.author.trim(),
-              row.evaluation.recordedAt && cudyrMomentLabel(row.evaluation.recordedAt),
+              row.evaluation.recordedAt && cudyrExcelMoment(row.evaluation.recordedAt),
             ]
               .filter(Boolean)
               .join('\n') || 'No informado'
@@ -63,7 +60,7 @@ export const addCudyrEssentialDetail = (sheet: Worksheet, rows: CudyrReportRow[]
           ? 'No aplica'
           : cudyrControlStatus(row),
         CUDYR_ELIGIBILITY_LABELS[row.eligibility],
-        row.eligibilityReason,
+        cudyrExcelDateText(row.eligibilityReason),
       ];
       detail.eachCell(cell => {
         cell.font = { size: 11, color: { argb: 'FF000000' } };

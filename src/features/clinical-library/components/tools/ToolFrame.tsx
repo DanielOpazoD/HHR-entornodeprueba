@@ -9,6 +9,8 @@ export interface ToolComponentProps {
   onClose: () => void;
   /** Pacientes del censo del día, para prellenar documentos. */
   patients: ReadonlyArray<LibraryPatientOption>;
+  /** Notify the drawer before a tool with unsaved document data is dismissed. */
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 interface ToolFrameProps {

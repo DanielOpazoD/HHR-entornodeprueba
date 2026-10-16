@@ -86,7 +86,7 @@ export const useRayenSyncExecutionController = ({
     importStateRef.current = importState;
   }, [execution, importState]);
 
-  /** Keep the legacy payload current for consumers that still render the reviewed diff. */
+  /** Keep reviewed payloads current for same-tick settlement and asynchronous callbacks. */
   const setImportStateCurrent = useCallback<Dispatch<SetStateAction<RayenImportState>>>(
     update => {
       const next = typeof update === 'function' ? update(importStateRef.current) : update;
@@ -164,9 +164,6 @@ export const useRayenSyncExecutionController = ({
         structuralConflicts,
         skippedItems,
       });
-      setImportStateCurrent(previous =>
-        previous.isSyncing ? { ...previous, isSyncing: false } : previous
-      );
       if (requiresPostCommitReview) {
         transitionExecution({ type: 'needs_review', scope: 'post_commit' }, effectiveRunId);
         return;
@@ -181,7 +178,7 @@ export const useRayenSyncExecutionController = ({
       }
       transitionExecution({ type: 'failed' }, effectiveRunId);
     },
-    [dispatchExecution, setImportStateCurrent, transitionExecution]
+    [dispatchExecution, transitionExecution]
   );
 
   return {
