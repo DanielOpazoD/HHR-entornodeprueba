@@ -27,11 +27,22 @@ export const shouldClearSelectedClinicalDocument = (
   targetDocumentId: string
 ): boolean => selectedDocumentId === targetDocumentId;
 
+type PdfExportTarget = Pick<ClinicalDocumentRecord, 'id' | 'hospitalId' | 'episodeKey'>;
+
+const matchesPdfExportTarget = (
+  previous: ClinicalDocumentRecord | null,
+  target: PdfExportTarget
+): boolean =>
+  previous?.id === target.id &&
+  previous.hospitalId === target.hospitalId &&
+  previous.episodeKey === target.episodeKey;
+
 export const updateClinicalDocumentPdfFailure = (
   previous: ClinicalDocumentRecord | null,
-  errorMessage: string
+  errorMessage: string,
+  target: PdfExportTarget
 ): ClinicalDocumentRecord | null =>
-  previous
+  previous && matchesPdfExportTarget(previous, target)
     ? {
         ...previous,
         pdf: {
@@ -44,9 +55,10 @@ export const updateClinicalDocumentPdfFailure = (
 
 export const updateClinicalDocumentPdfSuccess = (
   previous: ClinicalDocumentRecord | null,
-  pdf: NonNullable<ClinicalDocumentRecord['pdf']>
+  pdf: NonNullable<ClinicalDocumentRecord['pdf']>,
+  target: PdfExportTarget
 ): ClinicalDocumentRecord | null =>
-  previous
+  previous && matchesPdfExportTarget(previous, target)
     ? {
         ...previous,
         pdf,
