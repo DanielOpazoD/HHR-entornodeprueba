@@ -79,7 +79,7 @@ export const RayenSyncClinicalSection: React.FC<{
         <span
           className={
             coverage.tone === 'success'
-              ? 'text-xs text-slate-500'
+              ? 'text-xs text-emerald-700'
               : coverage.tone === 'warning'
                 ? 'text-sm font-semibold text-amber-700'
                 : 'text-sm text-slate-500'
