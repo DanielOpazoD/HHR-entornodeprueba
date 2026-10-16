@@ -23,7 +23,7 @@ para un nuevo ensayo. No introduce vencimientos en el sistema clínico.
 | `mirror`       | Proyecto antiguo, `function: "mirror*"`, `scope: "all-regions-all-mirror-functions"`, `state: "deleted"` y `remainingFunctions: []`. Enumeración completa en todas las regiones; no basta eliminar el espejo del censo. |
 | `deployment`   | Proyecto destino, `expectedCommit` y `deployedCommit` completos, iguales y verificados en el despliegue.                                                                                                                |
 | `rules`        | Proyecto destino, `expectedHash` y `deployedHash` SHA-256 iguales, cotejando reglas locales y desplegadas.                                                                                                              |
-| `localSession` | Proyecto destino, `projectIsolationVerified: true`, `pendingOperations: 0`, `sameOriginTransitionTestPassed: true`. Probar cambio de Firebase con el mismo UID sin mezclar caché ni reenviar operaciones antiguas.      |
+| `localSession` | Proyecto destino, `projectIsolationVerified: true`, `pendingOperations: 0`, Una de las dos estrategias descritas abajo. No basta comparar nombres de sitios.                                                            |
 | `access`       | Proyecto destino, `pendingAuthorizations: 0`, `unmappedStaff: 0`, `rolesReviewed: true`. Mantener autores históricos y validar roles; no concederlos por semejanza de nombres.                                          |
 | `restore`      | Proyecto destino, `restoreTestPassed: true`, `originalsPreserved: true`, `backupManifestHash` SHA-256. Probar restauración aislada; tener un bucket no basta.                                                           |
 
@@ -37,6 +37,36 @@ La consulta de [backend](05-backend.md) permite cotejar las reglas publicadas y
 comprobar que el espejo fue eliminado, sin modificar la nube. Sus resultados se
 incorporan a evidencias revisadas; no reemplazan el resto del ensayo.
 
+## Dirección oficial nueva: estrategia elegida
+
+La preparación usa una dirección oficial nueva y conserva temporalmente la antigua
+con su Firebase actual. IndexedDB, caché y operaciones locales quedan separados por
+origen web. No redirigir la dirección antigua ni cambiarle el Firebase durante este
+ensayo; sus operaciones pendientes deben revisarse allí antes de retirarla.
+
+En `localSession` se mantienen `project: "hhr-pruebas"`,
+`projectIsolationVerified: true` y `pendingOperations: 0`. Elegir una estrategia:
+
+- **Dirección nueva:** `strategy: "separate-origin"`, `sourceOrigin` y
+  `targetOrigin` distintos, escritos como orígenes HTTPS canónicos, sin ruta,
+  credenciales, consulta, fragmento ni barra final. Registrar lo observado en las
+  configuraciones efectivamente servidas: `sourceConfigProject:
+"hhr-serviciohospitalizados"` y `targetConfigProject: "hhr-pruebas"`.
+  Exigir `legacyOriginPreserved: true` y `targetSessionTestPassed: true`:
+  comprobar acceso institucional, lectura, guardado y reapertura en el nuevo sitio,
+  ausencia de operaciones pendientes del destino y conservación del antiguo.
+  No marcar por ello `sameOriginTransitionTestPassed`: es otra prueba.
+- **Misma dirección:** `strategy: "same-origin"` y
+  `sameOriginTransitionTestPassed: true`. Probar expresamente el cambio de Firebase
+  con el mismo UID sin mezclar caché ni reenviar operaciones antiguas. Las evidencias
+  anteriores sin `strategy` conservan esta exigencia; una estrategia desconocida falla.
+
+Una URL propuesta o dos nombres de sitios no acreditan aislamiento ni publicación.
+Los valores anteriores son comprobantes revisados, no verificaciones automáticas de
+Netlify o Firebase. El control sigue siendo de solo lectura y nunca autoriza el corte.
+La futura aplicación de pruebas también debe tener un origen y datos separados del
+entorno que se promueva.
+
 ## Orden operativo
 
 1. Actualizar el inventario y validar identidad y episodio de los candidatos.
@@ -47,8 +77,9 @@ incorporan a evidencias revisadas; no reemplazan el resto del ensayo.
    autorizado aparte y comprobar ausencia de escrituras nuevas. No arreglar su
    autenticación para reactivarlo. Después, aplicar solo los lotes verificados con
    precondiciones y recibos, conservando el censo corregido y el CUDYR saneado.
-4. Alinear despliegue, reglas, personal y accesos. Resolver antes el aislamiento de
-   caché por proyecto: una clave basada solo en UID no es suficiente.
+4. Alinear despliegue, reglas, personal y accesos. Verificar antes la estrategia de
+   aislamiento elegida: dirección nueva o transición probada en la misma dirección.
+   Una clave basada solo en UID no aísla dos Firebase en el mismo origen.
 5. Ensayar con respaldo restaurable y comprobaciones de lectura, sincronización
    de hoy/ayer y repetición sin duplicados. No vaciar colas locales sin revisarlas.
 6. Acordar ventana de corte, responsables y retorno. Si falla identidad, CUDYR,

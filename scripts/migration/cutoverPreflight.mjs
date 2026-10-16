@@ -7,6 +7,40 @@ const TARGET = 'hhr-pruebas';
 const exactHex = (value, length) =>
   typeof value === 'string' && value.length === length && /^[a-f0-9]+$/.test(value);
 const MAX_AGE = 24 * 60 * 60 * 1000;
+// Accept canonical HTTPS origins only; a route, redirect or config URL is not an origin.
+const secureOrigin = value => {
+  if (typeof value !== 'string') return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && url.origin === value ? url.origin : null;
+  } catch {
+    return null;
+  }
+};
+
+const localSessionIsolated = data => {
+  if (
+    data.project !== TARGET ||
+    data.projectIsolationVerified !== true ||
+    data.pendingOperations !== 0
+  )
+    return false;
+  if (data.strategy === undefined || data.strategy === 'same-origin')
+    return data.sameOriginTransitionTestPassed === true;
+  if (data.strategy !== 'separate-origin') return false;
+  const source = secureOrigin(data.sourceOrigin);
+  const target = secureOrigin(data.targetOrigin);
+  return Boolean(
+    source &&
+    target &&
+    source !== target &&
+    data.sourceConfigProject === SOURCE &&
+    data.targetConfigProject === TARGET &&
+    data.legacyOriginPreserved === true &&
+    data.targetSessionTestPassed === true
+  );
+};
+
 const gates = [
   [
     'projects',
@@ -53,15 +87,7 @@ const gates = [
       exactHex(data.expectedHash, 64) &&
       data.expectedHash === data.deployedHash,
   ],
-  [
-    'localSession',
-    'Caché y operaciones locales aisladas',
-    data =>
-      data.project === TARGET &&
-      data.projectIsolationVerified === true &&
-      data.pendingOperations === 0 &&
-      data.sameOriginTransitionTestPassed === true,
-  ],
+  ['localSession', 'Caché y operaciones locales aisladas', localSessionIsolated],
   [
     'access',
     'Funcionarios y accesos revisados',
