@@ -43,13 +43,13 @@ export const prepareRayenStructuralPlan = async ({
   // Structural reconstruction depends on live Eloisa evidence, so keep its comparatively large
   // resolver graph out of the offline census shell and load it only when a sync is requested.
   const { replanRayenStructure } = await import('./replanRayenStructure');
+  const { enrichReportOnlyDischarges } = await import('../domain/enrichReportOnlyDischarges');
   const {
     fetchPatientFlowReport,
     fetchStatisticalDischarge,
     lookupEgresos,
     lookupHospitalizations,
   } = evidenceClient ?? createRayenSnapshotEvidenceClient(isHistoricalDay, counters);
-  const { enrichReportOnlyDischarges } = await import('../domain/enrichReportOnlyDischarges');
   const {
     hasRecordedMovement,
     occupiedBedsByRun,
