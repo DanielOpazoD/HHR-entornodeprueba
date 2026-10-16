@@ -41,7 +41,8 @@ describe('PWA precache policy', () => {
       'utf8'
     );
     expect(registry).toContain('const MedifTool = React.lazy(');
-    expect(registry).toContain("import('./tools/MedifTool')");
+    expect(registry).toContain("export const loadMedifTool = () => import('./tools/MedifTool')");
+    expect(registry).toContain('loadMedifTool().then(module => ({ default: module.MedifTool }))');
     expect(registry).not.toMatch(/import\s+\{\s*MedifTool\s*\}\s+from/);
 
     // The exit guard travels with the editor, so an already open MEDIF can ask
@@ -54,7 +55,11 @@ describe('PWA precache policy', () => {
       'src/features/clinical-library/components/tools/MedifTool.tsx',
       'utf8'
     );
-    expect(drawer).toContain("import('./tools/MedifTool')");
+    expect(drawer).toContain("import { loadMedifTool, TOOL_REGISTRY } from './toolRegistry'");
+    expect(drawer).toContain(
+      'loadMedifTool().then(module => ({ default: module.LibraryExitConfirmation }))'
+    );
+    expect(drawer).not.toContain("import('./tools/MedifTool')");
     expect(drawer).not.toContain("from './LibraryExitConfirmation'");
     expect(drawer).not.toContain("import('./LibraryExitConfirmation')");
     expect(medif).toContain("export { LibraryExitConfirmation } from '../LibraryExitConfirmation'");
