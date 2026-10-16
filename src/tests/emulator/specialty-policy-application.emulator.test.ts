@@ -139,7 +139,7 @@ describeEmulator('specialty policy publication and current census transaction', 
     await environment.withSecurityRulesDisabled(async context => {
       const db = context.firestore();
       const source = pendingRecord();
-      const emptyMain = { ...source.beds.R1, patientName: '' };
+      const emptyMain = { ...source.beds.R1, patientName: '', isBlocked: false };
       const crib = {
         ...source.beds.R1,
         patientName: 'Cuna sintética',
