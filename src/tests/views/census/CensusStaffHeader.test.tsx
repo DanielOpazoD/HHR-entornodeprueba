@@ -212,7 +212,8 @@ describe('CensusStaffHeader', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Detalle TENS' }));
     mockedUseDailyRecordData.mockReturnValue({ record: { date: '2026-02-16' } });
     mockedUseDailyRecordStaff.mockReturnValue({ date: '2026-02-16' });
-    rerender(<CensusStaffHeader stats={null} />);
+    // Mocked hooks do not publish context updates; change the actual date prop too.
+    rerender(<CensusStaffHeader stats={null} selectedDate="2026-02-16" />);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     await act(async () => {
       staffModule.pending = null;
