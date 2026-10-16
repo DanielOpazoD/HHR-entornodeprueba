@@ -128,5 +128,16 @@ export const createRayenSnapshotEvidenceClient = (
     return results;
   };
 
-  return { fetchPatientFlowReport, fetchStatisticalDischarge, lookupEgresos };
+  const lookupHospitalizations = async (patientRun: string) => {
+    const { requestRayenHospitalizationEpisodes } =
+      await import('../bridge/hospitalizationReportsBridge');
+    counters.requests += 1;
+    return requestRayenHospitalizationEpisodes({ patientRun }, 30_000);
+  };
+  return {
+    fetchPatientFlowReport,
+    fetchStatisticalDischarge,
+    lookupEgresos,
+    lookupHospitalizations,
+  };
 };

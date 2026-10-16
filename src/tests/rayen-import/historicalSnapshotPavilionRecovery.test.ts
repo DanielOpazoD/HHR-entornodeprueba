@@ -9,6 +9,37 @@ describe('historical pavilion recovery and active episode evidence', () => {
   const extractText = async (buffer: ArrayBuffer): Promise<string> =>
     new TextDecoder().decode(buffer);
 
+  it('recognizes the entire pavilion/CMA bed suffix printed in patient flow', async () => {
+    const result = await reconstructHistoricalSnapshotAtClose(
+      '2026-09-15',
+      { capturedAt: '2026-10-15T18:00:00-05:00', facilityId: 7, isComplete: true, encounters: [] },
+      { date: '2026-09-15', beds: {} } as unknown as DailyRecord,
+      [
+        {
+          run: '10.000.000-K',
+          encounterId: '300',
+          patientName: 'Paciente Sintetico',
+          bedLabel: 'Pabellón-R2 CMA',
+          servicio: 'Pabellón',
+          edad: '40 años',
+          destino: 'Domicilio',
+          motivo: 'Alta',
+          fechaEgreso: '17-09-2026 12:00',
+        },
+      ],
+      {
+        extractText,
+        fetchReport: vi.fn().mockResolvedValue({
+          base64: encodedReport(
+            'Flujo del Paciente RUN: 10000000K\n15/09/2026 11:39:21 Area quirurgica Recuperacion Media Pabellón-R2 CMA'
+          ),
+        }),
+      }
+    );
+    expect(result.snapshot.encounters).toEqual([]);
+    expect(result.conflicts).toEqual([]);
+  });
+
   it('omits episodes verified in P-R1/P-R2 at the historical cutoff without warnings', async () => {
     const pavilionSnapshot: RayenCensusSnapshot = {
       capturedAt: '2026-07-31T10:00:00-06:00',
