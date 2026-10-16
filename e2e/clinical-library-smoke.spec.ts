@@ -267,6 +267,12 @@ test('fills the compact MEDIF from the census, restores its preset and prints th
   await expect(editor.locator('#medif-p1_nombre_pasajero')).toHaveValue(SEEDED_PATIENT_NAME);
   await expect(editor.locator('#medif-p1_edad')).toHaveValue('44');
   await expect(editor.locator('#medif-p2_diagnostico_actual')).toHaveValue('DIAGNOSTICO PREVIEW');
+  await expect(
+    editor.getByRole('textbox', { name: 'Nombre del médico tratante', exact: true })
+  ).toHaveCount(1);
+  await expect(editor.locator('#medif-p1_medico_autorizado')).toHaveCount(0);
+  await expect(editor.locator('#medif-p3_medico_declaracion')).toHaveCount(0);
+  await editor.locator('#medif-p2_nombre_medico').fill('Dra. PRUEBA MEDIF');
 
   await editor.getByRole('tab', { name: 'Preferencias', exact: true }).click();
   await expect(editor.getByText(/46\s+de\s+137\s+casilleros ocultos/)).toBeVisible();
@@ -288,6 +294,14 @@ test('fills the compact MEDIF from the census, restores its preset and prints th
 
   await editor.getByRole('tab', { name: 'Formulario', exact: true }).click();
   await expect(editor.locator('#medif-p1_seguro_viaje')).toHaveCount(0);
+  const editableDownload = page.waitForEvent('download');
+  await editor.getByRole('button', { name: 'PDF editable', exact: true }).click();
+  const editablePath = test.info().outputPath('medif-editable.pdf');
+  await (await editableDownload).saveAs(editablePath);
+  const editable = await PDFDocument.load(new Uint8Array(fs.readFileSync(editablePath)));
+  for (const id of ['p2_nombre_medico', 'p1_medico_autorizado', 'p3_medico_declaracion']) {
+    expect(editable.getForm().getTextField(id).getText()).toBe('Dra. PRUEBA MEDIF');
+  }
   const pdfDownload = page.waitForEvent('download');
   await editor.getByRole('button', { name: 'PDF imprimible', exact: true }).click();
   const pdfPath = test.info().outputPath('medif-imprimible.pdf');
@@ -300,6 +314,7 @@ test('fills the compact MEDIF from the census, restores its preset and prints th
   await editor.getByRole('button', { name: 'Reemplazar todos los datos', exact: true }).click();
   await expect(editor.locator('#medif-p1_nombre_pasajero')).toHaveValue('');
   await expect(editor.locator('#medif-p2_diagnostico_actual')).toHaveValue('');
+  await expect(editor.locator('#medif-p2_nombre_medico')).toHaveValue('');
   await expect(editor.locator('#medif-p1_seguro_viaje')).toHaveCount(0);
   await capture(page, '10-medif-compact-desktop');
   await page.setViewportSize({ width: 375, height: 812 });

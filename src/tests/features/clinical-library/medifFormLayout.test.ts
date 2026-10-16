@@ -27,8 +27,13 @@ describe('continuous MEDIF form layout', () => {
     expect(fields.sort()).toEqual(MEDIF_FIELDS.map(field => field.id).sort());
   });
 
-  it('deduplicates only the established name and age aliases', () => {
-    expect(MEDIF_DUPLICATE_FIELD_IDS).toEqual(['p2_nombre_paciente', 'p2_edad']);
+  it('deduplicates patient identity and all three physician names', () => {
+    expect(MEDIF_DUPLICATE_FIELD_IDS).toEqual([
+      'p2_nombre_paciente',
+      'p2_edad',
+      'p1_medico_autorizado',
+      'p3_medico_declaracion',
+    ]);
     expect(getMedifCanonicalFieldId('p2_nombre_paciente')).toBe('p1_nombre_pasajero');
     expect(getMedifCanonicalFieldId('p2_edad')).toBe('p1_edad');
     for (const field of MEDIF_FIELDS) {
@@ -37,7 +42,8 @@ describe('continuous MEDIF form layout', () => {
       }
     }
     expect(getMedifCanonicalFieldId('p3_silla_ruedas_si')).toBe('p3_silla_ruedas_si');
-    expect(getMedifCanonicalFieldId('p3_medico_declaracion')).toBe('p3_medico_declaracion');
+    expect(getMedifCanonicalFieldId('p1_medico_autorizado')).toBe('p2_nombre_medico');
+    expect(getMedifCanonicalFieldId('p3_medico_declaracion')).toBe('p2_nombre_medico');
   });
 
   it('routes dictionary links to the canonical block and keeps wheelchair declarations distinct', () => {

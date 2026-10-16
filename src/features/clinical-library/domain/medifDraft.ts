@@ -3,6 +3,8 @@ import {
   MEDIF_FIELD_BY_ID,
   MEDIF_GROUPS,
   MEDIF_IDENTITY_ALIASES,
+  MEDIF_FIELD_ALIASES,
+  MEDIF_PHYSICIAN_ALIASES,
   isMedifFieldId,
   type MedifValues,
 } from './medifSchema';
@@ -28,7 +30,7 @@ export const setMedifFieldValue = (
     throw new Error('Los casilleros MEDIF solo admiten X o una respuesta vacía.');
   }
   const next = { ...values, [fieldId]: value };
-  const aliases = MEDIF_IDENTITY_ALIASES.find(ids => ids.includes(fieldId));
+  const aliases = MEDIF_FIELD_ALIASES.find(ids => ids.includes(fieldId));
   for (const alias of aliases ?? []) next[alias] = value;
   if (value === 'X') {
     const group = MEDIF_GROUPS.find(
@@ -75,6 +77,20 @@ export const validateMedifValues = (value: unknown): MedifValues => {
       throw new Error('El nombre o la edad no coinciden entre las dos partes del formulario.');
     }
   }
+  // Legacy drafts may contain just one physician name. Datos del médico is authoritative.
+  const [physicianId] = MEDIF_PHYSICIAN_ALIASES;
+  const physicianNames = [
+    ...new Set(MEDIF_PHYSICIAN_ALIASES.map(id => result[id]).filter(name => name.trim())),
+  ];
+  if (!result[physicianId].trim() && physicianNames.length > 1) {
+    throw new Error(
+      'El borrador contiene nombres de médico diferentes. Revisa los datos del médico.'
+    );
+  }
+  const physicianName = result[physicianId].trim()
+    ? result[physicianId]
+    : (physicianNames[0] ?? '');
+  for (const id of MEDIF_PHYSICIAN_ALIASES) result[id] = physicianName;
   return result;
 };
 

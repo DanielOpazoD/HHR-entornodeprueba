@@ -35,6 +35,20 @@ const memoryStorage = (initial: string | null = null) => {
 };
 
 describe('MEDIF field preferences', () => {
+  it('hides and restores all three physician copies as one value', () => {
+    for (const id of ['p2_nombre_medico', 'p1_medico_autorizado', 'p3_medico_declaracion']) {
+      const hidden = setMedifFieldHidden(emptyMedifPreferences(), id, true);
+      expect(hidden.hiddenFieldIds).toEqual([
+        'p1_medico_autorizado',
+        'p2_nombre_medico',
+        'p3_medico_declaracion',
+      ]);
+      expect(setMedifFieldHidden(hidden, 'p2_nombre_medico', false)).toEqual(
+        emptyMedifPreferences()
+      );
+      expect(importMedifPreferences(configuration([id]))).toEqual(hidden);
+    }
+  });
   it('keeps the all-visible option and applies hiding to whole questions and repeated identity', () => {
     const original = emptyMedifPreferences();
     expect(original.hiddenFieldIds).toEqual([]);

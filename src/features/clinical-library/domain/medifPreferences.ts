@@ -1,7 +1,7 @@
 import {
   MEDIF_FIELDS,
   MEDIF_GROUPS,
-  MEDIF_IDENTITY_ALIASES,
+  MEDIF_FIELD_ALIASES,
   getMedifGroupFieldIds,
   isMedifFieldId,
   type MedifValues,
@@ -21,7 +21,7 @@ export const emptyMedifPreferences = (): MedifPreferences => ({ version: 2, hidd
 const getVisibilityUnit = (fieldId: string): readonly string[] => {
   if (!isMedifFieldId(fieldId))
     throw new Error('La configuración contiene un campo MEDIF desconocido.');
-  const aliases = MEDIF_IDENTITY_ALIASES.find(ids => ids.includes(fieldId));
+  const aliases = MEDIF_FIELD_ALIASES.find(ids => ids.includes(fieldId));
   if (aliases) return aliases;
   const choice = MEDIF_GROUPS.find(
     group => group.type === 'choice' && group.options.some(option => option.fieldId === fieldId)
@@ -29,7 +29,7 @@ const getVisibilityUnit = (fieldId: string): readonly string[] => {
   return choice ? getMedifGroupFieldIds(choice) : [fieldId];
 };
 
-/** Hiding a response must hide every alternative, and both copies of patient identity. */
+/** Hiding a response hides every alternative or copy of a shared value. */
 const normalizeHiddenFieldIds = (fieldIds: string[]): string[] => {
   const hidden = new Set(fieldIds.flatMap(fieldId => [...getVisibilityUnit(fieldId)]));
   return MEDIF_FIELDS.filter(field => hidden.has(field.id)).map(field => field.id);

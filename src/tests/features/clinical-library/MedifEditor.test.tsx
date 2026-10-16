@@ -69,7 +69,7 @@ describe('MedifEditor', () => {
     }
     expect(
       document.querySelectorAll('.medif-form-grid input, .medif-form-grid textarea')
-    ).toHaveLength(89);
+    ).toHaveLength(87);
     fireEvent.click(screen.getByRole('tab', { name: 'Preferencias' }));
     expect(screen.getByText(/46 de 137 casilleros ocultos/)).toBeInTheDocument();
   });
@@ -97,26 +97,67 @@ describe('MedifEditor', () => {
     expect(screen.getByLabelText(/Seguro de viaje/)).toHaveValue('Valor conservado en sesión');
   });
 
+  it('shows one physician name under Datos del médico and fills both PDF declarations', async () => {
+    const { props } = setup();
+    const physician = screen.getByRole('textbox', {
+      name: 'Nombre del médico tratante',
+      exact: true,
+    });
+    expect(
+      within(screen.getByRole('group', { name: 'Datos del médico' })).getByRole('textbox', {
+        name: 'Nombre del médico tratante',
+        exact: true,
+      })
+    ).toBe(physician);
+    expect(screen.queryByRole('textbox', { name: 'Médico autorizado' })).not.toBeInTheDocument();
+    expect(document.getElementById('medif-p3_medico_declaracion')).not.toBeInTheDocument();
+    fireEvent.change(physician, { target: { value: 'Dra. Prueba Ñáñez' } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'PDF editable' }));
+    });
+    expect(props.onGeneratePdf).toHaveBeenCalledWith(
+      expect.objectContaining({
+        p2_nombre_medico: 'Dra. Prueba Ñáñez',
+        p1_medico_autorizado: 'Dra. Prueba Ñáñez',
+        p3_medico_declaracion: 'Dra. Prueba Ñáñez',
+      }),
+      expect.anything(),
+      'editable'
+    );
+    fireEvent.change(physician, { target: { value: '' } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'PDF imprimible' }));
+    });
+    expect(props.onGeneratePdf).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        p2_nombre_medico: '',
+        p1_medico_autorizado: '',
+        p3_medico_declaracion: '',
+      }),
+      expect.anything(),
+      'print'
+    );
+  });
+
   it.each([
     ['p2_nombre_paciente', 'p1_nombre_pasajero'],
     ['p2_edad', 'p1_edad'],
-  ])(
-    'focuses the single identity control when opening alias %s in the dictionary',
-    (alias, canonical) => {
-      setup();
-      fireEvent.click(screen.getByRole('tab', { name: 'Variables' }));
-      fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar variable' }), {
-        target: { value: alias },
-      });
-      fireEvent.click(within(screen.getByRole('table')).getByRole('button'));
-      expect(screen.getByRole('tab', { name: 'Formulario' })).toHaveAttribute(
-        'aria-selected',
-        'true'
-      );
-      expect(document.getElementById(`medif-${canonical}`)).toHaveFocus();
-      expect(document.getElementById(`medif-${alias}`)).not.toBeInTheDocument();
-    }
-  );
+    ['p1_medico_autorizado', 'p2_nombre_medico'],
+    ['p3_medico_declaracion', 'p2_nombre_medico'],
+  ])('focuses the shared control when opening alias %s in the dictionary', (alias, canonical) => {
+    setup();
+    fireEvent.click(screen.getByRole('tab', { name: 'Variables' }));
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar variable' }), {
+      target: { value: alias },
+    });
+    fireEvent.click(within(screen.getByRole('table')).getByRole('button'));
+    expect(screen.getByRole('tab', { name: 'Formulario' })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
+    expect(document.getElementById(`medif-${canonical}`)).toHaveFocus();
+    expect(document.getElementById(`medif-${alias}`)).not.toBeInTheDocument();
+  });
 
   it.each([
     ['p1_seguro_viaje', 'p1_seguro_viaje'],

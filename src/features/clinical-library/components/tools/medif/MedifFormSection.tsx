@@ -6,6 +6,7 @@ import {
   type MedifGroup,
 } from '../../../domain/medifSchema';
 import {
+  MEDIF_DUPLICATE_FIELD_IDS,
   getMedifFormBlockGroups,
   getMedifFormGroupLabel,
   type MedifFormBlock,
@@ -44,7 +45,7 @@ function FieldInput({
   };
   return (
     <div
-      className={`medif-field${field.multiline || ['p1_seguro_viaje', 'p2_nombre_medico', 'p3_medico_declaracion', 'p1_medico_autorizado', 'p3_firma_medico_texto', 'p1_declaracion_firma'].includes(field.id) ? ' medif-field--full' : ''}${field.id === 'p1_nombre_pasajero' ? ' medif-field--name' : ''}`}
+      className={`medif-field${field.multiline || ['p1_seguro_viaje', 'p2_nombre_medico', 'p3_firma_medico_texto', 'p1_declaracion_firma'].includes(field.id) ? ' medif-field--full' : ''}${field.id === 'p1_nombre_pasajero' ? ' medif-field--name' : ''}`}
     >
       <label htmlFor={id}>{label ?? field.shortLabel}</label>
       {field.multiline ? (
@@ -69,13 +70,19 @@ export const MedifFormSection: React.FC<Props> = ({
     .filter(id => isMedifFieldHidden(preferences, id)).length;
   const groups: MedifGroup[] = sourceGroups
     .filter(group => group.id !== 'identificacion_medica')
+    .map(
+      (group): MedifGroup =>
+        group.id === 'pasajero_datos'
+          ? {
+              ...group,
+              type: 'fields',
+              fields: ['p1_nombre_pasajero', 'p1_edad', 'p2_genero', 'p1_seguro_viaje'],
+            }
+          : group
+    )
     .map(group =>
-      group.id === 'pasajero_datos'
-        ? {
-            ...group,
-            type: 'fields',
-            fields: ['p1_nombre_pasajero', 'p1_edad', 'p2_genero', 'p1_seguro_viaje'],
-          }
+      group.type === 'fields'
+        ? { ...group, fields: group.fields.filter(id => !MEDIF_DUPLICATE_FIELD_IDS.includes(id)) }
         : group
     );
   const visibleGroups = groups.filter(group =>
@@ -99,6 +106,11 @@ export const MedifFormSection: React.FC<Props> = ({
       {block.id === 'paciente_vuelo' && (
         <p className="medif-identity-note">
           Nombre y edad se completan una sola vez y se copian a las páginas 1 y 2.
+        </p>
+      )}
+      {block.id === 'medico_declaraciones' && (
+        <p className="medif-identity-note">
+          El nombre del médico se completa una sola vez y se copia en ambas declaraciones.
         </p>
       )}
       <div className="medif-groups">

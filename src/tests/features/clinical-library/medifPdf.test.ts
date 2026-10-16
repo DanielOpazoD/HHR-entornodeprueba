@@ -40,6 +40,42 @@ const sample = () => {
 };
 
 describe('MEDIF PDF export', () => {
+  it.each(['editable', 'print'] as const)(
+    'copies the single physician name to all three original cells in the %s PDF',
+    async mode => {
+      const name = 'Dra. PRUEBA MEDIF';
+      const values = { ...emptyMedifValues(), p2_nombre_medico: name };
+      const pdf = await PDFDocument.load(
+        await createMedifPdf(template, values, emptyMedifPreferences(), mode)
+      );
+      expect(pdf.getPageCount()).toBe(3);
+      if (mode === 'editable') {
+        for (const id of ['p2_nombre_medico', 'p1_medico_autorizado', 'p3_medico_declaracion']) {
+          expect(pdf.getForm().getTextField(id).getText()).toBe(name);
+        }
+      } else {
+        expect(pdf.getForm().getFields()).toHaveLength(0);
+        const encodedName = Buffer.from(name).toString('hex').toUpperCase();
+        for (const page of pdf.getPages()) {
+          const objects = page.node.Resources()?.lookup(PDFName.of('XObject'), PDFDict);
+          const appearances = [...(objects?.entries() ?? [])].filter(([key]) =>
+            key.toString().startsWith('/FlatWidget')
+          );
+          const nameAppearances = appearances.filter(([, ref]) => {
+            const appearance = pdf.context.lookup(ref);
+            if (!(appearance instanceof PDFRawStream)) return false;
+            const operators = Buffer.from(decodePDFRawStream(appearance).decode()).toString(
+              'latin1'
+            );
+            return operators.toUpperCase().includes(`<${encodedName}> TJ`);
+          });
+          expect(nameAppearances).toHaveLength(1);
+        }
+      }
+      expect(values.p1_medico_autorizado).toBe('');
+      expect(values.p3_medico_declaracion).toBe('');
+    }
+  );
   it('matches every field and page of the reviewed interactive template', async () => {
     const pdf = await PDFDocument.load(template);
     expect(pdf.getPageCount()).toBe(3);

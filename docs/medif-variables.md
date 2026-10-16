@@ -92,13 +92,13 @@ Movilidad, acompañante, traslado y necesidades del pasajero durante el vuelo.
 
 Datos que acompañan la declaración impresa del pasajero. Revise el texto completo en el PDF.
 
-| Variable exacta           | Página | Etiqueta                   | Tipo HTML / PDF | Origen posible |
-| ------------------------- | -----: | -------------------------- | --------------- | -------------- |
-| `p1_medico_autorizado`    |      1 | Médico autorizado          | `text` / texto  | Manual         |
-| `p1_declaracion_lugar`    |      1 | Lugar                      | `text` / texto  | Manual         |
-| `p1_declaracion_fecha`    |      1 | Fecha                      | `text` / texto  | Manual         |
-| `p1_declaracion_firma`    |      1 | Firma del pasajero (texto) | `text` / texto  | Manual         |
-| `p1_declaracion_telefono` |      1 | Teléfono del contacto      | `tel` / texto   | Manual         |
+| Variable exacta           | Página | Etiqueta                   | Tipo HTML / PDF | Origen posible              |
+| ------------------------- | -----: | -------------------------- | --------------- | --------------------------- |
+| `p1_medico_autorizado`    |      1 | Médico autorizado          | `text` / texto  | Copia de `p2_nombre_medico` |
+| `p1_declaracion_lugar`    |      1 | Lugar                      | `text` / texto  | Manual                      |
+| `p1_declaracion_fecha`    |      1 | Fecha                      | `text` / texto  | Manual                      |
+| `p1_declaracion_firma`    |      1 | Firma del pasajero (texto) | `text` / texto  | Manual                      |
+| `p1_declaracion_telefono` |      1 | Teléfono del contacto      | `tel` / texto   | Manual                      |
 
 ### Médico y diagnóstico
 
@@ -222,23 +222,23 @@ Tipo de cirugía, complicaciones y movilidad durante el viaje.
 
 Antecedentes psiquiátricos, estabilidad y declaración del médico tratante. Revise la declaración completa en el PDF.
 
-| Variable exacta                  | Página | Etiqueta                                    | Tipo HTML / PDF              | Origen posible         |
-| -------------------------------- | -----: | ------------------------------------------- | ---------------------------- | ---------------------- |
-| `p3_patologia_psiquiatrica_si`   |      3 | Posee alguna patología psiquiátrica · Sí    | Opción exclusiva / texto `X` | Revisión médica manual |
-| `p3_patologia_psiquiatrica_no`   |      3 | Posee alguna patología psiquiátrica · No    | Opción exclusiva / texto `X` | Revisión médica manual |
-| `p3_esquizofrenia`               |      3 | Patología psiquiátrica · Esquizofrenia      | Opción exclusiva / texto `X` | Revisión médica manual |
-| `p3_bipolaridad`                 |      3 | Patología psiquiátrica · Bipolaridad        | Opción exclusiva / texto `X` | Revisión médica manual |
-| `p3_otra_patologia_psiquiatrica` |      3 | Otra patología                              | `text` / texto               | Revisión médica manual |
-| `p3_patologia_estable_si`        |      3 | Se encuentra estable o bien controlada · Sí | Opción exclusiva / texto `X` | Revisión médica manual |
-| `p3_patologia_estable_no`        |      3 | Se encuentra estable o bien controlada · No | Opción exclusiva / texto `X` | Revisión médica manual |
-| `p3_medico_declaracion`          |      3 | Nombre del médico tratante                  | `text` / texto               | Revisión médica manual |
-| `p3_fecha_declaracion`           |      3 | Fecha                                       | `text` / texto               | Revisión médica manual |
-| `p3_lugar_declaracion`           |      3 | Lugar                                       | `text` / texto               | Revisión médica manual |
-| `p3_firma_medico_texto`          |      3 | Firma del médico (texto)                    | `text` / texto               | Revisión médica manual |
+| Variable exacta                  | Página | Etiqueta                                    | Tipo HTML / PDF              | Origen posible              |
+| -------------------------------- | -----: | ------------------------------------------- | ---------------------------- | --------------------------- |
+| `p3_patologia_psiquiatrica_si`   |      3 | Posee alguna patología psiquiátrica · Sí    | Opción exclusiva / texto `X` | Revisión médica manual      |
+| `p3_patologia_psiquiatrica_no`   |      3 | Posee alguna patología psiquiátrica · No    | Opción exclusiva / texto `X` | Revisión médica manual      |
+| `p3_esquizofrenia`               |      3 | Patología psiquiátrica · Esquizofrenia      | Opción exclusiva / texto `X` | Revisión médica manual      |
+| `p3_bipolaridad`                 |      3 | Patología psiquiátrica · Bipolaridad        | Opción exclusiva / texto `X` | Revisión médica manual      |
+| `p3_otra_patologia_psiquiatrica` |      3 | Otra patología                              | `text` / texto               | Revisión médica manual      |
+| `p3_patologia_estable_si`        |      3 | Se encuentra estable o bien controlada · Sí | Opción exclusiva / texto `X` | Revisión médica manual      |
+| `p3_patologia_estable_no`        |      3 | Se encuentra estable o bien controlada · No | Opción exclusiva / texto `X` | Revisión médica manual      |
+| `p3_medico_declaracion`          |      3 | Nombre del médico tratante                  | `text` / texto               | Copia de `p2_nombre_medico` |
+| `p3_fecha_declaracion`           |      3 | Fecha                                       | `text` / texto               | Revisión médica manual      |
+| `p3_lugar_declaracion`           |      3 | Lugar                                       | `text` / texto               | Revisión médica manual      |
+| `p3_firma_medico_texto`          |      3 | Firma del médico (texto)                    | `text` / texto               | Revisión médica manual      |
 
 ## Decisiones y puntos de integración
 
-1. Identificación repetida: el nombre y la edad aparecen en las partes del pasajero y del médico. Son campos PDF diferentes con un único control de nombre y un único control de edad en la interfaz. Al editarlos se sincronizan ambas apariciones; ninguna otra respuesta se une por semejanza de etiquetas.
+1. Identificación repetida: el nombre y la edad aparecen en las partes del pasajero y del médico. Son campos PDF diferentes con un único control de nombre y un único control de edad en la interfaz. Al editarlos se sincronizan ambas apariciones; el nombre del médico también se comparte expresamente entre `p2_nombre_medico` (control único en Datos del médico), `p1_medico_autorizado` y `p3_medico_declaracion`. Las demás respuestas permanecen independientes.
 2. Silla de ruedas: las partes del pasajero y del médico tienen preguntas independientes. No deben sincronizarse automáticamente porque corresponden a declaraciones diferentes.
 3. Acompañante, cirugía y patología psiquiátrica: las preguntas originales están en singular. Este esquema usa una selección exclusiva por grupo, sin inferir exclusión clínica entre diagnósticos. Los campos «Otro» del formulario se mantienen como texto independiente.
 4. Medicación y antecedentes: cada línea/casillero del PDF conserva su variable. No dividir ni truncar automáticamente contenido importado.
@@ -253,16 +253,18 @@ Antecedentes psiquiátricos, estabilidad y declaración del médico tratante. Re
 - 69 campos de texto y 68 casilleros para X.
 - 10 secciones técnicas, 57 grupos y 31 grupos de opciones.
 - Los 57 grupos aparecen exactamente una vez en los siete bloques del editor continuo.
-- Los 137 campos PDF se conservan en el esquema; la interfaz deduplica únicamente `p2_nombre_paciente` y `p2_edad` mediante sus alias de página 1.
+- Los 137 campos PDF se conservan en el esquema; la interfaz deduplica `p2_nombre_paciente` y `p2_edad` mediante sus alias de página 1, y los dos nombres de médico de las declaraciones mediante `p2_nombre_medico`. El preset deja 91 casilleros PDF visibles y 87 controles de entrada.
 - Ninguna coordenada, nombre de campo o PDF fue modificado por esta documentación.
 
 ## Modelo de edición y preferencias
 
-El editor utiliza [medifDraft.ts](../src/features/clinical-library/domain/medifDraft.ts) para mantener los 137 valores en memoria. El nombre y la edad se sincronizan entre ambas partes; las otras preguntas repetidas permanecen independientes. La importación de borradores rechaza campos desconocidos, valores que no sean texto, marcas diferentes de `X` o vacío y respuestas contradictorias en una pregunta o en los alias de identidad.
+El editor utiliza [medifDraft.ts](../src/features/clinical-library/domain/medifDraft.ts) para mantener los 137 valores en memoria. El nombre y la edad se sincronizan entre ambas partes; el nombre del médico se sincroniza en sus tres casilleros. Las otras preguntas repetidas permanecen independientes. La importación de borradores rechaza campos desconocidos, valores que no sean texto, marcas diferentes de `X` o vacío y respuestas contradictorias en una pregunta o en los alias de identidad.
+
+Los borradores antiguos usan el valor de `p2_nombre_medico` como nombre del médico en las tres ubicaciones. Si ese campo está vacío, se recupera un único nombre no vacío de las declaraciones. Si estas contienen nombres distintos y falta el dato principal, se rechaza la importación para que se corrija el médico. Borrar el control único vacía las tres copias.
 
 Las preferencias de [medifPreferences.ts](../src/features/clinical-library/domain/medifPreferences.ts) contienen exclusivamente la versión `2` y una lista `hiddenFieldIds`. El preset de [medifDefaultHiddenFields.ts](../src/features/clinical-library/domain/medifDefaultHiddenFields.ts) corresponde a las 44 marcas X de la lista revisada por el usuario. Su normalización agrega `p2_instrucciones_si` (nº 077) y `p2_estable_si` (nº 114), porque las alternativas No de esas preguntas estaban marcadas. El resultado es **46 campos ocultos y 91 visibles**. No se elimina ninguna variable del esquema.
 
-Ocultar una alternativa oculta la pregunta completa; ocultar nombre o edad oculta ambas apariciones. Las preguntas de silla de ruedas del pasajero y del médico permanecen independientes y sus etiquetas explicitan el contexto. La configuración puede persistirse localmente y exportarse/importarse como JSON sin valores del paciente. Mostrar todos permite habilitar los 137 campos PDF.
+Ocultar una alternativa oculta la pregunta completa; ocultar nombre o edad oculta ambas apariciones, y ocultar el nombre del médico oculta sus tres copias. Las preguntas de silla de ruedas del pasajero y del médico permanecen independientes y sus etiquetas explicitan el contexto. La configuración puede persistirse localmente y exportarse/importarse como JSON sin valores del paciente. Mostrar todos permite habilitar los 137 campos PDF.
 
 La clave de almacenamiento `hhr.medif.preferences.v1` se conserva. Los datos antiguos v1 guardados se migran combinando sus ocultos con el preset; los guardados v2 preservan las decisiones posteriores de mostrar u ocultar. Una importación explícita v1 o v2 respeta la selección contenida en el archivo y la convierte a v2 tras normalizar los grupos. El [flujo completo](medif.md) describe esta diferencia entre migración e importación.
 

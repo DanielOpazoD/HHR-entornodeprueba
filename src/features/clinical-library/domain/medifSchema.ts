@@ -76,10 +76,23 @@ export const MEDIF_FIELD_BY_ID: Readonly<Record<string, MedifField>> = Object.fr
 export const getMedifGroupFieldIds = (group: MedifGroup): string[] =>
   group.type === 'choice' ? group.options.map(option => option.fieldId) : [...group.fields];
 
-/** The same identity appears on both parts; other repeated questions remain independent. */
+/** Patient identity appears on both parts. */
 export const MEDIF_IDENTITY_ALIASES: readonly (readonly string[])[] = [
   ['p1_nombre_pasajero', 'p2_nombre_paciente'],
   ['p1_edad', 'p2_edad'],
+];
+
+/** The physician's name is entered in Datos del médico and copied to both declarations. */
+export const MEDIF_PHYSICIAN_ALIASES: readonly string[] = [
+  'p2_nombre_medico',
+  'p1_medico_autorizado',
+  'p3_medico_declaracion',
+];
+
+/** Only these explicitly shared values use one editor control. */
+export const MEDIF_FIELD_ALIASES: readonly (readonly string[])[] = [
+  ...MEDIF_IDENTITY_ALIASES,
+  MEDIF_PHYSICIAN_ALIASES,
 ];
 
 export const isMedifFieldId = (fieldId: string): boolean =>

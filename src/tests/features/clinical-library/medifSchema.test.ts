@@ -64,6 +64,42 @@ describe('MEDIF form contract', () => {
     }
   });
 
+  it.each(['p2_nombre_medico', 'p1_medico_autorizado', 'p3_medico_declaracion'])(
+    'synchronizes and clears all physician names when editing %s',
+    id => {
+      const original = emptyMedifValues();
+      const named = setMedifFieldValue(original, id, 'Dra. Prueba Ñáñez');
+      const cleared = setMedifFieldValue(named, id, '');
+      for (const fieldId of ['p2_nombre_medico', 'p1_medico_autorizado', 'p3_medico_declaracion']) {
+        expect(named[fieldId]).toBe('Dra. Prueba Ñáñez');
+        expect(cleared[fieldId]).toBe('');
+        expect(original[fieldId]).toBe('');
+      }
+      expect(importMedifDraft(exportMedifDraft(named))).toEqual(named);
+    }
+  );
+
+  it('migrates legacy physician names using Datos del médico as the source', () => {
+    for (const values of [
+      { p2_nombre_medico: 'Dra. Prueba', p1_medico_autorizado: 'Nombre anterior' },
+      { p1_medico_autorizado: 'Dra. Prueba' },
+      { p3_medico_declaracion: 'Dra. Prueba' },
+    ]) {
+      const imported = importMedifDraft(draftJson(values));
+      expect(imported.p2_nombre_medico).toBe('Dra. Prueba');
+      expect(imported.p1_medico_autorizado).toBe('Dra. Prueba');
+      expect(imported.p3_medico_declaracion).toBe('Dra. Prueba');
+    }
+    expect(() =>
+      importMedifDraft(
+        draftJson({
+          p1_medico_autorizado: 'Dra. A',
+          p3_medico_declaracion: 'Dr. B',
+        })
+      )
+    ).toThrow(/nombres de médico diferentes/);
+  });
+
   it('round-trips a draft and rejects unknown fields, invalid marks and conflicting responses', () => {
     const values = setMedifFieldValue(emptyMedifValues(), 'p1_nombre_pasajero', 'Ana Ñáñez');
     expect(importMedifDraft(exportMedifDraft(values))).toEqual(values);

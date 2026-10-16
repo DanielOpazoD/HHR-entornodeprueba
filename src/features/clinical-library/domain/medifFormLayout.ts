@@ -1,7 +1,7 @@
 import {
   MEDIF_FIELD_BY_ID,
   MEDIF_GROUPS,
-  MEDIF_IDENTITY_ALIASES,
+  MEDIF_FIELD_ALIASES,
   type MedifGroup,
 } from './medifSchema';
 
@@ -116,11 +116,11 @@ export const getMedifFormBlockGroups = (block: MedifFormBlock): MedifGroup[] =>
     return group;
   });
 
-/** Only established identity aliases share one editor control. */
+/** Patient identity and the physician's name share their respective editor controls. */
 export const getMedifCanonicalFieldId = (fieldId: string): string =>
-  MEDIF_IDENTITY_ALIASES.find(ids => ids.includes(fieldId))?.[0] ?? fieldId;
+  MEDIF_FIELD_ALIASES.find(ids => ids.includes(fieldId))?.[0] ?? fieldId;
 
-export const MEDIF_DUPLICATE_FIELD_IDS: readonly string[] = MEDIF_IDENTITY_ALIASES.flatMap(ids =>
+export const MEDIF_DUPLICATE_FIELD_IDS: readonly string[] = MEDIF_FIELD_ALIASES.flatMap(ids =>
   ids.slice(1)
 );
 
