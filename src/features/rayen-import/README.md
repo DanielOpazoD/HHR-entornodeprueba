@@ -493,6 +493,15 @@ La consulta del historial usa los días necesarios hasta la fecha elegida, con l
 concurrencia existentes. La validación completa se programa una vez al día; una validación fallida
 puede reintentarse a los 15 minutos. Esto no agrega consultas periódicas por renderizado.
 
+Una propuesta abierta puede sobrevivir al permiso temporal de lectura de la extensión o a su
+suspensión por Chrome. Si las escalas rechazan específicamente la autorización, el reintento
+existente comparte una captura nueva, de sólo lectura, y comprueba el RUN y episodio del censo
+confirmado. Si el episodio ya no está activo, lo verifica exactamente en Gestión de Camas.
+La renovación se intenta una vez por episodio, sólo ante ese rechazo; no agrega consultas a una
+lectura normal ni amplía permisos o vencimientos. Identidad ambigua, consulta fallida o cancelación
+conservan el error. Un RUN materno explícito sirve sólo para consultar el episodio del RN, nunca
+para cambiar su identidad, asociación, ubicación o elegibilidad. El CUDYR oficial no se modifica.
+
 Los informes individuales, el historial de episodios y los reportes de Gestión de Camas son
 fuentes complementarias. Un informe vacío no acredita que un día estuviera sin pacientes. Si un día histórico no tiene
 episodios reconstruidos, conflictos que revisar, movimientos exactos de ese día ni contenido
