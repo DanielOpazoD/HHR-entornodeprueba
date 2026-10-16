@@ -68,7 +68,8 @@ export {
  */
 export const requestEgresoLookup = (
   requested: Array<string | EgresoLookupTarget>,
-  timeoutMs = 30000
+  timeoutMs = 30000,
+  signal?: AbortSignal
 ): Promise<EgresoLookupResult[]> => {
   if (typeof window === 'undefined' || !Array.isArray(requested) || requested.length === 0) {
     return Promise.resolve([]);
@@ -83,6 +84,7 @@ export const requestEgresoLookup = (
     payload: { runs: targets.map(target => target.run), targets },
     timeoutMs,
     onTimeout: () => [],
+    signal,
     mapResult: data => (Array.isArray(data.results) ? (data.results as EgresoLookupResult[]) : []),
   });
 };

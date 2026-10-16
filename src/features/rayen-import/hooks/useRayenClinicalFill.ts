@@ -243,11 +243,11 @@ export const useRayenClinicalFill = ({
             };
           }
           const attemptId = getRayenFillAttemptId();
-          const retriedBedIds = new Set(
-            collectClinicalFillCandidates(freshRecord, allowedClinicalEpisodeIds).map(
-              candidate => candidate.bedId
-            )
+          const clinicalCandidates = collectClinicalFillCandidates(
+            freshRecord,
+            allowedClinicalEpisodeIds
           );
+          const retriedBedIds = new Set(clinicalCandidates.map(candidate => candidate.bedId));
 
           let summary: ClinicalFillSummary;
           const watchdog = createClinicalFillWatchdog({
@@ -277,7 +277,7 @@ export const useRayenClinicalFill = ({
                 signal: watchdog.signal,
                 allowedClinicalEpisodeIds,
                 pendingReads: retryRequest?.pendingReads,
-                ...createClinicalFillReaders(watchdog.signal),
+                ...createClinicalFillReaders(watchdog.signal, clinicalCandidates),
                 extractDeviceItems: extractDeviceTextItems,
                 applyPatch: async (patch, target) => {
                   await patchDailyRecord(patch, target, runPolicy, freshRecord);
