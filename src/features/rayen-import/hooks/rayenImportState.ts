@@ -3,9 +3,8 @@ import type { CensusImportDiff } from '../contracts/censusImportDiff';
 
 export interface RayenImportState {
   diff: CensusImportDiff | null;
+  /** View visibility intent only; the execution stage decides whether review is allowed. */
   isPreviewOpen: boolean;
-  isBusy: boolean;
-  isSyncing: boolean;
   result: ApplyResult | null;
   hasSkippedItems: boolean;
   error: string | null;
@@ -14,8 +13,6 @@ export interface RayenImportState {
 export const INITIAL_RAYEN_IMPORT_STATE: RayenImportState = {
   diff: null,
   isPreviewOpen: false,
-  isBusy: false,
-  isSyncing: false,
   result: null,
   hasSkippedItems: false,
   error: null,

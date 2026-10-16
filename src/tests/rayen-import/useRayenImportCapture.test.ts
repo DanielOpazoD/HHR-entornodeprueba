@@ -77,9 +77,10 @@ describe('useRayenImportCapture', () => {
     const freshRecord = { ...record, lastUpdated: '2026-08-02T09:30:00.000Z' };
     const loadFreshRecord = vi.fn().mockResolvedValue(freshRecord);
     const previewSnapshot = vi.fn();
+    const execution = createExecutionHarness();
     const { result } = renderHook(() =>
       useRayenImportCapture({
-        ...createExecutionHarness(),
+        ...execution,
         currentRecord: record,
         policy,
         policyStatus: 'ready',
@@ -101,6 +102,7 @@ describe('useRayenImportCapture', () => {
       await result.current({ connection: 'ready', report: null, message: 'ok', canSync: true });
     });
 
+    expect(execution.executionRef.current.stage).toEqual({ type: 'capturing' });
     expect(bridge.subscribeSnapshots).toHaveBeenCalledWith(expect.any(Function));
     // Sin exigencia propia del intento, la política global gobierna sola.
     expect(startRun).toHaveBeenCalledWith(
@@ -127,7 +129,7 @@ describe('useRayenImportCapture', () => {
       state: typeof INITIAL_RAYEN_IMPORT_STATE
     ) => typeof INITIAL_RAYEN_IMPORT_STATE;
     expect(stateUpdater(INITIAL_RAYEN_IMPORT_STATE)).toEqual(
-      expect.objectContaining({ isSyncing: true, error: null })
+      expect.objectContaining({ error: null })
     );
 
     const [onSnapshot] = bridge.subscribeSnapshots.mock.calls[0] as unknown as [
@@ -361,7 +363,7 @@ describe('useRayenImportCapture', () => {
       state: typeof INITIAL_RAYEN_IMPORT_STATE
     ) => typeof INITIAL_RAYEN_IMPORT_STATE;
     expect(stateUpdater(INITIAL_RAYEN_IMPORT_STATE)).toEqual(
-      expect.objectContaining({ isSyncing: false, error: 'lectura fallida' })
+      expect.objectContaining({ error: 'lectura fallida' })
     );
   });
 
@@ -410,7 +412,6 @@ describe('useRayenImportCapture', () => {
     ) => typeof INITIAL_RAYEN_IMPORT_STATE;
     expect(stateUpdater(INITIAL_RAYEN_IMPORT_STATE)).toEqual(
       expect.objectContaining({
-        isSyncing: false,
         error: expect.stringContaining('Selecciona una fecha de censo válida, actual o pasada.'),
       })
     );
@@ -464,8 +465,8 @@ describe('useRayenImportCapture', () => {
     const stateUpdater = setState.mock.calls.at(-1)?.[0] as (
       state: typeof INITIAL_RAYEN_IMPORT_STATE
     ) => typeof INITIAL_RAYEN_IMPORT_STATE;
-    expect(stateUpdater({ ...INITIAL_RAYEN_IMPORT_STATE, isSyncing: true })).toEqual(
-      expect.objectContaining({ isSyncing: false, error: expect.any(String) })
+    expect(stateUpdater(INITIAL_RAYEN_IMPORT_STATE)).toEqual(
+      expect.objectContaining({ error: expect.any(String) })
     );
   });
 });
