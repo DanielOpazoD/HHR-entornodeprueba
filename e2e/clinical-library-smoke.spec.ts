@@ -36,6 +36,9 @@ const seedPersistedSession = async (page: Page) => {
         patientName: SEEDED_PATIENT_NAME,
         biologicalSex: 'Femenino',
         rut: '12345678-5',
+        // The shared forms only propose a RUT when this synthetic identity declares its type.
+        documentType: 'RUT',
+        identityStatus: 'official',
         pathology: 'DIAGNOSTICO PREVIEW',
         age: '44',
         admissionDate: '2026-03-29',
