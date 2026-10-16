@@ -1,10 +1,15 @@
-import { isPassportFormat, isValidRut, normalizeRut } from '@/utils/rutUtils';
+import { isValidRut } from '@/utils/rutUtils';
 import type { ClinicalFillCandidate } from './clinicalFillCandidates';
 import type { EgresoLookupResult, EgresoLookupTarget } from '../contracts/egresoLookup';
 import type { RayenScalesFormsResult } from '../contracts/patientClinicalBundle';
 import type { RayenCensusSnapshot } from '../contracts/rayenSnapshot';
 
 const AUTHORIZATION_DENIED = 'Las escalas no fueron autorizadas para el episodio de esta pestaña.';
+
+const canonicalRun = (value: string): string => {
+  const raw = value.replace(/[.\s-]/g, '').toUpperCase();
+  return /^\d{1,8}[0-9K]$/.test(raw) && isValidRut(raw) ? raw : '';
+};
 
 /** Recover a lost/expired MV3 grant through source evidence, never a locally asserted grant. */
 export const createClinicalFormsAuthorizationRecovery = (
@@ -36,7 +41,7 @@ export const createClinicalFormsAuthorizationRecovery = (
           : '';
       // Explicit source maternal identity is lookup-only; never infer it from a shared bed/name.
       const run = ownRun || patient.neonatalMaternalRut || '';
-      if (isPassportFormat(run) || !isValidRut(run)) return false;
+      if (!canonicalRun(run)) return false;
       if (dependencies.refreshSnapshot) {
         freshSnapshot ??= dependencies.refreshSnapshot().catch(() => null);
         const snapshot = await freshSnapshot;
@@ -44,7 +49,7 @@ export const createClinicalFormsAuthorizationRecovery = (
         const live = snapshot?.encounters.filter(item => item.encounterId === encounterId) ?? [];
         // A changed identity is a contradiction, not permission to fall back to the old patient.
         if (live.length)
-          return live.length === 1 && normalizeRut(live[0].run) === normalizeRut(run);
+          return live.length === 1 && canonicalRun(live[0].run) === canonicalRun(run);
       }
       const results = await dependencies.verifyEpisode([{ run, encounterId }]);
       signal.throwIfAborted();
@@ -53,7 +58,7 @@ export const createClinicalFormsAuthorizationRecovery = (
           !result.error &&
           result.egreso &&
           result.encounterId === encounterId &&
-          normalizeRut(result.run) === normalizeRut(run) &&
+          canonicalRun(result.run) === canonicalRun(run) &&
           String(result.egreso.id ?? result.egreso.encounterId ?? '') === encounterId
       );
     })().catch(() => {

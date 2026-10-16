@@ -56,29 +56,32 @@ describe('clinical authorization recovery guards', () => {
     expect(readForms).toHaveBeenCalledTimes(2);
   });
 
-  it('does not fall back to an old identity contradicted by the fresh capture', async () => {
-    const refreshSnapshot = vi.fn(
-      async () =>
-        ({ encounters: [{ encounterId: '142040', run: '111111111' }] }) as RayenCensusSnapshot
-    );
-    const readForms = vi.fn();
-    const verifyEpisode = vi.fn();
-    const recovery = createClinicalFormsAuthorizationRecovery(
-      [patient()],
-      new AbortController().signal,
-      { readForms, verifyEpisode, refreshSnapshot }
-    );
-    recovery.observe('142040', denial);
-    expect(await recovery.readForms('142040')).toEqual(denial);
-    expect(readForms).not.toHaveBeenCalled();
-    expect(verifyEpisode).not.toHaveBeenCalled();
-  });
+  it.each(['111111111', 'A123456785', '123A456785'])(
+    'rejects contradictory or non-RUN source identity %s',
+    async run => {
+      const refreshSnapshot = vi.fn(
+        async () => ({ encounters: [{ encounterId: '142040', run }] }) as RayenCensusSnapshot
+      );
+      const readForms = vi.fn();
+      const verifyEpisode = vi.fn();
+      const recovery = createClinicalFormsAuthorizationRecovery(
+        [patient()],
+        new AbortController().signal,
+        { readForms, verifyEpisode, refreshSnapshot }
+      );
+      recovery.observe('142040', denial);
+      expect(await recovery.readForms('142040')).toEqual(denial);
+      expect(readForms).not.toHaveBeenCalled();
+      expect(verifyEpisode).not.toHaveBeenCalled();
+    }
+  );
 
   it.each([
     [],
     [patient(), patient()],
     [patient({ clinicalEpisodeId: '999999' })],
     [patient({ rut: 'A123456785' })],
+    [patient({ rut: '123A456785' })],
     [patient({ documentType: 'Pasaporte' })],
     [patient({ rut: '12.345.678-9' })],
     [patient({ identityStatus: 'provisional' })],
