@@ -1,4 +1,4 @@
-import React, { lazy, Suspense } from 'react';
+import React, { Suspense } from 'react';
 import type { Statistics } from '@/types/domain/statistics';
 import { NurseSelector } from './NurseSelector';
 import { TensSelector } from './TensSelector';
@@ -19,9 +19,9 @@ import { useStaffContext } from '@/context/StaffContext';
 import { buildCensusStaffHeaderReadModel } from '@/application/census/censusStaffHeaderReadModel';
 import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
 import type { DetailedStaffingRole } from '@/types/domain/dailyRecordStaffingDetails';
-// The Rayen import machinery is only needed once the operator uses it, so the census
-// table no longer downloads it just to render the toolbar.
-const RayenImportButton = lazy(() =>
+// Keep the first paint responsive and recover interrupted panel downloads without
+// automatically reloading an editable census.
+const RayenImportButton = lazyWithRetry(() =>
   import('@/features/rayen-import/RayenImportButton').then(module => ({
     default: module.RayenImportButton,
   }))
