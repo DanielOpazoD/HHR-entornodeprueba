@@ -12,7 +12,8 @@ import { RayenConnectionMonitor } from './RayenConnectionMonitor';
 import { useSyncQueueMonitor } from '@/hooks/useSyncQueueMonitor';
 import { hasLocalSyncAttention } from './localSyncPresentation';
 import { RayenSyncQueueDetails, RayenSyncStatusLine } from './RayenSyncQueueDetails';
-import { presentRayenSyncRecovery, rayenPrimaryActionLabel } from './rayenSyncPresentation';
+import { rayenPrimaryActionLabel } from './rayenSyncPresentation';
+import { presentRayenSyncRecovery } from './rayenSyncRecoveryPresentation';
 import { formatLastSync } from './formatRayenLastSync';
 import type {
   RayenImportCaptureOptions,

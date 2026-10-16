@@ -274,9 +274,7 @@ export const useRayenImportCapture = ({
             preparedContext.target.kind === 'unsupported' ||
             preparedContext.target.lookbackDays === null
           ) {
-            throw new Error(
-              'Solo se puede sincronizar el censo vigente o uno de los siete días anteriores.'
-            );
+            throw new Error('Selecciona una fecha de censo válida, actual o pasada.');
           }
         } catch (error) {
           if (

@@ -1,9 +1,9 @@
 import type { ClinicalSyncCheckpoint } from '@/types/domain/clinicalSync';
+import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 
 export const CLINICAL_FULL_REVALIDATION_INTERVAL_MS = 24 * 60 * 60 * 1000;
 export const CLINICAL_FULL_REVALIDATION_RETRY_INTERVAL_MS = 15 * 60 * 1000;
 export const CLINICAL_FULL_REVALIDATION_LOOKBACK_DAYS = 14;
-export const CLINICAL_MAX_HISTORY_LOOKBACK_DAYS = 180;
 
 export interface ClinicalHistoryReadPolicy {
   lookbackDays?: number;
@@ -20,7 +20,6 @@ export const confirmFullWindow = (
   typeof effectiveLookbackDays === 'number' &&
   Number.isSafeInteger(effectiveLookbackDays) &&
   effectiveLookbackDays > 0 &&
-  effectiveLookbackDays <= CLINICAL_MAX_HISTORY_LOOKBACK_DAYS &&
   effectiveLookbackDays >= policy.lookbackDays
     ? policy.fullValidationAt
     : undefined;
@@ -78,7 +77,8 @@ export const confirmAuthoritativeHistoryResponse = (
 
 /**
  * Rayen's history route only accepts a day-window, not an event watermark. Keep the short adaptive
- * window for normal runs and perform one bounded full validation per day to catch late corrections.
+ * window for normal runs and perform one full validation per day to catch late corrections.
+ * Historical requests must still reach their selected day after a checkpoint becomes fresh.
  */
 export const resolveClinicalHistoryReadPolicy = (
   checkpoint: ClinicalSyncCheckpoint | undefined,
@@ -92,14 +92,12 @@ export const resolveClinicalHistoryReadPolicy = (
   if (!Number.isFinite(nowMs)) return {};
 
   const censusStart = Date.parse(`${censusDate}T00:00:00Z`);
-  const nowStart = Date.parse(`${now.toISOString().slice(0, 10)}T00:00:00Z`);
+  const nowStart = Date.parse(`${calendarStampInClinicalTimeZone(now).iso}T00:00:00Z`);
   const censusAgeDays =
     Number.isFinite(censusStart) && Number.isFinite(nowStart)
       ? Math.max(0, Math.floor((nowStart - censusStart) / 86_400_000))
       : 0;
   const requestedLookback = Math.max(CLINICAL_FULL_REVALIDATION_LOOKBACK_DAYS, censusAgeDays + 2);
-  const canCertifyFullWindow = requestedLookback <= CLINICAL_MAX_HISTORY_LOOKBACK_DAYS;
-  const requestedEndpointLookback = Math.min(CLINICAL_MAX_HISTORY_LOOKBACK_DAYS, requestedLookback);
   const hasRecentSufficientWindow = (
     timestamp: string | undefined,
     coveredLookbackDays: number | undefined,
@@ -110,7 +108,6 @@ export const resolveClinicalHistoryReadPolicy = (
     return (
       Number.isFinite(timestampMs) &&
       Number.isSafeInteger(coveredLookbackDays) &&
-      Number(coveredLookbackDays) <= CLINICAL_MAX_HISTORY_LOOKBACK_DAYS &&
       Number(coveredLookbackDays) >= requiredLookbackDays &&
       // A clock correction must not postpone a baseline until a future checkpoint catches up.
       nowMs >= timestampMs &&
@@ -125,26 +122,26 @@ export const resolveClinicalHistoryReadPolicy = (
       CLINICAL_FULL_REVALIDATION_INTERVAL_MS
     )
   );
-  const attemptThrottleMs = canCertifyFullWindow
-    ? CLINICAL_FULL_REVALIDATION_RETRY_INTERVAL_MS
-    : CLINICAL_FULL_REVALIDATION_INTERVAL_MS;
   const hasFreshSufficientAttempt = sourceCheckpoints.some(source =>
     hasRecentSufficientWindow(
       source?.lastFullValidationAttemptAt,
       source?.lastFullValidationAttemptLookbackDays,
-      requestedEndpointLookback,
-      attemptThrottleMs
+      requestedLookback,
+      CLINICAL_FULL_REVALIDATION_RETRY_INTERVAL_MS
     )
   );
 
   if (hasFreshSuccessfulValidation || hasFreshSufficientAttempt) {
-    return {};
+    // The extension's ordinary adaptive window is short. Never let a fresh checkpoint shrink
+    // a historical read out of the selected date; only the expensive baseline marker is throttled.
+    return censusAgeDays + 2 > CLINICAL_FULL_REVALIDATION_LOOKBACK_DAYS
+      ? { lookbackDays: requestedLookback }
+      : {};
   }
 
   return {
-    lookbackDays: requestedEndpointLookback,
+    lookbackDays: requestedLookback,
     fullValidationAttemptAt: now.toISOString(),
-    // Do not certify an incomplete baseline when the requested census exceeds endpoint support.
-    ...(canCertifyFullWindow ? { fullValidationAt: now.toISOString() } : {}),
+    fullValidationAt: now.toISOString(),
   };
 };

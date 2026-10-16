@@ -52,13 +52,11 @@ export const syncReportRange = (
   return { dateStart, dateEnd: nextIsoDay(target.calendarDay) };
 };
 
-/** Allows the live clinical day and the seven previous clinical days. */
+/** Allows a valid current or past census date; reconstruction requires episode evidence. */
 export const toSyncReportDate = (record: DailyRecord, now: Date = new Date()): string => {
   const reportDate = toIsoReportDate(record);
   if (!isSupportedCensusSyncDay(reportDate, now)) {
-    throw new Error(
-      'La sincronización permite el censo vigente y hasta siete días clínicos anteriores. Para fechas más antiguas se requiere revisión manual.'
-    );
+    throw new Error('Selecciona una fecha de censo válida, actual o pasada.');
   }
   return reportDate;
 };
