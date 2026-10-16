@@ -322,7 +322,8 @@ export const useRayenClinicalFill = ({
           summary = mergeClinicalRetrySummary(
             retryRequest?.previousSummary,
             summary,
-            retriedBedIds
+            retriedBedIds,
+            new Set(clinicalCandidates.map(({ patient }) => patient.clinicalEpisodeId!))
           );
 
           if (summary.errors.length > 0) {
