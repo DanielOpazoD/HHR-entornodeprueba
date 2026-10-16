@@ -449,7 +449,7 @@ describe('RayenImportButton', () => {
     fireEvent.click(historyButton);
     expect(screen.getByRole('dialog', { name: 'Historial de sincronización · hoy' })).toBeVisible();
     expect(
-      screen.getByText('Sincronizado: 1 ingresos, 2 act., 0 mov., 0 egresos')
+      screen.getByText('1 ingresos · 2 actualizaciones')
     ).toBeInTheDocument();
     expect(screen.getByText('Parcial')).toBeInTheDocument();
     expect(screen.getAllByText(/1 paciente no se pudo completar/).length).toBeGreaterThan(0);
