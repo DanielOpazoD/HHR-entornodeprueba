@@ -1,0 +1,796 @@
+{
+  "id": "solicitud-tuberculosis",
+  "title": "Investigación bacteriológica de tuberculosis",
+  "revision": 1,
+  "catalogVersion": "1.1.0",
+  "templateUrl": "/docs/biblioteca/solicitud-tuberculosis-minsal.pdf",
+  "sourceUrl": "/docs/biblioteca/solicitud-tuberculosis-minsal.pdf",
+  "pages": [
+    {
+      "width": 612,
+      "height": 935.4
+    }
+  ],
+  "fields": [
+    {
+      "id": "paciente_nombres",
+      "label": "Nombres",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [46, 171, 163, 15]
+        }
+      ]
+    },
+    {
+      "id": "paciente_apellido_paterno",
+      "label": "Primer apellido",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [214, 171, 186, 15]
+        }
+      ]
+    },
+    {
+      "id": "paciente_apellido_materno",
+      "label": "Segundo apellido",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [406, 171, 162, 15]
+        }
+      ]
+    },
+    {
+      "id": "paciente_rut",
+      "label": "RUN",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [46, 203, 163, 15]
+        }
+      ]
+    },
+    {
+      "id": "paciente_edad_texto",
+      "label": "Edad (con unidad)",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [345, 203, 55, 15]
+        }
+      ]
+    },
+    {
+      "id": "paciente_sexo_biologico",
+      "label": "Sexo (M/F/I)",
+      "section": "Paciente",
+      "kind": "choice",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [406, 203, 37, 15],
+          "format": "sex_initial"
+        }
+      ],
+      "options": [
+        {
+          "value": "Masculino",
+          "label": "Masculino"
+        },
+        {
+          "value": "Femenino",
+          "label": "Femenino"
+        },
+        {
+          "value": "Indeterminado",
+          "label": "Indeterminado"
+        }
+      ]
+    },
+    {
+      "id": "paciente_fecha_nacimiento",
+      "label": "Fecha de nacimiento",
+      "section": "Paciente",
+      "kind": "date",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [214, 203, 126, 15],
+          "format": "date_dmy"
+        }
+      ]
+    },
+    {
+      "id": "paciente_nacionalidad",
+      "label": "Nacionalidad",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [449, 203, 119, 15]
+        }
+      ]
+    },
+    {
+      "id": "paciente_domicilio",
+      "label": "Domicilio",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [46, 235, 354, 15]
+        }
+      ]
+    },
+    {
+      "id": "paciente_telefono",
+      "label": "Teléfono",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [406, 235, 162, 15]
+        }
+      ]
+    },
+    {
+      "id": "tbc_unidad",
+      "label": "Unidad",
+      "section": "Solicitud",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [345, 267, 223, 15]
+        }
+      ]
+    },
+    {
+      "id": "establecimiento_nombre",
+      "label": "Establecimiento",
+      "section": "Solicitud",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [46, 267, 294, 15]
+        }
+      ]
+    },
+    {
+      "id": "tbc_motivo",
+      "label": "Examen solicitado para (sólo uno)",
+      "section": "Solicitud",
+      "kind": "choice",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [47.02, 329.76, 6.48, 6.48],
+          "equals": "pesquisa"
+        },
+        {
+          "page": 0,
+          "rect": [47.02, 343.6, 6.48, 6.48],
+          "equals": "persistencia"
+        },
+        {
+          "page": 0,
+          "rect": [47.02, 357.43, 6.48, 6.48],
+          "equals": "mnt"
+        },
+        {
+          "page": 0,
+          "rect": [349.62, 329.76, 6.48, 6.48],
+          "equals": "control"
+        },
+        {
+          "page": 0,
+          "rect": [349.62, 343.6, 6.48, 6.48],
+          "equals": "sospecha"
+        }
+      ],
+      "options": [
+        {
+          "value": "pesquisa",
+          "label": "Pesquisa de caso presuntivo"
+        },
+        {
+          "value": "persistencia",
+          "label": "Persistencia de síntomas"
+        },
+        {
+          "value": "mnt",
+          "label": "Sospecha de micobacteria no tuberculosa"
+        },
+        {
+          "value": "control",
+          "label": "Control de tratamiento"
+        },
+        {
+          "value": "sospecha",
+          "label": "Sospecha clínica"
+        }
+      ]
+    },
+    {
+      "id": "tbc_mes_control",
+      "label": "Mes de control de tratamiento",
+      "section": "Solicitud",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [494, 328, 36, 9]
+        }
+      ]
+    },
+    {
+      "id": "tbc_vulnerable_47_1",
+      "label": "Mayor de 65 años",
+      "section": "Grupos vulnerables",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [47.02, 414.45, 6.48, 6.48],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "tbc_vulnerable_47_2",
+      "label": "Extranjero/a",
+      "section": "Grupos vulnerables",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [47.02, 428.28, 6.48, 6.48],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "tbc_vulnerable_47_3",
+      "label": "Contacto TB sensible",
+      "section": "Grupos vulnerables",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [47.02, 442.12, 6.48, 6.48],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "tbc_vulnerable_47_4",
+      "label": "Contacto TB resistente",
+      "section": "Grupos vulnerables",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [47.02, 455.95, 6.48, 6.48],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "tbc_vulnerable_47_5",
+      "label": "Persona viviendo con VIH",
+      "section": "Grupos vulnerables",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [47.02, 469.79, 6.48, 6.48],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "tbc_vulnerable_47_6",
+      "label": "Diabetes",
+      "section": "Grupos vulnerables",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [47.02, 483.62, 6.48, 6.48],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "tbc_vulnerable_194_1",
+      "label": "Alcohol / drogas",
+      "section": "Grupos vulnerables",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [194.85, 414.45, 6.48, 6.48],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "tbc_vulnerable_194_2",
+      "label": "Pueblo indígena",
+      "section": "Grupos vulnerables",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [194.85, 428.28, 6.48, 6.48],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "tbc_vulnerable_194_3",
+      "label": "Privado/a de libertad",
+      "section": "Grupos vulnerables",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [194.85, 442.12, 6.48, 6.48],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "tbc_vulnerable_194_4",
+      "label": "Personal de salud",
+      "section": "Grupos vulnerables",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [194.85, 455.95, 6.48, 6.48],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "tbc_vulnerable_194_5",
+      "label": "Exposición a sílice",
+      "section": "Grupos vulnerables",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [194.85, 469.79, 6.48, 6.48],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "tbc_vulnerable_194_6",
+      "label": "Situación de calle",
+      "section": "Grupos vulnerables",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [194.85, 483.62, 6.48, 6.48],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "tbc_vulnerable_349_1",
+      "label": "Inmunosupresión",
+      "section": "Grupos vulnerables",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [349.62, 414.45, 6.48, 6.48],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "tbc_vulnerable_349_2",
+      "label": "Otras poblaciones cerradas",
+      "section": "Grupos vulnerables",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [349.62, 428.28, 6.48, 6.48],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "tbc_vulnerable_349_3",
+      "label": "Otro grupo",
+      "section": "Grupos vulnerables",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [349.62, 442.12, 6.48, 6.48],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "tbc_grupo_detalle_1",
+      "label": "Inmunosupresión: cuál",
+      "section": "Grupos vulnerables",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [460, 412, 36, 9]
+        }
+      ]
+    },
+    {
+      "id": "tbc_grupo_detalle_2",
+      "label": "Población cerrada: especificar",
+      "section": "Grupos vulnerables",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [528, 426, 36, 9]
+        }
+      ]
+    },
+    {
+      "id": "tbc_grupo_detalle_3",
+      "label": "Otro grupo: especificar",
+      "section": "Grupos vulnerables",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [464, 440, 34, 9]
+        }
+      ]
+    },
+    {
+      "id": "tbc_sintoma_1",
+      "label": "Fiebre",
+      "section": "Síntomas CPT",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [47.02, 540.63, 6.48, 6.48],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "tbc_sintoma_2",
+      "label": "Baja de peso",
+      "section": "Síntomas CPT",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [47.02, 554.47, 6.48, 6.48],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "tbc_sintoma_3",
+      "label": "Sudoración nocturna",
+      "section": "Síntomas CPT",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [184.64, 540.63, 6.48, 6.48],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "tbc_sintoma_4",
+      "label": "Hemoptisis",
+      "section": "Síntomas CPT",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [184.64, 554.47, 6.48, 6.48],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "tbc_tratamiento_previo",
+      "label": "Antecedentes de tratamiento (sólo uno)",
+      "section": "Tratamiento",
+      "kind": "choice",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [47.02, 611.49, 6.48, 6.48],
+          "equals": "nuevo"
+        },
+        {
+          "page": 0,
+          "rect": [47.02, 625.32, 6.48, 6.48],
+          "equals": "fracaso"
+        },
+        {
+          "page": 0,
+          "rect": [296.47, 611.49, 6.48, 6.48],
+          "equals": "perdida"
+        },
+        {
+          "page": 0,
+          "rect": [296.47, 625.32, 6.48, 6.48],
+          "equals": "recaida"
+        }
+      ],
+      "options": [
+        {
+          "value": "nuevo",
+          "label": "Caso nuevo"
+        },
+        {
+          "value": "fracaso",
+          "label": "Sospecha de fracaso"
+        },
+        {
+          "value": "perdida",
+          "label": "Previamente tratado: pérdida seguimiento"
+        },
+        {
+          "value": "recaida",
+          "label": "Previamente tratado: recaída"
+        }
+      ]
+    },
+    {
+      "id": "tbc_muestra",
+      "label": "Tipo de muestra (sólo uno)",
+      "section": "Muestra",
+      "kind": "choice",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [47.02, 682.34, 6.48, 6.48],
+          "equals": "esputo"
+        },
+        {
+          "page": 0,
+          "rect": [47.02, 696.17, 6.48, 6.48],
+          "equals": "lavado"
+        },
+        {
+          "page": 0,
+          "rect": [47.02, 710, 6.48, 6.48],
+          "equals": "aspirado"
+        },
+        {
+          "page": 0,
+          "rect": [47.02, 723.84, 6.48, 6.48],
+          "equals": "gastrico"
+        },
+        {
+          "page": 0,
+          "rect": [47.02, 737.67, 6.48, 6.48],
+          "equals": "deposicion"
+        },
+        {
+          "page": 0,
+          "rect": [233.4, 696.17, 6.48, 6.48],
+          "equals": "lcr"
+        },
+        {
+          "page": 0,
+          "rect": [233.4, 710, 6.48, 6.48],
+          "equals": "liquido_pleural"
+        },
+        {
+          "page": 0,
+          "rect": [360.96, 696.17, 6.48, 6.48],
+          "equals": "ganglionar"
+        },
+        {
+          "page": 0,
+          "rect": [360.96, 710, 6.48, 6.48],
+          "equals": "oseo"
+        },
+        {
+          "page": 0,
+          "rect": [360.96, 723.84, 6.48, 6.48],
+          "equals": "tejido_pleural"
+        },
+        {
+          "page": 0,
+          "rect": [476.61, 696.17, 6.48, 6.48],
+          "equals": "orina1"
+        },
+        {
+          "page": 0,
+          "rect": [476.61, 710, 6.48, 6.48],
+          "equals": "orina2"
+        },
+        {
+          "page": 0,
+          "rect": [476.61, 723.84, 6.48, 6.48],
+          "equals": "orina3"
+        },
+        {
+          "page": 0,
+          "rect": [47.02, 762.05, 6.48, 6.48],
+          "equals": "otro"
+        }
+      ],
+      "options": [
+        {
+          "value": "esputo",
+          "label": "Esputo (dos muestras seriadas)"
+        },
+        {
+          "value": "lavado",
+          "label": "Lavado broncoalveolar"
+        },
+        {
+          "value": "aspirado",
+          "label": "Aspirado bronquial"
+        },
+        {
+          "value": "gastrico",
+          "label": "Contenido gástrico"
+        },
+        {
+          "value": "deposicion",
+          "label": "Deposición"
+        },
+        {
+          "value": "lcr",
+          "label": "Líquido cefalorraquídeo"
+        },
+        {
+          "value": "liquido_pleural",
+          "label": "Líquido pleural"
+        },
+        {
+          "value": "ganglionar",
+          "label": "Tejido ganglionar"
+        },
+        {
+          "value": "oseo",
+          "label": "Tejido óseo"
+        },
+        {
+          "value": "tejido_pleural",
+          "label": "Tejido pleural"
+        },
+        {
+          "value": "orina1",
+          "label": "Orina: primera muestra"
+        },
+        {
+          "value": "orina2",
+          "label": "Orina: segunda muestra"
+        },
+        {
+          "value": "orina3",
+          "label": "Orina: tercera muestra"
+        },
+        {
+          "value": "otro",
+          "label": "Otros líquidos, tejidos o sangre"
+        }
+      ]
+    },
+    {
+      "id": "tbc_muestra_detalle",
+      "label": "Otra muestra: especificar",
+      "section": "Muestra",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [262, 760, 196, 9]
+        }
+      ]
+    },
+    {
+      "id": "medico_tratante_nombre",
+      "label": "Nombre del solicitante",
+      "section": "Solicitante",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [220, 803, 215, 15]
+        }
+      ]
+    },
+    {
+      "id": "medico_tratante_rut",
+      "label": "RUN del solicitante",
+      "section": "Solicitante",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [440, 803, 127, 15]
+        }
+      ]
+    },
+    {
+      "id": "formulario_fecha_emision",
+      "label": "Fecha de solicitud",
+      "section": "Solicitante",
+      "kind": "date",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [220, 822, 347, 15],
+          "format": "date_dmy"
+        }
+      ]
+    },
+    {
+      "id": "tbc_fecha_muestra",
+      "label": "Fecha de toma de muestra",
+      "section": "Muestra",
+      "kind": "date",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [220, 841, 175, 15],
+          "format": "date_dmy"
+        }
+      ]
+    },
+    {
+      "id": "tbc_hora_muestra",
+      "label": "Hora de toma de muestra",
+      "section": "Muestra",
+      "kind": "time",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [403, 841, 164, 15]
+        }
+      ]
+    },
+    {
+      "id": "tbc_responsable_muestra",
+      "label": "Responsable de toma de muestra",
+      "section": "Muestra",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [220, 860, 347, 15]
+        }
+      ]
+    }
+  ],
+  "templateSha256": "89c833d8cb61a6260e3f9d4b0a9d0277d1f0e82fb7842c5ccd95b439577ca6c7",
+  "sourceSha256": "89c833d8cb61a6260e3f9d4b0a9d0277d1f0e82fb7842c5ccd95b439577ca6c7"
+}

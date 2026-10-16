@@ -12,6 +12,8 @@
     "^images/forms/",
     "^assets/MedifTool-.*\\.js$",
     "^assets/MedifTool-.*\\.css$",
+    "^assets/ClinicalFormTool-.*\\.js$",
+    "^assets/ClinicalFormTool-.*\\.css$",
     "^vendor/exceljs\\.bare\\.min\\.js$",
     "^assets/exceljs\\.min-.*\\.js$",
     "^assets/pdf\\.worker-.*\\.mjs$",

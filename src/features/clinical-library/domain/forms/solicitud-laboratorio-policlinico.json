@@ -1,0 +1,1146 @@
+{
+  "id": "solicitud-laboratorio-policlinico",
+  "title": "Solicitud de exámenes de laboratorio",
+  "revision": 1,
+  "catalogVersion": "1.1.0",
+  "templateUrl": "/docs/biblioteca/solicitud-laboratorio-policlinico.pdf",
+  "sourceUrl": "/docs/biblioteca/solicitud-laboratorio-policlinico.pdf",
+  "pages": [
+    {
+      "width": 612,
+      "height": 792
+    }
+  ],
+  "fields": [
+    {
+      "id": "paciente_nombre_completo",
+      "label": "Nombre y apellidos",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [178, 165, 236, 11]
+        }
+      ]
+    },
+    {
+      "id": "paciente_rut",
+      "label": "RUT",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [105, 181, 98, 11]
+        }
+      ]
+    },
+    {
+      "id": "paciente_fecha_nacimiento",
+      "label": "Fecha de nacimiento",
+      "section": "Paciente",
+      "kind": "date",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [303, 181, 93, 11],
+          "format": "date_dmy"
+        }
+      ]
+    },
+    {
+      "id": "formulario_fecha_emision",
+      "label": "Fecha de solicitud",
+      "section": "Solicitud",
+      "kind": "date",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [434, 181, 88, 11],
+          "format": "date_dmy"
+        }
+      ]
+    },
+    {
+      "id": "paciente_ficha_numero",
+      "label": "Nº de ficha",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [452, 165, 70, 11]
+        }
+      ]
+    },
+    {
+      "id": "diagnostico_texto",
+      "label": "Diagnóstico",
+      "section": "Solicitud",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [143, 198, 379, 11]
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_grupo_paciente",
+      "label": "Grupo de atención",
+      "section": "Solicitud",
+      "kind": "choice",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [175.34, 123.33, 9.62, 7.35],
+          "equals": "infantil"
+        },
+        {
+          "page": 0,
+          "rect": [217.76, 123.33, 9.62, 7.35],
+          "equals": "adulto"
+        },
+        {
+          "page": 0,
+          "rect": [272.63, 122.76, 9.62, 7.92],
+          "equals": "maternal"
+        }
+      ],
+      "options": [
+        {
+          "value": "infantil",
+          "label": "Infantil"
+        },
+        {
+          "value": "adulto",
+          "label": "Adulto"
+        },
+        {
+          "value": "maternal",
+          "label": "Maternal"
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_procedencia",
+      "label": "Procedencia",
+      "section": "Solicitud",
+      "kind": "choice",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [125.57, 134.07, 9.62, 7.92],
+          "equals": "policlinico"
+        },
+        {
+          "page": 0,
+          "rect": [217.76, 134.64, 9.05, 7.35],
+          "equals": "hospitalizado"
+        },
+        {
+          "page": 0,
+          "rect": [273.76, 134.64, 9.05, 7.35],
+          "equals": "urgencia"
+        }
+      ],
+      "options": [
+        {
+          "value": "policlinico",
+          "label": "Policlínico"
+        },
+        {
+          "value": "hospitalizado",
+          "label": "Hospitalización"
+        },
+        {
+          "value": "urgencia",
+          "label": "Urgencia"
+        }
+      ]
+    },
+    {
+      "id": "paciente_fonasa_tramo",
+      "label": "Tramo FONASA",
+      "section": "Solicitud",
+      "kind": "choice",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [440.62, 123.89, 9.05, 7.35],
+          "equals": "A"
+        },
+        {
+          "page": 0,
+          "rect": [461.55, 123.89, 9.05, 7.35],
+          "equals": "B"
+        },
+        {
+          "page": 0,
+          "rect": [485.3, 123.89, 9.05, 7.35],
+          "equals": "C"
+        },
+        {
+          "page": 0,
+          "rect": [512.45, 123.33, 9.05, 7.92],
+          "equals": "D"
+        }
+      ],
+      "options": [
+        {
+          "value": "A",
+          "label": "A"
+        },
+        {
+          "value": "B",
+          "label": "B"
+        },
+        {
+          "value": "C",
+          "label": "C"
+        },
+        {
+          "value": "D",
+          "label": "D"
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_isapre",
+      "label": "ISAPRE",
+      "section": "Solicitud",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [420, 131, 58, 11]
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_prais",
+      "label": "PRAIS",
+      "section": "Solicitud",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [512.45, 135.21, 9.05, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_1_1",
+      "label": "Glicemia",
+      "section": "Bioquímica",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [95.02, 265.89, 9.62, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_1_2",
+      "label": "PTGO",
+      "section": "Bioquímica",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [95.02, 277.2, 9.62, 7.92],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_1_3",
+      "label": "Uremia",
+      "section": "Bioquímica",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [95.59, 290.21, 9.05, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_1_4",
+      "label": "Creatinina",
+      "section": "Bioquímica",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [95.02, 302.09, 9.62, 7.92],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_1_5",
+      "label": "Fosfatasa alcalina",
+      "section": "Bioquímica",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [95.02, 315.1, 9.62, 7.92],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_1_6",
+      "label": "GOT / GPT",
+      "section": "Bioquímica",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [95.02, 329.25, 9.62, 7.92],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_1_7",
+      "label": "GGT",
+      "section": "Bioquímica",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [95.59, 346.22, 9.05, 7.92],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_1_8",
+      "label": "Amilasa",
+      "section": "Bioquímica",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [95.02, 362.62, 9.62, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_1_9",
+      "label": "Proteína total",
+      "section": "Bioquímica",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [95.02, 379.03, 9.62, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_1_10",
+      "label": "Albúmina",
+      "section": "Bioquímica",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [95.02, 396.57, 9.62, 7.92],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_1_11",
+      "label": "Bilirrubina directa y total",
+      "section": "Bioquímica",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [95.02, 409.01, 9.62, 7.92],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_1_12",
+      "label": "LDH",
+      "section": "Bioquímica",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [95.02, 431.07, 9.05, 7.92],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_1_13",
+      "label": "Lipasa",
+      "section": "Bioquímica",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [95.02, 453.7, 9.05, 7.92],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_1_14",
+      "label": "Uricemia",
+      "section": "Bioquímica",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [95.02, 468.41, 9.05, 7.92],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_1_15",
+      "label": "Colesterol",
+      "section": "Bioquímica",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [94.46, 481.99, 9.62, 7.92],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_1_16",
+      "label": "Colesterol HDL",
+      "section": "Bioquímica",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [94.46, 503.49, 9.62, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_1_17",
+      "label": "Triglicéridos",
+      "section": "Bioquímica",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [95.02, 529.51, 9.05, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_1_18",
+      "label": "CK",
+      "section": "Bioquímica",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [95.02, 545.35, 9.05, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_1_19",
+      "label": "CK-MB",
+      "section": "Bioquímica",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [94.46, 558.93, 9.62, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_1_20",
+      "label": "Gases arteriales",
+      "section": "Bioquímica",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [94.46, 572.5, 9.62, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_1_21",
+      "label": "Gases venosos",
+      "section": "Bioquímica",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [95.02, 585.51, 9.62, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_1_22",
+      "label": "Ferritina",
+      "section": "Bioquímica",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [95.02, 604.18, 9.62, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_1_23",
+      "label": "Electrolitos plasmáticos",
+      "section": "Bioquímica",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [96.16, 634.73, 9.05, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_1_24",
+      "label": "Lactato",
+      "section": "Bioquímica",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [96.16, 644.91, 9.05, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_1_25",
+      "label": "Proteína C reactiva",
+      "section": "Inmunología / serología",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [95.02, 687.34, 9.62, 7.92],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_1_26",
+      "label": "Factor reumatoideo",
+      "section": "Inmunología / serología",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [96.16, 700.35, 9.05, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_1_27",
+      "label": "RPR",
+      "section": "Inmunología / serología",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [96.16, 710.54, 9.05, 7.92],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_1_28",
+      "label": "IgM dengue",
+      "section": "Inmunología / serología",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [96.16, 721.29, 9.05, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_2_1",
+      "label": "Hemograma",
+      "section": "Hematología",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [250.57, 266.45, 9.05, 7.92],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_2_2",
+      "label": "VHS",
+      "section": "Hematología",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [250.57, 277.77, 9.05, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_2_3",
+      "label": "Recuento leucocitos",
+      "section": "Hematología",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [250.57, 289.65, 9.05, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_2_4",
+      "label": "Recuento plaquetas",
+      "section": "Hematología",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [250.57, 302.66, 9.05, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_2_5",
+      "label": "Hematocrito",
+      "section": "Hematología",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [250.57, 315.1, 9.05, 7.92],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_2_6",
+      "label": "Hemoglobina",
+      "section": "Hematología",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [250.57, 332.07, 9.05, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_2_7",
+      "label": "Hemoglobina glicosilada",
+      "section": "Hematología",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [250.57, 342.82, 9.05, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_2_8",
+      "label": "Grupo sanguíneo ABO-RH",
+      "section": "Hematología",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [250.57, 362.06, 9.05, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_2_9",
+      "label": "Protrombina / INR",
+      "section": "Coagulación",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [249.44, 399.39, 9.62, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_2_10",
+      "label": "TTPK",
+      "section": "Coagulación",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [250.0, 412.41, 9.62, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_2_11",
+      "label": "Tiempo de sangría",
+      "section": "Coagulación",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [250.0, 424.29, 9.62, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_2_12",
+      "label": "Fibrinógeno",
+      "section": "Coagulación",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [250.57, 433.34, 9.05, 7.92],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_2_13",
+      "label": "Dímero D",
+      "section": "Coagulación",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [250.57, 442.95, 9.05, 7.92],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_2_14",
+      "label": "Urocultivo",
+      "section": "Microbiología",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [250.0, 470.11, 9.62, 7.92],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_2_15",
+      "label": "Hemocultivo",
+      "section": "Microbiología",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [250.0, 483.12, 9.05, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_2_16",
+      "label": "Coprocultivo",
+      "section": "Microbiología",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [250.0, 504.05, 9.62, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_2_17",
+      "label": "Mycoplasma / Ureaplasma",
+      "section": "Microbiología",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [250.0, 526.68, 9.05, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_2_18",
+      "label": "Flujo vaginal",
+      "section": "Microbiología",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [250.57, 547.05, 9.05, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_2_19",
+      "label": "Tinción BAAR",
+      "section": "Microbiología",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [250.57, 562.32, 9.05, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_2_20",
+      "label": "Secreciones",
+      "section": "Microbiología",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [250.0, 574.77, 9.62, 7.92],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_3_1",
+      "label": "TSH",
+      "section": "Hormonas",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [380.1, 267.58, 9.62, 7.92],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_3_2",
+      "label": "T4 libre",
+      "section": "Hormonas",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [380.1, 277.2, 9.62, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_3_3",
+      "label": "Troponina",
+      "section": "Hormonas",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [380.66, 286.82, 9.05, 7.92],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_3_4",
+      "label": "PSA",
+      "section": "Hormonas",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [380.66, 297.0, 9.05, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_3_5",
+      "label": "Subunidad beta-HCG",
+      "section": "Hormonas",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [380.66, 306.05, 9.62, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_3_6",
+      "label": "Sedimento urinario",
+      "section": "Orina",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [380.1, 346.78, 9.05, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_3_7",
+      "label": "Orina completa",
+      "section": "Orina",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [380.1, 362.62, 9.05, 7.92],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_3_8",
+      "label": "Test de embarazo",
+      "section": "Orina",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [380.1, 379.59, 9.62, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_3_9",
+      "label": "Coproparasitario",
+      "section": "Parasitología",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [380.66, 413.54, 9.05, 7.92],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_3_10",
+      "label": "Test de Graham",
+      "section": "Parasitología",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [380.1, 433.34, 9.62, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_3_11",
+      "label": "Acarotest",
+      "section": "Parasitología",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [381.23, 453.7, 9.05, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_3_12",
+      "label": "Rotavirus",
+      "section": "Virología",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [384.06, 485.38, 9.62, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_3_13",
+      "label": "Adenovirus",
+      "section": "Virología",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [384.62, 495.57, 9.62, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_3_14",
+      "label": "SARS-CoV-2",
+      "section": "Virología",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [385.19, 504.62, 9.05, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_3_15",
+      "label": "Dengue / Zika / Chikungunya",
+      "section": "Virología",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [385.19, 514.23, 9.05, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_3_16",
+      "label": "Test de Weber",
+      "section": "Otros exámenes",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [384.62, 548.74, 9.62, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_3_17",
+      "label": "Citológico",
+      "section": "Otros exámenes",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [384.62, 560.62, 9.62, 7.92],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_3_18",
+      "label": "Físico químico",
+      "section": "Otros exámenes",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [385.19, 571.37, 9.05, 7.92],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_3_19",
+      "label": "Leucocitos fecales",
+      "section": "Otros exámenes",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [385.75, 592.87, 9.05, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_examen_3_20",
+      "label": "Micológico directo",
+      "section": "Otros exámenes",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [385.75, 617.76, 9.05, 7.35],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "laboratorio_otros",
+      "label": "Otros exámenes",
+      "section": "Solicitud",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [281, 662, 230, 19]
+        }
+      ],
+      "multiline": true
+    },
+    {
+      "id": "medico_tratante_nombre",
+      "label": "Médico tratante",
+      "section": "Profesional",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [328, 688, 183, 10]
+        }
+      ]
+    }
+  ],
+  "templateSha256": "0fabdedcf24914f00af09a99b30b7f4d4f7a66509671996dc771ff1c31219921",
+  "sourceSha256": "0fabdedcf24914f00af09a99b30b7f4d4f7a66509671996dc771ff1c31219921"
+}
