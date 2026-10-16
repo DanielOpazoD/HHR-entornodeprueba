@@ -12,17 +12,16 @@ import { RayenConnectionMonitor } from './RayenConnectionMonitor';
 import { useSyncQueueMonitor } from '@/hooks/useSyncQueueMonitor';
 import { hasLocalSyncAttention } from './localSyncPresentation';
 import { RayenSyncQueueDetails, RayenSyncStatusLine } from './RayenSyncQueueDetails';
-import { presentRayenSyncRecovery, rayenPrimaryActionLabel } from './rayenSyncPresentation';
+import { rayenPrimaryActionLabel } from './rayenSyncPresentation';
+import { presentRayenSyncRecovery } from './rayenSyncRecoveryPresentation';
 import { formatLastSync } from './formatRayenLastSync';
 import type {
   RayenImportCaptureOptions,
   RayenImportTriggerOutcome,
 } from '../hooks/rayenImportCaptureContracts';
 import { elapsedMilliseconds } from '../domain/rayenSyncPerformance';
-import {
-  isRayenSyncExecutionActive,
-  rayenSyncExecutionDate,
-} from '../hooks/rayenSyncExecutionState';
+import { rayenSyncExecutionDate } from '../hooks/rayenSyncExecutionState';
+import { buildRayenSyncBarViewModel } from './rayenSyncBarViewModel';
 
 // The sync history is an on-demand panel that only matters while Eloísa is connected, so its
 // sections and technical metrics stay out of the census view and the PWA precache.
@@ -93,9 +92,6 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
   const fill = useRayenFillProgress();
   const extension = useRayenExtensionHealth();
   const refreshExtension = extension.refresh;
-  const mainWorking =
-    isRayenSyncExecutionActive(execution?.stage ?? null) || fill.running || recoveryBusy;
-  const working = mainWorking || isStaffingProposalBusy;
   const selectedRecordIsCurrent = !selectedDate || record?.date === selectedDate;
   const recordForSelectedDate = selectedRecordIsCurrent ? record : null;
   const executionTargetDate = execution?.stage ? rayenSyncExecutionDate(execution) : null;
@@ -105,6 +101,20 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
   const lastSync = recordForSelectedDate?.rayenSync
     ? formatLastSync(recordForSelectedDate.rayenSync)
     : null;
+  const flowStatus = {
+    diff,
+    fill,
+    error,
+    hasPersistedSync: Boolean(lastSync),
+    persistedSync: recordForSelectedDate?.rayenSync,
+    executionStage: execution?.stage,
+    targetDate,
+  };
+  const mainWorking = buildRayenSyncBarViewModel(flowStatus).ariaBusy || recoveryBusy;
+  // The shared single-flight lock can survive this view. It blocks duplicate writes without
+  // rewriting a contextual terminal outcome as an active synchronization.
+  const captureBlocked = mainWorking || fill.running;
+  const working = captureBlocked || isStaffingProposalBusy;
   const history = React.useMemo(
     () =>
       (recordForSelectedDate?.rayenSyncHistory ?? [])
@@ -113,8 +123,8 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
     [recordForSelectedDate?.rayenSyncHistory]
   );
   const recovery = React.useMemo(
-    () => presentRayenSyncRecovery(history[0], extension.connection, mainWorking),
-    [extension.connection, history, mainWorking]
+    () => presentRayenSyncRecovery(history[0], extension.connection, captureBlocked),
+    [extension.connection, history, captureBlocked]
   );
 
   const handleSync = React.useCallback(
@@ -255,13 +265,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
               onOpen={() => setConnectionMonitorOpen(true)}
             >
               <RayenImportFlowStatus
-                diff={diff}
-                fill={fill}
-                error={error}
-                hasPersistedSync={Boolean(lastSync)}
-                persistedSync={recordForSelectedDate?.rayenSync}
-                executionStage={execution?.stage}
-                targetDate={targetDate}
+                {...flowStatus}
                 compactFallback={lastSync ? `Última ${lastSync}` : 'Aún sin sincronizar hoy'}
               />
             </RayenSyncStatusLine>
@@ -294,7 +298,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
           <button
             type="button"
             onClick={() => void handleStaffingReview()}
-            disabled={!selectedRecordIsCurrent || mainWorking || isStaffingProposalBusy}
+            disabled={!selectedRecordIsCurrent || working}
             aria-label="Sincronizar dotación clínica"
             aria-busy={isStaffingProposalBusy}
             title={
@@ -339,9 +343,11 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
               // `loading` también deshabilita, con su propio motivo: el clic
               // prematuro sólo producía un error inmediato.
               policyNotice ??
-              (!extension.canSync && extension.connection !== 'checking'
-                ? extension.message
-                : 'Sincronizar con Eloísa')
+              (fill.running && !mainWorking
+                ? 'Espera a que termine la lectura clínica en curso.'
+                : !extension.canSync && extension.connection !== 'checking'
+                  ? extension.message
+                  : 'Sincronizar con Eloísa')
             }
             data-module="rayen-import"
             data-testid="rayen-import-button"

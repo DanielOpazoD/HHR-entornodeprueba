@@ -102,8 +102,6 @@ const snapshot = {
 const initialState: RayenImportState = {
   diff: null,
   isPreviewOpen: false,
-  isBusy: false,
-  isSyncing: true,
   result: null,
   hasSkippedItems: false,
   error: null,
@@ -233,7 +231,6 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
       diff: autoApplyDiff,
       result,
       isPreviewOpen: false,
-      isBusy: false,
       hasSkippedItems: false,
     });
     expect(harness.failRun).not.toHaveBeenCalled();
@@ -323,8 +320,6 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
       diff: noChangeDiff,
       result,
       isPreviewOpen: false,
-      isBusy: false,
-      isSyncing: false,
       hasSkippedItems: false,
     });
     expect(harness.failRun).not.toHaveBeenCalled();

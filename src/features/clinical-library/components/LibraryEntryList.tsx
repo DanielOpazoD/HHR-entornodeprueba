@@ -44,6 +44,7 @@ interface LibraryEntryListProps {
   query: string;
   onOpenTool: (id: LibraryToolId) => void;
   onPrintDocument: (entry: LibraryDocumentEntry) => void;
+  onFillDocument?: (entry: LibraryDocumentEntry) => void;
 }
 
 export const LibraryEntryList: React.FC<LibraryEntryListProps> = ({
@@ -52,6 +53,7 @@ export const LibraryEntryList: React.FC<LibraryEntryListProps> = ({
   query,
   onOpenTool,
   onPrintDocument,
+  onFillDocument,
 }) => {
   const trimmedQuery = query.trim();
   const groups = groupLibraryEntriesByCategory(
@@ -90,7 +92,12 @@ export const LibraryEntryList: React.FC<LibraryEntryListProps> = ({
                   entry.kind === 'tool' ? (
                     <LibraryToolRow key={entry.id} entry={entry} onOpen={onOpenTool} />
                   ) : (
-                    <LibraryDocumentCard key={entry.id} entry={entry} onPrint={onPrintDocument} />
+                    <LibraryDocumentCard
+                      key={entry.id}
+                      entry={entry}
+                      onPrint={onPrintDocument}
+                      onFill={onFillDocument}
+                    />
                   )
                 )}
               </ul>

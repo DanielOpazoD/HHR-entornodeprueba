@@ -1,0 +1,167 @@
+{
+  "id": "consentimiento-informado",
+  "title": "Consentimiento informado general",
+  "revision": 1,
+  "catalogVersion": "1.1.0",
+  "templateUrl": "/docs/consentimiento.pdf",
+  "sourceUrl": "/docs/consentimiento.pdf",
+  "pages": [
+    {
+      "width": 595.2,
+      "height": 842
+    }
+  ],
+  "fields": [
+    {
+      "id": "paciente_nombre_completo",
+      "label": "Nombre y apellidos",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [178, 185, 343, 11]
+        }
+      ]
+    },
+    {
+      "id": "paciente_rut",
+      "label": "RUT",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [102, 210, 178, 10]
+        }
+      ]
+    },
+    {
+      "id": "paciente_edad_texto",
+      "label": "Edad (con unidad)",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [310, 210, 59, 10]
+        }
+      ]
+    },
+    {
+      "id": "formulario_fecha_emision",
+      "label": "Fecha",
+      "section": "Documento",
+      "kind": "date",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [382, 142, 32, 11],
+          "format": "date_day"
+        },
+        {
+          "page": 0,
+          "rect": [418, 142, 48, 11],
+          "format": "date_month"
+        },
+        {
+          "page": 0,
+          "rect": [470, 142, 47, 11],
+          "format": "date_year"
+        }
+      ]
+    },
+    {
+      "id": "paciente_ficha_numero",
+      "label": "Nº de ficha",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [424, 210, 96, 10]
+        }
+      ]
+    },
+    {
+      "id": "diagnostico_texto",
+      "label": "Diagnóstico",
+      "section": "Documento",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [137, 239, 380, 10]
+        }
+      ]
+    },
+    {
+      "id": "consentimiento_procedimiento",
+      "label": "Procedimiento (sin siglas)",
+      "section": "Documento",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [200, 279, 320, 10]
+        }
+      ]
+    },
+    {
+      "id": "consentimiento_decision",
+      "label": "Decisión expresada por el paciente: ¿consiente?",
+      "section": "Declaración",
+      "kind": "boolean",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [96, 450, 50, 10],
+          "equals": true
+        },
+        {
+          "page": 0,
+          "rect": [96, 492, 50, 10],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "consentimiento_representante",
+      "label": "Representante legal, apoderado o familiar",
+      "section": "Representante",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [98, 537, 400, 10]
+        }
+      ]
+    },
+    {
+      "id": "consentimiento_parentesco",
+      "label": "Parentesco",
+      "section": "Representante",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [103, 596, 160, 10]
+        }
+      ]
+    },
+    {
+      "id": "medico_tratante_nombre",
+      "label": "Nombre del médico (firma manuscrita al imprimir)",
+      "section": "Profesional",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [102, 679, 255, 10]
+        }
+      ]
+    }
+  ],
+  "templateSha256": "aa4f2679a437020e82f10f794ad9b74c812cd76c0e22f5a2ae1c7df875509cb2",
+  "sourceSha256": "aa4f2679a437020e82f10f794ad9b74c812cd76c0e22f5a2ae1c7df875509cb2"
+}

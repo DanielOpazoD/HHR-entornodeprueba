@@ -6,6 +6,7 @@ import {
   INITIAL_RAYEN_IMPORT_STATE,
   type RayenImportState,
 } from '@/features/rayen-import/hooks/rayenImportState';
+import { useRayenSyncExecutionController } from '@/features/rayen-import/hooks/useRayenSyncExecutionController';
 import { useRayenClinicalFillRetry } from '@/features/rayen-import/hooks/useRayenClinicalFillRetry';
 import { resetRayenFillProgress } from '@/features/rayen-import/hooks/useRayenFillStatus';
 import type { ClinicalRetryToken } from '@/features/rayen-import/contracts/clinicalStageResult';
@@ -34,6 +35,10 @@ const useRetryHarness = (
   activeRecord: DailyRecord = record
 ) => {
   const [state, setState] = useState<RayenImportState>(INITIAL_RAYEN_IMPORT_STATE);
+  const controller = useRayenSyncExecutionController({
+    importState: state,
+    setImportState: setState,
+  });
   const currentRecordRef = useRef<DailyRecord | null>(activeRecord);
   const [runClinicalStage] = useState(() =>
     vi.fn().mockResolvedValue({ status: 'complete' as const })
@@ -45,9 +50,11 @@ const useRetryHarness = (
     runClinicalStage,
     retryTokenRef,
     setState,
-    onStart,
+    onStart: candidate =>
+      onStart(candidate) &&
+      controller.startClinicalRetry(candidate.rayenSync!.runId!, candidate.date),
   });
-  return { state, retry, retryTokenRef, runClinicalStage };
+  return { state, execution: controller.execution, retry, retryTokenRef, runClinicalStage };
 };
 
 describe('useRayenClinicalFillRetry', () => {
@@ -61,7 +68,7 @@ describe('useRayenClinicalFillRetry', () => {
     await act(async () => result.current.retry());
 
     expect(result.current.runClinicalStage).not.toHaveBeenCalled();
-    expect(result.current.state.isSyncing).toBe(false);
+    expect(result.current.execution.stage).toBeNull();
     expect(result.current.state.error).toContain('otra sincronización en curso');
   });
 
@@ -71,11 +78,11 @@ describe('useRayenClinicalFillRetry', () => {
     await act(async () => result.current.retry());
 
     expect(result.current.runClinicalStage).toHaveBeenCalledWith(record);
-    expect(result.current.state.isSyncing).toBe(true);
+    expect(result.current.execution.stage).toEqual({ type: 'syncing_clinical' });
     expect(result.current.state.error).toBeNull();
   });
 
-  it('resumes a clinical-only retry from a structurally confirmed partial run', async () => {
+  it('does not send a terminal partial run to the clinical writer despite structural confirmation', async () => {
     const partialRecord = {
       ...record,
       rayenSync: { ...record.rayenSync, status: 'partial' as const },
@@ -94,15 +101,13 @@ describe('useRayenClinicalFillRetry', () => {
         },
       ],
     } as DailyRecord;
-    const { result } = renderHook(() =>
-      useRetryHarness(() => true, null, partialRecord)
-    );
+    const { result } = renderHook(() => useRetryHarness(() => true, null, partialRecord));
 
     await act(async () => result.current.retry());
 
-    expect(result.current.runClinicalStage).toHaveBeenCalledWith(partialRecord);
-    expect(result.current.state.isSyncing).toBe(true);
-    expect(result.current.state.error).toBeNull();
+    expect(result.current.runClinicalStage).not.toHaveBeenCalled();
+    expect(result.current.execution.stage).toBeNull();
+    expect(result.current.state.error).toContain('Vuelve a sincronizar');
   });
 
   it('does not bypass structural review for a partial run without a confirmed handoff', async () => {
@@ -123,14 +128,12 @@ describe('useRayenClinicalFillRetry', () => {
       ...record,
       rayenSync: { ...record.rayenSync, status: 'complete' as const },
     } as DailyRecord;
-    const { result } = renderHook(() =>
-      useRetryHarness(() => true, null, completedRecord)
-    );
+    const { result } = renderHook(() => useRetryHarness(() => true, null, completedRecord));
 
     await act(async () => result.current.retry());
 
     expect(result.current.runClinicalStage).not.toHaveBeenCalled();
-    expect(result.current.state.isSyncing).toBe(false);
+    expect(result.current.execution.stage).toBeNull();
     expect(result.current.state.error).toContain('No hay una sincronización clínica pendiente');
   });
 

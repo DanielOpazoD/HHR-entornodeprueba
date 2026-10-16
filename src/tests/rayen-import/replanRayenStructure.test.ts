@@ -54,6 +54,45 @@ const dependencies = {
 };
 
 describe('replanRayenStructure', () => {
+  it.each([false, true])(
+    'does not confirm a blank historical census from unavailable population evidence (later live patient: %s)',
+    async laterPatient => {
+      const record = { ...makeRecord({}), date: '2026-07-01' };
+      await expect(
+        replanRayenStructure(
+          record,
+          {
+            sourceSnapshot: { ...snapshot, encounters: laterPatient ? [encounter] : [] },
+            egresoRows: [],
+            reportDate: record.date,
+            isHistoricalDay: true,
+          },
+          dependencies
+        )
+      ).rejects.toThrow('No hay evidencia suficiente');
+    }
+  );
+
+  it('preserves an existing historical day with recorded movements even if its occupancy is now empty', async () => {
+    const record = {
+      ...makeRecord({}),
+      date: '2026-07-01',
+      discharges: [{ patientName: 'Paciente conservado' }],
+    } as DailyRecord;
+    const diff = await replanRayenStructure(
+      record,
+      {
+        sourceSnapshot: { ...snapshot, encounters: [] },
+        egresoRows: [],
+        reportDate: record.date,
+        isHistoricalDay: true,
+      },
+      dependencies
+    );
+    expect(diff.admissions).toEqual([]);
+    expect(record.discharges).toHaveLength(1);
+  });
+
   it.each(['recorded', 'deleted', 'other-episode'] as const)(
     'keeps death only for the exact active historical episode (%s)',
     async outcome => {

@@ -156,8 +156,6 @@ describe('useRayenImportCapture lifecycle guards', () => {
     ) => typeof INITIAL_RAYEN_IMPORT_STATE;
     expect(stateUpdater(INITIAL_RAYEN_IMPORT_STATE)).toEqual(
       expect.objectContaining({
-        isBusy: false,
-        isSyncing: false,
         error: expect.stringContaining('lector de Ficha Médico'),
       })
     );
@@ -294,7 +292,6 @@ describe('useRayenImportCapture lifecycle guards', () => {
     ) => typeof INITIAL_RAYEN_IMPORT_STATE;
     expect(stateUpdater(INITIAL_RAYEN_IMPORT_STATE)).toEqual(
       expect.objectContaining({
-        isSyncing: false,
         error: expect.stringContaining('política global'),
       })
     );
@@ -338,9 +335,65 @@ describe('useRayenImportCapture lifecycle guards', () => {
     ) => typeof INITIAL_RAYEN_IMPORT_STATE;
     expect(stateUpdater(INITIAL_RAYEN_IMPORT_STATE)).toEqual(
       expect.objectContaining({
-        isSyncing: false,
         error: expect.stringContaining('todavía está cargando'),
       })
     );
+  });
+  it.each([
+    'planning_structure',
+    'awaiting_review',
+    'persisting_structure',
+    'verifying_structure',
+    'syncing_clinical',
+  ] as const)('ignores a capture timeout after the execution reaches %s', async target => {
+    const execution = createExecutionHarness();
+    const setState = vi.fn();
+    const failRun = vi.fn();
+    const start = vi.fn(
+      (_from: string, _to: string, _runId: string, _onTimeout: () => void) => 'request-1'
+    );
+    const { result } = renderHook(() =>
+      useRayenImportCapture({
+        ...execution,
+        currentRecord: record,
+        policy,
+        policyStatus: 'ready',
+        setState,
+        setStaffingProposal: vi.fn(),
+        setStaffingProposalError: vi.fn(),
+        clearSyncTimeout: vi.fn(),
+        syncRequestController: { start, cancel: vi.fn(), getRunId: () => 'run-1' },
+        preparedSyncContextRef: { current: null },
+        loadFreshRecord: async () => record,
+        startRun: () => ({
+          id: 'run-1',
+          startedAt: '2026-08-02T10:00:00Z',
+          by: 'Operador HHR',
+          sourceDate: record.date,
+        }),
+        failRun,
+        recordRunPerformance: vi.fn(),
+        previewSnapshot: vi.fn(),
+      })
+    );
+    await act(async () => {
+      await result.current({ connection: 'ready', report: null, message: 'ok', canSync: true });
+    });
+    for (const type of [
+      'planning_structure',
+      'awaiting_review',
+      'persisting_structure',
+      'verifying_structure',
+      'syncing_clinical',
+    ] as const) {
+      execution.dispatchExecution({ type: 'transition', runId: 'run-1', stage: { type } });
+      if (type === target) break;
+    }
+    const onTimeout = start.mock.calls[0]?.[3] as unknown as () => void;
+    setState.mockClear();
+    act(() => onTimeout());
+    expect(execution.executionRef.current.stage).toEqual({ type: target });
+    expect(failRun).not.toHaveBeenCalled();
+    expect(setState).not.toHaveBeenCalled();
   });
 });

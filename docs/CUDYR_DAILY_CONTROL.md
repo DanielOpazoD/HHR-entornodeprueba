@@ -43,13 +43,41 @@ pacientes-día elegibles. Sin elegibles se deja vacío; días abiertos y censos 
 se identifican, sin presentarlos como 0% de cumplimiento. El resumen mensual conserva
 solo la fórmula del cálculo y los criterios de elegibilidad. La descarga no consulta Eloísa ni envía correos.
 
-La segunda hoja conserva las celdas del Excel original de Eloísa guardado en Firebase,
-con sus fechas calendario y combinaciones, sin ajustes de elegibilidad ni turno HHR.
-Se leen los bytes verificados solo al descargar. Se incluyen las versiones utilizadas
-y, si aporta el último turno, el informe del mes siguiente; no se duplican archivos idénticos.
-Si no hay archivo guardado, se indica su ausencia, sin fabricar un informe.
-Los días aprobados muestran «Oficial». Sin autor ni fecha de aplicación, el detalle
-indica «No informado» una sola vez; conserva cualquier metadato que sí esté disponible.
+La segunda hoja presenta los valores del informe de Eloísa guardado en Firebase
+como tabla legible: encabezado único fijo y columnas de identificación inmovilizadas.
+Omite Ficha Clínica y reemplaza Días Hosp. por Fecha de ingreso (dd-mm-aaaa),
+obtenida del episodio HHR vinculado; sin evidencia inequívoca indica No informado.
+Las fechas con zona horaria se comparan por instante: UTC y hora local equivalentes
+no son una contradicción. En filas con información solo el día 1, se puede recuperar
+el ingreso del mes anterior desde un egreso confirmado ese día: exige documento y
+nombre completo coincidentes, una sola fila fuente y un único episodio, sin conflictos.
+Para episodios exclusivamente CMA/UEA sin ingreso hospitalario, utiliza el ingreso
+demográfico del mismo episodio si fecha y hora no son contradictorias; no lo convierte
+en hospitalización ni altera elegibilidad.
+Este cruce solo anota el Excel; no crea evidencia mensual ni modifica elegibilidad.
+El período se muestra como Agosto 2026, con nombre del mes y año.
+Elimina encabezados de página repetidos y conserva todos los pacientes/episodios y
+sus valores originales. La columna Exclusión · motivo informa CMA (cirugía mayor
+ambulatoria), Urgencias/UEA, cuna RN sano o el motivo correspondiente. Las exclusiones
+parciales indican que solo afectan a algunos días. El ámbar destaca valores CUDYR
+existentes excluidos, sin pintar casillas vacías ni egresos del sistema ya resueltos.
+Las columnas siguen la fecha de aplicación del original: X+1 corresponde al turno
+nocturno X; el vínculo debe coincidir con ambas fechas. Los símbolos de ingreso y
+egreso usan la fecha real del movimiento, sin desplazar categorías de Eloísa.
+Vínculos ambiguos no se presumen excluidos; sin marca no acredita elegibilidad.
+Estas anotaciones no cambian el resumen ni las hojas diarias.
+Los formatos antiguos no reconocidos mantienen sus celdas originales completas.
+Si se utiliza el mes siguiente, incluye solo el día 1 y filas con valores (incluido S/C).
+Los originales se conservan completos. La nota del encabezado identifica archivo y huella.
+Las copias de un mismo archivo se muestran una sola vez, conservando los vínculos de
+todas sus importaciones. Un informe reconocido con mes distinto al archivado bloquea
+la descarga; no se trata como un formato antiguo desconocido.
+Los símbolos ▼ ingreso y ▲ egreso son anotaciones de HHR, con fecha calendario de Rapa Nui,
+solo cuando existe vínculo inequívoco entre fila del informe y episodio. No se infieren
+movimientos desde las categorías, no se asocian solo por nombre y no se sustituyen valores CUDYR.
+La nota de cada marcador informa fecha/hora disponible y valor original. Sin evidencia
+suficiente o con fechas contradictorias, se omite el marcador; eso no acredita ausencia
+de movimiento. No cambia el turno censal ni el cálculo del cumplimiento.
 
 El indicador pequeño del censo conserva una lectura diaria por mes, cuenta y sesión.
 Editar el censo, recuperar el foco o volver a mostrar el cuadro no repite la lectura.
@@ -71,3 +99,9 @@ El generador de «Excel mensual» se carga al descargar, igual que ExcelJS; qued
 del precaché de instalación y tiene un límite propio de 12 KB. Esto no cambia las
 fuentes ni la caché de datos del censo. La primera descarga requiere acceso a esos
 recursos estáticos; no realiza una sincronización con Eloísa.
+La consulta de archivos se mantiene separada de su presentación. El lector de la tabla
+y las anotaciones del respaldo original forman un módulo separado, cargado
+solo cuando se adjunta ese respaldo, con un límite de 20 KB y fuera del precaché.
+La descarga espera su lectura y validación antes de ofrecer el archivo; no omite el
+respaldo ni sus comprobaciones si hay un fallo. Los límites de arranque e instalación
+se mantienen.

@@ -54,13 +54,13 @@ describe('trusted extension clinical-day calendar', () => {
     expect(runtime.clinicalDayAt(new Date('2029-01-01T14:30:00.000Z'))).toBeNull();
   });
 
-  it('bounds history from today through D-7 and fails safely to the legacy window', () => {
+  it('reaches the selected historical day while keeping current-day reads short', () => {
     const now = new Date('2026-07-28T18:00:00.000Z');
 
     expect(runtime.historyLookbackDays('2026-07-28', now)).toBe(2);
     expect(runtime.historyLookbackDays('2026-07-27', now)).toBe(3);
     expect(runtime.historyLookbackDays('2026-07-21', now)).toBe(9);
-    expect(runtime.historyLookbackDays('2026-07-14', now)).toBe(14);
+    expect(runtime.historyLookbackDays('2026-07-14', now)).toBe(16);
     expect(runtime.historyLookbackDays('fecha-invalida', now)).toBe(14);
     expect(runtime.historyLookbackDays('2026-07-29', now)).toBe(14);
   });

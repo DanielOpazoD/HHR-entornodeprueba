@@ -40,6 +40,7 @@ const toSortableLocalTimestamp = (date: string, time: string): string => {
 };
 
 const roomFromFlowLocation = (location: string): string | undefined =>
+  /\bCMA\s*(?:R[1-4]|N(?:EO)?[12]|H[1-6]C[12])\b/i.exec(location)?.[0] ??
   /\bHabitaci[oó]n\s*0*[1-6]\b/i.exec(location)?.[0] ??
   /\bRecuperaci[oó]n\s*0*[1-4]\b/i.exec(location)?.[0] ??
   /\bNeo\s*0*[12]\b/i.exec(location)?.[0];
@@ -54,7 +55,13 @@ const parsePatientFlowRows = (text: string): PatientFlowParseResult => {
     if (!row) continue;
 
     const sourceLocation = row[3];
-    const sourceBedLabel = sourceLocation.split(' ').at(-1) ?? '';
+    // Jasper prints the entire bed name (e.g. "BOX 4 UEA") in its final column.
+    // Match only that suffix: an earlier room label cannot replace an unknown final bed.
+    const sourceBedLabel =
+      /\b(?:Pabell[oó]n[-\s]*R[12]|P[-\s]*R[12])(?:\s+CMA)?$/i.exec(sourceLocation)?.[0] ??
+      /\bBOX\s*\d+(?:\s*UEA)?$/i.exec(sourceLocation)?.[0] ??
+      sourceLocation.split(' ').at(-1) ??
+      '';
     const changedAt = toSortableLocalTimestamp(row[1], row[2]);
     if (!changedAt) {
       hasMalformedMovementRow = true;
@@ -66,6 +73,7 @@ const parsePatientFlowRows = (text: string): PatientFlowParseResult => {
       bedId: mapRayenBed({
         room: roomFromFlowLocation(sourceLocation),
         bed: sourceBedLabel,
+        service: sourceLocation,
       }).bedId,
       sourceBedLabel,
       sourceLocation,
