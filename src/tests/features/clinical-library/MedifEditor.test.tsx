@@ -101,12 +101,10 @@ describe('MedifEditor', () => {
     const { props } = setup();
     const physician = screen.getByRole('textbox', {
       name: 'Nombre del médico tratante',
-      exact: true,
     });
     expect(
       within(screen.getByRole('group', { name: 'Datos del médico' })).getByRole('textbox', {
         name: 'Nombre del médico tratante',
-        exact: true,
       })
     ).toBe(physician);
     expect(screen.queryByRole('textbox', { name: 'Médico autorizado' })).not.toBeInTheDocument();

@@ -14,6 +14,7 @@ import { MEDIF_FIELDS, MEDIF_GROUPS } from '@/features/clinical-library/domain/m
 import {
   emptyMedifValues,
   setMedifFieldValue,
+  type MedifValues,
 } from '@/features/clinical-library/domain/medifDraft';
 import {
   emptyMedifPreferences,
@@ -44,7 +45,7 @@ describe('MEDIF PDF export', () => {
     'copies the single physician name to all three original cells in the %s PDF',
     async mode => {
       const name = 'Dra. PRUEBA MEDIF';
-      const values = { ...emptyMedifValues(), p2_nombre_medico: name };
+      const values: MedifValues = { ...emptyMedifValues(), p2_nombre_medico: name };
       const pdf = await PDFDocument.load(
         await createMedifPdf(template, values, emptyMedifPreferences(), mode)
       );
