@@ -32,6 +32,25 @@ describe('storageListFactories runtime injection', () => {
     ).resolves.toEqual(['2026', '2025']);
   });
 
+  it('keeps archive and other non-year folders out of the year selector', async () => {
+    listAllMock.mockResolvedValue({
+      prefixes: [
+        { name: '2025' },
+        { name: 'originales-antiguo' },
+        { name: '2026' },
+        { name: '2026-old' },
+        { name: '26' },
+      ],
+    });
+
+    await expect(
+      createListYears('entregas-enfermeria')({
+        ready: Promise.resolve(),
+        getStorage: vi.fn().mockResolvedValue({ custom: true } as never),
+      })
+    ).resolves.toEqual(['2026', '2025']);
+  });
+
   it('lists months through an injected storage runtime', async () => {
     listAllMock.mockResolvedValue({
       prefixes: [{ name: '02' }, { name: '01' }],
