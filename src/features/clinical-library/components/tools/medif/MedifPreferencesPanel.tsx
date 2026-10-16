@@ -2,10 +2,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Download, Eye, EyeOff, Upload } from 'lucide-react';
 import {
   MEDIF_FIELD_BY_ID,
+  MEDIF_GROUPS,
   MEDIF_SECTIONS,
   getMedifGroupFieldIds,
 } from '../../../domain/medifSchema';
 import {
+  defaultMedifPreferences,
   emptyMedifPreferences,
   exportMedifPreferences,
   importMedifPreferences,
@@ -20,14 +22,31 @@ interface Props {
   preferences: MedifPreferences;
   onChange: (preferences: MedifPreferences) => void;
   saved: boolean | null;
+  targetFieldId?: string;
 }
 
-export const MedifPreferencesPanel: React.FC<Props> = ({ preferences, onChange, saved }) => {
+export const MedifPreferencesPanel: React.FC<Props> = ({
+  preferences,
+  onChange,
+  saved,
+  targetFieldId,
+}) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const importGeneration = useRef(0);
-  const [query, setQuery] = useState('');
+  const targetGroup = targetFieldId
+    ? MEDIF_GROUPS.find(item => getMedifGroupFieldIds(item).includes(targetFieldId))
+    : undefined;
+  const targetPreferenceId =
+    targetGroup?.type === 'choice' ? getMedifGroupFieldIds(targetGroup)[0] : targetFieldId;
+  const [query, setQuery] = useState(targetPreferenceId ?? '');
   const [notice, setNotice] = useState('');
   const normalizedQuery = query.trim().toLocaleLowerCase('es');
+  useEffect(() => {
+    if (!targetPreferenceId) return;
+    const element = document.getElementById(`medif-preference-${targetPreferenceId}`);
+    element?.scrollIntoView?.({ block: 'center' });
+    element?.focus({ preventScroll: true });
+  }, [targetPreferenceId]);
   useEffect(
     () => () => {
       importGeneration.current += 1;
@@ -92,6 +111,13 @@ export const MedifPreferencesPanel: React.FC<Props> = ({ preferences, onChange, 
           onClick={() => updatePreferences(emptyMedifPreferences())}
         >
           <Eye size={13} aria-hidden="true" /> Mostrar todos
+        </button>
+        <button
+          type="button"
+          className={MEDIF_SECONDARY_BUTTON}
+          onClick={() => updatePreferences(defaultMedifPreferences())}
+        >
+          Restaurar selección MEDIF
         </button>
         <input
           ref={inputRef}
@@ -170,6 +196,7 @@ export const MedifPreferencesPanel: React.FC<Props> = ({ preferences, onChange, 
                     <label key={row.id} className="flex cursor-pointer items-center gap-3 py-2.5">
                       <input
                         type="checkbox"
+                        id={`medif-preference-${row.id}`}
                         checked={visible}
                         onChange={event =>
                           updatePreferences(

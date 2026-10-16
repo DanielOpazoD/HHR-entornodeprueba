@@ -1,0 +1,296 @@
+.medif-toolbar {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.medif-source {
+  flex: 1 1 300px;
+  min-width: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+}
+.medif-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.medif-source-note,
+.medif-session-note {
+  font-size: 10px;
+  line-height: 1.5;
+  color: #64748b;
+  margin: 5px 0 10px;
+}
+.medif-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 8px;
+}
+.medif-tabs button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-bottom: 2px solid transparent;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+}
+.medif-tabs button[aria-selected='true'] {
+  color: #0369a1;
+  border-bottom-color: #0284c7;
+}
+.medif-jump-index {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-size: 10px;
+  margin-bottom: 10px;
+}
+.medif-jump-index button {
+  color: #0369a1;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 3px 0;
+}
+.medif-form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+.medif-card {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+  scroll-margin: 12px;
+}
+.medif-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+}
+.medif-card-header h4 {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0c4a6e;
+}
+.medif-hidden-link {
+  font-size: 10px;
+  color: #64748b;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.medif-identity-note,
+.medif-help {
+  font-size: 10px;
+  line-height: 1.5;
+  color: #64748b;
+  margin-bottom: 7px;
+}
+.medif-groups {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+}
+.medif-field-group,
+.medif-choice {
+  border: 0;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+.medif-group-label {
+  display: block;
+  width: 100%;
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+}
+.medif-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px 9px;
+}
+.medif-fields--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+.medif-field {
+  min-width: 0;
+}
+.medif-field--full,
+.medif-field--name {
+  grid-column: 1 / -1;
+}
+.medif-field label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 10px;
+  line-height: 1.4;
+  font-weight: 600;
+  color: #475569;
+}
+.medif-input {
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  padding: 6px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  background: white;
+  color: #1e293b;
+  font: inherit;
+  font-size: 12px;
+}
+.medif-input:focus {
+  outline: 2px solid #bae6fd;
+  border-color: #0ea5e9;
+}
+.medif-textarea {
+  height: auto;
+  min-height: 60px;
+  resize: vertical;
+  line-height: 1.45;
+}
+.medif-choice {
+  padding: 5px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+.medif-choice-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+}
+.medif-choice-label {
+  font-size: 11px;
+  line-height: 1.45;
+  color: #334155;
+}
+.medif-choice-options {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+.medif-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 4px 7px;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.medif-option--selected {
+  background: #f0f9ff;
+  border-color: #7dd3fc;
+}
+.medif-option input {
+  width: 13px;
+  height: 13px;
+  accent-color: #0284c7;
+}
+.medif-choice--many .medif-choice-row {
+  grid-template-columns: minmax(0, 1fr);
+}
+.medif-choice--many .medif-choice-options {
+  justify-content: flex-start;
+}
+.medif-clear-choice {
+  width: 24px;
+  min-height: 28px;
+  font-size: 17px;
+  color: #64748b;
+}
+.medif-clear-choice:disabled {
+  opacity: 0.25;
+}
+.medif-tabs button:focus-visible,
+.medif-jump-index button:focus-visible,
+.medif-card:focus-visible,
+.medif-card button:focus-visible,
+.medif-option:focus-within {
+  outline: 2px solid #0284c7;
+  outline-offset: 2px;
+}
+.medif-preview {
+  margin-top: 10px;
+  font-size: 11px;
+}
+.medif-preview summary {
+  padding: 8px 0;
+  cursor: pointer;
+  font-weight: 600;
+}
+.medif-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.medif-preview-grid a {
+  min-width: 0;
+  color: #0369a1;
+}
+.medif-preview-grid img {
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  margin-top: 4px;
+}
+@media (min-width: 640px) {
+  .medif-fields--three,
+  .medif-fields--identity {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .medif-fields--identity {
+    grid-template-columns: 2fr 0.7fr 0.8fr;
+  }
+  .medif-fields--identity .medif-field--name {
+    grid-column: auto;
+  }
+}
+@media (min-width: 960px) {
+  .medif-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .medif-card--wide,
+  #medif-block-psiquiatria {
+    grid-column: 1 / -1;
+  }
+  .medif-card--wide .medif-groups,
+  #medif-block-psiquiatria .medif-groups {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  #medif-block-medico_declaraciones .medif-groups {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 420px) {
+  .medif-card {
+    padding: 10px;
+  }
+  .medif-choice-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .medif-choice-options {
+    justify-content: flex-start;
+  }
+  .medif-preview-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

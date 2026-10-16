@@ -6,7 +6,7 @@ import { TOOL_INPUT_CLASS } from '../ToolField';
 
 export const MedifVariableIndex: React.FC<{
   preferences: MedifPreferences;
-  onSelectField: (sectionId: string) => void;
+  onSelectField: (fieldId: string) => void;
 }> = ({ preferences, onSelectField }) => {
   const [query, setQuery] = useState('');
   const normalizedQuery = query.trim().toLocaleLowerCase('es');
@@ -74,7 +74,7 @@ export const MedifVariableIndex: React.FC<{
                 <td className="px-3 py-3">
                   <button
                     type="button"
-                    onClick={() => onSelectField(field.sectionId)}
+                    onClick={() => onSelectField(field.id)}
                     className="text-left font-semibold text-medical-700 hover:underline focus-visible:outline focus-visible:outline-medical-600"
                   >
                     {field.label}

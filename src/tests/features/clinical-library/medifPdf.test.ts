@@ -1,7 +1,14 @@
 // @vitest-environment node
 import { readFileSync, writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { PDFDocument, PDFRawStream, StandardFonts, decodePDFRawStream } from 'pdf-lib';
+import {
+  PDFDocument,
+  PDFDict,
+  PDFName,
+  PDFRawStream,
+  StandardFonts,
+  decodePDFRawStream,
+} from 'pdf-lib';
 import { createMedifPdf } from '@/features/clinical-library/services/medifPdf';
 import { MEDIF_FIELDS, MEDIF_GROUPS } from '@/features/clinical-library/domain/medifSchema';
 import {
@@ -10,6 +17,7 @@ import {
 } from '@/features/clinical-library/domain/medifDraft';
 import {
   emptyMedifPreferences,
+  defaultMedifPreferences,
   setMedifFieldHidden,
 } from '@/features/clinical-library/domain/medifPreferences';
 
@@ -159,6 +167,56 @@ describe('MEDIF PDF export', () => {
     for (const id of ['p1_nombre_pasajero', 'p2_nombre_paciente', 'p1_silla_si', 'p1_silla_no'])
       expect(pdf.getForm().getTextField(id).getText() || '').toBe('');
     expect(values.p1_nombre_pasajero).toBe('José Muñoz');
+  });
+
+  it('leaves every preset-hidden cell blank in editable and printable exports even with existing values', async () => {
+    const preferences = defaultMedifPreferences();
+    let values = setMedifFieldValue(emptyMedifValues(), 'p2_diagnostico_actual', 'VISIBLE');
+    for (const id of preferences.hiddenFieldIds) {
+      const field = MEDIF_FIELDS.find(candidate => candidate.id === id)!;
+      values = setMedifFieldValue(values, id, field.kind === 'mark' ? 'X' : 'OCULTO');
+    }
+    const originalValues = { ...values };
+    const editableBytes = await createMedifPdf(template, values, preferences, 'editable');
+    const editable = await PDFDocument.load(editableBytes);
+    for (const id of preferences.hiddenFieldIds) {
+      const field = editable.getForm().getTextField(id);
+      expect(field.getText() || '', id).toBe('');
+      const appearance = field.acroField.getWidgets()[0].getAppearances()?.normal;
+      expect(appearance, `${id}: blank appearance`).toBeInstanceOf(PDFRawStream);
+      if (!(appearance instanceof PDFRawStream)) throw new Error(`${id}: missing appearance`);
+      expect(
+        Buffer.from(decodePDFRawStream(appearance).decode()).toString('latin1'),
+        id
+      ).not.toMatch(/<[0-9a-f]+>\s*Tj/i);
+    }
+    expect(editable.getForm().getTextField('p2_diagnostico_actual').getText()).toBe('VISIBLE');
+    const printedBytes = await createMedifPdf(template, values, preferences, 'print');
+    const printed = await PDFDocument.load(printedBytes);
+    expect(printed.getForm().getFields()).toHaveLength(0);
+    let widgetCount = 0;
+    const renderedText: string[] = [];
+    for (const page of printed.getPages()) {
+      const objects = page.node.Resources()?.lookup(PDFName.of('XObject'), PDFDict);
+      for (const [name, reference] of objects?.entries() ?? []) {
+        if (!name.toString().startsWith('/FlatWidget')) continue;
+        widgetCount += 1;
+        const appearance = printed.context.lookup(reference);
+        expect(appearance).toBeInstanceOf(PDFRawStream);
+        if (!(appearance instanceof PDFRawStream)) throw new Error('Missing flattened appearance');
+        const operators = Buffer.from(decodePDFRawStream(appearance).decode()).toString('latin1');
+        renderedText.push(
+          ...[...operators.matchAll(/<([0-9a-f]+)>\s*Tj/gi)].map(match => match[1].toUpperCase())
+        );
+      }
+    }
+    expect(widgetCount).toBe(137);
+    expect(renderedText).toEqual([Buffer.from('VISIBLE').toString('hex').toUpperCase()]);
+    expect(values).toEqual(originalValues);
+    if (process.env.MEDIF_QA_PDF) {
+      writeFileSync(`${process.env.MEDIF_QA_PDF}.preset-editable.pdf`, editableBytes);
+      writeFileSync(`${process.env.MEDIF_QA_PDF}.preset-print.pdf`, printedBytes);
+    }
   });
 
   it('flattens only the printable copy and leaves the source interactive', async () => {

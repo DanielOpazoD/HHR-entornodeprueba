@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ClinicalLibraryDrawer } from '@/features/clinical-library/components/ClinicalLibraryDrawer';
 
 vi.mock('@/context/DailyRecordContext', () => ({
@@ -10,12 +10,15 @@ const openDirtyMedif = async () => {
   const onClose = vi.fn();
   render(<ClinicalLibraryDrawer onClose={onClose} initialToolId="medif" />);
   const editor = await screen.findByTestId('library-tool-medif', {}, { timeout: 5000 });
-  const input = within(editor).getByLabelText(/Seguro de viaje/);
+  const input = within(editor).getByLabelText('Nombre completo');
   fireEvent.change(input, { target: { value: 'BORRADOR DE PRUEBA' } });
   return { input, onClose };
 };
 
 describe('MEDIF drawer integration', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
   it('cancels Escape and overlay exits without losing the current form', async () => {
     const { input, onClose } = await openDirtyMedif();
     fireEvent.keyDown(input, { key: 'Escape' });
@@ -38,7 +41,7 @@ describe('MEDIF drawer integration', () => {
     expect(screen.getByRole('searchbox')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('library-tool-medif'));
     const editor = await screen.findByTestId('library-tool-medif');
-    expect(within(editor).getByLabelText(/Seguro de viaje/)).toHaveValue('');
+    expect(within(editor).getByLabelText('Nombre completo')).toHaveValue('');
   });
 
   it('guards the close button and calls the parent only on confirmed exit', async () => {

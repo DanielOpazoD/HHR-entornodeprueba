@@ -23,8 +23,10 @@ describe('PWA precache policy', () => {
     );
     const isExcluded = (asset: string): boolean => patterns.some(pattern => pattern.test(asset));
 
-    expect(viteConfig).toContain('**/assets/MedifTool-*.js');
-    expect(isExcluded('assets/MedifTool-fixture.js')).toBe(true);
+    for (const extension of ['js', 'css']) {
+      expect(viteConfig).toContain(`**/assets/MedifTool-*.${extension}`);
+      expect(isExcluded(`assets/MedifTool-fixture.${extension}`)).toBe(true);
+    }
     expect(isExcluded('docs/biblioteca/medif-latam-rellenable.pdf')).toBe(true);
     expect(isExcluded('images/forms/medif/page-1.png')).toBe(true);
     expect(isExcluded('assets/ClinicalLibraryDrawer-fixture.js')).toBe(false);

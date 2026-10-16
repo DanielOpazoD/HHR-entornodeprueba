@@ -13,6 +13,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { test, expect, type Page } from '@playwright/test';
+import { PDFDocument } from 'pdf-lib';
 import { buildCanonicalE2ERecord, MOCK_USERS } from './fixtures/auth';
 import {
   installPreviewFirebaseRuntime,
@@ -232,4 +233,80 @@ test.describe('Clinical library (preview build)', () => {
     await expect(page.getByTestId('clinical-library-drawer')).toHaveCount(0);
     expect(pageErrors).toEqual([]);
   });
+});
+
+test('fills the compact MEDIF from the census, restores its preset and prints the original PDF', async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  const pageErrors: string[] = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  await seedPersistedSession(page);
+  await page.goto(`/?date=${PREVIEW_DATE}`);
+  await expect(
+    page.locator('[data-testid="patient-row"][data-bed-id="R1"] input[name="patientName"]')
+  ).toHaveValue(SEEDED_PATIENT_NAME, { timeout: 20_000 });
+  await page.getByTestId('clinical-library-quick-action').click({ timeout: 15_000 });
+  const drawer = page.getByTestId('clinical-library-drawer');
+  await drawer.getByTestId('library-tool-medif').click();
+  const editor = drawer.getByTestId('library-tool-medif');
+  await expect(editor.locator('#medif-p1_nombre_pasajero')).toBeVisible();
+  await expect(editor.locator('#medif-p2_nombre_paciente')).toHaveCount(0);
+  await expect(editor.locator('#medif-p2_edad')).toHaveCount(0);
+  await expect(editor.locator('#medif-p1_seguro_viaje')).toHaveCount(0);
+  await expect(editor.locator('#medif-p3_firma_medico_texto')).toBeAttached();
+  await expect(editor.getByRole('button', { name: /^(Anterior|Siguiente)$/ })).toHaveCount(0);
+
+  const source = editor.getByLabel('Origen de los datos');
+  const patientKey = await source
+    .locator('option')
+    .filter({ hasText: SEEDED_PATIENT_NAME })
+    .getAttribute('value');
+  expect(patientKey).toBeTruthy();
+  await source.selectOption(patientKey!);
+  await expect(editor.locator('#medif-p1_nombre_pasajero')).toHaveValue(SEEDED_PATIENT_NAME);
+  await expect(editor.locator('#medif-p1_edad')).toHaveValue('44');
+  await expect(editor.locator('#medif-p2_diagnostico_actual')).toHaveValue('DIAGNOSTICO PREVIEW');
+
+  await editor.getByRole('tab', { name: 'Preferencias', exact: true }).click();
+  await expect(editor.getByText(/46\s+de\s+137\s+casilleros ocultos/)).toBeVisible();
+  await editor.getByRole('button', { name: 'Mostrar todos', exact: true }).click();
+  await editor.getByRole('tab', { name: 'Formulario', exact: true }).click();
+  await editor.locator('#medif-p1_seguro_viaje').fill('DATO OCULTO DE PRUEBA');
+  await editor.getByRole('tab', { name: 'Preferencias', exact: true }).click();
+  await editor.getByRole('button', { name: 'Restaurar selección MEDIF', exact: true }).click();
+  await expect(editor.getByText(/46\s+de\s+137\s+casilleros ocultos/)).toBeVisible();
+  const preferencesDownload = page.waitForEvent('download');
+  await editor.getByRole('button', { name: 'Exportar preferencias', exact: true }).click();
+  const preferencesPath = test.info().outputPath('medif-preferencias.json');
+  await (await preferencesDownload).saveAs(preferencesPath);
+  const preferences = JSON.parse(fs.readFileSync(preferencesPath, 'utf8'));
+  expect(Object.keys(preferences).sort()).toEqual(['hiddenFieldIds', 'version']);
+  expect(preferences.version).toBe(2);
+  expect(preferences.hiddenFieldIds).toHaveLength(46);
+  expect(preferences.hiddenFieldIds).toContain('p1_seguro_viaje');
+
+  await editor.getByRole('tab', { name: 'Formulario', exact: true }).click();
+  await expect(editor.locator('#medif-p1_seguro_viaje')).toHaveCount(0);
+  const pdfDownload = page.waitForEvent('download');
+  await editor.getByRole('button', { name: 'PDF imprimible', exact: true }).click();
+  const pdfPath = test.info().outputPath('medif-imprimible.pdf');
+  await (await pdfDownload).saveAs(pdfPath);
+  const pdf = await PDFDocument.load(new Uint8Array(fs.readFileSync(pdfPath)));
+  expect(pdf.getPageCount()).toBe(3);
+  expect(pdf.getForm().getFields()).toHaveLength(0);
+
+  await source.selectOption('');
+  await editor.getByRole('button', { name: 'Reemplazar todos los datos', exact: true }).click();
+  await expect(editor.locator('#medif-p1_nombre_pasajero')).toHaveValue('');
+  await expect(editor.locator('#medif-p2_diagnostico_actual')).toHaveValue('');
+  await expect(editor.locator('#medif-p1_seguro_viaje')).toHaveCount(0);
+  await capture(page, '10-medif-compact-desktop');
+  await page.setViewportSize({ width: 375, height: 812 });
+  await expect(editor.locator('#medif-p1_nombre_pasajero')).toBeVisible();
+  expect(await editor.evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(
+    true
+  );
+  await capture(page, '11-medif-compact-mobile');
+  expect(pageErrors).toEqual([]);
 });

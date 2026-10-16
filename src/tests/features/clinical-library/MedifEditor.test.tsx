@@ -5,7 +5,12 @@ import {
   emptyMedifValues,
   setMedifFieldValue,
 } from '@/features/clinical-library/domain/medifDraft';
-import { MEDIF_PREFERENCES_STORAGE_KEY } from '@/features/clinical-library/domain/medifPreferences';
+import {
+  defaultMedifPreferences,
+  emptyMedifPreferences,
+  MEDIF_PREFERENCES_STORAGE_KEY,
+} from '@/features/clinical-library/domain/medifPreferences';
+import { MEDIF_FORM_BLOCKS } from '@/features/clinical-library/domain/medifFormLayout';
 
 const patientValues = (name: string) =>
   setMedifFieldValue(emptyMedifValues(), 'p1_nombre_pasajero', name);
@@ -40,7 +45,108 @@ const setup = () => {
 describe('MedifEditor', () => {
   beforeEach(() => {
     window.localStorage.clear();
+    // These existing interaction regressions deliberately expose every field.
+    window.localStorage.setItem(
+      MEDIF_PREFERENCES_STORAGE_KEY,
+      JSON.stringify(emptyMedifPreferences())
+    );
   });
+
+  it('shows seven continuous blocks with the initial hidden selection and no page wizard', () => {
+    window.localStorage.clear();
+    setup();
+    for (const block of MEDIF_FORM_BLOCKS) {
+      expect(screen.getByRole('region', { name: block.title })).toBeInTheDocument();
+    }
+    expect(screen.queryByRole('button', { name: 'Anterior' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Siguiente' })).not.toBeInTheDocument();
+    expect(document.getElementById('medif-p1_nombre_pasajero')).toBeInTheDocument();
+    expect(document.getElementById('medif-p3_firma_medico_texto')).toBeInTheDocument();
+    expect(document.getElementById('medif-p2_nombre_paciente')).not.toBeInTheDocument();
+    expect(document.getElementById('medif-p2_edad')).not.toBeInTheDocument();
+    for (const id of defaultMedifPreferences().hiddenFieldIds) {
+      expect(document.getElementById(`medif-${id}`)).not.toBeInTheDocument();
+    }
+    expect(
+      document.querySelectorAll('.medif-form-grid input, .medif-form-grid textarea')
+    ).toHaveLength(89);
+    fireEvent.click(screen.getByRole('tab', { name: 'Preferencias' }));
+    expect(screen.getByText(/46 de 137 casilleros ocultos/)).toBeInTheDocument();
+  });
+
+  it('restores the selected preset after showing all without erasing the draft', () => {
+    window.localStorage.clear();
+    setup();
+    fireEvent.click(screen.getByRole('tab', { name: 'Preferencias' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mostrar todos' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Formulario' }));
+    fireEvent.change(screen.getByLabelText(/Seguro de viaje/), {
+      target: { value: 'Valor conservado en sesión' },
+    });
+    fireEvent.click(screen.getByRole('tab', { name: 'Preferencias' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Restaurar selección MEDIF' }));
+    expect(screen.getByRole('checkbox', { name: /Seguro de viaje/ })).not.toBeChecked();
+    expect(JSON.parse(window.localStorage.getItem(MEDIF_PREFERENCES_STORAGE_KEY)!)).toEqual(
+      defaultMedifPreferences()
+    );
+    fireEvent.click(screen.getByRole('tab', { name: 'Formulario' }));
+    expect(screen.queryByLabelText(/Seguro de viaje/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Preferencias' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mostrar todos' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Formulario' }));
+    expect(screen.getByLabelText(/Seguro de viaje/)).toHaveValue('Valor conservado en sesión');
+  });
+
+  it.each([
+    ['p2_nombre_paciente', 'p1_nombre_pasajero'],
+    ['p2_edad', 'p1_edad'],
+  ])(
+    'focuses the single identity control when opening alias %s in the dictionary',
+    (alias, canonical) => {
+      setup();
+      fireEvent.click(screen.getByRole('tab', { name: 'Variables' }));
+      fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar variable' }), {
+        target: { value: alias },
+      });
+      fireEvent.click(within(screen.getByRole('table')).getByRole('button'));
+      expect(screen.getByRole('tab', { name: 'Formulario' })).toHaveAttribute(
+        'aria-selected',
+        'true'
+      );
+      expect(document.getElementById(`medif-${canonical}`)).toHaveFocus();
+      expect(document.getElementById(`medif-${alias}`)).not.toBeInTheDocument();
+    }
+  );
+
+  it.each([
+    ['p1_seguro_viaje', 'p1_seguro_viaje'],
+    ['p2_instrucciones_no', 'p2_instrucciones_si'],
+  ])(
+    'opens the visibility preference for hidden variable %s without enabling it',
+    (fieldId, preferenceId) => {
+      window.localStorage.clear();
+      setup();
+      fireEvent.click(screen.getByRole('tab', { name: 'Variables' }));
+      fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar variable' }), {
+        target: { value: fieldId },
+      });
+      fireEvent.click(within(screen.getByRole('table')).getByRole('button'));
+      expect(screen.getByRole('tab', { name: 'Preferencias' })).toHaveAttribute(
+        'aria-selected',
+        'true'
+      );
+      expect(screen.getByRole('searchbox', { name: 'Buscar campo o sección' })).toHaveValue(
+        preferenceId
+      );
+      const checkbox = screen.getByRole('checkbox');
+      expect(checkbox).toHaveAttribute('id', `medif-preference-${preferenceId}`);
+      expect(checkbox).toHaveFocus();
+      expect(checkbox).not.toBeChecked();
+      expect(window.localStorage.getItem(MEDIF_PREFERENCES_STORAGE_KEY)).toBeNull();
+      fireEvent.click(screen.getByRole('tab', { name: 'Formulario' }));
+      expect(document.getElementById(`medif-${fieldId}`)).not.toBeInTheDocument();
+    }
+  );
 
   it('ignores delayed preference imports after manual changes or showing all fields', async () => {
     setup();
@@ -97,7 +203,9 @@ describe('MedifEditor', () => {
       resolveRead(JSON.stringify({ version: 1, hiddenFieldIds: ['p1_seguro_viaje'] }));
     });
     expect(screen.getByLabelText(/Seguro de viaje/)).toBeInTheDocument();
-    expect(window.localStorage.getItem(MEDIF_PREFERENCES_STORAGE_KEY)).toBeNull();
+    expect(JSON.parse(window.localStorage.getItem(MEDIF_PREFERENCES_STORAGE_KEY)!)).toEqual(
+      emptyMedifPreferences()
+    );
   });
 
   it('guards browser navigation only while the draft contains data and removes the guard on unmount', () => {
@@ -185,11 +293,15 @@ describe('MedifEditor', () => {
         target: { value: 'Paciente manual de prueba' },
       }
     );
-    expect(document.getElementById('medif-p2_nombre_paciente')).toHaveValue(
-      'Paciente manual de prueba'
-    );
+    expect(document.getElementById('medif-p2_nombre_paciente')).not.toBeInTheDocument();
+    fireEvent.change(document.getElementById('medif-p1_edad')!, {
+      target: { value: '7 meses' },
+    });
+    expect(document.getElementById('medif-p2_edad')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Asistencia y acompañante/ }));
-    const wheelchair = screen.getByRole('group', { name: '¿Necesita silla de ruedas?' });
+    const wheelchair = screen.getByRole('group', {
+      name: '¿Necesita silla de ruedas? · Declaración del pasajero',
+    });
     expect(within(wheelchair).getByRole('radio', { name: 'Sí' })).not.toBeChecked();
     expect(within(wheelchair).getByRole('radio', { name: 'No' })).not.toBeChecked();
     fireEvent.click(within(wheelchair).getByRole('radio', { name: 'Sí' }));
@@ -199,6 +311,10 @@ describe('MedifEditor', () => {
     expect(props.onGeneratePdf.mock.calls[0][0]).toMatchObject({
       p1_nombre_pasajero: 'Paciente manual de prueba',
       p2_nombre_paciente: 'Paciente manual de prueba',
+      p1_edad: '7 meses',
+      p2_edad: '7 meses',
+      p3_silla_ruedas_si: '',
+      p3_silla_ruedas_no: '',
       p1_silla_si: '',
       p1_silla_no: 'X',
     });
@@ -236,7 +352,7 @@ describe('MedifEditor', () => {
         /Nombre completo/
       )
     ).toHaveValue('');
-    expect(document.getElementById('medif-p2_nombre_paciente')).toHaveValue('');
+    expect(document.getElementById('medif-p2_nombre_paciente')).not.toBeInTheDocument();
   });
 
   it('persists visibility only and allows hidden fields to be restored without losing the current draft', async () => {

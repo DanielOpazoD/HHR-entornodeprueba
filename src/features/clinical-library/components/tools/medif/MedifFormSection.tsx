@@ -1,17 +1,20 @@
 import React from 'react';
-import { EyeOff, FileText } from 'lucide-react';
 import {
   MEDIF_FIELD_BY_ID,
   getMedifGroupFieldIds,
   type MedifField,
-  type MedifSection,
+  type MedifGroup,
 } from '../../../domain/medifSchema';
+import {
+  getMedifFormBlockGroups,
+  getMedifFormGroupLabel,
+  type MedifFormBlock,
+} from '../../../domain/medifFormLayout';
 import type { MedifValues } from '../../../domain/medifDraft';
 import { isMedifFieldHidden, type MedifPreferences } from '../../../domain/medifPreferences';
-import { TOOL_INPUT_CLASS } from '../ToolField';
 
 interface Props {
-  section: MedifSection;
+  block: MedifFormBlock;
   values: MedifValues;
   preferences: MedifPreferences;
   onChange: (id: string, value: string) => void;
@@ -22,137 +25,161 @@ function FieldInput({
   field,
   value,
   onChange,
+  label,
 }: {
   field: MedifField;
+  label?: string;
   value: string;
   onChange: (value: string) => void;
 }): React.ReactElement {
   const id = `medif-${field.id}`;
-  const linked = field.id === 'p2_nombre_paciente' || field.id === 'p2_edad';
   const props = {
     id,
     value,
     onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
       onChange(event.target.value),
     placeholder: field.placeholder,
+    title: field.help,
     autoComplete: 'off',
-    'aria-describedby': linked || field.help ? `${id}-help` : undefined,
   };
   return (
-    <div className={field.multiline ? 'sm:col-span-2' : ''}>
-      <label
-        htmlFor={id}
-        className="mb-1.5 flex items-center justify-between gap-2 text-[12px] font-semibold text-slate-700"
-      >
-        {field.shortLabel}
-        <span className="shrink-0 text-[9px] font-normal text-slate-400">Pág. {field.page}</span>
-      </label>
+    <div
+      className={`medif-field${field.multiline || ['p1_seguro_viaje', 'p2_nombre_medico', 'p3_medico_declaracion', 'p1_medico_autorizado', 'p3_firma_medico_texto', 'p1_declaracion_firma'].includes(field.id) ? ' medif-field--full' : ''}${field.id === 'p1_nombre_pasajero' ? ' medif-field--name' : ''}`}
+    >
+      <label htmlFor={id}>{label ?? field.shortLabel}</label>
       {field.multiline ? (
-        <textarea
-          {...props}
-          rows={3}
-          className={`${TOOL_INPUT_CLASS} h-auto min-h-20 resize-y py-2 leading-relaxed`}
-        />
+        <textarea {...props} rows={2} className="medif-input medif-textarea" />
       ) : (
-        <input {...props} type="text" className={TOOL_INPUT_CLASS} />
-      )}
-      {(linked || field.help) && (
-        <p id={`${id}-help`} className="mt-1 text-[10px] leading-relaxed text-slate-500">
-          {linked ? 'Se actualiza junto con el mismo dato de la página 1.' : field.help}
-        </p>
+        <input {...props} type="text" className="medif-input" />
       )}
     </div>
   );
 }
 
 export const MedifFormSection: React.FC<Props> = ({
-  section,
+  block,
   values,
   preferences,
   onChange,
   onPreferences,
 }) => {
-  const visibleGroups = section.groups.filter(group =>
-    getMedifGroupFieldIds(group).some(id => !isMedifFieldHidden(preferences, id))
-  );
-  const hiddenCount = section.groups
+  const sourceGroups = getMedifFormBlockGroups(block);
+  const hiddenCount = sourceGroups
     .flatMap(getMedifGroupFieldIds)
     .filter(id => isMedifFieldHidden(preferences, id)).length;
+  const groups: MedifGroup[] = sourceGroups
+    .filter(group => group.id !== 'identificacion_medica')
+    .map(group =>
+      group.id === 'pasajero_datos'
+        ? {
+            ...group,
+            type: 'fields',
+            fields: ['p1_nombre_pasajero', 'p1_edad', 'p2_genero', 'p1_seguro_viaje'],
+          }
+        : group
+    );
+  const visibleGroups = groups.filter(group =>
+    getMedifGroupFieldIds(group).some(id => !isMedifFieldHidden(preferences, id))
+  );
   return (
-    <section aria-labelledby={`medif-section-${section.id}`}>
-      <div className="mb-4">
-        <p className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-medical-600">
-          <FileText size={12} aria-hidden="true" /> Formulario MEDIF
-        </p>
-        <h4 id={`medif-section-${section.id}`} className="text-lg font-bold text-slate-800">
-          {section.title}
-        </h4>
-        <p className="mt-1 text-[12px] leading-relaxed text-slate-500">{section.description}</p>
+    <section
+      id={`medif-block-${block.id}`}
+      tabIndex={-1}
+      aria-labelledby={`medif-heading-${block.id}`}
+      className={`medif-card${block.fullWidth ? ' medif-card--wide' : ''}`}
+    >
+      <div className="medif-card-header">
+        <h4 id={`medif-heading-${block.id}`}>{block.title}</h4>
+        {hiddenCount > 0 && (
+          <button type="button" className="medif-hidden-link" onClick={onPreferences}>
+            {hiddenCount} ocultos · Preferencias
+          </button>
+        )}
       </div>
-      <div className="space-y-3">
-        {visibleGroups.map(group => (
-          <fieldset
-            key={group.id}
-            className="min-w-0 rounded-lg border border-slate-200 bg-white px-4 pb-4 pt-2"
-          >
-            <legend className="px-1 text-[12px] font-bold text-slate-700">{group.label}</legend>
-            {group.help && (
-              <p className="mb-3 text-[11px] leading-relaxed text-slate-500">{group.help}</p>
-            )}
-            {group.type === 'choice' ? (
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                {group.options.map(option => (
-                  <label
-                    key={option.fieldId}
-                    className={`inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-md border px-3 text-[12px] ${values[option.fieldId] === 'X' ? 'border-medical-300 bg-medical-50 font-semibold text-medical-800' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-                  >
-                    <input
-                      type={group.multiple ? 'checkbox' : 'radio'}
-                      name={`medif-choice-${group.id}`}
-                      checked={values[option.fieldId] === 'X'}
-                      onChange={event => onChange(option.fieldId, event.target.checked ? 'X' : '')}
-                      className="size-3.5 accent-medical-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-600"
-                    />
-                    {option.label}
-                  </label>
-                ))}
-                {group.options.some(option => values[option.fieldId] === 'X') && (
-                  <button
-                    type="button"
-                    className="ml-auto rounded px-2 py-1 text-[10px] font-medium text-slate-500 underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-medical-600"
-                    onClick={() => group.options.forEach(option => onChange(option.fieldId, ''))}
-                  >
-                    Limpiar respuesta
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-x-4 gap-y-3 pt-1 sm:grid-cols-2">
+      {block.id === 'paciente_vuelo' && (
+        <p className="medif-identity-note">
+          Nombre y edad se completan una sola vez y se copian a las páginas 1 y 2.
+        </p>
+      )}
+      <div className="medif-groups">
+        {visibleGroups.map(group => {
+          const label = getMedifFormGroupLabel(group);
+          if (group.type === 'choice') {
+            const answered = group.options.some(option => values[option.fieldId] === 'X');
+            return (
+              <fieldset
+                key={group.id}
+                className={`medif-choice${group.options.length > 2 ? ' medif-choice--many' : ''}`}
+              >
+                <legend className="sr-only">{label}</legend>
+                <div className="medif-choice-row">
+                  <span aria-hidden="true" className="medif-choice-label">
+                    {label}
+                  </span>
+                  <div className="medif-choice-options">
+                    {group.options.map(option => (
+                      <label
+                        key={option.fieldId}
+                        className={`medif-option${values[option.fieldId] === 'X' ? ' medif-option--selected' : ''}`}
+                      >
+                        <input
+                          id={`medif-${option.fieldId}`}
+                          type={group.multiple ? 'checkbox' : 'radio'}
+                          name={`medif-choice-${group.id}`}
+                          checked={values[option.fieldId] === 'X'}
+                          onChange={event =>
+                            onChange(option.fieldId, event.target.checked ? 'X' : '')
+                          }
+                        />
+                        {option.label}
+                      </label>
+                    ))}
+                    <button
+                      type="button"
+                      className="medif-clear-choice"
+                      disabled={!answered}
+                      aria-label={`Limpiar respuesta: ${label}`}
+                      title="Dejar sin respuesta"
+                      onClick={() => group.options.forEach(option => onChange(option.fieldId, ''))}
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+                {group.help && <p className="medif-help">{group.help}</p>}
+              </fieldset>
+            );
+          }
+          return (
+            <fieldset key={group.id} className={`medif-field-group medif-group-${group.id}`}>
+              <legend className={group.fields.length === 1 ? 'sr-only' : 'medif-group-label'}>
+                {label}
+              </legend>
+              {group.help && <p className="medif-help">{group.help}</p>}
+              <div
+                className={`medif-fields${group.fields.length === 1 ? ' medif-fields--single' : ''}${group.id === 'pasajero_datos' ? ' medif-fields--identity' : ''}${['medicacion_lista', 'antecedentes', 'acompanante_datos', 'tramo_1', 'tramo_2'].includes(group.id) ? ' medif-fields--three' : ''}`}
+              >
                 {group.fields
                   .filter(id => !isMedifFieldHidden(preferences, id))
                   .map(id => (
                     <FieldInput
                       key={id}
                       field={MEDIF_FIELD_BY_ID[id]}
+                      label={group.fields.length === 1 ? label : undefined}
                       value={values[id] ?? ''}
                       onChange={value => onChange(id, value)}
                     />
                   ))}
               </div>
-            )}
-          </fieldset>
-        ))}
-        {hiddenCount > 0 && (
-          <button
-            type="button"
-            onClick={onPreferences}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 px-4 py-3 text-[11px] text-slate-500 hover:border-medical-400 hover:text-medical-700 focus-visible:outline focus-visible:outline-medical-600"
-          >
-            <EyeOff size={14} aria-hidden="true" /> {hiddenCount} casilleros ocultos. Administrar en
-            preferencias
-          </button>
-        )}
+            </fieldset>
+          );
+        })}
       </div>
+      {!visibleGroups.length && (
+        <p className="medif-help">
+          Todos los campos de este bloque están ocultos. Puedes habilitarlos en Preferencias.
+        </p>
+      )}
     </section>
   );
 };

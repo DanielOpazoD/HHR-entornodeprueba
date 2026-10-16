@@ -5,15 +5,17 @@ El editor prepara el formulario MEDIF de LATAM a partir de datos escritos manual
 ## Uso
 
 1. Elegir **Ingreso manual / paciente externo** o un paciente del censo seleccionado.
-2. Completar las secciones del formulario y revisar las respuestas clínicas. Las pestañas **Variables** y **Preferencias** permiten consultar el diccionario y ajustar qué campos se muestran.
+2. Completar el formulario en una vista continua y revisar las respuestas clínicas. **Variables** y **Preferencias** permiten consultar el diccionario y ajustar qué campos se muestran.
 3. Descargar **PDF editable** para conservar los casilleros rellenables, o **PDF imprimible** para obtener los valores fijados sobre las tres páginas originales.
 4. Para continuar en otra sesión, descargar **Guardar borrador** y después recuperarlo con **Cargar**.
 
-El índice contiene diez secciones: Paciente; Itinerario y contacto; Asistencia y acompañante; Declaración del pasajero; Médico y diagnóstico; Riesgo y autonomía; Oxígeno y equipo portátil; Medicación y hospitalización; Cirugía y movilidad; Psiquiatría y declaración.
+El formulario se presenta en una sola vista con siete bloques funcionales: Paciente y vuelo; Diagnóstico y evaluación; Riesgo y autonomía; Asistencia y acompañante; Tratamiento y traslado; Psiquiatría; Médico y declaraciones. El paciente y el vuelo están al inicio, y el médico y las declaraciones al final. En pantallas amplias, los bloques intermedios pueden colocarse en columnas; en pantallas pequeñas continúan uno debajo de otro. No hay navegación entre diez pantallas para completar el formulario.
 
-Se conservan **137 variables** del PDF: **69 campos de texto** y **68 casilleros de texto para `X`**. Los casilleros se presentan como 31 preguntas de selección exclusiva. Cada pregunta puede quedar sin respuesta. El nombre y la edad se comparten entre las partes del pasajero y del médico; las otras preguntas repetidas, como silla de ruedas, mantienen sus respuestas independientes.
+El esquema técnico y el diccionario conservan las diez secciones originales para ubicar los campos del PDF. [medifFormLayout.ts](../src/features/clinical-library/domain/medifFormLayout.ts) distribuye sus 57 grupos exactamente una vez entre los siete bloques. El PDF exportado conserva sus tres páginas.
 
-El [diccionario completo](medif-variables.md) identifica cada variable, su página, tipo y origen. La pestaña Variables ofrece el mismo inventario y permite ir a la sección correspondiente. El contador de casilleros con datos es una referencia de llenado: una pregunta Sí/No deja una alternativa vacía, por lo que no representa un porcentaje de validación clínica.
+Se conservan **137 variables** del PDF: **69 campos de texto** y **68 casilleros de texto para `X`**. Los casilleros se presentan como 31 preguntas de selección exclusiva. Cada pregunta puede quedar sin respuesta. El nombre y la edad se muestran una sola vez en el editor y se copian a sus campos de ambas partes del PDF. Las otras preguntas repetidas mantienen respuestas independientes. Las dos preguntas de silla de ruedas se identifican como declaración del pasajero y evaluación del médico.
+
+El [diccionario completo](medif-variables.md) identifica cada variable, su página, tipo y origen. La vista Variables ofrece el mismo inventario y permite localizar el campo en el formulario continuo; los alias de nombre y edad apuntan al control único de identidad. El contador de casilleros con datos es una referencia de llenado: una pregunta Sí/No deja una alternativa vacía, por lo que no representa un porcentaje de validación clínica.
 
 ## Datos del censo
 
@@ -37,10 +39,19 @@ Son archivos con propósitos y contenidos diferentes:
 
 | Elemento     | Contenido                                                                                  | Conservación                                                                                                                                                                       |
 | ------------ | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Preferencias | Versión `1` y `hiddenFieldIds`, únicamente identificadores de campos ocultos.              | Se guardan en `localStorage` bajo `hhr.medif.preferences.v1`; se pueden exportar/importar como `medif-preferencias.json`.                                                          |
+| Preferencias | Versión `2` y `hiddenFieldIds`, únicamente identificadores de campos ocultos.              | Se guardan en `localStorage` bajo `hhr.medif.preferences.v1`; se pueden exportar/importar como `medif-preferencias.json`.                                                          |
 | Borrador     | Versión `1` y `values`, con los datos escritos en todos los campos, incluidos los ocultos. | Permanece en memoria durante la edición. **Guardar borrador** descarga `medif-borrador.json`; no se guarda automáticamente en almacenamiento del navegador ni en la base de datos. |
 
-Todos los campos están visibles inicialmente. En Preferencias, ocultar una opción oculta la pregunta completa; nombre y edad también comparten visibilidad entre ambas páginas. **Mostrar todos** restaura la visibilidad. Si el navegador impide guardar, el editor informa el problema y permite exportar la configuración.
+La configuración inicial aplica la lista marcada por el usuario: **44 marcas X explícitas se convierten en 46 campos ocultos**, al ocultar todas las alternativas de cada pregunta. La lista marcó solo la opción No en dos preguntas; se agregan sus opciones Sí:
+
+- Nº 077, `p2_instrucciones_si`, junto a Nº 078, `p2_instrucciones_no`.
+- Nº 114, `p2_estable_si`, junto a Nº 115, `p2_estable_no`.
+
+Quedan **91 campos PDF visibles**: 41 de texto y 50 casilleros de marca. Nombre y edad tienen dos apariciones PDF pero un solo control de edición cada uno. Los campos ocultos siguen presentes en el esquema y pueden reactivarse en Preferencias. La lista inicial está en [medifDefaultHiddenFields.ts](../src/features/clinical-library/domain/medifDefaultHiddenFields.ts).
+
+En Preferencias, ocultar una alternativa oculta la pregunta completa; nombre y edad también comparten visibilidad entre ambas páginas. **Mostrar todos** restaura la visibilidad. La configuración inicial puede restablecerse desde Preferencias. Si el navegador impide guardar, el editor informa el problema y permite exportar la configuración.
+
+La clave de almacenamiento continúa siendo `hhr.medif.preferences.v1` por compatibilidad, aunque el contenido guardado usa versión `2`. Una configuración antigua v1 guardada en el navegador se migra sumando los campos del preset a los que ya estaban ocultos. Una configuración v2 conserva exactamente la selección guardada, por lo que reactivar campos o mostrar todos no se revierte al recargar. La importación explícita de un archivo v1 o v2 respeta la selección de ese archivo, normaliza los grupos y devuelve v2. Sin configuración guardada válida, se utiliza el preset.
 
 Ocultar un campo conserva su valor en la sesión y en el borrador completo. Al generar cualquiera de los dos PDF, el valor oculto se deja en blanco, incluso si antes tenía información. Volver a mostrarlo permite recuperar su valor. La importación de un borrador no reemplaza las preferencias y se presenta sin asociación a una cama.
 
@@ -76,6 +87,7 @@ Estas comprobaciones cubren la estructura y el ajuste al PDF. No establecen apti
 ## Archivos y comprobaciones de mantenimiento
 
 - [medifSchema.json](../src/features/clinical-library/domain/medifSchema.json) y [medifSchema.ts](../src/features/clinical-library/domain/medifSchema.ts): inventario, geometría, secciones y grupos.
+- [medifFormLayout.ts](../src/features/clinical-library/domain/medifFormLayout.ts): siete bloques continuos, etiquetas de contexto y controles únicos de nombre y edad.
 - [medifDraft.ts](../src/features/clinical-library/domain/medifDraft.ts): valores, alias, selección exclusiva e importación/exportación de borradores.
 - [medifPreferences.ts](../src/features/clinical-library/domain/medifPreferences.ts): visibilidad y persistencia de identificadores.
 - [MedifEditor.tsx](../src/features/clinical-library/components/tools/medif/MedifEditor.tsx): edición, reemplazo, navegación y descargas.
@@ -83,7 +95,7 @@ Estas comprobaciones cubren la estructura y el ajuste al PDF. No establecen apti
 Pruebas focales disponibles:
 
 ```sh
-npm exec -- vitest run src/tests/features/clinical-library/medifSchema.test.ts src/tests/features/clinical-library/medifPreferences.test.ts src/tests/features/clinical-library/medifPatientPrefill.test.ts src/tests/features/clinical-library/medifPdf.test.ts src/tests/features/clinical-library/MedifEditor.test.tsx
+npm exec -- vitest run src/tests/features/clinical-library/medifFormLayout.test.ts src/tests/features/clinical-library/medifSchema.test.ts src/tests/features/clinical-library/medifPreferences.test.ts src/tests/features/clinical-library/medifPatientPrefill.test.ts src/tests/features/clinical-library/medifPdf.test.ts src/tests/features/clinical-library/MedifEditor.test.tsx
 ```
 
 Al cambiar la plantilla deben revisarse juntos los nombres de campo, el esquema, las imágenes de referencia y el diccionario. Las pruebas de dominio no sustituyen la inspección del PDF generado ni una comprobación de impresión en el visor utilizado.

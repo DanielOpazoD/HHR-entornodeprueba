@@ -215,6 +215,7 @@ export default defineConfig(({ mode }) => {
             // already fetched on demand. Keep its editor under the same policy;
             // the library's offline calculators and transfer cover stay cached.
             '**/assets/MedifTool-*.js',
+            '**/assets/MedifTool-*.css',
             '**/vendor/exceljs.bare.min.js',
             '**/assets/exceljs.min-*.js',
             '**/assets/pdf.worker-*.mjs',

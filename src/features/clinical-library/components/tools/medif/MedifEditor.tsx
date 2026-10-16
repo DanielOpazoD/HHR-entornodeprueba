@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Download, FileText, Printer, Upload } from 'lucide-react';
-import { MEDIF_FIELDS, MEDIF_SECTIONS } from '../../../domain/medifSchema';
+import { Download, FileText, Printer, Upload } from 'lucide-react';
+import { MEDIF_FIELDS } from '../../../domain/medifSchema';
 import {
   emptyMedifValues,
   exportMedifDraft,
@@ -19,12 +19,19 @@ import { TOOL_INPUT_CLASS } from '../ToolField';
 import { MedifFormSection } from './MedifFormSection';
 import { MedifPreferencesPanel } from './MedifPreferencesPanel';
 import { MedifVariableIndex } from './MedifVariableIndex';
-import { MedifTabs, MedifSectionNavigation, type MedifTabId } from './MedifNavigation';
+import { MedifTabs, MedifJumpIndex, type MedifTabId } from './MedifNavigation';
 import {
   downloadMedifJson,
   MEDIF_SECONDARY_BUTTON,
   type MedifEditorProps,
 } from './medifEditorTypes';
+
+import {
+  MEDIF_FORM_BLOCKS,
+  getMedifCanonicalFieldId,
+  getMedifFormBlockIdForField,
+} from '../../../domain/medifFormLayout';
+import './medifEditor.css';
 
 export type { MedifEditorProps, MedifEditorPatient } from './medifEditorTypes';
 
@@ -50,14 +57,12 @@ export const MedifEditor: React.FC<MedifEditorProps> = ({
   const [source, setSource] = useState('Ingreso manual · sin asociación a una cama');
   const [replacement, setReplacement] = useState<Replacement | null>(null);
   const [tab, setTab] = useState<MedifTabId>('form');
-  const [sectionId, setSectionId] = useState(MEDIF_SECTIONS[0].id);
+  const [focusField, setFocusField] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const draftInput = useRef<HTMLInputElement>(null);
   const currentValues = useRef(values);
   const importSequence = useRef(0);
-  const sectionIndex = MEDIF_SECTIONS.findIndex(section => section.id === sectionId);
-  const section = MEDIF_SECTIONS[sectionIndex];
   const dirty = Object.values(values).some(value => value.trim());
   const visibleFields = MEDIF_FIELDS.filter(field => !isMedifFieldHidden(preferences, field.id));
   const completed = visibleFields.filter(field => values[field.id]?.trim()).length;
@@ -139,10 +144,25 @@ export const MedifEditor: React.FC<MedifEditorProps> = ({
       setBusy(false);
     }
   };
-  const openSection = (id: string): void => {
-    setSectionId(id);
-    setTab('form');
+  const openField = (id: string): void => {
+    const canonical = getMedifCanonicalFieldId(id);
+    setFocusField(canonical);
+    setTab(isMedifFieldHidden(preferences, canonical) ? 'preferences' : 'form');
+    setNotice('');
   };
+  const jumpBlock = (id: string): void => {
+    const element = document.getElementById(`medif-block-${id}`);
+    element?.scrollIntoView?.({ block: 'start' });
+    element?.focus({ preventScroll: true });
+  };
+  useEffect(() => {
+    if (tab !== 'form' || !focusField) return;
+    const element =
+      document.getElementById(`medif-${focusField}`) ??
+      document.getElementById(`medif-block-${getMedifFormBlockIdForField(focusField)}`);
+    element?.scrollIntoView?.({ block: 'center' });
+    element?.focus({ preventScroll: true });
+  }, [tab, focusField]);
 
   return (
     <ToolFrame
@@ -152,80 +172,64 @@ export const MedifEditor: React.FC<MedifEditorProps> = ({
       onClose={onClose}
       testId="library-tool-medif"
     >
-      <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-medical-600">
-              Documentos de traslado
-            </p>
-            <h4 className="mt-1 text-xl font-bold text-slate-800">Preparar formulario MEDIF</h4>
-            <p className="mt-1 text-[12px] text-slate-500">
-              Completa el formulario, revisa sus variables y descarga el PDF original.
-            </p>
-          </div>
-          <span className="rounded-full border border-medical-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-medical-700">
-            3 páginas · 137 casilleros
-          </span>
+      <div className="medif-toolbar">
+        <label className="medif-source">
+          Origen de los datos
+          <select
+            value={selectedKey}
+            onChange={event => choosePatient(event.target.value)}
+            className={`${TOOL_INPUT_CLASS} mt-1`}
+            disabled={busy || Boolean(replacement)}
+          >
+            <option value="">Ingreso manual / paciente externo</option>
+            {patients.map(patient => (
+              <option key={patient.key} value={patient.key}>
+                {patient.label}
+              </option>
+            ))}
+            {selectedKey && !patients.some(patient => patient.key === selectedKey) && (
+              <option value={selectedKey}>Paciente cargado · {source}</option>
+            )}
+          </select>
+        </label>
+        <div className="medif-toolbar-actions">
+          <button
+            type="button"
+            className={MEDIF_SECONDARY_BUTTON}
+            disabled={busy}
+            onClick={() => downloadMedifJson(exportMedifDraft(values), 'medif-borrador.json')}
+          >
+            <Download size={13} aria-hidden="true" /> Guardar borrador
+          </button>
+          <button
+            type="button"
+            className={MEDIF_SECONDARY_BUTTON}
+            disabled={busy}
+            onClick={() => draftInput.current?.click()}
+          >
+            <Upload size={13} aria-hidden="true" /> Cargar
+          </button>
         </div>
-        <div className="mt-4 grid items-end gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
-          <label className="min-w-0 text-[11px] font-semibold text-slate-600">
-            Origen de los datos
-            <select
-              value={selectedKey}
-              onChange={event => choosePatient(event.target.value)}
-              className={`${TOOL_INPUT_CLASS} mt-1`}
-              disabled={busy || Boolean(replacement)}
-            >
-              <option value="">Ingreso manual / paciente externo</option>
-              {patients.map(patient => (
-                <option key={patient.key} value={patient.key}>
-                  {patient.label}
-                </option>
-              ))}
-              {selectedKey && !patients.some(patient => patient.key === selectedKey) && (
-                <option value={selectedKey}>Paciente cargado · {source}</option>
-              )}
-            </select>
-          </label>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              className={MEDIF_SECONDARY_BUTTON}
-              disabled={busy}
-              onClick={() => downloadMedifJson(exportMedifDraft(values), 'medif-borrador.json')}
-            >
-              <Download size={13} aria-hidden="true" /> Guardar borrador
-            </button>
-            <button
-              type="button"
-              className={MEDIF_SECONDARY_BUTTON}
-              disabled={busy}
-              onClick={() => draftInput.current?.click()}
-            >
-              <Upload size={13} aria-hidden="true" /> Cargar
-            </button>
-          </div>
-        </div>
-        <p className="mt-2 text-[10px] leading-relaxed text-slate-500">
-          {source}
-          {selectedKey ? ' · Copia al cargar; confirma los datos antes de emitir.' : ''}
-        </p>
-        <input
-          ref={draftInput}
-          type="file"
-          accept=".json,application/json"
-          aria-label="Archivo de borrador MEDIF"
-          className="hidden"
-          onChange={event => {
-            void importDraft(event.target.files?.[0]);
-            event.target.value = '';
-          }}
-        />
-        <p className="mt-1 text-[10px] text-slate-400">
-          El formulario se mantiene en esta sesión. «Guardar borrador» descarga todos sus datos,
-          incluidos los campos ocultos, a un archivo local.
-        </p>
       </div>
+      <p className="medif-source-note">
+        {source}
+        {selectedKey ? ' · Copia al cargar; confirma los datos antes de emitir.' : ''}
+      </p>
+      <input
+        ref={draftInput}
+        type="file"
+        accept=".json,application/json"
+        aria-label="Archivo de borrador MEDIF"
+        className="hidden"
+        onChange={event => {
+          void importDraft(event.target.files?.[0]);
+          event.target.value = '';
+        }}
+      />
+      <p className="medif-session-note">
+        El formulario se mantiene en esta sesión. «Guardar borrador» descarga todos sus datos,
+        incluidos los campos ocultos, a un archivo local.
+      </p>
 
       {replacement && (
         <div
@@ -262,82 +266,69 @@ export const MedifEditor: React.FC<MedifEditorProps> = ({
         </div>
       )}
 
-      <MedifTabs value={tab} onChange={setTab} />
+      <MedifTabs
+        value={tab}
+        onChange={next => {
+          setFocusField(null);
+          setTab(next);
+        }}
+      />
 
       <div role="tabpanel" id={`medif-panel-${tab}`} aria-labelledby={`medif-tab-${tab}`}>
         {tab === 'form' ? (
-          <div className="grid gap-5 lg:grid-cols-[190px_minmax(0,1fr)]">
-            <MedifSectionNavigation
-              sectionId={sectionId}
-              values={values}
-              preferences={preferences}
-              onSelect={setSectionId}
-            />
-            <div className="min-w-0">
-              <MedifFormSection
-                section={section}
-                values={values}
-                preferences={preferences}
-                onChange={changeField}
-                onPreferences={() => setTab('preferences')}
-              />
-              <div className="mt-4 flex items-center justify-between gap-2 border-t border-slate-200 pt-3">
-                <button
-                  type="button"
-                  className={MEDIF_SECONDARY_BUTTON}
-                  disabled={sectionIndex === 0}
-                  onClick={() => setSectionId(MEDIF_SECTIONS[sectionIndex - 1].id)}
-                >
-                  <ChevronLeft size={13} aria-hidden="true" /> Anterior
-                </button>
-                <span className="text-[10px] text-slate-400">
-                  Sección {sectionIndex + 1} de {MEDIF_SECTIONS.length}
-                </span>
-                <button
-                  type="button"
-                  className={MEDIF_SECONDARY_BUTTON}
-                  disabled={sectionIndex === MEDIF_SECTIONS.length - 1}
-                  onClick={() => setSectionId(MEDIF_SECTIONS[sectionIndex + 1].id)}
-                >
-                  Siguiente <ChevronRight size={13} aria-hidden="true" />
-                </button>
-              </div>
-              {previewPageUrls.length > 0 && (
-                <details className="mt-4 rounded-lg border border-slate-200 bg-slate-50">
-                  <summary className="cursor-pointer px-3 py-2.5 text-[11px] font-semibold text-slate-600 focus-visible:outline focus-visible:outline-medical-600">
-                    Referencia del PDF original · página {section.page}
-                  </summary>
-                  <div className="border-t border-slate-200 p-3">
-                    <p className="mb-2 text-[10px] text-slate-500">
-                      Plantilla sin datos. El PDF descargado incorpora los campos visibles que
-                      completaste.
-                    </p>
+          <>
+            <MedifJumpIndex onSelect={jumpBlock} />
+            <div className="medif-form-grid">
+              {MEDIF_FORM_BLOCKS.map(block => (
+                <MedifFormSection
+                  key={block.id}
+                  block={block}
+                  values={values}
+                  preferences={preferences}
+                  onChange={changeField}
+                  onPreferences={() => {
+                    setFocusField(null);
+                    setTab('preferences');
+                  }}
+                />
+              ))}
+            </div>
+            {previewPageUrls.length > 0 && (
+              <details className="medif-preview">
+                <summary>Referencia del PDF original · 3 páginas</summary>
+                <p className="medif-help">
+                  Plantilla sin datos. El PDF descargado incorpora los campos visibles que
+                  completaste.
+                </p>
+                <div className="medif-preview-grid">
+                  {previewPageUrls.map((url, index) => (
                     <a
-                      href={previewPageUrls[section.page - 1]}
+                      key={url}
+                      href={url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block"
-                      aria-label={`Ampliar página ${section.page} del original`}
+                      aria-label={`Ampliar página ${index + 1} del original`}
                     >
+                      Página {index + 1}
                       <img
-                        src={previewPageUrls[section.page - 1]}
-                        alt={`Página ${section.page} del formulario MEDIF original`}
+                        src={url}
+                        alt={`Página ${index + 1} del formulario MEDIF original`}
                         loading="lazy"
-                        className="mx-auto w-full max-w-xl border border-slate-200 bg-white shadow-sm"
                       />
                     </a>
-                  </div>
-                </details>
-              )}
-            </div>
-          </div>
+                  ))}
+                </div>
+              </details>
+            )}
+          </>
         ) : tab === 'variables' ? (
-          <MedifVariableIndex preferences={preferences} onSelectField={openSection} />
+          <MedifVariableIndex preferences={preferences} onSelectField={openField} />
         ) : (
           <MedifPreferencesPanel
             preferences={preferences}
             onChange={changePreferences}
             saved={preferencesSaved}
+            targetFieldId={focusField ?? undefined}
           />
         )}
       </div>
