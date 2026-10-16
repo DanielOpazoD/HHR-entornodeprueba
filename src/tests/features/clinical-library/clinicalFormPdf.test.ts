@@ -50,7 +50,7 @@ const sample = (form: ClinicalFormDefinition): ClinicalFormValues =>
 describe('original clinical form print contracts', () => {
   it('covers every requested template and uses common variables consistently', () => {
     expect(CLINICAL_FORMS.map(form => form.id).sort()).toEqual([...CLINICAL_FORM_IDS].sort());
-    expect(CLINICAL_FORMS.flatMap(form => form.fields).length).toBe(618);
+    expect(CLINICAL_FORMS.flatMap(form => form.fields).length).toBe(328);
     const common = new Set(CLINICAL_VARIABLE_CATALOG.variables.map(variable => variable.id));
     const prefixes =
       /^(imagen|contraste|consentimiento|laboratorio|vdrl|serologia|tbc|traslado|vmi)_/;
@@ -106,6 +106,44 @@ describe('original clinical form print contracts', () => {
       expect(streams(suppressed).join('\n')).not.toContain('<313233>');
     }
   );
+
+  it('prints only VMI patient identification and leaves all observations and the reference page blank', async () => {
+    const form = getClinicalForm('planilla-monitorizacion-ventilatoria');
+    const patient = {
+      paciente_nombre_completo: 'PACIENTE VMI PRUEBA',
+      paciente_rut: '11.111.111-1',
+      ingreso_fecha: '2026-10-13',
+    };
+    const source = await PDFDocument.load(template(form));
+    const printed = await PDFDocument.load(
+      await createClinicalFormPdf(template(form), form, patient)
+    );
+    const withOldValues = await PDFDocument.load(
+      await createClinicalFormPdf(template(form), form, {
+        ...patient,
+        paciente_talla_cm: '199',
+        diagnostico_texto: 'NO IMPRIMIR',
+        vmi_fecha: '2026-10-16',
+        vmi_peso_ideal: '99',
+        vmi_registro_1_hora: '08:00',
+        vmi_registro_1_peep: '15',
+        vmi_coincide_dia: true,
+        vmi_profesional_dia: 'NO IMPRIMIR',
+      })
+    );
+    const drawn = streams(printed).join('\n');
+    expect(drawn).toContain(
+      Buffer.from(patient.paciente_nombre_completo).toString('hex').toUpperCase()
+    );
+    expect(drawn).toContain(Buffer.from(patient.paciente_rut).toString('hex').toUpperCase());
+    expect(drawn).toContain('<3133> Tj');
+    expect(drawn).toContain('<3130> Tj');
+    expect(drawn).toContain('<32303236> Tj');
+    expect(printed.getPageCount()).toBe(2);
+    expect(streams(withOldValues)).toEqual(streams(printed));
+    expect(streams(printed, 1)).toEqual(streams(source, 1));
+    expect(streams(withOldValues, 1)).toEqual(streams(source, 1));
+  });
 
   it('prints false as NO and null as neither, never both options', async () => {
     const form = getClinicalForm('encuesta-contraste');

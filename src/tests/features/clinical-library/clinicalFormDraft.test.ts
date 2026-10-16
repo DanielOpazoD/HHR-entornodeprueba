@@ -41,6 +41,32 @@ describe('clinical form drafts and preferences', () => {
     expect(() => validateClinicalFormValues(consent, imported.values, [])).toThrow('RUT');
   });
 
+  it('restores patient data from older VMI drafts without reviving observations or alarm values', () => {
+    const patient = {
+      paciente_nombre_completo: 'PACIENTE VMI PRUEBA',
+      paciente_rut: '11.111.111-1',
+      ingreso_fecha: '2026-10-13',
+    };
+    const imported = importClinicalFormDraft(
+      JSON.stringify({
+        kind: 'hhr-clinical-form-draft',
+        version: 1,
+        formId: 'planilla-monitorizacion-ventilatoria',
+        values: {
+          ...patient,
+          vmi_registro_1_hora: '08:00',
+          vmi_alarma_dia_vt: '500',
+          vmi_coincide_dia: true,
+          vmi_fecha: '2026-10-16',
+        },
+      })
+    );
+    expect(imported.values).toEqual(patient);
+    expect(JSON.parse(exportClinicalFormDraft(imported.formId, imported.values)).values).toEqual(
+      patient
+    );
+  });
+
   it('rejects unknown fields, invalid types, impossible dates and conflicting document identities', () => {
     const invalid = [
       { unknown: 'test' },

@@ -90,6 +90,48 @@ describe('clinical forms editor', () => {
     expect(screen.getByRole('button', { name: 'Imprimir' })).toBeDisabled();
   });
 
+  it.each(['census', 'manual'] as const)(
+    'offers only VMI patient identification for %s entry and printing',
+    async mode => {
+      mount('planilla-monitorizacion-ventilatoria', mode === 'manual' ? [] : patients);
+      if (mode === 'census') {
+        fireEvent.change(screen.getByLabelText('Origen de los datos'), {
+          target: { value: 'ALFA' },
+        });
+      } else {
+        fireEvent.change(screen.getByLabelText('Nombre y apellidos'), {
+          target: { value: 'ALFA' },
+        });
+        fireEvent.change(screen.getByLabelText('RUT', { exact: true }), {
+          target: { value: '11.111.111-1' },
+        });
+        fireEvent.input(screen.getByLabelText('Fecha de ingreso'), {
+          target: { value: '2026-10-13' },
+        });
+      }
+      expect(screen.getByLabelText('Nombre y apellidos')).toHaveValue('ALFA');
+      expect(screen.getByLabelText('RUT', { exact: true })).toHaveValue('11.111.111-1');
+      expect(screen.getByLabelText('Fecha de ingreso')).toHaveValue('2026-10-13');
+      expect(screen.queryByRole('table')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Fecha del registro')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Talla (cm)')).not.toBeInTheDocument();
+      expect(screen.queryByText('Turno largo')).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Variables y preferencias' }));
+      expect(screen.getAllByRole('checkbox')).toHaveLength(3);
+      expect(screen.getByRole('checkbox', { name: 'Mostrar Nombre y apellidos' })).toBeChecked();
+      expect(screen.getByRole('checkbox', { name: 'Mostrar RUT' })).toBeChecked();
+      expect(screen.getByRole('checkbox', { name: 'Mostrar Fecha de ingreso' })).toBeChecked();
+      fireEvent.click(screen.getByRole('button', { name: 'Variables y preferencias' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Vista previa' }));
+      await waitFor(() => expect(generate).toHaveBeenCalledOnce());
+      expect(generate.mock.calls[0][1]).toMatchObject({
+        paciente_nombre_completo: 'ALFA',
+        paciente_rut: '11.111.111-1',
+        ingreso_fecha: '2026-10-13',
+      });
+    }
+  );
+
   it('shares canonical variables across all nine templates and does not preselect clinical answers', () => {
     mount();
     fireEvent.change(screen.getByLabelText('Origen de los datos'), { target: { value: 'ALFA' } });

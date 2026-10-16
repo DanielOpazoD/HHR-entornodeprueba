@@ -15,7 +15,7 @@ el censo ni envía los borradores a un servidor.
 | Serología HDS                     |        17 |                  19 |       1 |
 | Tuberculosis MINSAL               |        45 |                  65 |       1 |
 | Traslado al Hospital del Salvador |        18 |                  18 |       1 |
-| Monitorización ventilatoria       |       293 |                 299 |       2 |
+| Monitorización ventilatoria       |         3 |                   5 |       2 |
 
 MEDIF conserva sus 137 campos, ruta fija, respuestas habituales y preferencias. Su selección de
 pacientes consume ahora la misma proyección canónica, incluido el nombre del médico cuando esté
@@ -42,8 +42,11 @@ se limita a MEDIF; ninguna otra plantilla recibe esa equivalencia.
 
 Los siete PDF de origen se conservan sin modificación. Para los dos Word se agregan PDF en blanco
 exportados desde los originales con LibreOffice del entorno de trabajo; mantienen el diseño y las
-dimensiones. La segunda página de VMI es una referencia y se conserva sin agregar datos. No se
-calculan ajustes ventilatorios, dosis ni metas a partir de la planilla.
+dimensiones. VMI permite completar únicamente nombre y apellidos, RUT y fecha de ingreso, desde
+el censo o manualmente. Los registros ventilatorios, resultados, referencias, alarmas y firmas
+se imprimen vacíos para completarlos a mano. La segunda página de referencia permanece intacta.
+Los borradores VMI anteriores recuperan la identidad del paciente y descartan los valores locales
+de observación. No se calculan ajustes ventilatorios, dosis ni metas a partir de la planilla.
 
 ## Datos, borradores y preferencias
 

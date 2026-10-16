@@ -439,7 +439,10 @@ test('fills shared forms from the census and manually, retaining original print 
   await editor
     .getByLabel('Formulario clínico')
     .selectOption('planilla-monitorizacion-ventilatoria');
-  await editor.getByLabel('Registro 1 · Hora', { exact: true }).fill('08:00');
+  await expect(editor.getByLabel('Nombre y apellidos')).toHaveValue('PACIENTE MANUAL PRUEBA');
+  await expect(editor.getByRole('table')).toHaveCount(0);
+  await expect(editor.getByLabel('Registro 1 · Hora', { exact: true })).toHaveCount(0);
+  await editor.getByLabel('Fecha de ingreso', { exact: true }).fill('2026-10-13');
   await downloadForm('vmi-manual', 2);
   await page.setViewportSize({ width: 375, height: 812 });
   expect(await editor.evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(

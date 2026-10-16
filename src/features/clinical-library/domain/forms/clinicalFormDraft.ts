@@ -133,6 +133,9 @@ export const importClinicalFormDraft = (
   }
   const values: ClinicalFormValues = {};
   for (const [id, value] of Object.entries(data.values)) {
+    // VMI revision 2 prints patient identification only. Older drafts may still
+    // contain observations, alarms or signatures; never restore those values.
+    if (data.formId === 'planilla-monitorizacion-ventilatoria' && id.startsWith('vmi_')) continue;
     if (!fieldsById.has(id) && !CLINICAL_VARIABLE_IDS.has(id))
       throw new Error('El borrador contiene variables desconocidas.');
     if (value !== null && typeof value !== 'string' && typeof value !== 'boolean')
