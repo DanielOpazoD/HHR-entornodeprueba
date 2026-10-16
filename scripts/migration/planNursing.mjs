@@ -212,6 +212,119 @@ export const planNursingRecovery = ({ source, target }) => {
   };
 };
 
+const rootNameMatch = (left, right) => {
+  const words = value =>
+    normalized(value)
+      .replace(/[^a-z0-9 ]/g, ' ')
+      .split(/\s+/)
+      .filter(Boolean);
+  const a = words(left),
+    b = words(right);
+  if (a.length < 2 || b.length < 2) return null;
+  if ([a, b].some(tokens => tokens.some(token => token.length === 1 && token !== 'y'))) return null;
+  if (normalized(left) === normalized(right)) return 'exact_name';
+  if (a.join(' ') === b.join(' ')) return 'punctuation_only';
+  const connectors = new Set(['de', 'del', 'la', 'las', 'los', 'y']);
+  if (a[0] !== b[0] || [a, b].some(tokens => tokens.filter(t => !connectors.has(t)).length < 3))
+    return null;
+  const shorter = a.length <= b.length ? a : b;
+  const longer = a.length <= b.length ? b : a;
+  let index = 0;
+  for (const token of longer) if (token === shorter[index]) index++;
+  return index === shorter.length ? 'ordered_name_extension' : null;
+};
+
+/** Explicit, bounded adult root-note selection. Patches remain private in memory. */
+export const selectNursingRootBatch = ({ source, target, dates, throughDate }) => {
+  if (
+    !validDay(throughDate) ||
+    !Array.isArray(dates) ||
+    dates.length < 1 ||
+    dates.length > 3 ||
+    new Set(dates).size !== dates.length ||
+    dates.some(date => !validDay(date) || date < '2026-07-01' || date > throughDate)
+  )
+    throw new Error('invalid_nursing_batch_scope');
+  // Use the full supplied context, including RN/maternal identifiers on other days.
+  const plan = planNursingRecovery({ source, target });
+  const patches = [],
+    excluded = {},
+    matches = {},
+    days = [];
+  const hold = reason => {
+    excluded[reason] = (excluded[reason] || 0) + 1;
+  };
+  for (const date of [...dates].sort()) {
+    const patients = new Set();
+    let selectedFields = 0;
+    for (const patch of plan.patches.filter(item => item.date === date)) {
+      if (patch.path.length !== 3 || patch.path[0] !== 'beds' || patch.path[1].startsWith('C-')) {
+        hold('movement_or_crib_path');
+        continue;
+      }
+      const patient = target[date].beds[patch.path[1]];
+      const key = documentKey(patient);
+      const old = occurrences(source[date]).filter(item => documentKey(item.patient) === key);
+      const current = occurrences(target[date]).filter(item => documentKey(item.patient) === key);
+      if (
+        old.length !== 1 ||
+        current.length !== 1 ||
+        [...old, ...current].some(
+          item =>
+            item.path.length !== 2 ||
+            item.path[0] !== 'beds' ||
+            item.neonatal ||
+            item.patient.clinicalCrib != null
+        )
+      ) {
+        hold('ambiguous_or_linked_representation');
+        continue;
+      }
+      const previous = old[0].patient;
+      if (
+        !validDay(patient.birthDate) ||
+        previous.birthDate !== patient.birthDate ||
+        !validDay(patient.admissionDate) ||
+        previous.admissionDate !== patient.admissionDate
+      ) {
+        hold('additional_identity_or_episode_evidence');
+        continue;
+      }
+      const match = rootNameMatch(previous.patientName, patient.patientName);
+      if (!match) {
+        hold('name_requires_review');
+        continue;
+      }
+      if ((!patients.has(key) && patients.size === 4) || selectedFields === 8) {
+        hold('batch_budget');
+        continue;
+      }
+      patients.add(key);
+      selectedFields++;
+      patches.push(patch);
+      matches[match] = (matches[match] || 0) + 1;
+    }
+    days.push({ date, patients: patients.size, noteFields: selectedFields });
+  }
+  return {
+    patches,
+    report: {
+      schemaVersion: 1,
+      policy: 'verified-adult-root-notes-v2',
+      throughDate,
+      days,
+      selectedFields: patches.length,
+      excludedFields: excluded,
+      identityEvidenceKinds: matches,
+      selectionFingerprints: patches.map(patch => digest([patch.date, patch.path, patch.value])),
+      sourceDigest: plan.report.sourceDigest,
+      targetDigest: plan.report.targetDigest,
+      cloudWrites: 0,
+      authorizesMigration: false,
+    },
+  };
+};
+
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   try {
     if (process.argv.length !== 2) throw new Error('no_arguments_supported');

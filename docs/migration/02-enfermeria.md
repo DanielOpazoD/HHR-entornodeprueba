@@ -32,3 +32,41 @@ Una propuesta no es autorización de escritura: antes de una futura importación
 se deben releer ambas versiones y aplicar un cambio acotado con precondición y
 recibo verificable. El objeto `patches` contiene datos clínicos y no debe persistirse
 en informes o logs.
+
+## Selección explícita de un lote de adultos
+
+```sh
+node scripts/migration/selectNursingBatch.mjs < /ruta/privada/lote.json
+npx vitest run src/tests/build/migrationNursingBatch.test.ts
+```
+
+La entrada conserva `source` y `target` y añade `dates` (entre uno y tres días
+concretos, desde julio de 2026) y `throughDate` (último día autorizado del lote).
+El operador debe fijar ese límite a un día histórico cerrado y excluir el día
+actual. No es un reloj clínico ni cambia la fecha de los censos o ingresos.
+
+Reutiliza el planificador anterior y exige además una única representación raíz
+por paciente en cada programa, RUT propio válido, nacimiento e ingreso conocidos e
+iguales, mayoría de edad, sin cuna ni vínculo RN. El contexto completo aportado
+mantiene la protección de documentos maternos compartidos incluso en otros días.
+No reducir ese contexto a los días elegidos antes de planificar.
+
+Se aceptan nombres completos iguales, diferencias de puntuación y ampliaciones
+ordenadas del nombre. Estas últimas deben conservar el primer nombre y al menos
+tres palabras significativas en ambos registros. No se acepta semejanza fonética,
+una inicial, reordenamiento de palabras ni la sustitución de un nombre por otro.
+El nombre de pruebas siempre se conserva. Estas reglas complementan la identidad;
+no reemplazan el RUT, nacimiento ni episodio.
+
+Cada lote selecciona como máximo cuatro pacientes y ocho campos por día. La salida
+incluye cantidades, motivos de retención y huellas de selección; no nombres, RUT,
+camas ni textos. La función `selectNursingRootBatch` conserva los cambios propuestos
+solo en memoria. No hay red, credenciales ni modo de escritura. Si la entrada ya
+contiene el texto guardado, no vuelve a seleccionarlo. Una selección vacía no
+demuestra que todos los pendientes estén resueltos.
+
+Antes de escribir se mantienen los controles del ejecutor: versiones exactas de
+ambos proyectos, validación clínica y de esquema del día, protección de CUDYR,
+transacción acotada, recibo, lectura posterior y repetición sin nuevas escrituras.
+Los casos de movimientos, RN, nombres contradictorios y episodios cerrados aún
+activos no se fuerzan mediante esta vía.
