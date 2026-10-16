@@ -1,7 +1,6 @@
-/** Bounded delayed-census policy shared by the extension capture coordinator. */
+/** Date validity shared by capture; historical evidence is verified per episode in HHR. */
 (function (root) {
   'use strict';
-  const MAX_HISTORICAL_LOOKBACK_DAYS = 7;
   const MILLISECONDS_PER_DAY = 86_400_000;
   const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
   const localDayAt = date => {
@@ -26,7 +25,7 @@
     if (target === null || current === null) return false;
     if (targetDay === calendarDay) return true;
     const lookbackDays = current - target;
-    return lookbackDays >= 0 && lookbackDays <= MAX_HISTORICAL_LOOKBACK_DAYS;
+    return lookbackDays >= 0;
   };
   const validateCaptureBoundary = (started, completed) => {
     if (localDayAt(completed) !== localDayAt(started)) {
@@ -38,5 +37,5 @@
     }
     return null;
   };
-  root.HhrCensusSyncHorizonRuntime = Object.freeze({ MAX_HISTORICAL_LOOKBACK_DAYS, isSupportedTargetDay, validateCaptureBoundary });
+  root.HhrCensusSyncHorizonRuntime = Object.freeze({ isSupportedTargetDay, validateCaptureBoundary });
 })(typeof self !== 'undefined' ? self : globalThis);

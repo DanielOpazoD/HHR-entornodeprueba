@@ -191,8 +191,8 @@ describe('deterministic sanitized clinical replay', () => {
     });
     expect(result.recovery).toMatchObject({
       title: 'Información clínica pendiente',
-      action: 'retry_clinical',
-      actionLabel: 'Reintentar información clínica',
+      action: 'retry_full',
+      actionLabel: 'Reintentar sincronización',
     });
     expect(result.record.rayenSync).toMatchObject({
       runId: result.terminalEvent.id,

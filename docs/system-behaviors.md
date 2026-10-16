@@ -2,6 +2,32 @@
 
 Documentación de comportamientos automáticos y esperados del sistema HHR.
 
+## Ocupaciones y traslados desde Eloísa
+
+- CMA y hospitalización pueden compartir un nombre de cama en origen. HHR conserva y muestra
+  ambos episodios en filas distintas, por ejemplo `CMA NEO1` y `NEO1`; la coincidencia del nombre
+  no autoriza eliminar ni dar de alta a un paciente.
+- Urgencias reconoce `B1UEA`–`B4UEA`. Estas ubicaciones y las filas CMA aparecen cuando están
+  ocupadas, sin aumentar las 18 camas instaladas ni convertir esos casos en elegibles CUDYR.
+- Antes de bloquear un ingreso por cama ocupada, se verifica si el ocupante ya se trasladó.
+  Una ubicación oficial comprobada por episodio permite moverlo primero, conservando sus notas,
+  incluso entre Hospitalizados y Urgencias. Una evidencia ausente o ambigua mantiene la revisión.
+- La madrugada pertenece al turno anterior hasta el relevo de las 08:00/09:00 de Rapa Nui.
+  La ubicación histórica se obtiene de los movimientos anteriores a ese relevo; nunca se sustituye
+  por la cama actual de Gestión de Camas. Tampoco se usan movimientos posteriores a la captura.
+- La identidad del episodio prevalece sobre el nombre de la cama. Un episodio con dos alias no
+  se duplica; un registro antiguo sin episodio exige RUN y sello de ingreso completos y coincidentes
+  para separar una ocupación CMA antes confundida con la hospitalaria.
+
+- La antigüedad no bloquea una consulta histórica: cada episodio requiere evidencia propia de
+  identidad, intervalo y ubicación al cierre. El censo agregado de Gestión de Camas no es
+  garantía de población completa. La consulta clínica debe seguir alcanzando el día elegido
+  al repetir la sincronización, aunque tenga un checkpoint reciente.
+- Un intento cerrado como parcial se recupera con una captura nueva y nueva autorización.
+  No se cambia a `applied` un historial terminado para permitir nuevas escrituras.
+
+Contrato y pruebas: [sincronización de censo](../src/features/rayen-import/README.md).
+
 ## Profesionales descubiertos desde Eloísa
 
 La sincronización clínica y la revisión de Dotación registran automáticamente los autores

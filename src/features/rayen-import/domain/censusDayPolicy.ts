@@ -1,6 +1,14 @@
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import { resolveClinicalDayForDateTime } from '@/utils/clinicalDayAdmissionUtils';
 import { encounterWallClockInRapaNui } from '../mapping/encounterWallClock';
+import { resolveClinicalDayBounds } from '@/utils/clinicalDayScheduleUtils';
+
+/** Last second before the 08:00/09:00 nursing handoff, on the Rapa Nui wall clock. */
+export const censusNightCloseTimestamp = (censusDay: string): string => {
+  const { nextDay, nightEnd } = resolveClinicalDayBounds(censusDay);
+  const close = new Date(`${nextDay}T${nightEnd}:00Z`).getTime();
+  return new Date(close - 1000).toISOString().slice(0, 19);
+};
 
 /** Extract a YYYY-MM-DD day from ISO or DD/MM/YYYY input. */
 export const toIsoCensusDay = (raw: string | undefined): string => {

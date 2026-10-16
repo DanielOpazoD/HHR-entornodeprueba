@@ -10,7 +10,6 @@ import { useRayenSyncExecutionController } from '@/features/rayen-import/hooks/u
 const useControllerHarness = () => {
   const [importState, setImportState] = useState<RayenImportState>({
     ...INITIAL_RAYEN_IMPORT_STATE,
-    isSyncing: true,
   });
   const controller = useRayenSyncExecutionController({ importState, setImportState });
   return { importState, controller };
@@ -36,7 +35,6 @@ describe('useRayenSyncExecutionController', () => {
       result.current.controller.finishClinicalSync({ status: 'complete' }, 'run-old');
     });
 
-    expect(result.current.importState.isSyncing).toBe(true);
     expect(result.current.controller.execution.pending).toEqual({
       runId: 'run-new',
       selectedDate: '2026-08-08',
@@ -53,7 +51,6 @@ describe('useRayenSyncExecutionController', () => {
       result.current.controller.finishClinicalSync({ status: 'complete' }, 'persisted-run');
     });
 
-    expect(result.current.importState.isSyncing).toBe(false);
     expect(result.current.controller.execution.pending).toEqual({
       runId: 'persisted-run',
       selectedDate: '2026-08-08',
@@ -78,7 +75,6 @@ describe('useRayenSyncExecutionController', () => {
       );
     });
 
-    expect(result.current.importState.isSyncing).toBe(false);
     expect(result.current.controller.execution.stage).toEqual({
       type: 'partial',
       retry: 'clinical_only',
@@ -92,7 +88,6 @@ describe('useRayenSyncExecutionController', () => {
       result.current.controller.finishClinicalSync({ status: 'failed' }, 'failed-run');
     });
 
-    expect(result.current.importState.isSyncing).toBe(false);
     expect(result.current.controller.execution.stage).toEqual({ type: 'failed' });
   });
 
@@ -132,7 +127,6 @@ describe('useRayenSyncExecutionController', () => {
       result.current.controller.finishClinicalSync({ status: 'complete' }, 'run-current');
     });
 
-    expect(result.current.importState.isSyncing).toBe(false);
     expect(result.current.importState.hasSkippedItems).toBe(true);
     expect(result.current.controller.execution.outcome).toEqual({
       structuralConflicts: 0,

@@ -28,7 +28,7 @@
     const iso = String(censusDate || ''), fallback = 14, target = Date.parse(`${iso}T00:00:00Z`);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(iso) || Number.isNaN(target) || new Date(target).toISOString().slice(0, 10) !== iso || Number.isNaN(now.getTime())) return fallback;
     const ageDays = Math.floor((Date.parse(`${calendarDayAt(now)}T00:00:00Z`) - target) / 86_400_000);
-    return ageDays < 0 ? fallback : Math.min(fallback, Math.max(2, ageDays + 2));
+    return ageDays < 0 ? fallback : Math.max(2, ageDays + 2);
   };
   root.HhrClinicalDayRuntime = Object.freeze({ calendarDayAt, clinicalDayAt, historyLookbackDays, holidays: Object.freeze([...holidays]) });
 })(typeof self !== 'undefined' ? self : globalThis);

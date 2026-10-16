@@ -1,3 +1,7 @@
+import {
+  decodeClinicalReadFailure,
+  type ClinicalReadErrorCode,
+} from '../contracts/clinicalReadError';
 import { requestViaBridgeChannel } from './bridgeRequestChannel';
 import { CLINICAL_READ_TIMEOUT_MS } from '../contracts/clinicalReadPolicy';
 import {
@@ -26,12 +30,13 @@ export const mapDeviceReportPayload = (data: Record<string, unknown>): RayenDevi
   entries: Array.isArray(data.entries) ? (data.entries as RayenInvasiveDeviceEntry[]) : undefined,
   base64: typeof data.base64 === 'string' ? data.base64 : '',
   source: data.source === 'json' || data.source === 'pdf' ? data.source : undefined,
-  error:
-    optionalString(data.error) ||
-    (Array.isArray(data.entries) ||
-    (typeof data.base64 === 'string' && data.base64.trim().length > 0)
+  ...decodeClinicalReadFailure(
+    data,
+    Array.isArray(data.entries) ||
+      (typeof data.base64 === 'string' && data.base64.trim().length > 0)
       ? undefined
-      : 'La extensión no entregó evidencia válida de dispositivos.'),
+      : 'La extensión no entregó evidencia válida de dispositivos.'
+  ),
 });
 
 export const mapHistoryScalesPayload = (
@@ -46,21 +51,21 @@ export const mapHistoryScalesPayload = (
     : undefined,
   coverageWindowStartIsoDay: optionalString(data.coverageWindowStartIsoDay),
   coverageWindowEndIsoDay: optionalString(data.coverageWindowEndIsoDay),
-  error:
-    optionalString(data.error) ||
-    (Array.isArray(data.events) &&
-    (data.nursingActivity === undefined || Array.isArray(data.nursingActivity))
+  ...decodeClinicalReadFailure(
+    data,
+    Array.isArray(data.events) &&
+      (data.nursingActivity === undefined || Array.isArray(data.nursingActivity))
       ? undefined
-      : 'La extensión no entregó un historial clínico válido.'),
+      : 'La extensión no entregó un historial clínico válido.'
+  ),
 });
 
 export const mapScalesFormsPayload = (data: Record<string, unknown>): RayenScalesFormsResult => ({
   forms: Array.isArray(data.forms) ? (data.forms as unknown[]) : [],
-  error:
-    optionalString(data.error) ||
-    (Array.isArray(data.forms)
-      ? undefined
-      : 'La extensión no entregó formularios clínicos válidos.'),
+  ...decodeClinicalReadFailure(
+    data,
+    Array.isArray(data.forms) ? undefined : 'La extensión no entregó formularios clínicos válidos.'
+  ),
 });
 
 const section = (value: unknown, fallbackError: string): Record<string, unknown> =>
@@ -68,10 +73,13 @@ const section = (value: unknown, fallbackError: string): Record<string, unknown>
     ? (value as Record<string, unknown>)
     : { error: fallbackError };
 
-const allSectionsFailed = (error: string): RayenPatientClinicalBundle => ({
-  devices: { base64: '', error },
-  history: { events: [], nursingActivity: [], error },
-  forms: { forms: [], error },
+const allSectionsFailed = (
+  error: string,
+  errorCode: ClinicalReadErrorCode
+): RayenPatientClinicalBundle => ({
+  devices: { base64: '', error, errorCode },
+  history: { events: [], nursingActivity: [], error, errorCode },
+  forms: { forms: [], error, errorCode },
 });
 
 /**
@@ -108,11 +116,17 @@ export const requestPatientClinicalBundle = (
     timeoutMs,
     signal,
     onTimeout: () =>
-      allSectionsFailed('Tiempo de espera agotado leyendo el paquete clínico del paciente.'),
+      allSectionsFailed(
+        'Tiempo de espera agotado leyendo el paquete clínico del paciente.',
+        'source_timeout'
+      ),
     mapResult: data => {
       const relayError = optionalString(data.error);
       if (relayError && !data.devices && !data.history && !data.forms) {
-        return allSectionsFailed(relayError);
+        return allSectionsFailed(
+          relayError,
+          decodeClinicalReadFailure(data).errorCode ?? 'unexpected'
+        );
       }
       const fallback = relayError ?? 'La extensión no entregó esta fuente.';
       return {

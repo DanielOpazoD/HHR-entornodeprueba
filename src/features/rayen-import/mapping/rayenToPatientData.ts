@@ -6,6 +6,7 @@
  */
 
 import { EMPTY_PATIENT } from '@/constants/patient';
+import { BEDS } from '@/constants/beds';
 import { PatientStatus } from '@/types/domain/patientClassification';
 import type { PatientData } from '../contracts/rayenDomainContracts';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
@@ -149,14 +150,15 @@ export const rayenToPatientData = (
   reference: Date = new Date()
 ): MappedPatient => {
   const verifiedBedId = encounter.verifiedBedPlacement?.bedId;
+  const reportedBed = mapRayenBed({
+    room: encounter.room,
+    bed: encounter.bed,
+    service: encounter.service,
+    clinicalCribParentBedId: encounter.clinicalCribParentBedId,
+  });
   const { bedId, isCma, isClinicalCrib } = verifiedBedId
-    ? mapRayenBed({ bed: verifiedBedId, service: encounter.service })
-    : mapRayenBed({
-        room: encounter.room,
-        bed: encounter.bed,
-        service: encounter.service,
-        clinicalCribParentBedId: encounter.clinicalCribParentBedId,
-      });
+    ? mapRayenBed({ bed: verifiedBedId })
+    : reportedBed;
 
   // Los marcadores administrativos se podan de los NOMBRES (donde Rayen
   // concatena varios y donde apareció el caso real); los apellidos se
@@ -204,7 +206,10 @@ export const rayenToPatientData = (
     isolationMicroorganism: encounter.isIsolated
       ? encounter.isolationMicroorganism?.trim() || undefined
       : undefined,
-    location: [encounter.service, encounter.room, encounter.bed].filter(Boolean).join(' / '),
+    location:
+      verifiedBedId && bedId !== reportedBed.bedId
+        ? (BEDS.find(bed => bed.id === bedId)?.name ?? verifiedBedId)
+        : [encounter.service, encounter.room, encounter.bed].filter(Boolean).join(' / '),
     bedMode: isClinicalCrib ? 'Cuna' : EMPTY_PATIENT.bedMode,
     hasCompanionCrib: false,
   };

@@ -13,6 +13,10 @@ export interface RayenHospitalizationEpisode {
   endDate?: string;
   /** Absent when a direct episode lookup cannot prove whether the hospitalization is still active. */
   active?: boolean;
+  /** Index identity is transient evidence for disambiguating administrative rows, including RN. */
+  patientName?: string;
+  /** Eloísa: 2 = own RUN, 4 = maternal/progenitor RUN. Never infer this from the name. */
+  identifierType?: number;
 }
 
 export type RayenHospitalizationDocumentType = 'epicrisis' | 'nursing-epicrisis' | 'history';
@@ -47,6 +51,12 @@ const parseEpisode = (value: unknown): RayenHospitalizationEpisode | null => {
     startDate,
     endDate,
     ...(typeof row.active === 'boolean' ? { active: row.active } : {}),
+    ...(typeof row.patientName === 'string' && row.patientName.trim()
+      ? { patientName: row.patientName.trim() }
+      : {}),
+    ...([2, 4].includes(Number(row.identifierType))
+      ? { identifierType: Number(row.identifierType) }
+      : {}),
   };
 };
 

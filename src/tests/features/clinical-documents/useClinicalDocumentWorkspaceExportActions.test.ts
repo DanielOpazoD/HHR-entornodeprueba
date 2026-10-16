@@ -1,4 +1,4 @@
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import React from 'react';
 
@@ -101,6 +101,68 @@ describe('useClinicalDocumentWorkspaceExportActions', () => {
       issues: [],
     });
   });
+
+  it.each(['success', 'failure', 'exception'] as const)(
+    'keeps a newly selected document intact when an older PDF finishes with %s',
+    async outcome => {
+      let complete!: (
+        value: Awaited<ReturnType<typeof pdfExportUseCase.executeExportClinicalDocumentPdf>>
+      ) => void;
+      let fail!: (error: Error) => void;
+      vi.mocked(pdfExportUseCase.executeExportClinicalDocumentPdf).mockImplementation(
+        () =>
+          new Promise((resolve, reject) => {
+            complete = resolve;
+            fail = reject;
+          })
+      );
+      const original = buildRecord();
+      const other = { ...original, id: 'another-document', episodeKey: 'another-episode' };
+      const { result } = renderHook(() => {
+        const [draft, select] = React.useState(original);
+        const actions = useClinicalDocumentWorkspaceExportActions({
+          selectedDocument: draft,
+          hospitalId: 'hhr',
+          notify,
+          setDraft: select as typeof setDraft,
+        });
+        return { ...actions, draft, select };
+      });
+      let upload!: Promise<void>;
+      act(() => {
+        upload = result.current.handleUploadPdf();
+      });
+      await waitFor(() =>
+        expect(pdfExportUseCase.executeExportClinicalDocumentPdf).toHaveBeenCalledTimes(1)
+      );
+      act(() => {
+        result.current.select(other);
+      });
+      await act(async () => {
+        if (outcome === 'exception') fail(new Error('Unavailable'));
+        else
+          complete(
+            outcome === 'success'
+              ? {
+                  status: 'success',
+                  data: { pdf: { exportStatus: 'exported', fileId: 'synthetic-pdf' } },
+                  issues: [],
+                }
+              : {
+                  status: 'failed',
+                  data: null,
+                  issues: [{ kind: 'unknown', message: 'Unavailable' }],
+                }
+          );
+        await upload;
+      });
+      expect(result.current.draft).toBe(other);
+      expect(result.current.isUploadingPdf).toBe(false);
+      expect(recordCriticalClinicalAction).toHaveBeenCalledWith(
+        expect.objectContaining({ documentId: original.id })
+      );
+    }
+  );
 
   it('exports draft documents to Drive without requiring a signature state', async () => {
     const { result } = renderHook(() =>

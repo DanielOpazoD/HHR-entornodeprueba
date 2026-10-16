@@ -41,6 +41,107 @@
       "fieldPath": "expireAt",
       "ttl": true,
       "indexes": []
+    },
+    {
+      "collectionGroup": "dailyRecords",
+      "fieldPath": "beds",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "dailyRecords",
+      "fieldPath": "discharges",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "dailyRecords",
+      "fieldPath": "transfers",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "dailyRecords",
+      "fieldPath": "cma",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "dailyRecords",
+      "fieldPath": "rayenSyncHistory",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "history",
+      "fieldPath": "beds",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "history",
+      "fieldPath": "discharges",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "history",
+      "fieldPath": "transfers",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "history",
+      "fieldPath": "cma",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "history",
+      "fieldPath": "rayenSyncHistory",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "deletedRecords",
+      "fieldPath": "beds",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "deletedRecords",
+      "fieldPath": "discharges",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "deletedRecords",
+      "fieldPath": "transfers",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "deletedRecords",
+      "fieldPath": "cma",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "deletedRecords",
+      "fieldPath": "rayenSyncHistory",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "conflictSnapshots",
+      "fieldPath": "record",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "auditLogs",
+      "fieldPath": "details",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "cudyrSupplementFiles",
+      "fieldPath": "base64",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "cudyrContextEvidence",
+      "fieldPath": "base64",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "conflictSnapshots",
+      "fieldPath": "expireAt",
+      "ttl": true,
+      "indexes": []
     }
   ]
 }

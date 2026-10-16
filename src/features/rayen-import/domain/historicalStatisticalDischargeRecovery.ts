@@ -29,6 +29,8 @@ export const encounterAtHistoricalBed = (
   changedAt: string
 ): RayenEncounter => ({
   ...encounter,
+  room: bedId,
+  bed: bedId,
   hasMedicalDischarge: false,
   hasNurseDischarge: false,
   dischargeDatetime: undefined,

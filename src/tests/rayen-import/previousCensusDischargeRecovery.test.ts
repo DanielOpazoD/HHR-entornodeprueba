@@ -86,6 +86,7 @@ const fixture = () => {
       counters: { requests: 0, cacheHits: 0, timeouts: 0 },
       measureEvidence: operation => operation(),
       evidenceClient: {
+        lookupHospitalizations: vi.fn().mockResolvedValue({ ok: false }),
         lookupEgresos,
         fetchStatisticalDischarge: vi.fn().mockResolvedValue({ base64: '', error: 'unavailable' }),
         fetchPatientFlowReport: vi.fn().mockResolvedValue({ base64: '', error: 'unavailable' }),

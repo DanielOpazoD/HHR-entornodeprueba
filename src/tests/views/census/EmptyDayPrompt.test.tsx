@@ -141,7 +141,7 @@ describe('EmptyDayPrompt · una acción para iniciar desde Eloísa', () => {
     expect(screen.getByRole('button', { name: 'Reconstruir desde Eloísa' })).toBeInTheDocument();
   });
 
-  it('re-evaluates the supported window when a long-lived tab crosses a date boundary', () => {
+  it('changes from current capture to historical reconstruction when an open tab ages', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-09-24T17:00:00Z'));
     renderPrompt('2026-09-24', { source: 'remote_missing' });
@@ -150,7 +150,8 @@ describe('EmptyDayPrompt · una acción para iniciar desde Eloísa', () => {
     act(() => {
       vi.advanceTimersByTime(60_000);
     });
-    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reconstruir desde Eloísa' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Crear desde Eloísa' })).not.toBeInTheDocument();
   });
 
   it('does not create an empty day while the remote check is pending or unavailable', () => {
@@ -165,18 +166,18 @@ describe('EmptyDayPrompt · una acción para iniciar desde Eloísa', () => {
     expect(screen.getByText(/Revisa tu conexión/i)).toBeInTheDocument();
   });
 
-  it('does not offer an unsupported historical bootstrap or a guest action', () => {
+  it('offers an older historical bootstrap while rejecting future dates and guest actions', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-09-24T17:00:00Z'));
     const old = renderPrompt('2026-09-15', { source: 'date_mismatch' });
-    expect(screen.queryByRole('button')).not.toBeInTheDocument();
-    expect(screen.getByText(/hasta siete días atrás/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reconstruir desde Eloísa' })).toBeInTheDocument();
     old.unmount();
     const future = renderPrompt('2026-09-25', {
       source: 'date_mismatch',
       previousRecordDate: '2026-09-24',
     });
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.getByText(/fecha válida, actual o pasada/i)).toBeInTheDocument();
     future.unmount();
     renderPrompt('2026-09-24', { source: 'remote_missing', readOnly: true });
     expect(screen.queryByRole('button')).not.toBeInTheDocument();

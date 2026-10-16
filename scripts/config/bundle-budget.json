@@ -10,6 +10,10 @@
     "^docs/",
     "^templates/",
     "^images/forms/",
+    "^assets/MedifTool-.*\\.js$",
+    "^assets/MedifTool-.*\\.css$",
+    "^assets/ClinicalFormTool-.*\\.js$",
+    "^assets/ClinicalFormTool-.*\\.css$",
     "^vendor/exceljs\\.bare\\.min\\.js$",
     "^assets/exceljs\\.min-.*\\.js$",
     "^assets/pdf\\.worker-.*\\.mjs$",
@@ -44,7 +48,8 @@
     "^assets/useCudyrReport-.*\\.js$",
     "^assets/cudyrReportFacts-.*\\.js$",
     "^assets/publicCudyrPolicyRecovery-.*\\.js$",
-    "^assets/cudyrEssentialWorkbook-.*\\.js$"
+    "^assets/cudyrEssentialWorkbook-.*\\.js$",
+    "^assets/cudyrSourceWorkbook-.*\\.js$"
   ],
   "forbiddenAssetPatterns": ["^assets/exceljs\\.min-.*\\.js$"],
   "assetPatternBudgets": [
@@ -158,6 +163,11 @@
       "pattern": "^cudyrEssentialWorkbook-.*\\.js$",
       "_comment": "Optional monthly Excel download, loaded on demand like the existing ExcelJS runtime. Keep growth bounded without increasing install-time payload.",
       "maxBytes": 12000
+    },
+    {
+      "pattern": "^cudyrSourceWorkbook-.*\\.js$",
+      "_comment": "Optional Eloisa source-table parser, episode annotations and validation. Measured 17861 bytes; bounded separately without raising the existing 12000-byte core export ceiling. Loaded only for an attached source, outside install-time precache.",
+      "maxBytes": 20000
     }
   ]
 }

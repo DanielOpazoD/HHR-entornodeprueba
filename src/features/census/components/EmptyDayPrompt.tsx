@@ -132,8 +132,7 @@ export const EmptyDayPrompt: React.FC<EmptyDayPromptProps> = ({
         />
       ) : rayenTarget.kind === 'unsupported' && dayConfirmedEmpty ? (
         <p className="max-w-md text-sm text-slate-600">
-          No se puede crear este día desde Eloísa. La reconstrucción está disponible hasta siete
-          días atrás.
+          Selecciona una fecha válida, actual o pasada, para consultar Eloísa.
         </p>
       ) : null}
     </div>
