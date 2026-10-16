@@ -45,8 +45,9 @@ const prepareSpecialtyPolicyApplication = async ({
   };
   // Empty or blocked beds must not receive a decision, including stale episode identifiers.
   for (const bed of Object.values(candidate.beds)) {
+    const isBedBlocked = bed.isBlocked;
     for (const patient of [bed, bed.clinicalCrib]) {
-      if (patient && (bed.isBlocked || !patient.patientName?.trim())) patient.isBlocked = true;
+      if (patient && (isBedBlocked || !patient.patientName?.trim())) patient.isBlocked = true;
     }
   }
   const mutationId = `specialty-policy-${policy.revision}`;

@@ -130,6 +130,33 @@ describe('publishing persistent automatic specialty rules', () => {
       actorUid: 'synthetic-admin',
     });
   });
+  it('keeps an occupied clinical crib eligible when the main patient slot is empty', async () => {
+    const { docs, run } = fixture();
+    docs.set(recordKey, {
+      ...record(),
+      beds: {
+        R1: {
+          ...patient('empty-parent-slot'),
+          patientName: '',
+          clinicalCrib: { ...patient('occupied-crib'), bedMode: 'Cuna' },
+        },
+      },
+    });
+    expect(await run()).toMatchObject({ appliedDecisions: 1, applicationStatus: 'applied' });
+    expect(docs.get(recordKey)).toMatchObject({
+      beds: {
+        R1: {
+          patientName: '',
+          specialty: '',
+          clinicalCrib: { specialty: 'Pediatría' },
+        },
+      },
+    });
+    const beds = docs.get(recordKey)?.beds as { R1: object };
+    expect(beds.R1).not.toHaveProperty('isBlocked');
+    expect([...docs.keys()].filter(key => key.includes('/specialtyDecisions/'))).toHaveLength(1);
+  });
+
   it('normalizes and collapses equivalent diagnoses, rejecting conflicting duplicates atomically', async () => {
     const { docs, input, run } = fixture();
     await expect(

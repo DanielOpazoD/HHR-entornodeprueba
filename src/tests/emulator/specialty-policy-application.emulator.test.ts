@@ -134,6 +134,51 @@ describeEmulator('specialty policy publication and current census transaction', 
       expect((await db.doc(policyPath).get()).data()?.revision).toBe(3);
     });
   });
+  it('assigns an occupied clinical crib without treating an empty main slot as a blocked bed', async () => {
+    await environment.clearFirestore();
+    await environment.withSecurityRulesDisabled(async context => {
+      const db = context.firestore();
+      const source = pendingRecord();
+      const emptyMain = { ...source.beds.R1, patientName: '' };
+      const crib = {
+        ...source.beds.R1,
+        patientName: 'Cuna sintética',
+        clinicalEpisodeId: 'ep-cuna-independiente',
+        bedMode: 'Cuna',
+      };
+      await db.doc(`${hospital}/settings/rayenImportPolicy`).set({ schemaVersion: 2 });
+      await db.doc(policyPath).set({
+        schemaVersion: 1,
+        revision: 1,
+        autoEnabled: false,
+        memoryEnabled: false,
+        aiMode: 'off',
+        rules: [],
+        memory: [],
+      });
+      await db.doc(recordPath).set({
+        ...source,
+        beds: { R1: { ...emptyMain, clinicalCrib: crib } },
+      });
+      const api = createSpecialtyPolicyFunctions({
+        firestore: db,
+        Timestamp,
+        resolveRoleForEmail: vi.fn().mockResolvedValue('admin'),
+      });
+      expect(await api.configureSpecialtyPolicy.run(input, auth)).toMatchObject({
+        appliedDecisions: 1,
+      });
+      const saved = (await db.doc(recordPath).get()).data()?.beds.R1;
+      expect(saved.specialty).toBe('');
+      expect(saved.isBlocked).toBe(emptyMain.isBlocked);
+      expect(saved.clinicalCrib).toMatchObject({
+        specialty: 'Pediatría',
+        specialtyAssignment: { source: 'rule', episodeId: 'ep-cuna-independiente' },
+      });
+      expect((await db.doc(recordPath).collection('specialtyDecisions').get()).size).toBe(1);
+    });
+  });
+
   it('preserves a concurrent confirmed choice, committing only one assignment audit', async () => {
     await environment.clearFirestore();
     await environment.withSecurityRulesDisabled(async context => {
