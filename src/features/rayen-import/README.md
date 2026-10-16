@@ -524,3 +524,17 @@ Un código desconocido queda como fallo `unexpected` y nunca habilita esa recupe
 El código no concede permisos: siguen siendo obligatorias la identidad y la evidencia del
 episodio. Se conservan vigencia, cancelación, máximo de reintentos y datos CUDYR oficiales.
 Los estados visuales y las categorías persistidas del historial conservan su contrato actual.
+
+### Estado visual de la sincronización
+
+La máquina `rayenSyncExecutionState` es la autoridad para la etapa activa y su resultado.
+El botón y la barra usan `buildRayenSyncBarViewModel`; no se mantienen indicadores
+paralelos `isBusy` o `isSyncing` en el estado de importación. Los contadores de lectura
+aportan progreso, pero no prueban por sí solos que el guardado haya terminado.
+
+La visibilidad del modal es una decisión de presentación limitada por la etapa: cerrar
+una ventana después del commit no cancela la convergencia. El candado clínico compartido
+sigue impidiendo otra captura mientras un trabajador anterior termina, sin convertir un
+resultado terminal en «Sincronizando». Tras remontar la vista sin una ejecución contextual,
+la barra puede mostrar ese trabajo compartido. La revisión de dotación es independiente;
+el historial conserva la evidencia persistida de cada intento.

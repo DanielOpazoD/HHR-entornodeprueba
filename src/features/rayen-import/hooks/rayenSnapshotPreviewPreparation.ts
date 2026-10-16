@@ -87,8 +87,6 @@ export const returnRayenReplanToReview = ({
   setState({
     diff: error.replannedDiff,
     isPreviewOpen: true,
-    isBusy: false,
-    isSyncing: false,
     result: null,
     hasSkippedItems: false,
     error: error.message,
