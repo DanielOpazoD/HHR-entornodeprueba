@@ -55,7 +55,7 @@ describe('RayenImportPreviewModal update presentation', () => {
       />
     );
     expect(screen.getByText(/cuna C-H5C1 · RN de Ana Perez/)).toBeVisible();
-    expect(screen.getAllByText('Actualizaciones')[0]).toHaveTextContent('1Actualizaciones');
+    expect(screen.getAllByText('Actualizaciones')[0]).toHaveTextContent('1 Actualizaciones');
     expect(screen.queryByText('Confirma la ubicación del RN')).not.toBeInTheDocument();
   });
   it('keeps persistence-only identifiers out of the nurse-facing update list', () => {
@@ -115,6 +115,6 @@ describe('RayenImportPreviewModal update presentation', () => {
     expect(screen.queryByText(/Carina Pate Lillo/)).not.toBeInTheDocument();
     expect(screen.getByText(/Maria Morales Duarte/)).toBeVisible();
     expect(screen.getByText(/diagnóstico, diagnóstico CIE-10/)).toBeVisible();
-    expect(screen.getAllByText('Actualizaciones')[0]).toHaveTextContent('1Actualizaciones');
+    expect(screen.getAllByText('Actualizaciones')[0]).toHaveTextContent('1 Actualizaciones');
   });
 });

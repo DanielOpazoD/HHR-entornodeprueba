@@ -38,7 +38,7 @@ it('shows actionable missing information before expandable technical metrics', (
   expect(technical).not.toHaveAttribute('open');
   expect(issue.compareDocumentPosition(technical) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(screen.getByRole('region', { name: 'Datos clínicos' })).toContainElement(issue);
-  expect(screen.getByRole('region', { name: 'Enfermería y TENS' })).not.toContainElement(issue);
+  expect(screen.queryByRole('region', { name: 'Enfermería y TENS' })).not.toBeInTheDocument();
   fireEvent.click(screen.getByText('Reporte técnico'));
   expect(technical).toHaveAttribute('open');
   expect(screen.getByText(/3 solicitudes Eloísa/)).toBeVisible();
