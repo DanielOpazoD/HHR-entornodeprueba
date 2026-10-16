@@ -16,16 +16,16 @@ La herramienta no consulta ni modifica la nube. Evalúa evidencias explícitas c
 El reloj debe estar correcto. Cada evidencia vence a las 24 horas y se debe renovar
 para un nuevo ensayo. No introduce vencimientos en el sistema clínico.
 
-| Clave          | Evidencia exigida                                                                                                                                                                                                  |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `projects`     | `sourceId`, `sourceNumber`, `targetId`, `targetNumber` de `gcloud projects describe`. Números como texto.                                                                                                          |
-| `inventory`    | `readWindowStable: true`, `officialCudyrUnchanged: true`, `cloudWrites: 0`, `reportHash` SHA-256 del informe recién obtenido.                                                                                      |
-| `mirror`       | Proyecto antiguo, `function: "mirrorDailyRecords"`, `state: "disabled"` o `"deleted"`, con prueba de detención o eliminación. Un error de credenciales **no** demuestra detención.                                 |
-| `deployment`   | Proyecto destino, `expectedCommit` y `deployedCommit` completos, iguales y verificados en el despliegue.                                                                                                           |
-| `rules`        | Proyecto destino, `expectedHash` y `deployedHash` SHA-256 iguales, cotejando reglas locales y desplegadas.                                                                                                         |
-| `localSession` | Proyecto destino, `projectIsolationVerified: true`, `pendingOperations: 0`, `sameOriginTransitionTestPassed: true`. Probar cambio de Firebase con el mismo UID sin mezclar caché ni reenviar operaciones antiguas. |
-| `access`       | Proyecto destino, `pendingAuthorizations: 0`, `unmappedStaff: 0`, `rolesReviewed: true`. Mantener autores históricos y validar roles; no concederlos por semejanza de nombres.                                     |
-| `restore`      | Proyecto destino, `restoreTestPassed: true`, `originalsPreserved: true`, `backupManifestHash` SHA-256. Probar restauración aislada; tener un bucket no basta.                                                      |
+| Clave          | Evidencia exigida                                                                                                                                                                                                       |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `projects`     | `sourceId`, `sourceNumber`, `targetId`, `targetNumber` de `gcloud projects describe`. Números como texto.                                                                                                               |
+| `inventory`    | `readWindowStable: true`, `officialCudyrUnchanged: true`, `cloudWrites: 0`, `reportHash` SHA-256 del informe recién obtenido.                                                                                           |
+| `mirror`       | Proyecto antiguo, `function: "mirror*"`, `scope: "all-regions-all-mirror-functions"`, `state: "deleted"` y `remainingFunctions: []`. Enumeración completa en todas las regiones; no basta eliminar el espejo del censo. |
+| `deployment`   | Proyecto destino, `expectedCommit` y `deployedCommit` completos, iguales y verificados en el despliegue.                                                                                                                |
+| `rules`        | Proyecto destino, `expectedHash` y `deployedHash` SHA-256 iguales, cotejando reglas locales y desplegadas.                                                                                                              |
+| `localSession` | Proyecto destino, `projectIsolationVerified: true`, `pendingOperations: 0`, `sameOriginTransitionTestPassed: true`. Probar cambio de Firebase con el mismo UID sin mezclar caché ni reenviar operaciones antiguas.      |
+| `access`       | Proyecto destino, `pendingAuthorizations: 0`, `unmappedStaff: 0`, `rolesReviewed: true`. Mantener autores históricos y validar roles; no concederlos por semejanza de nombres.                                          |
+| `restore`      | Proyecto destino, `restoreTestPassed: true`, `originalsPreserved: true`, `backupManifestHash` SHA-256. Probar restauración aislada; tener un bucket no basta.                                                           |
 
 Todos los bloques excepto `projects` e `inventory` llevan `project`. El informe
 impreso contiene únicamente los estados de los controles; no reproduce referencias,

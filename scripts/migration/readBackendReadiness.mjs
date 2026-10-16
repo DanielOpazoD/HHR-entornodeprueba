@@ -9,6 +9,9 @@ const SOURCE = 'hhr-serviciohospitalizados';
 const RELEASE = `projects/${TARGET}/releases/cloud.firestore`;
 const API = 'https://firebaserules.googleapis.com/v1/';
 const expectedProjects = { [TARGET]: '339724354374', [SOURCE]: '179072085914' };
+const sourceFunctionResource = new RegExp(
+  `^projects/${SOURCE}/locations/[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?/functions/[A-Za-z](?:[A-Za-z0-9_-]{0,61}[A-Za-z0-9])?$`
+);
 const hash = value => createHash('sha256').update(value).digest('hex');
 /**
  * @param {string[]} args
@@ -85,26 +88,31 @@ export const collectBackendReadiness = async ({
     !files[0].content.trim()
   )
     throw new Error('invalid_rules_source');
-  const functions = JSON.parse(
+  const inventory = JSON.parse(
     runGcloud([
       'functions',
       'list',
       `--project=${SOURCE}`,
       '--regions=-',
-      '--filter=name:mirrorDailyRecords',
       '--format=json(name,state,status)',
     ])
   );
   if (
-    !Array.isArray(functions) ||
-    functions.some(
+    !Array.isArray(inventory) ||
+    inventory.some(
       item =>
-        typeof item.name !== 'string' ||
-        !item.name.startsWith(`projects/${SOURCE}/locations/`) ||
-        !item.name.endsWith('/functions/mirrorDailyRecords')
-    )
+        typeof item?.name !== 'string' ||
+        item.name !== item.name.trim() ||
+        !sourceFunctionResource.test(item.name)
+    ) ||
+    new Set(inventory.map(item => item.name)).size !== inventory.length
   )
     throw new Error('invalid_mirror_inventory');
+  // Inspect the complete list: removing the census mirror alone leaves other writers alive.
+  const remainingFunctions = inventory
+    .filter(item => /^mirror/i.test(item.name.split('/').at(-1)))
+    .map(item => item.name)
+    .sort();
   const after = await read(RELEASE);
   const stable =
     before.name === after.name &&
@@ -113,7 +121,7 @@ export const collectBackendReadiness = async ({
   const expectedHash = hash(expectedRules);
   const deployedHash = hash(files[0].content);
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     observedAt,
     rules: {
       project: TARGET,
@@ -125,8 +133,10 @@ export const collectBackendReadiness = async ({
     },
     mirror: {
       project: SOURCE,
-      function: 'mirrorDailyRecords',
-      state: functions.length === 0 ? 'deleted' : 'present',
+      function: 'mirror*',
+      scope: 'all-regions-all-mirror-functions',
+      remainingFunctions,
+      state: remainingFunctions.length === 0 ? 'deleted' : 'present',
     },
     cloudWrites: 0,
     authorizesDeployment: false,
