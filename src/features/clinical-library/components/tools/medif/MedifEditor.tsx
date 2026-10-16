@@ -17,6 +17,8 @@ import {
 import { ToolFrame } from '../ToolFrame';
 import { TOOL_INPUT_CLASS } from '../ToolField';
 import { MedifFormSection } from './MedifFormSection';
+import { MedifHabitualButton } from './MedifHabitualButton';
+import { applyMedifHabitualAnswers } from '../../../domain/medifHabitualAnswers';
 import { MedifPreferencesPanel } from './MedifPreferencesPanel';
 import { MedifVariableIndex } from './MedifVariableIndex';
 import { MedifTabs, MedifJumpIndex, type MedifTabId } from './MedifNavigation';
@@ -92,6 +94,16 @@ export const MedifEditor: React.FC<MedifEditorProps> = ({
   const changeField = (id: string, value: string): void => {
     currentValues.current = setMedifFieldValue(currentValues.current, id, value);
     setValues(currentValues.current);
+  };
+  const applyHabitualAnswers = (): void => {
+    const result = applyMedifHabitualAnswers(currentValues.current, preferences);
+    currentValues.current = result.values;
+    setValues(result.values);
+    setNotice(
+      result.applied
+        ? 'Respuestas habituales aplicadas a los campos vacíos. Revisa las respuestas antes de emitir.'
+        : 'No había respuestas habituales pendientes.'
+    );
   };
   const requestReplacement = (next: Replacement): void => {
     if (Object.values(currentValues.current).some(value => value.trim())) setReplacement(next);
@@ -193,6 +205,10 @@ export const MedifEditor: React.FC<MedifEditorProps> = ({
           </select>
         </label>
         <div className="medif-toolbar-actions">
+          <MedifHabitualButton
+            onClick={applyHabitualAnswers}
+            disabled={busy || Boolean(replacement)}
+          />
           <button
             type="button"
             className={MEDIF_SECONDARY_BUTTON}

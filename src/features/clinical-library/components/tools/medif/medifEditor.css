@@ -23,6 +23,19 @@
   flex-wrap: wrap;
   gap: 6px;
 }
+.medif-habitual-button {
+  color: #15803d;
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+.medif-habitual-button:hover {
+  color: #166534;
+  background: #dcfce7;
+  border-color: #22c55e;
+}
+.medif-habitual-button:focus-visible {
+  outline-color: #15803d;
+}
 .medif-source-note,
 .medif-session-note {
   font-size: 10px;

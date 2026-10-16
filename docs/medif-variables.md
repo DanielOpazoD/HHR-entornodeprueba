@@ -8,8 +8,8 @@ Versión del esquema: `1.0.0`. El inventario conserva los nombres exactos de los
 - Todos los valores del PDF se representan como cadenas. Un casillero de marca contiene `"X"` si está seleccionado y `""` si está vacío.
 - Las opciones de cada grupo `choice` son excluyentes (`multiple: false`). Se permite dejar el grupo sin respuesta. Al elegir una opción, deben limpiarse las demás opciones del mismo grupo.
 - `inputType` orienta el control HTML. Las fechas y edades se mantienen como texto para respetar la flexibilidad del formulario. No se agregan requisitos clínicos ni campos obligatorios.
-- `suggestedSource` indica el origen previsto: `manual`, `hhr` o `medical-review`. Los cinco campos compatibles con HHR se proponen como borrador mediante el adaptador y requieren confirmación. El formulario también funciona íntegramente en modo manual.
-- Las decisiones médicas, riesgo, aptitud para volar, oxígeno, medicamentos y hospitalización no se deducen automáticamente.
+- `suggestedSource` indica el origen previsto: `manual`, `hhr` o `medical-review`. Los siete campos compatibles con HHR se proponen como borrador mediante el adaptador y requieren confirmación. El formulario también funciona íntegramente en modo manual.
+- Las decisiones médicas no se deducen del censo. El check verde aplica solo las respuestas habituales solicitadas por el usuario a preguntas todavía sin respuesta; oxígeno y las demás respuestas no incluidas permanecen manuales.
 - Las firmas del PDF son campos de texto. Escribir un nombre no genera una firma electrónica.
 
 ## Índice técnico del PDF
@@ -33,14 +33,14 @@ Estas diez secciones conservan la ubicación documental de las 137 variables. La
 
 Identificación del pasajero en ambas partes del formulario y seguro de viaje.
 
-| Variable exacta      | Página | Etiqueta                           | Tipo HTML / PDF | Origen posible           |
-| -------------------- | -----: | ---------------------------------- | --------------- | ------------------------ |
-| `p1_nombre_pasajero` |      1 | Nombre completo                    | `text` / texto  | Candidato HHR; confirmar |
-| `p1_edad`            |      1 | Edad                               | `text` / texto  | Candidato HHR; confirmar |
-| `p1_seguro_viaje`    |      1 | Seguro de viaje / número de póliza | `text` / texto  | Manual                   |
-| `p2_nombre_paciente` |      2 | Nombre completo                    | `text` / texto  | Candidato HHR; confirmar |
-| `p2_genero`          |      2 | Género                             | `text` / texto  | Manual                   |
-| `p2_edad`            |      2 | Edad                               | `text` / texto  | Candidato HHR; confirmar |
+| Variable exacta      | Página | Etiqueta                           | Tipo HTML / PDF | Origen posible                  |
+| -------------------- | -----: | ---------------------------------- | --------------- | ------------------------------- |
+| `p1_nombre_pasajero` |      1 | Nombre completo                    | `text` / texto  | Candidato HHR; confirmar        |
+| `p1_edad`            |      1 | Edad                               | `text` / texto  | Candidato HHR; confirmar        |
+| `p1_seguro_viaje`    |      1 | Seguro de viaje / número de póliza | `text` / texto  | Manual                          |
+| `p2_nombre_paciente` |      2 | Nombre completo                    | `text` / texto  | Candidato HHR; confirmar        |
+| `p2_genero`          |      2 | Género                             | `text` / texto  | HHR: sexo registrado (editable) |
+| `p2_edad`            |      2 | Edad                               | `text` / texto  | Candidato HHR; confirmar        |
 
 ### Itinerario y contacto
 
@@ -127,33 +127,33 @@ Informe, diagnóstico actual, antecedentes y evolución. Su contenido requiere r
 
 Evaluación médica para el viaje. Las opciones no se calculan a partir de los datos importados.
 
-| Variable exacta             | Página | Etiqueta                                                                 | Tipo HTML / PDF              | Origen posible         |
-| --------------------------- | -----: | ------------------------------------------------------------------------ | ---------------------------- | ---------------------- |
-| `p2_prognosis`              |      2 | Prognosis para el viaje                                                  | `text` / texto               | Revisión médica manual |
-| `p2_riesgo_bajo`            |      2 | Riesgo vital durante el viaje · Bajo o sin riesgo                        | Opción exclusiva / texto `X` | Revisión médica manual |
-| `p2_riesgo_medio`           |      2 | Riesgo vital durante el viaje · Medio                                    | Opción exclusiva / texto `X` | Revisión médica manual |
-| `p2_riesgo_alto`            |      2 | Riesgo vital durante el viaje · Alto                                     | Opción exclusiva / texto `X` | Revisión médica manual |
-| `p2_riesgo_no_volar`        |      2 | Riesgo vital durante el viaje · Se recomienda no volar                   | Opción exclusiva / texto `X` | Revisión médica manual |
-| `p2_contagiosa_si`          |      2 | Tiene una enfermedad contagiosa o transmisible al momento del viaje · Sí | Opción exclusiva / texto `X` | Revisión médica manual |
-| `p2_contagiosa_no`          |      2 | Tiene una enfermedad contagiosa o transmisible al momento del viaje · No | Opción exclusiva / texto `X` | Revisión médica manual |
-| `p2_contagiosa_fecha_tipo`  |      2 | Enfermedad y fecha de inicio                                             | `text` / texto               | Revisión médica manual |
-| `p2_esfinter_si`            |      2 | Presenta alteración del control de esfínter · Sí                         | Opción exclusiva / texto `X` | Revisión médica manual |
-| `p2_esfinter_no`            |      2 | Presenta alteración del control de esfínter · No                         | Opción exclusiva / texto `X` | Revisión médica manual |
-| `p2_conducta_si`            |      2 | Presenta alteración de conducta · Sí                                     | Opción exclusiva / texto `X` | Revisión médica manual |
-| `p2_conducta_no`            |      2 | Presenta alteración de conducta · No                                     | Opción exclusiva / texto `X` | Revisión médica manual |
-| `p2_otra_alteracion`        |      2 | Otra alteración                                                          | `text` / texto               | Revisión médica manual |
-| `p2_comer_si`               |      2 | Es independiente para comer durante el vuelo · Sí                        | Opción exclusiva / texto `X` | Revisión médica manual |
-| `p2_comer_no`               |      2 | Es independiente para comer durante el vuelo · No                        | Opción exclusiva / texto `X` | Revisión médica manual |
-| `p2_bano_si`                |      2 | Es independiente para ir al baño durante el vuelo · Sí                   | Opción exclusiva / texto `X` | Revisión médica manual |
-| `p2_bano_no`                |      2 | Es independiente para ir al baño durante el vuelo · No                   | Opción exclusiva / texto `X` | Revisión médica manual |
-| `p2_instrucciones_si`       |      2 | Puede entender las instrucciones de seguridad · Sí                       | Opción exclusiva / texto `X` | Revisión médica manual |
-| `p2_instrucciones_no`       |      2 | Puede entender las instrucciones de seguridad · No                       | Opción exclusiva / texto `X` | Revisión médica manual |
-| `p2_autonomia_otros`        |      2 | Otras necesidades                                                        | `text` / texto               | Revisión médica manual |
-| `p2_acompanante_familiar`   |      2 | Tipo de acompañante · Familiar                                           | Opción exclusiva / texto `X` | Revisión médica manual |
-| `p2_acompanante_medico`     |      2 | Tipo de acompañante · Médico                                             | Opción exclusiva / texto `X` | Revisión médica manual |
-| `p2_acompanante_enfermera`  |      2 | Tipo de acompañante · Enfermera                                          | Opción exclusiva / texto `X` | Revisión médica manual |
-| `p2_acompanante_paramedico` |      2 | Tipo de acompañante · Paramédico                                         | Opción exclusiva / texto `X` | Revisión médica manual |
-| `p2_acompanante_otro`       |      2 | Otro tipo de acompañante                                                 | `text` / texto               | Revisión médica manual |
+| Variable exacta             | Página | Etiqueta                                                                 | Tipo HTML / PDF              | Origen posible                   |
+| --------------------------- | -----: | ------------------------------------------------------------------------ | ---------------------------- | -------------------------------- |
+| `p2_prognosis`              |      2 | Prognosis para el viaje                                                  | `text` / texto               | Revisión médica manual           |
+| `p2_riesgo_bajo`            |      2 | Riesgo vital durante el viaje · Bajo o sin riesgo                        | Opción exclusiva / texto `X` | Revisión médica manual           |
+| `p2_riesgo_medio`           |      2 | Riesgo vital durante el viaje · Medio                                    | Opción exclusiva / texto `X` | Revisión médica manual           |
+| `p2_riesgo_alto`            |      2 | Riesgo vital durante el viaje · Alto                                     | Opción exclusiva / texto `X` | Revisión médica manual           |
+| `p2_riesgo_no_volar`        |      2 | Riesgo vital durante el viaje · Se recomienda no volar                   | Opción exclusiva / texto `X` | Revisión médica manual           |
+| `p2_contagiosa_si`          |      2 | Tiene una enfermedad contagiosa o transmisible al momento del viaje · Sí | Opción exclusiva / texto `X` | Revisión médica manual           |
+| `p2_contagiosa_no`          |      2 | Tiene una enfermedad contagiosa o transmisible al momento del viaje · No | Opción exclusiva / texto `X` | Revisión médica manual           |
+| `p2_contagiosa_fecha_tipo`  |      2 | Enfermedad y fecha de inicio                                             | `text` / texto               | HHR: fecha de ingreso (editable) |
+| `p2_esfinter_si`            |      2 | Presenta alteración del control de esfínter · Sí                         | Opción exclusiva / texto `X` | Revisión médica manual           |
+| `p2_esfinter_no`            |      2 | Presenta alteración del control de esfínter · No                         | Opción exclusiva / texto `X` | Revisión médica manual           |
+| `p2_conducta_si`            |      2 | Presenta alteración de conducta · Sí                                     | Opción exclusiva / texto `X` | Revisión médica manual           |
+| `p2_conducta_no`            |      2 | Presenta alteración de conducta · No                                     | Opción exclusiva / texto `X` | Revisión médica manual           |
+| `p2_otra_alteracion`        |      2 | Otra alteración                                                          | `text` / texto               | Revisión médica manual           |
+| `p2_comer_si`               |      2 | Es independiente para comer durante el vuelo · Sí                        | Opción exclusiva / texto `X` | Revisión médica manual           |
+| `p2_comer_no`               |      2 | Es independiente para comer durante el vuelo · No                        | Opción exclusiva / texto `X` | Revisión médica manual           |
+| `p2_bano_si`                |      2 | Es independiente para ir al baño durante el vuelo · Sí                   | Opción exclusiva / texto `X` | Revisión médica manual           |
+| `p2_bano_no`                |      2 | Es independiente para ir al baño durante el vuelo · No                   | Opción exclusiva / texto `X` | Revisión médica manual           |
+| `p2_instrucciones_si`       |      2 | Puede entender las instrucciones de seguridad · Sí                       | Opción exclusiva / texto `X` | Revisión médica manual           |
+| `p2_instrucciones_no`       |      2 | Puede entender las instrucciones de seguridad · No                       | Opción exclusiva / texto `X` | Revisión médica manual           |
+| `p2_autonomia_otros`        |      2 | Otras necesidades                                                        | `text` / texto               | Revisión médica manual           |
+| `p2_acompanante_familiar`   |      2 | Tipo de acompañante · Familiar                                           | Opción exclusiva / texto `X` | Revisión médica manual           |
+| `p2_acompanante_medico`     |      2 | Tipo de acompañante · Médico                                             | Opción exclusiva / texto `X` | Revisión médica manual           |
+| `p2_acompanante_enfermera`  |      2 | Tipo de acompañante · Enfermera                                          | Opción exclusiva / texto `X` | Revisión médica manual           |
+| `p2_acompanante_paramedico` |      2 | Tipo de acompañante · Paramédico                                         | Opción exclusiva / texto `X` | Revisión médica manual           |
+| `p2_acompanante_otro`       |      2 | Otro tipo de acompañante                                                 | `text` / texto               | Revisión médica manual           |
 
 ### Oxígeno y equipo portátil
 
@@ -243,7 +243,7 @@ Antecedentes psiquiátricos, estabilidad y declaración del médico tratante. Re
 3. Acompañante, cirugía y patología psiquiátrica: las preguntas originales están en singular. Este esquema usa una selección exclusiva por grupo, sin inferir exclusión clínica entre diagnósticos. Los campos «Otro» del formulario se mantienen como texto independiente.
 4. Medicación y antecedentes: cada línea/casillero del PDF conserva su variable. No dividir ni truncar automáticamente contenido importado.
 5. Hospitalización: son tres preguntas distintas (general, escalas y destino), cada una con su propio par Sí/No.
-6. Origen HHR: el adaptador [medifPatientPrefill.ts](../src/features/clinical-library/domain/medifPatientPrefill.ts) propone cinco campos a partir de nombre, edad y diagnóstico actual. El género permanece manual: `biologicalSex` no equivale a identidad de género.
+6. Origen HHR: el adaptador [medifPatientPrefill.ts](../src/features/clinical-library/domain/medifPatientPrefill.ts) propone siete campos a partir de nombre, edad, diagnóstico actual, sexo registrado y fecha de ingreso. Por mapeo solicitado, `biologicalSex` se copia al campo Género y `admissionDate` a Enfermedad y fecha de inicio; ambos valores siguen editables y conservan su procedencia.
 7. Modo manual: la ausencia de paciente asociado no limita ninguno de los 137 campos. Una referencia a cama o paciente pertenece a los metadatos de la aplicación, no a un campo nuevo del PDF.
 8. No se incorporan instrucciones de envío, plazos de aerolínea o datos externos como automatismos. El usuario debe revisar el formulario vigente y la declaración impresa.
 

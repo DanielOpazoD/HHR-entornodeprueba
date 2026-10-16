@@ -16,6 +16,7 @@ export type MedifPatientSnapshot = Pick<
   | 'pathology'
   | 'clinicalEpisodeId'
   | 'admissionDate'
+  | 'biologicalSex'
   | 'identityStatus'
 >;
 
@@ -121,6 +122,7 @@ export const buildMedifPatientOptions = (
       pathology: trim(patient.pathology),
       clinicalEpisodeId: trim(patient.clinicalEpisodeId),
       admissionDate: trim(patient.admissionDate),
+      biologicalSex: patient.biologicalSex,
       identityStatus: patient.identityStatus,
     };
     // Legacy episodes still need a distinct key when a bed is reused.
@@ -187,6 +189,17 @@ export const prefillMedifPatient = (option: MedifPatientOption): MedifPatientPre
   put('p1_edad', age, ageSource, ageTransformation);
   put('p2_edad', age, ageSource, ageTransformation);
   put('p2_diagnostico_actual', trim(patient.pathology), 'pathology', 'copyAsDraft');
+  put('p2_genero', trim(patient.biologicalSex), 'biologicalSex', 'copyAsRequested');
+  const admission = parseCalendarDay(patient.admissionDate);
+  const census = parseCalendarDay(option.recordDate);
+  if (admission && census && admission.timestamp <= census.timestamp) {
+    put(
+      'p2_contagiosa_fecha_tipo',
+      `${String(admission.day).padStart(2, '0')}/${String(admission.month).padStart(2, '0')}/${admission.year}`,
+      'admissionDate',
+      'admissionDateAsRequested'
+    );
+  }
 
   return {
     fields,

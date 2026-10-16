@@ -33,6 +33,7 @@ const seedPersistedSession = async (page: Page) => {
       R1: {
         ...baseBeds.R1,
         patientName: SEEDED_PATIENT_NAME,
+        biologicalSex: 'Femenino',
         rut: '12345678-5',
         pathology: 'DIAGNOSTICO PREVIEW',
         age: '44',
@@ -267,6 +268,17 @@ test('fills the compact MEDIF from the census, restores its preset and prints th
   await expect(editor.locator('#medif-p1_nombre_pasajero')).toHaveValue(SEEDED_PATIENT_NAME);
   await expect(editor.locator('#medif-p1_edad')).toHaveValue('44');
   await expect(editor.locator('#medif-p2_diagnostico_actual')).toHaveValue('DIAGNOSTICO PREVIEW');
+  await expect(editor.locator('#medif-p2_genero')).toHaveValue('Femenino');
+  await expect(editor.locator('#medif-p2_contagiosa_fecha_tipo')).toHaveValue('29/03/2026');
+  await expect(editor.locator('#medif-p2_comer_si')).not.toBeChecked();
+  await editor.locator('#medif-p1_itinerario_1_hacia').fill('Destino editado');
+  await editor.locator('#medif-p2_medicacion_previa_si').check();
+  await editor.getByRole('button', { name: 'Respuestas habituales', exact: true }).click();
+  await expect(editor.locator('#medif-p2_comer_si')).toBeChecked();
+  await expect(editor.locator('#medif-p2_medicacion_previa_si')).toBeChecked();
+  await expect(editor.locator('#medif-p2_medicacion_previa_no')).not.toBeChecked();
+  await expect(editor.locator('#medif-p1_itinerario_1_desde')).toHaveValue('Isla de pascua');
+  await expect(editor.locator('#medif-p1_itinerario_1_hacia')).toHaveValue('Destino editado');
   await expect(
     editor.getByRole('textbox', { name: 'Nombre del médico tratante', exact: true })
   ).toHaveCount(1);
@@ -302,6 +314,11 @@ test('fills the compact MEDIF from the census, restores its preset and prints th
   for (const id of ['p2_nombre_medico', 'p1_medico_autorizado', 'p3_medico_declaracion']) {
     expect(editable.getForm().getTextField(id).getText()).toBe('Dra. PRUEBA MEDIF');
   }
+  expect(editable.getForm().getTextField('p2_comer_si').getText()).toBe('X');
+  expect(editable.getForm().getTextField('p2_medicacion_previa_si').getText()).toBe('X');
+  expect(editable.getForm().getTextField('p2_medicacion_previa_no').getText() || '').toBe('');
+  expect(editable.getForm().getTextField('p2_genero').getText()).toBe('Femenino');
+  expect(editable.getForm().getTextField('p2_contagiosa_fecha_tipo').getText()).toBe('29/03/2026');
   const pdfDownload = page.waitForEvent('download');
   await editor.getByRole('button', { name: 'PDF imprimible', exact: true }).click();
   const pdfPath = test.info().outputPath('medif-imprimible.pdf');
@@ -315,6 +332,9 @@ test('fills the compact MEDIF from the census, restores its preset and prints th
   await expect(editor.locator('#medif-p1_nombre_pasajero')).toHaveValue('');
   await expect(editor.locator('#medif-p2_diagnostico_actual')).toHaveValue('');
   await expect(editor.locator('#medif-p2_nombre_medico')).toHaveValue('');
+  await expect(editor.locator('#medif-p2_genero')).toHaveValue('');
+  await expect(editor.locator('#medif-p2_contagiosa_fecha_tipo')).toHaveValue('');
+  await expect(editor.locator('#medif-p2_comer_si')).not.toBeChecked();
   await expect(editor.locator('#medif-p1_seguro_viaje')).toHaveCount(0);
   await capture(page, '10-medif-compact-desktop');
   await page.setViewportSize({ width: 375, height: 812 });

@@ -1520,9 +1520,9 @@
       "groupId": "identificacion_medica",
       "shortLabel": "Género",
       "inputType": "text",
-      "suggestedSource": "manual",
+      "suggestedSource": "hhr",
       "requiresMedicalReview": false,
-      "help": "Complete manualmente. El sexo biológico registrado en el censo no determina el género."
+      "help": "Se propone el sexo registrado en el censo; puedes editar este dato."
     },
     {
       "name": "p2_edad",
@@ -1935,9 +1935,10 @@
       "groupId": "contagiosa_detalle",
       "shortLabel": "Enfermedad y fecha de inicio",
       "inputType": "text",
-      "suggestedSource": "medical-review",
+      "suggestedSource": "hhr",
       "requiresMedicalReview": true,
-      "placeholder": "Día/mes/año"
+      "placeholder": "Día/mes/año",
+      "help": "Se propone la fecha de ingreso del censo, según tu configuración MEDIF. Revisa este dato antes de emitir."
     },
     {
       "name": "p2_otra_alteracion",

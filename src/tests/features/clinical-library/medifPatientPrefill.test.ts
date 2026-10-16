@@ -106,7 +106,7 @@ describe('MEDIF patient prefill', () => {
     expect(buildMedifPatientOptions(source)).toHaveLength(1);
   });
 
-  it('copies only the five reviewable MEDIF fields without inferring a clinical decision', () => {
+  it('copies the seven requested fields with reviewable sex and admission date', () => {
     const output = prefill({
       diagnosisComments: 'No es un informe médico',
       biologicalSex: 'Femenino',
@@ -122,9 +122,43 @@ describe('MEDIF patient prefill', () => {
       p1_edad: '42 años',
       p2_edad: '42 años',
       p2_diagnostico_actual: 'Diagnóstico ficticio',
+      p2_genero: 'Femenino',
+      p2_contagiosa_fecha_tipo: '13/10/2026',
     });
     expect(Object.values(output.provenance).every(item => item.requiresReview)).toBe(true);
     expect(output.provenance.p2_diagnostico_actual.transformation).toBe('copyAsDraft');
+    expect(output.provenance.p2_genero.sourcePath).toBe('beds.R1.biologicalSex');
+    expect(output.provenance.p2_contagiosa_fecha_tipo.sourcePath).toBe('beds.R1.admissionDate');
+    expect(output.provenance.p2_contagiosa_fecha_tipo.transformation).toBe(
+      'admissionDateAsRequested'
+    );
+  });
+
+  it.each(['', '2026-02-30', '2026-10-16', '13/10/2026'])(
+    'leaves the admission-date field blank for invalid or future source %s',
+    admissionDate => {
+      expect(prefill({ admissionDate }).fields).not.toHaveProperty('p2_contagiosa_fecha_tipo');
+    }
+  );
+
+  it('leaves sex blank when absent and uses the clinical crib own data', () => {
+    expect(prefill({ biologicalSex: undefined }).fields).not.toHaveProperty('p2_genero');
+    const options = buildMedifPatientOptions(
+      record({
+        R1: patient('R1', {
+          biologicalSex: 'Femenino',
+          admissionDate: '2026-10-13',
+          clinicalCrib: patient('R1', {
+            biologicalSex: 'Masculino',
+            admissionDate: '2026-10-14',
+          }),
+        }),
+      })
+    );
+    const crib = prefillMedifPatient(options[1]);
+    expect(crib.fields.p2_genero).toBe('Masculino');
+    expect(crib.fields.p2_contagiosa_fecha_tipo).toBe('14/10/2026');
+    expect(crib.provenance.p2_genero.sourcePath).toBe('beds.R1.clinicalCrib.biologicalSex');
   });
 
   it('does not mutate the census or expose RUT, notes, devices or a complete patient object', () => {

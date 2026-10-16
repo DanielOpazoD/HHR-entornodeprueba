@@ -21,7 +21,7 @@ El [diccionario completo](medif-variables.md) identifica cada variable, su pági
 
 [MedifTool](../src/features/clinical-library/components/tools/MedifTool.tsx) obtiene el registro diario ya disponible en `DailyRecordContext`. El [adaptador](../src/features/clinical-library/domain/medifPatientPrefill.ts) construye opciones para camas ocupadas y cunas clínicas; excluye CMA, camas bloqueadas y camas extra inactivas. La lista corresponde a la fecha del censo seleccionado, que puede ser histórica.
 
-Al elegir un paciente se copian hasta cinco campos:
+Al elegir un paciente se copian hasta siete campos:
 
 | Dato del censo                   | Variables MEDIF                            | Revisión                                                                                                            |
 | -------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
@@ -29,9 +29,25 @@ Al elegir un paciente se copian hasta cinco campos:
 | `record.beds[bedId].age`         | `p1_edad`, `p2_edad`                       | Conserva la unidad escrita. Si falta, usa `birthDate` y la fecha válida del censo para calcular años, meses o días. |
 | `record.beds[bedId].pathology`   | `p2_diagnostico_actual`                    | Borrador editable que requiere revisión médica, incluida resolución o alta cuando corresponda.                      |
 
+También se copian `biologicalSex` a `p2_genero` y la fecha válida de ingreso `admissionDate`, en formato día/mes/año, a `p2_contagiosa_fecha_tipo` (Enfermedad y fecha de inicio), conforme al mapeo solicitado. Ambos datos son editables. Una fecha de ingreso inválida o posterior al censo deja el campo vacío.
+
 Para una cuna clínica se aplica el mismo mapeo a `record.beds[bedId].clinicalCrib`. El formulario conserva la copia cargada mientras se edita: las actualizaciones posteriores del censo no reemplazan lo escrito. Elegir otro paciente, volver al ingreso manual o cargar otro borrador solicita reemplazar todos los datos cuando el formulario contiene información.
 
-MEDIF no escribe sobre camas, fichas ni registros diarios. No realiza nuevas búsquedas de pacientes en servicios remotos. El modo manual permite completar los 137 campos sin seleccionar una cama. El género se ingresa manualmente; `biologicalSex` no se transforma en género. Tampoco se equiparan seguro de salud y seguro de viaje, especialidad de hospitalización y especialidad del médico, ni fecha de ingreso y fecha de diagnóstico.
+MEDIF no escribe sobre camas, fichas ni registros diarios. No realiza nuevas búsquedas de pacientes en servicios remotos. El modo manual permite completar los 137 campos sin seleccionar una cama. El campo Género se propone con el sexo registrado por solicitud expresa del usuario. No se equiparan seguro de salud y seguro de viaje, especialidad de hospitalización y especialidad del médico, ni fecha de ingreso y fecha de diagnóstico.
+
+## Check verde de respuestas habituales
+
+El botón **Respuestas habituales** completa únicamente campos vacíos al pulsarlo, tanto en modo manual como con paciente del censo. Conserva el texto ya escrito y cualquier opción previamente marcada dentro de una pregunta, aunque sea distinta del preset. Omite los campos ocultos y puede pulsarse varias veces sin sobrescribir respuestas. Elegir un paciente no marca decisiones clínicas por sí mismo.
+
+- No necesita silla de ruedas, en las preguntas del pasajero y del médico; no tiene patología psiquiátrica.
+- Sí puede flectar rodillas y cadera.
+- No requiere medicación previa ni durante el vuelo; no utiliza anticoagulante; no requiere coordinación de ambulancia en el aeropuerto.
+- Sí requiere hospitalización y hospitalización o ambulancia al llegar al destino.
+- Sí es independiente para comer e ir al baño; no presenta alteración de conducta ni del control de esfínter.
+- Riesgo vital bajo o sin riesgo; sí está en condiciones de transportarse en avión; no tiene enfermedad contagiosa o transmisible.
+- Tramo 1: desde Isla de pascua hacia Santiago.
+
+El preset contiene 18 respuestas de selección y dos campos de itinerario. El sexo y la fecha de ingreso se proponen al cargar el paciente según el mapeo anterior. En modo manual estos dos datos se completan manualmente. Todas las respuestas quedan editables antes de emitir el PDF. La implementación está en [medifHabitualAnswers.ts](../src/features/clinical-library/domain/medifHabitualAnswers.ts).
 
 ## Preferencias y borradores
 
