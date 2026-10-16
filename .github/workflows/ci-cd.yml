@@ -28,7 +28,7 @@ jobs:
 
     steps:
       - name: Checkout trusted classifier revision
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
@@ -36,7 +36,7 @@ jobs:
 
       - name: Checkout immutable candidate revision
         if: github.event_name == 'pull_request'
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -70,7 +70,7 @@ jobs:
 
       - name: Checkout code
         if: needs.ci-scope.outputs.scope == 'docs-only'
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup CI dependencies
         if: needs.ci-scope.outputs.scope == 'docs-only'
@@ -92,7 +92,7 @@ jobs:
 
       - name: Checkout code
         if: needs.ci-scope.outputs.scope == 'functions-only'
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
         if: needs.ci-scope.outputs.scope == 'functions-only'
@@ -138,7 +138,7 @@ jobs:
         shard: [1, 2, 3, 4]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Setup CI dependencies
         uses: ./.github/actions/setup-ci-dependencies
       - name: Run critical coverage shard
@@ -188,7 +188,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup CI dependencies
         uses: ./.github/actions/setup-ci-dependencies
@@ -240,7 +240,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup CI dependencies
         uses: ./.github/actions/setup-ci-dependencies
@@ -257,7 +257,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup CI dependencies
         uses: ./.github/actions/setup-ci-dependencies
@@ -345,7 +345,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup CI dependencies
         uses: ./.github/actions/setup-ci-dependencies
@@ -372,7 +372,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup CI dependencies
         uses: ./.github/actions/setup-ci-dependencies
@@ -415,7 +415,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup CI dependencies
         uses: ./.github/actions/setup-ci-dependencies
@@ -454,7 +454,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup CI dependencies
         uses: ./.github/actions/setup-ci-dependencies
@@ -480,7 +480,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -519,7 +519,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup CI dependencies
         uses: ./.github/actions/setup-ci-dependencies
@@ -553,7 +553,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup CI dependencies
         uses: ./.github/actions/setup-ci-dependencies
@@ -635,7 +635,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup CI dependencies
         uses: ./.github/actions/setup-ci-dependencies
@@ -709,7 +709,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup CI dependencies
         uses: ./.github/actions/setup-ci-dependencies
@@ -786,7 +786,7 @@ jobs:
         environment: [development, production]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Setup CI dependencies
         uses: ./.github/actions/setup-ci-dependencies
       - name: Install Chromium
@@ -827,7 +827,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup CI dependencies
         uses: ./.github/actions/setup-ci-dependencies
@@ -864,7 +864,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
@@ -980,7 +980,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup CI dependencies
         uses: ./.github/actions/setup-ci-dependencies
@@ -1079,7 +1079,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup CI dependencies
         uses: ./.github/actions/setup-ci-dependencies
@@ -1106,7 +1106,7 @@ jobs:
       changed: ${{ steps.scope.outputs.changed }}
     steps:
       - name: Checkout validated revision
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
