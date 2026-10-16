@@ -32,7 +32,7 @@ const gates = [
     data =>
       data.project === SOURCE &&
       data.function === 'mirrorDailyRecords' &&
-      data.state === 'disabled',
+      ['disabled', 'deleted'].includes(data.state),
   ],
   [
     'deployment',
