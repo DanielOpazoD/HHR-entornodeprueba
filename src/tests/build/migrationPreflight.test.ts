@@ -84,6 +84,12 @@ describe('migration preflight evidence', () => {
       assessMigrationPreflight(data, now).checks.find(item => item.id === 'mirror')?.passed
     ).toBe(false);
   });
+
+  it('accepts a verified deleted mirror without requiring it to be recreated', () => {
+    const data = fixture();
+    data.mirror.state = 'deleted';
+    expect(assessMigrationPreflight(data, now).readyForRehearsal).toBe(true);
+  });
   it('rejects wrong projects, mismatched deployments/rules and outstanding operations', () => {
     const data = fixture();
     data.projects.targetId = 'other';
