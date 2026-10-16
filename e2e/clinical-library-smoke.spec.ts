@@ -14,6 +14,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { test, expect, type Page } from '@playwright/test';
 import { PDFDocument } from 'pdf-lib';
+import { PatientStatus } from '../src/types/domain/patientClassification';
 import { buildCanonicalE2ERecord, MOCK_USERS } from './fixtures/auth';
 import {
   installPreviewFirebaseRuntime,
@@ -38,7 +39,7 @@ const seedPersistedSession = async (page: Page) => {
         pathology: 'DIAGNOSTICO PREVIEW',
         age: '44',
         admissionDate: '2026-03-29',
-        status: 'ESTABLE',
+        status: PatientStatus.ESTABLE,
       },
     },
   });
