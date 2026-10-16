@@ -23,9 +23,11 @@ export const RayenSyncSessionReportButton: React.FC<{ history: RayenSyncEvent[] 
         onClick={() => void copy()}
         className="inline-flex items-center gap-1 rounded border border-slate-200 px-2 py-1.5 font-semibold hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600"
       >
-        <Copy size={13} aria-hidden="true" /> Copiar resumen de rendimiento
+        <Copy size={13} aria-hidden="true" /> Copiar resumen
       </button>
-      <span>Solo métricas del historial de este día; sin identificadores ni datos clínicos.</span>
+      <span className="sr-only">
+        Solo métricas del historial de este día; sin identificadores ni datos clínicos.
+      </span>
       <span role="status">
         {state === 'copied'
           ? 'Resumen copiado'

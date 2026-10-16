@@ -6,9 +6,11 @@ import type {
   NursingShiftEvidence,
   NursingShiftSuggestion,
 } from '../contracts/nursingShiftInference';
-import { StaffingBoundaryExclusions } from './StaffingBoundaryExclusions';
+import { RayenStaffingActivity } from './RayenStaffingActivity';
+import { buildRayenStaffingObservation } from '../domain/rayenSyncHistory';
 import {
   hasUnresolvedStaffingAmbiguity,
+  replacedStaffingNames,
   NURSING_STAFFING_STANDARD_SLOTS,
 } from '../domain/staffingSlotPolicy';
 
@@ -49,13 +51,13 @@ const ShiftSuggestion: React.FC<{
         {roleLabel} · {label}
       </h4>
       {alreadyAssigned.length > 0 && (
-        <p className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800">
+        <p className="mt-1 text-xs text-slate-500">
           Ya sincronizado en HHR: {alreadyAssigned.join(', ')}.
         </p>
       )}
-      {suggestion.replaceStandardSlots && (
+      {replacedStaffingNames(suggestion).length > 0 && (
         <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          Se reemplazará la asignación actual: {(suggestion.currentNames ?? []).join(', ')}.
+          Se reemplazará la asignación actual: {replacedStaffingNames(suggestion).join(', ')}.
         </p>
       )}
       <ul className="mt-2 divide-y divide-slate-100">
@@ -81,15 +83,6 @@ const ShiftSuggestion: React.FC<{
           );
         })}
       </ul>
-      {suggestion.ignoredBoundaryRecords > 0 && (
-        <div className="text-xs">
-          <p className="sr-only">Firmas del relevo excluidas de la propuesta.</p>
-          <StaffingBoundaryExclusions
-            total={suggestion.ignoredBoundaryRecords}
-            evidence={suggestion.ignoredBoundaryEvidence ?? []}
-          />
-        </div>
-      )}
       {hasUnresolvedAmbiguity && (
         <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
           Un cupo quedó sin sugerencia porque hay profesionales con la misma evidencia.
@@ -136,7 +129,7 @@ export const RayenNursingShiftProposalModal: React.FC<RayenNursingShiftProposalM
   const replacesExisting = Boolean(
     proposal &&
     [proposal.day, proposal.night, proposal.tensDay, proposal.tensNight].some(
-      suggestion => suggestion?.replaceStandardSlots
+      suggestion => replacedStaffingNames(suggestion).length > 0
     )
   );
   if (!proposal || (!hasVacanciesToComplete && !hasAmbiguousSuggestions && !hasBoundaryExclusions))
@@ -160,7 +153,7 @@ export const RayenNursingShiftProposalModal: React.FC<RayenNursingShiftProposalM
       showCloseButton={!isBusy}
     >
       <section
-        className="min-h-0 overflow-y-auto px-4 py-3"
+        className="min-h-0 overflow-y-auto"
         data-module="rayen-import"
         aria-labelledby="rayen-nursing-shift-title"
       >
@@ -173,7 +166,7 @@ export const RayenNursingShiftProposalModal: React.FC<RayenNursingShiftProposalM
             ? 'Se reemplazarán los cupos indicados; los cupos adicionales no cambiarán.'
             : 'Solo se completarán los cupos vacantes.'}
         </p>
-        <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-2">
           <ShiftSuggestion
             label="Turno largo"
             roleLabel="Enfermería"
@@ -207,6 +200,7 @@ export const RayenNursingShiftProposalModal: React.FC<RayenNursingShiftProposalM
             />
           )}
         </div>
+        <RayenStaffingActivity observation={buildRayenStaffingObservation(proposal)} />
         {error && (
           <p
             className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800"

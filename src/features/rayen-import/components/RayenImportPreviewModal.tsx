@@ -163,6 +163,11 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
           <p className="text-sm text-gray-500">Preparando la revisión del censo…</p>
         ) : (
           <>
+            {!hasChanges && !hasConflicts && canReview && !isApplied && (
+              <p className="py-2 text-sm text-slate-600">
+                Sin cambios de camas, ingresos ni egresos.
+              </p>
+            )}
             {showReview && (
               <div>
                 <RayenImportSummaryChips
@@ -334,7 +339,7 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
         acceptedEpisodes={neonatalSourceAcknowledgements}
         onChange={setNeonatalSourceAcknowledgements}
       />
-      <div className="mt-6 flex justify-end gap-3 border-t pt-4">
+      <div className="mt-3 flex justify-end gap-2 border-t pt-3">
         <button
           type="button"
           onClick={onCancel}

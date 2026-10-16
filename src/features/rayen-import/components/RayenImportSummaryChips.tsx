@@ -1,6 +1,15 @@
 import React from 'react';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
-import { Chip } from './RayenImportDiffReviewParts';
+const Chip = ({ label, value, tone }: { label: string; value: number; tone: string }) =>
+  value > 0 ? (
+    <span
+      className={`text-xs ${
+        tone === 'red' || tone === 'amber' ? 'font-semibold text-amber-800' : 'text-slate-600'
+      }`}
+    >
+      <strong className="tabular-nums">{value}</strong> {label}
+    </span>
+  ) : null;
 
 interface RayenImportSummaryChipsProps {
   diff: CensusImportDiff;
@@ -17,7 +26,7 @@ export const RayenImportSummaryChips: React.FC<RayenImportSummaryChipsProps> = (
   blockingConflicts,
   bedCollisions,
 }) => (
-  <div className="flex flex-wrap gap-2">
+  <div className="flex flex-wrap gap-x-4 gap-y-1 border-b border-slate-100 pb-2">
     <Chip label="Ingresos" value={diff.summary.admissions} tone="green" />
     <Chip label="Actualizaciones" value={presentedUpdates} tone="blue" />
     <Chip label="Movimientos de cama" value={diff.summary.moves} tone="teal" />
@@ -34,7 +43,6 @@ export const RayenImportSummaryChips: React.FC<RayenImportSummaryChipsProps> = (
         tone="amber"
       />
     )}
-    <Chip label="Sin cambios" value={diff.summary.unchanged} tone="gray" />
     {historicalConflicts > 0 && (
       <Chip label="Por revisar" value={historicalConflicts} tone="amber" />
     )}
