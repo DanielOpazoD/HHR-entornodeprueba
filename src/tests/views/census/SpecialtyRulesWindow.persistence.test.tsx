@@ -65,6 +65,25 @@ describe('specialty associations survive publication and reopen', () => {
     expect(screen.getByRole('checkbox')).toBeChecked();
     expect(screen.getByRole('button', { name: 'Guardar reglas' })).toBeDisabled();
   });
+  it('persists cancellation without applying a rule to the current census', async () => {
+    mocks.save.mockImplementation(async () => {
+      mocks.load.mockResolvedValue({
+        ...setup,
+        policy: { ...setup.policy, autoEnabled: false, revision: 2 },
+      });
+      return { appliedDecisions: 0, applicationStatus: 'not_requested' };
+    });
+    render(<SpecialtyRulesWindow onClose={vi.fn()} />);
+    await waitFor(() => expect(screen.getByRole('checkbox')).toBeEnabled());
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar reglas' }));
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'asociación automática desactivada'
+    );
+    expect(mocks.save.mock.calls[0][2]).toBe(false);
+    expect(mocks.save.mock.calls[0][5]).toBeUndefined();
+    expect(screen.getByRole('checkbox')).not.toBeChecked();
+  });
   it('supports keyboard navigation between internal tabs', async () => {
     render(<SpecialtyRulesWindow onClose={vi.fn()} />);
     const rules = screen.getByRole('tab', { name: 'Reglas' });

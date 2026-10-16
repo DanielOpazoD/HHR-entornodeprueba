@@ -21,6 +21,7 @@ export const RayenSyncSessionReportButton: React.FC<{ history: RayenSyncEvent[] 
       <button
         type="button"
         onClick={() => void copy()}
+        aria-label="Copiar resumen de rendimiento"
         className="inline-flex items-center gap-1 rounded border border-slate-200 px-2 py-1.5 font-semibold hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600"
       >
         <Copy size={13} aria-hidden="true" /> Copiar resumen

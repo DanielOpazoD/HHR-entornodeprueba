@@ -223,13 +223,15 @@ export const useSpecialtyRulesEditor = (date: string) => {
       setMessage(
         activateJev
           ? 'Piloto Jev configurado. Las consultas siguen requiriendo confirmación.'
-          : autoEnabled && result?.applicationStatus === 'record_missing'
-            ? 'Reglas guardadas. El censo vigente aún no existe; se aplicarán cuando esté disponible.'
-            : autoEnabled &&
-                result?.applicationStatus !== 'not_requested' &&
-                result?.appliedDecisions !== undefined
-              ? `Reglas guardadas · ${result.appliedDecisions} ${result.appliedDecisions === 1 ? 'especialidad asignada' : 'especialidades asignadas'}. Las confirmadas se conservan.`
-              : 'Reglas guardadas. Se aplicarán a episodios pendientes en las próximas actualizaciones clínicas.'
+          : !autoEnabled
+            ? 'Reglas guardadas · asociación automática desactivada.'
+            : autoEnabled && result?.applicationStatus === 'record_missing'
+              ? 'Reglas guardadas. El censo vigente aún no existe; se aplicarán cuando esté disponible.'
+              : autoEnabled &&
+                  result?.applicationStatus !== 'not_requested' &&
+                  result?.appliedDecisions !== undefined
+                ? `Reglas guardadas · ${result.appliedDecisions} ${result.appliedDecisions === 1 ? 'especialidad asignada' : 'especialidades asignadas'}. Las confirmadas se conservan.`
+                : 'Reglas guardadas. Se aplicarán a episodios pendientes en las próximas actualizaciones clínicas.'
       );
     } catch {
       if (!mountedRef.current) return;

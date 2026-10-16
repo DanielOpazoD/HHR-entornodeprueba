@@ -1,15 +1,15 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PatientData } from '@/features/census/contracts/censusPatientContracts';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 const query = vi.hoisted(() => vi.fn());
 vi.mock('@/services/storage/firestore/firestoreRecordQueries', () => ({
   getRecordFromFirestoreDetailed: query,
 }));
 import { useSpecialtyRuleSources } from '@/features/census/components/specialty-round/useSpecialtyRuleSources';
-const beds = { R1: { patientName: 'Paciente sintético', cie10Code: 'F23' } } as Record<
-  string,
-  PatientData
->;
+const beds: Record<string, PatientData> = {
+  R1: { ...createEmptyPatient('R1'), patientName: 'Paciente sintético', cie10Code: 'F23' },
+};
 
 describe('hospitalized diagnosis source', () => {
   beforeEach(() => vi.clearAllMocks());

@@ -153,7 +153,7 @@ export const RayenNursingShiftProposalModal: React.FC<RayenNursingShiftProposalM
       showCloseButton={!isBusy}
     >
       <section
-        className="min-h-0 overflow-y-auto"
+        className="min-h-0 overflow-y-auto px-4 py-3"
         data-module="rayen-import"
         aria-labelledby="rayen-nursing-shift-title"
       >
