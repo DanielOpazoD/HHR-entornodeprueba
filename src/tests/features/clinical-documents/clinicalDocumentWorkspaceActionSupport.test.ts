@@ -64,17 +64,21 @@ describe('clinicalDocumentWorkspaceActionSupport', () => {
   it('updates PDF state for success and failure without mutating null state', () => {
     const record = buildRecord();
 
-    expect(updateClinicalDocumentPdfFailure(null, 'error')).toBeNull();
-    expect(updateClinicalDocumentPdfSuccess(null, { exportStatus: 'exported' })).toBeNull();
+    expect(updateClinicalDocumentPdfFailure(null, 'error', record)).toBeNull();
+    expect(updateClinicalDocumentPdfSuccess(null, { exportStatus: 'exported' }, record)).toBeNull();
 
-    const failed = updateClinicalDocumentPdfFailure(record, 'drive down');
+    const failed = updateClinicalDocumentPdfFailure(record, 'drive down', record);
     expect(failed?.pdf?.exportStatus).toBe('failed');
     expect(failed?.pdf?.exportError).toBe('drive down');
 
-    const succeeded = updateClinicalDocumentPdfSuccess(record, {
-      exportStatus: 'exported',
-      fileId: 'pdf-1',
-    });
+    const succeeded = updateClinicalDocumentPdfSuccess(
+      record,
+      {
+        exportStatus: 'exported',
+        fileId: 'pdf-1',
+      },
+      record
+    );
     expect(succeeded?.pdf).toEqual({
       exportStatus: 'exported',
       fileId: 'pdf-1',
