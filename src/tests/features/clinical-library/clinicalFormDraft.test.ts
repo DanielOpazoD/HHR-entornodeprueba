@@ -81,6 +81,24 @@ describe('clinical form drafts and preferences', () => {
     ).toBeNull();
   });
 
+  it('validates a chosen RUT in mixed RUT/passport fields and preserves passport zeros', () => {
+    const form = getClinicalForm('solicitud-serologia-hepatitis-chagas');
+    expect(() =>
+      validateClinicalFormValues(
+        form,
+        { paciente_documento_tipo: 'RUT', paciente_documento_numero: '11.111.111-2' },
+        []
+      )
+    ).toThrow('RUT');
+    expect(
+      validateClinicalFormValues(
+        form,
+        { paciente_documento_tipo: 'Pasaporte', paciente_documento_numero: 'AB0000123' },
+        []
+      ).paciente_documento_numero
+    ).toBe('AB0000123');
+  });
+
   it('reuses manually entered structured names in full-name forms without guessing surnames or replacing independent edits', () => {
     let values = setClinicalFormValue({}, 'paciente_nombres', 'PACIENTE COMPUESTO');
     values = setClinicalFormValue(values, 'paciente_apellido_paterno', 'DE PRUEBA');

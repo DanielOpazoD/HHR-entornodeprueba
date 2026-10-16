@@ -198,7 +198,12 @@ export const validateClinicalFormValues = (
       if (field.kind === 'time' && !/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) throw invalid();
       if (field.kind === 'choice' && !field.options?.some(option => option.value === value))
         throw invalid();
-      if (validateIdentity && (field.id === 'paciente_rut' || field.id === 'medico_tratante_rut')) {
+      if (
+        validateIdentity &&
+        (field.id === 'paciente_rut' ||
+          field.id === 'medico_tratante_rut' ||
+          (field.id === 'paciente_documento_numero' && input.paciente_documento_tipo === 'RUT'))
+      ) {
         if (!isClinicalFormRut(value))
           throw new Error(
             `El RUT en «${field.label}» no es válido; comprueba el número y su dígito verificador.`
