@@ -239,7 +239,7 @@ var validateZip = (bytes) => {
     offset += 46 + view.getUint16(offset + 28, true) + view.getUint16(offset + 30, true) + view.getUint16(offset + 32, true);
   }
 };
-var readCudyrWorkbookMatrix = (buffer) => {
+var readCudyrWorkbookMatrix = (buffer, normalizeDateEpoch = false) => {
   if (buffer.byteLength > 262144 || buffer.byteLength < 8)
     throw new Error("Use un XLS/XLSX de hasta 256 KiB.");
   const signature = Array.from(new Uint8Array(buffer, 0, 8)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -250,6 +250,8 @@ var readCudyrWorkbookMatrix = (buffer) => {
     type: "array",
     cellFormula: true,
     cellDates: false,
+    cellStyles: normalizeDateEpoch,
+    cellNF: normalizeDateEpoch,
     sheetRows: 5001
   });
   const names = book.SheetNames.filter((name) => book.Sheets[name]["!ref"]);
@@ -261,13 +263,39 @@ var readCudyrWorkbookMatrix = (buffer) => {
   for (const [key, cell] of Object.entries(sheet))
     if (!key.startsWith("!") && cell?.f)
       throw new Error("No se admiten f\xF3rmulas en el informe fuente.");
-  const rows = import_xlsx.utils.sheet_to_json(sheet, {
+  if (normalizeDateEpoch && book.Workbook?.WBProps?.date1904)
+    for (const [key, cell] of Object.entries(sheet)) {
+      const format = (cell?.z || "").replace(/"[^"]*"|\\.|_.|\*./g, "");
+      const calendar = /[yd]|m{3}/i.test(format.replace(/\[[^\]]*\]/g, "")) || /m/i.test(format) && !/[hs]|\[[hms]+\]/i.test(format);
+      if (!key.startsWith("!") && typeof cell?.v === "number" && import_xlsx.SSF.is_date(cell.z || "") && calendar)
+        cell.v += 1462;
+    }
+  const rows = normalizeDateEpoch ? Array.from(
+    { length: range.e.r + 1 },
+    (_, r) => Array.from({ length: range.e.c + 1 }, (_2, c) => {
+      const cell = sheet[import_xlsx.utils.encode_cell({ r, c })];
+      return cell?.t === "e" ? cell.w || "" : cell?.v ?? "";
+    })
+  ) : import_xlsx.utils.sheet_to_json(sheet, {
     header: 1,
     raw: true,
     defval: "",
     blankrows: true
   });
-  return { sheet: names[0], rows };
+  return {
+    sheet: names[0],
+    rows,
+    formats: Object.fromEntries(
+      Object.entries(sheet).filter(([key, cell]) => !key.startsWith("!") && cell?.z).map(([key, cell]) => [key, cell.z])
+    ),
+    merges: (sheet["!merges"] || []).map((merge) => {
+      if (merge.s.r < 0 || merge.s.c < 0 || merge.e.r >= 5e3 || merge.e.c >= 100)
+        throw new Error("El informe contiene una combinaci\xF3n fuera de l\xEDmites.");
+      return import_xlsx.utils.encode_range(merge);
+    }),
+    widths: (sheet["!cols"] || []).map((column) => column?.wch),
+    heights: (sheet["!rows"] || []).map((row) => row?.hpt)
+  };
 };
 var parseCudyrSupplementBinary = (buffer) => parseCudyrSupplementMatrix(readCudyrWorkbookMatrix(buffer));
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildCudyrReport, cudyrReportTotals } from '@/services/cudyr/cudyrReportModel';
 import { reportInput, reportPatient, reportRecord, reportObservation } from './reportFixtures';
 describe('CUDYR admission evidence', () => {
-  it('retains unconfirmed hospital rows for review without counting or exporting them', async () => {
+  it('retains unconfirmed hospital rows for review without counting them, preserving them in daily export detail', async () => {
     const data = buildCudyrReport(
       reportInput({
         records: [reportRecord('2026-10-02', { R1: reportPatient({ admissionTime: '' }) })],
@@ -13,7 +13,7 @@ describe('CUDYR admission evidence', () => {
     expect(cudyrReportTotals(data.rows)).toMatchObject({ eligible: 0, categorized: 0, review: 1 });
     const { buildCudyrEssentialWorkbook } = await import('@/services/cudyr/cudyrEssentialWorkbook');
     const { workbook } = await buildCudyrEssentialWorkbook(data);
-    expect(workbook.getWorksheet('Pacientes elegibles')!.rowCount).toBe(1);
+    expect(workbook.getWorksheet('02-10-2026')!.getCell('I25').value).toBe('Por revisar');
   });
   it('uses daily demographic admission when historical bed movements are missing', () => {
     const data = buildCudyrReport(

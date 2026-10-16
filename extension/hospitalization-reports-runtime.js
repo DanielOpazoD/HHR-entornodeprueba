@@ -8,7 +8,6 @@
   };
   const isEncounter = value => /^\d+$/.test(String(value || ''));
   const isValidRun = value => /^[0-9]{6,8}[0-9K]$/.test(normalizeRun(value));
-
   const matchingRows = (rows, patientRun) => {
     const expectedRun = normalizeRun(patientRun);
     const rowRuns = row => [row && row.patientIdentifier, row && row.preferredIdentifierCode,
@@ -16,18 +15,19 @@
       row && row.patient && row.patient.preferredIdentifierCode].map(normalizeRun);
     return rows.filter(row => isEncounter(row && row.encounterId) && rowRuns(row).includes(expectedRun));
   };
-  const sortRowsNewestFirst = rows => [...rows].sort((left, right) =>
-    normalizeDate(right && (right.startPeriod || right.endPeriod))
-      .localeCompare(normalizeDate(left && (left.startPeriod || left.endPeriod)))
-  );
-  const sortDischargesNewestFirst = rows => [...rows].sort((left, right) =>
-    normalizeDate(right && right.endPeriod).localeCompare(normalizeDate(left && left.endPeriod))
+  const sortRowsNewestFirst = (rows, field = 'startPeriod') => [...rows].sort((left, right) =>
+    normalizeDate(right && (right[field] || right.endPeriod))
+      .localeCompare(normalizeDate(left && (left[field] || left.endPeriod)))
   );
   const toEpisode = row => ({
     encId: String(row.encounterId),
     startDate: normalizeDate(row.startPeriod),
     endDate: normalizeDate(row.endPeriod),
     active: !normalizeDate(row.endPeriod),
+    ...(typeof row.patientName === 'string' && row.patientName.trim()
+      ? { patientName: row.patientName.trim() } : {}),
+    ...([2, 4].includes(Number(row.patientIdentifierTypeId))
+      ? { identifierType: Number(row.patientIdentifierTypeId) } : {}),
   });
   const listEpisodes = ({ rows, patientRun }) => ({ ok: true,
     episodes: sortRowsNewestFirst(matchingRows(rows, patientRun)).map(toEpisode) });
@@ -47,7 +47,7 @@
       const endDate = normalizeDate(row && row.endPeriod);
       return endDate && endDate <= cutoff;
     }) : candidates;
-    const selected = sortDischargesNewestFirst(eligible)[0];
+    const selected = sortRowsNewestFirst(eligible, 'endPeriod')[0];
     if (selected) return { encId: String(selected.encounterId), row: selected };
     return { error: cutoff
       ? 'No se encontró un informe del paciente hasta la fecha de este censo.'

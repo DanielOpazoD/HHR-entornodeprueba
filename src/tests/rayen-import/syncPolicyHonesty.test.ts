@@ -7,10 +7,8 @@ import {
   classifyRayenApplyFailureReason,
   classifyRayenSyncError,
 } from '@/features/rayen-import/observability/rayenSyncDiagnostics';
-import {
-  presentRayenSyncRecovery,
-  rayenFailureReasonLabel,
-} from '@/features/rayen-import/components/rayenSyncPresentation';
+import { rayenFailureReasonLabel } from '@/features/rayen-import/components/rayenSyncPresentation';
+import { presentRayenSyncRecovery } from '@/features/rayen-import/components/rayenSyncRecoveryPresentation';
 import type { RayenSyncEvent } from '@/types/domain/rayenSync';
 
 /**

@@ -6,7 +6,7 @@ import { parseCudyrDischargeReport } from './cudyrDischargeReportParser';
 // Keep one optional XLS worker for archive import and local-only reconciliation.
 self.onmessage = (
   event: MessageEvent<
-    ArrayBuffer | { buffer: ArrayBuffer; kind: 'categories' | 'discharges' | 'census' }
+    ArrayBuffer | { buffer: ArrayBuffer; kind: 'categories' | 'discharges' | 'census' | 'workbook' }
   >
 ) => {
   try {
@@ -14,8 +14,10 @@ self.onmessage = (
       self.postMessage({ result: parseCudyrSupplementBinary(event.data) });
       return;
     }
-    const matrix = readCudyrWorkbookMatrix(event.data.buffer);
-    if (event.data.kind === 'census') {
+    const matrix = readCudyrWorkbookMatrix(event.data.buffer, event.data.kind === 'workbook');
+    if (event.data.kind === 'workbook') {
+      self.postMessage({ kind: 'workbook', matrix });
+    } else if (event.data.kind === 'census') {
       self.postMessage({ kind: 'census', report: parseCudyrCensusSource(matrix) });
     } else if (event.data.kind === 'discharges') {
       self.postMessage({ kind: 'discharges', report: parseCudyrDischargeReport(matrix) });

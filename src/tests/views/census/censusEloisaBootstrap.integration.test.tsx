@@ -303,9 +303,9 @@ describe('Crear desde Eloísa · costura CensusView → RayenImportButton', () =
     expect(mocks.refreshHealth).toHaveBeenCalledTimes(2);
   });
 
-  it('starts the same reviewed import for a missing historical census within seven days', async () => {
+  it('starts the reviewed import for a missing historical census older than two months', async () => {
     vi.setSystemTime(new Date('2026-09-23T17:00:00.000Z'));
-    const historicalDay = '2026-09-19';
+    const historicalDay = '2026-07-09';
     const world = createCensusWorld(historicalDay);
     renderCensus(historicalDay);
 

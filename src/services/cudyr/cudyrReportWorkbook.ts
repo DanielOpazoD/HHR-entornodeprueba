@@ -5,8 +5,7 @@ import { addCudyrSupplementWorkbook } from './cudyrSupplementWorkbook';
 import type { CudyrReportDataset, CudyrReportExportMode } from '@/types/domain/cudyrReport';
 import { buildCudyrWorkbook } from './cudyrWorkbookBuilder';
 import { cudyrReportTotals } from './cudyrReportModel';
-import { CATEGORIES } from './cudyrWorkbookSections';
-import type { CategoryCounts } from './cudyrSummary';
+import { cudyrWorkbookSummary as summary } from './cudyrWorkbookSummary';
 import { addCudyrReportContextTable } from './cudyrReportContextTable';
 import { addCudyrReportTables } from './cudyrReportWorkbookTables';
 import { addCudyrStatisticsTables } from './cudyrStatisticsWorkbook';
@@ -26,25 +25,6 @@ export const buildCudyrReportWorkbook = async (
       ...data.rows.map(row => row.date),
     ]),
   ].sort();
-  const summary = (rows: typeof data.rows) => {
-    const totals = cudyrReportTotals(rows);
-    // Adapter for the original workbook formula layout only. "uti" is not a classification rule.
-    const counts: CategoryCounts = {
-      uti: Object.fromEntries(
-        CATEGORIES.map(cat => [cat, totals.categories[cat].intermedia])
-      ) as CategoryCounts['uti'],
-      media: Object.fromEntries(
-        CATEGORIES.map(cat => [cat, totals.categories[cat].media])
-      ) as CategoryCounts['media'],
-    };
-    return {
-      counts,
-      utiTotal: Object.values(counts.uti).reduce((a, b) => a + b, 0),
-      mediaTotal: Object.values(counts.media).reduce((a, b) => a + b, 0),
-      occupiedCount: totals.eligible,
-      categorizedCount: totals.categorized,
-    };
-  };
   const total = summary(data.rows);
   const { workbook } = await buildCudyrWorkbook({
     year,
@@ -150,7 +130,7 @@ export const buildCudyrReportWorkbook = async (
         preliminary
           ? 'Revisión pendiente'
           : data.coverage.every(day => day.reconstructionApproval)
-            ? 'Oficial · censo reconstruido aprobado'
+            ? 'Oficial'
             : 'Lectura completa',
       ],
       ['Filas', totals.rows],

@@ -57,6 +57,50 @@ describe('createRayenSnapshotEvidenceClient', () => {
   afterEach(() => vi.useRealTimers());
 
   it.each([false, true])(
+    'recovers one transient report timeout without duplicating concurrent work (historical=%s)',
+    async historical => {
+      vi.mocked(requestPatientFlowReport).mockResolvedValueOnce({
+        base64: '',
+        error: 'Tiempo de espera agotado.',
+      });
+      const { client, counters } = setup(historical);
+      const [first, duplicate] = await Promise.all([
+        client.fetchPatientFlowReport('101'),
+        client.fetchPatientFlowReport('101'),
+      ]);
+      expect(first).toEqual({ base64: 'patient-flow-pdf' });
+      expect(duplicate).toEqual(first);
+      expect(await client.fetchPatientFlowReport('101')).toEqual(first);
+      expect(vi.mocked(requestPatientFlowReport).mock.calls).toEqual([
+        ['101', historical ? 15_000 : 30_000],
+        ['101', 30_000],
+      ]);
+      expect(counters).toEqual({ requests: 3, cacheHits: 2, timeouts: 1 });
+    }
+  );
+
+  it('stops after two report timeouts and leaves the error reviewable', async () => {
+    vi.mocked(requestPatientFlowReport).mockResolvedValue({
+      base64: '',
+      error: 'Tiempo de espera agotado.',
+    });
+    const { client, counters } = setup(true);
+    expect((await client.fetchPatientFlowReport('101')).error).toContain('Tiempo de espera');
+    expect(requestPatientFlowReport).toHaveBeenCalledTimes(2);
+    expect(counters).toEqual({ requests: 3, cacheHits: 0, timeouts: 2 });
+  });
+
+  it('does not automatically retry a session or identity failure', async () => {
+    vi.mocked(requestPatientFlowReport).mockResolvedValue({
+      base64: '',
+      error: 'Ficha Médico requiere iniciar sesión.',
+    });
+    const { client } = setup(true);
+    expect((await client.fetchPatientFlowReport('101')).error).toContain('iniciar sesión');
+    expect(requestPatientFlowReport).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([false, true])(
     'recovers after the first blocking timeout and shares both health attempts (historical=%s)',
     async historical => {
       vi.useFakeTimers();
@@ -207,15 +251,16 @@ describe('createRayenSnapshotEvidenceClient', () => {
   it('does not retain failed patient reports after health has been verified', async () => {
     vi.mocked(requestPatientFlowReport)
       .mockResolvedValueOnce({ base64: '', error: 'Tiempo de espera agotado.' })
+      .mockResolvedValueOnce({ base64: '', error: 'Tiempo de espera agotado.' })
       .mockRejectedValueOnce(new Error('Temporary read failure'));
     const { client, counters } = setup();
     expect((await client.fetchPatientFlowReport('101')).error).toContain('Tiempo de espera');
     await expect(client.fetchPatientFlowReport('101')).rejects.toThrow('Temporary read failure');
     expect(await client.fetchPatientFlowReport('101')).toEqual({ base64: 'patient-flow-pdf' });
     await client.fetchPatientFlowReport('101');
-    expect(requestPatientFlowReport).toHaveBeenCalledTimes(3);
+    expect(requestPatientFlowReport).toHaveBeenCalledTimes(4);
     expect(requestRayenExtensionHealth).toHaveBeenCalledTimes(1);
-    expect(counters).toEqual({ requests: 4, cacheHits: 1, timeouts: 1 });
+    expect(counters).toEqual({ requests: 5, cacheHits: 1, timeouts: 2 });
   });
 
   it('keeps empty discharge lookups free of health and evidence requests', async () => {

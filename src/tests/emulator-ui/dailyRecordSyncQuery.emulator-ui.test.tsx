@@ -417,8 +417,9 @@ describeUiEmulator('UI sync flow with Firestore emulator', () => {
     await act(async () => {
       markDailyRecordTabHidden(0);
       markDailyRecordTabVisible(6 * 60 * 1000);
+      // Observe invalidation before act flushes a legitimate server confirmation.
+      expect(getDailyRecordFreshnessStatus(date)).toBe('stale_due_to_inactivity');
     });
-    expect(getDailyRecordFreshnessStatus(date)).toBe('stale_due_to_inactivity');
 
     await act(async () => {
       await testEnv.withSecurityRulesDisabled(async context => {

@@ -41,8 +41,22 @@ it('collects, reports and checks telemetry without installing application depend
       'check-ci-runtime-telemetry.mjs',
       'ciRuntimeTelemetrySupport.mjs',
       'gitReportState.mjs',
+      'unitShardBalanceSupport.mjs',
     ]) {
       fs.copyFileSync(path.join('scripts', file), path.join(root, 'scripts', file));
+    }
+    fs.mkdirSync(path.join(root, 'scripts/config'));
+    fs.mkdirSync(path.join(root, 'src/tests'), { recursive: true });
+    fs.writeFileSync(
+      path.join(root, 'scripts/config/unit-shard-balance.json'),
+      JSON.stringify({
+        shardCount: 4,
+        durationSource: 'hints',
+        durationHints: [{ globs: ['src/tests/**'], estimatedDurationMs: 120 }],
+      })
+    );
+    for (const name of ['a', 'b', 'c', 'd']) {
+      fs.writeFileSync(path.join(root, `src/tests/${name}.test.ts`), '// synthetic');
     }
     await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
     const address = server.address();
@@ -72,6 +86,7 @@ it('collects, reports and checks telemetry without installing application depend
     );
     expect(report.source.status).toBe('collected');
     expect(report.summary.observedShardCount).toBe(4);
+    expect(report.comparison.summary.estimatedTotalDurationMs).toBe(480);
     expect(report.comparison.blockingIssues).toEqual([]);
     expect(fs.existsSync(path.join(root, 'reports/ci-runtime-observed-profile.md'))).toBe(true);
     expect(fs.existsSync(path.join(root, 'node_modules'))).toBe(false);

@@ -1,8 +1,30 @@
 import { isNeonatalPatient } from './clinicalCribMaternalAssociation';
-import type { FieldChange } from '../contracts/censusImportDiff';
+import type { FieldChange, MoveEntry } from '../contracts/censusImportDiff';
 import type { PatientData } from '../contracts/rayenDomainContracts';
 import { normalizeRut } from '@/utils/rutUtils';
 import { isDismissedTreatingPhysician } from '@/shared/census/treatingPhysicianDismissal';
+import { normalizePatientUpcForBed } from '@/shared/census/upcBedPolicy';
+import { rayenToPatientData } from '../mapping/rayenToPatientData';
+import { matchesCensusEpisodeIdentity } from './censusPatientIdentityIndex';
+
+/** Relocation preserves notes and classification while replacing the former source location. */
+export const patientAfterBedMove = (
+  source: PatientData,
+  move: MoveEntry,
+  reference: Date
+): PatientData => {
+  const placement = rayenToPatientData(move.source, reference);
+  return normalizePatientUpcForBed(
+    {
+      ...source,
+      ...(!source.clinicalEpisodeId && matchesCensusEpisodeIdentity(source, placement.patient)
+        ? { clinicalEpisodeId: placement.patient.clinicalEpisodeId }
+        : {}),
+      ...(placement.bedId === move.toBedId ? { location: placement.patient.location } : {}),
+    },
+    move.toBedId
+  );
+};
 
 /** Rayen-owned fields. Specialty (including a manual blank) belongs to HHR server decisions. */
 const SYNCABLE_FIELDS: Array<keyof PatientData> = [

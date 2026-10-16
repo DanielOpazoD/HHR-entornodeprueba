@@ -1,5 +1,4 @@
-import React, { lazy, Suspense } from 'react';
-import { createPortal } from 'react-dom';
+import React, { Suspense } from 'react';
 import type { Statistics } from '@/types/domain/statistics';
 import { NurseSelector } from './NurseSelector';
 import { TensSelector } from './TensSelector';
@@ -11,7 +10,6 @@ const StaffShiftDetailsModal = lazyWithRetry(() =>
 import { CensusSummarySwitcher } from './CensusSummarySwitcher';
 import { MoaCompanionSlot } from '@/components/layout/MoaCompanionSlot';
 import {
-  useDailyRecordData,
   useDailyRecordBeds,
   useDailyRecordStaff,
   useDailyRecordMovements,
@@ -21,15 +19,15 @@ import { useStaffContext } from '@/context/StaffContext';
 import { buildCensusStaffHeaderReadModel } from '@/application/census/censusStaffHeaderReadModel';
 import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
 import type { DetailedStaffingRole } from '@/types/domain/dailyRecordStaffingDetails';
-// The Rayen import machinery is only needed once the operator uses it, so the census
-// table no longer downloads it just to render the toolbar.
-const RayenImportButton = lazy(() =>
+// Keep the first paint responsive and recover interrupted panel downloads without
+// automatically reloading an editable census.
+const RayenImportButton = lazyWithRetry(() =>
   import('@/features/rayen-import/RayenImportButton').then(module => ({
     default: module.RayenImportButton,
   }))
 );
 import { RayenOperationsLoadingCard } from './RayenOperationsLoadingCard';
-import { useCensusToolbarMenuTarget } from '@/shared/ui/CensusToolbarMenuTargetContext';
+import { CensusMedicalHandoffPortal } from './CensusMedicalHandoffPortal';
 import type { BedDefinition } from '@/features/census/contracts/censusBedContracts';
 import type { RenderCensusMedicalHandoffAction } from '@/features/census/contracts/censusMedicalHandoffAction';
 
@@ -49,7 +47,7 @@ interface CensusStaffHeaderProps {
  * Displays staff selectors (Nurse/TENS) and summary statistics.
  * Optimized to consume fragmented context.
  */
-export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
+export const CensusStaffHeader = React.memo(function CensusStaffHeader({
   selectedDate,
   readOnly = false,
   stats,
@@ -58,9 +56,7 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
   renderMedicalHandoffAction,
   rayenBootstrapRequestId,
   onRayenBootstrapHandled,
-}) => {
-  const dailyRecordData = useDailyRecordData();
-  const handoffTarget = useCensusToolbarMenuTarget();
+}: CensusStaffHeaderProps) {
   const beds = useDailyRecordBeds();
   const staffData = useDailyRecordStaff();
   const movementsData = useDailyRecordMovements();
@@ -71,7 +67,7 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
     role: DetailedStaffingRole;
     date: string;
   } | null>(null);
-  const recordDate = dailyRecordData.record?.date;
+  const recordDate = staffData?.date;
   const openDetail = (role: DetailedStaffingRole) => {
     if (recordDate && canEditDetail) setActiveDetail({ role, date: recordDate });
   };
@@ -81,7 +77,7 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
     stats,
     accessProfile,
     beds,
-    recordDate: dailyRecordData.record?.date,
+    recordDate,
     staffData,
     movementsData,
   });
@@ -158,16 +154,13 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
         </div>
       </div>
 
-      {handoffTarget && renderMedicalHandoffAction && dailyRecordData.record
-        ? createPortal(
-            renderMedicalHandoffAction({
-              record: dailyRecordData.record,
-              visibleBeds,
-              professionalsCatalog,
-            }),
-            handoffTarget
-          )
-        : null}
+      {renderMedicalHandoffAction && (
+        <CensusMedicalHandoffPortal
+          renderAction={renderMedicalHandoffAction}
+          visibleBeds={visibleBeds}
+          professionalsCatalog={professionalsCatalog}
+        />
+      )}
 
       {canEditDetail &&
         activeDetail &&
@@ -201,4 +194,4 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
         )}
     </div>
   );
-};
+});

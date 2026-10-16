@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
 import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
 import {
-  MAX_HISTORICAL_CENSUS_LOOKBACK_DAYS,
   classifyCensusSyncTargetDay,
   isCurrentCensusDay,
   isHistoricalCensusDay,
@@ -114,15 +113,14 @@ describe('historical census synchronization', () => {
     }
   );
 
-  it('supports the current Rapa Nui clinical day and D-1 through D-7', () => {
+  it('supports current and past days while rejecting future and malformed dates', () => {
     const now = new Date('2026-07-16T18:00:00.000Z');
-    expect(MAX_HISTORICAL_CENSUS_LOOKBACK_DAYS).toBe(7);
     expect(isSupportedCensusSyncDay('2026-07-16', now)).toBe(true);
     expect(isPreviousCensusDay('2026-07-15', now)).toBe(true);
     expect(isSupportedCensusSyncDay('2026-07-15', now)).toBe(true);
     expect(isHistoricalCensusSyncDay('2026-07-09', now)).toBe(true);
     expect(isSupportedCensusSyncDay('2026-07-09', now)).toBe(true);
-    expect(isSupportedCensusSyncDay('2026-07-08', now)).toBe(false);
+    expect(isSupportedCensusSyncDay('2026-07-08', now)).toBe(true);
     expect(isSupportedCensusSyncDay('2026-07-17', now)).toBe(false);
     expect(isSupportedCensusSyncDay('2026-02-31', now)).toBe(false);
     expect(classifyCensusSyncTargetDay('2026-07-09', now)).toBe('historical');

@@ -13,6 +13,29 @@ describe('ScoresCell', () => {
     vi.useRealTimers();
   });
 
+  it.each(['CMA_NEO1', 'BOX4'])(
+    'does not request a night CUDYR for an excluded source assignment %s',
+    bedId => {
+      render(
+        <table>
+          <tbody>
+            <tr>
+              <ScoresCell
+                data={DataFactory.createMockPatient(bedId, {
+                  admissionDate: '2026-07-15',
+                  evaluationScores: undefined,
+                  cudyr: undefined,
+                })}
+                currentDateString="2026-07-16"
+              />
+            </tr>
+          </tbody>
+        </table>
+      );
+      expect(screen.queryByTestId('cudyr-pending-status')).not.toBeInTheDocument();
+    }
+  );
+
   it('keeps the normal night application window visually neutral', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-07-17T07:00:00.000Z')); // 01:00 Rapa Nui

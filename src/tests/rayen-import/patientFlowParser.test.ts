@@ -15,6 +15,41 @@ Pág. 1 de 1
 `;
 
 describe('patient-flow parser', () => {
+  it.each([1, 2, 3, 4])('reads the complete multiword BOX %s UEA bed column', number => {
+    const label = `BOX ${number} UEA`;
+    expect(
+      latestPatientFlowMovement(`
+      14/10/2026 23:10:09 Area Medico Quirurgica Hospitalizacion Urgencias ${label} Media ${label}
+    `)
+    ).toEqual({ changedAt: '2026-10-14T23:10:09', bedId: `BOX${number}`, sourceBedLabel: label });
+  });
+
+  it.each(['BOX 5 UEA', 'DESCONOCIDA'])(
+    'does not infer a bed from the room when the final column is %s',
+    label => {
+      expect(
+        latestPatientFlowMovement(`
+      14/10/2026 22:00:00 Servicio Hospitalizados H6C1
+      14/10/2026 23:10:09 Servicio Urgencias BOX 4 UEA Media ${label}
+    `)
+      ).toBeNull();
+    }
+  );
+
+  it('distinguishes CMA and inpatient placements before a move to B4UEA', () => {
+    expect(
+      parsePatientFlowMovements(`
+      23/07/2026 08:00:00 Área quirúrgica indiferenciada CMA NEO1 Básica NEO1
+      23/07/2026 10:00:00 Área Médico Quirúrgica Indiferenciada Neo 1 Básica NEO1
+      23/07/2026 11:00:00 AMQI Urgencias B4UEA Básica B4UEA
+    `)
+    ).toEqual([
+      { changedAt: '2026-07-23T08:00:00', bedId: 'CMA_NEO1', sourceBedLabel: 'NEO1' },
+      { changedAt: '2026-07-23T10:00:00', bedId: 'NEO1', sourceBedLabel: 'NEO1' },
+      { changedAt: '2026-07-23T11:00:00', bedId: 'BOX4', sourceBedLabel: 'B4UEA' },
+    ]);
+  });
+
   it('parses the visual row layout emitted by the official Jasper traceability report', () => {
     const jasperLayout = `
       Flujo del Paciente

@@ -25,18 +25,15 @@ const canResumeClinicalFill = (record: DailyRecord | null | undefined): record i
   const structuralReview = event?.structuralReview;
   const structuralReviewPending = Boolean(
     structuralReview &&
-      (structuralReview.historicalCorrectionsPending ||
-        structuralReview.historicalCorrectionsRequireFreshCapture ||
-        structuralReview.isolatedConflicts > 0)
+    (structuralReview.historicalCorrectionsPending ||
+      structuralReview.historicalCorrectionsRequireFreshCapture ||
+      structuralReview.isolatedConflicts > 0)
   );
   if (structuralReviewPending) return false;
 
-  // `applied` is the legacy proof that the census was persisted. New partial runs must carry the
-  // explicit structural handoff evidence before a clinical-only retry can bypass census review.
-  return (
-    sync.status === 'applied' ||
-    (sync.status === 'partial' && structuralReview?.structureConfirmed === true)
-  );
+  // Applied legacy records may need the runner's fresh server read to recover policy metadata.
+  // The writer still verifies that policy; a terminal partial run needs a new capture instead.
+  return sync.status === 'applied';
 };
 
 export const useRayenClinicalFillRetry = ({
@@ -57,18 +54,14 @@ export const useRayenClinicalFillRetry = ({
         ? retrySource.runId
         : retryRecord.rayenSync?.runId;
       const matchesActiveRun =
-        activeRecord?.date === retryRecord.date &&
-        activeRecord?.rayenSync?.runId === retryRunId;
+        activeRecord?.date === retryRecord.date && activeRecord?.rayenSync?.runId === retryRunId;
       if (!matchesActiveRun) {
         retryTokenRef.current = null;
         retryRequest = null;
       } else if (activeRecord) {
         retryRequest = {
           ...retryRequest,
-          source:
-            'record' in retrySource
-              ? { ...retrySource, record: activeRecord }
-              : activeRecord,
+          source: 'record' in retrySource ? { ...retrySource, record: activeRecord } : activeRecord,
         };
         retryTokenRef.current = retryRequest;
       }
@@ -77,7 +70,8 @@ export const useRayenClinicalFillRetry = ({
     if (!canResumeClinicalFill(record)) {
       setState(prev => ({
         ...prev,
-        error: 'No hay una sincronización clínica pendiente que se pueda reanudar.',
+        error:
+          'No hay una sincronización clínica pendiente que se pueda reanudar. Vuelve a sincronizar el censo.',
       }));
       return;
     }
@@ -95,6 +89,6 @@ export const useRayenClinicalFillRetry = ({
       }));
       return;
     }
-    setState(prev => ({ ...prev, isSyncing: true, error: null }));
+    setState(prev => ({ ...prev, error: null }));
     await runClinicalStage(retryRequest ?? record);
   }, [currentRecord, currentRecordRef, onStart, retryTokenRef, runClinicalStage, setState]);

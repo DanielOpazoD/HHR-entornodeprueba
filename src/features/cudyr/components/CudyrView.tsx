@@ -246,7 +246,7 @@ export const CudyrView = ({
         {dayPending && (
           <p role="status" className="mt-2 text-xs text-slate-600">
             {dayHasEnded
-              ? 'En plazo hasta las 11:59 de hoy. Aún no se incluye en el acumulado ni en el Excel.'
+              ? 'En plazo hasta las 11:59 de hoy. Aún no se incluye en el cumplimiento acumulado.'
               : 'Pendiente de aplicación: cierra a las 11:59 del día siguiente, hora de Rapa Nui.'}
           </p>
         )}
@@ -308,7 +308,7 @@ export const CudyrView = ({
           </li>
           <li className="inline-flex items-center gap-1">
             <FileSpreadsheet size={12} aria-hidden="true" />
-            Excel: solo elegibles
+            Excel: resumen y detalle diario
           </li>
           <li className="inline-flex items-center gap-1">
             <CircleMinus size={12} aria-hidden="true" />

@@ -211,6 +211,14 @@ export default defineConfig(({ mode }) => {
             '**/docs/**',
             '**/templates/**',
             '**/images/forms/**',
+            // MEDIF is opened explicitly and needs the original PDF under docs/,
+            // already fetched on demand. Keep its editor under the same policy;
+            // the library's offline calculators and transfer cover stay cached.
+            '**/assets/MedifTool-*.js',
+            '**/assets/MedifTool-*.css',
+            // The additional PDF editors use the same explicit-load policy as MEDIF.
+            '**/assets/ClinicalFormTool-*.js',
+            '**/assets/ClinicalFormTool-*.css',
             '**/vendor/exceljs.bare.min.js',
             '**/assets/exceljs.min-*.js',
             '**/assets/pdf.worker-*.mjs',
@@ -239,6 +247,9 @@ export default defineConfig(({ mode }) => {
             '**/assets/CudyrMonthlyIndicator-*.js',
             '**/assets/useCudyrReport-*.js',
             '**/assets/cudyrReportWorkbook-*.js',
+            // The simplified Excel uses the same on-demand ExcelJS runtime.
+            '**/assets/cudyrEssentialWorkbook-*.js',
+            '**/assets/cudyrSourceWorkbook-*.js',
             '**/assets/cudyrReportLoader-*.js',
             // Shared historical reconstruction split from the report loader; same on-demand policy.
             '**/assets/cudyrReportModel-*.js',

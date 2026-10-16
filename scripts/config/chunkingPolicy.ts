@@ -13,6 +13,15 @@ export const chunkForModule = (moduleId: string): string | undefined => {
     return 'date-strip-controls';
   }
 
+  // Historical evidence is online-only, like its structural reconstruction owner.
+  // Keep the shared resolver in that existing lazy chunk, outside offline census startup.
+  if (
+    has('/src/features/rayen-import/domain/enrichReportOnlyDischarges.ts') ||
+    has('/src/features/rayen-import/domain/historicalReportEpisodeRecovery.ts')
+  ) {
+    return 'replanRayenStructure';
+  }
+
   if (
     has('/src/components/layout/app-content/AppContentOverlays.tsx') ||
     has('/src/components/layout/app-content/appContentOverlaysController.ts') ||

@@ -16,13 +16,7 @@ fs.mkdirSync(reportDir, { recursive: true });
 const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 const result = spawnSync(
   npx,
-  [
-    'vitest',
-    'run',
-    ...excludes,
-    '--reporter=json',
-    `--outputFile=${rawProfile}`,
-  ],
+  ['vitest', 'run', ...excludes, '--reporter=json', `--outputFile=${rawProfile}`],
   {
     cwd: root,
     stdio: 'inherit',
@@ -34,9 +28,13 @@ if (result.status !== 0) {
   process.exit(result.status || 1);
 }
 
-const reportResult = spawnSync(process.execPath, ['scripts/report-unit-shard-runtime-profile.mjs'], {
-  cwd: root,
-  stdio: 'inherit',
-});
+const reportResult = spawnSync(
+  process.execPath,
+  ['scripts/report-unit-shard-runtime-profile.mjs', '--measured'],
+  {
+    cwd: root,
+    stdio: 'inherit',
+  }
+);
 
 process.exit(reportResult.status || 0);

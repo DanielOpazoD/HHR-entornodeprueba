@@ -289,3 +289,97 @@ it('keeps cached official rows visible but busy until remote verification comple
   await act(async () => finish!(data));
   expect(second.result.current.busy).toBe(false);
 });
+
+it('re-reads an overlapping pre-sync snapshot even when it completed after the sync', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  try {
+    vi.setSystemTime(new Date('2026-10-10T19:00:00Z'));
+    let finish: (value: ReturnType<typeof dataset>) => void;
+    const loader = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise(resolve => {
+            finish = resolve;
+          })
+      )
+      .mockImplementation(async (from, to) => dataset(from, to, 'post-sync'));
+    const before = renderHook(() => useCudyrReport('2026-10-09', loader));
+    vi.setSystemTime(new Date('2026-10-10T20:01:00Z'));
+    await act(async () => finish(dataset('2026-10-01', '2026-10-09', 'pre-sync')));
+    expect(before.result.current.data?.loadedAt).toBe('2026-10-10T20:01:00.000Z');
+    before.unmount();
+    const card = renderHook(() =>
+      useCudyrReport('2026-10-09', loader, undefined, false, {
+        day: '2026-10-10',
+        firstSyncAt: '2026-10-10T20:00:00Z',
+      })
+    );
+    await act(async () => {});
+    expect(loader).toHaveBeenCalledTimes(2);
+    expect(card.result.current.data?.coverage[0].recordVersion).toBe('post-sync');
+    card.unmount();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it('does not infer sync ordering from equal timestamps, then reuses the explicitly post-sync read', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  try {
+    vi.setSystemTime(new Date('2026-10-10T20:00:00Z'));
+    const loader = vi.fn().mockImplementation(async (from, to) => dataset(from, to));
+    const before = renderHook(() => useCudyrReport('2026-10-09', loader));
+    await act(async () => {});
+    before.unmount();
+    const useRead = () =>
+      useCudyrReport('2026-10-09', loader, undefined, false, {
+        day: '2026-10-10',
+        firstSyncAt: '2026-10-10T20:00:00Z',
+      });
+    const card = renderHook(useRead);
+    await act(async () => {});
+    expect(loader).toHaveBeenCalledTimes(2);
+    card.unmount();
+    const reopened = renderHook(useRead);
+    await act(async () => {});
+    expect(loader).toHaveBeenCalledTimes(2);
+    expect(reopened.result.current.busy).toBe(false);
+    reopened.unmount();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it('refreshes on the next clinical day when a cached read merely finished after midnight', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  try {
+    vi.setSystemTime(new Date('2026-10-11T04:59:59Z'));
+    let finish: (value: ReturnType<typeof dataset>) => void;
+    const loader = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise(resolve => {
+            finish = resolve;
+          })
+      )
+      .mockImplementation(async (from, to) => dataset(from, to, 'new-day'));
+    const before = renderHook(() => useCudyrReport('2026-10-09', loader));
+    vi.setSystemTime(new Date('2026-10-11T05:01:00Z'));
+    await act(async () => finish(dataset('2026-10-01', '2026-10-09', 'previous-day')));
+    before.unmount();
+    const card = renderHook(() =>
+      useCudyrReport('2026-10-09', loader, undefined, false, {
+        day: '2026-10-11',
+        firstSyncAt: '',
+      })
+    );
+    await act(async () => {});
+    expect(loader).toHaveBeenCalledTimes(2);
+    expect(card.result.current.data?.coverage[0].recordVersion).toBe('new-day');
+    card.unmount();
+  } finally {
+    vi.useRealTimers();
+  }
+});

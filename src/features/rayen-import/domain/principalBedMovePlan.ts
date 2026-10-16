@@ -1,11 +1,28 @@
 import type { AdmissionEntry, ConflictEntry, MoveEntry } from '../contracts/censusImportDiff';
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
+import type { ActivePrincipalPlacement } from './bedOccupancyCollisionPolicy';
+import {
+  hasUnverifiedCmaAliasIdentity,
+  type CurrentPatientRef,
+} from './censusPatientIdentityIndex';
 
 export interface PrincipalBedPlacementIntent {
   sourceBedId?: string;
   targetBedId: string;
 }
+
+/** Placements already filtered for the requested census day and recorded outcomes. */
+export const activePrincipalBedPlacementIntents = (
+  placements: ActivePrincipalPlacement[],
+  findCurrent: (encounter: RayenEncounter) => CurrentPatientRef | undefined
+): PrincipalBedPlacementIntent[] =>
+  placements.flatMap(({ encounter, mapped }) => {
+    const match = findCurrent(encounter);
+    if (!mapped.bedId || hasUnverifiedCmaAliasIdentity(match, mapped.bedId, mapped.patient))
+      return [];
+    return [{ sourceBedId: match?.bedId, targetBedId: mapped.bedId }];
+  });
 
 /**
  * Resolves which source beds are guaranteed to be vacated by a batch of principal-patient moves.
@@ -44,6 +61,18 @@ export const feasiblePrincipalMoveSourceBedIds = (
 
 const isOccupied = (patient: PatientData | undefined): patient is PatientData =>
   !!patient && !!patient.patientName?.trim() && !patient.isBlocked;
+
+export const unverifiedCmaAliasConflict = (
+  bedId: string,
+  patient: PatientData,
+  source: RayenEncounter
+): ConflictEntry => ({
+  bedId,
+  patientName: patient.patientName,
+  source,
+  code: 'principal-bed-collision',
+  reason: 'Falta confirmar el episodio o el sello de ingreso antes de separar la ubicación CMA.',
+});
 
 export const occupiedLocalBedConflict = (
   current: DailyRecord,

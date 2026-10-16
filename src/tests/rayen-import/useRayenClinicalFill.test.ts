@@ -304,7 +304,8 @@ describe('useRayenClinicalFill', () => {
           historySnapshots: 0,
         },
       },
-      new Set(['R2'])
+      new Set(['R2']),
+      new Set(['episode-2'])
     );
 
     expect(merged).toMatchObject({
@@ -418,6 +419,7 @@ describe('useRayenClinicalFill', () => {
       status: 'partial',
       retry: expect.objectContaining({
         pendingClinicalEpisodeIds: ['episode-mother', 'episode-newborn'],
+        pendingReads: { 'episode-newborn': ['history'] },
       }),
     });
   });
@@ -480,7 +482,8 @@ describe('useRayenClinicalFill', () => {
         patched: 1,
         errors: [],
       },
-      new Set(['R2'])
+      new Set(['R2']),
+      new Set(['episode-2'])
     );
 
     expect(merged).toMatchObject({ total: 1, patched: 1, errors: [] });
