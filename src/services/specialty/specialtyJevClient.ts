@@ -16,8 +16,11 @@ export class JevSuggestionPendingError extends Error {}
 export const describeSpecialtySetupError = (error: unknown): string => {
   if (error instanceof JevSuggestionUnavailableError) return error.message;
   const code = (error as { code?: unknown } | null)?.code;
-  if (code === 'permission-denied' || code === 'firestore/permission-denied' ||
-      code === 'functions/permission-denied') {
+  if (
+    code === 'permission-denied' ||
+    code === 'firestore/permission-denied' ||
+    code === 'functions/permission-denied'
+  ) {
     return 'Sin permiso para leer el catálogo de especialidades.';
   }
   if (code === 'functions/not-found') {
@@ -26,8 +29,11 @@ export const describeSpecialtySetupError = (error: unknown): string => {
   if (code === 'functions/failed-precondition') {
     return 'El piloto de especialidades no está activado en el servidor.';
   }
-  if (code === 'unavailable' || code === 'firestore/unavailable' ||
-      code === 'functions/unavailable') {
+  if (
+    code === 'unavailable' ||
+    code === 'firestore/unavailable' ||
+    code === 'functions/unavailable'
+  ) {
     return 'No se pudo conectar con el catálogo. Reintenta cuando vuelva la conexión.';
   }
   return 'No se pudo leer el catálogo de especialidades. Comprueba la conexión y vuelve a abrir el panel.';
@@ -39,8 +45,14 @@ export const shouldRetainJevRequestId = (error: unknown): boolean => {
   if (error instanceof JevSuggestionUnavailableError) return false;
   const code = (error as { code?: unknown } | null)?.code;
   if (typeof code !== 'string') return true;
-  return ['functions/unavailable', 'functions/deadline-exceeded', 'functions/internal',
-    'unavailable', 'deadline-exceeded', 'internal'].includes(code);
+  return [
+    'functions/unavailable',
+    'functions/deadline-exceeded',
+    'functions/internal',
+    'unavailable',
+    'deadline-exceeded',
+    'internal',
+  ].includes(code);
 };
 
 export interface JevSuggestion {
@@ -64,7 +76,8 @@ export interface JevConsultationPreparation {
 }
 
 export const resolveSpecialtyJevLabel = (
-  labels: Record<string, string>, code: string
+  labels: Record<string, string>,
+  code: string
 ): string | null => {
   const canonical = labels[code];
   if (canonical) return canonical;
@@ -97,11 +110,17 @@ export interface SpecialtyRoundSetup {
 const loadSpecialtyPolicy = async (): Promise<SpecialtyRoundSetup['policy']> => {
   const functions = await defaultFunctionsRuntime.getRegionalFunctions(REGION);
   const callable = httpsCallable<{ action: 'read_policy' }, SpecialtyRoundSetup['policy']>(
-    functions, 'requestSpecialtyJevSuggestion', { timeout: 30_000 });
+    functions,
+    'requestSpecialtyJevSuggestion',
+    { timeout: 30_000 }
+  );
   const { data } = await callable({ action: 'read_policy' });
-  if (!Number.isInteger(data?.revision) ||
-      !['off', 'consultative'].includes(data.aiMode) || !Array.isArray(data.rules) ||
-      (data.memory !== undefined && !Array.isArray(data.memory))) {
+  if (
+    !Number.isInteger(data?.revision) ||
+    !['off', 'consultative'].includes(data.aiMode) ||
+    !Array.isArray(data.rules) ||
+    (data.memory !== undefined && !Array.isArray(data.memory))
+  ) {
     throw new JevSuggestionUnavailableError('Catálogo inválido.');
   }
   return { ...data, memory: data.memory ?? [], memoryAvailable: Array.isArray(data.memory) };
@@ -130,17 +149,35 @@ export const loadSpecialtyJevCatalog = async (): Promise<Record<string, string>>
 };
 
 export const saveSpecialtyRules = async (
-  policy: SpecialtyRoundSetup['policy'], rules: SpecialtyCatalogRule[], autoEnabled: boolean,
-  activateJev = false, memory: SpecialtyCatalogRule[] = policy.memory
-): Promise<void> => {
+  policy: SpecialtyRoundSetup['policy'],
+  rules: SpecialtyCatalogRule[],
+  autoEnabled: boolean,
+  activateJev = false,
+  memory: SpecialtyCatalogRule[] = policy.memory,
+  applyDate?: string
+): Promise<{ appliedDecisions?: number; applicationStatus?: string }> => {
   const functions = await defaultFunctionsRuntime.getRegionalFunctions(REGION);
-  const callable = httpsCallable(functions, 'configureSpecialtyPolicy', { timeout: 30_000 });
-  await callable({ confirmed: true, expectedRevision: policy.revision, rules,
+  const callable = httpsCallable<
+    Record<string, unknown>,
+    {
+      appliedDecisions?: number;
+      applicationStatus?: string;
+    }
+  >(functions, 'configureSpecialtyPolicy', { timeout: 30_000 });
+  const { data } = await callable({
+    ...(applyDate ? { applyDate } : {}),
+    confirmed: true,
+    expectedRevision: policy.revision,
+    rules,
     ...(policy.memoryAvailable === false ? {} : { memory }),
-    autoEnabled, memoryEnabled: policy.memoryEnabled,
+    autoEnabled,
+    memoryEnabled: policy.memoryEnabled,
     aiMode: activateJev ? 'consultative' : policy.aiMode,
-    ...(activateJev ? { aiMonthlyLimit: pilotConfig.aiMonthlyLimit,
-      aiRubrics: pilotConfig.aiRubrics } : {}) });
+    ...(activateJev
+      ? { aiMonthlyLimit: pilotConfig.aiMonthlyLimit, aiRubrics: pilotConfig.aiRubrics }
+      : {}),
+  });
+  return data;
 };
 
 /** Read-only preflight. The provider receives only this approved code/label after confirmation. */
@@ -151,7 +188,9 @@ export const prepareSpecialtyJevConsultation = async (
   const code = cie10Code.trim().toUpperCase().replace(/\s+/g, '');
   const canonicalLabel = resolveSpecialtyJevLabel(labels, code);
   if (!/^[A-Z][0-9]{2}(?:\.[0-9A-Z]{1,4})?$/.test(code) || !canonicalLabel) {
-    throw new JevSuggestionUnavailableError('El diagnóstico no está habilitado en el catálogo Jev.');
+    throw new JevSuggestionUnavailableError(
+      'El diagnóstico no está habilitado en el catálogo Jev.'
+    );
   }
   return { code, canonicalLabel };
 };
@@ -162,12 +201,16 @@ export const requestSpecialtySuggestion = async (
   preparation: JevConsultationPreparation
 ): Promise<JevSuggestion> => {
   const functions = await defaultFunctionsRuntime.getRegionalFunctions(REGION);
-  const callable = httpsCallable<SpecialtyTarget & { requestId: string; expectedCode: string; expectedCanonicalLabel: string },
-    { status: string; result?: JevSuggestion }>(
-    functions, 'requestSpecialtyJevSuggestion', { timeout: 30_000 }
-  );
-  const { data } = await callable({ ...scope, requestId,
-    expectedCode: preparation.code, expectedCanonicalLabel: preparation.canonicalLabel });
+  const callable = httpsCallable<
+    SpecialtyTarget & { requestId: string; expectedCode: string; expectedCanonicalLabel: string },
+    { status: string; result?: JevSuggestion }
+  >(functions, 'requestSpecialtyJevSuggestion', { timeout: 30_000 });
+  const { data } = await callable({
+    ...scope,
+    requestId,
+    expectedCode: preparation.code,
+    expectedCanonicalLabel: preparation.canonicalLabel,
+  });
   if (data.status !== 'complete' || !data.result) {
     if (data.status !== 'pending') {
       throw new JevSuggestionUnavailableError('Jev no entregó una sugerencia vigente.');
@@ -183,8 +226,13 @@ export const acceptSpecialtySuggestion = async (
   value: string,
   expectedDecisionId: string | null
 ): Promise<void> => {
-  const intent: SpecialtyIntent = { kind: 'accept_ai', ...scope, requestId,
-    value, expectedDecisionId };
+  const intent: SpecialtyIntent = {
+    kind: 'accept_ai',
+    ...scope,
+    requestId,
+    value,
+    expectedDecisionId,
+  };
   await writeSpecialtyIntent(scope, value, intent);
 };
 
@@ -202,9 +250,10 @@ const writeSpecialtyIntent = async (
   value: string,
   intent: SpecialtyIntent
 ): Promise<void> => {
-  const path = scope.target === 'clinicalCrib'
-    ? `beds.${scope.bedId}.clinicalCrib.specialty`
-    : `beds.${scope.bedId}.specialty`;
+  const path =
+    scope.target === 'clinicalCrib'
+      ? `beds.${scope.bedId}.clinicalCrib.specialty`
+      : `beds.${scope.bedId}.specialty`;
   const result = await updatePartialDetailed(scope.date, { [path]: value } as DailyRecordPatch, {
     specialtyIntent: intent,
     requireAtomicCas: true,
@@ -225,10 +274,22 @@ export const publishSpecialtyMemory = async (
 ): Promise<void> => {
   const { revision: expectedRevision } = await loadSpecialtyPolicy();
   const functions = await defaultFunctionsRuntime.getRegionalFunctions(REGION);
-  const callable = httpsCallable<SpecialtyTarget & {
-    specialty: string; expectedCie10Code: string; expectedDecisionId: string;
-    expectedRevision: number; confirmed: true;
-  }, { status: string }>(functions, 'publishSpecialtyMemory', { timeout: 30_000 });
-  await callable({ ...scope, specialty, expectedCie10Code, expectedDecisionId,
-    expectedRevision, confirmed: true });
+  const callable = httpsCallable<
+    SpecialtyTarget & {
+      specialty: string;
+      expectedCie10Code: string;
+      expectedDecisionId: string;
+      expectedRevision: number;
+      confirmed: true;
+    },
+    { status: string }
+  >(functions, 'publishSpecialtyMemory', { timeout: 30_000 });
+  await callable({
+    ...scope,
+    specialty,
+    expectedCie10Code,
+    expectedDecisionId,
+    expectedRevision,
+    confirmed: true,
+  });
 };

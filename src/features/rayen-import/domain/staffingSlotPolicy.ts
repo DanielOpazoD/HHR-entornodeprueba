@@ -37,3 +37,14 @@ export const hasUnresolvedStaffingAmbiguity = (
   );
   return coveredSlots < standardSlots;
 };
+
+export const isStaffingSlotVacant = (value: string | undefined): boolean => {
+  const normalized = (value ?? '').trim().toLocaleLowerCase('es');
+  return normalized === '' || normalized === '--' || normalized === 'vacante';
+};
+
+/** Empty placeholders never represent a staff member being replaced. */
+export const replacedStaffingNames = (suggestion?: NursingShiftSuggestion): string[] =>
+  suggestion?.replaceStandardSlots
+    ? (suggestion.currentNames ?? []).filter(name => !isStaffingSlotVacant(name))
+    : [];

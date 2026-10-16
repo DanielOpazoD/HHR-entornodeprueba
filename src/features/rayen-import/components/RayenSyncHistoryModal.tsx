@@ -11,7 +11,7 @@ import {
 } from './rayenSyncPresentation';
 import { type RayenSyncRecoveryPresentation } from './rayenSyncRecoveryPresentation';
 import { RayenSyncRecoveryNotice } from './RayenSyncRecoveryNotice';
-import { RayenSyncClinicalSection, RayenSyncStaffingSection } from './RayenSyncHistorySections';
+import { RayenSyncClinicalSection } from './RayenSyncHistorySections';
 import { RayenSyncSessionReportButton } from './RayenSyncSessionReportButton';
 import { RayenSyncIssueActions } from './RayenSyncIssueActions';
 import { rayenSyncTechnicalCode } from './rayenSyncIssueSupport';
@@ -32,27 +32,27 @@ const statusPresentation = (event: RayenSyncEvent) => {
     return {
       label: outcome.label,
       icon: <CheckCircle2 size={15} aria-hidden="true" />,
-      className: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+      className: 'text-emerald-700',
     };
   }
   if (outcome.tone === 'warning') {
     return {
       label: outcome.label,
       icon: <AlertTriangle size={15} aria-hidden="true" />,
-      className: 'border-amber-200 bg-amber-50 text-amber-700',
+      className: 'text-amber-700',
     };
   }
   if (outcome.tone === 'danger') {
     return {
       label: outcome.label,
       icon: <CircleX size={15} aria-hidden="true" />,
-      className: 'border-red-200 bg-red-50 text-red-700',
+      className: 'text-red-700',
     };
   }
   return {
     label: outcome.label,
     icon: <Clock3 size={15} aria-hidden="true" />,
-    className: 'border-sky-200 bg-sky-50 text-sky-700',
+    className: 'text-slate-500',
   };
 };
 
@@ -62,7 +62,15 @@ const changesLabel = (event: RayenSyncEvent): string => {
   if (admissions + updates + moves + discharges === 0) {
     return 'Sin cambios de camas, ingresos ni egresos.';
   }
-  return `Sincronizado: ${event.changes.admissions} ingresos, ${event.changes.updates} act., ${event.changes.moves} mov., ${event.changes.discharges} egresos`;
+  return [
+    [admissions, 'ingresos'],
+    [updates, 'actualizaciones'],
+    [moves, 'movimientos'],
+    [discharges, 'egresos'],
+  ]
+    .filter(([count]) => Number(count) > 0)
+    .map(([count, label]) => `${count} ${label}`)
+    .join(' · ');
 };
 
 const isQuietSuccessfulRun = (event: RayenSyncEvent): boolean => {
@@ -129,7 +137,7 @@ const QuietHistoryGroup: React.FC<{ events: RayenSyncEvent[] }> = ({ events }) =
       ? formatRayenSyncIslandTime(newest.startedAt)
       : `${formatRayenSyncIslandTime(oldest.startedAt)}–${formatRayenSyncIslandTime(newest.startedAt)}`;
   return (
-    <li className="rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2.5">
+    <li className="border-b border-slate-200 py-3 last:border-0">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="flex min-w-0 items-center gap-1.5 text-sm font-bold tabular-nums text-slate-700">
           <Clock3 size={13} aria-hidden="true" />
@@ -139,7 +147,7 @@ const QuietHistoryGroup: React.FC<{ events: RayenSyncEvent[] }> = ({ events }) =
           </span>
           <span className="truncate font-semibold text-slate-500">{newest.by}</span>
         </p>
-        <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-700">
+        <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-emerald-700">
           <CheckCircle2 size={14} aria-hidden="true" />
           Completa
         </span>
@@ -161,7 +169,7 @@ const HistoryEvent: React.FC<{
   const outcome = presentRayenSyncOutcome(event);
   const duration = formatRayenSyncDuration(event.startedAt, event.completedAt);
   return (
-    <li className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+    <li className="border-b border-slate-200 py-3 last:border-0">
       {latest && (
         <p className="mb-2 text-xs font-bold uppercase tracking-wide text-teal-700">
           Última sincronización
@@ -193,7 +201,7 @@ const HistoryEvent: React.FC<{
           )}
         </div>
         <span
-          className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-xs font-bold ${status.className}`}
+          className={`inline-flex shrink-0 items-center gap-1 text-xs font-semibold ${status.className}`}
         >
           {status.icon}
           {status.label}
@@ -213,7 +221,6 @@ const HistoryEvent: React.FC<{
         />
       )}
       <RayenSyncClinicalSection event={event} targetDate={targetDate} />
-      <RayenSyncStaffingSection event={event} />
     </li>
   );
 };
@@ -258,10 +265,7 @@ export const RayenSyncHistoryModal: React.FC<RayenSyncHistoryModalProps> = ({
           </p>
         </div>
       ) : (
-        <ol
-          className="max-h-[58vh] space-y-2 overflow-y-auto pr-1"
-          aria-label={`Sincronizaciones del censo ${formattedTargetDate}`}
-        >
+        <ol className="pr-1" aria-label={`Sincronizaciones del censo ${formattedTargetDate}`}>
           {items.map((item, index) =>
             item.kind === 'quiet' ? (
               <QuietHistoryGroup key={`quiet-${item.events[0].id}`} events={item.events} />
