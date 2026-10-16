@@ -18,11 +18,19 @@ import { filterLibraryEntries, type LibraryCategoryFilter } from '../domain/libr
 import { printLibraryDocument } from '../services/libraryDocumentActions';
 import { LibraryEntryList } from './LibraryEntryList';
 import { loadMedifTool, TOOL_REGISTRY } from './toolRegistry';
+import type { ClinicalFormId } from '../domain/forms/clinicalFormTypes';
 
-// A dirty MEDIF has already loaded this module, including its exit guard.
-// Keep the guard in that same on-demand chunk instead of fetching it on exit.
+const loadClinicalFormTool = () => import('./tools/ClinicalFormTool');
+const ClinicalFormTool = React.lazy(() =>
+  loadClinicalFormTool().then(module => ({ default: module.ClinicalFormTool }))
+);
+
+// Both editors carry the shared guard, so closing an already open draft works offline.
 const LibraryExitConfirmation = React.lazy(() =>
   loadMedifTool().then(module => ({ default: module.LibraryExitConfirmation }))
+);
+const ClinicalFormExitConfirmation = React.lazy(() =>
+  loadClinicalFormTool().then(module => ({ default: module.LibraryExitConfirmation }))
 );
 
 export interface LibraryDocumentActions {
@@ -59,6 +67,7 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
   const previousFocus = useRef<HTMLElement | null>(null);
   const [category, setCategory] = useState<LibraryCategoryFilter>('all');
   const [activeToolId, setActiveToolId] = useState<LibraryToolId | null>(initialToolId);
+  const [activeFormId, setActiveFormId] = useState<ClinicalFormId | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const drawerRef = useRef<HTMLElement>(null);
   const titleId = useId();
@@ -71,20 +80,22 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
   // Escape y clic fuera retroceden un paso. MEDIF confirma antes de descartar datos.
   const requestExit = useCallback(
     (target: 'back' | 'close') => {
-      if (activeToolId === 'medif' && medifDirty) {
+      if ((activeToolId === 'medif' || activeFormId) && medifDirty) {
         previousFocus.current = document.activeElement as HTMLElement | null;
         setPendingExit(target);
         return;
       }
-      if (target === 'back') setActiveToolId(null);
-      else onClose();
+      if (target === 'back') {
+        setActiveToolId(null);
+        setActiveFormId(null);
+      } else onClose();
     },
-    [activeToolId, medifDirty, onClose]
+    [activeToolId, activeFormId, medifDirty, onClose]
   );
 
   const dismiss = useCallback(() => {
-    requestExit(activeToolId ? 'back' : 'close');
-  }, [activeToolId, requestExit]);
+    requestExit(activeToolId || activeFormId ? 'back' : 'close');
+  }, [activeToolId, activeFormId, requestExit]);
 
   const cancelExit = (): void => {
     setPendingExit(null);
@@ -102,7 +113,9 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
     if (event.key !== 'Tab' || !drawerRef.current) return;
     const focusable = [
       ...drawerRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
-    ].filter(element => !element.closest('[inert]'));
+    ].filter(
+      element => !element.closest('[inert], [hidden], .hidden') && !element.matches(':disabled')
+    );
     const first = focusable[0];
     const last = focusable[focusable.length - 1];
     if (!first || !last) return;
@@ -116,10 +129,11 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
   };
 
   useEffect(() => {
-    (activeToolId ? drawerRef.current : searchRef.current)?.focus();
-  }, [activeToolId]);
+    (activeToolId || activeFormId ? drawerRef.current : searchRef.current)?.focus();
+  }, [activeToolId, activeFormId]);
 
   const activeTool = activeToolId ? TOOL_REGISTRY[activeToolId] : null;
+  const ExitConfirmation = activeFormId ? ClinicalFormExitConfirmation : LibraryExitConfirmation;
   const chips: ReadonlyArray<{ id: LibraryCategoryFilter; label: string }> = [
     { id: 'all', label: 'Todo' },
     ...LIBRARY_CATEGORIES.map(item => ({ id: item.id, label: item.label })),
@@ -150,7 +164,7 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
         onKeyDown={onDrawerKeyDown}
         className={clsx(
           'fixed right-0 top-0 flex h-full max-w-full flex-col border-l border-slate-200 bg-slate-50 shadow-xl focus:outline-none',
-          activeToolId === 'medif' ? 'w-[1180px]' : 'w-[500px]'
+          activeToolId === 'medif' || activeFormId ? 'w-[1180px]' : 'w-[500px]'
         )}
       >
         <h2 id={titleId} className="sr-only">
@@ -169,19 +183,22 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
               </button>
             }
           >
-            <LibraryExitConfirmation
+            <ExitConfirmation
+              title={activeFormId ? '¿Salir del formulario?' : undefined}
               onCancel={cancelExit}
               onConfirm={() => {
                 const target = pendingExit;
                 setPendingExit(null);
                 setMedifDirty(false);
-                if (target === 'back') setActiveToolId(null);
-                else onClose();
+                if (target === 'back') {
+                  setActiveToolId(null);
+                  setActiveFormId(null);
+                } else onClose();
               }}
             />
           </React.Suspense>
         )}
-        {!activeTool && (
+        {!activeTool && !activeFormId && (
           <header className="shrink-0 border-b border-slate-200 bg-white px-3 pb-2 pt-2">
             <div className="flex items-center gap-2">
               <FolderOpen size={18} className="shrink-0 text-medical-700" aria-hidden="true" />
@@ -259,7 +276,24 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
           inert={Boolean(pendingExit)}
           className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-2"
         >
-          {activeTool ? (
+          {activeFormId ? (
+            <React.Suspense
+              fallback={
+                <p role="status" className="p-4 text-sm text-slate-500">
+                  Cargando formulario…
+                </p>
+              }
+            >
+              <ClinicalFormTool
+                formId={activeFormId}
+                onFormChange={setActiveFormId}
+                onBack={() => requestExit('back')}
+                onClose={() => requestExit('close')}
+                patients={patients}
+                onDirtyChange={setMedifDirty}
+              />
+            </React.Suspense>
+          ) : activeTool ? (
             <React.Suspense
               fallback={
                 <p role="status" className="p-4 text-sm text-slate-500">
@@ -281,6 +315,11 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
               query={query}
               onOpenTool={setActiveToolId}
               onPrintDocument={documentActions.print}
+              onFillDocument={entry => {
+                setMedifDirty(false);
+                if (entry.editorId === 'medif') setActiveToolId('medif');
+                else if (entry.editorId) setActiveFormId(entry.editorId);
+              }}
             />
           )}
         </div>

@@ -1,0 +1,1440 @@
+{
+  "id": "solicitud-imagenologia",
+  "title": "Solicitud de imagenología",
+  "revision": 1,
+  "catalogVersion": "1.1.0",
+  "templateUrl": "/docs/solicitud-imagen.pdf",
+  "sourceUrl": "/docs/solicitud-imagen.pdf",
+  "pages": [
+    {
+      "width": 612,
+      "height": 936
+    }
+  ],
+  "fields": [
+    {
+      "id": "paciente_nombre_completo",
+      "label": "Nombre y apellidos",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [114, 158, 344, 12]
+        }
+      ]
+    },
+    {
+      "id": "paciente_rut",
+      "label": "RUT",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [59, 173, 136, 12]
+        }
+      ]
+    },
+    {
+      "id": "paciente_fecha_nacimiento",
+      "label": "Fecha de nacimiento",
+      "section": "Paciente",
+      "kind": "date",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [472, 173, 107, 12],
+          "format": "date_dmy"
+        }
+      ]
+    },
+    {
+      "id": "paciente_edad_texto",
+      "label": "Edad (con unidad)",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [228, 173, 63, 12]
+        }
+      ]
+    },
+    {
+      "id": "paciente_ficha_numero",
+      "label": "Nº de ficha",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [496, 158, 84, 12]
+        }
+      ]
+    },
+    {
+      "id": "imagen_procedencia",
+      "label": "Procedencia",
+      "section": "Solicitud",
+      "kind": "choice",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [123.8, 127.7, 11.25, 9.75],
+          "equals": "policlinico"
+        },
+        {
+          "page": 0,
+          "rect": [202.55, 127.25, 11.25, 9.75],
+          "equals": "hospitalizado"
+        },
+        {
+          "page": 0,
+          "rect": [296, 126.8, 11.25, 9.75],
+          "equals": "urgencia"
+        }
+      ],
+      "options": [
+        {
+          "value": "policlinico",
+          "label": "Policlínico"
+        },
+        {
+          "value": "hospitalizado",
+          "label": "Hospitalizado"
+        },
+        {
+          "value": "urgencia",
+          "label": "Urgencia"
+        }
+      ]
+    },
+    {
+      "id": "formulario_fecha_emision",
+      "label": "Fecha de solicitud",
+      "section": "Solicitud",
+      "kind": "date",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [138, 141, 18, 10],
+          "format": "date_day"
+        },
+        {
+          "page": 0,
+          "rect": [160, 141, 14, 10],
+          "format": "date_month"
+        },
+        {
+          "page": 0,
+          "rect": [177, 141, 20, 10],
+          "format": "date_year"
+        }
+      ]
+    },
+    {
+      "id": "imagen_prevision",
+      "label": "Previsión",
+      "section": "Solicitud",
+      "kind": "choice",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [334.15, 140.65, 11.25, 9.75],
+          "equals": "fonasa"
+        },
+        {
+          "page": 0,
+          "rect": [425.75, 140.65, 11.25, 9.75],
+          "equals": "isapre"
+        },
+        {
+          "page": 0,
+          "rect": [502.65, 140.65, 11.25, 9.75],
+          "equals": "prais"
+        }
+      ],
+      "options": [
+        {
+          "value": "fonasa",
+          "label": "FONASA"
+        },
+        {
+          "value": "isapre",
+          "label": "ISAPRE"
+        },
+        {
+          "value": "prais",
+          "label": "PRAIS"
+        }
+      ]
+    },
+    {
+      "id": "paciente_fonasa_tramo",
+      "label": "Tramo FONASA",
+      "section": "Solicitud",
+      "kind": "choice",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [387, 141, 17, 10]
+        }
+      ],
+      "options": [
+        {
+          "value": "A",
+          "label": "A"
+        },
+        {
+          "value": "B",
+          "label": "B"
+        },
+        {
+          "value": "C",
+          "label": "C"
+        },
+        {
+          "value": "D",
+          "label": "D"
+        }
+      ]
+    },
+    {
+      "id": "paciente_sexo_biologico",
+      "label": "Sexo biológico",
+      "section": "Paciente",
+      "kind": "choice",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [324, 174.65, 11.25, 9.75],
+          "equals": "Femenino"
+        },
+        {
+          "page": 0,
+          "rect": [357.6, 174.35, 11.25, 9.75],
+          "equals": "Masculino"
+        }
+      ],
+      "options": [
+        {
+          "value": "Femenino",
+          "label": "Femenino"
+        },
+        {
+          "value": "Masculino",
+          "label": "Masculino"
+        },
+        {
+          "value": "Indeterminado",
+          "label": "Indeterminado (sin casillero en esta plantilla)"
+        }
+      ]
+    },
+    {
+      "id": "diagnostico_texto",
+      "label": "Diagnóstico",
+      "section": "Solicitud",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [91, 188, 489, 12]
+        }
+      ]
+    },
+    {
+      "id": "imagen_antecedentes",
+      "label": "Otros antecedentes",
+      "section": "Solicitud",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [119, 202, 461, 20]
+        }
+      ],
+      "multiline": true
+    },
+    {
+      "id": "imagen_rx_65_1",
+      "label": "Cavum rinofaríngeo",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [64.98, 243.81, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_65_2",
+      "label": "Edad ósea",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [64.98, 258.56, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_65_3",
+      "label": "Tórax simple",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [64.98, 276.81, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_65_4",
+      "label": "Tórax AP-LAT",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [64.98, 294.81, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_65_5",
+      "label": "Abdomen simple",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [64.98, 313.06, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_65_6",
+      "label": "Renal simple",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [64.98, 331.33, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_65_7",
+      "label": "Vesical simple",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [64.98, 349.33, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_65_8",
+      "label": "Col. cervical AP-LAT",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [64.98, 370.08, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_65_9",
+      "label": "Col. cervical oblicuas",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [64.98, 390.83, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_65_10",
+      "label": "Col. cervical funcionales",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [64.98, 411.58, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_65_11",
+      "label": "Col. dorsal AP-LAT",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [64.98, 432.35, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_65_12",
+      "label": "Col. lumbar AP-LAT-5º espacio",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [64.98, 453.1, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_65_13",
+      "label": "Col. lumbar oblicuas",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [64.98, 471.35, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_65_14",
+      "label": "Col. lumbar funcionales",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [64.98, 489.6, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_65_15",
+      "label": "Parrilla costal AP-OBL",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [64.98, 507.63, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_239_1",
+      "label": "Cavidades perinasales",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [238.8, 243.81, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_239_2",
+      "label": "Huesos propios nasales",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [238.8, 258.56, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_239_3",
+      "label": "Órbita / malar / ATM",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [238.8, 276.81, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_239_4",
+      "label": "Cráneo AP-LAT",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [238.8, 294.81, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_239_5",
+      "label": "Cráneo Towne",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [238.8, 313.06, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_239_6",
+      "label": "Pelvis AP / cadera AP",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [238.8, 331.33, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_239_7",
+      "label": "Pelvis inlet-outlet / Lowenstein",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [238.8, 349.33, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_239_8",
+      "label": "Cadera axial / alar-obturatriz / otros",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [238.8, 370.08, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_239_9",
+      "label": "Sacrocóxis / sacroilíacas",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [238.8, 390.83, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_239_10",
+      "label": "Hombro AP-AXIAL",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [238.8, 411.58, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_239_11",
+      "label": "Hombro outlet / rotaciones / otros",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [238.8, 432.35, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_239_12",
+      "label": "Escápula AP-LAT",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [238.8, 453.1, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_239_13",
+      "label": "Clavícula AP-AXIAL",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [238.8, 471.35, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_239_14",
+      "label": "Art. acromioclavicular",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [238.8, 489.6, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_239_15",
+      "label": "Húmero AP-LAT",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [238.8, 507.63, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_415_1",
+      "label": "Codo AP-LAT",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [414.62, 243.81, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_415_2",
+      "label": "Antebrazo AP-LAT",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [414.62, 258.56, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_415_3",
+      "label": "Muñeca AP-LAT",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [414.62, 276.81, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_415_4",
+      "label": "Mano AP-OBL",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [414.62, 294.81, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_415_5",
+      "label": "Estudio de escafoides",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [414.62, 313.06, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_415_6",
+      "label": "Dedo AP-LAT-OBL",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [414.62, 331.33, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_415_7",
+      "label": "Fémur AP-LAT",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [414.62, 349.33, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_415_8",
+      "label": "Rodilla AP-LAT",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [414.62, 370.08, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_415_9",
+      "label": "Rótula axial",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [414.62, 390.83, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_415_10",
+      "label": "Túnel intercondíleo / Rossemberg",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [414.62, 411.58, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_415_11",
+      "label": "Pierna AP-LAT",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [414.62, 432.35, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_415_12",
+      "label": "Tobillo AP-LAT-OBL",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [414.62, 453.1, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_415_13",
+      "label": "Pie AP-OBL",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [414.62, 471.35, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_415_14",
+      "label": "Pies con carga",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [414.62, 489.6, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_415_15",
+      "label": "Otros radiológicos",
+      "section": "Radiología simple",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [414.62, 507.63, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_tac_1",
+      "label": "Cerebro",
+      "section": "Scanner",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [64.98, 543.88, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_tac_2",
+      "label": "CPN / órbita / maxilofacial",
+      "section": "Scanner",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [64.98, 562.13, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_tac_3",
+      "label": "Oído",
+      "section": "Scanner",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [64.98, 580.13, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_tac_4",
+      "label": "Cuello",
+      "section": "Scanner",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [64.98, 598.38, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_tac_5",
+      "label": "Tórax",
+      "section": "Scanner",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [64.98, 616.9, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_tac_6",
+      "label": "Abdomen",
+      "section": "Scanner",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [64.98, 647.41, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_tac_7",
+      "label": "Pelvis",
+      "section": "Scanner",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [64.98, 668.4, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_tac_8",
+      "label": "Extremidad",
+      "section": "Scanner",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [64.98, 686.65, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_tac_9",
+      "label": "Col. cervical (5 vért. / 4 espacios)",
+      "section": "Scanner",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [64.98, 704.93, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_tac_10",
+      "label": "Col. dorsal (4 vért. / 3 espacios)",
+      "section": "Scanner",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [64.98, 722.93, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_tac_11",
+      "label": "Col. lumbar (4 vért. / 3 espacios)",
+      "section": "Scanner",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [64.98, 741.18, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_tac_12",
+      "label": "Columna: espacio adicional",
+      "section": "Scanner",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [64.98, 759.18, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_tac_13",
+      "label": "Otros scanner",
+      "section": "Scanner",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [64.98, 777.43, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_tac_14",
+      "label": "Pielotac",
+      "section": "Scanner",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [64.98, 795.96, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_tac_15",
+      "label": "Urotac",
+      "section": "Scanner",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [64.98, 813.96, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_tac_16",
+      "label": "Angiotac",
+      "section": "Scanner",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [64.98, 832.2, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_contraste",
+      "label": "Contraste",
+      "section": "Scanner",
+      "kind": "choice",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [185.8, 601.2, 7, 7],
+          "equals": "con"
+        },
+        {
+          "page": 0,
+          "rect": [185.8, 614.6, 7, 7],
+          "equals": "sin"
+        }
+      ],
+      "options": [
+        {
+          "value": "con",
+          "label": "Con contraste"
+        },
+        {
+          "value": "sin",
+          "label": "Sin contraste"
+        }
+      ]
+    },
+    {
+      "id": "imagen_eco_320_1",
+      "label": "Abdominal",
+      "section": "Ecografía",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [320.08, 543.88, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_eco_320_2",
+      "label": "Mamaria",
+      "section": "Ecografía",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [320.08, 561.88, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_eco_320_3",
+      "label": "Obstétrica",
+      "section": "Ecografía",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [320.08, 580.13, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_eco_320_4",
+      "label": "Renal",
+      "section": "Ecografía",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [320.08, 598.38, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_eco_320_5",
+      "label": "Tiroidea",
+      "section": "Ecografía",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [320.08, 616.9, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_eco_320_6",
+      "label": "Doppler",
+      "section": "Ecografía",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [320.08, 655.9, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_eco_437_1",
+      "label": "Ginecológica",
+      "section": "Ecografía",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [436.38, 543.88, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_eco_437_2",
+      "label": "Musculoesquelética",
+      "section": "Ecografía",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [436.38, 561.88, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_eco_437_3",
+      "label": "Partes blandas",
+      "section": "Ecografía",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [436.38, 580.13, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_eco_437_4",
+      "label": "Testicular",
+      "section": "Ecografía",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [436.38, 598.38, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_eco_437_5",
+      "label": "Vesicoprostática",
+      "section": "Ecografía",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [436.38, 616.9, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_eco_437_6",
+      "label": "Pelvis",
+      "section": "Ecografía",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [436.38, 634.65, 6.5, 6.5],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_doppler_vaso",
+      "label": "Doppler: vasos",
+      "section": "Ecografía",
+      "kind": "choice",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [301.6, 667.69, 6.9, 5.75],
+          "equals": "arterial"
+        },
+        {
+          "page": 0,
+          "rect": [301.5, 685.44, 6.9, 5.75],
+          "equals": "venoso"
+        }
+      ],
+      "options": [
+        {
+          "value": "arterial",
+          "label": "Arterial"
+        },
+        {
+          "value": "venoso",
+          "label": "Venoso"
+        }
+      ]
+    },
+    {
+      "id": "imagen_doppler_nivel",
+      "label": "Doppler: extremidad",
+      "section": "Ecografía",
+      "kind": "choice",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [356.2, 668.14, 6.9, 5.75],
+          "equals": "superior"
+        },
+        {
+          "page": 0,
+          "rect": [356.8, 685.44, 6.9, 5.75],
+          "equals": "inferior"
+        }
+      ],
+      "options": [
+        {
+          "value": "superior",
+          "label": "Superior"
+        },
+        {
+          "value": "inferior",
+          "label": "Inferior"
+        }
+      ]
+    },
+    {
+      "id": "imagen_doppler_lado",
+      "label": "Doppler: lateralidad",
+      "section": "Ecografía",
+      "kind": "choice",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [414.95, 668.14, 6.9, 5.75],
+          "equals": "unilateral"
+        },
+        {
+          "page": 0,
+          "rect": [414.95, 685.44, 6.9, 5.75],
+          "equals": "bilateral"
+        }
+      ],
+      "options": [
+        {
+          "value": "unilateral",
+          "label": "Unilateral"
+        },
+        {
+          "value": "bilateral",
+          "label": "Bilateral"
+        }
+      ]
+    },
+    {
+      "id": "imagen_mama_1",
+      "label": "Mamografía",
+      "section": "Mamografía",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [321, 719, 7, 8],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_mama_2",
+      "label": "Tomosíntesis",
+      "section": "Mamografía",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [456, 719, 7, 8],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_mama_5",
+      "label": "Complementaria",
+      "section": "Mamografía",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [442, 743, 7, 8],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_mama_6",
+      "label": "Biopsia",
+      "section": "Mamografía",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [442, 766, 7, 8],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "imagen_mama_lateralidad",
+      "label": "Lateralidad",
+      "section": "Mamografía",
+      "kind": "choice",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [304, 743, 7, 8],
+          "equals": "bilateral"
+        },
+        {
+          "page": 0,
+          "rect": [304, 766, 7, 8],
+          "equals": "unilateral"
+        }
+      ],
+      "options": [
+        {
+          "value": "bilateral",
+          "label": "Bilateral"
+        },
+        {
+          "value": "unilateral",
+          "label": "Unilateral"
+        }
+      ]
+    },
+    {
+      "id": "imagen_rx_otros_detalle",
+      "label": "Otros radiológicos: especificar",
+      "section": "Radiología simple",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [470, 505, 93, 10]
+        }
+      ]
+    },
+    {
+      "id": "imagen_tac_otros_detalle",
+      "label": "Otros scanner: especificar",
+      "section": "Scanner",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [112, 774, 172, 10]
+        }
+      ]
+    },
+    {
+      "id": "medico_tratante_nombre",
+      "label": "Médico solicitante",
+      "section": "Profesional",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [307, 799, 151, 30]
+        }
+      ]
+    }
+  ],
+  "templateSha256": "8561373bdbf0160dd0afb8e129148976513be83e403907a057ae3ef2a929c0c9",
+  "sourceSha256": "8561373bdbf0160dd0afb8e129148976513be83e403907a057ae3ef2a929c0c9"
+}

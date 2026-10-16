@@ -20,7 +20,7 @@ para un nuevo ensayo. No introduce vencimientos en el sistema clínico.
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `projects`     | `sourceId`, `sourceNumber`, `targetId`, `targetNumber` de `gcloud projects describe`. Números como texto.                                                                                                          |
 | `inventory`    | `readWindowStable: true`, `officialCudyrUnchanged: true`, `cloudWrites: 0`, `reportHash` SHA-256 del informe recién obtenido.                                                                                      |
-| `mirror`       | Proyecto antiguo, `function: "mirrorDailyRecords"`, `state: "disabled"`, con prueba de que dejó de ejecutar. Un error de credenciales **no** demuestra detención.                                                  |
+| `mirror`       | Proyecto antiguo, `function: "mirrorDailyRecords"`, `state: "disabled"` o `"deleted"`, con prueba de detención o eliminación. Un error de credenciales **no** demuestra detención.                                 |
 | `deployment`   | Proyecto destino, `expectedCommit` y `deployedCommit` completos, iguales y verificados en el despliegue.                                                                                                           |
 | `rules`        | Proyecto destino, `expectedHash` y `deployedHash` SHA-256 iguales, cotejando reglas locales y desplegadas.                                                                                                         |
 | `localSession` | Proyecto destino, `projectIsolationVerified: true`, `pendingOperations: 0`, `sameOriginTransitionTestPassed: true`. Probar cambio de Firebase con el mismo UID sin mezclar caché ni reenviar operaciones antiguas. |
@@ -32,6 +32,10 @@ impreso contiene únicamente los estados de los controles; no reproduce referenc
 credenciales, nombres, correos ni datos clínicos. Código 0: evidencias suficientes
 para preparar un ensayo; 2: pendientes; 1: entrada inválida. `readyForRehearsal`
 no es permiso para un corte ni una verificación independiente de los comprobantes.
+
+La consulta de [backend](05-backend.md) permite cotejar las reglas publicadas y
+comprobar que el espejo fue eliminado, sin modificar la nube. Sus resultados se
+incorporan a evidencias revisadas; no reemplazan el resto del ensayo.
 
 ## Orden operativo
 

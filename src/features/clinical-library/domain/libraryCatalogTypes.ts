@@ -7,6 +7,8 @@
  * y funcionan sin conexión.
  */
 
+import type { ClinicalFormId } from './forms/clinicalFormTypes';
+
 export const LIBRARY_CATEGORY_IDS = ['forms', 'protocols', 'infographics', 'tools'] as const;
 export type LibraryCategoryId = (typeof LIBRARY_CATEGORY_IDS)[number];
 export type LibraryDocumentCategoryId = Exclude<LibraryCategoryId, 'tools'>;
@@ -34,6 +36,8 @@ export interface LibraryDocumentEntry {
   sizeKb: number;
   keywords: string[];
   source?: string;
+  /** Keep the original download/print action alongside its interactive editor. */
+  editorId?: ClinicalFormId | 'medif';
 }
 
 export const LIBRARY_TOOL_IDS = [
