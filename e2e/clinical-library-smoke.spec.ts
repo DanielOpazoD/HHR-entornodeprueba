@@ -36,6 +36,9 @@ const seedPersistedSession = async (page: Page) => {
         patientName: SEEDED_PATIENT_NAME,
         biologicalSex: 'Femenino',
         rut: '12345678-5',
+        // The shared forms only propose a RUT when this synthetic identity declares its type.
+        documentType: 'RUT',
+        identityStatus: 'official',
         pathology: 'DIAGNOSTICO PREVIEW',
         age: '44',
         admissionDate: '2026-03-29',
@@ -366,4 +369,85 @@ test('fills the compact MEDIF from the census, restores its preset and prints th
   );
   await capture(page, '11-medif-compact-mobile');
   expect(pageErrors).toEqual([]);
+});
+
+test('fills shared forms from the census and manually, retaining original print pages', async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await seedPersistedSession(page);
+  await page.goto(`/?date=${PREVIEW_DATE}`);
+  await expect(
+    page.locator('[data-testid="patient-row"][data-bed-id="R1"] input[name="patientName"]')
+  ).toHaveValue(SEEDED_PATIENT_NAME, { timeout: 20_000 });
+  await page.getByTestId('clinical-library-quick-action').click({ timeout: 15_000 });
+  const drawer = page.getByTestId('clinical-library-drawer');
+  await drawer
+    .getByTestId('library-document-solicitud-laboratorio-policlinico')
+    .getByRole('button', { name: /^Completar/ })
+    .click();
+  const editor = drawer.getByTestId('library-tool-clinical-form');
+  const source = editor.getByLabel('Origen de los datos');
+  const key = await source
+    .locator('option')
+    .filter({ hasText: SEEDED_PATIENT_NAME })
+    .getAttribute('value');
+  await source.selectOption(key!);
+  await expect(editor.getByLabel('Nombre y apellidos')).toHaveValue(SEEDED_PATIENT_NAME);
+  await expect(editor.getByLabel('RUT', { exact: true })).toHaveValue('12345678-5');
+  await editor.getByRole('checkbox', { name: 'Hemograma', exact: true }).check();
+  const downloadForm = async (name: string, pages: number) => {
+    const pending = page.waitForEvent('download');
+    await editor.getByRole('button', { name: 'PDF imprimible', exact: true }).click();
+    const file = test.info().outputPath(name + '.pdf');
+    await (await pending).saveAs(file);
+    const pdf = await PDFDocument.load(new Uint8Array(fs.readFileSync(file)));
+    expect(pdf.getPageCount()).toBe(pages);
+    expect(pdf.getForm().getFields()).toHaveLength(0);
+  };
+  await downloadForm('laboratorio-censo', 1);
+  await editor.getByRole('button', { name: 'Variables y preferencias', exact: true }).click();
+  await editor.getByRole('checkbox', { name: 'Mostrar RUT', exact: true }).uncheck();
+  const configDownload = page.waitForEvent('download');
+  await editor.getByRole('button', { name: 'Exportar preferencias', exact: true }).click();
+  const configPath = test.info().outputPath('formularios-preferencias.json');
+  await (await configDownload).saveAs(configPath);
+  const configuration = fs.readFileSync(configPath, 'utf8');
+  expect(configuration).toContain('paciente_rut');
+  expect(configuration).not.toContain(SEEDED_PATIENT_NAME);
+  expect(configuration).not.toContain('12345678-5');
+  await editor.getByRole('button', { name: 'Variables y preferencias', exact: true }).click();
+  await expect(editor.getByLabel('RUT', { exact: true })).toHaveCount(0);
+  await editor.getByLabel('Formulario clínico').selectOption('encuesta-contraste');
+  await expect(editor.getByLabel('Nombre y apellidos')).toHaveValue(SEEDED_PATIENT_NAME);
+  await editor.getByRole('button', { name: '¿Tiene alguna alergia?: No', exact: true }).click();
+  await source.selectOption('');
+  await editor.getByRole('button', { name: 'Conservar formulario', exact: true }).click();
+  await expect(editor.getByLabel('Nombre y apellidos')).toHaveValue(SEEDED_PATIENT_NAME);
+  await source.selectOption('');
+  await editor.getByRole('button', { name: 'Reemplazar datos', exact: true }).click();
+  await expect(editor.getByLabel('Nombre y apellidos')).toHaveValue('');
+  await editor.getByLabel('Nombre y apellidos').fill('PACIENTE MANUAL PRUEBA');
+  await editor.getByLabel('RUT', { exact: true }).fill('11.111.111-1');
+  await editor.getByLabel('Formulario clínico').selectOption('consentimiento-informado');
+  await expect(editor.getByLabel('Nombre y apellidos')).toHaveValue('PACIENTE MANUAL PRUEBA');
+  await editor.getByLabel('Fecha', { exact: true }).fill('2026-10-16');
+  await editor.getByLabel('Procedimiento (sin siglas)').fill('PROCEDIMIENTO DE PRUEBA');
+  await downloadForm('consentimiento-manual', 1);
+  await editor
+    .getByLabel('Formulario clínico')
+    .selectOption('planilla-monitorizacion-ventilatoria');
+  await expect(editor.getByLabel('Nombre y apellidos')).toHaveValue('PACIENTE MANUAL PRUEBA');
+  await expect(editor.getByRole('table')).toHaveCount(0);
+  await expect(editor.getByLabel('Registro 1 · Hora', { exact: true })).toHaveCount(0);
+  await editor.getByLabel('Fecha de ingreso', { exact: true }).fill('2026-10-13');
+  await downloadForm('vmi-manual', 2);
+  await page.setViewportSize({ width: 375, height: 812 });
+  expect(await editor.evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(
+    true
+  );
+  await capture(page, '12-shared-forms-mobile');
+  expect(errors).toEqual([]);
 });

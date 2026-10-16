@@ -1,0 +1,257 @@
+{
+  "id": "solicitud-serologia-hepatitis-chagas",
+  "title": "Solicitud de serología: hepatitis B/C, Chagas y HTLV",
+  "revision": 1,
+  "catalogVersion": "1.1.0",
+  "templateUrl": "/docs/biblioteca/solicitud-serologia-hepatitis-chagas-hds.pdf",
+  "sourceUrl": "/docs/biblioteca/solicitud-serologia-hepatitis-chagas-hds.pdf",
+  "pages": [
+    {
+      "width": 612,
+      "height": 792
+    }
+  ],
+  "fields": [
+    {
+      "id": "paciente_nombre_completo",
+      "label": "Nombre y apellidos",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [74, 175, 438, 23]
+        }
+      ]
+    },
+    {
+      "id": "paciente_documento_numero",
+      "label": "RUT o pasaporte",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [74, 289, 188, 13]
+        }
+      ]
+    },
+    {
+      "id": "paciente_fecha_nacimiento",
+      "label": "Fecha de nacimiento",
+      "section": "Paciente",
+      "kind": "date",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [265, 289, 174, 13],
+          "format": "date_dmy"
+        }
+      ]
+    },
+    {
+      "id": "paciente_edad_texto",
+      "label": "Edad (con unidad)",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [443, 289, 70, 13]
+        }
+      ]
+    },
+    {
+      "id": "paciente_sexo_biologico",
+      "label": "Sexo biológico",
+      "section": "Paciente",
+      "kind": "choice",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [77.65, 230.56, 13.75, 11.5],
+          "equals": "Femenino"
+        },
+        {
+          "page": 0,
+          "rect": [189.65, 230.56, 13.75, 11.5],
+          "equals": "Masculino"
+        }
+      ],
+      "options": [
+        {
+          "value": "Femenino",
+          "label": "Femenino"
+        },
+        {
+          "value": "Masculino",
+          "label": "Masculino"
+        },
+        {
+          "value": "Indeterminado",
+          "label": "Indeterminado (sin casillero en esta plantilla)"
+        }
+      ]
+    },
+    {
+      "id": "serologia_embarazo",
+      "label": "Embarazo",
+      "section": "Paciente",
+      "kind": "boolean",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [331.35, 230.56, 13.75, 11.5],
+          "equals": true
+        },
+        {
+          "page": 0,
+          "rect": [433.35, 231.56, 13.75, 11.5],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "serologia_semana_gestacional",
+      "label": "Semana gestacional",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [400, 245, 110, 11]
+        }
+      ]
+    },
+    {
+      "id": "serologia_procedencia",
+      "label": "Procedencia (sala, APS u hospital)",
+      "section": "Solicitud",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [74, 349, 438, 23]
+        }
+      ]
+    },
+    {
+      "id": "serologia_examen_1",
+      "label": "Antígeno de superficie hepatitis B (HBsAg)",
+      "section": "Exámenes",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [442, 417.0, 69, 25],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "serologia_examen_2",
+      "label": "Anti-core total hepatitis B",
+      "section": "Exámenes",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [442, 444.45, 69, 25],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "serologia_examen_3",
+      "label": "Anticuerpos hepatitis C",
+      "section": "Exámenes",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [442, 471.9, 69, 25],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "serologia_examen_4",
+      "label": "Sífilis (exclusivo procuramiento)",
+      "section": "Exámenes",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [442, 499.35, 69, 25],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "serologia_examen_5",
+      "label": "HTLV I/II",
+      "section": "Exámenes",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [442, 526.8, 69, 25],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "serologia_examen_6",
+      "label": "Chagas",
+      "section": "Exámenes",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [442, 554.25, 69, 25],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "serologia_examen_7",
+      "label": "Toxoplasma IgG (exclusivo pacientes HDS)",
+      "section": "Exámenes",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [442, 581.7, 69, 25],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "serologia_fecha_muestra",
+      "label": "Fecha de toma de muestra",
+      "section": "Muestra",
+      "kind": "date",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [81, 673, 80, 13],
+          "format": "date_dmy"
+        }
+      ]
+    },
+    {
+      "id": "serologia_profesional_muestra",
+      "label": "Profesional de la toma de muestra",
+      "section": "Muestra",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [201, 673, 168, 13]
+        }
+      ]
+    }
+  ],
+  "templateSha256": "2c1253bd29397b98a3d465827b05032ba0e40f2c6949e993d56fe73e4e918e88",
+  "sourceSha256": "2c1253bd29397b98a3d465827b05032ba0e40f2c6949e993d56fe73e4e918e88"
+}

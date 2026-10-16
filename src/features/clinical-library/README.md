@@ -5,8 +5,8 @@
 Biblioteca de documentos y herramientas del censo diario. El botón «Documentos» de la barra de
 fechas abre un panel lateral con:
 
-- **Formularios**: una versión por formulario, servida con sus bytes originales. Cada fila tiene un
-  solo botón: imprimir (PDF) o descargar (Word).
+- **Formularios**: diez documentos con acción **Completar**, además de imprimir o descargar el
+  original. MEDIF conserva su editor; los otros nueve comparten el editor de formularios clínicos.
 - **Protocolos** e **infografías**: categorías preparadas; se publican agregando archivos y entradas
   al catálogo.
 - **Herramientas** en el navegador: editor MEDIF con 137 variables, ingreso manual o copia del
@@ -20,7 +20,11 @@ El catálogo es estático y el panel se abre desde el censo diario. Las calculad
 lo escrito en sus formularios. La carátula y MEDIF pueden copiar datos del censo para editarlos
 en memoria. MEDIF persiste únicamente preferencias de visibilidad, sin valores de pacientes;
 los borradores con datos se descargan a petición del usuario y no se guardan automáticamente.
-La generación de MEDIF necesita cargar su plantilla pública en blanco.
+La impresión necesita cargar la plantilla pública en blanco de cada formulario. Los Word se
+conservan y tienen una exportación PDF verificada con el mismo diseño para la impresión.
+
+La [guía de formularios compartidos](../../../docs/formularios-clinicos.md) documenta el catálogo
+común, los mapas de impresión y el modo de ingreso manual o desde una cama/cuna clínica.
 
 La [guía de MEDIF](../../../docs/medif.md) describe los modos manual y censo, las preferencias,
 los borradores y los PDF. El [diccionario de variables](../../../docs/medif-variables.md)
