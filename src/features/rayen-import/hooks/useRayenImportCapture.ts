@@ -7,6 +7,7 @@ import {
   type SetStateAction,
 } from 'react';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import type {
   CapturePreparationLock,
   RayenImportCaptureOptions,
@@ -93,6 +94,16 @@ export const useRayenImportCapture = ({
   previewSnapshot,
 }: UseRayenImportCaptureInput) => {
   const capturePreparationLockRef = useRef<CapturePreparationLock | null>(null);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      // This lock exists only before the request starts; committed work keeps converging.
+      if (capturePreparationLockRef.current) dispatchExecution({ type: 'cancel' });
+      capturePreparationLockRef.current = null;
+    };
+  }, [dispatchExecution]);
   useEffect(
     () =>
       rayenImportBridge.subscribeToRayenSnapshots((snapshot, bundle, requestId) => {
@@ -151,6 +162,7 @@ export const useRayenImportCapture = ({
       performance?: RayenSyncPerformanceDelta,
       options?: RayenImportCaptureOptions
     ): Promise<RayenImportTriggerOutcome> => {
+      if (!mountedRef.current) return 'blocked';
       const requestedSelectedDate =
         routeSelectedDate ?? (currentRecord ? toIsoReportDate(currentRecord) : 'no-record');
       const activeExecution = executionRef.current;
@@ -240,6 +252,16 @@ export const useRayenImportCapture = ({
         }
         const selectedDate = toIsoReportDate(currentRecord);
         dispatchExecution({ type: 'prepare', runId: run.id, selectedDate });
+        const generation = getSessionGeneration();
+        const isPreparationCurrent = (): boolean => {
+          const ownsLock = capturePreparationLockRef.current === preparationLock;
+          const current = mountedRef.current && ownsLock && generation === getSessionGeneration();
+          if (!current && ownsLock) dispatchExecution({ type: 'cancel', runId: run.id });
+          return (
+            current &&
+            isRayenSyncExecutionCurrent(executionRef.current, { runId: run.id, selectedDate })
+          );
+        };
 
         setState(previous => ({
           ...previous,
@@ -267,12 +289,7 @@ export const useRayenImportCapture = ({
             throw new Error('Selecciona una fecha de censo válida, actual o pasada.');
           }
         } catch (error) {
-          if (
-            !isRayenSyncExecutionCurrent(executionRef.current, {
-              runId: run.id,
-              selectedDate,
-            })
-          ) {
+          if (!isPreparationCurrent()) {
             return 'started';
           }
           dispatchExecution({
@@ -294,12 +311,7 @@ export const useRayenImportCapture = ({
 
         // The selected date or active execution may have changed while the authoritative census
         // was loading. Never start an extension request for an obsolete temporal context.
-        if (
-          !isRayenSyncExecutionCurrent(executionRef.current, {
-            runId: run.id,
-            selectedDate,
-          })
-        ) {
+        if (!isPreparationCurrent()) {
           return 'started';
         }
 
