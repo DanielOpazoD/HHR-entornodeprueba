@@ -31,7 +31,7 @@ export const SpecialtyRulesHistoryPanel = ({
         Revisa las asociaciones observadas antes de usarlas como regla.
       </p>
       {memory.length > 0 && (
-        <div className="mb-3 max-h-44 space-y-2 overflow-auto">
+        <div className="mb-3 space-y-2">
           <p className="text-xs font-semibold text-slate-700">
             Asociaciones recordadas ·{setup?.policy.memoryEnabled ? ' activas' : ' inactivas'}
           </p>
@@ -91,7 +91,7 @@ export const SpecialtyRulesHistoryPanel = ({
         <p className="mt-2 text-slate-500">Sin asociaciones CIE-10 y especialidad en ese mes.</p>
       )}
       {history.length > 0 && (
-        <div className="mt-3 max-h-56 space-y-2 overflow-auto">
+        <div className="mt-3 space-y-2">
           {history.map(item => (
             <div
               key={`${item.code}|${item.specialty}`}

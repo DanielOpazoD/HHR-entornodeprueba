@@ -58,11 +58,14 @@ export const SpecialtyRulesWindow = ({
       }}
       closeOnBackdrop={false}
       size="3xl"
+      bodyClassName="flex min-h-0 flex-col !overflow-hidden p-4 sm:p-5"
       title="Reglas automáticas de especialidad"
       icon={<ListChecks size={20} className="text-teal-700" aria-hidden="true" />}
     >
-      <div className="space-y-3 text-sm text-slate-700">
-        <p>Sólo se asignan episodios pendientes. Las especialidades confirmadas se conservan.</p>
+      <div className="flex min-h-0 flex-1 flex-col gap-3 text-sm text-slate-700">
+        <p className="text-xs text-slate-500">
+          Sólo episodios pendientes; se conservan las decisiones confirmadas.
+        </p>
         {memoryPendingDeploy && (
           <p role="status" className="rounded-lg bg-amber-50 p-2 text-amber-900">
             El servidor aún no entrega asociaciones recordadas. Se conservarán intactas al guardar
@@ -88,11 +91,11 @@ export const SpecialtyRulesWindow = ({
           role="tabpanel"
           id={`specialty-panel-${tab}`}
           aria-labelledby={`specialty-tab-${tab}`}
-          className="max-h-[48vh] overflow-y-auto pr-1"
+          className="min-h-0 flex-1 overflow-y-auto pr-1"
         >
           {tab === 'rules' && (
             <>
-              <div className="max-h-60 space-y-2 overflow-auto" aria-label="Reglas configuradas">
+              <div className="space-y-2" aria-label="Reglas configuradas">
                 {rules.map(rule => (
                   <div
                     key={rule.id}
@@ -209,12 +212,9 @@ export const SpecialtyRulesWindow = ({
           {tab === 'current' && (
             <>
               <section className="space-y-2" aria-label="Diagnósticos de pacientes hospitalizados">
-                <h3 className="font-semibold text-slate-900">
-                  Diagnósticos de pacientes hospitalizados
-                </h3>
+                <h3 className="sr-only">Diagnósticos de pacientes hospitalizados</h3>
                 <p className="text-xs text-slate-500">
-                  Censo {currentDate === today ? 'vigente' : 'seleccionado'} · {currentDate}. Revisa
-                  la especialidad antes de añadir la regla.
+                  Censo {currentDate === today ? 'vigente' : 'seleccionado'} · {currentDate}
                 </p>
                 {currentError && (
                   <p role="status" className="text-xs text-amber-800">
@@ -230,7 +230,7 @@ export const SpecialtyRulesWindow = ({
                     No hay diagnósticos CIE-10 en pacientes hospitalizados.
                   </p>
                 )}
-                <div className="max-h-56 space-y-2 overflow-auto">
+                <div className="space-y-2">
                   {currentDiagnoses.map(diagnosis => {
                     const existing = rules.find(
                       rule => normalizeDiagnosisCode(rule.cie10Code) === diagnosis.code
@@ -255,35 +255,37 @@ export const SpecialtyRulesWindow = ({
                             {existing ? 'regla existente' : 'sin regla'}
                           </span>
                         </span>
-                        <select
-                          aria-label={`Especialidad para ${diagnosis.code}`}
-                          value={selected}
-                          disabled={busy || !setup}
-                          onChange={event =>
-                            setSelectedSpecialties(current => ({
-                              ...current,
-                              [diagnosis.code]: event.target.value,
-                            }))
-                          }
-                          className="rounded border border-slate-300 bg-white px-2 py-1.5"
-                        >
-                          <option value="">Elegir especialidad</option>
-                          {SPECIALTY_OPTIONS.filter(option => option !== 'Otro').map(option => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </select>
-                        <button
-                          type="button"
-                          disabled={
-                            !selected || busy || !setup || (!existing && rules.length >= 128)
-                          }
-                          onClick={() => stageAssociation(diagnosis.code, selected)}
-                          className="rounded border border-teal-300 px-2 py-1.5 font-medium text-teal-800 hover:bg-teal-50 disabled:opacity-50"
-                        >
-                          {existing ? 'Actualizar regla' : 'Añadir regla'}
-                        </button>
+                        <div className="flex w-full gap-2 sm:w-auto">
+                          <select
+                            aria-label={`Especialidad para ${diagnosis.code}`}
+                            value={selected}
+                            disabled={busy || !setup}
+                            onChange={event =>
+                              setSelectedSpecialties(current => ({
+                                ...current,
+                                [diagnosis.code]: event.target.value,
+                              }))
+                            }
+                            className="min-w-0 flex-1 rounded border border-slate-300 bg-white px-2 py-1.5"
+                          >
+                            <option value="">Elegir especialidad</option>
+                            {SPECIALTY_OPTIONS.filter(option => option !== 'Otro').map(option => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            disabled={
+                              !selected || busy || !setup || (!existing && rules.length >= 128)
+                            }
+                            onClick={() => stageAssociation(diagnosis.code, selected)}
+                            className="shrink-0 rounded border border-teal-300 px-2 py-1.5 font-medium text-teal-800 hover:bg-teal-50 disabled:opacity-50"
+                          >
+                            {existing ? 'Actualizar regla' : 'Añadir regla'}
+                          </button>
+                        </div>
                       </div>
                     );
                   })}
@@ -303,7 +305,7 @@ export const SpecialtyRulesWindow = ({
             {message}
           </p>
         )}
-        <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 pt-3">
+        <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-slate-200 pt-3">
           <button
             type="button"
             disabled={busy}
