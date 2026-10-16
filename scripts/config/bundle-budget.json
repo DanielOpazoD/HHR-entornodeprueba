@@ -10,6 +10,8 @@
     "^docs/",
     "^templates/",
     "^images/forms/",
+    "^assets/MedifTool-.*\\.js$",
+    "^assets/MedifTool-.*\\.css$",
     "^vendor/exceljs\\.bare\\.min\\.js$",
     "^assets/exceljs\\.min-.*\\.js$",
     "^assets/pdf\\.worker-.*\\.mjs$",

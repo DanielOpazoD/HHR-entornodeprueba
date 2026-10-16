@@ -37,6 +37,7 @@ export interface LibraryDocumentEntry {
 }
 
 export const LIBRARY_TOOL_IDS = [
+  'medif',
   'transfer-cover',
   'critical-medications',
   'infusion',

@@ -175,6 +175,14 @@ const DOCUMENTS: ReadonlyArray<LibraryDocumentEntry> = [
 const TOOLS: ReadonlyArray<LibraryToolEntry> = [
   {
     kind: 'tool',
+    id: 'medif',
+    category: 'tools',
+    title: 'Completar MEDIF · LATAM',
+    description: 'Viaje aéreo desde hospitalizados o ingreso manual; campos y PDF imprimible.',
+    keywords: ['vuelo', 'avión', 'traslado', 'formulario', 'preferencias'],
+  },
+  {
+    kind: 'tool',
     id: 'transfer-cover',
     category: 'tools',
     title: 'Carátula de sobre de traslado',

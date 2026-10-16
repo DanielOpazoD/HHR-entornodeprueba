@@ -1,6 +1,6 @@
 /**
- * Panel lateral «Documentos» del censo: catálogo estático (sin Firestore ni datos de
- * pacientes) con formularios, protocolos, infografías y herramientas sin conexión.
+ * Panel lateral «Documentos» del censo: catálogo estático con formularios,
+ * protocolos, infografías y herramientas que pueden usar el contexto del censo.
  */
 
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
@@ -17,7 +17,13 @@ import type {
 import { filterLibraryEntries, type LibraryCategoryFilter } from '../domain/librarySearch';
 import { printLibraryDocument } from '../services/libraryDocumentActions';
 import { LibraryEntryList } from './LibraryEntryList';
-import { TOOL_REGISTRY } from './toolRegistry';
+import { loadMedifTool, TOOL_REGISTRY } from './toolRegistry';
+
+// A dirty MEDIF has already loaded this module, including its exit guard.
+// Keep the guard in that same on-demand chunk instead of fetching it on exit.
+const LibraryExitConfirmation = React.lazy(() =>
+  loadMedifTool().then(module => ({ default: module.LibraryExitConfirmation }))
+);
 
 export interface LibraryDocumentActions {
   print: (entry: LibraryDocumentEntry) => void;
@@ -48,6 +54,9 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
   documentActions = DEFAULT_DOCUMENT_ACTIONS,
 }) => {
   const [query, setQuery] = useState('');
+  const [medifDirty, setMedifDirty] = useState(false);
+  const [pendingExit, setPendingExit] = useState<'back' | 'close' | null>(null);
+  const previousFocus = useRef<HTMLElement | null>(null);
   const [category, setCategory] = useState<LibraryCategoryFilter>('all');
   const [activeToolId, setActiveToolId] = useState<LibraryToolId | null>(initialToolId);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -59,25 +68,41 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
     [query, category]
   );
 
-  // Escape y clic fuera retroceden un paso: dentro de una herramienta vuelven a la lista
-  // sin perder lo escrito; en la lista cierran el panel.
+  // Escape y clic fuera retroceden un paso. MEDIF confirma antes de descartar datos.
+  const requestExit = useCallback(
+    (target: 'back' | 'close') => {
+      if (activeToolId === 'medif' && medifDirty) {
+        previousFocus.current = document.activeElement as HTMLElement | null;
+        setPendingExit(target);
+        return;
+      }
+      if (target === 'back') setActiveToolId(null);
+      else onClose();
+    },
+    [activeToolId, medifDirty, onClose]
+  );
+
   const dismiss = useCallback(() => {
-    if (activeToolId) {
-      setActiveToolId(null);
-      return;
-    }
-    onClose();
-  }, [activeToolId, onClose]);
+    requestExit(activeToolId ? 'back' : 'close');
+  }, [activeToolId, requestExit]);
+
+  const cancelExit = (): void => {
+    setPendingExit(null);
+    requestAnimationFrame(() => previousFocus.current?.focus());
+  };
 
   const onDrawerKeyDown = (event: React.KeyboardEvent<HTMLElement>): void => {
     if (event.defaultPrevented) return;
     if (event.key === 'Escape') {
       event.stopPropagation();
-      dismiss();
+      if (pendingExit) cancelExit();
+      else dismiss();
       return;
     }
     if (event.key !== 'Tab' || !drawerRef.current) return;
-    const focusable = drawerRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
+    const focusable = [
+      ...drawerRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+    ].filter(element => !element.closest('[inert]'));
     const first = focusable[0];
     const last = focusable[focusable.length - 1];
     if (!first || !last) return;
@@ -109,7 +134,9 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
         data-testid="clinical-library-overlay"
         style={{ zIndex: LAYER_Z_INDEX.drawerBackdrop }}
         className="fixed inset-0 cursor-default bg-slate-900/30"
-        onClick={dismiss}
+        onClick={() => {
+          if (!pendingExit) dismiss();
+        }}
       />
       <aside
         ref={drawerRef}
@@ -121,11 +148,39 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
         data-module="clinical-library"
         style={{ zIndex: LAYER_Z_INDEX.drawer }}
         onKeyDown={onDrawerKeyDown}
-        className="fixed right-0 top-0 flex h-full w-[500px] max-w-full flex-col border-l border-slate-200 bg-slate-50 shadow-xl focus:outline-none"
+        className={clsx(
+          'fixed right-0 top-0 flex h-full max-w-full flex-col border-l border-slate-200 bg-slate-50 shadow-xl focus:outline-none',
+          activeToolId === 'medif' ? 'w-[1180px]' : 'w-[500px]'
+        )}
       >
         <h2 id={titleId} className="sr-only">
           Documentos y herramientas
         </h2>
+        {pendingExit && (
+          <React.Suspense
+            fallback={
+              <button
+                type="button"
+                autoFocus
+                onClick={cancelExit}
+                className="m-4 text-sm text-medical-700"
+              >
+                Seguir editando
+              </button>
+            }
+          >
+            <LibraryExitConfirmation
+              onCancel={cancelExit}
+              onConfirm={() => {
+                const target = pendingExit;
+                setPendingExit(null);
+                setMedifDirty(false);
+                if (target === 'back') setActiveToolId(null);
+                else onClose();
+              }}
+            />
+          </React.Suspense>
+        )}
         {!activeTool && (
           <header className="shrink-0 border-b border-slate-200 bg-white px-3 pb-2 pt-2">
             <div className="flex items-center gap-2">
@@ -200,14 +255,25 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
 
         <div
           data-testid="clinical-library-content"
+          hidden={Boolean(pendingExit)}
+          inert={Boolean(pendingExit)}
           className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-2"
         >
           {activeTool ? (
-            <activeTool.Component
-              onBack={() => setActiveToolId(null)}
-              onClose={onClose}
-              patients={patients}
-            />
+            <React.Suspense
+              fallback={
+                <p role="status" className="p-4 text-sm text-slate-500">
+                  Cargando formulario…
+                </p>
+              }
+            >
+              <activeTool.Component
+                onBack={() => requestExit('back')}
+                onClose={() => requestExit('close')}
+                patients={patients}
+                onDirtyChange={setMedifDirty}
+              />
+            </React.Suspense>
           ) : (
             <LibraryEntryList
               entries={filtered}
