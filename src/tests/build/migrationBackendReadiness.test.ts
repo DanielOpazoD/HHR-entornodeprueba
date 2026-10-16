@@ -130,6 +130,31 @@ describe('read-only migration backend verification', () => {
     expect((await collectBackendReadiness(input)).mirror.state).toBe('present');
   });
 
+  it.each([
+    'mirrorSettings',
+    'mirrorClinicalDocuments',
+    'mirrorAuditLogs',
+    'mirrorTransferRequests',
+    'mirrorFutureCollection',
+  ])('holds remaining mirror %s even when the census mirror was deleted', async name => {
+    const input = fixture();
+    const original = input.runGcloud.getMockImplementation()!;
+    const resource = `projects/${source}/locations/us-central1/functions/${name}`;
+    input.runGcloud.mockImplementation(args =>
+      args[0] === 'functions'
+        ? JSON.stringify([{ name: resource, status: 'ACTIVE' }])
+        : original(args)
+    );
+    const report = await collectBackendReadiness(input);
+    expect(report.mirror.state).toBe('present');
+    expect(report.mirror.remainingFunctions).toEqual([resource]);
+    expect(
+      input.runGcloud.mock.calls
+        .find(([args]) => args[0] === 'functions')?.[0]
+        .some(arg => arg.startsWith('--filter'))
+    ).toBe(false);
+  });
+
   it('refuses project mismatches before loading credentials or making requests', async () => {
     const input = fixture();
     input.runGcloud.mockReturnValue(JSON.stringify({ projectId: target, projectNumber: '0' }));
@@ -175,6 +200,45 @@ describe('read-only migration backend verification', () => {
     const input = fixture();
     const original = input.runGcloud.getMockImplementation()!;
     input.runGcloud.mockImplementation(args => (args[0] === 'functions' ? '{}' : original(args)));
+    await expect(collectBackendReadiness(input)).rejects.toThrow('invalid_mirror_inventory');
+  });
+
+  it('ignores ordinary functions when no mirrors remain', async () => {
+    const input = fixture();
+    const original = input.runGcloud.getMockImplementation()!;
+    input.runGcloud.mockImplementation(args =>
+      args[0] === 'functions'
+        ? JSON.stringify([{ name: `projects/${source}/locations/region/functions/readCensus` }])
+        : original(args)
+    );
+    expect((await collectBackendReadiness(input)).mirror).toMatchObject({
+      function: 'mirror*',
+      scope: 'all-regions-all-mirror-functions',
+      state: 'deleted',
+      remainingFunctions: [],
+    });
+  });
+
+  it.each([
+    { inventory: [null] },
+    { inventory: [{ name: `projects/${target}/locations/region/functions/mirrorSettings` }] },
+    { inventory: [{ name: `projects/${source}/locations/region/functions/mirrorSettings/extra` }] },
+    { inventory: [{ name: `projects/${source}/locations/us central1/functions/ readCensus` }] },
+    { inventory: [{ name: `projects/${source}/locations/region/functions/mirrorSettings\n` }] },
+    { inventory: [{ name: `projects/${source}/locations/region/functions/_mirrorSettings` }] },
+    { inventory: [{ name: `projects/${source}/locations/region/functions/${'a'.repeat(64)}` }] },
+    {
+      inventory: [
+        { name: `projects/${source}/locations/region/functions/mirrorSettings` },
+        { name: `projects/${source}/locations/region/functions/mirrorSettings` },
+      ],
+    },
+  ])('rejects incomplete, foreign or duplicated inventory resources', async ({ inventory }) => {
+    const input = fixture();
+    const original = input.runGcloud.getMockImplementation()!;
+    input.runGcloud.mockImplementation(args =>
+      args[0] === 'functions' ? JSON.stringify(inventory) : original(args)
+    );
     await expect(collectBackendReadiness(input)).rejects.toThrow('invalid_mirror_inventory');
   });
 

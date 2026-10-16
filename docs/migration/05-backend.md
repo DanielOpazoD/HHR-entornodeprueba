@@ -14,13 +14,19 @@ checkout. Relee la publicación al terminar: si cambió, la comparación no qued
 validada. No imprime reglas, credenciales, cuentas ni datos clínicos. El proyecto
 de cuota de la petición queda explícito; no cambia la configuración de gcloud.
 
-También enumera la función exacta `mirrorDailyRecords` en el proyecto antiguo.
-Una lista vacía comprobada se informa como `deleted`; una función presente, incluso
-con errores u offline, sigue pendiente. Si gcloud advierte de regiones inaccesibles
-o emite otros diagnósticos, el inventario se considera incompleto y la consulta
-falla: una respuesta vacía parcial no demuestra eliminación. El preflight acepta evidencia reciente de
-un espejo eliminado o deshabilitado. No se debe recrear la función para cumplir
-el control de detención.
+También enumera todas las funciones, en todas las regiones del proyecto antiguo,
+y detecta los nombres que comienzan por `mirror`, sin distinguir mayúsculas.
+Eliminar solo `mirrorDailyRecords` no acredita que hayan desaparecido los espejos
+de ajustes, documentos, auditoría o traslados. Una familia vacía comprobada se
+informa como `deleted`; cualquier espejo presente, incluso con errores u offline,
+sigue pendiente y aparece en `remainingFunctions`.
+
+Si gcloud advierte de regiones inaccesibles o emite otros diagnósticos, el inventario
+se considera incompleto y la consulta falla. La salida versión 2 declara
+`function: "mirror*"` y `scope: "all-regions-all-mirror-functions"`. El preflight
+requiere esta cobertura, `state: "deleted"` y `remainingFunctions: []`; un informe
+anterior que solo verificó el censo no sirve para acreditar la retirada completa.
+No se debe recrear ninguna función para cumplir el control.
 
 Código 0: reglas idénticas durante la consulta y espejo eliminado. Código 2:
 diferencias o pendientes. Código 1: no se pudo verificar. Un error de permisos no

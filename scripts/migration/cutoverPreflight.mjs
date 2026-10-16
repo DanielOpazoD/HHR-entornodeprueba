@@ -31,8 +31,11 @@ const gates = [
     'Espejo antiguo detenido',
     data =>
       data.project === SOURCE &&
-      data.function === 'mirrorDailyRecords' &&
-      ['disabled', 'deleted'].includes(data.state),
+      data.function === 'mirror*' &&
+      data.scope === 'all-regions-all-mirror-functions' &&
+      data.state === 'deleted' &&
+      Array.isArray(data.remainingFunctions) &&
+      data.remainingFunctions.length === 0,
   ],
   [
     'deployment',

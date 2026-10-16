@@ -26,8 +26,10 @@ const fixture = () => ({
   mirror: {
     ...base,
     project: 'hhr-serviciohospitalizados',
-    function: 'mirrorDailyRecords',
-    state: 'disabled',
+    function: 'mirror*',
+    scope: 'all-regions-all-mirror-functions',
+    remainingFunctions: [] as string[],
+    state: 'deleted',
   },
   deployment: { ...base, project, expectedCommit: sha, deployedCommit: sha },
   rules: { ...base, project, expectedHash: hash, deployedHash: hash },
@@ -89,6 +91,18 @@ describe('migration preflight evidence', () => {
     const data = fixture();
     data.mirror.state = 'deleted';
     expect(assessMigrationPreflight(data, now).readyForRehearsal).toBe(true);
+  });
+
+  it('does not accept old evidence that checked only the census mirror', () => {
+    const data = fixture();
+    data.mirror.function = 'mirrorDailyRecords';
+    expect(assessMigrationPreflight(data, now).readyForRehearsal).toBe(false);
+  });
+
+  it('holds remaining mirror functions even if the supplied state says deleted', () => {
+    const data = fixture();
+    data.mirror.remainingFunctions = ['mirrorSettings'];
+    expect(assessMigrationPreflight(data, now).readyForRehearsal).toBe(false);
   });
   it('rejects wrong projects, mismatched deployments/rules and outstanding operations', () => {
     const data = fixture();
