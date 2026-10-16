@@ -68,7 +68,7 @@ describe('clinical forms editor', () => {
     fireEvent.input(screen.getByLabelText('Fecha', { exact: true }), {
       target: { value: '2026-10-16' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Vista previa', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Vista previa' }));
     await waitFor(() => expect(generate).toHaveBeenCalledOnce());
     expect(generate.mock.calls[0][1]).toMatchObject({
       paciente_nombre_completo: 'MANUAL DE PRUEBA',
@@ -80,14 +80,14 @@ describe('clinical forms editor', () => {
         screen.getByTitle('Consentimiento informado general · PDF para imprimir')
       ).toBeInTheDocument()
     );
-    expect(screen.getByRole('button', { name: 'Imprimir', exact: true })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Imprimir' })).toBeEnabled();
     fireEvent.change(screen.getByLabelText('Nombre y apellidos'), {
       target: { value: 'NOMBRE REVISADO' },
     });
     expect(
       screen.queryByTitle('Consentimiento informado general · PDF para imprimir')
     ).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Imprimir', exact: true })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Imprimir' })).toBeDisabled();
   });
 
   it('shares canonical variables across all nine templates and does not preselect clinical answers', () => {
@@ -151,7 +151,7 @@ describe('clinical forms editor', () => {
       values: { ...patients[0].values, diagnostico_texto: 'CAMBIO DEL CENSO' },
     };
     view.sources([updated, patients[1]]);
-    expect(screen.getByRole('button', { name: 'Vista previa', exact: true })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Vista previa' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Completar sólo vacíos' }));
     expect(screen.getByLabelText('Nombre y apellidos')).toHaveValue('EDITADO');
     expect(screen.getByRole('button', { name: '¿Tiene alguna alergia?: No' })).toHaveAttribute(
@@ -162,7 +162,7 @@ describe('clinical forms editor', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('episodio');
     expect(screen.getByRole('button', { name: 'PDF imprimible' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'continuar como borrador manual' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Vista previa', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Vista previa' }));
     await waitFor(() => expect(generate).toHaveBeenCalledOnce());
     expect(generate.mock.calls[0][1].contraste_alergia).toBe(false);
   });
@@ -179,7 +179,7 @@ describe('clinical forms editor', () => {
     expect(stored).toContain('paciente_nombre_completo');
     fireEvent.click(screen.getByRole('button', { name: 'Variables y preferencias' }));
     expect(screen.queryByLabelText('Nombre y apellidos')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Vista previa', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Vista previa' }));
     await waitFor(() => expect(generate).toHaveBeenCalledOnce());
     expect(generate.mock.calls[0][1].paciente_nombre_completo).toBe('ALFA');
     expect(generate.mock.calls[0][2]).toContain('paciente_nombre_completo');
@@ -195,5 +195,19 @@ describe('clinical forms editor', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Variables y preferencias' }));
     expect(screen.getByLabelText('Nombre y apellidos')).toHaveValue('ALFA');
+  });
+
+  it('does not request a clinical review for an unrelated technical census update', () => {
+    const view = mount();
+    fireEvent.change(screen.getByLabelText('Origen de los datos'), { target: { value: 'ALFA' } });
+    view.sources([
+      {
+        ...patients[0],
+        values: { ...patients[0].values, censo_actualizado_en: '2026-10-16T13:00:00Z' },
+      },
+      patients[1],
+    ]);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Vista previa' })).toBeEnabled();
   });
 });

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
 import type { PatientData } from '@/shared/contracts/patientDomainContracts';
 import type { MedifSourceRecord } from '@/features/clinical-library/domain/medifPatientPrefill';
+import { medifValuesFromClinicalPatient } from '@/features/clinical-library/domain/forms/clinicalFormMedif';
+import { MEDIF_FIELDS } from '@/features/clinical-library/domain/medifSchema';
 import {
   buildClinicalFormPatientOptions,
   mergeEmptyFormValues,
@@ -119,6 +121,10 @@ describe('shared form census projection', () => {
       record(patient({ clinicalEpisodeId: 'next-episode' }))
     );
     expect(next.key).not.toBe(first.key);
+    const [corrected] = buildClinicalFormPatientOptions(
+      record(patient({ patientName: 'IDENTIDAD CORREGIDA' }))
+    );
+    expect(corrected.key).not.toBe(first.key);
   });
 
   it('refreshes only empty values and treats false and zero text as completed', () => {
@@ -128,6 +134,21 @@ describe('shared form census projection', () => {
         { nombre: 'CENSO', no: true, cero: '123', vacio: 'NUEVO' }
       )
     ).toEqual({ nombre: 'EDITADO', no: false, cero: '0', vacio: 'NUEVO' });
+  });
+
+  it('adapts the same facts to MEDIF and links physician names without selecting habitual answers', () => {
+    const [option] = buildClinicalFormPatientOptions(
+      record(patient({ treatingPhysicianName: 'MÉDICO PRUEBA', age: '42 años' }))
+    );
+    const values = medifValuesFromClinicalPatient(option);
+    expect(values.p1_nombre_pasajero).toBe('PACIENTE PRUEBA');
+    expect(values.p2_nombre_paciente).toBe('PACIENTE PRUEBA');
+    for (const id of ['p2_nombre_medico', 'p1_medico_autorizado', 'p3_medico_declaracion'])
+      expect(values[id]).toBe('MÉDICO PRUEBA');
+    expect(values.p2_contagiosa_fecha_tipo).toBe('13/10/2026');
+    expect(
+      MEDIF_FIELDS.filter(field => field.kind === 'mark').every(field => values[field.id] === '')
+    ).toBe(true);
   });
 
   it('preserves calendar dates and infant units without borrowing the admission date for other dates', () => {
