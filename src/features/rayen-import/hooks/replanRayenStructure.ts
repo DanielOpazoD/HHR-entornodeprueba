@@ -13,6 +13,7 @@ import { applyEgresoLookupFallback } from '../domain/applyEgresoLookupFallback';
 import { applyEgresoReport } from '../domain/applyEgresoReport';
 import { applyPreviousCensusEgresoScope } from '../domain/previousCensusEgresoScope';
 import { reconstructHistoricalSnapshotAtClose } from '../domain/historicalSnapshotReconstruction';
+import { assertHistoricalCensusHasEvidence } from '../domain/historicalCensusSync';
 import {
   computePreviousDayEdits,
   verifyPreviousDayAdmissionPlacements,
@@ -170,6 +171,15 @@ export const replanRayenStructure = async (
       throw new Error('No se pudo verificar el censo previo: la fecha recibida no corresponde.');
     }
     diff = appendConflicts(diff, previousCensusContinuityConflicts(previousRecord, record, diff));
+  }
+  if (evidence.isHistoricalDay) {
+    // Keep actionable continuity conflicts from the prior HHR day before rejecting a wholly
+    // unsupported empty bootstrap. Both paths remain unresolved, rather than certifying zero.
+    assertHistoricalCensusHasEvidence(
+      record,
+      { snapshot: evidenceSnapshot, conflicts: diff.conflicts },
+      evidence.egresoRows
+    );
   }
   const planned = {
     ...diff,

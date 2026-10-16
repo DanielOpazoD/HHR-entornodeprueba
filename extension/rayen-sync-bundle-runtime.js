@@ -2,8 +2,6 @@
 (function (root) {
   'use strict';
   const MAX_SOURCE_SKEW_MS = 2 * 60 * 1000;
-  const MAX_HISTORICAL_LOOKBACK_DAYS =
-    root.HhrCensusSyncHorizonRuntime?.MAX_HISTORICAL_LOOKBACK_DAYS;
   const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
   const bothSourcesReady = health =>
     health?.fichaMedico?.status === 'ready' && health?.gestionCamas?.status === 'ready';
@@ -126,7 +124,7 @@
       return { error: 'La captura sincronizada no pudo inicializarse.' };
     }
     if (!root.HhrCensusSyncHorizonRuntime?.isSupportedTargetDay(dateStart, started)) {
-      return { error: 'La reconstrucción automática admite el censo vigente y hasta siete días clínicos anteriores.' };
+      return { error: 'Selecciona una fecha de censo válida, actual o pasada.' };
     }
     const captureTimingsMs = {};
     const measuredRead = createMeasuredRead(captureTimingsMs, monotonicNow);
@@ -170,7 +168,6 @@
 
   root.HhrRayenSyncBundleRuntime = Object.freeze({
     MAX_SOURCE_SKEW_MS,
-    MAX_HISTORICAL_LOOKBACK_DAYS,
     bothSourcesReady,
     capture,
   });

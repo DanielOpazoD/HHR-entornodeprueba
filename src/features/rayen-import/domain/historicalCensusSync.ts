@@ -2,17 +2,15 @@ import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import { resolveCurrentClinicalDay } from '@/utils/clinicalDayAdmissionUtils';
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
+import type { EgresoReportRow } from '../contracts/egresoReport';
+import type { HistoricalSnapshotReconstruction } from './historicalSnapshotReconstruction';
 
 const MILLISECONDS_PER_DAY = 86_400_000;
 
 /**
- * Product contract for delayed census reconstruction.
- *
- * Rayen currently retains evidence for longer (13 days was verified on 25-07-2026), but HHR only
- * promises the seven previous clinical days. Keeping the supported window explicit prevents an
- * incidental upstream retention period from silently becoming a clinical guarantee.
+ * A past date is eligible for evidence-based reconstruction regardless of its age. Eligibility
+ * to query is not proof of upstream retention, population completeness or a historical bed.
  */
-export const MAX_HISTORICAL_CENSUS_LOOKBACK_DAYS = 7;
 
 const isoDayInRapaNui = (date: Date): string => calendarStampInClinicalTimeZone(date).iso;
 
@@ -28,7 +26,7 @@ export interface CensusSyncTarget {
   calendarDay: string;
   /** Clinical day that was active when the synchronization started. */
   clinicalDay: string;
-  /** 0 for an accepted current target, 1..7 for a historical day, null when unsupported. */
+  /** 0 for an accepted current target, positive for a past day, null when invalid. */
   lookbackDays: number | null;
 }
 
@@ -61,9 +59,7 @@ export const resolveCensusSyncTarget = (
   const kind: CensusSyncTargetKind =
     lookbackDays === 0
       ? 'current'
-      : lookbackDays !== null &&
-          lookbackDays >= 1 &&
-          lookbackDays <= MAX_HISTORICAL_CENSUS_LOOKBACK_DAYS
+      : lookbackDays !== null && lookbackDays >= 1
         ? 'historical'
         : 'unsupported';
   return { kind, calendarDay, clinicalDay, lookbackDays };
@@ -92,7 +88,7 @@ export const isCurrentCensusDay = (censusIsoDay: string, now: Date = new Date())
 export const isPreviousCensusDay = (censusIsoDay: string, now: Date = new Date()): boolean =>
   resolveCensusSyncTarget(censusIsoDay, now).lookbackDays === 1;
 
-/** True for a supported historical target from D-1 through D-7. */
+/** True for any valid past clinical day; evidence is checked separately for each episode. */
 export const isHistoricalCensusSyncDay = (censusIsoDay: string, now: Date = new Date()): boolean =>
   classifyCensusSyncTargetDay(censusIsoDay, now) === 'historical';
 
@@ -105,6 +101,33 @@ const occupiedPatientCount = (record: DailyRecord): number =>
     const crib = bed.clinicalCrib?.patientName?.trim() ? 1 : 0;
     return count + primary + crib;
   }, 0);
+
+/** An empty historical query cannot establish an empty population or confirm a blank bootstrap. */
+export const assertHistoricalCensusHasEvidence = (
+  record: DailyRecord,
+  reconstruction: HistoricalSnapshotReconstruction,
+  rows: readonly EgresoReportRow[]
+): void => {
+  const localContent =
+    occupiedPatientCount(record) > 0 ||
+    [record.discharges, record.transfers, record.cma].some(entries => entries?.length);
+  const verifiedDayMovement = rows.some(
+    row =>
+      row.exactEpisodeVerification === 'verified' &&
+      row.correctedDay === record.date &&
+      /^\d+$/.test(row.encounterId ?? '')
+  );
+  if (
+    localContent ||
+    verifiedDayMovement ||
+    reconstruction.snapshot.encounters.length ||
+    reconstruction.conflicts.length
+  )
+    return;
+  throw new Error(
+    'No hay evidencia suficiente en Eloísa para reconstruir este día. El censo no se confirmó como vacío.'
+  );
+};
 
 const normalizeRut = (value?: string): string =>
   (value ?? '').replace(/[^0-9kK]/g, '').toUpperCase();

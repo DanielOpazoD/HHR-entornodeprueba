@@ -1,6 +1,6 @@
 import React from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
-import type { RayenSyncRecoveryPresentation } from './rayenSyncPresentation';
+import type { RayenSyncRecoveryPresentation } from './rayenSyncRecoveryPresentation';
 
 interface RayenSyncRecoveryNoticeProps {
   presentation: RayenSyncRecoveryPresentation | null;

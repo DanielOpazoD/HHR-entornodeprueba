@@ -25,13 +25,13 @@ vi.mock('@/features/rayen-import/bridge/rayenImportBridge', () => ({
 vi.mock('@/features/rayen-import/hooks/reportDateHelpers', () => ({
   toIsoReportDate: (candidate: DailyRecord) => candidate.date,
   resolveSyncReportRequest: (candidate: DailyRecord) =>
-    candidate.date === '2026-07-20'
+    candidate.date === '2026-08-03'
       ? {
           target: {
             kind: 'unsupported',
             calendarDay: '2026-08-02',
             clinicalDay: '2026-08-02',
-            lookbackDays: 13,
+            lookbackDays: -1,
           },
           range: { dateStart: candidate.date, dateEnd: candidate.date },
         }
@@ -365,8 +365,8 @@ describe('useRayenImportCapture', () => {
     );
   });
 
-  it('rejects a target older than D-7 before starting an extension request', async () => {
-    const unsupportedRecord = { ...record, date: '2026-07-20' };
+  it('rejects a future target before starting an extension request', async () => {
+    const unsupportedRecord = { ...record, date: '2026-08-03' };
     const failRun = vi.fn().mockResolvedValue(undefined);
     const setState = vi.fn();
     const startRequest = vi.fn();
@@ -411,7 +411,7 @@ describe('useRayenImportCapture', () => {
     expect(stateUpdater(INITIAL_RAYEN_IMPORT_STATE)).toEqual(
       expect.objectContaining({
         isSyncing: false,
-        error: expect.stringContaining('siete días anteriores'),
+        error: expect.stringContaining('Selecciona una fecha de censo válida, actual o pasada.'),
       })
     );
   });

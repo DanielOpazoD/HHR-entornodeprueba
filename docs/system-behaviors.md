@@ -19,6 +19,13 @@ Documentación de comportamientos automáticos y esperados del sistema HHR.
   se duplica; un registro antiguo sin episodio exige RUN y sello de ingreso completos y coincidentes
   para separar una ocupación CMA antes confundida con la hospitalaria.
 
+- La antigüedad no bloquea una consulta histórica: cada episodio requiere evidencia propia de
+  identidad, intervalo y ubicación al cierre. El censo agregado de Gestión de Camas no es
+  garantía de población completa. La consulta clínica debe seguir alcanzando el día elegido
+  al repetir la sincronización, aunque tenga un checkpoint reciente.
+- Un intento cerrado como parcial se recupera con una captura nueva y nueva autorización.
+  No se cambia a `applied` un historial terminado para permitir nuevas escrituras.
+
 Contrato y pruebas: [sincronización de censo](../src/features/rayen-import/README.md).
 
 ## Profesionales descubiertos desde Eloísa
