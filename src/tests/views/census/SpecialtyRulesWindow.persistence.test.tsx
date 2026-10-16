@@ -86,6 +86,9 @@ describe('specialty associations survive publication and reopen', () => {
   });
   it('supports keyboard navigation between internal tabs', async () => {
     render(<SpecialtyRulesWindow onClose={vi.fn()} />);
+    for (const tab of screen.getAllByRole('tab')) {
+      expect(document.getElementById(tab.getAttribute('aria-controls')!)).toBeInTheDocument();
+    }
     const rules = screen.getByRole('tab', { name: 'Reglas' });
     rules.focus();
     fireEvent.keyDown(rules, { key: 'ArrowRight' });
