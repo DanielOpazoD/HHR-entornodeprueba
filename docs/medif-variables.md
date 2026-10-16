@@ -238,13 +238,13 @@ Antecedentes psiquiátricos, estabilidad y declaración del médico tratante. Re
 
 ## Decisiones y puntos de integración
 
-1. Identificación repetida: el nombre y la edad aparecen en las partes del pasajero y del médico. Son campos PDF diferentes con un único control de nombre y un único control de edad en la interfaz. Al editarlos se sincronizan ambas apariciones; el nombre del médico también se comparte expresamente entre `p2_nombre_medico` (control único en Datos del médico), `p1_medico_autorizado` y `p3_medico_declaracion`. Las demás respuestas permanecen independientes.
+1. Identificación repetida: el nombre y la edad aparecen en las partes del pasajero y del médico. Son campos PDF diferentes con un único control de nombre y un único control de edad en la interfaz. Al editarlos se sincronizan ambas apariciones; el nombre del médico también se comparte expresamente entre `p2_nombre_medico` (control único en Datos del médico), `p1_medico_autorizado` y `p3_medico_declaracion`. La fecha médica `p3_fecha_declaracion` también se copia a `p1_declaracion_fecha`. Las demás respuestas permanecen independientes.
 2. Silla de ruedas: las partes del pasajero y del médico tienen preguntas independientes. No deben sincronizarse automáticamente porque corresponden a declaraciones diferentes.
 3. Acompañante, cirugía y patología psiquiátrica: las preguntas originales están en singular. Este esquema usa una selección exclusiva por grupo, sin inferir exclusión clínica entre diagnósticos. Los campos «Otro» del formulario se mantienen como texto independiente.
 4. Medicación y antecedentes: cada línea/casillero del PDF conserva su variable. No dividir ni truncar automáticamente contenido importado.
 5. Hospitalización: son tres preguntas distintas (general, escalas y destino), cada una con su propio par Sí/No.
 6. Origen HHR: el adaptador [medifPatientPrefill.ts](../src/features/clinical-library/domain/medifPatientPrefill.ts) propone siete campos a partir de nombre, edad, diagnóstico actual, sexo registrado y fecha de ingreso. Por mapeo solicitado, `biologicalSex` se copia al campo Género y `admissionDate` a Enfermedad y fecha de inicio; ambos valores siguen editables y conservan su procedencia.
-7. Modo manual: la ausencia de paciente asociado no limita ninguno de los 137 campos. Una referencia a cama o paciente pertenece a los metadatos de la aplicación, no a un campo nuevo del PDF.
+7. Modo manual: el formulario puede completarse sin paciente asociado; la ruta Isla de Pascua → Santiago permanece fija. Una referencia a cama o paciente pertenece a los metadatos de la aplicación, no a un campo nuevo del PDF.
 8. No se incorporan instrucciones de envío, plazos de aerolínea o datos externos como automatismos. El usuario debe revisar el formulario vigente y la declaración impresa.
 
 ## Cobertura comprobada
@@ -253,7 +253,7 @@ Antecedentes psiquiátricos, estabilidad y declaración del médico tratante. Re
 - 69 campos de texto y 68 casilleros para X.
 - 10 secciones técnicas, 57 grupos y 31 grupos de opciones.
 - Los 57 grupos aparecen exactamente una vez en los siete bloques del editor continuo.
-- Los 137 campos PDF se conservan en el esquema; la interfaz deduplica `p2_nombre_paciente` y `p2_edad` mediante sus alias de página 1, y los dos nombres de médico de las declaraciones mediante `p2_nombre_medico`. El preset deja 93 casilleros PDF visibles y 89 controles de entrada.
+- Los 137 campos PDF se conservan en el esquema; la interfaz deduplica `p2_nombre_paciente` y `p2_edad` mediante sus alias de página 1, y los dos nombres de médico de las declaraciones mediante `p2_nombre_medico`. La fecha `p1_declaracion_fecha` comparte el control `p3_fecha_declaracion`; la ruta fija Isla de Pascua → Santiago ocupa sus dos casilleros sin controles editables. El preset deja 91 casilleros PDF visibles y 84 controles de entrada.
 - Ninguna coordenada, nombre de campo o PDF fue modificado por esta documentación.
 
 ## Modelo de edición y preferencias
@@ -262,11 +262,11 @@ El editor utiliza [medifDraft.ts](../src/features/clinical-library/domain/medifD
 
 Los borradores antiguos usan el valor de `p2_nombre_medico` como nombre del médico en las tres ubicaciones. Si ese campo está vacío, se recupera un único nombre no vacío de las declaraciones. Si estas contienen nombres distintos y falta el dato principal, se rechaza la importación para que se corrija el médico. Borrar el control único vacía las tres copias.
 
-Las preferencias de [medifPreferences.ts](../src/features/clinical-library/domain/medifPreferences.ts) contienen exclusivamente la versión `3` y una lista `hiddenFieldIds`. El preset de [medifDefaultHiddenFields.ts](../src/features/clinical-library/domain/medifDefaultHiddenFields.ts) conserva 43 variables seleccionadas tras volver a mostrar la pregunta sobre instrucciones de seguridad. Su normalización agrega `p2_estable_si` para completar esa pregunta. El resultado es **44 campos ocultos y 93 visibles**. No se elimina ninguna variable del esquema. Variables y Preferencias se abren desde el icono de configuración.
+Las preferencias de [medifPreferences.ts](../src/features/clinical-library/domain/medifPreferences.ts) contienen exclusivamente la versión `4` y `hiddenFieldIds`. El preset de [medifDefaultHiddenFields.ts](../src/features/clinical-library/domain/medifDefaultHiddenFields.ts) incluye 45 variables seleccionadas, entre ellas `p2_prognosis` y `p3_firma_medico_texto`; agrega `p2_estable_si` para completar esa pregunta. El resultado es **46 campos ocultos y 91 visibles**. La fecha médica se comparte con la declaración del pasajero. La ruta no puede editarse ni ocultarse y se aplica también a los borradores antiguos. Variables y Preferencias se abren desde el icono de configuración.
 
 Ocultar una alternativa oculta la pregunta completa; ocultar nombre o edad oculta ambas apariciones, y ocultar el nombre del médico oculta sus tres copias. Las preguntas de silla de ruedas del pasajero y del médico permanecen independientes y sus etiquetas explicitan el contexto. La configuración puede persistirse localmente y exportarse/importarse como JSON sin valores del paciente. Mostrar todos permite habilitar los 137 campos PDF.
 
-La clave de almacenamiento `hhr.medif.preferences.v1` se conserva. Las preferencias antiguas v1 y v2 vuelven a mostrar la pregunta de instrucciones de seguridad una sola vez; v1 además incorpora el preset. La versión v3 preserva las decisiones posteriores. Una importación explícita v1, v2 o v3 respeta la selección del archivo y la convierte a v3 tras normalizar los grupos. El [flujo completo](medif.md) describe esta diferencia entre migración e importación.
+La clave `hhr.medif.preferences.v1` se conserva. V1/v2/v3 migran una vez a v4 para ocultar prognosis y firma médica de texto; v1/v2 también restauran la pregunta de seguridad, y v1 incorpora el preset. V4 conserva las decisiones posteriores. Las importaciones explícitas de cualquiera de esas versiones respetan la selección del archivo, normalizan las unidades y devuelven v4. Las fechas comparten visibilidad; las opciones de ruta fija no aparecen como casillas de Preferencias. El [flujo completo](medif.md) describe la migración e importación.
 
 Ocultar un campo no borra su valor durante la sesión. La preparación de valores para PDF omite los campos ocultos y el generador los deja en blanco. El botón Guardar borrador conserva todos los valores, incluidos los ocultos, para recuperarlos posteriormente. Volver a mostrar el campo recupera su valor mientras continúe la sesión. La persistencia del navegador se limita a preferencias; los borradores con datos se descargan solamente por una acción explícita del usuario.
 

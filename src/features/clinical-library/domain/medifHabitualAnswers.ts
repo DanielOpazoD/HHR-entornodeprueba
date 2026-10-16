@@ -28,8 +28,6 @@ export const MEDIF_HABITUAL_MARK_IDS: readonly string[] = [
 
 const HABITUAL_VALUES: Readonly<MedifValues> = {
   ...Object.fromEntries(MEDIF_HABITUAL_MARK_IDS.map(id => [id, 'X'])),
-  p1_itinerario_1_desde: 'Isla de pascua',
-  p1_itinerario_1_hacia: 'Santiago',
 };
 
 /** Preserve every existing answer, including the other alternatives in a choice question. */

@@ -33,6 +33,7 @@ describe('continuous MEDIF form layout', () => {
       'p2_edad',
       'p1_medico_autorizado',
       'p3_medico_declaracion',
+      'p1_declaracion_fecha',
     ]);
     expect(getMedifCanonicalFieldId('p2_nombre_paciente')).toBe('p1_nombre_pasajero');
     expect(getMedifCanonicalFieldId('p2_edad')).toBe('p1_edad');
@@ -53,7 +54,7 @@ describe('continuous MEDIF form layout', () => {
     expect(getMedifFormBlockIdForField('unknown')).toBeUndefined();
     const passenger = MEDIF_GROUPS.find(group => group.id === 'silla_pasajero')!;
     const physician = MEDIF_GROUPS.find(group => group.id === 'silla_medico')!;
-    expect(getMedifFormGroupLabel(passenger)).toContain('Declaración del pasajero');
+    expect(getMedifFormGroupLabel(passenger)).toBe('¿Necesita silla de ruedas?');
     expect(getMedifFormGroupLabel(physician)).toContain('Evaluación del médico');
     expect(getMedifGroupFieldIds(passenger)).not.toEqual(getMedifGroupFieldIds(physician));
   });

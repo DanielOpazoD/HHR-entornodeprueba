@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Download, Eye, EyeOff, Upload } from 'lucide-react';
 import {
   MEDIF_FIELD_BY_ID,
+  isMedifFixedField,
   MEDIF_GROUPS,
   MEDIF_SECTIONS,
   getMedifGroupFieldIds,
@@ -172,6 +173,7 @@ export const MedifPreferencesPanel: React.FC<Props> = ({
                     count: 1,
                   }))
             )
+            .filter(row => !isMedifFixedField(row.id))
             .filter(row =>
               `${section.title} ${row.label} ${row.id}`
                 .toLocaleLowerCase('es')

@@ -89,10 +89,23 @@ export const MEDIF_PHYSICIAN_ALIASES: readonly string[] = [
   'p3_medico_declaracion',
 ];
 
+export const MEDIF_DECLARATION_DATE_ALIASES: readonly string[] = [
+  'p3_fecha_declaracion',
+  'p1_declaracion_fecha',
+];
+
+/** This service only operates the fixed Isla de Pascua to Santiago route. */
+export const MEDIF_FIXED_ROUTE: Readonly<MedifValues> = {
+  p1_itinerario_1_desde: 'Isla de Pascua',
+  p1_itinerario_1_hacia: 'Santiago',
+};
+export const isMedifFixedField = (id: string): boolean => Object.hasOwn(MEDIF_FIXED_ROUTE, id);
+
 /** Only these explicitly shared values use one editor control. */
 export const MEDIF_FIELD_ALIASES: readonly (readonly string[])[] = [
   ...MEDIF_IDENTITY_ALIASES,
   MEDIF_PHYSICIAN_ALIASES,
+  MEDIF_DECLARATION_DATE_ALIASES,
 ];
 
 export const isMedifFieldId = (fieldId: string): boolean =>

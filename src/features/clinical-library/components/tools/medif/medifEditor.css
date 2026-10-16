@@ -56,19 +56,6 @@
   color: #0369a1;
   border-bottom-color: #0284c7;
 }
-.medif-jump-index {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 10px;
-  font-size: 10px;
-  margin-bottom: 10px;
-}
-.medif-jump-index button {
-  color: #0369a1;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  padding: 3px 0;
-}
 .medif-form-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -226,7 +213,6 @@
   opacity: 0.25;
 }
 .medif-tabs button:focus-visible,
-.medif-jump-index button:focus-visible,
 .medif-card:focus-visible,
 .medif-card button:focus-visible,
 .medif-option:focus-within {
@@ -258,8 +244,11 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 9px;
   }
+  #medif-block-paciente_vuelo .medif-groups {
+    grid-template-columns: minmax(0, 3fr) minmax(120px, 1fr);
+  }
   #medif-block-medico_declaraciones .medif-groups {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 @media (max-width: 420px) {
@@ -274,7 +263,8 @@
   }
 }
 
-.medif-settings-button {
+.medif-settings-button,
+.medif-icon-button {
   width: 34px;
   padding-inline: 0;
 }

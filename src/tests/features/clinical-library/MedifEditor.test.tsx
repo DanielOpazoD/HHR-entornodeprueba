@@ -65,7 +65,7 @@ describe('MedifEditor', () => {
     expect(screen.queryByRole('button', { name: 'Anterior' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Siguiente' })).not.toBeInTheDocument();
     expect(document.getElementById('medif-p1_nombre_pasajero')).toBeInTheDocument();
-    expect(document.getElementById('medif-p3_firma_medico_texto')).toBeInTheDocument();
+    expect(document.getElementById('medif-p3_firma_medico_texto')).not.toBeInTheDocument();
     expect(document.getElementById('medif-p2_nombre_paciente')).not.toBeInTheDocument();
     expect(document.getElementById('medif-p2_edad')).not.toBeInTheDocument();
     for (const id of defaultMedifPreferences().hiddenFieldIds) {
@@ -73,7 +73,7 @@ describe('MedifEditor', () => {
     }
     expect(
       document.querySelectorAll('.medif-form-grid input, .medif-form-grid textarea')
-    ).toHaveLength(89);
+    ).toHaveLength(84);
     expect(document.getElementById('medif-p2_instrucciones_si')).toBeInTheDocument();
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
     expect(
@@ -83,7 +83,7 @@ describe('MedifEditor', () => {
     ).not.toBeInTheDocument();
     openSettings();
     fireEvent.click(screen.getByRole('tab', { name: 'Preferencias' }));
-    expect(screen.getByText(/44 de 137 casilleros ocultos/)).toBeInTheDocument();
+    expect(screen.getByText(/46 de 137 casilleros ocultos/)).toBeInTheDocument();
   });
 
   it('restores the selected preset after showing all without erasing the draft', () => {
@@ -113,6 +113,53 @@ describe('MedifEditor', () => {
     openSettings();
     fireEvent.click(screen.getByRole('tab', { name: 'Formulario' }));
     expect(screen.getByLabelText(/Seguro de viaje/)).toHaveValue('Valor conservado en sesión');
+  });
+
+  it('keeps the route fixed before shortcuts, shares the declaration date and exposes compact draft icons', async () => {
+    window.localStorage.clear();
+    const { props } = setup();
+    expect(props.onDirtyChange).toHaveBeenLastCalledWith(false);
+    expect(
+      screen.queryByRole('navigation', { name: 'Bloques del formulario MEDIF' })
+    ).not.toBeInTheDocument();
+    for (const id of [
+      'p1_itinerario_1_desde',
+      'p1_itinerario_1_hacia',
+      'p2_prognosis',
+      'p3_firma_medico_texto',
+      'p1_declaracion_fecha',
+    ]) {
+      expect(document.getElementById(`medif-${id}`)).not.toBeInTheDocument();
+    }
+    expect(screen.getByRole('textbox', { name: 'Fecha del vuelo' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Guardar borrador' })).toHaveTextContent('');
+    expect(screen.getByRole('button', { name: 'Importar borrador' })).toHaveTextContent('');
+    fireEvent.change(document.getElementById('medif-p3_fecha_declaracion')!, {
+      target: { value: '16/10/2026' },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'PDF editable' }));
+    });
+    expect(props.onGeneratePdf).toHaveBeenCalledWith(
+      expect.objectContaining({
+        p1_itinerario_1_desde: 'Isla de Pascua',
+        p1_itinerario_1_hacia: 'Santiago',
+        p3_fecha_declaracion: '16/10/2026',
+        p1_declaracion_fecha: '16/10/2026',
+      }),
+      expect.anything(),
+      'editable'
+    );
+    fireEvent.change(document.getElementById('medif-p3_fecha_declaracion')!, {
+      target: { value: '' },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'PDF editable' }));
+    });
+    expect(props.onGeneratePdf.mock.lastCall?.[0]).toMatchObject({
+      p3_fecha_declaracion: '',
+      p1_declaracion_fecha: '',
+    });
   });
 
   it('shows one physician name under Datos del médico and fills both PDF declarations', async () => {
@@ -379,9 +426,8 @@ describe('MedifEditor', () => {
       target: { value: '7 meses' },
     });
     expect(document.getElementById('medif-p2_edad')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Asistencia y acompañante/ }));
     const wheelchair = screen.getByRole('group', {
-      name: '¿Necesita silla de ruedas? · Declaración del pasajero',
+      name: '¿Necesita silla de ruedas?',
     });
     expect(within(wheelchair).getByRole('radio', { name: 'Sí' })).not.toBeChecked();
     expect(within(wheelchair).getByRole('radio', { name: 'No' })).not.toBeChecked();

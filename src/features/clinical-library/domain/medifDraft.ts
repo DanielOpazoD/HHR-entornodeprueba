@@ -5,6 +5,8 @@ import {
   MEDIF_IDENTITY_ALIASES,
   MEDIF_FIELD_ALIASES,
   MEDIF_PHYSICIAN_ALIASES,
+  MEDIF_DECLARATION_DATE_ALIASES,
+  MEDIF_FIXED_ROUTE,
   isMedifFieldId,
   type MedifValues,
 } from './medifSchema';
@@ -17,8 +19,14 @@ export interface MedifDraft {
   values: MedifValues;
 }
 
-export const emptyMedifValues = (): MedifValues =>
-  Object.fromEntries(MEDIF_FIELDS.map(field => [field.id, '']));
+export const emptyMedifValues = (): MedifValues => ({
+  ...Object.fromEntries(MEDIF_FIELDS.map(field => [field.id, ''])),
+  ...MEDIF_FIXED_ROUTE,
+});
+
+/** Fixed route defaults alone are not an unsaved patient draft. */
+export const hasMedifDraftData = (values: MedifValues): boolean =>
+  Object.entries(values).some(([id, value]) => value.trim() && value !== MEDIF_FIXED_ROUTE[id]);
 
 export const setMedifFieldValue = (
   values: MedifValues,
@@ -29,6 +37,7 @@ export const setMedifFieldValue = (
   if (MEDIF_FIELD_BY_ID[fieldId].kind === 'mark' && value !== '' && value !== 'X') {
     throw new Error('Los casilleros MEDIF solo admiten X o una respuesta vacía.');
   }
+  value = MEDIF_FIXED_ROUTE[fieldId] ?? value;
   const next = { ...values, [fieldId]: value };
   const aliases = MEDIF_FIELD_ALIASES.find(ids => ids.includes(fieldId));
   for (const alias of aliases ?? []) next[alias] = value;
@@ -91,7 +100,11 @@ export const validateMedifValues = (value: unknown): MedifValues => {
     ? result[physicianId]
     : (physicianNames[0] ?? '');
   for (const id of MEDIF_PHYSICIAN_ALIASES) result[id] = physicianName;
-  return result;
+  const declarationDate = result[MEDIF_DECLARATION_DATE_ALIASES[0]].trim()
+    ? result[MEDIF_DECLARATION_DATE_ALIASES[0]]
+    : result[MEDIF_DECLARATION_DATE_ALIASES[1]];
+  for (const id of MEDIF_DECLARATION_DATE_ALIASES) result[id] = declarationDate;
+  return { ...result, ...MEDIF_FIXED_ROUTE };
 };
 
 export const importMedifDraft = (json: string): MedifValues => {

@@ -1,6 +1,5 @@
 import React, { useRef } from 'react';
 import { FileText, List, Settings2 } from 'lucide-react';
-import { MEDIF_FORM_BLOCKS } from '../../../domain/medifFormLayout';
 
 const TABS = [
   { id: 'form', label: 'Formulario', icon: FileText },
@@ -54,13 +53,3 @@ export const MedifTabs: React.FC<{ value: MedifTabId; onChange: (tab: MedifTabId
     </div>
   );
 };
-
-export const MedifJumpIndex: React.FC<{ onSelect: (id: string) => void }> = ({ onSelect }) => (
-  <nav aria-label="Bloques del formulario MEDIF" className="medif-jump-index">
-    {MEDIF_FORM_BLOCKS.map(block => (
-      <button key={block.id} type="button" onClick={() => onSelect(block.id)}>
-        {block.title}
-      </button>
-    ))}
-  </nav>
-);

@@ -24,8 +24,8 @@ describe('MEDIF green check', () => {
     const button = screen.getByRole('button', { name: 'Respuestas habituales' });
     expect(document.getElementById('medif-p2_comer_si')).not.toBeChecked();
     expect(document.getElementById('medif-p2_instrucciones_si')).not.toBeChecked();
-    fireEvent.change(screen.getByRole('textbox', { name: 'Hacia' }), {
-      target: { value: 'Destino manual' },
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nombre del médico tratante' }), {
+      target: { value: 'Dra. Prueba' },
     });
     fireEvent.click(document.getElementById('medif-p2_medicacion_previa_si')!);
     fireEvent.click(button);
@@ -34,8 +34,10 @@ describe('MEDIF green check', () => {
     expect(document.getElementById('medif-p2_instrucciones_si')).toBeChecked();
     expect(document.getElementById('medif-p2_medicacion_previa_si')).toBeChecked();
     expect(document.getElementById('medif-p2_medicacion_previa_no')).not.toBeChecked();
-    expect(screen.getByRole('textbox', { name: 'Hacia' })).toHaveValue('Destino manual');
-    expect(screen.getByRole('textbox', { name: 'Desde' })).toHaveValue('Isla de pascua');
+    expect(screen.getByRole('textbox', { name: 'Nombre del médico tratante' })).toHaveValue(
+      'Dra. Prueba'
+    );
+    expect(screen.getByRole('textbox', { name: 'Fecha del vuelo' })).toHaveValue('');
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'PDF editable' }));
     });
@@ -46,7 +48,9 @@ describe('MEDIF green check', () => {
         p2_instrucciones_si: 'X',
         p2_medicacion_previa_si: 'X',
         p2_medicacion_previa_no: '',
-        p1_itinerario_1_hacia: 'Destino manual',
+        p2_nombre_medico: 'Dra. Prueba',
+        p1_itinerario_1_desde: 'Isla de Pascua',
+        p1_itinerario_1_hacia: 'Santiago',
       }),
       expect.anything(),
       'editable'

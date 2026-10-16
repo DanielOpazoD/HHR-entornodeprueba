@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Download, FileText, Printer, Settings2, Upload } from 'lucide-react';
+import { Download, FileText, Printer, Save, Settings2, Upload } from 'lucide-react';
 import {
   emptyMedifValues,
+  hasMedifDraftData,
   exportMedifDraft,
   importMedifDraft,
   setMedifFieldValue,
@@ -20,7 +21,7 @@ import { MedifHabitualButton } from './MedifHabitualButton';
 import { applyMedifHabitualAnswers } from '../../../domain/medifHabitualAnswers';
 import { MedifPreferencesPanel } from './MedifPreferencesPanel';
 import { MedifVariableIndex } from './MedifVariableIndex';
-import { MedifTabs, MedifJumpIndex, type MedifTabId } from './MedifNavigation';
+import { MedifTabs, type MedifTabId } from './MedifNavigation';
 import {
   downloadMedifJson,
   MEDIF_SECONDARY_BUTTON,
@@ -63,7 +64,7 @@ export const MedifEditor: React.FC<MedifEditorProps> = ({
   const draftInput = useRef<HTMLInputElement>(null);
   const currentValues = useRef(values);
   const importSequence = useRef(0);
-  const dirty = Object.values(values).some(value => value.trim());
+  const dirty = hasMedifDraftData(values);
 
   useEffect(() => {
     onDirtyChange?.(dirty);
@@ -102,7 +103,7 @@ export const MedifEditor: React.FC<MedifEditorProps> = ({
     );
   };
   const requestReplacement = (next: Replacement): void => {
-    if (Object.values(currentValues.current).some(value => value.trim())) setReplacement(next);
+    if (hasMedifDraftData(currentValues.current)) setReplacement(next);
     else replaceDraft(next);
   };
   const choosePatient = (key: string): void => {
@@ -159,11 +160,6 @@ export const MedifEditor: React.FC<MedifEditorProps> = ({
     setTab(isMedifFieldHidden(preferences, canonical) ? 'preferences' : 'form');
     setNotice('');
   };
-  const jumpBlock = (id: string): void => {
-    const element = document.getElementById(`medif-block-${id}`);
-    element?.scrollIntoView?.({ block: 'start' });
-    element?.focus({ preventScroll: true });
-  };
   useEffect(() => {
     if (tab !== 'form' || !focusField) return;
     const element =
@@ -209,19 +205,23 @@ export const MedifEditor: React.FC<MedifEditorProps> = ({
           />
           <button
             type="button"
-            className={MEDIF_SECONDARY_BUTTON}
+            className={`${MEDIF_SECONDARY_BUTTON} medif-icon-button`}
+            aria-label="Guardar borrador"
+            title="Guardar borrador"
             disabled={busy}
             onClick={() => downloadMedifJson(exportMedifDraft(values), 'medif-borrador.json')}
           >
-            <Download size={13} aria-hidden="true" /> Guardar borrador
+            <Save size={15} aria-hidden="true" />
           </button>
           <button
             type="button"
-            className={MEDIF_SECONDARY_BUTTON}
+            className={`${MEDIF_SECONDARY_BUTTON} medif-icon-button`}
+            aria-label="Importar borrador"
+            title="Importar borrador"
             disabled={busy}
             onClick={() => draftInput.current?.click()}
           >
-            <Upload size={13} aria-hidden="true" /> Cargar
+            <Upload size={15} aria-hidden="true" />
           </button>
           <button
             type="button"
@@ -306,7 +306,6 @@ export const MedifEditor: React.FC<MedifEditorProps> = ({
       >
         {tab === 'form' ? (
           <>
-            <MedifJumpIndex onSelect={jumpBlock} />
             <div className="medif-form-grid">
               {MEDIF_FORM_BLOCKS.map(block => (
                 <MedifFormSection

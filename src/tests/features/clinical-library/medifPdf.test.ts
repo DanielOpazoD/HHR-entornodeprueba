@@ -127,6 +127,24 @@ describe('MEDIF PDF export', () => {
         if (!(appearance instanceof PDFRawStream)) throw new Error(`${id}: missing appearance`);
         const operators = Buffer.from(decodePDFRawStream(appearance).decode()).toString('latin1');
         expect(operators, `${id}: rendered X`).toMatch(/<58>\s*Tj/);
+        const fontSize = Number(/\/[^\s]+ ([\d.]+) Tf/.exec(operators)?.[1]);
+        expect(fontSize, `${id}: enlarged X`).toBe(7.5);
+        const geometry = MEDIF_FIELDS.find(item => item.id === id)!;
+        const baseline = Number(/1 0 0 1 [\d.-]+ ([\d.-]+) Tm/.exec(operators)?.[1]);
+        expect(baseline).toBeGreaterThanOrEqual(0.1);
+        expect(baseline + (7.5 * 0.718) / 2, `${id}: vertical centering`).toBeCloseTo(
+          (geometry.rect[3] - geometry.rect[1]) / 2,
+          3
+        );
+        const startX = Number(/1 0 0 1 ([\d.-]+) [\d.-]+ Tm/.exec(operators)?.[1]);
+        const font = await pdf.embedFont(StandardFonts.Helvetica);
+        expect(
+          startX + font.widthOfTextAtSize('X', 7.5) / 2,
+          `${id}: horizontal centering`
+        ).toBeCloseTo((geometry.rect[2] - geometry.rect[0]) / 2, 3);
+        expect(baseline + 7.5 * 0.718).toBeLessThanOrEqual(
+          geometry.rect[3] - geometry.rect[1] - 0.1 + 0.001
+        );
       }
     }
     expect([...visited].sort()).toEqual(markIds.sort());
@@ -248,7 +266,11 @@ describe('MEDIF PDF export', () => {
       }
     }
     expect(widgetCount).toBe(137);
-    expect(renderedText).toEqual([Buffer.from('VISIBLE').toString('hex').toUpperCase()]);
+    expect(renderedText).toEqual(
+      ['Isla de Pascua', 'Santiago', 'VISIBLE'].map(text =>
+        Buffer.from(text).toString('hex').toUpperCase()
+      )
+    );
     expect(values).toEqual(originalValues);
     if (process.env.MEDIF_QA_PDF) {
       writeFileSync(`${process.env.MEDIF_QA_PDF}.preset-editable.pdf`, editableBytes);

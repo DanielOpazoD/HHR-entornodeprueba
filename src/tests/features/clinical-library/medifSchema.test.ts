@@ -100,6 +100,35 @@ describe('MEDIF form contract', () => {
     ).toThrow(/nombres de médico diferentes/);
   });
 
+  it('fixes the route in initial values, direct changes and imported legacy drafts; shares declaration dates', () => {
+    const values = emptyMedifValues();
+    expect(values).toMatchObject({
+      p1_itinerario_1_desde: 'Isla de Pascua',
+      p1_itinerario_1_hacia: 'Santiago',
+    });
+    expect(
+      setMedifFieldValue(values, 'p1_itinerario_1_hacia', 'Otra ciudad').p1_itinerario_1_hacia
+    ).toBe('Santiago');
+    const imported = importMedifDraft(
+      draftJson({
+        p1_itinerario_1_desde: 'Otro origen',
+        p1_itinerario_1_hacia: 'Otro destino',
+        p3_fecha_declaracion: '16/10/2026',
+        p1_declaracion_fecha: '01/01/2020',
+      })
+    );
+    expect(imported).toMatchObject({
+      p1_itinerario_1_desde: 'Isla de Pascua',
+      p1_itinerario_1_hacia: 'Santiago',
+      p3_fecha_declaracion: '16/10/2026',
+      p1_declaracion_fecha: '16/10/2026',
+    });
+    expect(
+      importMedifDraft(draftJson({ p1_declaracion_fecha: '15/10/2026' })).p3_fecha_declaracion
+    ).toBe('15/10/2026');
+    expect(setMedifFieldValue(imported, 'p3_fecha_declaracion', '').p1_declaracion_fecha).toBe('');
+  });
+
   it('round-trips a draft and rejects unknown fields, invalid marks and conflicting responses', () => {
     const values = setMedifFieldValue(emptyMedifValues(), 'p1_nombre_pasajero', 'Ana Ñáñez');
     expect(importMedifDraft(exportMedifDraft(values))).toEqual(values);

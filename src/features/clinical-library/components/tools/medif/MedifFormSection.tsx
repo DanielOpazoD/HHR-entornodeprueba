@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   MEDIF_FIELD_BY_ID,
+  isMedifFixedField,
   getMedifGroupFieldIds,
   type MedifField,
   type MedifGroup,
@@ -72,7 +73,12 @@ export const MedifFormSection: React.FC<Props> = ({ block, values, preferences, 
     )
     .map(group =>
       group.type === 'fields'
-        ? { ...group, fields: group.fields.filter(id => !MEDIF_DUPLICATE_FIELD_IDS.includes(id)) }
+        ? {
+            ...group,
+            fields: group.fields.filter(
+              id => !MEDIF_DUPLICATE_FIELD_IDS.includes(id) && !isMedifFixedField(id)
+            ),
+          }
         : group
     );
   const visibleGroups = groups.filter(group =>
@@ -139,13 +145,17 @@ export const MedifFormSection: React.FC<Props> = ({ block, values, preferences, 
           return (
             <fieldset key={group.id} className={`medif-field-group medif-group-${group.id}`}>
               <legend
-                className={group.fields.length === 1 ? 'sr-only' : 'medif-group-label'}
+                className={
+                  group.fields.length === 1 || ['pasajero_datos', 'tramo_1'].includes(group.id)
+                    ? 'sr-only'
+                    : 'medif-group-label'
+                }
                 title={group.help}
               >
                 {label}
               </legend>
               <div
-                className={`medif-fields${group.fields.length === 1 ? ' medif-fields--single' : ''}${group.id === 'pasajero_datos' ? ' medif-fields--identity' : ''}${['medicacion_lista', 'antecedentes', 'acompanante_datos', 'tramo_1', 'tramo_2'].includes(group.id) ? ' medif-fields--three' : ''}`}
+                className={`medif-fields${group.fields.filter(id => !isMedifFieldHidden(preferences, id)).length === 1 ? ' medif-fields--single' : ''}${group.id === 'pasajero_datos' ? ' medif-fields--identity' : ''}${['medicacion_lista', 'antecedentes', 'acompanante_datos', 'tramo_2'].includes(group.id) ? ' medif-fields--three' : ''}`}
               >
                 {group.fields
                   .filter(id => !isMedifFieldHidden(preferences, id))
@@ -153,7 +163,13 @@ export const MedifFormSection: React.FC<Props> = ({ block, values, preferences, 
                     <FieldInput
                       key={id}
                       field={MEDIF_FIELD_BY_ID[id]}
-                      label={group.fields.length === 1 ? label : undefined}
+                      label={
+                        id === 'p1_itinerario_1_fecha'
+                          ? 'Fecha del vuelo'
+                          : group.fields.length === 1
+                            ? label
+                            : undefined
+                      }
                       value={values[id] ?? ''}
                       onChange={value => onChange(id, value)}
                     />

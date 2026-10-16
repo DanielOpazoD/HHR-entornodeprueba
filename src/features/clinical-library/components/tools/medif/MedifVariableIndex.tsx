@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Search } from 'lucide-react';
-import { MEDIF_FIELDS, MEDIF_SECTIONS } from '../../../domain/medifSchema';
+import { MEDIF_FIELDS, MEDIF_SECTIONS, isMedifFixedField } from '../../../domain/medifSchema';
 import { isMedifFieldHidden, type MedifPreferences } from '../../../domain/medifPreferences';
 import { TOOL_INPUT_CLASS } from '../ToolField';
 
@@ -66,6 +66,7 @@ export const MedifVariableIndex: React.FC<{
                   <button
                     type="button"
                     onClick={() => onSelectField(field.id)}
+                    disabled={isMedifFixedField(field.id)}
                     className="text-left font-semibold text-medical-700 hover:underline focus-visible:outline focus-visible:outline-medical-600"
                   >
                     {field.label}
@@ -89,7 +90,11 @@ export const MedifVariableIndex: React.FC<{
                   <span
                     className={`rounded px-1.5 py-0.5 text-[10px] ${isMedifFieldHidden(preferences, field.id) ? 'bg-slate-100 text-slate-500' : 'bg-medical-50 text-medical-700'}`}
                   >
-                    {isMedifFieldHidden(preferences, field.id) ? 'Oculto' : 'Visible'}
+                    {isMedifFixedField(field.id)
+                      ? 'Fijo'
+                      : isMedifFieldHidden(preferences, field.id)
+                        ? 'Oculto'
+                        : 'Visible'}
                   </span>
                 </td>
               </tr>

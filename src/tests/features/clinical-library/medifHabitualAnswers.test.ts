@@ -34,34 +34,34 @@ const requestedMarks = [
 ];
 
 describe('MEDIF habitual answers action', () => {
-  it('fills exactly the requested 20 choices and route without adding other answers', () => {
+  it('fills exactly the requested 20 choices; the route is already fixed without adding other answers', () => {
     const original = emptyMedifValues();
     const result = applyMedifHabitualAnswers(original, defaultMedifPreferences());
-    expect(result.applied).toBe(22);
+    expect(result.applied).toBe(20);
     expect(Object.fromEntries(Object.entries(result.values).filter(([, value]) => value))).toEqual({
       ...Object.fromEntries(requestedMarks.map(id => [id, 'X'])),
-      p1_itinerario_1_desde: 'Isla de pascua',
+      p1_itinerario_1_desde: 'Isla de Pascua',
       p1_itinerario_1_hacia: 'Santiago',
     });
     expect(validateMedifValues(result.values)).toEqual(result.values);
-    expect(Object.values(original).every(value => !value)).toBe(true);
+    expect(Object.entries(original).filter(([, value]) => value)).toHaveLength(2);
     expect(applyMedifHabitualAnswers(result.values, defaultMedifPreferences())).toEqual({
       values: result.values,
       applied: 0,
     });
   });
 
-  it('preserves existing alternatives, risk, manual destinations and unrelated fields', () => {
+  it('preserves existing alternatives, risk, manual text and unrelated fields', () => {
     let values = setMedifFieldValue(emptyMedifValues(), 'p1_silla_si', 'X');
     values = setMedifFieldValue(values, 'p2_medicacion_previa_si', 'X');
     values = setMedifFieldValue(values, 'p2_riesgo_alto', 'X');
-    values = setMedifFieldValue(values, 'p1_itinerario_1_hacia', 'Valparaíso');
+    values = setMedifFieldValue(values, 'p2_diagnostico_actual', 'Diagnóstico manual');
     values = setMedifFieldValue(values, 'p2_nombre_medico', 'Dra. Prueba');
     values = setMedifFieldValue(values, 'p1_especiales_si', 'X');
     values = setMedifFieldValue(values, 'p2_instrucciones_no', 'X');
     const original = { ...values };
     const result = applyMedifHabitualAnswers(values, defaultMedifPreferences());
-    expect(result.applied).toBe(16);
+    expect(result.applied).toBe(15);
     for (const [id, value] of Object.entries(original).filter(([, value]) => value)) {
       expect(result.values[id], id).toBe(value);
     }
@@ -75,19 +75,19 @@ describe('MEDIF habitual answers action', () => {
       expect(result.values[id]).toBe('');
     }
     expect(result.values.p3_silla_ruedas_no).toBe('X');
-    expect(result.values.p1_itinerario_1_desde).toBe('Isla de pascua');
+    expect(result.values.p1_itinerario_1_desde).toBe('Isla de Pascua');
     expect(values).toEqual(original);
   });
 
   it('skips hidden questions and text without changing their stored values or preferences', () => {
     let preferences = setMedifFieldHidden(defaultMedifPreferences(), 'p2_hospitalizacion_si', true);
-    preferences = setMedifFieldHidden(preferences, 'p1_itinerario_1_hacia', true);
+    preferences = setMedifFieldHidden(preferences, 'p2_diagnostico_actual', true);
     const before = structuredClone(preferences);
-    const values = setMedifFieldValue(emptyMedifValues(), 'p1_itinerario_1_hacia', 'Oculto');
+    const values = setMedifFieldValue(emptyMedifValues(), 'p2_diagnostico_actual', 'Oculto');
     const result = applyMedifHabitualAnswers(values, preferences);
     expect(result.values.p2_hospitalizacion_si).toBe('');
     expect(result.values.p2_hospitalizacion_no).toBe('');
-    expect(result.values.p1_itinerario_1_hacia).toBe('Oculto');
+    expect(result.values.p1_itinerario_1_hacia).toBe('Santiago');
     expect(result.values.p2_hospitalizacion_destino_si).toBe('X');
     expect(preferences).toEqual(before);
   });

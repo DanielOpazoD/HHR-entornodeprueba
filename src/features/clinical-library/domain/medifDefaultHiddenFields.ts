@@ -1,5 +1,7 @@
-/** Visibility-only selection: 43 selected variables, expanded to complete questions at load. */
+/** Visibility-only selection: 45 selected variables, expanded to complete questions at load. */
 export const MEDIF_DEFAULT_HIDDEN_SELECTION: readonly string[] = [
+  'p2_prognosis',
+  'p3_firma_medico_texto',
   'p1_seguro_viaje',
   'p1_itinerario_1_pnr',
   'p1_itinerario_2_desde',

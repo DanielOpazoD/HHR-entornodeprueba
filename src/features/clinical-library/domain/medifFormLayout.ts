@@ -134,7 +134,7 @@ export const getMedifFormBlockIdForField = (fieldId: string): string | undefined
 };
 
 const GROUP_LABELS: Readonly<Record<string, string>> = {
-  silla_pasajero: '¿Necesita silla de ruedas? · Declaración del pasajero',
+  silla_pasajero: '¿Necesita silla de ruedas?',
   silla_medico: '¿Necesita silla de ruedas? · Evaluación del médico',
   hipoxia_pasajero: 'Efecto de la reducción de oxígeno · Declaración del pasajero',
   declaracion_pasajero_datos: 'Declaración del pasajero',
