@@ -90,7 +90,7 @@ export const ClinicalFormInput: React.FC<ClinicalFormInputProps> = ({
   return (
     <label
       htmlFor={id}
-      className={`clinical-form-field${field.multiline ? ' clinical-form-field-wide' : ''}`}
+      className={`clinical-form-field${field.multiline ? ' clinical-form-field-wide' : ''}${['paciente_nombre_completo', 'diagnostico_texto', 'medico_tratante_nombre', 'consentimiento_procedimiento'].includes(field.id) ? ' clinical-form-field-long' : ''}`}
     >
       <span className={matrix ? 'sr-only' : ''}>{field.label}</span>
       {control}

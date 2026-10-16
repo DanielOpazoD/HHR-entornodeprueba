@@ -1,6 +1,10 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { Download, Eye, FileText, Printer, RefreshCw, Save, Settings2, Upload } from 'lucide-react';
-import { CLINICAL_FORMS, getClinicalForm } from '../../../domain/forms/clinicalFormCatalog';
+import {
+  CLINICAL_FORMS,
+  CLINICAL_VARIABLE_CATALOG,
+  getClinicalForm,
+} from '../../../domain/forms/clinicalFormCatalog';
 import { exportClinicalFormDraft } from '../../../domain/forms/clinicalFormDraft';
 import {
   loadClinicalFormPreferences,
@@ -215,6 +219,21 @@ export const ClinicalFormEditor: React.FC<ClinicalFormEditorProps> = ({
         {draft.sourceChanged && (
           <div role="alert" className="clinical-form-review">
             Hay cambios en los datos de origen.
+            <dl className="clinical-form-source-changes">
+              {draft.sourceChanges.map(change => (
+                <div key={change.id}>
+                  <dt>
+                    {CLINICAL_VARIABLE_CATALOG.variables.find(variable => variable.id === change.id)
+                      ?.label ?? change.id}
+                  </dt>
+                  <dd>
+                    Borrador: {String(change.draft ?? 'Sin dato')}
+                    <br />
+                    Censo: {String(change.current ?? 'Sin dato')}
+                  </dd>
+                </div>
+              ))}
+            </dl>
             <div className="clinical-form-actions">
               <button type="button" onClick={draft.refresh}>
                 Completar sólo vacíos

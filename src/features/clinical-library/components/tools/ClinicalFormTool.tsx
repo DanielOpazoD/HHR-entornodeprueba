@@ -6,6 +6,8 @@ import { generateClinicalFormPdf } from '../../services/clinicalFormPdf';
 import { ClinicalFormEditor } from './forms/ClinicalFormEditor';
 import type { ToolComponentProps } from './ToolFrame';
 
+export { LibraryExitConfirmation } from '../LibraryExitConfirmation';
+
 export const ClinicalFormTool: React.FC<
   ToolComponentProps & { formId: ClinicalFormId; onFormChange: (id: ClinicalFormId) => void }
 > = ({ formId, onFormChange, onBack, onClose, onDirtyChange }) => {

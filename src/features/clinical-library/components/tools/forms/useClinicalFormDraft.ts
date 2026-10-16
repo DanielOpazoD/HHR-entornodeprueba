@@ -32,13 +32,6 @@ const censusContextValues = (source: ClinicalFormPatientOption): ClinicalFormVal
   tbc_unidad: 'Hospitalizados',
 });
 
-const sourceFacts = (patient: ClinicalFormPatientOption) =>
-  JSON.stringify(
-    Object.fromEntries(
-      Object.entries(patient.values).filter(([id]) => id !== 'censo_actualizado_en')
-    )
-  );
-
 export const useClinicalFormDraft = (
   formId: ClinicalFormId,
   patients: ReadonlyArray<ClinicalFormPatientOption>,
@@ -60,9 +53,15 @@ export const useClinicalFormDraft = (
       )
     : null;
   const sourceMissing = Boolean(source && !currentSource);
-  const sourceChanged = Boolean(
-    source && currentSource && sourceFacts(source) !== sourceFacts(currentSource)
-  );
+  const sourceChanges =
+    source && currentSource
+      ? [...new Set([...Object.keys(source.values), ...Object.keys(currentSource.values)])]
+          .filter(
+            id => id !== 'censo_actualizado_en' && source.values[id] !== currentSource.values[id]
+          )
+          .map(id => ({ id, draft: values[id] ?? null, current: currentSource.values[id] ?? null }))
+      : [];
+  const sourceChanged = sourceChanges.length > 0;
 
   useEffect(() => {
     onDirtyChange?.(dirty);
@@ -143,6 +142,7 @@ export const useClinicalFormDraft = (
     notice,
     sourceMissing,
     sourceChanged,
+    sourceChanges,
     setNotice,
     selectPatient,
     change,

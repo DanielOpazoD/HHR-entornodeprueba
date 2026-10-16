@@ -17,15 +17,20 @@ import type {
 import { filterLibraryEntries, type LibraryCategoryFilter } from '../domain/librarySearch';
 import { printLibraryDocument } from '../services/libraryDocumentActions';
 import { LibraryEntryList } from './LibraryEntryList';
-import { TOOL_REGISTRY } from './toolRegistry';
+import { loadMedifTool, TOOL_REGISTRY } from './toolRegistry';
 import type { ClinicalFormId } from '../domain/forms/clinicalFormTypes';
 
+const loadClinicalFormTool = () => import('./tools/ClinicalFormTool');
 const ClinicalFormTool = React.lazy(() =>
-  import('./tools/ClinicalFormTool').then(module => ({ default: module.ClinicalFormTool }))
+  loadClinicalFormTool().then(module => ({ default: module.ClinicalFormTool }))
 );
 
+// Both editors carry the shared guard, so closing an already open draft works offline.
 const LibraryExitConfirmation = React.lazy(() =>
-  import('./LibraryExitConfirmation').then(module => ({ default: module.LibraryExitConfirmation }))
+  loadMedifTool().then(module => ({ default: module.LibraryExitConfirmation }))
+);
+const ClinicalFormExitConfirmation = React.lazy(() =>
+  loadClinicalFormTool().then(module => ({ default: module.LibraryExitConfirmation }))
 );
 
 export interface LibraryDocumentActions {
@@ -128,6 +133,7 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
   }, [activeToolId, activeFormId]);
 
   const activeTool = activeToolId ? TOOL_REGISTRY[activeToolId] : null;
+  const ExitConfirmation = activeFormId ? ClinicalFormExitConfirmation : LibraryExitConfirmation;
   const chips: ReadonlyArray<{ id: LibraryCategoryFilter; label: string }> = [
     { id: 'all', label: 'Todo' },
     ...LIBRARY_CATEGORIES.map(item => ({ id: item.id, label: item.label })),
@@ -177,7 +183,7 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
               </button>
             }
           >
-            <LibraryExitConfirmation
+            <ExitConfirmation
               title={activeFormId ? '¿Salir del formulario?' : undefined}
               onCancel={cancelExit}
               onConfirm={() => {
