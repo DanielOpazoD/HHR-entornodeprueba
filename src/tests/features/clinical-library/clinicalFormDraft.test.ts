@@ -1,0 +1,121 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { getClinicalForm } from '@/features/clinical-library/domain/forms/clinicalFormCatalog';
+import {
+  exportClinicalFormDraft,
+  importClinicalFormDraft,
+  setClinicalFormValue,
+  validateClinicalFormValues,
+} from '@/features/clinical-library/domain/forms/clinicalFormDraft';
+import {
+  emptyClinicalFormPreferences,
+  loadClinicalFormPreferences,
+  parseClinicalFormPreferences,
+  saveClinicalFormPreferences,
+  serializeClinicalFormPreferences,
+} from '@/features/clinical-library/domain/forms/clinicalFormPreferences';
+
+const consent = getClinicalForm('consentimiento-informado');
+describe('clinical form drafts and preferences', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.restoreAllMocks();
+  });
+
+  it('round-trips an explicit no, dates, Spanish text and local fields across forms', () => {
+    const values = {
+      paciente_nombre_completo: 'PACIENTE ÁÉÑ',
+      consentimiento_decision: false,
+      formulario_fecha_emision: '2026-10-16',
+    };
+    expect(importClinicalFormDraft(exportClinicalFormDraft(consent.id, values))).toEqual({
+      formId: consent.id,
+      values,
+    });
+  });
+
+  it('allows incomplete RUT drafts, exports only this form and keeps document dates separate', () => {
+    const values = { paciente_rut: '11.', consentimiento_decision: false, contraste_operado: true };
+    const imported = importClinicalFormDraft(exportClinicalFormDraft(consent.id, values));
+    expect(imported.values.paciente_rut).toBe('11.');
+    expect(imported.values).not.toHaveProperty('contraste_operado');
+    expect(() => validateClinicalFormValues(consent, imported.values, [])).toThrow('RUT');
+  });
+
+  it('rejects unknown fields, invalid types, impossible dates and conflicting document identities', () => {
+    const invalid = [
+      { unknown: 'test' },
+      { consentimiento_decision: 'no' },
+      { formulario_fecha_emision: '2026-02-30' },
+      { paciente_nombre_completo: {} },
+      {
+        paciente_rut: '11.111.111-1',
+        paciente_documento_numero: 'AB00001',
+        paciente_documento_tipo: 'Pasaporte',
+      },
+    ];
+    for (const values of invalid)
+      expect(() =>
+        importClinicalFormDraft(
+          JSON.stringify({
+            kind: 'hhr-clinical-form-draft',
+            version: 1,
+            formId: consent.id,
+            values,
+          })
+        )
+      ).toThrow();
+    expect(() => importClinicalFormDraft('{}')).toThrow();
+  });
+
+  it('updates the personal RUT alias without corrupting a passport', () => {
+    expect(setClinicalFormValue({}, 'paciente_rut', '11.111.111-1')).toMatchObject({
+      paciente_documento_tipo: 'RUT',
+      paciente_documento_numero: '11.111.111-1',
+    });
+    expect(
+      setClinicalFormValue(
+        { paciente_documento_tipo: 'Pasaporte' },
+        'paciente_documento_numero',
+        'AB00001'
+      ).paciente_rut
+    ).toBeNull();
+  });
+
+  it('makes suppressed data blank, skips its validation and preserves the underlying draft', () => {
+    const values = { paciente_rut: 'RUT inválido', paciente_nombre_completo: 'NOMBRE' };
+    expect(() => validateClinicalFormValues(consent, values, [])).toThrow('RUT');
+    expect(validateClinicalFormValues(consent, values, ['paciente_rut'])).toMatchObject({
+      paciente_rut: null,
+      paciente_nombre_completo: 'NOMBRE',
+    });
+    expect(values.paciente_rut).toBe('RUT inválido');
+  });
+
+  it('persists only versioned configuration, strips extra data and rejects another template', () => {
+    const preferences = {
+      ...emptyClinicalFormPreferences(consent),
+      hidden: ['paciente_nombre_completo'],
+    };
+    const imported = parseClinicalFormPreferences(
+      JSON.stringify({
+        ...preferences,
+        values: { paciente_nombre_completo: 'DATOS PRIVADOS' },
+        medico: 'DATOS PRIVADOS',
+      }),
+      consent
+    );
+    expect(serializeClinicalFormPreferences(imported)).not.toContain('DATOS PRIVADOS');
+    expect(saveClinicalFormPreferences(consent, imported)).toBe(true);
+    expect(loadClinicalFormPreferences(consent)).toEqual(preferences);
+    expect(() =>
+      parseClinicalFormPreferences(
+        serializeClinicalFormPreferences(preferences),
+        getClinicalForm('encuesta-contraste')
+      )
+    ).toThrow();
+    vi.mocked(localStorage.setItem).mockImplementationOnce(() => {
+      throw new Error('unavailable');
+    });
+    expect(saveClinicalFormPreferences(consent, preferences)).toBe(false);
+  });
+});

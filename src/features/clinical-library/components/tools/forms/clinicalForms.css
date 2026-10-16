@@ -1,0 +1,310 @@
+.clinical-form-editor {
+  color: #334155;
+  font-size: 12px;
+}
+.clinical-form-toolbar,
+.clinical-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.clinical-form-toolbar {
+  gap: 10px;
+  margin-bottom: 12px;
+  align-items: end;
+}
+.clinical-form-source {
+  display: grid;
+  gap: 4px;
+  flex: 1 1 260px;
+  min-width: 0;
+  font-weight: 600;
+}
+.clinical-form-input {
+  display: block;
+  min-width: 0;
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  background: white;
+  padding: 6px 8px;
+  font: inherit;
+  line-height: 1.4;
+  color: #1e293b;
+}
+.clinical-form-input:focus-visible,
+.clinical-form-editor button:focus-visible,
+.clinical-form-editor input:focus-visible,
+.clinical-form-matrix-scroll:focus-visible {
+  outline: 2px solid #0891b2;
+  outline-offset: 2px;
+}
+.clinical-form-input:disabled,
+.clinical-form-editor button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.clinical-form-icon {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  justify-content: center;
+  align-items: center;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  background: white;
+  color: #475569;
+}
+.clinical-form-icon:hover {
+  color: #0e7490;
+  background: #f1f5f9;
+}
+.clinical-form-search {
+  max-width: 360px;
+  margin-bottom: 8px;
+}
+.clinical-form-workspace {
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.clinical-form-sections {
+  display: grid;
+  gap: 14px;
+}
+.clinical-form-section {
+  border: 0;
+  border-top: 1px solid #e2e8f0;
+  min-width: 0;
+  padding: 8px 0 0;
+}
+.clinical-form-section > legend {
+  padding-right: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #155e75;
+}
+.clinical-form-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px 12px;
+}
+.clinical-form-field {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  min-width: 0;
+}
+.clinical-form-field > span,
+.clinical-form-answer > legend {
+  font-size: 11px;
+  font-weight: 600;
+}
+.clinical-form-field-wide {
+  grid-column: span 2;
+}
+.clinical-form-check {
+  display: flex;
+  gap: 7px;
+  align-items: flex-start;
+  min-height: 28px;
+  padding: 4px 0;
+  line-height: 1.4;
+}
+.clinical-form-check input,
+.clinical-form-variable input {
+  margin-top: 2px;
+  accent-color: #0e7490;
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+.clinical-form-answer {
+  border: 0;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+.clinical-form-answer > legend {
+  margin-bottom: 5px;
+}
+.clinical-form-segmented {
+  display: inline-flex;
+}
+.clinical-form-segmented button {
+  padding: 4px 11px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  min-width: 36px;
+}
+.clinical-form-segmented button:first-child {
+  border-radius: 5px 0 0 5px;
+}
+.clinical-form-segmented button:last-child {
+  border-radius: 0 5px 5px 0;
+}
+.clinical-form-segmented button + button {
+  margin-left: -1px;
+}
+.clinical-form-segmented button[aria-pressed='true'] {
+  color: #155e75;
+  background: #ecfeff;
+  border-color: #0891b2;
+  position: relative;
+}
+.clinical-form-review {
+  margin: 8px 0;
+  padding: 10px 12px;
+  border-left: 3px solid #94a3b8;
+  background: #f1f5f9;
+}
+.clinical-form-review p {
+  margin: 5px 0;
+}
+.clinical-form-review button {
+  color: #0e7490;
+  text-decoration: underline;
+  padding: 5px;
+}
+.clinical-form-export {
+  margin-top: 16px;
+  border-top: 1px solid #e2e8f0;
+  padding: 10px 0;
+}
+.clinical-form-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 5px;
+  border: 1px solid #cbd5e1;
+  padding: 7px 10px;
+  background: white;
+  font-weight: 600;
+  min-height: 34px;
+}
+.clinical-form-primary {
+  background: #0e7490;
+  border-color: #0e7490;
+  color: white;
+}
+.clinical-form-notice {
+  margin-top: 7px;
+  font-size: 12px;
+}
+.clinical-form-muted {
+  color: #64748b;
+  font-size: 11px;
+  margin-bottom: 8px;
+}
+.clinical-form-preview {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  width: 100%;
+  height: 65vh;
+  min-height: 350px;
+}
+.clinical-form-variable-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px 16px;
+}
+.clinical-form-variable {
+  display: flex;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid #e2e8f0;
+  min-width: 0;
+}
+.clinical-form-variable > span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.clinical-form-variable strong {
+  font-weight: 500;
+}
+.clinical-form-variable code,
+.clinical-form-variable small {
+  color: #64748b;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+.clinical-form-matrix-scroll {
+  width: 100%;
+  overflow: auto;
+  max-height: 440px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+}
+.clinical-form-matrix {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 10px;
+}
+.clinical-form-matrix th {
+  background: #f1f5f9;
+  font-weight: 600;
+}
+.clinical-form-matrix th,
+.clinical-form-matrix td {
+  border-right: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 3px;
+}
+.clinical-form-matrix thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  max-width: 110px;
+}
+.clinical-form-matrix tr > th:first-child {
+  position: sticky;
+  left: 0;
+  min-width: 27px;
+  z-index: 1;
+}
+.clinical-form-matrix thead tr > th:first-child {
+  z-index: 3;
+}
+.clinical-form-matrix .clinical-form-input {
+  width: 78px;
+  padding: 5px;
+}
+@media (max-width: 720px) {
+  .clinical-form-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .clinical-form-toolbar {
+    gap: 8px;
+  }
+  .clinical-form-source {
+    flex-basis: 100%;
+  }
+  .clinical-form-variable-list {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 420px) {
+  .clinical-form-fields {
+    gap: 8px;
+  }
+  .clinical-form-field-wide,
+  .clinical-form-answer {
+    grid-column: 1 / -1;
+  }
+  .clinical-form-input {
+    font-size: 16px;
+  }
+  .clinical-form-matrix .clinical-form-input {
+    font-size: 12px;
+  }
+  .clinical-form-icon {
+    width: 36px;
+    height: 36px;
+  }
+}

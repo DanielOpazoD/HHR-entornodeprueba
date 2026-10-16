@@ -22,6 +22,7 @@ const DOCUMENTS: ReadonlyArray<LibraryDocumentEntry> = [
   {
     kind: 'document',
     id: 'solicitud-laboratorio-policlinico',
+    editorId: 'solicitud-laboratorio-policlinico',
     category: 'forms',
     title: 'Solicitud de exámenes de laboratorio',
     description:
@@ -36,9 +37,10 @@ const DOCUMENTS: ReadonlyArray<LibraryDocumentEntry> = [
   {
     kind: 'document',
     id: 'solicitud-imagenologia',
+    editorId: 'solicitud-imagenologia',
     category: 'forms',
     title: 'Solicitud de examen de imagenología',
-    description: 'Orden de radiología, ecografía o tomografía para completar a mano e imprimir.',
+    description: 'Orden de radiología, ecografía o tomografía con llenado desde el censo o manual.',
     format: 'pdf',
     url: '/docs/solicitud-imagen.pdf',
     pages: 1,
@@ -57,6 +59,7 @@ const DOCUMENTS: ReadonlyArray<LibraryDocumentEntry> = [
   {
     kind: 'document',
     id: 'encuesta-contraste',
+    editorId: 'encuesta-contraste',
     category: 'forms',
     title: 'Encuesta de seguridad para medio de contraste',
     description:
@@ -71,6 +74,7 @@ const DOCUMENTS: ReadonlyArray<LibraryDocumentEntry> = [
   {
     kind: 'document',
     id: 'consentimiento-informado',
+    editorId: 'consentimiento-informado',
     category: 'forms',
     title: 'Consentimiento informado general',
     description:
@@ -85,6 +89,7 @@ const DOCUMENTS: ReadonlyArray<LibraryDocumentEntry> = [
   {
     kind: 'document',
     id: 'solicitud-tuberculosis',
+    editorId: 'solicitud-tuberculosis',
     category: 'forms',
     title: 'Solicitud de investigación bacteriológica de tuberculosis',
     description: 'Formulario del Programa Nacional de Control y Eliminación de la Tuberculosis.',
@@ -98,6 +103,7 @@ const DOCUMENTS: ReadonlyArray<LibraryDocumentEntry> = [
   {
     kind: 'document',
     id: 'solicitud-vdrl-mha-tp',
+    editorId: 'solicitud-vdrl-mha-tp',
     category: 'forms',
     title: 'Solicitud de VDRL y MHA-TP',
     description:
@@ -112,6 +118,7 @@ const DOCUMENTS: ReadonlyArray<LibraryDocumentEntry> = [
   {
     kind: 'document',
     id: 'solicitud-serologia-hepatitis-chagas',
+    editorId: 'solicitud-serologia-hepatitis-chagas',
     category: 'forms',
     title: 'Solicitud de serología: hepatitis B y C, Chagas, HTLV',
     description:
@@ -135,6 +142,7 @@ const DOCUMENTS: ReadonlyArray<LibraryDocumentEntry> = [
   {
     kind: 'document',
     id: 'medif-latam',
+    editorId: 'medif',
     category: 'forms',
     title: 'MEDIF: formulario médico para viaje aéreo (LATAM)',
     description: 'Formulario estándar de información médica para el traslado aéreo de pacientes.',
@@ -148,6 +156,7 @@ const DOCUMENTS: ReadonlyArray<LibraryDocumentEntry> = [
   {
     kind: 'document',
     id: 'planilla-monitorizacion-ventilatoria',
+    editorId: 'planilla-monitorizacion-ventilatoria',
     category: 'forms',
     title: 'Planilla de monitorización ventilatoria (VMI)',
     description:
@@ -161,6 +170,7 @@ const DOCUMENTS: ReadonlyArray<LibraryDocumentEntry> = [
   {
     kind: 'document',
     id: 'informe-traslado-hospital-salvador',
+    editorId: 'informe-traslado-hospital-salvador',
     category: 'forms',
     title: 'Informe de traslado al Hospital del Salvador',
     description: 'Formato de antecedentes personales y clínicos para solicitar traslado.',
