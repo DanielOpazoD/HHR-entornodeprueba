@@ -37,12 +37,7 @@ const ShiftSuggestion: React.FC<{
 }> = ({ label, suggestion, icon, roleLabel, standardSlots }) => {
   const alreadyAssigned = suggestion.alreadyAssigned ?? [];
   const hasUnresolvedAmbiguity = hasUnresolvedStaffingAmbiguity(suggestion, standardSlots);
-  if (
-    suggestion.names.length === 0 &&
-    alreadyAssigned.length === 0 &&
-    !hasUnresolvedAmbiguity &&
-    suggestion.ignoredBoundaryRecords === 0
-  )
+  if (suggestion.names.length === 0 && alreadyAssigned.length === 0 && !hasUnresolvedAmbiguity)
     return null;
   return (
     <section className="min-w-0 rounded-lg border border-slate-200 p-3">
@@ -161,10 +156,13 @@ export const RayenNursingShiftProposalModal: React.FC<RayenNursingShiftProposalM
           Propuesta de dotación clínica
         </h3>
         <p className="mb-3 text-xs text-slate-600">
-          Propuesta según firmas de Eloísa.{' '}
-          {replacesExisting
-            ? 'Se reemplazarán los cupos indicados; los cupos adicionales no cambiarán.'
-            : 'Solo se completarán los cupos vacantes.'}
+          {hasVacanciesToComplete
+            ? `Propuesta según firmas de Eloísa. ${
+                replacesExisting
+                  ? 'Se reemplazarán los cupos indicados; los cupos adicionales no cambiarán.'
+                  : 'Solo se completarán los cupos vacantes.'
+              }`
+            : 'Sin cambios de dotación.'}
         </p>
         <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-2">
           <ShiftSuggestion

@@ -83,6 +83,10 @@ describe('staffing vacancy review', () => {
       />
     );
     expect(screen.getByText('Actividad de relevo')).toBeVisible();
+    expect(screen.getByText('Sin cambios de dotación.')).toBeVisible();
+    expect(
+      screen.queryByRole('heading', { name: 'Enfermería · Turno largo' })
+    ).not.toBeInTheDocument();
     fireEvent.click(screen.getByText('Ver detalle · 9 registros'));
     expect(screen.getByTestId('rayen-staffing-observation')).toHaveAttribute('open');
     expect(screen.queryByRole('button', { name: 'Aplicar propuesta' })).not.toBeInTheDocument();
