@@ -1,5 +1,5 @@
 import React from 'react';
-import { Download, FileText, Image, Printer } from 'lucide-react';
+import { Download, FilePenLine, FileText, Image, Printer } from 'lucide-react';
 import type { LibraryDocumentEntry, LibraryDocumentFormat } from '../domain/libraryCatalogTypes';
 import { toLibraryDocumentHref } from '../services/libraryDocumentActions';
 import { documentFormatLabel } from '../controllers/libraryPresentation';
@@ -16,10 +16,15 @@ const ACTION_CLASS =
 interface LibraryDocumentCardProps {
   entry: LibraryDocumentEntry;
   onPrint: (entry: LibraryDocumentEntry) => void;
+  onFill?: (entry: LibraryDocumentEntry) => void;
 }
 
 /** Fila plana: título en dos líneas, formato junto a él y una acción explícita. */
-export const LibraryDocumentCard: React.FC<LibraryDocumentCardProps> = ({ entry, onPrint }) => (
+export const LibraryDocumentCard: React.FC<LibraryDocumentCardProps> = ({
+  entry,
+  onPrint,
+  onFill,
+}) => (
   <li data-testid={`library-document-${entry.id}`} className="flex items-center gap-2.5 py-1.5">
     <span className="inline-flex size-5 shrink-0 items-center justify-center text-slate-400">
       {FORMAT_ICONS[entry.format]}
@@ -32,6 +37,18 @@ export const LibraryDocumentCard: React.FC<LibraryDocumentCardProps> = ({ entry,
         {documentFormatLabel(entry.format, entry.pages)}
       </p>
     </div>
+    {entry.editorId && onFill && (
+      <button
+        type="button"
+        className={ACTION_CLASS}
+        onClick={() => onFill(entry)}
+        aria-label={`Completar ${entry.title}`}
+        title="Completar formulario"
+      >
+        <FilePenLine size={16} aria-hidden="true" />
+        <span>Completar</span>
+      </button>
+    )}
     {entry.format === 'docx' ? (
       <a
         href={toLibraryDocumentHref(entry.url)}
@@ -41,7 +58,7 @@ export const LibraryDocumentCard: React.FC<LibraryDocumentCardProps> = ({ entry,
         className={ACTION_CLASS}
       >
         <Download size={16} aria-hidden="true" />
-        <span>Descargar</span>
+        {!entry.editorId && <span>Descargar</span>}
       </a>
     ) : (
       <button
@@ -52,7 +69,7 @@ export const LibraryDocumentCard: React.FC<LibraryDocumentCardProps> = ({ entry,
         className={ACTION_CLASS}
       >
         <Printer size={16} aria-hidden="true" />
-        <span>Imprimir</span>
+        {!entry.editorId && <span>Imprimir</span>}
       </button>
     )}
   </li>

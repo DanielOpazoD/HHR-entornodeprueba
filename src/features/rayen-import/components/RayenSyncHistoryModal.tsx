@@ -8,8 +8,8 @@ import {
   formatRayenSyncIslandTime,
   formatRayenSyncTargetDate,
   rayenFailureReasonLabel,
-  type RayenSyncRecoveryPresentation,
 } from './rayenSyncPresentation';
+import { type RayenSyncRecoveryPresentation } from './rayenSyncRecoveryPresentation';
 import { RayenSyncRecoveryNotice } from './RayenSyncRecoveryNotice';
 import { RayenSyncClinicalSection, RayenSyncStaffingSection } from './RayenSyncHistorySections';
 import { RayenSyncSessionReportButton } from './RayenSyncSessionReportButton';

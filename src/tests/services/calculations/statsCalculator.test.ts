@@ -2,12 +2,30 @@ import { describe, it, expect } from 'vitest';
 import { calculateStats } from '@/services/calculations/statsCalculator';
 import type { PatientData } from '@/types/domain/patient';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
-import { BEDS, HOSPITAL_CAPACITY } from '@/constants/beds';
+import { BEDS, HOSPITAL_CAPACITY, REGULAR_BEDS } from '@/constants/beds';
+import { EMPTY_PATIENT } from '@/constants/patient';
 
 describe('statsCalculator', () => {
   type BedValue = PatientData;
 
   const createEmptyBeds = (): Record<string, PatientData> => ({});
+
+  it('counts CMA and UEA patients without consuming installed free beds a second time', () => {
+    const beds = Object.fromEntries(
+      REGULAR_BEDS.slice(0, 17).map(bed => [
+        bed.id,
+        { ...EMPTY_PATIENT, bedId: bed.id, patientName: `Paciente ${bed.id}` },
+      ])
+    );
+    for (const bedId of ['CMA_NEO1', 'BOX1', 'BOX4']) {
+      beds[bedId] = { ...EMPTY_PATIENT, bedId, patientName: `Paciente ${bedId}` };
+    }
+    const stats = calculateStats(beds);
+    expect(stats.occupiedBeds).toBe(20);
+    expect(stats.totalHospitalized).toBe(20);
+    expect(stats.serviceCapacity).toBe(18);
+    expect(stats.availableCapacity).toBe(1);
+  });
 
   it('should calculate empty hospital stats', () => {
     const stats = calculateStats(createEmptyBeds());

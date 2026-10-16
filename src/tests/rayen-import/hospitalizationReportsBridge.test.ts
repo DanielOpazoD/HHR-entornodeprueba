@@ -39,7 +39,15 @@ describe('hospitalization reports bridge', () => {
           reqId: outgoing.reqId,
           ok: true,
           episodes: [
-            { encId: '141336', startDate: '2026-07-18', endDate: '', active: true },
+            {
+              encId: '141336',
+              startDate: '2026-07-18',
+              endDate: '',
+              active: true,
+              patientName: ' Paciente Sintetico ',
+              identifierType: 4,
+              diagnosis: 'must not cross',
+            },
             { encId: 'invalid', startDate: '2026-07-01', diagnosis: 'must not cross' },
           ],
         },
@@ -50,7 +58,16 @@ describe('hospitalization reports bridge', () => {
       ok: true,
       opened: false,
       error: undefined,
-      episodes: [{ encId: '141336', startDate: '2026-07-18', endDate: '', active: true }],
+      episodes: [
+        {
+          encId: '141336',
+          startDate: '2026-07-18',
+          endDate: '',
+          active: true,
+          patientName: 'Paciente Sintetico',
+          identifierType: 4,
+        },
+      ],
     });
     expect(outgoing).toMatchObject({
       operation: 'list',

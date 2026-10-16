@@ -2,7 +2,6 @@
 import { buildMovementUndoSnapshot } from '@/utils/movementUndoSnapshot';
 import { buildImportedMovementStamp } from './buildImportedMovementStamp';
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
-import { normalizePatientUpcForBed } from '@/shared/census/upcBedPolicy';
 import { CensusManager } from '@/domain/CensusManager';
 import { BEDS, OCCUPANCY_ONLY_EXTRA_BED_IDS } from '@/constants/beds';
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
@@ -22,7 +21,7 @@ import {
 } from './censusDischargeHistory';
 import { filterRecordedOutcomeActions } from './filterRecordedOutcomeActions';
 import { applyClinicalCribDischargeRepairs } from './clinicalCribDischargeRepairs';
-import { applyReviewedPatientChanges } from './patientSyncPolicy';
+import { applyReviewedPatientChanges, patientAfterBedMove } from './patientSyncPolicy';
 const BED_NAME = new Map(BEDS.map(bed => [bed.id, bed.name]));
 const BED_TYPE = new Map<string, string>(BEDS.map(bed => [bed.id, bed.type]));
 export const isOccupied = (patient: PatientData | undefined): patient is PatientData =>
@@ -338,7 +337,7 @@ export const applyCensusImportDiff = (
       nextBeds[move.fromBedId] = source; // restore, do not lose the patient
       continue;
     }
-    nextBeds[move.toBedId] = normalizePatientUpcForBed(source, move.toBedId);
+    nextBeds[move.toBedId] = patientAfterBedMove(source, move, ctx.now);
     applied.moves += 1;
   }
 

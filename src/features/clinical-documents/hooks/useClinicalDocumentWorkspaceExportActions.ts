@@ -225,7 +225,8 @@ export const useClinicalDocumentWorkspaceExportActions = ({
           setDraft(prev =>
             updateClinicalDocumentPdfFailure(
               prev,
-              outcomeError || 'No se pudo exportar el PDF clínico.'
+              outcomeError || 'No se pudo exportar el PDF clínico.',
+              recordToExport
             )
           );
           notify.error('Falló la exportación', outcomeError || 'El PDF no se pudo subir.');
@@ -246,7 +247,7 @@ export const useClinicalDocumentWorkspaceExportActions = ({
           fileId: exportedPdf.fileId,
           annexMode: options.annexMode,
         });
-        setDraft(prev => updateClinicalDocumentPdfSuccess(prev, exportedPdf));
+        setDraft(prev => updateClinicalDocumentPdfSuccess(prev, exportedPdf, recordToExport));
         if (options.notifySuccess !== false) {
           notify.success(
             options.successTitle || 'PDF exportado',
@@ -274,7 +275,7 @@ export const useClinicalDocumentWorkspaceExportActions = ({
           exportType: 'pdf',
           issues: [errorMessage],
         });
-        setDraft(prev => updateClinicalDocumentPdfFailure(prev, errorMessage));
+        setDraft(prev => updateClinicalDocumentPdfFailure(prev, errorMessage, recordToExport));
         notify.error('Falló la exportación', errorMessage);
       } finally {
         setIsUploadingPdf(false);

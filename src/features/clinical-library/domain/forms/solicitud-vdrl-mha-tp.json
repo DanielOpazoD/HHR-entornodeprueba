@@ -1,0 +1,396 @@
+{
+  "id": "solicitud-vdrl-mha-tp",
+  "title": "Solicitud de VDRL y MHA-TP",
+  "revision": 1,
+  "catalogVersion": "1.1.0",
+  "templateUrl": "/docs/biblioteca/solicitud-vdrl-mha-tp-hds.pdf",
+  "sourceUrl": "/docs/biblioteca/solicitud-vdrl-mha-tp-hds.pdf",
+  "pages": [
+    {
+      "width": 612,
+      "height": 792
+    }
+  ],
+  "fields": [
+    {
+      "id": "paciente_nombre_completo",
+      "label": "Nombre y apellidos",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [87, 223, 266, 19]
+        }
+      ]
+    },
+    {
+      "id": "paciente_rut",
+      "label": "RUT",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [87, 275, 188, 15]
+        }
+      ]
+    },
+    {
+      "id": "paciente_fecha_nacimiento",
+      "label": "Fecha de nacimiento",
+      "section": "Paciente",
+      "kind": "date",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [279, 275, 174, 15],
+          "format": "date_dmy"
+        }
+      ]
+    },
+    {
+      "id": "paciente_edad_texto",
+      "label": "Edad (con unidad)",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [456, 275, 70, 15]
+        }
+      ]
+    },
+    {
+      "id": "paciente_sexo_biologico",
+      "label": "Sexo biológico",
+      "section": "Paciente",
+      "kind": "choice",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [359.64, 226.44, 12.72, 10.44],
+          "equals": "Femenino"
+        },
+        {
+          "page": 0,
+          "rect": [446.64, 226.44, 12.72, 10.44],
+          "equals": "Masculino"
+        }
+      ],
+      "options": [
+        {
+          "value": "Femenino",
+          "label": "Femenino"
+        },
+        {
+          "value": "Masculino",
+          "label": "Masculino"
+        },
+        {
+          "value": "Indeterminado",
+          "label": "Indeterminado (sin casillero en esta plantilla)"
+        }
+      ]
+    },
+    {
+      "id": "vdrl_procedencia",
+      "label": "Procedencia",
+      "section": "Solicitud",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [222, 305, 303, 15]
+        }
+      ]
+    },
+    {
+      "id": "vdrl_vdrl",
+      "label": "VDRL",
+      "section": "Exámenes",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [269.28, 335.28, 13.56, 12],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "vdrl_mhatp",
+      "label": "MHA-TP",
+      "section": "Exámenes",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [415.08, 335.16, 13.56, 12],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "vdrl_grupo_1",
+      "label": "Gestantes: primer trimestre",
+      "section": "Grupo de pesquisa",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [438, 389.5, 33, 13.4],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "vdrl_grupo_2",
+      "label": "Gestantes: segundo trimestre",
+      "section": "Grupo de pesquisa",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [438, 404.15, 33, 13.4],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "vdrl_grupo_3",
+      "label": "Gestantes: tercer trimestre",
+      "section": "Grupo de pesquisa",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [438, 418.8, 33, 13.4],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "vdrl_grupo_4",
+      "label": "Gestantes: trimestre ignorado",
+      "section": "Grupo de pesquisa",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [438, 433.45, 33, 13.4],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "vdrl_grupo_5",
+      "label": "Gestantes: seguimiento por sífilis",
+      "section": "Grupo de pesquisa",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [438, 448.1, 33, 13.4],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "vdrl_grupo_6",
+      "label": "Pareja de gestante con serología reactiva",
+      "section": "Grupo de pesquisa",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [438, 462.75, 33, 13.4],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "vdrl_grupo_7",
+      "label": "Ingreso a maternidad por parto",
+      "section": "Grupo de pesquisa",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [438, 477.4, 33, 13.4],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "vdrl_grupo_8",
+      "label": "Ingreso por aborto",
+      "section": "Grupo de pesquisa",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [438, 492.05, 33, 13.4],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "vdrl_grupo_9",
+      "label": "Control ginecológico",
+      "section": "Grupo de pesquisa",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [438, 506.7, 33, 13.4],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "vdrl_grupo_10",
+      "label": "Recién nacido / lactante: sífilis congénita",
+      "section": "Grupo de pesquisa",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [438, 521.35, 33, 13.4],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "vdrl_grupo_11",
+      "label": "Control por comercio sexual",
+      "section": "Grupo de pesquisa",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [438, 536.0, 33, 13.4],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "vdrl_grupo_12",
+      "label": "Control de fecundidad",
+      "section": "Grupo de pesquisa",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [438, 550.65, 33, 13.4],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "vdrl_grupo_13",
+      "label": "Consultante por ITS",
+      "section": "Grupo de pesquisa",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [438, 565.3, 33, 13.4],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "vdrl_grupo_14",
+      "label": "Examen de medicina preventiva",
+      "section": "Grupo de pesquisa",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [438, 579.95, 33, 13.4],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "vdrl_grupo_15",
+      "label": "Donante de sangre",
+      "section": "Grupo de pesquisa",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [438, 594.6, 33, 13.4],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "vdrl_grupo_16",
+      "label": "Donante de órganos o tejidos",
+      "section": "Grupo de pesquisa",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [438, 609.25, 33, 13.4],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "vdrl_grupo_17",
+      "label": "Paciente en diálisis",
+      "section": "Grupo de pesquisa",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [438, 623.9, 33, 13.4],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "vdrl_grupo_18",
+      "label": "Víctima de violencia sexual",
+      "section": "Grupo de pesquisa",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [438, 638.55, 33, 13.4],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "formulario_fecha_emision",
+      "label": "Fecha de solicitud",
+      "section": "Profesional",
+      "kind": "date",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [86, 690, 80, 12],
+          "format": "date_dmy"
+        }
+      ]
+    },
+    {
+      "id": "medico_tratante_nombre",
+      "label": "Nombre del médico",
+      "section": "Profesional",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [227, 690, 152, 12]
+        }
+      ]
+    }
+  ],
+  "templateSha256": "4f19c383b9e8d448860cf852782ca2da6c89e5ef965a8023d47c71a3d331bc5b",
+  "sourceSha256": "4f19c383b9e8d448860cf852782ca2da6c89e5ef965a8023d47c71a3d331bc5b"
+}

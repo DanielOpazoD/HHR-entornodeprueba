@@ -1,4 +1,4 @@
-import { REGULAR_BEDS } from '@/constants/beds';
+import { BEDS, REGULAR_BEDS } from '@/constants/beds';
 
 /**
  * Maps a Rayen bed/room/service location to an HHR `bedId`.
@@ -8,15 +8,13 @@ import { REGULAR_BEDS } from '@/constants/beds';
  *     Habitacion N / C{n}  → H{N}C{n}      (general, MEDIA)
  *     Recuperacion k / R{k} → R{k}          (UTI)
  *     Neo k / Neo{k}        → NEO{k}         (MEDIA)
- *     B1UEA/B2UEA/B3UEA      → BOX1/BOX2/BOX3  (Urgencias, occupied-only)
+ *     B1UEA…B4UEA          → BOX1…BOX4     (Urgencias, occupied-only)
  *   Virtual CMA service "Área quirúrgica indiferenciada" (codes CMA*):
- *     CMA R{k} / CMAR{k}    → R{k}   (same physical bed, isCma=true)
- *     CMA NEO{k} / CMAN{k}  → NEO{k} (same physical bed, isCma=true)
+ *     CMA R{k} / CMAR{k}    → CMA_R{k}    (separate census assignment)
+ *     CMA NEO{k} / CMAN{k}  → CMA_NEO{k}  (separate census assignment)
  *
- * CMA is a *discharge type*, not a distinct HHR location: a CMA patient occupies the
- * same real bed. The exact CMA-prefixed source label is nevertheless preserved in
- * `PatientData.location`, so the administrative discharge can distinguish `CMA R1`
- * from the ordinary physical bed `R1`.
+ * The CMA source assignment remains distinct even while the ordinary bed is occupied.
+ * It is shown only when occupied and never adds installed hospital capacity.
  */
 
 /** Reason the bed was resolved — useful for diagnostics and preview UI. */
@@ -62,7 +60,7 @@ const isCmaService = (serviceNorm: string): boolean =>
  * `CMAN1/2` is retained because older Rayen payloads use that short-name for `CMA NEO1/2`.
  */
 export const isCmaBedLabel = (value?: string): boolean =>
-  /^CMA(?:R[1-4]|N(?:EO)?[12])$/.test(normalize(value));
+  /^CMA(?:R[1-4]|N(?:EO)?[12]|H[1-6]C[12])$/.test(normalize(value));
 
 /**
  * True when a stored HHR patient `location` ("service / room / bed", set at admission) is a CMA
@@ -114,7 +112,8 @@ export const mapRayenBed = (location: RayenBedLocation): BedMappingResult => {
     matchedBy: BedMatchKind,
     isClinicalCrib = false
   ): BedMappingResult => ({
-    bedId,
+    bedId:
+      isCma && !isClinicalCrib && CLINICAL_CRIB_PARENT_BEDS.has(bedId) ? `CMA_${bedId}` : bedId,
     isCma,
     isClinicalCrib,
     matchedBy,
@@ -122,12 +121,12 @@ export const mapRayenBed = (location: RayenBedLocation): BedMappingResult => {
 
   if (clinicalCribParent) return ok(clinicalCribParent, 'clinical-crib', true);
 
-  // Hospitalización de Urgencias: Gestión de Camas exposes the compact B1UEA/B2UEA/B3UEA
-  // labels, while other views show BOX 1 UEA / BOX 2 UEA / BOX 3 UEA. They are HHR overflow beds and are
+  // Urgencias exposes B1UEA…B4UEA; preserve the existing BOX1…BOX4 storage keys.
+  // Other views use BOX 1 UEA…BOX 4 UEA. These occupied-only source locations are
   // activated by occupied encounters, never advertised as available capacity.
   const urgencyBox =
-    /^(?:B([123])UEA|BOX([123])(?:UEA)?)$/.exec(bed) ||
-    /^(?:B([123])UEA|BOX([123])(?:UEA)?)$/.exec(room);
+    /^(?:B([1-4])UEA|BOX([1-4])(?:UEA)?)$/.exec(bed) ||
+    /^(?:B([1-4])UEA|BOX([1-4])(?:UEA)?)$/.exec(room);
   if (urgencyBox) return ok(`BOX${urgencyBox[1] ?? urgencyBox[2]}`, 'urgency-box');
 
   // Recovery / UTI: R1–R4 (bed code "R1", room "Rk" or "Recuperacion k").
@@ -145,6 +144,11 @@ export const mapRayenBed = (location: RayenBedLocation): BedMappingResult => {
 
   const combined = /^H([1-6])C([12])$/.exec(room) || /^H([1-6])C([12])$/.exec(bed);
   if (combined) return ok(`H${combined[1]}C${combined[2]}`, 'general');
+
+  const known = BEDS.find(
+    entry => normalize(entry.id) === bedRaw || normalize(entry.id) === roomRaw
+  );
+  if (known) return ok(known.id, 'general');
 
   return fail();
 };

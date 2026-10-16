@@ -1,19 +1,33 @@
 import { useEffect, useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import { Library, X } from 'lucide-react';
 import { hideMoaAndRestoreFocus } from '@/shared/ui/useMoaVisibility';
 import { MoaMascot } from './navbar/MoaMascot';
 import { MoaSequence, moaScenes } from './MoaSequence';
 import './moaCompanion.css';
+import { useMoaCatalog } from './moa/useMoaCatalog';
+import { MoaCatalogSequence } from './moa/MoaCatalogSequence';
+import type { MoaCatalogScene } from './moa/moaCatalog';
 
 const gestures = moaScenes;
-type Gesture = (typeof gestures)[number] | 'idle' | 'welcome';
+type Gesture = string;
 
-/** A local, playful companion. Its only actions are gestures and visibility. */
+/** Optional decoration. No clinical data, auth or patient context enters this component. */
 const MoaCompanion = () => {
+  const catalog = useMoaCatalog();
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [choiceId, setChoiceId] = useState('');
+  const [selected, setSelected] = useState<MoaCatalogScene | null>(null);
+  const libraryButton = useRef<HTMLButtonElement>(null);
+  const choices =
+    catalog?.scenes || gestures.map(id => ({ id, title: id, category: 'Originales' }));
   const [gesture, setGesture] = useState<Gesture>('welcome');
   const [hidden, setHidden] = useState(() => document.hidden);
   const [playbackId, setPlaybackId] = useState(0);
   const nextGesture = useRef(0);
+  const sceneChoice = useRef<HTMLSelectElement>(null);
+  useEffect(() => {
+    if (libraryOpen) sceneChoice.current?.focus();
+  }, [libraryOpen]);
   const scene = gesture === 'welcome' ? 'wave' : moaScenes.find(name => name === gesture);
   useEffect(() => {
     const update = () => setHidden(document.hidden);
@@ -21,11 +35,24 @@ const MoaCompanion = () => {
     return () => document.removeEventListener('visibilitychange', update);
   }, []);
   const play = () => {
-    setGesture(gestures[nextGesture.current++ % gestures.length]);
+    const choice = choices[nextGesture.current++ % choices.length];
+    setSelected(catalog?.scenes.find(item => item.id === choice.id) || null);
+    setGesture(choice.id);
     setPlaybackId(value => value + 1);
   };
+  const confirmChoice = () => {
+    const id = choices.find(item => item.id === choiceId)?.id || choices[0].id;
+    setSelected(catalog?.scenes.find(item => item.id === id) || null);
+    setGesture(id);
+    setPlaybackId(value => value + 1);
+    setLibraryOpen(false);
+    libraryButton.current?.focus();
+  };
   const notice = () => {
-    if (gesture === 'idle') setGesture('curious');
+    if (gesture === 'idle') {
+      setSelected(null);
+      setGesture('curious');
+    }
   };
   return (
     <section
@@ -36,11 +63,25 @@ const MoaCompanion = () => {
       onKeyDown={event => {
         if (event.key === 'Escape') {
           event.stopPropagation();
-          hideMoaAndRestoreFocus();
+          if (libraryOpen) {
+            setLibraryOpen(false);
+            libraryButton.current?.focus();
+          } else hideMoaAndRestoreFocus();
         }
       }}
     >
       <div className="moa-controls">
+        <button
+          ref={libraryButton}
+          type="button"
+          aria-label="Elegir animación de Moa"
+          title={`${choices.length} animaciones`}
+          aria-expanded={libraryOpen}
+          aria-controls="moa-library"
+          onClick={() => setLibraryOpen(value => !value)}
+        >
+          <Library size={12} />
+        </button>
         <button
           type="button"
           aria-label="Ocultar Moa"
@@ -50,6 +91,34 @@ const MoaCompanion = () => {
           <X size={12} />
         </button>
       </div>
+      {libraryOpen && (
+        <div id="moa-library" className="moa-library" role="dialog" aria-label="Biblioteca de Moa">
+          <label htmlFor="moa-scene-choice">{choices.length} animaciones</label>
+          <select
+            ref={sceneChoice}
+            id="moa-scene-choice"
+            aria-label="Animación de Moa"
+            size={8}
+            value={choiceId || choices[0].id}
+            onChange={event => setChoiceId(event.target.value)}
+            onKeyDown={event => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                confirmChoice();
+              }
+            }}
+          >
+            {choices.map(item => (
+              <option key={item.id} value={item.id}>
+                {item.category} · {item.title}
+              </option>
+            ))}
+          </select>
+          <button type="button" className="moa-library-play" onClick={confirmChoice}>
+            Reproducir animación
+          </button>
+        </div>
+      )}
       <button
         type="button"
         className="moa-character"
@@ -60,7 +129,14 @@ const MoaCompanion = () => {
         onPointerEnter={notice}
         onFocus={notice}
       >
-        {scene ? (
+        {selected && gesture !== 'idle' ? (
+          <MoaCatalogSequence
+            key={`${gesture}:${playbackId}`}
+            scene={selected}
+            paused={hidden}
+            onComplete={() => setGesture('idle')}
+          />
+        ) : scene ? (
           <MoaSequence
             key={`${gesture}:${playbackId}`}
             scene={scene}

@@ -1,3 +1,6 @@
+import moaCatalogFixture from '../src/tests/fixtures/moa/catalog.json' with { type: 'json' };
+import sharp from 'sharp';
+import { createHash } from 'node:crypto';
 import { checkCensusToolbarRefresh } from './fixtures/censusToolbarRefresh';
 import { test, expect, type Page } from '@playwright/test';
 import { buildCanonicalE2ERecord, MOCK_USERS } from './fixtures/auth';
@@ -208,6 +211,10 @@ const assertPreviewBootCompleted = async (page: Page, runtimeFailures: PreviewRu
 
 test.describe('Production Preview Bootstrap', () => {
   test.describe.configure({ timeout: 60_000 });
+  test.beforeEach(async ({ page }) => {
+    // Existing regression tests exercise the bundled fallback, independent of network/content releases.
+    await page.route('**/moa-library/**', route => route.fulfill({ status: 503, body: 'offline' }));
+  });
 
   test('aligns newborn identity with normal beds and preserves the new chrome on reload', async ({
     page,
@@ -629,6 +636,8 @@ test.describe('Production Preview Bootstrap', () => {
   test('plays eighteen consistent scenes, rests quietly and respects reduced motion', async ({
     page,
   }) => {
+    // This regression exercises the original offline fallback, not the independent live release.
+    await page.route('**/moa-library/**', route => route.fulfill({ status: 503, body: '' }));
     await seedPersistedSessionAndRecord(page);
     await page.goto(`/?date=${PREVIEW_BOOTSTRAP_DATE}`);
     await expectSeededPatientVisible(page);
@@ -927,3 +936,154 @@ test.describe('Production Preview Bootstrap', () => {
     await expect(page.getByRole('region', { name: 'Moa', exact: true })).toBeVisible();
   });
 });
+
+for (const width of [1440, 375]) {
+  test(`loads the independent Moa library and plays HD without a clinical reload at ${width}px`, async ({
+    page,
+  }) => {
+    test.setTimeout(60_000);
+    await page.setViewportSize({ width, height: 900 });
+    const catalog = structuredClone(moaCatalogFixture);
+    const hd = catalog.scenes.find(scene => scene.id === 'E08')!;
+    const colors = Array.from({ length: hd.frames }, (_, i) => [
+      30 + i * 7,
+      130 - i * 3,
+      150 + i * 4,
+    ]);
+    const rectangles = colors
+      .map(
+        (color, i) =>
+          `<rect x="${i * 576}" width="576" height="336" fill="rgb(${color.join(',')})"/>`
+      )
+      .join('');
+    const png = await sharp(
+      Buffer.from(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="${hd.frames * 576}" height="336">${rectangles}</svg>`
+      )
+    )
+      .png()
+      .toBuffer();
+    hd.sha256 = createHash('sha256').update(png).digest('hex');
+    hd.bytes = png.length;
+    const requests: string[] = [];
+    await page.route('**/moa-library/**', async route => {
+      requests.push(route.request().url());
+      expect(route.request().headers()['authorization']).toBeUndefined();
+      expect(route.request().headers()['cookie']).toBeUndefined();
+      expect(route.request().headers()['referer']).toBeUndefined();
+      if (route.request().url().endsWith('/catalog.json'))
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify(catalog),
+          headers: { 'access-control-allow-origin': '*' },
+        });
+      else
+        await route.fulfill({
+          contentType: 'image/png',
+          body: png,
+          headers: { 'access-control-allow-origin': '*' },
+        });
+    });
+    await seedPersistedSessionAndRecord(page);
+    await page.goto(`/?date=${PREVIEW_BOOTSTRAP_DATE}`);
+    await expectSeededPatientVisible(page);
+    expect(requests).toHaveLength(0);
+    await page.locator('[data-moa-toggle]').click();
+    const companion = page.getByRole('region', { name: 'Moa', exact: true });
+    const library = companion.getByRole('button', { name: 'Elegir animación de Moa' });
+    await expect(library).toHaveAttribute('title', '222 animaciones');
+    expect(requests).toHaveLength(1);
+    await library.click();
+    const select = page.getByLabel('Animación de Moa', { exact: true });
+    await expect(select.locator('option')).toHaveCount(222);
+    await expect(select).toBeFocused();
+    const menu = await page.getByRole('dialog', { name: 'Biblioteca de Moa' }).boundingBox();
+    expect(menu!.x).toBeGreaterThanOrEqual(0);
+    expect(menu!.x + menu!.width).toBeLessThanOrEqual(width);
+    await select.press('ArrowDown');
+    await select.press('ArrowDown');
+    await expect(select).toBeFocused();
+    await expect(select).toBeVisible();
+    expect(requests.filter(url => url.endsWith('.png'))).toHaveLength(0);
+    await select.selectOption('E08');
+    await expect(select).toBeVisible();
+    await select.press('Enter');
+    await expect(select).toHaveCount(0);
+    const frames = companion.locator('.moa-catalog-frames');
+    await expect(frames).toHaveAttribute('data-ready', 'true');
+    await expect(frames).toHaveCSS('image-rendering', 'auto');
+    await expect(frames).toHaveCSS('transition-duration', '0s');
+    await expect
+      .poll(() => frames.evaluate((img: HTMLImageElement) => img.naturalWidth))
+      .toBe(13824);
+    expect(requests.filter(url => url.endsWith('.png'))).toHaveLength(1);
+    const sequence = companion.locator('.moa-sequence');
+    const visiblePixel = async () =>
+      Array.from(
+        await sharp(await sequence.screenshot())
+          .extract({ left: 72, top: 42, width: 1, height: 1 })
+          .removeAlpha()
+          .raw()
+          .toBuffer()
+      );
+    // Select the transform clock, never a transient opacity transition from the surrounding app.
+    await frames.evaluate(img => {
+      const a = img
+        .getAnimations()
+        .find(
+          animation =>
+            animation.effect instanceof KeyframeEffect &&
+            animation.effect.getKeyframes().some(frame => frame.transform !== undefined)
+        )!;
+      a.pause();
+      a.currentTime = 0;
+    });
+    await expect.poll(visiblePixel).toEqual(colors[0]);
+    await frames.evaluate(
+      (img, time) => {
+        img.getAnimations()[0].currentTime = time;
+      },
+      hd.durations[0] + hd.durations[1] / 2
+    );
+    await expect.poll(visiblePixel).toEqual(colors[1]);
+    await frames.evaluate(img => img.getAnimations()[0].play());
+    await page.evaluate(() => {
+      Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await expect
+      .poll(() => frames.evaluate(img => img.getAnimations()[0]?.playState))
+      .toBe('paused');
+    await page.evaluate(() => {
+      Reflect.deleteProperty(document, 'hidden');
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await expect
+      .poll(() =>
+        frames.evaluate(img => {
+          const effect = img.getAnimations()[0]?.effect as KeyframeEffect | null;
+          return new Set(effect?.getKeyframes().map(frame => frame.transform)).size;
+        })
+      )
+      .toBe(1);
+    const still = await frames.evaluate(img => getComputedStyle(img).transform);
+    await frames.evaluate(img => {
+      img.getAnimations()[0].currentTime = 1000;
+    });
+    await expect(frames).toHaveCSS('transform', still);
+    await frames.evaluate(img => img.getAnimations()[0].finish());
+    await expect(companion.getByRole('button', { name: 'Jugar con Moa' })).toHaveAttribute(
+      'data-gesture',
+      'idle'
+    );
+    await library.click();
+    await select.focus();
+    await page.keyboard.press('Escape');
+    await expect(library).toBeFocused();
+    await expect(select).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    await expect(companion).toHaveCount(0);
+    await expectSeededPatientVisible(page);
+  });
+}

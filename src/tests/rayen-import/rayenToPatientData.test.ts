@@ -295,7 +295,7 @@ describe('rayenToPatientData', () => {
       REFERENCE
     );
     expect(isCma).toBe(true);
-    expect(bedId).toBe('R1');
+    expect(bedId).toBe('CMA_R1');
     // The bed is UTI, but sync must not mark the patient UPC — the nurse categorizes that in HHR.
     expect(patient.isUPC).toBe(false);
   });

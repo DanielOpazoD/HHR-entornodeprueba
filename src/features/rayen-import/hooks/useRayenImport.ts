@@ -335,7 +335,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
       reportRayenStaffingOutcome('declined');
     setStaffingProposal(null);
     setStaffingProposalError(null);
-    setState(prev => ({ ...prev, isPreviewOpen: false, isSyncing: false }));
+    setState(prev => ({ ...prev, isPreviewOpen: false }));
   }, [
     cancelRun,
     clearSyncTimeout,

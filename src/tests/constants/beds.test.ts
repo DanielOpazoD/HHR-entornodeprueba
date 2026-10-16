@@ -24,7 +24,7 @@ describe('beds constants', () => {
 
   describe('BEDS array', () => {
     it('should have correct total count', () => {
-      expect(BEDS.length).toBe(26); // 18 regular + 5 manual extra + 3 occupied-only
+      expect(BEDS.length).toBe(45); // 18 installed + 18 CMA + 5 manual extra + 4 UEA
     });
 
     it('should have unique IDs', () => {
@@ -94,8 +94,9 @@ describe('beds constants', () => {
   });
 
   describe('EXTRA_BEDS', () => {
-    it('should have 8 extra beds', () => {
-      expect(EXTRA_BEDS.length).toBe(8);
+    it('keeps operational source assignments outside installed capacity', () => {
+      expect(EXTRA_BEDS.length).toBe(27);
+      expect(EXTRA_BEDS.filter(bed => bed.activationMode !== 'occupied')).toHaveLength(5);
     });
 
     it('should all have isExtra true', () => {
@@ -114,11 +115,14 @@ describe('beds constants', () => {
     });
 
     it('keeps urgency boxes separate from manual extra-bed availability', () => {
-      expect(OCCUPANCY_ONLY_EXTRA_BEDS).toEqual([
-        expect.objectContaining({ id: 'BOX1', name: 'BOX 1 UEA' }),
-        expect.objectContaining({ id: 'BOX2', name: 'BOX 2 UEA' }),
-        expect.objectContaining({ id: 'BOX3', name: 'BOX 3 UEA' }),
+      expect(OCCUPANCY_ONLY_EXTRA_BEDS).toHaveLength(22);
+      expect(OCCUPANCY_ONLY_EXTRA_BEDS.filter(bed => bed.id.startsWith('BOX'))).toEqual([
+        expect.objectContaining({ id: 'BOX1', name: 'B1UEA' }),
+        expect.objectContaining({ id: 'BOX2', name: 'B2UEA' }),
+        expect.objectContaining({ id: 'BOX3', name: 'B3UEA' }),
+        expect.objectContaining({ id: 'BOX4', name: 'B4UEA' }),
       ]);
+      expect(OCCUPANCY_ONLY_EXTRA_BEDS.filter(bed => bed.id.startsWith('CMA_'))).toHaveLength(18);
     });
   });
 

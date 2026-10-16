@@ -51,7 +51,9 @@ describe('monthly CUDYR format and calculation reconciliation', () => {
     const summary = workbook.getWorksheet('Resumen CUDYR Mensual')!;
     const day = workbook.getWorksheet('02-10-2026')!;
     expect(summary.rowCount).toBe(26);
-    expect(summary.getCell('A24').value).toContain('Cálculo:');
+    expect(summary.getCell('A24').value).toBe(
+      '2 / 5 pacientes-día elegibles = 40%. Acumulado ponderado por pacientes-día.'
+    );
     expect(summary.getCell('A25').value).toContain('Elegibilidad:');
     expect(summary.getCell('A26').value).toContain('No elegibles:');
     expect(day.getCell('B19').value).toBe(4);

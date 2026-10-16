@@ -1,3 +1,4 @@
+import { validateCudyrWorkbookTotals } from '@/services/cudyr/cudyrWorkbookValidation';
 import { confirmedReportInput } from './reportFixtures';
 import { describe, expect, it } from 'vitest';
 import { buildCudyrReport, cudyrReportTotals } from '@/services/cudyr/cudyrReportModel';
@@ -122,4 +123,66 @@ it('exports approved reconstructed days as official without requiring the histor
   });
   const { workbook } = await buildCudyrEssentialWorkbook(data);
   expect(workbook.getWorksheet('02-10-2026')!.getCell('A2').value).toBe('Oficial');
+});
+
+describe('export arithmetic and operational safeguards', () => {
+  const dates = ['2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04'];
+  it.each([
+    ['Resumen CUDYR Mensual', 'B20'],
+    ['Resumen CUDYR Mensual', 'B21'],
+    ['Resumen CUDYR Mensual', 'B22'],
+    ['02-10-2026', 'B19'],
+    ['02-10-2026', 'B20'],
+    ['02-10-2026', 'D4'],
+    ['02-10-2026', 'B16'],
+    ['02-10-2026', 'C16'],
+    ['02-10-2026', 'D16'],
+  ])('blocks a corrupted total in %s %s', async (name, address) => {
+    const data = buildCudyrReport(confirmedReportInput());
+    const { workbook } = await buildCudyrEssentialWorkbook(data);
+    workbook.getWorksheet(name)!.getCell(address).value = 999;
+    expect(() => validateCudyrWorkbookTotals(workbook, data, dates)).toThrow('no coinciden');
+  });
+  it('keeps a sick newborn in its own hospital classification and excludes a healthy crib', async () => {
+    const data = buildCudyrReport(
+      confirmedReportInput({
+        records: [
+          reportRecord('2026-10-02', {
+            R1: reportPatient({
+              bedMode: 'Cuna',
+              clinicalEpisodeId: 'healthy-rn',
+              patientName: 'RN sano sintético',
+            }),
+            NEO1: reportPatient({
+              bedId: 'NEO1',
+              clinicalEpisodeId: 'sick-rn',
+              patientName: 'RN hospitalizado sintético',
+            }),
+          }),
+        ],
+      })
+    );
+    expect(cudyrReportTotals(data.rows)).toMatchObject({
+      eligible: 1,
+      categorized: 1,
+      excluded: 1,
+    });
+    const { workbook } = await buildCudyrEssentialWorkbook(data);
+    const summary = workbook.getWorksheet('Resumen CUDYR Mensual')!;
+    expect(summary.getCell('A24').text).toContain('1 / 1 pacientes-día elegibles = 100%');
+    const sheet = workbook.getWorksheet('02-10-2026')!;
+    expect(sheet.rowCount).toBe(26);
+    expect(sheet.getCell('B19').value).toBe(1);
+    expect(sheet.getCell('C25').text).toBe('RN hospitalizado sintético');
+    expect(sheet.getCell('I26').text).toBe('No elegible');
+  });
+  it('keeps the application window outside totals and does not report zero percent without eligible days', async () => {
+    const data = buildCudyrReport(confirmedReportInput({ generatedAt: '2026-10-03T08:00:00Z' }));
+    expect(data.rows[0].applicationPending).toBe(true);
+    const { workbook } = await buildCudyrEssentialWorkbook(data);
+    const summary = workbook.getWorksheet('Resumen CUDYR Mensual')!;
+    expect(summary.getCell('B22').result).toBe('');
+    expect(summary.getCell('A24').text).toContain('Sin pacientes-día elegibles');
+    expect(workbook.getWorksheet('02-10-2026')!.getCell('B19').value).toBeNull();
+  });
 });
