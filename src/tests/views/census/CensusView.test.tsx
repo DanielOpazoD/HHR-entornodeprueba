@@ -19,7 +19,7 @@ vi.mock('@/context', () => ({
 }));
 
 vi.mock('@/context/DailyRecordContext', () => ({
-  useDailyRecordData: () => mockUseDailyRecordData(),
+  useDailyRecordSync: () => mockUseDailyRecordData(),
   useDailyRecordStatus: () => mockUseDailyRecordStatus(),
 }));
 

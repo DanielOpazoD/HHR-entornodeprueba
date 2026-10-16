@@ -46,7 +46,10 @@ describe('equivalent source collision uniqueness', () => {
       () => undefined
     );
 
-    expect(result.collisions).toHaveLength(1);
+    expect(result.collisions).toHaveLength(0);
+    expect(result.conflicts).toEqual([
+      expect.objectContaining({ code: 'principal-bed-collision' }),
+    ]);
     const candidateEpisodes = result.collisions.flatMap(collision =>
       collision.candidates.map(candidate => candidate.clinicalEpisodeId)
     );

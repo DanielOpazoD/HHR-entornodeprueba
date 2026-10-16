@@ -1,3 +1,4 @@
+import type { RayenScalesFormsResult } from '../contracts/patientClinicalBundle';
 /**
  * Bridge between the browser extension (which reads Rayen) and the HHR app.
  *
@@ -68,7 +69,8 @@ export {
  */
 export const requestEgresoLookup = (
   requested: Array<string | EgresoLookupTarget>,
-  timeoutMs = 30000
+  timeoutMs = 30000,
+  signal?: AbortSignal
 ): Promise<EgresoLookupResult[]> => {
   if (typeof window === 'undefined' || !Array.isArray(requested) || requested.length === 0) {
     return Promise.resolve([]);
@@ -83,6 +85,7 @@ export const requestEgresoLookup = (
     payload: { runs: targets.map(target => target.run), targets },
     timeoutMs,
     onTimeout: () => [],
+    signal,
     mapResult: data => (Array.isArray(data.results) ? (data.results as EgresoLookupResult[]) : []),
   });
 };
@@ -169,11 +172,11 @@ export const requestScalesReport = (
   encId: string,
   timeoutMs = CLINICAL_READ_TIMEOUT_MS,
   signal?: AbortSignal
-): Promise<{ forms: unknown[]; error?: string }> => {
+): Promise<RayenScalesFormsResult> => {
   if (typeof window === 'undefined' || !encId) {
     return Promise.resolve({ forms: [] });
   }
-  return requestViaBridgeChannel<{ forms: unknown[]; error?: string }>({
+  return requestViaBridgeChannel<RayenScalesFormsResult>({
     prefix: 'scales',
     requestType: RAYEN_SCALES_REPORT_REQUEST_TYPE,
     resultType: RAYEN_SCALES_REPORT_RESULT_TYPE,
@@ -183,6 +186,7 @@ export const requestScalesReport = (
     onTimeout: () => ({
       forms: [],
       error: 'Tiempo de espera agotado bajando las escalas de evaluación.',
+      errorCode: 'source_timeout',
     }),
     mapResult: mapScalesFormsPayload,
   });
@@ -191,7 +195,7 @@ export const requestScalesReport = (
 /**
  * Ask the extension for one patient's evaluation scales (Braden/Downton) as clinical-history events
  * from Ficha Médico's "panel de historial" (`getPatientEncounterHistoryReportServer`). The census
- * date lets the extension bound the remote history window without losing D-7 or its morning handoff.
+ * date lets the extension reach the selected census and its morning handoff in the history window.
  * Each event's `publishDatetime` is real, so HHR (`parseHistoryScales`) can select the
  * last score applied ON the census day, including same-day re-applications encounterFormEntry
  * misses. Resolves to `{ events: [] }` if the extension / Ficha Médico tab is

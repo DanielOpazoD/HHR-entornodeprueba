@@ -6,6 +6,22 @@ Médico** y lo entrega al **censo local HHR** para importarlo con revisión. Ade
 vigente oficial de Eloísa. Como respaldo sin backend intermedio, cada paciente activo puede copiarse
 como un código versionado que HHR valida antes de una admisión manual y de la elección de cama.
 
+## Puente 0.48.52: identidad en el índice de informes
+
+La lista de hospitalizaciones transmite también el nombre y el tipo de identificador de cada
+episodio (RUN propio o materno). HHR usa esa evidencia para revisar filas administrativas
+ambiguas de censos anteriores; conserva la revisión si la identidad o las fechas no coinciden.
+No amplía permisos, no modifica informes de Eloísa ni altera el CUDYR oficial guardado.
+
+## Puente 0.48.51: sincronización histórica por evidencia
+
+La captura admite fechas actuales o pasadas válidas sin el antiguo bloqueo de siete días.
+HHR verifica cada episodio antes de reconstruirlo: la antigüedad no garantiza la disponibilidad
+de los datos. El historial clínico alcanza la fecha solicitada sin el recorte local de 180 días,
+y un formato de respuesta inesperado se informa como fallo de fuente, nunca como ausencia.
+Los controles de sesión, establecimiento, corte del turno y timeout se mantienen.
+Actualizar/recargar la extensión y las pestañas abiertas para usar estas correcciones.
+
 ## Cunas creadas en Gestión de Camas (0.48.45)
 
 Las cunas no requieren un catálogo separado: `CH2C2`, `Cuna H2C2` y las demás
@@ -594,3 +610,13 @@ En HHR, la reconstrucción de un episodio local puede completar metadatos de egr
 incompletos mediante el informe estadístico individual: exige episodio exacto, RUN,
 intervalo completo y fecha/hora coincidente al minuto. Una marca administrativa negativa
 y los traslados sin ubicación comprobada siguen requiriendo revisión.
+
+### Errores de formularios · 0.48.53
+
+Las respuestas individuales de escalas y la sección `forms` del paquete clínico incluyen
+un `errorCode` estable además del mensaje `error` existente. HHR anterior puede ignorar
+el campo adicional; HHR actualizado admite extensiones anteriores sin ese campo.
+El contrato y la recuperación compatible se documentan en
+[`rayen-import`](../src/features/rayen-import/README.md#códigos-estables-de-errores-de-lectura).
+El módulo `clinical-read-error-contract.js` se carga antes del cliente de Ficha Médico.
+No cambian permisos, vigencia de autorización, escrituras ni reglas de CUDYR.

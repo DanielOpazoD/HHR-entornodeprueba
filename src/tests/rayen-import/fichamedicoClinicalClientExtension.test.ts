@@ -1,12 +1,12 @@
 // @vitest-environment node
 import { readFileSync } from 'node:fs';
-
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import '../../../extension/clinical-day-runtime.js';
 import '../../../extension/clinical-history-coverage.js';
 import '../../../extension/fichamedico-history-read-model.js';
 import '../../../extension/fichamedico-device-evidence-runtime.js';
+import '../../../extension/clinical-read-error-contract.js';
 import '../../../extension/fichamedico-clinical-client.js';
 
 type SessionInfo = {
@@ -53,6 +53,11 @@ type ClinicalClient = {
     encId: string,
     info?: SessionInfo
   ) => Promise<{ ok?: boolean; forms?: unknown[]; error?: string }>;
+  fetchScaleHistoryEvents: (
+    encId: string,
+    info: SessionInfo,
+    days?: number
+  ) => Promise<{ events?: unknown[]; error?: string }>;
 };
 
 type ClinicalClientFactory = {
@@ -152,6 +157,35 @@ describe('Ficha Médico read-only clinical client', () => {
     });
     expect(parseBody).not.toHaveBeenCalled();
   });
+
+  it('requests historical windows beyond 180 days without truncation', async () => {
+    fetchWithTimeout.mockResolvedValueOnce(response({ json: async () => [] }));
+    const result = await client.fetchHistoryScales({
+      encId: '101',
+      censusDate: '2025-10-15',
+      lookbackDays: 367,
+      info: session,
+    });
+    expect(fetchWithTimeout.mock.calls[0][0]).toContain('/false/0/0/-367');
+    expect(result.effectiveLookbackDays).toBe(367);
+  });
+
+  it.each([{}, null, { error: 'Fuente no disponible' }, { events: [] }])(
+    'does not certify a malformed successful response as an absence of clinical data: %j',
+    async payload => {
+      fetchWithTimeout.mockResolvedValueOnce(response({ json: async () => payload }));
+      const result = await client.fetchHistoryScales({
+        encId: '101',
+        lookbackDays: 14,
+        info: session,
+      });
+      expect(result.error).toBeTruthy();
+      expect(result).not.toHaveProperty('effectiveLookbackDays');
+      expect(result).not.toHaveProperty('coverageWindowStartIsoDay');
+      fetchWithTimeout.mockResolvedValueOnce(response({ json: async () => payload }));
+      expect((await client.fetchScaleHistoryEvents('101', session)).error).toBeTruthy();
+    }
+  );
 
   it('fails closed when required dependencies or timeout are invalid', () => {
     expect(() => factory.create({} as never)).toThrow('Falta la dependencia resolveFetchInfo.');

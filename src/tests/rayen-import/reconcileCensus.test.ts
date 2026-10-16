@@ -58,7 +58,7 @@ const seedBed = (encounter: RayenEncounter, bedIdOverride?: string): [string, Pa
 };
 
 describe('reconcileCensus', () => {
-  it('keeps CMA source provenance for review while admitting into the real bed', () => {
+  it('keeps CMA source provenance in a separate occupied census assignment', () => {
     const diff = reconcileCensus(
       makeRecord({}),
       snapshotOf([
@@ -68,7 +68,7 @@ describe('reconcileCensus', () => {
     );
     expect(diff.admissions).toHaveLength(1);
     expect(diff.admissions[0].isCma).toBe(true); // transient review signal; not a CMA movement
-    expect(diff.admissions[0].bedId).toBe('R1'); // the real bed, not a virtual CMA slot
+    expect(diff.admissions[0].bedId).toBe('CMA_R1');
   });
 
   it('keeps a CMA patient in bed when absent from Ficha Médico until administrative confirmation', () => {
@@ -83,7 +83,7 @@ describe('reconcileCensus', () => {
     });
     expect(diff.discharges).toHaveLength(0);
     expect(diff.pendingAdministrativeDischarges).toEqual([
-      expect.objectContaining({ bedId: 'R1', signal: 'missing-from-ficha' }),
+      expect.objectContaining({ bedId: 'CMA_R1', signal: 'missing-from-ficha' }),
     ]);
   });
 
@@ -283,7 +283,7 @@ describe('reconcileCensus', () => {
       room: 'CMA R1',
       bed: 'CMAR1',
     });
-    const [bedId, patient] = seedBed(cmaEncounter); // bedId === 'R1'
+    const [bedId, patient] = seedBed(cmaEncounter); // CMA_R1 remains distinct from R1
     const diff = reconcileCensus(
       makeRecord({ [bedId]: patient }),
       snapshotOf([{ ...cmaEncounter, hasMedicalDischarge: true }]),
@@ -293,7 +293,7 @@ describe('reconcileCensus', () => {
     expect(diff.pendingAdministrativeDischarges).toHaveLength(1);
     expect(diff.pendingAdministrativeDischarges[0]).toMatchObject({
       signal: 'clinical-closure',
-      bedId: 'R1',
+      bedId: 'CMA_R1',
     });
   });
 

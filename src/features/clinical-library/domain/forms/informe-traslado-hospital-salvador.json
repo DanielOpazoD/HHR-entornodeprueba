@@ -1,0 +1,262 @@
+{
+  "id": "informe-traslado-hospital-salvador",
+  "title": "Informe de traslado al Hospital del Salvador",
+  "revision": 1,
+  "catalogVersion": "1.1.0",
+  "templateUrl": "/docs/biblioteca/informe-traslado-hospital-salvador.pdf",
+  "sourceUrl": "/docs/biblioteca/informe-traslado-hospital-salvador.docx",
+  "pages": [
+    {
+      "width": 612,
+      "height": 1008
+    }
+  ],
+  "fields": [
+    {
+      "id": "paciente_nombre_completo",
+      "label": "Nombre y apellidos",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [218, 211, 310, 13]
+        }
+      ]
+    },
+    {
+      "id": "paciente_rut",
+      "label": "RUT",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [149, 226, 379, 13]
+        }
+      ]
+    },
+    {
+      "id": "paciente_edad_texto",
+      "label": "Edad (con unidad)",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [153, 241, 375, 13]
+        }
+      ]
+    },
+    {
+      "id": "formulario_fecha_emision",
+      "label": "Fecha de solicitud de traslado",
+      "section": "Solicitud",
+      "kind": "date",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [274, 255, 254, 13],
+          "format": "date_dmy"
+        }
+      ]
+    },
+    {
+      "id": "paciente_fonasa_tramo",
+      "label": "Tipo FONASA",
+      "section": "Antecedentes personales",
+      "kind": "choice",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [194, 270, 334, 13]
+        }
+      ],
+      "options": [
+        {
+          "value": "A",
+          "label": "A"
+        },
+        {
+          "value": "B",
+          "label": "B"
+        },
+        {
+          "value": "C",
+          "label": "C"
+        },
+        {
+          "value": "D",
+          "label": "D"
+        }
+      ]
+    },
+    {
+      "id": "paciente_domicilio",
+      "label": "Domicilio",
+      "section": "Antecedentes personales",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [175, 284, 353, 13]
+        }
+      ]
+    },
+    {
+      "id": "paciente_ocupacion",
+      "label": "Ocupación",
+      "section": "Antecedentes personales",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [181, 299, 347, 13]
+        }
+      ]
+    },
+    {
+      "id": "traslado_auge",
+      "label": "AUGE (caso inscrito)",
+      "section": "Antecedentes personales",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [228, 314, 300, 13]
+        }
+      ]
+    },
+    {
+      "id": "traslado_apoyo",
+      "label": "Red de apoyo: teléfono y responsable",
+      "section": "Antecedentes personales",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [121, 343, 407, 25]
+        }
+      ]
+    },
+    {
+      "id": "traslado_historia",
+      "label": "Historia clínica actual",
+      "section": "Antecedentes clínicos",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [121, 453, 407, 26]
+        }
+      ],
+      "multiline": true
+    },
+    {
+      "id": "traslado_examen_fisico",
+      "label": "Examen físico completo",
+      "section": "Antecedentes clínicos",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [121, 497, 407, 27]
+        }
+      ],
+      "multiline": true
+    },
+    {
+      "id": "traslado_anamnesis",
+      "label": "Anamnesis remota",
+      "section": "Antecedentes clínicos",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [121, 541, 407, 27]
+        }
+      ],
+      "multiline": true
+    },
+    {
+      "id": "traslado_estudio",
+      "label": "Estudio diagnóstico",
+      "section": "Antecedentes clínicos",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [121, 585, 407, 27]
+        }
+      ],
+      "multiline": true
+    },
+    {
+      "id": "traslado_resultados",
+      "label": "Resultados de exámenes",
+      "section": "Antecedentes clínicos",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [121, 629, 407, 27]
+        }
+      ],
+      "multiline": true
+    },
+    {
+      "id": "traslado_tratamiento",
+      "label": "Tratamiento y evolución",
+      "section": "Antecedentes clínicos",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [121, 673, 407, 27]
+        }
+      ],
+      "multiline": true
+    },
+    {
+      "id": "diagnostico_texto",
+      "label": "Diagnóstico",
+      "section": "Antecedentes clínicos",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [121, 717, 407, 27]
+        }
+      ],
+      "multiline": true
+    },
+    {
+      "id": "traslado_fundamento",
+      "label": "Fundamento diagnóstico",
+      "section": "Antecedentes clínicos",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [121, 761, 407, 26]
+        }
+      ],
+      "multiline": true
+    },
+    {
+      "id": "traslado_solicitud",
+      "label": "Fundamento del traslado y especialidad",
+      "section": "Antecedentes clínicos",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [121, 805, 407, 80]
+        }
+      ],
+      "multiline": true
+    }
+  ],
+  "templateSha256": "0a4cd63efdd4b535cb93997447a42291a1e8ead3afc7bea6fac60f849dd92524",
+  "sourceSha256": "c23e3517eb0626c2702c5404b4f5315d1adc4a260a3955a410395211d94f57b2"
+}

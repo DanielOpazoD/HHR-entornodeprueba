@@ -3,11 +3,8 @@ import type { CensusImportDiff } from './contracts/censusImportDiff';
 import type { DailyRecord, PatientData } from './contracts/rayenDomainContracts';
 import type { RayenCensusSnapshot, RayenEncounter } from './contracts/rayenSnapshot';
 import type { EgresoLookupResult } from './contracts/egresoLookup';
-import { toIsoCensusDay } from './domain/censusDayPolicy';
-import {
-  isDischargedEncounter as isClosed,
-  isOccupiedCensusPatient as isOccupied,
-} from './domain/censusReconciliationPredicates';
+import { censusNightCloseTimestamp, toIsoCensusDay } from './domain/censusDayPolicy';
+import { isOccupiedCensusPatient as isOccupied } from './domain/censusReconciliationPredicates';
 import { latestPatientFlowMovement, patientRunFromFlowReport } from './mapping/parsePatientFlow';
 import {
   absoluteInstantInRapaNui,
@@ -45,8 +42,8 @@ const findExactEncounter = (
 };
 
 /**
- * Adds official bed-placement evidence only for a closed encounter that is actively blocking an
- * admission. Missing, malformed or contradictory reports leave the original conflict untouched.
+ * Checks official movements for an exact occupant blocking a placement, including active
+ * patients whose Ficha location is stale. Missing or contradictory evidence keeps the conflict.
  */
 export const resolveOccupiedBedTraceability = async (
   current: DailyRecord,
@@ -57,19 +54,18 @@ export const resolveOccupiedBedTraceability = async (
   const placementCutoff = absoluteInstantInRapaNui(snapshot.capturedAt);
   const censusDay = toIsoCensusDay(current.date);
   if (!placementCutoff || !censusDay) return snapshot;
-  const effectiveCutoff = [placementCutoff, `${censusDay}T23:59:59`].sort()[0];
+  const effectiveCutoff = [placementCutoff, censusNightCloseTimestamp(censusDay)].sort()[0];
   const candidates = new Map<string, RayenEncounter>();
   for (const conflict of diff.conflicts) {
-    if (conflict.code !== 'occupied-local-bed' || !conflict.bedId) continue;
+    if (
+      !['occupied-local-bed', 'principal-bed-collision'].includes(conflict.code ?? '') ||
+      !conflict.bedId
+    )
+      continue;
     const occupant = current.beds[conflict.bedId];
     if (!isOccupied(occupant)) continue;
     const encounter = findExactEncounter(occupant, snapshot.encounters);
-    if (
-      !encounter ||
-      encounter.verifiedBedPlacement ||
-      !isClosed(encounter) ||
-      !/^\d+$/.test(encounter.encounterId)
-    )
+    if (!encounter || encounter.verifiedBedPlacement || !/^\d+$/.test(encounter.encounterId))
       continue;
     candidates.set(encounter.encounterId, encounter);
   }
@@ -223,7 +219,7 @@ export const recoverMissingSnapshotPlacements = async (
   return { snapshot: resolvedSnapshot, diff: replan(resolvedSnapshot) };
 };
 
-/** Resolves newly exposed closed-patient blockers in bounded rounds, never refetching proven episodes. */
+/** Resolves newly exposed occupants in bounded rounds, never refetching proven episodes. */
 export const resolveOccupiedBedTraceabilityChain = async (
   current: DailyRecord,
   snapshot: RayenCensusSnapshot,

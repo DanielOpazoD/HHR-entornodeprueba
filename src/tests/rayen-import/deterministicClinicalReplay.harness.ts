@@ -10,10 +10,8 @@ import {
   type RayenInvasiveDeviceEntry,
 } from '@/features/rayen-import';
 import { buildStructuralReviewEvidence } from '@/features/rayen-import/domain/clinicalStageResolution';
-import {
-  presentRayenSyncOutcome,
-  presentRayenSyncRecovery,
-} from '@/features/rayen-import/components/rayenSyncPresentation';
+import { presentRayenSyncOutcome } from '@/features/rayen-import/components/rayenSyncPresentation';
+import { presentRayenSyncRecovery } from '@/features/rayen-import/components/rayenSyncRecoveryPresentation';
 import { prepareRayenSyncTemporalContext } from '@/features/rayen-import/hooks/rayenSyncTemporalContext';
 import { resolveConfirmedRayenCensusHandoff } from '@/features/rayen-import/hooks/rayenCensusPersistenceGuard';
 import { useRayenSyncAudit } from '@/features/rayen-import/hooks/useRayenSyncAudit';

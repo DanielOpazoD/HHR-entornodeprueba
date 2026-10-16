@@ -155,9 +155,10 @@ describe('manual clinical retry source selection', () => {
     expect(current.errors).toEqual([]);
     expect(current.staffingProposal).toBeUndefined();
     const previous = await runClinicalFill(rec, rec.date, deps());
-    expect(mergeClinicalRetrySummary(previous, current, new Set(['R2'])).staffingProposal).toBe(
-      previous.staffingProposal
-    );
+    expect(
+      mergeClinicalRetrySummary(previous, current, new Set(['R2']), new Set(['episode-1']))
+        .staffingProposal
+    ).toBe(previous.staffingProposal);
   });
 
   it('updates only CUDYR while retaining previously stored clinical data', async () => {

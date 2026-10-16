@@ -5,8 +5,8 @@
  *   GET {apiOrigin}/api/encounter/{encId}/getPatientEncounterHistoryReportServer/false/0/0/-N
  *   headers: { Authorization: 'HSP <token>' }, credentials: 'omit'
  *
- * `N` is bounded from the requested census day (2..14 days), preserving D-7 and its next-morning
- * handoff while avoiding an unconditional 14-day response for current-day synchronization.
+ * `N` reaches the requested census day and its next-morning handoff. Current-day reads use a
+ * short adaptive window, with a daily full revalidation to find late corrections.
  *
  * WHY THIS SOURCE (not encounterFormEntry). The encounter-form-entry endpoint we used before returns
  * a form's `startDateTime`, which goes STALE on a redo (keeps the original day) and — worse — misses
