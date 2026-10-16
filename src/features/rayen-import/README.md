@@ -538,3 +538,8 @@ sigue impidiendo otra captura mientras un trabajador anterior termina, sin conve
 resultado terminal en «Sincronizando». Tras remontar la vista sin una ejecución contextual,
 la barra puede mostrar ese trabajo compartido. La revisión de dotación es independiente;
 el historial conserva la evidencia persistida de cada intento.
+
+La preparación anterior a la captura pertenece a la vista y a la sesión que la iniciaron.
+Si la vista se desmonta o cambia la sesión mientras se lee el censo, la respuesta tardía
+no puede iniciar otra solicitud de extensión ni guardar un fallo en nombre del intento
+anterior. Esta invalidación no cancela el trabajo clínico que ya superó el commit.
