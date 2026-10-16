@@ -58,7 +58,12 @@ una inicial, reordenamiento de palabras ni la sustitución de un nombre por otro
 El nombre de pruebas siempre se conserva. Estas reglas complementan la identidad;
 no reemplazan el RUT, nacimiento ni episodio.
 
-Cada lote selecciona como máximo cuatro pacientes y ocho campos por día. La salida
+Cada lote selecciona como máximo cuatro pacientes y ocho campos por día, en orden
+estable de ruta de destino, independiente del orden de claves devuelto por Firebase.
+Una relectura debe verificar las rutas y textos exactos aprobados, sin volver a
+escoger otros pacientes por el límite del lote. `resolveNursingNameEvidence`
+centraliza solo la comparación de nombres; nunca reemplaza las pruebas de RUT,
+nacimiento, episodio y representación única. La salida
 incluye cantidades, motivos de retención y huellas de selección; no nombres, RUT,
 camas ni textos. La función `selectNursingRootBatch` conserva los cambios propuestos
 solo en memoria. No hay red, credenciales ni modo de escritura. Si la entrada ya

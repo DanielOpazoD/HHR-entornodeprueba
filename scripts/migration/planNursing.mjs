@@ -212,7 +212,8 @@ export const planNursingRecovery = ({ source, target }) => {
   };
 };
 
-const rootNameMatch = (left, right) => {
+/** Name evidence only: callers must separately prove document, birth and episode identity. */
+export const resolveNursingNameEvidence = (left, right) => {
   const words = value =>
     normalized(value)
       .replace(/[^a-z0-9 ]/g, ' ')
@@ -257,7 +258,10 @@ export const selectNursingRootBatch = ({ source, target, dates, throughDate }) =
   for (const date of [...dates].sort()) {
     const patients = new Set();
     let selectedFields = 0;
-    for (const patch of plan.patches.filter(item => item.date === date)) {
+    const candidates = plan.patches
+      .filter(item => item.date === date)
+      .sort((a, b) => JSON.stringify(a.path).localeCompare(JSON.stringify(b.path), 'en'));
+    for (const patch of candidates) {
       if (patch.path.length !== 3 || patch.path[0] !== 'beds' || patch.path[1].startsWith('C-')) {
         hold('movement_or_crib_path');
         continue;
@@ -290,7 +294,7 @@ export const selectNursingRootBatch = ({ source, target, dates, throughDate }) =
         hold('additional_identity_or_episode_evidence');
         continue;
       }
-      const match = rootNameMatch(previous.patientName, patient.patientName);
+      const match = resolveNursingNameEvidence(previous.patientName, patient.patientName);
       if (!match) {
         hold('name_requires_review');
         continue;

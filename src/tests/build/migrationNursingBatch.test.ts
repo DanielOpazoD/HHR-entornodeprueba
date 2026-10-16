@@ -217,6 +217,27 @@ describe('bounded adult nursing selection', () => {
     expect(result.report.excludedFields).toMatchObject({ batch_budget: 2 });
   });
 
+  it('selects the same bounded batch when Firestore object insertion order changes', () => {
+    const data = fixture();
+    data.source[day].beds = {};
+    data.target[day].beds = {};
+    const identifiers = [
+      '12.345.678-5',
+      '11.111.111-1',
+      '22.222.222-2',
+      '9.876.543-3',
+      '7.654.321-6',
+    ];
+    identifiers.forEach((rut, index) => {
+      data.source[day].beds['R' + index] = patient({ rut, handoffNoteDayShift: 'DAY' });
+      data.target[day].beds['H' + index] = patient({ rut });
+    });
+    const before = selectNursingRootBatch(data).report.selectionFingerprints;
+    data.source[day].beds = Object.fromEntries(Object.entries(data.source[day].beds).reverse());
+    data.target[day].beds = Object.fromEntries(Object.entries(data.target[day].beds).reverse());
+    expect(selectNursingRootBatch(data).report.selectionFingerprints).toEqual(before);
+  });
+
   it('CLI prints only the redacted selection and refuses mutation flags', () => {
     const run = spawnSync(process.execPath, ['scripts/migration/selectNursingBatch.mjs'], {
       encoding: 'utf8',
