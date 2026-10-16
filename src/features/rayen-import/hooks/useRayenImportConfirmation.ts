@@ -114,8 +114,6 @@ export const useRayenImportConfirmation = ({
       } catch (error) {
         setState(previous => ({
           ...previous,
-          isBusy: false,
-          isSyncing: false,
           error: getRayenImportErrorMessage(error),
         }));
         return;
@@ -129,8 +127,6 @@ export const useRayenImportConfirmation = ({
       if (unresolvedBedCollision) {
         setState(previous => ({
           ...previous,
-          isBusy: false,
-          isSyncing: false,
           error:
             'La distribución elegida usa una cama que ya está reservada. Revisa las camas destino antes de confirmar.',
         }));
@@ -166,7 +162,6 @@ export const useRayenImportConfirmation = ({
           const isExecutionDateVisible = selectedDateRef.current === executionIdentity.selectedDate;
           setState(previous => ({
             ...previous,
-            isBusy: false,
             ...(isExecutionDateVisible
               ? {
                   diff: outcome.commit.diff,
@@ -216,8 +211,6 @@ export const useRayenImportConfirmation = ({
             ...previous,
             diff: error.replannedDiff,
             isPreviewOpen: true,
-            isBusy: false,
-            isSyncing: false,
             result: null,
             error: error.message,
           }));
@@ -231,8 +224,6 @@ export const useRayenImportConfirmation = ({
         const isExecutionDateVisible = selectedDateRef.current === executionIdentity.selectedDate;
         setState(previous => ({
           ...previous,
-          isBusy: false,
-          isSyncing: false,
           ...(isExecutionDateVisible
             ? {
                 isPreviewOpen: true,
@@ -270,8 +261,6 @@ export const useRayenImportConfirmation = ({
           setState(previous => ({
             ...previous,
             isPreviewOpen: false,
-            isBusy: true,
-            isSyncing: true,
             hasSkippedItems: false,
             error: null,
           }));

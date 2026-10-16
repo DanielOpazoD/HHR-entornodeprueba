@@ -72,7 +72,6 @@ export const useRayenSnapshotPreview = ({
         void failRun('apply_failed', run.id).catch(() => undefined);
         setState(prev => ({
           ...prev,
-          isSyncing: false,
           error: 'No se pudo confirmar el contexto temporal de esta sincronización.',
         }));
         return;
@@ -112,8 +111,6 @@ export const useRayenSnapshotPreview = ({
         void failRun('apply_failed', run.id).catch(() => undefined);
         setState(prev => ({
           ...prev,
-          isBusy: false,
-          isSyncing: false,
           error: evidence.error,
         }));
         return;
@@ -200,8 +197,6 @@ export const useRayenSnapshotPreview = ({
           !selectedDateRef || selectedDateRef.current === executionIdentity.selectedDate;
         setState(prev => ({
           ...prev,
-          isBusy: false,
-          isSyncing: false,
           ...(isExecutionDateVisible ? { error: getRayenImportErrorMessage(error) } : {}),
         }));
       };
@@ -251,8 +246,6 @@ export const useRayenSnapshotPreview = ({
             setState({
               diff,
               isPreviewOpen: false,
-              isBusy: true,
-              isSyncing: true,
               result: null,
               hasSkippedItems: false,
               error: null,
@@ -265,7 +258,6 @@ export const useRayenSnapshotPreview = ({
                 ...prev,
                 diff: outcome.commit.diff,
                 isPreviewOpen: false,
-                isBusy: false,
                 result: outcome.result,
                 hasSkippedItems: requiresFreshCapture || outcome.commit.hasSkippedItems,
                 ...(requiresFreshCapture
@@ -315,8 +307,6 @@ export const useRayenSnapshotPreview = ({
                   hasUnresolvedConflicts,
                   hasNoApplicableChanges,
                 }),
-                isBusy: false,
-                isSyncing: noChangePersistenceCompleted ? false : hasNoApplicableChanges,
                 result: noChangePersistenceCompleted ? noChangeResult : null,
                 hasSkippedItems: noChangeResult
                   ? noChangeResult.skipped.length > 0 ||
@@ -329,7 +319,7 @@ export const useRayenSnapshotPreview = ({
                     ? 'El modo automático requiere revisión: hay conflictos, altas administrativas pendientes o correcciones de días previos.'
                     : null),
               }
-            : { ...previous, isBusy: false }
+            : previous
       );
       if (!noChangePersistenceCompleted) {
         const reviewStage = resolveRayenSnapshotPlanningStage(

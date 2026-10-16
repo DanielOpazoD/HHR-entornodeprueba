@@ -89,6 +89,6 @@ export const useRayenClinicalFillRetry = ({
       }));
       return;
     }
-    setState(prev => ({ ...prev, isSyncing: true, error: null }));
+    setState(prev => ({ ...prev, error: null }));
     await runClinicalStage(retryRequest ?? record);
   }, [currentRecord, currentRecordRef, onStart, retryTokenRef, runClinicalStage, setState]);
