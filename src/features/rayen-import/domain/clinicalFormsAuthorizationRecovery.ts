@@ -1,10 +1,9 @@
+import { decodeClinicalReadFailure } from '../contracts/clinicalReadError';
 import { isValidRut } from '@/utils/rutUtils';
 import type { ClinicalFillCandidate } from './clinicalFillCandidates';
 import type { EgresoLookupResult, EgresoLookupTarget } from '../contracts/egresoLookup';
 import type { RayenScalesFormsResult } from '../contracts/patientClinicalBundle';
 import type { RayenCensusSnapshot } from '../contracts/rayenSnapshot';
-
-const AUTHORIZATION_DENIED = 'Las escalas no fueron autorizadas para el episodio de esta pestaña.';
 
 const canonicalRun = (value: string): string => {
   const raw = value.replace(/[.\s-]/g, '').toUpperCase();
@@ -25,7 +24,8 @@ export const createClinicalFormsAuthorizationRecovery = (
   const renewals = new Map<string, Promise<boolean>>();
   let freshSnapshot: Promise<RayenCensusSnapshot | null> | undefined;
   const observe = (encounterId: string, result: RayenScalesFormsResult): void => {
-    if (result.error === AUTHORIZATION_DENIED) denied.set(encounterId, result);
+    if (decodeClinicalReadFailure(result).errorCode === 'episode_not_authorized')
+      denied.set(encounterId, result);
   };
   const renew = (encounterId: string): Promise<boolean> => {
     const existing = renewals.get(encounterId);

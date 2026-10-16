@@ -610,3 +610,13 @@ En HHR, la reconstrucción de un episodio local puede completar metadatos de egr
 incompletos mediante el informe estadístico individual: exige episodio exacto, RUN,
 intervalo completo y fecha/hora coincidente al minuto. Una marca administrativa negativa
 y los traslados sin ubicación comprobada siguen requiriendo revisión.
+
+### Errores de formularios · 0.48.53
+
+Las respuestas individuales de escalas y la sección `forms` del paquete clínico incluyen
+un `errorCode` estable además del mensaje `error` existente. HHR anterior puede ignorar
+el campo adicional; HHR actualizado admite extensiones anteriores sin ese campo.
+El contrato y la recuperación compatible se documentan en
+[`rayen-import`](../src/features/rayen-import/README.md#códigos-estables-de-errores-de-lectura).
+El módulo `clinical-read-error-contract.js` se carga antes del cliente de Ficha Médico.
+No cambian permisos, vigencia de autorización, escrituras ni reglas de CUDYR.

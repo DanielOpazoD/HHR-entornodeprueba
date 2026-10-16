@@ -18,12 +18,7 @@
     return value;
   };
 
-  const clinicalReadError = (kind, message, details = {}) => {
-    const error = new Error(message);
-    error.kind = kind;
-    Object.assign(error, details);
-    return error;
-  };
+  const clinicalReadError = root.HhrClinicalReadErrors.create;
 
   const create = dependencies => {
     const deps = dependencies || {};
@@ -265,14 +260,14 @@
 
     const fetchEvaluationForms = async (encId, knownInfo) => {
       if (!/^\d+$/.test(String(encId || ''))) {
-        return { error: 'El episodio clínico no es válido.' };
+        return { error: 'El episodio clínico no es válido.', errorCode: 'invalid_request' };
       }
       const session = await resolveSession({
         info: knownInfo,
         required: ['practitionerId'],
         invalidMessage: 'La sesión no contiene los datos necesarios para consultar BRADEN.',
       });
-      if (session.error) return session;
+      if (session.error) return { ...session, errorCode: 'session_required' };
       try {
         const eventTypes = /enfermer/i.test(String(session.info.role || '')) ? ['2'] : ['2', '1'];
         const results = await Promise.all(
@@ -285,10 +280,11 @@
                   `${encodeURIComponent(encId)}/${eventType}/0/${encodeURIComponent(session.info.practitionerId)}`,
                 cache: 'no-store',
               });
-              return { forms: Array.isArray(result.data) ? result.data : [] };
+              if (result.status !== 204 && !Array.isArray(result.data))
+                throw clinicalReadError('invalid-json', 'Formularios clínicos no verificables.');
+              return { forms: result.data || [] };
             } catch (error) {
-              if (error.kind === 'http' && error.status === 204) return { forms: [] };
-              if (error.kind === 'http') return { error: 'HTTP ' + error.status };
+              if (error.kind === 'http') return { error: 'HTTP ' + error.status, errorCode: root.HhrClinicalReadErrors.classify(error) };
               throw error;
             }
           })
@@ -300,6 +296,7 @@
               'Eloísa no permitió verificar todas las fuentes de instrumentos (' +
               failures.map(result => result.error).join(', ') +
               ').',
+            errorCode: failures[0].errorCode,
           };
         }
         const byIdentity = new Map();
@@ -310,12 +307,12 @@
         });
         return { forms: [...byIdentity.values()] };
       } catch (error) {
-        return { error: 'No se pudieron leer los instrumentos: ' + errorMessage(error) };
+        return { error: 'No se pudieron leer los instrumentos: ' + errorMessage(error), errorCode: root.HhrClinicalReadErrors.classify(error) };
       }
     };
 
     const fetchScalesReportWithInfo = async (encId, info) => {
-      if (!encId) return { error: 'Falta enc_id para las escalas de evaluación.' };
+      if (!encId) return { error: 'Falta enc_id para las escalas de evaluación.', errorCode: 'invalid_request' };
       // Share the exact nursing + medical read used by Centro HHR Scores. Otherwise the center can
       // see today's Braden while the census remains stale because it consulted only event type 1.
       const result = await fetchEvaluationForms(encId, info);

@@ -508,3 +508,19 @@ episodios reconstruidos, conflictos que revisar, movimientos exactos de ese día
 local previo, la sincronización se detiene sin confirmarlo como un censo vacío.
 Los registros no escritos, movimientos ausentes y posibles desfases de reloj entre informes
 requieren evidencia adicional: no se inventan ni se corrigen con una resta horaria fija.
+
+### Códigos estables de errores de lectura
+
+El puente normaliza `errorCode` y conserva `error` como mensaje compatible. El productor
+actual de formularios distingue `episode_not_authorized`, `session_required`,
+`permission_denied`, `source_timeout`, `source_unavailable`, `invalid_request`,
+`invalid_response` y `unexpected`. El canal individual y la sección `forms` del paquete
+por paciente comparten este contrato. Un HTTP 204 o una lista vacía válida siguen siendo
+respuestas completas; un JSON con forma inesperada no acredita ausencia de formularios.
+
+HHR prefiere un código explícito sobre el mensaje. Con una extensión anterior, sólo la
+frase exacta histórica de rechazo del episodio habilita la recuperación de autorización.
+Un código desconocido queda como fallo `unexpected` y nunca habilita esa recuperación.
+El código no concede permisos: siguen siendo obligatorias la identidad y la evidencia del
+episodio. Se conservan vigencia, cancelación, máximo de reintentos y datos CUDYR oficiales.
+Los estados visuales y las categorías persistidas del historial conservan su contrato actual.

@@ -1,12 +1,12 @@
 // @vitest-environment node
 import { readFileSync } from 'node:fs';
-
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import '../../../extension/clinical-day-runtime.js';
 import '../../../extension/clinical-history-coverage.js';
 import '../../../extension/fichamedico-history-read-model.js';
 import '../../../extension/fichamedico-device-evidence-runtime.js';
+import '../../../extension/clinical-read-error-contract.js';
 import '../../../extension/fichamedico-clinical-client.js';
 
 type SessionInfo = {
