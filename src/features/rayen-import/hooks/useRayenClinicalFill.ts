@@ -247,7 +247,6 @@ export const useRayenClinicalFill = ({
             freshRecord,
             allowedClinicalEpisodeIds
           );
-          const retriedBedIds = new Set(clinicalCandidates.map(candidate => candidate.bedId));
 
           let summary: ClinicalFillSummary;
           const watchdog = createClinicalFillWatchdog({
@@ -322,7 +321,8 @@ export const useRayenClinicalFill = ({
           summary = mergeClinicalRetrySummary(
             retryRequest?.previousSummary,
             summary,
-            retriedBedIds
+            new Set(clinicalCandidates.map(candidate => candidate.bedId)),
+            new Set(clinicalCandidates.map(({ patient }) => patient.clinicalEpisodeId!))
           );
 
           if (summary.errors.length > 0) {
