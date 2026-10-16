@@ -4,8 +4,8 @@ El editor prepara el formulario MEDIF de LATAM a partir de datos escritos manual
 
 ## Uso
 
-1. Elegir **Ingreso manual / paciente externo** o un paciente del censo seleccionado.
-2. Completar el formulario en una vista continua y revisar las respuestas clínicas. **Variables** y **Preferencias** permiten consultar el diccionario y ajustar qué campos se muestran.
+1. Elegir **Ingreso manual** o un paciente del censo seleccionado.
+2. Completar el formulario en una vista continua y revisar las respuestas clínicas. El icono de configuración abre **Variables** y **Preferencias** para consultar el diccionario y ajustar qué campos se muestran.
 3. Descargar **PDF editable** para conservar los casilleros rellenables, o **PDF imprimible** para obtener los valores fijados sobre las tres páginas originales.
 4. Para continuar en otra sesión, descargar **Guardar borrador** y después recuperarlo con **Cargar**.
 
@@ -15,7 +15,7 @@ El esquema técnico y el diccionario conservan las diez secciones originales par
 
 Se conservan **137 variables** del PDF: **69 campos de texto** y **68 casilleros de texto para `X`**. Los casilleros se presentan como 31 preguntas de selección exclusiva. Cada pregunta puede quedar sin respuesta. El nombre y la edad se muestran una sola vez en el editor y se copian a sus campos de ambas partes del PDF. El nombre del médico se completa una vez en Datos del médico y se copia a Médico autorizado (página 1) y a la declaración médica (página 3). Las otras preguntas repetidas mantienen respuestas independientes. Las dos preguntas de silla de ruedas se identifican como declaración del pasajero y evaluación del médico.
 
-El [diccionario completo](medif-variables.md) identifica cada variable, su página, tipo y origen. La vista Variables ofrece el mismo inventario y permite localizar el campo en el formulario continuo; los alias de nombre, edad y médico apuntan a su control único. El contador de casilleros con datos es una referencia de llenado: una pregunta Sí/No deja una alternativa vacía, por lo que no representa un porcentaje de validación clínica.
+El [diccionario completo](medif-variables.md) identifica cada variable, su página, tipo y origen. La vista Variables ofrece el mismo inventario y permite localizar el campo en el formulario continuo; los alias de nombre, edad y médico apuntan a su control único.
 
 ## Datos del censo
 
@@ -45,9 +45,10 @@ El botón **Respuestas habituales** completa únicamente campos vacíos al pulsa
 - Sí requiere hospitalización y hospitalización o ambulancia al llegar al destino.
 - Sí es independiente para comer e ir al baño; no presenta alteración de conducta ni del control de esfínter.
 - Riesgo vital bajo o sin riesgo; sí está en condiciones de transportarse en avión; no tiene enfermedad contagiosa o transmisible.
+- No tiene requerimientos especiales en vuelo; sí puede entender las instrucciones de seguridad.
 - Tramo 1: desde Isla de pascua hacia Santiago.
 
-El preset contiene 18 respuestas de selección y dos campos de itinerario. El sexo y la fecha de ingreso se proponen al cargar el paciente según el mapeo anterior. En modo manual estos dos datos se completan manualmente. Todas las respuestas quedan editables antes de emitir el PDF. La implementación está en [medifHabitualAnswers.ts](../src/features/clinical-library/domain/medifHabitualAnswers.ts).
+El preset contiene 20 respuestas de selección y dos campos de itinerario. El sexo y la fecha de ingreso se proponen al cargar el paciente según el mapeo anterior. En modo manual estos dos datos se completan manualmente. Todas las respuestas quedan editables antes de emitir el PDF. La implementación está en [medifHabitualAnswers.ts](../src/features/clinical-library/domain/medifHabitualAnswers.ts).
 
 ## Preferencias y borradores
 
@@ -55,19 +56,14 @@ Son archivos con propósitos y contenidos diferentes:
 
 | Elemento     | Contenido                                                                                  | Conservación                                                                                                                                                                       |
 | ------------ | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Preferencias | Versión `2` y `hiddenFieldIds`, únicamente identificadores de campos ocultos.              | Se guardan en `localStorage` bajo `hhr.medif.preferences.v1`; se pueden exportar/importar como `medif-preferencias.json`.                                                          |
+| Preferencias | Versión `3` y `hiddenFieldIds`, únicamente identificadores de campos ocultos.              | Se guardan en `localStorage` bajo `hhr.medif.preferences.v1`; se pueden exportar/importar como `medif-preferencias.json`.                                                          |
 | Borrador     | Versión `1` y `values`, con los datos escritos en todos los campos, incluidos los ocultos. | Permanece en memoria durante la edición. **Guardar borrador** descarga `medif-borrador.json`; no se guarda automáticamente en almacenamiento del navegador ni en la base de datos. |
 
-La configuración inicial aplica la lista marcada por el usuario: **44 marcas X explícitas se convierten en 46 campos ocultos**, al ocultar todas las alternativas de cada pregunta. La lista marcó solo la opción No en dos preguntas; se agregan sus opciones Sí:
-
-- Nº 077, `p2_instrucciones_si`, junto a Nº 078, `p2_instrucciones_no`.
-- Nº 114, `p2_estable_si`, junto a Nº 115, `p2_estable_no`.
-
-Quedan **91 campos PDF visibles**: 41 de texto y 50 casilleros de marca. Nombre y edad tienen dos apariciones PDF pero un solo control de edición cada uno. Los campos ocultos siguen presentes en el esquema y pueden reactivarse en Preferencias. La lista inicial está en [medifDefaultHiddenFields.ts](../src/features/clinical-library/domain/medifDefaultHiddenFields.ts).
+La configuración inicial conserva **43 variables seleccionadas para ocultar**, más la alternativa `p2_estable_si` para mantener completa esa pregunta: **44 campos ocultos y 93 visibles** (41 de texto y 52 casilleros de marca). La pregunta sobre instrucciones de seguridad está visible. La interfaz presenta 89 controles al compartir nombre y edad del paciente y las tres copias del nombre del médico. Los campos ocultos permanecen en el esquema y pueden reactivarse desde el icono de configuración. La selección está en [medifDefaultHiddenFields.ts](../src/features/clinical-library/domain/medifDefaultHiddenFields.ts).
 
 En Preferencias, ocultar una alternativa oculta la pregunta completa; nombre y edad también comparten visibilidad entre ambas páginas. **Mostrar todos** restaura la visibilidad. La configuración inicial puede restablecerse desde Preferencias. Si el navegador impide guardar, el editor informa el problema y permite exportar la configuración.
 
-La clave de almacenamiento continúa siendo `hhr.medif.preferences.v1` por compatibilidad, aunque el contenido guardado usa versión `2`. Una configuración antigua v1 guardada en el navegador se migra sumando los campos del preset a los que ya estaban ocultos. Una configuración v2 conserva exactamente la selección guardada, por lo que reactivar campos o mostrar todos no se revierte al recargar. La importación explícita de un archivo v1 o v2 respeta la selección de ese archivo, normaliza los grupos y devuelve v2. Sin configuración guardada válida, se utiliza el preset.
+La clave de almacenamiento continúa siendo `hhr.medif.preferences.v1` por compatibilidad; el contenido usa versión `3`. Al cargar preferencias antiguas v1 o v2, se vuelve a mostrar la pregunta de instrucciones de seguridad una sola vez. La migración v1 también incorpora el preset, conservando otros ocultos. Las preferencias v3 respetan las decisiones posteriores, incluida volver a ocultar esa pregunta. La importación explícita de archivos v1, v2 o v3 respeta la selección del archivo y normaliza sus grupos a v3. Sin configuración válida se utiliza el preset.
 
 Ocultar un campo conserva su valor en la sesión y en el borrador completo. Al generar cualquiera de los dos PDF, el valor oculto se deja en blanco, incluso si antes tenía información. Volver a mostrarlo permite recuperar su valor. La importación de un borrador no reemplaza las preferencias y se presenta sin asociación a una cama.
 

@@ -11,6 +11,8 @@ import {
 } from '@/features/clinical-library/domain/medifPreferences';
 
 const requestedMarks = [
+  'p1_especiales_no',
+  'p2_instrucciones_si',
   'p1_silla_no',
   'p3_silla_ruedas_no',
   'p3_patologia_psiquiatrica_no',
@@ -32,10 +34,10 @@ const requestedMarks = [
 ];
 
 describe('MEDIF habitual answers action', () => {
-  it('fills exactly the requested 18 choices and route without adding other answers', () => {
+  it('fills exactly the requested 20 choices and route without adding other answers', () => {
     const original = emptyMedifValues();
     const result = applyMedifHabitualAnswers(original, defaultMedifPreferences());
-    expect(result.applied).toBe(20);
+    expect(result.applied).toBe(22);
     expect(Object.fromEntries(Object.entries(result.values).filter(([, value]) => value))).toEqual({
       ...Object.fromEntries(requestedMarks.map(id => [id, 'X'])),
       p1_itinerario_1_desde: 'Isla de pascua',
@@ -55,13 +57,21 @@ describe('MEDIF habitual answers action', () => {
     values = setMedifFieldValue(values, 'p2_riesgo_alto', 'X');
     values = setMedifFieldValue(values, 'p1_itinerario_1_hacia', 'Valparaíso');
     values = setMedifFieldValue(values, 'p2_nombre_medico', 'Dra. Prueba');
+    values = setMedifFieldValue(values, 'p1_especiales_si', 'X');
+    values = setMedifFieldValue(values, 'p2_instrucciones_no', 'X');
     const original = { ...values };
     const result = applyMedifHabitualAnswers(values, defaultMedifPreferences());
     expect(result.applied).toBe(16);
     for (const [id, value] of Object.entries(original).filter(([, value]) => value)) {
       expect(result.values[id], id).toBe(value);
     }
-    for (const id of ['p1_silla_no', 'p2_medicacion_previa_no', 'p2_riesgo_bajo']) {
+    for (const id of [
+      'p1_silla_no',
+      'p2_medicacion_previa_no',
+      'p2_riesgo_bajo',
+      'p1_especiales_no',
+      'p2_instrucciones_si',
+    ]) {
       expect(result.values[id]).toBe('');
     }
     expect(result.values.p3_silla_ruedas_no).toBe('X');

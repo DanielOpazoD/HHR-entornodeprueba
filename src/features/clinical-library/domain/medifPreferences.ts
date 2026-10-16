@@ -9,14 +9,14 @@ import {
 import { MEDIF_DEFAULT_HIDDEN_SELECTION } from './medifDefaultHiddenFields';
 
 export interface MedifPreferences {
-  version: 2;
+  version: 3;
   hiddenFieldIds: string[];
 }
 
 export type MedifPreferencesStorage = Pick<Storage, 'getItem' | 'setItem'>;
 export const MEDIF_PREFERENCES_STORAGE_KEY = 'hhr.medif.preferences.v1';
 
-export const emptyMedifPreferences = (): MedifPreferences => ({ version: 2, hiddenFieldIds: [] });
+export const emptyMedifPreferences = (): MedifPreferences => ({ version: 3, hiddenFieldIds: [] });
 
 const getVisibilityUnit = (fieldId: string): readonly string[] => {
   if (!isMedifFieldId(fieldId))
@@ -37,7 +37,7 @@ const normalizeHiddenFieldIds = (fieldIds: string[]): string[] => {
 
 /** Initial visibility preset; each call returns independent, editable preferences. */
 export const defaultMedifPreferences = (): MedifPreferences => ({
-  version: 2,
+  version: 3,
   hiddenFieldIds: normalizeHiddenFieldIds([...MEDIF_DEFAULT_HIDDEN_SELECTION]),
 });
 
@@ -49,16 +49,16 @@ export const validateMedifPreferences = (value: unknown): MedifPreferences => {
   const record = value as Record<string, unknown>;
   if (
     Object.keys(record).some(key => key !== 'version' && key !== 'hiddenFieldIds') ||
-    (record.version !== 1 && record.version !== 2) ||
+    ![1, 2, 3].includes(record.version as number) ||
     !Array.isArray(record.hiddenFieldIds) ||
     record.hiddenFieldIds.length > MEDIF_FIELDS.length ||
     record.hiddenFieldIds.some(id => typeof id !== 'string' || !isMedifFieldId(id))
   ) {
     throw new Error(
-      'La configuración MEDIF debe tener versión 1 o 2 y solo identificadores conocidos.'
+      'La configuración MEDIF debe tener versión 1, 2 o 3 y solo identificadores conocidos.'
     );
   }
-  return { version: 2, hiddenFieldIds: normalizeHiddenFieldIds(record.hiddenFieldIds as string[]) };
+  return { version: 3, hiddenFieldIds: normalizeHiddenFieldIds(record.hiddenFieldIds as string[]) };
 };
 
 const parseMedifPreferences = (json: string): unknown => {
@@ -96,14 +96,18 @@ export const loadMedifPreferences = (
     if (!saved) return defaultMedifPreferences();
     const parsed = parseMedifPreferences(saved);
     const preferences = validateMedifPreferences(parsed);
-    if ((parsed as { version: number }).version === 2) return preferences;
-    // Apply the new preset once to legacy browser storage while keeping additional hidden IDs.
+    const version = (parsed as { version: number }).version;
+    if (version === 3) return preferences;
+    // Restore the requested safety question once; later visibility choices remain untouched.
+    const previousIds =
+      version === 1
+        ? [...MEDIF_DEFAULT_HIDDEN_SELECTION, ...preferences.hiddenFieldIds]
+        : preferences.hiddenFieldIds;
     const migrated: MedifPreferences = {
-      version: 2,
-      hiddenFieldIds: normalizeHiddenFieldIds([
-        ...MEDIF_DEFAULT_HIDDEN_SELECTION,
-        ...preferences.hiddenFieldIds,
-      ]),
+      version: 3,
+      hiddenFieldIds: normalizeHiddenFieldIds(
+        previousIds.filter(id => id !== 'p2_instrucciones_si' && id !== 'p2_instrucciones_no')
+      ),
     };
     saveMedifPreferences(migrated, storage);
     return migrated;
@@ -136,7 +140,7 @@ export const setMedifFieldHidden = (
     if (hidden) current.add(id);
     else current.delete(id);
   }
-  return { version: 2, hiddenFieldIds: normalizeHiddenFieldIds([...current]) };
+  return { version: 3, hiddenFieldIds: normalizeHiddenFieldIds([...current]) };
 };
 
 export const isMedifFieldHidden = (preferences: MedifPreferences, fieldId: string): boolean =>

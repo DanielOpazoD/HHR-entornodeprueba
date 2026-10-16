@@ -76,16 +76,11 @@ export const MedifPreferencesPanel: React.FC<Props> = ({
   };
 
   return (
-    <section aria-label="Preferencias MEDIF" className="space-y-4">
-      <div className="rounded-lg border border-medical-200 bg-medical-50 p-4">
-        <h4 className="text-[14px] font-bold text-medical-900">Tu configuración de campos</h4>
-        <p className="mt-1 text-[12px] leading-relaxed text-medical-800">
-          Oculta las variables que no utilizas y vuelve a habilitarlas cuando las necesites. Los
-          casilleros ocultos se dejan en blanco en el PDF, aunque hayas escrito un valor.
-        </p>
-        <p className="mt-2 text-[11px] text-medical-700">
-          Se guarda en este navegador. La configuración exportada contiene solo preferencias de
-          visibilidad.
+    <section aria-label="Preferencias MEDIF" className="space-y-3">
+      <div>
+        <h4 className="text-sm font-bold text-slate-800">Preferencias de campos</h4>
+        <p className="mt-1 text-[11px] text-slate-500">
+          Los campos ocultos quedan vacíos en el PDF. Se guarda en este navegador.
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-2">

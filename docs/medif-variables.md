@@ -253,7 +253,7 @@ Antecedentes psiquiátricos, estabilidad y declaración del médico tratante. Re
 - 69 campos de texto y 68 casilleros para X.
 - 10 secciones técnicas, 57 grupos y 31 grupos de opciones.
 - Los 57 grupos aparecen exactamente una vez en los siete bloques del editor continuo.
-- Los 137 campos PDF se conservan en el esquema; la interfaz deduplica `p2_nombre_paciente` y `p2_edad` mediante sus alias de página 1, y los dos nombres de médico de las declaraciones mediante `p2_nombre_medico`. El preset deja 91 casilleros PDF visibles y 87 controles de entrada.
+- Los 137 campos PDF se conservan en el esquema; la interfaz deduplica `p2_nombre_paciente` y `p2_edad` mediante sus alias de página 1, y los dos nombres de médico de las declaraciones mediante `p2_nombre_medico`. El preset deja 93 casilleros PDF visibles y 89 controles de entrada.
 - Ninguna coordenada, nombre de campo o PDF fue modificado por esta documentación.
 
 ## Modelo de edición y preferencias
@@ -262,11 +262,11 @@ El editor utiliza [medifDraft.ts](../src/features/clinical-library/domain/medifD
 
 Los borradores antiguos usan el valor de `p2_nombre_medico` como nombre del médico en las tres ubicaciones. Si ese campo está vacío, se recupera un único nombre no vacío de las declaraciones. Si estas contienen nombres distintos y falta el dato principal, se rechaza la importación para que se corrija el médico. Borrar el control único vacía las tres copias.
 
-Las preferencias de [medifPreferences.ts](../src/features/clinical-library/domain/medifPreferences.ts) contienen exclusivamente la versión `2` y una lista `hiddenFieldIds`. El preset de [medifDefaultHiddenFields.ts](../src/features/clinical-library/domain/medifDefaultHiddenFields.ts) corresponde a las 44 marcas X de la lista revisada por el usuario. Su normalización agrega `p2_instrucciones_si` (nº 077) y `p2_estable_si` (nº 114), porque las alternativas No de esas preguntas estaban marcadas. El resultado es **46 campos ocultos y 91 visibles**. No se elimina ninguna variable del esquema.
+Las preferencias de [medifPreferences.ts](../src/features/clinical-library/domain/medifPreferences.ts) contienen exclusivamente la versión `3` y una lista `hiddenFieldIds`. El preset de [medifDefaultHiddenFields.ts](../src/features/clinical-library/domain/medifDefaultHiddenFields.ts) conserva 43 variables seleccionadas tras volver a mostrar la pregunta sobre instrucciones de seguridad. Su normalización agrega `p2_estable_si` para completar esa pregunta. El resultado es **44 campos ocultos y 93 visibles**. No se elimina ninguna variable del esquema. Variables y Preferencias se abren desde el icono de configuración.
 
 Ocultar una alternativa oculta la pregunta completa; ocultar nombre o edad oculta ambas apariciones, y ocultar el nombre del médico oculta sus tres copias. Las preguntas de silla de ruedas del pasajero y del médico permanecen independientes y sus etiquetas explicitan el contexto. La configuración puede persistirse localmente y exportarse/importarse como JSON sin valores del paciente. Mostrar todos permite habilitar los 137 campos PDF.
 
-La clave de almacenamiento `hhr.medif.preferences.v1` se conserva. Los datos antiguos v1 guardados se migran combinando sus ocultos con el preset; los guardados v2 preservan las decisiones posteriores de mostrar u ocultar. Una importación explícita v1 o v2 respeta la selección contenida en el archivo y la convierte a v2 tras normalizar los grupos. El [flujo completo](medif.md) describe esta diferencia entre migración e importación.
+La clave de almacenamiento `hhr.medif.preferences.v1` se conserva. Las preferencias antiguas v1 y v2 vuelven a mostrar la pregunta de instrucciones de seguridad una sola vez; v1 además incorpora el preset. La versión v3 preserva las decisiones posteriores. Una importación explícita v1, v2 o v3 respeta la selección del archivo y la convierte a v3 tras normalizar los grupos. El [flujo completo](medif.md) describe esta diferencia entre migración e importación.
 
 Ocultar un campo no borra su valor durante la sesión. La preparación de valores para PDF omite los campos ocultos y el generador los deja en blanco. El botón Guardar borrador conserva todos los valores, incluidos los ocultos, para recuperarlos posteriormente. Volver a mostrar el campo recupera su valor mientras continúe la sesión. La persistencia del navegador se limita a preferencias; los borradores con datos se descargan solamente por una acción explícita del usuario.
 

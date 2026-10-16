@@ -8,8 +8,6 @@ import { MedifEditor } from './medif/MedifEditor';
 
 export { LibraryExitConfirmation } from '../LibraryExitConfirmation';
 
-const PREVIEWS = [1, 2, 3].map(page => `/images/forms/medif/page-${page}.png`);
-
 /** Read-only snapshot of the authorized census. MEDIF never writes back to beds. */
 export const MedifTool: React.FC<ToolComponentProps> = ({ onBack, onClose, onDirtyChange }) => {
   const { record } = useDailyRecordData();
@@ -30,7 +28,6 @@ export const MedifTool: React.FC<ToolComponentProps> = ({ onBack, onClose, onDir
       onClose={onClose}
       onDirtyChange={onDirtyChange}
       onGeneratePdf={downloadMedifPdf}
-      previewPageUrls={PREVIEWS}
     />
   );
 };

@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Download, FileText, Printer, Upload } from 'lucide-react';
-import { MEDIF_FIELDS } from '../../../domain/medifSchema';
+import { Download, FileText, Printer, Settings2, Upload } from 'lucide-react';
 import {
   emptyMedifValues,
   exportMedifDraft,
@@ -42,7 +41,6 @@ interface Replacement {
   key: string;
   source: string;
 }
-const DEFAULT_PREVIEWS = [1, 2, 3].map(page => `/images/forms/medif/page-${page}.png`);
 
 export const MedifEditor: React.FC<MedifEditorProps> = ({
   patients,
@@ -50,15 +48,15 @@ export const MedifEditor: React.FC<MedifEditorProps> = ({
   onClose,
   onGeneratePdf,
   onDirtyChange,
-  previewPageUrls = DEFAULT_PREVIEWS,
 }) => {
   const [values, setValues] = useState(emptyMedifValues);
   const [preferences, setPreferences] = useState(loadMedifPreferences);
   const [preferencesSaved, setPreferencesSaved] = useState<boolean | null>(null);
   const [selectedKey, setSelectedKey] = useState('');
-  const [source, setSource] = useState('Ingreso manual · sin asociación a una cama');
+  const [source, setSource] = useState('');
   const [replacement, setReplacement] = useState<Replacement | null>(null);
   const [tab, setTab] = useState<MedifTabId>('form');
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [focusField, setFocusField] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
@@ -66,8 +64,6 @@ export const MedifEditor: React.FC<MedifEditorProps> = ({
   const currentValues = useRef(values);
   const importSequence = useRef(0);
   const dirty = Object.values(values).some(value => value.trim());
-  const visibleFields = MEDIF_FIELDS.filter(field => !isMedifFieldHidden(preferences, field.id));
-  const completed = visibleFields.filter(field => values[field.id]?.trim()).length;
 
   useEffect(() => {
     onDirtyChange?.(dirty);
@@ -101,7 +97,7 @@ export const MedifEditor: React.FC<MedifEditorProps> = ({
     setValues(result.values);
     setNotice(
       result.applied
-        ? 'Respuestas habituales aplicadas a los campos vacíos. Revisa las respuestas antes de emitir.'
+        ? 'Respuestas habituales aplicadas.'
         : 'No había respuestas habituales pendientes.'
     );
   };
@@ -117,7 +113,7 @@ export const MedifEditor: React.FC<MedifEditorProps> = ({
     requestReplacement({
       key,
       values: patient?.values ?? emptyMedifValues(),
-      source: patient?.sourceLabel ?? 'Ingreso manual · sin asociación a una cama',
+      source: patient?.sourceLabel ?? '',
     });
   };
   const changePreferences = (next: MedifPreferences): void => {
@@ -135,7 +131,7 @@ export const MedifEditor: React.FC<MedifEditorProps> = ({
       requestReplacement({
         key: '',
         values: imported,
-        source: 'Borrador importado · sin asociación a una cama',
+        source: 'Borrador',
       });
     } catch (error) {
       if (sequence !== importSequence.current) return;
@@ -158,6 +154,7 @@ export const MedifEditor: React.FC<MedifEditorProps> = ({
   };
   const openField = (id: string): void => {
     const canonical = getMedifCanonicalFieldId(id);
+    setSettingsOpen(true);
     setFocusField(canonical);
     setTab(isMedifFieldHidden(preferences, canonical) ? 'preferences' : 'form');
     setNotice('');
@@ -186,14 +183,15 @@ export const MedifEditor: React.FC<MedifEditorProps> = ({
     >
       <div className="medif-toolbar">
         <label className="medif-source">
-          Origen de los datos
+          Paciente
           <select
+            aria-label="Origen de los datos"
             value={selectedKey}
             onChange={event => choosePatient(event.target.value)}
             className={`${TOOL_INPUT_CLASS} mt-1`}
             disabled={busy || Boolean(replacement)}
           >
-            <option value="">Ingreso manual / paciente externo</option>
+            <option value="">Ingreso manual</option>
             {patients.map(patient => (
               <option key={patient.key} value={patient.key}>
                 {patient.label}
@@ -225,12 +223,23 @@ export const MedifEditor: React.FC<MedifEditorProps> = ({
           >
             <Upload size={13} aria-hidden="true" /> Cargar
           </button>
+          <button
+            type="button"
+            aria-label="Configurar MEDIF"
+            title="Variables y preferencias"
+            aria-expanded={settingsOpen}
+            aria-controls="medif-settings"
+            className={`${MEDIF_SECONDARY_BUTTON} medif-settings-button`}
+            onClick={() => {
+              setSettingsOpen(!settingsOpen);
+              setFocusField(null);
+              setTab('form');
+            }}
+          >
+            <Settings2 size={16} aria-hidden="true" />
+          </button>
         </div>
       </div>
-      <p className="medif-source-note">
-        {source}
-        {selectedKey ? ' · Copia al cargar; confirma los datos antes de emitir.' : ''}
-      </p>
       <input
         ref={draftInput}
         type="file"
@@ -242,11 +251,6 @@ export const MedifEditor: React.FC<MedifEditorProps> = ({
           event.target.value = '';
         }}
       />
-      <p className="medif-session-note">
-        El formulario se mantiene en esta sesión. «Guardar borrador» descarga todos sus datos,
-        incluidos los campos ocultos, a un archivo local.
-      </p>
-
       {replacement && (
         <div
           role="alertdialog"
@@ -282,15 +286,24 @@ export const MedifEditor: React.FC<MedifEditorProps> = ({
         </div>
       )}
 
-      <MedifTabs
-        value={tab}
-        onChange={next => {
-          setFocusField(null);
-          setTab(next);
-        }}
-      />
+      <div id="medif-settings" hidden={!settingsOpen}>
+        {settingsOpen && (
+          <MedifTabs
+            value={tab}
+            onChange={next => {
+              setFocusField(null);
+              setTab(next);
+            }}
+          />
+        )}
+      </div>
 
-      <div role="tabpanel" id={`medif-panel-${tab}`} aria-labelledby={`medif-tab-${tab}`}>
+      <div
+        role={settingsOpen ? 'tabpanel' : 'region'}
+        id={`medif-panel-${tab}`}
+        aria-label={settingsOpen ? undefined : 'Formulario MEDIF'}
+        aria-labelledby={settingsOpen ? `medif-tab-${tab}` : undefined}
+      >
         {tab === 'form' ? (
           <>
             <MedifJumpIndex onSelect={jumpBlock} />
@@ -302,40 +315,9 @@ export const MedifEditor: React.FC<MedifEditorProps> = ({
                   values={values}
                   preferences={preferences}
                   onChange={changeField}
-                  onPreferences={() => {
-                    setFocusField(null);
-                    setTab('preferences');
-                  }}
                 />
               ))}
             </div>
-            {previewPageUrls.length > 0 && (
-              <details className="medif-preview">
-                <summary>Referencia del PDF original · 3 páginas</summary>
-                <p className="medif-help">
-                  Plantilla sin datos. El PDF descargado incorpora los campos visibles que
-                  completaste.
-                </p>
-                <div className="medif-preview-grid">
-                  {previewPageUrls.map((url, index) => (
-                    <a
-                      key={url}
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label={`Ampliar página ${index + 1} del original`}
-                    >
-                      Página {index + 1}
-                      <img
-                        src={url}
-                        alt={`Página ${index + 1} del formulario MEDIF original`}
-                        loading="lazy"
-                      />
-                    </a>
-                  ))}
-                </div>
-              </details>
-            )}
           </>
         ) : tab === 'variables' ? (
           <MedifVariableIndex preferences={preferences} onSelectField={openField} />
@@ -349,15 +331,7 @@ export const MedifEditor: React.FC<MedifEditorProps> = ({
         )}
       </div>
 
-      <div className="sticky bottom-0 z-10 mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white/95 py-3 backdrop-blur-sm">
-        <div>
-          <p className="text-[11px] font-semibold text-slate-600">
-            {completed} de {visibleFields.length} casilleros visibles con datos
-          </p>
-          <p className="mt-0.5 text-[10px] text-slate-400">
-            Revisa los datos y las respuestas clínicas antes de firmar.
-          </p>
-        </div>
+      <div className="medif-export-bar">
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
@@ -378,10 +352,7 @@ export const MedifEditor: React.FC<MedifEditorProps> = ({
           </button>
         </div>
         {notice && (
-          <p
-            role="status"
-            className="w-full rounded-md bg-slate-100 px-3 py-2 text-[12px] text-slate-700"
-          >
+          <p role="status" className="medif-notice">
             {notice}
           </p>
         )}

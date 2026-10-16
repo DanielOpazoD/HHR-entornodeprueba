@@ -37,9 +37,13 @@ const setup = () => {
     onDirtyChange,
     onBack: vi.fn(),
     onClose: vi.fn(),
-    previewPageUrls: [],
   };
   return { ...render(<MedifEditor {...props} />), props };
+};
+
+const openSettings = (): void => {
+  const button = screen.getByRole('button', { name: 'Configurar MEDIF' });
+  if (button.getAttribute('aria-expanded') !== 'true') fireEvent.click(button);
 };
 
 describe('MedifEditor', () => {
@@ -69,30 +73,44 @@ describe('MedifEditor', () => {
     }
     expect(
       document.querySelectorAll('.medif-form-grid input, .medif-form-grid textarea')
-    ).toHaveLength(87);
+    ).toHaveLength(89);
+    expect(document.getElementById('medif-p2_instrucciones_si')).toBeInTheDocument();
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        /El formulario se mantiene|sin asociación a una cama|casilleros visibles con datos|Referencia del PDF original/
+      )
+    ).not.toBeInTheDocument();
+    openSettings();
     fireEvent.click(screen.getByRole('tab', { name: 'Preferencias' }));
-    expect(screen.getByText(/46 de 137 casilleros ocultos/)).toBeInTheDocument();
+    expect(screen.getByText(/44 de 137 casilleros ocultos/)).toBeInTheDocument();
   });
 
   it('restores the selected preset after showing all without erasing the draft', () => {
     window.localStorage.clear();
     setup();
+    openSettings();
     fireEvent.click(screen.getByRole('tab', { name: 'Preferencias' }));
     fireEvent.click(screen.getByRole('button', { name: 'Mostrar todos' }));
+    openSettings();
     fireEvent.click(screen.getByRole('tab', { name: 'Formulario' }));
     fireEvent.change(screen.getByLabelText(/Seguro de viaje/), {
       target: { value: 'Valor conservado en sesión' },
     });
+    openSettings();
     fireEvent.click(screen.getByRole('tab', { name: 'Preferencias' }));
     fireEvent.click(screen.getByRole('button', { name: 'Restaurar selección MEDIF' }));
     expect(screen.getByRole('checkbox', { name: /Seguro de viaje/ })).not.toBeChecked();
     expect(JSON.parse(window.localStorage.getItem(MEDIF_PREFERENCES_STORAGE_KEY)!)).toEqual(
       defaultMedifPreferences()
     );
+    openSettings();
     fireEvent.click(screen.getByRole('tab', { name: 'Formulario' }));
     expect(screen.queryByLabelText(/Seguro de viaje/)).not.toBeInTheDocument();
+    openSettings();
     fireEvent.click(screen.getByRole('tab', { name: 'Preferencias' }));
     fireEvent.click(screen.getByRole('button', { name: 'Mostrar todos' }));
+    openSettings();
     fireEvent.click(screen.getByRole('tab', { name: 'Formulario' }));
     expect(screen.getByLabelText(/Seguro de viaje/)).toHaveValue('Valor conservado en sesión');
   });
@@ -144,6 +162,7 @@ describe('MedifEditor', () => {
     ['p3_medico_declaracion', 'p2_nombre_medico'],
   ])('focuses the shared control when opening alias %s in the dictionary', (alias, canonical) => {
     setup();
+    openSettings();
     fireEvent.click(screen.getByRole('tab', { name: 'Variables' }));
     fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar variable' }), {
       target: { value: alias },
@@ -159,12 +178,13 @@ describe('MedifEditor', () => {
 
   it.each([
     ['p1_seguro_viaje', 'p1_seguro_viaje'],
-    ['p2_instrucciones_no', 'p2_instrucciones_si'],
+    ['p2_estable_no', 'p2_estable_si'],
   ])(
     'opens the visibility preference for hidden variable %s without enabling it',
     (fieldId, preferenceId) => {
       window.localStorage.clear();
       setup();
+      openSettings();
       fireEvent.click(screen.getByRole('tab', { name: 'Variables' }));
       fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar variable' }), {
         target: { value: fieldId },
@@ -182,6 +202,7 @@ describe('MedifEditor', () => {
       expect(checkbox).toHaveFocus();
       expect(checkbox).not.toBeChecked();
       expect(window.localStorage.getItem(MEDIF_PREFERENCES_STORAGE_KEY)).toBeNull();
+      openSettings();
       fireEvent.click(screen.getByRole('tab', { name: 'Formulario' }));
       expect(document.getElementById(`medif-${fieldId}`)).not.toBeInTheDocument();
     }
@@ -189,6 +210,7 @@ describe('MedifEditor', () => {
 
   it('ignores delayed preference imports after manual changes or showing all fields', async () => {
     setup();
+    openSettings();
     fireEvent.click(screen.getByRole('tab', { name: 'Preferencias' }));
     let resolveRead!: (text: string) => void;
     const file = new File([], 'preferences.json', { type: 'application/json' });
@@ -225,6 +247,7 @@ describe('MedifEditor', () => {
 
   it('discards a preference file when its panel unmounts before the read finishes', async () => {
     setup();
+    openSettings();
     fireEvent.click(screen.getByRole('tab', { name: 'Preferencias' }));
     let resolveRead!: (text: string) => void;
     const file = new File([], 'preferences.json', { type: 'application/json' });
@@ -237,6 +260,7 @@ describe('MedifEditor', () => {
     fireEvent.change(screen.getByLabelText('Archivo de preferencias'), {
       target: { files: [file] },
     });
+    openSettings();
     fireEvent.click(screen.getByRole('tab', { name: 'Formulario' }));
     await act(async () => {
       resolveRead(JSON.stringify({ version: 1, hiddenFieldIds: ['p1_seguro_viaje'] }));
@@ -406,6 +430,7 @@ describe('MedifEditor', () => {
 
   it('persists visibility only and allows hidden fields to be restored without losing the current draft', async () => {
     const { props, unmount } = setup();
+    openSettings();
     const tabs = within(screen.getByRole('tablist', { name: 'Vistas de MEDIF' }));
     const formTab = tabs.getByRole('tab', { name: 'Formulario' });
     const preferencesTab = tabs.getByRole('tab', { name: 'Preferencias' });
@@ -438,8 +463,27 @@ describe('MedifEditor', () => {
     ).toHaveValue('');
   });
 
+  it('closes configuration back to the form without erasing values', () => {
+    setup();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nombre del médico tratante' }), {
+      target: { value: 'Dra. Prueba' },
+    });
+    openSettings();
+    fireEvent.click(screen.getByRole('tab', { name: 'Variables' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Configurar MEDIF' }));
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Configurar MEDIF' })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    );
+    expect(screen.getByRole('textbox', { name: 'Nombre del médico tratante' })).toHaveValue(
+      'Dra. Prueba'
+    );
+  });
+
   it('supports keyboard tabs and searchable documentation for all PDF variables', () => {
     setup();
+    openSettings();
     fireEvent.keyDown(screen.getByRole('tab', { name: 'Formulario' }), { key: 'ArrowRight' });
     expect(screen.getByRole('tab', { name: 'Variables' })).toHaveFocus();
     expect(screen.getByRole('status')).toHaveTextContent('137 variables');

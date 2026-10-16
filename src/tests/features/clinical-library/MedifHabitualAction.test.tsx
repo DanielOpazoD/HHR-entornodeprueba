@@ -11,13 +11,7 @@ import {
 const setup = () => {
   const onGeneratePdf = vi.fn<MedifEditorProps['onGeneratePdf']>().mockResolvedValue(undefined);
   render(
-    <MedifEditor
-      patients={[]}
-      onBack={vi.fn()}
-      onClose={vi.fn()}
-      onGeneratePdf={onGeneratePdf}
-      previewPageUrls={[]}
-    />
+    <MedifEditor patients={[]} onBack={vi.fn()} onClose={vi.fn()} onGeneratePdf={onGeneratePdf} />
   );
   return onGeneratePdf;
 };
@@ -29,12 +23,15 @@ describe('MEDIF green check', () => {
     const onGeneratePdf = setup();
     const button = screen.getByRole('button', { name: 'Respuestas habituales' });
     expect(document.getElementById('medif-p2_comer_si')).not.toBeChecked();
+    expect(document.getElementById('medif-p2_instrucciones_si')).not.toBeChecked();
     fireEvent.change(screen.getByRole('textbox', { name: 'Hacia' }), {
       target: { value: 'Destino manual' },
     });
     fireEvent.click(document.getElementById('medif-p2_medicacion_previa_si')!);
     fireEvent.click(button);
     expect(document.getElementById('medif-p2_comer_si')).toBeChecked();
+    expect(document.getElementById('medif-p1_especiales_no')).toBeChecked();
+    expect(document.getElementById('medif-p2_instrucciones_si')).toBeChecked();
     expect(document.getElementById('medif-p2_medicacion_previa_si')).toBeChecked();
     expect(document.getElementById('medif-p2_medicacion_previa_no')).not.toBeChecked();
     expect(screen.getByRole('textbox', { name: 'Hacia' })).toHaveValue('Destino manual');
@@ -45,6 +42,8 @@ describe('MEDIF green check', () => {
     expect(onGeneratePdf).toHaveBeenCalledWith(
       expect.objectContaining({
         p2_comer_si: 'X',
+        p1_especiales_no: 'X',
+        p2_instrucciones_si: 'X',
         p2_medicacion_previa_si: 'X',
         p2_medicacion_previa_no: '',
         p1_itinerario_1_hacia: 'Destino manual',

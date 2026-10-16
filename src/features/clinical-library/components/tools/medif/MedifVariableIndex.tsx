@@ -17,16 +17,7 @@ export const MedifVariableIndex: React.FC<{
   );
   return (
     <section aria-label="Índice de variables MEDIF">
-      <h4 className="text-lg font-bold text-slate-800">Diccionario de variables</h4>
-      <p className="mt-1 text-[12px] leading-relaxed text-slate-500">
-        137 campos del PDF original: 69 de texto libre y 68 casilleros para marcar con X. Cada
-        variable conserva su identificador para la integración.
-      </p>
-      <div className="my-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-[11px] leading-relaxed text-slate-600">
-        El censo propone datos disponibles del paciente. Las respuestas clínicas se completan en el
-        formulario y las selecciones se convierten en «X» en el PDF. Los campos repetidos de nombre
-        y edad se mantienen sincronizados.
-      </div>
+      <h4 className="mb-2 text-sm font-bold text-slate-800">Diccionario de variables</h4>
       <label className="mb-3 block text-[11px] font-semibold text-slate-600">
         Buscar variable
         <span className="relative mt-1 block">

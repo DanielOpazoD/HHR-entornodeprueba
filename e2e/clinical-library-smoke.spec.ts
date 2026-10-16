@@ -253,6 +253,8 @@ test('fills the compact MEDIF from the census, restores its preset and prints th
   await drawer.getByTestId('library-tool-medif').click();
   const editor = drawer.getByTestId('library-tool-medif');
   await expect(editor.locator('#medif-p1_nombre_pasajero')).toBeVisible();
+  await expect(editor.getByRole('tablist')).toHaveCount(0);
+  await expect(editor.locator('#medif-p2_instrucciones_si')).toBeAttached();
   await expect(editor.locator('#medif-p2_nombre_paciente')).toHaveCount(0);
   await expect(editor.locator('#medif-p2_edad')).toHaveCount(0);
   await expect(editor.locator('#medif-p1_seguro_viaje')).toHaveCount(0);
@@ -276,6 +278,8 @@ test('fills the compact MEDIF from the census, restores its preset and prints th
   await editor.locator('#medif-p2_medicacion_previa_si').check();
   await editor.getByRole('button', { name: 'Respuestas habituales', exact: true }).click();
   await expect(editor.locator('#medif-p2_comer_si')).toBeChecked();
+  await expect(editor.locator('#medif-p1_especiales_no')).toBeChecked();
+  await expect(editor.locator('#medif-p2_instrucciones_si')).toBeChecked();
   await expect(editor.locator('#medif-p2_medicacion_previa_si')).toBeChecked();
   await expect(editor.locator('#medif-p2_medicacion_previa_no')).not.toBeChecked();
   await expect(editor.locator('#medif-p1_itinerario_1_desde')).toHaveValue('Isla de pascua');
@@ -287,26 +291,29 @@ test('fills the compact MEDIF from the census, restores its preset and prints th
   await expect(editor.locator('#medif-p3_medico_declaracion')).toHaveCount(0);
   await editor.locator('#medif-p2_nombre_medico').fill('Dra. PRUEBA MEDIF');
 
+  await editor.getByRole('button', { name: 'Configurar MEDIF', exact: true }).click();
   await editor.getByRole('tab', { name: 'Preferencias', exact: true }).click();
-  await expect(editor.getByText(/46\s+de\s+137\s+casilleros ocultos/)).toBeVisible();
+  await expect(editor.getByText(/44\s+de\s+137\s+casilleros ocultos/)).toBeVisible();
   await editor.getByRole('button', { name: 'Mostrar todos', exact: true }).click();
   await editor.getByRole('tab', { name: 'Formulario', exact: true }).click();
   await editor.locator('#medif-p1_seguro_viaje').fill('DATO OCULTO DE PRUEBA');
   await editor.getByRole('tab', { name: 'Preferencias', exact: true }).click();
   await editor.getByRole('button', { name: 'Restaurar selección MEDIF', exact: true }).click();
-  await expect(editor.getByText(/46\s+de\s+137\s+casilleros ocultos/)).toBeVisible();
+  await expect(editor.getByText(/44\s+de\s+137\s+casilleros ocultos/)).toBeVisible();
   const preferencesDownload = page.waitForEvent('download');
   await editor.getByRole('button', { name: 'Exportar preferencias', exact: true }).click();
   const preferencesPath = test.info().outputPath('medif-preferencias.json');
   await (await preferencesDownload).saveAs(preferencesPath);
   const preferences = JSON.parse(fs.readFileSync(preferencesPath, 'utf8'));
   expect(Object.keys(preferences).sort()).toEqual(['hiddenFieldIds', 'version']);
-  expect(preferences.version).toBe(2);
-  expect(preferences.hiddenFieldIds).toHaveLength(46);
+  expect(preferences.version).toBe(3);
+  expect(preferences.hiddenFieldIds).toHaveLength(44);
   expect(preferences.hiddenFieldIds).toContain('p1_seguro_viaje');
 
   await editor.getByRole('tab', { name: 'Formulario', exact: true }).click();
   await expect(editor.locator('#medif-p1_seguro_viaje')).toHaveCount(0);
+  await editor.getByRole('button', { name: 'Configurar MEDIF', exact: true }).click();
+  await expect(editor.getByRole('tablist')).toHaveCount(0);
   const editableDownload = page.waitForEvent('download');
   await editor.getByRole('button', { name: 'PDF editable', exact: true }).click();
   const editablePath = test.info().outputPath('medif-editable.pdf');
@@ -316,6 +323,8 @@ test('fills the compact MEDIF from the census, restores its preset and prints th
     expect(editable.getForm().getTextField(id).getText()).toBe('Dra. PRUEBA MEDIF');
   }
   expect(editable.getForm().getTextField('p2_comer_si').getText()).toBe('X');
+  expect(editable.getForm().getTextField('p1_especiales_no').getText()).toBe('X');
+  expect(editable.getForm().getTextField('p2_instrucciones_si').getText()).toBe('X');
   expect(editable.getForm().getTextField('p2_medicacion_previa_si').getText()).toBe('X');
   expect(editable.getForm().getTextField('p2_medicacion_previa_no').getText() || '').toBe('');
   expect(editable.getForm().getTextField('p2_genero').getText()).toBe('Femenino');

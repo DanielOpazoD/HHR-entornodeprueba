@@ -17,7 +17,6 @@ export interface MedifEditorProps {
     preferences: MedifPreferences,
     mode: 'print' | 'editable'
   ) => Promise<void>;
-  previewPageUrls?: readonly string[];
   onDirtyChange?: (dirty: boolean) => void;
 }
 

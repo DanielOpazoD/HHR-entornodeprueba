@@ -64,24 +64,24 @@ describe('MEDIF field preferences', () => {
     ]);
   });
 
-  it('uses exactly the 44 selected variables plus the two complementary answers as the initial preset', () => {
+  it('uses exactly the 43 selected variables plus the complementary answer as the initial preset', () => {
     const preferences = defaultMedifPreferences();
-    expect(MEDIF_DEFAULT_HIDDEN_SELECTION).toHaveLength(44);
-    expect(new Set(MEDIF_DEFAULT_HIDDEN_SELECTION).size).toBe(44);
-    expect(preferences.version).toBe(2);
-    expect(preferences.hiddenFieldIds).toHaveLength(46);
+    expect(MEDIF_DEFAULT_HIDDEN_SELECTION).toHaveLength(43);
+    expect(new Set(MEDIF_DEFAULT_HIDDEN_SELECTION).size).toBe(43);
+    expect(preferences.version).toBe(3);
+    expect(preferences.hiddenFieldIds).toHaveLength(44);
     expect(preferences.hiddenFieldIds).toEqual(
       expect.arrayContaining([...MEDIF_DEFAULT_HIDDEN_SELECTION])
     );
     expect(
       preferences.hiddenFieldIds.filter(id => !MEDIF_DEFAULT_HIDDEN_SELECTION.includes(id))
-    ).toEqual(['p2_instrucciones_si', 'p2_estable_si']);
+    ).toEqual(['p2_estable_si']);
     expect(
       MEDIF_FIELDS.filter(field => !preferences.hiddenFieldIds.includes(field.id))
-    ).toHaveLength(91);
+    ).toHaveLength(93);
     expect(loadMedifPreferences(memoryStorage())).toEqual(preferences);
     preferences.hiddenFieldIds.length = 0;
-    expect(defaultMedifPreferences().hiddenFieldIds).toHaveLength(46);
+    expect(defaultMedifPreferences().hiddenFieldIds).toHaveLength(44);
   });
 
   it('migrates legacy browser preferences once, retaining additional hidden fields', () => {
@@ -90,7 +90,7 @@ describe('MEDIF field preferences', () => {
     expect(preferences.hiddenFieldIds).toEqual(
       expect.arrayContaining(defaultMedifPreferences().hiddenFieldIds)
     );
-    expect(preferences.hiddenFieldIds).toHaveLength(48);
+    expect(preferences.hiddenFieldIds).toHaveLength(46);
     expect(preferences.hiddenFieldIds).toContain('p1_edad');
     expect(preferences.hiddenFieldIds).toContain('p2_edad');
     expect(storage.setItem).toHaveBeenCalledExactlyOnceWith(
@@ -101,10 +101,23 @@ describe('MEDIF field preferences', () => {
     expect(storage.setItem).toHaveBeenCalledTimes(1);
   });
 
+  it('restores the safety question once in version 2 storage, preserving other choices and later rehiding', () => {
+    const storage = memoryStorage(configuration(['p2_instrucciones_no', 'p1_edad'], 2));
+    const preferences = loadMedifPreferences(storage);
+    expect(preferences).toEqual({ version: 3, hiddenFieldIds: ['p1_edad', 'p2_edad'] });
+    expect(storage.setItem).toHaveBeenCalledTimes(1);
+    const rehidden = setMedifFieldHidden(preferences, 'p2_instrucciones_si', true);
+    saveMedifPreferences(rehidden, storage);
+    expect(loadMedifPreferences(storage)).toEqual(rehidden);
+    expect(loadMedifPreferences(storage).hiddenFieldIds).toContain('p2_instrucciones_no');
+    const allVisibleV2 = memoryStorage(configuration([], 2));
+    expect(loadMedifPreferences(allVisibleV2)).toEqual(emptyMedifPreferences());
+  });
+
   it('deduplicates migration even when the legacy configuration already hides every field', () => {
     const storage = memoryStorage(configuration(MEDIF_FIELDS.map(field => field.id)));
-    expect(loadMedifPreferences(storage).hiddenFieldIds).toHaveLength(137);
-    expect(JSON.parse(storage.getItem()!).version).toBe(2);
+    expect(loadMedifPreferences(storage).hiddenFieldIds).toHaveLength(135);
+    expect(JSON.parse(storage.getItem()!).version).toBe(3);
   });
 
   it('keeps the migrated selection in the session when writing browser storage fails', () => {
@@ -115,7 +128,7 @@ describe('MEDIF field preferences', () => {
       },
     };
     const preferences = loadMedifPreferences(storage);
-    expect(preferences.hiddenFieldIds).toHaveLength(48);
+    expect(preferences.hiddenFieldIds).toHaveLength(46);
     expect(preferences.hiddenFieldIds).toContain('p1_edad');
     expect(preferences.hiddenFieldIds).toContain('p2_edad');
   });
@@ -130,13 +143,13 @@ describe('MEDIF field preferences', () => {
     expect(loadMedifPreferences(storage).hiddenFieldIds).not.toContain('p2_estable_si');
     expect(loadMedifPreferences(storage).hiddenFieldIds).not.toContain('p2_estable_no');
     expect(saveMedifPreferences(emptyMedifPreferences(), storage)).toBe(true);
-    expect(loadMedifPreferences(storage)).toEqual({ version: 2, hiddenFieldIds: [] });
+    expect(loadMedifPreferences(storage)).toEqual({ version: 3, hiddenFieldIds: [] });
   });
 
-  it('imports version 1 or 2 explicitly without adding the initial preset and exports version 2', () => {
-    for (const version of [1, 2]) {
+  it('imports supported versions explicitly without adding the initial preset and exports version 3', () => {
+    for (const version of [1, 2, 3]) {
       const preferences = importMedifPreferences(configuration(['p1_edad'], version));
-      expect(preferences).toEqual({ version: 2, hiddenFieldIds: ['p1_edad', 'p2_edad'] });
+      expect(preferences).toEqual({ version: 3, hiddenFieldIds: ['p1_edad', 'p2_edad'] });
       expect(importMedifPreferences(exportMedifPreferences(preferences))).toEqual(preferences);
       expect(importMedifPreferences(configuration([], version))).toEqual(emptyMedifPreferences());
       const storage = memoryStorage();
@@ -171,7 +184,7 @@ describe('MEDIF field preferences', () => {
     storage.getItem.mockReturnValue(exportMedifPreferences(preferences));
     expect(loadMedifPreferences(storage)).toEqual(preferences);
     expect(JSON.parse(exportMedifPreferences(preferences))).toEqual({
-      version: 2,
+      version: 3,
       hiddenFieldIds: ['p1_edad', 'p2_edad'],
     });
     expect(() => importMedifPreferences(configuration(['patientName']))).toThrow(/conocidos/);
@@ -180,8 +193,8 @@ describe('MEDIF field preferences', () => {
       importMedifPreferences(JSON.stringify({ ...preferences, patient: 'Ana' }))
     ).toThrow(/solo identificadores/);
     expect(() =>
-      importMedifPreferences(JSON.stringify({ version: 3, hiddenFieldIds: [] }))
-    ).toThrow(/versión 1 o 2/);
+      importMedifPreferences(JSON.stringify({ version: 4, hiddenFieldIds: [] }))
+    ).toThrow(/versión 1, 2 o 3/);
   });
 
   it('survives corrupt or blocked local storage and reports save failure', () => {

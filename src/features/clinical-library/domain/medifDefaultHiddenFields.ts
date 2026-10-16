@@ -1,4 +1,4 @@
-/** Visibility-only selection: 44 marked variables, expanded to complete questions at load. */
+/** Visibility-only selection: 43 selected variables, expanded to complete questions at load. */
 export const MEDIF_DEFAULT_HIDDEN_SELECTION: readonly string[] = [
   'p1_seguro_viaje',
   'p1_itinerario_1_pnr',
@@ -26,7 +26,6 @@ export const MEDIF_DEFAULT_HIDDEN_SELECTION: readonly string[] = [
   'p2_informe_medico',
   'p2_antecedente_4',
   'p2_antecedente_5',
-  'p2_instrucciones_no',
   'p2_oxigeno_si',
   'p2_oxigeno_no',
   'p2_oxigeno_modelo',

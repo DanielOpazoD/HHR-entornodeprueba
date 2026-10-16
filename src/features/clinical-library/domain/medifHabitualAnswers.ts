@@ -4,6 +4,8 @@ import { isMedifFieldHidden, type MedifPreferences } from './medifPreferences';
 
 /** Explicit MEDIF shortcuts requested by the user; applied only by the green check action. */
 export const MEDIF_HABITUAL_MARK_IDS: readonly string[] = [
+  'p1_especiales_no',
+  'p2_instrucciones_si',
   'p1_silla_no',
   'p3_silla_ruedas_no',
   'p3_patologia_psiquiatrica_no',

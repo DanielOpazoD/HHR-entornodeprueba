@@ -23,6 +23,7 @@ export const MEDIF_FORM_BLOCKS: readonly MedifFormBlock[] = [
   {
     id: 'diagnostico_evaluacion',
     title: 'Diagnóstico y evaluación',
+    fullWidth: true,
     groupIds: [
       'diagnostico_informe',
       'antecedentes',
@@ -36,6 +37,7 @@ export const MEDIF_FORM_BLOCKS: readonly MedifFormBlock[] = [
   {
     id: 'riesgo_autonomia',
     title: 'Riesgo y autonomía',
+    fullWidth: true,
     groupIds: [
       'prognosis',
       'riesgo_vital',

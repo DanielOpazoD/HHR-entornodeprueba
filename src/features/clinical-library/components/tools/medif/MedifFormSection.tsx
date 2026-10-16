@@ -19,7 +19,6 @@ interface Props {
   values: MedifValues;
   preferences: MedifPreferences;
   onChange: (id: string, value: string) => void;
-  onPreferences: () => void;
 }
 
 function FieldInput({
@@ -57,17 +56,8 @@ function FieldInput({
   );
 }
 
-export const MedifFormSection: React.FC<Props> = ({
-  block,
-  values,
-  preferences,
-  onChange,
-  onPreferences,
-}) => {
+export const MedifFormSection: React.FC<Props> = ({ block, values, preferences, onChange }) => {
   const sourceGroups = getMedifFormBlockGroups(block);
-  const hiddenCount = sourceGroups
-    .flatMap(getMedifGroupFieldIds)
-    .filter(id => isMedifFieldHidden(preferences, id)).length;
   const groups: MedifGroup[] = sourceGroups
     .filter(group => group.id !== 'identificacion_medica')
     .map(
@@ -97,22 +87,7 @@ export const MedifFormSection: React.FC<Props> = ({
     >
       <div className="medif-card-header">
         <h4 id={`medif-heading-${block.id}`}>{block.title}</h4>
-        {hiddenCount > 0 && (
-          <button type="button" className="medif-hidden-link" onClick={onPreferences}>
-            {hiddenCount} ocultos · Preferencias
-          </button>
-        )}
       </div>
-      {block.id === 'paciente_vuelo' && (
-        <p className="medif-identity-note">
-          Nombre y edad se completan una sola vez y se copian a las páginas 1 y 2.
-        </p>
-      )}
-      {block.id === 'medico_declaraciones' && (
-        <p className="medif-identity-note">
-          El nombre del médico se completa una sola vez y se copia en ambas declaraciones.
-        </p>
-      )}
       <div className="medif-groups">
         {visibleGroups.map(group => {
           const label = getMedifFormGroupLabel(group);
@@ -125,7 +100,7 @@ export const MedifFormSection: React.FC<Props> = ({
               >
                 <legend className="sr-only">{label}</legend>
                 <div className="medif-choice-row">
-                  <span aria-hidden="true" className="medif-choice-label">
+                  <span aria-hidden="true" className="medif-choice-label" title={group.help}>
                     {label}
                   </span>
                   <div className="medif-choice-options">
@@ -158,16 +133,17 @@ export const MedifFormSection: React.FC<Props> = ({
                     </button>
                   </div>
                 </div>
-                {group.help && <p className="medif-help">{group.help}</p>}
               </fieldset>
             );
           }
           return (
             <fieldset key={group.id} className={`medif-field-group medif-group-${group.id}`}>
-              <legend className={group.fields.length === 1 ? 'sr-only' : 'medif-group-label'}>
+              <legend
+                className={group.fields.length === 1 ? 'sr-only' : 'medif-group-label'}
+                title={group.help}
+              >
                 {label}
               </legend>
-              {group.help && <p className="medif-help">{group.help}</p>}
               <div
                 className={`medif-fields${group.fields.length === 1 ? ' medif-fields--single' : ''}${group.id === 'pasajero_datos' ? ' medif-fields--identity' : ''}${['medicacion_lista', 'antecedentes', 'acompanante_datos', 'tramo_1', 'tramo_2'].includes(group.id) ? ' medif-fields--three' : ''}`}
               >

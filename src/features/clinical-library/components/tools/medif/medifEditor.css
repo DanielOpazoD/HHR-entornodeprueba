@@ -3,7 +3,7 @@
   align-items: flex-end;
   flex-wrap: wrap;
   gap: 10px;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
 }
 .medif-replace-button:focus-visible {
   outline-color: var(--color-amber-700);
@@ -35,13 +35,6 @@
 }
 .medif-habitual-button:focus-visible {
   outline-color: #15803d;
-}
-.medif-source-note,
-.medif-session-note {
-  font-size: 10px;
-  line-height: 1.5;
-  color: #64748b;
-  margin: 5px 0 10px;
 }
 .medif-tabs {
   display: flex;
@@ -79,12 +72,12 @@
 .medif-form-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 10px;
+  gap: 8px;
   align-items: start;
 }
 .medif-card {
   min-width: 0;
-  padding: 12px;
+  padding: 9px;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   background: white;
@@ -96,21 +89,14 @@
   justify-content: space-between;
   gap: 8px;
   border-bottom: 1px solid #e2e8f0;
-  padding-bottom: 8px;
-  margin-bottom: 8px;
+  padding-bottom: 6px;
+  margin-bottom: 4px;
 }
 .medif-card-header h4 {
   font-size: 13px;
   font-weight: 700;
   color: #0c4a6e;
 }
-.medif-hidden-link {
-  font-size: 10px;
-  color: #64748b;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-.medif-identity-note,
 .medif-help {
   font-size: 10px;
   line-height: 1.5;
@@ -119,7 +105,7 @@
 }
 .medif-groups {
   display: grid;
-  gap: 9px;
+  gap: 7px;
   min-width: 0;
 }
 .medif-field-group,
@@ -132,7 +118,7 @@
 .medif-group-label {
   display: block;
   width: 100%;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   font-size: 11px;
   font-weight: 600;
   color: #475569;
@@ -183,7 +169,7 @@
   line-height: 1.45;
 }
 .medif-choice {
-  padding: 5px 0;
+  padding: 3px 0;
   border-bottom: 1px solid #f1f5f9;
 }
 .medif-choice-row {
@@ -247,29 +233,6 @@
   outline: 2px solid #0284c7;
   outline-offset: 2px;
 }
-.medif-preview {
-  margin-top: 10px;
-  font-size: 11px;
-}
-.medif-preview summary {
-  padding: 8px 0;
-  cursor: pointer;
-  font-weight: 600;
-}
-.medif-preview-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-.medif-preview-grid a {
-  min-width: 0;
-  color: #0369a1;
-}
-.medif-preview-grid img {
-  width: 100%;
-  border: 1px solid #e2e8f0;
-  margin-top: 4px;
-}
 @media (min-width: 640px) {
   .medif-fields--three,
   .medif-fields--identity {
@@ -293,7 +256,7 @@
   .medif-card--wide .medif-groups,
   #medif-block-psiquiatria .medif-groups {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
+    gap: 9px;
   }
   #medif-block-medico_declaraciones .medif-groups {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -309,7 +272,29 @@
   .medif-choice-options {
     justify-content: flex-start;
   }
-  .medif-preview-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
+}
+
+.medif-settings-button {
+  width: 34px;
+  padding-inline: 0;
+}
+.medif-export-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px 12px;
+  margin-top: 8px;
+  border-top: 1px solid #e2e8f0;
+  background: white;
+  padding: 8px 0;
+}
+.medif-notice {
+  order: -1;
+  margin-right: auto;
+  font-size: 11px;
+  color: #475569;
 }
