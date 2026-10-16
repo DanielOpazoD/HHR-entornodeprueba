@@ -81,6 +81,24 @@ describe('clinical form drafts and preferences', () => {
     ).toBeNull();
   });
 
+  it('reuses manually entered structured names in full-name forms without guessing surnames or replacing independent edits', () => {
+    let values = setClinicalFormValue({}, 'paciente_nombres', 'PACIENTE COMPUESTO');
+    values = setClinicalFormValue(values, 'paciente_apellido_paterno', 'DE PRUEBA');
+    values = setClinicalFormValue(values, 'paciente_apellido_materno', 'ALFA');
+    expect(values.paciente_nombre_completo).toBe('PACIENTE COMPUESTO DE PRUEBA ALFA');
+    values = setClinicalFormValue(
+      values,
+      'paciente_nombre_completo',
+      'NOMBRE EDITADO INDEPENDIENTEMENTE'
+    );
+    expect(setClinicalFormValue(values, 'paciente_nombres', 'OTRO').paciente_nombre_completo).toBe(
+      'NOMBRE EDITADO INDEPENDIENTEMENTE'
+    );
+    expect(setClinicalFormValue({}, 'paciente_nombre_completo', 'NOMBRE LIBRE')).not.toHaveProperty(
+      'paciente_apellido_paterno'
+    );
+  });
+
   it('makes suppressed data blank, skips its validation and preserves the underlying draft', () => {
     const values = { paciente_rut: 'RUT inválido', paciente_nombre_completo: 'NOMBRE' };
     expect(() => validateClinicalFormValues(consent, values, [])).toThrow('RUT');

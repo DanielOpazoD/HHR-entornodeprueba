@@ -47,12 +47,29 @@ export const projectedClinicalFormValues = (
 export const storedClinicalFormVariableId = (formId: ClinicalFormId, id: string): string =>
   id === documentVariable ? `${formId}::${id}` : id;
 
+const nameParts = ['paciente_nombres', 'paciente_apellido_paterno', 'paciente_apellido_materno'];
+const composedName = (values: ClinicalFormValues): string =>
+  nameParts
+    .map(id => (typeof values[id] === 'string' ? values[id].trim() : ''))
+    .filter(Boolean)
+    .join(' ');
+
 export const setClinicalFormValue = (
   values: ClinicalFormValues,
   id: string,
   value: ClinicalFormValue
 ): ClinicalFormValues => {
   const next = { ...values, [id]: value };
+  // Composing known parts is deterministic; never split a free full name to guess surnames.
+  // Preserve a full name entered independently, just as other manually completed values.
+  if (
+    nameParts.includes(id) &&
+    (isEmptyFormValue(values.paciente_nombre_completo) ||
+      String(values.paciente_nombre_completo).trim().toLocaleUpperCase('es') ===
+        composedName(values).toLocaleUpperCase('es'))
+  ) {
+    next.paciente_nombre_completo = composedName(next);
+  }
   // These aliases refer to the same personal document, not to a maternal document.
   if (id === 'paciente_rut') {
     next.paciente_documento_tipo = 'RUT';
