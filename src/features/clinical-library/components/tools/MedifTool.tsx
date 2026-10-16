@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
-import { buildMedifPatientOptions, prefillMedifPatient } from '../../domain/medifPatientPrefill';
-import { emptyMedifValues } from '../../domain/medifDraft';
+import { buildClinicalFormPatientOptions } from '../../domain/forms/clinicalFormPatient';
+import { medifValuesFromClinicalPatient } from '../../domain/forms/clinicalFormMedif';
 import { downloadMedifPdf } from '../../services/medifDownload';
 import type { ToolComponentProps } from './ToolFrame';
 import { MedifEditor } from './medif/MedifEditor';
@@ -13,11 +13,11 @@ export const MedifTool: React.FC<ToolComponentProps> = ({ onBack, onClose, onDir
   const { record } = useDailyRecordData();
   const patients = useMemo(
     () =>
-      buildMedifPatientOptions(record).map(patient => ({
+      buildClinicalFormPatientOptions(record).map(patient => ({
         key: patient.key,
         label: patient.label,
-        values: { ...emptyMedifValues(), ...prefillMedifPatient(patient).fields },
-        sourceLabel: `${patient.bedLabel}${patient.location === 'clinicalCrib' ? ' · Cuna clínica' : ''} · Censo ${patient.recordDate}`,
+        values: medifValuesFromClinicalPatient(patient),
+        sourceLabel: `${patient.values.cama_nombre}${patient.context.location === 'clinicalCrib' ? ' · Cuna clínica' : ''} · Censo ${patient.context.recordDate}`,
       })),
     [record]
   );

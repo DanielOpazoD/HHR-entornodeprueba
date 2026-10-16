@@ -216,6 +216,9 @@ export default defineConfig(({ mode }) => {
             // the library's offline calculators and transfer cover stay cached.
             '**/assets/MedifTool-*.js',
             '**/assets/MedifTool-*.css',
+            // The additional PDF editors use the same explicit-load policy as MEDIF.
+            '**/assets/ClinicalFormTool-*.js',
+            '**/assets/ClinicalFormTool-*.css',
             '**/vendor/exceljs.bare.min.js',
             '**/assets/exceljs.min-*.js',
             '**/assets/pdf.worker-*.mjs',

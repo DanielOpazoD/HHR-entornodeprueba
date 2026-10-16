@@ -1,0 +1,69 @@
+{
+  "id": "planilla-monitorizacion-ventilatoria",
+  "title": "Monitorización ventilatoria (VMI)",
+  "revision": 2,
+  "catalogVersion": "1.1.0",
+  "templateUrl": "/docs/biblioteca/planilla-monitorizacion-ventilatoria-vmi.pdf",
+  "sourceUrl": "/docs/biblioteca/planilla-monitorizacion-ventilatoria-vmi.docx",
+  "pages": [
+    {
+      "width": 792,
+      "height": 612
+    },
+    {
+      "width": 792,
+      "height": 612
+    }
+  ],
+  "fields": [
+    {
+      "id": "paciente_nombre_completo",
+      "label": "Nombre y apellidos",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [60, 56, 145, 13]
+        }
+      ]
+    },
+    {
+      "id": "paciente_rut",
+      "label": "RUT",
+      "section": "Paciente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [230, 56, 86, 13]
+        }
+      ]
+    },
+    {
+      "id": "ingreso_fecha",
+      "label": "Fecha de ingreso",
+      "section": "Paciente",
+      "kind": "date",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [375, 57, 15, 9],
+          "format": "date_day"
+        },
+        {
+          "page": 0,
+          "rect": [396, 57, 16, 9],
+          "format": "date_month"
+        },
+        {
+          "page": 0,
+          "rect": [418, 57, 23, 9],
+          "format": "date_year"
+        }
+      ]
+    }
+  ],
+  "templateSha256": "ba06b936f3036816ff62e94e745112665194e9cd6010c6495f8d0ce85906ce49",
+  "sourceSha256": "2bb2d98a847500c0d930dcf9521c3fb0bb80499bf1b0153f518f01d42c284722"
+}

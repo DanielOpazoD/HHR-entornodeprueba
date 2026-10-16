@@ -1,9 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 
-export const LibraryExitConfirmation: React.FC<{ onCancel: () => void; onConfirm: () => void }> = ({
-  onCancel,
-  onConfirm,
-}) => {
+export const LibraryExitConfirmation: React.FC<{
+  onCancel: () => void;
+  onConfirm: () => void;
+  title?: string;
+}> = ({ onCancel, onConfirm, title = '¿Salir del MEDIF?' }) => {
   const cancelRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     cancelRef.current?.focus();
@@ -17,7 +18,7 @@ export const LibraryExitConfirmation: React.FC<{ onCancel: () => void; onConfirm
       className="m-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm"
     >
       <h3 id="medif-exit-title" className="text-sm font-bold text-slate-800">
-        ¿Salir del MEDIF?
+        {title}
       </h3>
       <p id="medif-exit-description" className="mt-2 text-sm text-slate-600">
         Los datos del formulario están en esta sesión. Guarda un borrador JSON antes de salir si

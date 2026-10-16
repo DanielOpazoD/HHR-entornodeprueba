@@ -73,6 +73,45 @@ describe('PWA precache policy', () => {
       );
     }
   });
+
+  it('loads the additional PDF editors explicitly and carries their offline exit guard', () => {
+    const vite = readViteConfig();
+    const patterns = readBundleBudgetConfig().precacheIgnoredAssetPatterns.map(
+      pattern => new RegExp(pattern)
+    );
+    for (const extension of ['js', 'css']) {
+      expect(vite).toContain(`**/assets/ClinicalFormTool-*.${extension}`);
+      expect(
+        patterns.some(pattern => pattern.test(`assets/ClinicalFormTool-fixture.${extension}`))
+      ).toBe(true);
+    }
+    const drawer = fs.readFileSync(
+      'src/features/clinical-library/components/ClinicalLibraryDrawer.tsx',
+      'utf8'
+    );
+    const editor = fs.readFileSync(
+      'src/features/clinical-library/components/tools/ClinicalFormTool.tsx',
+      'utf8'
+    );
+    expect(drawer).toContain(
+      "const loadClinicalFormTool = () => import('./tools/ClinicalFormTool')"
+    );
+    expect(drawer).toContain(
+      'loadClinicalFormTool().then(module => ({ default: module.ClinicalFormTool }))'
+    );
+    expect(drawer).toContain(
+      'loadClinicalFormTool().then(module => ({ default: module.LibraryExitConfirmation }))'
+    );
+    expect(editor).toContain(
+      "export { LibraryExitConfirmation } from '../LibraryExitConfirmation'"
+    );
+    for (const asset of [
+      'assets/ClinicalLibraryDrawer-fixture.js',
+      'assets/TransferCoverTool-fixture.js',
+    ]) {
+      expect(patterns.some(pattern => pattern.test(asset))).toBe(false);
+    }
+  });
   it('keeps server-verified archive recovery and shared online report facts on demand', () => {
     for (const chunk of [
       'publicCudyrPolicyRecovery',
