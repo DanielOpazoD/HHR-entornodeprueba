@@ -210,19 +210,22 @@ describe('MedifEditor', () => {
 
   it('guards browser navigation only while the draft contains data and removes the guard on unmount', () => {
     const { unmount } = setup();
+    const insurance = within(
+      screen.getByRole('group', { name: 'Datos del pasajero' })
+    ).getByLabelText(/Seguro de viaje/);
     const navigationIsPrevented = () => {
       const event = new Event('beforeunload', { cancelable: true });
       window.dispatchEvent(event);
       return event.defaultPrevented;
     };
     expect(navigationIsPrevented()).toBe(false);
-    fireEvent.change(screen.getByLabelText(/Seguro de viaje/), {
+    fireEvent.change(insurance, {
       target: { value: 'Borrador sin descargar' },
     });
     expect(navigationIsPrevented()).toBe(true);
-    fireEvent.change(screen.getByLabelText(/Seguro de viaje/), { target: { value: '' } });
+    fireEvent.change(insurance, { target: { value: '' } });
     expect(navigationIsPrevented()).toBe(false);
-    fireEvent.change(screen.getByLabelText(/Seguro de viaje/), {
+    fireEvent.change(insurance, {
       target: { value: 'Borrador sin descargar' },
     });
     unmount();
@@ -231,6 +234,9 @@ describe('MedifEditor', () => {
 
   it('confirms replacement when the user edits while a draft file is still being read', async () => {
     setup();
+    const insurance = within(
+      screen.getByRole('group', { name: 'Datos del pasajero' })
+    ).getByLabelText(/Seguro de viaje/);
     let resolveRead!: (text: string) => void;
     const read = new Promise<string>(resolve => {
       resolveRead = resolve;
@@ -240,47 +246,59 @@ describe('MedifEditor', () => {
     fireEvent.change(screen.getByLabelText('Archivo de borrador MEDIF'), {
       target: { files: [file] },
     });
-    fireEvent.change(screen.getByLabelText(/Seguro de viaje/), {
+    fireEvent.change(insurance, {
       target: { value: 'Dato escrito mientras lee' },
     });
     await act(async () => {
       resolveRead(JSON.stringify({ version: 1, values: { p1_seguro_viaje: 'Importado' } }));
+      await read;
     });
     expect(screen.getByRole('alertdialog')).toBeInTheDocument();
-    expect(screen.getByLabelText(/Seguro de viaje/)).toHaveValue('Dato escrito mientras lee');
+    expect(insurance).toHaveValue('Dato escrito mientras lee');
     fireEvent.click(screen.getByRole('button', { name: 'Conservar formulario' }));
-    expect(screen.getByLabelText(/Seguro de viaje/)).toHaveValue('Dato escrito mientras lee');
+    expect(insurance).toHaveValue('Dato escrito mientras lee');
   });
 
   it('ignores an older import that finishes after a newer draft has loaded', async () => {
     setup();
+    const upload = screen.getByLabelText('Archivo de borrador MEDIF');
+    const insurance = within(
+      screen.getByRole('group', { name: 'Datos del pasajero' })
+    ).getByLabelText(/Seguro de viaje/);
     let resolveOlder!: (text: string) => void;
+    let resolveNewer!: (text: string) => void;
+    const olderRead = new Promise<string>(resolve => {
+      resolveOlder = resolve;
+    });
+    const newerRead = new Promise<string>(resolve => {
+      resolveNewer = resolve;
+    });
     const older = new File([], 'older.json', { type: 'application/json' });
-    Object.defineProperty(older, 'text', {
-      value: () =>
-        new Promise<string>(resolve => {
-          resolveOlder = resolve;
-        }),
-    });
     const newer = new File([], 'newer.json', { type: 'application/json' });
-    Object.defineProperty(newer, 'text', {
-      value: async () =>
-        JSON.stringify({ version: 1, values: { p1_seguro_viaje: 'Borrador más reciente' } }),
+    const readOlder = vi.fn(() => olderRead);
+    const readNewer = vi.fn(() => newerRead);
+    Object.defineProperty(older, 'text', { value: readOlder });
+    Object.defineProperty(newer, 'text', { value: readNewer });
+    fireEvent.change(upload, { target: { files: [older] } });
+    fireEvent.change(upload, { target: { files: [newer] } });
+    expect(readOlder).toHaveBeenCalledOnce();
+    expect(readNewer).toHaveBeenCalledOnce();
+    expect(insurance).toHaveValue('');
+
+    // Resolve the second read first and flush React before inspecting its controlled input.
+    await act(async () => {
+      resolveNewer(
+        JSON.stringify({ version: 1, values: { p1_seguro_viaje: 'Borrador más reciente' } })
+      );
+      await newerRead;
     });
-    fireEvent.change(screen.getByLabelText('Archivo de borrador MEDIF'), {
-      target: { files: [older] },
-    });
-    fireEvent.change(screen.getByLabelText('Archivo de borrador MEDIF'), {
-      target: { files: [newer] },
-    });
-    await waitFor(() =>
-      expect(screen.getByLabelText(/Seguro de viaje/)).toHaveValue('Borrador más reciente')
-    );
+    expect(insurance).toHaveValue('Borrador más reciente');
     await act(async () => {
       resolveOlder(JSON.stringify({ version: 1, values: { p1_seguro_viaje: 'Borrador antiguo' } }));
+      await olderRead;
     });
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-    expect(screen.getByLabelText(/Seguro de viaje/)).toHaveValue('Borrador más reciente');
+    expect(insurance).toHaveValue('Borrador más reciente');
   });
 
   it('keeps manual identity copies linked and emits exclusive X answers in the printable PDF', async () => {
@@ -324,57 +342,52 @@ describe('MedifEditor', () => {
 
   it('requires explicit replacement and never mixes data between census patients or manual entry', () => {
     setup();
-    fireEvent.change(screen.getByLabelText('Origen de los datos'), { target: { value: 'bed-1' } });
-    fireEvent.change(screen.getByLabelText(/Seguro de viaje/), {
+    const origin = screen.getByLabelText('Origen de los datos');
+    const passenger = within(screen.getByRole('group', { name: 'Datos del pasajero' }));
+    const name = passenger.getByLabelText(/Nombre completo/);
+    const insurance = passenger.getByLabelText(/Seguro de viaje/);
+    fireEvent.change(origin, { target: { value: 'bed-1' } });
+    fireEvent.change(insurance, {
       target: { value: 'POLIZA-SOLO-A' },
     });
-    fireEvent.change(screen.getByLabelText('Origen de los datos'), { target: { value: 'bed-2' } });
+    fireEvent.change(origin, { target: { value: 'bed-2' } });
     expect(screen.getByRole('alertdialog')).toBeInTheDocument();
-    expect(
-      within(screen.getByRole('group', { name: 'Datos del pasajero' })).getByLabelText(
-        /Nombre completo/
-      )
-    ).toHaveValue('Paciente de prueba A');
+    expect(name).toHaveValue('Paciente de prueba A');
     fireEvent.click(screen.getByRole('button', { name: 'Conservar formulario' }));
-    expect(screen.getByLabelText('Origen de los datos')).toHaveValue('bed-1');
-    fireEvent.change(screen.getByLabelText('Origen de los datos'), { target: { value: 'bed-2' } });
+    expect(origin).toHaveValue('bed-1');
+    fireEvent.change(origin, { target: { value: 'bed-2' } });
     fireEvent.click(screen.getByRole('button', { name: 'Reemplazar todos los datos' }));
-    expect(
-      within(screen.getByRole('group', { name: 'Datos del pasajero' })).getByLabelText(
-        /Nombre completo/
-      )
-    ).toHaveValue('Paciente de prueba B');
-    expect(screen.getByLabelText(/Seguro de viaje/)).toHaveValue('');
-    fireEvent.change(screen.getByLabelText('Origen de los datos'), { target: { value: '' } });
+    expect(name).toHaveValue('Paciente de prueba B');
+    expect(insurance).toHaveValue('');
+    fireEvent.change(origin, { target: { value: '' } });
     fireEvent.click(screen.getByRole('button', { name: 'Reemplazar todos los datos' }));
-    expect(
-      within(screen.getByRole('group', { name: 'Datos del pasajero' })).getByLabelText(
-        /Nombre completo/
-      )
-    ).toHaveValue('');
+    expect(name).toHaveValue('');
     expect(document.getElementById('medif-p2_nombre_paciente')).not.toBeInTheDocument();
   });
 
   it('persists visibility only and allows hidden fields to be restored without losing the current draft', async () => {
     const { props, unmount } = setup();
+    const tabs = within(screen.getByRole('tablist', { name: 'Vistas de MEDIF' }));
+    const formTab = tabs.getByRole('tab', { name: 'Formulario' });
+    const preferencesTab = tabs.getByRole('tab', { name: 'Preferencias' });
     fireEvent.change(screen.getByLabelText(/Seguro de viaje/), {
       target: { value: 'VALOR-PRIVADO-PRUEBA' },
     });
-    fireEvent.click(screen.getByRole('tab', { name: 'Preferencias' }));
+    fireEvent.click(preferencesTab);
     fireEvent.click(screen.getByRole('checkbox', { name: /Seguro de viaje/ }));
     const saved = window.localStorage.getItem(MEDIF_PREFERENCES_STORAGE_KEY);
     expect(saved).toContain('p1_seguro_viaje');
     expect(saved).not.toContain('VALOR-PRIVADO-PRUEBA');
-    fireEvent.click(screen.getByRole('tab', { name: 'Formulario' }));
+    fireEvent.click(formTab);
     expect(screen.queryByLabelText(/Seguro de viaje/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'PDF editable' }));
     await waitFor(() => expect(props.onGeneratePdf).toHaveBeenCalledOnce());
     expect(props.onGeneratePdf.mock.calls[0][1].hiddenFieldIds).toContain('p1_seguro_viaje');
-    fireEvent.click(screen.getByRole('tab', { name: 'Preferencias' }));
+    fireEvent.click(preferencesTab);
     fireEvent.click(screen.getByRole('checkbox', { name: /Seguro de viaje/ }));
-    fireEvent.click(screen.getByRole('tab', { name: 'Formulario' }));
+    fireEvent.click(formTab);
     expect(screen.getByLabelText(/Seguro de viaje/)).toHaveValue('VALOR-PRIVADO-PRUEBA');
-    fireEvent.click(screen.getByRole('tab', { name: 'Preferencias' }));
+    fireEvent.click(preferencesTab);
     fireEvent.click(screen.getByRole('checkbox', { name: /Seguro de viaje/ }));
     unmount();
     setup();

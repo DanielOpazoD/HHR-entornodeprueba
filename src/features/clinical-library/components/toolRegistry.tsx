@@ -8,9 +8,9 @@ import { ScoresTool } from './tools/ScoresTool';
 import { TransferCoverTool } from './tools/TransferCoverTool';
 import type { ToolComponentProps } from './tools/ToolFrame';
 
-const MedifTool = React.lazy(() =>
-  import('./tools/MedifTool').then(module => ({ default: module.MedifTool }))
-);
+export const loadMedifTool = () => import('./tools/MedifTool');
+
+const MedifTool = React.lazy(() => loadMedifTool().then(module => ({ default: module.MedifTool })));
 
 interface ToolRegistration {
   icon: React.ReactNode;

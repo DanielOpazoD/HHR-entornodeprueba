@@ -33,7 +33,7 @@ export const MedifVariableIndex: React.FC<{
           <Search
             size={15}
             aria-hidden="true"
-            className="absolute left-2.5 top-2.5 text-slate-400"
+            className="medif-variable-search-icon absolute left-2.5 text-slate-400"
           />
           <input
             type="search"

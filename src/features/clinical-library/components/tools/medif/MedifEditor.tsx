@@ -258,7 +258,7 @@ export const MedifEditor: React.FC<MedifEditorProps> = ({
             <button
               type="button"
               onClick={() => replaceDraft(replacement)}
-              className="rounded-md bg-amber-700 px-3 py-2 text-[11px] font-semibold text-white hover:bg-amber-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-700"
+              className="medif-replace-button rounded-md bg-amber-700 px-3 py-2 text-[11px] font-semibold text-white hover:bg-amber-800 focus-visible:outline focus-visible:outline-2"
             >
               Reemplazar todos los datos
             </button>

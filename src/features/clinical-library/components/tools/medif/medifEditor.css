@@ -5,6 +5,12 @@
   gap: 10px;
   margin-bottom: 4px;
 }
+.medif-replace-button:focus-visible {
+  outline-color: var(--color-amber-700);
+}
+.medif-variable-search-icon {
+  top: calc(var(--spacing) * 2.5);
+}
 .medif-source {
   flex: 1 1 300px;
   min-width: 0;

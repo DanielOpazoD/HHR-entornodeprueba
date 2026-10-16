@@ -17,12 +17,12 @@ import type {
 import { filterLibraryEntries, type LibraryCategoryFilter } from '../domain/librarySearch';
 import { printLibraryDocument } from '../services/libraryDocumentActions';
 import { LibraryEntryList } from './LibraryEntryList';
-import { TOOL_REGISTRY } from './toolRegistry';
+import { loadMedifTool, TOOL_REGISTRY } from './toolRegistry';
 
 // A dirty MEDIF has already loaded this module, including its exit guard.
 // Keep the guard in that same on-demand chunk instead of fetching it on exit.
 const LibraryExitConfirmation = React.lazy(() =>
-  import('./tools/MedifTool').then(module => ({ default: module.LibraryExitConfirmation }))
+  loadMedifTool().then(module => ({ default: module.LibraryExitConfirmation }))
 );
 
 export interface LibraryDocumentActions {

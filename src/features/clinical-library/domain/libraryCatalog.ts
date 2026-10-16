@@ -178,9 +178,8 @@ const TOOLS: ReadonlyArray<LibraryToolEntry> = [
     id: 'medif',
     category: 'tools',
     title: 'Completar MEDIF · LATAM',
-    description:
-      'Formulario de viaje aéreo desde hospitalizados o ingreso manual, con preferencias de campos y PDF imprimible.',
-    keywords: ['medif', 'LATAM', 'vuelo', 'avión', 'traslado', 'formulario', 'preferencias'],
+    description: 'Viaje aéreo desde hospitalizados o ingreso manual; campos y PDF imprimible.',
+    keywords: ['vuelo', 'avión', 'traslado', 'formulario', 'preferencias'],
   },
   {
     kind: 'tool',
