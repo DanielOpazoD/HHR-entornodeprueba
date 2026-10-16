@@ -207,6 +207,7 @@ const prepare = async (baseRecord: DailyRecord, previous: DailyRecord) => {
     counters: { requests: 0, cacheHits: 0, timeouts: 0 },
     measureEvidence: operation => operation(),
     evidenceClient: {
+      lookupHospitalizations: vi.fn().mockResolvedValue({ ok: false }),
       lookupEgresos,
       fetchPatientFlowReport: vi.fn().mockResolvedValue({ base64: '', error: 'unavailable' }),
       fetchStatisticalDischarge: vi.fn().mockResolvedValue({ base64: 'cGRm' }),

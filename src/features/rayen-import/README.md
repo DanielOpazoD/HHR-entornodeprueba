@@ -178,6 +178,18 @@ clínicos en esa telemetría.
   descubre episodios que ocupaban D pero egresaron varios días después. La hora se convierte de
   `America/Santiago` a `Pacific/Easter` y luego se asigna al día censal de enfermería: antes de las
   08:00/09:00 pertenece a D−1.
+- **Filas administrativas sin episodio:** si Gestión de Camas no puede identificarlas, se consulta
+  el índice de informes de hospitalización de Ficha Médico. Se exige una única coincidencia de RUN,
+  nombre y fecha calendario del alta. Un ingreso posterior al cierre no pertenece al censo consultado;
+  una fecha sin hora del día siguiente no excluye la madrugada. Para recuperar un episodio del período,
+  se verifican además el episodio administrativo exacto y el intervalo del egreso individual.
+  El índice nunca acredita una cama histórica ni una asociación materna. Si el reporte omite sólo el
+  último apellido, una coincidencia única con RUN propio explícito permite descartar exclusivamente
+  un episodio futuro; nunca reconstruir ni cambiar pacientes. Pasaportes no se convierten en RUN.
+  Respuestas fallidas, nombres ambiguos o una extensión antigua sin esta metadata conservan la revisión.
+- **Pabellón en el informe de flujo:** se conserva el sufijo completo `Pabellón-R1/R2 CMA`.
+  Sólo una ubicación oficial anterior al cierre acredita que el episodio estaba en Pabellón;
+  `R1/R2 CMA` sin la identificación de Pabellón mantiene su tratamiento hospitalario habitual.
 - **CMA por origen exacto:** un alta administrativa viva se clasifica como CMA cuando ingreso y
   egreso estadístico ocurren el mismo día y la cama exacta `CMA R1`…`CMA R4` o `CMA NEO1/2` consta
   en la ubicación Eloísa guardada o en el informe de altas. `R1`/`NEO1` sin prefijo CMA no cuentan.

@@ -17,12 +17,7 @@ const normalizeLocation = (value: string | undefined): string =>
 export const isPavilionRecoveryLocation = (value: string | undefined): boolean => {
   const matchesToken = (candidate: string): boolean => {
     const normalized = normalizeLocation(candidate);
-    return (
-      normalized === 'PR1' ||
-      normalized === 'PR2' ||
-      normalized === 'PABELLONR1' ||
-      normalized === 'PABELLONR2'
-    );
+    return /^(?:PR|PABELLONR)[12](?:CMA)?$/.test(normalized);
   };
   return String(value ?? '')
     .split(/[/>|]/)

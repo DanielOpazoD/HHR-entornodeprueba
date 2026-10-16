@@ -6,6 +6,13 @@ Médico** y lo entrega al **censo local HHR** para importarlo con revisión. Ade
 vigente oficial de Eloísa. Como respaldo sin backend intermedio, cada paciente activo puede copiarse
 como un código versionado que HHR valida antes de una admisión manual y de la elección de cama.
 
+## Puente 0.48.52: identidad en el índice de informes
+
+La lista de hospitalizaciones transmite también el nombre y el tipo de identificador de cada
+episodio (RUN propio o materno). HHR usa esa evidencia para revisar filas administrativas
+ambiguas de censos anteriores; conserva la revisión si la identidad o las fechas no coinciden.
+No amplía permisos, no modifica informes de Eloísa ni altera el CUDYR oficial guardado.
+
 ## Puente 0.48.51: sincronización histórica por evidencia
 
 La captura admite fechas actuales o pasadas válidas sin el antiguo bloqueo de siete días.
