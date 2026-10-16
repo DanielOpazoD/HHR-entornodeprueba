@@ -1,3 +1,4 @@
+import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
@@ -33,31 +34,72 @@ export const useRayenStaffingProposalReview = ({
   const [staffingProposal, setStaffingProposal] = useState<NursingStaffingProposal | null>(null);
   const [isStaffingProposalBusy, setIsStaffingProposalBusy] = useState(false);
   const [staffingProposalError, setStaffingProposalError] = useState<string | null>(null);
-  const staffingRefreshInFlightRef = useRef(false);
+  const mountedRef = useRef(true);
+  const activeReviewRef = useRef<{
+    controller: AbortController;
+    date: string;
+    generation: string | null;
+  } | null>(null);
 
   useEffect(() => {
+    mountedRef.current = true;
     setStaffingProposal(null);
     setStaffingProposalError(null);
+    setIsStaffingProposalBusy(false);
+    return () => {
+      mountedRef.current = false;
+      activeReviewRef.current?.controller.abort();
+      activeReviewRef.current = null;
+    };
   }, [currentRecord?.date]);
 
   const refreshStaffingProposal = useCallback(async (): Promise<NursingStaffingProposal | null> => {
-    if (staffingRefreshInFlightRef.current) return null;
-    staffingRefreshInFlightRef.current = true;
+    if (!mountedRef.current) return null;
+    const base = currentRecordRef.current ?? currentRecord;
+    if (!base) return null;
+    const generation = getSessionGeneration();
+    const previous = activeReviewRef.current;
+    if (previous?.date === base.date && previous.generation === generation) return null;
+    previous?.controller.abort();
+    const attempt = { controller: new AbortController(), date: base.date, generation };
+    activeReviewRef.current = attempt;
+    const isCurrent = () =>
+      mountedRef.current &&
+      activeReviewRef.current === attempt &&
+      !attempt.controller.signal.aborted &&
+      getSessionGeneration() === generation &&
+      currentRecordRef.current?.date === base.date;
+    const assertCurrent = () => {
+      if (!isCurrent()) throw new DOMException('Staffing review superseded', 'AbortError');
+    };
     setIsStaffingProposalBusy(true);
     setStaffingProposalError(null);
     try {
-      const base = currentRecordRef.current ?? currentRecord;
-      if (!base) throw new Error('No existe un censo abierto para revisar la dotación.');
       const freshRecord = await loadFreshClinicalRecord(base.date);
+      assertCurrent();
       const proposal = await collectNursingStaffingProposal(freshRecord, {
-        fetchHistory: (encounterId, censusDate) =>
-          requestHistoryScales(encounterId, censusDate, { lookbackDays: 2 }),
+        fetchHistory: (encounterId, censusDate) => {
+          assertCurrent();
+          return requestHistoryScales(
+            encounterId,
+            censusDate,
+            { lookbackDays: 2 },
+            undefined,
+            attempt.controller.signal
+          );
+        },
         nurseCatalog,
         tensCatalog,
-        registerStaff: async observations =>
-          (await import('@/services/staff/eloisaStaffRegistry')).registerEloisaStaff(observations),
+        registerStaff: async observations => {
+          assertCurrent();
+          const registry = await import('@/services/staff/eloisaStaffRegistry');
+          assertCurrent();
+          return registry.registerEloisaStaff(observations);
+        },
       });
+      assertCurrent();
       const latestRecord = await loadFreshClinicalRecord(freshRecord.date);
+      assertCurrent();
       if (
         !isNursingStaffingCollectionContextCurrent(
           freshRecord,
@@ -91,11 +133,13 @@ export const useRayenStaffingProposalReview = ({
       );
       return review;
     } catch (error) {
-      setStaffingProposalError(getRayenImportErrorMessage(error));
+      if (isCurrent()) setStaffingProposalError(getRayenImportErrorMessage(error));
       return null;
     } finally {
-      staffingRefreshInFlightRef.current = false;
-      setIsStaffingProposalBusy(false);
+      if (activeReviewRef.current === attempt) {
+        activeReviewRef.current = null;
+        if (mountedRef.current) setIsStaffingProposalBusy(false);
+      }
     }
   }, [
     currentRecord,
