@@ -78,10 +78,10 @@ export const subscribeToFirestoreDocument = <
       }
 
       const next = (snapshot: { exists: () => boolean; data: () => unknown }) => {
-        onData(snapshot.exists() ? (snapshot.data() as TDocument) : null);
+        if (active) onData(snapshot.exists() ? (snapshot.data() as TDocument) : null);
       };
       const error = (snapshotError: unknown) => {
-        onError(snapshotError);
+        if (active) onError(snapshotError);
       };
 
       unsubscribeSnapshot = options
@@ -89,7 +89,7 @@ export const subscribeToFirestoreDocument = <
         : onSnapshot(resolveRef(runtime), next, error);
     })
     .catch(error => {
-      onError(error);
+      if (active) onError(error);
     });
 
   return () => {
