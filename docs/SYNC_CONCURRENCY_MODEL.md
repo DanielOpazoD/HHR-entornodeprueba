@@ -98,6 +98,34 @@ or concurrency rejections.
 
 ## Tests
 
+### Manual specialty confirmation
+
+The identity chip, clinical editor and optional specialty column await the existing
+bed command result. Specialty is not part of the diagnosis debounce. With the
+episode pilot enabled, a primary selection is one scalar `specialtyIntent` bound
+to its episode and expected decision; the clinical editor sends other edited
+fields separately and does not reconfirm an untouched specialty. A pending control
+cannot submit twice, and completion from an old date or occupant must not affect
+the current editor. A rejection remains visible instead of closing as if saved.
+
+The authoritative transaction clears the dependent secondary classification, and
+clears obstetric fields when a manual primary selection leaves Ginecobstetricia.
+It persists those derived changes with the specialty and audit decision. Clients
+must not send a second cleanup patch that could arrive after a new occupant or a
+new decision. The scalar-only request guard and the legacy rollout stay intact.
+
+The patch mutation does not replay the whole command through TanStack's global
+retry default; the repository and callable own bounded recovery. A rejected
+specialty intent cannot fall back to a legacy patch or create a missing document,
+because either would lose the decision and episode guards.
+
+This preserves ID-02, SAVE-01 and SAVE-02 in `DOMAIN_RULES.md`. Verification uses
+the component/input regression suites, `specialtyManualClassification.test.ts`,
+the local specialty/clinical concurrency emulator suite, and
+`e2e/census-specialty-save.spec.ts`. The browser suite controls responses to actual
+UI requests; it does not by itself prove Firestore transactions. Roll back the
+change as one PR, preserving the existing authority and queue contracts.
+
 - Unit: `firestoreWriteSupport.test.ts` (CAS, missing-base, erasure backstop, strict tolerance),
   `dailyRecordRemoteWriteController.test.ts` (`findPatientErasures` cases), `networkUtils.test.ts`.
 - Server guard: `src/tests/functions/dailyRecordErasureGuard.test.ts` (pure helper) and

@@ -218,6 +218,18 @@ const protectSpecialtyDecisions = ({
       };
       patient.specialty = intent.value;
       patient.specialtyAssignment = nextMeta;
+      // A manual primary selection replaces its dependent classification in the
+      // same transaction. The caller still sends exactly one authorized scalar;
+      // a delayed second UI patch must never clear another patient's fields.
+      if (intent.kind === 'manual') {
+        patient.secondarySpecialty = null;
+        if (intent.value !== 'Ginecobstetricia') {
+          patient.ginecobstetriciaType = null;
+          patient.deliveryRoute = null;
+          patient.deliveryDate = null;
+          patient.deliveryCesareanLabor = null;
+        }
+      }
       decisions.push({
         bedId,
         target,

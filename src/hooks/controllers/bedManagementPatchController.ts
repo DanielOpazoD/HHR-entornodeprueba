@@ -173,7 +173,11 @@ const buildPatientFieldPatches = ({
     updates.upcChecklist ?? currentPatient.upcChecklist
   );
 
-  if (updatesSpecialty && !isGinecobstetriciaSpecialty(nextSpecialty)) {
+  if (
+    updatesSpecialty &&
+    !isGinecobstetriciaSpecialty(nextSpecialty) &&
+    !isFeatureEnabled('SPECIALTY_EPISODE_ASSIGNMENT')
+  ) {
     Object.entries(clearGinecobstetriciaFields()).forEach(([key, value]) => {
       patches[`beds.${bedId}.${key}`] = value;
     });

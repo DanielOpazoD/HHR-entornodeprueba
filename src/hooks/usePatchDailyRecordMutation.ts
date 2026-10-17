@@ -119,6 +119,9 @@ export const usePatchDailyRecordMutation = (date: string) => {
 
   return useMutation({
     mutationKey: getDailyRecordPatchMutationKey(date),
+    // The repository owns transport retries and command identity. Replaying the whole
+    // mutation here could turn a rejected clinical decision into a second command.
+    retry: false,
     mutationFn: async (input: PatchMutationInput) => {
       const { partial, options } = resolveInput(input);
       let writePatch = partial;
