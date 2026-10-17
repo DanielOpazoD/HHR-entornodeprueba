@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDailyRecordBeds, useDailyRecordData } from '@/context/DailyRecordContext';
+import { useDailyRecordWriteStatus } from '@/hooks/useDailyRecordWriteStatus';
+import { getDailyRecordWriteState } from '@/services/repositories/dailyRecordWriteCoordinator';
 import {
   buildSpecialtyRoundCandidates,
   isCurrentSpecialtyCandidate,
@@ -14,9 +16,15 @@ type RoundResult = {
   suggestion?: JevSuggestion;
 };
 
+const hasActiveSyncCommit = (date: string) => {
+  const { activeKind } = getDailyRecordWriteState(date);
+  return activeKind === 'clinical_sync' || activeKind === 'structural_sync';
+};
+
 export const useSpecialtyRound = (date: string, disabled: boolean) => {
   const beds = useDailyRecordBeds();
   const { record } = useDailyRecordData();
+  const { isSyncCommit } = useDailyRecordWriteStatus(date);
   const [candidates] = useState(() => buildSpecialtyRoundCandidates(beds, date));
   const [setup, setSetup] = useState<SpecialtyRoundSetup | null>(null);
   const [catalogError, setCatalogError] = useState('');
@@ -166,7 +174,14 @@ export const useSpecialtyRound = (date: string, disabled: boolean) => {
   };
 
   const saveAll = async () => {
-    if (busy || disabledRef.current || recordDateRef.current !== date) return;
+    if (
+      busy ||
+      disabledRef.current ||
+      recordDateRef.current !== date ||
+      hasActiveSyncCommit(date)
+    ) {
+      return;
+    }
     const selected = candidates.filter(
       candidate =>
         candidate.scope &&
@@ -178,7 +193,8 @@ export const useSpecialtyRound = (date: string, disabled: boolean) => {
     try {
       const service = await import('@/services/specialty/specialtyJevClient');
       for (const [index, candidate] of selected.entries()) {
-        if (!activeRef.current) break;
+        // A brief commit pause preserves unsent choices for the next confirmation.
+        if (!activeRef.current || hasActiveSyncCommit(date)) break;
         setProgress(`Confirmando ${index + 1} de ${selected.length}…`);
         const scope = candidate.scope;
         if (
@@ -234,6 +250,7 @@ export const useSpecialtyRound = (date: string, disabled: boolean) => {
     results,
     choices,
     busy,
+    isSyncCommit,
     progress,
     rules: setup?.policy.autoEnabled ? setup.policy.rules : [],
     setChoices,

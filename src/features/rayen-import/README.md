@@ -87,8 +87,23 @@ depender del estado clínico mutable, por lo que conservan idempotencia aunque e
 egresado.
 `shadow` puede dividir una observación grande porque no persiste. Si una ejecución `enforced`
 requiere varios fragmentos, falla antes de la primera mutación; la autoridad nunca acepta un lote
-clínico parcialmente aplicado. Un conflicto de revisión en el lote único reconstruye sus valores
-desde el censo canónico recién leído antes del único reintento.
+clínico parcialmente aplicado. El lote toma el mismo turno de escritura por fecha que las
+ediciones manuales y la importación estructural. Las lecturas de Eloísa ocurren fuera de ese turno;
+al adquirirlo, relee la autoridad y reconstruye el delta contra la base original. Sin esa lectura
+no envía un lote antiguo. Un conflicto de revisión en el lote único reconstruye sus valores
+desde el censo canónico recién leído antes del único reintento. Un fallo transitorio reenvía el
+mismo payload y `mutationId`; no cambia de escritor ni declara guardado sin confirmación. El lote
+histórico coordina la fecha que modifica, aunque su `authorityDate` sea la del censo actual.
+Agotado el reintento por pérdida de conexión, el resultado sigue sin confirmar: un timeout no
+demuestra cancelación remota. La exclusión local termina al asentarse la llamada del cliente;
+el CAS transaccional impide que un lote tardío sobrescriba una revisión posterior y los recibos
+evitan aplicar dos veces el mismo payload. Esto no establece un orden global entre equipos.
+El estado observable del coordinador distingue turnos pendientes del dueño activo; la interfaz
+sólo pausa los controles de camas y la confirmación de especialidades durante el commit de
+sincronización que ya adquirió su turno. La espera de turno, las lecturas y otra fecha no pausan
+esos controles. Los permisos de sólo lectura siguen siendo independientes: no se desmontan los
+modales ni se descartan sus borradores por una pausa temporal. La ronda puede seguir consultando
+Jev; si una sincronización comienza entre confirmaciones conserva las elecciones aún no enviadas.
 Desde que la política usa esquema v2, un guardado estructural completo conserva desde Firestore los
 campos clínicos propiedad del backend —por `clinicalEpisodeId`, aun con traslado de cama— y elimina
 esos campos si el episodio todavía no ha sido aceptado por la autoridad clínica. Volver a `off` no

@@ -1,11 +1,15 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PatientData } from '@/types/domain/patient';
+import { runExclusiveDailyRecordWrite } from '@/services/repositories/dailyRecordWriteCoordinator';
 
 const state = vi.hoisted(() => ({ beds: {} as Record<string, unknown> }));
 const service = vi.hoisted(() => ({
-  load: vi.fn(), request: vi.fn(), accept: vi.fn(), manual: vi.fn(),
+  load: vi.fn(),
+  request: vi.fn(),
+  accept: vi.fn(),
+  manual: vi.fn(),
 }));
 vi.mock('@/context/DailyRecordContext', () => ({
   useDailyRecordBeds: () => state.beds,
@@ -13,8 +17,8 @@ vi.mock('@/context/DailyRecordContext', () => ({
 }));
 vi.mock('@/services/specialty/specialtyJevClient', () => ({
   loadSpecialtyRoundSetup: service.load,
-  resolveSpecialtyJevLabel: (labels: Record<string, string>, code: string) => labels[code] ||
-    (/^[A-Z][0-9]{2}(?:\.[0-9A-Z]{1,4})?$/.test(code) ? `CIE-10 ${code}` : null),
+  resolveSpecialtyJevLabel: (labels: Record<string, string>, code: string) =>
+    labels[code] || (/^[A-Z][0-9]{2}(?:\.[0-9A-Z]{1,4})?$/.test(code) ? `CIE-10 ${code}` : null),
   requestSpecialtySuggestion: service.request,
   acceptSpecialtySuggestion: service.accept,
   assignSpecialtyManually: service.manual,
@@ -24,10 +28,24 @@ vi.mock('@/services/specialty/specialtyJevClient', () => ({
 
 import { SpecialtyRoundWindow } from '@/features/census/components/specialty-round/SpecialtyRoundWindow';
 
-const patient = (bedId: string, name: string, code: string): PatientData => ({
-  bedId, bedName: bedId, patientName: name, clinicalEpisodeId: `${bedId}-episode`,
-  cie10Code: code, pathology: `Diagnóstico ${code}`, specialty: '',
-} as PatientData);
+const patient = (bedId: string, name: string, code: string): PatientData =>
+  ({
+    bedId,
+    bedName: bedId,
+    patientName: name,
+    clinicalEpisodeId: `${bedId}-episode`,
+    cie10Code: code,
+    pathology: `Diagnóstico ${code}`,
+    specialty: '',
+  }) as PatientData;
+
+const deferred = () => {
+  let resolve!: () => void;
+  const promise = new Promise<void>(done => {
+    resolve = done;
+  });
+  return { promise, resolve };
+};
 
 describe('guided specialty census round', () => {
   beforeEach(() => {
@@ -38,13 +56,130 @@ describe('guided specialty census round', () => {
     };
     service.load.mockResolvedValue({
       labels: { 'M86.2': 'Osteomielitis subaguda' },
-      policy: { revision: 1, autoEnabled: false, memoryEnabled: false,
-        aiMode: 'consultative', rules: [] },
+      policy: {
+        revision: 1,
+        autoEnabled: false,
+        memoryEnabled: false,
+        aiMode: 'consultative',
+        rules: [],
+      },
     });
-    service.request.mockResolvedValue({ model: 'jev-1.13.0', promptVersion: '1',
-      choice: 'internal_medicine', specialty: 'Med Interna', confidence: 0.8 });
+    service.request.mockResolvedValue({
+      model: 'jev-1.13.0',
+      promptVersion: '1',
+      choice: 'internal_medicine',
+      specialty: 'Med Interna',
+      confidence: 0.8,
+    });
     service.accept.mockResolvedValue(undefined);
     service.manual.mockResolvedValue(undefined);
+  });
+
+  it('keeps Jev reading and preserves choices while a sync commit briefly pauses confirmation', async () => {
+    const gate = deferred();
+    let write!: Promise<void>;
+    render(<SpecialtyRoundWindow date="2026-09-24" disabled={false} onClose={vi.fn()} />);
+    await screen.findByRole('button', { name: 'Obtener sugerencias Jev (1)' });
+    const manualChoice = screen.getByRole('combobox', { name: 'Especialidad de R2' });
+    fireEvent.change(manualChoice, { target: { value: 'Psiquiatría' } });
+    try {
+      await act(async () => {
+        write = runExclusiveDailyRecordWrite('2026-09-24', () => gate.promise, {
+          kind: 'clinical_sync',
+        });
+      });
+      expect(manualChoice).toBeDisabled();
+      expect(manualChoice).toHaveValue('Psiquiatría');
+      expect(screen.getByRole('button', { name: 'Obtener sugerencias Jev (1)' })).toBeEnabled();
+      fireEvent.click(screen.getByRole('button', { name: 'Obtener sugerencias Jev (1)' }));
+      await screen.findByText('Sugerencia Jev lista');
+      expect(screen.getByRole('button', { name: 'Confirmar 2 asignaciones' })).toBeDisabled();
+      expect(service.accept).not.toHaveBeenCalled();
+      expect(service.manual).not.toHaveBeenCalled();
+      await act(async () => {
+        gate.resolve();
+        await write;
+      });
+      expect(manualChoice).toBeEnabled();
+      expect(manualChoice).toHaveValue('Psiquiatría');
+      fireEvent.click(screen.getByRole('button', { name: 'Confirmar 2 asignaciones' }));
+      await waitFor(() => expect(service.accept).toHaveBeenCalledOnce());
+      await waitFor(() => expect(service.manual).toHaveBeenCalledOnce());
+    } finally {
+      gate.resolve();
+      await write;
+    }
+  });
+
+  it('retains unsent assignments if a sync turn starts between confirmations', async () => {
+    const firstSave = deferred();
+    const syncGate = deferred();
+    service.manual.mockImplementationOnce(() => firstSave.promise);
+    let write!: Promise<void>;
+    render(<SpecialtyRoundWindow date="2026-09-24" disabled={false} onClose={vi.fn()} />);
+    await screen.findByRole('button', { name: 'Obtener sugerencias Jev (1)' });
+    for (const bed of ['R1', 'R2']) {
+      fireEvent.change(screen.getByRole('combobox', { name: `Especialidad de ${bed}` }), {
+        target: { value: 'Psiquiatría' },
+      });
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar 2 asignaciones' }));
+    await waitFor(() => expect(service.manual).toHaveBeenCalledOnce());
+    try {
+      await act(async () => {
+        write = runExclusiveDailyRecordWrite('2026-09-24', () => syncGate.promise, {
+          kind: 'structural_sync',
+        });
+      });
+      await act(async () => {
+        firstSave.resolve();
+      });
+      expect(await screen.findByText('Confirmada')).toBeVisible();
+      expect(service.manual).toHaveBeenCalledOnce();
+      expect(screen.queryByText('Episodio modificado · actualiza censo')).not.toBeInTheDocument();
+      expect(screen.getByRole('combobox', { name: 'Especialidad de R2' })).toHaveValue(
+        'Psiquiatría'
+      );
+      expect(screen.getByRole('button', { name: 'Confirmar 1 asignación' })).toBeDisabled();
+      await act(async () => {
+        syncGate.resolve();
+        await write;
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Confirmar 1 asignación' }));
+      await waitFor(() => expect(service.manual).toHaveBeenCalledTimes(2));
+      expect(service.manual.mock.calls[1][0]).toMatchObject({ bedId: 'R2' });
+    } finally {
+      firstSave.resolve();
+      syncGate.resolve();
+      await write;
+    }
+  });
+
+  it('keeps another date editable and preserves permanent restrictions after sync', async () => {
+    const view = render(
+      <SpecialtyRoundWindow date="2026-09-24" disabled={false} onClose={vi.fn()} />
+    );
+    await screen.findByRole('button', { name: 'Obtener sugerencias Jev (1)' });
+    const gate = deferred();
+    let write!: Promise<void>;
+    try {
+      await act(async () => {
+        write = runExclusiveDailyRecordWrite('2026-09-25', () => gate.promise, {
+          kind: 'clinical_sync',
+        });
+      });
+      expect(screen.getByRole('combobox', { name: 'Especialidad de R2' })).toBeEnabled();
+      view.rerender(<SpecialtyRoundWindow date="2026-09-24" disabled onClose={vi.fn()} />);
+      await act(async () => {
+        gate.resolve();
+        await write;
+      });
+      expect(screen.getByRole('combobox', { name: 'Especialidad de R2' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Obtener sugerencias Jev (1)' })).toBeDisabled();
+    } finally {
+      gate.resolve();
+      await write;
+    }
   });
 
   it('previews all pending patients, then consults eligible diagnoses and confirms together', async () => {
@@ -57,11 +192,13 @@ describe('guided specialty census round', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Obtener sugerencias Jev (1)' }));
     await waitFor(() => expect(service.request).toHaveBeenCalledOnce());
     expect(service.request.mock.calls[0][2]).toEqual({
-      code: 'M86.2', canonicalLabel: 'Osteomielitis subaguda',
+      code: 'M86.2',
+      canonicalLabel: 'Osteomielitis subaguda',
     });
     expect(service.accept).not.toHaveBeenCalled();
-    fireEvent.change(screen.getByRole('combobox', { name: 'Especialidad de R2' }),
-      { target: { value: 'Psiquiatría' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Especialidad de R2' }), {
+      target: { value: 'Psiquiatría' },
+    });
     fireEvent.click(await screen.findByRole('button', { name: 'Confirmar 2 asignaciones' }));
     await waitFor(() => expect(service.accept).toHaveBeenCalledOnce());
     await waitFor(() => expect(service.manual).toHaveBeenCalledOnce());
@@ -70,7 +207,9 @@ describe('guided specialty census round', () => {
   });
 
   it('does not save a proposed specialty after the episode changes', async () => {
-    const view = render(<SpecialtyRoundWindow date="2026-09-24" disabled={false} onClose={vi.fn()} />);
+    const view = render(
+      <SpecialtyRoundWindow date="2026-09-24" disabled={false} onClose={vi.fn()} />
+    );
     fireEvent.click(await screen.findByRole('button', { name: 'Obtener sugerencias Jev (1)' }));
     await screen.findByRole('button', { name: 'Confirmar 1 asignación' });
     state.beds = { ...state.beds, R1: patient('R1', 'Paciente reemplazado', 'M86.2') };
@@ -83,25 +222,36 @@ describe('guided specialty census round', () => {
   });
 
   it('consults a valid category absent from the catalog using only its CIE-10 code', async () => {
-    state.beds = { R2: { ...patient('R2', 'Paciente sintético B', 'F23'),
-      cie10Description: 'Texto privado NO DEBE SALIR' } };
+    state.beds = {
+      R2: {
+        ...patient('R2', 'Paciente sintético B', 'F23'),
+        cie10Description: 'Texto privado NO DEBE SALIR',
+      },
+    };
     render(<SpecialtyRoundWindow date="2026-09-24" disabled={false} onClose={vi.fn()} />);
     expect(await screen.findByText('Dato que se enviará: CIE-10 F23')).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Obtener sugerencias Jev (1)' }));
-    await waitFor(() => expect(service.request).toHaveBeenCalledWith(
-      expect.objectContaining({ bedId: 'R2' }), expect.any(String),
-      { code: 'F23', canonicalLabel: 'CIE-10 F23' }
-    ));
+    await waitFor(() =>
+      expect(service.request).toHaveBeenCalledWith(
+        expect.objectContaining({ bedId: 'R2' }),
+        expect.any(String),
+        { code: 'F23', canonicalLabel: 'CIE-10 F23' }
+      )
+    );
     expect(JSON.stringify(service.request.mock.calls)).not.toContain('NO DEBE SALIR');
   });
 
   it('continues after Strict Mode effect replay and retries AI acceptance as AI', async () => {
     state.beds = { R1: patient('R1', 'Paciente sintético', 'M86.2') };
     service.accept.mockRejectedValueOnce(new Error('Transient')).mockResolvedValue(undefined);
-    render(<StrictMode><SpecialtyRoundWindow date="2026-09-24" disabled={false}
-      onClose={vi.fn()} /></StrictMode>);
-    expect(await screen.findByText('Dato que se enviará: Osteomielitis subaguda', {},
-      { timeout: 10000 })).toBeVisible();
+    render(
+      <StrictMode>
+        <SpecialtyRoundWindow date="2026-09-24" disabled={false} onClose={vi.fn()} />
+      </StrictMode>
+    );
+    expect(
+      await screen.findByText('Dato que se enviará: Osteomielitis subaguda', {}, { timeout: 10000 })
+    ).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Obtener sugerencias Jev (1)' }));
     await waitFor(() => expect(service.request).toHaveBeenCalledOnce());
     fireEvent.click(await screen.findByRole('button', { name: 'Confirmar 1 asignación' }));
@@ -113,10 +263,18 @@ describe('guided specialty census round', () => {
 
   it('keeps an explicit review rule out of the Jev batch', async () => {
     state.beds = { R1: patient('R1', 'Paciente sintético', 'M86.2') };
-    service.load.mockResolvedValue({ labels: { 'M86.2': 'Osteomielitis subaguda' },
-      policy: { revision: 2, autoEnabled: true, memoryEnabled: false,
-        aiMode: 'consultative', rules: [{ id: 'review_m86_2', kind: 'review',
-          cie10Code: 'M86.2', scope: 'all', revision: 1 }] } });
+    service.load.mockResolvedValue({
+      labels: { 'M86.2': 'Osteomielitis subaguda' },
+      policy: {
+        revision: 2,
+        autoEnabled: true,
+        memoryEnabled: false,
+        aiMode: 'consultative',
+        rules: [
+          { id: 'review_m86_2', kind: 'review', cie10Code: 'M86.2', scope: 'all', revision: 1 },
+        ],
+      },
+    });
     render(<SpecialtyRoundWindow date="2026-09-24" disabled={false} onClose={vi.fn()} />);
     expect(await screen.findByText('Regla exige revisión manual')).toBeVisible();
     expect(screen.getByRole('button', { name: 'Obtener sugerencias Jev (0)' })).toBeDisabled();
