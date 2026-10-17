@@ -61,7 +61,7 @@ export const CRITICAL_FIRESTORE_ACCESS_MATRIX = [
     matchPath: '/prescriptions/{prescriptionId}',
     read: 'canReadClinicalData()',
     create: 'false',
-    update: 'canEdit()',
+    update: 'canUpdatePrescription()',
     delete: 'canEdit()',
   },
   {

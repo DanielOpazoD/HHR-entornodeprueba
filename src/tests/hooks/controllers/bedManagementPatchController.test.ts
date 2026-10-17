@@ -91,4 +91,30 @@ describe('bedManagementPatchController', () => {
       'beds.R1.clinicalEvents': [],
     });
   });
+  it.each([false, true])(
+    'keeps the protected specialty request scalar; legacy still clears obstetrics (pilot %s)',
+    enabled => {
+      if (enabled) featureFlags.enable('SPECIALTY_EPISODE_ASSIGNMENT');
+      else featureFlags.disable('SPECIALTY_EPISODE_ASSIGNMENT');
+      const record = DataFactory.createMockDailyRecord('2026-05-14');
+      record.beds.R1 = DataFactory.createMockPatient('R1', {
+        clinicalEpisodeId: 'synthetic-episode',
+        specialty: Specialty.GINECOBSTETRICIA,
+        ginecobstetriciaType: 'Obstétrica',
+        deliveryRoute: 'Cesárea',
+        deliveryDate: '2026-05-13',
+        deliveryCesareanLabor: 'Con TdP',
+      });
+      const patch = buildUpdatePatientPatches(record, 'R1', { specialty: Specialty.MEDICINA });
+      if (enabled) expect(patch).toEqual({ 'beds.R1.specialty': Specialty.MEDICINA });
+      else
+        expect(patch).toEqual({
+          'beds.R1.specialty': Specialty.MEDICINA,
+          'beds.R1.ginecobstetriciaType': undefined,
+          'beds.R1.deliveryRoute': undefined,
+          'beds.R1.deliveryDate': undefined,
+          'beds.R1.deliveryCesareanLabor': undefined,
+        });
+    }
+  );
 });

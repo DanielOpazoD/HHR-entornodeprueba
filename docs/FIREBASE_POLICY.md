@@ -125,3 +125,15 @@ No configurar `VITE_LEGACY_FIREBASE_*` para `hospital-hanga-roa` en este reposit
 ---
 
 _Última actualización: Enero 2026_
+
+### Revisión de permisos para preparar la transición
+
+Los permisos de plantillas propias, indicaciones inmutables y correcciones de
+metadatos de recetas se prueban en emulador antes de publicar reglas. Una
+corrección de asignación o tipo de receta no autoriza sustituir su fuente de
+carga ni atribuirla a otro funcionario. Los permisos existentes de eliminación
+manual de recetas y finalización/corrección de traslados se conservan.
+
+La revisión del candidato y el merge no acreditan despliegue ni autorizan por
+sí solos una publicación manual; registrar por separado las reglas efectivamente
+publicadas y su proyecto de destino.

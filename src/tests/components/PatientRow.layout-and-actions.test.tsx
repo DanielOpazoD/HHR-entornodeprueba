@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { PatientRow } from '@/features/census/components/PatientRow';
@@ -199,8 +199,7 @@ describe('PatientRow layout and actions', () => {
     expect(screen.queryByRole('button', { name: /upc/i })).not.toBeInTheDocument();
   });
 
-  it('saves diagnosis + specialty through the clinical block editor (status is decoupled)', () => {
-    vi.useFakeTimers();
+  it('saves specialty before diagnosis through the clinical block editor (status is decoupled)', async () => {
     const { mockContext } = render(
       <table>
         <tbody>
@@ -214,6 +213,7 @@ describe('PatientRow layout and actions', () => {
         </tbody>
       </table>
     );
+    vi.mocked(mockContext.updatePatientMultiple).mockResolvedValue(true);
 
     fireEvent.click(screen.getByRole('button', { name: /editar diagnóstico/i }));
     fireEvent.change(screen.getByLabelText('Especialidad'), {
@@ -221,14 +221,17 @@ describe('PatientRow layout and actions', () => {
     });
     fireEvent.click(screen.getByText('Guardar'));
 
-    act(() => {
-      vi.advanceTimersByTime(450);
+    await waitFor(() => {
+      expect(mockContext.updatePatientMultiple).toHaveBeenCalledTimes(2);
+      expect(screen.queryByRole('button', { name: 'Guardar' })).not.toBeInTheDocument();
     });
 
-    // The editor no longer touches status — only diagnosis + specialty.
-    expect(mockContext.updatePatientMultiple).toHaveBeenCalledWith('R1', {
-      pathology: 'Neumonía',
+    // Each confirmed specialty decision has its own scalar command; status stays untouched.
+    expect(mockContext.updatePatientMultiple).toHaveBeenNthCalledWith(1, 'R1', {
       specialty: Specialty.CIRUGIA,
+    });
+    expect(mockContext.updatePatientMultiple).toHaveBeenNthCalledWith(2, 'R1', {
+      pathology: 'Neumonía',
     });
   });
 

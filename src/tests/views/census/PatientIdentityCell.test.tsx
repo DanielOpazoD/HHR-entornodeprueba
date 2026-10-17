@@ -332,7 +332,7 @@ describe('PatientIdentityCell', () => {
   });
 
   it('shows a "Pendiente asignar" chip when the patient has no specialty, and assigns on click', () => {
-    const assign = vi.fn();
+    const assign = vi.fn().mockResolvedValue(true);
     const onNameChange: DebouncedTextHandler = field => (field === 'specialty' ? assign : vi.fn());
     const data = DataFactory.createMockPatient('R1', {
       patientName: 'Juana Rapu',
@@ -340,14 +340,14 @@ describe('PatientIdentityCell', () => {
       specialty: '',
     });
 
-    renderCell({ data, onNameChange });
+    renderCell({ data, onNameChange, onMultipleUpdate: assign });
 
     const trigger = screen.getByTitle('Asignar especialidad');
     expect(trigger).toHaveTextContent('Pendiente asignar');
 
     fireEvent.click(trigger);
     fireEvent.click(screen.getByRole('button', { name: 'Cirugía' }));
-    expect(assign).toHaveBeenCalledWith('Cirugía');
+    expect(assign).toHaveBeenCalledWith({ specialty: 'Cirugía' });
   });
 
   it('keeps unit-suffixed ages as-is in the inline badge', () => {

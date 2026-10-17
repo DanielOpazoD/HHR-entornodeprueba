@@ -135,7 +135,7 @@ describe('Security hardening static guards', () => {
         /match \/prescriptions\/\{prescriptionId\}[\s\S]*?allow read:\s*if canReadClinicalData\(\);/m
       );
       expect(rules).toMatch(
-        /match \/prescriptions\/\{prescriptionId\}[\s\S]*?allow update:\s*if canEdit\(\);/m
+        /match \/prescriptions\/\{prescriptionId\}[\s\S]*?allow update:\s*if canUpdatePrescription\(\);/m
       );
       expect(rules).toMatch(
         /match \/prescriptions\/\{prescriptionId\}[\s\S]*?allow delete:\s*if canEdit\(\);/m

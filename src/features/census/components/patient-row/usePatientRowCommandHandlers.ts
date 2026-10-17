@@ -1,3 +1,4 @@
+import type { PatientRowSaveResult } from './inputCellTypes';
 import { ChangeEvent, useCallback } from 'react';
 import type { DeviceDetails, DeviceInstance } from '@/types/domain/devices';
 import type {
@@ -16,7 +17,7 @@ interface UsePatientRowCommandHandlersResult {
   handleDevicesChange: (newDevices: string[]) => void;
   handleDeviceDetailsChange: (details: DeviceDetails) => void;
   handleDeviceHistoryChange: (history: DeviceInstance[]) => void;
-  handleDemographicsSave: (updatedFields: PatientRowPatientPatch) => void;
+  handleDemographicsSave: (updatedFields: PatientRowPatientPatch) => PatientRowSaveResult;
 }
 
 export const usePatientRowCommandHandlers = (
@@ -59,7 +60,7 @@ export const usePatientRowCommandHandlers = (
 
   const handleDemographicsSave = useCallback(
     (updatedFields: PatientRowPatientPatch) => {
-      commands.saveDemographics(updatedFields);
+      return commands.saveDemographics(updatedFields);
     },
     [commands]
   );

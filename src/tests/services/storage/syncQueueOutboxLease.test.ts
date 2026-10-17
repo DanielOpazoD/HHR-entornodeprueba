@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('firebase/firestore', async importOriginal => {
   const actual = await importOriginal<typeof import('firebase/firestore')>();
@@ -270,7 +270,8 @@ describe('sync queue transactional outbox and leases', () => {
     expect(task.syncContract).toEqual(
       expect.objectContaining({
         expectedVersion: remoteRecord.lastUpdated,
-        changedPaths: expect.arrayContaining(['beds.R1.pathology', 'beds.R1.clinicalCrib']),
+        changedPaths: ['beds.R1.pathology'],
+        mutationIds: expect.arrayContaining([taskBeforeClear.syncContract?.mutationId]),
       })
     );
     await expect(hospitalDB.dailyRecords.get(date)).resolves.toMatchObject({
@@ -490,3 +491,8 @@ describe('sync queue transactional outbox and leases', () => {
     await expect(hospitalDB.syncQueue.toArray()).resolves.toHaveLength(0);
   });
 });
+
+// These fixtures mock Firestore setDoc, not the callable transport.
+// Pin their legacy lane even when release verification inherits enforced mode.
+beforeEach(() => vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', 'client_only'));
+afterEach(() => vi.unstubAllEnvs());

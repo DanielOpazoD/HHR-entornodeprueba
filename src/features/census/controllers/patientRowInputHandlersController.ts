@@ -1,3 +1,4 @@
+import type { PatientRowSaveResult } from '@/features/census/components/patient-row/inputCellTypes';
 import type { DeviceDetails, DeviceInstance } from '@/types/domain/devices';
 import type {
   PatientRowPatientField,
@@ -7,7 +8,7 @@ import type { PatientFieldValue } from '@/types/valueTypes';
 
 interface BuildPatientRowInputCommandsParams {
   updateField: (field: PatientRowPatientField, value: PatientFieldValue) => void;
-  updateMultiple: (fields: PatientRowPatientPatch) => void;
+  updateMultiple: (fields: PatientRowPatientPatch) => PatientRowSaveResult;
 }
 
 export interface PatientRowInputCommands {
@@ -16,7 +17,7 @@ export interface PatientRowInputCommands {
   setDevices: (newDevices: string[]) => void;
   setDeviceDetails: (details: DeviceDetails) => void;
   setDeviceHistory: (history: DeviceInstance[]) => void;
-  saveDemographics: (updatedFields: PatientRowPatientPatch) => void;
+  saveDemographics: (updatedFields: PatientRowPatientPatch) => PatientRowSaveResult;
 }
 
 export const buildPatientRowInputCommands = ({
@@ -39,6 +40,6 @@ export const buildPatientRowInputCommands = ({
     updateField('deviceInstanceHistory', history);
   },
   saveDemographics: updatedFields => {
-    updateMultiple(updatedFields);
+    return updateMultiple(updatedFields);
   },
 });

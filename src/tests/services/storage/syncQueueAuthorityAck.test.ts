@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { createSyncQueueEngine } from '@/services/storage/sync/syncQueueEngine';
@@ -87,11 +87,13 @@ const beginAck = async () => {
 describe('transactional outbox authority ACK', () => {
   beforeEach(async () => {
     vi.restoreAllMocks();
+    vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-10-10T12:00:00.000Z'));
     callable.mockReset();
     getDocMock.mockReset().mockResolvedValue({ exists: () => false });
     await hospitalDB.dailyRecords.clear();
     await hospitalDB.syncQueue.clear();
   });
+  afterEach(() => vi.restoreAllMocks());
 
   it.each(['PENDING', 'FAILED', 'CONFLICT', 'PROCESSING'] as const)(
     'keeps a later %s projection and task when the older ACK arrives',
@@ -128,7 +130,7 @@ describe('transactional outbox authority ACK', () => {
     await hospitalDB.syncQueue.update(task.id!, {
       leaseOwner: 'another-worker',
       attemptId: 'another-attempt',
-      leaseUntil: Date.now() + 60000,
+      leaseUntil: Date.parse('2026-10-10T12:01:00.000Z'),
     });
     const reclaimed = await hospitalDB.syncQueue.get(task.id!);
     finish();

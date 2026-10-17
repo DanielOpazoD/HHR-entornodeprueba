@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 import { DateStrip } from '@/components/layout/DateStrip';
@@ -11,6 +11,20 @@ const clickReadyControl = async (title: string) => {
 };
 
 describe('DateStrip', () => {
+  beforeAll(async () => {
+    // Test real controls without including Vite's cold module transform in UI readiness waits.
+    await Promise.all([
+      import('@/components/layout/date-strip/actions/SaveDropdown'),
+      import('@/components/layout/date-strip/actions/HandoffSaveDropdown'),
+      import('@/components/layout/date-strip/actions/EmailDropdown'),
+      import('@/components/layout/date-strip/actions/PdfButtons'),
+      import('@/components/layout/date-strip/DateStripQuickActions'),
+      import('@/components/layout/date-strip/DateStripBookmarkToggle'),
+      import('@/components/layout/date-strip/DateStripYearNavigator'),
+      import('@/components/layout/date-strip/DateStripMonthNavigator'),
+    ]);
+  });
+
   const defaultProps = {
     selectedYear: 2024,
     setSelectedYear: vi.fn(),

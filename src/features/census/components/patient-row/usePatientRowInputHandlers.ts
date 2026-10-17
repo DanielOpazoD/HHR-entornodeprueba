@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import type { PatientRowSaveResult } from './inputCellTypes';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import type {
   CesareanLabor,
   DeliveryRoute,
@@ -12,6 +13,7 @@ import type {
 import { PatientFieldValue } from '@/types/valueTypes';
 import {
   buildDeliveryRoutePatch,
+  buildPatientRowSaveScopeKey,
   resolveNextDocumentType,
 } from '@/features/census/controllers/patientRowInputController';
 import {
@@ -22,12 +24,26 @@ import { buildPatientRowInputCommands } from '@/features/census/controllers/pati
 import {
   hasPatientRowPatchFields,
   isClinicalInitialBlockField,
-  splitClinicalInitialBlockPatch,
 } from '@/features/census/controllers/clinicalInitialBlockCoalescingController';
 import { harmonizeEpisodeDemographicsHistorySafely } from '@/features/census/controllers/patientDemographicsEpisodeSyncController';
+import { isFeatureEnabled } from '@/services/utils/featureFlags';
 import { usePatientRowCommandHandlers } from '@/features/census/components/patient-row/usePatientRowCommandHandlers';
 
 const CLINICAL_INITIAL_BLOCK_COALESCE_MS = 400;
+const CLINICAL_SUBMISSION_FIELDS = new Set([
+  'specialty',
+  'pathology',
+  'cie10Code',
+  'cie10Description',
+  'treatingPhysicianId',
+  'treatingPhysicianName',
+  'dismissedTreatingPhysician',
+  'secondarySpecialty',
+  'ginecobstetriciaType',
+  'deliveryRoute',
+  'deliveryDate',
+  'deliveryCesareanLabor',
+]);
 
 interface UsePatientRowMainInputHandlersParams {
   bedId: string;
@@ -35,7 +51,7 @@ interface UsePatientRowMainInputHandlersParams {
   data: PatientData;
   documentType?: PatientRowPatientDocumentType;
   updatePatient: (bedId: string, field: PatientRowPatientField, value: PatientFieldValue) => void;
-  updatePatientMultiple: (bedId: string, fields: PatientRowPatientPatch) => void;
+  updatePatientMultiple: (bedId: string, fields: PatientRowPatientPatch) => PatientRowSaveResult;
 }
 
 interface UsePatientRowCribInputHandlersParams {
@@ -47,14 +63,18 @@ interface UsePatientRowCribInputHandlersParams {
     field: PatientRowPatientField,
     value: PatientFieldValue
   ) => void;
-  updateClinicalCribMultiple: (bedId: string, fields: PatientRowPatientPatch) => void;
+  updateClinicalCribMultiple: (
+    bedId: string,
+    fields: PatientRowPatientPatch
+  ) => PatientRowSaveResult;
 }
 
 interface UsePatientRowUpdateAdapterParams {
   bedId: string;
   updateSingle: (bedId: string, field: PatientRowPatientField, value: PatientFieldValue) => void;
-  updateMany: (bedId: string, fields: PatientRowPatientPatch) => void;
+  updateMany: (bedId: string, fields: PatientRowPatientPatch) => PatientRowSaveResult;
   coalesceClinicalInitialBlock?: boolean;
+  scopeKey: string;
 }
 
 const usePatientRowUpdateAdapter = ({
@@ -62,7 +82,12 @@ const usePatientRowUpdateAdapter = ({
   updateSingle,
   updateMany,
   coalesceClinicalInitialBlock = false,
+  scopeKey,
 }: UsePatientRowUpdateAdapterParams) => {
+  const currentScopeRef = useRef<string | null>(scopeKey);
+  useLayoutEffect(() => {
+    currentScopeRef.current = scopeKey;
+  }, [scopeKey]);
   const pendingClinicalFieldsRef = useRef<PatientRowPatientPatch>({});
   const pendingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const updateManyRef = useRef(updateMany);
@@ -79,10 +104,10 @@ const usePatientRowUpdateAdapter = ({
 
     const pendingFields = pendingClinicalFieldsRef.current;
     pendingClinicalFieldsRef.current = {};
-    if (hasPatientRowPatchFields(pendingFields)) {
+    if (currentScopeRef.current === scopeKey && hasPatientRowPatchFields(pendingFields)) {
       updateManyRef.current(bedId, pendingFields);
     }
-  }, [bedId]);
+  }, [bedId, scopeKey]);
 
   const queueClinicalFields = useCallback(
     (fields: PatientRowPatientPatch) => {
@@ -104,41 +129,75 @@ const usePatientRowUpdateAdapter = ({
   );
 
   useEffect(() => flushPendingClinicalFields, [flushPendingClinicalFields]);
+  useEffect(() => {
+    currentScopeRef.current = scopeKey;
+    return () => {
+      if (currentScopeRef.current === scopeKey) currentScopeRef.current = null;
+    };
+  }, [scopeKey]);
 
   const updateField = useMemo(() => {
     const immediateUpdateField = buildPatientFieldUpdater({ bedId, updateSingle });
-    if (!coalesceClinicalInitialBlock) {
-      return immediateUpdateField;
-    }
-
     return (field: PatientRowPatientField, value: PatientFieldValue) => {
-      if (!isClinicalInitialBlockField(field)) {
+      if (currentScopeRef.current !== scopeKey) return;
+      if (field === 'specialty') {
+        void updateMany(bedId, { specialty: value as PatientData['specialty'] });
+        return;
+      }
+      if (!coalesceClinicalInitialBlock || !isClinicalInitialBlockField(field)) {
         immediateUpdateField(field, value);
         return;
       }
-
       queueClinicalFields({ [field]: value });
     };
-  }, [bedId, coalesceClinicalInitialBlock, queueClinicalFields, updateSingle]);
+  }, [
+    bedId,
+    scopeKey,
+    coalesceClinicalInitialBlock,
+    queueClinicalFields,
+    updateMany,
+    updateSingle,
+  ]);
 
   const updateMultiple = useMemo(() => {
     const immediateUpdateMultiple = buildPatientMultipleUpdater({ bedId, updateMany });
-    if (!coalesceClinicalInitialBlock) {
-      return immediateUpdateMultiple;
-    }
-
-    return (fields: PatientRowPatientPatch) => {
-      const { clinicalFields, immediateFields } = splitClinicalInitialBlockPatch(fields);
-
-      if (hasPatientRowPatchFields(immediateFields)) {
-        immediateUpdateMultiple(immediateFields);
+    return (fields: PatientRowPatientPatch): PatientRowSaveResult => {
+      if (currentScopeRef.current !== scopeKey) return false;
+      // A submitted diagnosis supersedes any older inline draft still waiting for its timer.
+      if (Object.prototype.hasOwnProperty.call(fields, 'pathology')) {
+        delete pendingClinicalFieldsRef.current.pathology;
+        if (pendingTimerRef.current) clearTimeout(pendingTimerRef.current);
+        pendingTimerRef.current = null;
       }
-
-      if (hasPatientRowPatchFields(clinicalFields)) {
-        queueClinicalFields(clinicalFields);
+      // Identity/admission forms retain their atomic command and existing replacement guards.
+      // Only the clinical editor may separate an explicit specialty from its clinical companions.
+      if (
+        typeof fields.specialty !== 'string' ||
+        Object.keys(fields).some(field => !CLINICAL_SUBMISSION_FIELDS.has(field))
+      ) {
+        return immediateUpdateMultiple(fields);
       }
+      const { specialty, ...remainingFields } = fields;
+      if (isFeatureEnabled('SPECIALTY_EPISODE_ASSIGNMENT')) {
+        // The authority applies these derived clears atomically with the scalar decision.
+        for (const key of [
+          'secondarySpecialty',
+          'ginecobstetriciaType',
+          'deliveryRoute',
+          'deliveryDate',
+          'deliveryCesareanLabor',
+        ] as const) {
+          if (remainingFields[key] === undefined) delete remainingFields[key];
+        }
+      }
+      return (async () => {
+        const saved = await immediateUpdateMultiple({ specialty });
+        if (saved !== true || currentScopeRef.current !== scopeKey) return false;
+        if (!hasPatientRowPatchFields(remainingFields)) return true;
+        return (await immediateUpdateMultiple(remainingFields)) === true;
+      })();
     };
-  }, [bedId, coalesceClinicalInitialBlock, queueClinicalFields, updateMany]);
+  }, [bedId, scopeKey, updateMany]);
 
   return {
     updateField,
@@ -159,6 +218,7 @@ export const usePatientRowMainInputHandlers = ({
     updateSingle: updatePatient,
     updateMany: updatePatientMultiple,
     coalesceClinicalInitialBlock: true,
+    scopeKey: buildPatientRowSaveScopeKey(currentDateString, data, bedId),
   });
 
   const commands = useMemo(
@@ -185,12 +245,13 @@ export const usePatientRowMainInputHandlers = ({
 
   const handleDemographicsSave = useCallback(
     (updatedFields: PatientRowPatientPatch) => {
-      commandHandlers.handleDemographicsSave(updatedFields);
+      const result = commandHandlers.handleDemographicsSave(updatedFields);
       harmonizeEpisodeDemographicsHistorySafely({
         currentDate: currentDateString,
         sourcePatient: data,
         updatedFields,
       });
+      return result;
     },
     [commandHandlers, currentDateString, data]
   );
@@ -214,6 +275,7 @@ export const usePatientRowCribInputHandlers = ({
     bedId,
     updateSingle: updateClinicalCrib,
     updateMany: updateClinicalCribMultiple,
+    scopeKey: buildPatientRowSaveScopeKey(currentDateString, data, bedId, true),
   });
 
   const commands = useMemo(
@@ -224,9 +286,9 @@ export const usePatientRowCribInputHandlers = ({
 
   const handleCribDemographicsSave = useCallback(
     (updatedFields: PatientRowPatientPatch) => {
-      commandHandlers.handleDemographicsSave(updatedFields);
+      const result = commandHandlers.handleDemographicsSave(updatedFields);
       if (!data) {
-        return;
+        return result;
       }
 
       harmonizeEpisodeDemographicsHistorySafely({
@@ -235,6 +297,7 @@ export const usePatientRowCribInputHandlers = ({
         updatedFields,
         isClinicalCribPatient: true,
       });
+      return result;
     },
     [commandHandlers, currentDateString, data]
   );

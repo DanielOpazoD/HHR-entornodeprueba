@@ -103,7 +103,7 @@ describe('applyClinicalEnrichmentBatch', () => {
 
     expect(deps.invoke).toHaveBeenCalledTimes(1);
     expect(deps.applyPatch).not.toHaveBeenCalled();
-    expect(deps.refreshRecord).toHaveBeenCalledTimes(1);
+    expect(deps.refreshRecord).toHaveBeenCalledTimes(2);
     expect(result).toMatchObject({
       patientWrites: 1,
       historySnapshots: 1,
@@ -142,7 +142,7 @@ describe('applyClinicalEnrichmentBatch', () => {
       ...deps,
     });
 
-    expect(deps.refreshRecord).toHaveBeenCalledTimes(1);
+    expect(deps.refreshRecord).toHaveBeenCalledTimes(2);
     expect(result).toMatchObject({ patientWrites: 0, historySnapshots: 0, retries: 0 });
     expect(result).not.toHaveProperty('persistence');
   });
@@ -197,7 +197,7 @@ describe('applyClinicalEnrichmentBatch', () => {
       })
     ).rejects.toThrow('confirmación inválida');
     expect(deps.applyPatch).not.toHaveBeenCalled();
-    expect(deps.refreshRecord).not.toHaveBeenCalled();
+    expect(deps.refreshRecord).toHaveBeenCalledTimes(1);
   });
 
   it('rejects a null backend response with the controlled confirmation error', async () => {
@@ -214,7 +214,7 @@ describe('applyClinicalEnrichmentBatch', () => {
       })
     ).rejects.toThrow('confirmación inválida');
     expect(deps.applyPatch).not.toHaveBeenCalled();
-    expect(deps.refreshRecord).not.toHaveBeenCalled();
+    expect(deps.refreshRecord).toHaveBeenCalledTimes(1);
   });
 
   it('records a semantic shadow mismatch without blocking established writes', async () => {
@@ -343,7 +343,9 @@ describe('applyClinicalEnrichmentBatch', () => {
 
   it('settles a version conflict when rebuilding proves the desired value is current', async () => {
     const deps = createDependencies();
-    const rebuildOperations = vi.fn((): ClinicalFillPatchOperation[] => []);
+    const rebuildOperations = vi
+      .fn((): ClinicalFillPatchOperation[] => [])
+      .mockReturnValueOnce([operations[0]]);
     deps.invoke.mockRejectedValueOnce({
       code: 'functions/aborted',
       message: 'revision_mismatch',

@@ -59,8 +59,11 @@ import {
 import {
   buildGuardedDailyRecordPatchPolicy,
   buildGuardedDailyRecordRemoteWriteOptions,
+  canRebaseManualSpecialtyIntent,
 } from '@/services/repositories/dailyRecordGuardedCommandPolicy';
 import { adoptAuthoritativeRecord } from '@/services/repositories/dailyRecordRepositorySyncService';
+import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
+import { isValidRemoteAuthorityRecord } from '@/services/repositories/dailyRecordRemotePersistenceState';
 const tryAutoMergeBlockedFullSaveRegression = async (
   date: string,
   record: DailyRecord,
@@ -235,7 +238,7 @@ const updatePartialDetailedWithinLock = async (
 ) => {
   const command = createPartialUpdateDailyRecordCommand(date, partialData);
   const remoteState = createRemoteWriteState();
-  const current = await resolvePartialUpdateBaseRecord(command.date, options);
+  let current = await resolvePartialUpdateBaseRecord(command.date, options);
 
   if (!current) {
     dailyRecordWriteLogger.warn(`No record found for ${command.date}; partial update aborted`);
@@ -244,6 +247,25 @@ const updatePartialDetailedWithinLock = async (
       state: remoteState,
       patchedFields: Object.keys(command.patch).length,
     });
+  }
+
+  // The hook's displayed base can predate a queued clinical commit. Refresh only
+  // after acquiring this date's write turn; never move a decision to a new episode.
+  if (options.specialtyIntent?.kind === 'manual') {
+    if (!isFirestoreEnabled()) {
+      throw new Error('La autoridad remota no está disponible para esta escritura clínica.');
+    }
+    const remoteRecord = await getRecordFromFirestore(command.date, { source: 'server' });
+    if (!isValidRemoteAuthorityRecord(remoteRecord, command.date)) {
+      throw new Error('No se pudo verificar la versión remota del censo. Vuelve a intentarlo.');
+    }
+    if (!canRebaseManualSpecialtyIntent(options.specialtyIntent, current, remoteRecord)) {
+      throw new ConcurrencyError(
+        'El paciente o su especialidad cambió. Revisa el censo antes de volver a elegir.',
+        'semantic_conflict'
+      );
+    }
+    current = remoteRecord;
   }
 
   let validatedRecord: DailyRecord;
@@ -268,18 +290,19 @@ const updatePartialDetailedWithinLock = async (
   }
   const patchedFields = Object.keys(mergedPatches).length;
   const semanticChangedPaths = Object.keys(command.patch);
+  const syncContract = buildDailyRecordSyncContract(validatedRecord, {
+    expectedVersion: current.lastUpdated,
+    changedPaths: semanticChangedPaths,
+  });
   const guardedCommandPolicy = buildGuardedDailyRecordPatchPolicy({
     patch: command.patch,
     mergedPatches,
     baseRecord: current,
     options,
     readRemoteRecord: () => getRecordFromFirestore(command.date, { source: 'server' }),
+    mutationId: syncContract.mutationId,
   });
   const isReclassification = isMovementReclassificationPatch(command.patch);
-  const syncContract = buildDailyRecordSyncContract(validatedRecord, {
-    expectedVersion: current.lastUpdated,
-    changedPaths: semanticChangedPaths,
-  });
   const remoteWriteOptions = buildGuardedDailyRecordRemoteWriteOptions({
     options,
     policy: guardedCommandPolicy,
@@ -332,13 +355,13 @@ const updatePartialDetailedWithinLock = async (
       isReclassification,
       semanticChangedPaths,
       baseRecord: current,
-      validatedRecord,
+      syncContract,
     }),
     resolveAlreadyAppliedRemoteRecord: guardedCommandPolicy.resolveAlreadyAppliedRemoteRecord,
     adoptRemoteAuthorityRecord: authoritativeRecord =>
       adoptAuthoritativeRecord(
         authoritativeRecord,
-        guardedCommandPolicy.remoteAuthorityPatch as DailyRecordPatch
+        guardedCommandPolicy.buildLocalAdoptionPatch(authoritativeRecord)
       ),
     requireConfirmedRecord: guardedCommandPolicy.requireConfirmedRecord,
     onRemoteFailure: err => {

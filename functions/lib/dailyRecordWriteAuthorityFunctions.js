@@ -360,7 +360,15 @@ const specialtyFieldSnapshot = record => {
     ]) {
       if (!isPlainObject(patient)) continue;
       const prefix = target === 'bed' ? `beds.${bedId}` : `beds.${bedId}.clinicalCrib`;
-      for (const field of ['specialty', 'specialtyAssignment']) {
+      for (const field of [
+        'specialty',
+        'specialtyAssignment',
+        'secondarySpecialty',
+        'ginecobstetriciaType',
+        'deliveryRoute',
+        'deliveryDate',
+        'deliveryCesareanLabor',
+      ]) {
         fields.set(`${prefix}.${field}`, JSON.stringify(patient[field]));
       }
     }

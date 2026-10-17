@@ -98,6 +98,36 @@ or concurrency rejections.
 
 ## Tests
 
+### Manual specialty confirmation
+
+The identity chip, clinical editor and optional specialty column await the existing
+bed command result. Specialty is not part of the diagnosis debounce. With the
+episode pilot enabled, a primary selection is one scalar `specialtyIntent` bound
+to its episode and expected decision; the clinical editor sends other edited
+fields separately and does not reconfirm an untouched specialty. A pending control
+cannot submit twice, and completion from an old date or occupant must not affect
+the current editor. A rejection remains visible instead of closing as if saved.
+
+The authoritative transaction clears the dependent secondary classification, and
+clears obstetric fields when a manual primary selection leaves Ginecobstetricia.
+It persists those derived changes with the specialty and audit decision. Clients
+must not send a second cleanup patch that could arrive after a new occupant or a
+new decision. The scalar-only request guard and the legacy rollout stay intact.
+
+The patch mutation does not replay the whole command through TanStack's global
+retry default; the repository and callable own bounded recovery. A rejected
+specialty intent cannot fall back to a legacy patch or create a missing document,
+because either would lose the decision and episode guards.
+
+This preserves ID-02, SAVE-01 and SAVE-02 in `DOMAIN_RULES.md`. Verification uses
+the component/input regression suites, `specialtyManualClassification.test.ts`,
+the local specialty/clinical concurrency emulator suite, and
+`e2e/census-specialty-save.spec.ts`. The browser suite controls when actual UI
+requests complete, using the authority handler against a local Firestore emulator.
+It checks server revisions and episode decisions as well as browser persistence
+after reload. Roll back the change as one PR, preserving the existing authority
+and queue contracts.
+
 - Unit: `firestoreWriteSupport.test.ts` (CAS, missing-base, erasure backstop, strict tolerance),
   `dailyRecordRemoteWriteController.test.ts` (`findPatientErasures` cases), `networkUtils.test.ts`.
 - Server guard: `src/tests/functions/dailyRecordErasureGuard.test.ts` (pure helper) and
@@ -168,3 +198,39 @@ Los tombstones existentes evitan que una fusión con otra pestaña resucite la c
 Regresiones: `newbornDischargeIdempotency.test.ts`, `newbornDischargeReportPrecedence.test.ts`,
 `clinicalCribDischargeRepairs.test.ts`, `RayenImportPreviewModal.newbornRepair.test.tsx` y
 `dischargePlanInvariants.test.ts` bajo `src/tests/rayen-import/`.
+
+### Recuperación de especialidad manual
+
+Con el piloto por episodio activo, el repositorio adquiere el turno de escritura
+existente de la fecha antes de leer la base autoritativa del servidor. Conserva la
+intención original: episodio, destino cama/cuna, decisión previa y valor mostrado.
+Un cambio de cualquiera de esas condiciones exige revisar el censo. No se reemplaza
+`expectedDecisionId` por el encontrado al refrescar y una lectura local no acredita
+que el servidor conserve al paciente.
+
+Un conflicto exclusivamente de revisión admite un solo reintento, tras comprobar
+que la misma especialidad y decisión siguen vigentes. Conserva `mutationId`,
+`clientId` y `tabId`; los rechazos semánticos o de permisos no se reintentan.
+Si la respuesta se pierde, sólo se confirma por una lectura autoritativa que
+contenga el mismo `decisionId` de esa mutación, episodio, valor, fecha y origen.
+Coincidir únicamente en el texto de la especialidad no prueba que se guardó esa
+operación. Una recuperación confirmada conserva las otras ediciones locales
+pendientes mediante el adoptador existente. Sin evidencia suficiente se informa
+el fallo, sin encolar una decisión rechazada ni inventar confirmación.
+
+La adopción local protege la especialidad, su decisión y los campos dependientes
+confirmados por el servidor, aunque la cola contenga un objeto completo de cama o
+cuna anterior. Sólo conserva borradores del mismo episodio. Los campos ya durables
+se retiran del conjunto pendiente; el reemplazo conserva la identidad y el historial
+de mutaciones de la tarea. Esta protección local no amplía el comando remoto escalar.
+
+La cola ordena las escrituras de una pestaña por fecha; las transacciones y sus
+versiones protegen frente a otras pestañas o usuarios. No hay una cola global ni
+un temporizador que cancele una transacción remota. Se mantienen los modos legacy
+sin activar flags ni modificar reglas de especialidad. Reversión: revertir el PR
+de recuperación conservando los controles de autoridad, CAS y episodio.
+
+Regresiones: `dailyRecordSpecialtyRecovery.test.ts` comprueba diez cambios rápidos,
+cama/cuna, conflictos técnicos y semánticos, desconexión, respuesta perdida y
+conservación de proyecciones locales; `dailyRecordAuthorityCallableClient.test.ts`
+verifica la clasificación de errores del servidor.

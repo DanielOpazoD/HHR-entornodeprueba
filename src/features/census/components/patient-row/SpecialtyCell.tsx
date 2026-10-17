@@ -1,3 +1,4 @@
+import { buildPatientRowSaveScopeKey } from '@/features/census/controllers/patientRowInputController';
 /**
  * SpecialtyCell - Wrapper component for the patient's specialty
  *
@@ -11,9 +12,8 @@ import clsx from 'clsx';
 import { Settings2, X } from 'lucide-react';
 import { SPECIALTY_OPTIONS } from '@/constants/clinicalSpecialtyConstants';
 import { DebouncedInput } from '@/components/ui/DebouncedInput';
-import { BaseCellProps, EventTextHandler } from './inputCellTypes';
+import { BaseCellProps, EventTextHandler, PatientRowSaveResult } from './inputCellTypes';
 import { useSpecialtyCellModel } from '@/features/census/components/patient-row/useSpecialtyCellModel';
-import { dispatchTextChangeValue } from '@/features/census/controllers/textChangeAdapterController';
 import { usePortalPopoverRuntime } from '@/hooks/usePortalPopoverRuntime';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
 import { resolveDeliveryRoutePopoverPosition } from '@/features/census/controllers/deliveryRoutePopoverController';
@@ -26,23 +26,30 @@ import {
 } from '@/shared/census/ginecobstetriciaClassification';
 import type { GinecobstetriciaType } from '@/features/census/contracts/censusObstetricContracts';
 import type { PatientData } from '@/features/census/components/patient-row/patientRowContracts';
+import { usePatientRowSaveState } from './usePatientRowSaveState';
+import { useFeatureFlag } from '@/hooks/useFeatureFlag';
 import { useClinicalFieldFreshnessPause } from './useClinicalFieldFreshnessPause';
 
 interface SpecialtyCellProps extends BaseCellProps {
   onChange: EventTextHandler;
-  onMultipleUpdate?: (fields: Partial<PatientData>) => void;
+  currentDateString?: string;
+  onMultipleUpdate?: (fields: Partial<PatientData>) => PatientRowSaveResult;
 }
 
 export const SpecialtyCell: React.FC<SpecialtyCellProps> = ({
   data,
+  currentDateString,
   isSubRow = false,
   isEmpty = false,
   readOnly = false,
   readOnlyReason,
   clinicalPause,
-  onChange,
   onMultipleUpdate,
 }) => {
+  const episodeMode = useFeatureFlag('SPECIALTY_EPISODE_ASSIGNMENT');
+  const saveState = usePatientRowSaveState(
+    buildPatientRowSaveScopeKey(currentDateString, data, data.bedId, isSubRow)
+  );
   const freshnessPause = useClinicalFieldFreshnessPause(clinicalPause);
   const GINECOB_WIDTH = 240;
   const { state, primaryLabel } = useSpecialtyCellModel({ data });
@@ -81,17 +88,20 @@ export const SpecialtyCell: React.FC<SpecialtyCellProps> = ({
     });
 
   const applyPrimarySpecialtyChange = useCallback(
-    (nextSpecialty: string) => {
+    async (nextSpecialty: string) => {
+      if (readOnly) return;
       const normalizedSpecialty = nextSpecialty.trim();
-
-      if (onMultipleUpdate) {
-        onMultipleUpdate({
-          ...buildPrimarySpecialtyPatch(normalizedSpecialty),
-          secondarySpecialty: undefined,
-        });
-      } else {
-        dispatchTextChangeValue(onChange, 'specialty', normalizedSpecialty);
-      }
+      const confirmed = await saveState.save(() =>
+        onMultipleUpdate?.(
+          episodeMode
+            ? { specialty: normalizedSpecialty as PatientData['specialty'] }
+            : {
+                ...buildPrimarySpecialtyPatch(normalizedSpecialty),
+                secondarySpecialty: undefined,
+              }
+        )
+      );
+      if (!confirmed) return;
 
       if (isGinecobstetriciaSpecialty(normalizedSpecialty)) {
         setIsSubtypeOpen(true);
@@ -103,7 +113,7 @@ export const SpecialtyCell: React.FC<SpecialtyCellProps> = ({
 
       setIsSubtypeOpen(false);
     },
-    [onChange, onMultipleUpdate, updateSubtypePosition]
+    [readOnly, saveState, episodeMode, onMultipleUpdate, updateSubtypePosition]
   );
 
   const handlePrimarySpecialtySelectChange = useCallback(
@@ -131,11 +141,16 @@ export const SpecialtyCell: React.FC<SpecialtyCellProps> = ({
   );
 
   const handleSubtypeSelect = useCallback(
-    (ginecobstetriciaType: GinecobstetriciaType) => {
-      onMultipleUpdate?.(buildGinecobstetriciaTypePatch(ginecobstetriciaType));
-      closeSubtypePopover();
+    async (ginecobstetriciaType: GinecobstetriciaType) => {
+      if (readOnly) return;
+      if (
+        await saveState.save(() =>
+          onMultipleUpdate?.(buildGinecobstetriciaTypePatch(ginecobstetriciaType))
+        )
+      )
+        closeSubtypePopover();
     },
-    [closeSubtypePopover, onMultipleUpdate]
+    [closeSubtypePopover, readOnly, saveState, onMultipleUpdate]
   );
 
   if (isEmpty && !isSubRow) {
@@ -166,7 +181,7 @@ export const SpecialtyCell: React.FC<SpecialtyCellProps> = ({
       >
         {/* Primary Specialty Container */}
         <div className="relative flex-1 flex items-center h-full min-w-0">
-          {isPrimaryOther || data.specialty === 'Otro' ? (
+          {!episodeMode && (isPrimaryOther || data.specialty === 'Otro') ? (
             <div className="relative flex-1 h-full flex items-center">
               <DebouncedInput
                 type="text"
@@ -174,7 +189,7 @@ export const SpecialtyCell: React.FC<SpecialtyCellProps> = ({
                 value={data.specialty === 'Otro' ? '' : data.specialty || ''}
                 onChange={handlePrimarySpecialtyTextChange}
                 placeholder="Esp"
-                disabled={readOnly}
+                disabled={readOnly || saveState.isSaving}
                 title={readOnlyReason}
               />
             </div>
@@ -188,7 +203,7 @@ export const SpecialtyCell: React.FC<SpecialtyCellProps> = ({
                 )}
                 value={data.specialty || ''}
                 onChange={handlePrimarySpecialtySelectChange}
-                disabled={readOnly}
+                disabled={readOnly || saveState.isSaving}
                 title={readOnlyReason}
               >
                 <option value="" className="text-slate-700">
@@ -223,6 +238,7 @@ export const SpecialtyCell: React.FC<SpecialtyCellProps> = ({
               ref={subtypeButtonRef}
               type="button"
               onClick={toggleSubtypePopover}
+              disabled={saveState.isSaving}
               className={clsx(
                 'absolute right-0.5 top-1/2 -translate-y-1/2 rounded-md border p-1 transition-colors z-10',
                 resolveGinecobstetriciaBadgeClassName()
@@ -236,6 +252,16 @@ export const SpecialtyCell: React.FC<SpecialtyCellProps> = ({
         </div>
       </div>
 
+      {saveState.isSaving && (
+        <span role="status" className="text-[10px] text-slate-500">
+          Guardando especialidad…
+        </span>
+      )}
+      {saveState.failed && (
+        <span role="alert" className="text-[10px] text-red-700">
+          No se pudo confirmar el cambio. Revisa el dato e inténtalo de nuevo.
+        </span>
+      )}
       {isSubtypePopoverVisible &&
         createPortal(
           <div
@@ -269,7 +295,8 @@ export const SpecialtyCell: React.FC<SpecialtyCellProps> = ({
                     <button
                       key={option}
                       type="button"
-                      onClick={() => handleSubtypeSelect(option)}
+                      onClick={() => void handleSubtypeSelect(option)}
+                      disabled={saveState.isSaving}
                       className={clsx(
                         'rounded-lg border px-2 py-2 text-[11px] font-bold transition-all',
                         data.ginecobstetriciaType === option

@@ -144,6 +144,8 @@ describeUiEmulator('UI sync flow with Firestore emulator', () => {
   });
 
   beforeEach(async () => {
+    // This UI fixture uses real legacy Firestore writes, without callable mocks.
+    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', 'client_only');
     vi.clearAllMocks();
     await testEnv.clearFirestore();
     await clearAllRecords();
@@ -172,6 +174,7 @@ describeUiEmulator('UI sync flow with Firestore emulator', () => {
       await Promise.resolve();
     });
     clearPendingDailyRecordPatchesForTests();
+    vi.unstubAllEnvs();
   });
 
   it('loads record from emulator and reflects remote updates via subscription', async () => {

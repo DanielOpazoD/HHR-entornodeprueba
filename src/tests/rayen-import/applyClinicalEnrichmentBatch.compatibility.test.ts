@@ -166,7 +166,7 @@ describe('applyClinicalEnrichmentBatch rolling compatibility', () => {
     ).rejects.toThrow('no confirmó paridad');
 
     expect(deps.applyPatch).not.toHaveBeenCalled();
-    expect(deps.refreshRecord).not.toHaveBeenCalled();
+    expect(deps.refreshRecord).toHaveBeenCalledTimes(1);
   });
 
   it('rejects a pre-parity response with incomplete counts', async () => {
@@ -186,6 +186,6 @@ describe('applyClinicalEnrichmentBatch rolling compatibility', () => {
       })
     ).rejects.toThrow('no confirmó paridad');
     expect(deps.applyPatch).not.toHaveBeenCalled();
-    expect(deps.refreshRecord).not.toHaveBeenCalled();
+    expect(deps.refreshRecord).toHaveBeenCalledTimes(1);
   });
 });
