@@ -102,16 +102,18 @@ service firebase.storage {
 
     match /user-avatars/{userId}/{fileName} {
       allow read: if isCurrentUser(userId);
-      allow write: if isCurrentUser(userId)
+      allow create, update: if isCurrentUser(userId)
                    && request.resource.size < 2 * 1024 * 1024
                    && request.resource.contentType.matches('image/.*');
+      allow delete: if isCurrentUser(userId);
     }
 
     match /clinical-attachments/{hospitalId}/{patientRutKey}/{episodeKey}/{attachmentId}/{fileName} {
       allow read: if canReadClinicalAttachments();
-      allow write: if canWriteClinicalAttachments()
+      allow create, update: if canWriteClinicalAttachments()
                       && request.resource.size < 15 * 1024 * 1024
                       && request.resource.contentType.matches('image/.*|application/pdf|application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      allow delete: if canWriteClinicalAttachments();
     }
 
     // Prescription-photo backup blobs are written and cleaned up only by
@@ -124,9 +126,10 @@ service firebase.storage {
     // Wound care: clinical photography and informed consent documents.
     match /wound-care/{allPaths=**} {
       allow read: if canReadClinicalStorage();
-      allow write: if hasClinicalWriteRole()
+      allow create, update: if hasClinicalWriteRole()
                       && request.resource.size < 15 * 1024 * 1024
                       && request.resource.contentType.matches('image/.*|application/pdf');
+      allow delete: if hasClinicalWriteRole();
     }
 
     // Default: deny all other access
