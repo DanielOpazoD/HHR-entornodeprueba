@@ -9,6 +9,27 @@ import { normalizeRut } from '@/utils/rutUtils';
 
 const episodeIdOf = (value: unknown): string => String(value ?? '').trim();
 
+/** An already recorded maternal alta can be completed, never duplicated or re-timed. */
+export const recordedMaternalDischarge = (record: DailyRecord, entry: DischargeEntry) => {
+  const episode = episodeIdOf(entry.encounterId ?? entry.source?.encounterId);
+  if (
+    !episode ||
+    entry.kind !== 'alta' ||
+    entry.status !== 'Vivo' ||
+    entry.reason !== 'administrative-discharge' ||
+    (entry.correctedDay && entry.correctedDay !== record.date.slice(0, 10))
+  )
+    return undefined;
+  const matches = record.discharges.filter(
+    row =>
+      !row.deletedAt &&
+      !row.isNested &&
+      row.status === 'Vivo' &&
+      episodeIdOf(row.clinicalEpisodeId ?? row.originalData?.clinicalEpisodeId) === episode
+  );
+  return matches.length === 1 ? matches[0] : undefined;
+};
+
 const samePrincipal = (
   patient: { clinicalEpisodeId?: string; rut?: string } | undefined,
   entry: DischargeEntry

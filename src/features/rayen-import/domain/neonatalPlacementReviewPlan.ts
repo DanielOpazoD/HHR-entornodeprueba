@@ -49,11 +49,30 @@ export const prepareNeonatalPlacementReviews = (
     }));
   const existingIndependent = candidates.flatMap(c => {
     const match = Object.entries(current.beds).find(
-      ([, p]) => p.clinicalEpisodeId === c.encounter.encounterId && p.bedMode === 'Cama'
+      ([, p]) =>
+        p.clinicalEpisodeId === c.encounter.encounterId &&
+        (p.bedMode === 'Cama' || p.bedMode === 'Cuna')
     );
+    const misplacedStandaloneCrib =
+      match?.[1].bedMode === 'Cuna' && c.maternalAssociationConflict === 'location-mismatch';
+    if (
+      misplacedStandaloneCrib &&
+      !diff.conflicts.some(
+        f => f.neonatalAssociationReview && f.source?.encounterId === c.encounter.encounterId
+      )
+    )
+      diff.conflicts.push({
+        bedId: match[0],
+        rut: match[1].rut,
+        patientName: match[1].patientName,
+        scope: 'clinical-crib',
+        neonatalAssociationReview: true,
+        source: c.encounter,
+        reason: `Eloísa: cuna C-${match[0]}. Madre: cama ${c.maternalAssociationBedId}. Confirma si el RN debe acompañar a su madre y actualiza Gestión de Camas.`,
+      });
     return c.originatedAsClinicalCrib &&
-      !c.mapped.isClinicalCrib &&
       match &&
+      ((!c.mapped.isClinicalCrib && match[1].bedMode === 'Cama') || misplacedStandaloneCrib) &&
       (!match[1].neonatalPlacementDecision ||
         diff.conflicts.some(
           f => f.neonatalAssociationReview && f.source?.encounterId === c.encounter.encounterId
@@ -62,7 +81,9 @@ export const prepareNeonatalPlacementReviews = (
           {
             episodeId: c.encounter.encounterId,
             existingBedId: match[0],
-            existingKind: 'independent' as const,
+            existingKind: misplacedStandaloneCrib
+              ? ('standalone-crib' as const)
+              : ('independent' as const),
             patient: mergeSyncablePatient(match[1], withClinicalCribDefaults(c.mapped.patient)),
             source: c.encounter,
             mothers,

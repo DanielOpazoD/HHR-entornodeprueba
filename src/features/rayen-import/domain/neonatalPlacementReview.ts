@@ -96,7 +96,7 @@ export const resolveNeonatalPlacements = (
       review.existingBedId &&
       !nestedParent &&
       (existing?.clinicalEpisodeId !== choice.episodeId ||
-        existing.bedMode !== 'Cama' ||
+        existing.bedMode !== (review.existingKind === 'standalone-crib' ? 'Cuna' : 'Cama') ||
         existing.isBlocked ||
         occupied(existing.clinicalCrib))
     )
@@ -253,6 +253,9 @@ export const resolveNeonatalPlacements = (
         patient: existing,
         source: review.source,
         changes: [
+          ...(existing.bedMode !== patient.bedMode
+            ? [{ field: 'bedMode' as const, from: existing.bedMode, to: patient.bedMode }]
+            : []),
           ...(carriesMaternalRun
             ? [
                 { field: 'rut' as const, from: existing.rut, to: '' },

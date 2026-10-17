@@ -28,6 +28,26 @@ Documentación de comportamientos automáticos y esperados del sistema HHR.
 
 Contrato y pruebas: [sincronización de censo](../src/features/rayen-import/README.md).
 
+## Identidad de controles y continuidad de los RN
+
+- Cada control clínico se identifica por su función, día y episodio del paciente. El diagnóstico
+  y el subtipo obstétrico tienen identidades diferentes incluso dentro de la misma celda; al cambiar
+  de día u ocupante no se acumulan controles anteriores. El diagnóstico guardado no se modifica
+  para corregir una repetición visual.
+- Una cuna se identifica como `C-R3`, `C-H2C2`, etc., también cuando el RN figura sin madre en
+  una fila propia. Esa presentación no cambia su clasificación ni su elegibilidad CUDYR.
+- Si una cuna independiente tiene una madre identificada en otra ubicación, la sincronización
+  solicita confirmar su ubicación y recuerda actualizar Gestión de Camas. La cama por sí sola
+  no identifica a la madre. Sin madre identificable se conserva la cuna independiente; una cama
+  hospitalaria propia del RN conserva su clasificación y exige confirmación para cambiarla.
+- Una decisión ya revisada no vuelve a preguntarse mientras la fuente mantenga la ubicación
+  aceptada, ni cuando Gestión de Camas finalmente coincida con ella. Un cambio posterior distinto
+  requiere nueva revisión.
+- Si el alta materna ya existe y falta el alta asociada del RN, una consulta completa que confirma
+  la ausencia de ese episodio permite completar solo el movimiento asociado. Se conserva el alta
+  materna con su fecha y hora; no se duplica ni aumenta el egreso estadístico por el RN en cuna.
+  Un RN activo, una consulta incompleta o una identidad ambigua impiden inferir esa salida.
+
 ## Profesionales descubiertos desde Eloísa
 
 La sincronización clínica y la revisión de Dotación registran automáticamente los autores

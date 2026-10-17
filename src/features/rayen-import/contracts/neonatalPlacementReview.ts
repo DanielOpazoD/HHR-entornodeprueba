@@ -4,7 +4,7 @@ import type { RayenEncounter } from './rayenSnapshot';
 export interface NeonatalPlacementReview {
   episodeId: string;
   existingBedId?: string;
-  existingKind?: 'mother' | 'independent';
+  existingKind?: 'mother' | 'independent' | 'standalone-crib';
   patient: PatientData;
   source: RayenEncounter;
   mothers: Array<{ bedId: string; episodeId: string; name: string; occupiedByEpisodeId?: string }>;
