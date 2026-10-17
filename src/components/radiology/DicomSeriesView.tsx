@@ -7,6 +7,7 @@ import type {
   DicomTool,
   DicomOrientation,
 } from '@/services/radiology/dicomRuntime';
+import { DicomAdvancedControls } from './DicomAdvancedControls';
 import { saveDicomPng } from '@/services/radiology/saveDicomPng';
 
 const labels = { original: ['Original'], mpr: ['Axial', 'Coronal', 'Sagital'], '3d': ['3D'] };
@@ -75,7 +76,7 @@ export const DicomSeriesView: React.FC<{
       .show(mode, targets)
       .then(() => {
         if (active) {
-          setActiveTool(mode === '3d' ? 'rotate' : 'window');
+          setActiveTool(mode === '3d' ? 'rotate' : mode === 'mpr' ? 'reference' : 'window');
           setActivePlane(0);
           setOrientations(runtime.orientations());
           setResampled(runtime.isResampled());
@@ -236,6 +237,20 @@ export const DicomSeriesView: React.FC<{
           </button>
         )}
       </div>
+      {runtime && (
+        <DicomAdvancedControls
+          key={mode}
+          runtime={runtime}
+          mode={mode}
+          modality={series.modality}
+          disabled={busy || Boolean(error)}
+          activeTool={activeTool}
+          chooseTool={tool => {
+            runtime.tool(tool);
+            setActiveTool(tool);
+          }}
+        />
+      )}
       {busy && (
         <div className="dicom-loading" role="status">
           {runtime ? 'Preparando vista…' : `Cargando imágenes · ${progress[0]}/${progress[1]}`}
@@ -330,8 +345,10 @@ export const DicomSeriesView: React.FC<{
       <div className="dicom-footer">
         <span>
           {mode === '3d'
-            ? 'Arrastrar para rotar'
-            : 'Rueda o flechas para recorrer · arrastrar para ajustar'}
+            ? 'Rotar, acercar y ajustar tejido · recorte reversible'
+            : mode === 'mpr' && activeTool === 'reference'
+              ? 'Pulsa un punto para localizarlo en los tres planos · rueda para recorrer · coordenadas LPS en mm'
+              : 'Rueda o flechas para recorrer · arrastrar para ajustar'}
         </span>
         {notice && <span role="status">{notice}</span>}
       </div>
