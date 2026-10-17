@@ -127,3 +127,34 @@ El planificador de notas anterior **no implementa** estos otros bloques. Antes
 de recuperarlos se requiere comparación, selección explícita, versiones exactas,
 cambio acotado, recibo, relectura y repetición sin duplicados. No se copia el
 documento del censo completo ni se recalcula el CUDYR saneado.
+
+## Checklist y novedades almacenadas
+
+```sh
+node scripts/migration/planHandoffContext.mjs < /ruta/privada/contexto.json
+npx vitest run src/tests/build/migrationHandoffContext.test.ts
+```
+
+La entrada contiene `source`, `target`, `dates` y `throughDate`, con la misma forma
+por fecha descrita arriba. Seleccionar entre uno y tres días históricos cerrados;
+`throughDate` es el último día autorizado. Debe ser anterior al día actual en
+Rapa Nui, obtenido del reloj del proceso; no se acepta un corte actual o futuro.
+El informe siempre registra selección, corte, día observado y huella del alcance,
+incluso cuando no existan candidatos. El reloj del operador debe ser correcto. Ambos documentos deben
+existir y declarar exactamente esa fecha. El ejecutor verifica además hospital,
+proyectos y versiones; esta herramienta offline no acredita esas comprobaciones.
+
+Propone únicamente casillas booleanas **ausentes** y próximas fechas de conteo
+válidas ausentes. Un `false`, `null` o texto vacío ya almacenado en una casilla se
+conserva para revisión; no se interpreta como ausencia. Las novedades generales se
+completan solo si el campo del mismo turno está ausente, nulo o en blanco. Se usa
+el texto almacenado; nunca el respaldo visual del otro turno. No se infieren
+cumplimiento, fechas, firmas ni autores. No incluye notas de pacientes, dotación,
+movimientos, datos clínicos ni CUDYR saneado.
+
+La salida pública del CLI contiene estados, cantidades, fechas y huellas, sin
+textos ni personal. Las propuestas completas permanecen en memoria y requieren
+relectura de las versiones exactas, comparación de los campos seleccionados,
+precondición de escritura, recibo y verificación posterior. No hay modo de
+aplicación ni conexión a Firebase. Repetir sobre datos ya completados no propone
+otra escritura. El estado del checklist CUDYR no modifica el informe oficial.
