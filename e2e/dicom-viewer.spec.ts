@@ -50,7 +50,10 @@ const study = {
 const setup = async (page: Page) => {
   const headers = fs.readFileSync('netlify.toml', 'utf8');
   const shellPolicy = headers.match(/for = "\/\*"[\s\S]*?Content-Security-Policy = "([^"]+)"/)?.[1];
-  if (!shellPolicy) throw new Error('Missing production CSP');
+  const workerPolicy = headers.match(
+    /for = "\/assets\/decodeImageFrameWorker-\*\.js"[\s\S]*?Content-Security-Policy = "([^"]+)"/
+  )?.[1];
+  if (!shellPolicy || !workerPolicy) throw new Error('Missing production CSP');
   await page.route('**/?date=*', async route => {
     const response = await route.fetch();
     await route.fulfill({
@@ -108,8 +111,7 @@ const setup = async (page: Page) => {
       response,
       headers: {
         ...response.headers(),
-        'content-security-policy':
-          "default-src 'none'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; connect-src 'self';",
+        'content-security-policy': workerPolicy,
       },
     });
   });

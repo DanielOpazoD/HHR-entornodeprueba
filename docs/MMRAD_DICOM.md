@@ -50,6 +50,9 @@ La autorización de WASM se limita a la respuesta del trabajador DICOM; la CSP d
 shell conserva su restricción contra evaluación de código.
 Los códecs fijados usan Emscripten/Embind y necesitan generar sus bindings JavaScript;
 `unsafe-eval` queda limitado a ese trabajador, sin acceso a red fuera del mismo origen.
+La regla del trabajador debe ir después de `/*`: la comprobación del CDN demostró
+que la regla general posterior sustituía su CSP. Verificar el encabezado efectivo
+del JavaScript publicado y la CSP estricta del HTML al cambiar el despliegue.
 
 ## Protocolo MMRAD y límites del servidor
 

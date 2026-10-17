@@ -35,7 +35,7 @@
   status = 200
 
 # JScanify/OpenCV is intentionally isolated to the document-scanner proof of concept.
-# Netlify uses the first matching header rule, so this must stay before the catch-all.
+# Scanner-specific header rules.
 [[headers]]
   for = "/documentos/escanear-demo*"
   [headers.values]
@@ -56,14 +56,6 @@
     Cache-Control = "no-cache"
     X-Content-Type-Options = "nosniff"
 
-# DICOM codecs execute only in their same-origin worker. Do not relax the SPA's script policy.
-[[headers]]
-  for = "/assets/decodeImageFrameWorker-*.js"
-  [headers.values]
-    # Pinned Emscripten/Embind codecs generate their JS bindings inside this worker only.
-    Content-Security-Policy = "default-src 'none'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; connect-src 'self';"
-    X-Content-Type-Options = "nosniff"
-
 [[headers]]
   for = "/*"
   [headers.values]
@@ -79,6 +71,15 @@
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=()"
     Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
+
+# Netlify applies overlapping header values in order: keep this override after /*.
+# DICOM codecs execute only in their same-origin worker; the SPA's policy stays strict.
+[[headers]]
+  for = "/assets/decodeImageFrameWorker-*.js"
+  [headers.values]
+    # Pinned Emscripten/Embind codecs generate their JS bindings inside this worker only.
+    Content-Security-Policy = "default-src 'none'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; connect-src 'self';"
+    X-Content-Type-Options = "nosniff"
 
 # The offline fallback is a legacy static page with inline script.
 # Keep the SPA shell strict, but relax CSP only for this isolated asset.
