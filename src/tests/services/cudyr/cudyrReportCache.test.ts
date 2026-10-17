@@ -57,7 +57,7 @@ it('retains a complete official projection with its packed canonical copy above 
   }));
   report.officialSnapshot = {
     version: 'verified-version',
-    savedAt: new Date().toISOString(),
+    savedAt: '2026-10-10T12:00:00.000Z',
     packed: 'A'.repeat(230000),
   };
   expect(JSON.stringify(report).length).toBeGreaterThan(2_000_000);

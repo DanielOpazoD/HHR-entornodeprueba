@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexedDBService';
 
 vi.mock('firebase/firestore', async importOriginal => {
@@ -133,3 +133,7 @@ describe('storage/sync authority contract', () => {
     expect(writtenRecord.lastUpdated).toBe('2025-01-16T10:00:10.000Z');
   });
 });
+
+// This fixture exercises the legacy setDoc contract; callable acknowledgement has its own suite.
+beforeEach(() => vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', 'client_only'));
+afterEach(() => vi.unstubAllEnvs());

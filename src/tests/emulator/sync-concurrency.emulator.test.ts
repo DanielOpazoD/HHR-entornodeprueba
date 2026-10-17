@@ -1,6 +1,6 @@
 /* @flake-safe: Date usage aligns emulator write-window assertions with current execution time. */
 import 'fake-indexeddb/auto';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RulesTestEnvironment, initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -134,12 +134,15 @@ describeEmulator('Firestore emulator sync concurrency flow', () => {
   });
 
   beforeEach(async () => {
+    // This suite exercises real legacy Firestore writes, not callable transport.
+    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', 'client_only');
     await testEnv.clearFirestore();
     await clearAllRecords();
     await clearAllSyncQueue();
     setFirestoreEnabled(true);
     activeDb = nurseDb;
   });
+  afterEach(() => vi.unstubAllEnvs());
 
   afterAll(async () => {
     await testEnv.cleanup();

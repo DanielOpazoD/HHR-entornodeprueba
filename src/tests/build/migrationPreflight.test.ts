@@ -1,4 +1,6 @@
 // @vitest-environment node
+// @flake-safe: the child CLI uses the real clock; freshness has a full-day margin,
+// while boundary cases above use a fixed clock. No timing or latency assertion.
 import { describe, expect, it } from 'vitest';
 import { spawnSync } from 'node:child_process';
 import { assessMigrationPreflight } from '../../../scripts/migration/cutoverPreflight.mjs';

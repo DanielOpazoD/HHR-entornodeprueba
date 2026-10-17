@@ -55,14 +55,15 @@
 
         match /items/{templateId} {
           allow read: if isCurrentUser(userId);
-          allow create, update, delete: if isCurrentUser(userId) &&
+          allow create, update: if isCurrentUser(userId) &&
             request.resource.data.userId == userId;
+          allow delete: if isCurrentUser(userId);
         }
       }
 
       match /medicalIndicationRecords/{recordId} {
         allow read: if canReadClinicalData();
-        allow create: if isValidMedicalIndicationRecordCreate();
+        allow create: if isValidMedicalIndicationRecordCreate(recordId);
         allow update, delete: if false;
       }
 
@@ -107,7 +108,7 @@
       match /prescriptions/{prescriptionId} {
         allow read: if canReadClinicalData();
         allow create: if false;
-        allow update: if canEdit();
+        allow update: if canUpdatePrescription();
         allow delete: if canEdit();
       }
       
