@@ -5,6 +5,7 @@ import type { DicomStudy } from '@/services/radiology/dicomTypes';
 import type { DicomViewerDialogProps } from './DicomViewerDialog';
 import { DicomSeriesView } from './DicomSeriesView';
 import './dicomViewer.css';
+import './dicomProgressive.css';
 
 const DicomViewerSession: React.FC<DicomViewerDialogProps> = ({
   link,
@@ -39,7 +40,14 @@ const DicomViewerSession: React.FC<DicomViewerDialogProps> = ({
       onKeyDown={event => {
         if (event.key !== 'Escape') return;
         const panel = event.currentTarget.querySelector<HTMLDetailsElement>('details[open]');
-        if (!panel) return;
+        if (!panel) {
+          if (document.fullscreenElement === event.currentTarget.closest('.dicom-dialog')) {
+            event.preventDefault();
+            event.stopPropagation();
+            void document.exitFullscreen().catch(() => undefined);
+          }
+          return;
+        }
         event.preventDefault();
         event.stopPropagation();
         panel.open = false;

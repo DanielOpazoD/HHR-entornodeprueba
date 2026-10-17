@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Camera, Download, Hand, Minus, Plus, RotateCcw, Scan, ZoomIn } from 'lucide-react';
+import { Camera, Download, Hand, RotateCcw, Scan, ZoomIn } from 'lucide-react';
 import type { DicomCapture, DicomSeries, DicomStudy } from '@/services/radiology/dicomTypes';
 import type {
   DicomMode,
@@ -8,9 +8,12 @@ import type {
   DicomOrientation,
 } from '@/services/radiology/dicomRuntime';
 import { DicomAdvancedControls } from './DicomAdvancedControls';
+import { DicomLoadControls } from './DicomLoadControls';
+import { DicomViewportGrid, dicomPlaneLabels as labels } from './DicomViewportGrid';
+import { DicomFullscreenButton } from './DicomFullscreenButton';
+import type { DicomStackState } from '@/services/radiology/dicomProgressiveStack';
 import { saveDicomPng } from '@/services/radiology/saveDicomPng';
 
-const labels = { original: ['Original'], mpr: ['Axial', 'Coronal', 'Sagital'], '3d': ['3D'] };
 export const DicomSeriesView: React.FC<{
   study: DicomStudy;
   series: DicomSeries;
@@ -21,6 +24,9 @@ export const DicomSeriesView: React.FC<{
   const [mode, setMode] = useState<DicomMode>('original');
   const [activeTool, setActiveTool] = useState<DicomTool>('window');
   const [activePlane, setActivePlane] = useState(0);
+  const [expanded, setExpanded] = useState<number | null>(null);
+  const [complete, setComplete] = useState(false);
+  const [stackState, setStackState] = useState<DicomStackState | null>(null);
   const [orientations, setOrientations] = useState<DicomOrientation[]>([]);
   const [progress, setProgress] = useState([0, series.instances.length]);
   const [error, setError] = useState('');
@@ -31,7 +37,13 @@ export const DicomSeriesView: React.FC<{
   const elements = useRef<Array<HTMLDivElement | null>>([]);
   const alive = useRef(true);
   const captureSequence = useRef(0);
-  const captureContext = JSON.stringify([mode, activePlane]);
+  const captureContext = JSON.stringify([
+    mode,
+    activePlane,
+    stackState?.current,
+    stackState?.requested,
+    stackState?.pending,
+  ]);
   const latestCaptureContext = useRef(captureContext);
   latestCaptureContext.current = captureContext;
   useEffect(() => {
@@ -47,7 +59,21 @@ export const DicomSeriesView: React.FC<{
       .then(value => {
         current = value;
         if (controller.signal.aborted) value.dispose();
-        else setRuntime(value);
+        else {
+          setRuntime(value);
+          void value.completion
+            .then(() => {
+              if (!controller.signal.aborted) setComplete(true);
+            })
+            .catch(reason => {
+              if (!controller.signal.aborted) {
+                setError(
+                  reason instanceof Error ? reason.message : 'No se pudo completar la serie.'
+                );
+                setBusy(false);
+              }
+            });
+        }
       })
       .catch((reason: unknown) => {
         if (!controller.signal.aborted) {
@@ -94,10 +120,21 @@ export const DicomSeriesView: React.FC<{
     };
   }, [runtime, mode]);
 
+  useEffect(
+    () =>
+      runtime?.onStack(state => {
+        setStackState(state);
+        if (state.error) setError(state.error);
+        if (!state.pending) setOrientations(runtime.orientations());
+      }),
+    [runtime]
+  );
+  const waitingForSlice = mode === 'original' && Boolean(stackState?.pending);
   const capture = async (): Promise<DicomCapture> => {
     if (!alive.current || latestCaptureContext.current !== captureContext)
       throw new DOMException('Captura cancelada', 'AbortError');
-    if (!runtime || busy || error) throw new Error('Espera a que termine de cargar la vista.');
+    if (!runtime || busy || error || waitingForSlice)
+      throw new Error('Espera a que termine de cargar la vista.');
     const sequence = ++captureSequence.current;
     const image = await runtime.capture(activePlane);
     if (
@@ -134,12 +171,13 @@ export const DicomSeriesView: React.FC<{
             <button
               key={value}
               type="button"
-              disabled={!runtime || busy || (value !== 'original' && !volumetric)}
+              disabled={!runtime || busy || (value !== 'original' && (!volumetric || !complete))}
               aria-pressed={mode === value}
               onClick={() => {
                 if (mode === value) return;
                 captureSequence.current++;
                 setBusy(true);
+                setExpanded(null);
                 setMode(value);
               }}
             >
@@ -161,7 +199,9 @@ export const DicomSeriesView: React.FC<{
               aria-label={tool.label}
               title={tool.label}
               aria-pressed={activeTool === tool.id}
-              disabled={!runtime || busy || (mode === '3d' && tool.id === 'window')}
+              disabled={
+                !runtime || busy || waitingForSlice || (mode === '3d' && tool.id === 'window')
+              }
               onClick={() => {
                 runtime?.tool(tool.id);
                 setActiveTool(tool.id);
@@ -176,7 +216,7 @@ export const DicomSeriesView: React.FC<{
               aria-label="Rotar 3D"
               title="Rotar 3D"
               aria-pressed={activeTool === 'rotate'}
-              disabled={!runtime || busy}
+              disabled={!runtime || busy || waitingForSlice}
               onClick={() => {
                 runtime?.tool('rotate');
                 setActiveTool('rotate');
@@ -189,7 +229,7 @@ export const DicomSeriesView: React.FC<{
             type="button"
             title="Restablecer vista"
             aria-label="Restablecer vista"
-            disabled={!runtime || busy}
+            disabled={!runtime || busy || waitingForSlice}
             onClick={() => runtime?.reset()}
           >
             <RotateCcw size={16} />
@@ -198,7 +238,9 @@ export const DicomSeriesView: React.FC<{
         <select
           aria-label="Ventana predefinida"
           defaultValue=""
-          disabled={!runtime || busy || mode === '3d' || series.modality !== 'CT'}
+          disabled={
+            !runtime || busy || waitingForSlice || mode === '3d' || series.modality !== 'CT'
+          }
           onChange={event => {
             const [width, center] = event.target.value.split(',').map(Number);
             if (width) runtime?.window(width, center);
@@ -213,11 +255,12 @@ export const DicomSeriesView: React.FC<{
           <option value="80,40">Cerebro</option>
         </select>
         <span className="dicom-toolbar-spacer" />
+        <DicomFullscreenButton />
         <button
           type="button"
           aria-label="PNG"
           title="Descargar PNG"
-          disabled={!runtime || busy || Boolean(error)}
+          disabled={!runtime || busy || waitingForSlice || Boolean(error)}
           onClick={() => void act(() => saveDicomPng(capture))}
         >
           <Download size={15} />
@@ -228,7 +271,7 @@ export const DicomSeriesView: React.FC<{
             type="button"
             aria-label="Añadir al informe"
             title="Añadir al informe"
-            disabled={!runtime || busy || Boolean(error)}
+            disabled={!runtime || busy || waitingForSlice || Boolean(error)}
             onClick={() =>
               void act(async () => {
                 onCapture(await capture());
@@ -247,7 +290,7 @@ export const DicomSeriesView: React.FC<{
           runtime={runtime}
           mode={mode}
           modality={series.modality}
-          disabled={busy || Boolean(error)}
+          disabled={busy || waitingForSlice || Boolean(error)}
           activeTool={activeTool}
           chooseTool={tool => {
             runtime.tool(tool);
@@ -285,67 +328,26 @@ export const DicomSeriesView: React.FC<{
           )}
         </p>
       )}
-      <div className={`dicom-grid dicom-grid--${mode}`} aria-busy={busy}>
-        {labels[mode].map((label, index) => (
-          <div className="dicom-pane" key={`${mode}-${index}`} data-active={index === activePlane}>
-            {!busy && !error && orientations[index] && (
-              <div className="dicom-orientation" aria-hidden="true">
-                {(['top', 'right', 'bottom', 'left'] as const).map(edge => (
-                  <span key={edge} className={`dicom-edge-${edge}`}>
-                    {orientations[index][edge]}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            <button
-              type="button"
-              className="dicom-plane"
-              aria-pressed={index === activePlane}
-              onClick={() => setActivePlane(index)}
-            >
-              {label}
-            </button>
-            <div
-              className="dicom-canvas"
-              ref={element => {
-                elements.current[index] = element;
-              }}
-              tabIndex={0}
-              role="img"
-              aria-label={`${label} · ${title}`}
-              onPointerDown={() => setActivePlane(index)}
-              onContextMenu={event => event.preventDefault()}
-              onKeyDown={event => {
-                if ((event.key === 'ArrowUp' || event.key === 'ArrowDown') && !busy) {
-                  event.preventDefault();
-                  runtime?.step(index, event.key === 'ArrowUp' ? -1 : 1);
-                }
-              }}
-            />
-            {mode !== '3d' && (
-              <div className="dicom-scroll-controls">
-                <button
-                  type="button"
-                  aria-label={`Corte anterior ${label}`}
-                  disabled={!runtime || busy}
-                  onClick={() => runtime?.step(index, -1)}
-                >
-                  <Minus size={14} />
-                </button>
-                <button
-                  type="button"
-                  aria-label={`Corte siguiente ${label}`}
-                  disabled={!runtime || busy}
-                  onClick={() => runtime?.step(index, 1)}
-                >
-                  <Plus size={14} />
-                </button>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+      <DicomLoadControls
+        progress={progress}
+        state={mode === 'original' ? stackState : null}
+        disabled={!runtime || busy || Boolean(error)}
+        select={index => runtime?.select(index)}
+      />
+      <DicomViewportGrid
+        mode={mode}
+        title={title}
+        busy={busy}
+        error={error}
+        pending={waitingForSlice}
+        activePlane={activePlane}
+        expanded={expanded}
+        orientations={orientations}
+        runtime={runtime}
+        elements={elements}
+        activate={setActivePlane}
+        expand={setExpanded}
+      />
       <div className="dicom-footer">
         <span>
           {mode === '3d'

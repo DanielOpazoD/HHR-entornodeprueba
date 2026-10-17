@@ -146,6 +146,61 @@ const openSalvador = async (page: Page, manual = false) => {
 test.describe('DICOM viewer and Salvador annexes', () => {
   test.setTimeout(150000);
   test.use({ viewport: { width: 1440, height: 1000 } });
+  test('shows verified cuts progressively and prioritizes navigation before the volume is complete', async ({
+    page,
+  }) => {
+    await setup(page);
+    const waiting = new Map<number, () => void>();
+    const requested: number[] = [];
+    let releaseAll = false;
+    await page.route('**/.netlify/functions/mmrad-dicom', async route => {
+      const body = route.request().postDataJSON();
+      if (body.action === 'metadata') return route.fallback();
+      const index = Number(String(body.ticket).split('-')[1]);
+      requested.push(index);
+      if (index !== 12 && index !== 23 && !releaseAll)
+        await new Promise<void>(resolve => waiting.set(index, resolve));
+      await route.fulfill({
+        contentType: 'application/dicom',
+        body: Buffer.from(syntheticDicom(index, 24)),
+      });
+    });
+    try {
+      const editor = await openSalvador(page);
+      await editor.getByRole('button', { name: 'Imágenes MMRAD' }).click();
+      await page.getByRole('button', { name: 'Ver DICOM', exact: true }).click();
+      const viewer = page.getByRole('dialog', { name: /Visor DICOM/ });
+      await expect(viewer.getByRole('button', { name: 'PNG', exact: true })).toBeEnabled({
+        timeout: 60000,
+      });
+      await expect(viewer.getByLabel('Estado del corte')).toHaveText('13/24');
+      await expect(viewer.getByRole('button', { name: 'MPR', exact: true })).toBeDisabled();
+      await expect(viewer.getByRole('button', { name: '3D', exact: true })).toBeDisabled();
+      expect(requested.length).toBeLessThan(24);
+      await viewer.getByLabel('Corte solicitado').fill('24');
+      await expect(viewer.getByLabel('Estado del corte')).toContainText('Cargando 24/24');
+      await expect(viewer.getByRole('button', { name: 'PNG', exact: true })).toBeDisabled();
+      await expect(viewer.getByLabel('Ventana predefinida')).toBeDisabled();
+      await expect(
+        viewer.getByRole('button', { name: 'Restablecer vista', exact: true })
+      ).toBeDisabled();
+      await expect.poll(() => waiting.has(11)).toBe(true);
+      const offset = requested.length;
+      waiting.get(11)!();
+      await expect(viewer.getByLabel('Estado del corte')).toHaveText('24/24');
+      expect(requested[offset]).toBe(23);
+      await expect(viewer.getByRole('button', { name: 'PNG', exact: true })).toBeEnabled();
+      releaseAll = true;
+      waiting.forEach(resolve => resolve());
+      await expect(viewer.getByRole('button', { name: 'MPR', exact: true })).toBeEnabled({
+        timeout: 60000,
+      });
+      await expect(viewer.getByLabel('Descarga de la serie')).toHaveAttribute('value', '24');
+    } finally {
+      releaseAll = true;
+      waiting.forEach(resolve => resolve());
+    }
+  });
   test('links MPR coordinates and renders reversible 3D tissue controls', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await setup(page);
@@ -191,6 +246,20 @@ test.describe('DICOM viewer and Salvador annexes', () => {
     await expect(coordinates).toContainText('mm');
     const initial = await coordinates.textContent();
     const originalPlanes = await hashes();
+    await viewer.getByRole('button', { name: 'Ampliar Coronal', exact: true }).click();
+    await expect(viewer.getByRole('button', { name: 'Axial', exact: true })).not.toBeVisible();
+    await expect(viewer.getByRole('button', { name: 'Coronal', exact: true })).toBeVisible();
+    const expandedBox = (await viewer.locator('.dicom-pane[data-expanded="true"]').boundingBox())!;
+    expect(expandedBox.width).toBeGreaterThan(imageArea.width * 0.95);
+    await expect(coordinates).toHaveText(initial!);
+    await viewer.getByRole('button', { name: 'Volver a los tres planos' }).click();
+    await expect(viewer.getByRole('button', { name: 'Axial', exact: true })).toBeVisible();
+    await viewer.getByRole('button', { name: 'Pantalla completa', exact: true }).click();
+    await expect.poll(() => page.evaluate(() => !!document.fullscreenElement)).toBe(true);
+    await viewer.getByRole('button', { name: 'Salir de pantalla completa' }).click();
+    await expect.poll(() => page.evaluate(() => !!document.fullscreenElement)).toBe(false);
+    await expect(viewer).toBeVisible();
+
     const axial = viewer.locator('.dicom-canvas').nth(0);
     const box = (await axial.boundingBox())!;
     await axial.click({ position: { x: box.width * 0.58, y: box.height * 0.56 } });
