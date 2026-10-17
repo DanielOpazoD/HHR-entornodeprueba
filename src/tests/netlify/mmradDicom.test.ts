@@ -49,6 +49,7 @@ describe('protected MMRAD DICOM bridge', () => {
   beforeEach(() => {
     vi.stubEnv('MMRAD_PASSWORD', 'synthetic-test-secret');
     vi.stubEnv('URL', 'https://app.example.com');
+    vi.stubEnv('SITE_NAME', '');
     vi.clearAllMocks();
     authorize.mockResolvedValue({ token: { sub: 'synthetic-user' }, role: 'doctor_urgency' });
   });
@@ -112,6 +113,37 @@ describe('protected MMRAD DICOM bridge', () => {
     expect(() =>
       normalizeVendorStudy(syntheticVendorStudy(), SYNTHETIC_STUDY_UID, '', 'synthetic-user')
     ).toThrow('paciente');
+  });
+
+  it('allows its deployed preview while retaining authentication, roles and patient checks', async () => {
+    vi.stubEnv('SITE_NAME', 'synthetic-hhr');
+    vi.stubEnv('DEPLOY_PRIME_URL', '');
+    vi.stubEnv('DEPLOY_URL', '');
+    const origin = 'https://deploy-preview-874--synthetic-hhr.netlify.app';
+    const run = handler();
+    const headers = { origin, authorization: 'Bearer synthetic-token' };
+    expect((await run(event({}, { headers: { origin } }))).statusCode).toBe(401);
+    expect(authorize).not.toHaveBeenCalled();
+    authorize.mockRejectedValueOnce(new Error('Access denied'));
+    expect((await run(event({}, { headers }))).statusCode).toBe(403);
+    expect(loadMetadata).not.toHaveBeenCalled();
+
+    loadMetadata.mockResolvedValue({ uid: SYNTHETIC_STUDY_UID, metadata: syntheticVendorStudy(3) });
+    const response = await run(
+      event(
+        {
+          action: 'metadata',
+          link: 'https://ris.mmrad.cl/exam/synthetic',
+          patientId: '11.111.111-1',
+        },
+        { headers }
+      )
+    );
+    expect(response.statusCode).toBe(200);
+    const responseHeaders = response.headers as Record<string, string>;
+    expect(responseHeaders['Access-Control-Allow-Origin']).toBe(origin);
+    expect(responseHeaders['Cache-Control']).toBe('no-store');
+    expect(JSON.parse(response.body).patientId).toBe('111111111');
   });
 
   it('rejects modified, expired and cross-user capabilities before making an image request', async () => {

@@ -26,6 +26,7 @@ describe('http utilities', () => {
       DEPLOY_URL: '',
       SITE_URL: '',
       APP_URL: '',
+      SITE_NAME: '',
     };
   });
 
@@ -99,6 +100,42 @@ describe('http utilities', () => {
   describe('isOriginAllowed', () => {
     it('returns true for an allowed origin', () => {
       expect(isOriginAllowed('https://app.example.com')).toBe(true);
+    });
+
+    it('accepts this site deploy previews without build-only environment variables', () => {
+      process.env.SITE_NAME = 'synthetic-hhr';
+      delete process.env.DEPLOY_PRIME_URL;
+      delete process.env.DEPLOY_URL;
+      for (const number of [1, 874, 1000, 1001]) {
+        const origin = `https://deploy-preview-${number}--synthetic-hhr.netlify.app`;
+        expect(isOriginAllowed(origin)).toBe(true);
+        expect(buildCorsHeaders(origin)['Access-Control-Allow-Origin']).toBe(origin);
+      }
+    });
+
+    it('requires the server-provided site identity to accept a preview', () => {
+      delete process.env.SITE_NAME;
+      expect(isOriginAllowed('https://deploy-preview-874--synthetic-hhr.netlify.app')).toBe(false);
+    });
+
+    it.each([
+      'https://deploy-preview-874--other-site.netlify.app',
+      'https://deploy-preview-874--synthetic-hhr-evil.netlify.app',
+      'https://deploy-preview-874--synthetic-hhr.netlify.app.evil.example',
+      'http://deploy-preview-874--synthetic-hhr.netlify.app',
+      'https://deploy-preview-874--synthetic-hhr.netlify.app:444',
+      'https://deploy-preview-874--synthetic-hhr.netlify.app/path',
+      'https://deploy-preview-874--synthetic-hhr.netlify.app?query=1',
+      'https://deploy-preview-874--synthetic-hhr.netlify.app#fragment',
+      'https://deploy-preview-874--synthetic-hhr.netlify.app\n',
+      'https://user@deploy-preview-874--synthetic-hhr.netlify.app',
+      'https://feature--synthetic-hhr.netlify.app',
+      'https://deploy-preview-0--synthetic-hhr.netlify.app',
+      'null',
+    ])('rejects foreign or malformed preview origins: %s', origin => {
+      process.env.SITE_NAME = 'synthetic-hhr';
+      expect(isOriginAllowed(origin)).toBe(false);
+      expect(buildCorsHeaders(origin)['Access-Control-Allow-Origin']).toBeUndefined();
     });
 
     it('returns true for loopback origins while local function development is enabled', () => {

@@ -38,6 +38,25 @@ Si la change toca reglas generadas o documentación operativa, correr además:
 
 ## Gates activos
 
+### Functions: preview rechazado por origen
+
+Un POST del visor MMRAD puede devolver `403 Origin not allowed` aunque la página
+y la sesión carguen. `DEPLOY_PRIME_URL` y `DEPLOY_URL` pertenecen al build; no
+están garantizadas en el runtime de Functions. El helper HTTP acepta los orígenes
+explícitos y los previews HTTPS `deploy-preview-<n>--<SITE_NAME>.netlify.app`,
+con el nombre reservado que Netlify proporciona al servidor. No admite previews
+de otros sitios, URLs con ruta/puerto/credenciales ni subdominios arbitrarios.
+La autenticación Firebase y los roles siguen siendo obligatorios en cada handler.
+
+Owner: plataforma Netlify. Regresión: `http.test.ts` y `mmradDicom.test.ts`.
+Validar también el endpoint desplegado: OPTIONS desde su preview debe responder
+200 con el origen exacto; POST sin sesión, 401; origen ajeno, 403 sin permiso CORS.
+Estas pruebas no consultan pacientes. El smoke del visor con respuestas simuladas
+no acredita la configuración del backend desplegado. Rollback: revertir el helper
+y sus pruebas; no cambiar credenciales ni reglas Firebase.
+
+Referencia: [variables disponibles en Functions](https://docs.netlify.com/build/functions/environment-variables/#netlify-read-only-variables).
+
 Los fixtures de autenticación E2E esperan una superficie visible de login o el
 menú `authenticated-user-menu-button` después de `domcontentloaded`. No esperan `networkidle`:
 las conexiones de Firestore pueden seguir abiertas con la aplicación lista.

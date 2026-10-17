@@ -86,6 +86,9 @@ identificadores clínicos en la URL de la Function. El acceso exige el mismo Bea
 y rol en cada petición. Se usa el secreto MMRAD existente con separación de dominio
 para firmar capacidades; no se requiere otra variable de despliegue.
 
+Para un `403 Origin not allowed` en un Deploy Preview, aplicar el
+[runbook de orígenes de Functions](CI_GATES_AND_FAILURE_RUNBOOKS.md#functions-preview-rechazado-por-origen).
+
 El servidor limita a 3,5 MB cada original para respetar el máximo de respuesta
 serverless, a 100 series/8000 instancias los metadatos y a 25 s su consulta. Las
 cuotas de metadatos (10/min) e imágenes (1500/min) son independientes de la búsqueda
