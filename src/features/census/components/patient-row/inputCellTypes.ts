@@ -43,6 +43,8 @@ export interface ClinicalFieldFreshnessPause {
 /**
  * Handler for text field changes - adapts debounced value to event-based API
  */
+export type PatientRowSaveResult = boolean | void | Promise<boolean | void>;
+
 export type DebouncedTextHandler = (field: PatientRowPatientField) => (value: string) => void;
 
 /**
@@ -63,7 +65,7 @@ export type CheckHandler = (
  * Props for components that need multiple field updates atomically
  */
 export interface MultipleUpdateProps {
-  onMultipleUpdate?: (fields: PatientRowPatientPatch) => void;
+  onMultipleUpdate?: (fields: PatientRowPatientPatch) => PatientRowSaveResult;
 }
 
 /**
@@ -83,7 +85,7 @@ export interface PatientInputChangeHandlers {
     date: string | undefined,
     cesareanLabor: CesareanLabor | undefined
   ) => void;
-  multiple?: (fields: PatientRowPatientPatch) => void;
+  multiple?: (fields: PatientRowPatientPatch) => PatientRowSaveResult;
 }
 
 export interface MainPatientInputChangeHandlers extends Omit<
@@ -96,12 +98,12 @@ export interface MainPatientInputChangeHandlers extends Omit<
     date: string | undefined,
     cesareanLabor: CesareanLabor | undefined
   ) => void;
-  multiple: (fields: PatientRowPatientPatch) => void;
+  multiple: (fields: PatientRowPatientPatch) => PatientRowSaveResult;
 }
 
 export interface ClinicalCribInputChangeHandlers extends Omit<
   PatientInputChangeHandlers,
   'toggleDocType' | 'deliveryRoute'
 > {
-  multiple: (fields: PatientRowPatientPatch) => void;
+  multiple: (fields: PatientRowPatientPatch) => PatientRowSaveResult;
 }

@@ -1,3 +1,4 @@
+import { buildPatientRowSaveScopeKey } from '@/features/census/controllers/patientRowInputController';
 /**
  * PatientIdentityCell - Celda única de identidad del paciente (rediseño censo 2026)
  *
@@ -35,7 +36,7 @@ import { ClinicalPanelTrigger } from './ClinicalPanelTrigger';
 import { PatientLaboratoryTrigger } from './PatientLaboratoryTrigger';
 import { PatientRadiologyTrigger } from './PatientRadiologyTrigger';
 import { SpecialtyChip } from './SpecialtyChip';
-import type { BaseCellProps, DebouncedTextHandler } from './inputCellTypes';
+import type { BaseCellProps, DebouncedTextHandler, PatientRowSaveResult } from './inputCellTypes';
 import type { PatientRowPatientPatch } from './patientRowContracts';
 
 /** Admission date as "DD-MM-YYYY" for the FI (fecha de ingreso) tag under the name. */
@@ -57,7 +58,7 @@ interface PatientIdentityCellProps extends BaseCellProps {
   parentBedId?: string;
   hasRutError: boolean;
   onNameChange: DebouncedTextHandler;
-  onMultipleUpdate?: (fields: PatientRowPatientPatch) => void;
+  onMultipleUpdate?: (fields: PatientRowPatientPatch) => PatientRowSaveResult;
   physicianReadOnly?: boolean;
   onOpenDemographics: () => void;
 }
@@ -105,8 +106,6 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
       ? 'Hora no informada'
       : `${String(Math.floor(admissionMinutes / 60)).padStart(2, '0')}:${String(admissionMinutes % 60).padStart(2, '0')}`;
   const admissionDetail = `Ingreso: ${admissionShort} · ${admissionTime} (Rapa Nui)`;
-  // Especialidad como etiqueta de texto (rediseño 2026): ya no tiene columna propia; se muestra
-  // junto a la fecha de ingreso y se edita desde el editor de Diagnóstico.
   const specialtyLabel = (data.specialty || '').trim();
   const specialtyScopeBedId = isSubRow ? parentBedId : data.bedId;
   const matchedPhysician = findProfessionalByRayenIdentity(
@@ -121,7 +120,8 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
         data.treatingPhysicianId,
         data.treatingPhysicianName
       );
-  const handleSpecialtyAssign = onNameChange('specialty');
+  const handleSpecialtyAssign = (value: string) =>
+    onMultipleUpdate?.({ specialty: value as PatientRowPatientPatch['specialty'] });
 
   useEffect(() => {
     if (copyFeedback !== 'copied') {
@@ -306,6 +306,18 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
             <span className="flex min-w-0 items-center gap-1">
               {(hasRutValue || admissionShort) && <span className="text-slate-300">/</span>}
               <SpecialtyChip
+                key={buildPatientRowSaveScopeKey(
+                  currentDateString,
+                  data,
+                  specialtyScopeBedId,
+                  isSubRow
+                )}
+                saveScopeKey={buildPatientRowSaveScopeKey(
+                  currentDateString,
+                  data,
+                  specialtyScopeBedId,
+                  isSubRow
+                )}
                 censusDate={currentDateString}
                 specialty={specialtyLabel}
                 decision={data.specialtyAssignment}

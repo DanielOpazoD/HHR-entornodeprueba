@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/hooks/useFeatureFlag', () => ({
@@ -137,8 +137,8 @@ describe('SpecialtyChip', () => {
     expect(trigger).toHaveFocus();
   });
 
-  it('restores focus after a manual specialty choice', () => {
-    const onAssign = vi.fn();
+  it('restores focus after a confirmed manual specialty choice', async () => {
+    const onAssign = vi.fn().mockResolvedValue(true);
     render(<SpecialtyChip specialty="" onAssign={onAssign} scope={scope} />);
     const trigger = screen.getByTitle('Asignar especialidad');
     fireEvent.click(trigger);
@@ -146,7 +146,87 @@ describe('SpecialtyChip', () => {
     choice.focus();
     fireEvent.click(choice);
     expect(onAssign).toHaveBeenCalledWith('Cirugía');
-    expect(screen.queryByRole('dialog', { name: 'Asignar especialidad' })).toBeNull();
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Asignar especialidad' })).toBeNull()
+    );
     expect(trigger).toHaveFocus();
+  });
+  it('holds only its own selector pending and rejects rapid duplicate clicks', async () => {
+    let complete!: (saved: boolean) => void;
+    const onAssign = vi.fn(
+      () =>
+        new Promise<boolean>(resolve => {
+          complete = resolve;
+        })
+    );
+    render(
+      <>
+        <SpecialtyChip specialty="Med Interna" onAssign={onAssign} scope={scope} />
+        <SpecialtyChip
+          specialty="Pediatría"
+          onAssign={vi.fn()}
+          scope={{ ...scope, bedId: 'R2', episodeId: 'episode-2' }}
+        />
+      </>
+    );
+    const trigger = screen.getByTitle('Especialidad: Med Interna');
+    fireEvent.click(trigger);
+    const choice = screen.getByRole('button', { name: 'Cirugía' });
+    fireEvent.click(choice);
+    fireEvent.click(choice);
+    expect(onAssign).toHaveBeenCalledTimes(1);
+    expect(trigger).toBeDisabled();
+    expect(choice).toBeDisabled();
+    expect(screen.getByRole('status')).toHaveTextContent('Guardando especialidad');
+    expect(screen.getByTitle('Especialidad: Pediatría')).toBeEnabled();
+    await act(async () => {
+      complete(true);
+    });
+    expect(trigger).toBeEnabled();
+    expect(screen.queryByRole('status')).toBeNull();
+    expect(screen.queryByRole('dialog', { name: 'Asignar especialidad' })).toBeNull();
+  });
+
+  it.each([false, undefined])(
+    'keeps an unconfirmed save visible when the result is %s',
+    async result => {
+      render(
+        <SpecialtyChip specialty="" onAssign={vi.fn().mockResolvedValue(result)} scope={scope} />
+      );
+      fireEvent.click(screen.getByTitle('Asignar especialidad'));
+      fireEvent.click(screen.getByRole('button', { name: 'Dejar sin asignar' }));
+      expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo confirmar');
+      expect(screen.getByRole('dialog', { name: 'Asignar especialidad' })).toBeVisible();
+      expect(screen.getByRole('button', { name: 'Dejar sin asignar' })).toBeEnabled();
+    }
+  );
+
+  it('ignores late rejection after the date or occupant changes', async () => {
+    let reject!: (error: Error) => void;
+    const onAssign = vi.fn(
+      () =>
+        new Promise<boolean>((_resolve, fail) => {
+          reject = fail;
+        })
+    );
+    const view = render(
+      <SpecialtyChip specialty="Med Interna" onAssign={onAssign} scope={scope} />
+    );
+    fireEvent.click(screen.getByTitle('Especialidad: Med Interna'));
+    fireEvent.click(screen.getByRole('button', { name: 'Cirugía' }));
+    view.rerender(
+      <SpecialtyChip
+        specialty="Pediatría"
+        onAssign={onAssign}
+        scope={{ ...scope, date: '2026-09-24', episodeId: 'new-episode' }}
+      />
+    );
+    fireEvent.click(screen.getByTitle('Especialidad: Pediatría'));
+    await act(async () => {
+      reject(new Error('synthetic rejected write'));
+    });
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByRole('dialog', { name: 'Asignar especialidad' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Cirugía' })).toBeEnabled();
   });
 });

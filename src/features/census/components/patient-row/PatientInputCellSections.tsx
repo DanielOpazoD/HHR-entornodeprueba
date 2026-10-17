@@ -104,6 +104,7 @@ export const PatientInputClinicalSection: React.FC<
   if (usesClinicalInitialBlockPanel) {
     return (
       <ClinicalInitialBlockCells
+        currentDateString={shared.currentDateString}
         data={shared.data}
         readOnly={baseClinicalReadOnly}
         onChange={handleDebouncedText}

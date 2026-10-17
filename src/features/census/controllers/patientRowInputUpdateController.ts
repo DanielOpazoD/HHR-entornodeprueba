@@ -1,3 +1,4 @@
+import type { PatientRowSaveResult } from '@/features/census/components/patient-row/inputCellTypes';
 import type {
   PatientRowPatientField,
   PatientRowPatientPatch,
@@ -11,7 +12,7 @@ interface BuildPatientFieldUpdaterParams {
 
 interface BuildPatientMultipleUpdaterParams {
   bedId: string;
-  updateMany: (bedId: string, fields: PatientRowPatientPatch) => void;
+  updateMany: (bedId: string, fields: PatientRowPatientPatch) => PatientRowSaveResult;
 }
 
 export const buildPatientFieldUpdater = ({
@@ -28,6 +29,6 @@ export const buildPatientMultipleUpdater = ({
   updateMany,
 }: BuildPatientMultipleUpdaterParams) => {
   return (fields: PatientRowPatientPatch) => {
-    updateMany(bedId, fields);
+    return updateMany(bedId, fields);
   };
 };
