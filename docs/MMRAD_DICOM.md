@@ -80,6 +80,10 @@ anidado sólo se transmite como parámetro al proxy HTTPS del proveedor, nunca s
 consulta directamente desde el navegador o la Function. Las cookies RIS sólo
 viajan a RIS, sin reenviarse al host del visor.
 
+`GetStudyMetadata` entrega `wadouri` como ruta relativa (`/__wado_proxy?...`). Se
+resuelve contra el origen fijo del visor antes de validar destino, parámetros y
+los tres UID. Una URL absoluta o relativa hacia otro host sigue siendo rechazada.
+
 Las instancias requieren una capacidad HMAC de 30 minutos, ligada al usuario,
 estudio, serie y SOP; no admite URLs arbitrarias. Se transporta por POST, sin
 identificadores clínicos en la URL de la Function. El acceso exige el mismo Bearer

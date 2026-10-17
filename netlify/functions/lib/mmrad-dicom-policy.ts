@@ -29,7 +29,9 @@ export const validatedWadoServer = (
   sop: string
 ): string => {
   if (typeof raw !== 'string') throw new Error('Falta el original DICOM.');
-  const url = new URL(raw);
+  // GetStudyMetadata returns root-relative WADO routes. Resolve against the fixed
+  // viewer origin before applying the same destination, parameter and UID checks.
+  const url = new URL(raw, MMRAD_VIEWER);
   if (
     url.origin !== MMRAD_VIEWER ||
     url.pathname !== '/__wado_proxy' ||

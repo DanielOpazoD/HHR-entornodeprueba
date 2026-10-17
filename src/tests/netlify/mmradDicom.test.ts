@@ -159,6 +159,37 @@ describe('protected MMRAD DICOM bridge', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('accepts provider-relative WADO routes and downloads the signed original from the fixed viewer', async () => {
+    const metadata = syntheticVendorStudy(3);
+    for (const instance of metadata.seriesList[0].instances) {
+      const url = new URL(instance.wadouri);
+      instance.wadouri = `${url.pathname}${url.search}`;
+    }
+    loadMetadata.mockResolvedValue({ uid: SYNTHETIC_STUDY_UID, metadata });
+    const run = handler();
+    const response = await run(
+      event({
+        action: 'metadata',
+        link: 'https://ris.mmrad.cl/exam/synthetic',
+        patientId: '11.111.111-1',
+      })
+    );
+    expect(response.statusCode).toBe(200);
+    const study = JSON.parse(response.body);
+    expect(study.series[0].instances).toHaveLength(3);
+    const capability = study.series[0].instances[0].ticket;
+    expect(verifyInstanceTicket(capability, 'synthetic-user').sop).toBe(syntheticSopUid(0));
+
+    const fetchMock = vi.fn().mockResolvedValue(new Response(syntheticDicom(0)));
+    vi.stubGlobal('fetch', fetchMock);
+    const original = await run(event({ action: 'instance', ticket: capability }));
+    expect(original.statusCode).toBe(200);
+    expect(Buffer.from(original.body, 'base64')).toEqual(Buffer.from(syntheticDicom(0)));
+    const url = new URL(fetchMock.mock.calls[0][0]);
+    expect(url.origin).toBe('https://hhangaroavisor.mmrad.cl:4446');
+    expect(url.pathname).toBe('/__wado_proxy');
+  });
+
   it('proxies only the fixed HTTPS WADO destination, with no RIS credentials and no caching', async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(syntheticDicom(0)));
     vi.stubGlobal('fetch', fetchMock);
@@ -179,6 +210,14 @@ describe('protected MMRAD DICOM bridge', () => {
     expect(() =>
       validatedWadoServer(
         instance.wadouri.replace('hhangaroavisor.mmrad.cl', 'evil.example.com'),
+        SYNTHETIC_STUDY_UID,
+        SYNTHETIC_SERIES_UID,
+        instance.sopInstanceUid
+      )
+    ).toThrow();
+    expect(() =>
+      validatedWadoServer(
+        instance.wadouri.replace('https://hhangaroavisor.mmrad.cl:4446', '//evil.example.com'),
         SYNTHETIC_STUDY_UID,
         SYNTHETIC_SERIES_UID,
         instance.sopInstanceUid
