@@ -5,13 +5,20 @@ import {
   ensureAuthenticated,
 } from './fixtures/auth';
 import { installDailyRecordAuthorityRoute } from './fixtures/dailyRecordAuthorityRoute';
+import { createSpecialtyAuthority } from './fixtures/specialtyAuthority';
 
 const E2E_DATE = process.env.E2E_FIXED_DATE ?? '2026-02-20';
 const SAVE_ERROR = 'No se pudo confirmar el cambio. Revisa el dato e inténtalo de nuevo.';
+let server: Awaited<ReturnType<typeof createSpecialtyAuthority>>;
 
 const buildRecord = () => {
   const record = buildCanonicalE2ERecord(E2E_DATE);
+  record.meta = { revision: 1 };
   const beds = record.beds as Record<string, Record<string, unknown>>;
+  // Empty beds must not carry an admission and become synthetic duplicate episodes.
+  Object.values(beds).forEach(bed => {
+    bed.admissionDate = '';
+  });
   for (const bedId of ['R1', 'R2']) {
     beds[bedId] = {
       ...beds[bedId],
@@ -49,7 +56,9 @@ const openCensus = async (page: Page) => {
   const browserErrors: string[] = [];
   page.on('pageerror', error => browserErrors.push(error.message));
   const record = buildRecord();
-  const authority = await installDailyRecordAuthorityRoute(page, record);
+  await server.authorizeBrowser(page);
+  await server.seed(record);
+  const authority = await installDailyRecordAuthorityRoute(page, record, server.commit);
   // Exercise the protected, episode-bound route without changing deployment flags
   // or contacting a real Firebase project. The fixture only releases UI requests.
   await page.addInitScript(() => {
@@ -106,6 +115,13 @@ const selectSpecialty = async (
 };
 
 test.describe('Confirmed specialty saves', () => {
+  test.describe.configure({ mode: 'serial' });
+  test.beforeAll(async () => {
+    server = await createSpecialtyAuthority();
+  });
+  test.afterAll(async () => {
+    await server?.cleanup();
+  });
   test('queues different beds, keeps each choice pending, and survives a real reload', async ({
     page,
   }) => {
@@ -115,6 +131,7 @@ test.describe('Confirmed specialty saves', () => {
 
     await selectSpecialty(page, firstRow, 'Medicina', 'Cirugía', true);
     const firstCall = await authority.nextCall();
+    expect(firstCall.payload.syncContract?.baseRevision).toBe(1);
     expect(firstCall.payload.patch).toEqual({ 'beds.R1.specialty': 'Cirugía' });
     expect(firstCall.payload).toMatchObject({
       specialtyIntent: {
@@ -138,6 +155,7 @@ test.describe('Confirmed specialty saves', () => {
 
     await firstCall.succeed();
     const secondCall = await authority.nextCall();
+    expect(secondCall.payload.syncContract?.baseRevision).toBe(2);
     expect(secondCall.payload.patch).toEqual({ 'beds.R2.specialty': 'Traumatología' });
     await expect(getSpecialtyButton(firstRow, 'Cirugía')).toBeEnabled();
     await expect.poll(() => readLocalSpecialties(page)).toEqual(['Cirugía', 'Medicina']);
@@ -146,6 +164,21 @@ test.describe('Confirmed specialty saves', () => {
     await expect(getSpecialtyButton(secondRow, 'Traumatología')).toBeEnabled();
     // Releasing HTTP alone is not proof of durable browser persistence.
     await expect.poll(() => readLocalSpecialties(page)).toEqual(['Cirugía', 'Traumatología']);
+    const remote = await server.read(E2E_DATE);
+    expect(remote?.meta.revision).toBe(3);
+    for (const [bedId, value, call] of [
+      ['R1', 'Cirugía', firstCall],
+      ['R2', 'Traumatología', secondCall],
+    ] as const) {
+      expect(remote?.beds[bedId]).toMatchObject({
+        specialty: value,
+        specialtyAssignment: {
+          source: 'manual',
+          episodeId: `e2e-specialty-${bedId}`,
+          decisionId: call.payload.syncContract?.mutationId,
+        },
+      });
+    }
     await page.reload();
     await expect(getSpecialtyButton(getRow(page, 'R1'), 'Cirugía')).toBeVisible();
     await expect(getSpecialtyButton(getRow(page, 'R2'), 'Traumatología')).toBeVisible();
@@ -165,6 +198,7 @@ test.describe('Confirmed specialty saves', () => {
     await rejectedCall.reject();
 
     await expect(page.getByRole('alert').filter({ hasText: SAVE_ERROR })).toBeVisible();
+    expect((await server.read(E2E_DATE))?.beds.R1.specialty).toBe('Medicina');
     await expect(getSpecialtyButton(row, 'Medicina')).toBeEnabled();
     expect(await readLocalSpecialties(page)).toEqual(['Medicina', 'Medicina']);
 
@@ -174,6 +208,13 @@ test.describe('Confirmed specialty saves', () => {
     await retryCall.succeed();
     await expect.poll(() => readLocalSpecialties(page)).toEqual(['Cirugía', 'Medicina']);
     await expect(getSpecialtyButton(row, 'Cirugía')).toBeEnabled();
+    expect((await server.read(E2E_DATE))?.beds.R1).toMatchObject({
+      specialty: 'Cirugía',
+      specialtyAssignment: {
+        source: 'manual',
+        decisionId: retryCall.payload.syncContract?.mutationId,
+      },
+    });
     await expect(page.getByRole('alert').filter({ hasText: SAVE_ERROR })).toHaveCount(0);
     expect(browserErrors).toEqual([]);
   });

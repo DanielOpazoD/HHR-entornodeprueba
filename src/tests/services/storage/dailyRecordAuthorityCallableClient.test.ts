@@ -6,16 +6,28 @@ import {
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 
 describe('dailyRecordAuthorityCallableClient', () => {
-  it('normalizes an authority revision mismatch as a recoverable concurrency conflict', () => {
+  it.each([
+    'revision_mismatch: base revision 38 does not match remote revision 40',
+    'Daily record changed remotely before the authorized write transaction.',
+  ])('normalizes the technical version conflict %s', message => {
     const normalized = normalizeDailyRecordAuthorityError({
       code: 'functions/aborted',
-      message: 'revision_mismatch: base revision 38 does not match remote revision 40',
+      message,
     });
 
     expect(normalized).toBeInstanceOf(ConcurrencyError);
-    expect(normalized).toMatchObject({ name: 'ConcurrencyError' });
+    expect(normalized).toMatchObject({ name: 'ConcurrencyError', reason: 'version_mismatch' });
     expect(String((normalized as Error).message)).toMatch(/versión más reciente/i);
   });
+
+  it.each(['Specialty decision changed.', 'Specialty episode changed.'])(
+    'retains the semantic classification for %s',
+    message => {
+      expect(
+        normalizeDailyRecordAuthorityError({ code: 'functions/aborted', message })
+      ).toMatchObject({ name: 'ConcurrencyError', reason: 'semantic_conflict' });
+    }
+  );
 
   it.each(['functions/invalid-argument', 'functions/permission-denied', 'functions/aborted'])(
     'does not retry a deterministic authority rejection (%s)',

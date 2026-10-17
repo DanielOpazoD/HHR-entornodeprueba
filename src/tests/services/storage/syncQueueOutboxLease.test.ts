@@ -270,7 +270,8 @@ describe('sync queue transactional outbox and leases', () => {
     expect(task.syncContract).toEqual(
       expect.objectContaining({
         expectedVersion: remoteRecord.lastUpdated,
-        changedPaths: expect.arrayContaining(['beds.R1.pathology', 'beds.R1.clinicalCrib']),
+        changedPaths: ['beds.R1.pathology'],
+        mutationIds: expect.arrayContaining([taskBeforeClear.syncContract?.mutationId]),
       })
     );
     await expect(hospitalDB.dailyRecords.get(date)).resolves.toMatchObject({
