@@ -42,6 +42,12 @@ Los límites locales son 1024 instancias, 128 millones de muestras, 256 MB de
 originales y 512 MB de caché decodificada por runtime. Se liberan caché, archivos,
 motor gráfico y trabajadores al cerrar; cambiar de serie cancela la anterior.
 Las series multicuadro se remiten explícitamente al visor externo en esta versión.
+La vista y la captura esperan `IMAGE_RENDERED` de cada plano, con cancelación y
+tiempo límite. El aviso inicial de `ResizeObserver` no redimensiona un canvas cuyo
+tamaño no cambió; así no se habilita la captura antes de terminar el dibujo.
+MPR/3D completan un segundo pase de renderizado tras inicializar la textura
+compartida del volumen. La prueba con SwiftShader exige contenido y contraste
+correctos en los tres planos; no se sustituyen ni alteran los valores DICOM.
 
 Se fija Cornerstone **4.22.13**, compatible con Node 22; la serie 5 consultada
 introducía un códec que exige Node 24. No modificar el runtime del proyecto para

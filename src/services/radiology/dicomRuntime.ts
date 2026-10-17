@@ -29,6 +29,7 @@ import {
 } from '@cornerstonejs/tools';
 import { volumeImageOrder } from '@/domain/radiology/dicomGeometry';
 import { loadDicomSeries, type LoadedDicomSeries } from './dicomSeriesLoader';
+import { waitForDicomRender } from './dicomRenderReady';
 import type { DicomPlane, DicomStudy, DicomSeries } from '@/services/radiology/dicomTypes';
 
 export type DicomTool = 'window' | 'pan' | 'zoom' | 'rotate';
@@ -225,11 +226,27 @@ export const createDicomRuntime = async (
         );
       }
       ensureActive();
-      engine.render();
+      const sizes = new Map(
+        elements.map(element => [element, [element.clientWidth, element.clientHeight]])
+      );
       resize = new ResizeObserver(() => {
-        if (!disposed) engine?.resize(true, false);
+        if (disposed) return;
+        const changed = elements.some(element => {
+          const previous = sizes.get(element)!;
+          return previous[0] !== element.clientWidth || previous[1] !== element.clientHeight;
+        });
+        if (!changed) return; // The initial observer notification must not clear a completed frame.
+        elements.forEach(element =>
+          sizes.set(element, [element.clientWidth, element.clientHeight])
+        );
+        engine?.resize(true, false);
       });
       elements.forEach(element => resize?.observe(element));
+      await waitForDicomRender(elements, () => engine!.render(), signal);
+      // Volume actors initialize their shared GPU texture on the first pass. Refresh every
+      // plane once that pass is complete, including with software WebGL, before capture is enabled.
+      if (nextMode !== 'original')
+        await waitForDicomRender(elements, () => engine!.render(), signal);
     },
     tool: activateTool,
     window: (width, center) => {
@@ -259,10 +276,7 @@ export const createDicomRuntime = async (
       ensureActive();
       const target = engine?.getViewport(viewportIds[plane]);
       if (!target) throw new Error('Selecciona una vista cargada.');
-      target.render();
-      await new Promise<void>(resolve =>
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
-      );
+      await waitForDicomRender([target.element], () => target.render(), signal);
       ensureActive();
       const source = target.getCanvas();
       const canvas = document.createElement('canvas');
