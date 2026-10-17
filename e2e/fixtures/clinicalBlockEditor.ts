@@ -19,7 +19,8 @@ export const expectClinicalStatus = async (row: Locator, value: string): Promise
   );
 };
 
-export const updateClinicalDiagnosis = async (
+// Controlled-response and offline tests must release their transport before awaiting closure.
+export const submitClinicalDiagnosis = async (
   page: Page,
   row: Locator,
   bedId: string,
@@ -28,5 +29,18 @@ export const updateClinicalDiagnosis = async (
   await getClinicalDiagnosisButton(row).click();
   await page.getByTestId(`clinical-block-pathology-${bedId}`).fill(value);
   await page.getByTestId(`clinical-block-save-${bedId}`).click();
+};
+
+export const expectClinicalEditorClosed = async (page: Page, bedId: string): Promise<void> => {
   await expect(page.getByTestId(`clinical-block-editor-${bedId}`)).toBeHidden();
+};
+
+export const updateClinicalDiagnosis = async (
+  page: Page,
+  row: Locator,
+  bedId: string,
+  value: string
+): Promise<void> => {
+  await submitClinicalDiagnosis(page, row, bedId, value);
+  await expectClinicalEditorClosed(page, bedId);
 };
