@@ -71,6 +71,7 @@ it('does not return clinical payload when source metadata has changed', async ()
   const collection = (name: string) => ({
     doc: (id: string) => ({
       path: name + '/' + id,
+      collection: (child: string) => collection(name + '/' + id + '/' + child),
       get: async () => ({
         ref: { path: name + '/' + id },
         exists: name === 'cudyrOfficialReports',
@@ -143,6 +144,7 @@ it.each(['unchanged', 'documentary-change', 'legacy-correction', 'episode-correc
         const path = name + '/' + id;
         return {
           path,
+          collection: (child: string) => collection(path + '/' + child),
           get: async () => ({
             ref: { path },
             exists:
