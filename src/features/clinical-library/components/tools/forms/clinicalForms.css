@@ -3,6 +3,40 @@
   font-size: 12px;
   container-type: inline-size;
 }
+.clinical-form-annexes {
+  border-top: 1px solid #e2e8f0;
+  margin-top: 10px;
+  padding-top: 8px;
+}
+.clinical-form-annex-note {
+  margin: 4px 0;
+  color: #64748b;
+  font-size: 11px;
+}
+.clinical-form-annex-list {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0;
+  display: grid;
+  gap: 6px;
+}
+.clinical-form-annex-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.clinical-form-annex-list label {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+}
+.clinical-form-annex-thumbnail {
+  width: 72px;
+  height: 60px;
+  object-fit: contain;
+  background: #0b1220;
+  border-radius: 4px;
+}
 .clinical-form-toolbar,
 .clinical-form-actions {
   display: flex;

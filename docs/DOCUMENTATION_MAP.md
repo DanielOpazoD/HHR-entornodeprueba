@@ -25,6 +25,7 @@
 - Repositorios y `dailyRecord`: [src/services/repositories/README.md](../src/services/repositories/README.md)
 - Clinical documents: [src/features/clinical-documents/README.md](../src/features/clinical-documents/README.md)
 - Laboratory: [src/features/laboratory/README.md](../src/features/laboratory/README.md)
+- Radiología DICOM y anexos Word: [MMRAD_DICOM.md](MMRAD_DICOM.md)
 
 ## Categorías
 

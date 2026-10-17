@@ -3,6 +3,8 @@ import { formatFormDate } from '../domain/forms/clinicalFormDates';
 import type { ClinicalFormDefinition, ClinicalFormValues } from '../domain/forms/clinicalFormTypes';
 import { clinicalFormTemplateHash } from './clinicalFormPdf';
 import { CLINICAL_FORM_TEXT_SIZE } from './clinicalFormTypography';
+import type { DicomCapture } from '@/services/radiology/dicomTypes';
+import { appendClinicalFormAnnexes, validateClinicalFormAnnexes } from './clinicalFormAnnexes';
 
 const WORD_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 const TRANSFER_FORM = 'informe-traslado-hospital-salvador';
@@ -33,10 +35,12 @@ export const createClinicalFormDocx = async (
   template: Uint8Array,
   form: ClinicalFormDefinition,
   input: ClinicalFormValues,
-  hidden: ReadonlyArray<string> = []
+  hidden: ReadonlyArray<string> = [],
+  annexes: ReadonlyArray<DicomCapture> = []
 ): Promise<Uint8Array> => {
   if (form.id !== TRANSFER_FORM) throw new Error('Este formulario no dispone de salida Word.');
   const values = validateClinicalFormValues(form, input, hidden);
+  validateClinicalFormAnnexes(annexes, String(input.paciente_rut || ''));
   if ((await clinicalFormTemplateHash(template)) !== form.sourceSha256)
     throw new Error('La plantilla Word cambió. Actualiza la aplicación antes de descargar.');
   const { default: PizZip } = await import('pizzip');
@@ -114,6 +118,7 @@ export const createClinicalFormDocx = async (
     });
     paragraph.appendChild(run);
   }
+  appendClinicalFormAnnexes(zip, document, annexes);
   zip.file('word/document.xml', new XMLSerializer().serializeToString(document));
   return zip.generate({ type: 'uint8array', compression: 'DEFLATE' });
 };
@@ -123,7 +128,8 @@ let templateRequest: Promise<Uint8Array> | undefined;
 export const generateClinicalFormDocx = async (
   form: ClinicalFormDefinition,
   values: ClinicalFormValues,
-  hidden: ReadonlyArray<string>
+  hidden: ReadonlyArray<string>,
+  annexes: ReadonlyArray<DicomCapture> = []
 ): Promise<Uint8Array> => {
   if (form.id !== TRANSFER_FORM) throw new Error('Este formulario no dispone de salida Word.');
   templateRequest ??= fetch(form.sourceUrl)
@@ -135,5 +141,5 @@ export const generateClinicalFormDocx = async (
       templateRequest = undefined;
       throw error;
     });
-  return createClinicalFormDocx(await templateRequest, form, values, hidden);
+  return createClinicalFormDocx(await templateRequest, form, values, hidden, annexes);
 };

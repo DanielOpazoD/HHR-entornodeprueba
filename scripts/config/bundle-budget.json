@@ -49,7 +49,15 @@
     "^assets/cudyrReportFacts-.*\\.js$",
     "^assets/publicCudyrPolicyRecovery-.*\\.js$",
     "^assets/cudyrEssentialWorkbook-.*\\.js$",
-    "^assets/cudyrSourceWorkbook-.*\\.js$"
+    "^assets/cudyrSourceWorkbook-.*\\.js$",
+    "^assets/vendor-dicom-.*\\.js$",
+    "^assets/Dicom.*-.*$",
+    "^assets/dicom.*-.*\\.js$",
+    "^assets/RadiologyViewerModal-.*\\.js$",
+    "^assets/decodeImageFrameWorker-.*\\.js$",
+    "^assets/computeWorker-.*\\.js$",
+    "^assets/jpeg-.*\\.js$",
+    "^assets/.*\\.wasm$"
   ],
   "forbiddenAssetPatterns": ["^assets/exceljs\\.min-.*\\.js$"],
   "assetPatternBudgets": [

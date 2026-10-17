@@ -7,12 +7,15 @@ Responsable: mantenedor de HHR (Daniel Opazo).
 
 Se acepta únicamente GHSA-vfj7-8cjw-p6xm en la cadena de desarrollo del
 lockfile raíz aprobado, cuya SHA-256 es
-`a868d9aacaaf37d80bc5f1a4bba83f6216fa2c4a80e479a890f169d1ab6c54fd`.
+`e2488dd3a787ecb0bbf99cdfbc6504c153a2c4e2503c235de8dd4fa989a9c257`.
 Daniel autorizó actualizar la huella el 9 de octubre de 2026 para el parche
 transitivo Handlebars 4.7.10 y el 11 de octubre para Firebase CLI 15.16.0.
-La última actualización cambia únicamente ese paquete resuelto, para corregir
-el despliegue entre regiones. Se mantienen los mismos siete paquetes, aviso,
-controles; no se acepta ninguna vulnerabilidad adicional.
+El 16 de octubre de 2026 autorizó explícitamente renovar sólo la huella para
+el visor DICOM del PR #874 (Cornerstone 4.22.13 y dicom-parser 1.8.21), conservando
+la misma excepción. La auditoría remota del lockfile nuevo conserva los mismos
+siete paquetes/versiones/rutas de desarrollo con severidad alta y cero críticos.
+Se mantienen el aviso y todos los controles; no se acepta ninguna vulnerabilidad
+adicional. Los hallazgos bajos y moderados permanecen visibles en la auditoría.
 Las siete entradas son braces 3.0.3, micromatch 4.0.8, chokidar 3.6.0,
 lint-staged 16.2.7, firebase-tools 15.16.0, eslint-plugin-boundaries 6.0.2
 y @boundaries/elements 2.0.1; todas tienen `dev: true`. Functions no contiene

@@ -26,6 +26,10 @@ conservan y tienen una exportación PDF verificada con el mismo diseño para la 
 La [guía de formularios compartidos](../../../docs/formularios-clinicos.md) documenta el catálogo
 común, los mapas de impresión y el modo de ingreso manual o desde una cama/cuna clínica.
 
+El informe del Salvador admite capturas DICOM seleccionadas como anexos al Word.
+El [contrato del visor y los anexos](../../../docs/MMRAD_DICOM.md) describe su carga
+diferida, vinculación al paciente, memoria temporal y límites de conexión.
+
 La [guía de MEDIF](../../../docs/medif.md) describe los modos manual y censo, las preferencias,
 los borradores y los PDF. El [diccionario de variables](../../../docs/medif-variables.md)
 detalla las 137 variables distribuidas en diez secciones.

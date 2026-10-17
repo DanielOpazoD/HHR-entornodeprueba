@@ -59,6 +59,8 @@ const seedPersistedSession = async (page: Page) => {
       seededRecord: unknown;
       runtimeConfig: FirebasePreviewConfig;
     }) => {
+      // Seed the app, not the isolated PDF frames created by printable documents.
+      if (window !== window.top || !/^https?:$/.test(location.protocol)) return;
       const runtimeWindow = window as Window & { __HHR_E2E_OVERRIDE__?: Record<string, unknown> };
       runtimeWindow.__HHR_E2E_OVERRIDE__ = {
         ...(runtimeWindow.__HHR_E2E_OVERRIDE__ || {}),

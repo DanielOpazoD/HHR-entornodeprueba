@@ -11,15 +11,17 @@ export const renderPreviewSummary = report => {
   const walk = suites => {
     for (const suite of suites) {
       for (const spec of suite.specs ?? []) {
-        const group = spec.file?.endsWith('clinical-library-smoke.spec.ts')
-          ? 'Biblioteca: documentos y herramientas'
-          : spec.file?.endsWith('clinical-panel-reading-smoke.spec.ts')
-            ? 'Ficha clínica: lectura y navegación'
-            : spec.file?.endsWith('census-preview-bootstrap.spec.ts')
-              ? spec.title.startsWith('keeps navigation')
-                ? 'Censo: navegación adaptable'
-                : 'Censo: arranque y recargas'
-              : 'Otras comprobaciones';
+        const group = spec.file?.endsWith('dicom-viewer.spec.ts')
+          ? 'Radiología: DICOM y anexos'
+          : spec.file?.endsWith('clinical-library-smoke.spec.ts')
+            ? 'Biblioteca: documentos y herramientas'
+            : spec.file?.endsWith('clinical-panel-reading-smoke.spec.ts')
+              ? 'Ficha clínica: lectura y navegación'
+              : spec.file?.endsWith('census-preview-bootstrap.spec.ts')
+                ? spec.title.startsWith('keeps navigation')
+                  ? 'Censo: navegación adaptable'
+                  : 'Censo: arranque y recargas'
+                : 'Otras comprobaciones';
         const row = groups.get(group) ?? { passed: 0, total: 0, duration: 0 };
         for (const test of spec.tests ?? []) {
           row.total += 1;

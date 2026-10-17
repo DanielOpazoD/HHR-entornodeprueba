@@ -17,6 +17,15 @@
 
 ## Reglas de contrato
 
+`mmrad-dicom` (`POST`, `OPTIONS`) exige Bearer Firebase y los mismos roles clínicos
+que `mmrad-search`, resueltos por el callable canónico. Usa `VITE_FIREBASE_*`,
+`MMRAD_USERNAME` y `MMRAD_PASSWORD`; responde `400`, `401`, `403`, `429` o `502`
+ante errores. Metadatos e imágenes se obtienen sólo de destinos fijos institucionales,
+sin reenviar cookies RIS al visor. Cada instancia exige una capacidad firmada,
+ligada al usuario y al estudio/serie/SOP, con vencimiento y límite de 3,5 MB.
+Respuestas `no-store`, sin datos clínicos en logs o telemetría. Protocolo, cotas y
+pruebas: [MMRAD_DICOM.md](MMRAD_DICOM.md).
+
 - Toda Function sensible debe validar `Origin`.
 - Toda Function sensible debe validar método HTTP.
 - Toda Function sensible debe parsear JSON con helper compartido.

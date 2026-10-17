@@ -36,6 +36,15 @@ export const resolveAllowedOrigins = (): string[] =>
     .map(normalizeUrlOrigin)
     .filter((origin): origin is string => Boolean(origin));
 
+const isNetlifyPreviewOriginAllowed = (requestOrigin?: string): boolean => {
+  // DEPLOY_PRIME_URL is build-only. SITE_NAME is reserved by Netlify and exists
+  // at function runtime, even when the site's main URL uses a custom domain.
+  const match = requestOrigin?.match(
+    /^https:\/\/deploy-preview-[1-9]\d*--([a-z0-9](?:[a-z0-9-]*[a-z0-9])?)\.netlify\.app$/
+  );
+  return Boolean(match && match[0] === requestOrigin && match[1] === process.env.SITE_NAME);
+};
+
 const isLocalFunctionOriginAllowed = (requestOrigin?: string): boolean => {
   if (process.env.HHR_ALLOW_LOCAL_FUNCTION_ORIGINS !== 'true' || !requestOrigin) {
     return false;
@@ -75,6 +84,7 @@ export const getRequestOrigin = (event: Pick<NetlifyEventLike, 'headers'>): stri
 export const isOriginAllowed = (requestOrigin?: string): boolean =>
   !requestOrigin ||
   resolveAllowedOrigins().includes(requestOrigin) ||
+  isNetlifyPreviewOriginAllowed(requestOrigin) ||
   isLocalFunctionOriginAllowed(requestOrigin);
 
 export const buildCorsHeaders = (

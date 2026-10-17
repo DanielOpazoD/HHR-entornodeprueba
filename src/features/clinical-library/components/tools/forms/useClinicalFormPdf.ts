@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { printLibraryDocument } from '../../../services/libraryDocumentActions';
+import type { DicomCapture } from '@/services/radiology/dicomTypes';
 import type {
   ClinicalFormDefinition,
   ClinicalFormValues,
@@ -9,6 +10,13 @@ export type ClinicalFormPdfGenerator = (
   form: ClinicalFormDefinition,
   values: ClinicalFormValues,
   hidden: ReadonlyArray<string>
+) => Promise<Uint8Array>;
+
+export type ClinicalFormDocxGenerator = (
+  form: ClinicalFormDefinition,
+  values: ClinicalFormValues,
+  hidden: ReadonlyArray<string>,
+  annexes: ReadonlyArray<DicomCapture>
 ) => Promise<Uint8Array>;
 
 interface PreparedPdf {
@@ -24,15 +32,22 @@ export const useClinicalFormPdf = (
   sourceState: string,
   generate: ClinicalFormPdfGenerator,
   onNotice: (notice: string) => void,
-  generateDocx: ClinicalFormPdfGenerator = async (...args) => {
+  generateDocx: ClinicalFormDocxGenerator = async (...args) => {
     const { generateClinicalFormDocx } = await import('../../../services/clinicalFormDocx');
     return generateClinicalFormDocx(...args);
-  }
+  },
+  annexes: ReadonlyArray<DicomCapture> = []
 ) => {
   const [busyFormat, setBusyFormat] = useState<'pdf' | 'docx' | null>(null);
   const busy = busyFormat !== null;
   const [prepared, setPrepared] = useState<PreparedPdf | null>(null);
-  const fingerprint = JSON.stringify([form.id, values, hidden, sourceState]);
+  const fingerprint = JSON.stringify([
+    form.id,
+    values,
+    hidden,
+    sourceState,
+    annexes.map(image => [image.id, image.caption]),
+  ]);
   const latest = useRef(fingerprint);
   latest.current = fingerprint;
   const sequence = useRef(0);
@@ -96,7 +111,7 @@ export const useClinicalFormPdf = (
     setBusyFormat('docx');
     onNotice('');
     try {
-      const bytes = await generateDocx(form, { ...values }, [...hidden]);
+      const bytes = await generateDocx(form, { ...values }, [...hidden], [...annexes]);
       const { saveAs } = await import('file-saver');
       if (attempt !== sequence.current) return;
       if (latest.current !== fingerprint)

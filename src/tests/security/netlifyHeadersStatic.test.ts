@@ -83,6 +83,20 @@ describe('netlify security headers', () => {
     expect(content).toContain('Cross-Origin-Opener-Policy = "unsafe-none"');
   });
 
+  it('applies the DICOM worker CSP after the overlapping shell rule without relaxing the shell', () => {
+    const content = readFileSync('netlify.toml', 'utf-8');
+    const worker = '/assets/decodeImageFrameWorker-*.js';
+    // Verified against the deployed CDN: a later /* rule replaces the worker CSP.
+    expect(content.indexOf(`for = "${worker}"`)).toBeGreaterThan(content.indexOf('for = "/*"'));
+    const shell = extractHeaderBlock(content, '/*');
+    const codec = extractHeaderBlock(content, worker);
+    expect(shell).not.toContain("'unsafe-eval'");
+    expect(shell).not.toContain("'wasm-unsafe-eval'");
+    expect(codec).toContain("script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'");
+    expect(codec).toContain("connect-src 'self'");
+    expect(codec).toContain("default-src 'none'");
+  });
+
   it('keeps the SPA rewrite so refresh works on clean module routes', () => {
     const content = readFileSync('netlify.toml', 'utf-8');
     expect(content).toContain('[[redirects]]');
