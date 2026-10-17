@@ -80,6 +80,13 @@ anidado sólo se transmite como parámetro al proxy HTTPS del proveedor, nunca s
 consulta directamente desde el navegador o la Function. Las cookies RIS sólo
 viajan a RIS, sin reenviarse al host del visor.
 
+La página RIS puede incluir un iframe auxiliar antes del visor. Se examinan sus
+atributos `src` y se acepta únicamente el origen HTTPS y la ruta de estudio del
+visor institucional, sin credenciales, query ni fragmento. La ausencia de un
+estudio válido o la presencia de dos estudios distintos se rechaza; no se elige
+el primer iframe por posición. La validación de `PatientID` y los tres UID de cada
+original sigue siendo obligatoria antes de decodificarlo.
+
 `GetStudyMetadata` entrega `wadouri` como ruta relativa (`/__wado_proxy?...`). Se
 resuelve contra el origen fijo del visor antes de validar destino, parámetros y
 los tres UID. Una URL absoluta o relativa hacia otro host sigue siendo rechazada.

@@ -6,20 +6,30 @@ export const isDicomUid = (value: unknown): value is string =>
   typeof value === 'string' && value.length <= 64 && /^\d+(?:\.\d+)+$/.test(value);
 
 export const viewerStudyFromHtml = (html: string): string => {
-  const src = html.match(/<iframe\b[^>]*\bsrc\s*=\s*["']([^"']+)/i)?.[1];
-  if (!src) throw new Error('MMRAD no entregó un enlace al estudio DICOM.');
-  const url = new URL(src.replace(/&amp;/g, '&'));
-  const uid = url.pathname.match(/^\/viewer\/(\d+(?:\.\d+)+)\/?$/)?.[1];
-  if (
-    url.origin !== MMRAD_VIEWER ||
-    url.username ||
-    url.password ||
-    url.search ||
-    url.hash ||
-    !isDicomUid(uid)
-  )
-    throw new Error('Dirección del visor MMRAD no permitida.');
-  return uid;
+  // RIS includes an auxiliary iframe before the viewer. Inspect every source,
+  // but only accept the fixed viewer origin and one unambiguous study.
+  const studies = new Set<string>();
+  for (const match of html.matchAll(/<iframe\b[^>]*\ssrc\s*=\s*["']([^"']+)["']/gi)) {
+    let url: URL;
+    try {
+      url = new URL(match[1].replace(/&amp;/g, '&'));
+    } catch {
+      continue;
+    }
+    const uid = url.pathname.match(/^\/viewer\/(\d+(?:\.\d+)+)\/?$/)?.[1];
+    if (
+      url.origin === MMRAD_VIEWER &&
+      !url.username &&
+      !url.password &&
+      !url.search &&
+      !url.hash &&
+      isDicomUid(uid)
+    )
+      studies.add(uid);
+  }
+  if (studies.size !== 1)
+    throw new Error('MMRAD no entregó un enlace único y permitido al estudio DICOM.');
+  return [...studies][0];
 };
 
 export const validatedWadoServer = (

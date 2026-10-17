@@ -246,7 +246,7 @@ describe('protected MMRAD DICOM bridge', () => {
     ]);
   });
 
-  it('performs the observed SockJS/DDP handshake, accepts 204 sends and answers heartbeats', async () => {
+  it('selects the viewer after an auxiliary iframe and completes the SockJS/DDP handshake', async () => {
     vi.stubEnv('MMRAD_USERNAME', 'synthetic');
     const frame = (messages: object[]) =>
       `a${JSON.stringify(messages.map(message => JSON.stringify(message)))}`;
@@ -264,7 +264,8 @@ describe('protected MMRAD DICOM bridge', () => {
       )
       .mockResolvedValueOnce(
         new Response(
-          `<iframe src="https://hhangaroavisor.mmrad.cl:4446/viewer/${SYNTHETIC_STUDY_UID}"></iframe>`
+          `<iframe src="https://ris.mmrad.cl/auxiliary?synthetic=1"></iframe>
+           <iframe src="https://hhangaroavisor.mmrad.cl:4446/viewer/${SYNTHETIC_STUDY_UID}"></iframe>`
         )
       )
       .mockResolvedValueOnce(new Response('{}'))
