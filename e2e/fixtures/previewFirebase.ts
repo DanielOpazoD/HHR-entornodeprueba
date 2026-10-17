@@ -87,6 +87,8 @@ export const installPreviewFirebaseRuntime = async (page: Page) => {
 
   await page.addInitScript(
     ({ runtimeConfig }: { runtimeConfig: FirebasePreviewConfig }) => {
+      // Playwright also runs init scripts inside the browser's isolated PDF frames.
+      if (window !== window.top || !/^https?:$/.test(location.protocol)) return;
       localStorage.setItem('hhr_firebase_config', JSON.stringify(runtimeConfig));
     },
     { runtimeConfig: firebaseConfig }
