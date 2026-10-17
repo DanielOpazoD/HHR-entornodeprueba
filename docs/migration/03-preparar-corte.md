@@ -88,3 +88,49 @@ entorno que se promueva.
 El diagnóstico del 13–15 de octubre de 2026 encontró riesgos en espejo, caché,
 accesos, reglas y restauración. Es un punto de partida, no evidencia vigente de que
 ya estén solucionados. Este PR no los da por cerrados ni despliega cambios.
+
+## Restaurar CUDYR oficial sin recalcularlo
+
+La importación administrada de Firestore regenera `updateTime`. Un informe oficial
+puede conservar todos sus campos y no superar por ello la huella de sus fuentes.
+No recalcular, volver a aprobar ni sobrescribir ese informe para ocultar la diferencia.
+
+Después de importar en una base aislada y con acceso de clientes denegado,
+usar las Application Default Credentials del operador autorizado (sin copiar claves
+ni tokens al repositorio):
+
+```sh
+GCLOUD_BIN=/ruta/a/gcloud node scripts/migration/attestCudyrRestore.mjs \
+  --database migration-restore-AAAAMMDD-1234abcd --month 2026-08 \
+  --apply --receipt /ruta/privada/agosto-restauracion.jsonl
+```
+
+El comando comprueba el proyecto y solo admite bases temporales de `hhr-pruebas`,
+meses agosto/septiembre y un recibo nuevo. No crea/importa bases ni cambia reglas.
+Compara en memoria el informe entero y **todos los campos** de las dependencias
+que usa el lector oficial, dentro de transacciones consistentes. La fuente original
+debe seguir siendo oficial por su propia huella; no se permiten cadenas de avales.
+Una diferencia de contenido o un tipo no soportado detiene la operación. Se
+comparan los campos tipados protobuf del SDK, no solo `data()`, que puede equiparar
+enteros y decimales. El adaptador interno falla de forma cerrada si cambia el SDK
+y tiene pruebas de integración; no se usa para leer las fuentes en la ruta normal.
+
+Solo crea un comprobante en `cudyrOfficialReports/{mes}/restorations/{huella}`
+de la copia aislada. Conserva informe, versión, aprobación y resultados originales.
+El lector consulta ese comprobante únicamente cuando la huella ordinaria difiere;
+comprueba base, hospital, mes, versión y hash del informe. Una revisión documental o exclusión guardada por los escritores soportados
+cambia la huella y exige una revisión nueva. Esos escritores conservan revisiones
+y no borran físicamente las fuentes. La comprobación conserva ese contrato; no
+es un registro de todos los cambios administrativos. Un borrado directo con IAM
+requiere retirar también los comprobantes de restauración afectados.
+Los clientes no tienen permisos para escribir comprobantes. El proceso no se
+publica como función invocable.
+
+El recibo se sincroniza a disco antes del intento. Si hay interrupción o respuesta
+incierta, revisar el recibo y el comprobante antes de repetir; no borrar el recibo
+para reintentar. El escritor usa un solo intento transaccional. La comparación
+no convierte una exportación concurrente en un respaldo atómico: el ensayo final
+requiere un instante consistente o una ventana sin cambios comprobada, además
+de censo, enfermería, índices, reglas, accesos y objetos de Storage.
+
+Referencia: [exportación e importación de Firestore](https://firebase.google.com/docs/firestore/manage-data/export-import).
