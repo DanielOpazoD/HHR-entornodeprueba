@@ -91,9 +91,9 @@ export const MedifFormSection: React.FC<Props> = ({ block, values, preferences, 
       aria-labelledby={`medif-heading-${block.id}`}
       className={`medif-card${block.fullWidth ? ' medif-card--wide' : ''}`}
     >
-      <div className="medif-card-header">
-        <h4 id={`medif-heading-${block.id}`}>{block.title}</h4>
-      </div>
+      <h4 className="sr-only" id={`medif-heading-${block.id}`}>
+        {block.title}
+      </h4>
       <div className="medif-groups">
         {visibleGroups.map(group => {
           const label = getMedifFormGroupLabel(group);

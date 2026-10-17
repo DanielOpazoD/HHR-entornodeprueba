@@ -6,6 +6,7 @@ import type {
   ClinicalFormValues,
 } from '../../../domain/forms/clinicalFormTypes';
 import { ClinicalFormInput } from './ClinicalFormInput';
+import { isSuppressedClinicalFormField } from '../../../domain/forms/clinicalFormFieldPolicy';
 
 interface Props {
   form: ClinicalFormDefinition;
@@ -83,7 +84,10 @@ const Matrix: React.FC<{
 
 export const ClinicalFormFields: React.FC<Props> = ({ form, values, hidden, query, onChange }) => {
   const fields = form.fields.filter(
-    field => !hidden.includes(field.id) && matchesClinicalFormField(field, query)
+    field =>
+      !isSuppressedClinicalFormField(field) &&
+      !hidden.includes(field.id) &&
+      matchesClinicalFormField(field, query)
   );
   const priority: Record<string, number> = {
     Paciente: 0,
@@ -107,7 +111,9 @@ export const ClinicalFormFields: React.FC<Props> = ({ form, values, hidden, quer
             {items[0].row ? (
               <Matrix fields={items} values={values} onChange={onChange} />
             ) : (
-              <div className="clinical-form-fields">
+              <div
+                className={`clinical-form-fields${items.filter(field => field.kind === 'check').length >= 2 ? ' clinical-form-fields--checks' : ''}`}
+              >
                 {section === 'Paciente' &&
                   items.some(field => field.id === 'paciente_documento_numero') && (
                     <label className="clinical-form-field">

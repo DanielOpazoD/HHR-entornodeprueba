@@ -23,9 +23,14 @@ export const useClinicalFormPdf = (
   hidden: ReadonlyArray<string>,
   sourceState: string,
   generate: ClinicalFormPdfGenerator,
-  onNotice: (notice: string) => void
+  onNotice: (notice: string) => void,
+  generateDocx: ClinicalFormPdfGenerator = async (...args) => {
+    const { generateClinicalFormDocx } = await import('../../../services/clinicalFormDocx');
+    return generateClinicalFormDocx(...args);
+  }
 ) => {
-  const [busy, setBusy] = useState(false);
+  const [busyFormat, setBusyFormat] = useState<'pdf' | 'docx' | null>(null);
+  const busy = busyFormat !== null;
   const [prepared, setPrepared] = useState<PreparedPdf | null>(null);
   const fingerprint = JSON.stringify([form.id, values, hidden, sourceState]);
   const latest = useRef(fingerprint);
@@ -48,7 +53,7 @@ export const useClinicalFormPdf = (
   const prepare = async (): Promise<PreparedPdf | null> => {
     if (currentPdf) return currentPdf;
     const attempt = ++sequence.current;
-    setBusy(true);
+    setBusyFormat('pdf');
     onNotice('');
     try {
       const bytes = await generate(form, { ...values }, [...hidden]);
@@ -69,7 +74,7 @@ export const useClinicalFormPdf = (
         onNotice(error instanceof Error ? error.message : 'No se pudo preparar el PDF.');
       return null;
     } finally {
-      if (attempt === sequence.current) setBusy(false);
+      if (attempt === sequence.current) setBusyFormat(null);
     }
   };
   const download = async () => {
@@ -86,11 +91,38 @@ export const useClinicalFormPdf = (
       onNotice('No se pudo descargar el PDF. Vuelve a intentarlo.');
     }
   };
+  const downloadDocx = async () => {
+    const attempt = ++sequence.current;
+    setBusyFormat('docx');
+    onNotice('');
+    try {
+      const bytes = await generateDocx(form, { ...values }, [...hidden]);
+      const { saveAs } = await import('file-saver');
+      if (attempt !== sequence.current) return;
+      if (latest.current !== fingerprint)
+        throw new Error(
+          'Los datos cambiaron mientras se preparaba Word. Revisa y vuelve a generar.'
+        );
+      saveAs(
+        new Blob([new Uint8Array(bytes)], {
+          type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        }),
+        `${form.id}.docx`
+      );
+    } catch (error) {
+      if (attempt === sequence.current)
+        onNotice(error instanceof Error ? error.message : 'No se pudo descargar Word.');
+    } finally {
+      if (attempt === sequence.current) setBusyFormat(null);
+    }
+  };
   return {
     busy,
+    busyFormat,
     currentPdf,
     prepare,
     download,
+    downloadDocx,
     print: () => {
       if (currentPdf) printLibraryDocument(currentPdf.url);
     },
