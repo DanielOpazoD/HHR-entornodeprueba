@@ -23,6 +23,7 @@ vi.mock('@/services/storage/firestore/firestoreShared', async importOriginal => 
 
 import { getDoc, setDoc } from 'firebase/firestore';
 import {
+  getSyncQueueDomainMetrics,
   listRecentSyncQueueOperations,
   processSyncQueue,
   queueSyncTask,
@@ -51,6 +52,26 @@ describe('syncQueueRecentOperationsClinicalContext', () => {
       data: () => undefined,
     } as Awaited<ReturnType<typeof getDoc>>);
     Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+  });
+
+  it('uses domain metrics and recent operations to expose sync context', async () => {
+    await queueSyncTask(
+      'UPDATE_DAILY_RECORD',
+      { ...makeRecord('2025-01-09'), lastUpdated: 'v1' },
+      {
+        contexts: ['staffing', 'handoff'],
+        origin: 'partial_update_retry',
+      }
+    );
+
+    const metrics = await getSyncQueueDomainMetrics();
+    const operations = await listRecentSyncQueueOperations(5);
+
+    expect(metrics.byContext.staffing.pending).toBe(1);
+    expect(metrics.byContext.handoff.pending).toBe(1);
+    expect(metrics.byOrigin.partial_update_retry).toBe(1);
+    expect(operations[0]?.contexts).toEqual(['staffing', 'handoff']);
+    expect(operations[0]?.recoveryPolicy).toBe('staffing_handoff_priority');
   });
 
   it('keeps non-sensitive clinical patch context in recent failed sync operations', async () => {

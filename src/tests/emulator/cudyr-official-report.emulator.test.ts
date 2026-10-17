@@ -66,7 +66,7 @@ describeEmulator('official CUDYR monthly artifact', () => {
       coverage: Array.from({ length: 31 }, (_, i) => ({
         date: month + '-' + String(i + 1).padStart(2, '0'),
         state: 'disponible',
-        reconstructionApproval: { approvedAt: new Date().toISOString() },
+        reconstructionApproval: { approvedAt: '2026-10-10T12:00:00.000Z' },
       })),
     };
     const reviewRef = db.doc(hospital + '/cudyrVerifiedContexts/' + month);
