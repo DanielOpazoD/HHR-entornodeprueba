@@ -97,6 +97,26 @@ export function registerMigrationReleaseGuards({
           patientReassignedAt: at,
         })
       );
+      // A later correction cannot reuse the previous command's audit time.
+      await assertFails(nurse().doc(path).update({ patientRut: 'other-document' }));
+      await assertFails(nurse().doc(path).update({ prescriptionType: 'comun' }));
+      await assertFails(
+        nurse().doc(path).update({ patientReassignedBy: 'hospitalizados@hospitalhangaroa.cl' })
+      );
+      const later = new Date(NOW_MS + 1000).toISOString();
+      // The same actor legitimately remains unchanged across consecutive commands.
+      await assertSucceeds(
+        nurse().doc(path).update({ patientRut: 'other-document', patientReassignedAt: later })
+      );
+      await assertSucceeds(
+        nurse().doc(path).update({ prescriptionType: 'comun', typeUpdatedAt: later })
+      );
+      // The existing reassignment dialog permits reconfirming the same patient.
+      await assertSucceeds(
+        nurse()
+          .doc(path)
+          .update({ patientReassignedAt: new Date(NOW_MS + 2000).toISOString() })
+      );
       await assertFails(nurse().doc(path).update({ storagePath: 'replaced-source' }));
       await assertFails(nurse().doc(path).update({ uploadedBy: 'user_nurse' }));
       await assertFails(

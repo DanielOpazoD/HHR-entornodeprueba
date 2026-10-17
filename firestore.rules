@@ -362,6 +362,7 @@ service cloud.firestore {
                'patientReassignedAt', 'patientReassignedBy', 'prescriptionType', 'typeUpdatedAt', 'typeUpdatedBy']) &&
              (!changed.hasAny(['bedId', 'patientName', 'patientRut', 'assignmentScope', 'patientReassignedAt', 'patientReassignedBy']) ||
                (isCurrentPrescriptionActor(request.resource.data.get('patientReassignedBy', null)) &&
+                changed.hasAny(['patientReassignedAt']) &&
                 request.resource.data.get('patientReassignedAt', null) is string &&
                 request.resource.data.get('assignmentScope', null) in ['patient', 'unassigned', 'hospitalized_stock'] &&
                 isOptionalString(request.resource.data, 'bedId') &&
@@ -369,6 +370,7 @@ service cloud.firestore {
                 isOptionalString(request.resource.data, 'patientRut'))) &&
              (!changed.hasAny(['prescriptionType', 'typeUpdatedAt', 'typeUpdatedBy']) ||
                (isCurrentPrescriptionActor(request.resource.data.get('typeUpdatedBy', null)) &&
+                changed.hasAny(['typeUpdatedAt']) &&
                 request.resource.data.get('typeUpdatedAt', null) is string &&
                 request.resource.data.get('prescriptionType', null) in ['comun', 'psicotropicos', 'benzodiazepinas'])));
     }

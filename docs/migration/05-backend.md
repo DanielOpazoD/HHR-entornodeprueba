@@ -53,8 +53,11 @@ Los registros antiguos pueden omitir ese rol. El archivo sigue siendo inmutable.
 
 En recetas fotografiadas, Enfermería puede corregir la asignación de paciente y
 el tipo de receta, con la identidad del funcionario que modifica esos campos.
-No puede sustituir la imagen original, su ruta ni su autor de carga. Se conservan
-la eliminación manual ya habilitada para Enfermería y el mantenimiento por un
+No puede sustituir la imagen original, su ruta ni su autor de carga.
+Las correcciones requieren actualizar su fecha; no reutilizan la del comando
+anterior. Confirmar nuevamente la misma asignación sigue permitido con fecha
+nueva y el funcionario autenticado, como admite el diálogo vigente.
+Se conservan la eliminación manual ya habilitada para Enfermería y el mantenimiento por un
 administrador. No confundir esos permisos con una publicación de reglas.
 
 La suite de emulador verifica ambos lados: operaciones legítimas y rechazo de
