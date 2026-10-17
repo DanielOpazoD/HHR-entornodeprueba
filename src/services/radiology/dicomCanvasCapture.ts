@@ -7,7 +7,8 @@ export const captureDicomCanvas = async (
   mode: 'original' | 'mpr' | '3d',
   plane: number,
   resampled: boolean,
-  edges?: { top: string; right: string; bottom: string; left: string }
+  edges?: { top: string; right: string; bottom: string; left: string },
+  originalLabel?: string
 ): Promise<{
   png: Uint8Array;
   width: number;
@@ -24,10 +25,11 @@ export const captureDicomCanvas = async (
   if (!context) throw new Error('El navegador no permite capturar esta vista.');
   context.drawImage(source, 0, 0, canvas.width, canvas.height);
   const sliceLabel =
+    originalLabel ||
     (resampled && mode !== 'original' ? 'Remuestreado · ' : '') +
-    (mode === '3d'
-      ? 'Volumen 3D'
-      : `Corte ${target.getSliceIndex() + 1}/${target.getNumberOfSlices()}`);
+      (mode === '3d'
+        ? 'Volumen 3D'
+        : `Corte ${target.getSliceIndex() + 1}/${target.getNumberOfSlices()}`);
   context.font = '14px sans-serif';
   context.fillStyle = 'rgba(0,0,0,.7)';
   context.fillRect(

@@ -202,3 +202,23 @@ y ayuda al pasar el cursor. La información sobre medidas temporales se consulta
 en el icono de información. **Ajustes 3D** abre un panel superpuesto de apariencia
 y recorte; Escape cierra ese panel antes de cerrar el visor. En pantallas estrechas,
 los planos se apilan y se recorren con desplazamiento vertical.
+
+### Carga progresiva y espacio de trabajo
+
+Original abre el corte central verificado sin esperar la serie completa. Una cola de
+cuatro trabajadores prioriza el corte solicitado y luego sus vecinos; las peticiones
+ya en curso terminan normalmente. El selector conserva todas las posiciones: un corte
+pendiente muestra su estado y nunca se sustituye silenciosamente por otro disponible.
+Se verifica paciente/Study/Series/SOP antes de decodificar y publicar cada imagen.
+MPR y 3D esperan todas las imágenes y mantienen la validación geométrica existente.
+
+La descarga continúa en memoria. Cerrar o cambiar de serie cancela la cola y libera
+las imágenes cuando terminan las operaciones en curso. Un fallo de identidad o carga
+invalida la sesión; no se reconstruyen volúmenes con huecos. La captura de Original
+requiere un corte disponible, conserva su posición dentro de la serie completa y se
+cancela si cambia la selección durante la captura. No hay persistencia de imágenes.
+
+Cada plano MPR tiene un botón para ampliarlo y volver a los tres. Las otras vistas
+permanecen montadas para conservar la referencia compartida. Pantalla completa usa
+la API del navegador y permite volver con su botón o Escape; si el navegador la
+rechaza, el visor permanece utilizable en su ventana normal.

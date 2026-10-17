@@ -166,3 +166,122 @@ describe('verified DICOM source selection', () => {
     expect(() => planDicomVolume(loaded.volumeGeometry)).toThrow('al menos tres cortes');
   });
 });
+
+describe('progressive verified download queue', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    let id = 0;
+    mocks.add.mockImplementation(() => `dicomfile:${id++}`);
+    mocks.decode.mockResolvedValue({});
+  });
+
+  it('renders a verified cut before completion and prioritizes the requested cut next', async () => {
+    const { startDicomSeries } = await import('@/services/radiology/dicomSeriesLoader');
+    const extended = {
+      ...series,
+      instances: Array.from({ length: 12 }, (_, i) => ({
+        uid: syntheticSopUid(i),
+        number: i + 1,
+        frames: 1,
+        ticket: String(i),
+      })),
+    };
+    const waiting = new Map<string, (bytes: Uint8Array) => void>();
+    mocks.fetch.mockImplementation(
+      (ticket: string, signal: AbortSignal) =>
+        new Promise((resolve, reject) => {
+          waiting.set(ticket, resolve);
+          signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+        })
+    );
+    const source = startDicomSeries(study, extended, new AbortController().signal, vi.fn());
+    let complete = false;
+    void source.completion
+      .then(() => {
+        complete = true;
+      })
+      .catch(() => undefined);
+    await vi.waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(4));
+    expect(mocks.fetch.mock.calls[0][0]).toBe('6');
+    const first = source.request(6);
+    const selected = source.request(11);
+    waiting.get('6')!(syntheticDicom(6, 12));
+    await expect(first).resolves.toMatch(/^dicomfile:/);
+    await vi.waitFor(() => expect(waiting.has('11')).toBe(true));
+    expect(complete).toBe(false);
+    waiting.get('11')!(syntheticDicom(11, 12));
+    await expect(selected).resolves.toMatch(/^dicomfile:/);
+    source.cancel();
+    await expect(source.completion).rejects.toMatchObject({ name: 'AbortError' });
+    await source.settled;
+    expect(mocks.remove).toHaveBeenCalledTimes(mocks.add.mock.calls.length);
+  });
+
+  it('rejects a late foreign image without publishing it and releases earlier valid images', async () => {
+    const { startDicomSeries } = await import('@/services/radiology/dicomSeriesLoader');
+    let foreign!: (bytes: Uint8Array) => void;
+    mocks.fetch.mockImplementation((ticket: string) =>
+      ticket === '0'
+        ? new Promise(resolve => {
+            foreign = resolve;
+          })
+        : Promise.resolve(syntheticDicom(Number(ticket), 5))
+    );
+    const source = startDicomSeries(study, series, new AbortController().signal, vi.fn());
+    await expect(source.request(2)).resolves.toMatch(/^dicomfile:/);
+    const bad = source.request(0);
+    foreign(syntheticDicom(0, 5, '999999999'));
+    await expect(bad).rejects.toThrow('no corresponde al paciente o al estudio');
+    await expect(source.completion).rejects.toThrow('no corresponde al paciente o al estudio');
+    expect(mocks.add.mock.calls.length).toBeLessThan(5);
+    await source.settled;
+    expect(mocks.remove).toHaveBeenCalledTimes(mocks.add.mock.calls.length);
+  });
+
+  it('invalidates the session immediately while another decode is still pending', async () => {
+    const { startDicomSeries } = await import('@/services/radiology/dicomSeriesLoader');
+    let foreign!: (bytes: Uint8Array) => void;
+    let finish!: () => void;
+    mocks.fetch.mockImplementation((ticket: string) =>
+      ticket === '0'
+        ? new Promise(resolve => {
+            foreign = resolve;
+          })
+        : Promise.resolve(syntheticDicom(Number(ticket), 5))
+    );
+    mocks.decode.mockReturnValue(
+      new Promise<void>(resolve => {
+        finish = resolve;
+      })
+    );
+    const source = startDicomSeries(study, series, new AbortController().signal, vi.fn());
+    await vi.waitFor(() => expect(mocks.decode).toHaveBeenCalledTimes(3));
+    foreign(syntheticDicom(0, 5, '999999999'));
+    await expect(source.completion).rejects.toThrow('no corresponde al paciente o al estudio');
+    expect(mocks.remove).not.toHaveBeenCalled();
+    finish();
+    await source.settled;
+    expect(mocks.remove).toHaveBeenCalledTimes(3);
+  });
+
+  it('releases images that finish decoding after cancellation without reporting them ready', async () => {
+    const { startDicomSeries } = await import('@/services/radiology/dicomSeriesLoader');
+    mocks.fetch.mockImplementation((ticket: string) =>
+      Promise.resolve(syntheticDicom(Number(ticket), 5))
+    );
+    let finish!: () => void;
+    const decoding = new Promise<void>(resolve => {
+      finish = resolve;
+    });
+    mocks.decode.mockReturnValue(decoding);
+    const progress = vi.fn();
+    const source = startDicomSeries(study, series, new AbortController().signal, progress);
+    await vi.waitFor(() => expect(mocks.decode).toHaveBeenCalledTimes(4));
+    source.cancel();
+    finish();
+    await expect(source.completion).rejects.toMatchObject({ name: 'AbortError' });
+    await source.settled;
+    expect(progress).not.toHaveBeenCalled();
+    expect(mocks.remove).toHaveBeenCalledTimes(4);
+  });
+});
