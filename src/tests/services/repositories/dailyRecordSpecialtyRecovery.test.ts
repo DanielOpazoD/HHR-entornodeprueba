@@ -366,4 +366,89 @@ describe('manual specialty authority and recovery', () => {
     expect((await save(base)).updatedRemotely).toBe(true);
     expect(storage.queue).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ['bed', 'target', false],
+    ['bed', 'target', true],
+    ['bed', 'dependencies', true],
+    ['clinicalCrib', 'target', false],
+    ['clinicalCrib', 'target', true],
+    ['clinicalCrib', 'parent', true],
+    ['clinicalCrib', 'dependencies', true],
+  ] as const)(
+    'adopts canonical %s classification over pending %s (lost response: %s)',
+    async (target, scope, lostResponse) => {
+      const base = makeBase(target);
+      const intent = makeIntent(target);
+      const pending = commit(base, { ...intent, value: Specialty.MEDICINA }, 'older-decision');
+      const dependentFields = {
+        secondarySpecialty: Specialty.PEDIATRIA,
+        ginecobstetriciaType: 'Obstétrica',
+        deliveryRoute: 'Cesárea',
+        deliveryDate: date,
+        deliveryCesareanLabor: 'Con TdP',
+      };
+      const clearedFields = Object.fromEntries(
+        Object.keys(dependentFields).map(key => [key, null])
+      );
+      Object.assign(targetPatient(pending, intent), dependentFields, {
+        pathology: 'Diagnóstico sintético pendiente',
+      });
+      const path = `beds.R1${target === 'clinicalCrib' ? '.clinicalCrib' : ''}`;
+      const changedPaths =
+        scope === 'dependencies'
+          ? ['pathology', 'specialtyAssignment', ...Object.keys(dependentFields)].map(
+              field => `${path}.${field}`
+            )
+          : [scope === 'parent' ? 'beds.R1' : path];
+      let remote = base;
+      storage.read.mockImplementation(async () => remote);
+      storage.write.mockImplementation(
+        async (_date, patch, _version, options: DailyRecordPartialWriteOptions) => {
+          expect(patch).toEqual(patchFor(intent));
+          remote = commit(base, intent, options.syncContract!.mutationId!);
+          Object.assign(targetPatient(remote, intent), clearedFields);
+          if (lostResponse) throw new Error('network response lost');
+          return receipt(remote);
+        }
+      );
+      let adoptedPaths: string[] | undefined;
+      let adoptedMutationIds: string[] | undefined;
+      storage.adopt.mockImplementation(
+        async (
+          _record: DailyRecord,
+          reconcile: Parameters<typeof adoptAuthoritativeDailyRecordAtomically>[1]
+        ) => {
+          const rebased = reconcile!(pending, {
+            id: 10,
+            opId: 'pending-classification',
+            type: 'UPDATE_DAILY_RECORD',
+            payload: pending,
+            timestamp: 1,
+            retryCount: 0,
+            status: 'PENDING',
+            syncContract: { changedPaths, mutationId: 'pending-classification' },
+          });
+          expect(targetPatient(rebased!.record, intent)).toMatchObject({
+            ...clearedFields,
+            pathology: 'Diagnóstico sintético pendiente',
+            specialty: Specialty.CIRUGIA,
+            specialtyAssignment: targetPatient(remote, intent).specialtyAssignment,
+          });
+          adoptedPaths = rebased?.task?.syncContract?.changedPaths;
+          adoptedMutationIds = rebased?.task?.syncContract?.mutationIds;
+          return { status: 'adopted', record: rebased?.record };
+        }
+      );
+      const result = await save(base, intent);
+      expect(result.updatedRemotely).toBe(true);
+      expect(result.savedLocally).toBe(true);
+      if (scope === 'dependencies') expect(adoptedPaths).toEqual([`${path}.pathology`]);
+      expect(adoptedMutationIds).toContain('pending-classification');
+      expect(targetPatient(result.localProjectionRecord!, intent).pathology).toBe(
+        'Diagnóstico sintético pendiente'
+      );
+      expect(storage.write).toHaveBeenCalledTimes(1);
+    }
+  );
 });

@@ -6,6 +6,7 @@ import type { ClinicalCribCreateRequest } from '@/types/domain/intentionalBedCle
 import type { DailyRecordPartialWriteOptions } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import type { SyncTaskContract } from '@/services/storage/syncQueueTypes';
 import type { SpecialtyManualIntent } from '@/types/domain/specialtyDecision';
+import { Specialty } from '@/types/domain/patientClassification';
 import { hasSameValuesAtPaths } from '@/services/repositories/conflictResolutionUtils';
 import { prepareFirestorePartialData } from '@/services/storage/firestore/firestoreRecordWritePatchPolicy';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
@@ -19,6 +20,7 @@ interface ManualClinicalCribCreationIntent {
 
 export interface GuardedDailyRecordPatchPolicy {
   remoteAuthorityPatch: DailyRecordPatch;
+  buildLocalAdoptionPatch: (authoritativeRecord: DailyRecord) => DailyRecordPatch;
   resolveAlreadyAppliedRemoteRecord?: (error: unknown) => Promise<DailyRecord | null>;
   requireConfirmedRecord: boolean;
   requireAtomicCas: boolean;
@@ -134,6 +136,34 @@ const specialtyPatient = (record: DailyRecord, intent: SpecialtyManualIntent) =>
     ? record.beds[intent.bedId]?.clinicalCrib
     : record.beds[intent.bedId];
 
+/** Protect server-owned consequences locally without broadening the scalar remote command. */
+const buildSpecialtyAdoptionPatch = (
+  record: DailyRecord,
+  patch: DailyRecordPatch,
+  intent: SpecialtyManualIntent | undefined
+): DailyRecordPatch => {
+  if (!intent) return patch;
+  const patient = specialtyPatient(record, intent);
+  if (!patient || patient.clinicalEpisodeId !== intent.episodeId) {
+    throw new ConcurrencyError(
+      'La especialidad confirmada pertenece a otro episodio.',
+      'semantic_conflict'
+    );
+  }
+  const fields: Array<keyof PatientData> = ['specialty', 'specialtyAssignment'];
+  if (intent.kind === 'manual') {
+    fields.push('secondarySpecialty');
+    if (intent.value !== Specialty.GINECOBSTETRICIA) {
+      fields.push('ginecobstetriciaType', 'deliveryRoute', 'deliveryDate', 'deliveryCesareanLabor');
+    }
+  }
+  const root = `beds.${intent.bedId}${intent.target === 'clinicalCrib' ? '.clinicalCrib' : ''}`;
+  return {
+    ...patch,
+    ...Object.fromEntries(fields.map(field => [`${root}.${field}`, patient[field]])),
+  } as DailyRecordPatch;
+};
+
 const specialtyDecisionId = (patient: PatientData): string | null => {
   const decision = patient.specialtyAssignment;
   return decision?.schemaVersion === 3 &&
@@ -240,13 +270,20 @@ export const buildGuardedDailyRecordPatchPolicy = ({
       }
     : undefined;
 
+  // Destructive or exact create commands must not inherit unrelated persistence-repair fields.
+  const remoteAuthorityPatch = manualClinicalCribCreation
+    ? (manualClinicalCribCreation.authorityPatch as DailyRecordPatch)
+    : options.intentionalBedClear || options.specialtyIntent
+      ? patch
+      : mergedPatches;
   return {
-    // Destructive or exact create commands must not inherit unrelated persistence-repair fields.
-    remoteAuthorityPatch: manualClinicalCribCreation
-      ? (manualClinicalCribCreation.authorityPatch as DailyRecordPatch)
-      : options.intentionalBedClear || options.specialtyIntent
-        ? patch
-        : mergedPatches,
+    remoteAuthorityPatch,
+    buildLocalAdoptionPatch: authoritativeRecord =>
+      buildSpecialtyAdoptionPatch(
+        authoritativeRecord,
+        remoteAuthorityPatch,
+        options.specialtyIntent
+      ),
     resolveAlreadyAppliedRemoteRecord,
     requireConfirmedRecord: options.requireConfirmedRecord || guardedCommand,
     requireAtomicCas: Boolean(manualClinicalCribCreation || options.specialtyIntent),

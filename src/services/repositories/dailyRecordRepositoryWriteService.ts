@@ -361,7 +361,7 @@ const updatePartialDetailedWithinLock = async (
     adoptRemoteAuthorityRecord: authoritativeRecord =>
       adoptAuthoritativeRecord(
         authoritativeRecord,
-        guardedCommandPolicy.remoteAuthorityPatch as DailyRecordPatch
+        guardedCommandPolicy.buildLocalAdoptionPatch(authoritativeRecord)
       ),
     requireConfirmedRecord: guardedCommandPolicy.requireConfirmedRecord,
     onRemoteFailure: err => {

@@ -216,6 +216,12 @@ operación. Una recuperación confirmada conserva las otras ediciones locales
 pendientes mediante el adoptador existente. Sin evidencia suficiente se informa
 el fallo, sin encolar una decisión rechazada ni inventar confirmación.
 
+La adopción local protege la especialidad, su decisión y los campos dependientes
+confirmados por el servidor, aunque la cola contenga un objeto completo de cama o
+cuna anterior. Sólo conserva borradores del mismo episodio. Los campos ya durables
+se retiran del conjunto pendiente; el reemplazo conserva la identidad y el historial
+de mutaciones de la tarea. Esta protección local no amplía el comando remoto escalar.
+
 La cola ordena las escrituras de una pestaña por fecha; las transacciones y sus
 versiones protegen frente a otras pestañas o usuarios. No hay una cola global ni
 un temporizador que cancele una transacción remota. Se mantienen los modos legacy

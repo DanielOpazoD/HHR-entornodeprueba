@@ -89,7 +89,11 @@ const buildSafePendingPatch = ({
     if (
       rootBedMatch &&
       isObject(pendingValue) &&
-      isAffectedByAppliedPatch(`beds.${rootBedMatch[1]}.clinicalCrib`, appliedPaths)
+      isAffectedByAppliedPatch(`beds.${rootBedMatch[1]}.clinicalCrib`, appliedPaths) &&
+      !hasSamePatientEpisodeIdentity(
+        pendingTask.record.beds[rootBedMatch[1]]?.clinicalCrib,
+        authoritativeRecord.beds[rootBedMatch[1]]?.clinicalCrib
+      )
     ) {
       patch[path] = {
         ...pendingValue,
