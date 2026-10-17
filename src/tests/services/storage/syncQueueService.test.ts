@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { afterEach, describe, it, expect, beforeEach, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexedDBService';
 import { logError } from '@/services/utils/errorService';
 
@@ -496,3 +496,8 @@ describe('storage/sync public entrypoint', () => {
     expect(tasks[0].recoveryPolicy).toBe('metadata_remote_priority');
   });
 });
+
+// These fixtures mock Firestore setDoc, not the callable transport.
+// Pin their legacy lane even when release verification inherits enforced mode.
+beforeEach(() => vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', 'client_only'));
+afterEach(() => vi.unstubAllEnvs());

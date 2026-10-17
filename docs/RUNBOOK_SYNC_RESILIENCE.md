@@ -433,3 +433,9 @@ documento posterior a la eliminación. No ampliar roles para ocultar un rechazo.
 Una indicación archivada conserva el identificador del documento y la identidad
 del autor autenticado. Un rol informado debe coincidir con el efectivo; la
 ausencia de rol de registros antiguos sigue siendo compatible.
+
+Las pruebas de la cola que simulan `setDoc` fijan explícitamente el transporte
+legacy y restauran el entorno al terminar cada caso. El modo enforced de un build
+de release no debe cambiar accidentalmente el transporte de esos fixtures. Las
+suites de contrato callable y confirmación autoritativa siguen probando su ruta
+propia; esto no cambia la configuración del programa ni del despliegue.
