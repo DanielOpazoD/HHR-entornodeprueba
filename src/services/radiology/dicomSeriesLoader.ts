@@ -6,6 +6,7 @@ import { type DicomSeries, type DicomStudy } from '@/services/radiology/dicomTyp
 import type { SliceGeometry } from '@/domain/radiology/dicomGeometry';
 import { validateDicomInstanceIdentity } from './dicomInstanceIdentity';
 import { supportsDicomResampling } from './dicomPixelMapping';
+import { hasDicomHuCalibration } from './dicomQuantitative';
 import { isDicomCtLocalizer } from './dicomLocalizer';
 
 const MAX_RAW_BYTES = 256 * 1024 * 1024;
@@ -16,6 +17,7 @@ export interface LoadedDicomSeries {
   /** Explicit CT localizers remain in Original, but are not cross-sectional volume sources. */
   volumeGeometry: SliceGeometry[];
   resamplingSupported: boolean;
+  huCalibrated: boolean;
   release: () => void;
 }
 
@@ -40,6 +42,7 @@ export const startDicomSeries = (
   const ids: string[] = [];
   const geometry: SliceGeometry[] = [];
   const localizers: boolean[] = [];
+  const calibrated: boolean[] = [];
   let released = false;
   const release = () => {
     if (released) return;
@@ -109,7 +112,8 @@ export const startDicomSeries = (
           rows,
           columns,
         };
-        await imageLoader.loadAndCacheImage(id);
+        const decoded = await imageLoader.loadAndCacheImage(id);
+        calibrated[index] = hasDicomHuCalibration(data, decoded);
         signal.throwIfAborted();
         progress(++loaded, series.instances.length);
         pending[index].resolve(id);
@@ -140,6 +144,9 @@ export const startDicomSeries = (
       geometry,
       volumeGeometry: geometry.filter((_, index) => !localizers[index]),
       resamplingSupported,
+      huCalibrated:
+        geometry.some((_, i) => !localizers[i]) &&
+        geometry.every((_, i) => localizers[i] || calibrated[i]),
       release,
     };
   });

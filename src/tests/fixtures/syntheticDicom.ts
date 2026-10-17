@@ -18,7 +18,8 @@ export const syntheticDicom = (
     padding?: boolean;
     functionalGroupMapping?: boolean;
   },
-  plane?: { imageType?: string; orientation?: number[]; modality?: string; sopClass?: string }
+  plane?: { imageType?: string; orientation?: number[]; modality?: string; sopClass?: string },
+  calibration?: { slope?: string; intercept?: string; unit?: string; pixelValue?: number }
 ): Uint8Array => {
   const rows = matrix?.rows ?? 64;
   const columns = matrix?.columns ?? 64;
@@ -83,8 +84,9 @@ export const syntheticDicom = (
   if (matrix?.padding) element('00280120', 'SS', -2000);
   element('00281050', 'DS', '40');
   element('00281051', 'DS', '400');
-  element('00281052', 'DS', jpeg2000 || matrix ? '-1024' : '0');
-  element('00281053', 'DS', matrix ? '2' : '1');
+  element('00281052', 'DS', calibration?.intercept ?? (jpeg2000 || matrix ? '-1024' : '0'));
+  element('00281053', 'DS', calibration?.slope ?? (matrix ? '2' : '1'));
+  element('00281054', 'LO', calibration?.unit ?? 'HU');
   if (matrix?.functionalGroupMapping) {
     const sequence = (tag: string, body: () => void) => {
       const start = parts.length;
@@ -124,7 +126,11 @@ export const syntheticDicom = (
         ((position[1] + y * spacing[0] - 32) / 20) ** 2 +
         ((slice - count / 2) / (count / 2)) ** 2;
       const value = distance < 0.2 ? 950 : distance < 1 ? 60 : -1000;
-      pixelView.setInt16((y * columns + x) * 2, matrix ? (value + 1024) / 2 : value, true);
+      pixelView.setInt16(
+        (y * columns + x) * 2,
+        calibration?.pixelValue ?? (matrix ? (value + 1024) / 2 : value),
+        true
+      );
     }
   if (jpeg2000) {
     const header = new Uint8Array(12);

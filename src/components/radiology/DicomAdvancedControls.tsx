@@ -7,6 +7,8 @@ import {
   Link2,
   SlidersHorizontal,
   Info,
+  Circle,
+  Pipette,
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import type { DicomMode, DicomRuntime, DicomTool } from '@/services/radiology/dicomRuntime';
@@ -83,6 +85,28 @@ export const DicomAdvancedControls: React.FC<{
               : 'Referencia desactivada'}
           </output>
           <div className="dicom-button-group">
+            {[
+              { id: 'probe', label: 'Lectura HU', icon: Pipette },
+              { id: 'roi', label: 'ROI elíptica', icon: Circle },
+            ].map(item => (
+              <button
+                key={item.id}
+                type="button"
+                aria-label={item.label}
+                title={
+                  runtime.quantitative()
+                    ? item.label
+                    : 'HU y ROI no disponibles: calibración no confirmada'
+                }
+                disabled={!runtime.quantitative()}
+                aria-pressed={activeTool === item.id}
+                onClick={() => chooseTool(item.id as DicomTool)}
+              >
+                <item.icon size={16} aria-hidden="true" />
+                <span>{item.id === 'probe' ? 'HU' : 'ROI'}</span>
+              </button>
+            ))}
+
             <button
               type="button"
               aria-label="Distancia"
@@ -118,7 +142,12 @@ export const DicomAdvancedControls: React.FC<{
             <Info size={15} />
           </summary>
           <div className="dicom-popover-body">
-            <small>Medidas temporales: no se guardan ni se incluyen en PNG o anexos.</small>
+            <small>
+              Medidas temporales: no se guardan ni se incluyen en PNG o anexos. HU: pulsa un punto.
+              ROI: arrastra una elipse; DE indica desviación estándar. Solo se habilitan con
+              calibración HU y espaciado válidos. En volúmenes remuestreados las estadísticas
+              corresponden al volumen interpolado.
+            </small>
           </div>
         </details>
       )}
