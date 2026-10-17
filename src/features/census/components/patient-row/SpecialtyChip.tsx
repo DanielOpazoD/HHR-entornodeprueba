@@ -163,7 +163,16 @@ export const SpecialtyChip: React.FC<SpecialtyChipProps> = ({
   };
 
   const remember = async (): Promise<void> => {
-    if (!scope || !assigned || !canPublish || !cie10Code || !decision?.decisionId || busy) return;
+    if (
+      readOnly ||
+      !scope ||
+      !assigned ||
+      !canPublish ||
+      !cie10Code ||
+      !decision?.decisionId ||
+      busy
+    )
+      return;
     const generation = operationGenerationRef.current;
     setBusy(true);
     setMessage('');
@@ -193,7 +202,9 @@ export const SpecialtyChip: React.FC<SpecialtyChipProps> = ({
     }
   };
 
-  if (readOnly) {
+  // A brief census commit can make the row read-only while a round or rules draft is open.
+  // Keep that window's owner mounted; its disabled prop pauses actions without erasing the draft.
+  if (readOnly && !toolsOpen) {
     return (
       <SpecialtyBadge specialty={trimmed} decision={episodeMode ? decision : undefined} readOnly />
     );
@@ -210,7 +221,7 @@ export const SpecialtyChip: React.FC<SpecialtyChipProps> = ({
         }}
         className="inline-flex min-w-0 items-center rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
         title={assigned ? `Especialidad: ${trimmed}` : 'Asignar especialidad'}
-        disabled={manualSave.isSaving}
+        disabled={readOnly || manualSave.isSaving}
         aria-busy={manualSave.isSaving}
         aria-haspopup="dialog"
         aria-expanded={open}
@@ -252,7 +263,7 @@ export const SpecialtyChip: React.FC<SpecialtyChipProps> = ({
                         onWindowChange={active => {
                           setToolsOpen(active);
                           if (active) closePopover();
-                          else setOpen(true);
+                          else setOpen(!readOnly);
                         }}
                       />
                     </Suspense>
@@ -288,7 +299,7 @@ export const SpecialtyChip: React.FC<SpecialtyChipProps> = ({
                   key={option}
                   type="button"
                   onClick={() => select(option)}
-                  disabled={busy || manualSave.isSaving || !canChoose}
+                  disabled={readOnly || busy || manualSave.isSaving || !canChoose}
                   aria-pressed={option === trimmed}
                   className={clsx(
                     'flex min-h-8 items-center gap-2 rounded-md px-2 py-1 text-left text-xs transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 disabled:cursor-not-allowed disabled:opacity-50',
@@ -305,7 +316,7 @@ export const SpecialtyChip: React.FC<SpecialtyChipProps> = ({
                 <button
                   type="button"
                   onClick={() => select('')}
-                  disabled={busy || manualSave.isSaving || !canChoose}
+                  disabled={readOnly || busy || manualSave.isSaving || !canChoose}
                   className="min-h-8 rounded-md px-2 py-1 text-left text-xs text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Dejar sin asignar
@@ -319,7 +330,7 @@ export const SpecialtyChip: React.FC<SpecialtyChipProps> = ({
                 scope &&
                 cie10Code && (
                   <SpecialtyMemoryControls
-                    busy={busy}
+                    busy={readOnly || busy}
                     confirmMemory={confirmMemory}
                     onConfirmChange={setConfirmMemory}
                     onRemember={() => void remember()}
