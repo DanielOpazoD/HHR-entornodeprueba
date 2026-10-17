@@ -105,19 +105,41 @@ describe('clinical persistence recovery composition', () => {
     expect(deps.applyPatch).not.toHaveBeenCalled();
   });
 
-  it('still recovers a version conflict after an unavailable preflight read', async () => {
-    const deps = setup(record('R2', 70, 2));
+  it('leaves the batch pending when fresh authority is unavailable without sending the old base', async () => {
+    const current = record('R2', 70, 2);
+    const deps = setup(current);
+    const before = structuredClone(current);
     deps.refreshRecord.mockRejectedValueOnce(new Error('offline'));
+
+    expect(await deps.persist()).toMatchObject({
+      patched: 0,
+      errors: [expect.objectContaining({ bedId: 'R1', source: 'patch' })],
+    });
+    expect(deps.refreshRecord).toHaveBeenCalledOnce();
+    expect(deps.invoke).not.toHaveBeenCalled();
+    expect(deps.createMutationId).not.toHaveBeenCalled();
+    expect(deps.applyPatch).not.toHaveBeenCalled();
+    expect(current).toEqual(before);
+  });
+
+  it('recovers a subsequent version conflict using fresh authority and the original mutation identity', async () => {
+    const deps = setup(record('R2', 70, 2));
+    deps.refreshRecord.mockResolvedValueOnce(record());
     deps.invoke.mockRejectedValueOnce({ code: 'functions/aborted', message: 'revision_mismatch' });
 
     expect(await deps.persist()).toMatchObject({ patched: 1, errors: [] });
     expect(deps.invoke).toHaveBeenCalledTimes(2);
-    expect(deps.invoke.mock.calls[0]?.[0]).toMatchObject({ baseRevision: 1 });
+    expect(deps.invoke.mock.calls[0]?.[0]).toMatchObject({
+      baseRevision: 1,
+      patches: [expect.objectContaining({ bedId: 'R1' })],
+    });
     expect(deps.invoke.mock.calls[1]?.[0]).toMatchObject({
       baseRevision: 2,
       mutationId: deps.invoke.mock.calls[0]?.[0].mutationId,
       patches: [expect.objectContaining({ bedId: 'R2' })],
     });
+    expect(deps.refreshRecord).toHaveBeenCalledTimes(3);
+    expect(deps.createMutationId).toHaveBeenCalledOnce();
     expect(deps.applyPatch).not.toHaveBeenCalled();
   });
 
