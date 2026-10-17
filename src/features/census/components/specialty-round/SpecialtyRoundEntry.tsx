@@ -114,6 +114,7 @@ export const SpecialtyRoundEntry = ({
         <Suspense fallback={null}>
           <SpecialtyRulesWindow
             date={date}
+            disabled={disabled || freshnessUi.isClinicalEditingBlocked || !isAdmin}
             onClose={() => {
               setRulesOpen(false);
               onWindowChange?.(false);

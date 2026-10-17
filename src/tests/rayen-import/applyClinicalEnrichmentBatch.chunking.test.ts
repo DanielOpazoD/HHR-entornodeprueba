@@ -86,7 +86,7 @@ describe('applyClinicalEnrichmentBatch chunking', () => {
 
     expect(deps.invoke).not.toHaveBeenCalled();
     expect(deps.applyPatch).not.toHaveBeenCalled();
-    expect(deps.refreshRecord).not.toHaveBeenCalled();
+    expect(deps.refreshRecord).toHaveBeenCalledTimes(1);
   });
 
   it('may split shadow observation because it cannot partially persist clinical data', async () => {
@@ -250,7 +250,7 @@ describe('applyClinicalEnrichmentBatch chunking', () => {
 
     expect(deps.invoke).not.toHaveBeenCalled();
     expect(deps.applyPatch).not.toHaveBeenCalled();
-    expect(deps.refreshRecord).not.toHaveBeenCalled();
+    expect(deps.refreshRecord).toHaveBeenCalledTimes(1);
   });
 
   it('keeps a rebuilt episode in its chunk after the patient changes beds', async () => {
