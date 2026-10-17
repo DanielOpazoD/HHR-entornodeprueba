@@ -89,6 +89,20 @@ describe('MEDIF PDF export', () => {
     ).toEqual(MEDIF_FIELDS.map(field => field.id).sort());
   });
 
+  it('increases inserted text from 8 to 12 points without changing the centered X size', async () => {
+    const pdf = await PDFDocument.load(
+      await createMedifPdf(
+        template,
+        { ...emptyMedifValues(), p2_diagnostico_actual: 'PRUEBA' },
+        emptyMedifPreferences(),
+        'editable'
+      )
+    );
+    expect(
+      pdf.getForm().getTextField('p2_diagnostico_actual').acroField.getDefaultAppearance()
+    ).toContain('12 Tf');
+  });
+
   it('round-trips Spanish text, multiline entries and exclusive X responses across every section', async () => {
     const values = sample();
     const bytes = await createMedifPdf(template, values, emptyMedifPreferences(), 'editable');

@@ -1,5 +1,10 @@
 import type { PDFFont } from 'pdf-lib';
 import type { ClinicalFormField, ClinicalFormTarget } from '../domain/forms/clinicalFormTypes';
+import {
+  CLINICAL_FORM_TEXT_SCALE,
+  CLINICAL_FORM_TEXT_SIZE,
+  clinicalFormGlyphBounds,
+} from './clinicalFormTypography';
 
 export interface FormPrintLine {
   text: string;
@@ -38,7 +43,7 @@ export const layoutClinicalFormText = (
   mark: boolean
 ): FormPrintLine[] => {
   const [x, top, width, height] = target.rect;
-  const padding = mark ? 0.05 : 0.7;
+  const padding = mark ? 0.05 : 0.6;
   const availableWidth = width - padding * 2;
   const availableHeight = height - padding * 2;
   const value = text.normalize('NFC').replace(/\r\n?/g, '\n').trim();
@@ -60,22 +65,37 @@ export const layoutClinicalFormText = (
       availableWidth * Math.max(1, Math.ceil(availableHeight / 6))
   )
     throw tooLong();
-  for (let size = target.fontSize ?? (mark ? 7.5 : 9); size >= (mark ? 5 : 6); size -= 0.25) {
-    const ascent = mark ? font.heightAtSize(size, { descender: false }) : size * 0.931;
-    const descent = mark ? 0 : size * 0.225;
-    const lineHeight = (ascent + descent) * 1.05;
+  const preferredSize = mark
+    ? (target.fontSize ?? 7.5)
+    : target.fontSize
+      ? target.fontSize * CLINICAL_FORM_TEXT_SCALE
+      : CLINICAL_FORM_TEXT_SIZE;
+  for (let size = preferredSize; size >= (mark ? 5 : 6); size -= 0.25) {
+    const { ascent, descent } = mark
+      ? { ascent: font.heightAtSize(size, { descender: false }), descent: 0 }
+      : clinicalFormGlyphBounds(value, size, font);
+    const lineHeight = target.lineHeight ?? (ascent + descent) * 1.05;
     const lines = field.multiline && !mark ? wrapText(value, availableWidth, size, font) : [value];
     const blockHeight = ascent + descent + (lines.length - 1) * lineHeight;
     if (
       blockHeight > availableHeight ||
+      (lines.length > 1 && ascent + descent > lineHeight) ||
       lines.some(line => font.widthOfTextAtSize(line, size) > availableWidth)
     )
       continue;
     const centered = mark || target.align === 'center';
     const firstBaseline =
-      field.multiline && !mark
-        ? pageHeight - top - padding - ascent
-        : pageHeight - top - padding - (availableHeight - blockHeight) / 2 - ascent;
+      !mark && target.firstBaseline !== undefined
+        ? pageHeight - target.firstBaseline
+        : field.multiline && !mark
+          ? pageHeight - top - padding - ascent
+          : pageHeight - top - padding - (availableHeight - blockHeight) / 2 - ascent;
+    if (
+      firstBaseline + ascent > pageHeight - top - padding ||
+      firstBaseline - (lines.length - 1) * lineHeight - descent <
+        pageHeight - top - height + padding
+    )
+      continue;
     return lines.map((line, index) => ({
       text: line,
       size,

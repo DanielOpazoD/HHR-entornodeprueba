@@ -3,6 +3,7 @@ import { loadPdfLibGenerationRuntime } from '@/services/pdf/pdfLibRuntime';
 import { MEDIF_FIELDS, type MedifField } from '../domain/medifSchema';
 import { validateMedifValues, type MedifValues } from '../domain/medifDraft';
 import { filterMedifExportValues, type MedifPreferences } from '../domain/medifPreferences';
+import { MEDIF_TEXT_SIZE, clinicalFormGlyphBounds } from './clinicalFormTypography';
 
 export type MedifPdfMode = 'print' | 'editable';
 export const MEDIF_TEMPLATE_URL = '/docs/biblioteca/medif-latam-rellenable.pdf';
@@ -10,10 +11,10 @@ const textPadding = (field: MedifField): number => (field.kind === 'mark' ? 0.1 
 const MARK_FONT_SIZE = 7.5;
 // Helvetica's full FontBBox includes uppercase accents above its usual 718 ascent.
 // Text must reserve that space; an X has neither accents nor descenders.
-const glyphBounds = (field: MedifField, size: number, font: PDFFont) => ({
-  ascent: field.kind === 'mark' ? font.heightAtSize(size, { descender: false }) : size * 0.931,
-  descent: field.kind === 'mark' ? 0 : size * 0.225,
-});
+const glyphBounds = (field: MedifField, text: string, size: number, font: PDFFont) =>
+  field.kind === 'mark'
+    ? { ascent: font.heightAtSize(size, { descender: false }), descent: 0 }
+    : clinicalFormGlyphBounds(text, size, font);
 
 const layoutText = async (
   field: MedifField,
@@ -32,7 +33,7 @@ const layoutText = async (
   };
   const alignment = field.kind === 'mark' ? TextAlignment.Center : TextAlignment.Left;
   const options = { font, fontSize: size, alignment, bounds };
-  const { ascent, descent } = glyphBounds(field, size, font);
+  const { ascent, descent } = glyphBounds(field, text, size, font);
   if (field.multiline) {
     return layoutMultilineText(text, options).lines.map((line, index) => ({
       ...line,
@@ -61,7 +62,7 @@ const textForPdf = (field: MedifField, value: string, font: PDFFont): string => 
 
 /** No truncation: reject values that cannot fit at the smallest legible size. */
 const fittingFontSize = async (field: MedifField, text: string, font: PDFFont): Promise<number> => {
-  if (!text) return field.kind === 'mark' ? MARK_FONT_SIZE : 8;
+  if (!text) return field.kind === 'mark' ? MARK_FONT_SIZE : MEDIF_TEXT_SIZE;
   const width = field.rect[2] - field.rect[0];
   const height = field.rect[3] - field.rect[1];
   const padding = textPadding(field);
@@ -81,9 +82,13 @@ const fittingFontSize = async (field: MedifField, text: string, font: PDFFont): 
   if (font.widthOfTextAtSize(text.replace(/\s+/g, ' '), 4) > bounds.width * maxLines) {
     throw overflow();
   }
-  for (let size = field.kind === 'mark' ? MARK_FONT_SIZE : 8; size >= 4; size -= 0.25) {
+  for (
+    let size = field.kind === 'mark' ? MARK_FONT_SIZE : MEDIF_TEXT_SIZE;
+    size >= 4;
+    size -= 0.25
+  ) {
     const lines = await layoutText(field, text, font, size);
-    const { ascent, descent } = glyphBounds(field, size, font);
+    const { ascent, descent } = glyphBounds(field, text, size, font);
     if (
       lines.every(
         line =>

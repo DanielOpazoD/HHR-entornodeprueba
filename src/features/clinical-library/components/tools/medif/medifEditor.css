@@ -59,30 +59,16 @@
 .medif-form-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 8px;
+  gap: 6px;
   align-items: start;
 }
 .medif-card {
   min-width: 0;
-  padding: 9px;
+  padding: 6px 8px;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   background: white;
   scroll-margin: 12px;
-}
-.medif-card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  border-bottom: 1px solid #e2e8f0;
-  padding-bottom: 6px;
-  margin-bottom: 4px;
-}
-.medif-card-header h4 {
-  font-size: 13px;
-  font-weight: 700;
-  color: #0c4a6e;
 }
 .medif-help {
   font-size: 10px;
@@ -92,7 +78,7 @@
 }
 .medif-groups {
   display: grid;
-  gap: 7px;
+  gap: 4px;
   min-width: 0;
 }
 .medif-field-group,
@@ -105,7 +91,7 @@
 .medif-group-label {
   display: block;
   width: 100%;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   font-size: 11px;
   font-weight: 600;
   color: #475569;
@@ -113,7 +99,7 @@
 .medif-fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 7px 9px;
+  gap: 4px 7px;
 }
 .medif-fields--single {
   grid-template-columns: minmax(0, 1fr);
@@ -127,7 +113,7 @@
 }
 .medif-field label {
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   font-size: 10px;
   line-height: 1.4;
   font-weight: 600;
@@ -136,8 +122,8 @@
 .medif-input {
   width: 100%;
   min-width: 0;
-  height: 32px;
-  padding: 6px 8px;
+  height: 28px;
+  padding: 4px 7px;
   border: 1px solid #cbd5e1;
   border-radius: 5px;
   background: white;
@@ -151,12 +137,12 @@
 }
 .medif-textarea {
   height: auto;
-  min-height: 60px;
+  min-height: 42px;
   resize: vertical;
   line-height: 1.45;
 }
 .medif-choice {
-  padding: 3px 0;
+  padding: 1px 0;
   border-bottom: 1px solid #f1f5f9;
 }
 .medif-choice-row {
@@ -181,8 +167,8 @@
   align-items: center;
   justify-content: center;
   gap: 5px;
-  min-height: 30px;
-  padding: 4px 7px;
+  min-height: 26px;
+  padding: 3px 6px;
   border: 1px solid #e2e8f0;
   border-radius: 5px;
   font-size: 11px;
@@ -242,7 +228,7 @@
   .medif-card--wide .medif-groups,
   #medif-block-psiquiatria .medif-groups {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 9px;
+    gap: 5px 9px;
   }
   #medif-block-paciente_vuelo .medif-groups {
     grid-template-columns: minmax(0, 3fr) minmax(120px, 1fr);
@@ -253,13 +239,23 @@
 }
 @media (max-width: 420px) {
   .medif-card {
-    padding: 10px;
+    padding: 6px;
   }
   .medif-choice-row {
     grid-template-columns: minmax(0, 1fr);
   }
   .medif-choice-options {
     justify-content: flex-start;
+  }
+  .medif-input {
+    font-size: 16px;
+    min-height: 34px;
+  }
+}
+@media (pointer: coarse) {
+  .medif-option,
+  .medif-clear-choice {
+    min-height: 40px;
   }
 }
 
