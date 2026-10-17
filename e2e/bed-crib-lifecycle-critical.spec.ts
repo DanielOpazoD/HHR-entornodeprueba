@@ -141,7 +141,9 @@ const confirmClear = async (page: Page, row: ReturnType<typeof getParentRow>) =>
 };
 
 test.describe('Critical bed and attached-crib lifecycle', () => {
-  test('rolls back a crib clear rejected after its single guarded retry', async ({ page }) => {
+  test('rolls back a crib clear immediately when authority rejects its precondition', async ({
+    page,
+  }) => {
     test.setTimeout(60_000);
     const authority = await openCensus(page, buildRecord(true));
     await expect(getCribRow(page)).toBeVisible();
@@ -159,15 +161,50 @@ test.describe('Critical bed and attached-crib lifecycle', () => {
       message: 'E2E authority rejected the stale guarded mutation.',
     });
 
-    const rejectedRetry = await authority.nextCall();
-    expect(rejectedRetry.payload.intentionalBedClear).toMatchObject({
+    // A semantic rejection is final. Restoring the row must not wait for another command.
+    await expect(getCribRow(page)).toBeVisible();
+    await expect(getCribRow(page).locator('input[name="patientName"]')).toHaveValue(
+      'RN Paciente Ciclo Cuna'
+    );
+    expect(authority.queuedCallCount()).toBe(0);
+    await expectLocalMirrorState(page, {
+      patientName: 'Paciente Ciclo Cuna',
+      hasClinicalCrib: true,
+    });
+  });
+
+  test('retries a crib clear once after a version conflict with the same occupant', async ({
+    page,
+  }) => {
+    test.setTimeout(60_000);
+    const authority = await openCensus(page, buildRecord(true));
+    await expect(getCribRow(page)).toBeVisible();
+
+    await confirmClear(page, getCribRow(page));
+    await expect(getCribRow(page)).toHaveCount(0, { timeout: 2_000 });
+    const rejectedClear = await authority.nextCall();
+    expect(rejectedClear.payload.intentionalBedClear).toMatchObject({
       bedId: 'R1',
       target: 'clinicalCrib',
+      confirmedOccupant: { clinicalEpisodeId: CRIB_EPISODE_ID },
     });
+    await rejectedClear.reject({
+      status: 'ABORTED',
+      httpStatus: 409,
+      message: 'version_mismatch: E2E authority rejected the census version.',
+    });
+
+    // This retry belongs to the guarded clear: it re-reads authority and checks the occupant.
+    const rejectedRetry = await authority.nextCall();
+    expect(rejectedRetry.payload.intentionalBedClear).toEqual(
+      rejectedClear.payload.intentionalBedClear
+    );
+    expect(rejectedRetry.payload.patch).toEqual(rejectedClear.payload.patch);
+    await expect(getCribRow(page)).toHaveCount(0);
     await rejectedRetry.reject({
-      status: 'FAILED_PRECONDITION',
-      httpStatus: 400,
-      message: 'E2E authority rejected the guarded retry.',
+      status: 'ABORTED',
+      httpStatus: 409,
+      message: 'version_mismatch: E2E authority rejected the single guarded retry.',
     });
 
     // Exhausting the bounded retry restores exactly the visible crib.
@@ -175,6 +212,7 @@ test.describe('Critical bed and attached-crib lifecycle', () => {
     await expect(getCribRow(page).locator('input[name="patientName"]')).toHaveValue(
       'RN Paciente Ciclo Cuna'
     );
+    expect(authority.queuedCallCount()).toBe(0);
   });
 
   test('persists a confirmed crib clear after reloading the census', async ({ page }) => {
