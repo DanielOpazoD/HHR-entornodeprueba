@@ -37,7 +37,7 @@ describe('LocalErrorLogsView', () => {
     render(<LocalErrorLogsView />);
 
     expect(await screen.findByText('Errores locales')).toBeInTheDocument();
-    expect(screen.getByText('1 registro')).toBeInTheDocument();
+    expect(await screen.findByText('1 registro')).toBeInTheDocument();
     expect(screen.getByText('Fallo al guardar respaldo local')).toBeInTheDocument();
     expect(screen.getAllByText('Alta').length).toBeGreaterThan(0);
     expect(screen.getByText('/census')).toBeInTheDocument();
