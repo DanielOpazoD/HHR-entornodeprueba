@@ -24,6 +24,7 @@ export const DicomSeriesView: React.FC<{
   const [progress, setProgress] = useState([0, series.instances.length]);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [resampled, setResampled] = useState(false);
   const [busy, setBusy] = useState(true);
   const elements = useRef<Array<HTMLDivElement | null>>([]);
   const alive = useRef(true);
@@ -64,6 +65,7 @@ export const DicomSeriesView: React.FC<{
     let active = true;
     setBusy(true);
     setError('');
+    setResampled(false);
     const targets = elements.current
       .slice(0, labels[mode].length)
       .filter((item): item is HTMLDivElement => Boolean(item));
@@ -74,6 +76,7 @@ export const DicomSeriesView: React.FC<{
           setActiveTool(mode === '3d' ? 'rotate' : 'window');
           setActivePlane(0);
           setOrientations(runtime.orientations());
+          setResampled(runtime.isResampled());
         }
       })
       .catch((reason: unknown) => {
@@ -238,6 +241,12 @@ export const DicomSeriesView: React.FC<{
             <progress max={progress[1]} value={progress[0]} aria-label="Carga de imágenes" />
           )}
         </div>
+      )}
+      {resampled && !busy && !error && (
+        <p className="dicom-status" role="status">
+          Volumen remuestreado para combinar distintas matrices. La interpolación no añade detalle;
+          comprueba los hallazgos en Original.
+        </p>
       )}
       {error && (
         <p className="dicom-status" role="alert">

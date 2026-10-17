@@ -5,12 +5,14 @@ import { fetchDicomInstance } from '@/services/radiology/mmradDicomService';
 import { type DicomSeries, type DicomStudy } from '@/services/radiology/dicomTypes';
 import type { SliceGeometry } from '@/domain/radiology/dicomGeometry';
 import { validateDicomInstanceIdentity } from './dicomInstanceIdentity';
+import { supportsDicomResampling } from './dicomPixelMapping';
 
 const MAX_RAW_BYTES = 256 * 1024 * 1024;
 const MAX_VOXELS = 128 * 1024 * 1024;
 export interface LoadedDicomSeries {
   imageIds: string[];
   geometry: SliceGeometry[];
+  resamplingSupported: boolean;
   release: () => void;
 }
 
@@ -39,6 +41,7 @@ export const loadDicomSeries = async (
       wadouri.fileManager.remove(Number(id.split(':')[1]));
     }
   };
+  let resamplingSupported = true;
   let cursor = 0;
   let loaded = 0;
   let rawBytes = 0;
@@ -56,6 +59,7 @@ export const loadDicomSeries = async (
           throw new Error('La serie supera el límite de memoria de originales (256 MB).');
         const data = parseDicom(bytes, { untilTag: 'x7fe00010' });
         validateDicomInstanceIdentity(data, study, series, instance);
+        if (!supportsDicomResampling(data)) resamplingSupported = false;
         const frames = Number(data.string('x00280008') || 1);
         const rows = data.uint16('x00280010') || 0;
         const columns = data.uint16('x00280011') || 0;
@@ -97,5 +101,5 @@ export const loadDicomSeries = async (
     release();
     throw failure || signal.reason;
   }
-  return { imageIds: ids, geometry, release };
+  return { imageIds: ids, geometry, resamplingSupported, release };
 };

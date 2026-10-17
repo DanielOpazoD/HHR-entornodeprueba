@@ -5,7 +5,6 @@ import {
   Enums,
   CONSTANTS,
   cache,
-  volumeLoader,
   setVolumesForViewports,
   utilities,
   getWebWorkerManager,
@@ -27,7 +26,7 @@ import {
   Enums as ToolEnums,
   utilities as toolUtilities,
 } from '@cornerstonejs/tools';
-import { volumeImageOrder } from '@/domain/radiology/dicomGeometry';
+import { createDicomVolume, type DicomVolumeHandle } from './dicomVolume';
 import { loadDicomSeries, type LoadedDicomSeries } from './dicomSeriesLoader';
 import { waitForDicomRender } from './dicomRenderReady';
 import type { DicomPlane, DicomStudy, DicomSeries } from '@/services/radiology/dicomTypes';
@@ -62,6 +61,7 @@ export interface DicomRuntime {
   reset: () => void;
   step: (plane: number, delta: number) => void;
   orientations: () => DicomOrientation[];
+  isResampled: () => boolean;
   capture: (plane: number) => Promise<{
     png: Uint8Array;
     width: number;
@@ -82,6 +82,7 @@ export const createDicomRuntime = async (
   let engine: RenderingEngine | undefined;
   let loaded: LoadedDicomSeries | undefined;
   let disposed = false;
+  let volume: DicomVolumeHandle | undefined;
   let mode: DicomMode = 'original';
   let viewportIds: string[] = [];
   let resize: ResizeObserver | undefined;
@@ -94,12 +95,13 @@ export const createDicomRuntime = async (
     resize?.disconnect();
     if (group) ToolGroupManager.destroyToolGroup(group.id);
     engine?.destroy();
-    if (cache.getVolumeLoadObject(volumeId)) cache.removeVolumeLoadObject(volumeId);
+    volume?.release();
     loaded?.release();
     users--;
     if (!users) {
       if (getWebWorkerManager().workerRegistry.dicomImageLoader)
         getWebWorkerManager().terminate('dicomImageLoader');
+      utilities.genericMetadataProvider.clear();
       wadouri.fileManager.purge();
       wadouri.dataSetCacheManager.purge();
     }
@@ -167,20 +169,29 @@ export const createDicomRuntime = async (
   return {
     dispose,
     orientations,
+    isResampled: () => mode !== 'original' && Boolean(volume?.resampled),
     show: async (nextMode, elements) => {
       ensureActive();
       if (!engine || !loaded) return;
-      let ordered: string[] = [];
       if (nextMode !== 'original') {
         if (getShouldUseCPURendering())
           throw new Error('MPR y 3D necesitan WebGL en este navegador. Utiliza la vista original.');
         if (series.modality !== 'CT' && series.modality !== 'MR')
           throw new Error('MPR y 3D están disponibles para series volumétricas de TAC o RM.');
-        ordered = volumeImageOrder(loaded.geometry);
-        if (!cache.getVolume(volumeId)) {
-          // All instances are already validated and decoded. Never render a partial volume.
-          await volumeLoader.createAndCacheVolumeFromImages(volumeId, ordered);
-          ensureActive();
+        if (!volume) {
+          // Every instance is validated and decoded before any reconstruction.
+          const created = await createDicomVolume(
+            volumeId,
+            loaded.geometry,
+            series.modality,
+            loaded.resamplingSupported,
+            signal
+          );
+          if (disposed || signal.aborted) {
+            created.release();
+            ensureActive();
+          }
+          volume = created;
         }
       }
       if (group) ToolGroupManager.destroyToolGroup(group.id);
@@ -297,9 +308,10 @@ export const createDicomRuntime = async (
       if (!context) throw new Error('El navegador no permite capturar esta vista.');
       context.drawImage(source, 0, 0, canvas.width, canvas.height);
       const sliceLabel =
-        mode === '3d'
+        (volume?.resampled && mode !== 'original' ? 'Remuestreado · ' : '') +
+        (mode === '3d'
           ? 'Volumen 3D'
-          : `Corte ${target.getSliceIndex() + 1}/${target.getNumberOfSlices()}`;
+          : `Corte ${target.getSliceIndex() + 1}/${target.getNumberOfSlices()}`);
       context.font = '14px sans-serif';
       context.fillStyle = 'rgba(0,0,0,.7)';
       context.fillRect(

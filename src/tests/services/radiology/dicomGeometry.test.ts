@@ -56,10 +56,10 @@ describe('DICOM volume geometry', () => {
 
   it.each([
     ['frame', 'distintos marcos de referencia'],
-    ['dimensions', 'distintas dimensiones de imagen'],
+    ['dimensions', 'campos físicos diferentes'],
     ['position', 'posiciones de corte incompletas o no válidas'],
     ['orientation', 'orientaciones de corte diferentes o no válidas'],
-    ['spacing', 'distintos tamaños de píxel o valores no válidos'],
+    ['spacing', 'campos físicos diferentes'],
   ] as const)(
     'explains the %s incompatibility without exposing DICOM values',
     (failure, message) => {

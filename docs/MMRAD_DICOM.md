@@ -33,14 +33,36 @@ cada archivo antes de decodificarlo. La vista original recorre los cortes; MPR
 ofrece axial, coronal y sagital. La vista 3D utiliza renderizado volumétrico de la
 misma serie. No genera segmentaciones ni modelos anatómicos inferidos.
 
-MPR/3D requieren al menos tres cortes CT/MR, dimensiones y orientación compatibles,
-un mismo marco de referencia y posiciones uniformes sin duplicados ni inclinación
-de adquisición. Una geometría incompatible conserva la alternativa de vista
-original. No se reconstruyen volúmenes incompletos ni se mezclan series.
-Si una serie es incompatible, el aviso distingue marcos de referencia, dimensiones,
-posiciones, orientación y tamaño de píxel, sin mostrar UID ni valores del estudio.
-Los controles y tolerancias geométricos se conservan; un aviso más preciso no
-autoriza reconstruir una serie rechazada ni sustituye la verificación del paciente.
+MPR/3D requieren al menos tres cortes CT/MR, orientación compatible, un mismo
+marco de referencia y posiciones uniformes sin duplicados ni inclinación. No se
+mezclan series ni se descartan cortes para fabricar un volumen completo. Los
+avisos de incompatibilidad son categorías fijas, sin UID ni valores del estudio.
+
+Las matrices heterogéneas se admiten cuando los cuatro bordes del campo físico
+coinciden dentro del menor de 0,001 mm y el 0,1 % del píxel más pequeño.
+La orientación también debe coincidir dentro de esa tolerancia en los bordes.
+Se proyecta sobre los ejes de cada original y se verifica la huella adquirida
+antes de limitar la interpolación a los píxeles de borde. El centro del primer píxel, los cosenos de orientación
+y PixelSpacing se interpretan según [DICOM C.7.6.2](https://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.7.6.2.html).
+El destino tiene el máximo de filas y columnas de los originales sobre ese campo;
+la interpolación bilineal opera en coordenadas físicas y unidades calibradas,
+sin aplicar dos veces RescaleSlope/Intercept. No se añaden cortes en profundidad.
+Sólo se prolonga el píxel de borde dentro de su huella de medio píxel. No se
+recorta a una intersección ni se rellenan campos ausentes con aire o ceros.
+
+El remuestreo admite escala lineal MONOCHROME2 de un componente. Se rechazan
+relleno de píxeles, LUT de modalidad, mapas Real World Value y grupos funcionales
+compartidos o por cuadro (incluso en objetos de un solo cuadro), que requerirían
+tratamiento adicional. El volumen Float32 adicional se limita a 256 MB y 4096
+píxeles por eje del plano; además debe caber en la caché sin desalojar originales.
+La preparación cede el hilo entre bloques y comprueba cancelación. Un fallo libera
+las imágenes derivadas, incluso si la creación del volumen quedó a medias.
+
+El aviso visible y la etiqueta de captura identifican el volumen remuestreado;
+la interpolación no añade detalle adquirido. Original conserva sus píxeles y
+geometría. La identidad se verifica para todos los originales antes de reconstruir.
+La separación entre cortes admite una desviación de hasta el 2 % con techo de
+0,05 mm y rechaza distancias inferiores a 0,01 mm, incluidos los duplicados.
 
 Los límites locales son 1024 instancias, 128 millones de muestras, 256 MB de
 originales y 512 MB de caché decodificada por runtime. Se liberan caché, archivos,
@@ -51,7 +73,7 @@ tiempo límite. El aviso inicial de `ResizeObserver` no redimensiona un canvas c
 tamaño no cambió; así no se habilita la captura antes de terminar el dibujo.
 MPR/3D completan un segundo pase de renderizado tras inicializar la textura
 compartida del volumen. La prueba con SwiftShader exige contenido y contraste
-correctos en los tres planos; no se sustituyen ni alteran los valores DICOM.
+correctos en los tres planos y conservación de intensidad al remuestrear; no se modifican los originales DICOM.
 
 Se fija Cornerstone **4.22.13**, compatible con Node 22; la serie 5 consultada
 introducía un códec que exige Node 24. No modificar el runtime del proyecto para
@@ -114,6 +136,8 @@ capacidades, cookies, originales ni metadatos clínicos en telemetría.
 
 Pruebas: `src/tests/netlify/mmradDicom.test.ts`,
 `src/tests/services/radiology/dicomGeometry.test.ts`,
+`src/tests/services/radiology/dicomResampling.test.ts`,
+`src/tests/services/radiology/dicomVolume.test.ts`,
 `src/tests/services/radiology/saveDicomPng.test.ts`,
 `src/tests/features/clinical-library/clinicalFormAnnexes.test.ts` y
 `e2e/dicom-viewer.spec.ts`. Los datos DICOM se generan en

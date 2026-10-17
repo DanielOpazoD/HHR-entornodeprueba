@@ -186,6 +186,122 @@ test.describe('DICOM viewer and Salvador annexes', () => {
     }
   });
 
+  test('reconstructs heterogeneous physical matrices with calibrated intensities and preserves originals', async ({
+    page,
+  }) => {
+    await setup(page);
+    await page.route('**/.netlify/functions/mmrad-dicom', async route => {
+      const body = route.request().postDataJSON();
+      if (body.action !== 'instance') return route.fallback();
+      const index = Number(String(body.ticket).split('-')[1]);
+      await route.fulfill({
+        contentType: 'application/dicom',
+        body: Buffer.from(
+          syntheticDicom(
+            index,
+            24,
+            SYNTHETIC_PATIENT_ID,
+            undefined,
+            undefined,
+            index % 2 ? { rows: 32, columns: 16, spacing: [2, 4], position: [1.5, 0.5] } : undefined
+          )
+        ),
+      });
+    });
+    const editor = await openSalvador(page);
+    await editor.getByRole('button', { name: 'Imágenes MMRAD' }).click();
+    await page.getByRole('button', { name: 'Ver DICOM', exact: true }).click();
+    const viewer = page.getByRole('dialog', { name: /Visor DICOM/ });
+    const ready = () =>
+      expect(viewer.getByRole('button', { name: 'PNG', exact: true })).toBeEnabled({
+        timeout: 60000,
+      });
+    await ready();
+    for (const mode of ['MPR', '3D', 'Original', 'MPR']) {
+      await viewer.getByRole('button', { name: mode, exact: true }).click();
+      await ready();
+      await expect(viewer.getByRole('alert')).toHaveCount(0);
+      await expect(viewer.getByText(/Volumen remuestreado/)).toHaveCount(
+        mode === 'Original' ? 0 : 1
+      );
+      if (mode === 'MPR') await viewer.getByLabel('Ventana predefinida').selectOption('400,40');
+      const signatures = await viewer.locator('.dicom-canvas canvas').evaluateAll(canvases =>
+        canvases.map(node => {
+          const canvas = node as HTMLCanvasElement;
+          const copy = document.createElement('canvas');
+          copy.width = canvas.width;
+          copy.height = canvas.height;
+          const ctx = copy.getContext('2d')!;
+          ctx.drawImage(canvas, 0, 0);
+          const pixels = ctx.getImageData(0, 0, copy.width, copy.height).data;
+          let bright = 0;
+          const gray = new Uint32Array(256);
+          for (let i = 0; i < pixels.length; i += 4) {
+            if (pixels[i] > 20) bright++;
+            if (pixels[i] > 40 && pixels[i] < 220) gray[pixels[i]]++;
+          }
+          return { bright, peak: gray.indexOf(Math.max(...gray)) };
+        })
+      );
+      expect(signatures).toHaveLength(mode === 'MPR' ? 3 : 1);
+      signatures.forEach(signature => {
+        expect(signature.bright).toBeGreaterThan(500);
+        if (mode === 'MPR') {
+          expect(signature.peak).toBeGreaterThan(120);
+          expect(signature.peak).toBeLessThan(165);
+        }
+      });
+    }
+  });
+
+  for (const failure of ['coverage', 'padding'] as const)
+    test(`rejects unsafe heterogeneous ${failure} and recovers original`, async ({ page }) => {
+      await setup(page);
+      await page.route('**/.netlify/functions/mmrad-dicom', async route => {
+        const body = route.request().postDataJSON();
+        if (body.action !== 'instance') return route.fallback();
+        const index = Number(String(body.ticket).split('-')[1]);
+        await route.fulfill({
+          contentType: 'application/dicom',
+          body: Buffer.from(
+            syntheticDicom(
+              index,
+              24,
+              SYNTHETIC_PATIENT_ID,
+              undefined,
+              undefined,
+              index % 2
+                ? {
+                    rows: 32,
+                    columns: failure === 'coverage' ? 33 : 32,
+                    spacing: [2, 2],
+                    position: [0.5, 0.5],
+                    padding: failure === 'padding',
+                  }
+                : undefined
+            )
+          ),
+        });
+      });
+      const editor = await openSalvador(page);
+      await editor.getByRole('button', { name: 'Imágenes MMRAD' }).click();
+      await page.getByRole('button', { name: 'Ver DICOM', exact: true }).click();
+      const viewer = page.getByRole('dialog', { name: /Visor DICOM/ });
+      await expect(viewer.getByRole('button', { name: 'PNG', exact: true })).toBeEnabled({
+        timeout: 60000,
+      });
+      for (const mode of ['MPR', '3D']) {
+        await viewer.getByRole('button', { name: mode, exact: true }).click();
+        await expect(viewer.getByRole('alert')).toContainText(
+          failure === 'coverage' ? 'campos físicos diferentes' : 'relleno'
+        );
+        await expect(viewer.getByRole('button', { name: 'PNG', exact: true })).toBeDisabled();
+        await viewer.getByRole('button', { name: 'Volver a original', exact: true }).click();
+        await expect(viewer.getByRole('button', { name: 'PNG', exact: true })).toBeEnabled();
+        await expect(viewer.getByRole('alert')).toHaveCount(0);
+      }
+    });
+
   test('loads only on explicit open, renders original/MPR/3D, captures PNG and appends patient-bound Word annexes', async ({
     page,
   }) => {
