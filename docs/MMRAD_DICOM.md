@@ -170,3 +170,35 @@ sus tres UID y la presencia de píxeles. Confirmó que el ID del portal es inter
 Eso acredita la descarga directa; no acredita todavía el recorrido completo de un
 estudio del proveedor dentro de un despliegue autenticado. Registrar esa prueba
 aparte cuando se realice. No publicar HAR ni capturas reales en el repositorio o CI.
+
+### Referencia MPR y presentación 3D
+
+MPR mantiene los planos axial, coronal y sagital ortogonales. Con **Planos vinculados**
+y **Punto de referencia**, pulsar un punto alinea los otros planos con la misma posición
+física. La rueda y los botones de corte actualizan la referencia compartida. Se puede
+mostrar como líneas cruzadas o punto compacto; sus coordenadas son LPS (izquierda,
+posterior, superior) en milímetros del marco DICOM, no coordenadas de pantalla.
+Mover/zoom cambian la presentación, sin rotar los planos ni alterar la geometría adquirida.
+
+Distancia y ángulo son medidas transitorias en MPR. **Borrar medidas**, cambiar de modo,
+serie o cerrar el visor las elimina. No se guardan en la historia ni en telemetría;
+la captura PNG actual contiene el canvas de imagen, sin estas anotaciones SVG.
+
+3D permite elegir apariencia por modalidad (CT: hueso, tejidos blandos, músculo,
+grasa, pulmón; RM: general/T2), ajustar opacidad e iluminación, y desplazar los umbrales
+CT en HU. Son funciones de transferencia de intensidad, **no segmentación de órganos**.
+El recorte por eje LPS y profundidad permite explorar el interior; puede invertirse
+el lado o restablecerse completamente. Solo cambia el actor 3D en memoria: Original,
+MPR, los píxeles fuente y las comprobaciones de identidad/geometría se conservan.
+Los cambios se reinician al cambiar de modo. Las pruebas automatizadas usan exclusivamente
+DICOM sintéticos y comprueban navegación enlazada, contenido renderizado y recuperación.
+
+### Espacio de imagen y controles compactos
+
+El visor ocupa la altura disponible y reserva el espacio restante a los planos.
+La identificación del paciente y el selector de serie permanecen visibles. Las
+herramientas de medidas, inversión y exportación usan iconos con nombre accesible
+y ayuda al pasar el cursor. La información sobre medidas temporales se consulta
+en el icono de información. **Ajustes 3D** abre un panel superpuesto de apariencia
+y recorte; Escape cierra ese panel antes de cerrar el visor. En pantallas estrechas,
+los planos se apilan y se recorren con desplazamiento vertical.

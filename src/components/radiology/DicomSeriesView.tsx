@@ -7,6 +7,7 @@ import type {
   DicomTool,
   DicomOrientation,
 } from '@/services/radiology/dicomRuntime';
+import { DicomAdvancedControls } from './DicomAdvancedControls';
 import { saveDicomPng } from '@/services/radiology/saveDicomPng';
 
 const labels = { original: ['Original'], mpr: ['Axial', 'Coronal', 'Sagital'], '3d': ['3D'] };
@@ -75,7 +76,7 @@ export const DicomSeriesView: React.FC<{
       .show(mode, targets)
       .then(() => {
         if (active) {
-          setActiveTool(mode === '3d' ? 'rotate' : 'window');
+          setActiveTool(mode === '3d' ? 'rotate' : mode === 'mpr' ? 'reference' : 'window');
           setActivePlane(0);
           setOrientations(runtime.orientations());
           setResampled(runtime.isResampled());
@@ -214,15 +215,19 @@ export const DicomSeriesView: React.FC<{
         <span className="dicom-toolbar-spacer" />
         <button
           type="button"
+          aria-label="PNG"
+          title="Descargar PNG"
           disabled={!runtime || busy || Boolean(error)}
           onClick={() => void act(() => saveDicomPng(capture))}
         >
           <Download size={15} />
-          PNG
+          <span className="dicom-export-label">PNG</span>
         </button>
         {onCapture && (
           <button
             type="button"
+            aria-label="Añadir al informe"
+            title="Añadir al informe"
             disabled={!runtime || busy || Boolean(error)}
             onClick={() =>
               void act(async () => {
@@ -232,10 +237,24 @@ export const DicomSeriesView: React.FC<{
             }
           >
             <Camera size={15} />
-            Añadir al informe
+            <span className="dicom-export-label">Añadir al informe</span>
           </button>
         )}
       </div>
+      {runtime && (
+        <DicomAdvancedControls
+          key={mode}
+          runtime={runtime}
+          mode={mode}
+          modality={series.modality}
+          disabled={busy || Boolean(error)}
+          activeTool={activeTool}
+          chooseTool={tool => {
+            runtime.tool(tool);
+            setActiveTool(tool);
+          }}
+        />
+      )}
       {busy && (
         <div className="dicom-loading" role="status">
           {runtime ? 'Preparando vista…' : `Cargando imágenes · ${progress[0]}/${progress[1]}`}
@@ -245,13 +264,13 @@ export const DicomSeriesView: React.FC<{
         </div>
       )}
       {excludesLocalizers && mode !== 'original' && !busy && (
-        <p className="dicom-status" role="status">
+        <p className="dicom-status dicom-volume-notice" role="status">
           MPR y 3D usan los cortes volumétricos. Los localizadores de planificación se conservan en
           Original y no forman parte del volumen.
         </p>
       )}
       {resampled && !busy && !error && (
-        <p className="dicom-status" role="status">
+        <p className="dicom-status dicom-volume-notice" role="status">
           Volumen remuestreado para combinar distintas matrices. La interpolación no añade detalle;
           comprueba los hallazgos en Original.
         </p>
@@ -330,8 +349,10 @@ export const DicomSeriesView: React.FC<{
       <div className="dicom-footer">
         <span>
           {mode === '3d'
-            ? 'Arrastrar para rotar'
-            : 'Rueda o flechas para recorrer · arrastrar para ajustar'}
+            ? 'Rotar, acercar y ajustar tejido · recorte reversible'
+            : mode === 'mpr' && activeTool === 'reference'
+              ? 'Pulsa un punto para localizarlo en los tres planos · rueda para recorrer · coordenadas LPS en mm'
+              : 'Rueda o flechas para recorrer · arrastrar para ajustar'}
         </span>
         {notice && <span role="status">{notice}</span>}
       </div>

@@ -146,6 +146,156 @@ const openSalvador = async (page: Page, manual = false) => {
 test.describe('DICOM viewer and Salvador annexes', () => {
   test.setTimeout(150000);
   test.use({ viewport: { width: 1440, height: 1000 } });
+  test('links MPR coordinates and renders reversible 3D tissue controls', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await setup(page);
+    const editor = await openSalvador(page);
+    await editor.getByRole('button', { name: 'Imágenes MMRAD' }).click();
+    await page.getByRole('button', { name: 'Ver DICOM', exact: true }).click();
+    const viewer = page.getByRole('dialog', { name: /Visor DICOM/ });
+    const ready = () =>
+      expect(viewer.getByRole('button', { name: 'PNG', exact: true })).toBeEnabled({
+        timeout: 60000,
+      });
+    const hashes = () =>
+      viewer.locator('.dicom-canvas canvas').evaluateAll(nodes =>
+        nodes.map(node => {
+          const canvas = node as HTMLCanvasElement;
+          const copy = document.createElement('canvas');
+          copy.width = 64;
+          copy.height = 64;
+          const ctx = copy.getContext('2d')!;
+          ctx.drawImage(canvas, 0, 0, 64, 64);
+          const data = ctx.getImageData(0, 0, 64, 64).data;
+          let hash = 2166136261;
+          for (let i = 0; i < data.length; i++) hash = Math.imul(hash ^ data[i], 16777619);
+          return hash;
+        })
+      );
+    await ready();
+    await viewer.getByRole('button', { name: 'MPR', exact: true }).click();
+    await ready();
+    // The imaging area dominates the desktop workspace without clipping its footer.
+    const workspace = (await viewer.boundingBox())!;
+    const imageArea = (await viewer.locator('.dicom-grid').boundingBox())!;
+    expect(imageArea.height / workspace.height).toBeGreaterThan(0.72);
+    expect(imageArea.y + imageArea.height).toBeLessThanOrEqual(workspace.y + workspace.height);
+    await viewer.getByLabel('Información de medidas').click();
+    await expect(viewer.getByText('Medidas temporales:', { exact: false })).toBeVisible();
+    await viewer.locator('.dicom-canvas').first().focus();
+    await page.keyboard.press('Escape');
+    await expect(viewer.getByText('Medidas temporales:', { exact: false })).not.toBeVisible();
+    await expect(viewer).toBeVisible();
+    await viewer.screenshot({ path: test.info().outputPath('synthetic-compact-mpr.png') });
+    const coordinates = viewer.getByLabel('Coordenadas del punto LPS');
+    await expect(coordinates).toContainText('mm');
+    const initial = await coordinates.textContent();
+    const originalPlanes = await hashes();
+    const axial = viewer.locator('.dicom-canvas').nth(0);
+    const box = (await axial.boundingBox())!;
+    await axial.click({ position: { x: box.width * 0.58, y: box.height * 0.56 } });
+    await expect(coordinates).not.toHaveText(initial!);
+    await expect
+      .poll(async () =>
+        (await hashes()).slice(1).every((value, i) => value !== originalPlanes[i + 1])
+      )
+      .toBe(true);
+    const beforeDrag = await coordinates.textContent();
+    await page.mouse.move(box.x + box.width * 0.58, box.y + box.height * 0.56);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width * 0.62, box.y + box.height * 0.6, { steps: 5 });
+    await page.mouse.up();
+    await expect(coordinates).not.toHaveText(beforeDrag!);
+    await viewer.getByRole('button', { name: 'Zoom', exact: true }).click();
+    await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.5);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.65, { steps: 5 });
+    await page.mouse.up();
+    await viewer.getByRole('button', { name: 'Restablecer vista', exact: true }).click();
+    await expect(coordinates).toHaveText(initial!);
+    await expect.poll(hashes).toEqual(originalPlanes);
+    const beforeScroll = await coordinates.textContent();
+    await viewer.getByRole('button', { name: 'Corte siguiente Axial' }).click();
+    await expect(coordinates).not.toHaveText(beforeScroll!);
+    await viewer.getByLabel('Marcador de referencia').selectOption('point');
+    await viewer.getByLabel('Planos vinculados').uncheck();
+    await expect(coordinates).toContainText('desactivada');
+    await viewer.getByLabel('Planos vinculados').check();
+    await expect(coordinates).toContainText('mm');
+    await viewer.getByRole('button', { name: 'Punto de referencia', exact: true }).click();
+    const beforeInvert = await hashes();
+    await viewer.getByRole('button', { name: 'Invertir grises' }).click();
+    await expect.poll(async () => (await hashes())[0] !== beforeInvert[0]).toBe(true);
+    await viewer.getByRole('button', { name: 'Invertir grises' }).click();
+    await viewer.getByRole('button', { name: 'Distancia', exact: true }).click();
+    await axial.click({ position: { x: box.width * 0.45, y: box.height * 0.45 } });
+    await axial.click({ position: { x: box.width * 0.6, y: box.height * 0.6 } });
+    await expect(viewer.locator('.dicom-canvas svg').first()).toContainText('mm');
+    await viewer.getByRole('button', { name: 'Borrar medidas' }).click();
+    await expect(viewer.locator('.dicom-canvas svg').first()).not.toContainText('mm');
+    await viewer.getByRole('button', { name: 'Ángulo', exact: true }).click();
+    for (const [x, y] of [
+      [0.45, 0.45],
+      [0.55, 0.55],
+      [0.45, 0.65],
+    ])
+      await axial.click({ position: { x: box.width * x, y: box.height * y } });
+    await expect(viewer.locator('.dicom-canvas svg').first()).toContainText('°');
+    await viewer.getByRole('button', { name: 'Borrar medidas' }).click();
+    await expect(viewer.locator('.dicom-canvas svg').first()).not.toContainText('°');
+    await viewer.getByRole('button', { name: '3D', exact: true }).click();
+    await ready();
+    // Wait for the canvas backing size to match its final CSS size before taking a
+    // pixel baseline. A layout-triggered resize must not masquerade as a preset change.
+    await expect
+      .poll(() =>
+        viewer
+          .locator('.dicom-canvas canvas')
+          .first()
+          .evaluate(canvas => {
+            const image = canvas as HTMLCanvasElement;
+            const bounds = image.getBoundingClientRect();
+            return (
+              Math.abs(image.width - bounds.width * devicePixelRatio) <= 1 &&
+              Math.abs(image.height - bounds.height * devicePixelRatio) <= 1
+            );
+          })
+      )
+      .toBe(true);
+    const bone = await hashes();
+    await viewer.getByText('Ajustes 3D', { exact: true }).click();
+    const settingsBox = (await viewer
+      .locator('.dicom-volume-settings .dicom-popover-body')
+      .boundingBox())!;
+    expect(settingsBox.y).toBeGreaterThan(workspace.y);
+    expect(settingsBox.y + settingsBox.height).toBeLessThan(workspace.y + workspace.height);
+    await viewer.getByLabel('Tejido 3D').selectOption('CT-Soft-Tissue');
+    await expect.poll(async () => (await hashes())[0] !== bone[0]).toBe(true);
+    await viewer.getByLabel('Tejido 3D').selectOption('CT-Bone');
+    await expect.poll(async () => (await hashes())[0], { timeout: 30000 }).toBe(bone[0]);
+    const beforeClip = await hashes();
+    await viewer.getByLabel('Eje de recorte 3D').selectOption('x');
+    await viewer.getByLabel('Profundidad de recorte 3D').fill('50');
+    await expect
+      .poll(async () => (await hashes())[0] !== beforeClip[0], { timeout: 30000 })
+      .toBe(true);
+    await viewer.getByLabel('Opacidad 3D').fill('40');
+    await viewer.getByLabel('Desplazamiento del umbral 3D').fill('100');
+    await viewer.getByLabel('Iluminación 3D').uncheck();
+    await viewer.getByRole('button', { name: 'Restablecer 3D' }).click();
+    await expect(viewer.getByLabel('Eje de recorte 3D')).toHaveValue('none');
+    await expect(viewer.getByLabel('Opacidad 3D')).toHaveValue('100');
+    await expect.poll(async () => (await hashes())[0]).toBe(bone[0]);
+    await viewer.getByRole('button', { name: 'Original', exact: true }).first().click();
+    await ready();
+    await expect(viewer.getByRole('alert')).toHaveCount(0);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await viewer.getByRole('button', { name: 'MPR', exact: true }).click();
+    await ready();
+    expect(await viewer.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+    await viewer.getByRole('button', { name: 'Sagital', exact: true }).scrollIntoViewIfNeeded();
+    await expect(viewer.getByRole('button', { name: 'Sagital', exact: true })).toBeInViewport();
+  });
   for (const scenario of ['localizer', 'unmarked', 'gap'] as const)
     test(`handles ${scenario} sources without losing Original or hiding selection`, async ({
       page,
@@ -461,9 +611,12 @@ test.describe('DICOM viewer and Salvador annexes', () => {
     await viewer.getByRole('button', { name: 'Añadir al informe' }).click();
     // Capture waits up to 15s for IMAGE_RENDERED before encoding. Software WebGL
     // can exceed the default 5s assertion window; retain the actual success check.
-    await expect(viewer.getByRole('status')).toContainText('Captura añadida', {
-      timeout: 20_000,
-    });
+    await expect(viewer.getByRole('status').filter({ hasText: 'Captura añadida' })).toContainText(
+      'Captura añadida',
+      {
+        timeout: 20_000,
+      }
+    );
     const pngDownload = page.waitForEvent('download');
     await viewer.getByRole('button', { name: 'PNG', exact: true }).click();
     const png = await pngDownload;
@@ -480,9 +633,12 @@ test.describe('DICOM viewer and Salvador annexes', () => {
     await page.mouse.wheel(0, 120);
     await page.screenshot({ path: test.info().outputPath('dicom-3d.png') });
     await viewer.getByRole('button', { name: 'Añadir al informe' }).click();
-    await expect(viewer.getByRole('status')).toContainText('Captura añadida', {
-      timeout: 20_000,
-    });
+    await expect(viewer.getByRole('status').filter({ hasText: 'Captura añadida' })).toContainText(
+      'Captura añadida',
+      {
+        timeout: 20_000,
+      }
+    );
     await viewer.getByRole('button', { name: /Cerrar/ }).click();
     await page
       .getByRole('dialog', { name: 'Radiología / Imagenología' })
@@ -535,7 +691,9 @@ test.describe('DICOM viewer and Salvador annexes', () => {
     );
     await page.screenshot({ path: test.info().outputPath('dicom-mobile.png') });
     await viewer.getByRole('button', { name: 'Añadir al informe' }).click();
-    await expect(viewer.getByRole('status')).toContainText('Captura añadida');
+    await expect(viewer.getByRole('status').filter({ hasText: 'Captura añadida' })).toContainText(
+      'Captura añadida'
+    );
     await viewer.getByRole('button', { name: 'Cerrar modal', exact: true }).click();
     await page
       .getByRole('dialog', { name: 'Radiología / Imagenología' })

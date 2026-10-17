@@ -3,7 +3,6 @@ import {
   init as initCore,
   RenderingEngine,
   Enums,
-  CONSTANTS,
   cache,
   setVolumesForViewports,
   utilities,
@@ -12,6 +11,7 @@ import {
   type Types,
   type StackViewport,
   type VolumeViewport,
+  type VolumeViewport3D,
 } from '@cornerstonejs/core';
 import { init as initLoader, wadouri } from '@cornerstonejs/dicom-image-loader';
 import {
@@ -26,12 +26,26 @@ import {
   Enums as ToolEnums,
   utilities as toolUtilities,
 } from '@cornerstonejs/tools';
+import { captureDicomCanvas } from './dicomCanvasCapture';
+import { DicomReferencePointTool } from './dicomReferencePointTool';
+import { CrosshairsTool, LengthTool, AngleTool } from '@cornerstonejs/tools';
+import {
+  createMprTools,
+  mprTools,
+  type DicomReference,
+  type ReferenceStyle,
+} from './dicomMprTools';
+import { applyVolumePresentation } from './dicomVolumePresentation';
+import {
+  defaultVolumePresentation,
+  type VolumePresentation,
+} from '@/services/radiology/dicomPresentation';
 import { createDicomVolume, type DicomVolumeHandle } from './dicomVolume';
 import { loadDicomSeries, type LoadedDicomSeries } from './dicomSeriesLoader';
 import { waitForDicomRender } from './dicomRenderReady';
-import type { DicomPlane, DicomStudy, DicomSeries } from '@/services/radiology/dicomTypes';
+import type { DicomStudy, DicomSeries } from '@/services/radiology/dicomTypes';
 
-export type DicomTool = 'window' | 'pan' | 'zoom' | 'rotate';
+export type DicomTool = 'window' | 'pan' | 'zoom' | 'rotate' | 'reference' | 'length' | 'angle';
 export type DicomMode = 'original' | 'mpr' | '3d';
 export interface DicomOrientation {
   top: string;
@@ -47,7 +61,7 @@ const initialize = () =>
     await initCore();
     initLoader({ maxWebWorkers: 2 });
     initTools();
-    tools.forEach(tool => addTool(tool));
+    [...tools, ...mprTools].forEach(tool => addTool(tool));
     cache.setMaxCacheSize(512 * 1024 * 1024);
   })().catch((error: unknown) => {
     initialization = undefined;
@@ -61,15 +75,14 @@ export interface DicomRuntime {
   reset: () => void;
   step: (plane: number, delta: number) => void;
   orientations: () => DicomOrientation[];
+  reference: (enabled: boolean, style: ReferenceStyle) => void;
+  onReference: (listener: (value: DicomReference | null) => void) => () => void;
+  clearMeasurements: () => void;
+  invert: (value: boolean) => void;
+  presentation: (value: VolumePresentation) => void;
   isResampled: () => boolean;
   hasLocalizers: () => boolean;
-  capture: (plane: number) => Promise<{
-    png: Uint8Array;
-    width: number;
-    height: number;
-    plane: DicomPlane;
-    sliceLabel: string;
-  }>;
+  capture: (plane: number) => ReturnType<typeof captureDicomCanvas>;
   dispose: () => void;
 }
 
@@ -87,6 +100,16 @@ export const createDicomRuntime = async (
   let mode: DicomMode = 'original';
   let viewportIds: string[] = [];
   let resize: ResizeObserver | undefined;
+  let mpr: ReturnType<typeof createMprTools> | undefined;
+  let referenceEnabled = true;
+  let referenceStyle: ReferenceStyle = 'lines';
+  let activeTool: DicomTool = 'window';
+  let referenceListener: ((value: DicomReference | null) => void) | undefined;
+  let referenceValue: DicomReference | null = null;
+  const notifyReference = (value: DicomReference | null) => {
+    referenceValue = value;
+    referenceListener?.(value);
+  };
   const id = `dicom-${crypto.randomUUID()}`;
   const volumeId = `cornerstoneStreamingImageVolume:${id}`;
   let group: ReturnType<typeof ToolGroupManager.createToolGroup>;
@@ -94,6 +117,7 @@ export const createDicomRuntime = async (
     if (disposed) return;
     disposed = true;
     resize?.disconnect();
+    mpr?.dispose();
     if (group) ToolGroupManager.destroyToolGroup(group.id);
     engine?.destroy();
     volume?.release();
@@ -126,9 +150,19 @@ export const createDicomRuntime = async (
     pan: PanTool.toolName,
     zoom: ZoomTool.toolName,
     rotate: TrackballRotateTool.toolName,
+    reference: DicomReferencePointTool.toolName,
+    length: LengthTool.toolName,
+    angle: AngleTool.toolName,
   };
   const activateTool = (tool: DicomTool) => {
-    if (!group) return;
+    if (!group || (mode !== 'mpr' && ['reference', 'length', 'angle'].includes(tool))) return;
+    activeTool = tool;
+    if (mode === 'mpr' && mpr) {
+      group.setToolPassive(DicomReferencePointTool.toolName);
+      group.setToolPassive(LengthTool.toolName);
+      group.setToolPassive(AngleTool.toolName);
+      mpr?.reference(referenceEnabled, referenceStyle);
+    }
     tools
       .filter(candidate => candidate !== StackScrollTool)
       .forEach(candidate => group?.setToolPassive(candidate.toolName));
@@ -170,6 +204,43 @@ export const createDicomRuntime = async (
   return {
     dispose,
     orientations,
+    onReference: listener => {
+      referenceListener = listener;
+      listener(referenceValue);
+      return () => {
+        if (referenceListener === listener) referenceListener = undefined;
+      };
+    },
+    reference: (enabled, style) => {
+      referenceEnabled = enabled;
+      referenceStyle = style;
+      if (mode === 'mpr') {
+        if (!enabled && activeTool === 'reference') activateTool('window');
+        mpr?.reference(enabled, style);
+        engine?.render();
+      }
+    },
+    clearMeasurements: () => {
+      mpr?.clear();
+      engine?.render();
+    },
+    invert: value => {
+      if (mode === '3d' || disposed) return;
+      viewportIds.forEach(viewportId =>
+        (engine?.getViewport(viewportId) as StackViewport | VolumeViewport)?.setProperties({
+          invert: value,
+        })
+      );
+      engine?.render();
+    },
+    presentation: value => {
+      if (mode === '3d' && !disposed && engine)
+        applyVolumePresentation(
+          engine.getViewport(viewportIds[0]) as VolumeViewport3D,
+          value,
+          series.modality
+        );
+    },
     isResampled: () => mode !== 'original' && Boolean(volume?.resampled),
     hasLocalizers: () => Boolean(loaded && loaded.volumeGeometry.length < loaded.geometry.length),
     show: async (nextMode, elements) => {
@@ -196,6 +267,8 @@ export const createDicomRuntime = async (
           volume = created;
         }
       }
+      mpr?.dispose();
+      mpr = undefined;
       if (group) ToolGroupManager.destroyToolGroup(group.id);
       resize?.disconnect();
       mode = nextMode;
@@ -238,17 +311,24 @@ export const createDicomRuntime = async (
           [
             {
               volumeId,
-              callback: ({ volumeActor }) => {
-                if (nextMode !== '3d') return;
-                const preset = CONSTANTS.VIEWPORT_PRESETS.find(item => item.name === 'CT-Bone');
-                if (preset) utilities.applyPreset(volumeActor, preset);
-              },
             },
           ],
           viewportIds
         );
       }
       ensureActive();
+      if (nextMode === '3d')
+        applyVolumePresentation(
+          engine.getViewport(viewportIds[0]) as VolumeViewport3D,
+          defaultVolumePresentation(series.modality),
+          series.modality
+        );
+      if (nextMode === 'mpr') {
+        referenceEnabled = true;
+        referenceStyle = 'lines';
+        mpr = createMprTools(group, id, viewportIds, notifyReference);
+        activateTool(referenceEnabled ? 'reference' : 'window');
+      }
       const sizes = new Map(
         elements.map(element => [element, [element.clientWidth, element.clientHeight]])
       );
@@ -284,6 +364,11 @@ export const createDicomRuntime = async (
     },
     reset: () => {
       if (!engine || disposed) return;
+      if (mode === 'mpr' && referenceEnabled) {
+        // Cornerstone 4.22 resetCrosshairs resets pan, zoom, orientation and center for every viewport.
+        (group?.getToolInstance(CrosshairsTool.toolName) as CrosshairsTool)?.resetCrosshairs();
+        return;
+      }
       viewportIds.forEach(viewport => {
         const target = engine?.getViewport(viewport);
         target?.resetCamera();
@@ -301,65 +386,13 @@ export const createDicomRuntime = async (
       if (!target) throw new Error('Selecciona una vista cargada.');
       await waitForDicomRender([target.element], () => target.render(), signal);
       ensureActive();
-      const source = target.getCanvas();
-      const canvas = document.createElement('canvas');
-      const scale = Math.min(1, 2048 / source.width, 2048 / source.height);
-      canvas.width = Math.max(1, Math.round(source.width * scale));
-      canvas.height = Math.max(1, Math.round(source.height * scale));
-      const context = canvas.getContext('2d');
-      if (!context) throw new Error('El navegador no permite capturar esta vista.');
-      context.drawImage(source, 0, 0, canvas.width, canvas.height);
-      const sliceLabel =
-        (volume?.resampled && mode !== 'original' ? 'Remuestreado · ' : '') +
-        (mode === '3d'
-          ? 'Volumen 3D'
-          : `Corte ${target.getSliceIndex() + 1}/${target.getNumberOfSlices()}`);
-      context.font = '14px sans-serif';
-      context.fillStyle = 'rgba(0,0,0,.7)';
-      context.fillRect(
-        8,
-        canvas.height - 28,
-        Math.min(canvas.width - 16, context.measureText(sliceLabel).width + 12),
-        22
+      return captureDicomCanvas(
+        target as StackViewport | VolumeViewport,
+        mode,
+        plane,
+        Boolean(volume?.resampled),
+        orientations()[plane]
       );
-      context.fillStyle = 'white';
-      context.fillText(sliceLabel, 14, canvas.height - 12);
-      const edges = orientations()[plane];
-      if (edges) {
-        const size = Math.max(12, Math.min(22, canvas.width / 35));
-        context.font = `bold ${size}px sans-serif`;
-        context.textAlign = 'center';
-        context.textBaseline = 'middle';
-        for (const [label, x, y] of [
-          [edges.top, canvas.width / 2, size],
-          [edges.bottom, canvas.width / 2, canvas.height - size],
-          [edges.left, size, canvas.height / 2],
-          [edges.right, canvas.width - size, canvas.height / 2],
-        ] as const) {
-          context.fillStyle = 'rgba(0,0,0,.7)';
-          context.fillRect(x - size, y - size * 0.7, size * 2, size * 1.4);
-          context.fillStyle = 'white';
-          context.fillText(label, x, y);
-        }
-      }
-      const blob = await new Promise<Blob>((resolve, reject) =>
-        canvas.toBlob(
-          value => (value ? resolve(value) : reject(new Error('No se pudo capturar la vista.'))),
-          'image/png'
-        )
-      );
-      return {
-        png: new Uint8Array(await blob.arrayBuffer()),
-        width: canvas.width,
-        height: canvas.height,
-        sliceLabel,
-        plane:
-          mode === 'original'
-            ? 'original'
-            : mode === '3d'
-              ? '3d'
-              : (['axial', 'coronal', 'sagittal'] as const)[plane],
-      };
     },
   };
 };
