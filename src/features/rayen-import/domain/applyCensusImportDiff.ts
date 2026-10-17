@@ -20,7 +20,10 @@ import {
   hasRecordedReportOutcome,
 } from './censusDischargeHistory';
 import { filterRecordedOutcomeActions } from './filterRecordedOutcomeActions';
-import { recordedMaternalDischarge } from './associatedClinicalCribDischarge';
+import {
+  appendAssociatedClinicalCribDischarge,
+  recordedMaternalDischarge,
+} from './associatedClinicalCribDischarge';
 import { applyClinicalCribDischargeRepairs } from './clinicalCribDischargeRepairs';
 import { applyReviewedPatientChanges, patientAfterBedMove } from './patientSyncPolicy';
 const BED_NAME = new Map(BEDS.map(bed => [bed.id, bed.name]));
@@ -282,28 +285,11 @@ export const applyCensusImportDiff = (
       const recordedMother = recordedMaternalDischarge(current, entry);
       if (!recordedMother) discharges.push(buildDischarge(principalSnapshot, entry, current, ctx));
       if (associatedCrib) {
-        const associated = buildDischarge(associatedCrib, entry, current, ctx, true);
-        discharges.push(
-          recordedMother
-            ? {
-                ...associated,
-                time: recordedMother.time,
-                movementDate: recordedMother.movementDate,
-              }
-            : associated
+        appendAssociatedClinicalCribDischarge(
+          discharges,
+          recordedMother,
+          buildDischarge(associatedCrib, entry, current, ctx, true)
         );
-        const recordedSnapshot = recordedMother?.originalData;
-        if (
-          recordedMother &&
-          recordedSnapshot?.clinicalCrib &&
-          recordedSnapshot.clinicalCrib.clinicalEpisodeId === associatedCrib.clinicalEpisodeId
-        ) {
-          const index = discharges.findIndex(row => row.id === recordedMother.id);
-          discharges[index] = {
-            ...recordedMother,
-            originalData: { ...recordedSnapshot, clinicalCrib: undefined },
-          };
-        }
       }
     }
     applied.discharges += 1;

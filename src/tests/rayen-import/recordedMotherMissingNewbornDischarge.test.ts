@@ -161,41 +161,46 @@ describe('previously recorded maternal discharge with missing associated RN', ()
     expect(result.record.discharges).toEqual(current.discharges);
   });
 
-  it('adds the absent exact RN once without duplicating or changing the maternal movement', () => {
-    const current = record();
-    const diff = applyEgresoReport(
-      reconcileCensus(
-        current,
-        {
-          capturedAt: now.toISOString(),
-          facilityId: 1342,
-          isComplete: true,
-          encounters: [],
-        },
-        { reference: now }
-      ),
-      [row],
-      current
-    );
-    const result = applyCensusImportDiff(current, diff, {
-      now,
-      idFactory: () => 'newborn-movement',
-      syncRunId: 'synthetic',
-    });
-    expect(result.record.discharges).toHaveLength(2);
-    expect(result.record.discharges[0]).toEqual(current.discharges[0]);
-    expect(result.record.discharges[1]).toMatchObject({
-      clinicalEpisodeId: newborn.clinicalEpisodeId,
-      isNested: true,
-      time: '11:47',
-      originalData: expect.objectContaining({ handoffNoteNightShift: 'Nota propia del RN' }),
-    });
-    expect(result.record.beds.R4?.patientName).toBeFalsy();
-    const again = applyCensusImportDiff(result.record, diff, {
-      now,
-      idFactory: () => 'must-not-create',
-      syncRunId: 'synthetic-repeat',
-    });
-    expect(again.record.discharges).toEqual(result.record.discharges);
-  });
+  it.each([false, true])(
+    'adds the exact RN once with a maternal crib undo snapshot = %s',
+    hasCribSnapshot => {
+      const current = record();
+      const keptMaternalMovement = record().discharges[0];
+      if (hasCribSnapshot) current.discharges[0].originalData = { ...mother };
+      const diff = applyEgresoReport(
+        reconcileCensus(
+          current,
+          {
+            capturedAt: now.toISOString(),
+            facilityId: 1342,
+            isComplete: true,
+            encounters: [],
+          },
+          { reference: now }
+        ),
+        [row],
+        current
+      );
+      const result = applyCensusImportDiff(current, diff, {
+        now,
+        idFactory: () => 'newborn-movement',
+        syncRunId: 'synthetic',
+      });
+      expect(result.record.discharges).toHaveLength(2);
+      expect(result.record.discharges[0]).toEqual(keptMaternalMovement);
+      expect(result.record.discharges[1]).toMatchObject({
+        clinicalEpisodeId: newborn.clinicalEpisodeId,
+        isNested: true,
+        time: '11:47',
+        originalData: expect.objectContaining({ handoffNoteNightShift: 'Nota propia del RN' }),
+      });
+      expect(result.record.beds.R4?.patientName).toBeFalsy();
+      const again = applyCensusImportDiff(result.record, diff, {
+        now,
+        idFactory: () => 'must-not-create',
+        syncRunId: 'synthetic-repeat',
+      });
+      expect(again.record.discharges).toEqual(result.record.discharges);
+    }
+  );
 });
