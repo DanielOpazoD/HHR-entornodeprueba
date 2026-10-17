@@ -158,3 +158,8 @@ relectura de las versiones exactas, comparación de los campos seleccionados,
 precondición de escritura, recibo y verificación posterior. No hay modo de
 aplicación ni conexión a Firebase. Repetir sobre datos ya completados no propone
 otra escritura. El estado del checklist CUDYR no modifica el informe oficial.
+
+La firma histórica se conserva aunque ya no exista en el catálogo activo. El
+selector de entrega/recepción incluye el valor guardado para mostrarlo sin
+reescribirlo, inferir otra identidad ni añadir funcionarios al catálogo.
+Una vacante explícita se mantiene. Comprobar ambos turnos y la vista compacta.
