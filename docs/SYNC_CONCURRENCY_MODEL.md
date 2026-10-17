@@ -122,9 +122,11 @@ because either would lose the decision and episode guards.
 This preserves ID-02, SAVE-01 and SAVE-02 in `DOMAIN_RULES.md`. Verification uses
 the component/input regression suites, `specialtyManualClassification.test.ts`,
 the local specialty/clinical concurrency emulator suite, and
-`e2e/census-specialty-save.spec.ts`. The browser suite controls responses to actual
-UI requests; it does not by itself prove Firestore transactions. Roll back the
-change as one PR, preserving the existing authority and queue contracts.
+`e2e/census-specialty-save.spec.ts`. The browser suite controls when actual UI
+requests complete, using the authority handler against a local Firestore emulator.
+It checks server revisions and episode decisions as well as browser persistence
+after reload. Roll back the change as one PR, preserving the existing authority
+and queue contracts.
 
 - Unit: `firestoreWriteSupport.test.ts` (CAS, missing-base, erasure backstop, strict tolerance),
   `dailyRecordRemoteWriteController.test.ts` (`findPatientErasures` cases), `networkUtils.test.ts`.
