@@ -155,6 +155,15 @@
   color: #fbbf24;
 }
 .dicom-loading {
+  position: absolute;
+  z-index: 3;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #101b2dee;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  pointer-events: none;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -244,6 +253,7 @@
   min-height: 0;
 }
 .dicom-viewer {
+  position: relative;
   display: flex;
   flex-direction: column;
   min-height: 100%;

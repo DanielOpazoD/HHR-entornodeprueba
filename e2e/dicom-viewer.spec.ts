@@ -245,6 +245,23 @@ test.describe('DICOM viewer and Salvador annexes', () => {
     await expect(viewer.locator('.dicom-canvas svg').first()).not.toContainText('°');
     await viewer.getByRole('button', { name: '3D', exact: true }).click();
     await ready();
+    // Wait for the canvas backing size to match its final CSS size before taking a
+    // pixel baseline. A layout-triggered resize must not masquerade as a preset change.
+    await expect
+      .poll(() =>
+        viewer
+          .locator('.dicom-canvas canvas')
+          .first()
+          .evaluate(canvas => {
+            const image = canvas as HTMLCanvasElement;
+            const bounds = image.getBoundingClientRect();
+            return (
+              Math.abs(image.width - bounds.width * devicePixelRatio) <= 1 &&
+              Math.abs(image.height - bounds.height * devicePixelRatio) <= 1
+            );
+          })
+      )
+      .toBe(true);
     const bone = await hashes();
     await viewer.getByText('Ajustes 3D', { exact: true }).click();
     const settingsBox = (await viewer
