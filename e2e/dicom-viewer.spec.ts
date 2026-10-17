@@ -146,6 +146,92 @@ const openSalvador = async (page: Page, manual = false) => {
 test.describe('DICOM viewer and Salvador annexes', () => {
   test.setTimeout(150000);
   test.use({ viewport: { width: 1440, height: 1000 } });
+  for (const scenario of ['localizer', 'unmarked', 'gap'] as const)
+    test(`handles ${scenario} sources without losing Original or hiding selection`, async ({
+      page,
+    }) => {
+      const marked = scenario !== 'unmarked';
+      const valid = scenario === 'localizer';
+      const localizerIndex = scenario === 'gap' ? 12 : 0;
+      await setup(page);
+      await page.route('**/.netlify/functions/mmrad-dicom', async route => {
+        const body = route.request().postDataJSON();
+        if (body.action !== 'instance') return route.fallback();
+        const index = Number(String(body.ticket).split('-')[1]);
+        await route.fulfill({
+          contentType: 'application/dicom',
+          body: Buffer.from(
+            syntheticDicom(
+              index,
+              24,
+              SYNTHETIC_PATIENT_ID,
+              undefined,
+              undefined,
+              index === localizerIndex
+                ? { rows: 32, columns: 16, spacing: [2, 4], position: [0, 0], padding: true }
+                : undefined,
+              index === localizerIndex
+                ? {
+                    imageType: marked ? 'ORIGINAL\\PRIMARY\\LOCALIZER' : 'ORIGINAL\\PRIMARY\\AXIAL',
+                    orientation: [1, 0, 0, 0, 0, 1],
+                  }
+                : undefined
+            )
+          ),
+        });
+      });
+      const editor = await openSalvador(page);
+      await editor.getByRole('button', { name: 'Imágenes MMRAD' }).click();
+      await page.getByRole('button', { name: 'Ver DICOM', exact: true }).click();
+      const viewer = page.getByRole('dialog', { name: /Visor DICOM/ });
+      const ready = () =>
+        expect(viewer.getByRole('button', { name: 'PNG', exact: true })).toBeEnabled({
+          timeout: 60000,
+        });
+      await ready();
+      for (const mode of ['MPR', '3D']) {
+        await viewer.getByRole('button', { name: mode, exact: true }).click();
+        if (valid) {
+          await ready();
+          await expect(viewer.getByRole('alert')).toHaveCount(0);
+          await expect(viewer.getByText(/Los localizadores de planificación/)).toBeVisible();
+          const brightPixels = await viewer.locator('.dicom-canvas canvas').evaluateAll(canvases =>
+            canvases.map(node => {
+              const canvas = node as HTMLCanvasElement;
+              const copy = document.createElement('canvas');
+              copy.width = canvas.width;
+              copy.height = canvas.height;
+              const ctx = copy.getContext('2d')!;
+              ctx.drawImage(canvas, 0, 0);
+              const pixels = ctx.getImageData(0, 0, copy.width, copy.height).data;
+              let bright = 0;
+              for (let i = 0; i < pixels.length; i += 4) if (pixels[i] > 20) bright++;
+              return bright;
+            })
+          );
+          expect(brightPixels).toHaveLength(mode === 'MPR' ? 3 : 1);
+          brightPixels.forEach(count => expect(count).toBeGreaterThan(500));
+        } else {
+          await expect(viewer.getByRole('alert')).toContainText(
+            marked ? 'espaciado uniforme' : 'orientaciones'
+          );
+          await expect(viewer.getByRole('button', { name: 'PNG', exact: true })).toBeDisabled();
+          await expect(viewer.getByText(/Los localizadores de planificación/)).toHaveCount(
+            marked ? 1 : 0
+          );
+        }
+        await viewer
+          .getByRole('button', { name: valid ? 'Original' : 'Volver a original', exact: true })
+          .first()
+          .click();
+        await ready();
+        await expect(viewer.getByRole('alert')).toHaveCount(0);
+        await expect(viewer.getByText(/Los localizadores de planificación/)).toHaveCount(0);
+        await viewer.getByRole('button', { name: 'Corte siguiente Original', exact: true }).click();
+        await viewer.getByRole('button', { name: 'Corte anterior Original', exact: true }).click();
+      }
+    });
+
   test('explains incompatible reference frames in MPR and 3D and preserves the original view', async ({
     page,
   }) => {

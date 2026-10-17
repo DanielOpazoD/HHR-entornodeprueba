@@ -35,8 +35,21 @@ misma serie. No genera segmentaciones ni modelos anatómicos inferidos.
 
 MPR/3D requieren al menos tres cortes CT/MR, orientación compatible, un mismo
 marco de referencia y posiciones uniformes sin duplicados ni inclinación. No se
-mezclan series ni se descartan cortes para fabricar un volumen completo. Los
+mezclan series ni se descartan cortes volumétricos para fabricar un volumen completo. Los
 avisos de incompatibilidad son categorías fijas, sin UID ni valores del estudio.
+
+Una serie CT puede incluir localizadores de planificación que no representan cortes
+del volumen. Se excluyen de MPR/3D únicamente cuando el original validado es CT
+Image Storage clásico, su modalidad es CT y el tercer valor de Image Type es
+exactamente `LOCALIZER`, según [DICOM C.8.2.1.1.1](https://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.8.2.html).
+Original conserva todas las imágenes y MPR/3D muestran un aviso de esa selección.
+La identidad y los límites de carga se comprueban también para cada localizador.
+No se deduce esta clasificación de nombres, tamaño de matriz, orientación ni
+grupos minoritarios; MR, tipos ausentes o ambiguos y otras clases SOP conservan
+todas sus imágenes para la validación geométrica. Los cortes restantes deben
+superar las mismas comprobaciones de marco, orientación, cobertura y espaciado,
+incluido el mínimo de tres cortes. El relleno o escala de un localizador excluido
+no afecta la elegibilidad de remuestreo de los cortes volumétricos.
 
 Las matrices heterogéneas se admiten cuando los cuatro bordes del campo físico
 coinciden dentro del menor de 0,001 mm y el 0,1 % del píxel más pequeño.
@@ -138,6 +151,7 @@ Pruebas: `src/tests/netlify/mmradDicom.test.ts`,
 `src/tests/services/radiology/dicomGeometry.test.ts`,
 `src/tests/services/radiology/dicomResampling.test.ts`,
 `src/tests/services/radiology/dicomVolume.test.ts`,
+`src/tests/services/radiology/dicomSeriesLoader.test.ts`,
 `src/tests/services/radiology/saveDicomPng.test.ts`,
 `src/tests/features/clinical-library/clinicalFormAnnexes.test.ts` y
 `e2e/dicom-viewer.spec.ts`. Los datos DICOM se generan en

@@ -17,7 +17,8 @@ export const syntheticDicom = (
     position: [number, number];
     padding?: boolean;
     functionalGroupMapping?: boolean;
-  }
+  },
+  plane?: { imageType?: string; orientation?: number[]; modality?: string; sopClass?: string }
 ): Uint8Array => {
   const rows = matrix?.rows ?? 64;
   const columns = matrix?.columns ?? 64;
@@ -49,16 +50,17 @@ export const syntheticDicom = (
     parts.push(header, data);
   };
   const sop = syntheticSopUid(slice);
-  const sopClass = matrix?.functionalGroupMapping
-    ? '1.2.840.10008.5.1.4.1.1.2.1'
-    : '1.2.840.10008.5.1.4.1.1.2';
+  const sopClass =
+    plane?.sopClass ??
+    (matrix?.functionalGroupMapping ? '1.2.840.10008.5.1.4.1.1.2.1' : '1.2.840.10008.5.1.4.1.1.2');
   element('00020002', 'UI', sopClass);
   element('00020003', 'UI', sop);
   element('00020010', 'UI', jpeg2000 ? '1.2.840.10008.1.2.4.90' : '1.2.840.10008.1.2.1');
   element('00020012', 'UI', '1.2.826.0.1.3680043.10.543.99');
+  if (plane?.imageType) element('00080008', 'CS', plane.imageType);
   element('00080016', 'UI', sopClass);
   element('00080018', 'UI', sop);
-  element('00080060', 'CS', 'CT');
+  element('00080060', 'CS', plane?.modality ?? 'CT');
   element('00100010', 'PN', 'PACIENTE^SINTETICO');
   element('00100020', 'LO', patientId);
   element('00180050', 'DS', '2');
@@ -66,7 +68,7 @@ export const syntheticDicom = (
   element('0020000e', 'UI', SYNTHETIC_SERIES_UID);
   element('00200013', 'IS', String(slice + 1));
   element('00200032', 'DS', `${position[0]}\\${position[1]}\\${slice * 2}`);
-  element('00200037', 'DS', '1\\0\\0\\0\\1\\0');
+  element('00200037', 'DS', (plane?.orientation ?? [1, 0, 0, 0, 1, 0]).join('\\'));
   element('00200052', 'UI', frameOfReference);
   element('00280002', 'US', 1);
   element('00280004', 'CS', 'MONOCHROME2');

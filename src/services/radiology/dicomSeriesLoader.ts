@@ -6,12 +6,15 @@ import { type DicomSeries, type DicomStudy } from '@/services/radiology/dicomTyp
 import type { SliceGeometry } from '@/domain/radiology/dicomGeometry';
 import { validateDicomInstanceIdentity } from './dicomInstanceIdentity';
 import { supportsDicomResampling } from './dicomPixelMapping';
+import { isDicomCtLocalizer } from './dicomLocalizer';
 
 const MAX_RAW_BYTES = 256 * 1024 * 1024;
 const MAX_VOXELS = 128 * 1024 * 1024;
 export interface LoadedDicomSeries {
   imageIds: string[];
   geometry: SliceGeometry[];
+  /** Explicit CT localizers remain in Original, but are not cross-sectional volume sources. */
+  volumeGeometry: SliceGeometry[];
   resamplingSupported: boolean;
   release: () => void;
 }
@@ -33,6 +36,7 @@ export const loadDicomSeries = async (
     );
   const ids: string[] = [];
   const geometry: SliceGeometry[] = [];
+  const localizers: boolean[] = [];
   const release = () => {
     for (const id of ids) {
       if (!id) continue;
@@ -59,7 +63,6 @@ export const loadDicomSeries = async (
           throw new Error('La serie supera el límite de memoria de originales (256 MB).');
         const data = parseDicom(bytes, { untilTag: 'x7fe00010' });
         validateDicomInstanceIdentity(data, study, series, instance);
-        if (!supportsDicomResampling(data)) resamplingSupported = false;
         const frames = Number(data.string('x00280008') || 1);
         const rows = data.uint16('x00280010') || 0;
         const columns = data.uint16('x00280011') || 0;
@@ -67,6 +70,8 @@ export const loadDicomSeries = async (
         voxels += rows * columns * samples;
         if (frames !== 1 || rows <= 0 || columns <= 0 || voxels > MAX_VOXELS)
           throw new Error('El original DICOM no es compatible con los límites del visor.');
+        localizers[index] = series.modality === 'CT' && isDicomCtLocalizer(data);
+        if (!localizers[index] && !supportsDicomResampling(data)) resamplingSupported = false;
         const id = wadouri.fileManager.add(
           new Blob([new Uint8Array(bytes)], { type: 'application/dicom' })
         );
@@ -101,5 +106,11 @@ export const loadDicomSeries = async (
     release();
     throw failure || signal.reason;
   }
-  return { imageIds: ids, geometry, resamplingSupported, release };
+  return {
+    imageIds: ids,
+    geometry,
+    volumeGeometry: geometry.filter((_, index) => !localizers[index]),
+    resamplingSupported,
+    release,
+  };
 };

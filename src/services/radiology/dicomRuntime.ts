@@ -62,6 +62,7 @@ export interface DicomRuntime {
   step: (plane: number, delta: number) => void;
   orientations: () => DicomOrientation[];
   isResampled: () => boolean;
+  hasLocalizers: () => boolean;
   capture: (plane: number) => Promise<{
     png: Uint8Array;
     width: number;
@@ -170,6 +171,7 @@ export const createDicomRuntime = async (
     dispose,
     orientations,
     isResampled: () => mode !== 'original' && Boolean(volume?.resampled),
+    hasLocalizers: () => Boolean(loaded && loaded.volumeGeometry.length < loaded.geometry.length),
     show: async (nextMode, elements) => {
       ensureActive();
       if (!engine || !loaded) return;
@@ -182,7 +184,7 @@ export const createDicomRuntime = async (
           // Every instance is validated and decoded before any reconstruction.
           const created = await createDicomVolume(
             volumeId,
-            loaded.geometry,
+            loaded.volumeGeometry,
             series.modality,
             loaded.resamplingSupported,
             signal
