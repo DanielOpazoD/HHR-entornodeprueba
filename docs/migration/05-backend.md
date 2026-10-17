@@ -43,3 +43,21 @@ publicadas no contemplan `dailyRecords/{date}/conflictSnapshots/{snapshotId}`.
 Renovar sesión no incorpora una regla que falta. Comprobar el despliegue antes
 de modificar roles o suavizar el aviso del visor; no sustituir un rechazo de acceso
 por «sin conflictos».
+
+## Límites de acceso que deben conservarse en la publicación
+
+Las plantillas de indicaciones pertenecen a su usuario: puede borrarlas sin
+reenviar contenido. Una indicación archivada vincula su identificador con el
+documento y su autor con la sesión; si informa rol, debe ser el rol efectivo.
+Los registros antiguos pueden omitir ese rol. El archivo sigue siendo inmutable.
+
+En recetas fotografiadas, Enfermería puede corregir la asignación de paciente y
+el tipo de receta, con la identidad del funcionario que modifica esos campos.
+No puede sustituir la imagen original, su ruta ni su autor de carga. Se conservan
+la eliminación manual ya habilitada para Enfermería y el mantenimiento por un
+administrador. No confundir esos permisos con una publicación de reglas.
+
+La suite de emulador verifica ambos lados: operaciones legítimas y rechazo de
+sustitución de fuente o autor. Los registros clínicos de esquema 2 conservan la
+autoridad del servidor también en los modos off y shadow. Estos cambios no
+modifican los permisos existentes para finalizar o corregir traslados.

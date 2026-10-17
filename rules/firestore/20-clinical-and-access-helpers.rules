@@ -76,14 +76,14 @@
              ]);
     }
 
-    function isValidMedicalIndicationRecordCreate() {
+    function isValidMedicalIndicationRecordCreate(recordId) {
       let payload = request.resource.data;
 
       return canWriteMedicalIndicationRecord() &&
              isAuthenticated() &&
              hasOnlyMedicalIndicationRecordKeys(payload) &&
              hasRequiredMedicalIndicationRecordKeys(payload) &&
-             payload.id is string &&
+             payload.id is string && payload.id == recordId &&
              payload.patientRut is string &&
              payload.patientName is string &&
              payload.episodeId is string &&
@@ -93,6 +93,7 @@
              payload.generatedByUserId == request.auth.uid &&
              payload.generatedByName is string &&
              isOptionalEnum(payload, 'generatedByRole', ['admin', 'doctor_urgency', 'doctor_specialist']) &&
+             (payload.get('generatedByRole', null) == null || payload.generatedByRole == getEffectiveRole()) &&
              payload.generatedFromTemplateIds is list &&
              payload.admissionDate is string &&
              payload.daysOfStayForTargetDate is string &&
@@ -120,3 +121,26 @@
     }
 
     //
+
+    // Nursing may correct assignment/type metadata, never replace the uploaded source.
+    function isCurrentPrescriptionActor(value) {
+      return value is string &&
+             (value == request.auth.uid || (hasEmail() && normalizeEmail(value) == getUserEmail()));
+    }
+    function canUpdatePrescription() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return isAdmin() || (hasEffectiveRole('nurse_hospital') &&
+             changed.hasOnly(['bedId', 'patientName', 'patientRut', 'assignmentScope',
+               'patientReassignedAt', 'patientReassignedBy', 'prescriptionType', 'typeUpdatedAt', 'typeUpdatedBy']) &&
+             (!changed.hasAny(['bedId', 'patientName', 'patientRut', 'assignmentScope', 'patientReassignedAt', 'patientReassignedBy']) ||
+               (isCurrentPrescriptionActor(request.resource.data.get('patientReassignedBy', null)) &&
+                request.resource.data.get('patientReassignedAt', null) is string &&
+                request.resource.data.get('assignmentScope', null) in ['patient', 'unassigned', 'hospitalized_stock'] &&
+                isOptionalString(request.resource.data, 'bedId') &&
+                isOptionalString(request.resource.data, 'patientName') &&
+                isOptionalString(request.resource.data, 'patientRut'))) &&
+             (!changed.hasAny(['prescriptionType', 'typeUpdatedAt', 'typeUpdatedBy']) ||
+               (isCurrentPrescriptionActor(request.resource.data.get('typeUpdatedBy', null)) &&
+                request.resource.data.get('typeUpdatedAt', null) is string &&
+                request.resource.data.get('prescriptionType', null) in ['comun', 'psicotropicos', 'benzodiazepinas'])));
+    }
