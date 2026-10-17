@@ -29,12 +29,13 @@ const authorityErrorMessage = (error: unknown): string =>
 export const normalizeDailyRecordAuthorityError = (error: unknown): unknown => {
   const code = authorityErrorCode(error);
   const message = authorityErrorMessage(error);
-  if (
-    code === 'aborted' ||
-    /revision_mismatch|version_mismatch|base revision|remote revision/i.test(message)
-  ) {
+  const versionConflict =
+    /revision_mismatch|version_mismatch|base revision|remote revision/i.test(message) ||
+    message === 'Daily record changed remotely before the authorized write transaction.';
+  if (code === 'aborted' || versionConflict) {
     return new ConcurrencyError(
-      'HHR detectó una versión más reciente de este censo y evitó sobrescribirla.'
+      'HHR detectó una versión más reciente de este censo y evitó sobrescribirla.',
+      versionConflict ? 'version_mismatch' : 'semantic_conflict'
     );
   }
   return error;

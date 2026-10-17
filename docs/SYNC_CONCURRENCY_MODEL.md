@@ -196,3 +196,33 @@ Los tombstones existentes evitan que una fusión con otra pestaña resucite la c
 Regresiones: `newbornDischargeIdempotency.test.ts`, `newbornDischargeReportPrecedence.test.ts`,
 `clinicalCribDischargeRepairs.test.ts`, `RayenImportPreviewModal.newbornRepair.test.tsx` y
 `dischargePlanInvariants.test.ts` bajo `src/tests/rayen-import/`.
+
+### Recuperación de especialidad manual
+
+Con el piloto por episodio activo, el repositorio adquiere el turno de escritura
+existente de la fecha antes de leer la base autoritativa del servidor. Conserva la
+intención original: episodio, destino cama/cuna, decisión previa y valor mostrado.
+Un cambio de cualquiera de esas condiciones exige revisar el censo. No se reemplaza
+`expectedDecisionId` por el encontrado al refrescar y una lectura local no acredita
+que el servidor conserve al paciente.
+
+Un conflicto exclusivamente de revisión admite un solo reintento, tras comprobar
+que la misma especialidad y decisión siguen vigentes. Conserva `mutationId`,
+`clientId` y `tabId`; los rechazos semánticos o de permisos no se reintentan.
+Si la respuesta se pierde, sólo se confirma por una lectura autoritativa que
+contenga el mismo `decisionId` de esa mutación, episodio, valor, fecha y origen.
+Coincidir únicamente en el texto de la especialidad no prueba que se guardó esa
+operación. Una recuperación confirmada conserva las otras ediciones locales
+pendientes mediante el adoptador existente. Sin evidencia suficiente se informa
+el fallo, sin encolar una decisión rechazada ni inventar confirmación.
+
+La cola ordena las escrituras de una pestaña por fecha; las transacciones y sus
+versiones protegen frente a otras pestañas o usuarios. No hay una cola global ni
+un temporizador que cancele una transacción remota. Se mantienen los modos legacy
+sin activar flags ni modificar reglas de especialidad. Reversión: revertir el PR
+de recuperación conservando los controles de autoridad, CAS y episodio.
+
+Regresiones: `dailyRecordSpecialtyRecovery.test.ts` comprueba diez cambios rápidos,
+cama/cuna, conflictos técnicos y semánticos, desconexión, respuesta perdida y
+conservación de proyecciones locales; `dailyRecordAuthorityCallableClient.test.ts`
+verifica la clasificación de errores del servidor.

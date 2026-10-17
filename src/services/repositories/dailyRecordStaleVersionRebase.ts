@@ -5,6 +5,7 @@ import { updateRecordPartial as updateRecordPartialToFirestore } from '@/service
 import { buildDailyRecordSyncContract } from '@/services/storage/sync/syncTaskContractPolicy';
 import {
   buildGuardedDailyRecordRemoteWriteOptions,
+  canRebaseManualSpecialtyIntent,
   type GuardedDailyRecordPatchPolicy,
 } from '@/services/repositories/dailyRecordGuardedCommandPolicy';
 import {
@@ -16,6 +17,8 @@ import { isSameEpisodeForExplicitCensusPatch } from '@/services/repositories/exp
 import { composeNameParts, normalizeComparableName } from '@/schemas/zod/helpers';
 import { mapPatientToFhir } from '@/services/utils/fhirMappers';
 import { applyPatches } from '@/utils/patchUtils';
+import type { SyncTaskContract } from '@/services/storage/syncQueueTypes';
+import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 
 const DEMOGRAPHIC_NAME_PART_FIELDS = ['firstName', 'lastName', 'secondLastName'] as const;
 
@@ -69,9 +72,11 @@ const buildDemographicNameRebasedPatch = (
 
     const valueFor = (field: (typeof DEMOGRAPHIC_NAME_PART_FIELDS)[number]): string => {
       const path = `beds.${bedId}.${field}`;
-      return String(Object.prototype.hasOwnProperty.call(rebasedPatch, path)
-        ? rebasedPatch[path]
-        : remotePatient[field] || '');
+      return String(
+        Object.prototype.hasOwnProperty.call(rebasedPatch, path)
+          ? rebasedPatch[path]
+          : remotePatient[field] || ''
+      );
     };
     const patientName = composeNameParts(
       valueFor('firstName'),
@@ -82,10 +87,9 @@ const buildDemographicNameRebasedPatch = (
 
     const fhirPath = `beds.${bedId}.fhir_resource`;
     if (Object.prototype.hasOwnProperty.call(rebasedPatch, fhirPath)) {
-      const rebasedPatient = applyPatches(
-        freshRemoteRecord,
-        rebasedPatch as DailyRecordPatch
-      ).beds[bedId];
+      const rebasedPatient = applyPatches(freshRemoteRecord, rebasedPatch as DailyRecordPatch).beds[
+        bedId
+      ];
       rebasedPatch[fhirPath] = mapPatientToFhir(rebasedPatient);
     }
   });
@@ -104,13 +108,13 @@ const hasConsistentDerivedPatientName = (
   );
   return Boolean(
     composedName &&
-      normalizeComparableName(composedName) === normalizeComparableName(patient.patientName)
+    normalizeComparableName(composedName) === normalizeComparableName(patient.patientName)
   );
 };
 
 export interface StaleVersionRebaseRetryHooks<TResult> {
   retryRemoteWriteOnStaleVersion?: (freshRemoteRecord: DailyRecord) => Promise<TResult | void>;
-  canRebaseStaleVersionConflict?: (freshRemoteRecord: DailyRecord) => boolean;
+  canRebaseStaleVersionConflict?: (freshRemoteRecord: DailyRecord, writeError: unknown) => boolean;
 }
 
 /**
@@ -127,7 +131,7 @@ export const buildGranularPatchStaleVersionRetryHooks = <TResult>({
   isReclassification,
   semanticChangedPaths,
   baseRecord,
-  validatedRecord,
+  syncContract,
 }: {
   date: string;
   options: PartialUpdateDailyRecordOptions;
@@ -135,14 +139,14 @@ export const buildGranularPatchStaleVersionRetryHooks = <TResult>({
   isReclassification: boolean;
   semanticChangedPaths: string[];
   baseRecord: DailyRecord;
-  validatedRecord: DailyRecord;
+  syncContract: SyncTaskContract;
 }): StaleVersionRebaseRetryHooks<TResult> => {
+  const manualSpecialty = options.specialtyIntent?.kind === 'manual';
   const eligible =
     !isReclassification &&
     !options.rayenClinicalWriteGuard &&
-    !options.requireAtomicCas &&
-    !policy.requireAtomicCas &&
-    !policy.remoteAuthorityFirst &&
+    (manualSpecialty ||
+      (!options.requireAtomicCas && !policy.requireAtomicCas && !policy.remoteAuthorityFirst)) &&
     semanticChangedPaths.length > 0 &&
     !semanticChangedPaths.includes('*');
   if (!eligible) {
@@ -170,9 +174,6 @@ export const buildGranularPatchStaleVersionRetryHooks = <TResult>({
         freshRemoteRecord,
         demographicNameRebases
       );
-      const retryRecord = demographicNameRebases.length
-        ? applyPatches(freshRemoteRecord, retryPatch)
-        : validatedRecord;
       return updateRecordPartialToFirestore(
         date,
         retryPatch,
@@ -180,19 +181,29 @@ export const buildGranularPatchStaleVersionRetryHooks = <TResult>({
         buildGuardedDailyRecordRemoteWriteOptions({
           options,
           policy: { ...policy, remoteAuthorityPatch: retryPatch },
-          syncContract: buildDailyRecordSyncContract(retryRecord, {
+          syncContract: buildDailyRecordSyncContract(freshRemoteRecord, {
+            ...syncContract,
             expectedVersion: freshRemoteRecord.lastUpdated,
+            baseRevision: undefined,
             changedPaths: semanticChangedPaths,
           }),
           isReclassification,
         })
       ) as Promise<TResult | void>;
     },
-    canRebaseStaleVersionConflict: freshRemoteRecord =>
+    canRebaseStaleVersionConflict: (freshRemoteRecord, writeError) =>
+      (!manualSpecialty ||
+        Boolean(
+          writeError instanceof ConcurrencyError &&
+          writeError.reason === 'version_mismatch' &&
+          options.specialtyIntent &&
+          canRebaseManualSpecialtyIntent(options.specialtyIntent, baseRecord, freshRemoteRecord)
+        )) &&
       hasSameValuesAtPaths(freshRemoteRecord, baseValuesAtPatchPaths) &&
-      demographicNameRebases.every(({ bedId }) =>
-        hasConsistentDerivedPatientName(freshRemoteRecord.beds[bedId]) &&
-        isSameEpisodeForExplicitCensusPatch(freshRemoteRecord.beds[bedId], baseRecord.beds[bedId])
+      demographicNameRebases.every(
+        ({ bedId }) =>
+          hasConsistentDerivedPatientName(freshRemoteRecord.beds[bedId]) &&
+          isSameEpisodeForExplicitCensusPatch(freshRemoteRecord.beds[bedId], baseRecord.beds[bedId])
       ),
   };
 };
@@ -227,7 +238,7 @@ export const attemptStaleVersionRebaseRetry = async <TResult>({
   const freshRemoteRecord = await readRemoteConfirmedRecord();
   if (
     !isValidRemoteAuthorityRecord(freshRemoteRecord, date) ||
-    !hooks.canRebaseStaleVersionConflict(freshRemoteRecord)
+    !hooks.canRebaseStaleVersionConflict(freshRemoteRecord, writeError)
   ) {
     return null;
   }

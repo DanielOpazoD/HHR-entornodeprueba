@@ -5,6 +5,7 @@ import type { PartialUpdateDailyRecordOptions } from '@/services/repositories/co
 import type { ClinicalCribCreateRequest } from '@/types/domain/intentionalBedClear';
 import type { DailyRecordPartialWriteOptions } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import type { SyncTaskContract } from '@/services/storage/syncQueueTypes';
+import type { SpecialtyManualIntent } from '@/types/domain/specialtyDecision';
 import { hasSameValuesAtPaths } from '@/services/repositories/conflictResolutionUtils';
 import { prepareFirestorePartialData } from '@/services/storage/firestore/firestoreRecordWritePatchPolicy';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
@@ -128,31 +129,101 @@ const isIntentionalClearAlreadyApplied = (
   return Boolean(remoteBed && !remoteBed.clinicalCrib && hasSameValuesAtPaths(record, patch));
 };
 
+const specialtyPatient = (record: DailyRecord, intent: SpecialtyManualIntent) =>
+  intent.target === 'clinicalCrib'
+    ? record.beds[intent.bedId]?.clinicalCrib
+    : record.beds[intent.bedId];
+
+const specialtyDecisionId = (patient: PatientData): string | null => {
+  const decision = patient.specialtyAssignment;
+  return decision?.schemaVersion === 3 &&
+    decision.episodeId === patient.clinicalEpisodeId &&
+    decision.decisionId?.trim() &&
+    /^\d{4}-\d{2}-\d{2}$/.test(decision.recordDate) &&
+    ['manual', 'rule', 'manual_ai'].includes(decision.source)
+    ? decision.decisionId
+    : null;
+};
+
+/** A newer census revision may be reused only while the displayed decision is unchanged. */
+export const canRebaseManualSpecialtyIntent = (
+  intent: SpecialtyManualIntent,
+  baseRecord: DailyRecord,
+  remoteRecord: DailyRecord
+): boolean => {
+  const basePatient = specialtyPatient(baseRecord, intent);
+  const remotePatient = specialtyPatient(remoteRecord, intent);
+  return Boolean(
+    intent.kind === 'manual' &&
+    intent.episodeId &&
+    remoteRecord.date === baseRecord.date &&
+    basePatient?.clinicalEpisodeId === intent.episodeId &&
+    remotePatient?.clinicalEpisodeId === intent.episodeId &&
+    specialtyDecisionId(basePatient) === intent.expectedDecisionId &&
+    specialtyDecisionId(remotePatient) === intent.expectedDecisionId &&
+    basePatient.specialty === remotePatient.specialty
+  );
+};
+
+const isSpecialtyDecisionAlreadyApplied = (
+  intent: SpecialtyManualIntent,
+  date: string,
+  mutationId: string | undefined,
+  remoteRecord: DailyRecord | null
+): remoteRecord is DailyRecord => {
+  if (!mutationId || !remoteRecord || remoteRecord.date !== date) return false;
+  const patient = specialtyPatient(remoteRecord, intent);
+  const decision = patient?.specialtyAssignment;
+  return Boolean(
+    patient?.clinicalEpisodeId === intent.episodeId &&
+    patient.specialty === intent.value &&
+    decision?.schemaVersion === 3 &&
+    decision.episodeId === intent.episodeId &&
+    decision.decisionId === mutationId &&
+    decision.recordDate === date &&
+    decision.source === (intent.kind === 'manual' ? 'manual' : 'manual_ai')
+  );
+};
+
 export const buildGuardedDailyRecordPatchPolicy = ({
   patch,
   mergedPatches,
   baseRecord,
   options,
   readRemoteRecord,
+  mutationId,
 }: {
   patch: DailyRecordPatch;
   mergedPatches: DailyRecordPatch;
   baseRecord: DailyRecord;
   options: PartialUpdateDailyRecordOptions;
   readRemoteRecord: () => Promise<DailyRecord | null>;
+  mutationId?: string;
 }): GuardedDailyRecordPatchPolicy => {
   const manualClinicalCribCreation = getManualClinicalCribCreationIntent(
     patch,
     baseRecord,
     options.clinicalCribCreate
   );
-  const guardedCommand = Boolean(options.intentionalBedClear || manualClinicalCribCreation || options.specialtyIntent);
+  const guardedCommand = Boolean(
+    options.intentionalBedClear || manualClinicalCribCreation || options.specialtyIntent
+  );
   const resolveAlreadyAppliedRemoteRecord = guardedCommand
     ? async (error: unknown): Promise<DailyRecord | null> => {
         const isAmbiguousRemoteOutcome = classifySyncError(error).category === 'network';
         if (!(error instanceof ConcurrencyError) && !isAmbiguousRemoteOutcome) return null;
 
         const remoteRecord = await readRemoteRecord();
+        if (options.specialtyIntent) {
+          return isSpecialtyDecisionAlreadyApplied(
+            options.specialtyIntent,
+            baseRecord.date,
+            mutationId,
+            remoteRecord
+          )
+            ? remoteRecord
+            : null;
+        }
         if (options.intentionalBedClear) {
           return isIntentionalClearAlreadyApplied(options, patch, remoteRecord)
             ? remoteRecord
