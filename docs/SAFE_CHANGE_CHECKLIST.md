@@ -240,3 +240,16 @@ de desarrollo aprobados. Daniel retiró explícitamente el vencimiento el 12-10-
 para esperar una actualización oficial de braces. Se conservan
 los hallazgos originales y un aviso visible; otros riesgos siguen bloqueando.
 Owner, riesgo residual, rollback y validación: [registro de aceptación](BRACES_TEMPORARY_RISK_ACCEPTANCE.md).
+
+### Propuesta de sincronización con solo datos de episodio (2026-10-16)
+
+Si todas las actualizaciones quedan ocultas por
+sus etiquetas internas, la revisión muestra a los pacientes afectados y «datos
+del episodio». Conserva la confirmación manual y la presentación habitual de
+planes mixtos. La autoridad de especialidad compara metadatos por sus valores
+y tipos, independientemente del orden de las claves de los mapas Firestore.
+Cambiar autor, decisión, regla, tipo o valor sigue rechazado; no se amplían
+permisos ni se reescriben decisiones. Validar propuesta vacía, metadatos
+reordenados/anidados, intentos de falsificación y RN. Cierre: `ci:merge-gate`,
+`test:release-confidence`, revisión independiente y CI del head final. Publicar
+la función requiere autorización separada y prueba real posterior.

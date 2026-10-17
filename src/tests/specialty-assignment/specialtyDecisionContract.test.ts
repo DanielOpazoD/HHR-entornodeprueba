@@ -37,6 +37,30 @@ const apply = (remoteRecord: object, candidate: object, options: Record<string, 
   });
 
 describe('specialty decision authority', () => {
+  it('accepts semantically identical metadata after object-key reordering, including nested rules', () => {
+    const original = {
+      ...meta,
+      source: 'rule',
+      rule: { id: 'rule-one', revision: 2, catalogRevision: 3 },
+    };
+    const reordered: Record<string, unknown> = Object.fromEntries(
+      Object.entries(original).reverse()
+    );
+    reordered.rule = Object.fromEntries(Object.entries(original.rule).reverse());
+    const remote = record(patient('episode-one', 'Cirugía', original));
+    const candidate = record(patient('episode-one', 'Cirugía', reordered));
+    expect(apply(remote, candidate)).toEqual([]);
+    expect((candidate.beds.R1 as Record<string, unknown>).specialtyAssignment).toEqual(original);
+    for (const forged of [
+      { ...reordered, actorUid: 'different-user' },
+      { ...reordered, rule: { ...original.rule, revision: '2' } },
+      { ...reordered, rule: { ...original.rule, revision: 3 } },
+    ])
+      expect(() => apply(remote, record(patient('episode-one', 'Cirugía', forged)))).toThrow(
+        /server-owned/i
+      );
+  });
+
   it('requires an exact explicit episode-bound intent and protects an intentional empty value', () => {
     const remote = record(patient());
     const next = record(patient());
