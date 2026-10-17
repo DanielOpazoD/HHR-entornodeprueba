@@ -2,6 +2,7 @@ const functions = require('firebase-functions/v1');
 const { createHash } = require('node:crypto');
 const { gzipSync } = require('node:zlib');
 const { monthValue } = require('./cudyrSupplementContract');
+const { matchesRestoreBinding } = require('./cudyrOfficialRestore');
 const POLICY = 2;
 const fail = (message, code = 'failed-precondition') => {
   throw new functions.https.HttpsError(code, message);
@@ -25,7 +26,14 @@ const stamp = doc => [
     : String(doc.updateTime?.seconds) + ':' + String(doc.updateTime?.nanoseconds),
 ];
 /** Server-side metadata check: no source bytes, parsers or report reconstruction on the read path. */
-const sourceVersions = async (hospital, month, episodes = [], transaction) => {
+const sourceDocuments = async (
+  hospital,
+  month,
+  episodes = [],
+  transaction,
+  includeContent = false
+) => {
+  const select = query => (includeContent ? query : query.select());
   const b = bounds(month);
   const reviewRef = hospital.collection('cudyrVerifiedContexts').doc(month);
   const review = transaction ? await transaction.get(reviewRef) : await reviewRef.get();
@@ -44,7 +52,7 @@ const sourceVersions = async (hospital, month, episodes = [], transaction) => {
   ];
   const pages = await Promise.all(
     queries.map(q =>
-      transaction ? transaction.get(q.select().limit(3001)) : q.select().limit(3001).get()
+      transaction ? transaction.get(select(q).limit(3001)) : select(q).limit(3001).get()
     )
   );
   if (pages.some(p => p.size > 3000)) fail('Too many monthly archive records.');
@@ -60,34 +68,47 @@ const sourceVersions = async (hospital, month, episodes = [], transaction) => {
   const ids = [...new Set(episodes)];
   const correctionPages = await Promise.all(
     Array.from({ length: Math.ceil(ids.length / 30) }, (_, index) => {
-      const q = hospital
-        .collection('cudyrArchiveVersions')
-        .where('clinicalEpisodeId', 'in', ids.slice(index * 30, (index + 1) * 30))
-        .select()
-        .limit(31);
+      const q = select(
+        hospital
+          .collection('cudyrArchiveVersions')
+          .where('clinicalEpisodeId', 'in', ids.slice(index * 30, (index + 1) * 30))
+      ).limit(31);
       return transaction ? transaction.get(q) : q.get();
     })
   );
   if (correctionPages.some(p => p.size > 30)) fail('Too many episode revision markers.');
-  const stamps = [
+  return [
     review,
     correctionVersion,
     ...pages.flatMap(p => p.docs),
     ...correctionPages.flatMap(p => p.docs),
-  ]
-    .map(stamp)
-    .sort((a, b) => a[0].localeCompare(b[0]));
+  ];
+};
+const versionsForDocuments = (hospital, docs) => {
+  const correctionVersionRef = hospital
+    .collection('cudyrArchiveVersions')
+    .doc('dischargeCorrections');
+  const correctionVersion = docs.find(doc => doc.ref.path === correctionVersionRef.path);
+  const hasEpisodeCorrections = docs.some(
+    doc =>
+      doc.exists !== false &&
+      doc.ref.path.startsWith(correctionVersionRef.path.slice(0, -'dischargeCorrections'.length)) &&
+      doc.ref.path !== correctionVersionRef.path
+  );
+  const stamps = docs.map(stamp).sort((a, b) => a[0].localeCompare(b[0]));
   return {
     current: hash([POLICY, stamps]),
     // Before revision markers existed, official snapshots omitted this missing
     // document. Accept that exact metadata fingerprint only while no legacy or
     // relevant episode correction marker exists. Never rewrite the artifact.
     legacy:
-      correctionVersion.exists === false && correctionPages.every(p => p.size === 0)
+      correctionVersion.exists === false && !hasEpisodeCorrections
         ? hash([POLICY, stamps.filter(([path]) => path !== correctionVersionRef.path)])
         : undefined,
   };
 };
+const sourceVersions = async (hospital, month, episodes = [], transaction) =>
+  versionsForDocuments(hospital, await sourceDocuments(hospital, month, episodes, transaction));
 const sourceVersion = async (hospital, month, episodes = [], transaction) =>
   (await sourceVersions(hospital, month, episodes, transaction)).current;
 // A reconstruction starts before its full episode set is known. Keep a separate
@@ -261,12 +282,29 @@ const readOfficialReport = async (hospital, data) => {
     )
       fail('Invalid episodes.', 'invalid-argument');
     const versions = await sourceVersions(hospital, month, episodes, tx);
-    if (
-      !snapshot ||
-      snapshot.policyVersion !== POLICY ||
-      (snapshot.sourceVersion !== versions.current &&
-        (!versions.legacy || snapshot.sourceVersion !== versions.legacy))
-    )
+    const originalMatches =
+      snapshot &&
+      (snapshot.sourceVersion === versions.current ||
+        (versions.legacy && snapshot.sourceVersion === versions.legacy));
+    let restoredMatches = false;
+    if (snapshot?.policyVersion === POLICY && !originalMatches) {
+      const binding = await tx.get(
+        hospital
+          .collection('cudyrOfficialReports')
+          .doc(month)
+          .collection('restorations')
+          .doc(versions.current)
+      );
+      restoredMatches = matchesRestoreBinding(
+        binding.data(),
+        hospital,
+        month,
+        snapshot,
+        versions.current,
+        doc
+      );
+    }
+    if (!snapshot || snapshot.policyVersion !== POLICY || (!originalMatches && !restoredMatches))
       return { state: 'missing', sourceVersion: await publicationVersion(hospital, month, tx) };
     const version = snapshot.sourceVersion;
     return {
@@ -284,6 +322,8 @@ module.exports = {
   saveOfficialReport,
   readOfficialReport,
   sourceVersion,
+  sourceDocuments,
+  versionsForDocuments,
   validateReport,
   fingerprint,
   bounds,
