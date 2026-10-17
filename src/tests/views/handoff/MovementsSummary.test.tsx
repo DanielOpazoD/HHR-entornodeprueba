@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import React from 'react';
 import { MovementsSummary } from '@/features/handoff/components/MovementsSummary';
 import type { DailyRecord } from '@/domain/handoff/recordContracts';
@@ -56,6 +56,38 @@ const buildRecord = (): DailyRecord =>
   }) as unknown as DailyRecord;
 
 describe('MovementsSummary', () => {
+  it('keeps the receiving sections when records arrive and preserves long movement details', () => {
+    const record = buildRecord();
+    const diagnosis = 'Descripción clínica extensa sin perder información. '.repeat(20);
+    record.discharges[0].diagnosis = diagnosis;
+    record.transfers[0].diagnosis = diagnosis;
+    record.cma[0].diagnosis = diagnosis;
+    const { rerender } = render(
+      <MovementsSummary
+        record={{ ...record, discharges: [], transfers: [], cma: [] }}
+        selectedShift="day"
+      />
+    );
+    const headings = screen.getAllByRole('heading', { level: 3 });
+    expect(headings.map(heading => heading.textContent)).toEqual([
+      'Altas',
+      'Traslados',
+      'Hospitalización Diurna / CMA',
+    ]);
+
+    rerender(<MovementsSummary record={record} selectedShift="day" />);
+
+    expect(screen.getAllByRole('heading', { level: 3 })).toEqual(headings);
+    for (const name of ['Altas del turno', 'Traslados del turno', 'Hospitalización diurna / CMA']) {
+      const section = screen.getByRole('region', { name });
+      expect(section).toHaveAttribute('tabindex', '0');
+      expect(within(section).getByText(diagnosis.trim())).toBeInTheDocument();
+    }
+    expect(
+      within(screen.getByRole('region', { name: 'Altas del turno' })).getByText('10:00')
+    ).toBeInTheDocument();
+  });
+
   it('shows only day-shift movements and no footer count', () => {
     render(<MovementsSummary record={buildRecord()} selectedShift="day" />);
 
