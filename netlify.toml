@@ -56,6 +56,14 @@
     Cache-Control = "no-cache"
     X-Content-Type-Options = "nosniff"
 
+# DICOM codecs execute only in their same-origin worker. Do not relax the SPA's script policy.
+[[headers]]
+  for = "/assets/decodeImageFrameWorker-*.js"
+  [headers.values]
+    # Pinned Emscripten/Embind codecs generate their JS bindings inside this worker only.
+    Content-Security-Policy = "default-src 'none'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; connect-src 'self';"
+    X-Content-Type-Options = "nosniff"
+
 [[headers]]
   for = "/*"
   [headers.values]

@@ -277,6 +277,15 @@ export default defineConfig(({ mode }) => {
             '**/assets/perfAuditReport-*.js',
             '**/assets/SystemHealthReporterBridge-*.js',
             '**/assets/healthService-*.js',
+            // DICOM is online-only and must not download during PWA installation or census startup.
+            '**/assets/vendor-dicom-*.js',
+            '**/assets/RadiologyViewerModal-*.js',
+            '**/assets/Dicom*-*',
+            '**/assets/dicom*-*.js',
+            '**/assets/decodeImageFrameWorker-*.js',
+            '**/assets/computeWorker-*.js',
+            '**/assets/jpeg-*.js',
+            '**/*.wasm',
           ],
         },
         registerType: 'autoUpdate',
@@ -371,8 +380,11 @@ export default defineConfig(({ mode }) => {
       dedupe: ['react', 'react-dom'],
     },
     // Optimize dependencies - pre-bundle CommonJS packages for ESM compatibility
+    worker: { format: 'es' },
     optimizeDeps: {
+      exclude: ['@cornerstonejs/dicom-image-loader'],
       include: [
+        'dicom-parser',
         'react',
         'react-dom',
         'react/jsx-runtime',

@@ -210,16 +210,16 @@ const RadiologyViewerResultsHeader = ({
 
 const RadiologyExamCard = ({
   exam,
-  index,
   onOpenPdf,
   onOpenPortalReceipt,
+  onOpenDicom,
   onCopyReport,
   isCopyConfirmed,
 }: {
   exam: MMRADExam;
-  index: number;
   onOpenPdf: (exam: MMRADExam) => void;
   onOpenPortalReceipt: (exam: MMRADExam) => void;
+  onOpenDicom?: (exam: MMRADExam) => void;
   onCopyReport: (exam: MMRADExam) => void;
   isCopyConfirmed: boolean;
 }) => {
@@ -227,10 +227,7 @@ const RadiologyExamCard = ({
   const hasStructuredReport = hasMMRADStructuredReport(exam);
 
   return (
-    <div
-      key={index}
-      className="rounded-xl border border-slate-200/80 bg-white p-3 shadow-sm ring-1 ring-black/[0.02] transition-all hover:shadow-md"
-    >
+    <div className="rounded-xl border border-slate-200/80 bg-white p-3 shadow-sm ring-1 ring-black/[0.02] transition-all hover:shadow-md">
       <div className="mb-2 flex items-start justify-between gap-2">
         <div>
           <h4 className="text-[13px] font-semibold text-slate-700">
@@ -278,6 +275,16 @@ const RadiologyExamCard = ({
             Comprobante portal
           </button>
         )}
+        {exam.dicom_url && onOpenDicom && (
+          <button
+            type="button"
+            onClick={() => onOpenDicom(exam)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-[11px] font-medium text-violet-700 hover:bg-violet-100"
+          >
+            <Monitor size={12} />
+            Ver DICOM
+          </button>
+        )}
         {exam.dicom_url && (
           <a
             href={exam.dicom_url}
@@ -323,6 +330,7 @@ export const RadiologyViewerResults = ({
   onTabChange,
   onOpenPdf,
   onOpenPortalReceipt,
+  onOpenDicom,
   onCopyReport,
   copiedReportExamKey,
 }: {
@@ -334,6 +342,7 @@ export const RadiologyViewerResults = ({
   onTabChange: (modality: string | null) => void;
   onOpenPdf: (exam: MMRADExam) => void;
   onOpenPortalReceipt: (exam: MMRADExam) => void;
+  onOpenDicom?: (exam: MMRADExam) => void;
   onCopyReport: (exam: MMRADExam) => void;
   copiedReportExamKey: string | null;
 }) => {
@@ -361,9 +370,9 @@ export const RadiologyViewerResults = ({
           <RadiologyExamCard
             key={index}
             exam={exam}
-            index={index}
             onOpenPdf={onOpenPdf}
             onOpenPortalReceipt={onOpenPortalReceipt}
+            onOpenDicom={onOpenDicom}
             onCopyReport={onCopyReport}
             isCopyConfirmed={copiedReportExamKey === buildMMRADExamKey(exam)}
           />

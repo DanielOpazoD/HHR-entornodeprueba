@@ -1,0 +1,177 @@
+.dicom-viewer {
+  background: #0b1220;
+  color: #e2e8f0;
+  font-size: 12px;
+}
+.dicom-study-bar,
+.dicom-toolbar,
+.dicom-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+}
+.dicom-study-bar {
+  border-bottom: 1px solid #243247;
+}
+.dicom-study-bar label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 180px;
+}
+.dicom-study-bar select {
+  flex: 1;
+  max-width: 680px;
+  min-width: 0;
+}
+.dicom-viewer select,
+.dicom-viewer button,
+.dicom-study-bar a {
+  font: inherit;
+  color: #e2e8f0;
+  background: #162235;
+  border: 1px solid #334155;
+  border-radius: 5px;
+  padding: 5px 8px;
+  min-height: 30px;
+}
+.dicom-viewer button,
+.dicom-study-bar a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+.dicom-viewer button[aria-pressed='true'] {
+  background: #155e75;
+  border-color: #22d3ee;
+  color: white;
+}
+.dicom-viewer :focus-visible {
+  outline: 2px solid #22d3ee;
+  outline-offset: 2px;
+}
+.dicom-viewer button:disabled,
+.dicom-viewer select:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.dicom-button-group {
+  display: flex;
+  gap: 3px;
+}
+.dicom-toolbar-spacer {
+  flex: 1;
+}
+.dicom-patient {
+  font-weight: 600;
+}
+.dicom-grid {
+  display: grid;
+  gap: 2px;
+  min-height: 400px;
+  height: min(65vh, 760px);
+  background: #334155;
+}
+.dicom-grid--mpr {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.dicom-pane {
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  background: black;
+  overflow: hidden;
+  border: 1px solid transparent;
+}
+.dicom-pane[data-active='true'] {
+  border-color: #0891b2;
+}
+.dicom-canvas {
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+.dicom-orientation {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  color: white;
+  font-weight: 600;
+  text-shadow: 0 1px 3px black;
+}
+.dicom-orientation span {
+  position: absolute;
+  background: #0009;
+  padding: 1px 3px;
+}
+.dicom-edge-top {
+  top: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.dicom-edge-bottom {
+  bottom: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.dicom-edge-left {
+  left: 5px;
+  top: 50%;
+}
+.dicom-edge-right {
+  right: 5px;
+  top: 50%;
+}
+.dicom-viewer .dicom-plane {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 1;
+  background: #0b1220c9;
+}
+.dicom-scroll-controls {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: flex;
+  gap: 4px;
+}
+.dicom-footer {
+  justify-content: space-between;
+  color: #94a3b8;
+  font-size: 11px;
+}
+.dicom-status {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 16px;
+  color: #fbbf24;
+}
+.dicom-loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+}
+.dicom-loading progress {
+  max-width: 220px;
+  accent-color: #06b6d4;
+}
+@media (max-width: 760px) {
+  .dicom-grid--mpr {
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(3, minmax(220px, 1fr));
+    height: 1000px;
+  }
+  .dicom-grid--original,
+  .dicom-grid--3d {
+    min-height: 340px;
+  }
+}

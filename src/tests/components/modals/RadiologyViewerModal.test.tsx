@@ -1,4 +1,4 @@
-import { act, render, waitFor } from '@testing-library/react';
+import { act, render, waitFor, screen, fireEvent } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mmradMocks = vi.hoisted(() => ({
@@ -61,5 +61,44 @@ describe('RadiologyViewerModal', () => {
       );
     });
     expect(mmradMocks.search).not.toHaveBeenCalled();
+  });
+
+  it('ignores a late search result after selecting another patient', async () => {
+    let finish: (result: unknown) => void = () => undefined;
+    mmradMocks.search.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    );
+    render(
+      <RadiologyViewerModal
+        isOpen
+        onClose={vi.fn()}
+        patients={[
+          patient,
+          { ...patient, bedId: 'R3', rut: '22.222.222-2', label: 'Otro paciente sintético' },
+        ]}
+        initialPatientRut={patient.rut}
+        autoSearchInitialPatient
+      />
+    );
+    await waitFor(() => expect(mmradMocks.search).toHaveBeenCalledOnce());
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: '22.222.222-2' } });
+    await act(async () =>
+      finish({
+        rut: patient.rut,
+        examenes: [
+          {
+            nombre_examen: 'ESTUDIO DEL PACIENTE ANTERIOR',
+            mod: 'CT',
+            dicom_url: 'https://ris.mmrad.cl/synthetic',
+          },
+        ],
+      })
+    );
+    expect(screen.queryByText('ESTUDIO DEL PACIENTE ANTERIOR')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Ver DICOM' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Buscar' })).toBeEnabled();
   });
 });

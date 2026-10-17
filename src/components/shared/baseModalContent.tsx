@@ -34,6 +34,7 @@ export const BaseModalContent: React.FC<BaseModalProps> = ({
   dataModule,
   dataTestId,
 }) => {
+  const titleId = React.useId();
   const { modalRef } = useBaseModalLifecycle({ isOpen, onClose, onConfirm, initialFocusRef });
 
   if (!isOpen) return null;
@@ -63,7 +64,7 @@ export const BaseModalContent: React.FC<BaseModalProps> = ({
         data-testid={dataTestId}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="modal-title"
+        aria-labelledby={titleId}
         tabIndex={-1}
         className={resolveBaseModalContainerClassName({
           scrollableBody,
@@ -73,8 +74,16 @@ export const BaseModalContent: React.FC<BaseModalProps> = ({
         })}
         onMouseDown={event => event.stopPropagation()}
         onClick={event => event.stopPropagation()}
+        onKeyDown={event => {
+          if (event.key === 'Escape' && !event.defaultPrevented) {
+            event.preventDefault();
+            event.stopPropagation();
+            onClose();
+          }
+        }}
       >
         <BaseModalHeader
+          titleId={titleId}
           title={title}
           icon={icon}
           onClose={onClose}

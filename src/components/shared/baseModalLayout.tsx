@@ -32,6 +32,7 @@ export const BaseModalBackdrop: React.FC<BaseModalBackdropProps> = ({
 );
 
 interface BaseModalHeaderProps {
+  titleId: string;
   title: React.ReactNode;
   icon?: React.ReactNode;
   onClose: () => void;
@@ -42,6 +43,7 @@ interface BaseModalHeaderProps {
 }
 
 export const BaseModalHeader: React.FC<BaseModalHeaderProps> = ({
+  titleId,
   title,
   icon,
   onClose,
@@ -57,7 +59,7 @@ export const BaseModalHeader: React.FC<BaseModalHeaderProps> = ({
     )}
   >
     <h3
-      id="modal-title"
+      id={titleId}
       className="font-display flex min-w-0 items-center gap-2 font-bold tracking-tight text-slate-800"
     >
       {icon && <span className={headerIconColor}>{icon}</span>}
