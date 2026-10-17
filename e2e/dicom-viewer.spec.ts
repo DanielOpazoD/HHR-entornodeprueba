@@ -217,7 +217,11 @@ test.describe('DICOM viewer and Salvador annexes', () => {
     expect(new Set(signatures.map(image => image.png)).size).toBe(3);
     await page.screenshot({ path: test.info().outputPath('dicom-mpr.png') });
     await viewer.getByRole('button', { name: 'Añadir al informe' }).click();
-    await expect(viewer.getByRole('status')).toContainText('Captura añadida');
+    // Capture waits up to 15s for IMAGE_RENDERED before encoding. Software WebGL
+    // can exceed the default 5s assertion window; retain the actual success check.
+    await expect(viewer.getByRole('status')).toContainText('Captura añadida', {
+      timeout: 20_000,
+    });
     const pngDownload = page.waitForEvent('download');
     await viewer.getByRole('button', { name: 'PNG', exact: true }).click();
     const png = await pngDownload;
@@ -234,7 +238,9 @@ test.describe('DICOM viewer and Salvador annexes', () => {
     await page.mouse.wheel(0, 120);
     await page.screenshot({ path: test.info().outputPath('dicom-3d.png') });
     await viewer.getByRole('button', { name: 'Añadir al informe' }).click();
-    await expect(viewer.getByRole('status')).toContainText('Captura añadida');
+    await expect(viewer.getByRole('status')).toContainText('Captura añadida', {
+      timeout: 20_000,
+    });
     await viewer.getByRole('button', { name: /Cerrar/ }).click();
     await page
       .getByRole('dialog', { name: 'Radiología / Imagenología' })
