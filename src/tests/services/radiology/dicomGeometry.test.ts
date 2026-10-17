@@ -53,4 +53,24 @@ describe('DICOM volume geometry', () => {
     if (failure === 'nan') images[1].position = [0, 0, NaN];
     expect(() => volumeImageOrder(images)).toThrow();
   });
+
+  it.each([
+    ['frame', 'distintos marcos de referencia'],
+    ['dimensions', 'distintas dimensiones de imagen'],
+    ['position', 'posiciones de corte incompletas o no válidas'],
+    ['orientation', 'orientaciones de corte diferentes o no válidas'],
+    ['spacing', 'distintos tamaños de píxel o valores no válidos'],
+  ] as const)(
+    'explains the %s incompatibility without exposing DICOM values',
+    (failure, message) => {
+      const images = slices();
+      if (failure === 'frame') images[1].frame = 'different-synthetic-reference';
+      if (failure === 'dimensions') images[1].rows = 128;
+      if (failure === 'position') images[1].position = [0, 0, NaN];
+      if (failure === 'orientation') images[1].orientation = [0, 1, 0, 1, 0, 0];
+      if (failure === 'spacing') images[1].spacing = [2, 2];
+      expect(() => volumeImageOrder(images)).toThrow(message);
+      expect(() => volumeImageOrder(images)).not.toThrow('different-synthetic-reference');
+    }
+  );
 });

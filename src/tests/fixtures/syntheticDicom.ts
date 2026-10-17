@@ -8,7 +8,8 @@ export const syntheticDicom = (
   slice: number,
   count = 24,
   patientId = SYNTHETIC_PATIENT_ID,
-  jpeg2000?: Uint8Array
+  jpeg2000?: Uint8Array,
+  frameOfReference = '1.2.826.0.1.3680043.10.543.3'
 ): Uint8Array => {
   const encoder = new TextEncoder();
   const parts: Uint8Array[] = [];
@@ -51,7 +52,7 @@ export const syntheticDicom = (
   element('00200013', 'IS', String(slice + 1));
   element('00200032', 'DS', `0\\0\\${slice * 2}`);
   element('00200037', 'DS', '1\\0\\0\\0\\1\\0');
-  element('00200052', 'UI', '1.2.826.0.1.3680043.10.543.3');
+  element('00200052', 'UI', frameOfReference);
   element('00280002', 'US', 1);
   element('00280004', 'CS', 'MONOCHROME2');
   element('00280010', 'US', 64);

@@ -35,17 +35,32 @@ export const volumeImageOrder = (slices: SliceGeometry[]): string[] => {
     throw new Error('La orientación de los cortes no es válida para MPR.');
   const ordered = slices
     .map(slice => {
+      if (slice.frame !== first.frame)
+        throw new Error(
+          'La serie contiene distintos marcos de referencia; utiliza la vista original.'
+        );
+      if (slice.rows !== first.rows || slice.columns !== first.columns)
+        throw new Error(
+          'La serie contiene distintas dimensiones de imagen; utiliza la vista original.'
+        );
+      if (!finiteVector(slice.position, 3))
+        throw new Error(
+          'La serie tiene posiciones de corte incompletas o no válidas; utiliza la vista original.'
+        );
       if (
-        slice.frame !== first.frame ||
-        slice.rows !== first.rows ||
-        slice.columns !== first.columns ||
-        !finiteVector(slice.position, 3) ||
         !finiteVector(slice.orientation, 6) ||
+        slice.orientation.some((value, i) => Math.abs(value - first.orientation[i]) > 0.0001)
+      )
+        throw new Error(
+          'La serie contiene orientaciones de corte diferentes o no válidas; utiliza la vista original.'
+        );
+      if (
         !finiteVector(slice.spacing, 2) ||
-        slice.orientation.some((value, i) => Math.abs(value - first.orientation[i]) > 0.0001) ||
         slice.spacing.some((value, i) => Math.abs(value - first.spacing[i]) > 0.0001)
       )
-        throw new Error('La serie mezcla geometrías; utiliza la vista original.');
+        throw new Error(
+          'La serie contiene distintos tamaños de píxel o valores no válidos; utiliza la vista original.'
+        );
       const delta = slice.position.map((value, i) => value - first.position[i]);
       const distance = dot(delta, normal);
       const drift = delta.map((value, i) => value - distance * normal[i]);

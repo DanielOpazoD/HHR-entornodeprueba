@@ -146,6 +146,46 @@ const openSalvador = async (page: Page, manual = false) => {
 test.describe('DICOM viewer and Salvador annexes', () => {
   test.setTimeout(150000);
   test.use({ viewport: { width: 1440, height: 1000 } });
+  test('explains incompatible reference frames in MPR and 3D and preserves the original view', async ({
+    page,
+  }) => {
+    await setup(page);
+    await page.route('**/.netlify/functions/mmrad-dicom', async route => {
+      const body = route.request().postDataJSON();
+      if (body.action !== 'instance') return route.fallback();
+      const index = Number(String(body.ticket).split('-')[1]);
+      await route.fulfill({
+        contentType: 'application/dicom',
+        body: Buffer.from(
+          syntheticDicom(
+            index,
+            24,
+            SYNTHETIC_PATIENT_ID,
+            undefined,
+            index === 1 ? '1.2.826.0.1.3680043.10.543.999' : undefined
+          )
+        ),
+      });
+    });
+    const editor = await openSalvador(page);
+    await editor.getByRole('button', { name: 'Imágenes MMRAD' }).click();
+    await page.getByRole('button', { name: 'Ver DICOM', exact: true }).click();
+    const viewer = page.getByRole('dialog', { name: /Visor DICOM/ });
+    await expect(viewer.getByRole('button', { name: 'PNG', exact: true })).toBeEnabled({
+      timeout: 60000,
+    });
+    for (const mode of ['MPR', '3D']) {
+      await viewer.getByRole('button', { name: mode, exact: true }).click();
+      await expect(viewer.getByRole('alert')).toContainText('distintos marcos de referencia');
+      await expect(viewer.getByRole('alert')).not.toContainText('1.2.826');
+      await expect(viewer.getByRole('button', { name: 'PNG', exact: true })).toBeDisabled();
+      await viewer.getByRole('button', { name: 'Volver a original', exact: true }).click();
+      await expect(viewer.getByRole('alert')).toHaveCount(0);
+      await expect(viewer.getByRole('button', { name: 'PNG', exact: true })).toBeEnabled();
+      await expect(viewer.locator('.dicom-canvas canvas')).toBeVisible();
+    }
+  });
+
   test('loads only on explicit open, renders original/MPR/3D, captures PNG and appends patient-bound Word annexes', async ({
     page,
   }) => {

@@ -37,6 +37,10 @@ MPR/3D requieren al menos tres cortes CT/MR, dimensiones y orientación compatib
 un mismo marco de referencia y posiciones uniformes sin duplicados ni inclinación
 de adquisición. Una geometría incompatible conserva la alternativa de vista
 original. No se reconstruyen volúmenes incompletos ni se mezclan series.
+Si una serie es incompatible, el aviso distingue marcos de referencia, dimensiones,
+posiciones, orientación y tamaño de píxel, sin mostrar UID ni valores del estudio.
+Los controles y tolerancias geométricos se conservan; un aviso más preciso no
+autoriza reconstruir una serie rechazada ni sustituye la verificación del paciente.
 
 Los límites locales son 1024 instancias, 128 millones de muestras, 256 MB de
 originales y 512 MB de caché decodificada por runtime. Se liberan caché, archivos,
