@@ -21,8 +21,8 @@ export const DicomViewerDialog: React.FC<DicomViewerDialogProps> = props => (
     onClose={props.onClose}
     title={`Visor DICOM · ${props.title}`}
     size="3xl"
-    className="!w-[96vw] !max-w-[1480px]"
-    bodyClassName="!max-h-[85vh] !p-0"
+    className="dicom-dialog !w-[98vw] !max-w-none"
+    bodyClassName="dicom-dialog-body !max-h-none !p-0"
   >
     <ErrorBoundary
       fallbackRender={({ resetErrorBoundary }) => (

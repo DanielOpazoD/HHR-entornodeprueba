@@ -34,7 +34,18 @@ const DicomViewerSession: React.FC<DicomViewerDialogProps> = ({
   }, [link, patientId, attempt]);
   const series = study?.series.find(item => item.uid === seriesUid);
   return (
-    <div className="dicom-viewer">
+    <div
+      className="dicom-viewer"
+      onKeyDown={event => {
+        if (event.key !== 'Escape') return;
+        const panel = event.currentTarget.querySelector<HTMLDetailsElement>('details[open]');
+        if (!panel) return;
+        event.preventDefault();
+        event.stopPropagation();
+        panel.open = false;
+        panel.querySelector('summary')?.focus();
+      }}
+    >
       <div className="dicom-study-bar">
         <span className="dicom-patient">{patientId}</span>
         {study && (
@@ -54,9 +65,15 @@ const DicomViewerSession: React.FC<DicomViewerDialogProps> = ({
             </select>
           </label>
         )}
-        <a href={link} target="_blank" rel="noopener noreferrer">
+        <a
+          aria-label="MMRAD externo"
+          title="Abrir MMRAD externo"
+          href={link}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
           <ExternalLink size={14} />
-          MMRAD externo
+          <span className="dicom-external-label">MMRAD</span>
         </a>
       </div>
       {error ? (

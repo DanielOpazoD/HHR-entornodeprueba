@@ -147,6 +147,7 @@ test.describe('DICOM viewer and Salvador annexes', () => {
   test.setTimeout(150000);
   test.use({ viewport: { width: 1440, height: 1000 } });
   test('links MPR coordinates and renders reversible 3D tissue controls', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
     await setup(page);
     const editor = await openSalvador(page);
     await editor.getByRole('button', { name: 'Imágenes MMRAD' }).click();
@@ -174,6 +175,18 @@ test.describe('DICOM viewer and Salvador annexes', () => {
     await ready();
     await viewer.getByRole('button', { name: 'MPR', exact: true }).click();
     await ready();
+    // The imaging area dominates the desktop workspace without clipping its footer.
+    const workspace = (await viewer.boundingBox())!;
+    const imageArea = (await viewer.locator('.dicom-grid').boundingBox())!;
+    expect(imageArea.height / workspace.height).toBeGreaterThan(0.72);
+    expect(imageArea.y + imageArea.height).toBeLessThanOrEqual(workspace.y + workspace.height);
+    await viewer.getByLabel('Información de medidas').click();
+    await expect(viewer.getByText('Medidas temporales:', { exact: false })).toBeVisible();
+    await viewer.locator('.dicom-canvas').first().focus();
+    await page.keyboard.press('Escape');
+    await expect(viewer.getByText('Medidas temporales:', { exact: false })).not.toBeVisible();
+    await expect(viewer).toBeVisible();
+    await viewer.screenshot({ path: test.info().outputPath('synthetic-compact-mpr.png') });
     const coordinates = viewer.getByLabel('Coordenadas del punto LPS');
     await expect(coordinates).toContainText('mm');
     const initial = await coordinates.textContent();
@@ -233,6 +246,12 @@ test.describe('DICOM viewer and Salvador annexes', () => {
     await viewer.getByRole('button', { name: '3D', exact: true }).click();
     await ready();
     const bone = await hashes();
+    await viewer.getByText('Ajustes 3D', { exact: true }).click();
+    const settingsBox = (await viewer
+      .locator('.dicom-volume-settings .dicom-popover-body')
+      .boundingBox())!;
+    expect(settingsBox.y).toBeGreaterThan(workspace.y);
+    expect(settingsBox.y + settingsBox.height).toBeLessThan(workspace.y + workspace.height);
     await viewer.getByLabel('Tejido 3D').selectOption('CT-Soft-Tissue');
     await expect.poll(async () => (await hashes())[0] !== bone[0]).toBe(true);
     await viewer.getByLabel('Tejido 3D').selectOption('CT-Bone');
@@ -253,6 +272,12 @@ test.describe('DICOM viewer and Salvador annexes', () => {
     await viewer.getByRole('button', { name: 'Original', exact: true }).first().click();
     await ready();
     await expect(viewer.getByRole('alert')).toHaveCount(0);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await viewer.getByRole('button', { name: 'MPR', exact: true }).click();
+    await ready();
+    expect(await viewer.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+    await viewer.getByRole('button', { name: 'Sagital', exact: true }).scrollIntoViewIfNeeded();
+    await expect(viewer.getByRole('button', { name: 'Sagital', exact: true })).toBeInViewport();
   });
   for (const scenario of ['localizer', 'unmarked', 'gap'] as const)
     test(`handles ${scenario} sources without losing Original or hiding selection`, async ({

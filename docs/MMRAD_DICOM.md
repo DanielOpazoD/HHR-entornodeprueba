@@ -192,3 +192,13 @@ el lado o restablecerse completamente. Solo cambia el actor 3D en memoria: Origi
 MPR, los píxeles fuente y las comprobaciones de identidad/geometría se conservan.
 Los cambios se reinician al cambiar de modo. Las pruebas automatizadas usan exclusivamente
 DICOM sintéticos y comprueban navegación enlazada, contenido renderizado y recuperación.
+
+### Espacio de imagen y controles compactos
+
+El visor ocupa la altura disponible y reserva el espacio restante a los planos.
+La identificación del paciente y el selector de serie permanecen visibles. Las
+herramientas de medidas, inversión y exportación usan iconos con nombre accesible
+y ayuda al pasar el cursor. La información sobre medidas temporales se consulta
+en el icono de información. **Ajustes 3D** abre un panel superpuesto de apariencia
+y recorte; Escape cierra ese panel antes de cerrar el visor. En pantallas estrechas,
+los planos se apilan y se recorren con desplazamiento vertical.

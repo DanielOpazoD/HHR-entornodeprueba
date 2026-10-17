@@ -215,15 +215,19 @@ export const DicomSeriesView: React.FC<{
         <span className="dicom-toolbar-spacer" />
         <button
           type="button"
+          aria-label="PNG"
+          title="Descargar PNG"
           disabled={!runtime || busy || Boolean(error)}
           onClick={() => void act(() => saveDicomPng(capture))}
         >
           <Download size={15} />
-          PNG
+          <span className="dicom-export-label">PNG</span>
         </button>
         {onCapture && (
           <button
             type="button"
+            aria-label="Añadir al informe"
+            title="Añadir al informe"
             disabled={!runtime || busy || Boolean(error)}
             onClick={() =>
               void act(async () => {
@@ -233,7 +237,7 @@ export const DicomSeriesView: React.FC<{
             }
           >
             <Camera size={15} />
-            Añadir al informe
+            <span className="dicom-export-label">Añadir al informe</span>
           </button>
         )}
       </div>
@@ -260,13 +264,13 @@ export const DicomSeriesView: React.FC<{
         </div>
       )}
       {excludesLocalizers && mode !== 'original' && !busy && (
-        <p className="dicom-status" role="status">
+        <p className="dicom-status dicom-volume-notice" role="status">
           MPR y 3D usan los cortes volumétricos. Los localizadores de planificación se conservan en
           Original y no forman parte del volumen.
         </p>
       )}
       {resampled && !busy && !error && (
-        <p className="dicom-status" role="status">
+        <p className="dicom-status dicom-volume-notice" role="status">
           Volumen remuestreado para combinar distintas matrices. La interpolación no añade detalle;
           comprueba los hallazgos en Original.
         </p>
