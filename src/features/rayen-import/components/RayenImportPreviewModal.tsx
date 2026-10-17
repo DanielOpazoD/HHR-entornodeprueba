@@ -117,6 +117,15 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
     () => presentPatientUpdates(diff?.updates ?? []),
     [diff?.updates]
   );
+  // A manual plan can contain only enrichment intentionally hidden from ordinary
+  // clinical labels. Keep the affected patients reviewable instead of a blank dialog.
+  const reviewUpdates =
+    presentedUpdates.length > 0
+      ? presentedUpdates
+      : (diff?.updates ?? []).map(entry => ({
+          ...entry,
+          visibleLabels: ['datos del episodio'],
+        }));
   const historicalConflicts =
     diff?.conflicts.filter(entry => entry.code === 'historical-reconstruction') ?? [];
   const blockingConflicts =
@@ -172,7 +181,7 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
               <div>
                 <RayenImportSummaryChips
                   diff={diff}
-                  presentedUpdates={presentedUpdates.length}
+                  presentedUpdates={reviewUpdates.length}
                   historicalConflicts={historicalConflicts.length}
                   blockingConflicts={blockingConflicts.length}
                   bedCollisions={bedCollisions.length}
@@ -187,8 +196,8 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                   choices={neonatalResolutions}
                   onChange={setNeonatalResolutions}
                 />
-                <Section title="Actualizaciones" count={presentedUpdates.length}>
-                  {presentedUpdates.map(entry => (
+                <Section title="Actualizaciones" count={reviewUpdates.length}>
+                  {reviewUpdates.map(entry => (
                     <li key={updateEntryKey(entry)}>
                       <span className="font-semibold">{entry.bedId}</span> — {entry.patientName}:{' '}
                       <span className="text-gray-400">{entry.visibleLabels.join(', ')}</span>
