@@ -230,6 +230,8 @@ test.describe('DICOM viewer and Salvador annexes', () => {
       timeout: 30000,
     });
     await expect(viewer.getByRole('alert')).toHaveCount(0);
+    await viewer.locator('.dicom-canvas').hover();
+    await page.mouse.wheel(0, 120);
     await page.screenshot({ path: test.info().outputPath('dicom-3d.png') });
     await viewer.getByRole('button', { name: 'Añadir al informe' }).click();
     await expect(viewer.getByRole('status')).toContainText('Captura añadida');

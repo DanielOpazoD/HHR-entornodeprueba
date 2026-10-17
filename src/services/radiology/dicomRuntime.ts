@@ -130,8 +130,17 @@ export const createDicomRuntime = async (
       .filter(candidate => candidate !== StackScrollTool)
       .forEach(candidate => group?.setToolPassive(candidate.toolName));
     group.setToolActive(toolNames[tool], {
-      bindings: [{ mouseButton: ToolEnums.MouseBindings.Primary }],
+      bindings: [
+        { mouseButton: ToolEnums.MouseBindings.Primary },
+        ...(mode === '3d' && tool === 'zoom'
+          ? [{ mouseButton: ToolEnums.MouseBindings.Wheel }]
+          : []),
+      ],
     });
+    if (mode === '3d' && tool !== 'zoom')
+      group.setToolActive(ZoomTool.toolName, {
+        bindings: [{ mouseButton: ToolEnums.MouseBindings.Wheel }],
+      });
   };
   const orientations = (): DicomOrientation[] => {
     if (!engine || disposed || mode === '3d' || loaded?.geometry[0]?.orientation.length !== 6)
@@ -200,9 +209,10 @@ export const createDicomRuntime = async (
       if (!group) throw new Error('No se pudieron inicializar las herramientas del visor.');
       tools.forEach(tool => group?.addTool(tool.toolName));
       viewportIds.forEach(viewport => group?.addViewport(viewport, id));
-      group.setToolActive(StackScrollTool.toolName, {
-        bindings: [{ mouseButton: ToolEnums.MouseBindings.Wheel }],
-      });
+      if (nextMode !== '3d')
+        group.setToolActive(StackScrollTool.toolName, {
+          bindings: [{ mouseButton: ToolEnums.MouseBindings.Wheel }],
+        });
       activateTool(nextMode === '3d' ? 'rotate' : 'window');
       if (nextMode === 'original') {
         await (engine.getViewport(viewportIds[0]) as StackViewport).setStack(
