@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexedDBService';
 
 vi.mock('firebase/firestore', async importOriginal => {
@@ -88,3 +88,7 @@ describe('syncQueueRecentOperationsClinicalContext', () => {
     expect(JSON.stringify(operation)).not.toContain('44.444.444-4');
   });
 });
+
+// Legacy setDoc fixture, independent of release build configuration.
+beforeEach(() => vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', 'client_only'));
+afterEach(() => vi.unstubAllEnvs());
