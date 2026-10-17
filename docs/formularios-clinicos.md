@@ -7,10 +7,10 @@ el censo ni envía los borradores a un servidor.
 
 | Formulario                        | Controles | Casilleros impresos | Páginas |
 | --------------------------------- | --------: | ------------------: | ------: |
-| Imagenología                      |        97 |                 109 |       1 |
+| Imagenología                      |        96 |                 108 |       1 |
 | Encuesta de contraste             |        28 |                  37 |       1 |
-| Consentimiento general            |        11 |                  14 |       1 |
-| Laboratorio de policlínico        |        81 |                  88 |       1 |
+| Consentimiento general            |        10 |                  13 |       1 |
+| Laboratorio de policlínico        |        80 |                  87 |       1 |
 | VDRL / MHA-TP                     |        28 |                  29 |       1 |
 | Serología HDS                     |        17 |                  19 |       1 |
 | Tuberculosis MINSAL               |        45 |                  65 |       1 |
@@ -22,6 +22,11 @@ pacientes consume ahora la misma proyección canónica, incluido el nombre del m
 registrado. La excepción solicitada para mostrar el ingreso en su campo de inicio de enfermedad
 se limita a MEDIF; ninguna otra plantilla recibe esa equivalencia.
 
+El editor ajusta la grilla al ancho real del panel. Las listas de exámenes usan columnas
+compactas y estables, conservando el orden de teclado; las opciones breves no se distribuyen
+por todo el ancho. Los campos largos aprovechan varias columnas. En pantallas táctiles se
+conservan áreas de selección mayores.
+
 ## Contrato y mapas
 
 - `src/features/clinical-library/domain/forms/clinicalVariables.json`: catálogo de ejecución v1.1.0,
@@ -32,6 +37,8 @@ se limita a MEDIF; ninguna otra plantilla recibe esa equivalencia.
   identifica la plantilla y el documento de origen mediante SHA-256, dimensiones y revisión.
 - Las páginas son de base cero; `rect` usa `[x, top, width, height]` en puntos desde la esquina
   superior izquierda. `equals` marca X sólo por igualdad explícita. Sin respuesta no equivale a No.
+  Para casilleros con renglones preimpresos, `firstBaseline` fija la primera línea desde arriba
+  y `lineHeight` conserva la separación entre renglones; el texto debe caber también entre ellos.
 - Las fechas son calendario `YYYY-MM-DD` y se imprimen día/mes/año sin conversión de zona horaria.
   El ingreso, nacimiento, emisión y toma de muestra son conceptos separados. En tuberculosis se
   imprimen M/F/I desde el sexo registrado; en las plantillas con sólo dos casilleros, Indeterminado
@@ -71,10 +78,31 @@ Las preferencias se guardan por formulario/revisión y se pueden exportar/import
 incluye sólo configuración, sin datos del paciente o del médico. Los campos ocultos quedan en
 blanco en el PDF y no bloquean su generación; sus valores siguen disponibles en el borrador.
 
+Los números de ficha clínica permanecen siempre vacíos: no aparecen como controles ni pueden
+rehabilitarse desde preferencias. La política de salida descarta el valor aunque lo proporcione
+un borrador antiguo. `paciente_ficha_numero` se conserva en el catálogo para compatibilidad, pero
+no se importa ni se exporta en nuevos borradores. La tabla de controles excluye esos casilleros.
+
 Vista previa, descarga e impresión usan los mismos bytes revisados. Cambiar un dato o preferencia
 invalida la vista previa anterior. El generador añade texto sobre el original y rechaza texto que
 no cabe a un tamaño legible; no recorta silenciosamente ni cambia la paginación. Las firmas quedan
 para el documento impreso. El consentimiento sólo se marca por una acción explícita del usuario.
+
+El tamaño preferido del texto insertado sube de 9 a **13,5 puntos** y en MEDIF de 8 a **12 puntos**
+(50%). Las X conservan su tamaño y centrado previamente revisados. El ajuste sigue respetando
+los espacios reales de la plantilla: un casillero estrecho o con renglones puede requerir un
+tamaño menor. Se reservan las alturas necesarias para tildes y descendentes y se rechaza el
+contenido que no cabe, sin recortarlo ni superponerlo a otros campos.
+
+## Informe del Salvador en Word
+
+El informe de traslado ofrece **Word (.docx)** junto al PDF. Usa el mismo paciente, datos
+manuales y supresiones revisadas; un cambio de origen durante la preparación cancela la descarga.
+La generación modifica sólo los párrafos previstos de `word/document.xml` sobre el Word original,
+verificado por su SHA-256. Conserva los demás componentes del paquete, logos, numeración, márgenes,
+encabezado y pie. Los datos insertados usan 13,5 puntos, interlineado sencillo y alineación izquierda
+en sus párrafos; los textos largos pueden ampliar el documento de forma natural en Word.
+La plantilla original y el PDF mantienen sus archivos y paginación.
 
 ## Verificación
 

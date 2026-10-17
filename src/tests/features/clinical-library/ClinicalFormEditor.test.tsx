@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { saveAs } from 'file-saver';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ClinicalFormEditor } from '@/features/clinical-library/components/tools/forms/ClinicalFormEditor';
@@ -7,6 +8,8 @@ import type {
   ClinicalFormId,
   ClinicalFormPatientOption,
 } from '@/features/clinical-library/domain/forms/clinicalFormTypes';
+
+vi.mock('file-saver', () => ({ saveAs: vi.fn() }));
 
 const source = (name: string, key = name): ClinicalFormPatientOption => ({
   key,
@@ -31,6 +34,7 @@ const source = (name: string, key = name): ClinicalFormPatientOption => ({
 });
 const patients = [source('ALFA'), source('BETA')];
 const generate = vi.fn().mockResolvedValue(new Uint8Array([37, 80, 68, 70]));
+const generateDocx = vi.fn().mockResolvedValue(new Uint8Array([80, 75]));
 const mount = (initial: ClinicalFormId = 'consentimiento-informado', options = patients) => {
   function Wrapper({ sources }: { sources: ClinicalFormPatientOption[] }) {
     const [id, setId] = useState(initial);
@@ -42,6 +46,7 @@ const mount = (initial: ClinicalFormId = 'consentimiento-informado', options = p
         onBack={vi.fn()}
         onClose={vi.fn()}
         onGeneratePdf={generate}
+        onGenerateDocx={generateDocx}
       />
     );
   }
@@ -56,6 +61,8 @@ describe('clinical forms editor', () => {
   beforeEach(() => {
     localStorage.clear();
     generate.mockClear();
+    generateDocx.mockClear();
+    vi.mocked(saveAs).mockClear();
     URL.createObjectURL = vi.fn(() => 'blob:clinical-form-test');
     URL.revokeObjectURL = vi.fn();
   });
@@ -143,7 +150,53 @@ describe('clinical forms editor', () => {
       }
       expect(screen.getByLabelText('Origen de los datos')).toHaveValue('ALFA');
       expect(screen.queryAllByRole('checkbox', { checked: true })).toHaveLength(0);
+      expect(screen.queryByLabelText('Nº de ficha')).not.toBeInTheDocument();
+      expect(Boolean(screen.queryByRole('button', { name: 'Word (.docx)' }))).toBe(
+        form.id === 'informe-traslado-hospital-salvador'
+      );
     }
+  });
+
+  it('does not allow clinical-record numbers to be re-enabled in preferences', () => {
+    mount();
+    fireEvent.click(screen.getByRole('button', { name: 'Variables y preferencias' }));
+    expect(screen.queryByRole('checkbox', { name: 'Mostrar Nº de ficha' })).not.toBeInTheDocument();
+  });
+
+  it('downloads Salvador Word with the reviewed patient and suppression preferences', async () => {
+    mount('informe-traslado-hospital-salvador');
+    fireEvent.change(screen.getByLabelText('Origen de los datos'), { target: { value: 'ALFA' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Variables y preferencias' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Mostrar Nombre y apellidos' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Variables y preferencias' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Word (.docx)' }));
+    await waitFor(() => expect(saveAs).toHaveBeenCalledOnce());
+    expect(generateDocx.mock.calls[0][0].id).toBe('informe-traslado-hospital-salvador');
+    expect(generateDocx.mock.calls[0][1].paciente_nombre_completo).toBe('ALFA');
+    expect(generateDocx.mock.calls[0][2]).toContain('paciente_nombre_completo');
+    expect(vi.mocked(saveAs).mock.calls[0][1]).toBe('informe-traslado-hospital-salvador.docx');
+  });
+
+  it('discards Word if the source changes during generation', async () => {
+    let finish!: (bytes: Uint8Array) => void;
+    generateDocx.mockImplementationOnce(
+      () =>
+        new Promise<Uint8Array>(resolve => {
+          finish = resolve;
+        })
+    );
+    const view = mount('informe-traslado-hospital-salvador');
+    fireEvent.change(screen.getByLabelText('Origen de los datos'), { target: { value: 'ALFA' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Word (.docx)' }));
+    const current = source('ALFA');
+    view.sources([
+      { ...current, values: { ...current.values, diagnostico_texto: 'CAMBIO DE ORIGEN' } },
+    ]);
+    finish(new Uint8Array([80, 75]));
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveTextContent('Los datos cambiaron')
+    );
+    expect(saveAs).not.toHaveBeenCalled();
   });
 
   it('requires a deliberate replacement before changing patients or starting a blank manual form', () => {

@@ -152,7 +152,9 @@
       "targets": [
         {
           "page": 0,
-          "rect": [57, 299, 508, 23]
+          "rect": [57, 295.5, 508, 31.2],
+          "firstBaseline": 310,
+          "lineHeight": 13.5
         }
       ],
       "multiline": true

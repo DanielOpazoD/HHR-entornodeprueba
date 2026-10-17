@@ -164,6 +164,43 @@ describe('original clinical form print contracts', () => {
     ).toBe(0);
   });
 
+  it.each(
+    CLINICAL_FORMS.filter(form => form.fields.some(field => field.id === 'paciente_ficha_numero'))
+  )('$id never prints the clinical-record number even when a draft supplies it', async form => {
+    const printed = await PDFDocument.load(
+      await createClinicalFormPdf(template(form), form, { paciente_ficha_numero: 'FICHA-PRIVADA' })
+    );
+    expect(streams(printed)).toEqual(streams(await PDFDocument.load(template(form))));
+  });
+
+  it.each(CLINICAL_FORMS)(
+    '$id uses 50% larger text when the original cell allows it',
+    async form => {
+      const field = form.fields.find(item =>
+        item.targets.some(
+          target => !Object.hasOwn(target, 'equals') && target.rect[2] >= 70 && target.rect[3] >= 11
+        )
+      )!;
+      const target = field.targets.find(
+        item => !Object.hasOwn(item, 'equals') && item.rect[2] >= 70 && item.rect[3] >= 11
+      )!;
+      const pdf = await PDFDocument.create();
+      const font = await pdf.embedFont(StandardFonts.Helvetica);
+      const [line] = layoutClinicalFormText(
+        field,
+        target,
+        'PRUEBA',
+        font,
+        form.pages[target.page].height,
+        false
+      );
+      expect(line.size).toBe(13.5);
+      expect(line.x + font.widthOfTextAtSize(line.text, line.size)).toBeLessThanOrEqual(
+        target.rect[0] + target.rect[2]
+      );
+    }
+  );
+
   it('rejects changed templates, unprintable characters and overflowing text', async () => {
     const form = getClinicalForm('consentimiento-informado');
     await expect(
@@ -230,4 +267,35 @@ describe('original clinical form print contracts', () => {
       })
     ).resolves.toBeInstanceOf(Uint8Array);
   });
+
+  it.each([
+    ['solicitud-laboratorio-policlinico', 'laboratorio_otros', 671.02, 12.24],
+    ['encuesta-contraste', 'diagnostico_texto', 310, 13.5],
+  ] as const)(
+    'aligns %s multiline text to the original writing rules',
+    async (formId, id, firstBaseline, lineHeight) => {
+      const form = getClinicalForm(formId);
+      const field = form.fields.find(item => item.id === id)!;
+      const target = field.targets[0];
+      const pdf = await PDFDocument.create();
+      const font = await pdf.embedFont(StandardFonts.Helvetica);
+      const lines = layoutClinicalFormText(
+        field,
+        target,
+        'ÁÉÍÓÚÑÜ gypq\nSegunda línea',
+        font,
+        form.pages[0].height,
+        false
+      );
+      expect(lines).toHaveLength(2);
+      expect(form.pages[0].height - lines[0].y).toBeCloseTo(firstBaseline, 3);
+      expect(lines[0].y - lines[1].y).toBeCloseTo(lineHeight, 3);
+      expect(lines[0].y + lines[0].size * 0.931).toBeLessThanOrEqual(
+        form.pages[0].height - target.rect[1]
+      );
+      expect(lines[1].y - lines[1].size * 0.225).toBeGreaterThanOrEqual(
+        form.pages[0].height - target.rect[1] - target.rect[3]
+      );
+    }
+  );
 });

@@ -30,6 +30,7 @@ export interface ClinicalFormEditorProps {
   onClose: () => void;
   onDirtyChange?: (dirty: boolean) => void;
   onGeneratePdf: ClinicalFormPdfGenerator;
+  onGenerateDocx?: ClinicalFormPdfGenerator;
 }
 
 export const ClinicalFormEditor: React.FC<ClinicalFormEditorProps> = ({
@@ -40,6 +41,7 @@ export const ClinicalFormEditor: React.FC<ClinicalFormEditorProps> = ({
   onClose,
   onDirtyChange,
   onGeneratePdf,
+  onGenerateDocx,
 }) => {
   const form = getClinicalForm(formId);
   const draft = useClinicalFormDraft(formId, patients, onFormChange, onDirtyChange);
@@ -60,7 +62,8 @@ export const ClinicalFormEditor: React.FC<ClinicalFormEditorProps> = ({
       Boolean(draft.replacement),
     ]),
     onGeneratePdf,
-    draft.setNotice
+    draft.setNotice,
+    onGenerateDocx
   );
   const blocked = Boolean(draft.replacement) || draft.sourceMissing || draft.sourceChanged;
   const changePreferences = (next: ClinicalFormPreferences) => {
@@ -305,8 +308,19 @@ export const ClinicalFormEditor: React.FC<ClinicalFormEditorProps> = ({
               onClick={() => void pdf.download()}
             >
               <Download size={15} />
-              {pdf.busy ? 'Preparando…' : 'PDF imprimible'}
+              {pdf.busyFormat === 'pdf' ? 'Preparando…' : 'PDF imprimible'}
             </button>
+            {formId === 'informe-traslado-hospital-salvador' && (
+              <button
+                type="button"
+                className="clinical-form-button"
+                disabled={pdf.busy || blocked}
+                onClick={() => void pdf.downloadDocx()}
+              >
+                <FileText size={15} aria-hidden="true" />
+                {pdf.busyFormat === 'docx' ? 'Preparando…' : 'Word (.docx)'}
+              </button>
+            )}
           </div>
           {draft.notice && (
             <p role="status" className="clinical-form-notice">

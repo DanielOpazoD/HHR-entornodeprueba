@@ -22,6 +22,9 @@ export interface ClinicalFormTarget {
   format?: 'date_dmy' | 'date_day' | 'date_month' | 'date_year' | 'sex_initial';
   fontSize?: number;
   align?: 'left' | 'center';
+  /** Baseline from the page top and spacing between preprinted writing rules, in PDF points. */
+  firstBaseline?: number;
+  lineHeight?: number;
 }
 
 export interface ClinicalFormField {

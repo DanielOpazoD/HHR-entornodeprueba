@@ -1,5 +1,9 @@
 import { isClinicalFormRut } from './clinicalFormIdentity';
 import {
+  isSuppressedClinicalFormField,
+  isSuppressedClinicalFormVariable,
+} from './clinicalFormFieldPolicy';
+import {
   CLINICAL_FORMS,
   CLINICAL_VARIABLE_CATALOG,
   CLINICAL_VARIABLE_IDS,
@@ -59,6 +63,7 @@ export const setClinicalFormValue = (
   id: string,
   value: ClinicalFormValue
 ): ClinicalFormValues => {
+  if (isSuppressedClinicalFormVariable(id)) return values;
   const next = { ...values, [id]: value };
   // Composing known parts is deterministic; never split a free full name to guess surnames.
   // Preserve a full name entered independently, just as other manually completed values.
@@ -104,8 +109,9 @@ export const exportClinicalFormDraft = (
       values: Object.fromEntries(
         Object.entries(values).filter(
           ([id]) =>
-            CLINICAL_VARIABLE_IDS.has(id) ||
-            getClinicalForm(formId).fields.some(field => field.id === id)
+            !isSuppressedClinicalFormVariable(id) &&
+            (CLINICAL_VARIABLE_IDS.has(id) ||
+              getClinicalForm(formId).fields.some(field => field.id === id))
         )
       ),
     },
@@ -133,6 +139,7 @@ export const importClinicalFormDraft = (
   }
   const values: ClinicalFormValues = {};
   for (const [id, value] of Object.entries(data.values)) {
+    if (isSuppressedClinicalFormVariable(id)) continue;
     // VMI revision 2 prints patient identification only. Older drafts may still
     // contain observations, alarms or signatures; never restore those values.
     if (data.formId === 'planilla-monitorizacion-ventilatoria' && id.startsWith('vmi_')) continue;
@@ -187,7 +194,10 @@ export const validateClinicalFormValues = (
 ): ClinicalFormValues => {
   const values: ClinicalFormValues = {};
   for (const field of form.fields) {
-    const value = hidden.includes(field.id) ? null : (input[field.id] ?? null);
+    const value =
+      isSuppressedClinicalFormField(field) || hidden.includes(field.id)
+        ? null
+        : (input[field.id] ?? null);
     if (isEmptyFormValue(value)) {
       values[field.id] = null;
       continue;
