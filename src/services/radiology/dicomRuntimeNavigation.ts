@@ -44,3 +44,8 @@ export const createDicomRuntimeNavigation = (
     if (viewport) utilities.scroll(viewport, { delta, debounceLoading: false });
   },
 });
+
+export const resetDicomCamera = (engine: RenderingEngine, viewportIds: string[]) => {
+  viewportIds.forEach(id => engine.getViewport(id)?.resetCamera());
+  engine.render();
+};

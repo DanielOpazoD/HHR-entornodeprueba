@@ -104,6 +104,10 @@ export const createMprTools = (
       }
   };
   return {
+    refresh: () => {
+      (group.getToolInstance(CrosshairsTool.toolName) as CrosshairsTool).computeToolCenter();
+      publish();
+    },
     cancel: () => cancel(true),
     quantitative: (enabled: boolean) => {
       for (const uid of owned) {

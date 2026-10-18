@@ -43,7 +43,9 @@ export const DicomSeriesView: React.FC<{
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [resampled, setResampled] = useState(false);
-  const [busy, setBusy] = useState(true);
+  const [preparing, setBusy] = useState(true);
+  const [graphics, setGraphics] = useState('ready');
+  const busy = preparing || graphics === 'recovering';
   const [cineBusy, setCineBusy] = useState(false);
   const elements = useRef<Array<HTMLDivElement | null>>([]);
   const alive = useRef(true);
@@ -149,6 +151,19 @@ export const DicomSeriesView: React.FC<{
     [runtime]
   );
   useEffect(() => runtime?.loading.subscribe(setLoading), [runtime]);
+  useEffect(
+    () =>
+      runtime?.onGraphics(state => {
+        setGraphics(state);
+        setError(
+          state === 'failed'
+            ? 'No se pudo recuperar la imagen. Cierra y vuelve a abrir el visor.'
+            : ''
+        );
+        if (state === 'ready') setOrientations(runtime.orientations());
+      }),
+    [runtime]
+  );
   const waitingForSlice = mode === 'original' && Boolean(stackState?.pending || stackState?.error);
   const capture = async (): Promise<DicomCapture> => {
     if (!alive.current || latestCaptureContext.current !== captureContext)
@@ -204,6 +219,7 @@ export const DicomSeriesView: React.FC<{
                 type="button"
                 disabled={
                   cineBusy ||
+                  graphics === 'failed' ||
                   !runtime ||
                   busy ||
                   (value !== 'original' && (!volumetric || !complete))
@@ -226,14 +242,14 @@ export const DicomSeriesView: React.FC<{
             mode={mode}
             activeTool={activeTool}
             choose={setActiveTool}
-            disabled={cineBusy || !runtime || busy || waitingForSlice}
+            disabled={cineBusy || !runtime || busy || waitingForSlice || Boolean(error)}
           />
           <DicomWindowControls
             key={mode}
             runtime={runtime}
             mode={mode}
             modality={series.modality}
-            disabled={cineBusy || busy || waitingForSlice}
+            disabled={cineBusy || busy || waitingForSlice || Boolean(error)}
           />
           {runtime && mode === 'original' && (
             <DicomCineControls
@@ -308,7 +324,7 @@ export const DicomSeriesView: React.FC<{
           />
         )}
       </fieldset>
-      {busy && (
+      {preparing && (
         <div className="dicom-loading" role="status">
           {loading?.volumeBuilding
             ? 'Construyendo volumen…'
@@ -320,6 +336,11 @@ export const DicomSeriesView: React.FC<{
           )}
         </div>
       )}
+      {graphics === 'recovering' && (
+        <div className="dicom-recovery-status" role="status">
+          Recuperando imagen…
+        </div>
+      )}
       {resampled && !busy && !error && (
         <p className="dicom-status dicom-volume-notice" role="status">
           Volumen remuestreado para combinar distintas matrices. La interpolación no añade detalle;
@@ -329,7 +350,7 @@ export const DicomSeriesView: React.FC<{
       {error && (
         <p className="dicom-status" role="alert">
           {error}
-          {runtime && mode !== 'original' && (
+          {runtime && mode !== 'original' && graphics !== 'failed' && (
             <button type="button" onClick={() => setMode('original')}>
               Volver a original
             </button>

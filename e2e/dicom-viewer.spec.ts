@@ -1,3 +1,8 @@
+import {
+  installDicomGraphicsProbe,
+  liveDicomContexts,
+  loseDicomGraphics,
+} from './fixtures/dicomGraphics';
 import fs from 'node:fs';
 import PizZip from 'pizzip';
 import { Input, BufferSource, MP4 } from 'mediabunny';
@@ -817,6 +822,210 @@ test.describe('DICOM viewer and Salvador annexes', () => {
       waiting.forEach(resolve => resolve());
     }
   });
+  test('recovers graphics at the same cut and bounds resources across repeated mode changes', async ({
+    page,
+  }) => {
+    test.setTimeout(240000);
+    await installDicomGraphicsProbe(page);
+    await setup(page);
+    let requests = 0;
+    page.on('request', request => {
+      if (request.url().endsWith('/mmrad-dicom') && request.postDataJSON()?.action === 'instance')
+        requests++;
+    });
+    const editor = await openSalvador(page);
+    await editor.getByRole('button', { name: 'Imágenes MMRAD' }).click();
+    await page.getByRole('button', { name: 'Ver DICOM', exact: true }).click();
+    const viewer = page.getByRole('dialog', { name: /Visor DICOM/ });
+    const ready = () =>
+      expect(viewer.getByRole('button', { name: 'PNG', exact: true })).toBeEnabled({
+        timeout: 30000,
+      });
+    await expect(viewer.getByRole('button', { name: 'Comparar', exact: true })).toBeEnabled({
+      timeout: 60000,
+    });
+    const countContexts = () => liveDicomContexts(page);
+    const initialContexts = await countContexts();
+    await page.evaluate(() => {
+      document.addEventListener(
+        'CORNERSTONE_CAMERA_MODIFIED',
+        event => {
+          Object.assign(window, { syntheticLastCamera: (event as CustomEvent).detail.camera });
+        },
+        true
+      );
+    });
+    const hasPixels = () =>
+      viewer
+        .locator('.dicom-canvas canvas')
+        .first()
+        .evaluate(canvas => {
+          const image = canvas as HTMLCanvasElement;
+          return image
+            .getContext('2d')!
+            .getImageData(0, 0, image.width, image.height)
+            .data.some((value, i) => i % 4 !== 3 && value > 0);
+        });
+    const lose = () => loseDicomGraphics(page);
+    await viewer.locator('.dicom-canvas').first().focus();
+    await page.keyboard.press('ArrowDown');
+    await ready();
+    await expect(viewer.getByLabel('Estado del corte')).toHaveText('14/24');
+    await page.evaluate(
+      () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+    );
+    const originalCamera = await page.evaluate(
+      () => (window as unknown as { syntheticLastCamera: unknown }).syntheticLastCamera
+    );
+    await lose();
+    await expect.poll(countContexts).toBe(initialContexts);
+    await ready();
+    await expect(viewer.getByLabel('Estado del corte')).toHaveText('14/24');
+    expect(
+      await page.evaluate(
+        () => (window as unknown as { syntheticLastCamera: unknown }).syntheticLastCamera
+      )
+    ).toEqual(originalCamera);
+    await viewer.getByRole('button', { name: 'MPR', exact: true }).click();
+    await ready();
+    await viewer.locator('.dicom-canvas').first().focus();
+    await page.keyboard.press('ArrowDown');
+    await viewer.getByLabel('Marcador de referencia').selectOption('point');
+    const coordinates = viewer.getByLabel('Coordenadas del punto LPS');
+    const point = await coordinates.textContent();
+    await page.evaluate(
+      () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+    );
+
+    await lose();
+    await expect.poll(countContexts).toBe(initialContexts);
+    await ready();
+    await expect(coordinates).toHaveText(point!);
+    await expect(viewer.getByLabel('Marcador de referencia')).toHaveValue('point');
+    await expect.poll(hasPixels).toBe(true);
+
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('HeapProfiler.collectGarbage');
+    const before = await cdp.send('Runtime.getHeapUsage');
+    const switchTimes: number[] = [];
+    const heapSamples: number[] = [];
+    for (let i = 0; i < 6; i++) {
+      const start = Date.now();
+      await viewer.getByRole('button', { name: '3D', exact: true }).click();
+      await ready();
+      await viewer.getByRole('button', { name: 'Original', exact: true }).click();
+      await ready();
+      await expect(viewer.getByLabel('Estado del corte')).toHaveText('14/24');
+      await viewer.getByRole('button', { name: 'Comparar', exact: true }).click();
+      await expect(viewer.getByText('Posición vinculada', { exact: true })).toBeVisible();
+      if (i === 0) {
+        const comparisonCut = await viewer
+          .getByLabel('Corte panel 1', { exact: true })
+          .inputValue();
+        await lose();
+        await expect.poll(countContexts).toBe(initialContexts + 1);
+        await expect(viewer.getByLabel('Corte panel 1', { exact: true })).toHaveValue(
+          comparisonCut
+        );
+        await expect(viewer.getByText('Recuperando imagen…')).toHaveCount(0);
+      }
+      await viewer.getByRole('button', { name: 'Volver', exact: true }).click();
+      await ready();
+      await viewer.getByRole('button', { name: 'MPR', exact: true }).click();
+      await ready();
+      await expect(coordinates).toHaveText(point!);
+      await expect.poll(countContexts).toBe(initialContexts);
+      expect(await viewer.locator('.dicom-canvas canvas').count()).toBe(3);
+      switchTimes.push(Date.now() - start);
+      await cdp.send('HeapProfiler.collectGarbage');
+      heapSamples.push((await cdp.send('Runtime.getHeapUsage')).usedSize);
+    }
+    await cdp.send('HeapProfiler.collectGarbage');
+    const after = await cdp.send('Runtime.getHeapUsage');
+    expect(after.usedSize - before.usedSize).toBeLessThan(32 * 1024 * 1024);
+    expect(requests).toBe(24);
+    await loseDicomGraphics(page, false);
+    await expect(viewer.getByRole('alert')).toHaveText(
+      'No se pudo recuperar la imagen. Cierra y vuelve a abrir el visor.'
+    );
+    await expect(viewer.getByRole('button', { name: 'PNG', exact: true })).toBeDisabled();
+    await expect(viewer.getByRole('button', { name: 'MPR', exact: true })).toBeDisabled();
+    await expect(
+      viewer.getByRole('button', { name: 'Volver a original', exact: true })
+    ).toHaveCount(0);
+    await viewer.getByRole('button', { name: 'Cerrar modal', exact: true }).click();
+    await expect.poll(countContexts).toBe(0);
+    // A fresh verified session exercises 3D loss independently of the two-attempt limit.
+    await page.getByRole('button', { name: 'Ver DICOM', exact: true }).click();
+    await expect(viewer.getByRole('button', { name: '3D', exact: true })).toBeEnabled({
+      timeout: 60000,
+    });
+    await viewer.getByRole('button', { name: '3D', exact: true }).click();
+    await ready();
+    await page.evaluate(() => {
+      Object.assign(window, { syntheticRenderedFrames: 0, syntheticDragStarted: false });
+      document.addEventListener(
+        'CORNERSTONE_TOOLS_MOUSE_DOWN',
+        () => {
+          Object.assign(window, { syntheticDragStarted: true });
+        },
+        { once: true, capture: true }
+      );
+      document.addEventListener(
+        'CORNERSTONE_IMAGE_RENDERED',
+        () => {
+          const state = window as unknown as { syntheticRenderedFrames: number };
+          state.syntheticRenderedFrames++;
+        },
+        true
+      );
+    });
+    const box = (await viewer.locator('.dicom-canvas').boundingBox())!;
+    const gestureStart = Date.now();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    // Cornerstone defers mouse-down to distinguish double-clicks from dragging.
+    await page.waitForFunction(
+      () => (window as unknown as { syntheticDragStarted: boolean }).syntheticDragStarted
+    );
+    await page.mouse.move(box.x + box.width / 2 + 60, box.y + box.height / 2 + 30, { steps: 12 });
+    await page.mouse.up();
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => (window as unknown as { syntheticRenderedFrames: number }).syntheticRenderedFrames
+        )
+      )
+      .toBeGreaterThan(1);
+    const gestureMs = Date.now() - gestureStart;
+    await expect.poll(hasPixels).toBe(true);
+    const volumeCamera = await page.evaluate(
+      () => (window as unknown as { syntheticLastCamera: unknown }).syntheticLastCamera
+    );
+    await lose();
+    await expect.poll(countContexts).toBe(initialContexts);
+    await ready();
+    expect(
+      await page.evaluate(
+        () => (window as unknown as { syntheticLastCamera: unknown }).syntheticLastCamera
+      )
+    ).toEqual(volumeCamera);
+    await expect.poll(hasPixels).toBe(true);
+    expect(requests).toBe(48);
+    await viewer.getByRole('button', { name: 'Cerrar modal', exact: true }).click();
+    await expect.poll(countContexts).toBe(0);
+    await test.info().attach('synthetic-stability-metrics', {
+      contentType: 'application/json',
+      body: JSON.stringify({
+        heapGrowthBytes: after.usedSize - before.usedSize,
+        activeContexts: await countContexts(),
+        switchTimesMs: switchTimes,
+        heapSamplesBytes: heapSamples,
+        rotationGestureMs: gestureMs,
+      }),
+    });
+  });
+
   test('rotates MPR about a shared physical point and projects full-width slabs safely', async ({
     page,
   }) => {

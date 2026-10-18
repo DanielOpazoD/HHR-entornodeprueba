@@ -1,4 +1,4 @@
-import { init as initCore, cache } from '@cornerstonejs/core';
+import { init as initCore, cache, getConfiguration } from '@cornerstonejs/core';
 import { init as initLoader } from '@cornerstonejs/dicom-image-loader';
 import {
   init as initTools,
@@ -7,8 +7,8 @@ import {
   PanTool,
   ZoomTool,
   StackScrollTool,
-  TrackballRotateTool,
 } from '@cornerstonejs/tools';
+import { DicomTrackballRotateTool as TrackballRotateTool } from './dicomTrackballRotateTool';
 import { mprTools } from './dicomMprTools';
 
 export const dicomTools = [
@@ -21,7 +21,8 @@ export const dicomTools = [
 let initialization: Promise<void> | undefined;
 export const initializeDicom = () =>
   (initialization ??= (async () => {
-    await initCore();
+    const config = getConfiguration();
+    await initCore({ ...config, rendering: { ...config.rendering, webGlContextCount: 1 } });
     initLoader({ maxWebWorkers: 2 });
     initTools();
     [...dicomTools, ...mprTools].forEach(tool => addTool(tool));
