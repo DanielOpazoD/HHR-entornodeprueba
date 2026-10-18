@@ -6,6 +6,8 @@ import { useRayenExtensionHealth } from '../hooks/useRayenExtensionHealth';
 
 interface RayenDayBootstrapButtonProps {
   historical?: boolean;
+  disabled?: boolean;
+  disabledReason?: string;
   onCreateBlank: () => Promise<boolean>;
   onReady: () => void;
   copySourceDate?: string;
@@ -14,6 +16,8 @@ interface RayenDayBootstrapButtonProps {
 
 export const RayenDayBootstrapButton: React.FC<RayenDayBootstrapButtonProps> = ({
   historical = false,
+  disabled = false,
+  disabledReason,
   onCreateBlank,
   onReady,
   copySourceDate,
@@ -31,7 +35,7 @@ export const RayenDayBootstrapButton: React.FC<RayenDayBootstrapButtonProps> = (
   );
 
   const handleClick = async (): Promise<void> => {
-    if (busy) return;
+    if (busy || disabled) return;
     setBusy(true);
     setError(null);
     setManualAvailable(false);
@@ -105,7 +109,7 @@ export const RayenDayBootstrapButton: React.FC<RayenDayBootstrapButtonProps> = (
   };
 
   const handleManualStart = async (): Promise<void> => {
-    if (busy) return;
+    if (busy || disabled) return;
     setBusy(true);
     setError(null);
     setStep('manual');
@@ -186,7 +190,7 @@ export const RayenDayBootstrapButton: React.FC<RayenDayBootstrapButtonProps> = (
       <button
         type="button"
         onClick={() => void handleClick()}
-        disabled={busy || (checking && !copySourceDate)}
+        disabled={disabled || busy || (checking && !copySourceDate)}
         className="btn btn-primary group w-full !h-auto !p-4 shadow-md shadow-medical-500/15 flex-col"
         data-testid="create-from-rayen-btn"
       >
@@ -213,6 +217,7 @@ export const RayenDayBootstrapButton: React.FC<RayenDayBootstrapButtonProps> = (
           </span>
         )}
       </button>
+      {disabledReason && <p className="text-xs text-slate-500">{disabledReason}</p>}
       {copySourceDate ? (
         <div className="group relative text-xs text-slate-500">
           <div

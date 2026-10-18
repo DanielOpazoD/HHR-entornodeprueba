@@ -1,9 +1,14 @@
 .census-manutara {
-  animation: census-manutara-turn 1.8s ease-in-out infinite;
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: census-manutara-turn 2.4s linear infinite;
 }
 @keyframes census-manutara-turn {
+  from {
+    transform: perspective(280px) rotateY(0deg);
+  }
   to {
-    transform: rotateY(360deg);
+    transform: perspective(280px) rotateY(360deg);
   }
 }
 @media (prefers-reduced-motion: reduce) {

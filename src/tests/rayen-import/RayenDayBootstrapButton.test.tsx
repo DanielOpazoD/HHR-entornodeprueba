@@ -253,3 +253,25 @@ describe('compact copy connection summary', () => {
     }
   );
 });
+
+describe('creation schedule lock', () => {
+  it('keeps the action visible and prevents copy and sync when disabled', () => {
+    const onCopyPrevious = vi.fn();
+    const onReady = vi.fn();
+    render(
+      <RayenDayBootstrapButton
+        disabled
+        disabledReason="Disponible desde las 08:00"
+        copySourceDate="2026-09-23"
+        onCopyPrevious={onCopyPrevious}
+        onReady={onReady}
+        onCreateBlank={vi.fn()}
+      />
+    );
+    const button = screen.getByRole('button', { name: 'Copiar censo y sincronizar' });
+    expect(button).toBeDisabled();
+    fireEvent.click(button);
+    expect(onCopyPrevious).not.toHaveBeenCalled();
+    expect(onReady).not.toHaveBeenCalled();
+  });
+});

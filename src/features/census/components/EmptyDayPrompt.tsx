@@ -6,6 +6,10 @@ import {
 import { dailyRecordObservability } from '@/services/repositories/dailyRecordOperationalTelemetry';
 import { RayenDayBootstrapButton, resolveCensusSyncTarget } from '@/features/rayen-import/public';
 import { CensusEmptyMoa } from './CensusEmptyMoa';
+import {
+  resolveCreateDayCopyAvailability,
+  buildCopyUnlockDescription,
+} from '@/hooks/controllers/createDayCopyAvailabilityController';
 import { getPreviousDay } from '@/utils/clinicalDayUtils';
 
 interface EmptyDayPromptProps {
@@ -87,16 +91,16 @@ export const EmptyDayPrompt: React.FC<EmptyDayPromptProps> = ({
 
   const rayenTarget = resolveCensusSyncTarget(currentDateString, now);
   const copySourceDate =
-    rayenTarget.kind !== 'unsupported' &&
-    previousRecordAvailable &&
-    previousRecordDate === getPreviousDay(currentDateString)
+    previousRecordAvailable && previousRecordDate === getPreviousDay(currentDateString)
       ? previousRecordDate
       : undefined;
   // date_mismatch is emitted only for a different selected date after confirmed_empty.
   const dayConfirmedEmpty =
     diagnosticSource === 'remote_missing' || diagnosticSource === 'date_mismatch';
-  const canCreate =
-    dayConfirmedEmpty && Boolean(onRayenBootstrapReady) && rayenTarget.kind !== 'unsupported';
+  const canCreate = dayConfirmedEmpty && Boolean(onRayenBootstrapReady);
+  const creationLocked =
+    resolveCreateDayCopyAvailability(currentDateString, now).isCopyLocked ||
+    rayenTarget.kind === 'unsupported';
 
   return (
     <div className="mt-6 flex flex-col items-center justify-center px-5 py-4 text-center print:hidden">
@@ -114,11 +118,13 @@ export const EmptyDayPrompt: React.FC<EmptyDayPromptProps> = ({
         <p className="max-w-sm text-sm text-amber-800">Pide a enfermería que inicie el censo.</p>
       ) : canCreate ? (
         <RayenDayBootstrapButton
+          disabled={creationLocked}
+          disabledReason={
+            creationLocked ? buildCopyUnlockDescription(currentDateString, now) : undefined
+          }
           historical={rayenTarget.kind === 'historical'}
           copySourceDate={copySourceDate}
-          onCopyPrevious={() =>
-            onCreateDay(true, copySourceDate, { forceCopyScheduleOverride: true })
-          }
+          onCopyPrevious={() => onCreateDay(true, copySourceDate)}
           onCreateBlank={() => onCreateDay(false)}
           onReady={() => onRayenBootstrapReady?.()}
         />

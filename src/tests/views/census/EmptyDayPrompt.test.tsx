@@ -15,12 +15,14 @@ vi.mock('@/features/rayen-import/public', async importOriginal => ({
   ...(await importOriginal<typeof import('@/features/rayen-import/public')>()),
   RayenDayBootstrapButton: ({
     historical,
+    disabled,
     onCreateBlank,
     onReady,
     copySourceDate,
     onCopyPrevious,
   }: {
     historical?: boolean;
+    disabled?: boolean;
     onCreateBlank: () => Promise<boolean>;
     onReady: () => void;
     copySourceDate?: string;
@@ -28,6 +30,7 @@ vi.mock('@/features/rayen-import/public', async importOriginal => ({
   }) => (
     <button
       type="button"
+      disabled={disabled}
       onClick={() => {
         if (copySourceDate) void onCopyPrevious?.().then(copied => copied && onReady());
         else void onCreateBlank().then(onReady);
@@ -110,13 +113,11 @@ describe('EmptyDayPrompt · una acción para iniciar desde Eloísa', () => {
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Copiar pacientes del 23' }));
     });
-    expect(onCreateDay).toHaveBeenCalledWith(true, '2026-09-23', {
-      forceCopyScheduleOverride: true,
-    });
+    expect(onCreateDay).toHaveBeenCalledWith(true, '2026-09-23');
     expect(onReady).toHaveBeenCalledOnce();
   });
 
-  it('allows copying the new calendar day before the 08:00 nursing handoff', async () => {
+  it('keeps the copy action visible but disabled before the 08:00 unlock', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-09-24T10:00:00Z'));
     const onCreateDay = vi.fn().mockResolvedValue(true);
@@ -125,13 +126,15 @@ describe('EmptyDayPrompt · una acción para iniciar desde Eloísa', () => {
       previousRecordDate: '2026-09-23',
       onCreateDay,
     });
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Copiar pacientes del 23' }));
+    const button = screen.getByRole('button', { name: 'Copiar pacientes del 23' });
+    expect(button).toBeDisabled();
+    fireEvent.click(button);
+    expect(onCreateDay).not.toHaveBeenCalled();
+    act(() => {
+      vi.setSystemTime(new Date('2026-09-24T11:00:00Z'));
+      vi.advanceTimersByTime(60_000);
     });
-    expect(onCreateDay).toHaveBeenCalledWith(true, '2026-09-23', {
-      forceCopyScheduleOverride: true,
-    });
+    expect(button).toBeEnabled();
   });
 
   it('copies only the adjacent prior date for a confirmed empty historical day', async () => {
@@ -147,9 +150,7 @@ describe('EmptyDayPrompt · una acción para iniciar desde Eloísa', () => {
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Copiar pacientes del 19' }));
     });
-    expect(onCreateDay).toHaveBeenCalledWith(true, '2026-09-19', {
-      forceCopyScheduleOverride: true,
-    });
+    expect(onCreateDay).toHaveBeenCalledWith(true, '2026-09-19');
   });
 
   it('changes from current capture to historical reconstruction when an open tab ages', () => {
@@ -187,8 +188,7 @@ describe('EmptyDayPrompt · una acción para iniciar desde Eloísa', () => {
       source: 'date_mismatch',
       previousRecordDate: '2026-09-24',
     });
-    expect(screen.queryByRole('button')).not.toBeInTheDocument();
-    expect(screen.getByText(/fecha válida, actual o pasada/i)).toBeInTheDocument();
+    expect(screen.getByRole('button')).toBeDisabled();
     future.unmount();
     renderPrompt('2026-09-24', { source: 'remote_missing', readOnly: true });
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
