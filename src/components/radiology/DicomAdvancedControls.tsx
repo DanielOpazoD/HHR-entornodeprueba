@@ -1,3 +1,5 @@
+import { DicomReconstructionControls } from './DicomReconstructionControls';
+import { useDicomReconstruction } from './useDicomReconstruction';
 import {
   Crosshair,
   Ruler,
@@ -26,11 +28,22 @@ export const DicomAdvancedControls: React.FC<{
   activeTool: DicomTool;
   chooseTool: (tool: DicomTool) => void;
 }> = ({ runtime, mode, modality, disabled, activeTool, chooseTool }) => {
+  const reconstruction = useDicomReconstruction(runtime);
   const [reference, setReference] = useState<DicomReference | null>(null);
   const [linked, setLinked] = useState(true);
   const [style, setStyle] = useState<ReferenceStyle>('lines');
   const [volume, setVolume] = useState(() => defaultVolumePresentation(modality));
   useEffect(() => runtime.onReference(setReference), [runtime]);
+  useEffect(
+    () =>
+      runtime.onReconstruction(state => {
+        if (state?.rotate) {
+          setLinked(true);
+          setStyle('lines');
+        }
+      }),
+    [runtime]
+  );
 
   const updateVolume = (patch: Partial<VolumePresentation>) => {
     const next = { ...volume, ...patch };
@@ -46,11 +59,13 @@ export const DicomAdvancedControls: React.FC<{
     >
       {mode === 'mpr' && (
         <>
+          <DicomReconstructionControls runtime={runtime} chooseTool={chooseTool} />
           <label title="Planos vinculados">
             <input
               type="checkbox"
               aria-label="Planos vinculados"
-              checked={linked}
+              checked={linked || Boolean(reconstruction?.rotate)}
+              disabled={reconstruction?.rotate}
               onChange={event => {
                 setLinked(event.target.checked);
                 runtime.reference(event.target.checked, style);
@@ -64,7 +79,7 @@ export const DicomAdvancedControls: React.FC<{
             aria-label="Punto de referencia"
             title="Punto de referencia"
             aria-pressed={activeTool === 'reference'}
-            disabled={!linked}
+            disabled={!linked || reconstruction?.rotate}
             onClick={() => chooseTool('reference')}
           >
             <Crosshair size={16} aria-hidden="true" />
@@ -72,7 +87,7 @@ export const DicomAdvancedControls: React.FC<{
           <select
             aria-label="Marcador de referencia"
             value={style}
-            disabled={!linked}
+            disabled={!linked || reconstruction?.rotate}
             onChange={event => {
               const next = event.target.value as ReferenceStyle;
               setStyle(next);
@@ -99,7 +114,7 @@ export const DicomAdvancedControls: React.FC<{
                 title={
                   runtime.quantitative()
                     ? item.label
-                    : 'HU y ROI no disponibles: calibración no confirmada'
+                    : 'HU y ROI requieren calibración válida y corte fino ortogonal'
                 }
                 disabled={!runtime.quantitative()}
                 aria-pressed={activeTool === item.id}

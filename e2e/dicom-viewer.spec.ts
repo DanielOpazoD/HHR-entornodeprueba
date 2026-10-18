@@ -817,6 +817,134 @@ test.describe('DICOM viewer and Salvador annexes', () => {
       waiting.forEach(resolve => resolve());
     }
   });
+  test('rotates MPR about a shared physical point and projects full-width slabs safely', async ({
+    page,
+  }) => {
+    await setup(page);
+    await page.evaluate(() => {
+      const cameras: Record<string, { focalPoint: number[]; viewPlaneNormal: number[] }> = {};
+      Object.assign(window, { syntheticMprCameras: cameras });
+      document.addEventListener(
+        'CORNERSTONE_CAMERA_MODIFIED',
+        event => {
+          const detail = (event as CustomEvent).detail;
+          if (detail.viewportId.includes('-mpr-'))
+            cameras[detail.viewportId.slice(-1)] = structuredClone(detail.camera);
+        },
+        true
+      );
+    });
+    const editor = await openSalvador(page);
+    await editor.getByRole('button', { name: 'Imágenes MMRAD' }).click();
+    await page.getByRole('button', { name: 'Ver DICOM', exact: true }).click();
+    const viewer = page.getByRole('dialog', { name: /Visor DICOM/ });
+    await expect(viewer.getByRole('button', { name: 'MPR', exact: true })).toBeEnabled({
+      timeout: 60000,
+    });
+    await viewer.getByRole('button', { name: 'MPR', exact: true }).click();
+    await expect(viewer.getByRole('button', { name: 'PNG', exact: true })).toBeEnabled({
+      timeout: 60000,
+    });
+    const coordinates = viewer.getByLabel('Coordenadas del punto LPS');
+    const initialPoint = await coordinates.textContent();
+    const hash = () =>
+      viewer
+        .locator('.dicom-canvas canvas')
+        .first()
+        .evaluate(node => {
+          let value = 2166136261;
+          for (const char of (node as HTMLCanvasElement).toDataURL())
+            value = Math.imul(value ^ char.charCodeAt(0), 16777619);
+          return value;
+        });
+    const initialHash = await hash();
+    await viewer.getByLabel('Reconstrucción MPR', { exact: true }).click();
+    await viewer.getByLabel('Espesor MPR en milímetros').fill('12');
+    await expect(viewer.getByLabel('Reconstrucción Axial', { exact: true })).toHaveText(
+      'Promedio · 12 mm'
+    );
+    await expect(viewer.getByRole('button', { name: 'Lectura HU', exact: true })).toBeDisabled();
+    await expect.poll(hash).not.toBe(initialHash);
+    const average = await hash();
+    await viewer.getByLabel('Proyección MPR').selectOption('mip');
+    await expect.poll(hash).not.toBe(average);
+    const mip = await hash();
+    await viewer.getByLabel('Proyección MPR').selectOption('minip');
+    await expect.poll(hash).not.toBe(mip);
+    await viewer.getByRole('button', { name: 'Restablecer MPR', exact: true }).click();
+    await expect(viewer.getByLabel('Espesor MPR en milímetros')).toHaveValue('0');
+    await expect(coordinates).toHaveText(initialPoint!);
+    await expect.poll(hash).toBe(initialHash);
+    await viewer.getByLabel('Marcador de referencia').selectOption('point');
+    await viewer.getByLabel('Rotar planos', { exact: true }).check();
+    await expect(viewer.getByLabel('Marcador de referencia')).toHaveValue('lines');
+    await viewer.getByLabel('Reconstrucción MPR', { exact: true }).click();
+    const axial = viewer.locator('.dicom-canvas').first();
+    const box = (await axial.boundingBox())!;
+    const handle = await axial.locator('svg line').evaluateAll(lines => {
+      const line = lines
+        .map(item => ({
+          x1: Number(item.getAttribute('x1')),
+          y1: Number(item.getAttribute('y1')),
+          x2: Number(item.getAttribute('x2')),
+          y2: Number(item.getAttribute('y2')),
+        }))
+        .find(item => Math.hypot(item.x2 - item.x1, item.y2 - item.y1) > 60);
+      if (!line) throw new Error('Missing synthetic reference line');
+      return { x: (line.x1 + line.x2) / 2, y: (line.y1 + line.y2) / 2 };
+    });
+    await page.mouse.move(box.x + handle.x, box.y + handle.y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + handle.x + 45, box.y + handle.y + 55, { steps: 15 });
+    await page.mouse.up();
+    await expect(viewer.getByLabel('Reconstrucción Coronal', { exact: true })).toContainText(
+      'Oblicuo'
+    );
+    await expect(coordinates).toHaveText(initialPoint!);
+    await viewer.screenshot({ path: test.info().outputPath('synthetic-oblique-mpr.png') });
+    const cameras = await page.evaluate(
+      () =>
+        (
+          window as unknown as {
+            syntheticMprCameras: Record<
+              string,
+              { focalPoint: number[]; viewPlaneNormal: number[] }
+            >;
+          }
+        ).syntheticMprCameras
+    );
+    const point = initialPoint!.match(/-?\d+\.\d+/g)!.map(Number);
+    const normals = Object.values(cameras).map(camera => camera.viewPlaneNormal);
+    expect(normals).toHaveLength(3);
+    Object.values(cameras).forEach(camera => {
+      expect(
+        Math.abs(
+          camera.viewPlaneNormal.reduce(
+            (sum, n, i) => sum + n * (point[i] - camera.focalPoint[i]),
+            0
+          )
+        )
+      ).toBeLessThan(0.1);
+      expect(camera.viewPlaneNormal.reduce((sum, n) => sum + n * n, 0)).toBeCloseTo(1, 5);
+    });
+    expect(Math.abs(normals[0].reduce((sum, n, i) => sum + n * normals[1][i], 0))).toBeLessThan(
+      1e-5
+    );
+    await viewer.getByRole('button', { name: 'Contraste (ventana y nivel)', exact: true }).click();
+    await viewer.getByRole('button', { name: 'Corte siguiente Axial', exact: true }).click();
+    await expect(coordinates).not.toHaveText(initialPoint!);
+    await viewer.getByRole('button', { name: 'Distancia', exact: true }).click();
+    await axial.click({ position: { x: box.width * 0.4, y: box.height * 0.4 } });
+    await axial.click({ position: { x: box.width * 0.6, y: box.height * 0.6 } });
+    await expect(axial.locator('svg')).toContainText('mm');
+    await viewer.getByLabel('Reconstrucción MPR', { exact: true }).click();
+    await viewer.getByRole('button', { name: 'Restablecer MPR', exact: true }).click();
+    await expect(viewer.getByLabel('Reconstrucción Coronal', { exact: true })).toHaveText(
+      'Corte fino'
+    );
+    await expect(viewer.getByRole('button', { name: 'Lectura HU', exact: true })).toBeEnabled();
+  });
+
   test('links MPR coordinates and renders reversible 3D tissue controls', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await setup(page);
@@ -1098,6 +1226,7 @@ test.describe('DICOM viewer and Salvador annexes', () => {
       await viewer.getByRole('button', { name: mode, exact: true }).click();
       await expect(viewer.getByRole('alert')).toContainText('distintos marcos de referencia');
       await expect(viewer.getByRole('alert')).not.toContainText('1.2.826');
+      await expect(viewer.getByLabel('Reconstrucción MPR', { exact: true })).toHaveCount(0);
       await expect(viewer.getByRole('button', { name: 'PNG', exact: true })).toBeDisabled();
       await viewer.getByRole('button', { name: 'Volver a original', exact: true }).click();
       await expect(viewer.getByRole('alert')).toHaveCount(0);

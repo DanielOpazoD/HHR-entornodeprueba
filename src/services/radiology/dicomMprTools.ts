@@ -35,6 +35,7 @@ export const createMprTools = (
   viewportIds: string[],
   notify: (reference: DicomReference | null) => void
 ) => {
+  let oblique = false;
   const owned = new Set<string>();
   const elements = viewportIds
     .map(viewportId => getEnabledElementByIds(viewportId, engineId)?.viewport.element)
@@ -59,7 +60,7 @@ export const createMprTools = (
   group.addTool(CrosshairsTool.toolName, {
     getReferenceLineColor: (id: string) =>
       ['#fb7185', '#4ade80', '#60a5fa'][viewportIds.indexOf(id)] || '#fff',
-    getReferenceLineDraggableRotatable: () => false,
+    getReferenceLineDraggableRotatable: () => oblique,
     getReferenceLineSlabThicknessControlsOn: () => false,
     centerPoint: { enabled: true, color: '#facc15', size: 3 },
     referenceLinesCenterGapRadius: 6,
@@ -104,9 +105,21 @@ export const createMprTools = (
   };
   return {
     cancel: () => cancel(true),
+    quantitative: (enabled: boolean) => {
+      for (const uid of owned) {
+        const item = annotation.state.getAnnotation(uid);
+        if (
+          [ProbeTool.toolName, EllipticalROITool.toolName].includes(item?.metadata?.toolName ?? '')
+        )
+          annotation.visibility.setAnnotationVisibility(uid, enabled);
+      }
+    },
+    oblique: (enabled: boolean) => {
+      oblique = enabled;
+    },
     reference: (enabled: boolean, style: ReferenceStyle) => {
       group.setToolConfiguration(CrosshairsTool.toolName, {
-        minimal: { enabled: style === 'point', lineLengthInPx: 12 },
+        minimal: { enabled: !oblique && style === 'point', lineLengthInPx: 12 },
       });
       if (!enabled) {
         group.setToolDisabled(CrosshairsTool.toolName);

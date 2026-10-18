@@ -4,6 +4,7 @@ import { resampleDicomVolume } from '@/domain/radiology/dicomResampling';
 
 export interface DicomVolumeHandle {
   resampled: boolean;
+  plan: ReturnType<typeof planDicomVolume>;
   release: () => void;
 }
 
@@ -128,7 +129,7 @@ export const createDicomVolume = async (
       });
     }
     signal.throwIfAborted();
-    return { resampled: plan.resampled, release };
+    return { resampled: plan.resampled, plan, release };
   } catch (error) {
     release();
     throw error;
