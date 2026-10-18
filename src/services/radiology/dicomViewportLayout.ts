@@ -31,7 +31,7 @@ export const observeDicomViewportSize = (
     elements.map(element => [element, [element.clientWidth, element.clientHeight]])
   );
   const observer = new ResizeObserver(() => {
-    if (disposed()) return;
+    if (disposed() || elements.some(element => !element.isConnected)) return;
     const changed = elements.some(element => {
       const previous = sizes.get(element)!;
       return previous[0] !== element.clientWidth || previous[1] !== element.clientHeight;
@@ -43,3 +43,14 @@ export const observeDicomViewportSize = (
   elements.forEach(element => observer.observe(element));
   return observer;
 };
+
+export const getRuntimeOrientations = (
+  engine: RenderingEngine | undefined,
+  viewportIds: string[],
+  mode: 'original' | 'mpr' | '3d',
+  disposed: boolean,
+  originalHasOrientation: boolean
+) =>
+  !engine || disposed || mode === '3d' || (mode === 'original' && !originalHasOrientation)
+    ? []
+    : getDicomOrientations(engine, viewportIds);

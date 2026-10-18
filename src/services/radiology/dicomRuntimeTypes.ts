@@ -29,6 +29,9 @@ export interface DicomOrientation {
 
 export interface DicomRuntime {
   readonly sessionId: string;
+  onGraphics: (
+    listener: (state: import('./dicomViewContinuity').DicomGraphicsState) => void
+  ) => () => void;
   loading: ProgressiveDicomSeries['loading'];
   completion: Promise<void>;
   compare: (

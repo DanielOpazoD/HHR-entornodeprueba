@@ -7,7 +7,9 @@ export const createDicomComparisonOwner = () => {
   let pending: Promise<void> = Promise.resolve();
   const close = () => {
     controller?.abort();
-    return Promise.all([pending, current?.dispose()]).then(() => undefined);
+    const previous = current;
+    current = undefined;
+    return Promise.all([pending, previous?.dispose()]).then(() => undefined);
   };
   return {
     close,

@@ -1,3 +1,6 @@
+import { destroyDicomToolGroup } from './dicomToolLifecycle';
+import { createDicomViewContinuity } from './dicomViewContinuity';
+import { destroyDicomEngine } from './dicomGraphicsResources';
 import { RenderingEngine, Enums, type StackViewport, type Types } from '@cornerstonejs/core';
 import {
   ToolGroupManager,
@@ -55,12 +58,13 @@ export const createDicomComparison = (
   const childSignal = AbortSignal.any([signal, controller.signal]);
   const same = primary.uid === secondary.uid;
   const id = `compare-${crypto.randomUUID()}`;
-  const engine = new RenderingEngine(id);
+  let engine = new RenderingEngine(id);
   let disposed = false,
     active = 0,
     applying = false;
   let links: ComparisonLinks = { position: true, zoom: false, window: false };
   let lastPosition = '';
+  const selectedTools: Array<'window' | 'pan' | 'zoom'> = ['window', 'window'];
   const ready = [primary.instances.length, same ? primary.instances.length : 0];
   const loaded: Array<LoadedDicomSeries | undefined> = [
     primaryLoaded,
@@ -68,6 +72,9 @@ export const createDicomComparison = (
   ];
   const removers: Array<() => void> = [];
   const groups: string[] = [];
+  const viewRemovers: Array<() => void> = [];
+  let lastState: ComparisonState | undefined;
+  let recovering = false;
   let second: ProgressiveDicomSeries | undefined;
   let resize: ResizeObserver | undefined;
   let error = '';
@@ -87,7 +94,7 @@ export const createDicomComparison = (
       : undefined;
   };
   const emit = () => {
-    if (disposed || stacks.length !== 2) return;
+    if (disposed || recovering || stacks.length !== 2) return;
     const from = slice(active),
       other = 1 - active;
     let positionStatus = links.position ? 'Geometría pendiente' : 'Posición independiente';
@@ -106,7 +113,7 @@ export const createDicomComparison = (
       const line = a && b ? comparisonReferenceLine(a, b) : null;
       return line?.map(point => viewport.worldToCanvas(point as Types.Point3)) ?? null;
     });
-    notify({
+    lastState = {
       stacks: stacks.map(stack => stack.state()),
       ready: [...ready],
       positionStatus,
@@ -126,10 +133,11 @@ export const createDicomComparison = (
                 : { top: '', right: '', bottom: '', left: '' };
             })
           : [],
-    });
+    };
+    notify(lastState);
   };
   const applyLinks = () => {
-    if (disposed || applying || !slice(active) || !slice(1 - active)) return;
+    if (disposed || recovering || applying || !slice(active) || !slice(1 - active)) return;
     applying = true;
     try {
       const from = views[active],
@@ -144,18 +152,114 @@ export const createDicomComparison = (
       applying = false;
     }
   };
+  let initialized = false;
+  const clearViews = async () => {
+    resize?.disconnect();
+    viewRemovers.splice(0).forEach(remove => remove());
+    groups.splice(0).forEach(group => destroyDicomToolGroup(group));
+    await Promise.all(stacks.map(stack => stack.detach()));
+  };
+  const continuity = createDicomViewContinuity(
+    () => engine,
+    async () => {
+      await clearViews();
+      childSignal.throwIfAborted();
+      destroyDicomEngine(engine);
+      engine = new RenderingEngine(id);
+    },
+    childSignal
+  );
+  removers.push(
+    continuity.subscribe(state => {
+      recovering = state !== 'ready';
+      if (state === 'ready') {
+        lastPosition = '';
+        applyLinks();
+        emit();
+        return;
+      }
+      if (lastState && !disposed)
+        notify({
+          ...lastState,
+          error:
+            state === 'recovering'
+              ? 'Recuperando imagen…'
+              : state === 'failed'
+                ? 'No se pudo recuperar la comparación. Vuelve a Original.'
+                : error,
+        });
+    })
+  );
+  const build = async () => {
+    engine.setViewports(
+      elements.map((element, panel) => ({
+        viewportId: `${id}-${panel}`,
+        element,
+        type: Enums.ViewportType.STACK,
+        defaultOptions: { background: [0, 0, 0] as Types.Point3 },
+      }))
+    );
+    views = elements.map((_, panel) => engine.getViewport(`${id}-${panel}`) as StackViewport);
+    views.forEach((view, panel) => {
+      const group = ToolGroupManager.createToolGroup(`${id}-tools-${panel}`);
+      if (!group) throw new Error('No se pudieron preparar las herramientas de comparación.');
+      groups.push(group.id);
+      [WindowLevelTool, PanTool, ZoomTool].forEach(tool => group.addTool(tool.toolName));
+      group.addViewport(view.id, id);
+      group.setToolActive(
+        { window: WindowLevelTool, pan: PanTool, zoom: ZoomTool }[selectedTools[panel]].toolName,
+        {
+          bindings: [{ mouseButton: ToolEnums.MouseBindings.Primary }],
+        }
+      );
+      const update = () => {
+        if (applying || disposed) return;
+        if (panel === active) applyLinks();
+        emit();
+      };
+      [Enums.Events.CAMERA_MODIFIED, Enums.Events.VOI_MODIFIED].forEach(event => {
+        view.element.addEventListener(event, update);
+        viewRemovers.push(() => view.element.removeEventListener(event, update));
+      });
+      viewRemovers.push(
+        stacks[panel].subscribe(() => {
+          applyLinks();
+          emit();
+        })
+      );
+    });
+
+    await Promise.all(
+      views.map((view, panel) => {
+        return stacks[panel].show(view).then(() => {
+          if (disposed || childSignal.aborted) return;
+          if (!initialized && same && panel === 1 && primary.modality === 'CT') {
+            view.setProperties({ voiRange: { lower: -1350, upper: 150 } });
+            view.render();
+          }
+          emit();
+        });
+      })
+    );
+    childSignal.throwIfAborted();
+    initialized = true;
+    resize = observeDicomViewportSize(engine, elements, () => disposed);
+    emit();
+  };
   const dispose = () => {
     if (disposed) return disposal!;
     disposed = true;
     controller.abort();
+    const graphics = continuity.dispose();
+    viewRemovers.splice(0).forEach(remove => remove());
     resize?.disconnect();
     removers.forEach(remove => remove());
-    groups.forEach(group => ToolGroupManager.destroyToolGroup(group));
+    groups.forEach(group => destroyDicomToolGroup(group));
     const presentation = stacks.map(stack => stack.detach());
     views.forEach(view => view.getCanvas().remove());
     second?.cancel();
-    disposal = Promise.all([...presentation, second?.settled])
-      .finally(() => engine.destroy())
+    disposal = Promise.all([...presentation, second?.settled, graphics])
+      .finally(() => destroyDicomEngine(engine))
       .then(
         () => undefined,
         () => undefined
@@ -203,62 +307,14 @@ export const createDicomComparison = (
       createProgressiveStack(source, primary.instances.length),
       createProgressiveStack(second ?? source, secondary.instances.length),
     ];
-    engine.setViewports(
-      elements.map((element, panel) => ({
-        viewportId: `${id}-${panel}`,
-        element,
-        type: Enums.ViewportType.STACK,
-        defaultOptions: { background: [0, 0, 0] as Types.Point3 },
-      }))
-    );
-    views = elements.map((_, panel) => engine.getViewport(`${id}-${panel}`) as StackViewport);
-    views.forEach((view, panel) => {
-      const group = ToolGroupManager.createToolGroup(`${id}-tools-${panel}`);
-      if (!group) throw new Error('No se pudieron preparar las herramientas de comparación.');
-      groups.push(group.id);
-      [WindowLevelTool, PanTool, ZoomTool].forEach(tool => group.addTool(tool.toolName));
-      group.addViewport(view.id, id);
-      group.setToolActive(WindowLevelTool.toolName, {
-        bindings: [{ mouseButton: ToolEnums.MouseBindings.Primary }],
-      });
-      const update = () => {
-        if (applying || disposed) return;
-        if (panel === active) applyLinks();
-        emit();
-      };
-      [Enums.Events.CAMERA_MODIFIED, Enums.Events.VOI_MODIFIED].forEach(event => {
-        view.element.addEventListener(event, update);
-        removers.push(() => view.element.removeEventListener(event, update));
-      });
-      removers.push(
-        stacks[panel].subscribe(() => {
-          applyLinks();
-          emit();
-        })
-      );
-    });
     stacks[0].select(initialIndex);
     if (same) stacks[1].select(initialIndex);
-    views.forEach((view, panel) => {
-      void stacks[panel]
-        .show(view)
-        .then(() => {
-          if (disposed || childSignal.aborted) return;
-          if (same && panel === 1 && primary.modality === 'CT') {
-            view.setProperties({ voiRange: { lower: -1350, upper: 150 } });
-            view.render();
-          }
-          emit();
-        })
-        .catch(() => {
-          if (!disposed) {
-            error = 'No se pudo preparar la comparación.';
-            emit();
-          }
-        });
+    void continuity.show('comparison', elements, build).catch(() => {
+      if (!disposed) {
+        error ||= 'No se pudo preparar la comparación.';
+        emit();
+      }
     });
-    resize = observeDicomViewportSize(engine, elements, () => disposed);
-    emit();
   } catch (reason) {
     dispose();
     throw reason;
@@ -292,6 +348,7 @@ export const createDicomComparison = (
     },
     retry: () => second?.loading.retryFailed(),
     tool: (tool: 'window' | 'pan' | 'zoom') => {
+      selectedTools[active] = tool;
       const candidates = { window: WindowLevelTool, pan: PanTool, zoom: ZoomTool };
       const group = ToolGroupManager.getToolGroup(groups[active]);
       Object.values(candidates).forEach(item => group?.setToolPassive(item.toolName));

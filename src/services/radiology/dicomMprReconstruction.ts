@@ -1,3 +1,4 @@
+import type { createMprTools, DicomReference } from './dicomMprTools';
 import { Enums, type RenderingEngine, type VolumeViewport, type Types } from '@cornerstonejs/core';
 import type { CrosshairsTool } from '@cornerstonejs/tools';
 import type { DicomVolumePlan } from '@/domain/radiology/dicomGeometry';
@@ -109,6 +110,30 @@ export const createMprReconstruction = (
         viewport.element.removeEventListener(Enums.Events.CAMERA_MODIFIED, changed)
       );
       notify(null);
+    },
+  };
+};
+
+/** Keeps only reconstruction controls and the physical intersection within this verified series. */
+export const createMprMemory = () => {
+  let saved: MprReconstructionState | undefined;
+  let point: DicomReference | null = null;
+  return {
+    remember: (state: MprReconstructionState | undefined, reference: DicomReference | null) => {
+      if (state) {
+        saved = state;
+        point = reference;
+      }
+    },
+    restore: (
+      reconstruction: ReturnType<typeof createMprReconstruction>,
+      mpr: ReturnType<typeof createMprTools>,
+      crosshairs: CrosshairsTool
+    ) => {
+      if (!saved) return;
+      reconstruction.update(saved);
+      mpr.oblique(saved.rotate);
+      if (point) crosshairs.setToolCenter(point.point);
     },
   };
 };

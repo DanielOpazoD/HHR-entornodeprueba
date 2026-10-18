@@ -404,3 +404,34 @@ orientaciones y espesor iniciales; el contraste se conserva. Las capturas
 incluyen el modo/espesor y condición oblicua, sin incorporar las mediciones.
 Datos y herramientas son transitorios; no cambian la verificación del paciente
 ni se persisten datos adicionales. La prueba automatizada usa solo DICOM sintético.
+
+### Continuidad y recursos gráficos
+
+El motor ContextPool usa un contexto WebGL por motor (máximo dos mientras se compara),
+en lugar de reservar siete por motor. El cierre destruye VTK y libera explícitamente
+su contexto. Antes de quitar un grupo del registro se deshabilitan sus herramientas,
+para retirar sus listeners y observadores. La rotación 3D utiliza el observador de tamaño
+del visor, que conserva la posición, en lugar del observador de TrackballRotate 4.22
+que recentra la cámara y puede afectar a un grupo posterior con el mismo identificador.
+La comparación libera también su referencia al cerrarse. Las imágenes
+verificadas y el volumen siguen perteneciendo a la sesión y se liberan al cerrarla.
+
+La pérdida del contexto del canvas **offscreen**, distinto de los canvases 2D visibles,
+activa una recuperación acotada a dos intentos por sesión gráfica. Se oculta la imagen
+invalidada, se cancela cine/exportación y se reconstruye el motor reutilizando los datos
+en memoria. La textura GPU anterior se libera con su render window y todos los cortes
+se marcan para subirlos de nuevo desde la caché, sin transferencia de red.
+Se restauran cámara, ventana y corte; en MPR también orientación, espesor
+e intersección. La recuperación no cambia paciente, estudio ni validaciones geométricas.
+Si falla, queda un error explícito y la imagen oculta. No hay bucles de reintentos.
+Las mediciones temporales se retiran al reconstruir sus herramientas; no se guardan.
+
+La cámara y ventana de cada modo se conservan sólo durante esa serie. Nada de esta
+continuidad se escribe en storage ni se envía a telemetría. Al cerrar o cambiar de
+serie se retiran listeners, observadores y tareas pendientes. La exportación necesita
+una nueva ejecución después de una pérdida gráfica; no continúa con cuadros obsoletos.
+
+La prueba sintética de estabilidad provoca pérdidas de contexto, alterna seis veces
+Original/MPR/3D/comparación, verifica posiciones y descargas únicas, mide heap tras GC
+y comprueba cero contextos del visor activos tras cerrar. El límite de crecimiento es
+32 MiB para ese fixture; no constituye una garantía de memoria para estudios reales.
