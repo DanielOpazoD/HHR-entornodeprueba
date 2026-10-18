@@ -275,31 +275,12 @@ export const useRayenSnapshotPreview = ({
       let noChangeRequiresFreshCapture = false;
       let noChangeCorrectionError: string | null = null;
       let noChangeResult: Awaited<ReturnType<typeof persistConvergedStructure>> = null;
-      if (hasNoApplicableChanges) {
-        const persistence = await runPreparedStructuralPersistence(
-          () => execution.transition({ type: 'persisting_structure' }),
-          outcome => {
-            const requiresFreshCapture = outcome.kind === 'requires_fresh_capture';
-            noChangeResult = outcome.result;
-            diff = outcome.commit.diff;
-            hasUnresolvedConflicts = outcome.commit.structuralConflicts > 0;
-            hasNoApplicableChanges = hasNoApplicableRayenStructuralChanges(diff);
-            noChangePersistenceCompleted = true;
-            if (requiresFreshCapture) {
-              noChangeRequiresFreshCapture = true;
-              noChangeCorrectionError = getRayenImportErrorMessage(outcome.error);
-            }
-            return continueClinicalAfterCommit(outcome.commit);
-          }
-        );
-        if (persistence.kind !== 'committed') return;
-      }
-      const isExecutionDateVisible =
-        !selectedDateRef || selectedDateRef.current === executionIdentity.selectedDate;
-      setState(previous =>
-        !isRayenSyncExecutionCurrent(executionRef.current, executionIdentity)
-          ? previous
-          : isExecutionDateVisible
+      const publishPreview = () => {
+        if (!isRayenSyncExecutionCurrent(executionRef.current, executionIdentity)) return;
+        const isExecutionDateVisible =
+          !selectedDateRef || selectedDateRef.current === executionIdentity.selectedDate;
+        setState(previous =>
+          isExecutionDateVisible
             ? {
                 diff,
                 isPreviewOpen: shouldOpenRayenSnapshotPreview({
@@ -320,7 +301,29 @@ export const useRayenSnapshotPreview = ({
                     : null),
               }
             : previous
-      );
+        );
+      };
+      if (hasNoApplicableChanges) {
+        await runPreparedStructuralPersistence(
+          () => execution.transition({ type: 'persisting_structure' }),
+          outcome => {
+            const requiresFreshCapture = outcome.kind === 'requires_fresh_capture';
+            noChangeResult = outcome.result;
+            diff = outcome.commit.diff;
+            hasUnresolvedConflicts = outcome.commit.structuralConflicts > 0;
+            hasNoApplicableChanges = hasNoApplicableRayenStructuralChanges(diff);
+            noChangePersistenceCompleted = true;
+            if (requiresFreshCapture) {
+              noChangeRequiresFreshCapture = true;
+              noChangeCorrectionError = getRayenImportErrorMessage(outcome.error);
+            }
+            return continueClinicalAfterCommit(outcome.commit, publishPreview);
+          }
+        );
+        // Clinical completion settles the execution; publish its review before that transition.
+        return;
+      }
+      publishPreview();
       if (!noChangePersistenceCompleted) {
         const reviewStage = resolveRayenSnapshotPlanningStage(
           hasNoApplicableChanges,

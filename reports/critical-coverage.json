@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-10-18T03:06:48.018Z",
-  "gitSha": "627672549",
-  "gitDirty": false,
+  "generatedAt": "2026-10-18T15:39:59.193Z",
+  "gitSha": "8454f497b",
+  "gitDirty": true,
   "generatedFor": {
-    "gitSha": "627672549",
-    "gitDirty": false,
-    "treeHash": "10db24e7d1d642e7033c7faf3d477563de049c5d",
+    "gitSha": "8454f497b",
+    "gitDirty": true,
+    "treeHash": "14d2db1d08fdef6b8c3cb44ffe7ae127cbfc569f",
     "reportId": "critical-coverage",
     "dependencyFingerprint": {
       "algorithm": "sha256:dependency-files-v1",
@@ -525,8 +525,8 @@
         "src/services/storage/firestore/ports/firestoreServiceRuntimePort.ts"
       ],
       "sourceFileCount": 25,
-      "testFileCount": 73,
-      "testToSourceRatio": 2.92,
+      "testFileCount": 75,
+      "testToSourceRatio": 3,
       "coverage": {
         "lines": {
           "total": 899,
@@ -1144,8 +1144,8 @@
         "src/services/storage/sync/syncQueueTelemetryController.ts"
       ],
       "sourceFileCount": 3,
-      "testFileCount": 73,
-      "testToSourceRatio": 24.333333333333332,
+      "testFileCount": 75,
+      "testToSourceRatio": 25,
       "coverage": {
         "lines": {
           "total": 103,
@@ -1203,8 +1203,8 @@
         "src/services/storage/indexeddb/indexedDbRecoveryPolicy.ts"
       ],
       "sourceFileCount": 3,
-      "testFileCount": 73,
-      "testToSourceRatio": 24.333333333333332,
+      "testFileCount": 75,
+      "testToSourceRatio": 25,
       "coverage": {
         "lines": {
           "total": 31,
@@ -1281,8 +1281,8 @@
         "src/features/rayen-import/hooks/replanRayenStructure.ts"
       ],
       "sourceFileCount": 5,
-      "testFileCount": 415,
-      "testToSourceRatio": 83,
+      "testFileCount": 418,
+      "testToSourceRatio": 83.6,
       "coverage": {
         "lines": {
           "total": 162,
