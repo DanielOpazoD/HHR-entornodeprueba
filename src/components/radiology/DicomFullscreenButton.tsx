@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Maximize, Minimize } from 'lucide-react';
 
-export const DicomFullscreenButton: React.FC = () => {
+export const DicomFullscreenButton: React.FC<{ disabled?: boolean }> = ({ disabled }) => {
   const button = useRef<HTMLButtonElement>(null);
   const [active, setActive] = useState(false);
   const [error, setError] = useState('');
@@ -30,6 +30,7 @@ export const DicomFullscreenButton: React.FC = () => {
     <>
       <button
         ref={button}
+        disabled={disabled}
         type="button"
         aria-label={active ? 'Salir de pantalla completa' : 'Pantalla completa'}
         title={active ? 'Salir de pantalla completa' : 'Pantalla completa'}

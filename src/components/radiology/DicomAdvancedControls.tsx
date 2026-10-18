@@ -3,7 +3,6 @@ import {
   Ruler,
   Triangle,
   Trash2,
-  Contrast,
   Link2,
   SlidersHorizontal,
   Info,
@@ -30,7 +29,6 @@ export const DicomAdvancedControls: React.FC<{
   const [reference, setReference] = useState<DicomReference | null>(null);
   const [linked, setLinked] = useState(true);
   const [style, setStyle] = useState<ReferenceStyle>('lines');
-  const [inverted, setInverted] = useState(false);
   const [volume, setVolume] = useState(() => defaultVolumePresentation(modality));
   useEffect(() => runtime.onReference(setReference), [runtime]);
 
@@ -40,7 +38,12 @@ export const DicomAdvancedControls: React.FC<{
     runtime.presentation(next);
   };
   return (
-    <fieldset className="dicom-advanced" disabled={disabled} aria-label="Visualización avanzada">
+    <fieldset
+      hidden={mode === 'original'}
+      className="dicom-advanced"
+      disabled={disabled}
+      aria-label="Visualización avanzada"
+    >
       {mode === 'mpr' && (
         <>
           <label title="Planos vinculados">
@@ -150,20 +153,6 @@ export const DicomAdvancedControls: React.FC<{
             </small>
           </div>
         </details>
-      )}
-      {mode !== '3d' && (
-        <button
-          type="button"
-          aria-label="Invertir grises"
-          title="Invertir grises"
-          aria-pressed={inverted}
-          onClick={() => {
-            setInverted(!inverted);
-            runtime.invert(!inverted);
-          }}
-        >
-          <Contrast size={16} aria-hidden="true" />
-        </button>
       )}
       {mode === '3d' && (
         <details className="dicom-popover dicom-volume-settings">

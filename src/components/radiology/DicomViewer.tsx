@@ -4,6 +4,8 @@ import { fetchDicomStudy } from '@/services/radiology/mmradDicomService';
 import type { DicomStudy } from '@/services/radiology/dicomTypes';
 import type { DicomViewerDialogProps } from './DicomViewerDialog';
 import { DicomSeriesView } from './DicomSeriesView';
+import { createDicomStudyPrefetch } from '@/services/radiology/dicomStudyPrefetch';
+import { DicomPatientBar } from './DicomPatientBar';
 import './dicomViewer.css';
 import './dicomProgressive.css';
 
@@ -11,17 +13,24 @@ const DicomViewerSession: React.FC<DicomViewerDialogProps> = ({
   link,
   patientId,
   title,
+  patientName,
+  studyDate,
+  reportLink,
   onCapture,
 }) => {
   const [study, setStudy] = useState<DicomStudy | null>(null);
+  const [prefetch, setPrefetch] = useState<ReturnType<typeof createDicomStudyPrefetch>>();
   const [seriesUid, setSeriesUid] = useState('');
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
+    let session: ReturnType<typeof createDicomStudyPrefetch> | undefined;
     void fetchDicomStudy(link, patientId, controller.signal)
       .then(result => {
         if (controller.signal.aborted) return;
+        session = createDicomStudyPrefetch(result);
+        setPrefetch(session);
         setStudy(result);
         setSeriesUid(
           result.series.find(item => item.modality === 'CT')?.uid || result.series[0].uid
@@ -31,7 +40,10 @@ const DicomViewerSession: React.FC<DicomViewerDialogProps> = ({
         if (!controller.signal.aborted)
           setError(reason instanceof Error ? reason.message : 'No se pudo abrir MMRAD.');
       });
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      session?.dispose();
+    };
   }, [link, patientId, attempt]);
   const series = study?.series.find(item => item.uid === seriesUid);
   return (
@@ -55,7 +67,12 @@ const DicomViewerSession: React.FC<DicomViewerDialogProps> = ({
       }}
     >
       <div className="dicom-study-bar">
-        <span className="dicom-patient">{patientId}</span>
+        <DicomPatientBar
+          patientId={patientId}
+          patientName={patientName}
+          date={study?.date || studyDate}
+          reportLink={reportLink}
+        />
         {study && (
           <label>
             Serie
@@ -104,10 +121,11 @@ const DicomViewerSession: React.FC<DicomViewerDialogProps> = ({
           Conectando con MMRAD…
         </p>
       ) : null}
-      {study && series && (
+      {study && series && prefetch && (
         <DicomSeriesView
           key={`${study.uid}:${series.uid}`}
           study={study}
+          prefetch={prefetch}
           series={series}
           title={title}
           onCapture={onCapture}

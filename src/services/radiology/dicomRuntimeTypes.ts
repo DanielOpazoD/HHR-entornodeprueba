@@ -1,3 +1,4 @@
+import type { ProgressiveDicomSeries } from './dicomSeriesLoader';
 import type { DicomCineSession } from './dicomCine';
 import type { DicomStackState } from './dicomProgressiveStack';
 import type { DicomReference, ReferenceStyle } from './dicomMprTools';
@@ -24,6 +25,7 @@ export interface DicomOrientation {
 
 export interface DicomRuntime {
   readonly sessionId: string;
+  loading: ProgressiveDicomSeries['loading'];
   completion: Promise<void>;
   openCine: () => DicomCineSession;
   select: (index: number) => void;
@@ -36,6 +38,7 @@ export interface DicomRuntime {
   orientations: () => DicomOrientation[];
   reference: (enabled: boolean, style: ReferenceStyle) => void;
   onReference: (listener: (value: DicomReference | null) => void) => () => void;
+  undoMeasurement: () => void;
   clearMeasurements: () => void;
   invert: (value: boolean) => void;
   presentation: (value: VolumePresentation) => void;
