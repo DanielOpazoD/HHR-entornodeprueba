@@ -1,14 +1,16 @@
-# Inicio del censo y carga remota
+# Dos estados independientes del censo
 
-- El diseño aprobado se conserva como SVG editable local, sin dependencias ni solicitudes externas.
-- La fecha de origen se muestra completa antes de «Copiar censo y sincronizar». La elegibilidad sigue usando exclusivamente el día calendario inmediatamente anterior, según el controlador existente.
-- Se mantienen los permisos, reconstrucción histórica, alternativa manual confirmada, orden copiar → comprobar → abrir revisión y advertencia cuando la copia se completa pero Eloísa no está disponible.
-- El indicador compacto consume `useRayenExtensionHealth.canSync`: extensión compatible, Ficha Médico y Gestión de Camas listas y sesiones con vigencia suficiente. No infiere disponibilidad solo por pestañas abiertas. La explicación se muestra con ratón o foco.
-- Mientras un registro sin datos no esté en `confirmed_empty`, no se monta la vista de creación. Agotar el plazo de espera nunca constituye prueba de ausencia. Los registros disponibles se muestran inmediatamente.
-- La consulta pendiente usa un manu tara pequeño en colores `medical`. Timeout/modo local sin registro muestra un mensaje quieto de recuperación, no una animación indefinida que sugiera progreso. Los errores conservan el aviso operativo existente.
-- El movimiento reducido detiene tanto el giro del manu tara como el pestañeo de la ilustración.
+## Consultando una fecha
+Debajo de las barras de navegación, solamente un manu tara pequeño girando y «Cargando». Se reutiliza el mismo indicador durante la descarga del módulo y la consulta del registro. No se monta la vista de creación ni Moa mientras la ausencia del día no esté confirmada. Se eliminó el temporizador que antes podía dar paso al estado vacío sin confirmación de Firebase. Los registros disponibles se muestran inmediatamente; los errores conservan el aviso operativo existente.
 
-## Verificación
-Pruebas focalizadas cubren espera remota más allá del plazo anterior, cambio/revisita de fecha, llegada de datos, cache local vacía, creación confirmada, fuentes incompletas y secuencia de copia/sincronización. Las pruebas de componente usan el flujo real con fuentes/contextos simulados, sin pacientes reales.
+## Día confirmado sin censo
+Moa aparece siempre, independientemente de la preferencia del acompañante flotante. Una de sus 18 escenas locales se elige al azar y se reproduce en bucle. Hacer clic elige directamente otra distinta, sin panel de elección ni botón de cierre. Se reutilizan imágenes y reproductor existentes, sin nuevas dependencias ni descargas de catálogos para poder copiar.
 
-La ilustración es una representación estilizada de Hanga Roa, no una reconstrucción arquitectónica del hospital. El manu tara es un dibujo original simplificado inspirado en un ave marina.
+El botón «Copiar censo y sincronizar» muestra antes la fecha completa de origen. Copia únicamente el día calendario inmediatamente anterior a la fecha seleccionada cuando existe, también para fechas históricas confirmadas vacías; permisos, reconstrucción histórica y alternativa manual confirmada siguen intactos. La copia precede a la comprobación de Eloísa y a la revisión de importación. Una caída de Eloísa tras la copia no elimina el censo.
+
+La señal compacta usa `useRayenExtensionHealth.canSync`, incluyendo compatibilidad, Ficha Médico, Gestión de Camas y vigencia de sesiones. El detalle aparece con ratón o foco. No basta con tener pestañas abiertas.
+
+## Accesibilidad y pruebas
+Movimiento reducido detiene giro y sprites en una pose fija; Moa admite teclado. Las pruebas cubren espera remota, llegada de datos, revisita de fecha, copia local vacía, confirmación de ausencia, cambio de escena sin repetición y la secuencia copiar → comprobar → revisión. No se consultan pacientes reales.
+
+La ilustración hospitalaria anterior se retiró de esta pantalla siguiendo la revisión del diseño. No forma parte del flujo actual.

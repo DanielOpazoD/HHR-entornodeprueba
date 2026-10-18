@@ -4,16 +4,12 @@ import { describe, expect, it } from 'vitest';
 import { CensusLoadingState } from '@/features/census/components/CensusLoadingState';
 
 describe('CensusLoadingState', () => {
-  it('announces loading without offering creation or adding a large card', () => {
+  it('shows only Cargando and a decorative small icon, without creation or a large card', () => {
     render(<CensusLoadingState />);
-    expect(screen.getByRole('status')).toHaveAttribute('aria-busy', 'true');
-    expect(screen.getByText('Cargando censo…')).toBeVisible();
+    const status = screen.getByRole('status');
+    expect(status).toHaveAttribute('aria-busy', 'true');
+    expect(status.textContent).toBe('Cargando');
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
-    expect(screen.getByRole('status').querySelector('svg')).toHaveClass('census-manutara');
-  });
-  it('stops suggesting activity when the connection is unavailable', () => {
-    render(<CensusLoadingState stalled message="Revisa la conexión" />);
-    expect(screen.getByRole('status')).toHaveAttribute('aria-busy', 'false');
-    expect(screen.getByRole('status').querySelector('svg')).not.toHaveClass('census-manutara');
+    expect(status.querySelector('svg')).toHaveClass('census-manutara', 'h-5', 'w-5');
   });
 });

@@ -4,6 +4,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EmptyDayPrompt } from '@/features/census/components/EmptyDayPrompt';
 import { dailyRecordObservability } from '@/services/repositories/dailyRecordOperationalTelemetry';
 
+vi.mock('@/features/census/components/CensusEmptyMoa', () => ({
+  CensusEmptyMoa: () => <span data-testid="census-empty-moa" />,
+}));
+
 vi.mock('@/services/repositories/dailyRecordOperationalTelemetry', () => ({
   dailyRecordObservability: { recordEvent: vi.fn() },
 }));
@@ -130,15 +134,22 @@ describe('EmptyDayPrompt · una acción para iniciar desde Eloísa', () => {
     });
   });
 
-  it('keeps a supported historical day in the same single Eloísa flow', () => {
+  it('copies only the adjacent prior date for a confirmed empty historical day', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-09-24T17:00:00Z'));
+    const onCreateDay = vi.fn().mockResolvedValue(true);
     renderPrompt('2026-09-20', {
+      onCreateDay,
       source: 'date_mismatch',
       previousRecordDate: '2026-09-19',
     });
     expect(screen.getAllByRole('button')).toHaveLength(1);
-    expect(screen.getByRole('button', { name: 'Reconstruir desde Eloísa' })).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Copiar pacientes del 19' }));
+    });
+    expect(onCreateDay).toHaveBeenCalledWith(true, '2026-09-19', {
+      forceCopyScheduleOverride: true,
+    });
   });
 
   it('changes from current capture to historical reconstruction when an open tab ages', () => {

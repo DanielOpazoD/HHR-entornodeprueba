@@ -5,10 +5,7 @@ import { getTodayISO } from '@/utils/dateCoreUtils';
 import { useCensusMigrationBootstrap } from './useCensusMigrationBootstrap';
 import { useCensusViewRouteModel } from './useCensusViewRouteModel';
 import type { CensusAccessProfile } from '../types/censusAccessProfile';
-import {
-  resolveCensusEmptyStateDiagnostic,
-  resolveCensusEmptyStatePolicy,
-} from '@/hooks/controllers/dailyRecordBootstrapController';
+import { resolveCensusEmptyStateDiagnostic } from '@/hooks/controllers/dailyRecordBootstrapController';
 import { readPostDeployRecentRecordRefreshMarker } from '@/services/config/postDeployRecentRecordRefresh';
 import type { RenderCensusMedicalHandoffAction } from '../contracts/censusMedicalHandoffAction';
 
@@ -49,23 +46,11 @@ export const useCensusViewScreenModel = ({
     allowAdminCopyOverride,
     accessProfile,
   });
-  const { shouldDeferEmptyState: shouldDeferTodayEmptyState, deferMs: emptyStateDeferMs } =
-    resolveCensusEmptyStatePolicy({
-      branch: routeModel.branch,
-      currentDateString,
-      todayDateString: getTodayISO(),
-      isAuthenticated: auth.isAuthenticated,
-      bootstrapPhase:
-        auth.remoteSyncStatus === 'bootstrapping' ? 'remote_runtime_bootstrapping' : bootstrapPhase,
-    });
-  const emptyPolicyKey = `${currentDateString}:${shouldDeferTodayEmptyState}:${emptyStateDeferMs}`;
-  const [emptyResolution, setEmptyResolution] = useState({ key: emptyPolicyKey, resolved: false });
-  // Reset during render so revisiting a date cannot briefly reuse its old resolution.
-  if (emptyResolution.key !== emptyPolicyKey) {
-    setEmptyResolution({ key: emptyPolicyKey, resolved: false });
-  }
-  const resolvedTodayEmptyDate =
-    emptyResolution.key === emptyPolicyKey && emptyResolution.resolved ? currentDateString : '';
+  // Absence is a repository result, never a grace-period deadline.
+  const effectiveBootstrapPhase =
+    auth.remoteSyncStatus === 'bootstrapping' ? 'remote_runtime_bootstrapping' : bootstrapPhase;
+  const shouldDeferTodayEmptyState = effectiveBootstrapPhase !== 'confirmed_empty';
+  const resolvedTodayEmptyDate = shouldDeferTodayEmptyState ? '' : currentDateString;
   const emptyStateDiagnostic = resolveCensusEmptyStateDiagnostic({
     branch: routeModel.branch,
     currentDateString,
@@ -82,20 +67,6 @@ export const useCensusViewScreenModel = ({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage marker is a browser-side deploy signal, not derivable during SSR-safe render
     setHasPostDeployRefreshMarker(Boolean(readPostDeployRecentRecordRefreshMarker()));
   }, [currentDateString]);
-
-  useEffect(() => {
-    if (!shouldDeferTodayEmptyState) {
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setEmptyResolution(previous =>
-        previous.key === emptyPolicyKey ? { ...previous, resolved: true } : previous
-      );
-    }, emptyStateDeferMs);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [emptyPolicyKey, emptyStateDeferMs, shouldDeferTodayEmptyState]);
 
   return {
     ...routeModel,

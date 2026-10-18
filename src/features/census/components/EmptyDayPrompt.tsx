@@ -5,6 +5,7 @@ import {
 } from '@/hooks/controllers/dailyRecordBootstrapController';
 import { dailyRecordObservability } from '@/services/repositories/dailyRecordOperationalTelemetry';
 import { RayenDayBootstrapButton, resolveCensusSyncTarget } from '@/features/rayen-import/public';
+import { CensusEmptyMoa } from './CensusEmptyMoa';
 import { getPreviousDay } from '@/utils/clinicalDayUtils';
 
 interface EmptyDayPromptProps {
@@ -86,8 +87,7 @@ export const EmptyDayPrompt: React.FC<EmptyDayPromptProps> = ({
 
   const rayenTarget = resolveCensusSyncTarget(currentDateString, now);
   const copySourceDate =
-    rayenTarget.kind === 'current' &&
-    currentDateString === rayenTarget.calendarDay &&
+    rayenTarget.kind !== 'unsupported' &&
     previousRecordAvailable &&
     previousRecordDate === getPreviousDay(currentDateString)
       ? previousRecordDate
@@ -99,14 +99,8 @@ export const EmptyDayPrompt: React.FC<EmptyDayPromptProps> = ({
     dayConfirmedEmpty && Boolean(onRayenBootstrapReady) && rayenTarget.kind !== 'unsupported';
 
   return (
-    <div className="card mt-8 flex flex-col items-center justify-center px-5 py-6 text-center print:hidden">
-      <img
-        src="/illustrations/census-hanga-roa.svg"
-        alt="Enfermera preparando el censo en Hanga Roa, junto a una cama y un portasueros"
-        className="mb-3 w-full max-w-lg"
-        width="760"
-        height="630"
-      />
+    <div className="mt-6 flex flex-col items-center justify-center px-5 py-4 text-center print:hidden">
+      <CensusEmptyMoa />
       {!canCreate && !readOnly && (
         <p
           className="mb-6 max-w-md text-sm text-slate-500"

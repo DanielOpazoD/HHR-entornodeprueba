@@ -94,19 +94,7 @@ const CensusViewContent: React.FC<CensusViewProps> = ({
       if (dailyRecordStatus.syncStatus === 'error') {
         return <CensusOperationalStateBanner state={loadingOperationalState} />;
       }
-      const stalled =
-        dailyRecordStatus.bootstrapPhase === 'remote_record_timeout' ||
-        dailyRecordStatus.bootstrapPhase === 'local_only';
-      return (
-        <CensusLoadingState
-          stalled={stalled}
-          message={
-            stalled
-              ? 'No se pudo comprobar este día. Revisa la conexión o vuelve a seleccionarlo.'
-              : undefined
-          }
-        />
-      );
+      return <CensusLoadingState />;
     }
 
     return (

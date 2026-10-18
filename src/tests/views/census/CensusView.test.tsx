@@ -221,7 +221,7 @@ describe('CensusView', () => {
       await vi.advanceTimersByTimeAsync(1);
     });
     expect(screen.queryByTestId('empty-day-prompt')).not.toBeInTheDocument();
-    expect(screen.getByText(/No se pudo comprobar este día/)).toBeInTheDocument();
+    expect(screen.getByText('Cargando')).toBeInTheDocument();
   });
 
   it('renders main census sections when record is present', async () => {
