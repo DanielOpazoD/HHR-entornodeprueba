@@ -9,6 +9,7 @@ export const dicomPlaneLabels = {
 };
 export const DicomViewportGrid: React.FC<{
   mode: DicomMode;
+  keyboard?: boolean;
   title: string;
   busy: boolean;
   error: string;
@@ -22,6 +23,7 @@ export const DicomViewportGrid: React.FC<{
   expand: (index: number | null) => void;
 }> = ({
   mode,
+  keyboard = true,
   title,
   busy,
   error,
@@ -88,12 +90,44 @@ export const DicomViewportGrid: React.FC<{
           tabIndex={0}
           role="img"
           aria-label={`${label} · ${title}`}
+          onFocus={() => activate(index)}
           onPointerDown={() => activate(index)}
           onContextMenu={event => event.preventDefault()}
-          onKeyDown={event => {
-            if ((event.key === 'ArrowUp' || event.key === 'ArrowDown') && !busy && !error) {
+          onKeyDownCapture={event => {
+            // Cornerstone binds Z to a global history and prevents Tab by default.
+            // Keep viewport shortcuts session-scoped and preserve native focus traversal.
+            if (event.key !== 'Escape') event.stopPropagation();
+            if (!keyboard || busy || error) return;
+            if (
+              (event.ctrlKey || event.metaKey) &&
+              event.key.toLowerCase() === 'z' &&
+              !event.shiftKey &&
+              mode === 'mpr'
+            ) {
               event.preventDefault();
-              runtime?.step(index, event.key === 'ArrowUp' ? -1 : 1);
+              runtime?.undoMeasurement();
+              return;
+            }
+            if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+            if (
+              ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown'].includes(event.key) &&
+              mode !== '3d'
+            ) {
+              event.preventDefault();
+              runtime?.step(
+                index,
+                { ArrowUp: -1, ArrowDown: 1, PageUp: -10, PageDown: 10 }[event.key as 'ArrowUp']
+              );
+            }
+            if (
+              (event.key === 'ArrowLeft' || event.key === 'ArrowRight') &&
+              mode === 'mpr' &&
+              expanded === null
+            ) {
+              event.preventDefault();
+              const next = (index + (event.key === 'ArrowRight' ? 1 : 2)) % 3;
+              activate(next);
+              elements.current[next]?.focus();
             }
           }}
         />

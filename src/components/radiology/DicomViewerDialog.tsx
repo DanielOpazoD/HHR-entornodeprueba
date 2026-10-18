@@ -8,6 +8,9 @@ const Viewer = lazy(() => import('./DicomViewer'));
 export interface DicomViewerDialogProps {
   link: string;
   patientId: string;
+  patientName?: string;
+  studyDate?: string;
+  reportLink?: string | null;
   title: string;
   onClose: () => void;
   onCapture?: (capture: DicomCapture) => void;

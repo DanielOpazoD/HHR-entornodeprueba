@@ -13,10 +13,11 @@ import './dicomCine.css';
 export const DicomCineControls: React.FC<{
   runtime: DicomRuntime;
   total: number;
+  available: Array<[number, number]>;
   disabled: boolean;
   complete: boolean;
   busyChanged: (value: boolean) => void;
-}> = ({ runtime, total, disabled, complete, busyChanged }) => {
+}> = ({ runtime, total, available, disabled, complete, busyChanged }) => {
   const [start, setStart] = useState(1);
   const [end, setEnd] = useState(total);
   const [fps, setFps] = useState(10);
@@ -59,6 +60,12 @@ export const DicomCineControls: React.FC<{
     busyChanged(true);
     try {
       validateCineOptions(options, total);
+      if (
+        !exportVideo &&
+        !complete &&
+        !available.some(([from, to]) => options.start >= from && options.end <= to)
+      )
+        throw new Error('Para cine parcial, selecciona un intervalo continuo disponible.');
       session = runtime.openCine();
       const update = (value: DicomCineProgress) => {
         if (alive.current && !controller.signal.aborted) setProgress(value);
@@ -101,7 +108,7 @@ export const DicomCineControls: React.FC<{
   };
   return (
     <details className="dicom-cine">
-      <summary>
+      <summary aria-label="Cine / MP4" title="Cine / MP4">
         <Film size={15} /> Cine / MP4 {busy && '· En curso'}
       </summary>
       <div className="dicom-cine-panel">
@@ -149,10 +156,40 @@ export const DicomCineControls: React.FC<{
             Generar MP4
           </button>
         </fieldset>
+        {!complete && available.length > 0 && (
+          <label>
+            Intervalo disponible{' '}
+            <select
+              aria-label="Intervalo cine parcial"
+              value={
+                available.some(([from, to]) => from === start - 1 && to === end - 1)
+                  ? `${start - 1},${end - 1}`
+                  : ''
+              }
+              disabled={busy}
+              onChange={event => {
+                const [from, to] = event.target.value.split(',').map(Number);
+                changeRange(() => {
+                  setStart(from + 1);
+                  setEnd(to + 1);
+                });
+              }}
+            >
+              <option value="" disabled>
+                Seleccionar cortes cargados
+              </option>
+              {available.map(([from, to]) => (
+                <option key={`${from},${to}`} value={`${from},${to}`}>
+                  {from + 1}–{to + 1}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         {!complete && (
           <p>
-            MP4 disponible al completar la verificación de la serie. Puedes usar cine mientras
-            carga.
+            MP4 disponible al completar la verificación de la serie. El cine parcial solo recorre el
+            intervalo continuo ya preparado que selecciones; no omite cortes.
           </p>
         )}
         {busy && (

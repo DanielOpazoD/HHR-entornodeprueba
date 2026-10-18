@@ -372,6 +372,14 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
               key={`${selectedRut}:${dicomExam.dicom_url}`}
               link={dicomExam.dicom_url}
               patientId={selectedRut}
+              patientName={
+                uniquePatients.find(
+                  patient =>
+                    normalizeDicomPatientId(patient.rut) === normalizeDicomPatientId(selectedRut)
+                )?.patientName
+              }
+              studyDate={dicomExam.fecha_examen}
+              reportLink={dicomExam.pdf_url}
               title={dicomExam.nombre_examen}
               onClose={() => setDicomExam(null)}
               onCapture={onCapture}

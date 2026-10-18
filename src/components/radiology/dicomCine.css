@@ -1,6 +1,6 @@
 .dicom-cine {
   position: relative;
-  padding: 3px 10px;
+  padding: 0;
   font-size: 12px;
 }
 .dicom-cine summary {
@@ -14,8 +14,8 @@
   position: absolute;
   z-index: 10;
   top: 100%;
-  left: 10px;
-  width: min(680px, calc(100% - 20px));
+  left: 0;
+  width: min(680px, 86vw);
   max-height: 65vh;
   overflow: auto;
   padding: 12px;
