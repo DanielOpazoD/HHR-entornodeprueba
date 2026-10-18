@@ -48,8 +48,12 @@ Los medios ya informados se preservan y quedan fuera de los candidatos de este
 bloque, incluidas etiquetas genéricas. Revisar únicamente medios ausentes o vacíos
 y clasificarlos como faltante con fuente confirmada, contradicción de identidad
 o evento, o sin evidencia suficiente.
-Confirmar paciente, episodio y evento, incluidos fecha real y día de censo;
-conservar horas corregidas y respetar reclasificaciones y eliminaciones.
+Confirmar paciente, episodio y evento. Desde julio, la fecha real, el día del censo
+y la hora del traslado se conservan siempre según pruebas: este bloque solo
+corrige el medio. Una fecha distinta en el antiguo requiere investigar la
+identidad del evento; nunca autoriza reemplazar la fecha u hora del destino.
+No modificar ingreso, destino del traslado, cama ni paciente. Respetar
+reclasificaciones y eliminaciones.
 Los RN con documento materno y eventos repetidos necesitan identificación adicional.
 
 Esta revisión puede abarcar septiembre y octubre exclusivamente para el medio;
