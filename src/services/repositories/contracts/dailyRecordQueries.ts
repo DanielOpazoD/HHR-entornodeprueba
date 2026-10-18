@@ -62,6 +62,7 @@ export interface LocalDailyRecordReadResult {
 export type DailyRecordQueryAvailabilityState =
   | 'resolved'
   | 'recoverable_local'
+  | 'unconfirmed_missing'
   | 'confirmed_missing'
   | 'temporarily_unavailable';
 

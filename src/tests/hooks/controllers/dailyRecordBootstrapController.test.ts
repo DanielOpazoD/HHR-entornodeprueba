@@ -49,7 +49,7 @@ describe('dailyRecordBootstrapController', () => {
           sourceOfTruth: 'none',
           retryability: 'not_applicable',
           recoveryAction: 'none',
-          conflictSummary: null,
+          conflictSummary: { kind: 'remote_missing', sourceOfTruth: 'none' },
           observabilityTags: ['daily_record'],
           repairApplied: false,
         },

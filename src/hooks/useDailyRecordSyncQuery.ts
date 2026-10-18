@@ -67,6 +67,8 @@ export const useDailyRecordSyncQuery = (
     data: record,
     runtime: recordRuntime,
     dataUpdatedAt,
+    isFetching: isRecordFetching,
+    fetchStatus: recordFetchStatus,
     refetch,
   } = useDailyRecordQuery(
     currentDateString,
@@ -111,11 +113,20 @@ export const useDailyRecordSyncQuery = (
     (): DailyRecordBootstrapPhase =>
       resolveDailyRecordBootstrapPhase({
         remoteSyncStatus: effectiveRemoteSyncStatus,
+        currentDateString,
+        isFetching: isRecordFetching || recordFetchStatus === 'paused',
         record,
         runtime: recordRuntime,
         gracePeriodExpired: recordRuntime?.availabilityState === 'temporarily_unavailable',
       }),
-    [effectiveRemoteSyncStatus, record, recordRuntime]
+    [
+      effectiveRemoteSyncStatus,
+      record,
+      recordRuntime,
+      currentDateString,
+      isRecordFetching,
+      recordFetchStatus,
+    ]
   );
 
   useCensusBootstrapPerf(currentDateString, bootstrapPhase);

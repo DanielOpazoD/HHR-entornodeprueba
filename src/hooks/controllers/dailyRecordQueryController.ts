@@ -43,7 +43,7 @@ const createDefaultRuntime = (
   record: DailyRecord | null
 ): DailyRecordQueryRuntime => ({
   date,
-  availabilityState: record ? 'resolved' : 'confirmed_missing',
+  availabilityState: record ? 'resolved' : 'unconfirmed_missing',
   consistencyState: record ? 'local_only' : 'missing',
   sourceOfTruth: record ? 'local' : 'none',
   retryability: 'not_applicable',
@@ -67,7 +67,9 @@ const createRuntimeFromReadResult = (result: DailyRecordReadResult): DailyRecord
       : 'resolved'
     : result.consistencyState === 'unavailable'
       ? 'temporarily_unavailable'
-      : 'confirmed_missing',
+      : result.conflictSummary?.kind === 'remote_missing'
+        ? 'confirmed_missing'
+        : 'unconfirmed_missing',
   consistencyState: result.consistencyState,
   sourceOfTruth: result.sourceOfTruth,
   retryability: result.retryability,
@@ -89,7 +91,9 @@ const createRuntimeFromSyncResult = (
       : 'resolved'
     : result.consistencyState === 'blocked'
       ? 'temporarily_unavailable'
-      : 'confirmed_missing',
+      : result.consistencyState === 'missing_remote'
+        ? 'confirmed_missing'
+        : 'unconfirmed_missing',
   consistencyState: result.consistencyState,
   sourceOfTruth: result.sourceOfTruth,
   retryability: result.retryability,
@@ -116,11 +120,14 @@ export const createReconciledDailyRecordQueryFn = (
 ) => {
   const queryFn = createDailyRecordQueryFn(dailyRecord, date, syncFromRemote);
   return async () => {
+    const key = getDailyRecordQueryKey(date);
+    const startedWith = queryClient.getQueryData<DailyRecordQueryResult>(key);
     const incoming = await queryFn();
-    return reconcileDailyRecordQueryResult(
-      queryClient.getQueryData<DailyRecordQueryResult>(getDailyRecordQueryKey(date)),
-      incoming
-    );
+    const current = queryClient.getQueryData<DailyRecordQueryResult>(key);
+    // A newer realtime record owns the cache. An older in-flight miss must not
+    // erase it, even when that miss was authoritative when the request began.
+    if (!incoming.record && current?.record && current !== startedWith) return current;
+    return reconcileDailyRecordQueryResult(current, incoming);
   };
 };
 

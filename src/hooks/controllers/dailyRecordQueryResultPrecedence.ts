@@ -15,6 +15,10 @@ export const reconcileDailyRecordQueryResult = (
   previous: DailyRecordQueryResult | undefined,
   incoming: DailyRecordQueryResult
 ): DailyRecordQueryResult => {
+  // A late local/cache-only miss cannot erase data.
+  if (incoming.runtime.availabilityState === 'unconfirmed_missing' && previous?.record) {
+    return previous;
+  }
   if (
     previous?.record &&
     mustSurfaceIncomingRuntime(incoming) &&

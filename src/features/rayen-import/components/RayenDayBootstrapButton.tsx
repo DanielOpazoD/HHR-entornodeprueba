@@ -191,7 +191,7 @@ export const RayenDayBootstrapButton: React.FC<RayenDayBootstrapButtonProps> = (
         type="button"
         onClick={() => void handleClick()}
         disabled={disabled || busy || (checking && !copySourceDate)}
-        className="btn btn-primary group w-full !h-auto !p-4 shadow-md shadow-medical-500/15 flex-col"
+        className="btn btn-primary group w-full !h-auto !p-4 shadow-md shadow-medical-500/15 flex-col disabled:!bg-slate-200 disabled:!text-slate-400 disabled:!shadow-none disabled:cursor-not-allowed disabled:opacity-60"
         data-testid="create-from-rayen-btn"
       >
         <div className="flex items-center gap-2 text-base font-semibold">
