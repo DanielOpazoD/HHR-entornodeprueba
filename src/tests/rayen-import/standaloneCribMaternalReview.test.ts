@@ -57,7 +57,38 @@ const plan = (record: DailyRecord, sources = [mother, child]) =>
   );
 
 describe('standalone crib with a verified hospitalized mother', () => {
-  it('requests a placement decision instead of silently retaining the RN in the stale source crib', () => {
+  it('defaults to accompanying the identified mother while keeping the operator accountable at confirmation', () => {
+    const record = current();
+    const diff = plan(record);
+    expect(diff.neonatalPlacementReviews?.[0].automaticMother).toEqual({
+      bedId: 'H5C1',
+      episodeId: mother.encounterId,
+    });
+    const resolved = resolveNeonatalPlacements(
+      record,
+      diff,
+      [],
+      now.toISOString(),
+      'Operador sintético'
+    );
+    const result = applyCensusImportDiff(record, resolved, {
+      now,
+      idFactory: () => 'unused',
+      syncRunId: 'auto',
+    });
+    expect(result.skipped).toEqual([]);
+    expect(result.record.beds.R3.patientName).toBe('');
+    expect(result.record.beds.H5C1.clinicalCrib).toMatchObject({
+      clinicalEpisodeId: child.encounterId,
+      bedMode: 'Cuna',
+      neonatalPlacementDecision: {
+        parentEpisodeId: mother.encounterId,
+        reviewedBy: 'Operador sintético',
+      },
+    });
+  });
+
+  it('retains the exact maternal evidence for the automatic placement plan', () => {
     const diff = plan(current());
     expect(diff.neonatalPlacementReviews).toEqual([
       expect.objectContaining({
@@ -68,6 +99,31 @@ describe('standalone crib with a verified hospitalized mother', () => {
         ]),
       }),
     ]);
+  });
+
+  it('discards a stale manual choice once identity and crib classification prove maternal continuity', () => {
+    const record = current();
+    const resolved = resolveNeonatalPlacements(
+      record,
+      plan(record),
+      [
+        {
+          episodeId: child.encounterId,
+          kind: 'independent',
+          bedId: 'R3',
+          effectiveAt: '2026-07-08T12:00:00-06:00',
+        },
+      ],
+      now.toISOString(),
+      'Operador sintético'
+    );
+    const result = applyCensusImportDiff(record, resolved, {
+      now,
+      idFactory: () => 'unused',
+      syncRunId: 'auto',
+    });
+    expect(result.record.beds.R3.patientName).toBe('');
+    expect(result.record.beds.H5C1.clinicalCrib?.clinicalEpisodeId).toBe(child.encounterId);
   });
 
   it('attaches only the reviewed episode, clears its previous representation and preserves neonatal data', () => {
@@ -119,23 +175,21 @@ describe('standalone crib with a verified hospitalized mother', () => {
     ).toHaveLength(1);
   });
 
-  it('changes a standalone crib into an independent hospital bed only after explicit review', () => {
+  it('preserves an independently hospitalized newborn instead of moving it into its mother crib', () => {
     const record = current();
-    const resolved = resolveNeonatalPlacements(
-      record,
-      plan(record),
-      [
-        {
-          episodeId: child.encounterId,
-          kind: 'independent',
-          bedId: 'R3',
-          effectiveAt: '2026-07-08T12:00:00-06:00',
-        },
-      ],
-      now.toISOString(),
-      'Operador sintético'
-    );
-    const result = applyCensusImportDiff(record, resolved, {
+    record.beds.R3.bedMode = 'Cama';
+    const diff = plan(record, [
+      mother,
+      {
+        ...child,
+        service: 'AMQI',
+        room: 'R3',
+        bed: 'R3',
+        clinicalCribParentBedId: undefined,
+      },
+    ]);
+    expect(diff.neonatalPlacementReviews ?? []).toEqual([]);
+    const result = applyCensusImportDiff(record, diff, {
       now,
       idFactory: () => 'unused',
       syncRunId: 'synthetic',
@@ -143,10 +197,8 @@ describe('standalone crib with a verified hospitalized mother', () => {
     expect(result.record.beds.R3).toMatchObject({
       clinicalEpisodeId: child.encounterId,
       bedMode: 'Cama',
-      neonatalPlacementDecision: { kind: 'independent', effectiveAt: '2026-07-08T12:00:00-06:00' },
     });
     expect(result.record.beds.H5C1.clinicalCrib).toBeUndefined();
-    expect(plan(result.record).neonatalPlacementReviews).toEqual([]);
   });
 
   it('keeps a standalone crib when no hospitalized mother can be identified', () => {

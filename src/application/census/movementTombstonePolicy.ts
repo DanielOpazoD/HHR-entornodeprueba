@@ -18,24 +18,23 @@ export const getActiveMovements = <TMovement extends object>(
 ): TMovement[] =>
   (movements || []).filter(movement => !isMovementDeleted(movement as { deletedAt?: unknown }));
 
-export const getActiveDischarges = (
-  movements: readonly DischargeData[] | null | undefined
-): DischargeData[] => getActiveMovements(movements);
+export const getActiveDischarges = getActiveMovements<DischargeData>;
+
+export const isClinicalCribDischarge = (movement: DischargeData): boolean =>
+  movement.isNested === true || (movement.originalData?.bedMode || movement.bedType) === 'Cuna';
 
 /**
- * Egresos that consume a statistical bed departure. Nested clinical-crib movements remain visible
- * in the census and exports as traceability, but are excluded because they share the principal bed.
+ * Crib departures stay visible for traceability, including standalone cribs. A newborn in its
+ * own hospital bed follows that classification; neonatal age alone never excludes its departure.
  */
 export const getStatisticalDischarges = (
   movements: readonly DischargeData[] | null | undefined
-): DischargeData[] => getActiveDischarges(movements).filter(movement => movement.isNested !== true);
+): DischargeData[] =>
+  getActiveDischarges(movements).filter(movement => !isClinicalCribDischarge(movement));
 
-export const getActiveTransfers = (
-  movements: readonly TransferData[] | null | undefined
-): TransferData[] => getActiveMovements(movements);
+export const getActiveTransfers = getActiveMovements<TransferData>;
 
-export const getActiveCma = (movements: readonly CMAData[] | null | undefined): CMAData[] =>
-  getActiveMovements(movements);
+export const getActiveCma = getActiveMovements<CMAData>;
 
 export const tombstoneMovement = <TMovement extends TombstonableMovement>(
   movement: TMovement,

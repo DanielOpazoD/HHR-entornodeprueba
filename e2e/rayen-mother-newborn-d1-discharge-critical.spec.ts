@@ -9,7 +9,6 @@ import {
   bootstrapSeededRecord,
   buildCanonicalE2ERecord,
   ensureAuthenticated,
-  readIndexedDbDailyRecord,
 } from './fixtures/auth';
 import { installDailyRecordAuthorityRoute } from './fixtures/dailyRecordAuthorityRoute';
 
@@ -19,6 +18,13 @@ const BED_ID = 'H4C1';
 const SHARED_RUN = '11.111.111-1';
 const MOTHER_EPISODE = '910001';
 const NEWBORN_EPISODE = '910080';
+
+// The seeded E2E runtime deliberately selects the localStorage persistence adapter, not Dexie.
+const readLocalCensusRecord = (page: Page, date: string) =>
+  page.evaluate(targetDate => {
+    const records = JSON.parse(localStorage.getItem('hanga_roa_hospital_data') || '{}');
+    return records[targetDate] ?? null;
+  }, date);
 
 const buildMother = () => ({
   id: BED_ID,
@@ -274,27 +280,27 @@ test.describe('Eloísa · egreso madre y RN en D−1', () => {
         expect(currentWrite.payload.date).toBe(CENSUS_DAY);
         await currentWrite.succeed();
 
-        if (!alreadyFiled) {
-          const historicalWrite = await authority.nextCall();
-          expect(historicalWrite.payload.date).toBe(DISCHARGE_DAY);
-          const historicalDischarges = historicalWrite.payload.patch.discharges as Array<{
-            clinicalEpisodeId?: string;
-            isNested?: boolean;
-          }>;
-          expect(historicalDischarges.map(entry => entry.clinicalEpisodeId).sort()).toEqual([
-            MOTHER_EPISODE,
-            NEWBORN_EPISODE,
-          ]);
-          expect(historicalDischarges.filter(entry => entry.isNested)).toHaveLength(1);
-          await historicalWrite.succeed();
+        // Authority must receive the movements and vacated bed together: a split patch would
+        // temporarily leave a discharged episode occupying the historical census.
+        const historicalWrite = await authority.nextCall();
+        expect(historicalWrite.payload.date).toBe(DISCHARGE_DAY);
+        const historicalRecordSaved = historicalWrite.payload.record as unknown as DailyRecord;
+        expect(historicalRecordSaved.beds[BED_ID]).toMatchObject({ patientName: '' });
+        expect(historicalRecordSaved.beds[BED_ID].clinicalCrib).toBeNull();
+        expect(
+          historicalRecordSaved.discharges.map(entry => entry.clinicalEpisodeId).sort()
+        ).toEqual(alreadyFiled ? [MOTHER_EPISODE] : [MOTHER_EPISODE, NEWBORN_EPISODE]);
+        expect(historicalRecordSaved.discharges.filter(entry => entry.isNested)).toHaveLength(
+          alreadyFiled ? 0 : 1
+        );
+        if (alreadyFiled) {
+          expect(historicalRecordSaved.discharges[0]).toMatchObject({
+            id: 'already-filed-movement',
+            time: '15:00',
+          });
         }
-
-        const clearHistoricalOccupants = await authority.nextCall();
-        expect(clearHistoricalOccupants.payload.date).toBe(DISCHARGE_DAY);
-        expect(clearHistoricalOccupants.payload.intentionalBedClear).toMatchObject({
-          bedId: BED_ID,
-        });
-        await clearHistoricalOccupants.succeed();
+        expect(historicalWrite.payload.patch).toEqual({});
+        await historicalWrite.succeed();
 
         const clearCarriedOccupants = await authority.nextCall();
         expect(clearCarriedOccupants.payload.date).toBe(CENSUS_DAY);
@@ -310,31 +316,39 @@ test.describe('Eloísa · egreso madre y RN en D−1', () => {
         await expect(preview).not.toBeVisible({ timeout: 20_000 });
         await expect
           .poll(async () => {
-            const stored = (await readIndexedDbDailyRecord(page, CENSUS_DAY)) as {
+            const stored = (await readLocalCensusRecord(page, CENSUS_DAY)) as {
               beds?: Record<string, ReturnType<typeof buildMother>>;
               discharges?: unknown[];
             };
             const bed = (stored?.beds as Record<string, ReturnType<typeof buildMother>>)?.[BED_ID];
             return {
+              exists: Boolean(stored),
               occupied: Boolean(bed?.patientName),
               crib: Boolean(bed?.clinicalCrib),
               discharges: (stored?.discharges as unknown[] | undefined)?.length ?? 0,
             };
           })
-          .toEqual({ occupied: false, crib: false, discharges: 0 });
+          .toEqual({ exists: true, occupied: false, crib: false, discharges: 0 });
         await expect
           .poll(async () => {
-            const stored = (await readIndexedDbDailyRecord(page, DISCHARGE_DAY)) as {
+            const stored = (await readLocalCensusRecord(page, DISCHARGE_DAY)) as {
+              beds?: Record<string, ReturnType<typeof buildMother>>;
               discharges?: Array<{ clinicalEpisodeId?: string; isNested?: boolean }>;
             } | null;
             return {
+              exists: Boolean(stored),
               episodes: (stored?.discharges ?? []).map(entry => entry.clinicalEpisodeId).sort(),
               nested: (stored?.discharges ?? []).filter(entry => entry.isNested).length,
+              occupied: Boolean(stored?.beds?.[BED_ID]?.patientName),
+              crib: Boolean(stored?.beds?.[BED_ID]?.clinicalCrib),
             };
           })
           .toEqual({
+            exists: true,
             episodes: alreadyFiled ? [MOTHER_EPISODE] : [MOTHER_EPISODE, NEWBORN_EPISODE],
             nested: alreadyFiled ? 0 : 1,
+            occupied: false,
+            crib: false,
           });
       }
     );

@@ -16,6 +16,31 @@ const TEST_BEDS: BedDefinition[] = [
 ];
 
 describe('censusTableViewController', () => {
+  it.each(['Cuna', 'Cama', undefined] as const)(
+    'keeps an identified newborn visible after its maternal bed is freed, including legacy mode %s',
+    bedMode => {
+      const result = buildCensusBedRows({
+        visibleBeds: TEST_BEDS,
+        beds: {
+          R1: DataFactory.createMockPatient('R1', {
+            patientName: '',
+            rut: '',
+            clinicalEpisodeId: undefined,
+            clinicalCrib: DataFactory.createMockPatient('R1', {
+              patientName: 'RN pendiente de egreso propio',
+              rut: '',
+              clinicalEpisodeId: 'child-1',
+              bedMode,
+            }),
+          }),
+        },
+      });
+      expect(result.emptyBedCount).toBe(3);
+      expect(result.unifiedRows.filter(row => row.kind === 'occupied').map(row => row.id)).toEqual([
+        'R1-cuna',
+      ]);
+    }
+  );
   it('buildVisibleBeds keeps regular beds and enabled extra beds only', () => {
     const visibleBeds = buildVisibleBeds({
       allBeds: TEST_BEDS,
@@ -159,7 +184,7 @@ describe('censusTableViewController', () => {
     ]);
   });
 
-  it('does not create orphan crib sub-row when primary bed is empty', () => {
+  it('keeps an identity-bearing stored crib visible when its primary bed is empty', () => {
     const bedsMap = {
       R1: DataFactory.createMockPatient('R1', {
         patientName: '',
@@ -176,7 +201,9 @@ describe('censusTableViewController', () => {
       beds: bedsMap,
     });
 
-    expect(result.unifiedRows.filter(row => row.kind === 'occupied')).toEqual([]);
+    expect(result.unifiedRows.filter(row => row.kind === 'occupied').map(row => row.id)).toEqual([
+      'R1-cuna',
+    ]);
     expect(result.unifiedRows.filter(row => row.kind === 'empty').map(row => row.id)).toEqual([
       'R1',
       'R2',

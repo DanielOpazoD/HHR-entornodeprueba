@@ -272,9 +272,13 @@ describe('explicit RN placement review', () => {
       snapshotOf([mother, { ...child, bed: 'CR3', clinicalCribParentBedId: 'R3' }]),
       { reference: REFERENCE }
     );
-    expect(again.conflicts.some(c => c.neonatalAssociationReview)).toBe(true);
+    expect(again.conflicts.some(c => c.neonatalAssociationReview)).toBe(false);
     expect(again.admissions).toHaveLength(0);
     expect(again.neonatalPlacementReviews?.[0].episodeId).toBe('NEWBORN');
+    expect(again.neonatalPlacementReviews?.[0].automaticMother).toEqual({
+      bedId: 'H5C1',
+      episodeId: 'MOTHER',
+    });
     expect(
       PatientDataSchema.parse(saved.beds.H5C1.clinicalCrib).neonatalPlacementDecision?.kind
     ).toBe('mother');

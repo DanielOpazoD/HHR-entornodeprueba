@@ -25,7 +25,7 @@ interface ResolveBedTypesParams {
 const isAllowedBedTypeOverride = (value: string | undefined): value is BedType =>
   value === BedType.UTI || value === BedType.UCI || value === BedType.MEDIA;
 
-const hasVisibleBedOccupant = (bedData: PatientData | null | undefined): bedData is PatientData =>
+const hasVisibleBedOccupant = (bedData: PatientData | null | undefined): boolean =>
   Boolean(bedData && (bedData.isBlocked || hasMeaningfulPatientIdentity(bedData)));
 
 const hasVisibleClinicalCrib = (clinicalCrib: PatientData | null | undefined): boolean =>
@@ -35,29 +35,23 @@ const hasVisibleClinicalCrib = (clinicalCrib: PatientData | null | undefined): b
       (clinicalCrib.bedMode === 'Cuna' && clinicalCrib.identityStatus === 'provisional'))
   );
 
-const buildOccupiedBedRows = (bed: BedDefinition, bedData: PatientData): UnifiedBedRow[] => {
-  const occupiedRows: UnifiedBedRow[] = [
-    {
-      kind: 'occupied',
-      id: bed.id,
-      bed,
-      data: bedData,
-      isSubRow: false,
-    },
-  ];
+const buildClinicalCribRows = (bed: BedDefinition, bedData: PatientData): UnifiedBedRow[] =>
+  bedData.clinicalCrib && !bedData.isBlocked && hasVisibleClinicalCrib(bedData.clinicalCrib)
+    ? [
+        {
+          kind: 'occupied',
+          id: `${bed.id}-cuna`,
+          bed,
+          data: bedData.clinicalCrib,
+          isSubRow: true,
+        },
+      ]
+    : [];
 
-  if (bedData.clinicalCrib && !bedData.isBlocked && hasVisibleClinicalCrib(bedData.clinicalCrib)) {
-    occupiedRows.push({
-      kind: 'occupied',
-      id: `${bed.id}-cuna`,
-      bed,
-      data: bedData.clinicalCrib,
-      isSubRow: true,
-    });
-  }
-
-  return occupiedRows;
-};
+const buildOccupiedBedRows = (bed: BedDefinition, bedData: PatientData): UnifiedBedRow[] => [
+  { kind: 'occupied', id: bed.id, bed, data: bedData, isSubRow: false },
+  ...buildClinicalCribRows(bed, bedData),
+];
 
 export const buildVisibleBeds = ({
   allBeds,
@@ -72,9 +66,10 @@ export const buildCensusBedRows = ({ visibleBeds, beds }: BuildBedRowsParams): C
 
   visibleBeds.forEach(bed => {
     const bedData = beds?.[bed.id];
-    if (!hasVisibleBedOccupant(bedData)) {
+    if (!bedData || !hasVisibleBedOccupant(bedData)) {
       unifiedRows.push({ kind: 'empty', id: bed.id, bed });
       emptyBedCount++;
+      if (bedData) unifiedRows.push(...buildClinicalCribRows(bed, bedData));
       return;
     }
 

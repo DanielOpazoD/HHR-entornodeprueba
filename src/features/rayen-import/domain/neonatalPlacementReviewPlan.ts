@@ -7,7 +7,10 @@ import {
   type MappedClinicalEncounter,
 } from './clinicalCribPlacementPolicy';
 import { mergeSyncablePatient } from './patientSyncPolicy';
-import type { NeonatalPlacementReview } from '../contracts/neonatalPlacementReview';
+import type {
+  NeonatalPlacementReview,
+  NeonatalPlacementResolution,
+} from '../contracts/neonatalPlacementReview';
 import { isMaternalCandidatePatient } from './clinicalCribMaternalAssociation';
 import { occupied } from './neonatalPlacementAvailability';
 export const prepareNeonatalPlacementReviews = (
@@ -155,7 +158,7 @@ export const prepareNeonatalPlacementReviews = (
       },
     ];
   });
-  return [
+  const reviews: NeonatalPlacementReview[] = [
     ...existingIndependent,
     ...existingNested,
     ...candidates
@@ -179,4 +182,53 @@ export const prepareNeonatalPlacementReviews = (
         ),
       })),
   ];
+  const planned = reviews.map(review => {
+    const candidate = candidates.find(c => c.encounter.encounterId === review.episodeId);
+    const mothers = review.mothers.filter(
+      m =>
+        Boolean(m.episodeId.trim()) &&
+        m.bedId === candidate?.maternalAssociationBedId &&
+        (!m.occupiedByEpisodeId || m.occupiedByEpisodeId === review.episodeId)
+    );
+    return candidate?.maternalAssociationConflict === 'location-mismatch' &&
+      candidate.mapped.isClinicalCrib &&
+      review.patient.bedMode === 'Cuna' &&
+      review.existingKind !== 'independent' &&
+      mothers.length === 1 &&
+      candidates.filter(
+        c => c.originatedAsClinicalCrib && c.maternalAssociationBedId === mothers[0].bedId
+      ).length === 1
+      ? { ...review, automaticMother: { bedId: mothers[0].bedId, episodeId: mothers[0].episodeId } }
+      : review;
+  });
+  const automatic = new Set(planned.filter(r => r.automaticMother).map(r => r.episodeId));
+  diff.conflicts = diff.conflicts.filter(
+    c => !(c.neonatalAssociationReview && c.source && automatic.has(c.source.encounterId))
+  );
+  diff.neonatalSourceChanges = diff.neonatalSourceChanges?.filter(c => !automatic.has(c.episodeId));
+  return planned;
 };
+
+/** The proven crib rule supersedes old form choices; confirmation still validates identity/CAS. */
+export const includeAutomaticMaternalChoices = (
+  reviews: NeonatalPlacementReview[],
+  choices: NeonatalPlacementResolution[]
+): NeonatalPlacementResolution[] => [
+  ...choices.filter(
+    choice =>
+      !reviews.some(review => review.episodeId === choice.episodeId && review.automaticMother)
+  ),
+  ...reviews.flatMap(review => {
+    const mother = review.automaticMother;
+    return mother
+      ? [
+          {
+            episodeId: review.episodeId,
+            kind: 'mother' as const,
+            bedId: mother.bedId,
+            parentEpisodeId: mother.episodeId,
+          },
+        ]
+      : [];
+  }),
+];

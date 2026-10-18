@@ -69,7 +69,14 @@ export const repairRecord = (): DailyRecord => {
         id: 'mother',
         isNested: false,
         clinicalEpisodeId: 'mother-episode',
-        originalData: { ...crib, clinicalEpisodeId: 'mother-episode' },
+        bedType: 'Media',
+        patientName: 'Madre sintética',
+        originalData: {
+          ...crib,
+          bedMode: 'Cama',
+          patientName: 'Madre sintética',
+          clinicalEpisodeId: 'mother-episode',
+        },
       },
     ],
   };

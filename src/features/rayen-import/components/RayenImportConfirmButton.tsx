@@ -47,8 +47,15 @@ export const RayenImportConfirmButton: React.FC<{
     disabled={
       disabled ||
       neonatalSourceChanges.some(c => !neonatalSourceAcknowledgements.includes(c.episodeId)) ||
-      neonatalReviews.some(r => neonatal.filter(c => c.episodeId === r.episodeId).length !== 1) ||
-      neonatal.some(c => c.kind === 'independent' && !c.effectiveAt)
+      neonatalReviews.some(
+        r => !r.automaticMother && neonatal.filter(c => c.episodeId === r.episodeId).length !== 1
+      ) ||
+      neonatal.some(
+        c =>
+          c.kind === 'independent' &&
+          !c.effectiveAt &&
+          !neonatalReviews.some(r => r.episodeId === c.episodeId && r.automaticMother)
+      )
     }
     className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
     onClick={() => {

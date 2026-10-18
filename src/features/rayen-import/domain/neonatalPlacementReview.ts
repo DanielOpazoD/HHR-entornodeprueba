@@ -2,21 +2,23 @@ import { EMPTY_PATIENT } from '@/constants/patient';
 import { isMaternalCandidatePatient } from './clinicalCribMaternalAssociation';
 import { occupied, plannedCribOccupied } from './neonatalPlacementAvailability';
 import { neonatalSourcePlacementKey } from './reviewedNeonatalSourcePlacement';
+import { includeAutomaticMaternalChoices } from './neonatalPlacementReviewPlan';
 import { isValidRut, normalizeRut } from '@/utils/rutUtils';
 import type { NeonatalPlacementDecision } from '@/types/domain/neonatalPlacementDecision';
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 
 import type { NeonatalPlacementResolution } from '../contracts/neonatalPlacementReview';
-/** Apply only explicit decisions to the reviewed transient plan. Recomputed against fresh CAS bases. */
+/** Applies confirmed choices and identity-proven maternal continuity against fresh CAS bases. */
 export const resolveNeonatalPlacements = (
   current: DailyRecord,
   diff: CensusImportDiff,
-  choices: NeonatalPlacementResolution[],
+  requestedChoices: NeonatalPlacementResolution[],
   reviewedAt: string,
   reviewedBy: string
 ): CensusImportDiff => {
   const reviews = diff.neonatalPlacementReviews ?? [];
+  const choices = includeAutomaticMaternalChoices(reviews, requestedChoices);
   if (reviews.some(r => choices.filter(c => c.episodeId === r.episodeId).length !== 1))
     throw new Error('Resuelve cada RN o indica que se revisará después.');
   if (!choices.length) return diff;
