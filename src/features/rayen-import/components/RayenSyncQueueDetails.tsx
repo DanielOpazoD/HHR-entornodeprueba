@@ -3,7 +3,7 @@ import React from 'react';
 import type { SyncQueueOperation, SyncQueueStats } from '@/hooks/useSyncQueueMonitor';
 import { retryQuarantinedSyncTask } from '@/services/storage/sync';
 import { isPolicyBlockedCudyrArchive } from '@/services/storage/sync/cudyrPolicyBlockedRecovery';
-import { listQuarantinedOperations } from './localSyncPresentation';
+import { listQuarantinedOperations, targetLabelFromKey } from './localSyncPresentation';
 
 /** On-demand detail inside the existing Eloísa panel; never another census overlay. */
 export const RayenSyncQueueDetails: React.FC<{
@@ -51,11 +51,26 @@ export const RayenSyncQueueDetails: React.FC<{
       {stats.pending > 0 && <p className="mt-1 text-slate-500">{stats.pending} en cola.</p>}
       {stats.retrying > 0 && <p className="mt-1 text-slate-500">{stats.retrying} reintentando.</p>}
       <ul className="mt-2 max-h-40 space-y-2 overflow-y-auto">
+        {operations
+          .filter(op => op.status === 'PENDING' || op.status === 'PROCESSING')
+          .map(op => (
+            <li key={op.id} className="text-slate-500">
+              {targetLabelFromKey(op.key, op.type)} ·{' '}
+              {op.status === 'PROCESSING' ? 'Enviando' : 'Pendiente de confirmación'}
+            </li>
+          ))}
         {blocked.map(operation => (
           <li key={operation.id} className="flex items-center justify-between gap-2">
             <span>
               {operation.targetLabel}
               <span className="block text-[10px] text-slate-500">{operation.categoryLabel}</span>
+              {(operation.code || operation.detail) && (
+                <details className="text-[10px] text-slate-400">
+                  <summary>Detalle técnico</summary>
+                  {operation.code && <span>{operation.code}</span>}
+                  {operation.detail && <p>{operation.detail}</p>}
+                </details>
+              )}
             </span>
 
             <button
