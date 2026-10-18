@@ -15,6 +15,7 @@ export const captureRuntimeView = async ({
   ensureActive,
   resampled,
   orientations,
+  reconstructionLabel,
 }: {
   engine?: RenderingEngine;
   stack: ReturnType<typeof createProgressiveStack>;
@@ -24,6 +25,7 @@ export const captureRuntimeView = async ({
   signal: AbortSignal;
   ensureActive: () => void;
   resampled: boolean;
+  reconstructionLabel?: () => string | undefined;
   orientations: () => DicomOrientation[];
 }) => {
   ensureActive();
@@ -34,13 +36,18 @@ export const captureRuntimeView = async ({
   if (!target) throw new Error('Selecciona una vista cargada.');
   await waitForDicomRender([target.element], () => target.render(), signal);
   ensureActive();
+  const label = reconstructionLabel?.();
   const captured = await captureDicomCanvas(
     target as StackViewport | VolumeViewport,
     mode,
     plane,
     resampled,
     orientations()[plane],
-    mode === 'original' ? `Corte ${selection.current! + 1}/${series.instances.length}` : undefined
+    mode === 'original'
+      ? `Corte ${selection.current! + 1}/${series.instances.length}`
+      : label
+        ? `${resampled ? 'Remuestreado · ' : ''}${label}`
+        : undefined
   );
   ensureActive();
   if (mode === 'original' && stack.state() !== selection)

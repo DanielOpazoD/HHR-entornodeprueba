@@ -373,3 +373,34 @@ Validación: geometría sintética (espaciados, orden inverso, matrices, cobertu
 marcos y líneas) y Chromium con dos ventanas sin nuevas solicitudes, navegación
 bidireccional por coordenadas, enlace opcional de ventana/zoom, independencia de
 marcos incompatibles y rechazo de una segunda serie de otro paciente.
+
+### MPR oblicuo y espesor
+
+El menú contextual «Reconstrucción MPR» activa los tiradores de rotación de las
+líneas, conservando su intersección en coordenadas LPS. «Punto» sigue sirviendo
+para trasladar la referencia; durante la rotación se usan líneas completas.
+Cada pane identifica si su orientación es oblicua y actualiza las letras LPS.
+
+El espesor se expresa como anchura **total** en milímetros (0: corte fino;
+0,5–50 mm: promedio, MIP o MinIP), centrada en cada plano. Core 4.22 define
+sus clipping planes como focalPoint ± slabThickness: se entrega la mitad del
+valor de interfaz. Las proyecciones reutilizan el volumen en GPU sin nuevas
+transferencias. «Parcial» indica que la franja solicitada excede el volumen en
+el centro del plano; fuera de los límites adquiridos no se inventan muestras.
+La cobertura puede variar hacia los bordes de un plano oblicuo.
+
+Se conserva la validación física de `planDicomVolume`: marco compartido,
+orientación ortonormal y consistente, espaciado positivo uniforme, ausencia de
+cortes duplicados/huecos/desplazamiento lateral, y campo físico equivalente
+para matrices heterogéneas. Una serie rechazada no obtiene controles ni una
+reconstrucción aparentemente válida. No se añade corrección de gantry tilt.
+
+Distancias y ángulos son medidas del plano central en espacio físico. HU y ROI
+se bloquean y sus anotaciones se ocultan mientras exista un plano oblicuo o
+una proyección con espesor: las estadísticas actuales de Cornerstone no son
+estadísticas de una proyección ni de una elipse oblicua. Las anotaciones no se
+borran y reaparecen al volver a corte fino ortogonal. Restablecer MPR recupera
+orientaciones y espesor iniciales; el contraste se conserva. Las capturas
+incluyen el modo/espesor y condición oblicua, sin incorporar las mediciones.
+Datos y herramientas son transitorios; no cambian la verificación del paciente
+ni se persisten datos adicionales. La prueba automatizada usa solo DICOM sintético.

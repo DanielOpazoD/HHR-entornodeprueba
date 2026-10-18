@@ -1,3 +1,5 @@
+import type { MprSettings } from '@/domain/radiology/dicomReconstruction';
+import type { MprReconstructionState } from './dicomMprReconstruction';
 import type { createDicomComparison } from './dicomComparison';
 import type { DicomSeries } from './dicomTypes';
 import type { ProgressiveDicomSeries } from './dicomSeriesLoader';
@@ -35,6 +37,8 @@ export interface DicomRuntime {
     signal: AbortSignal,
     notify: Parameters<typeof createDicomComparison>[7]
   ) => Promise<ReturnType<typeof createDicomComparison>>;
+  onReconstruction: (listener: (state: MprReconstructionState | null) => void) => () => void;
+  reconstruct: (patch: Partial<MprSettings> | null) => void;
   openCine: () => DicomCineSession;
   select: (index: number) => void;
   onStack: (listener: (state: DicomStackState) => void) => () => void;

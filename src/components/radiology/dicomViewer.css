@@ -379,3 +379,15 @@
     min-width: 140px;
   }
 }
+.dicom-reconstruction-label {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  z-index: 2;
+  pointer-events: none;
+  font-size: 11px;
+  color: #cbd5e1;
+  background: #0008;
+  padding: 2px 5px;
+  border-radius: 3px;
+}
