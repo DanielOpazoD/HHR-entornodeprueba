@@ -25,6 +25,8 @@ const DicomViewerSession: React.FC<DicomViewerDialogProps> = ({
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
+    // Code only: overlap engine loading with metadata. Instances still require verified study data.
+    void import('@/services/radiology/dicomRuntime').catch(() => undefined);
     let session: ReturnType<typeof createDicomStudyPrefetch> | undefined;
     void fetchDicomStudy(link, patientId, controller.signal)
       .then(result => {

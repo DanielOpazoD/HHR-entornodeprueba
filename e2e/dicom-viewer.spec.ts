@@ -152,6 +152,56 @@ const openSalvador = async (page: Page, manual = false) => {
 test.describe('DICOM viewer and Salvador annexes', () => {
   test.setTimeout(150000);
   test.use({ viewport: { width: 1440, height: 1000 } });
+  test('measures cold DICOM startup with controlled metadata and module latency', async ({
+    page,
+  }) => {
+    await setup(page);
+    const samples: Record<string, number> = {};
+    let instances = 0;
+    await page.route('**/assets/dicomRuntime-*.js', async route => {
+      samples.moduleStart = performance.now();
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      await route.continue();
+    });
+    await page.route('**/.netlify/functions/mmrad-dicom', async route => {
+      if (route.request().postDataJSON().action === 'metadata') {
+        samples.metadataStart = performance.now();
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        samples.metadataEnd = performance.now();
+      } else {
+        instances++;
+        samples.firstInstance ??= performance.now();
+        expect(samples.metadataEnd).toBeDefined();
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      await route.fallback();
+    });
+    const editor = await openSalvador(page);
+    await editor.getByRole('button', { name: 'Imágenes MMRAD' }).click();
+    expect(instances).toBe(0);
+    const start = performance.now();
+    await page.getByRole('button', { name: 'Ver DICOM', exact: true }).click();
+    const viewer = page.getByRole('dialog', { name: /Visor DICOM/ });
+    await expect(viewer.getByRole('button', { name: 'PNG', exact: true })).toBeEnabled({
+      timeout: 60000,
+    });
+    samples.usable = performance.now();
+    await expect(viewer.getByRole('button', { name: 'MPR', exact: true })).toBeEnabled({
+      timeout: 60000,
+    });
+    samples.complete = performance.now();
+    expect(instances).toBe(24);
+    expect(samples.moduleStart).toBeLessThan(samples.metadataEnd);
+    if (process.env.DICOM_LOAD_BENCHMARK === '1')
+      await test.info().attach('dicom-load-benchmark', {
+        body: JSON.stringify(
+          Object.fromEntries(
+            Object.entries(samples).map(([key, value]) => [key, Math.round(value - start)])
+          )
+        ),
+        contentType: 'application/json',
+      });
+  });
   test('compares verified series by physical position and reuses one series for independent windows', async ({
     page,
   }) => {

@@ -64,12 +64,24 @@ export const fetchDicomInstance = async (
     const response = await request({ action: 'instance', ticket }, attemptSignal);
     const headers = performance.now();
     const bytes = await readDicomBytes(response, attemptSignal, maxBytes);
-    const upstream = /upstream;dur=([0-9.]+)/.exec(response.headers.get('server-timing') || '');
+    const serverTiming = response.headers.get('server-timing') || '';
+    const duration = (name: string) => {
+      const match = new RegExp(`(?:^|,\\s*)${name};dur=([0-9.]+)(?:,|$)`).exec(serverTiming);
+      const value = match ? Number(match[1]) : NaN;
+      return Number.isFinite(value) && value >= 0 ? value : undefined;
+    };
+    const upstream = duration('upstream');
+    const serverAuth = duration('auth');
+    const upstreamHeaders = duration('upstream_headers');
+    const upstreamBody = duration('upstream_body');
     timing?.(
       {
         headers: headers - start,
         transfer: performance.now() - headers,
-        ...(upstream ? { upstream: Number(upstream[1]), upstreamSamples: 1 } : {}),
+        ...(upstream !== undefined ? { upstream, upstreamSamples: 1 } : {}),
+        ...(serverAuth !== undefined && upstreamHeaders !== undefined && upstreamBody !== undefined
+          ? { serverAuth, upstreamHeaders, upstreamBody, serverSamples: 1 }
+          : {}),
       },
       bytes.byteLength
     );
