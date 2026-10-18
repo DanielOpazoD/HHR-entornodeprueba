@@ -258,6 +258,7 @@
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
     "lucide-react": "^0.556.0",
+    "mediabunny": "1.61.6",
     "motion": "^12.38.0",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "5.5.207",

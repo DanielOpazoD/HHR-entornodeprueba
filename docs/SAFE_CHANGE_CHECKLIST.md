@@ -253,3 +253,17 @@ permisos ni se reescriben decisiones. Validar propuesta vacía, metadatos
 reordenados/anidados, intentos de falsificación y RN. Cierre: `ci:merge-gate`,
 `test:release-confidence`, revisión independiente y CI del head final. Publicar
 la función requiere autorización separada y prueba real posterior.
+
+### Exportación DICOM a MP4 (2026-10-17)
+
+- **Owner:** visor radiológico HHR.
+- **Reason:** exportar cada corte verificado a un MP4 local con tiempos explícitos,
+  sin perder cuadros por grabación de pantalla ni enviar imágenes a un servicio.
+- **TargetVersion:** Mediabunny 1.61.6 (MPL-2.0), fijado con integridad en lockfile;
+  import dinámico, codificación nativa H.264, sin plugins ni codecs remotos.
+- **RiskLevel:** medio: codificación y memoria del navegador, limitada a 64 MiB,
+  con cancelación y revisión de privacidad antes de descargar. CSP media-src
+  self/blob para vista previa; no se amplían connect-src ni permisos de captura.
+- **RollbackPlan:** revertir este PR; no modifica originales, pacientes ni servidor.
+- **VerificationGate:** ci:merge-gate, audit, revisión independiente, pruebas
+  sintéticas de orden/conteo/duración MP4, cancelación y cierre, CI del head final.

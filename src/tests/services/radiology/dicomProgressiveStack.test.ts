@@ -128,3 +128,43 @@ it('restores presentation before a newer cut snapshots an interrupted render', a
   await vi.waitFor(() => expect(stack.state()).toMatchObject({ current: 2, pending: false }));
   expect(zoom).toBe(3);
 });
+
+it('locks interactive requests during cine and aborts a missing cut before it can replace the current cut', async () => {
+  let release!: (id: string) => void;
+  const source = {
+    initialIndex: 0,
+    request: vi.fn((index: number) =>
+      index === 0
+        ? Promise.resolve('first')
+        : new Promise<string>(resolve => {
+            release = resolve;
+          })
+    ),
+  } as unknown as ProgressiveDicomSeries;
+  const target = {
+    element: document.createElement('div'),
+    setStack: vi.fn().mockResolvedValue(undefined),
+    getProperties: () => ({}),
+    setProperties: vi.fn(),
+    getPan: () => [0, 0],
+    getZoom: () => 1,
+    setPan: vi.fn(),
+    setZoom: vi.fn(),
+    render: vi.fn(),
+  } as unknown as StackViewport;
+  const stack = createProgressiveStack(source, 3);
+  await stack.show(target);
+  stack.lock(true);
+  stack.step(1);
+  stack.select(2);
+  expect(source.request).toHaveBeenCalledTimes(1);
+  const controller = new AbortController();
+  const pending = stack.selectAndWait(1, controller.signal);
+  controller.abort();
+  await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+  stack.lock(false);
+  stack.select(0);
+  release('late');
+  await vi.waitFor(() => expect(stack.state()).toMatchObject({ current: 0, pending: false }));
+  expect(target.setStack).not.toHaveBeenCalledWith(['late']);
+});
