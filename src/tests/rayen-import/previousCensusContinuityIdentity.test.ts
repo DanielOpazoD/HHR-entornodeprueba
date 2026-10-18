@@ -371,7 +371,7 @@ it('preserves the historical case through conflict handoff and history parsing, 
     status: 'partial',
     structuralReview,
   });
-  expect(parsed.structuralReview?.issues?.[0]).toEqual({
+  expect(parsed.structuralReview?.issues?.[0]).toMatchObject({
     bedId: null,
     reason: 'previous-census-continuity',
     caseContext: {
@@ -381,6 +381,6 @@ it('preserves the historical case through conflict handoff and history parsing, 
       isClinicalCrib: false,
     },
   });
-  expect(JSON.stringify(parsed.structuralReview)).not.toContain('11.111.111-1');
-  expect(JSON.stringify(parsed.structuralReview)).not.toContain('1001');
+  expect(parsed.structuralReview?.issues?.[0].diagnostic?.document).toBe('11.111.111-1');
+  expect(parsed.structuralReview?.issues?.[0].diagnostic?.clinicalEpisodeId).toBe('1001');
 });

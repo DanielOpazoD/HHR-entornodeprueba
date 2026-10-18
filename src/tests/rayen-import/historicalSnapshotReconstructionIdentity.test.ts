@@ -21,6 +21,24 @@ const snapshot: RayenCensusSnapshot = {
 };
 
 describe('historical reconstruction identity and clinical-day guards', () => {
+  it.each([
+    ['17-10-2026 00:19', 0],
+    ['18-10-2026 00:19', 1],
+    ['invalid', 1],
+  ])(
+    'scopes an unlinked discharge %s to its census without hiding invalid dates',
+    async (fechaEgreso, expected) => {
+      const result = await reconstructHistoricalSnapshotAtClose(
+        '2026-10-17',
+        { ...snapshot, encounters: [] },
+        { ...emptyRecord, date: '2026-10-17' },
+        [{ run: '11.111.111-1', patientName: 'RN Prueba', fechaEgreso } as EgresoReportRow],
+        { fetchReport: vi.fn(), extractText: vi.fn() }
+      );
+      expect(result.conflicts).toHaveLength(expected);
+    }
+  );
+
   it('accepts an exact numeric passport printed under Número de Identificación', async () => {
     const current = {
       ...emptyRecord,

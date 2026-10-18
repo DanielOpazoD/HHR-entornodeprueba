@@ -32,6 +32,7 @@ import {
 import {
   activeBedBackedCandidates,
   invalidReportBackedConflicts,
+  relevantHistoricalReportRows,
   latestReportRowsByEpisode,
   reportBackedCandidates,
   reportClinicalStamp,
@@ -140,9 +141,13 @@ export const reconstructHistoricalSnapshotAtClose = async (
 
   // The report describes a later administrative location, not necessarily the placement at this
   // historical cutoff. Patient-flow evidence below decides whether P-R1/P-R2 must be omitted.
-  const scopedReportRows = reportRows;
-  const reportByEpisode = latestReportRowsByEpisode(scopedReportRows);
-  conflicts.push(...invalidReportBackedConflicts(scopedReportRows, reportByEpisode));
+  const reportByEpisode = latestReportRowsByEpisode(reportRows);
+  conflicts.push(
+    ...invalidReportBackedConflicts(
+      relevantHistoricalReportRows(reportRows, censusDay, record, liveSnapshot.encounters),
+      reportByEpisode
+    )
+  );
   const liveEncounterIds = new Set(liveSnapshot.encounters.map(item => item.encounterId));
   // A current P-R1/P-R2 placement does not prove where the patient was at a historical cutoff.
   // Keep the episode as traceability input and exclude it only after resolving that past placement.
