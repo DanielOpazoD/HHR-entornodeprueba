@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import PizZip from 'pizzip';
+import { Input, BufferSource, MP4 } from 'mediabunny';
 import { test, expect, type Page } from '@playwright/test';
 import { buildCanonicalE2ERecord, bootstrapSeededRecord } from './fixtures/auth';
 import { installPreviewFirebaseRuntime } from './fixtures/previewFirebase';
@@ -146,6 +147,134 @@ const openSalvador = async (page: Page, manual = false) => {
 test.describe('DICOM viewer and Salvador annexes', () => {
   test.setTimeout(150000);
   test.use({ viewport: { width: 1440, height: 1000 } });
+  test('cine exports an ordered inclusive MP4 with privacy review and cancellation', async ({
+    page,
+  }) => {
+    await setup(page);
+    await page.route('**/.netlify/functions/mmrad-dicom', route => {
+      const body = route.request().postDataJSON();
+      if (body.action !== 'instance') return route.fallback();
+      const index = Number(String(body.ticket).split('-')[1]);
+      return route.fulfill({
+        contentType: 'application/dicom',
+        body: Buffer.from(
+          syntheticDicom(
+            index,
+            24,
+            SYNTHETIC_PATIENT_ID,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            { slope: '1', intercept: '0', unit: 'HU', pixelValue: 20 + index * 15 }
+          )
+        ),
+      });
+    });
+    const editor = await openSalvador(page);
+    await editor.getByRole('button', { name: 'Imágenes MMRAD' }).click();
+    await page.getByRole('button', { name: 'Ver DICOM', exact: true }).click();
+    const viewer = page.getByRole('dialog', { name: /Visor DICOM/ });
+    await expect(viewer.getByRole('button', { name: 'PNG', exact: true })).toBeEnabled({
+      timeout: 60000,
+    });
+    await viewer.locator('.dicom-cine summary').click();
+    await viewer.getByLabel('Corte inicial', { exact: true }).fill('3');
+    await viewer.getByLabel('Corte final', { exact: true }).fill('8');
+    await viewer.getByLabel('Velocidad cine', { exact: true }).selectOption('5');
+    await viewer.getByRole('button', { name: 'Reproducir', exact: true }).click();
+    await expect(viewer.getByRole('button', { name: 'MPR', exact: true })).toBeDisabled();
+    await viewer.getByRole('button', { name: 'Cancelar cine / MP4', exact: true }).click();
+    await expect(viewer.getByText('Operación cancelada. No se guardó ningún video.')).toBeVisible();
+    await expect(viewer.getByRole('button', { name: 'Generar MP4', exact: true })).toBeEnabled();
+    await viewer.getByRole('button', { name: 'Generar MP4', exact: true }).click();
+    const video = viewer.getByLabel('Vista previa MP4', { exact: true });
+    await expect(video).toBeVisible({ timeout: 60000 });
+    await expect
+      .poll(() => video.evaluate(node => (node as HTMLVideoElement).readyState))
+      .toBeGreaterThanOrEqual(2);
+    const info = await video.evaluate(node => {
+      const video = node as HTMLVideoElement;
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(video, 0, 0);
+      const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      return {
+        duration: video.duration,
+        width: video.videoWidth,
+        height: video.videoHeight,
+        nonblack: pixels.some((value, i) => i % 4 !== 3 && value > 20),
+      };
+    });
+    expect(info.duration).toBeCloseTo(1.2, 2);
+    expect(info.width % 2).toBe(0);
+    expect(info.height % 2).toBe(0);
+    expect(info.nonblack).toBe(true);
+    const intensities = await video.evaluate(async node => {
+      const movie = node as HTMLVideoElement;
+      const canvas = document.createElement('canvas');
+      canvas.width = movie.videoWidth;
+      canvas.height = movie.videoHeight;
+      const ctx = canvas.getContext('2d')!;
+      const values: number[] = [];
+      for (let i = 0; i < 6; i++) {
+        await new Promise<void>(resolve => {
+          movie.addEventListener('seeked', () => resolve(), { once: true });
+          movie.currentTime = i / 5 + 0.05;
+        });
+        ctx.drawImage(movie, 0, 0);
+        values.push(
+          ctx.getImageData(Math.floor(canvas.width / 2), Math.floor(canvas.height / 2), 1, 1)
+            .data[0]
+        );
+      }
+      return values;
+    });
+    for (let i = 1; i < intensities.length; i++)
+      expect(intensities[i]).toBeGreaterThan(intensities[i - 1] + 3);
+
+    await expect(viewer.getByRole('link', { name: 'Descargar MP4', exact: true })).toHaveCount(0);
+    await viewer.getByRole('checkbox', { name: /Revisé el video completo/ }).check();
+    const downloading = page.waitForEvent('download');
+    await viewer.getByRole('link', { name: 'Descargar MP4', exact: true }).click();
+    const download = await downloading;
+    expect(download.suggestedFilename()).toBe('secuencia-dicom.mp4');
+    const bytes = fs.readFileSync((await download.path())!);
+    const input = new Input({ source: new BufferSource(bytes), formats: [MP4] });
+    try {
+      const track = await input.getPrimaryVideoTrack();
+      expect(track?.codec).toBe('avc');
+      expect((await track!.computePacketStats()).packetCount).toBe(6);
+      expect(await input.computeDuration()).toBeCloseTo(1.2, 2);
+      expect(await input.getAudioTracks()).toHaveLength(0);
+    } finally {
+      input.dispose();
+    }
+    expect(bytes.includes(Buffer.from(SYNTHETIC_PATIENT_ID))).toBe(false);
+    expect(bytes.includes(Buffer.from(SYNTHETIC_STUDY_UID))).toBe(false);
+    await viewer.getByRole('button', { name: 'Descartar video', exact: true }).click();
+    await expect(video).toHaveCount(0);
+    await viewer.getByLabel('Corte final', { exact: true }).fill('24');
+    await viewer.getByRole('button', { name: 'Generar MP4', exact: true }).click();
+    await viewer.getByRole('button', { name: 'Cancelar cine / MP4', exact: true }).click();
+    await expect(viewer.getByText('Operación cancelada. No se guardó ningún video.')).toBeVisible();
+    await expect(video).toHaveCount(0);
+    await expect(viewer.getByRole('link', { name: 'Descargar MP4', exact: true })).toHaveCount(0);
+    await expect(viewer.getByRole('button', { name: 'PNG', exact: true })).toBeEnabled();
+    await viewer.getByRole('button', { name: 'Reproducir', exact: true }).click();
+    await viewer.getByRole('button', { name: 'Cerrar modal', exact: true }).click();
+    await expect(viewer).toHaveCount(0);
+    await page.getByRole('button', { name: 'Ver DICOM', exact: true }).click();
+    await expect(viewer.getByRole('button', { name: 'PNG', exact: true })).toBeEnabled({
+      timeout: 60000,
+    });
+    await expect(viewer.getByLabel('Vista previa MP4', { exact: true })).toHaveCount(0);
+    await viewer.locator('.dicom-cine summary').click();
+    await expect(viewer.getByLabel('Corte inicial', { exact: true })).toHaveValue('1');
+    await expect(viewer.getByLabel('Corte final', { exact: true })).toHaveValue('24');
+  });
   for (const calibrated of [true, false])
     test(`quantitative MPR ${calibrated ? 'measures calibrated HU and ROI' : 'blocks uncalibrated intensities'}`, async ({
       page,

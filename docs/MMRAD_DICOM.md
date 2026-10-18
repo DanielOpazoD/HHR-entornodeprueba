@@ -239,3 +239,30 @@ No se asume HU por la modalidad solamente. Relleno de píxeles, LUT, mapas de va
 reales, grupos funcionales o calibración incompleta deshabilitan estas herramientas.
 Las ROI vacías, fuera de imagen o no compatibles no muestran estadísticas inventadas.
 En volúmenes remuestreados se mide el volumen interpolado, no los píxeles originales.
+
+### Cine y MP4 local
+
+En Original, Cine / MP4 permite seleccionar un intervalo inclusivo de la serie y
+5, 10, 15, 20 o 30 cortes/s. Cine espera cada corte verificado y ralentiza la
+reproducción si la descarga/render es más lento: no salta cortes para recuperar
+el tiempo. Durante el trabajo se bloquea la interacción con la imagen; cancelar
+permite volver a navegar. Cambiar de serie/paciente o cerrar aborta el trabajo.
+
+MP4 se habilita al completar la verificación de toda la serie; cine admite carga
+progresiva. MP4 usa H.264/WebCodecs con Mediabunny cargado bajo demanda. Se captura un canvas
+sin overlays del DOM, se codifica un cuadro por corte con timestamps explícitos,
+se valida el conteo y se finaliza antes de ofrecer el archivo. No usa grabación
+de pantalla, audio ni servidor externo. Dimensiones pares hasta 1280x720 sin
+ampliación, bitrate objetivo 4 Mbps y límite de 64 MiB; no se guarda un archivo
+parcial. Cambiar el tamaño de la vista durante el proceso exige reiniciarlo.
+Si el navegador no codifica H.264 se explica la incompatibilidad, sin renombrar
+WebM como MP4. El módulo de medios no forma parte del arranque del visor.
+
+El video queda temporalmente en memoria con un URL blob revocable. Antes de
+activar la descarga, debe poder reproducirse en la vista previa y el usuario
+confirma haber revisado todo el video sin identificadores visibles. Esto NO es
+anonimización: los originales pueden contener texto identificable incrustado en
+píxeles. Descartar/cambiar/cerrar revoca el URL. El nombre de descarga es genérico;
+no se agregan identificadores, credenciales ni metadatos clínicos al contenedor.
+El MP4 es una copia con contraste fijo y compresión, no sustituye al DICOM.
+La CSP permite medios self/blob únicamente para la previsualización local.

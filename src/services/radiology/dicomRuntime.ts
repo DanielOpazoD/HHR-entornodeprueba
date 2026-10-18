@@ -1,3 +1,4 @@
+import { openDicomCineSession } from './dicomCineSession';
 import { initializeDicom as initialize, dicomTools as tools } from './dicomInitialization';
 // This entire module is behind DicomViewer's dynamic import. Never import it from a public barrel.
 import {
@@ -176,7 +177,19 @@ export const createDicomRuntime = async (
     });
   void completion.catch(() => undefined);
   return {
+    sessionId: id,
     completion,
+    openCine: () => {
+      ensureActive();
+      if (mode !== 'original' || !engine || !stack)
+        throw new Error('Selecciona Original para cine.');
+      return openDicomCineSession(
+        engine.getViewport(viewportIds[0]) as StackViewport,
+        stack,
+        signal,
+        ensureActive
+      );
+    },
     select: index => {
       if (mode === 'original' && !disposed) stack?.select(index);
     },

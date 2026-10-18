@@ -1,3 +1,4 @@
+import { abortableDicomTask } from './dicomCine';
 import type { StackViewport } from '@cornerstonejs/core';
 import type { ProgressiveDicomSeries } from './dicomSeriesLoader';
 
@@ -19,20 +20,24 @@ export const createProgressiveStack = (source: ProgressiveDicomSeries, total: nu
   };
   let listener: ((value: DicomStackState) => void) | undefined;
   let sequence = 0;
+  let locked = false;
   let rendering = Promise.resolve();
   let detach = () => {};
   const emit = (patch: Partial<DicomStackState>) => {
     state = { ...state, ...patch };
     listener?.(state);
   };
-  const select = async (requested: number) => {
+  const select = async (requested: number, signal?: AbortSignal) => {
+    signal?.throwIfAborted();
     const index = Math.max(0, Math.min(total - 1, Math.round(requested)));
     if (!Number.isFinite(index)) return;
     const requestVersion = ++sequence;
     const target = viewport;
     emit({ requested: index, pending: true, error: '' });
     try {
-      const id = await source.request(index);
+      const request = source.request(index);
+      const id = await (signal ? abortableDicomTask(request, signal) : request);
+      signal?.throwIfAborted();
       if (!target || requestVersion !== sequence) return;
       const task = rendering
         .catch(() => undefined)
@@ -46,19 +51,22 @@ export const createProgressiveStack = (source: ProgressiveDicomSeries, total: nu
                   pan: target.getPan(),
                   zoom: target.getZoom(),
                 };
+          signal?.throwIfAborted();
           await target.setStack([id]);
           if (previous) {
             target.setProperties(previous.properties);
             target.setPan(previous.pan);
             target.setZoom(previous.zoom);
           }
+          signal?.throwIfAborted();
           if (requestVersion !== sequence || target !== viewport) return;
           target.render();
           emit({ current: index, pending: false });
         });
       rendering = task;
       await task;
-    } catch {
+    } catch (error) {
+      if (signal) throw error;
       if (requestVersion === sequence && viewport)
         emit({
           pending: false,
@@ -66,9 +74,17 @@ export const createProgressiveStack = (source: ProgressiveDicomSeries, total: nu
         });
     }
   };
-  const step = (delta: number) => void select(state.requested + delta);
+  const step = (delta: number) => {
+    if (!locked) void select(state.requested + delta);
+  };
   return {
-    select: (index: number) => void select(index),
+    select: (index: number) => {
+      if (!locked) void select(index);
+    },
+    lock: (value: boolean) => {
+      locked = value;
+    },
+    selectAndWait: select,
     step,
     state: () => state,
     subscribe: (next: (value: DicomStackState) => void) => {

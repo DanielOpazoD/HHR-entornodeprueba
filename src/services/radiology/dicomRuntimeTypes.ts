@@ -1,3 +1,4 @@
+import type { DicomCineSession } from './dicomCine';
 import type { DicomStackState } from './dicomProgressiveStack';
 import type { DicomReference, ReferenceStyle } from './dicomMprTools';
 import type { VolumePresentation } from './dicomPresentation';
@@ -22,7 +23,9 @@ export interface DicomOrientation {
 }
 
 export interface DicomRuntime {
+  readonly sessionId: string;
   completion: Promise<void>;
+  openCine: () => DicomCineSession;
   select: (index: number) => void;
   onStack: (listener: (state: DicomStackState) => void) => () => void;
   show: (mode: DicomMode, elements: HTMLDivElement[]) => Promise<void>;
