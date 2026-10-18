@@ -334,3 +334,42 @@ Con el foco en un plano: arriba/abajo recorre cortes, Re Pág/Av Pág avanza die
 izquierda/derecha cambia el foco entre los tres planos, y Ctrl/⌘ Z elimina la última
 medición del visor. El menú Teclado permite desactivar estos atajos y ofrece el
 botón equivalente. Los campos de formulario conservan su manejo de teclado nativo.
+
+### Comparación de series
+
+`Comparar` abre dos paneles cuando la serie principal está completa y verificada.
+La opción inicial, `Misma serie · dos ventanas`, comparte los originales y las
+imágenes decodificadas: no inicia otra descarga ni otro volumen. Cada panel
+conserva su ventana, desplazamiento y zoom durante la navegación. El panel activo
+se elige con clic, foco o rueda; las flechas arriba/abajo recorren cortes y las
+flechas izquierda/derecha cambian el foco.
+
+La segunda serie pertenece exclusivamente al mismo estudio verificado. Su carga
+es progresiva, limitada a dos descargas simultáneas, con los mismos controles de
+PatientID, Study/Series/SOP Instance UID, límites de memoria y reintentos del
+cargador normal. La precarga especulativa se pausa durante la comparación.
+Cambiar la segunda serie cancela y drena sus tareas; cerrar libera sus recursos.
+No se persisten imágenes, tickets, posiciones ni preferencias del estudio.
+
+El menú de cadena permite vincular posición (predeterminado), zoom y ventana
+(ambos independientes inicialmente). La posición usa ImagePositionPatient,
+ImageOrientationPatient, PixelSpacing y FrameOfReferenceUID, nunca el índice de
+corte. Se espera a la geometría completa de la segunda serie para evitar elegir
+un corte incorrecto durante una descarga parcial. Se rechazan datos incompletos,
+marcos distintos, planos no paralelos, localizadores mezclados y posiciones fuera
+de la cobertura; los paneles siguen navegables por separado. Esto no registra
+estudios ni corrige movimiento del paciente. El zoom vinculado comparte escala
+física sin copiar el centro anatómico de la cámara. La ventana entre series exige
+TAC con calibración HU válida; la misma serie permite compartirla directamente.
+
+Entre planos no paralelos del mismo marco se dibuja una línea discontinua de
+intersección en coordenadas físicas, limitada al rectángulo de la imagen destino.
+No se dibujan líneas para planos paralelos o marcos incompatibles. Las vistas MPR
+vinculadas existentes continúan disponibles al salir de comparación. La comparación
+no incorpora exportaciones combinadas: los controles de captura/cine y privacidad
+permanecen en el visor individual.
+
+Validación: geometría sintética (espaciados, orden inverso, matrices, cobertura,
+marcos y líneas) y Chromium con dos ventanas sin nuevas solicitudes, navegación
+bidireccional por coordenadas, enlace opcional de ventana/zoom, independencia de
+marcos incompatibles y rechazo de una segunda serie de otro paciente.

@@ -1,0 +1,102 @@
+.dicom-grid--compare {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.dicom-compare-tools {
+  position: relative;
+}
+.dicom-compare-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.dicom-compare-selector select {
+  min-width: 0;
+  max-width: 50vw;
+}
+.dicom-compare-links {
+  position: relative;
+}
+.dicom-compare-links .dicom-popover-body {
+  left: 0;
+  right: auto;
+}
+.dicom-compare-active,
+.dicom-compare-status {
+  color: #94a3b8;
+  font-size: 11px;
+}
+.dicom-compare-status {
+  margin-left: auto;
+}
+.dicom-compare-label {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  right: 6px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.dicom-compare-label button {
+  max-width: 80%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  background: #0b1220b8;
+}
+.dicom-compare-label span {
+  background: #0b1220b8;
+  padding: 2px 5px;
+  font-size: 10px;
+}
+.dicom-compare-scroll {
+  position: absolute;
+  bottom: 5px;
+  left: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #0b1220b8;
+  padding: 3px;
+}
+.dicom-compare-scroll input {
+  min-width: 0;
+  flex: 1;
+  accent-color: #22d3ee;
+}
+.dicom-compare-scroll output {
+  font-variant-numeric: tabular-nums;
+}
+.dicom-compare-pending {
+  position: absolute;
+  inset: 45% 0 auto;
+  text-align: center;
+  pointer-events: none;
+}
+.dicom-reference-line {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.dicom-reference-line line {
+  stroke: #facc15;
+  stroke-width: 1;
+  stroke-dasharray: 8 4;
+}
+@media (max-width: 760px) {
+  .dicom-grid--compare {
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(2, minmax(280px, 1fr));
+    min-height: 560px;
+  }
+  .dicom-compare-status {
+    width: 100%;
+    margin-left: 0;
+  }
+}

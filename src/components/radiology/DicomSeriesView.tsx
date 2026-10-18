@@ -1,7 +1,9 @@
+import { DicomNavigationTools } from './DicomNavigationTools';
+import { DicomComparisonView } from './DicomComparisonView';
 import type { DicomStudyPrefetch } from '@/services/radiology/dicomStudyPrefetch';
 import type { DicomLoadState } from '@/services/radiology/dicomLoadState';
 import React, { useEffect, useRef, useState } from 'react';
-import { Camera, Download, Hand, RotateCcw, Scan, ZoomIn } from 'lucide-react';
+import { Camera, Columns2, Download } from 'lucide-react';
 import type { DicomCapture, DicomSeries, DicomStudy } from '@/services/radiology/dicomTypes';
 import type {
   DicomMode,
@@ -26,6 +28,7 @@ export const DicomSeriesView: React.FC<{
   title: string;
   onCapture?: (capture: DicomCapture) => void;
 }> = ({ study, series, title, onCapture, prefetch }) => {
+  const [comparing, setComparing] = useState(false);
   const [keyboard, setKeyboard] = useState(true);
   const [loading, setLoading] = useState<DicomLoadState | null>(null);
   const [runtime, setRuntime] = useState<DicomRuntime | null>(null);
@@ -107,7 +110,7 @@ export const DicomSeriesView: React.FC<{
   }, [study, series, prefetch]);
 
   useEffect(() => {
-    if (!runtime) return;
+    if (!runtime || comparing) return;
     let active = true;
     setBusy(true);
     setError('');
@@ -135,7 +138,7 @@ export const DicomSeriesView: React.FC<{
     return () => {
       active = false;
     };
-  }, [runtime, mode]);
+  }, [runtime, mode, comparing]);
 
   useEffect(
     () =>
@@ -180,6 +183,16 @@ export const DicomSeriesView: React.FC<{
   };
   const volumetric =
     (series.modality === 'CT' || series.modality === 'MR') && series.instances.length >= 3;
+  if (comparing && runtime)
+    return (
+      <DicomComparisonView
+        study={study}
+        primary={series}
+        runtime={runtime}
+        prefetch={prefetch}
+        close={() => setComparing(false)}
+      />
+    );
   return (
     <>
       <fieldset className="dicom-interaction-lock">
@@ -208,61 +221,13 @@ export const DicomSeriesView: React.FC<{
               </button>
             ))}
           </div>
-          <div className="dicom-button-group">
-            {(
-              [
-                { id: 'window', label: 'Contraste (ventana y nivel)', icon: Scan },
-                { id: 'pan', label: 'Mover', icon: Hand },
-                { id: 'zoom', label: 'Zoom', icon: ZoomIn },
-              ] as const
-            ).map(tool => (
-              <button
-                type="button"
-                key={tool.id}
-                aria-label={tool.label}
-                title={tool.label}
-                aria-pressed={activeTool === tool.id}
-                disabled={
-                  cineBusy ||
-                  !runtime ||
-                  busy ||
-                  waitingForSlice ||
-                  (mode === '3d' && tool.id === 'window')
-                }
-                onClick={() => {
-                  runtime?.tool(tool.id);
-                  setActiveTool(tool.id);
-                }}
-              >
-                <tool.icon size={16} />
-                {tool.id === 'window' && <span>Contraste</span>}
-              </button>
-            ))}
-            {mode === '3d' && (
-              <button
-                type="button"
-                aria-label="Rotar 3D"
-                title="Rotar 3D"
-                aria-pressed={activeTool === 'rotate'}
-                disabled={cineBusy || !runtime || busy || waitingForSlice}
-                onClick={() => {
-                  runtime?.tool('rotate');
-                  setActiveTool('rotate');
-                }}
-              >
-                <RotateCcw size={16} />
-              </button>
-            )}
-            <button
-              type="button"
-              title="Restablecer vista"
-              aria-label="Restablecer vista"
-              disabled={cineBusy || !runtime || busy || waitingForSlice}
-              onClick={() => runtime?.reset()}
-            >
-              <RotateCcw size={16} />
-            </button>
-          </div>
+          <DicomNavigationTools
+            runtime={runtime}
+            mode={mode}
+            activeTool={activeTool}
+            choose={setActiveTool}
+            disabled={cineBusy || !runtime || busy || waitingForSlice}
+          />
           <DicomWindowControls
             key={mode}
             runtime={runtime}
@@ -281,6 +246,16 @@ export const DicomSeriesView: React.FC<{
               busyChanged={setCineBusy}
             />
           )}
+          <button
+            type="button"
+            disabled={!complete || busy || cineBusy || !!error}
+            onClick={() => {
+              prefetch?.select(series.uid);
+              setComparing(true);
+            }}
+          >
+            <Columns2 size={16} /> Comparar
+          </button>
           <span className="dicom-toolbar-spacer" />
           <DicomKeyboardControls
             enabled={keyboard}
