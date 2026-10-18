@@ -38,37 +38,28 @@ export const resolveActiveEpisode = (
   const pending = diff.pendingAdministrativeDischarges.find(
     entry => normalizeRut(entry.rut) === normalizedRun
   );
-  return (
-    [
-      admission?.source?.encounterId,
-      admission?.patient.clinicalEpisodeId,
-      move?.source.encounterId,
-      update?.source?.encounterId,
-      pending?.encounterId,
-      pending?.source?.encounterId,
-      storedEpisode,
-    ]
-      .map(value => String(value ?? '').trim())
-      .find(Boolean) ?? ''
-  );
+  return [
+    admission?.source?.encounterId,
+    admission?.patient.clinicalEpisodeId,
+    move?.source.encounterId,
+    update?.source?.encounterId,
+    pending?.encounterId,
+    pending?.source?.encounterId,
+    storedEpisode,
+  ].map(value => String(value ?? '').trim()).find(Boolean) ?? '';
 };
 
-export const createReportEpisodeMatcher =
-  (rowsByRun: ReadonlyMap<string, EgresoReportRow>) =>
-  (rut?: string, episodeId?: string, requireKnownEpisode = false): boolean => {
-    const candidateEpisode = String(episodeId ?? '').trim();
-    const row =
-      rowsByRun.get(normalizeRut(rut)) ??
-      [...rowsByRun.values()].find(
-        entry => candidateEpisode && entry.encounterId === candidateEpisode
-      );
-    if (!row) return false;
-    const reportedEpisode = String(row.encounterId ?? '').trim();
-    return (
-      !reportedEpisode ||
-      (!candidateEpisode ? !requireKnownEpisode : reportedEpisode === candidateEpisode)
-    );
-  };
+export const createReportEpisodeMatcher = (
+  rowsByRun: ReadonlyMap<string, EgresoReportRow>
+) => (rut?: string, episodeId?: string, requireKnownEpisode = false): boolean => {
+  const candidateEpisode = String(episodeId ?? '').trim();
+  const row = rowsByRun.get(normalizeRut(rut)) ??
+    [...rowsByRun.values()].find(entry => candidateEpisode && entry.encounterId === candidateEpisode);
+  if (!row) return false;
+  const reportedEpisode = String(row.encounterId ?? '').trim();
+  return !reportedEpisode ||
+    (!candidateEpisode ? !requireKnownEpisode : reportedEpisode === candidateEpisode);
+};
 export const selectReportRowsByEpisode = (
   rows: EgresoReportRow[],
   activeEpisodeForRun: (run: string) => string
@@ -81,25 +72,17 @@ export const selectReportRowsByEpisode = (
     const key = `${patientKey}|${episode || 'episode-less'}`;
     const previous = byIdentity.get(key);
     const stamp = correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime);
-    const previousStamp =
-      previous &&
-      correctedStamp(previous.fechaEgreso, previous.correctedDay, previous.correctedTime);
-    if (
-      !previous ||
-      `${stamp.correctedDay}T${stamp.correctedTime}` >
-        `${previousStamp?.correctedDay}T${previousStamp?.correctedTime}`
-    )
-      byIdentity.set(key, row);
+    const previousStamp = previous && correctedStamp(
+      previous.fechaEgreso, previous.correctedDay, previous.correctedTime
+    );
+    if (!previous || `${stamp.correctedDay}T${stamp.correctedTime}` >
+      `${previousStamp?.correctedDay}T${previousStamp?.correctedTime}`) byIdentity.set(key, row);
   }
   const primaryByRun = new Map<string, EgresoReportRow>();
-  const exactActiveRuns = new Set(
-    [...byIdentity.values()]
-      .filter(row => {
-        const run = normalizeRut(row.run);
-        return Boolean(run && row.encounterId && row.encounterId === activeEpisodeForRun(run));
-      })
-      .map(row => normalizeRut(row.run))
-  );
+  const exactActiveRuns = new Set([...byIdentity.values()].filter(row => {
+    const run = normalizeRut(row.run);
+    return Boolean(run && row.encounterId && row.encounterId === activeEpisodeForRun(run));
+  }).map(row => normalizeRut(row.run)));
   for (const row of byIdentity.values()) {
     const episode = String(row.encounterId ?? '').trim();
     const run = normalizeRut(row.run);
@@ -115,13 +98,13 @@ export const indexPrincipalBeds = (
 ): Map<string, string> => {
   const result = new Map<string, string>();
   for (const current of occupied.values()) {
-    const run = normalizeRut(current.rut);
-    if (run) result.set(run, current.bedId);
+    const run = normalizeRut(current.rut); if (run) result.set(run, current.bedId);
   }
   for (const entry of diff.admissions) result.set(normalizeRut(entry.patient.rut), entry.bedId);
   for (const entry of diff.moves) result.set(normalizeRut(entry.rut), entry.toBedId);
   return result;
 };
+
 
 export const hasPlannedPatientIdentity = (
   diff: CensusImportDiff,
@@ -132,30 +115,20 @@ export const hasPlannedPatientIdentity = (
     ...diff.admissions.map(entry => entry.source?.encounterId),
     ...diff.updates.map(entry => entry.source?.encounterId),
     ...diff.moves.map(entry => entry.source?.encounterId),
-    ...diff.pendingAdministrativeDischarges.flatMap(entry => [
-      entry.encounterId,
-      entry.source?.encounterId,
-    ]),
+    ...diff.pendingAdministrativeDischarges.flatMap(entry => [entry.encounterId, entry.source?.encounterId]),
     ...diff.conflicts.map(entry => entry.source?.encounterId),
   ];
   if (episodeId && plannedEpisodes.includes(episodeId)) return true;
   const normalizedRun = normalizeRut(run);
-  return (
-    Boolean(normalizedRun) &&
-    [
-      ...diff.admissions.map(entry => entry.patient.rut),
-      ...diff.updates.map(entry => entry.rut),
-      ...diff.moves.map(entry => entry.rut),
-      ...diff.pendingAdministrativeDischarges.map(entry => entry.rut),
-      ...diff.conflicts.map(entry => entry.rut),
-    ].some(rut => normalizeRut(rut) === normalizedRun)
-  );
+  return Boolean(normalizedRun) && [
+    ...diff.admissions.map(entry => entry.patient.rut),
+    ...diff.updates.map(entry => entry.rut), ...diff.moves.map(entry => entry.rut),
+    ...diff.pendingAdministrativeDischarges.map(entry => entry.rut),
+    ...diff.conflicts.map(entry => entry.rut),
+  ].some(rut => normalizeRut(rut) === normalizedRun);
 };
 
-export const findPlannedBedByEpisode = (
-  diff: CensusImportDiff,
-  episodeId?: string
-): string | undefined =>
+export const findPlannedBedByEpisode = (diff: CensusImportDiff, episodeId?: string): string | undefined =>
   diff.admissions.find(entry => entry.source?.encounterId === episodeId)?.bedId ??
   diff.moves.find(entry => entry.source.encounterId === episodeId)?.toBedId;
 
@@ -172,19 +145,15 @@ export const correctedStamp = (
 ): { correctedDay?: string; correctedTime?: string } => {
   const dayMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(correctedDay || '');
   const timeMatch = /^(\d{2}):(\d{2})$/.exec(correctedTime || '');
-  const date =
-    dayMatch &&
-    new Date(Date.UTC(Number(dayMatch[1]), Number(dayMatch[2]) - 1, Number(dayMatch[3])));
-  const isValidDay = Boolean(
-    dayMatch &&
-    date &&
+  const date = dayMatch && new Date(Date.UTC(
+    Number(dayMatch[1]), Number(dayMatch[2]) - 1, Number(dayMatch[3])
+  ));
+  const isValidDay = Boolean(dayMatch && date &&
     date.getUTCFullYear() === Number(dayMatch[1]) &&
     date.getUTCMonth() === Number(dayMatch[2]) - 1 &&
-    date.getUTCDate() === Number(dayMatch[3])
-  );
-  const isValidTime = Boolean(
-    timeMatch && Number(timeMatch[1]) <= 23 && Number(timeMatch[2]) <= 59
-  );
+    date.getUTCDate() === Number(dayMatch[3]));
+  const isValidTime = Boolean(timeMatch &&
+    Number(timeMatch[1]) <= 23 && Number(timeMatch[2]) <= 59);
   if (isValidDay && isValidTime) {
     return { correctedDay, correctedTime };
   }
@@ -198,14 +167,14 @@ export const hasRecordedDifferentEpisode = (
   activeEpisode: string
 ): boolean => {
   const normalizedRun = normalizeRut(run);
-  return (
-    Boolean(activeEpisode) &&
-    [...(record.discharges ?? []), ...(record.cma ?? []), ...(record.transfers ?? [])].some(
-      movement =>
-        normalizeRut(movement.rut) === normalizedRun &&
-        Boolean(movement.clinicalEpisodeId) &&
-        movement.clinicalEpisodeId !== activeEpisode
-    )
+  return Boolean(activeEpisode) && [
+    ...(record.discharges ?? []),
+    ...(record.cma ?? []),
+    ...(record.transfers ?? []),
+  ].some(movement =>
+    normalizeRut(movement.rut) === normalizedRun &&
+    Boolean(movement.clinicalEpisodeId) &&
+    movement.clinicalEpisodeId !== activeEpisode
   );
 };
 
@@ -218,13 +187,14 @@ export const episodeLessReportConflict = (
 ): CensusImportDiff['conflicts'][number] | null => {
   if (row.encounterId) return null;
   const run = normalizeRut(row.run);
-  const activeCrib = diff.activeClinicalCribs?.find(crib => normalizeRut(crib.patient.rut) === run);
+  const activeCrib = diff.activeClinicalCribs?.find(
+    crib => normalizeRut(crib.patient.rut) === run
+  );
   const storedEpisode = String(
     current?.clinicalEpisodeId ??
-      activeCrib?.source.encounterId ??
-      activeCrib?.patient.clinicalEpisodeId ??
-      currentCrib?.patient.clinicalEpisodeId ??
-      ''
+    activeCrib?.source.encounterId ??
+    activeCrib?.patient.clinicalEpisodeId ??
+    currentCrib?.patient.clinicalEpisodeId ?? ''
   ).trim();
   const activeEpisode = resolveActiveEpisode(diff, run, storedEpisode);
   if (!hasRecordedDifferentEpisode(record, run, activeEpisode)) return null;
@@ -258,13 +228,13 @@ export const hasRecordedMovement = (
   encounterId?: string
 ): boolean => {
   const normalizedRun = normalizeRut(run);
-  return [...(record.discharges ?? []), ...(record.cma ?? []), ...(record.transfers ?? [])].some(
-    movement =>
-      !movement.deletedAt &&
-      (encounterId
-        ? recordedOutcomeEpisodeId(movement) === encounterId
-        : normalizeRut(movement.rut) === normalizedRun)
-  );
+  return [
+    ...(record.discharges ?? []),
+    ...(record.cma ?? []),
+    ...(record.transfers ?? []),
+  ].some(movement => !movement.deletedAt && (encounterId
+    ? recordedOutcomeEpisodeId(movement) === encounterId
+    : normalizeRut(movement.rut) === normalizedRun));
 };
 
 export const toIsoDay = (raw: string): string => {
@@ -310,7 +280,10 @@ export const reportPredatesActiveAdmission = (
   if (reportedEpisode && activeEpisode && reportedEpisode !== activeEpisode) return false;
   return reportPredatesAdmission(stamp, evidence);
 };
-export const resolveReportDischarge = (row: EgresoReportRow, evidence: CmaOriginEvidence = {}) => {
+export const resolveReportDischarge = (
+  row: EgresoReportRow,
+  evidence: CmaOriginEvidence = {}
+) => {
   const mapped = mapDestinoDeAlta(row.destino, row.motivo);
   mapped.status = row.dischargeStatus ?? mapped.status;
   const dischargeDay = correctedStamp(
@@ -334,8 +307,7 @@ export const occupiedBedsByRun = (record: DailyRecord): Map<string, OccupiedBedE
     if (!patient?.patientName?.trim() || patient.isBlocked) continue;
     const run = normalizeRut(patient.rut);
     const key = patient.clinicalEpisodeId ? `episode:${patient.clinicalEpisodeId}` : run;
-    if (key)
-      byRun.set(key, {
+    if (key) byRun.set(key, {
         bedId,
         patientName: patient.patientName,
         rut: patient.rut,
@@ -355,9 +327,8 @@ export const findOccupiedBed = (
 ): OccupiedBedEvidence | undefined =>
   (episodeId ? index.get(`episode:${episodeId}`) : undefined) ??
   [...index.values()].find(entry => episodeId && entry.clinicalEpisodeId === episodeId) ??
-  (normalizeRut(run)
-    ? [...index.values()].find(entry => normalizeRut(entry.rut) === normalizeRut(run))
-    : undefined);
+  (normalizeRut(run) ? [...index.values()].find(entry =>
+    normalizeRut(entry.rut) === normalizeRut(run)) : undefined);
 
 export const occupiedClinicalCribsByRun = (
   record: DailyRecord
@@ -368,8 +339,7 @@ export const occupiedClinicalCribsByRun = (
     if (!patient?.patientName?.trim() || patient.isBlocked) continue;
     const run = normalizeRut(patient.rut);
     const key = patient.clinicalEpisodeId
-      ? `episode:${patient.clinicalEpisodeId}`
-      : run || `parent:${parentBedId}`;
+      ? `episode:${patient.clinicalEpisodeId}` : run || `parent:${parentBedId}`;
     byRun.set(key, { parentBedId, parent, patient });
   }
   return byRun;
@@ -383,43 +353,26 @@ export const findOccupiedClinicalCrib = (
 ): OccupiedClinicalCrib | undefined =>
   (episodeId ? index.get(`episode:${episodeId}`) : undefined) ??
   [...index.values()].find(entry => episodeId && entry.patient.clinicalEpisodeId === episodeId) ??
-  (normalizeRut(run)
-    ? [...index.values()].find(entry => normalizeRut(entry.patient.rut) === normalizeRut(run))
-    : undefined) ??
+  (normalizeRut(run) ? [...index.values()].find(entry =>
+    normalizeRut(entry.patient.rut) === normalizeRut(run)) : undefined) ??
   (parentBedId ? index.get(`parent:${parentBedId}`) : undefined) ??
-  [...index.values()].find(entry => parentBedId && entry.parentBedId === parentBedId);
+  [...index.values()].find(entry =>
+    parentBedId && entry.parentBedId === parentBedId);
 
 export const unchangedClinicalCribEpisodes = (
   diff: CensusImportDiff,
   occupied: ReadonlyMap<string, OccupiedClinicalCrib>
 ): Set<string> => {
-  const plannedEpisodes = new Set(
-    [
-      ...diff.admissions,
-      ...diff.updates,
-      ...diff.moves,
-      ...diff.pendingAdministrativeDischarges,
-      ...diff.conflicts,
-    ]
-      .map(entry => entry.source?.encounterId)
-      .filter(Boolean)
-  );
-  return new Set(
-    (diff.activeClinicalCribs ?? [])
-      .filter(
-        crib =>
-          !plannedEpisodes.has(crib.source.encounterId) &&
-          Boolean(
-            findOccupiedClinicalCrib(
-              occupied,
-              crib.patient.rut,
-              crib.source.encounterId,
-              crib.parentBedId
-            )
-          )
-      )
-      .map(crib => crib.source.encounterId)
-  );
+  const plannedEpisodes = new Set([
+    ...diff.admissions, ...diff.updates, ...diff.moves,
+    ...diff.pendingAdministrativeDischarges, ...diff.conflicts,
+  ].map(entry => entry.source?.encounterId).filter(Boolean));
+  return new Set((diff.activeClinicalCribs ?? []).filter(crib =>
+    !plannedEpisodes.has(crib.source.encounterId) &&
+    Boolean(findOccupiedClinicalCrib(
+      occupied, crib.patient.rut, crib.source.encounterId, crib.parentBedId
+    ))
+  ).map(crib => crib.source.encounterId));
 };
 export const reportEgresoFromRow = (row: EgresoReportRow): ReportEgreso => {
   const mapped = mapDestinoDeAlta(row.destino, row.motivo);
