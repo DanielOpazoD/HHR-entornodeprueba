@@ -102,6 +102,13 @@ export const buildCudyrEssentialWorkbook = async (
         for (const column of ['B', 'C', 'D']) sheet.getCell(`${column}${row}`).value = null;
     }
     addCudyrEssentialDetail(sheet, rows);
+    const reasons = [...new Set(rows.map(row => row.evaluation?.adjustmentReason).filter(Boolean))];
+    if (reasons.length) {
+      const exception = sheet.addRow([`Excepción CUDYR: ${reasons.join(' · ')}`]);
+      sheet.mergeCells(exception.number, 1, exception.number, 4);
+      exception.height = 45;
+      exception.alignment = { wrapText: true, vertical: 'middle' };
+    }
     return { date, state, pending, available: day?.state === 'disponible' };
   });
   workbook.worksheets.forEach(sheet => {

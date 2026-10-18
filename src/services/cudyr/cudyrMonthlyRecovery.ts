@@ -1,3 +1,5 @@
+import { cudyrReportCache } from './cudyrReportCache';
+import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
 import { loadCudyrReport } from './cudyrReportLoader';
 import { verifyCudyrMonthlySources } from './cudyrMonthlyVerification';
 import {
@@ -5,7 +7,6 @@ import {
   saveCudyrCensusSource,
   readCudyrCensusFile,
 } from './cudyrCensusSourceService';
-import { getNextDay } from '@/utils/clinicalDayUtils';
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
 import { requestViaBridgeChannel } from '@/services/transport/extensionRequestChannel';
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
@@ -17,13 +18,8 @@ import {
   type ArchivedCudyrSupplement,
 } from './cudyrSupplementService';
 
-export const monthlyRecoveryPeriod = (month: string) => {
-  if (!/^20\d{2}-(0[1-9]|1[0-2])$/.test(month)) throw new Error('Mes inválido.');
-  const [year, number] = month.split('-').map(Number);
-  const last = new Date(Date.UTC(year, number, 0)).toISOString().slice(0, 10);
-  const next = new Date(Date.UTC(year, number, 1)).toISOString().slice(0, 10);
-  return { month, from: `${month}-01`, last, next, reportMonths: [month, next.slice(0, 7)] };
-};
+import { monthlyRecoveryWindow, pendingCudyrRecoveryPlan } from './cudyrMonthlyRecoveryPlan';
+export { monthlyRecoveryPeriod, monthlyRecoveryWindow } from './cudyrMonthlyRecoveryPlan';
 
 type SourceReport = { month: string; base64: string; capturedAt: string };
 const fetchReport = (month: string, signal: AbortSignal, censusDate?: string) =>
@@ -57,8 +53,12 @@ const fetchReport = (month: string, signal: AbortSignal, censusDate?: string) =>
 export interface MonthlyRecoveryProgress {
   reportMonth: string;
   status: 'reading' | 'reused' | 'saved' | 'failed';
+  detail?: string;
 }
 export interface MonthlyRecoveryResult {
+  through?: string;
+  pendingDays?: number;
+  expectedReports?: number;
   verificationResult?: ReturnType<typeof verifyCudyrMonthlySources>;
   verificationError?: string;
   reports: ArchivedCudyrSupplement[];
@@ -97,9 +97,9 @@ export const recoverCudyrMonthlyReports = async (
   },
   now = new Date()
 ): Promise<MonthlyRecoveryResult> => {
-  const period = monthlyRecoveryPeriod(month);
-  if (resolveCudyrPendingStatus(period.last, now).phase !== 'overdue')
-    throw new Error('El mes sigue abierto hasta las 11:59 del primer día del mes siguiente.');
+  const startedAt = Date.now();
+  const period = monthlyRecoveryWindow(month, now);
+  if (!period) throw new Error('Aún no hay turnos cerrados para verificar en este mes.');
   const owner = getStoredSessionOwnerKey(),
     generation = getSessionGeneration();
   const check = () => {
@@ -108,20 +108,54 @@ export const recoverCudyrMonthlyReports = async (
       throw new Error('La sesión cambió.');
   };
   check();
-  // Failed Firebase reads abort: never replace an unknown archive with an assumed empty one.
-  const archived = await ports.load(period.from, period.next, signal);
+  const remember = (data: CudyrReportDataset) => {
+    check();
+    if (ports.readCensus === loadCudyrReport && owner && generation)
+      cudyrReportCache(loadCudyrReport, `${owner}:${generation}`, true).put({
+        ...data,
+        loadedAt: new Date().toISOString(),
+        readStartedAt: new Date(startedAt).toISOString(),
+      });
+  };
+  // Re-read authoritative HHR state before deciding what is still missing.
+  const baseline = await ports.readCensus(period.from, period.last, signal);
   check();
+  const plan = pendingCudyrRecoveryPlan(baseline, now);
   const result: MonthlyRecoveryResult = {
-    reports: [...archived],
+    reports: [],
     recovered: 0,
     reused: 0,
     failures: [],
     verification: 'documentary',
+    through: period.last,
+    pendingDays: plan.dates.length,
+    expectedReports: plan.reportMonths.length,
   };
+  if (!plan.dates.length) {
+    remember(baseline);
+    return result;
+  }
+  // A closed neighboring month may already be verified too. Probe it separately so
+  // the target month's official-snapshot fast path remains intact.
+  if (
+    plan.censusDates.includes(period.next) &&
+    resolveCudyrPendingStatus(period.next, now).phase === 'overdue'
+  ) {
+    const neighbor = await ports.readCensus(period.next, period.next, signal);
+    check();
+    const neighborPlan = pendingCudyrRecoveryPlan(neighbor, now);
+    if (!neighborPlan.dates.includes(period.next))
+      plan.censusDates = plan.censusDates.filter(date => date !== period.next);
+  }
+
+  // Failed archive reads abort: never replace an unknown archive with an assumed empty one.
+  const archived = await ports.load(period.from, period.next, signal);
+  check();
+  const lastPending = plan.dates.at(-1)!;
   if (ports.census) {
     const existing = await ports.census.load(period.from, period.next, signal);
     check();
-    for (let date = period.from; date <= period.next; date = getNextDay(date)) {
+    for (const date of plan.censusDates) {
       check();
       const reusable = existing.some(
         a =>
@@ -152,23 +186,27 @@ export const recoverCudyrMonthlyReports = async (
       } catch (e) {
         check();
         result.failures.push(date);
-        onProgress({ reportMonth: date, status: 'failed' });
+        onProgress({
+          reportMonth: date,
+          status: 'failed',
+          detail: e instanceof Error ? e.message : undefined,
+        });
         if (!(e instanceof Error)) throw e;
       }
     }
   }
-  for (const reportMonth of period.reportMonths) {
+  for (const reportMonth of plan.reportMonths) {
     check();
-    // Only an explicit extension receipt after this target month's closing is reusable here.
+    // Only an explicit extension receipt after the latest pending night's closing is reusable here.
     const existing = archived.find(
       r =>
         r.month === reportMonth &&
         r.capture?.source === 'extension_monthly_report' &&
         Date.parse(r.capture.observedAt) <= now.getTime() &&
         Date.parse(r.importedAt) <= now.getTime() &&
-        resolveCudyrPendingStatus(period.last, new Date(r.capture.observedAt)).phase ===
+        resolveCudyrPendingStatus(lastPending, new Date(r.capture.observedAt)).phase ===
           'overdue' &&
-        resolveCudyrPendingStatus(period.last, new Date(r.importedAt)).phase === 'overdue'
+        resolveCudyrPendingStatus(lastPending, new Date(r.importedAt)).phase === 'overdue'
     );
     if (existing) {
       result.reused++;
@@ -199,7 +237,11 @@ export const recoverCudyrMonthlyReports = async (
     } catch (error) {
       check();
       result.failures.push(reportMonth);
-      onProgress({ reportMonth, status: 'failed' });
+      onProgress({
+        reportMonth,
+        status: 'failed',
+        detail: error instanceof Error ? error.message : undefined,
+      });
       // Preserve other checkpoints; a failure never becomes a negative clinical result.
       if (!(error instanceof Error)) throw error;
     }
@@ -207,17 +249,20 @@ export const recoverCudyrMonthlyReports = async (
   check();
   const reports = await ports.load(period.from, period.next, signal);
   check();
+  // Include receipts created during this run, without admitting future timestamps.
+  const completedAt = now.getTime() + Math.max(0, Date.now() - startedAt);
   // Only source reports with final capture receipts are eligible for the source-cell check.
-  result.reports = period.reportMonths.flatMap(reportMonth => {
+  result.reports = plan.reportMonths.flatMap(reportMonth => {
     const candidates = reports.filter(
       r =>
         r.month === reportMonth &&
         r.capture?.source === 'extension_monthly_report' &&
         Number.isFinite(Date.parse(r.capture.observedAt)) &&
-        Date.parse(r.capture.observedAt) <= Date.now() &&
-        resolveCudyrPendingStatus(period.last, new Date(r.capture.observedAt)).phase ===
+        Date.parse(r.capture.observedAt) <= completedAt &&
+        Date.parse(r.importedAt) <= completedAt &&
+        resolveCudyrPendingStatus(lastPending, new Date(r.capture.observedAt)).phase ===
           'overdue' &&
-        resolveCudyrPendingStatus(period.last, new Date(r.importedAt)).phase === 'overdue'
+        resolveCudyrPendingStatus(lastPending, new Date(r.importedAt)).phase === 'overdue'
     );
     return candidates
       .sort(
@@ -231,6 +276,7 @@ export const recoverCudyrMonthlyReports = async (
     const census = await ports.readCensus(period.from, period.last, signal);
     check();
     result.verificationResult = verifyCudyrMonthlySources(census, result.reports);
+    remember(census);
   } catch {
     check(); // Cancellation/session changes still invalidate this caller.
     result.verificationError =

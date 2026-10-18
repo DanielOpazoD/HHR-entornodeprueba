@@ -33,6 +33,43 @@ const make = () => {
   return { data, source };
 };
 describe('official monthly CUDYR projection', () => {
+  it.each([null, 'B1'])(
+    'preserves a justified exception when Eloísa returns %s, including repeated refresh',
+    category => {
+      const { source } = make();
+      source.report.patients[0].days[2].category = category;
+      const input = confirmedReportInput({
+        records: [
+          reportRecord('2026-10-02', {
+            R1: reportPatient({
+              evaluationScores: {
+                cudyr: {
+                  category: 'C2',
+                  source: 'HHR · ajuste administrativo',
+                  recordedDate: '2026-10-02',
+                  adjustmentReason: 'Interrupción de internet documentada',
+                  adjustmentEvidence: 'audit/synthetic-contingency',
+                },
+              },
+            }),
+          }),
+        ],
+      });
+      const data = buildCudyrReport({ ...input, sourcePolicy: 'eloisa_only' });
+      data.generatedAt = '2026-11-02T20:00:00Z';
+      const once = applyCudyrMonthlySources(data, [source]);
+      const twice = applyCudyrMonthlySources(once, [source]);
+      expect(twice.rows[0].evaluation).toMatchObject({
+        category: 'C2',
+        adjustmentReason: 'Interrupción de internet documentada',
+        adjustmentEvidence: 'audit/synthetic-contingency',
+      });
+      expect(twice.rows[0].cudyrStatus).toBe('registrado');
+      expect(twice.rows[0].warnings).toEqual(once.rows[0].warnings);
+      expect(cudyrReportTotals(twice.rows).categorized).toBe(1);
+    }
+  );
+
   it.each(['blank', 'missing patient'])(
     'keeps a prior positive when the newer source has %s',
     kind => {

@@ -1,3 +1,5 @@
+import { loadCudyrReport } from '@/services/cudyr/cudyrReportLoader';
+import { readCudyrReadView, saveCudyrReadView } from '@/services/cudyr/cudyrReadView';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCudyrReport } from '@/features/cudyr/hooks/useCudyrReport';
@@ -9,6 +11,10 @@ vi.mock('@/services/storage/sessionScopedStorageService', () => ({
 }));
 vi.mock('@/services/storage/sessionStorageTransition', () => ({
   getSessionGeneration: () => session.generation,
+}));
+vi.mock('@/services/cudyr/cudyrReadView', () => ({
+  readCudyrReadView: vi.fn(),
+  saveCudyrReadView: vi.fn(),
 }));
 vi.mock('@/services/cudyr/cudyrReportLoader', () => ({ loadCudyrReport: vi.fn() }));
 const dataset = (from: string, to: string, version = 'v1') => ({
@@ -382,4 +388,104 @@ it('refreshes on the next clinical day when a cached read merely finished after 
   } finally {
     vi.useRealTimers();
   }
+});
+
+it('displays a saved Firebase view while verifying and replaces it with fresh evidence', async () => {
+  session.owner = 'firebase-copy-owner';
+  let finish!: (value: ReturnType<typeof dataset>) => void;
+  const saved = { ...dataset('2026-10-01', '2026-10-12'), readViewSnapshot: 'saved' };
+  vi.mocked(readCudyrReadView).mockResolvedValue(saved);
+  vi.mocked(loadCudyrReport).mockImplementationOnce(
+    () =>
+      new Promise(resolve => {
+        finish = resolve;
+      })
+  );
+  const { result } = renderHook(() => useCudyrReport('2026-10-12'));
+  await waitFor(() => expect(result.current.data?.readViewSnapshot).toBe('saved'));
+  expect(result.current.busy).toBe(true);
+  const fresh = { ...dataset('2026-10-01', '2026-10-12'), readIncomplete: false };
+  await act(async () => finish(fresh));
+  await waitFor(() => expect(result.current.busy).toBe(false));
+  expect(result.current.data?.readViewSnapshot).toBeUndefined();
+  expect(saveCudyrReadView).toHaveBeenCalledWith(
+    expect.objectContaining({ readIncomplete: false })
+  );
+});
+
+it('a late presentation copy cannot replace a completed authoritative read', async () => {
+  session.owner = 'firebase-late-copy-owner';
+  let finish!: (value: ReturnType<typeof dataset> & { readViewSnapshot: string }) => void;
+  vi.mocked(readCudyrReadView).mockImplementationOnce(
+    () =>
+      new Promise(resolve => {
+        finish = resolve;
+      })
+  );
+  vi.mocked(loadCudyrReport).mockResolvedValueOnce({
+    ...dataset('2026-10-01', '2026-10-12'),
+    readIncomplete: false,
+  });
+  const { result } = renderHook(() => useCudyrReport('2026-10-12'));
+  await waitFor(() => expect(result.current.busy).toBe(false));
+  const current = result.current.data;
+  await act(async () =>
+    finish({ ...dataset('2026-10-01', '2026-10-12'), readViewSnapshot: 'late' })
+  );
+  expect(result.current.data).toBe(current);
+});
+
+it.each(['incomplete', 'failed'])(
+  'discards the provisional Firebase copy after a %s authoritative attempt',
+  async failure => {
+    session.owner = `firebase-failure-${failure}`;
+    const saved = { ...dataset('2026-10-01', '2026-10-12'), readViewSnapshot: 'saved' };
+    vi.mocked(readCudyrReadView).mockResolvedValueOnce(saved);
+    let finish!: () => void;
+    vi.mocked(loadCudyrReport).mockImplementationOnce(
+      () =>
+        new Promise((resolve, reject) => {
+          finish = () =>
+            failure === 'failed'
+              ? reject(new Error('Lectura fallida'))
+              : resolve({
+                  ...dataset('2026-10-01', '2026-10-12'),
+                  readIncomplete: true,
+                  issues: ['Lectura incompleta'],
+                });
+        })
+    );
+    const { result } = renderHook(() => useCudyrReport('2026-10-12'));
+    await waitFor(() => expect(result.current.data?.readViewSnapshot).toBe('saved'));
+    await act(async () => finish());
+    await waitFor(() => expect(result.current.busy).toBe(false));
+    expect(result.current.data?.readViewSnapshot).toBeUndefined();
+    expect(result.current.error).toBeTruthy();
+    if (failure === 'failed') expect(result.current.data).toBeNull();
+  }
+);
+
+it('does not promote the display copy to last-good data when a census revision restarts verification', async () => {
+  session.owner = 'firebase-restarted-copy';
+  const saved = { ...dataset('2026-10-01', '2026-10-12'), readViewSnapshot: 'saved' };
+  vi.mocked(readCudyrReadView).mockResolvedValue(saved);
+  let fail!: () => void;
+  vi.mocked(loadCudyrReport)
+    .mockImplementationOnce(() => new Promise(() => {}))
+    .mockImplementationOnce(
+      () =>
+        new Promise((_resolve, reject) => {
+          fail = () => reject(new Error('offline'));
+        })
+    );
+  const { result, rerender } = renderHook(
+    ({ version }) => useCudyrReport('2026-10-12', loadCudyrReport, { date: '2026-10-12', version }),
+    { initialProps: { version: 'old' } }
+  );
+  await waitFor(() => expect(result.current.data?.readViewSnapshot).toBe('saved'));
+  rerender({ version: 'new' });
+  await waitFor(() => expect(fail).toBeDefined());
+  await act(async () => fail());
+  expect(result.current.data).toBeNull();
+  expect(result.current.busy).toBe(false);
 });
