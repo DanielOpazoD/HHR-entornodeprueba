@@ -10,6 +10,10 @@ La [guía operativa navegable](docs/guia-operativa.html) reúne fuentes, escenar
 estados de implementación. El contrato es canónico; la guía no sustituye sus reglas
 ni demuestra por sí sola que el código o el despliegue las cumplan.
 
+Para preparar la transición entre Firebase, personas e IA deben leer primero la
+[política de fuentes y alcance](docs/migration/00-fuentes-y-alcance.md). Define qué
+censos están cerrados y la revisión acotada de enfermería y medios de traslado.
+
 Modelo de acceso:
 
 - [Auth Access Model](docs/AUTH_ACCESS_MODEL.md)
