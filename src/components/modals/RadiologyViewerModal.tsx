@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react';
+import { useDicomReviewCache } from '@/components/radiology/useDicomReviewCache';
 import { Radio } from 'lucide-react';
 import { LAYER_Z_INDEX } from '@/shared/ui/layering';
 import { normalizeDicomPatientId, type DicomCapture } from '@/services/radiology/dicomTypes';
@@ -64,6 +65,7 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
   onCapture,
 }) => {
   const [selectedRut, setSelectedRut] = useState(initialPatientRut || patients[0]?.rut || '');
+  const reviewCache = useDicomReviewCache(isOpen, selectedRut);
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<MMRADSearchResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -370,6 +372,7 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
           <React.Suspense fallback={<p role="status">Cargando visor…</p>}>
             <DicomViewerDialog
               key={`${selectedRut}:${dicomExam.dicom_url}`}
+              reviewCache={reviewCache}
               link={dicomExam.dicom_url}
               patientId={selectedRut}
               patientName={

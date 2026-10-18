@@ -321,14 +321,25 @@ su documento y fecha del estudio. El informe disponible se descarga solo al puls
 su botón, con autenticación, `no-store`, nombre de archivo genérico y cancelación
 al cerrar. Los datos de cabecera no se añaden a PNG ni MP4.
 
-Tras completar la serie seleccionada, se precargan las otras series en el orden del
-estudio, una solicitud a la vez. Se comprueba paciente/estudio/serie/instancia antes
-de guardar cada original en una caché exclusiva de la sesión, limitada a 64 MiB
-adicionales. La lectura de cada respuesta se corta si excede el espacio reservado;
-se reserva también espacio para ensamblar los fragmentos recibidos. No se decodifican ni construyen volúmenes en segundo plano. Al llegar
-al límite o ante un fallo se detiene la precarga. Cambiar de serie cancela y drena
-la petición pendiente, consume los originales disponibles sin repetir la descarga
-y vuelve a verificarlos con el cargador normal. Cerrar el visor vacía la caché.
+Tras completar la serie seleccionada, se precargan las otras series, priorizando
+las descritas como AX, axial o transversal; el resto mantiene su orden. Este criterio
+solo ordena solicitudes: no determina geometría ni excluye localizadores. La selección
+inicial también prioriza las series CT con esas descripciones. Se usa una sola conexión
+de fondo, que se cancela y drena al solicitar otra serie; no se crean volúmenes GPU.
+
+Los originales verificados se conservan en una caché de revisión de paciente, solo en
+memoria, de hasta 256 MiB compartidos entre estudios. Las claves usan paciente, estudio,
+serie e instancia, nunca tickets renovables. Reabrir un estudio vuelve a consultar sus
+metadatos autorizados y el cargador vuelve a comprobar cada original antes de mostrarlo.
+La caché incluye descargas solicitadas y precargadas, sin consumirlas al leerlas.
+Cambiar de paciente, cerrar Radiología/Imagenología o desmontar la revisión la elimina;
+cerrar únicamente el visor permite volver a otro estudio del mismo paciente y regresar.
+
+Las descargas solicitadas desalojan los originales menos utilizados al alcanzar el
+límite; la precarga no desaloja imágenes y se detiene al llenarse o ante un error.
+Los originales desalojados deben descargarse otra vez. Las series multicuadro siguen
+requiriendo el visor externo y no se precargan. No hay almacenamiento persistente,
+telemetría de contenido ni reutilización entre pacientes.
 
 Con el foco en un plano: arriba/abajo recorre cortes, Re Pág/Av Pág avanza diez,
 izquierda/derecha cambia el foco entre los tres planos, y Ctrl/⌘ Z elimina la última

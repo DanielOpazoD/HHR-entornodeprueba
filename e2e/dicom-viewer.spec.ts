@@ -558,6 +558,81 @@ test.describe('DICOM viewer and Salvador annexes', () => {
     expect(requests.length).toBe(28);
     await viewer.screenshot({ path: test.info().outputPath('synthetic-compact-toolbar.png') });
   });
+  test('reuses originals across verified studies and releases them when the patient review closes', async ({
+    page,
+  }) => {
+    await setup(page);
+    const secondStudy = {
+      ...study,
+      uid: '1.2.826.0.1.3680043.10.543.101',
+      series: study.series.map(series => ({
+        ...series,
+        instances: series.instances.map((item, i) => ({ ...item, ticket: `other-${i}` })),
+      })),
+    };
+    await page.route('**/.netlify/functions/mmrad-search*', route =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          rut: '11111111-1',
+          examenes: [
+            exam,
+            { ...exam, nombre_examen: 'OTRO TAC SINTÉTICO', dicom_url: `${link}-other` },
+          ],
+        }),
+      })
+    );
+    let downloads = 0,
+      metadata = 0;
+    await page.route('**/.netlify/functions/mmrad-dicom', route => {
+      const body = route.request().postDataJSON();
+      if (body.action === 'metadata') {
+        metadata++;
+        return route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify(body.link === link ? study : secondStudy),
+        });
+      }
+      downloads++;
+      const ticket = String(body.ticket);
+      return route.fulfill({
+        contentType: 'application/dicom',
+        body: Buffer.from(
+          syntheticDicom(
+            Number(ticket.split('-')[1]),
+            24,
+            SYNTHETIC_PATIENT_ID,
+            undefined,
+            undefined,
+            undefined,
+            { studyUid: ticket.startsWith('other-') ? secondStudy.uid : study.uid }
+          )
+        ),
+      });
+    });
+    const editor = await openSalvador(page);
+    await editor.getByRole('button', { name: 'Imágenes MMRAD' }).click();
+    const viewer = page.getByRole('dialog', { name: /Visor DICOM/ });
+    for (const index of [0, 1, 0]) {
+      await page.getByRole('button', { name: 'Ver DICOM', exact: true }).nth(index).click();
+      await expect(viewer.getByRole('button', { name: 'MPR', exact: true })).toBeEnabled({
+        timeout: 60000,
+      });
+      await viewer.getByRole('button', { name: 'Cerrar modal', exact: true }).click();
+    }
+    expect(metadata).toBe(3);
+    expect(downloads).toBe(48);
+    await page
+      .getByRole('dialog', { name: 'Radiología / Imagenología' })
+      .getByRole('button', { name: 'Cerrar modal', exact: true })
+      .click();
+    await editor.getByRole('button', { name: 'Imágenes MMRAD' }).click();
+    await page.getByRole('button', { name: 'Ver DICOM', exact: true }).first().click();
+    await expect(viewer.getByRole('button', { name: 'MPR', exact: true })).toBeEnabled({
+      timeout: 60000,
+    });
+    expect(downloads).toBe(72);
+  });
   test('cine exports an ordered inclusive MP4 with privacy review and cancellation', async ({
     page,
   }) => {

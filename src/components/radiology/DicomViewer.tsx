@@ -4,7 +4,10 @@ import { fetchDicomStudy } from '@/services/radiology/mmradDicomService';
 import type { DicomStudy } from '@/services/radiology/dicomTypes';
 import type { DicomViewerDialogProps } from './DicomViewerDialog';
 import { DicomSeriesView } from './DicomSeriesView';
-import { createDicomStudyPrefetch } from '@/services/radiology/dicomStudyPrefetch';
+import {
+  createDicomStudyPrefetch,
+  prioritizeDicomSeries,
+} from '@/services/radiology/dicomStudyPrefetch';
 import { DicomPatientBar } from './DicomPatientBar';
 import './dicomViewer.css';
 import './dicomProgressive.css';
@@ -16,6 +19,7 @@ const DicomViewerSession: React.FC<DicomViewerDialogProps> = ({
   patientName,
   studyDate,
   reportLink,
+  reviewCache,
   onCapture,
 }) => {
   const [study, setStudy] = useState<DicomStudy | null>(null);
@@ -31,11 +35,12 @@ const DicomViewerSession: React.FC<DicomViewerDialogProps> = ({
     void fetchDicomStudy(link, patientId, controller.signal)
       .then(result => {
         if (controller.signal.aborted) return;
-        session = createDicomStudyPrefetch(result);
+        session = createDicomStudyPrefetch(result, undefined, reviewCache);
         setPrefetch(session);
         setStudy(result);
         setSeriesUid(
-          result.series.find(item => item.modality === 'CT')?.uid || result.series[0].uid
+          prioritizeDicomSeries(result.series).find(item => item.modality === 'CT')?.uid ||
+            result.series[0].uid
         );
       })
       .catch((reason: unknown) => {
@@ -46,7 +51,7 @@ const DicomViewerSession: React.FC<DicomViewerDialogProps> = ({
       controller.abort();
       session?.dispose();
     };
-  }, [link, patientId, attempt]);
+  }, [link, patientId, attempt, reviewCache]);
   const series = study?.series.find(item => item.uid === seriesUid);
   return (
     <div
