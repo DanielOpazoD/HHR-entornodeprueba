@@ -7,13 +7,17 @@ Responsable: mantenedor de HHR (Daniel Opazo).
 
 Se acepta únicamente GHSA-vfj7-8cjw-p6xm en la cadena de desarrollo del
 lockfile raíz aprobado, cuya SHA-256 es
-`e2488dd3a787ecb0bbf99cdfbc6504c153a2c4e2503c235de8dd4fa989a9c257`.
+`38fd65268f90a139ff3d583cc2d3754a0fa4a22a28fc7b7f3bab745266e374ff`.
 Daniel autorizó actualizar la huella el 9 de octubre de 2026 para el parche
 transitivo Handlebars 4.7.10 y el 11 de octubre para Firebase CLI 15.16.0.
 El 16 de octubre de 2026 autorizó explícitamente renovar sólo la huella para
 el visor DICOM del PR #874 (Cornerstone 4.22.13 y dicom-parser 1.8.21), conservando
 la misma excepción. La auditoría remota del lockfile nuevo conserva los mismos
 siete paquetes/versiones/rutas de desarrollo con severidad alta y cero críticos.
+Para el PR #885, Daniel autorizó explícitamente renovar únicamente la huella
+tras incorporar Mediabunny 1.61.6. La comparación con la auditoría remota
+confirmó los mismos siete paquetes, versiones y rutas afectados, sin aceptar
+vulnerabilidades adicionales.
 Se mantienen el aviso y todos los controles; no se acepta ninguna vulnerabilidad
 adicional. Los hallazgos bajos y moderados permanecen visibles en la auditoría.
 Las siete entradas son braces 3.0.3, micromatch 4.0.8, chokidar 3.6.0,
