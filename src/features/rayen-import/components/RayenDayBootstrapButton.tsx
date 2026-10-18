@@ -20,6 +20,7 @@ export const RayenDayBootstrapButton: React.FC<RayenDayBootstrapButtonProps> = (
   onCopyPrevious,
 }) => {
   const extension = useRayenExtensionHealth();
+  const connectionDetailId = React.useId();
   const { warning } = useNotification();
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -142,49 +143,123 @@ export const RayenDayBootstrapButton: React.FC<RayenDayBootstrapButtonProps> = (
       : !error && extension.canSync
         ? 'bg-emerald-500'
         : 'bg-amber-500';
+  const connectionLabel = checking
+    ? 'Comprobando conexiones…'
+    : extension.canSync
+      ? 'Listo para sincronizar'
+      : extension.connection === 'offline'
+        ? 'Sin conexión'
+        : 'Conexión incompleta';
+  const connectionTone = checking
+    ? 'bg-amber-500'
+    : extension.canSync
+      ? 'bg-emerald-500'
+      : extension.connection === 'offline'
+        ? 'bg-slate-400'
+        : 'bg-amber-500';
+  const connectionDetail = extension.canSync
+    ? 'Extensión, Ficha Médico y Gestión de Camas disponibles, con sesiones vigentes.'
+    : extension.message;
+  const sourceDateLabel = copySourceDate
+    ? new Intl.DateTimeFormat('es-CL', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        timeZone: 'UTC',
+      }).format(new Date(`${copySourceDate}T12:00:00Z`))
+    : '';
   const actionLabel = copySourceDate
-    ? `Copiar pacientes del ${Number(copySourceDate.slice(-2))}`
+    ? 'Copiar censo y sincronizar'
     : historical
       ? 'Reconstruir desde Eloísa'
       : 'Crear desde Eloísa';
   return (
-    <div className="flex w-64 flex-col gap-2">
+    <div className="flex w-full max-w-xs flex-col items-center gap-3">
+      {copySourceDate && (
+        <p className="text-sm text-slate-500">
+          Copiar censo del{' '}
+          <time dateTime={copySourceDate} className="font-semibold text-slate-700">
+            {sourceDateLabel}
+          </time>
+        </p>
+      )}
       <button
         type="button"
         onClick={() => void handleClick()}
         disabled={busy || (checking && !copySourceDate)}
-        className="btn btn-primary group !h-auto !p-6 shadow-lg shadow-medical-500/30 flex-col"
+        className="btn btn-primary group w-full !h-auto !p-4 shadow-md shadow-medical-500/15 flex-col"
         data-testid="create-from-rayen-btn"
       >
-        <div className="flex items-center gap-2 text-lg font-bold">
-          <RefreshCw size={20} className={busy ? 'animate-spin' : undefined} />
-          <span>{busy ? (copySourceDate ? 'Copiando…' : 'Preparando…') : actionLabel}</span>
+        <div className="flex items-center gap-2 text-base font-semibold">
+          {!copySourceDate && (
+            <RefreshCw
+              size={20}
+              className={busy ? 'animate-spin motion-reduce:animate-none' : undefined}
+            />
+          )}
+          <span>
+            {busy
+              ? step === 'copying'
+                ? 'Copiando censo…'
+                : 'Preparando sincronización…'
+              : actionLabel}
+          </span>
         </div>
-        <span className="text-xs font-normal text-medical-100">
-          {copySourceDate
-            ? 'Conserva especialidades y abre la sincronización para revisar'
-            : historical
+        {!copySourceDate && (
+          <span className="text-xs font-normal text-medical-100">
+            {historical
               ? 'Revisar evidencia del día antes de importar'
               : 'Revisar pacientes y camas antes de importar'}
-        </span>
+          </span>
+        )}
       </button>
-      <div
-        className="flex items-start gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-xs"
-        role="status"
-        aria-live="polite"
-        data-testid="eloisa-bootstrap-status"
-      >
-        <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${statusTone}`} aria-hidden="true" />
-        <div>
-          <strong className="text-slate-700">{status}</strong>
-          <p className="text-slate-500">
-            {error ??
-              (extension.canSync
-                ? 'Ficha Médico y Gestión de Camas conectados.'
-                : extension.message)}
+      {copySourceDate ? (
+        <div className="group relative text-xs text-slate-500">
+          <div
+            tabIndex={0}
+            aria-label="Estado conjunto de conexiones"
+            aria-describedby={connectionDetailId}
+            title={connectionDetail}
+            className="flex items-center gap-2 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-500"
+            data-testid="eloisa-bootstrap-status"
+            role="status"
+            aria-live="polite"
+          >
+            <span className={`h-2 w-2 rounded-full ${connectionTone}`} aria-hidden="true" />
+            <span>{connectionLabel}</span>
+          </div>
+          <p
+            id={connectionDetailId}
+            role="tooltip"
+            className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 hidden w-64 -translate-x-1/2 rounded-lg border border-slate-200 bg-white p-3 text-left shadow-md group-hover:block group-focus-within:block"
+          >
+            {connectionDetail}
           </p>
         </div>
-      </div>
+      ) : (
+        <div
+          className="flex items-start gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-xs"
+          role="status"
+          aria-live="polite"
+          data-testid="eloisa-bootstrap-status"
+        >
+          <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${statusTone}`} aria-hidden="true" />
+          <div>
+            <strong className="text-slate-700">{status}</strong>
+            <p className="text-slate-500">
+              {error ??
+                (extension.canSync
+                  ? 'Ficha Médico y Gestión de Camas conectados.'
+                  : extension.message)}
+            </p>
+          </div>
+        </div>
+      )}
+      {copySourceDate && error && (
+        <p role="alert" className="text-sm text-red-700">
+          {error}
+        </p>
+      )}
       {manualAvailable && !confirmManual && (
         <button
           type="button"

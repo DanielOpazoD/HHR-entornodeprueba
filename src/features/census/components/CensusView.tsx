@@ -1,5 +1,5 @@
 import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
-import { ViewLoader } from '@/components/ui/ViewLoader';
+import { CensusLoadingState } from './CensusLoadingState';
 import { useDailyRecordStatus } from '@/context/DailyRecordContext';
 import { useCensusViewScreenModel } from '@/features/census/hooks/useCensusViewScreenModel';
 import { CensusOperationalStateBanner } from './CensusOperationalStateBanner';
@@ -88,12 +88,29 @@ const CensusViewContent: React.FC<CensusViewProps> = ({
   });
 
   if (branch === 'empty') {
-    if (isEmptyBranchPending) {
-      return <CensusOperationalStateBanner state={loadingOperationalState} />;
+    // Elapsed grace time is not evidence of absence. Only confirmed_empty may
+    // mount creation UI; cached/late Firebase responses must never flash it.
+    if (isEmptyBranchPending || dailyRecordStatus.bootstrapPhase !== 'confirmed_empty') {
+      if (dailyRecordStatus.syncStatus === 'error') {
+        return <CensusOperationalStateBanner state={loadingOperationalState} />;
+      }
+      const stalled =
+        dailyRecordStatus.bootstrapPhase === 'remote_record_timeout' ||
+        dailyRecordStatus.bootstrapPhase === 'local_only';
+      return (
+        <CensusLoadingState
+          stalled={stalled}
+          message={
+            stalled
+              ? 'No se pudo comprobar este día. Revisa la conexión o vuelve a seleccionarlo.'
+              : undefined
+          }
+        />
+      );
     }
 
     return (
-      <Suspense fallback={<ViewLoader />}>
+      <Suspense fallback={<CensusLoadingState />}>
         {emptyDayPromptProps ? (
           <LazyEmptyDayPrompt
             {...emptyDayPromptProps}

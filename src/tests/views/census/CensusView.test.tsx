@@ -170,7 +170,7 @@ describe('CensusView', () => {
     vi.useRealTimers();
   });
 
-  it('restarts the remote grace period on date revisits and cancels it when data arrives', async () => {
+  it('never treats elapsed grace time as an empty day and shows arriving records immediately', async () => {
     vi.useFakeTimers();
     mockUseDailyRecordData.mockReturnValue({ bootstrapPhase: 'remote_record_bootstrapping' });
     mockUseDailyRecordStatus.mockReturnValue({
@@ -182,7 +182,8 @@ describe('CensusView', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(15_000);
     });
-    expect(screen.getByTestId('empty-day-prompt')).toBeInTheDocument();
+    expect(screen.queryByTestId('empty-day-prompt')).not.toBeInTheDocument();
+    expect(screen.getByTestId('census-loading-state')).toBeInTheDocument();
     rerender(<CensusView {...defaultProps} currentDateString="2025-01-03" />);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1_000);
@@ -206,7 +207,7 @@ describe('CensusView', () => {
     expect(screen.queryByTestId('empty-day-prompt')).not.toBeInTheDocument();
   });
 
-  it('keeps the local-only grace period before offering an empty day', async () => {
+  it('does not offer creation when only an empty local cache is available', async () => {
     vi.useFakeTimers();
     mockUseDailyRecordData.mockReturnValue({ bootstrapPhase: 'local_only' });
     mockUseDailyRecordStatus.mockReturnValue({ bootstrapPhase: 'local_only', syncStatus: 'idle' });
@@ -219,7 +220,8 @@ describe('CensusView', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1);
     });
-    expect(screen.getByTestId('empty-day-prompt')).toBeInTheDocument();
+    expect(screen.queryByTestId('empty-day-prompt')).not.toBeInTheDocument();
+    expect(screen.getByText(/No se pudo comprobar este día/)).toBeInTheDocument();
   });
 
   it('renders main census sections when record is present', async () => {

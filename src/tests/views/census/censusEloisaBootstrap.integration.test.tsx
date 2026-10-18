@@ -284,7 +284,7 @@ describe('Crear desde Eloísa · costura CensusView → RayenImportButton', () =
     const view = renderCensus();
 
     const copyButton = await screen.findByTestId('create-from-rayen-btn');
-    expect(copyButton).toHaveTextContent('Copiar pacientes del 9');
+    expect(copyButton).toHaveTextContent('Copiar censo y sincronizar');
     await act(async () => {
       fireEvent.click(copyButton);
     });

@@ -1,6 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { Calendar } from 'lucide-react';
-import { MONTH_NAMES } from '@/constants/export';
 import {
   shouldRecordCensusEmptyStateDiagnostic,
   type CensusEmptyStateDiagnostic,
@@ -42,8 +40,6 @@ const emptyDayMessage = (source?: CensusEmptyStateDiagnostic['source']): string 
 };
 
 export const EmptyDayPrompt: React.FC<EmptyDayPromptProps> = ({
-  selectedDay,
-  selectedMonth,
   currentDateString,
   previousRecordAvailable,
   previousRecordDate,
@@ -103,21 +99,23 @@ export const EmptyDayPrompt: React.FC<EmptyDayPromptProps> = ({
     dayConfirmedEmpty && Boolean(onRayenBootstrapReady) && rayenTarget.kind !== 'unsupported';
 
   return (
-    <div className="card mt-8 flex flex-col items-center justify-center px-5 py-14 text-center print:hidden animate-fade-in">
-      <div className="mb-5 rounded-full bg-slate-50 p-5">
-        <Calendar size={48} className="text-medical-200" aria-hidden="true" />
-      </div>
-      <h2 className="mb-2 text-2xl font-bold text-slate-800">
-        {selectedDay} de {MONTH_NAMES[selectedMonth]}
-      </h2>
-      <p
-        className="mb-6 max-w-md text-sm text-slate-500"
-        role="status"
-        aria-live="polite"
-        data-testid="empty-day-diagnostic-message"
-      >
-        {emptyDayMessage(diagnosticSource)}
-      </p>
+    <div className="card mt-8 flex flex-col items-center justify-center px-5 py-6 text-center print:hidden">
+      <img
+        src="/illustrations/census-hanga-roa.svg"
+        alt="Enfermera preparando el censo en Hanga Roa, junto a una cama y un portasueros"
+        className="mb-3 w-full max-w-lg"
+        width="760"
+        height="630"
+      />
+      {!canCreate && !readOnly && (
+        <p
+          className="mb-6 max-w-md text-sm text-slate-500"
+          role="status"
+          data-testid="empty-day-diagnostic-message"
+        >
+          {emptyDayMessage(diagnosticSource)}
+        </p>
+      )}
       {readOnly ? (
         <p className="max-w-sm text-sm text-amber-800">Pide a enfermería que inicie el censo.</p>
       ) : canCreate ? (
