@@ -1,0 +1,776 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>HHR · Reglas aprobadas de sincronización y estadísticas · v8</title><style>
+:root{--ink:#162d3b;--muted:#526875;--line:#d9e3e8;--teal:#006c70;--navy:#0d293c;--bg:#f0f5f6;--amber:#835300}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}a{color:#005f83;text-underline-offset:3px;overflow-wrap:anywhere}header{background:var(--navy);color:white;padding:44px max(24px,calc((100vw - 1180px)/2));}header .eyebrow{color:#8eddd7;letter-spacing:.13em;font-size:12px;font-weight:750;text-transform:uppercase}h1{font-size:clamp(30px,4vw,48px);line-height:1.13;max-width:950px;margin:14px 0}header p{max-width:850px;color:#d5e4ea}header small{color:#bad2de}nav{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--line);z-index:3;padding:12px max(20px,calc((100vw - 1180px)/2));display:flex;gap:10px;align-items:center;flex-wrap:wrap}button{font:inherit;font-weight:650;padding:10px 17px;border-radius:9px;border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer}button[aria-selected=true]{background:var(--teal);color:white;border-color:var(--teal)}button:focus-visible,a:focus-visible,.table-scroll:focus-visible{outline:3px solid #d49c20;outline-offset:3px}#print{margin-left:auto}.wrap{max-width:1220px;margin:auto;padding:26px 20px 50px}.card{background:#fff;border:1px solid var(--line);border-radius:15px;padding:28px;margin-bottom:22px;box-shadow:0 3px 15px #16354a05}h2{font-size:24px;line-height:1.3;margin:0 0 20px;color:var(--navy)}h3{font-size:19px}p{margin:12px 0}li{margin:8px 0}.table-scroll{overflow:auto;margin:18px 0}table{border-collapse:collapse;width:100%;font-size:14px;line-height:1.55;min-width:680px}th{background:#e9f2f4;text-align:left;color:#173a4d;font-size:13px;padding:13px;vertical-align:top}td{padding:13px;border-bottom:1px solid var(--line);vertical-align:top}td:first-child{font-weight:650;min-width:135px}tr:last-child td{border-bottom:0}tbody tr:nth-child(even){background:#f8fafb}.note,.warn{padding:17px 20px;border-radius:9px;margin:20px 0;background:#eaf6f5;border-left:4px solid #168780}.warn{background:#fff5e3;border-left-color:#c48a21;color:#654613}.refs{display:block;font-size:12px;margin:12px 0;color:var(--muted)}.refs a{display:inline-block;margin:0 5px 4px 0}.formula{font-size:20px;font-weight:700;background:#eaf6f5;border-radius:9px;padding:20px}.flow{padding:20px;background:#eef4fa;border-radius:9px;font-weight:650}.check{columns:2;padding-left:22px}.source-list{padding-left:25px}.source-list li{margin:0 0 18px;padding:10px;border-bottom:1px solid var(--line);scroll-margin-top:125px}.source-list a{font-size:13px}code{font-size:13px;overflow-wrap:anywhere;background:#edf3f6;padding:2px 5px;border-radius:4px}footer{color:var(--muted);padding:10px 25px 35px;text-align:center;font-size:13px}[hidden]{display:none!important}.legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:22px}.legend span{border:1px solid #547081;border-radius:20px;padding:4px 12px;font-size:12px} @media(max-width:700px){header{padding:30px 22px}.wrap{padding:16px 12px}.card{padding:20px 15px}h2{font-size:21px}nav{padding:10px;gap:6px}button{font-size:13px;padding:9px 10px}#print{margin-left:0}.check{columns:1}table{min-width:620px}.formula{font-size:17px}}@media print{body{background:white;font-size:10pt;color:#111}header{background:white;color:#111;padding:0 0 20px}header p,header small{color:#333}header .eyebrow{color:#333}h1{font-size:26pt}nav,footer .screen-only{display:none}.wrap{max-width:none;padding:0}.card{box-shadow:none;border:0;border-top:1px solid #aaa;border-radius:0;padding:16px 0;margin:0}h2{font-size:17pt;break-after:avoid}.table-scroll{overflow:visible}table{min-width:0;font-size:9pt}th,td{padding:7px}tr{break-inside:avoid}.panel[hidden]{display:block!important}.panel+.panel{break-before:page}.source-list li{break-inside:avoid}a{color:#111}.refs{font-size:8pt}.legend span{border-color:#aaa}.check{columns:1}@page{size:A4 landscape;margin:15mm}}
+.micro-map{overflow:auto}.micro-map svg{width:100%;height:auto;min-width:700px}@media print{.micro-map{overflow:visible}.micro-map svg{min-width:0;max-height:150mm}.micro-map{break-inside:avoid}} details{border:1px solid var(--line);border-radius:10px;padding:15px}summary{cursor:pointer;font-weight:700}details .card{box-shadow:none} @media print{details:not([open])>*:not(summary){display:none}} .operation{display:grid;grid-template-columns:190px 1fr;gap:0;margin:0}.operation dt,.operation dd{margin:0;padding:12px;border-bottom:1px solid var(--line)}.operation dd{min-width:0;overflow-wrap:anywhere}.operation dt{font-weight:700;background:#edf5f7}.quick-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.quick-grid>div{background:#edf5f7;padding:15px;border-radius:10px}.quick-grid h3{margin:0}.card{scroll-margin-top:120px} @media(max-width:700px){.operation{display:block}.operation dd{padding-top:8px}.quick-grid{grid-template-columns:1fr}} </style></head><body>
+<header><div class="eyebrow">Hospital Hanga Roa · Revisión del código</div>
+<h1>Sincronización, camas<br>y estadísticas sin confusiones</h1>
+<p>Qué regla aplicar y qué consultar: dónde, cómo, cuándo y después de qué paso. El diagnóstico histórico permanece en versiones anteriores; esta guía prioriza reglas aprobadas y operaciones concretas.</p><small>Versión 8 · incorporación al repositorio y PR #886 · 18 octubre 2026 · hora de Rapa Nui · base ce144a603 · documento autónomo, sin conexión</small><div class="legend"><span>Guía humana</span><span>Detalle técnico</span><span>Fuentes trazables</span><span>Sin datos de pacientes</span></div>
+</header>
+<nav aria-label="Secciones del informe"><div role="tablist" aria-label="Tipo de lectura"><button role="tab" id="tab-human" aria-controls="human" aria-selected="true" tabindex="0">Reglas y resumen</button> <button role="tab" id="tab-route" aria-controls="route" aria-selected="false" tabindex="-1">Fichas de consulta</button> <button role="tab" id="tab-micro" aria-controls="micro" aria-selected="false" tabindex="-1">Mapas</button> <button role="tab" id="tab-tech" aria-controls="tech" aria-selected="false" tabindex="-1">Contrato IA y pruebas</button> <button role="tab" id="tab-sources" aria-controls="sources" aria-selected="false" tabindex="-1">Fuentes y límites</button> </div><button id="print">Imprimir guía / PDF</button>
+</nav>
+<main class="wrap"><noscript>Sin JavaScript se muestran todas las secciones.</noscript><div class="panel" id="human" role="tabpanel" aria-labelledby="tab-human">
+<section class="card" id="referencia-vigente">
+<h2>Referencia para personas e IA · 18 octubre 2026</h2>
+<p>Guía v8 derivada de la v7 aportada por Daniel, incorporada con sus confirmaciones del 18-10-2026. Leer primero <a href="DOMAIN_RULES.md">el contrato canónico y su tabla de implementación</a>, después <a href="GLOSSARY.md">el glosario</a>. Esta guía es su explicación navegable; no una segunda autoridad ni permiso para modificar datos.</p>
+<p><b>Madre y cuna:</b> si el RN sigue en cuna y la madre está inequívocamente identificada, acompañarla con aviso, sin pregunta adicional por posición. Mantener revisión para identidad o clasificación inciertas y respetar camas independientes confirmadas.</p>
+<p><b>CUDYR desde 00:00:</b> política aprobada. <b>Pendiente de implementación:</b> el resolver productivo de la base ce144a603 todavía excluye los primeros 60 segundos. No certificar ese borde como resuelto por #886 ni recalcular CUDYR saneado por incorporar esta guía.</p>
+<p><b>Estados:</b> aprobado = decisión del producto; implementado = código contrastado; probado = escenario ejecutable enlazado; pendiente = diferencia conocida. La tabla canónica distingue las políticas aún no implementadas. Los enlaces al commit #884 conservan evidencia histórica; comprobar cambios posteriores antes de implementar.</p>
+</section>
+<section class="card" id="cambios-886">
+<h2>Qué protege el PR #886</h2>
+<p><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/pull/886">PR #886</a> · base <code>ce144a6033bbc154b69d665349dd34a0b8d01ce0</code>. Las pruebas recorren ingreso, cambio de cama, repetición, alta y repetición para hoy y ayer; madre/RN, captura atrasada, madrugada y cambios de mes/año.</p>
+<p>La corrección convierte primero el día censal del egreso a fecha calendario antes de compararlo con el ingreso. Así un alta nocturna válida no se rechaza por comparar fechas de distinta naturaleza. No cambia la ventana CUDYR.</p>
+<p><a href="testing/SYNC_LIFECYCLE_REGRESSION.md">Escenarios y pruebas permanentes</a>: <code>npm run test:sync-lifecycle</code>. Preservar notas, identidad y clasificación; no duplicar movimientos, resucitar egresos ni inferir el alta del RN sólo por la madre. La batería usa fuentes y persistencia simuladas; no certifica sesiones, despliegue ni una corrida real.</p>
+</section>
+<section class="card" id="cambios-884">
+<h2>Qué cambió con el PR #884</h2>
+<p>Merge confirmado el 18-10-2026 a las 03:25 UTC (17-10, 22:25 UTC−05). Esta versión actualiza identidad, RN, egresos y continuidad; conserva las decisiones de negocio aprobadas. <a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/pull/884">Ver PR #884</a>.</p>
+<ol>
+<li><b>Cunas:</b> el egreso de una cuna asociada o independiente queda fuera del contador estadístico. Un RN en cama hospitalaria conserva sus criterios propios.</li>
+<li><b>Madre y RN:</b> una cuna sigue a su madre inequívocamente identificada aunque Gestión de Camas esté rezagada, con aviso y sin confirmación adicional de ubicación; se conserva la confirmación habitual del conjunto de cambios. No se infiere parentesco por cama.</li>
+<li><b>Egreso propio del RN:</b> el alta materna no permite eliminarlo. Se conserva visible hasta verificar su movimiento; la reparación no duplica el alta materna.</li>
+<li><b>Pasaportes:</b> se conserva el identificador completo y documentType; no se borran letras para fabricar un RUT.</li>
+<li><b>Historia:</b> un informe exacto del día siguiente puede probar presencia al cierre anterior, sin anticipar el egreso.</li>
+<li><b>Guardado:</b> movimiento histórico y reparación de ocupación se confirman juntos con versión revisada y confirmación remota.</li>
+<li><b>Diagnóstico repetido:</b> la corrección distingue los controles de diagnóstico y subtipo obstétrico por función, día y episodio; no reescribe el diagnóstico almacenado.</li>
+</ol>
+<p><b>Sin cambio por este PR:</b> las decisiones de ≥8 horas, ventana CUDYR, CMA/UEA, fecha real de egreso estadístico y exclusión de GES no quedan acreditadas como nuevas implementaciones por #884.</p>
+<aside class="warn">La descripción del PR informa pruebas y sincronizaciones reales satisfactorias; esta revisión contrasta código y pruebas, sin repetir consultas a pacientes ni certificar el despliegue.</aside>
+</section>
+<section class="card">
+<h2>En 60 segundos</h2><div class="quick-grid"><div>
+<h3>Qué contar</h3>
+<p>Carga actual: MQ + CMA hospitalaria. UEA fuera. E1–E5 se retiran de la operativa, preservando historia.</p></div><div>
+<h3>Qué fecha usar</h3>
+<p>Egreso estadístico: fecha real. CUDYR: madrugada 00:00–antes de 12:00 al día previo; a las 12:00 al mismo día.</p></div><div>
+<h3>Qué consultar primero</h3>
+<p>Contexto y sesiones → ambas fuentes → episodio/cama/egreso → confirmación estructural → información clínica.</p></div><div>
+<h3>Qué no asumir</h3>
+<p>Ausencia de lista no es alta. Fallo no es ausencia. Pantalla no es guardado. CUDYR registrado no significa elegible.</p></div></div>
+<p><b>Duración:</b> ≥8 h a 01:00 D+1. Sólo si falta la hora del ingreso del mismo día, asumir anterior a 17:00 y dejar marcado el supuesto; no inventar hora.</p>
+<p><b>Fuente del instrumento:</b> Eloísa. Se puede excluir elegibilidad manualmente, no editar categoría/puntajes.</p>
+</section>
+<section class="card">
+<h2>Empieza aquí · tres preguntas diferentes</h2>
+<p><b>1. ¿Cuántos pacientes atiende Hospitalizados ahora?</b> Contar médico-quirúrgicos y CMA hospitalarias; excluir UEA.</p>
+<p><b>2. ¿Cuándo ocurrió un egreso hospitalario?</b> Usar la fecha real de salida, aunque el movimiento esté en el turno anterior.</p>
+<p><b>3. ¿Quién entra en CUDYR?</b> Evaluar paciente, episodio, modalidad y duración; tener una categoría no basta. CMA, UEA y cuna no entran al denominador según las reglas de este producto.</p>
+<aside class="note"><b>Cómo usar el documento:</b> lee «Reglas» para decidir; «Dónde, cómo y cuándo» para consultar en orden; «Mapas» para un caso concreto. La pestaña técnica explica contratos y guardado. La auditoría anterior está aparte y no prevalece sobre tus decisiones.</aside>
+</section>
+<section class="card" id="decisiones-aprobadas">
+<h2>Reglas aprobadas por Daniel · 17 octubre 2026</h2>
+<aside class="note"><b>El contrato canónico es DOMAIN_RULES.md; esta sección explica sus políticas y brechas.</b> Es el contrato deseado a partir de ahora. El código se auditó en el commit bc3859a; no se ha modificado ni se afirma que ya cumpla todas estas decisiones.</aside><div class="table-scroll" tabindex="0">
+<table><thead>
+<tr><th>ID</th><th>Tema</th><th>Decisión aprobada</th><th>Límite / protección</th>
+</tr></thead><tbody>
+<tr><td>HHR-DEC-01</td><td>Carga actual de Hospitalizados</td><td>El contador diario incluye pacientes en camas médico-quirúrgicas y CMA hospitalarias. Excluye UEA. Su propósito es representar la carga actual de pacientes de Hospitalizados.</td><td>No sustituirlo por un conteo limitado a las 18 camas instaladas. No confundir número de pacientes con una tasa de ocupación física.</td>
+</tr>
+<tr><td>HHR-DEC-02</td><td>Camas extras heredadas</td><td>E1–E5 no tienen uso actual y pueden retirarse del modelo operativo.</td><td>Preservar historias y movimientos previos. No eliminar CMA_* ni BOX* sólo por llevar isExtra: ese indicador técnico también se usa para unidades virtuales vigentes.</td>
+</tr>
+<tr><td>HHR-DEC-03</td><td>Resultado CUDYR</td><td>El resultado se obtiene de Eloísa. No se debe editar manualmente la categoría ni los puntajes en HHR.</td><td>Sí se permite excluir manualmente un paciente de la elegibilidad. La exclusión no crea ni modifica el registro original.</td>
+</tr>
+<tr><td>HHR-DEC-04</td><td>Egreso estadístico</td><td>La estadística hospitalaria usa la fecha real de egreso, independiente de la fecha del turno.</td><td>Conservar también el día del censo para operación y entrega; no sustituir una fecha por otra.</td>
+</tr>
+<tr><td>HHR-DEC-05</td><td>Duración CUDYR</td><td>Mantener ocho horas o más al corte fijo de la 01:00 del día siguiente al censo.</td><td>Exactamente ocho horas cumple, si las demás condiciones de elegibilidad se cumplen.</td>
+</tr>
+<tr><td>HHR-DEC-06</td><td>Ventana de madrugada</td><td>Desde 00:00:00 inclusive hasta antes de las 12:00:00, el registro pertenece al día censal anterior.</td><td>Incluye el primer minuto de medianoche, antes excluido de esa atribución.</td>
+</tr>
+<tr><td>HHR-DEC-07</td><td>Registro a las 12:00</td><td>Un CUDYR registrado el día X a las 12:00 queda asociado al censo X, equivalente en atribución a uno registrado en la madrugada de X+1.</td><td>No moverlo al turno X−1 ni dejarlo por revisar sólo por marcar las 12:00. Conservar su hora real de aplicación.</td>
+</tr>
+<tr><td>HHR-DEC-08</td><td>Ingreso sin hora</td><td>Si se desconoce la hora de ingreso del mismo día, se asume ingreso antes de las 17:00 para evaluar elegibilidad.</td><td>Identificar el supuesto; no inventar ni persistir una hora exacta. No usar esta regla para resolver identidad, modalidad o fechas contradictorias.</td>
+</tr>
+<tr><td>HHR-DEC-09</td><td>Reconstrucción histórica</td><td>Se puede reconstruir cualquier día pasado con evidencia suficiente.</td><td>Mantener verificación de episodio, ubicación temporal, permisos y protecciones de días firmados.</td>
+</tr>
+<tr><td>HHR-DEC-10</td><td>GES</td><td>No incluir campos GES en esta sincronización.</td><td>No añadir importación ni controles GES por el mero hecho de que exista un atributo en el contrato de entrada.</td>
+</tr></tbody>
+</table></div>
+<p><b>Única definición consultada que sigue pendiente:</b> qué campo de sexo/género debe mostrar el censo y de qué fuente obtenerlo. No se presume aprobada una modificación de ese campo.</p>
+<p><b>Precisión de medición:</b> quedó definido el contador de carga de pacientes. No se aprobó aquí una nueva fórmula de porcentaje de ocupación física: si una cama física y su ubicación virtual CMA coexisten, debe distinguirse el conteo de pacientes de la dotación de camas. La fórmula porcentual requiere verificarse por separado, sin cambiar el contador que acabas de definir.</p>
+</section>
+<section class="card">
+<h2>Reglas que se mantienen</h2><div class="table-scroll" tabindex="0">
+<table><thead>
+<tr><th>Tema</th><th>Regla de lectura directa</th>
+</tr></thead><tbody>
+<tr><td>Persona, episodio y cama</td><td>No son lo mismo. Un reingreso es otro episodio. La cama no identifica al paciente ni a su madre.</td>
+</tr>
+<tr><td>Reloj</td><td>Usar Pacific/Easter. Conservar fecha real del evento, día del turno y momento de consulta como dimensiones distintas.</td>
+</tr>
+<tr><td>Turnos</td><td>Inicio 08:00 hábil o 09:00 inhábil; noche desde 20:00 hasta el relevo del día siguiente. Esto no cambia la ventana CUDYR.</td>
+</tr>
+<tr><td>CUDYR</td><td>≥8 h a la 01:00 de D+1. Si sólo falta hora de ingreso del mismo día, aplicar tu presunción anterior a 17:00 sin guardar hora ficticia.</td>
+</tr>
+<tr><td>Aplicación CUDYR</td><td>00:00 hasta antes de 12:00 → censo anterior. A las 12:00 → mismo día. Mantener hora original y resolver duplicados por episodio/turno.</td>
+</tr>
+<tr><td>Fuente CUDYR</td><td>Eloísa. La exclusión manual afecta elegibilidad, nunca autoriza cambiar categoría o puntajes.</td>
+</tr>
+<tr><td>Egreso</td><td>Epicrisis o desaparición de una lista no bastan para retirar automáticamente al paciente. Exigir evidencia administrativa del episodio.</td>
+</tr>
+<tr><td>Ausencia de datos</td><td>Fallo de consulta ≠ ausencia. Declarar No registrado sólo con cobertura final completa y vínculo inequívoco.</td>
+</tr>
+<tr><td>Histórico</td><td>Consultar cualquier día con evidencia suficiente; nunca usar la cama de hoy como prueba de ubicación antigua.</td>
+</tr>
+<tr><td>Guardado</td><td>Dato en pantalla o caché no acredita confirmación compartida. Conflicto de revisión exige conciliación.</td>
+</tr>
+<tr><td>Mes oficial</td><td>Requiere población y resultados resueltos y aprobación autorizada. No equivale a 100% de cumplimiento.</td>
+</tr></tbody>
+</table></div>
+</section>
+<section class="card">
+<h2>Qué significa cada etiqueta</h2>
+<p><b>Regla aprobada:</b> criterio que debe cumplir el producto, incluyendo tus decisiones del 17-10-2026. <b>Código observado:</b> comportamiento leído en el commit auditado, que puede requerir cambios. <b>Por decidir:</b> información que no se inventa.</p>
+<p><b>Esta entrega es documental.</b> No se modificó el código ni se afirma que la versión publicada ya cumpla cada regla aprobada. La confirmación de sexo/género y la fórmula porcentual de ocupación física siguen diferenciadas de las decisiones resueltas.</p>
+</section></div><div class="panel" id="route" role="tabpanel" aria-labelledby="tab-route">
+<section class="card">
+<h2>Consulta guiada · elige la operación</h2>
+<p>Cada ficha usa exactamente el mismo orden: disparador, requisito previo, dónde, cómo, entrada, validación, resultado, error y destino. «Después de» expresa una dependencia para esta operación; no obliga a repetir sincronización para leer datos ya archivados.</p>
+<p><a href="#OP-01">OP-01</a> · <a href="#OP-02">OP-02</a> · <a href="#OP-03">OP-03</a> · <a href="#OP-04">OP-04</a> · <a href="#OP-05">OP-05</a> · <a href="#OP-06">OP-06</a> · <a href="#OP-07">OP-07</a> · <a href="#OP-08">OP-08</a> · <a href="#OP-09">OP-09</a> · <a href="#OP-10">OP-10</a>
+</p>
+<p><b>Ruta habitual:</b> OP-01 → OP-02 → OP-03 → OP-04 → OP-05 y OP-06 → OP-07. La evaluación OP-08 y las operaciones mensuales también pueden usar evidencia previamente guardada.</p>
+</section>
+<section class="card" id="OP-01">
+<h2>OP-01 · Fijar contexto y acceso</h2><dl class="operation"><dt>Se inicia cuando</dt><dd>El usuario solicita sincronizar un censo.</dd><dt>Después de</dt><dd>No depende de una nueva sincronización; ver precondición de esta ficha.</dd><dt>Dónde consultar</dt><dd>HHR y sesiones de Ficha Médico / Gestión de Camas.</dd><dt>Cómo acceder</dt><dd>Preparar contexto; comprobar salud de ambas fuentes y política remota.</dd><dt>Qué entrada necesita</dt><dd>Fecha de censo, instante actual, establecimiento, usuario/rol.</dd><dt>Qué validar</dt><dd>Fecha válida; Pacific/Easter; permisos; ambas sesiones disponibles.</dd><dt>Resultado correcto</dt><dd>Contexto preparado y corrida correlacionada.</dd><dt>Si falla</dt><dd>No avanzar a captura completa si falta una fuente; conservar censo.</dd><dt>Dónde queda</dt><dd>Contexto de ejecución; aún sin cambios clínicos.</dd><dt>Reglas</dt><dd>SAVE-01; TIME-02</dd></dl><details><summary>Ver implementación de referencia</summary>
+<p><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/features/rayen-import/hooks/rayenSyncTemporalContext.ts">src/features/rayen-import/hooks/rayenSyncTemporalContext.ts</a>
+</p>
+<p>Ruta comprobada en el commit auditado. No confundir estado observado con cumplimiento ya implementado de las decisiones posteriores.</p></details>
+</section>
+<section class="card" id="OP-02">
+<h2>OP-02 · Capturar censo y altas</h2><dl class="operation"><dt>Se inicia cuando</dt><dd>Contexto preparado y fuentes listas.</dd><dt>Después de</dt><dd>OP-01</dd><dt>Dónde consultar</dt><dd>fichamedico.rayensalud.cl + hospitalizado.rayensalud.cl.</dd><dt>Cómo acceder</dt><dd>Extensión MV3: snapshot clínico y Lista_Pacientes_Alta_Administrativa_Rango_Fecha.xls en paralelo.</dd><dt>Qué entrada necesita</dt><dd>Establecimiento; rango desde censo objetivo hasta día calendario actual+1 exclusivo.</dd><dt>Qué validar</dt><dd>Cobertura clínica completa; mismo centro; sellos válidos; desfase ≤120 s; no cruzar día/relevo.</dd><dt>Resultado correcto</dt><dd>Bundle coherente con filas administrativas y snapshot.</dd><dt>Si falla</dt><dd>Recapturar si paquete parcial, fuente desconectada o límite temporal cruzado.</dd><dt>Dónde queda</dt><dd>Propuesta de conciliación; no es guardado.</dd><dt>Reglas</dt><dd>SRC-01; CEN-01</dd></dl><details><summary>Ver implementación de referencia</summary>
+<p><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/extension/rayen-sync-bundle-runtime.js">extension/rayen-sync-bundle-runtime.js</a>
+</p>
+<p>Ruta comprobada en el commit auditado. No confundir estado observado con cumplimiento ya implementado de las decisiones posteriores.</p></details>
+</section>
+<section class="card" id="OP-03">
+<h2>OP-03 · Resolver identidad, cama y salida</h2><dl class="operation"><dt>Se inicia cuando</dt><dd>Hay diferencias, egresos o reconstrucción histórica.</dd><dt>Después de</dt><dd>OP-02</dd><dt>Dónde consultar</dt><dd>Fuentes capturadas; PDF Flujo del Paciente e IEEH exacto cuando se requieren.</dd><dt>Cómo acceder</dt><dd>Cruzar documento+episodio. Descargar evidencia individual sólo ante brecha o discrepancia.</dd><dt>Qué entrada necesita</dt><dd>Bundle; censo local/canónico; ENC_ID y documento esperado; corte temporal.</dd><dt>Qué validar</dt><dd>Identidad inequívoca; intervalo correcto; cama mapeable; salida administrativa; sin doble movimiento.</dd><dt>Resultado correcto</dt><dd>Diff explicable: ingreso, traslado, actualización, egreso o conflicto.</dd><dt>Si falla</dt><dd>No completar por semejanza de nombre, cama actual o ausencia de lista. Conservar revisión.</dd><dt>Dónde queda</dt><dd>Vista previa o aplicación automática sólo si la política y condiciones lo permiten.</dd><dt>Reglas</dt><dd>ID-02; RN-01; TIME-03</dd></dl><details><summary>Ver implementación de referencia</summary>
+<p><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/features/rayen-import/domain/reconcileCensus.ts">src/features/rayen-import/domain/reconcileCensus.ts</a>
+</p>
+<p>Ruta comprobada en el commit auditado. No confundir estado observado con cumplimiento ya implementado de las decisiones posteriores.</p></details>
+</section>
+<section class="card" id="OP-04">
+<h2>OP-04 · Confirmar y guardar estructura</h2><dl class="operation"><dt>Se inicia cuando</dt><dd>Propuesta aceptada y conflictos pertinentes resueltos.</dd><dt>Después de</dt><dd>OP-03</dd><dt>Dónde consultar</dt><dd>Autoridad de censo HHR / Firebase.</dd><dt>Cómo acceder</dt><dd>Revalidar versión y ocupante; persistir por ruta gobernada; leer confirmación.</dd><dt>Qué entrada necesita</dt><dd>Diff; versión esperada; identidad de ocupantes; política/run.</dd><dt>Qué validar</dt><dd>No borrar otro episodio, revivir egreso ni cambiar historia con datos actuales.</dd><dt>Resultado correcto</dt><dd>Censo confirmado que autoriza enriquecimiento.</dd><dt>Si falla</dt><dd>Conflicto: releer/conciliar. Respuesta perdida: verificar estado, no repetir a ciegas.</dd><dt>Dónde queda</dt><dd>dailyRecords/{date}; historia/auditoría según operación.</dd><dt>Reglas</dt><dd>SAVE-01; SAVE-02</dd></dl><details><summary>Ver implementación de referencia</summary>
+<p><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/features/rayen-import/hooks/rayenSnapshotPersistenceExecution.ts">src/features/rayen-import/hooks/rayenSnapshotPersistenceExecution.ts</a>
+</p>
+<p>Ruta comprobada en el commit auditado. No confundir estado observado con cumplimiento ya implementado de las decisiones posteriores.</p></details>
+</section>
+<section class="card" id="OP-05">
+<h2>OP-05 · Consultar vitales y escalas</h2><dl class="operation"><dt>Se inicia cuando</dt><dd>Censo confirmado; episodios clínicos autorizados.</dd><dt>Después de</dt><dd>OP-04</dd><dt>Dónde consultar</dt><dd>Ficha Médico; formularios e historial clínico.</dd><dt>Cómo acceder</dt><dd>requestPatientClinicalBundle o canales individuales; encounterFormEntry/{encId}/{eventType}/0/{practitionerId}.</dd><dt>Qué entrada necesita</dt><dd>ENC_ID; fecha de censo; profesional de sesión; ventana historial.</dd><dt>Qué validar</dt><dd>Separar errores de devices/history/forms; fechas clínicas válidas; no filtrar sólo por llegada de red.</dd><dt>Resultado correcto</dt><dd>Vitales + Braden/Downton normalizados, asociados al episodio/día.</dd><dt>Si falla</dt><dd>Preservar datos previos ante lectura parcial; reintentar fuente fallida según política.</dd><dt>Dónde queda</dt><dd>Delta clínico para OP-07; hasta 48 mediciones en proyección vital.</dd><dt>Reglas</dt><dd>SRC-02; SAVE-01</dd></dl><details><summary>Ver implementación de referencia</summary>
+<p><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/features/rayen-import/domain/clinicalPatientReaders.ts">src/features/rayen-import/domain/clinicalPatientReaders.ts</a>
+</p>
+<p>Ruta comprobada en el commit auditado. No confundir estado observado con cumplimiento ya implementado de las decisiones posteriores.</p></details>
+</section>
+<section class="card" id="OP-06">
+<h2>OP-06 · Consultar dispositivos y CUDYR</h2><dl class="operation"><dt>Se inicia cuando</dt><dd>Censo confirmado; fuente y episodio disponibles.</dd><dt>Después de</dt><dd>OP-04</dd><dt>Dónde consultar</dt><dd>Dispositivos: Ficha Médico. CUDYR: Gestión de Camas preferida y Ficha Médico como respaldo.</dd><dt>Cómo acceder</dt><dd>Dispositivos JSON o Resumen diario PDF; historial CUDYR con procedencia y cobertura.</dd><dt>Qué entrada necesita</dt><dd>Episodio; fecha; observaciones; metadata y asignaciones disponibles.</dd><dt>Qué validar</dt><dd>No crear puntajes; conservar CUDYR aunque excluido; falla no significa ausencia; dispositivo ausente no equivale a retiro.</dd><dt>Resultado correcto</dt><dd>Evidencia clínica normalizada y recibos de cobertura.</dd><dt>Si falla</dt><dd>Pendiente por fuente. No sustituir por categoría manual ni por hora inventada.</dd><dt>Dónde queda</dt><dd>Archivo CUDYR y delta para OP-07.</dd><dt>Reglas</dt><dd>HHR-DEC-03; CUD-02; CUD-07</dd></dl><details><summary>Ver implementación de referencia</summary>
+<p><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/features/rayen-import/domain/clinicalCudyrPreflight.ts">src/features/rayen-import/domain/clinicalCudyrPreflight.ts</a>
+</p>
+<p>Ruta comprobada en el commit auditado. No confundir estado observado con cumplimiento ya implementado de las decisiones posteriores.</p></details>
+</section>
+<section class="card" id="OP-07">
+<h2>OP-07 · Persistir información clínica</h2><dl class="operation"><dt>Se inicia cuando</dt><dd>Lecturas asentadas, incluidas fallas explícitas por sección; estructura autorizada.</dd><dt>Después de</dt><dd>OP-05, OP-06</dd><dt>Dónde consultar</dt><dd>HHR → callable/backend gobernado → Firebase.</dd><dt>Cómo acceder</dt><dd>Construir campos permitidos; adquirir turno por fecha; revalidar episodio/revisión; enviar mutationId.</dd><dt>Qué entrada necesita</dt><dd>Delta; revisión; runId; authorityDate; política congelada.</dd><dt>Qué validar</dt><dd>Allowlist, identidad y límites. En enforced no fragmentar un lote mutante ni degradar a escritor inseguro.</dd><dt>Resultado correcto</dt><dd>Confirmación remota o verificación autoritativa; actualizar proyección local coherente.</dd><dt>Si falla</dt><dd>Informar parcial/pendiente. No presentar timeout como cancelación ni reabrir corrida terminal.</dd><dt>Dónde queda</dt><dd>Campos clínicos de dailyRecords y trazabilidad.</dd><dt>Reglas</dt><dd>SAVE-01; SAVE-02</dd></dl><details><summary>Ver implementación de referencia</summary>
+<p><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/functions/lib/rayenClinicalEnrichmentPolicy.js">functions/lib/rayenClinicalEnrichmentPolicy.js</a>
+</p>
+<p>Ruta comprobada en el commit auditado. No confundir estado observado con cumplimiento ya implementado de las decisiones posteriores.</p></details>
+</section>
+<section class="card" id="OP-08">
+<h2>OP-08 · Calcular elegibilidad y cumplimiento</h2><dl class="operation"><dt>Se inicia cuando</dt><dd>Hay evidencia suficiente de paciente/episodio/día, desde archivo o sincronización.</dd><dt>Después de</dt><dd>No depende de una nueva sincronización; ver precondición de esta ficha.</dd><dt>Dónde consultar</dt><dd>HHR: contexto diario, intervalos hospitalarios, resultados Eloísa y exclusiones revisadas.</dd><dt>Cómo acceder</dt><dd>Resolver modalidad/grupo; duración ≥8 h al corte 01:00; aplicar presunción sólo a hora ausente; atribuir turno.</dd><dt>Qué entrada necesita</dt><dd>Fecha D; episodio; cama temporal; ingreso hospitalario; resultado; exclusión y cobertura.</dd><dt>Qué validar</dt><dd>CMA/UEA/cuna excluidas; unknown/conflicto no se convierten en elegibles por supuesto; no duplicar pacientes-día.</dd><dt>Resultado correcto</dt><dd>Elegible / no elegible / por revisar, con resultado y motivo separados.</dd><dt>Si falla</dt><dd>Mantener pendiente ante contradicción. No alterar categoría para corregir elegibilidad.</dd><dt>Dónde queda</dt><dd>Vista diaria; acumulado cerrado; insumo mensual.</dd><dt>Reglas</dt><dd>HHR-DEC-03/05/06/07/08; CUD-09</dd></dl><details><summary>Ver implementación de referencia</summary>
+<p><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/domain/cudyr/cudyrDailyPlacement.ts">src/domain/cudyr/cudyrDailyPlacement.ts</a>
+</p>
+<p>Ruta comprobada en el commit auditado. No confundir estado observado con cumplimiento ya implementado de las decisiones posteriores.</p></details>
+</section>
+<section class="card" id="OP-09">
+<h2>OP-09 · Recuperar y aprobar un mes</h2><dl class="operation"><dt>Se inicia cuando</dt><dd>El usuario elige completar/verificar un mes, no simplemente abrirlo.</dd><dt>Después de</dt><dd>No depende de una nueva sincronización; ver precondición de esta ficha.</dd><dt>Dónde consultar</dt><dd>Excel mensual Gestión de Camas; archivo HHR; flujo/egresos si faltan episodios.</dd><dt>Cómo acceder</dt><dd>Recuperar mes y día 1 siguiente; vincular original por documento/episodio; reconstruir población; aplicar OP-08.</dd><dt>Qué entrada necesita</dt><dd>Mes; archivos/hashes; censos; movimientos; correcciones; permisos de revisión.</dd><dt>Qué validar</dt><dd>Población completa, ventanas cerradas, identidad y elegibilidad resueltas.</dd><dt>Resultado correcto</dt><dd>Revisión autorizada → proyección oficial con versión y huellas.</dd><dt>Si falla</dt><dd>No aprobar por descarga exitosa ni por 100% aparente; detallar pendientes.</dd><dt>Dónde queda</dt><dd>cudyrOfficialReports/{month} y fuentes/versiones.</dd><dt>Reglas</dt><dd>OFF-01; HHR-DEC-09</dd></dl><details><summary>Ver implementación de referencia</summary>
+<p><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/functions/lib/cudyrOfficialReportStore.js">functions/lib/cudyrOfficialReportStore.js</a>
+</p>
+<p>Ruta comprobada en el commit auditado. No confundir estado observado con cumplimiento ya implementado de las decisiones posteriores.</p></details>
+</section>
+<section class="card" id="OP-10">
+<h2>OP-10 · Abrir informe oficial</h2><dl class="operation"><dt>Se inicia cuando</dt><dd>Usuario consulta un mes.</dd><dt>Después de</dt><dd>No depende de una nueva sincronización; ver precondición de esta ficha.</dd><dt>Dónde consultar</dt><dd>Firebase y copia válida de la sesión/cuenta.</dd><dt>Cómo acceder</dt><dd>Probar existencia/vigencia de proyección; reutilizar contenido válido.</dd><dt>Qué entrada necesita</dt><dd>Mes; cuenta; versión y marcadores de cambios.</dd><dt>Qué validar</dt><dd>Cambio relevante invalida; lectura rutinaria no. Fallo remoto no confirma vigencia.</dd><dt>Resultado correcto</dt><dd>Pantalla/Excel coherentes sin consultar otra vez Eloísa por navegación.</dd><dt>Si falla</dt><dd>Mostrar última copia con estado no verificado si corresponde; ofrecer recuperación explícita.</dd><dt>Dónde queda</dt><dd>Informe visible/exportable.</dd><dt>Reglas</dt><dd>OFF-02; OFF-03</dd></dl><details><summary>Ver implementación de referencia</summary>
+<p><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/services/cudyr/cudyrReportLoader.ts">src/services/cudyr/cudyrReportLoader.ts</a>
+</p>
+<p>Ruta comprobada en el commit auditado. No confundir estado observado con cumplimiento ya implementado de las decisiones posteriores.</p></details>
+</section>
+<section class="card" id="inventario">
+<h2>Inventario de campos · aplicar las reglas aprobadas</h2><div class="table-scroll" tabindex="0">
+<table><thead>
+<tr><th scope="col">Grupo</th><th scope="col">Datos</th><th scope="col">Origen y etapa</th><th scope="col">Regla de actualización</th>
+</tr></thead><tbody>
+<tr><td>Identidad y episodio</td><td>Nombre, apellidos, RUN o pasaporte completo, documentType, fecha de nacimiento, edad, sexo normalizado y clinicalEpisodeId.</td><td>Ficha Médico → conciliación estructural.</td><td>Se compara documento completo + episodio; documentType también se sincroniza. Un pasaporte numérico ya identificado se conserva si el bridge antiguo omite su tipo y coincide la identidad del episodio. No unir reingresos ni madre/RN por documento compartido. El mapper actual usa sexo administrativo/género para llenar biologicalSex: es una transformación, no verificación independiente de sexo biológico.</td>
+</tr>
+<tr><td>Ingreso</td><td>Fecha y hora del episodio; ingreso hospitalario válido para CUDYR se reconstruye aparte.</td><td>Ficha Médico + asignaciones/Flujo del Paciente.</td><td>Ingreso a Urgencias ≠ inicio del tramo hospitalario elegible. No inventar hora si sólo existe fecha.</td>
+</tr>
+<tr><td>Cama / sala / servicio</td><td>Ingreso a una cama, traslado interno, ubicación de RN, unidades virtuales.</td><td>Ficha Médico + Gestión de Camas; PDF de flujo cuando hay discrepancia o historia.</td><td>Mapeo explícito y verificación de ocupante. Un traslado conserva notas y clasificación del episodio; no es un egreso hospitalario.</td>
+</tr>
+<tr><td>Diagnóstico</td><td>Texto pathology y diagnóstico principal codificado cie10Code/cie10Description.</td><td>Ficha Médico y catálogo de codificación.</td><td>El PR #884 corrige claves de controles visuales duplicados, sin cambiar el diagnóstico guardado. El texto es sincronizable; no tiene una protección general de “edición local prevalece”. Si no llega código, se conserva CIE-10 local. No equivale a importar todas las evoluciones o diagnósticos secundarios.</td>
+</tr>
+<tr><td>Médico tratante</td><td>Identificador estable y nombre de la asignación.</td><td>Ficha Médico + directorio del establecimiento.</td><td>Se protege el nombre conocido si falla su resolución para el mismo ID; se respetan descartes locales del tratante. Un nombre manual sin ID tiene protección ante ausencia en origen.</td>
+</tr>
+<tr><td>Especialidad</td><td>Puede recibir contexto del tratante al ingreso; las decisiones posteriores son propias de HHR.</td><td>Catálogo / flujo de clasificación de HHR.</td><td>No forma parte de SYNCABLE_FIELDS. La resincronización respeta specialty y specialtyAssignment, también una decisión manual vacía. No es una copia ciega de Eloísa.</td>
+</tr>
+<tr><td>Aislamiento</td><td>Indicador, tipo de precaución y microorganismo cuando existen.</td><td>Lectura clínica de Ficha Médico.</td><td>La captura debe acreditar cobertura. Un fallo de lectura no equivale a retirar aislamiento; una fuente completa sí puede comunicar cambios.</td>
+</tr>
+<tr><td>Signos vitales</td><td>PAS, PAD, FC, SpO₂, temperatura, FR, EVA; además HGT, insulina, cuadrante, observaciones, fecha/hora y autor/rol disponibles.</td><td>Formularios VITAL_SIGNS de Ficha Médico → enriquecimiento clínico.</td><td>Hasta 48 mediciones en la proyección. Correcciones del mismo evento reemplazan su versión. El resumen prioriza la última toma con PA sistólica, FC, SpO₂ o T°; una toma sólo de HGT no borra ese resumen.</td>
+</tr>
+<tr><td>Braden / Downton</td><td>Puntaje, severidad, aplicación, autor e historial; detalle disponible del instrumento.</td><td>Historial clínico y formularios de Ficha Médico.</td><td>Se concilian ambas lecturas. Sin dato nuevo puede conservarse el previo; una lectura parcial no prueba anulación. La poda exige cobertura autoritativa y propiedad del evento.</td>
+</tr>
+<tr><td>CUDYR</td><td>Categoría, momento de aplicación, autor, riesgo/dependencia y 14 ítems si origen los entrega.</td><td>Preferencia: historial Gestión de Camas; respaldo: Ficha Médico; recuperación: Excel mensual.</td><td>S/C o vacío no son categoría válida. Se archiva incluso si el paciente está excluido. Regla aprobada: no editar resultado manualmente; sólo permitir exclusión de elegibilidad. El mecanismo administrativo anterior se describe exclusivamente en la auditoría.</td>
+</tr>
+<tr><td>Dispositivos</td><td>Tipo, detalles, instancias e historial del dispositivo.</td><td>Evidencia estructurada de Ficha Médico; PDF Resumen diario como alternativa.</td><td>Fusión aditiva e idempotente; no retira automáticamente el dispositivo gestionado por enfermería sólo porque no apareció en una lectura.</td>
+</tr>
+<tr><td>Ingresos, egresos, traslados externos y CMA</td><td>Movimiento, fecha/hora, condición, destino y contexto del episodio.</td><td>Alta administrativa masiva o consulta exacta de Gestión de Camas.</td><td>No se fabrican por desaparecer de Ficha Médico. Conservan información para auditoría/deshacer y evitan volver a registrar el mismo episodio.</td>
+</tr>
+<tr><td>Dotación de Enfermería / TENS</td><td>Evidencia de actividad y propuesta de turnos.</td><td>Actividad del historial clínico.</td><td>Flujo de revisión independiente; actividad documentada no equivale automáticamente a presencia contractual ni asignación definitiva de dotación.</td>
+</tr>
+<tr><td>Notas, gravedad y UPC</td><td>Observaciones locales, estado Estable/De cuidado/Grave y clasificación UPC.</td><td>Gestión local de HHR.</td><td>No se sobrescriben por la lista estructural ordinaria. Un ingreso nuevo inicia Estable y no UPC; estar en R1–R4 no demuestra por sí solo condición crítica.</td>
+</tr>
+<tr><td>Recetas, indicaciones, antecedentes, laboratorio e imágenes</td><td>Existen lectores y módulos específicos.</td><td>Acciones de sus respectivos visores/paneles.</td><td>Disponibilidad de una API no demuestra importación automática al DailyRecord. Estos contenidos no están en la lista de campos del lote clínico ordinario.</td>
+</tr>
+<tr><td>GES</td><td>El contrato de entrada admite isGes.</td><td>Dato posible del snapshot.</td><td>En el mapper revisado no se transfiere como campo del paciente. No afirmar que GES queda sincronizado por aparecer en el contrato.</td>
+</tr></tbody>
+</table></div><span class="refs"><a href="#s3" data-source="true">[S3]</a> <a href="#s4" data-source="true">[S4]</a> <a href="#s27" data-source="true">[S27]</a> <a href="#s28" data-source="true">[S28]</a> <a href="#s29" data-source="true">[S29]</a> <a href="#s32" data-source="true">[S32]</a> <a href="#s33" data-source="true">[S33]</a> <a href="#s42" data-source="true">[S42]</a> <a href="#s46" data-source="true">[S46]</a> <a href="#s53" data-source="true">[S53]</a></span>
+</section>
+<section class="card">
+<h2>Mapa · de dónde sale y adónde va cada dato</h2>
+<p>La flecha indica el recorrido lógico de lectura y persistencia de la sincronización. No representa una transacción única ni acceso directo de la IA a las fichas. Los canales de escritura hacia Eloísa son funciones diferentes y quedan fuera de este esquema.</p><div class="table-scroll"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 820" role="img" aria-labelledby="map-title map-desc" style="width:100%;height:auto;min-width:750px"><title id="map-title">Recorrido de información Eloísa a HHR</title><desc id="map-desc">En el navegador autorizado, Ficha Médico y Gestión de Camas aportan datos a la extensión. HHR valida y concilia, guarda mediante rutas gobernadas en Firebase y presenta censos e informes. Syslab y MMRAD son consultas separadas bajo demanda.</desc><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" fill="#167e88"/></marker><style>text{font-family:system-ui,sans-serif;fill:#183445}.title{font-size:19px;font-weight:700}.small{font-size:14px}.tiny{font-size:12px}.line{fill:none;stroke:#167e88;stroke-width:3;marker-end:url(#arrow)}.box{fill:#fff;stroke:#aec4ce;stroke-width:1.5}</style></defs><rect x="8" y="8" width="1064" height="345" rx="18" fill="#edf6f8"/><text x="28" y="38" class="title">1. NAVEGADOR AUTORIZADO · sesiones de Eloísa</text><rect class="box" x="28" y="58" width="495" height="140" rx="12"/><text x="46" y="85" class="title">Ficha Médico</text><text x="46" y="110" class="small">fichamedico.rayensalud.cl</text><text x="46" y="133" class="small">Identidad · ingreso · diagnóstico · tratante · aislamiento</text><text x="46" y="156" class="small">Formularios: vitales / escalas · dispositivos · flujo PDF</text><text x="46" y="181" class="tiny">Backend permitido: fichamedicoback.rayensalud.cl</text><rect class="box" x="548" y="58" width="504" height="140" rx="12"/><text x="568" y="85" class="title">Gestión de Camas</text><text x="568" y="110" class="small">hospitalizado.rayensalud.cl</text><text x="568" y="133" class="small">Camas · CUDYR oficial · altas administrativas · IEEH</text><text x="568" y="156" class="small">Excel mensual / censo diario · intervalos del episodio</text><text x="568" y="181" class="tiny">Backend permitido: hospbackend.rayensalud.cl</text><path class="line" d="M270 198V226H430V246"/><path class="line" d="M805 198V226H650V246"/><rect x="220" y="247" width="640" height="84" rx="12" fill="#086d76"/><text x="242" y="277" class="title" style="fill:white">Extensión Chrome MV3 · puente Rayen → HHR</text><text x="242" y="303" class="small" style="fill:white">Lectores en pestañas + content scripts + worker + mensajes correlacionados</text><path class="line" d="M540 331V388"/><text x="557" y="375" class="tiny">Captura, procedencia y cobertura; no es una nueva fuente clínica</text><rect x="185" y="391" width="710" height="113" rx="14" fill="#0d293c"/><text x="207" y="420" class="title" style="fill:white">2. APLICACIÓN HHR · testinghhr.netlify.app</text><text x="207" y="445" class="small" style="fill:white">Bridge → validación → conciliación por episodio / cama / fecha</text><text x="207" y="470" class="small" style="fill:white">Revisión → estructura confirmada → enriquecimiento clínico autorizado</text><text x="207" y="491" class="tiny" style="fill:#badddf">Origen web reconocido por manifest; despliegue efectivo no verificado en esta revisión</text><path class="line" d="M390 504V548"/><path class="line" d="M720 504V548"/><rect class="box" x="30" y="551" width="485" height="105" rx="12"/><text x="49" y="580" class="title">3a. Caché / pendientes locales</text><text x="49" y="605" class="small">Lectura rápida y recuperación de ediciones</text><text x="49" y="630" class="small">Pendiente local ≠ confirmación compartida</text><rect class="box" x="548" y="551" width="505" height="105" rx="12"/><text x="568" y="580" class="title">3b. Firebase · persistencia gobernada</text><text x="568" y="605" class="small">DailyRecords · evidencia CUDYR · mes oficial</text><text x="568" y="630" class="small">Versión / episodio / permisos / auditoría / recibos</text><path class="line" d="M275 656V690H430V710"/><path class="line" d="M805 656V690H650V710"/><rect x="170" y="713" width="740" height="85" rx="12" fill="#e2f3ed" stroke="#9ac8b9"/><text x="190" y="744" class="title">4. Censo · detalle clínico · estadísticas · Excel mensual</text><text x="190" y="772" class="small">Mostrar resultados no implica recapturar Eloísa ni aprobar automáticamente un mes</text></svg></div><span class="refs"><a href="#s2" data-source="true">[S2]</a> <a href="#s33" data-source="true">[S33]</a> <a href="#s39" data-source="true">[S39]</a> <a href="#s55" data-source="true">[S55]</a> <a href="#s56" data-source="true">[S56]</a> <a href="#s58" data-source="true">[S58]</a> <a href="#s59" data-source="true">[S59]</a></span><div class="table-scroll" tabindex="0">
+<table><thead>
+<tr><th scope="col">Consulta separada</th><th scope="col">Ubicación</th><th scope="col">Relación con el diagrama</th>
+</tr></thead><tbody>
+<tr><td>Laboratorio Syslab</td><td>Dirección institucional configurada en manifest: http://10.4.69.90/syslab/</td><td>Requiere conectividad a la red institucional. Visor/puente/proxy propio; no se presume incluido en cada sync del censo.</td>
+</tr>
+<tr><td>Radiología MMRAD</td><td>Portal RIS: https://ris.mmrad.cl; integración backend HHR</td><td>Búsqueda, informes e imágenes bajo demanda. No implica descargar DICOM en cada sincronización.</td>
+</tr>
+<tr><td>Otros hosts de Rayen</td><td>saludteintegrachileapi.rayensalud.cl y formulariosclinicosback.rayensalud.cl</td><td>Están permitidos por manifest. Tener permiso de host no demuestra que todos se consulten en cada ejecución.</td>
+</tr>
+<tr><td>Firebase</td><td>Proyecto y endpoints según configuración del despliegue</td><td>No inferir el proyecto activo por el nombre del repositorio ni por la URL de la web. Verificar configuración antes de ejecutar escrituras.</td>
+</tr></tbody>
+</table></div>
+<aside class="note">El mapa es editable: está dibujado en SVG dentro del HTML. Puede retocarse en texto sin regenerar una imagen. La extensión del commit revisado declara versión 0.48.53; eso no acredita qué versión está instalada en un equipo.</aside>
+</section></div><div class="panel" id="micro" role="tabpanel" aria-labelledby="tab-micro">
+<section class="card">
+<h2>Microescenarios · leer una decisión a la vez</h2>
+<p>15 mapas con ejemplos sintéticos. Cada mapa separa origen, comprobación y resultado. Las etiquetas indican si corresponde a una regla aprobada que requiere ajuste o a controles del código auditado que deben conservarse.</p>
+<aside class="note">No son registros reales ni pruebas ejecutadas del sistema completo. Las políticas HHR-DEC se concilian en DOMAIN_RULES.md; su aprobación no prueba implementación. Las ramas de egreso, carga/CUDYR y exclusión muestran dos resultados simultáneos cuando así se indica.</aside>
+<p><a href="#micro-1">01</a> · <a href="#micro-2">02</a> · <a href="#micro-3">03</a> · <a href="#micro-4">04</a> · <a href="#micro-5">05</a> · <a href="#micro-6">06</a> · <a href="#micro-7">07</a> · <a href="#micro-8">08</a> · <a href="#micro-9">09</a> · <a href="#micro-10">10</a> · <a href="#micro-11">11</a> · <a href="#micro-12">12</a> · <a href="#micro-13">13</a> · <a href="#micro-14">14</a> · <a href="#micro-15">15</a>
+</p>
+</section>
+<section class="card" id="micro-1" style="scroll-margin-top:100px">
+<h2>01 · Ingreso a Hospitalizados</h2>
+<p><b>Implementado en el baseline; conservar controles</b>
+</p><div class="micro-map"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 565" role="img" aria-labelledby="mt-1 md-1"><title id="mt-1">Ingreso a Hospitalizados</title><desc id="md-1">Ficha Médico identifica episodio nuevo y cama; Gestión de Camas aporta asignación actual. Cruzar establecimiento, documento, episodio y ubicación. Captura completa de ambas fuentes. ¿Cama disponible y episodio inequívoco? Sí: proponer ingreso y confirmar según política. Guardar estructura; verificar servidor; enriquecer clínica. No: conservar ocupante y mostrar conflicto. No unir pacientes por compartir cama o nombre.</desc><defs><marker id="arr-1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#167e88"/></marker></defs><style>.head{font:700 16px system-ui,sans-serif;fill:#123b4c}.body{font:14px system-ui,sans-serif;fill:#233f4b}.edge{fill:none;stroke:#167e88;stroke-width:2.5;marker-end:url(#arr-1)}</style><rect width="1000" height="565" rx="16" fill="#f3f7f8"/><rect x="25" y="18" width="950" height="102" rx="12" fill="#fff" stroke="#b8cdd4"/><text x="43" y="45" class="head">1 · FUENTE</text><text x="43" y="71" class="body">Ficha Médico identifica episodio nuevo y cama; Gestión de Camas aporta asignación actual.</text><path class="edge" d="M500 120V147"/><rect x="25" y="150" width="950" height="102" rx="12" fill="#fff" stroke="#b8cdd4"/><text x="43" y="177" class="head">2 · VALIDACIÓN</text><text x="43" y="203" class="body">Cruzar establecimiento, documento, episodio y ubicación. Captura completa de ambas fuentes.</text><path class="edge" d="M500 252V280"/><rect x="180" y="283" width="640" height="82" rx="12" fill="#e4f1f2" stroke="#b8cdd4"/><text x="198" y="310" class="head">3 · DECISIÓN</text><text x="198" y="336" class="body">¿Cama disponible y episodio inequívoco?</text><path class="edge" d="M500 365V386H260V408"/><path class="edge" d="M500 386H740V408"/><rect x="25" y="411" width="465" height="142" rx="12" fill="#edf7ef" stroke="#b8cdd4"/><text x="43" y="438" class="head">4A · RESULTADO</text><text x="43" y="464" class="body">Sí: proponer ingreso y confirmar según</text><text x="43" y="484" class="body">política. Guardar estructura; verificar</text><text x="43" y="504" class="body">servidor; enriquecer clínica.</text><rect x="510" y="411" width="465" height="142" rx="12" fill="#fff5e6" stroke="#b8cdd4"/><text x="528" y="438" class="head">4B · ALTERNATIVA / OTRA DIMENSIÓN</text><text x="528" y="464" class="body">No: conservar ocupante y mostrar conflicto.</text><text x="528" y="484" class="body">No unir pacientes por compartir cama o</text><text x="528" y="504" class="body">nombre.</text></svg></div>
+<p>Un ingreso visible no basta para afirmar que el enriquecimiento terminó o que el servidor confirmó todo.</p><span class="refs"><a href="#s2" data-source="true">[S2]</a> <a href="#s3" data-source="true">[S3]</a> <a href="#s17" data-source="true">[S17]</a> <a href="#s39" data-source="true">[S39]</a></span>
+</section>
+<section class="card" id="micro-2" style="scroll-margin-top:100px">
+<h2>02 · Cambio de cama sin nuevo egreso</h2>
+<p><b>Implementado en el baseline; conservar controles</b>
+</p><div class="micro-map"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 565" role="img" aria-labelledby="mt-2 md-2"><title id="mt-2">Cambio de cama sin nuevo egreso</title><desc id="md-2">El mismo episodio aparece en otra cama; la asignación actual o el PDF de flujo respalda el movimiento. Validar identidad, hora efectiva y ocupante de destino. Preservar notas y decisiones del episodio. ¿Traslado interno hospitalario demostrado? Sí: mover el episodio sin generar egreso. No reiniciar por sí solo el tramo continuo para las ocho horas. No: dejar ubicación pendiente. No inferir traslado ni sobrescribir otro paciente por una captura antigua.</desc><defs><marker id="arr-2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#167e88"/></marker></defs><style>.head{font:700 16px system-ui,sans-serif;fill:#123b4c}.body{font:14px system-ui,sans-serif;fill:#233f4b}.edge{fill:none;stroke:#167e88;stroke-width:2.5;marker-end:url(#arr-2)}</style><rect width="1000" height="565" rx="16" fill="#f3f7f8"/><rect x="25" y="18" width="950" height="102" rx="12" fill="#fff" stroke="#b8cdd4"/><text x="43" y="45" class="head">1 · FUENTE</text><text x="43" y="71" class="body">El mismo episodio aparece en otra cama; la asignación actual o el PDF de flujo respalda el</text><text x="43" y="91" class="body">movimiento.</text><path class="edge" d="M500 120V147"/><rect x="25" y="150" width="950" height="102" rx="12" fill="#fff" stroke="#b8cdd4"/><text x="43" y="177" class="head">2 · VALIDACIÓN</text><text x="43" y="203" class="body">Validar identidad, hora efectiva y ocupante de destino. Preservar notas y decisiones del</text><text x="43" y="223" class="body">episodio.</text><path class="edge" d="M500 252V280"/><rect x="180" y="283" width="640" height="82" rx="12" fill="#e4f1f2" stroke="#b8cdd4"/><text x="198" y="310" class="head">3 · DECISIÓN</text><text x="198" y="336" class="body">¿Traslado interno hospitalario demostrado?</text><path class="edge" d="M500 365V386H260V408"/><path class="edge" d="M500 386H740V408"/><rect x="25" y="411" width="465" height="142" rx="12" fill="#edf7ef" stroke="#b8cdd4"/><text x="43" y="438" class="head">4A · RESULTADO</text><text x="43" y="464" class="body">Sí: mover el episodio sin generar egreso. No</text><text x="43" y="484" class="body">reiniciar por sí solo el tramo continuo para</text><text x="43" y="504" class="body">las ocho horas.</text><rect x="510" y="411" width="465" height="142" rx="12" fill="#fff5e6" stroke="#b8cdd4"/><text x="528" y="438" class="head">4B · ALTERNATIVA / OTRA DIMENSIÓN</text><text x="528" y="464" class="body">No: dejar ubicación pendiente. No inferir</text><text x="528" y="484" class="body">traslado ni sobrescribir otro paciente por</text><text x="528" y="504" class="body">una captura antigua.</text></svg></div>
+<p>La ubicación actual no reclasifica toda la historia. CUDYR usa la ubicación temporal pertinente.</p><span class="refs"><a href="#s2" data-source="true">[S2]</a> <a href="#s3" data-source="true">[S3]</a> <a href="#s9" data-source="true">[S9]</a> <a href="#s10" data-source="true">[S10]</a></span>
+</section>
+<section class="card" id="micro-3" style="scroll-margin-top:100px">
+<h2>03 · Egreso de madrugada en cambio de mes</h2>
+<p><b>Regla aprobada HHR-DEC-04; cálculo mensual por corregir/verificar</b>
+</p><div class="micro-map"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 565" role="img" aria-labelledby="mt-3 md-3"><title id="mt-3">Egreso de madrugada en cambio de mes</title><desc id="md-3">Gestión de Camas confirma salida real el 1 de noviembre a las 02:00, hora de Rapa Nui. Validar episodio, condición, destino y sello oficial; comprobar que el movimiento no esté duplicado. ¿A qué fecha pertenece cada resultado? Operación: el movimiento puede figurar en el turno del 31 de octubre. Conservar esa dimensión censal. Estadística hospitalaria: egreso del 1 de noviembre. No llevarlo a octubre por el turno nocturno.</desc><defs><marker id="arr-3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#167e88"/></marker></defs><style>.head{font:700 16px system-ui,sans-serif;fill:#123b4c}.body{font:14px system-ui,sans-serif;fill:#233f4b}.edge{fill:none;stroke:#167e88;stroke-width:2.5;marker-end:url(#arr-3)}</style><rect width="1000" height="565" rx="16" fill="#f3f7f8"/><rect x="25" y="18" width="950" height="102" rx="12" fill="#fff" stroke="#b8cdd4"/><text x="43" y="45" class="head">1 · FUENTE</text><text x="43" y="71" class="body">Gestión de Camas confirma salida real el 1 de noviembre a las 02:00, hora de Rapa Nui.</text><path class="edge" d="M500 120V147"/><rect x="25" y="150" width="950" height="102" rx="12" fill="#fff" stroke="#b8cdd4"/><text x="43" y="177" class="head">2 · VALIDACIÓN</text><text x="43" y="203" class="body">Validar episodio, condición, destino y sello oficial; comprobar que el movimiento no esté</text><text x="43" y="223" class="body">duplicado.</text><path class="edge" d="M500 252V280"/><rect x="180" y="283" width="640" height="82" rx="12" fill="#e4f1f2" stroke="#b8cdd4"/><text x="198" y="310" class="head">3 · DECISIÓN</text><text x="198" y="336" class="body">¿A qué fecha pertenece cada resultado?</text><path class="edge" d="M500 365V386H260V408"/><path class="edge" d="M500 386H740V408"/><rect x="25" y="411" width="465" height="142" rx="12" fill="#edf7ef" stroke="#b8cdd4"/><text x="43" y="438" class="head">4A · RESULTADO</text><text x="43" y="464" class="body">Operación: el movimiento puede figurar en el</text><text x="43" y="484" class="body">turno del 31 de octubre. Conservar esa</text><text x="43" y="504" class="body">dimensión censal.</text><rect x="510" y="411" width="465" height="142" rx="12" fill="#fff5e6" stroke="#b8cdd4"/><text x="528" y="438" class="head">4B · ALTERNATIVA / OTRA DIMENSIÓN</text><text x="528" y="464" class="body">Estadística hospitalaria: egreso del 1 de</text><text x="528" y="484" class="body">noviembre. No llevarlo a octubre por el</text><text x="528" y="504" class="body">turno nocturno.</text></svg></div>
+<p>Las dos ramas son simultáneas, no alternativas. La emisión de epicrisis no reemplaza la fecha real de salida.</p><span class="refs"><a href="#s2" data-source="true">[S2]</a> <a href="#s20" data-source="true">[S20]</a> <a href="#s22" data-source="true">[S22]</a> <a href="#s23" data-source="true">[S23]</a></span>
+</section>
+<section class="card" id="micro-4" style="scroll-margin-top:100px">
+<h2>04 · CMA hospitalaria frente a UEA</h2>
+<p><b>Reglas aprobadas HHR-DEC-01/02; contador por ajustar</b>
+</p><div class="micro-map"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 565" role="img" aria-labelledby="mt-4 md-4"><title id="mt-4">CMA hospitalaria frente a UEA</title><desc id="md-4">Censo sintético: 3 pacientes MQ + 2 CMA hospitalarias + 4 en UEA. Clasificar modalidad y ubicación. No usar isExtra como sinónimo de cama heredada o de exclusión total. ¿Qué indicador estamos calculando? Carga actual Hospitalizados: 3 MQ + 2 CMA = 5. UEA no suma. Retirar E1–E5 de la operativa nueva. CUDYR: CMA y UEA siguen excluidas. Para los 3 MQ evaluar horario, episodio y demás condiciones.</desc><defs><marker id="arr-4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#167e88"/></marker></defs><style>.head{font:700 16px system-ui,sans-serif;fill:#123b4c}.body{font:14px system-ui,sans-serif;fill:#233f4b}.edge{fill:none;stroke:#167e88;stroke-width:2.5;marker-end:url(#arr-4)}</style><rect width="1000" height="565" rx="16" fill="#f3f7f8"/><rect x="25" y="18" width="950" height="102" rx="12" fill="#fff" stroke="#b8cdd4"/><text x="43" y="45" class="head">1 · FUENTE</text><text x="43" y="71" class="body">Censo sintético: 3 pacientes MQ + 2 CMA hospitalarias + 4 en UEA.</text><path class="edge" d="M500 120V147"/><rect x="25" y="150" width="950" height="102" rx="12" fill="#fff" stroke="#b8cdd4"/><text x="43" y="177" class="head">2 · VALIDACIÓN</text><text x="43" y="203" class="body">Clasificar modalidad y ubicación. No usar isExtra como sinónimo de cama heredada o de exclusión</text><text x="43" y="223" class="body">total.</text><path class="edge" d="M500 252V280"/><rect x="180" y="283" width="640" height="82" rx="12" fill="#e4f1f2" stroke="#b8cdd4"/><text x="198" y="310" class="head">3 · DECISIÓN</text><text x="198" y="336" class="body">¿Qué indicador estamos calculando?</text><path class="edge" d="M500 365V386H260V408"/><path class="edge" d="M500 386H740V408"/><rect x="25" y="411" width="465" height="142" rx="12" fill="#edf7ef" stroke="#b8cdd4"/><text x="43" y="438" class="head">4A · RESULTADO</text><text x="43" y="464" class="body">Carga actual Hospitalizados: 3 MQ + 2 CMA =</text><text x="43" y="484" class="body">5. UEA no suma. Retirar E1–E5 de la</text><text x="43" y="504" class="body">operativa nueva.</text><rect x="510" y="411" width="465" height="142" rx="12" fill="#fff5e6" stroke="#b8cdd4"/><text x="528" y="438" class="head">4B · ALTERNATIVA / OTRA DIMENSIÓN</text><text x="528" y="464" class="body">CUDYR: CMA y UEA siguen excluidas. Para los</text><text x="528" y="484" class="body">3 MQ evaluar horario, episodio y demás</text><text x="528" y="504" class="body">condiciones.</text></svg></div>
+<p>Incluir CMA en carga actual no la hace elegible CUDYR. No derivar una tasa de camas físicas de este ejemplo.</p><span class="refs"><a href="#s5" data-source="true">[S5]</a> <a href="#s6" data-source="true">[S6]</a> <a href="#s7" data-source="true">[S7]</a> <a href="#s21" data-source="true">[S21]</a></span>
+</section>
+<section class="card" id="micro-5">
+<h2>05 · Madre y RN con ubicación discordante</h2>
+<p>Actualizado con #884 · evidencia en código y pruebas del commit bc3859a.</p><div class="micro-map"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 520" role="img" aria-labelledby="new-title-5"><title id="new-title-5">Madre y RN con ubicación discordante</title><rect x="20" y="12" width="960" height="104" rx="12" fill="#eaf6f5" stroke="#167e88"/><text x="42" y="37" font-family="sans-serif" font-size="17" font-weight="700" fill="#123b4c">FUENTE</text><text x="42" y="62" font-family="sans-serif" font-size="15" fill="#233f4b">RN clasificado como cuna; Gestión de Camas sugiere ubicación distinta a la madre.</text><text x="490" y="132" font-size="18" fill="#167e88">↓</text><rect x="20" y="134" width="960" height="104" rx="12" fill="#eaf6f5" stroke="#167e88"/><text x="42" y="159" font-family="sans-serif" font-size="17" font-weight="700" fill="#123b4c">VALIDAR</text><text x="42" y="184" font-family="sans-serif" font-size="15" fill="#233f4b">Vínculo materno y episodios inequívocos; la cama o un nombre parecido no bastan.</text><text x="42" y="205" font-family="sans-serif" font-size="15" fill="#233f4b">«RN de…» sólo como respaldo con coincidencia inequívoca y contexto del episodio.</text><text x="490" y="254" font-size="18" fill="#167e88">↓</text><rect x="20" y="256" width="960" height="104" rx="12" fill="#eaf6f5" stroke="#167e88"/><text x="42" y="281" font-family="sans-serif" font-size="17" font-weight="700" fill="#123b4c">PROPONER</text><text x="42" y="306" font-family="sans-serif" font-size="15" fill="#233f4b">Cuna con madre inequívoca: seguirla con aviso, sin pregunta adicional por ubicación.</text><text x="42" y="327" font-family="sans-serif" font-size="15" fill="#233f4b">Revalidar episodios en la confirmación habitual del conjunto de cambios.</text><text x="490" y="376" font-size="18" fill="#167e88">↓</text><rect x="20" y="378" width="960" height="104" rx="12" fill="#eaf6f5" stroke="#167e88"/><text x="42" y="403" font-family="sans-serif" font-size="17" font-weight="700" fill="#123b4c">EXCEPCIONES</text><text x="42" y="428" font-family="sans-serif" font-size="15" fill="#233f4b">Identidad ambigua: revisión. Sin madre identificable: conservar cuna independiente. RN en Cama: mantener</text><text x="42" y="449" font-family="sans-serif" font-size="15" fill="#233f4b">clasificación propia.</text></svg></div>
+<p>Si la fuente alcanza la ubicación ya aceptada, no se repregunta. Ante futuros cambios se reevalúan identidad y clasificación: el mero desfase de una cuna con madre inequívoca se corrige con aviso; una asociación incierta o cambio de clasificación requiere revisión.</p><details><summary>Fuentes exactas</summary>
+<p><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/features/rayen-import/domain/neonatalPlacementReviewPlan.ts">src/features/rayen-import/domain/neonatalPlacementReviewPlan.ts</a>
+</p>
+<p><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/tests/rayen-import/standaloneCribMaternalReview.test.ts">src/tests/rayen-import/standaloneCribMaternalReview.test.ts</a>
+</p></details>
+</section>
+<section class="card" id="micro-6">
+<h2>06 · Egresos de cunas y RN en cama hospitalaria</h2>
+<p>Actualizado con #884 · evidencia en código y pruebas del commit bc3859a.</p><div class="micro-map"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 520" role="img" aria-labelledby="new-title-6"><title id="new-title-6">Egresos de cunas y RN en cama hospitalaria</title><rect x="20" y="12" width="960" height="104" rx="12" fill="#eaf6f5" stroke="#167e88"/><text x="42" y="37" font-family="sans-serif" font-size="17" font-weight="700" fill="#123b4c">FUENTE</text><text x="42" y="62" font-family="sans-serif" font-size="15" fill="#233f4b">Movimiento con identidad propia del RN y clasificación preservada; no deduplicar solo por RUN</text><text x="42" y="83" font-family="sans-serif" font-size="15" fill="#233f4b">compartido.</text><text x="490" y="132" font-size="18" fill="#167e88">↓</text><rect x="20" y="134" width="960" height="104" rx="12" fill="#eaf6f5" stroke="#167e88"/><text x="42" y="159" font-family="sans-serif" font-size="17" font-weight="700" fill="#123b4c">FILTRAR</text><text x="42" y="184" font-family="sans-serif" font-size="15" fill="#233f4b">Excluir movimientos eliminados. Después excluir isNested=true o clasificación Cuna, aunque la cuna sea</text><text x="42" y="205" font-family="sans-serif" font-size="15" fill="#233f4b">independiente.</text><text x="490" y="254" font-size="18" fill="#167e88">↓</text><rect x="20" y="256" width="960" height="104" rx="12" fill="#eaf6f5" stroke="#167e88"/><text x="42" y="281" font-family="sans-serif" font-size="17" font-weight="700" fill="#123b4c">CONTAR</text><text x="42" y="306" font-family="sans-serif" font-size="15" fill="#233f4b">Un RN en Cama hospitalaria sigue las reglas generales. La edad neonatal por sí sola no excluye su</text><text x="42" y="327" font-family="sans-serif" font-size="15" fill="#233f4b">egreso.</text><text x="490" y="376" font-size="18" fill="#167e88">↓</text><rect x="20" y="378" width="960" height="104" rx="12" fill="#eaf6f5" stroke="#167e88"/><text x="42" y="403" font-family="sans-serif" font-size="17" font-weight="700" fill="#123b4c">CONSERVAR</text><text x="42" y="428" font-family="sans-serif" font-size="15" fill="#233f4b">Los movimientos de cunas permanecen visibles para trazabilidad, sin sumar al egreso estadístico.</text></svg></div>
+<p>La clasificación usa originalData.bedMode cuando está presente; en su ausencia usa bedType. No basta filtrar isNested.</p><details><summary>Fuentes exactas</summary>
+<p><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/application/census/movementTombstonePolicy.ts">src/application/census/movementTombstonePolicy.ts</a>
+</p>
+<p><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/tests/application/census/movementTombstonePolicy.test.ts">src/tests/application/census/movementTombstonePolicy.test.ts</a>
+</p></details>
+</section>
+<section class="card" id="micro-7" style="scroll-margin-top:100px">
+<h2>07 · CUDYR a medianoche y al mediodía</h2>
+<p><b>HHR-DEC-06/07; cambiar borde 00:00, conservar atribución 12:00</b>
+</p><div class="micro-map"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 565" role="img" aria-labelledby="mt-7 md-7"><title id="mt-7">CUDYR a medianoche y al mediodía</title><desc id="md-7">Eloísa entrega CUDYR con fecha y hora reales de aplicación. Convertir el instante a Pacific/Easter. Vincular a paciente y episodio. Mantener el timestamp original; calcular aparte su día censal propietario. ¿La hora es anterior a las 12:00? Sí, desde 00:00 inclusive: pertenece al censo del día anterior. X+1 a las 03:00 pertenece a X. A las 12:00 pertenece al mismo día X. No marcar revisión sólo por esa hora ni moverlo a X−1.</desc><defs><marker id="arr-7" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#167e88"/></marker></defs><style>.head{font:700 16px system-ui,sans-serif;fill:#123b4c}.body{font:14px system-ui,sans-serif;fill:#233f4b}.edge{fill:none;stroke:#167e88;stroke-width:2.5;marker-end:url(#arr-7)}</style><rect width="1000" height="565" rx="16" fill="#f3f7f8"/><rect x="25" y="18" width="950" height="102" rx="12" fill="#fff" stroke="#b8cdd4"/><text x="43" y="45" class="head">1 · FUENTE</text><text x="43" y="71" class="body">Eloísa entrega CUDYR con fecha y hora reales de aplicación. Convertir el instante a</text><text x="43" y="91" class="body">Pacific/Easter.</text><path class="edge" d="M500 120V147"/><rect x="25" y="150" width="950" height="102" rx="12" fill="#fff" stroke="#b8cdd4"/><text x="43" y="177" class="head">2 · VALIDACIÓN</text><text x="43" y="203" class="body">Vincular a paciente y episodio. Mantener el timestamp original; calcular aparte su día censal</text><text x="43" y="223" class="body">propietario.</text><path class="edge" d="M500 252V280"/><rect x="180" y="283" width="640" height="82" rx="12" fill="#e4f1f2" stroke="#b8cdd4"/><text x="198" y="310" class="head">3 · DECISIÓN</text><text x="198" y="336" class="body">¿La hora es anterior a las 12:00?</text><path class="edge" d="M500 365V386H260V408"/><path class="edge" d="M500 386H740V408"/><rect x="25" y="411" width="465" height="142" rx="12" fill="#edf7ef" stroke="#b8cdd4"/><text x="43" y="438" class="head">4A · RESULTADO</text><text x="43" y="464" class="body">Sí, desde 00:00 inclusive: pertenece al</text><text x="43" y="484" class="body">censo del día anterior. X+1 a las 03:00</text><text x="43" y="504" class="body">pertenece a X.</text><rect x="510" y="411" width="465" height="142" rx="12" fill="#fff5e6" stroke="#b8cdd4"/><text x="528" y="438" class="head">4B · ALTERNATIVA / OTRA DIMENSIÓN</text><text x="528" y="464" class="body">A las 12:00 pertenece al mismo día X. No</text><text x="528" y="484" class="body">marcar revisión sólo por esa hora ni moverlo</text><text x="528" y="504" class="body">a X−1.</text></svg></div>
+<p>Dos registros atribuibles al mismo paciente/episodio/turno no representan dos pacientes-día. Resolver versiones/duplicados.</p><span class="refs"><a href="#s13" data-source="true">[S13]</a> <a href="#s36" data-source="true">[S36]</a> <a href="#s49" data-source="true">[S49]</a></span>
+</section>
+<section class="card" id="micro-8" style="scroll-margin-top:100px">
+<h2>08 · CUDYR con hora de ingreso desconocida</h2>
+<p><b>Regla aprobada HHR-DEC-08; resolver diario por ajustar</b>
+</p><div class="micro-map"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 565" role="img" aria-labelledby="mt-8 md-8"><title id="mt-8">CUDYR con hora de ingreso desconocida</title><desc id="md-8">Existe fecha de ingreso hospitalario del día D, pero no se conoce su hora. Comprobar identidad, modalidad hospitalaria y ausencia de contradicciones. Distinguir hora ausente de dato inválido. ¿Sólo falta la hora de ingreso? Sí: asumir anterior a 17:00 para elegibilidad; identificar el supuesto. No persistir una hora ficticia. No: resolver contradicción, modalidad o episodio. La presunción horaria no transforma UEA/CMA en Hospitalizados.</desc><defs><marker id="arr-8" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#167e88"/></marker></defs><style>.head{font:700 16px system-ui,sans-serif;fill:#123b4c}.body{font:14px system-ui,sans-serif;fill:#233f4b}.edge{fill:none;stroke:#167e88;stroke-width:2.5;marker-end:url(#arr-8)}</style><rect width="1000" height="565" rx="16" fill="#f3f7f8"/><rect x="25" y="18" width="950" height="102" rx="12" fill="#fff" stroke="#b8cdd4"/><text x="43" y="45" class="head">1 · FUENTE</text><text x="43" y="71" class="body">Existe fecha de ingreso hospitalario del día D, pero no se conoce su hora.</text><path class="edge" d="M500 120V147"/><rect x="25" y="150" width="950" height="102" rx="12" fill="#fff" stroke="#b8cdd4"/><text x="43" y="177" class="head">2 · VALIDACIÓN</text><text x="43" y="203" class="body">Comprobar identidad, modalidad hospitalaria y ausencia de contradicciones. Distinguir hora</text><text x="43" y="223" class="body">ausente de dato inválido.</text><path class="edge" d="M500 252V280"/><rect x="180" y="283" width="640" height="82" rx="12" fill="#e4f1f2" stroke="#b8cdd4"/><text x="198" y="310" class="head">3 · DECISIÓN</text><text x="198" y="336" class="body">¿Sólo falta la hora de ingreso?</text><path class="edge" d="M500 365V386H260V408"/><path class="edge" d="M500 386H740V408"/><rect x="25" y="411" width="465" height="142" rx="12" fill="#edf7ef" stroke="#b8cdd4"/><text x="43" y="438" class="head">4A · RESULTADO</text><text x="43" y="464" class="body">Sí: asumir anterior a 17:00 para</text><text x="43" y="484" class="body">elegibilidad; identificar el supuesto. No</text><text x="43" y="504" class="body">persistir una hora ficticia.</text><rect x="510" y="411" width="465" height="142" rx="12" fill="#fff5e6" stroke="#b8cdd4"/><text x="528" y="438" class="head">4B · ALTERNATIVA / OTRA DIMENSIÓN</text><text x="528" y="464" class="body">No: resolver contradicción, modalidad o</text><text x="528" y="484" class="body">episodio. La presunción horaria no</text><text x="528" y="504" class="body">transforma UEA/CMA en Hospitalizados.</text></svg></div>
+<p>Si llega evidencia de hora real, recalcular: 17:00 cumple ocho horas; 17:01 no, en día sin cambio horario.</p><span class="refs"><a href="#s8" data-source="true">[S8]</a> <a href="#s9" data-source="true">[S9]</a> <a href="#s10" data-source="true">[S10]</a></span>
+</section>
+<section class="card" id="micro-9" style="scroll-margin-top:100px">
+<h2>09 · CUDYR encontrado pero excluido manualmente</h2>
+<p><b>HHR-DEC-03; conservar exclusión, retirar edición de resultado</b>
+</p><div class="micro-map"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 565" role="img" aria-labelledby="mt-9 md-9"><title id="mt-9">CUDYR encontrado pero excluido manualmente</title><desc id="md-9">Eloísa aporta categoría A2. Un usuario autorizado registra exclusión de elegibilidad con motivo. Mantener fuente, categoría y atribución del turno. La exclusión cambia la participación estadística, no el instrumento. ¿Qué cambia en la proyección? Resultado clínico: A2 permanece registrado y trazable. No habilitar edición manual de categoría/puntajes. Cumplimiento: paciente-día fuera de numerador y denominador; motivo de exclusión visible.</desc><defs><marker id="arr-9" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#167e88"/></marker></defs><style>.head{font:700 16px system-ui,sans-serif;fill:#123b4c}.body{font:14px system-ui,sans-serif;fill:#233f4b}.edge{fill:none;stroke:#167e88;stroke-width:2.5;marker-end:url(#arr-9)}</style><rect width="1000" height="565" rx="16" fill="#f3f7f8"/><rect x="25" y="18" width="950" height="102" rx="12" fill="#fff" stroke="#b8cdd4"/><text x="43" y="45" class="head">1 · FUENTE</text><text x="43" y="71" class="body">Eloísa aporta categoría A2. Un usuario autorizado registra exclusión de elegibilidad con</text><text x="43" y="91" class="body">motivo.</text><path class="edge" d="M500 120V147"/><rect x="25" y="150" width="950" height="102" rx="12" fill="#fff" stroke="#b8cdd4"/><text x="43" y="177" class="head">2 · VALIDACIÓN</text><text x="43" y="203" class="body">Mantener fuente, categoría y atribución del turno. La exclusión cambia la participación</text><text x="43" y="223" class="body">estadística, no el instrumento.</text><path class="edge" d="M500 252V280"/><rect x="180" y="283" width="640" height="82" rx="12" fill="#e4f1f2" stroke="#b8cdd4"/><text x="198" y="310" class="head">3 · DECISIÓN</text><text x="198" y="336" class="body">¿Qué cambia en la proyección?</text><path class="edge" d="M500 365V386H260V408"/><path class="edge" d="M500 386H740V408"/><rect x="25" y="411" width="465" height="142" rx="12" fill="#edf7ef" stroke="#b8cdd4"/><text x="43" y="438" class="head">4A · RESULTADO</text><text x="43" y="464" class="body">Resultado clínico: A2 permanece registrado y</text><text x="43" y="484" class="body">trazable. No habilitar edición manual de</text><text x="43" y="504" class="body">categoría/puntajes.</text><rect x="510" y="411" width="465" height="142" rx="12" fill="#fff5e6" stroke="#b8cdd4"/><text x="528" y="438" class="head">4B · ALTERNATIVA / OTRA DIMENSIÓN</text><text x="528" y="464" class="body">Cumplimiento: paciente-día fuera de</text><text x="528" y="484" class="body">numerador y denominador; motivo de exclusión</text><text x="528" y="504" class="body">visible.</text></svg></div>
+<p>Las ramas se aplican juntas. Retirar un resultado no es equivalente a excluir un paciente de elegibilidad.</p><span class="refs"><a href="#s1" data-source="true">[S1]</a> <a href="#s14" data-source="true">[S14]</a> <a href="#s34" data-source="true">[S34]</a> <a href="#s35" data-source="true">[S35]</a> <a href="#s36" data-source="true">[S36]</a></span>
+</section>
+<section class="card" id="micro-10" style="scroll-margin-top:100px">
+<h2>10 · Consulta fallida frente a ausencia real</h2>
+<p><b>Implementado en el baseline; conservar distinción de cobertura</b>
+</p><div class="micro-map"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 565" role="img" aria-labelledby="mt-10 md-10"><title id="mt-10">Consulta fallida frente a ausencia real</title><desc id="md-10">Se consulta CUDYR: puede llegar categoría, respuesta vacía, error, sesión vencida o metadata parcial. Verificar final de ventana, cobertura completa, identidad inequívoca y fuente correspondiente al turno. ¿Hay evidencia final completa sin resultado? Sí: se puede declarar No registrado. Si está excluido, aplicar presentación No aplica según contexto. No: Verificación pendiente. Conservar evidencia previa y reintentar por canal autorizado; nunca fabricar ausencia.</desc><defs><marker id="arr-10" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#167e88"/></marker></defs><style>.head{font:700 16px system-ui,sans-serif;fill:#123b4c}.body{font:14px system-ui,sans-serif;fill:#233f4b}.edge{fill:none;stroke:#167e88;stroke-width:2.5;marker-end:url(#arr-10)}</style><rect width="1000" height="565" rx="16" fill="#f3f7f8"/><rect x="25" y="18" width="950" height="102" rx="12" fill="#fff" stroke="#b8cdd4"/><text x="43" y="45" class="head">1 · FUENTE</text><text x="43" y="71" class="body">Se consulta CUDYR: puede llegar categoría, respuesta vacía, error, sesión vencida o metadata</text><text x="43" y="91" class="body">parcial.</text><path class="edge" d="M500 120V147"/><rect x="25" y="150" width="950" height="102" rx="12" fill="#fff" stroke="#b8cdd4"/><text x="43" y="177" class="head">2 · VALIDACIÓN</text><text x="43" y="203" class="body">Verificar final de ventana, cobertura completa, identidad inequívoca y fuente correspondiente</text><text x="43" y="223" class="body">al turno.</text><path class="edge" d="M500 252V280"/><rect x="180" y="283" width="640" height="82" rx="12" fill="#e4f1f2" stroke="#b8cdd4"/><text x="198" y="310" class="head">3 · DECISIÓN</text><text x="198" y="336" class="body">¿Hay evidencia final completa sin resultado?</text><path class="edge" d="M500 365V386H260V408"/><path class="edge" d="M500 386H740V408"/><rect x="25" y="411" width="465" height="142" rx="12" fill="#edf7ef" stroke="#b8cdd4"/><text x="43" y="438" class="head">4A · RESULTADO</text><text x="43" y="464" class="body">Sí: se puede declarar No registrado. Si está</text><text x="43" y="484" class="body">excluido, aplicar presentación No aplica</text><text x="43" y="504" class="body">según contexto.</text><rect x="510" y="411" width="465" height="142" rx="12" fill="#fff5e6" stroke="#b8cdd4"/><text x="528" y="438" class="head">4B · ALTERNATIVA / OTRA DIMENSIÓN</text><text x="528" y="464" class="body">No: Verificación pendiente. Conservar</text><text x="528" y="484" class="body">evidencia previa y reintentar por canal</text><text x="528" y="504" class="body">autorizado; nunca fabricar ausencia.</text></svg></div>
+<p>Una respuesta HTTP exitosa no demuestra por sí sola que se revisó toda la población o todas las aplicaciones.</p><span class="refs"><a href="#s14" data-source="true">[S14]</a> <a href="#s44" data-source="true">[S44]</a> <a href="#s48" data-source="true">[S48]</a></span>
+</section>
+<section class="card" id="micro-11" style="scroll-margin-top:100px">
+<h2>11 · Otro usuario modifica durante sincronización</h2>
+<p><b>Implementado en el baseline; conservar controles de concurrencia</b>
+</p><div class="micro-map"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 565" role="img" aria-labelledby="mt-11 md-11"><title id="mt-11">Otro usuario modifica durante sincronización</title><desc id="md-11">Equipo A prepara una propuesta. Equipo B cambia cama, episodio o un campo mientras A consulta Eloísa. Antes del commit, comprobar revisión del servidor, ocupante, episodio y autoridad de la ejecución. ¿La propuesta sigue siendo aplicable? Sí: persistir por ruta gobernada y verificar confirmación. Repetición exacta usa identidad idempotente. No: releer y conciliar; bloquear si cambió significado. No usar la última escritura para decidir verdad clínica.</desc><defs><marker id="arr-11" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#167e88"/></marker></defs><style>.head{font:700 16px system-ui,sans-serif;fill:#123b4c}.body{font:14px system-ui,sans-serif;fill:#233f4b}.edge{fill:none;stroke:#167e88;stroke-width:2.5;marker-end:url(#arr-11)}</style><rect width="1000" height="565" rx="16" fill="#f3f7f8"/><rect x="25" y="18" width="950" height="102" rx="12" fill="#fff" stroke="#b8cdd4"/><text x="43" y="45" class="head">1 · FUENTE</text><text x="43" y="71" class="body">Equipo A prepara una propuesta. Equipo B cambia cama, episodio o un campo mientras A consulta</text><text x="43" y="91" class="body">Eloísa.</text><path class="edge" d="M500 120V147"/><rect x="25" y="150" width="950" height="102" rx="12" fill="#fff" stroke="#b8cdd4"/><text x="43" y="177" class="head">2 · VALIDACIÓN</text><text x="43" y="203" class="body">Antes del commit, comprobar revisión del servidor, ocupante, episodio y autoridad de la</text><text x="43" y="223" class="body">ejecución.</text><path class="edge" d="M500 252V280"/><rect x="180" y="283" width="640" height="82" rx="12" fill="#e4f1f2" stroke="#b8cdd4"/><text x="198" y="310" class="head">3 · DECISIÓN</text><text x="198" y="336" class="body">¿La propuesta sigue siendo aplicable?</text><path class="edge" d="M500 365V386H260V408"/><path class="edge" d="M500 386H740V408"/><rect x="25" y="411" width="465" height="142" rx="12" fill="#edf7ef" stroke="#b8cdd4"/><text x="43" y="438" class="head">4A · RESULTADO</text><text x="43" y="464" class="body">Sí: persistir por ruta gobernada y verificar</text><text x="43" y="484" class="body">confirmación. Repetición exacta usa</text><text x="43" y="504" class="body">identidad idempotente.</text><rect x="510" y="411" width="465" height="142" rx="12" fill="#fff5e6" stroke="#b8cdd4"/><text x="528" y="438" class="head">4B · ALTERNATIVA / OTRA DIMENSIÓN</text><text x="528" y="464" class="body">No: releer y conciliar; bloquear si cambió</text><text x="528" y="484" class="body">significado. No usar la última escritura</text><text x="528" y="504" class="body">para decidir verdad clínica.</text></svg></div>
+<p>Si se pierde la respuesta, no afirmar cancelación: comprobar recibo/estado autoritativo antes de repetir.</p><span class="refs"><a href="#s2" data-source="true">[S2]</a> <a href="#s33" data-source="true">[S33]</a> <a href="#s39" data-source="true">[S39]</a></span>
+</section>
+<section class="card" id="micro-12" style="scroll-margin-top:100px">
+<h2>12 · Reconstrucción histórica y cierre mensual</h2>
+<p><b>HHR-DEC-09 y reglas oficiales existentes</b>
+</p><div class="micro-map"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 565" role="img" aria-labelledby="mt-12 md-12"><title id="mt-12">Reconstrucción histórica y cierre mensual</title><desc id="md-12">Se solicita mes antiguo: recuperar originales, movimientos por episodio y día 1 del mes siguiente. Reconstruir presencia y cama de cada día, asignar resultados y resolver elegibilidad. No proyectar la cama actual al pasado. ¿Población, evidencia y elegibilidad resueltas? Sí: revisión y aprobación autorizadas → proyección oficial guardada en Firebase → lectura/exportación sin recaptura ordinaria. No: conservar pendientes explícitos. Fuente vacía o error no equivalen a censo vacío ni a mes oficial.</desc><defs><marker id="arr-12" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#167e88"/></marker></defs><style>.head{font:700 16px system-ui,sans-serif;fill:#123b4c}.body{font:14px system-ui,sans-serif;fill:#233f4b}.edge{fill:none;stroke:#167e88;stroke-width:2.5;marker-end:url(#arr-12)}</style><rect width="1000" height="565" rx="16" fill="#f3f7f8"/><rect x="25" y="18" width="950" height="102" rx="12" fill="#fff" stroke="#b8cdd4"/><text x="43" y="45" class="head">1 · FUENTE</text><text x="43" y="71" class="body">Se solicita mes antiguo: recuperar originales, movimientos por episodio y día 1 del mes</text><text x="43" y="91" class="body">siguiente.</text><path class="edge" d="M500 120V147"/><rect x="25" y="150" width="950" height="102" rx="12" fill="#fff" stroke="#b8cdd4"/><text x="43" y="177" class="head">2 · VALIDACIÓN</text><text x="43" y="203" class="body">Reconstruir presencia y cama de cada día, asignar resultados y resolver elegibilidad. No</text><text x="43" y="223" class="body">proyectar la cama actual al pasado.</text><path class="edge" d="M500 252V280"/><rect x="180" y="283" width="640" height="82" rx="12" fill="#e4f1f2" stroke="#b8cdd4"/><text x="198" y="310" class="head">3 · DECISIÓN</text><text x="198" y="336" class="body">¿Población, evidencia y elegibilidad resueltas?</text><path class="edge" d="M500 365V386H260V408"/><path class="edge" d="M500 386H740V408"/><rect x="25" y="411" width="465" height="142" rx="12" fill="#edf7ef" stroke="#b8cdd4"/><text x="43" y="438" class="head">4A · RESULTADO</text><text x="43" y="464" class="body">Sí: revisión y aprobación autorizadas →</text><text x="43" y="484" class="body">proyección oficial guardada en Firebase →</text><text x="43" y="504" class="body">lectura/exportación sin recaptura ordinaria.</text><rect x="510" y="411" width="465" height="142" rx="12" fill="#fff5e6" stroke="#b8cdd4"/><text x="528" y="438" class="head">4B · ALTERNATIVA / OTRA DIMENSIÓN</text><text x="528" y="464" class="body">No: conservar pendientes explícitos. Fuente</text><text x="528" y="484" class="body">vacía o error no equivalen a censo vacío ni</text><text x="528" y="504" class="body">a mes oficial.</text></svg></div>
+<p>Una corrección relevante posterior exige revisar vigencia. El último turno del mes usa también la madrugada del día 1 siguiente.</p><span class="refs"><a href="#s15" data-source="true">[S15]</a> <a href="#s16" data-source="true">[S16]</a> <a href="#s19" data-source="true">[S19]</a> <a href="#s35" data-source="true">[S35]</a> <a href="#s59" data-source="true">[S59]</a></span>
+</section>
+<section class="card" id="micro-13">
+<h2>13 · Madre egresada y RN todavía visible</h2>
+<p>Actualizado con #884 · evidencia en código y pruebas del commit bc3859a.</p><div class="micro-map"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 520" role="img" aria-labelledby="new-title-13"><title id="new-title-13">Madre egresada y RN todavía visible</title><rect x="20" y="12" width="960" height="104" rx="12" fill="#eaf6f5" stroke="#167e88"/><text x="42" y="37" font-family="sans-serif" font-size="17" font-weight="700" fill="#123b4c">FUENTE</text><text x="42" y="62" font-family="sans-serif" font-size="15" fill="#233f4b">Existe alta materna; falta movimiento propio del RN asociado.</text><text x="490" y="132" font-size="18" fill="#167e88">↓</text><rect x="20" y="134" width="960" height="104" rx="12" fill="#eaf6f5" stroke="#167e88"/><text x="42" y="159" font-family="sans-serif" font-size="17" font-weight="700" fill="#123b4c">VALIDAR</text><text x="42" y="184" font-family="sans-serif" font-size="15" fill="#233f4b">Consulta completa, identidad exacta y ausencia comprobada del episodio. RN activo o consulta incompleta:</text><text x="42" y="205" font-family="sans-serif" font-size="15" fill="#233f4b">no inferir alta.</text><text x="490" y="254" font-size="18" fill="#167e88">↓</text><rect x="20" y="256" width="960" height="104" rx="12" fill="#eaf6f5" stroke="#167e88"/><text x="42" y="281" font-family="sans-serif" font-size="17" font-weight="700" fill="#123b4c">RECUPERAR</text><text x="42" y="306" font-family="sans-serif" font-size="15" fill="#233f4b">Consultar episodio exacto y RUN materno explícitamente vinculado, si RN no tiene RUN. El RUN materno es</text><text x="42" y="327" font-family="sans-serif" font-size="15" fill="#233f4b">solo clave de consulta.</text><text x="490" y="376" font-size="18" fill="#167e88">↓</text><rect x="20" y="378" width="960" height="104" rx="12" fill="#eaf6f5" stroke="#167e88"/><text x="42" y="403" font-family="sans-serif" font-size="17" font-weight="700" fill="#123b4c">GUARDAR</text><text x="42" y="428" font-family="sans-serif" font-size="15" fill="#233f4b">Completar solo el movimiento neonatal verificado; conservar alta materna, notas e identidad. Sin prueba:</text><text x="42" y="449" font-family="sans-serif" font-size="15" fill="#233f4b">mantener RN visible.</text></svg></div>
+<p>Una fecha administrativa explícita puede ser válida aunque la respuesta antigua omita el booleano de alta. endPeriod clínico aislado no basta.</p><details><summary>Fuentes exactas</summary>
+<p><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/tests/rayen-import/recordedMotherMissingNewbornDischarge.test.ts">src/tests/rayen-import/recordedMotherMissingNewbornDischarge.test.ts</a>
+</p>
+<p><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/features/rayen-import/domain/associatedClinicalCribDischarge.ts">src/features/rayen-import/domain/associatedClinicalCribDischarge.ts</a>
+</p></details>
+</section>
+<section class="card" id="micro-14">
+<h2>14 · Egreso posterior como evidencia histórica</h2>
+<p>Actualizado con #884 · evidencia en código y pruebas del commit bc3859a.</p><div class="micro-map"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 520" role="img" aria-labelledby="new-title-14"><title id="new-title-14">Egreso posterior como evidencia histórica</title><rect x="20" y="12" width="960" height="104" rx="12" fill="#eaf6f5" stroke="#167e88"/><text x="42" y="37" font-family="sans-serif" font-size="17" font-weight="700" fill="#123b4c">OBJETIVO</text><text x="42" y="62" font-family="sans-serif" font-size="15" fill="#233f4b">Reconstruir D con evidencia posterior ya disponible, sin sustituir su cama por la ubicación actual.</text><text x="490" y="132" font-size="18" fill="#167e88">↓</text><rect x="20" y="134" width="960" height="104" rx="12" fill="#eaf6f5" stroke="#167e88"/><text x="42" y="159" font-family="sans-serif" font-size="17" font-weight="700" fill="#123b4c">FUENTE</text><text x="42" y="184" font-family="sans-serif" font-size="15" fill="#233f4b">Consultar informe exacto de egreso en D+1, verificar episodio y reconstruir flujo anterior al cierre de</text><text x="42" y="205" font-family="sans-serif" font-size="15" fill="#233f4b">D.</text><text x="490" y="254" font-size="18" fill="#167e88">↓</text><rect x="20" y="256" width="960" height="104" rx="12" fill="#eaf6f5" stroke="#167e88"/><text x="42" y="281" font-family="sans-serif" font-size="17" font-weight="700" fill="#123b4c">DECIDIR</text><text x="42" y="306" font-family="sans-serif" font-size="15" fill="#233f4b">Si prueba presencia al cierre de D, conservar ocupación histórica. No aplicar el egreso de D+1</text><text x="42" y="327" font-family="sans-serif" font-size="15" fill="#233f4b">anticipadamente en D.</text><text x="490" y="376" font-size="18" fill="#167e88">↓</text><rect x="20" y="378" width="960" height="104" rx="12" fill="#eaf6f5" stroke="#167e88"/><text x="42" y="403" font-family="sans-serif" font-size="17" font-weight="700" fill="#123b4c">PERSISTIR</text><text x="42" y="428" font-family="sans-serif" font-size="15" fill="#233f4b">Cuando corresponda reparar un egreso histórico, guardar movimiento y ocupación juntos con versión</text><text x="42" y="449" font-family="sans-serif" font-size="15" fill="#233f4b">revisada y confirmación remota.</text></svg></div>
+<p>Día clínico/censal, fecha real del movimiento y fecha de ejecución son dimensiones diferentes. La regla aprobada de estadística por fecha real permanece.</p><details><summary>Fuentes exactas</summary>
+<p><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/tests/rayen-import/historicalFollowingDayEvidence.test.ts">src/tests/rayen-import/historicalFollowingDayEvidence.test.ts</a>
+</p>
+<p><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/features/rayen-import/domain/historicalCorrectionPersistence.ts">src/features/rayen-import/domain/historicalCorrectionPersistence.ts</a>
+</p></details>
+</section>
+<section class="card" id="micro-15">
+<h2>15 · Pasaporte y autorización de lectura</h2>
+<p>Actualizado con #884 · evidencia en código y pruebas del commit bc3859a.</p><div class="micro-map"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 520" role="img" aria-labelledby="new-title-15"><title id="new-title-15">Pasaporte y autorización de lectura</title><rect x="20" y="12" width="960" height="104" rx="12" fill="#eaf6f5" stroke="#167e88"/><text x="42" y="37" font-family="sans-serif" font-size="17" font-weight="700" fill="#123b4c">IDENTIDAD</text><text x="42" y="62" font-family="sans-serif" font-size="15" fill="#233f4b">Conservar letras y dígitos del pasaporte completo y tipo de documento; unirlo al episodio exacto.</text><text x="490" y="132" font-size="18" fill="#167e88">↓</text><rect x="20" y="134" width="960" height="104" rx="12" fill="#eaf6f5" stroke="#167e88"/><text x="42" y="159" font-family="sans-serif" font-size="17" font-weight="700" fill="#123b4c">RENOVAR</text><text x="42" y="184" font-family="sans-serif" font-size="15" fill="#233f4b">Para recuperar autorización de formularios exigir coincidencia única del episodio y del identificador en</text><text x="42" y="205" font-family="sans-serif" font-size="15" fill="#233f4b">snapshot fresco.</text><text x="490" y="254" font-size="18" fill="#167e88">↓</text><rect x="20" y="256" width="960" height="104" rx="12" fill="#eaf6f5" stroke="#167e88"/><text x="42" y="281" font-family="sans-serif" font-size="17" font-weight="700" fill="#123b4c">BLOQUEAR</text><text x="42" y="306" font-family="sans-serif" font-size="15" fill="#233f4b">Si la evidencia viva no confirma el pasaporte, no usar el lookup antiguo de RUN como sustituto.</text><text x="490" y="376" font-size="18" fill="#167e88">↓</text><rect x="20" y="378" width="960" height="104" rx="12" fill="#eaf6f5" stroke="#167e88"/><text x="42" y="403" font-family="sans-serif" font-size="17" font-weight="700" fill="#123b4c">CONTINUAR</text><text x="42" y="428" font-family="sans-serif" font-size="15" fill="#233f4b">Mantener límites de autorización. Un pendiente de continuidad bloquea su episodio; otros verificados</text><text x="42" y="449" font-family="sans-serif" font-size="15" fill="#233f4b">pueden completar signos y escalas.</text></svg></div>
+<p>Un identificador con apariencia numérica no demuestra que sea RUT. No se amplían permisos ni se modifica el paquete de la extensión.</p><details><summary>Fuentes exactas</summary>
+<p><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/features/rayen-import/domain/clinicalFormsAuthorizationRecovery.ts">src/features/rayen-import/domain/clinicalFormsAuthorizationRecovery.ts</a>
+</p>
+<p><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/tests/rayen-import/foreignPatientIdentitySync.test.ts">src/tests/rayen-import/foreignPatientIdentitySync.test.ts</a>
+</p></details>
+</section></div><div class="panel" id="tech" role="tabpanel" aria-labelledby="tab-tech">
+<section class="card" id="contrato-884">
+<h2>Contrato diferencial #884</h2>
+<ul>
+<li><b>isClinicalCribDischarge:</b> isNested === true OR (originalData.bedMode || bedType) === 'Cuna'.</li>
+<li><b>getStatisticalDischarges:</b> primero movimientos activos, después excluir cunas según la función anterior.</li>
+<li><b>Identidad:</b> documentType es sincronizable; conservar pasaporte reconocido cuando coincide documento y episodio.</li>
+<li><b>Persistencia histórica:</b> versión base lastUpdated, requireConfirmedRecord=true y resultado savedRemotely con confirmedRecord.date igual al día base. Una cola local pendiente no satisface esta confirmación.</li>
+<li><b>Fecha:</b> sincronizar D consulta evidencia para D aunque se ejecute después. La madrugada siguiente pertenece a su turno hasta relevo 08:00/09:00; conservar instante real mostrado.</li>
+<li><b>CUDYR:</b> sincronizar hoy puede completar el turno nocturno anterior según fecha de aplicación. No implica alterar las decisiones aprobadas ni sobrescribir CUDYR saneado.</li>
+</ul>
+<p>La evidencia ejecutable de referencia está en <a href="testing/SYNC_LIFECYCLE_REGRESSION.md">las pruebas permanentes del PR #886</a>. Esta incorporación no incluye ni reejecuta el paquete documental externo de la v7.</p>
+</section>
+<section class="card">
+<h2>Contrato para una IA · cómo utilizarlo</h2>
+<ol>
+<li>Leer primero las decisiones HHR-DEC en «Reglas».</li>
+<li>Elegir la ficha OP correspondiente y respetar sus dependencias.</li>
+<li>Abrir los archivos fijados al commit y comprobar cambios posteriores antes de implementar.</li>
+<li>Usar los ejemplos sintéticos como expectativas, no como payloads reales de Eloísa.</li>
+<li>Separar consultas de escrituras, y conservar autorizaciones/permisos del producto.</li>
+<li>Traducir cada caso a prueba de la función productiva antes de afirmar que la aplicación cumple.</li>
+</ol>
+<aside class="warn">Los ejemplos documentales no prueban despliegue ni pacientes reales. El paquete externo v7 no está incluido. Usar la matriz de pruebas del producto del PR #886 para evidencia ejecutable.</aside>
+</section>
+<section class="card">
+<h2>Esquema de entrada / salida · adaptador documental</h2>
+<p>Este formato es una especificación de trabajo para una IA, <b>no el esquema literal de la API externa</b>. El lector normaliza las fuentes reales antes de evaluar.</p><div class="table-scroll" tabindex="0">
+<table><thead>
+<tr><th scope="col">Campo</th><th scope="col">Tipo / regla</th><th scope="col">Ausencia o error</th>
+</tr></thead><tbody>
+<tr><td>date</td><td>YYYY-MM-DD: día censal válido, no instante UTC.</td><td>Fecha ausente/inválida → revisión, sin inventarla.</td>
+</tr>
+<tr><td>modality</td><td>hospitalizacion / cma / uea / cuna / desconocida.</td><td>Desconocida → por revisar.</td>
+</tr>
+<tr><td>group</td><td>media / intermedia para contexto hospitalario reconocido.</td><td>Sin grupo → por revisar.</td>
+</tr>
+<tr><td>identityVerified</td><td>boolean; documento y episodio inequívocos.</td><td>false → no atribuir resultado a paciente por suposición.</td>
+</tr>
+<tr><td>contradiction</td><td>boolean; conflicto documental o temporal.</td><td>true → por revisar; no activar presunción de hora.</td>
+</tr>
+<tr><td>hospitalAdmissionTime</td><td>HH:mm o null sólo si desconocida.</td><td>null del mismo día puede activar regla aprobada; hora inválida no es null.</td>
+</tr>
+<tr><td>admissionInstant / cutoffInstant</td><td>ISO con Z u offset explícito, ya resueltos por adaptador.</td><td>Sin instante, no calcular duración por reloj del navegador.</td>
+</tr>
+<tr><td>manualExclusion</td><td>boolean + motivo/autor en persistencia real.</td><td>No cambia categoría fuente.</td>
+</tr>
+<tr><td>output.eligibility</td><td>elegible / no_elegible / por_revisar.</td><td>Supuesto se representa además como bandera/motivo, no una cuarta categoría productiva obligatoria.</td>
+</tr>
+<tr><td>output.evidence</td><td>Fuente, evento/episodio, fecha original, cobertura y método.</td><td>No fabricar autor, hora ni identificación.</td>
+</tr>
+<tr><td>output.persistence</td><td>propuesto / pendiente / confirmado según autoridad.</td><td>No marcar confirmado por éxito de captura.</td>
+</tr></tbody>
+</table></div>
+</section>
+<section class="card">
+<h2>Ejemplos y resultados esperados</h2>
+<p>Los ejemplos siguientes son expectativas documentales. El paquete externo de pruebas de la v7 no se adjunta a este repositorio ni se usa como evidencia ejecutada. Para pruebas reales del producto, ejecutar <code>npm run test:sync-lifecycle</code> y consultar <a href="testing/SYNC_LIFECYCLE_REGRESSION.md">su matriz y límites</a>.</p>
+<p>Son datos sintéticos sin pacientes. «elegible_por_supuesto» es una etiqueta del ejemplo documental para verificar que no se pierda el motivo; no impone un nuevo enum al producto.</p><div class="table-scroll" tabindex="0">
+<table><thead>
+<tr><th scope="col">Caso / regla</th><th scope="col">Entrada sintética</th><th scope="col">Esperado</th>
+</tr></thead><tbody>
+<tr><td>TIME-0000 · HHR-DEC-06/07</td><td><code>{&quot;date&quot;: &quot;2026-10-17&quot;, &quot;time&quot;: &quot;00:00&quot;}</code></td><td><b>2026-10-16</b></td>
+</tr>
+<tr><td>TIME-0001 · HHR-DEC-06/07</td><td><code>{&quot;date&quot;: &quot;2026-10-17&quot;, &quot;time&quot;: &quot;00:01&quot;}</code></td><td><b>2026-10-16</b></td>
+</tr>
+<tr><td>TIME-1159 · HHR-DEC-06/07</td><td><code>{&quot;date&quot;: &quot;2026-10-17&quot;, &quot;time&quot;: &quot;11:59&quot;}</code></td><td><b>2026-10-16</b></td>
+</tr>
+<tr><td>TIME-1200 · HHR-DEC-06/07</td><td><code>{&quot;date&quot;: &quot;2026-10-17&quot;, &quot;time&quot;: &quot;12:00&quot;}</code></td><td><b>2026-10-17</b></td>
+</tr>
+<tr><td>TIME-2359 · HHR-DEC-06/07</td><td><code>{&quot;date&quot;: &quot;2026-10-17&quot;, &quot;time&quot;: &quot;23:59&quot;}</code></td><td><b>2026-10-17</b></td>
+</tr>
+<tr><td>TIME-MONTH · HHR-DEC-06</td><td><code>{&quot;date&quot;: &quot;2026-11-01&quot;, &quot;time&quot;: &quot;00:00&quot;}</code></td><td><b>2026-10-31</b></td>
+</tr>
+<tr><td>TIME-YEAR · HHR-DEC-06</td><td><code>{&quot;date&quot;: &quot;2027-01-01&quot;, &quot;time&quot;: &quot;03:00&quot;}</code></td><td><b>2026-12-31</b></td>
+</tr>
+<tr><td>LOAD-MIX · HHR-DEC-01</td><td><code>{&quot;modalities&quot;: [&quot;mq&quot;, &quot;mq&quot;, &quot;mq&quot;, &quot;cma_hospitalaria&quot;, &quot;cma_hospitalaria&quot;, &quot;uea&quot;, &quot;uea&quot;, &quot;uea&quot;, &quot;uea&quot;]}</code></td><td><b>5</b></td>
+</tr>
+<tr><td>LOAD-EMPTY · HHR-DEC-01</td><td><code>{&quot;modalities&quot;: []}</code></td><td><b>0</b></td>
+</tr>
+<tr><td>LOAD-UEA · HHR-DEC-01</td><td><code>{&quot;modalities&quot;: [&quot;uea&quot;, &quot;uea&quot;]}</code></td><td><b>0</b></td>
+</tr>
+<tr><td>ELIG-EIGHT · HHR-DEC-03/05/08; CUD-03</td><td><code>{&quot;date&quot;: &quot;2026-10-17&quot;, &quot;modality&quot;: &quot;hospitalizacion&quot;, &quot;group&quot;: &quot;media&quot;, &quot;identityVerified&quot;: true, &quot;contradiction&quot;: false, &quot;manualExclusion&quot;: false, &quot;hospitalAdmissionDate&quot;: &quot;2026-10-17&quot;, &quot;hospitalAdmissionTime&quot;: &quot;17:00&quot;, &quot;admissionInstant&quot;: &quot;2026-10-17T17:00:00-05:00&quot;, &quot;cutoffInstant&quot;: &quot;2026-10-18T01:00:00-05:00&quot;}</code></td><td><b>elegible</b></td>
+</tr>
+<tr><td>ELIG-SHORT · HHR-DEC-03/05/08; CUD-03</td><td><code>{&quot;date&quot;: &quot;2026-10-17&quot;, &quot;modality&quot;: &quot;hospitalizacion&quot;, &quot;group&quot;: &quot;media&quot;, &quot;identityVerified&quot;: true, &quot;contradiction&quot;: false, &quot;manualExclusion&quot;: false, &quot;hospitalAdmissionDate&quot;: &quot;2026-10-17&quot;, &quot;hospitalAdmissionTime&quot;: &quot;17:01&quot;, &quot;admissionInstant&quot;: &quot;2026-10-17T17:01:00-05:00&quot;, &quot;cutoffInstant&quot;: &quot;2026-10-18T01:00:00-05:00&quot;}</code></td><td><b>no_elegible</b></td>
+</tr>
+<tr><td>ELIG-LONG · HHR-DEC-03/05/08; CUD-03</td><td><code>{&quot;date&quot;: &quot;2026-10-17&quot;, &quot;modality&quot;: &quot;hospitalizacion&quot;, &quot;group&quot;: &quot;media&quot;, &quot;identityVerified&quot;: true, &quot;contradiction&quot;: false, &quot;manualExclusion&quot;: false, &quot;hospitalAdmissionDate&quot;: &quot;2026-10-17&quot;, &quot;hospitalAdmissionTime&quot;: &quot;16:59&quot;, &quot;admissionInstant&quot;: &quot;2026-10-17T16:59:00-05:00&quot;, &quot;cutoffInstant&quot;: &quot;2026-10-18T01:00:00-05:00&quot;}</code></td><td><b>elegible</b></td>
+</tr>
+<tr><td>ELIG-UNKNOWN · HHR-DEC-03/05/08; CUD-03</td><td><code>{&quot;date&quot;: &quot;2026-10-17&quot;, &quot;modality&quot;: &quot;hospitalizacion&quot;, &quot;group&quot;: &quot;media&quot;, &quot;identityVerified&quot;: true, &quot;contradiction&quot;: false, &quot;manualExclusion&quot;: false, &quot;hospitalAdmissionDate&quot;: &quot;2026-10-17&quot;, &quot;hospitalAdmissionTime&quot;: null, &quot;admissionInstant&quot;: null, &quot;cutoffInstant&quot;: &quot;2026-10-18T01:00:00-05:00&quot;}</code></td><td><b>elegible_por_supuesto</b></td>
+</tr>
+<tr><td>ELIG-CONFLICT · HHR-DEC-03/05/08; CUD-03</td><td><code>{&quot;date&quot;: &quot;2026-10-17&quot;, &quot;modality&quot;: &quot;hospitalizacion&quot;, &quot;group&quot;: &quot;media&quot;, &quot;identityVerified&quot;: true, &quot;contradiction&quot;: true, &quot;manualExclusion&quot;: false, &quot;hospitalAdmissionDate&quot;: &quot;2026-10-17&quot;, &quot;hospitalAdmissionTime&quot;: &quot;17:00&quot;, &quot;admissionInstant&quot;: &quot;2026-10-17T17:00:00-05:00&quot;, &quot;cutoffInstant&quot;: &quot;2026-10-18T01:00:00-05:00&quot;}</code></td><td><b>por_revisar</b></td>
+</tr>
+<tr><td>ELIG-IDENTITY · HHR-DEC-03/05/08; CUD-03</td><td><code>{&quot;date&quot;: &quot;2026-10-17&quot;, &quot;modality&quot;: &quot;hospitalizacion&quot;, &quot;group&quot;: &quot;media&quot;, &quot;identityVerified&quot;: false, &quot;contradiction&quot;: false, &quot;manualExclusion&quot;: false, &quot;hospitalAdmissionDate&quot;: &quot;2026-10-17&quot;, &quot;hospitalAdmissionTime&quot;: &quot;17:00&quot;, &quot;admissionInstant&quot;: &quot;2026-10-17T17:00:00-05:00&quot;, &quot;cutoffInstant&quot;: &quot;2026-10-18T01:00:00-05:00&quot;}</code></td><td><b>por_revisar</b></td>
+</tr>
+<tr><td>ELIG-CMA · HHR-DEC-03/05/08; CUD-03</td><td><code>{&quot;date&quot;: &quot;2026-10-17&quot;, &quot;modality&quot;: &quot;cma&quot;, &quot;group&quot;: &quot;media&quot;, &quot;identityVerified&quot;: true, &quot;contradiction&quot;: false, &quot;manualExclusion&quot;: false, &quot;hospitalAdmissionDate&quot;: &quot;2026-10-17&quot;, &quot;hospitalAdmissionTime&quot;: &quot;17:00&quot;, &quot;admissionInstant&quot;: &quot;2026-10-17T17:00:00-05:00&quot;, &quot;cutoffInstant&quot;: &quot;2026-10-18T01:00:00-05:00&quot;}</code></td><td><b>no_elegible</b></td>
+</tr>
+<tr><td>ELIG-UEA · HHR-DEC-03/05/08; CUD-03</td><td><code>{&quot;date&quot;: &quot;2026-10-17&quot;, &quot;modality&quot;: &quot;uea&quot;, &quot;group&quot;: &quot;media&quot;, &quot;identityVerified&quot;: true, &quot;contradiction&quot;: false, &quot;manualExclusion&quot;: false, &quot;hospitalAdmissionDate&quot;: &quot;2026-10-17&quot;, &quot;hospitalAdmissionTime&quot;: null, &quot;admissionInstant&quot;: &quot;2026-10-17T17:00:00-05:00&quot;, &quot;cutoffInstant&quot;: &quot;2026-10-18T01:00:00-05:00&quot;}</code></td><td><b>no_elegible</b></td>
+</tr>
+<tr><td>ELIG-CRIB · HHR-DEC-03/05/08; CUD-03</td><td><code>{&quot;date&quot;: &quot;2026-10-17&quot;, &quot;modality&quot;: &quot;cuna&quot;, &quot;group&quot;: &quot;media&quot;, &quot;identityVerified&quot;: true, &quot;contradiction&quot;: false, &quot;manualExclusion&quot;: false, &quot;hospitalAdmissionDate&quot;: &quot;2026-10-17&quot;, &quot;hospitalAdmissionTime&quot;: &quot;17:00&quot;, &quot;admissionInstant&quot;: &quot;2026-10-17T17:00:00-05:00&quot;, &quot;cutoffInstant&quot;: &quot;2026-10-18T01:00:00-05:00&quot;}</code></td><td><b>no_elegible</b></td>
+</tr>
+<tr><td>ELIG-EXCLUDED · HHR-DEC-03/05/08; CUD-03</td><td><code>{&quot;date&quot;: &quot;2026-10-17&quot;, &quot;modality&quot;: &quot;hospitalizacion&quot;, &quot;group&quot;: &quot;media&quot;, &quot;identityVerified&quot;: true, &quot;contradiction&quot;: false, &quot;manualExclusion&quot;: true, &quot;hospitalAdmissionDate&quot;: &quot;2026-10-17&quot;, &quot;hospitalAdmissionTime&quot;: &quot;17:00&quot;, &quot;admissionInstant&quot;: &quot;2026-10-17T17:00:00-05:00&quot;, &quot;cutoffInstant&quot;: &quot;2026-10-18T01:00:00-05:00&quot;}</code></td><td><b>no_elegible</b></td>
+</tr>
+<tr><td>ELIG-GROUP · HHR-DEC-03/05/08; CUD-03</td><td><code>{&quot;date&quot;: &quot;2026-10-17&quot;, &quot;modality&quot;: &quot;hospitalizacion&quot;, &quot;group&quot;: null, &quot;identityVerified&quot;: true, &quot;contradiction&quot;: false, &quot;manualExclusion&quot;: false, &quot;hospitalAdmissionDate&quot;: &quot;2026-10-17&quot;, &quot;hospitalAdmissionTime&quot;: &quot;17:00&quot;, &quot;admissionInstant&quot;: &quot;2026-10-17T17:00:00-05:00&quot;, &quot;cutoffInstant&quot;: &quot;2026-10-18T01:00:00-05:00&quot;}</code></td><td><b>por_revisar</b></td>
+</tr>
+<tr><td>DEPART-MONTH · HHR-DEC-04</td><td><code>{&quot;movementDate&quot;: &quot;2026-11-01&quot;, &quot;censusDate&quot;: &quot;2026-10-31&quot;}</code></td><td><b>2026-11</b></td>
+</tr>
+<tr><td>COVERAGE-ERROR · CUD-07</td><td><code>{&quot;found&quot;: false, &quot;closed&quot;: true, &quot;complete&quot;: false, &quot;uniqueEpisode&quot;: true}</code></td><td><b>pendiente</b></td>
+</tr>
+<tr><td>COVERAGE-ABSENT · CUD-07</td><td><code>{&quot;found&quot;: false, &quot;closed&quot;: true, &quot;complete&quot;: true, &quot;uniqueEpisode&quot;: true}</code></td><td><b>no_registrado</b></td>
+</tr>
+<tr><td>COVERAGE-OPEN · CUD-07</td><td><code>{&quot;found&quot;: false, &quot;closed&quot;: false, &quot;complete&quot;: true, &quot;uniqueEpisode&quot;: true}</code></td><td><b>pendiente</b></td>
+</tr>
+<tr><td>COVERAGE-FOUND · CUD-02</td><td><code>{&quot;found&quot;: true, &quot;closed&quot;: false, &quot;complete&quot;: false, &quot;uniqueEpisode&quot;: true}</code></td><td><b>registrado</b></td>
+</tr>
+<tr><td>COVERAGE-AMBIGUOUS · ID-02</td><td><code>{&quot;found&quot;: true, &quot;closed&quot;: true, &quot;complete&quot;: true, &quot;uniqueEpisode&quot;: false}</code></td><td><b>pendiente</b></td>
+</tr></tbody>
+</table></div>
+</section>
+<section class="card">
+<h2>T10 · Matriz de autoridad: qué fuente decide cada cosa</h2><div class="table-scroll" tabindex="0">
+<table><thead>
+<tr><th scope="col">Dato / decisión</th><th scope="col">Fuente que manda en este flujo</th><th scope="col">Lo que NO la reemplaza</th>
+</tr></thead><tbody>
+<tr><td>Identidad del episodio</td><td>Identificador de episodio y documento respaldados en fuentes; validación de relación madre/RN.</td><td>Nombre parecido, número de cama o RUN materno aislado.</td>
+</tr>
+<tr><td>Cama actual</td><td>Captura coherente y evidencia de asignación; resolver discrepancias con flujo y revisión.</td><td>Última cama visible en una única pestaña desactualizada.</td>
+</tr>
+<tr><td>Cama histórica</td><td>Intervalos del episodio al corte; evidencia oficial y contexto histórico verificado.</td><td>Cama actual o fila administrativa sin prueba de ubicación temporal.</td>
+</tr>
+<tr><td>Salida estadística</td><td>Alta administrativa/IEEH exacto con hora y destino.</td><td>Epicrisis, ausencia de lista, hora de sincronización o limpieza manual de pantalla.</td>
+</tr>
+<tr><td>Signo vital corregido</td><td>Evento fuente estable con contenido corregido y fecha clínica resuelta.</td><td>Orden de llegada de la red o hora del guardado HHR.</td>
+</tr>
+<tr><td>Especialidad manual / gravedad / UPC</td><td>Decisión HHR gobernada del mismo episodio.</td><td>Sincronización genérica de diagnóstico o ubicación física R1–R4.</td>
+</tr>
+<tr><td>Registro CUDYR mensual oficial</td><td>Fuentes Eloísa admitidas por eloisa_only y evidencia archivada/mensual.</td><td>Categoría local administrativa, cierre heredado o deducción a partir de Braden.</td>
+</tr>
+<tr><td>Elegibilidad CUDYR</td><td>Regla diaria + episodio + tramo hospitalario + modalidad/grupo + corrección auditada.</td><td>Existencia de una categoría, edad neonatal o cama actual por sí solas.</td>
+</tr>
+<tr><td>Confirmación de persistencia</td><td>Respuesta/lectura canónica de la autoridad y revisión/recibo.</td><td>Dato visible en pantalla, guardado local o respuesta técnica de captura.</td>
+</tr></tbody>
+</table></div><span class="refs"><a href="#s1" data-source="true">[S1]</a> <a href="#s2" data-source="true">[S2]</a> <a href="#s3" data-source="true">[S3]</a> <a href="#s9" data-source="true">[S9]</a> <a href="#s10" data-source="true">[S10]</a> <a href="#s20" data-source="true">[S20]</a> <a href="#s23" data-source="true">[S23]</a> <a href="#s27" data-source="true">[S27]</a> <a href="#s35" data-source="true">[S35]</a> <a href="#s39" data-source="true">[S39]</a></span>
+</section>
+<section class="card">
+<h2>T12 · Persistencia: ubicación concreta de la información</h2><div class="table-scroll" tabindex="0">
+<table><thead>
+<tr><th scope="col">Ruta lógica bajo hospitals/{hospitalId}</th><th scope="col">Contenido</th><th scope="col">Lectura/escritura</th>
+</tr></thead><tbody>
+<tr><td>dailyRecords/{date}</td><td>Censo, beds, clinicalCrib, movimientos, evaluación clínica y trazabilidad de ejecución.</td><td>Repositorios y autoridades del censo; no escribir arbitrariamente campos desde el bridge.</td>
+</tr>
+<tr><td>dailyRecords/{date}/history/{snapshot}</td><td>Respaldo de versiones anteriores según ruta de guardado.</td><td>Auditoría/recuperación; no representa por sí solo verdad actual.</td>
+</tr>
+<tr><td>cudyrHistory</td><td>Observaciones y versiones documentales CUDYR.</td><td>Archivo gobernado por funciones; se vincula evento, episodio y turno.</td>
+</tr>
+<tr><td>cudyrCaptures</td><td>Recibos, cobertura y metadata de captura.</td><td>Permite distinguir observado, pendiente/fallido y completitud; no inventar ausencia.</td>
+</tr>
+<tr><td>cudyrCensusSources / cudyrSupplementFiles</td><td>Fuentes del censo documental y archivos de respaldo con hash.</td><td>Conservación de originales y vínculo a importaciones.</td>
+</tr>
+<tr><td>cudyrMonthlySupplements / cudyrVerifiedContexts</td><td>Complementos mensuales y contexto revisado.</td><td>Recuperación y conciliación con revisión; no aprobación implícita.</td>
+</tr>
+<tr><td>cudyrDailyExclusions</td><td>Excepciones de elegibilidad.</td><td>Cambian pertenencia al cálculo; no crean CUDYR.</td>
+</tr>
+<tr><td>cudyrOfficialReports/{month}</td><td>Proyección mensual oficial y subcolección versions.</td><td>Lectura rápida; publicación y restauración gobernadas.</td>
+</tr>
+<tr><td>cudyrArchiveVersions</td><td>Marcadores de cambios relevantes, incluidos egresos.</td><td>Detectar invalidez de proyección sin reconstruir todos los episodios.</td>
+</tr>
+<tr><td>settings/rayenImportPolicy</td><td>Modo y revisión de la política de sincronización.</td><td>Congelada por corrida; comprobar servidor. No asumir modo desde una captura local.</td>
+</tr></tbody>
+</table></div><span class="refs"><a href="#s39" data-source="true">[S39]</a> <a href="#s58" data-source="true">[S58]</a> <a href="#s59" data-source="true">[S59]</a> <a href="#s60" data-source="true">[S60]</a></span>
+<p>Los nombres de colección están comprobados en código. El hospitalId efectivo, proyecto Firebase, credenciales y despliegue se resuelven desde configuración autorizada; no se adivinan ni se incluyen en ejemplos.</p>
+</section>
+<section class="card">
+<h2>T5 · Tiempo de ejecución: plazos, ventanas y rendimiento</h2><div class="table-scroll" tabindex="0">
+<table><thead>
+<tr><th scope="col">Mecanismo</th><th scope="col">Valor</th><th scope="col">Ubicación / interpretación</th>
+</tr></thead><tbody>
+<tr><td>Salud pasiva de extensión</td><td>10 s</td><td>extensionHealthBridge.ts</td>
+</tr>
+<tr><td>Salud al sincronizar</td><td>25 s</td><td>extensionHealthBridge.ts</td>
+</tr>
+<tr><td>Carga de contexto</td><td>30 s</td><td>rayenSyncTemporalContext.ts</td>
+</tr>
+<tr><td>Solicitud de captura</td><td>75 s</td><td>rayenSyncRequestLifecycle.ts</td>
+</tr>
+<tr><td>Persistencia estructural</td><td>90 s</td><td>rayenSnapshotPersistenceExecution.ts</td>
+</tr>
+<tr><td>Lectura clínica por canal</td><td>55 s</td><td>clinicalReadPolicy.ts; incluye backend 45 s + relay 50 s, no se suman</td>
+</tr>
+<tr><td>Lectura CUDYR</td><td>120 s</td><td>clinicalReadPolicy.ts</td>
+</tr>
+<tr><td>Etapa clínica</td><td>5 min</td><td>clinicalReadPolicy.ts / watchdog</td>
+</tr>
+<tr><td>Callable de lote clínico</td><td>20 s</td><td>rayenClinicalEnrichmentBatchClient.ts</td>
+</tr>
+<tr><td>Desfase entre fuentes</td><td>Máximo 2 min</td><td>rayen-sync-bundle-runtime.js; coherencia, no timeout</td>
+</tr>
+<tr><td>Lecturas concurrentes</td><td>4 por puerta/fuente en runner</td><td>clinicalFillRunner.ts; no implica 4 solicitudes globales totales</td>
+</tr>
+<tr><td>Reintento por fuente clínica</td><td>Hasta 1 adicional</td><td>clinicalPatientReaders.ts; las secciones exitosas no se repiten por fallo de otra</td>
+</tr>
+<tr><td>Revalidación amplia</td><td>Cada 24 h si falta validación suficiente</td><td>clinicalHistoryReadPolicy.ts</td>
+</tr>
+<tr><td>Contención de intento amplio fallido</td><td>15 min</td><td>No demuestra validación exitosa; mantiene reintento futuro</td>
+</tr>
+<tr><td>Ventana amplia</td><td>max(14 días, antigüedad del censo + 2)</td><td>No es retención de datos ni límite histórico</td>
+</tr>
+<tr><td>Ventana adaptativa ordinaria</td><td>max(2 días, antigüedad + 2)</td><td>clinical-day-runtime.js; fallback de fecha inválida 14</td>
+</tr>
+<tr><td>Caché mes oficial</td><td>Vigencia documentada 2 min + refresco explícito</td><td>CUDYR_OFFICIAL_MONTH.md; copia por cuenta/sesión</td>
+</tr></tbody>
+</table></div><span class="refs"><a href="#s30" data-source="true">[S30]</a> <a href="#s31" data-source="true">[S31]</a> <a href="#s32" data-source="true">[S32]</a> <a href="#s38" data-source="true">[S38]</a> <a href="#s50" data-source="true">[S50]</a> <a href="#s51" data-source="true">[S51]</a> <a href="#s52" data-source="true">[S52]</a></span>
+<p><b>No sumar los plazos:</b> se superponen y algunos son por petición, otros por etapa. No son duración esperada ni SLA. La línea base de 29-09-2026 documenta, con 13/13 pacientes, corridas previas de 16–49 s y tres posteriores de 13, 22 y 24 s. Es una observación antigua de un entorno particular: no una medición de esta revisión ni una promesa de tiempo actual.</p>
+<p>Registrar tiempos separados de conexión, lectura de cada fuente, conciliación, espera de revisión humana, guardado y enriquecimiento. Una demora de origen no se corrige necesariamente elevando concurrencia. Cero cambios clínicos puede significar sincronización correcta e idempotente.</p>
+</section>
+<section class="card">
+<h2>Glosario rápido</h2><div class="table-scroll" tabindex="0">
+<table><thead>
+<tr><th scope="col">Término</th><th scope="col">En palabras simples</th>
+</tr></thead><tbody>
+<tr><td>Episodio</td><td>Una hospitalización concreta; reingreso es otro episodio.</td>
+</tr>
+<tr><td>Snapshot</td><td>Fotografía de lo leído en un momento; no prueba toda la historia.</td>
+</tr>
+<tr><td>Bundle</td><td>Paquete de lecturas correlacionadas, con cobertura y tiempos.</td>
+</tr>
+<tr><td>Bridge</td><td>Canal de mensajes entre web y extensión.</td>
+</tr>
+<tr><td>Worker MV3</td><td>Proceso de la extensión que coordina solicitudes.</td>
+</tr>
+<tr><td>Diff / delta</td><td>Propuesta de diferencias / sólo campos que cambiaron.</td>
+</tr>
+<tr><td>Autoridad</td><td>Componente que verifica permisos, identidad y versión antes de guardar.</td>
+</tr>
+<tr><td>CAS / revisión</td><td>Comprobación de que nadie cambió la base desde que se leyó.</td>
+</tr>
+<tr><td>Idempotencia</td><td>Repetir el mismo intento no duplica su efecto.</td>
+</tr>
+<tr><td>Tombstone</td><td>Marca de anulación conservando trazabilidad; no borrado irreversible.</td>
+</tr>
+<tr><td>Cobertura</td><td>Qué población/intervalo fue realmente consultado con éxito.</td>
+</tr>
+<tr><td>Caché</td><td>Copia para lectura rápida; no una fuente clínica nueva.</td>
+</tr>
+<tr><td>Readback</td><td>Lectura del servidor para comprobar lo guardado.</td>
+</tr>
+<tr><td>Paciente-día</td><td>Unidad diaria de un paciente/episodio; no persona única mensual.</td>
+</tr>
+<tr><td>IEEH</td><td>Informe Estadístico de Egreso Hospitalario.</td>
+</tr></tbody>
+</table></div>
+</section></div><div class="panel" id="sources" role="tabpanel" aria-labelledby="tab-sources">
+<section class="card">
+<h2>Estado de verificación · sin notas infladas</h2>
+<ul>
+<li>Contenido: auditoría original b656e98 y revisión focalizada del diferencial #884 a bc3859a. Enlaces fijados al nuevo commit. No se repitió una auditoría completa del repositorio.</li>
+<li>Contrato: expectativas sintéticas conservadas de la guía aportada; sus resultados externos no se incorporan ni se certifican aquí.</li>
+<li>Mapas: SVG revisados como imágenes; su lectura no demuestra funcionamiento productivo.</li>
+<li>HTML: documento local sin acceso a pacientes; navegación, enlaces y presentación deben comprobarse al actualizarlo.</li>
+<li>Producción: no se consultaron pacientes ni se modificó código; despliegue no certificado.</li>
+<li>Normativa: referencias identificadas, sin certificación exhaustiva de normativa 2026 ni resolución local.</li>
+</ul>
+<p><b>Condición de cierre:</b> documento coherente, navegable y trazable; no promesa de 7/7 ni sustitución de pruebas productivas.</p>
+</section>
+<section class="card">
+<h2>Cómo leer la evidencia</h2>
+<p><b>Código:</b> describe comportamiento implementado en el commit fijado. <b>Documentación del repositorio:</b> declara intención, pero puede estar desactualizada. <b>Normativa externa:</b> da contexto nacional y no prueba por sí sola que una implementación local lo cumpla. <b>Prueba sintética:</b> confirma sólo la función y el escenario ejecutado.</p>
+</section>
+<section class="card">
+<h2>Referencias nacionales consultadas</h2><div id="norma-egreso">
+<h3>DEIS · Norma Técnica N.º 235 (2023), anexo de definiciones</h3>
+<p>El egreso hospitalario se vincula al uso de cama de dotación y no exige horas mínimas. El documento distingue ingreso formal y fecha de salida; excluye al RN sano de la noción ordinaria de ingreso. Se cita para separar egreso de la duración exigida en CUDYR, no para validar automáticamente todos los contadores HHR.</p>
+<p><a href="https://repositoriodeis.minsal.cl/ContenidoSitioWeb2020/EstandaresNormativa/NORMA_TECNICA_235_DECRETO_EXENTO_58_SSP_2023.pdf">Abrir norma oficial DEIS</a>
+</p></div>
+<h3>MINSAL · Orientaciones técnicas de metas sanitarias 2024, indicador 1.6</h3>
+<p>Referencia consultada: exige al menos ocho horas de hospitalización; permite que el establecimiento fije un horario constante; considera enfermería y/o matronería y una aplicación diaria. Su indicador relaciona días cama categorizados con ocupados. No fija universalmente la 01:00 ni la ventana aprobada de HHR desde 00:00 inclusive hasta antes de 12:00.</p>
+<p><a href="https://www.minsal.cl/wp-content/uploads/2024/06/OOTT-METAS-SANITARIAS-Ano-2024_-V2.pdf">Abrir orientaciones MINSAL 2024</a>
+</p>
+<h3>DEIS · Definición de cama hospitalaria</h3>
+<p>La glosa distingue dotación hospitalaria de camas de uso transitorio, recuperación postoperatoria, camillas de urgencia y cunas de RN sanos. Es el motivo para separar filas operacionales de denominadores estadísticos.</p>
+<p><a href="https://repositoriodeis.minsal.cl/deis/rem_base/ver.asp?var3=2">Abrir glosa de cama hospitalaria</a>
+</p>
+<aside class="warn"><b>Límite normativo:</b> se localizaron también publicaciones REM 2026, pero no se completó aquí una auditoría de toda la norma 2026 ni se obtuvo la resolución local de dotación/horario de HHR. Por ello, las exclusiones y ventanas se rotulan como reglas del producto; la elegibilidad regulatoria final debe contrastarse con el instrumento aplicable al período. No se presume que la orientación 2024 siga sin cambios.</aside>
+</section>
+<section class="card">
+<h2>Índice de fuentes del repositorio</h2>
+<p>Enlaces fijados al commit analizado para que el documento no cambie de significado cuando avance main.</p>
+<ol class="source-list">
+<li id="s1"><b>S1 · Contrato de negocio</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/docs/DOMAIN_RULES.md">docs/DOMAIN_RULES.md</a>
+</li>
+<li id="s2"><b>S2 · Orquestación y seguridad de sincronización</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/features/rayen-import/README.md">src/features/rayen-import/README.md</a>
+</li>
+<li id="s3"><b>S3 · Campos que se actualizan</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/features/rayen-import/domain/patientSyncPolicy.ts">src/features/rayen-import/domain/patientSyncPolicy.ts</a>
+</li>
+<li id="s4"><b>S4 · Transformación inicial del paciente</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/features/rayen-import/mapping/rayenToPatientData.ts">src/features/rayen-import/mapping/rayenToPatientData.ts</a>
+</li>
+<li id="s5"><b>S5 · Catálogo de camas</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/constants/beds.ts">src/constants/beds.ts</a>
+</li>
+<li id="s6"><b>S6 · Equivalencias de camas</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/features/rayen-import/mapping/bedMapping.ts">src/features/rayen-import/mapping/bedMapping.ts</a>
+</li>
+<li id="s7"><b>S7 · Modalidad y grupo CUDYR</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/domain/cudyr/cudyrModality.ts">src/domain/cudyr/cudyrModality.ts</a>
+</li>
+<li id="s8"><b>S8 · Elegibilidad simple</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/domain/cudyr/cudyrEligibility.ts">src/domain/cudyr/cudyrEligibility.ts</a>
+</li>
+<li id="s9"><b>S9 · Elegibilidad diaria con evidencia temporal</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/domain/cudyr/cudyrDailyPlacement.ts">src/domain/cudyr/cudyrDailyPlacement.ts</a>
+</li>
+<li id="s10"><b>S10 · Inicio del tramo hospitalario válido</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/domain/cudyr/cudyrHospitalAdmission.ts">src/domain/cudyr/cudyrHospitalAdmission.ts</a>
+</li>
+<li id="s11"><b>S11 · Turnos y días hábiles</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/utils/clinicalDayScheduleUtils.ts">src/utils/clinicalDayScheduleUtils.ts</a>
+</li>
+<li id="s12"><b>S12 · Zona horaria clínica</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/utils/clinicalTimeZone.ts">src/utils/clinicalTimeZone.ts</a>
+</li>
+<li id="s13"><b>S13 · Atribución temporal y fuente CUDYR</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/domain/evaluationScales/importedCudyr.ts">src/domain/evaluationScales/importedCudyr.ts</a>
+</li>
+<li id="s14"><b>S14 · Control diario y exportación mensual</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/docs/CUDYR_DAILY_CONTROL.md">docs/CUDYR_DAILY_CONTROL.md</a>
+</li>
+<li id="s15"><b>S15 · Conciliación mensual y fuentes</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/docs/CUDYR_HISTORICAL_METHOD.md">docs/CUDYR_HISTORICAL_METHOD.md</a>
+</li>
+<li id="s16"><b>S16 · Mes oficial</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/docs/CUDYR_OFFICIAL_MONTH.md">docs/CUDYR_OFFICIAL_MONTH.md</a>
+</li>
+<li id="s17"><b>S17 · Captura dual y desfase máximo</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/extension/rayen-sync-bundle-runtime.js">extension/rayen-sync-bundle-runtime.js</a>
+</li>
+<li id="s18"><b>S18 · Cambio de día durante captura</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/extension/census-sync-horizon-runtime.js">extension/census-sync-horizon-runtime.js</a>
+</li>
+<li id="s19"><b>S19 · Fechas históricas permitidas</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/features/rayen-import/domain/historicalCensusSync.ts">src/features/rayen-import/domain/historicalCensusSync.ts</a>
+</li>
+<li id="s20"><b>S20 · Egresos que entran al contador</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/application/census/movementTombstonePolicy.ts">src/application/census/movementTombstonePolicy.ts</a>
+</li>
+<li id="s21"><b>S21 · Cálculo del resumen estadístico</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/services/calculations/minsal/snapshot.ts">src/services/calculations/minsal/snapshot.ts</a>
+</li>
+<li id="s22"><b>S22 · Cálculo mensual estadístico</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/services/calculations/minsal/calculator.ts">src/services/calculations/minsal/calculator.ts</a>
+</li>
+<li id="s23"><b>S23 · Hora del egreso estadístico</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/features/rayen-import/mapping/reportEgresoDateTime.ts">src/features/rayen-import/mapping/reportEgresoDateTime.ts</a>
+</li>
+<li id="s24"><b>S24 · Destino y clasificación del egreso</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/features/rayen-import/mapping/mapDestinoDeAlta.ts">src/features/rayen-import/mapping/mapDestinoDeAlta.ts</a>
+</li>
+<li id="s25"><b>S25 · Regla de CMA al egreso</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/features/rayen-import/domain/egresoReportPolicy.ts">src/features/rayen-import/domain/egresoReportPolicy.ts</a>
+</li>
+<li id="s26"><b>S26 · Exclusión de recuperación de Pabellón</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/features/rayen-import/domain/pavilionRecoverySyncPolicy.ts">src/features/rayen-import/domain/pavilionRecoverySyncPolicy.ts</a>
+</li>
+<li id="s27"><b>S27 · Fusión de signos vitales</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/features/rayen-import/domain/mergeReportVitals.ts">src/features/rayen-import/domain/mergeReportVitals.ts</a>
+</li>
+<li id="s28"><b>S28 · Fusión de Braden y Downton</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/features/rayen-import/domain/mergeReportScales.ts">src/features/rayen-import/domain/mergeReportScales.ts</a>
+</li>
+<li id="s29"><b>S29 · Fusión de dispositivos</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/features/rayen-import/domain/mergeReportDevices.ts">src/features/rayen-import/domain/mergeReportDevices.ts</a>
+</li>
+<li id="s30"><b>S30 · Política de revalidación del historial</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/features/rayen-import/domain/clinicalHistoryReadPolicy.ts">src/features/rayen-import/domain/clinicalHistoryReadPolicy.ts</a>
+</li>
+<li id="s31"><b>S31 · Plazos de lectura clínica</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/features/rayen-import/contracts/clinicalReadPolicy.ts">src/features/rayen-import/contracts/clinicalReadPolicy.ts</a>
+</li>
+<li id="s32"><b>S32 · Coordinación y concurrencia clínica</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/features/rayen-import/clinicalFillRunner.ts">src/features/rayen-import/clinicalFillRunner.ts</a>
+</li>
+<li id="s33"><b>S33 · Lista de campos autorizados del backend</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/functions/lib/rayenClinicalEnrichmentPolicy.js">functions/lib/rayenClinicalEnrichmentPolicy.js</a>
+</li>
+<li id="s34"><b>S34 · Ajuste CUDYR administrativo</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/functions/lib/adminCudyrResultFunctions.js">functions/lib/adminCudyrResultFunctions.js</a>
+</li>
+<li id="s35"><b>S35 · Carga oficial con fuente exclusivamente Eloísa</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/services/cudyr/cudyrReportLoader.ts">src/services/cudyr/cudyrReportLoader.ts</a>
+</li>
+<li id="s36"><b>S36 · Denominador, categorías y días abiertos</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/services/cudyr/cudyrReportModel.ts">src/services/cudyr/cudyrReportModel.ts</a>
+</li>
+<li id="s37"><b>S37 · Reglas de acceso</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/shared/access/operationalAccessPolicy.ts">src/shared/access/operationalAccessPolicy.ts</a>
+</li>
+<li id="s38"><b>S38 · Resultados de rendimiento históricos</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/docs/SYNC_REAL_PERFORMANCE_BASELINE_2026-09-29_V39.md">docs/SYNC_REAL_PERFORMANCE_BASELINE_2026-09-29_V39.md</a>
+</li>
+<li id="s39"><b>S39 · Persistencia y conflictos</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/docs/SYNC_CONCURRENCY_MODEL.md">docs/SYNC_CONCURRENCY_MODEL.md</a>
+</li>
+<li id="s40"><b>S40 · Descarga mensual CUDYR y censo diario</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/extension/gestion-camas-monthly-cudyr-runtime.js">extension/gestion-camas-monthly-cudyr-runtime.js</a>
+</li>
+<li id="s41"><b>S41 · Lectura del IEEH individual</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/extension/gestion-camas-statistical-report-fetcher.js">extension/gestion-camas-statistical-report-fetcher.js</a>
+</li>
+<li id="s42"><b>S42 · Consulta clínica e informes</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/extension/fichamedico-clinical-client.js">extension/fichamedico-clinical-client.js</a>
+</li>
+<li id="s43"><b>S43 · Lectura de censo en Ficha Médico</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/extension/fichamedico-census-runtime.js">extension/fichamedico-census-runtime.js</a>
+</li>
+<li id="s44"><b>S44 · Archivo de captura CUDYR</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/features/rayen-import/domain/cudyrCapturePlan.ts">src/features/rayen-import/domain/cudyrCapturePlan.ts</a>
+</li>
+<li id="s45"><b>S45 · Horas de espera CUDYR</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/domain/cudyr/cudyrPending.ts">src/domain/cudyr/cudyrPending.ts</a>
+</li>
+<li id="s46"><b>S46 · Inventario de antecedentes y valores vitales</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/types/domain/vitalSigns.ts">src/types/domain/vitalSigns.ts</a>
+</li>
+<li id="s47"><b>S47 · Protección del ajuste administrativo frente a sincronización</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/features/rayen-import/domain/clinicalCudyrCoordinator.ts">src/features/rayen-import/domain/clinicalCudyrCoordinator.ts</a>
+</li>
+<li id="s48"><b>S48 · Fuente completa para cerrar ausencia</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/services/cudyr/cudyrArchiveCoverage.ts">src/services/cudyr/cudyrArchiveCoverage.ts</a>
+</li>
+<li id="s49"><b>S49 · Selector diario de resultados</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/services/cudyr/cudyrReportEvaluations.ts">src/services/cudyr/cudyrReportEvaluations.ts</a>
+</li>
+<li id="s50"><b>S50 · Ventana adaptativa de extensión</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/extension/clinical-day-runtime.js">extension/clinical-day-runtime.js</a>
+</li>
+<li id="s51"><b>S51 · Plazo de captura</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/features/rayen-import/hooks/rayenSyncRequestLifecycle.ts">src/features/rayen-import/hooks/rayenSyncRequestLifecycle.ts</a>
+</li>
+<li id="s52"><b>S52 · Plazo de guardado estructural</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/features/rayen-import/hooks/rayenSnapshotPersistenceExecution.ts">src/features/rayen-import/hooks/rayenSnapshotPersistenceExecution.ts</a>
+</li>
+<li id="s53"><b>S53 · Contrato de entrada</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/features/rayen-import/contracts/rayenSnapshot.ts">src/features/rayen-import/contracts/rayenSnapshot.ts</a>
+</li>
+<li id="s54"><b>S54 · Modelo legado de completitud</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/domain/cudyr/cudyrCompletion.ts">src/domain/cudyr/cudyrCompletion.ts</a>
+</li>
+<li id="s55"><b>S55 · Manifest y destinos permitidos de la extensión</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/extension/manifest.json">extension/manifest.json</a>
+</li>
+<li id="s56"><b>S56 · Mensajería del paquete clínico</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/features/rayen-import/bridge/patientClinicalBundleChannel.ts">src/features/rayen-import/bridge/patientClinicalBundleChannel.ts</a>
+</li>
+<li id="s57"><b>S57 · Delta de campos clínicos</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/src/features/rayen-import/domain/clinicalPatientPatch.ts">src/features/rayen-import/domain/clinicalPatientPatch.ts</a>
+</li>
+<li id="s58"><b>S58 · Persistencia del historial CUDYR</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/functions/lib/cudyrHistoryFunctions.js">functions/lib/cudyrHistoryFunctions.js</a>
+</li>
+<li id="s59"><b>S59 · Persistencia del informe mensual</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/functions/lib/cudyrOfficialReportStore.js">functions/lib/cudyrOfficialReportStore.js</a>
+</li>
+<li id="s60"><b>S60 · Persistencia del censo documental</b><br><a href="https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/bc3859a22c0e0b76b48887ff371e73c7f3b2d3c6/functions/lib/cudyrCensusSourceStore.js">functions/lib/cudyrCensusSourceStore.js</a>
+</li>
+</ol>
+</section></div>
+</main>
+<footer>Guía v8 · decisiones aprobadas separadas del código observado · sin modificaciones productivas.<br>Historial de auditoría conservado en versiones anteriores; no constituye una regla vigente.</footer><script>
+const tabs=[...document.querySelectorAll('[role=tab]')];
+function activate(id,focus=false){tabs.forEach(t=>{const on=t.getAttribute('aria-controls')===id;t.setAttribute('aria-selected',String(on));t.tabIndex=on?0:-1;document.getElementById(t.getAttribute('aria-controls')).hidden=!on;if(on&&focus)t.focus()});}
+tabs.forEach((t,i)=>{t.addEventListener('click',()=>activate(t.getAttribute('aria-controls')));t.addEventListener('keydown',ev=>{let n=null;if(ev.key==='ArrowRight')n=(i+1)%tabs.length;if(ev.key==='ArrowLeft')n=(i+tabs.length-1)%tabs.length;if(ev.key==='Home')n=0;if(ev.key==='End')n=tabs.length-1;if(n!==null){ev.preventDefault();activate(tabs[n].getAttribute('aria-controls'),true)}})});
+document.querySelectorAll('a[href^="#"]').forEach(a=>a.addEventListener('click',()=>{const target=document.getElementById(a.getAttribute('href').slice(1));const panel=target?.closest('.panel');if(panel)activate(panel.id);const detail=target?.closest('details');if(detail)detail.open=true}));
+window.addEventListener('hashchange',()=>{const target=document.getElementById(location.hash.slice(1));const panel=target?.closest('.panel');if(panel)activate(panel.id)});
+document.getElementById('print').addEventListener('click',()=>window.print());
+if(location.hash){const target=document.querySelector(location.hash);if(target?.closest('.panel'))activate(target.closest('.panel').id);}
+activate(document.querySelector(location.hash||'#human')?.closest('.panel')?.id||'human');
+</script></body></html>
