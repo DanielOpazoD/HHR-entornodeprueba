@@ -1,10 +1,23 @@
 import { confirmedReportInput } from '@/tests/services/cudyr/reportFixtures';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within, waitFor } from '@testing-library/react';
 import { CudyrView } from '@/features/cudyr/components/CudyrView';
 import { buildCudyrReport } from '@/services/cudyr/cudyrReportModel';
 import { reportInput, reportPatient, reportRecord } from '@/tests/services/cudyr/reportFixtures';
-const mocks = vi.hoisted(() => ({ load: vi.fn(), setModule: vi.fn(), report: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  load: vi.fn(),
+  setModule: vi.fn(),
+  report: vi.fn(),
+  recover: vi.fn(),
+  recoveryWindow: vi.fn(),
+}));
+vi.mock('@/services/cudyr/cudyrMonthlyRecoveryPlan', () => ({
+  monthlyRecoveryWindow: (...args: unknown[]) => mocks.recoveryWindow(...args),
+}));
+vi.mock('@/services/cudyr/cudyrMonthlyRecovery', () => ({
+  monthlyRecoveryWindow: () => ({ last: '2026-10-16' }),
+  recoverCudyrMonthlyReports: (...args: unknown[]) => mocks.recover(...args),
+}));
 vi.mock('@/context/DailyRecordContext', () => ({
   useDailyRecordData: () => ({ record: { date: '2026-10-02' } }),
 }));
@@ -39,7 +52,35 @@ const fixture = () =>
 describe('CUDYR daily control', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.recoveryWindow.mockReturnValue({ last: '2026-10-16' });
     mocks.report.mockReturnValue({ data: fixture(), busy: false, error: '', load: mocks.load });
+  });
+  it('has one source-refresh action and rereads after confirmed recovery', async () => {
+    mocks.recover.mockResolvedValue({
+      pendingDays: 0,
+      reports: [],
+      recovered: 0,
+      reused: 0,
+      failures: [],
+    });
+    render(<CudyrView />);
+    expect(screen.queryByRole('button', { name: 'Actualizar vista' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Completar y verificar mes' })
+    ).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Actualizar CUDYR' })).toHaveLength(1);
+    mocks.load.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Actualizar CUDYR' }));
+    await waitFor(() => expect(mocks.load).toHaveBeenCalledWith('2026-10-01', '2026-10-02', true));
+    expect(mocks.recover).toHaveBeenCalledOnce();
+    expect(screen.getByText(/Los turnos cerrados ya están verificados/)).toBeInTheDocument();
+  });
+  it('keeps an enabled Firebase retry when no night has closed', () => {
+    mocks.recoveryWindow.mockReturnValue(null);
+    render(<CudyrView />);
+    mocks.load.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Volver a leer datos' }));
+    expect(mocks.load).toHaveBeenCalledWith('2026-10-01', '2026-10-02', false);
   });
   it('shows historical provenance without changing eligibility or compliance', () => {
     const data = fixture();
@@ -231,17 +272,17 @@ describe('CUDYR daily control', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Volver al censo' }));
     expect(mocks.setModule).toHaveBeenCalledWith('CENSUS');
   });
-  it('blocks downloads on incomplete exclusions and refreshes stored data only', () => {
+  it('blocks downloads on incomplete exclusions and keeps read-only refresh without source writes', () => {
     mocks.report.mockReturnValue({
       data: { ...fixture(), issues: ['Exclusiones diarias: lectura incompleta.'] },
       busy: false,
       error: '',
       load: mocks.load,
     });
-    render(<CudyrView />);
+    render(<CudyrView readOnly />);
     expect(screen.getByRole('button', { name: 'Excel mensual' })).toBeDisabled();
-    fireEvent.click(screen.getByRole('button', { name: 'Actualizar vista' }));
-    expect(mocks.load).toHaveBeenCalledWith('2026-10-01', '2026-10-02');
+    fireEvent.click(screen.getByRole('button', { name: 'Volver a leer datos' }));
+    expect(mocks.load).toHaveBeenCalledWith('2026-10-01', '2026-10-02', false);
   });
   it('keeps today outside daily and monthly compliance while preserving past days', () => {
     const data = buildCudyrReport(
