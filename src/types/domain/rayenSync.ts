@@ -85,7 +85,7 @@ export type RayenSyncStructuralIssueReason =
   | 'crib-conflict-blocks-discharge'
   | 'unclassified';
 
-/** Clinical case displayed only in the protected census history, never in copied diagnostics. */
+/** Clinical case displayed only in the protected census history and explicitly copied clinical diagnostics. */
 export interface RayenSyncCaseContext {
   patientName: string;
   censusDate: string;
@@ -93,8 +93,22 @@ export interface RayenSyncCaseContext {
   isClinicalCrib?: boolean;
 }
 
+/** Case evidence captured at the attempt, exported only by an explicit user copy. */
+export interface RayenSyncDiagnosticContext {
+  patientName?: string;
+  document?: string;
+  clinicalEpisodeId?: string;
+  bedId?: string;
+  censusDate?: string;
+  detail?: string;
+  sourceTimestamp?: string;
+  sourceClinicalDay?: string;
+  source?: string;
+}
+
 /** Structured diagnostic; optional clinical context is separate from the technical code. */
 export interface RayenSyncStructuralIssue {
+  diagnostic?: RayenSyncDiagnosticContext;
   bedId: string | null;
   reason: RayenSyncStructuralIssueReason;
   caseContext?: RayenSyncCaseContext;
@@ -102,6 +116,7 @@ export interface RayenSyncStructuralIssue {
 
 /** Sanitized patient-scoped diagnostic. Raw Eloísa/Firestore errors are never persisted. */
 export interface RayenSyncCoverageIssue {
+  diagnostic?: RayenSyncDiagnosticContext;
   bedId: string;
   source: RayenSyncIssueSource;
   reason: RayenSyncIssueReason;
@@ -286,7 +301,7 @@ export interface RayenSyncPerformanceDelta {
   coordination?: Partial<NonNullable<RayenSyncPerformance['coordination']>>;
 }
 
-/** Aggregate-only structural evidence retained when clinical enrichment can still complete. */
+/** Structural evidence retained when clinical enrichment can still complete. */
 export interface RayenSyncStructuralReviewEvidence {
   /** Explicit proof that the structural census reached an authoritative confirmed handoff. */
   /** Source capture explicitly declared a complete census for this exact run. */
@@ -317,7 +332,7 @@ export interface RayenSyncEvent {
   /** Attempt-scoped review demand; absent when the global policy alone governed the run. */
   reviewRequirement?: RayenSyncReviewRequirement;
   staffingObservation?: RayenSyncStaffingObservation;
-  /** Structural review facts kept separate from clinical coverage and free of identifiers. */
+  /** Structural review facts kept separate from clinical coverage with attempt-scoped case evidence. */
   structuralReview?: RayenSyncStructuralReviewEvidence;
   /** Technical aggregate shown only in synchronization history and diagnostics. */
   performance?: RayenSyncPerformance;

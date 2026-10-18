@@ -38,6 +38,29 @@ const pendingOnlyDiff: CensusImportDiff = {
 };
 
 describe('RayenImportPreviewModal · contenido revisable', () => {
+  it('shows unresolved reasons read-only after the clinical stage settles', () => {
+    const diff = {
+      ...pendingOnlyDiff,
+      pendingAdministrativeDischarges: [],
+      conflicts: [{ bedId: 'R1', reason: 'Falta el episodio exacto.' }],
+      summary: { ...pendingOnlyDiff.summary, pendingAdministrativeDischarges: 0, conflicts: 1 },
+    };
+    render(
+      <RayenImportPreviewModal
+        isOpen
+        diff={diff}
+        stage={{ type: 'needs_review', scope: 'post_commit' }}
+        isApplied
+        error={null}
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    );
+    expect(screen.getByText('R1: Falta el episodio exacto.')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Confirmar e importar' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Listo' })).toBeVisible();
+  });
+
   it('identifies the patient when only internal episode metadata changes, before confirmation', () => {
     const onConfirm = vi.fn();
     const diff: CensusImportDiff = {
