@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EmptyDayPrompt } from '@/features/census/components/EmptyDayPrompt';
 import { dailyRecordObservability } from '@/services/repositories/dailyRecordOperationalTelemetry';
 
-vi.mock('@/features/census/components/CensusEmptyMoa', () => ({
+vi.mock('@/components/layout/MoaCompanion', () => ({
   CensusEmptyMoa: () => <span data-testid="census-empty-moa" />,
 }));
 

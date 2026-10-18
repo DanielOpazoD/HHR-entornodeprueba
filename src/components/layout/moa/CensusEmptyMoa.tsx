@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { MoaSequence, moaScenes } from '@/components/layout/MoaSequence';
 import '@/components/layout/moaCompanion.css';
-import './censusMotion.css';
+import './censusEmptyMoa.css';
 
 /** Independent of the optional floating companion: no close control or chooser. */
 export const CensusEmptyMoa: React.FC = () => {

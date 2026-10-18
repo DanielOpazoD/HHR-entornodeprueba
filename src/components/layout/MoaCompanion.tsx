@@ -151,3 +151,6 @@ const MoaCompanion = () => {
 };
 
 export default MoaCompanion;
+
+// Both decorative hosts share one on-demand module, never the clinical startup bundle.
+export { CensusEmptyMoa } from './moa/CensusEmptyMoa';

@@ -1,11 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, lazy, Suspense } from 'react';
 import {
   shouldRecordCensusEmptyStateDiagnostic,
   type CensusEmptyStateDiagnostic,
 } from '@/hooks/controllers/dailyRecordBootstrapController';
 import { dailyRecordObservability } from '@/services/repositories/dailyRecordOperationalTelemetry';
 import { RayenDayBootstrapButton, resolveCensusSyncTarget } from '@/features/rayen-import/public';
-import { CensusEmptyMoa } from './CensusEmptyMoa';
+import { ErrorBoundary } from 'react-error-boundary';
+const CensusEmptyMoa = lazy(() =>
+  import('@/components/layout/MoaCompanion').then(module => ({ default: module.CensusEmptyMoa }))
+);
+const moaPlaceholder = <span className="mb-4 h-[168px] w-72 max-w-full" aria-hidden="true" />;
 import {
   resolveCreateDayCopyAvailability,
   buildCopyUnlockDescription,
@@ -104,7 +108,11 @@ export const EmptyDayPrompt: React.FC<EmptyDayPromptProps> = ({
 
   return (
     <div className="mt-6 flex flex-col items-center justify-center px-5 py-4 text-center print:hidden">
-      <CensusEmptyMoa />
+      <ErrorBoundary fallback={moaPlaceholder}>
+        <Suspense fallback={moaPlaceholder}>
+          <CensusEmptyMoa />
+        </Suspense>
+      </ErrorBoundary>
       {!canCreate && !readOnly && (
         <p
           className="mb-6 max-w-md text-sm text-slate-500"
