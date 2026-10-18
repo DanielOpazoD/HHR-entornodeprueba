@@ -59,13 +59,17 @@ const occupantIdentityWithoutDay = (patient: PatientData): string =>
 export const previousCensusEgresoCandidates = (
   previous: DailyRecord | null | undefined,
   rows: readonly EgresoReportRow[],
-  reportDate: string
+  reportDate: string,
+  historicalPresence = false
 ): PreviousCensusEgresoCandidate[] => {
   if (!previous || ![reportDate, previousCensusDate(reportDate)].includes(previous.date)) return [];
   const eligibleRows = rows.filter(row => {
     const day = correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime).correctedDay;
+    // A later discharge can prove yesterday's presence. This is exact-episode discovery only;
+    // the movement planner still owns the discharge's actual clinical day.
     return previous.date === reportDate
-      ? day === reportDate
+      ? day === reportDate ||
+          Boolean(historicalPresence && day && previousCensusDate(day) === reportDate)
       : day === previous.date || day === reportDate;
   });
   const rowIdentityCount = new Map<string, number>();

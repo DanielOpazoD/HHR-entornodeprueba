@@ -74,7 +74,12 @@ export const prepareRayenStructuralPlan = async ({
     ...new Map(
       [
         ...previousCensusEgresoCandidates(previous, bundle.egresoRows, reportDate),
-        ...previousCensusEgresoCandidates(baseRecord, bundle.egresoRows, reportDate),
+        ...previousCensusEgresoCandidates(
+          baseRecord,
+          bundle.egresoRows,
+          reportDate,
+          isHistoricalDay
+        ),
       ].map(candidate => [
         [candidate.encounterId, candidate.dischargeDay, candidate.patientName].join('|'),
         candidate,

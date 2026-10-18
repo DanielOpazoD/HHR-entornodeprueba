@@ -56,6 +56,26 @@ const newbornRow: EgresoReportRow = {
 
 describe('D-1 exact discharge candidates', () => {
   it.each([
+    { day: '2026-09-11', expected: 0 },
+    { day: '2026-09-14', expected: 1 },
+    { day: '2026-09-15', expected: 0 },
+  ])(
+    'bounds historical presence discovery to following-day evidence: $day',
+    ({ day, expected }) => {
+      const selected = previousRecord();
+      selected.date = reportDate;
+      expect(
+        previousCensusEgresoCandidates(
+          selected,
+          [{ ...baseRow, correctedDay: day, correctedTime: '14:00' }],
+          reportDate,
+          true
+        )
+      ).toHaveLength(expected);
+    }
+  );
+
+  it.each([
     { date: '11-09-2026 10:00', expected: 0 },
     { date: '12-09-2026 10:00', expected: 0 },
     { date: '13-09-2026 10:00', expected: 0 },
