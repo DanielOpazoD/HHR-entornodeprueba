@@ -285,7 +285,7 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
           historicalCorrectionsPending: false,
           historicalCorrectionsRequireFreshCapture: false,
           isolatedConflicts: 1,
-          issues: [{ bedId: 'R1', reason: 'unclassified' }],
+          issues: [expect.objectContaining({ bedId: 'R1', reason: 'unclassified' })],
         },
       }
     );

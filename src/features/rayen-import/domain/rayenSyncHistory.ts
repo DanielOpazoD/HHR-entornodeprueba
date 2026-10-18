@@ -1,3 +1,4 @@
+import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type {
   RayenSyncCoverage,
@@ -95,17 +96,55 @@ export const buildFailedRayenSyncEvent = (
 export const buildRayenSyncCoverage = (
   total: number,
   errors: ClinicalFillError[],
-  completedAt: string
+  completedAt: string,
+  record?: DailyRecord
 ): RayenSyncCoverage => {
-  const failedPatients = new Set(errors.map(error => error.bedId).filter(bedId => bedId !== '*'));
+  const failedPatients = new Set(
+    errors
+      .filter(error => error.bedId !== '*')
+      .map(error =>
+        error.clinicalEpisodeId ? `episode:${error.clinicalEpisodeId}` : `bed:${error.bedId}`
+      )
+  );
   const issueMap = new Map<string, RayenSyncCoverageIssue>();
   errors.forEach(error => {
+    // Match the exact episode in the attempt's record; never identify an old failure
+    // using today's occupant of the same bed (nor a mother sharing her RN's RUN).
+    const candidates = record
+      ? Object.values(record.beds).flatMap(patient =>
+          [patient, patient.clinicalCrib].filter(
+            candidate =>
+              candidate &&
+              error.clinicalEpisodeId &&
+              candidate.clinicalEpisodeId === error.clinicalEpisodeId
+          )
+        )
+      : [];
+    const patient = candidates.length === 1 ? candidates[0] : undefined;
     const issue: RayenSyncCoverageIssue = {
       bedId: error.bedId,
       source: error.source,
       reason: error.reason,
+      ...(record
+        ? {
+            diagnostic: {
+              censusDate: record.date,
+              bedId: error.bedId.slice(0, 80),
+              clinicalEpisodeId: (error.clinicalEpisodeId ?? '').slice(0, 100),
+              ...(patient
+                ? {
+                    patientName: patient.patientName.slice(0, 240),
+                    document: (patient.rut ?? '').slice(0, 80),
+                  }
+                : {}),
+            },
+          }
+        : {}),
     };
-    issueMap.set(`${issue.bedId}:${issue.source}:${issue.reason}`, issue);
+    issueMap.set(
+      `${issue.bedId}:${error.clinicalEpisodeId ?? ''}:${issue.source}:${issue.reason}`,
+      issue
+    );
   });
   return {
     total,

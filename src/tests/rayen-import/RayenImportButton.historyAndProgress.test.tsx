@@ -184,7 +184,7 @@ describe('RayenImportButton history and progress', () => {
 
     expect(screen.getByText('Cobertura clínica: 10/10 completa')).toHaveClass('text-emerald-700');
     expect(screen.getByTestId('rayen-structural-review-detail')).toHaveTextContent(
-      'Cama H5C2: la cama está ocupada por otro paciente en HHR.'
+      'Las fuentes no coinciden sobre quién ocupa esta cama.'
     );
     expect(screen.queryByText('Enriquecimiento clínico parcial')).not.toBeInTheDocument();
   });

@@ -24,6 +24,36 @@ const emptyDiff = (): CensusImportDiff => ({
 });
 
 describe('egreso report eligibility', () => {
+  it.each([
+    ['17-10-2026 00:19', '11.111.111-1', 0],
+    // Identity-less rows are handled by historical reconstruction, not this selector.
+    ['17-10-2026 00:19', '', 0],
+    ['18-10-2026 00:19', '11.111.111-1', 1],
+    ['invalid', '11.111.111-1', 1],
+  ])('does not reopen a prior-night orphan discharge: %s', (fechaEgreso, run, expected) => {
+    const record = {
+      date: '2026-10-17',
+      beds: {},
+      discharges: [],
+      transfers: [],
+      cma: [],
+    } as unknown as DailyRecord;
+    const result = selectEligibleEgresoRows(
+      emptyDiff(),
+      [
+        {
+          run,
+          patientName: 'RN Prueba',
+          fechaEgreso,
+          exactEpisodeVerification: 'unverified',
+        } as never,
+      ],
+      record
+    );
+    expect(result.rows).toEqual([]);
+    expect(result.diff.conflicts).toHaveLength(expected);
+  });
+
   it('ignores an episode-less discharge that predates a known active readmission', () => {
     const record: DailyRecord = {
       date: '2026-07-10',

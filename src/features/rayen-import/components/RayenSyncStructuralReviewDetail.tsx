@@ -1,3 +1,5 @@
+import { RayenSyncCaseDetail } from './RayenSyncCaseDetail';
+import { explainRayenStructuralIssue } from '../domain/rayenStructuralIssueExplanation';
 import React from 'react';
 import type { RayenSyncStructuralReviewEvidence } from '@/types/domain/rayenSync';
 import {
@@ -23,11 +25,11 @@ export const RayenSyncStructuralReviewDetail: React.FC<RayenSyncStructuralReview
   return (
     <>
       {details.length > 0 && (
-        <div
+        <details
           data-testid="rayen-structural-review-detail"
-          className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] text-amber-900"
+          className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-sm leading-relaxed text-amber-900"
         >
-          <p className="font-bold">Qué quedó pendiente en el censo</p>
+          <summary className="cursor-pointer font-bold">Qué quedó pendiente en el censo</summary>
           {review?.structureConfirmed && (
             <p className="mt-1">
               El censo del día quedó confirmado; sólo quedaron fuera los elementos indicados a
@@ -37,15 +39,26 @@ export const RayenSyncStructuralReviewDetail: React.FC<RayenSyncStructuralReview
           <ul className="mt-1 space-y-1">
             {details.map((detail, index) => (
               <li key={`${detail}-${index}`} className="py-1">
-                {review?.issues?.[index]?.caseContext && (
-                  <p className="font-semibold text-slate-900">
-                    {review.issues[index].caseContext.patientName}
-                    {' · '}
-                    {review.issues[index].caseContext.isClinicalCrib ? 'Cuna RN de ' : 'Cama '}
-                    {review.issues[index].caseContext.bedId}
-                  </p>
+                {review?.issues?.[index] ? (
+                  <>
+                    <p className="font-bold">
+                      {explainRayenStructuralIssue(review.issues[index].reason).title}
+                    </p>
+                    <RayenSyncCaseDetail
+                      diagnostic={review.issues[index].diagnostic}
+                      caseContext={review.issues[index].caseContext}
+                      bedId={review.issues[index].bedId}
+                    />
+                    <p>{explainRayenStructuralIssue(review.issues[index].reason).meaning}</p>
+                    <p className="mt-1">Este cambio no se aplicó automáticamente.</p>
+                    <p className="mt-1">
+                      <strong>Qué hacer:</strong>{' '}
+                      {explainRayenStructuralIssue(review.issues[index].reason).action}
+                    </p>
+                  </>
+                ) : (
+                  <p>{detail}</p>
                 )}
-                <p>{detail}</p>
                 {review?.issues?.[index] && (
                   <RayenSyncIssueActions
                     code={rayenSyncTechnicalCode('census', review.issues[index].reason)}
@@ -61,7 +74,7 @@ export const RayenSyncStructuralReviewDetail: React.FC<RayenSyncStructuralReview
               </li>
             ))}
           </ul>
-        </div>
+        </details>
       )}
       {deferredHistoricalAdmissionNote && (
         <div
