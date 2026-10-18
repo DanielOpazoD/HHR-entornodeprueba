@@ -1,6 +1,6 @@
 # Critical Coverage Report
 
-- Generated: 2026-07-05T06:17:54.609Z
+- Generated: 2026-10-18T03:06:48.018Z
 - Mode: dual-gated
 - Coverage artifact: `coverage/critical/coverage-final.json`
 - Coverage artifact present: yes
@@ -10,21 +10,22 @@
 
 | Zone | Source files | Test files | Structural | Lines | Functions | Branches | Baseline | Status |
 | --- | ---: | ---: | --- | ---: | ---: | ---: | --- | --- |
-| `src/features/census/controllers` | 143 | 236 | PASS (165.0%) | 96.1% | 99.1% | 87.9% | 93.6% / 97.5% / 83.3% | PASS |
-| `src/features/clinical-documents` | 141 | 103 | PASS (73.0%) | 85.8% | 84.8% | 74.5% | 83.0% / 80.0% / 72.0% | PASS |
-| `src/services/transfers` | 24 | 13 | PASS (54.2%) | 85.5% | 84.0% | 74.9% | 81.5% / 79.5% / 70.2% | PASS |
-| `src/services/storage/firestore` | 16 | 51 | PASS (318.8%) | 89.7% | 94.5% | 81.8% | 82.5% / 89.0% / 78.0% | PASS |
-| `src/services/auth` | 37 | 22 | PASS (59.5%) | 84.9% | 86.3% | 71.1% | 72.0% / 73.0% / 57.0% | PASS |
-| `src/services/auth/bootstrap` | 5 | 22 | PASS (440.0%) | 91.9% | 100.0% | 81.7% | 87.0% / 89.0% / 75.0% | PASS |
-| `src/services/backup` | 20 | 18 | PASS (90.0%) | 81.1% | 82.0% | 64.9% | 78.0% / 80.0% / 63.0% | PASS |
+| `src/features/census/controllers` | 142 | 282 | PASS (198.6%) | 91.9% | 95.0% | 79.0% | 90.6% / 94.3% / 77.1% | PASS |
+| `src/features/clinical-documents` | 140 | 108 | PASS (77.1%) | 86.1% | 85.0% | 74.6% | 83.0% / 80.0% / 72.0% | PASS |
+| `src/services/transfers` | 11 | 6 | PASS (54.5%) | 89.4% | 89.3% | 75.7% | 81.5% / 79.5% / 70.2% | PASS |
+| `src/services/storage/firestore` | 25 | 73 | PASS (292.0%) | 89.5% | 92.3% | 86.4% | 82.5% / 89.0% / 78.0% | PASS |
+| `src/services/auth` | 40 | 25 | PASS (62.5%) | 86.2% | 85.1% | 72.1% | 72.0% / 73.0% / 57.0% | PASS |
+| `src/services/auth/bootstrap` | 5 | 25 | PASS (500.0%) | 92.2% | 100.0% | 77.8% | 87.0% / 89.0% / 75.0% | PASS |
+| `src/services/backup` | 20 | 18 | PASS (90.0%) | 82.2% | 83.9% | 67.3% | 78.0% / 80.0% / 63.0% | PASS |
 | `src/features/reminders/admin` | 3 | 4 | PASS (133.3%) | 98.3% | 97.6% | 91.2% | 77.5% / 60.0% / 85.0% | PASS |
-| `src/app-shell` | 11 | 104 | PASS (945.5%) | 92.6% | 93.3% | 81.3% | 80.0% / 70.0% / 81.0% | PASS |
-| `src/services/patient-history` | 2 | 1 | PASS (50.0%) | 96.0% | 100.0% | 78.4% | 80.0% / 80.0% / 70.0% | PASS |
-| `src/services/export-manager` | 2 | 1403 | PASS (70150.0%) | 96.0% | 96.6% | 92.5% | 75.0% / 75.0% / 65.0% | PASS |
-| `src/shared/census/upc-critical` | 3 | 1403 | PASS (46766.7%) | 98.3% | 97.9% | 84.7% | 80.0% / 80.0% / 70.0% | PASS |
-| `src/services/storage/sync-critical` | 3 | 51 | PASS (1700.0%) | 99.0% | 96.3% | 100.0% | 95.0% / 95.0% / 90.5% | PASS |
-| `src/services/storage/indexeddb-recovery` | 3 | 51 | PASS (1700.0%) | 100.0% | 100.0% | 86.7% | 99.0% / 99.0% / 83.0% | PASS |
-| `src/features/handoff` | 59 | 32 | PASS (54.2%) | 85.6% | 78.2% | 79.3% | 84.0% / 76.5% / 78.0% | PASS |
+| `src/app-shell` | 11 | 117 | PASS (1063.6%) | 78.2% | 81.3% | 66.0% | 76.2% / 70.0% / 64.5% | PASS |
+| `src/services/patient-history` | 3 | 5 | PASS (166.7%) | 87.6% | 85.7% | 75.9% | 80.0% / 80.0% / 67.6% | PASS |
+| `src/services/export-manager` | 3 | 6 | PASS (200.0%) | 99.4% | 97.8% | 98.0% | 75.0% / 75.0% / 65.0% | PASS |
+| `src/shared/census/upc-critical` | 3 | 4 | PASS (133.3%) | 71.4% | 53.2% | 67.7% | 65.2% / 50.0% / 55.9% | PASS |
+| `src/services/storage/sync-critical` | 3 | 73 | PASS (2433.3%) | 99.0% | 96.3% | 100.0% | 95.0% / 95.0% / 90.5% | PASS |
+| `src/services/storage/indexeddb-recovery` | 3 | 73 | PASS (2433.3%) | 100.0% | 100.0% | 86.7% | 99.0% / 99.0% / 83.0% | PASS |
+| `src/features/rayen-import/discharge-replan-critical` | 5 | 415 | PASS (8300.0%) | 91.4% | 92.9% | 86.9% | 87.0% / 88.0% / 82.0% | PASS |
+| `src/features/handoff` | 59 | 33 | PASS (55.9%) | 83.7% | 78.3% | 75.5% | 82.5% / 76.5% / 74.6% | PASS |
 
 ## Notes
 

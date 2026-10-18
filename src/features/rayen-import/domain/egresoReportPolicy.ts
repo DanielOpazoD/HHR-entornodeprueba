@@ -7,6 +7,7 @@ import { toTitleCaseName } from '../mapping/rayenToPatientData';
 import { parseStatisticalEgresoStamp } from '../mapping/reportEgresoDateTime';
 import { resolveReportBedId } from '../mapping/resolveReportBed';
 import { normalizeRut } from '@/utils/rutUtils';
+import { calendarDateForMovement } from '@/utils/movementCalendarDate';
 import { recordedOutcomeEpisodeId } from './censusDischargeHistory';
 export interface OccupiedBedEvidence {
   bedId: string;
@@ -259,7 +260,9 @@ export const reportPredatesAdmission = (
 ): boolean => {
   const admissionDay = toIsoDay(evidence.admissionDate ?? '');
   if (!admissionDay) return false;
-  if (stamp.iso !== admissionDay) return stamp.iso < admissionDay;
+  // The report stamp owns a census shift; admissionDate is a calendar date.
+  const dischargeCalendarDay = calendarDateForMovement(stamp.iso, stamp.hhmm);
+  if (dischargeCalendarDay !== admissionDay) return dischargeCalendarDay < admissionDay;
   const admissionTime = timeFrom(evidence.admissionTime) ?? timeFrom(evidence.admissionDate);
   return admissionTime ? stamp.hhmm < admissionTime : false;
 };

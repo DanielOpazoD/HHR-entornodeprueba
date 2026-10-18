@@ -5,7 +5,10 @@ import { BEDS } from '@/constants/beds';
 import { buildPatientBedConfigSections } from '@/features/census/controllers/patientBedConfigSectionsController';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
-const buildSections = (bedId: string, options: { isExtra: boolean; location: string }) => {
+const buildSections = (
+  bedId: string,
+  options: { isExtra: boolean; location: string; isCunaMode?: boolean }
+) => {
   const bed = BEDS.find(candidate => candidate.id === bedId);
   if (!bed) throw new Error(`Unknown bed ${bedId}`);
   const onTextChange = vi.fn(() => vi.fn());
@@ -18,7 +21,7 @@ const buildSections = (bedId: string, options: { isExtra: boolean; location: str
       isBlocked: false,
       hasCompanion: false,
       hasClinicalCrib: false,
-      isCunaMode: false,
+      isCunaMode: options.isCunaMode ?? false,
       onToggleCompanion: vi.fn(),
       onToggleClinicalCrib: vi.fn(),
       onTextChange,
@@ -47,6 +50,11 @@ const buildSections = (bedId: string, options: { isExtra: boolean; location: str
 };
 
 describe('patientBedConfigSectionsController', () => {
+  it('uses the same physical crib label for a standalone RN and an associated crib', () => {
+    const { sections } = buildSections('R3', { isExtra: false, location: '', isCunaMode: true });
+    expect(sections.display.bedName).toBe('C-R3');
+    expect(sections.display.showCunaIcon).toBe(false);
+  });
   it('builds display, menu and extra location bindings from bed config state', () => {
     const onTextChange = vi.fn(() => vi.fn());
 

@@ -21,6 +21,64 @@ const snapshot: RayenCensusSnapshot = {
 };
 
 describe('historical reconstruction identity and clinical-day guards', () => {
+  it('accepts an exact numeric passport printed under Número de Identificación', async () => {
+    const current = {
+      ...emptyRecord,
+      beds: {
+        R2: {
+          patientName: 'Paciente Trazable',
+          rut: '9876543',
+          documentType: 'Pasaporte',
+          clinicalEpisodeId: '142040',
+        },
+      },
+    } as unknown as DailyRecord;
+    const result = await reconstructHistoricalSnapshotAtClose(
+      current.date,
+      { ...snapshot, encounters: [{ ...snapshot.encounters[0], run: '9876543' }] },
+      current,
+      [],
+      {
+        fetchReport: async () => ({ base64: 'QQ==' }),
+        extractText: async () =>
+          'Número de Identificación: 9876543\n24/07/2026 11:00:00 Servicio Estación Recuperación 2 Intermedia R2',
+      }
+    );
+    expect(result.conflicts).toEqual([]);
+    expect(result.snapshot.encounters[0]?.run).toBe('9876543');
+  });
+
+  it.each(['E9876543', 'F9876543'])(
+    'compares the complete foreign identifier in historical flow reports: %s',
+    async printedIdentifier => {
+      const foreignSnapshot = {
+        ...snapshot,
+        encounters: [{ ...snapshot.encounters[0], run: 'E9876543' }],
+      };
+      const result = await reconstructHistoricalSnapshotAtClose(
+        emptyRecord.date,
+        foreignSnapshot,
+        emptyRecord,
+        [],
+        {
+          fetchReport: async () => ({ base64: 'QQ==' }),
+          extractText: async () =>
+            `Flujo del Paciente Número de Identificación: ${printedIdentifier}\n24/07/2026 11:00:00 Servicio Estación Recuperación 2 Intermedia R2`,
+        }
+      );
+      if (printedIdentifier === 'E9876543') {
+        expect(result.conflicts).toEqual([]);
+        expect(result.snapshot.encounters[0]).toMatchObject({
+          run: 'E9876543',
+          verifiedBedPlacement: { bedId: 'R2' },
+        });
+      } else {
+        expect(result.conflicts).toHaveLength(1);
+        expect(result.snapshot.encounters).toEqual([]);
+      }
+    }
+  );
+
   it('rejects a report-backed clinical crib when its maternal relationship would be lost', async () => {
     const cribRecord = {
       date: '2026-07-24',

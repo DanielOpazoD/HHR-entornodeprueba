@@ -5,7 +5,7 @@ import { isCmaBedLabel, mapRayenBed } from './bedMapping';
 import {
   maternalRunFromFlowReport,
   parsePatientFlowTimeline,
-  patientRunFromFlowReport,
+  patientIdentifierFromFlowReport,
 } from './parsePatientFlow';
 
 export const CUDYR_PATIENT_FLOW_SOURCE = 'eloisa-patient-flow-v1';
@@ -31,11 +31,16 @@ export const cudyrPlacementsFromPatientFlow = (
   identityKind: 'patient' | 'maternal' = 'patient',
   maternalRut?: string
 ): CudyrSourcePlacement[] => {
-  const personalRun = patientRunFromFlowReport(text);
-  // A personal RUN, if printed, must match; never override it with a parental identifier.
-  const usesMaternalHeader = identityKind === 'maternal' && !/\bRUN\s*:/i.test(text);
-  const reportRun = usesMaternalHeader ? maternalRunFromFlowReport(text) : personalRun;
-  const expectedRun = normalizeRut((usesMaternalHeader ? maternalRut : rut) ?? '');
+  // A printed personal identifier must match; never override it with a parental identifier.
+  const usesMaternalHeader =
+    identityKind === 'maternal' &&
+    !/\b(?:RUN|N[uú]mero de Identificaci[oó]n|Pasaporte)\s*:/i.test(text);
+  const reportRun = usesMaternalHeader
+    ? maternalRunFromFlowReport(text)
+    : patientIdentifierFromFlowReport(text);
+  const expectedRun = usesMaternalHeader
+    ? normalizeRut(maternalRut ?? '')
+    : rut.replace(/[\s.-]/g, '').toUpperCase();
   if (!/^\d+$/.test(episode) || !expectedRun || reportRun !== expectedRun)
     throw new Error('El informe no corresponde al paciente del episodio solicitado.');
   const rows = parsePatientFlowTimeline(text);

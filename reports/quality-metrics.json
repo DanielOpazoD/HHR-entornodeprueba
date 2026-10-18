@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-07-05T06:20:03.273Z",
-  "gitSha": "126d4b82",
+  "generatedAt": "2026-10-18T03:03:18.157Z",
+  "gitSha": "627672549",
   "gitDirty": false,
   "generatedFor": {
-    "gitSha": "126d4b82",
+    "gitSha": "627672549",
     "gitDirty": false,
-    "treeHash": "3f2aefdb0f53e13237b97d0ef50fcbbe4a38e71c",
+    "treeHash": "10db24e7d1d642e7033c7faf3d477563de049c5d",
     "reportId": "quality-metrics",
     "dependencyFingerprint": {
       "algorithm": "sha256:dependency-files-v1",
@@ -15,48 +15,48 @@
     }
   },
   "source": {
-    "fileCount": 2207,
-    "lineCount": 231617,
+    "fileCount": 2887,
+    "lineCount": 323154,
     "zones": [
       {
         "zone": "features",
-        "fileCount": 881
+        "fileCount": 1344
       },
       {
         "zone": "services",
-        "fileCount": 567
+        "fileCount": 704
       },
       {
         "zone": "hooks",
-        "fileCount": 252
+        "fileCount": 247
       },
       {
         "zone": "components",
-        "fileCount": 164
+        "fileCount": 187
       },
       {
         "zone": "application",
-        "fileCount": 103
+        "fileCount": 110
       },
       {
         "zone": "types",
-        "fileCount": 49
+        "fileCount": 69
       },
       {
         "zone": "shared",
-        "fileCount": 46
+        "fileCount": 59
+      },
+      {
+        "zone": "domain",
+        "fileCount": 44
       },
       {
         "zone": "utils",
-        "fileCount": 30
+        "fileCount": 37
       },
       {
         "zone": "context",
         "fileCount": 29
-      },
-      {
-        "zone": "domain",
-        "fileCount": 27
       },
       {
         "zone": "constants",
@@ -64,18 +64,18 @@
       },
       {
         "zone": "schemas",
-        "fileCount": 14
+        "fileCount": 16
       },
       {
         "zone": "app-shell",
         "fileCount": 10
       },
       {
-        "zone": "core",
-        "fileCount": 6
+        "zone": "config",
+        "fileCount": 2
       },
       {
-        "zone": "config",
+        "zone": "views",
         "fileCount": 2
       },
       {
@@ -84,6 +84,10 @@
       },
       {
         "zone": "contracts",
+        "fileCount": 1
+      },
+      {
+        "zone": "core",
         "fileCount": 1
       },
       {
@@ -96,10 +100,6 @@
       },
       {
         "zone": "service-worker.ts",
-        "fileCount": 1
-      },
-      {
-        "zone": "views",
         "fileCount": 1
       }
     ]
@@ -115,7 +115,7 @@
     "topZonePairs": []
   },
   "tests": {
-    "testFileCount": 1403,
+    "testFileCount": 2284,
     "skippedMarkers": 0,
     "onlyMarkers": 0,
     "flakeRiskFiles": 0,
@@ -126,28 +126,28 @@
     "openKnownFailureEntries": 0
   },
   "typeSafety": {
-    "explicitAnyCount": 2,
+    "explicitAnyCount": 47,
     "explicitAnySourceCount": 0,
-    "explicitAnyTestCount": 2
+    "explicitAnyTestCount": 47
   },
   "convergence": {
     "accidentalCopies": 0,
     "featureBoundaryViolations": 0,
     "deprecatedShimImports": 0,
     "dailyRecordBoundaryViolations": 0,
-    "governedCompatibilityShims": 9,
+    "governedCompatibilityShims": 3,
     "controllerOwnershipDrift": 0,
-    "rawConsoleOutsideStructuredSink": 0
+    "rawConsoleOutsideStructuredSink": 1
   },
   "releaseConfidence": {
     "overall": "ok",
     "areaCount": 11,
-    "mappedCoverageZones": 15,
-    "totalCoverageZones": 15,
+    "mappedCoverageZones": 16,
+    "totalCoverageZones": 16,
     "mappedSmokeScenarios": 6,
     "totalSmokeScenarios": 6,
-    "mappedFlowBudgets": 6,
-    "totalFlowBudgets": 6,
+    "mappedFlowBudgets": 7,
+    "totalFlowBudgets": 7,
     "mappedBlockingSteps": 7,
     "totalBlockingSteps": 7
   }

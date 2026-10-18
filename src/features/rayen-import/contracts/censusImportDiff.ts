@@ -181,6 +181,8 @@ export interface PendingAdministrativeDischargeEntry {
 
 /** Something that cannot be applied automatically and needs human resolution. */
 export interface ConflictEntry {
+  /** Exact known subject when no current source encounter or occupied bed represents this case. */
+  clinicalEpisodeId?: string;
   /** Transient, episode-aware identity for prior-census continuity review (not a source capture). */
   continuityKey?: string;
   /** Original case location, separate from the current bed used for conflict isolation. */

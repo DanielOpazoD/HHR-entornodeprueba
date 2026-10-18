@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-05T06:17:55.749Z",
+  "generatedAt": "2026-10-18T03:06:48.791Z",
   "version": 1,
   "areaCount": 11,
   "areas": [
@@ -27,7 +27,8 @@
       ],
       "runbooks": [
         "docs/RUNBOOK_SYNC_RESILIENCE.md",
-        "docs/RUNBOOK_OPERATIONAL_BUDGETS.md"
+        "docs/RUNBOOK_OPERATIONAL_BUDGETS.md",
+        "docs/CUDYR_HISTORY.md"
       ]
     },
     {
@@ -92,7 +93,8 @@
       ],
       "runbooks": [
         "docs/RUNBOOK_OPERATIONAL_BUDGETS.md",
-        "docs/RUNBOOK_SUPPORT_OPERATIONS.md"
+        "docs/RUNBOOK_SUPPORT_OPERATIONS.md",
+        "docs/migration/03-preparar-corte.md"
       ]
     },
     {

@@ -12,10 +12,12 @@ import {
 } from './mapping/encounterWallClock';
 import { normalizeRut } from '@/utils/rutUtils';
 import { historicalEncounterFromLocal } from './domain/historicalEncounterFromLocal';
+import type { ClinicalReadErrorCode } from './contracts/clinicalReadError';
 
 export interface PatientFlowReportResult {
   base64: string;
   error?: string;
+  errorCode?: ClinicalReadErrorCode;
 }
 
 export interface BedTraceabilityResolverDependencies {

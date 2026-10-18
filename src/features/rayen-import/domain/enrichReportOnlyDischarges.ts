@@ -182,8 +182,15 @@ const enrichFromGestionCamas = async (
         const report = await dependencies.fetchStatisticalDischarge(encounterId);
         if (!report.base64 || report.error) return;
         const evidence = parseStatisticalDischargeEvidence(
-          await extractText(decodePdfBase64(report.base64))
+          await extractText(decodePdfBase64(report.base64)),
+          { allowMaternalIdentifier: 'fromClinicalCrib' in target && target.fromClinicalCrib }
         );
+        if (
+          'personalRun' in target &&
+          target.personalRun === '' &&
+          evidence?.identifierKind !== 'maternal'
+        )
+          return;
         if (
           evidence &&
           (evidence.run !== normalizeRut(row.run) ||
@@ -201,6 +208,7 @@ const enrichFromGestionCamas = async (
         if (!evidence && (!lookupStamp || lookupStamp.iso !== target.dischargeDay)) return;
         const enriched = {
           ...row,
+          ...('personalRun' in target ? { run: target.personalRun ?? '' } : {}),
           encounterId,
           exactEpisodeVerification: 'verified' as const,
           ...(evidence

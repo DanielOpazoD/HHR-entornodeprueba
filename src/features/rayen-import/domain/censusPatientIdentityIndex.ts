@@ -2,7 +2,7 @@ import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 
 export const normalizePatientRut = (rut?: string): string =>
-  (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
+  (rut ?? '').replace(/[^0-9a-z]/gi, '').toUpperCase();
 
 /** Exact episode, or a legacy RUN with a complete matching admission stamp. */
 export const matchesCensusEpisodeIdentity = (

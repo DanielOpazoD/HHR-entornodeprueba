@@ -63,7 +63,7 @@ const row = (over: Partial<EgresoReportRow>): EgresoReportRow => ({
 });
 
 describe('applyEgresoReport', () => {
-  it('never applies report-only evidence that was not verified against an exact episode', () => {
+  it('does not attribute an unverified report at an unknown bed solely by shared RUN', () => {
     const current = makeRecord({
       R2: {
         ...patient('11.044.046-4', 'Paciente con episodio activo'),
@@ -85,8 +85,8 @@ describe('applyEgresoReport', () => {
     expect(enriched.discharges).toHaveLength(0);
     expect(enriched.conflicts).toEqual([
       expect.objectContaining({
-        bedId: 'R2',
-        patientName: 'Paciente con episodio activo',
+        bedId: null,
+        patientName: '',
         reason: expect.stringContaining('episodio clínico exacto'),
       }),
     ]);

@@ -64,7 +64,42 @@ describe('dischargeRowViewController', () => {
     });
 
     expect(viewModel.isAssociatedClinicalCrib).toBe(true);
-    expect(viewModel.bedName).toBe('H4C1 (Cuna RN)');
+    expect(viewModel.bedName).toBe('C-H4C1');
     expect(viewModel.dischargeTypeLabel).toBe('Alta asociada · no suma egreso');
+  });
+
+  it.each(['R3', 'C-R3'])('keeps a standalone crib distinct after discharge: %s', bedName => {
+    const discharge = DataFactory.createMockDischarge({
+      bedId: 'R3',
+      bedName,
+      isNested: false,
+      originalData: DataFactory.createMockPatient('R3', { bedMode: 'Cuna' }),
+    });
+    const noop = vi.fn();
+    const handlers = {
+      undoDischarge: noop,
+      viewClinicalDocuments: noop,
+      openHospitalizationReports: noop,
+      editDischarge: noop,
+      deleteDischarge: noop,
+      convertDischargeToCma: noop,
+    };
+    const viewModel = resolveDischargeRowViewModel(discharge, handlers);
+    expect(viewModel.bedName).toBe('C-R3');
+    expect(viewModel.dischargeTypeLabel).toContain('no suma egreso');
+    viewModel.actions[0].onClick();
+    expect(noop).toHaveBeenCalledWith(discharge.id);
+    expect(discharge.isNested).toBe(false);
+    expect(
+      resolveDischargeRowViewModel(
+        {
+          ...discharge,
+          bedName: 'R3',
+          bedType: 'Media',
+          originalData: { ...discharge.originalData!, bedMode: 'Cama' },
+        },
+        handlers
+      ).bedName
+    ).toBe('R3');
   });
 });

@@ -6,6 +6,14 @@ import {
 } from '@/features/census/controllers/censusDischargesTableController';
 import { normalizeCribDisplayText } from '@/services/terminology/cribTerminology';
 import { resolveMovementHistoricalAdmissionDate } from '@/types/domain/movements';
+import { isClinicalCribDischarge } from '@/application/census/movementTombstonePolicy';
+
+const dischargeBedLabel = (item: DischargeData): string => {
+  const name = normalizeCribDisplayText(item.bedName);
+  if (!isClinicalCribDischarge(item)) return name;
+  const physicalBed = name.replace(/\s*\(Cuna RN\)\s*$/i, '').replace(/^C-/i, '') || item.bedId;
+  return `C-${physicalBed}`;
+};
 
 interface DischargeRowActionHandlers {
   undoDischarge: (id: string) => void | Promise<void>;
@@ -23,7 +31,7 @@ export const resolveDischargeRowViewModel = (
 ): DischargeRowViewModel => ({
   kind: 'discharge',
   id: item.id,
-  bedName: normalizeCribDisplayText(item.bedName),
+  bedName: dischargeBedLabel(item),
   bedType: item.bedType,
   patientName: item.patientName,
   rut: item.rut,
@@ -32,9 +40,13 @@ export const resolveDischargeRowViewModel = (
   movementDate: item.movementDate,
   movementTime: item.time,
   movementProvenance: item.movementProvenance,
-  isAssociatedClinicalCrib: item.isNested === true,
+  isAssociatedClinicalCrib: isClinicalCribDischarge(item),
   dischargeTypeLabel:
-    item.isNested === true ? 'Alta asociada · no suma egreso' : item.dischargeType || '-',
+    item.isNested === true
+      ? 'Alta asociada · no suma egreso'
+      : isClinicalCribDischarge(item)
+        ? 'Alta en cuna · no suma egreso'
+        : item.dischargeType || '-',
   statusLabel: item.status,
   statusBadgeClassName: getDischargeStatusBadgeClassName(item.status),
   actions: buildDischargeRowActions(item, handlers),

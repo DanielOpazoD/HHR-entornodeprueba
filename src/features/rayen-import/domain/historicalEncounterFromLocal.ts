@@ -40,3 +40,17 @@ export const historicalEncounterFromLocal = (
     clinicalCribParentBedId,
   };
 };
+
+/** Reattaches only an identity-proven crib to its mother at the historical cutoff. */
+export const clinicalCribAtHistoricalParent = (
+  encounter: RayenEncounter,
+  parentBedId: string
+): RayenEncounter => ({
+  ...encounter,
+  clinicalCribParentBedId: parentBedId,
+  hasMedicalDischarge: false,
+  hasNurseDischarge: false,
+  dischargeDatetime: undefined,
+  isDead: false,
+  verifiedBedPlacement: undefined,
+});

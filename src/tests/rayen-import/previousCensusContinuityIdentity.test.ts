@@ -9,7 +9,10 @@ import type {
 import { previousCensusContinuityConflicts } from '@/features/rayen-import/domain/previousCensusContinuity';
 import { RayenSyncEventSchema } from '@/schemas/zod/dailyRecord';
 import { buildStructuralReviewEvidence } from '@/features/rayen-import/domain/clinicalStageResolution';
-import { describeStructuralConflicts } from '@/features/rayen-import/hooks/rayenStructuralConvergence';
+import {
+  collectSafeClinicalEpisodeIds,
+  describeStructuralConflicts,
+} from '@/features/rayen-import/hooks/rayenStructuralConvergence';
 import type { ConfirmedRayenCensusHandoff } from '@/features/rayen-import/hooks/rayenCensusPersistenceGuard';
 import { replanRayenStructure } from '@/features/rayen-import/hooks/replanRayenStructure';
 
@@ -340,15 +343,24 @@ describe('previous census continuity through structural replan', () => {
 });
 
 it('preserves the historical case through conflict handoff and history parsing, without assigning the current bed', () => {
+  const current = record(TODAY, {
+    H4C1: legacyPatient({ clinicalEpisodeId: '2002', patientName: 'Otro Paciente' }),
+  });
   const conflicts = previousCensusContinuityConflicts(
     record(YESTERDAY, { H4C1: legacyPatient({ clinicalEpisodeId: '1001' }) }),
-    record(TODAY, {
-      H4C1: legacyPatient({ clinicalEpisodeId: '2002', patientName: 'Otro Paciente' }),
-    }),
+    current,
     emptyDiff()
   );
   expect(conflicts).toHaveLength(1);
   expect(conflicts[0].bedId).toBeNull();
+  const isolated = describeStructuralConflicts(conflicts);
+  expect(collectSafeClinicalEpisodeIds(current, isolated)).toEqual(['2002']);
+  expect(
+    collectSafeClinicalEpisodeIds(current, [
+      ...isolated,
+      { bedId: null, reason: 'Current population cannot be verified' },
+    ])
+  ).toEqual([]);
   const structuralReview = buildStructuralReviewEvidence({
     isolatedConflicts: describeStructuralConflicts(conflicts),
   } as unknown as ConfirmedRayenCensusHandoff);
