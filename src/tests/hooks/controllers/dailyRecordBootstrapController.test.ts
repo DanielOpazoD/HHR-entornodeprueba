@@ -131,6 +131,13 @@ describe('dailyRecordBootstrapController', () => {
         bootstrapPhase: 'remote_record_timeout',
       })
     ).toBe(true);
+    expect(
+      shouldAttemptTodayEmptyRecovery({
+        currentDateString: '2025-01-01',
+        todayDateString: '2025-01-01',
+        bootstrapPhase: 'remote_record_bootstrapping',
+      })
+    ).toBe(false);
     expect(describeDailyRecordBootstrapPhase('remote_record_timeout')).toContain(
       'ventana de gracia'
     );

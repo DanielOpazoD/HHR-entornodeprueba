@@ -92,7 +92,7 @@ export const shouldAttemptTodayEmptyRecovery = ({
   bootstrapPhase: DailyRecordBootstrapPhase;
 }): boolean =>
   currentDateString === todayDateString &&
-  (bootstrapPhase === 'remote_record_bootstrapping' || bootstrapPhase === 'remote_record_timeout');
+  bootstrapPhase === 'remote_record_timeout';
 
 export const resolveCensusEmptyStatePolicy = ({
   branch,

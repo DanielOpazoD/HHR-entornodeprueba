@@ -135,6 +135,7 @@ export const useDailyRecordSyncQuery = (
 
   useTodayEmptyDailyRecordRecovery({
     bootstrapPhase,
+    isFetching: isRecordFetching || recordFetchStatus === 'paused',
     currentDateString,
     record,
     refetch,
