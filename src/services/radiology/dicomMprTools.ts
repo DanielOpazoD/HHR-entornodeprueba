@@ -1,3 +1,4 @@
+import { createDicomInputBoundary } from './dicomInputBoundary';
 import { eventTarget, getEnabledElementByIds, type Types } from '@cornerstonejs/core';
 import {
   cancelActiveManipulations,
@@ -35,6 +36,10 @@ export const createMprTools = (
   notify: (reference: DicomReference | null) => void
 ) => {
   const owned = new Set<string>();
+  const elements = viewportIds
+    .map(viewportId => getEnabledElementByIds(viewportId, engineId)?.viewport.element)
+    .filter((element): element is HTMLDivElement => !!element);
+  const inputBoundary = createDicomInputBoundary(elements);
   const onAdded = (event: Event) => {
     const detail = (event as ToolTypes.EventTypes.AnnotationAddedEventType).detail;
     if (
@@ -76,13 +81,29 @@ export const createMprTools = (
     const tool = group.getToolInstance(CrosshairsTool.toolName) as CrosshairsTool;
     if (tool.toolCenter.every(Number.isFinite)) notify({ point: [...tool.toolCenter] });
   };
-  const cancel = () => {
-    for (const viewportId of viewportIds) {
-      const element = getEnabledElementByIds(viewportId, engineId)?.viewport.element;
-      if (element) cancelActiveManipulations(element);
-    }
+  const cancel = (discardDrafts = false) => {
+    inputBoundary.invalidate();
+    const drafts = discardDrafts
+      ? [LengthTool, AngleTool, EllipticalROITool].flatMap(tool => {
+          const instance = group.getToolInstance(tool.toolName) as
+            | LengthTool
+            | AngleTool
+            | EllipticalROITool;
+          const draft = instance.editData;
+          return instance.isDrawing && draft?.newAnnotation && draft.annotation.annotationUID
+            ? [draft.annotation.annotationUID]
+            : [];
+        })
+      : [];
+    elements.forEach(element => cancelActiveManipulations(element));
+    for (const uid of drafts)
+      if (owned.has(uid)) {
+        annotation.state.removeAnnotation(uid);
+        owned.delete(uid);
+      }
   };
   return {
+    cancel: () => cancel(true),
     reference: (enabled: boolean, style: ReferenceStyle) => {
       group.setToolConfiguration(CrosshairsTool.toolName, {
         minimal: { enabled: style === 'point', lineLengthInPx: 12 },
@@ -118,6 +139,7 @@ export const createMprTools = (
     },
     dispose: () => {
       cancel();
+      inputBoundary.dispose();
       group.setToolDisabled(CrosshairsTool.toolName);
       eventTarget.removeEventListener(Enums.Events.ANNOTATION_ADDED, onAdded);
       eventTarget.removeEventListener(Enums.Events.CROSSHAIR_TOOL_CENTER_CHANGED, onCenter);

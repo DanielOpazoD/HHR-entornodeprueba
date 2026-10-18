@@ -128,6 +128,7 @@ export const createDicomRuntime = async (
     if (['probe', 'roi'].includes(tool) && !loaded?.huCalibrated) return;
     activeTool = tool;
     if (mode === 'mpr' && mpr) {
+      mpr.cancel();
       group.setToolPassive(DicomReferencePointTool.toolName);
       [LengthTool, AngleTool, ProbeTool, EllipticalROITool].forEach(item =>
         group?.setToolPassive(item.toolName)
@@ -176,6 +177,7 @@ export const createDicomRuntime = async (
         ensureActive();
         const active = AbortSignal.any([signal, childSignal, transition]);
         active.throwIfAborted();
+        mpr?.cancel();
         resize?.disconnect();
         await stack!.detach();
         active.throwIfAborted();
