@@ -181,6 +181,19 @@ export const selectEligibleEgresoRows = (
         (Boolean(reportedEpisode) && entry.source?.encounterId === reportedEpisode) ||
         (Boolean(run) && normalizeRut(entry.patient.rut) === run)
     );
+    // A prior-census orphan is outside this request. Keep prior-day correction
+    // handling when the patient still has local or planned presence.
+    if (
+      row.exactEpisodeVerification === 'unverified' &&
+      Boolean(run) &&
+      !reportedEpisode &&
+      stamp.iso < recordDay &&
+      !current &&
+      !currentCrib &&
+      !activeCrib &&
+      !provisional
+    )
+      continue;
     // El informe de Gestión de Camas re-enumera las altas del día completo: un
     // paciente ya egresado en HHR es historia aplicada, no un cambio nuevo.
     // Antes, cuando la vinculación exacta degradaba (lookup ambiguo, PDF no
@@ -239,6 +252,12 @@ export const selectEligibleEgresoRows = (
       nextDiff = appendReportConflict(nextDiff, {
         bedId,
         ...(redundancyCandidate ? { code: 'unverified-report-row' as const } : {}),
+        diagnostic: {
+          source: 'gestion-camas/egresos',
+          sourceTimestamp: row.fechaEgreso.slice(0, 100),
+          sourceClinicalDay: stamp.iso,
+          bedId: (row.bedLabel ?? '').slice(0, 80),
+        },
         rut: row.run,
         patientName: current?.patientName ?? currentCrib?.patient.patientName ?? row.patientName,
         reason: `El alta administrativa de ${current?.patientName ?? currentCrib?.patient.patientName ?? row.patientName} no pudo vincularse a un episodio clínico exacto; no se aplicó.`,

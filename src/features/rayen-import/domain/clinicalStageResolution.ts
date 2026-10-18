@@ -113,6 +113,14 @@ export const buildStructuralReviewEvidence = (
     .map(conflict => ({
       bedId: conflict.bedId,
       reason: conflict.code ?? ('unclassified' as const),
+      ...(conflict.diagnostic
+        ? {
+            diagnostic: {
+              ...conflict.diagnostic,
+              censusDate: conflict.caseContext?.censusDate ?? handoff.selectedDate,
+            },
+          }
+        : {}),
       ...(conflict.caseContext
         ? {
             caseContext: {

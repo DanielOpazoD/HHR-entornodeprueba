@@ -23,8 +23,8 @@ const event: RayenSyncEvent = {
     ],
   },
 };
-const show = (entry: RayenSyncEvent, targetDate?: string) =>
-  render(
+const show = (entry: RayenSyncEvent, targetDate?: string, expand = true) => {
+  const view = render(
     <RayenSyncHistoryModal
       isOpen
       onClose={vi.fn()}
@@ -35,10 +35,76 @@ const show = (entry: RayenSyncEvent, targetDate?: string) =>
       onRecoveryAction={vi.fn()}
     />
   );
+  if (expand) {
+    view.baseElement.querySelectorAll('details').forEach(detail => {
+      const summary = detail.querySelector('summary');
+      if (summary?.textContent?.startsWith('Qué quedó pendiente')) fireEvent.click(summary);
+    });
+  }
+  return view;
+};
 
 afterEach(() => vi.unstubAllGlobals());
 
 describe('synchronization issue navigation and shareable code', () => {
+  it('starts the yellow clinical notice collapsed and lets the user expand it', () => {
+    const view = show(event, undefined, false);
+    const summary = screen.getByText('Qué quedó pendiente en la información clínica');
+    const panel = summary.closest('details')!;
+    expect(panel.open).toBe(false);
+    fireEvent.click(summary);
+    expect(panel.open).toBe(true);
+    view.unmount();
+    const structural = show(
+      {
+        ...event,
+        coverage: undefined,
+        structuralReview: {
+          structureConfirmed: true,
+          isolatedConflicts: 1,
+          historicalCorrectionsPending: false,
+          historicalCorrectionsRequireFreshCapture: false,
+          issues: [{ bedId: 'R1', reason: 'occupied-local-bed' }],
+        },
+      },
+      undefined,
+      false
+    );
+    expect(screen.getByTestId('rayen-structural-review-detail')).not.toHaveAttribute('open');
+    structural.unmount();
+  });
+
+  it('explains a structural problem with the captured identity and a practical next step', () => {
+    show({
+      ...event,
+      coverage: undefined,
+      structuralReview: {
+        structureConfirmed: true,
+        isolatedConflicts: 1,
+        historicalCorrectionsPending: false,
+        historicalCorrectionsRequireFreshCapture: false,
+        issues: [
+          {
+            bedId: null,
+            reason: 'unverified-report-row',
+            diagnostic: {
+              patientName: 'Paciente Sintético',
+              document: 'PAS-TEST',
+              bedId: 'C-R3',
+              detail: 'El informe no informa el episodio del RN.',
+            },
+          },
+        ],
+      },
+    });
+    expect(screen.getByText('Alta sin vinculación confirmada')).toBeVisible();
+    expect(screen.getByText('Paciente Sintético · Cama C-R3')).toBeVisible();
+    expect(screen.getByText('Documento: PAS-TEST')).toBeVisible();
+    expect(screen.getByText(/Qué ocurrió: El informe no informa/)).toBeVisible();
+    expect(screen.getByText(/Comprueba el episodio y las fechas/)).toBeVisible();
+    expect(screen.getByText('Este cambio no se aplicó automáticamente.')).toBeVisible();
+  });
+
   it('uses the event day even after midnight and copies only the technical category', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal('navigator', { clipboard: { writeText } });

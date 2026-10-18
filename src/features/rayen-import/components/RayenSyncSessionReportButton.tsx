@@ -2,7 +2,7 @@ import React from 'react';
 import { Copy } from 'lucide-react';
 import type { RayenSyncEvent } from '@/types/domain/rayenSync';
 import { writeClipboardText } from '@/shared/runtime/browserClipboardRuntime';
-import { buildRayenSyncSessionReport } from '../domain/rayenSyncSessionReport';
+import { buildRayenSyncDiagnosticReport } from '../domain/rayenSyncDiagnosticReport';
 
 export const RayenSyncSessionReportButton: React.FC<{ history: RayenSyncEvent[] }> = ({
   history,
@@ -10,7 +10,7 @@ export const RayenSyncSessionReportButton: React.FC<{ history: RayenSyncEvent[] 
   const [state, setState] = React.useState<'idle' | 'copied' | 'failed'>('idle');
   const copy = async () => {
     try {
-      await writeClipboardText(JSON.stringify(buildRayenSyncSessionReport(history), null, 2));
+      await writeClipboardText(JSON.stringify(buildRayenSyncDiagnosticReport(history), null, 2));
       setState('copied');
     } catch {
       setState('failed');
@@ -21,13 +21,13 @@ export const RayenSyncSessionReportButton: React.FC<{ history: RayenSyncEvent[] 
       <button
         type="button"
         onClick={() => void copy()}
-        aria-label="Copiar resumen de rendimiento"
+        aria-label="Copiar informe de sincronización"
         className="inline-flex items-center gap-1 rounded border border-slate-200 px-2 py-1.5 font-semibold hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600"
       >
         <Copy size={13} aria-hidden="true" /> Copiar resumen
       </button>
-      <span className="sr-only">
-        Solo métricas del historial de este día; sin identificadores ni datos clínicos.
+      <span className="text-slate-500">
+        Incluye pacientes, documentos y detalle de las incidencias.
       </span>
       <span role="status">
         {state === 'copied'

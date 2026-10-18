@@ -249,15 +249,15 @@ export const useRayenSyncAudit = ({
       requestedRunId?: string,
       options?: CompleteRayenSyncRunOptions
     ): Promise<void> => {
-      // The applied record carries the authoritative run id. A newer manual attempt
-      // may already be active while this background fill is finishing.
+      // Use the applied run id even when a newer manual attempt has started.
       const runId = requestedRunId ?? recordAtApply.rayenSync?.runId;
       if (!runId) return;
       const claim = lifecycle.claimTerminal(runId);
       // A clinical-only retry may update the same persisted terminal event in this session.
       // Ordinary duplicate callbacks remain inert.
       if (!claim && !options?.retry) return;
-      const coverage = buildRayenSyncCoverage(summary.total, summary.errors, now().toISOString());
+      const at = now().toISOString();
+      const coverage = buildRayenSyncCoverage(summary.total, summary.errors, at, recordAtApply);
       if (summary.incremental) coverage.incremental = summary.incremental;
       const liveRecord = currentRecordRef.current;
       const fallback = liveRecord?.rayenSyncHistory?.some(event => event.id === runId)

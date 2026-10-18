@@ -24,3 +24,7 @@
 - Los bridges legacy de storage no deben reingresar al camino caliente del sync.
 - El backlog de retiros legacy se gobierna desde `reports/compatibility-governance.md`.
 - Los módulos productivos deben importar `@/services/storage/sync`; no `syncQueueService`.
+
+## Recuperación silenciosa
+
+El runtime despierta el mismo worker al abrir la aplicación, recuperar conexión, volver a la pestaña y cada 30 segundos mientras haya sesión y conexión. El store sigue respetando nextAttemptAt, leases, retenciones de pre-outbox y cuarentenas; el despertador no borra ni revive conflictos. Una confirmación de otra sincronización no autoriza eliminar un envío diferente. El panel identifica el tipo y fecha del pendiente en vez de mostrar únicamente un contador global.
