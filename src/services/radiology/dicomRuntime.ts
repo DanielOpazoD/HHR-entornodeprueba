@@ -24,54 +24,30 @@ import {
 } from '@cornerstonejs/tools';
 import { captureDicomCanvas } from './dicomCanvasCapture';
 import { DicomReferencePointTool } from './dicomReferencePointTool';
-import { CrosshairsTool, LengthTool, AngleTool } from '@cornerstonejs/tools';
+import {
+  CrosshairsTool,
+  LengthTool,
+  AngleTool,
+  ProbeTool,
+  EllipticalROITool,
+} from '@cornerstonejs/tools';
 import { createMprTools, type DicomReference, type ReferenceStyle } from './dicomMprTools';
 import { applyVolumePresentation } from './dicomVolumePresentation';
-import {
-  defaultVolumePresentation,
-  type VolumePresentation,
-} from '@/services/radiology/dicomPresentation';
+import { defaultVolumePresentation } from '@/services/radiology/dicomPresentation';
 import { createDicomVolume, type DicomVolumeHandle } from './dicomVolume';
 import {
   startDicomSeries,
   type LoadedDicomSeries,
   type ProgressiveDicomSeries,
 } from './dicomSeriesLoader';
-import { createProgressiveStack, type DicomStackState } from './dicomProgressiveStack';
+import { createProgressiveStack } from './dicomProgressiveStack';
 import { getDicomOrientations, observeDicomViewportSize } from './dicomViewportLayout';
 import { waitForDicomRender } from './dicomRenderReady';
 import type { DicomStudy, DicomSeries } from '@/services/radiology/dicomTypes';
 
-export type DicomTool = 'window' | 'pan' | 'zoom' | 'rotate' | 'reference' | 'length' | 'angle';
-export type DicomMode = 'original' | 'mpr' | '3d';
-export interface DicomOrientation {
-  top: string;
-  right: string;
-  bottom: string;
-  left: string;
-}
+import type { DicomTool, DicomMode, DicomOrientation, DicomRuntime } from './dicomRuntimeTypes';
+export type { DicomTool, DicomMode, DicomOrientation, DicomRuntime } from './dicomRuntimeTypes';
 let users = 0;
-
-export interface DicomRuntime {
-  completion: Promise<void>;
-  select: (index: number) => void;
-  onStack: (listener: (state: DicomStackState) => void) => () => void;
-  show: (mode: DicomMode, elements: HTMLDivElement[]) => Promise<void>;
-  tool: (tool: DicomTool) => void;
-  window: (width: number, center: number) => void;
-  reset: () => void;
-  step: (plane: number, delta: number) => void;
-  orientations: () => DicomOrientation[];
-  reference: (enabled: boolean, style: ReferenceStyle) => void;
-  onReference: (listener: (value: DicomReference | null) => void) => () => void;
-  clearMeasurements: () => void;
-  invert: (value: boolean) => void;
-  presentation: (value: VolumePresentation) => void;
-  isResampled: () => boolean;
-  hasLocalizers: () => boolean;
-  capture: (plane: number) => ReturnType<typeof captureDicomCanvas>;
-  dispose: () => void;
-}
 
 export const createDicomRuntime = async (
   study: DicomStudy,
@@ -149,14 +125,22 @@ export const createDicomRuntime = async (
     reference: DicomReferencePointTool.toolName,
     length: LengthTool.toolName,
     angle: AngleTool.toolName,
+    probe: ProbeTool.toolName,
+    roi: EllipticalROITool.toolName,
   };
   const activateTool = (tool: DicomTool) => {
-    if (!group || (mode !== 'mpr' && ['reference', 'length', 'angle'].includes(tool))) return;
+    if (
+      !group ||
+      (mode !== 'mpr' && ['reference', 'length', 'angle', 'probe', 'roi'].includes(tool))
+    )
+      return;
+    if (['probe', 'roi'].includes(tool) && !loaded?.huCalibrated) return;
     activeTool = tool;
     if (mode === 'mpr' && mpr) {
       group.setToolPassive(DicomReferencePointTool.toolName);
-      group.setToolPassive(LengthTool.toolName);
-      group.setToolPassive(AngleTool.toolName);
+      [LengthTool, AngleTool, ProbeTool, EllipticalROITool].forEach(item =>
+        group?.setToolPassive(item.toolName)
+      );
       mpr?.reference(referenceEnabled, referenceStyle);
     }
     tools
@@ -237,7 +221,7 @@ export const createDicomRuntime = async (
         );
     },
     isResampled: () => mode !== 'original' && Boolean(volume?.resampled),
-    hasLocalizers: () => Boolean(loaded && loaded.volumeGeometry.length < loaded.geometry.length),
+    quantitative: () => !disposed && mode === 'mpr' && Boolean(loaded?.huCalibrated),
     show: async (nextMode, elements) => {
       ensureActive();
       if (!engine) return;

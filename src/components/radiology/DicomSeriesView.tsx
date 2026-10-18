@@ -32,7 +32,6 @@ export const DicomSeriesView: React.FC<{
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [resampled, setResampled] = useState(false);
-  const [excludesLocalizers, setExcludesLocalizers] = useState(false);
   const [busy, setBusy] = useState(true);
   const elements = useRef<Array<HTMLDivElement | null>>([]);
   const alive = useRef(true);
@@ -94,7 +93,6 @@ export const DicomSeriesView: React.FC<{
     setBusy(true);
     setError('');
     setResampled(false);
-    setExcludesLocalizers(mode !== 'original' && runtime.hasLocalizers());
     const targets = elements.current
       .slice(0, labels[mode].length)
       .filter((item): item is HTMLDivElement => Boolean(item));
@@ -188,7 +186,7 @@ export const DicomSeriesView: React.FC<{
         <div className="dicom-button-group">
           {(
             [
-              { id: 'window', label: 'Ventana y nivel', icon: Scan },
+              { id: 'window', label: 'Contraste (ventana y nivel)', icon: Scan },
               { id: 'pan', label: 'Mover', icon: Hand },
               { id: 'zoom', label: 'Zoom', icon: ZoomIn },
             ] as const
@@ -208,6 +206,7 @@ export const DicomSeriesView: React.FC<{
               }}
             >
               <tool.icon size={16} />
+              {tool.id === 'window' && <span>Contraste</span>}
             </button>
           ))}
           {mode === '3d' && (
@@ -305,12 +304,6 @@ export const DicomSeriesView: React.FC<{
             <progress max={progress[1]} value={progress[0]} aria-label="Carga de imágenes" />
           )}
         </div>
-      )}
-      {excludesLocalizers && mode !== 'original' && !busy && (
-        <p className="dicom-status dicom-volume-notice" role="status">
-          MPR y 3D usan los cortes volumétricos. Los localizadores de planificación se conservan en
-          Original y no forman parte del volumen.
-        </p>
       )}
       {resampled && !busy && !error && (
         <p className="dicom-status dicom-volume-notice" role="status">

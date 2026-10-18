@@ -146,6 +146,77 @@ const openSalvador = async (page: Page, manual = false) => {
 test.describe('DICOM viewer and Salvador annexes', () => {
   test.setTimeout(150000);
   test.use({ viewport: { width: 1440, height: 1000 } });
+  for (const calibrated of [true, false])
+    test(`quantitative MPR ${calibrated ? 'measures calibrated HU and ROI' : 'blocks uncalibrated intensities'}`, async ({
+      page,
+    }) => {
+      await setup(page);
+      await page.route('**/.netlify/functions/mmrad-dicom', async route => {
+        const body = route.request().postDataJSON();
+        if (body.action !== 'instance') return route.fallback();
+        const index = Number(String(body.ticket).split('-')[1]);
+        await route.fulfill({
+          contentType: 'application/dicom',
+          body: Buffer.from(
+            syntheticDicom(
+              index,
+              24,
+              SYNTHETIC_PATIENT_ID,
+              undefined,
+              undefined,
+              undefined,
+              undefined,
+              { slope: '2', intercept: '-1024', unit: calibrated ? 'HU' : 'US', pixelValue: 533 }
+            )
+          ),
+        });
+      });
+      const editor = await openSalvador(page);
+      await editor.getByRole('button', { name: 'Imágenes MMRAD' }).click();
+      await page.getByRole('button', { name: 'Ver DICOM', exact: true }).click();
+      const viewer = page.getByRole('dialog', { name: /Visor DICOM/ });
+      await expect(viewer.getByRole('button', { name: 'MPR', exact: true })).toBeEnabled({
+        timeout: 60000,
+      });
+      await viewer.getByRole('button', { name: 'MPR', exact: true }).click();
+      await expect(viewer.getByRole('button', { name: 'PNG', exact: true })).toBeEnabled({
+        timeout: 60000,
+      });
+      const contrast = viewer.getByRole('button', {
+        name: 'Contraste (ventana y nivel)',
+        exact: true,
+      });
+      await expect(contrast).toContainText('Contraste');
+      await contrast.click();
+      await expect(contrast).toHaveAttribute('aria-pressed', 'true');
+      const probe = viewer.getByRole('button', { name: 'Lectura HU', exact: true });
+      const roi = viewer.getByRole('button', { name: 'ROI elíptica', exact: true });
+      if (!calibrated) {
+        await expect(probe).toBeDisabled();
+        await expect(roi).toBeDisabled();
+        return;
+      }
+      await expect(probe).toBeEnabled();
+      await viewer.getByLabel('Planos vinculados').uncheck();
+      const canvas = viewer.locator('.dicom-canvas').first();
+      const box = (await canvas.boundingBox())!;
+      await probe.click();
+      await canvas.click({ position: { x: box.width * 0.5, y: box.height * 0.5 } });
+      await expect(canvas.locator('svg')).toContainText('42.0 HU');
+      await viewer.getByRole('button', { name: 'Borrar medidas' }).click();
+      await expect(canvas.locator('svg')).not.toContainText('42.0 HU');
+      await roi.click();
+      await page.mouse.move(box.x + box.width * 0.45, box.y + box.height * 0.45);
+      await page.mouse.down();
+      await page.mouse.move(box.x + box.width * 0.6, box.y + box.height * 0.58, { steps: 8 });
+      await page.mouse.up();
+      await expect(canvas.locator('svg')).toContainText('Promedio: 42.0 HU');
+      await expect(canvas.locator('svg')).toContainText('DE: 0.0 HU');
+      await expect(canvas.locator('svg')).toContainText(/Área: [1-9][0-9.]* mm²/);
+      await viewer.getByRole('button', { name: 'Borrar medidas' }).click();
+      await expect(canvas.locator('svg')).not.toContainText('Promedio');
+    });
+
   test('shows verified cuts progressively and prioritizes navigation before the volume is complete', async ({
     page,
   }) => {
@@ -413,7 +484,7 @@ test.describe('DICOM viewer and Salvador annexes', () => {
         if (valid) {
           await ready();
           await expect(viewer.getByRole('alert')).toHaveCount(0);
-          await expect(viewer.getByText(/Los localizadores de planificación/)).toBeVisible();
+          await expect(viewer.getByText(/Los localizadores de planificación/)).toHaveCount(0);
           const brightPixels = await viewer.locator('.dicom-canvas canvas').evaluateAll(canvases =>
             canvases.map(node => {
               const canvas = node as HTMLCanvasElement;
@@ -435,9 +506,7 @@ test.describe('DICOM viewer and Salvador annexes', () => {
             marked ? 'espaciado uniforme' : 'orientaciones'
           );
           await expect(viewer.getByRole('button', { name: 'PNG', exact: true })).toBeDisabled();
-          await expect(viewer.getByText(/Los localizadores de planificación/)).toHaveCount(
-            marked ? 1 : 0
-          );
+          await expect(viewer.getByText(/Los localizadores de planificación/)).toHaveCount(0);
         }
         await viewer
           .getByRole('button', { name: valid ? 'Original' : 'Volver a original', exact: true })

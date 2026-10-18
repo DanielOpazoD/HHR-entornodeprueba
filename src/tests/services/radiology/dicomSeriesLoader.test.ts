@@ -86,6 +86,28 @@ describe('verified DICOM source selection', () => {
     install();
   });
 
+  it('requires HU calibration across every volume source but ignores excluded localizers', async () => {
+    mocks.decode.mockResolvedValue({
+      preScale: { scaled: true, scalingParameters: { rescaleSlope: 1, rescaleIntercept: 0 } },
+    });
+    const valid = await load();
+    expect(valid.huCalibrated).toBe(true);
+    valid.release();
+    const originalFetch = mocks.fetch.getMockImplementation()!;
+    mocks.fetch.mockImplementation((ticket: string) =>
+      ticket === '3'
+        ? Promise.resolve(
+            syntheticDicom(3, 5, undefined, undefined, undefined, undefined, undefined, {
+              unit: 'US',
+            })
+          )
+        : originalFetch(ticket)
+    );
+    const invalid = await load();
+    expect(invalid.huCalibrated).toBe(false);
+    invalid.release();
+  });
+
   it('retains every original but reconstructs only non-localizer CT slices', async () => {
     const loaded = await load();
     expect(loaded.imageIds).toHaveLength(5);

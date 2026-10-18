@@ -222,3 +222,20 @@ Cada plano MPR tiene un botón para ampliarlo y volver a los tres. Las otras vis
 permanecen montadas para conservar la referencia compartida. Pantalla completa usa
 la API del navegador y permite volver con su botón o Escape; si el navegador la
 rechaza, el visor permanece utilizable en su ventana normal.
+
+### HU y ROI en MPR
+
+**Contraste** activa ventana/nivel por arrastre. **HU** mide un punto y **ROI** permite
+arrastrar una elipse con área en mm², promedio y desviación estándar (DE) en HU.
+Las anotaciones son temporales, se eliminan con «Borrar medidas» o al cambiar/cerrar
+la vista y no se incluyen en PNG ni anexos.
+
+Los controles cuantitativos se habilitan únicamente si todos los cortes volumétricos
+son CT clásico monocromático, tienen espaciado físico válido y una conversión lineal
+HU confirmada, aplicada por el decodificador con la pendiente/intercepto declarados.
+HU puede ser explícito en Rescale Type o implícito únicamente en CT ORIGINAL no
+localizador y no multienergía, según [DICOM PS3.3 C.8.2](https://dicom.nema.org/medical/Dicom/current/output/chtml/part03/sect_C.8.2.html).
+No se asume HU por la modalidad solamente. Relleno de píxeles, LUT, mapas de valores
+reales, grupos funcionales o calibración incompleta deshabilitan estas herramientas.
+Las ROI vacías, fuera de imagen o no compatibles no muestran estadísticas inventadas.
+En volúmenes remuestreados se mide el volumen interpolado, no los píxeles originales.
