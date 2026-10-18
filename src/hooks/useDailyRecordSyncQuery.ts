@@ -138,25 +138,13 @@ export const useDailyRecordSyncQuery = (
     currentDateString,
     record,
     refetch,
-    runRemoteSync: async date => {
-      const outcome = await runRemoteSync(date);
-      if (!isMountedRef.current) {
-        return outcome;
-      }
-      return outcome;
-    },
+    runRemoteSync,
   });
 
   usePostDeployRecentRecordRefresh({
     remoteSyncStatus: effectiveRemoteSyncStatus,
     refetch,
-    runRemoteSync: async date => {
-      const outcome = await runRemoteSync(date);
-      if (!isMountedRef.current) {
-        return outcome;
-      }
-      return outcome;
-    },
+    runRemoteSync,
   });
 
   // 3. Status Mapping
