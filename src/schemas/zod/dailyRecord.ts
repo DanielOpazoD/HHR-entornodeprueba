@@ -1,3 +1,4 @@
+import { RayenSyncDiagnosticContextSchema } from './rayenSyncDiagnosticContext';
 import { z } from 'zod';
 import { DailyRecord } from '@/types/domain/dailyRecord';
 import {
@@ -76,6 +77,7 @@ const RayenSyncCoverageSchema = z.object({
     z.array(
       z.object({
         bedId: StringSchema,
+        diagnostic: RayenSyncDiagnosticContextSchema,
         source: z.enum(RAYEN_SYNC_ISSUE_SOURCES),
         reason: z.enum(RAYEN_SYNC_ISSUE_REASONS),
       })
@@ -164,6 +166,7 @@ const RayenSyncStructuralReviewSchema = z.object({
           // Legacy null normalization removes explicit nulls. A bed-less structural conflict
           // must still survive the daily-record read as a nullable, privacy-safe issue.
           bedId: StringSchema.nullable().default(null),
+          diagnostic: RayenSyncDiagnosticContextSchema,
           caseContext: nullableOptional(
             z
               .object({

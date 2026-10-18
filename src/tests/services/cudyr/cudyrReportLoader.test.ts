@@ -42,6 +42,7 @@ describe('persisted-only report loader', () => {
       readExclusions,
     });
     expect(readExclusions.mock.calls.map(call => call[0])).toEqual(['2026-09', '2026-10']);
+    expect(result.readIncomplete).toBe(true);
     expect(result.issues).toContain(
       'Exclusiones diarias: lectura incompleta. Vuelva a cargar el período.'
     );
@@ -92,6 +93,7 @@ describe('persisted-only report loader', () => {
     });
     expect(readHistory).toHaveBeenCalledTimes(2);
     expect(readEpisodeCaptures).toHaveBeenCalledTimes(2);
+    expect(result.readIncomplete).toBe(false);
     expect(result.observations).toHaveLength(2);
     expect(result.captures).toHaveLength(2);
     expect(result.rows).toHaveLength(1);
@@ -167,4 +169,24 @@ describe('persisted-only report loader', () => {
     expect(result.issues.join()).toContain('Historial CUDYR');
     expect(result.observations).toHaveLength(0);
   });
+});
+
+it('starts independent persisted reads together while waiting for all evidence before projecting', async () => {
+  const p = ports();
+  let release!: () => void;
+  const pending = new Promise<void>(resolve => {
+    release = resolve;
+  });
+  p.readHistory.mockImplementation(async () => {
+    await pending;
+    return { observations: [], nextCursor: null };
+  });
+  const loading = loadCudyrReport('2026-10-02', '2026-10-02', undefined, p);
+  await vi.waitFor(() => expect(p.readCaptures).toHaveBeenCalledTimes(1));
+  expect(p.readRecord).toHaveBeenCalledTimes(1);
+  expect(p.readEpisodeCaptures).not.toHaveBeenCalled();
+  release();
+  const result = await loading;
+  expect(result.readIncomplete).toBe(false);
+  expect(p.readEpisodeCaptures).toHaveBeenCalledTimes(1);
 });

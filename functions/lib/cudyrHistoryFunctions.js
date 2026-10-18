@@ -1,3 +1,4 @@
+const { saveReadView, readReadView } = require('./cudyrReadViewStore');
 const { saveOfficialReport, readOfficialReport } = require('./cudyrOfficialReportStore');
 const {
   saveCudyrVerifiedContext,
@@ -65,6 +66,8 @@ const createCudyrHistoryFunctions = ({
         context,
         resolveRoleForEmail,
       });
+      if (data?.kind === 'save-read-view')
+        return saveReadView({ hospital, data, uid: context.auth.uid });
       if (data?.kind === 'save-official-report')
         return saveOfficialReport({
           hospital,
@@ -291,6 +294,7 @@ const createCudyrHistoryFunctions = ({
       if (!(await hasCallableClinicalAccess(context))) {
         throw new functions.https.HttpsError('permission-denied', 'Clinical access is required.');
       }
+      if (data?.kind === 'read-view') return readReadView(hospital, data, context.auth.uid);
       if (data?.kind === 'official-report') return readOfficialReport(hospital, data);
       if (data?.kind === 'daily-exclusions') return readCudyrExclusions(hospital, data);
       if (data?.kind === 'episode-captures') return readEpisodeCaptures(captures, data);

@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { BaseModal } from '@/components/shared/BaseModal';
-import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
 import {
-  monthlyRecoveryPeriod,
+  monthlyRecoveryWindow,
   recoverCudyrMonthlyReports,
   type MonthlyRecoveryProgress,
   type MonthlyRecoveryResult,
@@ -13,10 +12,12 @@ export const CudyrMonthlyRecovery = ({
   month,
   onSaved,
   compact = false,
+  disabled = false,
 }: {
   month: string;
   onSaved: () => void;
   compact?: boolean;
+  disabled?: boolean;
 }) => {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -32,13 +33,11 @@ export const CudyrMonthlyRecovery = ({
       active.current?.abort();
     };
   }, []);
-  const period = monthlyRecoveryPeriod(month);
-  const [closed, setClosed] = useState(
-    () => resolveCudyrPendingStatus(period.last).phase === 'overdue'
-  );
+
+  const [closed, setClosed] = useState(() => Boolean(monthlyRecoveryWindow(month)));
   useEffect(() => {
     const update = () => {
-      const next = resolveCudyrPendingStatus(period.last).phase === 'overdue';
+      const next = Boolean(monthlyRecoveryWindow(month));
       setClosed(next);
       return next;
     };
@@ -47,9 +46,9 @@ export const CudyrMonthlyRecovery = ({
       if (update()) clearInterval(timer);
     }, 1000);
     return () => clearInterval(timer);
-  }, [period.last]);
+  }, [month]);
   const start = async () => {
-    if (active.current || !closed) return;
+    if (active.current || !closed || disabled) return;
     const controller = new AbortController();
     active.current = controller;
     setBusy(true);
@@ -79,8 +78,8 @@ export const CudyrMonthlyRecovery = ({
   const content = (
     <>
       <p className="mt-3 text-slate-600">
-        Guarda los censos diarios y los informes CUDYR de {month}, incluida la mañana del
-        {period.next}. Reutiliza los respaldos confirmados en Firebase.
+        Consulta las fuentes de Eloísa para completar los turnos cerrados pendientes de {month},
+        incluida su madrugada siguiente. Conserva los días verificados y los respaldos confirmados.
       </p>
       <p className="mt-2 text-amber-800">
         Concilia pacientes y turnos con los datos guardados. Autor y hora se conservan cuando
@@ -89,10 +88,10 @@ export const CudyrMonthlyRecovery = ({
       <button
         type="button"
         onClick={() => void start()}
-        disabled={busy || !closed}
+        disabled={busy || !closed || disabled}
         className="mt-3 rounded-lg border border-teal-700 px-3 py-2 font-medium text-teal-800 disabled:opacity-50"
       >
-        {busy ? 'Recuperando…' : 'Completar y verificar mes'}
+        {busy ? 'Recuperando…' : 'Actualizar CUDYR'}
       </button>
       {busy && (
         <button
@@ -111,10 +110,11 @@ export const CudyrMonthlyRecovery = ({
       )}
       {!closed && (
         <p className="mt-2 text-slate-500">
-          Disponible cuando cierre el último turno, al mediodía del primer día del mes siguiente.
+          Disponible cuando haya al menos un turno cerrado para verificar.
         </p>
       )}
       <div role="status" className="mt-2 max-h-40 overflow-y-auto text-xs text-slate-600">
+        {busy && progress.length === 0 && <p>Verificando los pendientes guardados en HHR…</p>}
         {progress.map(p => (
           <p key={p.reportMonth}>
             {p.reportMonth} ·{' '}
@@ -126,9 +126,15 @@ export const CudyrMonthlyRecovery = ({
                 failed: 'Consulta o guardado incompleto; puede reintentarse',
               }[p.status]
             }
+            {p.detail && <span> · {p.detail}</span>}
           </p>
         ))}
       </div>
+      {result?.pendingDays === 0 && (
+        <p role="status" className="mt-2 text-teal-800">
+          Los turnos cerrados ya están verificados. No fue necesario consultar Eloísa.
+        </p>
+      )}
       {result && (
         <p className="mt-2 text-slate-600">
           {result.recovered} informes guardados · {result.reused} reutilizados ·{' '}
@@ -149,10 +155,10 @@ export const CudyrMonthlyRecovery = ({
       {result?.verificationResult && (
         <div className="mt-3 space-y-2">
           <p>
-            Informes CUDYR verificados: {result.reports.length}/2 · Censos HHR disponibles:{' '}
-            {result.verificationResult.daysAvailable}/{result.verificationResult.expectedDays}.
-            Censos cotejados con Eloísa: {result.verificationResult.censusVerified}/
-            {result.verificationResult.expectedDays}.
+            Informes CUDYR verificados: {result.reports.length}/{result.expectedReports ?? 2} ·
+            Censos HHR disponibles: {result.verificationResult.daysAvailable}/
+            {result.verificationResult.expectedDays}. Censos cotejados con Eloísa:{' '}
+            {result.verificationResult.censusVerified}/{result.verificationResult.expectedDays}.
           </p>
           <p>
             {result.verificationResult.checks.filter(c => c.state === 'found').length} categorías en
@@ -201,15 +207,15 @@ export const CudyrMonthlyRecovery = ({
       <>
         <button
           type="button"
-          disabled={!closed}
-          title={!closed ? 'Disponible al cerrar el último turno del mes.' : undefined}
+          disabled={!closed || disabled}
+          title={!closed ? 'Aún no hay turnos cerrados en este mes.' : undefined}
           className="inline-flex items-center rounded-lg border border-teal-700 bg-white px-3 py-2 text-sm font-medium text-teal-800 disabled:opacity-40"
           onClick={() => {
             setOpen(true);
             if (!busy) void start();
           }}
         >
-          {busy ? 'Ver progreso del mes' : 'Completar y verificar mes'}
+          {busy ? 'Ver progreso' : 'Actualizar CUDYR'}
         </button>
         <BaseModal
           isOpen={open}

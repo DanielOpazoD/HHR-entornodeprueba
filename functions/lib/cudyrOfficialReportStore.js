@@ -268,6 +268,45 @@ const saveOfficialReport = async ({ hospital, data, actor }) => {
     };
   });
 };
+// A refreshed following-month workbook must not reopen a closed month when its
+// only relevant column (the following first morning) is unchanged. Keep exact
+// metadata validation for every other source and for the original workbooks.
+const unchangedFollowingMorning = (docs, snapshot, month) => {
+  const next = bounds(month).next;
+  const savedAt = Date.parse(snapshot.savedAt);
+  if (!Number.isFinite(savedAt)) return null;
+  const sources = docs.filter(
+    doc =>
+      doc.ref.path.includes('/cudyrMonthlySupplements/') && doc.data()?.month === next.slice(0, 7)
+  );
+  const prior = sources.filter(doc => Date.parse(doc.data().importedAt) <= savedAt);
+  const added = sources.filter(doc => Date.parse(doc.data().importedAt) > savedAt);
+  if (!prior.length || !added.length) return null;
+  const column = doc => {
+    const source = doc.data();
+    if (
+      source.capture?.source !== 'extension_monthly_report' ||
+      !Array.isArray(source.report?.patients)
+    )
+      return null;
+    const entries = [];
+    for (const patient of source.report.patients) {
+      if (!Array.isArray(patient.days)) return null;
+      const cells = patient.days.filter(day => day.sourceDate === next);
+      if (cells.length !== 1) return null;
+      const category = cells[0].category;
+      // Later admissions add blank rows to the workbook, not applications to
+      // the already closed night. Any added/removed/changed positive invalidates.
+      if (category) entries.push(JSON.stringify([patient.document, patient.patientName, category]));
+    }
+    return JSON.stringify(entries.sort());
+  };
+  prior.sort((a, b) => Date.parse(b.data().importedAt) - Date.parse(a.data().importedAt));
+  const expected = column(prior[0]);
+  if (expected === null || added.some(doc => column(doc) !== expected)) return null;
+  const excluded = new Set(added.map(doc => doc.ref.path));
+  return docs.filter(doc => !excluded.has(doc.ref.path));
+};
 const readOfficialReport = async (hospital, data) => {
   if (data.hospitalId !== undefined) fail('Invalid report request.', 'invalid-argument');
   const month = monthValue(data.month);
@@ -286,8 +325,19 @@ const readOfficialReport = async (hospital, data) => {
       snapshot &&
       (snapshot.sourceVersion === versions.current ||
         (versions.legacy && snapshot.sourceVersion === versions.legacy));
-    let restoredMatches = false;
+    let followingMorningMatches = false;
     if (snapshot?.policyVersion === POLICY && !originalMatches) {
+      const documents = await sourceDocuments(hospital, month, episodes, tx, true);
+      const unchanged = unchangedFollowingMorning(documents, snapshot, month);
+      if (unchanged) {
+        const previous = versionsForDocuments(hospital, unchanged);
+        followingMorningMatches =
+          snapshot.sourceVersion === previous.current ||
+          Boolean(previous.legacy && snapshot.sourceVersion === previous.legacy);
+      }
+    }
+    let restoredMatches = false;
+    if (snapshot?.policyVersion === POLICY && !originalMatches && !followingMorningMatches) {
       const binding = await tx.get(
         hospital
           .collection('cudyrOfficialReports')
@@ -304,7 +354,11 @@ const readOfficialReport = async (hospital, data) => {
         doc
       );
     }
-    if (!snapshot || snapshot.policyVersion !== POLICY || (!originalMatches && !restoredMatches))
+    if (
+      !snapshot ||
+      snapshot.policyVersion !== POLICY ||
+      (!originalMatches && !followingMorningMatches && !restoredMatches)
+    )
       return { state: 'missing', sourceVersion: await publicationVersion(hospital, month, tx) };
     const version = snapshot.sourceVersion;
     return {
@@ -321,6 +375,7 @@ const readOfficialReport = async (hospital, data) => {
 module.exports = {
   saveOfficialReport,
   readOfficialReport,
+  unchangedFollowingMorning,
   sourceVersion,
   sourceDocuments,
   versionsForDocuments,

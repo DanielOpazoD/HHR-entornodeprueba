@@ -20,13 +20,13 @@ const stored = (month: string, observedAt = '2026-09-02T18:00:00Z') =>
     capture: { source: 'extension_monthly_report', observedAt },
   }) as unknown as ArchivedCudyrSupplement;
 const setup = () => ({
-  readCensus: vi.fn().mockResolvedValue({
-    from: '2026-08-01',
-    to: '2026-08-31',
+  readCensus: vi.fn().mockImplementation(async (from = '2026-08-01', to = '2026-08-31') => ({
+    from,
+    to,
     rows: [],
     coverage: [],
     issues: [],
-  }),
+  })),
   load: vi.fn().mockResolvedValue([]),
   fetchReport: vi.fn().mockImplementation(async (month: string) => source(month)),
   readFile: vi.fn().mockImplementation(async (file: File) => ({
@@ -154,7 +154,11 @@ describe('monthly documentary recovery', () => {
   it('preserves saved sources and partial failures if final reconciliation cannot be read', async () => {
     const ports = setup();
     ports.fetchReport.mockRejectedValueOnce(new Error('network'));
-    ports.readCensus.mockRejectedValue(new Error('firebase unavailable'));
+    const initial = await ports.readCensus();
+    ports.readCensus
+      .mockResolvedValueOnce(initial)
+      .mockResolvedValueOnce({ ...initial, from: '2026-09-01', to: '2026-09-01' })
+      .mockRejectedValueOnce(new Error('firebase unavailable'));
     expect(await run(ports)).toMatchObject({
       recovered: 1,
       failures: ['2026-08'],
@@ -194,7 +198,7 @@ describe('monthly documentary recovery', () => {
     expect(ports.save).not.toHaveBeenCalled();
     expect(ports.fetchReport).toHaveBeenCalledTimes(1);
   });
-  it('refuses recovery while the last application window remains open', async () => {
+  it('refuses recovery when no night has closed yet', async () => {
     const ports = setup();
     await expect(
       recoverCudyrMonthlyReports(
@@ -202,9 +206,9 @@ describe('monthly documentary recovery', () => {
         new AbortController().signal,
         vi.fn(),
         ports as never,
-        new Date('2026-09-01T16:59:00Z')
+        new Date('2026-08-02T16:59:00Z')
       )
-    ).rejects.toThrow(/sigue abierto/);
+    ).rejects.toThrow(/turnos cerrados/);
     expect(ports.load).not.toHaveBeenCalled();
   });
 });

@@ -325,6 +325,26 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
     expect(harness.failRun).not.toHaveBeenCalled();
   });
 
+  it('keeps conflict-only review visible when clinical completion settles the execution', async () => {
+    const diff = {
+      ...noChangeDiff,
+      conflicts: [{ bedId: 'R1', reason: 'Historical location requires review.' }],
+      summary: { ...noChangeDiff.summary, conflicts: 1 },
+    };
+    mocks.prepareRayenStructuralPlan.mockResolvedValue({ diff, replanDiff: vi.fn() });
+    mocks.applyConfirmedRayenImport.mockResolvedValue(committedResult(diff));
+    const harness = renderPreview('preview');
+    harness.runClinicalStage.mockImplementation(async () => {
+      harness.executionRef.current.stage = { type: 'complete' };
+      return { status: 'complete' };
+    });
+
+    await act(async () => harness.result.current(snapshot, {} as never, 'run-1', 'request-1'));
+
+    expect(appliedState(harness.setState)).toMatchObject({ diff, isPreviewOpen: true });
+    expect(harness.runClinicalStage).toHaveBeenCalledOnce();
+  });
+
   it('surfaces omissions from the automatic route without failing the run', async () => {
     mocks.prepareRayenStructuralPlan.mockResolvedValue({
       diff: autoApplyDiff,

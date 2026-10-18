@@ -1,4 +1,5 @@
 import {
+  CUDYR_ADMIN_ADJUSTMENT_SOURCE,
   CUDYR_IMPORT_SOURCE,
   CUDYR_FALLBACK_SOURCE,
 } from '@/domain/evaluationScales/importedCudyr';
@@ -70,11 +71,15 @@ export const buildCudyrReport = (input: CudyrReportInput): CudyrReportDataset =>
             ? {
                 ...item.patient,
                 cudyr: undefined,
-                evaluationScores: [CUDYR_IMPORT_SOURCE, CUDYR_FALLBACK_SOURCE].includes(
-                  item.patient.evaluationScores?.cudyr?.source || ''
-                )
-                  ? item.patient.evaluationScores
-                  : undefined,
+                evaluationScores:
+                  [CUDYR_IMPORT_SOURCE, CUDYR_FALLBACK_SOURCE].includes(
+                    item.patient.evaluationScores?.cudyr?.source || ''
+                  ) ||
+                  (item.patient.evaluationScores?.cudyr?.source === CUDYR_ADMIN_ADJUSTMENT_SOURCE &&
+                    Boolean(item.patient.evaluationScores.cudyr.adjustmentReason?.trim()) &&
+                    Boolean(item.patient.evaluationScores.cudyr.adjustmentEvidence?.trim()))
+                    ? item.patient.evaluationScores
+                    : undefined,
               }
             : item.patient
         ),
@@ -107,7 +112,9 @@ export const buildCudyrReport = (input: CudyrReportInput): CudyrReportDataset =>
       const sourceResultAvailable = Boolean(
         observation ||
         (selected.evaluation &&
-          [CUDYR_IMPORT_SOURCE, CUDYR_FALLBACK_SOURCE].includes(selected.evaluation.source))
+          [CUDYR_IMPORT_SOURCE, CUDYR_FALLBACK_SOURCE, CUDYR_ADMIN_ADJUSTMENT_SOURCE].includes(
+            selected.evaluation.source
+          ))
       );
       if (sourceResultAvailable && captureInconclusive)
         capture.warnings.push(
