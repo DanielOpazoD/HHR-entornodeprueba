@@ -1,5 +1,9 @@
 # Inventario previo a la migración
 
+Antes de ejecutar este procedimiento, aplicar la [política vigente de fuentes y
+alcance](00-fuentes-y-alcance.md). Las herramientas descritas conservan sus límites;
+no autorizan reabrir censos cerrados ni sobrescribir correcciones.
+
 La base será `hhr-pruebas`. Se conserva su censo corregido y el CUDYR oficial de
 agosto y septiembre. El antiguo aporta información que debe cotejarse; una
 diferencia de campos no autoriza sustituir el documento del día.
