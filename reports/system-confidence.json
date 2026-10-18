@@ -1,15 +1,15 @@
 {
-  "generatedAt": "2026-07-05T06:20:05.363Z",
-  "gitSha": "126d4b82",
+  "generatedAt": "2026-10-18T03:06:48.471Z",
+  "gitSha": "627672549",
   "gitDirty": false,
   "generatedFor": {
-    "gitSha": "126d4b82",
+    "gitSha": "627672549",
     "gitDirty": false,
-    "treeHash": "3f2aefdb0f53e13237b97d0ef50fcbbe4a38e71c",
+    "treeHash": "10db24e7d1d642e7033c7faf3d477563de049c5d",
     "reportId": "system-confidence",
     "dependencyFingerprint": {
       "algorithm": "sha256:dependency-files-v1",
-      "value": "c9faa66c3c6ac01814ac1d8237deab28f866c54438d0f3a97d54e9fc34e775e9",
+      "value": "d63c6db9f292a43a2e7855bd6ed45e59d7492b5a8d6cca02e237da2987c44e08",
       "files": [
         "reports/critical-coverage.json",
         "reports/critical-coverage.md",
@@ -24,7 +24,9 @@
         "scripts/run-critical-coverage.mjs",
         "vitest.critical-coverage.config.ts"
       ],
-      "missingFiles": []
+      "missingFiles": [
+        "reports/e2e/preview-bootstrap/ci-provenance.json"
+      ]
     }
   },
   "overallStatus": "ok",
@@ -54,7 +56,7 @@
     {
       "name": "critical_coverage",
       "status": "ok",
-      "summary": "status=passing, zones=15"
+      "summary": "status=passing, zones=16"
     },
     {
       "name": "operational_budgets",

@@ -11,6 +11,7 @@ export const previousCensusDate = (day: string): string => {
 type Subject = {
   clinicalEpisodeId?: string;
   rut?: string;
+  neonatalMaternalRut?: string;
   patientName?: string;
   admissionDate?: string;
   admissionTime?: string;
@@ -114,6 +115,7 @@ export const previousCensusContinuityConflicts = (
       {
         // Yesterday's bed may now belong to somebody else: do not isolate to that bed.
         bedId: null,
+        clinicalEpisodeId: patient.clinicalEpisodeId?.trim() || undefined,
         caseContext: {
           patientName: patient.patientName ?? '',
           censusDate: previous.date,

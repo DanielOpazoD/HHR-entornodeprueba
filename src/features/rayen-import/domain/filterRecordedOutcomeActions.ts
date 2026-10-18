@@ -3,6 +3,7 @@ import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import { extractTime } from '../mapping/rayenToPatientData';
 import { encounterWallClockInRapaNui } from '../mapping/encounterWallClock';
 import { createRecordedOutcomeMatcher } from './censusDischargeHistory';
+import { recordedMaternalDischarge } from './associatedClinicalCribDischarge';
 
 /**
  * Removes stale Rayen actions for episodes already concluded in HHR by alta, traslado or CMA.
@@ -70,7 +71,12 @@ export const filterRecordedOutcomeActions = (
             encounterWallClockInRapaNui(entry.source?.admissionDatetime)?.slice(0, 10),
           admissionTime:
             entry.expectedOccupant?.admissionTime ?? extractTime(entry.source?.admissionDatetime),
-        })
+        }) ||
+        Boolean(
+          entry.associatedClinicalCrib &&
+          recordedMaternalDischarge(current, entry) &&
+          !hasRecordedOutcome({ clinicalEpisodeId: entry.associatedClinicalCrib.clinicalEpisodeId })
+        )
     ),
     reportEgresos: diff.reportEgresos?.filter(
       entry =>

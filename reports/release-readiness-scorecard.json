@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-10-07T06:20:24.295Z",
-  "overallStatus": "degraded",
+  "generatedAt": "2026-10-18T03:06:48.935Z",
+  "overallStatus": "ok",
   "indicators": [
     {
       "name": "worktree_state",
-      "status": "degraded",
-      "summary": "status=dirty"
+      "status": "ok",
+      "summary": "status=clean"
     },
     {
       "name": "structural_quality",
@@ -30,12 +30,12 @@
     {
       "name": "release_hotspots",
       "status": "ok",
-      "summary": "vendor-heic2any-ClJ2fQYX.js: 1320.4 KB / 1416.0 KB (near-limit) | app-authenticated-shell-db-S1lVy.js: 614.1 KB / 615.2 KB (near-limit) | vendor-pdfjs-DTBrk9zO.js: 449.7 KB / 507.8 KB (near-limit) | vendor-firebase-firestore-Bq9EckP1.js: 388.3 KB / 488.3 KB (ok) | vendor-pdf-lib-COR8hm7M.js: 381.7 KB / 419.9 KB (near-limit)"
+      "summary": "vendor-heic2any-BjDsP1gW.js: 1320.4 KB / 1416.0 KB (near-limit) | vendor-dicom-vtk-B8akqPS2.js: 1053.2 KB / 1220.7 KB (near-limit) | app-authenticated-shell-OBcmwlhV.js: 615.2 KB / 615.2 KB (near-limit) | vendor-pdfjs-BGyLORnz.js: 449.7 KB / 507.8 KB (near-limit) | vendor-firebase-firestore-Bq9EckP1.js: 388.3 KB / 488.3 KB (ok)"
     },
     {
       "name": "bundle_risk_ledger",
       "status": "ok",
-      "summary": "surfaces=7, issues=0"
+      "summary": "surfaces=8, issues=0"
     },
     {
       "name": "release_confidence",
@@ -66,10 +66,10 @@
   "missingReports": [],
   "releaseHotspots": {
     "status": "ok",
-    "summary": "vendor-heic2any-ClJ2fQYX.js: 1320.4 KB / 1416.0 KB (near-limit) | app-authenticated-shell-db-S1lVy.js: 614.1 KB / 615.2 KB (near-limit) | vendor-pdfjs-DTBrk9zO.js: 449.7 KB / 507.8 KB (near-limit) | vendor-firebase-firestore-Bq9EckP1.js: 388.3 KB / 488.3 KB (ok) | vendor-pdf-lib-COR8hm7M.js: 381.7 KB / 419.9 KB (near-limit)",
+    "summary": "vendor-heic2any-BjDsP1gW.js: 1320.4 KB / 1416.0 KB (near-limit) | vendor-dicom-vtk-B8akqPS2.js: 1053.2 KB / 1220.7 KB (near-limit) | app-authenticated-shell-OBcmwlhV.js: 615.2 KB / 615.2 KB (near-limit) | vendor-pdfjs-BGyLORnz.js: 449.7 KB / 507.8 KB (near-limit) | vendor-firebase-firestore-Bq9EckP1.js: 388.3 KB / 488.3 KB (ok)",
     "assets": [
       {
-        "file": "dist/assets/vendor-heic2any-ClJ2fQYX.js",
+        "file": "dist/assets/vendor-heic2any-BjDsP1gW.js",
         "sizeBytes": 1352091,
         "maxBytes": 1450000,
         "budgetLabel": "vendor-heic2any",
@@ -79,18 +79,28 @@
         "status": "near-limit"
       },
       {
-        "file": "dist/assets/app-authenticated-shell-db-S1lVy.js",
-        "sizeBytes": 628874,
+        "file": "dist/assets/vendor-dicom-vtk-B8akqPS2.js",
+        "sizeBytes": 1078467,
+        "maxBytes": 1250000,
+        "budgetLabel": "chunkMaxBytes",
+        "budgetSource": "chunkMaxBytes",
+        "severity": "error",
+        "budgetUtilizationPct": 86.3,
+        "status": "near-limit"
+      },
+      {
+        "file": "dist/assets/app-authenticated-shell-OBcmwlhV.js",
+        "sizeBytes": 630000,
         "maxBytes": 630000,
         "budgetLabel": "app-authenticated-shell",
         "budgetSource": "startupChunkBudget",
         "severity": "error",
-        "budgetUtilizationPct": 99.8,
+        "budgetUtilizationPct": 100,
         "status": "near-limit"
       },
       {
-        "file": "dist/assets/vendor-pdfjs-DTBrk9zO.js",
-        "sizeBytes": 460524,
+        "file": "dist/assets/vendor-pdfjs-BGyLORnz.js",
+        "sizeBytes": 460525,
         "maxBytes": 520000,
         "budgetLabel": "vendor-pdfjs",
         "budgetSource": "chunkPatternBudget",
@@ -107,23 +117,13 @@
         "severity": "error",
         "budgetUtilizationPct": 79.5,
         "status": "ok"
-      },
-      {
-        "file": "dist/assets/vendor-pdf-lib-COR8hm7M.js",
-        "sizeBytes": 390824,
-        "maxBytes": 430000,
-        "budgetLabel": "vendor-pdf",
-        "budgetSource": "chunkPatternBudget",
-        "severity": "error",
-        "budgetUtilizationPct": 90.9,
-        "status": "near-limit"
       }
     ]
   },
   "sources": {
     "qualityMetrics": {
       "file": "reports/quality-metrics.json",
-      "generatedAt": "2026-07-05T06:20:03.273Z"
+      "generatedAt": "2026-10-18T03:03:18.157Z"
     },
     "bundleRiskLedger": {
       "file": "reports/bundle-risk-ledger.json",
@@ -131,46 +131,44 @@
     },
     "systemConfidence": {
       "file": "reports/system-confidence.json",
-      "generatedAt": "2026-07-05T06:20:05.363Z"
+      "generatedAt": "2026-10-18T03:06:48.471Z"
     },
     "operationalHealth": {
       "file": "reports/operational-health.json",
-      "generatedAt": "2026-07-05T06:20:04.606Z"
+      "generatedAt": "2026-10-18T03:06:48.268Z"
     },
     "releaseConfidenceMatrix": {
       "file": "reports/release-confidence-matrix.json",
-      "generatedAt": "2026-07-05T06:20:05.119Z"
+      "generatedAt": "2026-10-18T03:06:48.665Z"
     },
     "technicalOwnershipMap": {
       "file": "reports/technical-ownership-map.json",
-      "generatedAt": "2026-07-05T06:17:55.749Z"
+      "generatedAt": "2026-10-18T03:06:48.791Z"
     },
     "guardrailGovernance": {
       "file": "reports/guardrail-governance.json",
-      "generatedAt": "2026-07-06T05:44:53.924Z"
+      "generatedAt": "2026-10-18T03:06:48.900Z"
     },
     "compatibilityImportGovernance": {
       "file": "reports/compatibility-import-governance.json",
-      "generatedAt": "2026-07-05T06:02:31.571Z"
+      "generatedAt": "2026-10-18T03:03:21.222Z"
     },
     "legacyRetirementDebt": {
       "file": "reports/legacy-retirement-debt.json",
       "generatedAt": "stable:legacy-retirement-debt"
     }
   },
-  "issues": [
-    "worktree_state: status=dirty"
-  ],
-  "gitSha": "f4ba275c",
-  "gitDirty": true,
+  "issues": [],
+  "gitSha": "627672549",
+  "gitDirty": false,
   "generatedFor": {
-    "gitSha": "f4ba275c",
-    "gitDirty": true,
-    "treeHash": "4c1b9c3899c231e32e88706ef3706328f613bd5b",
+    "gitSha": "627672549",
+    "gitDirty": false,
+    "treeHash": "10db24e7d1d642e7033c7faf3d477563de049c5d",
     "reportId": "release-readiness-scorecard",
     "dependencyFingerprint": {
       "algorithm": "sha256:dependency-files-v1",
-      "value": "c6ff6437ae106653e0500d67942725cf345c285906a5625b0eb9d7652c9dc385",
+      "value": "de79fe00ba05a62f15e64da684de03836841513b37f923008c7de82a6b331358",
       "files": [
         "reports/bundle-risk-ledger.json",
         "reports/bundle-risk-ledger.md",
@@ -208,6 +206,6 @@
       ]
     }
   },
-  "degradedByWorktreeOnly": true,
-  "overallStatusReason": "worktree_state only"
+  "degradedByWorktreeOnly": false,
+  "overallStatusReason": "all indicators ok"
 }

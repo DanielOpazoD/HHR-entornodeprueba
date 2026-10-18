@@ -49,6 +49,7 @@ export interface StructuralConflict {
 }
 
 const episodeIdFromConflict = (conflict: ConflictEntry): string | undefined =>
+  conflict.clinicalEpisodeId ??
   conflict.source?.encounterId ??
   conflict.blockedAdmission?.patient.clinicalEpisodeId ??
   conflict.blockedAdmission?.source?.encounterId ??

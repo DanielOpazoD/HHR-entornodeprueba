@@ -19,6 +19,21 @@ export interface HistoricalCandidate {
   exactDischargeAt?: string;
 }
 
+/** A closed RN may retain its known historical mother; a report's crib label is insufficient. */
+export const verifiedHistoricalCribParent = (
+  record: DailyRecord,
+  encounter: RayenEncounter,
+  row?: EgresoReportRow
+): string | undefined => {
+  const parent = record.beds[encounter.clinicalCribParentBedId ?? ''];
+  return row?.exactEpisodeVerification === 'verified' &&
+    row.fromClinicalCrib &&
+    parent?.clinicalCrib?.clinicalEpisodeId === encounter.encounterId &&
+    /^\d+$/.test(parent.clinicalEpisodeId ?? '')
+    ? parent.clinicalEpisodeId
+    : undefined;
+};
+
 export const reportClinicalStamp = (
   row: EgresoReportRow
 ): { iso: string; calendarIso: string; hhmm: string } | null => {
@@ -41,7 +56,8 @@ export const latestReportRowsByEpisode = (
   for (const row of reportRows) {
     const episode = String(row.encounterId ?? '').trim();
     const stamp = reportClinicalStamp(row);
-    if (!/^\d+$/.test(episode) || !normalizeRut(row.run) || !stamp) continue;
+    const verifiedCrib = row.fromClinicalCrib && row.exactEpisodeVerification === 'verified';
+    if (!/^\d+$/.test(episode) || (!normalizeRut(row.run) && !verifiedCrib) || !stamp) continue;
     const prior = byEpisode.get(episode);
     const priorStamp = prior ? reportClinicalStamp(prior) : null;
     if (

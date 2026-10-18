@@ -5,7 +5,7 @@ import { normalizeRut } from '@/utils/rutUtils';
 import { isDismissedTreatingPhysician } from '@/shared/census/treatingPhysicianDismissal';
 import { normalizePatientUpcForBed } from '@/shared/census/upcBedPolicy';
 import { rayenToPatientData } from '../mapping/rayenToPatientData';
-import { matchesCensusEpisodeIdentity } from './censusPatientIdentityIndex';
+import { matchesCensusEpisodeIdentity, normalizePatientRut } from './censusPatientIdentityIndex';
 
 /** Relocation preserves notes and classification while replacing the former source location. */
 export const patientAfterBedMove = (
@@ -33,6 +33,7 @@ const SYNCABLE_FIELDS: Array<keyof PatientData> = [
   'lastName',
   'secondLastName',
   'rut',
+  'documentType',
   'birthDate',
   'age',
   'biologicalSex',
@@ -55,7 +56,15 @@ export const diffSyncablePatientFields = (
 ): FieldChange[] => {
   const changes: FieldChange[] = [];
   const dismissedPhysician = isDismissedTreatingPhysician(current, incoming);
+  // The legacy bridge does not send a document type. Its inferred RUT is not evidence
+  // against an already-identified numeric passport for the same patient and episode.
+  const preservePassport =
+    current.documentType === 'Pasaporte' &&
+    Boolean(current.rut) &&
+    matchesCensusEpisodeIdentity(current, incoming) &&
+    normalizePatientRut(current.rut) === normalizePatientRut(incoming.rut);
   for (const field of SYNCABLE_FIELDS) {
+    if (preservePassport && (field === 'rut' || field === 'documentType')) continue;
     if (
       dismissedPhysician &&
       (field === 'treatingPhysicianId' || field === 'treatingPhysicianName')

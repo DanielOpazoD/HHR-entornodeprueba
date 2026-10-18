@@ -66,9 +66,25 @@ const reportRun = (text: string): string => {
   return '';
 };
 
+const maternalReportRun = (text: string): string => {
+  const lines = text.split(/\r?\n/).map(line => line.replace(/\s+/g, ' ').trim());
+  // Field 5 selects identifier type 2. The printed legend alone proves nothing.
+  if (!lines.some(line => /^5\s+2(?:\s|$)/.test(line))) return '';
+  const at = lines.findIndex(line => /N[°oº]\s+de Pasaporte u otro documento/i.test(line));
+  if (at < 0) return '';
+  const values = lines.slice(at + 1, at + 5).flatMap(line => {
+    const candidate = line.replace(/\s+54\s+IDENTIDAD.*$/i, '').replace(/[\s-]/g, '');
+    return /^\d{6,8}[0-9K]$/i.test(candidate) && isValidRut(candidate)
+      ? [normalizeRut(candidate)]
+      : [];
+  });
+  return values.length === 1 ? values[0] : '';
+};
+
 /** Parses only the temporal and unit evidence needed for historical census reconstruction. */
 export const parseStatisticalDischargeEvidence = (
-  text: string
+  text: string,
+  options: { allowMaternalIdentifier?: boolean } = {}
 ): StatisticalDischargeEvidence | null => {
   const lines = String(text || '').split(/\r?\n/);
   const admission = lines
@@ -78,7 +94,8 @@ export const parseStatisticalDischargeEvidence = (
     // The official form prints the discharge unit in a separate box, not on line 29.
     .map(line => movementFromLine(line, /^29\s+EGRESO\b/i, false))
     .find((value): value is NonNullable<typeof value> => value !== null);
-  const run = reportRun(text);
+  const personalRun = reportRun(text);
+  const run = personalRun || (options.allowMaternalIdentifier ? maternalReportRun(text) : '');
   if (!run || !admission || !discharge || discharge.changedAt < admission.changedAt) return null;
 
   const transferMarker = /^(?:25\s+1er|26\s+2[°o]|27\s+3er|28\s+4[°o])\s+TRASLADO\s*\*?/i;
@@ -115,6 +132,7 @@ export const parseStatisticalDischargeEvidence = (
 
   return {
     run,
+    ...(!personalRun ? { identifierKind: 'maternal' as const } : {}),
     admissionAt: admission.changedAt,
     admissionUnit: admission.unit,
     dischargeAt: discharge.changedAt,

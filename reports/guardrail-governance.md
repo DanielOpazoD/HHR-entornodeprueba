@@ -3,7 +3,7 @@
 - Version: `1`
 - Blocking tiers: `5`
 - Report-only guards: `18`
-- Quality aggregate checks: `64`
+- Quality aggregate checks: `66`
 
 ## Blocking Tiers
 
@@ -12,7 +12,7 @@
 | Inner Loop | `ci:inner-loop` | `typecheck, lint, check:quality, test:unit:critical` | Feedback local rapido sobre tipado, lint, boundaries y riesgos unitarios criticos. |
 | Pre Merge | `ci:pre-merge` | `typecheck, lint, check:quality, test:ci:unit` | Verificacion compacta obligatoria antes de merge para tipado, lint, guardrails y suite unitaria/integracion. |
 | Merge Gate | `ci:merge-gate` | `ci:pre-merge, lint:strict:core, check:critical-coverage, check:netlify-functions-bundle, build, ci:preview-gate` | Proteccion blocking previa a merge para codigo clinico, auth, storage y bundle, incluyendo chunk graph y smoke de preview del bundle real. |
-| Preview Gate | `ci:preview-gate` | `check:bundle-budget, check:chunk-graph, check:runtime-asset-margin, test:e2e:preview:census-bootstrap:built` | Valida budgets, chunk graph aciclico y que el bundle productivo monte correctamente en preview local. |
+| Preview Gate | `ci:preview-gate` | `check:bundle-budget, check:chunk-graph, check:runtime-asset-margin, ci:preview-smoke:built` | Valida budgets, chunk graph aciclico, bootstrap del censo y biblioteca clinica sobre el bundle productivo en preview local. |
 | Release Gate | `ci:release-gate` | `ci:merge-gate, check:daily-record-authority-release-gate, check:release-evidence, test:firestore:release:ci` | Validacion final con emuladores, reglas Firestore y E2E criticos. |
 
 ## Release Confidence
@@ -50,12 +50,12 @@
 
 | Group | Checks |
 | --- | --- |
-| boundaries | `check:architecture, check:application-port-boundary, check:legacy-staff-boundary, check:core-test-boundary, check:census-feature-boundary, check:census-export-contract-boundary, check:clinical-documents-feature-boundary, check:handoff-pdf-contract-boundary, check:feature-public-api-boundary, check:lazy-views-feature-entrypoints, check:feature-dependencies, check:shared-layer-boundary, check:barrel-boundaries, check:handoff-context-boundaries, check:storage-context-boundaries, check:core-type-facade-boundaries, check:root-domain-barrels, check:persistence-hub-boundaries, check:legacy-localstorage-imports, check:legacy-bridge-boundary, check:legacy-read-gating, check:folder-dependencies, check:module-dependencies, check:census-runtime-boundary, check:runtime-adapter-boundary, check:native-dialogs, check:firestore-runtime-boundary, check:domain-hotspot-boundary, check:legacy-permissions-boundary` |
+| boundaries | `check:architecture, check:application-port-boundary, check:legacy-staff-boundary, check:core-test-boundary, check:census-feature-boundary, check:census-export-contract-boundary, check:clinical-documents-feature-boundary, check:handoff-pdf-contract-boundary, check:feature-public-api-boundary, check:lazy-views-feature-entrypoints, check:feature-dependencies, check:shared-layer-boundary, check:barrel-boundaries, check:handoff-context-boundaries, check:storage-context-boundaries, check:core-type-facade-boundaries, check:root-domain-barrels, check:persistence-hub-boundaries, check:legacy-localstorage-imports, check:legacy-bridge-boundary, check:legacy-read-gating, check:folder-dependencies, check:module-dependencies, check:census-runtime-boundary, check:runtime-adapter-boundary, check:native-dialogs, check:clinical-clock, check:firestore-runtime-boundary, check:domain-hotspot-boundary, check:legacy-permissions-boundary` |
 | tests | `check:core-trivial-tests, check:test-governance, check:unit-shard-balance, check:ci-runtime-telemetry, check:test-runtime-governance, check:test-failure-catalog, check:flaky-quarantine` |
 | hygiene | `check:core-console-usage, check:repo-hygiene` |
 | governance-inputs | `report:legacy-bridge, report:compatibility-governance` |
-| governance | `check:legacy-retirement-debt, check:compatibility-import-governance, check:schema-governance, check:runtime-contracts, check:sync-invariants, check:serverless-runtime-governance, check:serverless-sensitive-coverage, check:docs-drift, check:operational-runbooks, check:firestore-emulator-governance, check:ci-artifact-contracts, check:guardrail-governance` |
-| size | `check:module-size, check:handoff-module-size, check:census-module-size, check:transfers-module-size, check:hook-hotspots, check:hotspot-growth, check:bundle-risk-ledger` |
+| governance | `check:legacy-retirement-debt, check:compatibility-import-governance, check:schema-governance, check:runtime-contracts, check:sync-invariants, check:serverless-runtime-governance, check:serverless-sensitive-coverage, check:docs-drift, check:operational-runbooks, check:firestore-emulator-governance, check:ci-artifact-contracts, check:guardrail-governance, check:release-evidence-contract` |
+| size | `check:module-size, check:handoff-module-size, check:census-module-size, check:hook-hotspots, check:hotspot-growth, check:extension-hotspots, check:bundle-risk-ledger` |
 | reports | `check:report-freshness` |
 | type-safety | `check:critical-any, check:source-any` |
 | security | `check:clinical-mutation-audit-policy, check:security` |

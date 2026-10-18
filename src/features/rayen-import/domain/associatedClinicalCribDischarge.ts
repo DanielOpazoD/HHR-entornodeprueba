@@ -6,8 +6,59 @@ import { hasRecordedMovement } from './egresoReportPolicy';
 import type { OccupiedClinicalCrib } from './egresoReportPolicy';
 import type { PromotionCandidate } from './egresoReportEligibility';
 import { normalizeRut } from '@/utils/rutUtils';
+import type { DischargeData } from '@/types/domain/movements';
+import { recordedOutcomeEpisodeId } from './censusDischargeHistory';
 
 const episodeIdOf = (value: unknown): string => String(value ?? '').trim();
+
+/** An already recorded maternal alta can be completed, never duplicated or re-timed. */
+export const recordedMaternalDischarge = (record: DailyRecord, entry: DischargeEntry) => {
+  const episode = episodeIdOf(entry.encounterId ?? entry.source?.encounterId);
+  if (
+    !episode ||
+    entry.kind !== 'alta' ||
+    entry.status !== 'Vivo' ||
+    entry.reason !== 'administrative-discharge' ||
+    (entry.correctedDay && entry.correctedDay !== record.date.slice(0, 10))
+  )
+    return undefined;
+  const matches = record.discharges.filter(
+    row =>
+      !row.deletedAt &&
+      !row.isNested &&
+      row.status === 'Vivo' &&
+      episodeIdOf(recordedOutcomeEpisodeId(row)) === episode
+  );
+  return matches.length === 1 ? matches[0] : undefined;
+};
+
+/** Keep a recorded maternal stamp and a single undo snapshot for the associated RN. */
+export const appendAssociatedClinicalCribDischarge = (
+  discharges: DischargeData[],
+  recordedMother: DischargeData | undefined,
+  associated: DischargeData
+): void => {
+  discharges.push(
+    recordedMother
+      ? { ...associated, time: recordedMother.time, movementDate: recordedMother.movementDate }
+      : associated
+  );
+  const snapshot = recordedMother?.originalData;
+  if (
+    !recordedMother ||
+    !snapshot?.clinicalCrib ||
+    !associated.clinicalEpisodeId ||
+    snapshot.clinicalCrib.clinicalEpisodeId !== associated.clinicalEpisodeId
+  )
+    return;
+  const index = discharges.findIndex(row => row.id === recordedMother.id);
+  if (index >= 0) {
+    discharges[index] = {
+      ...recordedMother,
+      originalData: { ...snapshot, clinicalCrib: undefined },
+    };
+  }
+};
 
 const samePrincipal = (
   patient: { clinicalEpisodeId?: string; rut?: string } | undefined,

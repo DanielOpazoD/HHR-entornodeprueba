@@ -83,12 +83,14 @@ export const buildPatientBedConfigSections = ({
 
   return {
     display: {
-      bedName: props.bed.name,
-      showCunaIcon: props.isCunaMode,
+      bedName: props.isCunaMode ? `C-${props.bed.name}` : props.bed.name,
+      showCunaIcon: false,
       showDaysCounter: viewState.showDaysCounter,
       daysHospitalized: viewState.daysHospitalized,
       showIndicators: viewState.showIndicators,
-      indicators: viewState.indicators,
+      indicators: props.isCunaMode
+        ? viewState.indicators.filter(indicator => indicator.key !== 'cuna')
+        : viewState.indicators,
     },
     menu: {
       align: props.align || 'top',

@@ -74,13 +74,6 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
 
       <div className="census-register space-y-4" style={marginStyle}>
         <CensusOperationalStateBanner state={operationalState} />
-        {writeStatus.pendingCount > 0 && (
-          <p role="status" className="text-xs text-slate-500 print:hidden">
-            {writeStatus.isSyncCommit ? 'Guardando sincronización…' : 'Guardando cambios…'}
-            {writeStatus.pendingCount > 1 ? ` · ${writeStatus.pendingCount} pendientes` : ''}
-          </p>
-        )}
-
         <CensusStaffHeader
           selectedDate={currentDateString}
           readOnly={readOnly}

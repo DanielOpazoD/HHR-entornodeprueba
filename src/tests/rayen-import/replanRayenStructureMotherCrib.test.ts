@@ -70,7 +70,11 @@ const emptySnapshot = (): RayenCensusSnapshot => ({
   isComplete: true,
 });
 
-const runPipeline = async (rows: EgresoReportRow[], lookupConfirms: string[]) => {
+const runPipeline = async (
+  rows: EgresoReportRow[],
+  lookupConfirms: string[],
+  beds: DailyRecord['beds'] = { H5C1: motherWithCrib() }
+) => {
   const repository = {
     getForDate: vi.fn().mockResolvedValue(null),
     getAuthoritativeForDate: vi.fn().mockResolvedValue(null),
@@ -100,7 +104,7 @@ const runPipeline = async (rows: EgresoReportRow[], lookupConfirms: string[]) =>
     lookupEgresos,
   };
   return replanRayenStructure(
-    makeRecord({ H5C1: motherWithCrib() }),
+    makeRecord(beds),
     {
       sourceSnapshot: emptySnapshot(),
       egresoRows: rows,
@@ -115,6 +119,57 @@ const unlinkedConflicts = (diff: Awaited<ReturnType<typeof runPipeline>>) =>
   diff.conflicts.filter(conflict => conflict.reason.includes('no pudo vincularse'));
 
 describe('replanRayenStructure — madre + RN bajo el mismo RUN (caso vivo 02-09)', () => {
+  it.each(['R3', 'Ubicación desconocida', ''])(
+    'does not explain an unverified row from another or unknown bed: %s',
+    async bedLabel => {
+      const diff = await runPipeline([{ ...cribRow, bedLabel }], ['1001'], {
+        H5C1: motherWithCrib(),
+        R3: { ...EMPTY_PATIENT, bedId: 'R3' },
+      });
+      expect(diff.discharges[0]?.associatedClinicalCrib?.clinicalEpisodeId).toBe('1002');
+      expect(unlinkedConflicts(diff)).toHaveLength(1);
+    }
+  );
+  it('does not retain an ambiguous bulk row after exact discharge of a crib in another bed', async () => {
+    const mother = motherWithCrib();
+    const beds = {
+      H5C1: { ...mother, clinicalCrib: undefined },
+      R3: { ...mother.clinicalCrib!, bedId: 'R3' },
+    };
+    const diff = await runPipeline(
+      [motherRow, { ...cribRow, bedLabel: 'R3' }],
+      ['1001', '1002'],
+      beds
+    );
+
+    expect(diff.discharges.map(entry => entry.encounterId).sort()).toEqual(['1001', '1002']);
+    expect(unlinkedConflicts(diff)).toEqual([]);
+  });
+
+  it.each(['unconfirmed-rn', 'additional-twin', 'unknown-bed'] as const)(
+    'keeps the independent review for %s despite a confirmed maternal discharge',
+    async scenario => {
+      const mother = motherWithCrib();
+      const beds = {
+        H5C1: { ...mother, clinicalCrib: undefined },
+        R3: { ...mother.clinicalCrib!, bedId: 'R3' },
+      };
+      const rows = [
+        motherRow,
+        { ...cribRow, bedLabel: scenario === 'unknown-bed' ? 'Sin ubicación verificable' : 'R3' },
+        ...(scenario === 'additional-twin'
+          ? [{ ...cribRow, patientName: 'RN gemelo sintético', bedLabel: 'R3' }]
+          : []),
+      ];
+      const diff = await runPipeline(
+        rows,
+        scenario === 'unconfirmed-rn' ? ['1001'] : ['1001', '1002'],
+        beds
+      );
+      expect(unlinkedConflicts(diff).length).toBeGreaterThan(0);
+    }
+  );
+
   it('el egreso confirmado por el lookup exacto no deja un conflicto «no pudo vincularse» redundante', async () => {
     const diff = await runPipeline([motherRow, cribRow], ['1001']);
 

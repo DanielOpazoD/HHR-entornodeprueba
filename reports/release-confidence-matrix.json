@@ -1,18 +1,38 @@
 {
-  "generatedAt": "2026-07-05T06:20:05.119Z",
-  "gitSha": "126d4b82",
+  "generatedAt": "2026-10-18T03:06:48.665Z",
+  "gitSha": "627672549",
   "gitDirty": false,
+  "generatedFor": {
+    "gitSha": "627672549",
+    "gitDirty": false,
+    "treeHash": "10db24e7d1d642e7033c7faf3d477563de049c5d",
+    "reportId": "release-confidence-matrix",
+    "dependencyFingerprint": {
+      "algorithm": "sha256:dependency-files-v1",
+      "value": "b1478ea52fc566defe54358d814ec3cd39712a4aa2d8e2675694281be598bb83",
+      "files": [
+        "reports/critical-coverage.json",
+        "reports/critical-coverage.md",
+        "scripts/config/critical-coverage-thresholds.json",
+        "scripts/criticalCoverageSupport.mjs",
+        "scripts/report-critical-coverage.mjs",
+        "scripts/run-critical-coverage.mjs",
+        "vitest.critical-coverage.config.ts"
+      ],
+      "missingFiles": []
+    }
+  },
   "overall": "ok",
   "counts": {
     "areaCount": 11,
-    "criticalCoverageZones": 15,
+    "criticalCoverageZones": 16,
     "blockingSteps": 7,
     "smokeScenarios": 6,
-    "flowBudgets": 6,
+    "flowBudgets": 7,
     "ownershipAreas": 11
   },
   "coverageZones": {
-    "mapped": 15,
+    "mapped": 16,
     "unmapped": []
   },
   "blockingSteps": {
@@ -24,7 +44,7 @@
     "unmapped": []
   },
   "flowBudgets": {
-    "mapped": 6,
+    "mapped": 7,
     "unmapped": []
   },
   "ownershipAreas": {
@@ -52,7 +72,8 @@
       ],
       "flowBudgets": [
         "loginVisibleMs",
-        "authFeedbackMs"
+        "authFeedbackMs",
+        "logoutToLoginVisibleMs"
       ],
       "validationSuites": [
         "test:risk:auth"
@@ -66,6 +87,7 @@
       "ownerAreaId": "census",
       "criticalCoverageZones": [
         "src/features/census/controllers",
+        "src/features/rayen-import/discharge-replan-critical",
         "src/app-shell",
         "src/shared/census/upc-critical"
       ],
