@@ -4,14 +4,24 @@ import {
   CrosshairsTool,
   LengthTool,
   AngleTool,
+  ProbeTool,
+  EllipticalROITool,
   annotation,
   Enums,
   type Types as ToolTypes,
 } from '@cornerstonejs/tools';
 
+import { huProbeText, huRoiText } from './dicomQuantitative';
 import { DicomReferencePointTool } from './dicomReferencePointTool';
 
-export const mprTools = [CrosshairsTool, LengthTool, AngleTool, DicomReferencePointTool];
+export const mprTools = [
+  CrosshairsTool,
+  LengthTool,
+  AngleTool,
+  DicomReferencePointTool,
+  ProbeTool,
+  EllipticalROITool,
+];
 export type ReferenceStyle = 'lines' | 'point';
 export interface DicomReference {
   point: Types.Point3;
@@ -56,6 +66,12 @@ export const createMprTools = (
   });
   group.addTool(LengthTool.toolName);
   group.addTool(AngleTool.toolName);
+  group.addTool(ProbeTool.toolName, { getTextLines: huProbeText });
+  group.addTool(EllipticalROITool.toolName, {
+    getTextLines: huRoiText,
+    storePointData: false,
+    preventHandleOutsideImage: true,
+  });
   const publish = () => {
     const tool = group.getToolInstance(CrosshairsTool.toolName) as CrosshairsTool;
     if (tool.toolCenter.every(Number.isFinite)) notify({ point: [...tool.toolCenter] });
