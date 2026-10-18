@@ -147,6 +147,80 @@ const openSalvador = async (page: Page, manual = false) => {
 test.describe('DICOM viewer and Salvador annexes', () => {
   test.setTimeout(150000);
   test.use({ viewport: { width: 1440, height: 1000 } });
+  test('compacts controls, exposes keyboard navigation and reuses sequential prefetched series', async ({
+    page,
+  }) => {
+    await setup(page);
+    const secondUid = '1.2.826.0.1.3680043.10.543.22';
+    const second = {
+      ...study.series[0],
+      uid: secondUid,
+      number: 2,
+      description: 'Segunda sintética',
+      instances: study.series[0].instances
+        .slice(0, 4)
+        .map((item, i) => ({ ...item, ticket: `second-${i}` })),
+    };
+    const requests: string[] = [];
+    await page.route('**/.netlify/functions/mmrad-dicom', route => {
+      const body = route.request().postDataJSON();
+      if (body.action === 'metadata')
+        return route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ ...study, series: [...study.series, second] }),
+        });
+      const ticket = String(body.ticket);
+      requests.push(ticket);
+      const index = Number(ticket.split('-')[1]);
+      return route.fulfill({
+        contentType: 'application/dicom',
+        body: Buffer.from(
+          syntheticDicom(
+            index,
+            24,
+            SYNTHETIC_PATIENT_ID,
+            undefined,
+            undefined,
+            undefined,
+            ticket.startsWith('second') ? { seriesUid: secondUid } : undefined
+          )
+        ),
+      });
+    });
+    const editor = await openSalvador(page);
+    await editor.getByRole('button', { name: 'Imágenes MMRAD' }).click();
+    await page.getByRole('button', { name: 'Ver DICOM', exact: true }).click();
+    const viewer = page.getByRole('dialog', { name: /Visor DICOM/ });
+    await expect(viewer.getByRole('button', { name: 'MPR', exact: true })).toBeEnabled({
+      timeout: 60000,
+    });
+    await expect(viewer.getByText('PACIENTE SINTÉTICO', { exact: true })).toBeVisible();
+    await expect(viewer.getByText('16/10/2026', { exact: true })).toBeVisible();
+    await expect(viewer.getByText(/ya puedes navegar|Rueda o flechas/)).toHaveCount(0);
+    const windowBox = (await viewer.getByLabel('Ventana predefinida').boundingBox())!;
+    const invertBox = (await viewer
+      .getByRole('button', { name: 'Invertir grises' })
+      .boundingBox())!;
+    const cineBox = (await viewer.getByLabel('Cine / MP4', { exact: true }).boundingBox())!;
+    expect(Math.abs(windowBox.y - invertBox.y)).toBeLessThan(5);
+    expect(Math.abs(windowBox.y - cineBox.y)).toBeLessThan(5);
+    await viewer.getByLabel('Carga y conexión', { exact: true }).click();
+    await expect(viewer.getByText('Velocidad media')).toBeVisible();
+    await viewer.getByLabel('Carga y conexión', { exact: true }).click();
+    const canvas = viewer.locator('.dicom-canvas').first();
+    await canvas.focus();
+    const initial = await viewer.getByLabel('Estado del corte').textContent();
+    await page.keyboard.press('ArrowDown');
+    await expect(viewer.getByLabel('Estado del corte')).not.toHaveText(initial!);
+    await expect.poll(() => requests.length).toBe(28);
+    expect(requests.slice(24)).toEqual(['second-0', 'second-1', 'second-2', 'second-3']);
+    await viewer.getByLabel('Serie DICOM').selectOption(secondUid);
+    await expect(viewer.getByRole('button', { name: 'MPR', exact: true })).toBeEnabled({
+      timeout: 60000,
+    });
+    expect(requests.length).toBe(28);
+    await viewer.screenshot({ path: test.info().outputPath('synthetic-compact-toolbar.png') });
+  });
   test('cine exports an ordered inclusive MP4 with privacy review and cancellation', async ({
     page,
   }) => {
@@ -379,10 +453,10 @@ test.describe('DICOM viewer and Salvador annexes', () => {
     });
     await expect(viewer.getByLabel('Descarga de la serie')).toHaveAttribute('value', '23');
     await expect(viewer.getByRole('button', { name: 'MPR', exact: true })).toBeDisabled();
-    await viewer.locator('.dicom-load-detail summary').click();
+    await viewer.locator('.dicom-load-detail > summary').click();
     await viewer.getByLabel('Descargas simultáneas').selectOption('2');
-    await expect(viewer.locator('.dicom-load-detail')).toContainText('preparación/decodificación');
-    await viewer.locator('.dicom-load-detail summary').click();
+    await expect(viewer.locator('.dicom-load-detail')).toContainText('Preparación');
+    await viewer.locator('.dicom-load-detail > summary').click();
     await viewer.locator('.dicom-cine summary').click();
     await expect(viewer.getByRole('button', { name: 'Generar MP4' })).toBeDisabled();
     await viewer.getByLabel('Intervalo cine parcial').selectOption('0,12');
@@ -560,7 +634,8 @@ test.describe('DICOM viewer and Salvador annexes', () => {
     await axial.click({ position: { x: box.width * 0.45, y: box.height * 0.45 } });
     await axial.click({ position: { x: box.width * 0.6, y: box.height * 0.6 } });
     await expect(viewer.locator('.dicom-canvas svg').first()).toContainText('mm');
-    await viewer.getByRole('button', { name: 'Borrar medidas' }).click();
+    await axial.focus();
+    await page.keyboard.press('Control+z');
     await expect(viewer.locator('.dicom-canvas svg').first()).not.toContainText('mm');
     await viewer.getByRole('button', { name: 'Ángulo', exact: true }).click();
     for (const [x, y] of [

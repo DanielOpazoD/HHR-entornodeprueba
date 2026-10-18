@@ -38,6 +38,7 @@ export interface DicomRuntime {
   orientations: () => DicomOrientation[];
   reference: (enabled: boolean, style: ReferenceStyle) => void;
   onReference: (listener: (value: DicomReference | null) => void) => () => void;
+  undoMeasurement: () => void;
   clearMeasurements: () => void;
   invert: (value: boolean) => void;
   presentation: (value: VolumePresentation) => void;

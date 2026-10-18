@@ -18,7 +18,13 @@ export const syntheticDicom = (
     padding?: boolean;
     functionalGroupMapping?: boolean;
   },
-  plane?: { imageType?: string; orientation?: number[]; modality?: string; sopClass?: string },
+  plane?: {
+    imageType?: string;
+    orientation?: number[];
+    modality?: string;
+    sopClass?: string;
+    seriesUid?: string;
+  },
   calibration?: { slope?: string; intercept?: string; unit?: string; pixelValue?: number }
 ): Uint8Array => {
   const rows = matrix?.rows ?? 64;
@@ -66,7 +72,7 @@ export const syntheticDicom = (
   element('00100020', 'LO', patientId);
   element('00180050', 'DS', '2');
   element('0020000d', 'UI', SYNTHETIC_STUDY_UID);
-  element('0020000e', 'UI', SYNTHETIC_SERIES_UID);
+  element('0020000e', 'UI', plane?.seriesUid ?? SYNTHETIC_SERIES_UID);
   element('00200013', 'IS', String(slice + 1));
   element('00200032', 'DS', `${position[0]}\\${position[1]}\\${slice * 2}`);
   element('00200037', 'DS', (plane?.orientation ?? [1, 0, 0, 0, 1, 0]).join('\\'));

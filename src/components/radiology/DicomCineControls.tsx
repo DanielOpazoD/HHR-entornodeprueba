@@ -108,7 +108,7 @@ export const DicomCineControls: React.FC<{
   };
   return (
     <details className="dicom-cine">
-      <summary>
+      <summary aria-label="Cine / MP4" title="Cine / MP4">
         <Film size={15} /> Cine / MP4 {busy && '· En curso'}
       </summary>
       <div className="dicom-cine-panel">

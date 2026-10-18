@@ -1,3 +1,4 @@
+import type { fetchDicomInstance } from './mmradDicomService';
 import { openDicomCineSession } from './dicomCineSession';
 import { initializeDicom as initialize, dicomTools as tools } from './dicomInitialization';
 import {
@@ -53,7 +54,8 @@ export const createDicomRuntime = async (
   study: DicomStudy,
   series: DicomSeries,
   signal: AbortSignal,
-  progress: (loaded: number, total: number) => void
+  progress: (loaded: number, total: number) => void,
+  fetchInstance?: typeof fetchDicomInstance
 ): Promise<DicomRuntime> => {
   users++;
   let engine: RenderingEngine | undefined;
@@ -106,7 +108,7 @@ export const createDicomRuntime = async (
   try {
     await initialize();
     signal.throwIfAborted();
-    source = startDicomSeries(study, series, signal, progress);
+    source = startDicomSeries(study, series, signal, progress, fetchInstance);
     stack = createProgressiveStack(source, series.instances.length);
     signal.throwIfAborted();
     engine = new RenderingEngine(id);
@@ -212,6 +214,10 @@ export const createDicomRuntime = async (
         mpr?.reference(enabled, style);
         engine?.render();
       }
+    },
+    undoMeasurement: () => {
+      mpr?.undo();
+      engine?.render();
     },
     clearMeasurements: () => {
       mpr?.clear();

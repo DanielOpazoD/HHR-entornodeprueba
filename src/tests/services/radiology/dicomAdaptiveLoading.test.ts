@@ -63,6 +63,24 @@ afterEach(async () => {
   vi.useRealTimers();
 });
 describe('adaptive verified loading', () => {
+  it('counts transferred bytes independently from cached originals', async () => {
+    mocks.fetch.mockImplementation(async (ticket, _signal, timing) => {
+      const bytes = syntheticDicom(Number(ticket), 24);
+      if (Number(ticket) % 2 === 0) timing({ transfer: 1 }, bytes.byteLength);
+      return bytes;
+    });
+    const source = start();
+    await source.completion;
+    let network = 0,
+      raw = 0;
+    const unsubscribe = source.loading.subscribe(state => {
+      network = state.networkBytes ?? 0;
+      raw = state.rawBytes;
+    });
+    expect(network).toBeGreaterThan(0);
+    expect(network).toBeLessThan(raw);
+    unsubscribe();
+  });
   it('continues bounded downloads while two decoders are occupied, prioritizes the next decode and deduplicates demand', async () => {
     let finish!: () => void;
     mocks.decode.mockReturnValue(

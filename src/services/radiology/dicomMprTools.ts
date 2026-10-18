@@ -95,6 +95,17 @@ export const createMprTools = (
       group.setToolEnabled(CrosshairsTool.toolName);
       publish();
     },
+    undo: () => {
+      cancel();
+      for (const uid of [...owned].reverse()) {
+        const item = annotation.state.getAnnotation(uid);
+        if (item && item.metadata?.toolName !== CrosshairsTool.toolName) {
+          annotation.state.removeAnnotation(uid);
+          owned.delete(uid);
+          break;
+        }
+      }
+    },
     clear: () => {
       cancel();
       for (const uid of owned) {

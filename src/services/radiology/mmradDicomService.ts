@@ -1,3 +1,4 @@
+import { readDicomBytes } from './readDicomBytes';
 import { DicomTransferError, type DicomLoadState } from './dicomLoadState';
 import { resolveCurrentUserAuthHeaders } from '@/services/auth/authRequestHeaders';
 import { normalizeDicomPatientId, type DicomStudy } from './dicomTypes';
@@ -54,20 +55,24 @@ export const fetchDicomStudy = async (
 export const fetchDicomInstance = async (
   ticket: string,
   signal: AbortSignal,
-  timing?: (value: Partial<DicomLoadState['timings']>) => void
+  timing?: (value: Partial<DicomLoadState['timings']>, bytes?: number) => void,
+  maxBytes?: number
 ): Promise<Uint8Array> => {
   const start = performance.now();
   try {
     const attemptSignal = AbortSignal.any([signal, AbortSignal.timeout(30_000)]);
     const response = await request({ action: 'instance', ticket }, attemptSignal);
     const headers = performance.now();
-    const bytes = new Uint8Array(await response.arrayBuffer());
+    const bytes = await readDicomBytes(response, attemptSignal, maxBytes);
     const upstream = /upstream;dur=([0-9.]+)/.exec(response.headers.get('server-timing') || '');
-    timing?.({
-      headers: headers - start,
-      transfer: performance.now() - headers,
-      ...(upstream ? { upstream: Number(upstream[1]), upstreamSamples: 1 } : {}),
-    });
+    timing?.(
+      {
+        headers: headers - start,
+        transfer: performance.now() - headers,
+        ...(upstream ? { upstream: Number(upstream[1]), upstreamSamples: 1 } : {}),
+      },
+      bytes.byteLength
+    );
     return bytes;
   } catch (error) {
     signal.throwIfAborted();

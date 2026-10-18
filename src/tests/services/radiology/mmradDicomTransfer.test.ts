@@ -20,6 +20,7 @@ describe('DICOM transfer diagnostics and retry classification', () => {
       await fetchDicomInstance('synthetic-ticket', new AbortController().signal, timing)
     ).toEqual(new Uint8Array([1, 2]));
     expect(fetchMock.mock.calls[0][1].cache).toBe('no-store');
+    expect(timing.mock.calls[0][1]).toBe(2);
     expect(timing.mock.calls[0][0]).toMatchObject({ upstream: 12.5, upstreamSamples: 1 });
     expect(Object.values(timing.mock.calls[0][0]).every(value => typeof value === 'number')).toBe(
       true

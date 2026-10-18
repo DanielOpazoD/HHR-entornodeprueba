@@ -1,3 +1,4 @@
+import type { DicomStudyPrefetch } from '@/services/radiology/dicomStudyPrefetch';
 import type { DicomLoadState } from '@/services/radiology/dicomLoadState';
 import React, { useEffect, useRef, useState } from 'react';
 import { Camera, Download, Hand, RotateCcw, Scan, ZoomIn } from 'lucide-react';
@@ -8,6 +9,8 @@ import type {
   DicomTool,
   DicomOrientation,
 } from '@/services/radiology/dicomRuntime';
+import { DicomWindowControls } from './DicomWindowControls';
+import { DicomKeyboardControls } from './DicomKeyboardControls';
 import { DicomCineControls } from './DicomCineControls';
 import { DicomAdvancedControls } from './DicomAdvancedControls';
 import { DicomLoadControls } from './DicomLoadControls';
@@ -18,10 +21,12 @@ import { saveDicomPng } from '@/services/radiology/saveDicomPng';
 
 export const DicomSeriesView: React.FC<{
   study: DicomStudy;
+  prefetch?: DicomStudyPrefetch;
   series: DicomSeries;
   title: string;
   onCapture?: (capture: DicomCapture) => void;
-}> = ({ study, series, title, onCapture }) => {
+}> = ({ study, series, title, onCapture, prefetch }) => {
+  const [keyboard, setKeyboard] = useState(true);
   const [loading, setLoading] = useState<DicomLoadState | null>(null);
   const [runtime, setRuntime] = useState<DicomRuntime | null>(null);
   const [mode, setMode] = useState<DicomMode>('original');
@@ -53,11 +58,18 @@ export const DicomSeriesView: React.FC<{
     const controller = new AbortController();
     let current: DicomRuntime | undefined;
     alive.current = true;
+    prefetch?.select(series.uid);
     void import('@/services/radiology/dicomRuntime')
       .then(({ createDicomRuntime }) =>
-        createDicomRuntime(study, series, controller.signal, (loaded, total) => {
-          if (!controller.signal.aborted) setProgress([loaded, total]);
-        })
+        createDicomRuntime(
+          study,
+          series,
+          controller.signal,
+          (loaded, total) => {
+            if (!controller.signal.aborted) setProgress([loaded, total]);
+          },
+          prefetch?.fetch
+        )
       )
       .then(value => {
         current = value;
@@ -66,7 +78,10 @@ export const DicomSeriesView: React.FC<{
           setRuntime(value);
           void value.completion
             .then(() => {
-              if (!controller.signal.aborted) setComplete(true);
+              if (!controller.signal.aborted) {
+                setComplete(true);
+                prefetch?.complete(series.uid);
+              }
             })
             .catch(reason => {
               if (!controller.signal.aborted) {
@@ -89,7 +104,7 @@ export const DicomSeriesView: React.FC<{
       controller.abort();
       current?.dispose();
     };
-  }, [study, series]);
+  }, [study, series, prefetch]);
 
   useEffect(() => {
     if (!runtime) return;
@@ -167,14 +182,19 @@ export const DicomSeriesView: React.FC<{
     (series.modality === 'CT' || series.modality === 'MR') && series.instances.length >= 3;
   return (
     <>
-      <fieldset disabled={cineBusy} className="dicom-interaction-lock">
+      <fieldset className="dicom-interaction-lock">
         <div className="dicom-toolbar" aria-label="Herramientas DICOM">
           <div className="dicom-button-group" aria-label="Modo de visualización">
             {(['original', 'mpr', '3d'] as const).map(value => (
               <button
                 key={value}
                 type="button"
-                disabled={!runtime || busy || (value !== 'original' && (!volumetric || !complete))}
+                disabled={
+                  cineBusy ||
+                  !runtime ||
+                  busy ||
+                  (value !== 'original' && (!volumetric || !complete))
+                }
                 aria-pressed={mode === value}
                 onClick={() => {
                   if (mode === value) return;
@@ -203,7 +223,11 @@ export const DicomSeriesView: React.FC<{
                 title={tool.label}
                 aria-pressed={activeTool === tool.id}
                 disabled={
-                  !runtime || busy || waitingForSlice || (mode === '3d' && tool.id === 'window')
+                  cineBusy ||
+                  !runtime ||
+                  busy ||
+                  waitingForSlice ||
+                  (mode === '3d' && tool.id === 'window')
                 }
                 onClick={() => {
                   runtime?.tool(tool.id);
@@ -220,7 +244,7 @@ export const DicomSeriesView: React.FC<{
                 aria-label="Rotar 3D"
                 title="Rotar 3D"
                 aria-pressed={activeTool === 'rotate'}
-                disabled={!runtime || busy || waitingForSlice}
+                disabled={cineBusy || !runtime || busy || waitingForSlice}
                 onClick={() => {
                   runtime?.tool('rotate');
                   setActiveTool('rotate');
@@ -233,38 +257,44 @@ export const DicomSeriesView: React.FC<{
               type="button"
               title="Restablecer vista"
               aria-label="Restablecer vista"
-              disabled={!runtime || busy || waitingForSlice}
+              disabled={cineBusy || !runtime || busy || waitingForSlice}
               onClick={() => runtime?.reset()}
             >
               <RotateCcw size={16} />
             </button>
           </div>
-          <select
-            aria-label="Ventana predefinida"
-            defaultValue=""
-            disabled={
-              !runtime || busy || waitingForSlice || mode === '3d' || series.modality !== 'CT'
-            }
-            onChange={event => {
-              const [width, center] = event.target.value.split(',').map(Number);
-              if (width) runtime?.window(width, center);
-            }}
-          >
-            <option value="" disabled>
-              Ventana
-            </option>
-            <option value="400,40">Tejidos blandos</option>
-            <option value="1500,-600">Pulmón</option>
-            <option value="2000,500">Hueso</option>
-            <option value="80,40">Cerebro</option>
-          </select>
+          <DicomWindowControls
+            key={mode}
+            runtime={runtime}
+            mode={mode}
+            modality={series.modality}
+            disabled={cineBusy || busy || waitingForSlice}
+          />
+          {runtime && mode === 'original' && (
+            <DicomCineControls
+              key={runtime.sessionId}
+              runtime={runtime}
+              total={series.instances.length}
+              complete={complete}
+              available={loading?.available ?? []}
+              disabled={busy || waitingForSlice || Boolean(error)}
+              busyChanged={setCineBusy}
+            />
+          )}
           <span className="dicom-toolbar-spacer" />
-          <DicomFullscreenButton />
+          <DicomKeyboardControls
+            enabled={keyboard}
+            change={setKeyboard}
+            undo={() => runtime?.undoMeasurement()}
+            disabled={cineBusy || busy || !!error}
+            canUndo={mode === 'mpr'}
+          />
+          <DicomFullscreenButton disabled={cineBusy} />
           <button
             type="button"
             aria-label="PNG"
             title="Descargar PNG"
-            disabled={!runtime || busy || waitingForSlice || Boolean(error)}
+            disabled={cineBusy || !runtime || busy || waitingForSlice || Boolean(error)}
             onClick={() => void act(() => saveDicomPng(capture))}
           >
             <Download size={15} />
@@ -275,7 +305,7 @@ export const DicomSeriesView: React.FC<{
               type="button"
               aria-label="Añadir al informe"
               title="Añadir al informe"
-              disabled={!runtime || busy || waitingForSlice || Boolean(error)}
+              disabled={cineBusy || !runtime || busy || waitingForSlice || Boolean(error)}
               onClick={() =>
                 void act(async () => {
                   onCapture(await capture());
@@ -294,7 +324,7 @@ export const DicomSeriesView: React.FC<{
             runtime={runtime}
             mode={mode}
             modality={series.modality}
-            disabled={busy || waitingForSlice || Boolean(error)}
+            disabled={cineBusy || busy || waitingForSlice || Boolean(error)}
             activeTool={activeTool}
             chooseTool={tool => {
               runtime.tool(tool);
@@ -303,17 +333,6 @@ export const DicomSeriesView: React.FC<{
           />
         )}
       </fieldset>
-      {runtime && mode === 'original' && (
-        <DicomCineControls
-          key={runtime.sessionId}
-          runtime={runtime}
-          total={series.instances.length}
-          complete={complete}
-          available={loading?.available ?? []}
-          disabled={busy || waitingForSlice || Boolean(error)}
-          busyChanged={setCineBusy}
-        />
-      )}
       {busy && (
         <div className="dicom-loading" role="status">
           {loading?.volumeBuilding
@@ -347,11 +366,12 @@ export const DicomSeriesView: React.FC<{
         loading={loading}
         controller={runtime?.loading}
         state={mode === 'original' ? stackState : null}
-        disabled={!runtime || busy || cineBusy || Boolean(error)}
+        disabled={cineBusy || !runtime || busy || Boolean(error)}
         select={index => runtime?.select(index)}
       />
       <DicomViewportGrid
         mode={mode}
+        keyboard={keyboard}
         title={title}
         busy={busy || cineBusy}
         error={error}
@@ -364,16 +384,11 @@ export const DicomSeriesView: React.FC<{
         activate={setActivePlane}
         expand={setExpanded}
       />
-      <div className="dicom-footer">
-        <span>
-          {mode === '3d'
-            ? 'Rotar, acercar y ajustar tejido · recorte reversible'
-            : mode === 'mpr' && activeTool === 'reference'
-              ? 'Pulsa un punto para localizarlo en los tres planos · rueda para recorrer · coordenadas LPS en mm'
-              : 'Rueda o flechas para recorrer · arrastrar para ajustar'}
-        </span>
-        {notice && <span role="status">{notice}</span>}
-      </div>
+      {notice && (
+        <div className="dicom-footer" role="status">
+          {notice}
+        </div>
+      )}
     </>
   );
 };

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Activity } from 'lucide-react';
 import type { DicomStackState } from '@/services/radiology/dicomProgressiveStack';
 import type { DicomLoadState } from '@/services/radiology/dicomLoadState';
 import type { ProgressiveDicomSeries } from '@/services/radiology/dicomSeriesLoader';
@@ -16,13 +17,8 @@ export const DicomLoadControls: React.FC<{
   const seconds = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
   return (
     <div className="dicom-load-controls">
-      <span role="status">
-        {ready === total
-          ? `${total} imágenes · serie completa`
-          : ready > 0
-            ? `${ready}/${total} listas · ya puedes navegar`
-            : 'Preparando primer corte…'}
-        {loading && ready < total && ` · ${loading.downloaded}/${total} descargadas`}
+      <span role="status" aria-label="Imágenes preparadas">
+        {ready}/{total}
       </span>
       <progress max={total} value={ready} aria-label="Descarga de la serie" />
       {state && (
@@ -49,10 +45,12 @@ export const DicomLoadControls: React.FC<{
       )}
       {loading && controller && (
         <details className="dicom-load-detail">
-          <summary>Carga y conexión</summary>
+          <summary aria-label="Carga y conexión" title="Carga y conexión">
+            <Activity size={16} />
+          </summary>
           <div>
             <label>
-              Máximo de descargas simultáneas{' '}
+              Conexiones{' '}
               <select
                 aria-label="Descargas simultáneas"
                 value={loading.limit}
@@ -64,31 +62,51 @@ export const DicomLoadControls: React.FC<{
                 ))}
               </select>
             </label>
-            <p>
-              Descargando: {loading.activeDownloads} · preparando: {loading.activeDecodes} ·
-              concurrencia adaptativa: {loading.concurrency}
-            </p>
-            <p>
-              Originales en memoria: {(loading.rawBytes / 1048576).toFixed(1)} / 256 MB ·
-              reintentos: {loading.retries}
-            </p>
-            <p>
-              Primer corte preparado:{' '}
-              {loading.firstReadyMs === null ? 'pendiente' : seconds(loading.firstReadyMs)} ·
-              transcurrido: {seconds(loading.elapsedMs)}
-            </p>
-            <p>
-              Tiempos acumulados (las tareas se solapan): espera de respuesta{' '}
-              {seconds(loading.timings.headers)} · transferencia al navegador{' '}
-              {seconds(loading.timings.transfer)} · preparación/decodificación{' '}
-              {seconds(loading.timings.decode)} · volumen {seconds(loading.timings.volume)}
-            </p>
-            <p>
-              MMRAD hacia el proxy:{' '}
-              {loading.timings.upstreamSamples ? seconds(loading.timings.upstream) : 'sin medición'}
-              . La espera incluye autenticación, proxy y red; no equivale al tiempo interno de
-              MMRAD. No se guardan ni envían estas métricas.
-            </p>
+            <dl className="dicom-load-stats">
+              <dt>Velocidad media</dt>
+              <dd>
+                {loading.elapsedMs > 0
+                  ? ((loading.networkBytes ?? 0) / 1048576 / (loading.elapsedMs / 1000)).toFixed(2)
+                  : '0.00'}{' '}
+                MiB/s
+              </dd>
+              <dt>En curso</dt>
+              <dd>
+                {loading.activeDownloads} red · {loading.activeDecodes} preparación
+              </dd>
+              <dt>Descargadas</dt>
+              <dd>
+                {loading.downloaded}/{total}
+              </dd>
+              <dt>Concurrencia</dt>
+              <dd>{loading.concurrency}</dd>
+              <dt>Memoria originales</dt>
+              <dd>{(loading.rawBytes / 1048576).toFixed(1)} / 256 MiB</dd>
+              <dt>Reintentos</dt>
+              <dd>{loading.retries}</dd>
+              <dt>Primer corte</dt>
+              <dd>{loading.firstReadyMs === null ? '—' : seconds(loading.firstReadyMs)}</dd>
+              <dt>Tiempo</dt>
+              <dd>{seconds(loading.elapsedMs)}</dd>
+            </dl>
+            <details>
+              <summary>Tiempos acumulados</summary>
+              <dl
+                className="dicom-load-stats"
+                title="Las tareas se solapan. La espera incluye autenticación, proxy y red."
+              >
+                <dt>Respuesta</dt>
+                <dd>{seconds(loading.timings.headers)}</dd>
+                <dt>Transferencia</dt>
+                <dd>{seconds(loading.timings.transfer)}</dd>
+                <dt>Preparación</dt>
+                <dd>{seconds(loading.timings.decode)}</dd>
+                <dt>Volumen</dt>
+                <dd>{seconds(loading.timings.volume)}</dd>
+                <dt>MMRAD → proxy</dt>
+                <dd>{loading.timings.upstreamSamples ? seconds(loading.timings.upstream) : '—'}</dd>
+              </dl>
+            </details>
           </div>
         </details>
       )}

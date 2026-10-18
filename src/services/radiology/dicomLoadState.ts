@@ -10,6 +10,7 @@ export interface DicomLoadState {
   limit: number;
   retries: number;
   rawBytes: number;
+  networkBytes?: number;
   firstReadyMs: number | null;
   elapsedMs: number;
   timings: {

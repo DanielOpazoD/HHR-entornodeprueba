@@ -26,7 +26,8 @@ export const startDicomSeries = (
   study: DicomStudy,
   series: DicomSeries,
   signal: AbortSignal,
-  progress: (loaded: number, total: number) => void
+  progress: (loaded: number, total: number) => void,
+  fetchInstance = fetchDicomInstance
 ): ProgressiveDicomSeries => {
   if (!series.instances.length) throw new Error('La serie no contiene cortes.');
   if (series.instances.some(item => item.frames !== 1))
@@ -78,9 +79,10 @@ export const startDicomSeries = (
     signal,
     async index => {
       const instance = series.instances[index];
-      const bytes = await fetchDicomInstance(instance.ticket, signal, timing =>
-        queue.timing(timing)
-      );
+      const bytes = await fetchInstance(instance.ticket, signal, (timing, transferred = 0) => {
+        queue.timing(timing);
+        queue.transferred(transferred);
+      });
       signal.throwIfAborted();
       rawBytes += bytes.byteLength;
       if (rawBytes > MAX_RAW_BYTES)

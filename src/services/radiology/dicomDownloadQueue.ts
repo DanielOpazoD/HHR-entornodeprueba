@@ -50,6 +50,7 @@ export const createDicomDownloadQueue = (
     limit: 4,
     retries: 0,
     rawBytes: 0,
+    networkBytes: 0,
     firstReadyMs: null,
     elapsedMs: 0,
     volumeBuilding: false,
@@ -242,6 +243,9 @@ export const createDicomDownloadQueue = (
       state.limit = limit;
       state.concurrency = Math.min(state.concurrency, limit);
       pump();
+    },
+    transferred: (bytes: number) => {
+      state.networkBytes = (state.networkBytes ?? 0) + bytes;
     },
     timing: (patch: Partial<DicomLoadState['timings']>) => {
       for (const [key, value] of Object.entries(patch))

@@ -308,3 +308,29 @@ no el procesamiento interno de MMRAD. La preparación incluye espera del decodif
 y decodificación; la construcción del volumen se mide al solicitar MPR/3D. No se
 atribuye una lentitud al proveedor ni se promete una aceleración del estudio real sin
 medirlo en ese equipo/conexión.
+
+### Controles compactos y precarga del estudio
+
+Ventana, inversión de grises y cine comparten la barra. El icono de actividad abre
+las métricas: la velocidad media es bytes recibidos por red / tiempo transcurrido
+(MiB/s); reutilizar originales precargados no aumenta ese contador. El contador
+principal representa imágenes preparadas. Los detalles separan descarga y preparación.
+
+La cabecera muestra el nombre del paciente seleccionado, cuando está disponible,
+su documento y fecha del estudio. El informe disponible se descarga solo al pulsar
+su botón, con autenticación, `no-store`, nombre de archivo genérico y cancelación
+al cerrar. Los datos de cabecera no se añaden a PNG ni MP4.
+
+Tras completar la serie seleccionada, se precargan las otras series en el orden del
+estudio, una solicitud a la vez. Se comprueba paciente/estudio/serie/instancia antes
+de guardar cada original en una caché exclusiva de la sesión, limitada a 64 MiB
+adicionales. La lectura de cada respuesta se corta si excede el espacio reservado;
+se reserva también espacio para ensamblar los fragmentos recibidos. No se decodifican ni construyen volúmenes en segundo plano. Al llegar
+al límite o ante un fallo se detiene la precarga. Cambiar de serie cancela y drena
+la petición pendiente, consume los originales disponibles sin repetir la descarga
+y vuelve a verificarlos con el cargador normal. Cerrar el visor vacía la caché.
+
+Con el foco en un plano: arriba/abajo recorre cortes, Re Pág/Av Pág avanza diez,
+izquierda/derecha cambia el foco entre los tres planos, y Ctrl/⌘ Z elimina la última
+medición del visor. El menú Teclado permite desactivar estos atajos y ofrece el
+botón equivalente. Los campos de formulario conservan su manejo de teclado nativo.
