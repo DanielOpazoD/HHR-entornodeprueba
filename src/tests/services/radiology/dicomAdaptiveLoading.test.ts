@@ -63,6 +63,28 @@ afterEach(async () => {
   vi.useRealTimers();
 });
 describe('adaptive verified loading', () => {
+  it('applies a secondary limit synchronously before the initial microtask starts downloads', async () => {
+    mocks.fetch.mockImplementation(
+      (_ticket, signal: AbortSignal) =>
+        new Promise((_resolve, reject) => {
+          signal.addEventListener(
+            'abort',
+            () => reject(new DOMException('Cancelled', 'AbortError')),
+            { once: true }
+          );
+        })
+    );
+    const source = start();
+    expect(mocks.fetch).not.toHaveBeenCalled();
+    source.loading.setLimit(2);
+    expect(source.loading.snapshot().activeDownloads).toBe(2);
+    await vi.waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(2));
+    await Promise.resolve();
+    expect(mocks.fetch).toHaveBeenCalledTimes(2);
+    source.cancel();
+    await source.settled;
+  });
+
   it('counts transferred bytes independently from cached originals', async () => {
     mocks.fetch.mockImplementation(async (ticket, _signal, timing) => {
       const bytes = syntheticDicom(Number(ticket), 24);

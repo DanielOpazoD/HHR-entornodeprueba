@@ -1,3 +1,5 @@
+import type { createDicomComparison } from './dicomComparison';
+import type { DicomSeries } from './dicomTypes';
 import type { ProgressiveDicomSeries } from './dicomSeriesLoader';
 import type { DicomCineSession } from './dicomCine';
 import type { DicomStackState } from './dicomProgressiveStack';
@@ -27,6 +29,12 @@ export interface DicomRuntime {
   readonly sessionId: string;
   loading: ProgressiveDicomSeries['loading'];
   completion: Promise<void>;
+  compare: (
+    series: DicomSeries,
+    elements: HTMLDivElement[],
+    signal: AbortSignal,
+    notify: Parameters<typeof createDicomComparison>[7]
+  ) => Promise<ReturnType<typeof createDicomComparison>>;
   openCine: () => DicomCineSession;
   select: (index: number) => void;
   onStack: (listener: (state: DicomStackState) => void) => () => void;

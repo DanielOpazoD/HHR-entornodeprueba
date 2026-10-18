@@ -1,3 +1,6 @@
+import { dicomToolNames as toolNames } from './dicomToolNames';
+import { createDicomComparison } from './dicomComparison';
+import { createDicomComparisonOwner } from './dicomComparisonOwner';
 import type { fetchDicomInstance } from './mmradDicomService';
 import { openDicomCineSession } from './dicomCineSession';
 import { initializeDicom as initialize, dicomTools as tools } from './dicomInitialization';
@@ -15,20 +18,17 @@ import {
 } from '@cornerstonejs/core';
 import { wadouri } from '@cornerstonejs/dicom-image-loader';
 import {
+  ToolGroupManager,
+  ZoomTool,
+  StackScrollTool,
+  Enums as ToolEnums,
   CrosshairsTool,
   LengthTool,
   AngleTool,
   ProbeTool,
   EllipticalROITool,
-  ToolGroupManager,
-  WindowLevelTool,
-  PanTool,
-  ZoomTool,
-  StackScrollTool,
-  TrackballRotateTool,
-  Enums as ToolEnums,
 } from '@cornerstonejs/tools';
-import { captureDicomCanvas } from './dicomCanvasCapture';
+import { captureRuntimeView } from './dicomRuntimeCapture';
 import { DicomReferencePointTool } from './dicomReferencePointTool';
 import { createMprTools, type DicomReference, type ReferenceStyle } from './dicomMprTools';
 import { applyVolumePresentation } from './dicomVolumePresentation';
@@ -43,7 +43,6 @@ import { createProgressiveStack } from './dicomProgressiveStack';
 import { getDicomOrientations, observeDicomViewportSize } from './dicomViewportLayout';
 import { waitForDicomRender } from './dicomRenderReady';
 import type { DicomStudy, DicomSeries } from '@/services/radiology/dicomTypes';
-
 import type { DicomTool, DicomMode, DicomOrientation, DicomRuntime } from './dicomRuntimeTypes';
 export type { DicomTool, DicomMode, DicomOrientation, DicomRuntime } from './dicomRuntimeTypes';
 let users = 0;
@@ -61,6 +60,7 @@ export const createDicomRuntime = async (
   let source: ProgressiveDicomSeries | undefined;
   let stack: ReturnType<typeof createProgressiveStack> | undefined;
   let disposed = false;
+  const comparisons = createDicomComparisonOwner();
   let volume: DicomVolumeHandle | undefined;
   let mode: DicomMode = 'original';
   let viewportIds: string[] = [];
@@ -81,6 +81,7 @@ export const createDicomRuntime = async (
   const dispose = () => {
     if (disposed) return;
     disposed = true;
+    const comparing = comparisons.close();
     resize?.disconnect();
     mpr?.dispose();
     if (group) ToolGroupManager.destroyToolGroup(group.id);
@@ -88,7 +89,7 @@ export const createDicomRuntime = async (
     // Detach this session's canvases now; Cornerstone.destroy clears but retains their DOM nodes.
     engine?.getViewports().forEach(viewport => viewport.getCanvas().remove());
     source?.cancel();
-    void Promise.all([presentation, source?.settled])
+    void Promise.all([presentation, source?.settled, comparing])
       .finally(() => {
         engine?.destroy();
         volume?.release();
@@ -117,17 +118,6 @@ export const createDicomRuntime = async (
   const ensureActive = () => {
     signal.throwIfAborted();
     if (disposed) throw new Error('El visor está cerrado.');
-  };
-  const toolNames: Record<DicomTool, string> = {
-    window: WindowLevelTool.toolName,
-    pan: PanTool.toolName,
-    zoom: ZoomTool.toolName,
-    rotate: TrackballRotateTool.toolName,
-    reference: DicomReferencePointTool.toolName,
-    length: LengthTool.toolName,
-    angle: AngleTool.toolName,
-    probe: ProbeTool.toolName,
-    roi: EllipticalROITool.toolName,
   };
   const activateTool = (tool: DicomTool) => {
     if (
@@ -181,6 +171,29 @@ export const createDicomRuntime = async (
     sessionId: id,
     loading: source!.loading,
     completion,
+    compare: (secondary, elements, childSignal, notify) =>
+      comparisons.open(async transition => {
+        await completion;
+        ensureActive();
+        const active = AbortSignal.any([signal, childSignal, transition]);
+        active.throwIfAborted();
+        mpr?.cancel();
+        resize?.disconnect();
+        await stack!.detach();
+        active.throwIfAborted();
+        return createDicomComparison(
+          study,
+          series,
+          secondary,
+          source!,
+          loaded!,
+          elements,
+          active,
+          notify,
+          fetchInstance,
+          stack!.state().requested
+        );
+      }),
     openCine: () => {
       ensureActive();
       if (mode !== 'original' || !engine || !stack)
@@ -244,6 +257,8 @@ export const createDicomRuntime = async (
     show: async (nextMode, elements) => {
       ensureActive();
       if (!engine) return;
+      await comparisons.close();
+      ensureActive();
       if (nextMode !== 'original') {
         await completion;
         ensureActive();
@@ -367,32 +382,17 @@ export const createDicomRuntime = async (
       const viewport = engine.getViewport(viewportIds[plane]);
       if (viewport) utilities.scroll(viewport, { delta, debounceLoading: false });
     },
-    capture: async plane => {
-      ensureActive();
-      const selection = stack!.state();
-      if (
-        mode === 'original' &&
-        (selection.pending || selection.error || selection.current === null)
-      )
-        throw new Error('Espera a que termine de cargar el corte solicitado.');
-      const target = engine?.getViewport(viewportIds[plane]);
-      if (!target) throw new Error('Selecciona una vista cargada.');
-      await waitForDicomRender([target.element], () => target.render(), signal);
-      ensureActive();
-      const captured = await captureDicomCanvas(
-        target as StackViewport | VolumeViewport,
+    capture: plane =>
+      captureRuntimeView({
+        engine,
+        stack: stack!,
+        series,
         mode,
         plane,
-        Boolean(volume?.resampled),
-        orientations()[plane],
-        mode === 'original'
-          ? `Corte ${selection.current! + 1}/${series.instances.length}`
-          : undefined
-      );
-      ensureActive();
-      if (mode === 'original' && stack!.state() !== selection)
-        throw new DOMException('Captura cancelada', 'AbortError');
-      return captured;
-    },
+        signal,
+        ensureActive,
+        resampled: Boolean(volume?.resampled),
+        orientations,
+      }),
   };
 };

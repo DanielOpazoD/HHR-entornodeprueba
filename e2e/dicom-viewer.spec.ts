@@ -147,6 +147,288 @@ const openSalvador = async (page: Page, manual = false) => {
 test.describe('DICOM viewer and Salvador annexes', () => {
   test.setTimeout(150000);
   test.use({ viewport: { width: 1440, height: 1000 } });
+  test('compares verified series by physical position and reuses one series for independent windows', async ({
+    page,
+  }) => {
+    await setup(page);
+    const secondUid = '1.2.826.0.1.3680043.10.543.23';
+    const second = {
+      ...study.series[0],
+      uid: secondUid,
+      number: 2,
+      description: 'Espaciado doble sintético',
+      instances: Array.from({ length: 12 }, (_, i) => ({
+        uid: syntheticSopUid(i * 2),
+        number: i + 1,
+        frames: 1,
+        ticket: `compare-${i * 2}`,
+      })),
+    };
+    const requests: string[] = [];
+    await page.route('**/.netlify/functions/mmrad-dicom', route => {
+      const body = route.request().postDataJSON();
+      if (body.action === 'metadata')
+        return route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ ...study, series: [...study.series, second] }),
+        });
+      const ticket = String(body.ticket);
+      requests.push(ticket);
+      return route.fulfill({
+        contentType: 'application/dicom',
+        body: Buffer.from(
+          syntheticDicom(
+            Number(ticket.split('-')[1]),
+            24,
+            SYNTHETIC_PATIENT_ID,
+            undefined,
+            undefined,
+            undefined,
+            ticket.startsWith('compare') ? { seriesUid: secondUid } : undefined
+          )
+        ),
+      });
+    });
+    const editor = await openSalvador(page);
+    await editor.getByRole('button', { name: 'Imágenes MMRAD' }).click();
+    await page.getByRole('button', { name: 'Ver DICOM', exact: true }).click();
+    const viewer = page.getByRole('dialog', { name: /Visor DICOM/ });
+    const compare = viewer.getByRole('button', { name: 'Comparar', exact: true });
+    await expect(compare).toBeEnabled({ timeout: 60000 });
+    await compare.click();
+    const left = viewer.getByLabel('Corte panel 1', { exact: true });
+    const right = viewer.getByLabel('Corte panel 2', { exact: true });
+    await expect(viewer.getByText('Posición vinculada', { exact: true })).toBeVisible();
+    await expect(left).toHaveValue('13');
+    await expect(right).toHaveValue('13');
+    const imageHashes = () =>
+      viewer.locator('.dicom-canvas canvas').evaluateAll(canvases =>
+        canvases.map(node => {
+          const source = node as HTMLCanvasElement;
+          const canvas = document.createElement('canvas');
+          canvas.width = 64;
+          canvas.height = 64;
+          const ctx = canvas.getContext('2d')!;
+          ctx.drawImage(source, 0, 0, 64, 64);
+          return Array.from(ctx.getImageData(0, 0, 64, 64).data).reduce(
+            (sum, value, i) => (sum + value * (i % 97)) % 1000000007,
+            0
+          );
+        })
+      );
+    await expect
+      .poll(async () => {
+        const hashes = await imageHashes();
+        return hashes.length === 2 && hashes[0] !== hashes[1];
+      })
+      .toBe(true);
+    await viewer.getByLabel('Comparación panel 1', { exact: true }).focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(left).toHaveValue('14');
+    await expect(right).toHaveValue('14');
+    expect(requests.filter(ticket => ticket.startsWith('synthetic'))).toHaveLength(24);
+    await viewer.getByLabel('Vincular paneles', { exact: true }).click();
+    await viewer.getByRole('checkbox', { name: 'Ventana', exact: true }).check();
+    await viewer.getByLabel('Ventana del panel activo').selectOption('2000,500');
+    await expect
+      .poll(async () => {
+        const hashes = await imageHashes();
+        return hashes.length === 2 && hashes[0] === hashes[1];
+      })
+      .toBe(true);
+    await viewer.getByRole('checkbox', { name: 'Zoom', exact: true }).check();
+    await viewer.getByRole('button', { name: 'Zoom', exact: true }).click();
+    const beforeZoom = await imageHashes();
+    const firstCanvas = (await viewer
+      .getByLabel('Comparación panel 1', { exact: true })
+      .boundingBox())!;
+    await page.mouse.move(
+      firstCanvas.x + firstCanvas.width / 2,
+      firstCanvas.y + firstCanvas.height / 2
+    );
+    await page.mouse.down();
+    await page.mouse.move(
+      firstCanvas.x + firstCanvas.width / 2,
+      firstCanvas.y + firstCanvas.height / 2 + 65,
+      { steps: 8 }
+    );
+    await page.mouse.up();
+    await expect
+      .poll(async () => {
+        const hashes = await imageHashes();
+        return hashes.length === 2 && hashes[0] === hashes[1] && hashes[0] !== beforeZoom[0];
+      })
+      .toBe(true);
+    await viewer.getByRole('checkbox', { name: 'Posición', exact: true }).uncheck();
+    await viewer.getByLabel('Vincular paneles', { exact: true }).click();
+    await viewer.getByLabel('Comparación panel 1', { exact: true }).focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(left).toHaveValue('15');
+    await expect(right).toHaveValue('14');
+    await viewer.getByLabel('Segunda serie').selectOption(secondUid);
+    await expect(viewer.getByText('Posición vinculada', { exact: true })).toBeVisible({
+      timeout: 60000,
+    });
+    await expect(left).toHaveValue('13');
+    await expect(right).toHaveValue('7');
+    await viewer.getByLabel('Comparación panel 2', { exact: true }).focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(right).toHaveValue('8');
+    await expect(left).toHaveValue('15');
+    await viewer.screenshot({ path: test.info().outputPath('synthetic-series-comparison.png') });
+    await viewer.getByRole('button', { name: 'Volver', exact: true }).click();
+    await expect(viewer.getByRole('button', { name: 'MPR', exact: true })).toBeEnabled();
+    expect(requests.filter(ticket => ticket.startsWith('synthetic'))).toHaveLength(24);
+    await viewer.getByRole('button', { name: 'MPR', exact: true }).click();
+    await expect(viewer.getByRole('button', { name: 'Comparar', exact: true })).toBeEnabled();
+    await viewer.getByRole('button', { name: 'Comparar', exact: true }).click();
+    await expect(viewer.getByText('Posición vinculada', { exact: true })).toBeVisible();
+    await viewer.getByRole('button', { name: 'Volver', exact: true }).click();
+    await expect(viewer.getByRole('button', { name: 'Axial', exact: true })).toBeVisible();
+    await expect(viewer.locator('.dicom-canvas canvas')).toHaveCount(3);
+  });
+  for (const scenario of ['foreign frame', 'perpendicular', 'foreign patient'] as const) {
+    test(`comparison safely handles ${scenario}`, async ({ page }) => {
+      await setup(page);
+      const secondUid = '1.2.826.0.1.3680043.10.543.24';
+      const second = {
+        ...study.series[0],
+        uid: secondUid,
+        number: 2,
+        description: 'Geometría sintética',
+        instances: study.series[0].instances
+          .slice(0, 4)
+          .map((instance, i) => ({ ...instance, ticket: `other-${i}` })),
+      };
+      await page.route('**/.netlify/functions/mmrad-dicom', route => {
+        const body = route.request().postDataJSON();
+        if (body.action === 'metadata')
+          return route.fulfill({
+            contentType: 'application/json',
+            body: JSON.stringify({ ...study, series: [...study.series, second] }),
+          });
+        const ticket = String(body.ticket),
+          other = ticket.startsWith('other');
+        return route.fulfill({
+          contentType: 'application/dicom',
+          body: Buffer.from(
+            syntheticDicom(
+              Number(ticket.split('-')[1]),
+              24,
+              other && scenario === 'foreign patient' ? '222222222' : SYNTHETIC_PATIENT_ID,
+              undefined,
+              other && scenario === 'foreign frame' ? '1.2.3.999' : undefined,
+              undefined,
+              other
+                ? {
+                    seriesUid: secondUid,
+                    ...(scenario === 'perpendicular' ? { orientation: [1, 0, 0, 0, 0, 1] } : {}),
+                  }
+                : undefined
+            )
+          ),
+        });
+      });
+      const editor = await openSalvador(page);
+      await editor.getByRole('button', { name: 'Imágenes MMRAD' }).click();
+      await page.getByRole('button', { name: 'Ver DICOM', exact: true }).click();
+      const viewer = page.getByRole('dialog', { name: /Visor DICOM/ });
+      await expect(viewer.getByRole('button', { name: 'Comparar', exact: true })).toBeEnabled({
+        timeout: 60000,
+      });
+      await viewer.getByRole('button', { name: 'Comparar', exact: true }).click();
+      await viewer.getByLabel('Segunda serie').selectOption(secondUid);
+      if (scenario === 'foreign patient') {
+        await expect(viewer.getByRole('alert')).toContainText('No se pudo validar');
+        await expect(viewer.getByLabel('Corte panel 2', { exact: true })).toBeDisabled();
+        await expect(
+          viewer.getByLabel('Comparación panel 2', { exact: true }).locator('canvas')
+        ).toBeHidden();
+      } else {
+        await expect(
+          viewer.getByText('Sin correspondencia geométrica', { exact: true })
+        ).toBeVisible({ timeout: 60000 });
+        const otherCut = await viewer.getByLabel('Corte panel 2', { exact: true }).inputValue();
+        await viewer.getByLabel('Comparación panel 1', { exact: true }).focus();
+        await page.keyboard.press('ArrowDown');
+        await expect(viewer.getByLabel('Corte panel 1', { exact: true })).toHaveValue('14');
+        await expect(viewer.getByLabel('Corte panel 2', { exact: true })).toHaveValue(otherCut);
+        if (scenario === 'perpendicular')
+          await expect(viewer.getByLabel('Línea de referencia')).toHaveCount(2);
+        else await expect(viewer.getByLabel('Línea de referencia')).toHaveCount(0);
+      }
+      await viewer.getByRole('button', { name: 'Volver', exact: true }).click();
+      await expect(viewer.getByRole('button', { name: 'MPR', exact: true })).toBeEnabled();
+    });
+  }
+  test('comparison cancels secondary requests when leaving the viewer', async ({ page }) => {
+    await setup(page);
+    const secondUid = '1.2.826.0.1.3680043.10.543.25';
+    const second = {
+      ...study.series[0],
+      uid: secondUid,
+      number: 2,
+      description: 'Descarga lenta sintética',
+      instances: study.series[0].instances.map((instance, i) => ({
+        ...instance,
+        ticket: `slow-${i}`,
+      })),
+    };
+    let requested = 0,
+      aborted = 0;
+    page.on('requestfailed', request => {
+      if (request.url().includes('/mmrad-dicom') && String(request.postData()).includes('slow-'))
+        aborted++;
+    });
+    await page.route('**/.netlify/functions/mmrad-dicom', async route => {
+      const body = route.request().postDataJSON();
+      if (body.action === 'metadata')
+        return route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ ...study, series: [...study.series, second] }),
+        });
+      const ticket = String(body.ticket),
+        slow = ticket.startsWith('slow');
+      if (slow) {
+        requested++;
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+      await route
+        .fulfill({
+          contentType: 'application/dicom',
+          body: Buffer.from(
+            syntheticDicom(
+              Number(ticket.split('-')[1]),
+              24,
+              SYNTHETIC_PATIENT_ID,
+              undefined,
+              undefined,
+              undefined,
+              slow ? { seriesUid: secondUid } : undefined
+            )
+          ),
+        })
+        .catch(() => undefined);
+    });
+    const editor = await openSalvador(page);
+    await editor.getByRole('button', { name: 'Imágenes MMRAD' }).click();
+    await page.getByRole('button', { name: 'Ver DICOM', exact: true }).click();
+    const viewer = page.getByRole('dialog', { name: /Visor DICOM/ });
+    await expect(viewer.getByRole('button', { name: 'Comparar', exact: true })).toBeEnabled({
+      timeout: 60000,
+    });
+    await viewer.getByRole('button', { name: 'Comparar', exact: true }).click();
+    await viewer.getByLabel('Segunda serie').selectOption(secondUid);
+    await expect.poll(() => requested).toBeGreaterThan(1);
+    const started = requested,
+      abortedBeforeClose = aborted;
+    await viewer.getByRole('button', { name: 'Volver', exact: true }).click();
+    await expect(viewer.getByRole('button', { name: 'MPR', exact: true })).toBeEnabled({
+      timeout: 15000,
+    });
+    await expect.poll(() => aborted).toBeGreaterThan(abortedBeforeClose);
+    expect(requested).toBe(started);
+  });
   test('compacts controls, exposes keyboard navigation and reuses sequential prefetched series', async ({
     page,
   }) => {
