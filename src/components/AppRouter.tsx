@@ -8,7 +8,7 @@ import React, { Suspense } from 'react';
 import { GlobalErrorBoundary } from '@/components/shared/GlobalErrorBoundary';
 import { SectionErrorBoundary } from '@/components/shared/SectionErrorBoundary';
 import { ViewLoader } from '@/components/ui/ViewLoader';
-import { CensusLoadingState } from '@/features/census/public';
+import { CensusLoadingState } from '@/components/ui/CensusLoadingState';
 import type { UseUIStateReturn } from '@/hooks/useUIState';
 import type { ModuleType } from '@/constants/navigationConfig';
 import {

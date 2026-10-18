@@ -1,5 +1,5 @@
 import React from 'react';
-import './censusMotion.css';
+import './censusLoading.css';
 
 /** Small loading row under the application bars; no empty-day UI until confirmed. */
 export const CensusLoadingState: React.FC = () => (

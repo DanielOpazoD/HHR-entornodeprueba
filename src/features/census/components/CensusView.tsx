@@ -1,5 +1,5 @@
 import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
-import { CensusLoadingState } from './CensusLoadingState';
+import { CensusLoadingState } from '@/components/ui/CensusLoadingState';
 import { useDailyRecordStatus } from '@/context/DailyRecordContext';
 import { useCensusViewScreenModel } from '@/features/census/hooks/useCensusViewScreenModel';
 import { CensusOperationalStateBanner } from './CensusOperationalStateBanner';

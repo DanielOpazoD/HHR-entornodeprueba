@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { CensusLoadingState } from '@/features/census/components/CensusLoadingState';
+import { CensusLoadingState } from '@/components/ui/CensusLoadingState';
 
 describe('CensusLoadingState', () => {
   it('shows only Cargando and a decorative small icon, without creation or a large card', () => {

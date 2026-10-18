@@ -45,5 +45,3 @@ export * from './controllers/patientMovementUndoController';
 export * from './controllers/patientMovementUndoErrorPresentation';
 export * from './controllers/patientMovementUndoMutationController';
 export * from './controllers/transferModalController';
-
-export { CensusLoadingState } from './components/CensusLoadingState';
