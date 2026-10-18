@@ -115,7 +115,24 @@ export const applyCrossDayDiff = (
   );
   let applied = 0;
 
-  for (const { entry, patient, isNested = false } of entries) {
+  for (const incoming of entries) {
+    const historical = incoming.entry.encounterId
+      ? Object.entries(targetRecord.beds)
+          .flatMap(([bedId, principal]) => [
+            { bedId, patient: principal, isNested: false },
+            ...(principal.clinicalCrib
+              ? [{ bedId, patient: principal.clinicalCrib, isNested: true }]
+              : []),
+          ])
+          .filter(subject => subject.patient.clinicalEpisodeId === incoming.entry.encounterId)
+      : [];
+    if (historical.length > 1)
+      throw new Error('El episodio histórico tiene una ubicación ambigua.');
+    // Exact historical episodes retain their corrected data, notes, scores and location.
+    const known = historical[0];
+    const entry = known ? { ...incoming.entry, bedId: known.bedId } : incoming.entry;
+    const patient = known?.patient ?? incoming.patient;
+    const isNested = known?.isNested ?? incoming.isNested ?? false;
     const id = crossDayMovementId(entry, day);
     const rut = normalizeRut(entry.rut);
     const episode = normalizeEpisode(entry.encounterId);

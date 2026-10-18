@@ -31,26 +31,24 @@ const hasActivePatientIdentity = (patient: PatientData | undefined): boolean =>
   Boolean(normalizeIdentity(patient?.patientName) || normalizeIdentity(patient?.rut));
 
 const hasResidualClinicalState = (patient: PatientData | undefined): boolean =>
-  Boolean(
-    (
-      [
-        'pathology',
-        'admissionDate',
-        'clinicalEpisodeId',
-        'handoffNoteDayShift',
-        'handoffNoteNightShift',
-        'medicalHandoffNote',
-        'deliveryRoute',
-        'deliveryDate',
-        'surgicalComplication',
-      ] as const
-    ).some(field => normalizeIdentity(patient?.[field])) ||
-    [patient?.upcChecklist, patient?.cudyr, patient?.medicalHandoffAudit].some(Boolean) ||
-    (['devices', 'deviceInstanceHistory', 'clinicalEvents', 'medicalHandoffEntries'] as const).some(
-      field => (patient?.[field] || []).length > 0
-    ) ||
-    Object.keys(patient?.deviceDetails || {}).length > 0
-  );
+  (
+    [
+      'pathology',
+      'admissionDate',
+      'clinicalEpisodeId',
+      'handoffNoteDayShift',
+      'handoffNoteNightShift',
+      'medicalHandoffNote',
+      'deliveryRoute',
+      'deliveryDate',
+      'surgicalComplication',
+    ] as const
+  ).some(field => normalizeIdentity(patient?.[field])) ||
+  [patient?.upcChecklist, patient?.cudyr, patient?.medicalHandoffAudit].some(Boolean) ||
+  (['devices', 'deviceInstanceHistory', 'clinicalEvents', 'medicalHandoffEntries'] as const).some(
+    field => (patient?.[field] || []).length > 0
+  ) ||
+  Object.keys(patient?.deviceDetails || {}).length > 0;
 
 const isCmaMovement = (movement: ConfirmedMovementRecord): movement is CmaMovementRecord =>
   !('bedId' in movement);
@@ -121,25 +119,10 @@ const collectConfirmedMovementsByBed = (
     byBed.set(bedId, entries);
   };
 
-  const appendCma = (movement: CmaMovementRecord) => {
-    const bedId = movement.originalBedId || movement.bedName;
-    if (!bedId) return;
-    append({
-      ...movement,
-      originalBedId: bedId,
-    });
-  };
-
   getActiveDischarges(record.discharges).forEach(append);
   getActiveTransfers(record.transfers).forEach(append);
-  getActiveCma(record.cma).forEach(appendCma);
+  getActiveCma(record.cma).forEach(append);
   return byBed;
-};
-
-const buildClearedBed = (bedId: string, previous: PatientData): PatientData => {
-  const cleared = createEmptyPatient(bedId);
-  cleared.location = previous.location;
-  return cleared;
 };
 
 export const normalizeMovementBedConsistency = (
@@ -159,57 +142,30 @@ export const normalizeMovementBedConsistency = (
       return;
     }
 
-    if (!hasActivePatientIdentity(currentBed) && hasResidualClinicalState(currentBed)) {
-      const cleared = buildClearedBed(bedId, currentBed);
-      if (hasActivePatientIdentity(currentBed.clinicalCrib)) {
-        cleared.clinicalCrib = currentBed.clinicalCrib;
-        cleared.hasCompanionCrib = true;
-      }
-      beds[bedId] = cleared;
-      patches[`beds.${bedId}`] = cleared;
-      return;
-    }
-
-    const mainMovement = movements.find(
-      movement => !isNestedMovement(movement) && matchesMovementPatient(currentBed, movement)
-    );
-    if (mainMovement) {
-      const cleared = buildClearedBed(bedId, currentBed);
-      beds[bedId] = cleared;
-      patches[`beds.${bedId}`] = cleared;
-      return;
-    }
-
-    if (!currentBed.clinicalCrib) {
-      return;
-    }
-
-    const nestedMovement = movements.find(
+    const clearPrincipal =
+      (!hasActivePatientIdentity(currentBed) && hasResidualClinicalState(currentBed)) ||
+      movements.some(
+        movement => !isNestedMovement(movement) && matchesMovementPatient(currentBed, movement)
+      );
+    const cribClosed = movements.some(
       movement =>
         isNestedMovement(movement) && matchesMovementPatient(currentBed.clinicalCrib, movement)
     );
-    if (!nestedMovement) {
-      return;
-    }
+    if (!clearPrincipal && !cribClosed) return;
 
-    const updatedBed = {
-      ...currentBed,
-      clinicalCrib: undefined,
-      hasCompanionCrib: false,
-    };
+    const updatedBed = clearPrincipal
+      ? { ...createEmptyPatient(bedId), location: currentBed.location }
+      : { ...currentBed, clinicalCrib: undefined, hasCompanionCrib: false };
+    if (clearPrincipal && !cribClosed && hasActivePatientIdentity(currentBed.clinicalCrib)) {
+      updatedBed.clinicalCrib = currentBed.clinicalCrib;
+      updatedBed.hasCompanionCrib = true;
+    }
     beds[bedId] = updatedBed;
     patches[`beds.${bedId}`] = updatedBed;
   });
 
-  if (Object.keys(patches).length === 0) {
-    return { record, patches };
-  }
-
   return {
-    record: {
-      ...record,
-      beds,
-    },
+    record: Object.keys(patches).length ? { ...record, beds } : record,
     patches,
   };
 };

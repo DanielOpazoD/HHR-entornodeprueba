@@ -63,7 +63,7 @@ export const startCudyrSyncCapture = (input: {
                           ? decision.maternalRut || fact.patient.neonatalMaternalRut || ''
                           : fact.patient.neonatalMaternalRut || '';
                     };
-                    const key = (rut: string) => rut.replace(/[^0-9kK]/g, '').toUpperCase();
+                    const key = (rut: string) => rut.replace(/[^0-9a-z]/gi, '').toUpperCase();
                     const identities = new Set(
                       facts.map(f => key(f.patient.rut || maternalFor(f))).filter(Boolean)
                     );

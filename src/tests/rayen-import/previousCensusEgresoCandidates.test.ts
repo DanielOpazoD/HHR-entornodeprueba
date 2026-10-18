@@ -55,6 +55,68 @@ const newbornRow: EgresoReportRow = {
 };
 
 describe('D-1 exact discharge candidates', () => {
+  it.each([
+    { day: '2026-09-11', expected: 0 },
+    { day: '2026-09-14', expected: 1 },
+    { day: '2026-09-15', expected: 0 },
+  ])(
+    'bounds historical presence discovery to following-day evidence: $day',
+    ({ day, expected }) => {
+      const selected = previousRecord();
+      selected.date = reportDate;
+      expect(
+        previousCensusEgresoCandidates(
+          selected,
+          [{ ...baseRow, correctedDay: day, correctedTime: '14:00' }],
+          reportDate,
+          true
+        )
+      ).toHaveLength(expected);
+    }
+  );
+
+  it.each([
+    { date: '11-09-2026 10:00', expected: 0 },
+    { date: '12-09-2026 10:00', expected: 0 },
+    { date: '13-09-2026 10:00', expected: 0 },
+    { date: '13-09-2026 15:00', expected: 1 },
+    { date: '14-09-2026 10:00', expected: 0 },
+    { date: '14-09-2026 06:10', correctedDay: reportDate, expected: 1 },
+  ])(
+    'bounds selected-census discovery to its clinical day: $date',
+    ({ date, correctedDay, expected }) => {
+      const selected = previousRecord();
+      selected.date = reportDate;
+      expect(
+        previousCensusEgresoCandidates(
+          selected,
+          [{ ...baseRow, fechaEgreso: date, correctedDay }],
+          reportDate
+        )
+      ).toHaveLength(expected);
+    }
+  );
+
+  it.each(['E9876543', 'F9876543'])(
+    'keeps the complete identifier when discovering discharge candidates: %s',
+    reportIdentifier => {
+      const previous = previousRecord();
+      previous.beds.H5C1 = {
+        ...previous.beds.H5C1,
+        rut: 'E9876543',
+        documentType: 'Pasaporte',
+        clinicalCrib: undefined,
+      };
+      expect(
+        previousCensusEgresoCandidates(
+          previous,
+          [{ ...baseRow, run: reportIdentifier }],
+          reportDate
+        )
+      ).toHaveLength(reportIdentifier === 'E9876543' ? 1 : 0);
+    }
+  );
+
   it('separates mother and newborn sharing maternal RUN and discharge day by name', () => {
     expect(
       previousCensusEgresoCandidates(previousRecord(), [baseRow, newbornRow], reportDate)
@@ -81,4 +143,59 @@ describe('D-1 exact discharge candidates', () => {
       )
     ).toEqual([]);
   });
+});
+
+it('identifies a known nested newborn through maternal RUN without assigning that RUN personally', () => {
+  const previous = previousRecord();
+  previous.beds.H5C1.clinicalCrib!.rut = '';
+  expect(previousCensusEgresoCandidates(previous, [newbornRow], reportDate)).toEqual([
+    expect.objectContaining({
+      encounterId: '1002',
+      run: RUN,
+      personalRun: '',
+      fromClinicalCrib: true,
+    }),
+  ]);
+  previous.beds.R3 = { ...previous.beds.H5C1, clinicalEpisodeId: '1003', clinicalCrib: undefined };
+  expect(previousCensusEgresoCandidates(previous, [newbornRow], reportDate)).toEqual([]);
+});
+
+it('retains explicit maternal identity after the discharged parent has been cleared', () => {
+  const previous = previousRecord();
+  const child = { ...previous.beds.H5C1.clinicalCrib!, rut: '', neonatalMaternalRut: RUN };
+  previous.beds.H5C1 = { ...EMPTY_PATIENT, bedId: 'H5C1', clinicalCrib: child };
+  expect(previousCensusEgresoCandidates(previous, [newbornRow], reportDate)).toEqual([
+    expect.objectContaining({ encounterId: '1002', run: RUN, personalRun: '' }),
+  ]);
+});
+
+it('identifies a discharged newborn from the selected census movement after bed clearing', () => {
+  const previous = previousRecord();
+  const child = { ...previous.beds.H5C1.clinicalCrib!, rut: '', neonatalMaternalRut: RUN };
+  previous.beds = {};
+  previous.date = reportDate;
+  previous.discharges = [
+    {
+      id: 'child',
+      clinicalEpisodeId: '1002',
+      patientName: child.patientName,
+      rut: '',
+      isNested: true,
+      originalData: child,
+    } as never,
+  ];
+  expect(
+    previousCensusEgresoCandidates(
+      previous,
+      [{ ...newbornRow, fechaEgreso: '13-09-2026 15:00' }],
+      reportDate
+    )
+  ).toEqual([
+    expect.objectContaining({
+      encounterId: '1002',
+      run: RUN,
+      personalRun: '',
+      fromClinicalCrib: true,
+    }),
+  ]);
 });

@@ -23,6 +23,7 @@ const ALLOWED_ORIGINAL_DATA_REFERENCES = [
   // controllers above. Its recorded-outcome matcher also reads that snapshot only as a
   // legacy fallback when an older movement lacks clinicalEpisodeId.
   'src/features/rayen-import/domain/applyCensusImportDiff.ts',
+  'src/features/rayen-import/domain/associatedClinicalCribDischarge.ts',
   'src/features/rayen-import/domain/censusDischargeHistory.ts',
   // Capture ownership: legacy movements may preserve the episode ID only in their snapshot.
   // This read discovers an archive target; the server revalidates it against the census.
@@ -30,6 +31,12 @@ const ALLOWED_ORIGINAL_DATA_REFERENCES = [
   // Continuity D-1 reads the preserved pre-discharge identity only to prove that an
   // episode missing from today's census already has an explicit clinical outcome.
   'src/features/rayen-import/domain/previousCensusContinuity.ts',
+  // Historical report identity: use the preserved exact episode and parental identifier only
+  // as lookup targets. The individual source report must independently verify the outcome.
+  'src/features/rayen-import/domain/previousCensusEgresoCandidates.ts',
+  // Legacy movement classification: the preserved Cuna/Cama mode disambiguates old bed labels.
+  // It never supplies current occupancy; explicit Cama and normal statistical rules prevail.
+  'src/application/census/movementTombstonePolicy.ts',
   'src/domain/CensusManager.ts',
   'src/services/admin/admissionDateBackfillPlanner.ts',
   // Read-only historical audit: recover signed UPC evaluations from the patient

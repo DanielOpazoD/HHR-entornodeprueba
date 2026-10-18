@@ -21,7 +21,12 @@ import type {
   DischargeEntry,
 } from '../contracts/censusImportDiff';
 import type { ReportEgreso } from '../contracts/egresoReport';
-import { isDailyRecordWriteRejectedResult } from '@/services/repositories/contracts/dailyRecordResults';
+import { normalizeMovementBedConsistency } from '@/services/repositories/clinicalMovementBedConsistencyPolicy';
+import {
+  classifyHistoricalPatchOutcome,
+  persistHistoricalOccupancyCorrection,
+  type HistoricalPatchOutcome,
+} from './historicalCorrectionPersistence';
 import {
   applyHistoricalAdmissions,
   confirmedPreviousDayAdmissionsByDay,
@@ -34,29 +39,6 @@ export { verifyPreviousDayAdmissionPlacements } from './previousDayAdmissionEvid
 /** ~48h nurse editing window (mirrors firestore.rules isWithinEditingWindow); admin bypasses it. */
 export const canWritePreviousDay = (day: string, isAdmin: boolean): boolean =>
   isAdmin || Date.now() - new Date(`${day}T00:00:00`).getTime() < 172_800_000;
-
-type HistoricalPatchOutcome = 'confirmed' | 'durably_queued';
-
-const classifyHistoricalPatchOutcome = (
-  result: Awaited<ReturnType<typeof patchDailyRecordWithCompatibility>>
-): HistoricalPatchOutcome => {
-  if (!result) return 'confirmed';
-  if (result.updatedRemotely) return 'confirmed';
-  if (!isDailyRecordWriteRejectedResult(result)) return 'confirmed';
-
-  // updatePartialDetailed persists the exact resulting record together with its outbox task before
-  // attempting Firestore. A remote conflict may therefore be reported as blocked even though the
-  // historical correction is already durable and replayable from that outbox. Only that proven
-  // local persistence is safe to describe as pending; a validation failure before enqueueing must
-  // remain a hard error because no replayable correction exists.
-  if (result.savedLocally) return 'durably_queued';
-
-  const error =
-    result.blockingError ??
-    new Error(result.userSafeMessage || 'No se confirmó el guardado histórico.');
-  if (result.conflictSummary?.kind === 'concurrency') error.name = 'ConcurrencyError';
-  throw error;
-};
 
 export interface CrossDayCorrectionResult {
   confirmed: number;
@@ -90,7 +72,9 @@ const findRecordedEgreso = (
 export interface PreviousDayPlan {
   edits: PreviousDayEdit[];
   reportEgresos: ReportEgreso[];
-  recordedDischarges?: Array<Pick<DischargeEntry, 'bedId' | 'encounterId' | 'correctedDay' | 'status'>>;
+  recordedDischarges?: Array<
+    Pick<DischargeEntry, 'bedId' | 'encounterId' | 'correctedDay' | 'status'>
+  >;
 }
 
 const previousDays = (diff: CensusImportDiff, censusDay: string): string[] => [
@@ -133,6 +117,16 @@ export const computePreviousDayEdits = async (
       findRecordedEgreso(records.get(day), rut, encounterId) ||
       findRecordedEgreso(pendingLocalRecords.get(day), rut, encounterId)
     );
+  const hasOccupiedCopy = (day: string, rut: string, encounterId?: string): boolean =>
+    Object.values(records.get(day)?.beds ?? {})
+      .flatMap(patient => [patient, patient.clinicalCrib])
+      .some(
+        patient =>
+          Boolean(patient?.patientName) &&
+          (encounterId
+            ? patient?.clinicalEpisodeId === encounterId
+            : Boolean(normalizeRut(rut)) && normalizeRut(patient?.rut) === normalizeRut(rut))
+      );
 
   const dischargeEdits = planPreviousDayEdits(diff, censusDay, {
     recordExists: day => !!records.get(day),
@@ -145,12 +139,7 @@ export const computePreviousDayEdits = async (
       if (!alreadyDischarged(day, rut, encounterId)) return false;
       // A filed movement with an occupied copy is still a historical correction: leaving both
       // violates census authority and blocks unrelated CUDYR batches for this day.
-      const active = Object.values(records.get(day)?.beds ?? {}).some(patient =>
-        encounterId
-          ? patient.clinicalEpisodeId === encounterId && Boolean(patient.patientName)
-          : normalizeRut(patient.rut) === normalizeRut(rut) && Boolean(patient.patientName)
-      );
-      return !active;
+      return !hasOccupiedCopy(day, rut, encounterId);
     },
   });
   const admissionEdits = planPreviousDayAdmissionEdits(
@@ -171,7 +160,8 @@ export const computePreviousDayEdits = async (
       !(
         egreso.correctedDay &&
         egreso.correctedDay < censusDay &&
-        alreadyDischarged(egreso.correctedDay, egreso.run, egreso.encounterId)
+        alreadyDischarged(egreso.correctedDay, egreso.run, egreso.encounterId) &&
+        !hasOccupiedCopy(egreso.correctedDay, egreso.run, egreso.encounterId)
       )
   );
 
@@ -299,8 +289,10 @@ export const fileCrossDayCorrections = async (
       movementResult.record,
       admissionsByDay.get(day) ?? []
     );
+    const occupancy = normalizeMovementBedConsistency(admissionResult.record);
+    const atomicRecord = Object.keys(occupancy.patches).length ? occupancy.record : undefined;
     omitted.push(...admissionResult.omitted.map(entry => ({ day, ...entry })));
-    if (movementResult.applied === 0 && admissionResult.applied === 0) continue;
+    if (movementResult.applied === 0 && admissionResult.applied === 0 && !atomicRecord) continue;
     // La separación clínico/estructural del servidor rechaza un patch que
     // mezcla el árbol de camas con otros campos («La edición mezcla cambios de
     // cama con otros campos…»), así que cada día se corrige con hasta dos
@@ -329,11 +321,17 @@ export const fileCrossDayCorrections = async (
       patches,
       diagnosisPatch,
       admittedRecord: admissionResult.record,
+      atomicRecord,
     });
   }
 
   const result: CrossDayCorrectionResult = { confirmed: 0, durablyQueued: 0, omitted };
   for (const correction of preparedCorrections) {
+    if (correction.atomicRecord) {
+      await persistHistoricalOccupancyCorrection(port, correction.record, correction.atomicRecord);
+      result.confirmed += 1;
+      continue;
+    }
     let dayOutcome: HistoricalPatchOutcome = 'confirmed';
     for (const patch of correction.patches) {
       const outcome = classifyHistoricalPatchOutcome(

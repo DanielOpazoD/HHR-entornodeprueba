@@ -315,3 +315,41 @@ describe('historical hospital admission from the official flow report', () => {
     ).rejects.toThrow();
   });
 });
+
+it('keeps the complete foreign identifier from the official flow report', () => {
+  const foreignText = `Flujo del Paciente\nPaciente: Persona sintética Número de Identificación: E9876543\n17/10/2026 19:38:01 Área Médico Quirúrgica Indiferenciada Área Cuidados Intermedios Adulto Servicio Hospitalizados HHR Recuperacion 2 Intermedia R2`;
+  expect(
+    cudyrPlacementsFromPatientFlow(foreignText, '1001', 'E9876543', '2026-10-18T02:00:00Z')
+  ).toMatchObject([{ clinicalEpisodeId: '1001', bedId: 'R2', modality: 'hospitalizacion' }]);
+  expect(() =>
+    cudyrPlacementsFromPatientFlow(foreignText, '1001', '9876543', '2026-10-18T02:00:00Z')
+  ).toThrow();
+  expect(() =>
+    cudyrPlacementsFromPatientFlow(foreignText, '1001', 'F9876543', '2026-10-18T02:00:00Z')
+  ).toThrow();
+  expect(() =>
+    cudyrPlacementsFromPatientFlow(
+      foreignText + '\nRUN: 9876543',
+      '1001',
+      'E9876543',
+      '2026-10-18T02:00:00Z'
+    )
+  ).toThrow();
+});
+
+it('accepts a numeric passport without treating a personal header as maternal identity', () => {
+  const text = `Flujo del Paciente\nNúmero de Identificación: 9876543\n17/10/2026 19:38:01 Área Médico Quirúrgica Indiferenciada Área Cuidados Intermedios Adulto Servicio Hospitalizados HHR Recuperacion 2 Intermedia R2`;
+  expect(
+    cudyrPlacementsFromPatientFlow(text, '1001', '9876543', '2026-10-18T02:00:00Z')
+  ).toMatchObject([{ clinicalEpisodeId: '1001', bedId: 'R2', modality: 'hospitalizacion' }]);
+  expect(() =>
+    cudyrPlacementsFromPatientFlow(
+      text + '\nRUN Materno/progenitor(a): 111111111',
+      '1001',
+      '222222222',
+      '2026-10-18T02:00:00Z',
+      'maternal',
+      '111111111'
+    )
+  ).toThrow();
+});

@@ -70,9 +70,22 @@ export const prepareRayenStructuralPlan = async ({
   if (previous && previous.date !== previousDate) {
     throw new Error('No se pudo verificar el censo previo: la fecha recibida no corresponde.');
   }
-  const previousCensusCandidates = isHistoricalDay
-    ? []
-    : previousCensusEgresoCandidates(previous, bundle.egresoRows, reportDate);
+  const previousCensusCandidates = [
+    ...new Map(
+      [
+        ...previousCensusEgresoCandidates(previous, bundle.egresoRows, reportDate),
+        ...previousCensusEgresoCandidates(
+          baseRecord,
+          bundle.egresoRows,
+          reportDate,
+          isHistoricalDay
+        ),
+      ].map(candidate => [
+        [candidate.encounterId, candidate.dischargeDay, candidate.patientName].join('|'),
+        candidate,
+      ])
+    ).values(),
+  ];
   const egresoRows = await measureEvidence(() =>
     enrichReportOnlyDischarges(bundle.egresoRows, reportDate, {
       fetchStatisticalDischarge,
@@ -82,6 +95,8 @@ export const prepareRayenStructuralPlan = async ({
       lookupHospitalizations,
       extractText: extractStatisticalText,
       alreadyApplied: (row, exactCandidate) => {
+        // Reconstruction still needs the exact episode even when its movement is already filed.
+        if (isHistoricalDay) return false;
         const run = normalizeRut(row.run);
         const episode = row.encounterId || exactCandidate?.encounterId;
         // A recorded RUN alone cannot identify the bulk row's hospitalization. Complete its
@@ -110,7 +125,8 @@ export const prepareRayenStructuralPlan = async ({
       baseRecord,
       preliminaryDiff,
       planningSnapshot,
-      lookupEgresos
+      lookupEgresos,
+      { fetchStatisticalDischarge, extractText: extractStatisticalText }
     )
   );
 

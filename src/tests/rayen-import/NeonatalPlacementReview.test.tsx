@@ -17,6 +17,37 @@ const review = {
   independentBeds: ['H2C1'],
 } as unknown as Review;
 describe('RN placement review controls', () => {
+  it.each([false, true])(
+    'shows non-blocking maternal continuity, even with a stale choice: %s',
+    stale => {
+      const automatic = { ...review, automaticMother: { bedId: 'R3', episodeId: '2001' } };
+      render(
+        <>
+          <NeonatalPlacementReview reviews={[automatic]} choices={[]} onChange={vi.fn()} />
+          <RayenImportConfirmButton
+            onConfirm={vi.fn()}
+            previousDays={false}
+            collisions={[]}
+            hasCollisions={false}
+            cma={[]}
+            needsCma={false}
+            neonatal={
+              stale ? [{ episodeId: review.episodeId, kind: 'independent', bedId: 'H2C1' }] : []
+            }
+            neonatalReviews={[automatic]}
+            neonatalSourceChanges={[]}
+            neonatalSourceAcknowledgements={[]}
+            disabled={false}
+            label="Confirmar"
+          />
+        </>
+      );
+      expect(screen.getByText(/RN ejemplo.*C-R3.*con su madre/)).toBeInTheDocument();
+      expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Confirmar' })).toBeEnabled();
+    }
+  );
+
   it('asks for mother or independent bed and shows one short source reminder', () => {
     const change = vi.fn();
     render(<NeonatalPlacementReview reviews={[review]} choices={[]} onChange={change} />);

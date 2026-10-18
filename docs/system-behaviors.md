@@ -12,7 +12,9 @@ Documentación de comportamientos automáticos y esperados del sistema HHR.
 - Antes de bloquear un ingreso por cama ocupada, se verifica si el ocupante ya se trasladó.
   Una ubicación oficial comprobada por episodio permite moverlo primero, conservando sus notas,
   incluso entre Hospitalizados y Urgencias. Una evidencia ausente o ambigua mantiene la revisión.
-- La madrugada pertenece al turno anterior hasta el relevo de las 08:00/09:00 de Rapa Nui.
+- La sincronización pertenece al día solicitado, aunque se ejecute después. Los ingresos y egresos
+  de la madrugada siguiente pertenecen a su turno nocturno hasta el relevo de las 08:00/09:00 de Rapa Nui.
+  La fecha y hora que se muestran conservan el momento real del movimiento.
   La ubicación histórica se obtiene de los movimientos anteriores a ese relevo; nunca se sustituye
   por la cama actual de Gestión de Camas. Tampoco se usan movimientos posteriores a la captura.
 - La identidad del episodio prevalece sobre el nombre de la cama. Un episodio con dos alias no
@@ -27,6 +29,44 @@ Documentación de comportamientos automáticos y esperados del sistema HHR.
   No se cambia a `applied` un historial terminado para permitir nuevas escrituras.
 
 Contrato y pruebas: [sincronización de censo](../src/features/rayen-import/README.md).
+
+## Identidad de controles y continuidad de los RN
+
+- Cada control clínico se identifica por su función, día y episodio del paciente. El diagnóstico
+  y el subtipo obstétrico tienen identidades diferentes incluso dentro de la misma celda; al cambiar
+  de día u ocupante no se acumulan controles anteriores. El diagnóstico guardado no se modifica
+  para corregir una repetición visual.
+- Los pasaportes conservan su identificador completo y su tipo de documento al sincronizar,
+  también al consultar ubicaciones históricas. Las letras no se eliminan para formar un RUT.
+  Si HHR ya identificó un pasaporte numérico, una captura sin tipo de documento no lo reclasifica.
+- Una cuna se identifica como `C-R3`, `C-H2C2`, etc., también cuando el RN figura sin madre en
+  una fila propia. Esa presentación no cambia su clasificación ni su elegibilidad CUDYR.
+- Si el RN sigue clasificado como cuna y su madre está identificada en otra ubicación, acompaña
+  automáticamente a su madre. La propuesta muestra un aviso breve para actualizar Gestión de Camas;
+  la confirmación habitual del censo registra el responsable y vuelve a verificar ambos episodios.
+  La cama por sí sola no identifica a la madre. Una identidad ambigua requiere revisión. Sin madre
+  identificable se conserva la cuna independiente. El RN enfermo en cama hospitalaria mantiene su
+  clasificación propia y los criterios de estadística y CUDYR que le correspondan.
+- Una decisión ya revisada no vuelve a preguntarse mientras la fuente mantenga la ubicación
+  aceptada, ni cuando Gestión de Camas finalmente coincida con ella. Una cuna que vuelve a quedar
+  desfasada acompaña a su madre identificada con aviso; los cambios de clasificación requieren revisión.
+- Si el alta materna ya existe y falta el alta asociada del RN, una consulta completa que confirma
+  la ausencia de ese episodio permite completar solo el movimiento asociado. Se conserva el alta
+  materna con su fecha y hora; no se duplica ni aumenta el egreso estadístico por el RN en cuna.
+  Un RN activo, una consulta incompleta o una identidad ambigua impiden inferir esa salida.
+- Un RN sin RUN propio puede consultarse por su episodio exacto y el RUN de su madre ya vinculada.
+  Ese RUN solo identifica la consulta; no se convierte en el documento del RN. Una fecha explícita
+  de alta administrativa sigue siendo válida si la respuesta antigua omite el booleano de alta;
+  el cierre clínico (`endPeriod`) por sí solo no acredita ese egreso.
+- Una reparación de camas no elimina una cuna solo por encontrar el alta materna. El RN conserva
+  sus datos y sigue visible hasta tener su propio movimiento verificado. Si el egreso se recupera
+  para un día anterior, se preservan la ubicación, notas y datos corregidos de ese episodio en HHR.
+- Los movimientos históricos y la reparación de sus ocupaciones se confirman juntos cuando
+  separarlos produciría un censo inconsistente. Se exige la versión remota revisada y confirmación
+  del servidor; no se continúa sobre un guardado pendiente ni se reemplazan ajustes CUDYR saneados.
+- Un caso pendiente del día anterior conserva su episodio en la revisión y solo bloquea ese
+  episodio. Los demás pacientes verificados pueden completar signos y escalas. Sincronizar el día
+  actual también completa el CUDYR del turno nocturno anterior a partir de su fecha de aplicación.
 
 ## Profesionales descubiertos desde Eloísa
 

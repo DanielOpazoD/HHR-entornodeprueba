@@ -163,6 +163,18 @@ export const patientRunFromFlowReport = (text: string): string => {
   return runs.size === 1 ? [...runs][0] : '';
 };
 
+/** Read the complete personal identifier, including numeric passports, from explicit headers. */
+export const patientIdentifierFromFlowReport = (text: string): string => {
+  const values = new Set(
+    [
+      ...String(text || '').matchAll(
+        /\b(?:N[uú]mero de Identificaci[oó]n|Pasaporte|RUN)\s*:\s*([A-Za-z0-9.-]+)/gi
+      ),
+    ].map(match => match[1].replace(/[.-]/g, '').toUpperCase())
+  );
+  return values.size === 1 ? [...values][0] : '';
+};
+
 /** Complete movement rows, including excluded/unknown locations: never bridge across them. */
 export const parsePatientFlowTimeline = (text: string): PatientFlowRow[] => {
   const parsed = parsePatientFlowRows(text);

@@ -157,7 +157,11 @@ describe('reviewed maternal identity correction', () => {
     expect(saved.beds.H5C1.clinicalCrib?.neonatalMaternalRut).toBe(seed(mother).rut);
     const next = reconcileCensus(
       saved,
-      snapshotOf([mother, other, { ...child, bed: 'CR3', clinicalCribParentBedId: 'R3' }]),
+      snapshotOf([
+        mother,
+        other,
+        { ...child, service: 'AMQI', room: 'R3', bed: 'R3', clinicalCribParentBedId: undefined },
+      ]),
       { reference: REFERENCE }
     );
     const updated = apply(
