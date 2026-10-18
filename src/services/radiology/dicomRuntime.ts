@@ -1,6 +1,5 @@
 import { openDicomCineSession } from './dicomCineSession';
 import { initializeDicom as initialize, dicomTools as tools } from './dicomInitialization';
-// This entire module is behind DicomViewer's dynamic import. Never import it from a public barrel.
 import {
   RenderingEngine,
   Enums,
@@ -86,6 +85,8 @@ export const createDicomRuntime = async (
     mpr?.dispose();
     if (group) ToolGroupManager.destroyToolGroup(group.id);
     const presentation = stack?.detach();
+    // Detach this session's canvases now; Cornerstone.destroy clears but retains their DOM nodes.
+    engine?.getViewports().forEach(viewport => viewport.getCanvas().remove());
     source?.cancel();
     void Promise.all([presentation, source?.settled])
       .finally(() => {
@@ -106,7 +107,6 @@ export const createDicomRuntime = async (
     await initialize();
     signal.throwIfAborted();
     source = startDicomSeries(study, series, signal, progress);
-    await source.request(source.initialIndex);
     stack = createProgressiveStack(source, series.instances.length);
     signal.throwIfAborted();
     engine = new RenderingEngine(id);
@@ -178,6 +178,7 @@ export const createDicomRuntime = async (
   void completion.catch(() => undefined);
   return {
     sessionId: id,
+    loading: source!.loading,
     completion,
     openCine: () => {
       ensureActive();
@@ -246,14 +247,15 @@ export const createDicomRuntime = async (
         if (series.modality !== 'CT' && series.modality !== 'MR')
           throw new Error('MPR y 3D están disponibles para series volumétricas de TAC o RM.');
         if (!volume) {
-          // Every instance is validated and decoded before any reconstruction.
+          const start = performance.now();
+          source!.loading.volume(true);
           const created = await createDicomVolume(
             volumeId,
             loaded!.volumeGeometry,
             series.modality,
             loaded!.resamplingSupported,
             signal
-          );
+          ).finally(() => source!.loading.volume(false, performance.now() - start));
           if (disposed || signal.aborted) {
             created.release();
             ensureActive();
@@ -298,6 +300,7 @@ export const createDicomRuntime = async (
       activateTool(nextMode === '3d' ? 'rotate' : 'window');
       if (nextMode === 'original') {
         await stack!.show(engine.getViewport(viewportIds[0]) as StackViewport);
+        if (stack!.state().error) return;
       } else {
         await setVolumesForViewports(
           engine,
@@ -324,8 +327,6 @@ export const createDicomRuntime = async (
       }
       resize = observeDicomViewportSize(engine, elements, () => disposed);
       await waitForDicomRender(elements, () => engine!.render(), signal);
-      // Volume actors initialize their shared GPU texture on the first pass. Refresh every
-      // plane once that pass is complete, including with software WebGL, before capture is enabled.
       if (nextMode !== 'original')
         await waitForDicomRender(elements, () => engine!.render(), signal);
     },
@@ -343,7 +344,6 @@ export const createDicomRuntime = async (
     reset: () => {
       if (!engine || disposed) return;
       if (mode === 'mpr' && referenceEnabled) {
-        // Cornerstone 4.22 resetCrosshairs resets pan, zoom, orientation and center for every viewport.
         (group?.getToolInstance(CrosshairsTool.toolName) as CrosshairsTool)?.resetCrosshairs();
         return;
       }

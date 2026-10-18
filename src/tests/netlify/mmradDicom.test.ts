@@ -59,6 +59,30 @@ describe('protected MMRAD DICOM bridge', () => {
     vi.useRealTimers();
   });
 
+  it('exposes only numeric timings and distinguishes upstream throttling from invalid originals', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    fetchMock.mockResolvedValueOnce(new Response(syntheticDicom(0, 3)));
+    const success = await handler()(event({ action: 'instance', ticket: ticket() }));
+    expect(success.statusCode).toBe(200);
+    expect((success.headers as Record<string, string>)['Server-Timing']).toMatch(
+      /^upstream;dur=[0-9.]+$/
+    );
+    fetchMock.mockResolvedValueOnce(
+      new Response('private upstream body', { status: 429, headers: { 'Retry-After': '7' } })
+    );
+    const throttled = await handler()(event({ action: 'instance', ticket: ticket() }));
+    expect(throttled.statusCode).toBe(429);
+    expect((throttled.headers as Record<string, string>)['Retry-After']).toBe('7');
+    expect(throttled.body).not.toContain('private');
+    fetchMock.mockResolvedValueOnce(new Response(new Uint8Array(200)));
+    expect((await handler()(event({ action: 'instance', ticket: ticket() }))).statusCode).toBe(422);
+    fetchMock.mockRejectedValueOnce(new TypeError('private network details'));
+    const network = await handler()(event({ action: 'instance', ticket: ticket() }));
+    expect(network.statusCode).toBe(502);
+    expect(network.body).not.toContain('private');
+  });
+
   it('rejects foreign origins, missing auth, denied roles and invalid requests before accessing the vendor', async () => {
     const run = handler();
     expect(

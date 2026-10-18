@@ -142,8 +142,8 @@ describe('verified DICOM source selection', () => {
     install(localizerPlane, 0, '999999999');
     await expect(load()).rejects.toThrow('no corresponde al paciente o al estudio');
     expect(mocks.add.mock.calls.length).toBeLessThan(5);
-    expect(mocks.decode).toHaveBeenCalledTimes(mocks.add.mock.calls.length);
-    expect(mocks.remove).toHaveBeenCalledTimes(mocks.add.mock.calls.length);
+    expect(mocks.decode.mock.calls.length).toBeLessThanOrEqual(mocks.add.mock.calls.length);
+    await vi.waitFor(() => expect(mocks.remove).toHaveBeenCalledTimes(mocks.add.mock.calls.length));
   });
 
   it('still rejects resampling when padding belongs to a retained volume source', async () => {
@@ -277,13 +277,13 @@ describe('progressive verified download queue', () => {
       })
     );
     const source = startDicomSeries(study, series, new AbortController().signal, vi.fn());
-    await vi.waitFor(() => expect(mocks.decode).toHaveBeenCalledTimes(3));
+    await vi.waitFor(() => expect(mocks.decode).toHaveBeenCalledTimes(2));
     foreign(syntheticDicom(0, 5, '999999999'));
     await expect(source.completion).rejects.toThrow('no corresponde al paciente o al estudio');
     expect(mocks.remove).not.toHaveBeenCalled();
     finish();
     await source.settled;
-    expect(mocks.remove).toHaveBeenCalledTimes(3);
+    expect(mocks.remove).toHaveBeenCalledTimes(mocks.add.mock.calls.length);
   });
 
   it('releases images that finish decoding after cancellation without reporting them ready', async () => {
@@ -298,12 +298,12 @@ describe('progressive verified download queue', () => {
     mocks.decode.mockReturnValue(decoding);
     const progress = vi.fn();
     const source = startDicomSeries(study, series, new AbortController().signal, progress);
-    await vi.waitFor(() => expect(mocks.decode).toHaveBeenCalledTimes(4));
+    await vi.waitFor(() => expect(mocks.decode).toHaveBeenCalledTimes(2));
     source.cancel();
     finish();
     await expect(source.completion).rejects.toMatchObject({ name: 'AbortError' });
     await source.settled;
     expect(progress).not.toHaveBeenCalled();
-    expect(mocks.remove).toHaveBeenCalledTimes(4);
+    expect(mocks.remove).toHaveBeenCalledTimes(mocks.add.mock.calls.length);
   });
 });

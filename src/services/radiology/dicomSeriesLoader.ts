@@ -1,3 +1,4 @@
+import { createDicomDownloadQueue } from './dicomDownloadQueue';
 import { parseDicom } from 'dicom-parser';
 import { imageLoader, cache } from '@cornerstonejs/core';
 import { wadouri } from '@cornerstonejs/dicom-image-loader';
@@ -27,6 +28,7 @@ export const startDicomSeries = (
   signal: AbortSignal,
   progress: (loaded: number, total: number) => void
 ): ProgressiveDicomSeries => {
+  if (!series.instances.length) throw new Error('La serie no contiene cortes.');
   if (series.instances.some(item => item.frames !== 1))
     throw new Error('Esta serie multicuadro requiere el visor externo de MMRAD.');
   if (
@@ -55,136 +57,113 @@ export const startDicomSeries = (
     }
   };
   let resamplingSupported = true;
-  let priority = Math.floor(series.instances.length / 2);
-  const queue = series.instances.map((_, index) => index);
-  const pending = series.instances.map(() => {
-    let resolve!: (id: string) => void;
-    let reject!: (error: unknown) => void;
-    const promise = new Promise<string>((yes, no) => {
-      resolve = yes;
-      reject = no;
-    });
-    void promise.catch(() => undefined); // Background slices need no individual consumer.
-    return { promise, resolve, reject };
+  const initialIndex = Math.floor(series.instances.length / 2);
+  let decodedCount = 0;
+  let rawBytes = 0,
+    voxels = 0;
+  let resolveCompletion!: (value: LoadedDicomSeries) => void;
+  let rejectCompletion!: (error: unknown) => void;
+  const completion = new Promise<LoadedDicomSeries>((resolve, reject) => {
+    resolveCompletion = resolve;
+    rejectCompletion = reject;
   });
-  let loaded = 0;
-  let rawBytes = 0;
-  let voxels = 0;
-  let failure: unknown;
-  let rejectSession!: (error: unknown) => void;
-  const failed = new Promise<never>((_, reject) => {
-    rejectSession = reject;
-  });
-  const worker = async () => {
-    while (!signal.aborted && !failure && queue.length) {
-      queue.sort((a, b) => Math.abs(a - priority) - Math.abs(b - priority) || a - b);
-      const index = queue.shift()!;
-      const instance = series.instances[index];
-      try {
-        const bytes = await fetchDicomInstance(instance.ticket, signal);
-        signal.throwIfAborted();
-        rawBytes += bytes.byteLength;
-        if (rawBytes > MAX_RAW_BYTES)
-          throw new Error('La serie supera el límite de memoria de originales (256 MB).');
-        const data = parseDicom(bytes, { untilTag: 'x7fe00010' });
-        validateDicomInstanceIdentity(data, study, series, instance);
-        const frames = Number(data.string('x00280008') || 1);
-        const rows = data.uint16('x00280010') || 0;
-        const columns = data.uint16('x00280011') || 0;
-        const samples = data.uint16('x00280002') || 1;
-        voxels += rows * columns * samples;
-        if (frames !== 1 || rows <= 0 || columns <= 0 || voxels > MAX_VOXELS)
-          throw new Error('El original DICOM no es compatible con los límites del visor.');
-        localizers[index] = series.modality === 'CT' && isDicomCtLocalizer(data);
-        if (!localizers[index] && !supportsDicomResampling(data)) resamplingSupported = false;
-        const id = wadouri.fileManager.add(
-          new Blob([new Uint8Array(bytes)], { type: 'application/dicom' })
-        );
-        ids[index] = id;
-        const vector = (tag: string) =>
-          (data.string(tag) || '').split('\\').filter(Boolean).map(Number);
-        geometry[index] = {
-          imageId: id,
-          position: vector('x00200032'),
-          orientation: vector('x00200037'),
-          spacing: vector('x00280030'),
-          frame: data.string('x00200052') || '',
-          rows,
-          columns,
-        };
-        const decoded = await imageLoader.loadAndCacheImage(id);
-        calibrated[index] = hasDicomHuCalibration(data, decoded);
-        signal.throwIfAborted();
-        progress(++loaded, series.instances.length);
-        pending[index].resolve(id);
-      } catch (error) {
-        // Cornerstone wraps decode errors together with the parsed dataset. Never propagate
-        // that dataset into error boundaries or diagnostics.
-        const detail = error && typeof error === 'object' && 'error' in error ? error.error : error;
-        failure ??=
-          detail instanceof Error
-            ? detail
-            : new Error('No se pudo decodificar una imagen DICOM. Utiliza el visor externo.');
-        rejectSession(failure);
-        controller.abort();
-        pending.forEach(item => item.reject(failure));
-      }
-    }
-  };
-  const draining = Promise.resolve().then(async () => {
-    await Promise.all(Array.from({ length: Math.min(4, series.instances.length) }, worker));
-    if (failure || signal.aborted) {
-      const error = failure || signal.reason;
-      pending.forEach(item => item.reject(error));
-      release();
-      throw error;
-    }
-    return {
-      imageIds: ids,
-      geometry,
-      volumeGeometry: geometry.filter((_, index) => !localizers[index]),
-      resamplingSupported,
-      huCalibrated:
-        geometry.some((_, i) => !localizers[i]) &&
-        geometry.every((_, i) => localizers[i] || calibrated[i]),
-      release,
-    };
-  });
-  const completion = Promise.race([draining, failed]);
-  const settled = draining.then(
-    () => undefined,
-    () => undefined
-  );
   void completion.catch(() => undefined);
   const abort = () => {
     controller.abort();
-    rejectSession(failure || signal.reason);
-    pending.forEach(item => item.reject(failure || signal.reason));
+    rejectCompletion(signal.reason);
   };
   parentSignal.addEventListener('abort', abort, { once: true });
-  void settled
-    .finally(() => parentSignal.removeEventListener('abort', abort))
-    .catch(() => undefined);
+  const queue = createDicomDownloadQueue(
+    series.instances.length,
+    signal,
+    async index => {
+      const instance = series.instances[index];
+      const bytes = await fetchDicomInstance(instance.ticket, signal, timing =>
+        queue.timing(timing)
+      );
+      signal.throwIfAborted();
+      rawBytes += bytes.byteLength;
+      if (rawBytes > MAX_RAW_BYTES)
+        throw new Error('La serie supera el límite de memoria de originales (256 MB).');
+      const data = parseDicom(bytes, { untilTag: 'x7fe00010' });
+      validateDicomInstanceIdentity(data, study, series, instance);
+      const frames = Number(data.string('x00280008') || 1);
+      const rows = data.uint16('x00280010') || 0;
+      const columns = data.uint16('x00280011') || 0;
+      const samples = data.uint16('x00280002') || 1;
+      voxels += rows * columns * samples;
+      if (frames !== 1 || rows <= 0 || columns <= 0 || voxels > MAX_VOXELS)
+        throw new Error('El original DICOM no es compatible con los límites del visor.');
+      localizers[index] = series.modality === 'CT' && isDicomCtLocalizer(data);
+      if (!localizers[index] && !supportsDicomResampling(data)) resamplingSupported = false;
+      const id = wadouri.fileManager.add(
+        new Blob([new Uint8Array(bytes)], { type: 'application/dicom' })
+      );
+      ids[index] = id;
+      const vector = (tag: string) =>
+        (data.string(tag) || '').split('\\').filter(Boolean).map(Number);
+      geometry[index] = {
+        imageId: id,
+        position: vector('x00200032'),
+        orientation: vector('x00200037'),
+        spacing: vector('x00280030'),
+        frame: data.string('x00200052') || '',
+        rows,
+        columns,
+      };
+      return bytes;
+    },
+    async (index, bytes) => {
+      const decoded = await imageLoader.loadAndCacheImage(ids[index]);
+      signal.throwIfAborted();
+      calibrated[index] = hasDicomHuCalibration(
+        parseDicom(bytes, { untilTag: 'x7fe00010' }),
+        decoded
+      );
+      progress(++decodedCount, series.instances.length);
+      return ids[index];
+    },
+    error => {
+      // Never propagate a decoder wrapper carrying a parsed clinical dataset.
+      const safe =
+        error instanceof Error ? error : new Error('No se pudo preparar una imagen DICOM.');
+      rejectCompletion(safe);
+      controller.abort();
+    },
+    () =>
+      resolveCompletion({
+        imageIds: ids,
+        geometry,
+        volumeGeometry: geometry.filter((_, index) => !localizers[index]),
+        resamplingSupported,
+        huCalibrated:
+          geometry.some((_, i) => !localizers[i]) &&
+          geometry.every((_, i) => localizers[i] || calibrated[i]),
+        release,
+      })
+  );
+  if (parentSignal.aborted) abort();
+  const settled = queue.settled;
+  void settled.then(() => {
+    if (signal.aborted) release();
+  });
   return {
     completion,
     settled,
-    initialIndex: priority,
+    initialIndex,
     hasOrientation: index => geometry[index]?.orientation.length === 6,
-    request: index => {
-      signal.throwIfAborted();
-      if (!Number.isInteger(index) || index < 0 || index >= pending.length)
-        throw new Error('Corte fuera de la serie.');
-      priority = index;
-      return pending[index].promise;
-    },
+    request: queue.request,
+    loading: queue,
     cancel: () => {
       abort();
+      parentSignal.removeEventListener('abort', abort);
       void settled.finally(release).catch(() => undefined);
     },
   };
 };
 
 export interface ProgressiveDicomSeries {
+  loading: ReturnType<typeof createDicomDownloadQueue>;
   initialIndex: number;
   hasOrientation: (index: number) => boolean;
   completion: Promise<LoadedDicomSeries>;

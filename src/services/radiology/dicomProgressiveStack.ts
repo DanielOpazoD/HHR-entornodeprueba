@@ -70,7 +70,7 @@ export const createProgressiveStack = (source: ProgressiveDicomSeries, total: nu
       if (requestVersion === sequence && viewport)
         emit({
           pending: false,
-          error: 'No se pudo mostrar el corte solicitado. Vuelve a abrir el estudio.',
+          error: 'No se pudo mostrar este corte. Reintenta los cortes fallidos o selecciona otro.',
         });
     }
   };

@@ -346,6 +346,66 @@ test.describe('DICOM viewer and Salvador annexes', () => {
       await expect(canvas.locator('svg')).not.toContainText('Promedio');
     });
 
+  test('recovers only failed cuts and plays a bounded available interval while incomplete', async ({
+    page,
+  }) => {
+    await setup(page);
+    const requests = new Map<number, number>();
+    await page.route('**/.netlify/functions/mmrad-dicom', async route => {
+      const body = route.request().postDataJSON();
+      if (body.action === 'metadata') return route.fallback();
+      const index = Number(String(body.ticket).split('-')[1]);
+      const count = (requests.get(index) ?? 0) + 1;
+      requests.set(index, count);
+      if (index === 13 && count <= 3)
+        return route.fulfill({
+          status: 503,
+          contentType: 'application/json',
+          headers: { 'Retry-After': '1' },
+          body: '{"error":"Synthetic temporary failure"}',
+        });
+      return route.fulfill({
+        contentType: 'application/dicom',
+        body: Buffer.from(syntheticDicom(index, 24)),
+        headers: { 'Server-Timing': 'upstream;dur=25' },
+      });
+    });
+    const editor = await openSalvador(page);
+    await editor.getByRole('button', { name: 'Imágenes MMRAD' }).click();
+    await page.getByRole('button', { name: 'Ver DICOM', exact: true }).click();
+    const viewer = page.getByRole('dialog', { name: /Visor DICOM/ });
+    await expect(viewer.getByRole('button', { name: 'Reintentar cortes fallidos' })).toBeVisible({
+      timeout: 60000,
+    });
+    await expect(viewer.getByLabel('Descarga de la serie')).toHaveAttribute('value', '23');
+    await expect(viewer.getByRole('button', { name: 'MPR', exact: true })).toBeDisabled();
+    await viewer.locator('.dicom-load-detail summary').click();
+    await viewer.getByLabel('Descargas simultáneas').selectOption('2');
+    await expect(viewer.locator('.dicom-load-detail')).toContainText('preparación/decodificación');
+    await viewer.locator('.dicom-load-detail summary').click();
+    await viewer.locator('.dicom-cine summary').click();
+    await expect(viewer.getByRole('button', { name: 'Generar MP4' })).toBeDisabled();
+    await viewer.getByLabel('Intervalo cine parcial').selectOption('0,12');
+    await expect(viewer.getByLabel('Corte inicial', { exact: true })).toHaveValue('1');
+    await expect(viewer.getByLabel('Corte final', { exact: true })).toHaveValue('13');
+    await viewer.getByLabel('Velocidad cine', { exact: true }).selectOption('30');
+    await viewer.getByRole('button', { name: 'Reproducir', exact: true }).click();
+    await expect(viewer.getByRole('button', { name: 'Cancelar cine / MP4' })).toBeVisible();
+    await expect(viewer.getByRole('button', { name: 'Cancelar cine / MP4' })).not.toBeVisible({
+      timeout: 30000,
+    });
+    expect(requests.get(13)).toBe(3);
+    await viewer.locator('.dicom-cine summary').click();
+    await viewer.getByRole('button', { name: 'Reintentar cortes fallidos' }).click();
+    await expect(viewer.getByRole('button', { name: 'MPR', exact: true })).toBeEnabled({
+      timeout: 60000,
+    });
+    expect(requests.get(13)).toBe(4);
+    expect([...requests].filter(([index]) => index !== 13).every(([, count]) => count === 1)).toBe(
+      true
+    );
+  });
+
   test('shows verified cuts progressively and prioritizes navigation before the volume is complete', async ({
     page,
   }) => {
@@ -384,9 +444,9 @@ test.describe('DICOM viewer and Salvador annexes', () => {
       await expect(
         viewer.getByRole('button', { name: 'Restablecer vista', exact: true })
       ).toBeDisabled();
-      await expect.poll(() => waiting.has(11)).toBe(true);
+      await expect.poll(() => waiting.has(13)).toBe(true);
       const offset = requested.length;
-      waiting.get(11)!();
+      waiting.get(13)!();
       await expect(viewer.getByLabel('Estado del corte')).toHaveText('24/24');
       expect(requested[offset]).toBe(23);
       await expect(viewer.getByRole('button', { name: 'PNG', exact: true })).toBeEnabled();

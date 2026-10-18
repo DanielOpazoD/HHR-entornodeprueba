@@ -59,3 +59,24 @@
     height: calc((100% - 4px) / 3);
   }
 }
+.dicom-load-detail {
+  position: relative;
+}
+.dicom-load-detail summary {
+  cursor: pointer;
+}
+.dicom-load-detail > div {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 12;
+  width: min(440px, 80vw);
+  background: #101b2b;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 8px 24px #0008;
+}
+.dicom-load-detail p {
+  margin: 6px 0;
+}

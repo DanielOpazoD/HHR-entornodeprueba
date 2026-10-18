@@ -266,3 +266,45 @@ píxeles. Descartar/cambiar/cerrar revoca el URL. El nombre de descarga es gené
 no se agregan identificadores, credenciales ni metadatos clínicos al contenedor.
 El MP4 es una copia con contraste fijo y compresión, no sustituye al DICOM.
 La CSP permite medios self/blob únicamente para la previsualización local.
+
+### Carga adaptativa y diagnóstico temporal
+
+La sesión mantiene una cola única por índice de corte. El corte solicitado precede
+al trabajo pendiente, seguido por vecinos con preferencia en la dirección del
+scroll. Las solicitudes ya iniciadas terminan; no se cancelan para desperdiciar
+transferencias al desplazarse. No hay peticiones duplicadas para un mismo corte.
+Descarga y decodificación tienen capacidad separada: hasta 4 descargas por defecto,
+un máximo ajustable entre 1 y 6, y 2 preparaciones simultáneas. La cola de originales
+por preparar está acotada; si se llena, deja de aceptar trabajo de fondo.
+
+Ante red interrumpida, timeout, 408, 429, 500, 502, 503 o 504, la concurrencia se
+reduce a la mitad (mínimo 1), se aplica una pausa global y se hacen como máximo dos
+reintentos automáticos con backoff y jitter. Se respeta Retry-After; pausas superiores
+a dos minutos requieren reintento manual, sin adelantar el plazo del servidor.
+Ocho descargas correctas permiten recuperar un nivel de concurrencia hasta el límite.
+Los errores de identidad, autenticación, estructura, decodificación o límites no se
+reintentan: invalidan la sesión. El proxy distingue un original inválido/demasiado
+grande (422) de un fallo transitorio de transporte. No se amplían roles ni cuotas.
+
+Tras agotar reintentos transitorios, los cortes verificados siguen navegables.
+«Reintentar cortes fallidos» solo vuelve a solicitar los fallidos; no vuelve a cargar
+la serie. MPR, 3D y MP4 siguen exigiendo todos los cortes verificados. El cine parcial
+requiere un intervalo continuo ya preparado, seleccionado explícitamente; no omite
+huecos ni presenta ese intervalo como serie completa. Cerrar o cambiar de serie
+aborta red y esperas, y libera los recursos después de drenar decodificaciones.
+
+La caché es exclusiva de la sesión y solo en memoria: originales hasta 256 MiB,
+máximo 128 millones de muestras y caché decodificada de Cornerstone de 512 MiB.
+No hay persistencia en disco, Service Worker ni caché compartida entre pacientes.
+El presupuesto de originales no representa toda la memoria GPU/volumen del navegador.
+
+«Carga y conexión» muestra descargas, preparaciones, disponibilidad, reintentos,
+concurrencia efectiva y tiempos sin UID, ticket, paciente, URL ni contenido de imagen.
+Las métricas permanecen en memoria y no se envían a analítica ni consola. Son sumas de
+trabajos que se solapan, no partes sumables de la duración total. La espera de respuesta
+incluye autenticación, proxy y red; la transferencia al navegador se mide después de
+las cabeceras. `Server-Timing: upstream;dur=...` mide el tramo MMRAD→proxy completo,
+no el procesamiento interno de MMRAD. La preparación incluye espera del decodificador
+y decodificación; la construcción del volumen se mide al solicitar MPR/3D. No se
+atribuye una lentitud al proveedor ni se promete una aceleración del estudio real sin
+medirlo en ese equipo/conexión.

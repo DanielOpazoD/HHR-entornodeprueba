@@ -1,3 +1,4 @@
+import type { DicomLoadState } from '@/services/radiology/dicomLoadState';
 import React, { useEffect, useRef, useState } from 'react';
 import { Camera, Download, Hand, RotateCcw, Scan, ZoomIn } from 'lucide-react';
 import type { DicomCapture, DicomSeries, DicomStudy } from '@/services/radiology/dicomTypes';
@@ -21,6 +22,7 @@ export const DicomSeriesView: React.FC<{
   title: string;
   onCapture?: (capture: DicomCapture) => void;
 }> = ({ study, series, title, onCapture }) => {
+  const [loading, setLoading] = useState<DicomLoadState | null>(null);
   const [runtime, setRuntime] = useState<DicomRuntime | null>(null);
   const [mode, setMode] = useState<DicomMode>('original');
   const [activeTool, setActiveTool] = useState<DicomTool>('window');
@@ -124,12 +126,12 @@ export const DicomSeriesView: React.FC<{
     () =>
       runtime?.onStack(state => {
         setStackState(state);
-        if (state.error) setError(state.error);
         if (!state.pending) setOrientations(runtime.orientations());
       }),
     [runtime]
   );
-  const waitingForSlice = mode === 'original' && Boolean(stackState?.pending);
+  useEffect(() => runtime?.loading.subscribe(setLoading), [runtime]);
+  const waitingForSlice = mode === 'original' && Boolean(stackState?.pending || stackState?.error);
   const capture = async (): Promise<DicomCapture> => {
     if (!alive.current || latestCaptureContext.current !== captureContext)
       throw new DOMException('Captura cancelada', 'AbortError');
@@ -307,13 +309,18 @@ export const DicomSeriesView: React.FC<{
           runtime={runtime}
           total={series.instances.length}
           complete={complete}
+          available={loading?.available ?? []}
           disabled={busy || waitingForSlice || Boolean(error)}
           busyChanged={setCineBusy}
         />
       )}
       {busy && (
         <div className="dicom-loading" role="status">
-          {runtime ? 'Preparando vista…' : `Cargando imágenes · ${progress[0]}/${progress[1]}`}
+          {loading?.volumeBuilding
+            ? 'Construyendo volumen…'
+            : runtime
+              ? 'Preparando vista…'
+              : `Cargando imágenes · ${progress[0]}/${progress[1]}`}
           {!runtime && (
             <progress max={progress[1]} value={progress[0]} aria-label="Carga de imágenes" />
           )}
@@ -337,6 +344,8 @@ export const DicomSeriesView: React.FC<{
       )}
       <DicomLoadControls
         progress={progress}
+        loading={loading}
+        controller={runtime?.loading}
         state={mode === 'original' ? stackState : null}
         disabled={!runtime || busy || cineBusy || Boolean(error)}
         select={index => runtime?.select(index)}
