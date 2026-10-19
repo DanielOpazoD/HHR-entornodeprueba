@@ -62,7 +62,7 @@ const setup = async (page: Page) => {
   )?.[1];
   if (!shellPolicy || !workerPolicy) throw new Error('Missing production CSP');
   await page.route('**/?date=*', async route => {
-    const response = await fetchDicomWorker(route);
+    const response = await route.fetch();
     await route.fulfill({
       response,
       headers: { ...response.headers(), 'content-security-policy': shellPolicy },
@@ -113,7 +113,7 @@ const setup = async (page: Page) => {
   });
   // Exercise the production worker's restricted CSP, including real WASM decoding.
   await page.route('**/assets/decodeImageFrameWorker-*.js', async route => {
-    const response = await route.fetch();
+    const response = await fetchDicomWorker(route);
     await route.fulfill({
       response,
       headers: {
