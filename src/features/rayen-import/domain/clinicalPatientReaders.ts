@@ -66,7 +66,7 @@ const settleOnce = async <T>(
  * fuente, igual que el camino legado). Sin la capability, cada fuente usa su
  * canal individual con un reintento propio.
  */
-export const readClinicalPatientSources = async ({
+const readPatientSources = async ({
   encId,
   fecha,
   lookbackDays,
@@ -177,4 +177,15 @@ export const readClinicalPatientSources = async ({
   const results = await Promise.all([devicesResult, historyResult, formsResult]);
   deps.signal?.throwIfAborted();
   return results;
+};
+
+export const readClinicalPatientSources = async (input: ClinicalPatientReadInput) => {
+  try {
+    return await readPatientSources(input);
+  } catch (reason) {
+    if (!input.deps.signal?.aborted || reason !== input.deps.signal.reason) throw reason;
+    // Preserve the runner's settled-results contract without exposing late successes.
+    const cancelled = { status: 'rejected' as const, reason: input.deps.signal.reason ?? reason };
+    return [cancelled, cancelled, cancelled] as const;
+  }
 };

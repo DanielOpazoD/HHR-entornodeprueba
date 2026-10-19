@@ -169,9 +169,8 @@ describe('runClinicalFill · paquete clínico por paciente', () => {
         throw controller.signal.reason;
       }),
     });
-    await expect(runClinicalFill(record(), '2026-07-10', dependencies)).rejects.toMatchObject({
-      name: 'AbortError',
-    });
+    const result = await runClinicalFill(record(), '2026-07-10', dependencies);
+    expect(result.errors.length).toBeGreaterThan(0);
     expect(dependencies.fetchDeviceReport).not.toHaveBeenCalled();
     expect(dependencies.fetchHistoryScales).not.toHaveBeenCalled();
     expect(dependencies.fetchScalesForms).not.toHaveBeenCalled();
@@ -212,7 +211,20 @@ describe('runClinicalFill · paquete clínico por paciente', () => {
         slots: { bundle: run, devices: run, history: run, forms: run },
         performance: { trackRequest: run, recordTimeout: vi.fn(), recordRetries: vi.fn() },
       })
-    ).rejects.toMatchObject({ name: 'AbortError' });
+    ).resolves.toEqual([
+      expect.objectContaining({
+        status: 'rejected',
+        reason: expect.objectContaining({ name: 'AbortError' }),
+      }),
+      expect.objectContaining({
+        status: 'rejected',
+        reason: expect.objectContaining({ name: 'AbortError' }),
+      }),
+      expect.objectContaining({
+        status: 'rejected',
+        reason: expect.objectContaining({ name: 'AbortError' }),
+      }),
+    ]);
   });
 
   it.each([true, false])(
