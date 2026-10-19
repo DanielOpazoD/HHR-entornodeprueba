@@ -5,7 +5,13 @@
  * label is returned unchanged (best-effort display).
  */
 
-import { mapRayenBed } from './bedMapping';
+import { CLINICAL_CRIB_PARENT_BEDS, mapRayenBed } from './bedMapping';
+
+export const resolveReportCribParentBedId = (bedLabel: string): string | null => {
+  const normalized = (bedLabel ?? '').trim().toUpperCase().replace(/[\s-]/g, '');
+  const parent = normalized.replace(/^(?:CUNA|C)(?=H[1-6]C[12]$|R[1-4]$|NEO[12]$)/, '');
+  return parent !== normalized && CLINICAL_CRIB_PARENT_BEDS.has(parent) ? parent : null;
+};
 
 export const resolveReportBedId = (bedLabel: string): string =>
-  mapRayenBed({ bed: bedLabel }).bedId ?? bedLabel;
+  resolveReportCribParentBedId(bedLabel) ?? mapRayenBed({ bed: bedLabel }).bedId ?? bedLabel;

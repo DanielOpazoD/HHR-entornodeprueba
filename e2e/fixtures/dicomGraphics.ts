@@ -63,8 +63,11 @@ export const liveDicomContexts = (page: Page) =>
   page.evaluate(() => (window as unknown as Probe).syntheticGraphicsState().live);
 export const loseDicomGraphics = async (page: Page, recover = true) => {
   await expect
-    .poll(() =>
-      page.evaluate(() => (window as unknown as Probe).syntheticGraphicsState().recoverable)
+    .poll(
+      () => page.evaluate(() => (window as unknown as Probe).syntheticGraphicsState().recoverable),
+      // Software WebGL can keep the renderer busy after a 3D drag. Keep the same
+      // bounded readiness window used after recovery; the context must still be unique.
+      { timeout: 30000 }
     )
     .toBe(1);
   await page.evaluate(() => (window as unknown as Probe).syntheticLoseGraphics());

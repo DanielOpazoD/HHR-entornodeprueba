@@ -26,6 +26,28 @@ describe('DICOM transfer diagnostics and retry classification', () => {
       true
     );
   });
+  it('separates server authorization and upstream phases', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(new Uint8Array([1]), {
+          headers: {
+            'Server-Timing':
+              'auth;dur=40, upstream;dur=30, upstream_headers;dur=20, upstream_body;dur=10',
+          },
+        })
+      )
+    );
+    const timing = vi.fn();
+    await fetchDicomInstance('synthetic-ticket', new AbortController().signal, timing);
+    expect(timing.mock.calls[0][0]).toMatchObject({
+      serverAuth: 40,
+      upstream: 30,
+      upstreamHeaders: 20,
+      upstreamBody: 10,
+      serverSamples: 1,
+    });
+  });
   it.each([
     [429, true],
     [503, true],

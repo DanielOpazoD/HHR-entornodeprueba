@@ -1,3 +1,4 @@
+const { movementRestoreRecord } = require('./movementRestoreSources');
 const { isDeepStrictEqual } = require('node:util');
 // Clinical specialty is a scalar on the patient. This module protects its
 // provenance inside the existing DailyRecord transaction; it is not a second
@@ -134,6 +135,7 @@ const protectSpecialtyDecisions = ({
   aiDecision,
   guardScalarChanges = true,
 }) => {
+  const restoredRecord = movementRestoreRecord(remoteRecord, candidate);
   const decisions = [];
   let intentApplied = false;
   if (intent) {
@@ -332,7 +334,7 @@ const protectSpecialtyDecisions = ({
     let prior = null;
     let priorFromPreviousDay = false;
     if (episodeId) {
-      for (const sourceRecord of [remoteRecord, priorRecord]) {
+      for (const sourceRecord of [remoteRecord, restoredRecord, priorRecord]) {
         eachTarget(sourceRecord, ({ patient: previous }) => {
           if (!prior && text(previous.clinicalEpisodeId) === episodeId) {
             prior = previous;

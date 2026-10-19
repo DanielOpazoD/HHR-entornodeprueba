@@ -152,6 +152,56 @@ const openSalvador = async (page: Page, manual = false) => {
 test.describe('DICOM viewer and Salvador annexes', () => {
   test.setTimeout(150000);
   test.use({ viewport: { width: 1440, height: 1000 } });
+  test('measures cold DICOM startup with controlled metadata and module latency', async ({
+    page,
+  }) => {
+    await setup(page);
+    const samples: Record<string, number> = {};
+    let instances = 0;
+    await page.route('**/assets/dicomRuntime-*.js', async route => {
+      samples.moduleStart = performance.now();
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      await route.continue();
+    });
+    await page.route('**/.netlify/functions/mmrad-dicom', async route => {
+      if (route.request().postDataJSON().action === 'metadata') {
+        samples.metadataStart = performance.now();
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        samples.metadataEnd = performance.now();
+      } else {
+        instances++;
+        samples.firstInstance ??= performance.now();
+        expect(samples.metadataEnd).toBeDefined();
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      await route.fallback();
+    });
+    const editor = await openSalvador(page);
+    await editor.getByRole('button', { name: 'Imágenes MMRAD' }).click();
+    expect(instances).toBe(0);
+    const start = performance.now();
+    await page.getByRole('button', { name: 'Ver DICOM', exact: true }).click();
+    const viewer = page.getByRole('dialog', { name: /Visor DICOM/ });
+    await expect(viewer.getByRole('button', { name: 'PNG', exact: true })).toBeEnabled({
+      timeout: 60000,
+    });
+    samples.usable = performance.now();
+    await expect(viewer.getByRole('button', { name: 'MPR', exact: true })).toBeEnabled({
+      timeout: 60000,
+    });
+    samples.complete = performance.now();
+    expect(instances).toBe(24);
+    expect(samples.moduleStart).toBeLessThan(samples.metadataEnd);
+    if (process.env.DICOM_LOAD_BENCHMARK === '1')
+      await test.info().attach('dicom-load-benchmark', {
+        body: JSON.stringify(
+          Object.fromEntries(
+            Object.entries(samples).map(([key, value]) => [key, Math.round(value - start)])
+          )
+        ),
+        contentType: 'application/json',
+      });
+  });
   test('compares verified series by physical position and reuses one series for independent windows', async ({
     page,
   }) => {
@@ -508,6 +558,81 @@ test.describe('DICOM viewer and Salvador annexes', () => {
     expect(requests.length).toBe(28);
     await viewer.screenshot({ path: test.info().outputPath('synthetic-compact-toolbar.png') });
   });
+  test('reuses originals across verified studies and releases them when the patient review closes', async ({
+    page,
+  }) => {
+    await setup(page);
+    const secondStudy = {
+      ...study,
+      uid: '1.2.826.0.1.3680043.10.543.101',
+      series: study.series.map(series => ({
+        ...series,
+        instances: series.instances.map((item, i) => ({ ...item, ticket: `other-${i}` })),
+      })),
+    };
+    await page.route('**/.netlify/functions/mmrad-search*', route =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          rut: '11111111-1',
+          examenes: [
+            exam,
+            { ...exam, nombre_examen: 'OTRO TAC SINTÉTICO', dicom_url: `${link}-other` },
+          ],
+        }),
+      })
+    );
+    let downloads = 0,
+      metadata = 0;
+    await page.route('**/.netlify/functions/mmrad-dicom', route => {
+      const body = route.request().postDataJSON();
+      if (body.action === 'metadata') {
+        metadata++;
+        return route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify(body.link === link ? study : secondStudy),
+        });
+      }
+      downloads++;
+      const ticket = String(body.ticket);
+      return route.fulfill({
+        contentType: 'application/dicom',
+        body: Buffer.from(
+          syntheticDicom(
+            Number(ticket.split('-')[1]),
+            24,
+            SYNTHETIC_PATIENT_ID,
+            undefined,
+            undefined,
+            undefined,
+            { studyUid: ticket.startsWith('other-') ? secondStudy.uid : study.uid }
+          )
+        ),
+      });
+    });
+    const editor = await openSalvador(page);
+    await editor.getByRole('button', { name: 'Imágenes MMRAD' }).click();
+    const viewer = page.getByRole('dialog', { name: /Visor DICOM/ });
+    for (const index of [0, 1, 0]) {
+      await page.getByRole('button', { name: 'Ver DICOM', exact: true }).nth(index).click();
+      await expect(viewer.getByRole('button', { name: 'MPR', exact: true })).toBeEnabled({
+        timeout: 60000,
+      });
+      await viewer.getByRole('button', { name: 'Cerrar modal', exact: true }).click();
+    }
+    expect(metadata).toBe(3);
+    expect(downloads).toBe(48);
+    await page
+      .getByRole('dialog', { name: 'Radiología / Imagenología' })
+      .getByRole('button', { name: 'Cerrar modal', exact: true })
+      .click();
+    await editor.getByRole('button', { name: 'Imágenes MMRAD' }).click();
+    await page.getByRole('button', { name: 'Ver DICOM', exact: true }).first().click();
+    await expect(viewer.getByRole('button', { name: 'MPR', exact: true })).toBeEnabled({
+      timeout: 60000,
+    });
+    expect(downloads).toBe(72);
+  });
   test('cine exports an ordered inclusive MP4 with privacy review and cancellation', async ({
     page,
   }) => {
@@ -826,6 +951,9 @@ test.describe('DICOM viewer and Salvador annexes', () => {
     page,
   }) => {
     test.setTimeout(240000);
+    // Software WebGL can delay even read-only browser queries after a 3D render.
+    // Use the recovery deadline for graphics probes, preserving every predicate.
+    const expectGraphics = expect.configure({ timeout: 30000 });
     await installDicomGraphicsProbe(page);
     await setup(page);
     let requests = 0;
@@ -878,7 +1006,7 @@ test.describe('DICOM viewer and Salvador annexes', () => {
       () => (window as unknown as { syntheticLastCamera: unknown }).syntheticLastCamera
     );
     await lose();
-    await expect.poll(countContexts).toBe(initialContexts);
+    await expectGraphics.poll(countContexts).toBe(initialContexts);
     await ready();
     await expect(viewer.getByLabel('Estado del corte')).toHaveText('14/24');
     expect(
@@ -898,11 +1026,11 @@ test.describe('DICOM viewer and Salvador annexes', () => {
     );
 
     await lose();
-    await expect.poll(countContexts).toBe(initialContexts);
+    await expectGraphics.poll(countContexts).toBe(initialContexts);
     await ready();
     await expect(coordinates).toHaveText(point!);
     await expect(viewer.getByLabel('Marcador de referencia')).toHaveValue('point');
-    await expect.poll(hasPixels).toBe(true);
+    await expectGraphics.poll(hasPixels).toBe(true);
 
     const cdp = await page.context().newCDPSession(page);
     await cdp.send('HeapProfiler.collectGarbage');
@@ -923,7 +1051,7 @@ test.describe('DICOM viewer and Salvador annexes', () => {
           .getByLabel('Corte panel 1', { exact: true })
           .inputValue();
         await lose();
-        await expect.poll(countContexts).toBe(initialContexts + 1);
+        await expectGraphics.poll(countContexts).toBe(initialContexts + 1);
         await expect(viewer.getByLabel('Corte panel 1', { exact: true })).toHaveValue(
           comparisonCut
         );
@@ -934,7 +1062,7 @@ test.describe('DICOM viewer and Salvador annexes', () => {
       await viewer.getByRole('button', { name: 'MPR', exact: true }).click();
       await ready();
       await expect(coordinates).toHaveText(point!);
-      await expect.poll(countContexts).toBe(initialContexts);
+      await expectGraphics.poll(countContexts).toBe(initialContexts);
       expect(await viewer.locator('.dicom-canvas canvas').count()).toBe(3);
       switchTimes.push(Date.now() - start);
       await cdp.send('HeapProfiler.collectGarbage');
@@ -954,7 +1082,7 @@ test.describe('DICOM viewer and Salvador annexes', () => {
       viewer.getByRole('button', { name: 'Volver a original', exact: true })
     ).toHaveCount(0);
     await viewer.getByRole('button', { name: 'Cerrar modal', exact: true }).click();
-    await expect.poll(countContexts).toBe(0);
+    await expectGraphics.poll(countContexts).toBe(0);
     // A fresh verified session exercises 3D loss independently of the two-attempt limit.
     await page.getByRole('button', { name: 'Ver DICOM', exact: true }).click();
     await expect(viewer.getByRole('button', { name: '3D', exact: true })).toBeEnabled({
@@ -990,7 +1118,7 @@ test.describe('DICOM viewer and Salvador annexes', () => {
     );
     await page.mouse.move(box.x + box.width / 2 + 60, box.y + box.height / 2 + 30, { steps: 12 });
     await page.mouse.up();
-    await expect
+    await expectGraphics
       .poll(() =>
         page.evaluate(
           () => (window as unknown as { syntheticRenderedFrames: number }).syntheticRenderedFrames
@@ -998,22 +1126,23 @@ test.describe('DICOM viewer and Salvador annexes', () => {
       )
       .toBeGreaterThan(1);
     const gestureMs = Date.now() - gestureStart;
-    await expect.poll(hasPixels).toBe(true);
+    await expectGraphics.poll(hasPixels).toBe(true);
     const volumeCamera = await page.evaluate(
       () => (window as unknown as { syntheticLastCamera: unknown }).syntheticLastCamera
     );
     await lose();
-    await expect.poll(countContexts).toBe(initialContexts);
+    await expectGraphics.poll(countContexts).toBe(initialContexts);
     await ready();
     expect(
       await page.evaluate(
         () => (window as unknown as { syntheticLastCamera: unknown }).syntheticLastCamera
       )
     ).toEqual(volumeCamera);
-    await expect.poll(hasPixels).toBe(true);
-    expect(requests).toBe(48);
+    await expectGraphics.poll(hasPixels).toBe(true);
+    // Reopening within the same patient review reuses the validated originals.
+    expect(requests).toBe(24);
     await viewer.getByRole('button', { name: 'Cerrar modal', exact: true }).click();
-    await expect.poll(countContexts).toBe(0);
+    await expectGraphics.poll(countContexts).toBe(0);
     await test.info().attach('synthetic-stability-metrics', {
       contentType: 'application/json',
       body: JSON.stringify({

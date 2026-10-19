@@ -18,7 +18,7 @@ import {
 } from './egresoReportPolicy';
 import { appendReportConflict } from './egresoReportConflicts';
 import { resolveReportedOccupant } from './reportedOccupant';
-import { resolveReportBedId } from '../mapping/resolveReportBed';
+import { resolveReportBedId, resolveReportCribParentBedId } from '../mapping/resolveReportBed';
 
 type EligibilityResult = {
   diff: CensusImportDiff;
@@ -54,6 +54,7 @@ const resolveLocalBedTurnoverEgreso = ({
 }): EgresoReportRow | null => {
   if (
     !current?.clinicalEpisodeId?.trim() ||
+    Boolean(resolveReportCribParentBedId(row.bedLabel)) ||
     cribOccupied ||
     rowsSharingRun !== 1 ||
     (row.encounterId?.trim() && row.encounterId.trim() !== current.clinicalEpisodeId) ||

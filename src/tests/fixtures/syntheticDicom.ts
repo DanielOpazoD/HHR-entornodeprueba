@@ -24,6 +24,7 @@ export const syntheticDicom = (
     modality?: string;
     sopClass?: string;
     seriesUid?: string;
+    studyUid?: string;
   },
   calibration?: { slope?: string; intercept?: string; unit?: string; pixelValue?: number }
 ): Uint8Array => {
@@ -71,7 +72,7 @@ export const syntheticDicom = (
   element('00100010', 'PN', 'PACIENTE^SINTETICO');
   element('00100020', 'LO', patientId);
   element('00180050', 'DS', '2');
-  element('0020000d', 'UI', SYNTHETIC_STUDY_UID);
+  element('0020000d', 'UI', plane?.studyUid ?? SYNTHETIC_STUDY_UID);
   element('0020000e', 'UI', plane?.seriesUid ?? SYNTHETIC_SERIES_UID);
   element('00200013', 'IS', String(slice + 1));
   element('00200032', 'DS', `${position[0]}\\${position[1]}\\${slice * 2}`);

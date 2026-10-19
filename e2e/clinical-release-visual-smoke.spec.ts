@@ -395,6 +395,7 @@ const createCudyrEvidence = async (page: Page) => {
       lastVerifiedAt: E2E_DATE + 'T23:00:00Z',
     };
     const responses: Record<string, object> = {
+      'read-view': { state: 'missing' },
       'official-report': { state: 'missing', sourceVersion: 'visual-source' },
       'monthly-supplements': { reports: [], nextCursor: null },
       'daily-census-sources': { reports: [], nextCursor: null },
