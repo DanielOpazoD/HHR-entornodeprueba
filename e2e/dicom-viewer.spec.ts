@@ -1,3 +1,4 @@
+import { fetchDicomWorker } from './fixtures/dicomWorkerFetch';
 import {
   installDicomGraphicsProbe,
   liveDicomContexts,
@@ -61,7 +62,7 @@ const setup = async (page: Page) => {
   )?.[1];
   if (!shellPolicy || !workerPolicy) throw new Error('Missing production CSP');
   await page.route('**/?date=*', async route => {
-    const response = await route.fetch();
+    const response = await fetchDicomWorker(route);
     await route.fulfill({
       response,
       headers: { ...response.headers(), 'content-security-policy': shellPolicy },
