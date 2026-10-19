@@ -17,6 +17,7 @@ import {
   matchesOwner,
   requeueQuarantinedTask,
   listUnresolvedDailyRecordTasks,
+  REUSABLE_TASK_STATES,
 } from '@/services/storage/sync/dexieSyncQueueQuarantine';
 
 const isReadyForClaim = (task: SyncTask, now: number): boolean => {
@@ -199,7 +200,7 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
         const localRecord = await hospitalDB.dailyRecords.get(authoritativeRecord.date);
         const pendingPayload = pendingTask.payload as Partial<DailyRecord> | null | undefined;
         if (
-          pendingTask.status !== 'PENDING' ||
+          !REUSABLE_TASK_STATES.has(pendingTask.status) ||
           !matchesOwner(ownerKey, pendingTask.ownerKey) ||
           !localRecord ||
           pendingPayload?.date !== localRecord.date ||
@@ -209,6 +210,10 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
         }
         const replacement = buildReplacement(localRecord, pendingTask);
         if (!replacement || !pendingTask.id) return { status: 'blocked' as const };
+        // A confirmed command may fully supersede quarantine. Residual edits must
+        // remain quarantined; reconciliation alone does not authorize retrying them.
+        if (pendingTask.status !== 'PENDING' && replacement.task !== null)
+          return { status: 'blocked' as const };
         await hospitalDB.dailyRecords.put(replacement.record);
         if (replacement.task === null) {
           // Supersesión total: el comando confirmado ya cubre todo lo pendiente.
