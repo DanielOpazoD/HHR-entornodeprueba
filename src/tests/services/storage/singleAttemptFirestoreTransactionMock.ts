@@ -16,3 +16,9 @@ export const singleAttemptFirestoreTransactionMock = (read: typeof getDoc, write
     for (const commit of pending) await commit();
     return result;
   });
+
+export const createSingleAttemptFirestoreMock = () => {
+  const getDoc = vi.fn().mockResolvedValue({ exists: () => false, data: () => undefined });
+  const setDoc = vi.fn().mockResolvedValue(undefined);
+  return { getDoc, setDoc, runTransaction: singleAttemptFirestoreTransactionMock(getDoc, setDoc) };
+};
