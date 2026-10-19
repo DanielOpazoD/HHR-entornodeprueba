@@ -91,6 +91,21 @@ describe('permanent CUDYR source contract', () => {
     expect(owningCensusDate(instant)).toBe(resolveCudyrOwningCensusDay(instant));
   });
 
+  it.each([
+    ['2026-07-17T00:00:00-06:00', '2026-07-16'],
+    ['2026-07-17T00:00:59-06:00', '2026-07-16'],
+    ['2026-07-17T00:01:00-06:00', '2026-07-16'],
+    ['2026-07-17T11:59:59-06:00', '2026-07-16'],
+    ['2026-07-17T12:00:00-06:00', '2026-07-17'],
+    ['2026-01-01T00:00:00-05:00', '2025-12-31'],
+    ['2026-01-01T00:00:59-05:00', '2025-12-31'],
+    ['2026-01-01T12:00:00-05:00', '2026-01-01'],
+    ['2026-08-01T00:00:00-06:00', '2026-07-31'],
+  ])('assigns %s to the approved census date %s in both contracts', (instant, expected) => {
+    expect(owningCensusDate(instant)).toBe(expected);
+    expect(resolveCudyrOwningCensusDay(instant)).toBe(expected);
+  });
+
   it('bounds period reads and validates pagination', () => {
     expect(parseHistoryQuery({ from: '2026-10-01', to: '2026-10-31' })).toMatchObject({
       limit: 100,

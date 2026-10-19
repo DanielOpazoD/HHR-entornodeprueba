@@ -3,11 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('firebase/firestore', async importOriginal => {
   const actual = await importOriginal<typeof import('firebase/firestore')>();
-  return {
-    ...actual,
-    getDoc: vi.fn().mockResolvedValue({ exists: () => false, data: () => undefined }),
-    setDoc: vi.fn().mockResolvedValue(undefined),
-  };
+  const { createSingleAttemptFirestoreMock } =
+    await import('./singleAttemptFirestoreTransactionMock');
+  return { ...actual, ...createSingleAttemptFirestoreMock() };
 });
 
 vi.mock('@/services/storage/firestore/firestoreShared', async importOriginal => {
@@ -459,6 +457,7 @@ describe('sync queue transactional outbox and leases', () => {
   });
 
   it('processes an expired older lease before a newer pending mutation for the same record key', async () => {
+    await hospitalDB.dailyRecords.put(makeRecord('2025-01-25', 'v2'));
     await hospitalDB.syncQueue.add({
       opId: 'old-expired',
       type: 'UPDATE_DAILY_RECORD',
