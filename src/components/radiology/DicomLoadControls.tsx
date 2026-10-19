@@ -103,6 +103,16 @@ export const DicomLoadControls: React.FC<{
                 <dd>{seconds(loading.timings.decode)}</dd>
                 <dt>Volumen</dt>
                 <dd>{seconds(loading.timings.volume)}</dd>
+                {Boolean(loading.timings.serverSamples) && (
+                  <>
+                    <dt>Permisos (servidor)</dt>
+                    <dd>{seconds(loading.timings.serverAuth ?? 0)}</dd>
+                    <dt>Respuesta MMRAD</dt>
+                    <dd>{seconds(loading.timings.upstreamHeaders ?? 0)}</dd>
+                    <dt>Lectura MMRAD → proxy</dt>
+                    <dd>{seconds(loading.timings.upstreamBody ?? 0)}</dd>
+                  </>
+                )}
                 <dt>MMRAD → proxy</dt>
                 <dd>{loading.timings.upstreamSamples ? seconds(loading.timings.upstream) : '—'}</dd>
               </dl>

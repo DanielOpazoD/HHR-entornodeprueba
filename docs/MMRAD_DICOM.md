@@ -321,14 +321,25 @@ su documento y fecha del estudio. El informe disponible se descarga solo al puls
 su botón, con autenticación, `no-store`, nombre de archivo genérico y cancelación
 al cerrar. Los datos de cabecera no se añaden a PNG ni MP4.
 
-Tras completar la serie seleccionada, se precargan las otras series en el orden del
-estudio, una solicitud a la vez. Se comprueba paciente/estudio/serie/instancia antes
-de guardar cada original en una caché exclusiva de la sesión, limitada a 64 MiB
-adicionales. La lectura de cada respuesta se corta si excede el espacio reservado;
-se reserva también espacio para ensamblar los fragmentos recibidos. No se decodifican ni construyen volúmenes en segundo plano. Al llegar
-al límite o ante un fallo se detiene la precarga. Cambiar de serie cancela y drena
-la petición pendiente, consume los originales disponibles sin repetir la descarga
-y vuelve a verificarlos con el cargador normal. Cerrar el visor vacía la caché.
+Tras completar la serie seleccionada, se precargan las otras series, priorizando
+las descritas como AX, axial o transversal; el resto mantiene su orden. Este criterio
+solo ordena solicitudes: no determina geometría ni excluye localizadores. La selección
+inicial también prioriza las series CT con esas descripciones. Se usa una sola conexión
+de fondo, que se cancela y drena al solicitar otra serie; no se crean volúmenes GPU.
+
+Los originales verificados se conservan en una caché de revisión de paciente, solo en
+memoria, de hasta 256 MiB compartidos entre estudios. Las claves usan paciente, estudio,
+serie e instancia, nunca tickets renovables. Reabrir un estudio vuelve a consultar sus
+metadatos autorizados y el cargador vuelve a comprobar cada original antes de mostrarlo.
+La caché incluye descargas solicitadas y precargadas, sin consumirlas al leerlas.
+Cambiar de paciente, cerrar Radiología/Imagenología o desmontar la revisión la elimina;
+cerrar únicamente el visor permite volver a otro estudio del mismo paciente y regresar.
+
+Las descargas solicitadas desalojan los originales menos utilizados al alcanzar el
+límite; la precarga no desaloja imágenes y se detiene al llenarse o ante un error.
+Los originales desalojados deben descargarse otra vez. Las series multicuadro siguen
+requiriendo el visor externo y no se precargan. No hay almacenamiento persistente,
+telemetría de contenido ni reutilización entre pacientes.
 
 Con el foco en un plano: arriba/abajo recorre cortes, Re Pág/Av Pág avanza diez,
 izquierda/derecha cambia el foco entre los tres planos, y Ctrl/⌘ Z elimina la última
@@ -435,3 +446,31 @@ La prueba sintética de estabilidad provoca pérdidas de contexto, alterna seis 
 Original/MPR/3D/comparación, verifica posiciones y descargas únicas, mide heap tras GC
 y comprueba cero contextos del visor activos tras cerrar. El límite de crecimiento es
 32 MiB para ese fixture; no constituye una garantía de memoria para estudios reales.
+
+### Medición de arranque y fases de descarga (2026-10-18)
+
+Al abrir explícitamente el visor, el código del motor gráfico se solicita en paralelo con los metadatos. Importar el módulo no inicia un runtime ni descarga imágenes: esas acciones siguen dependiendo de la identidad verificada del estudio. Se conserva el manejo de error al cargar el runtime y no se precarga desde el censo.
+
+`Server-Timing` entrega únicamente duraciones numéricas: `auth` (autenticación/autorización del servidor), `upstream_headers` (espera de cabeceras MMRAD), `upstream_body` (lectura del cuerpo MMRAD) y `upstream` (total de esa solicitud a MMRAD). El panel muestra sus acumulados en el detalle existente. `upstream` incluye las dos subfases: no deben sumarse otra vez. Los acumulados de solicitudes concurrentes tampoco equivalen al tiempo de pared ni permiten atribuir todo el tiempo de respuesta a MMRAD. No se registran identidades, tickets, URLs de estudios, credenciales ni cuerpos clínicos.
+
+El tiempo de serie queda fijado cuando todos los cortes están preparados. Revisar una serie ya cargada no reduce artificialmente su velocidad media. Esta velocidad incluye la espera y preparación del recorrido de carga; no representa exclusivamente el ancho de banda de la conexión.
+
+#### Experimento sintético reproducible
+
+Mac16,12, 24 GiB RAM, Node 22, Chromium headless con SwiftShader; build de producción, contexto nuevo por repetición, una suite a la vez. No se certifica rendimiento de GPU real ni se considera una medición de MMRAD. Fixture de 24 cortes con un corte JPEG2000 decodificado por el worker real. Se imponen 1500 ms a los metadatos, 1500 ms al módulo runtime y 100 ms a cada respuesta DICOM. Se conservan las mismas condiciones antes/después; no se controló el resto de la actividad del equipo. Tres repeticiones por versión.
+
+| Métrica desde «Ver DICOM»                         | Antes, ms        | Después, ms      | Mediana antes → después |
+| ------------------------------------------------- | ---------------- | ---------------- | ----------------------- |
+| Primera vista utilizable (control PNG habilitado) | 5576, 5785, 4871 | 3848, 3953, 3870 | 5576 → 3870 (-30,6 %)   |
+| Primera solicitud de imagen                       | 4060, 4254, 4201 | 2626, 2923, 2669 | 4201 → 2669 (-36,5 %)   |
+| Serie preparada (MPR habilitado)                  | 5594, 5800, 5251 | 3864, 3969, 3886 | 5594 → 3886 (-30,5 %)   |
+
+La prueba observa que el módulo empieza a solicitarse antes de terminar los metadatos, que ninguna instancia se solicita antes de recibirlos y que las 24 instancias se solicitan una sola vez. No mide velocidad sostenida del servidor: el beneficio observado procede del solapamiento durante arranque en frío; con el motor ya en caché se espera un beneficio mucho menor.
+
+Repetir sobre el build actual:
+
+```sh
+DICOM_LOAD_BENCHMARK=1 npx playwright test -c playwright.preview.config.ts e2e/dicom-viewer.spec.ts --project=chromium --grep 'measures cold DICOM' --repeat-each=3
+```
+
+La prueba normal también queda en CI; la variable solo habilita la salida numérica del fixture sintético. Para una comparación real se requiere que el usuario seleccione/verifique el paciente y el mismo estudio, igual serie y límite de conexiones. Comparar primer corte, tiempo final, bytes transferidos, reintentos y fases del servidor; separar apertura fría, reapertura y datos reutilizados. No usar HAR, grabación ni capturas clínicas como artefactos. Aún no se atribuye una mejora cuantitativa a MMRAD real.

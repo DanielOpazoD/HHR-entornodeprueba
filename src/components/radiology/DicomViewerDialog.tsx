@@ -4,8 +4,11 @@ import { BaseModal } from '@/components/shared/BaseModal';
 import { LAYER_Z_INDEX } from '@/shared/ui/layering';
 import type { DicomCapture } from '@/services/radiology/dicomTypes';
 
+import type { DicomReviewCache } from '@/services/radiology/dicomReviewCache';
+
 const Viewer = lazy(() => import('./DicomViewer'));
 export interface DicomViewerDialogProps {
+  reviewCache?: DicomReviewCache;
   link: string;
   patientId: string;
   patientName?: string;
