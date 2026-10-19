@@ -74,3 +74,34 @@ it('shares Chromium preparation without dropping any browser gate', () => {
     'production',
   ]);
 });
+
+const assertSupportedChromiumRunners = (candidate: ReturnType<typeof parseWorkflow>) => {
+  const consumers = Object.entries(candidate.jobs).filter(([, job]) =>
+    job.steps.some(step => step.uses === './.github/actions/setup-ci-chromium')
+  );
+  expect(consumers.length).toBeGreaterThan(0);
+  for (const [name, job] of consumers) {
+    // Upgrade the runner together with Playwright after validating browser installation.
+    expect(job['runs-on'], `Chromium runner for ${name}`).toBe('ubuntu-24.04');
+  }
+};
+
+it('pins every Chromium consumer to the validated runner platform', () => {
+  assertSupportedChromiumRunners(parseWorkflow(workflow));
+});
+it.each(['build', 'e2e-critical-emulator', 'census-startup-performance'])(
+  'rejects floating Ubuntu for Chromium consumer %s',
+  name => {
+    const candidate = parseWorkflow(workflow);
+    candidate.jobs[name]['runs-on'] = 'ubuntu-latest';
+    expect(() => assertSupportedChromiumRunners(candidate)).toThrow();
+  }
+);
+it('also rejects incompatible platforms in newly added Chromium consumers', () => {
+  const candidate = parseWorkflow(workflow);
+  candidate.jobs['new-browser-gate'] = {
+    'runs-on': 'ubuntu-26.04',
+    steps: [{ uses: './.github/actions/setup-ci-chromium' }],
+  };
+  expect(() => assertSupportedChromiumRunners(candidate)).toThrow();
+});
