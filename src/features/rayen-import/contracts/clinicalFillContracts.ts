@@ -1,3 +1,4 @@
+import type { ClinicalReadErrorCode } from './clinicalReadError';
 import type { ClinicalReadSelection } from './clinicalReadSelection';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { ImportedCudyr } from '@/types/domain/evaluationScores';
@@ -41,6 +42,7 @@ export interface ClinicalFillDeps {
     base64: string;
     source?: 'json' | 'pdf';
     error?: string;
+    errorCode?: ClinicalReadErrorCode;
   }>;
   extractDeviceItems: (base64: string) => Promise<DeviceTextItem[]>;
   fetchHistoryScales: (
@@ -54,8 +56,11 @@ export interface ClinicalFillDeps {
     coverageWindowStartIsoDay?: string;
     coverageWindowEndIsoDay?: string;
     error?: string;
+    errorCode?: ClinicalReadErrorCode;
   }>;
-  fetchScalesForms: (encId: string) => Promise<{ forms: unknown[]; error?: string }>;
+  fetchScalesForms: (
+    encId: string
+  ) => Promise<{ forms: unknown[]; error?: string; errorCode?: ClinicalReadErrorCode }>;
   /**
    * Las tres lecturas del paciente en un solo mensaje (capability
    * `patient-clinical-bundle` de la extensión). `null` cuando la extensión
