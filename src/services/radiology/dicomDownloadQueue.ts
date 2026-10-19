@@ -30,6 +30,7 @@ export const createDicomDownloadQueue = (
     direction = 1,
     successes = 0,
     cooldown = 0;
+  let completedAt: number | undefined;
   let stopped = false,
     finished = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -61,7 +62,7 @@ export const createDicomDownloadQueue = (
     timings: { ...state.timings },
     failed: slots.flatMap((s, i) => (s === 'failed' ? [i] : [])),
     available: availableDicomRanges(slots.map(s => s === 'ready')),
-    elapsedMs: performance.now() - started,
+    elapsedMs: (completedAt ?? performance.now()) - started,
   });
   const emit = () => {
     const value = snapshot();
@@ -129,6 +130,7 @@ export const createDicomDownloadQueue = (
           state.firstReadyMs ??= performance.now() - started;
           pending[index].resolve(id);
           if (state.ready === total) {
+            completedAt = performance.now();
             finished = true;
             complete();
           }
@@ -249,7 +251,8 @@ export const createDicomDownloadQueue = (
     },
     timing: (patch: Partial<DicomLoadState['timings']>) => {
       for (const [key, value] of Object.entries(patch))
-        state.timings[key as keyof typeof state.timings] += value;
+        state.timings[key as keyof typeof state.timings] =
+          (state.timings[key as keyof typeof state.timings] ?? 0) + value;
     },
     volume: (building: boolean, duration = 0) => {
       state.volumeBuilding = building;

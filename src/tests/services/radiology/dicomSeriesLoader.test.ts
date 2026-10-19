@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { planDicomVolume } from '@/domain/radiology/dicomGeometry';
-import { loadDicomSeries } from '@/services/radiology/dicomSeriesLoader';
+import { createDicomReviewCache } from '@/services/radiology/dicomReviewCache';
+import { createDicomStudyPrefetch } from '@/services/radiology/dicomStudyPrefetch';
+import { loadDicomSeries, startDicomSeries } from '@/services/radiology/dicomSeriesLoader';
 import type { DicomSeries, DicomStudy } from '@/services/radiology/dicomTypes';
 import {
   syntheticDicom,
@@ -86,6 +88,38 @@ describe('verified DICOM source selection', () => {
     install();
   });
 
+  it('evicts identity-valid originals rejected by decoding so reopening fetches a fresh copy', async () => {
+    const single = { ...series, instances: series.instances.slice(0, 1) };
+    const oneStudy = { ...study, series: [single] };
+    const cache = createDicomReviewCache(study.patientId);
+    const valid = syntheticDicom(0, 1);
+    mocks.fetch.mockResolvedValueOnce(valid.slice(0, -10)).mockResolvedValue(valid);
+    mocks.decode.mockRejectedValueOnce(new Error('Invalid pixel data'));
+    const first = createDicomStudyPrefetch(oneStudy, undefined, cache);
+    const broken = startDicomSeries(
+      oneStudy,
+      single,
+      new AbortController().signal,
+      vi.fn(),
+      first.fetch
+    );
+    await expect(broken.completion).rejects.toThrow('Invalid pixel data');
+    await broken.settled;
+    first.dispose();
+    const second = createDicomStudyPrefetch(oneStudy, undefined, cache);
+    const recovered = startDicomSeries(
+      oneStudy,
+      single,
+      new AbortController().signal,
+      vi.fn(),
+      second.fetch
+    );
+    const loaded = await recovered.completion;
+    expect(mocks.fetch).toHaveBeenCalledTimes(2);
+    loaded.release();
+    second.dispose();
+    cache.dispose();
+  });
   it('requires HU calibration across every volume source but ignores excluded localizers', async () => {
     mocks.decode.mockResolvedValue({
       preScale: { scaled: true, scalingParameters: { rescaleSlope: 1, rescaleIntercept: 0 } },

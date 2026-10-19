@@ -66,7 +66,7 @@ describe('protected MMRAD DICOM bridge', () => {
     const success = await handler()(event({ action: 'instance', ticket: ticket() }));
     expect(success.statusCode).toBe(200);
     expect((success.headers as Record<string, string>)['Server-Timing']).toMatch(
-      /^upstream;dur=[0-9.]+$/
+      /^auth;dur=[0-9.]+, upstream;dur=[0-9.]+, upstream_headers;dur=[0-9.]+, upstream_body;dur=[0-9.]+$/
     );
     fetchMock.mockResolvedValueOnce(
       new Response('private upstream body', { status: 429, headers: { 'Retry-After': '7' } })

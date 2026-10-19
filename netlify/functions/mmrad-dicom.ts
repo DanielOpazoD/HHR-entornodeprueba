@@ -48,6 +48,7 @@ export const createMMRADDicomHandler =
     if (event.httpMethod === 'OPTIONS') return json(200, {});
     if (event.httpMethod !== 'POST') return json(405, { error: 'Method not allowed' });
     const authorization = getHeader(event.headers, 'authorization');
+    const authStart = performance.now();
     let subject: string;
     try {
       extractBearerToken(authorization);
@@ -63,6 +64,7 @@ export const createMMRADDicomHandler =
         error: 'Se requiere una sesión con acceso a radiología.',
       });
     }
+    const authMs = performance.now() - authStart;
     if (!event.body || event.body.length > 6000 || event.isBase64Encoded)
       return json(400, { error: 'Solicitud DICOM no válida.' });
     const parsed = parseJsonBody<Record<string, unknown>>(event.body);
@@ -124,6 +126,7 @@ export const createMMRADDicomHandler =
         signal: AbortSignal.timeout(20_000),
         headers: { Referer: `${MMRAD_VIEWER}/viewer/${ticket.study}`, Accept: 'application/dicom' },
       });
+      const upstreamHeadersMs = performance.now() - upstreamStart;
       receivedHeaders = true;
       if (!response.ok) {
         await response.body?.cancel().catch(() => undefined);
@@ -149,7 +152,9 @@ export const createMMRADDicomHandler =
           }
         );
       }
+      const bodyStart = performance.now();
       const bytes = await readBoundedResponse(response, 3_500_000);
+      const upstreamBodyMs = performance.now() - bodyStart;
       if (bytes.length < 132 || new TextDecoder().decode(bytes.subarray(128, 132)) !== 'DICM')
         throw new Error('Original DICOM no válido');
       return {
@@ -157,7 +162,12 @@ export const createMMRADDicomHandler =
         headers: {
           ...buildCorsHeaders(requestOrigin, { allowedMethods: 'POST,OPTIONS' }),
           'Content-Type': 'application/dicom',
-          'Server-Timing': `upstream;dur=${(performance.now() - upstreamStart).toFixed(1)}`,
+          'Server-Timing': [
+            `auth;dur=${authMs.toFixed(1)}`,
+            `upstream;dur=${(performance.now() - upstreamStart).toFixed(1)}`,
+            `upstream_headers;dur=${upstreamHeadersMs.toFixed(1)}`,
+            `upstream_body;dur=${upstreamBodyMs.toFixed(1)}`,
+          ].join(', '),
           'Cache-Control': 'no-store',
           'X-Content-Type-Options': 'nosniff',
         },

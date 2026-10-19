@@ -85,6 +85,15 @@ describe('adaptive verified loading', () => {
     await source.settled;
   });
 
+  it('freezes completed series duration so viewing time does not dilute measured throughput', async () => {
+    const source = start();
+    await source.completion;
+    await source.settled;
+    const duration = source.loading.snapshot().elapsedMs;
+    await new Promise(resolve => setTimeout(resolve, 30));
+    expect(source.loading.snapshot().elapsedMs).toBe(duration);
+  });
+
   it('counts transferred bytes independently from cached originals', async () => {
     mocks.fetch.mockImplementation(async (ticket, _signal, timing) => {
       const bytes = syntheticDicom(Number(ticket), 24);

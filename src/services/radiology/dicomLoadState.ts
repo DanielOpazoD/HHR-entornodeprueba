@@ -16,6 +16,10 @@ export interface DicomLoadState {
   timings: {
     headers: number;
     transfer: number;
+    serverAuth?: number;
+    upstreamHeaders?: number;
+    upstreamBody?: number;
+    serverSamples?: number;
     upstream: number;
     upstreamSamples: number;
     decode: number;
