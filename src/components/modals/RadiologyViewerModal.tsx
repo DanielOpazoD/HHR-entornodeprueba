@@ -65,6 +65,7 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
   onCapture,
 }) => {
   const [selectedRut, setSelectedRut] = useState(initialPatientRut || patients[0]?.rut || '');
+  const normalizedRut = normalizeDicomPatientId(selectedRut);
   const reviewCache = useDicomReviewCache(isOpen, selectedRut);
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<MMRADSearchResult | null>(null);
@@ -354,11 +355,7 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
           onOpenPdf={handleOpenPdf}
           onOpenPortalReceipt={handleOpenPortalReceipt}
           onOpenDicom={exam => {
-            if (
-              result &&
-              normalizeDicomPatientId(result.rut) === normalizeDicomPatientId(selectedRut)
-            )
-              setDicomExam(exam);
+            if (result && normalizeDicomPatientId(result.rut) === normalizedRut) setDicomExam(exam);
           }}
           onCopyReport={handleCopyReport}
           copiedReportExamKey={copiedReportExamKey}
@@ -366,29 +363,25 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
 
         {!result && !isLoading && !error && <RadiologyViewerEmptyState />}
       </BaseModal>
-      {dicomExam?.dicom_url &&
-        result &&
-        normalizeDicomPatientId(result.rut) === normalizeDicomPatientId(selectedRut) && (
-          <React.Suspense fallback={<p role="status">Cargando visor…</p>}>
-            <DicomViewerDialog
-              key={`${selectedRut}:${dicomExam.dicom_url}`}
-              reviewCache={reviewCache}
-              link={dicomExam.dicom_url}
-              patientId={selectedRut}
-              patientName={
-                uniquePatients.find(
-                  patient =>
-                    normalizeDicomPatientId(patient.rut) === normalizeDicomPatientId(selectedRut)
-                )?.patientName
-              }
-              studyDate={dicomExam.fecha_examen}
-              reportLink={dicomExam.pdf_url}
-              title={dicomExam.nombre_examen}
-              onClose={() => setDicomExam(null)}
-              onCapture={onCapture}
-            />
-          </React.Suspense>
-        )}
+      {dicomExam?.dicom_url && result && normalizeDicomPatientId(result.rut) === normalizedRut && (
+        <React.Suspense fallback={<p role="status">Cargando visor…</p>}>
+          <DicomViewerDialog
+            key={`${selectedRut}:${dicomExam.dicom_url}`}
+            reviewCache={reviewCache}
+            link={dicomExam.dicom_url}
+            patientId={selectedRut}
+            patientName={
+              uniquePatients.find(patient => normalizeDicomPatientId(patient.rut) === normalizedRut)
+                ?.patientName
+            }
+            studyDate={dicomExam.fecha_examen}
+            reportLink={dicomExam.pdf_url}
+            title={dicomExam.nombre_examen}
+            onClose={() => setDicomExam(null)}
+            onCapture={onCapture}
+          />
+        </React.Suspense>
+      )}
       {portalReceiptPreview && (
         <RadiologyPortalReceiptPreview
           title={portalReceiptPreview.title}
