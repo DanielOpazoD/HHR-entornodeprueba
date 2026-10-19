@@ -110,27 +110,16 @@ export const useDailyRecordSyncQuery = (
     };
   }, [clearPendingRefetchTimeout]);
 
-  const bootstrapPhase = useMemo(
-    (): DailyRecordBootstrapPhase =>
-      resolveDailyRecordBootstrapPhase({
-        remoteSyncStatus: effectiveRemoteSyncStatus,
-        currentDateString,
-        isError: isRecordError,
-        isFetching: isRecordFetching || recordFetchStatus === 'paused',
-        record,
-        runtime: recordRuntime,
-        gracePeriodExpired: recordRuntime?.availabilityState === 'temporarily_unavailable',
-      }),
-    [
-      effectiveRemoteSyncStatus,
-      record,
-      recordRuntime,
-      currentDateString,
-      isRecordFetching,
-      isRecordError,
-      recordFetchStatus,
-    ]
-  );
+  const isRecordPending = isRecordFetching || recordFetchStatus === 'paused';
+  const bootstrapPhase: DailyRecordBootstrapPhase = resolveDailyRecordBootstrapPhase({
+    remoteSyncStatus: effectiveRemoteSyncStatus,
+    currentDateString,
+    isError: isRecordError,
+    isFetching: isRecordPending,
+    record,
+    runtime: recordRuntime,
+    gracePeriodExpired: recordRuntime?.availabilityState === 'temporarily_unavailable',
+  });
 
   useCensusBootstrapPerf(currentDateString, bootstrapPhase);
 
@@ -138,7 +127,7 @@ export const useDailyRecordSyncQuery = (
 
   useTodayEmptyDailyRecordRecovery({
     bootstrapPhase,
-    isFetching: isRecordFetching || recordFetchStatus === 'paused',
+    isFetching: isRecordPending,
     currentDateString,
     record,
     refetch,
