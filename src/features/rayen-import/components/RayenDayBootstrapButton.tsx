@@ -8,7 +8,7 @@ interface RayenDayBootstrapButtonProps {
   historical?: boolean;
   disabled?: boolean;
   disabledReason?: string;
-  onCreateBlank: () => Promise<boolean>;
+  onCreateBlank?: () => Promise<boolean>;
   onReady: () => void;
   copySourceDate?: string;
   onCopyPrevious?: () => Promise<boolean>;
@@ -75,6 +75,10 @@ export const RayenDayBootstrapButton: React.FC<RayenDayBootstrapButtonProps> = (
       }
       return;
     }
+    if (!onCreateBlank) {
+      setBusy(false);
+      return;
+    }
     setStep('checking');
     try {
       let health;
@@ -109,7 +113,7 @@ export const RayenDayBootstrapButton: React.FC<RayenDayBootstrapButtonProps> = (
   };
 
   const handleManualStart = async (): Promise<void> => {
-    if (busy || disabled) return;
+    if (busy || disabled || !onCreateBlank) return;
     setBusy(true);
     setError(null);
     setStep('manual');

@@ -82,7 +82,7 @@ describe('EmptyDayPrompt · una acción para iniciar desde Eloísa', () => {
     vi.clearAllMocks();
   });
 
-  it('shows one creation action and starts the reviewed import without copying yesterday', async () => {
+  it('keeps only a disabled copy action when the adjacent prior census is unavailable', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-09-24T17:00:00Z'));
     const onCreateDay = vi.fn().mockResolvedValue(true);
@@ -94,8 +94,10 @@ describe('EmptyDayPrompt · una acción para iniciar desde Eloísa', () => {
       fireEvent.click(screen.getByRole('button'));
       await Promise.resolve();
     });
-    expect(onCreateDay).toHaveBeenCalledWith(false);
-    expect(onReady).toHaveBeenCalledOnce();
+    expect(screen.getByRole('button')).toBeDisabled();
+    expect(screen.queryByText(/Crear desde|Reconstruir desde/)).not.toBeInTheDocument();
+    expect(onCreateDay).not.toHaveBeenCalled();
+    expect(onReady).not.toHaveBeenCalled();
   });
 
   it('copies the adjacent census before starting the Eloísa import', async () => {
@@ -153,16 +155,16 @@ describe('EmptyDayPrompt · una acción para iniciar desde Eloísa', () => {
     expect(onCreateDay).toHaveBeenCalledWith(true, '2026-09-19');
   });
 
-  it('changes from current capture to historical reconstruction when an open tab ages', () => {
+  it('keeps the copy-only label when an open tab ages', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-09-24T17:00:00Z'));
     renderPrompt('2026-09-24', { source: 'remote_missing' });
-    expect(screen.getByRole('button', { name: 'Crear desde Eloísa' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Copiar pacientes del 23' })).toBeDisabled();
     vi.setSystemTime(new Date('2026-10-04T17:00:00Z'));
     act(() => {
       vi.advanceTimersByTime(60_000);
     });
-    expect(screen.getByRole('button', { name: 'Reconstruir desde Eloísa' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Copiar pacientes del 23' })).toBeDisabled();
     expect(screen.queryByRole('button', { name: 'Crear desde Eloísa' })).not.toBeInTheDocument();
   });
 
@@ -182,7 +184,7 @@ describe('EmptyDayPrompt · una acción para iniciar desde Eloísa', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-09-24T17:00:00Z'));
     const old = renderPrompt('2026-09-15', { source: 'date_mismatch' });
-    expect(screen.getByRole('button', { name: 'Reconstruir desde Eloísa' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Copiar pacientes del 14' })).toBeDisabled();
     old.unmount();
     const future = renderPrompt('2026-09-25', {
       source: 'date_mismatch',

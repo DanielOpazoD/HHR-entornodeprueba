@@ -94,10 +94,8 @@ export const EmptyDayPrompt: React.FC<EmptyDayPromptProps> = ({
   }, [currentDateString, diagnosticMessage, diagnosticSource]);
 
   const rayenTarget = resolveCensusSyncTarget(currentDateString, now);
-  const copySourceDate =
-    previousRecordAvailable && previousRecordDate === getPreviousDay(currentDateString)
-      ? previousRecordDate
-      : undefined;
+  const copySourceDate = getPreviousDay(currentDateString);
+  const copySourceReady = previousRecordAvailable && previousRecordDate === copySourceDate;
   // date_mismatch is emitted only for a different selected date after confirmed_empty.
   const dayConfirmedEmpty =
     diagnosticSource === 'remote_missing' || diagnosticSource === 'date_mismatch';
@@ -126,14 +124,21 @@ export const EmptyDayPrompt: React.FC<EmptyDayPromptProps> = ({
         <p className="max-w-sm text-sm text-amber-800">Pide a enfermería que inicie el censo.</p>
       ) : canCreate ? (
         <RayenDayBootstrapButton
-          disabled={creationLocked}
+          disabled={creationLocked || !copySourceReady}
           disabledReason={
-            creationLocked ? buildCopyUnlockDescription(currentDateString, now) : undefined
+            creationLocked
+              ? buildCopyUnlockDescription(currentDateString, now)
+              : !copySourceReady
+                ? 'Se necesita el censo del día anterior para copiar.'
+                : undefined
           }
           historical={rayenTarget.kind === 'historical'}
           copySourceDate={copySourceDate}
-          onCopyPrevious={() => onCreateDay(true, copySourceDate)}
-          onCreateBlank={() => onCreateDay(false)}
+          onCopyPrevious={() =>
+            copySourceReady && !creationLocked
+              ? onCreateDay(true, copySourceDate)
+              : Promise.resolve(false)
+          }
           onReady={() => onRayenBootstrapReady?.()}
         />
       ) : rayenTarget.kind === 'unsupported' && dayConfirmedEmpty ? (

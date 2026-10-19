@@ -161,7 +161,7 @@ const importState = (overrides: Record<string, unknown> = {}) => ({
 
 /** Mutable census world: a blank census day that only exists after `createDay` resolves. */
 const createCensusWorld = (date = CLINICAL_TODAY, previousRecordDate?: string) => {
-  const world = { hasRecord: false, createDayCalls: [] as unknown[][] };
+  const world = { hasRecord: false, previousRecordDate, createDayCalls: [] as unknown[][] };
   const registerContentProps = {
     currentDateString: date,
     readOnly: false,
@@ -187,8 +187,8 @@ const createCensusWorld = (date = CLINICAL_TODAY, previousRecordDate?: string) =
             selectedDay: Number(date.slice(-2)),
             selectedMonth: 8,
             currentDateString: date,
-            previousRecordAvailable: Boolean(previousRecordDate),
-            previousRecordDate,
+            previousRecordAvailable: Boolean(world.previousRecordDate),
+            previousRecordDate: world.previousRecordDate,
             emptyStateDiagnostic: {
               source: date === CLINICAL_TODAY ? 'remote_missing' : 'date_mismatch',
               message: 'No hay censo para esta fecha.',
@@ -253,30 +253,36 @@ describe('Crear desde Eloísa · costura CensusView → RayenImportButton', () =
 
   afterEach(() => vi.useRealTimers());
 
-  it('creates the blank day and starts exactly one reviewed import through the real chain', async () => {
+  it('never offers blank creation while the previous census is unavailable', async () => {
     const world = createCensusWorld();
     renderCensus();
+    const button = await screen.findByTestId('create-from-rayen-btn');
+    expect(button).toHaveTextContent('Copiar censo y sincronizar');
+    expect(button).toBeDisabled();
+    expect(
+      screen.queryByText(/Crear desde Eloísa|Reconstruir desde Eloísa/)
+    ).not.toBeInTheDocument();
+    fireEvent.click(button);
+    expect(world.createDayCalls).toEqual([]);
+    expect(mocks.triggerImport).not.toHaveBeenCalled();
+  });
 
-    const bootstrapButton = await screen.findByTestId(
-      'create-from-rayen-btn',
-      {},
-      { timeout: 3000 }
-    );
+  it('keeps the same copy action while the previous-day lookup resolves', async () => {
+    const world = createCensusWorld();
+    const view = renderCensus();
+    const button = await screen.findByTestId('create-from-rayen-btn');
+    expect(button).toBeDisabled();
+    expect(button).toHaveTextContent('Copiar censo y sincronizar');
     await act(async () => {
-      fireEvent.click(bootstrapButton);
+      world.previousRecordDate = '2026-09-09';
+      view.rerender(censusElement());
     });
-
-    await waitForRayenToolbar();
-    expect(world.createDayCalls).toEqual([[false]]);
-    expect(screen.queryByTestId('create-from-rayen-btn')).not.toBeInTheDocument();
-
-    // The intent crossed the seam once and carries the human-review requirement.
-    await waitFor(() => expect(mocks.triggerImport).toHaveBeenCalledTimes(1), { timeout: 10000 });
-    expect(mocks.triggerImport).toHaveBeenCalledWith(expect.anything(), expect.anything(), {
-      reviewRequirement: 'day_bootstrap',
-    });
-    // Health was checked twice on purpose: once before creating the day, once as import preflight.
-    expect(mocks.refreshHealth).toHaveBeenCalledTimes(2);
+    expect(screen.getByTestId('create-from-rayen-btn')).toBe(button);
+    expect(button).toBeEnabled();
+    expect(button).toHaveTextContent('Copiar censo y sincronizar');
+    expect(
+      screen.queryByText(/Crear desde Eloísa|Reconstruir desde Eloísa|Confirmar censo vacío/)
+    ).not.toBeInTheDocument();
   });
 
   it('copies yesterday, then starts one reviewed Eloísa import', async () => {
@@ -304,7 +310,7 @@ describe('Crear desde Eloísa · costura CensusView → RayenImportButton', () =
   it('starts the reviewed import for a missing historical census older than two months', async () => {
     vi.setSystemTime(new Date('2026-09-23T17:00:00.000Z'));
     const historicalDay = '2026-07-09';
-    const world = createCensusWorld(historicalDay);
+    const world = createCensusWorld(historicalDay, '2026-07-08');
     renderCensus(historicalDay);
 
     const bootstrapButton = await screen.findByTestId('create-from-rayen-btn');
@@ -314,7 +320,7 @@ describe('Crear desde Eloísa · costura CensusView → RayenImportButton', () =
 
     await waitForRayenToolbar();
     await waitFor(() => expect(mocks.triggerImport).toHaveBeenCalledTimes(1), { timeout: 10000 });
-    expect(world.createDayCalls).toEqual([[false]]);
+    expect(world.createDayCalls).toEqual([[true, '2026-07-08']]);
     expect(mocks.triggerImport).toHaveBeenCalledWith(expect.anything(), expect.anything(), {
       reviewRequirement: 'day_bootstrap',
     });
@@ -350,7 +356,7 @@ describe('Crear desde Eloísa · costura CensusView → RayenImportButton', () =
   });
 
   it('keeps the intent alive across a blocked capture and starts once the blocker clears', async () => {
-    createCensusWorld();
+    createCensusWorld(CLINICAL_TODAY, '2026-09-09');
     mocks.triggerImport.mockResolvedValueOnce('blocked').mockResolvedValue('started');
     const view = renderCensus();
 
