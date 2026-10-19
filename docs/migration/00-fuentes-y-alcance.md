@@ -9,15 +9,15 @@ conciliación global; los controles de identidad y escritura siguen vigentes.
 
 ## Autoridad por sección y período
 
-| Información | Fuente y alcance |
-| --- | --- |
-| Censo anterior a julio | Daniel confirma un período completo y confiable en el antiguo. Documentar su frontera exacta antes de una recuperación masiva; no inferirla de la fecha en que aparecieron signos vitales. |
-| Censo de julio y agosto | Mantener pruebas; solo siguen vigentes los pendientes documentados y previamente autorizados. Este bloque no inicia una nueva conciliación general del censo. |
-| Censo verificado de septiembre y octubre | Cerrado: no volver a comparar presentes, camas, ingresos, egresos o movimientos para reconstruirlo. |
-| Censo desde octubre en adelante | Pruebas es la fuente confiable de presentes y movimientos. |
-| Entrega completa de enfermería, todos los períodos | El antiguo es la última fuente confiable. Cotejar notas de día y noche, entrega/recepción y nombres, casilleros, novedades, altas, traslados y hospitalización diurna/CMA. |
-| Medio de traslado desde julio | Excepción acotada: revisar el dato del medio de los traslados existentes, porque la extensión histórica pudo parametrizarlo incompletamente. |
-| Todo el CUDYR de pruebas, incluidos datos saneados, cierres y excepciones justificadas | Conservar íntegro; ninguna escala ni su elegibilidad se recalcula o reemplaza durante esta transición. |
+| Información                                                                            | Fuente y alcance                                                                                                                                                                           |
+| -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Censo anterior a julio                                                                 | Daniel confirma un período completo y confiable en el antiguo. Documentar su frontera exacta antes de una recuperación masiva; no inferirla de la fecha en que aparecieron signos vitales. |
+| Censo de julio y agosto                                                                | Mantener pruebas; solo siguen vigentes los pendientes documentados y previamente autorizados. Este bloque no inicia una nueva conciliación general del censo.                              |
+| Censo verificado de septiembre y octubre                                               | Cerrado: no volver a comparar presentes, camas, ingresos, egresos o movimientos para reconstruirlo.                                                                                        |
+| Censo desde octubre en adelante                                                        | Pruebas es la fuente confiable de presentes y movimientos.                                                                                                                                 |
+| Entrega completa de enfermería, todos los períodos                                     | El antiguo es la última fuente confiable. Cotejar notas de día y noche, entrega/recepción y nombres, casilleros, novedades, altas, traslados y hospitalización diurna/CMA.                 |
+| Medio de traslado desde julio                                                          | Excepción acotada: revisar el dato del medio de los traslados existentes, porque la extensión histórica pudo parametrizarlo incompletamente.                                               |
+| Todo el CUDYR de pruebas, incluidos datos saneados, cierres y excepciones justificadas | Conservar íntegro; ninguna escala ni su elegibilidad se recalcula o reemplaza durante esta transición.                                                                                     |
 
 ## Entrega de enfermería
 
@@ -52,7 +52,7 @@ Confirmar paciente, episodio y evento. Desde julio, la fecha real, el día del c
 y la hora del traslado se conservan siempre según pruebas: este bloque solo
 corrige el medio. Una fecha distinta en el antiguo requiere investigar la
 identidad del evento; nunca autoriza reemplazar la fecha u hora del destino.
-No modificar ingreso, destino del traslado, cama ni paciente. Respetar
+Este bloque no modifica ingreso, destino del traslado, cama ni paciente. Respetar
 reclasificaciones y eliminaciones.
 Los RN con documento materno y eventos repetidos necesitan identificación adicional.
 
@@ -61,6 +61,15 @@ no reabre la conciliación del censo. Si falta el traslado completo, registrarlo
 como discrepancia para revisión, sin crearlo por esta vía. Consultar informes o
 documentos de fuente solo para casos que el antiguo no resuelva. Una recuperación
 posterior debe actualizar únicamente los campos de medio confirmados.
+
+## Excepciones individuales
+
+Una confirmación expresa puede autorizar campos concretos de un caso fuera del
+bloque de medios: ingreso real frente al registro informático posterior, hora de
+traslado o reclasificación como alta a domicilio. No se deduce de una confirmación
+de identidad ni se extiende a otros casos. Mantener CUDYR intacto y documentar
+evidencia, campos, respaldo y verificación según
+[excepciones y evidencia](06-excepciones-y-evidencia.md).
 
 ## Bloques de ejecución y aceptación
 

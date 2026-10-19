@@ -951,6 +951,9 @@ test.describe('DICOM viewer and Salvador annexes', () => {
     page,
   }) => {
     test.setTimeout(240000);
+    // Software WebGL can delay even read-only browser queries after a 3D render.
+    // Use the recovery deadline for graphics probes, preserving every predicate.
+    const expectGraphics = expect.configure({ timeout: 30000 });
     await installDicomGraphicsProbe(page);
     await setup(page);
     let requests = 0;
@@ -1003,7 +1006,7 @@ test.describe('DICOM viewer and Salvador annexes', () => {
       () => (window as unknown as { syntheticLastCamera: unknown }).syntheticLastCamera
     );
     await lose();
-    await expect.poll(countContexts).toBe(initialContexts);
+    await expectGraphics.poll(countContexts).toBe(initialContexts);
     await ready();
     await expect(viewer.getByLabel('Estado del corte')).toHaveText('14/24');
     expect(
@@ -1023,11 +1026,11 @@ test.describe('DICOM viewer and Salvador annexes', () => {
     );
 
     await lose();
-    await expect.poll(countContexts).toBe(initialContexts);
+    await expectGraphics.poll(countContexts).toBe(initialContexts);
     await ready();
     await expect(coordinates).toHaveText(point!);
     await expect(viewer.getByLabel('Marcador de referencia')).toHaveValue('point');
-    await expect.poll(hasPixels).toBe(true);
+    await expectGraphics.poll(hasPixels).toBe(true);
 
     const cdp = await page.context().newCDPSession(page);
     await cdp.send('HeapProfiler.collectGarbage');
@@ -1048,7 +1051,7 @@ test.describe('DICOM viewer and Salvador annexes', () => {
           .getByLabel('Corte panel 1', { exact: true })
           .inputValue();
         await lose();
-        await expect.poll(countContexts).toBe(initialContexts + 1);
+        await expectGraphics.poll(countContexts).toBe(initialContexts + 1);
         await expect(viewer.getByLabel('Corte panel 1', { exact: true })).toHaveValue(
           comparisonCut
         );
@@ -1059,7 +1062,7 @@ test.describe('DICOM viewer and Salvador annexes', () => {
       await viewer.getByRole('button', { name: 'MPR', exact: true }).click();
       await ready();
       await expect(coordinates).toHaveText(point!);
-      await expect.poll(countContexts).toBe(initialContexts);
+      await expectGraphics.poll(countContexts).toBe(initialContexts);
       expect(await viewer.locator('.dicom-canvas canvas').count()).toBe(3);
       switchTimes.push(Date.now() - start);
       await cdp.send('HeapProfiler.collectGarbage');
@@ -1079,7 +1082,7 @@ test.describe('DICOM viewer and Salvador annexes', () => {
       viewer.getByRole('button', { name: 'Volver a original', exact: true })
     ).toHaveCount(0);
     await viewer.getByRole('button', { name: 'Cerrar modal', exact: true }).click();
-    await expect.poll(countContexts).toBe(0);
+    await expectGraphics.poll(countContexts).toBe(0);
     // A fresh verified session exercises 3D loss independently of the two-attempt limit.
     await page.getByRole('button', { name: 'Ver DICOM', exact: true }).click();
     await expect(viewer.getByRole('button', { name: '3D', exact: true })).toBeEnabled({
@@ -1115,7 +1118,7 @@ test.describe('DICOM viewer and Salvador annexes', () => {
     );
     await page.mouse.move(box.x + box.width / 2 + 60, box.y + box.height / 2 + 30, { steps: 12 });
     await page.mouse.up();
-    await expect
+    await expectGraphics
       .poll(() =>
         page.evaluate(
           () => (window as unknown as { syntheticRenderedFrames: number }).syntheticRenderedFrames
@@ -1123,23 +1126,23 @@ test.describe('DICOM viewer and Salvador annexes', () => {
       )
       .toBeGreaterThan(1);
     const gestureMs = Date.now() - gestureStart;
-    await expect.poll(hasPixels).toBe(true);
+    await expectGraphics.poll(hasPixels).toBe(true);
     const volumeCamera = await page.evaluate(
       () => (window as unknown as { syntheticLastCamera: unknown }).syntheticLastCamera
     );
     await lose();
-    await expect.poll(countContexts).toBe(initialContexts);
+    await expectGraphics.poll(countContexts).toBe(initialContexts);
     await ready();
     expect(
       await page.evaluate(
         () => (window as unknown as { syntheticLastCamera: unknown }).syntheticLastCamera
       )
     ).toEqual(volumeCamera);
-    await expect.poll(hasPixels).toBe(true);
+    await expectGraphics.poll(hasPixels).toBe(true);
     // Reopening within the same patient review reuses the validated originals.
     expect(requests).toBe(24);
     await viewer.getByRole('button', { name: 'Cerrar modal', exact: true }).click();
-    await expect.poll(countContexts).toBe(0);
+    await expectGraphics.poll(countContexts).toBe(0);
     await test.info().attach('synthetic-stability-metrics', {
       contentType: 'application/json',
       body: JSON.stringify({
