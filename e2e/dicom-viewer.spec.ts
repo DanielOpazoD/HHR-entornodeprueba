@@ -1,3 +1,4 @@
+import { fetchDicomWorker } from './fixtures/dicomWorkerFetch';
 import {
   installDicomGraphicsProbe,
   liveDicomContexts,
@@ -112,7 +113,7 @@ const setup = async (page: Page) => {
   });
   // Exercise the production worker's restricted CSP, including real WASM decoding.
   await page.route('**/assets/decodeImageFrameWorker-*.js', async route => {
-    const response = await route.fetch();
+    const response = await fetchDicomWorker(route);
     await route.fulfill({
       response,
       headers: {

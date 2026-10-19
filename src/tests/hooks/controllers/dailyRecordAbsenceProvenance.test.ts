@@ -104,7 +104,7 @@ describe('absence evidence across local cache, Firebase and bootstrap', () => {
       expect(
         client.getQueryData<DailyRecordQueryResult>(options.queryKey)?.runtime.availabilityState
       ).toBe('confirmed_missing');
-      expect(currentPhase()).toBe('remote_record_bootstrapping');
+      expect(currentPhase()).toBe('remote_record_timeout');
       await client.fetchQuery(options);
       expect(currentPhase()).toBe('confirmed_empty');
     } finally {
