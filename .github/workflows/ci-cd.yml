@@ -547,7 +547,7 @@ jobs:
 
   e2e-critical-emulator:
     name: e2e-critical
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [ci-scope]
     if: needs.ci-scope.outputs.scope == 'full'
 
@@ -628,7 +628,7 @@ jobs:
 
   build:
     name: build-budget
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # The build consumes the release-evidence runtime contract from this job.
     # Other release gates still block ci-summary, but can run alongside the build.
     needs: [quality-static-governance-snapshots]
@@ -774,7 +774,7 @@ jobs:
 
   census-startup-performance:
     name: census-startup-performance (${{ matrix.environment }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [ci-scope]
     if: needs.ci-scope.outputs.scope == 'full'
     # Ceiling for a pathologically slow startup, not an expectation.

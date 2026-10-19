@@ -1,13 +1,13 @@
 # Release Readiness Scorecard
 
-Generated at: 2026-10-18T03:06:48.935Z
-Commit: 627672549
-Worktree: clean
-Overall: ok
+Generated at: 2026-10-19T05:26:41.964Z
+Commit: abb0f5a2
+Worktree: dirty
+Overall: degraded
 
 ## Indicators
 
-- `worktree_state`: ok (status=clean)
+- `worktree_state`: degraded (status=dirty)
 - `structural_quality`: ok (oversized=0, folderDebt=0, sourceAny=0)
 - `system_confidence`: ok (overall=ok, openKnownFailures=0)
 - `operational_readiness`: ok (flow=passing, bundle=ok)
@@ -31,6 +31,15 @@ Overall: ok
 - `guardrailGovernance`: reports/guardrail-governance.json (2026-10-18T03:06:48.900Z)
 - `compatibilityImportGovernance`: reports/compatibility-import-governance.json (2026-10-18T03:03:21.222Z)
 - `legacyRetirementDebt`: reports/legacy-retirement-debt.json (stable:legacy-retirement-debt)
+
+## Advisory
+
+- Overall remains `degraded` only because the snapshot was generated with a dirty worktree.
+- Readiness indicators sourced from reports remain technically `ok`.
+
+## Issues
+
+- worktree_state: status=dirty
 
 ## Release Hotspots
 

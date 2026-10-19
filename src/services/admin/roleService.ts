@@ -140,7 +140,7 @@ export const createRoleService = (
   },
 
   /**
-   * Remove a role configuration. The user becomes unauthorized for normal login.
+   * Revoke access explicitly so stale role claims cannot become the fallback authority.
    */
   async removeRole(email: string): Promise<void> {
     try {
@@ -153,7 +153,7 @@ export const createRoleService = (
         this.hasNestedProperty(currentRoles, cleanEmail)
       ) {
         const updatedRoles = { ...currentRoles };
-        delete updatedRoles[cleanEmail];
+        updatedRoles[cleanEmail] = 'unauthorized';
 
         // Also clean up any truncated/nested garbage if it exists
         const truncated = cleanEmail.split('.')[0];
