@@ -1,3 +1,8 @@
+import {
+  verifyCarriedVitals,
+  verifyCarriedDevices,
+  reconcileCarriedDeviceRetirements,
+} from './domain/clinicalCarryoverVerification';
 import { collectClinicalFillStaffing } from './domain/clinicalFillStaffing';
 import { needsClinicalRead } from './contracts/clinicalReadSelection';
 import type { DailyRecord, PatientData } from './contracts/rayenDomainContracts';
@@ -174,6 +179,14 @@ export const runClinicalFill = async (
           deviceResult.value.source === 'json'
             ? mapRayenInvasiveDeviceEntries(deviceResult.value.entries)
             : mapInvasiveDevices(parseInvasiveDevices(deviceResult.value.textItems));
+        if (deviceResult.value.source === 'json') {
+          merged = reconcileCarriedDeviceRetirements(
+            merged,
+            deviceResult.value.entries,
+            fecha,
+            deps.now()
+          );
+        }
         // Additive on purpose: an empty remote list must not remove devices nursing keeps by hand.
         if (devices.length > 0) {
           merged = mergeReportDevices(merged, devices, {
@@ -181,6 +194,7 @@ export const runClinicalFill = async (
             createId: deps.createId,
           });
         }
+        merged = verifyCarriedDevices(merged, devices);
       } catch (error) {
         reportPatientError('devices', message(error));
       }
@@ -285,6 +299,7 @@ export const runClinicalFill = async (
     try {
       if (formsResult.status === 'fulfilled' && !formsReadError) {
         const vitals = parseVitalSigns(forms);
+        merged = verifyCarriedVitals(merged, vitals);
         merged = mergeReportVitals(merged, vitals, fecha);
         recordIncrementalFacts(
           'vitals',

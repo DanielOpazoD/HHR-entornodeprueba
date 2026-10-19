@@ -9,6 +9,7 @@ export const RAYEN_OWNED_CLINICAL_FIELDS = [
   'vitalSigns',
   'vitalSignsHistory',
   'clinicalSyncCheckpoint',
+  'clinicalCarryover',
 ] as const satisfies readonly (keyof PatientData)[];
 
 export type RayenOwnedClinicalField = (typeof RAYEN_OWNED_CLINICAL_FIELDS)[number];

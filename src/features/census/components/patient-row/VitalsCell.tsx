@@ -60,6 +60,24 @@ export const VitalsCell: React.FC<BaseCellProps> = ({
     vitals?.readings.find(reading => reading.key === key);
   return (
     <td className="py-0.5 px-1 border-r border-slate-200 relative">
+      {data.clinicalCarryover && vitals && (
+        <div className="text-[9px] text-amber-700">
+          {data.vitalSigns && data.vitalSigns.recordedDate <= data.clinicalCarryover.sourceDate
+            ? 'Medición previa: '
+            : 'Medición: '}
+          {data.vitalSigns?.recordedDate}
+          {data.clinicalCarryover.vitalsPending &&
+          data.vitalSigns &&
+          data.vitalSigns.recordedDate <= data.clinicalCarryover.sourceDate
+            ? ' · Por verificar'
+            : ''}
+        </div>
+      )}
+      {data.clinicalCarryover?.vitalsPending &&
+        data.vitalSigns &&
+        data.vitalSigns.recordedDate > data.clinicalCarryover.sourceDate && (
+          <div className="text-[9px] text-amber-700">Historial previo pendiente de verificar</div>
+        )}
       {vitals ? (
         <button
           type="button"

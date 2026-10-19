@@ -42,6 +42,33 @@ const renderCell = (vitalSigns?: PatientVitalSigns, bedId = 'R1', patient?: Part
   );
 
 describe('VitalsCell', () => {
+  it('labels copied measurements with their original date and pending verification', () => {
+    renderCell(VITALS, 'R1', {
+      clinicalEpisodeId: 'synthetic',
+      clinicalCarryover: {
+        sourceDate: '2026-07-11',
+        clinicalEpisodeId: 'synthetic',
+        vitalsPending: true,
+        devicesPending: true,
+      },
+    });
+    expect(screen.getByText(/Medición previa: 2026-07-11/)).toHaveTextContent('Por verificar');
+  });
+
+  it('separates pending historical evidence from a new authoritative measurement', () => {
+    renderCell({ ...VITALS, recordedDate: '2026-07-12' }, 'R1', {
+      clinicalEpisodeId: 'synthetic',
+      clinicalCarryover: {
+        sourceDate: '2026-07-11',
+        clinicalEpisodeId: 'synthetic',
+        vitalsPending: true,
+        devicesPending: false,
+      },
+    });
+    expect(screen.getByText('Medición: 2026-07-12')).not.toHaveTextContent('Por verificar');
+    expect(screen.getByText('Historial previo pendiente de verificar')).toBeInTheDocument();
+  });
+
   it('shows PA · FC · SAT · T° inline and opens the vitals modal on click', async () => {
     renderCell(VITALS);
 

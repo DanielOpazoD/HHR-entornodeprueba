@@ -544,3 +544,26 @@ se comparte esa operación hasta que termine, sin duplicar escrituras. Una opera
 ya terminada no se conserva como caché: el servicio mantiene su indicador persistente
 de migración y sus contratos de recuperación. Las regresiones viven en
 `useStorageMigration.test.ts`; `indexedDBService.test.ts` verifica los datos migrados.
+
+### Copia clínica del día previo
+
+La creación del censo de hoy puede conservar signos vitales previos y dispositivos del día
+inmediatamente anterior cuando coinciden documento, episodio y fecha/hora de ingreso. La cama
+no identifica al paciente. La cuna se valida con su propia identidad. No se aplica a días históricos,
+fechas futuras, al relleno de un registro existente ni a la copia individual entre fechas.
+
+Las mediciones conservan su fecha, hora y autor originales; la interfaz las identifica como previas
+y pendientes de verificación. Los dispositivos conservan instalación e historial de retiros. Una
+respuesta vacía, fallida o ambigua no acredita verificación ni retiro. Los retiros requieren evidencia
+explícita con instalación coincidente e instancia única; no se deducen de ausencia en una lista.
+
+La transacción de autoridad vuelve a leer el día previo y deriva la copia desde ese documento,
+ignorando mediciones y marcas de verificación propuestas por el cliente. El destino debe faltar y
+ser el día actual de Rapa Nui. La fuente nunca se escribe. Los cambios de episodio impiden reutilizar
+la evidencia; se conserva la protección de campos clínicos para todos los demás guardados.
+
+La primera sincronización vuelve a consultar las fuentes. Datos idénticos no generan deltas de
+mediciones; sí se persiste el cambio de verificación. No se heredan checkpoints de cobertura de
+escalas/personal que pudieran omitir una revalidación. Esto reduce datos reescritos, sin prometer una
+reducción de consultas HTTP. El despliegue del callable actualizado debe preceder al cliente para
+habilitar el nuevo campo de procedencia; no se amplían permisos ni se ejecutan migraciones.

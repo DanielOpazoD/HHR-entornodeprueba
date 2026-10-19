@@ -70,7 +70,22 @@ export const mergeReportDevices = (
   const deviceDetails: DeviceDetails = { ...(normalizedPatient.deviceDetails ?? {}) };
   const activeTypes = new Set(normalizedPatient.devices ?? []);
 
-  for (const device of devices) {
+  for (const incoming of devices) {
+    let device = incoming;
+    if (patient.clinicalCarryover) {
+      const base = (type: string) =>
+        /^VVP#\d+$/i.test(type) ? 'VVP' : canonicalizeRayenDeviceType(type);
+      const sameInstance = history.filter(
+        item =>
+          item.clinicalEpisodeId === patient.clinicalEpisodeId &&
+          base(item.type) === base(incoming.type) &&
+          Boolean(item.installationDate && item.installationTime) &&
+          item.installationDate === incoming.installationDate &&
+          item.installationTime === incoming.installationTime
+      );
+      if (sameInstance.length > 1 || sameInstance[0]?.status === 'Removed') continue;
+      if (sameInstance.length === 1) device = { ...incoming, type: sameInstance[0].type };
+    }
     activeTypes.add(device.type);
     const note = buildNote(device);
     deviceDetails[device.type] = {
@@ -80,7 +95,13 @@ export const mergeReportDevices = (
     };
 
     const activeIdx = history.findIndex(
-      item => item.type === device.type && item.status === 'Active'
+      item =>
+        item.type === device.type &&
+        item.status === 'Active' &&
+        (!patient.clinicalCarryover ||
+          (Boolean(device.installationDate && device.installationTime) &&
+            item.installationDate === device.installationDate &&
+            item.installationTime === device.installationTime))
     );
     if (activeIdx >= 0) {
       const current = history[activeIdx];
