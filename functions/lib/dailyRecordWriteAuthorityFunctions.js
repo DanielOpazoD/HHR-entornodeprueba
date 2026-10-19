@@ -1,3 +1,4 @@
+const { movementRestoreRecord } = require('./movementRestoreSources');
 const functions = require('firebase-functions/v1');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
 const { requireAuthenticatedEmail } = require('./auth/authPolicies');
@@ -1444,6 +1445,11 @@ const createDailyRecordWriteAuthorityFunctions = ({
           })
             ? preserveRayenClinicalFields({ remoteRecord: remoteData, incomingRecord: record })
             : record;
+          await assertTrustedSpecialtyAssignments({
+            transaction,
+            hospitalRef,
+            records: [movementRestoreRecord(remoteData, recordForPersistence)],
+          });
           protectSpecialtyDecisions({
             remoteRecord: remoteData,
             priorRecord: priorSnapshot?.exists ? priorSnapshot.data() : null,
