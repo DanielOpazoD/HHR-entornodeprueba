@@ -5,10 +5,15 @@ import { logError } from '@/services/utils/errorService';
 
 vi.mock('firebase/firestore', async importOriginal => {
   const actual = await importOriginal<typeof import('firebase/firestore')>();
+  const { singleAttemptFirestoreTransactionMock } =
+    await import('./singleAttemptFirestoreTransactionMock');
+  const getDoc = vi.fn().mockResolvedValue({ exists: () => false, data: () => undefined });
+  const setDoc = vi.fn().mockResolvedValue(undefined);
   return {
     ...actual,
-    setDoc: vi.fn().mockResolvedValue(undefined),
-    getDoc: vi.fn().mockResolvedValue({ exists: () => false, data: () => undefined }),
+    getDoc,
+    setDoc,
+    runTransaction: singleAttemptFirestoreTransactionMock(getDoc, setDoc),
   };
 });
 

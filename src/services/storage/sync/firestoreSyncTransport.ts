@@ -1,4 +1,4 @@
-import { getDoc, setDoc } from 'firebase/firestore';
+import { getDoc, runTransaction, type Transaction } from 'firebase/firestore';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type {
   SyncTransportPort,
@@ -104,10 +104,11 @@ interface ResolvedSyncRecordForTask {
 const resolveRecordForSyncTask = async (
   task: SyncTask,
   record: DailyRecord,
-  runtime: FirestoreServiceRuntimePort
+  runtime: FirestoreServiceRuntimePort,
+  transaction?: Transaction
 ): Promise<ResolvedSyncRecordForTask> => {
   const docRef = getRecordDocRef(record.date, runtime);
-  const remoteSnap = await getDoc(docRef);
+  const remoteSnap = await (transaction ? transaction.get(docRef) : getDoc(docRef));
   if (!remoteSnap.exists()) {
     return {
       record,
@@ -176,6 +177,32 @@ const resolveRecordForSyncTask = async (
   };
 };
 
+const assertResolvedClinicalAuthority = (
+  task: SyncTask,
+  resolved: ResolvedSyncRecordForTask
+): void => {
+  const authority = evaluateDailyRecordClinicalAuthority(resolved.record, {
+    date: resolved.record.date,
+    phase: 'sync_publish',
+  });
+  recordClinicalAuthorityTelemetry(authority);
+  recordClinicalEpisodeIdCoverageTelemetry(resolved.record, {
+    date: resolved.record.date,
+    phase: 'sync_publish',
+  });
+
+  if (authority.status === 'blocked') {
+    recordSyncQueueTruthSelectionTelemetry(task, {
+      resolution: 'blocked',
+      acceptedVersion: resolved.acceptedVersion,
+      selectedTruth: 'blocked_before_publish',
+    });
+    throw new ConcurrencyError(
+      `Sync queue: clinical authority blocked write for ${resolved.record.date}.`
+    );
+  }
+};
+
 const syncDailyRecord = async (
   task: SyncTask,
   record: DailyRecord,
@@ -196,26 +223,7 @@ const syncDailyRecord = async (
       }
       const recordToWrite = resolved.record;
 
-      const authority = evaluateDailyRecordClinicalAuthority(recordToWrite, {
-        date: recordToWrite.date,
-        phase: 'sync_publish',
-      });
-      recordClinicalAuthorityTelemetry(authority);
-      recordClinicalEpisodeIdCoverageTelemetry(recordToWrite, {
-        date: recordToWrite.date,
-        phase: 'sync_publish',
-      });
-
-      if (authority.status === 'blocked') {
-        recordSyncQueueTruthSelectionTelemetry(task, {
-          resolution: 'blocked',
-          acceptedVersion: resolved.acceptedVersion,
-          selectedTruth: 'blocked_before_publish',
-        });
-        throw new ConcurrencyError(
-          `Sync queue: clinical authority blocked write for ${recordToWrite.date}.`
-        );
-      }
+      assertResolvedClinicalAuthority(task, resolved);
 
       const effectiveAuthorityMode = await resolveEffectiveDailyRecordAuthorityMode(runtime);
       const writeFenceActive = await isServerClinicalWriteFenceActive(runtime);
@@ -263,16 +271,29 @@ const syncDailyRecord = async (
         }
       }
 
-      await setDoc(
-        getRecordDocRef(recordToWrite.date, runtime),
-        sanitizeForFirestore(recordToWrite) as Record<string, unknown>,
-        { merge: true }
-      );
-      recordSyncQueueTruthSelectionTelemetry(task, {
-        resolution: resolved.resolution,
-        acceptedVersion: recordToWrite.lastUpdated,
-        selectedTruth: 'legacy_direct_publish',
+      const committed = await runTransaction(runtime.getDb(), async transaction => {
+        // Re-evaluate the original intent against the snapshot protected by this transaction.
+        // Firestore reruns this callback if another writer changes the document before commit.
+        const current = await resolveRecordForSyncTask(task, record, runtime, transaction);
+        if (current.resolution !== 'already_applied') {
+          assertResolvedClinicalAuthority(task, current);
+          transaction.set(
+            getRecordDocRef(current.record.date, runtime),
+            sanitizeForFirestore(current.record) as Record<string, unknown>,
+            { merge: true }
+          );
+        }
+        return current;
       });
+      recordSyncQueueTruthSelectionTelemetry(task, {
+        resolution: committed.resolution,
+        acceptedVersion: committed.acceptedVersion,
+        selectedTruth:
+          committed.resolution === 'already_applied'
+            ? 'remote_already_applied'
+            : 'legacy_direct_publish',
+      });
+      return { authoritativeRecord: committed.record };
     },
     { thresholdMs: 180, context: record.date }
   );
