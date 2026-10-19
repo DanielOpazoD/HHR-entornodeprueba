@@ -71,6 +71,8 @@ export const resolveDailyRecordBootstrapPhase = ({
     return 'confirmed_empty';
   }
 
+  if (isError || gracePeriodExpired) return 'remote_record_timeout';
+
   if (remoteSyncStatus === 'bootstrapping') {
     return 'remote_runtime_bootstrapping';
   }
@@ -163,7 +165,14 @@ export const resolveCensusEmptyStateDiagnostic = ({
     };
   }
 
-  if (hasPostDeployRefreshMarker) {
+  if (bootstrapPhase === 'remote_record_timeout') {
+    return {
+      source: 'local_cache_empty',
+      message: 'No se pudo comprobar el censo remoto; la ausencia no esta confirmada.',
+    };
+  }
+
+  if (hasPostDeployRefreshMarker && bootstrapPhase !== 'confirmed_empty') {
     return {
       source: 'post_deploy_refresh',
       message:
@@ -179,19 +188,19 @@ export const resolveCensusEmptyStateDiagnostic = ({
     };
   }
 
-  if (isAuthenticated && bootstrapPhase !== 'confirmed_empty') {
-    return {
-      source: 'sync_pending',
-      message:
-        'Todavia se esta verificando Firebase y la copia local. Si esperabas pacientes, espera la sincronizacion antes de crear un registro en blanco.',
-    };
-  }
-
   if (bootstrapPhase === 'local_only') {
     return {
       source: 'local_cache_empty',
       message:
         'No hay registro en la copia local y la sincronizacion remota no esta disponible en este momento.',
+    };
+  }
+
+  if (isAuthenticated && bootstrapPhase !== 'confirmed_empty') {
+    return {
+      source: 'sync_pending',
+      message:
+        'Todavia se esta verificando Firebase y la copia local. Si esperabas pacientes, espera la sincronizacion antes de crear un registro en blanco.',
     };
   }
 

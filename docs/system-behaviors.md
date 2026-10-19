@@ -544,3 +544,9 @@ se comparte esa operación hasta que termine, sin duplicar escrituras. Una opera
 ya terminada no se conserva como caché: el servicio mantiene su indicador persistente
 de migración y sus contratos de recuperación. Las regresiones viven en
 `useStorageMigration.test.ts`; `indexedDBService.test.ts` verifica los datos migrados.
+
+### Comprobación de censo sin respuesta
+
+Cuando no hay registro visible, la comprobación inicial muestra un error recuperable al fallar la lectura o tras 15 segundos sin resolución. «Reintentar» cancela la lectura pendiente de esa fecha y vuelve a consultarla; no ejecuta creación, copia ni sincronización de escritura. Un intento nuevamente bloqueado vuelve a ofrecer reintento tras el mismo límite. Cambiar de fecha descarta el estado visual del intento anterior.
+
+El tiempo transcurrido y los errores nunca confirman ausencia. La creación/copia sólo aparece con `confirmed_empty`, obtenido de una lectura remota válida para la fecha seleccionada. Si llega un registro, se muestra el censo existente. Una marca de actualización anterior no oculta una ausencia ya confirmada ni un error.
