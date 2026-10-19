@@ -72,6 +72,45 @@ describe('absence evidence across local cache, Firebase and bootstrap', () => {
       'remote_record_bootstrapping'
     );
   });
+  it('rejects cached absence after failed revalidation until a successful read', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const reader = {
+      getForDateWithMeta: vi
+        .fn()
+        .mockResolvedValue(createNotFoundDailyRecordReadResult(date, 'missing')),
+    };
+    const options = {
+      queryKey: getDailyRecordQueryKey(date),
+      queryFn: createDailyRecordQueryFn(reader, date, true),
+      staleTime: 0,
+    };
+    const currentPhase = () => {
+      const state = client.getQueryState<DailyRecordQueryResult>(options.queryKey)!;
+      return resolveDailyRecordBootstrapPhase({
+        remoteSyncStatus: 'ready',
+        currentDateString: date,
+        record: state.data!.record,
+        runtime: state.data!.runtime,
+        gracePeriodExpired: false,
+        isFetching: state.fetchStatus !== 'idle',
+        isError: state.status === 'error',
+      });
+    };
+    try {
+      await client.fetchQuery(options);
+      expect(currentPhase()).toBe('confirmed_empty');
+      reader.getForDateWithMeta.mockRejectedValueOnce(new Error('synthetic remote outage'));
+      await expect(client.fetchQuery(options)).rejects.toThrow('synthetic remote outage');
+      expect(
+        client.getQueryData<DailyRecordQueryResult>(options.queryKey)?.runtime.availabilityState
+      ).toBe('confirmed_missing');
+      expect(currentPhase()).toBe('remote_record_bootstrapping');
+      await client.fetchQuery(options);
+      expect(currentPhase()).toBe('confirmed_empty');
+    } finally {
+      client.clear();
+    }
+  });
   it('does not let an older in-flight absence erase a newer realtime record', async () => {
     const client = new QueryClient();
     let release!: (value: DailyRecordReadResult) => void;

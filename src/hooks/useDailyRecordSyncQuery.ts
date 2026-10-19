@@ -68,6 +68,7 @@ export const useDailyRecordSyncQuery = (
     runtime: recordRuntime,
     dataUpdatedAt,
     isFetching: isRecordFetching,
+    isError: isRecordError,
     fetchStatus: recordFetchStatus,
     refetch,
   } = useDailyRecordQuery(
@@ -114,6 +115,7 @@ export const useDailyRecordSyncQuery = (
       resolveDailyRecordBootstrapPhase({
         remoteSyncStatus: effectiveRemoteSyncStatus,
         currentDateString,
+        isError: isRecordError,
         isFetching: isRecordFetching || recordFetchStatus === 'paused',
         record,
         runtime: recordRuntime,
@@ -125,6 +127,7 @@ export const useDailyRecordSyncQuery = (
       recordRuntime,
       currentDateString,
       isRecordFetching,
+      isRecordError,
       recordFetchStatus,
     ]
   );
