@@ -9,3 +9,12 @@ describe('resolveReportBedId Urgencias boxes', () => {
     expect(resolveReportBedId(label)).toBe(expected);
   });
 });
+
+describe('report crib labels', () => {
+  it.each(['Cuna H2C2', 'C-H2C2', 'CH2C2'])('resolves %s to its parent bed', label => {
+    expect(resolveReportBedId(label)).toBe('H2C2');
+  });
+  it('preserves unknown crib labels', () => {
+    expect(resolveReportBedId('Cuna desconocida')).toBe('Cuna desconocida');
+  });
+});

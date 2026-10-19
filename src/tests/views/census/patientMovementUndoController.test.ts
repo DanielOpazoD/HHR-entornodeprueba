@@ -10,7 +10,12 @@ describe('patientMovementUndoController', () => {
       bedData: { ...createEmptyPatient(bedId), location: 'Sala 1' },
       bedId,
       isNested: false,
-      originalData: { ...createEmptyPatient(bedId), patientName: 'Paciente A', rut: '1-9' },
+      originalData: {
+        ...createEmptyPatient(bedId),
+        patientName: 'Paciente A',
+        rut: '1-9',
+        location: undefined,
+      },
       createEmptyPatient,
     });
 
@@ -89,4 +94,22 @@ describe('patientMovementUndoController', () => {
       expect(resolution.value.updatedBed.clinicalCrib?.patientName).toBe('RN A');
     }
   });
+});
+
+it('preserves the original patient location and full snapshot on undo', () => {
+  const originalData = {
+    ...createEmptyPatient('R1'),
+    patientName: 'Paciente prueba',
+    rut: 'A123456',
+    location: 'Ubicación original',
+    bedMode: 'Cuna' as const,
+  };
+  const result = resolveUndoPatientMovement({
+    bedData: { ...createEmptyPatient('R1'), location: 'Ubicación vacía' },
+    bedId: 'R1',
+    originalData,
+    createEmptyPatient,
+  });
+  expect(result.ok).toBe(true);
+  if (result.ok) expect(result.value.updatedBed).toEqual(originalData);
 });
