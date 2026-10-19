@@ -567,3 +567,5 @@ mediciones; sí se persiste el cambio de verificación. No se heredan checkpoint
 escalas/personal que pudieran omitir una revalidación. Esto reduce datos reescritos, sin prometer una
 reducción de consultas HTTP. El despliegue del callable actualizado debe preceder al cliente para
 habilitar el nuevo campo de procedencia; no se amplían permisos ni se ejecutan migraciones.
+
+La semilla clínica se carga al construir el día nuevo y permanece en precache para conservar el uso sin conexión. La verificación de lo copiado se carga al iniciar la sincronización que obtiene informes remotos frescos; si falla la carga de ese módulo, el proceso falla antes de iniciar lecturas o escrituras y no marca la evidencia como verificada. Su módulo no se descarga al instalar la PWA.

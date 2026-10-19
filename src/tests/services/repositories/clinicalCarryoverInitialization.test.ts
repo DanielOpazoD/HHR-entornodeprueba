@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { buildInitializedDayRecord } from '@/services/repositories/dailyRecordInitializationSupport';
 import { preparePatientForCarryover } from '@/services/repositories/dailyRecordClinicalDomainService';
+import { applyClinicalDayCarryover } from '@/services/repositories/clinicalDayCarryover';
 import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
 
 beforeEach(() => {
@@ -31,7 +32,10 @@ describe('actual new-day copy entry point', () => {
   it('carries previous clinical evidence only into today and does not mutate yesterday', () => {
     const source = record();
     const before = structuredClone(source);
-    const result = buildInitializedDayRecord('2026-10-19', source);
+    const result = applyClinicalDayCarryover(
+      buildInitializedDayRecord('2026-10-19', source),
+      source
+    );
     expect(result.beds.R1.vitalSigns?.heartRate).toBe(72);
     expect(result.beds.R1.clinicalCarryover?.sourceDate).toBe('2026-10-18');
     expect(result.beds.R1.devices).toEqual(['CUP']);
@@ -40,7 +44,8 @@ describe('actual new-day copy entry point', () => {
   it.each(['2026-10-18', '2026-10-20'])(
     'does not introduce clinical carryover on another day: %s',
     date => {
-      const result = buildInitializedDayRecord(date, record());
+      const source = record();
+      const result = applyClinicalDayCarryover(buildInitializedDayRecord(date, source), source);
       expect(result.beds.R1.vitalSigns).toBeUndefined();
       expect(result.beds.R1.clinicalCarryover).toBeUndefined();
     }
@@ -56,7 +61,10 @@ describe('actual new-day copy entry point', () => {
       admissionDate: '2026-10-18',
       vitalSigns: source.beds.R1.vitalSigns,
     });
-    const result = buildInitializedDayRecord('2026-10-19', source);
+    const result = applyClinicalDayCarryover(
+      buildInitializedDayRecord('2026-10-19', source),
+      source
+    );
     expect(result.beds.R1.vitalSigns).toBeDefined();
     expect(result.beds.R1.clinicalCrib?.vitalSigns).toBeUndefined();
   });

@@ -240,6 +240,9 @@ export default defineConfig(({ mode }) => {
             // Callable Functions always require network access. Keep their runtime
             // on demand instead of charging every offline installation for it.
             '**/assets/vendor-firebase-functions-*.js',
+            // Carryover verification requires fresh remote clinical reports; load it with sync.
+            // The copied evidence and its creation seed remain available in offline precache.
+            '**/assets/clinicalCarryoverVerification-*.js',
             // Contextual CUDYR reports read server-authoritative history and cannot
             // load offline. Keep the new explorer and workbook on demand as well.
             '**/assets/CudyrReportExplorer-*.js',

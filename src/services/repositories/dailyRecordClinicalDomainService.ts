@@ -1,5 +1,3 @@
-import { seedClinicalCarryover } from './clinicalCarryoverSeed';
-import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 import { BEDS } from '@/constants/beds';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
@@ -64,28 +62,11 @@ const shouldClonePreviousPatient = (prevPatient: PatientData): boolean =>
 
 export const preparePatientForCarryover = (
   sourcePatient: PatientData,
-  targetBedId = sourcePatient.bedId,
-  copyDates?: { source: string; destination: string }
+  targetBedId = sourcePatient.bedId
 ): PatientData => {
-  let clonedPatient = parsePatientDataWithDefaults(clonePatient(sourcePatient), targetBedId);
+  const clonedPatient = parsePatientDataWithDefaults(clonePatient(sourcePatient), targetBedId);
   resetCarryoverCudyr(clonedPatient);
   resetCarryoverRayenClinicalFields(clonedPatient);
-  if (copyDates && copyDates.destination === calendarStampInClinicalTimeZone(new Date()).iso) {
-    clonedPatient = seedClinicalCarryover(
-      sourcePatient,
-      clonedPatient,
-      copyDates.source,
-      copyDates.destination
-    );
-    if (sourcePatient.clinicalCrib && clonedPatient.clinicalCrib) {
-      clonedPatient.clinicalCrib = seedClinicalCarryover(
-        sourcePatient.clinicalCrib,
-        clonedPatient.clinicalCrib,
-        copyDates.source,
-        copyDates.destination
-      );
-    }
-  }
   inheritPatientHandoffNotes(clonedPatient, sourcePatient);
   inheritPatientMedicalHandoff(clonedPatient, sourcePatient);
 
@@ -160,8 +141,7 @@ export const buildEmptyClinicalBeds = (): Record<string, PatientData> => {
 
 export const buildClinicalBedsFromPreviousRecord = (
   initialBeds: Record<string, PatientData>,
-  prevRecord: DailyRecord,
-  destinationDate?: string
+  prevRecord: DailyRecord
 ): Record<string, PatientData> => {
   const nextBeds = { ...initialBeds };
   const aggregate = createDailyRecordAggregate(prevRecord);
@@ -171,11 +151,7 @@ export const buildClinicalBedsFromPreviousRecord = (
     if (!prevPatient) return;
 
     if (shouldClonePreviousPatient(prevPatient)) {
-      nextBeds[bed.id] = preparePatientForCarryover(
-        prevPatient,
-        bed.id,
-        destinationDate ? { source: prevRecord.date, destination: destinationDate } : undefined
-      );
+      nextBeds[bed.id] = preparePatientForCarryover(prevPatient);
     } else {
       nextBeds[bed.id].bedMode = prevPatient.bedMode || nextBeds[bed.id].bedMode;
       nextBeds[bed.id].hasCompanionCrib = prevPatient.hasCompanionCrib || false;

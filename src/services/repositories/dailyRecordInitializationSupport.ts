@@ -28,7 +28,7 @@ export const buildInitializedDayRecord = (
   const initialBeds = buildEmptyClinicalBeds();
   const inheritedStaff = resolveInheritedDailyRecordStaffing(prevRecord);
   const beds = prevRecord
-    ? buildClinicalBedsFromPreviousRecord(initialBeds, prevRecord, date)
+    ? buildClinicalBedsFromPreviousRecord(initialBeds, prevRecord)
     : initialBeds;
   const movements = createEmptyDailyRecordMovements();
   const inheritedExtraBeds = prevRecord ? [...(prevRecord.activeExtraBeds || [])] : [];
