@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-10-18T03:06:48.935Z",
-  "overallStatus": "ok",
+  "generatedAt": "2026-10-19T05:26:41.964Z",
+  "overallStatus": "degraded",
   "indicators": [
     {
       "name": "worktree_state",
-      "status": "ok",
-      "summary": "status=clean"
+      "status": "degraded",
+      "summary": "status=dirty"
     },
     {
       "name": "structural_quality",
@@ -158,17 +158,19 @@
       "generatedAt": "stable:legacy-retirement-debt"
     }
   },
-  "issues": [],
-  "gitSha": "627672549",
-  "gitDirty": false,
+  "issues": [
+    "worktree_state: status=dirty"
+  ],
+  "gitSha": "abb0f5a2",
+  "gitDirty": true,
   "generatedFor": {
-    "gitSha": "627672549",
-    "gitDirty": false,
-    "treeHash": "10db24e7d1d642e7033c7faf3d477563de049c5d",
+    "gitSha": "abb0f5a2",
+    "gitDirty": true,
+    "treeHash": "459beca69745d10683b28bac2ba7fd8e43ea7cc9",
     "reportId": "release-readiness-scorecard",
     "dependencyFingerprint": {
       "algorithm": "sha256:dependency-files-v1",
-      "value": "de79fe00ba05a62f15e64da684de03836841513b37f923008c7de82a6b331358",
+      "value": "6fd715641ba2c0c703b1f3447781a5cbb3216e8f10de4344d21f9a62a7dcedfb",
       "files": [
         "reports/bundle-risk-ledger.json",
         "reports/bundle-risk-ledger.md",
@@ -178,7 +180,6 @@
         "reports/compatibility-import-governance.md",
         "reports/critical-coverage.json",
         "reports/critical-coverage.md",
-        "reports/e2e/preview-bootstrap/report.json",
         "reports/guardrail-governance.json",
         "reports/guardrail-governance.md",
         "reports/legacy-bridge-governance.json",
@@ -202,10 +203,11 @@
         "vitest.critical-coverage.config.ts"
       ],
       "missingFiles": [
-        "reports/e2e/preview-bootstrap/ci-provenance.json"
+        "reports/e2e/preview-bootstrap/ci-provenance.json",
+        "reports/e2e/preview-bootstrap/report.json"
       ]
     }
   },
-  "degradedByWorktreeOnly": false,
-  "overallStatusReason": "all indicators ok"
+  "degradedByWorktreeOnly": true,
+  "overallStatusReason": "worktree_state only"
 }
