@@ -1136,7 +1136,8 @@ test.describe('DICOM viewer and Salvador annexes', () => {
       )
     ).toEqual(volumeCamera);
     await expect.poll(hasPixels).toBe(true);
-    expect(requests).toBe(48);
+    // Reopening within the same patient review reuses the validated originals.
+    expect(requests).toBe(24);
     await viewer.getByRole('button', { name: 'Cerrar modal', exact: true }).click();
     await expect.poll(countContexts).toBe(0);
     await test.info().attach('synthetic-stability-metrics', {
