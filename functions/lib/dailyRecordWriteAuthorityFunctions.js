@@ -1446,7 +1446,8 @@ const createDailyRecordWriteAuthorityFunctions = ({
             ? preserveRayenClinicalFields({ remoteRecord: remoteData, incomingRecord: record })
             : record;
           await assertTrustedSpecialtyAssignments({
-            transaction, hospitalRef,
+            transaction,
+            hospitalRef,
             records: [movementRestoreRecord(remoteData, recordForPersistence)],
           });
           protectSpecialtyDecisions({

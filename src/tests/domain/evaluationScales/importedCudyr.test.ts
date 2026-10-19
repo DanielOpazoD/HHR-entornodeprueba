@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildImportedCudyr,
   CUDYR_IMPORT_SOURCE,
+  CUDYR_ADMIN_ADJUSTMENT_SOURCE,
   importedCudyrBelongsToCensus,
   resolveCudyrOwningCensusDay,
 } from '@/domain/evaluationScales/importedCudyr';
@@ -61,7 +62,7 @@ describe('buildImportedCudyr', () => {
   });
 
   it('keeps next-morning applications through 11:59 with the prior night shift', () => {
-    expect(resolveCudyrOwningCensusDay('2026-07-17T06:00:59+00:00')).toBe('2026-07-17');
+    expect(resolveCudyrOwningCensusDay('2026-07-17T06:00:59+00:00')).toBe('2026-07-16');
     expect(resolveCudyrOwningCensusDay('2026-07-17T06:01:00+00:00')).toBe('2026-07-16');
     expect(resolveCudyrOwningCensusDay('2026-07-17T17:59:59+00:00')).toBe('2026-07-16');
     expect(resolveCudyrOwningCensusDay('2026-07-17T18:00:00+00:00')).toBe('2026-07-17');
@@ -96,6 +97,17 @@ describe('buildImportedCudyr', () => {
 
     expect(importedCudyrBelongsToCensus(legacy, '2026-07-15')).toBe(true);
     expect(importedCudyrBelongsToCensus(legacy, '2026-07-16')).toBe(false);
+  });
+
+  it('preserves an administrative result assigned to its explicit census date', () => {
+    const adjustment = Object.freeze({
+      category: 'C2',
+      recordedDate: '2026-07-17',
+      source: CUDYR_ADMIN_ADJUSTMENT_SOURCE,
+    });
+    expect(importedCudyrBelongsToCensus(adjustment, '2026-07-17')).toBe(true);
+    expect(importedCudyrBelongsToCensus(adjustment, '2026-07-16')).toBe(false);
+    expect(adjustment.recordedDate).toBe('2026-07-17');
   });
 
   it('rejects a malformed authoritative timestamp instead of trusting recordedDate', () => {

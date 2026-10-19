@@ -70,6 +70,25 @@ describe('roleService', () => {
     });
   });
 
+  it('preserves an explicit revocation while hiding it from the active roles list', async () => {
+    getDocMock.mockResolvedValue({
+      'nurse@example.test': 'nurse_hospital',
+      'other@example.test': 'viewer',
+    });
+    await roleService.removeRole(' NURSE@example.test ');
+    expect(setDocMock).toHaveBeenCalledWith('config', 'roles', {
+      'nurse@example.test': 'unauthorized',
+      'other@example.test': 'viewer',
+    });
+    getDocMock.mockResolvedValue(setDocMock.mock.calls[0][2]);
+    await expect(roleService.getRoles()).resolves.toEqual({ 'other@example.test': 'viewer' });
+    await roleService.setRole('nurse@example.test', 'nurse_hospital');
+    expect(setDocMock).toHaveBeenLastCalledWith('config', 'roles', {
+      'nurse@example.test': 'nurse_hospital',
+      'other@example.test': 'viewer',
+    });
+  });
+
   it('force-syncs a user role through an injected functions runtime', async () => {
     const service = createRoleService(
       {

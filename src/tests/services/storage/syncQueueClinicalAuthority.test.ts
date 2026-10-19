@@ -18,11 +18,9 @@ const { mockAuthorityCallable, mockHttpsCallable, mockGetFunctions } = vi.hoiste
 
 vi.mock('firebase/firestore', async importOriginal => {
   const actual = await importOriginal<typeof import('firebase/firestore')>();
-  return {
-    ...actual,
-    setDoc: vi.fn().mockResolvedValue(undefined),
-    getDoc: vi.fn().mockResolvedValue({ exists: () => false, data: () => undefined }),
-  };
+  const { createSingleAttemptFirestoreMock } =
+    await import('./singleAttemptFirestoreTransactionMock');
+  return { ...actual, ...createSingleAttemptFirestoreMock() };
 });
 
 vi.mock('@/services/storage/firestore/firestoreShared', async importOriginal => {

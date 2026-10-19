@@ -312,3 +312,20 @@ anclando al día correcto (nunca a la hora actual). Después, comprobar que la e
 ordinaria respeta la ventana y que un usuario no administrador no puede cambiar el
 timestamp. Esta integración no ejecuta reparaciones ni acredita cuántos registros
 legacy existen: no se consultó un inventario clínico real.
+
+## Revocación explícita de acceso
+
+Gestión de Roles conserva `unauthorized` en `config/roles` al retirar un acceso.
+No se debe borrar esa entrada: las reglas mantienen compatibilidad con claims
+legacy cuando no hay configuración. La marca explícita impide ese fallback en
+Firestore y Storage, incluso con un token emitido antes de retirar el permiso.
+Los usuarios revocados no aparecen en la lista de roles activos; asignarles un rol
+explícitamente permite restablecer el acceso. No modifica ni borra datos clínicos.
+
+Storage consulta el documento de roles de la base Firestore `(default)`. El despliegue
+necesita la integración de permisos entre ambos servicios; validarla antes de publicar
+las reglas en un entorno real. Un fallo de consulta no autoriza por el claim antiguo.
+Las pruebas usan emuladores de ambos servicios y la misma identidad antes/después.
+Esto no invalida archivos ya descargados ni enlaces de descarga con token de acceso.
+Las bajas anteriores que borraron su configuración requieren revisión separada; no
+se infiere quién fue revocado ni se retiran permisos históricos automáticamente.
