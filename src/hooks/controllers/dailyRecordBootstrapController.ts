@@ -14,6 +14,9 @@ export interface ResolveDailyRecordBootstrapPhaseInput {
   record: unknown | null;
   runtime: DailyRecordQueryRuntime | null;
   gracePeriodExpired: boolean;
+  currentDateString?: string;
+  isFetching?: boolean;
+  isError?: boolean;
 }
 
 export interface ResolveCensusEmptyStatePolicyInput {
@@ -45,12 +48,26 @@ export const resolveDailyRecordBootstrapPhase = ({
   record,
   runtime,
   gracePeriodExpired,
+  currentDateString,
+  isFetching = false,
+  isError = false,
 }: ResolveDailyRecordBootstrapPhaseInput): DailyRecordBootstrapPhase => {
   if (record) {
     return 'record_ready';
   }
 
-  if (remoteSyncStatus === 'ready' && runtime?.availabilityState === 'confirmed_missing') {
+  const sameDate = !currentDateString || runtime?.date === currentDateString;
+  const authoritativeAbsence =
+    runtime?.conflictSummary?.kind === 'remote_missing' ||
+    runtime?.consistencyState === 'missing_remote';
+  if (
+    remoteSyncStatus === 'ready' &&
+    sameDate &&
+    !isFetching &&
+    !isError &&
+    authoritativeAbsence &&
+    runtime?.availabilityState === 'confirmed_missing'
+  ) {
     return 'confirmed_empty';
   }
 
@@ -76,9 +93,7 @@ export const shouldAttemptTodayEmptyRecovery = ({
   currentDateString: string;
   todayDateString: string;
   bootstrapPhase: DailyRecordBootstrapPhase;
-}): boolean =>
-  currentDateString === todayDateString &&
-  (bootstrapPhase === 'remote_record_bootstrapping' || bootstrapPhase === 'remote_record_timeout');
+}): boolean => currentDateString === todayDateString && bootstrapPhase === 'remote_record_timeout';
 
 export const resolveCensusEmptyStatePolicy = ({
   branch,

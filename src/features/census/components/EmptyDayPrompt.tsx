@@ -1,12 +1,19 @@
-import React, { useEffect, useState } from 'react';
-import { Calendar } from 'lucide-react';
-import { MONTH_NAMES } from '@/constants/export';
+import React, { useEffect, useState, lazy, Suspense } from 'react';
 import {
   shouldRecordCensusEmptyStateDiagnostic,
   type CensusEmptyStateDiagnostic,
 } from '@/hooks/controllers/dailyRecordBootstrapController';
 import { dailyRecordObservability } from '@/services/repositories/dailyRecordOperationalTelemetry';
 import { RayenDayBootstrapButton, resolveCensusSyncTarget } from '@/features/rayen-import/public';
+import { ErrorBoundary } from 'react-error-boundary';
+const CensusEmptyMoa = lazy(() =>
+  import('@/components/layout/MoaCompanion').then(module => ({ default: module.CensusEmptyMoa }))
+);
+const moaPlaceholder = <span className="mb-4 h-[168px] w-72 max-w-full" aria-hidden="true" />;
+import {
+  resolveCreateDayCopyAvailability,
+  buildCopyUnlockDescription,
+} from '@/hooks/controllers/createDayCopyAvailabilityController';
 import { getPreviousDay } from '@/utils/clinicalDayUtils';
 
 interface EmptyDayPromptProps {
@@ -42,8 +49,6 @@ const emptyDayMessage = (source?: CensusEmptyStateDiagnostic['source']): string 
 };
 
 export const EmptyDayPrompt: React.FC<EmptyDayPromptProps> = ({
-  selectedDay,
-  selectedMonth,
   currentDateString,
   previousRecordAvailable,
   previousRecordDate,
@@ -89,45 +94,51 @@ export const EmptyDayPrompt: React.FC<EmptyDayPromptProps> = ({
   }, [currentDateString, diagnosticMessage, diagnosticSource]);
 
   const rayenTarget = resolveCensusSyncTarget(currentDateString, now);
-  const copySourceDate =
-    rayenTarget.kind === 'current' &&
-    currentDateString === rayenTarget.calendarDay &&
-    previousRecordAvailable &&
-    previousRecordDate === getPreviousDay(currentDateString)
-      ? previousRecordDate
-      : undefined;
+  const copySourceDate = getPreviousDay(currentDateString);
+  const copySourceReady = previousRecordAvailable && previousRecordDate === copySourceDate;
   // date_mismatch is emitted only for a different selected date after confirmed_empty.
   const dayConfirmedEmpty =
     diagnosticSource === 'remote_missing' || diagnosticSource === 'date_mismatch';
-  const canCreate =
-    dayConfirmedEmpty && Boolean(onRayenBootstrapReady) && rayenTarget.kind !== 'unsupported';
+  const canCreate = dayConfirmedEmpty && Boolean(onRayenBootstrapReady);
+  const creationLocked =
+    resolveCreateDayCopyAvailability(currentDateString, now).isCopyLocked ||
+    rayenTarget.kind === 'unsupported';
 
   return (
-    <div className="card mt-8 flex flex-col items-center justify-center px-5 py-14 text-center print:hidden animate-fade-in">
-      <div className="mb-5 rounded-full bg-slate-50 p-5">
-        <Calendar size={48} className="text-medical-200" aria-hidden="true" />
-      </div>
-      <h2 className="mb-2 text-2xl font-bold text-slate-800">
-        {selectedDay} de {MONTH_NAMES[selectedMonth]}
-      </h2>
-      <p
-        className="mb-6 max-w-md text-sm text-slate-500"
-        role="status"
-        aria-live="polite"
-        data-testid="empty-day-diagnostic-message"
-      >
-        {emptyDayMessage(diagnosticSource)}
-      </p>
+    <div className="mt-6 flex flex-col items-center justify-center px-5 py-4 text-center print:hidden">
+      <ErrorBoundary fallback={moaPlaceholder}>
+        <Suspense fallback={moaPlaceholder}>
+          <CensusEmptyMoa />
+        </Suspense>
+      </ErrorBoundary>
+      {!canCreate && !readOnly && (
+        <p
+          className="mb-6 max-w-md text-sm text-slate-500"
+          role="status"
+          data-testid="empty-day-diagnostic-message"
+        >
+          {emptyDayMessage(diagnosticSource)}
+        </p>
+      )}
       {readOnly ? (
         <p className="max-w-sm text-sm text-amber-800">Pide a enfermería que inicie el censo.</p>
       ) : canCreate ? (
         <RayenDayBootstrapButton
+          disabled={creationLocked || !copySourceReady}
+          disabledReason={
+            creationLocked
+              ? buildCopyUnlockDescription(currentDateString, now)
+              : !copySourceReady
+                ? 'Se necesita el censo del día anterior para copiar.'
+                : undefined
+          }
           historical={rayenTarget.kind === 'historical'}
           copySourceDate={copySourceDate}
           onCopyPrevious={() =>
-            onCreateDay(true, copySourceDate, { forceCopyScheduleOverride: true })
+            copySourceReady && !creationLocked
+              ? onCreateDay(true, copySourceDate)
+              : Promise.resolve(false)
           }
-          onCreateBlank={() => onCreateDay(false)}
           onReady={() => onRayenBootstrapReady?.()}
         />
       ) : rayenTarget.kind === 'unsupported' && dayConfirmedEmpty ? (

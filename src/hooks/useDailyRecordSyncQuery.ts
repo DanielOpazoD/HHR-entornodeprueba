@@ -10,7 +10,7 @@ import {
 } from './useDailyRecordQuery';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../config/queryClient';
-import { SyncStatus, UseDailyRecordSyncResult } from '@/context/dailyRecordContextContracts';
+import { UseDailyRecordSyncResult } from '@/context/dailyRecordContextContracts';
 import type {
   ApplyDailyRecordPatchOptions,
   DailyRecord,
@@ -67,6 +67,9 @@ export const useDailyRecordSyncQuery = (
     data: record,
     runtime: recordRuntime,
     dataUpdatedAt,
+    isFetching: isRecordFetching,
+    isError: isRecordError,
+    fetchStatus: recordFetchStatus,
     refetch,
   } = useDailyRecordQuery(
     currentDateString,
@@ -107,16 +110,16 @@ export const useDailyRecordSyncQuery = (
     };
   }, [clearPendingRefetchTimeout]);
 
-  const bootstrapPhase = useMemo(
-    (): DailyRecordBootstrapPhase =>
-      resolveDailyRecordBootstrapPhase({
-        remoteSyncStatus: effectiveRemoteSyncStatus,
-        record,
-        runtime: recordRuntime,
-        gracePeriodExpired: recordRuntime?.availabilityState === 'temporarily_unavailable',
-      }),
-    [effectiveRemoteSyncStatus, record, recordRuntime]
-  );
+  const isRecordPending = isRecordFetching || recordFetchStatus === 'paused';
+  const bootstrapPhase: DailyRecordBootstrapPhase = resolveDailyRecordBootstrapPhase({
+    remoteSyncStatus: effectiveRemoteSyncStatus,
+    currentDateString,
+    isError: isRecordError,
+    isFetching: isRecordPending,
+    record,
+    runtime: recordRuntime,
+    gracePeriodExpired: recordRuntime?.availabilityState === 'temporarily_unavailable',
+  });
 
   useCensusBootstrapPerf(currentDateString, bootstrapPhase);
 
@@ -124,70 +127,26 @@ export const useDailyRecordSyncQuery = (
 
   useTodayEmptyDailyRecordRecovery({
     bootstrapPhase,
+    isFetching: isRecordPending,
     currentDateString,
     record,
     refetch,
-    runRemoteSync: async date => {
-      const outcome = await runRemoteSync(date);
-      if (!isMountedRef.current) {
-        return outcome;
-      }
-      return outcome;
-    },
+    runRemoteSync,
   });
 
   usePostDeployRecentRecordRefresh({
     remoteSyncStatus: effectiveRemoteSyncStatus,
     refetch,
-    runRemoteSync: async date => {
-      const outcome = await runRemoteSync(date);
-      if (!isMountedRef.current) {
-        return outcome;
-      }
-      return outcome;
-    },
+    runRemoteSync,
   });
 
   // 3. Status Mapping
-  const syncStatus = useMemo(
-    (): SyncStatus =>
-      resolveDailyRecordSyncStatus([
-        {
-          isPending: saveMutation.isPending,
-          isError: saveMutation.isError,
-          isSuccess: saveMutation.isSuccess,
-        },
-        {
-          isPending: patchMutation.isPending,
-          isError: patchMutation.isError,
-          isSuccess: patchMutation.isSuccess,
-        },
-        {
-          isPending: initMutation.isPending,
-          isError: initMutation.isError,
-          isSuccess: initMutation.isSuccess,
-        },
-        {
-          isPending: deleteMutation.isPending,
-          isError: deleteMutation.isError,
-          isSuccess: deleteMutation.isSuccess,
-        },
-      ]),
-    [
-      deleteMutation.isError,
-      deleteMutation.isPending,
-      deleteMutation.isSuccess,
-      initMutation.isError,
-      initMutation.isPending,
-      initMutation.isSuccess,
-      patchMutation.isError,
-      patchMutation.isPending,
-      patchMutation.isSuccess,
-      saveMutation.isError,
-      saveMutation.isPending,
-      saveMutation.isSuccess,
-    ]
-  );
+  const syncStatus = resolveDailyRecordSyncStatus([
+    saveMutation,
+    patchMutation,
+    initMutation,
+    deleteMutation,
+  ]);
 
   const lastSyncTime = useMemo(
     () => (dataUpdatedAt ? new Date(dataUpdatedAt) : null),

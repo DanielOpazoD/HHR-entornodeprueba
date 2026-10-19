@@ -1,19 +1,25 @@
+// @vitest-environment node
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
+import { transform } from 'esbuild';
 import { describe, expect, it } from 'vitest';
 
 interface WorkerTestScope {
   __resolveOpenCvForTest?: (candidate: unknown) => Promise<{ runtime: { Mat: new () => unknown } }>;
 }
 
-const loadOpenCvResolver = () => {
+const loadOpenCvResolver = async (minified = false) => {
   const workerSource = fs.readFileSync(
     path.resolve(process.cwd(), 'public/document-scanner/jscanify-worker.js'),
     'utf8'
   );
   const scope: WorkerTestScope = {};
-  vm.runInNewContext(`${workerSource}\nself.__resolveOpenCvForTest = resolveOpenCv;`, {
+  const instrumented = `${workerSource}\nself.__resolveOpenCvForTest = resolveOpenCv;`;
+  const code = minified
+    ? (await transform(instrumented, { loader: 'js', minify: true, target: 'es2020' })).code
+    : instrumented;
+  vm.runInNewContext(code, {
     self: scope,
     OffscreenCanvas: class OffscreenCanvas {},
     Blob,
@@ -24,12 +30,15 @@ const loadOpenCvResolver = () => {
 };
 
 describe('JScanify worker runtime', () => {
-  it('awaits the Promise form exported by OpenCV.js', async () => {
-    const resolveOpenCv = loadOpenCvResolver();
-    const runtime = { Mat: class Mat {} };
+  it.each([false, true])(
+    'awaits the Promise form exported by OpenCV.js (minified=%s)',
+    async minified => {
+      const resolveOpenCv = await loadOpenCvResolver(minified);
+      const runtime = { Mat: class Mat {} };
 
-    await expect(resolveOpenCv(Promise.resolve(runtime))).resolves.toEqual({ runtime });
-  });
+      await expect(resolveOpenCv(Promise.resolve(runtime))).resolves.toEqual({ runtime });
+    }
+  );
 
   it('keeps the full-resolution pixel filter inside the worker', () => {
     const workerSource = fs.readFileSync(
