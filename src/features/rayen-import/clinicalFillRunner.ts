@@ -67,6 +67,10 @@ export const runClinicalFill = async (
   onProgress?: (progress: ClinicalFillProgress) => void
 ): Promise<ClinicalFillSummary> => {
   const eligible = collectClinicalFillCandidates(record, deps.allowedClinicalEpisodeIds);
+  // Verification consumes fresh clinical sources. Load it before any reads or writes begin.
+  const carryover = eligible.some(({ patient }) => patient.clinicalCarryover)
+    ? await import('./domain/clinicalCarryoverVerification')
+    : undefined;
   const captureEpisodes = deps.archiveCudyrCapture ? collectCudyrCaptureEpisodes(record) : [];
   const summary = createClinicalFillSummary(eligible.length);
   const needs = (encId: string, source: Parameters<typeof needsClinicalRead>[2]) =>
@@ -174,6 +178,16 @@ export const runClinicalFill = async (
           deviceResult.value.source === 'json'
             ? mapRayenInvasiveDeviceEntries(deviceResult.value.entries)
             : mapInvasiveDevices(parseInvasiveDevices(deviceResult.value.textItems));
+        if (deviceResult.value.source === 'json') {
+          merged = carryover
+            ? carryover.reconcileCarriedDeviceRetirements(
+                merged,
+                deviceResult.value.entries,
+                fecha,
+                deps.now()
+              )
+            : merged;
+        }
         // Additive on purpose: an empty remote list must not remove devices nursing keeps by hand.
         if (devices.length > 0) {
           merged = mergeReportDevices(merged, devices, {
@@ -181,6 +195,7 @@ export const runClinicalFill = async (
             createId: deps.createId,
           });
         }
+        merged = carryover?.verifyCarriedDevices(merged, devices) ?? merged;
       } catch (error) {
         reportPatientError('devices', message(error));
       }
@@ -285,6 +300,7 @@ export const runClinicalFill = async (
     try {
       if (formsResult.status === 'fulfilled' && !formsReadError) {
         const vitals = parseVitalSigns(forms);
+        merged = carryover?.verifyCarriedVitals(merged, vitals) ?? merged;
         merged = mergeReportVitals(merged, vitals, fecha);
         recordIncrementalFacts(
           'vitals',

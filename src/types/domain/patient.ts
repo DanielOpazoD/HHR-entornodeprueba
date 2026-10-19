@@ -1,3 +1,4 @@
+import type { ClinicalCarryover } from './clinicalCarryover';
 import type { NeonatalPlacementDecision } from './neonatalPlacementDecision';
 import type { PatientIdentityStatus } from './patientIdentity';
 import type { Specialty, PatientStatus } from './patientClassification';
@@ -186,6 +187,7 @@ export interface PatientData {
 
   /** Versioned, privacy-safe cursors for incremental Eloisa clinical enrichment. */
   clinicalSyncCheckpoint?: ClinicalSyncCheckpoint;
+  clinicalCarryover?: ClinicalCarryover;
 
   // Obstetric delivery tracking (Ginecobstetricia only)
   deliveryRoute?: DeliveryRoute;

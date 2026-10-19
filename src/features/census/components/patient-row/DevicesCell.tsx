@@ -48,6 +48,9 @@ export const DevicesCell: React.FC<DevicesCellProps> = ({
 
   return (
     <td className="min-w-0 py-0.5 px-1 border-r border-slate-200 relative group">
+      {data.clinicalCarryover?.devicesPending && (
+        <div className="text-[9px] text-amber-700">Dispositivos previos · Por verificar</div>
+      )}
       <DeviceSelector
         devices={devices}
         deviceDetails={deviceDetails}
