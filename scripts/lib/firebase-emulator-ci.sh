@@ -139,10 +139,10 @@ write_storage_emulator_config() {
   local target_path="$1"
   local emulator_host="$2"
 
-  node - "$target_path" "$emulator_host" <<'NODE'
+  node - "$target_path" "$emulator_host" "$FIRESTORE_EMULATOR_HOST" <<'NODE'
 const fs = require('node:fs');
 const path = require('node:path');
-const [targetPath, emulatorHost] = process.argv.slice(2);
+const [targetPath, emulatorHost, firestoreHost] = process.argv.slice(2);
 const [host, portValue] = emulatorHost.split(':');
 const port = Number.parseInt(portValue, 10);
 
@@ -160,8 +160,14 @@ if (source.storage) {
     rules: absolutize(source.storage.rules),
   };
 }
+if (source.firestore) {
+  source.firestore.rules = absolutize(source.firestore.rules);
+  source.firestore.indexes = absolutize(source.firestore.indexes);
+}
+const [firestoreHostname, firestorePort] = firestoreHost.split(':');
 source.emulators = {
   ...(source.emulators || {}),
+  firestore: { host: firestoreHostname, port: Number(firestorePort) },
   storage: {
     ...((source.emulators && source.emulators.storage) || {}),
     host,
@@ -207,9 +213,11 @@ run_storage_emulator_exec() {
   local temp_root="${TMPDIR:-/tmp}"
   temp_root="${temp_root%/}"
   firebase_config="$(mktemp "$temp_root/hhr-firebase-storage-emulator.XXXXXX")"
+  export FIRESTORE_EMULATOR_HOST
+  FIRESTORE_EMULATOR_HOST="$(resolve_firestore_emulator_host)" || return 1
   write_storage_emulator_config "$firebase_config" "$FIREBASE_STORAGE_EMULATOR_HOST"
 
   trap 'rm -f "$firebase_config"' RETURN
 
-  "$firebase_bin" emulators:exec --config "$firebase_config" --only storage "$command"
+  "$firebase_bin" emulators:exec --config "$firebase_config" --project demo-hhr-storage-rules-test --only firestore,storage "$command"
 }

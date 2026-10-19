@@ -146,7 +146,7 @@ const owningCensusDate = recordedAt => {
   );
   const day = `${parts.year}-${parts.month}-${parts.day}`;
   const seconds = Number(parts.hour) * 3600 + Number(parts.minute) * 60 + Number(parts.second);
-  if (seconds < 60 || seconds >= 43_200) return day;
+  if (seconds >= 43_200) return day;
   return new Date(Date.parse(`${day}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
 };
 

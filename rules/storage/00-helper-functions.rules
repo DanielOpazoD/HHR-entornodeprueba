@@ -5,12 +5,19 @@ service firebase.storage {
       return request.auth != null;
     }
 
+    function normalizeRole(role) {
+      return role == 'viewer_census' ? 'viewer' : role;
+    }
+
     function normalizedRole() {
-      return !isAuthenticated() || request.auth.token.role == null
-        ? null
-        : request.auth.token.role == 'viewer_census'
-          ? 'viewer'
-          : request.auth.token.role;
+      let email = isAuthenticated() ? request.auth.token.get('email', null) : null;
+      let rolesPath = /databases/(default)/documents/config/roles;
+      let configuredRole = email is string && firestore.exists(rolesPath)
+        ? firestore.get(rolesPath).data.get(email.lower(), null)
+        : null;
+      let claimRole = isAuthenticated() ? request.auth.token.get('role', null) : null;
+      // Explicit revocations and downgrades take precedence over an already issued token.
+      return normalizeRole(configuredRole != null ? configuredRole : claimRole);
     }
 
     function hasNormalizedRole(roles) {
