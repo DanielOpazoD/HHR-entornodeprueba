@@ -17,7 +17,7 @@ const sourceLabel = (event: RayenSyncEvent): string | null => {
   const version = source.extensionVersion ? `Ext. v${source.extensionVersion}` : 'Extensión';
   const ficha = source.fichaMedico === 'ready' ? 'Ficha ✓' : 'Ficha —';
   const camas = source.gestionCamas === 'ready' ? 'Camas ✓' : 'Camas —';
-  return `${version} · ${ficha} · ${camas}`;
+  return `${version} · Conexiones al iniciar: ${ficha} · ${camas}`;
 };
 
 const TechnicalMetadata: React.FC<{ event: RayenSyncEvent }> = ({ event }) => {

@@ -16,6 +16,12 @@ it('shows actionable missing information before expandable technical metrics', (
           startedAt: '2026-09-05T20:00:00Z',
           by: 'Operador de prueba',
           status: 'partial',
+          source: {
+            extensionVersion: '0.48.55',
+            protocolVersion: 1,
+            fichaMedico: 'ready',
+            gestionCamas: 'ready',
+          },
           coverage: {
             total: 2,
             completed: 1,
@@ -43,6 +49,7 @@ it('shows actionable missing information before expandable technical metrics', (
   expect(screen.queryByRole('region', { name: 'Enfermería y TENS' })).not.toBeInTheDocument();
   fireEvent.click(screen.getByText('Reporte técnico'));
   expect(technical).toHaveAttribute('open');
+  expect(screen.getByText(/Conexiones al iniciar: Ficha ✓ · Camas ✓/)).toBeVisible();
   expect(screen.getByText(/3 solicitudes Eloísa/)).toBeVisible();
   expect(screen.getByText('Lecturas clínicas')).toBeVisible();
 });
