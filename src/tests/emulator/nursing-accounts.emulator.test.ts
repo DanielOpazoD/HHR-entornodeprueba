@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   initializeTestEnvironment,
   assertFails,
@@ -49,6 +49,13 @@ const enabled = Boolean(
     let auth: Auth;
     let firestore: Firestore;
     let rules: RulesTestEnvironment;
+    beforeEach(() => {
+      // Anchor fixture dates once, near the Auth emulator clock; keep transport timers real.
+      vi.useFakeTimers({ toFake: ['Date'] });
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
     const host = (name: string) => {
       const value = process.env[name] || '';
       if (!/^(127\.0\.0\.1|localhost):\d+$/.test(value))
