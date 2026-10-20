@@ -1,4 +1,5 @@
 import type {
+  DailyRecordAuthorityAdoptionResult,
   SyncQueueLeaseClaim,
   SyncQueueStorePort,
   SyncQueueTaskWriteMode,
@@ -17,6 +18,7 @@ import {
   matchesOwner,
   requeueQuarantinedTask,
   listUnresolvedDailyRecordTasks,
+  REUSABLE_TASK_STATES,
 } from '@/services/storage/sync/dexieSyncQueueQuarantine';
 
 const isReadyForClaim = (task: SyncTask, now: number): boolean => {
@@ -182,7 +184,7 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
     return replaced;
   },
   async adoptAuthoritativeDailyRecord(authoritativeRecord, ownerKey, buildReplacement) {
-    const outcome = await hospitalDB.transaction(
+    const outcome: DailyRecordAuthorityAdoptionResult = await hospitalDB.transaction(
       'rw',
       hospitalDB.dailyRecords,
       hospitalDB.syncQueue,
@@ -190,25 +192,32 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
         const unresolvedTasks = (
           await listUnresolvedDailyRecordTasks(authoritativeRecord.date)
         ).filter(task => matchesOwner(ownerKey, task.ownerKey));
+        const blocked = { status: 'blocked' as const };
         if (unresolvedTasks.length === 0) {
           await hospitalDB.dailyRecords.put(authoritativeRecord);
           return { status: 'adopted' as const, record: authoritativeRecord };
         }
-        if (unresolvedTasks.length !== 1) return { status: 'blocked' as const };
+        if (unresolvedTasks.length !== 1) return blocked;
         const [pendingTask] = unresolvedTasks;
         const localRecord = await hospitalDB.dailyRecords.get(authoritativeRecord.date);
         const pendingPayload = pendingTask.payload as Partial<DailyRecord> | null | undefined;
         if (
-          pendingTask.status !== 'PENDING' ||
-          !matchesOwner(ownerKey, pendingTask.ownerKey) ||
+          !REUSABLE_TASK_STATES.has(pendingTask.status) ||
           !localRecord ||
           pendingPayload?.date !== localRecord.date ||
           pendingPayload.lastUpdated !== localRecord.lastUpdated
         ) {
-          return { status: 'blocked' as const };
+          return blocked;
         }
         const replacement = buildReplacement(localRecord, pendingTask);
-        if (!replacement || !pendingTask.id) return { status: 'blocked' as const };
+        // A confirmed command may fully supersede quarantine. Residual edits must
+        // remain quarantined; reconciliation alone does not authorize retrying them.
+        if (
+          !replacement ||
+          !pendingTask.id ||
+          (pendingTask.status !== 'PENDING' && replacement.task !== null)
+        )
+          return blocked;
         await hospitalDB.dailyRecords.put(replacement.record);
         if (replacement.task === null) {
           // Supersesión total: el comando confirmado ya cubre todo lo pendiente.
