@@ -48,9 +48,6 @@ export const DevicesCell: React.FC<DevicesCellProps> = ({
 
   return (
     <td className="min-w-0 py-0.5 px-1 border-r border-slate-200 relative group">
-      {data.clinicalCarryover?.devicesPending && (
-        <div className="text-[9px] text-amber-700">Dispositivos previos · Por verificar</div>
-      )}
       <DeviceSelector
         devices={devices}
         deviceDetails={deviceDetails}
@@ -61,6 +58,17 @@ export const DevicesCell: React.FC<DevicesCellProps> = ({
         currentDate={currentDateString}
         disabled={readOnly || false}
       />
+      {data.clinicalCarryover?.devicesPending && (
+        <div
+          className="mt-0.5 text-center text-[9px] leading-none text-slate-500"
+          title={`Dispositivos conservados del censo del ${data.clinicalCarryover.sourceDate}. Se mantienen sus fechas de instalación.`}
+        >
+          Censo del{' '}
+          <time dateTime={data.clinicalCarryover.sourceDate}>
+            {data.clinicalCarryover.sourceDate.split('-').reverse().join('/')}
+          </time>
+        </div>
+      )}
 
       {!isEmpty && !readOnly && (
         <button

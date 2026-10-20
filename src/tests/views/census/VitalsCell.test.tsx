@@ -42,7 +42,7 @@ const renderCell = (vitalSigns?: PatientVitalSigns, bedId = 'R1', patient?: Part
   );
 
 describe('VitalsCell', () => {
-  it('labels copied measurements with their original date and pending verification', () => {
+  it('keeps the original date discreetly without turning background verification into an alert', () => {
     renderCell(VITALS, 'R1', {
       clinicalEpisodeId: 'synthetic',
       clinicalCarryover: {
@@ -52,7 +52,12 @@ describe('VitalsCell', () => {
         devicesPending: true,
       },
     });
-    expect(screen.getByText(/Medición previa: 2026-07-11/)).toHaveTextContent('Por verificar');
+    expect(screen.getByText('11/07/2026').closest('span')).toHaveTextContent('Previa · 11/07/2026');
+    expect(screen.getByText('11/07/2026')).toHaveAttribute('datetime', '2026-07-11');
+    expect(screen.getByRole('button', { name: 'Ver signos vitales' })).toHaveAccessibleDescription(
+      'Medición previa del 2026-07-11'
+    );
+    expect(screen.queryByText(/Por verificar|pendiente de verificar/i)).not.toBeInTheDocument();
   });
 
   it('separates pending historical evidence from a new authoritative measurement', () => {
@@ -65,8 +70,13 @@ describe('VitalsCell', () => {
         devicesPending: false,
       },
     });
-    expect(screen.getByText('Medición: 2026-07-12')).not.toHaveTextContent('Por verificar');
-    expect(screen.getByText('Historial previo pendiente de verificar')).toBeInTheDocument();
+    expect(screen.getByText('12/07/2026')).toHaveAttribute('datetime', '2026-07-12');
+    expect(screen.getByRole('button', { name: 'Ver signos vitales' })).toHaveAccessibleDescription(
+      'Medición del 2026-07-12'
+    );
+    expect(
+      screen.queryByText(/Previa|Por verificar|pendiente de verificar/i)
+    ).not.toBeInTheDocument();
   });
 
   it('shows PA · FC · SAT · T° inline and opens the vitals modal on click', async () => {
