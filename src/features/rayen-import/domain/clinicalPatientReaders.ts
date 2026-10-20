@@ -20,7 +20,7 @@ type ReaderDeps = Pick<
 >;
 
 type DeviceReport = Awaited<ReturnType<ReaderDeps['fetchDeviceReport']>>;
-type DeviceRead = {
+export type DeviceRead = {
   entries: NonNullable<DeviceReport['entries']> | [];
   source?: 'json' | 'pdf';
   textItems: Awaited<ReturnType<ReaderDeps['extractDeviceItems']>>;

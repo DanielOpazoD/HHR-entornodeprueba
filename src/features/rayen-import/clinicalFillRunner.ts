@@ -1,10 +1,8 @@
 import { collectClinicalFillStaffing } from './domain/clinicalFillStaffing';
 import { needsClinicalRead } from './contracts/clinicalReadSelection';
 import type { DailyRecord, PatientData } from './contracts/rayenDomainContracts';
-import { mergeReportDevices } from './domain/mergeReportDevices';
+import { mergeClinicalDeviceRead } from './domain/mergeClinicalDeviceRead';
 import { mergeReportScales } from './domain/mergeReportScales';
-import { parseInvasiveDevices } from './mapping/parseInvasiveDevices';
-import { mapInvasiveDevices, mapRayenInvasiveDeviceEntries } from './mapping/mapDeviceToInstance';
 import { parseHistoryScales } from './mapping/parseHistoryScales';
 import { parseEvaluationScales } from './mapping/parseEvaluationScales';
 import { mergeScaleSources } from './mapping/mergeScaleSources';
@@ -174,28 +172,7 @@ export const runClinicalFill = async (
       reportPatientError('devices', message(deviceResult.reason));
     } else if (deviceResult.status === 'fulfilled') {
       try {
-        const devices =
-          deviceResult.value.source === 'json'
-            ? mapRayenInvasiveDeviceEntries(deviceResult.value.entries)
-            : mapInvasiveDevices(parseInvasiveDevices(deviceResult.value.textItems));
-        if (deviceResult.value.source === 'json') {
-          merged = carryover
-            ? carryover.reconcileCarriedDeviceRetirements(
-                merged,
-                deviceResult.value.entries,
-                fecha,
-                deps.now()
-              )
-            : merged;
-        }
-        // Additive on purpose: an empty remote list must not remove devices nursing keeps by hand.
-        if (devices.length > 0) {
-          merged = mergeReportDevices(merged, devices, {
-            now: deps.now(),
-            createId: deps.createId,
-          });
-        }
-        merged = carryover?.verifyCarriedDevices(merged, devices) ?? merged;
+        merged = mergeClinicalDeviceRead(merged, deviceResult.value, fecha, deps, carryover);
       } catch (error) {
         reportPatientError('devices', message(error));
       }
