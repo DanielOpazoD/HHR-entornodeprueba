@@ -20,7 +20,7 @@ export const buildRayenSyncDiagnosticReport = (history: RayenSyncEvent[]) => ({
   format: 'hhr.sync-diagnostic-report.v1',
   timeZone: CLINICAL_TIME_ZONE,
   interpretation:
-    'Contiene identificación clínica. null significa no registrado, no ausencia de error. Las identidades corresponden al intento, nunca al ocupante actual de la cama. Los eventos antiguos pueden carecer de detalle. Cada turno incluye su madrugada siguiente; conservar la fecha clínica de la fuente. Un intento posterior completo no borra el fallo histórico.',
+    'Contiene identificación clínica. null significa no registrado, no ausencia de error. Las identidades corresponden al intento, nunca al ocupante actual de la cama. Los eventos antiguos pueden carecer de detalle. Cada turno incluye su madrugada siguiente; conservar la fecha clínica de la fuente. Un intento posterior completo no borra el fallo histórico. source describe las conexiones al iniciar, no garantiza que la lectura posterior haya funcionado.',
   attempts: history.map(event => ({
     runId: event.id,
     censusDate: event.sourceDate ?? null,

@@ -14,7 +14,7 @@
       return await read();
     } finally {
       const elapsed = Math.max(0, Math.round(clock() - started));
-      if (Number.isSafeInteger(elapsed)) timings[stage] = elapsed;
+      if (Number.isSafeInteger(elapsed)) timings[stage] = (timings[stage] || 0) + elapsed;
     }
   };
   const timestamp = value => {
@@ -36,29 +36,6 @@
   };
   const hasReaders = (readHealth, readSnapshot, readReport) =>
     [readHealth, readSnapshot, readReport].every(reader => typeof reader === 'function');
-  const knownTimeoutStage = value => value === 'ficha_main_relay' || value === 'ficha_tab_relay';
-  const validateReadResults = (snapshotResult, reportResult) => {
-    const snapshot = snapshotResult && snapshotResult.snapshot;
-    if (!snapshot) {
-      return { error: snapshotResult && snapshotResult.error || 'Ficha Médico no entregó el censo.', ...(knownTimeoutStage(snapshotResult?.timeoutStage) ? { timeoutStage: snapshotResult.timeoutStage } : {}) };
-    }
-    if (snapshot.isComplete !== true) {
-      const coverage = snapshot.clinicalCoverage;
-      const detail = coverage && Number(coverage.errors) > 0
-        ? ` Fallaron lecturas clínicas de ${coverage.errors} de ${coverage.total} pacientes.`
-        : '';
-      return {
-        error: `Ficha Médico entregó un censo parcial; no se inició la sincronización.${detail}`,
-      };
-    }
-    if (!reportResult || reportResult.ok !== true || !Array.isArray(reportResult.rows)) {
-      return {
-        error: reportResult && reportResult.error ||
-          'Gestión de Camas no entregó el informe de egresos.',
-      };
-    }
-    return { snapshot, report: reportResult, capturePhasesMs: snapshotResult.capturePhasesMs };
-  };
   const createBundleResult = ({
     snapshot,
     report,
@@ -69,6 +46,7 @@
     idFactory,
     captureTimingsMs,
     capturePhasesMs,
+    captureRetries,
   }) => {
     const snapshotFacility = Number(snapshot.facilityId);
     const reportFacility = Number(report.facilityId);
@@ -102,9 +80,25 @@
         gestionCamasCapturedAt: report.capturedAt,
         sourceSkewMs,
         captureTimingsMs,
+        captureRetries,
         egresoRows: report.rows,
       },
     };
+  };
+  const completeCapture = async context => {
+    const after = await context.measuredRead('captureHealthAfter', () => context.readHealth({ force: true }));
+    if (context.isCancelled()) return { error: 'Sincronización cancelada desde HHR.', cancelled: true };
+    if (!bothSourcesReady(after)) return { error: 'Una fuente se desconectó durante la captura. ' + sourceFailureMessage(after) };
+    const completed = context.now();
+    const temporalError = root.HhrCensusSyncHorizonRuntime?.validateCaptureBoundary(context.started, completed);
+    if (temporalError) return { error: temporalError };
+    return createBundleResult({ ...context, completedAt: completed.toISOString() });
+  };
+  const captureInputError = (dateStart, dateEnd, started, readers) => {
+    if (!isValidRange(dateStart, dateEnd, started)) return 'El intervalo solicitado para sincronizar no es válido.';
+    if (!hasReaders(...readers)) return 'La captura sincronizada no pudo inicializarse.';
+    if (!root.HhrCensusSyncHorizonRuntime?.isSupportedTargetDay(dateStart, started)) return 'Selecciona una fecha de censo válida, actual o pasada.';
+    return null;
   };
   const capture = async ({
     dateStart,
@@ -114,55 +108,46 @@
     readReport,
     now = () => new Date(),
     idFactory = () => crypto.randomUUID(),
-    monotonicNow,
+    monotonicNow = () => root.performance.now(),
+    isCancelled = () => false,
   }) => {
     const started = now(), startedAt = started.toISOString();
-    if (!isValidRange(dateStart, dateEnd, started)) {
-      return { error: 'El intervalo solicitado para sincronizar no es válido.' };
-    }
-    if (!hasReaders(readHealth, readSnapshot, readReport)) {
-      return { error: 'La captura sincronizada no pudo inicializarse.' };
-    }
-    if (!root.HhrCensusSyncHorizonRuntime?.isSupportedTargetDay(dateStart, started)) {
-      return { error: 'Selecciona una fecha de censo válida, actual o pasada.' };
-    }
+    const inputError = captureInputError(dateStart, dateEnd, started, [readHealth, readSnapshot, readReport]);
+    if (inputError) return { error: inputError };
     const captureTimingsMs = {};
+    const deadline = monotonicNow() + 10_000;
+    let captureRetries = 0;
+    const withRetries = result => captureRetries && result.error ? { ...result, captureRetries } : result;
+    const cancelled = () => ({ error: 'Sincronización cancelada desde HHR.', cancelled: true });
     const measuredRead = createMeasuredRead(captureTimingsMs, monotonicNow);
     try {
       const before = await measuredRead('captureHealthBefore', readHealth);
+      if (isCancelled()) return cancelled();
       if (!bothSourcesReady(before)) {
         return { error: sourceFailureMessage(before) };
       }
-      const [snapshotResult, reportResult] = await Promise.all([
-        measuredRead('captureFichaMedico', readSnapshot),
-        measuredRead('captureGestionCamas', () => readReport({ dateStart, dateEnd })),
-      ]);
-      const readResult = validateReadResults(snapshotResult, reportResult);
-      if (readResult.error) return readResult;
-      const after = await measuredRead('captureHealthAfter', readHealth);
-      if (!bothSourcesReady(after)) {
-        return { error: 'Una fuente se desconectó durante la captura. ' + sourceFailureMessage(after) };
-      }
-      const completed = now();
-      const temporalError = root.HhrCensusSyncHorizonRuntime?.validateCaptureBoundary(
-        started,
-        completed
-      );
-      if (temporalError) return { error: temporalError };
-      return createBundleResult({
-        ...readResult,
-        startedAt,
-        completedAt: completed.toISOString(),
-        dateStart,
-        dateEnd,
-        idFactory,
-        captureTimingsMs,
+      const reads = await root.HhrCaptureReadRecovery.read({
+        readFicha: () => measuredRead('captureFichaMedico', readSnapshot),
+        readGestion: () => measuredRead('captureGestionCamas', () => readReport({ dateStart, dateEnd })),
+        readHealth: () => measuredRead('captureHealthBefore', () => readHealth({ force: true })),
+        healthError: health => bothSourcesReady(health) ? null : sourceFailureMessage(health),
+        isCancelled, withinBudget: () => monotonicNow() < deadline,
       });
+      if (reads.error) return reads;
+      const { snapshotResult, reportResult } = reads;
+      captureRetries = reads.captureRetries;
+      const readResult = root.HhrCaptureReadRecovery.validate(snapshotResult, reportResult);
+      if (readResult.error) return { ...readResult, ...(captureRetries ? { captureRetries } : {}) };
+      return withRetries(await completeCapture({
+        ...readResult, started, startedAt, dateStart, dateEnd, idFactory,
+        captureTimingsMs, captureRetries, now, measuredRead, readHealth, isCancelled,
+      }));
     } catch (error) {
-      return {
+      if (isCancelled()) return cancelled();
+      return withRetries({
         error: 'No se pudo capturar ambas fuentes: ' +
           String(error && error.message || error),
-      };
+      });
     }
   };
 

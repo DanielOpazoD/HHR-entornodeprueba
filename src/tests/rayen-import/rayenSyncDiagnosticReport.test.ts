@@ -36,6 +36,16 @@ const event: RayenSyncEvent = {
 };
 
 describe('explicit clinical diagnostic export', () => {
+  it('persists and exports network failure independently of initial readiness', () => {
+    const parsed = RayenSyncEventSchema.parse({
+      ...event,
+      status: 'failed',
+      failureReason: 'snapshot_network_error',
+    });
+    const report = buildRayenSyncDiagnosticReport([parsed]);
+    expect(report.attempts[0].failureReason).toBe('snapshot_network_error');
+    expect(report.interpretation).toContain('source describe las conexiones al iniciar');
+  });
   it('preserves case evidence through persistence and exports it without arbitrary payloads', () => {
     const parsed = RayenSyncEventSchema.parse(event);
     const report = buildRayenSyncDiagnosticReport([

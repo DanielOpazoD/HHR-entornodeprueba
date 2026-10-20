@@ -620,3 +620,14 @@ El contrato y la recuperación compatible se documentan en
 [`rayen-import`](../src/features/rayen-import/README.md#códigos-estables-de-errores-de-lectura).
 El módulo `clinical-read-error-contract.js` se carga antes del cliente de Ficha Médico.
 No cambian permisos, vigencia de autorización, escrituras ni reglas de CUDYR.
+
+### Recuperación acotada de captura (0.48.55)
+
+La captura conjunta permite una sola segunda lectura por fuente ante un error de red
+rápido (fallo recibido y salud comprobada dentro de los primeros 10 s). Reutiliza la
+fuente que ya respondió, verifica la salud sin caché y conserva las comprobaciones
+de establecimiento, desfase y corte temporal. No repite permisos rechazados, sesión
+vencida, datos parciales ni timeouts. La cancelación impide iniciar el reintento y
+descarta cualquier resultado tardío. Los contadores del historial incluyen estas
+segundas lecturas. Las conexiones mostradas en el historial son las del inicio del
+intento: un fallo de red posterior no demuestra una sesión vencida.

@@ -133,14 +133,11 @@ export const RAYEN_SYNC_FAILURE_REASONS = [
   'extension_unavailable',
   'extension_incompatible',
   'ficha_medico_unavailable',
-  /**
-   * La pestaña de Ficha Médico responde a la salud pero ya no puede leer
-   * datos (p. ej. «Failed to fetch» tras una noche abierta): hay que
-   * recargarla. Antes se archivaba como `snapshot_error` genérico.
-   */
+  /** Lector incompatible o bloqueado; los historiales antiguos también agruparon fallos de red. */
   'ficha_medico_stale',
   'gestion_camas_unavailable',
   'snapshot_timeout',
+  'snapshot_network_error',
   'snapshot_error',
   'apply_failed',
   /** El guardado fue rechazado por permisos: la sesión perdió su rol, no es un fallo del servidor. */

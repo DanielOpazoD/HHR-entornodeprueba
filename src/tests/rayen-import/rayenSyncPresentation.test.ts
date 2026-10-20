@@ -374,7 +374,7 @@ describe('rayen sync presentation', () => {
 
   it('una pestaña de Ficha Médico inactiva pide recargarla antes de ofrecer «Revisar censo», aunque Eloísa esté sana', () => {
     expect(rayenFailureReasonLabel('ficha_medico_stale')).toBe(
-      'Ficha Médico inactiva: recargar la pestaña'
+      'Ficha Médico: lector bloqueado o desactualizado'
     );
 
     const event: RayenSyncEvent = {

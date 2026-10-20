@@ -23,15 +23,15 @@ describe('classifyRayenSnapshotError', () => {
     expect(tab.message).toContain('pestaña de Ficha Médico');
 
     expect(classifyRayenSnapshotError('Failed to fetch', 'origen_desconocido').reason).toBe(
-      'ficha_medico_stale'
+      'snapshot_network_error'
     );
   });
 
-  it('pestaña de Ficha Médico que ya no puede leer (caso vivo del 02-09): recargarla, conservando el detalle', () => {
+  it('un fallo de red no demuestra que la sesión haya vencido', () => {
     const classified = classifyRayenSnapshotError(`${WRAP}Failed to fetch`);
 
-    expect(classified.reason).toBe('ficha_medico_stale');
-    expect(classified.message).toContain('Recárgala (Cmd+R)');
+    expect(classified.reason).toBe('snapshot_network_error');
+    expect(classified.message).toContain('Esto no confirma que la sesión haya vencido');
     expect(classified.message).toContain('Detalle: Failed to fetch');
   });
 
@@ -40,12 +40,24 @@ describe('classifyRayenSnapshotError', () => {
       classifyRayenSnapshotError(
         `${WRAP}Failed to fetch al consultar https://fichamedicoback.rayensalud.cl/encounter/list/filter`
       ).reason
-    ).toBe('ficha_medico_stale');
+    ).toBe('snapshot_network_error');
     expect(
       classifyRayenSnapshotError(
         'Ficha Médico no puede leer datos desde esta pestaña (fallo de red al consultar Eloísa). Recarga la pestaña (Cmd+R).'
       ).reason
-    ).toBe('ficha_medico_stale');
+    ).toBe('snapshot_network_error');
+  });
+
+  it('prioriza una sesión explícitamente vencida sobre un detalle de red', () => {
+    expect(classifyRayenSnapshotError('La sesión clínica venció. Failed to fetch').reason).toBe(
+      'ficha_medico_unavailable'
+    );
+  });
+
+  it.each([502, 503, 504])('clasifica HTTP %s agotado como fallo de conexión', status => {
+    expect(classifyRayenSnapshotError(`${WRAP}HTTP ${status}`).reason).toBe(
+      'snapshot_network_error'
+    );
   });
 
   it('un 500 del backend o una lista ajena a la identidad NO son pestaña inactiva: causa genérica con el detalle real', () => {

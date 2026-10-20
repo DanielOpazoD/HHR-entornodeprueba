@@ -26,6 +26,10 @@
       "maxLines": 87,
       "hotspots": {}
     },
+    "capture-read-recovery.js": {
+      "maxLines": 70,
+      "hotspots": {}
+    },
     "census-sync-horizon-runtime.js": {
       "maxLines": 43,
       "hotspots": {}
