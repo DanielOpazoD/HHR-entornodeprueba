@@ -1271,7 +1271,7 @@ const assertAuthorizedDailyRecordWriter = async ({
   requiredRole,
 }) => {
   const email = requireAuthenticatedEmail(context);
-  const resolvedRole = await resolveRoleForEmail(email);
+  const resolvedRole = await resolveRoleForEmail(email, context);
 
   if (requiredRole && resolvedRole !== requiredRole) {
     throw new functions.https.HttpsError(

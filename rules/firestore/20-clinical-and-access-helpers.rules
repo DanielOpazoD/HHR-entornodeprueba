@@ -22,7 +22,7 @@
     }
 
     function canWriteMedicalIndicationRecord() {
-      return isAdmin() || isDoctor() || isDoctorSpecialist();
+      return hasAnyEffectiveRole(['admin', 'doctor_urgency', 'doctor_specialist']);
     }
 
     function hasOnlyMedicalIndicationRecordKeys(payload) {

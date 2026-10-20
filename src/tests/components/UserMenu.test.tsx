@@ -20,58 +20,62 @@ describe('UserMenu', () => {
     vi.clearAllMocks();
   });
 
-  it('renders user initial button', () => {
+  it('renders user initial button', async () => {
     render(<UserMenu {...defaultProps} />);
 
     const button = screen.getByRole('button');
     expect(button.textContent).toBe('d');
   });
 
-  it('shows dropdown when button is clicked', () => {
+  it('shows dropdown when button is clicked', async () => {
     render(<UserMenu {...defaultProps} />);
 
     fireEvent.click(screen.getByRole('button'));
+    await screen.findByTestId('user-profile-menu-panel');
 
     expect(screen.getByText('doctor@hospital.cl')).toBeInTheDocument();
     expect(screen.getByText('Invitado')).toBeInTheDocument();
     expect(screen.getByText('Online')).toBeInTheDocument();
   });
 
-  it('displays role correctly', () => {
+  it('displays role correctly', async () => {
     render(<UserMenu {...defaultProps} role="admin" />);
 
     fireEvent.click(screen.getByRole('button'));
+    await screen.findByTestId('user-profile-menu-panel');
 
     expect(screen.getByText('Administrador')).toBeInTheDocument();
   });
 
-  it('calls onLogout when logout button is clicked', () => {
+  it('calls onLogout when logout button is clicked', async () => {
     render(<UserMenu {...defaultProps} />);
 
     fireEvent.click(screen.getByRole('button'));
+    await screen.findByTestId('user-profile-menu-panel');
     fireEvent.click(screen.getByText('Cerrar sesión'));
 
     expect(defaultProps.onLogout).toHaveBeenCalled();
   });
 
-  it('closes dropdown after logout', () => {
+  it('closes dropdown after logout', async () => {
     render(<UserMenu {...defaultProps} />);
 
     fireEvent.click(screen.getByRole('button'));
+    await screen.findByTestId('user-profile-menu-panel');
     fireEvent.click(screen.getByText('Cerrar sesión'));
 
     // Dropdown should be closed
     expect(screen.queryByText('doctor@hospital.cl')).not.toBeInTheDocument();
   });
 
-  it('has correct title attribute with email', () => {
+  it('has correct title attribute with email', async () => {
     render(<UserMenu {...defaultProps} />);
 
     const button = screen.getByRole('button');
     expect(button).toHaveAttribute('title', 'doctor@hospital.cl');
   });
 
-  it('exposes user, role and sync state through the authenticated menu button name', () => {
+  it('exposes user, role and sync state through the authenticated menu button name', async () => {
     render(<UserMenu {...defaultProps} role="admin" />);
 
     expect(
@@ -81,14 +85,14 @@ describe('UserMenu', () => {
     ).toBeInTheDocument();
   });
 
-  it('shows first letter uppercase', () => {
+  it('shows first letter uppercase', async () => {
     render(<UserMenu {...defaultProps} userEmail="Admin@hospital.cl" />);
 
     const button = screen.getByRole('button');
     expect(button.textContent).toBe('A');
   });
 
-  it('keeps a stable user mark under the saved avatar while the image loads', () => {
+  it('keeps a stable user mark under the saved avatar while the image loads', async () => {
     render(<UserMenu {...defaultProps} avatarUrl="https://storage.test/avatar.png" />);
 
     expect(screen.getByAltText('Foto de perfil de doctor@hospital.cl')).toHaveAttribute(
@@ -98,10 +102,11 @@ describe('UserMenu', () => {
     expect(screen.getByTestId('user-avatar-initial-fallback')).toHaveTextContent('d');
   });
 
-  it('renders the expanded profile menu from the avatar with preview, status and actions', () => {
+  it('renders the expanded profile menu from the avatar with preview, status and actions', async () => {
     render(<UserMenu {...defaultProps} avatarUrl="https://storage.test/avatar.png" />);
 
     fireEvent.click(screen.getByRole('button'));
+    await screen.findByTestId('user-profile-menu-panel');
 
     expect(screen.getByTestId('user-profile-menu-panel')).toHaveClass('origin-top-right');
     expect(screen.getByTestId('user-profile-menu-preview')).toHaveClass('h-16', 'w-16');
@@ -116,25 +121,27 @@ describe('UserMenu', () => {
     expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeInTheDocument();
   });
 
-  it('opens avatar settings from the user dropdown', () => {
+  it('opens avatar settings from the user dropdown', async () => {
     render(<UserMenu {...defaultProps} />);
 
     fireEvent.click(screen.getByRole('button'));
+    await screen.findByTestId('user-profile-menu-panel');
     fireEvent.click(screen.getByRole('button', { name: 'Cambiar foto de perfil' }));
 
     expect(defaultProps.onOpenAvatarSettings).toHaveBeenCalled();
     expect(screen.queryByText('doctor@hospital.cl')).not.toBeInTheDocument();
   });
 
-  it('shows offline state in dropdown when not connected', () => {
+  it('shows offline state in dropdown when not connected', async () => {
     render(<UserMenu {...defaultProps} isFirebaseConnected={false} />);
 
     fireEvent.click(screen.getByRole('button'));
+    await screen.findByTestId('user-profile-menu-panel');
 
     expect(screen.getByText('Offline')).toBeInTheDocument();
   });
 
-  it('surfaces local-only sync state even if Firebase is connected', () => {
+  it('surfaces local-only sync state even if Firebase is connected', async () => {
     render(<UserMenu {...defaultProps} remoteSyncStatus="local_only" />);
 
     expect(
@@ -144,16 +151,33 @@ describe('UserMenu', () => {
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button'));
+    await screen.findByTestId('user-profile-menu-panel');
     expect(screen.getByText('Local')).toBeInTheDocument();
   });
 
-  it('closes dropdown when clicking outside', () => {
+  it('closes dropdown when clicking outside', async () => {
     render(<UserMenu {...defaultProps} />);
 
     fireEvent.click(screen.getByRole('button'));
+    await screen.findByTestId('user-profile-menu-panel');
     expect(screen.getByText('doctor@hospital.cl')).toBeInTheDocument();
 
     fireEvent.mouseDown(document.body);
     expect(screen.queryByText('doctor@hospital.cl')).not.toBeInTheDocument();
+  });
+  it('shows the individual name and password action without disclosing the internal login alias', async () => {
+    render(
+      <UserMenu
+        {...defaultProps}
+        userEmail="opaque@accounts.hhr.invalid"
+        displayName="Enfermera Sintética"
+        isIndividualAccount
+      />
+    );
+    fireEvent.click(screen.getByRole('button'));
+    await screen.findByTestId('user-profile-menu-panel');
+    expect(screen.getByText('Enfermera Sintética')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cambiar mi clave' })).toBeInTheDocument();
+    expect(screen.queryByText('opaque@accounts.hhr.invalid')).not.toBeInTheDocument();
   });
 });

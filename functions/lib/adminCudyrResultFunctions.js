@@ -198,7 +198,7 @@ const updatePatientCudyr = ({ patient, category, date, email }) => {
 const createAdminCudyrResultFunctions = ({ firestore, Timestamp, resolveRoleForEmail }) => ({
   setAdminCudyrResult: functions.https.onCall(async (data, context) => {
     const email = requireAuthenticatedEmail(context);
-    const role = await resolveRoleForEmail(email);
+    const role = await resolveRoleForEmail(email, context);
     if (role !== 'admin') {
       throw new functions.https.HttpsError(
         'permission-denied',

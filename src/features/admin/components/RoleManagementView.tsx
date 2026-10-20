@@ -1,148 +1,15 @@
-import React from 'react';
-import { X, CheckCircle2, AlertCircle, RefreshCw, ShieldAlert } from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
-import { useRoleManagement } from '@/hooks/useRoleManagement';
-import { AccessRestricted } from './internal/AccessRestricted';
-import { RoleAccessPreview } from './internal/RoleAccessPreview';
-import { RoleForm } from './internal/RoleForm';
-import { RoleTable } from './internal/RoleTable';
-import { DeleteRoleModal } from './internal/DeleteRoleModal';
+import React, { lazy, Suspense } from 'react';
+import { SectionErrorBoundary } from '@/components/shared/SectionErrorBoundary';
 
-const RoleManagementView: React.FC = () => {
-  const { role: authRole } = useAuth();
-  const {
-    roles,
-    loading,
-    email,
-    setEmail,
-    selectedRole,
-    setSelectedRole,
-    editingEmail,
-    processing,
-    message,
-    setMessage,
-    deleteConfirm,
-    setDeleteConfirm,
-    isValidEmail,
-    loadRoles,
-    handleSubmit,
-    handleEdit,
-    resetForm,
-    handleDeleteClick,
-    confirmDelete,
-  } = useRoleManagement();
+const RoleManagementPanel = lazy(() => import('./RoleManagementPanel'));
 
-  // If authRole is definitively NOT admin (and not undefined/loading), show blocked
-  if (authRole !== 'admin' && authRole !== undefined) {
-    return <AccessRestricted />;
-  }
-
+/** Account permissions are always administered against current server authority. */
+export default function RoleManagementView() {
   return (
-    <div className="max-w-[1180px] mx-auto px-4 py-4 md:px-6 md:py-6 animate-in fade-in duration-700">
-      <header className="mb-6 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="bg-indigo-600 p-2 rounded-2xl text-white shadow-lg shadow-indigo-100 ring-2 ring-indigo-50">
-              <CheckCircle2 size={20} />
-            </div>
-            <h1 className="text-2xl md:text-[2rem] font-display font-black text-slate-900 tracking-tight">
-              Gestión de Roles Pro
-            </h1>
-          </div>
-          <p className="text-slate-500 max-w-2xl font-medium leading-snug text-sm md:text-[15px]">
-            Control central de permisos. Estos cambios se almacenan en `config/roles` y prevalecen
-            sobre claims legacy o listas antiguas de acceso.
-          </p>
-        </div>
-
-        <button
-          onClick={loadRoles}
-          disabled={loading}
-          className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-100 rounded-xl text-slate-400 font-bold text-[11px] hover:bg-slate-50 transition-all active:scale-95"
-        >
-          <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
-          Actualizar Lista
-        </button>
-      </header>
-
-      {/* Notifications */}
-      {message && (
-        <div
-          className={`p-3.5 mb-5 rounded-2xl border flex items-center gap-3 shadow-sm animate-in zoom-in-95 duration-300 ${
-            message.type === 'success'
-              ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-              : 'bg-rose-50 text-rose-700 border-rose-100'
-          }`}
-        >
-          {message.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
-          <span className="flex-1 font-bold text-xs tracking-tight">{message.text}</span>
-          <button
-            onClick={() => setMessage(null)}
-            className="p-1 hover:bg-black/5 rounded-full transition-transform active:scale-90"
-            aria-label="Cerrar"
-          >
-            <X size={16} />
-          </button>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
-        {/* FORM COLUMN */}
-        <div className="xl:col-span-4 space-y-4">
-          <RoleForm
-            email={email}
-            setEmail={setEmail}
-            selectedRole={selectedRole}
-            setSelectedRole={setSelectedRole}
-            editingEmail={editingEmail}
-            processing={processing}
-            isValidEmail={isValidEmail}
-            onReset={resetForm}
-            onSubmit={handleSubmit}
-          />
-
-          <RoleAccessPreview role={selectedRole} />
-
-          <div className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100/60 shadow-inner">
-            <div className="flex gap-3">
-              <ShieldAlert size={22} className="text-blue-500 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-[11px] text-blue-800 leading-relaxed font-bold mb-1.5 uppercase tracking-wider">
-                  Modelo de acceso
-                </p>
-                <p className="text-[10px] text-blue-700 leading-snug font-semibold">
-                  El login general entra solo por `config/roles`. Si remueves un correo aquí, debe
-                  quedar fuera al volver a iniciar sesión o al rehidratar la sesión.
-                </p>
-                <p className="text-[10px] text-blue-700/80 leading-snug font-semibold italic mt-2">
-                  Si al guardar ves errores de permiso, revisa despliegue de rules/functions.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* TABLE COLUMN */}
-        <div className="xl:col-span-8">
-          <RoleTable
-            roles={roles}
-            loading={loading}
-            editingEmail={editingEmail}
-            onEdit={handleEdit}
-            onDelete={handleDeleteClick}
-          />
-        </div>
-      </div>
-
-      {/* Confirmation Modal */}
-      <DeleteRoleModal
-        email={deleteConfirm}
-        processing={processing}
-        onClose={() => setDeleteConfirm(null)}
-        onConfirm={confirmDelete}
-      />
-    </div>
+    <SectionErrorBoundary sectionName="administración de usuarios">
+      <Suspense fallback={<p>Conectando con la administración de usuarios…</p>}>
+        <RoleManagementPanel />
+      </Suspense>
+    </SectionErrorBoundary>
   );
-};
-
-export default RoleManagementView;
+}

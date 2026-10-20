@@ -26,7 +26,7 @@ const resolveCallerRole = async (context, resolveRoleForEmail) => {
     .trim()
     .toLowerCase();
   if (!callerEmail) return 'unauthorized';
-  return resolveRoleForEmail(callerEmail);
+  return resolveRoleForEmail(callerEmail, context);
 };
 
 const assertRenderAccess = async (context, resolveRoleForEmail) => {

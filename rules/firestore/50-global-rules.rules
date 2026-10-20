@@ -72,7 +72,23 @@
     }
 
     match /config/roles {
-      allow read, write: if isAdmin();
+      allow read: if isAdmin();
+      allow write: if isAdmin() && !isIndividualAccessEnabled();
+    }
+
+    match /config/individualAccounts {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /hhr_account_access/{userId} {
+      allow read: if isAdmin() || (isAuthenticated() && request.auth.uid == userId);
+      allow write: if false;
+    }
+
+    match /hhr_account_audit/{eventId} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     match /config/prescriptionsAccess {

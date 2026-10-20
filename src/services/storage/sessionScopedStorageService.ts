@@ -94,7 +94,14 @@ const clearUserScopedSessionStorage = (): void => {
 const clearSensitiveSessionState = async (ownerKey: string | null): Promise<void> => {
   const results = await Promise.allSettled([
     Promise.resolve().then(() => clearAllRecords({ throwOnError: true })),
-    Promise.resolve().then(() => clearSyncQueueForOwner(ownerKey, true)),
+    Promise.resolve().then(async () => {
+      if (ownerKey?.startsWith('user:hhrn_')) {
+        const { preserveNursingSessionQueue } = await import('./nursingSessionQueue');
+        await preserveNursingSessionQueue(ownerKey);
+      } else {
+        await clearSyncQueueForOwner(ownerKey, true);
+      }
+    }),
     Promise.resolve().then(clearUserScopedLocalStorage),
     Promise.resolve().then(clearUserScopedSessionStorage),
   ]);

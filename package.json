@@ -222,6 +222,7 @@
     "test:emulator:sync": "RUN_FIRESTORE_EMULATOR_TESTS=1 vitest run -c vitest.emulator.config.ts",
     "test:emulator:ui": "RUN_FIRESTORE_EMULATOR_TESTS=1 vitest run -c vitest.emulator-ui.config.ts",
     "test:emulator:sync:ci": "bash scripts/run-firestore-sync-emulator-ci.sh",
+    "test:accounts:emulator:ci": "npm run build:rules-assets && bash scripts/run-nursing-accounts-emulator-ci.sh",
     "test:firestore:release:ci": "bash scripts/run-firestore-release-gate-ci.sh",
     "test:firestore:cma:ci": "bash scripts/run-firestore-cma-specialty-ci.sh",
     "emulator": "firebase emulators:start --only firestore",

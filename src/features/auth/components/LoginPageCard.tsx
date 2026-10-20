@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useState } from 'react';
 import { GoogleIdentitySignIn } from './GoogleIdentitySignIn';
 import { AlertCircle, Loader2, RotateCcw } from 'lucide-react';
 
@@ -6,7 +6,11 @@ import { useConfirmDialog } from '@/context/UIContext';
 import { AUTH_UI_COPY } from '@/services/auth/authUiCopy';
 import { resetLocalAppStorage } from '@/services/storage/indexeddb/indexedDbMaintenanceService';
 
+const NursingAccessForm = lazy(() => import('./NursingAccessForm'));
+
 interface LoginPageCardProps {
+  onIndividualLoginSuccess?: () => void;
+  onIndividualBusyChange?: (busy: boolean) => void;
   isDayGradient: boolean;
   isAnyLoading: boolean;
   isGoogleLoading: boolean;
@@ -40,6 +44,8 @@ const GoogleIcon: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 export const LoginPageCard: React.FC<LoginPageCardProps> = ({
+  onIndividualLoginSuccess,
+  onIndividualBusyChange,
   isDayGradient,
   isAnyLoading,
   isGoogleLoading,
@@ -51,6 +57,7 @@ export const LoginPageCard: React.FC<LoginPageCardProps> = ({
   onLocalResetStart,
 }) => {
   const { confirm } = useConfirmDialog();
+  const [individual, setIndividual] = useState(false);
   const [showIdentity, setShowIdentity] = useState(
     Boolean(onGoogleCredential && import.meta.env.VITE_GOOGLE_SIGN_IN_CLIENT_ID)
   );
@@ -129,6 +136,28 @@ export const LoginPageCard: React.FC<LoginPageCardProps> = ({
                 </>
               )}
             </button>
+          )}
+
+          {onIndividualLoginSuccess && (
+            <>
+              <button
+                type="button"
+                disabled={isAnyLoading}
+                onClick={() => setIndividual(!individual)}
+                className="w-full rounded-xl border border-white/40 px-3 py-3 font-semibold text-white"
+              >
+                {individual ? 'Ocultar acceso individual' : 'Ingresar con RUT / activar cuenta'}
+              </button>
+              {individual && (
+                <Suspense fallback={<p className="text-white">Cargando acceso…</p>}>
+                  <NursingAccessForm
+                    onSuccess={onIndividualLoginSuccess}
+                    onBusyChange={onIndividualBusyChange}
+                    disabled={isGoogleLoading}
+                  />
+                </Suspense>
+              )}
+            </>
           )}
 
           <div className="flex justify-center">

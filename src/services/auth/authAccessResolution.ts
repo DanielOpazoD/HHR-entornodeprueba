@@ -99,11 +99,12 @@ const resolveFirebaseUserRoleFromPolicy = async (
   options: { allowCachedRole?: boolean } = {}
 ): Promise<UserRole | null> => {
   try {
-    const loginAccess = options.allowCachedRole
-      ? await resolveGeneralLoginAccessForEmail(firebaseUser.email || '', {
-          allowCachedRole: true,
-        })
-      : await resolveGeneralLoginAccessForEmail(firebaseUser.email || '');
+    const loginAccess =
+      options.allowCachedRole && !firebaseUser.uid.startsWith('hhrn_')
+        ? await resolveGeneralLoginAccessForEmail(firebaseUser.email || '', {
+            allowCachedRole: true,
+          })
+        : await resolveGeneralLoginAccessForEmail(firebaseUser.email || '');
     if (loginAccess.allowed && loginAccess.role) {
       return loginAccess.role;
     }

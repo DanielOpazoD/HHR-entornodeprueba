@@ -513,7 +513,7 @@ jobs:
 
   rules-emulator:
     name: rules-emulator
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [ci-scope]
     if: needs.ci-scope.outputs.scope == 'full'
 
@@ -544,6 +544,12 @@ jobs:
         env:
           CI: true
           RUN_FIRESTORE_EMULATOR_TESTS: 1
+
+      - name: Prepare Chromium for individual account browser flow
+        uses: ./.github/actions/setup-ci-chromium
+
+      - name: Validate individual accounts with Auth, Firestore and Storage emulators
+        run: npm run test:accounts:emulator:ci
 
   e2e-critical-emulator:
     name: e2e-critical

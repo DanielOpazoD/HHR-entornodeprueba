@@ -408,7 +408,9 @@ describe('listPrescriptionUploadPatientOptions', () => {
     );
 
     expect(result.patientOptions).toHaveLength(2);
-    expect(resolveRoleForEmail).toHaveBeenCalledWith('enf@h.cl');
+    expect(resolveRoleForEmail).toHaveBeenCalledWith('enf@h.cl', {
+      auth: { uid: 'n-1', token: { email: 'enf@h.cl' } },
+    });
   });
 
   it('rejects unauthenticated calls without a PIN', async () => {
@@ -484,6 +486,8 @@ describe('listPrescriptionUploadReadonlyRecords', () => {
     );
 
     expect(result.records).toHaveLength(1);
-    expect(resolveRoleForEmail).toHaveBeenCalledWith('enf@h.cl');
+    expect(resolveRoleForEmail).toHaveBeenCalledWith('enf@h.cl', {
+      auth: { uid: 'n-1', token: { email: 'enf@h.cl' } },
+    });
   });
 });

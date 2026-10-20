@@ -163,7 +163,7 @@ const requireAllowedClinician = async (context, resolveRoleForEmail) => {
   const email = String(context.auth.token?.email || '')
     .toLowerCase()
     .trim();
-  const role = email ? await resolveRoleForEmail(email) : 'unauthorized';
+  const role = email ? await resolveRoleForEmail(email, context) : 'unauthorized';
   if (!ALLOWED_ROLES.has(role)) {
     throw new functions.https.HttpsError(
       'permission-denied',
