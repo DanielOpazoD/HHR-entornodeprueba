@@ -5,7 +5,7 @@ import { getTodayISO } from '@/utils/dateCoreUtils';
 import { useCensusMigrationBootstrap } from './useCensusMigrationBootstrap';
 import { useCensusViewRouteModel } from './useCensusViewRouteModel';
 import type { CensusAccessProfile } from '../types/censusAccessProfile';
-import { resolveCensusEmptyStateDiagnostic } from '@/hooks/controllers/dailyRecordBootstrapController';
+import { resolveCensusEmptyStateDiagnostic } from '@/features/census/controllers/censusEmptyStateDiagnostic';
 import { readPostDeployRecentRecordRefreshMarker } from '@/services/config/postDeployRecentRecordRefresh';
 import type { RenderCensusMedicalHandoffAction } from '../contracts/censusMedicalHandoffAction';
 

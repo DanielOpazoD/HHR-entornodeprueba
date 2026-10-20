@@ -43,6 +43,15 @@ const collectProductionSourceFiles = (directory: string): string[] => {
 };
 
 describe('chunkingPolicy', () => {
+  it('keeps census diagnostic presentation outside the shared bootstrap policy module', () => {
+    const bootstrap = readSource('src/hooks/controllers/dailyRecordBootstrapController.ts');
+    expect(bootstrap).not.toContain('censusEmptyStateDiagnostic');
+    expect(bootstrap).not.toContain('resolveCensusEmptyStateDiagnostic');
+    expect(readSource('src/features/census/hooks/useCensusViewScreenModel.ts')).toContain(
+      "from '@/features/census/controllers/censusEmptyStateDiagnostic'"
+    );
+  });
+
   it('does not force manual chunks for application source modules', () => {
     expect(chunkForModule('/repo/src/services/backup/censusStorageService.ts')).toBeUndefined();
     expect(

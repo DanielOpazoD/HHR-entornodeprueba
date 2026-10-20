@@ -1,11 +1,13 @@
+import {
+  resolveCensusEmptyStateDiagnostic,
+  shouldRecordCensusEmptyStateDiagnostic,
+} from '@/features/census/controllers/censusEmptyStateDiagnostic';
 import { describe, expect, it } from 'vitest';
 import {
   describeDailyRecordBootstrapPhase,
   isDailyRecordBootstrapPending,
-  resolveCensusEmptyStateDiagnostic,
   resolveCensusEmptyStatePolicy,
   resolveDailyRecordBootstrapPhase,
-  shouldRecordCensusEmptyStateDiagnostic,
   shouldAttemptTodayEmptyRecovery,
 } from '@/hooks/controllers/dailyRecordBootstrapController';
 
