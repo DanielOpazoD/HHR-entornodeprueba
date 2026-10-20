@@ -558,8 +558,10 @@ inmediatamente anterior cuando coinciden documento, episodio y fecha/hora de ing
 no identifica al paciente. La cuna se valida con su propia identidad. No se aplica a días históricos,
 fechas futuras, al relleno de un registro existente ni a la copia individual entre fechas.
 
-Las mediciones conservan su fecha, hora y autor originales; la interfaz las identifica como previas
-y pendientes de verificación. Los dispositivos conservan instalación e historial de retiros. Una
+Las mediciones conservan su fecha, hora y autor originales; la tabla muestra la fecha original y
+«Previa» en gris, debajo de los valores. Los dispositivos muestran discretamente el censo de origen,
+conservando instalación e historial de retiros. La verificación pendiente permanece en el estado
+interno, sin mensajes naranjos ni «Por verificar» repetidos en las filas. Una
 respuesta vacía, fallida o ambigua no acredita verificación ni retiro. Los retiros requieren evidencia
 explícita con instalación coincidente e instancia única; no se deducen de ausencia en una lista.
 
