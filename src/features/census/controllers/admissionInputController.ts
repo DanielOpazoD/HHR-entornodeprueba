@@ -1,4 +1,5 @@
 import { getTodayISO } from '@/utils/dateCoreUtils';
+import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 import { normalizeDateOnly } from '@/utils/clinicalDayUtils';
 import {
   resolveAdmissionDateAudit as resolveAdmissionDateAuditPolicy,
@@ -29,12 +30,6 @@ export interface AdmissionDateUpdatePlan {
   };
   shouldUseMultipleUpdate: boolean;
 }
-
-const formatTimeHHMM = (date: Date): string => {
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  return `${hours}:${minutes}`;
-};
 
 export const resolveAdmissionDateMax = (todayIso: string = getTodayISO()): string => todayIso;
 
@@ -129,7 +124,7 @@ export const resolveAdmissionDateChange = ({
   if (nextDate && !currentAdmissionTime) {
     return {
       admissionDate: nextDate,
-      admissionTime: formatTimeHHMM(now),
+      admissionTime: calendarStampInClinicalTimeZone(now).hhmm,
       shouldPatchMultiple: true,
     };
   }
