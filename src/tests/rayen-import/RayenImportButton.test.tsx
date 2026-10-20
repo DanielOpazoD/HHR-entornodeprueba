@@ -153,7 +153,9 @@ describe('RayenImportButton', () => {
     expect(screen.getByRole('dialog', { name: 'Historial de sincronización · hoy' })).toBeVisible();
     expect(screen.getByText('Daniel Opazo')).toBeInTheDocument();
     expect(screen.getByText('Cobertura clínica: 10/10 completa')).toBeInTheDocument();
-    expect(screen.getByText('Ext. v0.6.0 · Conexiones al iniciar: Ficha ✓ · Camas ✓')).toBeInTheDocument();
+    expect(
+      screen.getByText('Ext. v0.6.0 · Conexiones al iniciar: Ficha ✓ · Camas ✓')
+    ).toBeInTheDocument();
   });
 
   it('separates extension connectivity from the first successful synchronization', async () => {
@@ -448,9 +450,7 @@ describe('RayenImportButton', () => {
     expect(historyButton).toHaveAttribute('title', 'Historial de sincronización · 1 evento');
     fireEvent.click(historyButton);
     expect(screen.getByRole('dialog', { name: 'Historial de sincronización · hoy' })).toBeVisible();
-    expect(
-      screen.getByText('1 ingresos · 2 actualizaciones')
-    ).toBeInTheDocument();
+    expect(screen.getByText('1 ingresos · 2 actualizaciones')).toBeInTheDocument();
     expect(screen.getByText('Parcial')).toBeInTheDocument();
     expect(screen.getAllByText(/1 paciente no se pudo completar/).length).toBeGreaterThan(0);
     expect(

@@ -176,7 +176,11 @@ const initializeMissingDay = async (
     return initializationSeed.record;
   }
 
-  const newRecord = buildInitializedDayRecord(date, initializationSeed.record);
+  let newRecord = buildInitializedDayRecord(date, initializationSeed.record);
+  if (initializationSeed.record) {
+    const { applyClinicalDayCarryover } = await import('./clinicalDayCarryover');
+    newRecord = applyClinicalDayCarryover(newRecord, initializationSeed.record);
+  }
 
   await save(newRecord);
   return newRecord;

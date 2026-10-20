@@ -1,6 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render as rtlRender, screen, act } from '@testing-library/react';
 import React from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+const render = (element: React.ReactElement) => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return rtlRender(element, {
+    wrapper: ({ children }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    ),
+  });
+};
 import { CensusView } from '@/features/census/components/CensusView';
 import { useCensusViewModel } from '@/features/census/hooks/useCensusViewModel';
 import { useCensusMigrationBootstrap } from '@/features/census/hooks/useCensusMigrationBootstrap';
@@ -183,7 +192,7 @@ describe('CensusView', () => {
       await vi.advanceTimersByTimeAsync(15_000);
     });
     expect(screen.queryByTestId('empty-day-prompt')).not.toBeInTheDocument();
-    expect(screen.getByTestId('census-loading-state')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reintentar' })).toBeInTheDocument();
     rerender(<CensusView {...defaultProps} currentDateString="2025-01-03" />);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1_000);

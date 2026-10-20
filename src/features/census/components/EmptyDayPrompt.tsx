@@ -2,7 +2,7 @@ import React, { useEffect, useState, lazy, Suspense } from 'react';
 import {
   shouldRecordCensusEmptyStateDiagnostic,
   type CensusEmptyStateDiagnostic,
-} from '@/hooks/controllers/dailyRecordBootstrapController';
+} from '@/features/census/controllers/censusEmptyStateDiagnostic';
 import { dailyRecordObservability } from '@/services/repositories/dailyRecordOperationalTelemetry';
 import { RayenDayBootstrapButton, resolveCensusSyncTarget } from '@/features/rayen-import/public';
 import { ErrorBoundary } from 'react-error-boundary';

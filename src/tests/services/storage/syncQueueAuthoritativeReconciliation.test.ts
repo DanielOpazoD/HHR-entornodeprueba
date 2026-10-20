@@ -155,6 +155,34 @@ describe('authoritative reconciliation of quarantined daily writes', () => {
     expect(await hospitalDB.dailyRecords.get(DATE)).toEqual(local);
   });
 
+  it.each(['FAILED', 'CONFLICT'] as const)(
+    'keeps verified clinical carryover from authority when clearing %s',
+    async status => {
+      const { local, remote } = await setup(status);
+      local.beds.R1.devices = ['CUP'];
+      local.beds.R1.clinicalCarryover = {
+        sourceDate: '2026-01-09',
+        clinicalEpisodeId: 'synthetic-episode',
+        vitalsPending: true,
+        devicesPending: true,
+      };
+      await hospitalDB.dailyRecords.put(local);
+      remote.beds.R1.devices = [];
+      remote.beds.R1.deviceDetails = { CUP: { installationDate: '2026-01-08', removalDate: DATE } };
+      remote.beds.R1.clinicalCarryover = {
+        ...local.beds.R1.clinicalCarryover,
+        vitalsPending: false,
+        devicesPending: false,
+      };
+      await adoptAuthoritativeRecord(remote, { nursesDayShift: remote.nursesDayShift });
+      const persisted = await hospitalDB.dailyRecords.get(DATE);
+      expect(persisted?.beds.R1.devices).toEqual([]);
+      expect(persisted?.beds.R1.deviceDetails).toEqual(remote.beds.R1.deviceDetails);
+      expect(persisted?.beds.R1.clinicalCarryover).toEqual(remote.beds.R1.clinicalCarryover);
+      expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
+    }
+  );
+
   it('adopts current server clinical values instead of replaying the old quarantined snapshot', async () => {
     const { local, remote } = await setup('CONFLICT');
     remote.beds.R1.pathology = 'Diagnóstico autoritativo vigente';

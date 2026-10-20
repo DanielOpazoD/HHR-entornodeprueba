@@ -33,6 +33,7 @@
     "^assets/clinicalFillRunner-.*\\.js$",
     "^assets/clinicalEnrichmentBatchPayload-.*\\.js$",
     "^assets/clinicalEnrichmentPersistenceStrategy-.*\\.js$",
+    "^assets/clinicalEnrichmentBatchExecutionSupport-.*\\.js$",
     "^assets/replanRayenStructure-.*\\.js$",
     "^assets/PatientDocumentManagerDialog-.*\\.js$",
     "^assets/ClinicalPanelDrawer-.*\\.js$",

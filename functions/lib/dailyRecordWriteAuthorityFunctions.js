@@ -1,3 +1,4 @@
+const { applyTrustedClinicalCarryover } = require('./clinicalCarryoverSeed');
 const { movementRestoreRecord } = require('./movementRestoreSources');
 const functions = require('firebase-functions/v1');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
@@ -1437,7 +1438,7 @@ const createDailyRecordWriteAuthorityFunctions = ({
             hospitalRef,
             records: [remoteData, priorSnapshot?.exists ? priorSnapshot.data() : null],
           });
-          const recordForPersistence = shouldPreserveRayenClinicalFields({
+          let recordForPersistence = shouldPreserveRayenClinicalFields({
             policySnapshot,
             snapshot,
             origin,
@@ -1445,6 +1446,18 @@ const createDailyRecordWriteAuthorityFunctions = ({
           })
             ? preserveRayenClinicalFields({ remoteRecord: remoteData, incomingRecord: record })
             : record;
+          if (
+            !snapshot.exists &&
+            isCurrentRapaNuiDay(date) &&
+            priorSnapshot?.exists &&
+            shouldPreserveRayenClinicalFields({ policySnapshot, snapshot, origin, role })
+          ) {
+            recordForPersistence = applyTrustedClinicalCarryover({
+              candidate: recordForPersistence,
+              requested: record,
+              priorRecord: priorSnapshot.data(),
+            });
+          }
           await assertTrustedSpecialtyAssignments({
             transaction,
             hospitalRef,

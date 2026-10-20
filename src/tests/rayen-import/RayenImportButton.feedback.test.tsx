@@ -268,7 +268,9 @@ describe('RayenImportButton feedback', () => {
     await screen.findByTestId('rayen-sync-history-modal');
 
     expect(screen.getByText('3 comprobaciones sin cambios')).toBeInTheDocument();
-    expect(screen.getAllByText('Ext. v0.6.0 · Conexiones al iniciar: Ficha ✓ · Camas ✓')).toHaveLength(1);
+    expect(
+      screen.getAllByText('Ext. v0.6.0 · Conexiones al iniciar: Ficha ✓ · Camas ✓')
+    ).toHaveLength(1);
     expect(screen.queryByText('Sincronizado: 0 ingresos, 0 act., 0 mov., 0 egresos')).toBeNull();
   });
 
