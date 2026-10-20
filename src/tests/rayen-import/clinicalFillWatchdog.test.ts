@@ -12,6 +12,7 @@ import {
 import {
   RAYEN_FILL_STALE_AFTER_MS,
   beginRayenFill,
+  getRayenFillAttemptId,
   endRayenFill,
   registerRayenFillAbort,
   resetRayenFillProgress,
@@ -89,14 +90,14 @@ describe('clinical fill watchdog', () => {
     const t0 = 1_000_000;
     const abort = vi.fn();
     expect(beginRayenFill(3, t0)).toBe(true);
-    registerRayenFillAbort(abort);
+    registerRayenFillAbort(abort, getRayenFillAttemptId());
 
     expect(beginRayenFill(3, t0 + RAYEN_FILL_STALE_AFTER_MS - 1)).toBe(false);
     expect(abort).not.toHaveBeenCalled();
 
     expect(beginRayenFill(3, t0 + RAYEN_FILL_STALE_AFTER_MS + 1)).toBe(true);
     expect(abort).toHaveBeenCalledOnce();
-    endRayenFill(0);
+    endRayenFill(0, false, getRayenFillAttemptId());
   });
 });
 
