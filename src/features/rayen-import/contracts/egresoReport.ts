@@ -28,7 +28,7 @@ export interface EgresoReportRow {
   fechaEgreso: string;
   /** Principal discharge diagnosis (present once the extension parses that column). */
   diagnostico?: string;
-  /** Pre-normalized Rapa Nui stamp when the source was an offset-bearing API timestamp. */
+  /** Rapa Nui stamp normalized from exact episode evidence (local or offset-bearing API/PDF). */
   correctedDay?: string;
   correctedTime?: string;
   /** Exact admission stamp read from the per-episode statistical discharge report. */
