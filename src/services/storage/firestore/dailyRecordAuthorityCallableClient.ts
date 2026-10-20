@@ -1,7 +1,5 @@
-import { httpsCallable } from 'firebase/functions';
 import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
 import type { SyncTaskContract } from '@/services/storage/syncQueueTypes';
-import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import type { DailyRecordAuthorityMode } from '@/services/storage/firestore/dailyRecordAuthorityMode';
 import type { RayenClinicalWriteGuard } from '@/types/domain/rayenSync';
 import type { IntentionalBedClearRequest } from '@/types/domain/intentionalBedClear';
@@ -113,44 +111,14 @@ export const DAILY_RECORD_AUTHORITY_FUNCTIONS_REGION = 'southamerica-east1';
  */
 export const DAILY_RECORD_AUTHORITY_CALLABLE_TIMEOUT_MS = 45_000;
 
+export const AUTHORITY_READBACK_TIMEOUT_MS = 5_000;
+
 export const saveDailyRecordWithClinicalAuthorityCallable = async (
   payload: DailyRecordAuthorityCallablePayload
-): Promise<DailyRecordAuthorityCallableResponse> => {
-  const functions = await defaultFunctionsRuntime.getRegionalFunctions(
-    DAILY_RECORD_AUTHORITY_FUNCTIONS_REGION
-  );
-  const callable = httpsCallable<
-    DailyRecordAuthorityCallablePayload,
-    DailyRecordAuthorityCallableResponse
-  >(functions, 'saveDailyRecordWithClinicalAuthority', {
-    timeout: DAILY_RECORD_AUTHORITY_CALLABLE_TIMEOUT_MS,
-  });
-
-  try {
-    const result = await callable(payload);
-    return result.data;
-  } catch (error) {
-    throw normalizeDailyRecordAuthorityError(error);
-  }
-};
+): Promise<DailyRecordAuthorityCallableResponse> =>
+  (await import('./dailyRecordAuthorityTransport')).invokeAuthority('save', payload);
 
 export const patchDailyRecordWithClinicalAuthorityCallable = async (
   payload: DailyRecordAuthorityPatchCallablePayload
-): Promise<DailyRecordAuthorityCallableResponse> => {
-  const functions = await defaultFunctionsRuntime.getRegionalFunctions(
-    DAILY_RECORD_AUTHORITY_FUNCTIONS_REGION
-  );
-  const callable = httpsCallable<
-    DailyRecordAuthorityPatchCallablePayload,
-    DailyRecordAuthorityCallableResponse
-  >(functions, 'patchDailyRecordWithClinicalAuthority', {
-    timeout: DAILY_RECORD_AUTHORITY_CALLABLE_TIMEOUT_MS,
-  });
-
-  try {
-    const result = await callable(payload);
-    return result.data;
-  } catch (error) {
-    throw normalizeDailyRecordAuthorityError(error);
-  }
-};
+): Promise<DailyRecordAuthorityCallableResponse> =>
+  (await import('./dailyRecordAuthorityTransport')).invokeAuthority('patch', payload);
