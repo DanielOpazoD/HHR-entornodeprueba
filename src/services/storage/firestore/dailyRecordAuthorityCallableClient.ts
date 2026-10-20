@@ -113,12 +113,16 @@ export const DAILY_RECORD_AUTHORITY_CALLABLE_TIMEOUT_MS = 45_000;
 
 export const AUTHORITY_READBACK_TIMEOUT_MS = 5_000;
 
-export const saveDailyRecordWithClinicalAuthorityCallable = async (
-  payload: DailyRecordAuthorityCallablePayload
+const invokeAuthority = async (
+  operation: 'save' | 'patch',
+  payload: DailyRecordAuthorityCallablePayload | DailyRecordAuthorityPatchCallablePayload
 ): Promise<DailyRecordAuthorityCallableResponse> =>
-  (await import('./dailyRecordAuthorityTransport')).invokeAuthority('save', payload);
+  (await import('./dailyRecordAuthorityTransport')).invokeAuthority(operation, payload);
 
-export const patchDailyRecordWithClinicalAuthorityCallable = async (
+export const saveDailyRecordWithClinicalAuthorityCallable = (
+  payload: DailyRecordAuthorityCallablePayload
+): Promise<DailyRecordAuthorityCallableResponse> => invokeAuthority('save', payload);
+
+export const patchDailyRecordWithClinicalAuthorityCallable = (
   payload: DailyRecordAuthorityPatchCallablePayload
-): Promise<DailyRecordAuthorityCallableResponse> =>
-  (await import('./dailyRecordAuthorityTransport')).invokeAuthority('patch', payload);
+): Promise<DailyRecordAuthorityCallableResponse> => invokeAuthority('patch', payload);
