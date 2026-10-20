@@ -243,6 +243,9 @@ export default defineConfig(({ mode }) => {
             // Carryover verification requires fresh remote clinical reports; load it with sync.
             // The copied evidence and its creation seed remain available in offline precache.
             '**/assets/clinicalCarryoverVerification-*.js',
+            // Shared callable-batch support is consumed only by the online sync chunks above.
+            // Cache it on demand with those owners; offline day creation does not import it.
+            '**/assets/clinicalEnrichmentBatchExecutionSupport-*.js',
             // Contextual CUDYR reports read server-authoritative history and cannot
             // load offline. Keep the new explorer and workbook on demand as well.
             '**/assets/CudyrReportExplorer-*.js',

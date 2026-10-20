@@ -41,6 +41,34 @@ describe('actual new-day copy entry point', () => {
     expect(result.beds.R1.devices).toEqual(['CUP']);
     expect(source).toEqual(before);
   });
+  it('resolves a moved patient by identity and rejects ambiguous source episodes', () => {
+    const source = record();
+    const before = structuredClone(source);
+    const destination = buildInitializedDayRecord('2026-10-19', source);
+    destination.beds.R2 = { ...destination.beds.R1, bedId: 'R2' };
+    delete destination.beds.R1;
+    expect(applyClinicalDayCarryover(destination, source).beds.R2.vitalSigns?.heartRate).toBe(72);
+    expect(source).toEqual(before);
+    const ambiguous = record();
+    ambiguous.beds.R2 = { ...ambiguous.beds.R1, bedId: 'R2' };
+    const fresh = buildInitializedDayRecord('2026-10-19', source);
+    expect(applyClinicalDayCarryover(fresh, ambiguous).beds.R1.clinicalCarryover).toBeUndefined();
+  });
+  it('resolves a moved crib independently without borrowing adult evidence', () => {
+    const source = record();
+    source.beds.R1.clinicalCrib = {
+      ...source.beds.R1,
+      rut: '22222222-2',
+      clinicalEpisodeId: 'crib-episode',
+      vitalSigns: { ...source.beds.R1.vitalSigns!, heartRate: 120 },
+    };
+    const destination = buildInitializedDayRecord('2026-10-19', source);
+    destination.beds.R2 = { ...destination.beds.R1, bedId: 'R2' };
+    delete destination.beds.R1;
+    const result = applyClinicalDayCarryover(destination, source);
+    expect(result.beds.R2.vitalSigns?.heartRate).toBe(72);
+    expect(result.beds.R2.clinicalCrib?.vitalSigns?.heartRate).toBe(120);
+  });
   it.each(['2026-10-18', '2026-10-20'])(
     'does not introduce clinical carryover on another day: %s',
     date => {

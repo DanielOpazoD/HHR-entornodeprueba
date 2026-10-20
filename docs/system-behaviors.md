@@ -575,3 +575,5 @@ reducción de consultas HTTP. El despliegue del callable actualizado debe preced
 habilitar el nuevo campo de procedencia; no se amplían permisos ni se ejecutan migraciones.
 
 La semilla clínica se carga al construir el día nuevo y permanece en precache para conservar el uso sin conexión. La verificación de lo copiado se carga al iniciar la sincronización que obtiene informes remotos frescos; si falla la carga de ese módulo, el proceso falla antes de iniciar lecturas o escrituras y no marca la evidencia como verificada. Su módulo no se descarga al instalar la PWA.
+
+El soporte compartido de los lotes clínicos callable se carga bajo demanda junto con sus únicos consumidores de sincronización en línea. La semilla de copia clínica permanece en la precaché; esta separación no cambia el presupuesto ni la disponibilidad sin conexión de la creación del día.
