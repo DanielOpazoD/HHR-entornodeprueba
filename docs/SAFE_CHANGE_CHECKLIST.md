@@ -267,3 +267,14 @@ la función requiere autorización separada y prueba real posterior.
 - **RollbackPlan:** revertir este PR; no modifica originales, pacientes ni servidor.
 - **VerificationGate:** ci:merge-gate, audit, revisión independiente, pruebas
   sintéticas de orden/conteo/duración MP4, cancelación y cierre, CI del head final.
+
+### Parche de Markdown en documentación (2026-10-20)
+
+- **Owner:** tooling y documentación HHR.
+- **Reason:** corregir [GHSA-r7fv-28h4-cvq7](https://github.com/advisories/GHSA-r7fv-28h4-cvq7), publicado en la base de avisos el 20 de octubre; bloqueó Security Audit del candidato de cuentas.
+- **TargetVersion:** `markdown-it` 14.3.2, override de desarrollo usado por TypeDoc 0.28.15; es el único nodo resuelto que cambia.
+- **RiskLevel:** bajo; se mantiene la misma versión mayor y no cambia el grafo de producción ni Functions.
+- **RollbackPlan:** revertir el parche; la auditoría volverá a señalar el aviso. No sustituir la corrección por una excepción.
+- **VerificationGate:** `dependency_upgrade`: manifiesto oficial, integridad npm comprobada en instalación limpia de CI, generación TypeDoc, regresiones del control de auditoría, hooks y CI del SHA definitivo. Reutilizar controles de runtime clínico cuyos inputs no cambian.
+
+La huella exacta del lock en la excepción preexistente de `braces` se vuelve a vincular al lock corregido tras comprobar que sus siete nodos, versiones, clasificación de desarrollo y dependencias permanecen idénticos. Se conservan el aviso, los resultados sin modificar, el rechazo de otros riesgos altos/críticos y todos los controles de alcance. El riesgo de `braces` no está corregido ni se amplía su aceptación.

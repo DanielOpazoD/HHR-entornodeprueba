@@ -6,7 +6,8 @@ export const BRACES_EXCEPTION = Object.freeze({
   startsAt: '2026-10-07T00:00:00Z',
   // Accepted until an official fix or withdrawal is verified; scope checks still fail closed.
   expiresAt: null,
-  lockSha256: '38fd65268f90a139ff3d583cc2d3754a0fa4a22a28fc7b7f3bab745266e374ff',
+  // Rebound after the markdown-it 14.3.2 security fix; the seven accepted nodes are unchanged.
+  lockSha256: 'aece378d299cfae197664edf8ff0457e7dfb07287eced1451cd85b4c0d621ee9',
 });
 const versions = {
   '@boundaries/elements': '2.0.1',
