@@ -2,9 +2,10 @@
 
 ## Fecha del egreso y día del censo
 
-La fecha/hora del alta corresponde al egreso estadístico de Gestión de Camas
-(liberación de cama por Enfermería), no a la emisión de la epicrisis ni a la
-confirmación de HHR. `correctedDay` identifica el censo del turno; `movementDate`
+La fecha/hora del alta corresponde al egreso estadístico de Gestión de Camas,
+referencia oficial de la estadística hospitalaria, aunque su registro sea posterior
+al egreso físico. No se sustituye por la emisión de la epicrisis ni la confirmación
+de HHR. `correctedDay` identifica el censo del turno; `movementDate`
 conserva la fecha calendario real en Rapa Nui. Un egreso de madrugada D+1 se
 archiva en D y muestra D+1. Los lectores de Firebase y caché local recuperan las
 fechas de importaciones antiguas que guardaron D como fecha del movimiento,
@@ -16,6 +17,28 @@ se convierten con `encounterWallClockInRapaNui`, igual que la selección del dí
 fallback de identidad de movimientos legacy. Los valores ya locales no se convierten de nuevo.
 El día clínico puede ser el anterior durante la madrugada; no reemplaza la fecha del evento.
 `birthDate` sigue siendo una fecha calendario, sin desplazamiento de zona horaria.
+
+El Excel de altas no declara zona y puede mezclar convenciones horarias. Se usa
+para localizar el episodio, contemplando que la celda ya sea hora insular cuando
+eso cambia el censo candidato. La consulta/PDF del episodio exacto debe confirmar
+la hora; la resta heredada de dos horas no es evidencia suficiente. Una respuesta
+individual sin offset se interpreta como hora local de Rapa Nui, igual que los
+ingresos; con offset se convierte una sola vez. `fechaEgreso` conserva el valor
+original y `correctedDay`/`correctedTime` su interpretación para el turno. El horario
+propuesto al ingresar manualmente también usa el reloj hospitalario y conserva
+la fecha elegida y cualquier hora ya guardada.
+
+### Rectificaciones de egreso: próximo bloque, pendiente de implementación
+
+No se corrigen fechas históricas por diferencias entre el antiguo manual y Eloísa.
+El mecanismo posterior debe distinguir una rectificación de la fuente oficial de
+una observación sobre el egreso físico. Cada ajuste debe conservar valor original
+y propuesto, tipo/motivo, respaldo, autor, instante de decisión y versión/episodio;
+mostrar su vigencia, permitir reversión trazable y preservar la decisión frente a
+una resincronización. La estadística mantiene por defecto el dato oficial de Eloísa;
+un cambio con efecto estadístico debe ser explícito. Reutilizar la procedencia y la
+auditoría existentes antes de añadir otro almacenamiento. Este bloque no implementa
+ese editor ni modifica datos históricos, elegibilidad, cálculo o cierres de CUDYR.
 
 ## Propósito
 

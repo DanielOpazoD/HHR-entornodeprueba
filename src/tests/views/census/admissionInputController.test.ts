@@ -14,6 +14,20 @@ import {
 } from '@/features/census/controllers/admissionInputController';
 
 describe('admissionInputController', () => {
+  it.each([
+    ['2026-07-20T05:30:00Z', '2026-07-19', '23:30'],
+    ['2026-10-05T04:30:00Z', '2026-10-04', '23:30'],
+  ])(
+    'uses the hospital clock at %s without changing the chosen date',
+    (instant, nextDate, time) => {
+      expect(resolveAdmissionDateChange({ nextDate, now: new Date(instant) })).toEqual({
+        admissionDate: nextDate,
+        admissionTime: time,
+        shouldPatchMultiple: true,
+      });
+    }
+  );
+
   it('detects critical admission empty when patient exists and date is missing', () => {
     expect(resolveIsCriticalAdmissionEmpty('Paciente', '')).toBe(true);
     expect(resolveIsCriticalAdmissionEmpty('Paciente', '2026-02-15')).toBe(false);
@@ -24,7 +38,7 @@ describe('admissionInputController', () => {
     const resolution = resolveAdmissionDateChange({
       nextDate: '2026-02-15',
       currentAdmissionTime: '',
-      now: new Date('2026-02-15T06:42:00'),
+      now: new Date('2026-02-15T06:42:00-05:00'),
     });
 
     expect(resolution.shouldPatchMultiple).toBe(true);
@@ -36,7 +50,7 @@ describe('admissionInputController', () => {
     const resolution = resolveAdmissionDateChange({
       nextDate: '2026-02-15',
       currentAdmissionTime: '05:30',
-      now: new Date('2026-02-15T06:42:00'),
+      now: new Date('2026-02-15T06:42:00-05:00'),
     });
 
     expect(resolution.shouldPatchMultiple).toBe(false);
@@ -51,7 +65,7 @@ describe('admissionInputController', () => {
         currentAdmissionTime: '',
         currentDateString: '2026-02-15',
         firstSeenDate: undefined,
-        now: new Date('2026-02-15T06:42:00'),
+        now: new Date('2026-02-15T06:42:00-05:00'),
       })
     ).toEqual({
       nextPatch: {
@@ -68,7 +82,7 @@ describe('admissionInputController', () => {
         currentAdmissionTime: '05:30',
         currentDateString: '2026-02-15',
         firstSeenDate: undefined,
-        now: new Date('2026-02-15T06:42:00'),
+        now: new Date('2026-02-15T06:42:00-05:00'),
       })
     ).toEqual({
       nextPatch: {
@@ -86,7 +100,7 @@ describe('admissionInputController', () => {
         currentAdmissionTime: '05:30',
         currentDateString: '2026-02-15',
         firstSeenDate: '2026-02-14',
-        now: new Date('2026-02-15T06:42:00'),
+        now: new Date('2026-02-15T06:42:00-05:00'),
       })
     ).toEqual({
       nextPatch: {
@@ -104,7 +118,7 @@ describe('admissionInputController', () => {
         currentAdmissionTime: '05:30',
         currentDateString: '2026-02-15',
         firstSeenDate: '2026-02-14',
-        now: new Date('2026-02-15T06:42:00'),
+        now: new Date('2026-02-15T06:42:00-05:00'),
       })
     ).toEqual({
       nextPatch: {
