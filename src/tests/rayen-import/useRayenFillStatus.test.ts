@@ -1,7 +1,10 @@
 import { act, renderHook } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   beginRayenFill,
+  getRayenFillAttemptId,
+  registerRayenFillAbort,
+  getRayenFillProgressSnapshot,
   endRayenFill,
   RAYEN_FILL_STALE_AFTER_MS,
   invalidateRayenFillAttempt,
@@ -18,7 +21,7 @@ describe('useRayenFillStatus attempt identity', () => {
 
     act(() => {
       expect(beginRayenFill(4)).toBe(true);
-      reportRayenFillProgress(2, 4);
+      reportRayenFillProgress(2, 4, getRayenFillAttemptId());
     });
     expect(result.current).toMatchObject({
       running: true,
@@ -41,7 +44,7 @@ describe('useRayenFillStatus attempt identity', () => {
     });
     expect(result.current.staffingOutcome).toBe('idle');
 
-    act(() => endRayenFill(3));
+    act(() => endRayenFill(3, true, 1));
     expect(result.current).toMatchObject({
       running: false,
       outcome: 'rejected',
@@ -83,7 +86,7 @@ describe('useRayenFillStatus attempt identity', () => {
 
     act(() => {
       expect(reportRayenStaffingOutcome('pending', cancelledAttemptId)).toBe(false);
-      endRayenFill(0);
+      endRayenFill(0, false, cancelledAttemptId);
     });
     expect(result.current).toMatchObject({
       running: false,
@@ -101,7 +104,7 @@ describe('useRayenFillStatus attempt identity', () => {
 
     act(() => {
       expect(beginRayenFill(3)).toBe(true);
-      endRayenFill(0, true);
+      endRayenFill(0, true, getRayenFillAttemptId());
     });
     expect(result.current).toMatchObject({
       running: false,
@@ -135,7 +138,7 @@ describe('useRayenFillStatus attempt identity', () => {
     expect(result.current).toMatchObject({ running: true, outcome: 'running' });
 
     act(() => {
-      endRayenFill(0);
+      endRayenFill(0, false, getRayenFillAttemptId());
       expect(resetRayenFillProgress()).toBe(true);
     });
   });
@@ -156,7 +159,7 @@ describe('useRayenFillStatus attempt identity', () => {
 
     act(() => {
       expect(beginRayenFill(1)).toBe(true);
-      endRayenFill(0);
+      endRayenFill(0, false, getRayenFillAttemptId());
       reportRayenStaffingOutcome('applying');
     });
     expect(resetRayenFillProgress()).toBe(false);
@@ -166,5 +169,41 @@ describe('useRayenFillStatus attempt identity', () => {
       reportRayenStaffingOutcome('resolved');
       expect(resetRayenFillProgress()).toBe(true);
     });
+  });
+
+  it('ignores a stale worker while preserving the new worker and its abort handler', () => {
+    const t0 = 3_000_000;
+    expect(beginRayenFill(14, t0)).toBe(true);
+    const oldAttempt = getRayenFillAttemptId();
+    const oldAbort = vi.fn();
+    registerRayenFillAbort(oldAbort, oldAttempt);
+    expect(beginRayenFill(13, t0 + RAYEN_FILL_STALE_AFTER_MS + 1)).toBe(true);
+    const newAttempt = getRayenFillAttemptId();
+    const newAbort = vi.fn();
+    registerRayenFillAbort(newAbort, newAttempt);
+    reportRayenFillProgress(2, 13, newAttempt);
+    const beforeLateCallbacks = getRayenFillProgressSnapshot();
+
+    reportRayenFillProgress(14, 14, oldAttempt);
+    registerRayenFillAbort(null, oldAttempt);
+    endRayenFill(0, false, oldAttempt);
+    expect(getRayenFillProgressSnapshot()).toBe(beforeLateCallbacks);
+    expect(oldAbort).toHaveBeenCalledOnce();
+    expect(newAbort).not.toHaveBeenCalled();
+    expect(beginRayenFill(1, t0 + RAYEN_FILL_STALE_AFTER_MS + 2)).toBe(false);
+
+    expect(resetRayenFillProgress(t0 + 2 * RAYEN_FILL_STALE_AFTER_MS + 2)).toBe(true);
+    expect(newAbort).toHaveBeenCalledOnce();
+  });
+
+  it('does not revive cleared progress when an expired worker finally completes', () => {
+    const t0 = 5_000_000;
+    expect(beginRayenFill(14, t0)).toBe(true);
+    const oldAttempt = getRayenFillAttemptId();
+    expect(resetRayenFillProgress(t0 + RAYEN_FILL_STALE_AFTER_MS + 1)).toBe(true);
+    const idle = getRayenFillProgressSnapshot();
+    reportRayenFillProgress(14, 14, oldAttempt);
+    endRayenFill(0, false, oldAttempt);
+    expect(getRayenFillProgressSnapshot()).toBe(idle);
   });
 });

@@ -56,6 +56,55 @@ describe('createRayenSnapshotEvidenceClient', () => {
 
   afterEach(() => vi.useRealTimers());
 
+  it('shares one discharge PDF across concurrent and later stages of one run', async () => {
+    let resolve!: (value: { base64: string }) => void;
+    vi.mocked(requestStatisticalDischargeEvidence).mockReturnValueOnce(
+      new Promise(settle => {
+        resolve = settle;
+      })
+    );
+    const { client, counters } = setup(true);
+    const first = client.fetchStatisticalDischarge('101');
+    const second = client.fetchStatisticalDischarge('101');
+    expect(second).toBe(first);
+    await vi.waitFor(() => expect(requestStatisticalDischargeEvidence).toHaveBeenCalledOnce());
+    resolve({ base64: 'discharge-pdf' });
+    expect(await first).toEqual({ base64: 'discharge-pdf' });
+    expect(await client.fetchStatisticalDischarge('101')).toEqual({ base64: 'discharge-pdf' });
+    expect(counters).toEqual({ requests: 2, cacheHits: 2, timeouts: 0 });
+    expect(requestStatisticalDischargeEvidence).toHaveBeenCalledTimes(1);
+
+    await client.fetchPatientFlowReport('101');
+    await client.fetchStatisticalDischarge('102');
+    await setup(true).client.fetchStatisticalDischarge('101');
+    expect(requestPatientFlowReport).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(requestStatisticalDischargeEvidence).mock.calls).toEqual([
+      ['101'],
+      ['102'],
+      ['101'],
+    ]);
+  });
+
+  it.each([
+    { base64: '', error: 'Tiempo de espera agotado' },
+    { base64: '' },
+    { base64: 'partial-pdf', error: 'Lectura incompleta' },
+  ])('does not preserve failed or empty discharge evidence: %j', async failure => {
+    vi.mocked(requestStatisticalDischargeEvidence).mockResolvedValueOnce(failure);
+    const { client } = setup(true);
+    expect(await client.fetchStatisticalDischarge('101')).toEqual(failure);
+    expect(await client.fetchStatisticalDischarge('101')).toEqual({ base64: 'discharge-pdf' });
+    expect(requestStatisticalDischargeEvidence).toHaveBeenCalledTimes(2);
+  });
+
+  it('releases a rejected discharge read so the same run can retry', async () => {
+    vi.mocked(requestStatisticalDischargeEvidence).mockRejectedValueOnce(new Error('interrupted'));
+    const { client } = setup(true);
+    await expect(client.fetchStatisticalDischarge('101')).rejects.toThrow('interrupted');
+    expect(await client.fetchStatisticalDischarge('101')).toEqual({ base64: 'discharge-pdf' });
+    expect(requestStatisticalDischargeEvidence).toHaveBeenCalledTimes(2);
+  });
+
   it.each([false, true])(
     'recovers one transient report timeout without duplicating concurrent work (historical=%s)',
     async historical => {
