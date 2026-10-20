@@ -51,6 +51,8 @@ The most fragile boundary in the app is the intersection of TanStack Query cache
 - The “today empty state” is a last visible fallback, not the first interpretation of a transient remote miss.
 - When the specialty episode pilot is enabled, a human specialty change or acceptance of a Jev suggestion uses the existing `patchDailyRecordWithClinicalAuthority` path with `specialtyIntent`, exact episode and decision version. The repository confirms that remote transaction before local persistence and never queues a rejected acceptance. The scalar, provenance and decision audit event commit together. See [specialty episode pilot](./SPECIALTY_EPISODE_JEV.md).
 
+- An ambiguous authority-callable response (deadline or transport/internal failure) triggers at most one server-only read within five seconds, the transport module is loaded before issuing the write. Success requires the exact `meta.lastMutationId`, date, persisted revision and timestamp; cached/pending snapshots, shadow/dry-run calls and deterministic rejections cannot confirm a write. The normal repository acknowledgement then adopts the returned server state and reconciles its queue. No clinical fields are reconstructed from the submitted payload. Missing evidence preserves the original error and existing retry policy.
+
 ## Returning to the census
 
 - An unavailable read retains the latest confirmed data while exposing the failure. A delayed response older than that known server revision does not clear the authority failure; recovery requires a successful result at that revision or a newer one. Receiving an old response is not evidence that the current census has been revalidated.
