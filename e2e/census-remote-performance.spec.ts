@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
@@ -51,15 +51,25 @@ test('measures authenticated census readiness after a real emulator read', async
     age: '40',
   };
 
-  const user = await auth.createUser({ email, password, emailVerified: true });
-  const roleRef = db.collection('config').doc('roles');
+  const user = await auth.createUser({
+    uid: `hhrn_${randomUUID()}`,
+    email,
+    password,
+    emailVerified: true,
+  });
+  const accessRef = db.collection('hhr_account_access').doc(user.uid);
   const recordRef = db
     .collection('hospitals')
     .doc('hanga_roa')
     .collection('dailyRecords')
     .doc(date);
   try {
-    await Promise.all([roleRef.set({ [email]: 'admin' }), recordRef.set(record)]);
+    // Password sessions require managed authority, not a legacy email-role grant.
+    await auth.setCustomUserClaims(user.uid, { hhrAccountVersion: 1 });
+    await Promise.all([
+      accessRef.set({ status: 'active', role: 'nurse_hospital', version: 1 }),
+      recordRef.set(record),
+    ]);
 
     let roleLookups = 0;
     await page.route('**/*', async route => {
@@ -81,7 +91,7 @@ test('measures authenticated census readiness after a real emulator read', async
         }
         roleLookups += 1;
         return route.fulfill({
-          json: { result: { role: 'admin' } },
+          json: { result: { role: 'nurse_hospital' } },
           headers: {
             'access-control-allow-origin': '*',
           },
@@ -144,8 +154,8 @@ test('measures authenticated census readiness after a real emulator read', async
       return {
         fixture: 'firebase-auth-and-firestore-emulator',
         build: 'vite-development',
-        authMeasured: 'session-restore-after-real-email-sign-in',
-        authorization: 'stubbed-role-callable',
+        authMeasured: 'managed-password-session-restore',
+        authorization: 'managed-firestore-rules-with-stubbed-role-callable',
         remoteMeasured: true,
         bootstrapToRemoteConfirmedMs:
           visit.events.remote_confirmed - audit.navigationEvents['bootstrap:start'],
@@ -165,6 +175,6 @@ test('measures authenticated census readiness after a real emulator read', async
       contentType: 'application/json',
     });
   } finally {
-    await Promise.all([recordRef.delete(), roleRef.delete(), auth.deleteUser(user.uid)]);
+    await Promise.all([recordRef.delete(), accessRef.delete(), auth.deleteUser(user.uid)]);
   }
 });

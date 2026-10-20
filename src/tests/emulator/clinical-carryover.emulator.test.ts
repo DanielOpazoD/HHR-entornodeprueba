@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { deleteApp, initializeApp, type App } from 'firebase-admin/app';
 import { getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestore';
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
@@ -15,6 +15,13 @@ const enabled =
   let app: App;
   let db: Firestore;
   const hospital = 'hospitals/hanga_roa';
+  beforeEach(() => {
+    // Keep the copy-intent date stable while real Firestore transport timers continue.
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-10-19T16:00:00Z') });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
   beforeAll(() => {
     if (!/^(127\.0\.0\.1|localhost):\d+$/.test(process.env.FIRESTORE_EMULATOR_HOST ?? ''))
       throw new Error('Local emulator required');

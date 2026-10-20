@@ -83,7 +83,14 @@ describe('functions authFunctionsFactory', () => {
           { auth: { token: { email: 'revoked@example.invalid', role: 'admin' } } }
         )
       ).rejects.toThrow();
-      expect(resolveRoleForEmail).toHaveBeenCalledWith('revoked@example.invalid');
+      expect(resolveRoleForEmail).toHaveBeenCalledWith(
+        'revoked@example.invalid',
+        expect.objectContaining({
+          auth: expect.objectContaining({
+            token: expect.objectContaining({ email: 'revoked@example.invalid' }),
+          }),
+        })
+      );
       expect(getUserByEmail).not.toHaveBeenCalled();
       expect(setCustomUserClaims).not.toHaveBeenCalled();
     }
@@ -100,6 +107,7 @@ describe('functions authFunctionsFactory', () => {
       helpers: {
         normalizeEmail: (value: string) => value.toLowerCase(),
         resolveRoleForEmail: vi.fn().mockResolvedValue('admin'),
+        isIndividualAccessEnabled: vi.fn().mockResolvedValue(false),
       },
     });
     await expect(
@@ -143,7 +151,10 @@ describe('functions authFunctionsFactory', () => {
       }
     );
 
-    expect(resolveRoleForEmail).toHaveBeenCalledWith('admin@example.com');
+    expect(resolveRoleForEmail).toHaveBeenCalledWith(
+      'admin@example.com',
+      expect.objectContaining({ auth: expect.objectContaining({ uid: 'u-sync' }) })
+    );
     expect(getUser).toHaveBeenCalledWith('u-sync');
     expect(setCustomUserClaims).toHaveBeenCalledWith('u-sync', {
       featureFlag: true,
@@ -153,5 +164,41 @@ describe('functions authFunctionsFactory', () => {
       role: 'admin',
       synced: true,
     });
+  });
+  it('does not rewrite managed authorization versions through legacy claim synchronization', async () => {
+    const setCustomUserClaims = vi.fn();
+    const api = createAuthFunctions({
+      auth: { setCustomUserClaims },
+      helpers: {
+        normalizeEmail: (value: string) => value,
+        resolveRoleForEmail: vi.fn().mockResolvedValue('nurse_hospital'),
+      },
+    });
+    await expect(
+      api.syncCurrentUserRoleClaim.run(
+        {},
+        { auth: { uid: 'hhrn_test', token: { email: 'hhrn_test@accounts.hhr.invalid' } } }
+      )
+    ).resolves.toMatchObject({ role: 'nurse_hospital', synced: false });
+    expect(setCustomUserClaims).not.toHaveBeenCalled();
+  });
+
+  it('denies legacy claim mutations after individual-only cutover', async () => {
+    const setCustomUserClaims = vi.fn();
+    const api = createAuthFunctions({
+      auth: { setCustomUserClaims },
+      helpers: {
+        normalizeEmail: (value: string) => value,
+        resolveRoleForEmail: vi.fn().mockResolvedValue('admin'),
+        isIndividualAccessEnabled: vi.fn().mockResolvedValue(true),
+      },
+    });
+    await expect(
+      api.setUserRole.run(
+        { email: 'old@example.invalid', role: 'admin' },
+        { auth: { uid: 'admin', token: { email: 'admin@example.invalid' } } }
+      )
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(setCustomUserClaims).not.toHaveBeenCalled();
   });
 });

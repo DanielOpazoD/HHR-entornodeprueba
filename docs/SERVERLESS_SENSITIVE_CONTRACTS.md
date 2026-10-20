@@ -94,3 +94,25 @@ filtra un mes y pagina hasta cinco versiones. No devuelve los bytes del original
 Las tres colecciones documentales quedan inaccesibles por las reglas cliente;
 ninguna operación escribe censos, evaluaciones, altas ni categorías estadísticas.
 No se añaden endpoints o permisos IAM. El importador no es autor del CUDYR fuente.
+
+## Cuentas individuales de enfermería
+
+`createNursingAccount`, `listNursingAccounts` y `manageNursingAccount` requieren
+administrador vigente y autenticación reciente de hasta quince minutos.
+`enableIndividualAccounts` exige además el UID de Daniel y verifica los dos
+Google protegidos antes de cerrar los accesos legacy. No borra identidades ni
+reescribe históricos.
+
+`activateNursingAccount` acepta un código privado de un uso, con vencimiento de
+una hora, ligado al RUT verificado; sólo entonces permite elegir la contraseña.
+`signInWithRut` verifica la contraseña mediante Firebase Auth del mismo proyecto.
+`changeNursingPassword` exige sesión individual vigente y contraseña actual.
+Versiones y locks cierran el acceso durante cambios/revocaciones incompletos.
+El transporte limita intentos por cuenta/IP, usa destino fijo y nunca registra
+contraseñas, códigos o cuerpos del proveedor. Los callables usan el envelope de
+Firebase, límite de 60 segundos y errores públicos genéricos.
+
+Pruebas: ciclo de vida y transporte, Auth/Firestore/Storage emulados y Chromium
+con datos sintéticos. El puente del navegador ejecuta handlers de producción;
+no sustituye la validación de CORS o Functions desplegadas. Contrato operativo:
+[AUTH_ACCESS_MODEL.md](./AUTH_ACCESS_MODEL.md).

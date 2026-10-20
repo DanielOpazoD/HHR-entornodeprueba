@@ -37,9 +37,12 @@ const {
   createMedicalHandoffSpreadsheetFunctions,
 } = require('./lib/medicalHandoffSpreadsheetFunctions');
 
+const { createAccountFunctions } = require('./lib/accounts/accountFunctions');
+
 const authHelpers = createAuthHelpers({ auth, firestore });
 
 module.exports = {
+  ...createAccountFunctions({ auth, firestore, helpers: authHelpers }),
   ...createMinsalFunctions({
     firestore,
     hospitalCapacity: HOSPITAL_CAPACITY,

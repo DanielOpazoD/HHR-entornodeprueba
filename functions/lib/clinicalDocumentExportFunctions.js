@@ -75,7 +75,7 @@ const assertString = (value, fieldName) => {
 const resolveCallerRole = async (context, resolveRoleForEmail) => {
   const callerEmail = normalizeText(context?.auth?.token?.email).toLowerCase();
   if (!callerEmail) return 'unauthorized';
-  return resolveRoleForEmail(callerEmail);
+  return resolveRoleForEmail(callerEmail, context);
 };
 
 const assertExportAccess = async (context, resolveRoleForEmail) => {

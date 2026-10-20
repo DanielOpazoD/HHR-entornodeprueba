@@ -70,6 +70,69 @@
         "src/tests/functions/medicalHandoffSpreadsheetFunctions.test.ts",
         "src/tests/functions/medicalHandoffAppsScript.test.ts"
       ]
+    },
+    {
+      "id": "nursing_createNursingAccount",
+      "functionFile": "functions/lib/accounts/accountFunctions.js",
+      "endpoint": "createNursingAccount",
+      "testFiles": [
+        "src/tests/functions/nursingAccounts.test.ts",
+        "src/tests/emulator/nursing-accounts.emulator.test.ts"
+      ]
+    },
+    {
+      "id": "nursing_listNursingAccounts",
+      "functionFile": "functions/lib/accounts/accountFunctions.js",
+      "endpoint": "listNursingAccounts",
+      "testFiles": [
+        "src/tests/functions/nursingAccounts.test.ts",
+        "src/tests/emulator/nursing-accounts.emulator.test.ts"
+      ]
+    },
+    {
+      "id": "nursing_manageNursingAccount",
+      "functionFile": "functions/lib/accounts/accountFunctions.js",
+      "endpoint": "manageNursingAccount",
+      "testFiles": [
+        "src/tests/functions/nursingAccounts.test.ts",
+        "src/tests/emulator/nursing-accounts.emulator.test.ts"
+      ]
+    },
+    {
+      "id": "nursing_enableIndividualAccounts",
+      "functionFile": "functions/lib/accounts/accountFunctions.js",
+      "endpoint": "enableIndividualAccounts",
+      "testFiles": [
+        "src/tests/functions/nursingAccounts.test.ts",
+        "src/tests/emulator/nursing-accounts.emulator.test.ts"
+      ]
+    },
+    {
+      "id": "nursing_activateNursingAccount",
+      "functionFile": "functions/lib/accounts/accountFunctions.js",
+      "endpoint": "activateNursingAccount",
+      "testFiles": [
+        "src/tests/functions/nursingAccounts.test.ts",
+        "src/tests/emulator/nursing-accounts.emulator.test.ts"
+      ]
+    },
+    {
+      "id": "nursing_signInWithRut",
+      "functionFile": "functions/lib/accounts/accountFunctions.js",
+      "endpoint": "signInWithRut",
+      "testFiles": [
+        "src/tests/functions/nursingAccounts.test.ts",
+        "src/tests/emulator/nursing-accounts.emulator.test.ts"
+      ]
+    },
+    {
+      "id": "nursing_changeNursingPassword",
+      "functionFile": "functions/lib/accounts/accountFunctions.js",
+      "endpoint": "changeNursingPassword",
+      "testFiles": [
+        "src/tests/functions/nursingAccounts.test.ts",
+        "src/tests/emulator/nursing-accounts.emulator.test.ts"
+      ]
     }
   ]
 }

@@ -1,23 +1,69 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
+    function individualAccessPolicy() {
+      let p = /databases/(default)/documents/config/individualAccounts;
+      return firestore.exists(p) ? firestore.get(p).data : {};
+    }
+
+    // The server reserves hhrn_ UIDs for managed accounts. Route by signed identity
+    // before reading documents: legacy uses policy + roles, managed uses access only.
+    function isManagedIdentity() {
+      return request.auth != null && (request.auth.uid.matches('hhrn_.*') ||
+        request.auth.token.keys().hasAny(['hhrAccountVersion']));
+    }
+
+    function managedAccount() {
+      return firestore.get(/databases/(default)/documents/hhr_account_access/$(request.auth.uid)).data;
+    }
+
+    function hasCurrentManagedSession() {
+      let account = managedAccount();
+      let authTime = request.auth.token.get('auth_time', 0);
+      return account.status == 'active' && account.get('credentialOperation', null) == null &&
+        request.auth.token.get('hhrAccountVersion', -1) == account.version &&
+        request.auth.token.get('firebase', {}).get('sign_in_provider', '') == 'password' &&
+        authTime > 0 && authTime <= request.time.toMillis() / 1000 + 60 &&
+        request.time.toMillis() / 1000 < authTime + 43200;
+    }
+
+    function protectedGoogleRole() {
+      let email = request.auth.token.get('email', '').lower();
+      let known = individualAccessPolicy().get('protectedGoogle', {});
+      let verified = request.auth.token.get('email_verified', false) &&
+        request.auth.token.get('firebase', {}).get('sign_in_provider', '') == 'google.com' &&
+        known.get(email, '') == request.auth.uid;
+      return verified ? individualAccessPolicy().get('protectedRoles', {}).get(request.auth.uid, null) : null;
+    }
+
+    function isIndividualAccessEnabled() {
+      return individualAccessPolicy().get('enabled', false) == true;
+    }
+
     function isAuthenticated() {
-      return request.auth != null;
+      return request.auth != null && (isManagedIdentity() ? hasCurrentManagedSession() :
+        (request.auth.token.get('firebase', {}).get('sign_in_provider', '') != 'password' &&
+          (!isIndividualAccessEnabled() || protectedGoogleRole() != null)));
     }
 
     function normalizeRole(role) {
       return role == 'viewer_census' ? 'viewer' : role;
     }
 
-    function normalizedRole() {
-      let email = isAuthenticated() ? request.auth.token.get('email', null) : null;
+    function legacyNormalizedRole() {
+      let email = request.auth.token.get('email', null);
       let rolesPath = /databases/(default)/documents/config/roles;
       let configuredRole = email is string && firestore.exists(rolesPath)
         ? firestore.get(rolesPath).data.get(email.lower(), null)
         : null;
-      let claimRole = isAuthenticated() ? request.auth.token.get('role', null) : null;
+      let claimRole = request.auth.token.get('role', null);
       // Explicit revocations and downgrades take precedence over an already issued token.
       return normalizeRole(configuredRole != null ? configuredRole : claimRole);
+    }
+
+    function normalizedRole() {
+      return !isAuthenticated() ? null : isManagedIdentity() ? managedAccount().role :
+        isIndividualAccessEnabled() ? protectedGoogleRole() : legacyNormalizedRole();
     }
 
     function hasNormalizedRole(roles) {

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { MoonStar, SunMedium } from 'lucide-react';
 import { LoginPageCard } from './LoginPageCard';
 import { LoginPageFooter } from './LoginPageFooter';
@@ -15,6 +15,7 @@ export interface LoginPageProps {
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, initialAuthError }) => {
+  const [individualBusy, setIndividualBusy] = useState(false);
   const {
     error,
     errorCode,
@@ -69,7 +70,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, initialAut
           <LoginPageHeader isDayGradient={isDayGradient} />
           <LoginPageCard
             isDayGradient={isDayGradient}
-            isAnyLoading={isAnyLoading}
+            isAnyLoading={isAnyLoading || individualBusy}
+            onIndividualLoginSuccess={onLoginSuccess}
+            onIndividualBusyChange={setIndividualBusy}
             isGoogleLoading={isGoogleLoading}
             error={error}
             errorCode={errorCode}

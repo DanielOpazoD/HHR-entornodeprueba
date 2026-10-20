@@ -17,7 +17,7 @@ entre documentos es necesario que todas las pestañas ejecuten la versión nueva
 
 Se intentan independientemente registros, cola y Web Storage. Un error se propaga
 y conserva la marca de limpieza pendiente; la admisión debe reintentarla antes de
-habilitar datos. No se cambia el conjunto de datos que debe eliminarse ni los roles.
+habilitar datos. Para cuentas individuales `hhrn_`, la cola pendiente se conserva bajo su propietario y se retiran leases/attemptId antes de admitir otro usuario. Los registros visibles y cachés de la sesión se limpian. Los demás usuarios mantienen la limpieza existente.
 Los adaptadores de registros y cola mantienen su comportamiento anterior salvo
 cuando la limpieza de sesión solicita explícitamente propagar errores.
 
@@ -75,7 +75,9 @@ Estado documental:
 
 Para el **login general** la fuente operativa de acceso es:
 
-- `config/roles` en Firestore
+- Cuentas individuales: `hhr_account_access/{uid}` (estado, rol y versión), validado por el servidor.
+- Google durante transición: `config/roles` en Firestore.
+- Con `config/individualAccounts.enabled`: sólo cuentas individuales activas y los dos Google protegidos, identificados por UID verificado; el mapa legacy deja de conceder acceso.
 
 No forman parte del login general:
 
@@ -87,8 +89,9 @@ No forman parte del login general:
 
 Un usuario puede iniciar sesión en el shell principal **solo si**:
 
-1. autenticó con Google/Firebase
-2. su correo tiene un rol válido en `config/roles`
+1. autenticó con Firebase mediante Google o RUT y clave privada;
+2. su estado de acceso vigente cumple la política anterior, incluida versión de sesión y proveedor;
+3. una cuenta individual ya estableció su clave mediante activación privada y su sesión no supera doce horas.
 
 Si no cumple eso:
 
@@ -176,7 +179,7 @@ Regla vigente:
 
 - el shell resuelve rol por el callable `checkUserRole`;
 - las Netlify Functions sensibles también deben resolver el rol efectivo por ese mismo callable;
-- `config/roles` sigue siendo la fuente de verdad;
+- el backend resuelve cuentas individuales por UID/estado/versión y Google según la política de transición;
 - claims sincronizados son auxiliares, no la fuente primaria para `LAB/MMRAD`.
 
 Esto evita el incidente clásico:
@@ -329,3 +332,75 @@ Las pruebas usan emuladores de ambos servicios y la misma identidad antes/despu�
 Esto no invalida archivos ya descargados ni enlaces de descarga con token de acceso.
 Las bajas anteriores que borraron su configuración requieren revisión separada; no
 se infiere quién fue revocado ni se retiran permisos históricos automáticamente.
+
+## Cuentas individuales de enfermería
+
+El RUT con DV es sólo el alias de ingreso. El padrón privado y su índice están
+vedados a clientes; sólo el administrador consulta el RUT mediante el callable.
+La identidad Firebase usa un UID estable y correo técnico opaco, sin RUT. Las
+contraseñas las almacena y verifica Firebase Auth; no existen claves iniciales
+basadas en RUT ni un lector de contraseñas para el administrador.
+
+La creación exige nombre, RUT válido y verificación individual. El importador
+sólo prepara candidatos en memoria: un nombre parecido no identifica una persona,
+un RUT duplicado bloquea la fila y ninguna importación activa usuarios en lote.
+La referencia de origen y el administrador verificador quedan en el padrón privado.
+Estas cuentas reciben únicamente el rol de enfermería; no pueden autoasignarse
+roles ni convertirse en administradoras.
+
+El administrador entrega un código aleatorio de 256 bits en privado, de un uso y
+una hora. Firestore conserva su hash; el código completo sólo se presenta al
+emitirse y no se incluye en URLs, telemetría o almacenamiento del navegador.
+El titular lo canjea junto a su RUT y elige una clave de 12 a 128 caracteres antes
+de obtener acceso clínico. No se envían mensajes ni se inventan contactos personales.
+El adaptador de ingreso devuelve el correo técnico sólo después de verificar la
+clave contra Firebase y comprobar proyecto/UID. El cliente inicia la sesión normal
+de Firebase email/contraseña. Errores genéricos y límites transaccionales por
+cuenta/IP evitan revelar datos del padrón y acotan los intentos.
+
+Cambio de clave exige la clave actual; recuperación exige una nueva activación
+administrada. Ambas incrementan la versión de autorización. Functions, Firestore
+y Storage comprueban estado activo, versión, proveedor password y antigüedad de
+sesión, sin confiar en claims antiguos. Un lock de credenciales mantiene cerrado
+el acceso durante escrituras Auth inciertas. Una recuperación administrativa
+puede cerrar una operación interrumpida después de cinco minutos, más que los
+60 segundos máximos del callable; conserva la identidad original y nunca activa
+por el mero estado enviado por el cliente.
+
+La sesión usa persistencia de navegador por pestaña y el control de inactividad
+existente. Un monitor consulta la autorización y cierra la UI conectada al detectar
+revocación; las reglas aplican la revocación en cada operación, independientemente
+de ese monitor. Las tareas offline legítimas permanecen asociadas a su UID, sin
+reintento automático ni transferencia de autor al siguiente usuario.
+
+## Transición y recuperación administrativa
+
+El panel mantiene Google y permite crear, activar, suspender, retirar, recuperar y
+revocar sesiones individuales. Muestra auditoría acotada de operaciones, nunca claves
+ni códigos usados. La retirada global de accesos legacy es una acción explícita
+posterior al piloto: verifica que los UID de `daniel.opazo@hospitalhangaroa.cl` y
+`hospitalizados@hospitalhangaroa.cl` tengan Google verificado y estén habilitados.
+Sólo Daniel puede efectuar esa transición; no se borran identidades Firebase ni
+se reescriben censos, firmas, turnos, movimientos o autorías históricas. La cuenta
+institucional compartida conserva su propio UID; el enfermero seleccionado en
+un turno no se transforma en autor de su sesión.
+
+Desplegar primero Functions y reglas Firestore/Storage compatibles, comprobar el
+piloto sintético en el entorno de pruebas y después habilitar el nuevo cliente y
+las personas verificadas. Un merge no prueba ese despliegue ni la vigencia laboral
+del padrón. No activar masivamente candidatos ni borrar cuentas de aplicaciones
+que comparten el proyecto. El control de MFA de Google se mantiene en el proveedor;
+no se declara MFA verificado ni se sustituye por una marca local.
+
+Comprobación específica: `npm run test:accounts:emulator:ci` usa únicamente proyecto
+demo y loopback, valida activación/cambio/revocación contra Auth real emulado,
+Firestore y Storage, los dos Google y la inmutabilidad de un documento histórico
+sintético. CI ejecuta ese contrato además de los gates de reglas y runtime.
+
+Las identidades de contraseña sin perfil individual administrado quedan denegadas incluso antes del corte de accesos legados. No heredan roles por coincidencia de correo ni reciben claims del trigger de alta; así habilitar el proveedor de contraseña no abre los roles antiguos al autorregistro. Google conserva su flujo existente.
+
+Las pantallas de activación, cambio de clave y administración se cargan al abrirse, con su adaptador callable; requieren Firebase online y no forman parte de la precarga offline. El monitor de vencimiento y la conservación de pendientes siguen precargados. Copiar una activación usa el adaptador privado: no conserva el código en capturas E2E ni en Web Storage, incluido localhost.
+
+### Carga y disponibilidad sin conexión
+
+La administración de usuarios y permisos se carga al abrir su panel y necesita conexión para leer la autoridad vigente y modificar cuentas. Su chunk no pertenece al precache clínico. El menú de usuario se carga al abrirlo, permanece en precache y conserva un cierre de sesión inmediato aun si ese recurso tarda o falla. El monitor de sesiones individuales, la preservación de la cola y la semilla clínica continúan disponibles sin conexión. Los límites de tamaño permanecen sin cambios.

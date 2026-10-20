@@ -84,9 +84,9 @@ export const CRITICAL_FIRESTORE_ACCESS_MATRIX = [
     path: 'configRoles',
     matchPath: '/config/roles',
     read: 'isAdmin()',
-    create: 'isAdmin()',
-    update: 'isAdmin()',
-    delete: 'isAdmin()',
+    create: 'isAdmin() && !isIndividualAccessEnabled()',
+    update: 'isAdmin() && !isIndividualAccessEnabled()',
+    delete: 'isAdmin() && !isIndividualAccessEnabled()',
   },
   {
     path: 'configPrescriptionsAccess',

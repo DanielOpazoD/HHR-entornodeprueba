@@ -25,10 +25,23 @@ const createAuthFunctions = ({ auth, helpers }) => ({
   setUserRole: functions.https.onCall(async (data, context) => {
     await assertRoleMutationAccess({ context, resolveRoleForEmail: helpers.resolveRoleForEmail });
 
+    if (await helpers.isIndividualAccessEnabled()) {
+      throw new functions.https.HttpsError(
+        'permission-denied',
+        'Los accesos se gestionan en Usuarios de enfermería.'
+      );
+    }
     const { rawEmail, rawRole } = parseRoleMutationRequest(data);
     const email = helpers.normalizeEmail(rawEmail);
     const role = helpers.normalizeEmail(rawRole);
     assertAssignableRole(email, role);
+
+    if (email.endsWith('@accounts.hhr.invalid')) {
+      throw new functions.https.HttpsError(
+        'permission-denied',
+        'Gestiona esta identidad desde Usuarios de enfermería.'
+      );
+    }
 
     try {
       const userRecord = await auth.getUserByEmail(email);
@@ -43,7 +56,10 @@ const createAuthFunctions = ({ auth, helpers }) => ({
     const email = requireAuthenticatedEmail(context);
 
     try {
-      const resolvedRole = await helpers.resolveRoleForEmail(email);
+      const resolvedRole = await helpers.resolveRoleForEmail(email, context);
+      if (context.auth.uid.startsWith('hhrn_')) {
+        return { role: resolvedRole === 'unauthorized' ? null : resolvedRole, synced: false };
+      }
       await applyRoleClaim(
         auth,
         context.auth.uid,
@@ -62,7 +78,7 @@ const createAuthFunctions = ({ auth, helpers }) => ({
     const email = requireAuthenticatedEmail(context);
 
     try {
-      const role = await helpers.resolveRoleForEmail(email);
+      const role = await helpers.resolveRoleForEmail(email, context);
       return { role };
     } catch (error) {
       console.error(
