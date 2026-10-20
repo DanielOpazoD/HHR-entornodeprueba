@@ -6,7 +6,7 @@ importScripts(
   'message-contract.js', 'eloisa-patient-code-contract.js', 'fichamedico-manual-patient-code-runtime.js',
   'encounter-navigation.js',
   'hhr-request-forms.js',
-  'health-check.js', 'clinical-day-runtime.js', 'clinical-history-coverage.js', 'census-sync-horizon-runtime.js', 'rayen-sync-bundle-runtime.js', 'sync-bundle-cancellation-runtime.js',
+  'health-check.js', 'clinical-day-runtime.js', 'clinical-history-coverage.js', 'census-sync-horizon-runtime.js', 'capture-read-recovery.js', 'rayen-sync-bundle-runtime.js', 'sync-bundle-cancellation-runtime.js',
   'connection-relay-recovery.js', 'fichamedico-transport-runtime.js', 'fichamedico-history-read-model.js', 'fichamedico-device-evidence-runtime.js', 'clinical-read-error-contract.js', 'fichamedico-clinical-client.js', 'tab-encounter-authorization.js', 'fichamedico-patient-flow-runtime.js',
   'fichamedico-patient-context.js',
   'patient-document-manager-runtime.js',
@@ -382,8 +382,8 @@ const handleSyncBundleRequest = (message, sender) =>
       sender,
       self.HhrRayenSyncBundleRuntime.capture({
         dateStart: message.dateStart,
-        dateEnd: message.dateEnd,
-        readHealth: handleExtensionHealth,
+        dateEnd: message.dateEnd, isCancelled: () => syncBundleCancellation.isCancelled(message.requestId),
+        readHealth: options => healthReportCache.read(options),
         // The bundle wrapper authorizes the union of live and report-backed episodes atomically.
         readSnapshot: readSnapshotWithClinicalCribs,
         readReport: handleReportRequest,

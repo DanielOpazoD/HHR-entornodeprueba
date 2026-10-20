@@ -26,7 +26,8 @@ export const buildRayenCapturePerformance = (
   source: RayenCensusSnapshot,
   planned: RayenCensusSnapshot,
   dualCaptureMs: number,
-  captureTimings?: RayenCaptureTimings
+  captureTimings?: RayenCaptureTimings,
+  captureRetries?: number
 ): RayenSyncPerformanceDelta => {
   const stagesMs: RayenSyncPerformanceDelta['stagesMs'] = { dualCapture: dualCaptureMs };
   // Diagnostics are optional. Discard invalid/unknown values without blocking clinical evidence.
@@ -47,6 +48,9 @@ export const buildRayenCapturePerformance = (
   }
   return {
     stagesMs,
+    ...(captureRetries === 1 || captureRetries === 2
+      ? { counters: { retries: captureRetries } }
+      : {}),
     sourceQuality: { treatingPhysicians: summarizeTreatingPhysicianSourceQuality(source, planned) },
   };
 };

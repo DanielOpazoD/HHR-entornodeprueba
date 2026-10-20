@@ -5,12 +5,6 @@ import type { RayenSyncFailureReason } from '@/types/domain/rayenSync';
  * (`HHR_RAYEN_IMPORT_ERROR`) en una causa sanitizada para el historial y un
  * mensaje accionable para la barra.
  *
- * Origen: el 02-09 una corrida falló en 1 s con «No se pudo leer Rayen.
- * Recarga la pestaña de Ficha Médico (Cmd+R)… Detalle: Failed to fetch»
- * mientras la salud declaraba Ficha Médico lista. La app descartaba ese
- * texto, mostraba un genérico («Revisa las pestañas de Rayen») y archivaba
- * `snapshot_error`: el operador no sabía que bastaba recargar la pestaña.
- *
  * Contrato del transporte (fichamedico-transport-runtime.js): TODO error del
  * lector de Ficha Médico llega envuelto con ese mismo prefijo y el error real
  * detrás de «Detalle:». Por eso se clasifica sobre el detalle, nunca sobre el
@@ -81,16 +75,22 @@ const RULES: readonly ClassificationRule[] = [
       'Gestión de Camas no está disponible para la lectura. Revisa su conexión en el monitor de Eloísa y vuelve a sincronizar.',
   },
   {
-    test: /failed to fetch|networkerror|load failed|fallo de red|no puede leer datos|versi[oó]n anterior de la extensi[oó]n/,
-    reason: 'ficha_medico_stale',
-    remedy:
-      'La pestaña de Ficha Médico ya no puede leer datos (sesión de red vencida o pestaña envejecida). Recárgala (Cmd+R), espera a que cargue y vuelve a sincronizar.',
-  },
-  {
     // Sesión clínica ausente/vencida en Ficha Médico: la instrucción precisa la trae la extensión.
     test: /sesion clinica|inicia sesion|vencio/,
     reason: 'ficha_medico_unavailable',
     remedy: null,
+  },
+  {
+    test: /failed to fetch|networkerror|load failed|fallo de red|http\s*(502|503|504)\b/,
+    reason: 'snapshot_network_error',
+    remedy:
+      'La lectura de Eloísa falló por un problema de conexión. Esto no confirma que la sesión haya vencido. Vuelve a sincronizar; si persiste, revisa la conexión y las pestañas de Eloísa.',
+  },
+  {
+    test: /no puede leer datos|versi[oó]n anterior de la extensi[oó]n/,
+    reason: 'ficha_medico_stale',
+    remedy:
+      'La pestaña de Ficha Médico ya no puede leer datos (sesión de red vencida o pestaña envejecida). Recárgala (Cmd+R), espera a que cargue y vuelve a sincronizar.',
   },
 ];
 

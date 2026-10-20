@@ -116,37 +116,39 @@ export const useRayenImportCapture = ({
 
   useEffect(
     () =>
-      rayenImportBridge.subscribeToRayenImportErrors((error, requestId, timeoutStage) => {
-        const runId = syncRequestController.getRunId(requestId);
-        if (!runId) return;
-        const selectedDate = preparedSyncContextRef.current?.selectedDate;
-        if (
-          !isRayenSyncExecutionCurrent(executionRef.current, { runId, requestId, selectedDate })
-        ) {
-          return;
+      rayenImportBridge.subscribeToRayenImportErrors(
+        (error, requestId, timeoutStage, captureRetries) => {
+          const runId = syncRequestController.getRunId(requestId);
+          if (!runId) return;
+          const selectedDate = preparedSyncContextRef.current?.selectedDate;
+          if (
+            !isRayenSyncExecutionCurrent(executionRef.current, { runId, requestId, selectedDate })
+          ) {
+            return;
+          }
+          clearSyncTimeout();
+          dispatchExecution({
+            type: 'transition',
+            runId,
+            requestId,
+            selectedDate: preparedSyncContextRef.current?.selectedDate,
+            stage: { type: 'failed' },
+          });
+          preparedSyncContextRef.current = null;
+          // Persist only the category and bounded counters, never the raw source error.
+          if (captureRetries)
+            recordRunPerformance({ counters: { retries: captureRetries } }, runId);
+          const classified = classifyRayenSnapshotError(error, timeoutStage);
+          void failRun(classified.reason, runId);
+          setState(previous => ({
+            ...previous,
+            error: classified.message,
+          }));
         }
-        clearSyncTimeout();
-        dispatchExecution({
-          type: 'transition',
-          runId,
-          requestId,
-          selectedDate: preparedSyncContextRef.current?.selectedDate,
-          stage: { type: 'failed' },
-        });
-        preparedSyncContextRef.current = null;
-        // La extensión ya dice QUÉ falló (pestaña ausente, pestaña que no
-        // puede leer, Gestión de Camas, timeout); antes se descartaba y todo
-        // era un «snapshot_error» con un genérico. La causa persistida es una
-        // categoría; el texto crudo solo se muestra.
-        const classified = classifyRayenSnapshotError(error, timeoutStage);
-        void failRun(classified.reason, runId);
-        setState(previous => ({
-          ...previous,
-          error: classified.message,
-        }));
-      }),
+      ),
     [
       clearSyncTimeout,
+      recordRunPerformance,
       dispatchExecution,
       failRun,
       executionRef,

@@ -15,6 +15,16 @@ describe('source capture performance projection', () => {
       dualCapture: 500,
     });
   });
+  it('records only bounded capture retry counts without changing older-extension telemetry', () => {
+    for (const count of [1, 2])
+      expect(
+        buildRayenCapturePerformance(snapshot, snapshot, 500, undefined, count).counters
+      ).toEqual({ retries: count });
+    for (const count of [undefined, 0, -1, 3, NaN])
+      expect(
+        buildRayenCapturePerformance(snapshot, snapshot, 500, undefined, count).counters
+      ).toBeUndefined();
+  });
   it('copies only known safe durations into persisted telemetry', () => {
     const timings = {
       captureHealthBefore: 0,

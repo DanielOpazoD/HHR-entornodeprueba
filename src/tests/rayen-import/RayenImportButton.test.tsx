@@ -153,7 +153,7 @@ describe('RayenImportButton', () => {
     expect(screen.getByRole('dialog', { name: 'Historial de sincronización · hoy' })).toBeVisible();
     expect(screen.getByText('Daniel Opazo')).toBeInTheDocument();
     expect(screen.getByText('Cobertura clínica: 10/10 completa')).toBeInTheDocument();
-    expect(screen.getByText('Ext. v0.6.0 · Ficha ✓ · Camas ✓')).toBeInTheDocument();
+    expect(screen.getByText('Ext. v0.6.0 · Conexiones al iniciar: Ficha ✓ · Camas ✓')).toBeInTheDocument();
   });
 
   it('separates extension connectivity from the first successful synchronization', async () => {

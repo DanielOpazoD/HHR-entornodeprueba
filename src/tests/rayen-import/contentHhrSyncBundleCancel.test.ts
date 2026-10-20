@@ -137,6 +137,7 @@ describe('content-hhr-sync-bundle relay · cancellation', () => {
   it('still surfaces a genuine capture failure as an import error', async () => {
     const { dispatch, postMessage, settle } = createHarness(async () => ({
       error: 'Una fuente se desconectó.',
+      captureRetries: 1,
     }));
 
     dispatch({
@@ -152,6 +153,7 @@ describe('content-hhr-sync-bundle relay · cancellation', () => {
         type: 'HHR_RAYEN_IMPORT_ERROR',
         requestId: 'rayen-sync-3',
         error: 'Una fuente se desconectó.',
+        captureRetries: 1,
       },
       ORIGIN
     );
