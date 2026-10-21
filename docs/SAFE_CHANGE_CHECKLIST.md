@@ -66,6 +66,14 @@ La clasificación remota `docs-only` se decide en CI; no forzar ni omitir checks
 
 ### Checklist de cierre
 
+La compactación de la lista de funcionarios es `safe_local_ui`: reduce el espaciado y
+presenta las acciones existentes como iconos en una fila, con nombre accesible, tooltip
+y foco visible. Compacta el formulario de modificación con campos y botones alineados
+en escritorio y apilados en pantallas pequeñas. Conserva handlers, confirmaciones,
+bloqueos y permisos. Verificar
+`ci:inner-loop`, build y la tabla en escritorio/pantalla estrecha, incluida navegación
+por teclado, además de revisión independiente y CI del head final antes del merge.
+
 Las correcciones visuales del censo y Moa del 20 octubre 2026 son `safe_local_ui`: eliminan
 fechas/etiquetas de procedencia de las celdas, ocultan el tipo de cama en traslados y simplifican
 los controles decorativos de Moa con selección aleatoria por pulsación. No cambian datos,

@@ -301,9 +301,9 @@ export default function NursingAccountsPanel({
         <form
           onSubmit={saveEdit}
           aria-label={`Modificar usuario: ${editing.name}`}
-          className="grid gap-4 rounded-xl border border-teal-200 bg-teal-50/40 p-4 sm:grid-cols-2"
+          className="grid gap-x-3 gap-y-2 rounded-lg border border-teal-200 bg-teal-50/40 px-3 py-2.5 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] [&_input]:mt-1 [&_input]:py-1.5 [&_label]:text-xs [&_select]:mt-1 [&_select]:py-1.5"
         >
-          <h3 className="font-semibold text-slate-900 sm:col-span-2">
+          <h3 className="col-span-full text-sm font-semibold text-slate-900">
             Modificar usuario · {editing.rut}
           </h3>
           <IndividualAccountFields
@@ -313,10 +313,7 @@ export default function NursingAccountsPanel({
             onRole={value => setEditing({ ...editing, role: value })}
             disabled={busy}
           />
-          <p className="text-xs text-slate-600 sm:col-span-2">
-            Se conserva su RUT, contraseña y correo. Para aplicar el rol, deberá volver a ingresar.
-          </p>
-          <div className="flex gap-2 sm:col-span-2">
+          <div className="flex items-end gap-2 sm:col-span-2 xl:col-span-1 [&_button]:py-1.5 [&_button]:text-xs">
             <button
               disabled={busy}
               className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
@@ -332,6 +329,9 @@ export default function NursingAccountsPanel({
               Cancelar
             </button>
           </div>
+          <p className="col-span-full text-xs text-slate-500">
+            Deberá volver a ingresar para aplicar los cambios.
+          </p>
         </form>
       )}
       <div className="flex flex-wrap items-end justify-between gap-3">
