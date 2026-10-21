@@ -53,7 +53,7 @@ describe('LoginPageCard', () => {
         onIndividualLoginSuccess={vi.fn()}
       />
     );
-    await waitFor(() => expect(screen.getByRole('form')).toBeInTheDocument());
+    expect(screen.getByRole('form')).toBeVisible();
     expect(screen.getByLabelText('Usuario')).toHaveAttribute('autocomplete', 'off');
     expect(screen.getByRole('form')).toHaveAttribute('autocomplete', 'off');
     expect(screen.getByLabelText('Contraseña')).toHaveAttribute('autocomplete', 'off');
@@ -129,7 +129,9 @@ describe('LoginPageCard', () => {
     fireEvent.click(screen.getByText('Ayuda de acceso'));
     fireEvent.click(screen.getByTestId('login-reset-local-button'));
 
-    expect(screen.getByText(AUTH_UI_COPY.resetStorageAction)).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByText(AUTH_UI_COPY.resetStorageAction)).toBeInTheDocument()
+    );
     expect(mockConfirm).toHaveBeenCalledWith({
       title: AUTH_UI_COPY.resetStorageTitle,
       message: AUTH_UI_COPY.resetStorageConfirm,
@@ -141,6 +143,51 @@ describe('LoginPageCard', () => {
       expect(onLocalResetStart).toHaveBeenCalledTimes(1);
       expect(resetLocalAppStorage).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it('keeps credentials and skips maintenance when the reset confirmation is cancelled', async () => {
+    vi.mocked(resetLocalAppStorage).mockClear();
+    let answer!: (confirmed: boolean) => void;
+    mockConfirm.mockImplementationOnce(
+      () =>
+        new Promise<boolean>(resolve => {
+          answer = resolve;
+        })
+    );
+    const resetStarted = vi.fn();
+    render(
+      <LoginPageCard
+        {...identityProps}
+        onIndividualLoginSuccess={vi.fn()}
+        onLocalResetStart={resetStarted}
+      />
+    );
+    fireEvent.change(screen.getByLabelText('Usuario'), { target: { value: '111111111' } });
+    fireEvent.change(screen.getByLabelText('Contraseña'), {
+      target: { value: 'Synthetic example 1' },
+    });
+    fireEvent.click(screen.getByText('Ayuda de acceso'));
+    fireEvent.click(screen.getByTestId('login-reset-local-button'));
+    expect(screen.getByLabelText('Usuario')).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^Ingresar$/ })).toBeDisabled();
+    answer(false);
+    await waitFor(() => expect(screen.getByLabelText('Usuario')).toBeEnabled());
+    expect(resetLocalAppStorage).not.toHaveBeenCalled();
+    expect(resetStarted).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Usuario')).toHaveValue('111111111');
+    expect(screen.getByLabelText('Contraseña')).toHaveValue('Synthetic example 1');
+  });
+
+  it('shows a recoverable support error and unlocks entry when maintenance fails', async () => {
+    vi.mocked(resetLocalAppStorage).mockRejectedValueOnce(new Error('private maintenance detail'));
+    mockConfirm.mockResolvedValueOnce(true);
+    render(<LoginPageCard {...identityProps} onIndividualLoginSuccess={vi.fn()} />);
+    fireEvent.click(screen.getByText('Ayuda de acceso'));
+    fireEvent.click(screen.getByTestId('login-reset-local-button'));
+    expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo completar el reinicio');
+    expect(screen.queryByText('private maintenance detail')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Usuario')).toBeEnabled();
+    expect(screen.getByRole('button', { name: /^Ingresar$/ })).toBeEnabled();
   });
 
   it('shows an explicit pending state while Google popup login is in progress', () => {

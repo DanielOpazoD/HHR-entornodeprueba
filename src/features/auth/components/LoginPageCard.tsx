@@ -1,13 +1,11 @@
-import React, { lazy, Suspense, useCallback, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { GoogleIdentitySignIn } from './GoogleIdentitySignIn';
 import { AlertCircle, Loader2, RotateCcw } from 'lucide-react';
 
 import { useConfirmDialog } from '@/context/UIContext';
-import { LoginCardFrame, LoginCredentialsPlaceholder } from '@/components/ui/LoginScreenLayout';
+import { LoginCardFrame } from '@/components/ui/LoginScreenLayout';
 import { AUTH_UI_COPY } from '@/services/auth/authUiCopy';
-import { resetLocalAppStorage } from '@/services/storage/indexeddb/indexedDbMaintenanceService';
-
-const NursingAccessForm = lazy(() => import('./NursingAccessForm'));
+import NursingAccessForm from './NursingAccessForm';
 
 interface LoginPageCardProps {
   onIndividualLoginSuccess?: () => void;
@@ -57,22 +55,34 @@ export const LoginPageCard: React.FC<LoginPageCardProps> = ({
   onLocalResetStart,
 }) => {
   const { confirm } = useConfirmDialog();
+  const [isResetting, setIsResetting] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
+  const locked = isAnyLoading || isResetting;
   const [showIdentity, setShowIdentity] = useState(
     Boolean(onGoogleCredential && import.meta.env.VITE_GOOGLE_SIGN_IN_CLIENT_ID)
   );
   const useFallback = useCallback(() => setShowIdentity(false), []);
   const handleResetLocalSession = async () => {
-    const confirmed = await confirm({
-      title: AUTH_UI_COPY.resetStorageTitle,
-      message: AUTH_UI_COPY.resetStorageConfirm,
-      confirmText: AUTH_UI_COPY.resetStorageConfirmAction,
-      cancelText: 'Volver',
-      variant: 'info',
-    });
-
-    if (confirmed) {
+    if (locked) return;
+    setIsResetting(true);
+    setResetError(null);
+    try {
+      const confirmed = await confirm({
+        title: AUTH_UI_COPY.resetStorageTitle,
+        message: AUTH_UI_COPY.resetStorageConfirm,
+        confirmText: AUTH_UI_COPY.resetStorageConfirmAction,
+        cancelText: 'Volver',
+        variant: 'info',
+      });
+      if (!confirmed) return;
+      const { resetLocalAppStorage } =
+        await import('@/services/storage/indexeddb/indexedDbMaintenanceService');
       onLocalResetStart?.();
       await resetLocalAppStorage();
+    } catch {
+      setResetError('No se pudo completar el reinicio. Vuelve a intentarlo.');
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -81,13 +91,11 @@ export const LoginPageCard: React.FC<LoginPageCardProps> = ({
       <div className="relative">
         <div className="space-y-3">
           {onIndividualLoginSuccess && (
-            <Suspense fallback={<LoginCredentialsPlaceholder />}>
-              <NursingAccessForm
-                onSuccess={onIndividualLoginSuccess}
-                onBusyChange={onIndividualBusyChange}
-                disabled={isGoogleLoading}
-              />
-            </Suspense>
+            <NursingAccessForm
+              onSuccess={onIndividualLoginSuccess}
+              onBusyChange={onIndividualBusyChange}
+              disabled={isGoogleLoading || isResetting}
+            />
           )}
 
           <div className="mt-4 flex items-center justify-between border-t border-white/15 pt-3">
@@ -99,17 +107,22 @@ export const LoginPageCard: React.FC<LoginPageCardProps> = ({
               <button
                 type="button"
                 onClick={() => void handleResetLocalSession()}
-                disabled={isAnyLoading}
+                disabled={locked}
                 data-testid="login-reset-local-button"
                 className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-white/20 bg-white/5 px-2.5 py-1.5 text-[11px] font-medium text-white/70 backdrop-blur-sm transition hover:bg-white/15 hover:text-white disabled:text-white/40"
               >
                 <RotateCcw className="h-3 w-3" />
-                {AUTH_UI_COPY.resetStorageAction}
+                {isResetting ? 'Reiniciando…' : AUTH_UI_COPY.resetStorageAction}
               </button>
+              {resetError && (
+                <p role="alert" className="mt-2 max-w-52 text-red-100">
+                  {resetError}
+                </p>
+              )}
             </details>
             {showIdentity && onGoogleCredential ? (
               <GoogleIdentitySignIn
-                disabled={isAnyLoading}
+                disabled={locked}
                 onCredential={onGoogleCredential}
                 onUnavailable={useFallback}
               />
@@ -119,7 +132,7 @@ export const LoginPageCard: React.FC<LoginPageCardProps> = ({
                 onClick={() => {
                   void onGoogleSignIn();
                 }}
-                disabled={isAnyLoading}
+                disabled={locked}
                 data-testid="login-google-button"
                 aria-label={isGoogleLoading ? 'Conectando con Google...' : 'Ingresar con Google'}
                 title="Ingresar con Google"
