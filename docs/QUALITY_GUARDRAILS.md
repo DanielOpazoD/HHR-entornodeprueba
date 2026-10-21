@@ -231,3 +231,12 @@ conserva los controles, la procedencia y la validación de selección completa.
 - **VerificationGate:** `dependency_upgrade`: manifiesto oficial, integridad npm comprobada en instalación limpia de CI, generación TypeDoc, regresiones del control de auditoría, hooks y CI del SHA definitivo. Reutilizar controles de runtime clínico cuyos inputs no cambian.
 
 La huella exacta del lock en la excepción preexistente de `braces` se vuelve a vincular al lock corregido tras comprobar que sus siete nodos, versiones, clasificación de desarrollo y dependencias permanecen idénticos. Se conservan el aviso, los resultados sin modificar, el rechazo de otros riesgos altos/críticos y todos los controles de alcance. El riesgo de `braces` no está corregido ni se amplía su aceptación.
+
+### Tooling de pruebas de PR #922
+
+Storybook 10.6.2, Vitest 4.1.12, Vite 6.4.4 y markdown-it 14.3.3 deben instalarse con
+`npm ci` y validación normal de dependencias pares. La auditoría conserva los
+hallazgos originales de braces y su aviso visible. Actualizar la huella del
+lockfile exige comprobar los siete nodos previamente autorizados y no permite
+aceptar nuevos avisos altos o críticos. La instalación, Storybook, TypeDoc y
+`ci:merge-gate` complementan las regresiones del control de auditoría.

@@ -7,7 +7,7 @@ Responsable: mantenedor de HHR (Daniel Opazo).
 
 Se acepta únicamente GHSA-vfj7-8cjw-p6xm en la cadena de desarrollo del
 lockfile raíz aprobado, cuya SHA-256 es
-`38fd65268f90a139ff3d583cc2d3754a0fa4a22a28fc7b7f3bab745266e374ff`.
+`6c96794225084b71458e7fc1f96e66166cbf35bb8da10451c771aae38a0bcd32`.
 Daniel autorizó actualizar la huella el 9 de octubre de 2026 para el parche
 transitivo Handlebars 4.7.10 y el 11 de octubre para Firebase CLI 15.16.0.
 El 16 de octubre de 2026 autorizó explícitamente renovar sólo la huella para
@@ -54,3 +54,9 @@ normal de auditoría aprobada, sin aplicar la excepción.
 Fuentes: [aviso oficial](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm),
 [discusión upstream](https://github.com/micromatch/braces/issues/70),
 [revisión abierta del aviso](https://github.com/github/advisory-database/pull/10132).
+
+El parche de dependencias de PR #922 actualiza únicamente Storybook, Vitest, Vite y
+markdown-it. La huella anterior se sustituye tras verificar que los siete nodos
+autorizados conservan exactamente sus versiones, rutas, integridades, dependencias
+y clasificación de desarrollo. La auditoría debe seguir aceptando exclusivamente
+GHSA-vfj7-8cjw-p6xm. Otros avisos altos o críticos bloquean la integración.

@@ -1,5 +1,6 @@
 // Public API for code outside the handoff feature. Internal consumers should import local modules directly.
 export { HandoffView } from './components/HandoffView';
+export { HandoffRow } from './components/HandoffRow';
 export { MedicalHandoffSpreadsheetAction } from './components/MedicalHandoffSpreadsheetAction';
 export {
   buildMedicalHandoffSpreadsheetRows,

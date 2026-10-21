@@ -1,11 +1,11 @@
 import { createRequire } from 'node:module';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-const require = createRequire(import.meta.url);
+const testRequire = createRequire(import.meta.url);
+const require = createRequire(
+  testRequire.resolve('../../../functions/lib/accounts/accountRecoveryMail.js')
+);
 const { google } = require('googleapis');
-const {
-  sendRecoveryMail,
-  assertRecoveryMailConfigured,
-} = require('../../../functions/lib/accounts/accountRecoveryMail.js');
+const { sendRecoveryMail, assertRecoveryMailConfigured } = require('./accountRecoveryMail.js');
 
 afterEach(() => {
   vi.restoreAllMocks();
