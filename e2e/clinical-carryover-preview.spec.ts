@@ -7,7 +7,7 @@ import { calendarStampInClinicalTimeZone } from '../src/utils/clinicalTimeZone';
 import { getPreviousDay } from '../src/utils/clinicalDayScheduleUtils';
 import type { DailyRecord } from '../src/types/domain/dailyRecord';
 
-test('keeps copied evidence dates discreet and unchanged after reload', async ({
+test('keeps copied evidence dates internal without census footers after reload', async ({
   page,
 }, testInfo) => {
   const today = calendarStampInClinicalTimeZone(new Date()).iso;
@@ -63,17 +63,25 @@ test('keeps copied evidence dates discreet and unchanged after reload', async ({
   for (const reload of [false, true]) {
     if (reload) await page.reload();
     const vitals = row.getByRole('button', { name: 'Ver signos vitales' });
-    await expect(vitals).toContainText(`Previa · ${measured.split('-').reverse().join('/')}`, {
-      timeout: 30_000,
+    await expect(vitals).toBeVisible({ timeout: 30_000 });
+    await expect(vitals.locator('time')).toHaveCount(0);
+    await expect(vitals).not.toHaveAttribute('title');
+    await expect(vitals).not.toHaveAttribute('aria-description');
+    await expect(
+      row.getByText(/Previa|Censo del|Por verificar|pendiente de verificar/i)
+    ).toHaveCount(0);
+    await expect(vitals).not.toContainText(measured.split('-').reverse().join('/'));
+    const stored = await page.evaluate(date => {
+      const record = JSON.parse(localStorage.getItem('hanga_roa_hospital_data') || '{}')[date];
+      return record?.beds.R1;
+    }, today);
+    expect(stored.vitalSigns.recordedDate).toBe(measured);
+    expect(stored.deviceDetails.CUP.installationDate).toBe(previous);
+    expect(stored.clinicalCarryover).toMatchObject({
+      sourceDate: previous,
+      vitalsPending: true,
+      devicesPending: true,
     });
-    const devicesOrigin = row.getByText(`Censo del ${previous.split('-').reverse().join('/')}`);
-    await expect(devicesOrigin).toBeVisible();
-    const neutralColor = await vitals
-      .getByText('PA', { exact: true })
-      .evaluate(label => getComputedStyle(label).color);
-    await expect(devicesOrigin).toHaveCSS('color', neutralColor);
-    await expect(vitals.locator('time').locator('..')).toHaveCSS('color', neutralColor);
-    await expect(row.getByText(/Por verificar|pendiente de verificar/i)).toHaveCount(0);
     await expect(vitals).toContainText('72');
   }
   await testInfo.attach('clinical-carryover-row', {

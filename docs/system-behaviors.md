@@ -558,10 +558,12 @@ inmediatamente anterior cuando coinciden documento, episodio y fecha/hora de ing
 no identifica al paciente. La cuna se valida con su propia identidad. No se aplica a días históricos,
 fechas futuras, al relleno de un registro existente ni a la copia individual entre fechas.
 
-Las mediciones conservan su fecha, hora y autor originales; la tabla muestra la fecha original y
-«Previa» en gris, debajo de los valores. Los dispositivos muestran discretamente el censo de origen,
-conservando instalación e historial de retiros. La verificación pendiente permanece en el estado
-interno, sin mensajes naranjos ni «Por verificar» repetidos en las filas. Una
+Las mediciones conservan su fecha, hora y autor originales y los dispositivos conservan su
+instalación e historial de retiros. Por decisión de producto, las celdas del censo no muestran
+fechas de medición, fechas del censo de origen ni etiquetas de procedencia, tampoco como tooltip.
+No reintroducir esos pies de fecha. El detalle clínico y la metadata conservan sus registros.
+La verificación pendiente permanece en el estado interno, sin mensajes naranjos ni «Por verificar»
+repetidos en las filas. Una
 respuesta vacía, fallida o ambigua no acredita verificación ni retiro. Los retiros requieren evidencia
 explícita con instalación coincidente e instancia única; no se deducen de ausencia en una lista.
 
@@ -579,3 +581,15 @@ habilitar el nuevo campo de procedencia; no se amplían permisos ni se ejecutan 
 La semilla clínica se carga al construir el día nuevo y permanece en precache para conservar el uso sin conexión. La verificación de lo copiado se carga al iniciar la sincronización que obtiene informes remotos frescos; si falla la carga de ese módulo, el proceso falla antes de iniciar lecturas o escrituras y no marca la evidencia como verificada. Su módulo no se descarga al instalar la PWA.
 
 El soporte compartido de los lotes clínicos callable se carga bajo demanda junto con sus únicos consumidores de sincronización en línea. La semilla de copia clínica permanece en la precaché; esta separación no cambia el presupuesto ni la disponibilidad sin conexión de la creación del día.
+
+### Controles discretos del censo
+
+Moa ofrece una animación sorpresa al pulsarlo, elegida al azar entre las disponibles y sin
+repetir la última cuando hay alternativas. No tiene selector, biblioteca visual ni icono para
+elegir escenas. El catálogo remoto y las escenas locales siguen disponibles de forma interna.
+La X para ocultarlo mide 8 px, dentro de un botón de 24 px accesible por teclado; Escape también
+lo oculta y devuelve el foco al control de la barra. Se conserva la pausa automática y el
+movimiento reducido.
+
+Las filas de pacientes trasladados muestran la cama de origen sin el sufijo de tipo de cama
+(por ejemplo, MEDIA o INTERMEDIA). El registro del traslado y sus acciones se conservan.
