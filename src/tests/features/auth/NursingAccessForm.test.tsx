@@ -18,6 +18,7 @@ describe('private individual access forms', () => {
     vi.mocked(establishNursingSession).mockResolvedValue(undefined);
     const onSuccess = vi.fn();
     render(<NursingAccessForm onSuccess={onSuccess} />);
+    fireEvent.click(screen.getByText('¿Es tu primer ingreso?'));
     fireEvent.click(screen.getByText('Tengo un código de activación'));
     fireEvent.change(screen.getByLabelText('Usuario'), {
       target: { value: '11.111.111-1' },
@@ -56,6 +57,30 @@ describe('private individual access forms', () => {
     expect(localStorage.length).toBe(0);
     expect(sessionStorage.length).toBe(0);
   });
+  it('does not duplicate an in-flight sign-in when submit is repeated', async () => {
+    let finish!: () => void;
+    vi.mocked(establishNursingSession).mockImplementationOnce(
+      () =>
+        new Promise<void>(resolve => {
+          finish = resolve;
+        })
+    );
+    const onSuccess = vi.fn();
+    render(<NursingAccessForm onSuccess={onSuccess} />);
+    fireEvent.change(screen.getByLabelText('Usuario'), { target: { value: '111111111' } });
+    fireEvent.change(screen.getByLabelText('Contraseña'), {
+      target: { value: 'Synthetic example 1' },
+    });
+    fireEvent.submit(screen.getByRole('form'));
+    fireEvent.submit(screen.getByRole('form'));
+    expect(establishNursingSession).toHaveBeenCalledOnce();
+    expect(screen.getByLabelText('Usuario')).toBeDisabled();
+    expect(onSuccess).not.toHaveBeenCalled();
+    finish();
+    await waitFor(() => expect(onSuccess).toHaveBeenCalledOnce());
+    expect(screen.getByLabelText('Contraseña')).toHaveValue('');
+  });
+
   it('shows generic errors without granting a session or switching to Google automatically', async () => {
     vi.mocked(establishNursingSession).mockRejectedValue(new Error('private provider detail'));
     const onSuccess = vi.fn();

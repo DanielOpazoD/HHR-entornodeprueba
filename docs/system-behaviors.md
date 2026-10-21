@@ -344,6 +344,8 @@ El contrato ya no es “solo censo”; aplica al módulo origen desde el que el 
 - Login no debe mostrar un frame blanco antes de que aparezca la pantalla real.
 - El fondo inicial debe alinearse con la composición visual real del login, sin sustituirla por un loader de pantalla completa.
 - Si el usuario está en modo noche o lo dejó seleccionado, el refresh no debe volver transitoriamente al fondo de día.
+- El shell provisional y la página lista comparten `LoginScreenLayout` y `LoginCardFrame`: misma imagen, marca, ancho, tarjeta y posiciones del formulario por RUT. No recrear el antiguo botón Google grande ni barras de skeleton. Los campos provisionales permanecen deshabilitados hasta que el formulario puede recibir datos.
+- El fallback de carga del formulario conserva esos campos y dimensiones; no sustituirlo por una línea «Cargando acceso» que desplace el botón de ingreso.
 
 ### Qué NO se debe hacer en refresh autenticado
 

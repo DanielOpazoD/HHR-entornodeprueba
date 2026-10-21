@@ -36,12 +36,12 @@
     color: '#020617',
     image: [
       LOGIN_SURFACE_GRADIENTS[loginBackgroundMode],
-      'radial-gradient(circle at top left, rgba(255, 255, 255, 0.18), transparent 32%)',
+      'radial-gradient(circle at top left, rgba(255, 255, 255, 0.18), transparent 32%),radial-gradient(circle at bottom right, rgba(14, 165, 233, 0.14), transparent 26%)',
       LOGIN_SURFACE_IMAGES[loginBackgroundMode],
     ].join(','),
-    position: 'center, center, center',
-    repeat: 'no-repeat, no-repeat, no-repeat',
-    size: 'cover, cover, contain',
+    position: 'center, center, center, center',
+    repeat: 'no-repeat, no-repeat, no-repeat, no-repeat',
+    size: 'cover, cover, cover, contain',
   };
   var APP_SURFACE_BACKGROUND = {
     color: '#eef4f8',
