@@ -11,15 +11,30 @@ const previewCommand =
 const previewArtifactsDir =
   process.env.PLAYWRIGHT_PREVIEW_ARTIFACTS_DIR || 'reports/e2e/preview-bootstrap';
 
-const reporters = [
-  ['list'],
-  ['json', { outputFile: `${previewArtifactsDir}/report.json` }],
-  ['junit', { outputFile: `${previewArtifactsDir}/report.junit.xml` }],
-];
+// A CI lane runs one slice of the pack and leaves a blob; preview-smoke merges
+// every lane into the canonical report through playwright.preview-merge.config.ts.
+const previewLane = process.env.PLAYWRIGHT_PREVIEW_LANE;
+
+const reporters = previewLane
+  ? [
+      ['list'],
+      // Blob output is cleared per run, so each lane owns its directory.
+      [
+        'blob',
+        { outputDir: `reports/e2e/preview-blobs/${previewLane}`, fileName: `${previewLane}.zip` },
+      ],
+    ]
+  : [
+      ['list'],
+      ['json', { outputFile: `${previewArtifactsDir}/report.json` }],
+      ['junit', { outputFile: `${previewArtifactsDir}/report.junit.xml` }],
+    ];
 
 if (process.env.CI) {
   reporters.unshift(['github']);
-  reporters.push(['html', { open: 'never', outputFolder: `${previewArtifactsDir}/html` }]);
+  if (!previewLane) {
+    reporters.push(['html', { open: 'never', outputFolder: `${previewArtifactsDir}/html` }]);
+  }
 }
 
 export default defineConfig({

@@ -230,25 +230,32 @@ describe('CI workflow governance', () => {
   it('self-checks post-merge evidence before uploading the main artifact', () => {
     const workflow = readText('.github/workflows/ci-cd.yml');
     const scripts = readPackageScripts();
-    const buildJob = workflow.slice(workflow.indexOf('build:'), workflow.indexOf('lighthouse-ci:'));
+    const buildJob = workflow.slice(
+      workflow.indexOf('  build:'),
+      workflow.indexOf('  preview-smoke-lanes:')
+    );
+    const previewJob = workflow.slice(
+      workflow.indexOf('  preview-smoke:'),
+      workflow.indexOf('  final-confidence-and-readiness:')
+    );
     const summaryJob = workflow.slice(
       workflow.indexOf('ci-strict-summary:'),
       workflow.indexOf('postmerge-evidence:')
     );
     const postmergeJob = workflow.slice(workflow.indexOf('postmerge-evidence:'));
     const buildStep = buildJob.indexOf('npm run build');
-    const recordPreviewProvenanceStep = buildJob.indexOf(
+    const recordPreviewProvenanceStep = previewJob.indexOf(
       'npm run write:preview-bootstrap-provenance'
     );
-    const validateProducedPreviewStep = buildJob.indexOf(
+    const validateProducedPreviewStep = previewJob.indexOf(
       'npm run check:preview-bootstrap-evidence'
     );
-    const uploadPreviewStep = buildJob.indexOf('name: preview-bootstrap-artifacts');
+    const uploadPreviewStep = previewJob.indexOf('name: preview-bootstrap-artifacts');
     const uploadDistStep = buildJob.indexOf('name: dist');
     const artifactContractStep = postmergeJob.indexOf('npm run check:ci-artifact-contracts');
     const availabilityStep = postmergeJob.indexOf('scripts/verify-github-run-artifact.mjs');
     const previewAvailabilityStep = postmergeJob.indexOf(
-      'scripts/verify-github-run-artifact.mjs --artifact preview-bootstrap-artifacts --producer build'
+      'scripts/verify-github-run-artifact.mjs --artifact preview-bootstrap-artifacts --producer preview-smoke'
     );
     const downloadDistStep = postmergeJob.indexOf('name: dist');
     const downloadPreviewStep = postmergeJob.indexOf('name: Download preview bootstrap artifacts');
@@ -264,7 +271,7 @@ describe('CI workflow governance', () => {
     );
     expect(collectCiArtifactContractIssues(workflow)).toEqual([]);
     expect(buildStep).toBeGreaterThanOrEqual(0);
-    expect(recordPreviewProvenanceStep).toBeGreaterThan(buildStep);
+    expect(recordPreviewProvenanceStep).toBeGreaterThanOrEqual(0);
     expect(validateProducedPreviewStep).toBeGreaterThan(recordPreviewProvenanceStep);
     expect(uploadPreviewStep).toBeGreaterThan(validateProducedPreviewStep);
     expect(uploadDistStep).toBeGreaterThan(buildStep);
@@ -273,7 +280,9 @@ describe('CI workflow governance', () => {
     expect(postmergeJob).toContain(
       "if: github.event_name == 'push' && github.ref == 'refs/heads/main'"
     );
-    expect(postmergeJob).toContain('needs: [build, ci-strict-summary, e2e-critical-emulator]');
+    expect(postmergeJob).toContain(
+      'needs: [build, preview-smoke, ci-strict-summary, e2e-critical-emulator]'
+    );
     expect(postmergeJob).toContain('actions: read');
     expect(postmergeJob).toContain('uses: actions/download-artifact@v7');
     expect(artifactContractStep).toBeGreaterThanOrEqual(0);
@@ -297,7 +306,7 @@ describe('CI workflow governance', () => {
       '$1\n      - name: Validate downloaded preview bootstrap evidence'
     );
     const wrongProducer = workflow.replace(
-      /(postmerge-evidence:[\s\S]*?)--artifact preview-bootstrap-artifacts --producer build/,
+      /(postmerge-evidence:[\s\S]*?)--artifact preview-bootstrap-artifacts --producer preview-smoke/,
       '$1--artifact preview-bootstrap-artifacts --producer other-job'
     );
     const wrongDownloadPath = workflow.replace(
@@ -309,7 +318,7 @@ describe('CI workflow governance', () => {
       'postmerge-evidence: must download artifact "preview-bootstrap-artifacts".'
     );
     expect(collectCiArtifactContractIssues(wrongProducer)).toContain(
-      'postmerge-evidence: must verify "preview-bootstrap-artifacts" from producer "build".'
+      'postmerge-evidence: must verify "preview-bootstrap-artifacts" from producer "preview-smoke".'
     );
     expect(collectCiArtifactContractIssues(wrongDownloadPath)).toContain(
       'postmerge-evidence: preview bootstrap must download to "reports/e2e/preview-bootstrap".'
@@ -353,16 +362,6 @@ jobs:
     steps:
       - name: Build production bundle
         run: npm run build
-      - name: Record preview bootstrap artifact provenance
-        run: npm run write:preview-bootstrap-provenance
-      - name: Validate preview bootstrap artifact evidence
-        run: npm run check:preview-bootstrap-evidence
-      - uses: actions/upload-artifact@v7
-        with:
-          name: preview-bootstrap-artifacts
-          path: reports/e2e/preview-bootstrap/
-          if-no-files-found: error
-          overwrite: true
       - uses: actions/upload-artifact@v7
         with:
           name: dist
@@ -373,15 +372,27 @@ jobs:
         with:
           name: wrong-artifact-name
           path: distribution/
+  preview-smoke:
+    steps:
+      - name: Record preview bootstrap artifact provenance
+        run: npm run write:preview-bootstrap-provenance
+      - name: Validate preview bootstrap artifact evidence
+        run: npm run check:preview-bootstrap-evidence
+      - uses: actions/upload-artifact@v7
+        with:
+          name: preview-bootstrap-artifacts
+          path: reports/e2e/preview-bootstrap/
+          if-no-files-found: error
+          overwrite: true
   postmerge-evidence:
-    needs: [build]
+    needs: [build, preview-smoke]
     steps:
       - name: Validate CI artifact contract
         run: npm run check:ci-artifact-contracts
       - name: Verify build artifact availability
         run: node scripts/verify-github-run-artifact.mjs --artifact dist --producer build-budget
       - name: Verify preview bootstrap artifact availability
-        run: node scripts/verify-github-run-artifact.mjs --artifact preview-bootstrap-artifacts --producer build
+        run: node scripts/verify-github-run-artifact.mjs --artifact preview-bootstrap-artifacts --producer preview-smoke
       - uses: actions/download-artifact@v7
         with:
           name: dist

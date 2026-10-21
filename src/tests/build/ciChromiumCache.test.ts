@@ -48,14 +48,18 @@ it('rejects a cache hit that skips mandatory browser preparation', () => {
 });
 it('shares Chromium preparation without dropping any browser gate', () => {
   const { jobs } = parseWorkflow(workflow);
-  for (const name of ['build', 'e2e-critical-emulator', 'census-startup-performance']) {
+  for (const name of [
+    'preview-smoke-lanes',
+    'e2e-critical-emulator',
+    'census-startup-performance',
+  ]) {
     const steps = jobs[name].steps;
     const setup = steps.findIndex(step => step.uses === './.github/actions/setup-ci-chromium');
     expect(setup).toBeGreaterThan(
       steps.findIndex(step => step.uses === './.github/actions/setup-ci-dependencies')
     );
     const test = steps.findIndex(step =>
-      /npm run (?:ci:preview-smoke:built|test:e2e:rayen-extension-runtime|test:e2e:census-performance)/.test(
+      /node scripts\/run-preview-smoke-lane\.mjs|npm run (?:test:e2e:rayen-extension-runtime|test:e2e:census-performance)/.test(
         step.run || ''
       )
     );
@@ -89,7 +93,7 @@ const assertSupportedChromiumRunners = (candidate: ReturnType<typeof parseWorkfl
 it('pins every Chromium consumer to the validated runner platform', () => {
   assertSupportedChromiumRunners(parseWorkflow(workflow));
 });
-it.each(['build', 'e2e-critical-emulator', 'census-startup-performance'])(
+it.each(['preview-smoke-lanes', 'e2e-critical-emulator', 'census-startup-performance'])(
   'rejects floating Ubuntu for Chromium consumer %s',
   name => {
     const candidate = parseWorkflow(workflow);

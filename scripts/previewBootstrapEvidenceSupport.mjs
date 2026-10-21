@@ -4,7 +4,7 @@ import path from 'node:path';
 import { summarizePreviewGate } from './operationalHealthSupport.mjs';
 
 export const PREVIEW_BOOTSTRAP_ARTIFACT = 'preview-bootstrap-artifacts';
-export const PREVIEW_BOOTSTRAP_PRODUCER_JOB = 'build';
+export const PREVIEW_BOOTSTRAP_PRODUCER_JOB = 'preview-smoke';
 export const PREVIEW_BOOTSTRAP_REPORT = 'reports/e2e/preview-bootstrap/report.json';
 export const PREVIEW_BOOTSTRAP_PROVENANCE = 'reports/e2e/preview-bootstrap/ci-provenance.json';
 

@@ -21,6 +21,7 @@ describe('CI summary governance', () => {
       ['RULES_EMULATOR_RESULT', "needs['rules-emulator'].result"],
       ['E2E_CRITICAL_RESULT', "needs['e2e-critical-emulator'].result"],
       ['BUILD_RESULT', 'needs.build.result'],
+      ['PREVIEW_SMOKE_RESULT', "needs['preview-smoke'].result"],
       ['CI_RUNTIME_TELEMETRY_RESULT', "needs['ci-runtime-telemetry'].result"],
     ] as const;
 
