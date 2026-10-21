@@ -83,6 +83,8 @@ export type RayenSyncStructuralIssueReason =
   | 'episode-less-report-row'
   | 'report-predates-admission'
   | 'crib-conflict-blocks-discharge'
+  | 'admission-date-policy'
+  | 'structural-write-rejected'
   | 'unclassified';
 
 /** Clinical case displayed only in the protected census history and explicitly copied clinical diagnostics. */

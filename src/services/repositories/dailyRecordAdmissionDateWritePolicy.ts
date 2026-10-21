@@ -6,6 +6,7 @@ import {
   resolveAdmissionDateWindowViolation,
 } from '@/application/patient-flow/admissionDatePolicy';
 import { normalizeDateOnly } from '@/utils/clinicalDayUtils';
+import { hasSamePatientEpisodeIdentity } from '@/application/patient-flow/patientEpisodeIdentityPolicy';
 
 interface RecordPatientEntry {
   path: string;
@@ -15,12 +16,6 @@ interface RecordPatientEntry {
 interface AdmissionDatePersistencePolicyOptions {
   changedPaths?: string[];
 }
-
-const normalizeRutKey = (rut?: string): string =>
-  (rut || '')
-    .replace(/[.\-\s]/g, '')
-    .trim()
-    .toUpperCase();
 
 const hasPatientIdentity = (patient?: PatientData): patient is PatientData =>
   Boolean(patient?.patientName?.trim() && patient?.rut?.trim());
@@ -81,11 +76,17 @@ const filterEntriesByChangedPaths = (
 
 const resolvePreviousEntry = (
   entry: RecordPatientEntry,
-  previousByPath: Map<string, RecordPatientEntry>,
-  previousByRut: Map<string, RecordPatientEntry>
+  previousEntries: RecordPatientEntry[]
 ): RecordPatientEntry | undefined => {
-  const rutKey = normalizeRutKey(entry.patient.rut);
-  return previousByPath.get(entry.path) ?? (rutKey ? previousByRut.get(rutKey) : undefined);
+  // A bed is a location, not an episode: its former occupant must not become the
+  // admission-date baseline when a reviewed move or replacement fills that bed.
+  const matches = previousEntries.filter(previous =>
+    hasSamePatientEpisodeIdentity(previous.patient, entry.patient)
+  );
+  return (
+    matches.find(previous => previous.path === entry.path) ??
+    (matches.length === 1 ? matches[0] : undefined)
+  );
 };
 
 export const assertAdmissionDatePersistencePolicy = (
@@ -98,22 +99,11 @@ export const assertAdmissionDatePersistencePolicy = (
     collectRecordPatients(nextRecord),
     options.changedPaths
   );
-  const previousByPath = new Map<string, RecordPatientEntry>();
-  const previousByRut = new Map<string, RecordPatientEntry>();
-
-  if (previousRecord) {
-    collectRecordPatients(previousRecord).forEach(entry => {
-      const rutKey = normalizeRutKey(entry.patient.rut);
-      previousByPath.set(entry.path, entry);
-      if (rutKey && !previousByRut.has(rutKey)) {
-        previousByRut.set(rutKey, entry);
-      }
-    });
-  }
+  const previousEntries = previousRecord ? collectRecordPatients(previousRecord) : [];
 
   const violations = nextEntries
     .map(entry => {
-      const currentEntry = resolvePreviousEntry(entry, previousByPath, previousByRut);
+      const currentEntry = resolvePreviousEntry(entry, previousEntries);
       if (currentEntry && hasStableAdmissionAnchor(currentEntry.patient, entry.patient)) {
         return null;
       }
@@ -128,7 +118,7 @@ export const assertAdmissionDatePersistencePolicy = (
 
   if (previousRecord) {
     nextEntries.forEach(entry => {
-      const currentEntry = resolvePreviousEntry(entry, previousByPath, previousByRut);
+      const currentEntry = resolvePreviousEntry(entry, previousEntries);
       const mutationViolation = resolveAdmissionDateMutationViolation({
         recordDate: date,
         path: entry.path,

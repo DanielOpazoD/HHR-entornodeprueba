@@ -158,6 +158,8 @@ const structuralIssueReasonLabel: Record<RayenSyncStructuralIssue['reason'], str
   'episode-less-report-row': 'una fila del informe de GC no identifica el episodio activo',
   'report-predates-admission': 'un egreso del informe de GC es anterior al ingreso activo',
   'crib-conflict-blocks-discharge': 'el alta no se aplicó: la cuna de la cama tiene un conflicto',
+  'admission-date-policy': 'la validación rechazó un cambio en la fecha de ingreso',
+  'structural-write-rejected': 'el guardado del censo no pudo confirmarse',
   unclassified: 'el cambio estructural no pudo aplicarse',
 };
 export const presentRayenStructuralIssue = (issue: RayenSyncStructuralIssue): string => {

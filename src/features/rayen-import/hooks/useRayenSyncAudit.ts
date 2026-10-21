@@ -27,6 +27,7 @@ import {
 import { elapsedMilliseconds, mergeRayenSyncPerformance } from '../domain/rayenSyncPerformance';
 import { isDailyRecordWriteRejectedResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { createRayenSyncRunLifecycle } from '../domain/rayenSyncRunLifecycle';
+import { buildRayenApplyFailureEvidence } from '../domain/rayenApplyFailureEvidence';
 import {
   classifyRayenApplyFailureReason,
   classifyRayenSyncError,
@@ -286,8 +287,8 @@ export const useRayenSyncAudit = ({
           return { patch, value: event };
         });
         if (completedEvent) {
-          if (claim) lifecycle.commitTerminal(claim);
           if (claim) {
+            lifecycle.commitTerminal(claim);
             reportRayenSyncTerminal(
               claim.run ?? { id: completedEvent.id, startedAt: completedEvent.startedAt },
               completedEvent.status === 'partial' ? 'partial' : 'complete',
@@ -317,10 +318,7 @@ export const useRayenSyncAudit = ({
               rayenSyncHistory: upsertRayenSyncEvent(base.rayenSyncHistory, event),
             };
             if (base.rayenSync?.runId === runId) patch.rayenSync = rayenSyncMetaFromEvent(event);
-            return {
-              patch,
-              value: event,
-            };
+            return { patch, value: event };
           });
           if (failedEvent) {
             if (claim) lifecycle.commitTerminal(claim);
@@ -348,13 +346,16 @@ export const useRayenSyncAudit = ({
   );
 
   const failRun = useCallback(
-    async (reason: RayenSyncFailureReason, runId = lifecycle.getActiveRun()?.id): Promise<void> => {
-      const run = runId ? lifecycle.getRun(runId) : undefined;
+    async (reason: RayenSyncFailureReason, runId?: string, error?: unknown): Promise<void> => {
+      const id = runId ?? lifecycle.getActiveRun()?.id;
+      const run = id ? lifecycle.getRun(id) : undefined;
       const record = currentRecordRef.current;
       if (!run) return;
       const claim = lifecycle.claimTerminal(run.id);
       if (!claim) return;
       const event = buildFailedRayenSyncEvent(run, reason, now().toISOString());
+      const evidence = buildRayenApplyFailureEvidence(error, run.sourceDate);
+      if (evidence) event.structuralReview = evidence;
       if (record) {
         try {
           await persistMetadataPatch(record, base => ({
@@ -384,7 +385,6 @@ export const useRayenSyncAudit = ({
       });
     }
   }, [lifecycle]);
-
   return {
     startRun,
     ensureRun,

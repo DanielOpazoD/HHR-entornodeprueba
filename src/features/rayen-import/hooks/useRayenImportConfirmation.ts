@@ -143,9 +143,11 @@ export const useRayenImportConfirmation = ({
       const confirmationKey = rayenSyncExecutionKey(executionIdentity);
       let confirmedStructuralReplan: RayenStructuralReplan | null = null;
       let reviewReadyStructuralReplan: RayenStructuralReplan | null = null;
+      let structureCommitted = false;
       const continueAfterStructuralCommit = async (
         outcome: CommittedRayenStructuralPersistenceOutcome
       ): Promise<void> => {
+        structureCommitted = true;
         const requiresFreshCapture = outcome.kind === 'requires_fresh_capture';
         const correctionError = requiresFreshCapture
           ? getRayenImportErrorMessage(outcome.error)
@@ -220,7 +222,11 @@ export const useRayenImportConfirmation = ({
         // El error real ya estaba aquí; solo se descartaba. Persistirlo
         // clasificado es lo que separa «tu sesión perdió permisos» de «el
         // servidor rechazó» en el historial.
-        void failRun(classifyRayenApplyFailureReason(error), run.id);
+        if (structureCommitted) {
+          void failRun(classifyRayenApplyFailureReason(error), run.id);
+        } else {
+          void failRun(classifyRayenApplyFailureReason(error), run.id, error);
+        }
         const isExecutionDateVisible = selectedDateRef.current === executionIdentity.selectedDate;
         setState(previous => ({
           ...previous,

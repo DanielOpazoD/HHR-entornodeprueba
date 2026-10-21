@@ -181,6 +181,7 @@ export const useRayenSnapshotPreview = ({
               ),
           });
         });
+      let structureCommitted = false;
       const finishFailedPersistence = (error: unknown) => {
         if (!isRayenSyncExecutionCurrent(executionRef.current, executionIdentity)) return;
         if (returnReplanToReview(error)) {
@@ -192,7 +193,9 @@ export const useRayenSnapshotPreview = ({
         }
         preparedSyncContextRef.current = null;
         structuralReplanRef.current = null;
-        void failRun('apply_failed', run.id).catch(() => undefined);
+        void failRun('apply_failed', run.id, structureCommitted ? undefined : error).catch(
+          () => undefined
+        );
         execution.transition({ type: 'failed' });
         const isExecutionDateVisible =
           !selectedDateRef || selectedDateRef.current === executionIdentity.selectedDate;
@@ -205,6 +208,7 @@ export const useRayenSnapshotPreview = ({
         commit: RayenStructuralCommitSummary,
         updateVisibleState?: () => void
       ): Promise<void> => {
+        structureCommitted = true;
         if (isRayenSyncExecutionCurrent(executionRef.current, executionIdentity)) {
           execution.recordOutcome({
             structuralConflicts: commit.structuralConflicts,
