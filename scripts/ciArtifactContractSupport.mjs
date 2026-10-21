@@ -453,14 +453,17 @@ export const collectCiArtifactContractIssues = workflowText => {
       !/^\s+overwrite:\s*true\s*$/m.test(upload.block)
     ) {
       issues.push(
-        'build: preview bootstrap upload must replace an artifact from an earlier run attempt.'
+        `${PREVIEW_BOOTSTRAP_PRODUCER_JOB}: preview bootstrap upload must replace an artifact ` +
+          'from an earlier run attempt.'
       );
     }
     if (
       upload.jobName === PREVIEW_BOOTSTRAP_PRODUCER_JOB &&
       getField(upload.block, 'if-no-files-found') !== 'error'
     ) {
-      issues.push('build: preview bootstrap upload must fail when new evidence is missing.');
+      issues.push(
+        `${PREVIEW_BOOTSTRAP_PRODUCER_JOB}: preview bootstrap upload must fail when new evidence is missing.`
+      );
     }
     if (upload.jobName !== PREVIEW_BOOTSTRAP_PRODUCER_JOB) {
       issues.push(

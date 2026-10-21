@@ -37,7 +37,7 @@ describe('final CI confidence evidence', () => {
 
     expect(governanceJob).not.toContain('name: confidence-and-readiness');
     expect(finalJob).toContain(
-      'needs: [quality-static-governance-snapshots, build, e2e-critical-emulator]'
+      'needs: [quality-static-governance-snapshots, build, preview-smoke, e2e-critical-emulator]'
     );
     expect(previewDownload).toBeGreaterThanOrEqual(0);
     expect(distDownload).toBeGreaterThanOrEqual(0);
@@ -75,12 +75,24 @@ describe('final CI confidence evidence', () => {
     const workflow = readWorkflow();
     expect(collectCiArtifactContractIssues(workflow)).toEqual([]);
     const unordered = workflow.replace(
-      'needs: [quality-static-governance-snapshots, build, e2e-critical-emulator]',
-      'needs: [quality-static-governance-snapshots, build]'
+      'needs: [quality-static-governance-snapshots, build, preview-smoke, e2e-critical-emulator]',
+      'needs: [quality-static-governance-snapshots, build, preview-smoke]'
     );
     expect(collectCiArtifactContractIssues(unordered)).toContainEqual(
       expect.stringContaining(
         'downloads artifact "flow-performance-evidence" before declaring a needs chain'
+      )
+    );
+  });
+
+  it('rejects consuming preview evidence without waiting for the merged preview smoke', () => {
+    const unordered = readWorkflow().replace(
+      'needs: [quality-static-governance-snapshots, build, preview-smoke, e2e-critical-emulator]',
+      'needs: [quality-static-governance-snapshots, build, e2e-critical-emulator]'
+    );
+    expect(collectCiArtifactContractIssues(unordered)).toContainEqual(
+      expect.stringContaining(
+        'downloads artifact "preview-bootstrap-artifacts" before declaring a needs chain'
       )
     );
   });

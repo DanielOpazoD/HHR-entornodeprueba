@@ -228,7 +228,8 @@ Incluye:
 - `npm run check:chunk-graph`
 - `npm run check:runtime-asset-margin`
 - `npm run ci:preview-smoke:built` (censo, biblioteca clínica, lectura del panel
-  e historial de sincronización sobre el build existente)
+  e historial de sincronización sobre el build existente; en CI se reparte en
+  carriles paralelos, ver «Una sola validación de vista previa»)
 
 Salida esperada:
 
@@ -669,19 +670,38 @@ la acción por `setup-node` + `npm ci` en esos cuatro jobs y retirar su acción 
 
 ### Una sola validación de vista previa
 
-`build-budget` compila y verifica las cuatro suites del pack `ci:preview-smoke:built`,
-registra su procedencia y publica los artefactos para la comprobación final y
-posterior al merge. Se retira el workflow duplicado `Preview Validation`:
-no cambia el pack ni sus presupuestos. La regla activa de main exige `ci-summary`,
-que conserva la dependencia de `build-budget` y falla si falta una validación.
-Los cambios `docs-only` y `functions-only` conservan sus controles propios;
-ya no pagan otra compilación de frontend en un workflow separado.
+El pack `ci:preview-smoke:built` se valida una vez por run, ahora en carriles
+paralelos. `preview-smoke-lanes` arranca junto con los demás gates (necesita sólo
+`ci-scope`), compila el mismo commit y ejecuta un tramo del pack por carril:
+`app` (censo, biblioteca, panel clínico, historial y arrastre clínico),
+`dicom-graphics-stress` (la prueba etiquetada `@graphics-stress`) y las dos mitades
+`dicom-1`/`dicom-2` del resto del visor DICOM. Los carriles se reparten por duración
+observada, no por número de pruebas; se definen en `scripts/previewSmokeLaneSupport.mjs`.
 
-Owner: CI HHR. Reversión: restaurar `preview.yml` y el job estático secuencial.
-Referencia anterior: run 38162693481 (CI 10 min 19 s) y run 38162693384
-(vista previa duplicada, aproximadamente 4 min). Son observaciones de una revisión,
-no una promesa de tiempo para las siguientes. Comparar caché fría/caliente,
-tiempo total, minutos de runner y fallos sobre revisiones equivalentes.
+`preview-smoke` fusiona los blobs con `playwright merge-reports`, exige que todos los
+carriles terminaran bien y compara el informe fusionado con
+`playwright test --list` del pack completo: cada prueba canónica debe ejecutarse
+exactamente una vez (`check-preview-smoke-completeness.mjs`). Después registra la
+procedencia (productor `preview-smoke`) y publica `preview-bootstrap-artifacts`
+para la comprobación final y posterior al merge. `build-budget` conserva el build con
+la evidencia de release, budgets, grafo de chunks y `dist`, sin el smoke.
+
+Cada carril sirve su propio bundle del mismo commit. Sólo difiere de `build-budget`
+en `release-evidence.json`, que no entra en el precache, y Netlify vuelve a compilar
+al desplegar, así que el smoke nunca validó el artefacto desplegado. Localmente,
+`ci:preview-gate` sigue ejecutando el pack completo en serie. `ci-summary` exige
+`build-budget` y `preview-smoke`; los cambios `docs-only` y `functions-only` conservan
+sus controles propios.
+
+Motivo medido: en el run 39661114009 el smoke ocupaba 735 s dentro de
+`build-budget` (16 min), con `dicom-viewer.spec.ts` en 565 s y una sola prueba de
+estrés gráfico en 206 s. El job empezaba al terminar los snapshots de gobernanza,
+así que el camino crítico del PR era de unos 24 min. Comparar el tiempo total del PR
+y el carril más lento en revisiones equivalentes; si un carril pasa de ~5 min,
+reequilibrar en `previewSmokeLaneSupport.mjs`.
+
+Owner: CI HHR. Reversión: devolver el paso `npm run ci:preview-smoke:built` y la
+subida de `preview-bootstrap-artifacts` a `build-budget`, con productor `build`.
 
 ### Evidencia de reconexión y conflictos (2026-09-29)
 

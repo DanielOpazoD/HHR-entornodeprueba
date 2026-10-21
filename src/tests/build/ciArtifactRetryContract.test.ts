@@ -28,13 +28,13 @@ describe('CI artifact retry contract', () => {
 
     expect(collectCiArtifactContractIssues(workflow)).toEqual([]);
     expect(collectCiArtifactContractIssues(stalePreview)).toContain(
-      'build: preview bootstrap upload must replace an artifact from an earlier run attempt.'
+      'preview-smoke: preview bootstrap upload must replace an artifact from an earlier run attempt.'
     );
     expect(collectCiArtifactContractIssues(staleDist)).toContain(
       'build: dist upload must replace an artifact from an earlier run attempt.'
     );
     expect(collectCiArtifactContractIssues(missingPreview)).toContain(
-      'build: preview bootstrap upload must fail when new evidence is missing.'
+      'preview-smoke: preview bootstrap upload must fail when new evidence is missing.'
     );
     expect(collectCiArtifactContractIssues(missingDist)).toContain(
       'build: dist upload must fail when the new build is missing.'
