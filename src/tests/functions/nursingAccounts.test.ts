@@ -17,17 +17,26 @@ const {
   resolveIndividualAccountRole,
 } = require('../../../functions/lib/accounts/accountAccess.js');
 const person = { name: 'Enfermera Sintética', rut: '11.111.111-1', identityVerified: true };
-const password = 'frase privada de prueba 729!';
+const password = 'Frase privada de prueba 729!';
 
 const setup = async () => {
   const f = accountFixture();
   const admin = createAccountAdministration(f);
   const credentials = createAccountCredentials(f);
-  const invitation = await admin.createAccount(person, f.context);
+  const created = await admin.createAccount(person, f.context);
+  const invitation = {
+    ...created,
+    ...(await admin.manageAccount({ uid: created.uid, action: 'invite' }, f.context)),
+  };
   const ref = `hhr_account_access/${invitation.uid}`;
   const activate = () =>
     credentials.activateAccount(
-      { rut: person.rut, activationToken: invitation.activationToken, password },
+      {
+        rut: person.rut,
+        recoveryEmail: 'nurse@example.invalid',
+        activationToken: invitation.activationToken,
+        password,
+      },
       f.context
     );
   const session = () => ({
@@ -66,7 +75,12 @@ describe('private nursing account lifecycle', () => {
     expect(hasCurrentAccountSession(f.documents.get(f.ref), f.session(), f.now())).toBe(false);
     await expect(
       f.credentials.activateAccount(
-        { rut: '22222222-2', activationToken: f.invitation.activationToken, password },
+        {
+          rut: '22222222-2',
+          recoveryEmail: 'nurse@example.invalid',
+          activationToken: f.invitation.activationToken,
+          password,
+        },
         f.context
       )
     ).rejects.toThrow();
@@ -89,13 +103,23 @@ describe('private nursing account lifecycle', () => {
     const expired = createAccountCredentials({ ...f, now: () => f.now() + 3600001 });
     await expect(
       expired.activateAccount(
-        { rut: person.rut, activationToken: f.invitation.activationToken, password },
+        {
+          rut: person.rut,
+          recoveryEmail: 'nurse@example.invalid',
+          activationToken: f.invitation.activationToken,
+          password,
+        },
         f.context
       )
     ).rejects.toThrow();
     await expect(
       f.credentials.activateAccount(
-        { rut: person.rut, activationToken: f.invitation.activationToken, password: '11111111' },
+        {
+          rut: person.rut,
+          recoveryEmail: 'nurse@example.invalid',
+          activationToken: f.invitation.activationToken,
+          password: '11111111',
+        },
         f.context
       )
     ).rejects.toThrow();
@@ -109,7 +133,12 @@ describe('private nursing account lifecycle', () => {
       const beforeActivation = f.auth.updateUser.mock.calls.length;
       await expect(
         f.credentials.activateAccount(
-          { rut: person.rut, activationToken: f.invitation.activationToken, password: proposed },
+          {
+            rut: person.rut,
+            recoveryEmail: 'nurse@example.invalid',
+            activationToken: f.invitation.activationToken,
+            password: proposed,
+          },
           f.context
         )
       ).rejects.toMatchObject({ code: 'invalid-argument' });
@@ -145,8 +174,9 @@ describe('private nursing account lifecycle', () => {
     await f.credentials.activateAccount(
       {
         rut: person.rut,
+        recoveryEmail: 'nurse@example.invalid',
         activationToken: recovered.activationToken,
-        password: 'otra frase privada 213!',
+        password: 'Otra frase privada 213!',
       },
       f.context
     );
@@ -159,13 +189,13 @@ describe('private nursing account lifecycle', () => {
     const session = f.session();
     await expect(
       f.credentials.changeAccountPassword(
-        { currentPassword: 'wrong', password: 'otra clave privada 1234!', apiKey: 'synthetic-key' },
+        { currentPassword: 'wrong', password: 'Otra clave privada 1234!', apiKey: 'synthetic-key' },
         session
       )
     ).rejects.toThrow();
     expect(hasCurrentAccountSession(f.documents.get(f.ref), session, f.now())).toBe(true);
     await f.credentials.changeAccountPassword(
-      { currentPassword: password, password: 'otra clave privada 1234!', apiKey: 'synthetic-key' },
+      { currentPassword: password, password: 'Otra clave privada 1234!', apiKey: 'synthetic-key' },
       session
     );
     expect(hasCurrentAccountSession(f.documents.get(f.ref), session, f.now())).toBe(false);
@@ -289,7 +319,12 @@ describe('private nursing account lifecycle', () => {
     expect(f.documents.get(f.ref)?.status).toBe('pending');
     expect(f.auth.createUser).toHaveBeenCalledTimes(1);
     await f.credentials.activateAccount(
-      { rut: person.rut, activationToken: invitation.activationToken, password },
+      {
+        rut: person.rut,
+        recoveryEmail: 'nurse@example.invalid',
+        activationToken: invitation.activationToken,
+        password,
+      },
       f.context
     );
     expect(f.documents.get(f.ref)?.status).toBe('active');

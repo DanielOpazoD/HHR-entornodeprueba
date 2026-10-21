@@ -66,13 +66,15 @@ export default function NursingAccountsPanel({
   const create = (event: React.FormEvent) => {
     event.preventDefault();
     void run(async () => {
-      const result = await callAccount<PrivateActivation>('createNursingAccount', {
+      const result = await callAccount<{ username: string }>('createNursingAccount', {
         name,
         rut,
         identityVerified: verified,
         sourceReference,
       });
-      setActivation({ ...result, name });
+      setMessage(
+        `Cuenta creada. Usuario: ${result.username}. Clave inicial: números del RUT sin dígito verificador. El primer ingreso exige cambio de clave y correo de recuperación.`
+      );
       setName('');
       setSourceReference('');
       setRut('');
@@ -232,7 +234,7 @@ export default function NursingAccountsPanel({
           disabled={busy || !verified}
           className="rounded bg-sky-800 px-4 py-2 text-white disabled:opacity-50 sm:col-span-2"
         >
-          Crear cuenta y activación privada
+          Crear cuenta con clave inicial
         </button>
       </form>
       <label className="block text-sm">

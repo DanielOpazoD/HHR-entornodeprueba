@@ -2,9 +2,10 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import NursingAccessForm from '@/features/auth/components/NursingAccessForm';
 import NursingPasswordDialog from '@/components/layout/NursingPasswordDialog';
-import { establishNursingSession } from '@/services/auth/nursingAccountService';
+import { establishNursingSession, callAccount } from '@/services/auth/nursingAccountService';
 vi.mock('@/services/auth/nursingAccountService', () => ({
   establishNursingSession: vi.fn(),
+  callAccount: vi.fn(),
   accountErrorMessage: () => 'No se pudo completar el acceso.',
 }));
 beforeEach(() => {
@@ -25,7 +26,7 @@ describe('private individual access forms', () => {
       target: { value: 'private-code' },
     });
     fireEvent.change(screen.getByLabelText('Elige tu clave personal'), {
-      target: { value: 'personal private phrase' },
+      target: { value: 'Personal private phrase 1' },
     });
     fireEvent.change(screen.getByLabelText('Repite tu nueva clave'), {
       target: { value: 'different private phrase' },
@@ -33,16 +34,20 @@ describe('private individual access forms', () => {
     fireEvent.submit(screen.getByRole('form'));
     expect(establishNursingSession).not.toHaveBeenCalled();
     fireEvent.change(screen.getByLabelText('Repite tu nueva clave'), {
-      target: { value: 'personal private phrase' },
+      target: { value: 'Personal private phrase 1' },
+    });
+    fireEvent.change(screen.getByLabelText('Correo de recuperación'), {
+      target: { value: 'nurse@example.invalid' },
     });
     fireEvent.submit(screen.getByRole('form'));
     await waitFor(() => expect(onSuccess).toHaveBeenCalledOnce());
     expect(establishNursingSession).toHaveBeenCalledWith(
       'activateNursingAccount',
       {
-        rut: '11.111.111-1',
+        rut: '111111111',
         activationToken: 'private-code',
-        password: 'personal private phrase',
+        recoveryEmail: 'nurse@example.invalid',
+        password: 'Personal private phrase 1',
       },
       expect.any(Function)
     );
@@ -71,10 +76,10 @@ describe('private individual access forms', () => {
       target: { value: 'old private phrase' },
     });
     fireEvent.change(screen.getByLabelText('Nueva clave'), {
-      target: { value: 'new private phrase' },
+      target: { value: 'New private phrase 1' },
     });
     fireEvent.change(screen.getByLabelText('Repite la nueva clave'), {
-      target: { value: 'new private phrase' },
+      target: { value: 'New private phrase 1' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Cambiar clave' }));
     await screen.findByText(/Clave cambiada/);
@@ -82,11 +87,87 @@ describe('private individual access forms', () => {
       'changeNursingPassword',
       {
         currentPassword: 'old private phrase',
-        password: 'new private phrase',
+        password: 'New private phrase 1',
       },
       expect.any(Function)
     );
     expect(screen.getByLabelText('Clave actual')).toHaveValue('');
     expect(screen.getByLabelText('Nueva clave')).toHaveValue('');
+  });
+  it('shows setup without granting a session and requires email and a personal password', async () => {
+    vi.mocked(establishNursingSession).mockResolvedValueOnce({
+      requiresSetup: true,
+      activationToken: 'setup-only',
+    });
+    const onSuccess = vi.fn();
+    render(<NursingAccessForm onSuccess={onSuccess} />);
+    fireEvent.change(screen.getByLabelText('RUT con dígito verificador'), {
+      target: { value: '17.752.753-K' },
+    });
+    expect(screen.getByLabelText('RUT con dígito verificador')).toHaveValue('17752753k');
+    fireEvent.change(screen.getByLabelText('Clave'), { target: { value: '17752753' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Mostrar contraseña' }));
+    expect(screen.getByLabelText('Clave')).toHaveAttribute('type', 'text');
+    fireEvent.submit(screen.getByRole('form'));
+    await screen.findByText('Primer ingreso: cambia tu clave');
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Elige tu clave personal')).toHaveAttribute('type', 'password');
+    expect(screen.getByLabelText('Elige tu clave personal')).toHaveValue('');
+    fireEvent.change(screen.getByLabelText('Elige tu clave personal'), {
+      target: { value: 'Clave1' },
+    });
+    fireEvent.change(screen.getByLabelText('Repite tu nueva clave'), {
+      target: { value: 'Clave1' },
+    });
+    fireEvent.change(screen.getByLabelText('Correo de recuperación'), {
+      target: { value: 'nurse@example.invalid' },
+    });
+    vi.mocked(establishNursingSession).mockResolvedValueOnce(undefined);
+    fireEvent.submit(screen.getByRole('form'));
+    await waitFor(() => expect(onSuccess).toHaveBeenCalledOnce());
+    expect(establishNursingSession).toHaveBeenLastCalledWith(
+      'activateNursingAccount',
+      {
+        rut: '17752753k',
+        password: 'Clave1',
+        activationToken: 'setup-only',
+        recoveryEmail: 'nurse@example.invalid',
+      },
+      expect.any(Function)
+    );
+  });
+  it('requests a code without disclosing a mailbox and resets only with the server challenge', async () => {
+    vi.mocked(callAccount).mockResolvedValue({ challengeId: 'opaque-challenge' });
+    vi.mocked(establishNursingSession).mockResolvedValue(undefined);
+    const onSuccess = vi.fn();
+    render(<NursingAccessForm onSuccess={onSuccess} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Olvidé mi contraseña' }));
+    fireEvent.change(screen.getByLabelText('RUT con dígito verificador'), {
+      target: { value: '111111111' },
+    });
+    fireEvent.submit(screen.getByRole('form'));
+    await screen.findByLabelText('Código de recuperación');
+    expect(onSuccess).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText('Código de recuperación'), {
+      target: { value: '12345678' },
+    });
+    fireEvent.change(screen.getByLabelText('Elige tu clave personal'), {
+      target: { value: 'Nueva1' },
+    });
+    fireEvent.change(screen.getByLabelText('Repite tu nueva clave'), {
+      target: { value: 'Nueva1' },
+    });
+    fireEvent.submit(screen.getByRole('form'));
+    await waitFor(() => expect(onSuccess).toHaveBeenCalledOnce());
+    expect(establishNursingSession).toHaveBeenLastCalledWith(
+      'resetNursingPassword',
+      {
+        rut: '111111111',
+        password: 'Nueva1',
+        code: '12345678',
+        challengeId: 'opaque-challenge',
+      },
+      expect.any(Function)
+    );
   });
 });

@@ -72,3 +72,9 @@ Comparar el YAML estructuralmente para conservar todos los gates, condiciones,
 permisos, matrices y presupuestos. Ejecutar los contratos de scheduling/caché y
 el CI completo del head final; informar los hits y tiempos observados sin atribuir
 el ahorro de un paso a todo el pipeline ni al rendimiento de la aplicación.
+
+### Cuentas RUT: primer ingreso y recuperación
+
+La entrega se valida con `test:accounts:emulator:ci` (Auth/Firestore/Storage y UI
+sintéticos) y los gates de runtime crítico. El correo se sustituye en emuladores;
+no acredita entrega real. Ver [operación y publicación](RUT_PASSWORD_RECOVERY.md).

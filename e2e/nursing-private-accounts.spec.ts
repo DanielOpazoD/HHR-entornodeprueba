@@ -8,7 +8,7 @@ const { createAuthHelpers } = require('../functions/lib/auth/authHelpersFactory.
 const { createAuthFunctions } = require('../functions/lib/auth/authFunctionsFactory.js');
 const { createAccountFunctions } = require('../functions/lib/accounts/accountFunctions.js');
 
-test('admin issues a private activation; nurse sets and changes their own password without losing Google', async ({
+test('initial RUT access, password visibility, mandatory setup and email recovery preserve account boundaries', async ({
   page,
 }) => {
   for (const key of ['FIREBASE_AUTH_EMULATOR_HOST', 'FIRESTORE_EMULATOR_HOST']) {
@@ -21,10 +21,16 @@ test('admin issues a private activation; nurse sets and changes their own passwo
     await page.clock.install();
     let adminContext: { uid: string; token: DecodedIdToken } | undefined;
     let createdNurseUid = '';
+    let recoveryCode = '';
+    let successfulRoleChecks = 0;
+    const sendMail = async ({ email, code }: { email: string; code: string }) => {
+      expect(email).toBe('nurse@example.invalid');
+      recoveryCode = code;
+    };
     const helpers = createAuthHelpers({ auth, firestore });
     const api = {
       ...createAuthFunctions({ auth, helpers }),
-      ...createAccountFunctions({ auth, firestore, helpers }),
+      ...createAccountFunctions({ auth, firestore, helpers, sendMail }),
     };
     // Real production handlers and real emulator identity verification. This is an in-process
     // callable transport, not a deployed Functions/CORS or real Google OAuth claim.
@@ -40,7 +46,8 @@ test('admin issues a private activation; nurse sets and changes their own passwo
       }
       const name = new URL(route.request().url()).pathname.slice(1);
       try {
-        if (!api[name]?.run) throw new Error('Not available in this account scenario');
+        if (name === 'deliverNursingPasswordRecovery' || !api[name]?.run)
+          throw new Error('Not available in this account scenario');
         const bearer = route
           .request()
           .headers()
@@ -53,12 +60,19 @@ test('admin issues a private activation; nurse sets and changes their own passwo
           auth: decoded ? { uid: decoded.uid, token: decoded } : undefined,
           rawRequest: { ip: '127.0.0.1' },
         });
+        if (name === 'checkUserRole' && result.role === 'nurse_hospital') successfulRoleChecks += 1;
         if (name === 'createNursingAccount') createdNurseUid = result.uid;
         await route.fulfill({
           headers,
           contentType: 'application/json',
           body: JSON.stringify({ result }),
         });
+        if (name === 'requestNursingPasswordRecovery') {
+          // Explicit simulation of the Firestore onCreate delivery, after the public response.
+          await api.deliverNursingPasswordRecovery.run(undefined, {
+            params: { challengeId: result.challengeId },
+          });
+        }
       } catch {
         await route.fulfill({
           status: 403,
@@ -85,34 +99,37 @@ test('admin issues a private activation; nurse sets and changes their own passwo
     await page
       .getByLabel('Nombre verificado', { exact: true })
       .fill('Enfermera Navegador Sintética');
-    await page.getByLabel('RUT con DV', { exact: true }).fill('22.222.222-2');
+    await page.getByLabel('RUT con DV', { exact: true }).fill('222222222');
     await page
       .getByLabel('Referencia verificada del funcionario')
       .fill('Padrón sintético de prueba');
     await page.getByRole('checkbox', { name: /Verifiqué identidad/ }).check();
-    await page.getByRole('button', { name: 'Crear cuenta y activación privada' }).click();
-    const code = await page
-      .getByLabel('Código privado de activación', { exact: true })
-      .inputValue();
-    expect(code).toHaveLength(80);
+    await page.getByRole('button', { name: 'Crear cuenta con clave inicial' }).click();
+    await expect(page.getByText(/Cuenta creada. Usuario: 222222222/)).toBeVisible();
     await page.getByTestId('authenticated-user-menu-button').click();
     await page.getByRole('button', { name: 'Cerrar sesión', exact: true }).click();
     await expect(page.getByTestId('login-google-button')).toBeVisible();
     await page.getByRole('button', { name: 'Ingresar con RUT / activar cuenta' }).click();
-    await page.getByRole('button', { name: 'Tengo un código de activación' }).click();
-    await page.getByLabel('RUT con dígito verificador').fill('22.222.222-2');
-    await page.getByLabel('Código privado de activación').fill(code);
-    await page.getByLabel('Elige tu clave personal').fill('private browser phrase 854!');
-    await page.getByLabel('Repite tu nueva clave').fill('private browser phrase 854!');
+    await page.getByLabel('RUT con dígito verificador').fill('222222222');
+    await page.getByLabel('Clave', { exact: true }).fill('22222222');
+    await page.getByRole('button', { name: 'Mostrar contraseña' }).click();
+    await expect(page.getByLabel('Clave', { exact: true })).toHaveAttribute('type', 'text');
+    await page.getByRole('button', { name: 'Ocultar contraseña' }).click();
+    await page.getByRole('button', { name: 'Ingresar con RUT', exact: true }).click();
+    await expect(page.getByText('Primer ingreso: cambia tu clave')).toBeVisible();
+    await expect(page.getByTestId('authenticated-user-menu-button')).not.toBeVisible();
+    await page.getByLabel('Correo de recuperación').fill('nurse@example.invalid');
+    await page.getByLabel('Elige tu clave personal').fill('Private browser phrase 854!');
+    await page.getByLabel('Repite tu nueva clave').fill('Private browser phrase 854!');
     await page.getByRole('button', { name: 'Establecer clave e ingresar' }).click();
     const menu = page.getByTestId('authenticated-user-menu-button');
     await expect(menu).toBeVisible();
     await expect(menu).toHaveAttribute('title', 'Enfermera Navegador Sintética');
     await menu.click();
     await page.getByRole('button', { name: 'Cambiar mi clave', exact: true }).click();
-    await page.getByLabel('Clave actual').fill('private browser phrase 854!');
-    await page.getByLabel('Nueva clave', { exact: true }).fill('changed browser phrase 629!');
-    await page.getByLabel('Repite la nueva clave').fill('changed browser phrase 629!');
+    await page.getByLabel('Clave actual').fill('Private browser phrase 854!');
+    await page.getByLabel('Nueva clave', { exact: true }).fill('Changed browser phrase 629!');
+    await page.getByLabel('Repite la nueva clave').fill('Changed browser phrase 629!');
     await page.getByRole('button', { name: 'Cambiar clave', exact: true }).click();
     await expect(page.getByText(/Clave cambiada/)).toBeVisible();
     await page.getByRole('button', { name: 'Cerrar', exact: true }).click();
@@ -120,8 +137,8 @@ test('admin issues a private activation; nurse sets and changes their own passwo
     await page.getByRole('button', { name: 'Cerrar sesión', exact: true }).click();
     await expect(page.getByTestId('login-google-button')).toBeVisible();
     await page.getByRole('button', { name: 'Ingresar con RUT / activar cuenta' }).click();
-    await page.getByLabel('RUT con dígito verificador').fill('22.222.222-2');
-    await page.getByLabel('Clave', { exact: true }).fill('changed browser phrase 629!');
+    await page.getByLabel('RUT con dígito verificador').fill('222222222');
+    await page.getByLabel('Clave', { exact: true }).fill('Changed browser phrase 629!');
     await page.getByRole('button', { name: 'Ingresar con RUT', exact: true }).click();
     await expect(menu).toBeVisible();
     expect(
@@ -129,6 +146,27 @@ test('admin issues a private activation; nurse sets and changes their own passwo
         JSON.stringify({ local: { ...localStorage }, session: { ...sessionStorage } })
       )
     ).not.toContain('browser phrase');
+
+    await menu.click();
+    await page.getByRole('button', { name: 'Cerrar sesión', exact: true }).click();
+    await expect(page.getByTestId('login-google-button')).toBeVisible();
+    await page.getByRole('button', { name: 'Ingresar con RUT / activar cuenta' }).click();
+    await page.getByRole('button', { name: 'Olvidé mi contraseña' }).click();
+    await page.getByLabel('RUT con dígito verificador').fill('222222222');
+    await page.getByRole('button', { name: 'Enviar código de recuperación' }).click();
+    await expect(page.getByLabel('Código de recuperación')).toBeVisible();
+    await expect.poll(() => recoveryCode).toMatch(/^\d{8}$/);
+    await page.getByLabel('Código de recuperación').fill(recoveryCode);
+    await page.getByLabel('Elige tu clave personal').fill('Recuperada1');
+    await page.getByLabel('Repite tu nueva clave').fill('Recuperada1');
+    await page.getByRole('button', { name: 'Establecer clave e ingresar' }).click();
+    await expect(menu).toBeVisible();
+    const checksBeforeReload = successfulRoleChecks;
+    await page.reload();
+    await expect(menu).toBeVisible();
+    // Wait for the restored session's initial monitor lookup before advancing its clock.
+    await expect.poll(() => successfulRoleChecks).toBeGreaterThan(checksBeforeReload + 1);
+    await page.clock.runFor(100);
 
     // A live revocation must use canonical logout: hide the clinical session,
     // clear private caches, and preserve pending work under its original owner.
@@ -165,7 +203,9 @@ test('admin issues a private activation; nurse sets and changes their own passwo
       { auth: adminContext }
     );
     await page.clock.fastForward(61000);
-    await expect(page.getByTestId('login-google-button')).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Ingresar con Google', exact: true })
+    ).toBeVisible();
     const afterRevocation = await page.evaluate(async id => {
       const storagePath = '/src/services/storage/indexeddb/indexedDbCore.ts';
       const cachePath = '/src/config/queryClient.ts';

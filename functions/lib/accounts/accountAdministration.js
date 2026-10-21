@@ -58,6 +58,7 @@ const createAccountAdministration = ({ auth, firestore, helpers, now = Date.now 
       const version = account.version + 1;
       tx.update(ref, {
         status: 'pending',
+        initialPasswordEnabled: false,
         version,
         updatedAt: at,
         operationId: id,
@@ -131,10 +132,24 @@ const createAccountAdministration = ({ auth, firestore, helpers, now = Date.now 
       password: newSecret(),
       disabled: true,
     });
-    const current = await completeCredentialOperation(firestore, uid, operationId);
-    if (current.operationId !== operationId || current.status !== 'provisioning')
-      throw genericFailure();
-    return { uid, ...(await issueInvitation(uid, context)) };
+    const provisioned = await firestore.runTransaction(async tx => {
+      const ref = firestore.collection(ACCESS).doc(uid);
+      const current = (await tx.get(ref)).data();
+      if (current?.credentialOperation !== operationId) throw genericFailure();
+      const valid =
+        current.operationId === operationId &&
+        current.status === 'provisioning' &&
+        current.version === 1;
+      // Suspension/retirement during Auth creation must survive its late completion.
+      tx.update(ref, {
+        ...(valid ? { status: 'pending', initialPasswordEnabled: true } : {}),
+        credentialOperation: null,
+        credentialStartedAt: null,
+      });
+      return valid;
+    });
+    if (!provisioned) throw genericFailure();
+    return { uid, username: rut.replace('-', '').toLowerCase(), initialPasswordRequired: true };
   };
 
   const listAccounts = async (_data, context) => {

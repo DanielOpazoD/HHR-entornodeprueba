@@ -1175,3 +1175,9 @@ actual, en vez de comparar los tiempos de CI con el antiguo snapshot versionado.
 Validar la selección, ejecutar las cuatro particiones completas y comparar
 ejecuciones equivalentes. Las variaciones del runner, los imports y la preparación
 no permiten atribuir el tiempo total únicamente al reparto de casos.
+
+### Cuentas RUT: primer ingreso y recuperación
+
+La entrega se valida con `test:accounts:emulator:ci` (Auth/Firestore/Storage y UI
+sintéticos) y los gates de runtime crítico. El correo se sustituye en emuladores;
+no acredita entrega real. Ver [operación y publicación](RUT_PASSWORD_RECOVERY.md).

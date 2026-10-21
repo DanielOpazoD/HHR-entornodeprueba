@@ -44,7 +44,7 @@ const enabled = Boolean(
     const projectId = 'demo-hhr-nursing-accounts';
     const adminEmail = 'daniel.opazo@hospitalhangaroa.cl';
     const sharedEmail = 'hospitalizados@hospitalhangaroa.cl';
-    const password = 'synthetic private phrase 726!';
+    const password = 'Synthetic private phrase 726!';
     let app: App;
     let auth: Auth;
     let firestore: Firestore;
@@ -202,18 +202,33 @@ const enabled = Boolean(
       );
       await assertFails(clinicalFile(unmanagedRules).getMetadata());
       await assertFails(writeClinicalFile(unmanagedRules));
-      const invitation = await administration.createAccount(
+      const createdAccount = await administration.createAccount(
         { name: 'Enfermera Sintética', rut: '11.111.111-1', identityVerified: true },
         adminContext
       );
+      const invitation = {
+        ...createdAccount,
+        ...(await credentials.signInWithRut({ rut: '111111111', password: '11111111' }, {})),
+      };
+      expect(invitation.requiresSetup).toBe(true);
       expect((await auth.getUser(invitation.uid)).disabled).toBe(true);
       const activation = await credentials.activateAccount(
-        { rut: '11111111-1', activationToken: invitation.activationToken, password },
+        {
+          rut: '11111111-1',
+          recoveryEmail: 'nurse@example.invalid',
+          activationToken: invitation.activationToken,
+          password,
+        },
         { rawRequest: { ip: '127.0.0.1' } }
       );
       await expect(
         credentials.activateAccount(
-          { rut: '11111111-1', activationToken: invitation.activationToken, password },
+          {
+            rut: '11111111-1',
+            recoveryEmail: 'nurse@example.invalid',
+            activationToken: invitation.activationToken,
+            password,
+          },
           {}
         )
       ).rejects.toThrow();
@@ -262,7 +277,7 @@ const enabled = Boolean(
         ...rulesToken(nurseContext.auth.token),
       });
       await assertFails(clinicalFile(missingManaged).getMetadata());
-      const nextPassword = 'another private synthetic phrase 299!';
+      const nextPassword = 'Another private synthetic phrase 299!';
       await credentials.changeAccountPassword(
         { password: nextPassword, currentPassword: password, apiKey: 'synthetic-key' },
         nurseContext

@@ -1,3 +1,8 @@
+import PasswordInput from '@/components/ui/PasswordInput';
+import {
+  isValidNursingPassword,
+  NURSING_PASSWORD_HINT,
+} from '@/services/auth/nursingPasswordPolicy';
 import React, { useState, useRef, useEffect } from 'react';
 import {
   accountErrorMessage,
@@ -21,6 +26,10 @@ export default function NursingPasswordDialog({ onClose }: { onClose: () => void
     event.preventDefault();
     if (password !== confirmation) {
       setMessage('Las claves nuevas no coinciden.');
+      return;
+    }
+    if (!isValidNursingPassword(password)) {
+      setMessage(NURSING_PASSWORD_HINT);
       return;
     }
     setBusy(true);
@@ -56,11 +65,11 @@ export default function NursingPasswordDialog({ onClose }: { onClose: () => void
           Cambiar mi clave
         </h2>
         <p className="text-sm">Sólo tú conoces tu clave. El cambio cerrará tus otras sesiones.</p>
+        <p className="text-sm">{NURSING_PASSWORD_HINT}</p>
         <label className="block">
           Clave actual
-          <input
+          <PasswordInput
             autoFocus
-            type="password"
             autoComplete="current-password"
             value={currentPassword}
             onChange={e => setCurrentPassword(e.target.value)}
@@ -72,13 +81,12 @@ export default function NursingPasswordDialog({ onClose }: { onClose: () => void
         </label>
         <label className="block">
           Nueva clave
-          <input
-            type="password"
+          <PasswordInput
             autoComplete="new-password"
             value={password}
             onChange={e => setPassword(e.target.value)}
             required
-            minLength={12}
+            minLength={6}
             maxLength={128}
             className="block w-full rounded border p-2"
             disabled={busy}
@@ -86,13 +94,12 @@ export default function NursingPasswordDialog({ onClose }: { onClose: () => void
         </label>
         <label className="block">
           Repite la nueva clave
-          <input
-            type="password"
+          <PasswordInput
             autoComplete="new-password"
             value={confirmation}
             onChange={e => setConfirmation(e.target.value)}
             required
-            minLength={12}
+            minLength={6}
             maxLength={128}
             className="block w-full rounded border p-2"
             disabled={busy}
