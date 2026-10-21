@@ -49,11 +49,13 @@ describe('clinicalAttachmentRuntimeContracts', () => {
     });
   });
 
-  it('rejects malformed or unsupported attachment records', () => {
+  it.each([
+    { field: 'fileKind', value: 'zip' },
+    { field: 'sizeBytes', value: -1 },
+  ])('rejects an independently invalid $field', ({ field, value }) => {
     const result = safeParseClinicalAttachmentRecord({
       ...buildRecord(),
-      fileKind: 'zip',
-      sizeBytes: -1,
+      [field]: value,
     });
 
     expect(result.success).toBe(false);
