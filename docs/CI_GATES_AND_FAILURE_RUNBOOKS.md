@@ -1181,3 +1181,16 @@ no permiten atribuir el tiempo total únicamente al reparto de casos.
 La entrega se valida con `test:accounts:emulator:ci` (Auth/Firestore/Storage y UI
 sintéticos) y los gates de runtime crítico. El correo se sustituye en emuladores;
 no acredita entrega real. Ver [operación y publicación](RUT_PASSWORD_RECOVERY.md).
+
+## Acceso RUT aceptado seguido de cierre inmediato
+
+Comprobar por separado el monitor y las reglas efectivamente publicadas. El
+monitor consulta al servidor y admite todos los roles administrables; no exige
+el rol de enfermería a un administrador. `nursingSessionMonitor.test.ts` verifica
+roles, denegación, vencimiento, interrupción de transporte y desmontaje.
+
+Si las lecturas básicas devuelven `permission-denied`, comparar el ruleset activo
+del proyecto autorizado con Firestore/Storage del SHA validado. La aceptación de
+la contraseña y de `checkUserRole` no acredita permisos en las reglas. Conservar
+la guarda que cierra sesiones sin permisos; alinear reglas y cliente antes de
+repetir ingreso y recarga con una cuenta sintética, sin modificar datos clínicos.
