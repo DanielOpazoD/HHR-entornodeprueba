@@ -66,11 +66,12 @@ La clasificación remota `docs-only` se decide en CI; no forzar ni omitir checks
 
 ### Checklist de cierre
 
-El ajuste de procedencia clínica del 20 octubre 2026 es `safe_local_ui`: cambia sólo copy y
-presentación de fechas de signos/dispositivos copiados. Conserva la metadata, los criterios de
-verificación, los colores de valores clínicos y los handlers existentes. Validar `ci:inner-loop`,
-build y el preview de carryover (fecha original distinta del censo de origen, recarga y ausencia de
-avisos repetidos), además de revisión independiente y CI del head final.
+Las correcciones visuales del censo y Moa del 20 octubre 2026 son `safe_local_ui`: eliminan
+fechas/etiquetas de procedencia de las celdas, ocultan el tipo de cama en traslados y simplifican
+los controles decorativos de Moa con selección aleatoria por pulsación. No cambian datos,
+metadata clínica, sincronización, contratos ni handlers de movimientos. Validar `ci:inner-loop`,
+pruebas focalizadas, build/budget y preview de carryover, traslados y Moa (catálogo/local,
+recarga, teclado y movimiento reducido), además de revisión independiente y CI del head final.
 
 1. Clasificar la change según `scripts/config/sustainable-change-policy.json`.
 2. Actualizar tests unitarios e integración afectados por la change.

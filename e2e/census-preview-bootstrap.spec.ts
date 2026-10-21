@@ -633,7 +633,7 @@ test.describe('Production Preview Bootstrap', () => {
     await expectSeededPatientVisible(page);
   });
 
-  test('plays eighteen consistent scenes, rests quietly and respects reduced motion', async ({
+  test('plays surprise scenes without selectors, rests quietly and respects reduced motion', async ({
     page,
   }) => {
     // This regression exercises the original offline fallback, not the independent live release.
@@ -677,7 +677,19 @@ test.describe('Production Preview Bootstrap', () => {
         { once: true }
       );
     });
+    await expect(companion.getByRole('button')).toHaveCount(2);
+    await expect(companion.getByRole('button', { name: 'Elegir animación de Moa' })).toHaveCount(0);
+    await expect(companion.getByRole('listbox')).toHaveCount(0);
+    let lastChoice = '';
     for (const scene of scenes) {
+      const available = scenes.filter(id => id !== lastChoice);
+      await page.evaluate(
+        value => {
+          Math.random = () => value;
+        },
+        (available.indexOf(scene) + 0.5) / available.length
+      );
+      lastChoice = scene;
       await character.click();
       await expect(character).toHaveAttribute('data-pointer-target', 'button');
       await expect(character).toHaveAttribute('data-gesture', scene);
@@ -937,8 +949,39 @@ test.describe('Production Preview Bootstrap', () => {
   });
 });
 
+test('shows transfer beds without their type suffixes', async ({ page }, testInfo) => {
+  await seedPersistedSessionAndRecord(page, {
+    transfers: ['MEDIA', 'INTERMEDIA'].map((bedType, index) => ({
+      id: `synthetic-transfer-${index}`,
+      bedId: `R${index + 6}`,
+      bedName: `R${index + 6}`,
+      bedType,
+      patientName: `TRASLADO SINTETICO ${index + 1}`,
+      rut: '',
+      diagnosis: 'VALIDACION VISUAL',
+      evacuationMethod: 'Ambulancia',
+      receivingCenter: 'Hospital de prueba',
+      movementDate: PREVIEW_BOOTSTRAP_DATE,
+      time: '12:00',
+    })),
+  });
+  await page.goto(`/?date=${PREVIEW_BOOTSTRAP_DATE}`);
+  await expectSeededPatientVisible(page);
+  for (const [index, bedType] of ['MEDIA', 'INTERMEDIA'].entries()) {
+    const row = page.getByRole('row').filter({ hasText: `TRASLADO SINTETICO ${index + 1}` });
+    await expect(row).toBeVisible();
+    await expect(row.getByRole('cell').first()).toHaveText(`R${index + 6}`);
+    await expect(row).not.toContainText(`(${bedType})`);
+    await expect(row.getByTitle('Abrir menú de acciones')).toBeEnabled();
+  }
+  await testInfo.attach('transfer-rows', {
+    body: await page.getByRole('row').filter({ hasText: 'TRASLADO SINTETICO 1' }).screenshot(),
+    contentType: 'image/png',
+  });
+});
+
 for (const width of [1440, 375]) {
-  test(`loads the independent Moa library and plays HD without a clinical reload at ${width}px`, async ({
+  test(`plays a surprise from the independent Moa catalog without a selector or clinical reload at ${width}px`, async ({
     page,
   }) => {
     test.setTimeout(60_000);
@@ -990,25 +1033,33 @@ for (const width of [1440, 375]) {
     expect(requests).toHaveLength(0);
     await page.locator('[data-moa-toggle]').click();
     const companion = page.getByRole('region', { name: 'Moa', exact: true });
-    const library = companion.getByRole('button', { name: 'Elegir animación de Moa' });
-    await expect(library).toHaveAttribute('title', '222 animaciones');
+    await expect(companion.getByRole('button')).toHaveCount(2);
+    await expect(companion.getByRole('button', { name: 'Elegir animación de Moa' })).toHaveCount(0);
+    await expect(companion.getByRole('listbox')).toHaveCount(0);
+    await expect(companion.getByRole('dialog')).toHaveCount(0);
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => JSON.parse(localStorage.getItem('hhr_moa_catalog_v1') || 'null')?.scenes.length
+        )
+      )
+      .toBe(222);
     expect(requests).toHaveLength(1);
-    await library.click();
-    const select = page.getByLabel('Animación de Moa', { exact: true });
-    await expect(select.locator('option')).toHaveCount(222);
-    await expect(select).toBeFocused();
-    const menu = await page.getByRole('dialog', { name: 'Biblioteca de Moa' }).boundingBox();
-    expect(menu!.x).toBeGreaterThanOrEqual(0);
-    expect(menu!.x + menu!.width).toBeLessThanOrEqual(width);
-    await select.press('ArrowDown');
-    await select.press('ArrowDown');
-    await expect(select).toBeFocused();
-    await expect(select).toBeVisible();
     expect(requests.filter(url => url.endsWith('.png'))).toHaveLength(0);
-    await select.selectOption('E08');
-    await expect(select).toBeVisible();
-    await select.press('Enter');
-    await expect(select).toHaveCount(0);
+    const close = companion.getByRole('button', { name: 'Ocultar Moa' });
+    await expect(close.locator('svg')).toHaveAttribute('width', '8');
+    const closeBox = await close.boundingBox();
+    expect(closeBox!.width).toBeGreaterThanOrEqual(24);
+    expect(closeBox!.height).toBeGreaterThanOrEqual(24);
+    const character = companion.getByRole('button', { name: 'Jugar con Moa' });
+    await page.evaluate(
+      value => {
+        Math.random = () => value;
+      },
+      (catalog.scenes.indexOf(hd) + 0.5) / catalog.scenes.length
+    );
+    await character.click();
+    await expect(character).toHaveAttribute('data-gesture', hd.id);
     const frames = companion.locator('.moa-catalog-frames');
     await expect(frames).toHaveAttribute('data-ready', 'true');
     await expect(frames).toHaveCSS('image-rendering', 'auto');
@@ -1077,11 +1128,11 @@ for (const width of [1440, 375]) {
       'data-gesture',
       'idle'
     );
-    await library.click();
-    await select.focus();
-    await page.keyboard.press('Escape');
-    await expect(library).toBeFocused();
-    await expect(select).toHaveCount(0);
+    await test.info().attach(`moa-surprise-${width}px`, {
+      body: await companion.screenshot(),
+      contentType: 'image/png',
+    });
+    await character.focus();
     await page.keyboard.press('Escape');
     await expect(companion).toHaveCount(0);
     await expectSeededPatientVisible(page);

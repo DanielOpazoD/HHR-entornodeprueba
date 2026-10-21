@@ -56,16 +56,6 @@ export const VitalsCell: React.FC<BaseCellProps> = ({
     referenceDate: data.vitalSigns?.recordedDate,
   });
   const vitals = buildVitalSignsView(data.vitalSigns, vitalProfile);
-  const measurementDate = data.vitalSigns?.recordedDate;
-  const isPreviousMeasurement = Boolean(
-    data.clinicalCarryover &&
-    measurementDate &&
-    measurementDate <= data.clinicalCarryover.sourceDate
-  );
-  const measurementDescription =
-    data.clinicalCarryover && measurementDate
-      ? `${isPreviousMeasurement ? 'Medición previa' : 'Medición'} del ${measurementDate}`
-      : undefined;
   const readingByKey = (key: VitalReadingView['key']): VitalReadingView | undefined =>
     vitals?.readings.find(reading => reading.key === key);
   return (
@@ -79,8 +69,6 @@ export const VitalsCell: React.FC<BaseCellProps> = ({
           }}
           className="flex w-full cursor-pointer flex-col items-center gap-0.5 rounded-md py-1 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-medical-700"
           aria-label="Ver signos vitales"
-          aria-description={measurementDescription}
-          title={measurementDescription}
         >
           <span className={GRID_CLASS}>
             {CELL_READINGS.map(({ key, label }) => {
@@ -97,14 +85,6 @@ export const VitalsCell: React.FC<BaseCellProps> = ({
               );
             })}
           </span>
-          {data.clinicalCarryover && measurementDate && (
-            <span className="text-[9px] font-normal leading-none text-slate-500">
-              {isPreviousMeasurement ? 'Previa · ' : ''}
-              <time dateTime={measurementDate}>
-                {measurementDate.split('-').reverse().join('/')}
-              </time>
-            </span>
-          )}
         </button>
       ) : (
         <div className={GRID_CLASS}>

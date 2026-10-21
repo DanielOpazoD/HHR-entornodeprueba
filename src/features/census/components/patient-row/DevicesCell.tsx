@@ -58,18 +58,6 @@ export const DevicesCell: React.FC<DevicesCellProps> = ({
         currentDate={currentDateString}
         disabled={readOnly || false}
       />
-      {data.clinicalCarryover?.devicesPending && (
-        <div
-          className="mt-0.5 text-center text-[9px] leading-none text-slate-500"
-          title={`Dispositivos conservados del censo del ${data.clinicalCarryover.sourceDate}. Se mantienen sus fechas de instalación.`}
-        >
-          Censo del{' '}
-          <time dateTime={data.clinicalCarryover.sourceDate}>
-            {data.clinicalCarryover.sourceDate.split('-').reverse().join('/')}
-          </time>
-        </div>
-      )}
-
       {!isEmpty && !readOnly && (
         <button
           type="button"
