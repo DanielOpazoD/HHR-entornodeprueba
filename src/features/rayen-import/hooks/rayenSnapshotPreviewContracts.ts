@@ -28,7 +28,7 @@ export interface UseRayenSnapshotPreviewInput {
   ) => Promise<ConfirmedRayenCensusApplyResult>;
   runClinicalStage: (source: ClinicalFillRequest) => Promise<ClinicalStageResult>;
   /** La causa se clasifica desde el error real (permisos / conflicto / genérica). */
-  failRun: (reason: RayenApplyFailureReason, runId?: string) => Promise<void>;
+  failRun: (reason: RayenApplyFailureReason, runId?: string, applyError?: unknown) => Promise<void>;
   ensureRun: () => RayenSyncRun;
   getRun: (runId: string) => RayenSyncRun | undefined;
   recordRunPerformance: (delta: RayenSyncPerformanceDelta, runId?: string) => void;
