@@ -12,6 +12,13 @@ Una change queda lista solo si cumple todo lo siguiente:
 8. Si la change entra en una categoría gobernada, sigue `scripts/config/sustainable-change-policy.json` y deja evidencia del gate o artefacto requerido.
 9. Si incluye lógica de app, assets estáticos o snapshots de `reports/`, separa esos concerns en commits distintos cuando no dependan del mismo fix.
 
+Para validar ingresos tras cambios de cama, probar el recorrido de conciliación,
+aplicación y validación con dos camas ocupadas que intercambian episodios. El
+comparador usa identidad de episodio y conserva el rechazo de cambios reales de
+fecha, incluidos episodios antiguos sin identificador. El historial de un guardado
+rechazado debe conservar la causa y la identidad del intento, sin errores crudos ni
+atribuir el fallo al ocupante posterior de la cama.
+
 Para instrumentación de transacciones clínicas, demostrar que los callbacks
 fallidos y reintentados se cuentan sin duplicar etapas, que la telemetría no incorpora
 campos ni identificadores clínicos y que el replay exacto mantiene sus escrituras

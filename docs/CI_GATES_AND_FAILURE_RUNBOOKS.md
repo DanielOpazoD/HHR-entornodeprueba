@@ -1,5 +1,16 @@
 # CI Gates and Failure Runbooks
 
+Un rechazo de fecha de ingreso durante una sincronización con cambio de cama
+requiere comparar el mismo episodio en origen y destino: la cama previa no es
+identidad del paciente. El código `HHR-SYNC-1/census/admission-date-policy` conserva
+en el historial protegido el paciente, documento, cama y ambas fechas comparadas.
+`structural-write-rejected` conserva una categoría técnica acotada para otros
+rechazos; no guarda excepciones crudas. `structureConfirmed: false` significa que
+el guardado estructural no quedó confirmado, no una sincronización parcial ya
+aplicada. Los eventos antiguos sin evidencia siguen sin ella; no reconstruir sus
+identidades desde el ocupante actual. Validar con `ci:merge-gate`,
+`test:release-confidence`, revisión independiente y CI definitivo.
+
 Para el rollout regional de `applyRayenClinicalEnrichmentBatch`, el deploy debe
 verificar `southamerica-east1` y `us-central1`: la segunda conserva los clientes
 anteriores. No cambiar el enrutamiento del cliente hasta verificar el despliegue
