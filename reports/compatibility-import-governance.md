@@ -1,6 +1,6 @@
 # Compatibility Import Governance
 
-Generated at: 2026-10-18T03:03:21.222Z
+Generated at: 2026-10-21T01:51:10.738Z
 Policy version: 2026-04-v1
 Checked entries: 0
 

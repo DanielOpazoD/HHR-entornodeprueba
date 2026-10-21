@@ -1,15 +1,15 @@
 {
-  "generatedAt": "2026-10-18T03:06:48.268Z",
-  "gitSha": "627672549",
+  "generatedAt": "2026-10-21T01:51:11.193Z",
+  "gitSha": "be28603dd",
   "gitDirty": false,
   "generatedFor": {
-    "gitSha": "627672549",
+    "gitSha": "be28603dd",
     "gitDirty": false,
-    "treeHash": "10db24e7d1d642e7033c7faf3d477563de049c5d",
+    "treeHash": "e268e00bc374ad83c52f5b77426a3d90020071d1",
     "reportId": "operational-health",
     "dependencyFingerprint": {
       "algorithm": "sha256:dependency-files-v1",
-      "value": "5e28d7456211d2f9e12b9037a0ec2cf5093bce3cfc6dbf6228ed5af68add53bf",
+      "value": "775ae4a4d49a6e7fa33354314ae6d600c2f67b0eb828ad02334b89fae7a9a9ee",
       "files": [
         "reports/critical-coverage.json",
         "reports/critical-coverage.md",
@@ -207,49 +207,49 @@
     "flows": [
       {
         "flow": "loginVisibleMs",
-        "actualMs": 100.2,
+        "actualMs": 374.9,
         "targetMs": 4000,
         "enforcedMaxMs": 4000,
         "status": "ok"
       },
       {
         "flow": "authFeedbackMs",
-        "actualMs": 85.2,
+        "actualMs": 234.7,
         "targetMs": 2500,
         "enforcedMaxMs": 2500,
         "status": "ok"
       },
       {
         "flow": "censoVisibleMs",
-        "actualMs": 499.4,
+        "actualMs": 879.4,
         "targetMs": 1500,
         "enforcedMaxMs": 2000,
         "status": "ok"
       },
       {
         "flow": "censoRecordReadyMs",
-        "actualMs": 28.2,
+        "actualMs": 55.3,
         "targetMs": 2500,
         "enforcedMaxMs": 5000,
         "status": "ok"
       },
       {
         "flow": "clinicalDocumentsVisibleMs",
-        "actualMs": 388.9,
+        "actualMs": 420.2,
         "targetMs": 4500,
         "enforcedMaxMs": 6000,
         "status": "ok"
       },
       {
         "flow": "backupFilesVisibleMs",
-        "actualMs": 446.2,
+        "actualMs": 630.8,
         "targetMs": 4500,
         "enforcedMaxMs": 4500,
         "status": "ok"
       },
       {
         "flow": "logoutToLoginVisibleMs",
-        "actualMs": 35.6,
+        "actualMs": 37.7,
         "targetMs": 1500,
         "enforcedMaxMs": 2500,
         "status": "ok"
@@ -263,7 +263,7 @@
       {
         "root": "src/features/census/controllers",
         "status": "PASS",
-        "lines": 91.9,
+        "lines": 91.8,
         "functions": 95,
         "branches": 79
       },
@@ -284,16 +284,16 @@
       {
         "root": "src/services/storage/firestore",
         "status": "PASS",
-        "lines": 89.5,
-        "functions": 92.3,
-        "branches": 86.4
+        "lines": 89.8,
+        "functions": 92.5,
+        "branches": 86.6
       },
       {
         "root": "src/services/auth",
         "status": "PASS",
-        "lines": 86.2,
-        "functions": 85.1,
-        "branches": 72.1
+        "lines": 82,
+        "functions": 81.6,
+        "branches": 68.9
       },
       {
         "root": "src/services/auth/bootstrap",
@@ -379,8 +379,8 @@
     "chunkMaxBytes": 1250000,
     "entryAssets": [
       {
-        "file": "dist/assets/index-Brf4NtJS.js",
-        "sizeBytes": 24714,
+        "file": "dist/assets/index-2SU_gsUT.js",
+        "sizeBytes": 24392,
         "maxBytes": 700000,
         "status": "ok"
       }
@@ -397,8 +397,8 @@
         "status": "near-limit"
       },
       {
-        "file": "dist/assets/vendor-dicom-vtk-B8akqPS2.js",
-        "sizeBytes": 1078467,
+        "file": "dist/assets/vendor-dicom-vtk-CVp3UI09.js",
+        "sizeBytes": 1078816,
         "maxBytes": 1250000,
         "budgetLabel": "chunkMaxBytes",
         "budgetSource": "chunkMaxBytes",
@@ -407,13 +407,13 @@
         "status": "near-limit"
       },
       {
-        "file": "dist/assets/app-authenticated-shell-OBcmwlhV.js",
-        "sizeBytes": 630000,
-        "maxBytes": 630000,
+        "file": "dist/assets/app-authenticated-shell-BixI3TdI.js",
+        "sizeBytes": 629387,
+        "maxBytes": 631000,
         "budgetLabel": "app-authenticated-shell",
         "budgetSource": "startupChunkBudget",
         "severity": "error",
-        "budgetUtilizationPct": 100,
+        "budgetUtilizationPct": 99.7,
         "status": "near-limit"
       },
       {
@@ -427,7 +427,7 @@
         "status": "near-limit"
       },
       {
-        "file": "dist/assets/vendor-firebase-firestore-Bq9EckP1.js",
+        "file": "dist/assets/vendor-firebase-firestore-Bjg3nDcb.js",
         "sizeBytes": 397577,
         "maxBytes": 500000,
         "budgetLabel": "vendor-firebase-firestore",
@@ -473,29 +473,29 @@
     "issues": [],
     "previewGate": {
       "status": "ok",
-      "total": 25,
-      "expected": 25,
+      "total": 60,
+      "expected": 60,
       "unexpected": 0,
       "flaky": 0,
       "skipped": 0,
       "interrupted": 0,
-      "durationMs": 86053.77500000001
+      "durationMs": 718224.507
     },
     "criticalAssets": [
       {
-        "file": "dist/assets/index-Brf4NtJS.js",
-        "sizeBytes": 24714,
+        "file": "dist/assets/index-2SU_gsUT.js",
+        "sizeBytes": 24392,
         "maxBytes": 700000,
         "status": "ok"
       },
       {
-        "file": "dist/assets/app-authenticated-shell-OBcmwlhV.js",
-        "sizeBytes": 630000,
-        "maxBytes": 630000,
+        "file": "dist/assets/app-authenticated-shell-BixI3TdI.js",
+        "sizeBytes": 629387,
+        "maxBytes": 631000,
         "budgetLabel": "app-authenticated-shell",
         "budgetSource": "startupChunkBudget",
         "severity": "error",
-        "budgetUtilizationPct": 100,
+        "budgetUtilizationPct": 99.7,
         "status": "near-limit"
       }
     ],

@@ -1,7 +1,7 @@
 # Operational Health Snapshot
 
-- Generated: 2026-10-18T03:06:48.268Z
-- Git SHA: 627672549
+- Generated: 2026-10-21T01:51:11.193Z
+- Git SHA: be28603dd
 - Schema current: v1
 - Schema legacy: v0
 
@@ -89,18 +89,18 @@
 
 - Status: ok
 - Preview gate: ok
-- Preview tests: 25
+- Preview tests: 60
 - Preview unexpected: 0
 - Preview flaky: 0
 - Preview skipped: 0
-- Preview duration (ms): 86053.77500000001
+- Preview duration (ms): 718224.507
 - Bootstrap signals: `bootstrap_recovery_reload`, `bootstrap_chunk_load_failed`, `bootstrap_runtime_failed`, `bootstrap_window_error`, `bootstrap_unhandled_rejection`
 - Startup issues: none
 
 | Critical startup asset | Size (bytes) | Max (bytes) | Utilization | Budget | Status |
 | --- | ---: | ---: | ---: | --- | --- |
-| `dist/assets/index-Brf4NtJS.js` | 24714 | 700000 | - | - | ok |
-| `dist/assets/app-authenticated-shell-OBcmwlhV.js` | 630000 | 630000 | 100% | app-authenticated-shell | near-limit |
+| `dist/assets/index-2SU_gsUT.js` | 24392 | 700000 | - | - | ok |
+| `dist/assets/app-authenticated-shell-BixI3TdI.js` | 629387 | 631000 | 99.7% | app-authenticated-shell | near-limit |
 
 ## Incident Signals To Watch
 
@@ -120,13 +120,13 @@
 
 | Flow | Actual (ms) | Target (ms) | Enforced (ms) | Status |
 | --- | ---: | ---: | ---: | --- |
-| `loginVisibleMs` | 100.2 | 4000 | 4000 | ok |
-| `authFeedbackMs` | 85.2 | 2500 | 2500 | ok |
-| `censoVisibleMs` | 499.4 | 1500 | 2000 | ok |
-| `censoRecordReadyMs` | 28.2 | 2500 | 5000 | ok |
-| `clinicalDocumentsVisibleMs` | 388.9 | 4500 | 6000 | ok |
-| `backupFilesVisibleMs` | 446.2 | 4500 | 4500 | ok |
-| `logoutToLoginVisibleMs` | 35.6 | 1500 | 2500 | ok |
+| `loginVisibleMs` | 374.9 | 4000 | 4000 | ok |
+| `authFeedbackMs` | 234.7 | 2500 | 2500 | ok |
+| `censoVisibleMs` | 879.4 | 1500 | 2000 | ok |
+| `censoRecordReadyMs` | 55.3 | 2500 | 5000 | ok |
+| `clinicalDocumentsVisibleMs` | 420.2 | 4500 | 6000 | ok |
+| `backupFilesVisibleMs` | 630.8 | 4500 | 4500 | ok |
+| `logoutToLoginVisibleMs` | 37.7 | 1500 | 2500 | ok |
 
 ## Critical Coverage
 
@@ -135,11 +135,11 @@
 
 | Zone | Lines | Functions | Branches | Status |
 | --- | ---: | ---: | ---: | --- |
-| `src/features/census/controllers` | 91.9 | 95 | 79 | PASS |
+| `src/features/census/controllers` | 91.8 | 95 | 79 | PASS |
 | `src/features/clinical-documents` | 86.1 | 85 | 74.6 | PASS |
 | `src/services/transfers` | 89.4 | 89.3 | 75.7 | PASS |
-| `src/services/storage/firestore` | 89.5 | 92.3 | 86.4 | PASS |
-| `src/services/auth` | 86.2 | 85.1 | 72.1 | PASS |
+| `src/services/storage/firestore` | 89.8 | 92.5 | 86.6 | PASS |
+| `src/services/auth` | 82 | 81.6 | 68.9 | PASS |
 | `src/services/auth/bootstrap` | 92.2 | 100 | 77.8 | PASS |
 | `src/services/backup` | 82.2 | 83.9 | 67.3 | PASS |
 | `src/features/reminders/admin` | 98.3 | 97.6 | 91.2 | PASS |
@@ -159,10 +159,10 @@
 | Asset | Size (bytes) | Max (bytes) | Utilization | Budget | Status |
 | --- | ---: | ---: | ---: | --- | --- |
 | `dist/assets/vendor-heic2any-BjDsP1gW.js` | 1352091 | 1450000 | 93.2% | vendor-heic2any | near-limit |
-| `dist/assets/vendor-dicom-vtk-B8akqPS2.js` | 1078467 | 1250000 | 86.3% | chunkMaxBytes | near-limit |
-| `dist/assets/app-authenticated-shell-OBcmwlhV.js` | 630000 | 630000 | 100% | app-authenticated-shell | near-limit |
+| `dist/assets/vendor-dicom-vtk-CVp3UI09.js` | 1078816 | 1250000 | 86.3% | chunkMaxBytes | near-limit |
+| `dist/assets/app-authenticated-shell-BixI3TdI.js` | 629387 | 631000 | 99.7% | app-authenticated-shell | near-limit |
 | `dist/assets/vendor-pdfjs-BGyLORnz.js` | 460525 | 520000 | 88.6% | vendor-pdfjs | near-limit |
-| `dist/assets/vendor-firebase-firestore-Bq9EckP1.js` | 397577 | 500000 | 79.5% | vendor-firebase-firestore | ok |
+| `dist/assets/vendor-firebase-firestore-Bjg3nDcb.js` | 397577 | 500000 | 79.5% | vendor-firebase-firestore | ok |
 | `dist/assets/vendor-pdf-lib-DewrExaK.js` | 390824 | 430000 | 90.9% | vendor-pdf | near-limit |
 | `dist/assets/vendor-pdf-core-CZkusByf.js` | 364662 | 430000 | 84.8% | vendor-pdf | ok |
 | `dist/assets/cudyrSupplement.worker-33MR3KSE.js` | 364090 | 1250000 | 29.1% | chunkMaxBytes | ok |

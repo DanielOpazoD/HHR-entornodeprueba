@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-10-19T05:26:41.964Z",
-  "overallStatus": "degraded",
+  "generatedAt": "2026-10-21T01:51:14.600Z",
+  "overallStatus": "ok",
   "indicators": [
     {
       "name": "worktree_state",
-      "status": "degraded",
-      "summary": "status=dirty"
+      "status": "ok",
+      "summary": "status=clean"
     },
     {
       "name": "structural_quality",
@@ -30,7 +30,7 @@
     {
       "name": "release_hotspots",
       "status": "ok",
-      "summary": "vendor-heic2any-BjDsP1gW.js: 1320.4 KB / 1416.0 KB (near-limit) | vendor-dicom-vtk-B8akqPS2.js: 1053.2 KB / 1220.7 KB (near-limit) | app-authenticated-shell-OBcmwlhV.js: 615.2 KB / 615.2 KB (near-limit) | vendor-pdfjs-BGyLORnz.js: 449.7 KB / 507.8 KB (near-limit) | vendor-firebase-firestore-Bq9EckP1.js: 388.3 KB / 488.3 KB (ok)"
+      "summary": "vendor-heic2any-BjDsP1gW.js: 1320.4 KB / 1416.0 KB (near-limit) | vendor-dicom-vtk-CVp3UI09.js: 1053.5 KB / 1220.7 KB (near-limit) | app-authenticated-shell-BixI3TdI.js: 614.6 KB / 616.2 KB (near-limit) | vendor-pdfjs-BGyLORnz.js: 449.7 KB / 507.8 KB (near-limit) | vendor-firebase-firestore-Bjg3nDcb.js: 388.3 KB / 488.3 KB (ok)"
     },
     {
       "name": "bundle_risk_ledger",
@@ -66,7 +66,7 @@
   "missingReports": [],
   "releaseHotspots": {
     "status": "ok",
-    "summary": "vendor-heic2any-BjDsP1gW.js: 1320.4 KB / 1416.0 KB (near-limit) | vendor-dicom-vtk-B8akqPS2.js: 1053.2 KB / 1220.7 KB (near-limit) | app-authenticated-shell-OBcmwlhV.js: 615.2 KB / 615.2 KB (near-limit) | vendor-pdfjs-BGyLORnz.js: 449.7 KB / 507.8 KB (near-limit) | vendor-firebase-firestore-Bq9EckP1.js: 388.3 KB / 488.3 KB (ok)",
+    "summary": "vendor-heic2any-BjDsP1gW.js: 1320.4 KB / 1416.0 KB (near-limit) | vendor-dicom-vtk-CVp3UI09.js: 1053.5 KB / 1220.7 KB (near-limit) | app-authenticated-shell-BixI3TdI.js: 614.6 KB / 616.2 KB (near-limit) | vendor-pdfjs-BGyLORnz.js: 449.7 KB / 507.8 KB (near-limit) | vendor-firebase-firestore-Bjg3nDcb.js: 388.3 KB / 488.3 KB (ok)",
     "assets": [
       {
         "file": "dist/assets/vendor-heic2any-BjDsP1gW.js",
@@ -79,8 +79,8 @@
         "status": "near-limit"
       },
       {
-        "file": "dist/assets/vendor-dicom-vtk-B8akqPS2.js",
-        "sizeBytes": 1078467,
+        "file": "dist/assets/vendor-dicom-vtk-CVp3UI09.js",
+        "sizeBytes": 1078816,
         "maxBytes": 1250000,
         "budgetLabel": "chunkMaxBytes",
         "budgetSource": "chunkMaxBytes",
@@ -89,13 +89,13 @@
         "status": "near-limit"
       },
       {
-        "file": "dist/assets/app-authenticated-shell-OBcmwlhV.js",
-        "sizeBytes": 630000,
-        "maxBytes": 630000,
+        "file": "dist/assets/app-authenticated-shell-BixI3TdI.js",
+        "sizeBytes": 629387,
+        "maxBytes": 631000,
         "budgetLabel": "app-authenticated-shell",
         "budgetSource": "startupChunkBudget",
         "severity": "error",
-        "budgetUtilizationPct": 100,
+        "budgetUtilizationPct": 99.7,
         "status": "near-limit"
       },
       {
@@ -109,7 +109,7 @@
         "status": "near-limit"
       },
       {
-        "file": "dist/assets/vendor-firebase-firestore-Bq9EckP1.js",
+        "file": "dist/assets/vendor-firebase-firestore-Bjg3nDcb.js",
         "sizeBytes": 397577,
         "maxBytes": 500000,
         "budgetLabel": "vendor-firebase-firestore",
@@ -123,7 +123,7 @@
   "sources": {
     "qualityMetrics": {
       "file": "reports/quality-metrics.json",
-      "generatedAt": "2026-10-18T03:03:18.157Z"
+      "generatedAt": "2026-10-21T01:50:54.102Z"
     },
     "bundleRiskLedger": {
       "file": "reports/bundle-risk-ledger.json",
@@ -131,46 +131,44 @@
     },
     "systemConfidence": {
       "file": "reports/system-confidence.json",
-      "generatedAt": "2026-10-18T03:06:48.471Z"
+      "generatedAt": "2026-10-21T01:51:11.996Z"
     },
     "operationalHealth": {
       "file": "reports/operational-health.json",
-      "generatedAt": "2026-10-18T03:06:48.268Z"
+      "generatedAt": "2026-10-21T01:51:11.193Z"
     },
     "releaseConfidenceMatrix": {
       "file": "reports/release-confidence-matrix.json",
-      "generatedAt": "2026-10-18T03:06:48.665Z"
+      "generatedAt": "2026-10-21T01:51:13.533Z"
     },
     "technicalOwnershipMap": {
       "file": "reports/technical-ownership-map.json",
-      "generatedAt": "2026-10-18T03:06:48.791Z"
+      "generatedAt": "2026-10-21T01:51:14.047Z"
     },
     "guardrailGovernance": {
       "file": "reports/guardrail-governance.json",
-      "generatedAt": "2026-10-18T03:06:48.900Z"
+      "generatedAt": "2026-10-21T01:51:14.319Z"
     },
     "compatibilityImportGovernance": {
       "file": "reports/compatibility-import-governance.json",
-      "generatedAt": "2026-10-18T03:03:21.222Z"
+      "generatedAt": "2026-10-21T01:51:10.738Z"
     },
     "legacyRetirementDebt": {
       "file": "reports/legacy-retirement-debt.json",
       "generatedAt": "stable:legacy-retirement-debt"
     }
   },
-  "issues": [
-    "worktree_state: status=dirty"
-  ],
-  "gitSha": "abb0f5a2",
-  "gitDirty": true,
+  "issues": [],
+  "gitSha": "be28603dd",
+  "gitDirty": false,
   "generatedFor": {
-    "gitSha": "abb0f5a2",
-    "gitDirty": true,
-    "treeHash": "459beca69745d10683b28bac2ba7fd8e43ea7cc9",
+    "gitSha": "be28603dd",
+    "gitDirty": false,
+    "treeHash": "e268e00bc374ad83c52f5b77426a3d90020071d1",
     "reportId": "release-readiness-scorecard",
     "dependencyFingerprint": {
       "algorithm": "sha256:dependency-files-v1",
-      "value": "6fd715641ba2c0c703b1f3447781a5cbb3216e8f10de4344d21f9a62a7dcedfb",
+      "value": "f5d1ec49c4f4a453958ce03a6bea8c84b69e03e6be0fc17225419ddd80245725",
       "files": [
         "reports/bundle-risk-ledger.json",
         "reports/bundle-risk-ledger.md",
@@ -180,6 +178,7 @@
         "reports/compatibility-import-governance.md",
         "reports/critical-coverage.json",
         "reports/critical-coverage.md",
+        "reports/e2e/preview-bootstrap/report.json",
         "reports/guardrail-governance.json",
         "reports/guardrail-governance.md",
         "reports/legacy-bridge-governance.json",
@@ -203,11 +202,10 @@
         "vitest.critical-coverage.config.ts"
       ],
       "missingFiles": [
-        "reports/e2e/preview-bootstrap/ci-provenance.json",
-        "reports/e2e/preview-bootstrap/report.json"
+        "reports/e2e/preview-bootstrap/ci-provenance.json"
       ]
     }
   },
-  "degradedByWorktreeOnly": true,
-  "overallStatusReason": "worktree_state only"
+  "degradedByWorktreeOnly": false,
+  "overallStatusReason": "all indicators ok"
 }
