@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useId } from 'react';
+import { LOGIN_INPUT_CLASS, LOGIN_SUBMIT_CLASS } from '@/components/ui/LoginScreenLayout';
 import PasswordInput from '@/components/ui/PasswordInput';
 import {
   accountErrorMessage,
@@ -112,8 +113,7 @@ export default function NursingAccessForm({ onSuccess, disabled, onBusyChange }:
     }
   };
   const locked = busy || disabled;
-  const input =
-    'mt-1.5 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-base text-slate-900 shadow-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-400/40 disabled:bg-slate-100';
+  const input = LOGIN_INPUT_CLASS;
   return (
     <form
       onSubmit={submit}
@@ -140,7 +140,7 @@ export default function NursingAccessForm({ onSuccess, disabled, onBusyChange }:
           onChange={e => setRut(rutUsername(e.target.value))}
           autoComplete="off"
           aria-describedby={usernameHintId}
-          placeholder="Ej. 17752753k"
+          placeholder="Ej. 111111111"
           maxLength={20}
           required
           disabled={locked || mode === 'setup' || mode === 'reset'}
@@ -149,7 +149,7 @@ export default function NursingAccessForm({ onSuccess, disabled, onBusyChange }:
         />
       </label>
       <p id={usernameHintId} className="text-xs text-white/75">
-        Tu RUT con dígito verificador, sin puntos ni guion.
+        RUT con dígito verificador, sin puntos ni guion.
       </p>
       {(mode === 'activation' || mode === 'reset') && (
         <label className="block">
@@ -229,11 +229,7 @@ export default function NursingAccessForm({ onSuccess, disabled, onBusyChange }:
           {error}
         </p>
       )}
-      <button
-        type="submit"
-        disabled={locked}
-        className="min-h-11 w-full rounded-xl bg-sky-600 px-4 py-2.5 text-base font-semibold text-white shadow-sm transition hover:bg-sky-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-300 disabled:opacity-50"
-      >
+      <button type="submit" disabled={locked} className={LOGIN_SUBMIT_CLASS}>
         {busy
           ? 'Validando…'
           : mode === 'request'
@@ -249,17 +245,9 @@ export default function NursingAccessForm({ onSuccess, disabled, onBusyChange }:
               type="button"
               disabled={locked}
               onClick={() => changeMode('request')}
-              className="underline"
+              className="underline underline-offset-4"
             >
               Olvidé mi contraseña
-            </button>
-            <button
-              type="button"
-              disabled={locked}
-              onClick={() => changeMode('activation')}
-              className="underline"
-            >
-              Tengo un código de activación
             </button>
           </>
         ) : (
@@ -267,7 +255,7 @@ export default function NursingAccessForm({ onSuccess, disabled, onBusyChange }:
             type="button"
             disabled={locked}
             onClick={() => changeMode('login')}
-            className="underline"
+            className="underline underline-offset-4"
           >
             Volver al ingreso
           </button>
@@ -277,7 +265,7 @@ export default function NursingAccessForm({ onSuccess, disabled, onBusyChange }:
             type="button"
             disabled={locked}
             onClick={() => changeMode('request')}
-            className="underline"
+            className="underline underline-offset-4"
           >
             Solicitar otro código
           </button>
@@ -290,6 +278,14 @@ export default function NursingAccessForm({ onSuccess, disabled, onBusyChange }:
             Usa los números de tu RUT, sin dígito verificador, como clave inicial. Deberás cambiarla
             y registrar tu correo antes de entrar.
           </p>
+          <button
+            type="button"
+            disabled={locked}
+            onClick={() => changeMode('activation')}
+            className="mt-2 underline underline-offset-4"
+          >
+            Tengo un código de activación
+          </button>
         </details>
       )}
     </form>

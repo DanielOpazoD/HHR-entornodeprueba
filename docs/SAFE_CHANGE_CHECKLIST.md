@@ -66,6 +66,15 @@ La clasificación remota `docs-only` se decide en CI; no forzar ni omitir checks
 
 ### Checklist de cierre
 
+La continuidad visual del acceso RUT del 21 octubre 2026 es `safe_local_ui`:
+elimina la composición provisional antigua y comparte marco, imagen y geometría
+con la página lista. Agrupa activación y reinicio existentes en ayuda, conservando
+handlers, confirmación, autocomplete y bloqueo de campos. No cambia auth runtime,
+roles, persistencia, endpoint, credenciales ni datos clínicos. Verificar
+`ci:inner-loop`, pruebas afectadas, build/budgets y navegador en escritorio y
+móvil: arranque con módulo retrasado, ambos fondos, formulario RUT, ayuda y
+refresh autenticado. Revisión independiente y CI del head final antes de merge.
+
 La compactación de la lista de funcionarios es `safe_local_ui`: reduce el espaciado y
 presenta las acciones existentes como iconos en una fila, con nombre accesible, tooltip
 y foco visible. Compacta el formulario de modificación con campos y botones alineados

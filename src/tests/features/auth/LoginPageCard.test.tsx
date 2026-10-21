@@ -53,7 +53,8 @@ describe('LoginPageCard', () => {
         onIndividualLoginSuccess={vi.fn()}
       />
     );
-    expect(await screen.findByLabelText('Usuario')).toHaveAttribute('autocomplete', 'off');
+    await waitFor(() => expect(screen.getByRole('form')).toBeInTheDocument());
+    expect(screen.getByLabelText('Usuario')).toHaveAttribute('autocomplete', 'off');
     expect(screen.getByRole('form')).toHaveAttribute('autocomplete', 'off');
     expect(screen.getByLabelText('Contraseña')).toHaveAttribute('autocomplete', 'off');
     expect(screen.getByLabelText('Contraseña')).toHaveAttribute('type', 'password');
@@ -125,6 +126,7 @@ describe('LoginPageCard', () => {
       />
     );
 
+    fireEvent.click(screen.getByText('Ayuda de acceso'));
     fireEvent.click(screen.getByTestId('login-reset-local-button'));
 
     expect(screen.getByText(AUTH_UI_COPY.resetStorageAction)).toBeInTheDocument();

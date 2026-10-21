@@ -3,6 +3,7 @@ import { GoogleIdentitySignIn } from './GoogleIdentitySignIn';
 import { AlertCircle, Loader2, RotateCcw } from 'lucide-react';
 
 import { useConfirmDialog } from '@/context/UIContext';
+import { LoginCardFrame, LoginCredentialsPlaceholder } from '@/components/ui/LoginScreenLayout';
 import { AUTH_UI_COPY } from '@/services/auth/authUiCopy';
 import { resetLocalAppStorage } from '@/services/storage/indexeddb/indexedDbMaintenanceService';
 
@@ -46,7 +47,6 @@ const GoogleIcon: React.FC<{ className?: string }> = ({ className }) => (
 export const LoginPageCard: React.FC<LoginPageCardProps> = ({
   onIndividualLoginSuccess,
   onIndividualBusyChange,
-  isDayGradient,
   isAnyLoading,
   isGoogleLoading,
   error,
@@ -61,10 +61,6 @@ export const LoginPageCard: React.FC<LoginPageCardProps> = ({
     Boolean(onGoogleCredential && import.meta.env.VITE_GOOGLE_SIGN_IN_CLIENT_ID)
   );
   const useFallback = useCallback(() => setShowIdentity(false), []);
-  const accentBarClass = isDayGradient
-    ? 'bg-gradient-to-r from-sky-300 via-medical-500 to-cyan-600'
-    : 'bg-gradient-to-r from-slate-500 via-sky-700 to-slate-900';
-
   const handleResetLocalSession = async () => {
     const confirmed = await confirm({
       title: AUTH_UI_COPY.resetStorageTitle,
@@ -80,39 +76,12 @@ export const LoginPageCard: React.FC<LoginPageCardProps> = ({
     }
   };
 
-  // Glassmorphism: the card is a frosted panel (low opacity + strong blur)
-  // so the background image shows through; interactive elements inside stay
-  // opaque for brand clarity (Google icon) and accessibility contrast.
-  const glassCardClass = isDayGradient
-    ? 'bg-white/5 border-white/25 ring-1 ring-inset ring-white/10'
-    : 'bg-slate-950/10 border-white/12 ring-1 ring-inset ring-white/5';
-
   return (
-    <div
-      className={`relative overflow-hidden rounded-3xl border p-6 shadow-[0_32px_70px_-28px_rgba(2,6,23,0.70)] backdrop-blur-md backdrop-saturate-125 animate-login-reveal animate-login-reveal-delay-2 sm:p-7 ${glassCardClass}`}
-    >
-      {/* Accent gradient bar */}
-      <div className={`absolute inset-x-0 top-0 h-1.5 ${accentBarClass}`} />
-      {/* Top-edge inner highlight: 1px brighter line just below the accent bar,
-          simulating how light catches the upper rim of a glass surface. */}
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-4 top-1.5 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent"
-      />
-
+    <LoginCardFrame>
       <div className="relative">
-        <h2 className="text-center text-xl font-bold text-white text-balance drop-shadow-[0_1px_2px_rgba(2,6,23,0.45)]">
-          Iniciar sesión
-        </h2>
-        <p className="mb-5 mt-1.5 text-center text-sm text-white/75">
-          Accede con tu usuario de HHR.
-        </p>
-
         <div className="space-y-3">
           {onIndividualLoginSuccess && (
-            <Suspense
-              fallback={<p className="py-8 text-center text-sm text-white/80">Cargando acceso…</p>}
-            >
+            <Suspense fallback={<LoginCredentialsPlaceholder />}>
               <NursingAccessForm
                 onSuccess={onIndividualLoginSuccess}
                 onBusyChange={onIndividualBusyChange}
@@ -122,16 +91,22 @@ export const LoginPageCard: React.FC<LoginPageCardProps> = ({
           )}
 
           <div className="mt-4 flex items-center justify-between border-t border-white/15 pt-3">
-            <button
-              type="button"
-              onClick={() => void handleResetLocalSession()}
-              disabled={isAnyLoading}
-              data-testid="login-reset-local-button"
-              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-white/20 bg-white/5 px-2.5 py-1.5 text-[11px] font-medium text-white/70 backdrop-blur-sm transition hover:bg-white/15 hover:text-white disabled:text-white/40"
-            >
-              <RotateCcw className="h-3 w-3" />
-              {AUTH_UI_COPY.resetStorageAction}
-            </button>
+            <details className="text-xs text-white/75">
+              <summary className="cursor-pointer py-2 hover:text-white">Ayuda de acceso</summary>
+              <p className="mt-2 max-w-52 leading-relaxed">
+                Si el acceso no responde, puedes revisar las opciones de reinicio local.
+              </p>
+              <button
+                type="button"
+                onClick={() => void handleResetLocalSession()}
+                disabled={isAnyLoading}
+                data-testid="login-reset-local-button"
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-white/20 bg-white/5 px-2.5 py-1.5 text-[11px] font-medium text-white/70 backdrop-blur-sm transition hover:bg-white/15 hover:text-white disabled:text-white/40"
+              >
+                <RotateCcw className="h-3 w-3" />
+                {AUTH_UI_COPY.resetStorageAction}
+              </button>
+            </details>
             {showIdentity && onGoogleCredential ? (
               <GoogleIdentitySignIn
                 disabled={isAnyLoading}
@@ -213,6 +188,6 @@ export const LoginPageCard: React.FC<LoginPageCardProps> = ({
           </div>
         )}
       </div>
-    </div>
+    </LoginCardFrame>
   );
 };

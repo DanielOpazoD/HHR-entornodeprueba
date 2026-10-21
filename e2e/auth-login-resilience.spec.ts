@@ -74,6 +74,75 @@ test.describe('Auth login resilience matrix', () => {
     await expect(page.getByTestId('login-google-button')).toBeVisible();
   });
 
+  test('keeps RUT credential geometry while its functional module loads', async ({ page }) => {
+    let releaseModule!: () => void;
+    const moduleReady = new Promise<void>(resolve => {
+      releaseModule = resolve;
+    });
+    await page.route('**/*LoginPage*', async route => {
+      await moduleReady;
+      await route.continue();
+    });
+    try {
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await expect(page.getByTestId('login-loading-shell')).toBeVisible();
+      const username = page.getByLabel('Usuario', { exact: true });
+      const password = page.getByLabel('Contraseña', { exact: true });
+      const submit = page.getByRole('button', { name: 'Ingresar', exact: true });
+      await expect(username).toBeDisabled();
+      const before = await Promise.all([
+        username.boundingBox(),
+        password.boundingBox(),
+        submit.boundingBox(),
+      ]);
+      const wallpaper = await page.getByTestId('login-background-image').getAttribute('style');
+      releaseModule();
+      await expect(username).toBeEnabled();
+      const after = await Promise.all([
+        username.boundingBox(),
+        password.boundingBox(),
+        submit.boundingBox(),
+      ]);
+      for (let index = 0; index < before.length; index += 1) {
+        const initial = before[index];
+        const ready = after[index];
+        expect(initial).not.toBeNull();
+        expect(ready).not.toBeNull();
+        if (!initial || !ready) throw new Error('Credential field was not rendered');
+        for (const dimension of ['x', 'y', 'width', 'height'] as const) {
+          expect(Math.abs(initial[dimension] - ready[dimension])).toBeLessThanOrEqual(2);
+        }
+      }
+      await expect(page.getByTestId('login-background-image')).toHaveAttribute(
+        'style',
+        wallpaper || ''
+      );
+    } finally {
+      releaseModule();
+      await page.unroute('**/*LoginPage*');
+    }
+  });
+
+  test('keeps entered RUT credentials when changing the decorative background', async ({
+    page,
+  }) => {
+    const username = page.getByLabel('Usuario', { exact: true });
+    const password = page.getByLabel('Contraseña', { exact: true });
+    await expect(username).toBeEnabled();
+    await username.fill('11.111.111-1');
+    await password.fill('Synthetic example 1');
+    await page.getByRole('button', { name: 'Mostrar contraseña' }).click();
+    await page.getByRole('button', { name: 'Cambiar modo de fondo' }).click();
+    await expect(username).toHaveValue('111111111');
+    await expect(password).toHaveValue('Synthetic example 1');
+    await expect(password).toHaveAttribute('type', 'text');
+    await expect(page.getByRole('button', { name: 'Ingresar', exact: true })).toBeEnabled();
+    await page.reload();
+    await expect(username).toBeEnabled();
+    await expect(username).toHaveValue('');
+    await expect(password).toHaveValue('');
+  });
+
   test('popup blocked surfaces a clear error and stays on login', async ({ page }) => {
     await page.evaluate(() => {
       window.localStorage.setItem('hhr_e2e_popup_error_code', 'auth/popup-blocked');
@@ -124,6 +193,7 @@ test.describe('Auth login resilience matrix', () => {
       }
     });
 
+    await page.getByText('Ayuda de acceso', { exact: true }).click();
     await page.getByTestId('login-reset-local-button').click();
     await page.getByRole('button', { name: 'Reiniciar ahora' }).click();
     await expect(page.getByTestId('login-google-button')).toBeVisible();

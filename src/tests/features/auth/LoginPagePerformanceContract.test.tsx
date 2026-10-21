@@ -8,16 +8,8 @@ vi.mock('@/features/auth/components/useLoginPageController', () => ({
   useLoginPageController: () => mockUseLoginPageController(),
 }));
 
-vi.mock('@/features/auth/components/LoginPageHeader', () => ({
-  LoginPageHeader: () => <div data-testid="login-header" />,
-}));
-
 vi.mock('@/features/auth/components/LoginPageCard', () => ({
   LoginPageCard: () => <div data-testid="login-card" />,
-}));
-
-vi.mock('@/features/auth/components/LoginPageFooter', () => ({
-  LoginPageFooter: () => <div data-testid="login-footer" />,
 }));
 
 import { LoginPage } from '@/features/auth/components/LoginPage';
