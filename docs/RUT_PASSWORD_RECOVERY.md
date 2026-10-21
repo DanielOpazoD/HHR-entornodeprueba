@@ -6,6 +6,10 @@
 - Primer ingreso: nueva clave (6–128 caracteres, una mayúscula y un número),
   repetición y correo obligatorio. Firebase aplica el mínimo de seis caracteres.
 - Ojo: muestra/oculta cada clave sin enviar el formulario; oculto por defecto.
+- Formulario, usuario y claves solicitan `autocomplete="off"`; los valores no se
+  guardan en almacenamiento de la aplicación. El navegador puede ignorarlo para
+  sus claves guardadas: desactivar guardado/autocompletado en el perfil del equipo
+  si se necesita impedirlo de forma absoluta, especialmente en equipos compartidos.
 - Olvido: RUT → código al correo previamente registrado → código + nueva clave.
 - Código: ocho dígitos, diez minutos, cinco intentos, un uso. Reenviar genera otro
   desafío; cambiar la clave invalida todos los anteriores por versión de cuenta.

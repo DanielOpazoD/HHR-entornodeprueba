@@ -117,6 +117,7 @@ export default function NursingAccessForm({ onSuccess, disabled, onBusyChange }:
   return (
     <form
       onSubmit={submit}
+      autoComplete="off"
       className="space-y-3 text-sm text-white"
       aria-label="Ingreso con usuario y contraseña"
     >
@@ -137,7 +138,7 @@ export default function NursingAccessForm({ onSuccess, disabled, onBusyChange }:
           className={input}
           value={rut}
           onChange={e => setRut(rutUsername(e.target.value))}
-          autoComplete="username"
+          autoComplete="off"
           aria-describedby={usernameHintId}
           placeholder="Ej. 17752753k"
           maxLength={20}
@@ -181,7 +182,7 @@ export default function NursingAccessForm({ onSuccess, disabled, onBusyChange }:
             className={input}
             value={password}
             onChange={e => setPassword(e.target.value)}
-            autoComplete={choosingPassword ? 'new-password' : 'current-password'}
+            autoComplete="off"
             minLength={choosingPassword ? 6 : undefined}
             maxLength={128}
             required
@@ -199,7 +200,7 @@ export default function NursingAccessForm({ onSuccess, disabled, onBusyChange }:
               className={input}
               value={confirmation}
               onChange={e => setConfirmation(e.target.value)}
-              autoComplete="new-password"
+              autoComplete="off"
               minLength={6}
               maxLength={128}
               required

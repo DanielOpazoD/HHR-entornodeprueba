@@ -53,7 +53,9 @@ describe('LoginPageCard', () => {
         onIndividualLoginSuccess={vi.fn()}
       />
     );
-    expect(await screen.findByLabelText('Usuario')).toHaveAttribute('autocomplete', 'username');
+    expect(await screen.findByLabelText('Usuario')).toHaveAttribute('autocomplete', 'off');
+    expect(screen.getByRole('form')).toHaveAttribute('autocomplete', 'off');
+    expect(screen.getByLabelText('Contraseña')).toHaveAttribute('autocomplete', 'off');
     expect(screen.getByLabelText('Contraseña')).toHaveAttribute('type', 'password');
     expect(screen.getByRole('button', { name: /^Ingresar$/ })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Olvidé mi contraseña' })).toBeVisible();
