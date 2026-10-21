@@ -10,6 +10,11 @@ import { AUTH_UI_COPY } from '@/services/auth/authUiCopy';
 import { resetLocalAppStorage } from '@/services/storage/indexeddb/indexedDbMaintenanceService';
 
 const mockConfirm = vi.fn();
+vi.mock('@/services/auth/nursingAccountService', () => ({
+  callAccount: vi.fn(),
+  establishNursingSession: vi.fn(),
+  accountErrorMessage: () => 'No se pudo ingresar.',
+}));
 vi.mock('@/services/auth/googleIdentityButton', () => ({
   loadGoogleIdentityButton: vi.fn(),
   mountGoogleIdentityButton: vi.fn(),
@@ -37,6 +42,36 @@ describe('LoginPageCard', () => {
     onGoogleSignIn: vi.fn(),
     onGoogleCredential: vi.fn().mockResolvedValue(undefined),
   };
+
+  it('shows username, password and recovery immediately while Google stays a separate action', async () => {
+    vi.stubEnv('VITE_GOOGLE_SIGN_IN_CLIENT_ID', '');
+    const signIn = vi.fn();
+    const { rerender } = render(
+      <LoginPageCard
+        {...identityProps}
+        onGoogleSignIn={signIn}
+        onIndividualLoginSuccess={vi.fn()}
+      />
+    );
+    expect(await screen.findByLabelText('Usuario')).toHaveAttribute('autocomplete', 'username');
+    expect(screen.getByLabelText('Contraseña')).toHaveAttribute('type', 'password');
+    expect(screen.getByRole('button', { name: /^Ingresar$/ })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Olvidé mi contraseña' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: /activar cuenta/ })).not.toBeInTheDocument();
+    expect(signIn).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Mostrar contraseña' }));
+    expect(screen.getByLabelText('Contraseña')).toHaveAttribute('type', 'text');
+    rerender(
+      <LoginPageCard
+        {...identityProps}
+        isAnyLoading
+        isGoogleLoading
+        onIndividualLoginSuccess={vi.fn()}
+      />
+    );
+    expect(screen.getByLabelText('Usuario')).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^Ingresar$/ })).toBeDisabled();
+  });
 
   it('shows only the new access in production and disposes it on unmount', async () => {
     vi.stubEnv('DEV', false);

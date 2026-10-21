@@ -285,3 +285,21 @@ la función requiere autorización separada y prueba real posterior.
 - **VerificationGate:** `dependency_upgrade`: manifiesto oficial, integridad npm comprobada en instalación limpia de CI, generación TypeDoc, regresiones del control de auditoría, hooks y CI del SHA definitivo. Reutilizar controles de runtime clínico cuyos inputs no cambian.
 
 La huella exacta del lock en la excepción preexistente de `braces` se vuelve a vincular al lock corregido tras comprobar que sus siete nodos, versiones, clasificación de desarrollo y dependencias permanecen idénticos. Se conservan el aviso, los resultados sin modificar, el rechazo de otros riesgos altos/críticos y todos los controles de alcance. El riesgo de `braces` no está corregido ni se amplía su aceptación.
+
+### Primer ingreso por RUT y recuperación (20 octubre 2026)
+
+Runtime crítico de autenticación. Verificar clave inicial sin sesión clínica, cambio
+obligatorio y correo requerido, credenciales personales con mayúscula/número,
+mostrar/ocultar en todas las entradas de clave del flujo, códigos con vencimiento,
+cinco intentos persistidos, consumo único concurrente, revocación, suspensión y
+respuesta perdida. Reusar protección de identidades/censos/CUDYR sin modificarla.
+Gate: `ci:merge-gate`, `test:release-confidence`, `test:accounts:emulator:ci`, revisión
+independiente y CI definitivo. Probar envío real requiere despliegue y configuración
+separados; el emulador sustituye únicamente el transporte de correo.
+
+Ampliación administrativa solicitada para PR 919: probar roles de activación,
+modificación y recuperación sin claims fijos de enfermería; reseteo a clave inicial,
+deshabilitar/habilitar sin pérdida de clave, eliminación de Auth sin borrar autorías,
+fallos intermedios y suspensión concurrente. Verificar listado de correo solo admin,
+confirmaciones de botones y controles antiguos colapsados. Emulator Auth/Firestore/
+Storage debe rechazar sesiones previas y escritura del rol de solo lectura.

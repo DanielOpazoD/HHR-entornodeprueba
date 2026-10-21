@@ -1,7 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { Plus, RefreshCw, Search } from 'lucide-react';
 import NursingCandidateImport from './NursingCandidateImport';
 import NursingAccountAudit from './NursingAccountAudit';
-import { writePrivateClipboardText } from '@/shared/runtime/browserClipboardRuntime';
+import IndividualAccountFields, {
+  accountButtonClass,
+  accountInputClass,
+} from './IndividualAccountFields';
+import IndividualAccountsTable, { type AccountAction } from './IndividualAccountsTable';
 import { useAuth } from '@/context/AuthContext';
 import { useConfirmDialog } from '@/context/UIContext';
 import {
@@ -9,16 +14,40 @@ import {
   callAccount,
   type NursingAccount,
   type NursingAccountList,
-  type PrivateActivation,
 } from '@/services/auth/nursingAccountService';
+import { type ManagedUserRole } from '@/shared/access/roleAccessMatrix';
 
-const statusLabel: Record<NursingAccount['status'], string> = {
-  provisioning: 'Preparando',
-  pending: 'Pendiente de activación',
-  setting_password: 'Estableciendo clave',
-  active: 'Activa',
-  suspended: 'Suspendida',
-  retired: 'Retirada',
+const actionCopy: Record<AccountAction, { title: string; message: string; done: string }> = {
+  reset: {
+    title: 'Resetear contraseña',
+    message:
+      'La clave volverá a ser los números del RUT sin dígito verificador. Al ingresar deberá elegir una nueva clave y registrar su correo. Se cerrarán las sesiones anteriores.',
+    done: 'Clave inicial restablecida. El próximo ingreso exige nueva contraseña y correo.',
+  },
+  repair_reset: {
+    title: 'Resetear acceso interrumpido',
+    message:
+      'Se recuperará la operación y se restablecerá la clave inicial del RUT. Deben haber pasado cinco minutos desde la interrupción. El próximo ingreso exige nueva clave y correo.',
+    done: 'Acceso recuperado con clave inicial.',
+  },
+  suspend: {
+    title: 'Deshabilitar usuario',
+    message:
+      'No podrá ingresar y se cerrarán sus sesiones. Podrás habilitarlo nuevamente. Sus registros y autorías se conservan.',
+    done: 'Usuario deshabilitado.',
+  },
+  enable: {
+    title: 'Habilitar usuario',
+    message:
+      'Podrá volver a ingresar con su contraseña actual. Si no completó el primer ingreso, deberá completarlo.',
+    done: 'Usuario habilitado.',
+  },
+  delete: {
+    title: 'Eliminar usuario',
+    message:
+      'Se eliminará su cuenta de acceso. Sus registros de trabajo y autorías se conservarán, junto con la constancia de eliminación. No podrá ingresar ni habilitarse desde esta lista.',
+    done: 'Usuario eliminado. Se conservaron sus registros y autorías.',
+  },
 };
 
 export default function NursingAccountsPanel({
@@ -30,15 +59,18 @@ export default function NursingAccountsPanel({
   const { confirm } = useConfirmDialog();
   const [accounts, setAccounts] = useState<NursingAccount[]>([]);
   const [individualOnly, setIndividualOnly] = useState(false);
-  const [name, setName] = useState('');
-  const [sourceReference, setSourceReference] = useState('');
   const [recentAudit, setRecentAudit] = useState<NursingAccountList['recentAudit']>([]);
+  const [name, setName] = useState('');
+  const [accountRole, setAccountRole] = useState<ManagedUserRole>('nurse_hospital');
+  const [sourceReference, setSourceReference] = useState('');
   const [rut, setRut] = useState('');
   const [verified, setVerified] = useState(false);
   const [search, setSearch] = useState('');
+  const [showDeleted, setShowDeleted] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [editing, setEditing] = useState<NursingAccount | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
-  const [activation, setActivation] = useState<(PrivateActivation & { name: string }) | null>(null);
   const reload = useCallback(async () => {
     const result = await callAccount<NursingAccountList>('listNursingAccounts');
     setAccounts(result.accounts);
@@ -53,7 +85,6 @@ export default function NursingAccountsPanel({
     if (busy) return;
     setBusy(true);
     setMessage('');
-    setActivation(null);
     try {
       await action();
       await reload();
@@ -66,247 +97,295 @@ export default function NursingAccountsPanel({
   const create = (event: React.FormEvent) => {
     event.preventDefault();
     void run(async () => {
-      const result = await callAccount<PrivateActivation>('createNursingAccount', {
+      const result = await callAccount<{ username: string }>('createNursingAccount', {
         name,
+        role: accountRole,
         rut,
         identityVerified: verified,
         sourceReference,
       });
-      setActivation({ ...result, name });
+      setMessage(
+        `Cuenta creada. Usuario: ${result.username}. Clave inicial: números del RUT sin dígito verificador. El primer ingreso exige nueva clave y correo de recuperación.`
+      );
       setName('');
       setSourceReference('');
       setRut('');
       setVerified(false);
+      setAccountRole('nurse_hospital');
+      setShowCreate(false);
     });
   };
-  const manage = async (account: NursingAccount, action: string) => {
-    const accepted = await confirm({
-      title: `${action === 'recover' ? 'Recuperar activación interrumpida' : action === 'invite' ? 'Restablecer acceso' : action === 'revoke' ? 'Cerrar sesiones' : action === 'retire' ? 'Retirar acceso' : 'Suspender acceso'}: ${account.name}`,
-      message:
-        action === 'recover'
-          ? 'Espera cinco minutos desde la interrupción. Se cerrará la operación anterior y se emitirá un nuevo código privado, conservando la misma identidad.'
-          : action === 'invite'
-            ? 'Se invalidarán las sesiones y códigos anteriores. Entrega el nuevo código únicamente a la persona después de verificar su identidad.'
-            : 'Se invalidará su acceso vigente. Las autorías y registros históricos se conservarán.',
-      confirmText: 'Confirmar',
-      cancelText: 'Volver',
-      variant: 'info',
-    });
-    if (!accepted) return;
+  const manage = async (account: NursingAccount, action: AccountAction) => {
+    const copy = actionCopy[action];
+    if (
+      !(await confirm({
+        title: `${copy.title}: ${account.name}`,
+        message: copy.message,
+        confirmText: copy.title,
+        cancelText: 'Cancelar',
+        variant: 'info',
+      }))
+    )
+      return;
     void run(async () => {
-      const result = await callAccount<PrivateActivation | { success: boolean }>(
-        'manageNursingAccount',
-        { uid: account.uid, action }
-      );
-      if ('activationToken' in result) setActivation({ ...result, name: account.name });
-      else setMessage('Acceso actualizado.');
+      await callAccount('manageNursingAccount', { uid: account.uid, action });
+      setMessage(copy.done);
+    });
+  };
+  const saveEdit = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!editing) return;
+    void run(async () => {
+      await callAccount('manageNursingAccount', {
+        uid: editing.uid,
+        action: 'update',
+        name: editing.name,
+        role: editing.role,
+      });
+      setEditing(null);
+      setMessage('Nombre y rol actualizados. El usuario deberá volver a ingresar.');
     });
   };
   const cutover = async () => {
-    const accepted = await confirm({
-      title: 'Usar sólo cuentas individuales y los dos accesos Google',
-      message:
-        'Los demás accesos antiguos dejarán de entrar a HHR. Se comprobarán ambos Google y se conservarán identidades e históricos, sin borrar cuentas de otras aplicaciones. Completa antes el piloto de enfermería.',
-      confirmText: 'Retirar accesos antiguos a HHR',
-      cancelText: 'Volver',
-      variant: 'info',
+    if (
+      !(await confirm({
+        title: 'Usar sólo cuentas individuales y los dos accesos Google',
+        message:
+          'Los demás accesos antiguos dejarán de entrar a HHR. Se comprobarán ambos Google y se conservarán identidades e históricos, sin borrar cuentas de otras aplicaciones. Completa antes el piloto.',
+        confirmText: 'Retirar accesos antiguos a HHR',
+        cancelText: 'Volver',
+        variant: 'info',
+      }))
+    )
+      return;
+    void run(async () => {
+      await callAccount('enableIndividualAccounts');
+      setMessage('Accesos individuales habilitados; los dos Google se conservan.');
     });
-    if (accepted)
-      void run(async () => {
-        await callAccount('enableIndividualAccounts');
-        setMessage('Accesos individuales habilitados; los dos Google se conservan.');
-      });
   };
   if (role !== 'admin') return null;
-  const visible = accounts.filter(account =>
-    `${account.name} ${account.rut}`.toLowerCase().includes(search.toLowerCase())
+  const visible = accounts.filter(
+    account =>
+      (showDeleted ||
+        account.status !== 'retired' ||
+        !account.deletedAt ||
+        account.recoveryRequired) &&
+      `${account.name} ${account.rut} ${account.recoveryEmail || ''}`
+        .toLowerCase()
+        .includes(search.toLowerCase())
   );
   return (
     <section
-      className="mb-8 space-y-4 rounded-2xl border border-slate-200 bg-white p-5"
+      className="mb-8 space-y-5 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6"
       aria-labelledby="nursing-accounts-title"
     >
-      <div className="flex items-center justify-between gap-3">
-        <h2 id="nursing-accounts-title" className="text-xl font-bold">
-          Usuarios de enfermería
-        </h2>
-        <button disabled={busy} onClick={() => void run(reload)} className="text-sm text-sky-800">
-          Actualizar
-        </button>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 id="nursing-accounts-title" className="text-xl font-bold text-slate-900">
+            Usuarios del equipo
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Cuentas personales, roles y recuperación de acceso.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button className={accountButtonClass} disabled={busy} onClick={() => void run(reload)}>
+            <RefreshCw size={16} aria-hidden="true" />
+            Actualizar
+          </button>
+          <button
+            className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-800 disabled:opacity-50"
+            disabled={busy}
+            onClick={() => setShowCreate(!showCreate)}
+          >
+            <Plus size={16} aria-hidden="true" />
+            Nuevo usuario
+          </button>
+        </div>
       </div>
-      <p className="text-sm text-slate-600">
-        Una cuenta por persona. El RUT identifica; cada funcionario elige su clave en privado. Los
-        dos accesos Google se conservan.
-      </p>
       {message && (
-        <p role="status" className="rounded bg-slate-100 p-3 text-sm">
+        <p
+          role="status"
+          className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700"
+        >
           {message}
         </p>
       )}
-      {activation && (
-        <div role="status" className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-4">
-          <p className="font-semibold">Activación privada para {activation.name}</p>
-          <p className="text-sm">
-            Entrega individual después de comprobar identidad. Un solo uso; vence a las{' '}
-            {new Date(activation.expiresAt).toLocaleTimeString()}. Este código no es su contraseña.
-          </p>
-          <input
-            aria-label="Código privado de activación"
-            readOnly
-            value={activation.activationToken}
-            autoComplete="off"
-            className="w-full rounded border p-2 font-mono text-xs"
-          />
-          <div className="flex gap-4">
-            <button
-              onClick={() =>
-                void writePrivateClipboardText(activation.activationToken).catch(() =>
-                  setMessage('Selecciona y copia el código manualmente.')
-                )
-              }
-            >
-              Copiar código
-            </button>
-            <button onClick={() => setActivation(null)}>Ya lo entregué: ocultar</button>
-          </div>
+      {showCreate && (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <h3 className="mb-4 font-semibold text-slate-800">Crear usuario</h3>
+          <form onSubmit={create} className="grid gap-4 sm:grid-cols-2">
+            <IndividualAccountFields
+              name={name}
+              role={accountRole}
+              onName={setName}
+              onRole={setAccountRole}
+              disabled={busy}
+            />
+            <label className="text-sm font-medium text-slate-700">
+              RUT con dígito verificador
+              <input
+                className={accountInputClass}
+                value={rut}
+                onChange={e => setRut(e.target.value)}
+                maxLength={20}
+                required
+                disabled={busy}
+                autoComplete="off"
+                placeholder="Ej. 17752753k"
+              />
+            </label>
+            <label className="text-sm font-medium text-slate-700">
+              Observación de verificación (opcional)
+              <input
+                className={accountInputClass}
+                value={sourceReference}
+                onChange={e => setSourceReference(e.target.value)}
+                maxLength={120}
+                disabled={busy}
+                placeholder="Ej. Identidad confirmada con el funcionario"
+              />
+              <span className="mt-1 block text-xs font-normal text-slate-500">
+                Deja una referencia si consultaste el registro de personal u otro respaldo.
+              </span>
+            </label>
+            <label className="flex items-start gap-2 text-sm text-slate-700 sm:col-span-2">
+              <input
+                type="checkbox"
+                checked={verified}
+                onChange={e => setVerified(e.target.checked)}
+                required
+                disabled={busy}
+                className="mt-0.5 h-4 w-4 accent-teal-700"
+              />
+              Confirmé la identidad, el RUT y que trabaja en el hospital.
+            </label>
+            <p className="text-xs text-slate-500 sm:col-span-2">
+              La clave inicial son los números del RUT sin dígito verificador. El funcionario
+              elegirá una clave nueva y registrará su correo al ingresar.
+            </p>
+            <div className="flex gap-2 sm:col-span-2">
+              <button
+                disabled={busy || !verified}
+                className="rounded-lg bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
+              >
+                Crear usuario
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                className={accountButtonClass}
+                onClick={() => setShowCreate(false)}
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
+          <details className="mt-4 border-t border-slate-200 pt-3 text-sm">
+            <summary className="cursor-pointer text-slate-600">
+              Preparar datos desde una lista de funcionarios
+            </summary>
+            <NursingCandidateImport
+              existingRuts={accounts.map(account => account.rut)}
+              onSelect={row => {
+                setName(row.name);
+                setRut(row.rut);
+                setSourceReference(row.sourceReference);
+                setVerified(false);
+              }}
+            />
+          </details>
         </div>
       )}
-      <NursingCandidateImport
-        existingRuts={accounts.map(account => account.rut)}
-        onSelect={row => {
-          setName(row.name);
-          setRut(row.rut);
-          setSourceReference(row.sourceReference);
-          setVerified(false);
-        }}
-      />
-      <form onSubmit={create} className="grid gap-3 rounded-lg bg-slate-50 p-4 sm:grid-cols-2">
-        <label>
-          Nombre verificado
-          <input
-            value={name}
-            onChange={e => setName(e.target.value)}
-            minLength={3}
-            maxLength={120}
-            required
+      {editing && (
+        <form
+          onSubmit={saveEdit}
+          aria-label={`Modificar usuario: ${editing.name}`}
+          className="grid gap-4 rounded-xl border border-teal-200 bg-teal-50/40 p-4 sm:grid-cols-2"
+        >
+          <h3 className="font-semibold text-slate-900 sm:col-span-2">
+            Modificar usuario · {editing.rut}
+          </h3>
+          <IndividualAccountFields
+            name={editing.name}
+            role={editing.role}
+            onName={value => setEditing({ ...editing, name: value })}
+            onRole={value => setEditing({ ...editing, role: value })}
             disabled={busy}
-            className="mt-1 block w-full rounded border bg-white p-2"
           />
+          <p className="text-xs text-slate-600 sm:col-span-2">
+            Se conserva su RUT, contraseña y correo. Para aplicar el rol, deberá volver a ingresar.
+          </p>
+          <div className="flex gap-2 sm:col-span-2">
+            <button
+              disabled={busy}
+              className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+            >
+              Guardar cambios
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              className={accountButtonClass}
+              onClick={() => setEditing(null)}
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      )}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <label className="w-full text-sm font-medium text-slate-600 sm:max-w-md">
+          Buscar funcionario
+          <span className="relative mt-1 block">
+            <Search
+              size={17}
+              aria-hidden="true"
+              className="absolute left-3 top-3.5 text-slate-400"
+            />
+            <input
+              className={`${accountInputClass} pl-9`}
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Nombre, RUT o correo"
+              autoComplete="off"
+            />
+          </span>
         </label>
-        <label>
-          RUT con DV
-          <input
-            value={rut}
-            onChange={e => setRut(e.target.value)}
-            maxLength={20}
-            required
-            disabled={busy}
-            autoComplete="off"
-            className="mt-1 block w-full rounded border bg-white p-2"
-          />
-        </label>
-        <label className="sm:col-span-2">
-          Referencia verificada del funcionario
-          <input
-            value={sourceReference}
-            onChange={event => setSourceReference(event.target.value)}
-            maxLength={120}
-            minLength={3}
-            required
-            disabled={busy}
-            className="mt-1 block w-full rounded border p-2"
-            placeholder="Registro del mantenedor o verificación individual"
-          />
-        </label>
-        <label className="flex gap-2 text-sm sm:col-span-2">
+        <label className="flex items-center gap-2 py-2 text-xs text-slate-500">
           <input
             type="checkbox"
-            checked={verified}
-            onChange={e => setVerified(e.target.checked)}
-            required
-            disabled={busy}
+            checked={showDeleted}
+            onChange={e => setShowDeleted(e.target.checked)}
           />
-          Verifiqué identidad, RUT y vigencia del funcionario. Una coincidencia de nombre no basta.
+          Mostrar eliminados
         </label>
-        <button
-          disabled={busy || !verified}
-          className="rounded bg-sky-800 px-4 py-2 text-white disabled:opacity-50 sm:col-span-2"
-        >
-          Crear cuenta y activación privada
-        </button>
-      </form>
-      <label className="block text-sm">
-        Buscar nombre o RUT
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          autoComplete="off"
-          className="ml-2 rounded border p-2"
-        />
-      </label>
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr>
-              <th className="p-2">Funcionario</th>
-              <th className="p-2">RUT</th>
-              <th className="p-2">Estado</th>
-              <th className="p-2">Acceso</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visible.map(account => (
-              <tr key={account.uid} className="border-t">
-                <td className="p-2">{account.name}</td>
-                <td className="p-2">{account.rut}</td>
-                <td className="p-2">{statusLabel[account.status]}</td>
-                <td className="flex flex-wrap gap-3 p-2">
-                  {account.status !== 'retired' && (
-                    <>
-                      <button
-                        disabled={
-                          busy || account.recoveryRequired || account.status === 'setting_password'
-                        }
-                        onClick={() => void manage(account, 'invite')}
-                      >
-                        Nueva activación
-                      </button>
-                      {account.recoveryRequired && (
-                        <button disabled={busy} onClick={() => void manage(account, 'recover')}>
-                          Recuperar activación interrumpida
-                        </button>
-                      )}
-                      <button disabled={busy} onClick={() => void manage(account, 'suspend')}>
-                        Suspender
-                      </button>
-                      <button disabled={busy} onClick={() => void manage(account, 'revoke')}>
-                        Cerrar sesiones
-                      </button>
-                      <button disabled={busy} onClick={() => void manage(account, 'retire')}>
-                        Retirar
-                      </button>
-                    </>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
       </div>
+      <IndividualAccountsTable
+        accounts={visible}
+        busy={busy}
+        onEdit={setEditing}
+        onAction={(account, action) => void manage(account, action)}
+      />
       <NursingAccountAudit events={recentAudit} accounts={accounts} />
-      <div className="border-t pt-4 text-sm">
-        {individualOnly ? (
-          <p>Acceso limitado a cuentas individuales activas y los dos Google protegidos.</p>
-        ) : (
-          <button
-            disabled={busy}
-            onClick={() => void cutover()}
-            className="rounded border border-amber-600 p-2 text-amber-900"
-          >
-            Finalizar migración de accesos antiguos
-          </button>
-        )}
-      </div>
+      <details className="border-t pt-4 text-sm">
+        <summary className="cursor-pointer text-slate-500">
+          Opciones de transición de accesos
+        </summary>
+        <div className="pt-3">
+          {individualOnly ? (
+            <p>Acceso limitado a cuentas individuales activas y los dos Google protegidos.</p>
+          ) : (
+            <button
+              disabled={busy}
+              onClick={() => void cutover()}
+              className="rounded border border-amber-600 p-2 text-amber-900"
+            >
+              Finalizar migración de accesos antiguos
+            </button>
+          )}
+        </div>
+      </details>
     </section>
   );
 }

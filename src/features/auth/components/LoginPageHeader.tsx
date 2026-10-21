@@ -13,9 +13,9 @@ export const LoginPageHeader: React.FC<LoginPageHeaderProps> = ({ isDayGradient 
     : 'bg-slate-950/15 border-white/15 ring-1 ring-inset ring-white/5';
 
   return (
-    <div className="mb-10 text-center animate-login-reveal animate-login-reveal-delay-1">
+    <div className="mb-5 text-center animate-login-reveal animate-login-reveal-delay-1">
       <div
-        className={`relative inline-flex items-center justify-center h-24 w-24 rounded-2xl border p-2 shadow-xl shadow-slate-950/30 backdrop-blur-2xl backdrop-saturate-150 animate-float ${glassFrameClass}`}
+        className={`relative inline-flex items-center justify-center h-14 w-14 rounded-2xl border p-2 shadow-xl shadow-slate-950/30 backdrop-blur-2xl backdrop-saturate-150 ${glassFrameClass}`}
       >
         {/* Top-edge inner highlight: simulates glass refraction at the lit edge */}
         <span
@@ -30,10 +30,10 @@ export const LoginPageHeader: React.FC<LoginPageHeaderProps> = ({ isDayGradient 
           />
         </div>
       </div>
-      <h1 className="mt-6 font-display text-3xl font-bold tracking-tight text-white drop-shadow-[0_2px_4px_rgba(2,6,23,0.55)] sm:text-[2.1rem]">
+      <h1 className="mt-3 font-display text-2xl font-bold tracking-tight text-white drop-shadow-[0_2px_4px_rgba(2,6,23,0.55)] sm:text-2xl">
         Hospital Hanga Roa
       </h1>
-      <p className={`mt-2 text-sm ${isDayGradient ? 'text-white/86' : 'text-sky-100/82'}`}>
+      <p className={`mt-1 text-xs ${isDayGradient ? 'text-white/86' : 'text-sky-100/82'}`}>
         Sistema Estadístico de Hospitalizados
       </p>
     </div>

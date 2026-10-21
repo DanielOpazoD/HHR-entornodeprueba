@@ -52,18 +52,9 @@ const RoleManagementPanel: React.FC = () => {
             </h1>
           </div>
           <p className="text-slate-500 max-w-2xl font-medium leading-snug text-sm md:text-[15px]">
-            Gestiona cuentas individuales, activaciones privadas y permisos de acceso.
+            Administra los usuarios del equipo, sus roles y contraseñas.
           </p>
         </div>
-
-        <button
-          onClick={loadRoles}
-          disabled={loading}
-          className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-100 rounded-xl text-slate-400 font-bold text-[11px] hover:bg-slate-50 transition-all active:scale-95"
-        >
-          <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
-          Actualizar Lista
-        </button>
       </header>
 
       <Suspense fallback={<p>Cargando usuarios…</p>}>
@@ -71,7 +62,21 @@ const RoleManagementPanel: React.FC = () => {
       </Suspense>
 
       {!individualOnly && (
-        <>
+        <details className="rounded-xl border border-slate-200 bg-white p-4">
+          <summary className="cursor-pointer text-sm font-semibold text-slate-600">
+            Accesos Google y permisos anteriores
+          </summary>
+          <p className="my-3 text-sm text-slate-500">
+            Sección de compatibilidad. Los usuarios por RUT se administran arriba.
+          </p>
+          <button
+            onClick={loadRoles}
+            disabled={loading}
+            className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-100 rounded-xl text-slate-400 font-bold text-[11px] hover:bg-slate-50 transition-all active:scale-95"
+          >
+            <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+            Actualizar Lista
+          </button>
           {/* Notifications */}
           {message && (
             <div
@@ -148,7 +153,7 @@ const RoleManagementPanel: React.FC = () => {
             onClose={() => setDeleteConfirm(null)}
             onConfirm={confirmDelete}
           />
-        </>
+        </details>
       )}
     </div>
   );

@@ -5,7 +5,7 @@ interface LoginPageFooterProps {
 }
 
 export const LoginPageFooter: React.FC<LoginPageFooterProps> = ({ isDayGradient }) => (
-  <div className="mt-8 text-center animate-login-reveal animate-login-reveal-delay-3">
+  <div className="mt-4 text-center animate-login-reveal animate-login-reveal-delay-3">
     <p
       className={`text-[10px] font-bold uppercase tracking-widest ${
         isDayGradient ? 'text-white/78' : 'text-slate-200'

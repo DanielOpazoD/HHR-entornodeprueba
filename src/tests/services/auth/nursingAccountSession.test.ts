@@ -60,4 +60,12 @@ describe('individual login respects session replacement', () => {
       'synthetic-password'
     );
   });
+  it('returns setup without persistence, session replacement or Firebase sign-in', async () => {
+    mocks.callable.mockResolvedValue({ data: { requiresSetup: true, activationToken: 'fake' } });
+    await expect(
+      establishNursingSession('signInWithRut', { password: '11111111' })
+    ).resolves.toEqual({ requiresSetup: true, activationToken: 'fake' });
+    expect(mocks.persistence).not.toHaveBeenCalled();
+    expect(mocks.signIn).not.toHaveBeenCalled();
+  });
 });

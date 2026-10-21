@@ -1,3 +1,4 @@
+const { accountProfile, manageAccountProfile, resumableStatus } = require('./accountManagement');
 const { HOSPITAL_ID } = require('../runtime/runtimeConfig');
 const { https } = require('firebase-functions/v1');
 const {
@@ -58,6 +59,7 @@ const createAccountAdministration = ({ auth, firestore, helpers, now = Date.now 
       const version = account.version + 1;
       tx.update(ref, {
         status: 'pending',
+        initialPasswordEnabled: false,
         version,
         updatedAt: at,
         operationId: id,
@@ -83,7 +85,7 @@ const createAccountAdministration = ({ auth, firestore, helpers, now = Date.now 
   const createAccount = async (data, context) => {
     await assertAdmin(context);
     const rut = normalizeRut(data?.rut);
-    const name = typeof data?.name === 'string' ? data.name.trim() : '';
+    const { name, role } = accountProfile(data);
     if (name.length < 3 || name.length > 120 || data?.identityVerified !== true) {
       throw new https.HttpsError(
         'invalid-argument',
@@ -103,7 +105,7 @@ const createAccountAdministration = ({ auth, firestore, helpers, now = Date.now 
       tx.create(index, { uid });
       tx.create(firestore.collection(ACCESS).doc(uid), {
         name,
-        role: 'nurse_hospital',
+        role,
         hospitalId: HOSPITAL_ID,
         status: 'provisioning',
         operationId,
@@ -117,7 +119,7 @@ const createAccountAdministration = ({ auth, firestore, helpers, now = Date.now 
         verifiedBy: context.auth.uid,
         verifiedAt: at,
         sourceReference:
-          typeof data.sourceReference === 'string'
+          typeof data.sourceReference === 'string' && data.sourceReference.trim()
             ? data.sourceReference.trim().slice(0, 120)
             : 'Verificación individual por administrador',
       });
@@ -131,10 +133,24 @@ const createAccountAdministration = ({ auth, firestore, helpers, now = Date.now 
       password: newSecret(),
       disabled: true,
     });
-    const current = await completeCredentialOperation(firestore, uid, operationId);
-    if (current.operationId !== operationId || current.status !== 'provisioning')
-      throw genericFailure();
-    return { uid, ...(await issueInvitation(uid, context)) };
+    const provisioned = await firestore.runTransaction(async tx => {
+      const ref = firestore.collection(ACCESS).doc(uid);
+      const current = (await tx.get(ref)).data();
+      if (current?.credentialOperation !== operationId) throw genericFailure();
+      const valid =
+        current.operationId === operationId &&
+        current.status === 'provisioning' &&
+        current.version === 1;
+      // Suspension/retirement during Auth creation must survive its late completion.
+      tx.update(ref, {
+        ...(valid ? { status: 'pending', initialPasswordEnabled: true } : {}),
+        credentialOperation: null,
+        credentialStartedAt: null,
+      });
+      return valid;
+    });
+    if (!provisioned) throw genericFailure();
+    return { uid, username: rut.replace('-', '').toLowerCase(), initialPasswordRequired: true };
   };
 
   const listAccounts = async (_data, context) => {
@@ -149,6 +165,14 @@ const createAccountAdministration = ({ auth, firestore, helpers, now = Date.now 
       snapshot.docs.map(async doc => {
         const privateData = (await firestore.collection(PRIVATE).doc(doc.id).get()).data();
         const { name, status, role, createdAt, updatedAt, credentialOperation } = doc.data();
+        let suspendedAuth = null;
+        if (status === 'suspended' && !credentialOperation && !doc.data().suspendedFrom) {
+          try {
+            suspendedAuth = await auth.getUser(doc.id);
+          } catch (error) {
+            if (error.code !== 'auth/user-not-found') throw error;
+          }
+        }
         return {
           uid: doc.id,
           name,
@@ -157,6 +181,12 @@ const createAccountAdministration = ({ auth, firestore, helpers, now = Date.now 
           createdAt,
           updatedAt,
           rut: privateData?.rut || '',
+          recoveryEmail: privateData?.recoveryEmail || '',
+          canEnable:
+            status === 'suspended' &&
+            !credentialOperation &&
+            Boolean(resumableStatus(doc.data(), suspendedAuth)),
+          deletedAt: doc.data().deletedAt || null,
           recoveryRequired: Boolean(credentialOperation) || status === 'provisioning',
         };
       })
@@ -173,6 +203,8 @@ const createAccountAdministration = ({ auth, firestore, helpers, now = Date.now 
   const manageAccount = async (data, context) => {
     await assertAdmin(context);
     const { uid, action } = data || {};
+    if (['reset', 'repair_reset', 'update', 'enable', 'delete'].includes(action))
+      return manageAccountProfile({ auth, firestore, now }, data, context);
     if (action === 'invite') return issueInvitation(uid, context);
     if (action === 'recover') {
       if (typeof uid !== 'string' || !/^hhrn_[a-f0-9-]{36}$/.test(uid)) throw genericFailure();
@@ -189,11 +221,19 @@ const createAccountAdministration = ({ auth, firestore, helpers, now = Date.now 
     const operationId = randomUUID();
     const transition = await firestore.runTransaction(async tx => {
       const account = (await tx.get(ref)).data();
-      if (!account || (action === 'revoke' && account.credentialOperation)) throw genericFailure();
+      if (
+        !account ||
+        account.status === 'retired' ||
+        (action === 'revoke' && account.credentialOperation)
+      )
+        throw genericFailure();
       tx.update(ref, {
         status:
           action === 'retire' ? 'retired' : action === 'suspend' ? 'suspended' : account.status,
         version: account.version + 1,
+        ...(action === 'suspend' && account.status !== 'suspended'
+          ? { suspendedFrom: account.status }
+          : {}),
         updatedAt: now(),
         operationId,
         ...(!account.credentialOperation ? credentialLock(operationId, now()) : {}),
@@ -203,6 +243,7 @@ const createAccountAdministration = ({ auth, firestore, helpers, now = Date.now 
         ownsLock: !account.credentialOperation,
         version: account.version + 1,
         status: account.status,
+        role: account.role,
       };
     });
     // An existing credential operation owns all provider writes. Version/state fences
@@ -212,7 +253,7 @@ const createAccountAdministration = ({ auth, firestore, helpers, now = Date.now 
     if (action === 'revoke' && transition.status === 'active') {
       await auth.setCustomUserClaims(uid, {
         hhrAccountVersion: transition.version,
-        role: 'nurse_hospital',
+        role: transition.role,
       });
     }
     if (action !== 'revoke') await auth.updateUser(uid, { disabled: true });

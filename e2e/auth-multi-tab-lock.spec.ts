@@ -39,7 +39,7 @@ const expectLockFeedback = async (page: Page) => {
           .isVisible()
           .catch(() => false),
         loginHeadingVisible: await page
-          .getByRole('heading', { name: /Acceso al Sistema/i })
+          .getByRole('heading', { name: /Iniciar sesión/i })
           .isVisible()
           .catch(() => false),
       }),

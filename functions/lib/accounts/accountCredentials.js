@@ -1,4 +1,5 @@
 const { timingSafeEqual } = require('node:crypto');
+const { beginInitialPassword } = require('./accountInitialPassword');
 const {
   ACCESS,
   PRIVATE,
@@ -7,6 +8,7 @@ const {
   genericFailure,
   normalizeRut,
   assertPassword,
+  normalizeRecoveryEmail,
   hasCurrentAccountSession,
   digest,
   randomUUID,
@@ -21,8 +23,11 @@ const createAccountCredentials = ({
   now = Date.now,
   passwordVerifier = verifyPassword,
 }) => {
-  const publishVersion = (uid, version) =>
-    auth.setCustomUserClaims(uid, { hhrAccountVersion: version, role: 'nurse_hospital' });
+  const publishVersion = async (uid, version) => {
+    const account = (await firestore.collection(ACCESS).doc(uid).get()).data();
+    if (!account) throw genericFailure();
+    await auth.setCustomUserClaims(uid, { hhrAccountVersion: version, role: account.role });
+  };
   const finalizePassword = async (uid, operationId, password, version) => {
     const ref = firestore.collection(ACCESS).doc(uid);
     // Serialize credential changes across activation/recovery. A suspension can revoke
@@ -72,6 +77,7 @@ const createAccountCredentials = ({
   };
 
   const activateAccount = async (data, context) => {
+    const recoveryEmail = normalizeRecoveryEmail(data?.recoveryEmail);
     const rawToken = typeof data?.activationToken === 'string' ? data.activationToken : '';
     const [id, secret] = rawToken.split('.');
     if (
@@ -104,9 +110,11 @@ const createAccountCredentials = ({
       tx.update(inviteRef, { status: 'consumed', consumedAt: now() });
       tx.update(accessRef, {
         status: 'setting_password',
+        initialPasswordEnabled: false,
         operationId,
         ...credentialLock(operationId, now()),
       });
+      tx.update(firestore.collection(PRIVATE).doc(invite.uid), { recoveryEmail });
       return { uid: invite.uid, version: invite.version };
     });
     // Consumed before the external Auth write; crashes fail closed until an admin repairs the operation.
@@ -117,6 +125,14 @@ const createAccountCredentials = ({
     const rut = normalizeRut(data?.rut);
     await rateLimit(firestore, context, digest(rut));
     const uid = (await firestore.collection(INDEX).doc(digest(rut)).get()).data()?.uid;
+    const initial = await beginInitialPassword({
+      firestore,
+      uid,
+      rut,
+      password: data?.password,
+      now,
+    });
+    if (initial) return initial;
     // Unknown accounts take the same password-provider path and return the same public error.
     const email = `${uid || 'unknown-account'}@accounts.hhr.invalid`;
     const verifiedUid = await passwordVerifier({
@@ -164,7 +180,7 @@ const createAccountCredentials = ({
     });
     return finalizePassword(uid, operationId, data.password, version);
   };
-  return { activateAccount, signInWithRut, changeAccountPassword };
+  return { activateAccount, signInWithRut, changeAccountPassword, finalizePassword };
 };
 
 module.exports = { createAccountCredentials };

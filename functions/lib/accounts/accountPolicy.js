@@ -35,20 +35,31 @@ const normalizeRut = value => {
   return `${body}-${dv}`;
 };
 
-const assertPassword = (password, rut) => {
+const assertPassword = password => {
   if (
     typeof password !== 'string' ||
-    password.length < 12 ||
+    password.length < 6 ||
     password.length > 128 ||
-    password.trim().length < 12 ||
-    password.replace(/\D/g, '') === rut?.split('-')[0] ||
-    password.replace(/[.\s-]/g, '').toUpperCase() === rut?.replace('-', '')
+    !/[A-ZÁÉÍÓÚÜÑ]/.test(password) ||
+    !/[0-9]/.test(password)
   ) {
     throw new https.HttpsError(
       'invalid-argument',
-      'Elige una clave personal de 12 a 128 caracteres, distinta de tu RUT.'
+      'La clave debe tener de 6 a 128 caracteres, al menos una mayúscula y un número.'
     );
   }
+};
+
+const normalizeRecoveryEmail = value => {
+  const email = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  if (
+    email.length > 254 ||
+    !/^[^\s<>@,;\r\n]+@[^\s<>@,;\r\n]+\.[^\s<>@,;\r\n]+$/.test(email) ||
+    email.endsWith('@accounts.hhr.invalid')
+  ) {
+    throw new https.HttpsError('invalid-argument', 'Ingresa un correo de recuperación válido.');
+  }
+  return email;
 };
 
 const hasCurrentAccountSession = (account, context, now = Date.now()) => {
@@ -98,6 +109,7 @@ module.exports = {
   newSecret,
   normalizeRut,
   assertPassword,
+  normalizeRecoveryEmail,
   hasCurrentAccountSession,
   protectedRole,
   audit,

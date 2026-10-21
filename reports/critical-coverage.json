@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-10-18T15:39:59.193Z",
-  "gitSha": "8454f497b",
-  "gitDirty": true,
+  "generatedAt": "2026-10-21T01:36:48.833Z",
+  "gitSha": "df479fe",
+  "gitDirty": false,
   "generatedFor": {
-    "gitSha": "8454f497b",
-    "gitDirty": true,
-    "treeHash": "14d2db1d08fdef6b8c3cb44ffe7ae127cbfc569f",
+    "gitSha": "df479fe",
+    "gitDirty": false,
+    "treeHash": "3b56d06e8db488b822132fb0b163e383e06b71a0",
     "reportId": "critical-coverage",
     "dependencyFingerprint": {
       "algorithm": "sha256:dependency-files-v1",
@@ -73,6 +73,7 @@
         "src/features/census/controllers/censusEmailRecipientsController.ts",
         "src/features/census/controllers/censusEmailRecipientsEditorStateController.ts",
         "src/features/census/controllers/censusEmptyBedActivationController.ts",
+        "src/features/census/controllers/censusEmptyStateDiagnostic.ts",
         "src/features/census/controllers/censusMigrationBootstrapController.ts",
         "src/features/census/controllers/censusModalBindingsController.ts",
         "src/features/census/controllers/censusModalStateController.ts",
@@ -186,29 +187,29 @@
         "src/features/census/controllers/transferRowViewController.ts",
         "src/features/census/controllers/vitalSignsView.ts"
       ],
-      "sourceFileCount": 142,
-      "testFileCount": 282,
-      "testToSourceRatio": 1.9859154929577465,
+      "sourceFileCount": 143,
+      "testFileCount": 285,
+      "testToSourceRatio": 1.993006993006993,
       "coverage": {
         "lines": {
-          "total": 2157,
-          "covered": 1982,
+          "total": 2169,
+          "covered": 1991,
           "skipped": 0,
-          "pct": 91.9
+          "pct": 91.8
         },
         "functions": {
-          "total": 596,
-          "covered": 566,
+          "total": 597,
+          "covered": 567,
           "skipped": 0,
           "pct": 95
         },
         "branches": {
-          "total": 1928,
-          "covered": 1523,
+          "total": 1952,
+          "covered": 1543,
           "skipped": 0,
           "pct": 79
         },
-        "filesInCoverage": 142,
+        "filesInCoverage": 143,
         "missingFiles": []
       },
       "structuralGate": {
@@ -500,6 +501,7 @@
       "sourceFiles": [
         "src/services/storage/firestore/dailyRecordAuthorityCallableClient.ts",
         "src/services/storage/firestore/dailyRecordAuthorityMode.ts",
+        "src/services/storage/firestore/dailyRecordAuthorityTransport.ts",
         "src/services/storage/firestore/dailyRecordConflictSnapshotService.ts",
         "src/services/storage/firestore/firestoreBedTreePermissionFallback.ts",
         "src/services/storage/firestore/firestoreCatalogService.ts",
@@ -524,29 +526,29 @@
         "src/services/storage/firestore/index.ts",
         "src/services/storage/firestore/ports/firestoreServiceRuntimePort.ts"
       ],
-      "sourceFileCount": 25,
-      "testFileCount": 75,
-      "testToSourceRatio": 3,
+      "sourceFileCount": 26,
+      "testFileCount": 79,
+      "testToSourceRatio": 3.0384615384615383,
       "coverage": {
         "lines": {
-          "total": 899,
-          "covered": 805,
+          "total": 921,
+          "covered": 827,
           "skipped": 0,
-          "pct": 89.5
+          "pct": 89.8
         },
         "functions": {
-          "total": 220,
-          "covered": 203,
+          "total": 226,
+          "covered": 209,
           "skipped": 0,
-          "pct": 92.3
+          "pct": 92.5
         },
         "branches": {
-          "total": 581,
-          "covered": 502,
+          "total": 611,
+          "covered": 529,
           "skipped": 0,
-          "pct": 86.4
+          "pct": 86.6
         },
-        "filesInCoverage": 25,
+        "filesInCoverage": 26,
         "missingFiles": []
       },
       "structuralGate": {
@@ -614,33 +616,36 @@
         "src/services/auth/firebaseStartupWarningRenderer.ts",
         "src/services/auth/googleIdentityButton.ts",
         "src/services/auth/googleLoginLock.ts",
+        "src/services/auth/nursingAccountService.ts",
+        "src/services/auth/nursingPasswordPolicy.ts",
+        "src/services/auth/nursingSessionMonitor.ts",
         "src/services/auth/sessionActivityMonitor.ts",
         "src/services/auth/sessionPermissionStormDetector.ts",
         "src/services/auth/sharedCensusAuth.ts"
       ],
-      "sourceFileCount": 40,
-      "testFileCount": 25,
-      "testToSourceRatio": 0.625,
+      "sourceFileCount": 43,
+      "testFileCount": 26,
+      "testToSourceRatio": 0.6046511627906976,
       "coverage": {
         "lines": {
-          "total": 1163,
-          "covered": 1003,
+          "total": 1231,
+          "covered": 1009,
           "skipped": 0,
-          "pct": 86.2
+          "pct": 82
         },
         "functions": {
-          "total": 228,
-          "covered": 194,
+          "total": 239,
+          "covered": 195,
           "skipped": 0,
-          "pct": 85.1
+          "pct": 81.6
         },
         "branches": {
-          "total": 824,
-          "covered": 594,
+          "total": 885,
+          "covered": 610,
           "skipped": 0,
-          "pct": 72.1
+          "pct": 68.9
         },
-        "filesInCoverage": 40,
+        "filesInCoverage": 43,
         "missingFiles": []
       },
       "structuralGate": {
@@ -682,8 +687,8 @@
         "src/services/auth/firebaseStartupWarningRenderer.ts"
       ],
       "sourceFileCount": 5,
-      "testFileCount": 25,
-      "testToSourceRatio": 5,
+      "testFileCount": 26,
+      "testToSourceRatio": 5.2,
       "coverage": {
         "lines": {
           "total": 115,
@@ -890,8 +895,8 @@
         "src/index.tsx"
       ],
       "sourceFileCount": 11,
-      "testFileCount": 117,
-      "testToSourceRatio": 10.636363636363637,
+      "testFileCount": 121,
+      "testToSourceRatio": 11,
       "coverage": {
         "lines": {
           "total": 349,
@@ -1144,8 +1149,8 @@
         "src/services/storage/sync/syncQueueTelemetryController.ts"
       ],
       "sourceFileCount": 3,
-      "testFileCount": 75,
-      "testToSourceRatio": 25,
+      "testFileCount": 79,
+      "testToSourceRatio": 26.333333333333332,
       "coverage": {
         "lines": {
           "total": 103,
@@ -1203,8 +1208,8 @@
         "src/services/storage/indexeddb/indexedDbRecoveryPolicy.ts"
       ],
       "sourceFileCount": 3,
-      "testFileCount": 75,
-      "testToSourceRatio": 25,
+      "testFileCount": 79,
+      "testToSourceRatio": 26.333333333333332,
       "coverage": {
         "lines": {
           "total": 31,
@@ -1281,8 +1286,8 @@
         "src/features/rayen-import/hooks/replanRayenStructure.ts"
       ],
       "sourceFileCount": 5,
-      "testFileCount": 418,
-      "testToSourceRatio": 83.6,
+      "testFileCount": 422,
+      "testToSourceRatio": 84.4,
       "coverage": {
         "lines": {
           "total": 162,

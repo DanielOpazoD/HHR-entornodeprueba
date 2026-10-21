@@ -338,8 +338,9 @@ se infiere quién fue revocado ni se retiran permisos históricos automáticamen
 El RUT con DV es sólo el alias de ingreso. El padrón privado y su índice están
 vedados a clientes; sólo el administrador consulta el RUT mediante el callable.
 La identidad Firebase usa un UID estable y correo técnico opaco, sin RUT. Las
-contraseñas las almacena y verifica Firebase Auth; no existen claves iniciales
-basadas en RUT ni un lector de contraseñas para el administrador.
+contraseñas personales las almacena y verifica Firebase Auth. El usuario visible es
+el RUT completo sin puntos ni guion, con k minúscula (17752753k). Internamente se
+conserva el RUT canónico con DV para no romper índices existentes.
 
 La creación exige nombre, RUT válido y verificación individual. El importador
 sólo prepara candidatos en memoria: un nombre parecido no identifica una persona,
@@ -348,18 +349,36 @@ La referencia de origen y el administrador verificador quedan en el padrón priv
 Estas cuentas reciben únicamente el rol de enfermería; no pueden autoasignarse
 roles ni convertirse en administradoras.
 
-El administrador entrega un código aleatorio de 256 bits en privado, de un uso y
-una hora. Firestore conserva su hash; el código completo sólo se presenta al
-emitirse y no se incluye en URLs, telemetría o almacenamiento del navegador.
-El titular lo canjea junto a su RUT y elige una clave de 12 a 128 caracteres antes
-de obtener acceso clínico. No se envían mensajes ni se inventan contactos personales.
-El adaptador de ingreso devuelve el correo técnico sólo después de verificar la
-clave contra Firebase y comprobar proyecto/UID. El cliente inicia la sesión normal
-de Firebase email/contraseña. Errores genéricos y límites transaccionales por
-cuenta/IP evitan revelar datos del padrón y acotan los intentos.
+Las cuentas nuevas verificadas por el administrador empiezan pendientes, con Auth
+inhabilitado. La clave inicial es el cuerpo numérico del RUT (17752753 en el ejemplo),
+por decisión explícita de producto. Es predecible: conocer el RUT permite reclamar
+una cuenta aún no activada; el cambio obligatorio no acredita por sí solo identidad.
+El primer ingreso sólo entrega un permiso efímero de preparación, sin sesión ni
+acceso clínico. El titular debe elegir una clave y registrar su correo de recuperación.
+La clave personal requiere 6–128 caracteres (mínimo del proveedor), una mayúscula y
+un número; no requiere símbolos. Nunca se guarda la clave inicial/personal en Firestore.
+La clave inicial queda deshabilitada al canjear la preparación. No se restablecen
+claves de cuentas activas ni se migran cuentas reales automáticamente.
 
-Cambio de clave exige la clave actual; recuperación exige una nueva activación
-administrada. Ambas incrementan la versión de autorización. Functions, Firestore
+Se conserva el código privado administrativo de un uso y una hora para recuperar
+activaciones interrumpidas o cuentas sin correo. Emitirlo revoca la clave inicial.
+El permiso de primer ingreso dura 10 minutos. Ambos están ligados a cuenta/versión;
+Firestore conserva hashes y el navegador sólo estado en memoria. La activación
+registrará el correo privado junto con la transición de credenciales.
+
+«Olvidé mi contraseña» pide el RUT y envía un código de 8 cifras al correo registrado
+por el titular, nunca a un correo enviado en esa solicitud. El código vence en 10
+minutos, admite cinco intentos y se consume transaccionalmente una sola vez. Cada
+cambio de clave invalida otros códigos por versión. Se aplican límites por cuenta/IP;
+una cuenta suspendida, retirada o con operación incierta no se recupera por correo.
+La respuesta pública no confirma existencia ni dirección de correo. Un envío fallido
+invalida el desafío; la pantalla indica condicionalmente el envío, sin afirmar entrega.
+El correo no incluye RUT ni información clínica. El proveedor de correo es Gmail
+institucional, con secretos sólo en la función de solicitud.
+
+Cambio de clave exige la clave actual; recuperación exige el código recibido o una
+nueva activación administrada para cuentas antiguas sin correo.
+Ambas incrementan la versión de autorización. Functions, Firestore
 y Storage comprueban estado activo, versión, proveedor password y antigüedad de
 sesión, sin confiar en claims antiguos. Un lock de credenciales mantiene cerrado
 el acceso durante escrituras Auth inciertas. Una recuperación administrativa
@@ -404,3 +423,13 @@ Las pantallas de activación, cambio de clave y administración se cargan al abr
 ### Carga y disponibilidad sin conexión
 
 La administración de usuarios y permisos se carga al abrir su panel y necesita conexión para leer la autoridad vigente y modificar cuentas. Su chunk no pertenece al precache clínico. El menú de usuario se carga al abrirlo, permanece en precache y conserva un cierre de sesión inmediato aun si ese recurso tarda o falla. El monitor de sesiones individuales, la preservación de la cola y la semilla clínica continúan disponibles sin conexión. Los límites de tamaño permanecen sin cambios.
+
+### Administración de cuentas por RUT (PR 919)
+
+Nombre y rol se editan desde Usuarios del equipo usando la matriz asignable vigente.
+Cada modificación incrementa la versión de acceso y renueva los claims bajo el
+bloqueo de credenciales; una sesión anterior no retiene permisos del rol previo.
+Resetear vuelve al primer ingreso obligatorio. Deshabilitar conserva la contraseña;
+Eliminar borra Auth y mantiene una identidad retirada para autorías. La consulta
+administrativa devuelve el correo de recuperación exclusivamente a administradores
+con autenticación reciente. No se modifica la autoridad clínica ni CUDYR.

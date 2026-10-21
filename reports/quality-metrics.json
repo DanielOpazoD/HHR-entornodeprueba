@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-10-18T03:03:18.157Z",
-  "gitSha": "627672549",
+  "generatedAt": "2026-10-21T01:50:54.102Z",
+  "gitSha": "be28603dd",
   "gitDirty": false,
   "generatedFor": {
-    "gitSha": "627672549",
+    "gitSha": "be28603dd",
     "gitDirty": false,
-    "treeHash": "10db24e7d1d642e7033c7faf3d477563de049c5d",
+    "treeHash": "e268e00bc374ad83c52f5b77426a3d90020071d1",
     "reportId": "quality-metrics",
     "dependencyFingerprint": {
       "algorithm": "sha256:dependency-files-v1",
@@ -15,24 +15,24 @@
     }
   },
   "source": {
-    "fileCount": 2887,
-    "lineCount": 323154,
+    "fileCount": 2955,
+    "lineCount": 329810,
     "zones": [
       {
         "zone": "features",
-        "fileCount": 1344
+        "fileCount": 1358
       },
       {
         "zone": "services",
-        "fileCount": 704
+        "fileCount": 740
       },
       {
         "zone": "hooks",
-        "fileCount": 247
+        "fileCount": 248
       },
       {
         "zone": "components",
-        "fileCount": 187
+        "fileCount": 201
       },
       {
         "zone": "application",
@@ -40,7 +40,7 @@
       },
       {
         "zone": "types",
-        "fileCount": 69
+        "fileCount": 70
       },
       {
         "zone": "shared",
@@ -48,7 +48,7 @@
       },
       {
         "zone": "domain",
-        "fileCount": 44
+        "fileCount": 45
       },
       {
         "zone": "utils",
@@ -64,7 +64,7 @@
       },
       {
         "zone": "schemas",
-        "fileCount": 16
+        "fileCount": 17
       },
       {
         "zone": "app-shell",
@@ -115,7 +115,7 @@
     "topZonePairs": []
   },
   "tests": {
-    "testFileCount": 2284,
+    "testFileCount": 2351,
     "skippedMarkers": 0,
     "onlyMarkers": 0,
     "flakeRiskFiles": 0,

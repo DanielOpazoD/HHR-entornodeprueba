@@ -1,3 +1,4 @@
+import type { ManagedUserRole } from '@/shared/access/roleAccessMatrix';
 import {
   browserSessionPersistence,
   setPersistence,
@@ -16,7 +17,10 @@ export interface NursingAccount {
   uid: string;
   name: string;
   rut: string;
-  role: 'nurse_hospital';
+  role: ManagedUserRole;
+  recoveryEmail?: string;
+  canEnable?: boolean;
+  deletedAt?: number | null;
   status: 'provisioning' | 'pending' | 'setting_password' | 'active' | 'suspended' | 'retired';
   createdAt: number;
   updatedAt: number;
@@ -43,19 +47,38 @@ export const callAccount = async <T>(
   return response.data;
 };
 
+export interface InitialAccountSetup {
+  requiresSetup: true;
+  activationToken: string;
+}
+
 export const establishNursingSession = async (
-  action: 'signInWithRut' | 'activateNursingAccount' | 'changeNursingPassword',
+  action:
+    | 'signInWithRut'
+    | 'activateNursingAccount'
+    | 'changeNursingPassword'
+    | 'resetNursingPassword',
   data: Record<string, unknown>,
   isCurrent: () => boolean = () => true
-): Promise<void> => {
+): Promise<void | InitialAccountSetup> => {
   await defaultAuthRuntime.ready;
   const auth = defaultAuthRuntime.auth;
   const initialUser = auth.currentUser;
   const generation = localStorage.getItem(SESSION_GENERATION_KEY);
-  const response = await callAccount<{ credentialEmail: string }>(action, {
+  const response = await callAccount<{ credentialEmail: string } | InitialAccountSetup>(action, {
     ...data,
     apiKey: auth.app.options.apiKey,
   });
+  if ('requiresSetup' in response) {
+    if (
+      !isCurrent() ||
+      auth.currentUser !== initialUser ||
+      localStorage.getItem(SESSION_GENERATION_KEY) !== generation
+    ) {
+      throw new Error('La sesión cambió; vuelve a iniciar sesión.');
+    }
+    return response;
+  }
   clearRecentAuthRoleLookups();
   await runSessionStorageTransition(async () => {
     if (
@@ -72,10 +95,14 @@ export const establishNursingSession = async (
 
 export const accountErrorMessage = (error: unknown): string => {
   const code = (error as { code?: string })?.code;
+  if (code === 'functions/unavailable')
+    return 'La recuperación por correo no está disponible ahora. Contacta al administrador.';
+  if (code === 'functions/invalid-argument')
+    return 'Revisa el correo y la clave: mínimo 6 caracteres, una mayúscula y un número.';
   if (code === 'functions/resource-exhausted') return 'Demasiados intentos. Espera unos minutos.';
   if (code === 'functions/failed-precondition')
     return 'Vuelve a ingresar para administrar accesos.';
   if (code === 'functions/already-exists')
     return 'El RUT ya tiene una cuenta. Revisa su estado en la lista.';
-  return 'No se pudo completar el acceso. Revisa los datos o solicita una nueva activación.';
+  return 'No se pudo validar el acceso o el código. Revisa los datos o solicita un nuevo código.';
 };
