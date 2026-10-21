@@ -159,8 +159,8 @@ describe('RUT initial credentials and email recovery', () => {
     let finishMail!: () => void;
     f.sendMail.mockImplementationOnce(
       () =>
-        new Promise<void>(resolve => {
-          finishMail = resolve;
+        new Promise<undefined>(resolve => {
+          finishMail = () => resolve(undefined);
         })
     );
     const delivery = f.recovery.deliverRecovery(known.challengeId);
