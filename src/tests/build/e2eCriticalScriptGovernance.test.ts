@@ -38,16 +38,19 @@ describe('E2E critical script governance', () => {
     const criticalGate = script.indexOf(
       'node scripts/check-playwright-report-clean.mjs "\\$E2E_CRITICAL_PLAYWRIGHT_JSON_OUTPUT" --label critical-e2e'
     );
-    const performanceRun = script.indexOf(
-      'PLAYWRIGHT_JSON_OUTPUT="\\$E2E_FLOW_PLAYWRIGHT_JSON_OUTPUT" npm run test:e2e:flow-performance:built'
+    const performanceEnvironment = script.indexOf(
+      'PLAYWRIGHT_JSON_OUTPUT="\\$E2E_FLOW_PLAYWRIGHT_JSON_OUTPUT"'
     );
+    const performanceRun = script.indexOf('npm run test:e2e:flow-performance:built');
 
     expect(script).toContain('reports/e2e/critical-playwright-report.json');
     expect(script).toContain('reports/e2e/flow-performance-playwright-report.json');
     expect(pathGuard).toBeGreaterThanOrEqual(0);
     expect(criticalRun).toBeGreaterThan(pathGuard);
     expect(criticalGate).toBeGreaterThan(criticalRun);
-    expect(performanceRun).toBeGreaterThan(criticalGate);
+    expect(performanceEnvironment).toBeGreaterThan(criticalGate);
+    expect(performanceRun).toBeGreaterThan(performanceEnvironment);
+    expect(script).toContain('--report "\\$E2E_FLOW_PLAYWRIGHT_JSON_OUTPUT"');
     expect(script.indexOf('npm run check:flow-performance-budget')).toBeGreaterThan(performanceRun);
   });
 

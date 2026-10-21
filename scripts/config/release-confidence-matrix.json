@@ -42,6 +42,7 @@
       "criticalCoverageZones": ["src/features/clinical-documents"],
       "blockingSteps": [
         "runtime_smoke",
+        "storage_rules_ci",
         "critical_coverage",
         "flow_performance",
         "e2e_critical_ci"

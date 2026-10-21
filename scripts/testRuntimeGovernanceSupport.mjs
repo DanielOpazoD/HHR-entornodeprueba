@@ -4,6 +4,10 @@ import { parseWorkflowJobs } from './ciArtifactContractSupport.mjs';
 import { buildCiRuntimeObservedProfile } from './ciRuntimeTelemetrySupport.mjs';
 import { getGitReportState } from './gitReportState.mjs';
 import { buildUnitShardBalanceReport } from './unitShardBalanceSupport.mjs';
+import {
+  patternExcludesFile,
+  resolveUnitSuiteExcludePatterns,
+} from './ciRiskPackMembershipSupport.mjs';
 
 const CONFIG_PATH = 'scripts/config/test-runtime-governance.json';
 const PACKAGE_JSON_PATH = 'package.json';
@@ -299,6 +303,33 @@ export const collectTestRuntimeGovernanceIssues = root => {
       }
       if (ciWorkflow.includes(`npm run ${script}`)) {
         issues.push(`${suite.id}: nightly-only script ${script} is in PR CI workflow.`);
+      }
+    }
+  }
+
+  const unitScripts = [
+    'test:ci:unit',
+    ...config.prBlockingSuites
+      .filter(suite => suite.id === 'unit-risk-shards')
+      .flatMap(scriptNamesForSuite),
+  ];
+  for (const suite of config.nightlySuites) {
+    for (const file of suite.testFiles || []) {
+      if (!fs.existsSync(path.join(root, file))) {
+        issues.push(`${suite.id}: nightly test file is missing: ${file}.`);
+      }
+      for (const script of new Set(unitScripts)) {
+        const command = commandForScript(packageJson.scripts, script);
+        if (!command) {
+          issues.push(`${suite.id}: cannot verify unit membership without script ${script}.`);
+          continue;
+        }
+        const excludes = resolveUnitSuiteExcludePatterns({ root, scriptCommand: command });
+        if (!excludes.some(pattern => patternExcludesFile(pattern, file))) {
+          issues.push(
+            `${suite.id}: nightly-only file ${file} is included indirectly in ${script}.`
+          );
+        }
       }
     }
   }

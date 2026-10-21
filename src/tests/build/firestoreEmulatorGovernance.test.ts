@@ -22,10 +22,13 @@ const createGovernanceRoot = () => {
 
   writeJson(root, 'package.json', {
     scripts: {
-      test: 'npm run test:ci:unit && npm run test:rules:ci && npm run test:emulator:sync:ci',
+      test: 'npm run test:ci:unit && npm run test:rules:ci && npm run test:storage-rules:ci && npm run test:emulator:sync:ci',
       'test:rules':
         'RUN_FIRESTORE_RULES_TESTS=1 vitest run -c vitest.rules.config.ts src/tests/security/firestore-rules.test.ts',
       'test:rules:ci': 'bash scripts/run-firestore-rules-ci.sh',
+      'test:storage-rules':
+        'RUN_STORAGE_RULES_TESTS=1 vitest run -c vitest.storage-rules.config.ts',
+      'test:storage-rules:ci': 'bash scripts/run-storage-rules-ci.sh',
       'test:emulator:sync':
         'RUN_FIRESTORE_EMULATOR_TESTS=1 vitest run -c vitest.emulator.config.ts',
       'test:emulator:ui':
@@ -39,9 +42,10 @@ const createGovernanceRoot = () => {
   });
   writeJson(root, 'scripts/config/release-confidence-pack.json', {
     profiles: {
-      blocking: ['rules_ci', 'emulator_sync_ci'],
+      blocking: ['rules_ci', 'storage_rules_ci', 'emulator_sync_ci'],
     },
     steps: [
+      { id: 'storage_rules_ci', command: 'npm run test:storage-rules:ci', tier: 'blocking' },
       { id: 'rules_ci', command: 'npm run test:rules:ci', tier: 'blocking' },
       { id: 'emulator_sync_ci', command: 'npm run test:emulator:sync:ci', tier: 'blocking' },
     ],
@@ -55,6 +59,11 @@ const createGovernanceRoot = () => {
       'ensure_java_available',
       'run_firestore_emulator_exec "npm run test:rules"',
     ].join('\n')
+  );
+  writeText(
+    root,
+    'scripts/run-storage-rules-ci.sh',
+    'ensure_java_available\nrun_storage_emulator_exec "npm run test:storage-rules -- --reporter=default --reporter=json --outputFile=reports/execution/storage.raw.json"'
   );
   writeText(
     root,
@@ -105,6 +114,8 @@ const createGovernanceRoot = () => {
       '      run: npm run test:rules:ci',
       '      env:',
       '        RUN_FIRESTORE_RULES_TESTS: 1',
+      '    - name: Run Storage rules tests with emulators',
+      '      -- npm run test:storage-rules:ci',
       '    - name: Run Firestore emulator test suites (sync + UI)',
       '      run: npm run test:emulator:sync:ci',
       '      env:',
@@ -126,6 +137,20 @@ describe('firestore emulator governance', () => {
     const root = createGovernanceRoot();
 
     expect(collectFirestoreEmulatorGovernanceIssues(root)).toEqual([]);
+  });
+
+  it('fails when CI silently stops executing Storage rules', () => {
+    const root = createGovernanceRoot();
+    const workflowPath = path.join(root, '.github/workflows/ci-cd.yml');
+    fs.writeFileSync(
+      workflowPath,
+      fs
+        .readFileSync(workflowPath, 'utf8')
+        .replace('-- npm run test:storage-rules:ci', 'run: echo skipped')
+    );
+    expect(collectFirestoreEmulatorGovernanceIssues(root)).toContain(
+      '.github/workflows/ci-cd.yml must run npm run test:storage-rules:ci in the rules-emulator job.'
+    );
   });
 
   it('fails when the shared emulator helper cannot override the Firestore port', () => {

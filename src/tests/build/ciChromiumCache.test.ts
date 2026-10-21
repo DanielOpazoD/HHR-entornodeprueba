@@ -62,7 +62,9 @@ it('shares Chromium preparation without dropping any browser gate', () => {
     expect(test).toBeGreaterThan(setup);
   }
   expect(
-    jobs['e2e-critical-emulator'].steps.some(step => step.run === 'npm run test:e2e:critical:ci')
+    jobs['e2e-critical-emulator'].steps.some(step =>
+      /(?:^|--\s+)npm run test:e2e:critical:ci(?:\s|$)/.test(step.run || '')
+    )
   ).toBe(true);
   expect(
     jobs['e2e-critical-emulator'].steps.some(

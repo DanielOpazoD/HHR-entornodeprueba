@@ -34,7 +34,7 @@
       "label": "Firestore rules and sync emulator",
       "workflow": ".github/workflows/ci-cd.yml",
       "job": "rules-emulator",
-      "scripts": ["test:rules:ci", "test:emulator:sync:ci"],
+      "scripts": ["test:rules:ci", "test:storage-rules:ci", "test:emulator:sync:ci"],
       "maxMinutes": 4,
       "reason": "Security rules and sync emulator behavior protect production writes."
     },
@@ -55,6 +55,7 @@
       "label": "Sync queue load budget",
       "workflow": ".github/workflows/nightly-test-runtime.yml",
       "script": "test:sync-load",
+      "testFiles": ["src/tests/services/storage/syncQueueLoad.test.ts"],
       "maxMinutes": 5,
       "reason": "Load behavior is valuable trend evidence but should not lengthen every PR."
     },

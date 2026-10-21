@@ -259,6 +259,7 @@ Debe seguir cubriendo:
 
 - `test:smoke:critical-runtime`
 - `test:rules:ci`
+- `test:storage-rules:ci`
 - `test:emulator:sync:ci`
 - `check:critical-coverage`
 - `check:flow-performance-budget`
@@ -524,7 +525,7 @@ sobre el mismo código y entorno.
 
 ### Falla `test:firestore:release:ci`
 
-1. distinguir si falla `rules`, `emulator:sync`, `emulator:ui` o `e2e:critical`
+1. distinguir si falla `rules`, `storage-rules`, `emulator:sync`, `emulator:ui` o `e2e:critical`
 2. si falla `rules`, validar contratos de schema y paths Firestore antes de tocar tests
 3. si falla `emulator:sync/ui`, revisar sync queue, repositorios, IndexedDB o adapters Firestore
 4. regenerar snapshots/reportes operativos si el cambio modificó budgets o recovery policies
