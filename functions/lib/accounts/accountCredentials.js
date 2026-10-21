@@ -23,8 +23,11 @@ const createAccountCredentials = ({
   now = Date.now,
   passwordVerifier = verifyPassword,
 }) => {
-  const publishVersion = (uid, version) =>
-    auth.setCustomUserClaims(uid, { hhrAccountVersion: version, role: 'nurse_hospital' });
+  const publishVersion = async (uid, version) => {
+    const account = (await firestore.collection(ACCESS).doc(uid).get()).data();
+    if (!account) throw genericFailure();
+    await auth.setCustomUserClaims(uid, { hhrAccountVersion: version, role: account.role });
+  };
   const finalizePassword = async (uid, operationId, password, version) => {
     const ref = firestore.collection(ACCESS).doc(uid);
     // Serialize credential changes across activation/recovery. A suspension can revoke

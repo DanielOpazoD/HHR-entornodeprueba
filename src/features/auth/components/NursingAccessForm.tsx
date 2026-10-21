@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useId } from 'react';
 import PasswordInput from '@/components/ui/PasswordInput';
 import {
   accountErrorMessage,
@@ -19,6 +19,7 @@ interface Props {
 type Mode = 'login' | 'activation' | 'setup' | 'request' | 'reset';
 
 export default function NursingAccessForm({ onSuccess, disabled, onBusyChange }: Props) {
+  const usernameHintId = useId();
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
@@ -111,29 +112,34 @@ export default function NursingAccessForm({ onSuccess, disabled, onBusyChange }:
     }
   };
   const locked = busy || disabled;
-  const input = 'mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900';
+  const input =
+    'mt-1.5 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-base text-slate-900 shadow-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-400/40 disabled:bg-slate-100';
   return (
     <form
       onSubmit={submit}
-      className="mt-5 space-y-3 text-sm text-white"
-      aria-label="Acceso individual de enfermería"
+      className="space-y-3 text-sm text-white"
+      aria-label="Ingreso con usuario y contraseña"
     >
-      <p className="font-semibold">
-        {mode === 'setup'
-          ? 'Primer ingreso: cambia tu clave'
-          : mode === 'request' || mode === 'reset'
-            ? 'Recuperar mi contraseña'
-            : mode === 'activation'
-              ? 'Activa tu acceso privado'
-              : 'Acceso individual'}
-      </p>
+      {mode !== 'login' && (
+        <p className="font-semibold">
+          {mode === 'setup'
+            ? 'Primer ingreso: cambia tu clave'
+            : mode === 'request' || mode === 'reset'
+              ? 'Recuperar mi contraseña'
+              : mode === 'activation'
+                ? 'Activa tu acceso privado'
+                : 'Acceso individual'}
+        </p>
+      )}
       <label className="block">
-        RUT con dígito verificador
+        Usuario
         <input
           className={input}
           value={rut}
           onChange={e => setRut(rutUsername(e.target.value))}
           autoComplete="username"
+          aria-describedby={usernameHintId}
+          placeholder="Ej. 17752753k"
           maxLength={20}
           required
           disabled={locked || mode === 'setup' || mode === 'reset'}
@@ -141,8 +147,8 @@ export default function NursingAccessForm({ onSuccess, disabled, onBusyChange }:
           spellCheck={false}
         />
       </label>
-      <p className="text-xs text-white/80">
-        Sin puntos ni guion, incluida la k en minúscula. Ejemplo: 17752753k.
+      <p id={usernameHintId} className="text-xs text-white/75">
+        Tu RUT con dígito verificador, sin puntos ni guion.
       </p>
       {(mode === 'activation' || mode === 'reset') && (
         <label className="block">
@@ -168,9 +174,10 @@ export default function NursingAccessForm({ onSuccess, disabled, onBusyChange }:
       )}
       {mode !== 'request' && (
         <label className="block">
-          {choosingPassword ? 'Elige tu clave personal' : 'Clave'}
+          {choosingPassword ? 'Elige tu clave personal' : 'Contraseña'}
           <PasswordInput
             key={mode}
+            aria-label={choosingPassword ? 'Elige tu clave personal' : 'Contraseña'}
             className={input}
             value={password}
             onChange={e => setPassword(e.target.value)}
@@ -188,6 +195,7 @@ export default function NursingAccessForm({ onSuccess, disabled, onBusyChange }:
           <label className="block">
             Repite tu nueva clave
             <PasswordInput
+              aria-label="Repite tu nueva clave"
               className={input}
               value={confirmation}
               onChange={e => setConfirmation(e.target.value)}
@@ -223,7 +231,7 @@ export default function NursingAccessForm({ onSuccess, disabled, onBusyChange }:
       <button
         type="submit"
         disabled={locked}
-        className="w-full rounded-lg bg-sky-600 px-3 py-2 font-semibold disabled:opacity-50"
+        className="min-h-11 w-full rounded-xl bg-sky-600 px-4 py-2.5 text-base font-semibold text-white shadow-sm transition hover:bg-sky-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-300 disabled:opacity-50"
       >
         {busy
           ? 'Validando…'
@@ -231,9 +239,9 @@ export default function NursingAccessForm({ onSuccess, disabled, onBusyChange }:
             ? 'Enviar código de recuperación'
             : choosingPassword
               ? 'Establecer clave e ingresar'
-              : 'Ingresar con RUT'}
+              : 'Ingresar'}
       </button>
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap justify-between gap-x-4 gap-y-2 text-xs">
         {mode === 'login' ? (
           <>
             <button
@@ -275,10 +283,13 @@ export default function NursingAccessForm({ onSuccess, disabled, onBusyChange }:
         )}
       </div>
       {mode === 'login' && (
-        <p className="text-xs text-white/80">
-          Primer ingreso: usa los números de tu RUT, sin dígito verificador, como clave inicial.
-          Deberás cambiarla y registrar tu correo antes de entrar.
-        </p>
+        <details className="text-xs leading-relaxed text-white/75">
+          <summary className="cursor-pointer py-1">¿Es tu primer ingreso?</summary>
+          <p className="mt-2">
+            Usa los números de tu RUT, sin dígito verificador, como clave inicial. Deberás cambiarla
+            y registrar tu correo antes de entrar.
+          </p>
+        </details>
       )}
     </form>
   );

@@ -116,6 +116,80 @@ const enabled = Boolean(
       await firestore?.terminate();
       if (app) await deleteApp(app);
     });
+    it('admin edits, resets, disables and deletes only the account while viewer rules and historical authors remain intact', async () => {
+      const adminContext = await google(adminEmail, 'synthetic-admin');
+      await firestore.doc('config/roles').set({ [adminEmail]: 'admin' });
+      const helpers = createAuthHelpers({ auth, firestore });
+      const administration = createAccountAdministration({ auth, firestore, helpers });
+      const credentials = createAccountCredentials({ auth, firestore });
+      const { uid } = await administration.createAccount(
+        { name: 'Synthetic viewer', role: 'viewer', rut: '333333333', identityVerified: true },
+        adminContext
+      );
+      const initial = await credentials.signInWithRut(
+        { rut: '333333333', password: '33333333' },
+        {}
+      );
+      await credentials.activateAccount(
+        {
+          rut: '333333333',
+          password,
+          recoveryEmail: 'viewer@example.invalid',
+          activationToken: initial.activationToken,
+        },
+        {}
+      );
+      const signed = await requestAuth('signInWithPassword', {
+        email: `${uid}@accounts.hhr.invalid`,
+        password,
+        returnSecureToken: true,
+      });
+      const viewerContext = await context(signed.idToken);
+      expect(viewerContext.auth.token.role).toBe('viewer');
+      const history = firestore.doc('hospitals/hanga_roa/dailyRecords/2025-01-02');
+      await history.set({
+        date: '2025-01-02',
+        authorUid: uid,
+        beds: {},
+        notes: 'untouched synthetic history',
+      });
+      const before = await history.get();
+      const viewer = rules.authenticatedContext(uid, rulesToken(viewerContext.auth.token));
+      await assertSucceeds(viewer.firestore().doc(history.path).get());
+      await assertFails(viewer.firestore().doc(history.path).update({ notes: 'forbidden' }));
+      await expect(administration.listAccounts({}, viewerContext)).rejects.toThrow();
+      const manage = (action: string, extra = {}) =>
+        administration.manageAccount({ uid, action, ...extra }, adminContext);
+      await manage('update', { name: 'Synthetic updated viewer', role: 'doctor_urgency' });
+      expect((await auth.getUser(uid)).customClaims?.role).toBe('doctor_urgency');
+      await assertFails(viewer.firestore().doc(history.path).get());
+      expect(
+        (await administration.listAccounts({}, adminContext)).accounts.find(
+          (a: { uid: string }) => a.uid === uid
+        ).recoveryEmail
+      ).toBe('viewer@example.invalid');
+      await manage('suspend');
+      expect((await auth.getUser(uid)).disabled).toBe(true);
+      await manage('enable');
+      expect((await auth.getUser(uid)).disabled).toBe(false);
+      await credentials.signInWithRut({ rut: '333333333', password, apiKey: 'synthetic-key' }, {});
+      await manage('reset');
+      await expect(
+        credentials.signInWithRut({ rut: '333333333', password, apiKey: 'synthetic-key' }, {})
+      ).rejects.toThrow();
+      expect(
+        (await credentials.signInWithRut({ rut: '333333333', password: '33333333' }, {}))
+          .requiresSetup
+      ).toBe(true);
+      await manage('delete');
+      await expect(auth.getUser(uid)).rejects.toMatchObject({ code: 'auth/user-not-found' });
+      expect((await firestore.doc(`hhr_account_access/${uid}`).get()).data()?.status).toBe(
+        'retired'
+      );
+      const after = await history.get();
+      expect(after.data()).toEqual(before.data());
+      expect(after.updateTime?.isEqual(before.updateTime!)).toBe(true);
+    }, 60000);
     it('privately activates, authenticates, rotates and revokes across every boundary while preserving Google and history', async () => {
       const adminContext = await google(adminEmail, 'synthetic-admin');
       const sharedContext = await google(sharedEmail, 'synthetic-shared');

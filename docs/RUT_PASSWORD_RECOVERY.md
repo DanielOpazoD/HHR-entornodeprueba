@@ -1,5 +1,6 @@
 # Acceso por RUT y recuperación
 
+- Pantalla principal: Usuario y Contraseña visibles, recuperación directa, Google como icono en la esquina inferior de la tarjeta. La contraseña permanece oculta hasta pulsar el ojo.
 - Usuario: RUT con DV sin puntos/guion y k minúscula. Se normaliza el texto pegado.
 - Cuenta nueva: clave inicial numérica sin DV, sólo para preparar el acceso.
 - Primer ingreso: nueva clave (6–128 caracteres, una mayúscula y un número),
@@ -55,3 +56,28 @@ La verificación administrativa previa del funcionario se conserva.
 Rollback: revertir cliente/funciones juntos; conservar estados, UID, auditoría y
 credenciales establecidas. No borrar índices ni restaurar contraseñas iniciales a
 cuentas activas. Los desafíos de recuperación no conceden permisos clínicos.
+
+## Gestión de usuarios
+
+La lista muestra nombre, RUT, correo de recuperación registrado, rol y estado. Los
+roles reutilizan la matriz existente de HHR; no se crean permisos clínicos nuevos.
+Solo un administrador con sesión reciente puede consultar correos o administrar.
+
+- **Modificar:** cambia nombre y rol, preservando UID, RUT, clave y correo. Revoca
+  la versión de sesión anterior y registra los valores anteriores/nuevos en auditoría.
+- **Resetear:** invalida la clave y los códigos anteriores; habilita la clave inicial
+  del RUT únicamente después de confirmar las operaciones de Auth. El siguiente
+  ingreso vuelve a exigir clave personal y correo. No emite un código de activación.
+- **Deshabilitar / Habilitar:** bloquea/restaura el acceso conservando la clave.
+  Una cuenta con configuración interrumpida requiere Resetear, no Habilitar.
+- **Eliminar:** elimina exclusivamente el usuario de Firebase Auth creado por HHR
+  (`hhrn_…`). Conserva la identidad retirada, reserva del RUT y auditoría para evitar
+  reasignar autorías. No borra censos, notas, correos Google ni datos de otras apps.
+  Si Auth no confirma la eliminación, queda inaccesible y puede completarse después
+  de cinco minutos. Los eliminados se ocultan salvo solicitud explícita del listado.
+
+La observación de verificación al crear una cuenta es opcional; la confirmación de
+identidad y vigencia permanece obligatoria. Los accesos antiguos se muestran en una
+sección colapsada. No se activa la transición oficial al abrir o modificar esta UI.
+La ampliación de la lista requiere alinear también `listNursingAccounts` en pruebas;
+no basta desplegar las ocho funciones iniciales. No se cambian reglas ni CUDYR.

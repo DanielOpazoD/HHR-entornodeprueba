@@ -95,27 +95,25 @@ test('initial RUT access, password visibility, mandatory setup and email recover
     }, googleToken);
     await expect(page.getByTestId('authenticated-user-menu-button')).toBeVisible();
     await page.goto('/role-management');
-    await expect(page.getByRole('heading', { name: 'Usuarios de enfermería' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Usuarios del equipo' })).toBeVisible();
+    await page.getByRole('button', { name: 'Nuevo usuario' }).click();
+    await page.getByLabel('Nombre completo', { exact: true }).fill('Enfermera Navegador Sintética');
+    await page.getByLabel('RUT con dígito verificador', { exact: true }).fill('222222222');
     await page
-      .getByLabel('Nombre verificado', { exact: true })
-      .fill('Enfermera Navegador Sintética');
-    await page.getByLabel('RUT con DV', { exact: true }).fill('222222222');
-    await page
-      .getByLabel('Referencia verificada del funcionario')
+      .getByLabel('Observación de verificación (opcional)')
       .fill('Padrón sintético de prueba');
-    await page.getByRole('checkbox', { name: /Verifiqué identidad/ }).check();
-    await page.getByRole('button', { name: 'Crear cuenta con clave inicial' }).click();
+    await page.getByRole('checkbox', { name: /Confirmé la identidad/ }).check();
+    await page.getByRole('button', { name: 'Crear usuario', exact: true }).click();
     await expect(page.getByText(/Cuenta creada. Usuario: 222222222/)).toBeVisible();
     await page.getByTestId('authenticated-user-menu-button').click();
     await page.getByRole('button', { name: 'Cerrar sesión', exact: true }).click();
     await expect(page.getByTestId('login-google-button')).toBeVisible();
-    await page.getByRole('button', { name: 'Ingresar con RUT / activar cuenta' }).click();
-    await page.getByLabel('RUT con dígito verificador').fill('222222222');
-    await page.getByLabel('Clave', { exact: true }).fill('22222222');
+    await page.getByLabel('Usuario', { exact: true }).fill('222222222');
+    await page.getByLabel('Contraseña', { exact: true }).fill('22222222');
     await page.getByRole('button', { name: 'Mostrar contraseña' }).click();
-    await expect(page.getByLabel('Clave', { exact: true })).toHaveAttribute('type', 'text');
+    await expect(page.getByLabel('Contraseña', { exact: true })).toHaveAttribute('type', 'text');
     await page.getByRole('button', { name: 'Ocultar contraseña' }).click();
-    await page.getByRole('button', { name: 'Ingresar con RUT', exact: true }).click();
+    await page.getByRole('button', { name: 'Ingresar', exact: true }).click();
     await expect(page.getByText('Primer ingreso: cambia tu clave')).toBeVisible();
     await expect(page.getByTestId('authenticated-user-menu-button')).not.toBeVisible();
     await page.getByLabel('Correo de recuperación').fill('nurse@example.invalid');
@@ -136,10 +134,9 @@ test('initial RUT access, password visibility, mandatory setup and email recover
     await menu.click();
     await page.getByRole('button', { name: 'Cerrar sesión', exact: true }).click();
     await expect(page.getByTestId('login-google-button')).toBeVisible();
-    await page.getByRole('button', { name: 'Ingresar con RUT / activar cuenta' }).click();
-    await page.getByLabel('RUT con dígito verificador').fill('222222222');
-    await page.getByLabel('Clave', { exact: true }).fill('Changed browser phrase 629!');
-    await page.getByRole('button', { name: 'Ingresar con RUT', exact: true }).click();
+    await page.getByLabel('Usuario', { exact: true }).fill('222222222');
+    await page.getByLabel('Contraseña', { exact: true }).fill('Changed browser phrase 629!');
+    await page.getByRole('button', { name: 'Ingresar', exact: true }).click();
     await expect(menu).toBeVisible();
     expect(
       await page.evaluate(() =>
@@ -150,9 +147,8 @@ test('initial RUT access, password visibility, mandatory setup and email recover
     await menu.click();
     await page.getByRole('button', { name: 'Cerrar sesión', exact: true }).click();
     await expect(page.getByTestId('login-google-button')).toBeVisible();
-    await page.getByRole('button', { name: 'Ingresar con RUT / activar cuenta' }).click();
     await page.getByRole('button', { name: 'Olvidé mi contraseña' }).click();
-    await page.getByLabel('RUT con dígito verificador').fill('222222222');
+    await page.getByLabel('Usuario', { exact: true }).fill('222222222');
     await page.getByRole('button', { name: 'Enviar código de recuperación' }).click();
     await expect(page.getByLabel('Código de recuperación')).toBeVisible();
     await expect.poll(() => recoveryCode).toMatch(/^\d{8}$/);

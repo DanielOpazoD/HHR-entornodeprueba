@@ -73,6 +73,9 @@ export const accountFixture = () => {
     },
   };
   const auth = {
+    deleteUser: vi.fn(async (uid: string) => {
+      users.delete(uid);
+    }),
     createUser: vi.fn(async (data: Data & { uid: string }) => {
       users.set(data.uid, { ...data });
       return data;

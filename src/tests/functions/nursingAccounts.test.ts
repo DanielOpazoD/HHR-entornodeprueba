@@ -300,7 +300,7 @@ describe('private nursing account lifecycle', () => {
       })
     ).toBe('unauthorized');
     expect(f.documents.get('hospitals/hanga_roa/dailyRecords/2025-01-01')).toEqual(original);
-    expect(f.auth).not.toHaveProperty('deleteUser');
+    expect(f.auth.deleteUser).not.toHaveBeenCalled();
   });
   it('keeps ambiguous password failures closed until a delayed administrator recovery', async () => {
     const f = await setup();

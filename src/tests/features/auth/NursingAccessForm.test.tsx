@@ -19,7 +19,7 @@ describe('private individual access forms', () => {
     const onSuccess = vi.fn();
     render(<NursingAccessForm onSuccess={onSuccess} />);
     fireEvent.click(screen.getByText('Tengo un código de activación'));
-    fireEvent.change(screen.getByLabelText('RUT con dígito verificador'), {
+    fireEvent.change(screen.getByLabelText('Usuario'), {
       target: { value: '11.111.111-1' },
     });
     fireEvent.change(screen.getByLabelText('Código privado de activación'), {
@@ -60,10 +60,12 @@ describe('private individual access forms', () => {
     vi.mocked(establishNursingSession).mockRejectedValue(new Error('private provider detail'));
     const onSuccess = vi.fn();
     render(<NursingAccessForm onSuccess={onSuccess} />);
-    fireEvent.change(screen.getByLabelText('RUT con dígito verificador'), {
+    fireEvent.change(screen.getByLabelText('Usuario'), {
       target: { value: '11.111.111-1' },
     });
-    fireEvent.change(screen.getByLabelText('Clave'), { target: { value: 'bad-private-password' } });
+    fireEvent.change(screen.getByLabelText('Contraseña'), {
+      target: { value: 'bad-private-password' },
+    });
     fireEvent.submit(screen.getByRole('form'));
     await screen.findByRole('alert');
     expect(onSuccess).not.toHaveBeenCalled();
@@ -101,13 +103,13 @@ describe('private individual access forms', () => {
     });
     const onSuccess = vi.fn();
     render(<NursingAccessForm onSuccess={onSuccess} />);
-    fireEvent.change(screen.getByLabelText('RUT con dígito verificador'), {
+    fireEvent.change(screen.getByLabelText('Usuario'), {
       target: { value: '17.752.753-K' },
     });
-    expect(screen.getByLabelText('RUT con dígito verificador')).toHaveValue('17752753k');
-    fireEvent.change(screen.getByLabelText('Clave'), { target: { value: '17752753' } });
+    expect(screen.getByLabelText('Usuario')).toHaveValue('17752753k');
+    fireEvent.change(screen.getByLabelText('Contraseña'), { target: { value: '17752753' } });
     fireEvent.click(screen.getByRole('button', { name: 'Mostrar contraseña' }));
-    expect(screen.getByLabelText('Clave')).toHaveAttribute('type', 'text');
+    expect(screen.getByLabelText('Contraseña')).toHaveAttribute('type', 'text');
     fireEvent.submit(screen.getByRole('form'));
     await screen.findByText('Primer ingreso: cambia tu clave');
     expect(onSuccess).not.toHaveBeenCalled();
@@ -142,7 +144,7 @@ describe('private individual access forms', () => {
     const onSuccess = vi.fn();
     render(<NursingAccessForm onSuccess={onSuccess} />);
     fireEvent.click(screen.getByRole('button', { name: 'Olvidé mi contraseña' }));
-    fireEvent.change(screen.getByLabelText('RUT con dígito verificador'), {
+    fireEvent.change(screen.getByLabelText('Usuario'), {
       target: { value: '111111111' },
     });
     fireEvent.submit(screen.getByRole('form'));

@@ -1,3 +1,4 @@
+import type { ManagedUserRole } from '@/shared/access/roleAccessMatrix';
 import {
   browserSessionPersistence,
   setPersistence,
@@ -16,7 +17,10 @@ export interface NursingAccount {
   uid: string;
   name: string;
   rut: string;
-  role: 'nurse_hospital';
+  role: ManagedUserRole;
+  recoveryEmail?: string;
+  canEnable?: boolean;
+  deletedAt?: number | null;
   status: 'provisioning' | 'pending' | 'setting_password' | 'active' | 'suspended' | 'retired';
   createdAt: number;
   updatedAt: number;

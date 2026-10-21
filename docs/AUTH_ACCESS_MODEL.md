@@ -423,3 +423,13 @@ Las pantallas de activación, cambio de clave y administración se cargan al abr
 ### Carga y disponibilidad sin conexión
 
 La administración de usuarios y permisos se carga al abrir su panel y necesita conexión para leer la autoridad vigente y modificar cuentas. Su chunk no pertenece al precache clínico. El menú de usuario se carga al abrirlo, permanece en precache y conserva un cierre de sesión inmediato aun si ese recurso tarda o falla. El monitor de sesiones individuales, la preservación de la cola y la semilla clínica continúan disponibles sin conexión. Los límites de tamaño permanecen sin cambios.
+
+### Administración de cuentas por RUT (PR 919)
+
+Nombre y rol se editan desde Usuarios del equipo usando la matriz asignable vigente.
+Cada modificación incrementa la versión de acceso y renueva los claims bajo el
+bloqueo de credenciales; una sesión anterior no retiene permisos del rol previo.
+Resetear vuelve al primer ingreso obligatorio. Deshabilitar conserva la contraseña;
+Eliminar borra Auth y mantiene una identidad retirada para autorías. La consulta
+administrativa devuelve el correo de recuperación exclusivamente a administradores
+con autenticación reciente. No se modifica la autoridad clínica ni CUDYR.

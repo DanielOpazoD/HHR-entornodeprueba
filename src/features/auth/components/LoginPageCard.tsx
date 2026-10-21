@@ -57,7 +57,6 @@ export const LoginPageCard: React.FC<LoginPageCardProps> = ({
   onLocalResetStart,
 }) => {
   const { confirm } = useConfirmDialog();
-  const [individual, setIndividual] = useState(false);
   const [showIdentity, setShowIdentity] = useState(
     Boolean(onGoogleCredential && import.meta.env.VITE_GOOGLE_SIGN_IN_CLIENT_ID)
   );
@@ -90,7 +89,7 @@ export const LoginPageCard: React.FC<LoginPageCardProps> = ({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-3xl border p-8 shadow-[0_32px_70px_-28px_rgba(2,6,23,0.70)] backdrop-blur-2xl backdrop-saturate-150 animate-login-reveal animate-login-reveal-delay-2 sm:p-10 ${glassCardClass}`}
+      className={`relative overflow-hidden rounded-3xl border p-6 shadow-[0_32px_70px_-28px_rgba(2,6,23,0.70)] backdrop-blur-md backdrop-saturate-125 animate-login-reveal animate-login-reveal-delay-2 sm:p-7 ${glassCardClass}`}
     >
       {/* Accent gradient bar */}
       <div className={`absolute inset-x-0 top-0 h-1.5 ${accentBarClass}`} />
@@ -103,64 +102,26 @@ export const LoginPageCard: React.FC<LoginPageCardProps> = ({
 
       <div className="relative">
         <h2 className="text-center text-xl font-bold text-white text-balance drop-shadow-[0_1px_2px_rgba(2,6,23,0.45)]">
-          Acceso al Sistema
+          Iniciar sesión
         </h2>
-        <div className="mb-8" />
+        <p className="mb-5 mt-1.5 text-center text-sm text-white/75">
+          Accede con tu usuario de HHR.
+        </p>
 
         <div className="space-y-3">
-          {showIdentity && onGoogleCredential ? (
-            <GoogleIdentitySignIn
-              disabled={isAnyLoading}
-              onCredential={onGoogleCredential}
-              onUnavailable={useFallback}
-            />
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                void onGoogleSignIn();
-              }}
-              disabled={isAnyLoading}
-              data-testid="login-google-button"
-              className="flex w-full items-center justify-center gap-3 rounded-2xl border border-white/60 bg-white/95 px-4 py-4 font-bold text-slate-700 shadow-lg shadow-slate-950/20 transition-all duration-300 hover:-translate-y-0.5 hover:border-white hover:bg-white hover:shadow-xl active:scale-[0.99] disabled:bg-white/70"
-            >
-              {isGoogleLoading ? (
-                <>
-                  <Loader2 className="h-6 w-6 animate-spin text-medical-600" />
-                  Conectando con Google...
-                </>
-              ) : (
-                <>
-                  <GoogleIcon className="h-6 w-6" />
-                  Ingresar con Google
-                </>
-              )}
-            </button>
-          )}
-
           {onIndividualLoginSuccess && (
-            <>
-              <button
-                type="button"
-                disabled={isAnyLoading}
-                onClick={() => setIndividual(!individual)}
-                className="w-full rounded-xl border border-white/40 px-3 py-3 font-semibold text-white"
-              >
-                {individual ? 'Ocultar acceso individual' : 'Ingresar con RUT / activar cuenta'}
-              </button>
-              {individual && (
-                <Suspense fallback={<p className="text-white">Cargando acceso…</p>}>
-                  <NursingAccessForm
-                    onSuccess={onIndividualLoginSuccess}
-                    onBusyChange={onIndividualBusyChange}
-                    disabled={isGoogleLoading}
-                  />
-                </Suspense>
-              )}
-            </>
+            <Suspense
+              fallback={<p className="py-8 text-center text-sm text-white/80">Cargando acceso…</p>}
+            >
+              <NursingAccessForm
+                onSuccess={onIndividualLoginSuccess}
+                onBusyChange={onIndividualBusyChange}
+                disabled={isGoogleLoading}
+              />
+            </Suspense>
           )}
 
-          <div className="flex justify-center">
+          <div className="mt-4 flex items-center justify-between border-t border-white/15 pt-3">
             <button
               type="button"
               onClick={() => void handleResetLocalSession()}
@@ -171,6 +132,37 @@ export const LoginPageCard: React.FC<LoginPageCardProps> = ({
               <RotateCcw className="h-3 w-3" />
               {AUTH_UI_COPY.resetStorageAction}
             </button>
+            {showIdentity && onGoogleCredential ? (
+              <GoogleIdentitySignIn
+                disabled={isAnyLoading}
+                onCredential={onGoogleCredential}
+                onUnavailable={useFallback}
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  void onGoogleSignIn();
+                }}
+                disabled={isAnyLoading}
+                data-testid="login-google-button"
+                aria-label={isGoogleLoading ? 'Conectando con Google...' : 'Ingresar con Google'}
+                title="Ingresar con Google"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/60 bg-white shadow-sm transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white disabled:opacity-50"
+              >
+                {isGoogleLoading ? (
+                  <>
+                    <Loader2 className="h-6 w-6 animate-spin text-medical-600" />
+                    <span className="sr-only">Conectando con Google...</span>
+                  </>
+                ) : (
+                  <>
+                    <GoogleIcon className="h-6 w-6" />
+                    <span className="sr-only">Ingresar con Google</span>
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </div>
 

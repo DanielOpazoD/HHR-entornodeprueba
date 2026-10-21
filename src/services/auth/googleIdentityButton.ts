@@ -11,11 +11,11 @@ export interface GoogleIdentityApi {
   renderButton(
     element: HTMLElement,
     options: {
-      type: 'standard';
+      type: 'icon';
       theme: 'outline';
       size: 'large';
       text: 'continue_with';
-      width: number;
+      shape: 'circle';
       click_listener?: () => void;
     }
   ): void;
@@ -110,11 +110,11 @@ export const mountGoogleIdentityButton = (
     },
   });
   api.renderButton(element, {
-    type: 'standard',
+    type: 'icon',
     theme: 'outline',
     size: 'large',
     text: 'continue_with',
-    width: Math.min(element.clientWidth || 280, 280),
+    shape: 'circle',
     // GIS owns the real button click (including its iframe), not our container.
     click_listener: () => {
       if (!active || pending) return;

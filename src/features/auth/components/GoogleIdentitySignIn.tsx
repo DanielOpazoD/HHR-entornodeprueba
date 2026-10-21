@@ -43,7 +43,11 @@ export const GoogleIdentitySignIn: React.FC<Props> = ({
   }, [onUnavailable]);
 
   return (
-    <div className="text-center" data-testid="google-identity-sign-in">
+    <div
+      className="shrink-0 [&_svg]:h-5 [&_svg]:w-5"
+      title="Ingresar con Google"
+      data-testid="google-identity-sign-in"
+    >
       <div ref={container} inert={disabled || undefined} className="flex min-h-10 justify-center" />
     </div>
   );

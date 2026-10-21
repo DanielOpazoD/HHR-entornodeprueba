@@ -135,7 +135,7 @@ test.describe('Logout Flow', () => {
     }
 
     await logoutButton.click();
-    await expect(page.getByText(/Acceso al Sistema/i)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/Iniciar sesión/i)).toBeVisible({ timeout: 10000 });
 
     const afterLogout = await page.evaluate(() => localStorage.getItem('hhr_e2e_bootstrap_user'));
     expect(afterLogout).toBeNull();

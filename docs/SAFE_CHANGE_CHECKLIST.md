@@ -295,3 +295,10 @@ respuesta perdida. Reusar protección de identidades/censos/CUDYR sin modificarl
 Gate: `ci:merge-gate`, `test:release-confidence`, `test:accounts:emulator:ci`, revisión
 independiente y CI definitivo. Probar envío real requiere despliegue y configuración
 separados; el emulador sustituye únicamente el transporte de correo.
+
+Ampliación administrativa solicitada para PR 919: probar roles de activación,
+modificación y recuperación sin claims fijos de enfermería; reseteo a clave inicial,
+deshabilitar/habilitar sin pérdida de clave, eliminación de Auth sin borrar autorías,
+fallos intermedios y suspensión concurrente. Verificar listado de correo solo admin,
+confirmaciones de botones y controles antiguos colapsados. Emulator Auth/Firestore/
+Storage debe rechazar sesiones previas y escritura del rol de solo lectura.
