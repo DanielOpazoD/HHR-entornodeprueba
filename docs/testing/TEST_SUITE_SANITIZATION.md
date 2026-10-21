@@ -100,3 +100,11 @@ se pierde protección. Este cambio no promete una aceleración global.
 Las capturas distinguen siete productores obligatorios: cuatro unitarios, Storage,
 E2E crítico y performance de flujo. El inventario fuera de ese alcance permanece
 explícitamente sin observación. Ningún listado se convierte en ejecución aprobada.
+
+### Preview ejecutado por lanes
+
+Las seis entradas del pack canónico declaran `entryJob: preview-smoke-lanes`.
+El inventario valida el job YAML, la invocación ejecutable del lanzador, las
+cuatro lanes y su relación con la selección canónica. Los reportes de preview
+siguen fuera del alcance de captura de los siete productores del manifiesto;
+su gate propio comprueba la ejecución exacta y sin duplicados del pack.

@@ -2,6 +2,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { parse } from 'yaml';
+import {
+  buildPreviewSmokeLanes,
+  PREVIEW_SMOKE_LANE_NAMES,
+  PREVIEW_SMOKE_SCRIPT,
+  readPreviewSmokeSpecs,
+} from './previewSmokeLaneSupport.mjs';
 import { buildUnitShardBalanceReport } from './unitShardBalanceSupport.mjs';
 
 const git = (root, args) =>
@@ -249,7 +256,26 @@ export const collectE2eOwnershipIssues = (files, ownership, root) => {
     }
     const workflow = entry.workflow && path.join(root, entry.workflow);
     const body = workflow && fs.existsSync(workflow) ? fs.readFileSync(workflow, 'utf8') : '';
-    if (
+    if (entry.entryJob) {
+      const job = parse(body)?.jobs?.[entry.entryJob];
+      const lanes = job?.strategy?.matrix?.lane;
+      if (
+        entry.entryJob !== 'preview-smoke-lanes' ||
+        entry.entryScript ||
+        script !== PREVIEW_SMOKE_SCRIPT ||
+        !Array.isArray(lanes) ||
+        JSON.stringify([...lanes].sort()) !==
+          JSON.stringify([...PREVIEW_SMOKE_LANE_NAMES].sort()) ||
+        !job?.steps?.some(
+          step =>
+            step.run?.trim() === 'node scripts/run-preview-smoke-lane.mjs --lane=${{ matrix.lane }}'
+        ) ||
+        !Object.values(buildPreviewSmokeLanes(readPreviewSmokeSpecs(root)))
+          .flat()
+          .includes(entry.file)
+      )
+        issues.push(`Invalid preview lane entrypoint: ${entry.file}`);
+    } else if (
       !new RegExp(`npm run ${invoked.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=\\s|$)`).test(body)
     )
       issues.push(`E2E entry script is not invoked by its workflow: ${entry.file}`);

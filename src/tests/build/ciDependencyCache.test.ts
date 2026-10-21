@@ -81,6 +81,8 @@ it('reuses exact dependencies across compatible jobs with only one pristine-cach
     'final-confidence-and-readiness',
     'lighthouse-ci',
     'postmerge-evidence',
+    'preview-smoke',
+    'preview-smoke-lanes',
     'quality-static-base',
     'quality-static-dependent-groups',
     'quality-static-governance-snapshots',

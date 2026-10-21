@@ -159,7 +159,7 @@ describe('previewBootstrapEvidenceSupport', () => {
     expect(
       collectPreviewBootstrapEvidenceIssues({ report: healthyReport, provenance, expected })
     ).toContain(
-      'Preview bootstrap provenance artifact.producerJob mismatch: expected build, received other-job.'
+      'Preview bootstrap provenance artifact.producerJob mismatch: expected preview-smoke, received other-job.'
     );
   });
 });

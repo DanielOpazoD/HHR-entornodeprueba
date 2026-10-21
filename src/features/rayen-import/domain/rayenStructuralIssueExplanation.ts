@@ -1,6 +1,23 @@
 import type { RayenSyncStructuralIssueReason } from '@/types/domain/rayenSync';
 
 export const explainRayenStructuralIssue = (reason: RayenSyncStructuralIssueReason) => {
+  if (reason === 'admission-date-policy') {
+    return {
+      title: 'Fecha de ingreso protegida',
+      meaning:
+        'La validación detectó una fecha de ingreso distinta para un episodio ya registrado.',
+      action:
+        'Comprueba el episodio, la cama y ambas fechas indicadas en el detalle antes de reintentar.',
+    };
+  }
+  if (reason === 'structural-write-rejected') {
+    return {
+      title: 'Guardado del censo no confirmado',
+      meaning: 'El intento se detuvo al guardar los cambios del censo; la fase clínica no comenzó.',
+      action:
+        'Revisa la categoría técnica del detalle. Si se repite, copia el informe de sincronización.',
+    };
+  }
   if (
     ['occupied-local-bed', 'principal-bed-collision', 'cma-physical-bed-collision'].includes(reason)
   ) {

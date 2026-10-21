@@ -269,6 +269,58 @@ describe('test execution manifest evidence', () => {
     expect(collectE2eOwnershipIssues([entry.file], { specs: [entry] }, root)).toEqual([]);
   });
 
+  it('requires the canonical preview script, every lane and an executable lane invocation', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'hhr-preview-ownership-'));
+    tempRoots.push(root);
+    fs.writeFileSync(
+      path.join(root, 'package.json'),
+      JSON.stringify({
+        scripts: {
+          'ci:preview-smoke:built': 'playwright test e2e/a.spec.ts e2e/dicom-viewer.spec.ts',
+          'test:other': 'playwright test e2e/a.spec.ts',
+        },
+      })
+    );
+    const lanes = ['app', 'dicom-graphics-stress', 'dicom-1', 'dicom-2'];
+    const run = 'node scripts/run-preview-smoke-lane.mjs --lane=${{ matrix.lane }}';
+    const writeWorkflow = (selected: string[], command: string) =>
+      fs.writeFileSync(
+        path.join(root, 'ci.yml'),
+        JSON.stringify({
+          jobs: {
+            'preview-smoke-lanes': {
+              strategy: { matrix: { lane: selected } },
+              steps: [{ run: command }],
+            },
+          },
+        })
+      );
+    const entry = {
+      file: 'e2e/a.spec.ts',
+      lane: 'ci',
+      reason: 'Built preview',
+      command: 'npm run ci:preview-smoke:built',
+      entryJob: 'preview-smoke-lanes',
+      workflow: 'ci.yml',
+    };
+    const check = (selected = entry) =>
+      collectE2eOwnershipIssues([entry.file], { specs: [selected] }, root);
+    writeWorkflow(lanes, run);
+    expect(check()).toEqual([]);
+    expect(check({ ...entry, command: 'npm run test:other' })).toContain(
+      'Invalid preview lane entrypoint: e2e/a.spec.ts'
+    );
+    expect(check({ ...entry, entryJob: 'other-job' })).toContain(
+      'Invalid preview lane entrypoint: e2e/a.spec.ts'
+    );
+    writeWorkflow(lanes.slice(0, -1), run);
+    expect(check()).toContain('Invalid preview lane entrypoint: e2e/a.spec.ts');
+    writeWorkflow([...lanes, 'dicom-1'], run);
+    expect(check()).toContain('Invalid preview lane entrypoint: e2e/a.spec.ts');
+    writeWorkflow(lanes, `# ${run}`);
+    expect(check()).toContain('Invalid preview lane entrypoint: e2e/a.spec.ts');
+  });
+
   it('distinguishes changed contents in the same dirty worktree and fails closed outside Git', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'hhr-test-manifest-'));
     tempRoots.push(root);

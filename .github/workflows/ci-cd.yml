@@ -793,6 +793,7 @@ jobs:
     runs-on: ubuntu-24.04
     # The build consumes the release-evidence runtime contract from this job.
     # Other release gates still block ci-summary, but can run alongside the build.
+    # The preview smoke runs in preview-smoke-lanes so it no longer waits here.
     needs: [quality-static-governance-snapshots]
 
     steps:
@@ -822,19 +823,137 @@ jobs:
       - name: Validate runtime asset margin
         run: npm run check:runtime-asset-margin
 
+      - name: Upload production build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7
+          if-no-files-found: error
+          overwrite: true
+
+  preview-smoke-lanes:
+    # The preview pack starts with the other gates instead of after build-budget.
+    # Each lane serves its own bundle of the same commit: deployments rebuild on
+    # Netlify, and the bundle differs from build-budget only in release-evidence.json.
+    # Lanes are split by observed duration; see scripts/previewSmokeLaneSupport.mjs.
+    name: preview-smoke-lane (${{ matrix.lane }})
+    runs-on: ubuntu-24.04
+    needs: [ci-scope]
+    if: needs.ci-scope.outputs.scope == 'full'
+    strategy:
+      fail-fast: false
+      matrix:
+        lane: [app, dicom-graphics-stress, dicom-1, dicom-2]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup CI dependencies
+        uses: ./.github/actions/setup-ci-dependencies
+
+      - name: Build preview bundle
+        run: npm run build
+        env:
+          CI: true
+
       - name: Install Playwright browsers for preview bootstrap smoke
         uses: ./.github/actions/setup-ci-chromium
 
-      - name: Validate census and clinical library preview
-        run: npm run ci:preview-smoke:built
+      - name: Run preview smoke lane
+        run: node scripts/run-preview-smoke-lane.mjs --lane=${{ matrix.lane }}
         env:
           CI: true
-          PLAYWRIGHT_SKIP_PREVIEW_BUILD: '1'
+
+      - name: Upload app lane report
+        if: always() && matrix.lane == 'app'
+        uses: actions/upload-artifact@v7
+        with:
+          name: preview-smoke-blob-app
+          path: reports/e2e/preview-blobs/app/app.zip
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 7
+      - name: Upload dicom-graphics-stress lane report
+        if: always() && matrix.lane == 'dicom-graphics-stress'
+        uses: actions/upload-artifact@v7
+        with:
+          name: preview-smoke-blob-dicom-graphics-stress
+          path: reports/e2e/preview-blobs/dicom-graphics-stress/dicom-graphics-stress.zip
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 7
+      - name: Upload dicom-1 lane report
+        if: always() && matrix.lane == 'dicom-1'
+        uses: actions/upload-artifact@v7
+        with:
+          name: preview-smoke-blob-dicom-1
+          path: reports/e2e/preview-blobs/dicom-1/dicom-1.zip
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 7
+      - name: Upload dicom-2 lane report
+        if: always() && matrix.lane == 'dicom-2'
+        uses: actions/upload-artifact@v7
+        with:
+          name: preview-smoke-blob-dicom-2
+          path: reports/e2e/preview-blobs/dicom-2/dicom-2.zip
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 7
+
+  preview-smoke:
+    name: preview-smoke
+    runs-on: ubuntu-latest
+    needs: [ci-scope, preview-smoke-lanes]
+    # Merge whatever the lanes reported so failures are still summarized.
+    if: ${{ !cancelled() && needs.ci-scope.outputs.scope == 'full' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup CI dependencies
+        uses: ./.github/actions/setup-ci-dependencies
+
+      - name: Download same-run app lane report
+        uses: actions/download-artifact@v7
+        with:
+          name: preview-smoke-blob-app
+          path: reports/e2e/preview-blobs
+      - name: Download same-run dicom-graphics-stress lane report
+        uses: actions/download-artifact@v7
+        with:
+          name: preview-smoke-blob-dicom-graphics-stress
+          path: reports/e2e/preview-blobs
+      - name: Download same-run dicom-1 lane report
+        uses: actions/download-artifact@v7
+        with:
+          name: preview-smoke-blob-dicom-1
+          path: reports/e2e/preview-blobs
+      - name: Download same-run dicom-2 lane report
+        uses: actions/download-artifact@v7
+        with:
+          name: preview-smoke-blob-dicom-2
+          path: reports/e2e/preview-blobs
+
+      - name: Merge census and clinical library preview lanes
+        run: npx playwright merge-reports --config playwright.preview-merge.config.ts reports/e2e/preview-blobs
+        env:
           PLAYWRIGHT_PREVIEW_ARTIFACTS_DIR: reports/e2e/preview-bootstrap
 
       - name: Summarize census and library results
         if: always()
         run: node scripts/report-preview-summary.mjs
+
+      - name: Enforce every preview lane passed
+        run: test "$PREVIEW_LANES_RESULT" = success
+        env:
+          PREVIEW_LANES_RESULT: ${{ needs['preview-smoke-lanes'].result }}
+
+      - name: Prove every canonical preview test ran exactly once
+        run: node scripts/check-preview-smoke-completeness.mjs
 
       - name: Enforce preview bootstrap report artifact
         run: test -f reports/e2e/preview-bootstrap/report.json
@@ -855,19 +974,10 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
-      - name: Upload production build artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: dist
-          path: dist/
-          retention-days: 7
-          if-no-files-found: error
-          overwrite: true
-
   final-confidence-and-readiness:
     name: final-confidence-and-readiness
     runs-on: ubuntu-latest
-    needs: [quality-static-governance-snapshots, build, e2e-critical-emulator]
+    needs: [quality-static-governance-snapshots, build, preview-smoke, e2e-critical-emulator]
 
     steps:
       - name: Checkout code
@@ -1073,6 +1183,7 @@ jobs:
         rules-emulator,
         e2e-critical-emulator,
         build,
+        preview-smoke,
         final-confidence-and-readiness,
         ci-runtime-telemetry,
         census-startup-performance,
@@ -1089,6 +1200,7 @@ jobs:
       RULES_EMULATOR_RESULT: ${{ needs['rules-emulator'].result }}
       E2E_CRITICAL_RESULT: ${{ needs['e2e-critical-emulator'].result }}
       BUILD_RESULT: ${{ needs.build.result }}
+      PREVIEW_SMOKE_RESULT: ${{ needs['preview-smoke'].result }}
       FINAL_CONFIDENCE_RESULT: ${{ needs['final-confidence-and-readiness'].result }}
       CI_RUNTIME_TELEMETRY_RESULT: ${{ needs['ci-runtime-telemetry'].result }}
       CENSUS_PERFORMANCE_RESULT: ${{ needs['census-startup-performance'].result }}
@@ -1116,6 +1228,7 @@ jobs:
             "rules-emulator:$RULES_EMULATOR_RESULT" \
             "e2e-critical-emulator:$E2E_CRITICAL_RESULT" \
             "build:$BUILD_RESULT" \
+            "preview-smoke:$PREVIEW_SMOKE_RESULT" \
             "final-confidence-and-readiness:$FINAL_CONFIDENCE_RESULT" \
             "ci-runtime-telemetry:$CI_RUNTIME_TELEMETRY_RESULT" \
             "census-startup-performance:$CENSUS_PERFORMANCE_RESULT"
@@ -1138,7 +1251,7 @@ jobs:
     name: postmerge-evidence
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [build, ci-strict-summary, e2e-critical-emulator]
+    needs: [build, preview-smoke, ci-strict-summary, e2e-critical-emulator]
     permissions:
       actions: read
       contents: read
@@ -1159,7 +1272,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
 
       - name: Verify preview bootstrap artifact availability
-        run: node scripts/verify-github-run-artifact.mjs --artifact preview-bootstrap-artifacts --producer build
+        run: node scripts/verify-github-run-artifact.mjs --artifact preview-bootstrap-artifacts --producer preview-smoke
         env:
           GITHUB_TOKEN: ${{ github.token }}
 

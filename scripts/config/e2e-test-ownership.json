@@ -111,7 +111,8 @@
       "lane": "ci",
       "reason": "Built-preview browser smoke in CI.",
       "command": "npm run ci:preview-smoke:built",
-      "workflow": ".github/workflows/ci-cd.yml"
+      "workflow": ".github/workflows/ci-cd.yml",
+      "entryJob": "preview-smoke-lanes"
     },
     {
       "file": "e2e/census-remote-performance.spec.ts",
@@ -139,7 +140,8 @@
       "lane": "ci",
       "reason": "Built-preview browser smoke in CI.",
       "command": "npm run ci:preview-smoke:built",
-      "workflow": ".github/workflows/ci-cd.yml"
+      "workflow": ".github/workflows/ci-cd.yml",
+      "entryJob": "preview-smoke-lanes"
     },
     {
       "file": "e2e/chaos-network.spec.ts",
@@ -152,7 +154,8 @@
       "lane": "ci",
       "reason": "Built-preview browser smoke in CI.",
       "command": "npm run ci:preview-smoke:built",
-      "workflow": ".github/workflows/ci-cd.yml"
+      "workflow": ".github/workflows/ci-cd.yml",
+      "entryJob": "preview-smoke-lanes"
     },
     {
       "file": "e2e/clinical-document-ai-import.spec.ts",
@@ -172,14 +175,16 @@
       "lane": "ci",
       "reason": "Built-preview browser smoke in CI.",
       "command": "npm run ci:preview-smoke:built",
-      "workflow": ".github/workflows/ci-cd.yml"
+      "workflow": ".github/workflows/ci-cd.yml",
+      "entryJob": "preview-smoke-lanes"
     },
     {
       "file": "e2e/clinical-panel-reading-smoke.spec.ts",
       "lane": "ci",
       "reason": "Built-preview browser smoke in CI.",
       "command": "npm run ci:preview-smoke:built",
-      "workflow": ".github/workflows/ci-cd.yml"
+      "workflow": ".github/workflows/ci-cd.yml",
+      "entryJob": "preview-smoke-lanes"
     },
     {
       "file": "e2e/clinical-release-visual-smoke.spec.ts",
@@ -213,7 +218,8 @@
       "lane": "ci",
       "reason": "Built-preview browser smoke in CI.",
       "command": "npm run ci:preview-smoke:built",
-      "workflow": ".github/workflows/ci-cd.yml"
+      "workflow": ".github/workflows/ci-cd.yml",
+      "entryJob": "preview-smoke-lanes"
     },
     {
       "file": "e2e/eloisa-day-bootstrap-critical.spec.ts",
