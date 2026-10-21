@@ -729,10 +729,8 @@ jobs:
     steps:
       - name: Checkout tested merge tree
         uses: actions/checkout@v7
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: '22'
+      - name: Setup CI dependencies
+        uses: ./.github/actions/setup-ci-dependencies
       - name: Download same-run unit-1 execution evidence
         uses: actions/download-artifact@v7
         with:
