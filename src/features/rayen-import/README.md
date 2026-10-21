@@ -147,10 +147,11 @@ Si ya terminó como parcial, **Reintentar sincronización** realiza una captura 
 `runId` autorizado; no se reabre ni se rebaja la política de una ejecución cerrada. Los conflictos estructurales reales permanecen en revisión y bloquean sólo
 los episodios afectados. La dotación Enfermería/TENS conserva su botón y decisión independientes.
 
-`rayenSyncHistory` guarda únicamente agregados de coordinación: contexto actual/histórico,
+Para la coordinación, `rayenSyncHistory` guarda sólo agregados: contexto actual/histórico,
 duraciones por etapa, replanteamientos por concurrencia, cantidades de episodios confirmados u
-omitidos y reintentos clínicos. No persiste fechas objetivo, camas, episodios, nombres ni valores
-clínicos en esa telemetría.
+omitidos y reintentos clínicos. Esa evidencia de coordinación no persiste fechas objetivo, camas,
+episodios, nombres ni valores clínicos; el detalle de cada incidencia se guarda aparte (ver
+«Trazabilidad para resolver incidencias»).
 
 ## Seguridad clínica
 
@@ -349,10 +350,13 @@ la del registro completo; no aplica tolerancias de minutos ni inventa una hora c
   comenzar y se descarta si un `runId` más nuevo ya reemplazó su estructura.
 - **Orden independiente:** las reubicaciones se planifican como lote; cadenas y permutas liberan
   sus orígenes antes de los ingresos, mientras una cadena bloqueada no libera ninguna cama.
-- **Trazabilidad sin PHI del paciente:** `rayenSyncHistory` guarda actor, tiempos, duración, salud
-  de fuentes y agregados del diff/cobertura. Si una asignación de personal se excluye cerca del
-  relevo, conserva evidencia operacional acotada del funcionario (nombre, rol, fuente y hora), pero
-  nunca nombres/RUN/diagnósticos de pacientes, contenido clínico ni errores crudos.
+- **Trazabilidad para resolver incidencias:** `rayenSyncHistory` guarda actor, tiempos, duración,
+  salud de fuentes y agregados del diff/cobertura. Para facilitar la resolución de problemas, cada
+  incidencia clínica o conflicto estructural en revisión conserva su detalle: cama, episodio, fecha
+  del censo, nombre y documento del paciente (en lecturas clínicas fallidas, sólo si el episodio
+  identifica a un único paciente) y el motivo del conflicto. Si una asignación de personal se
+  excluye cerca del relevo, conserva evidencia operacional acotada del funcionario (nombre, rol,
+  fuente y hora). Nunca guarda diagnósticos, contenido clínico, errores crudos ni credenciales.
 - **Historial acotado:** cada `runId` se actualiza en el mismo evento y se conservan máximo 20 por día.
 - **Telemetría técnica sin datos clínicos:** el mismo evento `rayenSyncHistory` registra tiempos de
   preflight, captura dual, reconciliación, evidencia histórica, lecturas clínicas, espera de
@@ -361,8 +365,8 @@ la del registro completo; no aplica tolerancias de minutos ni inventa una hora c
   disponibles mediante el catálogo HHR, usando sólo conteos. No crea otra colección, no se proyecta
   a `rayenSync` y sólo se muestra dentro del panel técnico plegado del historial; sus contratos no
   admiten RUN, nombres, camas, `ENC_ID` ni valores clínicos.
-- **Concurrencia por fuente:** dispositivos, historial y formularios usan colas independientes de
-  máximo cuatro lecturas. Un PDF lento no bloquea las otras fuentes; los guardados del censo
+- **Concurrencia por fuente:** dispositivos, historial, formularios y paquete clínico usan colas
+  independientes de máximo cuatro lecturas. Un PDF lento no bloquea las otras fuentes; los guardados del censo
   permanecen serializados para evitar conflictos de escritura.
 - **CUDYR histórico estrecho:** el cliente envía sólo la corrección CUDYR; la autoridad del
   servidor la fusiona con las demás escalas vigentes para no depender de una proyección local

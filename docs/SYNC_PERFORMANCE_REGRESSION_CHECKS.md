@@ -110,6 +110,15 @@ que no llegó la captura, **no** qué componente interno la demoró. Tampoco se 
 un timeout al servidor de Eloísa sin una respuesta o una medición de esa fuente.
 Estos códigos no contienen datos clínicos y no alteran la captura ni los plazos.
 
+Los plazos no se suman de forma uniforme. El worker sondea en paralelo las pestañas de Ficha
+Médico, pero lee las que respondieron al sondeo una tras otra, cada una con su propio plazo de
+mensaje (50 s), mientras HHR espera toda la captura con un único plazo (75 s). Una pestaña que
+responde al sondeo y se atasca al leer, seguida de otra sana, entrega la captura a los 50 s. Con
+dos pestañas así, HHR falla la corrida con su timeout genérico y cancela la solicitud antes de
+que la extensión devuelva `ficha_tab_relay`; ese diagnóstico de etapa no llega a mostrarse.
+`fichamedicoStuckReadDeadline.test.ts` fija ambos casos con los plazos reales y comprueba que la
+recuperación de captura no repite un timeout ya clasificado.
+
 ### Fases agregadas de Ficha Médico (extensión 0.48.39)
 
 El lector MAIN separa cuatro duraciones de pared: verificación del contexto,
