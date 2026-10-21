@@ -6,6 +6,10 @@
 - Primer ingreso: nueva clave (6–128 caracteres, una mayúscula y un número),
   repetición y correo obligatorio. Firebase aplica el mínimo de seis caracteres.
 - Ojo: muestra/oculta cada clave sin enviar el formulario; oculto por defecto.
+- Formulario, usuario y claves solicitan `autocomplete="off"`; los valores no se
+  guardan en almacenamiento de la aplicación. El navegador puede ignorarlo para
+  sus claves guardadas: desactivar guardado/autocompletado en el perfil del equipo
+  si se necesita impedirlo de forma absoluta, especialmente en equipos compartidos.
 - Olvido: RUT → código al correo previamente registrado → código + nueva clave.
 - Código: ocho dígitos, diez minutos, cinco intentos, un uso. Reenviar genera otro
   desafío; cambiar la clave invalida todos los anteriores por versión de cuenta.
@@ -13,6 +17,13 @@
   la activación administrativa para registrar uno; no se adivinan contactos.
 
 ## Publicación y operación
+
+Comprobar también las reglas publicadas de Firestore y Storage: deben reconocer
+`hhr_account_access` y la versión de sesión. Desplegar sólo las funciones de
+cuentas no actualiza estas reglas. Un `checkUserRole` correcto junto con lecturas
+básicas denegadas puede revelar reglas antiguas, no una clave incorrecta.
+Comparar el ruleset activo con los archivos generados del SHA validado, sin
+ampliar permisos ni modificar datos para resolver el cierre de sesión.
 
 Funciones afectadas: `createNursingAccount`, `manageNursingAccount`, `activateNursingAccount`, `signInWithRut`,
 `changeNursingPassword` y nuevas `requestNursingPasswordRecovery`/`resetNursingPassword`,

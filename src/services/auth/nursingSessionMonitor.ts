@@ -1,4 +1,5 @@
 import type { User } from 'firebase/auth';
+import { isManagedUserRole } from '@/shared/access/roleAccessMatrix';
 import { clearRecentAuthRoleLookups, getDynamicRoleForEmail } from './authRoleLookup';
 
 /** Backend rules deny revoked versions immediately; this also closes a connected stale UI. */
@@ -22,7 +23,7 @@ export const watchNursingSession = (user: User, onRevoked: () => Promise<void>):
       }
       clearRecentAuthRoleLookups();
       const role = await getDynamicRoleForEmail(user.email || '');
-      if (active && role !== 'nurse_hospital') await onRevoked();
+      if (active && !isManagedUserRole(role ?? undefined)) await onRevoked();
     } catch {
       // Transient transport failures do not discard this actor's queued offline edits.
       // Absolute session expiry and the existing inactivity monitor remain in force.

@@ -78,3 +78,9 @@ el ahorro de un paso a todo el pipeline ni al rendimiento de la aplicación.
 La entrega se valida con `test:accounts:emulator:ci` (Auth/Firestore/Storage y UI
 sintéticos) y los gates de runtime crítico. El correo se sustituye en emuladores;
 no acredita entrega real. Ver [operación y publicación](RUT_PASSWORD_RECOVERY.md).
+
+El monitor de cuentas RUT debe conservar todos los roles administrables que
+confirma el servidor, incluido Administrador. Probar el control inicial y periódico,
+revocación, vencimiento, fallo transitorio y desmontaje; una contraseña aceptada
+no acredita una sesión utilizable. La aceptación real requiere leer datos básicos
+y recargar contra las reglas efectivamente publicadas en el proyecto de pruebas.
