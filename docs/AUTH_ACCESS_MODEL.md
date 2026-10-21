@@ -433,3 +433,27 @@ Resetear vuelve al primer ingreso obligatorio. Deshabilitar conserva la contrase
 Eliminar borra Auth y mantiene una identidad retirada para autorías. La consulta
 administrativa devuelve el correo de recuperación exclusivamente a administradores
 con autenticación reciente. No se modifica la autoridad clínica ni CUDYR.
+
+### Presentación de acceso por RUT · 21-10-2026
+
+El recorrido principal es usuario (RUT con dígito verificador), contraseña e Ingresar;
+Enter envía el formulario existente. Recuperación permanece visible. El código de
+activación está dentro de la ayuda de primer ingreso y el reinicio local dentro
+de Ayuda de acceso, con su confirmación original. Google conserva una acción
+secundaria pequeña. No hay selector previo de método ni transición automática
+a Google al fallar RUT.
+
+El arranque y la página lista comparten presentación; los controles de arranque
+son inertes hasta montar el formulario funcional. No se cambia persistencia de
+sesión, autorización, políticas de contraseña ni endpoints. Una sesión restaurada
+sigue usando el chrome del módulo correspondiente y no debe pasar por el login.
+
+La carga prioriza el formulario RUT dentro de la pantalla de acceso, sin un
+segundo import lazy entre ver la página y poder escribir. El login solicita el módulo de mantenimiento local
+solo tras confirmar Reiniciar; la recuperación de bootstrap también puede
+necesitar ese módulo por su propio recorrido, por lo que esto no demuestra
+por sí solo ahorro global de descarga. Durante esa confirmación/ejecución
+los accesos permanecen bloqueados; cancelar conserva lo escrito y un error de
+soporte desbloquea el formulario con un mensaje recuperable. La precarga común
+de Firebase Auth/Functions se conserva: es útil también para RUT. No se difieren
+las comprobaciones de permisos ni se sustituyen los métodos Google existentes.
