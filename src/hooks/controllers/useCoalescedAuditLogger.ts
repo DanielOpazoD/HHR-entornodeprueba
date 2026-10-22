@@ -29,9 +29,22 @@ type RecordAuditEvent = (
  * Edit bursts become one event: the first "before" and the last "after" of each field, written
  * after `waitMs` without changes, or right away when the tab hides, the page closes or the
  * session ends. Fields that end where they began are still recorded, as `reverted`.
+ *
+ * Each burst belongs to its `author` (the signed-in user who made the edits): edits of two people
+ * never merge, and when the author changes (a session ended without the usual logout) the previous
+ * person's pending edits are written in their own name at once, or refused if their session is
+ * gone — never under the next person.
  */
-export const useCoalescedAuditLogger = (recordEvent: RecordAuditEvent) => {
+export const useCoalescedAuditLogger = (recordEvent: RecordAuditEvent, author: string) => {
   const timersRef = React.useRef<Record<string, PendingAuditEntry>>({});
+
+  // Runs when the author changes (and on unmount): what is pending belongs to the previous one.
+  React.useEffect(
+    () => () => {
+      void Promise.all(Object.values(timersRef.current).map(entry => entry.flush?.()));
+    },
+    [author]
+  );
 
   React.useEffect(() => {
     const flushPending = async (): Promise<void> => {
@@ -63,8 +76,9 @@ export const useCoalescedAuditLogger = (recordEvent: RecordAuditEvent) => {
       authors?: string,
       waitMs: number = 5 * 60 * 1000
     ) => {
-      // The same bed may hold another patient or census day within the window.
-      const key = `${buildDebouncedAuditKey(action, entityId)}|${recordDate ?? ''}|${patientRut ?? ''}`;
+      // The same bed may hold another patient or census day within the window; and each burst
+      // is one person's.
+      const key = `${author}|${buildDebouncedAuditKey(action, entityId)}|${recordDate ?? ''}|${patientRut ?? ''}`;
       const reported = changedFields(buildMeaningfulAuditDetails(details));
       // A save that changed nothing must not replace the burst's before/after.
       if (details.changes && reported.length === 0) return;
@@ -106,6 +120,6 @@ export const useCoalescedAuditLogger = (recordEvent: RecordAuditEvent) => {
         touched: [...new Set([...(pending?.touched ?? []), ...reported])],
       };
     },
-    [recordEvent]
+    [recordEvent, author]
   );
 };

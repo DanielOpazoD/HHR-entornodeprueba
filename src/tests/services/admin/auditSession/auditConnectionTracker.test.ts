@@ -160,6 +160,19 @@ describe('audit connection tracker', () => {
     expect(pc.events.map(event => event.kind)).toEqual(['start', 'interruption']);
   });
 
+  it('records the outage of a connection opened without network once it reconnects', async () => {
+    const pc = device();
+    await beginAuditConnection(NURSE, pc.deps, false);
+    pc.advance(AUDIT_CONNECTION_MIN_OFFLINE_MS + 30_000);
+    markAuditConnectionOnline(NURSE.uid, pc.deps);
+
+    expect(pc.events.map(event => event.kind)).toEqual(['start', 'interruption']);
+    const drop = pc.events[1];
+    expect(drop.kind === 'interruption' && drop.to - drop.from).toBe(
+      AUDIT_CONNECTION_MIN_OFFLINE_MS + 30_000
+    );
+  });
+
   it('forgets an offline mark left by a page closed without network', async () => {
     const pc = device();
     await beginAuditConnection(NURSE, pc.deps);

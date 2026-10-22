@@ -60,7 +60,7 @@ const truncate = (value: string): string => truncateText(value, MAX_VALUE_LENGTH
 
 const formatDeviceValue = (value: Record<string, unknown>): string => {
   const installedAt = asAuditText(value.installationDate);
-  const notes = asAuditText(value.notes);
+  const notes = asAuditText(value.note) || asAuditText(value.notes);
   return [installedAt ? `instalado ${formatClinicalDayMonthYear(installedAt)}` : '', notes]
     .filter(Boolean)
     .join(' · ');

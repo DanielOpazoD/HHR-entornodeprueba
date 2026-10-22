@@ -229,7 +229,7 @@ export const useAudit = (userId: string): UseAuditReturn => {
     [recordEvent]
   );
 
-  const logDebouncedEvent = useCoalescedAuditLogger(recordEvent);
+  const logDebouncedEvent = useCoalescedAuditLogger(recordEvent, userId);
 
   const {
     logPatientAdmission,

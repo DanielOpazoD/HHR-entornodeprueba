@@ -161,6 +161,24 @@ describe('audit trail normalization', () => {
     expect(JSON.stringify(event.changes)).not.toContain('[…]');
   });
 
+  it('shows a device note change on its own', () => {
+    const event = normalize({
+      details: patientDetails('Paciente Sintético', {
+        changes: {
+          deviceDetails: {
+            CUP: {
+              old: { installationDate: '2026-10-01', note: 'Sonda 14' },
+              new: { installationDate: '2026-10-01', note: 'Sonda 16' },
+            },
+          },
+        },
+      }),
+    });
+    expect(event.changes).toHaveLength(1);
+    expect(event.changes[0].before).toContain('Sonda 14');
+    expect(event.changes[0].after).toContain('Sonda 16');
+  });
+
   it('expands device changes one device at a time', () => {
     const event = normalize({
       details: patientDetails('Paciente Sintético', {

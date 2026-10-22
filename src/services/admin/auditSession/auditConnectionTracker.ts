@@ -117,7 +117,8 @@ const closePrevious = (
 const startConnection = (
   identity: AuditConnectionIdentity,
   previous: AuditConnectionRecord | null,
-  deps: AuditConnectionDependencies
+  deps: AuditConnectionDependencies,
+  online = true
 ): AuditConnectionRecord => {
   closePrevious(previous, deps);
   const now = deps.now();
@@ -126,6 +127,8 @@ const startConnection = (
     id: deps.createId(),
     startedAt: now,
     lastSeenAt: now,
+    // Opened without network: the outage starts now, so reconnecting records it.
+    ...(online ? {} : { offlineSince: now }),
   });
   // After a recorded logout the next start is a sign-in, even for the same person.
   const resumed = Boolean(
@@ -158,11 +161,11 @@ export const beginAuditConnection = (
         email: identity.email,
         name: identity.name ?? record.name,
         lastSeenAt: now,
-        ...(online || offlineSince === undefined ? {} : { offlineSince }),
+        ...(online ? {} : { offlineSince: offlineSince ?? now }),
       };
       return writeRecord(deps.storage, joined).id;
     }
-    return startConnection(identity, record, deps).id;
+    return startConnection(identity, record, deps, online).id;
   });
 
 /** Heartbeat from any open tab; a long silence (sleep, closed laptop) splits the connection. */

@@ -131,6 +131,26 @@ describe('useAudit handoff loggers', () => {
     expect(writes()[0][0].details).not.toHaveProperty('reverted');
   });
 
+  it('never merges two people’s edits: the earlier author’s leave in their own name', async () => {
+    const { result, rerender } = renderHook(({ userId }) => useAudit(userId), {
+      initialProps: { userId: 'ana@hospital.test' },
+    });
+    act(() => {
+      result.current.logMedicalHandoffModified('R1', 'Paciente', '1-9', 'Nota 2', 'Nota 1', 'd');
+    });
+    // Ana's session ended without the usual logout; Luis signs in and edits the same note.
+    rerender({ userId: 'luis@hospital.test' });
+    act(() => {
+      result.current.logMedicalHandoffModified('R1', 'Paciente', '1-9', 'Nota 3', 'Nota 2', 'd');
+    });
+    await settle();
+
+    expect(writes().map(([input]) => [input.userId, input.details.changes])).toEqual([
+      ['ana@hospital.test', { medicalHandoffNote: { old: 'Nota 1', new: 'Nota 2' } }],
+      ['luis@hospital.test', { medicalHandoffNote: { old: 'Nota 2', new: 'Nota 3' } }],
+    ]);
+  });
+
   it('writes pending notes immediately when the session ends', async () => {
     const { result } = renderHook(() => useAudit('test-user-123'));
 
