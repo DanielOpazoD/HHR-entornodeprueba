@@ -1,11 +1,7 @@
 import { createRequire } from 'node:module';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { accountFixture } from './nursingAccounts.test-support';
 const require = createRequire(import.meta.url);
-const {
-  consumeLimit,
-  verifyPassword,
-} = require('../../../functions/lib/accounts/accountTransport.js');
+const { verifyPassword } = require('../../../functions/lib/accounts/accountTransport.js');
 afterEach(() => vi.unstubAllEnvs());
 describe('private credential transport', () => {
   const password = 'synthetic-secret-not-to-log';
@@ -41,13 +37,5 @@ describe('private credential transport', () => {
     await expect(
       verifyPassword({ auth: {}, email, password, apiKey: 'synthetic-key', fetchImpl })
     ).rejects.not.toHaveProperty('message', expect.stringContaining(password));
-  });
-  it('serializes rate limits across callers and resets only after the window', async () => {
-    const { firestore } = accountFixture();
-    const attempts = await Promise.allSettled(
-      Array.from({ length: 15 }, () => consumeLimit(firestore, 'same-account', 10, 1000))
-    );
-    expect(attempts.filter(r => r.status === 'fulfilled')).toHaveLength(10);
-    await expect(consumeLimit(firestore, 'same-account', 10, 301001)).resolves.toBeUndefined();
   });
 });

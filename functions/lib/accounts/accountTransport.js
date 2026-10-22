@@ -1,26 +1,40 @@
 const { https } = require('firebase-functions/v1');
 const { digest, genericFailure } = require('./accountPolicy');
 
-const consumeLimit = async (firestore, key, limit, now = Date.now()) => {
-  const ref = firestore.collection('hhr_account_rate_limits').doc(digest(key));
-  await firestore.runTransaction(async tx => {
-    const data = (await tx.get(ref)).data();
-    const fresh = data && data.until > now;
-    const count = fresh ? data.count : 0;
-    if (count >= limit)
-      throw new https.HttpsError(
-        'resource-exhausted',
-        'Espera unos minutos antes de volver a intentar.'
-      );
-    tx.set(ref, { count: count + 1, until: fresh ? data.until : now + 5 * 60000 });
-  });
+const nextLimitCounter = (data, limit, now) => {
+  const fresh = data && data.until > now;
+  const count = fresh ? data.count : 0;
+  return count >= limit ? null : { count: count + 1, until: fresh ? data.until : now + 5 * 60000 };
 };
 
-const rateLimit = async (firestore, context, key) => {
+const limitFailure = () =>
+  new https.HttpsError('resource-exhausted', 'Espera unos minutos antes de volver a intentar.');
+
+const rateLimit = async (firestore, context, key, readRef) => {
   // Express supplies the platform-normalized address; never trust a body/header address.
   const ip = context?.rawRequest?.ip || context?.rawRequest?.socket?.remoteAddress || 'unknown';
-  await consumeLimit(firestore, `ip:${ip}`, 100);
-  await consumeLimit(firestore, `account:${key}`, 10);
+  const limits = firestore.collection('hhr_account_rate_limits');
+  const ipRef = limits.doc(digest(`ip:${ip}`));
+  const accountRef = limits.doc(digest(`account:${key}`));
+  const now = Date.now();
+  const result = await firestore.runTransaction(async tx => {
+    const [ipSnapshot, accountSnapshot, readSnapshot] = await tx.getAll(
+      ipRef,
+      accountRef,
+      ...(readRef ? [readRef] : [])
+    );
+    const nextIp = nextLimitCounter(ipSnapshot.data(), 100, now);
+    if (!nextIp) return { allowed: false };
+    tx.set(ipRef, nextIp);
+    const nextAccount = nextLimitCounter(accountSnapshot.data(), 10, now);
+    // Account rejection still consumes the IP attempt; commit before throwing.
+    if (!nextAccount) return { allowed: false };
+    tx.set(accountRef, nextAccount);
+    return { allowed: true, readSnapshot };
+  });
+  if (!result.allowed) throw limitFailure();
+  // A retried transaction must expose only the snapshot whose writes committed.
+  return result.readSnapshot;
 };
 
 const verifyPassword = async ({ auth, email, password, apiKey, fetchImpl = fetch }) => {
@@ -59,4 +73,4 @@ const verifyPassword = async ({ auth, email, password, apiKey, fetchImpl = fetch
   }
 };
 
-module.exports = { consumeLimit, rateLimit, verifyPassword };
+module.exports = { rateLimit, verifyPassword };

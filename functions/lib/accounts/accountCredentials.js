@@ -123,8 +123,9 @@ const createAccountCredentials = ({
 
   const signInWithRut = async (data, context) => {
     const rut = normalizeRut(data?.rut);
-    await rateLimit(firestore, context, digest(rut));
-    const uid = (await firestore.collection(INDEX).doc(digest(rut)).get()).data()?.uid;
+    const uid = (
+      await rateLimit(firestore, context, digest(rut), firestore.collection(INDEX).doc(digest(rut)))
+    )?.data()?.uid;
     const initial = await beginInitialPassword({
       firestore,
       uid,

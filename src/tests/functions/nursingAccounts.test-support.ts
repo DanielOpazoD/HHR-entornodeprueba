@@ -5,17 +5,20 @@ type Data = Record<string, unknown>;
 export const accountFixture = () => {
   const documents = new Map<string, Data>();
   const users = new Map<string, Data>();
-  const snapshot = (path: string) => ({
-    id: path.split('/').at(-1),
-    exists: documents.has(path),
-    data: () => structuredClone(documents.get(path)),
-  });
+  const snapshot = (path: string) => {
+    const value = structuredClone(documents.get(path));
+    return {
+      id: path.split('/').at(-1),
+      exists: documents.has(path),
+      data: () => structuredClone(value),
+    };
+  };
   const doc = (path: string) => ({ path, get: async () => snapshot(path) });
   let serial = Promise.resolve();
   const firestore = {
     doc,
     collection: (name: string) => ({
-      doc: (id = randomUUID()) => doc(`${name}/${id}`),
+      doc: (id: string = randomUUID()) => doc(`${name}/${id}`),
       orderBy: (_field: string, _direction: string) => ({
         limit: (count: number) => ({
           get: async () => ({
@@ -39,6 +42,7 @@ export const accountFixture = () => {
     runTransaction: <T>(
       callback: (tx: {
         get: (ref: { path: string }) => Promise<ReturnType<typeof snapshot>>;
+        getAll: (...refs: { path: string }[]) => Promise<ReturnType<typeof snapshot>[]>;
         create: (ref: { path: string }, data: Data) => void;
         update: (ref: { path: string }, data: Data) => void;
         set: (ref: { path: string }, data: Data) => void;
@@ -48,6 +52,7 @@ export const accountFixture = () => {
         const writes: (() => void)[] = [];
         const result = await callback({
           get: async ref => snapshot(ref.path),
+          getAll: async (...refs) => refs.map(ref => snapshot(ref.path)),
           create: (ref, data) => {
             if (documents.has(ref.path)) throw new Error('exists');
             writes.push(() => documents.set(ref.path, structuredClone(data)));

@@ -121,3 +121,11 @@ medianas, primeros accesos observados, región y generación. Los cinco pares de
 la prueba regional orientan el rollout de pruebas; no garantizan arranque frío,
 p95 ni tiempo de pintura del censo. Verificar disponibilidad del endpoint y
 sesión/censo después de recargar por separado del CI o merge.
+
+Al agrupar lecturas del ingreso RUT, demostrar que sólo sale de la transacción el
+índice cuyo commit terminó; cubrir reintento, error de lectura/commit y políticas
+de IP/cuenta sin reducir límites. La clave personal debe evitar la lectura de
+preparación inicial sin omitir verificación de token revocado ni estado de acceso
+posterior al proveedor. Probar que una sesión reemplazada mientras espera el lock
+no limpia los resultados de rol del nuevo propietario. No añadir cachés de
+autorización, ni presentar menos RPC como solución probada a los arranques en frío.
