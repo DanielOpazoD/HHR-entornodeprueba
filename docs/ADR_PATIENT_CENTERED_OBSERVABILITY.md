@@ -1,8 +1,13 @@
 # ADR: Observabilidad paciente-centrica
 
-**Estado:** adoptado  
+**Estado:** reemplazado por la auditoría v2 (2026-10-22, ver `README_AUDIT.md`)  
 **Fecha:** 2026-07-02  
 **Modulo:** Observabilidad / Auditoria
+
+> **2026-10-22.** La vista de paquetes de 10 minutos, las intenciones y los chips de estado de
+> sincronización se retiraron. La auditoría v2 agrupa por paciente, funcionario, conexión o
+> tiempo sobre todo el período, y separa el detalle técnico detrás de cada línea. El log sigue
+> siendo de solo agregar; desde v2 los detalles de cada evento nuevo se acotan al escribirse.
 
 ## Contexto
 

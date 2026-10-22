@@ -329,6 +329,16 @@ service cloud.firestore {
     function canCreateAppendOnlyOperationalLogEntry() {
       return canCreateReadableClinicalDocument();
     }
+    function isOwnAuditLogEntry() {
+      let entry = request.resource.data;
+      return entry.userUid is string && entry.userUid == request.auth.uid &&
+             entry.userId is string && entry.userId.size() > 0 &&
+             (entry.userId.lower() == request.auth.token.get('email', '').lower() ||
+              entry.userId == request.auth.uid);
+    }
+    function canCreateOwnAuditLogEntry() {
+      return canCreateAppendOnlyOperationalLogEntry() && isOwnAuditLogEntry();
+    }
     function canWriteMedicalIndicationRecord() {
       return hasAnyEffectiveRole(['admin', 'doctor_urgency', 'doctor_specialist']);
     }
@@ -735,7 +745,7 @@ service cloud.firestore {
       }
       match /auditLogs/{logId} {
         allow read: if canReadAppendOnlyOperationalLog();
-        allow create: if canCreateAppendOnlyOperationalLogEntry();
+        allow create: if canCreateOwnAuditLogEntry();
         allow update, delete: if false;
       }
       match /transferRequests/{transferId} {
@@ -798,7 +808,7 @@ service cloud.firestore {
     }
     match /auditLogs/{logId} {
       allow read: if canReadAppendOnlyOperationalLog();
-      allow create: if canCreateAppendOnlyOperationalLogEntry();
+      allow create: if canCreateOwnAuditLogEntry();
       allow update, delete: if false;
     }
     match /allowedUsers/{userId} {

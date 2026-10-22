@@ -10,16 +10,19 @@ import type { AuthUser, UserRole } from '@/types/authRoleTypes';
 export type { AuthSessionState, UserRole };
 import {
   createHandleLogout,
+  flushPendingAuditEventsBeforeSignOut,
   getE2EBootstrapUser,
   resetLocationToLoginRoute,
   useFirebaseConnectionStatus,
   useInactivityLogout,
+  useLogoutAuditPreload,
   useOnlineStatus,
   useResolvedAuthBootstrap,
 } from '@/hooks/useAuthStateSupport';
-import { hasRecentManualLogout } from '@/services/auth/authLogoutState';
+import { beginPendingLogout, hasRecentManualLogout } from '@/services/auth/authLogoutState';
 import { useSessionPermissionGuard } from '@/hooks/useSessionPermissionGuard';
 import { useNursingSessionMonitor } from '@/hooks/useNursingSessionMonitor';
+import { useAuditConnectionTracker } from '@/hooks/useAuditConnectionTracker';
 import { shouldPreserveUnauthorizedSessionReason } from '@/hooks/controllers/authBootstrapController';
 import { isAuthBootstrapPending } from '@/services/auth/authBootstrapState';
 import {
@@ -185,6 +188,10 @@ export const useAuthState = (): UseAuthStateReturn => {
   );
   useInactivityLogout(currentUser, handleLogout);
   useNursingSessionMonitor(sessionState.status === 'authorized' ? currentUser : null, handleLogout);
+  useAuditConnectionTracker(
+    sessionState.status === 'authorized' && !e2eBootstrapUser ? currentUser : null
+  );
+  useLogoutAuditPreload(sessionState.status === 'authorized' ? currentUser?.uid : undefined);
   // Solo para sesiones plenamente autorizadas con Firebase Auth real: la firma
   // anónima (signature mode) no tiene rol efectivo en las reglas y el usuario
   // de bootstrap E2E no tiene sesión Firebase — en ambos casos las lecturas
@@ -221,6 +228,8 @@ export const useAuthState = (): UseAuthStateReturn => {
   useEffect(() => {
     const cleanup = onAuthChannelMessage(message => {
       if (message.type === 'LOGOUT') {
+        // This tab shows the login form at once; a sign-in there waits for this logout.
+        const finishLogout = beginPendingLogout();
         // Session-scoped Firebase persistence is local to this tab. Clearing
         // browser keys is not enough because Firebase can retain currentUser
         // in memory and emit it again; sign out locally without rebroadcasting.
@@ -231,6 +240,7 @@ export const useAuthState = (): UseAuthStateReturn => {
             setSessionState(createUnauthenticatedAuthSessionState());
             resetLocationToLoginRoute();
             clearRecentAuthenticatedSessionHint();
+            await flushPendingAuditEventsBeforeSignOut();
             try {
               await signOut();
             } finally {
@@ -238,7 +248,9 @@ export const useAuthState = (): UseAuthStateReturn => {
             }
           },
           message.generation
-        ).catch(() => undefined);
+        )
+          .catch(() => undefined)
+          .finally(finishLogout);
         // Drop this tab's own persisted auth copy too: with session-scoped
         // Firebase persistence the initiating tab's signOut cannot reach it,
         // so a refresh here would otherwise restore the closed session.

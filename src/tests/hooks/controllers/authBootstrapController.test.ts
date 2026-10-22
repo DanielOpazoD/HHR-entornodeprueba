@@ -6,7 +6,6 @@ import {
   shouldDeferUnauthenticatedSessionState,
   shouldIgnoreTransientUnauthenticatedBootstrapEvent,
   shouldResolveAuthBootstrapImmediatelyAsUnauthenticated,
-  shouldLogSessionLogin,
   SESSION_PERMISSION_STORM_CAUSE,
   shouldPreserveUnauthorizedSessionReason,
 } from '@/hooks/controllers/authBootstrapController';
@@ -94,22 +93,6 @@ describe('authBootstrapController', () => {
         hasPendingRedirect: false,
         hasAuthRehydrationHint: true,
         hasActiveFirebaseSession: false,
-      })
-    ).toBe(false);
-  });
-
-  it('logs session login only for authorized sessions with email that were not logged yet', () => {
-    expect(
-      shouldLogSessionLogin({
-        sessionState: authorizedSession,
-        hasLoggedThisSession: false,
-      })
-    ).toBe(true);
-
-    expect(
-      shouldLogSessionLogin({
-        sessionState: authorizedSession,
-        hasLoggedThisSession: true,
       })
     ).toBe(false);
   });

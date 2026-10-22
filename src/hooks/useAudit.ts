@@ -4,20 +4,17 @@
  * Must be used within a component that has access to authenticated user.
  */
 
-import React, { useCallback } from 'react';
+import { useCallback } from 'react';
 import { AUDIT_ACTION_LABELS } from '@/services/admin/auditConstants';
 import { AuditAction } from '@/types/auditActionTypes';
 import { AuditLogEntry } from '@/types/auditLogTypes';
 import { reportAuditOutcome } from '@/hooks/controllers/auditEventRejectionLogger';
 import { logger } from '@/services/utils/loggerService';
-import {
-  buildDebouncedAuditKey,
-  buildMeaningfulAuditDetails,
-  mergeDebouncedAuditDetails,
-  type PendingAuditEntry,
-} from '@/hooks/controllers/auditLogPolicyController';
+import { buildMeaningfulAuditDetails } from '@/hooks/controllers/auditLogPolicyController';
+import { useCoalescedAuditLogger } from '@/hooks/controllers/useCoalescedAuditLogger';
 import {
   VIEW_THROTTLE_KEY,
+  VIEW_THROTTLE_WINDOW_MS,
   buildNextViewThrottleState,
   parseViewThrottleState,
   serializeViewThrottleState,
@@ -38,15 +35,26 @@ const getViewThrottleState = (): ViewThrottleState => {
   return parseViewThrottleState(sessionStorage.getItem(VIEW_THROTTLE_KEY));
 };
 
-const updateViewThrottleState = (action: AuditAction): void => {
+const updateViewThrottleState = (action: AuditAction, subject: string): void => {
   if (typeof sessionStorage === 'undefined') return;
   const nextState = buildNextViewThrottleState(
     action,
     getViewThrottleState(),
-    new Date().toISOString()
+    new Date().toISOString(),
+    subject
   );
   sessionStorage.setItem(VIEW_THROTTLE_KEY, serializeViewThrottleState(nextState));
 };
+
+/**
+ * Reads are counted once per patient and screen. Document, name and bed together: a newborn may
+ * carry the mother's document but is another patient.
+ */
+const resolveViewSubject = (
+  entityId: string,
+  details: Record<string, unknown>,
+  patientRut?: string
+): string => [patientRut || details.rut, details.patientName, entityId].filter(Boolean).join('|');
 
 interface UseAuditReturn {
   // Logging functions
@@ -171,11 +179,8 @@ interface UseAuditReturn {
 }
 
 export const useAudit = (userId: string): UseAuditReturn => {
-  // Store browser timeout handles for debounced events (key: action-entityId)
-  const timersRef = React.useRef<Record<string, PendingAuditEntry>>({});
-
-  const logEvent = useCallback(
-    (
+  const recordEvent = useCallback(
+    async (
       action: AuditAction,
       entityType: AuditLogEntry['entityType'],
       entityId: string,
@@ -183,13 +188,13 @@ export const useAudit = (userId: string): UseAuditReturn => {
       patientRut?: string,
       recordDate?: string,
       authors?: string
-    ) => {
+    ): Promise<void> => {
       const normalizedDetails = buildMeaningfulAuditDetails(details);
       if (!normalizedDetails) {
         return;
       }
 
-      void (async () => {
+      try {
         const { executeWriteAuditEvent } = await loadWriteAuditEventUseCase();
         const outcome = await executeWriteAuditEvent({
           userId,
@@ -202,13 +207,14 @@ export const useAudit = (userId: string): UseAuditReturn => {
           authors,
         });
         reportAuditOutcome(outcome, { userId, action, entityType, entityId });
-      })().catch(error => logger.warn('Failed to record audit event', error));
+      } catch (error) {
+        logger.warn('Failed to record audit event', error);
+      }
     },
     [userId]
   );
 
-  // Smart logger (debounced with merging)
-  const logDebouncedEvent = useCallback(
+  const logEvent = useCallback(
     (
       action: AuditAction,
       entityType: AuditLogEntry['entityType'],
@@ -216,53 +222,14 @@ export const useAudit = (userId: string): UseAuditReturn => {
       details: Record<string, unknown>,
       patientRut?: string,
       recordDate?: string,
-      authors?: string,
-      waitMs: number = 5 * 60 * 1000 // Default 5 mins
+      authors?: string
     ) => {
-      const key = buildDebouncedAuditKey(action, entityId);
-
-      // Get existing pending entry
-      const pending = timersRef.current[key];
-
-      // Merge changes if they exist
-      const mergedDetails = mergeDebouncedAuditDetails(pending?.details || null, details);
-      if (!mergedDetails) {
-        return;
-      }
-
-      // Clear existing timer (explicitly using window for browser environment)
-      if (pending) {
-        window.clearTimeout(pending.timer);
-      }
-
-      // Set a new timer
-      const timer = window.setTimeout(() => {
-        const entry = timersRef.current[key];
-        if (entry) {
-          logEvent(
-            action,
-            entityType,
-            entityId,
-            entry.details,
-            entry.rut,
-            entry.date,
-            entry.authors
-          );
-          delete timersRef.current[key];
-        }
-      }, waitMs);
-
-      // Store merged details and timer
-      timersRef.current[key] = {
-        timer,
-        details: mergedDetails,
-        rut: patientRut,
-        date: recordDate,
-        authors,
-      };
+      void recordEvent(action, entityType, entityId, details, patientRut, recordDate, authors);
     },
-    [logEvent]
+    [recordEvent]
   );
+
+  const logDebouncedEvent = useCoalescedAuditLogger(recordEvent, userId);
 
   const {
     logPatientAdmission,
@@ -274,26 +241,7 @@ export const useAudit = (userId: string): UseAuditReturn => {
   } = usePatientLifecycleAuditLoggers(logEvent);
 
   const { logHandoffNovedadesModified, logMedicalHandoffModified, logNurseHandoffModified } =
-    useHandoffAuditLoggers(logEvent);
-
-  const logPatientView = useCallback(
-    (bedId: string, patientName: string, rut: string, recordDate: string, authors?: string) => {
-      logEvent(
-        'PATIENT_VIEWED',
-        'patient',
-        bedId,
-        { patientName, bedId },
-        rut,
-        recordDate,
-        authors
-      );
-    },
-    [logEvent]
-  );
-
-  const { logClinicalDocumentCreated, logClinicalDocumentEdited, logClinicalDocumentDeleted } =
-    useClinicalDocumentAuditLoggers(logEvent);
-  const { logCudyrModified } = useCudyrAuditLoggers(logEvent);
+    useHandoffAuditLoggers(logDebouncedEvent);
 
   const logViewEvent = useCallback(
     (
@@ -309,15 +257,43 @@ export const useAudit = (userId: string): UseAuditReturn => {
         return;
       }
 
-      if (shouldThrottleAuditViewAction(action, getViewThrottleState(), Date.now())) {
+      const subject = resolveViewSubject(entityId, details, patientRut);
+      if (
+        shouldThrottleAuditViewAction(
+          action,
+          getViewThrottleState(),
+          Date.now(),
+          VIEW_THROTTLE_WINDOW_MS,
+          subject
+        )
+      ) {
         return;
       }
 
-      updateViewThrottleState(action);
+      updateViewThrottleState(action, subject);
       logEvent(action, entityType, entityId, details, patientRut, recordDate, authors);
     },
     [logEvent, userId]
   );
+
+  const logPatientView = useCallback(
+    (bedId: string, patientName: string, rut: string, recordDate: string, authors?: string) => {
+      logViewEvent(
+        'PATIENT_VIEWED',
+        'patient',
+        bedId,
+        { patientName, bedId },
+        rut,
+        recordDate,
+        authors
+      );
+    },
+    [logViewEvent]
+  );
+
+  const { logClinicalDocumentCreated, logClinicalDocumentEdited, logClinicalDocumentDeleted } =
+    useClinicalDocumentAuditLoggers(logEvent);
+  const { logCudyrModified } = useCudyrAuditLoggers(logDebouncedEvent);
 
   const fetchLogs = useCallback(async (limit: number = 100): Promise<AuditLogEntry[]> => {
     const { executeFetchAuditLogs } = await loadFetchAuditLogsUseCase();

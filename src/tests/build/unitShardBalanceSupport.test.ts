@@ -139,13 +139,13 @@ describe('unit shard balance support', () => {
       files: [
         'src/tests/features/census/censusFlow.test.ts',
         'src/tests/services/storage/syncQueue.test.ts',
-        'src/tests/hooks/useAuditData.test.ts',
+        'src/tests/hooks/useAudit.test.ts',
         'src/tests/build/ciWorkflowGovernance.test.ts',
       ],
       durationByFile: {
         'src/tests/features/census/censusFlow.test.ts': 12000,
         'src/tests/services/storage/syncQueue.test.ts': 9000,
-        'src/tests/hooks/useAuditData.test.ts': 4000,
+        'src/tests/hooks/useAudit.test.ts': 4000,
         'src/tests/build/ciWorkflowGovernance.test.ts': 1000,
       },
       config: {

@@ -21,6 +21,7 @@ vi.mock('@/services/firebase-runtime/functionsRuntime', () => ({
 vi.mock('@/services/auth/authRoleLookup', () => ({ clearRecentAuthRoleLookups: mocks.clearRoles }));
 import { establishNursingSession } from '@/services/auth/nursingAccountService';
 import { runSessionStorageTransition } from '@/services/storage/sessionStorageTransition';
+import { beginPendingLogout } from '@/services/auth/authLogoutState';
 describe('individual login respects session replacement', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -72,6 +73,22 @@ describe('individual login respects session replacement', () => {
     expect(mocks.persistence).not.toHaveBeenCalled();
     expect(mocks.signIn).not.toHaveBeenCalled();
   });
+  it('waits for a logout of this tab to finish before verifying the new credentials', async () => {
+    const finishLogout = beginPendingLogout();
+    mocks.callable.mockResolvedValue({
+      data: { credentialEmail: 'synthetic@accounts.hhr.invalid' },
+    });
+    const login = establishNursingSession('signInWithRut', { password: 'synthetic-password' });
+    await new Promise(resolve => setTimeout(resolve, 20));
+    // The leaving session's token (revoked after a password change) must not be sent.
+    expect(mocks.callable).not.toHaveBeenCalled();
+
+    finishLogout();
+    await login;
+    expect(mocks.callable).toHaveBeenCalledTimes(1);
+    expect(mocks.signIn).toHaveBeenCalledTimes(1);
+  });
+
   it('uses session persistence and Firebase password sign-in after private verification', async () => {
     mocks.callable.mockResolvedValue({
       data: { credentialEmail: 'synthetic@accounts.hhr.invalid' },

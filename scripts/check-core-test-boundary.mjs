@@ -6,7 +6,6 @@ import path from 'node:path';
 const ROOT = process.cwd();
 const TARGET_FILES = [
   'src/tests/hooks/useAudit.test.ts',
-  'src/tests/hooks/useAuditData.test.ts',
   'src/tests/hooks/useBackupFiles.test.ts',
   'src/tests/hooks/useBackupFilesQuery.test.tsx',
   'src/tests/hooks/useCensusEmail.test.ts',

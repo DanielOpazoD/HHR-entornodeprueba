@@ -72,9 +72,10 @@ const openAuditView = async (page: Page) => {
   await expect(brandMenuButton).toBeVisible({ timeout: 10000 });
   await brandMenuButton.click();
 
-  const auditButton = page.getByRole('button', { name: 'Auditoría', exact: true });
-  await expect(auditButton).toBeVisible({ timeout: 10000 });
-  await auditButton.click();
+  // Auditoría is the first tab of Observabilidad.
+  const observabilityButton = page.getByRole('button', { name: 'Observabilidad', exact: true });
+  await expect(observabilityButton).toBeVisible({ timeout: 10000 });
+  await observabilityButton.click();
 
   const auditErrorHeading = page.getByRole('heading', { name: /Error en Auditoría/i });
   const retryButton = page.getByRole('button', { name: /Reintentar/i });
@@ -85,10 +86,17 @@ const openAuditView = async (page: Page) => {
     await retryButton.click();
   }
 
-  await expect(page.getByRole('heading', { name: /Registro de Auditoría/i })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Auditoría', exact: true })).toBeVisible({
     timeout: 15000,
   });
-  await expect(page.locator('table').last()).toBeVisible({ timeout: 10000 });
+
+  // The seeded events belong to the fixed E2E census day, not to today.
+  await page.getByRole('button', { name: 'Rango', exact: true }).click();
+  await page.getByLabel('Desde').fill(E2E_DEFAULT_DATE);
+  await page.getByLabel('Hasta').fill(E2E_DEFAULT_DATE);
+  await expect(page.getByRole('button', { name: /Audit Patient/ })).toBeVisible({
+    timeout: 10000,
+  });
 };
 
 test.describe('Audit Trail Flow', () => {
@@ -139,36 +147,30 @@ test.describe('Audit Trail Flow', () => {
   test('should navigate to audit view', async ({ page }) => {
     await openAuditView(page);
 
-    await expect(page.getByText('3 registros', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Cambios\s*1/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Accesos\s*1/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Conexiones\s*1/ })).toBeVisible();
   });
 
-  test('should filter audit logs by date', async ({ page }) => {
+  test('should filter audit logs by staff member', async ({ page }) => {
     await openAuditView(page);
 
-    const startDateFilter = page.locator('input[type="date"]').first();
-    const endDateFilter = page.locator('input[type="date"]').nth(1);
-
-    await startDateFilter.fill(E2E_DEFAULT_DATE);
-    await endDateFilter.fill(E2E_DEFAULT_DATE);
-
-    await expect(page.locator('tbody tr')).toHaveCount(3);
+    await page.getByLabel('Funcionario').selectOption('daniel.opazo@hospitalhangaroa.cl');
+    await expect(page.getByRole('button', { name: /Audit Patient/ })).toBeVisible();
   });
 
   test('should show action details', async ({ page }) => {
     await openAuditView(page);
 
-    const patientRow = page.locator('tbody tr').filter({ hasText: 'Audit Patient' }).first();
-    await expect(patientRow).toBeVisible();
-    await patientRow.click();
-
-    await expect(page.getByText('Audit Patient', { exact: true })).toBeVisible();
-    await expect(page.getByText(/Neumonía/i)).toBeVisible();
+    await page.getByRole('button', { name: /Audit Patient/ }).click();
+    await expect(page.getByText('Dx previo', { exact: true })).toBeVisible();
+    await expect(page.getByText('Neumonía', { exact: true })).toBeVisible();
   });
 
   test('should export audit logs', async ({ page }) => {
     await openAuditView(page);
 
-    const exportButton = page.getByRole('button', { name: /Exportar Excel/i }).first();
+    const exportButton = page.getByRole('button', { name: /Exportar/i }).first();
     await expect(exportButton).toBeVisible();
     await exportButton.click();
 
@@ -178,8 +180,13 @@ test.describe('Audit Trail Flow', () => {
   test('should display audit entries for different action types', async ({ page }) => {
     await openAuditView(page);
 
-    await expect(page.locator('tbody')).toContainText('Inicio de Sesión');
-    await expect(page.locator('tbody')).toContainText('Modificación de Datos');
-    await expect(page.locator('tbody')).toContainText('Exportación de Datos');
+    await page.getByRole('button', { name: /Conexiones\s*1/ }).click();
+    await page.getByRole('button', { name: 'Cronológico', exact: true }).click();
+    const dayLabel = E2E_DEFAULT_DATE.split('-').reverse().join('-');
+    await page.getByRole('button', { name: new RegExp(dayLabel) }).click();
+
+    await expect(page.getByText('Inicio de sesión').first()).toBeVisible();
+    await expect(page.getByText('Diagnóstico').first()).toBeVisible();
+    await expect(page.getByText('Exportación').first()).toBeVisible();
   });
 });

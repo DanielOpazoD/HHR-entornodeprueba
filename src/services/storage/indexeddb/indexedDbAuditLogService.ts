@@ -39,6 +39,35 @@ export const getAuditLogs = async (limitCount?: number | null): Promise<AuditLog
   }
 };
 
+export const getAuditLogsInRange = async ({
+  fromIso,
+  toIso,
+  limit,
+}: {
+  fromIso: string;
+  toIso: string;
+  limit: number;
+}): Promise<AuditLogEntry[]> => {
+  try {
+    await ensureDbReady();
+    return await db.auditLogs
+      .where('timestamp')
+      .between(fromIso, toIso, true, false)
+      .reverse()
+      .limit(limit)
+      .toArray();
+  } catch (error) {
+    recordOperationalErrorTelemetry('indexeddb', 'indexeddb_get_audit_logs', error, {
+      code: 'indexeddb_get_audit_logs_failed',
+      message: 'No fue posible recuperar logs de auditoria locales.',
+      severity: 'warning',
+      userSafeMessage: 'No fue posible recuperar logs de auditoria locales.',
+      context: { fromIso, toIso, limit },
+    });
+    return [];
+  }
+};
+
 export const clearAuditLogs = async (): Promise<void> => {
   try {
     await ensureDbReady();

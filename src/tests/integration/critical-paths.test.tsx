@@ -123,7 +123,6 @@ vi.mock('@/services/admin/auditService', () => ({
   logMedicalHandoffModified: vi.fn(),
   logEvent: vi.fn(),
   logDebouncedEvent: vi.fn(),
-  logUserLogin: vi.fn(),
 }));
 
 // ============================================================================
@@ -178,8 +177,8 @@ describe('Critical Integration Paths', () => {
     });
     // The create-day path needs an actual repository result; an empty vi.fn()
     // made admission depend on test order and could hide a failed initialization.
-    vi.mocked(mockDailyRecordRepositoryPort.initializeDay).mockImplementation(async () =>
-      currentRecord
+    vi.mocked(mockDailyRecordRepositoryPort.initializeDay).mockImplementation(
+      async () => currentRecord
     );
   });
 
@@ -197,15 +196,16 @@ describe('Critical Integration Paths', () => {
     // 1. Simulate Input: Admit Patient to Bed 1
     let admissionAccepted = false;
     await act(async () => {
-      admissionAccepted = (await result.current.updatePatientMultiple('bed-1', {
-        patientName: 'Juan Perez',
-        rut: '12.345.678-9',
-        age: '45',
-        specialty: Specialty.CIRUGIA,
-        status: PatientStatus.GRAVE,
-        pathology: 'Apendicitis',
-        admissionDate: '2025-01-04',
-      })) === true;
+      admissionAccepted =
+        (await result.current.updatePatientMultiple('bed-1', {
+          patientName: 'Juan Perez',
+          rut: '12.345.678-9',
+          age: '45',
+          specialty: Specialty.CIRUGIA,
+          status: PatientStatus.GRAVE,
+          pathology: 'Apendicitis',
+          admissionDate: '2025-01-04',
+        })) === true;
     });
     expect(admissionAccepted).toBe(true);
 

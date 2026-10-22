@@ -2,14 +2,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const auditServiceMocks = vi.hoisted(() => ({
   getAuditLogs: vi.fn(),
+  getAuditLogsByIds: vi.fn(),
+  getAuditLogsInRange: vi.fn(),
   logAuditEvent: vi.fn(),
   logThrottledViewEvent: vi.fn(),
-  logUserLogin: vi.fn(),
-  logUserLogout: vi.fn(),
 }));
 
 const auditUtilsMocks = vi.hoisted(() => ({
   getCurrentUserEmail: vi.fn(() => 'doctor@hospital.cl'),
+  getCurrentUserUid: vi.fn(() => 'doctor-123'),
 }));
 
 vi.mock('@/services/admin/auditService', () => auditServiceMocks);
@@ -17,12 +18,45 @@ vi.mock('@/services/admin/auditService', () => auditServiceMocks);
 vi.mock('@/services/admin/utils/auditUtils', () => auditUtilsMocks);
 
 import { defaultAuditPort } from '@/application/ports/auditPort';
+import * as connectionRuntimeMocks from '@/services/admin/auditSession/auditConnectionRuntime';
 
 describe('defaultAuditPort', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     auditServiceMocks.logAuditEvent.mockResolvedValue(undefined);
     auditServiceMocks.logThrottledViewEvent.mockResolvedValue(undefined);
+  });
+
+  it('ends the connection of the person leaving even if someone else signed in meanwhile', async () => {
+    auditUtilsMocks.getCurrentUserUid.mockReturnValue('next-person');
+    try {
+      await defaultAuditPort.logUserLogout('doctor@hospital.cl', 'manual', 'doctor-123');
+      expect(connectionRuntimeMocks.endCurrentAuditConnection).toHaveBeenCalledWith(
+        'manual',
+        'doctor-123'
+      );
+    } finally {
+      auditUtilsMocks.getCurrentUserUid.mockReturnValue('doctor-123');
+    }
+  });
+
+  it('refuses to report success for an audit event the server did not keep', async () => {
+    const write = () =>
+      defaultAuditPort.writeEvent(
+        'doctor@hospital.cl',
+        'DAILY_RECORD_DELETED',
+        'dailyRecord',
+        'd',
+        {
+          date: 'd',
+        }
+      );
+    auditServiceMocks.logAuditEvent.mockResolvedValueOnce('rejected');
+    await expect(write()).rejects.toThrow('No se pudo guardar el evento de auditoría.');
+    auditServiceMocks.logAuditEvent.mockResolvedValueOnce('failed');
+    await expect(write()).rejects.toThrow('No se pudo guardar el evento de auditoría.');
+    auditServiceMocks.logAuditEvent.mockResolvedValueOnce('stored');
+    await expect(write()).resolves.toBeUndefined();
   });
 
   it('routes patient admission audit through the core event logger with the legacy payload', async () => {
@@ -113,5 +147,26 @@ describe('defaultAuditPort', () => {
       },
       '2026-05-01'
     );
+  });
+
+  it('closes the device connection on logout and reads periods by range', async () => {
+    auditServiceMocks.getAuditLogsInRange.mockResolvedValue([]);
+
+    await defaultAuditPort.logUserLogout('doctor@hospital.cl', 'automatic');
+    await defaultAuditPort.fetchLogsInRange({
+      fromIso: '2026-10-22T05:00:00.000Z',
+      toIso: '2026-10-23T05:00:00.000Z',
+      limit: 3000,
+    });
+
+    expect(connectionRuntimeMocks.endCurrentAuditConnection).toHaveBeenCalledWith(
+      'automatic',
+      'doctor-123'
+    );
+    expect(auditServiceMocks.getAuditLogsInRange).toHaveBeenCalledWith({
+      fromIso: '2026-10-22T05:00:00.000Z',
+      toIso: '2026-10-23T05:00:00.000Z',
+      limit: 3000,
+    });
   });
 });
