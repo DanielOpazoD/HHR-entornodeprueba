@@ -17,6 +17,7 @@ import {
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
 
 import { exportServiceLogger } from '@/services/exporters/exporterLoggers';
+import { getTodayISO } from '@/utils/dateCoreUtils';
 
 export const exportDataJSON = async () => {
   const result = await exportDataJSONWithResult();
@@ -31,7 +32,7 @@ export const exportDataJSONWithResult = async (): Promise<
   const data = await getAllRecords();
   const jsonString = JSON.stringify(data, null, 2);
   const blob = new Blob([jsonString], { type: 'application/json' });
-  downloadBlob(blob, `hanga_roa_respaldo_${new Date().toISOString().split('T')[0]}.json`);
+  downloadBlob(blob, `hanga_roa_respaldo_${getTodayISO()}.json`);
   return createApplicationSuccess({ exported: true });
 };
 

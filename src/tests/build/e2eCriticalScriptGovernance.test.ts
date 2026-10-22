@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { parseWorkflow } from './workflowYamlTestSupport';
 
 const readPackageScripts = () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'));
@@ -11,10 +12,9 @@ const readPackageScripts = () => {
 const readCriticalCiScript = () =>
   fs.readFileSync(path.join(process.cwd(), 'scripts/run-e2e-critical-emulator-ci.sh'), 'utf8');
 
-const readCriticalWorkflowJob = () => {
-  const workflow = fs.readFileSync(path.join(process.cwd(), '.github/workflows/ci-cd.yml'), 'utf8');
-  return workflow.slice(workflow.indexOf('  e2e-critical-emulator:'), workflow.indexOf('  build:'));
-};
+const readCriticalWorkflowJob = () =>
+  parseWorkflow(fs.readFileSync(path.join(process.cwd(), '.github/workflows/ci-cd.yml'), 'utf8'))
+    .jobs['e2e-critical-emulator'];
 
 const readClinicalStabilityCiScript = () =>
   fs.readFileSync(path.join(process.cwd(), 'scripts/run-e2e-clinical-stability-ci.sh'), 'utf8');
@@ -55,26 +55,22 @@ describe('E2E critical script governance', () => {
   });
 
   it('reads operational metrics explicitly from the preserved critical report', () => {
-    const workflowJob = readCriticalWorkflowJob();
-
-    expect(workflowJob).toContain(
-      'PLAYWRIGHT_JSON_OUTPUT: reports/e2e/critical-playwright-report.json'
-    );
-    expect(workflowJob).toContain(
-      'E2E_FLOW_PLAYWRIGHT_JSON_OUTPUT: reports/e2e/flow-performance-playwright-report.json'
-    );
-    const steps = workflowJob.split(/^ {6}- name:/m);
-    const metricsSteps = steps.filter(step => step.includes('report-e2e-operational-metrics.mjs'));
-    expect(metricsSteps).toHaveLength(1);
-    expect(metricsSteps[0]).toContain('if: always()');
-    expect(metricsSteps[0]).toContain(
-      'run: node scripts/report-e2e-operational-metrics.mjs reports/e2e/critical-playwright-report.json --enforce'
-    );
-    expect(metricsSteps[0]).not.toContain('continue-on-error: true');
-    expect(steps.find(step => step.includes('name: e2e-critical-emulator-artifacts'))).toContain(
-      'if: always()'
-    );
-    expect(workflowJob).toContain('path: |\n            reports/e2e/**');
+    const { steps } = readCriticalWorkflowJob();
+    const critical = steps.find(step => step.run?.includes('npm run test:e2e:critical:ci'));
+    expect(critical?.env).toMatchObject({
+      PLAYWRIGHT_JSON_OUTPUT: 'reports/e2e/critical-playwright-report.json',
+      E2E_FLOW_PLAYWRIGHT_JSON_OUTPUT: 'reports/e2e/flow-performance-playwright-report.json',
+    });
+    const metrics = steps.filter(step => step.run?.includes('report-e2e-operational-metrics.mjs'));
+    expect(metrics).toHaveLength(1);
+    expect(metrics[0]).toMatchObject({
+      if: 'always()',
+      run: 'node scripts/report-e2e-operational-metrics.mjs reports/e2e/critical-playwright-report.json --enforce',
+    });
+    expect(metrics[0]).not.toHaveProperty('continue-on-error');
+    const artifacts = steps.find(step => step.with?.name === 'e2e-critical-emulator-artifacts');
+    expect(artifacts?.if).toBe('always()');
+    expect(String(artifacts?.with?.path).split('\n')).toContain('reports/e2e/**');
   });
 
   it('keeps a focused clinical stability smoke for high-churn clinical flows', () => {

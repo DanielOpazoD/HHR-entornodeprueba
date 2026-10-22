@@ -14,6 +14,7 @@ import {
 } from '@/services/storage/firestore/firestoreDocumentStore';
 import { safeJsonParse } from '@/utils/jsonUtils';
 import { tableConfigLogger } from '@/services/storage/storageLoggers';
+import { getTodayISO } from '@/utils/dateCoreUtils';
 
 // ============================================================================
 // Types
@@ -302,7 +303,7 @@ export const exportTableConfig = (config: TableConfig): void => {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `table-config-${new Date().toISOString().split('T')[0]}.json`;
+  a.download = `table-config-${getTodayISO()}.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

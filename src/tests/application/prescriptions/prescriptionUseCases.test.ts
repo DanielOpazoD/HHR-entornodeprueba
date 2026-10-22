@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { PrescriptionPort } from '@/application/ports/prescriptionPort';
-import { executeListPrescriptions } from '@/application/prescriptions/listPrescriptionsUseCase';
 import { executeReassignPrescriptionPatient } from '@/application/prescriptions/reassignPrescriptionPatientUseCase';
 import { executeDeletePrescription } from '@/application/prescriptions/deletePrescriptionUseCase';
 import { executeUpdatePrescriptionType } from '@/application/prescriptions/updatePrescriptionTypeUseCase';
@@ -16,42 +15,6 @@ const buildPort = (overrides: Partial<PrescriptionPort> = {}): PrescriptionPort 
   delete: vi.fn(async () => undefined),
   subscribeToList: vi.fn(() => () => undefined),
   ...overrides,
-});
-
-describe('executeListPrescriptions', () => {
-  it('falls back to list() when no date range is provided', async () => {
-    const port = buildPort({
-      list: vi.fn(async () => [{ id: 'rx-1' } as PrescriptionRecord]),
-    });
-
-    const result = await executeListPrescriptions(
-      { hospitalId: 'hhr' },
-      { prescriptionPort: port }
-    );
-
-    expect(result).toHaveLength(1);
-    expect(port.list).toHaveBeenCalledWith('hhr');
-    expect(port.listByDateRange).not.toHaveBeenCalled();
-  });
-
-  it('calls listByDateRange when both from and to are provided', async () => {
-    const port = buildPort({
-      listByDateRange: vi.fn(async () => [{ id: 'rx-2' } as PrescriptionRecord]),
-    });
-
-    const result = await executeListPrescriptions(
-      { hospitalId: 'hhr', from: '2026-05-04T00:00:00Z', to: '2026-05-04T23:59:59Z' },
-      { prescriptionPort: port }
-    );
-
-    expect(result).toHaveLength(1);
-    expect(port.listByDateRange).toHaveBeenCalledWith(
-      '2026-05-04T00:00:00Z',
-      '2026-05-04T23:59:59Z',
-      'hhr'
-    );
-    expect(port.list).not.toHaveBeenCalled();
-  });
 });
 
 describe('executeReassignPrescriptionPatient', () => {

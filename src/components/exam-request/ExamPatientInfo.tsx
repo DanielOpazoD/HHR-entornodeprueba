@@ -6,16 +6,14 @@
 import React from 'react';
 import type { PatientData } from '@/types/domain/patient';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
+import { getTodayISO } from '@/utils/dateCoreUtils';
 
 interface ExamPatientInfoProps {
   patient: PatientData;
   recordDate?: string;
 }
 
-const getLocalDateString = (): string => {
-  const today = new Date();
-  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-};
+const getLocalDateString = (): string => getTodayISO();
 
 export const ExamPatientInfo: React.FC<ExamPatientInfoProps> = ({ patient, recordDate }) => {
   const requestDate = recordDate || getLocalDateString();

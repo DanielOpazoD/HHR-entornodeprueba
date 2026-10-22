@@ -5,6 +5,7 @@ import {
   resolveDayShiftNurses,
   resolveNightShiftNurses,
 } from '@/services/staff/dailyRecordStaffing';
+import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 
 /**
  * Service to handle nurse attribution logic for shared accounts.
@@ -28,7 +29,8 @@ export const isSharedNursingAccount = (userId: string | undefined): boolean => {
 };
 
 /**
- * Determines the current shift based on the hour of the day and whether it's a working day.
+ * Determines the current shift from the hospital wall clock (Rapa Nui), whatever the device
+ * time zone, and whether that hospital day is a working day.
  *
  * Rules:
  * - Working Days (Hábiles): Day (08:00-20:00), Night (20:00-08:00 next day)
@@ -37,8 +39,10 @@ export const isSharedNursingAccount = (userId: string | undefined): boolean => {
  * @param date Optional date to check (defaults to now)
  */
 export const getCurrentShift = (date: Date = new Date()): 'day' | 'night' => {
-  const hour = date.getHours();
-  const isHabil = isWorkingDay(date);
+  const stamp = calendarStampInClinicalTimeZone(date);
+  const hour = Number(stamp.hhmm.slice(0, 2));
+  // UTC noon of the hospital day keeps its weekday and holiday lookup on that same day.
+  const isHabil = isWorkingDay(new Date(`${stamp.iso}T12:00:00Z`));
 
   if (isHabil) {
     // Working Day logic: 08:00 split
