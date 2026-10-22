@@ -64,8 +64,11 @@ Los eventos de conexión usan ids deterministas (`conn_<id>_start|end|net_*`), a
 desde otra pestaña es rechazado por la regla de solo agregar. Pasan por una bandeja local con una
 clave por evento (`hhr_audit_connection_outbox_v1:<id>`, así las pestañas no se pisan) que sobrevive
 al cierre de sesión: el cierre se envía antes de cerrar Firebase (espera máxima de 2 s; el cierre de
-Firebase nunca queda esperando) y, si no alcanza, en el siguiente inicio en ese equipo. Una pestaña
-cerrada por otra escribe antes sus ediciones pendientes. Al leer la bandeja solo se aceptan
+Firebase nunca queda esperando) y, si no alcanza, en el siguiente inicio en ese equipo. Un ingreso
+en la misma pestaña espera a que ese cierre termine (máximo 5 s), para no usar la sesión que sale.
+Una pestaña cerrada por otra escribe antes sus ediciones pendientes. Solo Firestore vacía la bandeja:
+sin red los eventos esperan, una sola pestaña entrega a la vez y nunca se descarta un evento por
+antigüedad (con 500 pendientes, el nuevo se escribe directo). Al leer la bandeja solo se aceptan
 eventos de conexión bien formados, reconstruidos campo a campo: lo que alguien edite en el equipo
 no se escribe con la sesión de la persona que entre después.
 
@@ -91,7 +94,8 @@ no se escribe con la sesión de la persona que entre después.
 Los textos largos (notas de entrega) se guardan y se muestran recortados alrededor de la parte que
 cambió, para que el «antes → después» siempre muestre la diferencia; la pantalla abrevia las listas
 largas, el Excel lleva todos los cambios. Si el servidor rechaza un evento, quien lo escribió recibe
-el error: una eliminación que exige su auditoría (un día, una receta) no sigue sin ella. La bandeja
+el error: una eliminación que exige su auditoría (un día, una receta) no sigue sin ella. Sin red el
+evento queda solo en el equipo (como antes) y la eliminación sigue. La bandeja
 de conexión solo
 descarta un evento rechazado si un envío anterior pudo haber llegado (la colección no acepta un
 segundo documento con el mismo id); si no, lo conserva para quien inicie sesión después en ese
@@ -111,7 +115,9 @@ paciente, igual que la pantalla (solo administración puede leer la auditoría).
 edición espera en la pestaña hasta 60 s después del último cambio: si el navegador se cae (cuelgue
 o corte de luz) antes de ocultarse, esa ráfaga no queda en la auditoría, aunque el cambio clínico sí
 se guarda. Las reglas no registran quién escribió cada documento: un evento de conexión pendiente
-puede llegar desde la sesión de quien entre después en ese equipo.
+puede llegar desde la sesión de quien entre después en ese equipo. Si la sesión termina sin cerrar
+sesión (token vencido o revocado), las ediciones aún agrupadas se escriben más tarde: sin sesión las
+rechaza el servidor, y si otra persona ya entró en esa pestaña quedan con su conexión.
 
 ---
 

@@ -75,9 +75,19 @@ const dependencies = (): AuditConnectionDependencies => ({
   },
 });
 
-/** Writes queued connection events while someone is signed in (the rules require it). */
-const deliver = (): Promise<void> =>
-  getCurrentUserUid() && !isOffline() ? flushAuditConnectionOutbox() : Promise.resolve();
+const DELIVERY_LOCK_NAME = 'hhr-audit-connection-delivery';
+
+/**
+ * Writes queued connection events while someone is signed in (the rules require it). One tab at
+ * a time: two tabs sending the same event would leave the refused copy queued.
+ */
+const deliver = (): Promise<void> => {
+  if (!getCurrentUserUid() || isOffline()) return Promise.resolve();
+  const locks = typeof navigator === 'undefined' ? undefined : navigator.locks;
+  return locks?.request
+    ? (locks.request(DELIVERY_LOCK_NAME, () => flushAuditConnectionOutbox()) as Promise<void>)
+    : flushAuditConnectionOutbox();
+};
 
 export const beginCurrentAuditConnection = async (
   identity: AuditConnectionIdentity

@@ -4,7 +4,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AuditView } from '@/features/admin/components/AuditView';
 import { useAuth } from '@/context/AuthContext';
-import { executeFetchAuditLogRange } from '@/application/audit/fetchAuditLogsUseCase';
+import {
+  executeFetchAuditLogRange,
+  executeFetchAuditLogsByIds,
+} from '@/application/audit/fetchAuditLogsUseCase';
 import type { AuditLogEntry } from '@/types/auditLogTypes';
 import { AUDIT_TRAIL_VIEW_STORAGE_KEY } from '@/services/admin/auditTrail/auditTrailPreferences';
 
@@ -163,6 +166,33 @@ describe('AuditView', () => {
     expect(JSON.parse(localStorage.getItem(AUDIT_TRAIL_VIEW_STORAGE_KEY) || '{}')).toMatchObject({
       grouping: 'session',
     });
+  });
+
+  it('completes a connection with the end read by id when the period lacks it', async () => {
+    vi.mocked(executeFetchAuditLogsByIds).mockResolvedValueOnce({
+      status: 'success',
+      data: [
+        {
+          id: 'conn_conn-ana_end',
+          timestamp: minutesAgo(5),
+          userId: 'ana.soto@hospital.test',
+          userDisplayName: 'Ana Soto',
+          action: 'USER_LOGOUT',
+          entityType: 'user',
+          entityId: 'ana.soto@hospital.test',
+          sessionId: 'conn-ana',
+          details: { reason: 'manual', startedAt: minutesAgo(90), endedAt: minutesAgo(5) },
+        },
+      ],
+      issues: [],
+    } as Awaited<ReturnType<typeof executeFetchAuditLogsByIds>>);
+    await renderView();
+
+    expect(executeFetchAuditLogsByIds).toHaveBeenCalledWith(['conn_conn-ana_end']);
+    fireEvent.click(screen.getByRole('button', { name: 'Conexión' }));
+    const anaConnection = await screen.findByRole('button', { name: /Ana Soto/ });
+    expect(within(anaConnection).getByText(/Cerró sesión/)).toBeInTheDocument();
+    expect(within(anaConnection).queryByText('En curso')).not.toBeInTheDocument();
   });
 
   it('offers export and export keys to administrators', async () => {

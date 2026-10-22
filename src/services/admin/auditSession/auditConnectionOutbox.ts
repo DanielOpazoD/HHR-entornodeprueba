@@ -8,7 +8,11 @@ import { AUDIT_SCHEMA_VERSION } from '@/services/admin/auditSession/auditConnect
  * sesión" written while signing out is delivered on the next authenticated start.
  */
 export const AUDIT_CONNECTION_OUTBOX_PREFIX = 'hhr_audit_connection_outbox_v1:';
-const MAX_PENDING = 20;
+/**
+ * Room for weeks of drops on a device left offline. A full queue never loses an event: it refuses
+ * the new one, which the caller then writes straight away.
+ */
+const MAX_PENDING = 500;
 
 export type AuditConnectionOutboxStorage = Pick<
   Storage,
@@ -210,20 +214,19 @@ export const enqueueAuditConnectionEntry = (
   storage: AuditConnectionOutboxStorage,
   entry: AuditLogEntry
 ): boolean => {
-  if (!writeItem(storage, { entry })) return false;
   try {
-    // Planted or malformed keys go; past the limit, the oldest events make room.
-    outboxKeys(storage).forEach(key => {
-      const id = key.slice(AUDIT_CONNECTION_OUTBOX_PREFIX.length);
-      if (!readItem(storage, id)) removeKey(storage, key);
+    // Planted or malformed keys are not events: they go. Queued events are never dropped.
+    const keys = outboxKeys(storage).filter(key => {
+      if (readItem(storage, key.slice(AUDIT_CONNECTION_OUTBOX_PREFIX.length))) return true;
+      removeKey(storage, key);
+      return false;
     });
-    readAuditConnectionOutbox(storage)
-      .slice(0, -MAX_PENDING)
-      .forEach(item => removeKey(storage, AUDIT_CONNECTION_OUTBOX_PREFIX + item.entry.id));
+    const queued = keys.includes(AUDIT_CONNECTION_OUTBOX_PREFIX + entry.id);
+    if (!queued && keys.length >= MAX_PENDING) return false;
   } catch {
-    // The event itself is kept; housekeeping runs again on the next one.
+    // Unreadable storage: try to keep the event anyway.
   }
-  return true;
+  return writeItem(storage, { entry });
 };
 
 export const markAuditConnectionEntrySent = (

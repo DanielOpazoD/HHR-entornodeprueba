@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { startSessionActivityMonitor } from '@/services/auth/sessionActivityMonitor';
-import { markRecentManualLogout } from '@/services/auth/authLogoutState';
+import { beginPendingLogout, markRecentManualLogout } from '@/services/auth/authLogoutState';
 import {
   clearPersistedFirebaseAuthState,
   clearRecentAuthenticatedSessionHint,
@@ -122,6 +122,8 @@ export const createHandleLogout =
     setSessionState: (sessionState: AuthSessionState) => void
   ): ((reason?: 'manual' | 'automatic') => Promise<void>) =>
   async (reason: 'manual' | 'automatic' = 'manual') => {
+    // The login form shows at once, but a sign-in there waits until this logout has finished.
+    const finishLogout = beginPendingLogout();
     // 1. Synchronous operations first — cannot be interrupted by navigation or tab close
     setSessionState(createUnauthenticatedAuthSessionState());
     resetLocationToLoginRoute();
@@ -170,6 +172,7 @@ export const createHandleLogout =
         }
       }),
     ]);
+    finishLogout();
 
     for (const result of results) {
       if (result.status === 'rejected') {

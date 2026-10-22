@@ -107,8 +107,11 @@ export interface AuditLogRange {
   limit: number;
 }
 
-/** `stored` once Firestore (or the local store without Firestore) holds the event. */
-export type AuditWriteDelivery = 'stored' | 'rejected' | 'failed';
+/**
+ * `stored`: Firestore holds the event (or queues it in its offline cache). `local`: remote audit
+ * sync is off (no Firestore, or the device is offline) and only this device keeps it.
+ */
+export type AuditWriteDelivery = 'stored' | 'local' | 'rejected' | 'failed';
 
 export interface AuditCoreService {
   logAuditEvent: (
@@ -171,15 +174,19 @@ export const createAuditCoreService = (
   syncPolicy: AuditRuntimeSyncPolicy = defaultAuditRuntimeSyncPolicy,
   device: AuditDeviceEnvironment = defaultAuditDeviceEnvironment
 ): AuditCoreService => {
-  const storeLocally = async (entry: AuditLogEntry): Promise<void> => {
+  const storeLocally = async (entry: AuditLogEntry): Promise<boolean> => {
     try {
       await localStore.saveAuditLog(entry);
+      return true;
     } catch (error) {
       auditCoreLogger.error('Failed to store audit log in IndexedDB', error);
+      return false;
     }
   };
 
-  const writeRemote = async (entry: AuditLogEntry): Promise<AuditWriteDelivery> => {
+  const writeRemote = async (
+    entry: AuditLogEntry
+  ): Promise<Exclude<AuditWriteDelivery, 'local'>> => {
     try {
       await database.setDoc(COLLECTION_NAME(), entry.id, entry);
       return 'stored';
@@ -201,8 +208,7 @@ export const createAuditCoreService = (
   // Firestore its offline cache already queues the write.
   const persist = async (entry: AuditLogEntry): Promise<AuditWriteDelivery> => {
     if (!syncPolicy.shouldUseRemoteAuditSync()) {
-      await storeLocally(entry);
-      return 'stored';
+      return (await storeLocally(entry)) ? 'local' : 'failed';
     }
     return writeRemote(entry);
   };
@@ -249,10 +255,12 @@ export const createAuditCoreService = (
    * otherwise the event stays for the next person who signs in on this device.
    */
   const deliverQueued = async (storage: AuditConnectionOutboxStorage): Promise<void> => {
+    // Only Firestore delivers: with remote sync off, a local copy would empty the queue for good.
+    if (!syncPolicy.shouldUseRemoteAuditSync()) return;
     for (const item of readAuditConnectionOutbox(storage)) {
       const landedBefore = item.sentAt !== undefined;
       markAuditConnectionEntrySent(storage, item.entry.id, Date.now());
-      const delivery = await persist(item.entry);
+      const delivery = await writeRemote(item.entry);
       settleAuditConnectionEntry(
         storage,
         item.entry.id,
@@ -299,10 +307,13 @@ export const createAuditCoreService = (
     },
     getAuditLogsByIds: async (ids: string[]): Promise<AuditLogEntry[]> => {
       if (!syncPolicy.shouldUseRemoteAuditSync() || ids.length === 0) return [];
-      const found = await Promise.all(
+      // One unreadable id must not hide the others.
+      const found = await Promise.allSettled(
         ids.map(id => database.getDoc<AuditLogEntry>(COLLECTION_NAME(), id))
       );
-      return found.filter((log): log is AuditLogEntry => log !== null);
+      return found.flatMap(result =>
+        result.status === 'fulfilled' && result.value !== null ? [result.value] : []
+      );
     },
     getAuditLogsInRange: async (range: AuditLogRange): Promise<AuditLogEntry[]> => {
       if (!syncPolicy.shouldUseRemoteAuditSync()) {

@@ -10,6 +10,7 @@ import {
   getSessionGeneration,
   setSessionGeneration,
 } from '@/services/storage/sessionStorageTransition';
+import { AUDIT_CONNECTION_OUTBOX_PREFIX } from '@/services/admin/auditSession/auditConnectionOutbox';
 
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   clearAllRecords: vi.fn().mockResolvedValue(undefined),
@@ -89,11 +90,12 @@ describe('session cleanup isolation', () => {
 
   it('keeps undelivered audit connection events and clears the rest of the session', async () => {
     localStorage.setItem('hhr_session_owner_v1', 'user:old');
-    localStorage.setItem('hhr_audit_connection_outbox_v1:conn_c1_end', '{"entry":{}}');
+    const queuedKey = `${AUDIT_CONNECTION_OUTBOX_PREFIX}conn_c1_end`;
+    localStorage.setItem(queuedKey, '{"entry":{}}');
     localStorage.setItem('hhr_audit_connection_v1', '{}');
     localStorage.setItem('hhr_private', 'old');
     await clearSessionScopedClientState('manual');
-    expect(localStorage.getItem('hhr_audit_connection_outbox_v1:conn_c1_end')).not.toBeNull();
+    expect(localStorage.getItem(queuedKey)).not.toBeNull();
     expect(localStorage.getItem('hhr_audit_connection_v1')).not.toBeNull();
     expect(localStorage.getItem('hhr_private')).toBeNull();
   });

@@ -34,9 +34,11 @@ vi.mock('@/services/auth/authBootstrapState', () => ({
 }));
 
 vi.mock('@/services/auth/authLogoutState', () => ({
+  beginPendingLogout: () => () => undefined,
   clearRecentManualLogout: () => mockClearRecentManualLogout(),
   hasRecentManualLogout: () => mockHasRecentManualLogout(),
   markRecentManualLogout: vi.fn(),
+  waitForPendingLogout: async () => undefined,
 }));
 
 vi.mock('@/services/auth/authFallback', () => ({

@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createHandleLogout } from '@/hooks/useAuthStateSessionSupport';
+import {
+  createHandleLogout,
+  flushPendingAuditEventsBeforeSignOut,
+} from '@/hooks/useAuthStateSessionSupport';
+import { registerPendingAuditFlush } from '@/services/admin/auditPendingEvents';
 import { defaultAuditPort } from '@/application/ports/auditPort';
 import { clearSessionScopedClientState } from '@/services/storage/sessionScopedStorageService';
+import { waitForPendingLogout } from '@/services/auth/authLogoutState';
 
 vi.mock('@/application/ports/auditPort', () => ({
   defaultAuditPort: { logUserLogout: vi.fn() },
@@ -67,6 +72,47 @@ describe('createHandleLogout audit order', () => {
       await logout;
       expect(signOut).toHaveBeenCalledOnce();
     } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps sign-ins on this tab waiting until the logout has finished', async () => {
+    let finishAudit: () => void = () => undefined;
+    vi.mocked(defaultAuditPort.logUserLogout).mockReturnValue(
+      new Promise<void>(resolve => {
+        finishAudit = resolve;
+      })
+    );
+    const signOut = vi.fn().mockResolvedValue(undefined);
+
+    const logout = createHandleLogout(USER as never, signOut, vi.fn())('manual');
+    let signedOutFirst: boolean | undefined;
+    const signIn = waitForPendingLogout().then(() => {
+      signedOutFirst = signOut.mock.calls.length === 1;
+    });
+    await vi.waitFor(() => expect(defaultAuditPort.logUserLogout).toHaveBeenCalled());
+    expect(signedOutFirst).toBeUndefined();
+
+    finishAudit();
+    await Promise.all([logout, signIn]);
+    expect(signedOutFirst).toBe(true);
+  });
+
+  it('lets a tab closed by another sign out after 1.5 s even if its edits never settle', async () => {
+    vi.useFakeTimers();
+    const unregister = registerPendingAuditFlush(() => new Promise<void>(() => undefined));
+    try {
+      let done = false;
+      const flushing = flushPendingAuditEventsBeforeSignOut().then(() => {
+        done = true;
+      });
+      await vi.advanceTimersByTimeAsync(1_499);
+      expect(done).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      await flushing;
+      expect(done).toBe(true);
+    } finally {
+      unregister();
       vi.useRealTimers();
     }
   });

@@ -144,12 +144,41 @@ describe('auditCore runtime injection', () => {
       device()
     );
 
-    await localOnlyService.logAuditEvent('doctor@hospital.cl', 'VIEW_CUDYR', 'dailyRecord', 'd', {
-      view: 'cudyr',
-    });
+    await expect(
+      localOnlyService.logAuditEvent('doctor@hospital.cl', 'VIEW_CUDYR', 'dailyRecord', 'd', {
+        view: 'cudyr',
+      })
+    ).resolves.toBe('local');
 
     expect(saveAuditLog).toHaveBeenCalledTimes(1);
     expect(setDoc).not.toHaveBeenCalled();
+
+    // Only this device would hold the connection event: it stays queued for Firestore.
+    enqueueAuditConnectionEntry(storage, queued('offline', 'end'));
+    await localOnlyService.flushAuditConnectionOutbox();
+    expect(saveAuditLog).toHaveBeenCalledTimes(1);
+    expect(setDoc).not.toHaveBeenCalled();
+    expect(readAuditConnectionOutbox(storage)).toHaveLength(1);
+
+    saveAuditLog.mockRejectedValueOnce(new DOMException('full', 'QuotaExceededError'));
+    await expect(
+      localOnlyService.logAuditEvent('doctor@hospital.cl', 'VIEW_CUDYR', 'dailyRecord', 'd', {
+        view: 'cudyr',
+      })
+    ).resolves.toBe('failed');
+  });
+
+  it('reads events by id, skipping missing and unreadable ones', async () => {
+    const found = { id: 'conn_a_start' } as AuditLogEntry;
+    getDoc
+      .mockResolvedValueOnce(found)
+      .mockResolvedValueOnce(null)
+      .mockRejectedValueOnce(new Error('unavailable'));
+
+    await expect(
+      remoteService().getAuditLogsByIds(['conn_a_start', 'conn_a_end', 'conn_b_start'])
+    ).resolves.toEqual([found]);
+    expect(getDoc).toHaveBeenCalledTimes(3);
   });
 
   it('queries one period by timestamp range and reports remote failures', async () => {

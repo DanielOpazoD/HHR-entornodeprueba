@@ -63,7 +63,7 @@ describe('audit connection outbox', () => {
     expect(readAuditConnectionOutbox(storage).map(item => item.entry)).toEqual([START, DROP, END]);
   });
 
-  it('puts a start before an end recorded in the same millisecond', () => {
+  it('orders a start, a network drop and an end recorded in the same millisecond', () => {
     const storage = memoryStorage();
     const instant = record('same-instant');
     enqueueAuditConnectionEntry(
@@ -77,11 +77,21 @@ describe('audit connection outbox', () => {
     );
     enqueueAuditConnectionEntry(
       storage,
+      buildAuditConnectionEntry({
+        kind: 'interruption',
+        record: instant,
+        from: instant.startedAt - 120_000,
+        to: instant.startedAt,
+      })
+    );
+    enqueueAuditConnectionEntry(
+      storage,
       buildAuditConnectionEntry({ kind: 'start', record: instant, start: 'sign_in' })
     );
 
     expect(readAuditConnectionOutbox(storage).map(item => item.entry.action)).toEqual([
       'USER_LOGIN',
+      'CONNECTION_INTERRUPTED',
       'USER_LOGOUT',
     ]);
   });
@@ -117,7 +127,7 @@ describe('audit connection outbox', () => {
     expect(readAuditConnectionOutbox(storage)).toEqual([{ entry: END }]);
   });
 
-  it('keeps refused events with their count, and clears planted keys and the oldest on write', () => {
+  it('keeps refused events with their count and clears planted keys on write', () => {
     const storage = memoryStorage();
     enqueueAuditConnectionEntry(storage, END);
     markAuditConnectionEntrySent(storage, END.id, 1);
@@ -125,19 +135,27 @@ describe('audit connection outbox', () => {
     expect(readAuditConnectionOutbox(storage)).toEqual([{ entry: END, rejections: 1 }]);
 
     plant(storage, 'conn_x_end', { entry: { ...END, action: 'PATIENT_CLEARED' } });
-    const later = Array.from({ length: 20 }, (_, index) =>
+    enqueueAuditConnectionEntry(storage, START);
+
+    expect(storage.getItem(AUDIT_CONNECTION_OUTBOX_PREFIX + 'conn_x_end')).toBeNull();
+    expect(readAuditConnectionOutbox(storage).map(item => item.entry)).toEqual([START, END]);
+  });
+
+  it('never drops a queued event: a full queue refuses the new one instead', () => {
+    const storage = memoryStorage();
+    const queued = Array.from({ length: 500 }, (_, index) =>
       buildAuditConnectionEntry({
         kind: 'start',
-        record: record(
-          `session-${String(index).padStart(2, '0')}`,
-          RECORD.lastSeenAt + 1_000 * index + 1_000
-        ),
+        record: record(`session-${index}`, RECORD.startedAt + 1_000 * index),
         start: 'sign_in',
       })
     );
-    later.forEach(entry => enqueueAuditConnectionEntry(storage, entry));
+    queued.forEach(entry => expect(enqueueAuditConnectionEntry(storage, entry)).toBe(true));
 
-    expect(storage.getItem(AUDIT_CONNECTION_OUTBOX_PREFIX + 'conn_x_end')).toBeNull();
-    expect(readAuditConnectionOutbox(storage).map(item => item.entry)).toEqual(later);
+    // Even an older event (a retroactive end) does not push anything out.
+    expect(enqueueAuditConnectionEntry(storage, END)).toBe(false);
+    expect(readAuditConnectionOutbox(storage)).toHaveLength(500);
+    // An event already queued can still be written again.
+    expect(enqueueAuditConnectionEntry(storage, queued[0])).toBe(true);
   });
 });
