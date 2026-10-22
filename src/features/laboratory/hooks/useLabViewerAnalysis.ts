@@ -4,7 +4,7 @@ import { fetchSyslabExamDetails } from '@/services/laboratory/syslabService';
 import type { SyslabExamItem } from '@/types/domain/labExamTypes';
 import type { AnalysisViewTab, LabAnalysisData } from '@/types/domain/labAnalyticsTypes';
 import type { ProgressState } from '../types/labViewerTypes';
-import { ANALYSIS_STEPS, SEARCH_STEPS, STEP_INTERVAL_MS } from '../constants/labProgressConstants';
+import { SEARCH_STEPS, STEP_INTERVAL_MS } from '../constants/labProgressConstants';
 import { buildAnalysisData } from '../controllers/labAnalyticsController';
 import { buildLabSummaryText } from '../controllers/labSummaryController';
 import {
@@ -68,11 +68,12 @@ export const useLabViewerAnalysis = ({
   }, [progress]);
 
   useEffect(() => {
-    const active = isLoading || isAnalyzing;
+    if (isAnalyzing) return;
+    const active = isLoading;
 
     if (!active) {
       if (progressRef.current) {
-        setProgress({ pct: 100, text: '¡Completado!' });
+        // Analysis reports its own completion; do not label failures as completed.
         const timeoutId = setTimeout(() => setProgress(null), 600);
         return () => clearTimeout(timeoutId);
       }
@@ -80,7 +81,7 @@ export const useLabViewerAnalysis = ({
       return;
     }
 
-    const steps = isAnalyzing ? ANALYSIS_STEPS : SEARCH_STEPS;
+    const steps = SEARCH_STEPS;
     let stepIndex = 1;
     setProgress(steps[0]);
 
@@ -121,16 +122,27 @@ export const useLabViewerAnalysis = ({
     setError(null);
 
     try {
-      const data = await fetchSyslabExamDetails(links);
+      const data = await fetchSyslabExamDetails(links, {
+        isCurrent,
+        onProgress: ({ completed, total }) => {
+          if (isCurrent())
+            setProgress({
+              pct: total ? Math.round((completed / total) * 80) : 0,
+              text: `Informes leídos: ${completed} de ${total}`,
+            });
+        },
+      });
       if (!isCurrent()) {
         return;
       }
 
       if (!data.success) {
+        setProgress(null);
         setError(data.error || 'No se pudieron obtener los detalles de los exámenes.');
         return;
       }
 
+      setProgress({ pct: 85, text: 'Comprobando resultados complementarios...' });
       const microbiologyEnrichedDetails = await enrichMicrobiologyDetailsFromPdf(
         data.data,
         examList
@@ -146,6 +158,7 @@ export const useLabViewerAnalysis = ({
 
       setAnalysisData(buildAnalysisData(enrichedDetails, examList));
       setAnalysisView('trends');
+      setProgress({ pct: 100, text: `${links.length} informes analizados` });
 
       const patientName = examList[0]?.patientName || '';
       saveLabResults(selectedRut, patientName, enrichedDetails, examList);
@@ -154,6 +167,7 @@ export const useLabViewerAnalysis = ({
         return;
       }
 
+      setProgress(null);
       setError(resolveLabViewerAnalysisErrorMessage(error));
     } finally {
       if (isCurrent()) {
