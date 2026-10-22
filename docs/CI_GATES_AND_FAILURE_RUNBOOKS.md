@@ -11,6 +11,15 @@ aplicada. Los eventos antiguos sin evidencia siguen sin ella; no reconstruir sus
 identidades desde el ocupante actual. Validar con `ci:merge-gate`,
 `test:release-confidence`, revisión independiente y CI definitivo.
 
+Para un bloqueo de borrado durante una reubicación, comprobar el episodio de cada ocupante,
+incluida la cuna RN: compartir documento no acredita que sigan ambos presentes. La guarda
+exige coincidencia única y, sin dos ids persistidos, concordancia de documento completo,
+nombre e ingreso. No resolver el bloqueo retirando la guarda ni creando un egreso ficticio.
+Validar `dailyRecordErasureRelocation.test.ts`, `dailyRecordWriteAuthorityErasureIdentity.test.ts`,
+`test:sync-lifecycle`, `ci:merge-gate` y `test:release-confidence`. El cierre de rollout exige
+el despliegue verificado de Functions y de la aplicación: aprobar sólo el cliente no actualiza
+la copia de la guarda del servidor.
+
 Para el rollout regional de `applyRayenClinicalEnrichmentBatch`, el deploy debe
 verificar `southamerica-east1` y `us-central1`: la segunda conserva los clientes
 anteriores. No cambiar el enrutamiento del cliente hasta verificar el despliegue

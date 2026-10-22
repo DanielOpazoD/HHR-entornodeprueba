@@ -182,22 +182,25 @@ incoming record dropped when both hold:
 2. the patient is not present anywhere else in the incoming record. This relocation exemption
    lets an internal bed move, which leaves no movement record, persist.
 
-The relocation exemption compares identity tokens: the RUT reduced to digits and `K`,
-`clinicalEpisodeId`, and the name only when neither exists; any shared token counts as present.
+The relocation exemption requires a unique matching occupant in each record. Two persisted
+non-legacy episode ids must agree, even if the document matches. If an id is missing or starts
+with `legacy_ep_`, the fallback compares the complete document (letters preserved), compatible
+explicit document types, normalized name, `firstSeenDate || admissionDate`, and admission time.
+It permits legacy-to-canonical hydration without treating a shared maternal document or a legacy
+hash as a unique person. One remaining occupant cannot account for two remote occupants.
+
 It is not the comparator of the admission-date policy (`hasSamePatientEpisodeIdentity`) nor of
-the stale-edit merge (`isSameEpisodeForExplicitCensusPatch`).
-`patientIdentityGuardComposition.test.ts` pins where the three diverge.
+explicit-field merging (`isSameEpisodeForExplicitCensusPatch`): their purposes differ.
+`patientIdentityGuardComposition.test.ts` pins those differences. Missing evidence on one side
+blocks relocation; two equally minimal legacy rows can still match by name when neither has
+a document or admission details. This preserves legacy moves but cannot establish identities
+that the records never contained. Correcting a name during a move requires a stable episode id.
 
 ## Known limitations
 
-- **Identity gaps in the erasure guard** (backstop false negatives, reproduced with synthetic
-  fixtures; production occurrence was not investigated). A dropped occupant counts as relocated
-  when any occupant of the incoming record shares a token: a newborn that carries the mother's
-  administrative document, with or without episode ids; passports reduced to the same digits
-  (`AB1234567` and RUT `123.456-7`, or `AB123456` and `CD123456`); a readmission with the same
-  document and a new episode whose previous movement is missing. Making the check
-  episode-authoritative must still allow the id rewrite seen during hydration (`legacy_ep_…` →
-  `ep_…`), so it is a separate decision.
+- **Legacy identity ambiguity.** The guard blocks non-unique matches. A unique pair of equally
+  incomplete legacy rows remains indistinguishable without additional identity/admission data.
+  The guard checks emptied slots, not replacements of one occupied slot by another patient.
 - **Stale queued edit after a relocation.** A queued edit to an explicit census field (e.g.
   `pathology`) made before another session moved the bed's occupant is not applied to the new
   occupant, because the merge compares episodes, but it does not follow the moved patient
