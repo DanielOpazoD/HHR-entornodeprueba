@@ -14,12 +14,6 @@ import {
   validateFugaNotificationRequest,
 } from '@/features/census/controllers/fugaNotificationPolicyController';
 import { getUndoMovementErrorMessage } from '@/features/census/controllers/patientMovementUndoErrorPresentation';
-import {
-  buildIeehInitialDraftValues,
-  buildIeehPrintDischargeData,
-  buildPersistedIeehData,
-} from '@/features/census/controllers/ieehFormDataController';
-import type { DischargeFormData } from '@/services/pdf/ieehPdfService';
 
 describe('criticalCoverageControllers', () => {
   describe('sharedCensusModeController', () => {
@@ -235,108 +229,6 @@ describe('criticalCoverageControllers', () => {
       expect(getUndoMovementErrorMessage('transfer', 'UNKNOWN_CODE' as never, descriptor)).toBe(
         'No se pudo deshacer el traslado.'
       );
-    });
-  });
-
-  describe('ieehFormDataController', () => {
-    const patient = {
-      cie10Description: 'Diagnóstico base',
-      pathology: 'Patología base',
-      cie10Code: 'A00',
-    } as Parameters<typeof buildIeehInitialDraftValues>[0];
-
-    it('builds draft values from saved IEEH data and patient fallback values', () => {
-      expect(buildIeehInitialDraftValues(patient)).toMatchObject({
-        diagnosticoPrincipal: 'Diagnóstico base',
-        cie10Code: 'A00',
-        condicionEgreso: '1',
-        tieneIntervencion: false,
-        tieneProcedimiento: false,
-      });
-
-      expect(
-        buildIeehInitialDraftValues(patient, {
-          diagnosticoPrincipal: 'Nuevo diagnóstico',
-          cie10Code: 'B00',
-          condicionEgreso: '2',
-          intervencionQuirurgica: '1',
-          intervencionQuirurgDescrip: 'Cirugía',
-          procedimiento: '1',
-          procedimientoDescrip: 'Procedimiento',
-          tratanteApellido1: 'Pérez',
-          tratanteApellido2: 'Gómez',
-          tratanteNombre: 'Ana',
-          tratanteRut: '12.345.678-9',
-        })
-      ).toMatchObject({
-        diagnosticoPrincipal: 'Nuevo diagnóstico',
-        cie10Code: 'B00',
-        condicionEgreso: '2',
-        tieneIntervencion: true,
-        tieneProcedimiento: true,
-        tratanteApellido1: 'Pérez',
-        tratanteRut: '12.345.678-9',
-      });
-    });
-
-    it('persists optional intervention and procedure data only when enabled', () => {
-      expect(
-        buildPersistedIeehData({
-          diagnosticoPrincipal: '',
-          cie10Code: '',
-          cie10Display: '',
-          condicionEgreso: '1',
-          tieneIntervencion: false,
-          intervencionDescrip: 'No debería persistirse',
-          tieneProcedimiento: false,
-          procedimientoDescrip: 'No debería persistirse',
-          tratanteApellido1: '',
-          tratanteApellido2: '',
-          tratanteNombre: '',
-          tratanteRut: '',
-        })
-      ).toEqual({
-        diagnosticoPrincipal: undefined,
-        cie10Code: undefined,
-        condicionEgreso: '1',
-        intervencionQuirurgica: '2',
-        intervencionQuirurgDescrip: undefined,
-        procedimiento: '2',
-        procedimientoDescrip: undefined,
-        tratanteApellido1: undefined,
-        tratanteApellido2: undefined,
-        tratanteNombre: undefined,
-        tratanteRut: undefined,
-      });
-    });
-
-    it('merges persisted IEEH data into print payloads', () => {
-      const baseDischargeData = {
-        patientName: 'Paciente Demo',
-      } as DischargeFormData;
-
-      expect(
-        buildIeehPrintDischargeData(baseDischargeData, {
-          diagnosticoPrincipal: 'Diagnóstico final',
-          cie10Code: 'C00',
-          cie10Display: 'Diagnóstico final',
-          condicionEgreso: '3',
-          tieneIntervencion: true,
-          intervencionDescrip: 'Pabellón',
-          tieneProcedimiento: true,
-          procedimientoDescrip: 'Procedimiento',
-          tratanteApellido1: 'Pérez',
-          tratanteApellido2: 'Soto',
-          tratanteNombre: 'Ana',
-          tratanteRut: '12.345.678-9',
-        })
-      ).toMatchObject({
-        patientName: 'Paciente Demo',
-        diagnosticoPrincipal: 'Diagnóstico final',
-        intervencionQuirurgica: '1',
-        procedimiento: '1',
-        tratanteNombre: 'Ana',
-      });
     });
   });
 });

@@ -1,8 +1,6 @@
 {
   "files": {
     "src/features/census/components/email-config/CensusEmailRecipientsSection.tsx": 360,
-    "src/features/census/controllers/patientMovementCreationController.ts": 320,
-    "src/features/census/components/IEEHFormDialogSections.tsx": 300,
-    "src/features/census/hooks/useIEEHForm.ts": 280
+    "src/features/census/controllers/patientMovementCreationController.ts": 320
   }
 }
