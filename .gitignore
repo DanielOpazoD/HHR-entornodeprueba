@@ -74,3 +74,7 @@ functions/llave-beta.json
 
 # Local Netlify folder
 .netlify
+
+# Generated TypeDoc reference: run `npm run docs:generate` or download the
+# `api-documentation` CI artifact instead of versioning a stale snapshot.
+docs/api/

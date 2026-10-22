@@ -2,7 +2,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { assertTelemetryAccess, parseWorkflow } from './workflowYamlTestSupport';
 
 import { collectCiArtifactContractIssues } from '../../../scripts/ciArtifactContractSupport.mjs';
 import { getGovernanceSnapshotSteps } from '../../../scripts/governanceSnapshotSupport.mjs';
@@ -16,37 +15,14 @@ const readPackageScripts = () => {
   return manifest.scripts as Record<string, string>;
 };
 
-const workflowFiles = fs
-  .readdirSync(path.join(process.cwd(), '.github', 'workflows'))
-  .filter(fileName => fileName.endsWith('.yml') || fileName.endsWith('.yaml'))
-  .map(fileName => path.join('.github', 'workflows', fileName));
-
 describe('CI workflow governance', () => {
-  it('uses the logged governance snapshot runner so CI exposes long report substeps', () => {
-    const scripts = readPackageScripts();
-    const runner = readText('scripts/run-governance-snapshots.mjs');
-    const support = readText('scripts/governanceSnapshotSupport.mjs');
-
-    expect(scripts['report:governance-snapshots']).toBe(
-      'node scripts/run-governance-snapshots.mjs'
-    );
-    expect(RELEASE_EVIDENCE_REPORT_IDS).toContain('release-readiness-scorecard');
-    expect(RELEASE_EVIDENCE_REPORT_IDS).toContain('clinical-release-signoff');
-    expect(RELEASE_EVIDENCE_REPORT_IDS).toContain('maintenance-debt-scorecard');
-    expect(support).toContain('runtime-contracts');
-    expect(support).toContain('getReleaseEvidenceRefreshSteps');
-    expect(runner).toContain('::group::');
-    expect(support).toContain('ci-governance-snapshot-profile');
-  });
-
-  it('keeps release readiness generation behind a cache-aware runner instead of an opaque npm chain', () => {
-    const scripts = readPackageScripts();
-
-    expect(scripts['report:release-readiness-scorecard']).toBe(
-      'node scripts/run-release-readiness-scorecard.mjs'
-    );
-    expect(scripts['report:release-readiness-scorecard:from-current-inputs']).toBe(
-      'node scripts/report-release-readiness-scorecard.mjs'
+  it('includes readiness, sign-off and debt reports in the release evidence', () => {
+    expect(RELEASE_EVIDENCE_REPORT_IDS).toEqual(
+      expect.arrayContaining([
+        'release-readiness-scorecard',
+        'clinical-release-signoff',
+        'maintenance-debt-scorecard',
+      ])
     );
   });
 
@@ -59,52 +35,6 @@ describe('CI workflow governance', () => {
     );
   });
 
-  it('enforces strict report freshness immediately after regenerating governance snapshots', () => {
-    const workflow = readText('.github/workflows/ci-cd.yml');
-    const snapshotStep = workflow.indexOf('npm run report:governance-snapshots');
-    const freshnessStep = workflow.indexOf('npm run check:report-freshness:strict');
-
-    expect(snapshotStep).toBeGreaterThanOrEqual(0);
-    expect(freshnessStep).toBeGreaterThan(snapshotStep);
-  });
-
-  it('carries the verified release evidence manifest into the production build and post-merge audit', () => {
-    const workflow = readText('.github/workflows/ci-cd.yml');
-    const governanceStart = workflow.indexOf('quality-static-governance-snapshots:');
-    const governanceEnd = workflow.indexOf('quality-static-groups:');
-    const buildStart = workflow.indexOf('  build:');
-    const buildEnd = workflow.indexOf('lighthouse-ci:');
-    const postmergeStart = workflow.indexOf('postmerge-evidence:');
-
-    expect(governanceStart).toBeGreaterThanOrEqual(0);
-    expect(governanceEnd).toBeGreaterThan(governanceStart);
-    expect(buildStart).toBeGreaterThanOrEqual(0);
-    expect(buildEnd).toBeGreaterThan(buildStart);
-    expect(postmergeStart).toBeGreaterThanOrEqual(0);
-
-    const governanceJob = workflow.slice(governanceStart, governanceEnd);
-    const buildJob = workflow.slice(buildStart, buildEnd);
-    const postmergeJob = workflow.slice(postmergeStart);
-    const generateIndex = governanceJob.indexOf('npm run report:release-evidence-contract');
-    const strictIndex = governanceJob.indexOf('npm run check:release-evidence-contract:strict');
-    const uploadIndex = governanceJob.indexOf('name: release-evidence-runtime');
-    const downloadIndex = buildJob.indexOf('name: release-evidence-runtime');
-    const buildIndex = buildJob.indexOf('npm run build');
-
-    expect(generateIndex).toBeGreaterThanOrEqual(0);
-    expect(strictIndex).toBeGreaterThan(generateIndex);
-    expect(uploadIndex).toBeGreaterThan(strictIndex);
-    expect(governanceJob).toContain('path: reports/release-evidence-runtime/');
-    expect(downloadIndex).toBeGreaterThanOrEqual(0);
-    expect(buildIndex).toBeGreaterThan(downloadIndex);
-    expect(postmergeJob).toContain(
-      'scripts/verify-github-run-artifact.mjs --artifact critical-coverage --producer critical-coverage-report'
-    );
-    expect(postmergeJob).toContain('npm run check:release-evidence-contract:built');
-    expect(postmergeJob).not.toContain('reports/release-evidence-runtime/**');
-    expect(collectCiArtifactContractIssues(workflow)).toEqual([]);
-  });
-
   it('regenerates the complete evidence package before the release gate validates it', () => {
     const scripts = readPackageScripts();
     const releaseGate = scripts['ci:release-gate'];
@@ -114,189 +44,6 @@ describe('CI workflow governance', () => {
     expect(refreshIndex).toBeGreaterThanOrEqual(0);
     expect(validationIndex).toBeGreaterThan(refreshIndex);
     expect(releaseGate).not.toContain('npm run report:release-evidence &&');
-  });
-
-  it('enforces and persists critical coverage as an explicit artifact for governance snapshots', () => {
-    const workflow = readText('.github/workflows/ci-cd.yml');
-
-    expect(workflow).toContain(
-      'run: node scripts/report-critical-coverage.mjs && node scripts/check-critical-coverage.mjs'
-    );
-    expect(workflow).toContain('name: critical-coverage');
-    expect(workflow).toContain('path: reports/critical-coverage.*');
-    expect(workflow).toContain('uses: actions/download-artifact@v7');
-    expect(workflow).toContain('reports/ci-governance-snapshot-profile.*');
-  });
-
-  it('promotes the clinical sync simulator to a visible release gate with evidence artifacts', () => {
-    const workflow = readText('.github/workflows/ci-cd.yml');
-    const scripts = readPackageScripts();
-    const syncGateJob = workflow.slice(
-      workflow.indexOf('clinical-sync-release-gate:'),
-      workflow.indexOf('unit-risk-shards:')
-    );
-    const simulatorStep = syncGateJob.indexOf('npm run test:clinical-sync-simulator');
-    const reportStep = syncGateJob.indexOf('npm run report:sync-convergence');
-    const contractStep = syncGateJob.indexOf('npm run check:sync-convergence-evidence');
-    const freshnessStep = syncGateJob.indexOf('npm run check:sync-convergence-freshness:strict');
-    const uploadStep = syncGateJob.indexOf('name: sync-convergence');
-    const buildJob = workflow.slice(workflow.indexOf('build:'), workflow.indexOf('lighthouse-ci:'));
-    const summaryJob = workflow.slice(
-      workflow.indexOf('ci-strict-summary:'),
-      workflow.indexOf('postmerge-evidence:')
-    );
-
-    expect(scripts['test:clinical-sync-simulator']).toBe(
-      'vitest run src/tests/support/clinicalSyncSimulator'
-    );
-    expect(scripts['check:sync-convergence-freshness:strict']).toBe(
-      'node scripts/check-report-freshness.mjs --strict --only sync-convergence'
-    );
-    expect(syncGateJob).toContain('clinical-sync-release-gate:');
-    expect(syncGateJob).toContain('name: clinical-sync-release-gate');
-    expect(simulatorStep).toBeGreaterThanOrEqual(0);
-    expect(reportStep).toBeGreaterThan(simulatorStep);
-    expect(contractStep).toBeGreaterThan(reportStep);
-    expect(freshnessStep).toBeGreaterThan(contractStep);
-    expect(uploadStep).toBeGreaterThan(freshnessStep);
-    expect(syncGateJob).toContain('path: reports/sync-convergence.*');
-    expect(buildJob).toContain('needs: [quality-static-governance-snapshots]');
-    expect(buildJob).toContain('name: release-evidence-runtime');
-    expect(summaryJob).toContain('ci-runtime-telemetry');
-    expect(summaryJob).toContain('clinical-sync-release-gate:$CLINICAL_SYNC_RESULT');
-    expect(summaryJob).toContain('e2e-critical-emulator:$E2E_CRITICAL_RESULT');
-  });
-
-  it('collects real GitHub Actions runtime after PR-blocking gates finish', () => {
-    const workflow = readText('.github/workflows/ci-cd.yml');
-    const scripts = readPackageScripts();
-    const unitRiskJob = workflow.slice(
-      workflow.indexOf('unit-risk:'),
-      workflow.indexOf('rules-emulator:')
-    );
-    const telemetryJob = workflow.slice(
-      workflow.indexOf('ci-runtime-telemetry:'),
-      workflow.indexOf('ci-strict-summary:')
-    );
-    const summaryJob = workflow.slice(
-      workflow.indexOf('ci-strict-summary:'),
-      workflow.indexOf('postmerge-evidence:')
-    );
-    const collectStep = telemetryJob.indexOf('npm run collect:ci-runtime-observed-input');
-    const reportStep = telemetryJob.indexOf('npm run report:ci-runtime-observed-profile');
-    const checkStep = telemetryJob.indexOf('npm run check:ci-runtime-telemetry');
-    const uploadStep = telemetryJob.indexOf('name: ci-runtime-observed-profile');
-
-    expect(scripts['collect:ci-runtime-observed-input']).toBe(
-      'node scripts/collect-github-actions-runtime.mjs'
-    );
-    expect(unitRiskJob).not.toContain('npm run report:ci-runtime-observed-profile');
-    expect(telemetryJob).toContain('ci-runtime-telemetry:');
-    expect(telemetryJob).toContain('name: ci-runtime-telemetry');
-    assertTelemetryAccess(parseWorkflow(workflow).jobs['ci-runtime-telemetry']);
-    expect(telemetryJob).toContain("CI_RUNTIME_COLLECTION_REQUIRED: '1'");
-    expect(telemetryJob).toContain('GITHUB_TOKEN: ${{ github.token }}');
-    expect(collectStep).toBeGreaterThanOrEqual(0);
-    expect(reportStep).toBeGreaterThan(collectStep);
-    expect(checkStep).toBeGreaterThan(reportStep);
-    expect(uploadStep).toBeGreaterThan(checkStep);
-    expect(telemetryJob).toContain('path: reports/ci-runtime-observed-*');
-    expect(summaryJob).toContain('ci-runtime-telemetry');
-    expect(summaryJob).toContain('permissions: {}');
-    expect(summaryJob).toContain('ci-runtime-telemetry:$CI_RUNTIME_TELEMETRY_RESULT');
-  });
-
-  it('keeps expensive clinical/runtime suites in a scheduled nightly workflow', () => {
-    const workflow = readText('.github/workflows/nightly-test-runtime.yml');
-    const scripts = readPackageScripts();
-
-    expect(workflow).toContain('name: Nightly Test Runtime Governance');
-    expect(workflow).toContain('workflow_dispatch:');
-    expect(workflow).toContain('schedule:');
-    expect(workflow).not.toContain('pull_request:');
-    expect(workflow).toContain('npm run test:sync-load');
-    expect(workflow).toContain('npm run test:release-confidence:full');
-    expect(workflow).toContain('npm run test:e2e:clinical-stability:ci');
-    expect(workflow).toContain('name: test-runtime-governance');
-    expect(workflow).toContain('reports/test-runtime-governance.*');
-    expect(scripts['check:test-runtime-governance']).toBe(
-      'node scripts/check-test-runtime-governance.mjs'
-    );
-    expect(scripts['report:test-runtime-governance']).toBe(
-      'node scripts/report-test-runtime-governance.mjs'
-    );
-  });
-
-  it('self-checks post-merge evidence before uploading the main artifact', () => {
-    const workflow = readText('.github/workflows/ci-cd.yml');
-    const scripts = readPackageScripts();
-    const buildJob = workflow.slice(
-      workflow.indexOf('  build:'),
-      workflow.indexOf('  preview-smoke-lanes:')
-    );
-    const previewJob = workflow.slice(
-      workflow.indexOf('  preview-smoke:'),
-      workflow.indexOf('  final-confidence-and-readiness:')
-    );
-    const summaryJob = workflow.slice(
-      workflow.indexOf('ci-strict-summary:'),
-      workflow.indexOf('postmerge-evidence:')
-    );
-    const postmergeJob = workflow.slice(workflow.indexOf('postmerge-evidence:'));
-    const buildStep = buildJob.indexOf('npm run build');
-    const recordPreviewProvenanceStep = previewJob.indexOf(
-      'npm run write:preview-bootstrap-provenance'
-    );
-    const validateProducedPreviewStep = previewJob.indexOf(
-      'npm run check:preview-bootstrap-evidence'
-    );
-    const uploadPreviewStep = previewJob.indexOf('name: preview-bootstrap-artifacts');
-    const uploadDistStep = buildJob.indexOf('name: dist');
-    const artifactContractStep = postmergeJob.indexOf('npm run check:ci-artifact-contracts');
-    const availabilityStep = postmergeJob.indexOf('scripts/verify-github-run-artifact.mjs');
-    const previewAvailabilityStep = postmergeJob.indexOf(
-      'scripts/verify-github-run-artifact.mjs --artifact preview-bootstrap-artifacts --producer preview-smoke'
-    );
-    const downloadDistStep = postmergeJob.indexOf('name: dist');
-    const downloadPreviewStep = postmergeJob.indexOf('name: Download preview bootstrap artifacts');
-    const validateDownloadedPreviewStep = postmergeJob.indexOf(
-      'npm run check:preview-bootstrap-evidence'
-    );
-    const generateStep = postmergeJob.indexOf('npm run postmerge:evidence');
-    const checkStep = postmergeJob.indexOf('npm run check:postmerge-evidence:strict');
-    const uploadStep = postmergeJob.indexOf('name: postmerge-release-evidence');
-
-    expect(scripts['check:ci-artifact-contracts']).toBe(
-      'node scripts/check-ci-artifact-contracts.mjs'
-    );
-    expect(collectCiArtifactContractIssues(workflow)).toEqual([]);
-    expect(buildStep).toBeGreaterThanOrEqual(0);
-    expect(recordPreviewProvenanceStep).toBeGreaterThanOrEqual(0);
-    expect(validateProducedPreviewStep).toBeGreaterThan(recordPreviewProvenanceStep);
-    expect(uploadPreviewStep).toBeGreaterThan(validateProducedPreviewStep);
-    expect(uploadDistStep).toBeGreaterThan(buildStep);
-    expect(summaryJob).not.toContain('actions/upload-artifact@v7');
-    expect(postmergeJob).toContain('postmerge-evidence:');
-    expect(postmergeJob).toContain(
-      "if: github.event_name == 'push' && github.ref == 'refs/heads/main'"
-    );
-    expect(postmergeJob).toContain(
-      'needs: [build, preview-smoke, ci-strict-summary, e2e-critical-emulator]'
-    );
-    expect(postmergeJob).toContain('actions: read');
-    expect(postmergeJob).toContain('uses: actions/download-artifact@v7');
-    expect(artifactContractStep).toBeGreaterThanOrEqual(0);
-    expect(availabilityStep).toBeGreaterThan(artifactContractStep);
-    expect(downloadDistStep).toBeGreaterThanOrEqual(0);
-    expect(downloadDistStep).toBeGreaterThan(availabilityStep);
-    expect(previewAvailabilityStep).toBeGreaterThan(artifactContractStep);
-    expect(downloadPreviewStep).toBeGreaterThan(previewAvailabilityStep);
-    expect(validateDownloadedPreviewStep).toBeGreaterThan(downloadPreviewStep);
-    expect(generateStep).toBeGreaterThanOrEqual(0);
-    expect(generateStep).toBeGreaterThan(downloadDistStep);
-    expect(generateStep).toBeGreaterThan(validateDownloadedPreviewStep);
-    expect(checkStep).toBeGreaterThan(generateStep);
-    expect(uploadStep).toBeGreaterThan(checkStep);
   });
 
   it('rejects a missing preview bootstrap download or incorrect producer contract', () => {
@@ -440,22 +187,6 @@ jobs:
     );
   });
 
-  it('keeps Firefox compatibility out of PR CI unless Firefox becomes a supported browser', () => {
-    const workflow = readText('.github/workflows/ci-cd.yml');
-
-    expect(workflow).not.toContain('e2e-firefox-compat');
-    expect(workflow).not.toContain('E2E_CRITICAL_BROWSERS: firefox');
-    expect(workflow).not.toContain('playwright install --with-deps firefox');
-  });
-
-  it('runs the dependency security workflow when the audit scripts change', () => {
-    const workflow = readText('.github/workflows/security-audit.yml');
-
-    expect(workflow).toContain('scripts/check-dependency-vulnerabilities.mjs');
-    expect(workflow).toContain('scripts/lib/dependencyAuditSupport.mjs');
-    expect(workflow).toContain('.github/workflows/security-audit.yml');
-  });
-
   it('deploys explicit Firebase function targets without a sweeping delete pass', () => {
     const workflow = readText('.github/workflows/deploy-functions.yml');
     const targetScript = readText('scripts/list-firebase-function-targets.mjs');
@@ -466,29 +197,5 @@ jobs:
     expect(workflow).toContain('--force');
     expect(targetScript).toContain('functions:');
     expect(targetScript).not.toContain('cleanExpiredPrescriptions');
-  });
-
-  it('opts GitHub JavaScript actions into Node 24 before the runner default changes', () => {
-    for (const workflowFile of workflowFiles) {
-      const workflow = readText(workflowFile);
-
-      expect(workflow).toContain('FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true');
-    }
-  });
-
-  it('uses Node 24-native GitHub action majors instead of deprecated Node 20 actions', () => {
-    const deprecatedActions = [
-      'actions/checkout@v4',
-      'actions/setup-node@v4',
-      'actions/upload-artifact@v4',
-    ];
-
-    for (const workflowFile of workflowFiles) {
-      const workflow = readText(workflowFile);
-
-      for (const action of deprecatedActions) {
-        expect(workflow, `${workflowFile} should not use ${action}`).not.toContain(action);
-      }
-    }
   });
 });

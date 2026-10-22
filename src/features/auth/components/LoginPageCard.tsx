@@ -22,7 +22,7 @@ interface LoginPageCardProps {
 }
 
 const GoogleIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
     <path
       d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
       fill="#4285F4"
@@ -96,75 +96,67 @@ export const LoginPageCard: React.FC<LoginPageCardProps> = ({
             />
           )}
 
-          <div className="pt-1">
-            <div className="mb-3 flex items-center gap-3 text-[11px] font-medium uppercase text-stone-600">
-              <span className="h-px flex-1 bg-stone-200" />
-              <span>o continúa con Google</span>
-              <span className="h-px flex-1 bg-stone-200" />
-            </div>
-            {showIdentity && onGoogleCredential ? (
-              <div className="flex min-h-12 w-full items-center justify-center rounded-xl border border-stone-300 bg-white">
+          <div className="flex items-start gap-4 border-t border-stone-200 pt-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center">
+              {showIdentity && onGoogleCredential ? (
                 <GoogleIdentitySignIn
                   disabled={locked}
                   onCredential={onGoogleCredential}
                   onUnavailable={useFallback}
                 />
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  void onGoogleSignIn();
-                }}
-                disabled={locked}
-                data-testid="login-google-button"
-                aria-label={isGoogleLoading ? 'Conectando con Google...' : 'Ingresar con Google'}
-                title="Ingresar con Google"
-                className="flex min-h-12 w-full items-center justify-center gap-3 rounded-xl border border-stone-300 bg-white px-4 text-sm font-semibold text-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:border-stone-400 hover:bg-stone-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-700 disabled:cursor-wait disabled:opacity-60"
-              >
-                {isGoogleLoading ? (
-                  <>
-                    <Loader2 className="h-5 w-5 animate-spin text-teal-800" />
-                    <span className="sr-only">Conectando con Google...</span>
-                  </>
-                ) : (
-                  <>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void onGoogleSignIn();
+                  }}
+                  disabled={locked}
+                  data-testid="login-google-button"
+                  aria-label={isGoogleLoading ? 'Conectando con Google...' : 'Ingresar con Google'}
+                  title="Ingresar con Google"
+                  className="flex h-11 w-11 items-center justify-center rounded-full border border-stone-300 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:border-stone-400 hover:bg-stone-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-700 disabled:cursor-wait disabled:opacity-60"
+                >
+                  {isGoogleLoading ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin text-teal-800" />
+                      <span className="sr-only">Conectando con Google...</span>
+                    </>
+                  ) : (
                     <GoogleIcon className="h-5 w-5" />
-                    <span>Ingresar con Google</span>
-                  </>
-                )}
-              </button>
-            )}
-          </div>
-
-          <details className="group border-t border-stone-200 pt-2 text-xs text-stone-600">
-            <summary className="flex cursor-pointer list-none items-center justify-between py-2 font-medium text-stone-700 marker:hidden hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700">
-              Ayuda de acceso
-              <span aria-hidden="true" className="text-base transition group-open:rotate-45">
-                +
-              </span>
-            </summary>
-            <div className="pb-1 pt-1">
-              <p className="max-w-sm leading-5 text-stone-600">
-                {AUTH_UI_COPY.reloadApplicationHint}
-              </p>
-              <button
-                type="button"
-                onClick={() => void handleReload()}
-                disabled={locked}
-                data-testid="login-reload-button"
-                className="mt-3 inline-flex items-center justify-center gap-2 rounded-lg border border-stone-300 bg-white px-3 py-2 text-[11px] font-semibold text-stone-700 transition hover:border-stone-400 hover:bg-stone-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:text-stone-400"
-              >
-                <RefreshCw className={`h-3.5 w-3.5 ${isReloading ? 'animate-spin' : ''}`} />
-                {isReloading ? 'Recargando…' : AUTH_UI_COPY.reloadApplicationAction}
-              </button>
-              {reloadError && (
-                <p role="alert" className="mt-2 text-red-700">
-                  {reloadError}
-                </p>
+                  )}
+                </button>
               )}
             </div>
-          </details>
+
+            <details className="group min-w-0 flex-1 text-xs text-stone-600">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-end gap-3 font-medium text-stone-700 marker:hidden hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700">
+                Ayuda de acceso
+                <span aria-hidden="true" className="text-base transition group-open:rotate-45">
+                  +
+                </span>
+              </summary>
+              <div className="pb-1 pt-1">
+                <p className="max-w-sm leading-5 text-stone-600">
+                  {AUTH_UI_COPY.reloadApplicationHint}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void handleReload()}
+                  disabled={locked}
+                  data-testid="login-reload-button"
+                  className="mt-3 inline-flex items-center justify-center gap-2 rounded-lg border border-stone-300 bg-white px-3 py-2 text-[11px] font-semibold text-stone-700 transition hover:border-stone-400 hover:bg-stone-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:text-stone-400"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${isReloading ? 'animate-spin' : ''}`} />
+                  {isReloading ? 'Recargando…' : AUTH_UI_COPY.reloadApplicationAction}
+                </button>
+                {reloadError && (
+                  <p role="alert" className="mt-2 text-red-700">
+                    {reloadError}
+                  </p>
+                )}
+              </div>
+            </details>
+          </div>
         </div>
 
         {isGoogleLoading && (
