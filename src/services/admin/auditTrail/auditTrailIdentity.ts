@@ -144,34 +144,42 @@ export const attachNamelessPatients = (events: AuditTrailEvent[]): AuditTrailEve
   });
 };
 
+/** The visible characters of a masked document: `12.345.***-*` → `12345`. */
+const visibleDocumentPrefix = (document: string): string =>
+  normalizeDocument(document).split('*')[0];
+
+/** The one full document a (possibly masked) document belongs to, if any. */
+const resolveDocumentOwner = (
+  document: string | undefined,
+  fullDocuments: Set<string>
+): string | undefined => {
+  if (!document) return undefined;
+  if (!isMaskedDocument(document)) return normalizeDocument(document);
+  const prefix = visibleDocumentPrefix(document);
+  const matches = [...fullDocuments].filter(full => prefix.length > 0 && full.startsWith(prefix));
+  return matches.length === 1 ? matches[0] : undefined;
+};
+
 /**
- * Same name, different full documents: two people. Events whose document is missing or masked
- * stay with the most recent full document of that name.
+ * Same name, different full documents: two people. A masked document joins the one whose visible
+ * characters it shares; an event whose owner is unclear (no document, or a masked one that fits
+ * none or both) stays apart instead of being shown under either person.
  */
 export const splitPatientKeyByDocument = (events: AuditTrailEvent[]): AuditTrailEvent[] => {
   const documentsByKey = new Map<string, Set<string>>();
-  const latestByKey = new Map<string, { at: number; document: string }>();
   events.forEach(event => {
     const document = event.patient?.document;
     if (!event.patient || !document || isMaskedDocument(document)) return;
-    const normalized = normalizeDocument(document);
     const documents = documentsByKey.get(event.patient.key) ?? new Set<string>();
-    documents.add(normalized);
+    documents.add(normalizeDocument(document));
     documentsByKey.set(event.patient.key, documents);
-    const latest = latestByKey.get(event.patient.key);
-    if (!latest || event.at > latest.at) {
-      latestByKey.set(event.patient.key, { at: event.at, document: normalized });
-    }
   });
 
   return events.map(event => {
     const patient = event.patient;
     const documents = patient ? documentsByKey.get(patient.key) : undefined;
     if (!patient || !documents || documents.size < 2) return event;
-    const document =
-      patient.document && !isMaskedDocument(patient.document)
-        ? normalizeDocument(patient.document)
-        : latestByKey.get(patient.key)?.document;
-    return { ...event, patient: { ...patient, key: `${patient.key}|doc:${document}` } };
+    const owner = resolveDocumentOwner(patient.document, documents);
+    return { ...event, patient: { ...patient, key: `${patient.key}|doc:${owner ?? 'unclear'}` } };
   });
 };

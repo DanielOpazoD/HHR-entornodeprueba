@@ -300,10 +300,50 @@ describe('audit trail normalization', () => {
 
     const keys = events.map(event => event.patient?.key);
     expect(new Set(keys).size).toBe(2);
-    // The masked event joins the most recent full document of that name.
+    // The masked event joins the full document whose visible digits it shares.
     expect(keys[0]).toBe(
       keys.find((_, index) => events[index].patient?.document === '22.222.222-2')
     );
+  });
+
+  it('never files a masked or missing document under the wrong homonym', () => {
+    const events = normalizeAuditTrailEvents([
+      auditLog({
+        id: 'older-masked',
+        timestamp: '2026-10-22T12:00:00.000Z',
+        patientIdentifier: '11111***-*',
+        details: patientDetails('Juan Sintético'),
+      }),
+      auditLog({
+        id: 'first-juan',
+        timestamp: '2026-10-22T13:00:00.000Z',
+        details: patientDetails('Juan Sintético', { rut: '11.111.111-1' }),
+      }),
+      auditLog({
+        id: 'second-juan',
+        timestamp: '2026-10-22T15:00:00.000Z',
+        details: patientDetails('Juan Sintético', { rut: '22.222.222-2' }),
+      }),
+      auditLog({
+        id: 'fits-none',
+        timestamp: '2026-10-22T16:00:00.000Z',
+        patientIdentifier: '33333***-*',
+        details: patientDetails('Juan Sintético'),
+      }),
+      auditLog({
+        id: 'no-document',
+        timestamp: '2026-10-22T17:00:00.000Z',
+        details: patientDetails('Juan Sintético'),
+      }),
+    ]);
+    const keyOf = (id: string) => events.find(event => event.id === id)?.patient?.key;
+
+    // Older activity stays with the first Juan, not the one with the latest document.
+    expect(keyOf('older-masked')).toBe(keyOf('first-juan'));
+    expect(keyOf('older-masked')).not.toBe(keyOf('second-juan'));
+    // Unclear owners are shown apart, under neither person.
+    expect(keyOf('fits-none')).toBe(keyOf('no-document'));
+    expect([keyOf('first-juan'), keyOf('second-juan')]).not.toContain(keyOf('fits-none'));
   });
 
   it('uses one display name per staff member and drops duplicate documents', () => {
