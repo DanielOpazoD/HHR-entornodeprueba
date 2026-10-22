@@ -30,6 +30,8 @@ export const WhatsAppConfigView: React.FC = () => {
   const {
     data: serverConfig,
     isLoading: loadingConfig,
+    isError: configReadFailed,
+    error: configReadError,
     refetch: refetchConfig,
   } = useWhatsAppConfigQuery();
 
@@ -44,6 +46,25 @@ export const WhatsAppConfigView: React.FC = () => {
   const handleRefresh = async () => {
     await Promise.all([refetchConfig(), refetchHealth()]);
   };
+
+  // Never fall back to defaults here: saving that form would overwrite the stored configuration.
+  if (configReadFailed && !serverConfig) {
+    return (
+      <div
+        role="alert"
+        className="flex flex-col items-center gap-3 rounded-lg border border-red-200 bg-red-50 py-10 text-sm text-red-700"
+      >
+        <AlertCircle className="w-6 h-6" />
+        <p>{configReadError?.message || 'No se pudo leer la configuración de WhatsApp.'}</p>
+        <button
+          onClick={() => void refetchConfig()}
+          className="px-4 py-1.5 rounded-lg border border-red-300 bg-white hover:bg-red-100"
+        >
+          Reintentar
+        </button>
+      </div>
+    );
+  }
 
   if (loading || !serverConfig) {
     return (

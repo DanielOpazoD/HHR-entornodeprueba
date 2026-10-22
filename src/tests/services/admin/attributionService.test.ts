@@ -36,27 +36,34 @@ describe('attributionService', () => {
   describe('getCurrentShift', () => {
     it('should identify day shift correctly on a working day (starts at 08:00)', () => {
       // 2025-01-02 is a Thursday (Working Day)
-      const morningHabil = new Date('2025-01-02T08:01:00');
+      const morningHabil = new Date('2025-01-02T08:01:00-05:00');
       expect(getCurrentShift(morningHabil)).toBe('day');
 
-      const earlyMorningHabil = new Date('2025-01-02T07:59:00');
+      const earlyMorningHabil = new Date('2025-01-02T07:59:00-05:00');
       expect(getCurrentShift(earlyMorningHabil)).toBe('night');
     });
 
     it('should identify day shift correctly on a non-working day (starts at 09:00)', () => {
       // 2025-01-01 is a Holiday (Non-working Day)
-      const morningInhabil = new Date('2025-01-01T09:01:00');
+      const morningInhabil = new Date('2025-01-01T09:01:00-05:00');
       expect(getCurrentShift(morningInhabil)).toBe('day');
 
-      const morningInhabilLimit = new Date('2025-01-01T08:30:00');
+      const morningInhabilLimit = new Date('2025-01-01T08:30:00-05:00');
       expect(getCurrentShift(morningInhabilLimit)).toBe('night');
     });
 
+    it('reads the hospital clock even when the device runs on mainland time', () => {
+      // Santiago 21:00 is still 19:00 in Rapa Nui: the day shift has not ended yet.
+      expect(getCurrentShift(new Date('2025-01-02T21:00:00-03:00'))).toBe('day');
+      // Santiago 09:30 is 07:30 in Rapa Nui: the night shift is still on duty.
+      expect(getCurrentShift(new Date('2025-01-02T09:30:00-03:00'))).toBe('night');
+    });
+
     it('should identify night shift correctly at 20:00 for both', () => {
-      const nightStartHabil = new Date('2025-01-02T20:01:00');
+      const nightStartHabil = new Date('2025-01-02T20:01:00-05:00');
       expect(getCurrentShift(nightStartHabil)).toBe('night');
 
-      const nightStartInhabil = new Date('2025-01-01T20:01:00');
+      const nightStartInhabil = new Date('2025-01-01T20:01:00-05:00');
       expect(getCurrentShift(nightStartInhabil)).toBe('night');
     });
   });

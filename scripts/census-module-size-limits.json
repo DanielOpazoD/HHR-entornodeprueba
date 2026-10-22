@@ -1,6 +1,0 @@
-{
-  "files": {
-    "src/features/census/components/email-config/CensusEmailRecipientsSection.tsx": 360,
-    "src/features/census/controllers/patientMovementCreationController.ts": 320
-  }
-}

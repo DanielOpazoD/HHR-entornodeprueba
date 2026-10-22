@@ -1,9 +1,0 @@
-{
-  "files": {
-    "src/features/handoff/components/HandoffView.tsx": 360,
-    "src/features/handoff/components/HandoffMedicalObservationsCell.tsx": 360,
-    "src/features/handoff/components/MedicalHandoffTabs.tsx": 260,
-    "src/hooks/useHandoffLogic.ts": 220,
-    "src/hooks/useHandoffManagement.ts": 500
-  }
-}

@@ -126,8 +126,7 @@ describe('whatsappService', () => {
 
     it('should update config', async () => {
       vi.mocked(setDoc).mockResolvedValue(undefined as never);
-      const success = await updateWhatsAppConfig({ enabled: false });
-      expect(success).toBe(true);
+      await expect(updateWhatsAppConfig({ enabled: false })).resolves.toBeUndefined();
     });
 
     it('should get message templates from Firestore', async () => {

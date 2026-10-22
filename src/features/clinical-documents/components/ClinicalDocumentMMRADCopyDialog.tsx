@@ -5,6 +5,7 @@ import { searchMMRADExams, type MMRADExam } from '@/services/radiology/mmradServ
 import { buildMMRADReportClipboardText } from '@/services/radiology/mmradReportSupport';
 import { writeClipboardText } from '@/shared/runtime/browserClipboardRuntime';
 import { useTransientFlag } from '@/hooks/useTransientFlag';
+import { getTodayISO } from '@/utils/dateCoreUtils';
 
 interface ClinicalDocumentMMRADCopyDialogProps {
   patientRut: string;
@@ -14,13 +15,10 @@ interface ClinicalDocumentMMRADCopyDialogProps {
 const toIsoDate = (date: Date): string => date.toISOString().split('T')[0];
 
 const buildLastThirtyDaysRange = (): { dateFrom: string; dateTo: string } => {
-  const dateTo = new Date();
-  const dateFrom = new Date();
-  dateFrom.setDate(dateFrom.getDate() - 30);
-  return {
-    dateFrom: toIsoDate(dateFrom),
-    dateTo: toIsoDate(dateTo),
-  };
+  const dateTo = getTodayISO();
+  const dateFrom = new Date(`${dateTo}T12:00:00Z`);
+  dateFrom.setUTCDate(dateFrom.getUTCDate() - 30);
+  return { dateFrom: toIsoDate(dateFrom), dateTo };
 };
 
 const toExamTimestamp = (raw: string): number => {

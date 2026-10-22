@@ -5,18 +5,14 @@ import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRunti
 import { injectPrintScript } from './pdfBase';
 import { loadPdfLibGenerationRuntime } from './pdfLibRuntime';
 import type { CustomMark } from './pdfMarkTypes';
+import { getTodayISO } from '@/utils/dateCoreUtils';
+import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 
 const MARK_TEXT_Y_OFFSET = 3;
 const MARK_X_OFFSET = 4;
 const MARK_Y_OFFSET = 4;
 
-export const getTodayFormatted = (): string => {
-  const d = new Date();
-  const dd = String(d.getDate()).padStart(2, '0');
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const yyyy = d.getFullYear();
-  return `${dd}-${mm}-${yyyy}`;
-};
+export const getTodayFormatted = (): string => formatDateDDMMYYYY(getTodayISO());
 
 export const loadPdfTemplate = async (templatePath: string): Promise<PDFDocument> => {
   const { PDFDocument } = await loadPdfLibGenerationRuntime();
@@ -126,7 +122,7 @@ export const buildSuggestedPdfName = (prefix: string, patientName: string): stri
     .trim()
     .replace(/\s+/g, '_');
 
-  return `${prefix}_${safeName}_${new Date().toISOString().slice(0, 10)}.pdf`;
+  return `${prefix}_${safeName}_${getTodayISO()}.pdf`;
 };
 
 export const embedHelvetica = async (pdfDoc: PDFDocument) =>
