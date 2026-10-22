@@ -26,7 +26,7 @@ Referencias:
 - `src/features/cudyr/controllers/cudyrEligibilityController.ts`
 - `src/features/cudyr/controllers/cudyrEditAccessController.ts`
 - `src/services/cudyr/cudyrSummary.ts`
-- `src/services/exporters/reportWorkbookBuilders.ts`
+- `src/services/pdf/handoffPdfCudyrSection.ts`
 
 ## Laboratorio microbiológico
 

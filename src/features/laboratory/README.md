@@ -13,7 +13,6 @@ features/laboratory/
 │   ├── labNumericParser.ts         # Puro: números localizados con contexto de unidad/rango
 │   ├── labSpecimenController.ts    # Puro: clasificación sangre/orina/otros fluidos
 │   ├── labAnalyticsController.ts   # Puro: buildAnalysisData + helpers
-│   ├── labComparisonController.ts  # Puro: texto compacto de comparación para clipboard
 │   └── labSummaryController.ts     # Puro: resumen con siglas clínicas para documentos
 ├── components/               # Componentes React + helpers locales de charts
 │   ├── LabResultsViewerModal.tsx

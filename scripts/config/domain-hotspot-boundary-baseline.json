@@ -23,8 +23,7 @@
         "src/features/census/contracts/censusPatientContracts.ts",
         "src/features/cudyr/contracts/cudyrPatientContracts.ts",
         "src/features/rayen-import/contracts/rayenDomainContracts.ts",
-        "src/shared/contracts/patientDomainContracts.ts",
-        "src/shared/census/patientContracts.ts"
+        "src/shared/contracts/patientDomainContracts.ts"
       ]
     }
   ]
