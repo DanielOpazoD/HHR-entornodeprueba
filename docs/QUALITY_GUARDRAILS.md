@@ -178,7 +178,9 @@ UPC y los parches de movimientos, completando las listas de propiedad existentes
 ## Reutilización exacta de dependencias en CI
 
 `ciDependencyCache.test.ts` protege la clave exacta, el fallback de instalación,
-el único escritor prístino y las condiciones docs-only. Los contratos de
+un escritor prístino por imagen de runner (`lint` en `ubuntu-latest` y
+`rules-emulator` en `ubuntu-24.04`, porque la clave incluye la imagen) y las
+condiciones docs-only. Los contratos de
 scheduling, artefactos y confianza final siguen verificando el grafo de gates.
 Ampliar consumidores no autoriza quitar tests, cambiar matrices o presupuestos,
 ni añadir esperas al productor. Los jobs con otra raíz o versión de Node conservan

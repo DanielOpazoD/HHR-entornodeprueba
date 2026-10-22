@@ -565,8 +565,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
+      # The cache key includes the runner image, so ubuntu-24.04 jobs need their
+      # own pristine writer; lint only fills the ubuntu-latest key.
       - name: Setup CI dependencies
         uses: ./.github/actions/setup-ci-dependencies
+        with:
+          save-cache: 'true'
 
       - name: Setup Java (Firestore emulator)
         uses: actions/setup-java@v6
