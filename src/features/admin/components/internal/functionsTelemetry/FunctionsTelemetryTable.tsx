@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AlertCircle, CheckCircle2, ChevronDown, ChevronRight, Timer } from 'lucide-react';
 import type { FunctionsTelemetryEntry } from '@/types/functionsTelemetry';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 interface Props {
   entries: FunctionsTelemetryEntry[];
@@ -9,6 +10,7 @@ interface Props {
 const formatDate = (iso: string) => {
   try {
     return new Date(iso).toLocaleString('es-CL', {
+      timeZone: CLINICAL_TIME_ZONE,
       day: '2-digit',
       month: '2-digit',
       year: '2-digit',

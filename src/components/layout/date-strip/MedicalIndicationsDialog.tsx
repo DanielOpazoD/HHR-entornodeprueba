@@ -21,6 +21,7 @@ import { useMedicalIndicationsLibrary } from './useMedicalIndicationsLibrary';
 import { useMedicalIndicationsAppliedRecordLookup } from './medicalIndicationsAppliedRecordLookup';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 const loadPrintMedicalIndicationsPdf = async () =>
   import('@/services/pdf/medicalIndicationsPdfService').then(
@@ -37,6 +38,7 @@ const buildToday = () => formatDateDDMMYYYY(getTodayISO());
 
 const buildGenerationLabel = (isoDate: string) =>
   new Date(isoDate).toLocaleString('es-CL', {
+    timeZone: CLINICAL_TIME_ZONE,
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',

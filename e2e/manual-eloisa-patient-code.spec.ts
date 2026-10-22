@@ -6,6 +6,7 @@ import {
   ensureAuthenticated,
 } from './fixtures/auth';
 import { waitForPersistedBedFields } from './fixtures/censusPersistence';
+import { getTodayISO } from '../src/utils/dateCoreUtils';
 
 const TARGET_BED = 'R1';
 const ENCOUNTER_ID = '99887766';
@@ -67,7 +68,7 @@ test.describe('Manual Eloísa patient code', () => {
   test('validates, previews and persists one patient through the canonical admission command', async ({
     page,
   }) => {
-    const date = new Date().toISOString().slice(0, 10);
+    const date = getTodayISO();
     await openEmptyCensus(page, date);
 
     const targetRow = page.locator('tbody tr').filter({ hasText: TARGET_BED }).first();

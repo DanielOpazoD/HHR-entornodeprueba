@@ -1,7 +1,8 @@
 import type { BackupFileType, BackupShiftType } from '@/types/backup';
 import { BACKUP_TYPE_CONFIG, SHIFT_TYPE_CONFIG } from '@/types/backup';
 import { formatCensusIsoDate } from '@/shared/census/censusPresentation';
-import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
+import { formatCalendarDate, formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 export const getBackupTypePresentation = (type: BackupFileType) => BACKUP_TYPE_CONFIG[type];
 
@@ -14,6 +15,7 @@ export const formatBackupShiftLabel = (shiftType: BackupShiftType): string =>
 export const formatBackupTimestamp = (isoStr: string): string => {
   const date = new Date(isoStr);
   return date.toLocaleString('es-CL', {
+    timeZone: CLINICAL_TIME_ZONE,
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -28,19 +30,18 @@ export const formatBackupDisplayDate = (dateStr: string): string => {
 
 export const formatBackupCompactDate = (dateStr: string): string => formatDateDDMMYYYY(dateStr);
 
-export const formatBackupDisplayDateVerbose = (dateStr: string): string => {
-  const date = new Date(`${dateStr}T12:00:00`);
-  return date.toLocaleDateString('es-CL', {
+export const formatBackupDisplayDateVerbose = (dateStr: string): string =>
+  formatCalendarDate(dateStr, {
     weekday: 'short',
     day: '2-digit',
     month: 'short',
     year: 'numeric',
-  });
-};
+  }) ?? dateStr;
 
 export const formatBackupClockTime = (isoStr: string): string => {
   const date = new Date(isoStr);
   return date.toLocaleTimeString('es-CL', {
+    timeZone: CLINICAL_TIME_ZONE,
     hour: '2-digit',
     minute: '2-digit',
   });

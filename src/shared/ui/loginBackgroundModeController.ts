@@ -1,3 +1,5 @@
+import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
+
 export type LoginBackgroundMode = 'day' | 'night';
 
 export const LOGIN_BACKGROUND_MODE_STORAGE_KEY = 'hhr_login_background_mode';
@@ -31,8 +33,8 @@ export const persistLoginBackgroundMode = (mode: LoginBackgroundMode): void => {
 };
 
 export const resolveTimeBasedLoginBackgroundMode = (date = new Date()): LoginBackgroundMode => {
-  const currentHour = date.getHours();
-  return currentHour >= 8 && currentHour < 20 ? 'day' : 'night';
+  const hospitalHour = Number(calendarStampInClinicalTimeZone(date).hhmm.slice(0, 2));
+  return hospitalHour >= 8 && hospitalHour < 20 ? 'day' : 'night';
 };
 
 export const resolveInitialLoginBackgroundMode = (): LoginBackgroundMode =>

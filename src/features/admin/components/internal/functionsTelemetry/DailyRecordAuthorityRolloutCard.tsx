@@ -4,6 +4,7 @@ import type {
   DailyRecordAuthorityRolloutRecommendation,
   DailyRecordAuthorityRolloutSummary,
 } from '@/types/functionsTelemetry';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 interface Props {
   summary: DailyRecordAuthorityRolloutSummary;
@@ -39,6 +40,7 @@ const formatDate = (iso?: string) => {
   if (!iso) return '-';
   try {
     return new Date(iso).toLocaleString('es-CL', {
+      timeZone: CLINICAL_TIME_ZONE,
       day: '2-digit',
       month: '2-digit',
       hour: '2-digit',
