@@ -19,6 +19,8 @@ import {
 import type { WoundCarePhoto } from '@/types/domain/woundCare';
 import { formatFileSize, formatCompressionRatio } from '../controllers/photoUploadController';
 import { usePhotoLightboxZoom } from '../hooks/usePhotoLightboxZoom';
+import { resolvePhotoWallClock } from '@/application/wound-care/woundCarePhotoTime';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 import { formatDateTimeCL } from '@/utils/dateDisplayUtils';
 
 interface PhotoLightboxProps {
@@ -29,13 +31,9 @@ interface PhotoLightboxProps {
   onEditDescription?: (photoId: string, description: string) => Promise<void>;
 }
 
-const formatDateOnly = (iso: string): string => {
-  try {
-    const [year, month, day] = iso.split('T')[0].split('-');
-    return `${day}-${month}-${year}`;
-  } catch {
-    return iso;
-  }
+const formatTakenDate = (photo: WoundCarePhoto): string => {
+  const [year, month, day] = resolvePhotoWallClock(photo).date.split('-');
+  return `${day}-${month}-${year}`;
 };
 
 // ============================================================================
@@ -327,11 +325,11 @@ export const PhotoLightbox: React.FC<PhotoLightboxProps> = ({
         <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-white/50">
           <span className="inline-flex items-center gap-1 text-white/70 font-medium">
             <Camera className="w-3 h-3" />
-            Curación: {formatDateOnly(photo.takenAt)}
+            Curación: {formatTakenDate(photo)}
           </span>
           <span className="inline-flex items-center gap-1">
             <Clock className="w-3 h-3" />
-            Subida: {formatDateTimeCL(photo.uploadedAt)}
+            Subida: {formatDateTimeCL(photo.uploadedAt, CLINICAL_TIME_ZONE)}
           </span>
           {photo.bodyLocation && (
             <span className="inline-flex items-center gap-1">

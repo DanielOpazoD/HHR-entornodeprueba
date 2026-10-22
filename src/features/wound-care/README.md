@@ -92,7 +92,7 @@ wound-care/
 2. **Soft-delete** -- las fotos nunca se eliminan fisicamente; se marcan con `isDeleted`
 3. **Compresion client-side** -- las fotos se comprimen a WebP antes de subir (critico para la conectividad de Rapa Nui)
 4. **Thumbnails client-side** -- generados en el navegador, no via Cloud Functions
-5. **Fotos se agrupan por `takenAt`** -- la fecha de la curacion, no de la subida
+5. **Fotos se agrupan por `takenAt`** -- la fecha de la curacion, no de la subida. `takenAt` es la hora de reloj del hospital (Rapa Nui) escrita como `YYYY-MM-DDTHH:mm:00.000Z`; la `Z` es una marca heredada, no UTC. Si `takenAt` es igual a `uploadedAt`, la foto se guardo sin hora propia y es un instante real. Leerla siempre con `resolvePhotoWallClock`; no se reescriben registros existentes.
 6. **Historial multi-episodio** -- el modal muestra fotos de hospitalizaciones actuales y previas
 
 ## Tests
