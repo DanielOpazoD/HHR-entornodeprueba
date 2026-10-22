@@ -883,8 +883,10 @@ jobs:
         if: always() && matrix.lane == 'app'
         uses: actions/upload-artifact@v7
         with:
-          name: preview-smoke-blob-app
-          path: reports/e2e/preview-blobs/app/app.zip
+          # archive: false names the artifact after the file; keep both equal.
+          name: preview-smoke-blob-app.zip
+          path: reports/e2e/preview-blobs/app/preview-smoke-blob-app.zip
+          archive: false
           if-no-files-found: error
           overwrite: true
           retention-days: 7
@@ -892,8 +894,10 @@ jobs:
         if: always() && matrix.lane == 'dicom-graphics-stress'
         uses: actions/upload-artifact@v7
         with:
-          name: preview-smoke-blob-dicom-graphics-stress
-          path: reports/e2e/preview-blobs/dicom-graphics-stress/dicom-graphics-stress.zip
+          # archive: false names the artifact after the file; keep both equal.
+          name: preview-smoke-blob-dicom-graphics-stress.zip
+          path: reports/e2e/preview-blobs/dicom-graphics-stress/preview-smoke-blob-dicom-graphics-stress.zip
+          archive: false
           if-no-files-found: error
           overwrite: true
           retention-days: 7
@@ -901,8 +905,10 @@ jobs:
         if: always() && matrix.lane == 'dicom-1'
         uses: actions/upload-artifact@v7
         with:
-          name: preview-smoke-blob-dicom-1
-          path: reports/e2e/preview-blobs/dicom-1/dicom-1.zip
+          # archive: false names the artifact after the file; keep both equal.
+          name: preview-smoke-blob-dicom-1.zip
+          path: reports/e2e/preview-blobs/dicom-1/preview-smoke-blob-dicom-1.zip
+          archive: false
           if-no-files-found: error
           overwrite: true
           retention-days: 7
@@ -910,8 +916,10 @@ jobs:
         if: always() && matrix.lane == 'dicom-2'
         uses: actions/upload-artifact@v7
         with:
-          name: preview-smoke-blob-dicom-2
-          path: reports/e2e/preview-blobs/dicom-2/dicom-2.zip
+          # archive: false names the artifact after the file; keep both equal.
+          name: preview-smoke-blob-dicom-2.zip
+          path: reports/e2e/preview-blobs/dicom-2/preview-smoke-blob-dicom-2.zip
+          archive: false
           if-no-files-found: error
           overwrite: true
           retention-days: 7
@@ -930,26 +938,33 @@ jobs:
       - name: Setup CI dependencies
         uses: ./.github/actions/setup-ci-dependencies
 
+      # Blobs are already zips. Zipping them again let download-artifact's streaming
+      # unzip mistake the inner data-descriptor signature for the end of the entry
+      # and fail on intact artifacts; v8 with skip-decompress stores them as-is.
       - name: Download same-run app lane report
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
-          name: preview-smoke-blob-app
+          name: preview-smoke-blob-app.zip
           path: reports/e2e/preview-blobs
+          skip-decompress: true
       - name: Download same-run dicom-graphics-stress lane report
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
-          name: preview-smoke-blob-dicom-graphics-stress
+          name: preview-smoke-blob-dicom-graphics-stress.zip
           path: reports/e2e/preview-blobs
+          skip-decompress: true
       - name: Download same-run dicom-1 lane report
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
-          name: preview-smoke-blob-dicom-1
+          name: preview-smoke-blob-dicom-1.zip
           path: reports/e2e/preview-blobs
+          skip-decompress: true
       - name: Download same-run dicom-2 lane report
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
-          name: preview-smoke-blob-dicom-2
+          name: preview-smoke-blob-dicom-2.zip
           path: reports/e2e/preview-blobs
+          skip-decompress: true
 
       - name: Merge census and clinical library preview lanes
         run: npx playwright merge-reports --config playwright.preview-merge.config.ts reports/e2e/preview-blobs
