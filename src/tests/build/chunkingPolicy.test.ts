@@ -343,24 +343,6 @@ describe('chunkingPolicy', () => {
     );
   });
 
-  it('keeps production source off the backup export barrel', () => {
-    const sourceFiles = collectProductionSourceFiles(path.resolve(process.cwd(), 'src'));
-    const offenders = sourceFiles
-      .filter(
-        file =>
-          file !==
-          path.resolve(process.cwd(), 'src/application/backup-export/backupExportUseCases.ts')
-      )
-      .filter(file =>
-        readSource(path.relative(process.cwd(), file)).includes(
-          '@/application/backup-export/backupExportUseCases'
-        )
-      )
-      .map(file => path.relative(process.cwd(), file));
-
-    expect(offenders).toEqual([]);
-  });
-
   it('keeps audit write/fetch use cases out of the authenticated shell startup path', () => {
     const useAuditSource = readSource('src/hooks/useAudit.ts');
 

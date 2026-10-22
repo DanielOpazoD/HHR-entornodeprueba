@@ -44,7 +44,7 @@ export const GoogleIdentitySignIn: React.FC<Props> = ({
 
   return (
     <div
-      className="shrink-0 [&_svg]:h-5 [&_svg]:w-5"
+      className="shrink-0 [&_div:has(>svg)]:box-content"
       title="Ingresar con Google"
       data-testid="google-identity-sign-in"
     >
