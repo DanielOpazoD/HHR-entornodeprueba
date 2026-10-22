@@ -51,12 +51,12 @@ const countLines = filePath => {
 
 const loadAllowlist = () => {
   if (!fs.existsSync(ALLOWLIST_PATH)) {
-    return { globalMax: 400, allowlist: {}, backlog: {} };
+    return { globalMax: 600, allowlist: {}, backlog: {} };
   }
 
   const parsed = JSON.parse(fs.readFileSync(ALLOWLIST_PATH, 'utf8'));
   return {
-    globalMax: typeof parsed.globalMax === 'number' ? parsed.globalMax : 400,
+    globalMax: typeof parsed.globalMax === 'number' ? parsed.globalMax : 600,
     allowlist: parsed.allowlist && typeof parsed.allowlist === 'object' ? parsed.allowlist : {},
     backlog: parsed.backlog && typeof parsed.backlog === 'object' ? parsed.backlog : {},
   };

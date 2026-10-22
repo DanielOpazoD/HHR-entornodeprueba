@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import type { LabTrendGroup } from '@/types/domain/labAnalyticsTypes';
 import { groupVariablesByScale } from './LabTrendChartHelpers';
 import { UnitSubChart } from './LabTrendChartRenderers';
@@ -7,7 +7,7 @@ import { UnitSubChart } from './LabTrendChartRenderers';
 export const LabTrendGroupCard: React.FC<{
   group: LabTrendGroup;
 }> = ({ group }) => {
-  const unitGroups = groupVariablesByScale(group.variables);
+  const unitGroups = useMemo(() => groupVariablesByScale(group.variables), [group.variables]);
 
   return (
     <div

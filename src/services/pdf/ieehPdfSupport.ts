@@ -2,6 +2,7 @@ import type { PatientData } from '@/services/contracts/patientServiceContracts';
 import { calculateAge, formatDateToCL, splitPatientName } from '@/utils/clinicalUtils';
 import { calculateDischargeStayDays } from '@/utils/clinicalDayUtils';
 import type { DischargeFormData } from './ieehPdfContracts';
+import { getTodayISO } from '@/utils/dateCoreUtils';
 
 const CHAR_SPACING = 1;
 
@@ -130,5 +131,5 @@ export const buildIEEHFileName = (patientName: string | undefined): string => {
     .replace(/[^a-zA-ZáéíóúñÁÉÍÓÚÑ\s]/g, '')
     .trim()
     .replace(/\s+/g, '_');
-  return `IEEH_${safeName}_${new Date().toISOString().slice(0, 10)}.pdf`;
+  return `IEEH_${safeName}_${getTodayISO()}.pdf`;
 };

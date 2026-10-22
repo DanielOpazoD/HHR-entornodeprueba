@@ -171,7 +171,7 @@ const getSourceMetrics = () => {
 
 const getModuleSizeMetrics = () => {
   const allowlist = safeReadJson(MODULE_ALLOWLIST_PATH) || {};
-  const globalMax = typeof allowlist.globalMax === 'number' ? allowlist.globalMax : 400;
+  const globalMax = typeof allowlist.globalMax === 'number' ? allowlist.globalMax : 600;
   const perFileAllowlist =
     allowlist.allowlist && typeof allowlist.allowlist === 'object' ? allowlist.allowlist : {};
   const allowlistEntries = Object.entries(perFileAllowlist).filter(

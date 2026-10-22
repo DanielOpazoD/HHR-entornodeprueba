@@ -1,5 +1,7 @@
 # Engineering Definition Of Done
 
+> Sólo guía vigente. El historial de incidentes y parches va en la descripción del PR que los resuelve; el anterior está en el [historial de runbooks](archive/RUNBOOK_HISTORY_2026.md).
+
 Una change queda lista solo si cumple todo lo siguiente:
 
 1. `npm run typecheck`, `npm run lint`, `npm run check:quality` y `npm run build` pasan en verde.
@@ -92,47 +94,3 @@ Comparar el YAML estructuralmente para conservar todos los gates, condiciones,
 permisos, matrices y presupuestos. Ejecutar los contratos de scheduling/caché y
 el CI completo del head final; informar los hits y tiempos observados sin atribuir
 el ahorro de un paso a todo el pipeline ni al rendimiento de la aplicación.
-
-### Cuentas RUT: primer ingreso y recuperación
-
-La entrega se valida con `test:accounts:emulator:ci` (Auth/Firestore/Storage y UI
-sintéticos) y los gates de runtime crítico. El correo se sustituye en emuladores;
-no acredita entrega real. Ver [operación y publicación](RUT_PASSWORD_RECOVERY.md).
-
-El monitor de cuentas RUT debe conservar todos los roles administrables que
-confirma el servidor, incluido Administrador. Probar el control inicial y periódico,
-revocación, vencimiento, fallo transitorio y desmontaje; una contraseña aceptada
-no acredita una sesión utilizable. La aceptación real requiere leer datos básicos
-y recargar contra las reglas efectivamente publicadas en el proyecto de pruebas.
-
-### Fallo de publicación al cerrar sesión · 22-10-2026
-
-El cierre no depende del éxito del canal entre pestañas. Para este cambio de
-auth runtime se exige `ci:merge-gate`, `test:release-confidence`, revisión
-independiente y CI del head definitivo. La regresión del handler real debe
-confirmar signOut, limpieza del propietario y conservación de trabajo pendiente
-con BroadcastChannel fallido, sin modificar autoridad clínica ni CUDYR.
-
-### Ruta regional de acceso RUT · 22-10-2026
-
-Para cambiar la ruta regional RUT, comprobar el endpoint Gen2
-`signInWithRutSantiago`, su identidad de servicio Appspot explícita y la
-compatibilidad HTTP con el callable Gen1: datos/respuesta, CORS, autorización,
-entrada inválida y errores. Probar que el valor predeterminado Santiago se limita
-al proyecto exacto `hhr-pruebas`, que US/East/West se seleccionan sólo mediante la
-allowlist y que un flag inválido usa US. Conservar otros callables, recuperación,
-sesión y CUDYR; una respuesta incierta no autoriza fallback ni otro envío.
-
-La aceptación de rendimiento debe conservar todas las muestras y distinguir
-medianas, primeros accesos observados, región y generación. Los cinco pares de
-la prueba regional orientan el rollout de pruebas; no garantizan arranque frío,
-p95 ni tiempo de pintura del censo. Verificar disponibilidad del endpoint y
-sesión/censo después de recargar por separado del CI o merge.
-
-Al agrupar lecturas del ingreso RUT, demostrar que sólo sale de la transacción el
-índice cuyo commit terminó; cubrir reintento, error de lectura/commit y políticas
-de IP/cuenta sin reducir límites. La clave personal debe evitar la lectura de
-preparación inicial sin omitir verificación de token revocado ni estado de acceso
-posterior al proveedor. Probar que una sesión reemplazada mientras espera el lock
-no limpia los resultados de rol del nuevo propietario. No añadir cachés de
-autorización, ni presentar menos RPC como solución probada a los arranques en frío.

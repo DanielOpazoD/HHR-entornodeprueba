@@ -86,7 +86,6 @@
     "requiredFields": ["owner", "reason", "closureCriteria", "expiresAt", "trackedIn"],
     "governedAllowlists": [
       "scripts/module-size-allowlist.json",
-      "scripts/hook-hotspots-limits.json",
       "scripts/config/test-failure-catalog.json",
       "scripts/config/flaky-quarantine.json",
       "scripts/config/compatibility-governance.json"

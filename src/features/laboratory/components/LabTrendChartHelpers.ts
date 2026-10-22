@@ -31,7 +31,13 @@ export const resolveSharedReferenceBand = (
 ): SharedReferenceBand | null => {
   const ranges = Object.values(variables).flatMap(points =>
     points.map(point =>
-      point.refMin != null && point.refMax != null ? { min: point.refMin, max: point.refMax } : null
+      point.refMin != null &&
+      point.refMax != null &&
+      Number.isFinite(point.refMin) &&
+      Number.isFinite(point.refMax) &&
+      point.refMin <= point.refMax
+        ? { min: point.refMin, max: point.refMax }
+        : null
     )
   );
   if (ranges.length === 0 || ranges.some(range => range == null)) return null;
