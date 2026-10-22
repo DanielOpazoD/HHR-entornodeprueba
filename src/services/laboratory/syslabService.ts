@@ -30,6 +30,8 @@ import {
 export { cleanRutForSyslab };
 import type { SyslabSearchResponse, SyslabDetailsResponse } from '@/types/domain/labExamTypes';
 
+import { readSyslabDetailsInBatches, type SyslabDetailsOptions } from './syslabDetailsBatch';
+
 const syslabLogger = createScopedLogger('syslabService');
 
 /** Default request timeout in milliseconds (30 seconds — Syslab scraping is slow). */
@@ -37,8 +39,6 @@ const DEFAULT_TIMEOUT_MS = 30_000;
 
 /** Maximum number of retry attempts for transient network failures. */
 const MAX_RETRIES = 1;
-
-const SYSLAB_DETAILS_BATCH_SIZE = 3;
 
 const isNetlifyDevRuntime = (): boolean =>
   typeof globalThis.location !== 'undefined' &&
@@ -278,7 +278,10 @@ export const searchSyslabExams = async (rut: string): Promise<SyslabSearchRespon
  * Extension search results remain bound to their opaque, expiring batch.
  * Legacy web links use the explicitly configured Netlify/Express proxy.
  */
-export const fetchSyslabExamDetails = async (links: string[]): Promise<SyslabDetailsResponse> => {
+export const fetchSyslabExamDetails = async (
+  links: string[],
+  options: SyslabDetailsOptions = {}
+): Promise<SyslabDetailsResponse> => {
   const extensionLinks = links.filter(isSyslabExtensionLink);
   if (extensionLinks.length > 0) {
     if (extensionLinks.length !== links.length) {
@@ -286,7 +289,13 @@ export const fetchSyslabExamDetails = async (links: string[]): Promise<SyslabDet
         'La selección mezcla búsquedas de laboratorio incompatibles. Actualiza el visor.'
       );
     }
-    return fetchSyslabDetailsThroughExtension(links);
+    const batchIds = new Set(links.map(link => link.split('/batch/')[1]?.split('/exam/')[0]));
+    if (batchIds.size !== 1) {
+      throw new Error(
+        'La selección mezcla búsquedas de laboratorio incompatibles. Actualiza el visor.'
+      );
+    }
+    return readSyslabDetailsInBatches(links, fetchSyslabDetailsThroughExtension, options);
   }
 
   if (!directWebTransportConfigured()) throw new Error(DIRECT_WEB_UNAVAILABLE_MESSAGE);
@@ -310,28 +319,7 @@ export const fetchSyslabExamDetails = async (links: string[]): Promise<SyslabDet
   };
 
   try {
-    if (links.length <= SYSLAB_DETAILS_BATCH_SIZE) {
-      return await fetchDetailsBatch(links);
-    }
-
-    const mergedData: SyslabDetailsResponse['data'] = [];
-
-    for (let index = 0; index < links.length; index += SYSLAB_DETAILS_BATCH_SIZE) {
-      const batch = links.slice(index, index + SYSLAB_DETAILS_BATCH_SIZE);
-      const batchResponse = await fetchDetailsBatch(batch);
-
-      if (!batchResponse.success) {
-        return {
-          success: false,
-          data: mergedData,
-          error: batchResponse.error || 'No se pudieron obtener todos los detalles de laboratorio.',
-        };
-      }
-
-      mergedData.push(...batchResponse.data);
-    }
-
-    return { success: true, data: mergedData };
+    return await readSyslabDetailsInBatches(links, fetchDetailsBatch, options);
   } catch (error) {
     syslabLogger.error('Syslab exam details fetch failed', error);
     throw error;
