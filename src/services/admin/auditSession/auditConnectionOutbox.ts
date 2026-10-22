@@ -33,6 +33,12 @@ const ID_SUFFIX: Record<ConnectionAction, RegExp> = {
   USER_LOGOUT: /^end$/,
   CONNECTION_INTERRUPTED: /^net_\d{1,14}$/,
 };
+/** Same instant: a connection starts, drops, then ends. */
+const ACTION_ORDER: Record<ConnectionAction, number> = {
+  USER_LOGIN: 0,
+  CONNECTION_INTERRUPTED: 1,
+  USER_LOGOUT: 2,
+};
 const STARTS = new Set(['sign_in', 'resume']);
 const END_REASONS = new Set(['manual', 'automatic', 'closed']);
 
@@ -189,7 +195,10 @@ export const readAuditConnectionOutbox = (
       })
       .sort(
         (a, b) =>
-          a.entry.timestamp.localeCompare(b.entry.timestamp) || a.entry.id.localeCompare(b.entry.id)
+          a.entry.timestamp.localeCompare(b.entry.timestamp) ||
+          ACTION_ORDER[a.entry.action as ConnectionAction] -
+            ACTION_ORDER[b.entry.action as ConnectionAction] ||
+          a.entry.id.localeCompare(b.entry.id)
       );
   } catch {
     return [];

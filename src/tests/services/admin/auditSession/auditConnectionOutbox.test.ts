@@ -63,6 +63,29 @@ describe('audit connection outbox', () => {
     expect(readAuditConnectionOutbox(storage).map(item => item.entry)).toEqual([START, DROP, END]);
   });
 
+  it('puts a start before an end recorded in the same millisecond', () => {
+    const storage = memoryStorage();
+    const instant = record('same-instant');
+    enqueueAuditConnectionEntry(
+      storage,
+      buildAuditConnectionEntry({
+        kind: 'end',
+        record: instant,
+        reason: 'manual',
+        endedAt: instant.startedAt,
+      })
+    );
+    enqueueAuditConnectionEntry(
+      storage,
+      buildAuditConnectionEntry({ kind: 'start', record: instant, start: 'sign_in' })
+    );
+
+    expect(readAuditConnectionOutbox(storage).map(item => item.entry.action)).toEqual([
+      'USER_LOGIN',
+      'USER_LOGOUT',
+    ]);
+  });
+
   it('refuses what the tracker never writes instead of sending it under the next session', () => {
     const storage = memoryStorage();
     plant(storage, END.id, { entry: { ...END, action: 'PATIENT_CLEARED' } });
