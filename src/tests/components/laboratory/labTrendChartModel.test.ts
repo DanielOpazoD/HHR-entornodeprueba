@@ -33,6 +33,17 @@ describe('laboratory chart data integrity', () => {
     expect(model.showPointLabels).toBe(false);
     expect(buildLabTrendChartModel({ value: points.slice(0, 2) }).showPointLabels).toBe(true);
   });
+  it('labels each month once while retaining all timestamps and points', () => {
+    const model = buildLabTrendChartModel({
+      value: [
+        point(1, '01/05/2025 08:00'),
+        point(2, '02/05/2025 10:00'),
+        point(3, '01/05/2026 08:00'),
+      ],
+    });
+    expect(model.axisTicks).toEqual(['01/05/2025 08:00', '01/05/2026 08:00']);
+    expect(model.chartData).toHaveLength(3);
+  });
   it('handles empty and invalid series without infinite SVG coordinates', () => {
     expect(buildLabTrendChartModel({ value: [point(NaN), point(Infinity)] }).domain).toEqual([
       0, 1,

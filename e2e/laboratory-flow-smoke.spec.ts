@@ -247,7 +247,7 @@ const openAuthenticatedCensus = async (page: Page) => {
 test.describe('Laboratory UI smoke', () => {
   test('searches Syslab, analyzes selected exams, and exports trend/comparison outputs', async ({
     page,
-  }) => {
+  }, testInfo) => {
     test.setTimeout(90_000);
 
     await openAuthenticatedCensus(page);
@@ -283,6 +283,8 @@ test.describe('Laboratory UI smoke', () => {
     });
     await expect(labDialog.getByText('Hemoglobina')).toBeVisible();
 
+    await expect(labDialog.getByText('4/26', { exact: true }).first()).toBeVisible();
+    await labDialog.screenshot({ path: testInfo.outputPath('laboratory-sparse-labels.png') });
     const pngDownload = page.waitForEvent('download', { timeout: 20000 });
     await labDialog.getByRole('button', { name: 'Descargar PNG' }).click();
     await expect((await pngDownload).suggestedFilename()).toMatch(
@@ -342,7 +344,7 @@ test.describe('Laboratory UI smoke', () => {
                 section: 'FUNCION RENAL',
                 analysis: 'Creatinina',
                 result: '0,64',
-                unit: 'mg/dL',
+                unit: Number(url.split('/').pop()) % 2 ? 'mg/dL |' : 'mg/dL',
                 refValue: '0,5-1,1',
               },
             ],
@@ -362,6 +364,9 @@ test.describe('Laboratory UI smoke', () => {
     });
     expect(batchSizes).toEqual([3, 3, 3, 3, 3, 3, 3, 3, 2]);
     await expect(dialog.locator('.recharts-line-dot')).toHaveCount(26);
+    await expect(dialog.locator('.recharts-wrapper')).toHaveCount(1);
+    await expect(dialog.getByText('10/26', { exact: true })).toBeVisible();
+    await expect(dialog).not.toContainText('mg/dL |');
     await expect(
       dialog.getByText('Pasa sobre un punto para ver su valor y referencia.')
     ).toBeVisible();

@@ -211,6 +211,12 @@
   const htmlReportMaterial = async report => {
     const html = new TextDecoder('utf-8').decode(report.bytes);
     const parsed = new DOMParser().parseFromString(html, 'text/html');
+    if (parsed.querySelector('input[type="password"]')) {
+      throw new Error('La sesión de Syslab venció. Inicia sesión y vuelve a consultar.');
+    }
+    if (/no hay ex(?:á|a|�|Ã¡)menes validados/i.test(parsed.documentElement.textContent || '')) {
+      throw new Error('Syslab informa «No hay exámenes validados». Esta orden aún no tiene un informe disponible para analizar.');
+    }
     const candidate = parsed.querySelector(
       'iframe[src], embed[src], object[data], a[href*=".pdf"], a[href*="detalleexamenes.php"]'
     );
@@ -254,24 +260,32 @@
   };
 
   const processReport = async (exam, expectedRutBody, { includeValidatedPdf = false } = {}) => {
-    const report = await fetchReport(exam.link);
-    const material = await resolveReportMaterial(report);
-    const text = material.text;
-    const rutBody = self.HhrLabViewer.extractRutBodyFromReportText(text);
-    if (!rutBody || rutBody !== expectedRutBody) {
-      throw new Error('El informe no corresponde al RUN solicitado.');
+    try {
+      const report = await fetchReport(exam.link);
+      const material = await resolveReportMaterial(report);
+      const text = material.text;
+      const rutBody = self.HhrLabViewer.extractRutBodyFromReportText(text);
+      if (!rutBody || rutBody !== expectedRutBody) {
+        throw new Error(!rutBody
+          ? 'No se pudo verificar el RUN: el informe no contiene un encabezado legible y único del paciente. Puede estar pendiente o tener un formato no reconocido.'
+          : 'El RUN leído en el informe es distinto del solicitado. No se incorporaron sus resultados.');
+      }
+      const detail = {
+        examId: String(exam.id),
+        rutBody,
+        findings: self.HhrLabViewer.parseReportText(text),
+      };
+      if (includeValidatedPdf) {
+        const signature = String.fromCharCode(...material.report.bytes.slice(0, 4));
+        if (signature !== '%PDF') throw new Error('El informe validado no está disponible como PDF.');
+        detail.pdfBase64 = bytesToBase64(material.report.bytes);
+      }
+      return detail;
+    } catch (error) {
+      const id = /^\d+$/.test(String(exam.id)) ? String(exam.id) : 'sin número';
+      const date = /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(String(exam.date || '')) ? ` · ${exam.date}` : '';
+      throw new Error(`Informe #${id}${date}: ${String(error && error.message || error)} No se completó la selección; revisa este informe en Syslab.`);
     }
-    const detail = {
-      examId: String(exam.id),
-      rutBody,
-      findings: self.HhrLabViewer.parseReportText(text),
-    };
-    if (includeValidatedPdf) {
-      const signature = String.fromCharCode(...material.report.bytes.slice(0, 4));
-      if (signature !== '%PDF') throw new Error('El informe validado no está disponible como PDF.');
-      detail.pdfBase64 = bytesToBase64(material.report.bytes);
-    }
-    return detail;
   };
 
   const mapWithConcurrency = async (items, concurrency, mapper) => {
@@ -343,7 +357,7 @@
     if (message.type === 'RAYEN_SYSLAB_VALIDATE_REPORT') {
       const rutBody = normalizeRutBody(message.rutBody);
       const detail = await processReport(
-        { id: message.examId, link: message.link },
+        { id: message.examId, date: message.date, link: message.link },
         rutBody,
         { includeValidatedPdf: true }
       );

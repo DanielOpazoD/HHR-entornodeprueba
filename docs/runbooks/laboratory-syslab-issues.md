@@ -135,3 +135,31 @@ categórico por orden: no representa distancia temporal proporcional.
 - `VITE_SYSLAB_API_URL` — URL explícita del proxy Express heredado (sin valor por defecto)
 - `SYSLAB_BASE_URL` — URL de Syslab en el Express server (default: `http://10.4.69.90/syslab/`)
 - `SYSLAB_USER` / `SYSLAB_PASS` — Credenciales de Syslab
+
+## Informe que detiene una selección (0.48.56)
+
+El error identifica la orden y su fecha cuando están disponibles. Distingue un RUN
+leído distinto del solicitado de un encabezado ausente, ilegible o contradictorio.
+Una sesión vencida tiene su propio mensaje. No concluir que pertenece a otra persona
+cuando no se pudo leer la identidad. Abrir la orden indicada en Syslab y contrastar
+el encabezado original; un informe pendiente puede no incluir resultados ni identidad.
+No sustituir la identidad del documento por el RUT de búsqueda, el nombre o el enlace.
+No publicar ni guardar una selección parcial como completa; corregir la fuente o
+seleccionar explícitamente otros informes, manteniendo visible el motivo del bloqueo.
+
+Las unidades eliminan únicamente separadores de columna `|` en sus extremos. No hay
+conversión de unidades o valores; mg/L sigue separado de mg/dL. HHR también normaliza
+la presentación de resultados previos sin reescribir su fuente. Los ejes muestran
+mes/año (mayo de 2026: 5/26), una marca por mes; el tooltip conserva fecha, hora y valor.
+Las posiciones siguen siendo categóricas: no representan intervalos de tiempo iguales.
+
+Validar parser, puente real con fixtures sintéticos (RUN correcto, ausente, distinto,
+documento mixto y sesión vencida), agrupación de unidades, ejes y etiquetas. Requiere
+actualizar la extensión instalada para recibir el diagnóstico por informe. Un merge
+de HHR o una prueba sintética no acredita que un PDF real problemático esté resuelto.
+
+### Presupuesto de tamaño de la corrección 0.48.56
+
+Se registra explícitamente el crecimiento acotado de cuatro módulos existentes: parser +2 líneas (cabeceras múltiples), bridge +14 (diagnóstico de identidad, informe sin validación y contexto del informe), PDF bundle +1 y runtime +2 (fecha del informe). Se conservan todos los límites de complejidad. Estas responsabilidades pertenecen a esos módulos; no se crea una capa adicional ni se comprime código para eludir el control. El ratchet vuelve a aplicar sobre estos tamaños revisados.
+
+Syslab puede responder con un aviso HTML «No hay exámenes validados» en lugar de un informe. La extensión detecta esa respuesta antes de analizar identidad y la informa con número y fecha de orden. Sigue bloqueando la selección: el usuario debe revisar esa orden y desmarcarla explícitamente si desea analizar las demás. No se interpreta como un paciente distinto ni se importa contenido sin identidad verificada.
