@@ -5,6 +5,7 @@ import {
   requestPatientDocumentOpen,
   type RayenPatientDocument,
 } from '@/features/rayen-import/clinical-panel';
+import { formatTimestamp } from '@/utils/dateDisplayUtils';
 
 interface PatientDocumentManagerDialogProps {
   patientName: string;
@@ -14,13 +15,8 @@ interface PatientDocumentManagerDialogProps {
   onClose: () => void;
 }
 
-const formatDate = (value: string): string => {
-  if (!value) return 'No informada';
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime())
-    ? value
-    : new Intl.DateTimeFormat('es-CL', { dateStyle: 'short' }).format(parsed);
-};
+const formatDate = (value: string): string =>
+  value ? (formatTimestamp(value, { dateStyle: 'short' }) ?? value) : 'No informada';
 
 export const PatientDocumentManagerDialog: React.FC<PatientDocumentManagerDialogProps> = ({
   patientName,

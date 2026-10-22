@@ -1,5 +1,7 @@
 import React from 'react';
 import type { NursingAccount, NursingAccountList } from '@/services/auth/nursingAccountService';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
+
 const actions: Record<string, string> = {
   account_created: 'Cuenta creada',
   invitation_issued: 'Activación emitida',
@@ -38,8 +40,9 @@ export default function NursingAccountAudit({
       <ul>
         {events.map(event => (
           <li key={event.id} className="border-t py-2">
-            {new Date(event.at).toLocaleString()} · {actions[event.action] || event.action} ·{' '}
-            {label(event.targetUid)} · responsable: {label(event.actorUid)}
+            {new Date(event.at).toLocaleString('es-CL', { timeZone: CLINICAL_TIME_ZONE })} ·{' '}
+            {actions[event.action] || event.action} · {label(event.targetUid)} · responsable:{' '}
+            {label(event.actorUid)}
           </li>
         ))}
       </ul>

@@ -4,8 +4,9 @@ import {
   buildCanonicalE2ERecord,
   ensureAuthenticated,
 } from './fixtures/auth';
+import { getTodayISO } from '../src/utils/dateCoreUtils';
 
-const EXPORT_DATE = new Date().toISOString().slice(0, 10);
+const EXPORT_DATE = getTodayISO();
 
 test.describe('Export artifact validation', () => {
   test('downloads a local Excel artifact with a non-empty payload', async ({ page }) => {

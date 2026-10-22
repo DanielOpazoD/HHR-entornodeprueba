@@ -2,6 +2,7 @@ import { useState } from 'react';
 import clsx from 'clsx';
 import { AlertTriangle, CheckCircle2, ChevronDown, RefreshCw, ShieldAlert } from 'lucide-react';
 import type { SystemHealthSyncConvergencePanelModel } from './systemHealthSyncConvergenceModel';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 const statusClassName: Record<SystemHealthSyncConvergencePanelModel['status'], string> = {
   healthy: 'border-emerald-100 bg-emerald-50 text-emerald-700',
@@ -22,6 +23,7 @@ const formatDateTime = (timestamp: string | undefined): string => {
   const date = new Date(timestamp);
   if (Number.isNaN(date.getTime())) return 'Fecha no disponible';
   return new Intl.DateTimeFormat('es-CL', {
+    timeZone: CLINICAL_TIME_ZONE,
     dateStyle: 'short',
     timeStyle: 'short',
   }).format(date);

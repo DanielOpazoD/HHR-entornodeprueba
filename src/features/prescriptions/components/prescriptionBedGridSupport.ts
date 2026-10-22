@@ -7,6 +7,7 @@ import {
 } from '@/types/prescriptionTypes';
 import type { PrescriptionBedRowData } from '@/features/prescriptions/components/PrescriptionBedRow';
 import { getTodayISO } from '@/utils/dateCoreUtils';
+import { formatCalendarDate } from '@/utils/dateDisplayUtils';
 
 export const todayIso = (): string => getTodayISO();
 
@@ -17,15 +18,8 @@ export const previousIsoDay = (iso: string): string => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 };
 
-export const formatDayLabel = (iso: string): string => {
-  try {
-    const [year, month, day] = iso.split('-').map(Number);
-    const d = new Date(year, (month ?? 1) - 1, day ?? 1);
-    return d.toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' });
-  } catch {
-    return iso;
-  }
-};
+export const formatDayLabel = (iso: string): string =>
+  formatCalendarDate(iso, { weekday: 'long', day: 'numeric', month: 'long' }) ?? iso;
 
 export const isUnassignedRecord = (record: PrescriptionRecord): boolean =>
   resolvePrescriptionAssignmentScope(record) === 'unassigned';

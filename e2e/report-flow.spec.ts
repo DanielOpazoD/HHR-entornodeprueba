@@ -4,8 +4,9 @@ import {
   buildCanonicalE2ERecord,
   ensureAuthenticated,
 } from './fixtures/auth';
+import { getTodayISO } from '../src/utils/dateCoreUtils';
 
-const getTodayDate = () => new Date().toISOString().slice(0, 10);
+const getTodayDate = () => getTodayISO();
 
 const buildReportFlowRecord = (date: string) =>
   buildCanonicalE2ERecord(date, {

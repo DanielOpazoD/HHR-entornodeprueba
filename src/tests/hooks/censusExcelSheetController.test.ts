@@ -6,6 +6,7 @@ import {
   buildCensusWorkbookPlan,
   buildCensusWorkbookSheetDescriptors,
 } from '@/hooks/controllers/censusExcelSheetController';
+import { clinicalWallClockToDate } from '@/utils/clinicalWallClock';
 
 const buildRecord = (date: string): DailyRecord =>
   ({
@@ -24,7 +25,8 @@ describe('censusExcelSheetController', () => {
     const descriptors = buildCensusWorkbookSheetDescriptors({
       monthRecords: [buildRecord('2026-02-19'), buildRecord('2026-02-20')],
       currentDateString: '2026-02-20',
-      now: new Date(2026, 1, 20, 14, 25, 0, 0),
+      // 14:25 in Rapa Nui is 16:25 on a mainland device: the sheet follows the hospital.
+      now: clinicalWallClockToDate('2026-02-20', '14:25'),
     });
 
     const currentDayDescriptors = descriptors.filter(item => item.recordDate === '2026-02-20');
@@ -40,7 +42,7 @@ describe('censusExcelSheetController', () => {
     const descriptors = buildCensusWorkbookSheetDescriptors({
       monthRecords: [buildRecord('2026-02-19'), buildRecord('2026-02-20')],
       currentDateString: '2026-02-20',
-      now: new Date(2026, 1, 20, 12, 0, 0, 0),
+      now: clinicalWallClockToDate('2026-02-20', '12:00'),
     });
 
     expect(descriptors.map(item => item.sheetName)).toEqual(['19-02-2026', '20-02-2026 12-00']);
@@ -62,7 +64,7 @@ describe('censusExcelSheetController', () => {
     const plan = buildCensusWorkbookPlan({
       monthRecords: [baseRecord],
       currentDateString: '2026-01-23',
-      now: new Date('2026-01-23T23:30:00'),
+      now: clinicalWallClockToDate('2026-01-23', '23:30'),
     });
 
     expect(plan.sheetDescriptors).toHaveLength(1);

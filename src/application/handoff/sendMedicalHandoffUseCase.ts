@@ -16,6 +16,7 @@ import {
   executeEnsureMedicalHandoffSignatureLink,
   executeMarkMedicalHandoffAsSent,
 } from './handoffDeliveryUseCases';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 export interface SendMedicalHandoffInput {
   record: DailyRecord;
@@ -102,6 +103,7 @@ export const executeSendMedicalHandoff = async (
       date: dateStr,
       signedBy: doctorName,
       signedAt: new Date(sentAt).toLocaleTimeString('es-CL', {
+        timeZone: CLINICAL_TIME_ZONE,
         hour: '2-digit',
         minute: '2-digit',
       }),
