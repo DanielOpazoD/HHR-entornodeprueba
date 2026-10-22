@@ -135,7 +135,7 @@ Artefactos producidos por tooling o reportes automáticos. Son útiles para cons
 
 - [Mapa arquitectónico C4](architecture/c4/README.md) — SVG generados y fuentes PlantUML; snapshot por SHA, no reemplaza la guía canónica
 - `docs/dependency-debt.md` — snapshot generado; verificar su fecha y regenerar antes de evaluar
-- `docs/api/**`
+- `docs/api/**` — no versionado: `npm run docs:generate` lo genera localmente y el CI publica el artefacto `api-documentation`
 - `reports/**/*.md`
 - `reports/**/*.json`
 
@@ -151,10 +151,11 @@ Artefactos producidos por tooling o reportes automáticos. Son útiles para cons
 
 ## Decisión sobre `docs/api`
 
-- Se mantiene versionado por ahora como referencia offline y para revisión local rápida.
-- Se considera generado y de solo consulta.
+- Es referencia generada por TypeDoc y no se versiona: la copia del repo quedó
+  desactualizada y sólo añadía 2.058 archivos (26 MB) a búsquedas y revisiones.
+- Para consultarla, ejecutar `npm run docs:generate` (escribe `docs/api/`, ignorado
+  por Git) o descargar el artefacto `api-documentation` del CI de `main`.
 - No debe editarse manualmente.
-- Si en el futuro CI publica artefactos navegables externos, este directorio es candidato a salir del repositorio.
 
 ## Decisión sobre `reports`
 
