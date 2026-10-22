@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { setupE2EContext, ensureRecordExists } from './fixtures/auth';
+import { getTodayISO } from '../src/utils/dateCoreUtils';
 
-const CURRENT_DATE = process.env.E2E_FIXED_DATE ?? new Date().toISOString().slice(0, 10);
+const CURRENT_DATE = process.env.E2E_FIXED_DATE ?? getTodayISO();
 
 const getPatientNameInput = (page: Page) =>
   page

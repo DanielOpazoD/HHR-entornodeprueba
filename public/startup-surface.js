@@ -19,8 +19,15 @@
     } catch (error) {
       // Fall through to the time-based default.
     }
-    var currentHour = new Date().getHours();
-    return currentHour >= 8 && currentHour < 20 ? 'day' : 'night';
+    // Hospital hour (CLINICAL_TIME_ZONE in src/utils/clinicalTimeZone.ts), not the device's.
+    var hospitalHour = Number(
+      new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Pacific/Easter',
+        hour: '2-digit',
+        hourCycle: 'h23',
+      }).format(new Date())
+    );
+    return hospitalHour >= 8 && hospitalHour < 20 ? 'day' : 'night';
   };
   var LOGIN_SURFACE_GRADIENTS = {
     day: 'linear-gradient(115deg, rgba(15, 23, 42, 0.82) 0%, rgba(15, 23, 42, 0.62) 36%, rgba(15, 23, 42, 0.28) 64%, rgba(255, 255, 255, 0.08) 100%)',

@@ -9,6 +9,7 @@ import type {
   PrescriptionMonthlyPdfImageQuality,
   PrescriptionsPerPageOption,
 } from '@/features/prescriptions/services/prescriptionMonthlyPdfTypes';
+import { formatDateDDMMYYYY, readClinicalTimestamp } from '@/utils/dateDisplayUtils';
 
 export const PRESCRIPTION_MONTHLY_PRINT_ROOT_ID = 'prescription-monthly-print-root';
 export const PRESCRIPTION_MONTHLY_PRINT_STYLE_ID = 'prescription-monthly-print-style';
@@ -40,14 +41,8 @@ const formatIsoDayForDisplay = (isoDay: string): string => {
 };
 
 const formatDateTime = (iso: string): string => {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso;
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = date.getFullYear();
-  const hour = String(date.getHours()).padStart(2, '0');
-  const minute = String(date.getMinutes()).padStart(2, '0');
-  return `${day}-${month}-${year} ${hour}:${minute}`;
+  const stamp = readClinicalTimestamp(iso);
+  return stamp ? `${formatDateDDMMYYYY(stamp.iso)} ${stamp.hhmm}` : iso;
 };
 
 const describeRecord = (record: PrescriptionRecord): string => {

@@ -1,6 +1,7 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { buildCanonicalE2ERecord } from './fixtures/auth';
+import { CLINICAL_TIME_ZONE } from '../src/utils/clinicalTimeZone';
 
 const origin = 'http://127.0.0.1:4318';
 const date = '2026-02-20';
@@ -174,7 +175,7 @@ test('synthetic census interactions produce a privacy-safe timing baseline', asy
   const context = await browser.newContext({
     baseURL: origin,
     viewport: { width: 1280, height: 720 },
-    timezoneId: 'Pacific/Easter',
+    timezoneId: CLINICAL_TIME_ZONE,
     locale: 'es-CL',
     serviceWorkers: 'block',
   });

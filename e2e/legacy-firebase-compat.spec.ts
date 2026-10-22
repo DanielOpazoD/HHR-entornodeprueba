@@ -2,8 +2,9 @@ import { test, expect } from '@playwright/test';
 import { bootstrapSeededRecord, buildLegacyE2ERecord, ensureAuthenticated } from './fixtures/auth';
 import { waitForPersistedBedFields } from './fixtures/censusPersistence';
 import { installDailyRecordAuthorityRoute } from './fixtures/dailyRecordAuthorityRoute';
+import { getTodayISO } from '../src/utils/dateCoreUtils';
 
-const LEGACY_DATE = process.env.E2E_FIXED_DATE ?? new Date().toISOString().slice(0, 10);
+const LEGACY_DATE = process.env.E2E_FIXED_DATE ?? getTodayISO();
 
 test.describe('Legacy Firebase compatibility', () => {
   test('opens a legacy record, normalizes it, and keeps the day editable', async ({ page }) => {

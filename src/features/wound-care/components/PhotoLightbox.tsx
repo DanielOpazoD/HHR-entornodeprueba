@@ -20,7 +20,6 @@ import type { WoundCarePhoto } from '@/types/domain/woundCare';
 import { formatFileSize, formatCompressionRatio } from '../controllers/photoUploadController';
 import { usePhotoLightboxZoom } from '../hooks/usePhotoLightboxZoom';
 import { resolvePhotoWallClock } from '@/application/wound-care/woundCarePhotoTime';
-import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 import { formatDateTimeCL } from '@/utils/dateDisplayUtils';
 
 interface PhotoLightboxProps {
@@ -329,7 +328,7 @@ export const PhotoLightbox: React.FC<PhotoLightboxProps> = ({
           </span>
           <span className="inline-flex items-center gap-1">
             <Clock className="w-3 h-3" />
-            Subida: {formatDateTimeCL(photo.uploadedAt, CLINICAL_TIME_ZONE)}
+            Subida: {formatDateTimeCL(photo.uploadedAt)}
           </span>
           {photo.bodyLocation && (
             <span className="inline-flex items-center gap-1">

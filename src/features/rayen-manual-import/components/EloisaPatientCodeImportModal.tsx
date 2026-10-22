@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ClipboardPaste, ShieldCheck } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { formatRut, isValidRut } from '@/utils/rutUtils';
+import { formatTimestamp } from '@/utils/dateDisplayUtils';
 import {
   assertEloisaPatientCodeFreshness,
   buildEloisaPatientDisplayName,
@@ -21,10 +22,7 @@ interface EloisaPatientCodeImportModalProps {
   onConfirm: (payload: EloisaManualPatientPayload, bedId: string) => Promise<string | null>;
 }
 
-const formatCapturedAt = (value: string): string => {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString('es-CL');
-};
+const formatCapturedAt = (value: string): string => formatTimestamp(value, {}) ?? value;
 
 const formatDevices = (payload: EloisaManualPatientPayload): string => {
   if (payload.deviceEntries.length) {

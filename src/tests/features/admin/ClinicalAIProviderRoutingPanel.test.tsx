@@ -65,10 +65,10 @@ describe('ClinicalAIProviderRoutingPanel', () => {
     render(<ClinicalAIProviderRoutingPanel />);
 
     await waitFor(() => {
-      expect(screen.getAllByRole('option', { name: 'DeepSeek' })).toHaveLength(4);
+      expect(screen.getAllByRole('option', { name: 'DeepSeek' })).toHaveLength(3);
     });
 
-    expect(screen.getAllByRole('option', { name: 'Gemini' })).toHaveLength(4);
+    expect(screen.getAllByRole('option', { name: 'Gemini' })).toHaveLength(3);
     expect(screen.queryByRole('option', { name: 'OpenAI' })).not.toBeInTheDocument();
   });
 

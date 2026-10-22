@@ -5,6 +5,8 @@
  * based on saving status and last-saved timestamp.
  */
 
+import { readClinicalTimestamp } from '@/utils/dateDisplayUtils';
+
 export type AutosaveIndicatorPhase = 'idle' | 'dirty' | 'saving' | 'saved';
 
 export interface AutosaveIndicatorState {
@@ -41,13 +43,6 @@ export const resolveAutosaveIndicatorState = (
   return { phase: 'idle', savedAtLabel: null };
 };
 
-/** Extracts HH:MM from an ISO timestamp string. */
-const formatSavedAtTime = (isoTimestamp: string): string => {
-  try {
-    const date = new Date(isoTimestamp);
-    if (Number.isNaN(date.getTime())) return '';
-    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-  } catch {
-    return '';
-  }
-};
+/** `HH:mm` of a timestamp on the hospital clock. */
+const formatSavedAtTime = (isoTimestamp: string): string =>
+  readClinicalTimestamp(isoTimestamp)?.hhmm ?? '';

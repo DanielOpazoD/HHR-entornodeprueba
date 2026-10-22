@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { CLINICAL_TIME_ZONE } from './src/utils/clinicalTimeZone';
 
 const environment = process.env.CENSUS_PERF_ENV ?? 'production';
 const includeInteractions = process.env.CENSUS_PERF_INCLUDE_INTERACTIONS === '1';
@@ -34,7 +35,7 @@ export default defineConfig({
       ? { executablePath: process.env.CENSUS_PERF_EXECUTABLE_PATH }
       : undefined,
     baseURL: 'http://127.0.0.1:4318',
-    timezoneId: 'Pacific/Easter',
+    timezoneId: CLINICAL_TIME_ZONE,
     locale: 'es-CL',
     serviceWorkers: 'block',
     // Synthetic fixture only: these artifacts contain no real patients or credentials,

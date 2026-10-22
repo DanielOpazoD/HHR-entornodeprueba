@@ -15,6 +15,7 @@ import type {
   ClinicalPanelIndicationDay,
   EvolutionProfession,
 } from '@/features/rayen-import/clinical-panel';
+import { formatDateDDMMYYYY, readClinicalTimestamp } from '@/utils/dateDisplayUtils';
 
 /** Soft role-chip color per profession bucket, so the author's discipline reads without shouting. */
 const PROFESSION_CHIP: Record<EvolutionProfession, string> = {
@@ -23,21 +24,12 @@ const PROFESSION_CHIP: Record<EvolutionProfession, string> = {
   other: 'bg-violet-50 text-violet-500 ring-violet-100',
 };
 
-const pad = (n: number): string => String(n).padStart(2, '0');
-
 export const formatWhen = (raw: string): string => {
-  const t = Date.parse(raw);
-  if (Number.isNaN(t)) return raw;
-  const d = new Date(t);
-  return `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const stamp = readClinicalTimestamp(raw);
+  return stamp ? `${formatDateDDMMYYYY(stamp.iso)} ${stamp.hhmm}` : raw;
 };
 
-const formatTime = (raw: string): string => {
-  const t = Date.parse(raw);
-  if (Number.isNaN(t)) return '';
-  const d = new Date(t);
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-};
+const formatTime = (raw: string): string => readClinicalTimestamp(raw)?.hhmm ?? '';
 
 const INDICATION_KIND_LABEL: Partial<Record<ClinicalPanelEntry['kind'], string>> = {
   diet: 'Régimen',

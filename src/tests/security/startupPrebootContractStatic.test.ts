@@ -2,6 +2,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
+
 const ROOT = path.resolve(__dirname, '../../../');
 const INDEX_HTML_PATH = path.join(ROOT, 'index.html');
 const STARTUP_SURFACE_PATH = path.join(ROOT, 'public/startup-surface.js');
@@ -50,6 +52,13 @@ describe('Startup preboot contract', () => {
       'var shouldUseLoginSurface = isLoginSurfacePath && !hasAnySessionHint;'
     );
     expect(script).not.toContain('|| !hasAnySessionHint');
+  });
+
+  it('picks the preboot day/night wallpaper on the hospital clock, like the login page', () => {
+    const script = readStartupSurface();
+
+    expect(script).toContain(`timeZone: '${CLINICAL_TIME_ZONE}'`);
+    expect(script).not.toContain('getHours()');
   });
 
   it('uses the optimized login background asset in the preboot surface', () => {

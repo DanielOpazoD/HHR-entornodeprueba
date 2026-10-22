@@ -1,5 +1,6 @@
 import React from 'react';
 import { CheckCircle2, Eye, RotateCcw } from 'lucide-react';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 interface PrescriptionUploadSuccessStateProps {
   expiresAt: string;
@@ -18,7 +19,10 @@ export const PrescriptionUploadSuccessState: React.FC<PrescriptionUploadSuccessS
     <p className="text-sm text-emerald-800">
       La foto quedó guardada para respaldo mensual. El administrador debe respaldarla antes de
       eliminarla manualmente. Revisión sugerida:{' '}
-      <span className="font-semibold">{new Date(expiresAt).toLocaleDateString('es-CL')}</span>.
+      <span className="font-semibold">
+        {new Date(expiresAt).toLocaleDateString('es-CL', { timeZone: CLINICAL_TIME_ZONE })}
+      </span>
+      .
     </p>
     <div className="mt-4 grid gap-2 sm:grid-cols-2">
       <button

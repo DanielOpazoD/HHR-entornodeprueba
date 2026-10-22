@@ -19,6 +19,7 @@ import {
   canRestoreMedicalHandoffSignatures,
   resolveMedicalHandoffDoctorName,
 } from '@/features/handoff/controllers/medicalHandoffHeaderController';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 export interface MedicalHandoffBedStatsData {
   totalBeds: number;
@@ -150,6 +151,7 @@ export const MedicalHandoffHeader: React.FC<MedicalHandoffHeaderProps> = ({
                 <span className="font-medium">
                   Firmado:{' '}
                   {new Date(record.medicalHandoffSentAt).toLocaleTimeString([], {
+                    timeZone: CLINICAL_TIME_ZONE,
                     hour: '2-digit',
                     minute: '2-digit',
                   })}
@@ -173,6 +175,7 @@ export const MedicalHandoffHeader: React.FC<MedicalHandoffHeaderProps> = ({
                 <CheckCircle size={12} />
                 Firmado{' '}
                 {new Date(record.medicalSignature.signedAt).toLocaleTimeString([], {
+                  timeZone: CLINICAL_TIME_ZONE,
                   hour: '2-digit',
                   minute: '2-digit',
                 })}

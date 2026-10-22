@@ -4,6 +4,7 @@ import {
   buildCanonicalE2ERecord,
   ensureAuthenticated,
 } from './fixtures/auth';
+import { getTodayISO } from '../src/utils/dateCoreUtils';
 
 /**
  * E2E Test: Bed Blocking/Unblocking Flow
@@ -12,7 +13,7 @@ import {
 
 test.describe('Bed Blocking Flow', () => {
   test.beforeEach(async ({ page }) => {
-    const date = new Date().toISOString().slice(0, 10);
+    const date = getTodayISO();
     await bootstrapSeededRecord(page, {
       role: 'admin',
       date,
