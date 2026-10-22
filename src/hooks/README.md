@@ -47,7 +47,7 @@ Cuando una operación necesita coordinar repositorios, clasificar outcomes remot
 - `useCensusEmail.ts` usa [useCensusEmailRecipientLists.ts](useCensusEmailRecipientLists.ts) y casos de uso en `src/application/census-email/*` para separar bootstrap/sync/CRUD de listas del estado UI del envío.
 - `useAudit.ts` delega escritura/lectura remota a `src/application/audit/*` y mantiene en el hook solo la fachada de UI + debounce.
 - `useBedManagement.ts` ahora centraliza validación/auditoría/reducer a [controllers/bedManagementDispatchController.ts](controllers/bedManagementDispatchController.ts), reduciendo lógica inline de dispatch.
-- `useExportManager.ts` y el browser de respaldos consumen ahora casos de uso separados por bounded context en `src/application/backup-export/*`, manteniendo el barrel `backupExportUseCases.ts` como API estable del módulo.
+- `useExportManager.ts` y el browser de respaldos consumen casos de uso separados por bounded context en `src/application/backup-export/*`, importados directamente por módulo.
 - `useExportManager.ts` debe tratar `Descarga local` de handoff como flujo de impresión PDF paginado:
   el hook no imprime HTML en bruto; delega a `backupExportArchiveUseCases.ts`, que genera el PDF
   y abre el cuadro de impresión desde un `iframe` embebido para evitar diferencias entre entornos.
