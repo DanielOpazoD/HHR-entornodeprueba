@@ -95,6 +95,7 @@ describe('collect GitHub Actions runtime', () => {
       },
       fetchImpl,
       root,
+      settleDelaysMs: [],
     });
 
     const outputPath = path.join(root, 'reports/ci-runtime-observed-input.json');
@@ -118,6 +119,89 @@ describe('collect GitHub Actions runtime', () => {
         },
       ],
     });
+  });
+
+  const env = {
+    GITHUB_TOKEN: 'ghs_test',
+    GITHUB_REPOSITORY: 'DanielOpazoD/HHR-ServicioHospitalizados',
+    GITHUB_RUN_ID: '28767128242',
+  };
+  const shardJob = (index: number, status: 'queued' | 'in_progress' | 'completed') => ({
+    name: `unit-risk-shard-${index}`,
+    status,
+    conclusion: status === 'completed' ? 'success' : null,
+    started_at: '2026-10-22T14:58:00Z',
+    completed_at: status === 'completed' ? '2026-10-22T15:01:00Z' : null,
+  });
+  // One jobs read: a page with the given jobs followed by the empty page that ends pagination.
+  const readOf = (jobs: unknown[]) => [makeResponse({ jobs }), makeResponse({ jobs: [] })];
+  const staleRead = () =>
+    readOf([
+      shardJob(1, 'completed'),
+      shardJob(2, 'in_progress'),
+      shardJob(3, 'queued'),
+      shardJob(4, 'in_progress'),
+    ]);
+  const settledRead = () => readOf([1, 2, 3, 4].map(index => shardJob(index, 'completed')));
+  const fetchSequence = (...reads: Response[][]) => {
+    const fetchImpl = vi.fn();
+    for (const response of reads.flat()) fetchImpl.mockResolvedValueOnce(response);
+    return fetchImpl;
+  };
+
+  it('re-reads while the jobs API still reports finished unit shards as running', async () => {
+    const sleep = vi.fn().mockResolvedValue(undefined);
+    const log = vi.fn();
+    const result = await collectGithubActionsRuntimeInput({
+      env,
+      fetchImpl: fetchSequence(staleRead(), settledRead()),
+      log,
+      root: makeTempDir(),
+      settleDelaysMs: [10000, 20000],
+      sleep,
+    });
+
+    expect(sleep).toHaveBeenCalledTimes(1);
+    expect(sleep).toHaveBeenCalledWith(10000);
+    expect(log).toHaveBeenCalledWith(
+      'unit-risk-shard-2, unit-risk-shard-3, unit-risk-shard-4 not reported completed yet; re-reading in 10s'
+    );
+    expect(result.source.status).toBe('collected');
+    expect(result.jobs.map((job: { status: string }) => job.status)).toEqual([
+      'COMPLETED',
+      'COMPLETED',
+      'COMPLETED',
+      'COMPLETED',
+    ]);
+  });
+
+  it('stops re-reading after the bounded wait and keeps the last read for the contract', async () => {
+    const sleep = vi.fn().mockResolvedValue(undefined);
+    const result = await collectGithubActionsRuntimeInput({
+      env,
+      fetchImpl: fetchSequence(staleRead(), staleRead(), staleRead()),
+      root: makeTempDir(),
+      settleDelaysMs: [1, 2],
+      sleep,
+    });
+
+    expect(sleep.mock.calls).toEqual([[1], [2]]);
+    expect(
+      result.jobs.find((job: { name: string }) => job.name === 'unit-risk-shard-3')?.status
+    ).toBe('QUEUED');
+  });
+
+  it('does not wait when the run lists no unit shard job', async () => {
+    const sleep = vi.fn();
+    const result = await collectGithubActionsRuntimeInput({
+      env,
+      fetchImpl: fetchSequence(readOf([{ name: 'build', status: 'in_progress' }])),
+      root: makeTempDir(),
+      sleep,
+    });
+
+    expect(sleep).not.toHaveBeenCalled();
+    expect(result.jobs).toHaveLength(1);
   });
 
   it('writes advisory empty input when local configuration is missing', async () => {

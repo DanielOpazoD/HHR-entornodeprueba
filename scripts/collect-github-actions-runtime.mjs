@@ -3,12 +3,17 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { findUnsettledUnitShardJobs } from './ciRuntimeTelemetrySupport.mjs';
 
 const DEFAULT_OUTPUT_PATH = 'reports/ci-runtime-observed-input.json';
 const DEFAULT_GITHUB_API_URL = 'https://api.github.com';
 const DEFAULT_PER_PAGE = 100;
 const DEFAULT_REQUEST_TIMEOUT_MS = 15000;
 const MAX_PAGES = 20;
+// Waits before each re-read while finished unit shards still look unfinished (2.5 min total).
+const DEFAULT_SETTLE_DELAYS_MS = [10000, 20000, 30000, 30000, 30000, 30000];
+
+const sleepMs = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 const normalizeRequiredFlag = value => ['1', 'true', 'yes', 'required'].includes(String(value || '').toLowerCase());
 
@@ -104,17 +109,23 @@ const fetchGithubActionsJobs = async ({ config, fetchImpl }) => {
  * @param {{
  *   env?: NodeJS.ProcessEnv,
  *   fetchImpl?: typeof fetch,
+ *   log?: (message: string) => void,
  *   outputPath?: string,
  *   required?: boolean,
  *   root?: string,
+ *   settleDelaysMs?: number[],
+ *   sleep?: (ms: number) => Promise<unknown>,
  * }} [options]
  */
 export const collectGithubActionsRuntimeInput = async ({
   env = process.env,
   fetchImpl = globalThis.fetch,
+  log = () => {},
   outputPath,
   required,
   root = process.cwd(),
+  settleDelaysMs = DEFAULT_SETTLE_DELAYS_MS,
+  sleep = sleepMs,
 } = {}) => {
   const config = {
     ...resolveConfig(env),
@@ -142,6 +153,15 @@ export const collectGithubActionsRuntimeInput = async ({
   let jobs;
   try {
     jobs = await fetchGithubActionsJobs({ config, fetchImpl });
+    // The jobs API can keep reporting finished shards as queued or running for
+    // minutes. Re-read within a bounded wait; the contract judges the last read.
+    for (const delayMs of settleDelaysMs) {
+      const unsettled = findUnsettledUnitShardJobs(jobs);
+      if (unsettled.length === 0) break;
+      log(`${unsettled.join(', ')} not reported completed yet; re-reading in ${delayMs / 1000}s`);
+      await sleep(delayMs);
+      jobs = await fetchGithubActionsJobs({ config, fetchImpl });
+    }
   } catch (error) {
     const payload = buildRuntimeInput({
       config,
@@ -164,7 +184,7 @@ export const collectGithubActionsRuntimeInput = async ({
 const isCli = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 
 if (isCli) {
-  collectGithubActionsRuntimeInput()
+  collectGithubActionsRuntimeInput({ log: message => console.log(`[ci-runtime-collector] ${message}`) })
     .then(payload => {
       console.log(
         `[ci-runtime-collector] ${payload.source.status}; wrote ${payload.jobs.length} job(s) to ${
