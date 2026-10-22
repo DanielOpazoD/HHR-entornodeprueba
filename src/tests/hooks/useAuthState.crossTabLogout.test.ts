@@ -14,6 +14,7 @@ import {
 import type { AuthChannelMessage } from '@/services/auth/authBroadcastChannel';
 import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { registerPendingAuditFlush } from '@/services/admin/auditPendingEvents';
+import { waitForPendingLogout } from '@/services/auth/authLogoutState';
 
 let emitAuthChannelMessage: ((message: AuthChannelMessage) => void) | undefined;
 
@@ -292,6 +293,31 @@ describe('useAuthState cross-tab logout', () => {
 
     await waitFor(() => expect(order).toEqual(['audit flush', 'sign out']));
     unregister();
+  });
+
+  it('keeps a sign-in in this tab waiting until the received logout has finished', async () => {
+    let finishSignOut: () => void = () => undefined;
+    vi.mocked(authSession.signOut).mockReturnValue(
+      new Promise<void>(resolve => {
+        finishSignOut = resolve;
+      })
+    );
+    renderHook(() => useAuthState());
+    await act(async () => {
+      emitAuthChannelMessage?.({ type: 'LOGOUT', reason: 'manual', tabId: 'other-tab' });
+    });
+    await waitFor(() => expect(authSession.signOut).toHaveBeenCalledTimes(1));
+
+    let signInMayStart = false;
+    const signIn = waitForPendingLogout().then(() => {
+      signInMayStart = true;
+    });
+    await Promise.resolve();
+    expect(signInMayStart).toBe(false);
+
+    finishSignOut();
+    await signIn;
+    expect(signInMayStart).toBe(true);
   });
 
   it('clears this tab’s persisted auth copy when another tab broadcasts a logout', async () => {

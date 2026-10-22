@@ -5,6 +5,7 @@ import {
   normalizeAuditTrailEvents,
   parseAuditTrailTimestamp,
 } from '@/services/admin/auditTrail/auditTrailNormalize';
+import { compactAuditDetails } from '@/services/admin/auditDetailsCompaction';
 import { auditLog, patientDetails } from './auditTrailFixtures';
 
 const normalize = (overrides: Parameters<typeof auditLog>[0]) => {
@@ -139,6 +140,25 @@ describe('audit trail normalization', () => {
       }),
     });
     expect(scored.changes).toHaveLength(14);
+  });
+
+  it('keeps both sides of a device edit once the stored details are compacted', () => {
+    const stored = compactAuditDetails(
+      patientDetails('Paciente Sintético', {
+        changes: {
+          deviceDetails: {
+            CVC: {
+              old: { installationDate: '2026-10-01', note: 'Yugular' },
+              new: { installationDate: '2026-10-02', note: 'Subclavia' },
+            },
+          },
+        },
+      })
+    );
+    const event = normalize({ details: stored as AuditLogEntry['details'] });
+    expect(event.changes).toHaveLength(1);
+    expect(event.changes[0].before).not.toBe(event.changes[0].after);
+    expect(JSON.stringify(event.changes)).not.toContain('[…]');
   });
 
   it('expands device changes one device at a time', () => {

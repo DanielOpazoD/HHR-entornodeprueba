@@ -19,7 +19,7 @@ import {
   useOnlineStatus,
   useResolvedAuthBootstrap,
 } from '@/hooks/useAuthStateSupport';
-import { hasRecentManualLogout } from '@/services/auth/authLogoutState';
+import { beginPendingLogout, hasRecentManualLogout } from '@/services/auth/authLogoutState';
 import { useSessionPermissionGuard } from '@/hooks/useSessionPermissionGuard';
 import { useNursingSessionMonitor } from '@/hooks/useNursingSessionMonitor';
 import { useAuditConnectionTracker } from '@/hooks/useAuditConnectionTracker';
@@ -228,6 +228,8 @@ export const useAuthState = (): UseAuthStateReturn => {
   useEffect(() => {
     const cleanup = onAuthChannelMessage(message => {
       if (message.type === 'LOGOUT') {
+        // This tab shows the login form at once; a sign-in there waits for this logout.
+        const finishLogout = beginPendingLogout();
         // Session-scoped Firebase persistence is local to this tab. Clearing
         // browser keys is not enough because Firebase can retain currentUser
         // in memory and emit it again; sign out locally without rebroadcasting.
@@ -246,7 +248,9 @@ export const useAuthState = (): UseAuthStateReturn => {
             }
           },
           message.generation
-        ).catch(() => undefined);
+        )
+          .catch(() => undefined)
+          .finally(finishLogout);
         // Drop this tab's own persisted auth copy too: with session-scoped
         // Firebase persistence the initiating tab's signOut cannot reach it,
         // so a refresh here would otherwise restore the closed session.
