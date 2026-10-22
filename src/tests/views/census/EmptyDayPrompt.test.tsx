@@ -132,8 +132,14 @@ describe('EmptyDayPrompt · una acción para iniciar desde Eloísa', () => {
     expect(button).toBeDisabled();
     fireEvent.click(button);
     expect(onCreateDay).not.toHaveBeenCalled();
+    // 08:00 on a mainland device is still 06:00 at the hospital.
     act(() => {
       vi.setSystemTime(new Date('2026-09-24T11:00:00Z'));
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(button).toBeDisabled();
+    act(() => {
+      vi.setSystemTime(new Date('2026-09-24T13:00:00Z'));
       vi.advanceTimersByTime(60_000);
     });
     expect(button).toBeEnabled();
