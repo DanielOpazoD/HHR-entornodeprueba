@@ -43,6 +43,7 @@ import {
   type DailyRecordStoreChangedEventDetail,
   isDailyRecordStoreChangeRelevantToRange,
 } from '@/services/storage/indexeddb/indexedDbRecordEvents';
+import { getTodayISO } from '@/utils/dateCoreUtils';
 
 interface UseMinsalStatsResult {
   stats: MinsalStatistics | null;
@@ -103,7 +104,7 @@ export function useMinsalStats(
         dateRange.currentYearMonth
       );
     } catch {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayISO();
       return { startDate: today, endDate: today };
     }
   }, [dateRange]);

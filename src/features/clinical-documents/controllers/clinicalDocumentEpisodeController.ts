@@ -10,6 +10,7 @@ import {
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { calculateAge } from '@/utils/clinicalUtils';
 import { normalizeCalendarDate } from '@/utils/clinicalDateUtils';
+import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 
 /**
  * Builds a composite key that uniquely identifies a clinical episode.
@@ -23,16 +24,11 @@ export const buildClinicalEpisodeKey = (
   admissionTime?: string
 ): string => buildClinicalEpisodeKeyFromApplication(patientRut, admissionDate, admissionTime);
 
-const padTime = (value: number): string => value.toString().padStart(2, '0');
+/** Returns the hospital's current date as an ISO date string (YYYY-MM-DD). */
+export const getCurrentDateValue = (): string => calendarStampInClinicalTimeZone().iso;
 
-/** Returns today's date as an ISO date string (YYYY-MM-DD). */
-export const getCurrentDateValue = (): string => new Date().toISOString().slice(0, 10);
-
-/** Returns the current local time as an HH:MM string. */
-export const getCurrentTimeValue = (): string => {
-  const date = new Date();
-  return `${padTime(date.getHours())}:${padTime(date.getMinutes())}`;
-};
+/** Returns the hospital's current wall-clock time as an HH:MM string. */
+export const getCurrentTimeValue = (): string => calendarStampInClinicalTimeZone().hhmm;
 
 const resolveClinicalDocumentDischargeDateValue = (patient: PatientData): string =>
   normalizeCalendarDate(patient.episodeClosureDate) ||

@@ -35,8 +35,9 @@ import {
   runClearSystemHealthUserWindowAction,
   runResolveVisibleSystemHealthIncidentsAction,
 } from './systemHealthUserWindowActions';
+import { getTodayISO } from '@/utils/dateCoreUtils';
 
-const todayInputValue = () => new Date().toISOString().slice(0, 10);
+const todayInputValue = () => getTodayISO();
 
 export const SystemHealthDashboard = () => {
   const { currentUser, role } = useAuth();

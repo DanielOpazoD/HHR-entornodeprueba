@@ -6,11 +6,9 @@ import {
   type PrescriptionType,
 } from '@/types/prescriptionTypes';
 import type { PrescriptionBedRowData } from '@/features/prescriptions/components/PrescriptionBedRow';
+import { getTodayISO } from '@/utils/dateCoreUtils';
 
-export const todayIso = (): string => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
+export const todayIso = (): string => getTodayISO();
 
 export const previousIsoDay = (iso: string): string => {
   const [year, month, day] = iso.split('-').map(Number);

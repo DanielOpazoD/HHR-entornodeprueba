@@ -1,3 +1,4 @@
+import { getTodayISO } from '@/utils/dateCoreUtils';
 const EXPORT_SCALE = 2;
 const EXPORT_PADDING = 0;
 const FALLBACK_WIDTH = 960;
@@ -182,7 +183,7 @@ export const exportChartsAsPng = async (container: HTMLDivElement): Promise<void
   try {
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = `laboratorio_tendencias_${new Date().toISOString().substring(0, 10)}.png`;
+    anchor.download = `laboratorio_tendencias_${getTodayISO()}.png`;
     anchor.style.display = 'none';
     document.body.appendChild(anchor);
     anchor.click();

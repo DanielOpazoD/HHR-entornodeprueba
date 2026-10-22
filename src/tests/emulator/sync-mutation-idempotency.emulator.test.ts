@@ -46,8 +46,9 @@ import {
   queueDailyRecordSyncTaskWithLocalRecord,
 } from '@/services/storage/sync';
 import { resetSyncMutationIdentityForTests } from '@/services/storage/sync/syncMutationIdentity';
+import { getTodayISO } from '@/utils/dateCoreUtils';
 
-const CURRENT_RECORD_DATE = new Date().toISOString().slice(0, 10);
+const CURRENT_RECORD_DATE = getTodayISO();
 const isoAt = (date: string, time: string): string => `${date}T${time}.000Z`;
 
 const buildRecord = (date: string, lastUpdated: string): DailyRecord => ({

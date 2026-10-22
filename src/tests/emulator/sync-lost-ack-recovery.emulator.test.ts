@@ -24,12 +24,13 @@ import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import { createSyncQueueEngine } from '@/services/storage/sync/syncQueueEngine';
 import { createFirestoreSyncTransport } from '@/services/storage/sync/firestoreSyncTransport';
+import { getTodayISO } from '@/utils/dateCoreUtils';
 
 const describeEmulator =
   process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1' || process.env.FIRESTORE_EMULATOR_HOST
     ? describe
     : describe.skip;
-const DATE = new Date().toISOString().slice(0, 10);
+const DATE = getTodayISO();
 const RECORD_PATH = `hospitals/hanga_roa/dailyRecords/${DATE}`;
 const at = (time: string) => `${DATE}T${time}.000Z`;
 const MUTATION = 'synthetic-lost-ack-mutation';

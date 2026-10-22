@@ -22,6 +22,7 @@ import {
   type PrescriptionUploadPatientOption,
   type SubmitPrescriptionResult,
 } from '@/features/prescriptions/services/prescriptionAccessService';
+import { getTodayISO } from '@/utils/dateCoreUtils';
 
 export type PrescriptionUploadPhase =
   | 'awaiting-pin'
@@ -94,10 +95,7 @@ const FORM_VALIDATION_ERROR = 'Completa los campos requeridos antes de subir.';
 const NO_IMAGE_ERROR = 'Toma o selecciona una foto de la receta antes de subir.';
 const NO_PATIENT_SELECTION_ERROR = 'Selecciona una cama/paciente o marca sin paciente asignado.';
 
-const todayIso = (): string => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
+const todayIso = (): string => getTodayISO();
 
 export const usePrescriptionUploadController = ({
   bypassPinGate = false,
