@@ -22,42 +22,54 @@ export const movementAccountsForBed = (
     return false;
   });
 
-const normalizeRut = (rut: unknown): string =>
-  String(rut ?? '')
-    .replace(/[^0-9kK]/g, '')
+const scalar = (value: unknown): string => String(value ?? '').trim();
+
+const documentIdentity = (patient: PatientData): string =>
+  scalar(patient.rut)
+    .replace(/[.\s-]/g, '')
+    .toUpperCase();
+
+const patientNameIdentity = (patient: PatientData): string =>
+  scalar(patient.patientName)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
     .toUpperCase();
 
 /**
- * Identity tokens for a patient, strongest first: RUT and clinical-episode id uniquely identify a
- * person across beds. Name is used ONLY when neither strong id exists (e.g. a manually-added
- * patient) — matching by name alone would let a same-name coincidence mask a real erasure, so it is
- * never used when a strong id is available.
+ * Persisted episode ids identify an admission, not just a person. Legacy ids are derived from
+ * document/admission data and may collide for mother and newborn, so they need the tuple too.
+ * Without two stable ids, accept hydration only with concordant person and admission evidence.
  */
-const identityTokens = (patient: PatientData | undefined): string[] => {
-  if (!patient?.patientName?.trim()) return [];
-  const tokens: string[] = [];
-  const rut = normalizeRut(patient.rut);
-  const episode = String(patient.clinicalEpisodeId ?? '').trim();
-  if (rut) tokens.push(`rut:${rut}`);
-  if (episode) tokens.push(`ep:${episode}`);
-  if (!rut && !episode) tokens.push(`name:${patient.patientName.trim()}`);
-  return tokens;
+const sameRelocatedEpisode = (left: PatientData, right: PatientData): boolean => {
+  const leftEpisode = scalar(left.clinicalEpisodeId);
+  const rightEpisode = scalar(right.clinicalEpisodeId);
+  if (
+    leftEpisode &&
+    rightEpisode &&
+    !leftEpisode.startsWith('legacy_ep_') &&
+    !rightEpisode.startsWith('legacy_ep_')
+  )
+    return leftEpisode === rightEpisode;
+
+  if (left.documentType && right.documentType && left.documentType !== right.documentType)
+    return false;
+  return (
+    documentIdentity(left) === documentIdentity(right) &&
+    patientNameIdentity(left) === patientNameIdentity(right) &&
+    scalar(left.firstSeenDate || left.admissionDate) ===
+      scalar(right.firstSeenDate || right.admissionDate) &&
+    scalar(left.admissionTime) === scalar(right.admissionTime)
+  );
 };
 
 /**
- * Every patient identity (main occupant + nested clinical crib) present ANYWHERE in the incoming
- * record. A bed a patient vacated is not an erasure when that same patient still occupies another
- * bed here — an internal bed move (relocation) leaves NO discharge/transfer/CMA to account for the
- * emptied bed, so without this it would look like the patient was dropped and block the save.
+ * Include main occupants and nested cribs so a verified episode may move between either slot.
  */
-const collectLocalPatientIdentities = (local: DailyRecord): Set<string> => {
-  const present = new Set<string>();
-  for (const bed of Object.values(local.beds || {})) {
-    for (const token of identityTokens(bed)) present.add(token);
-    for (const token of identityTokens(bed?.clinicalCrib)) present.add(token);
-  }
-  return present;
-};
+const collectPatients = (record: DailyRecord): PatientData[] =>
+  Object.values(record.beds || {})
+    .flatMap(bed => [bed, bed?.clinicalCrib])
+    .filter((patient): patient is PatientData => Boolean(scalar(patient?.patientName)));
 
 /**
  * Returns the beds where the cloud copy holds a patient the incoming record dropped without a
@@ -79,9 +91,17 @@ export const findPatientErasures = (
   ];
 
   const erasures: { bedId: string; remotePatientName: string }[] = [];
-  const localPatientIdentities = collectLocalPatientIdentities(local);
-  const stillPresentLocally = (patient: PatientData | undefined): boolean =>
-    identityTokens(patient).some(token => localPatientIdentities.has(token));
+  const localPatients = collectPatients(local);
+  const remotePatients = collectPatients(remote);
+  const stillPresentLocally = (patient: PatientData | undefined): boolean => {
+    if (!patient) return false;
+    const matches = localPatients.filter(candidate => sameRelocatedEpisode(patient, candidate));
+    // One surviving occupant must not account for two remote people with ambiguous legacy data.
+    return (
+      matches.length === 1 &&
+      remotePatients.filter(candidate => sameRelocatedEpisode(candidate, matches[0])).length === 1
+    );
+  };
 
   for (const [bedId, remoteBed] of Object.entries(remote.beds || {})) {
     const localBed = (local.beds || {})[bedId];

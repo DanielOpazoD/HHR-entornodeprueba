@@ -191,10 +191,10 @@ describe('bed swap with a mother and her newborn across write guards', () => {
     ]);
   });
 
-  it('known gap: misses the same lost newborn when it shares the mother document', () => {
-    // The relocation exemption matches any shared identity token, so the mother's document
-    // makes the dropped newborn look relocated. Documented in docs/SYNC_CONCURRENCY_MODEL.md.
-    expect(bothErasureGuards(beforeSwap(), afterSwap(mother('R1', null)))).toEqual([]);
+  it('flags the lost newborn even when it shares the mother document', () => {
+    expect(bothErasureGuards(beforeSwap(), afterSwap(mother('R1', null)))).toEqual([
+      { bedId: 'R2 (cuna RN)', remotePatientName: 'RN Sintetico' },
+    ]);
   });
 
   it('rejects a stale queued edit whose path the authority stamped for the swap', async () => {

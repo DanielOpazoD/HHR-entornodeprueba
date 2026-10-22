@@ -45,12 +45,16 @@ forman parte del descubrimiento unitario de CI.
 | Mismo par de ocupantes evaluado por los tres comparadores de identidad                          | Fija dónde divergen el guard de borrado, el comparador canónico de episodio y el de fusión de ediciones                                    | `patientIdentityGuardComposition.test.ts` |
 | Pestañas de Ficha Médico que responden al ping pero no a la lectura                             | Una pestaña atascada seguida de otra sana responde dentro del plazo de HHR; la recuperación de captura no repite un timeout ya clasificado | `fichamedicoStuckReadDeadline.test.ts`    |
 
-Los casos rotulados «known gap» o «known limit» describen el comportamiento actual, no el
-deseado: el guard de borrado trata como reubicado a un ocupante eliminado si otro comparte
-documento (RN con documento materno, pasaportes con los mismos dígitos, reingreso); la edición
-atrasada se descarta sin conflicto cuando ningún sello del servidor cubre su ruta (escritura
-directa del cliente o guardado completo con `['*']`); con dos pestañas atascadas, HHR agota
-su plazo de captura antes de recibir el timeout clasificado de la extensión. Están descritos en
-`docs/SYNC_CONCURRENCY_MODEL.md` y, el de las pestañas, en
-`docs/SYNC_PERFORMANCE_REGRESSION_CHECKS.md`. Al corregir uno, convertir su prueba en la
-expectativa nueva en el mismo cambio.
+La protección de borrado rechaza la pérdida de una cuna con documento materno, las colisiones
+entre pasaportes y los reingresos con otro episodio. `dailyRecordErasureRelocation.test.ts`
+comprueba ambos lados con hidratación de ids, evidencia incompleta, destinos ambiguos y cuna
+trasladada a cama independiente. `dailyRecordWriteAuthorityErasureIdentity.test.ts` demuestra
+que el callable bloquea el RN perdido sin escribir ni generar historia y conserva la reubicación
+válida. Estas suites pertenecen al descubrimiento unitario existente.
+
+Los casos rotulados «known limit» siguen describiendo comportamiento actual, no deseado: la
+edición atrasada se descarta sin conflicto cuando ningún sello del servidor cubre su ruta
+(escritura directa del cliente o guardado completo con `['*']`); con dos pestañas atascadas, HHR
+agota su plazo antes del timeout clasificado de la extensión. Están descritos en
+`docs/SYNC_CONCURRENCY_MODEL.md` y `docs/SYNC_PERFORMANCE_REGRESSION_CHECKS.md`.
+Al corregir uno, convertir su prueba en la expectativa nueva en el mismo cambio.
