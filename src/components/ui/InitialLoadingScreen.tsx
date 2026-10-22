@@ -47,15 +47,6 @@ const LoginShellLoadingScreen = () => {
     <LoginScreenLayout mode={backgroundMode} testId="login-loading-shell">
       <LoginCardFrame>
         <LoginCredentialsPlaceholder />
-        <div
-          className="mt-4 flex h-[53px] items-center justify-between border-t border-white/15 pt-3"
-          aria-hidden="true"
-        >
-          <span className="text-xs text-white/75">Ayuda de acceso</span>
-          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-lg font-semibold text-sky-600">
-            G
-          </span>
-        </div>
       </LoginCardFrame>
     </LoginScreenLayout>
   );

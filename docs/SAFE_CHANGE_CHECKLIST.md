@@ -66,6 +66,15 @@ La clasificación remota `docs-only` se decide en CI; no forzar ni omitir checks
 
 ### Checklist de cierre
 
+La compactación visual del acceso del 22 octubre 2026 es `safe_local_ui`:
+estrecha el panel y su formulario compartido con la pantalla de carga, elimina
+los textos introductorios y muestra Google como icono circular con nombre
+accesible. Conserva handlers, bloqueo, recuperación y recarga no destructiva.
+Verificar `ci:inner-loop`, pruebas afectadas, build/budgets y navegador: ausencia
+de scroll y pie de soporte visible en escritorio y móvil de 320×568, geometría
+estable al cargar el módulo, Google oficial y fallback centrados, ambos fondos.
+No cambia autenticación, permisos, datos clínicos ni CUDYR.
+
 La ayuda de acceso del 22 octubre 2026 es `critical_runtime`: sustituye el borrado
 local desde el login por una recarga normal del navegador. La confirmación informa
 que se pierde el formulario, pero conserva datos locales, sesiones y cambios aún
