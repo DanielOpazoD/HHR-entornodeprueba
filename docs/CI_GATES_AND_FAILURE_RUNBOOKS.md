@@ -922,7 +922,7 @@ Referencias: [setupFiles de Vitest](https://vitest.dev/config/setupfiles) y
 
 `authBroadcastChannel` utiliza una instancia simulada por caso y un módulo recién
 cargado; nunca abre un BroadcastChannel nativo durante estas pruebas. Comprueba
-los payloads de actividad/logout/sync, la generación admitida, la reutilización
+los payloads vigentes de actividad/logout, la generación admitida, la reutilización
 del canal, el filtrado de mensajes entregados por la propia pestaña y la retirada
 del listener exacto sin desuscribir otros consumidores. Se mantiene degradación
 ante API ausente o constructor fallido. El descriptor global original se restaura
@@ -1274,3 +1274,15 @@ del proyecto autorizado con Firestore/Storage del SHA validado. La aceptación d
 la contraseña y de `checkUserRole` no acredita permisos en las reglas. Conservar
 la guarda que cierra sesiones sin permisos; alinear reglas y cliente antes de
 repetir ingreso y recarga con una cuenta sintética, sin modificar datos clínicos.
+
+### Cierre de sesión con canal entre pestañas interrumpido · 22-10-2026
+
+Si BroadcastChannel.postMessage falla al salir, la notificación es best-effort:
+no debe impedir signOut de Firebase ni limpieza del propietario y generación.
+La regresión `useAuthStateSessionSupport.logout-broadcast.test.ts` ejecuta el
+handler real con canal fallido en cierres manual y automático; conserva el
+pendiente de enfermería y no elimina su cola. Ejecutar también
+`authBroadcastChannel.test.ts` y `useAuthState.crossTabLogout.test.ts`.
+Los mensajes SYNC_COMPLETED y el helper getAuthBootstrapTimeoutMs se retiraron
+tras comprobar que no tenían consumidores de ejecución. No se cambia la política
+de revocación ni se ignoran fallos de Firebase como si fueran éxitos.

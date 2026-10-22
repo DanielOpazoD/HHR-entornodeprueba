@@ -457,3 +457,11 @@ los accesos permanecen bloqueados; cancelar conserva lo escrito y un error de
 soporte desbloquea el formulario con un mensaje recuperable. La precarga común
 de Firebase Auth/Functions se conserva: es útil también para RUT. No se difieren
 las comprobaciones de permisos ni se sustituyen los métodos Google existentes.
+
+### Cierre de sesión con canal entre pestañas no disponible · 22-10-2026
+
+El aviso de cierre a otras pestañas es de mejor esfuerzo. Si BroadcastChannel
+rechaza el envío, el cierre de Firebase y la limpieza de la identidad local siguen
+ejecutándose; una recarga no debe recuperar esa sesión. Los pendientes clínicos
+se conservan con su propietario. Se retira el mensaje SYNC_COMPLETED, que no tenía
+consumidores, sin cambiar la sincronización de datos ni sus colas.
