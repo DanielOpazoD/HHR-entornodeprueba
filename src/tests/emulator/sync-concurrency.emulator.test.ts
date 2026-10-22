@@ -49,6 +49,7 @@ import {
   resolveDetailedStaffingState,
   updateDetailedStaffingStandardSlot,
 } from '@/services/staff/dailyRecordDetailedStaffing';
+import { getTodayISO } from '@/utils/dateCoreUtils';
 
 const buildRecord = (date: string, lastUpdated: string): DailyRecord => ({
   date,
@@ -96,7 +97,7 @@ const buildEmptyBed = (bedId: string): PatientData =>
     hasWristband: true,
   });
 
-const CURRENT_RECORD_DATE = new Date().toISOString().slice(0, 10);
+const CURRENT_RECORD_DATE = getTodayISO();
 
 const isoAt = (date: string, time: string): string => `${date}T${time}.000Z`;
 

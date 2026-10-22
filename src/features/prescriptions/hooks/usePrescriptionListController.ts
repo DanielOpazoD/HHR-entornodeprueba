@@ -11,6 +11,8 @@ import {
   type PrescriptionRecord,
   type PrescriptionType,
 } from '@/types/prescriptionTypes';
+import { getTodayISO } from '@/utils/dateCoreUtils';
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 
 export type PrescriptionListPhase = 'loading' | 'ready';
 
@@ -29,10 +31,7 @@ export interface PrescriptionListFilters {
   selectedDate: string | null;
 }
 
-const todayIso = (): string => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
+const todayIso = (): string => getTodayISO();
 
 const buildDefaultFilters = (): PrescriptionListFilters => ({
   type: 'all',
@@ -73,8 +72,7 @@ const matchesSelectedDate = (record: PrescriptionRecord, isoDate: string | null)
   if (!isoDate) return true;
   const created = new Date(record.createdAt);
   if (Number.isNaN(created.getTime())) return false;
-  const recordIsoDay = `${created.getFullYear()}-${String(created.getMonth() + 1).padStart(2, '0')}-${String(created.getDate()).padStart(2, '0')}`;
-  return recordIsoDay === isoDate;
+  return getClinicalCalendarDateISO(created) === isoDate;
 };
 
 export interface UsePrescriptionListControllerOptions {

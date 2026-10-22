@@ -48,9 +48,6 @@ const clientEnvSchema = z.object({
   VITE_CENSUS_EMAIL_ENDPOINT: optionalStr,
   VITE_CLINICAL_AI_SUMMARY_ENDPOINT: optionalStr,
 
-  /* ── Google OAuth ───────────────────────────────────────────────── */
-  VITE_GOOGLE_CLIENT_ID: optionalStr,
-
   /* ── Emulators ──────────────────────────────────────────────────── */
   VITE_FUNCTIONS_EMULATOR_HOST: optionalStr,
   VITE_AUTH_EMULATOR_HOST: optionalStr,
@@ -120,7 +117,6 @@ export function validateClientEnv(): ClientEnvValidationResult {
     VITE_ALLOW_DEV_EMAIL_SEND: import.meta.env.VITE_ALLOW_DEV_EMAIL_SEND,
     VITE_CENSUS_EMAIL_ENDPOINT: import.meta.env.VITE_CENSUS_EMAIL_ENDPOINT,
     VITE_CLINICAL_AI_SUMMARY_ENDPOINT: import.meta.env.VITE_CLINICAL_AI_SUMMARY_ENDPOINT,
-    VITE_GOOGLE_CLIENT_ID: import.meta.env.VITE_GOOGLE_CLIENT_ID,
     VITE_FUNCTIONS_EMULATOR_HOST: import.meta.env.VITE_FUNCTIONS_EMULATOR_HOST,
     VITE_AUTH_EMULATOR_HOST: import.meta.env.VITE_AUTH_EMULATOR_HOST,
     VITE_FIRESTORE_EMULATOR_HOST: import.meta.env.VITE_FIRESTORE_EMULATOR_HOST,

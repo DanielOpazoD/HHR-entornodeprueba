@@ -10,6 +10,8 @@
  *     `getTimezoneOffset()` + `toISOString().split('T')[0]` idiom. That idiom is exactly what let
  *     a mainland browser advance the census date ahead of the ward (incident 2026-09-10).
  *     `getTodayISO` / `getLocalDateInputValue` / `getClinicalCalendarDateISO` are the only doors.
+ *  3. Nobody reads "today" from UTC (`new Date().toISOString()` cut to the date): in Rapa Nui
+ *     the UTC date is already tomorrow from 18:00-19:00 hospital time.
  *
  * No allowlist on purpose: the baseline is zero and must stay there.
  */
@@ -34,6 +36,14 @@ const RULES = [
     regex: /getTimezoneOffset\(\)[\s\S]{0,160}toISOString\(\)\s*\.\s*(split|slice)\(/,
     hint: 'use getTodayISO() / getLocalDateInputValue() (hospital calendar) instead of the device clock',
     exempt: () => false,
+  },
+  {
+    rule: 'utc-today',
+    regex:
+      /new Date\(\)\s*\.\s*toISOString\(\)\s*\.\s*(?:(?:slice|substring|substr)\(\s*0\s*,\s*10\s*\)|split\(\s*['"]T['"]\s*\)\s*\[\s*0\s*\])/,
+    hint: 'use getTodayISO() (hospital calendar) instead of the UTC date',
+    // Pending deletion in #939 (audit rebuild); not edited here to avoid a conflict.
+    exempt: relativePath => relativePath === 'src/features/admin/components/hooks/useAuditExport.ts',
   },
 ];
 

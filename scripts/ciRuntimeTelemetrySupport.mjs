@@ -61,6 +61,24 @@ const collectMissingShardIndices = shards => {
 };
 
 /**
+ * Expected unit shard jobs that a jobs API read does not show as completed. The
+ * telemetry job only starts after every shard finished (`needs: unit-risk`), so
+ * a shard still listed as queued or running is stale API data. Returns [] when
+ * the read lists no shard job at all: there is nothing to wait for.
+ *
+ * @param {CiRuntimeInputJob[]} jobs
+ * @returns {string[]}
+ */
+export const findUnsettledUnitShardJobs = jobs => {
+  const shardJobs = (jobs || []).filter(job => parseUnitShardJobIndex(job) !== null);
+  if (shardJobs.length === 0) return [];
+  const completed = new Set(shardJobs.filter(isCompletedJob).map(parseUnitShardJobIndex));
+  return Array.from({ length: EXPECTED_UNIT_SHARD_COUNT }, (_, offset) => offset + 1)
+    .filter(index => !completed.has(index))
+    .map(index => `unit-risk-shard-${index}`);
+};
+
+/**
  * @param {CiRuntimeInputJob[]} jobs
  * @returns {CiRuntimeShardJob[]}
  */

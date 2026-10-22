@@ -7,12 +7,13 @@ import {
   type MedicalIndicationsKineType,
   type MedicalIndicationsPatientOption,
 } from '@/shared/contracts/medicalIndications';
+import { getTodayISO } from '@/utils/dateCoreUtils';
 
 const INDICATIONS_LINES = 15;
 
 const defaultSelectedPatient = (patients: MedicalIndicationsPatientOption[]) => patients[0] ?? null;
 
-const buildTodayDateKey = () => new Date().toISOString().slice(0, 10);
+const buildTodayDateKey = () => getTodayISO();
 
 const resolveInitialTargetDate = (patient: MedicalIndicationsPatientOption | null): string =>
   normalizeMedicalIndicationsDateKey(patient?.sourceDailyRecordDate || '') || buildTodayDateKey();
