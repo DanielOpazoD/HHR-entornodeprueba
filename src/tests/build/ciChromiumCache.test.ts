@@ -11,7 +11,7 @@ const assertBrowserPreparation = (candidate: typeof action) => {
   const steps = candidate.runs.steps;
   const restore = steps.find((step: { id?: string }) => step.id === 'chromium');
   const install = steps.find(
-    (step: { run?: string }) => step.run === 'npx playwright install --with-deps chromium'
+    (step: { name?: string }) => step.name === 'Prepare Playwright Chromium and system dependencies'
   );
   const probe = steps.find((step: { name?: string }) => step.name === 'Verify Chromium can launch');
   const save = steps.find((step: { uses?: string }) =>
@@ -27,6 +27,7 @@ const assertBrowserPreparation = (candidate: typeof action) => {
   ])
     expect(restore.with.key).toContain(fingerprint);
   expect(install).toBeDefined();
+  expect(install.run).toBe('bash "$GITHUB_ACTION_PATH/install-chromium.sh"');
   expect(install).not.toHaveProperty('if');
   expect(install['continue-on-error']).not.toBe(true);
   expect(probe).not.toHaveProperty('if');
@@ -42,7 +43,7 @@ it('always installs system dependencies and proves browser readiness before publ
 it('rejects a cache hit that skips mandatory browser preparation', () => {
   const mutated = structuredClone(action);
   mutated.runs.steps.find(
-    (step: { run?: string }) => step.run === 'npx playwright install --with-deps chromium'
+    (step: { name?: string }) => step.name === 'Prepare Playwright Chromium and system dependencies'
   ).if = "steps.chromium.outputs.cache-hit != 'true'";
   expect(() => assertBrowserPreparation(mutated)).toThrow();
 });

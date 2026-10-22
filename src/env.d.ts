@@ -22,7 +22,6 @@ interface ImportMetaEnv {
   readonly VITE_ALLOW_DEV_EMAIL_SEND?: string;
   readonly VITE_CENSUS_EMAIL_ENDPOINT?: string;
   readonly VITE_CLINICAL_AI_SUMMARY_ENDPOINT?: string;
-  readonly VITE_GOOGLE_CLIENT_ID?: string;
   readonly VITE_GOOGLE_SIGN_IN_CLIENT_ID?: string;
   readonly VITE_FUNCTIONS_EMULATOR_HOST?: string;
   readonly VITE_AUTH_EMULATOR_HOST?: string;

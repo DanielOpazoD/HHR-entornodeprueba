@@ -19,7 +19,6 @@ vi.unmock('@/features/laboratory/components/LabViewerComparisonTable');
 vi.unmock('@/features/laboratory/components/LabExportConfigDialog');
 vi.unmock('@/features/laboratory/components/LabViewerEmptyState');
 vi.unmock('@/features/laboratory/components/SyslabAccessPrompt');
-vi.unmock('@/features/laboratory/constants/labConstants');
 vi.unmock('@/features/laboratory/types/labViewerTypes');
 
 // Mock BaseModal to render title + children

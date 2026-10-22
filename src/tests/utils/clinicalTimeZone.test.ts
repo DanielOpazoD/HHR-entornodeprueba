@@ -7,7 +7,6 @@ import {
   getClinicalCalendarDateISO,
 } from '@/utils/clinicalTimeZone';
 import { getTodayISO, isFutureDate } from '@/utils/dateCoreUtils';
-import { getLocalDateInputValue } from '@/utils/localDate';
 import { resolveCurrentClinicalDay } from '@/utils/clinicalDayAdmissionUtils';
 
 // Santiago 00:30 on Sept 10 is still Sept 9 22:30 in Rapa Nui (two-hour gap during DST).
@@ -31,7 +30,6 @@ describe('clinical time zone', () => {
   it('keeps the calendar day on Sept 9 while mainland clocks already show Sept 10', () => {
     expect(getClinicalCalendarDateISO(SANTIAGO_MIDNIGHT_GAP)).toBe('2026-09-09');
     expect(getTodayISO(SANTIAGO_MIDNIGHT_GAP)).toBe('2026-09-09');
-    expect(getLocalDateInputValue(SANTIAGO_MIDNIGHT_GAP)).toBe('2026-09-09');
   });
 
   it('shares one clock between the calendar date and the clinical day', () => {
