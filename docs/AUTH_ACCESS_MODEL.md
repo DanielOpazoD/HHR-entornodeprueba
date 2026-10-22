@@ -392,6 +392,13 @@ revocación; las reglas aplican la revocación en cada operación, independiente
 de ese monitor. Las tareas offline legítimas permanecen asociadas a su UID, sin
 reintento automático ni transferencia de autor al siguiente usuario.
 
+Al montar el monitor se comparte la consulta de rol del bootstrap si sigue en curso
+o terminó dentro de la ventana existente de 10 segundos; si no existe o venció,
+se consulta al servidor. No se usa para esto el caché persistente de roles.
+Cada comprobación periódica de 60 segundos invalida esa reutilización y consulta
+de nuevo, aunque otro consumidor haya actualizado el rol recientemente. El límite
+absoluto de 12 horas se comprueba antes de reutilizar cualquier resultado.
+
 ## Transición y recuperación administrativa
 
 El panel mantiene Google y permite crear, activar, suspender, retirar, recuperar y
