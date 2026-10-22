@@ -15,10 +15,10 @@ import { profileMailBundles, smokeMailBundles } from './netlifyMailRuntimeSuppor
 
 const ROOT = process.cwd();
 const FUNCTIONS_DIR = path.join(ROOT, 'netlify', 'functions');
-// Keeping artifacts under the checkout lets external packages resolve exactly as
-// they do in the deployed package, without injecting NODE_PATH into the probe.
-fs.mkdirSync(path.join(ROOT, 'tmp'), { recursive: true });
-const TMP_DIR = fs.mkdtempSync(path.join(ROOT, 'tmp', 'netlify-bundle-'));
+// Keep generated JavaScript outside source scans. The private dependency link
+// resolves external packages without inheriting NODE_PATH or parent credentials.
+const TMP_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'hhr-netlify-bundle-'));
+fs.symlinkSync(path.join(ROOT, 'node_modules'), path.join(TMP_DIR, 'node_modules'), 'junction');
 const REPORTS_DIR = path.join(ROOT, 'reports');
 const policy = JSON.parse(
   fs.readFileSync(path.join(ROOT, 'scripts/config/netlify-mail-budgets.json'), 'utf8')
