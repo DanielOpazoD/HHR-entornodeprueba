@@ -50,7 +50,6 @@ export interface AuditConnectionDependencies {
 }
 
 export const AUDIT_CONNECTION_STORAGE_KEY = 'hhr_audit_connection_v1';
-export const AUDIT_CONNECTION_HEARTBEAT_MS = 60_000;
 /** A device silent for longer than this was closed or asleep: the connection ended. */
 export const AUDIT_CONNECTION_RESUME_GAP_MS = 15 * 60_000;
 /** Shorter network drops are noise. */

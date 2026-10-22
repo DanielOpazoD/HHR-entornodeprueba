@@ -20,7 +20,6 @@ import {
 import { excerptAroundChange } from '@/services/admin/auditTextExcerpt';
 import { formatClinicalDayMonthYear } from '@/utils/clinicalTimeFormat';
 
-const MAX_CHANGES = 12;
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Accepts ISO strings, epoch numbers and Firestore timestamps (`toDate()` or `seconds`). */
@@ -73,11 +72,23 @@ const extractChangeMap = (changes: Record<string, unknown>): AuditTrailChange[] 
     return [toChange(resolveAuditTrailFieldLabel(field), change.old, change.new)];
   }) as AuditTrailChange[];
 
+/** Administrative CUDYR adjustments (written by the server) list one category per bed. */
+const extractCategoryAdjustments = (changes: unknown[]): AuditTrailChange[] =>
+  changes.flatMap(change => {
+    if (!isPlainObject(change) || !asAuditText(change.bedId)) return [];
+    if (!('category' in change) && !('previousCategory' in change)) return [];
+    const bed = `${asAuditText(change.bedId)}${change.clinicalCrib ? ' · cuna' : ''}`;
+    const adjusted = toChange(`${bed} · Categoría`, change.previousCategory, change.category);
+    return adjusted ? [adjusted] : [];
+  });
+
 const extractChanges = (details: Record<string, unknown>): AuditTrailChange[] => {
   const changes: (AuditTrailChange | null)[] = [];
 
   if (isPlainObject(details.changes)) {
     changes.push(...extractChangeMap(details.changes));
+  } else if (Array.isArray(details.changes)) {
+    changes.push(...extractCategoryAdjustments(details.changes));
   } else if (asAuditText(details.field) && ('oldValue' in details || 'newValue' in details)) {
     changes.push(
       toChange(
@@ -94,9 +105,8 @@ const extractChanges = (details: Record<string, unknown>): AuditTrailChange[] =>
     changes.unshift({ field: 'Cama', before: sourceBed, after: targetBed });
   }
 
-  return changes
-    .filter((change): change is AuditTrailChange => change !== null)
-    .slice(0, MAX_CHANGES);
+  // Every change is kept: the export needs them all; the page shortens long lists itself.
+  return changes.filter((change): change is AuditTrailChange => change !== null);
 };
 
 /** Automatic ends: 8 h without activity, nursing shift end or revoked access. */
@@ -173,6 +183,8 @@ const resolveDetail = (
       return shift;
     case 'MEDICAL_HANDOFF_SIGNED':
       return asAuditText(details.doctorName) || undefined;
+    case 'CUDYR_MODIFIED':
+      return details.event === 'admin_cudyr_results_adjusted' ? 'Ajuste administrativo' : undefined;
     case 'CUDYR_BATCH_SAVED':
       return typeof details.patientCount === 'number'
         ? `${details.patientCount} pacientes`

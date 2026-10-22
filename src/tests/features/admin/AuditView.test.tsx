@@ -14,6 +14,9 @@ vi.mock('@/context/AuthContext', () => ({
 
 vi.mock('@/application/audit/fetchAuditLogsUseCase', () => ({
   executeFetchAuditLogRange: vi.fn(),
+  executeFetchAuditLogsByIds: vi
+    .fn()
+    .mockResolvedValue({ status: 'success', data: [], issues: [] }),
 }));
 
 vi.mock('@/features/admin/components/internal/audit/ExportKeysPanel', () => ({

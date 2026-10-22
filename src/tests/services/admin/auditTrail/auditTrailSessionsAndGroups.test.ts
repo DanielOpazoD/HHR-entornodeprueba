@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { normalizeAuditTrailEvents } from '@/services/admin/auditTrail/auditTrailNormalize';
 import {
   buildAuditTrailSessions,
+  resolveAuditTrailBoundaryIds,
   resolveAuditTrailSessionDurationMs,
 } from '@/services/admin/auditTrail/auditTrailSessions';
 import {
@@ -122,6 +123,48 @@ describe('audit trail sessions', () => {
       Date.parse('2026-10-23T12:00:00.000Z')
     );
     expect(unclosed).toMatchObject({ id: 's3', end: 'unknown', endedAt: undefined });
+  });
+
+  it('asks for the start and end a period cut off, and times a night shift from them', () => {
+    // Night shift seen on its second day: started the evening before, still working at noon.
+    const day = [
+      auditLog({
+        id: 'night-edit',
+        timestamp: at('11:30'),
+        sessionId: 'night-1',
+        details: patientDetails('Paciente Uno', { changes: { age: { old: 40, new: 41 } } }),
+      }),
+    ];
+    expect(resolveAuditTrailBoundaryIds([...day, ...sessionLogs()])).toEqual([
+      'conn_night-1_start',
+      'conn_night-1_end',
+      'conn_s3_end',
+    ]);
+
+    const boundary = [
+      auditLog({
+        id: 'conn_night-1_start',
+        action: 'USER_LOGIN',
+        entityType: 'user',
+        timestamp: '2026-10-21T23:30:00.000Z',
+        sessionId: 'night-1',
+        details: { start: 'sign_in' },
+      }),
+      auditLog({
+        id: 'conn_night-1_end',
+        action: 'USER_LOGOUT',
+        entityType: 'user',
+        timestamp: '2026-10-23T00:30:00.000Z',
+        sessionId: 'night-1',
+        details: { reason: 'manual', startedAt: '2026-10-21T23:30:00.000Z' },
+      }),
+    ];
+    const [night] = buildAuditTrailSessions(
+      normalizeAuditTrailEvents([...day, ...boundary]),
+      EVENING
+    );
+    expect(night).toMatchObject({ id: 'night-1', end: 'manual' });
+    expect(resolveAuditTrailSessionDurationMs(night)).toBe(25 * 60 * 60 * 1000);
   });
 
   it('uses the end record when the start fell outside the loaded period', () => {

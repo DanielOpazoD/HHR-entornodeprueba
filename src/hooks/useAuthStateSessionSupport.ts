@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { defaultAuditPort } from '@/application/ports/auditPort';
 import { startSessionActivityMonitor } from '@/services/auth/sessionActivityMonitor';
 import { markRecentManualLogout } from '@/services/auth/authLogoutState';
 import {
@@ -15,6 +14,7 @@ import { clearSessionScopedClientState } from '@/services/storage/sessionScopedS
 import { clearQueryCache } from '@/config/queryClient';
 import { broadcastLogout } from '@/services/auth/authBroadcastChannel';
 import { clearCachedUserAvatarProfiles } from '@/services/user-profile/userAvatarProfileCache';
+import { flushPendingAuditEvents } from '@/services/admin/auditPendingEvents';
 
 export const getE2EBootstrapUser = (): AuthUser | null => {
   if (typeof window === 'undefined' || !window.__HHR_E2E_OVERRIDE__) {
@@ -86,6 +86,10 @@ export const resetLocationToLoginRoute = (): void => {
 
 /** Loading the audit module plus its own 1.5 s delivery budget. */
 const LOGOUT_AUDIT_BUDGET_MS = 2_000;
+const PENDING_AUDIT_FLUSH_BUDGET_MS = 1_500;
+
+// Loaded on logout only: the audit service stays out of the startup bundle.
+const loadAuditPort = () => import('@/application/ports/auditPort');
 
 const settleWithin = (task: Promise<unknown>, budgetMs: number): Promise<void> =>
   new Promise(resolve => {
@@ -96,6 +100,10 @@ const settleWithin = (task: Promise<unknown>, budgetMs: number): Promise<void> =
     };
     task.then(settle, settle);
   });
+
+/** A tab signed out by another one writes the edits it was still grouping first. */
+export const flushPendingAuditEventsBeforeSignOut = (): Promise<void> =>
+  settleWithin(flushPendingAuditEvents(), PENDING_AUDIT_FLUSH_BUDGET_MS);
 
 export const createHandleLogout =
   (
@@ -129,10 +137,11 @@ export const createHandleLogout =
     //    it is sent, so an end event racing sign-out could be rejected. The whole step, loading
     //    the audit module included, is bounded: sign-out never waits on it. Anything undelivered
     //    stays queued on the device for the next sign-in.
-    if (user?.email) {
+    const email = user?.email;
+    if (email) {
       await settleWithin(
-        defaultAuditPort
-          .logUserLogout(user.email, reason)
+        loadAuditPort()
+          .then(({ defaultAuditPort }) => defaultAuditPort.logUserLogout(email, reason))
           .catch(error => authStateLogger.warn('Logout audit step rejected', error)),
         LOGOUT_AUDIT_BUDGET_MS
       );

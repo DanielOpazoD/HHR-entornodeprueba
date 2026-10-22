@@ -64,3 +64,24 @@ export const executeFetchAuditLogRange = async (
     );
   }
 };
+
+/** Specific events by id; failures are reported so callers can do without them. */
+export const executeFetchAuditLogsByIds = async (
+  ids: string[],
+  dependencies: FetchAuditLogsDependencies = {}
+): Promise<ApplicationOutcome<AuditLogEntry[]>> => {
+  const auditPort = dependencies.auditPort || defaultAuditPort;
+  try {
+    return createApplicationSuccess(await auditPort.fetchLogsByIds(ids));
+  } catch (error) {
+    return createApplicationFailed(
+      [],
+      [
+        {
+          kind: 'unknown',
+          message: error instanceof Error ? error.message : 'No se pudieron leer los eventos.',
+        },
+      ]
+    );
+  }
+};

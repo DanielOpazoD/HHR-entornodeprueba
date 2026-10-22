@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { executeFetchAuditLogRange } from '@/application/audit/fetchAuditLogsUseCase';
+import {
+  executeFetchAuditLogRange,
+  executeFetchAuditLogsByIds,
+} from '@/application/audit/fetchAuditLogsUseCase';
 import type { AuditLogEntry } from '@/types/auditLogTypes';
 import type {
   AuditTrailArea,
@@ -9,7 +12,10 @@ import type {
 } from '@/types/auditTrailTypes';
 import { AUDIT_TRAIL_CATEGORY_ORDER } from '@/services/admin/auditTrail/auditTrailCatalog';
 import { normalizeAuditTrailEvents } from '@/services/admin/auditTrail/auditTrailNormalize';
-import { buildAuditTrailSessions } from '@/services/admin/auditTrail/auditTrailSessions';
+import {
+  buildAuditTrailSessions,
+  resolveAuditTrailBoundaryIds,
+} from '@/services/admin/auditTrail/auditTrailSessions';
 import { buildAuditTrailGroups } from '@/services/admin/auditTrail/auditTrailGroups';
 import {
   buildAuditTrailActorOptions,
@@ -36,7 +42,8 @@ export const AUDIT_TRAIL_FETCH_LIMIT = 3_000;
 
 type AuditTrailLoad =
   | { status: 'loading' }
-  | { status: 'ready'; logs: AuditLogEntry[] }
+  /** `boundaryLogs`: starts and ends of connections the period cuts off (not listed as events). */
+  | { status: 'ready'; logs: AuditLogEntry[]; boundaryLogs: AuditLogEntry[] }
   | { status: 'error'; message: string };
 
 const LOADING: AuditTrailLoad = { status: 'loading' };
@@ -108,21 +115,31 @@ export const useAuditTrail = (): UseAuditTrailResult => {
   useEffect(() => {
     let cancelled = false;
     const [startDate, endDate] = requestKey.split('|');
-    void executeFetchAuditLogRange({
-      ...resolveAuditTrailQueryRange({ kind: 'range', startDate, endDate }),
-      limit: AUDIT_TRAIL_FETCH_LIMIT,
-    }).then(result => {
-      if (cancelled) return;
-      setAnswer({
-        key: requestKey,
-        load:
-          result.status === 'failed'
-            ? {
-                status: 'error',
-                message: result.issues[0]?.message || 'No se pudo cargar la auditoría.',
-              }
-            : { status: 'ready', logs: result.data },
+    const loadPeriod = async (): Promise<AuditTrailLoad> => {
+      const result = await executeFetchAuditLogRange({
+        ...resolveAuditTrailQueryRange({ kind: 'range', startDate, endDate }),
+        limit: AUDIT_TRAIL_FETCH_LIMIT,
       });
+      if (result.status === 'failed') {
+        return {
+          status: 'error',
+          message: result.issues[0]?.message || 'No se pudo cargar la auditoría.',
+        };
+      }
+      // Without the cut-off starts and ends, those connections fall back to the period's events.
+      const boundaryIds = resolveAuditTrailBoundaryIds(result.data);
+      const boundary =
+        boundaryIds.length > 0
+          ? await executeFetchAuditLogsByIds(boundaryIds).catch(() => null)
+          : null;
+      return {
+        status: 'ready',
+        logs: result.data,
+        boundaryLogs: boundary && boundary.status !== 'failed' ? boundary.data : [],
+      };
+    };
+    void loadPeriod().then(nextLoad => {
+      if (!cancelled) setAnswer({ key: requestKey, load: nextLoad });
     });
     return () => {
       cancelled = true;
@@ -133,7 +150,13 @@ export const useAuditTrail = (): UseAuditTrailResult => {
     () => (load.status === 'ready' ? normalizeAuditTrailEvents(load.logs) : []),
     [load]
   );
-  const sessions = useMemo(() => buildAuditTrailSessions(events), [events]);
+  const sessions = useMemo(
+    () =>
+      buildAuditTrailSessions(
+        load.status === 'ready' ? [...events, ...normalizeAuditTrailEvents(load.boundaryLogs)] : []
+      ),
+    [events, load]
+  );
 
   const scopedEvents = useMemo(
     () =>

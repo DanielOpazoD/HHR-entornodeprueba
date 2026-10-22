@@ -61,9 +61,11 @@ pestañas de ese usuario:
 - **Sin red**: cortes de 1 min o más, con su duración.
 
 Los eventos de conexión usan ids deterministas (`conn_<id>_start|end|net_*`), así que un duplicado
-desde otra pestaña es rechazado por la regla de solo agregar. Pasan por una bandeja local
-(`hhr_audit_connection_outbox_v1`) que sobrevive al cierre de sesión: el cierre se envía antes de
-cerrar Firebase y, si no alcanza, en el siguiente inicio en ese equipo. Al leerla solo se aceptan
+desde otra pestaña es rechazado por la regla de solo agregar. Pasan por una bandeja local con una
+clave por evento (`hhr_audit_connection_outbox_v1:<id>`, así las pestañas no se pisan) que sobrevive
+al cierre de sesión: el cierre se envía antes de cerrar Firebase (espera máxima de 2 s; el cierre de
+Firebase nunca queda esperando) y, si no alcanza, en el siguiente inicio en ese equipo. Una pestaña
+cerrada por otra escribe antes sus ediciones pendientes. Al leer la bandeja solo se aceptan
 eventos de conexión bien formados, reconstruidos campo a campo: lo que alguien edite en el equipo
 no se escribe con la sesión de la persona que entre después.
 
@@ -75,7 +77,8 @@ no se escribe con la sesión de la persona que entre después.
   «Revisar» muestra solo lo que pide atención (cama liberada, eliminaciones, versiones restauradas,
   sincronizaciones bloqueadas).
 - **Agrupar por** paciente (interacciones por paciente), funcionario, conexión (con línea de tiempo
-  del día) o cronológico. Las lecturas repetidas se juntan («Vio ficha ×3») y una ráfaga de cambios
+  del día; una conexión que empezó antes del período o terminó después se completa leyendo su
+  inicio o su cierre por id, así un turno de noche muestra su hora y duración reales) o cronológico. Las lecturas repetidas se juntan («Vio ficha ×3») y una ráfaga de cambios
   de una persona sobre un paciente se lee en una sola línea.
 - **Buscar** por paciente, RUT (con o sin puntos), cama o funcionario; filtros de funcionario y área.
 - **Vista** personalizable (densidad, columnas de documento, cama, dispositivo/IP y grupos abiertos);
@@ -86,7 +89,10 @@ no se escribe con la sesión de la persona que entre después.
   queda registrado como acceso.
 
 Los textos largos (notas de entrega) se guardan y se muestran recortados alrededor de la parte que
-cambió, para que el «antes → después» siempre muestre la diferencia. La bandeja de conexión solo
+cambió, para que el «antes → después» siempre muestre la diferencia; la pantalla abrevia las listas
+largas, el Excel lleva todos los cambios. Si el servidor rechaza un evento, quien lo escribió recibe
+el error: una eliminación que exige su auditoría (un día, una receta) no sigue sin ella. La bandeja
+de conexión solo
 descarta un evento rechazado si un envío anterior pudo haber llegado (la colección no acepta un
 segundo documento con el mismo id); si no, lo conserva para quien inicie sesión después en ese
 equipo.

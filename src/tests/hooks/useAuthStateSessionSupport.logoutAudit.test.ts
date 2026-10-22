@@ -40,9 +40,10 @@ describe('createHandleLogout audit order', () => {
     const signOut = vi.fn().mockResolvedValue(undefined);
 
     const logout = createHandleLogout(USER as never, signOut, vi.fn())('automatic');
-    await Promise.resolve();
-
-    expect(defaultAuditPort.logUserLogout).toHaveBeenCalledWith(USER.email, 'automatic');
+    // The audit module is loaded on demand at logout.
+    await vi.waitFor(() =>
+      expect(defaultAuditPort.logUserLogout).toHaveBeenCalledWith(USER.email, 'automatic')
+    );
     expect(clearSessionScopedClientState).not.toHaveBeenCalled();
     expect(signOut).not.toHaveBeenCalled();
 

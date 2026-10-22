@@ -34,7 +34,7 @@ import {
   markAuditConnectionEntrySent,
   readAuditConnectionOutbox,
   settleAuditConnectionEntry,
-  type AuditConnectionDelivery,
+  type AuditConnectionOutboxStorage,
 } from '@/services/admin/auditSession/auditConnectionOutbox';
 
 const COLLECTION_NAME = () => `hospitals/${getActiveHospitalId()}/auditLogs`;
@@ -97,7 +97,7 @@ interface AuditRuntimeSyncPolicy {
 
 /** Device facts stamped on every event. */
 interface AuditDeviceEnvironment {
-  connectionStorage: () => Pick<Storage, 'getItem' | 'setItem'> | undefined;
+  connectionStorage: () => AuditConnectionOutboxStorage | undefined;
   userAgent: () => string | undefined;
 }
 
@@ -106,6 +106,9 @@ export interface AuditLogRange {
   toIso: string;
   limit: number;
 }
+
+/** `stored` once Firestore (or the local store without Firestore) holds the event. */
+export type AuditWriteDelivery = 'stored' | 'rejected' | 'failed';
 
 export interface AuditCoreService {
   logAuditEvent: (
@@ -117,11 +120,13 @@ export interface AuditCoreService {
     patientRut?: string,
     recordDate?: string,
     authors?: string
-  ) => Promise<void>;
+  ) => Promise<AuditWriteDelivery>;
   getAuditLogs: (limitCount?: number | null) => Promise<AuditLogEntry[]>;
   getAuditLogsForDate: (date: string) => Promise<AuditLogEntry[]>;
   /** Events of `[fromIso, toIso)`, newest first. Remote failures are reported, not hidden. */
   getAuditLogsInRange: (range: AuditLogRange) => Promise<AuditLogEntry[]>;
+  /** Specific events by document id (e.g. connection starts and ends); missing ids are skipped. */
+  getAuditLogsByIds: (ids: string[]) => Promise<AuditLogEntry[]>;
   /** Delivers queued connection events; only call it while a user is signed in. */
   flushAuditConnectionOutbox: () => Promise<void>;
   /** Writes a connection event directly when the device could not queue it. */
@@ -161,7 +166,7 @@ const sortAuditLogsByNewestTimestamp = (logs: AuditLogEntry[]): AuditLogEntry[] 
   });
 
 export const createAuditCoreService = (
-  database: Pick<IDatabaseProvider, 'setDoc' | 'getDocs'> = firestoreDb,
+  database: Pick<IDatabaseProvider, 'setDoc' | 'getDocs' | 'getDoc'> = firestoreDb,
   localStore: AuditLocalStore = defaultAuditLocalStore,
   syncPolicy: AuditRuntimeSyncPolicy = defaultAuditRuntimeSyncPolicy,
   device: AuditDeviceEnvironment = defaultAuditDeviceEnvironment
@@ -174,7 +179,7 @@ export const createAuditCoreService = (
     }
   };
 
-  const writeRemote = async (entry: AuditLogEntry): Promise<AuditConnectionDelivery> => {
+  const writeRemote = async (entry: AuditLogEntry): Promise<AuditWriteDelivery> => {
     try {
       await database.setDoc(COLLECTION_NAME(), entry.id, entry);
       return 'stored';
@@ -194,7 +199,7 @@ export const createAuditCoreService = (
 
   // The browser keeps a local copy only when there is no Firestore to hold the trail; with
   // Firestore its offline cache already queues the write.
-  const persist = async (entry: AuditLogEntry): Promise<AuditConnectionDelivery> => {
+  const persist = async (entry: AuditLogEntry): Promise<AuditWriteDelivery> => {
     if (!syncPolicy.shouldUseRemoteAuditSync()) {
       await storeLocally(entry);
       return 'stored';
@@ -211,12 +216,12 @@ export const createAuditCoreService = (
     patientRut,
     recordDate,
     authors
-  ): Promise<void> => {
+  ): Promise<AuditWriteDelivery> => {
     const userUid = getCurrentUserUid();
     const storage = device.connectionStorage();
     const withDocument = patientRut && !details.rut ? { ...details, rut: patientRut } : details;
 
-    await persist({
+    const delivery = await persist({
       id: generateAuditId(),
       timestamp: new Date().toISOString(),
       schemaVersion: AUDIT_SCHEMA_VERSION,
@@ -234,6 +239,7 @@ export const createAuditCoreService = (
       sessionId: storage ? resolveAuditConnectionId(storage, userUid) : undefined,
       device: resolveAuditDeviceLabel(device.userAgent()),
     });
+    return delivery;
   };
 
   /**
@@ -242,7 +248,7 @@ export const createAuditCoreService = (
    * (`sentAt` still set, e.g. the page closed mid-write) lets a refusal count as a duplicate;
    * otherwise the event stays for the next person who signs in on this device.
    */
-  const deliverQueued = async (storage: Pick<Storage, 'getItem' | 'setItem'>): Promise<void> => {
+  const deliverQueued = async (storage: AuditConnectionOutboxStorage): Promise<void> => {
     for (const item of readAuditConnectionOutbox(storage)) {
       const landedBefore = item.sentAt !== undefined;
       markAuditConnectionEntrySent(storage, item.entry.id, Date.now());
@@ -291,6 +297,13 @@ export const createAuditCoreService = (
         return await localStore.getAuditLogs(limitCount);
       }
     },
+    getAuditLogsByIds: async (ids: string[]): Promise<AuditLogEntry[]> => {
+      if (!syncPolicy.shouldUseRemoteAuditSync() || ids.length === 0) return [];
+      const found = await Promise.all(
+        ids.map(id => database.getDoc<AuditLogEntry>(COLLECTION_NAME(), id))
+      );
+      return found.filter((log): log is AuditLogEntry => log !== null);
+    },
     getAuditLogsInRange: async (range: AuditLogRange): Promise<AuditLogEntry[]> => {
       if (!syncPolicy.shouldUseRemoteAuditSync()) {
         return await localStore.getAuditLogsInRange(range);
@@ -332,6 +345,9 @@ export const getAuditLogs: AuditCoreService['getAuditLogs'] = limitCount =>
 
 export const getAuditLogsInRange: AuditCoreService['getAuditLogsInRange'] = range =>
   defaultAuditCoreService.getAuditLogsInRange(range);
+
+export const getAuditLogsByIds: AuditCoreService['getAuditLogsByIds'] = ids =>
+  defaultAuditCoreService.getAuditLogsByIds(ids);
 
 export const getAuditLogsForDate: AuditCoreService['getAuditLogsForDate'] = date =>
   defaultAuditCoreService.getAuditLogsForDate(date);

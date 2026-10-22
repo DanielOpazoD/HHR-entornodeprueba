@@ -87,6 +87,17 @@ describe('session cleanup isolation', () => {
     expect(sessionStorage.getItem('hhr_private')).toBeNull();
   });
 
+  it('keeps undelivered audit connection events and clears the rest of the session', async () => {
+    localStorage.setItem('hhr_session_owner_v1', 'user:old');
+    localStorage.setItem('hhr_audit_connection_outbox_v1:conn_c1_end', '{"entry":{}}');
+    localStorage.setItem('hhr_audit_connection_v1', '{}');
+    localStorage.setItem('hhr_private', 'old');
+    await clearSessionScopedClientState('manual');
+    expect(localStorage.getItem('hhr_audit_connection_outbox_v1:conn_c1_end')).not.toBeNull();
+    expect(localStorage.getItem('hhr_audit_connection_v1')).not.toBeNull();
+    expect(localStorage.getItem('hhr_private')).toBeNull();
+  });
+
   it('still attempts Firebase logout when Web Storage is blocked', async () => {
     const signOut = vi.fn().mockResolvedValue(undefined);
     sessionStorage.setItem('hhr_private', 'old');

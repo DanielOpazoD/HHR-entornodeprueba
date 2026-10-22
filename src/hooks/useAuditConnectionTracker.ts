@@ -1,11 +1,13 @@
 import { useEffect } from 'react';
 import type { AuthUser } from '@/types/authRoleTypes';
-import { AUDIT_CONNECTION_HEARTBEAT_MS } from '@/services/admin/auditSession/auditConnectionTracker';
 import { createScopedLogger } from '@/services/utils/loggerScope';
 
 const connectionLogger = createScopedLogger('AuditConnectionTracker');
 
 const loadRuntime = () => import('@/services/admin/auditSession/auditConnectionRuntime');
+
+/** Local only: refreshes the device record, never writes to the network. */
+export const AUDIT_CONNECTION_HEARTBEAT_MS = 60_000;
 
 /**
  * Keeps the audit connection of a signed-in user: opens or joins it, refreshes the local

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { AuditLogEntry } from '@/types/auditLogTypes';
 import {
   normalizeAuditTrailEvent,
   normalizeAuditTrailEvents,
@@ -105,6 +106,39 @@ describe('audit trail normalization', () => {
     });
     expect(cudyr.changes).toEqual([{ field: 'Movilización', before: '1', after: '3' }]);
     expect(cudyr.detail).toBe('Revertido: Alimentación');
+  });
+
+  it('shows each bed of an administrative CUDYR adjustment and keeps every change', () => {
+    // The server writes `changes` as a list, one category change per bed.
+    const serverDetails: Record<string, unknown> = {
+      event: 'admin_cudyr_results_adjusted',
+      changedCount: 2,
+      changes: [
+        { bedId: 'H1C1', previousCategory: 'C2', category: 'B1' },
+        { bedId: 'H2C1', clinicalCrib: true, previousCategory: 'D3', category: null },
+      ],
+    };
+    const adjustment = normalize({
+      action: 'CUDYR_MODIFIED',
+      entityType: 'dailyRecord',
+      entityId: '2026-10-22',
+      details: serverDetails as AuditLogEntry['details'],
+    });
+    expect(adjustment.detail).toBe('Ajuste administrativo');
+    expect(adjustment.changes).toEqual([
+      { field: 'H1C1 · Categoría', before: 'C2', after: 'B1' },
+      { field: 'H2C1 · cuna · Categoría', before: 'D3', after: undefined },
+    ]);
+
+    const scored = normalize({
+      action: 'CUDYR_MODIFIED',
+      details: patientDetails('Paciente Sintético', {
+        changes: Object.fromEntries(
+          Array.from({ length: 14 }, (_, item) => [`item${item}`, { old: 1, new: 2 }])
+        ),
+      }),
+    });
+    expect(scored.changes).toHaveLength(14);
   });
 
   it('expands device changes one device at a time', () => {

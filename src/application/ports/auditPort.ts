@@ -1,5 +1,6 @@
 import {
   getAuditLogs,
+  getAuditLogsByIds,
   getAuditLogsInRange,
   logAuditEvent,
   logThrottledViewEvent,
@@ -25,6 +26,7 @@ export interface AuditPort {
     toIso: string;
     limit: number;
   }) => Promise<AuditLogEntry[]>;
+  fetchLogsByIds: (ids: string[]) => Promise<AuditLogEntry[]>;
   logPatientAdmission: (
     bedId: string,
     patientName: string,
@@ -69,12 +71,27 @@ export const defaultAuditPort: AuditPort = {
     patientRut,
     recordDate,
     authors
-  ) =>
-    logAuditEvent(userId, action, entityType, entityId, details, patientRut, recordDate, authors),
+  ) => {
+    const delivery = await logAuditEvent(
+      userId,
+      action,
+      entityType,
+      entityId,
+      details,
+      patientRut,
+      recordDate,
+      authors
+    );
+    // Fail-closed mutations (deleting a day, a prescription) must not proceed without their event.
+    if (delivery === 'rejected' || delivery === 'failed') {
+      throw new Error('No se pudo guardar el evento de auditoría.');
+    }
+  },
   fetchLogs: async (limit?: number | null) => getAuditLogs(limit),
   fetchLogsInRange: async range => getAuditLogsInRange(range),
-  logPatientAdmission: async (bedId, patientName, rut, pathology, recordDate) =>
-    logAuditEvent(
+  fetchLogsByIds: async ids => getAuditLogsByIds(ids),
+  logPatientAdmission: async (bedId, patientName, rut, pathology, recordDate) => {
+    await logAuditEvent(
       getCurrentUserEmail(),
       'PATIENT_ADMITTED',
       'patient',
@@ -82,9 +99,10 @@ export const defaultAuditPort: AuditPort = {
       { patientName, bedId, pathology: pathology || '', rut },
       rut,
       recordDate
-    ),
-  logPatientDischarge: async (bedId, patientName, rut, status, recordDate) =>
-    logAuditEvent(
+    );
+  },
+  logPatientDischarge: async (bedId, patientName, rut, status, recordDate) => {
+    await logAuditEvent(
       getCurrentUserEmail(),
       'PATIENT_DISCHARGED',
       'discharge',
@@ -92,9 +110,10 @@ export const defaultAuditPort: AuditPort = {
       { patientName, status, bedId, rut },
       rut,
       recordDate
-    ),
-  logPatientTransfer: async (bedId, patientName, rut, destination, recordDate) =>
-    logAuditEvent(
+    );
+  },
+  logPatientTransfer: async (bedId, patientName, rut, destination, recordDate) => {
+    await logAuditEvent(
       getCurrentUserEmail(),
       'PATIENT_TRANSFERRED',
       'transfer',
@@ -102,7 +121,8 @@ export const defaultAuditPort: AuditPort = {
       { patientName, destination, bedId, rut },
       rut,
       recordDate
-    ),
+    );
+  },
   logPatientView: async (bedId, patientName, rut, recordDate) =>
     logThrottledViewEvent('VIEW_PATIENT', bedId, { patientName, bedId, rut }, recordDate),
   logUserLogout: async (_email, reason = 'manual') => {

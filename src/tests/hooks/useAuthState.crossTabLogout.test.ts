@@ -13,6 +13,7 @@ import {
 } from '@/services/storage/sessionScopedStorageService';
 import type { AuthChannelMessage } from '@/services/auth/authBroadcastChannel';
 import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { registerPendingAuditFlush } from '@/services/admin/auditPendingEvents';
 
 let emitAuthChannelMessage: ((message: AuthChannelMessage) => void) | undefined;
 
@@ -273,6 +274,24 @@ describe('useAuthState cross-tab logout', () => {
     );
     expect(authSession.signOut).toHaveBeenCalledTimes(1);
     expect(result.current.authorizedUser).toBeNull();
+  });
+
+  it('writes the edits this tab was still grouping before it signs out', async () => {
+    const order: string[] = [];
+    const unregister = registerPendingAuditFlush(async () => {
+      order.push('audit flush');
+    });
+    vi.mocked(authSession.signOut).mockImplementation(async () => {
+      order.push('sign out');
+    });
+    renderHook(() => useAuthState());
+
+    await act(async () => {
+      emitAuthChannelMessage?.({ type: 'LOGOUT', reason: 'manual', tabId: 'other-tab' });
+    });
+
+    await waitFor(() => expect(order).toEqual(['audit flush', 'sign out']));
+    unregister();
   });
 
   it('clears this tab’s persisted auth copy when another tab broadcasts a logout', async () => {

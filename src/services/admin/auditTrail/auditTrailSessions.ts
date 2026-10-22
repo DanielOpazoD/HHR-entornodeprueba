@@ -1,3 +1,4 @@
+import type { AuditLogEntry } from '@/types/auditLogTypes';
 import type {
   AuditTrailEvent,
   AuditTrailInterruption,
@@ -85,6 +86,38 @@ export const buildAuditTrailSessions = (
   return [...bySession.entries()]
     .map(([id, sessionEvents]) => buildSession(id, sessionEvents, now))
     .sort((a, b) => b.startedAt - a.startedAt);
+};
+
+const CONNECTION_SESSION_ID = /^[\w-]{1,64}$/;
+/** Each id is one document read; a period rarely has more open-ended connections than this. */
+export const AUDIT_TRAIL_BOUNDARY_LIMIT = 120;
+
+/**
+ * Ids of the connection events a period cuts off: the start of a connection opened before it
+ * (a night shift seen the next day) and the end of one closed after it. Connection events have
+ * deterministic ids (`conn_<id>_start|end`), so each is a single document read.
+ */
+export const resolveAuditTrailBoundaryIds = (logs: AuditLogEntry[]): string[] => {
+  const known = new Map<string, { start: boolean; end: boolean }>();
+  logs.forEach(log => {
+    const details = (log.details ?? {}) as Record<string, unknown>;
+    const sessionId = asAuditText(log.sessionId) || asAuditText(details.sessionId);
+    if (!CONNECTION_SESSION_ID.test(sessionId)) return;
+    const session = known.get(sessionId) ?? { start: false, end: false };
+    if (log.action === 'USER_LOGIN') session.start = true;
+    if (log.action === 'USER_LOGOUT') {
+      session.end = true;
+      // An end carries its start time: the start event itself is not needed.
+      if (timeFrom(details.startedAt) !== undefined) session.start = true;
+    }
+    known.set(sessionId, session);
+  });
+  return [...known.entries()]
+    .flatMap(([id, session]) => [
+      ...(session.start ? [] : [`conn_${id}_start`]),
+      ...(session.end ? [] : [`conn_${id}_end`]),
+    ])
+    .slice(0, AUDIT_TRAIL_BOUNDARY_LIMIT);
 };
 
 /** Connected time: known end, or last recorded activity while the session stays open. */

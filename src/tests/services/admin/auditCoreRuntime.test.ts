@@ -5,6 +5,7 @@ import {
   enqueueAuditConnectionEntry,
   markAuditConnectionEntrySent,
   readAuditConnectionOutbox,
+  type AuditConnectionOutboxStorage,
 } from '@/services/admin/auditSession/auditConnectionOutbox';
 import { AUDIT_CONNECTION_STORAGE_KEY } from '@/services/admin/auditSession/auditConnectionTracker';
 import { buildAuditConnectionEntry } from '@/services/admin/auditSession/auditConnectionEntries';
@@ -29,11 +30,16 @@ vi.mock('@/services/admin/adminLoggers', () => ({
 
 vi.mock('@/services/admin/utils/auditUtils', () => auditUtilsMocks);
 
-const memoryStorage = (): Pick<Storage, 'getItem' | 'setItem'> => {
+const memoryStorage = (): AuditConnectionOutboxStorage => {
   const values = new Map<string, string>();
   return {
     getItem: key => values.get(key) ?? null,
     setItem: (key, value) => void values.set(key, value),
+    removeItem: key => void values.delete(key),
+    key: index => [...values.keys()][index] ?? null,
+    get length() {
+      return values.size;
+    },
   };
 };
 
@@ -43,11 +49,12 @@ const CHROME_ON_WINDOWS =
 describe('auditCore runtime injection', () => {
   const setDoc = vi.fn();
   const getDocs = vi.fn();
+  const getDoc = vi.fn();
   const saveAuditLog = vi.fn();
   const getIndexedLogs = vi.fn();
   const getIndexedLogsForDate = vi.fn();
   const getIndexedLogsInRange = vi.fn();
-  let storage: Pick<Storage, 'getItem' | 'setItem'>;
+  let storage: AuditConnectionOutboxStorage;
 
   const localStore = () => ({
     saveAuditLog,
@@ -61,7 +68,7 @@ describe('auditCore runtime injection', () => {
   });
   const remoteService = () =>
     createAuditCoreService(
-      { setDoc, getDocs },
+      { setDoc, getDocs, getDoc },
       localStore(),
       { shouldUseRemoteAuditSync: () => true },
       device()
@@ -131,7 +138,7 @@ describe('auditCore runtime injection', () => {
 
   it('keeps audit writes local-only when remote audit sync is disabled', async () => {
     const localOnlyService = createAuditCoreService(
-      { setDoc, getDocs },
+      { setDoc, getDocs, getDoc },
       localStore(),
       { shouldUseRemoteAuditSync: () => false },
       device()
@@ -191,7 +198,8 @@ describe('auditCore runtime injection', () => {
     const service = remoteService();
     await Promise.all([service.flushAuditConnectionOutbox(), service.flushAuditConnectionOutbox()]);
 
-    expect(setDoc.mock.calls.map(call => call[1])).toEqual(['conn_a_end', 'conn_b_start']);
+    // Oldest first: the 13:00 start before the 14:00 end.
+    expect(setDoc.mock.calls.map(call => call[1])).toEqual(['conn_b_start', 'conn_a_end']);
     expect(readAuditConnectionOutbox(storage)).toEqual([]);
   });
 

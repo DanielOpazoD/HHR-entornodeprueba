@@ -2,6 +2,9 @@ import React from 'react';
 import type { AuditTrailChange } from '@/types/auditTrailTypes';
 
 const LONG_VALUE = 120;
+/** Longer lists show their first lines; the rest one click away (export always has all). */
+const COLLAPSE_AFTER = 8;
+const COLLAPSED_LINES = 6;
 
 const ChangeValue: React.FC<{ value?: string; tone: 'before' | 'after' }> = ({ value, tone }) => {
   const [expanded, setExpanded] = React.useState(false);
@@ -36,10 +39,13 @@ interface AuditTrailChangesProps {
 
 /** "Campo: antes → después", one per line. */
 export const AuditTrailChanges: React.FC<AuditTrailChangesProps> = ({ changes, hideField }) => {
+  const [showAll, setShowAll] = React.useState(false);
   if (changes.length === 0) return null;
+  const collapsible = changes.length > COLLAPSE_AFTER;
+  const visible = collapsible && !showAll ? changes.slice(0, COLLAPSED_LINES) : changes;
   return (
     <ul className="mt-0.5 space-y-0.5">
-      {changes.map((change, index) => (
+      {visible.map((change, index) => (
         <li key={`${change.field}-${index}`} className="break-words text-xs leading-5">
           {change.field !== hideField && <span className="text-slate-500">{change.field}: </span>}
           <ChangeValue value={change.before} tone="before" />
@@ -50,6 +56,17 @@ export const AuditTrailChanges: React.FC<AuditTrailChangesProps> = ({ changes, h
           <ChangeValue value={change.after} tone="after" />
         </li>
       ))}
+      {collapsible && (
+        <li>
+          <button
+            type="button"
+            onClick={() => setShowAll(current => !current)}
+            className="text-[11px] font-medium text-sky-700 hover:underline"
+          >
+            {showAll ? 'menos' : `${changes.length - COLLAPSED_LINES} más`}
+          </button>
+        </li>
+      )}
     </ul>
   );
 };

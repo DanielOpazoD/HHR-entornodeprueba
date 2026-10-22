@@ -58,12 +58,20 @@ const KEYS_SURVIVING_LOGOUT = new Set([
   'hhr_storage_persistent_fallback_count_v1',
   'hhr_feature_flags',
   'hhr_chunk_reload_count',
-  // Audit trail: staff connection record and its undelivered events (no patient data), so a
-  // logout recorded while signing out is still delivered; and each device's view preferences.
+  // Audit trail: staff connection record (no patient data) and each device's view preferences.
   'hhr_audit_connection_v1',
-  'hhr_audit_connection_outbox_v1',
   'hhr_audit_trail_view_v1',
 ]);
+
+/**
+ * Key families that survive logout. Undelivered audit connection events (one key each, see
+ * auditConnectionOutbox) must outlive the session that recorded them.
+ */
+const KEY_PREFIXES_SURVIVING_LOGOUT = ['hhr_audit_connection_outbox_v1:'];
+
+const survivesLogout = (key: string): boolean =>
+  KEYS_SURVIVING_LOGOUT.has(key) ||
+  KEY_PREFIXES_SURVIVING_LOGOUT.some(prefix => key.startsWith(prefix));
 
 /** sessionStorage keys that must survive logout (bootstrap coordination). */
 const SESSION_KEYS_SURVIVING_LOGOUT = new Set([
@@ -77,7 +85,7 @@ const clearUserScopedLocalStorage = (): void => {
   const keysToRemove: string[] = [];
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
-    if (key && key.startsWith('hhr_') && !KEYS_SURVIVING_LOGOUT.has(key)) {
+    if (key && key.startsWith('hhr_') && !survivesLogout(key)) {
       keysToRemove.push(key);
     }
   }

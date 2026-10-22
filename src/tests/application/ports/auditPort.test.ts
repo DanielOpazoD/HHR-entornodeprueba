@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const auditServiceMocks = vi.hoisted(() => ({
   getAuditLogs: vi.fn(),
+  getAuditLogsByIds: vi.fn(),
   getAuditLogsInRange: vi.fn(),
   logAuditEvent: vi.fn(),
   logThrottledViewEvent: vi.fn(),
@@ -24,6 +25,25 @@ describe('defaultAuditPort', () => {
     vi.clearAllMocks();
     auditServiceMocks.logAuditEvent.mockResolvedValue(undefined);
     auditServiceMocks.logThrottledViewEvent.mockResolvedValue(undefined);
+  });
+
+  it('refuses to report success for an audit event the server did not keep', async () => {
+    const write = () =>
+      defaultAuditPort.writeEvent(
+        'doctor@hospital.cl',
+        'DAILY_RECORD_DELETED',
+        'dailyRecord',
+        'd',
+        {
+          date: 'd',
+        }
+      );
+    auditServiceMocks.logAuditEvent.mockResolvedValueOnce('rejected');
+    await expect(write()).rejects.toThrow('No se pudo guardar el evento de auditoría.');
+    auditServiceMocks.logAuditEvent.mockResolvedValueOnce('failed');
+    await expect(write()).rejects.toThrow('No se pudo guardar el evento de auditoría.');
+    auditServiceMocks.logAuditEvent.mockResolvedValueOnce('stored');
+    await expect(write()).resolves.toBeUndefined();
   });
 
   it('routes patient admission audit through the core event logger with the legacy payload', async () => {

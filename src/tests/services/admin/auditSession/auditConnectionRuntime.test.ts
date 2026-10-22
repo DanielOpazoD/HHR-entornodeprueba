@@ -10,7 +10,7 @@ import {
   readAuditConnection,
 } from '@/services/admin/auditSession/auditConnectionTracker';
 import {
-  AUDIT_CONNECTION_OUTBOX_KEY,
+  AUDIT_CONNECTION_OUTBOX_PREFIX,
   readAuditConnectionOutbox,
 } from '@/services/admin/auditSession/auditConnectionOutbox';
 
@@ -103,7 +103,9 @@ describe('audit connection runtime', () => {
     const setItem = vi.mocked(localStorage.setItem);
     const keep = setItem.getMockImplementation();
     setItem.mockImplementation((key: string, value: string) => {
-      if (key === AUDIT_CONNECTION_OUTBOX_KEY) throw new DOMException('full', 'QuotaExceededError');
+      if (key.startsWith(AUDIT_CONNECTION_OUTBOX_PREFIX)) {
+        throw new DOMException('full', 'QuotaExceededError');
+      }
       keep?.(key, value);
     });
     try {

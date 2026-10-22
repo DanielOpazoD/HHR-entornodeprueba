@@ -10,6 +10,7 @@ import type { AuthUser, UserRole } from '@/types/authRoleTypes';
 export type { AuthSessionState, UserRole };
 import {
   createHandleLogout,
+  flushPendingAuditEventsBeforeSignOut,
   getE2EBootstrapUser,
   resetLocationToLoginRoute,
   useFirebaseConnectionStatus,
@@ -235,6 +236,7 @@ export const useAuthState = (): UseAuthStateReturn => {
             setSessionState(createUnauthenticatedAuthSessionState());
             resetLocationToLoginRoute();
             clearRecentAuthenticatedSessionHint();
+            await flushPendingAuditEventsBeforeSignOut();
             try {
               await signOut();
             } finally {

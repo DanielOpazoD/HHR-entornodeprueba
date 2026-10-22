@@ -240,6 +240,7 @@ const mockAuditService = {
   flushAuditConnectionOutbox: vi.fn().mockResolvedValue(undefined),
   writeAuditConnectionEntry: vi.fn().mockResolvedValue(undefined),
   getAuditLogsInRange: vi.fn().mockResolvedValue([]),
+  getAuditLogsByIds: vi.fn().mockResolvedValue([]),
   logPatientAdmission: vi.fn(),
   logPatientDischarge: vi.fn(),
   logPatientTransfer: vi.fn(),

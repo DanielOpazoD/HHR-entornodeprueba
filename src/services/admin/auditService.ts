@@ -1,6 +1,7 @@
 export {
   flushAuditConnectionOutbox,
   getAuditLogs,
+  getAuditLogsByIds,
   getAuditLogsForDate,
   getAuditLogsInRange,
   logAuditEvent,
