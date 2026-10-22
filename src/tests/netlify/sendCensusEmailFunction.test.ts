@@ -207,11 +207,16 @@ describe('send-census-email netlify function', () => {
     });
 
     expect(response.statusCode).toBe(200);
+    expect(fromDataAsyncMock).toHaveBeenCalledWith(Buffer.from('raw workbook'));
+    expect(outputAsyncMock).toHaveBeenCalledWith({ password: 'PIN-123' });
     expect(sendCensusEmailMock).toHaveBeenCalledWith(
       expect.objectContaining({
         date: '2026-03-24',
         recipients: ['destino@hospital.cl'],
+        attachmentBuffer: Buffer.from('encrypted workbook payload'),
         attachmentName: 'censo-2026-03-24.xlsx',
+        nursesSignature: 'Equipo de turno',
+        body: 'Resumen diario\n\nClave Excel: PIN-123',
         encryptionPin: 'PIN-123',
       })
     );
@@ -219,6 +224,7 @@ describe('send-census-email netlify function', () => {
       expect.objectContaining({
         success: true,
         gmailId: 'gmail-123',
+        censusDate: '2026-03-24',
         exportPassword: 'PIN-123',
       })
     );

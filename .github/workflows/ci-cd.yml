@@ -812,6 +812,21 @@ jobs:
         env:
           CI: true
 
+      - name: Validate Netlify mail budgets and runtime artifacts
+        run: npm run check:netlify-functions-bundle
+
+      - name: Upload Netlify mail runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: netlify-mail-runtime
+          path: |
+            reports/netlify-mail-runtime.json
+            reports/netlify-mail-runtime.md
+          retention-days: 14
+          if-no-files-found: error
+          overwrite: true
+
       - name: Enforce bundle budget
         run: npm run check:bundle-budget
 
