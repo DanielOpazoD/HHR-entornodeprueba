@@ -97,3 +97,11 @@ confirma el servidor, incluido Administrador. Probar el control inicial y perió
 revocación, vencimiento, fallo transitorio y desmontaje; una contraseña aceptada
 no acredita una sesión utilizable. La aceptación real requiere leer datos básicos
 y recargar contra las reglas efectivamente publicadas en el proyecto de pruebas.
+
+### Fallo de publicación al cerrar sesión · 22-10-2026
+
+El cierre no depende del éxito del canal entre pestañas. Para este cambio de
+auth runtime se exige `ci:merge-gate`, `test:release-confidence`, revisión
+independiente y CI del head definitivo. La regresión del handler real debe
+confirmar signOut, limpieza del propietario y conservación de trabajo pendiente
+con BroadcastChannel fallido, sin modificar autoridad clínica ni CUDYR.

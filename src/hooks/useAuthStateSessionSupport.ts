@@ -1,13 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { defaultAuditPort } from '@/application/ports/auditPort';
 import { startSessionActivityMonitor } from '@/services/auth/sessionActivityMonitor';
-import { hasRecentManualLogout, markRecentManualLogout } from '@/services/auth/authLogoutState';
+import { markRecentManualLogout } from '@/services/auth/authLogoutState';
 import {
   clearPersistedFirebaseAuthState,
   clearRecentAuthenticatedSessionHint,
 } from '@/services/auth/authStorageHints';
-import { resolveAuthBootstrapBudget } from '@/services/auth/authBootstrapBudgets';
-import { isAuthBootstrapPending } from '@/services/auth/authBootstrapState';
 import { createUnauthenticatedAuthSessionState } from '@/services/auth/authSessionState';
 import type { AuthSessionState } from '@/types/authSessionTypes';
 import type { AuthUser } from '@/types/authRoleTypes';
@@ -150,10 +148,3 @@ export const useInactivityLogout = (
     });
   }, [userId]);
 };
-
-export const getAuthBootstrapTimeoutMs = (): number =>
-  resolveAuthBootstrapBudget({
-    hasRecentManualLogout: hasRecentManualLogout(),
-    isOnline: window.navigator.onLine,
-    hasPendingRedirect: isAuthBootstrapPending(),
-  }).timeoutMs;

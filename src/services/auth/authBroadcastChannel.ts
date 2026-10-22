@@ -1,7 +1,7 @@
 /**
  * Cross-tab authentication coordination via BroadcastChannel.
  *
- * Enables propagation of auth events (logout, sync completion) between
+ * Enables propagation of auth events (logout, activity) between
  * browser tabs of the same origin. Each tab has a unique ID to avoid
  * processing its own messages.
  *
@@ -14,8 +14,7 @@ import { getLogoutGeneration } from '@/services/storage/sessionStorageTransition
 
 export type AuthChannelMessage =
   | { type: 'ACTIVITY'; userId: string; at: number; tabId: string }
-  | { type: 'LOGOUT'; reason: 'manual' | 'automatic'; tabId: string; generation?: string | null }
-  | { type: 'SYNC_COMPLETED'; taskTypes: string[]; tabId: string };
+  | { type: 'LOGOUT'; reason: 'manual' | 'automatic'; tabId: string; generation?: string | null };
 
 const TAB_ID: string =
   typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -51,21 +50,16 @@ function getChannel(): BroadcastChannel | null {
 
 /** Notify other tabs that this tab has logged out. */
 export function broadcastLogout(reason: 'manual' | 'automatic'): void {
-  getChannel()?.postMessage({
-    type: 'LOGOUT',
-    reason,
-    generation: getLogoutGeneration(),
-    tabId: TAB_ID,
-  } satisfies AuthChannelMessage);
-}
-
-/** Notify other tabs that sync tasks completed (for cache invalidation). */
-export function broadcastSyncCompleted(taskTypes: string[]): void {
-  getChannel()?.postMessage({
-    type: 'SYNC_COMPLETED',
-    taskTypes,
-    tabId: TAB_ID,
-  } satisfies AuthChannelMessage);
+  try {
+    getChannel()?.postMessage({
+      type: 'LOGOUT',
+      reason,
+      generation: getLogoutGeneration(),
+      tabId: TAB_ID,
+    } satisfies AuthChannelMessage);
+  } catch {
+    // Cross-tab notification must not prevent local sign-out and owner cleanup.
+  }
 }
 
 /**

@@ -374,3 +374,11 @@ El E2E de recuperación DICOM espera hasta 60 segundos el estado exacto de
 23 cortes listos antes de operar el cine parcial. El botón de reintento puede
 aparecer mientras otros cortes siguen preparándose. Se mantienen el corte
 fallido, los conteos de solicitudes y las comprobaciones de recuperación.
+
+### Cierre de sesión resistente al canal · 22-10-2026
+
+Clasificación: `critical_runtime`. Un error de postMessage no debe detener el
+cierre de Firebase y la limpieza ya existente. Preservar generación admitida,
+cierre entre pestañas y cola de enfermería. Verificar regresión conductual del
+handler, mensajes vigentes, `ci:merge-gate`, `test:release-confidence`, revisión
+independiente y CI. Solo retirar APIs cuyo árbol de consumidores esté vacío.

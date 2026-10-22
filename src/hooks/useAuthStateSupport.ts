@@ -34,7 +34,6 @@ import { subscribeToResolvedAuthState } from '@/hooks/controllers/authResolvedSt
 export { subscribeToResolvedAuthState };
 export {
   createHandleLogout,
-  getAuthBootstrapTimeoutMs,
   getE2EBootstrapUser,
   resetLocationToLoginRoute,
   useFirebaseConnectionStatus,
