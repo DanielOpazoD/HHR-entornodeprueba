@@ -451,6 +451,13 @@ son inertes hasta montar el formulario funcional. No se cambia persistencia de
 sesión, autorización, políticas de contraseña ni endpoints. Una sesión restaurada
 sigue usando el chrome del módulo correspondiente y no debe pasar por el login.
 
+El panel compacto conserva esa geometría al recargar: formulario de hasta 21rem,
+panel lateral de hasta 25rem y pie de soporte visible en los tamaños comprobados
+desde 320×568. La marca indica «Servicio de Hospitalizados»; Google es un icono
+circular con nombre accesible. Los campos, la imagen seleccionada y las acciones
+comparten espacio entre el estado provisional y el listo, sin textos decorativos
+introductorios ni una segunda fila provisional de ayuda.
+
 La carga prioriza el formulario RUT dentro de la pantalla de acceso, sin un
 segundo import lazy entre ver la página y poder escribir. La ayuda del login no
 invoca el módulo de mantenimiento local; la recuperación de bootstrap conserva

@@ -139,10 +139,76 @@ test.describe('Auth login resilience matrix', () => {
     await expect(password).toHaveValue('Synthetic example 1');
     await expect(password).toHaveAttribute('type', 'text');
     await expect(page.getByRole('button', { name: 'Ingresar', exact: true })).toBeEnabled();
+    const wallpaper = await page.getByTestId('login-page').getAttribute('data-background-image');
     await page.reload();
     await expect(username).toBeEnabled();
     await expect(username).toHaveValue('');
     await expect(password).toHaveValue('');
+    await expect(page.getByTestId('login-page')).toHaveAttribute(
+      'data-background-image',
+      wallpaper || ''
+    );
+  });
+
+  test('preserves compact login geometry after reload with an accessible icon-only Google action', async ({
+    page,
+  }) => {
+    await expect(
+      page.getByText('Ingresa con tu RUT o cuenta institucional para continuar.')
+    ).toHaveCount(0);
+    await expect(page.getByText('Información clínica disponible cuando la necesitas.')).toHaveCount(
+      0
+    );
+    const google = page.getByRole('button', { name: 'Ingresar con Google', exact: true });
+    await expect(google).toBeVisible();
+    await expect(google).toHaveText('');
+    for (const viewport of [
+      { width: 1366, height: 768 },
+      { width: 1024, height: 600 },
+      { width: 375, height: 667 },
+      { width: 320, height: 568 },
+    ]) {
+      await page.setViewportSize(viewport);
+      const serviceName = page
+        .getByText('Servicio de Hospitalizados', { exact: true })
+        .filter({ visible: true });
+      await expect(serviceName).toBeVisible();
+      const fields = page.locator('input');
+      const beforeReload = await fields.evaluateAll(elements =>
+        elements.map(element => element.getBoundingClientRect().toJSON())
+      );
+      await page.reload();
+      await expect(page.getByLabel('Usuario', { exact: true })).toBeEnabled();
+      await expect(google).toBeVisible();
+      await expect(google).toHaveText('');
+      await expect(serviceName).toBeVisible();
+      await expect
+        .poll(() =>
+          fields.evaluateAll(elements =>
+            elements.map(element => element.getBoundingClientRect().toJSON())
+          )
+        )
+        .toEqual(beforeReload);
+      await expect
+        .poll(() =>
+          page.evaluate(() => {
+            const root = document.documentElement;
+            const footer = document.querySelector('.login-support-footer');
+            return {
+              horizontalOverflow: root.scrollWidth > root.clientWidth,
+              verticalOverflow: root.scrollHeight > root.clientHeight,
+              footerWithinViewport: Boolean(
+                footer && footer.getBoundingClientRect().bottom <= root.clientHeight
+              ),
+            };
+          })
+        )
+        .toEqual({
+          horizontalOverflow: false,
+          verticalOverflow: false,
+          footerWithinViewport: true,
+        });
+    }
   });
 
   test('popup blocked surfaces a clear error and stays on login', async ({ page }) => {
