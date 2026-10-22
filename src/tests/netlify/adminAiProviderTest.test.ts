@@ -86,7 +86,7 @@ describe('admin-ai-provider-test netlify function', () => {
         authorization: 'Bearer token-123',
       },
       body: JSON.stringify({
-        action: 'clinical_ai_summary',
+        action: 'cie10_search',
         provider: 'deepseek',
       }),
       path: '/.netlify/functions/admin-ai-provider-test',

@@ -104,10 +104,10 @@ describe('ai-provider', () => {
       env: {
         GEMINI_API_KEY: 'gemini-key',
       } as NodeJS.ProcessEnv,
-      action: 'clinical_ai_summary',
+      action: 'cie10_search',
       routingConfig: {
         actions: {
-          clinical_ai_summary: {
+          cie10_search: {
             enabled: true,
             provider: 'deepseek',
           },
