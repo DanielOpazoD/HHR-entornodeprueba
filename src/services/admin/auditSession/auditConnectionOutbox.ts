@@ -209,10 +209,15 @@ export const readAuditConnectionOutbox = (
   }
 };
 
-/** Returns false when the device could not keep the event (storage blocked or full). */
+/**
+ * Returns false when the device could not keep the event (storage blocked or full). Past the limit
+ * a new event is refused so the caller writes it straight away; `beyondLimit` keeps it anyway, for
+ * an event nobody signed in here may write (another person's, kept for their next session).
+ */
 export const enqueueAuditConnectionEntry = (
   storage: AuditConnectionOutboxStorage,
-  entry: AuditLogEntry
+  entry: AuditLogEntry,
+  options: { beyondLimit?: boolean } = {}
 ): boolean => {
   try {
     // Planted or malformed keys are not events: they go. Queued events are never dropped.
@@ -222,7 +227,7 @@ export const enqueueAuditConnectionEntry = (
       return false;
     });
     const queued = keys.includes(AUDIT_CONNECTION_OUTBOX_PREFIX + entry.id);
-    if (!queued && keys.length >= MAX_PENDING) return false;
+    if (!queued && keys.length >= MAX_PENDING && !options.beyondLimit) return false;
   } catch {
     // Unreadable storage: try to keep the event anyway.
   }

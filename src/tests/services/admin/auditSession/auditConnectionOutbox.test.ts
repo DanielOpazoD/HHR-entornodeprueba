@@ -157,5 +157,8 @@ describe('audit connection outbox', () => {
     expect(readAuditConnectionOutbox(storage)).toHaveLength(500);
     // An event already queued can still be written again.
     expect(enqueueAuditConnectionEntry(storage, queued[0])).toBe(true);
+    // An event nobody here may write (another person's) is kept beyond the limit.
+    expect(enqueueAuditConnectionEntry(storage, END, { beyondLimit: true })).toBe(true);
+    expect(readAuditConnectionOutbox(storage)).toHaveLength(501);
   });
 });

@@ -5,6 +5,7 @@ import {
 } from '@/services/admin/auditService';
 import { getCurrentUserUid } from '@/services/admin/utils/auditUtils';
 import { registerPendingAuditFlush } from '@/services/admin/auditPendingEvents';
+import { buildAuditConnectionEntry } from '@/services/admin/auditSession/auditConnectionEntries';
 import {
   AUDIT_CONNECTION_STORAGE_KEY,
   readAuditConnection,
@@ -96,6 +97,49 @@ describe('audit connection runtime', () => {
       'USER_LOGIN',
       'USER_LOGOUT',
     ]);
+  });
+
+  it('keeps the previous person’s end on the device even with a full queue', async () => {
+    for (let index = 0; index < 500; index += 1) {
+      const entry = buildAuditConnectionEntry({
+        kind: 'start',
+        record: {
+          id: `filler-${index}`,
+          uid: 'uid-filler',
+          email: 'relleno@hospital.test',
+          startedAt: 1_000 + index,
+          lastSeenAt: 1_000 + index,
+        },
+        start: 'sign_in',
+      });
+      localStorage.setItem(
+        `${AUDIT_CONNECTION_OUTBOX_PREFIX}${entry.id}`,
+        JSON.stringify({ entry })
+      );
+    }
+    localStorage.setItem(
+      AUDIT_CONNECTION_STORAGE_KEY,
+      JSON.stringify({
+        id: 'previous-person',
+        uid: 'uid-other',
+        email: 'otra.persona@hospital.test',
+        startedAt: Date.parse('2026-10-21T10:00:00.000Z'),
+        lastSeenAt: Date.parse('2026-10-21T11:00:00.000Z'),
+      })
+    );
+
+    const runtime = await loadRuntime();
+    await runtime.beginCurrentAuditConnection(NURSE);
+
+    // Her end waits on the device for her own next session; nobody else writes it.
+    const ends = readAuditConnectionOutbox(localStorage).filter(
+      item => item.entry.userUid === 'uid-other'
+    );
+    expect(ends.map(item => item.entry.action)).toEqual(['USER_LOGOUT']);
+    // The nurse's own start found the queue full and was written by her session.
+    expect(vi.mocked(writeAuditConnectionEntry).mock.calls.map(([entry]) => entry.userUid)).toEqual(
+      ['uid-nurse']
+    );
   });
 
   it('writes a connection event directly when the device cannot keep it, only its own', async () => {
