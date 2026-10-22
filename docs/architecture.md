@@ -119,6 +119,9 @@ exclusión de escritura por fecha, protección del outbox, validación del coman
 confirmación local y posterior traslado remoto a papelera. Los constructores de
 comandos permanecen en `contracts/*`; no precisan otro wrapper.
 
+Las rutas de escritura del documento diario, su enrutamiento a la autoridad del servidor, sus
+guardas y los límites conocidos están en [SYNC_CONCURRENCY_MODEL.md](SYNC_CONCURRENCY_MODEL.md).
+
 La extensión Eloísa captura información; los flujos HHR validan y aplican cada
 operación con sus protecciones de identidad, episodio, fecha y autoridad. Una
 captura completa no equivale a persistencia confirmada. Consultar el

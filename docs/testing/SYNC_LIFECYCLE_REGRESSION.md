@@ -30,3 +30,27 @@ La comparación ingreso/egreso convierte primero el día clínico del egreso a s
 calendario. `dischargeAdmissionCalendarOrder.test.ts` protege altas nocturnas válidas,
 egresos realmente anteriores al ingreso, reingresos, cambios de mes/año y ambos
 horarios históricos de entrega de turno.
+
+## Escenarios combinados entre guardas
+
+Estas pruebas pasan una misma transición por varias protecciones a la vez. Usan identidades
+sintéticas, no consultan Firebase ni Eloísa, se ejecutan con `npm run test:sync-lifecycle` y
+forman parte del descubrimiento unitario de CI.
+
+| Secuencia                                                                                       | Resultado protegido                                                                                                                        | Prueba                                    |
+| ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------- |
+| Intercambio A↔B entre camas ocupadas; una con madre y cuna RN que comparte su documento         | Fecha de ingreso, guard de borrado (cliente y servidor), consistencia y autoridad aceptan la permuta; cada episodio conserva sus datos     | `syncQueueBedSwapComposition.test.ts`     |
+| La misma permuta reescribe una fecha de ingreso después del primer día observado                | La política de fecha de ingreso sigue bloqueando                                                                                           | `syncQueueBedSwapComposition.test.ts`     |
+| Edición atrasada en cola sobre la cama permutada, reproducida por el transporte real de la cola | Si el último sello del servidor cubre su ruta: `ConcurrencyError` sin escritura. En los demás casos nunca llega a la nueva ocupante        | `syncQueueBedSwapComposition.test.ts`     |
+| Mismo par de ocupantes evaluado por los tres comparadores de identidad                          | Fija dónde divergen el guard de borrado, el comparador canónico de episodio y el de fusión de ediciones                                    | `patientIdentityGuardComposition.test.ts` |
+| Pestañas de Ficha Médico que responden al ping pero no a la lectura                             | Una pestaña atascada seguida de otra sana responde dentro del plazo de HHR; la recuperación de captura no repite un timeout ya clasificado | `fichamedicoStuckReadDeadline.test.ts`    |
+
+Los casos rotulados «known gap» o «known limit» describen el comportamiento actual, no el
+deseado: el guard de borrado trata como reubicado a un ocupante eliminado si otro comparte
+documento (RN con documento materno, pasaportes con los mismos dígitos, reingreso); la edición
+atrasada se descarta sin conflicto cuando ningún sello del servidor cubre su ruta (escritura
+directa del cliente o guardado completo con `['*']`); con dos pestañas atascadas, HHR agota
+su plazo de captura antes de recibir el timeout clasificado de la extensión. Están descritos en
+`docs/SYNC_CONCURRENCY_MODEL.md` y, el de las pestañas, en
+`docs/SYNC_PERFORMANCE_REGRESSION_CHECKS.md`. Al corregir uno, convertir su prueba en la
+expectativa nueva en el mismo cambio.
