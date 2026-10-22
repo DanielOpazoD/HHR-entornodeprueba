@@ -254,7 +254,9 @@ describe('test execution manifest evidence', () => {
       path.join(root, 'package.json'),
       JSON.stringify({ scripts: { 'test:flow': 'playwright test e2e/a.spec.ts' } })
     );
-    fs.writeFileSync(path.join(root, 'ci.yml'), 'run: npm run other-script\n');
+    const workflowRunning = (command: string, comment = '') =>
+      `${comment}jobs:\n  e2e:\n    steps:\n      - run: ${command}\n`;
+    fs.writeFileSync(path.join(root, 'ci.yml'), workflowRunning('npm run other-script'));
     const entry = {
       file: 'e2e/a.spec.ts',
       lane: 'ci',
@@ -265,7 +267,15 @@ describe('test execution manifest evidence', () => {
     expect(collectE2eOwnershipIssues([entry.file], { specs: [entry] }, root)).toEqual([
       'E2E entry script is not invoked by its workflow: e2e/a.spec.ts',
     ]);
-    fs.writeFileSync(path.join(root, 'ci.yml'), 'run: npm run test:flow\n');
+    // A comment that mentions the script is not an invocation.
+    fs.writeFileSync(
+      path.join(root, 'ci.yml'),
+      workflowRunning('npm run other-script', '# npm run test:flow\n')
+    );
+    expect(collectE2eOwnershipIssues([entry.file], { specs: [entry] }, root)).toEqual([
+      'E2E entry script is not invoked by its workflow: e2e/a.spec.ts',
+    ]);
+    fs.writeFileSync(path.join(root, 'ci.yml'), workflowRunning('npm run test:flow'));
     expect(collectE2eOwnershipIssues([entry.file], { specs: [entry] }, root)).toEqual([]);
   });
 

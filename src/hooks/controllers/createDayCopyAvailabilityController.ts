@@ -1,6 +1,10 @@
 import { formatCensusMonthName } from '@/shared/census/censusPresentation';
+import { clinicalWallClockToDate } from '@/utils/clinicalWallClock';
+import { getTodayISO } from '@/utils/dateCoreUtils';
 
+/** Hospital hour at which the night shift has handed over and the day can be copied. */
 export const COPY_PREVIOUS_DAY_UNLOCK_HOUR = 8;
+const COPY_UNLOCK_TIME = `${String(COPY_PREVIOUS_DAY_UNLOCK_HOUR).padStart(2, '0')}:00`;
 
 export interface CreateDayCopyAvailability {
   isCopyLocked: boolean;
@@ -9,13 +13,6 @@ export interface CreateDayCopyAvailability {
   countdownLabel: string | null;
   isTargetToday: boolean;
 }
-
-const buildLocalIsoDate = (date: Date): string => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
 
 export const formatCopyUnlockCountdown = (remainingMs: number): string => {
   const totalSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
@@ -30,7 +27,7 @@ export const resolveCreateDayCopyAvailability = (
   currentDateString: string,
   now: Date = new Date()
 ): CreateDayCopyAvailability => {
-  const todayString = buildLocalIsoDate(now);
+  const todayString = getTodayISO(now);
 
   if (currentDateString < todayString) {
     return {
@@ -42,8 +39,8 @@ export const resolveCreateDayCopyAvailability = (
     };
   }
 
-  const [year, month, day] = currentDateString.split('-').map(Number);
-  const unlockAt = new Date(year, month - 1, day, COPY_PREVIOUS_DAY_UNLOCK_HOUR, 0, 0, 0);
+  // On the hospital clock: a mainland device would otherwise unlock two hours early.
+  const unlockAt = clinicalWallClockToDate(currentDateString, COPY_UNLOCK_TIME);
   const remainingMs = Math.max(0, unlockAt.getTime() - now.getTime());
   const isCopyLocked = remainingMs > 0;
 

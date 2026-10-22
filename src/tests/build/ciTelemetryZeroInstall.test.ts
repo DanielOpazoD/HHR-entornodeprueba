@@ -6,17 +6,21 @@ import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { expect, it } from 'vitest';
-import { parseWorkflowJobs } from '../../../scripts/ciArtifactContractSupport.mjs';
+import { parseWorkflow } from './workflowYamlTestSupport';
 
 const run = promisify(execFile);
 
 it('collects, reports and checks telemetry without installing application dependencies', async () => {
-  const job = parseWorkflowJobs(fs.readFileSync('.github/workflows/ci-cd.yml', 'utf8')).get(
+  const job = parseWorkflow(fs.readFileSync('.github/workflows/ci-cd.yml', 'utf8')).jobs[
     'ci-runtime-telemetry'
-  );
+  ];
   expect(job).toBeDefined();
-  expect(job!.body).not.toContain('npm ci');
-  expect(job!.body).not.toContain("cache: 'npm'");
+  const runs = job.steps.map(step => step.run ?? '');
+  expect(runs.some(command => /\bnpm (?:ci|install)\b/.test(command))).toBe(false);
+  expect(job.steps.some(step => step.with?.cache === 'npm')).toBe(false);
+  expect(job.steps.some(step => step.uses === './.github/actions/setup-ci-dependencies')).toBe(
+    false
+  );
 
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ci-telemetry-zero-install-'));
   const jobs = Array.from({ length: 4 }, (_, index) => ({
@@ -77,7 +81,7 @@ it('collects, reports and checks telemetry without installing application depend
       'report:ci-runtime-observed-profile',
       'check:ci-runtime-telemetry',
     ]) {
-      expect(job!.body).toContain(`npm run ${command}`);
+      expect(runs).toContain(`npm run ${command}`);
       await run('npm', ['run', command], { cwd: root, env, timeout: 10000 });
     }
 

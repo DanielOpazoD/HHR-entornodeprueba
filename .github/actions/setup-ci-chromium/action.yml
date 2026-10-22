@@ -14,9 +14,12 @@ runs:
       uses: actions/cache/restore@v6.1.0
       continue-on-error: true
       with:
-        path: ~/.cache/ms-playwright
+        path: |
+          ~/.cache/ms-playwright
+          ~/.cache/hhr-chromium-debs
         key: chromium-v1-${{ steps.browser.outputs.image }}-${{ runner.os }}-${{ runner.arch }}-${{ steps.browser.outputs.version }}-${{ hashFiles('.github/actions/setup-ci-chromium/action.yml') }}
-    # Mandatory on hits, misses and cache outages. A browser cache never supplies apt libraries.
+    # Mandatory on hits, misses and cache outages. The cache may hold the downloaded .deb files,
+    # but apt-get installs the system libraries on every run.
     - name: Prepare Playwright Chromium and system dependencies
       shell: bash
       run: bash "$GITHUB_ACTION_PATH/install-chromium.sh"
@@ -44,5 +47,7 @@ runs:
       uses: actions/cache/save@v6.1.0
       continue-on-error: true
       with:
-        path: ~/.cache/ms-playwright
+        path: |
+          ~/.cache/ms-playwright
+          ~/.cache/hhr-chromium-debs
         key: ${{ steps.chromium.outputs.cache-primary-key }}

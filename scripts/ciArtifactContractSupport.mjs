@@ -1,3 +1,4 @@
+import { isMap, isScalar, isSeq, LineCounter, parseDocument } from 'yaml';
 import {
   PREVIEW_BOOTSTRAP_ARTIFACT,
   PREVIEW_BOOTSTRAP_PRODUCER_JOB,
@@ -9,135 +10,85 @@ export const RELEASE_EVIDENCE_RUNTIME_PATH = 'reports/release-evidence-runtime';
 export const CRITICAL_COVERAGE_ARTIFACT = 'critical-coverage';
 export const CRITICAL_COVERAGE_PRODUCER_JOB = 'critical-coverage-report';
 
-const parseScalar = value =>
-  String(value || '')
-    .trim()
-    .replace(/^['"]|['"]$/g, '');
+const textOf = value => (typeof value === 'string' ? value : '');
 
-const parseInlineNeeds = rawNeeds => {
-  const value = parseScalar(rawNeeds);
-  if (!value) {
-    return [];
-  }
-
-  if (value.startsWith('[') && value.endsWith(']')) {
-    return value
-      .slice(1, -1)
-      .split(',')
-      .map(item => parseScalar(item))
-      .filter(Boolean);
-  }
-
-  return [value];
-};
-
-const getField = (block, fieldName) => {
-  const match = block.match(new RegExp(`^\\s+${fieldName}:\\s*(.+)$`, 'm'));
-  return match ? parseScalar(match[1]) : '';
-};
-
-const extractActionBlocks = (job, actionName) => {
-  const blocks = [];
-  const actionPattern = new RegExp(`uses:\\s*${actionName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
-  const lines = job.body.split('\n');
-
-  for (let index = 0; index < lines.length; index += 1) {
-    if (!actionPattern.test(lines[index])) {
-      continue;
-    }
-
-    const blockLines = [];
-    for (let blockIndex = index; blockIndex < lines.length; blockIndex += 1) {
-      if (blockIndex > index && /^\s{6}-\s/.test(lines[blockIndex])) {
-        break;
-      }
-      blockLines.push(lines[blockIndex]);
-    }
-
-    blocks.push({
-      jobName: job.name,
-      line: job.startLine + index,
-      beforeActionBody: lines.slice(0, index).join('\n'),
-      block: blockLines.join('\n'),
-    });
-  }
-
-  return blocks;
-};
-
+/**
+ * Parses the workflow with the YAML parser, so quoting, flow or block lists, key order and
+ * folded commands cannot hide or invent a contract issue. Jobs and steps keep `body` /
+ * `block`, their original text, for callers that still inspect or mutate it.
+ */
 export const parseWorkflowJobs = workflowText => {
-  const lines = workflowText.split(/\r?\n/);
+  const lineCounter = new LineCounter();
+  const document = parseDocument(workflowText, { lineCounter });
+  const jobsNode = document.get('jobs', true);
   const jobs = new Map();
-  let inJobs = false;
-  let currentJob = null;
-
-  const finishCurrentJob = endLine => {
-    if (!currentJob) {
-      return;
-    }
-
-    jobs.set(currentJob.name, {
-      ...currentJob,
-      endLine,
-      body: lines.slice(currentJob.startLine - 1, endLine).join('\n'),
-    });
-    currentJob = null;
-  };
-
-  for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index];
-    if (!inJobs) {
-      inJobs = /^jobs:\s*$/.test(line);
-      continue;
-    }
-
-    const jobMatch = line.match(/^  ([A-Za-z0-9_-]+):\s*$/);
-    if (jobMatch) {
-      finishCurrentJob(index);
-      currentJob = {
-        name: jobMatch[1],
-        startLine: index + 1,
-      };
-    }
+  if (!isMap(jobsNode)) {
+    return jobs;
   }
 
-  finishCurrentJob(lines.length);
+  const lineAt = offset => lineCounter.linePos(offset).line;
+  for (const pair of jobsNode.items) {
+    const name = String(isScalar(pair.key) ? pair.key.value : pair.key);
+    const start = pair.key?.range?.[0] ?? 0;
+    const end = pair.value?.range?.[1] ?? start;
+    const job = pair.value?.toJSON?.() ?? {};
+    const stepsNode = isMap(pair.value) ? pair.value.get('steps', true) : null;
+    const stepNodes = isSeq(stepsNode) ? stepsNode.items : [];
+    const steps = stepNodes.map((node, index) => {
+      const step = node?.toJSON?.() ?? {};
+      const [stepStart = start, stepEnd = stepStart] = node?.range ?? [];
+      return {
+        index,
+        line: lineAt(stepStart),
+        name: textOf(step.name),
+        uses: textOf(step.uses),
+        run: textOf(step.run),
+        with: step.with && typeof step.with === 'object' ? step.with : {},
+        block: workflowText.slice(stepStart, stepEnd),
+      };
+    });
+    const needs = job.needs == null ? [] : [job.needs].flat().map(String);
+    jobs.set(name, {
+      name,
+      needs,
+      steps,
+      startLine: lineAt(start),
+      endLine: lineAt(end),
+      body: workflowText.slice(start, end),
+    });
+  }
 
   return jobs;
 };
 
-export const collectArtifactUploads = jobs =>
+const actionName = step => step.uses.split('@')[0];
+
+const collectActionSteps = (jobs, action) =>
   Array.from(jobs.values()).flatMap(job =>
-    extractActionBlocks(job, 'actions/upload-artifact').map(action => ({
-      jobName: action.jobName,
-      line: action.line,
-      name: getField(action.block, 'name'),
-      path: getField(action.block, 'path'),
-      beforeActionBody: action.beforeActionBody,
-      block: action.block,
-    }))
+    job.steps
+      .filter(step => actionName(step) === action)
+      .map(step => ({
+        jobName: job.name,
+        line: step.line,
+        stepIndex: step.index,
+        name: textOf(step.with.name).trim(),
+        path: textOf(step.with.path).trim(),
+        with: step.with,
+        block: step.block,
+        beforeActionBody: job.steps
+          .slice(0, step.index)
+          .map(previous => previous.run)
+          .join('\n'),
+      }))
   );
+
+export const collectArtifactUploads = jobs => collectActionSteps(jobs, 'actions/upload-artifact');
 
 export const collectArtifactDownloads = jobs =>
-  Array.from(jobs.values()).flatMap(job =>
-    extractActionBlocks(job, 'actions/download-artifact').map(action => ({
-      jobName: action.jobName,
-      line: action.line,
-      name: getField(action.block, 'name'),
-      path: getField(action.block, 'path'),
-      block: action.block,
-    }))
-  );
+  collectActionSteps(jobs, 'actions/download-artifact');
 
 export const collectTransitiveNeeds = (jobs, jobName, visited = new Set()) => {
-  const job = jobs.get(jobName);
-  if (!job) {
-    return visited;
-  }
-
-  const needsMatch = job.body.match(/^\s+needs:\s*(.+)$/m);
-  const directNeeds = needsMatch ? parseInlineNeeds(needsMatch[1]) : [];
-  for (const neededJob of directNeeds) {
+  for (const neededJob of jobs.get(jobName)?.needs ?? []) {
     if (visited.has(neededJob)) {
       continue;
     }
@@ -148,7 +99,35 @@ export const collectTransitiveNeeds = (jobs, jobName, visited = new Set()) => {
   return visited;
 };
 
-const normalizePath = artifactPath => artifactPath.replace(/\/+$/, '');
+const isTrue = value => value === true || value === 'true';
+
+/**
+ * Position of the first step of `job` matching `predicate`, as [step, offset in its run]
+ * so two commands of one multi-line step still compare in order; null when absent.
+ */
+const stepPosition = (job, predicate) => {
+  for (const step of job?.steps ?? []) {
+    const offset = predicate(step);
+    if (offset !== -1 && offset !== false) {
+      return [step.index, offset === true ? 0 : offset];
+    }
+  }
+  return null;
+};
+
+const runPosition = (job, command) => stepPosition(job, step => step.run.indexOf(command));
+
+const downloadPosition = (job, artifact) =>
+  stepPosition(
+    job,
+    step => actionName(step) === 'actions/download-artifact' && step.with.name === artifact
+  );
+
+/** True when both positions exist and `left` comes before `right`. */
+const isBefore = (left, right) =>
+  Boolean(left && right) && (left[0] < right[0] || (left[0] === right[0] && left[1] < right[1]));
+
+const normalizePath = artifactPath => String(artifactPath || '').replace(/\/+$/, '');
 
 const isPathWithin = (candidatePath, rootPath) => {
   const candidate = normalizePath(candidatePath);
@@ -193,10 +172,10 @@ export const collectCiArtifactContractIssues = workflowText => {
 
   const distProducers = uploads.filter(upload => upload.name === 'dist');
   for (const producer of distProducers) {
-    if (producer.jobName === 'build' && !/^\s+overwrite:\s*true\s*$/m.test(producer.block)) {
+    if (producer.jobName === 'build' && !isTrue(producer.with.overwrite)) {
       issues.push('build: dist upload must replace an artifact from an earlier run attempt.');
     }
-    if (producer.jobName === 'build' && getField(producer.block, 'if-no-files-found') !== 'error') {
+    if (producer.jobName === 'build' && producer.with['if-no-files-found'] !== 'error') {
       issues.push('build: dist upload must fail when the new build is missing.');
     }
     const normalizedPath = normalizePath(producer.path);
@@ -225,12 +204,12 @@ export const collectCiArtifactContractIssues = workflowText => {
     );
   }
   if (postmergeJob) {
-    if (!postmergeJob.body.includes('npm run check:ci-artifact-contracts')) {
+    if (!runPosition(postmergeJob, 'npm run check:ci-artifact-contracts')) {
       issues.push(
         'postmerge-evidence: must run check:ci-artifact-contracts before downloading dist.'
       );
     }
-    if (!postmergeJob.body.includes('scripts/verify-github-run-artifact.mjs')) {
+    if (!runPosition(postmergeJob, 'scripts/verify-github-run-artifact.mjs')) {
       issues.push(
         'postmerge-evidence: must verify artifact availability before download-artifact.'
       );
@@ -252,31 +231,27 @@ export const collectCiArtifactContractIssues = workflowText => {
     const verifyPreviewCommand =
       `scripts/verify-github-run-artifact.mjs --artifact ${PREVIEW_BOOTSTRAP_ARTIFACT} ` +
       `--producer ${PREVIEW_BOOTSTRAP_PRODUCER_JOB}`;
-    const verifyPreviewIndex = postmergeJob.body.indexOf(verifyPreviewCommand);
-    const downloadPreviewIndex = postmergeJob.body.indexOf(`name: ${PREVIEW_BOOTSTRAP_ARTIFACT}`);
-    const validatePreviewIndex = postmergeJob.body.indexOf(
-      'npm run check:preview-bootstrap-evidence'
-    );
-    const generateEvidenceIndex = postmergeJob.body.indexOf('npm run postmerge:evidence');
-    const builtContractIndex = postmergeJob.body.indexOf(
-      'npm run check:release-evidence-contract:built'
-    );
+    const verifyPreview = runPosition(postmergeJob, verifyPreviewCommand);
+    const downloadPreview = downloadPosition(postmergeJob, PREVIEW_BOOTSTRAP_ARTIFACT);
+    const validatePreview = runPosition(postmergeJob, 'npm run check:preview-bootstrap-evidence');
+    const generateEvidence = runPosition(postmergeJob, 'npm run postmerge:evidence');
+    const builtContract = runPosition(postmergeJob, 'npm run check:release-evidence-contract:built');
 
-    if (verifyPreviewIndex === -1) {
+    if (!verifyPreview) {
       issues.push(
         `postmerge-evidence: must verify "${PREVIEW_BOOTSTRAP_ARTIFACT}" from producer ` +
           `"${PREVIEW_BOOTSTRAP_PRODUCER_JOB}".`
       );
-    } else if (downloadPreviewIndex !== -1 && verifyPreviewIndex > downloadPreviewIndex) {
+    } else if (isBefore(downloadPreview, verifyPreview)) {
       issues.push(`postmerge-evidence: must verify preview bootstrap before downloading it.`);
     }
-    if (validatePreviewIndex === -1) {
+    if (!validatePreview) {
       issues.push('postmerge-evidence: must validate downloaded preview bootstrap evidence.');
     } else {
-      if (downloadPreviewIndex !== -1 && validatePreviewIndex < downloadPreviewIndex) {
+      if (isBefore(validatePreview, downloadPreview)) {
         issues.push('postmerge-evidence: validates preview bootstrap before downloading it.');
       }
-      if (generateEvidenceIndex !== -1 && validatePreviewIndex > generateEvidenceIndex) {
+      if (isBefore(generateEvidence, validatePreview)) {
         issues.push('postmerge-evidence: validates preview bootstrap after generating evidence.');
       }
     }
@@ -289,39 +264,30 @@ export const collectCiArtifactContractIssues = workflowText => {
       const verifyCriticalCoverageCommand =
         `scripts/verify-github-run-artifact.mjs --artifact ${CRITICAL_COVERAGE_ARTIFACT} ` +
         `--producer ${CRITICAL_COVERAGE_PRODUCER_JOB}`;
-      const verifyCriticalCoverageIndex = postmergeJob.body.indexOf(verifyCriticalCoverageCommand);
-      const downloadCriticalCoverageIndex = postmergeJob.body.indexOf(
-        `name: ${CRITICAL_COVERAGE_ARTIFACT}`
-      );
+      const verifyCriticalCoverage = runPosition(postmergeJob, verifyCriticalCoverageCommand);
+      const downloadCriticalCoverage = downloadPosition(postmergeJob, CRITICAL_COVERAGE_ARTIFACT);
 
       if (!criticalCoverageDownload) {
         issues.push(`postmerge-evidence: must download artifact "${CRITICAL_COVERAGE_ARTIFACT}".`);
       } else if (normalizePath(criticalCoverageDownload.path) !== 'reports') {
         issues.push('postmerge-evidence: critical coverage must download to "reports".');
       }
-      if (verifyCriticalCoverageIndex === -1) {
+      if (!verifyCriticalCoverage) {
         issues.push(
           `postmerge-evidence: must verify "${CRITICAL_COVERAGE_ARTIFACT}" from producer ` +
             `"${CRITICAL_COVERAGE_PRODUCER_JOB}".`
         );
-      } else if (
-        downloadCriticalCoverageIndex !== -1 &&
-        verifyCriticalCoverageIndex > downloadCriticalCoverageIndex
-      ) {
+      } else if (isBefore(downloadCriticalCoverage, verifyCriticalCoverage)) {
         issues.push('postmerge-evidence: must verify critical coverage before downloading it.');
       }
-      if (
-        downloadCriticalCoverageIndex !== -1 &&
-        generateEvidenceIndex !== -1 &&
-        downloadCriticalCoverageIndex > generateEvidenceIndex
-      ) {
+      if (isBefore(generateEvidence, downloadCriticalCoverage)) {
         issues.push(
           'postmerge-evidence: must download critical coverage before generating evidence.'
         );
       }
-      if (builtContractIndex === -1) {
+      if (!builtContract) {
         issues.push('postmerge-evidence: must validate the release evidence embedded in dist.');
-      } else if (generateEvidenceIndex !== -1 && builtContractIndex > generateEvidenceIndex) {
+      } else if (isBefore(generateEvidence, builtContract)) {
         issues.push(
           'postmerge-evidence: must validate built release evidence before regenerating reports.'
         );
@@ -374,13 +340,11 @@ export const collectCiArtifactContractIssues = workflowText => {
             `build: release evidence runtime must download to "${RELEASE_EVIDENCE_RUNTIME_PATH}".`
           );
         }
-        const runtimeDownloadIndex = buildJob.body.indexOf(
-          `name: ${RELEASE_EVIDENCE_RUNTIME_ARTIFACT}`
-        );
-        const productionBuildIndex = buildJob.body.indexOf('npm run build');
-        if (productionBuildIndex === -1) {
+        const runtimeDownloadPosition = downloadPosition(buildJob, RELEASE_EVIDENCE_RUNTIME_ARTIFACT);
+        const productionBuild = runPosition(buildJob, 'npm run build');
+        if (!productionBuild) {
           issues.push('build: must run npm run build after downloading release evidence.');
-        } else if (runtimeDownloadIndex > productionBuildIndex) {
+        } else if (isBefore(productionBuild, runtimeDownloadPosition)) {
           issues.push('build: must download release evidence before building production assets.');
         }
       }
@@ -405,11 +369,10 @@ export const collectCiArtifactContractIssues = workflowText => {
       const verifyRuntimeCommand =
         `scripts/verify-github-run-artifact.mjs --artifact ${RELEASE_EVIDENCE_RUNTIME_ARTIFACT} ` +
         `--producer ${RELEASE_EVIDENCE_RUNTIME_PRODUCER_JOB}`;
-      const verifyRuntimeIndex = postmergeJob.body.indexOf(verifyRuntimeCommand);
-      const downloadRuntimeIndex = postmergeJob.body.indexOf(
-        `name: ${RELEASE_EVIDENCE_RUNTIME_ARTIFACT}`
-      );
-      const builtContractIndex = postmergeJob.body.indexOf(
+      const verifyRuntime = runPosition(postmergeJob, verifyRuntimeCommand);
+      const downloadRuntime = downloadPosition(postmergeJob, RELEASE_EVIDENCE_RUNTIME_ARTIFACT);
+      const builtContract = runPosition(
+        postmergeJob,
         'npm run check:release-evidence-contract:built'
       );
 
@@ -423,19 +386,15 @@ export const collectCiArtifactContractIssues = workflowText => {
             `"${RELEASE_EVIDENCE_RUNTIME_PATH}".`
         );
       }
-      if (verifyRuntimeIndex === -1) {
+      if (!verifyRuntime) {
         issues.push(
           `postmerge-evidence: must verify "${RELEASE_EVIDENCE_RUNTIME_ARTIFACT}" from producer ` +
             `"${RELEASE_EVIDENCE_RUNTIME_PRODUCER_JOB}".`
         );
-      } else if (downloadRuntimeIndex !== -1 && verifyRuntimeIndex > downloadRuntimeIndex) {
+      } else if (isBefore(downloadRuntime, verifyRuntime)) {
         issues.push('postmerge-evidence: must verify release evidence before downloading it.');
       }
-      if (
-        builtContractIndex !== -1 &&
-        downloadRuntimeIndex !== -1 &&
-        builtContractIndex < downloadRuntimeIndex
-      ) {
+      if (isBefore(builtContract, downloadRuntime)) {
         issues.push(
           'postmerge-evidence: validates built release evidence before downloading its source.'
         );
@@ -448,10 +407,7 @@ export const collectCiArtifactContractIssues = workflowText => {
     issues.push(`No job uploads required artifact "${PREVIEW_BOOTSTRAP_ARTIFACT}".`);
   }
   for (const upload of previewUploads) {
-    if (
-      upload.jobName === PREVIEW_BOOTSTRAP_PRODUCER_JOB &&
-      !/^\s+overwrite:\s*true\s*$/m.test(upload.block)
-    ) {
+    if (upload.jobName === PREVIEW_BOOTSTRAP_PRODUCER_JOB && !isTrue(upload.with.overwrite)) {
       issues.push(
         `${PREVIEW_BOOTSTRAP_PRODUCER_JOB}: preview bootstrap upload must replace an artifact ` +
           'from an earlier run attempt.'
@@ -459,7 +415,7 @@ export const collectCiArtifactContractIssues = workflowText => {
     }
     if (
       upload.jobName === PREVIEW_BOOTSTRAP_PRODUCER_JOB &&
-      getField(upload.block, 'if-no-files-found') !== 'error'
+      upload.with['if-no-files-found'] !== 'error'
     ) {
       issues.push(
         `${PREVIEW_BOOTSTRAP_PRODUCER_JOB}: preview bootstrap upload must fail when new evidence is missing.`

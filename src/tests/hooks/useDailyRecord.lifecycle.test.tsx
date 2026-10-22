@@ -1,5 +1,5 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useDailyRecord } from '@/hooks/useDailyRecord';
 import { defaultDailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -122,6 +122,11 @@ const createWrapper = () => {
 };
 
 describe('useDailyRecord lifecycle', () => {
+  // A failed assertion must not leave fake timers running for the next test.
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   const mockDate = '2025-01-01';
   let recordsMap: Record<string, DailyRecord> = {};
 
@@ -283,7 +288,7 @@ describe('useDailyRecord lifecycle', () => {
 
   it('should not create a copied day before the selected day reaches 08:00', async () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date(2025, 0, 1, 8, 0, 0));
+    vi.setSystemTime(new Date('2025-01-01T08:00:00-05:00'));
 
     const futureDate = '2025-01-02';
     const { result } = renderHook(() => useDailyRecord(futureDate), { wrapper: createWrapper() });
@@ -304,7 +309,7 @@ describe('useDailyRecord lifecycle', () => {
 
   it('should create a copied day when the selected day has reached 08:00', async () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date(2025, 0, 2, 8, 1, 0));
+    vi.setSystemTime(new Date('2025-01-02T08:01:00-05:00'));
 
     const sourceDate = '2025-01-01';
     const targetDate = '2025-01-02';
@@ -327,7 +332,7 @@ describe('useDailyRecord lifecycle', () => {
 
   it('should create the current calendar day before 08:00 when the confirmed empty-day flow overrides the schedule', async () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date(2025, 0, 2, 7, 0, 0));
+    vi.setSystemTime(new Date('2025-01-02T07:00:00-05:00'));
 
     const sourceDate = '2025-01-01';
     const targetDate = '2025-01-02';
@@ -352,7 +357,7 @@ describe('useDailyRecord lifecycle', () => {
 
   it('should force the default copy source to the exact previous calendar day', async () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date(2025, 0, 2, 8, 1, 0));
+    vi.setSystemTime(new Date('2025-01-02T08:01:00-05:00'));
 
     const targetDate = '2025-01-02';
     const exactPreviousDate = '2025-01-01';

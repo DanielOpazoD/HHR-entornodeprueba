@@ -191,9 +191,10 @@ it('does not present an empty or malformed report as a successful run', () => {
     'No se ejecutaron pruebas'
   );
   expect(() => renderPreviewSummary({})).toThrow('Informe incompleto');
-  for (const workflow of ['ci-cd.yml']) {
-    expect(fs.readFileSync(`.github/workflows/${workflow}`, 'utf8')).toContain(
-      'name: Summarize census and library results\n        if: always()\n        run: node scripts/report-preview-summary.mjs'
-    );
-  }
+  const { jobs } = parseWorkflow(fs.readFileSync('.github/workflows/ci-cd.yml', 'utf8'));
+  const summarize = jobs['preview-smoke'].steps.find(
+    step => step.name === 'Summarize census and library results'
+  );
+  expect(summarize?.if).toBe('always()');
+  expect(summarize?.run?.startsWith('node scripts/report-preview-summary.mjs')).toBe(true);
 });
