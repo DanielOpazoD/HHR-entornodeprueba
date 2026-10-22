@@ -33,12 +33,6 @@
       "testFiles": ["src/tests/netlify/fhirApi.test.ts"]
     },
     {
-      "id": "clinical_ai_summary",
-      "functionFile": "netlify/functions/clinical-ai-summary.ts",
-      "endpoint": "clinical-ai-summary",
-      "testFiles": ["src/tests/netlify/clinicalAiSummary.test.ts"]
-    },
-    {
       "id": "cie10_ai_search",
       "functionFile": "netlify/functions/cie10-ai-search.ts",
       "endpoint": "cie10-ai-search",
