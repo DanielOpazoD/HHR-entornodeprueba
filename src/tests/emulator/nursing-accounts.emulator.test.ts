@@ -10,6 +10,7 @@ import { getAuth, type Auth, type DecodedIdToken } from 'firebase-admin/auth';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
+import { getTodayISO } from '@/utils/dateCoreUtils';
 const require = createRequire(import.meta.url);
 const {
   createAccountAdministration,
@@ -201,7 +202,7 @@ const enabled = Boolean(
       const history = firestore.doc('hospitals/hanga_roa/dailyRecords/2025-01-01');
       await history.set({ date: '2025-01-01', authorUid: 'legacy-author', beds: {} });
       const before = await history.get();
-      const todayDate = new Date().toISOString().slice(0, 10);
+      const todayDate = getTodayISO();
       const today = firestore.doc(`hospitals/hanga_roa/dailyRecords/${todayDate}`);
       await today.set({
         date: todayDate,

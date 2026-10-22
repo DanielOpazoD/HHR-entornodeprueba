@@ -71,8 +71,6 @@
 - `clinicalDocumentPdfRenderService`: orquesta render backend y fallback snapshot.
 - `clinicalDocumentPdfSnapshotSupport`: encapsula el frame aislado y el snapshot DOM->PDF.
 - `clinicalDocumentPdfBinarySupport`: concentra conversión `Blob <-> base64/pdf`.
-- `clinicalDocumentDriveService`: debe exponer variantes con resultado tipado para uploads/listados
-  en Drive; la UI no debe interpretar errores remotos parseando excepciones inline.
 - Los resultados esperados de exportación/impresión deben resolverse con outcomes tipados y
   notices compartidos; errores recuperables de Drive no deben volver a salir como excepciones
   “normales” dentro del workspace.

@@ -1,5 +1,6 @@
 import { BEDS } from '@/constants/beds';
 import type { MMRADExam, MMRADSearchResult } from '@/services/radiology/mmradService';
+import { getTodayISO } from '@/utils/dateCoreUtils';
 
 interface RadiologyPatient {
   bedId: string;
@@ -73,15 +74,15 @@ export const resolveMMRADDatePresetRange = (
   preset: 'last-month' | 'last-year' | 'last-5-years',
   now = new Date()
 ): { from: string; to: string } => {
-  const to = now.toISOString().split('T')[0];
-  const from = new Date(now);
+  const to = getTodayISO(now);
+  const from = new Date(`${to}T12:00:00Z`);
 
   if (preset === 'last-month') {
-    from.setMonth(from.getMonth() - 1);
+    from.setUTCMonth(from.getUTCMonth() - 1);
   } else if (preset === 'last-year') {
-    from.setFullYear(from.getFullYear() - 1);
+    from.setUTCFullYear(from.getUTCFullYear() - 1);
   } else {
-    from.setFullYear(from.getFullYear() - 5);
+    from.setUTCFullYear(from.getUTCFullYear() - 5);
   }
 
   return {

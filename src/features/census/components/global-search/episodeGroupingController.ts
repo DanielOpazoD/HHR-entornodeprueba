@@ -14,6 +14,7 @@ import type {
   PatientHistoryResult,
   PatientMovement,
 } from '@/services/patient/patientHistoryService';
+import { getTodayISO } from '@/utils/dateCoreUtils';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -90,7 +91,7 @@ export const groupEpisodesAsBlocks = (events: HospitalizationEvent[]): GroupedEp
 
   // Currently admitted patient (open admission without discharge)
   if (currentAdmission) {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = getTodayISO();
     grouped.push(
       buildOpenEpisode(currentAdmission, calculateDaysBetween(currentAdmission.date, today))
     );

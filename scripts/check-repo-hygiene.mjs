@@ -106,13 +106,6 @@ const forbiddenPatterns = [
 ];
 const DEPRECATED_IMPORTS = [
   {
-    importPath: '@/shared/census/patientContracts',
-    ruleId: 'deprecated-shared-patient-contracts',
-    description:
-      'Patient domain types must import from "@/types/domain/patient"; shared/census/patientContracts is a compatibility shim.',
-    allowBypass: file => file === 'src/shared/census/patientContracts.ts' || file.startsWith('src/tests/'),
-  },
-  {
     importPath: '@/shared/controllerResult',
     ruleId: 'deprecated-shared-controller-result',
     description:

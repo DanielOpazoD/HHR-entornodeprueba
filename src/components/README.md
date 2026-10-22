@@ -6,22 +6,22 @@ Capa de presentación reusable: layout global, componentes compartidos, modales 
 
 ## Estructura
 
-| Path                                                  | Rol                                                                          |
-| ----------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `AppProviders.tsx`                                    | Ensamble de providers del árbol de app                                       |
-| `AppRouter.tsx`                                       | Router por módulo (lazy views + permisos)                                    |
-| `DeviceSelector.tsx`                                  | Selector visual de dispositivos                                              |
-| `layout/`                                             | Navbar, DateStrip, AppContent, badges de estado                              |
-| `modals/`                                             | Modales globales de acciones/configuración                                   |
-| `shared/`                                             | Componentes transversales (`BaseModal`, error boundaries, viewer modals)     |
-| `ui/`                                                 | Primitivas y helpers de interacción (`VirtualizedTable`, inputs y status UI) |
-| `bookmarks/`                                          | UI de marcadores                                                             |
-| `device-selector/`                                    | UI + controllers locales del selector de dispositivos                        |
-| `exam-request/`                                       | Subcomponentes del flujo de solicitud de examen                              |
-| `security/`                                           | UI de bloqueo/pin                                                            |
-| `debug/`                                              | Componentes de diagnóstico interno                                           |
-| `admin/`, `auth/`, `census/`, `handoff/`, `whatsapp/` | Espacios reservados/compatibilidad                                           |
-| `index.ts`                                            | Barrel export de componentes                                                 |
+| Path                                                  | Rol                                                                      |
+| ----------------------------------------------------- | ------------------------------------------------------------------------ |
+| `AppProviders.tsx`                                    | Ensamble de providers del árbol de app                                   |
+| `AppRouter.tsx`                                       | Router por módulo (lazy views + permisos)                                |
+| `DeviceSelector.tsx`                                  | Selector visual de dispositivos                                          |
+| `layout/`                                             | Navbar, DateStrip, AppContent, badges de estado                          |
+| `modals/`                                             | Modales globales de acciones/configuración                               |
+| `shared/`                                             | Componentes transversales (`BaseModal`, error boundaries, viewer modals) |
+| `ui/`                                                 | Primitivas y helpers de interacción (inputs, loaders y status UI)        |
+| `bookmarks/`                                          | UI de marcadores                                                         |
+| `device-selector/`                                    | UI + controllers locales del selector de dispositivos                    |
+| `exam-request/`                                       | Subcomponentes del flujo de solicitud de examen                          |
+| `security/`                                           | UI de bloqueo/pin                                                        |
+| `debug/`                                              | Componentes de diagnóstico interno                                       |
+| `admin/`, `auth/`, `census/`, `handoff/`, `whatsapp/` | Espacios reservados/compatibilidad                                       |
+| `index.ts`                                            | Barrel export de componentes                                             |
 
 ## Archivos clave
 

@@ -17,11 +17,11 @@ Evitar que la deuda estructural vuelva a crecer después de las fases de estabil
 
 ## Reglas de crecimiento
 
-1. Un archivo que supere el límite global de tamaño debe entrar documentado en `scripts/module-size-allowlist.json`.
-2. Todo hotspot permitido debe incluir motivo, owner y estado en el backlog versionado.
-3. Un hotspot permitido no puede crecer por sobre su límite sin actualizar explícitamente la allowlist.
-4. Los hooks grandes usan `scripts/hook-hotspots-limits.json` con la misma disciplina de backlog.
-5. La regla por defecto es extraer controllers/helpers puros antes de mover JSX o cambiar contratos públicos.
+1. Se divide por responsabilidad, no por tamaño. Un módulo debe poder describirse con una sola frase; si cuesta, ese es el criterio para separarlo, no su número de líneas.
+2. No crear controllers, helpers o archivos `*Support` solo para bajar líneas: un archivo nuevo necesita un nombre de dominio y una razón propia (lógica que se prueba sola, otro consumidor o un ciclo de cambio distinto). Antes de dividir, eliminar código muerto o duplicado.
+3. El tope global de 600 líneas (`scripts/module-size-allowlist.json`, `npm run check:module-size`) es una alarma para revisar cohesión, no una meta. Un módulo cohesivo que necesite superarlo entra a la allowlist con motivo, owner y estado en el backlog, y no puede crecer por sobre ese límite sin actualizarla.
+4. Un hotspot (archivo grande con mucho churn) se revisa por responsabilidades mezcladas en la revisión del PR; no hay presupuestos por archivo más estrictos que el tope global.
+5. Al extraer lógica, preferir funciones puras y conservar estables los contratos públicos y el JSX.
 6. `npm run lint` es tolerancia cero; no se aceptan warnings nuevos en `src/`.
 7. Los providers de infraestructura obligatorios deben fallar rápido si falta wiring.
 8. Los servicios críticos que dependan de Firebase Functions/Auth/Storage deben preferir `create...Service(...)` o runtime inyectable y conservar singleton por defecto solo por compatibilidad.
@@ -56,7 +56,6 @@ Evitar que la deuda estructural vuelva a crecer después de las fases de estabil
 - `npm run check:release-evidence-contract:strict`
 - `npm run check:release-evidence-contract:built`
 - `npm run check:test-failure-catalog`
-- `npm run check:hotspot-growth`
 - `npm run report:quality-metrics`
 - `npm run report:maintenance-debt-scorecard`
 - `npm run report:operational-health`

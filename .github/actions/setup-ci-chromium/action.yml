@@ -19,7 +19,7 @@ runs:
     # Mandatory on hits, misses and cache outages. A browser cache never supplies apt libraries.
     - name: Prepare Playwright Chromium and system dependencies
       shell: bash
-      run: npx playwright install --with-deps chromium
+      run: bash "$GITHUB_ACTION_PATH/install-chromium.sh"
     - name: Verify Chromium can launch
       shell: bash
       run: |

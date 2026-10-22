@@ -214,13 +214,23 @@ describe('admissionInputController', () => {
   it('orders time picker options from the current time backwards', () => {
     const model = resolveAdmissionTimePickerModel({
       admissionTime: '03:07',
-      now: new Date('2026-03-10T17:36:00'),
+      // 17:36 on the hospital wall clock (Rapa Nui, UTC-5 in March).
+      now: new Date('2026-03-10T17:36:00-05:00'),
     });
 
     expect(model.selectedHour).toBe('03');
     expect(model.selectedMinute).toBe('07');
     expect(model.hourOptions.slice(0, 5)).toEqual(['17', '16', '15', '14', '13']);
     expect(model.minuteOptions.slice(0, 5)).toEqual(['36', '35', '34', '33', '32']);
+  });
+
+  it('starts the time picker at the hospital hour, not the mainland device hour', () => {
+    // 23:30 on a Santiago device is 21:30 in Rapa Nui.
+    const model = resolveAdmissionTimePickerModel({ now: new Date('2026-03-10T23:30:00-03:00') });
+
+    expect(model.selectedHour).toBe('21');
+    expect(model.selectedMinute).toBe('30');
+    expect(model.hourOptions[0]).toBe('21');
   });
 
   it('composes a time value from hour and minute selections', () => {

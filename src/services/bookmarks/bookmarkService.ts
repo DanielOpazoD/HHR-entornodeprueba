@@ -15,6 +15,7 @@ import { bookmarkLogger } from '@/services/bookmarks/bookmarkLoggers';
 import { COLLECTIONS, HOSPITAL_COLLECTIONS, getActiveHospitalId } from '@/constants/firestorePaths';
 import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/firestoreServiceRuntime';
 import type { FirestoreServiceRuntimePort } from '@/services/storage/firestore/ports/firestoreServiceRuntimePort';
+import { getTodayISO } from '@/utils/dateCoreUtils';
 
 export interface BookmarkBarPreferences {
   alignment: 'left' | 'center' | 'right' | 'custom';
@@ -120,10 +121,7 @@ export const createBookmarkService = (
         'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(bookmarks, null, 2));
       const downloadAnchorNode = document.createElement('a');
       downloadAnchorNode.setAttribute('href', dataStr);
-      downloadAnchorNode.setAttribute(
-        'download',
-        `marcadores_hospital_${new Date().toISOString().split('T')[0]}.json`
-      );
+      downloadAnchorNode.setAttribute('download', `marcadores_hospital_${getTodayISO()}.json`);
       document.body.appendChild(downloadAnchorNode);
       downloadAnchorNode.click();
       downloadAnchorNode.remove();
