@@ -10,6 +10,8 @@ import type {
   PrescriptionMonthlyPdfImageQuality,
   PrescriptionMonthlyPdfOptions,
 } from '@/features/prescriptions/services/prescriptionMonthlyPdfTypes';
+import { getTodayISO } from '@/utils/dateCoreUtils';
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 export type {
   PrescriptionMonthlyPdfColorMode,
   PrescriptionMonthlyPdfImageQuality,
@@ -67,19 +69,9 @@ interface PrintablePrescriptionImageAsset {
   url: string;
 }
 
-const toLocalIsoDay = (date: Date): string =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-
-const parseIsoDateOrToday = (isoDate?: string | null): Date => {
-  if (isoDate) {
-    const [year, month, day] = isoDate.split('-').map(Number);
-    const parsed = new Date(year, (month || 1) - 1, day || 1);
-    if (!Number.isNaN(parsed.getTime())) {
-      return parsed;
-    }
-  }
-  return new Date();
-};
+/** `YYYY-MM` of the selected day, or of the hospital's today when none is valid. */
+const resolveSelectedMonth = (isoDate?: string | null): string =>
+  isoDate && /^\d{4}-\d{2}/.test(isoDate) ? isoDate.slice(0, 7) : getTodayISO().slice(0, 7);
 
 const parseRecordCreatedAt = (record: PrescriptionRecord): Date | null => {
   const createdAt = new Date(record.createdAt);
@@ -95,28 +87,21 @@ export const collectMonthlyPrescriptionExport = (
   records: PrescriptionRecord[],
   selectedDateIso?: string | null
 ): MonthlyPrescriptionPdfScope => {
-  const selectedDate = parseIsoDateOrToday(selectedDateIso);
-  const selectedYear = selectedDate.getFullYear();
-  const selectedMonth = selectedDate.getMonth();
-  const startIso = toLocalIsoDay(new Date(selectedYear, selectedMonth, 1));
+  const selectedMonth = resolveSelectedMonth(selectedDateIso);
+  const startIso = `${selectedMonth}-01`;
 
+  // A prescription belongs to the hospital day it was uploaded on, not the device's day.
   const monthlyRecords = records
     .map(record => ({ record, createdAt: parseRecordCreatedAt(record) }))
     .filter(hasParsedCreatedAt)
-    .filter(
-      entry =>
-        entry.createdAt.getFullYear() === selectedYear &&
-        entry.createdAt.getMonth() === selectedMonth
-    )
+    .map(entry => ({ ...entry, day: getClinicalCalendarDateISO(entry.createdAt) }))
+    .filter(entry => entry.day.startsWith(`${selectedMonth}-`))
     .sort((left, right) => left.createdAt.getTime() - right.createdAt.getTime());
-
-  const lastAvailableDate =
-    monthlyRecords.at(-1)?.createdAt ?? new Date(selectedYear, selectedMonth, 1);
 
   return {
     records: monthlyRecords.map(entry => entry.record),
     startIso,
-    endIso: toLocalIsoDay(lastAvailableDate),
+    endIso: monthlyRecords.at(-1)?.day ?? startIso,
   };
 };
 

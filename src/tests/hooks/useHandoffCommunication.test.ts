@@ -35,9 +35,15 @@ vi.mock('@/shared/runtime/e2eRuntime', () => ({
 vi.mock('@/services/integrations/whatsapp/whatsappService', () => ({
   getWhatsAppConfig: vi.fn(),
   getMessageTemplates: vi.fn(),
+  getDefaultTemplates: () => [
+    { id: 'handoff-default', name: 'Estándar', type: 'handoff', content: 'standard-template' },
+  ],
 }));
 
-import { getMessageTemplates } from '@/services/integrations/whatsapp/whatsappService';
+import {
+  getMessageTemplates,
+  getWhatsAppConfig,
+} from '@/services/integrations/whatsapp/whatsappService';
 
 describe('useHandoffCommunication', () => {
   const onSuccess = vi.fn();
@@ -251,6 +257,38 @@ describe('useHandoffCommunication', () => {
         'Se generó un enlace de firma médica en modo E2E para continuar la validación.'
       );
     });
+  });
+
+  it('sends with the standard template and says so when the configured ones cannot be read', async () => {
+    vi.mocked(getWhatsAppConfig).mockResolvedValue({
+      enabled: true,
+      status: 'connected',
+      shiftParser: { enabled: false, sourceGroupId: '' },
+      handoffNotifications: { enabled: true, targetGroupId: 'group-1', autoSendTime: '17:00' },
+    });
+    vi.mocked(getMessageTemplates).mockRejectedValue(
+      new Error('No se pudieron leer las plantillas de WhatsApp.')
+    );
+    const sendMedicalHandoff = vi.fn().mockResolvedValue(undefined);
+
+    const { result } = renderHook(() =>
+      useHandoffCommunication(
+        createRecord(),
+        [],
+        sendMedicalHandoff,
+        ensureMedicalHandoffSignatureLink,
+        onSuccess
+      )
+    );
+
+    await act(async () => {
+      await result.current.handleSendWhatsApp();
+    });
+
+    expect(sendMedicalHandoff).toHaveBeenCalledWith('standard-template', 'group-1');
+    expect(onSuccess).toHaveBeenCalledWith(
+      'Entrega enviada con la plantilla estándar: no se pudieron leer las plantillas configuradas.'
+    );
   });
 
   it('opens manual WhatsApp URL through runtime adapter', async () => {

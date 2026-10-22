@@ -41,19 +41,15 @@ export const useWhatsAppConfigQuery = () => {
         },
       };
 
-      const mergedConfig = configData
-        ? {
-            ...defaultConfig,
-            ...configData,
-            shiftParser: { ...defaultConfig.shiftParser, ...configData.shiftParser },
-            handoffNotifications: {
-              ...defaultConfig.handoffNotifications,
-              ...configData.handoffNotifications,
-            },
-          }
-        : defaultConfig;
-
-      return mergedConfig;
+      return {
+        ...defaultConfig,
+        ...configData,
+        shiftParser: { ...defaultConfig.shiftParser, ...configData.shiftParser },
+        handoffNotifications: {
+          ...defaultConfig.handoffNotifications,
+          ...configData.handoffNotifications,
+        },
+      };
     },
     staleTime: 1000 * 60 * 10, // 10 minutes
   });

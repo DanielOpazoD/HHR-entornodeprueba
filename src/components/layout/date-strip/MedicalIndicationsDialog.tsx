@@ -19,6 +19,8 @@ import { MedicalIndicationsFooter } from './MedicalIndicationsFooter';
 import { useMedicalIndicationsEditor } from './useMedicalIndicationsEditor';
 import { useMedicalIndicationsLibrary } from './useMedicalIndicationsLibrary';
 import { useMedicalIndicationsAppliedRecordLookup } from './medicalIndicationsAppliedRecordLookup';
+import { getTodayISO } from '@/utils/dateCoreUtils';
+import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 
 const loadPrintMedicalIndicationsPdf = async () =>
   import('@/services/pdf/medicalIndicationsPdfService').then(
@@ -31,13 +33,7 @@ interface MedicalIndicationsDialogProps {
   patients: MedicalIndicationsPatientOption[];
 }
 
-const buildToday = () => {
-  const date = new Date();
-  const dd = String(date.getDate()).padStart(2, '0');
-  const mm = String(date.getMonth() + 1).padStart(2, '0');
-  const yyyy = date.getFullYear();
-  return `${dd}-${mm}-${yyyy}`;
-};
+const buildToday = () => formatDateDDMMYYYY(getTodayISO());
 
 const buildGenerationLabel = (isoDate: string) =>
   new Date(isoDate).toLocaleString('es-CL', {

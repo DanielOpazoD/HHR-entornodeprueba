@@ -7,6 +7,7 @@ export interface SurveyData {
   medicoTratante: string;
 }
 import { FieldDataSource } from '@/types/printTemplates';
+import { getTodayISO } from '@/utils/dateCoreUtils';
 
 export const mapSourceToValue = (
   source: FieldDataSource | undefined,
@@ -42,7 +43,7 @@ export const mapSourceToValue = (
     case 'bed.name':
       return data.bedName;
     case 'today.date':
-      return formatCensusIsoDate(new Date().toISOString().split('T')[0]);
+      return formatCensusIsoDate(getTodayISO());
     case 'survey.diagnosis':
       return data.survey.diagnostico;
     case 'survey.weight':
