@@ -153,6 +153,11 @@ const openSalvador = async (page: Page, manual = false) => {
 test.describe('DICOM viewer and Salvador annexes', () => {
   test.setTimeout(150000);
   test.use({ viewport: { width: 1440, height: 1000 } });
+  // A test may pass while the viewer still loads its worker; closing the page
+  // then aborts that route.fetch and would fail an already verified test.
+  test.afterEach(async ({ page }) => {
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+  });
   test('measures cold DICOM startup with controlled metadata and module latency', async ({
     page,
   }) => {
