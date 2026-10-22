@@ -21,7 +21,10 @@ const reporters = previewLane
       // Blob output is cleared per run, so each lane owns its directory.
       [
         'blob',
-        { outputDir: `reports/e2e/preview-blobs/${previewLane}`, fileName: `${previewLane}.zip` },
+        {
+          outputDir: `reports/e2e/preview-blobs/${previewLane}`,
+          fileName: `preview-smoke-blob-${previewLane}.zip`,
+        },
       ],
     ]
   : [

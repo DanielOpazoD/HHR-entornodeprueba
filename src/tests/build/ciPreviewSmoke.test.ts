@@ -45,16 +45,27 @@ it('runs census, library, clinical-panel, sync-navigation and DICOM/carryover pr
     laneRuns.indexOf('node scripts/run-preview-smoke-lane.mjs --lane=${{ matrix.lane }}')
   );
   for (const lane of PREVIEW_SMOKE_LANE_NAMES) {
-    const upload = lanes.steps.find(step => step.with?.name === `preview-smoke-blob-${lane}`);
+    // Playwright blobs are zips already: upload them as-is and download without
+    // decompressing, so download-artifact never stream-unzips a zip within a zip.
+    const blob = `preview-smoke-blob-${lane}.zip`;
+    expect(fs.readFileSync('playwright.preview.config.ts', 'utf8')).toContain(
+      'fileName: `preview-smoke-blob-${previewLane}.zip`'
+    );
+    const upload = lanes.steps.find(step => step.with?.name === blob);
     expect(upload?.if).toBe(`always() && matrix.lane == '${lane}'`);
-    expect(upload?.with?.path).toBe(`reports/e2e/preview-blobs/${lane}/${lane}.zip`);
-    expect(
-      jobs['preview-smoke'].steps.some(
-        step =>
-          step.with?.name === `preview-smoke-blob-${lane}` &&
-          step.with?.path === 'reports/e2e/preview-blobs'
-      )
-    ).toBe(true);
+    expect(upload?.uses).toBe('actions/upload-artifact@v7');
+    expect(upload?.with).toMatchObject({
+      path: `reports/e2e/preview-blobs/${lane}/${blob}`,
+      archive: false,
+      'if-no-files-found': 'error',
+    });
+    const download = jobs['preview-smoke'].steps.find(step => step.with?.name === blob);
+    expect(download?.uses).toBe('actions/download-artifact@v8');
+    expect(download?.with).toEqual({
+      name: blob,
+      path: 'reports/e2e/preview-blobs',
+      'skip-decompress': true,
+    });
   }
   expect(JSON.stringify(jobs.build)).not.toContain('preview');
   const mergeRuns = jobs['preview-smoke'].steps.map(step => step.run ?? '');

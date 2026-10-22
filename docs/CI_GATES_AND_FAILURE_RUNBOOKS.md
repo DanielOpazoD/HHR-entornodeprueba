@@ -703,6 +703,14 @@ procedencia (productor `preview-smoke`) y publica `preview-bootstrap-artifacts`
 para la comprobación final y posterior al merge. `build-budget` conserva el build con
 la evidencia de release, budgets, grafo de chunks y `dist`, sin el smoke.
 
+Cada carril sube su blob, que ya es un zip, con `archive: false`; `preview-smoke`
+lo baja con `download-artifact@v8` y `skip-decompress: true`. Al comprimirlo de
+nuevo, la extracción en streaming de `download-artifact` confundía la firma del
+descriptor de datos del zip interno con el fin de la entrada y fallaba sobre
+artefactos intactos ("Artifact download failed after 5 retries"). Así ocurrió en
+dos runs de `main` el 2026-10-22 UTC; un reintento no lo resuelve porque depende
+del contenido del blob.
+
 Cada carril sirve su propio bundle del mismo commit. Sólo difiere de `build-budget`
 en `release-evidence.json`, que no entra en el precache, y Netlify vuelve a compilar
 al desplegar, así que el smoke nunca validó el artefacto desplegado. Localmente,
