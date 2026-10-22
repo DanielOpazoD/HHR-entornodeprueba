@@ -1,0 +1,157 @@
+name: E2E isolation experiment
+run-name: E2E isolation ${{ inputs.variant }} pair ${{ inputs.pair }}
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: A serial control or B isolated lanes
+        type: choice
+        options: [A, B]
+        required: true
+      pair:
+        description: Alternating pair number, from 1 to 5
+        type: choice
+        options: ['1', '2', '3', '4', '5']
+        required: true
+      expected_sha:
+        description: Full frozen commit SHA used for every sample
+        type: string
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: e2e-isolation-experiment
+  cancel-in-progress: false
+
+jobs:
+  e2e-isolation-lanes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        lane: ${{ fromJSON(inputs.variant == 'A' && '["full"]' || '["lane-1","lane-2"]') }}
+    env:
+      CI: true
+      E2E_CRITICAL_BROWSERS: chromium
+      E2E_BUDGET_LOGIN_VISIBLE_MS: 4500
+      E2E_BUDGET_AUTH_FEEDBACK_MS: 3000
+      E2E_BUDGET_CENSO_VISIBLE_MS: 8000
+    steps:
+      - name: Checkout frozen source
+        uses: actions/checkout@v7
+      - name: Verify frozen SHA
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          [[ "$EXPECTED_SHA" =~ ^[a-f0-9]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - name: Setup CI dependencies
+        uses: ./.github/actions/setup-ci-dependencies
+      - name: Setup Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Prepare verified Firestore emulator
+        uses: ./.github/actions/setup-ci-firestore-emulator
+      - name: Prepare Chromium
+        uses: ./.github/actions/setup-ci-chromium
+      - name: Fetch pinned extension release
+        if: matrix.lane != 'lane-2'
+        run: git fetch --depth=1 origin eb77f41ae151251f7158fc28721cefe15145926c
+      - name: Run isolated experiment lane
+        env:
+          EXPERIMENT_LANE: ${{ matrix.lane }}
+        run: node scripts/run-e2e-isolation-experiment.mjs run "$EXPERIMENT_LANE"
+      - name: Upload original lane evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-isolation-evidence-${{ github.run_attempt }}-${{ matrix.lane }}
+          path: reports/e2e-isolation/${{ matrix.lane }}/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Upload browser diagnostics and auxiliary reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-isolation-diagnostics-${{ github.run_attempt }}-${{ matrix.lane }}
+          path: |
+            reports/e2e/**
+            playwright-report/**
+            test-results/**
+          retention-days: 14
+
+  e2e-isolation-summary:
+    if: always()
+    needs: [e2e-isolation-lanes]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout frozen source
+        uses: actions/checkout@v7
+      - name: Setup CI dependencies
+        uses: ./.github/actions/setup-ci-dependencies
+      - name: Download original serial artifact
+        if: always() && inputs.variant == 'A'
+        uses: actions/download-artifact@v7
+        with:
+          name: e2e-isolation-evidence-${{ github.run_attempt }}-full
+          path: reports/e2e-isolation/downloads/full
+      - name: Download original first lane artifact
+        if: always() && inputs.variant == 'B'
+        uses: actions/download-artifact@v7
+        with:
+          name: e2e-isolation-evidence-${{ github.run_attempt }}-lane-1
+          path: reports/e2e-isolation/downloads/lane-1
+      - name: Download original second lane artifact
+        if: always() && inputs.variant == 'B'
+        uses: actions/download-artifact@v7
+        with:
+          name: e2e-isolation-evidence-${{ github.run_attempt }}-lane-2
+          path: reports/e2e-isolation/downloads/lane-2
+      - name: Validate corpus and provenance
+        if: always()
+        env:
+          EXPERIMENT_VARIANT: ${{ inputs.variant }}
+          LANE_RESULT: ${{ needs.e2e-isolation-lanes.result }}
+        run: |
+          node scripts/report-e2e-isolation-experiment.mjs --variant "$EXPERIMENT_VARIANT" --input reports/e2e-isolation/downloads
+          test "$LANE_RESULT" = success
+      - name: Preserve workflow inputs
+        if: always()
+        env:
+          EXPERIMENT_VARIANT: ${{ inputs.variant }}
+          EXPERIMENT_PAIR: ${{ inputs.pair }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          node --input-type=module - <<'JS'
+          import fs from 'node:fs';
+          fs.mkdirSync('reports/e2e-isolation', { recursive: true });
+          fs.writeFileSync('reports/e2e-isolation/sample.json', JSON.stringify({
+            variant: process.env.EXPERIMENT_VARIANT,
+            pair: process.env.EXPERIMENT_PAIR,
+            expectedSha: process.env.EXPECTED_SHA,
+            runId: process.env.GITHUB_RUN_ID,
+            runAttempt: process.env.GITHUB_RUN_ATTEMPT,
+          }, null, 2) + '\n');
+          JS
+      - name: Upload derived summary
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-isolation-summary-${{ github.run_attempt }}
+          path: |
+            reports/e2e-isolation/summary.json
+            reports/e2e-isolation/summary.md
+            reports/e2e-isolation/sample.json
+          if-no-files-found: error
+          retention-days: 30

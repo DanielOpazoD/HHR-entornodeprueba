@@ -1,5 +1,9 @@
 # CI Gates and Failure Runbooks
 
+El [experimento de aislamiento E2E](./E2E_ISOLATION_EXPERIMENT.md) es exclusivamente
+manual. Conserva el CI obligatorio y compara corpus, estabilidad, espera y coste
+antes de proponer cambios en sus carriles.
+
 Un rechazo de fecha de ingreso durante una sincronización con cambio de cama
 requiere comparar el mismo episodio en origen y destino: la cama previa no es
 identidad del paciente. El código `HHR-SYNC-1/census/admission-date-policy` conserva
