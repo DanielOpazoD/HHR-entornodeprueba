@@ -34,6 +34,17 @@ describe('useWhatsAppQuery Hooks', () => {
       expect(result.current.data?.handoffNotifications.enabled).toBe(true); // From default
     });
 
+    it('surfaces a failed config read as an error instead of defaults', async () => {
+      vi.mocked(whatsappService.getWhatsAppConfig).mockRejectedValue(
+        new Error('No se pudo leer la configuración de WhatsApp.')
+      );
+
+      const { result } = renderHook(() => useWhatsAppConfigQuery(), { wrapper: createWrapper() });
+
+      await waitFor(() => expect(result.current.isError).toBe(true));
+      expect(result.current.data).toBeUndefined();
+    });
+
     it('useWhatsAppHealthQuery should fetch health status', async () => {
       vi.mocked(whatsappService.checkBotHealth).mockResolvedValue({
         status: 'ok',
@@ -63,7 +74,9 @@ describe('useWhatsAppQuery Hooks', () => {
 
   describe('Mutations', () => {
     it('useUpdateWhatsAppConfigMutation should call service', async () => {
-      const updateMock = vi.mocked(whatsappService.updateWhatsAppConfig).mockResolvedValue(true);
+      const updateMock = vi
+        .mocked(whatsappService.updateWhatsAppConfig)
+        .mockResolvedValue(undefined);
       const { result } = renderHook(() => useUpdateWhatsAppConfigMutation(), {
         wrapper: createWrapper(),
       });
@@ -71,6 +84,20 @@ describe('useWhatsAppQuery Hooks', () => {
       await result.current.mutateAsync({ enabled: true });
 
       expect(updateMock).toHaveBeenCalledWith({ enabled: true });
+    });
+
+    it('reports a failed save as an error, never as saved', async () => {
+      vi.mocked(whatsappService.updateWhatsAppConfig).mockRejectedValue(
+        new Error('No se pudo guardar la configuración de WhatsApp.')
+      );
+      const { result } = renderHook(() => useUpdateWhatsAppConfigMutation(), {
+        wrapper: createWrapper(),
+      });
+
+      result.current.mutate({ enabled: true });
+
+      await waitFor(() => expect(result.current.isError).toBe(true));
+      expect(result.current.isSuccess).toBe(false);
     });
   });
 });
