@@ -1,24 +1,30 @@
 import fs from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { jobNeeds, parseWorkflow } from './workflowYamlTestSupport';
 const read = (path: string) => fs.readFileSync(path, 'utf8');
+const ciJobs = () => parseWorkflow(read('.github/workflows/ci-cd.yml')).jobs;
 describe('census measurement release gate', () => {
   it('uses short PR screening, full push measurements, and the aggregate strict CI result', () => {
-    const workflow = read('.github/workflows/ci-cd.yml');
-    expect(workflow).toContain('environment: [development, production]');
-    expect(workflow).toContain(
-      "CENSUS_PERF_SAMPLES: ${{ github.event_name == 'pull_request' && '5' || '30' }}"
+    const jobs = ciJobs();
+    const census = jobs['census-startup-performance'];
+    expect(census.strategy?.matrix.environment).toEqual(['development', 'production']);
+    const runs = census.steps.map(step => step.run);
+    expect(runs).toContain('npm run test:census-performance-report');
+    const measure = census.steps.find(step => step.run === 'npm run test:e2e:census-performance');
+    expect(measure?.env).toMatchObject({
+      CENSUS_PERF_SAMPLES: "${{ github.event_name == 'pull_request' && '5' || '30' }}",
+      CENSUS_PERF_SMOKE: "${{ github.event_name == 'pull_request' && '1' || '0' }}",
+    });
+    const summary = jobs['ci-strict-summary'];
+    expect(jobNeeds(summary)).toContain('census-startup-performance');
+    expect(summary.env?.CENSUS_PERFORMANCE_RESULT).toBe(
+      "${{ needs['census-startup-performance'].result }}"
     );
-    expect(workflow).toContain(
-      "CENSUS_PERF_SMOKE: ${{ github.event_name == 'pull_request' && '1' || '0' }}"
-    );
-    expect(workflow).toContain('run: npm run test:census-performance-report');
-    expect(workflow).toContain('run: npm run test:e2e:census-performance');
-    expect(workflow).toContain(
-      "CENSUS_PERFORMANCE_RESULT: ${{ needs['census-startup-performance'].result }}"
-    );
-    expect(workflow).toContain('"census-startup-performance:$CENSUS_PERFORMANCE_RESULT"');
-    const summary = workflow.split('  ci-strict-summary:')[1].split('    env:')[0];
-    expect(summary).toContain('census-startup-performance,');
+    expect(
+      summary.steps.some(step =>
+        step.run?.includes('"census-startup-performance:$CENSUS_PERFORMANCE_RESULT"')
+      )
+    ).toBe(true);
   });
   it('keeps absolute production budgets blocking during short PR screening', () => {
     const spec = read('e2e/census-startup.measurement.ts');
@@ -37,8 +43,12 @@ describe('census measurement release gate', () => {
     // Waits live in the config; verdicts live in the report module.
     expect(config).not.toContain('enforcedMaxMs');
     expect(read('scripts/census-startup-performance-report.mjs')).toContain('enforcedMaxMs');
-    const workflow = read('.github/workflows/ci-cd.yml');
-    expect(workflow).toContain('test-results/census-performance/**');
+    const uploads = ciJobs()['census-startup-performance'].steps.filter(step =>
+      step.uses?.startsWith('actions/upload-artifact@')
+    );
+    expect(
+      uploads.some(step => String(step.with?.path).includes('test-results/census-performance/**'))
+    ).toBe(true);
     expect(read('e2e/census-startup.measurement.ts')).toContain('Screen state:');
     const server = read('scripts/census-startup-performance-server.mjs');
     expect(server).toContain('envDir: false');
