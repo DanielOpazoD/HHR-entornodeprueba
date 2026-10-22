@@ -480,8 +480,8 @@ describe('chunkingPolicy', () => {
       .filter(file => {
         const source = readSource(path.relative(process.cwd(), file));
         return (
-          /from ['"]googleapis['"]/.test(source) ||
-          /import\(['"]googleapis['"]\)/.test(source) ||
+          /from ['"]googleapis(?:\/[^'"]+)?['"]/.test(source) ||
+          /import\(['"]googleapis(?:\/[^'"]+)?['"]\)/.test(source) ||
           source.includes('@/services/email/gmailClient')
         );
       })

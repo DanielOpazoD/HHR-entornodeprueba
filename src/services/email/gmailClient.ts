@@ -1,4 +1,4 @@
-import { google } from 'googleapis';
+import { auth, gmail } from 'googleapis/build/src/apis/gmail';
 import { buildCensusEmailBody, buildCensusEmailSubject } from '@/constants/email';
 
 interface SendCensusEmailParams {
@@ -40,7 +40,7 @@ const getOAuth2Client = (refreshTokenOverride?: string) => {
     );
   }
 
-  const oauth2Client = new google.auth.OAuth2(clientId, clientSecret);
+  const oauth2Client = new auth.OAuth2(clientId, clientSecret);
   oauth2Client.setCredentials({ refresh_token: refreshToken });
   return oauth2Client;
 };
@@ -125,12 +125,12 @@ const buildMimeMessage = (params: SendCensusEmailParams) => {
 
 export const sendCensusEmail = async (params: SendCensusEmailParams) => {
   const oauth2Client = getOAuth2Client(params.refreshToken);
-  const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+  const gmailClient = gmail({ version: 'v1', auth: oauth2Client });
 
   const mimeMessage = buildMimeMessage(params);
   const raw = base64UrlEncode(Buffer.from(mimeMessage));
 
-  const response = await gmail.users.messages.send(
+  const response = await gmailClient.users.messages.send(
     {
       userId: 'me',
       requestBody: { raw },
