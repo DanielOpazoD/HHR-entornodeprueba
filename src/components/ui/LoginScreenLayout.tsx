@@ -99,7 +99,7 @@ export const LoginScreenLayout: React.FC<LoginScreenLayoutProps> = ({
             </div>
           </header>
 
-          <main className="mx-auto flex w-full max-w-[29rem] flex-1 flex-col justify-center py-5 lg:mx-0 lg:max-w-[27rem] lg:py-8 xl:max-w-[29rem]">
+          <main className="mx-auto flex w-full max-w-[29rem] flex-1 flex-col justify-center py-5 lg:mx-0 lg:max-w-[27rem] lg:justify-start lg:pt-10 xl:max-w-[29rem]">
             <div className="mb-5 sm:mb-6">
               <p className="flex items-center gap-2 text-[11px] font-semibold uppercase text-teal-800">
                 <LockKeyhole className="h-3.5 w-3.5" aria-hidden="true" />
@@ -171,7 +171,7 @@ export const LoginCardFrame: React.FC<{ children: React.ReactNode }> = ({ childr
 
 /** Inert fallback, never asks the user to type before the real form can accept input. */
 export const LoginCredentialsPlaceholder = () => (
-  <div className="space-y-4" aria-busy="true">
+  <div className="space-y-2.5 text-sm text-slate-800" aria-busy="true">
     <span role="status" className="sr-only">
       Cargando acceso al sistema…
     </span>
@@ -179,7 +179,9 @@ export const LoginCredentialsPlaceholder = () => (
       Usuario
       <input className={LOGIN_INPUT_CLASS} placeholder="Ej. 111111111" disabled />
     </label>
-    <p className="mt-1! text-xs text-stone-600">RUT con dígito verificador, sin puntos ni guion.</p>
+    <p className="mt-1! text-xs leading-5 text-stone-600">
+      RUT con dígito verificador, sin puntos ni guion.
+    </p>
     <label className="block text-sm font-medium text-slate-800">
       Contraseña
       <span className="relative block">
