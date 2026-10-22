@@ -54,8 +54,11 @@ export interface AuditPort {
     rut: string,
     recordDate: string
   ) => Promise<void>;
-  /** Closes the device connection of the signed-in user (call before signing out). */
-  logUserLogout: (email: string, reason?: 'manual' | 'automatic') => Promise<void>;
+  /**
+   * Closes the device connection of the user signing out (call before signing out). Pass `uid`,
+   * read before any wait: a late call must not close the connection of whoever signed in next.
+   */
+  logUserLogout: (email: string, reason?: 'manual' | 'automatic', uid?: string) => Promise<void>;
 }
 
 const loadAuditConnectionRuntime = () =>
@@ -125,10 +128,10 @@ export const defaultAuditPort: AuditPort = {
   },
   logPatientView: async (bedId, patientName, rut, recordDate) =>
     logThrottledViewEvent('VIEW_PATIENT', bedId, { patientName, bedId, rut }, recordDate),
-  logUserLogout: async (_email, reason = 'manual') => {
+  logUserLogout: async (_email, reason = 'manual', uid) => {
     // Whose connection ends is fixed now: the module may finish loading after sign-out.
-    const uid = getCurrentUserUid();
+    const departingUid = uid ?? getCurrentUserUid();
     const { endCurrentAuditConnection } = await loadAuditConnectionRuntime();
-    await endCurrentAuditConnection(reason, uid);
+    await endCurrentAuditConnection(reason, departingUid);
   },
 };

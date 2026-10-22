@@ -137,11 +137,14 @@ export const createHandleLogout =
     //    it is sent, so an end event racing sign-out could be rejected. The whole step, loading
     //    the audit module included, is bounded: sign-out never waits on it. Anything undelivered
     //    stays queued on the device for the next sign-in.
+    // Who is leaving is fixed before any wait: a late callback must not end the next person's
+    // connection.
     const email = user?.email;
+    const uid = user?.uid;
     if (email) {
       await settleWithin(
         loadAuditPort()
-          .then(({ defaultAuditPort }) => defaultAuditPort.logUserLogout(email, reason))
+          .then(({ defaultAuditPort }) => defaultAuditPort.logUserLogout(email, reason, uid))
           .catch(error => authStateLogger.warn('Logout audit step rejected', error)),
         LOGOUT_AUDIT_BUDGET_MS
       );

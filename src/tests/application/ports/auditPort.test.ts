@@ -27,6 +27,19 @@ describe('defaultAuditPort', () => {
     auditServiceMocks.logThrottledViewEvent.mockResolvedValue(undefined);
   });
 
+  it('ends the connection of the person leaving even if someone else signed in meanwhile', async () => {
+    auditUtilsMocks.getCurrentUserUid.mockReturnValue('next-person');
+    try {
+      await defaultAuditPort.logUserLogout('doctor@hospital.cl', 'manual', 'doctor-123');
+      expect(connectionRuntimeMocks.endCurrentAuditConnection).toHaveBeenCalledWith(
+        'manual',
+        'doctor-123'
+      );
+    } finally {
+      auditUtilsMocks.getCurrentUserUid.mockReturnValue('doctor-123');
+    }
+  });
+
   it('refuses to report success for an audit event the server did not keep', async () => {
     const write = () =>
       defaultAuditPort.writeEvent(

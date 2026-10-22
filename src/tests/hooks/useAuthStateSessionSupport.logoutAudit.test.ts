@@ -42,7 +42,7 @@ describe('createHandleLogout audit order', () => {
     const logout = createHandleLogout(USER as never, signOut, vi.fn())('automatic');
     // The audit module is loaded on demand at logout.
     await vi.waitFor(() =>
-      expect(defaultAuditPort.logUserLogout).toHaveBeenCalledWith(USER.email, 'automatic')
+      expect(defaultAuditPort.logUserLogout).toHaveBeenCalledWith(USER.email, 'automatic', USER.uid)
     );
     expect(clearSessionScopedClientState).not.toHaveBeenCalled();
     expect(signOut).not.toHaveBeenCalled();
