@@ -379,7 +379,8 @@ describe('fetchSyslabExamDetails', () => {
     const links = ['http://example.com/exam1', 'http://example.com/exam2'];
     mockFetch.mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ success: true, data: [] }),
+      json: () =>
+        Promise.resolve({ success: true, data: links.map(url => ({ url, findings: [] })) }),
     });
 
     await fetchSyslabExamDetails(links);
@@ -479,7 +480,11 @@ describe('fetchSyslabExamDetails', () => {
     setRuntimeLocation('8888');
     mockFetch.mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ success: true, data: [] }),
+      json: () =>
+        Promise.resolve({
+          success: true,
+          data: [{ url: 'http://example.com/exam1', findings: [] }],
+        }),
     });
 
     await fetchSyslabExamDetails(['http://example.com/exam1']);

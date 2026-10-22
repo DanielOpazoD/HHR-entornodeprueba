@@ -81,13 +81,46 @@ implícito a `localhost:3000`.
 - El sistema limpia automáticamente: "12.345.678-9" → "12345678"
 - Verificar directamente en http://10.4.69.90/syslab/
 
+### Selección grande, progreso detenido o respuesta incompleta
+
+HHR analiza la selección en solicitudes secuenciales de hasta tres informes. El puente
+mantiene su límite de 24 por solicitud. La descarga de PDF combinados conserva su
+límite independiente de 24; no confundir descarga con análisis.
+
+- «Informes leídos: X de Y» cuenta respuestas validadas, no tiempo transcurrido.
+- Si el lote caducó, actualizar la búsqueda; no mezclar enlaces de búsquedas distintas.
+- Un lote incompleto o con errores no se guarda ni se dibuja como resultado completo.
+- Cerrar el análisis o cambiar de paciente detiene los lotes siguientes; la petición
+  ya enviada puede finalizar en la extensión.
+- Para soporte, registrar cantidad seleccionada, etapa y mensaje, sin copiar documentos
+  ni datos clínicos a logs o revisores externos.
+
 ### Parser no reconoce variables
 
-**Causa**: El formato del PDF cambió.
+Distinguir el recorrido antes de cambiar una expresión regular:
 
-1. Revisar logs: `/path/to/API-laboratorioHHR/logs/raw_extract_*.txt`
-2. Comparar texto crudo con regex en `utils/reportParser.js`
-3. El parser tiene 4 regex: con pipes, sin pipes, notación científica, cualitativo
+1. Extensión: `extension/syslab-bridge.js` extrae texto/valida RUN y
+   `extension/lab-result-parser.js` interpreta filas. `extension/lab-viewer.js`
+   valida el lote y construye la respuesta.
+2. HHR: `src/features/laboratory/controllers/` normaliza nombres, números, muestras,
+   comparación y tendencias. Los servicios de microbiología/orina aportan
+   enriquecimientos opcionales en la ruta heredada.
+3. Proxy Express heredado: su parser pertenece a otro repositorio; comprobar primero
+   que esa sea la ruta realmente configurada.
+
+Reproducir con un informe sintético y conservar el texto original, unidad, muestra y
+rango. Ejecutar `labParserParity.test.ts` y `labClinicalParsingRegression.test.ts`.
+Una curva ausente no prueba ausencia de examen: revisar también Comparación y
+Microbiología. Un resultado cualitativo o con comparador como «<» no debe convertirse
+en una medición numérica exacta.
+
+### Curvas amontonadas o escala aparentemente plana
+
+`labTrendChartModel.ts` prepara dominio y filas sin redondear mediciones. Las series
+densas omiten etiquetas permanentes, conservan todos los puntos y muestran el detalle
+al pasar sobre ellos. Los gráficos separan unidades; una banda de referencia común
+solo se muestra cuando todos los rangos coinciden. El eje horizontal sigue siendo
+categórico por orden: no representa distancia temporal proporcional.
 
 ### PDF no se ve en el visor
 
