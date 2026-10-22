@@ -382,3 +382,26 @@ cierre de Firebase y la limpieza ya existente. Preservar generación admitida,
 cierre entre pestañas y cola de enfermería. Verificar regresión conductual del
 handler, mensajes vigentes, `ci:merge-gate`, `test:release-confidence`, revisión
 independiente y CI. Solo retirar APIs cuyo árbol de consumidores esté vacío.
+
+### Ruta regional de acceso por RUT (22 octubre 2026)
+
+- **Owner:** autenticación y Functions HHR.
+- **Reason:** cinco pares intercalados mostraron mejor mediana de validación y
+  autenticación en Santiago, conservando los diez ingresos correctos y la recarga.
+  Permanecen picos iniciales; la muestra no acredita arranque frío ni p95 y cambia
+  región y generación conjuntamente.
+- **TargetVersion:** `signInWithRutSantiago`, adaptador HTTP Gen2 del callable
+  Gen1 existente. Conservar cuenta de servicio Appspot explícita, protocolo,
+  errores/CORS y capacidad equivalente. Default West sólo para el proyecto exacto
+  `hhr-pruebas`; overrides permitidos US/East/West, flag inválido → US.
+- **RiskLevel:** runtime crítico de autenticación. No cambiar verificación de
+  credenciales, sesión, reglas, recuperación, otros callables ni CUDYR. Un fallo
+  no habilita fallback ni doble envío.
+- **RollbackPlan:** fijar `VITE_ACCOUNT_FUNCTIONS_REGION=us-central1` en el
+  cliente afectado y reconstruir/reiniciar; quitar el flag selecciona Santiago en
+  pruebas. Conservar el endpoint US y no mover datos ni ampliar permisos.
+- **VerificationGate:** `ci:merge-gate`, `test:release-confidence`,
+  `test:accounts:emulator:ci`, cobertura sensible, binding de servicio/región y
+  protocolo HTTP real, revisión independiente y CI del SHA definitivo. Verificar
+  endpoint desplegado y censo/sesión tras recarga antes de declarar activo el
+  rollout; los tests focalizados o el merge no acreditan disponibilidad.
