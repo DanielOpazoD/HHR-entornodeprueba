@@ -2,6 +2,7 @@ const { createAccountRecovery } = require('./accountRecovery');
 const functions = require('firebase-functions/v1');
 const { createAccountAdministration } = require('./accountAdministration');
 const { createAccountCredentials } = require('./accountCredentials');
+const { createSantiagoAccountFunction } = require('./accountSantiagoFunction');
 
 const createAccountFunctions = dependencies => {
   const admin = createAccountAdministration(dependencies);
@@ -10,8 +11,8 @@ const createAccountFunctions = dependencies => {
     ...dependencies,
     finalizePassword: credentials.finalizePassword,
   });
-  const callable = (handler, secrets = []) =>
-    functions
+  const callable = (handler, secrets = [], regions) =>
+    (regions ? functions.region(...regions) : functions)
       .runWith({ timeoutSeconds: 60, maxInstances: 10, secrets })
       .https.onCall(async (data, context) => {
         try {
@@ -25,6 +26,11 @@ const createAccountFunctions = dependencies => {
           );
         }
       });
+  const signInWithRut = callable(
+    credentials.signInWithRut,
+    [],
+    ['us-central1', 'southamerica-east1']
+  );
   return {
     createNursingAccount: callable(admin.createAccount),
     listNursingAccounts: callable(admin.listAccounts),
@@ -41,7 +47,8 @@ const createAccountFunctions = dependencies => {
       .firestore.document('hhr_account_recovery/{challengeId}')
       .onCreate((_snapshot, context) => recovery.deliverRecovery(context.params.challengeId)),
     resetNursingPassword: callable(recovery.resetPassword),
-    signInWithRut: callable(credentials.signInWithRut),
+    signInWithRut,
+    signInWithRutSantiago: createSantiagoAccountFunction(signInWithRut),
     changeNursingPassword: callable(credentials.changeAccountPassword),
   };
 };

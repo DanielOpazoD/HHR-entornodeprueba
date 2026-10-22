@@ -465,3 +465,39 @@ rechaza el envío, el cierre de Firebase y la limpieza de la identidad local sig
 ejecutándose; una recarga no debe recuperar esa sesión. Los pendientes clínicos
 se conservan con su propietario. Se retira el mensaje SYNC_COMPLETED, que no tenía
 consumidores, sin cambiar la sincronización de datos ni sus colas.
+
+### Ruta regional de ingreso por RUT · 22-10-2026
+
+Sólo la operación `signInWithRut` selecciona región. Cuando
+`VITE_ACCOUNT_FUNCTIONS_REGION` no está definida o está vacía, el cliente usa
+Santiago (`southamerica-west1`) únicamente si `VITE_FIREBASE_PROJECT_ID` es
+exactamente `hhr-pruebas`. Los demás proyectos conservan US (`us-central1`).
+Un valor explícito `us-central1`, `southamerica-east1` o `southamerica-west1`
+selecciona esa ruta; cualquier otro valor vuelve a US. No se aceptan regiones
+arbitrarias ni URLs como configuración de acceso.
+
+US y São Paulo conservan el nombre `signInWithRut` de Gen1. Santiago usa
+`signInWithRutSantiago`: un adaptador HTTP Gen2 que envuelve el callable Gen1 ya
+construido. Conserva su envelope, validación de entrada, contexto, CORS y errores;
+no introduce otro verificador de credenciales. La cuenta de servicio se declara
+como `${resolveFirebaseProjectId()}@appspot.gserviceaccount.com`, conservando la
+identidad de ejecución de Gen1 en vez de heredar la cuenta por defecto de Gen2.
+Santiago mantiene 256 MiB, CPU equivalente Gen1 (`gcf_gen1`), concurrencia 1,
+mínimo 0, máximo 10 instancias y 60 segundos de timeout.
+
+Un error o respuesta incierta se devuelve al recorrido existente: no hay fallback
+a otra región ni segundo envío de la contraseña. Activación, recuperación,
+cambio de clave y administración conservan sus endpoints. Tampoco cambian roles,
+sesión, reglas de acceso ni CUDYR. Para volver a US en `hhr-pruebas`, configurar
+explícitamente `VITE_ACCOUNT_FUNCTIONS_REGION=us-central1`; quitar la variable
+restablece el valor predeterminado Santiago. Comprobar el endpoint desplegado
+antes de publicar el cliente, sin inferir disponibilidad a partir del merge.
+
+La elección se apoya en cinco pares intercalados de ingresos reales del 22 de
+octubre de 2026: mediana remota de 1.917,1 ms en São Paulo frente a 959,7 ms en
+Santiago, y hasta autenticación de 2.613,9 frente a 1.517,5 ms. Los diez ingresos
+terminaron con el censo visible y se comprobó sesión/censo después de recargar.
+Se conservaron los accesos lentos: el primero observado en Santiago tardó
+8.949 ms. La muestra es de un Mac/red con carga variable, compara región y
+generación a la vez y no acredita arranque frío, p95 ni una mejora numérica de
+pintura del censo. Los picos iniciales siguen pendientes.

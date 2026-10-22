@@ -126,6 +126,17 @@
       ]
     },
     {
+      "id": "nursing_signInWithRutSantiago",
+      "functionFile": "functions/lib/accounts/accountSantiagoFunction.js",
+      "endpoint": "signInWithRutSantiago",
+      "testFiles": [
+        "src/tests/functions/accountFunctionsRegions.test.ts",
+        "src/tests/functions/accountSantiagoFunction.test.ts",
+        "src/tests/functions/nursingAccounts.test.ts",
+        "src/tests/emulator/nursing-accounts.emulator.test.ts"
+      ]
+    },
+    {
       "id": "nursing_changeNursingPassword",
       "functionFile": "functions/lib/accounts/accountFunctions.js",
       "endpoint": "changeNursingPassword",

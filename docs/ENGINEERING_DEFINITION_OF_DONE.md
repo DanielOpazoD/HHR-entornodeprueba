@@ -105,3 +105,19 @@ auth runtime se exige `ci:merge-gate`, `test:release-confidence`, revisión
 independiente y CI del head definitivo. La regresión del handler real debe
 confirmar signOut, limpieza del propietario y conservación de trabajo pendiente
 con BroadcastChannel fallido, sin modificar autoridad clínica ni CUDYR.
+
+### Ruta regional de acceso RUT · 22-10-2026
+
+Para cambiar la ruta regional RUT, comprobar el endpoint Gen2
+`signInWithRutSantiago`, su identidad de servicio Appspot explícita y la
+compatibilidad HTTP con el callable Gen1: datos/respuesta, CORS, autorización,
+entrada inválida y errores. Probar que el valor predeterminado Santiago se limita
+al proyecto exacto `hhr-pruebas`, que US/East/West se seleccionan sólo mediante la
+allowlist y que un flag inválido usa US. Conservar otros callables, recuperación,
+sesión y CUDYR; una respuesta incierta no autoriza fallback ni otro envío.
+
+La aceptación de rendimiento debe conservar todas las muestras y distinguir
+medianas, primeros accesos observados, región y generación. Los cinco pares de
+la prueba regional orientan el rollout de pruebas; no garantizan arranque frío,
+p95 ni tiempo de pintura del censo. Verificar disponibilidad del endpoint y
+sesión/censo después de recargar por separado del CI o merge.

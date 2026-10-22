@@ -40,8 +40,24 @@ export const callAccount = async <T>(
   name: string,
   data: Record<string, unknown> = {}
 ): Promise<T> => {
-  const functions = await defaultFunctionsRuntime.getFunctions();
-  const response = await httpsCallable<Record<string, unknown>, T>(functions, name, {
+  const requestedRegion = import.meta.env.VITE_ACCOUNT_FUNCTIONS_REGION;
+  const defaultRegion =
+    import.meta.env.VITE_FIREBASE_PROJECT_ID === 'hhr-pruebas'
+      ? 'southamerica-west1'
+      : 'us-central1';
+  const signInRegion =
+    requestedRegion === undefined || requestedRegion === ''
+      ? defaultRegion
+      : requestedRegion === 'southamerica-east1' || requestedRegion === 'southamerica-west1'
+        ? requestedRegion
+        : 'us-central1';
+  const regionalSignIn = name === 'signInWithRut' && signInRegion !== 'us-central1';
+  const functions = regionalSignIn
+    ? await defaultFunctionsRuntime.getRegionalFunctions(signInRegion)
+    : await defaultFunctionsRuntime.getFunctions();
+  const callableName =
+    regionalSignIn && signInRegion === 'southamerica-west1' ? 'signInWithRutSantiago' : name;
+  const response = await httpsCallable<Record<string, unknown>, T>(functions, callableName, {
     timeout: 60000,
   })(data);
   return response.data;

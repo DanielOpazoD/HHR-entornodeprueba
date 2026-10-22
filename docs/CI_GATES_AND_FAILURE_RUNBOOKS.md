@@ -1286,3 +1286,40 @@ pendiente de enfermería y no elimina su cola. Ejecutar también
 Los mensajes SYNC_COMPLETED y el helper getAuthBootstrapTimeoutMs se retiraron
 tras comprobar que no tenían consumidores de ejecución. No se cambia la política
 de revocación ni se ignoran fallos de Firebase como si fueran éxitos.
+
+## Ruta regional de acceso RUT
+
+Si falla el ingreso después de cambiar de región, comprobar primero el proyecto
+del cliente y su `VITE_ACCOUNT_FUNCTIONS_REGION`. Sin flag o con valor vacío,
+sólo `VITE_FIREBASE_PROJECT_ID=hhr-pruebas` selecciona Santiago. Otros proyectos
+usan US. Los valores válidos son `us-central1`, `southamerica-east1` y
+`southamerica-west1`; un valor inválido usa US y nunca se interpreta como URL.
+
+Verificar disponibilidad y configuración de `signInWithRutSantiago` en
+`southamerica-west1`: Gen2, cuenta de servicio Appspot del proyecto explícita,
+256 MiB, CPU equivalente Gen1, concurrencia 1, mínimo 0, máximo 10 instancias y
+60 segundos. El endpoint conserva el protocolo del callable Gen1, incluidos
+CORS/preflight, autorización, rechazo de input y errores públicos. Un error de
+invocación del transporte no se arregla omitiendo la validación de cuenta ni
+ampliando IAM de proyecto. Conservar `signInWithRut` US/São Paulo y las rutas de
+administración, activación y recuperación.
+
+Para volver a US en el cliente de pruebas, fijar explícitamente
+`VITE_ACCOUNT_FUNCTIONS_REGION=us-central1` y reconstruir/reiniciar ese cliente;
+quitar el flag vuelve al default Santiago. No hay fallback automático ante un
+timeout o una respuesta perdida: no reenviar la misma operación a otra región.
+No borrar sesión, cachés, colas ni datos para diagnosticar disponibilidad.
+
+Feedback focalizado:
+
+```sh
+npx vitest run --maxWorkers=1 \
+  src/tests/functions/accountFunctionsRegions.test.ts \
+  src/tests/functions/accountSantiagoFunction.test.ts \
+  src/tests/services/auth/nursingAccountRegion.test.ts
+```
+
+Mantener cobertura sensible, ciclo de vida de cuentas y emuladores;
+estos tests no sustituyen los gates de runtime crítico ni la prueba desplegada.
+Comparar ingresos intercalados sin descartar accesos lentos; la evidencia de cinco
+pares no convierte el primer acceso observado en arranque frío ni acredita p95.

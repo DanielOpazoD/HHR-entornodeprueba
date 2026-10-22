@@ -112,6 +112,25 @@ El transporte limita intentos por cuenta/IP, usa destino fijo y nunca registra
 contraseñas, códigos o cuerpos del proveedor. Los callables usan el envelope de
 Firebase, límite de 60 segundos y errores públicos genéricos.
 
+`signInWithRutSantiago` conserva ese mismo callable dentro de un adaptador HTTP
+Gen2 en `southamerica-west1`; no implementa otra ruta de validación de cuenta.
+Mantiene envelope de datos/respuesta, CORS/preflight, contexto de autorización,
+rechazo de entrada inválida y errores `HttpsError`. La cuenta de servicio Appspot
+del proyecto es explícita; memoria 256 MiB, CPU `gcf_gen1`, concurrencia 1,
+mínimo 0, máximo 10 instancias y timeout de 60 segundos. El transporte invocable
+no reemplaza la validación de credenciales y estado de la cuenta.
+
+El cliente selecciona Santiago por defecto sólo en `hhr-pruebas`; los overrides
+US/São Paulo/Santiago tienen allowlist y un valor inválido usa US. Ante un fallo
+no repite el ingreso en otro endpoint. `signInWithRut` conserva sus endpoints
+Gen1 US/São Paulo para compatibilidad; los otros callables de cuentas y el correo
+de recuperación no cambian de región.
+
+Pruebas específicas: `accountFunctionsRegions.test.ts`,
+`accountSantiagoFunction.test.ts` y `nursingAccountRegion.test.ts`. El protocolo
+HTTP se prueba con el SDK real, incluidos preflight, autorización malformada y
+errores estructurados; se conserva el ciclo de vida/emulador de cuentas existente.
+
 Pruebas: ciclo de vida y transporte, Auth/Firestore/Storage emulados y Chromium
 con datos sintéticos. El puente del navegador ejecuta handlers de producción;
 no sustituye la validación de CORS o Functions desplegadas. Contrato operativo:
