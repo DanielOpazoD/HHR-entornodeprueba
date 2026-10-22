@@ -45,6 +45,15 @@ No implementar fallback a otra región tras una respuesta ambigua: los reintento
 clínicos conservan su política y recibos existentes. Para rollback, revertir solo
 el enrutamiento del cliente; el endpoint de Estados Unidos sigue disponible.
 
+La ayuda del login ofrece una recarga normal, no una reparación por borrado.
+Ante un acceso que no responde, confirmar que la recarga conserva IndexedDB,
+Web Storage, cachés y la cola no confirmada. Cancelar debe mantener credenciales
+y errores; mientras se decide, no debe enviar el formulario ni iniciar Google.
+Validar `LoginPageCard.test.tsx` y `auth-login-resilience.spec.ts` con datos sintéticos,
+además de `ci:merge-gate`, `test:release-confidence`, revisión independiente y CI
+del head final. Hasta completar esos gates, el cierre sigue pendiente. Las APIs
+de mantenimiento y la recuperación de bootstrap conservan sus propios recorridos.
+
 ## Objetivo
 
 Definir una ruta corta para desarrollo diario y una ruta blocking para merge/release sin duplicar checks caros.

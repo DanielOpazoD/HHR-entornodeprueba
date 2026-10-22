@@ -23,7 +23,6 @@ const arrangeLoginController = (isDayGradient: boolean) => {
     isDayGradient,
     canRetryGoogleSignIn: false,
     handleGoogleSignIn: vi.fn(),
-    handleLocalResetStart: vi.fn(),
     toggleBackgroundMode: vi.fn(),
   });
 };

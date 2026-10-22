@@ -5,6 +5,7 @@ import { AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 import { useConfirmDialog } from '@/context/UIContext';
 import { LoginCardFrame } from '@/components/ui/LoginScreenLayout';
 import { AUTH_UI_COPY } from '@/services/auth/authUiCopy';
+import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
 import NursingAccessForm from './NursingAccessForm';
 
 interface LoginPageCardProps {
@@ -18,7 +19,6 @@ interface LoginPageCardProps {
   canRetryGoogleSignIn?: boolean;
   onGoogleSignIn: () => void | Promise<void>;
   onGoogleCredential?: (idToken: string, isCurrent: () => boolean) => Promise<void>;
-  onLocalResetStart?: () => void;
 }
 
 const GoogleIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -52,37 +52,35 @@ export const LoginPageCard: React.FC<LoginPageCardProps> = ({
   canRetryGoogleSignIn = false,
   onGoogleSignIn,
   onGoogleCredential,
-  onLocalResetStart,
 }) => {
   const { confirm } = useConfirmDialog();
-  const [isResetting, setIsResetting] = useState(false);
-  const [resetError, setResetError] = useState<string | null>(null);
-  const locked = isAnyLoading || isResetting;
+  const [isReloading, setIsReloading] = useState(false);
+  const [reloadError, setReloadError] = useState<string | null>(null);
+  const locked = isAnyLoading || isGoogleLoading || isReloading;
   const [showIdentity, setShowIdentity] = useState(
     Boolean(onGoogleCredential && import.meta.env.VITE_GOOGLE_SIGN_IN_CLIENT_ID)
   );
   const useFallback = useCallback(() => setShowIdentity(false), []);
-  const handleResetLocalSession = async () => {
+  const handleReload = async () => {
     if (locked) return;
-    setIsResetting(true);
-    setResetError(null);
+    setIsReloading(true);
+    setReloadError(null);
     try {
       const confirmed = await confirm({
-        title: AUTH_UI_COPY.resetStorageTitle,
-        message: AUTH_UI_COPY.resetStorageConfirm,
-        confirmText: AUTH_UI_COPY.resetStorageConfirmAction,
+        title: AUTH_UI_COPY.reloadApplicationAction,
+        message: AUTH_UI_COPY.reloadApplicationConfirm,
+        confirmText: AUTH_UI_COPY.reloadApplicationAction,
         cancelText: 'Volver',
         variant: 'info',
       });
       if (!confirmed) return;
-      const { resetLocalAppStorage } =
-        await import('@/services/storage/indexeddb/indexedDbMaintenanceService');
-      onLocalResetStart?.();
-      await resetLocalAppStorage();
+      defaultBrowserWindowRuntime.reload();
     } catch {
-      setResetError('No se pudo completar el reinicio. Vuelve a intentarlo.');
+      setReloadError(
+        'No se pudo recargar. Inténtalo nuevamente o usa el botón de recarga del navegador.'
+      );
     } finally {
-      setIsResetting(false);
+      setIsReloading(false);
     }
   };
 
@@ -94,7 +92,7 @@ export const LoginPageCard: React.FC<LoginPageCardProps> = ({
             <NursingAccessForm
               onSuccess={onIndividualLoginSuccess}
               onBusyChange={onIndividualBusyChange}
-              disabled={isGoogleLoading || isResetting}
+              disabled={isGoogleLoading || isReloading}
             />
           )}
 
@@ -148,21 +146,21 @@ export const LoginPageCard: React.FC<LoginPageCardProps> = ({
             </summary>
             <div className="pb-1 pt-1">
               <p className="max-w-sm leading-5 text-stone-600">
-                Si el acceso no responde, revisa las opciones de reinicio local.
+                {AUTH_UI_COPY.reloadApplicationHint}
               </p>
               <button
                 type="button"
-                onClick={() => void handleResetLocalSession()}
+                onClick={() => void handleReload()}
                 disabled={locked}
-                data-testid="login-reset-local-button"
+                data-testid="login-reload-button"
                 className="mt-3 inline-flex items-center justify-center gap-2 rounded-lg border border-stone-300 bg-white px-3 py-2 text-[11px] font-semibold text-stone-700 transition hover:border-stone-400 hover:bg-stone-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:text-stone-400"
               >
-                <RefreshCw className={`h-3.5 w-3.5 ${isResetting ? 'animate-spin' : ''}`} />
-                {isResetting ? 'Reiniciando…' : AUTH_UI_COPY.resetStorageAction}
+                <RefreshCw className={`h-3.5 w-3.5 ${isReloading ? 'animate-spin' : ''}`} />
+                {isReloading ? 'Recargando…' : AUTH_UI_COPY.reloadApplicationAction}
               </button>
-              {resetError && (
+              {reloadError && (
                 <p role="alert" className="mt-2 text-red-700">
-                  {resetError}
+                  {reloadError}
                 </p>
               )}
             </div>
@@ -206,6 +204,7 @@ export const LoginPageCard: React.FC<LoginPageCardProps> = ({
                 <button
                   type="button"
                   onClick={() => void onGoogleSignIn()}
+                  disabled={locked}
                   className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-amber-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-amber-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700"
                   data-testid="login-retry-button"
                 >

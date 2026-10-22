@@ -1,4 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
+import { bootstrapSeededRecord, buildCanonicalE2ERecord, clearAuth } from './fixtures/auth';
+import type { SyncTask } from '../src/services/storage/syncQueueTypes';
 
 const expectLoginError = async (page: Page, code: string) => {
   const alertByTestId = page.getByTestId('login-error-alert');
@@ -176,67 +178,136 @@ test.describe('Auth login resilience matrix', () => {
     await expectLoginIdle(page);
   });
 
-  test('local reset clears browser app traces and returns to a clean login screen', async ({
-    page,
-  }) => {
-    await page.evaluate(async () => {
-      window.localStorage.setItem('hhr_login_background_mode', 'night');
-      window.localStorage.setItem('firebase:authUser:test:[DEFAULT]', '{"uid":"abc"}');
-      window.localStorage.setItem('unrelated_local_key', 'remove-me');
-      window.sessionStorage.setItem('hhr_google_login_attempt_pending', String(Date.now()));
-      window.sessionStorage.setItem('unrelated_session_key', 'remove-me');
-
-      if ('caches' in window) {
-        await window.caches.delete('hhr-reset-smoke-cache');
-        const cache = await window.caches.open('hhr-reset-smoke-cache');
-        await cache.put('/hhr-reset-smoke', new Response('ok'));
-      }
-    });
-
-    await page.locator('summary').filter({ hasText: 'Ayuda de acceso' }).click();
-    await page.getByTestId('login-reset-local-button').click();
-    await page.getByRole('button', { name: 'Reiniciar ahora' }).click();
-    await expect(page.getByTestId('login-google-button')).toBeVisible();
-    await page.waitForLoadState('domcontentloaded').catch(() => undefined);
-
-    await expect
-      .poll(
-        async () => {
-          try {
-            return await page.evaluate(async () => ({
-              hasSeededLocalKeys:
-                window.localStorage.getItem('hhr_login_background_mode') !== null ||
-                window.localStorage.getItem('firebase:authUser:test:[DEFAULT]') !== null ||
-                window.localStorage.getItem('unrelated_local_key') !== null,
-              hasSeededSessionKeys:
-                window.sessionStorage.getItem('hhr_google_login_attempt_pending') !== null ||
-                window.sessionStorage.getItem('unrelated_session_key') !== null,
-              resetCacheStillPresent:
-                'caches' in window
-                  ? (await window.caches.keys()).includes('hhr-reset-smoke-cache')
-                  : false,
-              errorVisible: Boolean(document.querySelector('[data-testid="login-error-alert"]')),
-            }));
-          } catch (error) {
-            if (!isNavigationContextReset(error)) {
-              throw error;
-            }
-            return {
-              hasSeededLocalKeys: true,
-              hasSeededSessionKeys: true,
-              resetCacheStillPresent: true,
-              errorVisible: true,
-            };
-          }
-        },
-        { timeout: 5000 }
-      )
-      .toMatchObject({
-        hasSeededLocalKeys: false,
-        hasSeededSessionKeys: false,
-        resetCacheStillPresent: false,
-        errorVisible: false,
+  test('reload preserves local work and returns to a usable login', async ({ page: warmup }) => {
+    const context = warmup.context();
+    try {
+      await bootstrapSeededRecord(warmup, {
+        date: '2026-02-20',
+        record: buildCanonicalE2ERecord('2026-02-20'),
+        useRuntimeOverride: false,
+        forceLocalOnlySync: true,
       });
+      await warmup.goto('/census?date=2026-02-20');
+      await expect(warmup.getByTestId('census-table')).toBeVisible({ timeout: 15000 });
+      await expect
+        .poll(() =>
+          warmup.evaluate(async () =>
+            (await indexedDB.databases()).some(db => db.name === 'HangaRoaDB')
+          )
+        )
+        .toBe(true);
+    } finally {
+      await warmup.close();
+    }
+    const page = await context.newPage();
+    await page.goto('/');
+    await clearAuth(page);
+    await page.reload();
+    await expect(page.getByLabel('Usuario', { exact: true })).toBeEnabled();
+    const pendingTask = {
+      opId: 'synthetic-reload-unconfirmed',
+      ownerKey: 'synthetic-reload-owner',
+      type: 'UPDATE_DAILY_RECORD',
+      payload: { date: '2026-02-20' },
+      timestamp: Date.now(),
+      retryCount: 3,
+      status: 'FAILED',
+      error: 'Synthetic validation failure',
+    } satisfies SyncTask;
+    const pendingId = await page.evaluate(
+      task =>
+        new Promise<number>((resolve, reject) => {
+          const request = indexedDB.open('HangaRoaDB');
+          request.onupgradeneeded = () => request.transaction?.abort();
+          request.onerror = () => reject(request.error);
+          request.onsuccess = () => {
+            const db = request.result;
+            const tx = db.transaction('syncQueue', 'readwrite');
+            const insert = tx.objectStore('syncQueue').add(task);
+            tx.oncomplete = () => {
+              db.close();
+              if (typeof insert.result !== 'number') {
+                reject(new Error('The synthetic queue task must have a numeric key'));
+                return;
+              }
+              resolve(insert.result);
+            };
+            tx.onabort = tx.onerror = () => {
+              db.close();
+              reject(tx.error);
+            };
+          };
+        }),
+      pendingTask
+    );
+    await page.evaluate(async () => {
+      localStorage.setItem('hhr_login_background_mode', 'night');
+      localStorage.setItem('firebase:authUser:synthetic:[DEFAULT]', '{"uid":"synthetic"}');
+      localStorage.setItem(
+        'offlineQueue',
+        JSON.stringify([{ key: 'synthetic-pending', status: 'FAILED' }])
+      );
+      sessionStorage.setItem('hhr_reload_note', 'keep-synthetic-note');
+      const cache = await caches.open('hhr-reload-synthetic-cache');
+      await cache.put('/hhr-reload-synthetic', new Response('synthetic'));
+    });
+    const before = await page.evaluate(() => performance.timeOrigin);
+    await page.locator('summary').filter({ hasText: 'Ayuda de acceso' }).click();
+    await page.getByTestId('login-reload-button').click();
+    await page.getByRole('button', { name: 'Recargar aplicación', exact: true }).click();
+    await expect
+      .poll(async () => {
+        try {
+          return await page.evaluate(() => performance.timeOrigin);
+        } catch (error) {
+          if (!isNavigationContextReset(error)) throw error;
+          return before;
+        }
+      })
+      .toBeGreaterThan(before);
+    // The synthetic Firebase hint allows the existing 15s rehydration budget.
+    await expect(page.getByTestId('login-google-button')).toBeVisible({ timeout: 20000 });
+    await expect(page.getByLabel('Usuario', { exact: true })).toBeEnabled();
+    const restoredTask = await page.evaluate(
+      id =>
+        new Promise<unknown>((resolve, reject) => {
+          const request = indexedDB.open('HangaRoaDB');
+          request.onupgradeneeded = () => request.transaction?.abort();
+          request.onerror = () => reject(request.error);
+          request.onsuccess = () => {
+            const db = request.result;
+            const tx = db.transaction('syncQueue', 'readonly');
+            const read = tx.objectStore('syncQueue').get(id);
+            tx.oncomplete = () => {
+              db.close();
+              resolve(read.result);
+            };
+            tx.onabort = tx.onerror = () => {
+              db.close();
+              reject(tx.error);
+            };
+          };
+        }),
+      pendingId
+    );
+    expect(restoredTask).toEqual({ ...pendingTask, id: pendingId });
+    expect(
+      await page.evaluate(async () => ({
+        background: localStorage.getItem('hhr_login_background_mode'),
+        auth: localStorage.getItem('firebase:authUser:synthetic:[DEFAULT]'),
+        pending: JSON.parse(localStorage.getItem('offlineQueue') || 'null'),
+        note: sessionStorage.getItem('hhr_reload_note'),
+        cache: await (await caches.open('hhr-reload-synthetic-cache'))
+          .match('/hhr-reload-synthetic')
+          .then(response => response?.text()),
+      }))
+    ).toEqual({
+      background: 'night',
+      auth: '{"uid":"synthetic"}',
+      pending: [{ key: 'synthetic-pending', status: 'FAILED' }],
+      note: 'keep-synthetic-note',
+      cache: 'synthetic',
+    });
   });
 
   test('retry after transient popup failure succeeds', async ({ page }) => {
