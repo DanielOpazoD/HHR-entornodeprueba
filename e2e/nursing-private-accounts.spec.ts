@@ -160,9 +160,10 @@ test('initial RUT access, password visibility, mandatory setup and email recover
     const checksBeforeReload = successfulRoleChecks;
     await page.reload();
     await expect(menu).toBeVisible();
-    // Wait for the restored session's initial monitor lookup before advancing its clock.
-    await expect.poll(() => successfulRoleChecks).toBeGreaterThan(checksBeforeReload + 1);
+    // Bootstrap and the initial monitor share one authorization; polling stays fresh below.
+    await expect.poll(() => successfulRoleChecks).toBe(checksBeforeReload + 1);
     await page.clock.runFor(100);
+    expect(successfulRoleChecks).toBe(checksBeforeReload + 1);
 
     // A live revocation must use canonical logout: hide the clinical session,
     // clear private caches, and preserve pending work under its original owner.
