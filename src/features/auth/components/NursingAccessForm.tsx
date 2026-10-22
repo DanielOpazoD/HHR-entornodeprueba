@@ -38,6 +38,8 @@ export default function NursingAccessForm({ onSuccess, disabled, onBusyChange }:
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [showFirstLoginHelp, setShowFirstLoginHelp] = useState(false);
+  const firstLoginHelpId = useId();
   const choosingPassword = ['activation', 'setup', 'reset'].includes(mode);
   const registering = mode === 'activation' || mode === 'setup';
   const changeMode = (next: Mode) => {
@@ -49,6 +51,7 @@ export default function NursingAccessForm({ onSuccess, disabled, onBusyChange }:
     setActivationToken('');
     setChallengeId('');
     setEmail('');
+    setShowFirstLoginHelp(false);
   };
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -118,11 +121,11 @@ export default function NursingAccessForm({ onSuccess, disabled, onBusyChange }:
     <form
       onSubmit={submit}
       autoComplete="off"
-      className="space-y-3 text-sm text-white"
+      className="space-y-2.5 text-sm text-slate-800"
       aria-label="Ingreso con usuario y contraseña"
     >
       {mode !== 'login' && (
-        <p className="font-semibold">
+        <p className="rounded-xl border border-teal-100 bg-teal-50 px-3.5 py-3 font-semibold text-teal-950">
           {mode === 'setup'
             ? 'Primer ingreso: cambia tu clave'
             : mode === 'request' || mode === 'reset'
@@ -132,7 +135,13 @@ export default function NursingAccessForm({ onSuccess, disabled, onBusyChange }:
                 : 'Acceso individual'}
         </p>
       )}
-      <label className="block">
+      {mode === 'activation' && (
+        <p className="text-xs leading-5 text-stone-600">
+          Si administración te entregó un código, ingrésalo aquí. Si no lo tienes, vuelve al ingreso
+          y usa los números de tu RUT, sin dígito verificador, como clave inicial.
+        </p>
+      )}
+      <label className="block font-medium text-slate-800">
         Usuario
         <input
           className={input}
@@ -148,11 +157,11 @@ export default function NursingAccessForm({ onSuccess, disabled, onBusyChange }:
           spellCheck={false}
         />
       </label>
-      <p id={usernameHintId} className="text-xs text-white/75">
+      <p id={usernameHintId} className="mt-1! text-xs leading-5 text-stone-600">
         RUT con dígito verificador, sin puntos ni guion.
       </p>
       {(mode === 'activation' || mode === 'reset') && (
-        <label className="block">
+        <label className="block font-medium text-slate-800">
           {mode === 'reset' ? 'Código de recuperación' : 'Código privado de activación'}
           <input
             className={input}
@@ -168,13 +177,16 @@ export default function NursingAccessForm({ onSuccess, disabled, onBusyChange }:
         </label>
       )}
       {mode === 'reset' && (
-        <p role="status">
+        <p
+          role="status"
+          className="rounded-xl border border-stone-200 bg-stone-50 p-3 text-xs leading-5 text-stone-600"
+        >
           Si la cuenta tiene correo registrado, recibirás un código válido por 10 minutos. Revisa
           también correo no deseado. Si no llega, solicita otro o contacta al administrador.
         </p>
       )}
       {mode !== 'request' && (
-        <label className="block">
+        <label className="block font-medium text-slate-800">
           {choosingPassword ? 'Elige tu clave personal' : 'Contraseña'}
           <PasswordInput
             key={mode}
@@ -192,8 +204,8 @@ export default function NursingAccessForm({ onSuccess, disabled, onBusyChange }:
       )}
       {choosingPassword && (
         <>
-          <p className="text-xs text-white/80">{NURSING_PASSWORD_HINT}</p>
-          <label className="block">
+          <p className="text-xs leading-5 text-stone-600">{NURSING_PASSWORD_HINT}</p>
+          <label className="block font-medium text-slate-800">
             Repite tu nueva clave
             <PasswordInput
               aria-label="Repite tu nueva clave"
@@ -210,7 +222,7 @@ export default function NursingAccessForm({ onSuccess, disabled, onBusyChange }:
         </>
       )}
       {registering && (
-        <label className="block">
+        <label className="block font-medium text-slate-800">
           Correo de recuperación
           <input
             className={input}
@@ -225,7 +237,7 @@ export default function NursingAccessForm({ onSuccess, disabled, onBusyChange }:
         </label>
       )}
       {error && (
-        <p role="alert" className="rounded bg-red-950/50 p-2">
+        <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-red-800">
           {error}
         </p>
       )}
@@ -238,16 +250,26 @@ export default function NursingAccessForm({ onSuccess, disabled, onBusyChange }:
               ? 'Establecer clave e ingresar'
               : 'Ingresar'}
       </button>
-      <div className="flex flex-wrap justify-between gap-x-4 gap-y-2 text-xs">
+      <div className="flex flex-wrap justify-between gap-x-4 gap-y-2 text-xs text-stone-600">
         {mode === 'login' ? (
           <>
             <button
               type="button"
               disabled={locked}
               onClick={() => changeMode('request')}
-              className="underline underline-offset-4"
+              className="font-medium text-teal-800 underline decoration-teal-800/35 underline-offset-4 transition hover:text-teal-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
             >
               Olvidé mi contraseña
+            </button>
+            <button
+              type="button"
+              disabled={locked}
+              onClick={() => setShowFirstLoginHelp(visible => !visible)}
+              aria-expanded={showFirstLoginHelp}
+              aria-controls={firstLoginHelpId}
+              className="font-medium text-teal-800 underline decoration-teal-800/35 underline-offset-4 transition hover:text-teal-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+            >
+              Primer ingreso
             </button>
           </>
         ) : (
@@ -255,7 +277,7 @@ export default function NursingAccessForm({ onSuccess, disabled, onBusyChange }:
             type="button"
             disabled={locked}
             onClick={() => changeMode('login')}
-            className="underline underline-offset-4"
+            className="font-medium text-teal-800 underline decoration-teal-800/35 underline-offset-4 transition hover:text-teal-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
           >
             Volver al ingreso
           </button>
@@ -265,28 +287,30 @@ export default function NursingAccessForm({ onSuccess, disabled, onBusyChange }:
             type="button"
             disabled={locked}
             onClick={() => changeMode('request')}
-            className="underline underline-offset-4"
+            className="font-medium text-teal-800 underline decoration-teal-800/35 underline-offset-4 transition hover:text-teal-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
           >
             Solicitar otro código
           </button>
         )}
       </div>
-      {mode === 'login' && (
-        <details className="text-xs leading-relaxed text-white/75">
-          <summary className="cursor-pointer py-1">¿Es tu primer ingreso?</summary>
-          <p className="mt-2">
-            Usa los números de tu RUT, sin dígito verificador, como clave inicial. Deberás cambiarla
-            y registrar tu correo antes de entrar.
+      {mode === 'login' && showFirstLoginHelp && (
+        <div
+          id={firstLoginHelpId}
+          className="rounded-xl border border-teal-100 bg-teal-50 p-3 text-xs leading-5 text-teal-950"
+        >
+          <p>
+            Si es tu primera vez, ingresa con tu RUT como usuario y usa los números del RUT, sin
+            dígito verificador, como clave inicial.
           </p>
           <button
             type="button"
             disabled={locked}
             onClick={() => changeMode('activation')}
-            className="mt-2 underline underline-offset-4"
+            className="mt-2 font-semibold text-teal-800 underline decoration-teal-800/35 underline-offset-4 transition hover:text-teal-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
           >
             Tengo un código de activación
           </button>
-        </details>
+        </div>
       )}
     </form>
   );

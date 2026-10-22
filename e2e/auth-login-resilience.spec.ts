@@ -193,7 +193,7 @@ test.describe('Auth login resilience matrix', () => {
       }
     });
 
-    await page.getByText('Ayuda de acceso', { exact: true }).click();
+    await page.locator('summary').filter({ hasText: 'Ayuda de acceso' }).click();
     await page.getByTestId('login-reset-local-button').click();
     await page.getByRole('button', { name: 'Reiniciar ahora' }).click();
     await expect(page.getByTestId('login-google-button')).toBeVisible();
