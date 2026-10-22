@@ -39,17 +39,24 @@ vi.mock('../../services/storage/indexeddb/indexedDbAuditLogService', () => ({
   getAuditLogsInRange: vi.fn(),
 }));
 
-const { mockAuditUtils } = vi.hoisted(() => ({
-  mockAuditUtils: {
-    getCurrentUserEmail: vi.fn(() => 'tester@hospital.cl'),
-    getCurrentUserDisplayName: vi.fn(),
-    getCurrentUserUid: vi.fn(),
-    getCachedIpAddress: vi.fn(),
-    fetchAndCacheIpAddress: vi.fn(),
-  },
-}));
+const { mockAuditUtils } = vi.hoisted(() => {
+  const getCurrentUserEmail = vi.fn(() => 'tester@hospital.cl');
+  return {
+    mockAuditUtils: {
+      getCurrentUserEmail,
+      getCurrentUserDisplayName: vi.fn(),
+      getCurrentUserUid: vi.fn(),
+      getCurrentAuditSession: vi.fn(() => ({ uid: 'uid-tester', email: getCurrentUserEmail() })),
+      getCachedIpAddress: vi.fn(),
+      fetchAndCacheIpAddress: vi.fn(),
+    },
+  };
+});
 
-vi.mock('../../services/admin/utils/auditUtils', () => mockAuditUtils);
+vi.mock('../../services/admin/utils/auditUtils', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/admin/utils/auditUtils')>()),
+  ...mockAuditUtils,
+}));
 
 describe('AuditService Coverage', () => {
   beforeEach(() => {
@@ -68,7 +75,7 @@ describe('AuditService Coverage', () => {
     vi.mocked(setDoc).mockRejectedValue(new Error('Firestore Offline'));
     const spyConsole = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    await auditService.logAuditEvent('user1', 'PATIENT_MODIFIED', 'patient', 'R1', {
+    await auditService.logAuditEvent('tester@hospital.cl', 'PATIENT_MODIFIED', 'patient', 'R1', {
       patientName: 'Paciente',
     });
 
@@ -85,7 +92,7 @@ describe('AuditService Coverage', () => {
     vi.mocked(setDoc).mockResolvedValue(undefined);
 
     await auditService.logAuditEvent(
-      'user1',
+      'tester@hospital.cl',
       'PATIENT_MODIFIED',
       'patient',
       'R1',

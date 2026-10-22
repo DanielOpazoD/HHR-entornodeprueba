@@ -10,9 +10,9 @@ import {
 } from '@/services/storage/indexeddb/indexedDbAuditLogService';
 import {
   getCachedIpAddress,
-  getCurrentUserDisplayName,
+  getCurrentAuditSession,
   getCurrentUserEmail,
-  getCurrentUserUid,
+  isAuditSessionActor,
 } from './utils/auditUtils';
 import { getActiveHospitalId } from '@/constants/firestorePaths';
 import { auditCoreLogger } from '@/services/admin/adminLoggers';
@@ -223,7 +223,19 @@ export const createAuditCoreService = (
     recordDate,
     authors
   ): Promise<AuditWriteDelivery> => {
-    const userUid = getCurrentUserUid();
+    // Only the signed-in user writes events, and only in their own name: an action whose author
+    // is no longer signed in here (session ended or replaced) is never recorded under the next
+    // person. The rules refuse such a write too (canCreateOwnAuditLogEntry).
+    const session = getCurrentAuditSession();
+    if (!session || !isAuditSessionActor(userId, session)) {
+      auditCoreLogger.warn('Audit event not written: its author is not the signed-in user', {
+        action,
+        entityType,
+        entityId,
+      });
+      return 'rejected';
+    }
+    const userUid = session.uid;
     const storage = device.connectionStorage();
     const withDocument = patientRut && !details.rut ? { ...details, rut: patientRut } : details;
 
@@ -231,8 +243,8 @@ export const createAuditCoreService = (
       id: generateAuditId(),
       timestamp: new Date().toISOString(),
       schemaVersion: AUDIT_SCHEMA_VERSION,
-      userId,
-      userDisplayName: getCurrentUserDisplayName(),
+      userId: session.email ?? session.uid,
+      userDisplayName: session.displayName,
       userUid,
       ipAddress: getCachedIpAddress(),
       action,
@@ -257,7 +269,10 @@ export const createAuditCoreService = (
   const deliverQueued = async (storage: AuditConnectionOutboxStorage): Promise<void> => {
     // Only Firestore delivers: with remote sync off, a local copy would empty the queue for good.
     if (!syncPolicy.shouldUseRemoteAuditSync()) return;
+    const authorUid = getCurrentAuditSession()?.uid;
     for (const item of readAuditConnectionOutbox(storage)) {
+      // Each event is written by its own author's session; another person's waits for theirs.
+      if (!authorUid || item.entry.userUid !== authorUid) continue;
       const landedBefore = item.sentAt !== undefined;
       markAuditConnectionEntrySent(storage, item.entry.id, Date.now());
       const delivery = await writeRemote(item.entry);

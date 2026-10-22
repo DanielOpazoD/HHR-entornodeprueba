@@ -98,7 +98,18 @@ describe('audit connection runtime', () => {
     ]);
   });
 
-  it('writes a connection event directly when the device cannot keep it', async () => {
+  it('writes a connection event directly when the device cannot keep it, only its own', async () => {
+    // Another person's connection was left open on this device: its end belongs to them.
+    localStorage.setItem(
+      AUDIT_CONNECTION_STORAGE_KEY,
+      JSON.stringify({
+        id: 'previous-person',
+        uid: 'uid-other',
+        email: 'otra.persona@hospital.test',
+        startedAt: Date.parse('2026-10-21T10:00:00.000Z'),
+        lastSeenAt: Date.parse('2026-10-21T11:00:00.000Z'),
+      })
+    );
     // The test setup gives localStorage a vi.fn store; refuse only the outbox key.
     const setItem = vi.mocked(localStorage.setItem);
     const keep = setItem.getMockImplementation();
@@ -116,6 +127,10 @@ describe('audit connection runtime', () => {
     }
 
     expect(localStorage.getItem(AUDIT_CONNECTION_STORAGE_KEY)).not.toBeNull();
+    // Only the nurse's own start is written by her session; the other person's end is not.
+    expect(vi.mocked(writeAuditConnectionEntry).mock.calls.map(([entry]) => entry.userUid)).toEqual(
+      ['uid-nurse']
+    );
     expect(writeAuditConnectionEntry).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'USER_LOGIN' })
     );

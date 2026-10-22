@@ -56,13 +56,22 @@ vi.mock('../../services/storage/indexeddb/indexedDbAuditLogService', () => ({
 }));
 
 // Mock audit utils
-vi.mock('../../services/admin/utils/auditUtils', () => ({
-  getCurrentUserEmail: vi.fn(() => 'tester@hospital.cl'),
-  getCurrentUserDisplayName: vi.fn(() => 'Tester Account'),
-  getCurrentUserUid: vi.fn(() => 'uid-123'),
-  getCachedIpAddress: vi.fn(() => '127.0.0.1'),
-  fetchAndCacheIpAddress: vi.fn().mockResolvedValue('127.0.0.1'),
-}));
+vi.mock('../../services/admin/utils/auditUtils', async importOriginal => {
+  const getCurrentUserEmail = vi.fn(() => 'tester@hospital.cl');
+  return {
+    ...(await importOriginal<typeof import('@/services/admin/utils/auditUtils')>()),
+    getCurrentUserEmail,
+    getCurrentUserDisplayName: vi.fn(() => 'Tester Account'),
+    getCurrentUserUid: vi.fn(() => 'uid-123'),
+    getCurrentAuditSession: vi.fn(() => ({
+      uid: 'uid-123',
+      email: getCurrentUserEmail(),
+      displayName: 'Tester Account',
+    })),
+    getCachedIpAddress: vi.fn(() => '127.0.0.1'),
+    fetchAndCacheIpAddress: vi.fn().mockResolvedValue('127.0.0.1'),
+  };
+});
 
 // Now import the service
 import {

@@ -20,7 +20,7 @@ export const CRITICAL_FIRESTORE_ACCESS_MATRIX = [
     path: 'auditLogs',
     matchPath: '/auditLogs/{logId}',
     read: 'canReadAppendOnlyOperationalLog()',
-    create: 'canCreateAppendOnlyOperationalLogEntry()',
+    create: 'canCreateOwnAuditLogEntry()',
     update: 'false',
     delete: 'false',
   },

@@ -68,8 +68,12 @@ const dependencies = (): AuditConnectionDependencies => ({
       auditCoreLogger.warn('Malformed connection event discarded', { kind: event.kind });
       return;
     }
-    // Without device storage the event cannot wait in the outbox: write it straight away.
-    if (!enqueueAuditConnectionEntry(window.localStorage, entry) && getCurrentUserUid()) {
+    // Without room in the outbox the event is written straight away, by its own author only.
+    if (
+      !enqueueAuditConnectionEntry(window.localStorage, entry) &&
+      entry.userUid !== undefined &&
+      entry.userUid === getCurrentUserUid()
+    ) {
       void writeAuditConnectionEntry(entry);
     }
   },

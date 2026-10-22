@@ -25,6 +25,11 @@ ficha clínica electrónica:
 - **Trazabilidad**: quién hizo qué, a qué paciente, cuándo y desde dónde.
 - **Integridad**: `hospitals/{id}/auditLogs` es de solo agregar; nadie edita ni borra eventos
   desde la aplicación (`firestore.rules`).
+- **Autoría**: cada evento lo escribe la sesión del funcionario que hizo la acción, y solo a su
+  nombre. La aplicación toma uid, correo y nombre de la sesión de Firebase y no escribe un evento
+  cuyo autor ya no es quien está conectado (sesión terminada o reemplazada). El servidor lo exige
+  (`canCreateOwnAuditLogEntry`): `userUid` debe ser el uid de la sesión y `userId` su correo (o su
+  uid). Ningún usuario puede registrar ni recibir acciones de otro.
 - **Confidencialidad**: solo administración lee la bitácora.
 
 ### 2. Qué se registra (modelo v2, 2026-10-22)
@@ -64,7 +69,8 @@ Los eventos de conexión usan ids deterministas (`conn_<id>_start|end|net_*`), a
 desde otra pestaña es rechazado por la regla de solo agregar. Pasan por una bandeja local con una
 clave por evento (`hhr_audit_connection_outbox_v1:<id>`, así las pestañas no se pisan) que sobrevive
 al cierre de sesión: el cierre se envía antes de cerrar Firebase (espera máxima de 2 s; el cierre de
-Firebase nunca queda esperando) y, si no alcanza, en el siguiente inicio en ese equipo. Un ingreso
+Firebase nunca queda esperando) y, si no alcanza, en el siguiente ingreso de esa misma persona en
+ese equipo: cada sesión entrega solo sus propios eventos. Un ingreso
 en la misma pestaña espera a que ese cierre termine (máximo 5 s), para no usar la sesión que sale.
 Una pestaña cerrada por otra escribe antes sus ediciones pendientes. Solo Firestore vacía la bandeja:
 sin red los eventos esperan, una sola pestaña entrega a la vez y nunca se descarta un evento por
@@ -114,10 +120,11 @@ ISO, como el resto). La exportación a PDF se retiró; el Excel incluye el docum
 paciente, igual que la pantalla (solo administración puede leer la auditoría). Una ráfaga de
 edición espera en la pestaña hasta 60 s después del último cambio: si el navegador se cae (cuelgue
 o corte de luz) antes de ocultarse, esa ráfaga no queda en la auditoría, aunque el cambio clínico sí
-se guarda. Las reglas no registran quién escribió cada documento: un evento de conexión pendiente
-puede llegar desde la sesión de quien entre después en ese equipo. Si la sesión termina sin cerrar
-sesión (token vencido o revocado), las ediciones aún agrupadas se escriben más tarde: sin sesión las
-rechaza el servidor, y si otra persona ya entró en esa pestaña quedan con su conexión.
+se guarda. Si la sesión termina sin cerrar sesión (token vencido o revocado), las ediciones aún
+agrupadas no se registran: ya no pueden escribirse a nombre de quien las hizo, y nunca se escriben a
+nombre de otra persona. La desconexión de alguien que cerró la ventana sin cerrar sesión se registra
+cuando esa persona vuelve a ingresar en ese equipo; mientras, su conexión figura «Sin cierre
+registrado». Los eventos anteriores a la regla de autoría no tienen esa verificación del servidor.
 
 ---
 

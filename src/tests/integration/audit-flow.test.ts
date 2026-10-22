@@ -46,10 +46,16 @@ const mockAuditState = {
   uid: 'doctor-123',
 };
 
-vi.mock('../../services/admin/utils/auditUtils', () => ({
+vi.mock('../../services/admin/utils/auditUtils', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/admin/utils/auditUtils')>()),
   getCurrentUserEmail: vi.fn(() => mockAuditState.email),
   getCurrentUserDisplayName: vi.fn(() => 'Doctor Account'),
   getCurrentUserUid: vi.fn(() => mockAuditState.uid),
+  getCurrentAuditSession: vi.fn(() => ({
+    uid: mockAuditState.uid,
+    email: mockAuditState.email,
+    displayName: 'Doctor Account',
+  })),
   getCachedIpAddress: vi.fn(() => '127.0.0.1'),
   fetchAndCacheIpAddress: vi.fn().mockResolvedValue('127.0.0.1'),
 }));

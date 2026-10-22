@@ -16,10 +16,14 @@ const loggerMocks = vi.hoisted(() => ({
   warn: vi.fn(),
 }));
 
+const DOCTOR = { uid: 'doctor-123', email: 'doctor@hospital.cl', displayName: 'Doctor Account' };
+
 const auditUtilsMocks = vi.hoisted(() => ({
   getCurrentUserEmail: vi.fn(() => 'doctor@hospital.cl'),
   getCurrentUserDisplayName: vi.fn(() => 'Doctor Account'),
   getCurrentUserUid: vi.fn<() => string | undefined>(() => 'doctor-123'),
+  getCurrentAuditSession:
+    vi.fn<() => { uid: string; email?: string; displayName?: string } | null>(),
   getCachedIpAddress: vi.fn(() => '127.0.0.1'),
   fetchAndCacheIpAddress: vi.fn().mockResolvedValue('127.0.0.1'),
 }));
@@ -28,7 +32,11 @@ vi.mock('@/services/admin/adminLoggers', () => ({
   auditCoreLogger: loggerMocks,
 }));
 
-vi.mock('@/services/admin/utils/auditUtils', () => auditUtilsMocks);
+// The session helpers are mocked; matching an actor to the session stays real.
+vi.mock('@/services/admin/utils/auditUtils', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/admin/utils/auditUtils')>()),
+  ...auditUtilsMocks,
+}));
 
 const memoryStorage = (): AuditConnectionOutboxStorage => {
   const values = new Map<string, string>();
@@ -79,6 +87,7 @@ describe('auditCore runtime injection', () => {
     sessionStorage.clear();
     storage = memoryStorage();
     auditUtilsMocks.getCurrentUserUid.mockReturnValue('doctor-123');
+    auditUtilsMocks.getCurrentAuditSession.mockReturnValue(DOCTOR);
     saveAuditLog.mockResolvedValue(undefined);
     setDoc.mockResolvedValue(undefined);
   });
@@ -120,6 +129,70 @@ describe('auditCore runtime injection', () => {
         details: expect.objectContaining({ rut: '11.111.111-1' }),
       })
     );
+  });
+
+  it('writes only in the name of the signed-in user, never as someone else', async () => {
+    // Another person is signed in now: the earlier author's event is not recorded under them.
+    auditUtilsMocks.getCurrentAuditSession.mockReturnValue({
+      uid: 'nurse-456',
+      email: 'enfermera@hospital.cl',
+      displayName: 'Enfermera',
+    });
+    await expect(
+      remoteService().logAuditEvent('doctor@hospital.cl', 'PATIENT_MODIFIED', 'patient', 'R1', {
+        patientName: 'Paciente',
+      })
+    ).resolves.toBe('rejected');
+
+    // Nobody signed in: nothing is written either.
+    auditUtilsMocks.getCurrentAuditSession.mockReturnValue(null);
+    await expect(
+      remoteService().logAuditEvent('doctor@hospital.cl', 'VIEW_PATIENT', 'patient', 'R1', {
+        patientName: 'Paciente',
+      })
+    ).resolves.toBe('rejected');
+    expect(setDoc).not.toHaveBeenCalled();
+
+    // The author signed in: stored with the session's own identity (email in any case).
+    auditUtilsMocks.getCurrentAuditSession.mockReturnValue(DOCTOR);
+    await expect(
+      remoteService().logAuditEvent('Doctor@Hospital.cl', 'VIEW_PATIENT', 'patient', 'R1', {
+        patientName: 'Paciente',
+      })
+    ).resolves.toBe('stored');
+    expect(setDoc).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(String),
+      expect.objectContaining({
+        userId: 'doctor@hospital.cl',
+        userUid: 'doctor-123',
+        userDisplayName: 'Doctor Account',
+      })
+    );
+  });
+
+  it('delivers only the signed-in user’s own connection events', async () => {
+    enqueueAuditConnectionEntry(storage, queued('mine', 'end'));
+    const theirs = buildAuditConnectionEntry({
+      kind: 'end',
+      record: {
+        id: 'theirs',
+        uid: 'nurse-456',
+        email: 'enfermera@hospital.cl',
+        name: 'Enfermera',
+        startedAt: Date.parse('2026-10-22T13:00:00.000Z'),
+        lastSeenAt: Date.parse('2026-10-22T14:00:00.000Z'),
+      },
+      reason: 'closed',
+      endedAt: Date.parse('2026-10-22T14:00:00.000Z'),
+    });
+    enqueueAuditConnectionEntry(storage, theirs);
+
+    await remoteService().flushAuditConnectionOutbox();
+
+    expect(setDoc.mock.calls.map(call => call[1])).toEqual(['conn_mine_end']);
+    // Hers waits, untouched, for her own next sign-in on this device.
+    expect(readAuditConnectionOutbox(storage)).toEqual([{ entry: theirs }]);
   });
 
   it('downgrades remote permission-denied writes to a warning', async () => {
