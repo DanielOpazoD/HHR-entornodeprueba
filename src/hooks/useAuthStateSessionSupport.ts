@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { defaultAuditPort } from '@/application/ports/auditPort';
 import { startSessionActivityMonitor } from '@/services/auth/sessionActivityMonitor';
-import { markRecentManualLogout } from '@/services/auth/authLogoutState';
+import { beginPendingLogout, markRecentManualLogout } from '@/services/auth/authLogoutState';
 import {
   clearPersistedFirebaseAuthState,
   clearRecentAuthenticatedSessionHint,
@@ -15,6 +14,7 @@ import { clearSessionScopedClientState } from '@/services/storage/sessionScopedS
 import { clearQueryCache } from '@/config/queryClient';
 import { broadcastLogout } from '@/services/auth/authBroadcastChannel';
 import { clearCachedUserAvatarProfiles } from '@/services/user-profile/userAvatarProfileCache';
+import { flushPendingAuditEvents } from '@/services/admin/auditPendingEvents';
 
 export const getE2EBootstrapUser = (): AuthUser | null => {
   if (typeof window === 'undefined' || !window.__HHR_E2E_OVERRIDE__) {
@@ -84,6 +84,37 @@ export const resetLocationToLoginRoute = (): void => {
   }
 };
 
+/** Loading the audit module plus its own 1.5 s delivery budget. */
+const LOGOUT_AUDIT_BUDGET_MS = 2_000;
+const PENDING_AUDIT_FLUSH_BUDGET_MS = 1_500;
+
+// Fetched once someone signs in (useLogoutAuditPreload), never in the startup bundle.
+const loadAuditPort = () => import('@/application/ports/auditPort');
+
+const settleWithin = (task: Promise<unknown>, budgetMs: number): Promise<void> =>
+  new Promise(resolve => {
+    const timer = setTimeout(resolve, budgetMs);
+    const settle = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    task.then(settle, settle);
+  });
+
+/**
+ * Signed in: fetch the logout audit module now. Signing out must not wait on a download: until
+ * this logout signs out of Firebase, a quick next sign-in on the same screen would be closed by it.
+ */
+export const useLogoutAuditPreload = (userId: string | undefined): void => {
+  useEffect(() => {
+    if (userId) void loadAuditPort().catch(() => undefined);
+  }, [userId]);
+};
+
+/** A tab signed out by another one writes the edits it was still grouping first. */
+export const flushPendingAuditEventsBeforeSignOut = (): Promise<void> =>
+  settleWithin(flushPendingAuditEvents(), PENDING_AUDIT_FLUSH_BUDGET_MS);
+
 export const createHandleLogout =
   (
     user: AuthUser | null,
@@ -91,6 +122,8 @@ export const createHandleLogout =
     setSessionState: (sessionState: AuthSessionState) => void
   ): ((reason?: 'manual' | 'automatic') => Promise<void>) =>
   async (reason: 'manual' | 'automatic' = 'manual') => {
+    // The login form shows at once, but a sign-in there waits until this logout has finished.
+    const finishLogout = beginPendingLogout();
     // 1. Synchronous operations first — cannot be interrupted by navigation or tab close
     setSessionState(createUnauthenticatedAuthSessionState());
     resetLocationToLoginRoute();
@@ -112,9 +145,25 @@ export const createHandleLogout =
     // Notify other tabs so they can perform their own cleanup
     broadcastLogout(reason);
 
-    // 2. Async operations in parallel — best-effort, one failure does not block others
+    // 2. Close the audit connection while still signed in: Firestore authenticates a write when
+    //    it is sent, so an end event racing sign-out could be rejected. The whole step, loading
+    //    the audit module included, is bounded: sign-out never waits on it. Anything undelivered
+    //    stays queued on the device for the next sign-in.
+    // Who is leaving is fixed before any wait: a late callback must not end the next person's
+    // connection.
+    const email = user?.email;
+    const uid = user?.uid;
+    if (email) {
+      await settleWithin(
+        loadAuditPort()
+          .then(({ defaultAuditPort }) => defaultAuditPort.logUserLogout(email, reason, uid))
+          .catch(error => authStateLogger.warn('Logout audit step rejected', error)),
+        LOGOUT_AUDIT_BUDGET_MS
+      );
+    }
+
+    // 3. Async cleanup — best-effort, one failure does not block others
     const results = await Promise.allSettled([
-      user?.email ? defaultAuditPort.logUserLogout(user.email, reason) : Promise.resolve(),
       clearSessionScopedClientState(reason, async () => {
         try {
           await signOut();
@@ -123,6 +172,7 @@ export const createHandleLogout =
         }
       }),
     ]);
+    finishLogout();
 
     for (const result of results) {
       if (result.status === 'rejected') {

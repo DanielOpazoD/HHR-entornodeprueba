@@ -19,10 +19,10 @@ postura de **cada** `AuditAction` y la enforzamos con un gate.
 
 ## Las dos arquitecturas de auditoría (contexto)
 
-| Camino                                                                  | Semántica de fallo                                                                                                                        | Uso típico                                                 |
-| ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| `executeWriteAuditEvent` (`@/application/audit/writeAuditEventUseCase`) | Devuelve `ApplicationOutcome`; **rechaza actor anónimo**. El caller decide.                                                               | Commands / use-cases (restore, discharge, transfer, admit) |
-| `logAuditEvent` / `auditPort.writeEvent` (`@/services/admin/auditCore`) | **Local-first**: persiste local y sincroniza a Firestore best-effort; los errores remotos se observan dentro de `auditCore` (no relanza). | Ediciones de censo de alta frecuencia, vistas              |
+| Camino                                                                  | Semántica de fallo                                                                                                                                                                                                                                                                                                                                                                                        | Uso típico                                                 |
+| ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `executeWriteAuditEvent` (`@/application/audit/writeAuditEventUseCase`) | Devuelve `ApplicationOutcome`; **rechaza actor anónimo** y falla si el servidor no guardó el evento (rechazo o error). El caller decide.                                                                                                                                                                                                                                                                  | Commands / use-cases (restore, discharge, transfer, admit) |
+| `logAuditEvent` (`@/services/admin/auditCore`)                          | **Firestore con caché offline**: escribe en Firestore (la caché offline encola sin red); copia local solo sin Firestore. Escribe solo a nombre de la sesión vigente (si el autor ya no es quien está conectado, `rejected`). No relanza: devuelve `stored`, `local` (sin red o sin Firestore, solo en el equipo), `rejected` o `failed`; `auditPort.writeEvent` convierte `rejected` y `failed` en error. | Ediciones de censo de alta frecuencia, vistas              |
 
 Ninguna es "mejor": son decisiones distintas. La política sólo exige que la elección sea
 **explícita** por acción.
@@ -35,7 +35,7 @@ Ninguna es "mejor": son decisiones distintas. La política sólo exige que la el
   registro clínico (`DAILY_RECORD_DELETED`, `CLINICAL_DOCUMENT_DELETED`),
   `MEDICAL_INDICATION_TEMPLATE_*`. Enlaza un `test` probatorio.
 - **`bestEffortObservable`** — la mutación **procede** aunque la auditoría falle, pero el fallo se
-  **superficializa** (outcome degradado, telemetría, o el log local-first auto-observado). Reservada
+  **superficializa** (outcome degradado, telemetría, o la escritura de `auditCore` auto-observada). Reservada
   para acciones de **flujo clínico urgente** donde abortar dañaría la atención (admitir, dar de alta,
   trasladar, cargar en el censo). Requiere `justification`.
 - **`exemptNonMutation`** — vistas, login/logout, exportaciones/impresiones (salida/acceso) y eventos

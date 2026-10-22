@@ -8,6 +8,7 @@ import { httpsCallable } from 'firebase/functions';
 import { defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import { clearRecentAuthRoleLookups } from './authRoleLookup';
+import { waitForPendingLogout } from './authLogoutState';
 import {
   runSessionStorageTransition,
   SESSION_GENERATION_KEY,
@@ -78,6 +79,8 @@ export const establishNursingSession = async (
   isCurrent: () => boolean = () => true
 ): Promise<void | InitialAccountSetup> => {
   await defaultAuthRuntime.ready;
+  // A logout still under way would leave this sign-in with its user, generation and token.
+  await waitForPendingLogout();
   const auth = defaultAuthRuntime.auth;
   const initialUser = auth.currentUser;
   const generation = localStorage.getItem(SESSION_GENERATION_KEY);

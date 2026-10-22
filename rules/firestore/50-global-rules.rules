@@ -16,7 +16,7 @@
 
     match /auditLogs/{logId} {
       allow read: if canReadAppendOnlyOperationalLog();
-      allow create: if canCreateAppendOnlyOperationalLogEntry();
+      allow create: if canCreateOwnAuditLogEntry();
       // Append-only: admin tampering prevention. Consolidation is read-time.
       allow update, delete: if false;
     }

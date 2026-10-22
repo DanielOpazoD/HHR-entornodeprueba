@@ -5,16 +5,15 @@ import { AuditLogEntry, maskRut } from '@/types/auditLogTypes';
 import {
   getAuditLogs as getIndexedDBAuditLogs,
   getAuditLogsForDate as getIndexedDBAuditLogsForDate,
+  getAuditLogsInRange as getIndexedDBAuditLogsInRange,
   saveAuditLog,
 } from '@/services/storage/indexeddb/indexedDbAuditLogService';
 import {
-  fetchAndCacheIpAddress,
   getCachedIpAddress,
-  getCurrentUserDisplayName,
+  getCurrentAuditSession,
   getCurrentUserEmail,
-  getCurrentUserUid,
+  isAuditSessionActor,
 } from './utils/auditUtils';
-import { generateSummary } from './utils/auditSummaryGenerator';
 import { getActiveHospitalId } from '@/constants/firestorePaths';
 import { auditCoreLogger } from '@/services/admin/adminLoggers';
 import {
@@ -24,9 +23,19 @@ import {
   serializeViewThrottleState,
   shouldExcludeAuditEmail,
   shouldThrottleAuditViewAction,
-  type ViewThrottleState,
+  VIEW_THROTTLE_WINDOW_MS,
 } from '@/services/admin/auditViewThrottle';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
+import { compactAuditDetails } from '@/services/admin/auditDetailsCompaction';
+import { resolveAuditConnectionId } from '@/services/admin/auditSession/auditConnectionTracker';
+import { resolveAuditDeviceLabel } from '@/services/admin/auditSession/auditDeviceLabel';
+import { AUDIT_SCHEMA_VERSION } from '@/services/admin/auditSession/auditConnectionEntries';
+import {
+  markAuditConnectionEntrySent,
+  readAuditConnectionOutbox,
+  settleAuditConnectionEntry,
+  type AuditConnectionOutboxStorage,
+} from '@/services/admin/auditSession/auditConnectionOutbox';
 
 const COLLECTION_NAME = () => `hospitals/${getActiveHospitalId()}/auditLogs`;
 
@@ -35,25 +44,10 @@ export const shouldExcludeFromViewAudit = (): boolean => {
   return shouldExcludeAuditEmail(email);
 };
 
-const getViewThrottleState = (): ViewThrottleState => {
-  if (typeof sessionStorage === 'undefined') return {};
-  return parseViewThrottleState(sessionStorage.getItem(VIEW_THROTTLE_KEY));
-};
+const readSessionStorage = (key: string): string | null =>
+  typeof sessionStorage === 'undefined' ? null : sessionStorage.getItem(key);
 
-const updateViewThrottleState = (action: string): void => {
-  if (typeof sessionStorage === 'undefined') return;
-  const nextState = buildNextViewThrottleState(
-    action as AuditAction,
-    getViewThrottleState(),
-    new Date().toISOString()
-  );
-  sessionStorage.setItem(VIEW_THROTTLE_KEY, serializeViewThrottleState(nextState));
-};
-
-const shouldLogViewAction = (action: AuditAction): boolean => {
-  return !shouldThrottleAuditViewAction(action, getViewThrottleState(), Date.now());
-};
-
+/** One read per patient and screen inside the throttle window. */
 export const logThrottledViewEvent = async (
   action: AuditAction,
   entityId: string,
@@ -61,8 +55,20 @@ export const logThrottledViewEvent = async (
   recordDate?: string
 ): Promise<void> => {
   if (shouldExcludeFromViewAudit()) return;
-  if (!shouldLogViewAction(action)) return;
-  updateViewThrottleState(action);
+  // Document, name and bed: a newborn may carry the mother's document but is another patient.
+  const subject = [details.rut, details.patientName, entityId].filter(Boolean).join('|');
+  const state = parseViewThrottleState(readSessionStorage(VIEW_THROTTLE_KEY));
+  if (shouldThrottleAuditViewAction(action, state, Date.now(), VIEW_THROTTLE_WINDOW_MS, subject)) {
+    return;
+  }
+  if (typeof sessionStorage !== 'undefined') {
+    sessionStorage.setItem(
+      VIEW_THROTTLE_KEY,
+      serializeViewThrottleState(
+        buildNextViewThrottleState(action, state, new Date().toISOString(), subject)
+      )
+    );
+  }
 
   await logAuditEvent(
     getCurrentUserEmail(),
@@ -78,36 +84,34 @@ export const logThrottledViewEvent = async (
 const generateAuditId = (): string =>
   `audit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-const sanitizeDetails = (details: Record<string, unknown>): Record<string, unknown> => {
-  const sanitized: Record<string, unknown> = {};
-
-  for (const [key, value] of Object.entries(details)) {
-    if (value instanceof Error) {
-      sanitized[key] = {
-        message: value.message,
-        name: value.name,
-        stack: value.stack,
-        context: (value as { context?: unknown }).context,
-      };
-    } else if (value && typeof value === 'object' && !Array.isArray(value)) {
-      sanitized[key] = sanitizeDetails(value as Record<string, unknown>);
-    } else {
-      sanitized[key] = value;
-    }
-  }
-
-  return sanitized;
-};
-
 interface AuditLocalStore {
   saveAuditLog: (entry: AuditLogEntry) => Promise<void>;
   getAuditLogs: (limitCount?: number | null) => Promise<AuditLogEntry[]>;
   getAuditLogsForDate: (date: string) => Promise<AuditLogEntry[]>;
+  getAuditLogsInRange: (range: AuditLogRange) => Promise<AuditLogEntry[]>;
 }
 
 interface AuditRuntimeSyncPolicy {
   shouldUseRemoteAuditSync: () => boolean;
 }
+
+/** Device facts stamped on every event. */
+interface AuditDeviceEnvironment {
+  connectionStorage: () => AuditConnectionOutboxStorage | undefined;
+  userAgent: () => string | undefined;
+}
+
+export interface AuditLogRange {
+  fromIso: string;
+  toIso: string;
+  limit: number;
+}
+
+/**
+ * `stored`: Firestore holds the event (or queues it in its offline cache). `local`: remote audit
+ * sync is off (no Firestore, or the device is offline) and only this device keeps it.
+ */
+export type AuditWriteDelivery = 'stored' | 'local' | 'rejected' | 'failed';
 
 export interface AuditCoreService {
   logAuditEvent: (
@@ -119,26 +123,33 @@ export interface AuditCoreService {
     patientRut?: string,
     recordDate?: string,
     authors?: string
-  ) => Promise<void>;
+  ) => Promise<AuditWriteDelivery>;
   getAuditLogs: (limitCount?: number | null) => Promise<AuditLogEntry[]>;
   getAuditLogsForDate: (date: string) => Promise<AuditLogEntry[]>;
-  logUserLogin: (email: string) => Promise<void>;
-  logUserLogout: (email: string, reason?: 'manual' | 'automatic') => Promise<void>;
-  logSystemError: (
-    message: string,
-    severity: 'medium' | 'high' | 'critical',
-    details: Record<string, unknown>
-  ) => Promise<void>;
+  /** Events of `[fromIso, toIso)`, newest first. Remote failures are reported, not hidden. */
+  getAuditLogsInRange: (range: AuditLogRange) => Promise<AuditLogEntry[]>;
+  /** Specific events by document id (e.g. connection starts and ends); missing ids are skipped. */
+  getAuditLogsByIds: (ids: string[]) => Promise<AuditLogEntry[]>;
+  /** Delivers queued connection events; only call it while a user is signed in. */
+  flushAuditConnectionOutbox: () => Promise<void>;
+  /** Writes a connection event directly when the device could not queue it. */
+  writeAuditConnectionEntry: (entry: AuditLogEntry) => Promise<void>;
 }
 
 const defaultAuditLocalStore: AuditLocalStore = {
   saveAuditLog,
   getAuditLogs: getIndexedDBAuditLogs,
   getAuditLogsForDate: getIndexedDBAuditLogsForDate,
+  getAuditLogsInRange: getIndexedDBAuditLogsInRange,
 };
 
 const defaultAuditRuntimeSyncPolicy: AuditRuntimeSyncPolicy = {
   shouldUseRemoteAuditSync: isFirestoreEnabled,
+};
+
+const defaultAuditDeviceEnvironment: AuditDeviceEnvironment = {
+  connectionStorage: () => (typeof localStorage === 'undefined' ? undefined : localStorage),
+  userAgent: () => (typeof navigator === 'undefined' ? undefined : navigator.userAgent),
 };
 
 const isPermissionDeniedAuditError = (error: unknown): boolean => {
@@ -158,40 +169,48 @@ const sortAuditLogsByNewestTimestamp = (logs: AuditLogEntry[]): AuditLogEntry[] 
   });
 
 export const createAuditCoreService = (
-  database: Pick<IDatabaseProvider, 'setDoc' | 'getDocs'> = firestoreDb,
+  database: Pick<IDatabaseProvider, 'setDoc' | 'getDocs' | 'getDoc'> = firestoreDb,
   localStore: AuditLocalStore = defaultAuditLocalStore,
-  syncPolicy: AuditRuntimeSyncPolicy = defaultAuditRuntimeSyncPolicy
+  syncPolicy: AuditRuntimeSyncPolicy = defaultAuditRuntimeSyncPolicy,
+  device: AuditDeviceEnvironment = defaultAuditDeviceEnvironment
 ): AuditCoreService => {
-  const storeLocally = async (entry: AuditLogEntry): Promise<void> => {
+  const storeLocally = async (entry: AuditLogEntry): Promise<boolean> => {
     try {
       await localStore.saveAuditLog(entry);
+      return true;
     } catch (error) {
       auditCoreLogger.error('Failed to store audit log in IndexedDB', error);
+      return false;
     }
   };
 
-  const logAuditEventToFirestore = async (entry: AuditLogEntry): Promise<void> => {
-    if (!syncPolicy.shouldUseRemoteAuditSync()) {
-      return;
-    }
-
+  const writeRemote = async (
+    entry: AuditLogEntry
+  ): Promise<Exclude<AuditWriteDelivery, 'local'>> => {
     try {
       await database.setDoc(COLLECTION_NAME(), entry.id, entry);
+      return 'stored';
     } catch (error) {
       if (isPermissionDeniedAuditError(error)) {
-        auditCoreLogger.warn(
-          'Audit log persisted locally only because Firestore rejected the remote append',
-          {
-            action: entry.action,
-            entryId: entry.id,
-            code: (error as { code?: string }).code || 'permission-denied',
-          }
-        );
-        return;
+        auditCoreLogger.warn('Firestore rejected the audit append', {
+          action: entry.action,
+          entryId: entry.id,
+          code: (error as { code?: string }).code || 'permission-denied',
+        });
+        return 'rejected';
       }
-
       auditCoreLogger.error('Failed to save audit log to Firestore', error);
+      return 'failed';
     }
+  };
+
+  // The browser keeps a local copy only when there is no Firestore to hold the trail; with
+  // Firestore its offline cache already queues the write.
+  const persist = async (entry: AuditLogEntry): Promise<AuditWriteDelivery> => {
+    if (!syncPolicy.shouldUseRemoteAuditSync()) {
+      return (await storeLocally(entry)) ? 'local' : 'failed';
+    }
+    return writeRemote(entry);
   };
 
   const logAuditEvent: AuditCoreService['logAuditEvent'] = async (
@@ -203,30 +222,85 @@ export const createAuditCoreService = (
     patientRut,
     recordDate,
     authors
-  ): Promise<void> => {
-    const entry: AuditLogEntry = {
+  ): Promise<AuditWriteDelivery> => {
+    // Only the signed-in user writes events, and only in their own name: an action whose author
+    // is no longer signed in here (session ended or replaced) is never recorded under the next
+    // person. The rules refuse such a write too (canCreateOwnAuditLogEntry).
+    const session = getCurrentAuditSession();
+    if (!session || !isAuditSessionActor(userId, session)) {
+      auditCoreLogger.warn('Audit event not written: its author is not the signed-in user', {
+        action,
+        entityType,
+        entityId,
+      });
+      return 'rejected';
+    }
+    const userUid = session.uid;
+    const storage = device.connectionStorage();
+    const withDocument = patientRut && !details.rut ? { ...details, rut: patientRut } : details;
+
+    const delivery = await persist({
       id: generateAuditId(),
       timestamp: new Date().toISOString(),
-      userId,
-      userDisplayName: getCurrentUserDisplayName(),
-      userUid: getCurrentUserUid(),
+      schemaVersion: AUDIT_SCHEMA_VERSION,
+      userId: session.email ?? session.uid,
+      userDisplayName: session.displayName,
+      userUid,
       ipAddress: getCachedIpAddress(),
       action,
       entityType,
       entityId,
-      summary: generateSummary(action, details, entityId),
-      details: sanitizeDetails(details),
+      details: compactAuditDetails(withDocument),
       patientIdentifier: patientRut ? maskRut(patientRut) : undefined,
       recordDate,
       authors,
-    };
+      sessionId: storage ? resolveAuditConnectionId(storage, userUid) : undefined,
+      device: resolveAuditDeviceLabel(device.userAgent()),
+    });
+    return delivery;
+  };
 
-    storeLocally(entry);
-    await logAuditEventToFirestore(entry);
+  /**
+   * The audit collection is create-only, so a refusal is ambiguous: a repeat of an event that
+   * already landed, or an account that may not write. Only an earlier attempt that never settled
+   * (`sentAt` still set, e.g. the page closed mid-write) lets a refusal count as a duplicate;
+   * otherwise the event stays for the next person who signs in on this device.
+   */
+  const deliverQueued = async (storage: AuditConnectionOutboxStorage): Promise<void> => {
+    // Only Firestore delivers: with remote sync off, a local copy would empty the queue for good.
+    if (!syncPolicy.shouldUseRemoteAuditSync()) return;
+    const authorUid = getCurrentAuditSession()?.uid;
+    for (const item of readAuditConnectionOutbox(storage)) {
+      // Each event is written by its own author's session; another person's waits for theirs.
+      if (!authorUid || item.entry.userUid !== authorUid) continue;
+      const landedBefore = item.sentAt !== undefined;
+      markAuditConnectionEntrySent(storage, item.entry.id, Date.now());
+      const delivery = await writeRemote(item.entry);
+      settleAuditConnectionEntry(
+        storage,
+        item.entry.id,
+        delivery === 'rejected' && landedBefore ? 'duplicate' : delivery
+      );
+    }
+  };
+
+  let flushing: Promise<void> | null = null;
+  const flushAuditConnectionOutbox: AuditCoreService['flushAuditConnectionOutbox'] = () => {
+    const storage = device.connectionStorage();
+    if (!storage) return Promise.resolve();
+    // One delivery at a time: offline writes stay pending instead of piling up per heartbeat.
+    flushing ??= deliverQueued(storage).finally(() => {
+      flushing = null;
+    });
+    return flushing;
   };
 
   return {
     logAuditEvent,
+    flushAuditConnectionOutbox,
+    writeAuditConnectionEntry: async entry => {
+      await persist(entry);
+    },
     getAuditLogs: async (limitCount?: number | null): Promise<AuditLogEntry[]> => {
       if (!syncPolicy.shouldUseRemoteAuditSync()) {
         return await localStore.getAuditLogs(limitCount);
@@ -246,6 +320,29 @@ export const createAuditCoreService = (
         return await localStore.getAuditLogs(limitCount);
       }
     },
+    getAuditLogsByIds: async (ids: string[]): Promise<AuditLogEntry[]> => {
+      if (!syncPolicy.shouldUseRemoteAuditSync() || ids.length === 0) return [];
+      // One unreadable id must not hide the others.
+      const found = await Promise.allSettled(
+        ids.map(id => database.getDoc<AuditLogEntry>(COLLECTION_NAME(), id))
+      );
+      return found.flatMap(result =>
+        result.status === 'fulfilled' && result.value !== null ? [result.value] : []
+      );
+    },
+    getAuditLogsInRange: async (range: AuditLogRange): Promise<AuditLogEntry[]> => {
+      if (!syncPolicy.shouldUseRemoteAuditSync()) {
+        return await localStore.getAuditLogsInRange(range);
+      }
+      return await database.getDocs<AuditLogEntry>(COLLECTION_NAME(), {
+        where: [
+          { field: 'timestamp', operator: '>=', value: range.fromIso },
+          { field: 'timestamp', operator: '<', value: range.toIso },
+        ],
+        orderBy: [{ field: 'timestamp', direction: 'desc' }],
+        limit: range.limit,
+      });
+    },
     getAuditLogsForDate: async (date: string): Promise<AuditLogEntry[]> => {
       if (!syncPolicy.shouldUseRemoteAuditSync()) {
         return await localStore.getAuditLogsForDate(date);
@@ -261,52 +358,6 @@ export const createAuditCoreService = (
         return await localStore.getAuditLogsForDate(date);
       }
     },
-    logUserLogin: async (email: string): Promise<void> => {
-      if (typeof sessionStorage !== 'undefined') {
-        sessionStorage.setItem('hhr_session_start', new Date().toISOString());
-      }
-
-      fetchAndCacheIpAddress().catch((error: unknown) => {
-        // Non-blocking: IP is best-effort for audit enrichment
-        if (import.meta.env.DEV) {
-          auditCoreLogger.warn('IP address fetch failed (non-blocking)', error);
-        }
-      });
-
-      return logAuditEvent(email, 'USER_LOGIN', 'user', email, { event: 'login' });
-    },
-    logUserLogout: (email: string, reason: 'manual' | 'automatic' = 'manual'): Promise<void> => {
-      let durationSec = 0;
-      if (typeof sessionStorage !== 'undefined') {
-        const start = sessionStorage.getItem('hhr_session_start');
-        if (start) {
-          durationSec = Math.floor((new Date().getTime() - new Date(start).getTime()) / 1000);
-          sessionStorage.removeItem('hhr_session_start');
-        }
-      }
-
-      return logAuditEvent(email, 'USER_LOGOUT', 'user', email, {
-        event: 'logout',
-        reason,
-        durationSeconds: durationSec,
-        durationFormatted:
-          durationSec > 0 ? `${Math.floor(durationSec / 60)}m ${durationSec % 60}s` : 'Unknown',
-      });
-    },
-    logSystemError: (
-      message: string,
-      severity: 'medium' | 'high' | 'critical',
-      details: Record<string, unknown>
-    ): Promise<void> => {
-      const email = getCurrentUserEmail() || 'system';
-      const errorId = `err_${Date.now()}`;
-
-      return logAuditEvent(email, 'SYSTEM_ERROR', 'system', errorId, {
-        message,
-        severity,
-        ...details,
-      });
-    },
   };
 };
 
@@ -318,14 +369,17 @@ export const logAuditEvent: AuditCoreService['logAuditEvent'] = (...args) =>
 export const getAuditLogs: AuditCoreService['getAuditLogs'] = limitCount =>
   defaultAuditCoreService.getAuditLogs(limitCount);
 
+export const getAuditLogsInRange: AuditCoreService['getAuditLogsInRange'] = range =>
+  defaultAuditCoreService.getAuditLogsInRange(range);
+
+export const getAuditLogsByIds: AuditCoreService['getAuditLogsByIds'] = ids =>
+  defaultAuditCoreService.getAuditLogsByIds(ids);
+
 export const getAuditLogsForDate: AuditCoreService['getAuditLogsForDate'] = date =>
   defaultAuditCoreService.getAuditLogsForDate(date);
 
-export const logUserLogin: AuditCoreService['logUserLogin'] = email =>
-  defaultAuditCoreService.logUserLogin(email);
+export const flushAuditConnectionOutbox: AuditCoreService['flushAuditConnectionOutbox'] = () =>
+  defaultAuditCoreService.flushAuditConnectionOutbox();
 
-export const logUserLogout: AuditCoreService['logUserLogout'] = (email, reason) =>
-  defaultAuditCoreService.logUserLogout(email, reason);
-
-export const logSystemError: AuditCoreService['logSystemError'] = (message, severity, details) =>
-  defaultAuditCoreService.logSystemError(message, severity, details);
+export const writeAuditConnectionEntry: AuditCoreService['writeAuditConnectionEntry'] = entry =>
+  defaultAuditCoreService.writeAuditConnectionEntry(entry);

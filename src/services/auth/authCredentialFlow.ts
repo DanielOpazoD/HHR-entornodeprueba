@@ -8,6 +8,7 @@ import type { AuthUser, UserRole } from '@/types/authRoleTypes';
 import { resolveGeneralLoginAccessForEmail } from '@/services/auth/authPolicy';
 import { toAuthUser } from '@/services/auth/authShared';
 import { type AuthRuntime, defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
+import { waitForPendingLogout } from '@/services/auth/authLogoutState';
 
 interface AuthRuntimeOptions {
   authRuntime?: AuthRuntime;
@@ -48,6 +49,8 @@ export const signIn = async (
   const authRuntime = resolveAuthRuntime(options);
   try {
     await authRuntime.ready;
+    // Signing in while a logout is still under way would be undone by its sign-out.
+    await waitForPendingLogout();
     const result = await signInWithEmailAndPassword(authRuntime.auth, email, password);
 
     const { allowed, role } = await resolveGeneralLoginAccessForEmail(result.user.email || '');

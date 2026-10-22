@@ -37,7 +37,7 @@ export const evaluateDailyRecordTruthContract = root => {
   );
   const clinicalNarratives = readText(
     root,
-    'src/services/admin/clinicalAuditConflictNarratives.ts'
+    'src/services/admin/auditTrail/auditTrailConflicts.ts'
   );
   const runbook = readText(root, 'docs/RUNBOOK_DAILY_CENSUS_RECOVERY.md');
   const firestoreSyncRunbook = readText(root, 'docs/runbooks/firestore-sync-issues.md');
@@ -135,7 +135,7 @@ export const evaluateDailyRecordTruthContract = root => {
       [
         'src/services/repositories/conflictResolutionAuditSummary.ts',
         'src/tests/services/repositories/conflictResolutionAuditSummary.test.ts',
-        'src/services/admin/clinicalAuditConflictNarratives.ts',
+        'src/services/admin/auditTrail/auditTrailConflicts.ts',
       ]
     ),
     buildCheck(

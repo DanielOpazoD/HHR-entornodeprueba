@@ -1,4 +1,3 @@
-import { logSystemError } from '@/services/admin/auditService';
 import { dispatchOperationalTelemetryExternally } from '@/services/observability/operationalTelemetryExternalAdapter';
 import { saveErrorLog } from '@/services/storage/indexeddb/indexedDbErrorLogService';
 import type { ErrorLog } from '@/services/logging/errorLogTypes';
@@ -19,20 +18,6 @@ export const createDevConsoleErrorSink =
 
 export const indexedDbErrorSink: ErrorServiceSink = async errorLog => {
   await saveErrorLog(errorLog);
-};
-
-export const auditErrorSink: ErrorServiceSink = async errorLog => {
-  if (errorLog.severity !== 'high' && errorLog.severity !== 'critical') {
-    return;
-  }
-
-  await logSystemError(errorLog.message, errorLog.severity, {
-    stack: errorLog.stack,
-    context: errorLog.context,
-    url: errorLog.url,
-    userAgent: errorLog.userAgent,
-    originalErrorId: errorLog.id,
-  });
 };
 
 const mapSeverityToTelemetryStatus = (severity: ErrorLog['severity']): 'degraded' | 'failed' =>
@@ -71,7 +56,7 @@ export const buildDefaultErrorServiceSinks = (
 ): ErrorServiceSink[] => [
   createDevConsoleErrorSink(Boolean(options.allowDevConsole)),
   createSafeErrorServiceSink('indexeddb', indexedDbErrorSink),
-  createSafeErrorServiceSink('audit', auditErrorSink),
+  // Errors are not clinical traceability: they stay in the local error log and telemetry.
   createSafeErrorServiceSink('external-telemetry', externalTelemetryErrorSink),
 ];
 

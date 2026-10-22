@@ -221,9 +221,7 @@
         "src/tests/components/useAppContentRuntime.test.tsx",
         "src/tests/features/clinical-documents/ClinicalDocumentIeehPanel.test.tsx",
         "src/tests/features/cudyr/CudyrReviewPersistence.test.tsx",
-        "src/tests/hooks/useAuditData.test.ts",
         "src/tests/rayen-import/RayenImportButton.feedback.test.tsx",
-        "src/tests/views/admin/components/audit/AuditTablePatientPackages.test.tsx",
         "src/tests/views/census/PatientIdentityCell.test.tsx"
       ],
       "estimatedDurationMs": 1100
@@ -352,8 +350,6 @@
         "src/tests/hooks/useDailyRecordDefinitiveClearConfirmation.test.tsx",
         "src/tests/hooks/useDailyRecordQuery.test.tsx",
         "src/tests/rayen-import/healthRelaySelfRepairExtension.test.ts",
-        "src/tests/views/admin/components/audit/AuditTimeline.test.tsx",
-        "src/tests/views/admin/components/audit/PatientAuditPackageRow.test.tsx",
         "src/tests/views/census/CensusRegisterContent.test.tsx",
         "src/tests/views/census/CensusStaffHeader.test.tsx",
         "src/tests/views/census/ClinicalPanelImportFallback.test.tsx",

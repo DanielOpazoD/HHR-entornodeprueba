@@ -80,8 +80,3 @@ export { useFeatureFlag, useAllFeatureFlags } from './useFeatureFlag';
 
 // Version Check (auto-refresh on new deployments)
 export { useVersionCheck } from './useVersionCheck';
-
-// Audit Data Management
-export { useAuditData, AUDIT_SECTIONS } from './useAuditData';
-export type { AuditFiltersState, UseAuditDataReturn } from './useAuditData';
-export type { AuditSection } from '@/types/auditActionTypes';

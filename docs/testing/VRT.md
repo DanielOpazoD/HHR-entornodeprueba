@@ -21,7 +21,7 @@ Datos inyectados vía `__HHR_E2E_OVERRIDE__` y `hhr_e2e_bootstrap_user` (no toca
 
 El audit (PDF P1-2) marca como críticos los siguientes flujos que aún no tienen baseline. Están declarados en el mismo spec con `test.fixme` para que cualquier siguiente pase de VRT los descubra automáticamente:
 
-- **Destructive confirm dialog (warning variant)**: `useConfirmDialog` con `variant: 'warning'` — usado en `ConsolidationManager` (Optimizar BD). Verifica paleta + copy + botones.
+- **Destructive confirm dialog (warning variant)**: `useConfirmDialog` con `variant: 'warning'` — usado en `usePatientRowBedConfigActions` (configuración de cama). Verifica paleta + copy + botones.
 - **Destructive confirm dialog (danger variant)**: `useConfirmDialog` con `variant: 'danger'` — usado en `ErrorDashboard` (Limpiar Registro) y `CancelTransferModal`. Verifica paleta peligrosa + irreversibilidad.
 - **Medical handoff signed view**: vista de entrega médica firmada. Debe mostrar firmante, audit banner y lock visible bajo presión.
 
