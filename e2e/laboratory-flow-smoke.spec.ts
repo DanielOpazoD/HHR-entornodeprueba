@@ -86,6 +86,7 @@ const routeSyslabMocks = async (page: Page) => {
         response = {
           ok: true,
           analysis: {
+            omittedExamIds: (result.omittedUrls || []).map((url: string) => url.split('/').pop()),
             reports: result.data.map((detail: { url: string; findings: unknown[] }) => ({
               examId: detail.url.split('/').pop(),
               findings: detail.findings,
@@ -245,6 +246,55 @@ const openAuthenticatedCensus = async (page: Page) => {
 };
 
 test.describe('Laboratory UI smoke', () => {
+  test('shows validated reports without alerts when pending orders share the selection', async ({
+    page,
+  }) => {
+    await openAuthenticatedCensus(page);
+    let allPending = false;
+    await page.route('**/api/exams/details', async route => {
+      if (await fulfillOptionsPreflight(route)) return;
+      const { links } = route.request().postDataJSON() as { links: string[] };
+      await route.fulfill({
+        headers: corsHeaders,
+        json: {
+          success: true,
+          omittedUrls: allPending ? links : links.slice(0, 1),
+          data: (allPending ? [] : links.slice(1)).map(url => ({
+            url,
+            findings: [
+              {
+                section: 'FUNCION RENAL',
+                analysis: 'Creatinina',
+                result: '0,64',
+                unit: 'mg/dL',
+                refValue: '0,5-1,1',
+              },
+            ],
+          })),
+        },
+      });
+    });
+    await page.getByRole('button', { name: 'Más opciones del censo' }).click();
+    await page.getByTestId('lab-quick-action').filter({ visible: true }).first().click();
+    const dialog = page.getByTestId('lab-results-viewer-modal');
+    await dialog.getByRole('button', { name: /^Buscar$/ }).click();
+    await expect(dialog.getByTestId('lab-exam-card-43092336')).toBeVisible();
+    await dialog.getByRole('button', { name: 'Seleccionar todo' }).click();
+    await dialog.getByRole('button', { name: /Analizar \(2\)/ }).click();
+    await dialog.getByRole('button', { name: 'Comparacion' }).click();
+    await expect(dialog.getByText('Creatinina', { exact: true })).toBeVisible();
+    await expect(dialog.getByRole('table').locator('thead th')).toHaveCount(2);
+    await expect(dialog.getByRole('alert')).toHaveCount(0);
+    await dialog.getByRole('button', { name: 'Volver a exámenes' }).click();
+    allPending = true;
+    await dialog.getByRole('button', { name: /Analizar \(2\)/ }).click();
+    await expect(
+      dialog.getByText('No hay resultados validados disponibles en esta selección.')
+    ).toBeVisible();
+    await expect(dialog.getByRole('alert')).toHaveCount(0);
+    await expect(dialog.getByRole('button', { name: 'Descargar PNG' })).toHaveCount(0);
+  });
+
   test('searches Syslab, analyzes selected exams, and exports trend/comparison outputs', async ({
     page,
   }, testInfo) => {

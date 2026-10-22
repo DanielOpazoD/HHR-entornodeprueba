@@ -7,7 +7,8 @@ import '../../../extension/lab-result-parser.js';
 import '../../../extension/lab-viewer.js';
 
 const source = readFileSync('extension/syslab-bridge.js', 'utf8');
-const readReport = async (html: string) => {
+const readReport = async (input: string | string[]) => {
+  const pages = Array.isArray(input) ? input : [input];
   let listener: (message: unknown, sender: unknown, reply: (value: unknown) => void) => void;
   const context: Record<string, unknown> = {
     HhrLabViewer: (globalThis as typeof globalThis & { HhrLabViewer: unknown }).HhrLabViewer,
@@ -31,12 +32,13 @@ const readReport = async (html: string) => {
         },
       },
     },
-    fetch: vi.fn().mockResolvedValue({
+    fetch: vi.fn().mockImplementation(async (url: string) => ({
       ok: true,
       url: 'http://10.4.69.90/syslab/detalleexamenes.php?id=123',
       headers: { get: (key: string) => (key === 'content-type' ? 'text/html' : null) },
-      arrayBuffer: async () => new TextEncoder().encode(html).buffer,
-    }),
+      arrayBuffer: async () =>
+        new TextEncoder().encode(pages[Number(new URL(url).searchParams.get('id')) - 123]).buffer,
+    })),
   };
   context.window = context;
   context.self = context;
@@ -47,13 +49,11 @@ const readReport = async (html: string) => {
       {
         type: 'RAYEN_SYSLAB_READ_DETAILS',
         rutBody: '11111111',
-        exams: [
-          {
-            id: '123',
-            date: '22/10/2026',
-            link: 'http://10.4.69.90/syslab/detalleexamenes.php?id=123',
-          },
-        ],
+        exams: pages.map((_, index) => ({
+          id: String(123 + index),
+          date: '22/10/2026',
+          link: `http://10.4.69.90/syslab/detalleexamenes.php?id=${123 + index}`,
+        })),
       },
       {},
       value => resolve(value as Awaited<ReturnType<typeof readReport>>)
@@ -70,15 +70,28 @@ describe('Syslab report identity diagnostics through the real bridge', () => {
     expect(result.details).toBeUndefined();
   });
   it.each(['exámenes', 'ex�menes'])(
-    'reports a pending order instead of an identity mismatch (%s)',
+    'omits an explicitly pending order without an error (%s)',
     async word => {
       const result = await readReport(`<script>alert('No hay ${word} validados');</script>`);
-      expect(result.error).toContain('Informe #123 · 22/10/2026');
-      expect(result.error).toContain('No hay exámenes validados');
-      expect(result.error).not.toContain('RUN');
-      expect(result.details).toBeUndefined();
+      expect(result.error).toBeUndefined();
+      expect(result.details).toEqual([{ examId: '123', status: 'no_validated_results' }]);
     }
   );
+  it('keeps valid reports in a mixed batch and never suppresses an identity failure', async () => {
+    const pending = '<script>alert("No hay exámenes validados");</script>';
+    const valid = '<p>Rut/Fic: 11.111.111-1</p><p>Potasio: 4 mmol/L</p>';
+    const result = await readReport([pending, valid]);
+    expect(result.ok).toBe(true);
+    expect(result.details).toEqual([
+      { examId: '123', status: 'no_validated_results' },
+      expect.objectContaining({ examId: '124', rutBody: '11111111' }),
+    ]);
+    const mismatch = await readReport([pending, valid.replace('11.111.111-1', '22.222.222-2')]);
+    expect(mismatch.error).toContain('Informe #124');
+    expect(mismatch.details).toBeUndefined();
+    const embedded = await readReport(pending + valid.replace('11.111.111-1', '22.222.222-2'));
+    expect(embedded.error).toContain('El RUN leído');
+  });
   it('blocks an actual mismatch without disclosing the other patient identifier', async () => {
     const result = await readReport('<p>Rut/Fic: 22.222.222-2</p><p>Potasio: 4 mmol/L</p>');
     expect(result.error).toContain('El RUN leído en el informe es distinto');

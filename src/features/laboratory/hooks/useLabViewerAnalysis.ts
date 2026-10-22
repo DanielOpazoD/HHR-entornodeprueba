@@ -158,10 +158,11 @@ export const useLabViewerAnalysis = ({
 
       setAnalysisData(buildAnalysisData(enrichedDetails, examList));
       setAnalysisView('trends');
-      setProgress({ pct: 100, text: `${links.length} informes analizados` });
+      setProgress({ pct: 100, text: `${enrichedDetails.length} informes analizados` });
 
       const patientName = examList[0]?.patientName || '';
-      saveLabResults(selectedRut, patientName, enrichedDetails, examList);
+      if (enrichedDetails.length)
+        saveLabResults(selectedRut, patientName, enrichedDetails, examList);
     } catch (error) {
       if (!isCurrent()) {
         return;
@@ -198,6 +199,7 @@ export const useLabViewerAnalysis = ({
           return false;
         }
 
+        if (data.omittedUrls?.includes(exam.link)) return false;
         const detail = data.data[0];
         const findings = detail?.findings || [];
         if (findings.length === 0) {

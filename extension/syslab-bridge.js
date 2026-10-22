@@ -208,14 +208,27 @@
     }
   };
 
+  const isUnvalidatedOrder = parsed => {
+    const visible = parsed.body.cloneNode(true);
+    visible.querySelectorAll('script, style').forEach(element => element.remove());
+    const text = cleanText(visible.textContent);
+    if (parsed.querySelector('iframe, embed, object, a[href]')) return false;
+    return /no hay ex(?:á|a|�|Ã¡)menes validados/i.test(parsed.documentElement.textContent || '') &&
+      (!text || /^no hay ex(?:á|a|�|Ã¡)menes validados[.!]?$/i.test(text));
+  };
+  const pendingReport = (exam, includeValidatedPdf) => {
+    if (includeValidatedPdf) throw new Error('Esta orden aún no tiene un informe validado disponible para descargar.');
+    return { examId: String(exam.id), status: 'no_validated_results' };
+  };
+
   const htmlReportMaterial = async report => {
     const html = new TextDecoder('utf-8').decode(report.bytes);
     const parsed = new DOMParser().parseFromString(html, 'text/html');
     if (parsed.querySelector('input[type="password"]')) {
       throw new Error('La sesión de Syslab venció. Inicia sesión y vuelve a consultar.');
     }
-    if (/no hay ex(?:á|a|�|Ã¡)menes validados/i.test(parsed.documentElement.textContent || '')) {
-      throw new Error('Syslab informa «No hay exámenes validados». Esta orden aún no tiene un informe disponible para analizar.');
+    if (isUnvalidatedOrder(parsed)) {
+      return { status: 'no_validated_results', report };
     }
     const candidate = parsed.querySelector(
       'iframe[src], embed[src], object[data], a[href*=".pdf"], a[href*="detalleexamenes.php"]'
@@ -263,6 +276,9 @@
     try {
       const report = await fetchReport(exam.link);
       const material = await resolveReportMaterial(report);
+      if (material.status === 'no_validated_results') {
+        return pendingReport(exam, includeValidatedPdf);
+      }
       const text = material.text;
       const rutBody = self.HhrLabViewer.extractRutBodyFromReportText(text);
       if (!rutBody || rutBody !== expectedRutBody) {

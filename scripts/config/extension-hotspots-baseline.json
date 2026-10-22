@@ -538,10 +538,8 @@
       }
     },
     "lab-viewer.js": {
-      "maxLines": 245,
-      "hotspots": {
-        "callback:FunctionExpression:1>variable:validateDetailBatch": 17
-      }
+      "maxLines": 250,
+      "hotspots": {}
     },
     "message-contract.js": {
       "maxLines": 285,
@@ -640,7 +638,7 @@
       "hotspots": {}
     },
     "syslab-bridge.js": {
-      "maxLines": 399,
+      "maxLines": 414,
       "hotspots": {
         "iife>variable:handleMessage": 28
       }
