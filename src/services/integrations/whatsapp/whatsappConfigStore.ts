@@ -4,6 +4,11 @@ import type { FirestoreServiceRuntimePort } from '@/services/storage/firestore/p
 import type { WhatsAppConfig } from '@/types/whatsapp';
 import { whatsappConfigLogger } from '@/services/integrations/integrationLoggers';
 
+export const WHATSAPP_CONFIG_READ_ERROR =
+  'No se pudo leer la configuración de WhatsApp. Reintenta en unos segundos.';
+export const WHATSAPP_CONFIG_SAVE_ERROR =
+  'No se pudo guardar la configuración de WhatsApp. Los cambios no se aplicaron.';
+
 export const getDefaultWhatsAppConfig = (): WhatsAppConfig => ({
   enabled: true,
   status: 'disconnected',
@@ -23,28 +28,28 @@ export const createWhatsAppConfigStore = (
 ) => {
   const getConfigDocRef = () => doc(runtime.getDb(), 'whatsapp', 'config');
 
-  const getWhatsAppConfig = async (): Promise<WhatsAppConfig | null> => {
+  /**
+   * Stored config, or the defaults when none was saved yet. A failed read throws: showing
+   * defaults instead would let the next save overwrite the real configuration with them.
+   */
+  const getWhatsAppConfig = async (): Promise<WhatsAppConfig> => {
+    let docSnap;
     try {
-      const docSnap = await getDoc(getConfigDocRef());
-
-      if (docSnap.exists()) {
-        return docSnap.data() as WhatsAppConfig;
-      }
-
-      return getDefaultWhatsAppConfig();
-    } catch (_error) {
-      whatsappConfigLogger.info('Failed to get WhatsApp config', _error);
-      return null;
+      docSnap = await getDoc(getConfigDocRef());
+    } catch (error) {
+      whatsappConfigLogger.info('Failed to get WhatsApp config', error);
+      throw new Error(WHATSAPP_CONFIG_READ_ERROR, { cause: error });
     }
+    return docSnap.exists() ? (docSnap.data() as WhatsAppConfig) : getDefaultWhatsAppConfig();
   };
 
-  const updateWhatsAppConfig = async (config: Partial<WhatsAppConfig>): Promise<boolean> => {
+  /** Throws when the write fails, so callers never report an unsaved change as saved. */
+  const updateWhatsAppConfig = async (config: Partial<WhatsAppConfig>): Promise<void> => {
     try {
       await setDoc(getConfigDocRef(), config, { merge: true });
-      return true;
-    } catch (_error) {
-      whatsappConfigLogger.info('Failed to update WhatsApp config', _error);
-      return false;
+    } catch (error) {
+      whatsappConfigLogger.info('Failed to update WhatsApp config', error);
+      throw new Error(WHATSAPP_CONFIG_SAVE_ERROR, { cause: error });
     }
   };
 

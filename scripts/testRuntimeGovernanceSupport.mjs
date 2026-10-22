@@ -1,6 +1,5 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { parseWorkflowJobs } from './ciArtifactContractSupport.mjs';
 import { buildCiRuntimeObservedProfile } from './ciRuntimeTelemetrySupport.mjs';
 import { getGitReportState } from './gitReportState.mjs';
 import { buildUnitShardBalanceReport } from './unitShardBalanceSupport.mjs';
@@ -33,10 +32,85 @@ const scriptNamesForSuite = suite => [
   ...(Array.isArray(suite.scripts) ? suite.scripts : []),
 ];
 
-const workflowBodyForJob = (root, workflowPath, jobName) => {
-  const filePath = path.join(root, workflowPath);
-  if (!fs.existsSync(filePath)) return '';
-  return parseWorkflowJobs(readText(root, workflowPath)).get(jobName)?.body || '';
+// The unit-risk job runs these checks before installing dependencies, so workflows are read
+// without a YAML library: a job is the indented block under its key in `jobs:`, comment lines
+// never count, and lists compare by value whatever their spacing or style.
+const stripComments = text =>
+  text
+    .split(/\r?\n/)
+    .filter(line => !/^\s*#/.test(line))
+    .join('\n');
+
+const indentOf = line => line.length - line.trimStart().length;
+
+/** Lines of the block nested under the first `key:` line matched by `keyPattern`. */
+const blockUnder = (lines, keyPattern) => {
+  const start = lines.findIndex(line => keyPattern.test(line));
+  if (start === -1) return null;
+  const block = [];
+  for (const line of lines.slice(start + 1)) {
+    if (line.trim() && indentOf(line) <= indentOf(lines[start])) break;
+    block.push(line);
+  }
+  return block;
+};
+
+/** Workflow text without comments, or null when the file is missing. */
+const readWorkflow = (root, workflowPath) =>
+  fs.existsSync(path.join(root, workflowPath))
+    ? stripComments(readText(root, workflowPath))
+    : null;
+
+/** Whether `text` runs `npm run <script>`, also when a folded scalar wraps the command. */
+const runsScript = (text, script) =>
+  new RegExp(`npm run ${escapeRegExp(script)}(?=\\s|['"]|$)`).test(
+    (text ?? '').replace(/\s+/g, ' ')
+  );
+
+const escapeRegExp = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** Text of job `jobName`, or null when the workflow has no such job. */
+const jobText = (workflow, jobName) => {
+  const lines = (workflow ?? '').split('\n');
+  const jobs = blockUnder(lines, /^jobs:\s*$/);
+  const firstKey = jobs?.find(line => line.trim());
+  if (!firstKey) return null;
+  const jobKey = new RegExp(
+    `^ {${indentOf(firstKey)}}['"]?${escapeRegExp(jobName)}['"]?:\\s*$`
+  );
+  const job = blockUnder(jobs, jobKey);
+  return job ? job.join('\n') : null;
+};
+
+/** Values of a `key: [a, b]` or block-list `key:` entry inside `text`. */
+const listValues = (text, key) => {
+  const lines = (text ?? '').split('\n');
+  const keyPattern = new RegExp(`^\\s*${escapeRegExp(key)}:`);
+  const line = lines.find(candidate => keyPattern.test(candidate));
+  if (!line) return null;
+  const inline = line.slice(line.indexOf(':') + 1).trim();
+  const unquote = value => value.trim().replace(/^['"]|['"]$/g, '');
+  if (inline.startsWith('[')) return inline.replace(/^\[|\]$/g, '').split(',').map(unquote);
+  return (blockUnder(lines, keyPattern) ?? [])
+    .filter(item => /^\s*-\s/.test(item))
+    .map(item => unquote(item.replace(/^\s*-\s/, '')));
+};
+
+/** True when the workflow declares an artifact (or step) with this exact `name:`. */
+const declaresName = (workflow, name) =>
+  new RegExp(`^\\s*-?\\s*name:\\s*['"]?${escapeRegExp(name)}['"]?\\s*$`, 'm').test(workflow ?? '');
+
+const workflowTriggers = workflow => {
+  const lines = (workflow ?? '').split('\n');
+  const onLine = lines.find(line => /^['"]?on['"]?:/.test(line));
+  if (!onLine) return [];
+  const inline = onLine.slice(onLine.indexOf(':') + 1).trim();
+  if (inline) return inline.replace(/^\[|\]$/g, '').split(',').map(value => value.trim());
+  const block = blockUnder(lines, /^['"]?on['"]?:\s*$/) ?? [];
+  const keyIndent = Math.min(...block.filter(line => line.trim()).map(indentOf));
+  return block
+    .filter(line => line.trim() && indentOf(line) === keyIndent)
+    .map(line => line.trim().replace(/:.*$/, '').replace(/^['"]|['"]$/g, ''));
 };
 
 const commandForScript = (packageScripts, scriptName) => packageScripts?.[scriptName] || '';
@@ -228,50 +302,51 @@ export const collectTestRuntimeGovernanceIssues = root => {
   const issues = [];
   const config = loadTestRuntimeGovernanceConfig(root);
   const packageJson = readJson(root, PACKAGE_JSON_PATH);
-  const ciWorkflow = fs.existsSync(path.join(root, CI_WORKFLOW_PATH))
-    ? readText(root, CI_WORKFLOW_PATH)
-    : '';
-  const nightlyWorkflow = fs.existsSync(path.join(root, NIGHTLY_WORKFLOW_PATH))
-    ? readText(root, NIGHTLY_WORKFLOW_PATH)
-    : '';
+  const ciWorkflow = readWorkflow(root, CI_WORKFLOW_PATH);
+  const nightlyWorkflow = readWorkflow(root, NIGHTLY_WORKFLOW_PATH);
 
   if (!ciWorkflow) issues.push(`Missing ${CI_WORKFLOW_PATH}`);
   if (!nightlyWorkflow) issues.push(`Missing ${NIGHTLY_WORKFLOW_PATH}`);
+  const ciCommands = ciWorkflow ?? '';
+  const nightlyCommands = nightlyWorkflow ?? '';
 
   for (const suite of config.prBlockingSuites) {
-    const jobBody = workflowBodyForJob(root, suite.workflow, suite.job);
-    if (!jobBody) {
+    const job = jobText(readWorkflow(root, suite.workflow), suite.job);
+    if (job === null) {
       issues.push(`${suite.id}: workflow job ${suite.job} is missing in ${suite.workflow}.`);
     }
     for (const script of scriptNamesForSuite(suite)) {
       if (!packageJson.scripts?.[script]) {
         issues.push(`${suite.id}: package.json is missing script ${script}.`);
       }
-      if (jobBody && !jobBody.includes(`npm run ${script}`)) {
+      if (job !== null && !runsScript(job, script)) {
         issues.push(`${suite.id}: job ${suite.job} does not run ${script}.`);
       }
     }
-    if (suite.id === 'unit-risk-shards' && !jobBody.includes(`shard: [1, 2, 3, 4]`)) {
+    if (
+      suite.id === 'unit-risk-shards' &&
+      JSON.stringify(listValues(job, 'shard')) !== JSON.stringify(['1', '2', '3', '4'])
+    ) {
       issues.push('unit-risk-shards: CI matrix must keep four explicit shards.');
     }
   }
 
-  if (!ciWorkflow.includes('npm run report:test-runtime-governance')) {
+  if (!runsScript(ciCommands, 'report:test-runtime-governance')) {
     issues.push('CI must generate test runtime governance evidence in unit-risk.');
   }
-  if (!ciWorkflow.includes('name: test-runtime-governance')) {
+  if (!declaresName(ciWorkflow, 'test-runtime-governance')) {
     issues.push('CI must upload test-runtime-governance artifact.');
   }
-  if (!ciWorkflow.includes('npm run check:test-runtime-governance')) {
+  if (!runsScript(ciCommands, 'check:test-runtime-governance')) {
     issues.push('CI must enforce check:test-runtime-governance.');
   }
-  if (!ciWorkflow.includes('npm run report:ci-runtime-observed-profile')) {
+  if (!runsScript(ciCommands, 'report:ci-runtime-observed-profile')) {
     issues.push('CI must generate observed CI runtime telemetry evidence in unit-risk.');
   }
-  if (!ciWorkflow.includes('npm run check:ci-runtime-telemetry')) {
+  if (!runsScript(ciCommands, 'check:ci-runtime-telemetry')) {
     issues.push('CI must enforce check:ci-runtime-telemetry as an advisory structural contract.');
   }
-  if (!ciWorkflow.includes('name: ci-runtime-observed-profile')) {
+  if (!declaresName(ciWorkflow, 'ci-runtime-observed-profile')) {
     issues.push('CI must upload ci-runtime-observed-profile artifact.');
   }
   if (!packageJson.scripts?.['check:unit-shard-balance']) {
@@ -287,10 +362,11 @@ export const collectTestRuntimeGovernanceIssues = root => {
     issues.push('package.json is missing script report:ci-runtime-observed-profile.');
   }
 
-  if (nightlyWorkflow.includes('pull_request:')) {
+  const nightlyTriggers = workflowTriggers(nightlyWorkflow);
+  if (nightlyTriggers.includes('pull_request')) {
     issues.push('nightly-test-runtime must not run on pull_request.');
   }
-  if (!nightlyWorkflow.includes('workflow_dispatch:') || !nightlyWorkflow.includes('schedule:')) {
+  if (!nightlyTriggers.includes('workflow_dispatch') || !nightlyTriggers.includes('schedule')) {
     issues.push('nightly-test-runtime must support workflow_dispatch and schedule.');
   }
   for (const suite of config.nightlySuites) {
@@ -298,10 +374,10 @@ export const collectTestRuntimeGovernanceIssues = root => {
       if (!packageJson.scripts?.[script]) {
         issues.push(`${suite.id}: package.json is missing script ${script}.`);
       }
-      if (!nightlyWorkflow.includes(`npm run ${script}`)) {
+      if (!runsScript(nightlyCommands, script)) {
         issues.push(`${suite.id}: nightly workflow does not run ${script}.`);
       }
-      if (ciWorkflow.includes(`npm run ${script}`)) {
+      if (runsScript(ciCommands, script)) {
         issues.push(`${suite.id}: nightly-only script ${script} is in PR CI workflow.`);
       }
     }

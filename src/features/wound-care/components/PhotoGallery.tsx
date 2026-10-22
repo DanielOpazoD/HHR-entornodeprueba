@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Trash2, ImageOff } from 'lucide-react';
 import type { WoundCarePhoto } from '@/types/domain/woundCare';
+import { groupPhotosByDate } from '@/application/wound-care/woundCarePhotoTime';
 import {
-  groupPhotosByDate,
   formatSessionDate,
   formatPhotoTime,
   formatSessionSummary,
@@ -73,7 +73,7 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({
                   </button>
                   <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent pt-4 px-1 pb-0.5">
                     <span className="text-white text-[10px] truncate block">
-                      {formatPhotoTime(photo.takenAt)}
+                      {formatPhotoTime(photo)}
                     </span>
                     {photo.bodyLocation && (
                       <span className="inline-block mt-0.5 text-[9px] bg-white/20 text-white/90 px-1.5 py-px rounded-full truncate max-w-full">

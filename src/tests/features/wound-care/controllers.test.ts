@@ -5,8 +5,8 @@ import {
   consentStatusLabel,
   resolveConsentActionLabel,
 } from '@/features/wound-care/controllers/consentStatusController';
+import { groupPhotosByDate } from '@/application/wound-care/woundCarePhotoTime';
 import {
-  groupPhotosByDate,
   formatSessionDate,
   formatPhotoTime,
   formatSessionSummary,
@@ -15,6 +15,7 @@ import {
   formatFileSize,
   formatCompressionRatio,
   formatReadonlyUploadDateTime,
+  toClinicalDatetimeLocalValue,
   toClinicalEventIso,
 } from '@/features/wound-care/controllers/photoUploadController';
 import { resolveWoundCarePatients } from '@/features/wound-care/controllers/woundCareSectionController';
@@ -183,9 +184,21 @@ describe('photoGalleryController', () => {
     expect(formatSessionDate('2026-01-15')).toBe('15/01/2026');
   });
 
-  it('formats photo time', () => {
-    const time = formatPhotoTime('2026-01-15T14:30:00Z');
-    expect(time).toBeTruthy();
+  it('shows the hospital time the photo was taken at, whatever the device clock', () => {
+    // Typed in the form: the stored digits are the hospital wall clock.
+    expect(
+      formatPhotoTime({
+        takenAt: '2026-01-15T14:30:00.000Z',
+        uploadedAt: '2026-01-15T20:05:12.345Z',
+      })
+    ).toBe('14:30');
+    // Saved without a time of its own: a real instant, read on the hospital clock (UTC-5).
+    expect(
+      formatPhotoTime({
+        takenAt: '2026-01-15T20:05:12.345Z',
+        uploadedAt: '2026-01-15T20:05:12.345Z',
+      })
+    ).toBe('15:05');
   });
 
   it('formats session summary', () => {
@@ -210,11 +223,13 @@ describe('photoGalleryController', () => {
 
 describe('photoUploadController', () => {
   it('keeps upload date as readonly display and stores editable clinical event datetime', () => {
-    expect(formatReadonlyUploadDateTime(new Date('2026-05-02T19:45:00.000Z'))).toContain(
-      '02/05/2026'
-    );
+    // 04:30 UTC on Nov 1 is still 23:30 on Oct 31 at the hospital.
+    const lateEvening = new Date('2026-11-01T04:30:00.000Z');
+    expect(formatReadonlyUploadDateTime(lateEvening)).toBe('31/10/2026 23:30');
+    expect(toClinicalDatetimeLocalValue(lateEvening)).toBe('2026-10-31T23:30');
     expect(toClinicalEventIso('2026-05-01T09:30')).toBe('2026-05-01T09:30:00.000Z');
-    expect(toClinicalEventIso('')).toBeUndefined();
+    // An emptied field still records the hospital time, never a UTC instant.
+    expect(toClinicalEventIso('', lateEvening)).toBe('2026-10-31T23:30:00.000Z');
   });
 
   it('formats file sizes correctly', () => {

@@ -232,6 +232,26 @@ const selectLiteralE2eFiles = (root, script, scripts, seen = new Set()) => {
   return [...new Set(scan(scripts[script]))].sort();
 };
 
+/**
+ * Every command a workflow runs: step `run` scripts and string inputs passed to actions or
+ * reusable workflows. Comments and formatting never count as an invocation.
+ */
+const workflowCommands = text => {
+  let jobs;
+  try {
+    jobs = parse(text)?.jobs ?? {};
+  } catch {
+    return '';
+  }
+  return Object.values(jobs)
+    .flatMap(job => [
+      ...Object.values(job?.with ?? {}),
+      ...(job?.steps ?? []).flatMap(step => [step?.run, ...Object.values(step?.with ?? {})]),
+    ])
+    .filter(value => typeof value === 'string')
+    .join('\n');
+};
+
 export const collectE2eOwnershipIssues = (files, ownership, root) => {
   const issues = [],
     entries = ownership.specs || [],
@@ -276,7 +296,9 @@ export const collectE2eOwnershipIssues = (files, ownership, root) => {
       )
         issues.push(`Invalid preview lane entrypoint: ${entry.file}`);
     } else if (
-      !new RegExp(`npm run ${invoked.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=\\s|$)`).test(body)
+      !new RegExp(`npm run ${invoked.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=\\s|$)`).test(
+        workflowCommands(body)
+      )
     )
       issues.push(`E2E entry script is not invoked by its workflow: ${entry.file}`);
     if (!selectLiteralE2eFiles(root, script, scripts).includes(entry.file))

@@ -6,6 +6,8 @@
 
 import { validatePhotoFile, validateConsentFile } from '../domain/woundCareValidation';
 import type { FileValidationResult } from '../domain/woundCareValidation';
+import { hospitalTakenAt } from '@/application/wound-care/woundCarePhotoTime';
+import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 
 export interface UploadProgress {
   stage: 'validating' | 'compressing' | 'uploading' | 'saving' | 'done' | 'error';
@@ -42,15 +44,19 @@ export const formatCompressionRatio = (original: number, compressed: number): st
   return `${ratio}% reducción`;
 };
 
-const padDatePart = (value: number): string => String(value).padStart(2, '0');
-
+/** Default and maximum of the photo time field: the hospital wall clock, not the device's. */
 export const toClinicalDatetimeLocalValue = (date: Date = new Date()): string =>
-  `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())}T${padDatePart(date.getHours())}:${padDatePart(date.getMinutes())}`;
+  hospitalTakenAt(date).slice(0, 16);
 
-export const toClinicalEventIso = (datetimeLocalValue: string): string | undefined => {
-  if (!datetimeLocalValue.trim()) return undefined;
-  return `${datetimeLocalValue}:00.000Z`;
+/**
+ * `takenAt` from the time field (hospital wall clock, see woundCarePhotoTime). An emptied field
+ * still records the hospital time of the upload instead of leaving the server a UTC instant.
+ */
+export const toClinicalEventIso = (datetimeLocalValue: string, now: Date = new Date()): string =>
+  datetimeLocalValue.trim() ? `${datetimeLocalValue}:00.000Z` : hospitalTakenAt(now);
+
+export const formatReadonlyUploadDateTime = (date: Date = new Date()): string => {
+  const { iso, hhmm } = calendarStampInClinicalTimeZone(date);
+  const [year, month, day] = iso.split('-');
+  return `${day}/${month}/${year} ${hhmm}`;
 };
-
-export const formatReadonlyUploadDateTime = (date: Date = new Date()): string =>
-  `${padDatePart(date.getDate())}/${padDatePart(date.getMonth() + 1)}/${date.getFullYear()} ${padDatePart(date.getHours())}:${padDatePart(date.getMinutes())}`;
