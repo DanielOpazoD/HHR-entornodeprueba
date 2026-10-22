@@ -4,7 +4,7 @@ import {
   logAuditEvent,
   logThrottledViewEvent,
 } from '@/services/admin/auditService';
-import { getCurrentUserEmail } from '@/services/admin/utils/auditUtils';
+import { getCurrentUserEmail, getCurrentUserUid } from '@/services/admin/utils/auditUtils';
 import type { AuditAction } from '@/types/auditActionTypes';
 import type { AuditLogEntry } from '@/types/auditLogTypes';
 
@@ -106,7 +106,9 @@ export const defaultAuditPort: AuditPort = {
   logPatientView: async (bedId, patientName, rut, recordDate) =>
     logThrottledViewEvent('VIEW_PATIENT', bedId, { patientName, bedId, rut }, recordDate),
   logUserLogout: async (_email, reason = 'manual') => {
+    // Whose connection ends is fixed now: the module may finish loading after sign-out.
+    const uid = getCurrentUserUid();
     const { endCurrentAuditConnection } = await loadAuditConnectionRuntime();
-    await endCurrentAuditConnection(reason);
+    await endCurrentAuditConnection(reason, uid);
   },
 };

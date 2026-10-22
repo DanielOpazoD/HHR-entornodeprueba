@@ -84,6 +84,19 @@ export const resetLocationToLoginRoute = (): void => {
   }
 };
 
+/** Loading the audit module plus its own 1.5 s delivery budget. */
+const LOGOUT_AUDIT_BUDGET_MS = 2_000;
+
+const settleWithin = (task: Promise<unknown>, budgetMs: number): Promise<void> =>
+  new Promise(resolve => {
+    const timer = setTimeout(resolve, budgetMs);
+    const settle = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    task.then(settle, settle);
+  });
+
 export const createHandleLogout =
   (
     user: AuthUser | null,
@@ -113,12 +126,16 @@ export const createHandleLogout =
     broadcastLogout(reason);
 
     // 2. Close the audit connection while still signed in: Firestore authenticates a write when
-    //    it is sent, so an end event racing sign-out could be rejected. The wait is bounded and
-    //    anything undelivered stays queued on the device for the next sign-in.
+    //    it is sent, so an end event racing sign-out could be rejected. The whole step, loading
+    //    the audit module included, is bounded: sign-out never waits on it. Anything undelivered
+    //    stays queued on the device for the next sign-in.
     if (user?.email) {
-      await defaultAuditPort
-        .logUserLogout(user.email, reason)
-        .catch(error => authStateLogger.warn('Logout audit step rejected', error));
+      await settleWithin(
+        defaultAuditPort
+          .logUserLogout(user.email, reason)
+          .catch(error => authStateLogger.warn('Logout audit step rejected', error)),
+        LOGOUT_AUDIT_BUDGET_MS
+      );
     }
 
     // 3. Async cleanup — best-effort, one failure does not block others

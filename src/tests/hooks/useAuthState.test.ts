@@ -260,7 +260,9 @@ describe('useAuthState baseline', () => {
     });
 
     expect(result.current.user).toBe(null);
-    expect(auditConnectionRuntime.endCurrentAuditConnection).toHaveBeenCalledWith('automatic');
+    expect(vi.mocked(auditConnectionRuntime.endCurrentAuditConnection).mock.calls[0][0]).toBe(
+      'automatic'
+    );
   });
 
   it('should handle network status switches', async () => {

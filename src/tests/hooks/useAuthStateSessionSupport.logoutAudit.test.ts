@@ -51,6 +51,25 @@ describe('createHandleLogout audit order', () => {
     expect(signOut).toHaveBeenCalledOnce();
   });
 
+  it('signs out once the audit budget runs out, even if the audit step never settles', async () => {
+    vi.useFakeTimers();
+    try {
+      // e.g. the audit module is still downloading over a stalled network
+      vi.mocked(defaultAuditPort.logUserLogout).mockReturnValue(new Promise<void>(() => undefined));
+      const signOut = vi.fn().mockResolvedValue(undefined);
+
+      const logout = createHandleLogout(USER as never, signOut, vi.fn())('manual');
+      await vi.advanceTimersByTimeAsync(1_999);
+      expect(signOut).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(1);
+      await logout;
+      expect(signOut).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('still signs out when the audit step fails', async () => {
     vi.mocked(defaultAuditPort.logUserLogout).mockRejectedValue(new Error('offline'));
     const signOut = vi.fn().mockResolvedValue(undefined);

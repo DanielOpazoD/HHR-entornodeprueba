@@ -9,6 +9,7 @@ const auditServiceMocks = vi.hoisted(() => ({
 
 const auditUtilsMocks = vi.hoisted(() => ({
   getCurrentUserEmail: vi.fn(() => 'doctor@hospital.cl'),
+  getCurrentUserUid: vi.fn(() => 'doctor-123'),
 }));
 
 vi.mock('@/services/admin/auditService', () => auditServiceMocks);
@@ -125,7 +126,10 @@ describe('defaultAuditPort', () => {
       limit: 3000,
     });
 
-    expect(connectionRuntimeMocks.endCurrentAuditConnection).toHaveBeenCalledWith('automatic');
+    expect(connectionRuntimeMocks.endCurrentAuditConnection).toHaveBeenCalledWith(
+      'automatic',
+      'doctor-123'
+    );
     expect(auditServiceMocks.getAuditLogsInRange).toHaveBeenCalledWith({
       fromIso: '2026-10-22T05:00:00.000Z',
       toIso: '2026-10-23T05:00:00.000Z',
