@@ -18,7 +18,8 @@ describe('private individual access forms', () => {
     vi.mocked(establishNursingSession).mockResolvedValue(undefined);
     const onSuccess = vi.fn();
     render(<NursingAccessForm onSuccess={onSuccess} />);
-    fireEvent.click(screen.getByText('¿Es tu primer ingreso?'));
+    fireEvent.click(screen.getByRole('button', { name: 'Primer ingreso' }));
+    expect(screen.getByText(/usa los números del RUT/)).toBeVisible();
     fireEvent.click(screen.getByText('Tengo un código de activación'));
     fireEvent.change(screen.getByLabelText('Usuario'), {
       target: { value: '11.111.111-1' },
