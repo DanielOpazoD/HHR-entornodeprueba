@@ -322,3 +322,55 @@ deshabilitar/habilitar sin pérdida de clave, eliminación de Auth sin borrar au
 fallos intermedios y suspensión concurrente. Verificar listado de correo solo admin,
 confirmaciones de botones y controles antiguos colapsados. Emulator Auth/Firestore/
 Storage debe rechazar sesiones previas y escritura del rol de solo lectura.
+
+### Parches del tooling para PR #922 (2026-10-21)
+
+- **Owner:** tooling y pruebas HHR.
+- **Reason:** corregir los nuevos avisos de Storybook, Vitest, Vite y markdown-it que bloquean Security Audit.
+- **TargetVersion:** Storybook y su grupo de nueve paquetes 10.6.2, Vitest y su grupo 4.1.12, Vite 6.4.4 y markdown-it 14.3.3. Cambian 22 nodos resueltos. Se conservan Firebase CLI, Functions y las dependencias de producción.
+- **RiskLevel:** medio; afecta el servidor y las compilaciones de desarrollo, las pruebas de componentes y TypeDoc.
+- **RollbackPlan:** revertir este commit y ejecutar `npm ci`; reaparecerían los avisos corregidos. No modificar credenciales, permisos ni datos clínicos.
+- **VerificationGate:** `dependency_upgrade`: instalación limpia sin omitir validación de peers, auditoría de ambos paquetes, regresiones de la excepción, `ci:merge-gate`, compilaciones Storybook y TypeDoc, revisión independiente y CI del head definitivo.
+
+La resolución aislada utiliza TLS válido en GitHub Actions. Los tarballs
+oficiales se comprueban por integridad antes de incorporarse a la caché local.
+No se desactiva TLS ni se cambia la configuración de confianza del Mac.
+La comparación conserva íntegros los siete nodos de la excepción de braces,
+incluidas sus dependencias. Sólo se vuelve a vincular la huella del lockfile.
+El gate sigue rechazando cualquier aviso alto o crítico adicional.
+
+Fuentes: [Storybook](https://github.com/advisories/GHSA-f2ph-cmg5-wxc8),
+[Vite](https://github.com/advisories/GHSA-698v-4r3x-3vcv) y
+[markdown-it](https://github.com/advisories/GHSA-vfgh-jcmw-g37q).
+
+La compilación de Storybook detectó imports a componentes movidos y tres
+stories de componentes retirados. Las stories conservadas apuntan a las rutas
+actuales. Se retiran únicamente ConflictVersionsAdminControl, TraceabilitySummary
+y TraceabilityTimeline, sin componente ni referencias productivas vigentes.
+No se modifica ningún componente ni contrato clínico. La compilación completa
+de Storybook comprueba conjuntamente estas rutas.
+
+La auditoría tras la instalación limpia detectó también los avisos de
+`@vitest/mocker` [GHSA-qxg6-89mg-rqv8](https://github.com/advisories/GHSA-qxg6-89mg-rqv8)
+y [GHSA-xp26-3454-mjgp](https://github.com/advisories/GHSA-xp26-3454-mjgp).
+El grupo Vitest 4.1.12 los corrige sin modificar el rechazo de causas cíclicas
+del control de auditoría.
+
+Los artefactos generados en `storybook-static` quedan fuera de ESLint, igual que
+`dist`. Las fuentes de las stories siguen sujetas al lint. La story de dotación
+utiliza los props vigentes y conserva los escenarios de dotación poblada y vacía
+a través del contexto. La compilación no acredita interacciones de todas las stories.
+
+Storybook desactiva VitePWA mediante su señal `STORYBOOK=true`, sin cambiar
+el límite de precaché de la aplicación. El preview importa el CSS global.
+La API pública de handoff reexporta `HandoffRow` para que su story respete
+la frontera del módulo, sin modificar el componente.
+
+La prueba de correo de recuperación resuelve `googleapis` desde el módulo del
+transporte. Esto conserva el aislamiento cuando raíz y Functions tienen sus
+propias instalaciones, sin cambiar el envío real ni sus aserciones.
+
+El E2E de recuperación DICOM espera hasta 60 segundos el estado exacto de
+23 cortes listos antes de operar el cine parcial. El botón de reintento puede
+aparecer mientras otros cortes siguen preparándose. Se mantienen el corte
+fallido, los conteos de solicitudes y las comprobaciones de recuperación.

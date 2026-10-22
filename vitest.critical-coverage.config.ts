@@ -48,7 +48,11 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/tests/setup.ts'],
     include: ['src/tests/**/*.test.ts', 'src/tests/**/*.test.tsx'],
-    exclude: ['stories/**/*', 'node_modules/**/*'],
+    exclude: [
+      'stories/**/*',
+      'node_modules/**/*',
+      'src/tests/services/storage/syncQueueLoad.test.ts',
+    ],
     maxWorkers: 4,
     testTimeout: 30000,
     hookTimeout: 30000,

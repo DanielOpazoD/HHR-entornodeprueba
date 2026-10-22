@@ -26,10 +26,12 @@
     "src/tests/services/backup/censusStorageService.test.ts",
     "src/tests/services/backup/cudyrStorageService.test.ts",
     "src/tests/services/backup/pdfStorageRuntime.test.ts",
-    "src/tests/services/storage/syncQueueLoad.test.ts"
+    "src/tests/services/storage/syncQueueDrain.test.ts"
   ],
   "excludedFromUnitSuite": [
     "src/tests/security/firestore-rules.test.ts",
+    "src/tests/security/storage-rules.test.ts",
+    "src/tests/services/storage/syncQueueLoad.test.ts",
     "src/tests/emulator/**",
     "src/tests/emulator-ui/**"
   ]

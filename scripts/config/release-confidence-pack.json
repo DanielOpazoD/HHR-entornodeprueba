@@ -5,6 +5,7 @@
       "serverless_deploy_smoke",
       "runtime_smoke",
       "rules_ci",
+      "storage_rules_ci",
       "emulator_sync_ci",
       "critical_coverage",
       "flow_performance",
@@ -15,6 +16,7 @@
       "serverless_deploy_smoke",
       "runtime_smoke",
       "rules_ci",
+      "storage_rules_ci",
       "emulator_sync_ci",
       "critical_coverage",
       "flow_performance",
@@ -47,6 +49,12 @@
       "id": "rules_ci",
       "label": "Firestore rules CI pack",
       "command": "npm run test:rules:ci",
+      "tier": "blocking"
+    },
+    {
+      "id": "storage_rules_ci",
+      "label": "Storage rules CI pack",
+      "command": "npm run test:storage-rules:ci",
       "tier": "blocking"
     },
     {

@@ -88,6 +88,7 @@ it('reuses exact dependencies across compatible jobs with only one pristine-cach
     'quality-static-governance-snapshots',
     'quality-static-groups',
     'rules-emulator',
+    'test-execution-manifest',
     'unit-risk-shards',
   ]);
   const writers = reusable.filter(([, job]) =>

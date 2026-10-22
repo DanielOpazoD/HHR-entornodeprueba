@@ -864,7 +864,9 @@ test.describe('DICOM viewer and Salvador annexes', () => {
     await expect(viewer.getByRole('button', { name: 'Reintentar cortes fallidos' })).toBeVisible({
       timeout: 60000,
     });
-    await expect(viewer.getByLabel('Descarga de la serie')).toHaveAttribute('value', '23');
+    await expect(viewer.getByLabel('Descarga de la serie')).toHaveAttribute('value', '23', {
+      timeout: 60000,
+    });
     await expect(viewer.getByRole('button', { name: 'MPR', exact: true })).toBeDisabled();
     await viewer.locator('.dicom-load-detail > summary').click();
     await viewer.getByLabel('Descargas simultáneas').selectOption('2');

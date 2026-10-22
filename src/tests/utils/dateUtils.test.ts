@@ -123,7 +123,9 @@ describe('dateUtils', () => {
     it('should return a Date object for a valid ISO string', () => {
       const result = parseISODate('2024-12-25');
       expect(result).toBeInstanceOf(Date);
-      expect(result?.getFullYear()).toBe(2024);
+      expect(result?.getUTCFullYear()).toBe(2024);
+      expect(result?.getUTCMonth()).toBe(11);
+      expect(result?.getUTCDate()).toBe(25);
     });
 
     it('should return null for invalid date string', () => {

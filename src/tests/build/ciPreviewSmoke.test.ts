@@ -1,6 +1,7 @@
 // @vitest-environment node
 import fs from 'node:fs';
 import { expect, it } from 'vitest';
+import { collectE2eOwnershipIssues } from '../../../scripts/testExecutionManifestSupport.mjs';
 import { renderPreviewSummary } from '../../../scripts/report-preview-summary.mjs';
 import {
   buildPreviewSmokeLanes,
@@ -26,6 +27,14 @@ it('runs census, library, clinical-panel, sync-navigation and DICOM/carryover pr
   ]);
   // CI runs the same pack in parallel lanes and merges one canonical report.
   expect(fs.existsSync('.github/workflows/preview.yml')).toBe(false);
+  const ownership = JSON.parse(fs.readFileSync('scripts/config/e2e-test-ownership.json', 'utf8'));
+  expect(
+    collectE2eOwnershipIssues(
+      ownership.specs.map((entry: { file: string }) => entry.file),
+      ownership,
+      process.cwd()
+    )
+  ).toEqual([]);
   const { jobs } = parseWorkflow(fs.readFileSync('.github/workflows/ci-cd.yml', 'utf8'));
   const lanes = jobs['preview-smoke-lanes'];
   expect(lanes.needs).toEqual(['ci-scope']);

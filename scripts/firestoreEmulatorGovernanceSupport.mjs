@@ -56,6 +56,10 @@ export const collectFirestoreEmulatorGovernanceIssues = (root = process.cwd()) =
   const scripts = packageJson?.scripts;
 
   requireScript(scripts, 'test', 'npm run test:rules:ci', issues);
+  requireScript(scripts, 'test', 'npm run test:storage-rules:ci', issues);
+  requireScript(scripts, 'test:storage-rules', 'RUN_STORAGE_RULES_TESTS=1', issues);
+  requireScript(scripts, 'test:storage-rules', 'vitest.storage-rules.config.ts', issues);
+  requireScript(scripts, 'test:storage-rules:ci', 'scripts/run-storage-rules-ci.sh', issues);
   requireScript(scripts, 'test', 'npm run test:emulator:sync:ci', issues);
   requireScript(scripts, 'test:rules', 'RUN_FIRESTORE_RULES_TESTS=1', issues);
   requireScript(scripts, 'test:rules', 'vitest.rules.config.ts', issues);
@@ -64,9 +68,24 @@ export const collectFirestoreEmulatorGovernanceIssues = (root = process.cwd()) =
   requireScript(scripts, 'test:emulator:sync', 'vitest.emulator.config.ts', issues);
   requireScript(scripts, 'test:emulator:ui', 'RUN_FIRESTORE_EMULATOR_TESTS=1', issues);
   requireScript(scripts, 'test:emulator:ui', 'vitest.emulator-ui.config.ts', issues);
-  requireScript(scripts, 'test:emulator:sync:ci', 'scripts/run-firestore-sync-emulator-ci.sh', issues);
-  requireScript(scripts, 'test:firestore:release:ci', 'scripts/run-firestore-release-gate-ci.sh', issues);
-  requireScript(scripts, 'test:firestore:cma:ci', 'scripts/run-firestore-cma-specialty-ci.sh', issues);
+  requireScript(
+    scripts,
+    'test:emulator:sync:ci',
+    'scripts/run-firestore-sync-emulator-ci.sh',
+    issues
+  );
+  requireScript(
+    scripts,
+    'test:firestore:release:ci',
+    'scripts/run-firestore-release-gate-ci.sh',
+    issues
+  );
+  requireScript(
+    scripts,
+    'test:firestore:cma:ci',
+    'scripts/run-firestore-cma-specialty-ci.sh',
+    issues
+  );
   requireScript(scripts, 'ci:release-gate', 'npm run test:firestore:release:ci', issues);
 
   const releasePack = readJson(root, 'scripts/config/release-confidence-pack.json', issues);
@@ -79,6 +98,17 @@ export const collectFirestoreEmulatorGovernanceIssues = (root = process.cwd()) =
   }
   if (!blockingProfile.includes('emulator_sync_ci')) {
     issues.push('release-confidence blocking profile must include emulator_sync_ci.');
+  }
+
+  if (!blockingProfile.includes('storage_rules_ci')) {
+    issues.push('release-confidence blocking profile must include storage_rules_ci.');
+  }
+  if (
+    getReleasePackStep(releasePack, 'storage_rules_ci')?.command !== 'npm run test:storage-rules:ci'
+  ) {
+    issues.push(
+      'release-confidence step storage_rules_ci must run "npm run test:storage-rules:ci".'
+    );
   }
 
   const rulesStep = getReleasePackStep(releasePack, 'rules_ci');
@@ -107,6 +137,20 @@ export const collectFirestoreEmulatorGovernanceIssues = (root = process.cwd()) =
     'scripts/run-firestore-rules-ci.sh must execute npm run test:rules through the Firestore emulator.',
     issues
   );
+
+  const storageCi = readText(root, 'scripts/run-storage-rules-ci.sh');
+  for (const fragment of [
+    'ensure_java_available',
+    'run_storage_emulator_exec "npm run test:storage-rules',
+  ]) {
+    requireText(
+      storageCi,
+      'scripts/run-storage-rules-ci.sh',
+      fragment,
+      `scripts/run-storage-rules-ci.sh must include ${fragment}.`,
+      issues
+    );
+  }
 
   const syncCi = readText(root, 'scripts/run-firestore-sync-emulator-ci.sh');
   requireText(
@@ -213,6 +257,14 @@ export const collectFirestoreEmulatorGovernanceIssues = (root = process.cwd()) =
     '.github/workflows/ci-cd.yml',
     'RUN_FIRESTORE_EMULATOR_TESTS: 1',
     '.github/workflows/ci-cd.yml must set RUN_FIRESTORE_EMULATOR_TESTS=1 for emulator sync/UI CI.',
+    issues
+  );
+
+  requireText(
+    workflow,
+    '.github/workflows/ci-cd.yml',
+    '-- npm run test:storage-rules:ci',
+    '.github/workflows/ci-cd.yml must run npm run test:storage-rules:ci in the rules-emulator job.',
     issues
   );
 

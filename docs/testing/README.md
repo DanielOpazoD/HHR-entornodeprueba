@@ -29,6 +29,7 @@ Superficie pública mínima recomendada para trabajo diario: [docs/DEVELOPER_COM
 | `npm run test:release-confidence:full`       | Pack extendido de release confidence: agrega `unit_critical` para corridas de validación más profundas                    |
 | `npm run test:e2e:critical`                  | E2E críticos sobre emulador                                                                                               |
 | `npm run test:e2e:flow-performance`          | Budgets de performance por flujo (`login`, `auth`, `censo visible`, `censo record-ready`, `clinical-documents`, `backup`) |
+| `npm run test:storage-rules:ci`              | Permisos de adjuntos clínicos contra emuladores Firestore y Storage; bloquea PR y release confidence                      |
 | `npm run test:rules`                         | Reglas Firestore                                                                                                          |
 | `npm run test:emulator:sync`                 | Suite de emulador sync                                                                                                    |
 | `npm run test:emulator:ui`                   | Suite de emulador UI                                                                                                      |
@@ -83,7 +84,12 @@ La definición canónica, los fallbacks conservadores y los gates exactos están
 
 La cobertura crítica ya no se gobierna por conteo de tests o ratios test/source.
 
-Ahora se valida por zonas instrumentadas:
+Cada zona exige fuente y al menos una prueba del owner. Los conteos y ratios son
+informativos: consolidar archivos no debe bloquear si se conservan los baselines
+instrumentados de líneas, funciones y ramas. Una fuente sin instrumentar sigue
+fallando.
+
+Se valida por zonas instrumentadas:
 
 - `census/controllers`
 - `clinical-documents`
@@ -230,6 +236,7 @@ Perfil blocking por defecto (`npm run test:release-confidence`):
 
 - `runtime_smoke`
 - `rules_ci`
+- `storage_rules_ci`
 - `emulator_sync_ci`
 - `critical_coverage`
 - `flow_performance`
@@ -275,3 +282,40 @@ Objetivo: que el pack blocking siga siendo chico, pero con cobertura explícita 
 3. Si aparece una falla E2E, migrar el spec a contratos estables (`data-testid`, ready states, errores visibles) antes de relajar assertions.
 4. Si cambia el estándar operativo, actualizar [docs/CI_GATES_AND_FAILURE_RUNBOOKS.md](../CI_GATES_AND_FAILURE_RUNBOOKS.md).
 5. Si cambia el smoke de preview o el grafo de chunks de arranque, actualizar también `scripts/config/guardrail-governance.json` para que CI, reportes y documentación sigan alineados.
+
+## 5.4 Inventario y ejecución por árbol probado
+
+`npm run report:test-execution-manifest` genera `reports/test-execution-manifest.json`
+y `.md`. El inventario muestra pertenencia a los shards y la decisión de cada spec
+en `scripts/config/e2e-test-ownership.json`. Declarar un owner no demuestra ejecución.
+Los candidatos a retirada permanecen ejecutables hasta demostrar equivalencia.
+
+Para capturar una ejecución local con Node.js 22:
+
+```bash
+node scripts/report-test-execution-manifest.mjs \
+  --capture vitest --report reports/execution/focused.raw.json \
+  --output reports/execution/focused.evidence.json -- \
+  npx vitest run src/tests/build/testExecutionManifestSupport.test.ts \
+  --reporter=default --reporter=json --outputFile=reports/execution/focused.raw.json
+npm run report:test-execution-manifest -- \
+  --input reports/execution/focused.evidence.json
+```
+
+Capturar `playwright test --list --reporter=json` exige `--collection`; recolectar
+no cuenta como ejecutar. Los reportes separan aprobados, fallidos, omitidos, `todo`,
+errores de suite y reintentos. No suman corridas que pueden solaparse.
+
+La captura registra SHA completo y huella del diff local antes y después del comando.
+Un cambio durante la ejecución, un SHA distinto o un JSON sin procedencia se rechazan.
+Los archivos de salida viven en `reports/`, que está ignorado por Git. En PR se valida
+el merge commit probado por Actions; puede diferir del head de la rama.
+
+El job `test-execution-manifest` requiere evidencia de los cuatro shards, Storage, E2E
+crítico y performance de flujo del mismo run. Esa lista es un alcance explícito: no afirma haber observado
+cada pack especializado, ni convierte los E2E manuales en pruebas ejecutadas.
+Los scopes parciales omiten este job de forma intencional. Un artefacto de un intento anterior sólo se reutiliza si pertenece al mismo run y
+árbol probado y acredita una ejecución completa aprobada.
+
+El saneamiento y los contratos conservados se documentan en
+[Saneamiento de la suite](TEST_SUITE_SANITIZATION.md).

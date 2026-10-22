@@ -14,6 +14,7 @@ export default tseslint.config(
       'coverage',
       'dev-dist',
       'dist',
+      'storybook-static',
       // Explicit extension vendors. Every other extension/*.js file is authored code and linted.
       'extension/jspdf.umd.min.js',
       'extension/pdf-lib.min.js',

@@ -24,10 +24,13 @@ describe('clinicalDateUtils', () => {
     expect(parseCalendarDateUtcNoon('invalid')).toBeNull();
   });
 
-  it('adds and diffs calendar days across month boundaries', () => {
+  it('adds and diffs calendar days across month and year boundaries', () => {
     expect(addCalendarDays('2026-01-31', 1)).toBe('2026-02-01');
     expect(addCalendarDays('2026-02-01', -1)).toBe('2026-01-31');
     expect(diffCalendarDays('2026-01-23', '2026-01-26')).toBe(3);
     expect(diffCalendarDays('invalid', '2026-01-26')).toBeNull();
+    expect(addCalendarDays('2024-12-31', 1)).toBe('2025-01-01');
+    expect(addCalendarDays('2025-01-01', -1)).toBe('2024-12-31');
+    expect(diffCalendarDays('2024-12-31', '2025-01-01')).toBe(1);
   });
 });

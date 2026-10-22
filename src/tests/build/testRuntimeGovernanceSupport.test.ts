@@ -60,6 +60,48 @@ describe('test runtime governance support', () => {
     expect(collectTestRuntimeGovernanceIssues(process.cwd())).toEqual([]);
   });
 
+  it.each(['test:ci:unit', 'test:ci:unit:shard'])(
+    'rejects a nightly load suite reintroduced through %s expansion',
+    script => {
+      const root = makeReportRoot();
+      for (const relative of [
+        '.github/workflows/ci-cd.yml',
+        '.github/workflows/nightly-test-runtime.yml',
+        'scripts/config/unit-shard-balance.json',
+        'src/tests/services/storage/syncQueueLoad.test.ts',
+      ]) {
+        fs.mkdirSync(path.dirname(path.join(root, relative)), { recursive: true });
+        fs.copyFileSync(relative, path.join(root, relative));
+      }
+      for (const relative of ['src/tests/support', 'src/tests/utils']) {
+        fs.mkdirSync(path.join(root, relative), { recursive: true });
+      }
+      fs.mkdirSync(path.join(root, 'src/tests/integration'), { recursive: true });
+      fs.writeFileSync(path.join(root, 'src/tests/integration/setup.tsx'), '');
+      expect(collectTestRuntimeGovernanceIssues(root)).toEqual([]);
+      const file = 'src/tests/services/storage/syncQueueLoad.test.ts';
+      if (script === 'test:ci:unit') {
+        const packagePath = path.join(root, 'package.json');
+        const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+        packageJson.scripts[script] = packageJson.scripts[script].replace(
+          ` --exclude "${file}"`,
+          ''
+        );
+        fs.writeFileSync(packagePath, JSON.stringify(packageJson));
+      } else {
+        const configPath = path.join(root, 'scripts/config/unit-shard-balance.json');
+        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        config.excludedFromUnitSuite = config.excludedFromUnitSuite.filter(
+          (excluded: string) => excluded !== file
+        );
+        fs.writeFileSync(configPath, JSON.stringify(config));
+      }
+      expect(collectTestRuntimeGovernanceIssues(root)).toEqual([
+        `sync-load: nightly-only file ${file} is included indirectly in ${script}.`,
+      ]);
+    }
+  );
+
   it('renders a compact report with slow-test and fixture governance sections', () => {
     const report = buildTestRuntimeGovernanceReport(process.cwd());
     const markdown = formatTestRuntimeGovernanceMarkdown(report);

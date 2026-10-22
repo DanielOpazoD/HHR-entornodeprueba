@@ -16,6 +16,7 @@ describe('CI summary governance', () => {
     const requiredResults = [
       ['CI_SCOPE_RESULT', "needs['ci-scope'].result"],
       ['QUALITY_STATIC_RESULT', "needs['quality-static'].result"],
+      ['TEST_EXECUTION_RESULT', "needs['test-execution-manifest'].result"],
       ['UNIT_RISK_RESULT', "needs['unit-risk'].result"],
       ['CLINICAL_SYNC_RESULT', "needs['clinical-sync-release-gate'].result"],
       ['RULES_EMULATOR_RESULT', "needs['rules-emulator'].result"],

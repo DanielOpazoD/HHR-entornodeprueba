@@ -460,9 +460,53 @@ jobs:
         uses: ./.github/actions/setup-ci-dependencies
 
       - name: Run unit shard
-        run: npm run test:ci:unit:shard -- ${{ matrix.shard }}/4
+        run: >-
+          node scripts/report-test-execution-manifest.mjs
+          --capture vitest --suite unit-${{ matrix.shard }}
+          --report reports/execution/unit-${{ matrix.shard }}.raw.json
+          --output reports/execution/unit-${{ matrix.shard }}.evidence.json
+          -- npm run test:ci:unit:shard -- ${{ matrix.shard }}/4
+          --reporter=default --reporter=json
+          --outputFile=reports/execution/unit-${{ matrix.shard }}.raw.json
         env:
           CI: true
+
+      - name: Upload unit 1 execution evidence
+        if: always() && matrix.shard == 1
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-execution-evidence-unit-1
+          path: reports/execution/unit-1.evidence.json
+          overwrite: true
+          if-no-files-found: error
+          retention-days: 30
+      - name: Upload unit 2 execution evidence
+        if: always() && matrix.shard == 2
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-execution-evidence-unit-2
+          path: reports/execution/unit-2.evidence.json
+          overwrite: true
+          if-no-files-found: error
+          retention-days: 30
+      - name: Upload unit 3 execution evidence
+        if: always() && matrix.shard == 3
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-execution-evidence-unit-3
+          path: reports/execution/unit-3.evidence.json
+          overwrite: true
+          if-no-files-found: error
+          retention-days: 30
+      - name: Upload unit 4 execution evidence
+        if: always() && matrix.shard == 4
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-execution-evidence-unit-4
+          path: reports/execution/unit-4.evidence.json
+          overwrite: true
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Upload test coverage shard artifact (optional)
         if: always()
@@ -539,11 +583,31 @@ jobs:
           CI: true
           RUN_FIRESTORE_RULES_TESTS: 1
 
+      - name: Run clinical attachment Storage rules tests with emulators
+        run: >-
+          node scripts/report-test-execution-manifest.mjs
+          --capture vitest --suite storage
+          --report reports/execution/storage.raw.json
+          --output reports/execution/storage.evidence.json
+          -- npm run test:storage-rules:ci
+        env:
+          CI: true
+
       - name: Run Firestore emulator test suites (sync + UI)
         run: npm run test:emulator:sync:ci
         env:
           CI: true
           RUN_FIRESTORE_EMULATOR_TESTS: 1
+
+      - name: Upload Storage execution evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-execution-evidence-storage
+          path: reports/execution/storage.evidence.json
+          overwrite: true
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Prepare Chromium for individual account browser flow
         uses: ./.github/actions/setup-ci-chromium
@@ -589,7 +653,12 @@ jobs:
         run: npm run test:e2e:shared-offscreen
 
       - name: Run critical E2E suite with Firestore emulator
-        run: npm run test:e2e:critical:ci
+        run: >-
+          node scripts/report-test-execution-manifest.mjs
+          --capture playwright --suite critical
+          --report reports/e2e/critical-playwright-report.json
+          --output reports/execution/critical.evidence.json
+          -- npm run test:e2e:critical:ci
         env:
           CI: true
           E2E_CRITICAL_BROWSERS: chromium
@@ -598,6 +667,26 @@ jobs:
           E2E_BUDGET_LOGIN_VISIBLE_MS: 4500
           E2E_BUDGET_AUTH_FEEDBACK_MS: 3000
           E2E_BUDGET_CENSO_VISIBLE_MS: 8000
+
+      - name: Upload critical browser execution evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-execution-evidence-critical
+          path: reports/execution/critical.evidence.json
+          overwrite: true
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload flow browser execution evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-execution-evidence-flow
+          path: reports/execution/flow.evidence.json
+          overwrite: true
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Verify authenticated census read against local emulators
         run: npm run test:e2e:census-remote-performance
@@ -631,6 +720,71 @@ jobs:
             playwright-report/**
             test-results/**
           retention-days: 14
+
+  test-execution-manifest:
+    name: test-execution-manifest
+    runs-on: ubuntu-latest
+    needs: [ci-scope, unit-risk-shards, rules-emulator, e2e-critical-emulator]
+    if: always() && needs.ci-scope.outputs.scope == 'full'
+    steps:
+      - name: Checkout tested merge tree
+        uses: actions/checkout@v7
+      - name: Setup CI dependencies
+        uses: ./.github/actions/setup-ci-dependencies
+      - name: Download same-run unit-1 execution evidence
+        uses: actions/download-artifact@v7
+        with:
+          name: test-execution-evidence-unit-1
+          path: reports/execution
+      - name: Download same-run unit-2 execution evidence
+        uses: actions/download-artifact@v7
+        with:
+          name: test-execution-evidence-unit-2
+          path: reports/execution
+      - name: Download same-run unit-3 execution evidence
+        uses: actions/download-artifact@v7
+        with:
+          name: test-execution-evidence-unit-3
+          path: reports/execution
+      - name: Download same-run unit-4 execution evidence
+        uses: actions/download-artifact@v7
+        with:
+          name: test-execution-evidence-unit-4
+          path: reports/execution
+      - name: Download same-run storage execution evidence
+        uses: actions/download-artifact@v7
+        with:
+          name: test-execution-evidence-storage
+          path: reports/execution
+      - name: Download same-run critical execution evidence
+        uses: actions/download-artifact@v7
+        with:
+          name: test-execution-evidence-critical
+          path: reports/execution
+      - name: Download same-run flow execution evidence
+        uses: actions/download-artifact@v7
+        with:
+          name: test-execution-evidence-flow
+          path: reports/execution
+      - name: Require all seven execution reports and validate provenance
+        shell: bash
+        run: |
+          inputs=()
+          for suite in unit-1 unit-2 unit-3 unit-4 storage critical flow; do
+            evidence="reports/execution/$suite.evidence.json"
+            test -f "$evidence" || { echo "::error::Missing $suite execution evidence"; exit 1; }
+            inputs+=(--input "$evidence")
+          done
+          npm run report:test-execution-manifest -- "${inputs[@]}"
+      - name: Upload execution manifest
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-execution-manifest
+          path: reports/test-execution-manifest.*
+          overwrite: true
+          if-no-files-found: error
+          retention-days: 30
 
   build:
     name: build-budget
@@ -1022,6 +1176,7 @@ jobs:
         functions-scope-gate,
         quality-static,
         unit-risk,
+        test-execution-manifest,
         clinical-sync-release-gate,
         rules-emulator,
         e2e-critical-emulator,
@@ -1037,6 +1192,7 @@ jobs:
       DOCS_SCOPE_GATE_RESULT: ${{ needs['docs-scope-gate'].result }}
       FUNCTIONS_SCOPE_GATE_RESULT: ${{ needs['functions-scope-gate'].result }}
       QUALITY_STATIC_RESULT: ${{ needs['quality-static'].result }}
+      TEST_EXECUTION_RESULT: ${{ needs['test-execution-manifest'].result }}
       UNIT_RISK_RESULT: ${{ needs['unit-risk'].result }}
       CLINICAL_SYNC_RESULT: ${{ needs['clinical-sync-release-gate'].result }}
       RULES_EMULATOR_RESULT: ${{ needs['rules-emulator'].result }}
@@ -1065,6 +1221,7 @@ jobs:
           for gate in \
             "quality-static:$QUALITY_STATIC_RESULT" \
             "unit-risk:$UNIT_RISK_RESULT" \
+            "test-execution-manifest:$TEST_EXECUTION_RESULT" \
             "clinical-sync-release-gate:$CLINICAL_SYNC_RESULT" \
             "rules-emulator:$RULES_EMULATOR_RESULT" \
             "e2e-critical-emulator:$E2E_CRITICAL_RESULT" \

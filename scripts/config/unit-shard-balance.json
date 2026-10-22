@@ -7,6 +7,8 @@
   "slowestFileCount": 20,
   "excludedFromUnitSuite": [
     "src/tests/security/firestore-rules.test.ts",
+    "src/tests/security/storage-rules.test.ts",
+    "src/tests/services/storage/syncQueueLoad.test.ts",
     "src/tests/emulator/**",
     "src/tests/emulator-ui/**"
   ],
@@ -23,7 +25,7 @@
     "src/tests/security/legacyRoleAliasStatic.test.ts",
     "src/tests/netlify/*.test.ts",
     "src/tests/services/backup/*.test.ts",
-    "src/tests/services/storage/syncQueueLoad.test.ts",
+    "src/tests/services/storage/syncQueueDrain.test.ts",
     "src/tests/support/clinicalSyncSimulator/*.test.ts"
   ],
   "affinityGroups": [
@@ -235,7 +237,6 @@
         "src/tests/features/clinical-library/DosingCalculatorTool.test.tsx",
         "src/tests/functions/functionsColdStartBoundary.test.ts",
         "src/tests/rayen-import/RayenNursingShiftProposalModal.test.tsx",
-        "src/tests/services/storage/syncQueueLoad.test.ts",
         "src/tests/views/census/CMASection.test.tsx",
         "src/tests/views/census/DischargesSection.test.tsx",
         "src/tests/views/census/PatientLaboratoryTrigger.test.tsx"

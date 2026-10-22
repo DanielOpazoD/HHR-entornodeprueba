@@ -161,23 +161,46 @@ describe('clinicalDocumentDraftReducer — branch coverage backfill', () => {
     expect(found?.visible).toBe(false);
   });
 
-  it('MOVE_SECTION reorders the visible sections relative to the source id', () => {
-    const state = loadedState();
-    const original = state.draft!.sections.map(s => s.id);
-    const sourceId = original[0];
-    const moved = clinicalDocumentDraftReducer(state, {
-      type: 'MOVE_SECTION',
-      sectionId: sourceId,
+  it.each([
+    {
       direction: 'down',
-    });
-    const movedOrder = moved.draft!.sections.map(s => s.id);
-    expect(movedOrder).toHaveLength(original.length);
-    // The order changed — the source moved. Either it stayed at the
-    // boundary (no-op, same order) or shifted; both are valid responses
-    // depending on the helper's bound semantics. We assert the
-    // collection still contains every original id (no loss / dupe).
-    expect(new Set(movedOrder)).toEqual(new Set(original));
-  });
+      sectionId: 'antecedentes',
+      expectedOrder: [
+        'historia-evolucion',
+        'antecedentes',
+        'diagnosticos',
+        'plan',
+        'examenes-complementarios',
+      ],
+    },
+    {
+      direction: 'up',
+      sectionId: 'diagnosticos',
+      expectedOrder: [
+        'antecedentes',
+        'diagnosticos',
+        'historia-evolucion',
+        'plan',
+        'examenes-complementarios',
+      ],
+    },
+  ] satisfies Array<{
+    direction: 'up' | 'down';
+    sectionId: string;
+    expectedOrder: string[];
+  }>)(
+    'MOVE_SECTION moves $sectionId $direction across visible sections',
+    ({ direction, sectionId, expectedOrder }) => {
+      const state = loadedState();
+      const moved = clinicalDocumentDraftReducer(state, {
+        type: 'MOVE_SECTION',
+        sectionId,
+        direction,
+      });
+      expect(moved.draft?.sections.map(section => section.id)).toEqual(expectedOrder);
+      expect(moved.draft?.sections.map(section => section.order)).toEqual([0, 1, 2, 3, 4]);
+    }
+  );
 
   it('INSERT_SECTION position "above" yields one extra section', () => {
     const state = loadedState();

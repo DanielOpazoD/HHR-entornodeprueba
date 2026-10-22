@@ -148,21 +148,25 @@ describe('mergePatientDevices · propiedades', () => {
         fc.boolean(),
         (remote, local, details, history, preferLocal) => {
           const merged = mergePatientDevices(remote, local, details, history, preferLocal);
-          const union = new Set<string>([...remote, ...local]);
           const preferred: string[] = preferLocal ? local : remote;
+          const expected = preferred.filter(device => !isRetiredLocally(device, details, history));
 
           expect(new Set(merged).size).toBe(merged.length);
-          merged.forEach(device => {
-            expect(union.has(device)).toBe(true);
-            expect(isRetiredLocally(device, details, history)).toBe(false);
-          });
-          preferred.forEach(device => {
-            expect(merged.includes(device)).toBe(!isRetiredLocally(device, details, history));
-          });
+          expect(new Set(merged)).toEqual(new Set(expected));
         }
       )
     );
   });
+
+  it.each([
+    { preferLocal: true, expected: ['VVP'] },
+    { preferLocal: false, expected: ['CVC'] },
+  ])(
+    'no incorpora activos exclusivos del lado descartado con preferLocal=$preferLocal',
+    ({ preferLocal, expected }) => {
+      expect(mergePatientDevices(['CVC'], ['VVP'], {}, [], preferLocal)).toEqual(expected);
+    }
+  );
 
   it('una lista local marcada como cambio explícito gana tal cual (sin duplicados), ignorando el remoto', () => {
     fc.assert(
