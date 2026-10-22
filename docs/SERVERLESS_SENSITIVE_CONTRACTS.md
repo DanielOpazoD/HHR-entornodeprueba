@@ -131,6 +131,19 @@ Pruebas específicas: `accountFunctionsRegions.test.ts`,
 HTTP se prueba con el SDK real, incluidos preflight, autorización malformada y
 errores estructurados; se conserva el ciclo de vida/emulador de cuentas existente.
 
+`signInWithRut` agrupa límites IP/cuenta e índice privado en una transacción con
+`getAll`; sólo expone el índice del intento cuyo commit terminó. El límite sigue
+siendo 100/IP y 10/cuenta por cinco minutos: un rechazo de cuenta consume IP y un
+rechazo de IP no consume cuenta. Activación, recuperación y cambio de clave
+comparten el transporte conservando sus claves de limitación. Un error de lectura
+o commit no habilita un camino sin límites.
+
+Una clave sin el formato numérico inicial evita leer preparación de primer ingreso.
+La autorización sigue exigiendo token del mismo proyecto con revocación comprobada
+y una lectura vigente de estado/lock después del proveedor; no se conserva como permiso para
+ingresos posteriores. La clave inicial sólo concede preparación y revalida estado,
+versión y lock transaccionalmente. No cambia el envelope, los endpoints ni CUDYR.
+
 Pruebas: ciclo de vida y transporte, Auth/Firestore/Storage emulados y Chromium
 con datos sintéticos. El puente del navegador ejecuta handlers de producción;
 no sustituye la validación de CORS o Functions desplegadas. Contrato operativo:

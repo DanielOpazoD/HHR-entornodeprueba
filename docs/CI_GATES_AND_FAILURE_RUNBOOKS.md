@@ -1323,3 +1323,27 @@ Mantener cobertura sensible, ciclo de vida de cuentas y emuladores;
 estos tests no sustituyen los gates de runtime crítico ni la prueba desplegada.
 Comparar ingresos intercalados sin descartar accesos lentos; la evidencia de cinco
 pares no convierte el primer acceso observado en arranque frío ni acredita p95.
+
+## Lecturas agrupadas del ingreso por RUT
+
+Si falla un ingreso después de cambiar sus lecturas, comprobar por separado el
+commit de límites, la verificación del proveedor y la lectura final de acceso.
+Un resultado del callback transaccional no acredita un commit: no autenticar con
+el índice de un intento abandonado. Mantener 100 intentos/IP y 10/cuenta por cinco
+minutos, incluido el consumo de IP ante rechazo de cuenta. Un fallo de Firestore
+no permite saltar los límites ni reutilizar permisos anteriores.
+
+Feedback focalizado, sin sustituir los gates de autenticación:
+
+```sh
+npx vitest run src/tests/functions/accountRateLimit.test.ts src/tests/functions/accountSignInReads.test.ts src/tests/functions/nursingAccountTransport.test.ts src/tests/services/auth/nursingAccountSession.test.ts --maxWorkers=1
+```
+
+Estas pruebas cubren snapshot tras commit/reintento, rechazo y expiración de
+límites, revocación durante la verificación y sustitución de sesión mientras
+espera el lock del navegador. Conservar además ciclo de vida, recuperación y
+`test:accounts:emulator:ci`; para cierre, `ci:merge-gate`,
+`test:release-confidence`, revisión independiente y CI del head definitivo.
+Los dobles transaccionales no sustituyen la comprobación del SDK y emuladores.
+Una menor cantidad de viajes remotos no prueba menor latencia inicial: comparar
+primer ingreso observado y siguientes sin llamar «frío» a un inicio no controlado.

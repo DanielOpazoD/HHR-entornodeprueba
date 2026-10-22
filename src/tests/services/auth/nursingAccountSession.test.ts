@@ -3,6 +3,7 @@ const mocks = vi.hoisted(() => ({
   signIn: vi.fn(),
   persistence: vi.fn(),
   callable: vi.fn(),
+  clearRoles: vi.fn(),
   auth: { currentUser: null as object | null, app: { options: { apiKey: 'synthetic-key' } } },
 }));
 vi.mock('firebase/auth', () => ({
@@ -17,8 +18,9 @@ vi.mock('@/services/firebase-runtime/authRuntime', () => ({
 vi.mock('@/services/firebase-runtime/functionsRuntime', () => ({
   defaultFunctionsRuntime: { getFunctions: async () => ({}) },
 }));
-vi.mock('@/services/auth/authRoleLookup', () => ({ clearRecentAuthRoleLookups: vi.fn() }));
+vi.mock('@/services/auth/authRoleLookup', () => ({ clearRecentAuthRoleLookups: mocks.clearRoles }));
 import { establishNursingSession } from '@/services/auth/nursingAccountService';
+import { runSessionStorageTransition } from '@/services/storage/sessionStorageTransition';
 describe('individual login respects session replacement', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -34,6 +36,7 @@ describe('individual login respects session replacement', () => {
       establishNursingSession('signInWithRut', { password: 'synthetic-password' })
     ).rejects.toThrow();
     expect(mocks.signIn).not.toHaveBeenCalled();
+    expect(mocks.clearRoles).not.toHaveBeenCalled();
   });
   it('ignores a cancelled form even when the backend finishes successfully', async () => {
     mocks.callable.mockResolvedValue({
@@ -47,12 +50,37 @@ describe('individual login respects session replacement', () => {
       )
     ).rejects.toThrow();
     expect(mocks.signIn).not.toHaveBeenCalled();
+    expect(mocks.clearRoles).not.toHaveBeenCalled();
+  });
+  it('does not invalidate the replacement owner while waiting for the session transition lock', async () => {
+    let release: () => void = () => undefined;
+    const blocked = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    const lock = runSessionStorageTransition(() => blocked);
+    mocks.callable.mockResolvedValue({
+      data: { credentialEmail: 'synthetic@accounts.hhr.invalid' },
+    });
+    const login = establishNursingSession('signInWithRut', { password: 'synthetic-password' });
+    await vi.waitFor(() => expect(mocks.callable).toHaveBeenCalledTimes(1));
+    expect(mocks.clearRoles).not.toHaveBeenCalled();
+    localStorage.setItem('hhr_session_generation_v1', 'replacement-owner');
+    release();
+    await lock;
+    await expect(login).rejects.toThrow('La sesión cambió');
+    expect(mocks.clearRoles).not.toHaveBeenCalled();
+    expect(mocks.persistence).not.toHaveBeenCalled();
+    expect(mocks.signIn).not.toHaveBeenCalled();
   });
   it('uses session persistence and Firebase password sign-in after private verification', async () => {
     mocks.callable.mockResolvedValue({
       data: { credentialEmail: 'synthetic@accounts.hhr.invalid' },
     });
     await establishNursingSession('signInWithRut', { password: 'synthetic-password' });
+    expect(mocks.clearRoles).toHaveBeenCalledTimes(1);
+    expect(mocks.clearRoles.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.persistence.mock.invocationCallOrder[0]
+    );
     expect(mocks.persistence).toHaveBeenCalledWith(mocks.auth, 'session');
     expect(mocks.signIn).toHaveBeenCalledWith(
       mocks.auth,
@@ -67,5 +95,6 @@ describe('individual login respects session replacement', () => {
     ).resolves.toEqual({ requiresSetup: true, activationToken: 'fake' });
     expect(mocks.persistence).not.toHaveBeenCalled();
     expect(mocks.signIn).not.toHaveBeenCalled();
+    expect(mocks.clearRoles).not.toHaveBeenCalled();
   });
 });

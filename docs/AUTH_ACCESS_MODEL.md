@@ -501,3 +501,26 @@ Se conservaron los accesos lentos: el primero observado en Santiago tardó
 8.949 ms. La muestra es de un Mac/red con carga variable, compara región y
 generación a la vez y no acredita arranque frío, p95 ni una mejora numérica de
 pintura del censo. Los picos iniciales siguen pendientes.
+
+### Lecturas del acceso por RUT · 22-10-2026
+
+El transporte agrupa los contadores de IP y cuenta y, para el ingreso, el índice
+privado RUT en un `getAll` de la misma transacción. Conserva 100 intentos por IP
+y 10 por cuenta en ventanas de cinco minutos. Un rechazo de cuenta consume el
+intento de IP; un rechazo de IP no consume el de cuenta. El índice sólo se devuelve
+cuando termina el commit, tomando el snapshot del intento definitivo si hubo
+reintentos. Un fallo de lectura o commit impide continuar con la autenticación.
+Activación, recuperación y cambio de clave conservan sus claves de limitación.
+
+Una clave que no tiene el formato numérico de la inicial evita consultar la
+preparación de primer ingreso. Esto no autoriza por formato: Firebase Auth debe
+verificar la clave y el token con comprobación de revocación; después se lee el
+estado vigente de acceso y se rechazan cuentas inactivas o con operación de
+credenciales pendiente. No se añade una caché de permisos. La preparación con
+clave inicial mantiene su revalidación transaccional de estado, versión y lock.
+
+En el cliente, la limpieza de resultados recientes de rol ocurre dentro de la
+transición serializada, después de comprobar formulario, usuario y generación de
+sesión. Una respuesta cancelada o desplazada por otra sesión no invalida el estado
+del nuevo propietario. Esta reducción de viajes y lecturas no demuestra la
+eliminación de esperas del proveedor, de red ni de arranques en frío de Functions.

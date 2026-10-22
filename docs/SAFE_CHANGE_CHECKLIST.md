@@ -323,6 +323,18 @@ fallos intermedios y suspensión concurrente. Verificar listado de correo solo a
 confirmaciones de botones y controles antiguos colapsados. Emulator Auth/Firestore/
 Storage debe rechazar sesiones previas y escritura del rol de solo lectura.
 
+### Lecturas eficientes de acceso RUT (22 octubre 2026)
+
+Runtime crítico de autenticación. Agrupar IP/cuenta/índice mediante `getAll` conserva
+ventanas y contadores, incluido el intento de IP rechazado por cuenta. Verificar
+que el índice no se entrega antes del commit ni desde un reintento abandonado y
+que un error no continúa al proveedor. La clave personal evita la lectura de
+preparación inicial, conservando su revalidación para el primer ingreso y el
+estado/lock leído después del proveedor. La limpieza de roles debe respetar el
+guard de sesión dentro de la transición serializada. No cambia regiones ni añade
+caché de permisos. Conservar los gates de cuentas anteriores y el CUDYR intacto;
+rollback mediante reversión de código, sin borrar contadores, sesiones o colas.
+
 ### Parches del tooling para PR #922 (2026-10-21)
 
 - **Owner:** tooling y pruebas HHR.

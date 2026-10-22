@@ -11,16 +11,17 @@ const {
 // The initial RUT credential never creates an Auth session or grants clinical access.
 const beginInitialPassword = async ({ firestore, uid, rut, password, now }) => {
   if (!uid) return null;
-  const ref = firestore.collection(ACCESS).doc(uid);
-  const account = (await ref.get()).data();
-  if (account?.status !== 'pending' || account.initialPasswordEnabled !== true) return null;
   const expected = rut.split('-')[0];
   if (
     typeof password !== 'string' ||
     password.length !== expected.length ||
-    !timingSafeEqual(Buffer.from(password), Buffer.from(expected))
+    !/^[0-9]+$/.test(password)
   )
-    throw genericFailure();
+    return null;
+  const ref = firestore.collection(ACCESS).doc(uid);
+  const account = (await ref.get()).data();
+  if (account?.status !== 'pending' || account.initialPasswordEnabled !== true) return null;
+  if (!timingSafeEqual(Buffer.from(password), Buffer.from(expected))) throw genericFailure();
   const id = randomUUID();
   const secret = newSecret();
   await firestore.runTransaction(async tx => {

@@ -95,7 +95,6 @@ export const establishNursingSession = async (
     }
     return response;
   }
-  clearRecentAuthRoleLookups();
   await runSessionStorageTransition(async () => {
     if (
       !isCurrent() ||
@@ -104,6 +103,7 @@ export const establishNursingSession = async (
     ) {
       throw new Error('La sesión cambió; vuelve a iniciar sesión.');
     }
+    clearRecentAuthRoleLookups();
     await setPersistence(auth, browserSessionPersistence);
     await signInWithEmailAndPassword(auth, response.credentialEmail, String(data.password));
   });
