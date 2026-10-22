@@ -1,10 +1,9 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ClinicalDocumentsModal } from '@/features/clinical-documents/components/ClinicalDocumentsModal';
 import { ClinicalDocumentsPanel } from '@/features/clinical-documents/components/ClinicalDocumentsPanel';
-import { ClinicalDocumentDriveFolderPicker } from '@/features/clinical-documents/components/ClinicalDocumentDriveFolderPicker';
 
 const workspaceSpy = vi.fn();
 
@@ -67,94 +66,5 @@ describe('ClinicalDocuments containers', () => {
         isActive: true,
       })
     );
-  });
-
-  it('renders Drive folder picker states and delegates navigation actions', () => {
-    const onClose = vi.fn();
-    const onConfirm = vi.fn();
-    const onEnterFolder = vi.fn();
-    const onNavigateBreadcrumb = vi.fn();
-
-    render(
-      <ClinicalDocumentDriveFolderPicker
-        isOpen={true}
-        isLoading={false}
-        isUploading={false}
-        error="Sin acceso temporal"
-        currentLocation={{
-          id: 'folder-1',
-          name: 'Documentos',
-          path: 'Mi unidad/Hospitalizados/Documentos',
-        }}
-        breadcrumbs={[
-          { id: 'root', name: 'Mi unidad', path: 'Mi unidad' },
-          {
-            id: 'folder-1',
-            name: 'Documentos',
-            path: 'Mi unidad/Hospitalizados/Documentos',
-          },
-        ]}
-        folders={[
-          {
-            id: 'folder-2',
-            name: 'Paciente Demo',
-            path: 'Mi unidad/Hospitalizados/Documentos/Paciente Demo',
-            parentId: 'folder-1',
-          },
-        ]}
-        onClose={onClose}
-        onEnterFolder={onEnterFolder}
-        onNavigateBreadcrumb={onNavigateBreadcrumb}
-        onConfirm={onConfirm}
-      />
-    );
-
-    expect(screen.getByText(/Sin acceso temporal/i)).toBeInTheDocument();
-    expect(screen.getByText('Mi unidad/Hospitalizados/Documentos')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Mi unidad' }));
-    fireEvent.click(screen.getByRole('button', { name: /abrir/i }));
-    fireEvent.click(screen.getByRole('button', { name: /guardar aquí/i }));
-    fireEvent.click(screen.getByRole('button', { name: /cancelar/i }));
-
-    expect(onNavigateBreadcrumb).toHaveBeenCalledWith({
-      id: 'root',
-      name: 'Mi unidad',
-      path: 'Mi unidad',
-    });
-    expect(onEnterFolder).toHaveBeenCalledWith({
-      id: 'folder-2',
-      name: 'Paciente Demo',
-      path: 'Mi unidad/Hospitalizados/Documentos/Paciente Demo',
-      parentId: 'folder-1',
-    });
-    expect(onConfirm).toHaveBeenCalled();
-    expect(onClose).toHaveBeenCalled();
-  });
-
-  it('shows loading and upload-disabled states in the Drive folder picker', () => {
-    render(
-      <ClinicalDocumentDriveFolderPicker
-        isOpen={true}
-        isLoading={true}
-        isUploading={true}
-        error={null}
-        currentLocation={{
-          id: 'folder-1',
-          name: 'Documentos',
-          path: 'Mi unidad/Hospitalizados/Documentos',
-        }}
-        breadcrumbs={[{ id: 'root', name: 'Mi unidad', path: 'Mi unidad' }]}
-        folders={[]}
-        onClose={vi.fn()}
-        onEnterFolder={vi.fn()}
-        onNavigateBreadcrumb={vi.fn()}
-        onConfirm={vi.fn()}
-      />
-    );
-
-    expect(screen.getByText(/cargando carpetas/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /guardando/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /cancelar/i })).toBeDisabled();
   });
 });

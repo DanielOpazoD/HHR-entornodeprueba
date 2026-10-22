@@ -1,5 +1,5 @@
 /**
- * @fileoverview Validation tests for labConstants configuration arrays.
+ * @fileoverview Validation tests for the laboratory comparison and trend catalogs.
  * Ensures no duplicates, no overlap between exclude/order, and trend groups integrity.
  */
 
@@ -7,8 +7,8 @@ import { describe, it, expect } from 'vitest';
 import {
   COMPARISON_EXCLUDE,
   COMPARISON_ORDER,
-  TREND_GROUPS,
-} from '@/features/laboratory/constants/labConstants';
+} from '@/features/laboratory/constants/labComparisonCatalogConstants';
+import { TREND_GROUPS } from '@/features/laboratory/constants/labTrendConstants';
 
 describe('labConstants integrity', () => {
   it('COMPARISON_EXCLUDE has no duplicates', () => {
