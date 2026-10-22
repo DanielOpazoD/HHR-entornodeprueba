@@ -23,7 +23,7 @@ export default function PasswordInput({ id, className = '', disabled, ...props }
         aria-pressed={visible}
         aria-controls={inputId}
         onClick={() => setVisible(value => !value)}
-        className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-600 disabled:opacity-50"
+        className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-xl text-stone-500 transition hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-teal-700 disabled:opacity-50"
       >
         {visible ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
       </button>

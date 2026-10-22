@@ -133,7 +133,9 @@ async function injectVRTData(page: Page) {
 test.describe('Visual Regression Testing', () => {
   test('Login View baseline', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByText('Hospital Hanga Roa')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { name: 'Iniciar sesión' })).toBeVisible({
+      timeout: 10000,
+    });
     await page.waitForLoadState('networkidle');
     await expect(page).toHaveScreenshot('login-view.png', {
       maxDiffPixelRatio: 0.01,

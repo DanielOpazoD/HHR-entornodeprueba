@@ -8,7 +8,7 @@ describe('RUT login startup continuity', () => {
   it('keeps the current credential layout visible but inactive until auth is ready', () => {
     localStorage.setItem('hhr_login_background_mode', 'night');
     const { container } = render(<InitialLoadingScreen pathname="/" />);
-    expect(screen.getByRole('heading', { name: 'Hospital Hanga Roa' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Iniciar sesión' })).toBeVisible();
     expect(screen.getByLabelText('Usuario')).toBeDisabled();
     expect(screen.getByLabelText('Contraseña')).toBeDisabled();
     expect(screen.getByRole('button', { name: /^Ingresar$/ })).toBeDisabled();

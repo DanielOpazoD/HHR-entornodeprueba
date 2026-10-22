@@ -380,6 +380,22 @@
   animation: float 4s ease-in-out infinite;
 }
 
+@media (max-height: 760px) and (min-width: 1024px) {
+  .login-support-footer {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-testid='login-page'] *,
+  [data-testid='login-loading-shell'] * {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 /* Toast slide-in animation */
 @keyframes slideInRight {
   from {

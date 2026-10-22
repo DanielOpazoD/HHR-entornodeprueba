@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { GoogleIdentitySignIn } from './GoogleIdentitySignIn';
-import { AlertCircle, Loader2, RotateCcw } from 'lucide-react';
+import { AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 
 import { useConfirmDialog } from '@/context/UIContext';
 import { LoginCardFrame } from '@/components/ui/LoginScreenLayout';
@@ -89,7 +89,7 @@ export const LoginPageCard: React.FC<LoginPageCardProps> = ({
   return (
     <LoginCardFrame>
       <div className="relative">
-        <div className="space-y-3">
+        <div className="space-y-4">
           {onIndividualLoginSuccess && (
             <NursingAccessForm
               onSuccess={onIndividualLoginSuccess}
@@ -98,34 +98,20 @@ export const LoginPageCard: React.FC<LoginPageCardProps> = ({
             />
           )}
 
-          <div className="mt-4 flex items-center justify-between border-t border-white/15 pt-3">
-            <details className="text-xs text-white/75">
-              <summary className="cursor-pointer py-2 hover:text-white">Ayuda de acceso</summary>
-              <p className="mt-2 max-w-52 leading-relaxed">
-                Si el acceso no responde, puedes revisar las opciones de reinicio local.
-              </p>
-              <button
-                type="button"
-                onClick={() => void handleResetLocalSession()}
-                disabled={locked}
-                data-testid="login-reset-local-button"
-                className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-white/20 bg-white/5 px-2.5 py-1.5 text-[11px] font-medium text-white/70 backdrop-blur-sm transition hover:bg-white/15 hover:text-white disabled:text-white/40"
-              >
-                <RotateCcw className="h-3 w-3" />
-                {isResetting ? 'Reiniciando…' : AUTH_UI_COPY.resetStorageAction}
-              </button>
-              {resetError && (
-                <p role="alert" className="mt-2 max-w-52 text-red-100">
-                  {resetError}
-                </p>
-              )}
-            </details>
+          <div className="pt-1">
+            <div className="mb-3 flex items-center gap-3 text-[11px] font-medium uppercase text-stone-600">
+              <span className="h-px flex-1 bg-stone-200" />
+              <span>o continúa con Google</span>
+              <span className="h-px flex-1 bg-stone-200" />
+            </div>
             {showIdentity && onGoogleCredential ? (
-              <GoogleIdentitySignIn
-                disabled={locked}
-                onCredential={onGoogleCredential}
-                onUnavailable={useFallback}
-              />
+              <div className="flex min-h-12 w-full items-center justify-center rounded-xl border border-stone-300 bg-white">
+                <GoogleIdentitySignIn
+                  disabled={locked}
+                  onCredential={onGoogleCredential}
+                  onUnavailable={useFallback}
+                />
+              </div>
             ) : (
               <button
                 type="button"
@@ -136,22 +122,51 @@ export const LoginPageCard: React.FC<LoginPageCardProps> = ({
                 data-testid="login-google-button"
                 aria-label={isGoogleLoading ? 'Conectando con Google...' : 'Ingresar con Google'}
                 title="Ingresar con Google"
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/60 bg-white shadow-sm transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white disabled:opacity-50"
+                className="flex min-h-12 w-full items-center justify-center gap-3 rounded-xl border border-stone-300 bg-white px-4 text-sm font-semibold text-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:border-stone-400 hover:bg-stone-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-700 disabled:cursor-wait disabled:opacity-60"
               >
                 {isGoogleLoading ? (
                   <>
-                    <Loader2 className="h-6 w-6 animate-spin text-medical-600" />
+                    <Loader2 className="h-5 w-5 animate-spin text-teal-800" />
                     <span className="sr-only">Conectando con Google...</span>
                   </>
                 ) : (
                   <>
-                    <GoogleIcon className="h-6 w-6" />
-                    <span className="sr-only">Ingresar con Google</span>
+                    <GoogleIcon className="h-5 w-5" />
+                    <span>Ingresar con Google</span>
                   </>
                 )}
               </button>
             )}
           </div>
+
+          <details className="group border-t border-stone-200 pt-2 text-xs text-stone-600">
+            <summary className="flex cursor-pointer list-none items-center justify-between py-2 font-medium text-stone-700 marker:hidden hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700">
+              Ayuda de acceso
+              <span aria-hidden="true" className="text-base transition group-open:rotate-45">
+                +
+              </span>
+            </summary>
+            <div className="pb-1 pt-1">
+              <p className="max-w-sm leading-5 text-stone-600">
+                Si el acceso no responde, revisa las opciones de reinicio local.
+              </p>
+              <button
+                type="button"
+                onClick={() => void handleResetLocalSession()}
+                disabled={locked}
+                data-testid="login-reset-local-button"
+                className="mt-3 inline-flex items-center justify-center gap-2 rounded-lg border border-stone-300 bg-white px-3 py-2 text-[11px] font-semibold text-stone-700 transition hover:border-stone-400 hover:bg-stone-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:text-stone-400"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${isResetting ? 'animate-spin' : ''}`} />
+                {isResetting ? 'Reiniciando…' : AUTH_UI_COPY.resetStorageAction}
+              </button>
+              {resetError && (
+                <p role="alert" className="mt-2 text-red-700">
+                  {resetError}
+                </p>
+              )}
+            </div>
+          </details>
         </div>
 
         {isGoogleLoading && (
@@ -159,12 +174,12 @@ export const LoginPageCard: React.FC<LoginPageCardProps> = ({
             data-testid="login-google-pending"
             role="status"
             aria-live="polite"
-            className="mt-5 rounded-2xl border border-white/25 bg-white/10 px-4 py-3 text-center backdrop-blur-md"
+            className="mt-4 rounded-xl border border-teal-200 bg-teal-50 px-4 py-3 text-center"
           >
-            <p className="text-sm font-semibold text-white">
+            <p className="text-sm font-semibold text-teal-950">
               {showIdentity ? 'Validando tu acceso…' : AUTH_UI_COPY.popupPendingTitle}
             </p>
-            <p className="mt-1 text-xs text-white/80 text-balance">
+            <p className="mt-1 text-xs leading-5 text-teal-800 text-balance">
               {showIdentity
                 ? 'Comprobando sesión y permisos de HHR.'
                 : AUTH_UI_COPY.popupPendingHint}
@@ -178,20 +193,20 @@ export const LoginPageCard: React.FC<LoginPageCardProps> = ({
               data-testid="login-error-alert"
               data-auth-error-code={errorCode || undefined}
               role="alert"
-              className="flex items-center gap-2 rounded-xl border border-red-300/50 bg-red-500/20 p-3 text-sm text-red-50 text-balance backdrop-blur-md"
+              className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3 text-sm leading-5 text-red-900 text-balance"
             >
-              <AlertCircle className="h-5 w-5 flex-shrink-0" />
+              <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
               <span>{error}</span>
             </div>
             {canRetryGoogleSignIn && (
-              <div className="mt-3 rounded-2xl border border-amber-300/40 bg-amber-500/15 px-4 py-3 text-center backdrop-blur-md">
-                <p className="text-xs text-amber-50 text-balance">
+              <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-center">
+                <p className="text-xs leading-5 text-amber-900 text-balance">
                   {AUTH_UI_COPY.roleValidationRetryHint}
                 </p>
                 <button
                   type="button"
                   onClick={() => void onGoogleSignIn()}
-                  className="mt-3 inline-flex items-center justify-center rounded-xl bg-amber-500 px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-white shadow-lg shadow-amber-900/40 transition hover:bg-amber-400"
+                  className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-amber-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-amber-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700"
                   data-testid="login-retry-button"
                 >
                   {AUTH_UI_COPY.roleValidationRetryAction}

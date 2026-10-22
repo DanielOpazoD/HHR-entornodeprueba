@@ -60,6 +60,7 @@ describe('LoginPageCard', () => {
     expect(screen.getByLabelText('Contraseña')).toHaveAttribute('type', 'password');
     expect(screen.getByRole('button', { name: /^Ingresar$/ })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Olvidé mi contraseña' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Primer ingreso' })).toBeVisible();
     expect(screen.queryByRole('button', { name: /activar cuenta/ })).not.toBeInTheDocument();
     expect(signIn).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Mostrar contraseña' }));
@@ -74,6 +75,29 @@ describe('LoginPageCard', () => {
     );
     expect(screen.getByLabelText('Usuario')).toBeDisabled();
     expect(screen.getByRole('button', { name: /^Ingresar$/ })).toBeDisabled();
+  });
+
+  it('keeps both first-entry paths and exposes activation as a separate action', () => {
+    vi.stubEnv('VITE_GOOGLE_SIGN_IN_CLIENT_ID', '');
+    render(<LoginPageCard {...identityProps} onIndividualLoginSuccess={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Primer ingreso' }));
+
+    expect(
+      screen.getByText(
+        'Si es tu primera vez, ingresa con tu RUT como usuario y usa los números del RUT, sin dígito verificador, como clave inicial.'
+      )
+    ).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Tengo un código de activación' }));
+
+    expect(screen.getByText('Activa tu acceso privado')).toBeVisible();
+    expect(screen.getByLabelText('Código privado de activación')).toBeVisible();
+    expect(
+      screen.getByText(
+        'Si administración te entregó un código, ingrésalo aquí. Si no lo tienes, vuelve al ingreso y usa los números de tu RUT, sin dígito verificador, como clave inicial.'
+      )
+    ).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Volver al ingreso' })).toBeVisible();
   });
 
   it('shows only the new access in production and disposes it on unmount', async () => {
