@@ -36,3 +36,31 @@ export const executeFetchAuditLogs = async (
     );
   }
 };
+
+export interface FetchAuditLogRangeInput {
+  fromIso: string;
+  toIso: string;
+  limit: number;
+}
+
+/** Events of one period (`[fromIso, toIso)`), newest first; a failure is reported, not hidden. */
+export const executeFetchAuditLogRange = async (
+  range: FetchAuditLogRangeInput,
+  dependencies: FetchAuditLogsDependencies = {}
+): Promise<ApplicationOutcome<AuditLogEntry[]>> => {
+  const auditPort = dependencies.auditPort || defaultAuditPort;
+  try {
+    return createApplicationSuccess(await auditPort.fetchLogsInRange(range));
+  } catch (error) {
+    return createApplicationFailed(
+      [],
+      [
+        {
+          kind: 'unknown',
+          message:
+            error instanceof Error ? error.message : 'No se pudo cargar la auditoría del período.',
+        },
+      ]
+    );
+  }
+};

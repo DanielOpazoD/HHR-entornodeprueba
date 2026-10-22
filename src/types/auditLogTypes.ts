@@ -1,4 +1,4 @@
-import type { AuditAction, AuditSection } from './auditActionTypes';
+import type { AuditAction } from './auditActionTypes';
 import type { AuditDetails } from './auditDetailTypes';
 
 export interface AuditLogEntry {
@@ -27,39 +27,12 @@ export interface AuditLogEntry {
   patientIdentifier?: string;
   recordDate?: string;
   authors?: string;
-}
-
-export interface GroupedAuditLogEntry extends AuditLogEntry {
-  isGroup: true;
-  childLogs: AuditLogEntry[];
-}
-
-export const isGroupedAuditLogEntry = (log: AuditLogEntry): log is GroupedAuditLogEntry => {
-  return 'isGroup' in log && log.isGroup === true;
-};
-
-export interface AuditStats {
-  todayCount: number;
-  thisWeekCount: number;
-  criticalCount: number;
-  activeUsersToday: string[];
-  activeUserCount: number;
-  avgSessionMinutes: number;
-  totalSessionsToday: number;
-  actionBreakdown: Record<string, number>;
-  hourlyActivity: number[];
-  topUsers: { email: string; count: number }[];
-  criticalActions: AuditLogEntry[];
-}
-
-export interface WorkerFilterParams {
-  searchTerm: string;
-  filterAction: AuditAction | 'ALL';
-  startDate: string;
-  endDate: string;
-  activeSection: AuditSection;
-  sectionActions: Record<string, string[] | undefined>;
-  groupedView: boolean;
+  /** 2 for events written by the audit trail model (session-scoped, compacted details). */
+  schemaVersion?: number;
+  /** Connection session of the device that recorded the event. */
+  sessionId?: string;
+  /** Coarse device label, e.g. `Chrome · Windows`. */
+  device?: string;
 }
 
 export const maskRut = (rut: string): string => {

@@ -20,6 +20,7 @@ import {
 import { hasRecentManualLogout } from '@/services/auth/authLogoutState';
 import { useSessionPermissionGuard } from '@/hooks/useSessionPermissionGuard';
 import { useNursingSessionMonitor } from '@/hooks/useNursingSessionMonitor';
+import { useAuditConnectionTracker } from '@/hooks/useAuditConnectionTracker';
 import { shouldPreserveUnauthorizedSessionReason } from '@/hooks/controllers/authBootstrapController';
 import { isAuthBootstrapPending } from '@/services/auth/authBootstrapState';
 import {
@@ -185,6 +186,9 @@ export const useAuthState = (): UseAuthStateReturn => {
   );
   useInactivityLogout(currentUser, handleLogout);
   useNursingSessionMonitor(sessionState.status === 'authorized' ? currentUser : null, handleLogout);
+  useAuditConnectionTracker(
+    sessionState.status === 'authorized' && !e2eBootstrapUser ? currentUser : null
+  );
   // Solo para sesiones plenamente autorizadas con Firebase Auth real: la firma
   // anónima (signature mode) no tiene rol efectivo en las reglas y el usuario
   // de bootstrap E2E no tiene sesión Firebase — en ambos casos las lecturas

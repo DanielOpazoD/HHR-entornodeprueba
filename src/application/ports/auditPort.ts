@@ -1,9 +1,8 @@
 import {
   getAuditLogs,
+  getAuditLogsInRange,
   logAuditEvent,
   logThrottledViewEvent,
-  logUserLogin,
-  logUserLogout,
 } from '@/services/admin/auditService';
 import { getCurrentUserEmail } from '@/services/admin/utils/auditUtils';
 import type { AuditAction } from '@/types/auditActionTypes';
@@ -21,6 +20,11 @@ export interface AuditPort {
     authors?: string
   ) => Promise<void>;
   fetchLogs: (limit?: number | null) => Promise<AuditLogEntry[]>;
+  fetchLogsInRange: (range: {
+    fromIso: string;
+    toIso: string;
+    limit: number;
+  }) => Promise<AuditLogEntry[]>;
   logPatientAdmission: (
     bedId: string,
     patientName: string,
@@ -48,9 +52,12 @@ export interface AuditPort {
     rut: string,
     recordDate: string
   ) => Promise<void>;
-  logUserLogin: (email: string) => Promise<void>;
+  /** Closes the device connection of the signed-in user (call before signing out). */
   logUserLogout: (email: string, reason?: 'manual' | 'automatic') => Promise<void>;
 }
+
+const loadAuditConnectionRuntime = () =>
+  import('@/services/admin/auditSession/auditConnectionRuntime');
 
 export const defaultAuditPort: AuditPort = {
   writeEvent: async (
@@ -65,6 +72,7 @@ export const defaultAuditPort: AuditPort = {
   ) =>
     logAuditEvent(userId, action, entityType, entityId, details, patientRut, recordDate, authors),
   fetchLogs: async (limit?: number | null) => getAuditLogs(limit),
+  fetchLogsInRange: async range => getAuditLogsInRange(range),
   logPatientAdmission: async (bedId, patientName, rut, pathology, recordDate) =>
     logAuditEvent(
       getCurrentUserEmail(),
@@ -97,6 +105,8 @@ export const defaultAuditPort: AuditPort = {
     ),
   logPatientView: async (bedId, patientName, rut, recordDate) =>
     logThrottledViewEvent('VIEW_PATIENT', bedId, { patientName, bedId, rut }, recordDate),
-  logUserLogin: async email => logUserLogin(email),
-  logUserLogout: async (email, reason) => logUserLogout(email, reason),
+  logUserLogout: async (_email, reason = 'manual') => {
+    const { endCurrentAuditConnection } = await loadAuditConnectionRuntime();
+    await endCurrentAuditConnection(reason);
+  },
 };

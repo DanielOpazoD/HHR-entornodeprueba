@@ -1,187 +1,144 @@
-import React, { useState } from 'react';
-import { useAuditData } from '@/hooks/useAuditData';
-import { AuditHeader } from './internal/audit/AuditHeader';
-import { AuditStatsDashboard } from './internal/audit/AuditStatsDashboard';
-import { AuditFilters } from './internal/audit/AuditFilters';
-import { AuditTable } from './internal/audit/AuditTable';
-import { AccessRestricted } from './internal/AccessRestricted';
-import { AuditSectionTabs } from './internal/audit/AuditSectionTabs';
-import { AuditDynamicPanels } from './internal/audit/AuditDynamicPanels';
-import { useAuditExport } from './hooks/useAuditExport';
-import { useAuditConsolidation } from './hooks/useAuditConsolidation';
-import { AUDIT_CLINICAL_SECTIONS, AUDIT_SYSTEM_SECTIONS } from '@/services/admin/auditViewConfig';
-import { isAuditTableSection } from '@/services/admin/auditMetrics';
+import React from 'react';
+import { AlertCircle, Loader2 } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { useAuditContext } from '@/context/AuditContext';
+import type { AuditTrailCategory } from '@/types/auditTrailTypes';
 import {
   canAccessAuditSensitivePanels,
   canAccessAuditView,
   canExportAuditData,
 } from '@/services/admin/auditAccessPolicy';
-import { useAuth } from '@/context/AuthContext';
+import { useAuditTrail, AUDIT_TRAIL_FETCH_LIMIT } from '@/features/admin/hooks/useAuditTrail';
+import { AccessRestricted } from './internal/AccessRestricted';
+import { AuditTrailHeader } from './internal/audit/AuditTrailHeader';
+import { AuditTrailSummaryBar } from './internal/audit/AuditTrailSummaryBar';
+import { AuditTrailToolbar } from './internal/audit/AuditTrailToolbar';
+import { AuditTrailGroupList } from './internal/audit/AuditTrailGroupList';
+import { AuditTrailSessionTimeline } from './internal/audit/AuditTrailSessionTimeline';
+import { ExportKeysPanel } from './internal/audit/ExportKeysPanel';
+import { useAuditTrailExport } from './hooks/useAuditTrailExport';
 
+const Notice: React.FC<{ tone: 'info' | 'error'; children: React.ReactNode }> = ({
+  tone,
+  children,
+}) => (
+  <p
+    role={tone === 'error' ? 'alert' : 'status'}
+    className={
+      tone === 'error'
+        ? 'flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800'
+        : 'flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600'
+    }
+  >
+    {tone === 'error' && <AlertCircle size={14} />}
+    {children}
+  </p>
+);
+
+/**
+ * Clinical audit trail (Ley 20.584): who did what, to which patient, when and from where.
+ * Grouped by patient, staff member, connection or time; everything technical stays one click
+ * behind each statement.
+ */
 export const AuditView: React.FC = () => {
   const { role } = useAuth();
+  const { logEvent } = useAuditContext();
+  const trail = useAuditTrail();
+  const [exportKeysOpen, setExportKeysOpen] = React.useState(false);
 
-  // Use extracted hook for all audit data management
-  const {
-    logs,
-    filteredLogs,
-    displayLogs,
-    paginatedLogs,
-    patientPackages,
-    paginatedPatientPackages,
-    patientPackageFilterOptions,
-    patientPackageIntentOptions,
-    stats,
-    loading,
-    fetchLimit,
-    canLoadMoreLogs,
-    filters,
-    setSearchTerm,
-    setFilterAction,
-    setStartDate,
-    setEndDate,
-    applyDateRangePreset,
-    setActiveSection,
-    setCompactView,
-    setGroupedView,
-    setActivePatientPackageFilter,
-    setActivePatientPackageIntent,
-    expandedRows,
-    toggleRow,
-    fetchLogs,
-    loadMoreLogs,
-    sections,
-    currentPage,
-    totalPages,
-    setCurrentPage,
-    ITEMS_PER_PAGE,
-  } = useAuditData();
-
-  const {
-    searchTerm,
-    filterAction,
-    startDate,
-    endDate,
-    activeSection,
-    compactView,
-    groupedView,
-    activePatientPackageFilter,
-    activePatientPackageIntent,
-  } = filters;
-
-  // Export and dialog state
-  const [, setShowComplianceInfo] = useState(false);
-
-  const canSeeSensitivePanels = canAccessAuditSensitivePanels(role);
-  const canExport = canExportAuditData(role);
-
-  // Export hook
-  const { isExporting, handleExcelExport, handlePdfExport } = useAuditExport({
-    filteredLogs,
-    patientPackages,
-    exportMode: groupedView ? 'patient-packages' : 'raw-events',
-    stats,
-    startDate,
-    endDate,
-  });
-
-  const { isConsolidating: consolidating, handleConsolidate } = useAuditConsolidation({
-    onConsolidated: fetchLogs,
+  const onExported = React.useCallback(
+    (detail: { startDate: string; endDate: string; eventCount: number }) =>
+      logEvent('DATA_EXPORTED', 'system', 'auditoria', { scope: 'audit_trail', ...detail }),
+    [logEvent]
+  );
+  const { isExporting, exportExcel } = useAuditTrailExport({
+    events: trail.visibleEvents,
+    sessions: trail.sessions,
+    period: trail.period,
+    onExported,
   });
 
   if (!canAccessAuditView(role)) {
     return <AccessRestricted />;
   }
 
+  const { preferences, scope, period } = trail;
+  const multiDay = period.startDate !== period.endDate;
+  const toggleCategory = (category: AuditTrailCategory) =>
+    trail.updatePreferences({
+      categories: preferences.categories.includes(category)
+        ? preferences.categories.filter(item => item !== category)
+        : [...preferences.categories, category],
+    });
+
   return (
-    <div className="space-y-6 animate-fade-in pb-24 font-sans max-w-[1400px] mx-auto">
-      {/* Header */}
-      <AuditHeader
-        onShowCompliance={() => setShowComplianceInfo(true)}
-        onExport={canExport ? handleExcelExport : () => {}}
-        onRefresh={fetchLogs}
-        onConsolidate={canSeeSensitivePanels ? handleConsolidate : undefined}
-        isExporting={isExporting}
-        isLoading={loading}
-        isConsolidating={consolidating}
-        hasLogs={canExport && filteredLogs.length > 0}
-        isAdmin={canSeeSensitivePanels}
+    <div className="mx-auto max-w-[1400px] space-y-3 px-4 py-4 font-sans">
+      <AuditTrailHeader
+        period={period}
+        onPeriodChange={trail.setPeriod}
+        loading={trail.status === 'loading'}
+        onRefresh={trail.refresh}
+        onExport={canExportAuditData(role) ? () => void exportExcel() : undefined}
+        exporting={isExporting}
+        exportDisabled={trail.status !== 'ready' || trail.visibleEvents.length === 0}
+        onToggleExportKeys={
+          canAccessAuditSensitivePanels(role) ? () => setExportKeysOpen(open => !open) : undefined
+        }
+        exportKeysOpen={exportKeysOpen}
       />
 
-      {/* Dashboards */}
-      <AuditStatsDashboard stats={stats} logs={logs} />
+      {exportKeysOpen && <ExportKeysPanel />}
 
-      {/* Navigation Tabs - Categorized */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <AuditSectionTabs
-          sections={AUDIT_CLINICAL_SECTIONS}
-          sectionConfig={sections}
-          activeSection={activeSection}
-          onSelectSection={setActiveSection}
-          variant="clinical"
-        />
-        <AuditSectionTabs
-          sections={AUDIT_SYSTEM_SECTIONS.filter(
-            key => canSeeSensitivePanels || key === 'SESSIONS'
+      <AuditTrailSummaryBar
+        summary={trail.summary}
+        categories={preferences.categories}
+        onToggleCategory={toggleCategory}
+        reviewOnly={scope.reviewOnly}
+        onToggleReview={() => trail.updateScope({ reviewOnly: !scope.reviewOnly })}
+      />
+
+      <AuditTrailToolbar
+        scope={scope}
+        onScopeChange={trail.updateScope}
+        actorOptions={trail.actorOptions}
+        preferences={preferences}
+        onPreferencesChange={trail.updatePreferences}
+      />
+
+      {trail.status === 'error' && (
+        <Notice tone="error">No se pudo cargar la auditoría: {trail.errorMessage}</Notice>
+      )}
+      {trail.truncated && (
+        <Notice tone="info">
+          Se muestran los {AUDIT_TRAIL_FETCH_LIMIT.toLocaleString('es-CL')} eventos más recientes
+          del período. Acota las fechas para ver el resto.
+        </Notice>
+      )}
+
+      {trail.status === 'loading' ? (
+        <div className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-12 text-sm text-slate-500">
+          <Loader2 size={16} className="animate-spin" />
+          Cargando auditoría…
+        </div>
+      ) : (
+        <>
+          {preferences.grouping === 'session' && !multiDay && (
+            <AuditTrailSessionTimeline sessions={trail.sessions} day={period.endDate} />
           )}
-          sectionConfig={sections}
-          activeSection={activeSection}
-          onSelectSection={setActiveSection}
-          variant="system"
-        />
-      </div>
-
-      {/* Filters */}
-      <AuditFilters
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        filterAction={filterAction}
-        onFilterActionChange={setFilterAction}
-        startDate={startDate}
-        onStartDateChange={setStartDate}
-        endDate={endDate}
-        onEndDateChange={setEndDate}
-        onDateRangePreset={applyDateRangePreset}
-      />
-
-      <AuditDynamicPanels
-        activeSection={activeSection}
-        logs={filteredLogs}
-        canSeeSensitivePanels={canSeeSensitivePanels}
-      />
-
-      {/* Main Data Table */}
-      {isAuditTableSection(activeSection) && (
-        <AuditTable
-          filteredLogs={filteredLogs}
-          displayLogsCount={displayLogs.length}
-          paginatedLogs={paginatedLogs}
-          patientPackages={patientPackages}
-          paginatedPatientPackages={paginatedPatientPackages}
-          patientPackageFilterOptions={patientPackageFilterOptions}
-          patientPackageIntentOptions={patientPackageIntentOptions}
-          activePatientPackageFilter={activePatientPackageFilter}
-          onPatientPackageFilterChange={setActivePatientPackageFilter}
-          activePatientPackageIntent={activePatientPackageIntent}
-          onPatientPackageIntentChange={setActivePatientPackageIntent}
-          loading={loading}
-          compactView={compactView}
-          setCompactView={setCompactView}
-          groupedView={groupedView}
-          setGroupedView={setGroupedView}
-          expandedRows={expandedRows}
-          toggleRow={toggleRow}
-          onPdfExport={handlePdfExport}
-          onExcelExport={handleExcelExport}
-          isExporting={isExporting}
-          fetchLimit={fetchLimit}
-          canLoadMoreLogs={canLoadMoreLogs}
-          onLoadMoreLogs={loadMoreLogs}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-          itemsPerPage={ITEMS_PER_PAGE}
-        />
+          {trail.groups.length === 0 ? (
+            <div className="rounded-xl border border-slate-200 bg-white py-12 text-center text-sm text-slate-500">
+              Sin actividad para este período y filtros.
+            </div>
+          ) : (
+            <AuditTrailGroupList
+              groups={trail.groups}
+              preferences={preferences}
+              multiDay={multiDay}
+              onSelectActor={actorKey => trail.updateScope({ actorKey })}
+              onSelectPatient={name => trail.updateScope({ search: name })}
+            />
+          )}
+        </>
       )}
     </div>
   );

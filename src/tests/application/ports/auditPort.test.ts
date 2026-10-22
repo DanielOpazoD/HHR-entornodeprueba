@@ -2,10 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const auditServiceMocks = vi.hoisted(() => ({
   getAuditLogs: vi.fn(),
+  getAuditLogsInRange: vi.fn(),
   logAuditEvent: vi.fn(),
   logThrottledViewEvent: vi.fn(),
-  logUserLogin: vi.fn(),
-  logUserLogout: vi.fn(),
 }));
 
 const auditUtilsMocks = vi.hoisted(() => ({
@@ -17,6 +16,7 @@ vi.mock('@/services/admin/auditService', () => auditServiceMocks);
 vi.mock('@/services/admin/utils/auditUtils', () => auditUtilsMocks);
 
 import { defaultAuditPort } from '@/application/ports/auditPort';
+import * as connectionRuntimeMocks from '@/services/admin/auditSession/auditConnectionRuntime';
 
 describe('defaultAuditPort', () => {
   beforeEach(() => {
@@ -113,5 +113,23 @@ describe('defaultAuditPort', () => {
       },
       '2026-05-01'
     );
+  });
+
+  it('closes the device connection on logout and reads periods by range', async () => {
+    auditServiceMocks.getAuditLogsInRange.mockResolvedValue([]);
+
+    await defaultAuditPort.logUserLogout('doctor@hospital.cl', 'automatic');
+    await defaultAuditPort.fetchLogsInRange({
+      fromIso: '2026-10-22T05:00:00.000Z',
+      toIso: '2026-10-23T05:00:00.000Z',
+      limit: 3000,
+    });
+
+    expect(connectionRuntimeMocks.endCurrentAuditConnection).toHaveBeenCalledWith('automatic');
+    expect(auditServiceMocks.getAuditLogsInRange).toHaveBeenCalledWith({
+      fromIso: '2026-10-22T05:00:00.000Z',
+      toIso: '2026-10-23T05:00:00.000Z',
+      limit: 3000,
+    });
   });
 });

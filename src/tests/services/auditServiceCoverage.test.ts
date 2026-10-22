@@ -36,6 +36,7 @@ vi.mock('../../services/storage/indexeddb/indexedDbAuditLogService', () => ({
   saveAuditLog: (log: AuditLogEntry) => mockSaveAuditLog(log),
   getAuditLogs: (limit: number) => mockGetAuditLogs(limit),
   getAuditLogsForDate: vi.fn(),
+  getAuditLogsInRange: vi.fn(),
 }));
 
 const { mockAuditUtils } = vi.hoisted(() => ({
@@ -50,12 +51,6 @@ const { mockAuditUtils } = vi.hoisted(() => ({
 
 vi.mock('../../services/admin/utils/auditUtils', () => mockAuditUtils);
 
-vi.mock('../../services/admin/utils/auditSummaryGenerator', () => ({
-  generateSummary: vi.fn(
-    (action: string, _details: unknown, _entityId: string) => `Summary for ${action}`
-  ),
-}));
-
 describe('AuditService Coverage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -69,34 +64,41 @@ describe('AuditService Coverage', () => {
     vi.useRealTimers();
   });
 
-  it('should catch Firestore errors silently and rely on local storage', async () => {
-    // Setup: Firestore throws error
+  it('reports Firestore failures without keeping a second copy on the device', async () => {
     vi.mocked(setDoc).mockRejectedValue(new Error('Firestore Offline'));
-
     const spyConsole = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    // Act
-    await auditService.logAuditEvent('user1', 'USER_LOGIN', 'user', 'user1', {});
+    await auditService.logAuditEvent('user1', 'PATIENT_MODIFIED', 'patient', 'R1', {
+      patientName: 'Paciente',
+    });
 
-    // Assert
     expect(setDoc).toHaveBeenCalled();
     expect(spyConsole).toHaveBeenCalledWith(
       expect.stringContaining('Failed to save audit log to Firestore'),
       expect.any(Error)
     );
-
-    // Verify local storage is still populated (via mock)
-    expect(mockSaveAuditLog).toHaveBeenCalled();
-    expect(mockSaveAuditLog.mock.calls[0][0].action).toBe('USER_LOGIN');
+    // Firestore's offline cache already queues the write; patient data is not duplicated locally.
+    expect(mockSaveAuditLog).not.toHaveBeenCalled();
   });
 
-  it('should call saveAuditLog regardless of Firestore status', async () => {
-    // Act: Add 1 new log
-    await auditService.logAuditEvent('user1', 'USER_LOGOUT', 'user', 'user1', {});
+  it('writes compact v2 events with the patient document', async () => {
+    vi.mocked(setDoc).mockResolvedValue(undefined);
 
-    // Assert
-    expect(mockSaveAuditLog).toHaveBeenCalled();
-    expect(mockSaveAuditLog.mock.calls[0][0].action).toBe('USER_LOGOUT');
+    await auditService.logAuditEvent(
+      'user1',
+      'PATIENT_MODIFIED',
+      'patient',
+      'R1',
+      { patientName: 'Paciente', note: 'x'.repeat(5_000), error: { stack: 'raw stack' } },
+      '11.111.111-1'
+    );
+
+    const entry = vi.mocked(setDoc).mock.calls[0][1] as AuditLogEntry;
+    expect(entry).toMatchObject({ schemaVersion: 2, patientIdentifier: '11.111.***-*' });
+    expect(entry).not.toHaveProperty('summary');
+    expect(entry.details.rut).toBe('11.111.111-1');
+    expect(String(entry.details.note)).toHaveLength(1_000);
+    expect(entry.details.error).toEqual({});
   });
 
   it('should exclude view logging for institutional shared accounts', async () => {
@@ -136,18 +138,21 @@ describe('AuditService Coverage', () => {
     await expect(result).resolves.toBeUndefined();
   });
 
-  it('should calculate session duration on logout', async () => {
-    // Setup login time 1 minute ago
-    const startTime = '2025-01-01T00:00:00.000Z';
-    sessionStorage.setItem('hhr_session_start', startTime);
+  it('records one read per patient inside the throttle window', async () => {
+    vi.mocked(setDoc).mockResolvedValue(undefined);
+    mockAuditUtils.getCurrentUserEmail.mockReturnValue('random.doctor@hospital.cl');
+    const view = (bedId: string, rut: string) =>
+      auditService.logThrottledViewEvent(
+        'VIEW_PATIENT',
+        bedId,
+        { patientName: 'Patient', bedId, rut },
+        '2024-01-01'
+      );
 
-    // Act
-    await auditService.logUserLogout('user1', 'manual');
+    await view('B01', '11.111.111-1');
+    await view('B01', '11.111.111-1');
+    await view('B02', '22.222.222-2');
 
-    // Assert
-    const callArgs = vi.mocked(setDoc).mock.calls[0][1] as AuditLogEntry;
-    expect(callArgs.details.durationSeconds).toBeGreaterThanOrEqual(60);
-    expect(callArgs.details.durationFormatted).toMatch(/1m/);
-    expect(sessionStorage.getItem('hhr_session_start')).toBeNull();
+    expect(vi.mocked(setDoc)).toHaveBeenCalledTimes(2);
   });
 });

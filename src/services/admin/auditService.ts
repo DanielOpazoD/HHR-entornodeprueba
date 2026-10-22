@@ -1,10 +1,10 @@
 export {
+  flushAuditConnectionOutbox,
   getAuditLogs,
   getAuditLogsForDate,
+  getAuditLogsInRange,
   logAuditEvent,
-  logSystemError,
   logThrottledViewEvent,
-  logUserLogin,
-  logUserLogout,
   shouldExcludeFromViewAudit,
+  writeAuditConnectionEntry,
 } from './auditCore';

@@ -326,7 +326,8 @@ const createAdminCudyrResultFunctions = ({ firestore, Timestamp, resolveRoleForE
         transaction.set(recordRef, nextRecord);
         transaction.set(auditRef, {
           id: auditRef.id,
-          timestamp: now,
+          // ISO like every other audit event: the audit screen queries periods by this string.
+          timestamp: now.toDate().toISOString(),
           userId: email,
           userDisplayName: email,
           userUid: context.auth?.uid || null,

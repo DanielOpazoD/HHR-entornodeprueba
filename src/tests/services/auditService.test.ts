@@ -52,6 +52,7 @@ vi.mock('../../services/storage/indexeddb/indexedDbAuditLogService', () => ({
   saveAuditLog: (log: AuditLogEntry) => mockSaveAuditLog(log),
   getAuditLogs: (limit: number) => mockGetAuditLogs(limit),
   getAuditLogsForDate: (date: string) => mockGetAuditLogsForDate(date),
+  getAuditLogsInRange: vi.fn().mockResolvedValue([]),
 }));
 
 // Mock audit utils
@@ -63,14 +64,8 @@ vi.mock('../../services/admin/utils/auditUtils', () => ({
   fetchAndCacheIpAddress: vi.fn().mockResolvedValue('127.0.0.1'),
 }));
 
-// Mock summary generator
-vi.mock('../../services/admin/utils/auditSummaryGenerator', () => ({
-  generateSummary: vi.fn(action => `Summary for ${action}`),
-}));
-
 // Now import the service
 import {
-  logSystemError,
   logThrottledViewEvent,
   getAuditLogs,
   getAuditLogsForDate,
@@ -99,10 +94,11 @@ describe('AuditService', () => {
         'Diag',
         mockDate
       );
-      expect(mockSaveAuditLog).toHaveBeenCalled();
-      const entry = mockSaveAuditLog.mock.calls[0][0];
-      // Assuming maskRut result is 12345678-9 -> 12345***-*
+      const entry = vi.mocked(firestore.setDoc).mock.calls[0][1] as AuditLogEntry;
       expect(entry.patientIdentifier).toBe('12345***-*');
+      expect(entry.details.rut).toBe(mockPatientRut);
+      // With Firestore available the device keeps no second copy of patient data.
+      expect(mockSaveAuditLog).not.toHaveBeenCalled();
     });
 
     it('should log patient discharge', async () => {
@@ -113,8 +109,9 @@ describe('AuditService', () => {
         'ALTA_DOMICILIO',
         mockDate
       );
-      expect(mockSaveAuditLog).toHaveBeenCalled();
-      expect(mockSaveAuditLog.mock.calls[0][0].action).toBe('PATIENT_DISCHARGED');
+      expect((vi.mocked(firestore.setDoc).mock.calls[0][1] as AuditLogEntry).action).toBe(
+        'PATIENT_DISCHARGED'
+      );
     });
 
     it('should log patient transfer', async () => {
@@ -125,13 +122,9 @@ describe('AuditService', () => {
         'OTRO_HOSPITAL',
         mockDate
       );
-      expect(mockSaveAuditLog.mock.calls[0][0].action).toBe('PATIENT_TRANSFERRED');
-    });
-
-    it('should log system errors', async () => {
-      await logSystemError('Critical failure', 'critical', { detail: 'stack' });
-      expect(mockSaveAuditLog.mock.calls[0][0].action).toBe('SYSTEM_ERROR');
-      expect(mockSaveAuditLog.mock.calls[0][0].details.severity).toBe('critical');
+      expect((vi.mocked(firestore.setDoc).mock.calls[0][1] as AuditLogEntry).action).toBe(
+        'PATIENT_TRANSFERRED'
+      );
     });
   });
 
@@ -139,11 +132,11 @@ describe('AuditService', () => {
     it('should throttle frequent VIEW events', async () => {
       // First call should log
       await logThrottledViewEvent('VIEW_PATIENT', 'R1', { name: 'X' }, mockDate);
-      expect(mockSaveAuditLog).toHaveBeenCalledTimes(1);
+      expect(firestore.setDoc).toHaveBeenCalledTimes(1);
 
       // Second call immediately after should NOT log
       await logThrottledViewEvent('VIEW_PATIENT', 'R1', { name: 'X' }, mockDate);
-      expect(mockSaveAuditLog).toHaveBeenCalledTimes(1);
+      expect(firestore.setDoc).toHaveBeenCalledTimes(1);
     });
 
     it('should NOT log view events for institutional shared accounts', async () => {
@@ -151,7 +144,7 @@ describe('AuditService', () => {
         'hospitalizados@hospitalhangaroa.cl'
       );
       await logThrottledViewEvent('VIEW_PATIENT', 'R1', { name: 'X' }, mockDate);
-      expect(mockSaveAuditLog).not.toHaveBeenCalled();
+      expect(firestore.setDoc).not.toHaveBeenCalled();
     });
   });
 

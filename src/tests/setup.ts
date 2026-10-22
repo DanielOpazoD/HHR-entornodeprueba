@@ -236,8 +236,10 @@ vi.mock('firebase/storage', () => ({
 // Mock auditService globally
 const mockAuditService = {
   logAuditEvent: vi.fn(),
-  logUserLogin: vi.fn(),
-  logUserLogout: vi.fn(),
+  logThrottledViewEvent: vi.fn(),
+  flushAuditConnectionOutbox: vi.fn().mockResolvedValue(undefined),
+  writeAuditConnectionEntry: vi.fn().mockResolvedValue(undefined),
+  getAuditLogsInRange: vi.fn().mockResolvedValue([]),
   logPatientAdmission: vi.fn(),
   logPatientDischarge: vi.fn(),
   logPatientTransfer: vi.fn(),
@@ -245,7 +247,6 @@ const mockAuditService = {
   logPatientView: vi.fn(),
   logDailyRecordDeleted: vi.fn(),
   logDailyRecordCreated: vi.fn(),
-  logSystemError: vi.fn(),
   getAuditLogs: vi.fn().mockResolvedValue([]),
   getAuditLogsForDate: vi.fn().mockResolvedValue([]),
   getLocalAuditLogs: vi.fn().mockReturnValue([]),
@@ -255,6 +256,15 @@ const mockAuditService = {
 const mockAuditFactory = () => mockAuditService;
 
 vi.mock('@/services/admin/auditService', () => mockAuditFactory());
+
+// The audit connection tracker writes through Firestore; tests opt into it explicitly.
+vi.mock('@/services/admin/auditSession/auditConnectionRuntime', () => ({
+  beginCurrentAuditConnection: vi.fn().mockResolvedValue(undefined),
+  touchCurrentAuditConnection: vi.fn().mockResolvedValue(undefined),
+  markCurrentAuditConnectionOffline: vi.fn(),
+  markCurrentAuditConnectionOnline: vi.fn().mockResolvedValue(undefined),
+  endCurrentAuditConnection: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock('../services/admin/auditService', () => mockAuditFactory());
 
 const globalCatalogRepositoryMock = {
@@ -517,8 +527,6 @@ const mockAuditContextValue = {
   logClinicalDocumentCreated: vi.fn(),
   logClinicalDocumentEdited: vi.fn(),
   logClinicalDocumentDeleted: vi.fn(),
-  logUserLogin: vi.fn(),
-  logUserLogout: vi.fn(),
   logEvent: vi.fn(),
   logViewEvent: vi.fn(),
   logDebouncedEvent: vi.fn(),

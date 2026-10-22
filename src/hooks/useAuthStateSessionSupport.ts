@@ -112,9 +112,17 @@ export const createHandleLogout =
     // Notify other tabs so they can perform their own cleanup
     broadcastLogout(reason);
 
-    // 2. Async operations in parallel — best-effort, one failure does not block others
+    // 2. Close the audit connection while still signed in: Firestore authenticates a write when
+    //    it is sent, so an end event racing sign-out could be rejected. The wait is bounded and
+    //    anything undelivered stays queued on the device for the next sign-in.
+    if (user?.email) {
+      await defaultAuditPort
+        .logUserLogout(user.email, reason)
+        .catch(error => authStateLogger.warn('Logout audit step rejected', error));
+    }
+
+    // 3. Async cleanup — best-effort, one failure does not block others
     const results = await Promise.allSettled([
-      user?.email ? defaultAuditPort.logUserLogout(user.email, reason) : Promise.resolve(),
       clearSessionScopedClientState(reason, async () => {
         try {
           await signOut();

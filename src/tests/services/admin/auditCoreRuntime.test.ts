@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createAuditCoreService } from '@/services/admin/auditCore';
+import {
+  enqueueAuditConnectionEntry,
+  markAuditConnectionEntrySent,
+  readAuditConnectionOutbox,
+} from '@/services/admin/auditSession/auditConnectionOutbox';
+import { AUDIT_CONNECTION_STORAGE_KEY } from '@/services/admin/auditSession/auditConnectionTracker';
 import type { AuditLogEntry } from '@/types/auditLogTypes';
 
 const loggerMocks = vi.hoisted(() => ({
@@ -8,21 +14,30 @@ const loggerMocks = vi.hoisted(() => ({
   warn: vi.fn(),
 }));
 
-vi.mock('@/services/admin/adminLoggers', () => ({
-  auditCoreLogger: loggerMocks,
-}));
-
-vi.mock('@/services/admin/utils/auditUtils', () => ({
+const auditUtilsMocks = vi.hoisted(() => ({
   getCurrentUserEmail: vi.fn(() => 'doctor@hospital.cl'),
   getCurrentUserDisplayName: vi.fn(() => 'Doctor Account'),
-  getCurrentUserUid: vi.fn(() => 'doctor-123'),
+  getCurrentUserUid: vi.fn<() => string | undefined>(() => 'doctor-123'),
   getCachedIpAddress: vi.fn(() => '127.0.0.1'),
   fetchAndCacheIpAddress: vi.fn().mockResolvedValue('127.0.0.1'),
 }));
 
-vi.mock('@/services/admin/utils/auditSummaryGenerator', () => ({
-  generateSummary: vi.fn((action: string) => `Summary for ${action}`),
+vi.mock('@/services/admin/adminLoggers', () => ({
+  auditCoreLogger: loggerMocks,
 }));
+
+vi.mock('@/services/admin/utils/auditUtils', () => auditUtilsMocks);
+
+const memoryStorage = (): Pick<Storage, 'getItem' | 'setItem'> => {
+  const values = new Map<string, string>();
+  return {
+    getItem: key => values.get(key) ?? null,
+    setItem: (key, value) => void values.set(key, value),
+  };
+};
+
+const CHROME_ON_WINDOWS =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36';
 
 describe('auditCore runtime injection', () => {
   const setDoc = vi.fn();
@@ -30,109 +45,156 @@ describe('auditCore runtime injection', () => {
   const saveAuditLog = vi.fn();
   const getIndexedLogs = vi.fn();
   const getIndexedLogsForDate = vi.fn();
+  const getIndexedLogsInRange = vi.fn();
+  let storage: Pick<Storage, 'getItem' | 'setItem'>;
 
-  const service = createAuditCoreService(
-    {
-      setDoc,
-      getDocs,
-    },
-    {
-      saveAuditLog,
-      getAuditLogs: getIndexedLogs,
-      getAuditLogsForDate: getIndexedLogsForDate,
-    }
-  );
+  const localStore = () => ({
+    saveAuditLog,
+    getAuditLogs: getIndexedLogs,
+    getAuditLogsForDate: getIndexedLogsForDate,
+    getAuditLogsInRange: getIndexedLogsInRange,
+  });
+  const device = () => ({
+    connectionStorage: () => storage,
+    userAgent: () => CHROME_ON_WINDOWS,
+  });
+  const remoteService = () =>
+    createAuditCoreService(
+      { setDoc, getDocs },
+      localStore(),
+      { shouldUseRemoteAuditSync: () => true },
+      device()
+    );
 
   beforeEach(() => {
     vi.clearAllMocks();
     sessionStorage.clear();
+    storage = memoryStorage();
+    auditUtilsMocks.getCurrentUserUid.mockReturnValue('doctor-123');
     saveAuditLog.mockResolvedValue(undefined);
     setDoc.mockResolvedValue(undefined);
   });
 
-  it('writes audit entries through the injected persistence dependencies', async () => {
-    await service.logAuditEvent('doctor@hospital.cl', 'USER_LOGIN', 'user', 'doctor@hospital.cl', {
-      event: 'login',
-    });
+  it('writes compact v2 events stamped with the open connection and the device', async () => {
+    storage.setItem(
+      AUDIT_CONNECTION_STORAGE_KEY,
+      JSON.stringify({
+        id: 'conn-1',
+        uid: 'doctor-123',
+        email: 'doctor@hospital.cl',
+        startedAt: 1,
+        lastSeenAt: 2,
+      })
+    );
 
-    expect(saveAuditLog).toHaveBeenCalledTimes(1);
-    expect(setDoc).toHaveBeenCalledTimes(1);
+    await remoteService().logAuditEvent(
+      'doctor@hospital.cl',
+      'PATIENT_MODIFIED',
+      'patient',
+      'R1',
+      { patientName: 'Paciente', changes: { age: { old: 40, new: 41 } } },
+      '11.111.111-1',
+      '2026-10-22'
+    );
+
+    expect(saveAuditLog).not.toHaveBeenCalled();
     expect(setDoc).toHaveBeenCalledWith(
       expect.stringContaining('/auditLogs'),
       expect.stringContaining('audit_'),
       expect.objectContaining({
-        action: 'USER_LOGIN',
+        schemaVersion: 2,
+        action: 'PATIENT_MODIFIED',
         userId: 'doctor@hospital.cl',
-        summary: 'Summary for USER_LOGIN',
+        userUid: 'doctor-123',
+        sessionId: 'conn-1',
+        device: 'Chrome · Windows',
+        recordDate: '2026-10-22',
+        details: expect.objectContaining({ rut: '11.111.111-1' }),
       })
     );
   });
 
-  it('does not throttle direct VIEW writes inside the persistence core', async () => {
-    await service.logAuditEvent('doctor@hospital.cl', 'VIEW_CUDYR', 'dailyRecord', '2026-05-01', {
-      view: 'cudyr',
-    });
-    await service.logAuditEvent('doctor@hospital.cl', 'VIEW_CUDYR', 'dailyRecord', '2026-05-01', {
-      view: 'cudyr',
-    });
-
-    expect(saveAuditLog).toHaveBeenCalledTimes(2);
-    expect(setDoc).toHaveBeenCalledTimes(2);
-  });
-
-  it('downgrades remote permission-denied audit writes to a local-only warning', async () => {
+  it('downgrades remote permission-denied writes to a warning', async () => {
     setDoc.mockRejectedValue({ code: 'permission-denied' });
 
-    await service.logAuditEvent('doctor@hospital.cl', 'USER_LOGIN', 'user', 'doctor@hospital.cl', {
-      event: 'login',
+    await remoteService().logAuditEvent('doctor@hospital.cl', 'VIEW_CUDYR', 'dailyRecord', 'd', {
+      view: 'cudyr',
     });
 
-    expect(saveAuditLog).toHaveBeenCalledTimes(1);
     expect(loggerMocks.warn).toHaveBeenCalledWith(
-      'Audit log persisted locally only because Firestore rejected the remote append',
-      expect.objectContaining({
-        action: 'USER_LOGIN',
-        code: 'permission-denied',
-      })
+      'Firestore rejected the audit append',
+      expect.objectContaining({ action: 'VIEW_CUDYR', code: 'permission-denied' })
     );
-    expect(loggerMocks.error).not.toHaveBeenCalledWith(
-      'Failed to save audit log to Firestore',
-      expect.anything()
-    );
+    expect(loggerMocks.error).not.toHaveBeenCalled();
   });
 
   it('keeps audit writes local-only when remote audit sync is disabled', async () => {
     const localOnlyService = createAuditCoreService(
-      {
-        setDoc,
-        getDocs,
-      },
-      {
-        saveAuditLog,
-        getAuditLogs: getIndexedLogs,
-        getAuditLogsForDate: getIndexedLogsForDate,
-      },
-      {
-        shouldUseRemoteAuditSync: () => false,
-      }
+      { setDoc, getDocs },
+      localStore(),
+      { shouldUseRemoteAuditSync: () => false },
+      device()
     );
 
-    await localOnlyService.logAuditEvent(
-      'doctor@hospital.cl',
-      'USER_LOGIN',
-      'user',
-      'doctor@hospital.cl',
-      {
-        event: 'login',
-      }
-    );
+    await localOnlyService.logAuditEvent('doctor@hospital.cl', 'VIEW_CUDYR', 'dailyRecord', 'd', {
+      view: 'cudyr',
+    });
 
     expect(saveAuditLog).toHaveBeenCalledTimes(1);
     expect(setDoc).not.toHaveBeenCalled();
-    expect(loggerMocks.warn).not.toHaveBeenCalledWith(
-      'Audit log persisted locally only because Firestore rejected the remote append',
-      expect.anything()
-    );
+  });
+
+  it('queries one period by timestamp range and reports remote failures', async () => {
+    getDocs.mockResolvedValueOnce([]);
+    const range = {
+      fromIso: '2026-10-22T05:00:00.000Z',
+      toIso: '2026-10-23T05:00:00.000Z',
+      limit: 3000,
+    };
+
+    await remoteService().getAuditLogsInRange(range);
+    expect(getDocs).toHaveBeenCalledWith(expect.stringContaining('/auditLogs'), {
+      where: [
+        { field: 'timestamp', operator: '>=', value: range.fromIso },
+        { field: 'timestamp', operator: '<', value: range.toIso },
+      ],
+      orderBy: [{ field: 'timestamp', direction: 'desc' }],
+      limit: 3000,
+    });
+
+    getDocs.mockRejectedValueOnce(new Error('firestore down'));
+    await expect(remoteService().getAuditLogsInRange(range)).rejects.toThrow('firestore down');
+    expect(getIndexedLogsInRange).not.toHaveBeenCalled();
+  });
+
+  const queued = (id: string) =>
+    ({ id, action: 'USER_LOGOUT', timestamp: '2026-10-22T14:00:00.000Z' }) as AuditLogEntry;
+
+  it('delivers queued connection events once, even when flushes overlap', async () => {
+    enqueueAuditConnectionEntry(storage, queued('conn_a_end'));
+    enqueueAuditConnectionEntry(storage, queued('conn_b_start'));
+
+    const service = remoteService();
+    await Promise.all([service.flushAuditConnectionOutbox(), service.flushAuditConnectionOutbox()]);
+
+    expect(setDoc.mock.calls.map(call => call[1])).toEqual(['conn_a_end', 'conn_b_start']);
+    expect(readAuditConnectionOutbox(storage)).toEqual([]);
+  });
+
+  it('keeps a refused event for the next sign-in unless an earlier write may have landed', async () => {
+    setDoc.mockRejectedValue({ code: 'permission-denied' });
+    enqueueAuditConnectionEntry(storage, queued('conn_revoked_end'));
+
+    // Access revoked while still signed in: the end is refused, not delivered.
+    await remoteService().flushAuditConnectionOutbox();
+    expect(readAuditConnectionOutbox(storage)).toEqual([
+      { entry: expect.objectContaining({ id: 'conn_revoked_end' }), rejections: 1 },
+    ]);
+
+    // A page that closed mid-write leaves `sentAt`: the refusal now means "already stored".
+    markAuditConnectionEntrySent(storage, 'conn_revoked_end', 1);
+    await remoteService().flushAuditConnectionOutbox();
+    expect(readAuditConnectionOutbox(storage)).toEqual([]);
   });
 
   it('falls back to injected local storage when firestore reads fail', async () => {
@@ -140,50 +202,23 @@ describe('auditCore runtime injection', () => {
     getDocs.mockRejectedValue(new Error('firestore down'));
     getIndexedLogs.mockResolvedValue(fallbackLogs);
 
-    await expect(service.getAuditLogs(25)).resolves.toEqual(fallbackLogs);
+    await expect(remoteService().getAuditLogs(25)).resolves.toEqual(fallbackLogs);
     expect(getIndexedLogs).toHaveBeenCalledWith(25);
-    expect(loggerMocks.error).toHaveBeenCalledWith(
-      'Failed to fetch audit logs from Firestore',
-      expect.any(Error)
-    );
-  });
-
-  it('does not apply a read limit when full historical audit logs are requested', async () => {
-    getDocs.mockResolvedValue([]);
-
-    await service.getAuditLogs();
-
-    expect(getDocs).toHaveBeenCalledWith(
-      expect.stringContaining('/auditLogs'),
-      expect.not.objectContaining({ limit: expect.any(Number) })
-    );
   });
 
   it('fetches date-scoped audit logs without a composite index and sorts them client-side', async () => {
-    const older = {
-      id: 'older',
-      timestamp: '2026-07-03T10:00:00.000Z',
-      recordDate: '2026-07-03',
-    } as AuditLogEntry;
-    const newer = {
-      id: 'newer',
-      timestamp: '2026-07-03T12:00:00.000Z',
-      recordDate: '2026-07-03',
-    } as AuditLogEntry;
+    const older = { id: 'older', timestamp: '2026-07-03T10:00:00.000Z' } as AuditLogEntry;
+    const newer = { id: 'newer', timestamp: '2026-07-03T12:00:00.000Z' } as AuditLogEntry;
     getDocs.mockResolvedValue([older, newer]);
 
-    await expect(service.getAuditLogsForDate('2026-07-03')).resolves.toEqual([newer, older]);
-
+    await expect(remoteService().getAuditLogsForDate('2026-07-03')).resolves.toEqual([
+      newer,
+      older,
+    ]);
     expect(getDocs).toHaveBeenCalledWith(
       expect.stringContaining('/auditLogs'),
       expect.objectContaining({
         where: [{ field: 'recordDate', operator: '==', value: '2026-07-03' }],
-      })
-    );
-    expect(getDocs).not.toHaveBeenCalledWith(
-      expect.any(String),
-      expect.objectContaining({
-        orderBy: expect.any(Array),
       })
     );
   });

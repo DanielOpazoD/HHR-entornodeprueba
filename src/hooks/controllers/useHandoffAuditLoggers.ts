@@ -3,57 +3,54 @@ import { useCallback } from 'react';
 import type { AuditAction } from '@/types/auditActionTypes';
 import type { AuditLogEntry } from '@/types/auditLogTypes';
 
-type AuditLogger = (
+type CoalescedAuditLogger = (
   action: AuditAction,
   entityType: AuditLogEntry['entityType'],
   entityId: string,
   details: Record<string, unknown>,
   patientRut?: string,
   recordDate?: string,
-  authors?: string
+  authors?: string,
+  waitMs?: number
 ) => void;
 
-const HANDOFF_MODIFIED_THROTTLE_MS = 5 * 60 * 1000;
+/**
+ * A note is typed in many saves; the trail keeps one event per editing burst with the text
+ * before the first save and after the last one. Each shift is its own field, so day and night
+ * notes never mix in one before/after.
+ */
+export const HANDOFF_AUDIT_COALESCE_MS = 60 * 1000;
 
-const getHandoffThrottleKey = (action: AuditAction, bedId: string): string =>
-  `hhr_audit_throttle_${action}_${bedId}`;
-
-const shouldLogHandoffAction = (action: AuditAction, bedId: string): boolean => {
-  if (typeof sessionStorage === 'undefined') return true;
-
-  const stateKey = getHandoffThrottleKey(action, bedId);
-  const lastLogged = sessionStorage.getItem(stateKey);
-  if (lastLogged) {
-    const elapsed = Date.now() - new Date(lastLogged).getTime();
-    if (elapsed < HANDOFF_MODIFIED_THROTTLE_MS) {
-      return false;
-    }
-  }
-
-  sessionStorage.setItem(stateKey, new Date().toISOString());
-  return true;
+const NURSE_NOTE_FIELDS: Record<string, string> = {
+  day: 'handoffNoteDayShift',
+  night: 'handoffNoteNightShift',
 };
 
-export const useHandoffAuditLoggers = (logEvent: AuditLogger) => {
+const NOVEDADES_FIELDS: Record<string, string> = {
+  day: 'handoffNovedadesDayShift',
+  night: 'handoffNovedadesNightShift',
+};
+
+export const useHandoffAuditLoggers = (logCoalescedEvent: CoalescedAuditLogger) => {
   const logHandoffNovedadesModified = useCallback(
     (shift: string, content: string, oldContent: string, recordDate: string, authors?: string) => {
-      logEvent(
+      logCoalescedEvent(
         'HANDOFF_NOVEDADES_MODIFIED',
         'dailyRecord',
         recordDate,
         {
           shift,
-          content,
           changes: {
-            novedades: { old: oldContent, new: content },
+            [NOVEDADES_FIELDS[shift] ?? 'novedades']: { old: oldContent, new: content },
           },
         },
         undefined,
         recordDate,
-        authors
+        authors,
+        HANDOFF_AUDIT_COALESCE_MS
       );
     },
-    [logEvent]
+    [logCoalescedEvent]
   );
 
   const logMedicalHandoffModified = useCallback(
@@ -65,11 +62,7 @@ export const useHandoffAuditLoggers = (logEvent: AuditLogger) => {
       oldNote: string,
       recordDate: string
     ) => {
-      if (!shouldLogHandoffAction('MEDICAL_HANDOFF_MODIFIED', bedId)) {
-        return;
-      }
-
-      logEvent(
+      logCoalescedEvent(
         'MEDICAL_HANDOFF_MODIFIED',
         'patient',
         bedId,
@@ -77,16 +70,17 @@ export const useHandoffAuditLoggers = (logEvent: AuditLogger) => {
           patientName,
           bedId,
           rut,
-          note,
           changes: {
-            note: { old: oldNote, new: note },
+            medicalHandoffNote: { old: oldNote, new: note },
           },
         },
         rut,
-        recordDate
+        recordDate,
+        undefined,
+        HANDOFF_AUDIT_COALESCE_MS
       );
     },
-    [logEvent]
+    [logCoalescedEvent]
   );
 
   const logNurseHandoffModified = useCallback(
@@ -99,11 +93,7 @@ export const useHandoffAuditLoggers = (logEvent: AuditLogger) => {
       oldNote: string,
       recordDate: string
     ) => {
-      if (!shouldLogHandoffAction('NURSE_HANDOFF_MODIFIED', bedId)) {
-        return;
-      }
-
-      logEvent(
+      logCoalescedEvent(
         'NURSE_HANDOFF_MODIFIED',
         'patient',
         bedId,
@@ -112,16 +102,17 @@ export const useHandoffAuditLoggers = (logEvent: AuditLogger) => {
           bedId,
           rut,
           shift,
-          note,
           changes: {
-            note: { old: oldNote, new: note },
+            [NURSE_NOTE_FIELDS[shift] ?? 'handoffNote']: { old: oldNote, new: note },
           },
         },
         rut,
-        recordDate
+        recordDate,
+        undefined,
+        HANDOFF_AUDIT_COALESCE_MS
       );
     },
-    [logEvent]
+    [logCoalescedEvent]
   );
 
   return { logHandoffNovedadesModified, logMedicalHandoffModified, logNurseHandoffModified };

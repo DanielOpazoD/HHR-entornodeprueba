@@ -14,7 +14,6 @@ const mockRestoreAuthBootstrapReturnTo = vi.fn();
 const mockClearRecentManualLogout = vi.fn();
 const mockHasRecentManualLogout = vi.fn();
 const mockHasActiveFirebaseSession = vi.fn();
-const mockLogUserLogin = vi.fn();
 const mockRecordOperationalOutcome = vi.fn();
 const mockRecordOperationalTelemetry = vi.fn();
 
@@ -46,7 +45,6 @@ vi.mock('@/services/auth/authFallback', () => ({
 
 vi.mock('@/application/ports/auditPort', () => ({
   defaultAuditPort: {
-    logUserLogin: (...args: unknown[]) => mockLogUserLogin(...args),
     logUserLogout: vi.fn(),
   },
 }));
@@ -81,7 +79,6 @@ export const authBootstrapTestMocks = {
   mockClearRecentManualLogout,
   mockHasRecentManualLogout,
   mockHasActiveFirebaseSession,
-  mockLogUserLogin,
   mockRecordOperationalOutcome,
   mockRecordOperationalTelemetry,
 };

@@ -58,6 +58,11 @@ const KEYS_SURVIVING_LOGOUT = new Set([
   'hhr_storage_persistent_fallback_count_v1',
   'hhr_feature_flags',
   'hhr_chunk_reload_count',
+  // Audit trail: staff connection record and its undelivered events (no patient data), so a
+  // logout recorded while signing out is still delivered; and each device's view preferences.
+  'hhr_audit_connection_v1',
+  'hhr_audit_connection_outbox_v1',
+  'hhr_audit_trail_view_v1',
 ]);
 
 /** sessionStorage keys that must survive logout (bootstrap coordination). */

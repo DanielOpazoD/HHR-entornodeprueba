@@ -6,6 +6,12 @@ import {
   calendarStampInClinicalTimeZone,
   getClinicalCalendarDateISO,
 } from '@/utils/clinicalTimeZone';
+import {
+  addClinicalDays,
+  clinicalDayStartEpochMs,
+  formatClinicalClock,
+  formatClinicalDayMonthYear,
+} from '@/utils/clinicalTimeFormat';
 import { getTodayISO, isFutureDate } from '@/utils/dateCoreUtils';
 import { getLocalDateInputValue } from '@/utils/localDate';
 import { resolveCurrentClinicalDay } from '@/utils/clinicalDayAdmissionUtils';
@@ -60,5 +66,30 @@ describe('clinical time zone', () => {
     } finally {
       process.env.TZ = previous;
     }
+  });
+
+  it('finds the instant a hospital day starts across the DST change', () => {
+    // UTC-6 until Saturday Sept 5 at 22:00 in Rapa Nui, UTC-5 afterwards.
+    expect(new Date(clinicalDayStartEpochMs('2026-07-03')).toISOString()).toBe(
+      '2026-07-03T06:00:00.000Z'
+    );
+    expect(new Date(clinicalDayStartEpochMs('2026-09-05')).toISOString()).toBe(
+      '2026-09-05T06:00:00.000Z'
+    );
+    expect(new Date(clinicalDayStartEpochMs('2026-09-06')).toISOString()).toBe(
+      '2026-09-06T05:00:00.000Z'
+    );
+    expect(getClinicalCalendarDateISO(new Date(clinicalDayStartEpochMs('2026-10-22')))).toBe(
+      '2026-10-22'
+    );
+  });
+
+  it('formats dates as day-month-year and clocks on the hospital wall clock', () => {
+    expect(addClinicalDays('2026-02-28', 1)).toBe('2026-03-01');
+    expect(addClinicalDays('2026-01-01', -1)).toBe('2025-12-31');
+    expect(formatClinicalDayMonthYear('2026-10-22')).toBe('22-10-2026');
+    expect(formatClinicalDayMonthYear(SANTIAGO_MIDNIGHT_GAP.getTime())).toBe('09-09-2026');
+    expect(formatClinicalClock(REPORTED_INCIDENT.getTime())).toBe('07:33');
+    expect(formatClinicalClock(REPORTED_INCIDENT.getTime(), true)).toBe('07:33:35');
   });
 });
