@@ -1,6 +1,6 @@
 # Documentation Map
 
-Última actualización: 2026-10-02
+Última actualización: 2026-10-21
 
 > Índice único del repositorio. Si un documento nuevo no aparece aquí, o queda
 > sin categoría, debe añadirse en el mismo PR que lo crea. `check:docs-drift`
@@ -45,6 +45,8 @@ Documentos que gobiernan decisiones activas y estructura actual del repo.
 - [docs/QUALITY_GUARDRAILS.md](QUALITY_GUARDRAILS.md)
 - [docs/SAFE_CHANGE_CHECKLIST.md](SAFE_CHANGE_CHECKLIST.md)
 - [docs/CLINICAL_MUTATION_AUDIT_POLICY.md](CLINICAL_MUTATION_AUDIT_POLICY.md) — postura de auditoría declarada por `AuditAction` (gate `check:clinical-mutation-audit-policy`)
+- [docs/SYNC_CONCURRENCY_MODEL.md](SYNC_CONCURRENCY_MODEL.md) — rutas de escritura del censo diario, enrutamiento a la autoridad, guardas y límites conocidos
+- [docs/rayen-incremental-clinical-sync.md](rayen-incremental-clinical-sync.md) — enriquecimiento clínico incremental Eloísa → HHR: checkpoint, escritor por corrida y cola por fecha
 
 #### ADRs
 

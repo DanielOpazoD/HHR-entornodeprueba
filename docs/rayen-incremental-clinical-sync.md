@@ -7,18 +7,25 @@ conserva su censo como proyección local y sólo persiste un cambio cuando un he
 corrección altera el resultado clínico. Repetir una sincronización con la misma información debe ser
 un _no-op_ por paciente.
 
-El alcance inicial comprende signos vitales, Braden/Downton y evidencia de actividad de Enfermería /
-TENS. No introduce _event sourcing_, infraestructura nueva ni escrituras paralelas.
+El checkpoint incremental comprende signos vitales, Braden/Downton y evidencia de actividad de
+Enfermería / TENS. El llenado clínico de la misma corrida también trata dispositivos invasivos,
+CUDYR (del día y D-1), la verificación de arrastre, el archivo CUDYR y la propuesta de dotación,
+pero esos pasos no usan checkpoint. No introduce _event sourcing_, infraestructura nueva ni
+escrituras paralelas.
 
 ## Identidad, checkpoint y correcciones
 
-- Cada paciente/episodio guarda un `clinicalSyncCheckpoint` por fuente.
+- Cada paciente/episodio guarda un `clinicalSyncCheckpoint` por fuente (`vitals`, `scales`,
+  `staffing`) dentro del registro del día. Al sembrar el día siguiente se elimina y se reconstruye
+  en la primera verificación.
 - El contrato tiene versiones independientes de esquema y huella. Una versión desconocida se ignora
   y se reconstruye desde la fuente; nunca bloquea la sincronización.
-- Si Eloísa entrega identidad estable (`encounterEventId`), ésta identifica el hecho. Si no existe,
-  se usa una huella determinista del contenido como alternativa.
-- Las identidades y contenidos se guardan únicamente como hashes. El checkpoint y la telemetría no
-  almacenan nombres, RUT, profesionales ni valores clínicos en texto claro.
+- Si Eloísa entrega identidad estable, ésta identifica el hecho: `encounterEventId` en signos
+  vitales y código + evento + orden en escalas. Si no existe, como en la evidencia de dotación, se
+  usa una huella determinista del contenido como alternativa.
+- El checkpoint guarda identidades y contenidos como hashes (FNV-1a de 32 bits: deduplican, no son
+  una protección criptográfica) y marcas de agua como identificadores de evento o fecha/hora. No
+  guarda nombres, RUT, profesionales ni valores clínicos.
 - El mismo identificador con igual huella es duplicado; con distinta huella es una corrección. La
   corrección reemplaza la proyección anterior y conserva la trazabilidad normal del censo.
 - Cada fuente conserva una ventana acotada de 128 hechos recientes. Es el solapamiento que permite
@@ -43,13 +50,23 @@ Ambos lectores ordenan por el instante resuelto y sólo desempatan por identific
 evento. Al reimportar, HHR reemplaza la hora anterior del mismo `sourceEventId` sin crear
 otra toma. La recuperación requiere releer la fuente; no modifica datos en Eloísa.
 
-- Las lecturas remotas mantienen concurrencia acotada e independiente por fuente.
+- Las lecturas remotas mantienen concurrencia acotada: hasta cuatro por cada cola independiente
+  (dispositivos, historial, formularios y paquete clínico); cada paquete lee dispositivos, historial
+  y formularios en paralelo dentro de la extensión.
 - Las escrituras del censo se serializan para evitar conflictos de versión entre pacientes de una
-  misma ejecución.
-- El primer parche clínico exitoso captura una copia histórica completa. Los restantes parches de la
-  misma ejecución omiten esa copia repetida. Si el primer parche falla, el siguiente vuelve a pedirla.
+  misma ejecución. La política guardada con la corrida elige un solo escritor: `off` escribe por
+  paciente; `shadow` escribe por paciente y compara con un lote en simulación; `enforced` envía
+  un lote atómico (`applyRayenClinicalEnrichmentBatch`) por día de censo, el del día y, para CUDYR
+  histórico, uno acotado hacia D-1, con un reintento que conserva el `mutationId`. Nunca cambia a
+  escrituras por paciente a mitad de la corrida. Si la política no puede confirmarse, no escribe y
+  deja un reintento.
+- Cada corrida deja como máximo una copia histórica fija por `runId` y día. Por paciente, el
+  servidor crea `history/rayen-{runId}` sólo si no existe, aunque el cliente la vuelva a pedir tras
+  un fallo; el lote crea su copia `rayen-clinical-…` sólo cuando trae parches clínicos.
 - Una ejecución sin cambios produce cero parches por paciente; sólo puede actualizar el evento de
-  auditoría agregado.
+  auditoría agregado. Excepciones acotadas: un parche sólo de checkpoint en la primera lectura
+  confirmada o cuando se mueven las marcas de la validación completa diaria, y la reparación de
+  escalas duplicadas ya persistidas.
 - La ausencia de un hecho en una lectura parcial o fallida nunca se interpreta como eliminación.
 - CUDYR, D-7, zona `Pacific/Easter`, doble fuente de escalas, vínculo madre-cuna y trazabilidad de cama
   mantienen sus reglas existentes.
@@ -77,18 +94,29 @@ remota sin evidencia de capacidad; ambos atajos reducen tiempo a costa de consis
 
 ## Reanudación y recuperación
 
-- Sólo existe una ejecución clínica activa y una pendiente. Solicitudes repetidas del mismo `runId`
-  se coalescen; si llegan distintas solicitudes mientras hay una activa, sólo se conserva la última.
-- Un evento de censo en estado `applied` se reanuda desde “Reintentar” sin volver a capturar ni aplicar
-  el censo completo.
-- La reconciliación completa queda como recuperación deliberada cuando cambia la versión del
-  checkpoint o se sospecha pérdida de evidencia. No es el camino habitual.
+- Cada pestaña mantiene en memoria una sola ejecución clínica activa y, como máximo, una pendiente
+  **por fecha de censo** (`enqueueLatestRayenClinicalFill`). Las solicitudes con la misma clave
+  (fecha + `runId` + inicial o reintento) comparten resultado. Una clave nueva sólo reemplaza la
+  pendiente de su propia fecha, sin token de reintento para la reemplazada, y nunca interrumpe la
+  activa. Las fechas pendientes se atienden por orden de llegada; una ejecución que esperó vuelve a
+  leer el registro y se descarta si su `runId` ya no es el vigente.
+- Un evento de censo en estado `applied` se reanuda desde «Reintentar información clínica» sin
+  volver a capturar ni aplicar el censo completo; sólo relee los episodios y fuentes que fallaron.
+- No hay un disparador manual de reconciliación completa. Un checkpoint de versión desconocida se
+  ignora y se reconstruye solo. La validación completa del historial (al menos 14 días y siempre
+  hasta dos días antes de la fecha del censo) se ejecuta automáticamente como máximo una vez cada
+  24 h después de una validación certificada, o 15 min después de un intento no confirmado.
 
-## Telemetría segura
+## Telemetría y datos del evento
 
-El evento de sincronización registra sólo contadores agregados: recibidos, nuevos, duplicados,
-correcciones, parches por paciente y copias históricas. El historial los muestra para distinguir una
-ejecución útil de una repetición idempotente sin exponer información clínica o identificatoria.
+El evento de sincronización registra contadores agregados: recibidos, nuevos, duplicados,
+correcciones, escrituras y copias históricas. En modo lote, `patientWrites` cuenta lotes confirmados
+(normalmente 1), no pacientes. Con ellos el historial distingue una ejecución útil de una repetición
+idempotente. Además guarda objetivos, tiempos y evidencia del lote y, para facilitar la resolución
+de problemas, el detalle de cada incidencia: cama, episodio y fecha del censo, nombre y documento
+del paciente (en las lecturas clínicas fallidas, sólo si el episodio identifica a un único
+paciente) y el motivo de los conflictos estructurales. En la evidencia de dotación excluida
+guarda nombre y rol del personal. No guarda valores clínicos, excepciones crudas ni credenciales.
 
 ## Estrategia de activación
 

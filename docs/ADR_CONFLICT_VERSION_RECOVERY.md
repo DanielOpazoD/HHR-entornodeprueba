@@ -35,6 +35,9 @@ por campo con la matriz de políticas) y hoy es **irreversible**:
 - Los snapshots de `history/` que sí existen en el full-save **no se leen** desde ninguna parte
   (son forenses, no restaurables).
 
+> Nota (2026-10-21): este motivo describe el estado al aceptar la ADR. La cola ya publica dentro
+> de `runTransaction` o del callable de autoridad; ver `docs/SYNC_CONCURRENCY_MODEL.md`.
+
 Resultado: si el merge elige mal, no hay vuelta atrás. Para datos clínicos y trazabilidad
 (Ley 20.584) esto es un riesgo real de pérdida — el más alineado con la prioridad #1 de la
 política de cambios (runtime/datos/clínico).

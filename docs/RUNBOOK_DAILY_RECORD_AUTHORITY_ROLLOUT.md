@@ -19,6 +19,14 @@ big-bang.
 Compatibilidad: `VITE_DAILY_RECORD_AUTHORITY_CALLABLE=true` equivale a `enforced`.
 El flag recomendado para rollout nuevo es `VITE_DAILY_RECORD_AUTHORITY_MODE`.
 
+El flag no es la única fuente del modo. `resolveEffectiveDailyRecordAuthorityMode` usa el más
+fuerte entre el flag y la política `settings/rayenImportPolicy` (`schemaVersion: 2`,
+`clinicalBatchMode`). Si esa política v2 existe, las reglas de Firestore rechazan escrituras
+directas que toquen `beds` o `bedTypeOverrides`, y el cliente envía guardados completos, outbox y
+parches de cama a los callables aunque el flag diga `client_only` (con `mode: 'shadow'`, que el
+servidor confirma igual que `enforced`; sólo `dryRun` no escribe). Ver
+[SYNC_CONCURRENCY_MODEL.md](SYNC_CONCURRENCY_MODEL.md).
+
 ## Secuencia Recomendada
 
 1. Desplegar con `VITE_DAILY_RECORD_AUTHORITY_MODE=client_only`.
@@ -77,7 +85,8 @@ clinico antes de persistencia aceptada en altas, traslados, undo y auditoria.
 
 Volver a `VITE_DAILY_RECORD_AUTHORITY_MODE=client_only` deja las validaciones cliente activas
 y desactiva el uso obligatorio del callable. Si se estaba usando el flag legacy, remover
-`VITE_DAILY_RECORD_AUTHORITY_CALLABLE=true`.
+`VITE_DAILY_RECORD_AUTHORITY_CALLABLE=true`. Con la política Rayen v2 activa, este rollback no
+devuelve la escritura directa del árbol de camas: las reglas la tratan como frontera irreversible.
 
 Si el problema es especificamente bloqueo por frescura al reactivar pestañas, rollback
 operativo inmediato: volver a `client_only`, mantener realtime activo, limpiar cache local

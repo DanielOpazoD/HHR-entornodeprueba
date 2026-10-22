@@ -6,7 +6,7 @@ Reducir las K hidrataciones, verificaciones y escrituras clínicas por paciente 
 por sincronización, sin cambiar la captura de Eloísa ni relajar la autoridad del censo.
 
 El callable `applyRayenClinicalEnrichmentBatch` admite exclusivamente dispositivos, escalas,
-signos vitales, sus historiales y `clinicalSyncCheckpoint`. Los cambios clínicos y los avances del
+signos vitales, sus historiales, `clinicalSyncCheckpoint` y `clinicalCarryover`. Los cambios clínicos y los avances del
 checkpoint viajan separados: un lote que solo avanza el checkpoint no crea una versión clínica
 idéntica. Verifica en una transacción la fecha, revisión, cama, `clinicalEpisodeId` y cuna RN antes
 de escribir. Cada `runId` genera como máximo un snapshot histórico por día de censo afectado y
