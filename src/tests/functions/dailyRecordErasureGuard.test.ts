@@ -72,9 +72,25 @@ describe('dailyRecordErasureGuard.findPatientErasures (server mirror of the clie
     expect(findPatientErasures(remote, local)).toEqual([]);
   });
 
-  it('matches a relocation by RUT even when only the strong id is stable', () => {
-    const remote = { beds: { R4: { patientName: 'Kevin V.', rut: '20.189.620-7' } } };
-    const local = { beds: { R3: { patientName: 'Kevin Villagran', rut: '20189620-7' } } };
+  it('matches a relocation by stable episode even when the name is corrected', () => {
+    const remote = {
+      beds: {
+        R4: {
+          patientName: 'Kevin V.',
+          rut: '20.189.620-7',
+          clinicalEpisodeId: 'ep_same_admission',
+        },
+      },
+    };
+    const local = {
+      beds: {
+        R3: {
+          patientName: 'Kevin Villagran',
+          rut: '20189620-7',
+          clinicalEpisodeId: 'ep_same_admission',
+        },
+      },
+    };
 
     expect(findPatientErasures(remote, local)).toEqual([]);
   });

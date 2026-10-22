@@ -19,6 +19,12 @@ fecha, incluidos episodios antiguos sin identificador. El historial de un guarda
 rechazado debe conservar la causa y la identidad del intento, sin errores crudos ni
 atribuir el fallo al ocupante posterior de la cama.
 
+Para cambios de identidad en la guarda de borrado, exigir paridad cliente/servidor, bloqueo
+de RN con documento materno y episodios distintos, y conservación de permutas, cuna a cama
+e hidratación `legacy_ep_` a id persistido. Probar que un rechazo del callable no escribe
+ni crea historia. La evidencia sintética no acredita datos reales ni el servidor desplegado;
+confirmar por separado el rollout automático antes de declarar la protección activa en ambos lados.
+
 Para instrumentación de transacciones clínicas, demostrar que los callbacks
 fallidos y reintentados se cuentan sin duplicar etapas, que la telemetría no incorpora
 campos ni identificadores clínicos y que el replay exacto mantiene sus escrituras
