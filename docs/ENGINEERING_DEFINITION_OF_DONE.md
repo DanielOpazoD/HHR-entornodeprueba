@@ -47,6 +47,13 @@ del observer no readmita una sesión idéntica, sin saltar la admisión pendient
 los cambios de permisos ni el cierre de sesión. Los providers diferidos no deben
 remontar la interfaz clínica ni borrar estado de controles al completar su carga.
 
+La recarga desde Ayuda de acceso debe preservar una tarea no confirmada real en
+IndexedDB, Web Storage y caché después de navegar, usando sólo fixtures sintéticos.
+Probar cancelación sin perder entradas ni errores y bloqueo de RUT/Google durante
+la confirmación. No sustituir esa conservación por una cola vaciada. El cierre de
+este cambio exige `ci:merge-gate`, `test:release-confidence`, revisión independiente
+y CI del head definitivo; las pruebas focalizadas no acreditan gates pendientes.
+
 Para exportaciones y respaldos, el vencimiento de la espera de guardado no equivale
 a un censo listo. Probar el guardado pendiente, el fallo de guardado y el cambio de
 día durante la espera o la confirmación; ninguno debe generar archivos, abrir la

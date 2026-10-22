@@ -21,7 +21,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, initialAut
     isDayGradient,
     canRetryGoogleSignIn,
     handleGoogleSignIn,
-    handleLocalResetStart,
     toggleBackgroundMode,
   } = useLoginPageController(onLoginSuccess, initialAuthError);
   return (
@@ -42,7 +41,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, initialAut
         canRetryGoogleSignIn={canRetryGoogleSignIn}
         onGoogleSignIn={() => handleGoogleSignIn()}
         onGoogleCredential={(idToken, isCurrent) => handleGoogleSignIn({ idToken, isCurrent })}
-        onLocalResetStart={handleLocalResetStart}
       />
     </LoginScreenLayout>
   );

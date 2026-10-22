@@ -195,35 +195,6 @@ describe('useLoginPageController', () => {
     expect(result.current.isGoogleLoading).toBe(false);
   });
 
-  it('clears a stale bootstrap auth error locally before running the reset action', () => {
-    const { result, rerender } = renderHook(
-      ({ initialAuthError }) => useLoginPageController(vi.fn(), initialAuthError),
-      {
-        initialProps: {
-          initialAuthError: {
-            code: 'auth/bootstrap-timeout',
-            message: 'No se pudo confirmar la sesion con Google en este navegador.',
-          },
-        },
-      }
-    );
-
-    expect(result.current.errorCode).toBe('auth/bootstrap-timeout');
-
-    act(() => {
-      result.current.handleLocalResetStart();
-    });
-    rerender({
-      initialAuthError: {
-        code: 'auth/bootstrap-timeout',
-        message: 'No se pudo confirmar la sesion con Google en este navegador.',
-      },
-    });
-
-    expect(result.current.error).toBeNull();
-    expect(result.current.errorCode).toBeNull();
-  });
-
   it('returns quietly to idle when the Google popup request was cancelled', async () => {
     mockExecuteGoogleSignIn.mockResolvedValueOnce(
       createApplicationFailed<AuthSessionState>(

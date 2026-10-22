@@ -66,12 +66,24 @@ La clasificación remota `docs-only` se decide en CI; no forzar ni omitir checks
 
 ### Checklist de cierre
 
+La ayuda de acceso del 22 octubre 2026 es `critical_runtime`: sustituye el borrado
+local desde el login por una recarga normal del navegador. La confirmación informa
+que se pierde el formulario, pero conserva datos locales, sesiones y cambios aún
+no enviados. Cancelar conserva credenciales y errores en memoria; mientras se
+decide, RUT (incluido Enter) y Google permanecen bloqueados. El login ya no invoca
+mantenimiento de almacenamiento. No cambia las APIs públicas de mantenimiento,
+la limpieza de cierre de sesión ni los controles de autorización.
+Verificar `ci:merge-gate`, `test:release-confidence`, pruebas focalizadas de login
+y `auth-login-resilience` con una tarea sintética no confirmada en la IndexedDB
+real, Web Storage y caché, conservadas tras navegar. La semilla y la autenticación
+E2E usan únicamente los fixtures locales del proyecto demo. Revisión independiente
+y CI del head definitivo antes del merge; no acreditar verificaciones pendientes.
+
 La continuidad visual del acceso RUT del 21 octubre 2026 es `safe_local_ui`:
 elimina la composición provisional antigua y comparte marco, imagen y geometría
-con la página lista. Agrupa activación y reinicio existentes en ayuda, conservando
-la confirmación, autocomplete y bloqueo de campos. El formulario RUT carga con la
-pantalla y la solicitud de soporte desde el login se hace solo tras confirmar; cancelar conserva credenciales
-en memoria y un fallo desbloquea el acceso con aviso recuperable. No cambia auth runtime,
+con la página lista. Agrupa la ayuda de acceso conservando autocomplete y bloqueo
+de campos; la recarga de esa ayuda se rige por el bloque del 22 de octubre anterior.
+El formulario RUT carga con la pantalla. No cambia auth runtime,
 roles, persistencia, endpoint, credenciales ni datos clínicos. Verificar
 `ci:inner-loop`, pruebas afectadas, build/budgets y navegador en escritorio y
 móvil: arranque con módulo retrasado, ambos fondos, formulario RUT, ayuda y
