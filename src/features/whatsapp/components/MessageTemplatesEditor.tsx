@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { FileText, Plus, Trash2, X, Edit2, Check } from 'lucide-react';
+import { AlertCircle, FileText, Plus, Trash2, X, Edit2, Check } from 'lucide-react';
 import {
   getMessageTemplates,
   saveMessageTemplates,
@@ -13,28 +13,53 @@ import {
 } from '@/services/integrations/whatsapp/whatsappService';
 import { useConfirmDialog } from '@/context/UIContext';
 
+const errorMessage = (error: unknown, fallback: string): string =>
+  error instanceof Error && error.message ? error.message : fallback;
+
 export const MessageTemplatesEditor: React.FC = () => {
   const { confirm } = useConfirmDialog();
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
 
   useEffect(() => {
     let isMounted = true;
     const fetchTemplates = async () => {
-      // Loading is already true by default state
-      const data = await getMessageTemplates();
-      if (isMounted) {
-        setTemplates(data);
-        setLoading(false);
+      try {
+        const data = await getMessageTemplates();
+        if (isMounted) {
+          setTemplates(data);
+          setLoadError(null);
+        }
+      } catch (error) {
+        // Editing defaults after a failed read would overwrite the stored templates on save.
+        if (isMounted) setLoadError(errorMessage(error, 'No se pudieron leer las plantillas.'));
+      } finally {
+        if (isMounted) setLoading(false);
       }
     };
     fetchTemplates();
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [loadAttempt]);
+
+  /** Saves the whole list; the editor only changes once the write is confirmed. */
+  const persist = async (updated: MessageTemplate[]): Promise<boolean> => {
+    try {
+      await saveMessageTemplates(updated);
+      setTemplates(updated);
+      setSaveError(null);
+      return true;
+    } catch (error) {
+      setSaveError(errorMessage(error, 'No se pudieron guardar las plantillas.'));
+      return false;
+    }
+  };
 
   const handleEdit = (template: MessageTemplate) => {
     setEditingId(template.id || null);
@@ -43,10 +68,7 @@ export const MessageTemplatesEditor: React.FC = () => {
 
   const handleSaveEdit = async (templateId: string) => {
     const updated = templates.map(t => (t.id === templateId ? { ...t, content: editContent } : t));
-
-    await saveMessageTemplates(updated);
-    setTemplates(updated);
-    setEditingId(null);
+    if (await persist(updated)) setEditingId(null);
   };
 
   const handleCancelEdit = () => {
@@ -63,10 +85,7 @@ export const MessageTemplatesEditor: React.FC = () => {
         '📋 Escribe tu mensaje aquí...\n\nVariables disponibles:\n{{date}} - Fecha\n{{signedBy}} - Firmado por\n{{signedAt}} - Hora firma\n{{hospitalized}} - Hospitalizados\n{{handoffUrl}} - Link',
     };
 
-    const updated = [...templates, newTemplate];
-    await saveMessageTemplates(updated);
-    setTemplates(updated);
-    handleEdit(newTemplate);
+    if (await persist([...templates, newTemplate])) handleEdit(newTemplate);
   };
 
   const handleDeleteTemplate = async (templateId: string) => {
@@ -79,13 +98,32 @@ export const MessageTemplatesEditor: React.FC = () => {
     });
     if (!confirmed) return;
 
-    const updated = templates.filter(t => t.id !== templateId);
-    await saveMessageTemplates(updated);
-    setTemplates(updated);
+    await persist(templates.filter(t => t.id !== templateId));
   };
 
   if (loading) {
     return <div className="text-center py-8">Cargando plantillas...</div>;
+  }
+
+  if (loadError) {
+    return (
+      <div
+        role="alert"
+        className="flex flex-col items-center gap-3 rounded-lg border border-red-200 bg-red-50 py-8 text-sm text-red-700"
+      >
+        <AlertCircle className="w-5 h-5" />
+        <p>{loadError}</p>
+        <button
+          onClick={() => {
+            setLoading(true);
+            setLoadAttempt(attempt => attempt + 1);
+          }}
+          className="px-4 py-1.5 rounded-lg border border-red-300 bg-white hover:bg-red-100"
+        >
+          Reintentar
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -103,6 +141,16 @@ export const MessageTemplatesEditor: React.FC = () => {
           Nueva
         </button>
       </div>
+
+      {saveError && (
+        <div
+          role="alert"
+          className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+        >
+          <AlertCircle className="w-4 h-4" />
+          {saveError}
+        </div>
+      )}
 
       <div className="space-y-3">
         {templates.map(template => (
