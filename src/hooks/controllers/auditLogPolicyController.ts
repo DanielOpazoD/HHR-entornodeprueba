@@ -12,8 +12,8 @@ export interface PendingAuditEntry {
   authors?: string;
   /** Writes the coalesced event now (hidden tab, closed page, logout). */
   flush?: () => Promise<void>;
-  /** The burst reported changes; if they cancel out (A → B → A) nothing is written. */
-  expectsChanges?: boolean;
+  /** Fields the burst changed; those back at their first value (A → B → A) go in `reverted`. */
+  touched?: string[];
 }
 
 export const buildMeaningfulAuditDetails = (

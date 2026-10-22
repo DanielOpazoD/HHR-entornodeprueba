@@ -35,12 +35,12 @@ paciente, su nombre, documento (tal cual: un pasaporte no se convierte en RUT), 
 Los detalles se acotan al escribir (`auditDetailsCompaction.ts`): textos hasta 1.000 caracteres,
 listas hasta 20 elementos y nunca pilas de error.
 
-| Categoría  | Qué es                                                             | Cómo se registra                                                                                                                                                                      |
-| ---------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Cambios    | Ingresos, altas, traslados, ediciones, entregas, CUDYR, documentos | Una ráfaga de edición es un evento con el primer «antes» y el último «después» de cada campo (60 s sin cambios, pestaña oculta o cierre de sesión). Día y noche son campos distintos. |
-| Accesos    | Ver ficha, entregas, CUDYR; imprimir o exportar documentos         | Uno por paciente y pantalla cada 15 min (antes era uno por pantalla, sin importar el paciente). Las cuentas institucionales compartidas no registran lecturas.                        |
-| Conexiones | Inicio de sesión, reconexión, cierre, cierre automático, sin red   | Una conexión por equipo, compartida por sus pestañas. Ver §3.                                                                                                                         |
-| Sistema    | Importaciones, conflictos conciliados, versiones restauradas       | Como antes. Los errores técnicos ya no entran a la auditoría clínica: quedan en «Errores locales».                                                                                    |
+| Categoría  | Qué es                                                             | Cómo se registra                                                                                                                                                                                                                               |
+| ---------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cambios    | Ingresos, altas, traslados, ediciones, entregas, CUDYR, documentos | Una ráfaga de edición es un evento con el primer «antes» y el último «después» de cada campo (60 s sin cambios, pestaña oculta o cierre de sesión). Día y noche son campos distintos. Un campo que termina como empezó queda como «Revertido». |
+| Accesos    | Ver ficha, entregas, CUDYR; imprimir o exportar documentos         | Uno por paciente y pantalla cada 15 min (antes era uno por pantalla, sin importar el paciente). Las cuentas institucionales compartidas no registran lecturas.                                                                                 |
+| Conexiones | Inicio de sesión, reconexión, cierre, cierre automático, sin red   | Una conexión por equipo, compartida por sus pestañas. Ver §3.                                                                                                                                                                                  |
+| Sistema    | Importaciones, conflictos conciliados, versiones restauradas       | Como antes. Los errores técnicos ya no entran a la auditoría clínica: quedan en «Errores locales».                                                                                                                                             |
 
 Con Firestore disponible, el equipo ya no guarda una segunda copia local de cada evento (la caché
 offline de Firestore encola la escritura). Solo el modo sin Firestore usa la tabla local
@@ -63,7 +63,9 @@ pestañas de ese usuario:
 Los eventos de conexión usan ids deterministas (`conn_<id>_start|end|net_*`), así que un duplicado
 desde otra pestaña es rechazado por la regla de solo agregar. Pasan por una bandeja local
 (`hhr_audit_connection_outbox_v1`) que sobrevive al cierre de sesión: el cierre se envía antes de
-cerrar Firebase y, si no alcanza, en el siguiente inicio en ese equipo.
+cerrar Firebase y, si no alcanza, en el siguiente inicio en ese equipo. Al leerla solo se aceptan
+eventos de conexión bien formados, reconstruidos campo a campo: lo que alguien edite en el equipo
+no se escribe con la sesión de la persona que entre después.
 
 ### 4. Pantalla Auditoría (Observabilidad)
 
@@ -99,7 +101,11 @@ permiten borrar desde el cliente.
 Límites conocidos: los ajustes administrativos de CUDYR anteriores a v2 guardaron `timestamp` como
 Timestamp de Firestore y no aparecen en la consulta por período (desde v2 se guardan como texto
 ISO, como el resto). La exportación a PDF se retiró; el Excel incluye el documento completo del
-paciente, igual que la pantalla (solo administración puede leer la auditoría).
+paciente, igual que la pantalla (solo administración puede leer la auditoría). Una ráfaga de
+edición espera en la pestaña hasta 60 s después del último cambio: si el navegador se cae (cuelgue
+o corte de luz) antes de ocultarse, esa ráfaga no queda en la auditoría, aunque el cambio clínico sí
+se guarda. Las reglas no registran quién escribió cada documento: un evento de conexión pendiente
+puede llegar desde la sesión de quien entre después en ese equipo.
 
 ---
 

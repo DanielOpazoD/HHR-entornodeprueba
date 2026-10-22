@@ -88,6 +88,25 @@ describe('audit trail normalization', () => {
     expect(note.changes[0].after?.endsWith('…')).toBe(true);
   });
 
+  it('keeps edits that ended where they began without repeating the event name', () => {
+    const note = normalize({
+      action: 'MEDICAL_HANDOFF_MODIFIED',
+      details: patientDetails('Paciente Sintético', { reverted: ['medicalHandoffNote'] }),
+    });
+    expect(note.changes).toEqual([]);
+    expect(note.detail).toBe('Revertido');
+
+    const cudyr = normalize({
+      action: 'CUDYR_MODIFIED',
+      details: patientDetails('Paciente Sintético', {
+        changes: { mobilization: { old: 1, new: 3 } },
+        reverted: ['feeding'],
+      }),
+    });
+    expect(cudyr.changes).toEqual([{ field: 'Movilización', before: '1', after: '3' }]);
+    expect(cudyr.detail).toBe('Revertido: Alimentación');
+  });
+
   it('expands device changes one device at a time', () => {
     const event = normalize({
       details: patientDetails('Paciente Sintético', {

@@ -7,6 +7,7 @@ import {
   readAuditConnectionOutbox,
 } from '@/services/admin/auditSession/auditConnectionOutbox';
 import { AUDIT_CONNECTION_STORAGE_KEY } from '@/services/admin/auditSession/auditConnectionTracker';
+import { buildAuditConnectionEntry } from '@/services/admin/auditSession/auditConnectionEntries';
 import type { AuditLogEntry } from '@/types/auditLogTypes';
 
 const loggerMocks = vi.hoisted(() => ({
@@ -167,12 +168,25 @@ describe('auditCore runtime injection', () => {
     expect(getIndexedLogsInRange).not.toHaveBeenCalled();
   });
 
-  const queued = (id: string) =>
-    ({ id, action: 'USER_LOGOUT', timestamp: '2026-10-22T14:00:00.000Z' }) as AuditLogEntry;
+  const queued = (sessionId: string, kind: 'start' | 'end') => {
+    const record = {
+      id: sessionId,
+      uid: 'doctor-123',
+      email: 'doctor@hospital.cl',
+      name: 'Doctor Account',
+      startedAt: Date.parse('2026-10-22T13:00:00.000Z'),
+      lastSeenAt: Date.parse('2026-10-22T14:00:00.000Z'),
+    };
+    return buildAuditConnectionEntry(
+      kind === 'start'
+        ? { kind, record, start: 'sign_in' }
+        : { kind, record, reason: 'manual', endedAt: record.lastSeenAt }
+    );
+  };
 
   it('delivers queued connection events once, even when flushes overlap', async () => {
-    enqueueAuditConnectionEntry(storage, queued('conn_a_end'));
-    enqueueAuditConnectionEntry(storage, queued('conn_b_start'));
+    enqueueAuditConnectionEntry(storage, queued('a', 'end'));
+    enqueueAuditConnectionEntry(storage, queued('b', 'start'));
 
     const service = remoteService();
     await Promise.all([service.flushAuditConnectionOutbox(), service.flushAuditConnectionOutbox()]);
@@ -183,7 +197,7 @@ describe('auditCore runtime injection', () => {
 
   it('keeps a refused event for the next sign-in unless an earlier write may have landed', async () => {
     setDoc.mockRejectedValue({ code: 'permission-denied' });
-    enqueueAuditConnectionEntry(storage, queued('conn_revoked_end'));
+    enqueueAuditConnectionEntry(storage, queued('revoked', 'end'));
 
     // Access revoked while still signed in: the end is refused, not delivered.
     await remoteService().flushAuditConnectionOutbox();

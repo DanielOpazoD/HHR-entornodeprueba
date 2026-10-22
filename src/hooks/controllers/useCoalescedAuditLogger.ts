@@ -4,10 +4,16 @@ import type { AuditAction } from '@/types/auditActionTypes';
 import type { AuditLogEntry } from '@/types/auditLogTypes';
 import {
   buildDebouncedAuditKey,
+  buildMeaningfulAuditDetails,
   mergeDebouncedAuditDetails,
   type PendingAuditEntry,
 } from '@/hooks/controllers/auditLogPolicyController';
 import { registerPendingAuditFlush } from '@/services/admin/auditPendingEvents';
+
+const changedFields = (details: Record<string, unknown> | null): string[] => {
+  const changes = details?.changes;
+  return changes && typeof changes === 'object' ? Object.keys(changes) : [];
+};
 
 type RecordAuditEvent = (
   action: AuditAction,
@@ -22,7 +28,7 @@ type RecordAuditEvent = (
 /**
  * Edit bursts become one event: the first "before" and the last "after" of each field, written
  * after `waitMs` without changes, or right away when the tab hides, the page closes or the
- * session ends.
+ * session ends. Fields that end where they began are still recorded, as `reverted`.
  */
 export const useCoalescedAuditLogger = (recordEvent: RecordAuditEvent) => {
   const timersRef = React.useRef<Record<string, PendingAuditEntry>>({});
@@ -59,6 +65,9 @@ export const useCoalescedAuditLogger = (recordEvent: RecordAuditEvent) => {
     ) => {
       // The same bed may hold another patient or census day within the window.
       const key = `${buildDebouncedAuditKey(action, entityId)}|${recordDate ?? ''}|${patientRut ?? ''}`;
+      const reported = changedFields(buildMeaningfulAuditDetails(details));
+      // A save that changed nothing must not replace the burst's before/after.
+      if (details.changes && reported.length === 0) return;
       const pending = timersRef.current[key];
       const mergedDetails = mergeDebouncedAuditDetails(pending?.details || null, details);
       if (!mergedDetails) {
@@ -74,12 +83,13 @@ export const useCoalescedAuditLogger = (recordEvent: RecordAuditEvent) => {
         if (!entry) return Promise.resolve();
         window.clearTimeout(entry.timer);
         delete timersRef.current[key];
-        if (entry.expectsChanges && !entry.details.changes) return Promise.resolve();
+        const netChanges = changedFields(entry.details);
+        const reverted = (entry.touched ?? []).filter(field => !netChanges.includes(field));
         return recordEvent(
           action,
           entityType,
           entityId,
-          entry.details,
+          reverted.length > 0 ? { ...entry.details, reverted } : entry.details,
           entry.rut,
           entry.date,
           entry.authors
@@ -93,7 +103,7 @@ export const useCoalescedAuditLogger = (recordEvent: RecordAuditEvent) => {
         date: recordDate,
         authors,
         flush,
-        expectsChanges: pending?.expectsChanges ?? Boolean(details.changes),
+        touched: [...new Set([...(pending?.touched ?? []), ...reported])],
       };
     },
     [recordEvent]

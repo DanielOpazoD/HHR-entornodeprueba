@@ -98,7 +98,7 @@ describe('useAudit handoff loggers', () => {
     });
   });
 
-  it('keeps different patients of one bed apart and drops edits that cancel out', async () => {
+  it('keeps different patients of one bed apart and records edits that end where they began', async () => {
     const { result } = renderHook(() => useAudit('test-user-123'));
 
     act(() => {
@@ -108,8 +108,27 @@ describe('useAudit handoff loggers', () => {
     });
     await settle();
 
+    const byPatient = Object.fromEntries(writes().map(([input]) => [input.patientRut, input]));
+    expect(Object.keys(byPatient).sort()).toEqual(['1-9', '2-7']);
+    expect(byPatient['1-9'].details).toMatchObject({ reverted: ['medicalHandoffNote'] });
+    expect(byPatient['1-9'].details).not.toHaveProperty('changes');
+    expect(byPatient['2-7'].details).not.toHaveProperty('reverted');
+  });
+
+  it('ignores a save that changed nothing instead of losing the burst', async () => {
+    const { result } = renderHook(() => useAudit('test-user-123'));
+
+    act(() => {
+      result.current.logMedicalHandoffModified('R1', 'Paciente', '1-9', 'Nota 2', 'Nota 1', 'd');
+      result.current.logMedicalHandoffModified('R1', 'Paciente', '1-9', 'Nota 2', 'Nota 2', 'd');
+    });
+    await settle();
+
     expect(writes()).toHaveLength(1);
-    expect(writes()[0][0]).toMatchObject({ patientRut: '2-7' });
+    expect(writes()[0][0].details).toMatchObject({
+      changes: { medicalHandoffNote: { old: 'Nota 1', new: 'Nota 2' } },
+    });
+    expect(writes()[0][0].details).not.toHaveProperty('reverted');
   });
 
   it('writes pending notes immediately when the session ends', async () => {

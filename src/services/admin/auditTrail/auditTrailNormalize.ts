@@ -193,6 +193,18 @@ const resolveDetail = (
   }
 };
 
+/**
+ * Fields an edit burst changed and then left as they were. A field named like the event itself
+ * ("Entrega médica") is not repeated.
+ */
+const resolveReverted = (details: Record<string, unknown>, label: string): string | undefined => {
+  if (!Array.isArray(details.reverted) || details.reverted.length === 0) return undefined;
+  const fields = details.reverted
+    .map(field => resolveAuditTrailFieldLabel(asAuditText(field)))
+    .filter(field => field && field !== label);
+  return fields.length > 0 ? `Revertido: ${fields.join(', ')}` : 'Revertido';
+};
+
 const REVIEW_TOKENS = new Set(['blocked', 'needs_review', 'not_possible', 'rejected', 'partial']);
 const AUTO_TOKENS = new Set([
   'auto_merged',
@@ -239,6 +251,10 @@ export const normalizeAuditTrailEvent = (log: AuditLogEntry): AuditTrailEvent | 
   const isPatientEvent = entry.category === 'change' || entry.category === 'access';
   const conflict =
     log.action === 'CONFLICT_AUTO_MERGED' ? describeConflictAutoMerge(details) : undefined;
+  const label = resolveLabel(log, details, entry.label, changes);
+  const detail = conflict
+    ? conflict.detail
+    : [resolveDetail(log, details), resolveReverted(details, label)].filter(Boolean).join(' · ');
 
   return {
     id: asAuditText(log.id) || `${log.action}-${at}`,
@@ -247,8 +263,8 @@ export const normalizeAuditTrailEvent = (log: AuditLogEntry): AuditTrailEvent | 
     status: conflict?.review ? 'review' : resolveStatus(log, details, entry.review),
     area: entry.area,
     action: log.action,
-    label: resolveLabel(log, details, entry.label, changes),
-    detail: conflict ? conflict.detail : resolveDetail(log, details),
+    label,
+    detail: detail || undefined,
     changes,
     notes: conflict && conflict.notes.length > 0 ? conflict.notes : undefined,
     patient: isPatientEvent ? resolveAuditTrailPatient(log, details) : undefined,

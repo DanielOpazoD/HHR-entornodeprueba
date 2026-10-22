@@ -2,6 +2,7 @@ import {
   flushAuditConnectionOutbox,
   writeAuditConnectionEntry,
 } from '@/services/admin/auditService';
+import { auditCoreLogger } from '@/services/admin/adminLoggers';
 import { flushPendingAuditEvents } from '@/services/admin/auditPendingEvents';
 import {
   fetchAndCacheIpAddress,
@@ -19,7 +20,10 @@ import {
   type AuditConnectionIdentity,
 } from '@/services/admin/auditSession/auditConnectionTracker';
 import { buildAuditConnectionEntry } from '@/services/admin/auditSession/auditConnectionEntries';
-import { enqueueAuditConnectionEntry } from '@/services/admin/auditSession/auditConnectionOutbox';
+import {
+  enqueueAuditConnectionEntry,
+  toAuditConnectionEntry,
+} from '@/services/admin/auditSession/auditConnectionOutbox';
 import { resolveAuditDeviceLabel } from '@/services/admin/auditSession/auditDeviceLabel';
 
 const LOCK_NAME = 'hhr-audit-connection';
@@ -56,10 +60,14 @@ const dependencies = (): AuditConnectionDependencies => ({
   createId: () => crypto.randomUUID(),
   withLock,
   emit: event => {
-    const entry = buildAuditConnectionEntry(event, {
-      ipAddress: getCachedIpAddress(),
-      device: deviceLabel(),
-    });
+    // The stored record behind the event is device data too: only a well-formed event leaves.
+    const entry = toAuditConnectionEntry(
+      buildAuditConnectionEntry(event, { ipAddress: getCachedIpAddress(), device: deviceLabel() })
+    );
+    if (!entry) {
+      auditCoreLogger.warn('Malformed connection event discarded', { kind: event.kind });
+      return;
+    }
     // Without device storage the event cannot wait in the outbox: write it straight away.
     if (!enqueueAuditConnectionEntry(window.localStorage, entry) && getCurrentUserUid()) {
       void writeAuditConnectionEntry(entry);

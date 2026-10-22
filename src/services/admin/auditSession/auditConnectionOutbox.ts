@@ -1,4 +1,5 @@
 import type { AuditLogEntry } from '@/types/auditLogTypes';
+import { AUDIT_SCHEMA_VERSION } from '@/services/admin/auditSession/auditConnectionEntries';
 
 /**
  * Connection events wait here until Firestore confirms them. The key survives logout cleanup,
@@ -18,17 +19,125 @@ export interface AuditConnectionOutboxItem {
 
 export type AuditConnectionDelivery = 'stored' | 'duplicate' | 'rejected' | 'failed';
 
+type ConnectionAction = 'USER_LOGIN' | 'USER_LOGOUT' | 'CONNECTION_INTERRUPTED';
+
+const SESSION_ID = /^[\w-]{1,64}$/;
+const ID_SUFFIX: Record<ConnectionAction, RegExp> = {
+  USER_LOGIN: /^start$/,
+  USER_LOGOUT: /^end$/,
+  CONNECTION_INTERRUPTED: /^net_\d{1,14}$/,
+};
+const STARTS = new Set(['sign_in', 'resume']);
+const END_REASONS = new Set(['manual', 'automatic', 'closed']);
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+const text = (value: unknown, maxLength = 256): string | undefined =>
+  typeof value === 'string' && value.length > 0 && value.length <= maxLength ? value : undefined;
+
+const isoTime = (value: unknown): string | undefined =>
+  typeof value === 'string' && Number.isFinite(Date.parse(value)) ? value : undefined;
+
+const isCount = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value) && value >= 0;
+
+const isConnectionAction = (value: unknown): value is ConnectionAction =>
+  typeof value === 'string' && value in ID_SUFFIX;
+
+const rebuildDetails = (
+  action: ConnectionAction,
+  details: Record<string, unknown>,
+  sessionId: string
+): Record<string, unknown> | null => {
+  if (details.sessionId !== sessionId) return null;
+  if (action === 'USER_LOGIN') {
+    return typeof details.start === 'string' && STARTS.has(details.start)
+      ? { sessionId, start: details.start }
+      : null;
+  }
+  const durationSeconds = isCount(details.durationSeconds) ? details.durationSeconds : undefined;
+  if (action === 'USER_LOGOUT') {
+    const startedAt = isoTime(details.startedAt);
+    const endedAt = isoTime(details.endedAt);
+    return typeof details.reason === 'string' &&
+      END_REASONS.has(details.reason) &&
+      startedAt &&
+      endedAt &&
+      durationSeconds !== undefined
+      ? { sessionId, reason: details.reason, startedAt, endedAt, durationSeconds }
+      : null;
+  }
+  const offlineFrom = isoTime(details.offlineFrom);
+  const offlineTo = isoTime(details.offlineTo);
+  return offlineFrom && offlineTo && durationSeconds !== undefined
+    ? { sessionId, offlineFrom, offlineTo, durationSeconds }
+    : null;
+};
+
+/**
+ * The connection event a stored value stands for, rebuilt from the fields the tracker writes.
+ * Anyone at the device can edit localStorage before the next person signs in, so anything that
+ * is not exactly a connection event is refused rather than written under that person's session.
+ */
+export const toAuditConnectionEntry = (value: unknown): AuditLogEntry | null => {
+  if (!isRecord(value) || !isConnectionAction(value.action) || !isRecord(value.details)) {
+    return null;
+  }
+  const action = value.action;
+  const sessionId =
+    typeof value.sessionId === 'string' && SESSION_ID.test(value.sessionId)
+      ? value.sessionId
+      : undefined;
+  const id = text(value.id);
+  const prefix = `conn_${sessionId}_`;
+  if (!sessionId || !id?.startsWith(prefix) || !ID_SUFFIX[action].test(id.slice(prefix.length))) {
+    return null;
+  }
+
+  const userId = text(value.userId);
+  const userUid = text(value.userUid, 128);
+  const timestamp = isoTime(value.timestamp);
+  const details = rebuildDetails(action, value.details, sessionId);
+  if (!userId || !userUid || !timestamp || !details || value.entityId !== userId) return null;
+
+  const optional = {
+    userDisplayName: text(value.userDisplayName, 200),
+    ipAddress: text(value.ipAddress, 64),
+    device: text(value.device, 120),
+  };
+  return {
+    id,
+    schemaVersion: AUDIT_SCHEMA_VERSION,
+    userId,
+    userUid,
+    ...Object.fromEntries(Object.entries(optional).filter(([, field]) => field !== undefined)),
+    entityType: 'user',
+    entityId: userId,
+    sessionId,
+    timestamp,
+    action,
+    details,
+  };
+};
+
 export const readAuditConnectionOutbox = (
   storage: Pick<Storage, 'getItem'>
 ): AuditConnectionOutboxItem[] => {
   try {
     const parsed: unknown = JSON.parse(storage.getItem(AUDIT_CONNECTION_OUTBOX_KEY) || '[]');
-    return Array.isArray(parsed)
-      ? parsed.filter(
-          (item): item is AuditConnectionOutboxItem =>
-            Boolean(item) && typeof (item as AuditConnectionOutboxItem).entry?.id === 'string'
-        )
-      : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.flatMap((item: unknown): AuditConnectionOutboxItem[] => {
+      const entry = isRecord(item) ? toAuditConnectionEntry(item.entry) : null;
+      if (!entry || !isRecord(item)) return [];
+      return [
+        {
+          entry,
+          ...(isCount(item.sentAt) ? { sentAt: item.sentAt } : {}),
+          ...(isCount(item.rejections) ? { rejections: item.rejections } : {}),
+        },
+      ];
+    });
   } catch {
     return [];
   }

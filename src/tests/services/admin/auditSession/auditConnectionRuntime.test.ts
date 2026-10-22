@@ -62,6 +62,21 @@ describe('audit connection runtime', () => {
     expect(readAuditConnectionOutbox(localStorage)).toEqual([]);
   });
 
+  it('discards an event built from a malformed device record and still opens the connection', async () => {
+    // A previous connection someone edited on the device: no email to attribute its end to.
+    localStorage.setItem(
+      AUDIT_CONNECTION_STORAGE_KEY,
+      JSON.stringify({ id: 'planted', uid: 'uid-other', email: '', startedAt: 1, lastSeenAt: 2 })
+    );
+    const runtime = await loadRuntime();
+    await runtime.beginCurrentAuditConnection(NURSE);
+
+    expect(readAuditConnectionOutbox(localStorage).map(item => item.entry.action)).toEqual([
+      'USER_LOGIN',
+    ]);
+    expect(writeAuditConnectionEntry).not.toHaveBeenCalled();
+  });
+
   it('records the end, flushes pending edits and never waits more than the budget', async () => {
     const runtime = await loadRuntime();
     await runtime.beginCurrentAuditConnection(NURSE);
