@@ -1,33 +1,11 @@
 /**
  * Photo Gallery Controller
  *
- * Pure logic for sorting, grouping, and filtering wound care photos.
+ * Pure presentation helpers for the wound care photo gallery.
  */
 
+import { resolvePhotoWallClock } from '@/application/wound-care/woundCarePhotoTime';
 import type { WoundCarePhoto, WoundCarePhotoSession } from '@/types/domain/woundCare';
-
-/**
- * Group photos into sessions by date (most recent first).
- */
-export const groupPhotosByDate = (photos: WoundCarePhoto[]): WoundCarePhotoSession[] => {
-  const groups = new Map<string, WoundCarePhoto[]>();
-
-  for (const photo of photos) {
-    const date = (photo.takenAt || photo.uploadedAt).split('T')[0];
-    const existing = groups.get(date) ?? [];
-    existing.push(photo);
-    groups.set(date, existing);
-  }
-
-  return Array.from(groups.entries())
-    .map(([date, sessionPhotos]) => ({
-      date,
-      photos: sessionPhotos.sort((a, b) =>
-        (a.takenAt || a.uploadedAt).localeCompare(b.takenAt || b.uploadedAt)
-      ),
-    }))
-    .sort((a, b) => b.date.localeCompare(a.date));
-};
 
 /**
  * Format a date string for display in the gallery header.
@@ -42,16 +20,10 @@ export const formatSessionDate = (dateStr: string): string => {
 };
 
 /**
- * Format an ISO timestamp to a short time string (HH:mm).
+ * Hospital wall-clock time (HH:mm) the photo was taken at, whatever the device time zone.
  */
-export const formatPhotoTime = (isoTimestamp: string): string => {
-  try {
-    const date = new Date(isoTimestamp);
-    return date.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
-  } catch {
-    return '';
-  }
-};
+export const formatPhotoTime = (photo: Pick<WoundCarePhoto, 'takenAt' | 'uploadedAt'>): string =>
+  resolvePhotoWallClock(photo).time;
 
 /**
  * Get a summary string for a photo session.
