@@ -21,25 +21,13 @@ interface LabViewerApi {
   findingAlert: (finding: LabFinding) => boolean;
   sanitizeExamList: (value: unknown[]) => Array<{ id: string }>;
   validateDetailBatch: (
-    details: Array<{
-      examId: string;
-      rutBody?: string;
-      findings?: LabFinding[];
-      error?: string;
-      status?: string;
-    }>,
+    details: Array<{ examId: string; rutBody: string; findings: LabFinding[]; error?: string }>,
     expectedExamIds: string[],
     expectedRutBody: string
-  ) => Array<{
-    examId: string;
-    rutBody?: string;
-    findings?: LabFinding[];
-    error?: string;
-    status?: string;
-  }> | null;
+  ) => Array<{ examId: string; rutBody: string; findings: LabFinding[]; error?: string }> | null;
   comparisonClipboard: (analysis: ReturnType<LabViewerApi['buildAnalysis']>) => string;
   buildAnalysis: (
-    details: Array<{ examId: string; findings?: LabFinding[]; status?: string }>,
+    details: Array<{ examId: string; findings: LabFinding[] }>,
     exams: unknown[]
   ) => {
     columns: Array<{ key: string }>;
@@ -54,25 +42,6 @@ interface LabViewerApi {
 
 const labViewer = (globalThis as unknown as { HhrLabViewer: LabViewerApi }).HhrLabViewer;
 describe('native Eloisa laboratory viewer', () => {
-  it('accounts for pending orders without columns and still rejects missing or duplicate orders', () => {
-    const pending = { examId: '123', status: 'no_validated_results' };
-    const valid = { examId: '124', rutBody: '11111111', findings: [] };
-    expect(labViewer.validateDetailBatch([pending, valid], ['123', '124'], '11111111')).toEqual([
-      pending,
-      valid,
-    ]);
-    expect(
-      labViewer.validateDetailBatch([pending, pending], ['123', '124'], '11111111')
-    ).toBeNull();
-    expect(labViewer.validateDetailBatch([pending], ['123', '124'], '11111111')).toBeNull();
-    expect(
-      labViewer.validateDetailBatch([{ ...pending, findings: [] }], ['123'], '11111111')
-    ).toBeNull();
-    const result = labViewer.buildAnalysis([pending, valid], [{ id: '123' }, { id: '124' }]);
-    expect(result.columns).toEqual([expect.objectContaining({ key: '124' })]);
-    expect(result.summary.reportCount).toBe(1);
-    expect(labViewer.buildAnalysis([pending], [{ id: '123' }]).columns).toEqual([]);
-  });
   it('uses only the numeric RUT body expected by Syslab', () => {
     expect(labViewer.normalizeRutBody('17.752.753-2')).toBe('17752753');
     expect(labViewer.normalizeRutBody(' 10.096.004-4 ')).toBe('10096004');

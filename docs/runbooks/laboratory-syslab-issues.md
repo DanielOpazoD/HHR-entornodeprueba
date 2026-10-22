@@ -144,7 +144,7 @@ Una sesión vencida tiene su propio mensaje. No concluir que pertenece a otra pe
 cuando no se pudo leer la identidad. Abrir la orden indicada en Syslab y contrastar
 el encabezado original; un informe pendiente puede no incluir resultados ni identidad.
 No sustituir la identidad del documento por el RUT de búsqueda, el nombre o el enlace.
-No publicar ni guardar una selección parcial como completa; corregir la fuente o
+Excepto las órdenes explícitamente sin validación descritas abajo, no publicar ni guardar una selección parcial como completa; corregir la fuente o
 seleccionar explícitamente otros informes, manteniendo visible el motivo del bloqueo.
 
 Las unidades eliminan únicamente separadores de columna `|` en sus extremos. No hay
@@ -163,3 +163,5 @@ de HHR o una prueba sintética no acredita que un PDF real problemático esté r
 Se registra explícitamente el crecimiento acotado de cuatro módulos existentes: parser +2 líneas (cabeceras múltiples), bridge +14 (diagnóstico de identidad, informe sin validación y contexto del informe), PDF bundle +1 y runtime +2 (fecha del informe). Se conservan todos los límites de complejidad. Estas responsabilidades pertenecen a esos módulos; no se crea una capa adicional ni se comprime código para eludir el control. El ratchet vuelve a aplicar sobre estos tamaños revisados.
 
 Syslab puede responder con un aviso HTML «No hay exámenes validados» en lugar de un informe. La extensión reconoce esa respuesta explícita como una orden sin resultados disponibles y la omite sin alerta. Las demás órdenes siguen cargando. Cada orden solicitada debe quedar contabilizada exactamente una vez: informe con identidad verificada u omisión explícita. Las omisiones no generan columnas ni se guardan como resultados. Una respuesta ausente, ilegible o de otro paciente sigue bloqueando el lote. No se interpreta como un paciente distinto ni se importa contenido sin identidad verificada.
+
+La omisión añade 6 líneas al contrato de resultados y 16 al bridge; la validación de cada resultado se separa en una función pequeña y elimina el hotspot previo de complejidad 17. Se contabiliza la línea final de cada archivo en el presupuesto.
