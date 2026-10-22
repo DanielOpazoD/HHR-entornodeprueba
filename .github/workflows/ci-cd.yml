@@ -1392,6 +1392,8 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
+      # Reads earlier main runs so a failed deployment is retried by the next push.
+      actions: read
       contents: read
     outputs:
       changed: ${{ steps.scope.outputs.changed }}
@@ -1404,6 +1406,8 @@ jobs:
           persist-credentials: false
       - name: Detect Functions-related changes
         id: scope
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: node scripts/check-function-deployment-ci.mjs --scope
 
   deploy-functions:

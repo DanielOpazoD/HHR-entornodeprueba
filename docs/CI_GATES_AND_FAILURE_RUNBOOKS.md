@@ -1147,7 +1147,8 @@ los límites de cada comprobación y los controles de rendimiento no cambian.
 `ci-summary` valida una revisión antes de que el CI de `main` llame al workflow
 reutilizable de Functions. El filtro conserva los archivos del despliegue anterior
 y añade los manifests/lockfile raíz y el propio verificador. Un cambio exclusivo
-del frontend o documentación no inicia un despliegue de Functions.
+del frontend o documentación no inicia un despliegue de Functions, salvo que el
+último intento no haya quedado desplegado (ver más abajo).
 
 El preflight comprueba el SHA, la rama, el workflow y el `ci-summary` del último
 intento de ese CI mediante un token de solo lectura. No se entregan credenciales
@@ -1155,6 +1156,29 @@ Firebase hasta superar esta comprobación. Si desde entonces `main` tiene cambio
 en Functions, omite la revisión antigua para evitar revertir un despliegue nuevo.
 Los reintentos manuales en `main` deben superar el mismo control; se permite
 reintentar un despliegue fallido si el resumen de validación sí pasó.
+
+El alcance también consulta el historial de CI de `main`. Despliega aunque el push
+sólo cambie frontend o pruebas cuando Functions cambió desde el último despliegue
+exitoso, o cuando después de ese éxito hubo un intento fallido, cancelado o
+agotado: ese intento pudo dejar su código, o versiones mezcladas, aunque el árbol
+actual coincida con el éxito anterior. Así ocurrió el 2026-10-22 UTC: `aec75b6`
+(#928) desplegó con reintentos de GCP durante 947 s, `functions:list` falló sin
+mensaje y los pushes siguientes no volvieron a desplegar la guarda de borrado.
+Mientras no haya un despliegue exitoso, cada push a `main` lo reintenta y el CI
+queda en rojo; eso es intencional. Si la API de GitHub no responde, el alcance
+conserva la decisión por diff del push y lo anuncia como advertencia.
+
+El preflight espera en la cola del proyecto. En pushes automáticos vuelve a
+consultar el historial y omite el despliegue si esas mismas fuentes ya quedaron
+desplegadas sin fallos posteriores; evita repetir el rollout completo en ráfagas
+de merges. Los reintentos manuales siempre despliegan. Un reintento manual exitoso
+no figura en el historial de `ci-cd.yml`: el siguiente push a `main` vuelve a
+desplegar todas las funciones una vez.
+
+La verificación posterior usa `capture-firebase-functions-list.mjs`: tres intentos
+de hasta 2 min, con esperas de 30 y 60 s, e imprime el error del CLI en vez de
+guardarlo en el archivo de evidencia. El límite del job es de 30 min: lo habitual son 3–4 min, y
+cortar el CLI a mitad dejaría versiones mezcladas entre funciones.
 
 El CLI Firebase procede de `npm ci` y del lockfile raíz (`npx --no-install firebase`);
 no se descarga `latest` durante los pasos de borrado, despliegue o verificación.
