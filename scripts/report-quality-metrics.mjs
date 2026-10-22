@@ -52,11 +52,6 @@ const FEATURE_PUBLIC_BOUNDARIES = [
 ];
 const DEPRECATED_IMPORTS = [
   {
-    importPath: '@/shared/census/patientContracts',
-    allowBypass: file =>
-      file === 'src/shared/census/patientContracts.ts' || file.startsWith('src/tests/'),
-  },
-  {
     importPath: '@/shared/controllerResult',
     allowBypass: file => file === 'src/shared/controllerResult.ts' || file.startsWith('src/tests/'),
   },
