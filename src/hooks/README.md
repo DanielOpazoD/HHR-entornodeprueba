@@ -90,7 +90,6 @@ dailyRecord.updatePatient('R1', 'patientName', 'Paciente Demo');
 
 - `npm run check:application-port-boundary`
 - `npm run check:runtime-adapter-boundary`
-- `npm run check:hook-hotspots`
 
 La persistencia de entrega usa los casos de uso de `application/handoff`; el
 controlador de persistencia conserva sólo los builders de auditoría. Ver el
