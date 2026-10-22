@@ -88,7 +88,7 @@ export const resetLocationToLoginRoute = (): void => {
 const LOGOUT_AUDIT_BUDGET_MS = 2_000;
 const PENDING_AUDIT_FLUSH_BUDGET_MS = 1_500;
 
-// Loaded on logout only: the audit service stays out of the startup bundle.
+// Fetched once someone signs in (useLogoutAuditPreload), never in the startup bundle.
 const loadAuditPort = () => import('@/application/ports/auditPort');
 
 const settleWithin = (task: Promise<unknown>, budgetMs: number): Promise<void> =>
@@ -100,6 +100,16 @@ const settleWithin = (task: Promise<unknown>, budgetMs: number): Promise<void> =
     };
     task.then(settle, settle);
   });
+
+/**
+ * Signed in: fetch the logout audit module now. Signing out must not wait on a download: until
+ * this logout signs out of Firebase, a quick next sign-in on the same screen would be closed by it.
+ */
+export const useLogoutAuditPreload = (userId: string | undefined): void => {
+  useEffect(() => {
+    if (userId) void loadAuditPort().catch(() => undefined);
+  }, [userId]);
+};
 
 /** A tab signed out by another one writes the edits it was still grouping first. */
 export const flushPendingAuditEventsBeforeSignOut = (): Promise<void> =>

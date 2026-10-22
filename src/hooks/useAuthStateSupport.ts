@@ -39,6 +39,7 @@ export {
   resetLocationToLoginRoute,
   useFirebaseConnectionStatus,
   useInactivityLogout,
+  useLogoutAuditPreload,
   useOnlineStatus,
 } from '@/hooks/useAuthStateSessionSupport';
 

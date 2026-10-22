@@ -15,6 +15,7 @@ import {
   resetLocationToLoginRoute,
   useFirebaseConnectionStatus,
   useInactivityLogout,
+  useLogoutAuditPreload,
   useOnlineStatus,
   useResolvedAuthBootstrap,
 } from '@/hooks/useAuthStateSupport';
@@ -190,6 +191,7 @@ export const useAuthState = (): UseAuthStateReturn => {
   useAuditConnectionTracker(
     sessionState.status === 'authorized' && !e2eBootstrapUser ? currentUser : null
   );
+  useLogoutAuditPreload(sessionState.status === 'authorized' ? currentUser?.uid : undefined);
   // Solo para sesiones plenamente autorizadas con Firebase Auth real: la firma
   // anónima (signature mode) no tiene rol efectivo en las reglas y el usuario
   // de bootstrap E2E no tiene sesión Firebase — en ambos casos las lecturas
