@@ -65,6 +65,12 @@ Acciones:
 
 ## Variables y contratos
 
+- El cliente compartido de correo importa `googleapis/build/src/apis/gmail`, que
+  incluye Gmail v1 y OAuth2. Importar la raíz `googleapis` incorpora también los
+  clientes de otras APIs al bundle de las funciones de correo. Al actualizar esa
+  dependencia, comprobar la resolución del subpath, los tests de correo y
+  `check:netlify-functions-bundle`. Para revertir esta optimización, restaurar la
+  importación raíz y sus llamadas; no cambia la configuración de credenciales.
 - Variables de runtime Netlify: revisar `docs/SERVERLESS_SENSITIVE_CONTRACTS.md`.
 - Providers AI: revisar `docs/RUNBOOK_AI_PROVIDER_OPERATIONS.md`.
 - Módulos externos actuales: `xlsx-populate`, `exceljs`.
