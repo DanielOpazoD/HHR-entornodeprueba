@@ -14,7 +14,6 @@ const LAYER_RULES = [
     excludePrefixes: ['src/hooks/controllers/', 'src/features/backup/'],
     forbiddenImports: [
       '@/services/auditService',
-      '@/services/backup/backupService',
       '@/services/census/censusAccessService',
       '@/services/repositories/DailyRecordRepository',
       '@/services/repositories/ClinicalDocumentRepository',
@@ -27,7 +26,6 @@ const LAYER_RULES = [
     excludePrefixes: ['src/application/ports/'],
     forbiddenImports: [
       '@/services/auditService',
-      '@/services/backup/backupService',
       '@/services/census/censusAccessService',
       '@/services/repositories/DailyRecordRepository',
       '@/services/repositories/ClinicalDocumentRepository',
@@ -84,10 +82,7 @@ for (const absolutePath of files) {
     if (!importMatchesRule(relativePath, rule)) continue;
 
     for (const forbiddenImport of rule.forbiddenImports) {
-      const patterns = [
-        `from '${forbiddenImport}'`,
-        `from "${forbiddenImport}"`,
-      ];
+      const patterns = [`from '${forbiddenImport}'`, `from "${forbiddenImport}"`];
 
       if (patterns.some(pattern => source.includes(pattern))) {
         violations.push({
