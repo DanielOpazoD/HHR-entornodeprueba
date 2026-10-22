@@ -4,7 +4,8 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 # Deploys the exact main revision after ci-summary has passed. CI calls this
-# workflow only for Functions-related changes; manual retries use the same gate.
+# workflow for Functions-related changes and to retry a deployment that did not
+# succeed (see function-deploy-scope); manual retries use the same gate.
 # No deploy credentials are exposed until the preflight succeeds.
 #
 # ----------------------------------------------------------------------------
@@ -75,7 +76,9 @@ jobs:
     needs: [preflight]
     if: needs.preflight.outputs.eligible == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Usual deploys take 3-4 min; GCP retries stretched one to 947 s on
+    # 2026-10-22. Cancelling the CLI mid-rollout would leave mixed versions.
+    timeout-minutes: 30
     permissions:
       contents: read
 
@@ -222,9 +225,9 @@ jobs:
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase/service-account.json
         run: |
-          npx --no-install firebase functions:list \
+          node scripts/capture-firebase-functions-list.mjs \
             --project hhr-pruebas \
-            --json > "$RUNNER_TEMP/firebase/functions-list.json"
+            "$RUNNER_TEMP/firebase/functions-list.json"
           node scripts/check-deployed-firebase-functions.mjs \
             "$RUNNER_TEMP/firebase/functions-list.json" \
             applyRayenClinicalEnrichmentBatch \
