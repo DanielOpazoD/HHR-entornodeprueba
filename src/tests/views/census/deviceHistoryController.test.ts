@@ -16,13 +16,14 @@ const createId = (() => {
 })();
 
 describe('deviceHistoryController', () => {
-  it('builds deterministic timestamp shape from Date', () => {
+  it('stamps device events with the hospital day and wall-clock time', () => {
+    // 04:05 UTC on Feb 15 is still 23:05 on Feb 14 in Rapa Nui (UTC-5).
     const timestamp = buildDeviceHistoryTimestamp({
       now: new Date('2026-02-15T04:05:00.000Z'),
     });
 
-    expect(timestamp.date).toBe('2026-02-15');
-    expect(typeof timestamp.time).toBe('string');
+    expect(timestamp.date).toBe('2026-02-14');
+    expect(timestamp.time).toBe('23:05');
     expect(timestamp.nowMs).toBe(new Date('2026-02-15T04:05:00.000Z').getTime());
   });
 

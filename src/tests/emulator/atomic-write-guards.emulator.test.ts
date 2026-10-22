@@ -38,6 +38,7 @@ import { DataRegressionError } from '@/utils/integrityGuard';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { clearAllRecords } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { clearAllSyncQueue } from '@/services/storage/sync';
+import { getTodayISO } from '@/utils/dateCoreUtils';
 
 const buildRecord = (date: string, lastUpdated: string): DailyRecord => ({
   date,
@@ -85,7 +86,7 @@ const buildEmptyBed = (bedId: string): PatientData =>
     hasWristband: true,
   });
 
-const CURRENT_RECORD_DATE = new Date().toISOString().slice(0, 10);
+const CURRENT_RECORD_DATE = getTodayISO();
 
 const isoAt = (date: string, time: string): string => `${date}T${time}.000Z`;
 

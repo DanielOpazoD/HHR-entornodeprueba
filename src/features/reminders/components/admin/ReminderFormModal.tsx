@@ -9,6 +9,7 @@ import {
   REMINDER_TYPE_LABELS,
 } from '@/shared/reminders/reminderUiOptions';
 import type { ReminderAdminSubmission } from '@/features/reminders/hooks/useReminderAdmin';
+import { getTodayISO } from '@/utils/dateCoreUtils';
 
 const buildInitialDraft = (reminder?: Reminder | null): ReminderDraftInput => ({
   title: reminder?.title ?? '',
@@ -17,8 +18,8 @@ const buildInitialDraft = (reminder?: Reminder | null): ReminderDraftInput => ({
   type: reminder?.type ?? 'info',
   targetRoles: reminder?.targetRoles ?? ['nurse_hospital'],
   targetShifts: reminder?.targetShifts ?? ['day', 'night'],
-  startDate: reminder?.startDate ?? new Date().toISOString().slice(0, 10),
-  endDate: reminder?.endDate ?? new Date().toISOString().slice(0, 10),
+  startDate: reminder?.startDate ?? getTodayISO(),
+  endDate: reminder?.endDate ?? getTodayISO(),
   priority: reminder?.priority ?? 2,
   isActive: reminder?.isActive ?? true,
 });
