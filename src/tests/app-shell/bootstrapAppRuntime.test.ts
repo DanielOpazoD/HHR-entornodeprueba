@@ -4,12 +4,12 @@ const {
   mockPrepareClientBootstrap,
   mockGetFirebaseReady,
   mockGetStartupFailureMessage,
-  mockPerformClientHardReset,
+  mockRepairClientStorage,
 } = vi.hoisted(() => ({
   mockPrepareClientBootstrap: vi.fn(),
   mockGetFirebaseReady: vi.fn(),
   mockGetStartupFailureMessage: vi.fn(),
-  mockPerformClientHardReset: vi.fn(),
+  mockRepairClientStorage: vi.fn(),
 }));
 
 vi.mock('@/services/config/clientBootstrapRecovery', () => ({
@@ -31,22 +31,27 @@ vi.mock('@/services/auth/firebaseStartupUiPolicy', () => ({
   getFirebaseStartupFailureMessage: (...args: unknown[]) => mockGetStartupFailureMessage(...args),
 }));
 
-vi.mock('@/services/storage/indexeddb/indexedDbMaintenanceService', () => ({
-  performClientHardReset: (...args: unknown[]) => mockPerformClientHardReset(...args),
+vi.mock('@/services/storage/indexeddb/indexedDbMaintenanceService', async () => ({
+  ...(await vi.importActual<
+    typeof import('@/services/storage/indexeddb/indexedDbMaintenanceService')
+  >('@/services/storage/indexeddb/indexedDbMaintenanceService')),
+  repairClientStorageKeepingPendingWork: (...args: unknown[]) => mockRepairClientStorage(...args),
 }));
 
 import {
+  BOOTSTRAP_STORAGE_REPAIR_KEY,
   bootstrapAppRuntime,
   reconcileBootstrapRuntime,
   resolveBootstrapFailureResolution,
 } from '@/app-shell/bootstrap/bootstrapAppRuntime';
+import { STORAGE_KEYS_KEPT_BY_AUTOMATIC_REPAIR } from '@/services/storage/indexeddb/indexedDbMaintenanceService';
 
 describe('bootstrapAppRuntime', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sessionStorage.clear();
     mockGetStartupFailureMessage.mockReturnValue('Firebase startup failed');
-    mockPerformClientHardReset.mockResolvedValue(undefined);
+    mockRepairClientStorage.mockResolvedValue(undefined);
   });
 
   it('returns reload when client recovery requires a reload', async () => {
@@ -117,7 +122,7 @@ describe('bootstrapAppRuntime', () => {
     expect(mockGetStartupFailureMessage).toHaveBeenCalledTimes(1);
   });
 
-  it('triggers a hard reset instead of a Firebase warning for IndexedDB backing-store failures', async () => {
+  it('repairs local storage instead of a Firebase warning for IndexedDB backing-store failures', async () => {
     const failure = {
       name: 'UnknownError',
       message: 'Internal error opening backing store for indexedDB.open.',
@@ -130,7 +135,7 @@ describe('bootstrapAppRuntime', () => {
 
     const result = await bootstrapAppRuntime();
 
-    expect(mockPerformClientHardReset).toHaveBeenCalledTimes(1);
+    expect(mockRepairClientStorage).toHaveBeenCalledTimes(1);
     expect(result).toEqual({
       status: 'reload',
       stage: 'firebase_ready',
@@ -141,7 +146,7 @@ describe('bootstrapAppRuntime', () => {
     });
   });
 
-  it('also attempts hard reset once when bootstrap times out in a broken browser session', async () => {
+  it('also repairs once when bootstrap times out in a broken browser session', async () => {
     const failure = new Error('Firebase initialization timed out');
     mockPrepareClientBootstrap.mockResolvedValue({
       status: 'continue',
@@ -151,7 +156,7 @@ describe('bootstrapAppRuntime', () => {
 
     const result = await bootstrapAppRuntime();
 
-    expect(mockPerformClientHardReset).toHaveBeenCalledTimes(1);
+    expect(mockRepairClientStorage).toHaveBeenCalledTimes(1);
     expect(result).toEqual({
       status: 'reload',
       stage: 'firebase_ready',
@@ -173,7 +178,7 @@ describe('bootstrapAppRuntime', () => {
 
     const result = await bootstrapAppRuntime();
 
-    expect(mockPerformClientHardReset).not.toHaveBeenCalled();
+    expect(mockRepairClientStorage).not.toHaveBeenCalled();
     expect(result).toMatchObject({
       status: 'blocked',
       stage: 'firebase_ready',
@@ -182,6 +187,24 @@ describe('bootstrapAppRuntime', () => {
         title: 'Problema local del navegador',
       }),
     });
+  });
+
+  it('stops at the blocked screen when the failure survives the repair, without repairing again', async () => {
+    const failure = new Error('Firebase initialization timed out');
+    mockPrepareClientBootstrap.mockResolvedValue({
+      status: 'continue',
+      reason: null,
+    });
+    mockGetFirebaseReady.mockImplementation(() => Promise.reject(failure));
+
+    const first = await bootstrapAppRuntime();
+    // The repair keeps its own marker, so the reload that follows it sees the earlier attempt.
+    const second = await bootstrapAppRuntime();
+
+    expect(first.status).toBe('reload');
+    expect(second.status).toBe('blocked');
+    expect(mockRepairClientStorage).toHaveBeenCalledTimes(1);
+    expect(STORAGE_KEYS_KEPT_BY_AUTOMATIC_REPAIR.has(BOOTSTRAP_STORAGE_REPAIR_KEY)).toBe(true);
   });
 
   it('reuses the same client reconciliation entrypoint for background checks', async () => {
@@ -199,11 +222,11 @@ describe('bootstrapAppRuntime', () => {
     expect(mockPrepareClientBootstrap).toHaveBeenCalledTimes(1);
   });
 
-  it('plans a hard reset on the first local-storage bootstrap failure', () => {
+  it('plans a repair on the first local-storage bootstrap failure', () => {
     expect(
       resolveBootstrapFailureResolution(new Error('Firebase initialization timed out'), false)
     ).toEqual({
-      action: 'hard_reset_reload',
+      action: 'repair_reload',
     });
   });
 
