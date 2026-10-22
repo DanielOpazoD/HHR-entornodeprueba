@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "functions": {
+    "send-census-email": {
+      "maxBytes": 4000000,
+      "maxGzipBytes": 800000
+    },
+    "send-fuga-notification": {
+      "maxBytes": 4000000,
+      "maxGzipBytes": 750000
+    },
+    "operational-telemetry": {
+      "maxBytes": 1500000,
+      "maxGzipBytes": 300000
+    },
+    "operational-telemetry-retry": {
+      "maxBytes": 1500000,
+      "maxGzipBytes": 300000
+    }
+  }
+}

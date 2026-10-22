@@ -1,25 +1,28 @@
 #!/usr/bin/env node
 
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
-
-import { build } from 'esbuild';
+import os from 'node:os';
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { version as esbuildVersion } from 'esbuild';
+import {
+  buildFunctionBundle,
+  checkMailBundleBudgets,
+  readNetlifyExternalModules,
+} from './netlifyFunctionBundleSupport.mjs';
+import { profileMailBundles, smokeMailBundles } from './netlifyMailRuntimeSupport.mjs';
 
 const ROOT = process.cwd();
 const FUNCTIONS_DIR = path.join(ROOT, 'netlify', 'functions');
-const TMP_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'hhr-netlify-bundle-'));
-
-const parseExternalModules = () => {
-  const content = fs.readFileSync(path.join(ROOT, 'netlify.toml'), 'utf8');
-  const match = content.match(/external_node_modules\s*=\s*\[([^\]]*)\]/m);
-  if (!match) return [];
-
-  return match[1]
-    .split(',')
-    .map(part => part.trim().replace(/^"|"$/g, ''))
-    .filter(Boolean);
-};
+// Keeping artifacts under the checkout lets external packages resolve exactly as
+// they do in the deployed package, without injecting NODE_PATH into the probe.
+fs.mkdirSync(path.join(ROOT, 'tmp'), { recursive: true });
+const TMP_DIR = fs.mkdtempSync(path.join(ROOT, 'tmp', 'netlify-bundle-'));
+const REPORTS_DIR = path.join(ROOT, 'reports');
+const policy = JSON.parse(
+  fs.readFileSync(path.join(ROOT, 'scripts/config/netlify-mail-budgets.json'), 'utf8')
+);
 
 const entryPoints = fs
   .readdirSync(FUNCTIONS_DIR)
@@ -32,25 +35,16 @@ if (entryPoints.length === 0) {
   process.exit(1);
 }
 
-const external = parseExternalModules();
 const failures = [];
+const bundles = [];
+let profiles = [];
+let smoke = [];
+const loadAverageBefore = os.loadavg();
 
 try {
   for (const entryPoint of entryPoints) {
-    const fileName = path.basename(entryPoint, path.extname(entryPoint));
     try {
-      await build({
-        entryPoints: [entryPoint],
-        bundle: true,
-        platform: 'node',
-        format: 'cjs',
-        target: 'node22',
-        write: true,
-        outfile: path.join(TMP_DIR, `${fileName}.cjs`),
-        tsconfig: path.join(ROOT, 'tsconfig.json'),
-        external,
-        logLevel: 'silent',
-      });
+      bundles.push(await buildFunctionBundle({ root: ROOT, entryPoint, outDir: TMP_DIR }));
     } catch (error) {
       const errors = Array.isArray(error?.errors)
         ? error.errors.map(item => item.text).join('; ')
@@ -60,6 +54,85 @@ try {
       failures.push(`${path.relative(ROOT, entryPoint)} -> ${errors}`);
     }
   }
+  const budgetFailures = checkMailBundleBudgets(bundles, policy);
+  failures.push(...budgetFailures);
+  const mailBundles = bundles.filter(bundle => Object.hasOwn(policy.functions, bundle.name));
+  if (budgetFailures.length === 0) {
+    try {
+      profiles = profileMailBundles(mailBundles);
+      smoke = smokeMailBundles(mailBundles);
+    } catch (error) {
+      failures.push(error instanceof Error ? error.message : 'Mail runtime probe failed');
+    }
+  }
+
+  const report = {
+    version: 1,
+    generatedAt: new Date().toISOString(),
+    sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], {
+      cwd: ROOT,
+      encoding: 'utf8',
+    }).trim(),
+    lockfileSha256: createHash('sha256')
+      .update(fs.readFileSync(path.join(ROOT, 'package-lock.json')))
+      .digest('hex'),
+    runtime: { node: process.version, esbuild: esbuildVersion, target: 'node22', format: 'cjs' },
+    machine: {
+      platform: process.platform,
+      arch: process.arch,
+      cpuCount: os.cpus().length,
+      loadAverageBefore,
+      loadAverageAfter: os.loadavg(),
+    },
+    externalModules: readNetlifyExternalModules(ROOT),
+    budgets: policy.functions,
+    bundles: mailBundles.map(({ path: _temporaryPath, ...bundle }) => bundle),
+    profiles,
+    smoke,
+    failures,
+    limitations: [
+      'Bytes and gzip measure generated JavaScript; external packages and the deployment ZIP are excluded.',
+      'Load time and RSS measure fresh local Node processes, not Netlify cold starts or email delivery latency.',
+      'Load time covers requiring the artifact; Node startup and probe setup are excluded. RSS is sampled before and after loading, not peak memory.',
+      'Timing is informational; size, artifact loading and safe smoke behavior are blocking.',
+      'The scheduled retry export is checked without running its queue or contacting providers.',
+    ],
+  };
+  fs.mkdirSync(REPORTS_DIR, { recursive: true });
+  fs.writeFileSync(
+    path.join(REPORTS_DIR, 'netlify-mail-runtime.json'),
+    `${JSON.stringify(report, null, 2)}\n`
+  );
+  const rows = mailBundles.map(bundle => {
+    const profile = profiles.find(item => item.name === bundle.name);
+    const timing = profile
+      ? `${profile.medianLoadMs.toFixed(2)} (${profile.minLoadMs.toFixed(2)}–${profile.maxLoadMs.toFixed(2)})`
+      : 'unavailable';
+    const rss = profile ? (profile.medianRssAfterBytes / 1024 ** 2).toFixed(2) : 'unavailable';
+    return `| ${bundle.name} | ${bundle.bytes} | ${bundle.gzipBytes} | ${timing} | ${rss} |`;
+  });
+  fs.writeFileSync(
+    path.join(REPORTS_DIR, 'netlify-mail-runtime.md'),
+    [
+      '# Netlify mail runtime',
+      '',
+      `Commit: ${report.sourceCommit}. Node ${process.version}; esbuild ${esbuildVersion}.`,
+      '',
+      '| Function | JS bytes | Gzip bytes | Median load, min–max (ms) | Median RSS after load (MiB) |',
+      '| --- | ---: | ---: | ---: | ---: |',
+      ...rows,
+      '',
+      ...report.limitations.map(item => `- ${item}`),
+      '',
+      `Smoke: ${smoke.length} artifact results. Failures: ${failures.length}.`,
+      ...smoke.map(
+        item =>
+          `- ${item.name}: ${item.checks.length} checks passed; network attempts: ${item.networkAttempts}.`
+      ),
+      ...failures.map(item => `- ${item}`),
+      '',
+    ].join('\n')
+  );
 } finally {
   fs.rmSync(TMP_DIR, { recursive: true, force: true });
 }
@@ -73,6 +146,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `[netlify-functions-bundle] OK (${entryPoints.length} entrypoints bundled with ${external.length} external modules)`
+  `[netlify-functions-bundle] OK (${entryPoints.length} entrypoints; ${profiles.length} mail profiles; ${smoke.length} artifact smoke results). Report: reports/netlify-mail-runtime.{json,md}`
 );
-

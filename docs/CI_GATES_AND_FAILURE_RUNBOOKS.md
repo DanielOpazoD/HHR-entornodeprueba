@@ -215,6 +215,9 @@ Incluye:
 - `npm run lint:strict:core`
 - `npm run check:critical-coverage`
 - `npm run check:netlify-functions-bundle`
+  valida también presupuestos de correo, carga en procesos nuevos y smoke de los
+  artefactos completos. Evidencia de CI: `netlify-mail-runtime`; interpretación y
+  límites en [Runbook Netlify Serverless Deploy](RUNBOOK_NETLIFY_SERVERLESS_DEPLOY.md).
 - `npm run build`
 - `npm run ci:preview-gate`
 
