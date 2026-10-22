@@ -212,3 +212,156 @@ SYNC_QUEUE_LOAD_VOLUME=120 SYNC_QUEUE_RETRY_VOLUME=40 SYNC_QUEUE_LOAD_MAX_MS=800
 - `SEV-1`: respuesta < 15 min, mitigación inicial < 60 min.
 - `SEV-2`: respuesta < 60 min, mitigación < 4 h.
 - `SEV-3`: respuesta mismo día hábil.
+
+## Fallas visibles en la aplicación
+
+### Exportación detenida antes de generar el archivo
+
+La espera conserva su límite de 2,5 s y devuelve un resultado explícito. Si el
+censo sigue guardándose, falló el guardado o cambió el día, la acción termina con
+un aviso recuperable; repetirla cuando el estado esté resuelto. No aumentar el
+límite ni exportar el registro anterior para ocultar el incidente. Esta barrera
+coordina mutaciones locales y no certifica que la copia remota esté actualizada;
+los controles de Storage y sus resultados parciales conservan sus contratos.
+
+Regresiones: `useAppContentRuntime.test.tsx`, `useExportManager.test.ts` y
+`exportReadinessController.test.ts`. El controlador cubre la espera y la segunda
+comprobación; el hook cubre PDF, Excel, impresión y respaldo confirmado. Aplicar
+`ci:merge-gate` y el pack blocking de `test:release-confidence`, reutilizando sólo
+controles ya aprobados sobre el mismo código y configuración.
+
+### Detalle de signos o scores no disponible
+
+El censo mantiene sus valores aunque falle la carga del módulo de detalle.
+El cuadro informa el fallo y permite cerrarlo; no recarga automáticamente una
+edición activa ni inventa resultados. Recargar la aplicación cuando sea seguro
+si un despliegue dejó un módulo anterior no disponible. Los chunks de detalle
+siguen incluidos en el precache de producción para conservar su uso sin conexión.
+
+`ClinicalDetailLoading.test.tsx` comprueba importación bajo demanda, cancelación,
+respuesta tardía y aislamiento del fallo. Las pruebas de `VitalsCell` y
+`ScoresCell` verifican el contenido clínico tras la carga. La medición de Rollup
+del 01-10-2026 redujo el chunk del censo de 330.905 a 318.340 bytes y su unión
+estática con el shell de 2.238.015 a 2.225.451 bytes (misma configuración local).
+Es una reducción de JavaScript inicial, no una medición de latencia de usuarios.
+
+### Historial de movimientos: lectura completa y cancelación
+
+La búsqueda global consulta todo el historial remoto con páginas de 20 censos,
+orden descendente por `date` y cursor del último documento, incluido su desempate
+por ID. No usa offsets ni limita la antigüedad. El contador indica censos revisados;
+la cronología derivada se publica sólo al terminar todas las páginas. Mientras
+se lee, permanece disponible la cronología del maestro de pacientes.
+
+Volver a resultados, cerrar el cuadro, cambiar paciente o versión de su maestro
+cancela el avance. Firestore no cancela la solicitud ya en vuelo; su respuesta
+se descarta y no se inicia otra página. Un fallo posterior descarta el prefijo
+remoto y muestra el historial local como parcial, sin cachearlo como completo.
+La búsqueda no escribe en la caché editable del censo. Los snapshots retenidos
+para armar movimientos excluyen notas, signos y documentos clínicos.
+
+Diagnóstico de sólo lectura del 01-10-2026 en `hhr-pruebas`: 305 documentos
+representaron 31.225.956 bytes serializados; una página de 20, 5.327.028 bytes.
+Estas cifras justifican limitar el trabajo abandonado; no demuestran menor tiempo
+de completar toda la historia. Varias consultas añaden viajes de red y no forman
+un snapshot atómico entre páginas. No usar esta vista de lectura para autorizar
+escrituras. Cursor documentado por [Firebase](https://firebase.google.com/docs/firestore/query-data/query-cursors).
+
+Regresiones: `patientHistoryPages`, `firestoreRecordQueries` y
+`usePatientSelectionCancellation`, además de paridad de historia, RN y rangos.
+Verificar cierre/desmontaje, versiones del mismo RUT, empate de fechas, fallo de
+una página y respuesta tardía. Aplicar merge gate y controles blocking de release.
+
+## Acceso por RUT
+
+### Cuentas RUT: primer ingreso y recuperación
+
+La entrega se valida con `test:accounts:emulator:ci` (Auth/Firestore/Storage y UI
+sintéticos) y los gates de runtime crítico. El correo se sustituye en emuladores;
+no acredita entrega real. Ver [operación y publicación](RUT_PASSWORD_RECOVERY.md).
+
+### Acceso RUT aceptado seguido de cierre inmediato
+
+Comprobar por separado el monitor y las reglas efectivamente publicadas. El
+monitor consulta al servidor y admite todos los roles administrables; no exige
+el rol de enfermería a un administrador. `nursingSessionMonitor.test.ts` verifica
+roles, denegación, vencimiento, interrupción de transporte y desmontaje.
+
+Si las lecturas básicas devuelven `permission-denied`, comparar el ruleset activo
+del proyecto autorizado con Firestore/Storage del SHA validado. La aceptación de
+la contraseña y de `checkUserRole` no acredita permisos en las reglas. Conservar
+la guarda que cierra sesiones sin permisos; alinear reglas y cliente antes de
+repetir ingreso y recarga con una cuenta sintética, sin modificar datos clínicos.
+
+### Cierre de sesión con canal entre pestañas interrumpido · 22-10-2026
+
+Si BroadcastChannel.postMessage falla al salir, la notificación es best-effort:
+no debe impedir signOut de Firebase ni limpieza del propietario y generación.
+La regresión `useAuthStateSessionSupport.logout-broadcast.test.ts` ejecuta el
+handler real con canal fallido en cierres manual y automático; conserva el
+pendiente de enfermería y no elimina su cola. Ejecutar también
+`authBroadcastChannel.test.ts` y `useAuthState.crossTabLogout.test.ts`.
+Los mensajes SYNC_COMPLETED y el helper getAuthBootstrapTimeoutMs se retiraron
+tras comprobar que no tenían consumidores de ejecución. No se cambia la política
+de revocación ni se ignoran fallos de Firebase como si fueran éxitos.
+
+### Ruta regional de acceso RUT
+
+Si falla el ingreso después de cambiar de región, comprobar primero el proyecto
+del cliente y su `VITE_ACCOUNT_FUNCTIONS_REGION`. Sin flag o con valor vacío,
+sólo `VITE_FIREBASE_PROJECT_ID=hhr-pruebas` selecciona Santiago. Otros proyectos
+usan US. Los valores válidos son `us-central1`, `southamerica-east1` y
+`southamerica-west1`; un valor inválido usa US y nunca se interpreta como URL.
+
+Verificar disponibilidad y configuración de `signInWithRutSantiago` en
+`southamerica-west1`: Gen2, cuenta de servicio Appspot del proyecto explícita,
+256 MiB, CPU equivalente Gen1, concurrencia 1, mínimo 0, máximo 10 instancias y
+60 segundos. El endpoint conserva el protocolo del callable Gen1, incluidos
+CORS/preflight, autorización, rechazo de input y errores públicos. Un error de
+invocación del transporte no se arregla omitiendo la validación de cuenta ni
+ampliando IAM de proyecto. Conservar `signInWithRut` US/São Paulo y las rutas de
+administración, activación y recuperación.
+
+Para volver a US en el cliente de pruebas, fijar explícitamente
+`VITE_ACCOUNT_FUNCTIONS_REGION=us-central1` y reconstruir/reiniciar ese cliente;
+quitar el flag vuelve al default Santiago. No hay fallback automático ante un
+timeout o una respuesta perdida: no reenviar la misma operación a otra región.
+No borrar sesión, cachés, colas ni datos para diagnosticar disponibilidad.
+
+Feedback focalizado:
+
+```sh
+npx vitest run --maxWorkers=1 \
+  src/tests/functions/accountFunctionsRegions.test.ts \
+  src/tests/functions/accountSantiagoFunction.test.ts \
+  src/tests/services/auth/nursingAccountRegion.test.ts
+```
+
+Mantener cobertura sensible, ciclo de vida de cuentas y emuladores;
+estos tests no sustituyen los gates de runtime crítico ni la prueba desplegada.
+Comparar ingresos intercalados sin descartar accesos lentos; la evidencia de cinco
+pares no convierte el primer acceso observado en arranque frío ni acredita p95.
+
+### Lecturas agrupadas del ingreso por RUT
+
+Si falla un ingreso después de cambiar sus lecturas, comprobar por separado el
+commit de límites, la verificación del proveedor y la lectura final de acceso.
+Un resultado del callback transaccional no acredita un commit: no autenticar con
+el índice de un intento abandonado. Mantener 100 intentos/IP y 10/cuenta por cinco
+minutos, incluido el consumo de IP ante rechazo de cuenta. Un fallo de Firestore
+no permite saltar los límites ni reutilizar permisos anteriores.
+
+Feedback focalizado, sin sustituir los gates de autenticación:
+
+```sh
+npx vitest run src/tests/functions/accountRateLimit.test.ts src/tests/functions/accountSignInReads.test.ts src/tests/functions/nursingAccountTransport.test.ts src/tests/services/auth/nursingAccountSession.test.ts --maxWorkers=1
+```
+
+Estas pruebas cubren snapshot tras commit/reintento, rechazo y expiración de
+límites, revocación durante la verificación y sustitución de sesión mientras
+espera el lock del navegador. Conservar además ciclo de vida, recuperación y
+`test:accounts:emulator:ci`; para cierre, `ci:merge-gate`,
+`test:release-confidence`, revisión independiente y CI del head definitivo.
+Los dobles transaccionales no sustituyen la comprobación del SDK y emuladores.
+Una menor cantidad de viajes remotos no prueba menor latencia inicial: comparar
+primer ingreso observado y siguientes sin llamar «frío» a un inicio no controlado.
