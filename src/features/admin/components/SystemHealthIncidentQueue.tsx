@@ -1,11 +1,13 @@
 import clsx from 'clsx';
 import { AlertTriangle, CheckCircle2, Clock3, Download, ListChecks, MapPin } from 'lucide-react';
 import type { SystemHealthIncidentQueueRow } from './systemHealthIncidentUtils';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 const formatIncidentTime = (timestamp: string): string => {
   const date = new Date(timestamp);
   if (Number.isNaN(date.getTime())) return 'Sin fecha';
   return new Intl.DateTimeFormat('es-CL', {
+    timeZone: CLINICAL_TIME_ZONE,
     dateStyle: 'short',
     timeStyle: 'short',
   }).format(date);

@@ -4,13 +4,14 @@ import {
   buildCanonicalE2ERecord,
   ensureAuthenticated,
 } from './fixtures/auth';
+import { getTodayISO } from '../src/utils/dateCoreUtils';
 
 /**
  * Chaos Test: Network Intermittency
  * Ensures that the app handles offline transitions gracefully without losing data.
  */
 
-const getTodayDate = () => new Date().toISOString().slice(0, 10);
+const getTodayDate = () => getTodayISO();
 
 const buildChaosRecord = (date: string) =>
   buildCanonicalE2ERecord(date, {

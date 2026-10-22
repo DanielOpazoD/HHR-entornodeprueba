@@ -4,6 +4,7 @@ import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { useShiftPanel } from '@/hooks/useShiftPanel';
 import { StaffCard } from './internal/StaffCard';
 import { ImportModal } from './internal/ImportModal';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 export const ShiftPanelView: React.FC = () => {
   const {
@@ -71,7 +72,8 @@ export const ShiftPanelView: React.FC = () => {
       {/* Source info */}
       <div className="text-xs text-gray-400 flex items-center gap-1">
         <Clock className="w-3 h-3" />
-        Actualizado: {new Date(shift.parsedAt).toLocaleString('es-CL')}
+        Actualizado:{' '}
+        {new Date(shift.parsedAt).toLocaleString('es-CL', { timeZone: CLINICAL_TIME_ZONE })}
         {shift.source === 'whatsapp' && (
           <span className="ml-2 px-1.5 py-0.5 bg-green-100 text-green-700 rounded">WhatsApp</span>
         )}

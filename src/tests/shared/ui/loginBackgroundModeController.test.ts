@@ -33,4 +33,11 @@ describe('shared loginBackgroundModeController', () => {
     expect(resolveTimeBasedLoginBackgroundMode(new Date('2026-04-24T12:00:00'))).toBe('day');
     expect(resolveTimeBasedLoginBackgroundMode(new Date('2026-04-24T23:00:00'))).toBe('night');
   });
+
+  it('reads daytime on the hospital clock, not the device clock', () => {
+    // 12:30Z on Apr 24 is 08:30 in Santiago but still 06:30 in Rapa Nui (UTC-6).
+    expect(resolveTimeBasedLoginBackgroundMode(new Date('2026-04-24T12:30:00.000Z'))).toBe('night');
+    // 14:00Z is 08:00 in Rapa Nui: the day background starts with the hospital morning.
+    expect(resolveTimeBasedLoginBackgroundMode(new Date('2026-04-24T14:00:00.000Z'))).toBe('day');
+  });
 });

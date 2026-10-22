@@ -5,12 +5,17 @@ import {
   listScannedDocuments,
   type ScannedDocumentQueueRecord,
 } from '../services/documentScannerQueueService';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 const formatCreatedAt = (value: string): string => {
   const date = new Date(value);
   return Number.isNaN(date.getTime())
     ? value
-    : new Intl.DateTimeFormat('es-CL', { dateStyle: 'short', timeStyle: 'short' }).format(date);
+    : new Intl.DateTimeFormat('es-CL', {
+        timeZone: CLINICAL_TIME_ZONE,
+        dateStyle: 'short',
+        timeStyle: 'short',
+      }).format(date);
 };
 
 export const DocumentScannerQueueView: React.FC = () => {

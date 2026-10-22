@@ -6,6 +6,7 @@
 import { Timestamp } from 'firebase/firestore';
 import { auditUtilsLogger } from '@/services/admin/adminLoggers';
 import { defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 // ============================================================================
 // User Identification
@@ -93,6 +94,7 @@ export const formatAuditTimestamp = (timestamp: unknown, locale = 'es-CL'): stri
   if (date.getTime() === 0) return 'Fecha desconocida';
 
   return date.toLocaleString(locale, {
+    timeZone: CLINICAL_TIME_ZONE,
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',

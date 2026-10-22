@@ -21,6 +21,7 @@ import {
 import { PrescriptionUploadReadonlyViewer } from '@/features/prescriptions/components/PrescriptionUploadReadonlyViewer';
 import { PrescriptionUploadSuccessState } from '@/features/prescriptions/components/PrescriptionUploadSuccessState';
 import type { PrescriptionUploadControllerHandle } from '@/features/prescriptions/hooks/usePrescriptionUploadController';
+import { formatCalendarDate } from '@/utils/dateDisplayUtils';
 
 interface PrescriptionUploadFormProps {
   controller: PrescriptionUploadControllerHandle;
@@ -56,11 +57,7 @@ const ASSIGNMENT_SCOPE_OPTIONS: readonly PrescriptionAssignmentScope[] = [
   'hospitalized_stock',
 ] as const;
 
-const formatIsoDate = (iso: string): string => {
-  const [year, month, day] = iso.split('-').map(Number);
-  if (!year || !month || !day) return iso;
-  return new Date(year, month - 1, day).toLocaleDateString('es-CL');
-};
+const formatIsoDate = (iso: string): string => formatCalendarDate(iso) ?? iso;
 
 type PatientOptionStatus = NonNullable<
   PrescriptionUploadControllerHandle['patientOptions'][number]['patientStatus']

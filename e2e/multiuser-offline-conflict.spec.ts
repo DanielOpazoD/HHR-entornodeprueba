@@ -12,8 +12,9 @@ import {
 } from './fixtures/clinicalBlockEditor';
 import { waitForPersistedBedFields } from './fixtures/censusPersistence';
 import { installDailyRecordAuthorityRoute } from './fixtures/dailyRecordAuthorityRoute';
+import { getTodayISO } from '../src/utils/dateCoreUtils';
 
-const MULTIUSER_DATE = process.env.E2E_FIXED_DATE ?? new Date().toISOString().slice(0, 10);
+const MULTIUSER_DATE = process.env.E2E_FIXED_DATE ?? getTodayISO();
 
 const getRow = (page: Page, bedId: string) =>
   page.locator(`[data-testid="patient-row"][data-bed-id="${bedId}"]`).first();

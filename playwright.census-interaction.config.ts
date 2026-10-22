@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { CLINICAL_TIME_ZONE } from './src/utils/clinicalTimeZone';
 
 export default defineConfig({
   testDir: './e2e',
@@ -11,7 +12,7 @@ export default defineConfig({
   use: {
     ...devices['Desktop Chrome'],
     baseURL: 'http://127.0.0.1:4318',
-    timezoneId: 'Pacific/Easter',
+    timezoneId: CLINICAL_TIME_ZONE,
     locale: 'es-CL',
     serviceWorkers: 'block',
     trace: 'retain-on-failure',

@@ -5,6 +5,7 @@ import { useTransientFlag } from '@/hooks/useTransientFlag';
 import type { EpisodeContext } from '@/application/wound-care/woundCareUseCases';
 import { writeClipboardText } from '@/shared/runtime/browserClipboardRuntime';
 import { useWoundCareMobileUploadSession } from '../hooks/useWoundCareMobileUploadSession';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 interface WoundCareMobileQrPanelProps {
   episodeContext: EpisodeContext;
@@ -13,6 +14,7 @@ interface WoundCareMobileQrPanelProps {
 const formatExpiry = (expiresAt?: string): string => {
   if (!expiresAt) return '';
   return new Intl.DateTimeFormat('es-CL', {
+    timeZone: CLINICAL_TIME_ZONE,
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(expiresAt));

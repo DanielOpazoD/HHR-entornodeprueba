@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, RefreshCw, Trash2 } from 'lucide-react';
 import { clearErrorLogs, fetchErrorLogs } from '@/services/errorLogService';
 import type { ErrorLog, ErrorSeverity } from '@/services/logging/errorLogTypes';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 const PRIVATE_CONTEXT_KEYS = new Set(['patient', 'patientname', 'rut', 'diagnosis', 'diagnostico']);
 
@@ -23,6 +24,7 @@ const toReadableDateTime = (timestamp: string): string => {
   const date = new Date(timestamp);
   if (Number.isNaN(date.getTime())) return timestamp;
   return date.toLocaleString('es-CL', {
+    timeZone: CLINICAL_TIME_ZONE,
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',

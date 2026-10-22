@@ -1,6 +1,8 @@
 import type { CensusExportRecord } from '@/services/contracts/censusExportServiceContracts';
 import type { CensusWorkbookSheetDescriptor } from '@/services/exporters/censusMasterWorkbook';
 import { deepClone } from '@/utils/deepClone';
+import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
+import { clinicalWallClockToDate } from '@/utils/clinicalWallClock';
 
 interface BuildCensusSheetDescriptorsParams {
   monthRecords: CensusExportRecord[];
@@ -20,11 +22,7 @@ const toSheetDate = (isoDate: string): string => {
   return `${day}-${month}-${year}`;
 };
 
-const toSheetTime = (date: Date): string => {
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  return `${hours}:${minutes}`;
-};
+const toSheetTime = (date: Date): string => calendarStampInClinicalTimeZone(date).hhmm;
 
 const toSheetTimeToken = (time: string): string => time.replace(':', '-');
 
@@ -85,19 +83,16 @@ const resolveDateTime = ({
 }): Date | null => {
   const resolvedDate = dateValue || fallbackDate;
   const timeParts = parseTimeParts(timeValue);
+  const hhmm = timeParts
+    ? `${String(timeParts.hours).padStart(2, '0')}:${String(timeParts.minutes).padStart(2, '0')}`
+    : '00:00';
 
-  const isoDateTime = `${resolvedDate}T${
-    timeParts
-      ? `${String(timeParts.hours).padStart(2, '0')}:${String(timeParts.minutes).padStart(2, '0')}`
-      : '00:00'
-  }:00`;
-
-  const resolved = new Date(isoDateTime);
-  if (Number.isNaN(resolved.getTime())) {
+  if (Number.isNaN(new Date(`${resolvedDate}T${hhmm}:00Z`).getTime())) {
     return null;
   }
 
-  return resolved;
+  // Admission and movement times are typed on the hospital wall clock.
+  return clinicalWallClockToDate(resolvedDate, hhmm);
 };
 
 const isMovementIncludedInCutoff = (

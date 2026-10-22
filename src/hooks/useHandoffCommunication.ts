@@ -14,6 +14,7 @@ import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTy
 import { resolveApplicationOutcomeMessage } from '@/shared/contracts/applicationOutcomeMessage';
 import { resolveHandoffShareLinkPlan } from '@/hooks/controllers/handoffShareLinkController';
 import { buildManualMedicalHandoffMessageModel } from '@/hooks/controllers/manualMedicalHandoffMessageController';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 /**
  * useHandoffCommunication Hook
@@ -157,7 +158,7 @@ export const useHandoffCommunication = (
         `\uD83D\uDCCB Entrega de Turno M\u00E9dico\n\n` +
         `\uD83D\uDCC5 Fecha: ${handoffModel.formattedDate}\n` +
         `\uD83D\uDC68\u200D\u2695\uFE0F Entregado por: ${handoffModel.doctorName}\n` +
-        `\uD83D\uDD51 Firmado: ${new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}\n\n` +
+        `\uD83D\uDD51 Firmado: ${new Date().toLocaleTimeString('es-CL', { timeZone: CLINICAL_TIME_ZONE, hour: '2-digit', minute: '2-digit' })}\n\n` +
         `\uD83D\uDCCA Resumen:\n` +
         `\u2022 Hospitalizados: ${handoffModel.hospitalized} pacientes\n` +
         `\u2022 Camas libres: ${handoffModel.freeBeds}\n` +
