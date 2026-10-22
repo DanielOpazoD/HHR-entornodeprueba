@@ -7,6 +7,7 @@ import {
   collectTransitiveNeeds,
   parseWorkflowJobs,
 } from '../../../scripts/ciArtifactContractSupport.mjs';
+import { parseWorkflow } from './workflowYamlTestSupport';
 
 it('runs Lighthouse against the validated dist from the same workflow without rebuilding', () => {
   const jobs = parseWorkflowJobs(fs.readFileSync('.github/workflows/ci-cd.yml', 'utf8'));
@@ -20,15 +21,30 @@ it('runs Lighthouse against the validated dist from the same workflow without re
   expect(collectTransitiveNeeds(jobs, 'lighthouse-ci')).toContain('build');
   expect(downloads).toHaveLength(1);
   expect(downloads[0]).toMatchObject({ name: 'dist', path: 'dist' });
-  expect(downloads[0].block).not.toMatch(/\b(?:run-id|repository|artifact-ids):/);
-  expect(lighthouse!.body.indexOf('name: dist')).toBeLessThan(
-    lighthouse!.body.indexOf('uses: treosh/lighthouse-ci-action@')
+  // Same-run artifact: no cross-run or cross-repository download inputs.
+  for (const input of ['run-id', 'repository', 'artifact-ids'])
+    expect(downloads[0].with).not.toHaveProperty(input);
+
+  const job = parseWorkflow(fs.readFileSync('.github/workflows/ci-cd.yml', 'utf8')).jobs[
+    'lighthouse-ci'
+  ];
+  const auditIndex = job.steps.findIndex(step =>
+    step.uses?.startsWith('treosh/lighthouse-ci-action@')
   );
-  expect(lighthouse!.body).not.toContain('npm run build');
-  expect(lighthouse!.body).not.toContain('continue-on-error: true');
-  expect(lighthouse!.body).toContain('uses: ./.github/actions/setup-ci-dependencies');
-  expect(lighthouse!.body).toContain('configPath: ./lighthouserc.json');
-  expect(lighthouse!.body).toContain('uploadArtifacts: true');
+  expect(downloads[0].stepIndex).toBeLessThan(auditIndex);
+  expect(job.steps.some(step => step.run?.includes('npm run build'))).toBe(false);
+  expect(
+    [job, ...job.steps].some(
+      entry => (entry as { 'continue-on-error'?: unknown })['continue-on-error'] === true
+    )
+  ).toBe(false);
+  expect(job.steps.some(step => step.uses === './.github/actions/setup-ci-dependencies')).toBe(
+    true
+  );
+  expect(job.steps[auditIndex].with).toMatchObject({
+    configPath: './lighthouserc.json',
+    uploadArtifacts: true,
+  });
 
   const config = JSON.parse(fs.readFileSync('lighthouserc.json', 'utf8'));
   expect(config.ci.collect.numberOfRuns).toBe(3);
