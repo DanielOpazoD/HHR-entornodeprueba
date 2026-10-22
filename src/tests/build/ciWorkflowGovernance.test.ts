@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { parseDocument, type YAMLMap, type YAMLSeq } from 'yaml';
 
 import { collectCiArtifactContractIssues } from '../../../scripts/ciArtifactContractSupport.mjs';
 import { getGovernanceSnapshotSteps } from '../../../scripts/governanceSnapshotSupport.mjs';
@@ -9,6 +10,23 @@ import { RELEASE_EVIDENCE_REPORT_IDS } from '../../../scripts/releaseEvidenceCon
 
 const readText = (relativePath: string) =>
   fs.readFileSync(path.join(process.cwd(), relativePath), 'utf8');
+
+/** The real workflow with its postmerge-evidence steps edited through the YAML document. */
+const mutatePostmergeSteps = (mutate: (steps: YAMLSeq<YAMLMap>) => void) => {
+  const document = parseDocument(readText('.github/workflows/ci-cd.yml'));
+  mutate(document.getIn(['jobs', 'postmerge-evidence', 'steps']) as YAMLSeq<YAMLMap>);
+  return String(document);
+};
+
+const findStep = (steps: YAMLSeq<YAMLMap>, predicate: (step: YAMLMap) => boolean) => {
+  const index = steps.items.findIndex(predicate);
+  expect(index).toBeGreaterThan(-1);
+  return { index, step: steps.items[index] };
+};
+
+const isPreviewDownload = (step: YAMLMap) =>
+  String(step.get('uses')).startsWith('actions/download-artifact@') &&
+  step.getIn(['with', 'name']) === 'preview-bootstrap-artifacts';
 
 const readPackageScripts = () => {
   const manifest = JSON.parse(readText('package.json'));
@@ -47,19 +65,23 @@ describe('CI workflow governance', () => {
   });
 
   it('rejects a missing preview bootstrap download or incorrect producer contract', () => {
-    const workflow = readText('.github/workflows/ci-cd.yml');
-    const withoutDownload = workflow.replace(
-      /(postmerge-evidence:[\s\S]*?)\n {6}- name: Download preview bootstrap artifacts[\s\S]*?\n {6}- name: Validate downloaded preview bootstrap evidence/,
-      '$1\n      - name: Validate downloaded preview bootstrap evidence'
-    );
-    const wrongProducer = workflow.replace(
-      /(postmerge-evidence:[\s\S]*?)--artifact preview-bootstrap-artifacts --producer preview-smoke/,
-      '$1--artifact preview-bootstrap-artifacts --producer other-job'
-    );
-    const wrongDownloadPath = workflow.replace(
-      /(postmerge-evidence:[\s\S]*?Download preview bootstrap artifacts\n {8}uses: actions\/download-artifact@v7\n {8}with:\n {10}name: preview-bootstrap-artifacts\n {10}path:) reports\/e2e\/preview-bootstrap/,
-      '$1 .'
-    );
+    const withoutDownload = mutatePostmergeSteps(steps => {
+      steps.items.splice(findStep(steps, isPreviewDownload).index, 1);
+    });
+    const wrongProducer = mutatePostmergeSteps(steps => {
+      const verify = '--artifact preview-bootstrap-artifacts --producer preview-smoke';
+      const { step } = findStep(steps, candidate => String(candidate.get('run')).includes(verify));
+      step.set(
+        'run',
+        String(step.get('run')).replace(
+          verify,
+          '--artifact preview-bootstrap-artifacts --producer other-job'
+        )
+      );
+    });
+    const wrongDownloadPath = mutatePostmergeSteps(steps => {
+      findStep(steps, isPreviewDownload).step.setIn(['with', 'path'], '.');
+    });
 
     expect(collectCiArtifactContractIssues(withoutDownload)).toContain(
       'postmerge-evidence: must download artifact "preview-bootstrap-artifacts".'
