@@ -10,6 +10,7 @@ import type {
   WoundCarePhotoPort,
   WoundCareStoragePort,
 } from '@/application/ports/woundCarePort';
+import { getTodayISO } from '@/utils/dateCoreUtils';
 
 export interface EpisodeContext {
   episodeKey: string;
@@ -30,7 +31,7 @@ export interface WoundCarePhotoDeps {
 
 export const generateId = (): string => crypto.randomUUID();
 
-export const todayDateString = (): string => new Date().toISOString().split('T')[0];
+export const todayDateString = (): string => getTodayISO();
 
 export const extractFileExtension = (file: File): string => {
   const parts = file.name.split('.');

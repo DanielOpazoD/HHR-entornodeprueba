@@ -1,3 +1,5 @@
+import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
+
 export interface AdmissionTimePickerModel {
   selectedHour: string;
   selectedMinute: string;
@@ -31,8 +33,9 @@ export const resolveAdmissionTimePickerModel = ({
   admissionTime?: string;
   now?: Date;
 }): AdmissionTimePickerModel => {
-  const currentHour = now.getHours();
-  const currentMinute = now.getMinutes();
+  const [currentHour, currentMinute] = calendarStampInClinicalTimeZone(now)
+    .hhmm.split(':')
+    .map(Number);
   const selectedHour = parseTimePart(admissionTime, 0) ?? currentHour;
   const selectedMinute = parseTimePart(admissionTime, 1) ?? currentMinute;
 

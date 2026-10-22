@@ -18,6 +18,7 @@ import {
   resetDailyRecordFreshnessGateForTests,
 } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import { clearPendingDailyRecordPatchesForTests } from '@/hooks/controllers/dailyRecordPendingPatchController';
+import { getTodayISO } from '@/utils/dateCoreUtils';
 
 const runEmulatorUiTests =
   process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1' ||
@@ -26,7 +27,7 @@ const runEmulatorUiTests =
 const describeUiEmulator = runEmulatorUiTests ? describe : describe.skip;
 
 const mockNotifyWarning = vi.fn();
-const TODAY_ISO = new Date().toISOString().slice(0, 10);
+const TODAY_ISO = getTodayISO();
 
 vi.mock('@/context/UIContext', () => ({
   useNotification: () => ({

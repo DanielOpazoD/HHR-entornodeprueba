@@ -30,8 +30,9 @@ import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRe
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { clearAllRecords } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { clearAllSyncQueue } from '@/services/storage/sync';
+import { getTodayISO } from '@/utils/dateCoreUtils';
 
-const CURRENT_RECORD_DATE = new Date().toISOString().slice(0, 10);
+const CURRENT_RECORD_DATE = getTodayISO();
 
 const buildRecord = (date: string): DailyRecord => ({
   date,
