@@ -15,7 +15,6 @@ import type {
 import type { DailyRecordStaffingDetailsV1 } from './dailyRecordStaffingDetails';
 import type { RayenSyncEvent, RayenSyncMeta } from './rayenSync';
 import type { RayenBedCollisionResolutionReceipt } from './rayenBedCollision';
-import type { ClinicalDerivedLayout } from './clinicalDerived';
 export type {
   MedicalHandoffActor,
   MedicalHandoffBySpecialty,
@@ -57,8 +56,11 @@ export interface DailyRecord {
   rayenSyncHistory?: RayenSyncEvent[];
   /** Reviewed CMA/physical-bed decisions, reused only while the recorded outcome still matches. */
   rayenBedCollisionResolutions?: RayenBedCollisionResolutionReceipt[];
-  /** Server-set marker: the day's moved clinical fields live in `clinicalDerived` documents. */
-  clinicalDerivedLayout?: ClinicalDerivedLayout;
+  /**
+   * Server-set marker (a `ClinicalDerivedLayout` when understood): the day's moved clinical fields
+   * live in `clinicalDerived` documents. Kept as stored; read it through `readClinicalDerivedLayout`.
+   */
+  clinicalDerivedLayout?: unknown;
   /** Unix timestamp (ms) for the start of the day, used for security rule validation */
   dateTimestamp?: number;
   /** Version of the data structure, used to prevent corruption from old clients */

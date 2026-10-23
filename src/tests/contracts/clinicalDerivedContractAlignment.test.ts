@@ -6,10 +6,13 @@
  * Every case below runs through BOTH copies. Synthetic data only.
  */
 import { createRequire } from 'node:module';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 import * as client from '@/services/storage/clinicalDerivedContract';
 import { RAYEN_BATCH_ONLY_CLINICAL_FIELDS } from '@/services/storage/dailyRecordAuthorityContract';
-import type { ClinicalDerivedEpisodeDoc } from '@/types/domain/clinicalDerived';
+import type {
+  ClinicalDerivedEpisodeDoc,
+  ClinicalDerivedTarget,
+} from '@/types/domain/clinicalDerived';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 const require = createRequire(import.meta.url);
@@ -121,6 +124,13 @@ describe('clinicalDerived contract · alignment between the server and client tw
     // Only fields the batch alone writes may move; devices and manual fields stay in the day.
     const batchOnly = new Set<string>(RAYEN_BATCH_ONLY_CLINICAL_FIELDS);
     expect(client.CLINICAL_DERIVED_MOVED_FIELDS.every(field => batchOnly.has(field))).toBe(true);
+    // The domain types spell the same constants.
+    expectTypeOf<ClinicalDerivedTarget>().toEqualTypeOf<
+      (typeof client.CLINICAL_DERIVED_TARGETS)[number]
+    >();
+    expectTypeOf<ClinicalDerivedEpisodeDoc['schemaVersion']>().toEqualTypeOf<
+      typeof client.CLINICAL_DERIVED_DOC_SCHEMA_VERSION
+    >();
   });
 
   it('agree on which episode ids and generations can be document ids', () => {
@@ -211,15 +221,56 @@ describe('clinicalDerived contract · alignment between the server and client tw
     expect(holderOf(emptied.record, 'R1').clinicalSyncCheckpoint).toEqual(checkpoint('doc'));
   });
 
-  it('ignores documents of another generation (a deleted day) or another date', () => {
+  it('ignores documents of another generation (a deleted day), date or schema version', () => {
     const record = day({ R1: patient('ep_a') });
-    for (const overrides of [{ layoutGeneration: 'gen_deleted_day' }, { date: '2026-11-01' }]) {
+    for (const overrides of [
+      { layoutGeneration: 'gen_deleted_day' },
+      { date: '2026-11-01' },
+      { schemaVersion: 2 },
+    ]) {
       const result = overlayBoth(record, [
         episodeDoc('ep_a', { clinicalSyncCheckpoint: null, vitalSignsHistory: null }, overrides),
       ]);
       expect(result.matchedEpisodeIds).toEqual([]);
       expect(result.record).toBe(record);
     }
+    // A day and a document that both lack a date do not match each other.
+    const undated = day({ R1: patient('ep_a') }, { date: undefined });
+    const docs = [episodeDoc('ep_a', { vitalSignsHistory: null }, { date: undefined })];
+    expect(overlayBoth(undated, docs).matchedEpisodeIds).toEqual([]);
+    expect(client.findStaleClinicalDerivedEpisodeIds(undated, docs)).toEqual([]);
+    expect(server.findStaleClinicalDerivedEpisodeIds(undated, docs)).toEqual([]);
+  });
+
+  it('copies plain data but shares instances (a Timestamp or Date) instead of flattening them', () => {
+    class SyntheticTimestamp {
+      constructor(readonly seconds: number) {}
+      toMillis() {
+        return this.seconds * 1000;
+      }
+    }
+    const at = new SyntheticTimestamp(1);
+    const when = new Date(Date.UTC(2026, 10, 2, 8));
+    const result = overlayBoth(day({ R1: patient('ep_a') }), [
+      episodeDoc('ep_a', {
+        clinicalSyncCheckpoint: { ...checkpoint('doc'), observedAt: at },
+        vitalSignsHistory: [{ ...vitals('doc')[0], takenAt: when }],
+      }),
+    ]);
+    const bed = holderOf(result.record, 'R1') as {
+      clinicalSyncCheckpoint: { observedAt: SyntheticTimestamp };
+      vitalSignsHistory: Array<{ takenAt: Date }>;
+    };
+    expect(bed.clinicalSyncCheckpoint.observedAt).toBe(at);
+    expect(bed.clinicalSyncCheckpoint.observedAt.toMillis()).toBe(1000);
+    expect(bed.vitalSignsHistory[0].takenAt).toBe(when);
+  });
+
+  it('matches a holder id with stray spaces to its trimmed document id', () => {
+    const record = day({ R1: patient(' ep_a ') });
+    const result = overlayBoth(record, [episodeDoc('ep_a', { vitalSignsHistory: vitals('doc') })]);
+    expect(result.matchedEpisodeIds).toEqual(['ep_a']);
+    expect(holderOf(result.record, 'R1').vitalSignsHistory).toEqual(vitals('doc'));
   });
 
   it('never overlays an unmarked day or a marker it does not understand', () => {

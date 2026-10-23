@@ -61,7 +61,11 @@ const historyOf = (record: DailyRecord, crib = false) => {
   return (crib ? bed.clinicalCrib : bed)?.vitalSignsHistory;
 };
 
-const resolved = (...docs: ClinicalDerivedEpisodeDoc[]) => ({ status: 'resolved', docs });
+const resolved = (...docs: ClinicalDerivedEpisodeDoc[]) => ({
+  status: 'resolved',
+  docs,
+  fromCache: false,
+});
 
 const expectFailClosed = async (promise: Promise<unknown>, reason: string, code?: string) => {
   const error = await promise.catch((caught: unknown) => caught);
@@ -86,6 +90,7 @@ describe('readDailyRecordWithClinicalDerived', () => {
       isFirestoreEnabled.mockReturnValueOnce(false);
       expect(await readDailyRecordWithClinicalDerived(marked, { mode })).toEqual({
         record: marked,
+        day: marked,
         overlaid: false,
       });
 
@@ -107,9 +112,10 @@ describe('readDailyRecordWithClinicalDerived', () => {
 
     const result = await readDailyRecordWithClinicalDerived(record, { mode: 'bestEffort' });
 
-    expect(readDocs).toHaveBeenCalledWith(DATE, { source: 'default' });
+    expect(readDocs).toHaveBeenCalledWith(DATE, GENERATION, { source: 'default' });
     expect(result.overlaid).toBe(true);
     expect(result.fallbackReason).toBeUndefined();
+    expect(result.day).toBe(record);
     expect(historyOf(result.record)).toEqual(reading('doc-ep_mother'));
     expect(historyOf(result.record, true)).toEqual(reading('doc-ep_newborn'));
     expect(record).toEqual(before);
@@ -123,25 +129,30 @@ describe('readDailyRecordWithClinicalDerived', () => {
       source: 'default',
     });
 
-    expect(readDocs).toHaveBeenCalledWith(DATE, { source: 'server' });
+    expect(readDocs).toHaveBeenCalledWith(DATE, GENERATION, { source: 'server' });
     expect(historyOf(result.record)).toEqual(reading('doc-ep_mother'));
     expect(historyOf(result.record, true)).toEqual(reading('embedded-newborn'));
   });
 
   it('reads only one episode document when the caller names the episode', async () => {
-    readDoc.mockResolvedValueOnce({ status: 'resolved', doc: episodeDoc('ep_newborn') });
+    readDoc.mockResolvedValueOnce({
+      status: 'resolved',
+      doc: episodeDoc('ep_newborn'),
+      fromCache: false,
+    });
 
+    // Trimmed like the day's holders, so both paths find the same document.
     const result = await readDailyRecordWithClinicalDerived(day(), {
       mode: 'strict',
-      clinicalEpisodeId: 'ep_newborn',
+      clinicalEpisodeId: ' ep_newborn ',
     });
 
     expect(readDocs).not.toHaveBeenCalled();
-    expect(readDoc).toHaveBeenCalledWith(DATE, 'ep_newborn', { source: 'server' });
+    expect(readDoc).toHaveBeenCalledWith(DATE, GENERATION, 'ep_newborn', { source: 'server' });
     expect(historyOf(result.record, true)).toEqual(reading('doc-ep_newborn'));
     expect(historyOf(result.record)).toEqual(reading('embedded-mother'));
 
-    readDoc.mockResolvedValueOnce({ status: 'resolved', doc: null });
+    readDoc.mockResolvedValueOnce({ status: 'resolved', doc: null, fromCache: false });
     const none = await readDailyRecordWithClinicalDerived(day(), {
       mode: 'bestEffort',
       clinicalEpisodeId: 'ep_mother',
@@ -166,6 +177,7 @@ describe('readDailyRecordWithClinicalDerived', () => {
       );
       expect(await readDailyRecordWithClinicalDerived(record, { mode: 'bestEffort' })).toEqual({
         record,
+        day: record,
         overlaid: false,
         fallbackReason: reason,
       });
@@ -181,6 +193,7 @@ describe('readDailyRecordWithClinicalDerived', () => {
     );
     expect(await readDailyRecordWithClinicalDerived(record, { mode: 'bestEffort' })).toEqual({
       record,
+      day: record,
       overlaid: false,
       fallbackReason: 'unsupported_layout',
     });
@@ -203,6 +216,8 @@ describe('readDailyRecordWithClinicalDerived', () => {
     expect(readDocs).toHaveBeenCalledTimes(2);
     expect((result.record as DailyRecord & { meta: { revision: number } }).meta.revision).toBe(6);
     expect(historyOf(result.record)).toEqual(reading('doc-ep_mother'));
+    // The write base comes from the same revision as the view.
+    expect(result.day).toBe(newer);
   });
 
   it('strict: fails closed when the day is still behind after one re-read, or cannot re-read', async () => {
@@ -235,7 +250,7 @@ describe('readDailyRecordWithClinicalDerived', () => {
       reloadRecord: async () => recreated,
     });
 
-    expect(result).toEqual({ record: recreated, overlaid: false });
+    expect(result).toEqual({ record: recreated, day: recreated, overlaid: false });
     expect(readDocs).toHaveBeenCalledTimes(1);
   });
 
@@ -271,5 +286,31 @@ describe('readDailyRecordWithClinicalDerived', () => {
     expect(result.overlaid).toBe(true);
     expect(result.record.beds.R1.vitalSignsHistory).toEqual(reading('embedded-1'));
     expect(result.record.beds.R3.vitalSignsHistory).toEqual(reading('doc-ep_mother'));
+  });
+
+  it('best effort flags an answer from the offline cache, which may lack documents', async () => {
+    readDocs.mockResolvedValueOnce({ ...resolved(episodeDoc('ep_mother')), fromCache: true });
+
+    const result = await readDailyRecordWithClinicalDerived(day(), { mode: 'bestEffort' });
+
+    expect(result.fallbackReason).toBe('cache_only');
+    expect(historyOf(result.record)).toEqual(reading('doc-ep_mother'));
+  });
+
+  it('a day salvaged from a broken bed still overlays in strict mode at its own revision', async () => {
+    const { docToRecord } = await import('@/services/storage/firestore/firestoreShared');
+    const salvaged = docToRecord(
+      {
+        ...day(),
+        beds: { ...day().beds, R9: { patientName: 'Cama Rota', status: 'ESTADO_INVALIDO' } },
+      } as unknown as Record<string, unknown>,
+      DATE
+    );
+    readDocs.mockResolvedValueOnce(resolved(episodeDoc('ep_mother', 5)));
+
+    const result = await readDailyRecordWithClinicalDerived(salvaged, { mode: 'strict' });
+
+    expect(result.overlaid).toBe(true);
+    expect(historyOf(result.record)).toEqual(reading('doc-ep_mother'));
   });
 });

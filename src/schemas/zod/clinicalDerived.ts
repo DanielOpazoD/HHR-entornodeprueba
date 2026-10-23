@@ -1,23 +1,17 @@
 import { z } from 'zod';
-import type {
-  ClinicalDerivedEpisodeDoc,
-  ClinicalDerivedLayout,
-} from '@/types/domain/clinicalDerived';
+import type { ClinicalDerivedEpisodeDoc } from '@/types/domain/clinicalDerived';
 import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
+import {
+  CLINICAL_DERIVED_DOC_SCHEMA_VERSION,
+  CLINICAL_DERIVED_TARGETS,
+} from '@/services/storage/clinicalDerivedConstants';
 import { DATE_REGEX, StringSchema } from './helpers';
 import { ClinicalSyncCheckpointSchema } from './patient';
 
-/**
- * Day marker as stored. Any integer version passes, and unknown keys are kept, so a client never
- * drops or rewrites a marker it does not understand; the contract decides which versions it reads.
+/*
+ * Only the episode reader (loaded on demand) imports this module. The day marker is not validated
+ * here: the day schema keeps it as stored and the clinicalDerived contract classifies it.
  */
-export const ClinicalDerivedLayoutSchema: z.ZodType<ClinicalDerivedLayout, z.ZodTypeDef, unknown> =
-  z
-    .object({
-      version: z.number().int(),
-      generation: StringSchema.min(1),
-    })
-    .passthrough();
 
 // The day's embedded copy is not validated beyond this either: readers sort and show readings by
 // these two keys and render whatever measurements each one carries.
@@ -34,11 +28,11 @@ export const ClinicalDerivedEpisodeDocSchema: z.ZodType<
   z.ZodTypeDef,
   unknown
 > = z.object({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(CLINICAL_DERIVED_DOC_SCHEMA_VERSION),
   date: StringSchema.regex(DATE_REGEX),
   clinicalEpisodeId: StringSchema.min(1),
   layoutGeneration: StringSchema.min(1),
-  target: z.enum(['bed', 'clinicalCrib']).optional(),
+  target: z.enum(CLINICAL_DERIVED_TARGETS).optional(),
   bedId: StringSchema.optional(),
   dayRevision: z.number().int().nonnegative(),
   updatedAt: z.unknown().optional(),

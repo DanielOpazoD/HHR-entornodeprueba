@@ -649,8 +649,9 @@ service cloud.firestore {
       return !request.resource.data.diff(resource.data).affectedKeys()
                .hasAny(['clinicalDerivedLayout']) &&
              (!('clinicalDerivedLayout' in resource.data) ||
-              request.resource.data.get(['meta', 'revision'], 0) >=
-                resource.data.get(['meta', 'revision'], 0));
+              (request.resource.data.get(['meta', 'revision'], 0) is int &&
+               request.resource.data.get(['meta', 'revision'], 0) >=
+                 resource.data.get(['meta', 'revision'], 0)));
     }
     function canAdminMaintainHospitalDocument() {
       return isAdmin();

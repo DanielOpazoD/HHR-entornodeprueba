@@ -82,14 +82,15 @@
     }
 
     // Split days (clinicalDerived episode documents): only the server sets the marker, so a
-    // client update leaves it exactly as it is, and a marked day never moves meta.revision back;
-    // episode documents record the day revision they were written with.
+    // client update leaves it exactly as it is, and a marked day keeps an integer meta.revision
+    // that never moves back; episode documents record the day revision they were written with.
     function preservesClinicalDerivedLayout() {
       return !request.resource.data.diff(resource.data).affectedKeys()
                .hasAny(['clinicalDerivedLayout']) &&
              (!('clinicalDerivedLayout' in resource.data) ||
-              request.resource.data.get(['meta', 'revision'], 0) >=
-                resource.data.get(['meta', 'revision'], 0));
+              (request.resource.data.get(['meta', 'revision'], 0) is int &&
+               request.resource.data.get(['meta', 'revision'], 0) >=
+                 resource.data.get(['meta', 'revision'], 0)));
     }
 
     function canAdminMaintainHospitalDocument() {

@@ -6,10 +6,11 @@ import type { FirestoreRulesHarness } from './firestoreRulesTestHarness';
 
 /**
  * Split days (phase 1a): episode documents are server-written like specialtyDecisions, and no
- * client update may touch the day marker or move a marked day's revision back. Synthetic data.
+ * client update may touch the day marker or move a marked day's revision back (or off an integer).
+ * Synthetic data.
  */
 export function registerClinicalDerivedRules(harness: FirestoreRulesHarness): void {
-  const { admin, nurse, doctor, editor, authed, unauth, unauthorizedAuthed } = harness;
+  const { admin, nurse, doctor, specialist, editor, authed, unauth, unauthorizedAuthed } = harness;
   const { NOW_MS, CURRENT_RECORD_DATE, setupDocBypass } = harness;
   const recordPath = `hospitals/H1/dailyRecords/${CURRENT_RECORD_DATE}`;
   const episodesPath = `${recordPath}/clinicalDerived`;
@@ -27,7 +28,7 @@ export function registerClinicalDerivedRules(harness: FirestoreRulesHarness): vo
     date: CURRENT_RECORD_DATE,
     dateTimestamp: NOW_MS,
     nursesDayShift: ['Enfermera Sintética'],
-    beds: { R1: { bedId: 'R1', clinicalEpisodeId: 'ep_synthetic_a' } },
+    beds: { R1: { bedId: 'R1', clinicalEpisodeId: 'ep_synthetic_a', medicalHandoffNote: '' } },
     meta: { revision: 5 },
   };
   const markedDay = { ...baseDay, clinicalDerivedLayout: marker };
@@ -36,7 +37,7 @@ export function registerClinicalDerivedRules(harness: FirestoreRulesHarness): vo
   describe('Split-day clinicalDerived episode documents', () => {
     it('clinical roles read episode documents; outsiders and anonymous users do not', async () => {
       await setupDocBypass(episodePath, episode);
-      for (const db of [admin, nurse, doctor, editor, authed]) {
+      for (const db of [admin, nurse, doctor, specialist, editor, authed]) {
         await assertSucceeds(db().doc(episodePath).get());
         await assertSucceeds(db().collection(episodesPath).get());
       }
@@ -45,12 +46,11 @@ export function registerClinicalDerivedRules(harness: FirestoreRulesHarness): vo
     });
 
     it('no client role creates, edits or deletes an episode document', async () => {
-      for (const db of [admin, nurse, editor, doctor]) {
-        await assertFails(db().doc(`${episodesPath}/ep_synthetic_new`).set(episode));
-      }
       await setupDocBypass(episodePath, episode);
-      for (const db of [admin, nurse]) {
+      for (const db of [admin, nurse, editor, doctor, specialist]) {
+        await assertFails(db().doc(`${episodesPath}/ep_synthetic_new`).set(episode));
         await assertFails(db().doc(episodePath).update({ vitalSignsHistory: [] }));
+        await assertFails(db().doc(episodePath).set({ dayRevision: 6 }, { merge: true }));
         await assertFails(db().doc(episodePath).delete());
       }
     });
@@ -65,6 +65,9 @@ export function registerClinicalDerivedRules(harness: FirestoreRulesHarness): vo
       const other = { ...marker, generation: 'gen_synthetic_b' };
       for (const db of [admin, nurse]) {
         await assertFails(db().doc(recordPath).update({ clinicalDerivedLayout: other }));
+        await assertFails(
+          db().doc(recordPath).set({ clinicalDerivedLayout: other }, { merge: true })
+        );
         await assertFails(db().doc(recordPath).update({ 'clinicalDerivedLayout.version': 2 }));
         await assertFails(db().doc(recordPath).update({ clinicalDerivedLayout: deleteField() }));
         // A full save from a copy taken before the day was marked.
@@ -85,12 +88,21 @@ export function registerClinicalDerivedRules(harness: FirestoreRulesHarness): vo
           .doc(recordPath)
           .set({ ...markedDay, meta: { revision: 6 } })
       );
+      await assertSucceeds(
+        doctor().doc(recordPath).update({ medicalSignature: 'signed', lastUpdated: NOW_MS })
+      );
+      await assertSucceeds(
+        specialist().doc(recordPath).update({ 'beds.R1.medicalHandoffNote': 'SINTÉTICO' })
+      );
     });
 
     it('a marked day never moves meta.revision back; an unmarked day is unchanged', async () => {
       await setupDocBypass(recordPath, markedDay);
       for (const db of [admin, nurse]) {
         await assertFails(db().doc(recordPath).update({ 'meta.revision': 4 }));
+        // Episode documents copy the day revision as an integer.
+        await assertFails(db().doc(recordPath).update({ 'meta.revision': 5.5 }));
+        await assertFails(db().doc(recordPath).update({ 'meta.revision': '6' }));
         await assertFails(
           db()
             .doc(recordPath)

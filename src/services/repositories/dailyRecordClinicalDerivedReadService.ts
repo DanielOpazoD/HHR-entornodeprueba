@@ -26,8 +26,15 @@ type ClinicalDerivedEpisodeReaderModule =
 
 let readerPromise: Promise<ClinicalDerivedEpisodeReaderModule> | null = null;
 
+// A chunk that failed to load (offline on first use, a stale hash after a deploy) is not cached:
+// the next call tries again.
 const loadReader = (): Promise<ClinicalDerivedEpisodeReaderModule> => {
-  readerPromise ??= import('@/services/storage/firestore/clinicalDerivedEpisodeReader');
+  readerPromise ??= import('@/services/storage/firestore/clinicalDerivedEpisodeReader').catch(
+    (error: unknown) => {
+      readerPromise = null;
+      throw error;
+    }
+  );
   return readerPromise;
 };
 
@@ -38,7 +45,8 @@ export type ClinicalDerivedFallbackReason =
   | 'read_failed'
   | 'stale_day'
   | 'duplicate_episode'
-  | 'unsupported_layout';
+  | 'unsupported_layout'
+  | 'cache_only';
 
 export class ClinicalDerivedReadError extends Error {
   constructor(
@@ -55,7 +63,10 @@ export interface ClinicalDerivedReadServiceOptions {
   mode: ClinicalDerivedReadMode;
   /** Read only this episode's document (a one-patient patch); others keep their embedded copy. */
   clinicalEpisodeId?: string;
-  /** Best-effort source; strict reads always go to the server. */
+  /**
+   * Best-effort source; strict reads always go to the server. Callers that need a complete day
+   * (export, staff tool) pass `server`; `default` may answer from the offline cache (`cache_only`).
+   */
   source?: ClinicalDerivedReadSource;
   /**
    * Strict only: re-reads the day from the server once when a document is ahead of it. Without
@@ -66,9 +77,14 @@ export interface ClinicalDerivedReadServiceOptions {
 
 export interface ClinicalDerivedReadResult {
   record: DailyRecord;
+  /**
+   * The un-overlaid day `record` was built from: after a strict re-read, the newer one. It is the
+   * only valid write base for a caller acting on `record`.
+   */
+  day: DailyRecord;
   /** At least one episode took its fields from a document. */
   overlaid: boolean;
-  /** Best-effort only: why some or all episodes kept their embedded copies. */
+  /** Best-effort only: why some or all episodes may show their embedded copies. */
   fallbackReason?: ClinicalDerivedFallbackReason;
 }
 
@@ -79,21 +95,34 @@ const failureReason = (failure: ClinicalDerivedReadFailure): ClinicalDerivedFall
   failure.status === 'permission_denied' ? 'permission_denied' : 'read_failed';
 
 type DocsRead =
-  | { status: 'resolved'; docs: ClinicalDerivedEpisodeDoc[] }
+  | { status: 'resolved'; docs: ClinicalDerivedEpisodeDoc[]; fromCache: boolean }
   | ClinicalDerivedReadFailure;
+
+const READER_UNAVAILABLE_CODE = 'reader_unavailable';
 
 const readDocs = async (
   date: string,
+  layoutGeneration: string,
   clinicalEpisodeId: string | undefined,
   source: ClinicalDerivedReadSource
 ): Promise<DocsRead> => {
-  const reader = await loadReader();
-  if (clinicalEpisodeId === undefined) {
-    return reader.readClinicalDerivedEpisodeDocs(date, { source });
+  let reader: ClinicalDerivedEpisodeReaderModule;
+  try {
+    reader = await loadReader();
+  } catch {
+    return { status: 'failed', code: READER_UNAVAILABLE_CODE };
   }
-  const result = await reader.readClinicalDerivedEpisodeDoc(date, clinicalEpisodeId, { source });
+  if (clinicalEpisodeId === undefined) {
+    return reader.readClinicalDerivedEpisodeDocs(date, layoutGeneration, { source });
+  }
+  const result = await reader.readClinicalDerivedEpisodeDoc(
+    date,
+    layoutGeneration,
+    clinicalEpisodeId,
+    { source }
+  );
   if (result.status !== 'resolved') return result;
-  return { status: 'resolved', docs: result.doc ? [result.doc] : [] };
+  return { status: 'resolved', docs: result.doc ? [result.doc] : [], fromCache: result.fromCache };
 };
 
 /**
@@ -106,30 +135,39 @@ export const readDailyRecordWithClinicalDerived = async (
 ): Promise<ClinicalDerivedReadResult> => {
   const strict = options.mode === 'strict';
   const source: ClinicalDerivedReadSource = strict ? 'server' : (options.source ?? 'default');
+  // Same normalization as the overlay applies to the day's holders.
+  const clinicalEpisodeId = options.clinicalEpisodeId?.trim();
   const fallBack = (
     reason: ClinicalDerivedFallbackReason,
     day: DailyRecord,
     code?: string
   ): ClinicalDerivedReadResult => {
     if (strict) throw new ClinicalDerivedReadError(day.date, reason, code);
-    return { record: day, overlaid: false, fallbackReason: reason };
+    return { record: day, day, overlaid: false, fallbackReason: reason };
   };
 
   const overlayDay = async (day: DailyRecord): Promise<ClinicalDerivedReadResult | 'stale'> => {
-    if (!isFirestoreEnabled() || isE2EOverrideActive()) return { record: day, overlaid: false };
+    if (!isFirestoreEnabled() || isE2EOverrideActive())
+      return { record: day, day, overlaid: false };
     const layout = readClinicalDerivedLayout(day);
-    if (layout.status === 'unmarked') return { record: day, overlaid: false };
+    if (layout.status === 'unmarked') return { record: day, day, overlaid: false };
     if (layout.status === 'unsupported') return fallBack('unsupported_layout', day);
 
-    const read = await readDocs(day.date, options.clinicalEpisodeId, source);
+    const read = await readDocs(day.date, layout.layout.generation, clinicalEpisodeId, source);
     if (read.status !== 'resolved') return fallBack(failureReason(read), day, read.code);
     if (strict && findStaleClinicalDerivedEpisodeIds(day, read.docs).length > 0) return 'stale';
 
     const overlay = overlayClinicalDerived(day, read.docs);
-    const result = { record: overlay.record, overlaid: overlay.matchedEpisodeIds.length > 0 };
-    if (overlay.skippedDuplicateEpisodeIds.length === 0) return result;
-    if (strict) throw new ClinicalDerivedReadError(day.date, 'duplicate_episode');
-    return { ...result, fallbackReason: 'duplicate_episode' };
+    const result: ClinicalDerivedReadResult = {
+      record: overlay.record,
+      day,
+      overlaid: overlay.matchedEpisodeIds.length > 0,
+    };
+    if (overlay.skippedDuplicateEpisodeIds.length > 0) {
+      if (strict) throw new ClinicalDerivedReadError(day.date, 'duplicate_episode');
+      return { ...result, fallbackReason: 'duplicate_episode' };
+    }
+    return read.fromCache && !strict ? { ...result, fallbackReason: 'cache_only' } : result;
   };
 
   const first = await overlayDay(record);

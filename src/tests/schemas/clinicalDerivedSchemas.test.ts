@@ -3,6 +3,12 @@
 import { describe, expect, it } from 'vitest';
 import { ClinicalDerivedEpisodeDocSchema } from '@/schemas/zod/clinicalDerived';
 import { DailyRecordSchema, parseDailyRecordWithDefaultsReport } from '@/schemas/zodSchemas';
+import {
+  findStaleClinicalDerivedEpisodeIds,
+  readClinicalDerivedLayout,
+} from '@/services/storage/clinicalDerivedContract';
+import { docToRecord } from '@/services/storage/firestore/firestoreShared';
+import type { ClinicalDerivedEpisodeDoc } from '@/types/domain/clinicalDerived';
 
 const DATE = '2026-11-02';
 const marker = { version: 1, generation: 'gen_synthetic_a' };
@@ -91,5 +97,36 @@ describe('daily record marker', () => {
     );
     expect(report.salvagedBeds).toEqual(['R1']);
     expect(record.clinicalDerivedLayout).toEqual(marker);
+  });
+
+  // Every Firestore read goes through docToRecord: the contract, not the parse, classifies markers.
+  it.each([
+    ['a future version', { version: 2 }],
+    ['a string version', { version: '1', generation: 'gen_synthetic_a' }],
+    ['an empty generation', { version: 1, generation: '' }],
+    ['a generation that is not a document id', { version: 1, generation: 'a/b' }],
+    ['a bare string', 'gen_synthetic_a'],
+  ])('keeps %s as stored, so it reads as unsupported, never as unmarked', (_label, layout) => {
+    const record = docToRecord({ ...day(layout), meta: { revision: 5 } }, DATE);
+    expect(record.clinicalDerivedLayout).toEqual(layout);
+    expect((record as unknown as { meta?: unknown }).meta).toEqual({ revision: 5 });
+    expect(readClinicalDerivedLayout(record).status).toBe('unsupported');
+  });
+
+  it('a salvaged marked day keeps its marker and revision, so its documents are not stale', () => {
+    const record = docToRecord(
+      {
+        ...day(marker),
+        meta: { revision: 5 },
+        beds: { R1: { patientName: 'Paciente Sintético', status: 'ESTADO_INVALIDO' } },
+      },
+      DATE
+    );
+    const current = doc({ clinicalEpisodeId: 'ep_a', dayRevision: 5 });
+    expect(record.clinicalDerivedLayout).toEqual(marker);
+    expect((record as unknown as { meta?: unknown }).meta).toEqual({ revision: 5 });
+    expect(
+      findStaleClinicalDerivedEpisodeIds(record, [current as unknown as ClinicalDerivedEpisodeDoc])
+    ).toEqual([]);
   });
 });

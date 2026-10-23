@@ -380,7 +380,16 @@ verifica la clasificación de errores del servidor.
 `clinicalSyncCheckpoint` y `vitalSignsHistory` de cada episodio de un día marcado con
 `clinicalDerivedLayout`. Es una subcolección que sólo escribe el servidor, como
 `specialtyDecisions`: las reglas niegan toda escritura de clientes y ninguna actualización del día
-puede agregar, cambiar ni quitar el marcador o bajar `meta.revision` de un día marcado. Por ahora
-sólo existe la base de lectura: el contrato gemelo (`clinicalDerivedContract`), el lector
-`clinicalDerivedEpisodeReader.ts` y `dailyRecordClinicalDerivedReadService.ts`. Ningún flujo los
-llama ni hay escritor; nada marca un día hasta la activación del responsable.
+puede agregar, cambiar ni quitar el marcador o bajar `meta.revision` de un día marcado (ni dejarla
+fuera de un entero). Por ahora sólo existe la base de lectura: el contrato gemelo
+(`clinicalDerivedContract`), el lector `clinicalDerivedEpisodeReader.ts` y
+`dailyRecordClinicalDerivedReadService.ts`. Ningún flujo los llama ni hay escritor; nada marca un
+día hasta la activación del responsable.
+
+El esquema del día guarda el marcador tal como viene, sea cual sea su forma, y la recuperación de
+un día con una cama dañada conserva el marcador y `meta`: el contrato decide si el día está
+marcado, sin marcar o con un marcador no soportado, y un día recuperado no parece atrasado frente
+a sus documentos. El lector sólo valida los documentos de la generación vigente (los restos de un
+día borrado se ignoran sin leerlos) y dice cuándo respondió la caché sin conexión; la lectura
+`bestEffort` lo informa como `cache_only`, así que una exportación o la herramienta de personal
+deben leer con `source: 'server'`.

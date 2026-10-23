@@ -12,7 +12,6 @@ import {
 import { BedTypeSchema, PatientDataSchema } from './patient';
 import { DischargeDataSchema, TransferDataSchema, CMADataSchema } from './movements';
 import { RayenSyncPerformanceSchema } from './rayenSyncPerformance';
-import { ClinicalDerivedLayoutSchema } from './clinicalDerived';
 import { applyDailyRecordStaffingCompatibility } from '@/services/staff/dailyRecordStaffing';
 import {
   MAX_RAYEN_STAFFING_BOUNDARY_EVIDENCE,
@@ -290,7 +289,10 @@ export const DailyRecordSchema: z.ZodType<DailyRecord, z.ZodTypeDef, unknown> = 
       rayenBedCollisionResolutions: nullableOptional(
         z.array(RayenBedCollisionResolutionReceiptSchema)
       ),
-      clinicalDerivedLayout: nullableOptional(ClinicalDerivedLayoutSchema),
+      // Kept as stored, whatever its shape: the clinicalDerived contract decides whether the day
+      // is marked, unmarked or unsupported, so a marker this client does not understand is never
+      // dropped (and never sends the whole day to the salvage path).
+      clinicalDerivedLayout: nullableOptional(z.unknown()),
       dateTimestamp: nullableOptional(z.number()),
       schemaVersion: z.number().default(1),
       nurses: nullishDefault(z.array(StringSchema), () => ['', '']),

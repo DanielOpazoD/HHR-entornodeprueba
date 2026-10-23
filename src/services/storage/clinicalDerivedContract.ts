@@ -10,7 +10,8 @@
  *
  * The server twin is `functions/lib/clinicalDerivedContract.js`. The alignment test
  * (clinicalDerivedContractAlignment) runs the same synthetic matrix through both copies: change
- * one, change the other.
+ * one, change the other. The constants live in `clinicalDerivedConstants.ts` (eager modules import
+ * them from there) and are re-exported here.
  */
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type {
@@ -18,28 +19,24 @@ import type {
   ClinicalDerivedLayout,
   ClinicalDerivedTarget,
 } from '@/types/domain/clinicalDerived';
+import {
+  CLINICAL_DERIVED_DOC_SCHEMA_VERSION,
+  CLINICAL_DERIVED_LAYOUT_FIELD,
+  CLINICAL_DERIVED_LAYOUT_VERSION,
+  CLINICAL_DERIVED_MIN_CLIENT_RUNTIME_CONTRACT_VERSION,
+  CLINICAL_DERIVED_MOVED_FIELDS,
+} from '@/services/storage/clinicalDerivedConstants';
 
-export const CLINICAL_DERIVED_COLLECTION = 'clinicalDerived';
-
-/** Per-episode fields that leave the day on a marked day, in a stable order. */
-export const CLINICAL_DERIVED_MOVED_FIELDS = [
-  'clinicalSyncCheckpoint',
-  'vitalSignsHistory',
-] as const;
-
-export const CLINICAL_DERIVED_TARGETS = ['bed', 'clinicalCrib'] as const;
-
-/** Root field of the day marker `{ version, generation }`; only the server sets it. */
-export const CLINICAL_DERIVED_LAYOUT_FIELD = 'clinicalDerivedLayout';
-export const CLINICAL_DERIVED_LAYOUT_VERSION = 1;
-export const CLINICAL_DERIVED_DOC_SCHEMA_VERSION = 1;
-
-/**
- * Callables accept moved-field writes on marked (or marking) days only when the payload carries
- * this top-level field at or above the minimum. It stays outside digests and receipts.
- */
-export const CLIENT_RUNTIME_CONTRACT_VERSION_FIELD = 'clientRuntimeContractVersion';
-export const CLINICAL_DERIVED_MIN_CLIENT_RUNTIME_CONTRACT_VERSION = 3;
+export {
+  CLIENT_RUNTIME_CONTRACT_VERSION_FIELD,
+  CLINICAL_DERIVED_COLLECTION,
+  CLINICAL_DERIVED_DOC_SCHEMA_VERSION,
+  CLINICAL_DERIVED_LAYOUT_FIELD,
+  CLINICAL_DERIVED_LAYOUT_VERSION,
+  CLINICAL_DERIVED_MIN_CLIENT_RUNTIME_CONTRACT_VERSION,
+  CLINICAL_DERIVED_MOVED_FIELDS,
+  CLINICAL_DERIVED_TARGETS,
+} from '@/services/storage/clinicalDerivedConstants';
 
 export type ClinicalDerivedLayoutState =
   | { status: 'unmarked' }
@@ -72,9 +69,17 @@ const isPlainObject = (value: unknown): value is PlainObject =>
 const hasOwn = (value: object, key: string): boolean =>
   Object.prototype.hasOwnProperty.call(value, key);
 
+// Only arrays and plain objects are copied; a Timestamp, a Date or any other instance is shared
+// as is, never flattened into `{}`.
+const isPlainPrototype = (value: unknown): value is PlainObject => {
+  if (!isPlainObject(value)) return false;
+  const prototype: unknown = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+};
+
 const clonePlain = (value: unknown): unknown => {
   if (Array.isArray(value)) return value.map(clonePlain);
-  if (!isPlainObject(value)) return value;
+  if (!isPlainPrototype(value)) return value;
   const copy: PlainObject = {};
   Object.keys(value).forEach(key => {
     copy[key] = clonePlain(value[key]);
@@ -159,18 +164,22 @@ export const collectClinicalDerivedEpisodes = (
   };
 };
 
-/** Episode documents of the day's current layout, by episode id; leftovers are ignored. */
+/**
+ * Episode documents of the day's current layout (this date, this generation, this schema), by
+ * episode id; leftovers are ignored. Callers pass documents whose id equals `clinicalEpisodeId`.
+ */
 const currentDocsByEpisode = (
   record: DailyRecord,
   docs: readonly ClinicalDerivedEpisodeDoc[]
 ): Map<string, ClinicalDerivedEpisodeDoc> => {
   const layout = readClinicalDerivedLayout(record);
   const current = new Map<string, ClinicalDerivedEpisodeDoc>();
-  if (layout.status !== 'marked') return current;
+  if (layout.status !== 'marked' || typeof record.date !== 'string') return current;
   (Array.isArray(docs) ? docs : []).forEach(doc => {
     const candidate: unknown = doc;
     if (
       isPlainObject(candidate) &&
+      candidate.schemaVersion === CLINICAL_DERIVED_DOC_SCHEMA_VERSION &&
       candidate.date === record.date &&
       candidate.layoutGeneration === layout.layout.generation &&
       isClinicalDerivedDocId(candidate.clinicalEpisodeId)

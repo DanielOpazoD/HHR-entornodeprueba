@@ -43,9 +43,17 @@ const isPlainObject = value => value !== null && typeof value === 'object' && !A
 
 const hasOwn = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
 
+// Only arrays and plain objects are copied; a Timestamp, a Date or any other instance is shared
+// as is, never flattened into `{}`.
+const isPlainPrototype = value => {
+  if (!isPlainObject(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+};
+
 const clonePlain = value => {
   if (Array.isArray(value)) return value.map(clonePlain);
-  if (!isPlainObject(value)) return value;
+  if (!isPlainPrototype(value)) return value;
   const copy = {};
   Object.keys(value).forEach(key => {
     copy[key] = clonePlain(value[key]);
@@ -126,14 +134,18 @@ const collectClinicalDerivedEpisodes = record => {
   };
 };
 
-/** Episode documents of the day's current layout, by episode id; leftovers are ignored. */
+/**
+ * Episode documents of the day's current layout (this date, this generation, this schema), by
+ * episode id; leftovers are ignored. Callers pass documents whose id equals `clinicalEpisodeId`.
+ */
 const currentDocsByEpisode = (record, docs) => {
   const layout = readClinicalDerivedLayout(record);
   const current = new Map();
-  if (layout.status !== 'marked') return current;
+  if (layout.status !== 'marked' || typeof record.date !== 'string') return current;
   (Array.isArray(docs) ? docs : []).forEach(doc => {
     if (
       isPlainObject(doc) &&
+      doc.schemaVersion === CLINICAL_DERIVED_DOC_SCHEMA_VERSION &&
       doc.date === record.date &&
       doc.layoutGeneration === layout.layout.generation &&
       isClinicalDerivedDocId(doc.clinicalEpisodeId)
