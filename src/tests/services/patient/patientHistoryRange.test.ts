@@ -15,7 +15,6 @@ vi.mock('@/services/storage/firestore', () => ({
   getRecordPagesFromFirestore: async function* () {
     yield Object.values(await allRemote({ requireServer: true }));
   },
-  getAllRecordsFromFirestore: allRemote,
   getRecordsRangeFromFirestore: rangeRemote,
 }));
 vi.mock('@/services/repositories/repositoryConfig', () => ({ isFirestoreEnabled: () => true }));
