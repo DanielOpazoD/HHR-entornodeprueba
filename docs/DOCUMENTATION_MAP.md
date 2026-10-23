@@ -47,6 +47,7 @@ Documentos que gobiernan decisiones activas y estructura actual del repo.
 - [docs/README_AUDIT.md](README_AUDIT.md) — auditoría v2: qué se registra, conexiones por equipo y pantalla Auditoría (agrupaciones, filtros, exportación)
 - [docs/CLINICAL_MUTATION_AUDIT_POLICY.md](CLINICAL_MUTATION_AUDIT_POLICY.md) — postura de auditoría declarada por `AuditAction` (gate `check:clinical-mutation-audit-policy`)
 - [docs/SYNC_CONCURRENCY_MODEL.md](SYNC_CONCURRENCY_MODEL.md) — rutas de escritura del censo diario, enrutamiento a la autoridad, guardas y límites conocidos
+- [docs/DESIGN_DAILY_RECORD_PHASE1_CLINICAL_DERIVED.md](DESIGN_DAILY_RECORD_PHASE1_CLINICAL_DERIVED.md) — propuesta: datos clínicos derivados fuera del registro del día (fase 1)
 - [docs/rayen-incremental-clinical-sync.md](rayen-incremental-clinical-sync.md) — enriquecimiento clínico incremental Eloísa → HHR: checkpoint, escritor por corrida y cola por fecha
 
 #### ADRs
