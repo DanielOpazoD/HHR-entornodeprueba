@@ -1,10 +1,12 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { focusManager } from '@tanstack/react-query';
-import { queryClient as appQueryClient } from '@/config/queryClient';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { useMinsalStats } from '@/hooks/useMinsalStats';
 import { DAILY_RECORD_STORE_CHANGED_EVENT } from '@/services/storage/indexeddb/indexedDbRecordEvents';
-import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
+import {
+  createQueryClientTestWrapper,
+  alwaysRefetchDefaults,
+} from '@/tests/utils/queryClientTestUtils';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { MinsalStatistics } from '@/types/minsalTypes';
 
@@ -437,9 +439,10 @@ describe('useMinsalStats', () => {
     });
 
     it('does not rescan the local days on a tab return when nothing changed', async () => {
-      // The app's defaults refetch every query on every tab return, even when fresh.
+      // Worst case: refetch even fresh data on every tab return and reconnect, so only the
+      // query's own options can prevent the extra read.
       const { queryClient, wrapper } = createQueryClientTestWrapper({
-        config: { defaultOptions: appQueryClient.getDefaultOptions() },
+        config: { defaultOptions: alwaysRefetchDefaults },
       });
       const { result } = renderHook(() => useMinsalStats('lastMonth'), { wrapper });
       await waitFor(() => expect(result.current.allRecords).toEqual(records));

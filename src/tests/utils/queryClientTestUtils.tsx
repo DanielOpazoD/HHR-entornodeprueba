@@ -1,6 +1,12 @@
-import { QueryClient, QueryClientProvider, type QueryClientConfig } from '@tanstack/react-query';
+import {
+  QueryClient,
+  QueryClientProvider,
+  type DefaultOptions,
+  type QueryClientConfig,
+} from '@tanstack/react-query';
 import { type ReactElement, type ReactNode } from 'react';
 import { RepositoryProvider, createTestRepositoryContainer } from '@/services/RepositoryContext';
+import { queryClient as appQueryClient } from '@/config/queryClient';
 
 interface QueryClientTestWrapperOptions {
   config?: QueryClientConfig;
@@ -12,6 +18,19 @@ const DEFAULT_QUERY_CLIENT_CONFIG: QueryClientConfig = {
   defaultOptions: {
     queries: { retry: false },
     mutations: { retry: false },
+  },
+};
+
+/**
+ * The app's defaults, but refetching even fresh data on every tab return and reconnect: the
+ * worst case a query's own refetch options must hold against.
+ */
+export const alwaysRefetchDefaults: DefaultOptions = {
+  ...appQueryClient.getDefaultOptions(),
+  queries: {
+    ...appQueryClient.getDefaultOptions().queries,
+    refetchOnWindowFocus: 'always',
+    refetchOnReconnect: 'always',
   },
 };
 
