@@ -1,5 +1,7 @@
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { focusManager, onlineManager } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { queryClient as appQueryClient, queryKeys } from '@/config/queryClient';
 import { useStaffUsage } from '@/hooks/useStaffUsage';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 
@@ -41,5 +43,32 @@ describe('useStaffUsage', () => {
     const { result } = renderHook(() => useStaffUsage([]), { wrapper });
     await waitFor(() => expect(db.read).toHaveBeenCalledTimes(1));
     expect(result.current).toEqual({ nurse: {}, tens: {} });
+  });
+
+  it('reads the 90 censuses once per session, not on tab returns or reconnects', async () => {
+    db.read.mockResolvedValue([{ nursesDayShift: ['Ana Soto'], tensDayShift: [] }]);
+    // The app's defaults refetch every query on focus and reconnect, even when fresh.
+    const { queryClient, wrapper } = createQueryClientTestWrapper({
+      config: { defaultOptions: appQueryClient.getDefaultOptions() },
+    });
+    const { result } = renderHook(() => useStaffUsage([]), { wrapper });
+    await waitFor(() => expect(result.current.nurse['ana soto']).toBe(1));
+
+    try {
+      await act(async () => {
+        focusManager.setFocused(false);
+        focusManager.setFocused(true);
+        onlineManager.setOnline(false);
+        onlineManager.setOnline(true);
+        // What the staleness guard does when the tab returns after a while.
+        await queryClient.invalidateQueries({ queryKey: queryKeys.staff.all });
+      });
+      expect(db.read).toHaveBeenCalledTimes(1);
+      expect(result.current.nurse['ana soto']).toBe(1);
+    } finally {
+      focusManager.setFocused(undefined);
+      onlineManager.setOnline(true);
+      queryClient.clear();
+    }
   });
 });
