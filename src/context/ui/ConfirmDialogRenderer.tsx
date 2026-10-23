@@ -1,7 +1,7 @@
 import React from 'react';
 import { X, AlertTriangle, Info } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import { useBaseModalLifecycle } from '@/components/shared/useBaseModalLifecycle';
+import { useBaseModalLifecycle } from '@/hooks/useBaseModalLifecycle';
 import type { DialogState } from '@/context/uiContracts';
 
 interface ConfirmDialogRendererProps {
