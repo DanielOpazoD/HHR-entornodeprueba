@@ -19,8 +19,8 @@ const point = (value: number, refMin: number, refMax: number): LabTrendPoint => 
 
 describe('LabTrendChartHelpers clinical presentation', () => {
   it('uses compact readable date labels on the chart axis', () => {
-    expect(formatLabTrendAxisDate('19/08/2026 12:56')).toBe('19/08 12:56');
-    expect(formatLabTrendAxisDate('6/4/2026')).toBe('06/04');
+    expect(formatLabTrendAxisDate('19/08/2026 12:56')).toBe('8/26');
+    expect(formatLabTrendAxisDate('6/4/2026')).toBe('4/26');
   });
 
   it('formats thousands and decimals using the clinical locale', () => {
@@ -69,6 +69,18 @@ describe('LabTrendChartHelpers clinical presentation', () => {
       { unit: 'mg/dL', vars: { PCR: [first] } },
       { unit: 'mg/L', vars: { PCR: [second] } },
     ]);
+  });
+
+  it('groups cached delimiter artifacts while preserving different units and source points', () => {
+    const first = { ...point(1, 0, 5), unit: 'mg/dL |' };
+    const second = { ...point(2, 0, 5), unit: 'mg/dL' };
+    const other = { ...point(20, 0, 50), unit: 'mg/L' };
+    const groups = groupVariablesByScale({ Creatinina: [first, second, other] });
+    expect(groups).toEqual([
+      { unit: 'mg/dL', vars: { Creatinina: [first, second] } },
+      { unit: 'mg/L', vars: { Creatinina: [other] } },
+    ]);
+    expect(first.unit).toBe('mg/dL |');
   });
 
   it('keeps missing units separate while tolerating case and spacing aliases', () => {

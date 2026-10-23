@@ -62,6 +62,7 @@
               type: 'RAYEN_SYSLAB_VALIDATE_REPORT',
               rutBody: batch.rutBody,
               examId: exam.id,
+              date: exam.date,
               link,
             },
             Math.min(reportTimeoutMs, remainingMs)

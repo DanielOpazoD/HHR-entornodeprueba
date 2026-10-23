@@ -1,5 +1,9 @@
 import type { LabTrendPoint } from '@/types/domain/labAnalyticsTypes';
-import { resolveSharedReferenceBand, sortByDate } from './LabTrendChartHelpers';
+import {
+  formatLabTrendAxisDate,
+  resolveSharedReferenceBand,
+  sortByDate,
+} from './LabTrendChartHelpers';
 
 export interface LabChartRow {
   date: string;
@@ -43,8 +47,18 @@ export const buildLabTrendChartModel = (variables: Record<string, LabTrendPoint[
   const domain: [number, number] = hasValues
     ? [min >= 0 ? Math.max(0, lower) : lower, upper]
     : [0, 1];
+  const seenMonths = new Set<string>();
+  const axisTicks = chartData
+    .filter(row => {
+      const label = formatLabTrendAxisDate(row.date);
+      if (seenMonths.has(label)) return false;
+      seenMonths.add(label);
+      return true;
+    })
+    .map(row => row.date);
   return {
     chartData,
+    axisTicks,
     domain,
     sharedReference: resolveSharedReferenceBand(variables),
     showPointLabels: chartData.length <= 6 && Object.keys(variables).length <= 2,

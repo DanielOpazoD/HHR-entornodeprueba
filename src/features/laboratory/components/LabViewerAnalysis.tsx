@@ -96,6 +96,17 @@ export const LabViewerAnalysis: React.FC<LabViewerAnalysisProps> = ({
     }
   };
 
+  if (data.examDates.length === 0) {
+    return (
+      <div className="py-8 text-center text-sm text-slate-500">
+        <p>No hay resultados validados disponibles en esta selección.</p>
+        <button type="button" onClick={onBack} className="mt-3 text-emerald-700 hover:underline">
+          Volver a exámenes
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div
