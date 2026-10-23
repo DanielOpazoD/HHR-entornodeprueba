@@ -12,6 +12,9 @@ import {
 
 export const SYNC_QUEUE_POLL_INTERVAL_MS = 4000;
 
+const isDocumentVisible = () =>
+  typeof document === 'undefined' || document.visibilityState !== 'hidden';
+
 interface UseSyncQueueMonitorOptions {
   enabled?: boolean;
   pollIntervalMs?: number;
@@ -35,6 +38,7 @@ export const useSyncQueueMonitor = (
   } = options;
   const [stats, setStats] = useState<SyncQueueStats>(EMPTY_SYNC_QUEUE_STATS);
   const [operations, setOperations] = useState<SyncQueueOperation[]>([]);
+  const [visible, setVisible] = useState(isDocumentVisible);
   const isMountedRef = useRef(true);
   const refreshRequestIdRef = useRef(0);
   const pendingRefreshIdRef = useRef<number | null>(null);
@@ -96,7 +100,16 @@ export const useSyncQueueMonitor = (
   }, [operationLimit]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (typeof document === 'undefined') return;
+    const syncVisibility = () => setVisible(isDocumentVisible());
+    document.addEventListener('visibilitychange', syncVisibility);
+    return () => document.removeEventListener('visibilitychange', syncVisibility);
+  }, []);
+
+  // A hidden tab shows nothing, so it stops scanning the queue every few seconds and
+  // reads it again the moment it returns. Queue processing does not depend on this.
+  useEffect(() => {
+    if (!enabled || !visible) return;
 
     let active = true;
 
@@ -116,7 +129,7 @@ export const useSyncQueueMonitor = (
       pendingRefreshIdRef.current = null;
       clearInterval(intervalId);
     };
-  }, [enabled, pollIntervalMs, refresh]);
+  }, [enabled, visible, pollIntervalMs, refresh]);
 
   const hasQueueIssues = hasSyncQueueIssues(stats);
 
