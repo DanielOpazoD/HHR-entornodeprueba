@@ -63,6 +63,7 @@ describe('ClinicalDocumentsSidebar', () => {
 
   it('renders documents with their saved title and delegates selection and deletion', () => {
     const document = { ...buildDocument(), title: 'Evolución médica 25/05/2026' };
+    const otherDocument = { ...document, id: 'other-document', title: 'Control médico' };
     const onSelectDocument = vi.fn();
     const onDuplicateDocument = vi.fn();
     const onDeleteDocument = vi.fn();
@@ -77,7 +78,7 @@ describe('ClinicalDocumentsSidebar', () => {
         selectedTemplateId="epicrisis"
         onSelectTemplate={() => {}}
         onCreateDocument={() => {}}
-        documents={[document]}
+        documents={[document, otherDocument]}
         selectedDocumentId={document.id}
         onSelectDocument={onSelectDocument}
         onDuplicateDocument={onDuplicateDocument}
@@ -85,20 +86,26 @@ describe('ClinicalDocumentsSidebar', () => {
       />
     );
 
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: /evolución médica 25\/05\/2026/i,
-      })
-    );
+    const selectedDocument = screen.getByRole('button', {
+      name: /evolución médica 25\/05\/2026/i,
+      pressed: true,
+    });
+    expect(
+      screen.getByRole('button', { name: /control médico/i, pressed: false })
+    ).toBeInTheDocument();
+    fireEvent.click(selectedDocument);
     expect(onSelectDocument).toHaveBeenCalledWith(document.id);
 
-    fireEvent.click(screen.getByTitle(/duplicar documento/i));
+    const duplicateActions = screen.getAllByRole('button', { name: 'Duplicar documento' });
+    duplicateActions[0].focus();
+    expect(duplicateActions[0]).toHaveFocus();
+    fireEvent.click(duplicateActions[0]);
     expect(onDuplicateDocument).toHaveBeenCalledWith(document);
 
-    fireEvent.click(screen.getByTitle(/eliminar documento/i));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Eliminar documento' })[0]);
     expect(onDeleteDocument).toHaveBeenCalledWith(document);
     expect(screen.getByText('Evolución médica 25/05/2026')).toBeInTheDocument();
-    expect(screen.getByText(/doctor test/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/doctor test/i)).toHaveLength(2);
     expect(screen.queryByText(/borrador/i)).not.toBeInTheDocument();
   });
 
@@ -248,7 +255,9 @@ describe('ClinicalDocumentsSidebar', () => {
     expect(
       screen.queryByRole('button', { name: /documento complementario/i })
     ).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /agregar anexos/i }));
+    const annexAction = screen.getByRole('button', { name: /agregar anexos/i });
+    expect(annexAction).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(annexAction);
 
     expect(onToggleAnnex).toHaveBeenCalledTimes(1);
   });

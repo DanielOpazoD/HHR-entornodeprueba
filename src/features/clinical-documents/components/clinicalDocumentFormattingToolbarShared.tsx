@@ -48,7 +48,7 @@ export const FORMATTING_PANEL_Z_INDEX = 120;
 // ---------------------------------------------------------------------------
 
 export const iconBtn =
-  'inline-flex h-7 w-7 items-center justify-center rounded-lg border transition-colors disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300';
+  'inline-flex h-8 w-8 items-center justify-center rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-medical-500 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300';
 
 export const defaultIconBtn = `${iconBtn} border-slate-200 text-slate-600 hover:bg-slate-50`;
 
@@ -84,8 +84,13 @@ export const ToolbarCluster: React.FC<{
   label: string;
   children: React.ReactNode;
 }> = ({ label, children }) => (
-  <div className="clinical-document-toolbar-cluster" role="group" aria-label={label}>
-    <span className="clinical-document-toolbar-cluster-label">{label}</span>
+  <div
+    data-clinical-document-toolbar-cluster
+    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-1.5 py-1"
+    role="group"
+    aria-label={label}
+  >
+    <span className="whitespace-nowrap text-[11px] font-medium text-slate-500">{label}</span>
     <div className="flex items-center gap-1">{children}</div>
   </div>
 );

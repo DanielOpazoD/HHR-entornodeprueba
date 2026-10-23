@@ -171,7 +171,9 @@ export const ClinicalDocumentsWorkspace: React.FC<ClinicalDocumentsWorkspaceProp
   const headerContent =
     toolbarNode || statusNode ? (
       <>
-        {toolbarNode && <div className="relative z-20 flex items-center">{toolbarNode}</div>}
+        {toolbarNode && (
+          <div className="relative z-20 flex items-center max-md:pl-10">{toolbarNode}</div>
+        )}
         {statusNode && <div className="flex items-center">{statusNode}</div>}
       </>
     ) : null;
