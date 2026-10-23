@@ -1,3 +1,5 @@
+import { clearPendingProfessionalIdentity } from '@/services/user-profile/sessionProfessionalIdentity';
+
 const RECENT_MANUAL_LOGOUT_KEY = 'hhr_recent_manual_logout_v1';
 const RECENT_MANUAL_LOGOUT_TTL_MS = 120_000;
 
@@ -71,6 +73,7 @@ let pendingLogout: Promise<void> | null = null;
  * Returns the function that marks the logout done; calling it again is harmless.
  */
 export const beginPendingLogout = (): (() => void) => {
+  clearPendingProfessionalIdentity();
   let finish: () => void = () => undefined;
   const done = new Promise<void>(resolve => {
     finish = resolve;

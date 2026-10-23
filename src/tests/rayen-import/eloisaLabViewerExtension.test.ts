@@ -87,6 +87,24 @@ describe('native Eloisa laboratory viewer', () => {
     ]);
   });
 
+  it('removes column delimiters without changing units, references or measured values', () => {
+    expect(labViewer.parseReportText('Potasio : 3,6 mmol/L | 3,5 - 5,0')).toEqual([
+      expect.objectContaining({ unit: 'mmol/L', refValue: '3,5 - 5,0', result: '3,6' }),
+    ]);
+    expect(labViewer.parseReportText('Creatinina : <0,1 | mg/dL | < 1,2 |')).toEqual([
+      expect.objectContaining({ unit: 'mg/dL', refValue: '< 1,2', result: '<0,1' }),
+    ]);
+  });
+
+  it('rejects reports containing conflicting patient identifiers instead of trusting the first', () => {
+    expect(
+      labViewer.extractRutBodyFromReportText('Rut/Fic : 11.111.111-1\nRut/Fic : 22.222.222-2')
+    ).toBe('');
+    expect(
+      labViewer.extractRutBodyFromReportText('Rut/Fic : 11.111.111-1\nRut/Fic : 11.111.111-1')
+    ).toBe('11111111');
+  });
+
   it('keeps urine leukocytes separate and parses dotted hepatic thousands contextually', () => {
     const report = [
       'PERFIL HEPATICO',

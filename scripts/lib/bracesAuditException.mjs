@@ -6,7 +6,7 @@ export const BRACES_EXCEPTION = Object.freeze({
   startsAt: '2026-10-07T00:00:00Z',
   // Accepted until an official fix or withdrawal is verified; scope checks still fail closed.
   expiresAt: null,
-  lockSha256: '6c96794225084b71458e7fc1f96e66166cbf35bb8da10451c771aae38a0bcd32',
+  lockSha256: '998d4f112ae629d4b2418e131ea8a05380ba74127063922e39b0e14fe371adac',
 });
 const versions = {
   '@boundaries/elements': '2.0.1',

@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { auth } from 'googleapis/build/src/apis/gmail';
+import { auth } from 'googleapis/build/src/apis/gmail/index.js';
 import { sendCensusEmail } from '@/services/email/gmailClient';
 
 const providerData = { id: 'synthetic-provider-id', threadId: 'synthetic-thread-id' };
