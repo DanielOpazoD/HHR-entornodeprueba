@@ -140,14 +140,14 @@ export const useRayenCensusDiffApplication = ({
             let confirmedCheckpointRecord = checkpointResult.confirmedRecord ?? null;
             const checkpointCommitted = !isDailyRecordWriteRejectedResult(checkpointResult);
             if (checkpointCommitted && confirmedCheckpointRecord?.rayenSync?.runId !== run.id) {
-              // Verificado en vivo (31-08): la transacción del checkpoint commitea
-              // y estampa el run en el servidor, pero la confirmación devuelta
-              // puede venir de una lectura anterior al commit y llegar SIN el
-              // sello. La verificación del handoff rechazaba entonces una corrida
-              // realmente commiteada («El guardado del censo no confirmó la
-              // versión…») y la marcaba fallida. Una única relectura autoritativa
-              // recupera el estado real; el guard vuelve a validar el sello y
-              // sigue fallando ruidosamente si de verdad no está.
+              // Defence only. The atomic checkpoint now returns the record its own
+              // transaction committed, run stamp included. Without that receipt the
+              // confirmation comes from a readback, which an attached listener can
+              // answer with the pre-commit version (seen live on 31-08: committed
+              // run, unstamped confirmation). A readback still at the base version
+              // now fails closed upstream and never reaches here, so this reread only
+              // covers a newer readback without the run stamp. It shares the listener
+              // exposure; the handoff guard re-validates the stamp and fails loudly.
               confirmedCheckpointRecord = await loadAuthoritativeRecord(persistenceBase.date);
             }
             persistence = {

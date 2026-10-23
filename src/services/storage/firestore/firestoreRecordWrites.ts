@@ -9,6 +9,7 @@ import type { DailyRecord, DailyRecordPatch } from '@/services/storage/storageDa
 import { withRetry } from '@/utils/networkUtils';
 import { DataRegressionError } from '@/utils/integrityGuard';
 import {
+  docToRecord,
   getRecordDocRef,
   sanitizeForFirestore,
 } from '@/services/storage/firestore/firestoreShared';
@@ -21,6 +22,12 @@ import {
   saveRecordAtomically,
   updateRecordPartiallyAtomically,
 } from '@/services/storage/firestore/firestoreWriteSupport';
+import {
+  projectFirestoreUpdate,
+  UnsupportedFirestoreUpdateProjectionError,
+} from '@/services/storage/firestore/firestoreUpdateProjection';
+import { createOperationalError } from '@/services/observability/operationalError';
+import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import {
   isPermissionDeniedError,
   logFirestoreWriteError,
@@ -54,7 +61,10 @@ import {
   buildGuardedRayenFallbackData,
   extractGuardedRayenClinicalPatch,
 } from '@/services/storage/firestore/firestoreRayenGuardedPatch';
-import { createDirectFirestoreWriteReceipt } from './firestoreDirectWriteReceipt';
+import {
+  createDirectFirestoreWriteReceipt,
+  type DirectFirestoreWriteReceipt,
+} from './firestoreDirectWriteReceipt';
 import { runPartialUpdatePersistWithPermissionFallbacks } from '@/services/storage/firestore/firestoreBedTreePermissionFallback';
 import { stripInheritedAuthorityRepair } from '@/services/storage/firestore/firestoreInheritedRepairSeparation';
 import {
@@ -149,12 +159,64 @@ export const saveRecordToFirestore = async (
     throw error;
   }
 };
+
+const COMMITTED_RECORD_UNAVAILABLE = {
+  code: 'firestore_committed_record_unavailable',
+  message: 'No se pudo armar el registro confirmado del parche atómico; se usará la relectura.',
+  severity: 'warning',
+} as const;
+
+const reportCommittedRecordUnavailable = (
+  date: string,
+  reason: 'unsupported_payload' | 'conversion_failed' | 'version_mismatch',
+  path?: string
+) =>
+  recordOperationalErrorTelemetry(
+    'firestore',
+    'atomic_partial_committed_record',
+    createOperationalError(COMMITTED_RECORD_UNAVAILABLE),
+    COMMITTED_RECORD_UNAVAILABLE,
+    { date, context: { reason, ...(path ? { path } : {}) } }
+  );
+
+/**
+ * Receipt for an atomic partial update: its payload projected onto the base the committing
+ * attempt read. Runs after the commit and outside withRetry, where a throw would re-run a committed
+ * transaction and report it as a ConcurrencyError; any doubt returns void so the caller falls back
+ * to its readback.
+ */
+const buildAtomicPartialCommitReceipt = (
+  date: string,
+  baseData: DocumentData,
+  payload: DocumentData
+): DirectFirestoreWriteReceipt | void => {
+  try {
+    const committedAt = payload.lastUpdated;
+    const record = docToRecord(projectFirestoreUpdate(baseData, payload), date);
+    if (
+      !(committedAt instanceof Timestamp) ||
+      record.date !== date ||
+      record.lastUpdated !== committedAt.toDate().toISOString()
+    ) {
+      reportCommittedRecordUnavailable(date, 'version_mismatch');
+      return;
+    }
+    return createDirectFirestoreWriteReceipt(record, committedAt.toDate());
+  } catch (error) {
+    if (error instanceof UnsupportedFirestoreUpdateProjectionError) {
+      reportCommittedRecordUnavailable(date, 'unsupported_payload', error.path);
+    } else {
+      reportCommittedRecordUnavailable(date, 'conversion_failed');
+    }
+  }
+};
+
 export const updateRecordPartial = async (
   date: string,
   partialData: DailyRecordPatch,
   expectedLastUpdated?: string,
   options: DailyRecordPartialWriteOptions = {}
-): Promise<DailyRecordAuthorityCallableResponse | void> => {
+): Promise<DailyRecordAuthorityCallableResponse | DirectFirestoreWriteReceipt | void> => {
   try {
     const docRef = getRecordDocRef(date);
     // La verificación de concurrencia por lectura directa sólo protege las rutas
@@ -337,7 +399,7 @@ export const updateRecordPartial = async (
           );
         }
         if (options.requireAtomicCas) {
-          return withRetry(
+          const committedBase = await withRetry(
             () =>
               updateRecordPartiallyAtomically(
                 docRef,
@@ -353,6 +415,11 @@ export const updateRecordPartial = async (
               shouldRetry: (err: unknown) => !(err instanceof ConcurrencyError),
             }
           );
+          // Plain local-first writes (reclassification) stay receipt-less, because a returned
+          // result sends the controller into its confirm-and-adopt path.
+          return options.returnCommittedRecord
+            ? buildAtomicPartialCommitReceipt(date, committedBase, sanitizedData)
+            : undefined;
         }
 
         await assertDirectWriteConcurrency();

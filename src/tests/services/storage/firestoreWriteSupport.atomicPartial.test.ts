@@ -211,3 +211,45 @@ describe('updateRecordPartiallyAtomically', () => {
     expect(tx.update).not.toHaveBeenCalled();
   });
 });
+
+describe('updateRecordPartiallyAtomically committed base', () => {
+  const base = '2026-07-14T10:00:00.000Z';
+  const makeTx = (data: Record<string, unknown>) => ({
+    get: vi.fn().mockResolvedValue({ exists: () => true, data: () => data }),
+    set: vi.fn(),
+    update: vi.fn(),
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+  });
+
+  it('resolves with the base read by the attempt that committed, not the first one', async () => {
+    const firstAttempt = makeTx({ lastUpdated: base, discharges: [{ id: 'old' }], note: 'A' });
+    const committedAttempt = makeTx({ lastUpdated: base, discharges: [{ id: 'old' }], note: 'B' });
+    // The SDK re-runs the callback after a contended commit and resolves with the last result.
+    mockRunTransaction.mockImplementation(
+      async (_db: unknown, fn: (tx: unknown) => Promise<unknown>) => {
+        await fn(firstAttempt);
+        return fn(committedAttempt);
+      }
+    );
+
+    const committedBase = await updateRecordPartiallyAtomically(
+      { kind: 'docRef' } as never,
+      { discharges: [], cma: [{ id: 'old' }], lastUpdated: '2026-07-14T10:05:00.000Z' },
+      base,
+      'conflict',
+      'movement reclassification'
+    );
+
+    expect(committedBase).toEqual({ lastUpdated: base, discharges: [{ id: 'old' }], note: 'B' });
+    // The history copy still comes from the committed attempt's base.
+    expect(committedAttempt.set).toHaveBeenCalledWith(
+      { kind: 'doc', args: expect.anything() },
+      expect.objectContaining({ note: 'B', snapshotTimestamp: expect.anything() })
+    );
+    expect(committedAttempt.update).toHaveBeenCalledOnce();
+  });
+});
