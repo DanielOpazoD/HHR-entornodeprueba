@@ -84,7 +84,7 @@ test.describe('Clinical document formatting panel', () => {
     await editableSection.type('Linea para sangrar');
 
     // Open the advanced formatting panel.
-    const formatButton = page.getByRole('button', { name: 'Formato' });
+    const formatButton = page.getByRole('button', { name: 'Formato', exact: true });
     await expect(formatButton).toBeEnabled({ timeout: 10_000 });
     await formatButton.click();
 

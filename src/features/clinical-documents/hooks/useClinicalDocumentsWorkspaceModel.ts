@@ -36,6 +36,7 @@ type ClinicalDocumentsWorkspaceSheetProps = ClinicalDocumentsWorkspaceSheetModel
 
 interface ClinicalDocumentsWorkspaceModel {
   canRead: boolean;
+  episodeKey: string;
   sidebarProps: ClinicalDocumentsSidebarProps;
   sheetProps: ClinicalDocumentsWorkspaceSheetProps;
 }
@@ -277,6 +278,7 @@ export const useClinicalDocumentsWorkspaceModel = ({
 
   return {
     canRead,
+    episodeKey: episode.episodeKey,
     sidebarProps: buildClinicalDocumentsWorkspaceSidebarProps({
       canEdit,
       canDelete,

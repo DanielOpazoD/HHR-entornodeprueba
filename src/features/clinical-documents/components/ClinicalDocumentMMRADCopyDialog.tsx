@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Check, ClipboardCopy, Loader2, Radio, X } from 'lucide-react';
 
 import { searchMMRADExams, type MMRADExam } from '@/services/radiology/mmradService';
@@ -31,7 +31,7 @@ const toExamTimestamp = (raw: string): number => {
 const buildExamKey = (exam: MMRADExam): string =>
   exam.informe_html_url || exam.pdf_url || `${exam.nombre_examen}-${exam.fecha_examen}`;
 
-export const ClinicalDocumentMMRADCopyDialog: React.FC<ClinicalDocumentMMRADCopyDialogProps> = ({
+const ClinicalDocumentMMRADCopySession: React.FC<ClinicalDocumentMMRADCopyDialogProps> = ({
   patientRut,
   onClose,
 }) => {
@@ -39,9 +39,18 @@ export const ClinicalDocumentMMRADCopyDialog: React.FC<ClinicalDocumentMMRADCopy
   const [isLoading, setIsLoading] = useState(true);
   const [copiedExamKey, flashCopiedExamKey] = useTransientFlag<string | null>(null, 1800);
   const [error, setError] = useState<string | null>(null);
+  const isActive = useRef(true);
+
+  useLayoutEffect(() => {
+    isActive.current = true;
+    return () => {
+      isActive.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
+    const canUpdate = () => !cancelled && isActive.current;
 
     const load = async () => {
       setIsLoading(true);
@@ -50,7 +59,7 @@ export const ClinicalDocumentMMRADCopyDialog: React.FC<ClinicalDocumentMMRADCopy
       try {
         const { dateFrom, dateTo } = buildLastThirtyDaysRange();
         const result = await searchMMRADExams({ rut: patientRut, dateFrom, dateTo });
-        if (cancelled) return;
+        if (!canUpdate()) return;
 
         const relevantExams = result.examenes
           .filter(exam => (exam.mod || '').trim().toUpperCase() === 'CT' && exam.report)
@@ -60,11 +69,11 @@ export const ClinicalDocumentMMRADCopyDialog: React.FC<ClinicalDocumentMMRADCopy
 
         setExams(relevantExams);
       } catch (loadError) {
-        if (!cancelled) {
+        if (canUpdate()) {
           setError(loadError instanceof Error ? loadError.message : 'No se pudo cargar MMRAD.');
         }
       } finally {
-        if (!cancelled) {
+        if (canUpdate()) {
           setIsLoading(false);
         }
       }
@@ -76,10 +85,8 @@ export const ClinicalDocumentMMRADCopyDialog: React.FC<ClinicalDocumentMMRADCopy
     };
   }, [patientRut]);
 
-  const dialogTitle = useMemo(() => 'Copiar informe MMRAD', []);
-
   const handleCopy = async (exam: MMRADExam) => {
-    if (!exam.report) return;
+    if (!isActive.current || !exam.report) return;
 
     const text = buildMMRADReportClipboardText({
       examName: exam.nombre_examen,
@@ -91,8 +98,17 @@ export const ClinicalDocumentMMRADCopyDialog: React.FC<ClinicalDocumentMMRADCopy
 
     if (!text) return;
 
-    await writeClipboardText(text);
-    flashCopiedExamKey(buildExamKey(exam));
+    try {
+      await writeClipboardText(text);
+      if (isActive.current) flashCopiedExamKey(buildExamKey(exam));
+    } catch {
+      if (isActive.current) setError('No se pudo copiar el informe.');
+    }
+  };
+
+  const handleClose = () => {
+    isActive.current = false;
+    onClose();
   };
 
   return (
@@ -100,9 +116,14 @@ export const ClinicalDocumentMMRADCopyDialog: React.FC<ClinicalDocumentMMRADCopy
       <div className="flex items-center justify-between border-b border-violet-100 px-3 py-2">
         <div className="flex items-center gap-1.5">
           <Radio size={13} className="text-violet-600" />
-          <span className="text-[11px] font-bold text-slate-700">{dialogTitle}</span>
+          <span className="text-[11px] font-bold text-slate-700">Copiar informe MMRAD</span>
         </div>
-        <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600">
+        <button
+          type="button"
+          aria-label="Cerrar MMRAD"
+          onClick={handleClose}
+          className="text-slate-400 hover:text-slate-600"
+        >
           <X size={14} />
         </button>
       </div>
@@ -156,3 +177,7 @@ export const ClinicalDocumentMMRADCopyDialog: React.FC<ClinicalDocumentMMRADCopy
     </div>
   );
 };
+
+export const ClinicalDocumentMMRADCopyDialog: React.FC<
+  ClinicalDocumentMMRADCopyDialogProps
+> = props => <ClinicalDocumentMMRADCopySession key={props.patientRut} {...props} />;

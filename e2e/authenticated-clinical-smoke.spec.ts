@@ -85,6 +85,32 @@ const assertExportEntrypointIsOperational = async (page: Page) => {
 };
 
 test.describe('Authenticated clinical smoke', () => {
+  test('starts a fresh editor session and closes laboratory when duplicating a document', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openAuthenticatedCensus(page);
+    await openClinicalDocumentsFromR1(page);
+    await page.getByRole('button', { name: /Crear documento/i }).click();
+
+    const editor = page.locator('[contenteditable="true"][data-section-editor]').first();
+    await expect(editor).toBeVisible();
+    await editor.fill('Texto inicial sintético');
+    await editor.blur();
+    await editor.fill('Texto sintético del documento original');
+    await expect(page.getByRole('button', { name: 'Deshacer', exact: true })).toBeEnabled();
+    await page.getByRole('button', { name: 'Insertar contenido' }).click();
+    await page.getByRole('button', { name: 'Laboratorio', exact: true }).click();
+    await expect(page.getByText('Insertar Laboratorio', { exact: true })).toBeVisible();
+
+    await page.getByTitle('Duplicar documento', { exact: true }).first().click();
+    await expect(page.getByTitle('Duplicar documento', { exact: true })).toHaveCount(2);
+    await expect(page.getByText('Insertar Laboratorio', { exact: true })).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Deshacer', exact: true })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Rehacer', exact: true })).toBeDisabled();
+    await expect(editor).toContainText('Texto sintético del documento original');
+  });
+
   test('covers census, clinical documents, and local export entrypoints', async ({ page }) => {
     await openAuthenticatedCensus(page);
     await openClinicalDocumentsFromR1(page);

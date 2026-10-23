@@ -4,7 +4,7 @@
  * into the clinical document.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { FlaskConical, Loader2, X } from 'lucide-react';
 import { getLabResults, buildLabSummaryText } from '@/features/laboratory';
 import { searchSyslabExams, fetchSyslabExamDetails } from '@/services/laboratory/syslabService';
@@ -68,7 +68,7 @@ const mergeExamOptions = (cachedOptions: ExamOption[], liveOptions: ExamOption[]
   return Array.from(merged.values()).sort(sortExamOptionsNewestFirst);
 };
 
-export const ClinicalDocumentLabInsertDialog: React.FC<ClinicalDocumentLabInsertDialogProps> = ({
+const ClinicalDocumentLabInsertSession: React.FC<ClinicalDocumentLabInsertDialogProps> = ({
   patientRut,
   onInsert,
   onClose,
@@ -77,10 +77,19 @@ export const ClinicalDocumentLabInsertDialog: React.FC<ClinicalDocumentLabInsert
   const [isLoading, setIsLoading] = useState(true);
   const [isInserting, setIsInserting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const isActive = useRef(true);
+
+  useLayoutEffect(() => {
+    isActive.current = true;
+    return () => {
+      isActive.current = false;
+    };
+  }, []);
 
   // Load exams: first from Firestore cache, then live from Syslab
   useEffect(() => {
     let cancelled = false;
+    const canUpdate = () => !cancelled && isActive.current;
 
     const load = async () => {
       setIsLoading(true);
@@ -89,14 +98,13 @@ export const ClinicalDocumentLabInsertDialog: React.FC<ClinicalDocumentLabInsert
       try {
         // 1. Try Firestore cache first
         const cached = await getLabResults(patientRut);
+        if (!canUpdate()) return;
         const cachedOpts = buildCachedExamOptions(cached);
-        if (cachedOpts.length > 0) {
-          if (!cancelled) setExams(cachedOpts.sort(sortExamOptionsNewestFirst));
-        }
+        setExams(cachedOpts.sort(sortExamOptionsNewestFirst));
 
         // 2. Also try live Syslab (may have newer exams)
         const live = await searchSyslabExams(patientRut);
-        if (!cancelled && live.success && live.data.length > 0) {
+        if (canUpdate() && live.success && live.data.length > 0) {
           const liveOpts: ExamOption[] = live.data.map(e => ({
             id: e.id,
             date: e.date,
@@ -108,22 +116,23 @@ export const ClinicalDocumentLabInsertDialog: React.FC<ClinicalDocumentLabInsert
             link: e.link || undefined,
           }));
 
-          if (!cancelled) setExams(mergeExamOptions(cachedOpts, liveOpts));
+          setExams(mergeExamOptions(cachedOpts, liveOpts));
         }
       } catch {
-        if (!cancelled) setError('No se pudieron cargar los exámenes.');
+        if (canUpdate()) setError('No se pudieron cargar los exámenes.');
       } finally {
-        if (!cancelled) setIsLoading(false);
+        if (canUpdate()) setIsLoading(false);
       }
     };
 
-    load();
+    void load();
     return () => {
       cancelled = true;
     };
   }, [patientRut]);
 
   const handleSelect = async (exam: ExamOption) => {
+    if (!isActive.current) return;
     setIsInserting(exam.id);
 
     try {
@@ -132,6 +141,7 @@ export const ClinicalDocumentLabInsertDialog: React.FC<ClinicalDocumentLabInsert
       // If no cached findings, fetch from Syslab
       if (!findings && exam.link) {
         const details = await fetchSyslabExamDetails([exam.link]);
+        if (!isActive.current) return;
         if (details.success && details.data[0]?.findings) {
           findings = details.data[0].findings;
         }
@@ -139,7 +149,6 @@ export const ClinicalDocumentLabInsertDialog: React.FC<ClinicalDocumentLabInsert
 
       if (!findings || findings.length === 0) {
         setError('No se encontraron resultados para este examen.');
-        setIsInserting(null);
         return;
       }
 
@@ -150,10 +159,15 @@ export const ClinicalDocumentLabInsertDialog: React.FC<ClinicalDocumentLabInsert
         setError('No se pudo generar el resumen.');
       }
     } catch {
-      setError('Error al obtener los resultados del examen.');
+      if (isActive.current) setError('Error al obtener los resultados del examen.');
     } finally {
-      setIsInserting(null);
+      if (isActive.current) setIsInserting(null);
     }
+  };
+
+  const handleClose = () => {
+    isActive.current = false;
+    onClose();
   };
 
   return (
@@ -163,7 +177,12 @@ export const ClinicalDocumentLabInsertDialog: React.FC<ClinicalDocumentLabInsert
           <FlaskConical size={13} className="text-emerald-600" />
           <span className="text-[11px] font-bold text-slate-700">Insertar Laboratorio</span>
         </div>
-        <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600">
+        <button
+          type="button"
+          aria-label="Cerrar laboratorio"
+          onClick={handleClose}
+          className="text-slate-400 hover:text-slate-600"
+        >
           <X size={14} />
         </button>
       </div>
@@ -209,3 +228,7 @@ export const ClinicalDocumentLabInsertDialog: React.FC<ClinicalDocumentLabInsert
     </div>
   );
 };
+
+export const ClinicalDocumentLabInsertDialog: React.FC<
+  ClinicalDocumentLabInsertDialogProps
+> = props => <ClinicalDocumentLabInsertSession key={props.patientRut} {...props} />;
