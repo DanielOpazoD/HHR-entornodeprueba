@@ -109,8 +109,18 @@ export const executeSendCensusEmail = async (
       day: input.selectedDay,
     });
 
+    // Read the month first and initialize only the days it lacks: initializeDay on an existing day
+    // is one more full-day read, and a failed month read now stops before any day is created.
+    const firstMonthRead = await dailyRecordReadPort.getMonthRecords(
+      input.selectedYear,
+      input.selectedMonth
+    );
+    const presentDates = new Set(firstMonthRead.map(record => record.date));
+    let missingAny = false;
     for (let index = 0; index < integrityDates.length; index += 1) {
       const date = integrityDates[index];
+      if (presentDates.has(date)) continue;
+      missingAny = true;
       const previousDate = index > 0 ? integrityDates[index - 1] : undefined;
       try {
         await dailyRecordReadPort.initializeDay(date, previousDate);
@@ -130,10 +140,9 @@ export const executeSendCensusEmail = async (
       currentDateString: input.currentDateString,
       nurseSignature: input.nurseSignature,
     });
-    const monthRecords = await dailyRecordReadPort.getMonthRecords(
-      input.selectedYear,
-      input.selectedMonth
-    );
+    const monthRecords = missingAny
+      ? await dailyRecordReadPort.getMonthRecords(input.selectedYear, input.selectedMonth)
+      : firstMonthRead;
     const filteredRecords = resolveMonthRecordsForDelivery({
       monthRecords,
       currentRecord: input.record,

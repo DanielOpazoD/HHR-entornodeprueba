@@ -12,6 +12,9 @@ const ALLOWED_ORIGINAL_DATA_REFERENCES = [
   'src/application/census/movementReclassificationBuilders.ts',
   'src/hooks/usePatientMovementUndoExecutor.ts',
   'src/hooks/controllers/censusExcelSheetController.ts',
+  // Transport only: the census email request drops the clinical-sync derived fields from the
+  // preserved snapshots before upload. The workbook never reads them; values are not interpreted.
+  'src/services/integrations/censusEmailRequestPayload.ts',
   'src/features/census/controllers/patientMovementDischargeMutationController.ts',
   'src/features/census/controllers/movementClinicalDocumentsController.ts',
   'src/features/census/controllers/patientMovementTransferMutationController.ts',
