@@ -7,7 +7,7 @@ export const watchNursingSession = (user: User, onRevoked: () => Promise<void>):
   let active = true;
   let checking = false;
   let expiresAt = 0;
-  const check = async () => {
+  const check = async (forceFreshLookup = false) => {
     if (!active || checking) return;
     checking = true;
     try {
@@ -21,7 +21,9 @@ export const watchNursingSession = (user: User, onRevoked: () => Promise<void>):
         await onRevoked();
         return;
       }
-      clearRecentAuthRoleLookups();
+      // Bootstrap just validated this session. Reuse only the existing short-lived
+      // lookup (or join it in flight); periodic revocation checks still force a read.
+      if (forceFreshLookup) clearRecentAuthRoleLookups();
       const role = await getDynamicRoleForEmail(user.email || '');
       if (active && !isManagedUserRole(role ?? undefined)) await onRevoked();
     } catch {
@@ -32,7 +34,7 @@ export const watchNursingSession = (user: User, onRevoked: () => Promise<void>):
       checking = false;
     }
   };
-  const timer = setInterval(() => void check(), 60000);
+  const timer = setInterval(() => void check(true), 60000);
   void check();
   return () => {
     active = false;

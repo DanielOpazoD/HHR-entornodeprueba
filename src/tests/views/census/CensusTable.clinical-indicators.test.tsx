@@ -21,20 +21,6 @@ import { CensusTable } from '@/features/census/components/CensusTable';
 import { useClinicalDocumentPresenceByBed } from '@/features/census/hooks/useClinicalDocumentPresenceByBed';
 import { DataFactory } from '../../factories/DataFactory';
 
-vi.mock('@tanstack/react-virtual', () => ({
-  useVirtualizer: vi.fn(config => ({
-    getVirtualItems: () =>
-      Array.from({ length: config.count }, (_, i) => ({
-        index: i,
-        size: 44,
-        start: i * 44,
-      })),
-    getTotalSize: () => config.count * 44,
-    scrollToIndex: vi.fn(),
-    scrollToOffset: vi.fn(),
-  })),
-}));
-
 vi.mock('@/features/census/context/censusActionContexts', () => ({
   useCensusActionCommands: vi.fn(),
 }));
