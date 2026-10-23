@@ -39,6 +39,12 @@ describe('netlify security headers', () => {
     expect(content).toContain("worker-src 'self' blob:");
     expect(content).not.toContain('https://fonts.googleapis.com');
     expect(content).not.toContain('https://fonts.gstatic.com');
+    // Google Identity Services loads its button styles from this exact path.
+    for (const route of ['/*', '/documentos/escanear-demo*']) {
+      expect(extractHeaderBlock(content, route)).toContain(
+        "style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style;"
+      );
+    }
   });
 
   it('keeps the SPA shell strict while only allowing the legacy offline page inline script', () => {
