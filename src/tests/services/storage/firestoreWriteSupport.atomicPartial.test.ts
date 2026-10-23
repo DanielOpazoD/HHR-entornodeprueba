@@ -68,6 +68,8 @@ describe('updateRecordPartiallyAtomically', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Each test starts without a recent history copy (hourly cadence lives in localStorage).
+    localStorage.clear();
   });
 
   it('checks the base and commits the movement patch plus history in one transaction', async () => {

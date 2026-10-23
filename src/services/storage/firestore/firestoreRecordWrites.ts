@@ -120,7 +120,11 @@ export const saveRecordToFirestore = async (
             expectedLastUpdated,
             'El registro ha sido modificado por otro usuario. Por favor recarga la página.',
             'save',
-            options.assertSafeOverwrite
+            {
+              assertSafeOverwrite: options.assertSafeOverwrite,
+              forceHistorySnapshot:
+                options.historyPolicy === 'snapshot' || options.origin === 'backup_restore',
+            }
           ),
         {
           onRetry: (err: unknown, attempt: number) =>
@@ -340,7 +344,8 @@ export const updateRecordPartial = async (
                 asFirestoreUpdatePayload(sanitizedData),
                 expectedLastUpdated,
                 'El egreso fue modificado por otro usuario. Recarga el censo antes de reclasificarlo.',
-                'movement reclassification'
+                'movement reclassification',
+                { historyPolicy: options.historyPolicy }
               ),
             {
               onRetry: (err: unknown, attempt: number) =>
@@ -351,7 +356,8 @@ export const updateRecordPartial = async (
         }
 
         await assertDirectWriteConcurrency();
-        if (options.historyPolicy !== 'skip') await saveHistorySnapshot(date);
+        if (options.historyPolicy !== 'skip')
+          await saveHistorySnapshot(date, { force: options.historyPolicy === 'snapshot' });
 
         return withRetry(
           () =>

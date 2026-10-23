@@ -3,7 +3,7 @@
 How the app prevents one session from silently overwriting or erasing another session's
 changes to a day's census record. Written after the 2026-06-25 incident in which a stale
 full-save erased an admitted patient (bed H5C2). Keep this in sync with the code; the
-function names below are the source of truth. Last checked against `main` on 2026-10-21
+function names below are the source of truth. Last checked against `main` on 2026-10-23
 (after #923).
 
 ## The document
@@ -13,10 +13,13 @@ A day's census lives in a single Firestore document:
 concurrency token; writes made by the server authority also keep `meta.revision`,
 `meta.lastMutationId` and `meta.lastChangedPaths`. `beds` is a map of bed-id → patient (each
 bed may also carry a nested `clinicalCrib` patient). Earlier versions go to the `history`
-subcollection, but not on every path: `saveRecordAtomically` and `updateRecordPartiallyAtomically`
-snapshot inside their transaction, a plain `updateDoc` snapshots just before unless
-`historyPolicy: 'skip'`, the authority callables write a slim snapshot after the commit, and the
-direct queue publish writes none.
+subcollection, but not on every path. Client writes copy at most once per hour per document and
+device (`historySnapshotCadence`): `saveRecordAtomically` and `updateRecordPartiallyAtomically`
+inside their transaction, a plain `updateDoc` just before. `historyPolicy: 'snapshot'` always
+copies (version restores, backup restores, structural Rayen imports, the admission-date backfill
+and the first write of an automated run) and `'skip'` never does. A copy the rules deny (roles
+without history access) also waits an hour instead of re-reading the day on every save. The authority callables write a slim snapshot after the commit, and the direct queue
+publish writes none.
 
 ## Who writes: authority routing
 
@@ -99,9 +102,11 @@ The first matching route wins:
    structural or other fields under `enforced` or the fence, and bed-tree with other top-level
    fields under the fence.
 4. **`requireAtomicCas`** (e.g. movement reclassification) — `updateRecordPartiallyAtomically`:
-   exact base version, history snapshot and `update` in one transaction.
+   exact base version, history snapshot (hourly cadence and `historyPolicy`) and `update` in one
+   transaction.
 5. **Otherwise** — `assertFirestoreConcurrency` (**fail-closed**: a verification error aborts),
-   a history snapshot unless `historyPolicy: 'skip'`, and `updateDoc` with dot-path fields. It
+   a history snapshot (hourly cadence; `'snapshot'` forces it, `'skip'` omits it), and `updateDoc`
+   with dot-path fields. It
    structurally cannot erase a whole bed, but it is not atomic; on abort the change is already in
    IndexedDB and is re-checked by the sync queue.
 

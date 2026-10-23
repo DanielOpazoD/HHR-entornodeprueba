@@ -40,6 +40,11 @@ export interface SaveDailyRecordOptions {
    * lets an administrator recreate a deleted day with its Rayen clinical fields intact.
    */
   writeOrigin?: DailyRecordSaveWriteOrigin;
+  /**
+   * 'snapshot' copies the day to history before overwriting it, whatever the hourly cadence says.
+   * Structural Rayen imports and restores always do; bulk maintenance passes it explicitly.
+   */
+  historyPolicy?: 'snapshot';
 }
 
 export type DailyRecordSaveWriteOrigin = 'direct_save' | 'backup_restore';
@@ -60,6 +65,8 @@ export interface PartialUpdateDailyRecordOptions {
   /**
    * Automated multi-patch jobs capture one record snapshot before their first successful write and
    * skip repeated multi-megabyte snapshots for the remaining patches in the same logical run.
+   * Without a policy, direct writes copy at most hourly per device (historySnapshotCadence):
+   * 'snapshot' always copies and 'skip' never does.
    */
   historyPolicy?: 'snapshot' | 'skip';
   /**

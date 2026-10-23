@@ -195,7 +195,19 @@ describe('firestoreRecordWrites authority fallback routing', () => {
       'patchDailyRecordWithClinicalAuthority'
     );
     expect(mockAuthorityCallable).not.toHaveBeenCalled();
-    expect(saveHistorySnapshot).toHaveBeenCalledWith('2026-03-14');
+    expect(saveHistorySnapshot).toHaveBeenCalledWith('2026-03-14', { force: false });
+    expect(updateDoc).toHaveBeenCalledTimes(1);
+  });
+
+  it('forces the copy an automated run explicitly asks for before its first write', async () => {
+    await updateRecordPartial(
+      '2026-03-14',
+      { 'beds.R1.vitalSigns': { heartRate: 80 } } as never,
+      '2026-03-14T10:00:00.000Z',
+      { historyPolicy: 'snapshot' }
+    );
+
+    expect(saveHistorySnapshot).toHaveBeenCalledExactlyOnceWith('2026-03-14', { force: true });
     expect(updateDoc).toHaveBeenCalledTimes(1);
   });
 

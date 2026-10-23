@@ -51,10 +51,12 @@ describe('restoreDailyRecordVersion', () => {
     });
 
     expect(result).toEqual({ status: 'restored' });
-    // Atomic full-save with the CURRENT version as base (CAS-safe, non-destructive).
+    // Atomic full-save with the CURRENT version as base (CAS-safe). It always copies the live state
+    // to history first, whatever the hourly cadence says, so the restore stays non-destructive.
     expect(saveRecordToFirestore).toHaveBeenCalledWith(
       expect.objectContaining({ date: '2026-06-26', beds: { R1: { patientName: 'Remoto' } } }),
-      '2026-06-26T12:00:00.000Z'
+      '2026-06-26T12:00:00.000Z',
+      { historyPolicy: 'snapshot' }
     );
     expect(logRepositoryConflictVersionRestored).toHaveBeenCalledWith('2026-06-26', {
       snapshotId: 'cid__remote_premerge',

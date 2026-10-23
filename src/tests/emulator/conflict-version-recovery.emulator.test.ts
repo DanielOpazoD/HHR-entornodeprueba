@@ -38,6 +38,7 @@ vi.mock('@/services/repositories/ports/repositoryAuditPort', async () => ({
 
 import { attemptConflictAutoMergeRecovery } from '@/services/repositories/dailyRecordConflictAutoMergeController';
 import { restoreDailyRecordVersion } from '@/services/repositories/dailyRecordVersionRestoreController';
+import { markHistorySnapshotTaken } from '@/services/storage/firestore/historySnapshotCadence';
 import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { clearAllRecords } from '@/services/storage/indexeddb/indexedDbRecordService';
@@ -194,6 +195,8 @@ describeEmulator('Firestore emulator conflict version recovery', () => {
 
     // Restore is restricted to clinical conflict managers.
     activeDb = adminDb;
+    // A copy from earlier this hour would normally suppress the next one; a restore must copy anyway.
+    markHistorySnapshotTaken(`hospitals/hanga_roa/dailyRecords/${date}`);
     const result = await restoreDailyRecordVersion(date, snapshotId);
     expect(result.status).toBe('restored');
 

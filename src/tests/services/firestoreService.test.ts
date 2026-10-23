@@ -39,7 +39,8 @@ vi.mock('firebase/firestore', async () => {
   return {
     ...actual,
     collection: vi.fn(),
-    doc: vi.fn(),
+    // Real references always carry a path; the hourly history cadence keys on it.
+    doc: vi.fn(() => ({ path: 'hospitals/test/dailyRecords/mock' })),
     getDoc: getDocFn,
     setDoc: setDocFn,
     updateDoc: vi.fn(),
@@ -102,6 +103,8 @@ describe('firestoreService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Each test starts without a recent history copy (hourly cadence lives in localStorage).
+    localStorage.clear();
   });
 
   it('should save a record with integrity snapshot', async () => {

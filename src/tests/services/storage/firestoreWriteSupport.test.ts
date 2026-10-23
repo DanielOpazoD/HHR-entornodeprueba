@@ -73,6 +73,8 @@ import {
 describe('firestoreWriteSupport', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // The hourly history cadence lives in localStorage; each test starts without prior copies.
+    localStorage.clear();
   });
 
   it('throws concurrency error when remote version is newer than expected base', async () => {
@@ -358,7 +360,7 @@ describe('firestoreWriteSupport', () => {
           '2026-02-20T10:00:00.000Z', // valid base (CAS passes) so the erasure guard is what fires
           'conflict',
           'save',
-          guard
+          { assertSafeOverwrite: guard }
         )
       ).rejects.toThrow('erasure blocked');
 
@@ -380,7 +382,7 @@ describe('firestoreWriteSupport', () => {
           undefined, // no base version + existing doc → unprovable safety → conflict
           'conflict',
           'save',
-          guard
+          { assertSafeOverwrite: guard }
         )
       ).rejects.toBeInstanceOf(ConcurrencyError);
 
@@ -402,7 +404,7 @@ describe('firestoreWriteSupport', () => {
         '2026-02-20T10:00:00.000Z',
         'conflict',
         'save',
-        guard
+        { assertSafeOverwrite: guard }
       );
 
       expect(guard).toHaveBeenCalledTimes(1);
