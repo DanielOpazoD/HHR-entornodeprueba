@@ -9,8 +9,15 @@ import { TransferCoverTool } from './tools/TransferCoverTool';
 import type { ToolComponentProps } from './tools/ToolFrame';
 
 export const loadMedifTool = () => import('./tools/MedifTool');
+export const loadPharmacyTool = () => import('./tools/pharmacy/PharmacyActTool');
 
 const MedifTool = React.lazy(() => loadMedifTool().then(module => ({ default: module.MedifTool })));
+const PharmacyReturnTool = React.lazy(() =>
+  loadPharmacyTool().then(module => ({ default: module.PharmacyReturnTool }))
+);
+const PharmacyDisposalTool = React.lazy(() =>
+  loadPharmacyTool().then(module => ({ default: module.PharmacyDisposalTool }))
+);
 
 interface ToolRegistration {
   icon: React.ReactNode;
@@ -28,4 +35,9 @@ export const TOOL_REGISTRY: Readonly<Record<LibraryToolId, ToolRegistration>> = 
   infusion: { icon: <Syringe size={16} aria-hidden="true" />, Component: InfusionCalculatorTool },
   dosing: { icon: <Calculator size={16} aria-hidden="true" />, Component: DosingCalculatorTool },
   scores: { icon: <ListChecks size={16} aria-hidden="true" />, Component: ScoresTool },
+  'pharmacy-return': { icon: <Pill size={16} aria-hidden="true" />, Component: PharmacyReturnTool },
+  'pharmacy-disposal': {
+    icon: <Pill size={16} aria-hidden="true" />,
+    Component: PharmacyDisposalTool,
+  },
 };
