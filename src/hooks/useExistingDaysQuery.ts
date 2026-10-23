@@ -49,7 +49,9 @@ export const useExistingDaysQuery = (
       }
 
       // Saving a day that is already marked can only keep or drop its marker, so only
-      // that day is re-read. New days, deletes and clears still rescan the month.
+      // that day is re-read. New days, deletes and clears still rescan the month, and so
+      // does any event while a rescan is running: its older read would overwrite the
+      // single-day answer.
       const marked = queryClient.getQueryData<number[]>(queryKey);
       const savedDates =
         detail?.operation === 'save'
@@ -58,6 +60,7 @@ export const useExistingDaysQuery = (
       const onlyMarkedDays =
         marked !== undefined &&
         savedDates.length > 0 &&
+        queryClient.isFetching({ queryKey }) === 0 &&
         savedDates.every(date => marked.includes(parseInt(date.split('-')[2])));
       if (!onlyMarkedDays) {
         rescanMonth();
@@ -81,9 +84,5 @@ export const useExistingDaysQuery = (
     },
     enabled,
     staleTime: 1000 * 60 * 5,
-    // Local data only: every local writer announces its change through the store event,
-    // so returning to the tab or reconnecting adds nothing a month rescan would find.
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
   });
 };

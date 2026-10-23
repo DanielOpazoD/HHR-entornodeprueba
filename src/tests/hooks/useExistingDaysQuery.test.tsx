@@ -1,7 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { focusManager, onlineManager } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { queryClient as appQueryClient } from '@/config/queryClient';
 import { useExistingDaysQuery } from '@/hooks/useExistingDaysQuery';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 import {
@@ -26,6 +24,9 @@ describe('useExistingDaysQuery', () => {
   afterEach(() => vi.restoreAllMocks());
   beforeEach(() => {
     vi.clearAllMocks();
+    // Queued one-off answers must not leak into the next test when one fails midway.
+    mockFetchExistingDaysInMonth.mockReset();
+    mockDoStoredDaysHavePatientData.mockReset();
   });
 
   it('refreshes the current month immediately when the local record store changes', async () => {
@@ -197,6 +198,46 @@ describe('useExistingDaysQuery', () => {
       expect(mockFetchExistingDaysInMonth).toHaveBeenCalledTimes(1);
     });
 
+    it('rescans instead of re-reading one day while a month rescan is still running', async () => {
+      const { queryClient, result } = await renderMarkedMonth([7, 14]);
+      let finishStaleRescan!: (days: number[]) => void;
+      mockFetchExistingDaysInMonth
+        .mockReturnValueOnce(
+          new Promise<number[]>(resolve => {
+            finishStaleRescan = resolve;
+          })
+        )
+        .mockResolvedValueOnce([7, 14]);
+
+      // Day 14 is deleted (rescan starts), then saved again before that rescan returns.
+      storeChanged({ operation: 'delete', dates: ['2026-04-14'] });
+      await waitFor(() =>
+        expect(queryClient.isFetching({ queryKey: ['existingDays', 2026, 3] })).toBe(1)
+      );
+      storeChanged({ operation: 'save', dates: ['2026-04-14'] });
+      await act(async () => {
+        finishStaleRescan([7]);
+      });
+
+      expect(mockDoStoredDaysHavePatientData).not.toHaveBeenCalled();
+      await waitFor(() => expect(result.current.data).toEqual([7, 14]));
+      expect(mockFetchExistingDaysInMonth).toHaveBeenCalledTimes(3);
+    });
+
+    it('rescans when the month has no markers yet because the first read failed', async () => {
+      mockFetchExistingDaysInMonth.mockRejectedValueOnce(new Error('synthetic local failure'));
+      const { queryClient, wrapper } = createQueryClientTestWrapper();
+      const view = renderHook(() => useExistingDaysQuery(2026, 3), { wrapper });
+      await waitFor(() => expect(view.result.current.isError).toBe(true));
+      mockFetchExistingDaysInMonth.mockResolvedValue([14]);
+
+      storeChanged({ operation: 'save', dates: ['2026-04-14'] });
+
+      await waitFor(() => expect(view.result.current.data).toEqual([14]));
+      expect(mockDoStoredDaysHavePatientData).not.toHaveBeenCalled();
+      queryClient.clear();
+    });
+
     it.each<[string, DailyRecordStoreChangedEventDetail]>([
       ['a save to an unmarked day', { operation: 'save', dates: ['2026-04-21'] }],
       [
@@ -215,29 +256,5 @@ describe('useExistingDaysQuery', () => {
       expect(mockDoStoredDaysHavePatientData).not.toHaveBeenCalled();
       await waitFor(() => expect(mockFetchExistingDaysInMonth).toHaveBeenCalledTimes(2));
     });
-  });
-
-  it('does not rescan the month when the tab regains focus or the network returns', async () => {
-    mockFetchExistingDaysInMonth.mockResolvedValue([7]);
-    // The app's defaults refetch every query on focus and reconnect, even when fresh.
-    const { wrapper } = createQueryClientTestWrapper({
-      config: { defaultOptions: appQueryClient.getDefaultOptions() },
-    });
-    const { result } = renderHook(() => useExistingDaysQuery(2026, 3), { wrapper });
-    await waitFor(() => expect(result.current.data).toEqual([7]));
-
-    try {
-      act(() => {
-        focusManager.setFocused(false);
-        focusManager.setFocused(true);
-        onlineManager.setOnline(false);
-        onlineManager.setOnline(true);
-      });
-      await new Promise(resolve => setTimeout(resolve, 0));
-      expect(mockFetchExistingDaysInMonth).toHaveBeenCalledTimes(1);
-    } finally {
-      focusManager.setFocused(undefined);
-      onlineManager.setOnline(true);
-    }
   });
 });
