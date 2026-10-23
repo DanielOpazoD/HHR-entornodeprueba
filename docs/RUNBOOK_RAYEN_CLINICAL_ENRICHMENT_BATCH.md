@@ -103,7 +103,8 @@ no puede introducir esos campos desde el navegador.
    `service = rayenClinicalEnrichment`.
    Cada entrada declara `parityContractVersion`; el gate usa solo la versión más reciente y conserva
    las anteriores como auditoría. Un cambio de versión reinicia las cuatro ejecuciones y las ocho
-   horas exigidas.
+   horas exigidas. La versión vigente es la 3: la paridad compara la vista combinada de los días
+   divididos (ver "Días divididos"), así que la evidencia v2 ya no cuenta.
 5. Usar el gate **Lote clínico transaccional** del panel técnico. Para recomendar `enforced` exige
    al menos 4 ejecuciones shadow coincidentes, 8 horas entre la primera y última evidencia, ninguna
    paridad ausente y cero señales bloqueantes.
@@ -115,6 +116,42 @@ no puede introducir esos campos desde el navegador.
    promoción automática. Verificar en el historial que el run declara `lote enforced` y la revisión
    esperada. Vigilar reintentos y volver explícitamente a **Compatibilidad por paciente** (`off`)
    ante errores sostenidos.
+
+## Días divididos (fase 1a)
+
+Desde `DESIGN_DAILY_RECORD_PHASE1_CLINICAL_DERIVED.md`, `clinicalSyncCheckpoint` y
+`vitalSignsHistory` de cada episodio pueden vivir fuera del día, en
+`dailyRecords/{fecha}/clinicalDerived/{clinicalEpisodeId}`. Lo decide el servidor:
+
+- La variable de Functions `HHR_CLINICAL_DERIVED_SPLIT_FROM=AAAA-MM-DD` se lee en cada llamada y
+  solo una fecha estricta la enciende; por defecto está apagada. Un día con fecha igual o posterior
+  queda marcado (`clinicalDerivedLayout`) en su primera escritura de un campo movido, según la
+  fecha objetivo del lote o del parche, nunca la de autoridad. Un día marcado lo gobierna su
+  marcador aunque la variable se apague; los días anteriores nunca se migran.
+- En un día marcado, o que la escritura marca, el lote lee los documentos de sus objetivos justo
+  después del día y antes de cualquier escritura. La detección de no-op, la aplicación y la
+  paridad usan la vista combinada (documentos sobre el día); en `shadow` la paridad compara contra
+  esa vista y no escribe nada.
+- Escribe el día desde el remoto sin los campos movidos de los objetivos y, por objetivo, su
+  documento completo (los dos campos siempre presentes, `null` si no hay valor) con la revisión del
+  lote en `dayRevision`. Revisa los 900 KB del día, de la copia y de cada documento. Los episodios
+  que el lote no toca conservan su copia embebida.
+- Rechaza con `failed-precondition` y estos códigos al inicio del mensaje, después de la
+  clasificación idempotente (un reintento ya confirmado responde con su recibo):
+  - `clinical_derived_client_outdated`: el payload no trae `clientRuntimeContractVersion` 3 o
+    mayor. Ese campo va aparte, fuera de digests y recibos. Es la valla real de clientes antiguos.
+  - `clinical_derived_field_contract_unsupported`: `fieldContractVersion` 1 con campos movidos.
+  - `clinical_derived_layout_unsupported`: un marcador que este servidor no conoce.
+- La copia de la corrida guarda en `clinicalDerivedPrevious`, por episodio dividido, sus campos
+  movidos antes de que la corrida lo escribiera por primera vez: el documento que existía (de
+  cualquier generación, en `document`) o la copia embebida que la escritura borra (en
+  `embedded`). Esos valores salen de las camas de la copia en vez de duplicarse. Si la copia ya
+  existe, la misma transacción le agrega solo los episodios que faltan. Lo mismo hace la copia
+  `rayen-{runId}` del parche con guarda (`off` y `shadow`). Un lote de solo checkpoint sigue sin
+  copia de historial.
+- La telemetría de los días divididos agrega solo `clinicalDerivedLayout` (`marked`, `marking` o
+  `unsupported`) y los conteos `clinicalDerivedSplitEpisodes`, `clinicalDerivedEmbeddedEpisodes`
+  (episodios sin id válido que siguen embebidos) y `clinicalDerivedOverlaidEpisodes`.
 
 ## Incrementalidad de lectura y escritura
 
@@ -138,8 +175,8 @@ no puede introducir esos campos desde el navegador.
 
 ## Invariantes
 
-- Máximo 32 pacientes/cunas y 500 KB por lote; censo y snapshot se rechazan antes de escribir si
-  su representación supera 900 KB, dejando margen para el overhead de Firestore. `shadow` puede
+- Máximo 32 pacientes/cunas y 500 KB por lote; censo, snapshot y documentos de episodio se
+  rechazan antes de escribir si su representación supera 900 KB, dejando margen para el overhead de Firestore. `shadow` puede
   dividir la observación porque nunca persiste. En `enforced`, si la ejecución completa requiere
   varios fragmentos, el cliente falla antes de la primera mutación: así el lote aplicado conserva
   atomicidad y nunca deja un enriquecimiento clínico parcial.
@@ -150,10 +187,11 @@ no puede introducir esos campos desde el navegador.
   capturada por el `runId`; el callable no confía en el modo enviado por el navegador.
 - Coincidencia exacta entre `authorityDate`, el `sourceDate` inmutable del evento y la fecha del
   documento que lo contiene. Un lote histórico requiere además rol administrador.
-- Cliente y backend usan contrato runtime v2. La web exige backend v2; el backend acepta
-  temporalmente cliente v1 sólo para permitir el despliegue ordenado. La seguridad anti-rollback no
-  depende de ese piso temporal: una política v2 bloquea de forma permanente las escrituras clínicas
-  directas del navegador. Una política v1 no inicia ejecuciones y requiere una migración
+- El backend publica contrato runtime v3 (días divididos) y el cliente, v2. La web exige backend
+  v2 o superior; el backend acepta temporalmente cliente v1 sólo para permitir el despliegue
+  ordenado. La seguridad anti-rollback no depende de ese piso temporal: una política v2 bloquea de
+  forma permanente las escrituras clínicas directas del navegador, y en los días divididos cada
+  callable exige por solicitud `clientRuntimeContractVersion` 3 o mayor. Una política v1 no inicia ejecuciones y requiere una migración
   administrativa explícita y atómica antes de congelar un nuevo `runId`.
 - El escritor compatible por paciente confirma atómicamente esa revisión mediante el callable antes
   de cada parche y persiste primero en Firestore. Una escritura rechazada por cambio de política

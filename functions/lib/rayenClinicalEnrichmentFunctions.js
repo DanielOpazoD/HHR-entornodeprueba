@@ -19,6 +19,7 @@ const {
   assertRayenClinicalBatchAuthority,
   assertRayenClinicalRunAuthority,
 } = require('./rayenClinicalBatchAuthority');
+const { createClinicalDerivedStore } = require('./clinicalDerivedStore');
 const {
   applyClinicalEnrichment,
   assertHistoricalCudyrPayload,
@@ -39,7 +40,8 @@ const {
 } = require('./rayenClinicalEnrichmentPolicy');
 
 const operation = 'applyRayenClinicalEnrichmentBatch';
-const PARITY_CONTRACT_VERSION = 2;
+// v3: parity compares the combined view (episode documents over the day, phase 1a D13).
+const PARITY_CONTRACT_VERSION = 3;
 
 const EMPTY_PARITY_DIAGNOSTICS = Object.freeze({
   mismatchTargetCount: 0,
@@ -193,11 +195,13 @@ const recordTelemetry = async ({
 const createRayenClinicalEnrichmentFunctions = ({
   firestore,
   Timestamp,
+  FieldValue,
   resolveRoleForEmail,
   monotonicNow = () => performance.now(),
 }) => ({
   applyRayenClinicalEnrichmentBatch: clinicalFunctions.https.onCall(async (data, context) => {
     const startedAt = Date.now();
+    const clinicalDerived = createClinicalDerivedStore({ FieldValue });
     const handlerStartedAt = monotonicNow();
     const elapsed = start => Math.max(0, Math.round(monotonicNow() - start));
     const serverTimingsMs = {};
@@ -270,6 +274,15 @@ const createRayenClinicalEnrichmentFunctions = ({
             );
           }
           const remoteData = snapshot.data() || {};
+          // Phase 1a split (clinicalDerivedStore): null unless moved fields go to a split day.
+          const derived = await clinicalDerived.prepareBatchSplit({
+            get: read,
+            dayRef: docRef,
+            remoteData,
+            payload,
+          });
+          if (derived) requestSummary = { ...requestSummary, ...derived.telemetry };
+          const view = derived?.view ?? remoteData;
           const authoritySnapshot =
             payload.authorityDate === payload.date ? snapshot : await read(authorityRef);
           if (!authoritySnapshot.exists) {
@@ -299,6 +312,7 @@ const createRayenClinicalEnrichmentFunctions = ({
             revision = resolveRecordRevision(remoteData);
             return { historySnapshotWritten: false };
           }
+          derived?.assertAccepted(data);
 
           assertHistoricalCudyrPayload(remoteData, payload);
           const policySnapshot = await read(policyRef);
@@ -328,9 +342,7 @@ const createRayenClinicalEnrichmentFunctions = ({
               : assertRecordRevision(remoteData, payload);
           assertAdministrativeCudyrAuthority(remoteData, payload);
           const effectiveTargets = resolveHistoricalCudyrTargets(remoteData, payload);
-          if (
-            clinicalEnrichmentMatches(remoteData, effectiveTargets, payload.fieldContractVersion)
-          ) {
+          if (clinicalEnrichmentMatches(view, effectiveTargets, payload.fieldContractVersion)) {
             // Reuse the established status so older clients remain compatible
             // while the callable rolls out. A new canonical no-op is accepted only after proving
             // that its base revision still describes the remote record; exact receipts returned
@@ -346,7 +358,7 @@ const createRayenClinicalEnrichmentFunctions = ({
             : null;
           const historyRefSnapshot = historyRef ? await read(historyRef) : null;
           const nextRecord = applyClinicalEnrichment(
-            remoteData,
+            view,
             effectiveTargets,
             payload.fieldContractVersion
           );
@@ -384,7 +396,7 @@ const createRayenClinicalEnrichmentFunctions = ({
           );
           // Shadow runs after the established per-patient writes. Compare against that independently
           // persisted record; comparing with our own projection would certify the request tautologically.
-          const parityRecord = payload.dryRun ? remoteData : nextRecord;
+          const parityRecord = payload.dryRun ? view : nextRecord;
           parityDiagnostics = summarizeClinicalEnrichmentMismatches(
             parityRecord,
             effectiveTargets,
@@ -418,12 +430,16 @@ const createRayenClinicalEnrichmentFunctions = ({
           // The established authority path also stores a Firestore Timestamp; firestoreShared
           // normalizes it back to the DailyRecord ISO-string contract on every client hydration.
           nextRecord.lastUpdated = now;
-          const historySnapshot = {
+          const derivedWrite = derived?.finalize({ record: nextRecord, now });
+          const persistedRecord = derivedWrite?.persistedRecord ?? nextRecord;
+          const runCopy = {
             ...remoteData,
             snapshotTimestamp: now,
             snapshotReason: 'rayen_clinical_enrichment',
           };
-          assertPersistedDocumentSize(nextRecord);
+          const historySnapshot =
+            derivedWrite && historyRef ? derivedWrite.withRunPrevious(runCopy) : runCopy;
+          assertPersistedDocumentSize(persistedRecord);
           assertPersistedDocumentSize(historySnapshot);
           if (payload.dryRun) return { historySnapshotWritten: false };
 
@@ -432,8 +448,15 @@ const createRayenClinicalEnrichmentFunctions = ({
             shouldCaptureHistorySnapshot && historyRefSnapshot?.exists !== true;
           if (historySnapshotWritten && historyRef) {
             transaction.create(historyRef, historySnapshot);
+          } else if (historyRef) {
+            derivedWrite?.extendRunCopy({
+              transaction,
+              ref: historyRef,
+              snapshot: historyRefSnapshot,
+            });
           }
-          transaction.set(docRef, nextRecord);
+          transaction.set(docRef, persistedRecord);
+          derivedWrite?.writeDocs(transaction);
           automaticSpecialtyDecisions.forEach(decision => {
             transaction.set(
               docRef.collection('specialtyDecisions').doc(decision.decisionId),

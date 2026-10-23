@@ -4,7 +4,9 @@
 // wires the Rayen fill to that view (clinicalAuthorityClientVersion.test.ts holds both together).
 // The minimum client floor stays at 1 until the activation (P6).
 export const CLIENT_RUNTIME_CONTRACT_VERSION = 2;
-export const BACKEND_RUNTIME_CONTRACT_VERSION = 2;
+// Backend v3 splits the moved clinical fields per episode behind its switch (phase 1a); it fences
+// older clients per request, so the client floor below does not move with it.
+export const BACKEND_RUNTIME_CONTRACT_VERSION = 3;
 // The web requires backend v2. The backend temporarily accepts client v1 so Functions can deploy
 // first; policy schema v2 is migrated only after the v2 web is available and then becomes the
 // irreversible Firestore write fence for stale clients.

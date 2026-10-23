@@ -4,6 +4,7 @@
  * fail here instead of silently leaving the rules guard or an exemption behind.
  */
 import fs from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
@@ -14,6 +15,11 @@ import {
 import { CRITICAL_FIRESTORE_ACCESS_MATRIX } from '../../../scripts/firestoreRulesCriticalAccessMatrixSupport.mjs';
 
 const read = (file: string) => fs.readFileSync(path.resolve(process.cwd(), file), 'utf8');
+const { CLINICAL_DERIVED_PREVIOUS_FIELD } = createRequire(import.meta.url)(
+  '../../../functions/lib/clinicalDerivedStore.js'
+) as { CLINICAL_DERIVED_PREVIOUS_FIELD: string };
+
+type FieldOverride = { collectionGroup: string; fieldPath: string; indexes: unknown[] };
 
 describe('clinicalDerived contract · deployment artifacts', () => {
   const matchPath = `/hospitals/{hospitalId}/dailyRecords/{date}/${CLINICAL_DERIVED_COLLECTION}/{clinicalEpisodeId}`;
@@ -30,7 +36,7 @@ describe('clinicalDerived contract · deployment artifacts', () => {
 
   it('every moved field is exempt from indexing in the episode collection group', () => {
     const { fieldOverrides } = JSON.parse(read('firestore.indexes.json')) as {
-      fieldOverrides: Array<{ collectionGroup: string; fieldPath: string; indexes: unknown[] }>;
+      fieldOverrides: FieldOverride[];
     };
     const policy = read('scripts/apply-firestore-storage-policy.mjs');
     for (const field of CLINICAL_DERIVED_MOVED_FIELDS) {
@@ -42,5 +48,24 @@ describe('clinicalDerived contract · deployment artifacts', () => {
       ).toEqual({ collectionGroup: CLINICAL_DERIVED_COLLECTION, fieldPath: field, indexes: [] });
       expect(policy).toContain(`'${CLINICAL_DERIVED_COLLECTION}/${field}'`);
     }
+  });
+
+  it('the run-copy field the server writes (D11) is exempt from indexing in history', () => {
+    const { fieldOverrides } = JSON.parse(read('firestore.indexes.json')) as {
+      fieldOverrides: FieldOverride[];
+    };
+    expect(
+      fieldOverrides.find(
+        entry =>
+          entry.collectionGroup === 'history' && entry.fieldPath === CLINICAL_DERIVED_PREVIOUS_FIELD
+      )
+    ).toEqual({
+      collectionGroup: 'history',
+      fieldPath: CLINICAL_DERIVED_PREVIOUS_FIELD,
+      indexes: [],
+    });
+    expect(read('scripts/apply-firestore-storage-policy.mjs')).toContain(
+      `'history/${CLINICAL_DERIVED_PREVIOUS_FIELD}'`
+    );
   });
 });

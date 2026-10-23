@@ -64,6 +64,7 @@ module.exports = {
   ...createDailyRecordWriteAuthorityFunctions({
     firestore,
     Timestamp,
+    FieldValue,
     resolveRoleForEmail: authHelpers.resolveRoleForEmail,
   }),
   ...createAdminCudyrResultFunctions({
@@ -79,6 +80,7 @@ module.exports = {
   ...createRayenClinicalEnrichmentFunctions({
     firestore,
     Timestamp,
+    FieldValue,
     resolveRoleForEmail: authHelpers.resolveRoleForEmail,
   }),
   ...createSpecialtyPolicyFunctions({

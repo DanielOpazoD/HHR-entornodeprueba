@@ -128,7 +128,7 @@ describe('Rayen clinical enrichment telemetry', () => {
       expect.objectContaining({
         context: expect.objectContaining({
           resultParity: 'matched',
-          parityContractVersion: 2,
+          parityContractVersion: 3,
           mismatchTargetCount: 0,
           mismatchFieldCount: 0,
           targetScope: 'current',
@@ -202,7 +202,7 @@ describe('Rayen clinical enrichment telemetry', () => {
       expect.objectContaining({
         context: expect.objectContaining({
           resultParity: 'mismatch',
-          parityContractVersion: 2,
+          parityContractVersion: 3,
           mismatchTargetCount: 1,
           mismatchFieldCount: 3,
           mismatchDeviceFieldCount: 0,
