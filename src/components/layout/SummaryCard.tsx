@@ -150,39 +150,43 @@ export const CombinedSummaryCard: React.FC<SummaryCardProps> = ({
   const movementSummary = buildMovementSummaryModel(discharges, transfers, cmaCount, newAdmissions);
 
   return (
-    <div className="census-toolbar-card flex min-h-20 self-stretch flex-row gap-0 rounded-xl border border-slate-200/80 bg-white px-2.5 py-1 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-colors hover:border-slate-300 animate-fade-in">
+    <div className="census-toolbar-card flex min-h-20 self-stretch flex-row gap-0 tabular-nums text-[10px] leading-4 rounded-xl border border-slate-200/80 bg-white px-2.5 py-1 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-colors hover:border-slate-300 animate-fade-in">
       {/* Section 1: Censo Camas */}
-      <div className="pr-1.5 flex flex-col gap-0.5">
+      <div className="min-w-0 pr-1.5 flex flex-col gap-0.5">
         <div className="flex items-center gap-1 pb-0.5 border-b border-slate-100">
-          <Bed size={11} className="text-accent-500" />
+          <Bed size={13} aria-hidden="true" className="text-accent-500" />
           <span className="text-[11px] font-semibold text-slate-700 uppercase tracking-wide">
             Censo Camas
           </span>
         </div>
         {/* Row 1: Ocu + Cap */}
         <div className="flex items-center gap-1 mt-0.5">
-          <div className="flex items-center gap-1 bg-slate-50/80 rounded px-1.5 py-0.5 border border-slate-100/50">
-            <span className="text-slate-500 text-[9px]">Ocu.</span>
-            <span className="font-bold text-accent-900 text-[10px]">{stats.occupiedBeds}</span>
+          <div className="flex items-center gap-1 bg-slate-50/80 rounded px-1.5 py-0 border border-slate-100/50">
+            <span className="text-slate-500 text-[10px]">Ocu.</span>
+            <span className="font-bold text-accent-900 text-[11px]">{stats.occupiedBeds}</span>
           </div>
-          <div className="flex items-center gap-1 bg-accent-50 rounded px-1.5 py-0.5 border border-accent-100/50">
-            <span className="text-accent-700 font-bold text-[9px]">Cap:</span>
-            <span className="font-bold text-accent-900 text-[10px]">{capacidadServicio}</span>
+          <div className="flex items-center gap-1 bg-accent-50 rounded px-1.5 py-0 border border-accent-100/50">
+            <span className="text-accent-700 font-bold text-[10px]">Cap:</span>
+            <span className="font-bold text-accent-900 text-[11px]">{capacidadServicio}</span>
           </div>
         </div>
         {/* Row 2: Bloq + Lib */}
-        <div className="flex items-center gap-1">
-          <div className="flex items-center gap-1 px-1.5 py-0.5 border border-transparent">
-            <span className="text-red-500 text-[9px]">Bloq.</span>
-            <span className="font-bold text-red-600 text-[10px]">{stats.blockedBeds}</span>
+        <div className="flex flex-wrap items-center gap-x-1">
+          <div className="flex items-center gap-1 px-1.5 py-0 border border-transparent">
+            <span className="text-slate-500 text-[10px]">Bloq.</span>
+            <span
+              className={`font-bold text-[11px] ${stats.blockedBeds > 0 ? 'text-amber-700' : 'text-slate-700'}`}
+            >
+              {stats.blockedBeds}
+            </span>
           </div>
-          <div className="flex items-center gap-1 px-1.5 py-0.5 border border-transparent">
-            <span className="text-slate-400 text-[9px]">Lib.</span>
-            <span className="font-bold text-slate-600 text-[10px]">{stats.availableCapacity}</span>
+          <div className="flex items-center gap-1 px-1.5 py-0 border border-transparent">
+            <span className="text-slate-500 text-[10px]">Lib.</span>
+            <span className="font-bold text-slate-600 text-[11px]">{stats.availableCapacity}</span>
           </div>
-          <div className="flex items-center gap-1 px-1 py-0.5">
-            <span className="text-slate-500 text-[9px]">Cunas</span>
-            <span className="font-bold text-accent-800 text-[10px]">{stats.totalCribsUsed}</span>
+          <div className="flex items-center gap-1 px-1 py-0">
+            <span className="text-slate-500 text-[10px]">Cunas</span>
+            <span className="font-bold text-accent-800 text-[11px]">{stats.totalCribsUsed}</span>
           </div>
         </div>
       </div>
@@ -191,39 +195,37 @@ export const CombinedSummaryCard: React.FC<SummaryCardProps> = ({
       <div className="w-px bg-slate-200/60 mx-1.5 self-stretch" />
 
       {/* Section 2: Movimientos */}
-      <div className="pl-1.5 flex flex-col gap-0.5">
+      <div className="min-w-0 pl-1.5 flex flex-col gap-0.5">
         <div className="flex items-center gap-1 pb-0.5 border-b border-slate-100">
-          <Activity size={11} className="text-accent-500" />
+          <Activity size={13} aria-hidden="true" className="text-accent-500" />
           <span className="text-[11px] font-semibold text-slate-700 uppercase tracking-wide">
             Movimientos
           </span>
         </div>
         {/* Row 1: Altas + Traslados */}
         <div className="flex items-center gap-2 mt-0.5">
-          <div className="flex items-center gap-1 text-[9px]">
+          <div className="flex items-center gap-1 text-[10px]">
             <span className="text-slate-500">Altas</span>
-            <span className="font-bold text-green-600 text-[10px]">
+            <span className="font-bold text-slate-700 text-[11px]">
               {movementSummary.totalDischarges}
             </span>
           </div>
-          <div className="flex items-center gap-1 text-[9px]">
+          <div className="flex items-center gap-1 text-[10px]">
             <span className="text-slate-500">Traslados</span>
-            <span className="font-bold text-blue-600 text-[10px]">
+            <span className="font-bold text-slate-700 text-[11px]">
               {movementSummary.totalTransfers}
             </span>
           </div>
         </div>
         {/* Row 2: H.Diurna + Ingresos */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 text-[9px]">
+          <div className="flex items-center gap-1 text-[10px]">
             <span className="text-slate-500">H.Diurna</span>
-            <span className="font-bold text-orange-600 text-[10px]">
-              {movementSummary.cmaCount}
-            </span>
+            <span className="font-bold text-slate-700 text-[11px]">{movementSummary.cmaCount}</span>
           </div>
-          <div className="flex items-center gap-1 text-[9px]">
+          <div className="flex items-center gap-1 text-[10px]">
             <span className="text-slate-500">Ingresos</span>
-            <span className="font-bold text-indigo-600 text-[10px]">
+            <span className="font-bold text-accent-800 text-[11px]">
               {movementSummary.newAdmissions}
             </span>
           </div>
@@ -231,9 +233,9 @@ export const CombinedSummaryCard: React.FC<SummaryCardProps> = ({
         {/* Row 3: Fallecidos */}
         {movementSummary.totalDeaths > 0 && (
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1 text-[9px]">
+            <div className="flex items-center gap-1 text-[10px]">
               <span className="text-red-500 font-bold">Fall.</span>
-              <span className="font-bold text-red-600 text-[10px]">
+              <span className="font-bold text-red-600 text-[11px]">
                 {movementSummary.totalDeaths}
               </span>
             </div>
