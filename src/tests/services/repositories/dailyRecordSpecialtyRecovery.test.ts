@@ -1,125 +1,29 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
-import type { SpecialtyManualIntent } from '@/types/domain/specialtyDecision';
 import type { DailyRecordPartialWriteOptions } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import type { adoptAuthoritativeDailyRecordAtomically } from '@/services/storage/sync';
 import { Specialty } from '@/types/domain/patientClassification';
-import { buildPatient, buildRecord } from './dailyRecordRepositoryWriteServiceFixtures';
-
-const storage = vi.hoisted(() => ({
-  read: vi.fn(),
-  write: vi.fn(),
-  localRead: vi.fn(),
-  localSave: vi.fn(),
-  queue: vi.fn(),
-  adopt: vi.fn(),
-  enabled: vi.fn(() => true),
-}));
-vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
-  getRecordForDate: storage.localRead,
-  saveRecord: storage.localSave,
-  saveRecordStrict: storage.localSave,
-}));
-vi.mock('@/services/storage/firestore/firestoreRecordQueries', () => ({
-  getRecordFromFirestore: storage.read,
-}));
-vi.mock('@/services/storage/firestore/firestoreRecordWrites', () => ({
-  saveRecordToFirestore: vi.fn(),
-  updateRecordPartial: storage.write,
-}));
-vi.mock('@/services/storage/sync', () => ({
-  ackDailyRecordSyncTask: vi.fn(),
-  adoptAuthoritativeDailyRecordAtomically: storage.adopt,
-  queueDailyRecordSyncTaskWithLocalRecord: storage.queue,
-  releaseDailyRecordPreOutboxHold: vi.fn(),
-  renewDailyRecordPreOutboxHold: vi.fn(),
-}));
-vi.mock('@/services/repositories/repositoryConfig', () => ({
-  isFirestoreEnabled: storage.enabled,
-}));
-vi.mock('@/utils/recordInvariants', () => ({
-  normalizeDailyRecordInvariants: (record: DailyRecord) => ({ record, patches: {} }),
-}));
-vi.mock('@/services/repositories/helpers/validationHelper', () => ({
-  validateAndSalvageRecord: (record: DailyRecord) => record,
-}));
-vi.mock('@/services/utils/fhirMappers', () => ({ mapPatientToFhir: () => ({}) }));
-
-import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
+import { buildPatient } from './dailyRecordRepositoryWriteServiceFixtures';
+import {
+  storage,
+  date,
+  makeBase,
+  makeIntent,
+  targetPatient,
+  patchFor,
+  commit,
+  receipt,
+  save,
+  resetSpecialtyStorage,
+} from './dailyRecordSpecialtyRecoverySupport';
 import { runExclusiveDailyRecordWrite } from '@/services/repositories/dailyRecordWriteCoordinator';
 import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 import { normalizeDailyRecordAuthorityError } from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 
-const date = '2026-02-18';
-type RevisionRecord = DailyRecord & { meta: { revision: number } };
-const makeBase = (target: 'bed' | 'clinicalCrib' = 'bed') => {
-  const record: RevisionRecord = { ...buildRecord(date), meta: { revision: 1 } };
-  record.lastUpdated = `${date}T09:00:00.000Z`;
-  record.meta = { revision: 1 };
-  const patient = { ...buildPatient('R1', 'Paciente sintético'), clinicalEpisodeId: 'ep_target' };
-  record.beds = {
-    R1:
-      target === 'bed'
-        ? patient
-        : {
-            ...buildPatient('R1', 'Madre sintética'),
-            clinicalEpisodeId: 'ep_parent',
-            clinicalCrib: patient,
-          },
-  };
-  return record;
-};
-const makeIntent = (target: 'bed' | 'clinicalCrib' = 'bed'): SpecialtyManualIntent => ({
-  kind: 'manual',
-  bedId: 'R1',
-  target,
-  episodeId: 'ep_target',
-  value: Specialty.CIRUGIA,
-  expectedDecisionId: null,
-});
-const targetPatient = (record: DailyRecord, intent: SpecialtyManualIntent) =>
-  intent.target === 'bed' ? record.beds[intent.bedId] : record.beds[intent.bedId].clinicalCrib!;
-const patchFor = (intent: SpecialtyManualIntent): DailyRecordPatch =>
-  ({
-    [`beds.${intent.bedId}${intent.target === 'clinicalCrib' ? '.clinicalCrib' : ''}.specialty`]:
-      intent.value,
-  }) as DailyRecordPatch;
-const commit = (base: RevisionRecord, intent: SpecialtyManualIntent, mutationId: string) => {
-  const record = structuredClone(base);
-  record.meta = { revision: (base.meta?.revision ?? 0) + 1 };
-  record.lastUpdated = `${date}T10:00:${String(record.meta.revision).padStart(2, '0')}.000Z`;
-  const patient = targetPatient(record, intent);
-  patient.specialty = intent.value;
-  patient.specialtyAssignment = {
-    schemaVersion: 3,
-    episodeId: intent.episodeId,
-    decisionId: mutationId,
-    recordDate: date,
-    source: 'manual',
-    actorUid: 'synthetic-user',
-    decidedAt: record.lastUpdated,
-  };
-  return record;
-};
-const receipt = (record: RevisionRecord) => ({
-  recordState: { record, lastUpdated: record.lastUpdated, meta: record.meta },
-});
-const save = (base: DailyRecord, intent = makeIntent()) =>
-  updatePartialDetailed(date, patchFor(intent), {
-    baseRecord: base,
-    specialtyIntent: intent,
-    requireAtomicCas: true,
-  });
-
-beforeEach(() => {
-  vi.resetAllMocks();
-  storage.enabled.mockReturnValue(true);
-  storage.adopt.mockImplementation(async (record: DailyRecord) => ({ status: 'adopted', record }));
-});
+beforeEach(resetSpecialtyStorage);
 
 describe('manual specialty authority and recovery', () => {
-  it('reads its fresh baseline after acquiring the date turn and preserves ten rapid bed edits', async () => {
+  it('reuses the locally adopted baseline after its date turn and preserves ten rapid bed edits', async () => {
     const base = makeBase();
     for (let i = 1; i <= 10; i++)
       base.beds[`R${i}`] = {
@@ -127,6 +31,12 @@ describe('manual specialty authority and recovery', () => {
         clinicalEpisodeId: `ep_${i}`,
       };
     let remote = structuredClone(base);
+    let local: DailyRecord = structuredClone(base);
+    storage.localRead.mockImplementation(async () => local);
+    storage.adopt.mockImplementation(async (record: DailyRecord) => {
+      local = record;
+      return { status: 'adopted', record };
+    });
     let release!: () => void;
     let entered!: () => void;
     const started = new Promise<void>(resolve => {
@@ -140,6 +50,7 @@ describe('manual specialty authority and recovery', () => {
       remote.meta = { revision: 2 };
       remote.lastUpdated = `${date}T09:30:00.000Z`;
       remote.beds.R1.pathology = 'Actualización clínica sintética';
+      local = structuredClone(remote);
     });
     await started;
     storage.read.mockImplementation(async () => structuredClone(remote));
@@ -165,6 +76,7 @@ describe('manual specialty authority and recovery', () => {
     const results = await Promise.all(saves);
     expect(results.every(result => result.updatedRemotely)).toBe(true);
     expect(storage.write).toHaveBeenCalledTimes(10);
+    expect(storage.read).not.toHaveBeenCalled();
     expect(
       Object.values(remote.beds).every(patient => patient.specialty === Specialty.CIRUGIA)
     ).toBe(true);
@@ -182,7 +94,7 @@ describe('manual specialty authority and recovery', () => {
         meta: { revision: 3 },
         lastUpdated: `${date}T09:40:00.000Z`,
       };
-      storage.read.mockResolvedValueOnce(base).mockResolvedValue(fresher);
+      storage.read.mockResolvedValue(fresher);
       storage.write
         .mockRejectedValueOnce(new ConcurrencyError('revision changed', 'version_mismatch'))
         .mockImplementationOnce(
@@ -202,7 +114,7 @@ describe('manual specialty authority and recovery', () => {
   );
 
   it.each(['episode', 'decision', 'scalar', 'date', 'missing'] as const)(
-    'rejects a changed %s before sending or saving locally',
+    'does not rebase or persist a rejected write when the remote %s changed',
     async change => {
       const base = makeBase();
       const remote = structuredClone(base);
@@ -215,8 +127,9 @@ describe('manual specialty authority and recovery', () => {
       if (change === 'scalar') remote.beds.R1.specialty = Specialty.PEDIATRIA;
       if (change === 'date') remote.date = '2026-02-19';
       storage.read.mockResolvedValue(change === 'missing' ? null : remote);
+      storage.write.mockRejectedValue(new ConcurrencyError('revision changed', 'version_mismatch'));
       await expect(save(base)).rejects.toThrow();
-      expect(storage.write).not.toHaveBeenCalled();
+      expect(storage.write).toHaveBeenCalledTimes(1);
       expect(storage.localSave).not.toHaveBeenCalled();
       expect(storage.adopt).not.toHaveBeenCalled();
       expect(storage.queue).not.toHaveBeenCalled();
@@ -256,7 +169,7 @@ describe('manual specialty authority and recovery', () => {
       const base = makeBase(target);
       const intent = makeIntent(target);
       const competing = commit(base, { ...intent, value: Specialty.MEDICINA }, 'other-user');
-      storage.read.mockResolvedValueOnce(base).mockResolvedValue(competing);
+      storage.read.mockResolvedValue(competing);
       const conflict = new ConcurrencyError('revision changed', 'version_mismatch');
       storage.write.mockRejectedValue(conflict);
       await expect(save(base, intent)).rejects.toBe(conflict);
@@ -355,9 +268,10 @@ describe('manual specialty authority and recovery', () => {
 
   it('fails closed offline, then accepts an explicit new attempt after reconnecting', async () => {
     const base = makeBase();
+    storage.write.mockRejectedValueOnce(new Error('offline'));
     storage.read.mockRejectedValueOnce(new Error('offline'));
     await expect(save(base)).rejects.toThrow('offline');
-    expect(storage.write).not.toHaveBeenCalled();
+    expect(storage.write).toHaveBeenCalledTimes(1);
     storage.read.mockResolvedValue(base);
     storage.write.mockImplementation(
       async (_date, _patch, _expected, options: DailyRecordPartialWriteOptions) =>
