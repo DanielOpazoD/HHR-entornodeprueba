@@ -13,6 +13,9 @@ vi.mock('firebase/firestore', async () => {
   class MockTimestamp {
     static now = vi.fn(() => new MockTimestamp());
 
+    // Millisecond precision, like the real Timestamp.now().
+    readonly seconds = Math.floor(Date.parse('2026-03-14T12:34:56.789Z') / 1000);
+    readonly nanoseconds = 789_000_000;
     toDate = () => new Date('2026-03-14T12:34:56.789Z');
   }
 

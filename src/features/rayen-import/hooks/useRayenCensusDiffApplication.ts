@@ -144,8 +144,10 @@ export const useRayenCensusDiffApplication = ({
               // transaction committed, run stamp included. Without that receipt the
               // confirmation comes from a readback, which an attached listener can
               // answer with the pre-commit version (seen live on 31-08: committed
-              // run, unstamped confirmation). This reread shares that exposure; the
-              // handoff guard re-validates the stamp and still fails loudly without it.
+              // run, unstamped confirmation). A readback still at the base version
+              // now fails closed upstream and never reaches here, so this reread only
+              // covers a newer readback without the run stamp. It shares the listener
+              // exposure; the handoff guard re-validates the stamp and fails loudly.
               confirmedCheckpointRecord = await loadAuthoritativeRecord(persistenceBase.date);
             }
             persistence = {

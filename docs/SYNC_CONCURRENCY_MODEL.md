@@ -107,9 +107,13 @@ The first matching route wins:
    `returnCommittedRecord`) gets the committed record back. It does not depend on a server
    readback, which an attached census listener can answer with the pre-commit version. After the
    commit, the payload is projected onto the base the committing attempt read
-   (`firestoreUpdateProjection`); a payload it cannot reproduce exactly (any `FieldValue`) gets no
-   receipt. Without a receipt, the controller's readback rejects a copy still at the base version,
-   retries twice (about 250 and 750 ms) and then fails closed.
+   (`firestoreUpdateProjection`); a value it cannot reproduce exactly gets no receipt. The
+   projection refuses `FieldValue` sentinels and class instances for direct callers; on this path
+   `sanitizeForFirestore` has already turned them into plain maps, which are stored as they are.
+   Without a receipt, the controller's readback rejects a copy still at the base version, retries
+   twice (about 250 and 750 ms) and then fails closed. It rejects only that exact version, because
+   a client-clock `lastUpdated` cannot be ordered safely: a listener view older than the base still
+   passes.
 5. **Otherwise** — `assertFirestoreConcurrency` (**fail-closed**: a verification error aborts),
    a history snapshot (hourly cadence; `'snapshot'` forces it, `'skip'` omits it), and `updateDoc`
    with dot-path fields. It

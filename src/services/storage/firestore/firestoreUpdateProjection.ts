@@ -31,8 +31,9 @@ const cloneBaseValue = (value: unknown): unknown => {
 
 /**
  * The value Firestore stores for one payload entry, as the SDK parses it with
- * ignoreUndefinedProperties: undefined is dropped from maps and becomes null in arrays, and a Date
- * becomes a Timestamp. FieldValue sentinels and any other class instance are refused.
+ * ignoreUndefinedProperties: undefined is dropped from maps and becomes null in arrays, a Date
+ * becomes a Timestamp, and a Timestamp keeps whole microseconds only. FieldValue sentinels and any
+ * other class instance are refused.
  */
 const toStoredValue = (value: unknown, path: string): unknown => {
   if (
@@ -43,7 +44,12 @@ const toStoredValue = (value: unknown, path: string): unknown => {
   ) {
     return value;
   }
-  if (value instanceof Timestamp) return value;
+  if (value instanceof Timestamp) {
+    const subMicroseconds = value.nanoseconds % 1000;
+    return subMicroseconds === 0
+      ? value
+      : new Timestamp(value.seconds, value.nanoseconds - subMicroseconds);
+  }
   if (value instanceof Date) return Timestamp.fromDate(value);
   if (Array.isArray(value)) {
     // Array.from also visits holes, which the SDK stores as null like undefined.

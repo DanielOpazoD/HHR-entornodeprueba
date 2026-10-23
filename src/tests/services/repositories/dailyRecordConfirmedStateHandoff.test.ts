@@ -223,7 +223,8 @@ describe('daily record confirmed readback guard', () => {
     readRemoteConfirmedRecord: () => Promise<DailyRecord | null>,
     remoteAuthorityFirst: boolean,
     state = createRemoteWriteState(),
-    remoteResult?: unknown
+    remoteResult?: unknown,
+    baseVersion = expectedVersion
   ) =>
     persistLocalAndAttemptRemoteSync({
       date: '2026-08-07',
@@ -234,7 +235,7 @@ describe('daily record confirmed readback guard', () => {
       readRemoteConfirmedRecord,
       requireConfirmedRecord: true,
       remoteAuthorityFirst,
-      expectedVersion,
+      expectedVersion: baseVersion,
       onRemoteFailure: vi.fn(),
     });
 
@@ -286,6 +287,25 @@ describe('daily record confirmed readback guard', () => {
     expect(state.confirmedRecord).toBeUndefined();
     expect(state.consistencyState).toBe('unrecoverable');
     expect(saveToIndexedDBMock).not.toHaveBeenCalledWith(preCommitRecord);
+  });
+
+  it('treats the base instant written in another ISO form as the pre-commit readback', async () => {
+    vi.useFakeTimers();
+    const state = createRemoteWriteState();
+    const readRemoteConfirmedRecord = vi.fn().mockResolvedValue(preCommitRecord);
+
+    const pending = persistWithReadback(
+      readRemoteConfirmedRecord,
+      true,
+      state,
+      undefined,
+      '2026-08-07T09:00:00Z'
+    );
+    await vi.advanceTimersByTimeAsync(1000);
+
+    await expect(pending).resolves.toBe('return');
+    expect(readRemoteConfirmedRecord).toHaveBeenCalledTimes(3);
+    expect(state.confirmedRecord).toBeUndefined();
   });
 
   it('accepts the committed record once a retried readback catches up', async () => {

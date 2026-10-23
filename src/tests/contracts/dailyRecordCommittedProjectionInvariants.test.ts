@@ -9,8 +9,10 @@ import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const FUNCTIONS_ROOT = path.resolve(__dirname, '../../../functions');
-const TRIGGER_PATTERN =
-  /\.document\(\s*['"`]([^'"`]+)['"`]|onDocument(?:Written|Created|Updated|Deleted)\w*\(\s*['"`]([^'"`]+)['"`]/g;
+// v1 `.document('path')` and every v2 `onDocument*(` call, whatever its argument form.
+const TRIGGER_CALL = /\.document\(|onDocument(?:Written|Created|Updated|Deleted)\w*\(/g;
+// The path as a string first argument, or as the `document` option of the v2 object form.
+const TRIGGER_PATH = /^\s*(?:\{[^}]*?\bdocument\s*:\s*)?['"`]([^'"`]+)['"`]/;
 
 const listSources = (dir: string): string[] =>
   fs.readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
@@ -22,17 +24,21 @@ const listSources = (dir: string): string[] =>
 
 describe('committed record projection invariants', () => {
   it('has no Cloud Functions trigger that writes after a daily record commit', () => {
-    const triggerPaths = listSources(FUNCTIONS_ROOT).flatMap(file =>
-      Array.from(fs.readFileSync(file, 'utf8').matchAll(TRIGGER_PATTERN), match => ({
+    const triggerPaths = listSources(FUNCTIONS_ROOT).flatMap(file => {
+      const source = fs.readFileSync(file, 'utf8');
+      return Array.from(source.matchAll(TRIGGER_CALL), match => ({
         file: path.relative(FUNCTIONS_ROOT, file),
-        documentPath: match[1] ?? match[2],
-      }))
-    );
+        documentPath:
+          TRIGGER_PATH.exec(source.slice(match.index + match[0].length))?.[1] ?? '<unresolved>',
+      }));
+    });
 
     // The scan must still see the one known trigger, or a new trigger syntax would slip past it.
     expect(triggerPaths.map(trigger => trigger.documentPath)).toContain(
       'hhr_account_recovery/{challengeId}'
     );
+    // A trigger whose path the scan cannot read (a variable, a new option shape) fails closed.
+    expect(triggerPaths.filter(trigger => trigger.documentPath === '<unresolved>')).toEqual([]);
     // A wildcard collection under a hospital would match daily records too.
     expect(
       triggerPaths.filter(trigger =>

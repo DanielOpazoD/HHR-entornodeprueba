@@ -139,6 +139,12 @@ const wait = (ms: number) => new Promise<void>(resolve => globalThis.setTimeout(
  * document instead. That server read can be answered by an attached listener that has not seen
  * this commit yet: a readback still at the write's base version is retried briefly, then rejected
  * so the caller fails closed instead of adopting the pre-write record.
+ *
+ * Only that exact version is rejected, because lastUpdated comes from client clocks and cannot be
+ * ordered safely. Two stale views still pass when the write returned no record: a listener view
+ * older than the base, and, after a stale-version rebase, one at the retried write's own base
+ * (callers pass the original expectedVersion). Rebase is not offered to atomic or
+ * remote-authority-first writes, so the second needs a callable that returns no recordState.
  */
 const resolveRemoteAuthorityRecord = async (
   record: DailyRecord,

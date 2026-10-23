@@ -146,6 +146,19 @@ describe('projectFirestoreUpdate', () => {
     expect(projected.events).toEqual([Timestamp.fromDate(date)]);
   });
 
+  it('truncates Timestamps to the microseconds Firestore keeps', () => {
+    const projected = projectFirestoreUpdate(
+      {},
+      {
+        'beds.R1.takenAt': new Timestamp(1_700_000_000, 123_456_789),
+        events: [new Timestamp(1_700_000_000, 999)],
+      }
+    );
+
+    expect(projected.beds.R1.takenAt).toEqual(new Timestamp(1_700_000_000, 123_456_000));
+    expect(projected.events).toEqual([new Timestamp(1_700_000_000, 0)]);
+  });
+
   it('skips top-level undefined, drops it inside maps and stores null for it or a hole in arrays', () => {
     const base = { handoffNovedadesDayShift: 'se mantiene', beds: { R1: { pathology: 'Dx' } } };
 

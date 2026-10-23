@@ -112,6 +112,27 @@ describeEmulator('Firestore emulator atomic partial projection fuzz', () => {
     await testEnv.cleanup();
   });
 
+  // Seeds the base, commits the payload atomically and returns the committing attempt's base
+  // together with an independent server read of the stored document.
+  const commitAndRead = async (base: DocumentData, payload: DocumentData, label: string) => {
+    await withAdminDb(db => setDoc(doc(db, RECORD_PATH), base));
+    const committedBase = await withAdminDb(db =>
+      updateRecordPartiallyAtomically(
+        doc(db, RECORD_PATH),
+        payload,
+        BASE_VERSION,
+        'conflict',
+        label,
+        { historyPolicy: 'skip' },
+        { getDb: () => db, ready: Promise.resolve() }
+      )
+    );
+    const stored = await withAdminDb(async db =>
+      (await getDocFromServer(doc(db, RECORD_PATH))).data()
+    );
+    return { committedBase, stored };
+  };
+
   it('projects 50 seeded synthetic patches exactly as Firestore stores them', async () => {
     const rng = createRng(20261023);
 
@@ -138,22 +159,7 @@ describeEmulator('Firestore emulator atomic partial projection fuzz', () => {
         ) as Record<string, unknown>),
         lastUpdated: Timestamp.now(),
       }) as DocumentData;
-      await withAdminDb(db => setDoc(doc(db, RECORD_PATH), base));
-
-      const committedBase = await withAdminDb(db =>
-        updateRecordPartiallyAtomically(
-          doc(db, RECORD_PATH),
-          payload,
-          BASE_VERSION,
-          'conflict',
-          `fuzz ${iteration}`,
-          { historyPolicy: 'skip' },
-          { getDb: () => db, ready: Promise.resolve() }
-        )
-      );
-      const stored = await withAdminDb(async db =>
-        (await getDocFromServer(doc(db, RECORD_PATH))).data()
-      );
+      const { committedBase, stored } = await commitAndRead(base, payload, `fuzz ${iteration}`);
 
       expect(
         projectFirestoreUpdate(committedBase, payload),
@@ -161,4 +167,16 @@ describeEmulator('Firestore emulator atomic partial projection fuzz', () => {
       ).toStrictEqual(stored);
     }
   }, 120_000);
+
+  it('projects Timestamps finer than a microsecond as Firestore truncates them', async () => {
+    const payload = {
+      'beds.R1.takenAt': new Timestamp(1_700_000_000, 123_456_789),
+      'extras.events': [new Timestamp(1_700_000_000, 999)],
+      lastUpdated: Timestamp.now(),
+    };
+
+    const { committedBase, stored } = await commitAndRead(buildRecord(), payload, 'precision');
+
+    expect(projectFirestoreUpdate(committedBase, payload)).toStrictEqual(stored);
+  });
 });
