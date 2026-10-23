@@ -13,15 +13,20 @@ export const SaveButton = ({
   disabled,
   isBackingUp = false,
   isArchived = false,
+  isOpen = false,
+  controlsId,
 }: {
   onClick?: () => void;
   disabled?: boolean;
   isBackingUp?: boolean;
   isArchived?: boolean;
+  isOpen?: boolean;
+  controlsId?: string;
 }) => {
   const uiState = resolveSaveButtonUiState({ isArchived, isBackingUp, variant: 'census' });
   return (
     <button
+      type="button"
       onClick={onClick}
       disabled={disabled || isBackingUp}
       className={clsx(
@@ -31,11 +36,15 @@ export const SaveButton = ({
       )}
       title="Opciones de guardado"
       aria-label={uiState.label}
+      aria-expanded={isOpen}
+      aria-controls={isOpen ? controlsId : undefined}
       data-save-status={isBackingUp ? 'loading' : isArchived ? 'archived' : 'idle'}
     >
-      {uiState.iconKind === 'loading' && <Loader2 size={13} className="animate-spin" />}
-      {uiState.iconKind === 'archived' && <CheckCircle size={13} />}
-      {uiState.iconKind === 'default' && <Save size={13} />}
+      {uiState.iconKind === 'loading' && (
+        <Loader2 size={13} className="animate-spin" aria-hidden="true" />
+      )}
+      {uiState.iconKind === 'archived' && <CheckCircle size={13} aria-hidden="true" />}
+      {uiState.iconKind === 'default' && <Save size={13} aria-hidden="true" />}
     </button>
   );
 };
@@ -45,12 +54,14 @@ export const EmailButton = ({
   emailStatus = 'idle',
   emailErrorMessage,
   isOpen = false,
+  controlsId,
 }: {
   onClick?: () => void;
   disabled?: boolean;
   emailStatus?: EmailStatus;
   emailErrorMessage?: string | null;
   isOpen?: boolean;
+  controlsId?: string;
 }) => {
   const uiState = resolveEmailButtonUiState({
     status: emailStatus,
@@ -58,6 +69,7 @@ export const EmailButton = ({
   });
   return (
     <button
+      type="button"
       onClick={onClick}
       disabled={disabled || emailStatus === 'loading'}
       className={clsx(
@@ -68,11 +80,17 @@ export const EmailButton = ({
       )}
       title={uiState.title}
       aria-live="polite"
+      aria-expanded={isOpen}
+      aria-controls={isOpen ? controlsId : undefined}
       data-email-status={emailStatus}
     >
-      <Send size={13} />
+      <Send size={13} aria-hidden="true" />
       {uiState.label}
-      <ChevronDown size={13} className={clsx('transition-transform', isOpen && 'rotate-180')} />
+      <ChevronDown
+        size={13}
+        aria-hidden="true"
+        className={clsx('transition-transform', isOpen && 'rotate-180')}
+      />
     </button>
   );
 };

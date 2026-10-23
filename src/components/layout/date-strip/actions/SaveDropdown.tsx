@@ -13,7 +13,11 @@ export const SaveDropdown: React.FC<SaveDropdownProps> = ({
   isBackingUp,
   showFirebaseBackupOption = true,
 }) => {
-  const { isOpen, menuRef, toggle, close } = useDropdownMenu();
+  const { isOpen, menuRef, toggle, close } = useDropdownMenu({
+    closeOnOutsideClick: false,
+    closeOnEscape: false,
+  });
+  const panelId = React.useId();
 
   const handleAction = async (action: 'excel' | 'backup') => {
     close();
@@ -31,10 +35,22 @@ export const SaveDropdown: React.FC<SaveDropdownProps> = ({
 
   return (
     <div className="relative" ref={menuRef}>
-      <SaveButton onClick={toggle} isBackingUp={isBackingUp} isArchived={isArchived} />
+      <SaveButton
+        onClick={toggle}
+        isBackingUp={isBackingUp}
+        isArchived={isArchived}
+        isOpen={isOpen}
+        controlsId={panelId}
+      />
 
       {isOpen && (
-        <DateStripDropdownPanel title="Opciones de Guardado" widthClassName="w-52">
+        <DateStripDropdownPanel
+          id={panelId}
+          anchorRef={menuRef}
+          onClose={close}
+          title="Opciones de guardado"
+          widthClassName="w-56"
+        >
           {showFirebaseBackupOption && (
             <DateStripActionItem
               onClick={() => void handleAction('backup')}

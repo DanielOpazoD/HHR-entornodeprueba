@@ -47,7 +47,7 @@ export const PatientActionMenuPanel: React.FC<PatientActionMenuPanelProps> = ({
 
   return (
     <PatientRowMenuPortal anchorRef={anchorRef} align={binding.align} onClose={onClose}>
-      <div className="bg-white shadow-xl rounded-2xl border border-slate-200/90 w-60 text-left overflow-hidden">
+      <div className="w-64 max-w-[calc(100vw-16px)] overflow-hidden rounded-xl border border-slate-200 bg-white text-left shadow-xl">
         {model.showHistoryAction && (
           <PatientActionMenuHistoryAction onViewHistory={onViewHistory} />
         )}

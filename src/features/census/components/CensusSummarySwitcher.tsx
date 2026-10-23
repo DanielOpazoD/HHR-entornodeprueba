@@ -19,7 +19,7 @@ export const CensusSummarySwitcher = ({
   const [opened, setOpened] = useState(false);
   return (
     <div
-      className="relative min-w-0 w-[310px] max-w-full self-stretch"
+      className="relative min-w-0 w-[340px] max-w-full self-stretch"
       data-testid="census-summary-switcher"
     >
       <button
