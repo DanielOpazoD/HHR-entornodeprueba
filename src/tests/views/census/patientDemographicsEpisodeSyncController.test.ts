@@ -112,6 +112,45 @@ describe('patientDemographicsEpisodeSyncController', () => {
     });
   });
 
+  it('treats placeholder documents as missing and falls back to the name', async () => {
+    const sourcePatient = DataFactory.createMockPatient('R2', {
+      patientName: 'Paciente Sin Documento',
+      rut: 'S/R',
+      firstSeenDate: '2026-04-09',
+      admissionDate: '2026-04-09',
+    });
+    const updatePartial = vi.fn().mockResolvedValue(undefined);
+
+    await harmonizeEpisodeDemographicsHistory({
+      currentDate: '2026-04-10',
+      sourcePatient,
+      updatedFields: { age: '61' },
+      dailyRecordReadRepository: {
+        getAvailableDates: vi.fn().mockResolvedValue(['2026-04-09', '2026-04-10']),
+        getForDate: vi.fn().mockResolvedValue(
+          DataFactory.createMockDailyRecord('2026-04-09', {
+            beds: {
+              // Same placeholder, different patient: never the same identity.
+              R4: DataFactory.createMockPatient('R4', {
+                patientName: 'Otro Paciente',
+                rut: 's/r',
+                firstSeenDate: '2026-04-09',
+              }),
+              R5: DataFactory.createMockPatient('R5', {
+                patientName: 'Paciente Sin Documento',
+                rut: 'SIN RUT',
+                firstSeenDate: '2026-04-09',
+              }),
+            },
+          })
+        ),
+      },
+      dailyRecordWriteRepository: { updatePartial },
+    });
+
+    expect(updatePartial).toHaveBeenCalledExactlyOnceWith('2026-04-09', { 'beds.R5.age': '61' });
+  });
+
   it('falls back to patientName matching when rut is missing', async () => {
     const sourcePatient = DataFactory.createMockPatient('R2', {
       patientName: 'Paciente Sin Rut',

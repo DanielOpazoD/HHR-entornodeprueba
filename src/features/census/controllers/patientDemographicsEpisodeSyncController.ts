@@ -76,9 +76,11 @@ const listEpisodeCalendarDays = (firstSeenDate: string, currentDate: string): st
 /**
  * Formatting only: `12.345.678-9` and `123456789` are one identity document, and letters stay,
  * so a passport is never reduced to the digits of a RUT (`X1234567` and `Y1234567` differ).
+ * A value with no digit or K (`S/R`, `SIN RUT`) is no document: matching falls back to the name,
+ * exactly as before, so this rule can only remove matches, never add them.
  */
 const normalizeDocument = (value?: string): string =>
-  (value ?? '').toUpperCase().replace(/[.\s-]/g, '');
+  /[0-9kK]/.test(value ?? '') ? (value ?? '').toUpperCase().replace(/[.\s-]/g, '') : '';
 
 const normalizePatientName = (patientName?: string): string =>
   (patientName ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
