@@ -59,7 +59,6 @@ describe('clinicalAIProviderRouting', () => {
     expect(createDefaultClinicalAIProviderRoutingDocument()).toMatchObject({
       actions: {
         clinical_document_import: { enabled: true, provider: null },
-        clinical_ai_summary: { enabled: true, provider: null },
         cie10_search: { enabled: true, provider: null },
         clinical_attachment_name_suggestion: { enabled: true, provider: 'deepseek' },
       },

@@ -2,7 +2,6 @@ import { GoogleGenAI } from '@google/genai';
 
 export type ClinicalAIProvider = 'gemini' | 'openai' | 'anthropic' | 'deepseek';
 export type ClinicalAIAction =
-  | 'clinical_ai_summary'
   | 'clinical_document_import'
   | 'cie10_search'
   | 'clinical_attachment_name_suggestion';

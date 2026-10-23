@@ -8,22 +8,16 @@ import {
   SESSION_GENERATION_KEY,
   setSessionGeneration,
 } from './sessionStorageTransition';
+import { getStoredSessionOwnerKey, SESSION_OWNER_KEY } from './sessionOwnerKey';
 
-const SESSION_OWNER_KEY = 'hhr_session_owner_v1';
+export { getStoredSessionOwnerKey };
+
 const CLEANUP_PENDING_KEY = 'hhr_session_cleanup_pending_v1';
 let failedCleanupGeneration: string | null | undefined;
 let pendingLocalAuthClosure: (() => Promise<void>) | undefined;
 
 export const resolveSessionOwnerKey = (uid: string | null | undefined): string | null =>
   uid ? `user:${uid}` : null;
-
-export const getStoredSessionOwnerKey = (): string | null => {
-  if (typeof localStorage === 'undefined') {
-    return null;
-  }
-
-  return localStorage.getItem(SESSION_OWNER_KEY);
-};
 
 const setStoredSessionOwnerKey = (ownerKey: string | null): void => {
   if (typeof localStorage === 'undefined') {

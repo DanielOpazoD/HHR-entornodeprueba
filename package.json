@@ -22,7 +22,7 @@
     "test:repository-compat": "vitest run src/tests/schemas/zodEntitySchemas.test.ts src/tests/schemas/zodDailyRecordSchemas.test.ts src/tests/validation/schema-fuzzing.test.ts src/tests/services/repositories/dataMigration.test.ts src/tests/services/dailyRecordRepository.test.ts",
     "test:risk:admin-health": "vitest run src/tests/services/admin/healthService.test.ts src/tests/features/admin/systemHealthStatusPolicy.test.ts",
     "test:risk:auth": "vitest run src/tests/services/auth/authErrorPolicy.test.ts src/tests/services/auth/authRequestHeaders.test.ts src/tests/services/auth/googleLoginLock.test.ts src/tests/services/authService.test.ts src/tests/services/admin/roleService.test.ts",
-    "test:risk:platform": "vitest run src/tests/security/netlifyHeadersStatic.test.ts src/tests/security/netlifyRuntimeIsolationStatic.test.ts src/tests/security/legacyRoleAliasStatic.test.ts src/tests/netlify/firebaseAuth.test.ts src/tests/netlify/sendCensusEmailFunction.test.ts src/tests/netlify/fhirApi.test.ts src/tests/netlify/cie10AiSearch.test.ts src/tests/netlify/aiProvider.test.ts src/tests/netlify/clinicalAiSummary.test.ts src/tests/services/auth/googleLoginLock.test.ts src/tests/services/backup/storageContracts.test.ts src/tests/services/backup/storageAvailability.test.ts src/tests/services/backup/censusStorageService.test.ts src/tests/services/backup/cudyrStorageService.test.ts src/tests/services/backup/pdfStorageRuntime.test.ts",
+    "test:risk:platform": "vitest run src/tests/security/netlifyHeadersStatic.test.ts src/tests/security/netlifyRuntimeIsolationStatic.test.ts src/tests/security/legacyRoleAliasStatic.test.ts src/tests/netlify/firebaseAuth.test.ts src/tests/netlify/sendCensusEmailFunction.test.ts src/tests/netlify/fhirApi.test.ts src/tests/netlify/cie10AiSearch.test.ts src/tests/netlify/aiProvider.test.ts src/tests/services/auth/googleLoginLock.test.ts src/tests/services/backup/storageContracts.test.ts src/tests/services/backup/storageAvailability.test.ts src/tests/services/backup/censusStorageService.test.ts src/tests/services/backup/cudyrStorageService.test.ts src/tests/services/backup/pdfStorageRuntime.test.ts",
     "pretest:rules": "npm run build:rules-assets",
     "pretest:emulator:sync": "npm run build:rules-assets",
     "pretest:emulator:ui": "npm run build:rules-assets",
@@ -119,6 +119,8 @@
     "check:runtime-adapter-boundary": "node scripts/check-runtime-adapter-boundary.mjs",
     "check:native-dialogs": "node scripts/check-native-dialogs.mjs",
     "check:clinical-clock": "node scripts/check-clinical-clock.mjs",
+    "check:empty-on-failure-reads": "node scripts/check-empty-on-failure-reads.mjs",
+    "check:import-cycles": "node scripts/check-import-cycles.mjs",
     "check:firestore-runtime-boundary": "node scripts/check-firestore-runtime-boundary.mjs",
     "check:firestore-emulator-governance": "node scripts/check-firestore-emulator-governance.mjs",
     "check:domain-hotspot-boundary": "node scripts/check-domain-hotspot-boundary.mjs",
@@ -205,7 +207,7 @@
     "ci:inner-loop": "npm run typecheck && npm run lint -- --max-warnings 0 && npm run check:quality && npm run test:unit:critical",
     "ci:pre-merge": "npm run typecheck && npm run lint -- --max-warnings 0 && npm run check:quality && npm run test:ci:unit",
     "ci:preview-gate": "npm run check:bundle-budget && npm run check:chunk-graph && npm run check:runtime-asset-margin && npm run ci:preview-smoke:built",
-    "ci:preview-smoke:built": "PLAYWRIGHT_SKIP_PREVIEW_BUILD=1 playwright test -c playwright.preview.config.ts e2e/census-preview-bootstrap.spec.ts e2e/clinical-library-smoke.spec.ts e2e/clinical-panel-reading-smoke.spec.ts e2e/census-sync-history-navigation.spec.ts e2e/dicom-viewer.spec.ts e2e/clinical-carryover-preview.spec.ts --project=chromium",
+    "ci:preview-smoke:built": "PLAYWRIGHT_SKIP_PREVIEW_BUILD=1 playwright test -c playwright.preview.config.ts e2e/census-preview-bootstrap.spec.ts e2e/clinical-library-smoke.spec.ts e2e/clinical-library-pharmacy.spec.ts e2e/clinical-panel-reading-smoke.spec.ts e2e/census-sync-history-navigation.spec.ts e2e/dicom-viewer.spec.ts e2e/clinical-carryover-preview.spec.ts --project=chromium",
     "ci:merge-gate": "npm run ci:pre-merge && npm run lint:strict:core && npm run check:critical-coverage && npm run check:netlify-functions-bundle && npm run build && npm run ci:preview-gate",
     "ci:release-gate": "npm run ci:merge-gate && npm run check:daily-record-authority-release-gate && npm run release:evidence:refresh && npm run check:release-evidence && npm run test:firestore:release:ci",
     "clean": "bash scripts/cleanup.sh",
@@ -334,7 +336,7 @@
   "overrides": {
     "@xmldom/xmldom": "0.9.10",
     "basic-ftp": "6.2.1",
-    "dompurify": "3.4.11",
+    "dompurify": "3.4.17",
     "minimatch@<4": {
       "brace-expansion": "1.1.21"
     },

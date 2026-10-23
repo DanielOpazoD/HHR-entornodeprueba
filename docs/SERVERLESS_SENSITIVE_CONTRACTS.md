@@ -8,7 +8,6 @@
 | `mmrad-search`                | `GET`,`OPTIONS`        | Bearer Firebase | `admin`, `nurse_hospital`, `doctor_urgency`, `doctor_specialist`, `editor`, `viewer` | `VITE_FIREBASE_*`, `MMRAD_USERNAME`, `MMRAD_PASSWORD`         | `400`, `401`, `403`, `500`, `502` |
 | `send-census-email`           | `POST`                 | Bearer Firebase | `admin`, `nurse_hospital`                                                            | `VITE_FIREBASE_*`, Gmail secrets                              | `400`, `401`, `403`, `500`        |
 | `fhir-api`                    | `GET`, `OPTIONS`       | Bearer Firebase | roles clínicos permitidos                                                            | `VITE_FIREBASE_*`                                             | `401`, `403`, `404`, `500`        |
-| `clinical-ai-summary`         | `POST`, `OPTIONS`      | Bearer Firebase | `admin`, `nurse_hospital`, `doctor_urgency`, `doctor_specialist`, `editor`           | `AI_PROVIDER`, provider keys, `VITE_FIREBASE_*`               | `400`, `401`, `403`, `404`, `500` |
 | `clinical-document-ai-import` | `POST`, `OPTIONS`      | Bearer Firebase | `admin`, `nurse_hospital`, `doctor_urgency`, `doctor_specialist`, `editor`           | `AI_PROVIDER`, provider keys, `VITE_FIREBASE_*`               | `400`, `401`, `403`, `500`, `502` |
 | `cie10-ai-search`             | `POST`, `OPTIONS`      | Bearer Firebase | roles clínicos generales                                                             | `AI_PROVIDER`, provider keys                                  | `400`, `401`, `403`, `500`        |
 | `admin-ai-provider-status`    | `GET`, `OPTIONS`       | Bearer Firebase | `admin`                                                                              | `AI_PROVIDER`, provider keys                                  | `401`, `403`, `500`               |
@@ -121,10 +120,14 @@ mínimo 0, máximo 10 instancias y timeout de 60 segundos. El transporte invocab
 no reemplaza la validación de credenciales y estado de la cuenta.
 
 El cliente selecciona Santiago por defecto sólo en `hhr-pruebas`; los overrides
-US/São Paulo/Santiago tienen allowlist y un valor inválido usa US. Ante un fallo
-no repite el ingreso en otro endpoint. `signInWithRut` conserva sus endpoints
-Gen1 US/São Paulo para compatibilidad; los otros callables de cuentas y el correo
-de recuperación no cambian de región.
+US/São Paulo/Santiago tienen allowlist y un valor inválido usa US. Si la ruta
+regional no entrega respuesta utilizable (`internal`, `unavailable` o
+`deadline-exceeded`), repite el ingreso una sola vez en el callable US y
+registra `auth`/`rut_sign_in_region_fallback` con región y código, sin
+credenciales ni correo de alerta; los rechazos de credenciales, límite o entrada
+no se repiten. `signInWithRut` conserva sus endpoints Gen1 US/São Paulo para
+compatibilidad; los otros callables de cuentas y el correo de recuperación no
+cambian de región.
 
 Pruebas específicas: `accountFunctionsRegions.test.ts`,
 `accountSantiagoFunction.test.ts` y `nursingAccountRegion.test.ts`. El protocolo

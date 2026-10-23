@@ -12,7 +12,6 @@ const { mockReload } = vi.hoisted(() => ({
 
 vi.mock('@/services/storage/indexeddb/indexedDbCore', () => ({
   isDatabaseInFallbackMode: vi.fn(),
-  registerDatabaseRecreatedHandler: vi.fn(),
 }));
 
 vi.mock('@/shared/runtime/browserWindowRuntimeCore', async () => {

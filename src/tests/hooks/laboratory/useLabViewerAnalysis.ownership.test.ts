@@ -81,6 +81,22 @@ beforeEach(() => {
 });
 
 describe('laboratory analysis request ownership', () => {
+  it('finishes an all-pending selection without error, copying or caching empty results', async () => {
+    mocks.fetch.mockResolvedValue({ success: true, data: [], omittedUrls: [exam.link] });
+    const view = setup();
+    await act(async () => {
+      await view.result.current.analyzeSelected();
+    });
+    expect(view.result.current.isAnalyzing).toBe(false);
+    expect(view.setError).toHaveBeenCalledWith(null);
+    expect(view.setError.mock.calls.every(([value]) => value === null)).toBe(true);
+    expect(mocks.save).not.toHaveBeenCalled();
+    await act(async () => {
+      expect(await view.result.current.copyExamSummary(exam)).toBe(false);
+    });
+    expect(mocks.copy).not.toHaveBeenCalled();
+    expect(view.setError.mock.calls.every(([value]) => value === null)).toBe(true);
+  });
   it('discards a late response after A → B → A without starting PDF enrichment or saving', async () => {
     const pending = deferred<typeof response>();
     mocks.fetch.mockReturnValueOnce(pending.promise);

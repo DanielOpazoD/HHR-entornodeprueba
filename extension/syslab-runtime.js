@@ -260,6 +260,7 @@
       if (session.status.loginRequired) return { error: 'Syslab requiere iniciar sesión.' };
       const reportRequests = exams.map(exam => ({
         id: exam.id,
+        date: exam.date,
         link: batchResult.batch.linksByExamId && batchResult.batch.linksByExamId[exam.id],
       }));
       if (reportRequests.some(exam => !exam.link)) {
@@ -322,6 +323,7 @@
             type: 'RAYEN_SYSLAB_VALIDATE_REPORT',
             rutBody: batchResult.batch.rutBody,
             examId: exams[0].id,
+            date: exams[0].date,
             link,
           },
           LAB_REPORT_TIMEOUT_MS

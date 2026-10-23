@@ -20,7 +20,6 @@
     "src/tests/netlify/fhirApi.test.ts",
     "src/tests/netlify/cie10AiSearch.test.ts",
     "src/tests/netlify/aiProvider.test.ts",
-    "src/tests/netlify/clinicalAiSummary.test.ts",
     "src/tests/services/backup/storageContracts.test.ts",
     "src/tests/services/backup/storageAvailability.test.ts",
     "src/tests/services/backup/censusStorageService.test.ts",

@@ -18,19 +18,24 @@ export const StaggeredLabel: React.FC<{
   x?: number;
   y?: number;
   value?: number;
+  index?: number;
+  lastIndex: number;
   color: string;
   labelConfig: { position: 'top' | 'bottom'; dy: number };
-}> = ({ x, y, value, color, labelConfig }) => {
+}> = ({ x, y, value, index, lastIndex, color, labelConfig }) => {
   if (x == null || y == null || value == null) return null;
 
   return (
     <text
-      x={x}
+      x={x + (index === 0 ? 6 : index === lastIndex ? -6 : 0)}
       y={y + labelConfig.dy}
-      textAnchor="middle"
+      textAnchor={index === 0 ? 'start' : index === lastIndex ? 'end' : 'middle'}
       fill={color}
       fontSize={10.5}
       fontWeight={700}
+      stroke="white"
+      strokeWidth={3}
+      paintOrder="stroke"
     >
       {formatLabTrendValue(value)}
     </text>
@@ -82,7 +87,7 @@ export const UnitSubChart: React.FC<{
   colorOffset: number;
 }> = ({ varEntries, unit, colorOffset }) => {
   const varNames = Object.keys(varEntries);
-  const { chartData, domain, sharedReference, showPointLabels } = useMemo(
+  const { chartData, axisTicks, domain, sharedReference, showPointLabels } = useMemo(
     () => buildLabTrendChartModel(varEntries),
     [varEntries]
   );
@@ -125,6 +130,8 @@ export const UnitSubChart: React.FC<{
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
             <XAxis
               dataKey="date"
+              padding={{ left: 14, right: 14 }}
+              ticks={axisTicks}
               tick={{ fontSize: 11, fill: '#475569', fontWeight: 500 }}
               tickFormatter={formatLabTrendAxisDate}
               tickLine={false}
@@ -180,7 +187,11 @@ export const UnitSubChart: React.FC<{
                   activeDot={{ r: 6, stroke: '#fff', strokeWidth: 2 }}
                   label={
                     showPointLabels ? (
-                      <StaggeredLabel color={color} labelConfig={labelConfig} />
+                      <StaggeredLabel
+                        color={color}
+                        labelConfig={labelConfig}
+                        lastIndex={chartData.length - 1}
+                      />
                     ) : (
                       false
                     )

@@ -59,6 +59,7 @@ import {
 } from 'firebase/firestore';
 import { getRecordsCollection } from '@/services/storage/firestore/firestoreShared';
 import {
+  CensusMonthUnavailableError,
   getAllRecordsFromFirestore,
   getRecordPagesFromFirestore,
   getAvailableDatesFromFirestore,
@@ -298,12 +299,26 @@ describe('firestoreRecordQueries', () => {
     ]);
   });
 
-  it('delegates month queries to the computed range and handles errors', async () => {
-    vi.mocked(getDocs).mockResolvedValueOnce({
+  it('reads month queries from the server over the computed range', async () => {
+    vi.mocked(getDocsFromServer).mockResolvedValueOnce({
       docs: [{ id: '2026-02-01', data: () => ({ beds: {} }) }],
     } as never);
 
     await expect(getMonthRecordsFromFirestore(2026, 1)).resolves.toHaveLength(1);
+    expect(getDocs).not.toHaveBeenCalled();
+  });
+
+  it('fails a month that cannot be read instead of returning a month without records', async () => {
+    const offline = new Error('Failed to get documents from server');
+    vi.mocked(getDocsFromServer).mockRejectedValueOnce(offline);
+
+    const read = getMonthRecordsFromFirestore(2026, 1);
+
+    await expect(read).rejects.toBeInstanceOf(CensusMonthUnavailableError);
+    await expect(read).rejects.toMatchObject({
+      message: expect.stringContaining('02-2026'),
+      cause: offline,
+    });
   });
 
   it('subscribes to records with metadata and keeps cache untouched on subscription errors', async () => {

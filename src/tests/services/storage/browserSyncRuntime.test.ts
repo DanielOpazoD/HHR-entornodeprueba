@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest';
 const state = vi.hoisted(() => ({ owner: 'user', generation: null as string | null }));
-vi.mock('@/services/storage/sessionScopedStorageService', () => ({
+vi.mock('@/services/storage/sessionOwnerKey', () => ({
   getStoredSessionOwnerKey: () => state.owner,
 }));
 vi.mock('@/services/storage/sessionStorageTransition', () => ({

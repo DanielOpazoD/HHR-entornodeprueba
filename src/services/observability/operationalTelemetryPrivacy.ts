@@ -94,7 +94,8 @@ const ALLOWED_OPERATIONS = new Set([
     clinical_document_template_repository_invalid_template clinical_episode_id_coverage
     clinical_episode_key_fallback clinical_attachment_name_suggestion rayen_sync_run read_patient
     read_encounter search_exams cie10_search cie10_database_sync_before_load portal_receipt_proxy
-    pdf_proxy redirect_resolution_failure redirect_empty_result_without_tab_hint send_census_email
+    pdf_proxy redirect_resolution_failure redirect_empty_result_without_tab_hint
+    rut_sign_in_region_fallback send_census_email
     send_medical_handoff send_fuga_notification delete_medical_handoff_entry
     refresh_medical_entry_as_current specialty_note_update confirm_no_changes
     copy_day_locked_by_schedule contador_local_acumulado census_empty_state_visible
@@ -163,6 +164,8 @@ const STRING_ENUMS = new Map<string, ReadonlySet<string>>(
       backend_too_old compatible client_too_old_for_backend base_version_mismatch remote_blocked
       episode_closed clinical_day_changed historical_archive_failed default_local_priority
       default_remote_priority metadata_remote_priority admin_remote_priority`,
+    region: 'us-central1 southamerica-east1 southamerica-west1',
+    errorCode: 'functions/internal functions/unavailable functions/deadline-exceeded',
   }).map(([key, values]) => [key, new Set(tokens(values))])
 );
 
