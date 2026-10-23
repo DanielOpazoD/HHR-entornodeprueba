@@ -304,6 +304,7 @@ describe('useRayenCensusDiffApplication', () => {
         } as DailyRecord,
       })
     );
+    const loadAuthoritativeRecord = vi.fn().mockResolvedValue(authoritativeRecord);
     const { result } = renderHook(() =>
       useRayenCensusDiffApplication({
         ensureRun: () => run as never,
@@ -311,7 +312,7 @@ describe('useRayenCensusDiffApplication', () => {
         saveDailyRecord: vi.fn() as never,
         checkpointRepository: { updatePartialDetailed: checkpointDailyRecord as never },
         queryClient,
-        loadAuthoritativeRecord: vi.fn().mockResolvedValue(authoritativeRecord),
+        loadAuthoritativeRecord,
         loadLocalRecord: vi.fn().mockResolvedValue({
           record: baseRecord,
           hasPendingWrites: false,
@@ -332,6 +333,8 @@ describe('useRayenCensusDiffApplication', () => {
       priorEvent,
       expect.objectContaining({ id: run.id, status: 'applied' }),
     ]);
+    // The committed record already carries the run stamp: only the base read, no defence reread.
+    expect(loadAuthoritativeRecord).toHaveBeenCalledOnce();
   });
 
   it('rejects a metadata checkpoint when the authoritative structure changed after planning', async () => {
