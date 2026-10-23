@@ -207,9 +207,11 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
           </React.Suspense>
         )}
         {!activeTool && !activeFormId && (
-          <header className="shrink-0 border-b border-slate-200 bg-white px-3 pb-2 pt-2">
+          <header className="shrink-0 border-b border-slate-200 bg-white px-4 pb-3 pt-3">
             <div className="flex items-center gap-2">
-              <FolderOpen size={18} className="shrink-0 text-medical-700" aria-hidden="true" />
+              <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-medical-50 text-medical-700">
+                <FolderOpen size={18} aria-hidden="true" />
+              </span>
               <p className="min-w-0 flex-1 truncate text-[15px] font-bold text-slate-800">
                 Documentos
               </p>
@@ -237,7 +239,7 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
                 placeholder="Buscar"
                 aria-label="Buscar en documentos y herramientas"
                 autoComplete="off"
-                className="h-8 w-full appearance-none rounded-md border border-slate-200 bg-white pl-8 pr-8 text-[13px] text-slate-800 placeholder:text-slate-400 focus:border-medical-500 focus:outline-none focus:ring-2 focus:ring-medical-200 [&::-webkit-search-cancel-button]:hidden"
+                className="h-8 w-full appearance-none rounded-md border border-slate-200 bg-slate-50/50 pl-8 pr-8 text-[12px] text-slate-800 placeholder:text-slate-400 focus:border-medical-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-medical-200 [&::-webkit-search-cancel-button]:hidden"
               />
               {query && (
                 <button
@@ -247,14 +249,14 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
                     searchRef.current?.focus();
                   }}
                   aria-label="Limpiar búsqueda"
-                  className="absolute right-1.5 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                  className="absolute right-0 top-1/2 inline-flex size-8 -translate-y-1/2 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-medical-500"
                 >
                   <X size={13} aria-hidden="true" />
                 </button>
               )}
             </div>
             <div
-              className="mt-1.5 flex gap-0.5 overflow-x-auto pb-0.5"
+              className="mt-2 flex gap-1 overflow-x-auto pb-0.5"
               role="group"
               aria-label="Categorías"
             >
@@ -265,10 +267,10 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
                   aria-pressed={category === chip.id}
                   onClick={() => setCategory(chip.id)}
                   className={clsx(
-                    'shrink-0 rounded-md px-2 py-1 text-[11px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-600',
+                    'inline-flex h-8 shrink-0 items-center rounded-md border px-2.5 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-medical-500',
                     category === chip.id
-                      ? 'bg-slate-100 text-slate-900'
-                      : 'text-slate-500 hover:text-slate-800'
+                      ? 'border-medical-200 bg-medical-50 text-medical-800'
+                      : 'border-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-800'
                   )}
                 >
                   {chip.label}
@@ -282,7 +284,7 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
           data-testid="clinical-library-content"
           hidden={Boolean(pendingExit)}
           inert={Boolean(pendingExit)}
-          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-2"
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3"
         >
           {activeFormId ? (
             <React.Suspense
