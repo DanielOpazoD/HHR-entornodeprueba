@@ -39,9 +39,3 @@ export const mapFirestoreRecords = <T>(
 
   return [];
 };
-
-export const toFirestoreRecordMap = (records: DailyRecord[]): Record<string, DailyRecord> =>
-  records.reduce<Record<string, DailyRecord>>((acc, record) => {
-    acc[record.date] = record;
-    return acc;
-  }, {});

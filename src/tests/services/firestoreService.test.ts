@@ -10,7 +10,6 @@ import {
   saveTensCatalogToFirestore,
   getTensCatalogFromFirestore,
   deleteRecordFromFirestore,
-  getAllRecordsFromFirestore,
   getMonthRecordsFromFirestore,
   moveRecordToTrash,
   subscribeToTensCatalog,
@@ -342,17 +341,6 @@ describe('firestoreService', () => {
     const deleteDocMock = vi.mocked(firestore.deleteDoc);
     await deleteRecordFromFirestore(mockDate);
     expect(deleteDocMock).toHaveBeenCalled();
-  });
-
-  it('should fetch all records from firestore', async () => {
-    const getDocsMock = vi.mocked(firestore.getDocs);
-    getDocsMock.mockResolvedValueOnce({
-      forEach: (cb: (doc: unknown) => void) =>
-        cb({ id: '2024-12-24', data: () => ({ date: '2024-12-24' }) }),
-    } as unknown as QuerySnapshot);
-
-    const records = await getAllRecordsFromFirestore();
-    expect(records['2024-12-24']).toBeDefined();
   });
 
   it('should fetch records for a specific month', async () => {

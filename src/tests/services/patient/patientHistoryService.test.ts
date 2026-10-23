@@ -7,14 +7,14 @@ import type { HospitalizationEvent } from '@/types/domain/patientMaster';
 const {
   getAllRecords,
   getRecordsRange,
-  getAllRecordsFromFirestore,
+  readServerHistory,
   getRecordsRangeFromFirestore,
   saveRecords,
   isFirestoreEnabled,
 } = vi.hoisted(() => ({
   getAllRecords: vi.fn(),
   getRecordsRange: vi.fn(),
-  getAllRecordsFromFirestore: vi.fn(),
+  readServerHistory: vi.fn(),
   getRecordsRangeFromFirestore: vi.fn(),
   saveRecords: vi.fn(),
   isFirestoreEnabled: vi.fn(),
@@ -28,9 +28,8 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
 
 vi.mock('@/services/storage/firestore', () => ({
   getRecordPagesFromFirestore: async function* () {
-    yield Object.values(await getAllRecordsFromFirestore({ requireServer: true }));
+    yield Object.values(await readServerHistory({ requireServer: true }));
   },
-  getAllRecordsFromFirestore,
   getRecordsRangeFromFirestore,
 }));
 
@@ -170,7 +169,7 @@ describe('patientHistoryService', () => {
 
   it('hydrates remote records without hospitalization hints when local history has no patient matches', async () => {
     getAllRecords.mockResolvedValue({});
-    getAllRecordsFromFirestore.mockResolvedValue({
+    readServerHistory.mockResolvedValue({
       '2026-02-02': buildRecord('2026-02-02', {
         beds: {
           R3: {
@@ -203,7 +202,7 @@ describe('patientHistoryService', () => {
     const history = await getPatientMovementHistory('18.781.542-8');
 
     expect(getRecordsRangeFromFirestore).not.toHaveBeenCalled();
-    expect(getAllRecordsFromFirestore).toHaveBeenCalledTimes(1);
+    expect(readServerHistory).toHaveBeenCalledTimes(1);
     expect(saveRecords).not.toHaveBeenCalled();
     expect(history?.movements.map(movement => movement.type)).toEqual(['admission', 'discharge']);
     expect(history).toEqual(
@@ -217,7 +216,7 @@ describe('patientHistoryService', () => {
 
   it('keeps separate hospitalizations and does not turn readmission into a bed change', async () => {
     getAllRecords.mockResolvedValue({});
-    getAllRecordsFromFirestore.mockResolvedValue({
+    readServerHistory.mockResolvedValue({
       '2026-03-26': buildRecord('2026-03-26', {
         beds: {
           H3C1: {
@@ -287,7 +286,7 @@ describe('patientHistoryService', () => {
       ],
     });
 
-    expect(getAllRecordsFromFirestore).toHaveBeenCalledTimes(1);
+    expect(readServerHistory).toHaveBeenCalledTimes(1);
     expect(getRecordsRangeFromFirestore).not.toHaveBeenCalled();
     expect(
       history?.movements.map(movement => `${movement.date}:${movement.type}:${movement.bedId}`)

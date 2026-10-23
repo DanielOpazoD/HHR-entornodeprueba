@@ -6,14 +6,14 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 const {
   getAllRecords,
   getRecordsRange,
-  getAllRecordsFromFirestore,
+  readServerHistory,
   getRecordsRangeFromFirestore,
   saveRecords,
   isFirestoreEnabled,
 } = vi.hoisted(() => ({
   getAllRecords: vi.fn(),
   getRecordsRange: vi.fn(),
-  getAllRecordsFromFirestore: vi.fn(),
+  readServerHistory: vi.fn(),
   getRecordsRangeFromFirestore: vi.fn(),
   saveRecords: vi.fn(),
   isFirestoreEnabled: vi.fn(),
@@ -25,9 +25,8 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
 }));
 vi.mock('@/services/storage/firestore', () => ({
   getRecordPagesFromFirestore: async function* () {
-    yield Object.values(await getAllRecordsFromFirestore({ requireServer: true }));
+    yield Object.values(await readServerHistory({ requireServer: true }));
   },
-  getAllRecordsFromFirestore,
   getRecordsRangeFromFirestore,
 }));
 vi.mock('@/services/repositories/repositoryConfig', () => ({ isFirestoreEnabled }));
@@ -42,17 +41,17 @@ describe('patient movement history read status', () => {
   });
   it('distinguishes unavailable empty local history from authoritative empty server history', async () => {
     getAllRecords.mockResolvedValue({});
-    getAllRecordsFromFirestore.mockRejectedValueOnce(new Error('offline'));
+    readServerHistory.mockRejectedValueOnce(new Error('offline'));
     await expect(getPatientMovementHistoryDetailed('test-1')).resolves.toEqual({
       history: null,
       source: 'local',
     });
-    getAllRecordsFromFirestore.mockResolvedValueOnce({});
+    readServerHistory.mockResolvedValueOnce({});
     await expect(getPatientMovementHistoryDetailed('test-1')).resolves.toEqual({
       history: null,
       source: 'server',
     });
-    expect(getAllRecordsFromFirestore).toHaveBeenCalledWith({ requireServer: true });
+    expect(readServerHistory).toHaveBeenCalledWith({ requireServer: true });
   });
 
   it('does not resurrect locally cached days removed on the server or write the census cache', async () => {
@@ -61,7 +60,7 @@ describe('patient movement history read status', () => {
         beds: { R1: { rut: 'test-1', patientName: 'Synthetic' } as never },
       }),
     });
-    getAllRecordsFromFirestore.mockResolvedValue({});
+    readServerHistory.mockResolvedValue({});
     await expect(getPatientMovementHistoryDetailed('test-1')).resolves.toEqual({
       history: null,
       source: 'server',
@@ -76,7 +75,7 @@ describe('patient movement history read status', () => {
         beds: { R1: { rut: 'test-1', patientName: 'Synthetic' } as never },
       }),
     });
-    getAllRecordsFromFirestore.mockRejectedValue(new Error('offline'));
+    readServerHistory.mockRejectedValue(new Error('offline'));
     const result = await getPatientMovementHistoryDetailed('test-1');
     expect(result.source).toBe('local');
     expect(result.history?.movements).toHaveLength(1);
@@ -88,6 +87,6 @@ describe('patient movement history read status', () => {
       history: null,
       source: 'local-only',
     });
-    expect(getAllRecordsFromFirestore).not.toHaveBeenCalled();
+    expect(readServerHistory).not.toHaveBeenCalled();
   });
 });

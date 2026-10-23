@@ -101,7 +101,6 @@ vi.mock('@/services/storage/firestore/firestoreRecordQueries', () => ({
   getRecordFromFirestoreDetailed: firestoreMock.getRecordFromFirestoreDetailed,
   getAvailableDatesFromFirestore: firestoreMock.getAvailableDatesFromFirestore,
   subscribeToRecord: firestoreMock.subscribeToRecord,
-  getAllRecordsFromFirestore: vi.fn().mockResolvedValue({}),
   getMonthRecordsFromFirestore: vi.fn().mockResolvedValue([]),
   getRecordsRangeFromFirestore: vi.fn().mockResolvedValue([]),
   isFirestoreAvailable: vi.fn().mockResolvedValue(true),

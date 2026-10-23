@@ -27,7 +27,6 @@ import { observeDailyRecordServerSnapshot } from '@/services/storage/firestore/d
 import {
   buildFirestoreMonthDateRange,
   mapFirestoreRecords,
-  toFirestoreRecordMap,
 } from '@/services/storage/firestore/firestoreQuerySupport';
 import { firestoreQueryLogger } from '@/services/storage/storageLoggers';
 import { classifySyncError } from '@/services/storage/syncErrorCatalog';
@@ -182,20 +181,6 @@ export const getRecordFromFirestore = async (
 ): Promise<DailyRecord | null> => {
   const result = await getRecordFromFirestoreDetailed(date, options);
   return result.record;
-};
-
-export const getAllRecordsFromFirestore = async (
-  options: { requireServer?: boolean } = {}
-): Promise<Record<string, DailyRecord>> => {
-  try {
-    const q = query(getRecordsCollection(), orderBy('date', 'desc'));
-    const querySnapshot = await (options.requireServer ? getDocsFromServer(q) : getDocs(q));
-    return toFirestoreRecordMap(mapFirestoreRecords(querySnapshot, docToRecord));
-  } catch (error) {
-    logFirestoreQueryError('getAllRecords', error);
-    if (options.requireServer) throw error;
-    return {};
-  }
 };
 
 /** Complete server traversal in bounded batches; cancellation stops future batches. */

@@ -65,7 +65,6 @@ import {
 import { getRecordsCollection } from '@/services/storage/firestore/firestoreShared';
 import {
   CensusMonthUnavailableError,
-  getAllRecordsFromFirestore,
   getRecordPagesFromFirestore,
   getAvailableDatesFromFirestore,
   getMonthRecordsFromFirestore,
@@ -195,14 +194,6 @@ describe('firestoreRecordQueries', () => {
     expect(getDocs).not.toHaveBeenCalled();
   });
 
-  it('distinguishes failed full server reads from authoritative empty history', async () => {
-    vi.mocked(getDocsFromServer).mockResolvedValueOnce({ docs: [] } as never);
-    await expect(getAllRecordsFromFirestore({ requireServer: true })).resolves.toEqual({});
-    vi.mocked(getDocsFromServer).mockRejectedValueOnce(new Error('offline'));
-    await expect(getAllRecordsFromFirestore({ requireServer: true })).rejects.toThrow('offline');
-    expect(getDocs).not.toHaveBeenCalled();
-  });
-
   it('reads available dates in descending order and handles failures', async () => {
     vi.mocked(getDocs).mockResolvedValueOnce({
       docs: [{ id: '2026-03-10' }, { id: '2026-03-12' }, { id: '2026-03-11' }],
@@ -282,19 +273,7 @@ describe('firestoreRecordQueries', () => {
     expect(getDoc).not.toHaveBeenCalled();
   });
 
-  it('maps all records and date ranges from snapshots', async () => {
-    vi.mocked(getDocs).mockResolvedValueOnce({
-      docs: [
-        { id: '2026-03-14', data: () => ({ beds: {} }) },
-        { id: '2026-03-13', data: () => ({ beds: { A: true } }) },
-      ],
-    } as never);
-
-    await expect(getAllRecordsFromFirestore()).resolves.toEqual({
-      '2026-03-14': { date: '2026-03-14', beds: {} },
-      '2026-03-13': { date: '2026-03-13', beds: { A: true } },
-    });
-
+  it('maps date ranges from snapshots', async () => {
     vi.mocked(getDocs).mockResolvedValueOnce({
       docs: [{ id: '2026-03-01', data: () => ({ beds: {}, marker: 'from-range' }) }],
     } as never);
