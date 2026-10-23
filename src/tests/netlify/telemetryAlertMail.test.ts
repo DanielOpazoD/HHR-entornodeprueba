@@ -7,7 +7,7 @@ import {
 import { sendCensusEmail } from '../../../src/services/email/gmailClient';
 import type { SanitizedOperationalTelemetryEvent } from '../../../src/services/observability/operationalTelemetryIngestPolicy';
 const mocks = vi.hoisted(() => ({ send: vi.fn() }));
-vi.mock('googleapis/build/src/apis/gmail', () => ({
+vi.mock('googleapis/build/src/apis/gmail/index.js', () => ({
   auth: {
     OAuth2: class {
       setCredentials = vi.fn();
