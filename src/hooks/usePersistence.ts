@@ -14,14 +14,9 @@ import {
   buildCopyUnlockDescription,
   resolveCreateDayCopyAvailability,
 } from '@/hooks/controllers/createDayCopyAvailabilityController';
-import {
-  defaultDailyRecordReadPort,
-  defaultDailyRecordWritePort,
-} from '@/application/ports/dailyRecordPort';
 import { recordOperationalOutcome } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { getPreviousDay as getPreviousCalendarDay } from '@/utils/clinicalDayUtils';
-import { defaultDailyRecordSyncPort } from '@/application/ports/dailyRecordPort';
 import { executeDeleteDailyRecord } from '@/application/daily-record/commands/deleteDailyRecordCommand';
 import { getCurrentUserEmail } from '@/services/admin/utils/auditUtils';
 
@@ -84,14 +79,11 @@ export const usePersistence = ({
           const requestedSourceDate = specificDate || defaultPreviousDate;
 
           if (requestedSourceDate) {
-            await defaultDailyRecordSyncPort.syncWithFirestoreDetailed(requestedSourceDate);
+            await dailyRecord.syncWithFirestoreDetailed(requestedSourceDate);
           }
 
           if (specificDate) {
-            const source = await defaultDailyRecordReadPort.getForDateWithMeta(
-              requestedSourceDate,
-              true
-            );
+            const source = await dailyRecord.getForDateWithMeta(requestedSourceDate, true);
             if (!source.record) {
               warning(
                 'No se encontró registro anterior',
@@ -102,10 +94,7 @@ export const usePersistence = ({
             prevDate = requestedSourceDate;
             copySourceMeta = source;
           } else {
-            const prevRecord = await defaultDailyRecordReadPort.getForDateWithMeta(
-              requestedSourceDate,
-              true
-            );
+            const prevRecord = await dailyRecord.getForDateWithMeta(requestedSourceDate, true);
             if (!prevRecord.record) {
               warning(
                 'No se encontró registro anterior',
@@ -200,7 +189,7 @@ export const usePersistence = ({
     const outcome = await executeDeleteDailyRecord({
       date: currentDateString,
       deletedBy: getCurrentUserEmail(),
-      deleteRecord: date => defaultDailyRecordWritePort.delete(date),
+      deleteRecord: date => dailyRecord.deleteDay(date),
     });
     if (outcome.status === 'failed') {
       // The outcome is 'failed' for both an audit-write failure (abort) and a delete failure, so the
@@ -219,7 +208,7 @@ export const usePersistence = ({
     );
     setRecord(null);
     success('Registro eliminado', 'El registro del día ha sido eliminado.');
-  }, [currentDateString, setRecord, success, notifyError]);
+  }, [currentDateString, setRecord, success, notifyError, dailyRecord]);
 
   return {
     createDay,

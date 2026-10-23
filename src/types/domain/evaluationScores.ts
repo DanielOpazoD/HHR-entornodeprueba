@@ -83,6 +83,10 @@ export interface ImportedCudyrHistoryEntry {
 
 /** Imported CUDYR from the official Gestión de Camas work list (or Ficha Médico fallback). */
 export interface ImportedCudyr {
+  /** Explicitly authorized contingency; never inferred from an empty source report. */
+  adjustmentReason?: string;
+  adjustmentRecordedAt?: string;
+  adjustmentEvidence?: string;
   /** Composite CUDYR category, e.g. "D3". */
   category: string;
   /** Census/night-shift day that owns the categorization in Rapa Nui — YYYY-MM-DD. */

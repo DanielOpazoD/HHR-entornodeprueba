@@ -19,8 +19,15 @@
     } catch (error) {
       // Fall through to the time-based default.
     }
-    var currentHour = new Date().getHours();
-    return currentHour >= 8 && currentHour < 20 ? 'day' : 'night';
+    // Hospital hour (CLINICAL_TIME_ZONE in src/utils/clinicalTimeZone.ts), not the device's.
+    var hospitalHour = Number(
+      new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Pacific/Easter',
+        hour: '2-digit',
+        hourCycle: 'h23',
+      }).format(new Date())
+    );
+    return hospitalHour >= 8 && hospitalHour < 20 ? 'day' : 'night';
   };
   var LOGIN_SURFACE_GRADIENTS = {
     day: 'linear-gradient(115deg, rgba(15, 23, 42, 0.82) 0%, rgba(15, 23, 42, 0.62) 36%, rgba(15, 23, 42, 0.28) 64%, rgba(255, 255, 255, 0.08) 100%)',
@@ -36,12 +43,12 @@
     color: '#020617',
     image: [
       LOGIN_SURFACE_GRADIENTS[loginBackgroundMode],
-      'radial-gradient(circle at top left, rgba(255, 255, 255, 0.18), transparent 32%)',
+      'radial-gradient(circle at top left, rgba(255, 255, 255, 0.18), transparent 32%),radial-gradient(circle at bottom right, rgba(14, 165, 233, 0.14), transparent 26%)',
       LOGIN_SURFACE_IMAGES[loginBackgroundMode],
     ].join(','),
-    position: 'center, center, center',
-    repeat: 'no-repeat, no-repeat, no-repeat',
-    size: 'cover, cover, contain',
+    position: 'center, center, center, center',
+    repeat: 'no-repeat, no-repeat, no-repeat, no-repeat',
+    size: 'cover, cover, cover, contain',
   };
   var APP_SURFACE_BACKGROUND = {
     color: '#eef4f8',

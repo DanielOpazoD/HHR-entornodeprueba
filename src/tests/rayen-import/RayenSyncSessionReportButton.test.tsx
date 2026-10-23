@@ -7,14 +7,14 @@ vi.mock('@/shared/runtime/browserClipboardRuntime', () => ({ writeClipboardText:
 
 describe('sync performance summary copy', () => {
   beforeEach(() => vi.mocked(writeClipboardText).mockReset());
-  it('copies an aggregate report through the existing clipboard boundary', async () => {
+  it('copies a diagnostic report through the existing clipboard boundary', async () => {
     vi.mocked(writeClipboardText).mockResolvedValue();
     render(<RayenSyncSessionReportButton history={[]} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Copiar resumen de rendimiento' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Copiar informe de sincronización' }));
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Resumen copiado'));
     expect(JSON.parse(vi.mocked(writeClipboardText).mock.calls[0][0])).toMatchObject({
-      format: 'hhr.sync-performance-summary.v1',
-      groups: [],
+      format: 'hhr.sync-diagnostic-report.v1',
+      attempts: [],
     });
   });
   it('keeps copy failures recoverable without claiming success', async () => {
@@ -22,7 +22,7 @@ describe('sync performance summary copy', () => {
       .mockRejectedValueOnce(new Error('denied'))
       .mockResolvedValueOnce();
     render(<RayenSyncSessionReportButton history={[]} />);
-    const button = screen.getByRole('button', { name: 'Copiar resumen de rendimiento' });
+    const button = screen.getByRole('button', { name: 'Copiar informe de sincronización' });
     fireEvent.click(button);
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('No se pudo copiar'));
     fireEvent.click(button);

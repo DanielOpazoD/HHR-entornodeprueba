@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-07-06T05:44:53.924Z",
+  "generatedAt": "2026-10-21T01:51:14.319Z",
   "version": 1,
   "blockingTierCount": 5,
   "reportOnlyCount": 18,
-  "qualityCheckCount": 64,
+  "qualityCheckCount": 66,
   "releaseConfidence": {
     "script": "test:release-confidence",
     "requiredScripts": [
@@ -67,9 +67,9 @@
         "check:bundle-budget",
         "check:chunk-graph",
         "check:runtime-asset-margin",
-        "test:e2e:preview:census-bootstrap:built"
+        "ci:preview-smoke:built"
       ],
-      "purpose": "Valida budgets, chunk graph aciclico y que el bundle productivo monte correctamente en preview local."
+      "purpose": "Valida budgets, chunk graph aciclico, bootstrap del censo y biblioteca clinica sobre el bundle productivo en preview local."
     },
     {
       "id": "release_gate",
@@ -337,15 +337,15 @@
         "group": "size"
       },
       {
-        "id": "check:transfers-module-size",
-        "group": "size"
-      },
-      {
         "id": "check:hook-hotspots",
         "group": "size"
       },
       {
         "id": "check:hotspot-growth",
+        "group": "size"
+      },
+      {
+        "id": "check:extension-hotspots",
         "group": "size"
       },
       {
@@ -358,6 +358,10 @@
       },
       {
         "id": "check:native-dialogs",
+        "group": "boundaries"
+      },
+      {
+        "id": "check:clinical-clock",
         "group": "boundaries"
       },
       {
@@ -406,6 +410,10 @@
       },
       {
         "id": "check:guardrail-governance",
+        "group": "governance"
+      },
+      {
+        "id": "check:release-evidence-contract",
         "group": "governance"
       },
       {

@@ -1,4 +1,5 @@
 import type { DeviceDetails, DeviceInstance } from '@/types/domain/devices';
+import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 
 interface DeviceHistoryTimestamp {
   date: string;
@@ -55,11 +56,10 @@ interface BuildInitialDeviceHistoryParams {
 
 export const buildDeviceHistoryTimestamp = ({
   now,
-}: BuildDeviceHistoryTimestampParams): DeviceHistoryTimestamp => ({
-  date: now.toISOString().split('T')[0],
-  time: now.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
-  nowMs: now.getTime(),
-});
+}: BuildDeviceHistoryTimestampParams): DeviceHistoryTimestamp => {
+  const stamp = calendarStampInClinicalTimeZone(now);
+  return { date: stamp.iso, time: stamp.hhmm, nowMs: now.getTime() };
+};
 
 const normalizeIdentity = (value?: string): string => (value || '').trim().toLowerCase();
 

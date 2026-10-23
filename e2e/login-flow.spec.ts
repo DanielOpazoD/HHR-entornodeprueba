@@ -42,14 +42,14 @@ test.describe('Navigation Guards', () => {
   test('should show login gate when accessing protected routes', async ({ page }) => {
     await page.goto('/censo');
 
-    await expect(page.getByText('Acceso al Sistema')).toBeVisible();
+    await expect(page.getByText('Iniciar sesión')).toBeVisible();
     await expect(page.getByRole('button', { name: /Ingresar con Google/i })).toBeVisible();
   });
 
   test('should block access to admin routes without authentication', async ({ page }) => {
     await page.goto('/admin');
 
-    await expect(page.getByText('Acceso al Sistema')).toBeVisible();
+    await expect(page.getByText('Iniciar sesión')).toBeVisible();
     await expect(page.getByRole('button', { name: /Ingresar con Google/i })).toBeVisible();
   });
 });

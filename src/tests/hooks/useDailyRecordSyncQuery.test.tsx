@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { useDailyRecordSyncQuery } from '@/hooks/useDailyRecordSyncQuery';
 import { defaultDailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
@@ -132,6 +132,7 @@ describe('useDailyRecordSyncQuery', () => {
   });
 
   afterEach(() => {
+    vi.unstubAllGlobals();
     vi.useRealTimers();
   });
 
@@ -211,6 +212,44 @@ describe('useDailyRecordSyncQuery', () => {
       mockDate,
       false
     );
+  });
+
+  it('promotes a local miss immediately without waiting for idle or duplicating recovery', async () => {
+    const idle = vi.fn(() => 1);
+    vi.stubGlobal('requestIdleCallback', idle);
+    vi.stubGlobal('cancelIdleCallback', vi.fn());
+    const remote =
+      createDeferred<
+        import('@/services/repositories/contracts/dailyRecordQueries').DailyRecordReadResult
+      >();
+    vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockImplementation(
+      async (_date, syncFromRemote) => (syncFromRemote ? remote.promise : buildReadResult(null))
+    );
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() =>
+      expect(defaultDailyRecordRepositoryPort.getForDateWithMeta).toHaveBeenCalledWith(
+        mockDate,
+        true
+      )
+    );
+    expect(idle).toHaveBeenCalled(); // Deliberately never execute its callback.
+    expect(result.current.bootstrapPhase).toBe('remote_record_bootstrapping');
+    expect(mockExecuteSyncDailyRecord).not.toHaveBeenCalled();
+    await act(async () =>
+      remote.resolve({
+        ...buildReadResult(null),
+        conflictSummary: { kind: 'remote_missing', sourceOfTruth: 'none' },
+      })
+    );
+    await waitFor(() => expect(result.current.bootstrapPhase).toBe('confirmed_empty'));
+    expect(mockExecuteSyncDailyRecord).not.toHaveBeenCalled();
+    expect(
+      vi
+        .mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta)
+        .mock.calls.filter(([, remote]) => remote)
+    ).toHaveLength(1);
   });
 
   it('should handle updates via saveAndUpdate', async () => {

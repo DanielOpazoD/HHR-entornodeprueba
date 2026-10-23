@@ -133,7 +133,9 @@ async function injectVRTData(page: Page) {
 test.describe('Visual Regression Testing', () => {
   test('Login View baseline', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByText('Hospital Hanga Roa')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { name: 'Iniciar sesión' })).toBeVisible({
+      timeout: 10000,
+    });
     await page.waitForLoadState('networkidle');
     await expect(page).toHaveScreenshot('login-view.png', {
       maxDiffPixelRatio: 0.01,
@@ -225,7 +227,7 @@ test.describe('Visual Regression Testing', () => {
 
   test.fixme('Destructive confirm dialog (warning variant)', async ({ page }) => {
     // Target: useConfirmDialog rendering for variant 'warning' (e.g. the
-    // Optimizar Base de Datos confirm in ConsolidationManager).
+    // bed configuration confirm in usePatientRowBedConfigActions).
     // Asserts that the warning palette, the confirm/cancel button labels
     // and the destructive icon stay stable. Pending baseline generation
     // and a deterministic admin-route fixture without Firebase access.

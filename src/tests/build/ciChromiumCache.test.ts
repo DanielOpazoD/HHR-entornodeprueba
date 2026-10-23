@@ -11,7 +11,7 @@ const assertBrowserPreparation = (candidate: typeof action) => {
   const steps = candidate.runs.steps;
   const restore = steps.find((step: { id?: string }) => step.id === 'chromium');
   const install = steps.find(
-    (step: { run?: string }) => step.run === 'npx playwright install --with-deps chromium'
+    (step: { name?: string }) => step.name === 'Prepare Playwright Chromium and system dependencies'
   );
   const probe = steps.find((step: { name?: string }) => step.name === 'Verify Chromium can launch');
   const save = steps.find((step: { uses?: string }) =>
@@ -27,6 +27,7 @@ const assertBrowserPreparation = (candidate: typeof action) => {
   ])
     expect(restore.with.key).toContain(fingerprint);
   expect(install).toBeDefined();
+  expect(install.run).toBe('bash "$GITHUB_ACTION_PATH/install-chromium.sh"');
   expect(install).not.toHaveProperty('if');
   expect(install['continue-on-error']).not.toBe(true);
   expect(probe).not.toHaveProperty('if');
@@ -42,27 +43,33 @@ it('always installs system dependencies and proves browser readiness before publ
 it('rejects a cache hit that skips mandatory browser preparation', () => {
   const mutated = structuredClone(action);
   mutated.runs.steps.find(
-    (step: { run?: string }) => step.run === 'npx playwright install --with-deps chromium'
+    (step: { name?: string }) => step.name === 'Prepare Playwright Chromium and system dependencies'
   ).if = "steps.chromium.outputs.cache-hit != 'true'";
   expect(() => assertBrowserPreparation(mutated)).toThrow();
 });
 it('shares Chromium preparation without dropping any browser gate', () => {
   const { jobs } = parseWorkflow(workflow);
-  for (const name of ['build', 'e2e-critical-emulator', 'census-startup-performance']) {
+  for (const name of [
+    'preview-smoke-lanes',
+    'e2e-critical-emulator',
+    'census-startup-performance',
+  ]) {
     const steps = jobs[name].steps;
     const setup = steps.findIndex(step => step.uses === './.github/actions/setup-ci-chromium');
     expect(setup).toBeGreaterThan(
       steps.findIndex(step => step.uses === './.github/actions/setup-ci-dependencies')
     );
     const test = steps.findIndex(step =>
-      /npm run (?:ci:preview-smoke:built|test:e2e:rayen-extension-runtime|test:e2e:census-performance)/.test(
+      /node scripts\/run-preview-smoke-lane\.mjs|npm run (?:test:e2e:rayen-extension-runtime|test:e2e:census-performance)/.test(
         step.run || ''
       )
     );
     expect(test).toBeGreaterThan(setup);
   }
   expect(
-    jobs['e2e-critical-emulator'].steps.some(step => step.run === 'npm run test:e2e:critical:ci')
+    jobs['e2e-critical-emulator'].steps.some(step =>
+      /(?:^|--\s+)npm run test:e2e:critical:ci(?:\s|$)/.test(step.run || '')
+    )
   ).toBe(true);
   expect(
     jobs['e2e-critical-emulator'].steps.some(
@@ -73,4 +80,35 @@ it('shares Chromium preparation without dropping any browser gate', () => {
     'development',
     'production',
   ]);
+});
+
+const assertSupportedChromiumRunners = (candidate: ReturnType<typeof parseWorkflow>) => {
+  const consumers = Object.entries(candidate.jobs).filter(([, job]) =>
+    job.steps.some(step => step.uses === './.github/actions/setup-ci-chromium')
+  );
+  expect(consumers.length).toBeGreaterThan(0);
+  for (const [name, job] of consumers) {
+    // Upgrade the runner together with Playwright after validating browser installation.
+    expect(job['runs-on'], `Chromium runner for ${name}`).toBe('ubuntu-24.04');
+  }
+};
+
+it('pins every Chromium consumer to the validated runner platform', () => {
+  assertSupportedChromiumRunners(parseWorkflow(workflow));
+});
+it.each(['preview-smoke-lanes', 'e2e-critical-emulator', 'census-startup-performance'])(
+  'rejects floating Ubuntu for Chromium consumer %s',
+  name => {
+    const candidate = parseWorkflow(workflow);
+    candidate.jobs[name]['runs-on'] = 'ubuntu-latest';
+    expect(() => assertSupportedChromiumRunners(candidate)).toThrow();
+  }
+);
+it('also rejects incompatible platforms in newly added Chromium consumers', () => {
+  const candidate = parseWorkflow(workflow);
+  candidate.jobs['new-browser-gate'] = {
+    'runs-on': 'ubuntu-26.04',
+    steps: [{ uses: './.github/actions/setup-ci-chromium' }],
+  };
+  expect(() => assertSupportedChromiumRunners(candidate)).toThrow();
 });

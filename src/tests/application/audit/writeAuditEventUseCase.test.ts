@@ -12,7 +12,7 @@ describe('executeWriteAuditEvent', () => {
   });
 
   it('returns success when the audit service resolves', async () => {
-    vi.mocked(auditService.logAuditEvent).mockResolvedValueOnce(undefined);
+    vi.mocked(auditService.logAuditEvent).mockResolvedValueOnce('stored');
 
     const result = await executeWriteAuditEvent({
       userId: 'user-1',
@@ -83,7 +83,7 @@ describe('executeWriteAuditEvent', () => {
   });
 
   it('still allows non-clinical actions with an anonymous actor (e.g. SYSTEM_ERROR before login)', async () => {
-    vi.mocked(auditService.logAuditEvent).mockResolvedValueOnce(undefined);
+    vi.mocked(auditService.logAuditEvent).mockResolvedValueOnce('stored');
 
     const result = await executeWriteAuditEvent({
       userId: 'anon',
@@ -98,7 +98,7 @@ describe('executeWriteAuditEvent', () => {
   });
 
   it('allows clinical actions when the actor is an authenticated email', async () => {
-    vi.mocked(auditService.logAuditEvent).mockResolvedValueOnce(undefined);
+    vi.mocked(auditService.logAuditEvent).mockResolvedValueOnce('stored');
 
     const result = await executeWriteAuditEvent({
       userId: 'nurse@hospital.cl',

@@ -1,5 +1,9 @@
 # Plan conservador de recuperación de enfermería
 
+Antes de ejecutar este procedimiento, aplicar la [política vigente de fuentes y
+alcance](00-fuentes-y-alcance.md). Las herramientas descritas conservan sus límites;
+no autorizan reabrir censos cerrados ni sobrescribir correcciones.
+
 ```sh
 node scripts/migration/planNursing.mjs < /ruta/privada/comparacion.json
 npx vitest run src/tests/build/migrationNursingPlanner.test.ts

@@ -177,6 +177,19 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                 Sin cambios de camas, ingresos ni egresos.
               </p>
             )}
+            {!showReview && hasConflicts && (
+              <>
+                <HistoricalReconstructionReview conflicts={historicalConflicts} />
+                <Section title="Cambios que requieren revisión" count={blockingConflicts.length}>
+                  {blockingConflicts.map((entry, index) => (
+                    <li key={`pending-${index}`} className="text-red-700">
+                      {entry.bedId ? `${entry.bedId}: ` : ''}
+                      {entry.reason}
+                    </li>
+                  ))}
+                </Section>
+              </>
+            )}
             {showReview && (
               <div>
                 <RayenImportSummaryChips

@@ -1,0 +1,9 @@
+.census-empty-moa .moa-scene-frames[data-ready='true'] {
+  animation-iteration-count: infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .census-empty-moa .moa-scene-frames[data-ready='true'] {
+    animation: none;
+    transform: translateX(var(--scene-still));
+  }
+}

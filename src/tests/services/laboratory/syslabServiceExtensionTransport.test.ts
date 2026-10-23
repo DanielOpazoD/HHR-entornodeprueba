@@ -190,4 +190,79 @@ describe('Syslab service extension transport', () => {
     );
     expect(bridgeMocks.details).toHaveBeenCalledWith([OPAQUE_LINK]);
   });
+  it('analyzes 26 selected reports in bounded sequential requests, with real progress', async () => {
+    const links = Array.from({ length: 26 }, (_, i) =>
+      OPAQUE_LINK.replace(/exam\/\d+$/, `exam/${100 + i}`)
+    );
+    let active = 0;
+    let peak = 0;
+    bridgeMocks.details.mockImplementation(async (batch: string[]) => {
+      active += 1;
+      peak = Math.max(peak, active);
+      await Promise.resolve();
+      active -= 1;
+      if (batch.length > 24) throw new Error('maximum 24 reports');
+      return { success: true, data: batch.map(url => ({ url, findings: [] })) };
+    });
+    const progress = vi.fn();
+    const result = await fetchSyslabExamDetails(links, { onProgress: progress });
+    expect(result.data.map(detail => detail.url)).toEqual(links);
+    expect(peak).toBe(1);
+    expect(bridgeMocks.details.mock.calls.every(([batch]) => batch.length <= 3)).toBe(true);
+    expect(progress).toHaveBeenLastCalledWith({ completed: 26, total: 26 });
+  });
+
+  it('continues later batches after explicit pending orders and counts all processed orders', async () => {
+    const links = Array.from({ length: 5 }, (_, i) =>
+      OPAQUE_LINK.replace(/exam\/\d+$/, `exam/${100 + i}`)
+    );
+    bridgeMocks.details.mockImplementation(async (batch: string[]) => ({
+      success: true,
+      data: batch.slice(1).map(url => ({ url, findings: [] })),
+      omittedUrls: [batch[0]],
+    }));
+    const progress = vi.fn();
+    const result = await fetchSyslabExamDetails(links, { onProgress: progress });
+    expect(result.data.map(detail => detail.url)).toEqual([links[1], links[2], links[4]]);
+    expect(result.omittedUrls).toEqual([links[0], links[3]]);
+    expect(progress).toHaveBeenLastCalledWith({ completed: 5, total: 5 });
+  });
+  it('allows all orders explicitly pending but rejects duplicate or foreign omissions', async () => {
+    bridgeMocks.details.mockResolvedValue({ success: true, data: [], omittedUrls: [OPAQUE_LINK] });
+    await expect(fetchSyslabExamDetails([OPAQUE_LINK])).resolves.toEqual({
+      success: true,
+      data: [],
+      omittedUrls: [OPAQUE_LINK],
+    });
+    for (const omittedUrls of [[OPAQUE_LINK, OPAQUE_LINK], ['unknown']]) {
+      bridgeMocks.details.mockResolvedValue({ success: true, data: [], omittedUrls });
+      await expect(fetchSyslabExamDetails([OPAQUE_LINK])).rejects.toThrow(/incompleto/);
+    }
+  });
+
+  it('rejects mixed search batches before sending any report', async () => {
+    const otherBatch = OPAQUE_LINK.replace('426614174000', '426614174001');
+    await expect(fetchSyslabExamDetails([OPAQUE_LINK, otherBatch])).rejects.toThrow(/búsquedas/);
+    expect(bridgeMocks.details).not.toHaveBeenCalled();
+  });
+
+  it('does not present an incomplete successful response as a complete analysis', async () => {
+    bridgeMocks.details.mockResolvedValue({ success: true, data: [] });
+    await expect(fetchSyslabExamDetails([OPAQUE_LINK])).rejects.toThrow(/incompleto/);
+  });
+
+  it('stops before the next batch after the patient changes', async () => {
+    let current = true;
+    const links = Array.from({ length: 8 }, (_, i) =>
+      OPAQUE_LINK.replace(/exam\/\d+$/, `exam/${100 + i}`)
+    );
+    bridgeMocks.details.mockImplementation(async (batch: string[]) => {
+      current = false;
+      return { success: true, data: batch.map(url => ({ url, findings: [] })) };
+    });
+    await expect(fetchSyslabExamDetails(links, { isCurrent: () => current })).rejects.toThrow(
+      /cancelado/
+    );
+    expect(bridgeMocks.details).toHaveBeenCalledTimes(1);
+  });
 });

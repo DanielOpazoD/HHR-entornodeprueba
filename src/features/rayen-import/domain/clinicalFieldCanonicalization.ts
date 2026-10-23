@@ -9,7 +9,8 @@ export type CanonicalClinicalField =
   | 'evaluationScores'
   | 'vitalSigns'
   | 'vitalSignsHistory'
-  | 'clinicalSyncCheckpoint';
+  | 'clinicalSyncCheckpoint'
+  | 'clinicalCarryover';
 
 const sortedByCanonicalValue = <T>(items: T[]): T[] =>
   [...items].sort((left, right) =>

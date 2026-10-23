@@ -4,6 +4,7 @@ export const RAYEN_PATIENT_FLOW_RESULT_TYPE = 'HHR_RAYEN_PATIENT_FLOW_RESULT';
 export interface PatientFlowBridgeResult {
   base64: string;
   error?: string;
+  errorCode?: ClinicalReadErrorCode;
 }
 
 /** Fetch the official patient-flow PDF for one exact encounter. Used only to resolve a bed conflict. */
@@ -32,7 +33,7 @@ export const requestPatientFlowReport = (
       cleanup();
       resolve({
         base64: typeof data.base64 === 'string' ? data.base64 : '',
-        error: typeof data.error === 'string' ? data.error : undefined,
+        ...decodeClinicalReadFailure(data),
       });
     };
     window.addEventListener('message', onMessage);
@@ -45,3 +46,7 @@ export const requestPatientFlowReport = (
       resolve({ base64: '', error: 'Tiempo de espera agotado consultando la trazabilidad.' });
     }, timeoutMs);
   });
+import {
+  decodeClinicalReadFailure,
+  type ClinicalReadErrorCode,
+} from '../contracts/clinicalReadError';

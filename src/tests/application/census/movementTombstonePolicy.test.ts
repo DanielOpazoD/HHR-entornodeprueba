@@ -41,6 +41,22 @@ describe('movement tombstone policy', () => {
     expect(getStatisticalDischarges([activeDischarge, associated])).toEqual([activeDischarge]);
   });
 
+  it('excludes a standalone healthy crib while retaining an RN admitted to a hospital bed', () => {
+    const crib = DataFactory.createMockDischarge({
+      id: 'standalone-crib',
+      isNested: false,
+      originalData: DataFactory.createMockPatient('R3', { bedMode: 'Cuna' }),
+    });
+    const inpatient = DataFactory.createMockDischarge({
+      id: 'hospitalized-newborn',
+      isNested: false,
+      bedType: 'Cuna',
+      originalData: DataFactory.createMockPatient('NEO1', { bedMode: 'Cama' }),
+    });
+    expect(getActiveDischarges([crib, inpatient])).toEqual([crib, inpatient]);
+    expect(getStatisticalDischarges([crib, inpatient])).toEqual([inpatient]);
+  });
+
   it('marks a movement as deleted without removing it from the persisted list', () => {
     const movements = [
       DataFactory.createMockTransfer({ id: 't-1' }),

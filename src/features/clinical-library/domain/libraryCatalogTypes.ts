@@ -37,7 +37,7 @@ export interface LibraryDocumentEntry {
   keywords: string[];
   source?: string;
   /** Keep the original download/print action alongside its interactive editor. */
-  editorId?: ClinicalFormId | 'medif';
+  editorId?: ClinicalFormId | 'medif' | 'pharmacy-return' | 'pharmacy-disposal';
 }
 
 export const LIBRARY_TOOL_IDS = [
@@ -47,6 +47,8 @@ export const LIBRARY_TOOL_IDS = [
   'infusion',
   'dosing',
   'scores',
+  'pharmacy-return',
+  'pharmacy-disposal',
 ] as const;
 export type LibraryToolId = (typeof LIBRARY_TOOL_IDS)[number];
 

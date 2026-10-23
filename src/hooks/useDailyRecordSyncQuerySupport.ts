@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/config/queryClient';
+import type { DailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
 import type { DailyRecordSyncPort } from '@/application/ports/dailyRecordPort';
 import type { RemoteSyncRuntimeStatus } from '@/services/repositories/repositoryConfig';
@@ -33,13 +36,20 @@ export const useDeferredRemoteHydration = (
   currentDateString: string,
   remoteSyncStatus: RemoteSyncRuntimeStatus
 ): RemoteSyncRuntimeStatus => {
+  const queryClient = useQueryClient();
+  const cached = queryClient.getQueryData<DailyRecordQueryResult>(
+    queryKeys.dailyRecord.byDate(currentDateString)
+  );
+  // Idle scheduling only helps when there is local data to paint. A settled
+  // local miss needs its remote answer immediately, not another idle window.
+  const needsRemoteAnswer = cached?.record === null;
   const [remoteHydrationReadyDate, setRemoteHydrationReadyDate] = useState<string | null>(null);
   const readySignature = remoteSyncStatus === 'ready' ? currentDateString : null;
   const shouldDeferRemoteHydration =
-    readySignature !== null && remoteHydrationReadyDate !== currentDateString;
+    readySignature !== null && !needsRemoteAnswer && remoteHydrationReadyDate !== currentDateString;
 
   useEffect(() => {
-    if (readySignature === null) {
+    if (readySignature === null || needsRemoteAnswer) {
       return;
     }
 
@@ -73,7 +83,7 @@ export const useDeferredRemoteHydration = (
         browserWindow.cancelIdleCallback(idleCallbackId);
       }
     };
-  }, [currentDateString, readySignature]);
+  }, [currentDateString, readySignature, needsRemoteAnswer]);
 
   return shouldDeferRemoteHydration ? 'local_only' : remoteSyncStatus;
 };
@@ -92,6 +102,7 @@ export const useRemoteDailyRecordSync = (dailyRecord: DailyRecordSyncPort) =>
 
 interface UseTodayEmptyDailyRecordRecoveryParams {
   bootstrapPhase: DailyRecordBootstrapPhase;
+  isFetching?: boolean;
   currentDateString: string;
   record: DailyRecord | null;
   refetch: () => Promise<unknown>;
@@ -100,6 +111,7 @@ interface UseTodayEmptyDailyRecordRecoveryParams {
 
 export const useTodayEmptyDailyRecordRecovery = ({
   bootstrapPhase,
+  isFetching = false,
   currentDateString,
   record,
   refetch,
@@ -115,6 +127,9 @@ export const useTodayEmptyDailyRecordRecovery = ({
       return;
     }
 
+    // The primary read already owns this answer. Starting recovery here used
+    // to duplicate the request and trigger another refetch before showing Moa.
+    if (isFetching) return;
     const todayDateString = getTodayISO();
 
     if (
@@ -176,7 +191,7 @@ export const useTodayEmptyDailyRecordRecovery = ({
     return () => {
       cancelled = true;
     };
-  }, [bootstrapPhase, currentDateString, record, refetch, runRemoteSync]);
+  }, [bootstrapPhase, isFetching, currentDateString, record, refetch, runRemoteSync]);
 };
 
 interface UsePostDeployRecentRecordRefreshParams {

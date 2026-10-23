@@ -3,7 +3,6 @@ import type { ClinicalAIAction, ClinicalAIProvider, ClinicalAIRoutingConfig } fr
 type FetchLike = typeof fetch;
 
 const SUPPORTED_ACTIONS = new Set<ClinicalAIAction>([
-  'clinical_ai_summary',
   'clinical_document_import',
   'cie10_search',
   'clinical_attachment_name_suggestion',

@@ -61,6 +61,9 @@ export const selectCudyrReportEvaluation = (
   const adjustments = snapshots.filter(isAdministrativeCudyrAdjustment);
   const fromSnapshot = (item: NonNullable<(typeof snapshots)[number]>): CudyrReportEvaluation => ({
     category: item.category,
+    ...(isAdministrativeCudyrAdjustment(item) && item.adjustmentReason
+      ? { adjustmentReason: item.adjustmentReason, adjustmentEvidence: item.adjustmentEvidence }
+      : {}),
     source: item.source,
     recordedAt: item.recordedAt || '',
     sourceEvaluationId: '',

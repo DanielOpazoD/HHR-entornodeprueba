@@ -269,7 +269,7 @@ const verifyAuditVisualSmoke = async (page: Page, testInfo: TestInfo) => {
   await page.goto('/audit', { waitUntil: 'domcontentloaded' });
   await ensureAuthenticated(page);
   await expect(page).toHaveURL(/\/audit/, { timeout: 20_000 });
-  await expect(page.getByRole('heading', { name: /registro de auditoría/i })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Auditoría', exact: true })).toBeVisible({
     timeout: 20_000,
   });
   await expectNoHorizontalOverflow(page);
@@ -395,6 +395,7 @@ const createCudyrEvidence = async (page: Page) => {
       lastVerifiedAt: E2E_DATE + 'T23:00:00Z',
     };
     const responses: Record<string, object> = {
+      'read-view': { state: 'missing' },
       'official-report': { state: 'missing', sourceVersion: 'visual-source' },
       'monthly-supplements': { reports: [], nextCursor: null },
       'daily-census-sources': { reports: [], nextCursor: null },

@@ -45,6 +45,8 @@ const resolveTokenRole = async (firebaseUser: User): Promise<string | null> => {
 };
 
 export const resolveUserRoleClaim = async (firebaseUser: User): Promise<UserRole | null> => {
+  // Managed accounts require current server state; a cached role cannot prove activation/revocation.
+  if (firebaseUser.uid.startsWith('hhrn_')) return null;
   const tokenRole = (await resolveTokenRole(firebaseUser)) ?? undefined;
   return isGeneralLoginRole(tokenRole) ? tokenRole : null;
 };
@@ -72,6 +74,7 @@ export const ensureUserRoleClaim = async (
   firebaseUser: User,
   resolvedRole: UserRole
 ): Promise<void> => {
+  if (firebaseUser.uid.startsWith('hhrn_')) return;
   const tokenRole = await resolveUserRoleClaim(firebaseUser);
   if (tokenRole === resolvedRole) {
     setAuthClaimSyncSnapshot({

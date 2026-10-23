@@ -83,6 +83,18 @@ describe('authRoleLookup', () => {
     });
   });
 
+  it.each([
+    'functions/permission-denied',
+    'functions/unauthenticated',
+    'auth/user-disabled',
+    'auth/user-token-expired',
+    'auth/invalid-user-token',
+  ])('treats %s as denied rather than allowing cached-role fallback', async code => {
+    httpsCallableMock.mockReturnValue(vi.fn().mockRejectedValue({ code }));
+    const service = createAuthRoleLookupService();
+    await expect(service.getDynamicRoleForEmail('denied@hospital.test')).resolves.toBeNull();
+  });
+
   it('supports injected functions runtimes', async () => {
     const checkUserRoleCall = vi.fn().mockResolvedValue({
       data: { role: 'viewer' },

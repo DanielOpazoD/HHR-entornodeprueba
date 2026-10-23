@@ -48,6 +48,7 @@ export const createMMRADDicomHandler =
     if (event.httpMethod === 'OPTIONS') return json(200, {});
     if (event.httpMethod !== 'POST') return json(405, { error: 'Method not allowed' });
     const authorization = getHeader(event.headers, 'authorization');
+    const authStart = performance.now();
     let subject: string;
     try {
       extractBearerToken(authorization);
@@ -63,6 +64,7 @@ export const createMMRADDicomHandler =
         error: 'Se requiere una sesión con acceso a radiología.',
       });
     }
+    const authMs = performance.now() - authStart;
     if (!event.body || event.body.length > 6000 || event.isBase64Encoded)
       return json(400, { error: 'Solicitud DICOM no válida.' });
     const parsed = parseJsonBody<Record<string, unknown>>(event.body);
@@ -116,13 +118,43 @@ export const createMMRADDicomHandler =
         error: 'El acceso al estudio no es válido o venció. Vuelve a abrir el visor.',
       });
     }
+    let receivedHeaders = false;
+    const upstreamStart = performance.now();
     try {
       const response = await fetch(instanceWadoUrl(ticket), {
         redirect: 'error',
         signal: AbortSignal.timeout(20_000),
         headers: { Referer: `${MMRAD_VIEWER}/viewer/${ticket.study}`, Accept: 'application/dicom' },
       });
+      const upstreamHeadersMs = performance.now() - upstreamStart;
+      receivedHeaders = true;
+      if (!response.ok) {
+        await response.body?.cancel().catch(() => undefined);
+        const transient = [408, 429, 500, 502, 503, 504].includes(response.status);
+        const retry = response.headers.get('retry-after');
+        const parsedRetry =
+          retry && /^\d+$/.test(retry)
+            ? Number(retry)
+            : retry
+              ? Math.ceil((Date.parse(retry) - Date.now()) / 1000)
+              : 0;
+        return buildJsonResponse(
+          transient ? (response.status === 429 ? 429 : 503) : 422,
+          { error: 'MMRAD no pudo entregar este original DICOM.' },
+          {
+            requestOrigin,
+            headers: {
+              'Cache-Control': 'no-store',
+              ...(Number.isFinite(parsedRetry) && parsedRetry > 0
+                ? { 'Retry-After': String(parsedRetry) }
+                : {}),
+            },
+          }
+        );
+      }
+      const bodyStart = performance.now();
       const bytes = await readBoundedResponse(response, 3_500_000);
+      const upstreamBodyMs = performance.now() - bodyStart;
       if (bytes.length < 132 || new TextDecoder().decode(bytes.subarray(128, 132)) !== 'DICM')
         throw new Error('Original DICOM no válido');
       return {
@@ -130,14 +162,24 @@ export const createMMRADDicomHandler =
         headers: {
           ...buildCorsHeaders(requestOrigin, { allowedMethods: 'POST,OPTIONS' }),
           'Content-Type': 'application/dicom',
+          'Server-Timing': [
+            `auth;dur=${authMs.toFixed(1)}`,
+            `upstream;dur=${(performance.now() - upstreamStart).toFixed(1)}`,
+            `upstream_headers;dur=${upstreamHeadersMs.toFixed(1)}`,
+            `upstream_body;dur=${upstreamBodyMs.toFixed(1)}`,
+          ].join(', '),
           'Cache-Control': 'no-store',
           'X-Content-Type-Options': 'nosniff',
         },
         body: Buffer.from(bytes).toString('base64'),
         isBase64Encoded: true,
       };
-    } catch {
-      return json(502, {
+    } catch (error) {
+      const transient =
+        !receivedHeaders ||
+        error instanceof TypeError ||
+        (error instanceof Error && ['AbortError', 'TimeoutError'].includes(error.name));
+      return json(transient ? 502 : 422, {
         error:
           'No se pudo descargar un original DICOM o supera el límite de la conexión (3,5 MB por archivo).',
       });

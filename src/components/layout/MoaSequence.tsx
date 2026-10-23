@@ -44,8 +44,16 @@ const playback: Record<Scene, [seconds: number, cycles: number, still: number]> 
 };
 
 /** Six illustrated key poses. Fetch only the chosen scene; no animation timers. */
-export const MoaSequence = ({ scene, onComplete }: { scene: Scene; onComplete: () => void }) => {
-  const [ready, setReady] = useState(false);
+export const MoaSequence = ({
+  scene,
+  onComplete,
+  initiallyReady = false,
+}: {
+  scene: Scene;
+  onComplete: () => void;
+  initiallyReady?: boolean;
+}) => {
+  const [ready, setReady] = useState(initiallyReady);
   const [seconds, cycles, still] = playback[scene];
   return (
     <span

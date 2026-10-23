@@ -4,6 +4,7 @@ import { BaseModal } from '@/components/shared/BaseModal';
 import type { EpisodeContext } from '@/application/wound-care/woundCareUseCases';
 import type { WoundCareConsent } from '@/types/domain/woundCare';
 import { useWoundCareUpload } from '../hooks/useWoundCareUpload';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 interface ConsentUploadModalProps {
   isOpen: boolean;
@@ -91,6 +92,7 @@ export const ConsentUploadModal: React.FC<ConsentUploadModalProps> = ({
             <p className="text-xs text-emerald-600">
               Subido el{' '}
               {new Date(existingConsent.uploadedAt).toLocaleDateString('es-CL', {
+                timeZone: CLINICAL_TIME_ZONE,
                 day: '2-digit',
                 month: '2-digit',
                 year: 'numeric',

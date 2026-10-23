@@ -9,8 +9,9 @@ import {
   buildCanonicalE2ERecord,
   ensureAuthenticated,
 } from './fixtures/auth';
+import { getTodayISO } from '../src/utils/dateCoreUtils';
 
-const getTodayDate = () => new Date().toISOString().slice(0, 10);
+const getTodayDate = () => getTodayISO();
 
 const buildSeededCensusRecord = (date: string) =>
   buildCanonicalE2ERecord(date, {
@@ -135,7 +136,7 @@ test.describe('Logout Flow', () => {
     }
 
     await logoutButton.click();
-    await expect(page.getByText(/Acceso al Sistema/i)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/Iniciar sesión/i)).toBeVisible({ timeout: 10000 });
 
     const afterLogout = await page.evaluate(() => localStorage.getItem('hhr_e2e_bootstrap_user'));
     expect(afterLogout).toBeNull();

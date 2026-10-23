@@ -232,6 +232,23 @@ describe('dailyRecordRemoteWriteController', () => {
       );
     });
 
+    it('blocks a newborn dropped while its mother with the same document remains', () => {
+      const mother = {
+        patientName: 'Madre Sintetica',
+        rut: '33.333.333-3',
+        clinicalEpisodeId: 'ep_mother',
+      };
+      const newborn = {
+        patientName: 'RN Sintetico',
+        rut: mother.rut,
+        clinicalEpisodeId: 'ep_newborn',
+      };
+      const remote = recordWith({ H4C1: { ...mother, clinicalCrib: newborn } });
+      const local = recordWith({ H4C1: mother });
+
+      expect(() => assertNoPatientErasures(remote, local)).toThrow(/H4C1 \(cuna RN\)/);
+    });
+
     it('does not throw when the bed is empty in both copies', () => {
       const remote = recordWith(fillerBeds(5));
       const local = recordWith(fillerBeds(5));

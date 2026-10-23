@@ -9,11 +9,6 @@ import { formatDateForDisplay } from '@/utils/dateDisplayUtils';
 /** Gate the bed-management dispatcher calls before editing a record's day. */
 export type StaleDayEditGuard = (recordDate: string) => Promise<boolean>;
 
-const parseLocalDate = (isoDate: string): Date => {
-  const [year, month, day] = isoDate.split('-').map(Number);
-  return new Date(year, month - 1, day);
-};
-
 /**
  * Guards edits made to a clinical day other than the clinical "today".
  *
@@ -60,8 +55,8 @@ export const useStaleDayEditGuard = (clinicalToday: string): StaleDayEditGuard =
       }
 
       const isYesterday = getPreviousDay(clinicalToday) === recordDate;
-      const viewedLabel = formatDateForDisplay(parseLocalDate(recordDate));
-      const todayLabel = formatDateForDisplay(parseLocalDate(clinicalToday));
+      const viewedLabel = formatDateForDisplay(recordDate);
+      const todayLabel = formatDateForDisplay(clinicalToday);
 
       const confirmationPromise = confirm({
         variant: 'warning',

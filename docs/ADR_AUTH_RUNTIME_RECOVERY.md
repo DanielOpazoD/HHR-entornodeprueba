@@ -52,3 +52,14 @@ Auth problems in this app are rarely pure login failures. They usually happen at
   - `src/tests/services/auth/authRuntimeSupport.test.ts`
   - `src/tests/hooks/useAuthState.test.ts`
   - auth risk / login flow tests
+
+## Individual nursing sessions
+
+Managed accounts require a current server authorization version and never reuse a
+cached role or repair their claims through the legacy role endpoint. Admission
+continues through the same session/storage transition. Password setup is a bounded
+server operation; interrupted Auth writes leave access closed until an administrator
+repairs the same UID. No clinical source documents are part of that repair.
+Session expiry/revocation closes the connected UI while preserving owned pending
+edits; backend checks remain authoritative during network interruptions. See
+[AUTH_ACCESS_MODEL.md](AUTH_ACCESS_MODEL.md) for activation, private recovery and rollout.

@@ -180,7 +180,10 @@ describe('functions medicalHandoffSpreadsheetFunctions', () => {
       date: '2026-08-07',
       storageStatus: 'configured',
     });
-    expect(resolveRoleForEmail).toHaveBeenCalledWith('medico@hospitalhangaroa.cl');
+    expect(resolveRoleForEmail).toHaveBeenCalledWith(
+      'medico@hospitalhangaroa.cl',
+      authorizedContext
+    );
     const [, requestInit] = successfulFetch.mock.calls[0];
     const sentPayload = JSON.parse(requestInit.body);
     expect(sentPayload.secret).toBe(validConfig.sharedSecret);

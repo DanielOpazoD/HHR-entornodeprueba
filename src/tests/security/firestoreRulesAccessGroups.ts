@@ -34,38 +34,64 @@ export function registerFirestoreRulesAccessGroups({
       await assertSucceeds(auditCollection(admin()).get());
     });
 
+    const ownEvent = { action: 'TEST_ACTION', timestamp: 123456 };
+    const userBasic = { userId: 'user@example.com', userUid: 'user_basic' };
+
     it('Configured admins can read audit logs without an admin claim', async () => {
-      await setupDoc(admin(), 'hospitals/H1/auditLogs/log-dynamic-admin', { action: 'TEST' });
+      await setupDocBypass('hospitals/H1/auditLogs/log-dynamic-admin', { action: 'TEST' });
       await assertSucceeds(auditCollection(adminWithoutClaim()).get());
     });
 
-    it('Any authenticated user can create an audit log', async () => {
+    it('A signed-in user can record an audit event in their own name', async () => {
+      await assertSucceeds(auditCollection(authed()).add({ ...ownEvent, ...userBasic }));
+      // The email is compared without regard to case.
       await assertSucceeds(
-        auditCollection(authed()).add({ action: 'TEST_ACTION', timestamp: 123456 })
+        auditCollection(authed()).add({ ...ownEvent, ...userBasic, userId: 'User@Example.com' })
       );
+    });
+
+    it('Nobody records an audit event in another person’s name or without one', async () => {
+      const db = authed();
+      await assertFails(
+        auditCollection(db).add({ ...ownEvent, ...userBasic, userUid: 'user_admin' })
+      );
+      await assertFails(
+        auditCollection(db).add({
+          ...ownEvent,
+          ...userBasic,
+          userId: 'daniel.opazo@hospitalhangaroa.cl',
+        })
+      );
+      await assertFails(auditCollection(db).add({ ...ownEvent, userId: userBasic.userId }));
+      await assertFails(auditCollection(db).add({ ...ownEvent, userUid: userBasic.userUid }));
+      await assertFails(auditCollection(db).add(ownEvent));
     });
 
     it('Authenticated users without an effective role cannot create audit logs', async () => {
       await assertFails(
-        auditCollection(unauthorizedAuthed()).add({ action: 'TEST_ACTION', timestamp: 123456 })
+        auditCollection(unauthorizedAuthed()).add({
+          ...ownEvent,
+          userId: 'outsider@example.com',
+          userUid: 'user_outsider',
+        })
       );
     });
 
     it('Regular users CANNOT delete audit logs', async () => {
       const db = authed();
-      await setupDoc(admin(), 'hospitals/H1/auditLogs/log1', { action: 'TEST' });
+      await setupDocBypass('hospitals/H1/auditLogs/log1', { action: 'TEST' });
       await assertFails(db.doc('hospitals/H1/auditLogs/log1').delete());
     });
 
     it('Admins CANNOT delete audit logs (append-only policy)', async () => {
       const db = admin();
-      await setupDoc(db, 'hospitals/H1/auditLogs/log1', { action: 'TEST' });
+      await setupDocBypass('hospitals/H1/auditLogs/log1', { action: 'TEST' });
       await assertFails(db.doc('hospitals/H1/auditLogs/log1').delete());
     });
 
     it('Admins CANNOT update audit logs (append-only policy)', async () => {
       const db = admin();
-      await setupDoc(db, 'hospitals/H1/auditLogs/log1', { action: 'TEST' });
+      await setupDocBypass('hospitals/H1/auditLogs/log1', { action: 'TEST' });
       await assertFails(db.doc('hospitals/H1/auditLogs/log1').update({ action: 'TAMPERED' }));
     });
   });

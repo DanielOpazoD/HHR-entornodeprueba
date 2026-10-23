@@ -1,50 +1,31 @@
-import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
+import { formatCalendarDate, formatDateDDMMYYYY, formatTimestamp } from '@/utils/dateDisplayUtils';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
-const parseIsoAtNoon = (isoDate: string): Date | null => {
-  const [year, month, day] = isoDate.split('-').map(Number);
-  if (!year || !month || !day) {
-    return null;
-  }
-
-  const parsed = new Date(year, month - 1, day, 12, 0, 0, 0);
-  if (Number.isNaN(parsed.getTime())) {
-    return null;
-  }
-
-  return parsed;
-};
-
-export const formatCensusIsoDate = (isoDate: string, locale = 'es-CL'): string => {
-  const parsed = parseIsoAtNoon(isoDate) ?? new Date(isoDate);
-  if (Number.isNaN(parsed.getTime())) {
-    return isoDate;
-  }
-
-  return parsed.toLocaleDateString(locale);
-};
+/** Short date of a `YYYY-MM-DD` calendar day, or of a timestamp on the hospital clock. */
+export const formatCensusIsoDate = (isoDate: string, locale = 'es-CL'): string =>
+  formatCalendarDate(isoDate, {}, locale) ??
+  formatTimestamp(isoDate, { day: '2-digit', month: '2-digit', year: 'numeric' }, locale) ??
+  isoDate;
 
 export const formatCensusShortDayMonth = (isoDate: string, locale = 'es-CL'): string => {
-  const parsed = parseIsoAtNoon(isoDate);
-  if (!parsed) {
+  const [year, month, day] = isoDate.split('-').map(Number);
+  if (!year || !month || !day) {
     return '--/--';
   }
 
-  const day = String(parsed.getDate()).padStart(2, '0');
-  const month = String(parsed.getMonth() + 1).padStart(2, '0');
   void locale;
-  return `${day}-${month}`;
+  return `${String(day).padStart(2, '0')}-${String(month).padStart(2, '0')}`;
 };
 
 export const formatCensusRouteDateLabel = (isoDate?: string): string =>
   isoDate ? formatDateDDMMYYYY(isoDate) : 'Sin fecha';
 
 export const formatCensusMonthName = (isoDate: string, locale = 'es-CL'): string => {
-  const parsed = parseIsoAtNoon(isoDate);
-  if (!parsed) {
+  const monthName = formatCalendarDate(isoDate, { month: 'long' }, locale);
+  if (!monthName) {
     return isoDate;
   }
 
-  const monthName = parsed.toLocaleString(locale, { month: 'long' });
   return monthName.charAt(0).toUpperCase() + monthName.slice(1);
 };
 
@@ -59,6 +40,7 @@ export const formatCensusDateTime = (isoTimestamp?: string | null, locale = 'es-
   }
 
   return parsed.toLocaleString(locale, {
+    timeZone: CLINICAL_TIME_ZONE,
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',

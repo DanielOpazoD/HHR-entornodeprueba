@@ -5,9 +5,11 @@ import type { EgresoLookupResult, EgresoLookupTarget } from '../contracts/egreso
 import type { RayenScalesFormsResult } from '../contracts/patientClinicalBundle';
 import type { RayenCensusSnapshot } from '../contracts/rayenSnapshot';
 
-const canonicalRun = (value: string): string => {
+const canonicalRun = (value: string, passport = false): string => {
   const raw = value.replace(/[.\s-]/g, '').toUpperCase();
-  return /^\d{1,8}[0-9K]$/.test(raw) && isValidRut(raw) ? raw : '';
+  return (passport ? /^[A-Z0-9]+$/.test(raw) : /^\d{1,8}[0-9K]$/.test(raw) && isValidRut(raw))
+    ? raw
+    : '';
 };
 
 /** Recover a lost/expired MV3 grant through source evidence, never a locally asserted grant. */
@@ -35,13 +37,15 @@ export const createClinicalFormsAuthorizationRecovery = (
       const matches = candidates.filter(item => item.patient.clinicalEpisodeId === encounterId);
       if (!/^\d+$/.test(encounterId) || matches.length !== 1) return false;
       const patient = matches[0].patient;
+      const passport =
+        patient.documentType === 'Pasaporte' && patient.identityStatus !== 'provisional';
       const ownRun =
         patient.documentType !== 'Pasaporte' && patient.identityStatus !== 'provisional'
           ? patient.rut
           : '';
       // Explicit source maternal identity is lookup-only; never infer it from a shared bed/name.
-      const run = ownRun || patient.neonatalMaternalRut || '';
-      if (!canonicalRun(run)) return false;
+      const run = passport ? patient.rut : ownRun || patient.neonatalMaternalRut || '';
+      if (!canonicalRun(run, passport)) return false;
       if (dependencies.refreshSnapshot) {
         freshSnapshot ??= dependencies.refreshSnapshot().catch(() => null);
         const snapshot = await freshSnapshot;
@@ -49,8 +53,12 @@ export const createClinicalFormsAuthorizationRecovery = (
         const live = snapshot?.encounters.filter(item => item.encounterId === encounterId) ?? [];
         // A changed identity is a contradiction, not permission to fall back to the old patient.
         if (live.length)
-          return live.length === 1 && canonicalRun(live[0].run) === canonicalRun(run);
+          return (
+            live.length === 1 && canonicalRun(live[0].run, passport) === canonicalRun(run, passport)
+          );
       }
+      // The older lookup queries RUN/maternal RUN only. A passport needs live source proof.
+      if (passport) return false;
       const results = await dependencies.verifyEpisode([{ run, encounterId }]);
       signal.throwIfAborted();
       return results.some(

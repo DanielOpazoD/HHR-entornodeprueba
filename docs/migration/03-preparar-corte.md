@@ -1,5 +1,9 @@
 # Preparar el cambio de entorno sin hacerlo todavía
 
+Antes de ejecutar este procedimiento, aplicar la [política vigente de fuentes y
+alcance](00-fuentes-y-alcance.md). Las herramientas descritas conservan sus límites;
+no autorizan reabrir censos cerrados ni sobrescribir correcciones.
+
 La base sigue siendo `hhr-pruebas`; el censo corregido y CUDYR saneado se conservan.
 El antiguo es fuente de recuperación selectiva de enfermería y antecedentes. No se
 copian documentos completos sobre días ya corregidos ni se rescatan entregas médicas.

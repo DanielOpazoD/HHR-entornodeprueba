@@ -1,3 +1,4 @@
+import { RayenSyncCaseDetail } from './RayenSyncCaseDetail';
 import React from 'react';
 import type { RayenSyncEvent } from '@/types/domain/rayenSync';
 import {
@@ -16,7 +17,7 @@ const sourceLabel = (event: RayenSyncEvent): string | null => {
   const version = source.extensionVersion ? `Ext. v${source.extensionVersion}` : 'Extensión';
   const ficha = source.fichaMedico === 'ready' ? 'Ficha ✓' : 'Ficha —';
   const camas = source.gestionCamas === 'ready' ? 'Camas ✓' : 'Camas —';
-  return `${version} · ${ficha} · ${camas}`;
+  return `${version} · Conexiones al iniciar: ${ficha} · ${camas}`;
 };
 
 const TechnicalMetadata: React.FC<{ event: RayenSyncEvent }> = ({ event }) => {
@@ -93,14 +94,20 @@ export const RayenSyncClinicalSection: React.FC<{
         (event.coverage.errors > 0 ||
           event.coverage.sourceErrors > 0 ||
           Boolean(event.coverage.issues?.length)) && (
-          <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-sm leading-relaxed text-amber-900">
-            <p className="font-bold">Qué quedó pendiente en la información clínica</p>
+          <details className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-sm leading-relaxed text-amber-900">
+            <summary className="cursor-pointer font-bold">
+              Qué quedó pendiente en la información clínica
+            </summary>
             {event.coverage.issues?.length ? (
               <ul className="mt-1 space-y-1">
                 {event.coverage.issues.map(issue => {
                   const target = rayenClinicalIssueTarget(issue, censusDate);
                   return (
-                    <li key={`${issue.bedId}-${issue.source}-${issue.reason}`} className="py-1">
+                    <li
+                      key={`${issue.bedId}-${issue.diagnostic?.clinicalEpisodeId ?? ''}-${issue.source}-${issue.reason}`}
+                      className="py-1"
+                    >
+                      <RayenSyncCaseDetail diagnostic={issue.diagnostic} bedId={issue.bedId} />
                       <p>{presentRayenCoverageIssue(issue)}</p>
                       <RayenSyncIssueActions
                         code={rayenSyncTechnicalCode(issue.source, issue.reason)}
@@ -114,7 +121,7 @@ export const RayenSyncClinicalSection: React.FC<{
             ) : (
               <p className="mt-1">{presentRayenLegacyCoverageGap(event.coverage)}</p>
             )}
-          </div>
+          </details>
         )}
 
       <details data-testid="rayen-sync-technical-report" className="mt-1 text-xs text-slate-500">

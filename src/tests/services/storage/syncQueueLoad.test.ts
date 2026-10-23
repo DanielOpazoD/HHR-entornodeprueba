@@ -1,21 +1,14 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexedDBService';
-import {
-  getSyncQueueTelemetry,
-  listRecentSyncQueueOperations,
-  processSyncQueue,
-  queueSyncTask,
-} from '@/services/storage/sync';
+import { getSyncQueueTelemetry, processSyncQueue, queueSyncTask } from '@/services/storage/sync';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 vi.mock('firebase/firestore', async importOriginal => {
   const actual = await importOriginal<typeof import('firebase/firestore')>();
-  return {
-    ...actual,
-    setDoc: vi.fn().mockResolvedValue(undefined),
-    getDoc: vi.fn().mockResolvedValue({ exists: () => false, data: () => undefined }),
-  };
+  const { createSingleAttemptFirestoreMock } =
+    await import('./singleAttemptFirestoreTransactionMock');
+  return { ...actual, ...createSingleAttemptFirestoreMock() };
 });
 
 vi.mock('@/services/storage/firestore/firestoreShared', async importOriginal => {
@@ -39,17 +32,16 @@ const LOAD_VOLUME = toInt(process.env.SYNC_QUEUE_LOAD_VOLUME, 120);
 const RETRY_VOLUME = toInt(process.env.SYNC_QUEUE_RETRY_VOLUME, 40);
 const MAX_FLUSH_MS = toInt(process.env.SYNC_QUEUE_LOAD_MAX_MS, 8000);
 
-const makeRecord = (date: string, marker: string): DailyRecord =>
-  ({
-    date,
-    beds: {},
-    discharges: [],
-    transfers: [],
-    cma: [],
-    lastUpdated: marker,
-    nurses: [],
-    activeExtraBeds: [],
-  }) as DailyRecord;
+const makeRecord = (date: string, marker: string): DailyRecord => ({
+  date,
+  beds: {},
+  discharges: [],
+  transfers: [],
+  cma: [],
+  lastUpdated: marker,
+  nurses: [],
+  activeExtraBeds: [],
+});
 
 describe('syncQueueService load baseline', () => {
   beforeEach(async () => {
@@ -58,7 +50,7 @@ describe('syncQueueService load baseline', () => {
     Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
   });
 
-  it('handles volume of 120 queued records and flushes all', async () => {
+  it('flushes the configured queued-record volume within its load budget', async () => {
     const total = LOAD_VOLUME;
     for (let i = 0; i < total; i++) {
       const date = `2026-03-${String((i % 28) + 1).padStart(2, '0')}-${i}`;
@@ -110,12 +102,6 @@ describe('syncQueueService load baseline', () => {
     expect(telemetry.pending).toBe(0);
     expect(telemetry.failed).toBe(0);
     expect(telemetry.conflict).toBe(0);
-
-    const recentOperations = await listRecentSyncQueueOperations(5);
-    expect(Array.isArray(recentOperations)).toBe(true);
-    if (recentOperations[0]) {
-      expect(recentOperations[0]).toHaveProperty('status');
-    }
   });
 });
 

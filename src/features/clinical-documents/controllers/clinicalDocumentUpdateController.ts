@@ -7,6 +7,7 @@
  */
 
 import type { ClinicalDocumentSection } from '@/features/clinical-documents/domain/entities';
+import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 
 /**
  * Creates a new clinical update section with the current date and time.
@@ -34,9 +35,8 @@ export const createClinicalUpdateSection = (
   };
 };
 
-/** Formats a Date to YYYY-MM-DD. */
-const formatDateISO = (date: Date): string => date.toISOString().slice(0, 10);
+/** Hospital calendar date of `date`, YYYY-MM-DD. */
+const formatDateISO = (date: Date): string => calendarStampInClinicalTimeZone(date).iso;
 
-/** Formats a Date to HH:MM. */
-const formatTime = (date: Date): string =>
-  `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+/** Hospital wall-clock time of `date`, HH:MM. */
+const formatTime = (date: Date): string => calendarStampInClinicalTimeZone(date).hhmm;

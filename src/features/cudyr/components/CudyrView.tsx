@@ -1,3 +1,5 @@
+import { monthlyRecoveryWindow } from '@/services/cudyr/cudyrMonthlyRecoveryPlan';
+import { CudyrNightStaff } from './CudyrNightStaff';
 import { CudyrExclusionSummary } from './CudyrExclusionSummary';
 import { cudyrCensusAccepted } from '@/services/cudyr/cudyrCensusApproval';
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
@@ -100,15 +102,19 @@ export const CudyrView = ({
   const canExport = Boolean(
     data &&
     !busy &&
+    !data.readViewSnapshot &&
     !error &&
     !data.issues.length &&
     !evaluatedCoverage.some(day => day.state === 'error')
   );
-  const selectedRow = !busy && data?.rows.find(row => row.key === selected && row.date === date);
-  const refresh = () => {
+  const selectedRow =
+    !busy &&
+    !data?.readViewSnapshot &&
+    data?.rows.find(row => row.key === selected && row.date === date);
+  const refresh = (reuseConfirmedRecovery = false) => {
     setSelected('');
     setExportError('');
-    void load(date.slice(0, 7) + '-01', date);
+    void load(date.slice(0, 7) + '-01', date, reuseConfirmedRecovery);
   };
   const download = async () => {
     if (!canExport || !data || exporting) return;
@@ -165,18 +171,22 @@ export const CudyrView = ({
               key={`${currentUser?.uid}:${date.slice(0, 7)}`}
               month={date.slice(0, 7)}
               compact
-              onSaved={refresh}
+              disabled={busy}
+              onSaved={() => refresh(true)}
             />
           )}
-          <button
-            type="button"
-            onClick={refresh}
-            disabled={busy}
-            className="inline-flex items-center gap-2 rounded-lg border bg-white px-3 py-2 text-sm disabled:opacity-40"
-          >
-            <RefreshCw size={15} />
-            Actualizar vista
-          </button>
+          {(!canCorrectCudyrDischarge({ role, readOnly }) ||
+            !monthlyRecoveryWindow(date.slice(0, 7))) && (
+            <button
+              type="button"
+              onClick={() => refresh()}
+              disabled={busy}
+              className="inline-flex items-center gap-2 rounded-lg border bg-white px-3 py-2 text-sm disabled:opacity-40"
+            >
+              <RefreshCw size={15} />
+              Volver a leer datos
+            </button>
+          )}
           <button
             type="button"
             onClick={() => void download()}
@@ -188,6 +198,13 @@ export const CudyrView = ({
           </button>
         </div>
       </header>
+      <CudyrNightStaff date={date} record={record} />
+      {data?.readViewSnapshot && (
+        <p role="status" className="text-xs text-slate-500">
+          Última lectura guardada en HHR.{' '}
+          {busy ? 'Comprobando cambios…' : 'Verificación pendiente.'}
+        </p>
+      )}
       <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
         <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
           <div role="group" aria-label="Cumplimiento del día">
@@ -332,7 +349,10 @@ export const CudyrView = ({
               CMA y cunas permanecen visibles. Altas, traslados externos y fallecimientos se
               consultan en el explorador.
             </li>
-            <li>Actualizar y descargar leen HHR; no inician una sincronización con Eloísa.</li>
+            <li>
+              Actualizar CUDYR consulta los pendientes en Eloísa; los días verificados se conservan.
+              Descargar utiliza los datos guardados en HHR.
+            </li>
           </ul>
         </details>
       </footer>
@@ -342,7 +362,7 @@ export const CudyrView = ({
           row={selectedRow}
           canEdit={canCorrectCudyrDischarge({ role, readOnly }) && !data?.issues.length}
           onClose={() => setSelected('')}
-          onSaved={refresh}
+          onSaved={() => refresh()}
         />
       )}
     </section>

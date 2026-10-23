@@ -49,6 +49,7 @@ import {
   resolveDetailedStaffingState,
   updateDetailedStaffingStandardSlot,
 } from '@/services/staff/dailyRecordDetailedStaffing';
+import { getTodayISO } from '@/utils/dateCoreUtils';
 
 const buildRecord = (date: string, lastUpdated: string): DailyRecord => ({
   date,
@@ -96,7 +97,7 @@ const buildEmptyBed = (bedId: string): PatientData =>
     hasWristband: true,
   });
 
-const CURRENT_RECORD_DATE = new Date().toISOString().slice(0, 10);
+const CURRENT_RECORD_DATE = getTodayISO();
 
 const isoAt = (date: string, time: string): string => `${date}T${time}.000Z`;
 
@@ -211,15 +212,14 @@ describeEmulator('Firestore emulator sync concurrency flow', () => {
 
   it('applies partial update when record exists and is within nurse edit window', async () => {
     const date = CURRENT_RECORD_DATE;
-    const now = Date.now();
+    // The record keeps the app's dateTimestamp (UTC midnight of its date): the rules require its
+    // UTC date to equal the document id, and from 19:00 hospital time Date.now() is already the
+    // next UTC day.
     await testEnv.withSecurityRulesDisabled(async context => {
       await context
         .firestore()
         .doc(`hospitals/hanga_roa/dailyRecords/${date}`)
-        .set({
-          ...buildRecord(date, isoAt(date, '07:00:00')),
-          dateTimestamp: now,
-        });
+        .set(buildRecord(date, isoAt(date, '07:00:00')));
     });
 
     await expect(

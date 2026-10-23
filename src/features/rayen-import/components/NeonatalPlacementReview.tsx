@@ -29,6 +29,7 @@ export const NeonatalPlacementReview: React.FC<{
   const reviewKey = reviews.map(r => `${r.episodeId}:${r.source.bed}:${r.source.run}`).join('|');
   React.useEffect(() => setLocalTimes({}), [reviewKey]);
   if (!reviews.length) return null;
+  const manual = reviews.some(review => !review.automaticMother);
   const change = (choice: NeonatalPlacementResolution) =>
     onChange([...choices.filter(c => c.episodeId !== choice.episodeId), choice]);
   return (
@@ -36,11 +37,21 @@ export const NeonatalPlacementReview: React.FC<{
       className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3"
       aria-label="Ubicación del RN"
     >
-      <h4 className="text-sm font-semibold text-slate-800">Confirma la ubicación del RN</h4>
+      <h4 className="text-sm font-semibold text-slate-800">
+        {manual ? 'Confirma la ubicación del RN' : 'Cunas con su madre'}
+      </h4>
       <p className="mt-1 text-xs text-slate-600">
-        Cuna con su madre o cama independiente. Corrige también el tipo de cama en Gestión de Camas.
+        {manual
+          ? 'Cuna con su madre o cama independiente. Corrige también el tipo de cama en Gestión de Camas.'
+          : 'Actualiza la ubicación de la cuna en Gestión de Camas.'}
       </p>
       {reviews.map(review => {
+        if (review.automaticMother)
+          return (
+            <p key={review.episodeId} role="note" className="mt-2 text-sm">
+              {review.patient.patientName} → C-{review.automaticMother.bedId} · con su madre.
+            </p>
+          );
         const choice = choices.find(c => c.episodeId === review.episodeId);
         const selectedTime = choice?.effectiveAt
           ? calendarStampInClinicalTimeZone(new Date(choice.effectiveAt))

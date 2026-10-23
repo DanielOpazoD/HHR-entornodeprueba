@@ -8,7 +8,6 @@
 | `mmrad-search`                | `GET`,`OPTIONS`        | Bearer Firebase | `admin`, `nurse_hospital`, `doctor_urgency`, `doctor_specialist`, `editor`, `viewer` | `VITE_FIREBASE_*`, `MMRAD_USERNAME`, `MMRAD_PASSWORD`         | `400`, `401`, `403`, `500`, `502` |
 | `send-census-email`           | `POST`                 | Bearer Firebase | `admin`, `nurse_hospital`                                                            | `VITE_FIREBASE_*`, Gmail secrets                              | `400`, `401`, `403`, `500`        |
 | `fhir-api`                    | `GET`, `OPTIONS`       | Bearer Firebase | roles clínicos permitidos                                                            | `VITE_FIREBASE_*`                                             | `401`, `403`, `404`, `500`        |
-| `clinical-ai-summary`         | `POST`, `OPTIONS`      | Bearer Firebase | `admin`, `nurse_hospital`, `doctor_urgency`, `doctor_specialist`, `editor`           | `AI_PROVIDER`, provider keys, `VITE_FIREBASE_*`               | `400`, `401`, `403`, `404`, `500` |
 | `clinical-document-ai-import` | `POST`, `OPTIONS`      | Bearer Firebase | `admin`, `nurse_hospital`, `doctor_urgency`, `doctor_specialist`, `editor`           | `AI_PROVIDER`, provider keys, `VITE_FIREBASE_*`               | `400`, `401`, `403`, `500`, `502` |
 | `cie10-ai-search`             | `POST`, `OPTIONS`      | Bearer Firebase | roles clínicos generales                                                             | `AI_PROVIDER`, provider keys                                  | `400`, `401`, `403`, `500`        |
 | `admin-ai-provider-status`    | `GET`, `OPTIONS`       | Bearer Firebase | `admin`                                                                              | `AI_PROVIDER`, provider keys                                  | `401`, `403`, `500`               |
@@ -94,3 +93,61 @@ filtra un mes y pagina hasta cinco versiones. No devuelve los bytes del original
 Las tres colecciones documentales quedan inaccesibles por las reglas cliente;
 ninguna operación escribe censos, evaluaciones, altas ni categorías estadísticas.
 No se añaden endpoints o permisos IAM. El importador no es autor del CUDYR fuente.
+
+## Cuentas individuales de enfermería
+
+`createNursingAccount`, `listNursingAccounts` y `manageNursingAccount` requieren
+administrador vigente y autenticación reciente de hasta quince minutos.
+`enableIndividualAccounts` exige además el UID de Daniel y verifica los dos
+Google protegidos antes de cerrar los accesos legacy. No borra identidades ni
+reescribe históricos.
+
+`activateNursingAccount` acepta un código privado de un uso, con vencimiento de
+una hora, ligado al RUT verificado; sólo entonces permite elegir la contraseña.
+`signInWithRut` verifica la contraseña mediante Firebase Auth del mismo proyecto.
+`changeNursingPassword` exige sesión individual vigente y contraseña actual.
+Versiones y locks cierran el acceso durante cambios/revocaciones incompletos.
+El transporte limita intentos por cuenta/IP, usa destino fijo y nunca registra
+contraseñas, códigos o cuerpos del proveedor. Los callables usan el envelope de
+Firebase, límite de 60 segundos y errores públicos genéricos.
+
+`signInWithRutSantiago` conserva ese mismo callable dentro de un adaptador HTTP
+Gen2 en `southamerica-west1`; no implementa otra ruta de validación de cuenta.
+Mantiene envelope de datos/respuesta, CORS/preflight, contexto de autorización,
+rechazo de entrada inválida y errores `HttpsError`. La cuenta de servicio Appspot
+del proyecto es explícita; memoria 256 MiB, CPU `gcf_gen1`, concurrencia 1,
+mínimo 0, máximo 10 instancias y timeout de 60 segundos. El transporte invocable
+no reemplaza la validación de credenciales y estado de la cuenta.
+
+El cliente selecciona Santiago por defecto sólo en `hhr-pruebas`; los overrides
+US/São Paulo/Santiago tienen allowlist y un valor inválido usa US. Si la ruta
+regional no entrega respuesta utilizable (`internal`, `unavailable` o
+`deadline-exceeded`), repite el ingreso una sola vez en el callable US y
+registra `auth`/`rut_sign_in_region_fallback` con región y código, sin
+credenciales ni correo de alerta; los rechazos de credenciales, límite o entrada
+no se repiten. `signInWithRut` conserva sus endpoints Gen1 US/São Paulo para
+compatibilidad; los otros callables de cuentas y el correo de recuperación no
+cambian de región.
+
+Pruebas específicas: `accountFunctionsRegions.test.ts`,
+`accountSantiagoFunction.test.ts` y `nursingAccountRegion.test.ts`. El protocolo
+HTTP se prueba con el SDK real, incluidos preflight, autorización malformada y
+errores estructurados; se conserva el ciclo de vida/emulador de cuentas existente.
+
+`signInWithRut` agrupa límites IP/cuenta e índice privado en una transacción con
+`getAll`; sólo expone el índice del intento cuyo commit terminó. El límite sigue
+siendo 100/IP y 10/cuenta por cinco minutos: un rechazo de cuenta consume IP y un
+rechazo de IP no consume cuenta. Activación, recuperación y cambio de clave
+comparten el transporte conservando sus claves de limitación. Un error de lectura
+o commit no habilita un camino sin límites.
+
+Una clave sin el formato numérico inicial evita leer preparación de primer ingreso.
+La autorización sigue exigiendo token del mismo proyecto con revocación comprobada
+y una lectura vigente de estado/lock después del proveedor; no se conserva como permiso para
+ingresos posteriores. La clave inicial sólo concede preparación y revalida estado,
+versión y lock transaccionalmente. No cambia el envelope, los endpoints ni CUDYR.
+
+Pruebas: ciclo de vida y transporte, Auth/Firestore/Storage emulados y Chromium
+con datos sintéticos. El puente del navegador ejecuta handlers de producción;
+no sustituye la validación de CORS o Functions desplegadas. Contrato operativo:
+[AUTH_ACCESS_MODEL.md](./AUTH_ACCESS_MODEL.md).

@@ -121,3 +121,29 @@ Comprobar `pwaPrecachePolicy`, `check:bundle-budget`, `check:chunk-graph`,
 `check:runtime-asset-margin` y las pruebas de gestos, teclado, recarga y fallo de chunk.
 Rollback: revertir componentes, estilos y las dos exclusiones de Moa en Vite y el
 inventario de presupuesto. No hay migración de información clínica.
+
+## PR #892: durable queue wakeup
+
+Using the same local Node 22.22.2 toolchain, lockfile and environment, base
+`b0262b91e` measures 630,000 bytes and the synchronous wakeup implementation
+measures 630,254 bytes (0.041% growth). Its timer resumes eligible durable writes
+after session admission without a new edit or network event. Raise only the
+authenticated shell ceiling to 630,400 bytes; all other budgets stay unchanged.
+The prior ceiling had no headroom. Splitting this small runtime adds loading
+complexity without a useful reduction; keep the existing engine and retry policy.
+Guardrails: session-readiness and timer tests, lease/quarantine tests, critical
+E2E recovery, bundle budget and preview smoke. Rollback: revert PR #892; persisted
+outbox entries remain intact. This allowance is not headroom for new UI features.
+
+## Historical sync diagnostic context (2026-10-18)
+
+Owner: census synchronization. The authenticated shell measured 630,690 bytes
+with the bounded optional diagnostic schema, compared with 630,254 bytes at
+the preceding baseline. Preserve that schema at the daily-record validation
+boundary so persisted incident identities survive reload. The report and its
+expanded UI remain behind their existing lazy boundary. Set only this ceiling
+to 631,000 bytes (600 bytes above the previous ceiling); other budgets stay fixed.
+Risk: a small startup payload increase, without dependencies or additional reads.
+Guardrails: schema roundtrip, episode isolation, bundle budget, chunk graph,
+preview bootstrap and critical coverage. Rollback: revert this PR; optional
+diagnostic fields remain backward compatible and clinical values are unchanged.

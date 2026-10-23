@@ -21,8 +21,22 @@
       return canCreateReadableClinicalDocument();
     }
 
+    // An audit event names the signed-in user who writes it: their uid, and their email (or uid
+    // when the token has no email). Nobody records an event in someone else's name.
+    function isOwnAuditLogEntry() {
+      let entry = request.resource.data;
+      return entry.userUid is string && entry.userUid == request.auth.uid &&
+             entry.userId is string && entry.userId.size() > 0 &&
+             (entry.userId.lower() == request.auth.token.get('email', '').lower() ||
+              entry.userId == request.auth.uid);
+    }
+
+    function canCreateOwnAuditLogEntry() {
+      return canCreateAppendOnlyOperationalLogEntry() && isOwnAuditLogEntry();
+    }
+
     function canWriteMedicalIndicationRecord() {
-      return isAdmin() || isDoctor() || isDoctorSpecialist();
+      return hasAnyEffectiveRole(['admin', 'doctor_urgency', 'doctor_specialist']);
     }
 
     function hasOnlyMedicalIndicationRecordKeys(payload) {

@@ -25,7 +25,9 @@ vi.mock('@/services/repositories/dailyRecordOperationalTelemetry', () => ({
 
 const date = '2025-01-08';
 const readResult = (record: DailyRecord | null) =>
-  createDailyRecordReadResult(date, record, record ? 'indexeddb' : 'not_found');
+  createDailyRecordReadResult(date, record, record ? 'indexeddb' : 'not_found', {
+    conflictSummary: record ? null : { kind: 'remote_missing', sourceOfTruth: 'none' },
+  });
 const recordAt = (hour: string) => ({
   ...DataFactory.createMockDailyRecord(date),
   lastUpdated: `${date}T${hour}:00:00.000Z`,
@@ -264,7 +266,9 @@ describe('null realtime recovery ownership', () => {
                 recoveryAction: 'defer_remote_sync',
                 userSafeMessage: 'Synthetic unavailable',
               }
-            : {}
+            : outcome === 'confirmed_missing'
+              ? { conflictSummary: { kind: 'remote_missing', sourceOfTruth: 'none' } }
+              : {}
         )
       );
       await settle();

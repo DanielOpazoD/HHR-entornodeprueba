@@ -1,25 +1,6 @@
 # CI Gates and Failure Runbooks
 
-Para el rollout regional de `applyRayenClinicalEnrichmentBatch`, el deploy debe
-verificar `southamerica-east1` y `us-central1`: la segunda conserva los clientes
-anteriores. No cambiar el enrutamiento del cliente hasta verificar el despliegue
-del head mergeado. Ejecutar merge gate y release confidence para el cambio del
-handler; conservar memoria, timeout, autoridad, recibos y transacción.
-
-`ACTIVE` y la presencia en `functions:list` no prueban invocabilidad. Si el primer
-deploy regional falla en `setIamPolicy`, mantener el cliente anterior y revisar
-el binding de invocación del recurso nuevo. En `hhr-pruebas`, el endpoint anterior
-usa `roles/cloudfunctions.invoker` para `allUsers`; replicar ese binding requiere
-autorización puntual, preservando los demás bindings y su `etag`. No conceder
-Cloud Functions Admin al deployer para resolver este incidente. Comprobar después
-una llamada autenticada idempotente y el rechazo `UNAUTHENTICATED` de una petición
-sintética válida sin sesión. La validación de payload antecede a Auth: un 400
-`INVALID_ARGUMENT` no acredita ese rechazo de autenticación.
-
-El cliente clínico usa el runtime regional existente con el timeout de 20 s.
-No implementar fallback a otra región tras una respuesta ambigua: los reintentos
-clínicos conservan su política y recibos existentes. Para rollback, revertir solo
-el enrutamiento del cliente; el endpoint de Estados Unidos sigue disponible.
+> Sólo guía vigente. El historial de incidentes y parches va en la descripción del PR que los resuelve; el anterior está en el [historial de runbooks](archive/RUNBOOK_HISTORY_2026.md). La guía de soporte de la aplicación está en el [runbook de soporte](RUNBOOK_SUPPORT_OPERATIONS.md).
 
 ## Objetivo
 
@@ -204,6 +185,9 @@ Incluye:
 - `npm run lint:strict:core`
 - `npm run check:critical-coverage`
 - `npm run check:netlify-functions-bundle`
+  valida también presupuestos de correo, carga en procesos nuevos y smoke de los
+  artefactos completos. Evidencia de CI: `netlify-mail-runtime`; interpretación y
+  límites en [Runbook Netlify Serverless Deploy](RUNBOOK_NETLIFY_SERVERLESS_DEPLOY.md).
 - `npm run build`
 - `npm run ci:preview-gate`
 
@@ -217,7 +201,8 @@ Incluye:
 - `npm run check:chunk-graph`
 - `npm run check:runtime-asset-margin`
 - `npm run ci:preview-smoke:built` (censo, biblioteca clínica, lectura del panel
-  e historial de sincronización sobre el build existente)
+  e historial de sincronización sobre el build existente; en CI se reparte en
+  carriles paralelos, ver «Una sola validación de vista previa»)
 
 Salida esperada:
 
@@ -259,6 +244,7 @@ Debe seguir cubriendo:
 
 - `test:smoke:critical-runtime`
 - `test:rules:ci`
+- `test:storage-rules:ci`
 - `test:emulator:sync:ci`
 - `check:critical-coverage`
 - `check:flow-performance-budget`
@@ -280,7 +266,7 @@ los jobs; sin procedencia verificable no atribuir la medición al run actual.
 El artifact `reports/test-runtime-governance.md` muestra budgets, PR vs nightly y señales de fixtures duplicadas para reducir tiempo con datos sin perder cobertura clínica crítica.
 El balance de los 4 `unit-risk-shards` vive en `scripts/config/unit-shard-balance.json`, se valida con `npm run check:unit-shard-balance` y se evidencia en `reports/unit-shard-runtime-profile.md`.
 Si un shard se vuelve dominante, correr `npm run profile:unit-shard-runtime`, revisar los archivos lentos del reporte y ajustar `perFileOverheadMs`, `durationHints`, `affinityGroups` o `lockedAssignments`; no mover tests clínicos PR-critical a nightly para maquillar runtime.
-El runtime observado de GitHub Actions se evidencia en `reports/ci-runtime-observed-profile.md` y se valida con `npm run check:ci-runtime-telemetry`. En PR lo captura `ci-runtime-telemetry`, con permisos mínimos `actions: read`/`contents: read`, después de los gates principales. El collector `npm run collect:ci-runtime-observed-input` usa `GITHUB_RUN_ID`, `GITHUB_REPOSITORY` y `GITHUB_TOKEN` para escribir `reports/ci-runtime-observed-input.json`; luego el reporte compara esos tiempos reales contra `reports/unit-shard-runtime-profile.json`.
+El runtime observado de GitHub Actions se evidencia en `reports/ci-runtime-observed-profile.md` y se valida con `npm run check:ci-runtime-telemetry`. En PR lo captura `ci-runtime-telemetry`, con permisos mínimos `actions: read`/`contents: read`, después de los gates principales. El collector `npm run collect:ci-runtime-observed-input` usa `GITHUB_RUN_ID`, `GITHUB_REPOSITORY` y `GITHUB_TOKEN` para escribir `reports/ci-runtime-observed-input.json`; luego el reporte compara esos tiempos reales contra `reports/unit-shard-runtime-profile.json`. El job corre después de `unit-risk`, así que un shard que la API aún muestra en cola o en ejecución es un dato atrasado de GitHub: el collector relee hasta 2,5 minutos antes de entregar la última lectura al contrato.
 Este gate es advisory-first: no bloquea por falta de datos reales ni por una corrida aislada lenta; solo bloquea contratos rotos como JSON inválido, timestamps inválidos, shards duplicados/faltantes cuando el reporte declara datos observados o nombres imposibles de shard.
 Si el observado contradice repetidamente el balance estimado, ajustar primero `durationHints`, `perFileOverheadMs`, `affinityGroups` o `lockedAssignments`, y recién después considerar cambios de suite. No reducir cobertura clínica crítica para bajar minutos. Si el reporte queda en `no_observed_ci_data` dentro de GitHub Actions, revisar que el job `ci-runtime-telemetry` haya ejecutado el collector antes del reporter y que el token tenga permiso de lectura de Actions.
 El gate de rendimiento del censo usa 5 muestras por escenario en PR y conserva 30 en eventos que no son PR, incluidos los `push` a `main` y `develop`. El muestreo corto detecta regresiones durante revisión; el muestreo largo de los eventos que no son PR mantiene la evidencia estable sin cobrar ese costo en cada iteración.
@@ -524,7 +510,7 @@ sobre el mismo código y entorno.
 
 ### Falla `test:firestore:release:ci`
 
-1. distinguir si falla `rules`, `emulator:sync`, `emulator:ui` o `e2e:critical`
+1. distinguir si falla `rules`, `storage-rules`, `emulator:sync`, `emulator:ui` o `e2e:critical`
 2. si falla `rules`, validar contratos de schema y paths Firestore antes de tocar tests
 3. si falla `emulator:sync/ui`, revisar sync queue, repositorios, IndexedDB o adapters Firestore
 4. regenerar snapshots/reportes operativos si el cambio modificó budgets o recovery policies
@@ -658,38 +644,46 @@ la acción por `setup-node` + `npm ci` en esos cuatro jobs y retirar su acción 
 
 ### Una sola validación de vista previa
 
-`build-budget` compila y verifica las cuatro suites del pack `ci:preview-smoke:built`,
-registra su procedencia y publica los artefactos para la comprobación final y
-posterior al merge. Se retira el workflow duplicado `Preview Validation`:
-no cambia el pack ni sus presupuestos. La regla activa de main exige `ci-summary`,
-que conserva la dependencia de `build-budget` y falla si falta una validación.
-Los cambios `docs-only` y `functions-only` conservan sus controles propios;
-ya no pagan otra compilación de frontend en un workflow separado.
+El pack `ci:preview-smoke:built` se valida una vez por run, ahora en carriles
+paralelos. `preview-smoke-lanes` arranca junto con los demás gates (necesita sólo
+`ci-scope`), compila el mismo commit y ejecuta un tramo del pack por carril:
+`app` (censo, biblioteca, panel clínico, historial y arrastre clínico),
+`dicom-graphics-stress` (la prueba etiquetada `@graphics-stress`) y las dos mitades
+`dicom-1`/`dicom-2` del resto del visor DICOM. Los carriles se reparten por duración
+observada, no por número de pruebas; se definen en `scripts/previewSmokeLaneSupport.mjs`.
 
-Owner: CI HHR. Reversión: restaurar `preview.yml` y el job estático secuencial.
-Referencia anterior: run 38162693481 (CI 10 min 19 s) y run 38162693384
-(vista previa duplicada, aproximadamente 4 min). Son observaciones de una revisión,
-no una promesa de tiempo para las siguientes. Comparar caché fría/caliente,
-tiempo total, minutos de runner y fallos sobre revisiones equivalentes.
+`preview-smoke` fusiona los blobs con `playwright merge-reports`, exige que todos los
+carriles terminaran bien y compara el informe fusionado con
+`playwright test --list` del pack completo: cada prueba canónica debe ejecutarse
+exactamente una vez (`check-preview-smoke-completeness.mjs`). Después registra la
+procedencia (productor `preview-smoke`) y publica `preview-bootstrap-artifacts`
+para la comprobación final y posterior al merge. `build-budget` conserva el build con
+la evidencia de release, budgets, grafo de chunks y `dist`, sin el smoke.
 
-### Evidencia de reconexión y conflictos (2026-09-29)
+Cada carril sube su blob, que ya es un zip, con `archive: false`; `preview-smoke`
+lo baja con `download-artifact@v8` y `skip-decompress: true`. Al comprimirlo de
+nuevo, la extracción en streaming de `download-artifact` confundía la firma del
+descriptor de datos del zip interno con el fin de la entrada y fallaba sobre
+artefactos intactos ("Artifact download failed after 5 retries"). Así ocurrió en
+dos runs de `main` el 2026-10-22 UTC; un reintento no lo resuelve porque depende
+del contenido del blob.
 
-`multiuser-offline-conflict.spec.ts` prepara sólo el estado inicial en IndexedDB.
-Después comprueba que la edición visible sin red conserva la base persistida hasta
-reconectar; la mutación pausada debe entonces guardar por el camino de la aplicación.
-El segundo contexto edita desde la UI, se inspecciona su petición callable y se acepta
-con `dailyRecordAuthorityRoute`. El snapshot que recibe el primer contexto procede
-del guardado aceptado del segundo, no de valores esperados escritos por el test.
-`sync-conflict-resolution.spec.ts` tampoco rellena el almacenamiento después de editar.
+Cada carril sirve su propio bundle del mismo commit. Sólo difiere de `build-budget`
+en `release-evidence.json`, que no entra en el precache, y Netlify vuelve a compilar
+al desplegar, así que el smoke nunca validó el artefacto desplegado. Localmente,
+`ci:preview-gate` sigue ejecutando el pack completo en serie. `ci-summary` exige
+`build-budget` y `preview-smoke`; los cambios `docs-only` y `functions-only` conservan
+sus controles propios.
 
-Estas pruebas usan autoridad remota controlada y una recarga con snapshot explícito:
-no prueban reproducción automática de una cola offline, entrega entre navegadores
-por Firestore ni resolución CAS de dos escritores reales. La concurrencia real se
-verifica separadamente en `sync-concurrency.emulator.test.ts` (versiones, hidratación,
-movimientos sin duplicación y retiro de dispositivos) y
-`specialty-clinical-concurrency.emulator.test.ts` (autoridad clínica, decisiones
-manuales de especialidad y cambios de cama/cuna). No declarar una edición en memoria
-como guardado durable, ni sembrar el resultado para ocultar una mutación pausada.
+Motivo medido: en el run 39661114009 el smoke ocupaba 735 s dentro de
+`build-budget` (16 min), con `dicom-viewer.spec.ts` en 565 s y una sola prueba de
+estrés gráfico en 206 s. El job empezaba al terminar los snapshots de gobernanza,
+así que el camino crítico del PR era de unos 24 min. Comparar el tiempo total del PR
+y el carril más lento en revisiones equivalentes; si un carril pasa de ~5 min,
+reequilibrar en `previewSmokeLaneSupport.mjs`.
+
+Owner: CI HHR. Reversión: devolver el paso `npm run ci:preview-smoke:built` y la
+subida de `preview-bootstrap-artifacts` a `build-budget`, con productor `build`.
 
 ### Integridad de los reportes Playwright
 
@@ -714,319 +708,6 @@ mejorar el score. Se retiró `seedPersistedBedFields`, sin consumidores después
 corregir los E2E de reconexión; las pruebas deben preparar su estado inicial y luego
 observar el guardado de la aplicación.
 
-### Reloj de fixtures de autoridad (2026-10-01)
-
-Los tests de autoridad estructural y de especialidad fijan únicamente `Date`, no
-los temporizadores ni la E/S. La fecha del fixture y las guardas reales del callable
-comparten un instante estable. Los escenarios fuera de la ventana de edición
-avanzan explícitamente la fecha antes de invocar el handler; los vencimientos de
-consulta Jev siguen verificando aceptación, rechazo y recuperación. Cada test
-restaura el reloj, sin marcas `@flake-safe` ni cambios en los umbrales del gate.
-
-### Esperas observables de tests (2026-10-01)
-
-En relés MV3, entregar respuestas sólo después de observar la solicitud emitida
-y esperar el mensaje o callback terminal exacto. La reinyección verifica además
-el anuncio de inicialización antes de limpiar la lista de mensajes. En aislamiento
-de sesiones, mantener una promesa de limpieza/cierre retenida y una señal explícita
-de inicio; las dos ventanas deben alcanzar el Web Lock antes de liberarla.
-
-Las pruebas de QueryClient fijan el reloj antes de crear la caché y lo avanzan según
-el escenario; IndexedDB mantiene sus temporizadores nativos. Los fixtures de código
-manual deben tener ingreso anterior a captura también en el caso expirado. El
-helper de login ya controla timers: su reloj inicial y el lock del test son ahora
-explícitos. No se cambia el detector de flake-risk ni se añaden exenciones.
-
-### Atribución interna de transacciones clínicas
-
-El desglose numérico `transactionTimingsMs` está descrito en
-[el protocolo de medición](./operations/sync-session-performance.md). Se acumulan
-intentos fallidos y exitosos; el tiempo externo al callback incluye trabajo del SDK
-y no acredita una demora de commit aislada. Verificar lectura fallida, replay exacto,
-auditoría y retry con reloj monotónico inyectado antes de usar las cifras.
-
-## Exportación detenida antes de generar el archivo
-
-La espera conserva su límite de 2,5 s y devuelve un resultado explícito. Si el
-censo sigue guardándose, falló el guardado o cambió el día, la acción termina con
-un aviso recuperable; repetirla cuando el estado esté resuelto. No aumentar el
-límite ni exportar el registro anterior para ocultar el incidente. Esta barrera
-coordina mutaciones locales y no certifica que la copia remota esté actualizada;
-los controles de Storage y sus resultados parciales conservan sus contratos.
-
-Regresiones: `useAppContentRuntime.test.tsx`, `useExportManager.test.ts` y
-`exportReadinessController.test.ts`. El controlador cubre la espera y la segunda
-comprobación; el hook cubre PDF, Excel, impresión y respaldo confirmado. Aplicar
-`ci:merge-gate` y el pack blocking de `test:release-confidence`, reutilizando sólo
-controles ya aprobados sobre el mismo código y configuración.
-
-## Detalle de signos o scores no disponible
-
-El censo mantiene sus valores aunque falle la carga del módulo de detalle.
-El cuadro informa el fallo y permite cerrarlo; no recarga automáticamente una
-edición activa ni inventa resultados. Recargar la aplicación cuando sea seguro
-si un despliegue dejó un módulo anterior no disponible. Los chunks de detalle
-siguen incluidos en el precache de producción para conservar su uso sin conexión.
-
-`ClinicalDetailLoading.test.tsx` comprueba importación bajo demanda, cancelación,
-respuesta tardía y aislamiento del fallo. Las pruebas de `VitalsCell` y
-`ScoresCell` verifican el contenido clínico tras la carga. La medición de Rollup
-del 01-10-2026 redujo el chunk del censo de 330.905 a 318.340 bytes y su unión
-estática con el shell de 2.238.015 a 2.225.451 bytes (misma configuración local).
-Es una reducción de JavaScript inicial, no una medición de latencia de usuarios.
-
-## Historial de movimientos: lectura completa y cancelación
-
-La búsqueda global consulta todo el historial remoto con páginas de 20 censos,
-orden descendente por `date` y cursor del último documento, incluido su desempate
-por ID. No usa offsets ni limita la antigüedad. El contador indica censos revisados;
-la cronología derivada se publica sólo al terminar todas las páginas. Mientras
-se lee, permanece disponible la cronología del maestro de pacientes.
-
-Volver a resultados, cerrar el cuadro, cambiar paciente o versión de su maestro
-cancela el avance. Firestore no cancela la solicitud ya en vuelo; su respuesta
-se descarta y no se inicia otra página. Un fallo posterior descarta el prefijo
-remoto y muestra el historial local como parcial, sin cachearlo como completo.
-La búsqueda no escribe en la caché editable del censo. Los snapshots retenidos
-para armar movimientos excluyen notas, signos y documentos clínicos.
-
-Diagnóstico de sólo lectura del 01-10-2026 en `hhr-pruebas`: 305 documentos
-representaron 31.225.956 bytes serializados; una página de 20, 5.327.028 bytes.
-Estas cifras justifican limitar el trabajo abandonado; no demuestran menor tiempo
-de completar toda la historia. Varias consultas añaden viajes de red y no forman
-un snapshot atómico entre páginas. No usar esta vista de lectura para autorizar
-escrituras. Cursor documentado por [Firebase](https://firebase.google.com/docs/firestore/query-data/query-cursors).
-
-Regresiones: `patientHistoryPages`, `firestoreRecordQueries` y
-`usePatientSelectionCancellation`, además de paridad de historia, RN y rangos.
-Verificar cierre/desmontaje, versiones del mismo RUT, empate de fechas, fallo de
-una página y respuesta tardía. Aplicar merge gate y controles blocking de release.
-
-# Censo: aislamiento de renders de dotación y movimientos
-
-`DailyRecordFragmentRendering` usa el proveedor real: veinte ediciones inmutables
-de camas y revisión mantenían 21 renders de dotación/movimientos; ahora conservan
-uno mientras camas y datos completos publican las 21 revisiones. Las dependencias
-son los campos ya existentes, sin comparadores profundos ni otro almacén.
-`CensusRegisterRendering` añade JSX nuevo del padre y comprueba el subárbol real de
-registros (presentación pesada sustituida): también pasa de 21 a un render por
-sección. Fecha, movimientos, permisos, modal y callback vigente siguen propagándose.
-
-Ante datos visuales obsoletos, ejecutar ambas regresiones y los tests de Altas,
-Traslados y Hospitalización Diurna; verificar que la escritura reemplaza las
-colecciones inmutablemente y que no se eliminó una dependencia relevante.
-El encabezado conserva su registro completo para el portal de entrega de turno;
-las revisiones usadas por las acciones clínicas no se suprimen. Esta evidencia
-reduce trabajo repetido; no es una medición comparativa de tiempo o INP de usuario.
-
-La fixture multiusuario espera explícitamente a que la aplicación cree el almacén
-`dailyRecords` antes de sembrar su estado inicial. La visibilidad de auth no prueba
-readiness de IndexedDB; abrir una base inexistente desde el test crea un esquema
-vacío y compite con Dexie. No se escriben ediciones esperadas desde la fixture.
-
-### Retirar duplicados sin perder escenarios (2026-10-01)
-
-Owner: infraestructura de tests HHR. Se conserva una prueba por cada contrato
-único; un nombre antiguo de archivo no demuestra que el comportamiento haya desaparecido.
-La cohorte de censo/handoff pasa de 75 a 71 tests al retirar cuatro cuerpos idénticos:
-
-| Caso retirado                                                 | Caso que conserva las mismas entradas y aserciones                  |
-| ------------------------------------------------------------- | ------------------------------------------------------------------- |
-| Handoff: URL en `medicalPatientHandoffViewController.test.ts` | `domain/handoff/view.test.ts`: scope y especialidad desde URL       |
-| `useCensusLogic`: fetch de fechas al montar                   | Comprobación del día previo: misma llamada a `useCensusPromptState` |
-| Admisión: reparación de `firstSeenDate` obsoleto              | Reparación de `firstSeenDate` con hora presente y fecha corregida   |
-| Rayen: paciente ausente del snapshot completo                 | No inferir un alta simple; conservar alta administrativa pendiente  |
-
-Las dos variantes útiles de handoff con clasificación UPC booleana se trasladan
-al test del dominio, separadas de los casos con checklist. No se cambia código
-clínico, exclusiones, cobertura exigida ni selección de packs. Rollback: revertir
-el PR; para nuevas retiradas, comparar fixtures/hooks/entradas/aserciones y ejecutar
-los casos conservados, además de los controles del head definitivo.
-
-### Setup DOM sólo para suites con document (2026-10-01)
-
-El setup compartido carga React Testing Library, matchers DOM y su cleanup sólo
-cuando el entorno ofrece `document`. IndexedDB simulado, storage y los mocks de
-Firebase/auth permanecen disponibles en Node y jsdom; no cambia configuración de
-Vitest, aislamiento, concurrencia ni selección de tests.
-El adaptador oficial de jest-dom para Vitest registra los matchers y sus tipos;
-las aserciones de `z-index` comparan texto CSS conservando sus valores originales.
-
-Medición local: Node 22.22.2, 20 suites Node, las mismas 96 pruebas, dos workers,
-seis procesos nuevos alternados antes/después (A-B-B-A-A-B). Medianas: 50,8 s
-antes y 26,6 s después; rangos 28,3–53,0 s y 19,4–27,3 s. La carga del equipo
-varía: el ahorro corresponde a esta cohorte, no al CI completo. Los tests de UI,
-auth, persistencia y limpieza deben seguir pasando antes del cierre.
-Owner: infraestructura de tests HHR. Rollback: revertir el PR para restaurar
-imports DOM incondicionales; no reducir el pack para conservar una cifra de tiempo.
-Referencias: [setupFiles de Vitest](https://vitest.dev/config/setupfiles) y
-[cleanup de React Testing Library](https://testing-library.com/docs/react-testing-library/api/#cleanup).
-
-### Canal entre pestañas: comprobar mensajes y cleanup reales (2026-10-02)
-
-`authBroadcastChannel` utiliza una instancia simulada por caso y un módulo recién
-cargado; nunca abre un BroadcastChannel nativo durante estas pruebas. Comprueba
-los payloads de actividad/logout/sync, la generación admitida, la reutilización
-del canal, el filtrado de mensajes entregados por la propia pestaña y la retirada
-del listener exacto sin desuscribir otros consumidores. Se mantiene degradación
-ante API ausente o constructor fallido. El descriptor global original se restaura
-sin retirar fixtures compartidos de storage/auth.
-
-Owner: infraestructura de tests/auth HHR. Estos casos reemplazan comprobaciones
-vacías o que sólo comprobaban no lanzar errores; no cambian el protocolo real.
-Validar también `useAuthState.crossTabLogout` y `sessionActivityMonitor`.
-Rollback: revertir el PR; no convertir de nuevo payloads o limpieza en aserciones
-constantes para silenciar una regresión.
-
-### Telemetría CLI sin modificar reportes versionados (2026-10-02)
-
-`ciRuntimeTelemetryScripts` ejecuta el script real con una ruta absoluta y un
-`cwd` temporal distinto por entrada. No cambia el directorio global del proceso
-de Vitest ni copia algoritmos del CLI. El perfil estimado versionado se copia como
-fixture de entrada y se comprueba la comparación estimado/observado real.
-Los JSON/Markdown generados se leen dentro
-del workspace y se eliminan al terminar el caso, incluidos los fallos de parsing.
-Se preservan las comprobaciones de errores accionables y metadatos del colector;
-un caso adicional comprueba que otra ejecución no sobrescribe el primer reporte.
-
-Owner: infraestructura de tests/CI HHR. Los reportes del repositorio deben conservar
-sus bytes antes/después de esta cohorte. No regenerar artefactos versionados como
-efecto lateral de un test. Rollback: revertir el PR y restaurar sólo reportes
-generados por la propia ejecución; no descartar modificaciones ajenas.
-
-### PDF: probar el servicio, no copias de su algoritmo (2026-10-02)
-
-Los siete casos de `pdfStorageService` ejecutan ahora `createPdfStorageService`,
-`listFilesInMonth` y `listFilesInMonthWithReport` reales. Se sustituyen objetos
-literales de tipo, regex copiados y concatenación local de rutas por comprobaciones
-de ruta para ambos turnos, parsing del formato actual y legacy, URL/metadatos,
-fallback de timestamp y reporte de nombre no reconocido sin perder archivos válidos.
-
-Firebase Storage se simula y el runtime ya existente se inyecta explícitamente;
-no se llama a servicios remotos ni se exportan helpers privados para facilitar el
-test. Los timers de consulta se simulan y limpian por caso. Se retira el mock de
-una ruta inexistente a Firebase. `pdfStorageRuntime` conserva su cobertura de
-permisos, fechas inválidas y fallos de consulta/mutación sin modificar el pack crítico.
-Owner: infraestructura de tests/backup HHR. Rollback: revertir el PR; no reemplazar
-una regresión del servicio por volver a comprobar una copia del algoritmo.
-
-### Handshake Ficha Médico con reloj controlado (2026-10-02)
-
-Los casos de versión/generación conservan sus variantes y ejecutan el relay real
-en VM con timers de Vitest por caso. El probe no responde antes de 4500 ms; salud
-no vence antes de 4000 ms y descarta la respuesta tardía. No se duerme 4,5 segundos
-reales ni se amplía el timeout de Vitest. Los deadlines inertes que el relay deja
-tras responder se eliminan al terminar cada caso; no se cambia la extensión.
-Owner: infraestructura de tests/extensión HHR. Rollback: revertir el PR.
-
-### Suscripciones del repositorio con entrega explícita (2026-10-02)
-
-Los casos de realtime en `dailyRecordRepositorySyncService` esperan la entrega del
-callback real mediante una promesa del fixture; no dependen de dormir un turno ni
-de adivinar el número de microtareas. Cada suscripción se cierra al terminar el caso.
-Los mocks de IndexedDB, loader remoto y suscripción recuperan un estado independiente
-antes de cada test, incluidos los casos de unsubscribe con una lectura pendiente.
-Conserva las 11 comprobaciones de consistencia, cache-only y protección tras cierre.
-Owner: infraestructura de tests/repositorios HHR. Rollback: revertir el PR.
-
-### Syslab: recursos de cada caso bajo control (2026-10-02)
-
-Toda la suite del transporte offscreen usa timers simulados por caso, también en
-éxito, cancelación, navegación, límite de pendientes y error de postMessage.
-Cada relay creado pertenece al caso y se dispone aun cuando falle una aserción.
-Se comprueba que no queden timers; el timeout respeta su límite exacto de 250 ms
-y una respuesta posterior no reenvía operaciones ni recupera trabajo vencido.
-Se preservan los nueve escenarios y los filtros de origen, ventana y reqId.
-Owner: infraestructura de tests/extensión HHR. Rollback: revertir el PR.
-
-### Popup: worker silencioso y respuestas tardías (2026-10-02)
-
-La suite ejecuta el script real del estado del worker con reloj simulado por caso.
-Conserva versión del manifest y respuestas de éxito, rechazo y excepción síncrona.
-Añade un worker sin respuesta: sigue pendiente a 4999 ms, falla a 5000 ms, limpia
-su timer y no vuelve a estar listo si llega tarde el contexto. También rechaza una
-versión distinta o una generación ausente. El teardown comprueba cero timers.
-Owner: infraestructura de tests/extensión HHR. Rollback: revertir el PR.
-No cambia el paquete de extensión ni sus plazos de respuesta.
-
-### Entornos explícitos para lógica pura (2026-10-02)
-
-Las suites de utilidades clínicas (12 archivos: fechas, RUT, permisos, cadenas,
-clonado, patches e integridad) usan Node mediante la anotación de cada archivo.
-Conservan sus casos, aserciones, mocks y reloj clínico; no requieren DOM ni renderizado.
-Las suites de descargas CSV y hooks optimistas conservan jsdom porque sí usan DOM.
-
-La comparación local de 50 suites candidatas, en cuatro procesos BAAB con cuatro
-workers, conservó los mismos 438 casos y resultados: mediana de 5,12 s en jsdom
-y 1,83 s en Node (64,4 % menos). Es una medida de esa cohorte local, no del CI
-completo ni del tiempo de la aplicación. No cambian cobertura, aislamiento,
-workers, plazos ni umbrales. Owner: infraestructura de tests/HHR.
-Rollback: revertir la anotación del PR afectado; no adaptar una prueba que necesita
-DOM para hacerla pasar en Node.
-
-Las ocho suites de escalas clínicas (Braden/CUDYR), UPC y entrega de turno
-también declaran Node. Preservan estados legacy, criterios, auditoría histórica,
-carryover y visibilidad por especialidad; no se cambia ninguna regla clínica.
-
-Las diez suites de esquemas y validación declaran Node: parsing de pacientes,
-movimientos, entrega, heridas y telemetría Rayen. Conservan rechazo de entradas
-inválidas, normalización legacy y reportes de reparación; los esquemas no cambian.
-
-Veinte suites de contratos y políticas del repositorio declaran Node. Conservan
-autoridad clínica, conflictos de campos/movimientos, CUDYR, fechas de ingreso,
-intención explícita de patch, compatibilidad y preparación de persistencia.
-No migrar junto a ellas las pruebas de integración que sí ejercen APIs de navegador.
-
-### Declaraciones de test exclusivas u omitidas (2026-10-02)
-
-El control de gobernanza conserva la política existente basada en los nombres
-`it`, `test` y `describe`, y analiza sus llamadas estáticas con el parser de
-TypeScript ya instalado. Detecta `only`/`skip` en cadenas `each`/`concurrent`,
-acceso por clave literal y wrappers de expresiones TypeScript. Los comentarios y
-strings de fixtures no cuentan como declaraciones ejecutables.
-
-No resuelve símbolos: un método local con esos nombres conserva el tratamiento
-conservador previo. Imports renombrados y claves dinámicas requieren revisión de
-código; no se presenta este detector como análisis completo de JavaScript.
-La resolución de aliases queda fuera de este PR: no hay uso demostrado que
-justifique construir una política de bindings propia.
-
-La CLI se prueba en directorios temporales propios con declaraciones prohibidas,
-texto inocuo, la excepción de skip de reglas Firestore y el límite intacto de
-500 líneas. Owner: infraestructura de tests/CI HHR. Rollback: revertir el PR del
-detector; no crear allowlists nuevas para hacer pasar un test exclusivo u omitido.
-
-El gate y el reporte de métricas comparten el mismo detector. Así los ejemplos
-de fixtures no degradan el scorecard y las cadenas prohibidas sí se contabilizan.
-
-Ocho suites críticas de políticas/controladores de autenticación declaran Node.
-Conservan permisos, sesión, redirects, configuración y headers. Los tests de lock,
-online y ciclo de vida del navegador mantienen jsdom.
-
-La medición local de las cinco cohortes críticas (46 suites, 251 casos), en cuatro
-procesos BAAB con la configuración crítica intacta, pasó de mediana 15,07 s a
-8,04 s (46,7 % menos). Los puntos cubiertos de 481 archivos de fuente fueron
-idénticos, sin pérdidas ni ganancias. No es una medida del CI completo.
-No cambian código de producción, workers, aislamiento, plazos ni umbrales.
-Rollback: revertir las anotaciones del PR afectado. Owner: tests críticos/HHR.
-
-Quince suites críticas de contratos y controladores de respaldos declaran Node.
-Conservan errores, disponibilidad, listados, resultados, PDF storage y backfill.
-Los tests de generación de PDF y cargas con contrato de navegador mantienen jsdom.
-
-Seis suites críticas de servicios y controladores de traslados declaran Node.
-Conservan consultas, mutaciones, estado y suscripciones, incluyendo errores.
-No se modifica el comportamiento clínico ni la persistencia de los traslados.
-
-Cinco suites críticas de historial de pacientes declaran Node. Conservan
-paginación, rangos, disponibilidad de lectura e historia UPC, sin modificar
-consultas ni registros clínicos.
-
-Doce suites críticas de políticas de persistencia/sincronización declaran Node.
-Conservan autoridad de escritura, reparación heredada, intención de patch,
-contratos de tareas, presupuestos operacionales y recuperación IndexedDB.
-Los tests de integración que necesitan el navegador mantienen jsdom.
-
 ## Fases del chequeo de paquete de extensión
 
 `check:rayen-extension-release` valida primero manifiesto, protocolo, integridad
@@ -1036,43 +717,6 @@ Tras corregir la estructura, una nueva ejecución comprueba la sintaxis de todos
 los scripts operativos con `node --check`, sin ejecutarlos. Cualquier error de
 sintaxis mantiene el rechazo; no se permite publicar con una fase pendiente.
 No hay cache entre ejecuciones ni cambios en la política de versiones o permisos.
-
-### Contratos de reportes sin DOM (04-10-2026)
-
-Doce suites de `src/tests/build` sobre frescura/procedencia de reportes, contratos
-de release/preview, dependencias de evidencia, auditoría npm, Git y resultados
-Playwright usan Node por archivo. Sus imports y operaciones son de filesystem,
-procesos y datos; no requieren DOM. El setup global conserva sus fixtures para
-Node y la UI sigue en jsdom. No extender la migración solo por ubicación.
-
-Con dos workers y los mismos 133 tests, tres ejecuciones por variante dieron
-medianas de 6,28 s en jsdom y 4,60 s en Node; el entorno pasó de unos 3 s agregados
-a cero. Se midió primero la base y luego el cambio, sin aislamiento de la carga
-del equipo: es evidencia de esta cohorte, no una ganancia del pipeline completo.
-Rollback: retirar solo las doce anotaciones de entorno, sin cambiar tests,
-workers, timeouts ni umbrales.
-
-### Separar transporte y planificación en los tests de IA
-
-`cie10AISearch.test.ts` sustituye el gestor mediante su ruta canónica y verifica
-que la búsqueda pase por él con su señal de cancelación. Sus seis casos siguen
-cubriendo serverless y fallback; no deben pagar las pausas reales del planificador.
-`aiRequestManager.test.ts` prueba ese planificador real con reloj controlado e
-instancia aislada: intervalo de 1.500 ms, aborto, error y backoff de 2/4/8 s para
-429/503. Mantener ambas responsabilidades; quitar el mock no aumenta la cobertura
-del transporte y vuelve a introducir esperas entre casos.
-
-### Evidencia incompleta: controles existentes verificados (04-10-2026)
-
-La revisión del bloque 6 no requiere otro validador: `previewBootstrapEvidenceSupport.test.ts`
-rechaza reportes ausentes/corruptos, interrumpidos, omitidos o de otro workflow/run/SHA;
-`releaseEvidenceContract.test.ts` rechaza inventarios incompletos y paquetes dirty;
-`reportFreshness.test.ts` y `evidenceDependencyGraph.test.ts` verifican procedencia,
-dependencias y frescura antes de reutilizar resultados. `ciFinalConfidenceWorkflow.test.ts`
-comprueba la dependencia del consumidor respecto a sus productores de la misma ejecución.
-Conservar estos contratos y sus casos negativos al optimizar CI. El benchmark de
-arranque también rechaza sobrescribir evidencia: para repetir, usar una ruta nueva
-con `CENSUS_PERF_OUTPUT`, sin borrar el resultado anterior para hacerlo parecer vigente.
 
 ## Cobertura crítica en dos grupos
 
@@ -1099,7 +743,8 @@ los límites de cada comprobación y los controles de rendimiento no cambian.
 `ci-summary` valida una revisión antes de que el CI de `main` llame al workflow
 reutilizable de Functions. El filtro conserva los archivos del despliegue anterior
 y añade los manifests/lockfile raíz y el propio verificador. Un cambio exclusivo
-del frontend o documentación no inicia un despliegue de Functions.
+del frontend o documentación no inicia un despliegue de Functions, salvo que el
+último intento no haya quedado desplegado (ver más abajo).
 
 El preflight comprueba el SHA, la rama, el workflow y el `ci-summary` del último
 intento de ese CI mediante un token de solo lectura. No se entregan credenciales
@@ -1107,6 +752,29 @@ Firebase hasta superar esta comprobación. Si desde entonces `main` tiene cambio
 en Functions, omite la revisión antigua para evitar revertir un despliegue nuevo.
 Los reintentos manuales en `main` deben superar el mismo control; se permite
 reintentar un despliegue fallido si el resumen de validación sí pasó.
+
+El alcance también consulta el historial de CI de `main`. Despliega aunque el push
+sólo cambie frontend o pruebas cuando Functions cambió desde el último despliegue
+exitoso, o cuando después de ese éxito hubo un intento fallido, cancelado o
+agotado: ese intento pudo dejar su código, o versiones mezcladas, aunque el árbol
+actual coincida con el éxito anterior. Así ocurrió el 2026-10-22 UTC: `aec75b6`
+(#928) desplegó con reintentos de GCP durante 947 s, `functions:list` falló sin
+mensaje y los pushes siguientes no volvieron a desplegar la guarda de borrado.
+Mientras no haya un despliegue exitoso, cada push a `main` lo reintenta y el CI
+queda en rojo; eso es intencional. Si la API de GitHub no responde, el alcance
+conserva la decisión por diff del push y lo anuncia como advertencia.
+
+El preflight espera en la cola del proyecto. En pushes automáticos vuelve a
+consultar el historial y omite el despliegue si esas mismas fuentes ya quedaron
+desplegadas sin fallos posteriores; evita repetir el rollout completo en ráfagas
+de merges. Los reintentos manuales siempre despliegan. Un reintento manual exitoso
+no figura en el historial de `ci-cd.yml`: el siguiente push a `main` vuelve a
+desplegar todas las funciones una vez.
+
+La verificación posterior usa `capture-firebase-functions-list.mjs`: tres intentos
+de hasta 2 min, con esperas de 30 y 60 s, e imprime el error del CLI en vez de
+guardarlo en el archivo de evidencia. El límite del job es de 30 min: lo habitual son 3–4 min, y
+cortar el CLI a mitad dejaría versiones mezcladas entre funciones.
 
 El CLI Firebase procede de `npm ci` y del lockfile raíz (`npx --no-install firebase`);
 no se descarga `latest` durante los pasos de borrado, despliegue o verificación.
@@ -1132,46 +800,3 @@ despliegue. No omitir el control ni ampliar permisos. **Rollback:** revertir est
 bloque restaura el workflow anterior; no modifica datos clínicos ni IAM.
 
 Referencia de cola: [concurrencia de GitHub Actions](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency).
-
-## Transacción cerrada en el emulador CUDYR
-
-Los runs `38166306055` y `38169209959` fallaron en la prueba concurrente de
-recibos CUDYR con `3 INVALID_ARGUMENT: Transaction is invalid or closed.`.
-El emulador Firestore 1.20.4 devuelve ese mensaje para una transacción que ya
-no está activa; el SDK reintenta otro mensaje de expiración, pero no éste.
-
-El archivo CUDYR admite hasta dos reintentos adicionales únicamente ante ese
-mensaje exacto y con `FIRESTORE_EMULATOR_HOST` apuntando a `localhost` o
-`127.0.0.1`. Cada intento abre una transacción nueva y vuelve a comprobar la
-autoridad. No reconoce un guardado sin confirmación. Los errores de argumentos
-distintos y el comportamiento fuera del emulador local permanecen intactos.
-
-Validar con `npx vitest run src/tests/functions/cudyrHistoryFunctions.test.ts`
-y `npm run test:emulator:sync:ci`. Conservar los escenarios concurrentes y sus
-asserts; no añadir reintentos de suite ni serializarlos. Rollback: revertir el
-parche y repetir esas pruebas, sin modificar datos, permisos ni umbrales.
-
-## Calibración unitaria publicada (12-10-2026)
-
-El reparto conserva cuatro particiones, afinidades, exclusiones de emulador,
-tolerancia y presupuestos. `scripts/config/unit-shard-balance.json` publica los
-pesos de ejecución obtenidos de los CI aprobados 38276199931 y 38274966947,
-con Node 22 y la base 89d2395e1. Los casos lentos usan medianas redondeadas a
-100 ms; el resto comparte su media observada. El coste fijo de preparación
-sigue separado. Son estimaciones para repartir trabajo, no tiempos garantizados.
-
-`durationSource: hints` evita que un snapshot de julio o un perfil privado cambie
-el reparto del mismo commit. `profile:unit-shard-runtime` conserva el experimento
-local mediante `--measured`; sus resultados deben revisarse antes de publicar
-una nueva calibración. No se añaden jobs ni se cambian umbrales.
-
-El runner utiliza `vitest.unit-shard.config.ts` con `include` exacto. Los filtros
-posicionales de Vitest son coincidencias parciales: el filtro de un archivo
-`.test.ts` podía seleccionar también su hermano `.test.tsx` y ejecutar una suite
-en dos particiones. El listado real debe coincidir con cada partición y su unión
-con toda la selección. El reporte observado calcula la estimación del checkout
-actual, en vez de comparar los tiempos de CI con el antiguo snapshot versionado.
-
-Validar la selección, ejecutar las cuatro particiones completas y comparar
-ejecuciones equivalentes. Las variaciones del runner, los imports y la preparación
-no permiten atribuir el tiempo total únicamente al reparto de casos.

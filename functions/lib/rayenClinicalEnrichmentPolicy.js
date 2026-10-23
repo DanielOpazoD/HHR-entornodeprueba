@@ -15,6 +15,7 @@ const ALLOWED_FIELDS = new Set([
   'vitalSigns',
   'vitalSignsHistory',
   'clinicalSyncCheckpoint',
+  'clinicalCarryover',
 ]);
 const CHECKPOINT_FIELD = 'clinicalSyncCheckpoint';
 
@@ -26,6 +27,7 @@ const MISMATCH_SECTION_BY_FIELD = Object.freeze({
   vitalSigns: 'vitals',
   vitalSignsHistory: 'vitals',
   clinicalSyncCheckpoint: 'checkpoints',
+  clinicalCarryover: 'checkpoints',
 });
 
 const FORBIDDEN_KEYS = new Set(['__proto__', 'prototype', 'constructor']);

@@ -64,7 +64,7 @@ it('publishes only the pristine installation, before the calling job runs checks
   expect(steps.indexOf(save)).toBeGreaterThan(steps.findIndex(step => step.run === 'npm ci'));
 });
 
-it('reuses exact dependencies across compatible jobs with only one pristine-cache writer', () => {
+it('reuses exact dependencies across compatible jobs with one pristine-cache writer per runner image', () => {
   const { jobs } = parseWorkflow(workflow);
   const reusable = Object.entries(jobs).filter(([, job]) =>
     job.steps.some(step => step.uses === './.github/actions/setup-ci-dependencies')
@@ -81,19 +81,39 @@ it('reuses exact dependencies across compatible jobs with only one pristine-cach
     'final-confidence-and-readiness',
     'lighthouse-ci',
     'postmerge-evidence',
+    'preview-smoke',
+    'preview-smoke-lanes',
     'quality-static-base',
     'quality-static-dependent-groups',
     'quality-static-governance-snapshots',
     'quality-static-groups',
     'rules-emulator',
+    'test-execution-manifest',
     'unit-risk-shards',
   ]);
   const writers = reusable.filter(([, job]) =>
-    job.steps.some(step => String(step.with?.['save-cache'] ?? '').includes("'true'"))
+    job.steps.some(step => {
+      const saveCache = String(step.with?.['save-cache'] ?? '');
+      return saveCache === 'true' || saveCache.includes("'true'");
+    })
   );
-  expect(writers.map(([name]) => name)).toEqual(['quality-static-base']);
+  // The restore key includes the runner image: every image used by a consumer
+  // needs exactly one writer, or its jobs reinstall from scratch on every run.
+  const imageOf = (job: (typeof reusable)[number][1]) => String(job['runs-on']);
+  const consumerImages = new Set(reusable.map(([, job]) => imageOf(job)));
+  expect([...consumerImages].sort()).toEqual(['ubuntu-24.04', 'ubuntu-latest']);
+  for (const image of consumerImages) {
+    expect(
+      writers.filter(([, job]) => imageOf(job) === image).map(([name]) => name),
+      `pristine writers for ${image}`
+    ).toHaveLength(1);
+  }
+  expect(writers.map(([name]) => name).sort()).toEqual(['quality-static-base', 'rules-emulator']);
   expect(jobs['quality-static-base'].steps.find(step => step.with?.['save-cache'])?.with).toEqual({
     'save-cache': "${{ matrix.check == 'lint' && 'true' || 'false' }}",
+  });
+  expect(jobs['rules-emulator'].steps.find(step => step.with?.['save-cache'])?.with).toEqual({
+    'save-cache': 'true',
   });
   for (const [, job] of reusable) {
     const setupIndex = job.steps.findIndex(

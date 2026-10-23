@@ -12,6 +12,8 @@ import {
   HOSPITAL_SUBTITLE,
   HOSPITAL_LOCATION,
 } from '../constants';
+import { getTodayISO } from '@/utils/dateCoreUtils';
+import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 
 interface ConsentPdfInput {
   patientName: string;
@@ -29,13 +31,7 @@ const formatDate = (iso?: string): string => {
   }
 };
 
-const todayFormatted = (): string => {
-  const d = new Date();
-  const dd = String(d.getDate()).padStart(2, '0');
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const yyyy = d.getFullYear();
-  return `${dd}/${mm}/${yyyy}`;
-};
+const todayFormatted = (): string => formatDateDDMMYYYY(getTodayISO()).replace(/-/g, '/');
 
 export const generateConsentPdf = async (input: ConsentPdfInput): Promise<string> => {
   const [{ default: jsPDF }] = await Promise.all([import('jspdf')]);

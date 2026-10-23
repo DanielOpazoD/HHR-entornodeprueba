@@ -1,15 +1,15 @@
 {
-  "generatedAt": "2026-07-05T06:20:04.606Z",
-  "gitSha": "126d4b82",
+  "generatedAt": "2026-10-21T01:51:11.193Z",
+  "gitSha": "be28603dd",
   "gitDirty": false,
   "generatedFor": {
-    "gitSha": "126d4b82",
+    "gitSha": "be28603dd",
     "gitDirty": false,
-    "treeHash": "3f2aefdb0f53e13237b97d0ef50fcbbe4a38e71c",
+    "treeHash": "e268e00bc374ad83c52f5b77426a3d90020071d1",
     "reportId": "operational-health",
     "dependencyFingerprint": {
       "algorithm": "sha256:dependency-files-v1",
-      "value": "654d42a98b0316db11dffc4aeb4c6f7b3a1fe6f0b52048fad8a6b0944441b260",
+      "value": "775ae4a4d49a6e7fa33354314ae6d600c2f67b0eb828ad02334b89fae7a9a9ee",
       "files": [
         "reports/critical-coverage.json",
         "reports/critical-coverage.md",
@@ -20,7 +20,9 @@
         "scripts/run-critical-coverage.mjs",
         "vitest.critical-coverage.config.ts"
       ],
-      "missingFiles": []
+      "missingFiles": [
+        "reports/e2e/preview-bootstrap/ci-provenance.json"
+      ]
     }
   },
   "schema": {
@@ -135,13 +137,11 @@
     "candidatePathTemplates": [
       "hospitals/hanga_roa/dailyRecords/:date",
       "hospitals/hhr/dailyRecords/:date",
-      "hospitals/hospital-hanga-roa/dailyRecords/:date",
       "dailyRecords/:date",
       "records/:date",
       "hospitals/hanga_roa/dailyRecords",
       "hospitals/hhr/dailyRecords",
-      "dailyRecords",
-      "hospitals/hospital-hanga-roa/dailyRecords"
+      "dailyRecords"
     ]
   },
   "compatibilityGovernance": {
@@ -207,44 +207,51 @@
     "flows": [
       {
         "flow": "loginVisibleMs",
-        "actualMs": 164.6,
+        "actualMs": 374.9,
         "targetMs": 4000,
         "enforcedMaxMs": 4000,
         "status": "ok"
       },
       {
         "flow": "authFeedbackMs",
-        "actualMs": 110.6,
+        "actualMs": 234.7,
         "targetMs": 2500,
         "enforcedMaxMs": 2500,
         "status": "ok"
       },
       {
         "flow": "censoVisibleMs",
-        "actualMs": 1280.3,
+        "actualMs": 879.4,
         "targetMs": 1500,
         "enforcedMaxMs": 2000,
         "status": "ok"
       },
       {
         "flow": "censoRecordReadyMs",
-        "actualMs": 51.7,
+        "actualMs": 55.3,
         "targetMs": 2500,
         "enforcedMaxMs": 5000,
         "status": "ok"
       },
       {
         "flow": "clinicalDocumentsVisibleMs",
-        "actualMs": 388.7,
+        "actualMs": 420.2,
         "targetMs": 4500,
         "enforcedMaxMs": 6000,
         "status": "ok"
       },
       {
         "flow": "backupFilesVisibleMs",
-        "actualMs": 478.1,
+        "actualMs": 630.8,
         "targetMs": 4500,
         "enforcedMaxMs": 4500,
+        "status": "ok"
+      },
+      {
+        "flow": "logoutToLoginVisibleMs",
+        "actualMs": 37.7,
+        "targetMs": 1500,
+        "enforcedMaxMs": 2500,
         "status": "ok"
       }
     ]
@@ -256,51 +263,51 @@
       {
         "root": "src/features/census/controllers",
         "status": "PASS",
-        "lines": 96.1,
-        "functions": 99.1,
-        "branches": 87.9
+        "lines": 91.8,
+        "functions": 95,
+        "branches": 79
       },
       {
         "root": "src/features/clinical-documents",
         "status": "PASS",
-        "lines": 85.8,
-        "functions": 84.8,
-        "branches": 74.5
+        "lines": 86.1,
+        "functions": 85,
+        "branches": 74.6
       },
       {
         "root": "src/services/transfers",
         "status": "PASS",
-        "lines": 85.5,
-        "functions": 84,
-        "branches": 74.9
+        "lines": 89.4,
+        "functions": 89.3,
+        "branches": 75.7
       },
       {
         "root": "src/services/storage/firestore",
         "status": "PASS",
-        "lines": 89.7,
-        "functions": 94.5,
-        "branches": 81.8
+        "lines": 89.8,
+        "functions": 92.5,
+        "branches": 86.6
       },
       {
         "root": "src/services/auth",
         "status": "PASS",
-        "lines": 84.9,
-        "functions": 86.3,
-        "branches": 71.1
+        "lines": 82,
+        "functions": 81.6,
+        "branches": 68.9
       },
       {
         "root": "src/services/auth/bootstrap",
         "status": "PASS",
-        "lines": 91.9,
+        "lines": 92.2,
         "functions": 100,
-        "branches": 81.7
+        "branches": 77.8
       },
       {
         "root": "src/services/backup",
         "status": "PASS",
-        "lines": 81.1,
-        "functions": 82,
-        "branches": 64.9
+        "lines": 82.2,
+        "functions": 83.9,
+        "branches": 67.3
       },
       {
         "root": "src/features/reminders/admin",
@@ -312,30 +319,30 @@
       {
         "root": "src/app-shell",
         "status": "PASS",
-        "lines": 92.6,
-        "functions": 93.3,
-        "branches": 81.3
+        "lines": 78.2,
+        "functions": 81.3,
+        "branches": 66
       },
       {
         "root": "src/services/patient-history",
         "status": "PASS",
-        "lines": 96,
-        "functions": 100,
-        "branches": 78.4
+        "lines": 87.6,
+        "functions": 85.7,
+        "branches": 75.9
       },
       {
         "root": "src/services/export-manager",
         "status": "PASS",
-        "lines": 96,
-        "functions": 96.6,
-        "branches": 92.5
+        "lines": 99.4,
+        "functions": 97.8,
+        "branches": 98
       },
       {
         "root": "src/shared/census/upc-critical",
         "status": "PASS",
-        "lines": 98.3,
-        "functions": 97.9,
-        "branches": 84.7
+        "lines": 71.4,
+        "functions": 53.2,
+        "branches": 67.7
       },
       {
         "root": "src/services/storage/sync-critical",
@@ -352,11 +359,18 @@
         "branches": 86.7
       },
       {
+        "root": "src/features/rayen-import/discharge-replan-critical",
+        "status": "PASS",
+        "lines": 91.4,
+        "functions": 92.9,
+        "branches": 86.9
+      },
+      {
         "root": "src/features/handoff",
         "status": "PASS",
-        "lines": 85.6,
-        "functions": 78.2,
-        "branches": 79.3
+        "lines": 83.7,
+        "functions": 78.3,
+        "branches": 75.5
       }
     ]
   },
@@ -365,15 +379,15 @@
     "chunkMaxBytes": 1250000,
     "entryAssets": [
       {
-        "file": "dist/assets/index-zjqg-fR6.js",
-        "sizeBytes": 19469,
+        "file": "dist/assets/index-2SU_gsUT.js",
+        "sizeBytes": 24392,
         "maxBytes": 700000,
         "status": "ok"
       }
     ],
     "largestAssets": [
       {
-        "file": "dist/assets/vendor-heic2any-ClJ2fQYX.js",
+        "file": "dist/assets/vendor-heic2any-BjDsP1gW.js",
         "sizeBytes": 1352091,
         "maxBytes": 1450000,
         "budgetLabel": "vendor-heic2any",
@@ -383,37 +397,47 @@
         "status": "near-limit"
       },
       {
-        "file": "dist/assets/app-authenticated-shell-BM1LNf9O.js",
-        "sizeBytes": 537942,
-        "maxBytes": 600000,
-        "budgetLabel": "app-authenticated-shell",
-        "budgetSource": "startupChunkBudget",
+        "file": "dist/assets/vendor-dicom-vtk-CVp3UI09.js",
+        "sizeBytes": 1078816,
+        "maxBytes": 1250000,
+        "budgetLabel": "chunkMaxBytes",
+        "budgetSource": "chunkMaxBytes",
         "severity": "error",
-        "budgetUtilizationPct": 89.7,
+        "budgetUtilizationPct": 86.3,
         "status": "near-limit"
       },
       {
-        "file": "dist/assets/vendor-pdfjs-C4G2Lk1-.js",
-        "sizeBytes": 465976,
+        "file": "dist/assets/app-authenticated-shell-BixI3TdI.js",
+        "sizeBytes": 629387,
+        "maxBytes": 631000,
+        "budgetLabel": "app-authenticated-shell",
+        "budgetSource": "startupChunkBudget",
+        "severity": "error",
+        "budgetUtilizationPct": 99.7,
+        "status": "near-limit"
+      },
+      {
+        "file": "dist/assets/vendor-pdfjs-BGyLORnz.js",
+        "sizeBytes": 460525,
         "maxBytes": 520000,
         "budgetLabel": "vendor-pdfjs",
         "budgetSource": "chunkPatternBudget",
         "severity": "error",
-        "budgetUtilizationPct": 89.6,
+        "budgetUtilizationPct": 88.6,
         "status": "near-limit"
       },
       {
-        "file": "dist/assets/vendor-firebase-firestore-CSGvoZjH.js",
-        "sizeBytes": 393147,
+        "file": "dist/assets/vendor-firebase-firestore-Bjg3nDcb.js",
+        "sizeBytes": 397577,
         "maxBytes": 500000,
         "budgetLabel": "vendor-firebase-firestore",
         "budgetSource": "chunkPatternBudget",
         "severity": "error",
-        "budgetUtilizationPct": 78.6,
+        "budgetUtilizationPct": 79.5,
         "status": "ok"
       },
       {
-        "file": "dist/assets/vendor-pdf-lib-BrVFzLGn.js",
+        "file": "dist/assets/vendor-pdf-lib-DewrExaK.js",
         "sizeBytes": 390824,
         "maxBytes": 430000,
         "budgetLabel": "vendor-pdf",
@@ -423,7 +447,7 @@
         "status": "near-limit"
       },
       {
-        "file": "dist/assets/vendor-pdf-core-U3n4h3fn.js",
+        "file": "dist/assets/vendor-pdf-core-CZkusByf.js",
         "sizeBytes": 364662,
         "maxBytes": 430000,
         "budgetLabel": "vendor-pdf",
@@ -433,23 +457,13 @@
         "status": "ok"
       },
       {
-        "file": "dist/assets/documentFallbacks-BpNioYEc.js",
-        "sizeBytes": 344643,
+        "file": "dist/assets/cudyrSupplement.worker-33MR3KSE.js",
+        "sizeBytes": 364090,
         "maxBytes": 1250000,
         "budgetLabel": "chunkMaxBytes",
         "budgetSource": "chunkMaxBytes",
         "severity": "error",
-        "budgetUtilizationPct": 27.6,
-        "status": "ok"
-      },
-      {
-        "file": "dist/assets/LineChart-tAm3U9fu.js",
-        "sizeBytes": 331288,
-        "maxBytes": 1250000,
-        "budgetLabel": "chunkMaxBytes",
-        "budgetSource": "chunkMaxBytes",
-        "severity": "error",
-        "budgetUtilizationPct": 26.5,
+        "budgetUtilizationPct": 29.1,
         "status": "ok"
       }
     ]
@@ -459,29 +473,29 @@
     "issues": [],
     "previewGate": {
       "status": "ok",
-      "total": 3,
-      "expected": 3,
+      "total": 60,
+      "expected": 60,
       "unexpected": 0,
       "flaky": 0,
       "skipped": 0,
       "interrupted": 0,
-      "durationMs": 7994.147
+      "durationMs": 718224.507
     },
     "criticalAssets": [
       {
-        "file": "dist/assets/index-zjqg-fR6.js",
-        "sizeBytes": 19469,
+        "file": "dist/assets/index-2SU_gsUT.js",
+        "sizeBytes": 24392,
         "maxBytes": 700000,
         "status": "ok"
       },
       {
-        "file": "dist/assets/app-authenticated-shell-BM1LNf9O.js",
-        "sizeBytes": 537942,
-        "maxBytes": 600000,
+        "file": "dist/assets/app-authenticated-shell-BixI3TdI.js",
+        "sizeBytes": 629387,
+        "maxBytes": 631000,
         "budgetLabel": "app-authenticated-shell",
         "budgetSource": "startupChunkBudget",
         "severity": "error",
-        "budgetUtilizationPct": 89.7,
+        "budgetUtilizationPct": 99.7,
         "status": "near-limit"
       }
     ],
@@ -494,10 +508,15 @@
     ]
   },
   "repositoryPerformance": {
-    "monitoredOperations": 7,
+    "monitoredOperations": 8,
     "maxThresholdMs": 400,
     "minThresholdMs": 120,
     "thresholds": [
+      {
+        "file": "src/services/repositories/dailyRecordRepositoryReadService.ts",
+        "thresholdMs": 220,
+        "context": null
+      },
       {
         "file": "src/services/repositories/dailyRecordRepositoryReadService.ts",
         "thresholdMs": 120,

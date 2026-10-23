@@ -118,7 +118,7 @@ const resolveCallerRole = async (context, resolveRoleForEmail) => {
     .toLowerCase()
     .trim();
   if (!email) return 'unauthorized';
-  return resolveRoleForEmail(email);
+  return resolveRoleForEmail(email, context);
 };
 
 const optionalString = (value, maxLength = 512) =>

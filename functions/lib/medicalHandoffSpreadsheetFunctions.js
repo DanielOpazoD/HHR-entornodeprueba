@@ -220,7 +220,7 @@ const createMedicalHandoffSpreadsheetFunctions = ({
     })
     .https.onCall(async (data, context) => {
       const email = requireAuthenticatedEmail(context);
-      const role = await resolveRoleForEmail(email);
+      const role = await resolveRoleForEmail(email, context);
       if (!HANDOFF_SPREADSHEET_ALLOWED_ROLES.has(role)) {
         throw new functions.https.HttpsError(
           'permission-denied',

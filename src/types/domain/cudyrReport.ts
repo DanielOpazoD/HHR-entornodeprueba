@@ -18,6 +18,8 @@ export type CudyrReportStatus =
   | 'por_revisar';
 
 export interface CudyrReportEvaluation {
+  adjustmentReason?: string;
+  adjustmentEvidence?: string;
   category: string;
   source: string;
   recordedAt: string;
@@ -158,6 +160,10 @@ export interface CudyrReportDayCoverage {
   runId: string;
 }
 export interface CudyrReportDataset {
+  /** Transport/read completeness; independent of clinical reconciliation warnings. */
+  readIncomplete?: boolean;
+  /** Display-only Firebase copy; never a verification or export authority. */
+  readViewSnapshot?: string;
   officialSnapshot?: { version: string; savedAt: string; packed?: string };
   loadedAt?: string;
   schemaVersion: 1;

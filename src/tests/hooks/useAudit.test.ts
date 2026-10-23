@@ -206,97 +206,74 @@ describe('useAudit', () => {
     });
   });
 
-  it('logs CUDYR changes through the write use case with the legacy payload', async () => {
+  it('coalesces CUDYR clicks on one bed into a single before/after event', async () => {
+    vi.useFakeTimers();
     const { result } = renderHook(() => useAudit(testUserId));
-
-    act(() => {
+    const score = (field: string, value: number, oldValue: number) =>
       result.current.logCudyrModified(
         'R1',
         'John Doe',
         '12345678-9',
-        'mobilization',
-        3,
-        1,
+        field,
+        value,
+        oldValue,
         '2024-12-28',
         'Author 1'
       );
-    });
 
-    await waitFor(() => {
-      expect(writeAuditUseCase.executeWriteAuditEvent).toHaveBeenCalledWith(
-        expect.objectContaining({
-          userId: testUserId,
-          action: 'CUDYR_MODIFIED',
-          entityType: 'patient',
-          entityId: 'R1',
-          details: {
-            patientName: 'John Doe',
-            bedId: 'R1',
-            lastField: 'mobilization',
-            lastValue: 3,
-            changes: {
-              mobilization: { old: 1, new: 3 },
-            },
-          },
-          patientRut: '12345678-9',
-          recordDate: '2024-12-28',
-          authors: 'Author 1',
-        })
-      );
+    act(() => {
+      score('mobilization', 3, 1);
+      score('mobilization', 2, 3);
+      score('feeding', 4, 2);
     });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(59_000);
+    });
+    await vi.dynamicImportSettled();
+    expect(writeAuditUseCase.executeWriteAuditEvent).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+    await vi.dynamicImportSettled();
+
+    expect(writeAuditUseCase.executeWriteAuditEvent).toHaveBeenCalledTimes(1);
+    expect(writeAuditUseCase.executeWriteAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: testUserId,
+        action: 'CUDYR_MODIFIED',
+        entityType: 'patient',
+        entityId: 'R1',
+        details: {
+          patientName: 'John Doe',
+          bedId: 'R1',
+          changes: {
+            mobilization: { old: 1, new: 2 },
+            feeding: { old: 2, new: 4 },
+          },
+        },
+        patientRut: '12345678-9',
+        recordDate: '2024-12-28',
+        authors: 'Author 1',
+      })
+    );
   });
 
-  it('throttles repeated CUDYR changes for 15 minutes per bed', async () => {
+  it('writes pending edits right away when the tab is hidden', async () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date('2024-12-28T10:00:00.000Z'));
     const { result } = renderHook(() => useAudit(testUserId));
 
     act(() => {
-      result.current.logCudyrModified(
-        'R1',
-        'John Doe',
-        '12345678-9',
-        'mobilization',
-        3,
-        1,
-        '2024-12-28'
-      );
+      result.current.logCudyrModified('R2', 'Jane Doe', '1-9', 'feeding', 3, 1, '2024-12-28');
+    });
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'));
     });
     await vi.dynamicImportSettled();
+    visibility.mockRestore();
 
     expect(writeAuditUseCase.executeWriteAuditEvent).toHaveBeenCalledTimes(1);
-
-    act(() => {
-      vi.setSystemTime(new Date('2024-12-28T10:14:59.000Z'));
-      result.current.logCudyrModified(
-        'R1',
-        'John Doe',
-        '12345678-9',
-        'feeding',
-        4,
-        2,
-        '2024-12-28'
-      );
-    });
-    await vi.dynamicImportSettled();
-
-    expect(writeAuditUseCase.executeWriteAuditEvent).toHaveBeenCalledTimes(1);
-
-    act(() => {
-      vi.setSystemTime(new Date('2024-12-28T10:15:00.000Z'));
-      result.current.logCudyrModified(
-        'R1',
-        'John Doe',
-        '12345678-9',
-        'feeding',
-        4,
-        2,
-        '2024-12-28'
-      );
-    });
-    await vi.dynamicImportSettled();
-
-    expect(writeAuditUseCase.executeWriteAuditEvent).toHaveBeenCalledTimes(2);
   });
 
   it('should fetch logs via use case', async () => {
@@ -435,10 +412,16 @@ describe('useAudit', () => {
     expect(writeAuditUseCase.executeWriteAuditEvent).toHaveBeenCalledTimes(2);
   });
 
-  it('throttles repeated view events before reaching the write use case', async () => {
+  it('counts one read per patient and screen inside the throttle window', async () => {
     const { result } = renderHook(() => useAudit('doctor@hospital.cl'));
-
-    act(() => {
+    const writes = () => vi.mocked(writeAuditUseCase.executeWriteAuditEvent).mock.calls;
+    // One read at a time, so each write settles before the next one starts.
+    const read = async (trigger: () => void, expectedWrites: number) => {
+      act(trigger);
+      await vi.dynamicImportSettled();
+      await waitFor(() => expect(writes()).toHaveLength(expectedWrites));
+    };
+    const viewCudyr = () =>
       result.current.logViewEvent(
         'VIEW_CUDYR',
         'dailyRecord',
@@ -447,25 +430,22 @@ describe('useAudit', () => {
         undefined,
         '2026-05-01'
       );
-      result.current.logViewEvent(
-        'VIEW_CUDYR',
-        'dailyRecord',
-        '2026-05-01',
-        { view: 'cudyr' },
-        undefined,
-        '2026-05-01'
-      );
-    });
+    const viewPatient = (bedId: string, patientName: string, rut: string) => () =>
+      result.current.logPatientView(bedId, patientName, rut, '2026-05-01');
 
-    await waitFor(() => {
-      expect(writeAuditUseCase.executeWriteAuditEvent).toHaveBeenCalledTimes(1);
-    });
-    expect(writeAuditUseCase.executeWriteAuditEvent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        action: 'VIEW_CUDYR',
-        entityType: 'dailyRecord',
-        entityId: '2026-05-01',
-      })
-    );
+    await read(viewCudyr, 1);
+    await read(viewCudyr, 1);
+    await read(viewPatient('R1', 'Paciente Uno', '11.111.111-1'), 2);
+    await read(viewPatient('R1', 'Paciente Uno', '11.111.111-1'), 2);
+    await read(viewPatient('R2', 'Paciente Dos', '22.222.222-2'), 3);
+    // The newborn shares the mother's document but is another patient.
+    await read(viewPatient('R2-crib', 'RN Dos', '22.222.222-2'), 4);
+
+    expect(writes().map(([input]) => [input.action, input.patientRut])).toEqual([
+      ['VIEW_CUDYR', undefined],
+      ['PATIENT_VIEWED', '11.111.111-1'],
+      ['PATIENT_VIEWED', '22.222.222-2'],
+      ['PATIENT_VIEWED', '22.222.222-2'],
+    ]);
   });
 });

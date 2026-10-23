@@ -163,5 +163,7 @@ export interface RayenSyncBundle {
   gestionCamasCapturedAt: string;
   sourceSkewMs: number;
   captureTimingsMs?: RayenCaptureTimings;
+  /** Optional aggregate count from extensions supporting bounded capture recovery. */
+  captureRetries?: number;
   egresoRows: import('./egresoReport').EgresoReportRow[];
 }

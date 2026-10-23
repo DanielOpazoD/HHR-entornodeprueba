@@ -170,3 +170,307 @@ sus tres UID y la presencia de píxeles. Confirmó que el ID del portal es inter
 Eso acredita la descarga directa; no acredita todavía el recorrido completo de un
 estudio del proveedor dentro de un despliegue autenticado. Registrar esa prueba
 aparte cuando se realice. No publicar HAR ni capturas reales en el repositorio o CI.
+
+### Referencia MPR y presentación 3D
+
+MPR mantiene los planos axial, coronal y sagital ortogonales. Con **Planos vinculados**
+y **Punto de referencia**, pulsar un punto alinea los otros planos con la misma posición
+física. La rueda y los botones de corte actualizan la referencia compartida. Se puede
+mostrar como líneas cruzadas o punto compacto; sus coordenadas son LPS (izquierda,
+posterior, superior) en milímetros del marco DICOM, no coordenadas de pantalla.
+Mover/zoom cambian la presentación, sin rotar los planos ni alterar la geometría adquirida.
+
+Distancia y ángulo son medidas transitorias en MPR. **Borrar medidas**, cambiar de modo,
+serie o cerrar el visor las elimina. No se guardan en la historia ni en telemetría;
+la captura PNG actual contiene el canvas de imagen, sin estas anotaciones SVG.
+
+3D permite elegir apariencia por modalidad (CT: hueso, tejidos blandos, músculo,
+grasa, pulmón; RM: general/T2), ajustar opacidad e iluminación, y desplazar los umbrales
+CT en HU. Son funciones de transferencia de intensidad, **no segmentación de órganos**.
+El recorte por eje LPS y profundidad permite explorar el interior; puede invertirse
+el lado o restablecerse completamente. Solo cambia el actor 3D en memoria: Original,
+MPR, los píxeles fuente y las comprobaciones de identidad/geometría se conservan.
+Los cambios se reinician al cambiar de modo. Las pruebas automatizadas usan exclusivamente
+DICOM sintéticos y comprueban navegación enlazada, contenido renderizado y recuperación.
+
+### Espacio de imagen y controles compactos
+
+El visor ocupa la altura disponible y reserva el espacio restante a los planos.
+La identificación del paciente y el selector de serie permanecen visibles. Las
+herramientas de medidas, inversión y exportación usan iconos con nombre accesible
+y ayuda al pasar el cursor. La información sobre medidas temporales se consulta
+en el icono de información. **Ajustes 3D** abre un panel superpuesto de apariencia
+y recorte; Escape cierra ese panel antes de cerrar el visor. En pantallas estrechas,
+los planos se apilan y se recorren con desplazamiento vertical.
+
+### Carga progresiva y espacio de trabajo
+
+Original abre el corte central verificado sin esperar la serie completa. Una cola de
+cuatro trabajadores prioriza el corte solicitado y luego sus vecinos; las peticiones
+ya en curso terminan normalmente. El selector conserva todas las posiciones: un corte
+pendiente muestra su estado y nunca se sustituye silenciosamente por otro disponible.
+Se verifica paciente/Study/Series/SOP antes de decodificar y publicar cada imagen.
+MPR y 3D esperan todas las imágenes y mantienen la validación geométrica existente.
+
+La descarga continúa en memoria. Cerrar o cambiar de serie cancela la cola y libera
+las imágenes cuando terminan las operaciones en curso. Un fallo de identidad o carga
+invalida la sesión; no se reconstruyen volúmenes con huecos. La captura de Original
+requiere un corte disponible, conserva su posición dentro de la serie completa y se
+cancela si cambia la selección durante la captura. No hay persistencia de imágenes.
+
+Cada plano MPR tiene un botón para ampliarlo y volver a los tres. Las otras vistas
+permanecen montadas para conservar la referencia compartida. Pantalla completa usa
+la API del navegador y permite volver con su botón o Escape; si el navegador la
+rechaza, el visor permanece utilizable en su ventana normal.
+
+### HU y ROI en MPR
+
+**Contraste** activa ventana/nivel por arrastre. **HU** mide un punto y **ROI** permite
+arrastrar una elipse con área en mm², promedio y desviación estándar (DE) en HU.
+Las anotaciones son temporales, se eliminan con «Borrar medidas» o al cambiar/cerrar
+la vista y no se incluyen en PNG ni anexos.
+
+Los controles cuantitativos se habilitan únicamente si todos los cortes volumétricos
+son CT clásico monocromático, tienen espaciado físico válido y una conversión lineal
+HU confirmada, aplicada por el decodificador con la pendiente/intercepto declarados.
+HU puede ser explícito en Rescale Type o implícito únicamente en CT ORIGINAL no
+localizador y no multienergía, según [DICOM PS3.3 C.8.2](https://dicom.nema.org/medical/Dicom/current/output/chtml/part03/sect_C.8.2.html).
+No se asume HU por la modalidad solamente. Relleno de píxeles, LUT, mapas de valores
+reales, grupos funcionales o calibración incompleta deshabilitan estas herramientas.
+Las ROI vacías, fuera de imagen o no compatibles no muestran estadísticas inventadas.
+En volúmenes remuestreados se mide el volumen interpolado, no los píxeles originales.
+
+### Cine y MP4 local
+
+En Original, Cine / MP4 permite seleccionar un intervalo inclusivo de la serie y
+5, 10, 15, 20 o 30 cortes/s. Cine espera cada corte verificado y ralentiza la
+reproducción si la descarga/render es más lento: no salta cortes para recuperar
+el tiempo. Durante el trabajo se bloquea la interacción con la imagen; cancelar
+permite volver a navegar. Cambiar de serie/paciente o cerrar aborta el trabajo.
+
+MP4 se habilita al completar la verificación de toda la serie; cine admite carga
+progresiva. MP4 usa H.264/WebCodecs con Mediabunny cargado bajo demanda. Se captura un canvas
+sin overlays del DOM, se codifica un cuadro por corte con timestamps explícitos,
+se valida el conteo y se finaliza antes de ofrecer el archivo. No usa grabación
+de pantalla, audio ni servidor externo. Dimensiones pares hasta 1280x720 sin
+ampliación, bitrate objetivo 4 Mbps y límite de 64 MiB; no se guarda un archivo
+parcial. Cambiar el tamaño de la vista durante el proceso exige reiniciarlo.
+Si el navegador no codifica H.264 se explica la incompatibilidad, sin renombrar
+WebM como MP4. El módulo de medios no forma parte del arranque del visor.
+
+El video queda temporalmente en memoria con un URL blob revocable. Antes de
+activar la descarga, debe poder reproducirse en la vista previa y el usuario
+confirma haber revisado todo el video sin identificadores visibles. Esto NO es
+anonimización: los originales pueden contener texto identificable incrustado en
+píxeles. Descartar/cambiar/cerrar revoca el URL. El nombre de descarga es genérico;
+no se agregan identificadores, credenciales ni metadatos clínicos al contenedor.
+El MP4 es una copia con contraste fijo y compresión, no sustituye al DICOM.
+La CSP permite medios self/blob únicamente para la previsualización local.
+
+### Carga adaptativa y diagnóstico temporal
+
+La sesión mantiene una cola única por índice de corte. El corte solicitado precede
+al trabajo pendiente, seguido por vecinos con preferencia en la dirección del
+scroll. Las solicitudes ya iniciadas terminan; no se cancelan para desperdiciar
+transferencias al desplazarse. No hay peticiones duplicadas para un mismo corte.
+Descarga y decodificación tienen capacidad separada: hasta 4 descargas por defecto,
+un máximo ajustable entre 1 y 6, y 2 preparaciones simultáneas. La cola de originales
+por preparar está acotada; si se llena, deja de aceptar trabajo de fondo.
+
+Ante red interrumpida, timeout, 408, 429, 500, 502, 503 o 504, la concurrencia se
+reduce a la mitad (mínimo 1), se aplica una pausa global y se hacen como máximo dos
+reintentos automáticos con backoff y jitter. Se respeta Retry-After; pausas superiores
+a dos minutos requieren reintento manual, sin adelantar el plazo del servidor.
+Ocho descargas correctas permiten recuperar un nivel de concurrencia hasta el límite.
+Los errores de identidad, autenticación, estructura, decodificación o límites no se
+reintentan: invalidan la sesión. El proxy distingue un original inválido/demasiado
+grande (422) de un fallo transitorio de transporte. No se amplían roles ni cuotas.
+
+Tras agotar reintentos transitorios, los cortes verificados siguen navegables.
+«Reintentar cortes fallidos» solo vuelve a solicitar los fallidos; no vuelve a cargar
+la serie. MPR, 3D y MP4 siguen exigiendo todos los cortes verificados. El cine parcial
+requiere un intervalo continuo ya preparado, seleccionado explícitamente; no omite
+huecos ni presenta ese intervalo como serie completa. Cerrar o cambiar de serie
+aborta red y esperas, y libera los recursos después de drenar decodificaciones.
+
+La caché es exclusiva de la sesión y solo en memoria: originales hasta 256 MiB,
+máximo 128 millones de muestras y caché decodificada de Cornerstone de 512 MiB.
+No hay persistencia en disco, Service Worker ni caché compartida entre pacientes.
+El presupuesto de originales no representa toda la memoria GPU/volumen del navegador.
+
+«Carga y conexión» muestra descargas, preparaciones, disponibilidad, reintentos,
+concurrencia efectiva y tiempos sin UID, ticket, paciente, URL ni contenido de imagen.
+Las métricas permanecen en memoria y no se envían a analítica ni consola. Son sumas de
+trabajos que se solapan, no partes sumables de la duración total. La espera de respuesta
+incluye autenticación, proxy y red; la transferencia al navegador se mide después de
+las cabeceras. `Server-Timing: upstream;dur=...` mide el tramo MMRAD→proxy completo,
+no el procesamiento interno de MMRAD. La preparación incluye espera del decodificador
+y decodificación; la construcción del volumen se mide al solicitar MPR/3D. No se
+atribuye una lentitud al proveedor ni se promete una aceleración del estudio real sin
+medirlo en ese equipo/conexión.
+
+### Controles compactos y precarga del estudio
+
+Ventana, inversión de grises y cine comparten la barra. El icono de actividad abre
+las métricas: la velocidad media es bytes recibidos por red / tiempo transcurrido
+(MiB/s); reutilizar originales precargados no aumenta ese contador. El contador
+principal representa imágenes preparadas. Los detalles separan descarga y preparación.
+
+La cabecera muestra el nombre del paciente seleccionado, cuando está disponible,
+su documento y fecha del estudio. El informe disponible se descarga solo al pulsar
+su botón, con autenticación, `no-store`, nombre de archivo genérico y cancelación
+al cerrar. Los datos de cabecera no se añaden a PNG ni MP4.
+
+Tras completar la serie seleccionada, se precargan las otras series, priorizando
+las descritas como AX, axial o transversal; el resto mantiene su orden. Este criterio
+solo ordena solicitudes: no determina geometría ni excluye localizadores. La selección
+inicial también prioriza las series CT con esas descripciones. Se usa una sola conexión
+de fondo, que se cancela y drena al solicitar otra serie; no se crean volúmenes GPU.
+
+Los originales verificados se conservan en una caché de revisión de paciente, solo en
+memoria, de hasta 256 MiB compartidos entre estudios. Las claves usan paciente, estudio,
+serie e instancia, nunca tickets renovables. Reabrir un estudio vuelve a consultar sus
+metadatos autorizados y el cargador vuelve a comprobar cada original antes de mostrarlo.
+La caché incluye descargas solicitadas y precargadas, sin consumirlas al leerlas.
+Cambiar de paciente, cerrar Radiología/Imagenología o desmontar la revisión la elimina;
+cerrar únicamente el visor permite volver a otro estudio del mismo paciente y regresar.
+
+Las descargas solicitadas desalojan los originales menos utilizados al alcanzar el
+límite; la precarga no desaloja imágenes y se detiene al llenarse o ante un error.
+Los originales desalojados deben descargarse otra vez. Las series multicuadro siguen
+requiriendo el visor externo y no se precargan. No hay almacenamiento persistente,
+telemetría de contenido ni reutilización entre pacientes.
+
+Con el foco en un plano: arriba/abajo recorre cortes, Re Pág/Av Pág avanza diez,
+izquierda/derecha cambia el foco entre los tres planos, y Ctrl/⌘ Z elimina la última
+medición del visor. El menú Teclado permite desactivar estos atajos y ofrece el
+botón equivalente. Los campos de formulario conservan su manejo de teclado nativo.
+
+### Comparación de series
+
+`Comparar` abre dos paneles cuando la serie principal está completa y verificada.
+La opción inicial, `Misma serie · dos ventanas`, comparte los originales y las
+imágenes decodificadas: no inicia otra descarga ni otro volumen. Cada panel
+conserva su ventana, desplazamiento y zoom durante la navegación. El panel activo
+se elige con clic, foco o rueda; las flechas arriba/abajo recorren cortes y las
+flechas izquierda/derecha cambian el foco.
+
+La segunda serie pertenece exclusivamente al mismo estudio verificado. Su carga
+es progresiva, limitada a dos descargas simultáneas, con los mismos controles de
+PatientID, Study/Series/SOP Instance UID, límites de memoria y reintentos del
+cargador normal. La precarga especulativa se pausa durante la comparación.
+Cambiar la segunda serie cancela y drena sus tareas; cerrar libera sus recursos.
+No se persisten imágenes, tickets, posiciones ni preferencias del estudio.
+
+El menú de cadena permite vincular posición (predeterminado), zoom y ventana
+(ambos independientes inicialmente). La posición usa ImagePositionPatient,
+ImageOrientationPatient, PixelSpacing y FrameOfReferenceUID, nunca el índice de
+corte. Se espera a la geometría completa de la segunda serie para evitar elegir
+un corte incorrecto durante una descarga parcial. Se rechazan datos incompletos,
+marcos distintos, planos no paralelos, localizadores mezclados y posiciones fuera
+de la cobertura; los paneles siguen navegables por separado. Esto no registra
+estudios ni corrige movimiento del paciente. El zoom vinculado comparte escala
+física sin copiar el centro anatómico de la cámara. La ventana entre series exige
+TAC con calibración HU válida; la misma serie permite compartirla directamente.
+
+Entre planos no paralelos del mismo marco se dibuja una línea discontinua de
+intersección en coordenadas físicas, limitada al rectángulo de la imagen destino.
+No se dibujan líneas para planos paralelos o marcos incompatibles. Las vistas MPR
+vinculadas existentes continúan disponibles al salir de comparación. La comparación
+no incorpora exportaciones combinadas: los controles de captura/cine y privacidad
+permanecen en el visor individual.
+
+Validación: geometría sintética (espaciados, orden inverso, matrices, cobertura,
+marcos y líneas) y Chromium con dos ventanas sin nuevas solicitudes, navegación
+bidireccional por coordenadas, enlace opcional de ventana/zoom, independencia de
+marcos incompatibles y rechazo de una segunda serie de otro paciente.
+
+### MPR oblicuo y espesor
+
+El menú contextual «Reconstrucción MPR» activa los tiradores de rotación de las
+líneas, conservando su intersección en coordenadas LPS. «Punto» sigue sirviendo
+para trasladar la referencia; durante la rotación se usan líneas completas.
+Cada pane identifica si su orientación es oblicua y actualiza las letras LPS.
+
+El espesor se expresa como anchura **total** en milímetros (0: corte fino;
+0,5–50 mm: promedio, MIP o MinIP), centrada en cada plano. Core 4.22 define
+sus clipping planes como focalPoint ± slabThickness: se entrega la mitad del
+valor de interfaz. Las proyecciones reutilizan el volumen en GPU sin nuevas
+transferencias. «Parcial» indica que la franja solicitada excede el volumen en
+el centro del plano; fuera de los límites adquiridos no se inventan muestras.
+La cobertura puede variar hacia los bordes de un plano oblicuo.
+
+Se conserva la validación física de `planDicomVolume`: marco compartido,
+orientación ortonormal y consistente, espaciado positivo uniforme, ausencia de
+cortes duplicados/huecos/desplazamiento lateral, y campo físico equivalente
+para matrices heterogéneas. Una serie rechazada no obtiene controles ni una
+reconstrucción aparentemente válida. No se añade corrección de gantry tilt.
+
+Distancias y ángulos son medidas del plano central en espacio físico. HU y ROI
+se bloquean y sus anotaciones se ocultan mientras exista un plano oblicuo o
+una proyección con espesor: las estadísticas actuales de Cornerstone no son
+estadísticas de una proyección ni de una elipse oblicua. Las anotaciones no se
+borran y reaparecen al volver a corte fino ortogonal. Restablecer MPR recupera
+orientaciones y espesor iniciales; el contraste se conserva. Las capturas
+incluyen el modo/espesor y condición oblicua, sin incorporar las mediciones.
+Datos y herramientas son transitorios; no cambian la verificación del paciente
+ni se persisten datos adicionales. La prueba automatizada usa solo DICOM sintético.
+
+### Continuidad y recursos gráficos
+
+El motor ContextPool usa un contexto WebGL por motor (máximo dos mientras se compara),
+en lugar de reservar siete por motor. El cierre destruye VTK y libera explícitamente
+su contexto. Antes de quitar un grupo del registro se deshabilitan sus herramientas,
+para retirar sus listeners y observadores. La rotación 3D utiliza el observador de tamaño
+del visor, que conserva la posición, en lugar del observador de TrackballRotate 4.22
+que recentra la cámara y puede afectar a un grupo posterior con el mismo identificador.
+La comparación libera también su referencia al cerrarse. Las imágenes
+verificadas y el volumen siguen perteneciendo a la sesión y se liberan al cerrarla.
+
+La pérdida del contexto del canvas **offscreen**, distinto de los canvases 2D visibles,
+activa una recuperación acotada a dos intentos por sesión gráfica. Se oculta la imagen
+invalidada, se cancela cine/exportación y se reconstruye el motor reutilizando los datos
+en memoria. La textura GPU anterior se libera con su render window y todos los cortes
+se marcan para subirlos de nuevo desde la caché, sin transferencia de red.
+Se restauran cámara, ventana y corte; en MPR también orientación, espesor
+e intersección. La recuperación no cambia paciente, estudio ni validaciones geométricas.
+Si falla, queda un error explícito y la imagen oculta. No hay bucles de reintentos.
+Las mediciones temporales se retiran al reconstruir sus herramientas; no se guardan.
+
+La cámara y ventana de cada modo se conservan sólo durante esa serie. Nada de esta
+continuidad se escribe en storage ni se envía a telemetría. Al cerrar o cambiar de
+serie se retiran listeners, observadores y tareas pendientes. La exportación necesita
+una nueva ejecución después de una pérdida gráfica; no continúa con cuadros obsoletos.
+
+La prueba sintética de estabilidad provoca pérdidas de contexto, alterna seis veces
+Original/MPR/3D/comparación, verifica posiciones y descargas únicas, mide heap tras GC
+y comprueba cero contextos del visor activos tras cerrar. El límite de crecimiento es
+32 MiB para ese fixture; no constituye una garantía de memoria para estudios reales.
+
+### Medición de arranque y fases de descarga (2026-10-18)
+
+Al abrir explícitamente el visor, el código del motor gráfico se solicita en paralelo con los metadatos. Importar el módulo no inicia un runtime ni descarga imágenes: esas acciones siguen dependiendo de la identidad verificada del estudio. Se conserva el manejo de error al cargar el runtime y no se precarga desde el censo.
+
+`Server-Timing` entrega únicamente duraciones numéricas: `auth` (autenticación/autorización del servidor), `upstream_headers` (espera de cabeceras MMRAD), `upstream_body` (lectura del cuerpo MMRAD) y `upstream` (total de esa solicitud a MMRAD). El panel muestra sus acumulados en el detalle existente. `upstream` incluye las dos subfases: no deben sumarse otra vez. Los acumulados de solicitudes concurrentes tampoco equivalen al tiempo de pared ni permiten atribuir todo el tiempo de respuesta a MMRAD. No se registran identidades, tickets, URLs de estudios, credenciales ni cuerpos clínicos.
+
+El tiempo de serie queda fijado cuando todos los cortes están preparados. Revisar una serie ya cargada no reduce artificialmente su velocidad media. Esta velocidad incluye la espera y preparación del recorrido de carga; no representa exclusivamente el ancho de banda de la conexión.
+
+#### Experimento sintético reproducible
+
+Mac16,12, 24 GiB RAM, Node 22, Chromium headless con SwiftShader; build de producción, contexto nuevo por repetición, una suite a la vez. No se certifica rendimiento de GPU real ni se considera una medición de MMRAD. Fixture de 24 cortes con un corte JPEG2000 decodificado por el worker real. Se imponen 1500 ms a los metadatos, 1500 ms al módulo runtime y 100 ms a cada respuesta DICOM. Se conservan las mismas condiciones antes/después; no se controló el resto de la actividad del equipo. Tres repeticiones por versión.
+
+| Métrica desde «Ver DICOM»                         | Antes, ms        | Después, ms      | Mediana antes → después |
+| ------------------------------------------------- | ---------------- | ---------------- | ----------------------- |
+| Primera vista utilizable (control PNG habilitado) | 5576, 5785, 4871 | 3848, 3953, 3870 | 5576 → 3870 (-30,6 %)   |
+| Primera solicitud de imagen                       | 4060, 4254, 4201 | 2626, 2923, 2669 | 4201 → 2669 (-36,5 %)   |
+| Serie preparada (MPR habilitado)                  | 5594, 5800, 5251 | 3864, 3969, 3886 | 5594 → 3886 (-30,5 %)   |
+
+La prueba observa que el módulo empieza a solicitarse antes de terminar los metadatos, que ninguna instancia se solicita antes de recibirlos y que las 24 instancias se solicitan una sola vez. No mide velocidad sostenida del servidor: el beneficio observado procede del solapamiento durante arranque en frío; con el motor ya en caché se espera un beneficio mucho menor.
+
+Repetir sobre el build actual:
+
+```sh
+DICOM_LOAD_BENCHMARK=1 npx playwright test -c playwright.preview.config.ts e2e/dicom-viewer.spec.ts --project=chromium --grep 'measures cold DICOM' --repeat-each=3
+```
+
+La prueba normal también queda en CI; la variable solo habilita la salida numérica del fixture sintético. Para una comparación real se requiere que el usuario seleccione/verifique el paciente y el mismo estudio, igual serie y límite de conexiones. Comparar primer corte, tiempo final, bytes transferidos, reintentos y fases del servidor; separar apertura fría, reapertura y datos reutilizados. No usar HAR, grabación ni capturas clínicas como artefactos. Aún no se atribuye una mejora cuantitativa a MMRAD real.

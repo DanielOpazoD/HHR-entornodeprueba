@@ -27,8 +27,17 @@ vi.mock('firebase/firestore', async importOriginal => {
 });
 
 import { createWhatsAppShiftStore } from '@/services/integrations/whatsapp/whatsappShiftStore';
-import { createWhatsAppTemplatesStore } from '@/services/integrations/whatsapp/whatsappTemplatesStore';
-import { createWhatsAppConfigStore } from '@/services/integrations/whatsapp/whatsappConfigStore';
+import {
+  createWhatsAppTemplatesStore,
+  getDefaultTemplates,
+  WHATSAPP_TEMPLATES_READ_ERROR,
+  WHATSAPP_TEMPLATES_SAVE_ERROR,
+} from '@/services/integrations/whatsapp/whatsappTemplatesStore';
+import {
+  createWhatsAppConfigStore,
+  WHATSAPP_CONFIG_READ_ERROR,
+  WHATSAPP_CONFIG_SAVE_ERROR,
+} from '@/services/integrations/whatsapp/whatsappConfigStore';
 import { createWhatsAppLoggingStore } from '@/services/integrations/whatsapp/whatsappLogging';
 
 describe('whatsapp runtime stores', () => {
@@ -87,6 +96,41 @@ describe('whatsapp runtime stores', () => {
     expect(docMock).toHaveBeenCalledWith(runtime.getDb(), 'whatsapp', 'config');
     expect(setDocMock).toHaveBeenCalled();
     expect(config).toEqual({ enabled: true, status: 'connected' });
+  });
+
+  it('throws instead of handing out defaults when a template read fails', async () => {
+    const templatesStore = createWhatsAppTemplatesStore(runtime);
+    getDocMock.mockRejectedValue(new Error('permission-denied'));
+
+    await expect(templatesStore.getMessageTemplates()).rejects.toThrow(
+      WHATSAPP_TEMPLATES_READ_ERROR
+    );
+  });
+
+  it('serves the default templates only when none were saved yet', async () => {
+    const templatesStore = createWhatsAppTemplatesStore(runtime);
+    getDocMock.mockResolvedValue({ exists: () => false });
+
+    await expect(templatesStore.getMessageTemplates()).resolves.toEqual(getDefaultTemplates());
+  });
+
+  it('throws when a template or config save fails', async () => {
+    setDocMock.mockRejectedValue(new Error('unavailable'));
+
+    await expect(createWhatsAppTemplatesStore(runtime).saveMessageTemplates([])).rejects.toThrow(
+      WHATSAPP_TEMPLATES_SAVE_ERROR
+    );
+    await expect(
+      createWhatsAppConfigStore(runtime).updateWhatsAppConfig({ enabled: false })
+    ).rejects.toThrow(WHATSAPP_CONFIG_SAVE_ERROR);
+  });
+
+  it('throws instead of handing out defaults when a config read fails', async () => {
+    getDocMock.mockRejectedValue(new Error('permission-denied'));
+
+    await expect(createWhatsAppConfigStore(runtime).getWhatsAppConfig()).rejects.toThrow(
+      WHATSAPP_CONFIG_READ_ERROR
+    );
   });
 
   it('uses the injected runtime for operation logs', async () => {

@@ -18,7 +18,7 @@ import {
 } from './egresoReportPolicy';
 import { appendReportConflict } from './egresoReportConflicts';
 import { resolveReportedOccupant } from './reportedOccupant';
-import { resolveReportBedId } from '../mapping/resolveReportBed';
+import { resolveReportBedId, resolveReportCribParentBedId } from '../mapping/resolveReportBed';
 
 type EligibilityResult = {
   diff: CensusImportDiff;
@@ -54,6 +54,7 @@ const resolveLocalBedTurnoverEgreso = ({
 }): EgresoReportRow | null => {
   if (
     !current?.clinicalEpisodeId?.trim() ||
+    Boolean(resolveReportCribParentBedId(row.bedLabel)) ||
     cribOccupied ||
     rowsSharingRun !== 1 ||
     (row.encounterId?.trim() && row.encounterId.trim() !== current.clinicalEpisodeId) ||
@@ -107,13 +108,22 @@ export const selectEligibleEgresoRows = (
   // Filas del RUN que este mismo bucle NO descarta (estampa válida y dentro del
   // día): una fila D+1 real o inválida no debe retener la etiqueta de redundancia.
   const stampedRowsByRun = new Map<string, number>();
+  const stampedRowsByBed = new Map<string, number>();
+  const runsWithUnknownBed = new Set<string>();
   for (const row of reportRows) {
     const rowRun = normalizeRut(row.run);
     const stamped = correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime);
     const withinDay =
       Boolean(stamped.correctedDay && stamped.correctedTime) &&
       Boolean(recordDay && stamped.correctedDay && stamped.correctedDay <= recordDay);
-    if (rowRun && withinDay) stampedRowsByRun.set(rowRun, (stampedRowsByRun.get(rowRun) ?? 0) + 1);
+    if (rowRun && withinDay) {
+      stampedRowsByRun.set(rowRun, (stampedRowsByRun.get(rowRun) ?? 0) + 1);
+      const bedId = resolveReportBedId(row.bedLabel);
+      if (bedId && record.beds[bedId]) {
+        const key = `${rowRun}|${bedId}`;
+        stampedRowsByBed.set(key, (stampedRowsByBed.get(key) ?? 0) + 1);
+      } else runsWithUnknownBed.add(rowRun);
+    }
   }
 
   for (const row of reportRows) {
@@ -121,8 +131,28 @@ export const selectEligibleEgresoRows = (
     const reportedEpisode = String(row.encounterId ?? '').trim();
     if (!run && !reportedEpisode) continue;
 
-    const current = resolveReportedOccupant(occupied, occupiedCribs, row.run, reportedEpisode);
-    const currentCrib = findOccupiedClinicalCrib(occupiedCribs, row.run, reportedEpisode);
+    const reportedBedId = resolveReportBedId(row.bedLabel);
+    const unverifiedWithoutEpisode =
+      row.exactEpisodeVerification === 'unverified' && !reportedEpisode;
+    // This only scopes an unverified row's review. It never authorizes a discharge;
+    // the later exact-episode lookup must still confirm that bed's occupant.
+    const reviewOccupant =
+      unverifiedWithoutEpisode && reportedBedId
+        ? [...occupied.values()].find(
+            patient => patient.bedId === reportedBedId && normalizeRut(patient.rut) === run
+          )
+        : undefined;
+    const current = unverifiedWithoutEpisode
+      ? reviewOccupant
+      : resolveReportedOccupant(occupied, occupiedCribs, row.run, reportedEpisode);
+    const currentCrib = unverifiedWithoutEpisode
+      ? [...occupiedCribs.values()].find(
+          crib =>
+            crib.parentBedId === reportedBedId &&
+            Boolean(run) &&
+            normalizeRut(crib.patient.rut) === run
+        )
+      : findOccupiedClinicalCrib(occupiedCribs, row.run, reportedEpisode);
     const normalized = correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime);
     const stamp =
       normalized.correctedDay && normalized.correctedTime
@@ -152,6 +182,19 @@ export const selectEligibleEgresoRows = (
         (Boolean(reportedEpisode) && entry.source?.encounterId === reportedEpisode) ||
         (Boolean(run) && normalizeRut(entry.patient.rut) === run)
     );
+    // A prior-census orphan is outside this request. Keep prior-day correction
+    // handling when the patient still has local or planned presence.
+    if (
+      row.exactEpisodeVerification === 'unverified' &&
+      Boolean(run) &&
+      !reportedEpisode &&
+      stamp.iso < recordDay &&
+      !current &&
+      !currentCrib &&
+      !activeCrib &&
+      !provisional
+    )
+      continue;
     // El informe de Gestión de Camas re-enumera las altas del día completo: un
     // paciente ya egresado en HHR es historia aplicada, no un cambio nuevo.
     // Antes, cuando la vinculación exacta degradaba (lookup ambiguo, PDF no
@@ -174,11 +217,26 @@ export const selectEligibleEgresoRows = (
     // (enrichReportOnlyDischarges deja sin estado a las filas con episodio); si
     // algún día lo trajera, la fila del RN resolvería solo la cuna (explained 1)
     // y su conflicto quedaría sin etiqueta frente al de la madre (explained 2).
-    const bedId = current?.bedId ?? currentCrib?.parentBedId ?? null;
+    const bedId =
+      current?.bedId ??
+      currentCrib?.parentBedId ??
+      (unverifiedWithoutEpisode && reportedBedId && record.beds[reportedBedId]
+        ? reportedBedId
+        : null);
     const cribOccupied = Boolean(bedId && record.beds[bedId]?.clinicalCrib?.patientName?.trim());
     const rowsSharingRun = run ? (stampedRowsByRun.get(run) ?? 1) : 1;
+    const rowsAtBed =
+      bedId && reportedBedId === bedId && !runsWithUnknownBed.has(run)
+        ? (stampedRowsByBed.get(`${run}|${bedId}`) ?? rowsSharingRun)
+        : rowsSharingRun;
     const explainedByBed = (current ? 1 : 0) + (cribOccupied ? 1 : 0);
-    const redundancyCandidate = Boolean(bedId) && rowsSharingRun <= explainedByBed;
+    const redundancyCandidate =
+      Boolean(
+        bedId &&
+        reportedBedId === bedId &&
+        record.beds[reportedBedId] &&
+        !runsWithUnknownBed.has(run)
+      ) && rowsAtBed <= explainedByBed;
     if (row.exactEpisodeVerification === 'unverified') {
       const locallyLinked = resolveLocalBedTurnoverEgreso({
         diff,
@@ -195,6 +253,12 @@ export const selectEligibleEgresoRows = (
       nextDiff = appendReportConflict(nextDiff, {
         bedId,
         ...(redundancyCandidate ? { code: 'unverified-report-row' as const } : {}),
+        diagnostic: {
+          source: 'gestion-camas/egresos',
+          sourceTimestamp: row.fechaEgreso.slice(0, 100),
+          sourceClinicalDay: stamp.iso,
+          bedId: (row.bedLabel ?? '').slice(0, 80),
+        },
         rut: row.run,
         patientName: current?.patientName ?? currentCrib?.patient.patientName ?? row.patientName,
         reason: `El alta administrativa de ${current?.patientName ?? currentCrib?.patient.patientName ?? row.patientName} no pudo vincularse a un episodio clínico exacto; no se aplicó.`,

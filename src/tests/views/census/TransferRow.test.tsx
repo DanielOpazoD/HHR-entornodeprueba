@@ -67,6 +67,27 @@ describe('TransferRow', () => {
     expect(onDelete).toHaveBeenCalledWith('t1');
   });
 
+  it.each(['MEDIA', 'INTERMEDIA'])('shows the transfer bed without its %s suffix', bedType => {
+    const item = DataFactory.createMockTransfer({ bedName: 'R7', bedType });
+    const original = structuredClone(item);
+    render(
+      <table>
+        <tbody>
+          <TransferRow
+            item={item}
+            recordDate="2026-02-14"
+            onUndo={vi.fn().mockResolvedValue(undefined)}
+            onEdit={vi.fn()}
+            onDelete={vi.fn().mockResolvedValue(undefined)}
+          />
+        </tbody>
+      </table>
+    );
+    expect(screen.getAllByRole('cell')[0]).toHaveTextContent(/^R7$/);
+    expect(screen.queryByText(`(${bedType})`)).not.toBeInTheDocument();
+    expect(item).toEqual(original);
+  });
+
   it('does not expose the IEEH action', () => {
     const item = DataFactory.createMockTransfer({
       id: 't2',

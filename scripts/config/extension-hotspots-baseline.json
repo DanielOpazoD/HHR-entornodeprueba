@@ -26,6 +26,10 @@
       "maxLines": 87,
       "hotspots": {}
     },
+    "capture-read-recovery.js": {
+      "maxLines": 70,
+      "hotspots": {}
+    },
     "census-sync-horizon-runtime.js": {
       "maxLines": 43,
       "hotspots": {}
@@ -527,17 +531,15 @@
       }
     },
     "lab-result-parser.js": {
-      "maxLines": 241,
+      "maxLines": 243,
       "hotspots": {
         "callback:FunctionExpression:1>variable:findingAlert": 33,
         "callback:FunctionExpression:1>variable:parseMeasurement": 18
       }
     },
     "lab-viewer.js": {
-      "maxLines": 245,
-      "hotspots": {
-        "callback:FunctionExpression:1>variable:validateDetailBatch": 17
-      }
+      "maxLines": 251,
+      "hotspots": {}
     },
     "message-contract.js": {
       "maxLines": 285,
@@ -636,7 +638,7 @@
       "hotspots": {}
     },
     "syslab-bridge.js": {
-      "maxLines": 385,
+      "maxLines": 415,
       "hotspots": {
         "iife>variable:handleMessage": 28
       }
@@ -658,7 +660,7 @@
       "hotspots": {}
     },
     "syslab-pdf-bundle.js": {
-      "maxLines": 191,
+      "maxLines": 192,
       "hotspots": {
         "iife>variable:create>variable:download": 19
       }
@@ -668,7 +670,7 @@
       "hotspots": {}
     },
     "syslab-runtime.js": {
-      "maxLines": 382,
+      "maxLines": 384,
       "hotspots": {
         "iife>variable:create>variable:details": 18,
         "iife>variable:create>variable:login": 19,

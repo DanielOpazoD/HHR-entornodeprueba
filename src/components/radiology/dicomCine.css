@@ -1,0 +1,70 @@
+.dicom-cine {
+  position: relative;
+  padding: 0;
+  font-size: 12px;
+}
+.dicom-cine summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  width: fit-content;
+}
+.dicom-cine-panel {
+  position: absolute;
+  z-index: 10;
+  top: 100%;
+  left: 0;
+  width: min(680px, 86vw);
+  max-height: 65vh;
+  overflow: auto;
+  padding: 12px;
+  background: #0f1b2e;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  box-shadow: 0 12px 28px #0008;
+}
+.dicom-cine fieldset {
+  border: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.dicom-cine label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.dicom-cine input[type='number'] {
+  width: 65px;
+  background: #182334;
+  border: 1px solid #334155;
+  border-radius: 4px;
+  padding: 4px;
+}
+.dicom-cine p {
+  font-size: 11px;
+  color: #a5b4c8;
+  margin: 5px 0;
+}
+.dicom-cine progress {
+  width: 100px;
+  margin-left: 8px;
+  accent-color: #22d3ee;
+}
+.dicom-cine-preview video {
+  display: block;
+  width: min(100%, 640px);
+  max-height: 40vh;
+  background: black;
+}
+.dicom-cine-preview a {
+  display: inline-block;
+  margin: 8px;
+  color: #67e8f9;
+}
+.dicom-interaction-lock {
+  display: contents;
+}

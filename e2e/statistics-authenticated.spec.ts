@@ -5,8 +5,9 @@ import {
   buildCanonicalE2ERecord,
   ensureAuthenticated,
 } from './fixtures/auth';
+import { getTodayISO } from '../src/utils/dateCoreUtils';
 
-const getE2EDate = () => process.env.E2E_FIXED_DATE ?? new Date().toISOString().slice(0, 10);
+const getE2EDate = () => process.env.E2E_FIXED_DATE ?? getTodayISO();
 
 const buildStatisticsRecord = (date: string) => {
   const canonical = buildCanonicalE2ERecord(date);

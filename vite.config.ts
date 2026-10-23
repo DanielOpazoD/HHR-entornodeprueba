@@ -192,6 +192,7 @@ export default defineConfig(({ mode }) => {
       tailwindcss(),
       // PWA plugin configuration
       VitePWA({
+        disable: process.env.STORYBOOK === 'true',
         strategies: 'injectManifest',
         srcDir: 'src',
         filename: 'service-worker.js',
@@ -240,6 +241,18 @@ export default defineConfig(({ mode }) => {
             // Callable Functions always require network access. Keep their runtime
             // on demand instead of charging every offline installation for it.
             '**/assets/vendor-firebase-functions-*.js',
+            // Carryover verification requires fresh remote clinical reports; load it with sync.
+            // The copied evidence and its creation seed remain available in offline precache.
+            '**/assets/clinicalCarryoverVerification-*.js',
+            // Shared callable-batch support is consumed only by the online sync chunks above.
+            // Cache it on demand with those owners; offline day creation does not import it.
+            '**/assets/clinicalEnrichmentBatchExecutionSupport-*.js',
+            // Account administration, activation and password changes require Firebase online.
+            '**/assets/NursingAccountsPanel-*.js',
+            '**/assets/RoleManagementPanel-*.js',
+            '**/assets/NursingPasswordDialog-*.js',
+            '**/assets/NursingAccessForm-*.js',
+            '**/assets/nursingAccountService-*.js',
             // Contextual CUDYR reports read server-authoritative history and cannot
             // load offline. Keep the new explorer and workbook on demand as well.
             '**/assets/CudyrReportExplorer-*.js',

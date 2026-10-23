@@ -318,6 +318,14 @@ export const PatientDataSchema: z.ZodType<PatientData, z.ZodTypeDef, unknown> = 
       clinicalEvents: nullishDefault(z.array(ClinicalEventSchema), () => []),
       fhir_resource: nullableOptional(FhirResourceSchema),
       clinicalSyncCheckpoint: nullableOptional(ClinicalSyncCheckpointSchema),
+      clinicalCarryover: nullableOptional(
+        z.object({
+          sourceDate: StringSchema.regex(/^\d{4}-\d{2}-\d{2}$/),
+          clinicalEpisodeId: StringSchema.min(1),
+          vitalsPending: z.boolean(),
+          devicesPending: z.boolean(),
+        })
+      ),
     })
     .passthrough()
     .transform(patient => {

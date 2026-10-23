@@ -55,6 +55,55 @@ const makeRecord = (): DailyRecord => ({
 });
 
 describe('applyEgresoLookupFallback', () => {
+  it.each([
+    '2026-07-19T13:58:00',
+    '19/07/2026 13:58',
+    '2026-07-19T13:58:00-06:00',
+    '2026-07-19T15:58:00-04:00',
+    '2026-07-19T19:58:00Z',
+  ])('keeps the exact episode clock in Rapa Nui for %s', dateDischarge => {
+    const enriched = applyEgresoLookupFallback(
+      makeDiff(),
+      [
+        {
+          run: '220253899',
+          encounterId: '141704',
+          egreso: { dateDischarge, hasAdministrativeDischarge: true },
+        },
+      ],
+      makeRecord()
+    );
+
+    expect(enriched.discharges[0]).toMatchObject({
+      encounterId: '141704',
+      correctedDay: '2026-07-19',
+      correctedTime: '13:58',
+    });
+    expect(enriched.pendingAdministrativeDischarges).toHaveLength(0);
+  });
+
+  it('keeps the next-morning local date separate from its census day', () => {
+    const enriched = applyEgresoLookupFallback(
+      makeDiff(),
+      [
+        {
+          run: '220253899',
+          encounterId: '141704',
+          egreso: {
+            endPeriod: '2026-07-20T00:26:00',
+            hasAdministrativeDischarge: true,
+          },
+        },
+      ],
+      makeRecord()
+    );
+
+    expect(enriched.discharges[0]).toMatchObject({
+      correctedDay: '2026-07-19',
+      correctedTime: '00:26',
+    });
+  });
+
   it('converts an offset API timestamp to the Rapa Nui census clock', () => {
     const enriched = applyEgresoLookupFallback(
       makeDiff(),

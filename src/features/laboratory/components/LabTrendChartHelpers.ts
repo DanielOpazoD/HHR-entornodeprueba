@@ -1,3 +1,4 @@
+import { normalizeLabUnit } from '../controllers/labFormattingController';
 import type { LabTrendPoint } from '@/types/domain/labAnalyticsTypes';
 import { SCALE_SPLIT_RATIO } from '../constants/labChartConstants';
 
@@ -18,11 +19,10 @@ const labNumberFormatter = new Intl.NumberFormat('es-CL', {
 /** Formats chart values without turning 1071 into 1.1 or adding false precision. */
 export const formatLabTrendValue = (value: number): string => labNumberFormatter.format(value);
 
-/** Compact axis label that preserves date and time without repeating the year. */
+/** Month/year on the axis; the tooltip retains the full date and time. */
 export const formatLabTrendAxisDate = (date: string): string => {
-  const match = date.match(/^(\d{1,2})\/(\d{1,2})\/\d{4}(?:\s+(\d{1,2}:\d{2}))?/);
-  if (!match) return date;
-  return `${match[1].padStart(2, '0')}/${match[2].padStart(2, '0')}${match[3] ? ` ${match[3]}` : ''}`;
+  const match = date.match(/^\d{1,2}\/(\d{1,2})\/(\d{4})(?:\s|$)/);
+  return match ? `${Number(match[1])}/${match[2].slice(-2)}` : date;
 };
 
 /** A shared band is valid only when every plotted variable has the same reference range. */
@@ -31,7 +31,13 @@ export const resolveSharedReferenceBand = (
 ): SharedReferenceBand | null => {
   const ranges = Object.values(variables).flatMap(points =>
     points.map(point =>
-      point.refMin != null && point.refMax != null ? { min: point.refMin, max: point.refMax } : null
+      point.refMin != null &&
+      point.refMax != null &&
+      Number.isFinite(point.refMin) &&
+      Number.isFinite(point.refMax) &&
+      point.refMin <= point.refMax
+        ? { min: point.refMin, max: point.refMax }
+        : null
     )
   );
   if (ranges.length === 0 || ranges.some(range => range == null)) return null;
@@ -87,7 +93,9 @@ export const groupVariablesByScale = (
 
   for (const [name, points] of Object.entries(variables)) {
     for (const point of points) {
-      const unit = (point.unit || '').toLowerCase().replace(/\s/g, '');
+      const unit = normalizeLabUnit(point.unit || '')
+        .toLowerCase()
+        .replace(/\s/g, '');
       if (!byUnit[unit]) byUnit[unit] = {};
       if (!byUnit[unit][name]) byUnit[unit][name] = [];
       byUnit[unit][name].push(point);
@@ -97,7 +105,7 @@ export const groupVariablesByScale = (
   const result: UnitVariableGroup[] = [];
 
   for (const unitVars of Object.values(byUnit)) {
-    const displayUnit = Object.values(unitVars)[0]?.[0]?.unit || '';
+    const displayUnit = normalizeLabUnit(Object.values(unitVars)[0]?.[0]?.unit || '');
     const entries = Object.entries(unitVars);
 
     if (entries.length <= 1) {

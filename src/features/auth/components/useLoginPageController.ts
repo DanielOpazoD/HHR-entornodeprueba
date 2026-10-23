@@ -10,13 +10,9 @@ import {
   executeGoogleSignIn,
   executeGoogleSignInWarmup,
 } from '@/application/auth/authSessionUseCases';
-import {
-  clearAuthBootstrapPending,
-  isAuthBootstrapPending,
-} from '@/services/auth/authBootstrapState';
+import { isAuthBootstrapPending } from '@/services/auth/authBootstrapState';
 import { getCurrentAuthSessionState } from '@/services/auth/authSession';
 import {
-  clearRecentAuthenticatedSessionHint,
   clearGoogleLoginAttemptHint,
   markGoogleLoginAttemptHint,
 } from '@/services/auth/authStorageHints';
@@ -89,7 +85,6 @@ export interface LoginPageControllerState {
   backgroundMode: LoginBackgroundMode;
   canRetryGoogleSignIn: boolean;
   handleGoogleSignIn: (credential?: { idToken: string; isCurrent: () => boolean }) => Promise<void>;
-  handleLocalResetStart: () => void;
   toggleBackgroundMode: () => void;
 }
 
@@ -147,15 +142,6 @@ export const useLoginPageController = (
     setError(initialAuthError.message);
     setErrorCode(initialAuthError.code ?? null);
   }, [initialAuthError?.code, initialAuthError?.message]);
-
-  const handleLocalResetStart = () => {
-    clearGoogleLoginAttemptHint();
-    clearRecentAuthenticatedSessionHint();
-    clearAuthBootstrapPending();
-    setIsGoogleLoading(false);
-    setError(null);
-    setErrorCode(null);
-  };
 
   const handleGoogleSignIn = async (credential?: { idToken: string; isCurrent: () => boolean }) => {
     setError(null);
@@ -297,7 +283,6 @@ export const useLoginPageController = (
     backgroundMode,
     canRetryGoogleSignIn: errorCode === 'auth/role-validation-unavailable' && !isGoogleLoading,
     handleGoogleSignIn,
-    handleLocalResetStart,
     toggleBackgroundMode,
   };
 };

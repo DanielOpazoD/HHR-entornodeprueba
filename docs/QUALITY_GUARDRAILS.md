@@ -17,11 +17,11 @@ Evitar que la deuda estructural vuelva a crecer después de las fases de estabil
 
 ## Reglas de crecimiento
 
-1. Un archivo que supere el límite global de tamaño debe entrar documentado en `scripts/module-size-allowlist.json`.
-2. Todo hotspot permitido debe incluir motivo, owner y estado en el backlog versionado.
-3. Un hotspot permitido no puede crecer por sobre su límite sin actualizar explícitamente la allowlist.
-4. Los hooks grandes usan `scripts/hook-hotspots-limits.json` con la misma disciplina de backlog.
-5. La regla por defecto es extraer controllers/helpers puros antes de mover JSX o cambiar contratos públicos.
+1. Se divide por responsabilidad, no por tamaño. Un módulo debe poder describirse con una sola frase; si cuesta, ese es el criterio para separarlo, no su número de líneas.
+2. No crear controllers, helpers o archivos `*Support` solo para bajar líneas: un archivo nuevo necesita un nombre de dominio y una razón propia (lógica que se prueba sola, otro consumidor o un ciclo de cambio distinto). Antes de dividir, eliminar código muerto o duplicado.
+3. El tope global de 600 líneas (`scripts/module-size-allowlist.json`, `npm run check:module-size`) es una alarma para revisar cohesión, no una meta. Un módulo cohesivo que necesite superarlo entra a la allowlist con motivo, owner y estado en el backlog, y no puede crecer por sobre ese límite sin actualizarla.
+4. Un hotspot (archivo grande con mucho churn) se revisa por responsabilidades mezcladas en la revisión del PR; no hay presupuestos por archivo más estrictos que el tope global.
+5. Al extraer lógica, preferir funciones puras y conservar estables los contratos públicos y el JSX.
 6. `npm run lint` es tolerancia cero; no se aceptan warnings nuevos en `src/`.
 7. Los providers de infraestructura obligatorios deben fallar rápido si falta wiring.
 8. Los servicios críticos que dependan de Firebase Functions/Auth/Storage deben preferir `create...Service(...)` o runtime inyectable y conservar singleton por defecto solo por compatibilidad.
@@ -56,7 +56,6 @@ Evitar que la deuda estructural vuelva a crecer después de las fases de estabil
 - `npm run check:release-evidence-contract:strict`
 - `npm run check:release-evidence-contract:built`
 - `npm run check:test-failure-catalog`
-- `npm run check:hotspot-growth`
 - `npm run report:quality-metrics`
 - `npm run report:maintenance-debt-scorecard`
 - `npm run report:operational-health`
@@ -178,7 +177,9 @@ UPC y los parches de movimientos, completando las listas de propiedad existentes
 ## Reutilización exacta de dependencias en CI
 
 `ciDependencyCache.test.ts` protege la clave exacta, el fallback de instalación,
-el único escritor prístino y las condiciones docs-only. Los contratos de
+un escritor prístino por imagen de runner (`lint` en `ubuntu-latest` y
+`rules-emulator` en `ubuntu-24.04`, porque la clave incluye la imagen) y las
+condiciones docs-only. Los contratos de
 scheduling, artefactos y confianza final siguen verificando el grafo de gates.
 Ampliar consumidores no autoriza quitar tests, cambiar matrices o presupuestos,
 ni añadir esperas al productor. Los jobs con otra raíz o versión de Node conservan
@@ -220,3 +221,23 @@ Los pesos publicados y la selección exacta del runner deben describir el mismo
 checkout que compara la telemetría de CI. Los perfiles locales son experimentos,
 no una entrada implícita de CI. La [guía de calibración](CI_GATES_AND_FAILURE_RUNBOOKS.md#calibración-unitaria-publicada-12-10-2026)
 conserva los controles, la procedencia y la validación de selección completa.
+
+## Dependencia del generador de documentación (2026-10-20)
+
+- **Owner:** tooling y documentación HHR.
+- **Reason:** corregir [GHSA-r7fv-28h4-cvq7](https://github.com/advisories/GHSA-r7fv-28h4-cvq7), publicado en la base de avisos el 20 de octubre; bloqueó Security Audit del candidato de cuentas.
+- **TargetVersion:** `markdown-it` 14.3.2, override de desarrollo usado por TypeDoc 0.28.15; es el único nodo resuelto que cambia.
+- **RiskLevel:** bajo; se mantiene la misma versión mayor y no cambia el grafo de producción ni Functions.
+- **RollbackPlan:** revertir el parche; la auditoría volverá a señalar el aviso. No sustituir la corrección por una excepción.
+- **VerificationGate:** `dependency_upgrade`: manifiesto oficial, integridad npm comprobada en instalación limpia de CI, generación TypeDoc, regresiones del control de auditoría, hooks y CI del SHA definitivo. Reutilizar controles de runtime clínico cuyos inputs no cambian.
+
+La huella exacta del lock en la excepción preexistente de `braces` se vuelve a vincular al lock corregido tras comprobar que sus siete nodos, versiones, clasificación de desarrollo y dependencias permanecen idénticos. Se conservan el aviso, los resultados sin modificar, el rechazo de otros riesgos altos/críticos y todos los controles de alcance. El riesgo de `braces` no está corregido ni se amplía su aceptación.
+
+### Tooling de pruebas de PR #922
+
+Storybook 10.6.2, Vitest 4.1.12, Vite 6.4.4 y markdown-it 14.3.3 deben instalarse con
+`npm ci` y validación normal de dependencias pares. La auditoría conserva los
+hallazgos originales de braces y su aviso visible. Actualizar la huella del
+lockfile exige comprobar los siete nodos previamente autorizados y no permite
+aceptar nuevos avisos altos o críticos. La instalación, Storybook, TypeDoc y
+`ci:merge-gate` complementan las regresiones del control de auditoría.

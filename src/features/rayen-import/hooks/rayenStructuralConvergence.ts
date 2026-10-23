@@ -41,6 +41,7 @@ export const matchesRayenStructuralReplan = (
   );
 
 export interface StructuralConflict {
+  diagnostic?: ConflictEntry['diagnostic'];
   bedId: string | null;
   clinicalEpisodeId?: string;
   code?: ConflictEntry['code'];
@@ -49,6 +50,7 @@ export interface StructuralConflict {
 }
 
 const episodeIdFromConflict = (conflict: ConflictEntry): string | undefined =>
+  conflict.clinicalEpisodeId ??
   conflict.source?.encounterId ??
   conflict.blockedAdmission?.patient.clinicalEpisodeId ??
   conflict.blockedAdmission?.source?.encounterId ??
@@ -63,6 +65,19 @@ export const describeStructuralConflicts = (
     code: conflict.code,
     ...(conflict.caseContext ? { caseContext: conflict.caseContext } : {}),
     reason: conflict.reason,
+    diagnostic: {
+      ...conflict.diagnostic,
+      patientName: (conflict.patientName ?? conflict.caseContext?.patientName ?? '').slice(0, 240),
+      document: (conflict.rut ?? conflict.source?.run ?? '').slice(0, 80),
+      clinicalEpisodeId: (episodeIdFromConflict(conflict) ?? '').slice(0, 100),
+      bedId: (
+        conflict.bedId ??
+        conflict.caseContext?.bedId ??
+        conflict.diagnostic?.bedId ??
+        ''
+      ).slice(0, 80),
+      detail: conflict.reason.slice(0, 1500),
+    },
   }));
 
 export const collectRecordClinicalEpisodeIds = (record: DailyRecord): string[] => {

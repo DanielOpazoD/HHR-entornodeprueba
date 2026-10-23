@@ -20,6 +20,10 @@ import {
   hasRecordedReportOutcome,
 } from './censusDischargeHistory';
 import { filterRecordedOutcomeActions } from './filterRecordedOutcomeActions';
+import {
+  appendAssociatedClinicalCribDischarge,
+  recordedMaternalDischarge,
+} from './associatedClinicalCribDischarge';
 import { applyClinicalCribDischargeRepairs } from './clinicalCribDischargeRepairs';
 import { applyReviewedPatientChanges, patientAfterBedMove } from './patientSyncPolicy';
 const BED_NAME = new Map(BEDS.map(bed => [bed.id, bed.name]));
@@ -278,9 +282,14 @@ export const applyCensusImportDiff = (
         associatedCrib || independentCribDeparture
           ? { ...subject, clinicalCrib: undefined }
           : subject;
-      discharges.push(buildDischarge(principalSnapshot, entry, current, ctx));
+      const recordedMother = recordedMaternalDischarge(current, entry);
+      if (!recordedMother) discharges.push(buildDischarge(principalSnapshot, entry, current, ctx));
       if (associatedCrib) {
-        discharges.push(buildDischarge(associatedCrib, entry, current, ctx, true));
+        appendAssociatedClinicalCribDischarge(
+          discharges,
+          recordedMother,
+          buildDischarge(associatedCrib, entry, current, ctx, true)
+        );
       }
     }
     applied.discharges += 1;

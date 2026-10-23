@@ -9,7 +9,7 @@ vi.mock('@/services/storage/indexeddb/indexedDbCore', () => ({ ensureDbReady: vi
 vi.mock('@/services/storage/sync/dexieSyncQueueStore', () => ({
   createDexieSyncQueueStore: () => ({ listAll: mocks.listAll }),
 }));
-vi.mock('@/services/storage/sessionScopedStorageService', () => ({
+vi.mock('@/services/storage/sessionOwnerKey', () => ({
   getStoredSessionOwnerKey: mocks.owner,
 }));
 vi.mock('@/services/storage/sessionStorageTransition', () => ({

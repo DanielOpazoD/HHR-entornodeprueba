@@ -6,8 +6,9 @@ import {
 } from './fixtures/auth';
 import { expectClinicalDiagnosis, expectClinicalStatus } from './fixtures/clinicalBlockEditor';
 import { waitForPersistedBedFields } from './fixtures/censusPersistence';
+import { getTodayISO } from '../src/utils/dateCoreUtils';
 
-const CONFLICT_DATE = process.env.E2E_FIXED_DATE ?? new Date().toISOString().slice(0, 10);
+const CONFLICT_DATE = process.env.E2E_FIXED_DATE ?? getTodayISO();
 const REMOTE_OVERRIDE_SHADOW_KEY = 'hhr_e2e_remote_override_shadow';
 
 const getRow = (page: Page, bedId: string) =>

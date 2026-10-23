@@ -42,6 +42,44 @@ const renderCell = (vitalSigns?: PatientVitalSigns, bedId = 'R1', patient?: Part
   );
 
 describe('VitalsCell', () => {
+  it('does not expose carried measurement dates or provenance in the census cell', () => {
+    renderCell(VITALS, 'R1', {
+      clinicalEpisodeId: 'synthetic',
+      clinicalCarryover: {
+        sourceDate: '2026-07-11',
+        clinicalEpisodeId: 'synthetic',
+        vitalsPending: true,
+        devicesPending: true,
+      },
+    });
+    const button = screen.getByRole('button', { name: 'Ver signos vitales' });
+    expect(button).toHaveTextContent('130/82');
+    expect(screen.queryByText(/11\/07\/2026|2026-07-11|Previa/)).not.toBeInTheDocument();
+    expect(button.querySelector('time')).toBeNull();
+    expect(button).not.toHaveAttribute('title');
+    expect(button).not.toHaveAttribute('aria-description');
+    expect(screen.queryByText(/Por verificar|pendiente de verificar/i)).not.toBeInTheDocument();
+  });
+
+  it('does not add a date footer for a new measurement when carryover metadata remains', () => {
+    renderCell({ ...VITALS, recordedDate: '2026-07-12' }, 'R1', {
+      clinicalEpisodeId: 'synthetic',
+      clinicalCarryover: {
+        sourceDate: '2026-07-11',
+        clinicalEpisodeId: 'synthetic',
+        vitalsPending: true,
+        devicesPending: false,
+      },
+    });
+    expect(screen.queryByText(/12\/07\/2026|2026-07-12/)).not.toBeInTheDocument();
+    const button = screen.getByRole('button', { name: 'Ver signos vitales' });
+    expect(button).not.toHaveAttribute('aria-description');
+    expect(button).not.toHaveAttribute('title');
+    expect(
+      screen.queryByText(/Previa|Por verificar|pendiente de verificar/i)
+    ).not.toBeInTheDocument();
+  });
+
   it('shows PA · FC · SAT · T° inline and opens the vitals modal on click', async () => {
     renderCell(VITALS);
 

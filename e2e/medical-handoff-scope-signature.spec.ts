@@ -5,8 +5,9 @@ import {
   buildCanonicalE2ERecord,
   ensureAuthenticated,
 } from './fixtures/auth';
+import { getTodayISO } from '../src/utils/dateCoreUtils';
 
-const HANDOFF_DATE = new Date().toISOString().slice(0, 10);
+const HANDOFF_DATE = getTodayISO();
 
 const createCallableSuccessBody = (result: unknown) =>
   JSON.stringify({

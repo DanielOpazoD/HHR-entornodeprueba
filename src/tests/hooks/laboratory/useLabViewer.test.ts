@@ -11,7 +11,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 vi.unmock('@/features/laboratory/hooks/useLabViewer');
 vi.unmock('@/features/laboratory/controllers/labFormattingController');
 vi.unmock('@/features/laboratory/controllers/labAnalyticsController');
-vi.unmock('@/features/laboratory/constants/labConstants');
 
 const mockSearchSyslabExams = vi.fn();
 const mockFetchSyslabExamDetails = vi.fn();

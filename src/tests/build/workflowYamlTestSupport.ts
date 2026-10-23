@@ -2,6 +2,7 @@ import { expect } from 'vitest';
 import { parse } from 'yaml';
 
 export interface WorkflowJob {
+  'runs-on'?: string | string[];
   name?: string;
   uses?: string;
   needs?: string | string[];

@@ -6,7 +6,7 @@ vi.mock('@/services/auth/authRequestHeaders', () => ({
   resolveCurrentUserAuthHeaders: () => resolveCurrentUserAuthHeadersMock(),
 }));
 
-import { fetchBotJson } from '@/services/integrations/whatsapp/whatsappBotRuntime';
+import { buildBotUrl, fetchBotJson } from '@/services/integrations/whatsapp/whatsappBotRuntime';
 
 describe('whatsappBotRuntime', () => {
   beforeEach(() => {
@@ -47,5 +47,17 @@ describe('whatsappBotRuntime', () => {
     const [, init] = vi.mocked(fetch).mock.calls[0] || [];
     const headers = init?.headers as Headers;
     expect(headers.get('Authorization')).toBe('Bearer explicit-token');
+  });
+});
+
+describe('buildBotUrl', () => {
+  it('normalizes paths with leading slash', () => {
+    const url = buildBotUrl('/health');
+    expect(url).toMatch(/\/health$/);
+  });
+
+  it('adds a leading slash when path lacks one', () => {
+    const url = buildBotUrl('groups');
+    expect(url).toMatch(/\/groups$/);
   });
 });

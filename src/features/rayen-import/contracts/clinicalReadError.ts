@@ -31,7 +31,8 @@ export const decodeClinicalReadFailure = (
   if (!message) return {};
   if (!data.error && fallback) return { error: message, errorCode: 'invalid_response' };
   const code: ClinicalReadErrorCode =
-    message === 'Las escalas no fueron autorizadas para el episodio de esta pestaña.'
+    message === 'Las escalas no fueron autorizadas para el episodio de esta pestaña.' ||
+    message === 'La trazabilidad no fue autorizada por el snapshot de esta pestaña.'
       ? 'episode_not_authorized'
       : /tiempo de espera agotado|timeout|timed out/i.test(message)
         ? 'source_timeout'

@@ -1,19 +1,6 @@
 # Safe Change Checklist
 
-### CLI de despliegue Firebase (2026-10-11)
-
-- **Owner:** CI/Functions HHR.
-- **Reason:** 15.15.0 comparte tokens de fuente entre grupos; Firebase rechazó
-  el despliegue de la región clínica con el error `Invalid source token`.
-- **TargetVersion:** `firebase-tools` 15.16.0, fijado en manifest y lockfile raíz.
-  Es el único paquete resuelto que cambia; SDK, Functions y overrides se conservan.
-- **RiskLevel:** medio: herramienta de despliegue y emulador, con corrección
-  [upstream #10432](https://github.com/firebase/firebase-tools/pull/10432).
-- **RollbackPlan:** revertir el PR y ejecutar `npm ci`; no volver a desplegar
-  varias regiones con el CLI afectado. No borrar datos ni ampliar permisos.
-- **VerificationGate:** `dependency_upgrade`: instalación limpia, audit de ambos
-  paquetes, prueba de aislamiento de tokens, `ci:merge-gate`, suites Functions,
-  emuladores sintéticos, revisión independiente, CI y despliegue en hhr-pruebas.
+> Sólo guía vigente. El historial de incidentes y parches va en la descripción del PR que los resuelve; el anterior está en el [historial de runbooks](archive/RUNBOOK_HISTORY_2026.md).
 
 Antes de cerrar una modificación relevante en este repo:
 
@@ -66,6 +53,53 @@ La clasificación remota `docs-only` se decide en CI; no forzar ni omitir checks
 
 ### Checklist de cierre
 
+La compactación visual del acceso del 22 octubre 2026 es `safe_local_ui`:
+estrecha el panel y su formulario compartido con la pantalla de carga, elimina
+los textos introductorios y muestra Google como icono circular con nombre
+accesible. Conserva handlers, bloqueo, recuperación y recarga no destructiva.
+Verificar `ci:inner-loop`, pruebas afectadas, build/budgets y navegador: ausencia
+de scroll y pie de soporte visible en escritorio y móvil de 320×568, geometría
+estable al cargar el módulo, Google oficial y fallback centrados, ambos fondos.
+No cambia autenticación, permisos, datos clínicos ni CUDYR.
+
+La ayuda de acceso del 22 octubre 2026 es `critical_runtime`: sustituye el borrado
+local desde el login por una recarga normal del navegador. La confirmación informa
+que se pierde el formulario, pero conserva datos locales, sesiones y cambios aún
+no enviados. Cancelar conserva credenciales y errores en memoria; mientras se
+decide, RUT (incluido Enter) y Google permanecen bloqueados. El login ya no invoca
+mantenimiento de almacenamiento. No cambia las APIs públicas de mantenimiento,
+la limpieza de cierre de sesión ni los controles de autorización.
+Verificar `ci:merge-gate`, `test:release-confidence`, pruebas focalizadas de login
+y `auth-login-resilience` con una tarea sintética no confirmada en la IndexedDB
+real, Web Storage y caché, conservadas tras navegar. La semilla y la autenticación
+E2E usan únicamente los fixtures locales del proyecto demo. Revisión independiente
+y CI del head definitivo antes del merge; no acreditar verificaciones pendientes.
+
+La continuidad visual del acceso RUT del 21 octubre 2026 es `safe_local_ui`:
+elimina la composición provisional antigua y comparte marco, imagen y geometría
+con la página lista. Agrupa la ayuda de acceso conservando autocomplete y bloqueo
+de campos; la recarga de esa ayuda se rige por el bloque del 22 de octubre anterior.
+El formulario RUT carga con la pantalla. No cambia auth runtime,
+roles, persistencia, endpoint, credenciales ni datos clínicos. Verificar
+`ci:inner-loop`, pruebas afectadas, build/budgets y navegador en escritorio y
+móvil: arranque con módulo retrasado, ambos fondos, formulario RUT, ayuda y
+refresh autenticado. Revisión independiente y CI del head final antes de merge.
+
+La compactación de la lista de funcionarios es `safe_local_ui`: reduce el espaciado y
+presenta las acciones existentes como iconos en una fila, con nombre accesible, tooltip
+y foco visible. Compacta el formulario de modificación con campos y botones alineados
+en escritorio y apilados en pantallas pequeñas. Conserva handlers, confirmaciones,
+bloqueos y permisos. Verificar
+`ci:inner-loop`, build y la tabla en escritorio/pantalla estrecha, incluida navegación
+por teclado, además de revisión independiente y CI del head final antes del merge.
+
+Las correcciones visuales del censo y Moa del 20 octubre 2026 son `safe_local_ui`: eliminan
+fechas/etiquetas de procedencia de las celdas, ocultan el tipo de cama en traslados y simplifican
+los controles decorativos de Moa con selección aleatoria por pulsación. No cambian datos,
+metadata clínica, sincronización, contratos ni handlers de movimientos. Validar `ci:inner-loop`,
+pruebas focalizadas, build/budget y preview de carryover, traslados y Moa (catálogo/local,
+recarga, teclado y movimiento reducido), además de revisión independiente y CI del head final.
+
 1. Clasificar la change según `scripts/config/sustainable-change-policy.json`.
 2. Actualizar tests unitarios e integración afectados por la change.
 3. Si la change es upgrade o excepción, documentar owner, riesgo, rollback y criterio de cierre.
@@ -90,149 +124,6 @@ La clasificación remota `docs-only` se decide en CI; no forzar ni omitir checks
 21. Si la change toca documentos clínicos, revisar [docs/ADR_CLINICAL_DOCUMENT_WORKSPACE_CONTRACT.md](./ADR_CLINICAL_DOCUMENT_WORKSPACE_CONTRACT.md).
 22. Si la change toca handoff, revisar [docs/ADR_HANDOFF_RUNTIME_SURFACES.md](./ADR_HANDOFF_RUNTIME_SURFACES.md).
 
-### Parche transitivo gRPC (2026-10-01)
-
-- **Owner:** plataforma Firebase/Functions HHR.
-- **Reason:** corregir GHSA-m9gg-hp2v-232j actualizando el override existente en
-  ambos paquetes; no se ha demostrado explotación en HHR.
-- **TargetVersion:** `@grpc/grpc-js` 1.14.5 en los dos manifests y lockfiles.
-- **RiskLevel:** bajo/medio: parche de transporte Node utilizado por Admin/Google;
-  se conserva Firebase web 12.14.0 y el resto del grafo.
-- **RollbackPlan:** revertir este commit y ejecutar `npm ci` en raíz y Functions;
-  la versión anterior volvería a estar señalada por el audit. No borrar datos ni colas.
-- **VerificationGate:** categoría `dependency_upgrade`: audit de ambos paquetes,
-  `ci:merge-gate`, revisión independiente y CI del head final; ampliar con
-  `test:release-confidence` para validar el transporte de la autoridad.
-
-Referencia: [aviso gRPC](https://github.com/advisories/GHSA-m9gg-hp2v-232j).
-
-El gate ampliado `check:release-evidence` sigue señalando 27 archivos de tests con
-relojes reales o esperas de turno. Esa señal es anterior al parche: no cambia ningún
-archivo de tests ni su detector. No se declara aprobado ese gate, no se añaden
-marcas `@flake-safe` ni excepciones para silenciarlo. Su revisión corresponde a un
-bloque propio de determinismo de fixtures y control de esperas. Este parche
-transitivo no actualiza el SDK Firebase web ni su bootstrap; conserva los controles
-exigidos por `dependency_upgrade` sin modificar la política de clasificación.
-
-### Parche del tooling FTP de CI (2026-10-01)
-
-- **Owner:** infraestructura de tests/CI HHR.
-- **Reason:** GHSA-c475-qrg2-pj4r bloquea el audit del tooling Firebase; no se ha
-  demostrado explotación en HHR.
-- **TargetVersion:** override existente de `basic-ftp` a 6.2.1; sólo manifest y
-  lockfile raíz. No cambia Firebase web, Functions ni la política de audit.
-- **RiskLevel:** medio: el salto 5 a 6 rechaza hosts de transferencia FTP distintos
-  por defecto. `get-uri` conserva las APIs usadas (`Client`, `access`, `list`,
-  `lastMod`, `downloadTo`, `close`); no habilitar `allowSeparateTransferHost`.
-- **RollbackPlan:** revertir este PR y ejecutar `npm ci`; el audit volvería a
-  bloquear la versión vulnerable. No borrar datos ni colas.
-- **VerificationGate:** categoría `dependency_upgrade`: audit de raíz y Functions,
-  carga del consumidor `get-uri`, emulador/autoridad sintética, revisión independiente
-  y CI completo del head final con sus umbrales intactos.
-
-Referencias: [aviso FTP](https://github.com/advisories/GHSA-c475-qrg2-pj4r),
-[cambio de seguridad en 6.0](https://github.com/patrickjuchli/basic-ftp/releases/tag/v6.0.0).
-
-### Alineación del SDK Admin de tooling raíz (2026-10-02)
-
-- **Owner:** plataforma Firebase/Functions y emuladores HHR.
-- **Reason:** los scripts y emuladores importan Admin directamente, pero la raíz
-  lo recibía como peer de Functions 7.2.5. Admin 13.9 incorporaba `node-forge`
-  1.4.0, señalado por GHSA-86w9-cpqp-85rv; no se ha demostrado explotación en HHR.
-- **TargetVersion:** declarar Admin 14.4.0 y Functions 7.4.0 como dev dependencies
-  explícitas de raíz, alineadas con las versiones ya usadas en `functions/`.
-  Functions 7.4 admite Admin 13 y 14; actualizar sólo Functions no garantiza el retiro.
-- **RiskLevel:** medio: cambia el SDK de tooling y sus tipos/transitivos. Firebase web,
-  el paquete Functions desplegable, APIs clínicas y reglas permanecen intactos.
-- **RollbackPlan:** revertir manifest/lock raíz y ejecutar `npm ci`; reaparece la
-  cadena vulnerable. No borrar datos, colas ni aplicar un override criptográfico.
-- **VerificationGate:** `dependency_upgrade`: instalación limpia, audit en ambos
-  paquetes, tipos/lint y `ci:merge-gate`, suites Functions, emuladores sintéticos
-  de autoridad, revisión independiente y CI del head final.
-
-Referencia: [aviso node-forge](https://github.com/advisories/GHSA-86w9-cpqp-85rv).
-El aviso no publica un parche; Admin 14 elimina esa dependencia. Los permisos IAM
-y el despliegue no forman parte de esta alineación del tooling local/CI.
-
-### Retiro de dependencias de desarrollo sin consumidores
-
-- **Owner:** tooling frontend HHR.
-- **Reason:** retirar `autoprefixer` (fuera del pipeline Vite/Tailwind actual) y
-  `@types/jspdf` (tipos antiguos redundantes; jsPDF ya declara sus tipos propios).
-  `deno.lock` no corresponde a un runtime/comando vigente; los lockfiles npm de
-  raíz y Functions siguen siendo las fuentes de instalación.
-- **TargetVersion:** eliminación de esas dos declaraciones; sin upgrades del resto.
-- **RiskLevel:** bajo: no cambian SDK, código runtime, peers ni overrides de seguridad.
-- **RollbackPlan:** revertir el PR y ejecutar `npm ci`; no modificar datos ni colas.
-- **VerificationGate:** tipos, lint, audit, exportación PDF, comparación del grafo
-  retenido y CSS, build/preview, revisión independiente y CI del head final.
-
-### Lector del respaldo mensual CUDYR (2026-10-07)
-
-- **Owner:** módulo CUDYR de HHR.
-- **Reason:** leer los informes BIFF/XLS de Eloísa como evidencia consultiva.
-- **TargetVersion:** SheetJS 0.20.3, tarball oficial fijado con integridad en lockfile.
-- **RiskLevel:** medio: archivo externo; tamaño 256 KiB, firma, expansión ZIP declarada,
-  filas/columnas acotadas, fórmulas rechazadas y worker terminable a los 10 segundos.
-- **RollbackPlan:** revertir este PR; el archivo documental de servidor permanece
-  conservado y el reporte principal mantiene su contrato.
-- **VerificationGate:** tipo `dependency_upgrade`, controles estáticos, unitarios,
-  build/presupuesto, navegador sintético y revisión independiente. Worker opcional
-  fuera del precache; no se amplían los presupuestos de arranque o tamaño.
-
-### Parches transitivos de HTTP (2026-10-06)
-
-- **Owner:** plataforma Firebase/Functions y tooling HHR.
-- **Reason:** corregir versiones vulnerables detectadas por el audit de ambos
-  paquetes; no se ha demostrado explotación en HHR.
-- **TargetVersion:** `proxy-addr` 2.0.8 y `@fastify/busboy` 3.2.2 en raíz y
-  Functions; `compression` 1.8.2, `http-cache-semantics` 4.3.0 y `source-map-js`
-  1.2.2 en raíz. Sólo resoluciones compatibles con los manifests existentes.
-- **RiskLevel:** medio: cambia procesamiento HTTP y tooling transitivo; no cambia
-  el SDK Firebase, permisos, contratos clínicos ni configuración de proxies.
-- **RollbackPlan:** revertir los dos lockfiles y ejecutar `npm ci` en raíz y
-  Functions; reaparecerían las versiones vulnerables. No modificar datos ni colas.
-- **VerificationGate:** `dependency_upgrade`: instalación, auditoría de ambos
-  paquetes, `ci:merge-gate`, suites Functions, runtime PDF, revisión independiente
-  y CI del head definitivo. Un fallo de audit impide el merge.
-
-La auditoría posterior conserva hallazgos altos en la cadena de desarrollo de
-`braces` 3.0.3, sin versión corregida publicada al comprobarla. Estos parches no
-resuelven ese bloqueo ni autorizan excepciones o rebajas del umbral.
-
-Estos mismos parches se incorporan al PR CUDYR #764 para reducir su bloqueo de
-auditoría, conservando la dependencia SheetJS y los controles vigentes. El origen
-es el PR #738; no se incorporan otros cambios de ese PR. La auditoría remota del
-head actualizado determinará los hallazgos restantes. Las consultas locales
-frescas al registro npm están bloqueadas por la cadena TLS de la red; resultados
-en caché no acreditan disponibilidad actual de versiones. No se desactiva TLS.
-
-### Parches de Sharp y SDK MCP para #764 (2026-10-07)
-
-- **Owner:** plataforma de imágenes y tooling Firebase HHR.
-- **Reason:** completar las actualizaciones disponibles de la auditoría; no se ha
-  demostrado explotación en HHR.
-- **TargetVersion:** Sharp 0.35.5, sus binarios 0.35.5 y libvips 1.3.4; SDK MCP
-  transitivo 1.32.1. Se conservan los rangos de los manifests y el SDK Firebase.
-- **RiskLevel:** medio: dependencias nativas de imagen y cliente MCP del tooling.
-- **RollbackPlan:** revertir este commit y ejecutar npm ci; reaparecen los avisos.
-  No modificar censos, credenciales ni permisos.
-- **VerificationGate:** instalación limpia, runtime Sharp, carga del tooling,
-  ci:merge-gate, navegador/emulador sintético, revisión independiente y auditoría
-  remota del head definitivo. No integrar mientras existan altos/críticos activos.
-
-El diagnóstico aislado de GitHub Actions, run 37685292433, resolvió los paquetes
-con TLS validado, scripts de instalación deshabilitados y token de sólo lectura.
-Se verificaron los SHA-512 de 28 tarballs oficiales en el runner y localmente.
-Únicamente esas 28 entradas se trasladan al lockfile; se descartan 16 cambios de
-metadatos libc ajenos. La instalación local usa caché por integridad, sin rebajar
-TLS. El workflow diagnóstico no se incorpora a este PR ni a main.
-
-La auditoría del árbol resuelto conserva siete paquetes altos en una misma cadena
-de braces 3.0.3; el registro fresco sigue publicando esa versión como latest.
-Esta evidencia no autoriza una excepción ni un downgrade del plugin de límites
-arquitectónicos. Sharp: GHSA-wq5f-xc86-pv6w. SDK MCP: GHSA-6qxp-vccf-f47h.
-
 ### Aceptación temporal de braces (2026-10-07)
 
 Excepción autorizada explícitamente por Daniel Opazo, limitada al aviso y árbol
@@ -240,16 +131,3 @@ de desarrollo aprobados. Daniel retiró explícitamente el vencimiento el 12-10-
 para esperar una actualización oficial de braces. Se conservan
 los hallazgos originales y un aviso visible; otros riesgos siguen bloqueando.
 Owner, riesgo residual, rollback y validación: [registro de aceptación](BRACES_TEMPORARY_RISK_ACCEPTANCE.md).
-
-### Propuesta de sincronización con solo datos de episodio (2026-10-16)
-
-Si todas las actualizaciones quedan ocultas por
-sus etiquetas internas, la revisión muestra a los pacientes afectados y «datos
-del episodio». Conserva la confirmación manual y la presentación habitual de
-planes mixtos. La autoridad de especialidad compara metadatos por sus valores
-y tipos, independientemente del orden de las claves de los mapas Firestore.
-Cambiar autor, decisión, regla, tipo o valor sigue rechazado; no se amplían
-permisos ni se reescriben decisiones. Validar propuesta vacía, metadatos
-reordenados/anidados, intentos de falsificación y RN. Cierre: `ci:merge-gate`,
-`test:release-confidence`, revisión independiente y CI del head final. Publicar
-la función requiere autorización separada y prueba real posterior.

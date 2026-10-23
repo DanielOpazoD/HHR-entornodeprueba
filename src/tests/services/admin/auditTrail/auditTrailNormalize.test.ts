@@ -1,0 +1,364 @@
+import { describe, expect, it } from 'vitest';
+import type { AuditLogEntry } from '@/types/auditLogTypes';
+import {
+  normalizeAuditTrailEvent,
+  normalizeAuditTrailEvents,
+  parseAuditTrailTimestamp,
+} from '@/services/admin/auditTrail/auditTrailNormalize';
+import { compactAuditDetails } from '@/services/admin/auditDetailsCompaction';
+import { auditLog, patientDetails } from './auditTrailFixtures';
+
+const normalize = (overrides: Parameters<typeof auditLog>[0]) => {
+  const event = normalizeAuditTrailEvent(auditLog(overrides));
+  if (!event) throw new Error('expected an event');
+  return event;
+};
+
+describe('audit trail normalization', () => {
+  it('turns a single-field edit into "field: before → after"', () => {
+    const event = normalize({
+      details: patientDetails('Paciente Sintético', {
+        rut: '12.345.678-5',
+        changes: { age: { old: 40, new: 41 } },
+      }),
+    });
+
+    expect(event).toMatchObject({
+      category: 'change',
+      status: 'ok',
+      label: 'Edad',
+      changes: [{ field: 'Edad', before: '40', after: '41' }],
+      patient: { name: 'Paciente Sintético', document: '12.345.678-5', bedId: 'H1C1' },
+      actor: { name: 'Enfermera Uno', email: 'enfermera.uno@hospital.test' },
+    });
+  });
+
+  it('keeps every field of a multi-field edit and dates as day-month-year', () => {
+    const event = normalize({
+      details: patientDetails('Paciente Sintético', {
+        changes: {
+          admissionDate: { old: '2026-10-20', new: '2026-10-21' },
+          insurance: { old: 'Fonasa', new: '' },
+        },
+      }),
+    });
+
+    expect(event.label).toBe('Edición');
+    expect(event.changes).toEqual([
+      { field: 'Fecha de ingreso', before: '20-10-2026', after: '21-10-2026' },
+      { field: 'Previsión', before: 'Fonasa', after: undefined },
+    ]);
+  });
+
+  it('shows a bed move as the bed change itself', () => {
+    const event = normalize({
+      action: 'PATIENT_BED_CHANGED',
+      details: patientDetails('Paciente Sintético', {
+        movementKind: 'move',
+        sourceBed: 'H1C1',
+        targetBed: 'H2C3',
+      }),
+    });
+
+    expect(event.label).toBe('Cambio de cama');
+    expect(event.changes[0]).toEqual({ field: 'Cama', before: 'H1C1', after: 'H2C3' });
+    expect(event.patient?.bedId).toBe('H2C3');
+  });
+
+  it('labels CUDYR items and truncates long handoff notes', () => {
+    const cudyr = normalize({
+      action: 'CUDYR_MODIFIED',
+      entityId: 'H2C1-crib',
+      details: {
+        patientName: 'RN Sintético',
+        bedId: 'H2C1-crib',
+        changes: { mobilization: { old: 1, new: 3 } },
+      },
+    });
+    expect(cudyr.changes).toEqual([{ field: 'Movilización', before: '1', after: '3' }]);
+    expect(cudyr.patient?.bedId).toBe('H2C1 · cuna');
+
+    const note = normalize({
+      action: 'NURSE_HANDOFF_MODIFIED',
+      details: patientDetails('Paciente Sintético', {
+        shift: 'night',
+        changes: { note: { old: 'Estable', new: 'x'.repeat(400) } },
+      }),
+    });
+    expect(note.detail).toBe('Turno noche');
+    expect(note.changes[0].after).toHaveLength(281);
+    expect(note.changes[0].after?.endsWith('…')).toBe(true);
+  });
+
+  it('keeps edits that ended where they began without repeating the event name', () => {
+    const note = normalize({
+      action: 'MEDICAL_HANDOFF_MODIFIED',
+      details: patientDetails('Paciente Sintético', { reverted: ['medicalHandoffNote'] }),
+    });
+    expect(note.changes).toEqual([]);
+    expect(note.detail).toBe('Revertido');
+
+    const cudyr = normalize({
+      action: 'CUDYR_MODIFIED',
+      details: patientDetails('Paciente Sintético', {
+        changes: { mobilization: { old: 1, new: 3 } },
+        reverted: ['feeding'],
+      }),
+    });
+    expect(cudyr.changes).toEqual([{ field: 'Movilización', before: '1', after: '3' }]);
+    expect(cudyr.detail).toBe('Revertido: Alimentación');
+  });
+
+  it('shows each bed of an administrative CUDYR adjustment and keeps every change', () => {
+    // The server writes `changes` as a list, one category change per bed.
+    const serverDetails: Record<string, unknown> = {
+      event: 'admin_cudyr_results_adjusted',
+      changedCount: 2,
+      changes: [
+        { bedId: 'H1C1', previousCategory: 'C2', category: 'B1' },
+        { bedId: 'H2C1', clinicalCrib: true, previousCategory: 'D3', category: null },
+      ],
+    };
+    const adjustment = normalize({
+      action: 'CUDYR_MODIFIED',
+      entityType: 'dailyRecord',
+      entityId: '2026-10-22',
+      details: serverDetails as AuditLogEntry['details'],
+    });
+    expect(adjustment.detail).toBe('Ajuste administrativo');
+    expect(adjustment.changes).toEqual([
+      { field: 'H1C1 · Categoría', before: 'C2', after: 'B1' },
+      { field: 'H2C1 · cuna · Categoría', before: 'D3', after: undefined },
+    ]);
+
+    const scored = normalize({
+      action: 'CUDYR_MODIFIED',
+      details: patientDetails('Paciente Sintético', {
+        changes: Object.fromEntries(
+          Array.from({ length: 14 }, (_, item) => [`item${item}`, { old: 1, new: 2 }])
+        ),
+      }),
+    });
+    expect(scored.changes).toHaveLength(14);
+  });
+
+  it('keeps both sides of a device edit once the stored details are compacted', () => {
+    const stored = compactAuditDetails(
+      patientDetails('Paciente Sintético', {
+        changes: {
+          deviceDetails: {
+            CVC: {
+              old: { installationDate: '2026-10-01', note: 'Yugular' },
+              new: { installationDate: '2026-10-02', note: 'Subclavia' },
+            },
+          },
+        },
+      })
+    );
+    const event = normalize({ details: stored as AuditLogEntry['details'] });
+    expect(event.changes).toHaveLength(1);
+    expect(event.changes[0].before).not.toBe(event.changes[0].after);
+    expect(JSON.stringify(event.changes)).not.toContain('[…]');
+  });
+
+  it('shows a device note change on its own', () => {
+    const event = normalize({
+      details: patientDetails('Paciente Sintético', {
+        changes: {
+          deviceDetails: {
+            CUP: {
+              old: { installationDate: '2026-10-01', note: 'Sonda 14' },
+              new: { installationDate: '2026-10-01', note: 'Sonda 16' },
+            },
+          },
+        },
+      }),
+    });
+    expect(event.changes).toHaveLength(1);
+    expect(event.changes[0].before).toContain('Sonda 14');
+    expect(event.changes[0].after).toContain('Sonda 16');
+  });
+
+  it('expands device changes one device at a time', () => {
+    const event = normalize({
+      details: patientDetails('Paciente Sintético', {
+        changes: {
+          deviceDetails: {
+            CVC: { old: 'N/A', new: { installationDate: '2026-10-21', notes: 'yugular' } },
+            SNG: { old: { installationDate: '2026-10-01' }, new: 'Eliminado' },
+          },
+        },
+      }),
+    });
+
+    expect(event.changes).toEqual([
+      { field: 'Dispositivo CVC', before: undefined, after: 'instalado 21-10-2026 · yugular' },
+      { field: 'Dispositivo SNG', before: 'instalado 01-10-2026', after: 'Retirado' },
+    ]);
+  });
+
+  it('names connection events by how they started or ended', () => {
+    expect(
+      normalize({ action: 'USER_LOGIN', entityType: 'user', details: { start: 'resume' } }).label
+    ).toBe('Reconexión');
+    expect(normalize({ action: 'USER_LOGIN', entityType: 'user' }).label).toBe('Inicio de sesión');
+    const closed = normalize({
+      action: 'USER_LOGOUT',
+      entityType: 'user',
+      details: { reason: 'closed', durationSeconds: 3_900 },
+    });
+    expect(closed).toMatchObject({
+      category: 'connection',
+      label: 'Desconexión',
+      detail: '1 h 05 m',
+      patient: undefined,
+    });
+    expect(
+      normalize({ action: 'USER_LOGOUT', entityType: 'user', details: { reason: 'automatic' } })
+        .label
+    ).toBe('Cierre automático');
+  });
+
+  it('groups outcomes into recorded, automatic and review', () => {
+    expect(normalize({ action: 'CONFLICT_AUTO_MERGED' }).status).toBe('auto');
+    expect(normalize({ action: 'PATIENT_CLEARED' }).status).toBe('review');
+    expect(normalize({ details: { syncStatus: 'needs_review' } }).status).toBe('review');
+    expect(normalize({ details: { resolution: 'already_applied' } }).status).toBe('auto');
+  });
+
+  it('explains why an automatic merge kept each value and flags the ones to review', () => {
+    const merge = (assessment: Record<string, unknown>) =>
+      normalize({
+        action: 'CONFLICT_AUTO_MERGED',
+        entityType: 'dailyRecord',
+        entityId: '2026-10-22',
+        details: {
+          entryCount: 2,
+          assessment,
+          conflictResolutionSummary: {
+            truthSource: 'authority_intent_invariants',
+            lastWriteWins: false,
+            mergedPaths: ['beds.H1C1.pathology'],
+            blockedPaths: ['beds.H2C1.patientName'],
+          },
+          snapshotRecovery: { status: 'saved', snapshotIds: ['s1'] },
+        },
+      });
+
+    const routine = merge({ riskLevel: 'low', reviewRecommended: false });
+    expect(routine).toMatchObject({
+      label: 'Conflicto conciliado',
+      detail: '2 decisiones · riesgo bajo',
+      status: 'auto',
+    });
+    expect(routine.notes).toEqual([
+      'Verdad elegida por autoridad transaccional, intención clínica e invariantes; no por el último navegador',
+      'Fusionado: H1C1 · Diagnóstico',
+      'Protegido: H2C1 · Nombre',
+    ]);
+    expect(merge({ riskLevel: 'high', reviewRecommended: true }).status).toBe('review');
+  });
+
+  it('reads Firestore timestamps and names server-only actions', () => {
+    expect(parseAuditTrailTimestamp({ seconds: 1_760_000_000 })).toBe(1_760_000_000_000);
+    expect(parseAuditTrailTimestamp('no es fecha')).toBeNull();
+    const drive = normalize({
+      action: 'CLINICAL_DOCUMENT_DRIVE_EXPORTED' as never,
+      timestamp: { toDate: () => new Date('2026-10-22T15:00:00.000Z') } as never,
+    });
+    expect(drive).toMatchObject({ category: 'access', label: 'Documento enviado a Drive' });
+    expect(drive.at).toBe(Date.parse('2026-10-22T15:00:00.000Z'));
+  });
+
+  it('keeps the newborn apart from the mother and never rewrites a passport', () => {
+    const events = normalizeAuditTrailEvents([
+      auditLog({ details: patientDetails('Madre Sintética', { rut: '33.333.333-3' }) }),
+      auditLog({ details: patientDetails('RN Sintético', { rut: '33.333.333-3' }) }),
+      auditLog({ details: patientDetails('Paciente Pasaporte', { rut: 'AB1234567' }) }),
+    ]);
+
+    const keys = new Set(events.map(event => event.patient?.key));
+    expect(keys.size).toBe(3);
+    expect(
+      events.find(event => event.patient?.name === 'Paciente Pasaporte')?.patient
+    ).toMatchObject({ document: 'AB1234567' });
+  });
+
+  it('separates two people who share a name but not a document', () => {
+    const events = normalizeAuditTrailEvents([
+      auditLog({ details: patientDetails('Juan Sintético', { rut: '11.111.111-1' }) }),
+      auditLog({
+        timestamp: '2026-10-22T15:00:00.000Z',
+        details: patientDetails('Juan Sintético', { rut: '22.222.222-2' }),
+      }),
+      auditLog({
+        timestamp: '2026-10-22T16:00:00.000Z',
+        patientIdentifier: '22222***-*',
+        details: patientDetails('Juan Sintético'),
+      }),
+    ]);
+
+    const keys = events.map(event => event.patient?.key);
+    expect(new Set(keys).size).toBe(2);
+    // The masked event joins the full document whose visible digits it shares.
+    expect(keys[0]).toBe(
+      keys.find((_, index) => events[index].patient?.document === '22.222.222-2')
+    );
+  });
+
+  it('never files a masked or missing document under the wrong homonym', () => {
+    const events = normalizeAuditTrailEvents([
+      auditLog({
+        id: 'older-masked',
+        timestamp: '2026-10-22T12:00:00.000Z',
+        patientIdentifier: '11111***-*',
+        details: patientDetails('Juan Sintético'),
+      }),
+      auditLog({
+        id: 'first-juan',
+        timestamp: '2026-10-22T13:00:00.000Z',
+        details: patientDetails('Juan Sintético', { rut: '11.111.111-1' }),
+      }),
+      auditLog({
+        id: 'second-juan',
+        timestamp: '2026-10-22T15:00:00.000Z',
+        details: patientDetails('Juan Sintético', { rut: '22.222.222-2' }),
+      }),
+      auditLog({
+        id: 'fits-none',
+        timestamp: '2026-10-22T16:00:00.000Z',
+        patientIdentifier: '33333***-*',
+        details: patientDetails('Juan Sintético'),
+      }),
+      auditLog({
+        id: 'no-document',
+        timestamp: '2026-10-22T17:00:00.000Z',
+        details: patientDetails('Juan Sintético'),
+      }),
+    ]);
+    const keyOf = (id: string) => events.find(event => event.id === id)?.patient?.key;
+
+    // Older activity stays with the first Juan, not the one with the latest document.
+    expect(keyOf('older-masked')).toBe(keyOf('first-juan'));
+    expect(keyOf('older-masked')).not.toBe(keyOf('second-juan'));
+    // Unclear owners are shown apart, under neither person.
+    expect(keyOf('fits-none')).toBe(keyOf('no-document'));
+    expect([keyOf('first-juan'), keyOf('second-juan')]).not.toContain(keyOf('fits-none'));
+  });
+
+  it('uses one display name per staff member and drops duplicate documents', () => {
+    const events = normalizeAuditTrailEvents([
+      auditLog({ id: 'a', userDisplayName: 'Daniel Opazo' }),
+      auditLog({ id: 'b', userDisplayName: 'Daniel Opazo Damiani' }),
+      auditLog({ id: 'c', userDisplayName: 'Daniel Opazo Damiani' }),
+      auditLog({ id: 'c', userDisplayName: 'Daniel Opazo Damiani' }),
+      auditLog({ id: 'd', userId: 'mobile-qr-upload', userDisplayName: undefined }),
+    ]);
+
+    expect(events).toHaveLength(4);
+    expect(new Set(events.slice(0, 3).map(event => event.actor.name))).toEqual(
+      new Set(['Daniel Opazo Damiani'])
+    );
+    expect(events.find(event => event.id === 'd')?.actor.name).toBe('Carga móvil QR');
+  });
+});

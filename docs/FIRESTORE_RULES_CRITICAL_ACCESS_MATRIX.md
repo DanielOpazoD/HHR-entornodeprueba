@@ -12,17 +12,17 @@ Este documento no reemplaza los tests de emulador. Funciona como mapa ejecutivo 
 
 ## Matriz vigente
 
-| Ruta critica                                            | Read                                | Create                                     | Update                               | Delete                               |
-| ------------------------------------------------------- | ----------------------------------- | ------------------------------------------ | ------------------------------------ | ------------------------------------ |
-| `hospitals/{hospitalId}/dailyRecords/{date}`            | `canReadClinicalData()`             | `canEdit()`                                | `canUpdatePersistedDailyRecord()`    | `isAdmin()`                          |
-| `hospitals/{hospitalId}/clinicalDocuments/{documentId}` | `canReadClinicalData()`             | `canWriteClinicalDocument()`               | `canUpdateClinicalDocument()`        | `canDeleteClinicalDocument()`        |
-| `hospitals/{hospitalId}/auditLogs/{logId}`              | `canReadAppendOnlyOperationalLog()` | `canCreateAppendOnlyOperationalLogEntry()` | `false`                              | `false`                              |
-| `hospitals/{hospitalId}/transferRequests/{transferId}`  | `canReadClinicalData()`             | `canEdit()`                                | `canEdit()`                          | `isAdmin()`                          |
-| `hospitals/{hospitalId}/backupFiles/{fileId}`           | `canReadClinicalData()`             | `canCreateEditableHospitalDocument()`      | `canAdminMaintainHospitalDocument()` | `canAdminMaintainHospitalDocument()` |
-| `hospitals/{hospitalId}/patients/{rut}`                 | `canReadClinicalData()`             | `canEdit()`                                | `canEdit()`                          | `canEdit()`                          |
-| `hospitals/{hospitalId}/reminders/{reminderId}`         | `canReadClinicalData()`             | `isAdmin()`                                | `isAdmin()`                          | `isAdmin()`                          |
-| `stats/system_health/users/{userId}`                    | `canReportSystemHealth()`           | `isValidSystemHealthWrite(userId)`         | `isValidSystemHealthWrite(userId)`   | `false`                              |
-| `config/roles`                                          | `isAdmin()`                         | `isAdmin()`                                | `isAdmin()`                          | `isAdmin()`                          |
+| Ruta critica                                            | Read                                | Create                                      | Update                                      | Delete                                      |
+| ------------------------------------------------------- | ----------------------------------- | ------------------------------------------- | ------------------------------------------- | ------------------------------------------- |
+| `hospitals/{hospitalId}/dailyRecords/{date}`            | `canReadClinicalData()`             | `canEdit()`                                 | `canUpdatePersistedDailyRecord()`           | `isAdmin()`                                 |
+| `hospitals/{hospitalId}/clinicalDocuments/{documentId}` | `canReadClinicalData()`             | `canWriteClinicalDocument()`                | `canUpdateClinicalDocument()`               | `canDeleteClinicalDocument()`               |
+| `hospitals/{hospitalId}/auditLogs/{logId}`              | `canReadAppendOnlyOperationalLog()` | `canCreateOwnAuditLogEntry()`               | `false`                                     | `false`                                     |
+| `hospitals/{hospitalId}/transferRequests/{transferId}`  | `canReadClinicalData()`             | `canEdit()`                                 | `canEdit()`                                 | `isAdmin()`                                 |
+| `hospitals/{hospitalId}/backupFiles/{fileId}`           | `canReadClinicalData()`             | `canCreateEditableHospitalDocument()`       | `canAdminMaintainHospitalDocument()`        | `canAdminMaintainHospitalDocument()`        |
+| `hospitals/{hospitalId}/patients/{rut}`                 | `canReadClinicalData()`             | `canEdit()`                                 | `canEdit()`                                 | `canEdit()`                                 |
+| `hospitals/{hospitalId}/reminders/{reminderId}`         | `canReadClinicalData()`             | `isAdmin()`                                 | `isAdmin()`                                 | `isAdmin()`                                 |
+| `stats/system_health/users/{userId}`                    | `canReportSystemHealth()`           | `isValidSystemHealthWrite(userId)`          | `isValidSystemHealthWrite(userId)`          | `false`                                     |
+| `config/roles`                                          | `isAdmin()`                         | `isAdmin() && !isIndividualAccessEnabled()` | `isAdmin() && !isIndividualAccessEnabled()` | `isAdmin() && !isIndividualAccessEnabled()` |
 
 ## Regla operacional
 
@@ -33,6 +33,13 @@ Cualquier cambio en una condicion de esta matriz debe ser deliberado y venir con
 - actualizacion de este documento si cambia la politica esperada.
 
 Cambios cosmeticos en `firestore.rules` no deben modificar esta matriz.
+
+## Autoría de la auditoría
+
+Un evento de `auditLogs` solo se crea si nombra a quien lo escribe: `userUid` igual al uid de la
+sesión y `userId` igual a su correo (o a su uid si el token no trae correo). Nadie registra un
+evento a nombre de otra persona; las funciones del servidor (Admin SDK) no pasan por estas reglas.
+Las pruebas de emulador cubren el intento con otro uid, con otro correo y sin autor.
 
 ## Integridad de documentos clínicos
 

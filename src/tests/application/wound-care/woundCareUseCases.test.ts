@@ -223,6 +223,30 @@ describe('executeUploadWoundCarePhoto', () => {
   });
 });
 
+describe('executeUploadWoundCarePhoto without a photo time', () => {
+  it('records the hospital wall clock as takenAt and the real instant as uploadedAt', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    // 04:30 UTC on Nov 1 is still 23:30 on Oct 31 at the hospital.
+    vi.setSystemTime(new Date('2026-11-01T04:30:00.000Z'));
+    try {
+      const result = await executeUploadWoundCarePhoto(
+        {
+          file: new File(['img'], 'photo.jpg', { type: 'image/jpeg' }),
+          episodeContext: mockEpisodeContext,
+          actor: mockActor,
+          hospitalId: 'hosp-1',
+        },
+        { photoPort: createMockPhotoPort(), storagePort: createMockStoragePort() }
+      );
+
+      expect(result.data?.takenAt).toBe('2026-10-31T23:30:00.000Z');
+      expect(result.data?.uploadedAt).toBe('2026-11-01T04:30:00.000Z');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe('executeListWoundCarePhotos', () => {
   it('returns photos from port', async () => {
     const mockPhoto: WoundCarePhoto = {

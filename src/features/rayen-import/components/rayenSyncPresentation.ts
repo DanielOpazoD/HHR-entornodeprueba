@@ -24,8 +24,12 @@ export const formatRayenSyncTargetDate = (value?: string | null): string => {
 export const formatRayenSyncIslandTime = (iso: string): string => {
   const value = new Date(iso);
   if (Number.isNaN(value.getTime())) return 'Hora no disponible';
-  const options = { timeZone: CLINICAL_TIME_ZONE, hour: '2-digit', minute: '2-digit' } as const;
-  return new Intl.DateTimeFormat('es-CL', { ...options, hourCycle: 'h23' }).format(value);
+  return new Intl.DateTimeFormat('es-CL', {
+    timeZone: CLINICAL_TIME_ZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(value);
 };
 
 export const formatRayenSyncDuration = (startedAt: string, completedAt?: string): string | null => {
@@ -98,8 +102,9 @@ export const rayenPrimaryActionLabel = (
 export const rayenFailureReasonLabel = (reason?: RayenSyncFailureReason): string => {
   if (reason === 'extension_incompatible') return 'Extensión incompatible';
   if (reason === 'ficha_medico_unavailable') return 'Ficha Médico no disponible';
-  if (reason === 'ficha_medico_stale') return 'Ficha Médico inactiva: recargar la pestaña';
+  if (reason === 'ficha_medico_stale') return 'Ficha Médico: lector bloqueado o desactualizado';
   if (reason === 'gestion_camas_unavailable') return 'Gestión de Camas no disponible';
+  if (reason === 'snapshot_network_error') return 'Problema de conexión al leer Eloísa';
   if (reason === 'snapshot_timeout') return 'Tiempo de espera al capturar Eloísa';
   if (reason === 'snapshot_error') return 'No se pudo leer Eloísa';
   if (reason === 'apply_unauthorized') return 'Sesión sin permisos para guardar';
@@ -157,6 +162,8 @@ const structuralIssueReasonLabel: Record<RayenSyncStructuralIssue['reason'], str
   'episode-less-report-row': 'una fila del informe de GC no identifica el episodio activo',
   'report-predates-admission': 'un egreso del informe de GC es anterior al ingreso activo',
   'crib-conflict-blocks-discharge': 'el alta no se aplicó: la cuna de la cama tiene un conflicto',
+  'admission-date-policy': 'la validación rechazó un cambio en la fecha de ingreso',
+  'structural-write-rejected': 'el guardado del censo no pudo confirmarse',
   unclassified: 'el cambio estructural no pudo aplicarse',
 };
 export const presentRayenStructuralIssue = (issue: RayenSyncStructuralIssue): string => {

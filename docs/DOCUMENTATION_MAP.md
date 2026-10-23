@@ -1,6 +1,6 @@
 # Documentation Map
 
-Última actualización: 2026-10-02
+Última actualización: 2026-10-22
 
 > Índice único del repositorio. Si un documento nuevo no aparece aquí, o queda
 > sin categoría, debe añadirse en el mismo PR que lo crea. `check:docs-drift`
@@ -44,7 +44,10 @@ Documentos que gobiernan decisiones activas y estructura actual del repo.
 - [docs/TODO_TRIAGE_PROCESS.md](TODO_TRIAGE_PROCESS.md) — playbook para mantener cero markers `TODO`/`FIXME` en código
 - [docs/QUALITY_GUARDRAILS.md](QUALITY_GUARDRAILS.md)
 - [docs/SAFE_CHANGE_CHECKLIST.md](SAFE_CHANGE_CHECKLIST.md)
+- [docs/README_AUDIT.md](README_AUDIT.md) — auditoría v2: qué se registra, conexiones por equipo y pantalla Auditoría (agrupaciones, filtros, exportación)
 - [docs/CLINICAL_MUTATION_AUDIT_POLICY.md](CLINICAL_MUTATION_AUDIT_POLICY.md) — postura de auditoría declarada por `AuditAction` (gate `check:clinical-mutation-audit-policy`)
+- [docs/SYNC_CONCURRENCY_MODEL.md](SYNC_CONCURRENCY_MODEL.md) — rutas de escritura del censo diario, enrutamiento a la autoridad, guardas y límites conocidos
+- [docs/rayen-incremental-clinical-sync.md](rayen-incremental-clinical-sync.md) — enriquecimiento clínico incremental Eloísa → HHR: checkpoint, escritor por corrida y cola por fecha
 
 #### ADRs
 
@@ -133,7 +136,7 @@ Artefactos producidos por tooling o reportes automáticos. Son útiles para cons
 
 - [Mapa arquitectónico C4](architecture/c4/README.md) — SVG generados y fuentes PlantUML; snapshot por SHA, no reemplaza la guía canónica
 - `docs/dependency-debt.md` — snapshot generado; verificar su fecha y regenerar antes de evaluar
-- `docs/api/**`
+- `docs/api/**` — no versionado: `npm run docs:generate` lo genera localmente y el CI publica el artefacto `api-documentation`
 - `reports/**/*.md`
 - `reports/**/*.json`
 
@@ -149,10 +152,11 @@ Artefactos producidos por tooling o reportes automáticos. Son útiles para cons
 
 ## Decisión sobre `docs/api`
 
-- Se mantiene versionado por ahora como referencia offline y para revisión local rápida.
-- Se considera generado y de solo consulta.
+- Es referencia generada por TypeDoc y no se versiona: la copia del repo quedó
+  desactualizada y sólo añadía 2.058 archivos (26 MB) a búsquedas y revisiones.
+- Para consultarla, ejecutar `npm run docs:generate` (escribe `docs/api/`, ignorado
+  por Git) o descargar el artefacto `api-documentation` del CI de `main`.
 - No debe editarse manualmente.
-- Si en el futuro CI publica artefactos navegables externos, este directorio es candidato a salir del repositorio.
 
 ## Decisión sobre `reports`
 

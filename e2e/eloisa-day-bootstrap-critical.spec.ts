@@ -10,7 +10,7 @@ import {
 /**
  * La creación desde Eloísa espera una comprobación remota del día.
  *
- * El botón sólo existe para el día clínico vigente, y el día clínico se resuelve en hora de
+ * El botón sólo se ofrece tras confirmar ausencia remota. El día clínico se resuelve en hora de
  * Rapa Nui aunque el dispositivo esté en hora continental (los runners fijan
  * `America/Santiago`). El spec usa el día clínico REAL calculado con la misma función que la
  * app (congelar `Date.now` deja a Firestore sin terminar la hidratación remota), con la
@@ -66,7 +66,7 @@ const openBootstrapDay = async (page: Page) => {
   await page.goto(`/censo?date=${BOOTSTRAP_DAY}`);
   await ensureAuthenticated(page);
   await expect(page.getByRole('main')).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByTestId('empty-day-diagnostic-message')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId('census-loading-state')).toBeVisible({ timeout: 30_000 });
 };
 
 test.describe('Crear desde Eloísa · estado remoto incierto', () => {
@@ -77,7 +77,21 @@ test.describe('Crear desde Eloísa · estado remoto incierto', () => {
     await openBootstrapDay(page);
     await expect(page.getByTestId('create-from-rayen-btn')).toHaveCount(0);
     await expect(page.getByTestId('census-table')).toHaveCount(0);
-    await expect(page.getByTestId('empty-day-diagnostic-message')).toContainText('Comprobando');
+    await expect(page.getByTestId('census-empty-moa')).toHaveCount(0);
+    await expect(page.getByTestId('census-loading-state')).toHaveText('Cargando');
+
+    const recovery = page.getByRole('alert').filter({
+      hasText: 'No se pudo comprobar si existe un censo para esta fecha.',
+    });
+    await expect(recovery).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByTestId('census-empty-moa')).toHaveCount(0);
+    await expect(page.getByTestId('create-from-rayen-btn')).toHaveCount(0);
+    await recovery.getByRole('button', { name: 'Reintentar' }).click();
+    await expect(recovery).toBeHidden();
+    await expect(page.getByTestId('census-loading-state')).toBeVisible();
+    await expect(recovery).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByTestId('census-empty-moa')).toHaveCount(0);
+    await expect(page.getByTestId('create-from-rayen-btn')).toHaveCount(0);
 
     await page.goto(`/censo?date=${PREVIOUS_DAY}`);
     await expect(page.getByTestId('census-table')).toBeVisible({ timeout: 30_000 });
@@ -90,5 +104,6 @@ test.describe('Crear desde Eloísa · estado remoto incierto', () => {
     await openBootstrapDay(page);
     await expect(page.getByTestId('create-from-rayen-btn')).toHaveCount(0);
     await expect(page.getByTestId('census-table')).toHaveCount(0);
+    await expect(page.getByTestId('census-empty-moa')).toHaveCount(0);
   });
 });

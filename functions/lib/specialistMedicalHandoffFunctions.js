@@ -194,7 +194,7 @@ const createSpecialistMedicalHandoffFunctions = ({
 }) => ({
   updateSpecialistMedicalHandoff: functions.https.onCall(async (data, context) => {
     const email = requireAuthenticatedEmail(context);
-    const resolvedRole = await resolveRoleForEmail(email);
+    const resolvedRole = await resolveRoleForEmail(email, context);
 
     if (resolvedRole !== 'doctor_specialist' && resolvedRole !== 'admin') {
       throw new functions.https.HttpsError(

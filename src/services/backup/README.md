@@ -7,8 +7,6 @@
 
 ## Superficie principal
 
-- `backupService.ts`
-  CRUD de respaldos historicos en Firestore.
 - `censusStorageService.ts`
   Respaldo y lookup de archivos Excel del censo en Storage.
 - `pdfStorageService.ts`

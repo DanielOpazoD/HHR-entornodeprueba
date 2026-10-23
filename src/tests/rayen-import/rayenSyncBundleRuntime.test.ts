@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import '../../../extension/clinical-day-runtime.js';
 import '../../../extension/census-sync-horizon-runtime.js';
+import '../../../extension/capture-read-recovery.js';
 import '../../../extension/rayen-sync-bundle-runtime.js';
 
 interface SyncBundleRuntime {
@@ -80,6 +81,150 @@ describe('Rayen synchronized source bundle', () => {
       },
     });
     expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('recovers one fast Ficha network failure without rereading successful discharge evidence', async () => {
+    const readSnapshot = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValueOnce({ snapshot });
+    const readReport = vi.fn().mockResolvedValue(report);
+    const readHealth = vi.fn().mockResolvedValue(readyHealth);
+    const result = await capture({ readSnapshot, readReport, readHealth });
+    expect(result).toMatchObject({ ok: true, bundle: { captureRetries: 1 } });
+    expect(readSnapshot).toHaveBeenCalledTimes(2);
+    expect(readReport).toHaveBeenCalledTimes(1);
+    expect(readHealth).toHaveBeenNthCalledWith(2, { force: true });
+    expect(readHealth).toHaveBeenNthCalledWith(3, { force: true });
+  });
+
+  it('retries only the failed report with the original historical interval, at most once', async () => {
+    const readSnapshot = vi.fn().mockResolvedValue({ snapshot });
+    const readReport = vi
+      .fn()
+      .mockResolvedValue({ error: 'Falló la descarga del reporte: Failed to fetch' });
+    const result = await capture({ dateStart: '2026-07-17', readSnapshot, readReport });
+    expect(result).toMatchObject({
+      error: expect.stringContaining('Failed to fetch'),
+      captureRetries: 1,
+    });
+    expect(readSnapshot).toHaveBeenCalledTimes(1);
+    expect(readReport.mock.calls).toEqual([
+      [{ dateStart: '2026-07-17', dateEnd: '2026-07-25' }],
+      [{ dateStart: '2026-07-17', dateEnd: '2026-07-25' }],
+    ]);
+  });
+
+  it.each([
+    'HTTP 403 Failed to fetch',
+    'La sesión venció: Failed to fetch',
+    'AbortError',
+    'Tiempo de espera agotado',
+    'Censo inválido',
+  ])('does not retry permanent or exhausted failures: %s', async error => {
+    const readSnapshot = vi.fn().mockResolvedValue({ error });
+    expect(await capture({ readSnapshot })).toHaveProperty('error', error);
+    expect(readSnapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not retry a fast failure when another source has a permanent failure', async () => {
+    const readSnapshot = vi.fn().mockResolvedValue({ error: 'Failed to fetch' });
+    const readReport = vi.fn().mockResolvedValue({ error: 'HTTP 403' });
+    await capture({ readSnapshot, readReport });
+    expect(readSnapshot).toHaveBeenCalledTimes(1);
+    expect(readReport).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not start recovery after the fast-failure budget or when health has expired', async () => {
+    let clock = 0;
+    const readSnapshot = vi.fn().mockImplementation(async () => {
+      clock = 10_001;
+      return { error: 'Failed to fetch' };
+    });
+    await capture({ readSnapshot, monotonicNow: () => clock });
+    expect(readSnapshot).toHaveBeenCalledTimes(1);
+    readSnapshot.mockReset().mockResolvedValue({ error: 'Failed to fetch' });
+    const readHealth = vi
+      .fn()
+      .mockResolvedValueOnce(readyHealth)
+      .mockResolvedValueOnce({
+        ...readyHealth,
+        fichaMedico: { status: 'stale', message: 'Sesión vencida' },
+      });
+    await capture({ readSnapshot, readHealth });
+    expect(readSnapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it('cancellation during the health recheck prevents a retry and drops the capture', async () => {
+    let cancelled = false;
+    const readSnapshot = vi.fn().mockResolvedValue({ error: 'Failed to fetch' });
+    const readHealth = vi
+      .fn()
+      .mockResolvedValueOnce(readyHealth)
+      .mockImplementationOnce(async () => {
+        cancelled = true;
+        return readyHealth;
+      });
+    expect(
+      await capture({ readSnapshot, readHealth, isCancelled: () => cancelled })
+    ).toHaveProperty('cancelled', true);
+    expect(readSnapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(
+    ['initial', 'recovery', 'final'].flatMap(stage =>
+      ['ready', 'unhealthy', 'rejected'].map(settlement => ({ stage, settlement }))
+    )
+  )(
+    'cancellation wins at $stage health with a $settlement result',
+    async ({ stage, settlement }) => {
+      let cancelled = false;
+      let calls = 0;
+      const readHealth = vi.fn(async () => {
+        if (++calls === (stage === 'initial' ? 1 : 2)) {
+          cancelled = true;
+          if (settlement === 'rejected') throw new Error('Failed to fetch');
+          if (settlement === 'unhealthy')
+            return { ...readyHealth, fichaMedico: { status: 'stale', message: 'Sesión vencida' } };
+        }
+        return readyHealth;
+      });
+      const readSnapshot = vi
+        .fn()
+        .mockResolvedValue(stage === 'recovery' ? { error: 'Failed to fetch' } : { snapshot });
+      expect(
+        await capture({ readHealth, readSnapshot, isCancelled: () => cancelled })
+      ).toHaveProperty('cancelled', true);
+      expect(readSnapshot).toHaveBeenCalledTimes(stage === 'initial' ? 0 : 1);
+    }
+  );
+
+  it('drops a recovered read when the caller cancels during the retry', async () => {
+    let cancelled = false;
+    const readSnapshot = vi
+      .fn()
+      .mockResolvedValueOnce({ error: 'Failed to fetch' })
+      .mockImplementationOnce(async () => {
+        cancelled = true;
+        return { snapshot };
+      });
+    expect(await capture({ readSnapshot, isCancelled: () => cancelled })).toHaveProperty(
+      'cancelled',
+      true
+    );
+  });
+
+  it('retains the same-facility and source-skew guards after recovery', async () => {
+    for (const changed of [
+      { ...snapshot, facilityId: 999 },
+      { ...snapshot, capturedAt: '2026-07-24T10:05:00.000Z' },
+    ]) {
+      const readSnapshot = vi
+        .fn()
+        .mockResolvedValueOnce({ error: 'Failed to fetch' })
+        .mockResolvedValueOnce({ snapshot: changed });
+      expect(await capture({ readSnapshot })).toHaveProperty('error');
+    }
   });
 
   it('moves only valid aggregate Ficha timings to the bundle, leaving the clinical snapshot clean', async () => {

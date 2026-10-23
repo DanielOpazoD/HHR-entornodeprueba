@@ -8,22 +8,16 @@ import {
   SESSION_GENERATION_KEY,
   setSessionGeneration,
 } from './sessionStorageTransition';
+import { getStoredSessionOwnerKey, SESSION_OWNER_KEY } from './sessionOwnerKey';
 
-const SESSION_OWNER_KEY = 'hhr_session_owner_v1';
+export { getStoredSessionOwnerKey };
+
 const CLEANUP_PENDING_KEY = 'hhr_session_cleanup_pending_v1';
 let failedCleanupGeneration: string | null | undefined;
 let pendingLocalAuthClosure: (() => Promise<void>) | undefined;
 
 export const resolveSessionOwnerKey = (uid: string | null | undefined): string | null =>
   uid ? `user:${uid}` : null;
-
-export const getStoredSessionOwnerKey = (): string | null => {
-  if (typeof localStorage === 'undefined') {
-    return null;
-  }
-
-  return localStorage.getItem(SESSION_OWNER_KEY);
-};
 
 const setStoredSessionOwnerKey = (ownerKey: string | null): void => {
   if (typeof localStorage === 'undefined') {
@@ -58,7 +52,20 @@ const KEYS_SURVIVING_LOGOUT = new Set([
   'hhr_storage_persistent_fallback_count_v1',
   'hhr_feature_flags',
   'hhr_chunk_reload_count',
+  // Audit trail: staff connection record (no patient data) and each device's view preferences.
+  'hhr_audit_connection_v1',
+  'hhr_audit_trail_view_v1',
 ]);
+
+/**
+ * Key families that survive logout. Undelivered audit connection events (one key each, see
+ * auditConnectionOutbox) must outlive the session that recorded them.
+ */
+const KEY_PREFIXES_SURVIVING_LOGOUT = ['hhr_audit_connection_outbox_v1:'];
+
+const survivesLogout = (key: string): boolean =>
+  KEYS_SURVIVING_LOGOUT.has(key) ||
+  KEY_PREFIXES_SURVIVING_LOGOUT.some(prefix => key.startsWith(prefix));
 
 /** sessionStorage keys that must survive logout (bootstrap coordination). */
 const SESSION_KEYS_SURVIVING_LOGOUT = new Set([
@@ -72,7 +79,7 @@ const clearUserScopedLocalStorage = (): void => {
   const keysToRemove: string[] = [];
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
-    if (key && key.startsWith('hhr_') && !KEYS_SURVIVING_LOGOUT.has(key)) {
+    if (key && key.startsWith('hhr_') && !survivesLogout(key)) {
       keysToRemove.push(key);
     }
   }
@@ -94,7 +101,14 @@ const clearUserScopedSessionStorage = (): void => {
 const clearSensitiveSessionState = async (ownerKey: string | null): Promise<void> => {
   const results = await Promise.allSettled([
     Promise.resolve().then(() => clearAllRecords({ throwOnError: true })),
-    Promise.resolve().then(() => clearSyncQueueForOwner(ownerKey, true)),
+    Promise.resolve().then(async () => {
+      if (ownerKey?.startsWith('user:hhrn_')) {
+        const { preserveNursingSessionQueue } = await import('./nursingSessionQueue');
+        await preserveNursingSessionQueue(ownerKey);
+      } else {
+        await clearSyncQueueForOwner(ownerKey, true);
+      }
+    }),
     Promise.resolve().then(clearUserScopedLocalStorage),
     Promise.resolve().then(clearUserScopedSessionStorage),
   ]);

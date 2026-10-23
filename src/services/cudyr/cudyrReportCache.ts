@@ -6,6 +6,11 @@ type CachedReport = CudyrReportDataset & {
   indicatorSyncAt?: string;
 };
 
+/** Older payloads had no separate read flag: retain their conservative issue handling. */
+export const cudyrReportReadIncomplete = (report: CudyrReportDataset) =>
+  (report.readIncomplete ?? Boolean(report.issues.length)) ||
+  report.coverage.some(day => day.state === 'error');
+
 const STORAGE_KEY = 'hhr_cudyr_report_cache_v11';
 const caches = new WeakMap<object, { scope: string; reports: Map<string, CachedReport> }>();
 const key = (from: string, to: string) => `${from}:${to}`;
@@ -68,8 +73,12 @@ export const cudyrReportCache = (owner: object, scope: string, persist: boolean)
   return {
     get(from: string, to: string): CachedReport | undefined {
       const report =
-        reports.get(key(from, to)) ||
-        [...reports.values()].find(r => r.from === from && r.to >= to && r.issues.length === 0);
+        [...reports.values()]
+          .filter(r => r.from === from && r.to >= to && !cudyrReportReadIncomplete(r))
+          .sort(
+            (a, b) =>
+              Date.parse(b.loadedAt || b.generatedAt) - Date.parse(a.loadedAt || a.generatedAt)
+          )[0] || reports.get(key(from, to));
       if (!report) return undefined;
       const rows = report.rows.filter(row => row.date >= from && row.date <= to);
       const episodes = new Set(rows.map(row => row.clinicalEpisodeId));
@@ -90,7 +99,7 @@ export const cudyrReportCache = (owner: object, scope: string, persist: boolean)
       };
     },
     put(report: CudyrReportDataset & { readStartedAt?: string; indicatorSyncAt?: string }) {
-      if (report.issues.length || report.coverage.some(day => day.state === 'error')) return;
+      if (report.readViewSnapshot || cudyrReportReadIncomplete(report)) return;
       // A derived official prefix must not evict its reusable full-month projection.
       const full =
         report.officialSnapshot &&

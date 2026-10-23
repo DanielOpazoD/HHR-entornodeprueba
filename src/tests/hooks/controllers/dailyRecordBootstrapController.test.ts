@@ -1,11 +1,13 @@
+import {
+  resolveCensusEmptyStateDiagnostic,
+  shouldRecordCensusEmptyStateDiagnostic,
+} from '@/features/census/controllers/censusEmptyStateDiagnostic';
 import { describe, expect, it } from 'vitest';
 import {
   describeDailyRecordBootstrapPhase,
   isDailyRecordBootstrapPending,
-  resolveCensusEmptyStateDiagnostic,
   resolveCensusEmptyStatePolicy,
   resolveDailyRecordBootstrapPhase,
-  shouldRecordCensusEmptyStateDiagnostic,
   shouldAttemptTodayEmptyRecovery,
 } from '@/hooks/controllers/dailyRecordBootstrapController';
 
@@ -49,7 +51,7 @@ describe('dailyRecordBootstrapController', () => {
           sourceOfTruth: 'none',
           retryability: 'not_applicable',
           recoveryAction: 'none',
-          conflictSummary: null,
+          conflictSummary: { kind: 'remote_missing', sourceOfTruth: 'none' },
           observabilityTags: ['daily_record'],
           repairApplied: false,
         },
@@ -131,6 +133,13 @@ describe('dailyRecordBootstrapController', () => {
         bootstrapPhase: 'remote_record_timeout',
       })
     ).toBe(true);
+    expect(
+      shouldAttemptTodayEmptyRecovery({
+        currentDateString: '2025-01-01',
+        todayDateString: '2025-01-01',
+        bootstrapPhase: 'remote_record_bootstrapping',
+      })
+    ).toBe(false);
     expect(describeDailyRecordBootstrapPhase('remote_record_timeout')).toContain(
       'ventana de gracia'
     );
@@ -162,8 +171,8 @@ describe('dailyRecordBootstrapController', () => {
         bootstrapPhase: 'remote_record_timeout',
       })
     ).toMatchObject({
-      source: 'sync_pending',
-      message: expect.stringContaining('Todavia se esta verificando'),
+      source: 'local_cache_empty',
+      message: expect.stringContaining('No se pudo comprobar'),
     });
 
     expect(
@@ -228,4 +237,31 @@ describe('dailyRecordBootstrapController', () => {
       })
     ).toBe(true);
   });
+});
+
+it('reports a failed remote read rather than pending even without a runtime result', () => {
+  expect(
+    resolveDailyRecordBootstrapPhase({
+      remoteSyncStatus: 'ready',
+      record: null,
+      runtime: null,
+      gracePeriodExpired: false,
+      isError: true,
+    })
+  ).toBe('remote_record_timeout');
+});
+it('does not let a stale post-deploy marker hide confirmed absence or a read error', () => {
+  const input = {
+    branch: 'empty' as const,
+    currentDateString: '2026-10-19',
+    todayDateString: '2026-10-19',
+    isAuthenticated: true,
+    hasPostDeployRefreshMarker: true,
+  };
+  expect(
+    resolveCensusEmptyStateDiagnostic({ ...input, bootstrapPhase: 'confirmed_empty' }).source
+  ).toBe('remote_missing');
+  expect(
+    resolveCensusEmptyStateDiagnostic({ ...input, bootstrapPhase: 'remote_record_timeout' }).source
+  ).toBe('local_cache_empty');
 });

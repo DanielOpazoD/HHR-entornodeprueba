@@ -5,6 +5,15 @@ const read = (path: string) => fs.readFileSync(path, 'utf8');
 const rowDir = 'src/features/census/components/patient-row';
 
 describe('census startup payload', () => {
+  it('keeps census diagnostic presentation outside the shared bootstrap policy module', () => {
+    const bootstrap = read('src/hooks/controllers/dailyRecordBootstrapController.ts');
+    expect(bootstrap).not.toContain('censusEmptyStateDiagnostic');
+    expect(bootstrap).not.toContain('resolveCensusEmptyStateDiagnostic');
+    expect(read('src/features/census/hooks/useCensusViewScreenModel.ts')).toContain(
+      "from '@/features/census/controllers/censusEmptyStateDiagnostic'"
+    );
+  });
+
   it('keeps the CIE-10 catalogue out of the table cell that every row renders', () => {
     const cell = read(`${rowDir}/DiagnosisInput.tsx`);
     expect(cell).not.toContain('@/services/terminology/terminologyService');

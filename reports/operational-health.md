@@ -1,7 +1,7 @@
 # Operational Health Snapshot
 
-- Generated: 2026-07-05T06:20:04.606Z
-- Git SHA: 126d4b82
+- Generated: 2026-10-21T01:51:11.193Z
+- Git SHA: be28603dd
 - Schema current: v1
 - Schema legacy: v0
 
@@ -89,18 +89,18 @@
 
 - Status: ok
 - Preview gate: ok
-- Preview tests: 3
+- Preview tests: 60
 - Preview unexpected: 0
 - Preview flaky: 0
 - Preview skipped: 0
-- Preview duration (ms): 7994.147
+- Preview duration (ms): 718224.507
 - Bootstrap signals: `bootstrap_recovery_reload`, `bootstrap_chunk_load_failed`, `bootstrap_runtime_failed`, `bootstrap_window_error`, `bootstrap_unhandled_rejection`
 - Startup issues: none
 
 | Critical startup asset | Size (bytes) | Max (bytes) | Utilization | Budget | Status |
 | --- | ---: | ---: | ---: | --- | --- |
-| `dist/assets/index-zjqg-fR6.js` | 19469 | 700000 | - | - | ok |
-| `dist/assets/app-authenticated-shell-BM1LNf9O.js` | 537942 | 600000 | 89.7% | app-authenticated-shell | near-limit |
+| `dist/assets/index-2SU_gsUT.js` | 24392 | 700000 | - | - | ok |
+| `dist/assets/app-authenticated-shell-BixI3TdI.js` | 629387 | 631000 | 99.7% | app-authenticated-shell | near-limit |
 
 ## Incident Signals To Watch
 
@@ -120,12 +120,13 @@
 
 | Flow | Actual (ms) | Target (ms) | Enforced (ms) | Status |
 | --- | ---: | ---: | ---: | --- |
-| `loginVisibleMs` | 164.6 | 4000 | 4000 | ok |
-| `authFeedbackMs` | 110.6 | 2500 | 2500 | ok |
-| `censoVisibleMs` | 1280.3 | 1500 | 2000 | ok |
-| `censoRecordReadyMs` | 51.7 | 2500 | 5000 | ok |
-| `clinicalDocumentsVisibleMs` | 388.7 | 4500 | 6000 | ok |
-| `backupFilesVisibleMs` | 478.1 | 4500 | 4500 | ok |
+| `loginVisibleMs` | 374.9 | 4000 | 4000 | ok |
+| `authFeedbackMs` | 234.7 | 2500 | 2500 | ok |
+| `censoVisibleMs` | 879.4 | 1500 | 2000 | ok |
+| `censoRecordReadyMs` | 55.3 | 2500 | 5000 | ok |
+| `clinicalDocumentsVisibleMs` | 420.2 | 4500 | 6000 | ok |
+| `backupFilesVisibleMs` | 630.8 | 4500 | 4500 | ok |
+| `logoutToLoginVisibleMs` | 37.7 | 1500 | 2500 | ok |
 
 ## Critical Coverage
 
@@ -134,21 +135,22 @@
 
 | Zone | Lines | Functions | Branches | Status |
 | --- | ---: | ---: | ---: | --- |
-| `src/features/census/controllers` | 96.1 | 99.1 | 87.9 | PASS |
-| `src/features/clinical-documents` | 85.8 | 84.8 | 74.5 | PASS |
-| `src/services/transfers` | 85.5 | 84 | 74.9 | PASS |
-| `src/services/storage/firestore` | 89.7 | 94.5 | 81.8 | PASS |
-| `src/services/auth` | 84.9 | 86.3 | 71.1 | PASS |
-| `src/services/auth/bootstrap` | 91.9 | 100 | 81.7 | PASS |
-| `src/services/backup` | 81.1 | 82 | 64.9 | PASS |
+| `src/features/census/controllers` | 91.8 | 95 | 79 | PASS |
+| `src/features/clinical-documents` | 86.1 | 85 | 74.6 | PASS |
+| `src/services/transfers` | 89.4 | 89.3 | 75.7 | PASS |
+| `src/services/storage/firestore` | 89.8 | 92.5 | 86.6 | PASS |
+| `src/services/auth` | 82 | 81.6 | 68.9 | PASS |
+| `src/services/auth/bootstrap` | 92.2 | 100 | 77.8 | PASS |
+| `src/services/backup` | 82.2 | 83.9 | 67.3 | PASS |
 | `src/features/reminders/admin` | 98.3 | 97.6 | 91.2 | PASS |
-| `src/app-shell` | 92.6 | 93.3 | 81.3 | PASS |
-| `src/services/patient-history` | 96 | 100 | 78.4 | PASS |
-| `src/services/export-manager` | 96 | 96.6 | 92.5 | PASS |
-| `src/shared/census/upc-critical` | 98.3 | 97.9 | 84.7 | PASS |
+| `src/app-shell` | 78.2 | 81.3 | 66 | PASS |
+| `src/services/patient-history` | 87.6 | 85.7 | 75.9 | PASS |
+| `src/services/export-manager` | 99.4 | 97.8 | 98 | PASS |
+| `src/shared/census/upc-critical` | 71.4 | 53.2 | 67.7 | PASS |
 | `src/services/storage/sync-critical` | 99 | 96.3 | 100 | PASS |
 | `src/services/storage/indexeddb-recovery` | 100 | 100 | 86.7 | PASS |
-| `src/features/handoff` | 85.6 | 78.2 | 79.3 | PASS |
+| `src/features/rayen-import/discharge-replan-critical` | 91.4 | 92.9 | 86.9 | PASS |
+| `src/features/handoff` | 83.7 | 78.3 | 75.5 | PASS |
 
 ## Largest Build Assets
 
@@ -156,23 +158,24 @@
 
 | Asset | Size (bytes) | Max (bytes) | Utilization | Budget | Status |
 | --- | ---: | ---: | ---: | --- | --- |
-| `dist/assets/vendor-heic2any-ClJ2fQYX.js` | 1352091 | 1450000 | 93.2% | vendor-heic2any | near-limit |
-| `dist/assets/app-authenticated-shell-BM1LNf9O.js` | 537942 | 600000 | 89.7% | app-authenticated-shell | near-limit |
-| `dist/assets/vendor-pdfjs-C4G2Lk1-.js` | 465976 | 520000 | 89.6% | vendor-pdfjs | near-limit |
-| `dist/assets/vendor-firebase-firestore-CSGvoZjH.js` | 393147 | 500000 | 78.6% | vendor-firebase-firestore | ok |
-| `dist/assets/vendor-pdf-lib-BrVFzLGn.js` | 390824 | 430000 | 90.9% | vendor-pdf | near-limit |
-| `dist/assets/vendor-pdf-core-U3n4h3fn.js` | 364662 | 430000 | 84.8% | vendor-pdf | ok |
-| `dist/assets/documentFallbacks-BpNioYEc.js` | 344643 | 1250000 | 27.6% | chunkMaxBytes | ok |
-| `dist/assets/LineChart-tAm3U9fu.js` | 331288 | 1250000 | 26.5% | chunkMaxBytes | ok |
+| `dist/assets/vendor-heic2any-BjDsP1gW.js` | 1352091 | 1450000 | 93.2% | vendor-heic2any | near-limit |
+| `dist/assets/vendor-dicom-vtk-CVp3UI09.js` | 1078816 | 1250000 | 86.3% | chunkMaxBytes | near-limit |
+| `dist/assets/app-authenticated-shell-BixI3TdI.js` | 629387 | 631000 | 99.7% | app-authenticated-shell | near-limit |
+| `dist/assets/vendor-pdfjs-BGyLORnz.js` | 460525 | 520000 | 88.6% | vendor-pdfjs | near-limit |
+| `dist/assets/vendor-firebase-firestore-Bjg3nDcb.js` | 397577 | 500000 | 79.5% | vendor-firebase-firestore | ok |
+| `dist/assets/vendor-pdf-lib-DewrExaK.js` | 390824 | 430000 | 90.9% | vendor-pdf | near-limit |
+| `dist/assets/vendor-pdf-core-CZkusByf.js` | 364662 | 430000 | 84.8% | vendor-pdf | ok |
+| `dist/assets/cudyrSupplement.worker-33MR3KSE.js` | 364090 | 1250000 | 29.1% | chunkMaxBytes | ok |
 
 ## Repository Performance Thresholds
 
-- Monitored operations: 7
+- Monitored operations: 8
 - Min threshold (ms): 120
 - Max threshold (ms): 400
 
 | File | Threshold (ms) | Context |
 | --- | ---: | --- |
+| `src/services/repositories/dailyRecordRepositoryReadService.ts` | 220 | - |
 | `src/services/repositories/dailyRecordRepositoryReadService.ts` | 120 | - |
 | `src/services/repositories/dailyRecordRepositoryInitializationService.ts` | 180 | - |
 | `src/services/repositories/dailyRecordRepositorySyncService.ts` | 200 | - |

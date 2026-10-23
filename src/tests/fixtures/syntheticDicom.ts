@@ -18,7 +18,15 @@ export const syntheticDicom = (
     padding?: boolean;
     functionalGroupMapping?: boolean;
   },
-  plane?: { imageType?: string; orientation?: number[]; modality?: string; sopClass?: string }
+  plane?: {
+    imageType?: string;
+    orientation?: number[];
+    modality?: string;
+    sopClass?: string;
+    seriesUid?: string;
+    studyUid?: string;
+  },
+  calibration?: { slope?: string; intercept?: string; unit?: string; pixelValue?: number }
 ): Uint8Array => {
   const rows = matrix?.rows ?? 64;
   const columns = matrix?.columns ?? 64;
@@ -64,8 +72,8 @@ export const syntheticDicom = (
   element('00100010', 'PN', 'PACIENTE^SINTETICO');
   element('00100020', 'LO', patientId);
   element('00180050', 'DS', '2');
-  element('0020000d', 'UI', SYNTHETIC_STUDY_UID);
-  element('0020000e', 'UI', SYNTHETIC_SERIES_UID);
+  element('0020000d', 'UI', plane?.studyUid ?? SYNTHETIC_STUDY_UID);
+  element('0020000e', 'UI', plane?.seriesUid ?? SYNTHETIC_SERIES_UID);
   element('00200013', 'IS', String(slice + 1));
   element('00200032', 'DS', `${position[0]}\\${position[1]}\\${slice * 2}`);
   element('00200037', 'DS', (plane?.orientation ?? [1, 0, 0, 0, 1, 0]).join('\\'));
@@ -83,8 +91,9 @@ export const syntheticDicom = (
   if (matrix?.padding) element('00280120', 'SS', -2000);
   element('00281050', 'DS', '40');
   element('00281051', 'DS', '400');
-  element('00281052', 'DS', jpeg2000 || matrix ? '-1024' : '0');
-  element('00281053', 'DS', matrix ? '2' : '1');
+  element('00281052', 'DS', calibration?.intercept ?? (jpeg2000 || matrix ? '-1024' : '0'));
+  element('00281053', 'DS', calibration?.slope ?? (matrix ? '2' : '1'));
+  element('00281054', 'LO', calibration?.unit ?? 'HU');
   if (matrix?.functionalGroupMapping) {
     const sequence = (tag: string, body: () => void) => {
       const start = parts.length;
@@ -124,7 +133,11 @@ export const syntheticDicom = (
         ((position[1] + y * spacing[0] - 32) / 20) ** 2 +
         ((slice - count / 2) / (count / 2)) ** 2;
       const value = distance < 0.2 ? 950 : distance < 1 ? 60 : -1000;
-      pixelView.setInt16((y * columns + x) * 2, matrix ? (value + 1024) / 2 : value, true);
+      pixelView.setInt16(
+        (y * columns + x) * 2,
+        calibration?.pixelValue ?? (matrix ? (value + 1024) / 2 : value),
+        true
+      );
     }
   if (jpeg2000) {
     const header = new Uint8Array(12);

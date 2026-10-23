@@ -4,6 +4,7 @@ import {
   PatientData,
   Specialty,
 } from '@/domain/handoff/patientContracts';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 const MEDICAL_SPECIALTY_OPTIONS = Object.values(Specialty).filter(Boolean) as string[];
 
@@ -26,6 +27,7 @@ const hasMeaningfulEntry = (entry: MedicalHandoffEntry): boolean =>
 export const formatMedicalHandoffTimestamp = (value?: string): string => {
   if (!value) return '';
   return new Date(value).toLocaleString('es-CL', {
+    timeZone: CLINICAL_TIME_ZONE,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',

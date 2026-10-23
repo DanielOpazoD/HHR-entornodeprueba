@@ -13,6 +13,7 @@ import {
   createReport,
   validateRun,
 } from '../scripts/census-startup-performance-report.mjs';
+import { CLINICAL_TIME_ZONE } from '../src/utils/clinicalTimeZone';
 
 const origin = 'http://127.0.0.1:4318';
 const date = '2026-02-20';
@@ -231,7 +232,7 @@ test(`census startup ${smoke ? '@smoke NOT_VALID_BASELINE' : '@measurement'} (${
   const options = {
     baseURL: origin,
     viewport: { width: 1280, height: 720 },
-    timezoneId: 'Pacific/Easter',
+    timezoneId: CLINICAL_TIME_ZONE,
     locale: 'es-CL',
     serviceWorkers: 'block' as const,
   };

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildDischargeDiagnosisChangeAuditDetails } from '@/services/admin/auditClinicalEventCatalog';
-import { buildClinicalAuditPresentation } from '@/services/admin/clinicalAuditPresentation';
+import { normalizeAuditTrailEvent } from '@/services/admin/auditTrail/auditTrailNormalize';
 import type { AuditLogEntry } from '@/types/auditLogTypes';
 
 describe('clinical discharge diagnosis audit', () => {
@@ -28,7 +28,7 @@ describe('clinical discharge diagnosis audit', () => {
     });
   });
 
-  it('presents diagnosis changes in clinical language instead of raw action names', () => {
+  it('shows the discharge diagnosis change as before and after in the audit trail', () => {
     const log: AuditLogEntry = {
       id: 'audit-1',
       userId: 'doctor@example.com',
@@ -47,19 +47,12 @@ describe('clinical discharge diagnosis audit', () => {
       timestamp: '2026-05-29T12:00:00.000Z',
     };
 
-    expect(buildClinicalAuditPresentation(log)).toMatchObject({
-      title: 'Diagnóstico de egreso actualizado',
-      narrative: 'Se actualizó el diagnóstico de egreso de Paciente Uno en Alta.',
-      affectedSubject: 'Paciente Uno',
-      impact: 'modificacion',
-      clinicalArea: 'censo',
-      importantChanges: [
-        {
-          fieldLabel: 'Diagnóstico',
-          oldValue: 'Neumonia',
-          newValue: 'Neumonia resuelta',
-        },
-      ],
+    expect(normalizeAuditTrailEvent(log)).toMatchObject({
+      category: 'change',
+      label: 'Diagnóstico de egreso',
+      detail: 'Alta',
+      patient: { name: 'Paciente Uno', document: '11.111.111-1' },
+      changes: [{ field: 'Diagnóstico', before: 'Neumonia', after: 'Neumonia resuelta' }],
     });
   });
 });

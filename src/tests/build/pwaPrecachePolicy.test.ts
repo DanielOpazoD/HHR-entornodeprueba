@@ -55,7 +55,9 @@ describe('PWA precache policy', () => {
       'src/features/clinical-library/components/tools/MedifTool.tsx',
       'utf8'
     );
-    expect(drawer).toContain("import { loadMedifTool, TOOL_REGISTRY } from './toolRegistry'");
+    expect(drawer).toContain(
+      "import { loadMedifTool, loadPharmacyTool, TOOL_REGISTRY } from './toolRegistry'"
+    );
     expect(drawer).toContain(
       'loadMedifTool().then(module => ({ default: module.LibraryExitConfirmation }))'
     );
@@ -63,6 +65,36 @@ describe('PWA precache policy', () => {
     expect(drawer).not.toContain("from './LibraryExitConfirmation'");
     expect(drawer).not.toContain("import('./LibraryExitConfirmation')");
     expect(medif).toContain("export { LibraryExitConfirmation } from '../LibraryExitConfirmation'");
+  });
+
+  it('loads both pharmacy acts and their exit guard from the same deferred editor', () => {
+    const registry = fs.readFileSync(
+      'src/features/clinical-library/components/toolRegistry.tsx',
+      'utf8'
+    );
+    const drawer = fs.readFileSync(
+      'src/features/clinical-library/components/ClinicalLibraryDrawer.tsx',
+      'utf8'
+    );
+    const editor = fs.readFileSync(
+      'src/features/clinical-library/components/tools/pharmacy/PharmacyActTool.tsx',
+      'utf8'
+    );
+    expect(registry).toContain(
+      "export const loadPharmacyTool = () => import('./tools/pharmacy/PharmacyActTool')"
+    );
+    for (const tool of ['PharmacyReturnTool', 'PharmacyDisposalTool']) {
+      expect(registry).toContain(`const ${tool} = React.lazy(`);
+      expect(registry).toContain(
+        `loadPharmacyTool().then(module => ({ default: module.${tool} }))`
+      );
+    }
+    expect(registry).not.toMatch(/import\s+\{[^}]*Pharmacy(?:Return|Disposal)Tool[^}]*\}\s+from/);
+    expect(drawer).toContain(
+      'loadPharmacyTool().then(module => ({ default: module.PharmacyExitConfirmation }))'
+    );
+    expect(drawer).not.toContain("import('./tools/pharmacy/PharmacyActTool')");
+    expect(editor).toContain('export const PharmacyExitConfirmation:');
   });
 
   it('keeps the opt-in decorative companion out of install-time precache accounting', () => {

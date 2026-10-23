@@ -61,7 +61,7 @@ export const resolveUndoPatientMovement = ({
       updatedBed: {
         ...empty,
         ...originalData,
-        location: bedData.location,
+        location: originalData.location ?? bedData.location,
       },
     });
   }

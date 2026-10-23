@@ -26,8 +26,9 @@ import {
 } from './fixtures/auth';
 import { expectClinicalDiagnosis, updateClinicalDiagnosis } from './fixtures/clinicalBlockEditor';
 import { waitForPersistedBedFields } from './fixtures/censusPersistence';
+import { getTodayISO } from '../src/utils/dateCoreUtils';
 
-const getTodayDate = () => new Date().toISOString().slice(0, 10);
+const getTodayDate = () => getTodayISO();
 
 const SMOKE_BED = 'R1';
 const ORIGINAL_DIAGNOSIS = 'Smoke DX inicial';

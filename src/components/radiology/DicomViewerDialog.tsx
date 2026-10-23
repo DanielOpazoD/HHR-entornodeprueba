@@ -4,10 +4,16 @@ import { BaseModal } from '@/components/shared/BaseModal';
 import { LAYER_Z_INDEX } from '@/shared/ui/layering';
 import type { DicomCapture } from '@/services/radiology/dicomTypes';
 
+import type { DicomReviewCache } from '@/services/radiology/dicomReviewCache';
+
 const Viewer = lazy(() => import('./DicomViewer'));
 export interface DicomViewerDialogProps {
+  reviewCache?: DicomReviewCache;
   link: string;
   patientId: string;
+  patientName?: string;
+  studyDate?: string;
+  reportLink?: string | null;
   title: string;
   onClose: () => void;
   onCapture?: (capture: DicomCapture) => void;
@@ -21,8 +27,8 @@ export const DicomViewerDialog: React.FC<DicomViewerDialogProps> = props => (
     onClose={props.onClose}
     title={`Visor DICOM · ${props.title}`}
     size="3xl"
-    className="!w-[96vw] !max-w-[1480px]"
-    bodyClassName="!max-h-[85vh] !p-0"
+    className="dicom-dialog !w-[98vw] !max-w-none"
+    bodyClassName="dicom-dialog-body !max-h-none !p-0"
   >
     <ErrorBoundary
       fallbackRender={({ resetErrorBoundary }) => (

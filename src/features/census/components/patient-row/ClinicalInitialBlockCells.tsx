@@ -275,7 +275,7 @@ export const ClinicalInitialBlockCells: React.FC<ClinicalInitialBlockCellsProps>
     <td className="census-diagnosis-cell py-0.5 px-1 border-r border-slate-200 min-w-[160px]">
       <div className="relative">
         <ClinicalInitialBlockCellButton
-          key={buildPatientRowSaveScopeKey(currentDateString, data)}
+          key={`diagnosis:${buildPatientRowSaveScopeKey(currentDateString, data)}`}
           currentDateString={currentDateString}
           data={data}
           label="diagnóstico"
@@ -299,7 +299,7 @@ export const ClinicalInitialBlockCells: React.FC<ClinicalInitialBlockCellsProps>
         />
         {isGinecobstetricia && (
           <GinecobstetriciaSubtypeControl
-            key={buildPatientRowSaveScopeKey(currentDateString, data)}
+            key={`obstetric-subtype:${buildPatientRowSaveScopeKey(currentDateString, data)}`}
             currentDateString={currentDateString}
             data={data}
             disabled={readOnly}

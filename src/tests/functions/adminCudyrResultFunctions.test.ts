@@ -143,7 +143,11 @@ describe('setAdminCudyrResult', () => {
     });
     expect(set).toHaveBeenCalledWith(
       auditRef,
-      expect.objectContaining({ action: 'CUDYR_MODIFIED', userId: 'admin@example.com' })
+      expect.objectContaining({
+        action: 'CUDYR_MODIFIED',
+        userId: 'admin@example.com',
+        timestamp: '2026-08-27T00:00:20.000Z',
+      })
     );
   });
 

@@ -1,12 +1,7 @@
 import { generateCensusPassword } from '../../src/services/security/passwordGenerator';
-import XlsxPopulate from 'xlsx-populate';
 import { sendCensusEmail } from '../../src/services/email/gmailClient';
 import { getFirebaseServer } from './lib/firebase-server';
 import { CENSUS_DEFAULT_RECIPIENTS } from '../../src/constants/email';
-import {
-  buildCensusMasterBuffer,
-  getCensusMasterFilename,
-} from '../../src/services/exporters/censusMasterWorkbook';
 import {
   validateExcelBuffer,
   validateExcelFilename,
@@ -139,6 +134,8 @@ export const handler = async (event: NetlifyEventLike) => {
       });
     }
 
+    const { buildCensusMasterBuffer, getCensusMasterFilename } =
+      await import('../../src/services/exporters/censusMasterWorkbook');
     const attachmentBufferRaw = await buildCensusMasterBuffer(monthRecords, {
       sheetDescriptors: Array.isArray(sheetDescriptors) ? sheetDescriptors : undefined,
     });
@@ -186,6 +183,7 @@ export const handler = async (event: NetlifyEventLike) => {
       }
     }
 
+    const { default: XlsxPopulate } = await import('xlsx-populate');
     const attachmentBuffer = await XlsxPopulate.fromDataAsync(attachmentBufferRaw).then(workbook =>
       workbook.outputAsync({ password })
     );

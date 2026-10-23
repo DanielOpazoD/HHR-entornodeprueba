@@ -1,4 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
+import { bootstrapSeededRecord, buildCanonicalE2ERecord, clearAuth } from './fixtures/auth';
+import type { SyncTask } from '../src/services/storage/syncQueueTypes';
 
 const expectLoginError = async (page: Page, code: string) => {
   const alertByTestId = page.getByTestId('login-error-alert');
@@ -74,6 +76,141 @@ test.describe('Auth login resilience matrix', () => {
     await expect(page.getByTestId('login-google-button')).toBeVisible();
   });
 
+  test('keeps RUT credential geometry while its functional module loads', async ({ page }) => {
+    let releaseModule!: () => void;
+    const moduleReady = new Promise<void>(resolve => {
+      releaseModule = resolve;
+    });
+    await page.route('**/*LoginPage*', async route => {
+      await moduleReady;
+      await route.continue();
+    });
+    try {
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await expect(page.getByTestId('login-loading-shell')).toBeVisible();
+      const username = page.getByLabel('Usuario', { exact: true });
+      const password = page.getByLabel('Contraseña', { exact: true });
+      const submit = page.getByRole('button', { name: 'Ingresar', exact: true });
+      await expect(username).toBeDisabled();
+      const before = await Promise.all([
+        username.boundingBox(),
+        password.boundingBox(),
+        submit.boundingBox(),
+      ]);
+      const wallpaper = await page.getByTestId('login-background-image').getAttribute('style');
+      releaseModule();
+      await expect(username).toBeEnabled();
+      const after = await Promise.all([
+        username.boundingBox(),
+        password.boundingBox(),
+        submit.boundingBox(),
+      ]);
+      for (let index = 0; index < before.length; index += 1) {
+        const initial = before[index];
+        const ready = after[index];
+        expect(initial).not.toBeNull();
+        expect(ready).not.toBeNull();
+        if (!initial || !ready) throw new Error('Credential field was not rendered');
+        for (const dimension of ['x', 'y', 'width', 'height'] as const) {
+          expect(Math.abs(initial[dimension] - ready[dimension])).toBeLessThanOrEqual(2);
+        }
+      }
+      await expect(page.getByTestId('login-background-image')).toHaveAttribute(
+        'style',
+        wallpaper || ''
+      );
+    } finally {
+      releaseModule();
+      await page.unroute('**/*LoginPage*');
+    }
+  });
+
+  test('keeps entered RUT credentials when changing the decorative background', async ({
+    page,
+  }) => {
+    const username = page.getByLabel('Usuario', { exact: true });
+    const password = page.getByLabel('Contraseña', { exact: true });
+    await expect(username).toBeEnabled();
+    await username.fill('11.111.111-1');
+    await password.fill('Synthetic example 1');
+    await page.getByRole('button', { name: 'Mostrar contraseña' }).click();
+    await page.getByRole('button', { name: 'Cambiar modo de fondo' }).click();
+    await expect(username).toHaveValue('111111111');
+    await expect(password).toHaveValue('Synthetic example 1');
+    await expect(password).toHaveAttribute('type', 'text');
+    await expect(page.getByRole('button', { name: 'Ingresar', exact: true })).toBeEnabled();
+    const wallpaper = await page.getByTestId('login-page').getAttribute('data-background-image');
+    await page.reload();
+    await expect(username).toBeEnabled();
+    await expect(username).toHaveValue('');
+    await expect(password).toHaveValue('');
+    await expect(page.getByTestId('login-page')).toHaveAttribute(
+      'data-background-image',
+      wallpaper || ''
+    );
+  });
+
+  test('preserves compact login geometry after reload with an accessible icon-only Google action', async ({
+    page,
+  }) => {
+    await expect(
+      page.getByText('Ingresa con tu RUT o cuenta institucional para continuar.')
+    ).toHaveCount(0);
+    await expect(page.getByText('Información clínica disponible cuando la necesitas.')).toHaveCount(
+      0
+    );
+    const google = page.getByRole('button', { name: 'Ingresar con Google', exact: true });
+    await expect(google).toBeVisible();
+    await expect(google).toHaveText('');
+    for (const viewport of [
+      { width: 1366, height: 768 },
+      { width: 1024, height: 600 },
+      { width: 375, height: 667 },
+      { width: 320, height: 568 },
+    ]) {
+      await page.setViewportSize(viewport);
+      const serviceName = page
+        .getByText('Servicio de Hospitalizados', { exact: true })
+        .filter({ visible: true });
+      await expect(serviceName).toBeVisible();
+      const fields = page.locator('input');
+      const beforeReload = await fields.evaluateAll(elements =>
+        elements.map(element => element.getBoundingClientRect().toJSON())
+      );
+      await page.reload();
+      await expect(page.getByLabel('Usuario', { exact: true })).toBeEnabled();
+      await expect(google).toBeVisible();
+      await expect(google).toHaveText('');
+      await expect(serviceName).toBeVisible();
+      await expect
+        .poll(() =>
+          fields.evaluateAll(elements =>
+            elements.map(element => element.getBoundingClientRect().toJSON())
+          )
+        )
+        .toEqual(beforeReload);
+      await expect
+        .poll(() =>
+          page.evaluate(() => {
+            const root = document.documentElement;
+            const footer = document.querySelector('.login-support-footer');
+            return {
+              horizontalOverflow: root.scrollWidth > root.clientWidth,
+              verticalOverflow: root.scrollHeight > root.clientHeight,
+              footerWithinViewport: Boolean(
+                footer && footer.getBoundingClientRect().bottom <= root.clientHeight
+              ),
+            };
+          })
+        )
+        .toEqual({
+          horizontalOverflow: false,
+          verticalOverflow: false,
+          footerWithinViewport: true,
+        });
+    }
+  });
+
   test('popup blocked surfaces a clear error and stays on login', async ({ page }) => {
     await page.evaluate(() => {
       window.localStorage.setItem('hhr_e2e_popup_error_code', 'auth/popup-blocked');
@@ -107,66 +244,136 @@ test.describe('Auth login resilience matrix', () => {
     await expectLoginIdle(page);
   });
 
-  test('local reset clears browser app traces and returns to a clean login screen', async ({
-    page,
-  }) => {
-    await page.evaluate(async () => {
-      window.localStorage.setItem('hhr_login_background_mode', 'night');
-      window.localStorage.setItem('firebase:authUser:test:[DEFAULT]', '{"uid":"abc"}');
-      window.localStorage.setItem('unrelated_local_key', 'remove-me');
-      window.sessionStorage.setItem('hhr_google_login_attempt_pending', String(Date.now()));
-      window.sessionStorage.setItem('unrelated_session_key', 'remove-me');
-
-      if ('caches' in window) {
-        await window.caches.delete('hhr-reset-smoke-cache');
-        const cache = await window.caches.open('hhr-reset-smoke-cache');
-        await cache.put('/hhr-reset-smoke', new Response('ok'));
-      }
-    });
-
-    await page.getByTestId('login-reset-local-button').click();
-    await page.getByRole('button', { name: 'Reiniciar ahora' }).click();
-    await expect(page.getByTestId('login-google-button')).toBeVisible();
-    await page.waitForLoadState('domcontentloaded').catch(() => undefined);
-
-    await expect
-      .poll(
-        async () => {
-          try {
-            return await page.evaluate(async () => ({
-              hasSeededLocalKeys:
-                window.localStorage.getItem('hhr_login_background_mode') !== null ||
-                window.localStorage.getItem('firebase:authUser:test:[DEFAULT]') !== null ||
-                window.localStorage.getItem('unrelated_local_key') !== null,
-              hasSeededSessionKeys:
-                window.sessionStorage.getItem('hhr_google_login_attempt_pending') !== null ||
-                window.sessionStorage.getItem('unrelated_session_key') !== null,
-              resetCacheStillPresent:
-                'caches' in window
-                  ? (await window.caches.keys()).includes('hhr-reset-smoke-cache')
-                  : false,
-              errorVisible: Boolean(document.querySelector('[data-testid="login-error-alert"]')),
-            }));
-          } catch (error) {
-            if (!isNavigationContextReset(error)) {
-              throw error;
-            }
-            return {
-              hasSeededLocalKeys: true,
-              hasSeededSessionKeys: true,
-              resetCacheStillPresent: true,
-              errorVisible: true,
-            };
-          }
-        },
-        { timeout: 5000 }
-      )
-      .toMatchObject({
-        hasSeededLocalKeys: false,
-        hasSeededSessionKeys: false,
-        resetCacheStillPresent: false,
-        errorVisible: false,
+  test('reload preserves local work and returns to a usable login', async ({ page: warmup }) => {
+    const context = warmup.context();
+    try {
+      await bootstrapSeededRecord(warmup, {
+        date: '2026-02-20',
+        record: buildCanonicalE2ERecord('2026-02-20'),
+        useRuntimeOverride: false,
+        forceLocalOnlySync: true,
       });
+      await warmup.goto('/census?date=2026-02-20');
+      await expect(warmup.getByTestId('census-table')).toBeVisible({ timeout: 15000 });
+      await expect
+        .poll(() =>
+          warmup.evaluate(async () =>
+            (await indexedDB.databases()).some(db => db.name === 'HangaRoaDB')
+          )
+        )
+        .toBe(true);
+    } finally {
+      await warmup.close();
+    }
+    const page = await context.newPage();
+    await page.goto('/');
+    await clearAuth(page);
+    await page.reload();
+    await expect(page.getByLabel('Usuario', { exact: true })).toBeEnabled();
+    const pendingTask = {
+      opId: 'synthetic-reload-unconfirmed',
+      ownerKey: 'synthetic-reload-owner',
+      type: 'UPDATE_DAILY_RECORD',
+      payload: { date: '2026-02-20' },
+      timestamp: Date.now(),
+      retryCount: 3,
+      status: 'FAILED',
+      error: 'Synthetic validation failure',
+    } satisfies SyncTask;
+    const pendingId = await page.evaluate(
+      task =>
+        new Promise<number>((resolve, reject) => {
+          const request = indexedDB.open('HangaRoaDB');
+          request.onupgradeneeded = () => request.transaction?.abort();
+          request.onerror = () => reject(request.error);
+          request.onsuccess = () => {
+            const db = request.result;
+            const tx = db.transaction('syncQueue', 'readwrite');
+            const insert = tx.objectStore('syncQueue').add(task);
+            tx.oncomplete = () => {
+              db.close();
+              if (typeof insert.result !== 'number') {
+                reject(new Error('The synthetic queue task must have a numeric key'));
+                return;
+              }
+              resolve(insert.result);
+            };
+            tx.onabort = tx.onerror = () => {
+              db.close();
+              reject(tx.error);
+            };
+          };
+        }),
+      pendingTask
+    );
+    await page.evaluate(async () => {
+      localStorage.setItem('hhr_login_background_mode', 'night');
+      localStorage.setItem('firebase:authUser:synthetic:[DEFAULT]', '{"uid":"synthetic"}');
+      localStorage.setItem(
+        'offlineQueue',
+        JSON.stringify([{ key: 'synthetic-pending', status: 'FAILED' }])
+      );
+      sessionStorage.setItem('hhr_reload_note', 'keep-synthetic-note');
+      const cache = await caches.open('hhr-reload-synthetic-cache');
+      await cache.put('/hhr-reload-synthetic', new Response('synthetic'));
+    });
+    const before = await page.evaluate(() => performance.timeOrigin);
+    await page.locator('summary').filter({ hasText: 'Ayuda de acceso' }).click();
+    await page.getByTestId('login-reload-button').click();
+    await page.getByRole('button', { name: 'Recargar aplicación', exact: true }).click();
+    await expect
+      .poll(async () => {
+        try {
+          return await page.evaluate(() => performance.timeOrigin);
+        } catch (error) {
+          if (!isNavigationContextReset(error)) throw error;
+          return before;
+        }
+      })
+      .toBeGreaterThan(before);
+    // The synthetic Firebase hint allows the existing 15s rehydration budget.
+    await expect(page.getByTestId('login-google-button')).toBeVisible({ timeout: 20000 });
+    await expect(page.getByLabel('Usuario', { exact: true })).toBeEnabled();
+    const restoredTask = await page.evaluate(
+      id =>
+        new Promise<unknown>((resolve, reject) => {
+          const request = indexedDB.open('HangaRoaDB');
+          request.onupgradeneeded = () => request.transaction?.abort();
+          request.onerror = () => reject(request.error);
+          request.onsuccess = () => {
+            const db = request.result;
+            const tx = db.transaction('syncQueue', 'readonly');
+            const read = tx.objectStore('syncQueue').get(id);
+            tx.oncomplete = () => {
+              db.close();
+              resolve(read.result);
+            };
+            tx.onabort = tx.onerror = () => {
+              db.close();
+              reject(tx.error);
+            };
+          };
+        }),
+      pendingId
+    );
+    expect(restoredTask).toEqual({ ...pendingTask, id: pendingId });
+    expect(
+      await page.evaluate(async () => ({
+        background: localStorage.getItem('hhr_login_background_mode'),
+        auth: localStorage.getItem('firebase:authUser:synthetic:[DEFAULT]'),
+        pending: JSON.parse(localStorage.getItem('offlineQueue') || 'null'),
+        note: sessionStorage.getItem('hhr_reload_note'),
+        cache: await (await caches.open('hhr-reload-synthetic-cache'))
+          .match('/hhr-reload-synthetic')
+          .then(response => response?.text()),
+      }))
+    ).toEqual({
+      background: 'night',
+      auth: '{"uid":"synthetic"}',
+      pending: [{ key: 'synthetic-pending', status: 'FAILED' }],
+      note: 'keep-synthetic-note',
+      cache: 'synthetic',
+    });
   });
 
   test('retry after transient popup failure succeeds', async ({ page }) => {

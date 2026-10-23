@@ -19,6 +19,21 @@ export interface HistoricalCandidate {
   exactDischargeAt?: string;
 }
 
+/** A closed RN may retain its known historical mother; a report's crib label is insufficient. */
+export const verifiedHistoricalCribParent = (
+  record: DailyRecord,
+  encounter: RayenEncounter,
+  row?: EgresoReportRow
+): string | undefined => {
+  const parent = record.beds[encounter.clinicalCribParentBedId ?? ''];
+  return row?.exactEpisodeVerification === 'verified' &&
+    row.fromClinicalCrib &&
+    parent?.clinicalCrib?.clinicalEpisodeId === encounter.encounterId &&
+    /^\d+$/.test(parent.clinicalEpisodeId ?? '')
+    ? parent.clinicalEpisodeId
+    : undefined;
+};
+
 export const reportClinicalStamp = (
   row: EgresoReportRow
 ): { iso: string; calendarIso: string; hhmm: string } | null => {
@@ -41,7 +56,8 @@ export const latestReportRowsByEpisode = (
   for (const row of reportRows) {
     const episode = String(row.encounterId ?? '').trim();
     const stamp = reportClinicalStamp(row);
-    if (!/^\d+$/.test(episode) || !normalizeRut(row.run) || !stamp) continue;
+    const verifiedCrib = row.fromClinicalCrib && row.exactEpisodeVerification === 'verified';
+    if (!/^\d+$/.test(episode) || (!normalizeRut(row.run) && !verifiedCrib) || !stamp) continue;
     const prior = byEpisode.get(episode);
     const priorStamp = prior ? reportClinicalStamp(prior) : null;
     if (
@@ -52,6 +68,30 @@ export const latestReportRowsByEpisode = (
     }
   }
   return byEpisode;
+};
+
+export const relevantHistoricalReportRows = (
+  reportRows: EgresoReportRow[],
+  censusDay: string,
+  record: DailyRecord,
+  encounters: RayenEncounter[]
+): EgresoReportRow[] => {
+  // Bulk reports include the previous night's discharges. An unlinked row from
+  // an earlier census cannot block this day when no local/live patient references it.
+  const referencedRuns = new Set(
+    [
+      ...encounters.map(encounter => normalizeRut(encounter.run)),
+      ...Object.values(record.beds).flatMap(patient => [
+        normalizeRut(patient.rut),
+        normalizeRut(patient.clinicalCrib?.rut ?? ''),
+      ]),
+    ].filter(Boolean)
+  );
+  return reportRows.filter(row => {
+    const stamp = reportClinicalStamp(row);
+    const run = normalizeRut(row.run);
+    return !stamp || stamp.iso >= censusDay || !run || referencedRuns.has(run);
+  });
 };
 
 export const invalidReportBackedConflicts = (
@@ -73,8 +113,8 @@ export const invalidReportBackedConflicts = (
     const missingTimestamp = !reportClinicalStamp(row);
     if (!missingEpisode && !missingIdentity && !missingTimestamp) continue;
     surfacedEpisodes.add(conflictKey);
-    conflicts.push(
-      unresolvedConflict(
+    conflicts.push({
+      ...unresolvedConflict(
         {
           encounterId,
           run: row.run,
@@ -90,8 +130,14 @@ export const invalidReportBackedConflicts = (
             : missingIdentity
               ? 'el reporte administrativo no contiene un RUN verificable.'
               : 'el reporte administrativo no contiene una fecha de egreso verificable.'
-      )
-    );
+      ),
+      diagnostic: {
+        source: 'gestion-camas/egresos',
+        sourceTimestamp: row.fechaEgreso.slice(0, 100),
+        ...(reportClinicalStamp(row) ? { sourceClinicalDay: reportClinicalStamp(row)!.iso } : {}),
+        bedId: (row.bedLabel ?? '').slice(0, 80),
+      },
+    });
   }
   return conflicts;
 };

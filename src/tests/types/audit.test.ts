@@ -4,7 +4,6 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { AuditAction } from '@/types/auditActionTypes';
 import { maskRut } from '@/types/auditLogTypes';
 
 describe('audit types', () => {
@@ -52,72 +51,6 @@ describe('audit types', () => {
     it('should preserve first digits for longer RUTs', () => {
       const masked = maskRut('22.222.222-2');
       expect(masked.startsWith('22.222')).toBe(true);
-    });
-  });
-
-  describe('AuditAction type', () => {
-    it('should include patient actions', () => {
-      const patientActions: AuditAction[] = [
-        'PATIENT_ADMITTED',
-        'PATIENT_DISCHARGED',
-        'PATIENT_TRANSFERRED',
-        'PATIENT_MODIFIED',
-        'PATIENT_CLEARED',
-      ];
-      expect(patientActions).toHaveLength(5);
-    });
-
-    it('should include record actions', () => {
-      const recordActions: AuditAction[] = ['DAILY_RECORD_DELETED', 'DAILY_RECORD_CREATED'];
-      expect(recordActions).toHaveLength(2);
-    });
-
-    it('should include handoff actions', () => {
-      const handoffActions: AuditAction[] = [
-        'NURSE_HANDOFF_MODIFIED',
-        'MEDICAL_HANDOFF_MODIFIED',
-        'HANDOFF_NOVEDADES_MODIFIED',
-        'MEDICAL_HANDOFF_SIGNED',
-      ];
-      expect(handoffActions).toHaveLength(4);
-    });
-
-    it('should include user actions', () => {
-      const userActions: AuditAction[] = ['USER_LOGIN', 'USER_LOGOUT'];
-      expect(userActions).toHaveLength(2);
-    });
-
-    it('should include view actions', () => {
-      const viewActions: AuditAction[] = [
-        'VIEW_PATIENT',
-        'VIEW_CUDYR',
-        'VIEW_NURSING_HANDOFF',
-        'VIEW_MEDICAL_HANDOFF',
-      ];
-      expect(viewActions).toHaveLength(4);
-    });
-
-    it('should include bed actions', () => {
-      const bedActions: AuditAction[] = ['BED_BLOCKED', 'BED_UNBLOCKED', 'EXTRA_BED_TOGGLED'];
-      expect(bedActions).toHaveLength(3);
-    });
-
-    it('should include system actions', () => {
-      const systemActions: AuditAction[] = [
-        'SYSTEM_ERROR',
-        'DATA_IMPORTED',
-        'DATA_EXPORTED',
-        'DATA_ADMISSION_DATES_BACKFILLED',
-      ];
-      expect(systemActions).toHaveLength(4);
-    });
-
-    it('should include prescription actions', () => {
-      const prescriptionActions: AuditAction[] = [
-        'PRESCRIPTION_MANUAL_DELETED',
-        'PRESCRIPTION_RETENTION_DELETED',
-      ];
-      expect(prescriptionActions).toHaveLength(2);
     });
   });
 });

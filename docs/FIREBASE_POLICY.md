@@ -65,21 +65,10 @@ metadatos; el despliegue beta no cambia su destino ni sus permisos.
 
 ## 🛡️ Validación en Código
 
-El archivo `constants/firebaseEnvironments.ts` contiene:
-
-- Constantes de configuración para cada entorno
-- Funciones de validación (`canWriteTo`, `canReadFrom`)
-- Función de protección (`validateWriteOperation`)
-
-### Uso:
-
-```typescript
-import { validateWriteOperation, BETA_ENVIRONMENT } from './constants/firebaseEnvironments';
-
-// Antes de cualquier operación de escritura:
-validateWriteOperation(currentProjectId);
-// Lanza error si se intenta escribir en producción
-```
+El bloqueo activo vive en `src/services/storage/legacyfirebase/legacyFirebaseCore.ts`: si
+`VITE_LEGACY_FIREBASE_PROJECT_ID` apunta a `hospital-hanga-roa`, `resolveLegacyFirebaseConfig`
+devuelve `null` y la app no abre esa conexión. Lo cubre
+`src/tests/services/storage/legacyFirebaseCore.test.ts`.
 
 ---
 

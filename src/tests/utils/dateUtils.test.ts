@@ -55,12 +55,8 @@ describe('dateUtils', () => {
   });
 
   describe('formatDateForDisplay', () => {
-    it('should format date for Spanish display', () => {
-      const date = new Date(2024, 11, 25);
-      const result = formatDateForDisplay(date);
-      // Result depends on environment locale but should include the month and day
-      expect(result).toContain('diciembre');
-      expect(result).toContain('25');
+    it('should format a calendar day for Spanish display', () => {
+      expect(formatDateForDisplay('2024-12-25')).toBe('miércoles, 25 de diciembre de 2024');
     });
   });
 
@@ -123,7 +119,9 @@ describe('dateUtils', () => {
     it('should return a Date object for a valid ISO string', () => {
       const result = parseISODate('2024-12-25');
       expect(result).toBeInstanceOf(Date);
-      expect(result?.getFullYear()).toBe(2024);
+      expect(result?.getUTCFullYear()).toBe(2024);
+      expect(result?.getUTCMonth()).toBe(11);
+      expect(result?.getUTCDate()).toBe(25);
     });
 
     it('should return null for invalid date string', () => {

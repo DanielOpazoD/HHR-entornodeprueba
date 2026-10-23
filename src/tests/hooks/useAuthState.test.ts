@@ -8,7 +8,7 @@ import { SESSION_TIMEOUT_MS } from '@/constants/security';
 import * as authSession from '@/services/auth/authSession';
 import * as authFallback from '@/services/auth/authFallback';
 import * as authUseCases from '@/application/auth/authSessionUseCases';
-import * as auditService from '@/services/admin/auditService';
+import * as auditConnectionRuntime from '@/services/admin/auditSession/auditConnectionRuntime';
 import { setFirestoreSyncState } from '@/services/repositories/repositoryConfig';
 import type { AuthSessionState } from '@/types/authSessionTypes';
 import type { AuthUser, UserRole } from '@/types/authRoleTypes';
@@ -26,11 +26,6 @@ vi.mock('@/services/auth/authFallback', () => ({
 vi.mock('@/application/auth/authSessionUseCases', () => ({
   executeRedirectAuthResolution: vi.fn(),
   executeResolvedCurrentAuthSessionState: vi.fn(),
-}));
-
-vi.mock('@/services/admin/auditService', () => ({
-  logUserLogin: vi.fn(),
-  logUserLogout: vi.fn(),
 }));
 
 vi.mock('@/services/storage/sessionScopedStorageService', () => ({
@@ -265,7 +260,9 @@ describe('useAuthState baseline', () => {
     });
 
     expect(result.current.user).toBe(null);
-    expect(auditService.logUserLogout).toHaveBeenCalledWith('t@t.com', 'automatic');
+    expect(vi.mocked(auditConnectionRuntime.endCurrentAuditConnection).mock.calls[0][0]).toBe(
+      'automatic'
+    );
   });
 
   it('should handle network status switches', async () => {

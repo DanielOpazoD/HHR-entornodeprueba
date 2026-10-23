@@ -135,3 +135,39 @@ describe('statistical discharge evidence parser', () => {
     expect(parseStatisticalDischargeEvidence(alive)?.isDead).toBe(false);
   });
 });
+
+const maternalReport = report.replace(
+  '1.RUN:\n6 3 2 1 8 8 0 - 4',
+  `IDENTIFICACIÓN F=Femenino
+5 2 6 SEXO M
+2. RUN Materno/progenitor(a) M=Masculino
+DE LA PERSONA
+1.RUN:
+-
+No de Pasaporte u otro documento
+1. Masculino
+6 3 2 1 8 8 0 4 54 IDENTIDAD DE GÉNERO 01
+2. Femenina`
+);
+
+it('reads the maternal identifier only when explicitly enabled for an exact newborn episode', () => {
+  expect(parseStatisticalDischargeEvidence(maternalReport)).toBeNull();
+  expect(
+    parseStatisticalDischargeEvidence(maternalReport, { allowMaternalIdentifier: true })
+  ).toMatchObject({
+    run: '63218804',
+    identifierKind: 'maternal',
+    dischargeAt: '2026-07-25T14:28:00',
+  });
+  expect(
+    parseStatisticalDischargeEvidence(maternalReport.replace('5 2 6 SEXO', '5 4 6 SEXO'), {
+      allowMaternalIdentifier: true,
+    })
+  ).toBeNull();
+  expect(
+    parseStatisticalDischargeEvidence(
+      maternalReport.replace('6 3 2 1 8 8 0 4 54', '6 3 2 1 8 8 0 5 54'),
+      { allowMaternalIdentifier: true }
+    )
+  ).toBeNull();
+});

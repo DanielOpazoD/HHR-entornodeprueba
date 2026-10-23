@@ -3,7 +3,7 @@
  * the official history, author and 14-item breakdown; Ficha Médico supplies a latest-value fallback.
  *
  * The CUDYR categorization belongs to the night shift that started on the census day. A result
- * recorded in Rapa Nui between 00:01 and 11:59 on D + 1 therefore belongs to census D. The moment
+ * recorded in Rapa Nui from 00:00 inclusive until before 12:00 on D + 1 therefore belongs to census D. The moment
  * when HHR later synchronizes the result never changes that owning date. "S/C" (sin categorizar)
  * and blanks yield null.
  */
@@ -48,9 +48,7 @@ export const resolveCudyrOwningCensusDay = (recordedAt: string): string | null =
   const recordedDate = rapaNuiDayFormatter.format(instant);
   const secondsAfterMidnight =
     Number(parts.hour) * 3600 + Number(parts.minute) * 60 + Number(parts.second);
-  return secondsAfterMidnight >= 60 && secondsAfterMidnight < 12 * 3600
-    ? previousCensusIsoDay(recordedDate)
-    : recordedDate;
+  return secondsAfterMidnight < 12 * 3600 ? previousCensusIsoDay(recordedDate) : recordedDate;
 };
 
 /**

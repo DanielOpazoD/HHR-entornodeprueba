@@ -104,18 +104,12 @@ egreso tipo Fuga
 - Psiquiatría usa destinatarios automáticos resueltos en backend.
 - `admin` puede usar `modo prueba`; enfermería no.
 
-### IEEH orientado a impresión
+### IEEH
 
-```text
-botón IEEH
-  -> IEEHFormDialog
-  -> useIEEHForm
-  -> ieehFormDataController
-  -> ieehPdfService
-  -> pdfBase.openPdfPrintDialog
-```
+El IEEH ya no se completa desde el censo: se llena en el panel IEEH de la epicrisis
+(`src/features/clinical-documents`) y se imprime con `ieehPdfService`. Ver
+[docs/features/ieeh-pdf-flow.md](../../../docs/features/ieeh-pdf-flow.md).
 
-- El flujo IEEH ya no se modela como descarga directa.
 - La preparación del formulario se mantiene separada de la lógica de impresión del PDF.
 
 ## Archivos clave
@@ -144,7 +138,6 @@ botón IEEH
 | `components/FugaNotificationModal.tsx`                          | Modal de notificación de fuga por correo                        |
 | `hooks/useFugaNotificationModalModel.ts`                        | Orquestación UI del envío de fuga                               |
 | `controllers/fugaNotificationPolicyController.ts`               | Política compartida de destinatarios y validación de fuga       |
-| `controllers/ieehFormDataController.ts`                         | Serialización pura del formulario IEEH                          |
 
 ## Calidad
 

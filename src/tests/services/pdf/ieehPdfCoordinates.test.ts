@@ -1,40 +1,8 @@
-import { describe, it, expect } from 'vitest';
-
-const FIELD_COORDS = {
-  primerApellido: { x: 50.84, y: 826.52, maxWidth: 137.82 },
-  segundoApellido: { x: 237.8, y: 826.52, maxWidth: 118.68 },
-  nombres: { x: 441.64, y: 826.52, maxWidth: 110.58 },
-  nombreSocial: { x: 114.24, y: 804.28, maxWidth: 93.63 },
-  tipoIdentificacion: { x: 111.31, y: 782.21, maxWidth: 11.03 },
-  runDigits: { x: 56.99, y: 759.19, maxWidth: 87.72 },
-  sexoRegistral: { x: 305.82, y: 781.46, maxWidth: 11.76 },
-  nacDia: { x: 450.35, y: 800.54, maxWidth: 22.86 },
-  nacMes: { x: 489.42, y: 800.54, maxWidth: 21.4 },
-  nacAnio: { x: 524.05, y: 800.54, maxWidth: 50.84 },
-  edad: { x: 79, y: 722.06, maxWidth: 35.36 },
-  edadUnidad: { x: 181.04, y: 720.09, maxWidth: 10.67 },
-  puebloIndigena: { x: 523.86, y: 750.12, maxWidth: 22.68 },
-  prevision: { x: 54.37, y: 516.73, maxWidth: 10.67 },
-  procedencia: { x: 225.78, y: 471.36, maxWidth: 10.67 },
-  ingresoHora: { x: 102.35, y: 428.74, maxWidth: 22.68 },
-  ingresoMin: { x: 136.36, y: 428.74, maxWidth: 21.33 },
-  ingresoDia: { x: 181.71, y: 428.74, maxWidth: 22.68 },
-  ingresoMes: { x: 215.73, y: 428.74, maxWidth: 23.35 },
-  ingresoAnio: { x: 249.74, y: 428.74, maxWidth: 22.01 },
-  egresoHora: { x: 91.68, y: 341.43, maxWidth: 21.33 },
-  egresoMin: { x: 124.35, y: 341.43, maxWidth: 23.35 },
-  egresoDia: { x: 169.03, y: 341.43, maxWidth: 22.68 },
-  egresoMes: { x: 204.39, y: 341.43, maxWidth: 23.35 },
-  egresoAnio: { x: 238.4, y: 341.43, maxWidth: 24.02 },
-  diasEstada: { x: 103.69, y: 326.75, maxWidth: 45.35 },
-  condicionEgreso: { x: 250.41, y: 326.75, maxWidth: 11.34 },
-  diagnosticoPrincipal: { x: 167.08, y: 280.72, maxWidth: 341.48 },
-  codigoCIE10: { x: 529.23, y: 281.38, maxWidth: 46.69 },
-  especialidadMedico: { x: 327.77, y: 76.61, maxWidth: 151.42 },
-} as const;
-
-const PAGE_WIDTH = 609.57;
-const PAGE_HEIGHT = 935.43;
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { PDFDocument } from 'pdf-lib';
+import { beforeAll, describe, it, expect } from 'vitest';
+import { FIELD_COORDS } from '@/services/pdf/ieehPdfCoordinates';
 
 const REQUIRED_FIELDS = [
   'primerApellido',
@@ -67,35 +35,40 @@ const REQUIRED_FIELDS = [
 
 describe('IEEH PDF Field Coordinates Governance', () => {
   const entries = Object.entries(FIELD_COORDS);
+  let pageSize = { width: 0, height: 0 };
+
+  beforeAll(async () => {
+    const templateBytes = await readFile(
+      resolve(process.cwd(), 'public/docs/estadistico-egreso.pdf')
+    );
+    const template = await PDFDocument.load(new Uint8Array(templateBytes));
+    pageSize = template.getPage(0).getSize();
+  });
 
   it('all X within page bounds', () => {
     for (const [n, c] of entries) {
       expect(c.x, `${n}.x`).toBeGreaterThan(0);
-      expect(c.x, `${n}.x`).toBeLessThan(PAGE_WIDTH);
+      expect(c.x, `${n}.x`).toBeLessThan(pageSize.width);
     }
   });
 
   it('all Y within page bounds', () => {
     for (const [n, c] of entries) {
       expect(c.y, `${n}.y`).toBeGreaterThan(0);
-      expect(c.y, `${n}.y`).toBeLessThan(PAGE_HEIGHT);
+      expect(c.y, `${n}.y`).toBeLessThan(pageSize.height);
     }
   });
 
   it('maxWidth positive and within page', () => {
     for (const [n, c] of entries) {
       expect(c.maxWidth, `${n}`).toBeGreaterThan(0);
-      expect(c.x + c.maxWidth, `${n} overflow`).toBeLessThanOrEqual(PAGE_WIDTH + 1);
+      expect(c.x + c.maxWidth, `${n} overflow`).toBeLessThanOrEqual(pageSize.width);
     }
   });
 
   it('contains all required fields', () => {
     const names = Object.keys(FIELD_COORDS);
     for (const r of REQUIRED_FIELDS) expect(names).toContain(r);
-  });
-
-  it('≥25 fields', () => {
-    expect(entries.length).toBeGreaterThanOrEqual(25);
   });
 
   it('no duplicate positions', () => {

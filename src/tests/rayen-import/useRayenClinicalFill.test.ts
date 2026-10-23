@@ -193,7 +193,7 @@ describe('useRayenClinicalFill', () => {
       }),
       7
     );
-    expect(mocks.endRayenFill).toHaveBeenCalledWith(0, false);
+    expect(mocks.endRayenFill).toHaveBeenCalledWith(0, false, 7);
   });
 
   it('does not publish terminal UI state until run completion persistence settles', async () => {
@@ -233,7 +233,7 @@ describe('useRayenClinicalFill', () => {
 
     resolveCompletion?.();
     await act(async () => fillPromise);
-    expect(mocks.endRayenFill).toHaveBeenCalledWith(0, false);
+    expect(mocks.endRayenFill).toHaveBeenCalledWith(0, false, 7);
     expect(onStaffingProposal).toHaveBeenCalledOnce();
   });
 
@@ -260,7 +260,7 @@ describe('useRayenClinicalFill', () => {
     );
 
     await act(async () => result.current(record));
-    expect(mocks.endRayenFill).toHaveBeenCalledWith(0, true);
+    expect(mocks.endRayenFill).toHaveBeenCalledWith(0, true, 7);
   });
 
   it('replaces retried failures while preserving aggregate evidence from the run', () => {

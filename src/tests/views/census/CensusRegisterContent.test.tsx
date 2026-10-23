@@ -125,13 +125,13 @@ describe('CensusRegisterContent', () => {
         ).catch(error => error);
       });
       expect(screen.getByTestId('census-table')).toHaveAttribute('data-read-only', 'false');
-      expect(screen.getByRole('status')).toHaveTextContent('Guardando cambios… · 2 pendientes');
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
       await act(async () => {
         ordinaryGate.resolve();
         await ordinary;
       });
       expect(screen.getByTestId('census-table')).toHaveAttribute('data-read-only', 'true');
-      expect(screen.getByRole('status')).toHaveTextContent('Guardando sincronización…');
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
       expect(screen.getByTestId('census-staff-header')).toHaveAttribute('data-read-only', 'false');
       expect(screen.getByRole('textbox', { name: 'Borrador abierto' })).toBe(draft);
       expect(draft).toHaveValue('Datos pendientes');

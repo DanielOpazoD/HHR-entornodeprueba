@@ -60,15 +60,6 @@ export const shouldResolveAuthBootstrapImmediatelyAsUnauthenticated = ({
   hasActiveFirebaseSession: boolean;
 }): boolean => !hasPendingRedirect && !hasAuthRehydrationHint && !hasActiveFirebaseSession;
 
-export const shouldLogSessionLogin = ({
-  sessionState,
-  hasLoggedThisSession,
-}: {
-  sessionState: AuthSessionState;
-  hasLoggedThisSession: boolean;
-}): boolean =>
-  sessionState.status === 'authorized' && Boolean(sessionState.user.email) && !hasLoggedThisSession;
-
 export const buildBootstrapTimeoutIssue = (): string =>
   'La inicializacion de autenticacion excedio el tiempo esperado.';
 

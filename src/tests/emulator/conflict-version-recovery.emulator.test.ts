@@ -42,6 +42,7 @@ import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRe
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { clearAllRecords } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { clearAllSyncQueue } from '@/services/storage/sync';
+import { getTodayISO } from '@/utils/dateCoreUtils';
 
 const buildRecord = (date: string, lastUpdated: string): DailyRecord => ({
   date,
@@ -78,7 +79,7 @@ const buildPatient = (bedId: string, overrides: Partial<PatientData> = {}): Pati
   ...overrides,
 });
 
-const CURRENT_RECORD_DATE = new Date().toISOString().slice(0, 10);
+const CURRENT_RECORD_DATE = getTodayISO();
 const isoAt = (date: string, time: string): string => `${date}T${time}.000Z`;
 
 describeEmulator('Firestore emulator conflict version recovery', () => {

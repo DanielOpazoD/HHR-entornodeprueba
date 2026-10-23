@@ -253,7 +253,7 @@ export const useRayenClinicalFill = ({
             onTimeout: () =>
               reportRayenSyncWarning('clinical_fill_stage_timeout', { runId: auditRunId }),
           });
-          registerRayenFillAbort(watchdog.abort);
+          registerRayenFillAbort(watchdog.abort, attemptId);
           try {
             const { createClinicalEnrichmentPersistenceStrategy } =
               await import('./clinicalEnrichmentPersistenceStrategy');
@@ -300,7 +300,7 @@ export const useRayenClinicalFill = ({
                 tensCatalog,
                 registerStaff: registerEloisaStaff,
               },
-              ({ done, total }) => reportRayenFillProgress(done, total)
+              ({ done, total }) => reportRayenFillProgress(done, total, attemptId)
             );
           } catch (error) {
             reportRayenSyncWarning('clinical_fill_failed', {
@@ -315,7 +315,7 @@ export const useRayenClinicalFill = ({
             };
           } finally {
             watchdog.settle();
-            registerRayenFillAbort(null);
+            registerRayenFillAbort(null, attemptId);
           }
 
           summary = mergeClinicalRetrySummary(
@@ -361,7 +361,7 @@ export const useRayenClinicalFill = ({
           } catch {
             completionFailed = true;
           }
-          endRayenFill(failedPatients, summary.errors.length > 0 || completionFailed);
+          endRayenFill(failedPatients, summary.errors.length > 0 || completionFailed, attemptId);
           if (reviewProposal) onStaffingProposal(reviewProposal, attemptId);
           return resolveClinicalStageResult(
             withRevalidatedClinicalRecord(source, freshRecord),

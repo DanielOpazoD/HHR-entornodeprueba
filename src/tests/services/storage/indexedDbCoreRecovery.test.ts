@@ -62,33 +62,19 @@ describe('indexedDbCoreRecovery', () => {
     expect(assignMockTables).toHaveBeenCalledWith(currentDatabase, mockDatabase);
   });
 
-  it('wraps initial open recovery with the runtime database dependencies', async () => {
-    const currentDatabase = {
-      ...createDatabase('current'),
-      close: vi.fn(),
-    } as unknown as IndexedDbDatabaseLike & { close: () => void };
-    const recreatedDatabase = {
-      ...createDatabase('recreated'),
-      close: vi.fn(),
-    } as unknown as IndexedDbDatabaseLike & { close: () => void };
-    const attachDatabaseEvents = vi.fn();
-    const openDatabase = vi.fn().mockResolvedValue(undefined);
-    const deleteDatabase = vi.fn().mockResolvedValue(undefined);
+  it('wraps initial open recovery around the in-memory fallback of the runtime database', async () => {
+    const currentDatabase = createDatabase('current');
+    const activateMockFallback = vi.fn(() => currentDatabase);
 
     const outcome = await recoverIndexedDbInitialOpenRuntimeFailure({
-      error: { name: 'UnknownError', message: 'temporary failure' },
+      error: { name: 'VersionError', message: 'newer schema' },
       database: currentDatabase,
-      attachDatabaseEvents,
-      createDatabase: () => recreatedDatabase,
-      deleteDatabase,
-      openDatabase,
+      activateMockFallback,
     });
 
-    expect(currentDatabase.close).toHaveBeenCalled();
-    expect(deleteDatabase).toHaveBeenCalled();
-    expect(attachDatabaseEvents).toHaveBeenCalledWith(recreatedDatabase);
-    expect(openDatabase).toHaveBeenCalledWith(recreatedDatabase);
-    expect(outcome.database).toBe(recreatedDatabase);
-    expect(outcome.fallbackMode).toBe(false);
+    expect(activateMockFallback).toHaveBeenCalledTimes(1);
+    expect(outcome.database).toBe(currentDatabase);
+    expect(outcome.fallbackMode).toBe(true);
+    expect(outcome.shouldScheduleBackgroundRecovery).toBe(true);
   });
 });

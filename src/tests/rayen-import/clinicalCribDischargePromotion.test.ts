@@ -5,7 +5,10 @@ import { findPatientErasures } from '@/services/repositories/dailyRecordErasureG
 import {
   attachAssociatedClinicalCribDischarges,
   buildClinicalCribPromotionCandidates,
+  recordedMaternalDischarge,
+  appendAssociatedClinicalCribDischarge,
 } from '@/features/rayen-import/domain/associatedClinicalCribDischarge';
+import { DataFactory } from '@/tests/factories/DataFactory';
 import type { OccupiedClinicalCrib } from '@/features/rayen-import/domain/egresoReportPolicy';
 import {
   REFERENCE,
@@ -19,6 +22,59 @@ import {
 } from './clinicalCribDischargePromotion.fixtures';
 
 describe('clinical crib discharge promotion', () => {
+  it('uses one exact recorded maternal alta without accepting another day or ambiguous duplicates', () => {
+    const mother = DataFactory.createMockDischarge({ clinicalEpisodeId: '1001', status: 'Vivo' });
+    const record = DataFactory.createMockDailyRecord('2026-07-08', { discharges: [mother] });
+    const entry = {
+      bedId: 'R3',
+      rut: mother.rut,
+      patientName: mother.patientName,
+      kind: 'alta' as const,
+      status: 'Vivo' as const,
+      reason: 'administrative-discharge' as const,
+      encounterId: '1001',
+    };
+    expect(recordedMaternalDischarge(record, entry)).toBe(mother);
+    expect(
+      recordedMaternalDischarge(record, { ...entry, correctedDay: '2026-07-09' })
+    ).toBeUndefined();
+    expect(
+      recordedMaternalDischarge(
+        { ...record, discharges: [mother, { ...mother, id: 'duplicate' }] },
+        entry
+      )
+    ).toBeUndefined();
+  });
+
+  it('retains the recorded maternal clock and removes only the separately filed child from undo', () => {
+    const current = recordWith(encounter(), newborn());
+    const mother = DataFactory.createMockDischarge({
+      id: 'mother',
+      clinicalEpisodeId: 'MOTHER',
+      time: '00:17',
+      movementDate: '2026-07-09',
+      originalData: current.beds.H5C1,
+    });
+    const child = DataFactory.createMockDischarge({
+      id: 'child',
+      clinicalEpisodeId: 'NEWBORN',
+      isNested: true,
+      time: '10:00',
+      originalData: current.beds.H5C1.clinicalCrib!,
+    });
+    const discharges = [mother];
+    appendAssociatedClinicalCribDischarge(discharges, mother, child);
+    expect(discharges).toEqual([
+      expect.objectContaining({
+        id: 'mother',
+        time: '00:17',
+        originalData: expect.objectContaining({ clinicalCrib: undefined }),
+      }),
+      expect.objectContaining({ id: 'child', time: '00:17', movementDate: '2026-07-09' }),
+    ]);
+    expect(mother.originalData?.clinicalCrib).toBeDefined();
+  });
+
   it('skips malformed occupied cribs without a traceable maternal identity', () => {
     const child = seed(newborn());
     const diff = reconcileCensus(

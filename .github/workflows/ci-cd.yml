@@ -460,9 +460,53 @@ jobs:
         uses: ./.github/actions/setup-ci-dependencies
 
       - name: Run unit shard
-        run: npm run test:ci:unit:shard -- ${{ matrix.shard }}/4
+        run: >-
+          node scripts/report-test-execution-manifest.mjs
+          --capture vitest --suite unit-${{ matrix.shard }}
+          --report reports/execution/unit-${{ matrix.shard }}.raw.json
+          --output reports/execution/unit-${{ matrix.shard }}.evidence.json
+          -- npm run test:ci:unit:shard -- ${{ matrix.shard }}/4
+          --reporter=default --reporter=json
+          --outputFile=reports/execution/unit-${{ matrix.shard }}.raw.json
         env:
           CI: true
+
+      - name: Upload unit 1 execution evidence
+        if: always() && matrix.shard == 1
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-execution-evidence-unit-1
+          path: reports/execution/unit-1.evidence.json
+          overwrite: true
+          if-no-files-found: error
+          retention-days: 30
+      - name: Upload unit 2 execution evidence
+        if: always() && matrix.shard == 2
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-execution-evidence-unit-2
+          path: reports/execution/unit-2.evidence.json
+          overwrite: true
+          if-no-files-found: error
+          retention-days: 30
+      - name: Upload unit 3 execution evidence
+        if: always() && matrix.shard == 3
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-execution-evidence-unit-3
+          path: reports/execution/unit-3.evidence.json
+          overwrite: true
+          if-no-files-found: error
+          retention-days: 30
+      - name: Upload unit 4 execution evidence
+        if: always() && matrix.shard == 4
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-execution-evidence-unit-4
+          path: reports/execution/unit-4.evidence.json
+          overwrite: true
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Upload test coverage shard artifact (optional)
         if: always()
@@ -513,7 +557,7 @@ jobs:
 
   rules-emulator:
     name: rules-emulator
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [ci-scope]
     if: needs.ci-scope.outputs.scope == 'full'
 
@@ -521,8 +565,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
+      # The cache key includes the runner image, so ubuntu-24.04 jobs need their
+      # own pristine writer; lint only fills the ubuntu-latest key.
       - name: Setup CI dependencies
         uses: ./.github/actions/setup-ci-dependencies
+        with:
+          save-cache: 'true'
 
       - name: Setup Java (Firestore emulator)
         uses: actions/setup-java@v6
@@ -539,15 +587,41 @@ jobs:
           CI: true
           RUN_FIRESTORE_RULES_TESTS: 1
 
+      - name: Run clinical attachment Storage rules tests with emulators
+        run: >-
+          node scripts/report-test-execution-manifest.mjs
+          --capture vitest --suite storage
+          --report reports/execution/storage.raw.json
+          --output reports/execution/storage.evidence.json
+          -- npm run test:storage-rules:ci
+        env:
+          CI: true
+
       - name: Run Firestore emulator test suites (sync + UI)
         run: npm run test:emulator:sync:ci
         env:
           CI: true
           RUN_FIRESTORE_EMULATOR_TESTS: 1
 
+      - name: Upload Storage execution evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-execution-evidence-storage
+          path: reports/execution/storage.evidence.json
+          overwrite: true
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Prepare Chromium for individual account browser flow
+        uses: ./.github/actions/setup-ci-chromium
+
+      - name: Validate individual accounts with Auth, Firestore and Storage emulators
+        run: npm run test:accounts:emulator:ci
+
   e2e-critical-emulator:
     name: e2e-critical
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [ci-scope]
     if: needs.ci-scope.outputs.scope == 'full'
 
@@ -583,7 +657,12 @@ jobs:
         run: npm run test:e2e:shared-offscreen
 
       - name: Run critical E2E suite with Firestore emulator
-        run: npm run test:e2e:critical:ci
+        run: >-
+          node scripts/report-test-execution-manifest.mjs
+          --capture playwright --suite critical
+          --report reports/e2e/critical-playwright-report.json
+          --output reports/execution/critical.evidence.json
+          -- npm run test:e2e:critical:ci
         env:
           CI: true
           E2E_CRITICAL_BROWSERS: chromium
@@ -592,6 +671,26 @@ jobs:
           E2E_BUDGET_LOGIN_VISIBLE_MS: 4500
           E2E_BUDGET_AUTH_FEEDBACK_MS: 3000
           E2E_BUDGET_CENSO_VISIBLE_MS: 8000
+
+      - name: Upload critical browser execution evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-execution-evidence-critical
+          path: reports/execution/critical.evidence.json
+          overwrite: true
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload flow browser execution evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-execution-evidence-flow
+          path: reports/execution/flow.evidence.json
+          overwrite: true
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Verify authenticated census read against local emulators
         run: npm run test:e2e:census-remote-performance
@@ -626,11 +725,77 @@ jobs:
             test-results/**
           retention-days: 14
 
+  test-execution-manifest:
+    name: test-execution-manifest
+    runs-on: ubuntu-latest
+    needs: [ci-scope, unit-risk-shards, rules-emulator, e2e-critical-emulator]
+    if: always() && needs.ci-scope.outputs.scope == 'full'
+    steps:
+      - name: Checkout tested merge tree
+        uses: actions/checkout@v7
+      - name: Setup CI dependencies
+        uses: ./.github/actions/setup-ci-dependencies
+      - name: Download same-run unit-1 execution evidence
+        uses: actions/download-artifact@v7
+        with:
+          name: test-execution-evidence-unit-1
+          path: reports/execution
+      - name: Download same-run unit-2 execution evidence
+        uses: actions/download-artifact@v7
+        with:
+          name: test-execution-evidence-unit-2
+          path: reports/execution
+      - name: Download same-run unit-3 execution evidence
+        uses: actions/download-artifact@v7
+        with:
+          name: test-execution-evidence-unit-3
+          path: reports/execution
+      - name: Download same-run unit-4 execution evidence
+        uses: actions/download-artifact@v7
+        with:
+          name: test-execution-evidence-unit-4
+          path: reports/execution
+      - name: Download same-run storage execution evidence
+        uses: actions/download-artifact@v7
+        with:
+          name: test-execution-evidence-storage
+          path: reports/execution
+      - name: Download same-run critical execution evidence
+        uses: actions/download-artifact@v7
+        with:
+          name: test-execution-evidence-critical
+          path: reports/execution
+      - name: Download same-run flow execution evidence
+        uses: actions/download-artifact@v7
+        with:
+          name: test-execution-evidence-flow
+          path: reports/execution
+      - name: Require all seven execution reports and validate provenance
+        shell: bash
+        run: |
+          inputs=()
+          for suite in unit-1 unit-2 unit-3 unit-4 storage critical flow; do
+            evidence="reports/execution/$suite.evidence.json"
+            test -f "$evidence" || { echo "::error::Missing $suite execution evidence"; exit 1; }
+            inputs+=(--input "$evidence")
+          done
+          npm run report:test-execution-manifest -- "${inputs[@]}"
+      - name: Upload execution manifest
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-execution-manifest
+          path: reports/test-execution-manifest.*
+          overwrite: true
+          if-no-files-found: error
+          retention-days: 30
+
   build:
     name: build-budget
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # The build consumes the release-evidence runtime contract from this job.
     # Other release gates still block ci-summary, but can run alongside the build.
+    # The preview smoke runs in preview-smoke-lanes so it no longer waits here.
     needs: [quality-static-governance-snapshots]
 
     steps:
@@ -651,6 +816,21 @@ jobs:
         env:
           CI: true
 
+      - name: Validate Netlify mail budgets and runtime artifacts
+        run: npm run check:netlify-functions-bundle
+
+      - name: Upload Netlify mail runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: netlify-mail-runtime
+          path: |
+            reports/netlify-mail-runtime.json
+            reports/netlify-mail-runtime.md
+          retention-days: 14
+          if-no-files-found: error
+          overwrite: true
+
       - name: Enforce bundle budget
         run: npm run check:bundle-budget
 
@@ -660,19 +840,152 @@ jobs:
       - name: Validate runtime asset margin
         run: npm run check:runtime-asset-margin
 
+      - name: Upload production build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7
+          if-no-files-found: error
+          overwrite: true
+
+  preview-smoke-lanes:
+    # The preview pack starts with the other gates instead of after build-budget.
+    # Each lane serves its own bundle of the same commit: deployments rebuild on
+    # Netlify, and the bundle differs from build-budget only in release-evidence.json.
+    # Lanes are split by observed duration; see scripts/previewSmokeLaneSupport.mjs.
+    name: preview-smoke-lane (${{ matrix.lane }})
+    runs-on: ubuntu-24.04
+    needs: [ci-scope]
+    if: needs.ci-scope.outputs.scope == 'full'
+    strategy:
+      fail-fast: false
+      matrix:
+        lane: [app, dicom-graphics-stress, dicom-1, dicom-2]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup CI dependencies
+        uses: ./.github/actions/setup-ci-dependencies
+
+      - name: Build preview bundle
+        run: npm run build
+        env:
+          CI: true
+
       - name: Install Playwright browsers for preview bootstrap smoke
         uses: ./.github/actions/setup-ci-chromium
 
-      - name: Validate census and clinical library preview
-        run: npm run ci:preview-smoke:built
+      - name: Run preview smoke lane
+        run: node scripts/run-preview-smoke-lane.mjs --lane=${{ matrix.lane }}
         env:
           CI: true
-          PLAYWRIGHT_SKIP_PREVIEW_BUILD: '1'
+
+      - name: Upload app lane report
+        if: always() && matrix.lane == 'app'
+        uses: actions/upload-artifact@v7
+        with:
+          # archive: false names the artifact after the file; keep both equal.
+          name: preview-smoke-blob-app.zip
+          path: reports/e2e/preview-blobs/app/preview-smoke-blob-app.zip
+          archive: false
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 7
+      - name: Upload dicom-graphics-stress lane report
+        if: always() && matrix.lane == 'dicom-graphics-stress'
+        uses: actions/upload-artifact@v7
+        with:
+          # archive: false names the artifact after the file; keep both equal.
+          name: preview-smoke-blob-dicom-graphics-stress.zip
+          path: reports/e2e/preview-blobs/dicom-graphics-stress/preview-smoke-blob-dicom-graphics-stress.zip
+          archive: false
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 7
+      - name: Upload dicom-1 lane report
+        if: always() && matrix.lane == 'dicom-1'
+        uses: actions/upload-artifact@v7
+        with:
+          # archive: false names the artifact after the file; keep both equal.
+          name: preview-smoke-blob-dicom-1.zip
+          path: reports/e2e/preview-blobs/dicom-1/preview-smoke-blob-dicom-1.zip
+          archive: false
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 7
+      - name: Upload dicom-2 lane report
+        if: always() && matrix.lane == 'dicom-2'
+        uses: actions/upload-artifact@v7
+        with:
+          # archive: false names the artifact after the file; keep both equal.
+          name: preview-smoke-blob-dicom-2.zip
+          path: reports/e2e/preview-blobs/dicom-2/preview-smoke-blob-dicom-2.zip
+          archive: false
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 7
+
+  preview-smoke:
+    name: preview-smoke
+    runs-on: ubuntu-latest
+    needs: [ci-scope, preview-smoke-lanes]
+    # Merge whatever the lanes reported so failures are still summarized.
+    if: ${{ !cancelled() && needs.ci-scope.outputs.scope == 'full' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup CI dependencies
+        uses: ./.github/actions/setup-ci-dependencies
+
+      # Blobs are already zips. Zipping them again let download-artifact's streaming
+      # unzip mistake the inner data-descriptor signature for the end of the entry
+      # and fail on intact artifacts; v8 with skip-decompress stores them as-is.
+      - name: Download same-run app lane report
+        uses: actions/download-artifact@v8
+        with:
+          name: preview-smoke-blob-app.zip
+          path: reports/e2e/preview-blobs
+          skip-decompress: true
+      - name: Download same-run dicom-graphics-stress lane report
+        uses: actions/download-artifact@v8
+        with:
+          name: preview-smoke-blob-dicom-graphics-stress.zip
+          path: reports/e2e/preview-blobs
+          skip-decompress: true
+      - name: Download same-run dicom-1 lane report
+        uses: actions/download-artifact@v8
+        with:
+          name: preview-smoke-blob-dicom-1.zip
+          path: reports/e2e/preview-blobs
+          skip-decompress: true
+      - name: Download same-run dicom-2 lane report
+        uses: actions/download-artifact@v8
+        with:
+          name: preview-smoke-blob-dicom-2.zip
+          path: reports/e2e/preview-blobs
+          skip-decompress: true
+
+      - name: Merge census and clinical library preview lanes
+        run: npx playwright merge-reports --config playwright.preview-merge.config.ts reports/e2e/preview-blobs
+        env:
           PLAYWRIGHT_PREVIEW_ARTIFACTS_DIR: reports/e2e/preview-bootstrap
 
       - name: Summarize census and library results
         if: always()
         run: node scripts/report-preview-summary.mjs
+
+      - name: Enforce every preview lane passed
+        run: test "$PREVIEW_LANES_RESULT" = success
+        env:
+          PREVIEW_LANES_RESULT: ${{ needs['preview-smoke-lanes'].result }}
+
+      - name: Prove every canonical preview test ran exactly once
+        run: node scripts/check-preview-smoke-completeness.mjs
 
       - name: Enforce preview bootstrap report artifact
         run: test -f reports/e2e/preview-bootstrap/report.json
@@ -693,19 +1006,10 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
-      - name: Upload production build artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: dist
-          path: dist/
-          retention-days: 7
-          if-no-files-found: error
-          overwrite: true
-
   final-confidence-and-readiness:
     name: final-confidence-and-readiness
     runs-on: ubuntu-latest
-    needs: [quality-static-governance-snapshots, build, e2e-critical-emulator]
+    needs: [quality-static-governance-snapshots, build, preview-smoke, e2e-critical-emulator]
 
     steps:
       - name: Checkout code
@@ -774,7 +1078,7 @@ jobs:
 
   census-startup-performance:
     name: census-startup-performance (${{ matrix.environment }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [ci-scope]
     if: needs.ci-scope.outputs.scope == 'full'
     # Ceiling for a pathologically slow startup, not an expectation.
@@ -906,10 +1210,12 @@ jobs:
         functions-scope-gate,
         quality-static,
         unit-risk,
+        test-execution-manifest,
         clinical-sync-release-gate,
         rules-emulator,
         e2e-critical-emulator,
         build,
+        preview-smoke,
         final-confidence-and-readiness,
         ci-runtime-telemetry,
         census-startup-performance,
@@ -920,11 +1226,13 @@ jobs:
       DOCS_SCOPE_GATE_RESULT: ${{ needs['docs-scope-gate'].result }}
       FUNCTIONS_SCOPE_GATE_RESULT: ${{ needs['functions-scope-gate'].result }}
       QUALITY_STATIC_RESULT: ${{ needs['quality-static'].result }}
+      TEST_EXECUTION_RESULT: ${{ needs['test-execution-manifest'].result }}
       UNIT_RISK_RESULT: ${{ needs['unit-risk'].result }}
       CLINICAL_SYNC_RESULT: ${{ needs['clinical-sync-release-gate'].result }}
       RULES_EMULATOR_RESULT: ${{ needs['rules-emulator'].result }}
       E2E_CRITICAL_RESULT: ${{ needs['e2e-critical-emulator'].result }}
       BUILD_RESULT: ${{ needs.build.result }}
+      PREVIEW_SMOKE_RESULT: ${{ needs['preview-smoke'].result }}
       FINAL_CONFIDENCE_RESULT: ${{ needs['final-confidence-and-readiness'].result }}
       CI_RUNTIME_TELEMETRY_RESULT: ${{ needs['ci-runtime-telemetry'].result }}
       CENSUS_PERFORMANCE_RESULT: ${{ needs['census-startup-performance'].result }}
@@ -947,10 +1255,12 @@ jobs:
           for gate in \
             "quality-static:$QUALITY_STATIC_RESULT" \
             "unit-risk:$UNIT_RISK_RESULT" \
+            "test-execution-manifest:$TEST_EXECUTION_RESULT" \
             "clinical-sync-release-gate:$CLINICAL_SYNC_RESULT" \
             "rules-emulator:$RULES_EMULATOR_RESULT" \
             "e2e-critical-emulator:$E2E_CRITICAL_RESULT" \
             "build:$BUILD_RESULT" \
+            "preview-smoke:$PREVIEW_SMOKE_RESULT" \
             "final-confidence-and-readiness:$FINAL_CONFIDENCE_RESULT" \
             "ci-runtime-telemetry:$CI_RUNTIME_TELEMETRY_RESULT" \
             "census-startup-performance:$CENSUS_PERFORMANCE_RESULT"
@@ -973,7 +1283,7 @@ jobs:
     name: postmerge-evidence
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [build, ci-strict-summary, e2e-critical-emulator]
+    needs: [build, preview-smoke, ci-strict-summary, e2e-critical-emulator]
     permissions:
       actions: read
       contents: read
@@ -994,7 +1304,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
 
       - name: Verify preview bootstrap artifact availability
-        run: node scripts/verify-github-run-artifact.mjs --artifact preview-bootstrap-artifacts --producer build
+        run: node scripts/verify-github-run-artifact.mjs --artifact preview-bootstrap-artifacts --producer preview-smoke
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
@@ -1101,6 +1411,8 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
+      # Reads earlier main runs so a failed deployment is retried by the next push.
+      actions: read
       contents: read
     outputs:
       changed: ${{ steps.scope.outputs.changed }}
@@ -1113,6 +1425,8 @@ jobs:
           persist-credentials: false
       - name: Detect Functions-related changes
         id: scope
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: node scripts/check-function-deployment-ci.mjs --scope
 
   deploy-functions:
