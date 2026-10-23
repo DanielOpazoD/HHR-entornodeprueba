@@ -7,7 +7,7 @@ Responsable: mantenedor de HHR (Daniel Opazo).
 
 Se acepta únicamente GHSA-vfj7-8cjw-p6xm en la cadena de desarrollo del
 lockfile raíz aprobado, cuya SHA-256 es
-`77b2029ec39f61605818b78104a3cbaa02cf4b59b8caa0397ce4c7ef6e4883b1`.
+`3b2871a0a37b027bbb84db859ffa5d9a45ffbf469e34c857d2d5e158a5e6a5fd`.
 Daniel autorizó actualizar la huella el 9 de octubre de 2026 para el parche
 transitivo Handlebars 4.7.10 y el 11 de octubre para Firebase CLI 15.16.0.
 El 16 de octubre de 2026 autorizó explícitamente renovar sólo la huella para
@@ -106,3 +106,10 @@ era `28d36f9ed7edcd03714a57c6915a0a820e0a4888db1d300a13d343c669098feb`. La compa
 cuatro entradas; los siete nodos de desarrollo autorizados permanecen idénticos y
 los archivos de dependencias de Functions no cambian. Se conserva el mismo
 alcance de la excepción.
+
+La actualización de Dependabot de PR #968 (reemplaza a #838) sube
+`@tanstack/react-query` y `@tanstack/query-core` de 5.103.1 a 5.104.5, con una sola
+copia de `query-core`. La huella anterior era `77b2029ec39f61605818b78104a3cbaa02cf4b59b8caa0397ce4c7ef6e4883b1`. La comparación completa del
+lock confirma que solo cambian esas dos entradas; los siete nodos de desarrollo
+autorizados permanecen idénticos y los archivos de dependencias de Functions no
+cambian. Se conserva el mismo alcance de la excepción.
