@@ -3,7 +3,7 @@
  * React hook for MINSAL/DEIS hospital statistics with range-based loading.
  */
 
-import { useMemo, useState, useCallback, useEffect } from 'react';
+import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/config/queryClient';
@@ -44,6 +44,7 @@ import {
   isDailyRecordStoreChangeRelevantToRange,
 } from '@/services/storage/indexeddb/indexedDbRecordEvents';
 import { getTodayISO } from '@/utils/dateCoreUtils';
+import { diffCalendarDays } from '@/utils/clinicalDateUtils';
 
 interface UseMinsalStatsResult {
   stats: MinsalStatistics | null;
@@ -65,11 +66,15 @@ interface UseMinsalStatsResult {
   isSavingReclassification: boolean;
 }
 
-const getDaysInRange = (start: string, end: string): number => {
-  const startDate = new Date(`${start}T00:00:00`);
-  const endDate = new Date(`${end}T00:00:00`);
-  return Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-};
+// Calendar days, counted at UTC noon: a local-midnight count gains a day across a daylight-saving
+// change and then the range never looks complete.
+const getDaysInRange = (start: string, end: string): number =>
+  (diffCalendarDays(start, end) ?? 0) + 1;
+
+// A range with days that have no census never looks complete locally, and each remote sync stores
+// records, which fires the store-change event that refetches this query. Without a pause that loop
+// re-downloads the whole range for as long as the view stays open (and between tabs).
+const REMOTE_RANGE_SYNC_INTERVAL_MS = 2 * 60 * 1000;
 
 const mergeByDateDesc = (base: DailyRecord[], incoming: DailyRecord[]): DailyRecord[] => {
   const merged = new Map<string, DailyRecord>();
@@ -87,6 +92,7 @@ export function useMinsalStats(
 ): UseMinsalStatsResult {
   const queryClient = useQueryClient();
   const hospitalId = getActiveHospitalId();
+  const lastRemoteRangeSyncRef = useRef(new Map<string, number>());
   const [dateRange, setDateRange] = useState<DateRangeConfig>({ preset: initialPreset });
   const safeRemoteOptions = useMemo(
     () => ({
@@ -141,10 +147,11 @@ export function useMinsalStats(
         return;
       }
 
-      void queryClient.invalidateQueries({
-        queryKey: localRecordsQueryKey,
-        exact: true,
-      });
+      // Never cancel a fetch that is still storing its own synced records.
+      void queryClient.invalidateQueries(
+        { queryKey: localRecordsQueryKey, exact: true },
+        { cancelRefetch: false }
+      );
     };
 
     window.addEventListener(DAILY_RECORD_STORE_CHANGED_EVENT, handleStoreChanged);
@@ -161,6 +168,12 @@ export function useMinsalStats(
         return localRecords;
       }
 
+      const rangeKey = `${previousPeriodStart}:${endDate}`;
+      const lastSyncAt = lastRemoteRangeSyncRef.current.get(rangeKey);
+      if (lastSyncAt !== undefined && Date.now() - lastSyncAt < REMOTE_RANGE_SYNC_INTERVAL_MS) {
+        return localRecords;
+      }
+      lastRemoteRangeSyncRef.current.set(rangeKey, Date.now());
       const syncedRecords = await syncRecordsRange(previousPeriodStart, endDate);
       if (syncedRecords.length === 0) {
         return localRecords;
@@ -342,6 +355,8 @@ export function useMinsalStats(
   );
 
   const refresh = useCallback(async () => {
+    // A manual refresh always asks the server again.
+    lastRemoteRangeSyncRef.current.delete(`${previousPeriodStart}:${endDate}`);
     await Promise.all([
       queryClient.invalidateQueries({
         queryKey: localRecordsQueryKey,
@@ -353,7 +368,14 @@ export function useMinsalStats(
         queryKey: reclassificationsQueryKey,
       }),
     ]);
-  }, [queryClient, localRecordsQueryKey, remoteStatsQueryKey, reclassificationsQueryKey]);
+  }, [
+    queryClient,
+    localRecordsQueryKey,
+    remoteStatsQueryKey,
+    reclassificationsQueryKey,
+    previousPeriodStart,
+    endDate,
+  ]);
 
   return {
     stats,

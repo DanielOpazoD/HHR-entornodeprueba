@@ -296,4 +296,54 @@ describe('useMinsalStats', () => {
     expect(mockFetchRecordsRangeSorted).toHaveBeenCalledTimes(1);
     expect(mockCallable).toHaveBeenCalledTimes(1);
   });
+
+  describe('remote range sync', () => {
+    const storeChanged = (date: string) =>
+      window.dispatchEvent(
+        new CustomEvent(DAILY_RECORD_STORE_CHANGED_EVENT, {
+          detail: { operation: 'save', dates: [date] },
+        })
+      );
+    const settle = () =>
+      act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      });
+
+    beforeEach(() => {
+      // A range with days that have no census never looks complete locally.
+      mockFetchRecordsRangeSorted.mockResolvedValue([{ date: '2026-03-31' } as DailyRecord]);
+      // Storing synced records fires the store-change event, as saveRecordsStrict does.
+      mockSyncRecordsRange.mockImplementation(async () => {
+        storeChanged('2026-03-14');
+        return [{ date: '2026-03-14' } as DailyRecord];
+      });
+      mockCalculateMinsalStats.mockReturnValue(buildStats());
+      mockCallable.mockResolvedValue({ data: buildStats() });
+    });
+
+    it('syncs an incomplete range once instead of looping on its own store events', async () => {
+      renderHook(() => useMinsalStats('lastMonth'), { wrapper: createWrapper() });
+      await waitFor(() => expect(mockSyncRecordsRange).toHaveBeenCalled());
+      await settle();
+      // Another tab broadcasting a change inside the range does not trigger another download.
+      await act(async () => {
+        storeChanged('2026-03-20');
+      });
+      await settle();
+      expect(mockSyncRecordsRange).toHaveBeenCalledTimes(1);
+    });
+
+    it('still asks the server again on a manual refresh', async () => {
+      const { result } = renderHook(() => useMinsalStats('lastMonth'), {
+        wrapper: createWrapper(),
+      });
+      await waitFor(() => expect(mockSyncRecordsRange).toHaveBeenCalledTimes(1));
+      await settle();
+      await act(async () => {
+        await result.current.refresh();
+      });
+      await settle();
+      expect(mockSyncRecordsRange).toHaveBeenCalledTimes(2);
+    });
+  });
 });
