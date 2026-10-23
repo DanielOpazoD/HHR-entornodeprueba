@@ -41,6 +41,13 @@ Se eximen `beds`, `discharges`, `transfers`, `cma` y `rayenSyncHistory` en
 `cudyrContextEvidence`. Son cargas recuperadas por documento/fecha; las búsquedas
 de la aplicación no filtran ni ordenan por esos campos.
 
+Para los días divididos de la fase 1a (`DESIGN_DAILY_RECORD_PHASE1_CLINICAL_DERIVED.md`) se
+eximen también `clinicalSyncCheckpoint` y `vitalSignsHistory` del grupo `clinicalDerived`, y
+`history.clinicalDerivedPrevious`, donde la copia de cada corrida guarda los valores anteriores de
+esos campos. La exención de `beds` no los cubre: son otros documentos o un campo raíz. Se aplican
+junto con las reglas, antes de activar la división; mientras no haya días marcados no existen
+documentos que eximir.
+
 Se mantienen los campos de búsqueda: fecha, identificador de documento,
 `snapshotTimestamp`, `timestamp`, `recordDate`, episodio, estado y mes.
 Los índices compuestos y las políticas de acceso permanecen intactos.

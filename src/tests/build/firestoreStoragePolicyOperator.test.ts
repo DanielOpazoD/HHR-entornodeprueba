@@ -37,7 +37,17 @@ describe('Firestore storage operator boundaries', () => {
   it('only changes field metadata and the narrowly scoped conflict TTL policy', async () => {
     await run('hhr-pruebas', true);
     const writes = cliMock.mock.calls.filter(([, args]) => isUpdate(args));
-    expect(writes).toHaveLength(21);
+    expect(writes).toHaveLength(24);
+    expect(
+      writes
+        .filter(([, args]) => args.some((arg: string) => arg.includes('clinicalDerived')))
+        .map(([, args]) => `${args[4]} ${args[5]}`)
+        .sort()
+    ).toEqual([
+      'clinicalDerivedPrevious --collection-group=history',
+      'clinicalSyncCheckpoint --collection-group=clinicalDerived',
+      'vitalSignsHistory --collection-group=clinicalDerived',
+    ]);
     expect(
       writes.every(
         ([, args]) =>

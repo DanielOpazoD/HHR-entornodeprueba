@@ -3,6 +3,11 @@
       allow read: if canReadClinicalData();
       allow create, update, delete: if false;
     }
+    // Server-written per-episode clinical data of split days (phase 1a).
+    match /hospitals/{hospitalId}/dailyRecords/{date}/clinicalDerived/{clinicalEpisodeId} {
+      allow read: if canReadClinicalData();
+      allow create, update, delete: if false;
+    }
     match /hospitals/{hospitalId}/specialtyAiRequests/{requestId} {
       allow read, create, update, delete: if false;
     }
