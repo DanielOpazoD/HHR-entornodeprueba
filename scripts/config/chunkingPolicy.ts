@@ -80,8 +80,7 @@ export const chunkForModule = (moduleId: string): string | undefined => {
       has('/node_modules/react-error-boundary/') ||
       has('/node_modules/lucide-react/') ||
       has('/node_modules/@tanstack/react-query/') ||
-      has('/node_modules/@tanstack/query-core/') ||
-      has('/node_modules/@tanstack/react-virtual/')
+      has('/node_modules/@tanstack/query-core/')
     ) {
       return 'vendor-react';
     }
