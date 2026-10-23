@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as idbService from '@/services/storage/indexedDBService';
 import * as indexedDbCore from '@/services/storage/indexeddb/indexedDbCore';
+import { DAILY_RECORD_STORE_CHANGED_EVENT } from '@/services/storage/indexeddb/indexedDbRecordEvents';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { AuditLogEntry } from '@/types/auditLogTypes';
 import { ErrorLog } from '@/services/utils/errorService';
@@ -220,8 +221,14 @@ describe('indexedDBService', () => {
       localStorage.setItem('hanga_roa_tens_list', JSON.stringify(tens));
       localStorage.setItem('hanga_roa_audit_logs', JSON.stringify(auditLogs));
 
+      const announced: unknown[] = [];
+      const listener = (event: Event) => announced.push((event as CustomEvent).detail);
+      window.addEventListener(DAILY_RECORD_STORE_CHANGED_EVENT, listener);
       const migrated = await idbService.migrateFromLocalStorage();
+      window.removeEventListener(DAILY_RECORD_STORE_CHANGED_EVENT, listener);
       expect(migrated).toBe(true);
+      // Calendar markers and other local views refresh from this event, like any other save.
+      expect(announced).toEqual([{ operation: 'save', dates: ['2025-01-01'] }]);
 
       expect(await idbService.getRecordForDate('2025-01-01')).toBeDefined();
       expect(await idbService.getCatalog('nurses')).toEqual(['Alice']);

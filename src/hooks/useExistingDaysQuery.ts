@@ -7,7 +7,10 @@
 import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/config/queryClient';
-import { fetchExistingDaysInMonth } from '@/services/records/recordQueryService';
+import {
+  doStoredDaysHavePatientData,
+  fetchExistingDaysInMonth,
+} from '@/services/records/recordQueryService';
 import {
   DAILY_RECORD_STORE_CHANGED_EVENT,
   type DailyRecordStoreChangedEventDetail,
@@ -37,13 +40,33 @@ export const useExistingDaysQuery = (
     }
 
     const queryKey = queryKeys.existingDays.byMonth(selectedYear, selectedMonth);
+    const monthPrefix = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-`;
+    const rescanMonth = () => void queryClient.invalidateQueries({ queryKey });
     const handleStoreChanged = (event: Event) => {
       const detail = (event as CustomEvent<DailyRecordStoreChangedEventDetail>).detail;
       if (!isDailyRecordStoreChangeRelevantToMonth(detail, selectedYear, selectedMonth + 1)) {
         return;
       }
 
-      void queryClient.invalidateQueries({ queryKey });
+      // Saving a day that is already marked can only keep or drop its marker, so only
+      // that day is re-read. New days, deletes and clears still rescan the month.
+      const marked = queryClient.getQueryData<number[]>(queryKey);
+      const savedDates =
+        detail?.operation === 'save'
+          ? (detail.dates ?? []).filter(date => date.startsWith(monthPrefix))
+          : [];
+      const onlyMarkedDays =
+        marked !== undefined &&
+        savedDates.length > 0 &&
+        savedDates.every(date => marked.includes(parseInt(date.split('-')[2])));
+      if (!onlyMarkedDays) {
+        rescanMonth();
+        return;
+      }
+
+      void doStoredDaysHavePatientData(savedDates).then(stillMarked => {
+        if (!stillMarked) rescanMonth();
+      }, rescanMonth);
     };
 
     window.addEventListener(DAILY_RECORD_STORE_CHANGED_EVENT, handleStoreChanged);
@@ -58,5 +81,9 @@ export const useExistingDaysQuery = (
     },
     enabled,
     staleTime: 1000 * 60 * 5,
+    // Local data only: every local writer announces its change through the store event,
+    // so returning to the tab or reconnecting adds nothing a month rescan would find.
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 };

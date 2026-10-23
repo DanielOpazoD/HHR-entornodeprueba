@@ -82,4 +82,27 @@ describe('record query local/remote boundary', () => {
       'local storage unavailable'
     );
   });
+
+  it('re-checks saved days with one local range read, using the calendar rule', async () => {
+    const service = await import('@/services/records/recordQueryService');
+    mocks.localRange.mockResolvedValue([
+      day('2026-04-07', 'Synthetic'),
+      day('2026-04-10', '   '),
+      day('2026-04-14', 'Synthetic'),
+    ]);
+
+    expect(await service.doStoredDaysHavePatientData(['2026-04-14', '2026-04-07'])).toBe(true);
+    expect(mocks.localRange).toHaveBeenLastCalledWith('2026-04-07', '2026-04-14');
+    expect(await service.doStoredDaysHavePatientData(['2026-04-14', '2026-04-10'])).toBe(false);
+    expect(await service.doStoredDaysHavePatientData(['2026-04-21'])).toBe(false);
+    expect(mocks.localRange).toHaveBeenCalledTimes(3);
+    expect(mocks.month).not.toHaveBeenCalled();
+    expect(mocks.remoteLoaded).not.toHaveBeenCalled();
+  });
+
+  it('does not read anything for an empty list of days', async () => {
+    const service = await import('@/services/records/recordQueryService');
+    expect(await service.doStoredDaysHavePatientData([])).toBe(true);
+    expect(mocks.localRange).not.toHaveBeenCalled();
+  });
 });
