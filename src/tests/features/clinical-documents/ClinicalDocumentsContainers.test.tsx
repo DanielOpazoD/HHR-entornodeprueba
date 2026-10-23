@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { queryClient as appQueryClient } from '@/config/queryClient';
 import { ClinicalDocumentsModal } from '@/features/clinical-documents/components/ClinicalDocumentsModal';
 import { ClinicalDocumentsPanel } from '@/features/clinical-documents/components/ClinicalDocumentsPanel';
 
@@ -66,5 +67,29 @@ describe('ClinicalDocuments containers', () => {
         isActive: true,
       })
     );
+  });
+
+  it('refreshes the census document badges once when the workspace closes', () => {
+    const invalidate = vi.spyOn(appQueryClient, 'invalidateQueries').mockResolvedValue();
+    const props = {
+      onClose: vi.fn(),
+      patient: patient as never,
+      currentDateString: '2026-03-13',
+      bedId: 'B-12',
+    };
+    try {
+      const view = render(<ClinicalDocumentsModal {...props} isOpen={false} />);
+      view.rerender(<ClinicalDocumentsModal {...props} isOpen={true} />);
+      view.rerender(<ClinicalDocumentsModal {...props} isOpen={true} />);
+      expect(invalidate).not.toHaveBeenCalled();
+
+      view.rerender(<ClinicalDocumentsModal {...props} isOpen={false} />);
+      view.rerender(<ClinicalDocumentsModal {...props} isOpen={false} />);
+      expect(invalidate).toHaveBeenCalledExactlyOnceWith({
+        queryKey: ['clinicalDocuments', 'presenceByBed'],
+      });
+    } finally {
+      invalidate.mockRestore();
+    }
   });
 });
