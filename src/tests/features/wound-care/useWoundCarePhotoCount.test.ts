@@ -145,7 +145,7 @@ describe('useWoundCarePhotoCount', () => {
     expect(result.current).toBe(1);
     vi.mocked(WoundCarePhotoRepository.listByEpisode).mockResolvedValueOnce([]);
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(30_000);
+      await vi.advanceTimersByTimeAsync(240_000);
     });
     expect(WoundCarePhotoRepository.listByEpisode).toHaveBeenCalledTimes(2);
     expect(result.current).toBe(0);
@@ -178,9 +178,56 @@ describe('useWoundCarePhotoCount', () => {
     await act(async () => {});
     expect(warn).toHaveBeenCalledTimes(1);
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(30_000);
+      await vi.advanceTimersByTimeAsync(300_000);
     });
     expect(result.current).toBe(1);
     expect(WoundCarePhotoRepository.listByEpisode).toHaveBeenCalledTimes(2);
+  });
+
+  it('refreshes every 5 minutes instead of every 30 seconds', async () => {
+    renderHook(() => useWoundCarePhotoCount('episode-a'));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(299_999);
+    });
+    expect(WoundCarePhotoRepository.listByEpisode).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    expect(WoundCarePhotoRepository.listByEpisode).toHaveBeenCalledTimes(2);
+  });
+
+  it('re-reads on tab return only when the count is older than a minute', async () => {
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+    const switchTab = async (afterMs: number) => {
+      visibility.mockReturnValue('hidden');
+      act(() => document.dispatchEvent(new Event('visibilitychange')));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(afterMs);
+      });
+      visibility.mockReturnValue('visible');
+      await act(async () => document.dispatchEvent(new Event('visibilitychange')));
+    };
+    renderHook(() => useWoundCarePhotoCount('episode-a'));
+    await act(async () => {});
+
+    await switchTab(30_000);
+    expect(WoundCarePhotoRepository.listByEpisode).toHaveBeenCalledTimes(1);
+    await switchTab(30_000);
+    expect(WoundCarePhotoRepository.listByEpisode).toHaveBeenCalledTimes(2);
+  });
+
+  it('re-reads right away when the caller asks for a refresh', async () => {
+    const { result, rerender } = renderHook(
+      ({ token }) => useWoundCarePhotoCount('episode-a', token),
+      { initialProps: { token: 0 } }
+    );
+    await act(async () => {});
+    expect(result.current).toBe(1);
+    vi.mocked(WoundCarePhotoRepository.listByEpisode).mockResolvedValueOnce([]);
+    await act(async () => {
+      rerender({ token: 1 });
+    });
+    expect(WoundCarePhotoRepository.listByEpisode).toHaveBeenCalledTimes(2);
+    expect(result.current).toBe(0);
   });
 });

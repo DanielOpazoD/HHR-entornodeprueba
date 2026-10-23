@@ -12,12 +12,17 @@ vi.mock('@/features/wound-care/public', () => ({
   WoundCareModal: ({
     episodeContext,
     patientName,
+    onClose,
   }: {
     episodeContext: { episodeKey: string };
     patientName: string;
+    onClose: () => void;
   }) => (
     <div data-testid="wound-care-modal">
       {patientName}:{episodeContext.episodeKey}
+      <button type="button" onClick={onClose}>
+        cerrar
+      </button>
     </div>
   ),
   WoundCareErrorBoundary: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -73,5 +78,31 @@ describe('HandoffRow cell components', () => {
 
     expect(screen.getByText('CVC')).toBeInTheDocument();
     expect(screen.getByText('(4d)')).toBeInTheDocument();
+  });
+
+  it('asks the photo badge to refresh when the wound-care modal closes', async () => {
+    const { useWoundCarePhotoCount } = await import('@/features/wound-care/public');
+    vi.mocked(useWoundCarePhotoCount).mockClear();
+    const patient = DataFactory.createMockPatient('R1', {
+      patientName: 'Paciente Demo',
+      rut: '11.111.111-1',
+      admissionDate: '2026-04-19',
+    });
+    render(
+      <table>
+        <tbody>
+          <tr>
+            <HandoffPatientCell patient={patient} />
+          </tr>
+        </tbody>
+      </table>
+    );
+    expect(vi.mocked(useWoundCarePhotoCount)).toHaveBeenLastCalledWith('episode-key-1', 0);
+
+    fireEvent.click(screen.getByTitle(/Registro clínico audiovisual/));
+    fireEvent.click(screen.getByRole('button', { name: 'cerrar' }));
+
+    expect(screen.queryByTestId('wound-care-modal')).not.toBeInTheDocument();
+    expect(vi.mocked(useWoundCarePhotoCount)).toHaveBeenLastCalledWith('episode-key-1', 1);
   });
 });

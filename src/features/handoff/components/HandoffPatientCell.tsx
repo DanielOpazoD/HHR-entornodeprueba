@@ -15,12 +15,16 @@ interface HandoffPatientCellProps {
 
 export const HandoffPatientCell: React.FC<HandoffPatientCellProps> = ({ patient, isSubRow }) => {
   const [showWoundCare, setShowWoundCare] = useState(false);
+  const [photoRefreshToken, setPhotoRefreshToken] = useState(0);
 
   const hasValidEpisode = Boolean(patient.rut?.trim()) && Boolean(patient.admissionDate?.trim());
   const episodeKey = hasValidEpisode
     ? buildClinicalEpisodeKey(patient.rut, patient.admissionDate, patient.admissionTime)
     : '';
-  const photoCount = useWoundCarePhotoCount(hasValidEpisode && !isSubRow ? episodeKey : undefined);
+  const photoCount = useWoundCarePhotoCount(
+    hasValidEpisode && !isSubRow ? episodeKey : undefined,
+    photoRefreshToken
+  );
   const hasPhotos = photoCount > 0;
 
   return (
@@ -61,7 +65,11 @@ export const HandoffPatientCell: React.FC<HandoffPatientCellProps> = ({ patient,
         <WoundCareErrorBoundary patientName={patient.patientName}>
           <WoundCareModal
             isOpen
-            onClose={() => setShowWoundCare(false)}
+            onClose={() => {
+              setShowWoundCare(false);
+              // Photos added or removed in the modal show on the badge right away.
+              setPhotoRefreshToken(token => token + 1);
+            }}
             patientName={patient.patientName}
             patientRut={patient.rut}
             episodeContext={{
