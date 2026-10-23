@@ -265,6 +265,18 @@ tiempo: paralelizar muestras, activar HTTP cache o reducirlas alteraría el cont
 Una optimización posterior debe investigar el arranque de la aplicación con
 mediciones comparables; no atribuir al CI un ahorro obtenido cambiando la prueba.
 
+## Cuadro de copia: solo ayer y solo con el día confirmado vacío — 2026-10-23
+
+`!beds` también es cierto mientras el día todavía carga, en cada arranque en frío y al
+navegar a una fecha sin caché. Por eso el cuadro leía la ventana reciente del censo:
+hasta 35 días completos, solo para saber si existía el día anterior. Ahora
+`useCensusLogic` lo habilita únicamente con `bootstrapPhase === 'confirmed_empty'`, la
+misma fase que monta `EmptyDayPrompt`. `useCensusPromptState` lee solo el día anterior,
+primero en el equipo (`getLocalForDate`) y, si falta, una vez en el servidor
+(`getForDate`). El cuadro copia solo desde ayer, así que la respuesta es la misma. Con
+un día existente se leen 0 días para el cuadro (antes hasta 35); con un día vacío, como
+mucho 1. Fase 0 de `docs/ADR_DAILY_RECORD_DOCUMENT_GRANULARITY.md`.
+
 ## Lecturas del cuadro de copia bajo demanda — 2026-10-03
 
 `useCensusLogic` habilita `useCensusPromptState` solamente cuando no existe un objeto

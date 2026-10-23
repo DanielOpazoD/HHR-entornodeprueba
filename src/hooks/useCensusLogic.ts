@@ -3,6 +3,7 @@ import {
   useDailyRecordBeds,
   useDailyRecordMovements,
   useDailyRecordStaff,
+  useDailyRecordStatus,
 } from '@/context/DailyRecordContext';
 import {
   useDailyRecordDayActions,
@@ -31,8 +32,13 @@ export const useCensusLogic = (currentDateString: string) => {
 
   const { nursesList, tensList } = useStaffContext();
 
-  // Copy-source dates are only consumed by the empty-day prompt.
-  const promptState = useCensusPromptState(currentDateString, !beds);
+  // Only the empty-day prompt uses the copy source, and it mounts once the day is confirmed empty.
+  // `!beds` alone is also true while the day is still loading, on every cold start.
+  const { bootstrapPhase } = useDailyRecordStatus();
+  const promptState = useCensusPromptState(
+    currentDateString,
+    !beds && bootstrapPhase === 'confirmed_empty'
+  );
 
   // Calculate statistics when record changes
   const stats = useMemo(() => {
