@@ -67,6 +67,90 @@ describe('patientDemographicsEpisodeSyncController', () => {
     });
   });
 
+  it('never reduces a passport to the digits of a RUT when matching previous days', async () => {
+    const sourcePatient = DataFactory.createMockPatient('R2', {
+      patientName: 'Paciente Pasaporte',
+      documentType: 'Pasaporte',
+      rut: 'X1234567',
+      firstSeenDate: '2026-04-09',
+      admissionDate: '2026-04-09',
+    });
+    const updatePartial = vi.fn().mockResolvedValue(undefined);
+
+    await harmonizeEpisodeDemographicsHistory({
+      currentDate: '2026-04-10',
+      sourcePatient,
+      updatedFields: { patientName: 'Paciente Corregido' },
+      dailyRecordReadRepository: {
+        getAvailableDates: vi.fn().mockResolvedValue(['2026-04-09', '2026-04-10']),
+        getForDate: vi.fn().mockResolvedValue(
+          DataFactory.createMockDailyRecord('2026-04-09', {
+            beds: {
+              // Another passport with the same digits is a different patient.
+              R4: DataFactory.createMockPatient('R4', {
+                patientName: 'Otro Paciente',
+                documentType: 'Pasaporte',
+                rut: 'Y1234567',
+                firstSeenDate: '2026-04-09',
+              }),
+              // The same passport written with other spacing, case or dashes is the same one.
+              R5: DataFactory.createMockPatient('R5', {
+                patientName: 'Paciente Pasaporte',
+                documentType: 'Pasaporte',
+                rut: 'x-123 4567',
+                firstSeenDate: '2026-04-09',
+              }),
+            },
+          })
+        ),
+      },
+      dailyRecordWriteRepository: { updatePartial },
+    });
+
+    expect(updatePartial).toHaveBeenCalledExactlyOnceWith('2026-04-09', {
+      'beds.R5.patientName': 'Paciente Corregido',
+    });
+  });
+
+  it('treats placeholder documents as missing and falls back to the name', async () => {
+    const sourcePatient = DataFactory.createMockPatient('R2', {
+      patientName: 'Paciente Sin Documento',
+      rut: 'S/R',
+      firstSeenDate: '2026-04-09',
+      admissionDate: '2026-04-09',
+    });
+    const updatePartial = vi.fn().mockResolvedValue(undefined);
+
+    await harmonizeEpisodeDemographicsHistory({
+      currentDate: '2026-04-10',
+      sourcePatient,
+      updatedFields: { age: '61' },
+      dailyRecordReadRepository: {
+        getAvailableDates: vi.fn().mockResolvedValue(['2026-04-09', '2026-04-10']),
+        getForDate: vi.fn().mockResolvedValue(
+          DataFactory.createMockDailyRecord('2026-04-09', {
+            beds: {
+              // Same placeholder, different patient: never the same identity.
+              R4: DataFactory.createMockPatient('R4', {
+                patientName: 'Otro Paciente',
+                rut: 's/r',
+                firstSeenDate: '2026-04-09',
+              }),
+              R5: DataFactory.createMockPatient('R5', {
+                patientName: 'Paciente Sin Documento',
+                rut: 'SIN RUT',
+                firstSeenDate: '2026-04-09',
+              }),
+            },
+          })
+        ),
+      },
+      dailyRecordWriteRepository: { updatePartial },
+    });
+
+    expect(updatePartial).toHaveBeenCalledExactlyOnceWith('2026-04-09', { 'beds.R5.age': '61' });
+  });
+
   it('falls back to patientName matching when rut is missing', async () => {
     const sourcePatient = DataFactory.createMockPatient('R2', {
       patientName: 'Paciente Sin Rut',
