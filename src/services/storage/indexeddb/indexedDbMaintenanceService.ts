@@ -6,9 +6,31 @@ const canUseWindow = (): boolean => typeof window !== 'undefined';
 const APP_STORAGE_PREFIXES = ['hhr_', 'hanga_roa_', 'indexeddb_'];
 const APP_STORAGE_KEYS = new Set(['offlineQueue']);
 
+/**
+ * What the automatic startup repair must never remove: every local store of clinical work that has
+ * not reached the server yet, and the one-attempt markers that stop the repair from looping.
+ * Literals so storage does not depend on its owners; the maintenance tests pin them to the owners'
+ * constants.
+ */
+export const DATABASES_KEPT_BY_AUTOMATIC_REPAIR = ['HangaRoaDB'] as const; // sync queue + records
+export const STORAGE_KEYS_KEPT_BY_AUTOMATIC_REPAIR = new Set([
+  'offlineQueue', // legacy offline queue
+  'hhr_pending_daily_record_patches_v1', // PENDING_DAILY_RECORD_PATCH_STORAGE_KEY
+  'hhr_bootstrap_storage_repair_v1', // bootstrap repair marker (sessionStorage)
+  'hhr_bootstrap_recovery_v1', // client bootstrap recovery marker (sessionStorage)
+]);
+export const STORAGE_PREFIXES_KEPT_BY_AUTOMATIC_REPAIR = [
+  'hhr_audit_connection_outbox_v1:', // AUDIT_CONNECTION_OUTBOX_PREFIX
+] as const;
+
+const isKeptByAutomaticRepair = (key: string): boolean =>
+  STORAGE_KEYS_KEPT_BY_AUTOMATIC_REPAIR.has(key) ||
+  STORAGE_PREFIXES_KEPT_BY_AUTOMATIC_REPAIR.some(prefix => key.startsWith(prefix));
+
 interface ClearBrowserStorageOptions {
   preserveFirebaseAuth?: boolean;
   clearAll?: boolean;
+  keep?: (key: string) => boolean;
 }
 
 const clearStorageBucket = (storage: Storage, options: ClearBrowserStorageOptions = {}): void => {
@@ -29,6 +51,10 @@ const clearStorageBucket = (storage: Storage, options: ClearBrowserStorageOption
       options.preserveFirebaseAuth &&
       (key.startsWith('firebase:authUser:') || key.startsWith('firebase:redirectUser:'))
     ) {
+      continue;
+    }
+
+    if (options.keep?.(key)) {
       continue;
     }
 
@@ -87,11 +113,17 @@ export const resetLocalDatabase = async (): Promise<void> => {
   defaultBrowserWindowRuntime.reload();
 };
 
-export const performClientHardReset = async (): Promise<void> => {
+/**
+ * The one repair the bootstrap runs on its own when Firebase cannot start. It clears what the
+ * browser rebuilds by itself (service workers, Cache Storage, Firebase's own databases, app
+ * caches in storage) and keeps the stores of unsynced clinical work and the repair markers, so a
+ * failure that survives the repair stops at the blocked screen instead of repairing again.
+ */
+export const repairClientStorageKeepingPendingWork = async (): Promise<void> => {
   await unregisterServiceWorkers();
   await clearCacheStorage();
-  clearBrowserStorage({ preserveFirebaseAuth: true });
-  await clearIndexedDatabases();
+  clearBrowserStorage({ preserveFirebaseAuth: true, keep: isKeptByAutomaticRepair });
+  await clearIndexedDatabases(DATABASES_KEPT_BY_AUTOMATIC_REPAIR);
   defaultBrowserWindowRuntime.reload();
 };
 

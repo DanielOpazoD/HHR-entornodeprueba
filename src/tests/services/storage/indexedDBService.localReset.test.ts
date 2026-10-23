@@ -1,6 +1,14 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as idbService from '@/services/storage/indexedDBService';
+import {
+  DATABASES_KEPT_BY_AUTOMATIC_REPAIR,
+  STORAGE_KEYS_KEPT_BY_AUTOMATIC_REPAIR,
+  STORAGE_PREFIXES_KEPT_BY_AUTOMATIC_REPAIR,
+} from '@/services/storage/indexeddb/indexedDbMaintenanceService';
+import { PENDING_DAILY_RECORD_PATCH_STORAGE_KEY } from '@/hooks/controllers/dailyRecordPendingPatchController';
+import { AUDIT_CONNECTION_OUTBOX_PREFIX } from '@/services/admin/auditSession/auditConnectionOutbox';
+import { BOOTSTRAP_RECOVERY_KEY } from '@/services/config/clientBootstrapRecovery';
 
 const FIXED_LOGIN_ATTEMPT_TIMESTAMP = 1772627400000;
 
@@ -44,11 +52,17 @@ describe('Local App Reset', () => {
     window.indexedDB.deleteDatabase = originalDelete;
   });
 
-  it('should unregister service workers in performClientHardReset', async () => {
+  it('repairs local storage without touching unsynced clinical work or its own markers', async () => {
     const originalLocation = setMockLocationWithReload();
 
     const originalDatabases = window.indexedDB.databases;
-    window.indexedDB.databases = vi.fn().mockResolvedValue([{ name: 'HangaRoaDB' }]);
+    window.indexedDB.databases = vi
+      .fn()
+      .mockResolvedValue([
+        { name: 'HangaRoaDB' },
+        { name: 'firebaseLocalStorageDb' },
+        { name: 'firestore/[DEFAULT]/hhr-test/main' },
+      ]);
     const originalDelete = window.indexedDB.deleteDatabase;
     window.indexedDB.deleteDatabase = vi.fn();
 
@@ -61,15 +75,32 @@ describe('Local App Reset', () => {
       value: { getRegistrations },
     });
     localStorage.setItem('firebase:authUser:test:[DEFAULT]', '{"uid":"abc"}');
-    localStorage.setItem('hhr_bootstrap_storage_repair_v1', '1');
+    localStorage.setItem(PENDING_DAILY_RECORD_PATCH_STORAGE_KEY, '{"2026-10-22":["patch"]}');
+    localStorage.setItem('offlineQueue', '[{"id":"legacy"}]');
+    localStorage.setItem(`${AUDIT_CONNECTION_OUTBOX_PREFIX}evt-1`, '{"id":"evt-1"}');
+    localStorage.setItem('hhr_firebase_config', '{"stale":true}');
+    sessionStorage.setItem('hhr_bootstrap_storage_repair_v1', '1');
+    sessionStorage.setItem(BOOTSTRAP_RECOVERY_KEY, '1');
+    sessionStorage.setItem('hhr_logged_this_session', 'true');
 
-    await idbService.performClientHardReset();
+    await idbService.repairClientStorageKeepingPendingWork();
 
-    expect(getRegistrations).toHaveBeenCalled();
     expect(unregister).toHaveBeenCalled();
-    expect(window.indexedDB.deleteDatabase).toHaveBeenCalledWith('HangaRoaDB');
+    expect(window.indexedDB.deleteDatabase).toHaveBeenCalledWith('firebaseLocalStorageDb');
+    expect(window.indexedDB.deleteDatabase).toHaveBeenCalledWith(
+      'firestore/[DEFAULT]/hhr-test/main'
+    );
+    expect(window.indexedDB.deleteDatabase).not.toHaveBeenCalledWith('HangaRoaDB');
+    expect(localStorage.getItem(PENDING_DAILY_RECORD_PATCH_STORAGE_KEY)).toBe(
+      '{"2026-10-22":["patch"]}'
+    );
+    expect(localStorage.getItem('offlineQueue')).toBe('[{"id":"legacy"}]');
+    expect(localStorage.getItem(`${AUDIT_CONNECTION_OUTBOX_PREFIX}evt-1`)).toBe('{"id":"evt-1"}');
     expect(localStorage.getItem('firebase:authUser:test:[DEFAULT]')).toBe('{"uid":"abc"}');
-    expect(localStorage.getItem('hhr_bootstrap_storage_repair_v1')).toBeNull();
+    expect(sessionStorage.getItem('hhr_bootstrap_storage_repair_v1')).toBe('1');
+    expect(sessionStorage.getItem(BOOTSTRAP_RECOVERY_KEY)).toBe('1');
+    expect(localStorage.getItem('hhr_firebase_config')).toBeNull();
+    expect(sessionStorage.getItem('hhr_logged_this_session')).toBeNull();
     expect(window.location.reload).toHaveBeenCalled();
 
     Object.defineProperty(window, 'location', { configurable: true, value: originalLocation });
@@ -81,6 +112,15 @@ describe('Local App Reset', () => {
       // @ts-expect-error - cleanup test-only property
       delete navigator.serviceWorker;
     }
+  });
+
+  it("keeps exactly the stores that hold pending work under their owners' names", () => {
+    expect(DATABASES_KEPT_BY_AUTOMATIC_REPAIR).toContain('HangaRoaDB');
+    expect(STORAGE_KEYS_KEPT_BY_AUTOMATIC_REPAIR.has(PENDING_DAILY_RECORD_PATCH_STORAGE_KEY)).toBe(
+      true
+    );
+    expect(STORAGE_KEYS_KEPT_BY_AUTOMATIC_REPAIR.has(BOOTSTRAP_RECOVERY_KEY)).toBe(true);
+    expect(STORAGE_PREFIXES_KEPT_BY_AUTOMATIC_REPAIR).toContain(AUDIT_CONNECTION_OUTBOX_PREFIX);
   });
 
   it('should expose resetLocalAppStorage as the same full reset behavior', async () => {
