@@ -66,6 +66,10 @@ export const queryKeys = {
     all: ['staff'] as const,
     catalog: () => ['staff', 'catalog'] as const,
   },
+  clinicalDocuments: {
+    /** Census badges: which beds have clinical documents, and how many are drafts. */
+    presence: ['clinicalDocuments', 'presenceByBed'] as const,
+  },
   audit: {
     all: ['audit'] as const,
     logs: (filters?: { startDate?: string; endDate?: string }) =>

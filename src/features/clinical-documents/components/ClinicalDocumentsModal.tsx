@@ -2,6 +2,7 @@ import React from 'react';
 import { FileText } from 'lucide-react';
 
 import { BaseModal } from '@/components/shared/BaseModal';
+import { queryClient, queryKeys } from '@/config/queryClient';
 import type { PatientData } from '@/features/clinical-documents/contracts/clinicalDocumentsPatientContract';
 import { ClinicalDocumentsWorkspace } from '@/features/clinical-documents/components/ClinicalDocumentsWorkspace';
 
@@ -21,6 +22,16 @@ export const ClinicalDocumentsModal: React.FC<ClinicalDocumentsModalProps> = ({
   bedId,
 }) => {
   const headerActionsId = React.useId();
+  const wasOpenRef = React.useRef(isOpen);
+
+  // The census document badges poll every few minutes; refresh them as soon as the
+  // workspace closes so what was created, signed or deleted here shows up right away.
+  React.useEffect(() => {
+    if (wasOpenRef.current && !isOpen) {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.clinicalDocuments.presence });
+    }
+    wasOpenRef.current = isOpen;
+  }, [isOpen]);
 
   return (
     <BaseModal

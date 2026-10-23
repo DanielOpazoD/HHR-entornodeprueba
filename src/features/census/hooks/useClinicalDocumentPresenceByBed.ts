@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { queryKeys } from '@/config/queryClient';
 import type { UnifiedBedRow } from '@/features/census/types/censusTableTypes';
 import {
   projectClinicalDocumentPresence,
@@ -45,7 +46,7 @@ export const useClinicalDocumentPresenceByBed = ({
   );
 
   const query = useQuery({
-    queryKey: ['clinicalDocuments', 'presenceByBed', currentDateString, ...episodeKeys],
+    queryKey: [...queryKeys.clinicalDocuments.presence, currentDateString, ...episodeKeys],
     enabled: enabled && episodeKeys.length > 0,
     queryFn: async () => {
       try {
@@ -65,8 +66,14 @@ export const useClinicalDocumentPresenceByBed = ({
         throw error;
       }
     },
-    staleTime: 30 * 1000,
-    refetchInterval: 45 * 1000,
+    // Each read downloads every clinical document of every patient on the census, so the
+    // badges refresh every few minutes rather than every 45 s. A tab return refreshes them
+    // only when they are older than 2 minutes, and closing the documents workspace refreshes
+    // them at once, so a document created or signed here shows up right away.
+    staleTime: 2 * 60 * 1000,
+    refetchInterval: 5 * 60 * 1000,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
     retry: false,
   });
 

@@ -1,4 +1,6 @@
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { focusManager } from '@tanstack/react-query';
+import { queryClient as appQueryClient } from '@/config/queryClient';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UnifiedBedRow } from '@/features/census/types/censusTableTypes';
 import { useClinicalDocumentPresenceByBed } from '@/features/census/hooks/useClinicalDocumentPresenceByBed';
@@ -275,5 +277,51 @@ describe('useClinicalDocumentPresenceByBed', () => {
         'La presencia documental no está disponible temporalmente.'
       );
     });
+  });
+
+  it('refreshes the badges every 5 minutes and on tab return only after 2 minutes', async () => {
+    vi.useFakeTimers();
+    // The app's defaults refetch every query on every tab return, even when fresh.
+    const { queryClient, wrapper } = createQueryClientTestWrapper({
+      config: { defaultOptions: appQueryClient.getDefaultOptions() },
+    });
+    const reads = () => vi.mocked(executeListClinicalDocumentsByEpisodeKeys).mock.calls.length;
+    const returnToTab = () =>
+      act(() => {
+        focusManager.setFocused(false);
+        focusManager.setFocused(true);
+      });
+    try {
+      renderHook(
+        () =>
+          useClinicalDocumentPresenceByBed({
+            unifiedRows,
+            currentDateString: '2026-03-05',
+            enabled: true,
+          }),
+        { wrapper }
+      );
+      await act(async () => vi.advanceTimersByTimeAsync(0));
+      expect(reads()).toBe(1);
+
+      await act(async () => vi.advanceTimersByTimeAsync(60_000));
+      returnToTab();
+      await act(async () => vi.advanceTimersByTimeAsync(0));
+      expect(reads()).toBe(1);
+
+      await act(async () => vi.advanceTimersByTimeAsync(4 * 60_000 - 1));
+      expect(reads()).toBe(1);
+      await act(async () => vi.advanceTimersByTimeAsync(1));
+      expect(reads()).toBe(2);
+
+      await act(async () => vi.advanceTimersByTimeAsync(2 * 60_000 + 1));
+      returnToTab();
+      await act(async () => vi.advanceTimersByTimeAsync(0));
+      expect(reads()).toBe(3);
+    } finally {
+      focusManager.setFocused(undefined);
+      queryClient.clear();
+      vi.useRealTimers();
+    }
   });
 });
