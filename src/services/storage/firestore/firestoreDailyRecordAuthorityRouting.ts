@@ -38,6 +38,11 @@ export interface DailyRecordPartialWriteOptions {
   syncContract?: SyncTaskContract;
   /** Enforces the base version inside the same transaction as the multi-field patch. */
   requireAtomicCas?: boolean;
+  /**
+   * With requireAtomicCas, returns the record that transaction committed. Set only for writes that
+   * need a confirmed record; a receipt sends the caller into its confirm-and-adopt path.
+   */
+  returnCommittedRecord?: boolean;
   /** See PartialUpdateDailyRecordOptions.historyPolicy. Without it, copies follow the hourly cadence. */
   historyPolicy?: 'snapshot' | 'skip';
   /** Frozen Rayen run policy revalidated atomically with the legacy clinical write. */

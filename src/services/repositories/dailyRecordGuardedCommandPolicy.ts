@@ -42,6 +42,8 @@ export const buildGuardedDailyRecordRemoteWriteOptions = ({
   syncContract,
   requireAtomicCas:
     isReclassification || Boolean(options.requireAtomicCas) || policy.requireAtomicCas,
+  // Only confirmed writes take the committed record; plain local-first writes stay receipt-less.
+  ...(policy.requireConfirmedRecord ? { returnCommittedRecord: true } : {}),
   ...(options.historyPolicy ? { historyPolicy: options.historyPolicy } : {}),
   ...(options.rayenClinicalWriteGuard
     ? { rayenClinicalWriteGuard: options.rayenClinicalWriteGuard }

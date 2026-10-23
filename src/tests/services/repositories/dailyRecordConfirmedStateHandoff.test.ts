@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { createRemoteWriteState } from '@/services/repositories/dailyRecordWriteState';
+import { createDirectFirestoreWriteReceipt } from '@/services/storage/firestore/firestoreDirectWriteReceipt';
 
 const { saveToIndexedDBMock, isFirestoreEnabledMock } = vi.hoisted(() => ({
   saveToIndexedDBMock: vi.fn(),
@@ -205,5 +206,112 @@ describe('daily record confirmed state handoff', () => {
     expect(state.confirmedRecord).toBeUndefined();
     expect(state.consistencyState).toBe('unrecoverable');
     expect(saveToIndexedDBMock).not.toHaveBeenCalled();
+  });
+});
+
+// The server readback can be answered by a listener that has not seen the commit yet.
+describe('daily record confirmed readback guard', () => {
+  const expectedVersion = '2026-08-07T09:00:00.000Z';
+  const preCommitRecord = { ...buildRecord(), lastUpdated: expectedVersion } as DailyRecord;
+  const committedRecord = {
+    ...buildRecord(),
+    beds: { R1: { bedId: 'R1', patientName: 'Paciente Sintético Confirmado' } },
+    lastUpdated: '2026-08-07T10:05:00.000Z',
+  } as unknown as DailyRecord;
+
+  const persistWithReadback = (
+    readRemoteConfirmedRecord: () => Promise<DailyRecord | null>,
+    remoteAuthorityFirst: boolean,
+    state = createRemoteWriteState(),
+    remoteResult?: unknown
+  ) =>
+    persistLocalAndAttemptRemoteSync({
+      date: '2026-08-07',
+      record: buildRecord(),
+      changedPaths: ['rayenSync'],
+      remoteState: state,
+      remoteWrite: vi.fn().mockResolvedValue(remoteResult),
+      readRemoteConfirmedRecord,
+      requireConfirmedRecord: true,
+      remoteAuthorityFirst,
+      expectedVersion,
+      onRemoteFailure: vi.fn(),
+    });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    isFirestoreEnabledMock.mockReturnValue(true);
+    saveToIndexedDBMock.mockResolvedValue({
+      ok: true,
+      operation: 'save',
+      store: 'indexeddb',
+      dates: ['2026-08-07'],
+    });
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it('adopts the committed-record receipt without reading the server back', async () => {
+    const state = createRemoteWriteState();
+    const readRemoteConfirmedRecord = vi.fn();
+    const receipt = createDirectFirestoreWriteReceipt(
+      committedRecord,
+      new Date(committedRecord.lastUpdated)
+    );
+
+    const result = await persistWithReadback(readRemoteConfirmedRecord, true, state, receipt);
+
+    expect(result).toBe('continue');
+    expect(readRemoteConfirmedRecord).not.toHaveBeenCalled();
+    expect(state.confirmedRecord).toEqual(committedRecord);
+    expect(saveToIndexedDBMock).toHaveBeenCalledWith(committedRecord);
+  });
+
+  it.each([
+    ['remote authority first', true],
+    ['local first', false],
+  ])('retries a pre-commit readback twice, then fails closed (%s)', async (_label, first) => {
+    vi.useFakeTimers();
+    const state = createRemoteWriteState();
+    const readRemoteConfirmedRecord = vi.fn().mockResolvedValue(preCommitRecord);
+
+    const pending = persistWithReadback(readRemoteConfirmedRecord, first, state);
+    await vi.advanceTimersByTimeAsync(249);
+    expect(readRemoteConfirmedRecord).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(readRemoteConfirmedRecord).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(750);
+
+    await expect(pending).resolves.toBe('return');
+    expect(readRemoteConfirmedRecord).toHaveBeenCalledTimes(3);
+    expect(state.confirmedRecord).toBeUndefined();
+    expect(state.consistencyState).toBe('unrecoverable');
+    expect(saveToIndexedDBMock).not.toHaveBeenCalledWith(preCommitRecord);
+  });
+
+  it('accepts the committed record once a retried readback catches up', async () => {
+    vi.useFakeTimers();
+    const state = createRemoteWriteState();
+    const readRemoteConfirmedRecord = vi
+      .fn()
+      .mockResolvedValueOnce(preCommitRecord)
+      .mockResolvedValueOnce(committedRecord);
+
+    const pending = persistWithReadback(readRemoteConfirmedRecord, true, state);
+    await vi.advanceTimersByTimeAsync(250);
+
+    await expect(pending).resolves.toBe('continue');
+    expect(readRemoteConfirmedRecord).toHaveBeenCalledTimes(2);
+    expect(state.confirmedRecord).toBe(committedRecord);
+  });
+
+  it('accepts a readback newer than the base version without waiting', async () => {
+    const state = createRemoteWriteState();
+    const readRemoteConfirmedRecord = vi.fn().mockResolvedValue(committedRecord);
+
+    await expect(persistWithReadback(readRemoteConfirmedRecord, false, state)).resolves.toBe(
+      'continue'
+    );
+    expect(readRemoteConfirmedRecord).toHaveBeenCalledOnce();
+    expect(state.confirmedRecord).toBe(committedRecord);
   });
 });

@@ -103,7 +103,13 @@ The first matching route wins:
    fields under the fence.
 4. **`requireAtomicCas`** (e.g. movement reclassification) — `updateRecordPartiallyAtomically`:
    exact base version, history snapshot (hourly cadence and `historyPolicy`) and `update` in one
-   transaction.
+   transaction. A command that needs a confirmed record (`requireConfirmedRecord`, passed down as
+   `returnCommittedRecord`) gets the committed record back. It does not depend on a server
+   readback, which an attached census listener can answer with the pre-commit version. After the
+   commit, the payload is projected onto the base the committing attempt read
+   (`firestoreUpdateProjection`); a payload it cannot reproduce exactly (any `FieldValue`) gets no
+   receipt. Without a receipt, the controller's readback rejects a copy still at the base version,
+   retries twice (about 250 and 750 ms) and then fails closed.
 5. **Otherwise** — `assertFirestoreConcurrency` (**fail-closed**: a verification error aborts),
    a history snapshot (hourly cadence; `'snapshot'` forces it, `'skip'` omits it), and `updateDoc`
    with dot-path fields. It

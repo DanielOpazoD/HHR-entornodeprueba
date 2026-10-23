@@ -79,13 +79,13 @@ const applyRemoteRecovery = async (
   return recovery.status === 'auto_merged' ? 'return' : 'continue';
 };
 
-const runRemoteWriteWithOptionalPreOutboxRenewal = async <T>(
-  remoteWrite: () => Promise<T>,
+const runWithOptionalPreOutboxRenewal = async <T>(
+  remoteStep: () => Promise<T>,
   renewLocalPreOutboxHold?: () => Promise<void>,
   renewIntervalMs?: number
 ): Promise<T> => {
   if (!renewLocalPreOutboxHold || !renewIntervalMs || renewIntervalMs <= 0) {
-    return remoteWrite();
+    return remoteStep();
   }
 
   const intervalId = globalThis.setInterval(() => {
@@ -95,7 +95,7 @@ const runRemoteWriteWithOptionalPreOutboxRenewal = async <T>(
   }, renewIntervalMs);
 
   try {
-    return await remoteWrite();
+    return await remoteStep();
   } finally {
     globalThis.clearInterval(intervalId);
   }
@@ -125,26 +125,50 @@ const applyRemoteAuthorityState = (
   return authoritativeRecord;
 };
 
+/** Waits before re-reading a readback that still shows the pre-write version. */
+const PRE_COMMIT_READBACK_RETRY_DELAYS_MS = [250, 750] as const;
+
+const isSameVersion = (left: string, right: string | undefined): boolean =>
+  right !== undefined && (left === right || Date.parse(left) === Date.parse(right));
+
+const wait = (ms: number) => new Promise<void>(resolve => globalThis.setTimeout(resolve, ms));
+
 /**
- * Older deployed authority callables can confirm a write without returning `recordState`.
- * Read the committed document once in that compatibility case so the next clinical stage receives
- * the server version instead of treating a successful census write as an operational failure.
+ * Prefer the record the write itself returned. Older authority callables, the direct updateDoc
+ * path and an atomic patch whose commit could not be projected return none, so read the committed
+ * document instead. That server read can be answered by an attached listener that has not seen
+ * this commit yet: a readback still at the write's base version is retried briefly, then rejected
+ * so the caller fails closed instead of adopting the pre-write record.
  */
 const resolveRemoteAuthorityRecord = async (
   record: DailyRecord,
   result: RemoteAuthorityWriteResult | void,
-  readRemoteConfirmedRecord?: () => Promise<DailyRecord | null>
+  readRemoteConfirmedRecord?: () => Promise<DailyRecord | null>,
+  expectedVersion?: string
 ): Promise<DailyRecord | null> => {
   const responseRecord = applyRemoteAuthorityState(record, result);
   if (responseRecord) return responseRecord;
   if (!readRemoteConfirmedRecord) return null;
 
-  try {
-    const remoteRecord = await readRemoteConfirmedRecord();
-    return isValidRemoteAuthorityRecord(remoteRecord, record.date) ? remoteRecord : null;
-  } catch (error) {
-    logger.warn('Could not read back the server-confirmed daily record', error);
-    return null;
+  for (let attempt = 0; ; attempt += 1) {
+    let remoteRecord: DailyRecord | null;
+    try {
+      remoteRecord = await readRemoteConfirmedRecord();
+    } catch (error) {
+      logger.warn('Could not read back the server-confirmed daily record', error);
+      return null;
+    }
+    if (!isValidRemoteAuthorityRecord(remoteRecord, record.date)) return null;
+    if (!isSameVersion(remoteRecord.lastUpdated, expectedVersion)) return remoteRecord;
+
+    const delayMs = PRE_COMMIT_READBACK_RETRY_DELAYS_MS[attempt];
+    if (delayMs === undefined) {
+      logger.warn('The server readback still shows the pre-write daily record', {
+        date: record.date,
+      });
+      return null;
+    }
+    await wait(delayMs);
   }
 };
 
@@ -257,7 +281,8 @@ export const persistLocalAndAttemptRemoteSync = async ({
     const authoritativeRecord = await resolveRemoteAuthorityRecord(
       record,
       remoteResult,
-      readRemoteConfirmedRecord
+      readRemoteConfirmedRecord,
+      expectedVersion
     );
     if (!authoritativeRecord) {
       applyLocalPersistenceFailure(
@@ -310,7 +335,7 @@ export const persistLocalAndAttemptRemoteSync = async ({
   try {
     let remoteResult: RemoteAuthorityWriteResult | void;
     try {
-      remoteResult = await runRemoteWriteWithOptionalPreOutboxRenewal(
+      remoteResult = await runWithOptionalPreOutboxRenewal(
         remoteWrite,
         renewLocalPreOutboxHold,
         renewLocalPreOutboxHoldEveryMs
@@ -332,10 +357,17 @@ export const persistLocalAndAttemptRemoteSync = async ({
     // the direct Firestore adapter (which returns `void`), so that one flow explicitly requests a
     // readback before handing control to the clinical stage.
     if (remoteResult !== undefined || requireConfirmedRecord) {
-      const authoritativeRecord = await resolveRemoteAuthorityRecord(
-        record,
-        remoteResult,
-        readRemoteConfirmedRecord
+      // A pre-write readback is retried, so keep the pending outbox task held meanwhile.
+      const authoritativeRecord = await runWithOptionalPreOutboxRenewal(
+        () =>
+          resolveRemoteAuthorityRecord(
+            record,
+            remoteResult,
+            readRemoteConfirmedRecord,
+            expectedVersion
+          ),
+        renewLocalPreOutboxHold,
+        renewLocalPreOutboxHoldEveryMs
       );
       if (!authoritativeRecord) {
         await releaseLocalPreOutboxHold?.();

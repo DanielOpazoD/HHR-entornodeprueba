@@ -230,6 +230,10 @@ export const saveRecordAtomically = async (
  * version and snapshots the previous document (hourly cadence unless `historyPolicy` says
  * otherwise). This is reserved for mutations whose invariant spans more than one field (for
  * example, moving one egreso classification to another).
+ *
+ * Resolves with the document data the committing attempt read. update() carries an updateTime
+ * precondition on that read and no trigger writes daily records, so the committed document is
+ * exactly that data with `partialData` applied (see firestoreUpdateProjection).
  */
 export const updateRecordPartiallyAtomically = async (
   docRef: DocumentReference,
@@ -239,13 +243,14 @@ export const updateRecordPartiallyAtomically = async (
   contextLabel: string,
   { historyPolicy }: { historyPolicy?: 'snapshot' | 'skip' } = {},
   runtime: FirestoreServiceRuntimePort = defaultFirestoreServiceRuntime
-): Promise<void> => {
+): Promise<DocumentData> => {
   const db = runtime.getDb();
   const captureHistory =
     historyPolicy === 'snapshot' || (historyPolicy !== 'skip' && isHistorySnapshotDue(docRef.path));
   let historyWritten = false;
 
-  await runTransaction(db, async transaction => {
+  // runTransaction resolves with the value of the attempt that committed.
+  const baseData = await runTransaction(db, async transaction => {
     historyWritten = false;
     const snap = await transaction.get(docRef);
 
@@ -275,7 +280,8 @@ export const updateRecordPartiallyAtomically = async (
       throw new ConcurrencyError(conflictMessage);
     }
 
-    const remoteLastUpdated = getRemoteLastUpdatedIso(snap.data() as Record<string, unknown>);
+    const data = snap.data() as DocumentData;
+    const remoteLastUpdated = getRemoteLastUpdatedIso(data);
     const remoteVersionMs = Date.parse(remoteLastUpdated || '');
     const expectedVersionMs = Date.parse(expectedLastUpdated);
     if (
@@ -311,14 +317,17 @@ export const updateRecordPartiallyAtomically = async (
     if (captureHistory) {
       const historyRef = doc(collection(docRef, 'history'), new Date().toISOString());
       transaction.set(historyRef, {
-        ...(snap.data() as Record<string, unknown>),
+        ...data,
         snapshotTimestamp: Timestamp.now(),
       });
       historyWritten = true;
     }
+    // The returned base is exact only while this stays a precondition-carrying update().
     transaction.update(docRef, partialData);
+    return data;
   });
   if (historyWritten) markHistorySnapshotTaken(docRef.path);
+  return baseData;
 };
 
 /** `force` is for explicit 'snapshot' requests, such as the one copy before an import run. */
