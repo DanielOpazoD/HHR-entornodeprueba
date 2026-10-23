@@ -299,6 +299,8 @@ describeEmulator('Firestore emulator atomic partial committed record', () => {
     };
     await seed({
       ...buildRecord(),
+      // Stored as production stores it, so the CAS compares a Timestamp base.
+      lastUpdated: Timestamp.fromDate(new Date(BASE_VERSION)),
       rayenSync: { at: BASE_VERSION, by: 'rayen@test', runId: 'run-old', legacyImportedAt: 'x' },
       rayenSyncHistory: [oldRun],
     });
