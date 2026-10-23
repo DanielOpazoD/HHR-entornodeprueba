@@ -12,8 +12,9 @@ import { QueryClient } from '@tanstack/react-query';
  * - staleTime: 5 minutes (data considered fresh for 5 min)
  * - gcTime: 30 minutes (keep unused data in cache for 30 min)
  * - retry: 2 attempts for failed queries
- * - tab return, mount and reconnect refetch only data older than its staleTime; a query
- *   that must re-check even fresh data opts in with 'always' (see useDailyRecordQuery)
+ * - tab return, mount and reconnect refetch only stale data (older than its staleTime,
+ *   invalidated or failed); a query that must re-check even fresh data opts in with
+ *   'always' (see useDailyRecordQuery)
  */
 export const queryClient = new QueryClient({
   defaultOptions: {

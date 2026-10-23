@@ -283,7 +283,7 @@ describe('useClinicalDocumentPresenceByBed', () => {
 
   it('refreshes the badges every 5 minutes and on tab return only after 2 minutes', async () => {
     vi.useFakeTimers();
-    // Worst case: refetch even fresh data on every tab return and reconnect, so only the
+    // Worst case: refetch even fresh data on every tab return, so only the
     // query's own options can prevent the extra read.
     const { queryClient, wrapper } = createQueryClientTestWrapper({
       config: { defaultOptions: alwaysRefetchDefaults },

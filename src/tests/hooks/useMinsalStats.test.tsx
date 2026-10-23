@@ -439,7 +439,7 @@ describe('useMinsalStats', () => {
     });
 
     it('does not rescan the local days on a tab return when nothing changed', async () => {
-      // Worst case: refetch even fresh data on every tab return and reconnect, so only the
+      // Worst case: refetch even fresh data on every tab return, so only the
       // query's own options can prevent the extra read.
       const { queryClient, wrapper } = createQueryClientTestWrapper({
         config: { defaultOptions: alwaysRefetchDefaults },
