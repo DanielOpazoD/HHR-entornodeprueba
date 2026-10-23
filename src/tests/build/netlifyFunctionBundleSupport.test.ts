@@ -8,8 +8,11 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   buildFunctionBundle,
+  buildModernFunctionEsmArtifact,
   checkMailBundleBudgets,
+  loadEsmArtifact,
   readNetlifyExternalModules,
+  usesModernFunctionApi,
 } from '../../../scripts/netlifyFunctionBundleSupport.mjs';
 
 const fixtures: string[] = [];
@@ -135,5 +138,77 @@ describe('Netlify function bundle support', () => {
     { version: 1, functions: { mail: { maxBytes: 1000, maxGzipBytes: 1.5 } } },
   ])('rejects malformed policy %j', invalidPolicy => {
     expect(checkMailBundleBudgets([], invalidPolicy)).not.toEqual([]);
+  });
+});
+
+describe('modern-API functions loaded as Netlify runs them', () => {
+  const createFixtureRoot = () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'netlify-esm-fixture-'));
+    fixtures.push(root);
+    const write = (relativePath: string, content: string) => {
+      const target = path.join(root, relativePath);
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.writeFileSync(target, content);
+    };
+    write(
+      'tsconfig.json',
+      JSON.stringify({ compilerOptions: { baseUrl: '.', paths: { '@fixture/*': ['src/*'] } } })
+    );
+    write('src/value.ts', 'export const value: string = "resolved-fixture-alias";');
+    // A CommonJS package without an exports map, like googleapis.
+    write('node_modules/fixture-cjs/package.json', '{"name":"fixture-cjs","main":"index.js"}');
+    write('node_modules/fixture-cjs/lib/api/index.js', 'exports.ping = () => "pong";');
+    return { root, write };
+  };
+
+  it('recognizes the modern API by its default export', () => {
+    expect(usesModernFunctionApi('export default async (request) => new Response("ok");')).toBe(
+      true
+    );
+    expect(usesModernFunctionApi('export const handler = async () => ({ statusCode: 200 });')).toBe(
+      false
+    );
+  });
+
+  it('fails a directory import of a package, which only resolves under require()', async () => {
+    const { root, write } = createFixtureRoot();
+    write(
+      'directory-import.ts',
+      [
+        'import { value } from "@fixture/value";',
+        'import { ping } from "fixture-cjs/lib/api";',
+        'export default () => [value, ping()];',
+      ].join('\n')
+    );
+
+    const artifact = await buildModernFunctionEsmArtifact({
+      root,
+      entryPoint: 'directory-import.ts',
+      outDir: path.join(root, 'output'),
+    });
+
+    expect(fs.readFileSync(artifact.path, 'utf8')).toContain('resolved-fixture-alias');
+    expect(loadEsmArtifact(artifact.path)).toContain('ERR_UNSUPPORTED_DIR_IMPORT');
+  });
+
+  it('loads the same import when it names the file', async () => {
+    const { root, write } = createFixtureRoot();
+    write(
+      'file-import.ts',
+      [
+        'import { value } from "@fixture/value";',
+        'import { ping } from "fixture-cjs/lib/api/index.js";',
+        'export default () => [value, ping()];',
+      ].join('\n')
+    );
+
+    const artifact = await buildModernFunctionEsmArtifact({
+      root,
+      entryPoint: 'file-import.ts',
+      outDir: path.join(root, 'output'),
+    });
+
+    expect(fs.readFileSync(artifact.path, 'utf8')).toContain('fixture-cjs/lib/api/index.js');
+    expect(loadEsmArtifact(artifact.path)).toBeNull();
   });
 });

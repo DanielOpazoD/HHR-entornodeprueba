@@ -1,6 +1,8 @@
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { gzipSync } from 'node:zlib';
 
 import { build } from 'esbuild';
@@ -53,6 +55,70 @@ export const buildFunctionBundle = async ({ root, entryPoint, outDir }) => {
     googleApis: [...new Set(googleApis)].sort(),
     externalImports: [...new Set(externalImports)].sort(),
   };
+};
+
+/** Netlify ships modern-API functions (a default export) as ESM traced by nft, not bundled. */
+export const usesModernFunctionApi = source => /^export\s+default\b/m.test(source);
+
+/** Leaves every import that resolves into node_modules as an import, the way nft ships it. */
+const keepNodeModulesAsImports = {
+  name: 'keep-node-modules-as-imports',
+  setup(pluginBuild) {
+    pluginBuild.onResolve({ filter: /^[^./]/ }, async args => {
+      if (args.pluginData?.probing) return undefined;
+      const resolved = await pluginBuild.resolve(args.path, {
+        kind: args.kind,
+        importer: args.importer,
+        resolveDir: args.resolveDir,
+        pluginData: { probing: true },
+      });
+      if (resolved.errors.length > 0 || !resolved.path.split(path.sep).includes('node_modules')) {
+        return undefined;
+      }
+      return { path: args.path, external: true };
+    });
+  },
+};
+
+/**
+ * Builds a modern-API function as Netlify runs it: its own sources inlined, packages resolved by
+ * Node's ESM loader at runtime. A CJS bundle hides ESM-only failures such as directory imports.
+ */
+export const buildModernFunctionEsmArtifact = async ({ root, entryPoint, outDir }) => {
+  const name = path.basename(entryPoint, path.extname(entryPoint));
+  const outputPath = path.resolve(outDir, `${name}.mjs`);
+  await build({
+    absWorkingDir: path.resolve(root),
+    entryPoints: [path.resolve(root, entryPoint)],
+    bundle: true,
+    platform: 'node',
+    format: 'esm',
+    target: 'node22',
+    write: true,
+    outfile: outputPath,
+    tsconfig: path.join(root, 'tsconfig.json'),
+    plugins: [keepNodeModulesAsImports],
+    logLevel: 'silent',
+  });
+  return { name, path: outputPath };
+};
+
+/** Imports an ESM artifact in a fresh Node process: null when it loads, else the first error line. */
+export const loadEsmArtifact = artifactPath => {
+  const result = spawnSync(
+    process.execPath,
+    [
+      '--input-type=module',
+      '-e',
+      `await import(${JSON.stringify(pathToFileURL(artifactPath).href)});`,
+    ],
+    { cwd: path.dirname(artifactPath), encoding: 'utf8', env: { PATH: process.env.PATH ?? '' } }
+  );
+  if (result.status === 0) return null;
+  const firstError = (result.stderr || result.stdout || 'unknown load failure')
+    .split('\n')
+    .find(line => /Error|ERR_/.test(line));
+  return (firstError ?? 'unknown load failure').trim();
 };
 
 const isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
