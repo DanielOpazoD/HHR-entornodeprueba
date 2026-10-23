@@ -204,4 +204,86 @@ describe('sendCensusEmailUseCases', () => {
     expect(result.status).toBe('success');
     expect(ports.censusEmailDeliveryPort.sendEmailWithResult).toHaveBeenCalledTimes(1);
   });
+
+  describe('month preparation', () => {
+    const input: Parameters<typeof executeSendCensusEmail>[0] = {
+      record,
+      currentDateString: '2026-03-06',
+      nurseSignature: 'Nurse',
+      selectedYear: 2026,
+      selectedMonth: 2,
+      selectedDay: 6,
+      user: { email: 'admin@test.com', role: 'admin' },
+      role: 'admin',
+      recipients: ['a@test.com'],
+      message: 'test',
+      testModeEnabled: false,
+      testRecipient: '',
+      isAdminUser: true,
+    };
+    const day = (date: string): DailyRecord => ({
+      ...record,
+      date,
+      lastUpdated: `${date}T10:00:00Z`,
+    });
+    const delivery = () => ({
+      sendEmailWithResult: vi.fn().mockResolvedValue({ status: 'success', issues: [] }),
+      uploadBackupWithResult: vi.fn().mockResolvedValue({ status: 'success', issues: [] }),
+    });
+    const month = ['01', '02', '03', '04', '05', '06'].map(d => day(`2026-03-${d}`));
+
+    it('reads the month once and initializes nothing when every day exists', async () => {
+      const initializeDay = vi.fn();
+      const getMonthRecords = vi.fn().mockResolvedValue(month);
+      const port = delivery();
+
+      const result = await executeSendCensusEmail(input, {
+        dailyRecordReadPort: { initializeDay, getMonthRecords },
+        censusEmailDeliveryPort: port as never,
+      });
+
+      expect(result.status).toBe('success');
+      expect(initializeDay).not.toHaveBeenCalled();
+      expect(getMonthRecords).toHaveBeenCalledOnce();
+      expect(port.sendEmailWithResult).toHaveBeenCalledOnce();
+    });
+
+    it('initializes only the missing days, in order, then sends the re-read month', async () => {
+      const initializeDay = vi.fn().mockResolvedValue(undefined);
+      const withGaps = month.filter(r => r.date !== '2026-03-03' && r.date !== '2026-03-04');
+      const getMonthRecords = vi.fn().mockResolvedValueOnce(withGaps).mockResolvedValueOnce(month);
+      const port = delivery();
+
+      await executeSendCensusEmail(input, {
+        dailyRecordReadPort: { initializeDay, getMonthRecords },
+        censusEmailDeliveryPort: port as never,
+      });
+
+      expect(initializeDay.mock.calls).toEqual([
+        ['2026-03-03', '2026-03-02'],
+        ['2026-03-04', '2026-03-03'],
+      ]);
+      expect(getMonthRecords).toHaveBeenCalledTimes(2);
+      const sent = port.sendEmailWithResult.mock.calls[0]?.[0] as { records: DailyRecord[] };
+      expect(sent.records.map(r => r.date)).toContain('2026-03-04');
+    });
+
+    it('creates no day and sends nothing when the month cannot be read', async () => {
+      const initializeDay = vi.fn();
+      const getMonthRecords = vi
+        .fn()
+        .mockRejectedValue(new CensusMonthUnavailableError(2026, 2, new Error('offline')));
+      const port = delivery();
+
+      const result = await executeSendCensusEmail(input, {
+        dailyRecordReadPort: { initializeDay, getMonthRecords },
+        censusEmailDeliveryPort: port as never,
+      });
+
+      expect(result.status).toBe('failed');
+      expect(initializeDay).not.toHaveBeenCalled();
+      expect(port.sendEmailWithResult).not.toHaveBeenCalled();
+      expect(port.uploadBackupWithResult).not.toHaveBeenCalled();
+    });
+  });
 });
