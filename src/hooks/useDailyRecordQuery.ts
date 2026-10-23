@@ -80,9 +80,11 @@ export const useDailyRecordQuery = (
       const configured = queryClient.getDefaultOptions().queries?.staleTime;
       return typeof configured === 'number' || configured === 'static' ? configured : 0;
     },
-    // Brief tab returns can reuse fresh data. Stale resumes still pass through
-    // the freshness gate; reconnect keeps the global forced remote check.
+    // Brief tab returns can reuse fresh data; stale resumes pass through the freshness gate.
+    // A reconnect always re-checks, even fresh data: a short network loss with the page
+    // visible never reaches the inactivity gate (its 'online' handler needs a hidden tab).
     refetchOnWindowFocus: true,
+    refetchOnReconnect: 'always',
   });
 
   useEffect(() => {

@@ -1,11 +1,13 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { focusManager } from '@tanstack/react-query';
-import { queryClient as appQueryClient } from '@/config/queryClient';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UnifiedBedRow } from '@/features/census/types/censusTableTypes';
 import { useClinicalDocumentPresenceByBed } from '@/features/census/hooks/useClinicalDocumentPresenceByBed';
 import { executeListClinicalDocumentsByEpisodeKeys } from '@/application/clinical-documents/clinicalDocumentUseCases';
-import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
+import {
+  createQueryClientTestWrapper,
+  alwaysRefetchDefaults,
+} from '@/tests/utils/queryClientTestUtils';
 import { BedType } from '@/types/domain/beds';
 
 const warnMock = vi.hoisted(() => vi.fn());
@@ -281,9 +283,10 @@ describe('useClinicalDocumentPresenceByBed', () => {
 
   it('refreshes the badges every 5 minutes and on tab return only after 2 minutes', async () => {
     vi.useFakeTimers();
-    // The app's defaults refetch every query on every tab return, even when fresh.
+    // Worst case: refetch even fresh data on every tab return, so only the
+    // query's own options can prevent the extra read.
     const { queryClient, wrapper } = createQueryClientTestWrapper({
-      config: { defaultOptions: appQueryClient.getDefaultOptions() },
+      config: { defaultOptions: alwaysRefetchDefaults },
     });
     const reads = () => vi.mocked(executeListClinicalDocumentsByEpisodeKeys).mock.calls.length;
     const returnToTab = () =>

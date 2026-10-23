@@ -58,7 +58,7 @@ The most fragile boundary in the app is the intersection of TanStack Query cache
 - An unavailable read retains the latest confirmed data while exposing the failure. A delayed response older than that known server revision does not clear the authority failure; recovery requires a successful result at that revision or a newer one. Receiving an old response is not evidence that the current census has been revalidated.
 
 - The daily-record query refetches on focus only when stale, using the existing five-minute cache policy; brief tab returns do not force another read.
-- Reconnect retains the global forced check, including short network interruptions while the page remains visible.
+- Reconnect keeps a forced check through the daily-record query's own `refetchOnReconnect: 'always'`, including short network interruptions while the page remains visible. The global defaults refetch only stale data on tab return and reconnect.
 - The inactivity freshness gate, its in-flight deduplication, realtime subscription and remote confirmation before clinical mutations remain unchanged. Do not replace them with another cache or coordinator.
 - `useDailyRecordQuery.test.tsx` exercises the real QueryClient defaults and counts repository calls on entry, brief/stale tab returns and reconnect. These counts are not Firestore billing metrics.
 
