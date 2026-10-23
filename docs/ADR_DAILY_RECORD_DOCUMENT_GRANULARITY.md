@@ -52,7 +52,9 @@ día. Por eso cada día genera como máximo cuatro eventos por equipo. El evento
 y conteos:
 
 - `sizeBytes`: el día completo en bytes JSON UTF-8, una aproximación del tamaño en Firestore;
-- `derivedBytes`: los datos derivados por cama, cunas incluidas;
+- `derivedBytes`: los datos derivados por cama, cunas incluidas, desglosados en `checkpointBytes`,
+  `vitalsHistoryBytes` y `scoresBytes`;
+- `movementDerivedBytes`: los mismos datos dentro de las fotos de altas, traslados y CMA;
 - `syncHistoryBytes`: el registro `rayenSyncHistory`;
 - `occupiedCount`: camas ocupadas;
 - `count`: versiones distintas que el equipo recibió en esa sesión.
