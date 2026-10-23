@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDailyRecordBeds, useDailyRecordData } from '@/context/DailyRecordContext';
-import { buildSpecialtyRoundCandidates, isCurrentSpecialtyCandidate,
-  resolveSpecialtyRoundRule } from './specialtyRoundModel';
+import { useDailyRecordWriteStatus } from '@/hooks/useDailyRecordWriteStatus';
+import { getDailyRecordWriteState } from '@/services/repositories/dailyRecordWriteCoordinator';
+import {
+  buildSpecialtyRoundCandidates,
+  isCurrentSpecialtyCandidate,
+  resolveSpecialtyRoundRule,
+} from './specialtyRoundModel';
 import { resolveSpecialtyJevLabel } from '@/services/specialty/specialtyJevClient';
 import type { JevSuggestion, SpecialtyRoundSetup } from '@/services/specialty/specialtyJevClient';
 
@@ -11,9 +16,15 @@ type RoundResult = {
   suggestion?: JevSuggestion;
 };
 
+const hasActiveSyncCommit = (date: string) => {
+  const { activeKind } = getDailyRecordWriteState(date);
+  return activeKind === 'clinical_sync' || activeKind === 'structural_sync';
+};
+
 export const useSpecialtyRound = (date: string, disabled: boolean) => {
   const beds = useDailyRecordBeds();
   const { record } = useDailyRecordData();
+  const { isSyncCommit } = useDailyRecordWriteStatus(date);
   const [candidates] = useState(() => buildSpecialtyRoundCandidates(beds, date));
   const [setup, setSetup] = useState<SpecialtyRoundSetup | null>(null);
   const [catalogError, setCatalogError] = useState('');
@@ -32,7 +43,9 @@ export const useSpecialtyRound = (date: string, disabled: boolean) => {
   resultsRef.current = results;
   useEffect(() => {
     activeRef.current = true;
-    return () => { activeRef.current = false; };
+    return () => {
+      activeRef.current = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -42,29 +55,57 @@ export const useSpecialtyRound = (date: string, disabled: boolean) => {
         if (!activeRef.current) return;
         setSetup(next);
         if (next.policy.autoEnabled) {
-          setChoices(current => Object.fromEntries(candidates.map(candidate => [candidate.key,
-            current[candidate.key] || resolveSpecialtyRoundRule(next.policy.rules, candidate.cie10Code) || '',
-          ])));
+          setChoices(current =>
+            Object.fromEntries(
+              candidates.map(candidate => [
+                candidate.key,
+                current[candidate.key] ||
+                  resolveSpecialtyRoundRule(
+                    next.policy.rules,
+                    candidate.cie10Code,
+                    next.policy.memoryEnabled ? next.policy.memory : []
+                  ) ||
+                  '',
+              ])
+            )
+          );
         }
       })
       .catch(async error => {
         if (!activeRef.current) return;
         const service = await import('@/services/specialty/specialtyJevClient');
         if (!activeRef.current) return;
-        setCatalogError(`${service.describeSpecialtySetupError(error)} La asignación manual sigue disponible.`);
+        setCatalogError(
+          `${service.describeSpecialtySetupError(error)} La asignación manual sigue disponible.`
+        );
       });
   }, [candidates]);
 
   const catalog = setup?.policy.aiMode === 'consultative' ? setup.labels : null;
-  const labels = useMemo(() => Object.fromEntries(candidates.map(candidate => [
-    candidate.key,
-    catalog ? resolveSpecialtyJevLabel(catalog, candidate.cie10Code) : null,
-  ])), [candidates, catalog]);
-  const eligible = useMemo(() => candidates.filter(candidate =>
-    candidate.scope && candidate.cie10Code && labels[candidate.key] &&
-    !(setup?.policy.autoEnabled &&
-      setup.policy.rules.some(rule => rule.cie10Code === candidate.cie10Code))
-  ), [candidates, labels, setup]);
+  const labels = useMemo(
+    () =>
+      Object.fromEntries(
+        candidates.map(candidate => [
+          candidate.key,
+          catalog ? resolveSpecialtyJevLabel(catalog, candidate.cie10Code) : null,
+        ])
+      ),
+    [candidates, catalog]
+  );
+  const eligible = useMemo(
+    () =>
+      candidates.filter(
+        candidate =>
+          candidate.scope &&
+          candidate.cie10Code &&
+          labels[candidate.key] &&
+          !(
+            setup?.policy.autoEnabled &&
+            setup.policy.rules.some(rule => rule.cie10Code === candidate.cie10Code)
+          )
+      ),
+    [candidates, labels, setup]
+  );
 
   const setResult = (key: string, result: RoundResult) => {
     resultsRef.current = { ...resultsRef.current, [key]: result };
@@ -77,14 +118,20 @@ export const useSpecialtyRound = (date: string, disabled: boolean) => {
     setProgress('Preparando consultas…');
     try {
       const service = await import('@/services/specialty/specialtyJevClient');
-      const pending = eligible.filter(candidate => !['ready', 'review', 'saved'].includes(
-        resultsRef.current[candidate.key]?.state ?? ''
-      ) && !choices[candidate.key]);
+      const pending = eligible.filter(
+        candidate =>
+          !['ready', 'review', 'saved'].includes(resultsRef.current[candidate.key]?.state ?? '') &&
+          !choices[candidate.key]
+      );
       for (const [index, candidate] of pending.entries()) {
         if (!activeRef.current) break;
         const { scope, key, cie10Code } = candidate;
-        if (!scope || disabledRef.current || recordDateRef.current !== date ||
-          !isCurrentSpecialtyCandidate(bedsRef.current, candidate)) {
+        if (
+          !scope ||
+          disabledRef.current ||
+          recordDateRef.current !== date ||
+          !isCurrentSpecialtyCandidate(bedsRef.current, candidate)
+        ) {
           setResult(key, { state: 'outdated' });
           continue;
         }
@@ -97,19 +144,27 @@ export const useSpecialtyRound = (date: string, disabled: boolean) => {
             canonicalLabel: labels[key]!,
           });
           if (!activeRef.current) break;
-          if (!isCurrentSpecialtyCandidate(bedsRef.current, candidate) ||
-            recordDateRef.current !== date) {
+          if (
+            !isCurrentSpecialtyCandidate(bedsRef.current, candidate) ||
+            recordDateRef.current !== date
+          ) {
             setResult(key, { state: 'outdated' });
           } else {
-            setResult(key, { state: suggestion.specialty ? 'ready' : 'review', requestId, suggestion });
+            setResult(key, {
+              state: suggestion.specialty ? 'ready' : 'review',
+              requestId,
+              suggestion,
+            });
             if (suggestion.specialty) {
               setChoices(current => ({ ...current, [key]: suggestion.specialty! }));
             }
           }
         } catch (error) {
           if (!activeRef.current) break;
-          setResult(key, { state: 'failed',
-            requestId: service.shouldRetainJevRequestId(error) ? requestId : undefined });
+          setResult(key, {
+            state: 'failed',
+            requestId: service.shouldRetainJevRequestId(error) ? requestId : undefined,
+          });
         }
       }
     } finally {
@@ -119,32 +174,53 @@ export const useSpecialtyRound = (date: string, disabled: boolean) => {
   };
 
   const saveAll = async () => {
-    if (busy || disabledRef.current || recordDateRef.current !== date) return;
-    const selected = candidates.filter(candidate =>
-      candidate.scope && choices[candidate.key] &&
-      resultsRef.current[candidate.key]?.state !== 'saved'
+    if (
+      busy ||
+      disabledRef.current ||
+      recordDateRef.current !== date ||
+      hasActiveSyncCommit(date)
+    ) {
+      return;
+    }
+    const selected = candidates.filter(
+      candidate =>
+        candidate.scope &&
+        choices[candidate.key] &&
+        resultsRef.current[candidate.key]?.state !== 'saved'
     );
     if (!selected.length) return;
     setBusy(true);
     try {
       const service = await import('@/services/specialty/specialtyJevClient');
       for (const [index, candidate] of selected.entries()) {
-        if (!activeRef.current) break;
+        // A brief commit pause preserves unsent choices for the next confirmation.
+        if (!activeRef.current || hasActiveSyncCommit(date)) break;
         setProgress(`Confirmando ${index + 1} de ${selected.length}…`);
         const scope = candidate.scope;
-        if (!scope || disabledRef.current || recordDateRef.current !== date ||
-          !isCurrentSpecialtyCandidate(bedsRef.current, candidate)) {
+        if (
+          !scope ||
+          disabledRef.current ||
+          recordDateRef.current !== date ||
+          !isCurrentSpecialtyCandidate(bedsRef.current, candidate)
+        ) {
           setResult(candidate.key, { state: 'outdated' });
           continue;
         }
         const choice = choices[candidate.key];
         const previous = resultsRef.current[candidate.key];
         try {
-          if (previous && ['ready', 'failed'].includes(previous.state) &&
-              previous.suggestion?.specialty === choice &&
-              previous.requestId) {
-            await service.acceptSpecialtySuggestion(scope, previous.requestId, choice,
-              candidate.decisionId);
+          if (
+            previous &&
+            ['ready', 'failed'].includes(previous.state) &&
+            previous.suggestion?.specialty === choice &&
+            previous.requestId
+          ) {
+            await service.acceptSpecialtySuggestion(
+              scope,
+              previous.requestId,
+              choice,
+              candidate.decisionId
+            );
           } else {
             await service.assignSpecialtyManually(scope, choice, candidate.decisionId);
           }
@@ -161,10 +237,24 @@ export const useSpecialtyRound = (date: string, disabled: boolean) => {
     }
   };
 
-  return { candidates, catalog, labels,
-    catalogError: catalogError || (setup?.policy.aiMode === 'off' ?
-      'Jev aún no está configurado en este entorno. Un administrador puede hacerlo en «Reglas automáticas».' : ''),
-    eligible, results, choices, busy, progress,
+  return {
+    candidates,
+    catalog,
+    labels,
+    catalogError:
+      catalogError ||
+      (setup?.policy.aiMode === 'off'
+        ? 'Jev aún no está configurado en este entorno. Un administrador puede hacerlo en «Reglas automáticas».'
+        : ''),
+    eligible,
+    results,
+    choices,
+    busy,
+    isSyncCommit,
+    progress,
     rules: setup?.policy.autoEnabled ? setup.policy.rules : [],
-    setChoices, consultAll, saveAll };
+    setChoices,
+    consultAll,
+    saveAll,
+  };
 };

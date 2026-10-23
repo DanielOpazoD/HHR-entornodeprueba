@@ -9,7 +9,6 @@ vi.mock('@/services/storage/indexeddb/indexedDbCore', () => ({
   isIndexedDBAvailable: vi.fn(),
   isDatabaseInFallbackMode: vi.fn(),
   getLocalPersistenceRuntimeSnapshot: vi.fn(),
-  registerDatabaseRecreatedHandler: vi.fn(),
 }));
 
 vi.mock('@/services/storage/indexeddb/indexedDbMigrationService', () => ({

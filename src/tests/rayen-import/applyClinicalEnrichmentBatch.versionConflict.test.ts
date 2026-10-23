@@ -55,7 +55,7 @@ const dependencies = () => ({
 describe('applyClinicalEnrichmentBatch version conflicts', () => {
   it('rehydrates and rebuilds the first clinical batch after the census revision advances', async () => {
     const deps = dependencies();
-    deps.refreshRecord.mockResolvedValue({
+    deps.refreshRecord.mockResolvedValueOnce(record).mockResolvedValue({
       ...record,
       lastUpdated: '2026-07-28T10:01:00.000Z',
       meta: { revision: 8 },
@@ -84,7 +84,7 @@ describe('applyClinicalEnrichmentBatch version conflicts', () => {
       expectedLastUpdated: '2026-07-28T10:01:00.000Z',
       mutationId: 'mutation-fixed',
     });
-    expect(deps.refreshRecord).toHaveBeenCalledTimes(2);
+    expect(deps.refreshRecord).toHaveBeenCalledTimes(3);
     expect(deps.applyPatch).not.toHaveBeenCalled();
     expect(result).toMatchObject({
       patientWrites: 1,
@@ -105,7 +105,9 @@ describe('applyClinicalEnrichmentBatch version conflicts', () => {
       message: 'revision_mismatch: expected 7, received 8.',
       details: { transactionRetries: 1 },
     });
-    deps.refreshRecord.mockRejectedValueOnce(new Error('refresh unavailable'));
+    deps.refreshRecord
+      .mockResolvedValueOnce(record)
+      .mockRejectedValueOnce(new Error('refresh unavailable'));
 
     await expect(
       applyClinicalEnrichmentBatch({
@@ -130,7 +132,7 @@ describe('applyClinicalEnrichmentBatch version conflicts', () => {
 
   it('keeps a changed bed or episode blocked after refreshing a stale census revision', async () => {
     const deps = dependencies();
-    deps.refreshRecord.mockResolvedValue({
+    deps.refreshRecord.mockResolvedValueOnce(record).mockResolvedValue({
       ...record,
       lastUpdated: '2026-07-28T10:01:00.000Z',
       meta: { revision: 8 },
@@ -189,7 +191,7 @@ describe('applyClinicalEnrichmentBatch version conflicts', () => {
     });
 
     expect(deps.invoke).toHaveBeenCalledTimes(1);
-    expect(deps.refreshRecord).not.toHaveBeenCalled();
+    expect(deps.refreshRecord).toHaveBeenCalledTimes(1);
     expect(deps.applyPatch).not.toHaveBeenCalled();
   });
 });

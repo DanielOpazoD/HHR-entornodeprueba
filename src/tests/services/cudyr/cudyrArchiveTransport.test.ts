@@ -10,7 +10,7 @@ vi.mock('@/services/storage/firestore/firestoreShared', () => ({
   getRecordDocRef: (date: string) => date,
 }));
 vi.mock('@/services/cudyr/cudyrHistoryService', () => ({ archiveCudyrHistory: h.archive }));
-vi.mock('@/services/storage/sessionScopedStorageService', () => ({
+vi.mock('@/services/storage/sessionOwnerKey', () => ({
   getStoredSessionOwnerKey: () => h.owner,
 }));
 vi.mock('@/services/storage/sessionStorageTransition', () => ({

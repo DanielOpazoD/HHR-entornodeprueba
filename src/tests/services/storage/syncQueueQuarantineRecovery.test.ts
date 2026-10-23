@@ -5,11 +5,9 @@ import { logError } from '@/services/utils/errorService';
 
 vi.mock('firebase/firestore', async importOriginal => {
   const actual = await importOriginal<typeof import('firebase/firestore')>();
-  return {
-    ...actual,
-    setDoc: vi.fn().mockResolvedValue(undefined),
-    getDoc: vi.fn().mockResolvedValue({ exists: () => false, data: () => undefined }),
-  };
+  const { createSingleAttemptFirestoreMock } =
+    await import('./singleAttemptFirestoreTransactionMock');
+  return { ...actual, ...createSingleAttemptFirestoreMock() };
 });
 
 vi.mock('@/services/storage/firestore/firestoreShared', async importOriginal => {
@@ -191,3 +189,8 @@ describe('storage/sync cuarentena y recuperación', () => {
     );
   });
 });
+
+// These fixtures mock Firestore setDoc, not the callable transport.
+// Pin their legacy lane even when release verification inherits enforced mode.
+beforeEach(() => vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', 'client_only'));
+afterEach(() => vi.unstubAllEnvs());

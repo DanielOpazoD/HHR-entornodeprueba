@@ -5,6 +5,7 @@ import type { AuditLogEntry } from '@/types/auditLogTypes';
 // Unmock audit services to test the REAL logic
 vi.unmock('../../services/admin/auditService');
 
+import { setDoc } from 'firebase/firestore';
 import { logThrottledViewEvent } from '@/services/admin/auditService';
 import { defaultAuditPort } from '@/application/ports/auditPort';
 import { auth } from '@/firebaseConfig';
@@ -35,17 +36,26 @@ vi.mock('../../services/storage/indexeddb/indexedDbAuditLogService', () => ({
   saveAuditLog: (log: AuditLogEntry) => mockSaveAuditLog(log),
   getAuditLogs: (limit: number) => mockGetAuditLogs(limit),
   getAuditLogsForDate: vi.fn(),
+  getAuditLogsInRange: vi.fn().mockResolvedValue([]),
 }));
+
+const writtenEntry = (): AuditLogEntry => vi.mocked(setDoc).mock.calls[0][1] as AuditLogEntry;
 
 const mockAuditState = {
   email: 'doctor@hospital.cl',
   uid: 'doctor-123',
 };
 
-vi.mock('../../services/admin/utils/auditUtils', () => ({
+vi.mock('../../services/admin/utils/auditUtils', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/admin/utils/auditUtils')>()),
   getCurrentUserEmail: vi.fn(() => mockAuditState.email),
   getCurrentUserDisplayName: vi.fn(() => 'Doctor Account'),
   getCurrentUserUid: vi.fn(() => mockAuditState.uid),
+  getCurrentAuditSession: vi.fn(() => ({
+    uid: mockAuditState.uid,
+    email: mockAuditState.email,
+    displayName: 'Doctor Account',
+  })),
   getCachedIpAddress: vi.fn(() => '127.0.0.1'),
   fetchAndCacheIpAddress: vi.fn().mockResolvedValue('127.0.0.1'),
 }));
@@ -68,7 +78,7 @@ describe('Audit Flow Integration', () => {
     } as User;
   });
 
-  it('should log patient admission locally and to Firestore', async () => {
+  it('should log patient admission to Firestore only, with the masked and full document', async () => {
     await defaultAuditPort.logPatientAdmission(
       'BED_01',
       'Juan Pérez',
@@ -77,11 +87,12 @@ describe('Audit Flow Integration', () => {
       '2024-12-25'
     );
 
-    expect(mockSaveAuditLog).toHaveBeenCalled();
-    const call = mockSaveAuditLog.mock.calls[0][0];
+    expect(mockSaveAuditLog).not.toHaveBeenCalled();
+    const call = writtenEntry();
     expect(call.action).toBe('PATIENT_ADMITTED');
     expect(call.userId).toBe('doctor@hospital.cl');
     expect(call.patientIdentifier).toContain('***'); // Masked RUT
+    expect(call.details.rut).toBe('12345678-9');
     expect(call.entityId).toBe('BED_01');
   });
 
@@ -94,8 +105,7 @@ describe('Audit Flow Integration', () => {
       '2024-12-25'
     );
 
-    expect(mockSaveAuditLog).toHaveBeenCalled();
-    const call = mockSaveAuditLog.mock.calls[0][0];
+    const call = writtenEntry();
     expect(call.action).toBe('PATIENT_DISCHARGED');
     expect(call.details.status).toBe('Vivo');
   });
@@ -113,7 +123,7 @@ describe('Audit Flow Integration', () => {
       '2024-12-25'
     );
 
-    expect(mockSaveAuditLog).not.toHaveBeenCalled();
+    expect(setDoc).not.toHaveBeenCalled();
   });
 
   it('should log patient view for regular users', async () => {

@@ -42,7 +42,10 @@ export const createListYears = (storageRoot: string) => {
         async () => {
           const rootRef = ref(storage, storageRoot);
           const result = await listAll(rootRef);
-          return result.prefixes.map(prefix => prefix.name).sort((a, b) => b.localeCompare(a));
+          return result.prefixes
+            .map(prefix => prefix.name)
+            .filter(name => /^\d{4}$/.test(name))
+            .sort((a, b) => b.localeCompare(a));
         },
         { context: storageRoot }
       );

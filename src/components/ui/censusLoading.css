@@ -1,0 +1,55 @@
+/* Transform-only motion: four dots orbit, gather, and open into a soft square. */
+.census-loading-dots {
+  position: relative;
+  display: block;
+  width: 48px;
+  height: 48px;
+  animation: census-dots-orbit 3.2s linear infinite;
+}
+.census-loading-dots i {
+  position: absolute;
+  top: 19px;
+  left: 19px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #0d9488;
+  --x: -12px;
+  --y: -12px;
+  animation: census-dots-breathe 1.6s ease-in-out infinite alternate;
+}
+.census-loading-dots i:nth-child(2) {
+  background: #38bdf8;
+  --x: 12px;
+}
+.census-loading-dots i:nth-child(3) {
+  background: #818cf8;
+  --x: 12px;
+  --y: 12px;
+}
+.census-loading-dots i:nth-child(4) {
+  background: #fbbf24;
+  --y: 12px;
+}
+@keyframes census-dots-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes census-dots-breathe {
+  from {
+    transform: translate(calc(var(--x) * 0.55), calc(var(--y) * 0.55)) scale(0.75);
+  }
+  to {
+    transform: translate(var(--x), var(--y)) scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .census-loading-dots,
+  .census-loading-dots i {
+    animation: none;
+  }
+  .census-loading-dots i {
+    transform: translate(var(--x), var(--y));
+  }
+}

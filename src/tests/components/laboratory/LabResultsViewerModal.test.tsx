@@ -19,7 +19,6 @@ vi.unmock('@/features/laboratory/components/LabViewerComparisonTable');
 vi.unmock('@/features/laboratory/components/LabExportConfigDialog');
 vi.unmock('@/features/laboratory/components/LabViewerEmptyState');
 vi.unmock('@/features/laboratory/components/SyslabAccessPrompt');
-vi.unmock('@/features/laboratory/constants/labConstants');
 vi.unmock('@/features/laboratory/types/labViewerTypes');
 
 // Mock BaseModal to render title + children
@@ -68,7 +67,10 @@ vi.mock('@/features/laboratory/hooks/useSyslabAccess', () => ({
   useSyslabAccess: (...args: unknown[]) => mockUseSyslabAccess(...args),
 }));
 
-vi.mock('@/features/laboratory/controllers/labFormattingController', () => ({
+vi.mock('@/features/laboratory/controllers/labFormattingController', async importOriginal => ({
+  ...(await importOriginal<
+    typeof import('@/features/laboratory/controllers/labFormattingController')
+  >()),
   isOutOfRange: (result: string, ref: string) => {
     const m = ref.match(/([\d.]+)-([\d.]+)/);
     if (!m) return null;

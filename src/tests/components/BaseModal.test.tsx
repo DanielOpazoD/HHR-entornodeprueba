@@ -6,7 +6,7 @@
  * query document.body instead of the render container.
  */
 
-import { render, cleanup, fireEvent } from '@testing-library/react';
+import { render, cleanup, fireEvent, screen } from '@testing-library/react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
@@ -17,6 +17,30 @@ vi.mock('@/hooks/useScrollLock', () => ({
 }));
 
 describe('BaseModal z-index behavior', () => {
+  it('names stacked dialogs independently and closes only the active portal on Escape', () => {
+    const parentKey = vi.fn();
+    const outerClose = vi.fn();
+    const innerClose = vi.fn();
+    render(
+      <div onKeyDown={parentKey}>
+        <BaseModal isOpen title="MMRAD selector" onClose={outerClose}>
+          <button>Outer action</button>
+          <BaseModal isOpen title="DICOM study" onClose={innerClose}>
+            <button>Active viewport</button>
+          </BaseModal>
+        </BaseModal>
+      </div>
+    );
+    const outer = screen.getByRole('dialog', { name: 'MMRAD selector' });
+    const inner = screen.getByRole('dialog', { name: 'DICOM study' });
+    expect(outer.getAttribute('aria-labelledby')).not.toBe(inner.getAttribute('aria-labelledby'));
+    const control = screen.getByRole('button', { name: 'Active viewport' });
+    control.focus();
+    fireEvent.keyDown(control, { key: 'Escape' });
+    expect(innerClose).toHaveBeenCalledOnce();
+    expect(outerClose).not.toHaveBeenCalled();
+    expect(parentKey).not.toHaveBeenCalled();
+  });
   beforeEach(() => {
     // Clean up any portaled content before each test
     document.body.innerHTML = '';
@@ -61,7 +85,7 @@ describe('BaseModal z-index behavior', () => {
     expect(dialog).not.toBe(backdrop);
     expect(dialog).toHaveAttribute('data-module', 'clinical-test');
     expect(dialog).toHaveAttribute('aria-modal', 'true');
-    expect(dialog).toHaveAttribute('aria-labelledby', 'modal-title');
+    expect(dialog).toHaveAttribute('aria-labelledby', document.querySelector('h3')!.id);
     expect(backdrop).not.toHaveAttribute('role');
   });
 

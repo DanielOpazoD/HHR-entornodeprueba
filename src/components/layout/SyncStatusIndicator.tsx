@@ -7,6 +7,7 @@ import React from 'react';
 import { Cloud, RefreshCw, AlertTriangle } from 'lucide-react';
 import clsx from 'clsx';
 import { useDailyRecordStatus } from '@/context/DailyRecordContext';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 const SYNC_STATUS_SLOT_CLASS =
   'flex h-8 w-[88px] items-center justify-center gap-1.5 rounded-full border px-0 py-0 text-[10px] font-semibold uppercase tracking-wider transition-colors duration-200';
@@ -63,7 +64,7 @@ export const SyncStatusIndicator: React.FC = () => {
   const Icon = config.icon;
 
   const timeString = lastSyncTime
-    ? `Última sync: ${lastSyncTime.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}`
+    ? `Última sync: ${lastSyncTime.toLocaleTimeString('es-CL', { timeZone: CLINICAL_TIME_ZONE, hour: '2-digit', minute: '2-digit' })}`
     : 'Esperando conexión...';
 
   return (

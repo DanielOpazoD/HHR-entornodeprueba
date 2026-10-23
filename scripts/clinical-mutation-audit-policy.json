@@ -84,11 +84,11 @@
     },
     {
       "action": "PATIENT_HARMONIZED",
-      "justification": "Local-first audit (recorded locally, remote sync best-effort and self-observed in auditCore); audited before the identity mutation. True fail-closed would require routing this batch through executeWriteAuditEvent (follow-up)."
+      "justification": "Audit written through auditCore (queued by the Firestore offline cache, remote failures self-observed); audited before the identity mutation. True fail-closed would require routing this batch through executeWriteAuditEvent (follow-up)."
     },
     {
       "action": "DATA_ADMISSION_DATES_BACKFILLED",
-      "justification": "Admin batch data-maintenance via the local-first audit path; the audit precedes/accompanies the backfill and is self-observed."
+      "justification": "Admin batch data-maintenance audited through auditCore (Firestore offline cache, failures self-observed); the audit precedes/accompanies the backfill."
     },
     {
       "action": "DATA_IMPORTED",
@@ -207,6 +207,7 @@
     "VIEW_MEDICAL_HANDOFF",
     "USER_LOGIN",
     "USER_LOGOUT",
+    "CONNECTION_INTERRUPTED",
     "DATA_EXPORTED",
     "CLINICAL_DOCUMENT_EXPORTED",
     "CLINICAL_DOCUMENT_PRINTED",

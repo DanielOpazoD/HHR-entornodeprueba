@@ -39,6 +39,12 @@ describe('netlify security headers', () => {
     expect(content).toContain("worker-src 'self' blob:");
     expect(content).not.toContain('https://fonts.googleapis.com');
     expect(content).not.toContain('https://fonts.gstatic.com');
+    // Google Identity Services loads its button styles from this exact path.
+    for (const route of ['/*', '/documentos/escanear-demo*']) {
+      expect(extractHeaderBlock(content, route)).toContain(
+        "style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style;"
+      );
+    }
   });
 
   it('keeps the SPA shell strict while only allowing the legacy offline page inline script', () => {
@@ -81,6 +87,20 @@ describe('netlify security headers', () => {
   it('keeps COOP mode compatible with popup login flow', () => {
     const content = readFileSync('netlify.toml', 'utf-8');
     expect(content).toContain('Cross-Origin-Opener-Policy = "unsafe-none"');
+  });
+
+  it('applies the DICOM worker CSP after the overlapping shell rule without relaxing the shell', () => {
+    const content = readFileSync('netlify.toml', 'utf-8');
+    const worker = '/assets/decodeImageFrameWorker-*.js';
+    // Verified against the deployed CDN: a later /* rule replaces the worker CSP.
+    expect(content.indexOf(`for = "${worker}"`)).toBeGreaterThan(content.indexOf('for = "/*"'));
+    const shell = extractHeaderBlock(content, '/*');
+    const codec = extractHeaderBlock(content, worker);
+    expect(shell).not.toContain("'unsafe-eval'");
+    expect(shell).not.toContain("'wasm-unsafe-eval'");
+    expect(codec).toContain("script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'");
+    expect(codec).toContain("connect-src 'self'");
+    expect(codec).toContain("default-src 'none'");
   });
 
   it('keeps the SPA rewrite so refresh works on clean module routes', () => {

@@ -6,6 +6,14 @@ Antes de cambiar un flujo, leer el [contrato operativo](docs/DOMAIN_RULES.md) y 
 [glosario de dominio](docs/GLOSSARY.md): explican las reglas que el código debe
 conservar y por qué. Son la entrada para personas e IA; no sustituyen los controles técnicos.
 
+La [guía operativa navegable](docs/guia-operativa.html) reúne fuentes, escenarios y
+estados de implementación. El contrato es canónico; la guía no sustituye sus reglas
+ni demuestra por sí sola que el código o el despliegue las cumplan.
+
+Para preparar la transición entre Firebase, personas e IA deben leer primero la
+[política de fuentes y alcance](docs/migration/00-fuentes-y-alcance.md). Define qué
+censos están cerrados y la revisión acotada de enfermería y medios de traslado.
+
 Modelo de acceso:
 
 - [Auth Access Model](docs/AUTH_ACCESS_MODEL.md)

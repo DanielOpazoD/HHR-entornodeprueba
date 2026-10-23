@@ -25,9 +25,14 @@ export interface QuarantinedOperationView {
   id: number;
   targetLabel: string;
   categoryLabel: string;
+  code?: string;
+  detail?: string;
 }
 
-const targetLabelFromKey = (key: string | undefined, type: SyncQueueOperation['type']): string => {
+export const targetLabelFromKey = (
+  key: string | undefined,
+  type: SyncQueueOperation['type']
+): string => {
   if (type === 'ARCHIVE_CUDYR') return 'Archivo CUDYR';
   if (type === 'UPDATE_PATIENT') return 'Datos del paciente';
   const date = key?.startsWith('daily:') ? key.slice('daily:'.length) : null;
@@ -44,6 +49,8 @@ export const listQuarantinedOperations = (
     .filter(operation => typeof operation.id === 'number')
     .map(operation => ({
       id: operation.id as number,
+      code: operation.lastErrorCode,
+      detail: operation.error,
       targetLabel: targetLabelFromKey(operation.key, operation.type),
       categoryLabel: isPolicyBlockedCudyrArchive(operation)
         ? 'Autorización anterior'

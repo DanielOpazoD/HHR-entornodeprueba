@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { SpecialtyCell } from '@/features/census/components/patient-row/SpecialtyCell';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
 
@@ -21,6 +21,7 @@ const StatefulSpecialtyCell: React.FC<{
             onMultipleUpdate={fields => {
               onMultipleUpdate(fields);
               setData(current => ({ ...current, ...fields }));
+              return true;
             }}
           />
         </tr>
@@ -41,7 +42,7 @@ const renderCell = () => {
 };
 
 describe('SpecialtyCell', () => {
-  it('does not expose secondary specialty controls', () => {
+  it('does not expose secondary specialty controls', async () => {
     const onMultipleUpdate = vi.fn();
 
     render(
@@ -60,7 +61,7 @@ describe('SpecialtyCell', () => {
     expect(document.querySelectorAll('select')).toHaveLength(1);
   });
 
-  it('keeps any custom specialty entered through Otro and trims accidental spaces', () => {
+  it('keeps any custom specialty entered through Otro and trims accidental spaces', async () => {
     const { container, onMultipleUpdate } = renderCell();
     const select = container.querySelector('select');
 
@@ -68,11 +69,15 @@ describe('SpecialtyCell', () => {
       throw new Error('Specialty select not found');
     }
 
-    fireEvent.change(select, { target: { value: 'Otro' } });
+    await act(async () => {
+      fireEvent.change(select, { target: { value: 'Otro' } });
+    });
 
     const customSpecialtyInput = screen.getByPlaceholderText('Esp');
     fireEvent.change(customSpecialtyInput, { target: { value: '  Unidad Dolor  ' } });
-    fireEvent.blur(customSpecialtyInput);
+    await act(async () => {
+      fireEvent.blur(customSpecialtyInput);
+    });
 
     expect(onMultipleUpdate).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -83,7 +88,7 @@ describe('SpecialtyCell', () => {
     expect(customSpecialtyInput).toHaveValue('Unidad Dolor');
   });
 
-  it('clears stale secondary specialty when the primary specialty changes', () => {
+  it('clears stale secondary specialty when the primary specialty changes', async () => {
     const onMultipleUpdate = vi.fn();
 
     const { container } = render(
@@ -102,7 +107,9 @@ describe('SpecialtyCell', () => {
       throw new Error('Specialty select not found');
     }
 
-    fireEvent.change(select, { target: { value: 'Traumatología' } });
+    await act(async () => {
+      fireEvent.change(select, { target: { value: 'Traumatología' } });
+    });
 
     expect(onMultipleUpdate).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -120,12 +127,16 @@ describe('SpecialtyCell', () => {
       throw new Error('Specialty select not found');
     }
 
-    fireEvent.change(select, { target: { value: 'Ginecobstetricia' } });
+    await act(async () => {
+      fireEvent.change(select, { target: { value: 'Ginecobstetricia' } });
+    });
 
     expect(onMultipleUpdate).toHaveBeenCalledWith({ specialty: 'Ginecobstetricia' });
     expect(await screen.findByRole('button', { name: 'Obstétrica' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Obstétrica' }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Obstétrica' }));
+    });
 
     expect(onMultipleUpdate).toHaveBeenLastCalledWith({ ginecobstetriciaType: 'Obstétrica' });
   });
@@ -157,7 +168,9 @@ describe('SpecialtyCell', () => {
     );
 
     fireEvent.click(screen.getByTitle('Definir tipo de atención'));
-    fireEvent.click(await screen.findByRole('button', { name: 'Ginecológica' }));
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: 'Ginecológica' }));
+    });
 
     expect(onMultipleUpdate).toHaveBeenLastCalledWith({
       ginecobstetriciaType: 'Ginecológica',

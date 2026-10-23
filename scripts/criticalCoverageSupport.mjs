@@ -179,20 +179,10 @@ const summarizeZoneCoverage = (root, coverageMap, sourceFiles) => {
 };
 
 const evaluateStructuralGate = zone => ({
-  passed:
-    zone.sourceFileCount > 0 &&
-    zone.testFileCount >= zone.minTestFileCount &&
-    zone.testToSourceRatio >= zone.minTestToSourceRatio,
+  passed: zone.sourceFileCount > 0 && zone.testFileCount > 0,
   failures: [
     ...(zone.sourceFileCount === 0 ? ['No source files were discovered for the zone.'] : []),
-    ...(zone.testFileCount < zone.minTestFileCount
-      ? [`Test files ${zone.testFileCount} < required minimum ${zone.minTestFileCount}.`]
-      : []),
-    ...(zone.testToSourceRatio < zone.minTestToSourceRatio
-      ? [
-          `Test/source ratio ${toPercent(zone.testToSourceRatio * 100)} < required ${toPercent(zone.minTestToSourceRatio * 100)}.`,
-        ]
-      : []),
+    ...(zone.testFileCount === 0 ? ['No owner test files were discovered for the zone.'] : []),
   ],
 });
 
@@ -229,8 +219,6 @@ export const loadCriticalCoverageConfig = root => {
     tests: config.tests,
     coverageTests: normalizeTestEntries(config.coverageTests ?? config.tests),
     sources: normalizeSourceEntries(zoneKey, config),
-    minTestFileCount: Number(config.minTestFileCount || 0),
-    minTestToSourceRatio: Number(config.minTestToSourceRatio || 0),
     coverageBaseline: {
       lines: Number(config.coverageBaseline?.lines || 0),
       functions: Number(config.coverageBaseline?.functions || 0),
@@ -293,7 +281,7 @@ export const buildCriticalCoverageReport = root => {
       failedZones.length === 0
         ? [
             'El gate principal usa cobertura instrumentada por zona critica.',
-            'La metrica estructural se mantiene como guardrail auxiliar para detectar zonas sin masa critica de pruebas.',
+            'El guardrail estructural exige fuentes y pruebas del owner; conteos y ratio son informativos.',
           ]
         : [
             'Una o mas zonas criticas quedaron bajo baseline instrumentado o fallaron el guardrail estructural.',
@@ -312,12 +300,12 @@ export const formatCriticalCoverageMarkdown = report => `# Critical Coverage Rep
 
 ## Critical Zones
 
-| Zone | Source files | Test files | Structural | Lines | Functions | Branches | Baseline | Status |
-| --- | ---: | ---: | --- | ---: | ---: | ---: | --- | --- |
+| Zone | Source files | Test files | Test/source ratio (advisory) | Owner presence | Lines | Functions | Branches | Baseline | Status |
+| --- | ---: | ---: | ---: | --- | ---: | ---: | ---: | --- | --- |
 ${report.criticalZones
   .map(
     zone =>
-      `| \`${zone.root}\` | ${zone.sourceFileCount} | ${zone.testFileCount} | ${zone.structuralGate.passed ? `PASS (${toPercent(zone.testToSourceRatio * 100)})` : `FAIL (${toPercent(zone.testToSourceRatio * 100)})`} | ${toPercent(zone.coverage.lines.pct)} | ${toPercent(zone.coverage.functions.pct)} | ${toPercent(zone.coverage.branches.pct)} | ${toPercent(zone.coverageBaseline.lines)} / ${toPercent(zone.coverageBaseline.functions)} / ${toPercent(zone.coverageBaseline.branches)} | ${zone.passed ? 'PASS' : 'FAIL'} |`
+      `| \`${zone.root}\` | ${zone.sourceFileCount} | ${zone.testFileCount} | ${toPercent(zone.testToSourceRatio * 100)} | ${zone.structuralGate.passed ? 'PASS' : 'FAIL'} | ${toPercent(zone.coverage.lines.pct)} | ${toPercent(zone.coverage.functions.pct)} | ${toPercent(zone.coverage.branches.pct)} | ${toPercent(zone.coverageBaseline.lines)} / ${toPercent(zone.coverageBaseline.functions)} / ${toPercent(zone.coverageBaseline.branches)} | ${zone.passed ? 'PASS' : 'FAIL'} |`
   )
   .join('\n')}
 

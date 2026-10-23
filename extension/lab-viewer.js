@@ -78,6 +78,13 @@
       exam && normalizeRutBody(exam.rutBody) === expected
     );
   };
+  const isValidDetailOutcome = (detail, expectedRut) => {
+    if (detail.status === 'no_validated_results') {
+      return !detail.rutBody && !detail.error && !detail.findings && !detail.pdfBase64;
+    }
+    return !detail.status && normalizeRutBody(detail.rutBody) === expectedRut &&
+      !cleanText(detail.error) && Array.isArray(detail.findings);
+  };
   const validateDetailBatch = (details, expectedExamIds, expectedRutBody) => {
     const examIds = (Array.isArray(expectedExamIds) ? expectedExamIds : []).map(String);
     const expectedRut = normalizeRutBody(expectedRutBody);
@@ -95,11 +102,9 @@
       const examId = String(detail.examId || '');
       if (
         !expected.has(examId) ||
-        detailsByExamId.has(examId) ||
-        normalizeRutBody(detail.rutBody) !== expectedRut ||
-        cleanText(detail.error) ||
-        !Array.isArray(detail.findings)
+        detailsByExamId.has(examId)
       ) return null;
+      if (!isValidDetailOutcome(detail, expectedRut)) return null;
       detailsByExamId.set(examId, detail);
     }
     return examIds.every(examId => detailsByExamId.has(examId))
@@ -138,7 +143,7 @@
     const examById = new Map(safeExams.map(exam => [exam.id, exam]));
     const reports = [];
     for (const detail of Array.isArray(details) ? details : []) {
-      if (!detail) continue;
+      if (!detail || detail.status === 'no_validated_results') continue;
       const exam = examById.get(String(detail.examId || ''));
       if (!exam) continue;
       const findings = (Array.isArray(detail.findings) ? detail.findings : [])
@@ -198,6 +203,7 @@
     })).filter(trend => trend.points.length >= 2).slice(0, 24);
 
     return {
+      omittedExamIds: (Array.isArray(details) ? details : []).filter(detail => detail.status === 'no_validated_results').map(detail => detail.examId),
       columns,
       comparison,
       trends,

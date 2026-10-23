@@ -1,6 +1,6 @@
 import { ensureDbReady } from '@/services/storage/indexeddb/indexedDbCore';
 import { createDexieSyncQueueStore } from './dexieSyncQueueStore';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
+import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { resolveCudyrOwningCensusDay } from '@/domain/evaluationScales/importedCudyr';
 import type { CudyrArchiveOutboxPayload } from '@/types/domain/cudyrHistory';

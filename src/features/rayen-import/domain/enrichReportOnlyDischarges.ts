@@ -6,6 +6,7 @@ import type { EgresoReportRow } from '../contracts/egresoReport';
 import type { PatientFlowReportResult } from '../bedTraceabilityResolver';
 import { parseStatisticalDischargeEvidence } from '../mapping/parseStatisticalDischargeReport';
 import { parseStatisticalEgresoInstant } from '../mapping/reportEgresoDateTime';
+import { encounterWallClockInRapaNui } from '../mapping/encounterWallClock';
 import { correctedStamp } from './egresoReportPolicy';
 import { decodePdfBase64 } from './historicalStatisticalDischargeRecovery';
 import { isPavilionRecoveryLocation } from './pavilionRecoverySyncPolicy';
@@ -82,9 +83,14 @@ const enrichFromGestionCamas = async (
       return '';
     const run = normalizeRut(row.run);
     const { correctedDay } = correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime);
-    return run && correctedDay && (dependencies.allReportDays || correctedDay === reportDate)
-      ? `${run}|${correctedDay}`
-      : '';
+    // Unzoned bulk cells may already use the island clock. Either interpretation may locate
+    // this census's episode; only the subsequent exact API/PDF verification confirms its time.
+    const local =
+      !row.correctedDay && /[T\s]\d{1,2}:\d{2}/.test(row.fechaEgreso)
+        ? encounterWallClockInRapaNui(row.fechaEgreso)
+        : null;
+    const day = local && censusDay(local) === reportDate ? reportDate : correctedDay;
+    return run && day && (dependencies.allReportDays || day === reportDate) ? `${run}|${day}` : '';
   };
   const exactCandidatesByIdentity = new Map(
     (dependencies.previousCensusCandidates ?? []).map(candidate => [
@@ -182,8 +188,15 @@ const enrichFromGestionCamas = async (
         const report = await dependencies.fetchStatisticalDischarge(encounterId);
         if (!report.base64 || report.error) return;
         const evidence = parseStatisticalDischargeEvidence(
-          await extractText(decodePdfBase64(report.base64))
+          await extractText(decodePdfBase64(report.base64)),
+          { allowMaternalIdentifier: 'fromClinicalCrib' in target && target.fromClinicalCrib }
         );
+        if (
+          'personalRun' in target &&
+          target.personalRun === '' &&
+          evidence?.identifierKind !== 'maternal'
+        )
+          return;
         if (
           evidence &&
           (evidence.run !== normalizeRut(row.run) ||
@@ -191,6 +204,16 @@ const enrichFromGestionCamas = async (
         ) {
           return;
         }
+        // The extra island-clock candidate must match this row's printed minute, not merely
+        // another episode's discharge on the same census day. Exact episode targets stay exact.
+        if (
+          !target.encounterId &&
+          correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime).correctedDay !==
+            target.dischargeDay &&
+          evidence?.dischargeAt.slice(0, 16) !==
+            encounterWallClockInRapaNui(row.fechaEgreso)?.slice(0, 16)
+        )
+          return;
         // The lookup selector guarantees RUN + episode; the guard above verifies metadata/status.
         const lookupStamp =
           !evidence && target.encounterId
@@ -201,6 +224,7 @@ const enrichFromGestionCamas = async (
         if (!evidence && (!lookupStamp || lookupStamp.iso !== target.dischargeDay)) return;
         const enriched = {
           ...row,
+          ...('personalRun' in target ? { run: target.personalRun ?? '' } : {}),
           encounterId,
           exactEpisodeVerification: 'verified' as const,
           ...(evidence

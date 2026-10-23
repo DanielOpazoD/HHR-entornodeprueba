@@ -1,12 +1,16 @@
 import React, { useCallback, useState } from 'react';
 import { GoogleIdentitySignIn } from './GoogleIdentitySignIn';
-import { AlertCircle, Loader2, RotateCcw } from 'lucide-react';
+import { AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 
 import { useConfirmDialog } from '@/context/UIContext';
+import { LoginCardFrame } from '@/components/ui/LoginScreenLayout';
 import { AUTH_UI_COPY } from '@/services/auth/authUiCopy';
-import { resetLocalAppStorage } from '@/services/storage/indexeddb/indexedDbMaintenanceService';
+import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
+import NursingAccessForm from './NursingAccessForm';
 
 interface LoginPageCardProps {
+  onIndividualLoginSuccess?: () => void;
+  onIndividualBusyChange?: (busy: boolean) => void;
   isDayGradient: boolean;
   isAnyLoading: boolean;
   isGoogleLoading: boolean;
@@ -15,11 +19,10 @@ interface LoginPageCardProps {
   canRetryGoogleSignIn?: boolean;
   onGoogleSignIn: () => void | Promise<void>;
   onGoogleCredential?: (idToken: string, isCurrent: () => boolean) => Promise<void>;
-  onLocalResetStart?: () => void;
 }
 
 const GoogleIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
     <path
       d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
       fill="#4285F4"
@@ -40,7 +43,8 @@ const GoogleIcon: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 export const LoginPageCard: React.FC<LoginPageCardProps> = ({
-  isDayGradient,
+  onIndividualLoginSuccess,
+  onIndividualBusyChange,
   isAnyLoading,
   isGoogleLoading,
   error,
@@ -48,100 +52,110 @@ export const LoginPageCard: React.FC<LoginPageCardProps> = ({
   canRetryGoogleSignIn = false,
   onGoogleSignIn,
   onGoogleCredential,
-  onLocalResetStart,
 }) => {
   const { confirm } = useConfirmDialog();
+  const [isReloading, setIsReloading] = useState(false);
+  const [reloadError, setReloadError] = useState<string | null>(null);
+  const locked = isAnyLoading || isGoogleLoading || isReloading;
   const [showIdentity, setShowIdentity] = useState(
     Boolean(onGoogleCredential && import.meta.env.VITE_GOOGLE_SIGN_IN_CLIENT_ID)
   );
   const useFallback = useCallback(() => setShowIdentity(false), []);
-  const accentBarClass = isDayGradient
-    ? 'bg-gradient-to-r from-sky-300 via-medical-500 to-cyan-600'
-    : 'bg-gradient-to-r from-slate-500 via-sky-700 to-slate-900';
-
-  const handleResetLocalSession = async () => {
-    const confirmed = await confirm({
-      title: AUTH_UI_COPY.resetStorageTitle,
-      message: AUTH_UI_COPY.resetStorageConfirm,
-      confirmText: AUTH_UI_COPY.resetStorageConfirmAction,
-      cancelText: 'Volver',
-      variant: 'info',
-    });
-
-    if (confirmed) {
-      onLocalResetStart?.();
-      await resetLocalAppStorage();
+  const handleReload = async () => {
+    if (locked) return;
+    setIsReloading(true);
+    setReloadError(null);
+    try {
+      const confirmed = await confirm({
+        title: AUTH_UI_COPY.reloadApplicationAction,
+        message: AUTH_UI_COPY.reloadApplicationConfirm,
+        confirmText: AUTH_UI_COPY.reloadApplicationAction,
+        cancelText: 'Volver',
+        variant: 'info',
+      });
+      if (!confirmed) return;
+      defaultBrowserWindowRuntime.reload();
+    } catch {
+      setReloadError(
+        'No se pudo recargar. Inténtalo nuevamente o usa el botón de recarga del navegador.'
+      );
+    } finally {
+      setIsReloading(false);
     }
   };
 
-  // Glassmorphism: the card is a frosted panel (low opacity + strong blur)
-  // so the background image shows through; interactive elements inside stay
-  // opaque for brand clarity (Google icon) and accessibility contrast.
-  const glassCardClass = isDayGradient
-    ? 'bg-white/5 border-white/25 ring-1 ring-inset ring-white/10'
-    : 'bg-slate-950/10 border-white/12 ring-1 ring-inset ring-white/5';
-
   return (
-    <div
-      className={`relative overflow-hidden rounded-3xl border p-8 shadow-[0_32px_70px_-28px_rgba(2,6,23,0.70)] backdrop-blur-2xl backdrop-saturate-150 animate-login-reveal animate-login-reveal-delay-2 sm:p-10 ${glassCardClass}`}
-    >
-      {/* Accent gradient bar */}
-      <div className={`absolute inset-x-0 top-0 h-1.5 ${accentBarClass}`} />
-      {/* Top-edge inner highlight: 1px brighter line just below the accent bar,
-          simulating how light catches the upper rim of a glass surface. */}
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-4 top-1.5 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent"
-      />
-
+    <LoginCardFrame>
       <div className="relative">
-        <h2 className="text-center text-xl font-bold text-white text-balance drop-shadow-[0_1px_2px_rgba(2,6,23,0.45)]">
-          Acceso al Sistema
-        </h2>
-        <div className="mb-8" />
-
-        <div className="space-y-3">
-          {showIdentity && onGoogleCredential ? (
-            <GoogleIdentitySignIn
-              disabled={isAnyLoading}
-              onCredential={onGoogleCredential}
-              onUnavailable={useFallback}
+        <div className="space-y-4">
+          {onIndividualLoginSuccess && (
+            <NursingAccessForm
+              onSuccess={onIndividualLoginSuccess}
+              onBusyChange={onIndividualBusyChange}
+              disabled={isGoogleLoading || isReloading}
             />
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                void onGoogleSignIn();
-              }}
-              disabled={isAnyLoading}
-              data-testid="login-google-button"
-              className="flex w-full items-center justify-center gap-3 rounded-2xl border border-white/60 bg-white/95 px-4 py-4 font-bold text-slate-700 shadow-lg shadow-slate-950/20 transition-all duration-300 hover:-translate-y-0.5 hover:border-white hover:bg-white hover:shadow-xl active:scale-[0.99] disabled:bg-white/70"
-            >
-              {isGoogleLoading ? (
-                <>
-                  <Loader2 className="h-6 w-6 animate-spin text-medical-600" />
-                  Conectando con Google...
-                </>
-              ) : (
-                <>
-                  <GoogleIcon className="h-6 w-6" />
-                  Ingresar con Google
-                </>
-              )}
-            </button>
           )}
 
-          <div className="flex justify-center">
-            <button
-              type="button"
-              onClick={() => void handleResetLocalSession()}
-              disabled={isAnyLoading}
-              data-testid="login-reset-local-button"
-              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-white/20 bg-white/5 px-2.5 py-1.5 text-[11px] font-medium text-white/70 backdrop-blur-sm transition hover:bg-white/15 hover:text-white disabled:text-white/40"
-            >
-              <RotateCcw className="h-3 w-3" />
-              {AUTH_UI_COPY.resetStorageAction}
-            </button>
+          <div className="flex items-start gap-4 border-t border-stone-200 pt-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center">
+              {showIdentity && onGoogleCredential ? (
+                <GoogleIdentitySignIn
+                  disabled={locked}
+                  onCredential={onGoogleCredential}
+                  onUnavailable={useFallback}
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void onGoogleSignIn();
+                  }}
+                  disabled={locked}
+                  data-testid="login-google-button"
+                  aria-label={isGoogleLoading ? 'Conectando con Google...' : 'Ingresar con Google'}
+                  title="Ingresar con Google"
+                  className="flex h-11 w-11 items-center justify-center rounded-full border border-stone-300 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:border-stone-400 hover:bg-stone-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-700 disabled:cursor-wait disabled:opacity-60"
+                >
+                  {isGoogleLoading ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin text-teal-800" />
+                      <span className="sr-only">Conectando con Google...</span>
+                    </>
+                  ) : (
+                    <GoogleIcon className="h-5 w-5" />
+                  )}
+                </button>
+              )}
+            </div>
+
+            <details className="group min-w-0 flex-1 text-xs text-stone-600">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-end gap-3 font-medium text-stone-700 marker:hidden hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700">
+                Ayuda de acceso
+                <span aria-hidden="true" className="text-base transition group-open:rotate-45">
+                  +
+                </span>
+              </summary>
+              <div className="pb-1 pt-1">
+                <p className="max-w-sm leading-5 text-stone-600">
+                  {AUTH_UI_COPY.reloadApplicationHint}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void handleReload()}
+                  disabled={locked}
+                  data-testid="login-reload-button"
+                  className="mt-3 inline-flex items-center justify-center gap-2 rounded-lg border border-stone-300 bg-white px-3 py-2 text-[11px] font-semibold text-stone-700 transition hover:border-stone-400 hover:bg-stone-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:text-stone-400"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${isReloading ? 'animate-spin' : ''}`} />
+                  {isReloading ? 'Recargando…' : AUTH_UI_COPY.reloadApplicationAction}
+                </button>
+                {reloadError && (
+                  <p role="alert" className="mt-2 text-red-700">
+                    {reloadError}
+                  </p>
+                )}
+              </div>
+            </details>
           </div>
         </div>
 
@@ -150,12 +164,12 @@ export const LoginPageCard: React.FC<LoginPageCardProps> = ({
             data-testid="login-google-pending"
             role="status"
             aria-live="polite"
-            className="mt-5 rounded-2xl border border-white/25 bg-white/10 px-4 py-3 text-center backdrop-blur-md"
+            className="mt-4 rounded-xl border border-teal-200 bg-teal-50 px-4 py-3 text-center"
           >
-            <p className="text-sm font-semibold text-white">
+            <p className="text-sm font-semibold text-teal-950">
               {showIdentity ? 'Validando tu acceso…' : AUTH_UI_COPY.popupPendingTitle}
             </p>
-            <p className="mt-1 text-xs text-white/80 text-balance">
+            <p className="mt-1 text-xs leading-5 text-teal-800 text-balance">
               {showIdentity
                 ? 'Comprobando sesión y permisos de HHR.'
                 : AUTH_UI_COPY.popupPendingHint}
@@ -169,20 +183,21 @@ export const LoginPageCard: React.FC<LoginPageCardProps> = ({
               data-testid="login-error-alert"
               data-auth-error-code={errorCode || undefined}
               role="alert"
-              className="flex items-center gap-2 rounded-xl border border-red-300/50 bg-red-500/20 p-3 text-sm text-red-50 text-balance backdrop-blur-md"
+              className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3 text-sm leading-5 text-red-900 text-balance"
             >
-              <AlertCircle className="h-5 w-5 flex-shrink-0" />
+              <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
               <span>{error}</span>
             </div>
             {canRetryGoogleSignIn && (
-              <div className="mt-3 rounded-2xl border border-amber-300/40 bg-amber-500/15 px-4 py-3 text-center backdrop-blur-md">
-                <p className="text-xs text-amber-50 text-balance">
+              <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-center">
+                <p className="text-xs leading-5 text-amber-900 text-balance">
                   {AUTH_UI_COPY.roleValidationRetryHint}
                 </p>
                 <button
                   type="button"
                   onClick={() => void onGoogleSignIn()}
-                  className="mt-3 inline-flex items-center justify-center rounded-xl bg-amber-500 px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-white shadow-lg shadow-amber-900/40 transition hover:bg-amber-400"
+                  disabled={locked}
+                  className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-amber-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-amber-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700"
                   data-testid="login-retry-button"
                 >
                   {AUTH_UI_COPY.roleValidationRetryAction}
@@ -192,6 +207,6 @@ export const LoginPageCard: React.FC<LoginPageCardProps> = ({
           </div>
         )}
       </div>
-    </div>
+    </LoginCardFrame>
   );
 };

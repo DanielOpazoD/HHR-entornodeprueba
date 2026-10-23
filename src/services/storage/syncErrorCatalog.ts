@@ -3,7 +3,10 @@ import { ErrorSeverity, isRetryableError } from '@/services/utils/errorService';
 export type SyncErrorCategory = 'conflict' | 'authorization' | 'validation' | 'network' | 'unknown';
 
 export class ConcurrencyError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    readonly reason?: 'version_mismatch' | 'semantic_conflict'
+  ) {
     super(message);
     this.name = 'ConcurrencyError';
   }

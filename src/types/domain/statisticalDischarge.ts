@@ -5,6 +5,8 @@ export interface StatisticalUnitTransfer {
 
 export interface StatisticalDischargeEvidence {
   run: string;
+  /** Only present when an exact neonatal episode explicitly opts into maternal identification. */
+  identifierKind?: 'maternal';
   admissionAt: string;
   admissionUnit: string;
   dischargeAt: string;

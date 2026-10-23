@@ -1,10 +1,9 @@
 import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
-import { ViewLoader } from '@/components/ui/ViewLoader';
+import { CensusLoadingState } from '@/components/ui/CensusLoadingState';
 import { useDailyRecordStatus } from '@/context/DailyRecordContext';
 import { useCensusViewScreenModel } from '@/features/census/hooks/useCensusViewScreenModel';
-import { CensusOperationalStateBanner } from './CensusOperationalStateBanner';
+import { CensusBootstrapRecovery } from './CensusBootstrapRecovery';
 import { CensusRegisterContent } from './CensusRegisterContent';
-import { resolveCensusOperationalState } from '@/features/census/controllers/censusOperationalStateController';
 import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
 import type { RenderCensusMedicalHandoffAction } from '@/features/census/contracts/censusMedicalHandoffAction';
 
@@ -77,23 +76,25 @@ const CensusViewContent: React.FC<CensusViewProps> = ({
     branch === 'empty' &&
     shouldDeferTodayEmptyState &&
     resolvedTodayEmptyDate !== currentDateString;
-  const loadingOperationalState = resolveCensusOperationalState({
-    branch,
-    bootstrapPhase: isEmptyBranchPending
-      ? 'remote_record_bootstrapping'
-      : dailyRecordStatus.bootstrapPhase,
-    syncStatus: dailyRecordStatus.syncStatus,
-    hasRecord: Boolean(registerContentProps),
-    isAuthenticated: true,
-  });
 
   if (branch === 'empty') {
-    if (isEmptyBranchPending) {
-      return <CensusOperationalStateBanner state={loadingOperationalState} />;
+    // Elapsed grace time is not evidence of absence. Only confirmed_empty may
+    // mount creation UI; cached/late Firebase responses must never flash it.
+    if (isEmptyBranchPending || dailyRecordStatus.bootstrapPhase !== 'confirmed_empty') {
+      return (
+        <CensusBootstrapRecovery
+          key={currentDateString}
+          date={currentDateString}
+          failed={
+            dailyRecordStatus.syncStatus === 'error' ||
+            dailyRecordStatus.bootstrapPhase === 'remote_record_timeout'
+          }
+        />
+      );
     }
 
     return (
-      <Suspense fallback={<ViewLoader />}>
+      <Suspense fallback={<CensusLoadingState />}>
         {emptyDayPromptProps ? (
           <LazyEmptyDayPrompt
             {...emptyDayPromptProps}

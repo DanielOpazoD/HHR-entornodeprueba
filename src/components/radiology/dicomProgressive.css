@@ -1,0 +1,151 @@
+.dicom-load-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 3px 10px;
+  font-size: 11px;
+}
+.dicom-load-controls progress {
+  width: 72px;
+  height: 3px;
+  accent-color: #22d3ee;
+}
+.dicom-load-controls input {
+  flex: 1;
+  min-width: 80px;
+  accent-color: #22d3ee;
+}
+.dicom-load-controls output {
+  font-variant-numeric: tabular-nums;
+  min-width: 70px;
+}
+.dicom-grid {
+  position: relative;
+}
+.dicom-canvas[data-pending='true'] {
+  visibility: hidden;
+}
+.dicom-grid--mpr[data-expanded='true'] > .dicom-pane[data-expanded='true'] {
+  grid-column: 1 / -1;
+  grid-row: 1 / -1;
+}
+.dicom-grid--mpr > .dicom-pane[data-concealed='true'] {
+  position: absolute;
+  inset: 0;
+  width: calc((100% - 4px) / 3);
+  height: 100%;
+  visibility: hidden;
+  pointer-events: none;
+}
+.dicom-viewer .dicom-expand-plane {
+  position: absolute;
+  z-index: 2;
+  right: 8px;
+  top: 8px;
+  background: #0b1220c9;
+}
+.dicom-dialog:fullscreen {
+  width: 100vw !important;
+  max-width: none !important;
+  height: 100dvh;
+  max-height: none;
+  border: 0;
+  border-radius: 0;
+}
+@media (max-width: 760px) {
+  .dicom-grid--mpr > .dicom-pane[data-concealed='true'] {
+    width: 100%;
+    height: calc((100% - 4px) / 3);
+  }
+}
+.dicom-load-detail {
+  position: relative;
+}
+.dicom-load-detail summary {
+  cursor: pointer;
+}
+.dicom-load-detail > div {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 12;
+  width: min(440px, 80vw);
+  background: #101b2b;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 8px 24px #0008;
+}
+.dicom-load-detail p {
+  margin: 6px 0;
+}
+
+.dicom-patient-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 0;
+}
+.dicom-patient-bar time {
+  color: #94a3b8;
+}
+.dicom-patient-bar button {
+  margin-left: auto;
+}
+.dicom-load-detail summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+}
+.dicom-load-detail summary::-webkit-details-marker {
+  display: none;
+}
+.dicom-load-stats {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  margin: 8px 0;
+}
+.dicom-load-stats dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.dicom-load-detail > div {
+  width: min(290px, 80vw);
+  font-size: 11px;
+}
+.dicom-advanced[hidden] {
+  display: none;
+}
+.dicom-toolbar .dicom-cine > summary {
+  min-height: 28px;
+  border: 1px solid #334155;
+  border-radius: 5px;
+  padding: 3px 7px;
+}
+.dicom-canvas:focus-visible {
+  outline: 2px solid #22d3ee;
+  outline-offset: -2px;
+}
+.dicom-keyboard dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 5px 12px;
+}
+.dicom-keyboard dd {
+  margin: 0;
+}
+
+.dicom-toolbar {
+  position: relative;
+}
+.dicom-toolbar .dicom-cine {
+  position: static;
+}
+.dicom-toolbar .dicom-cine-panel {
+  left: 10px;
+  max-width: calc(100vw - 50px);
+}

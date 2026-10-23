@@ -309,3 +309,10 @@ describe('rayenToPatientData', () => {
     expect(patient.bedId).toBe('');
   });
 });
+
+it('preserves a foreign identifier including its letter prefix during census synchronization', () => {
+  const mapped = rayenToPatientData(baseEncounter({ run: 'E9876543' }), REFERENCE).patient;
+  expect(mapped.rut).toBe('E9876543');
+  expect(mapped.documentType).toBe('Pasaporte');
+  expect(formatRun('E9876543')).toBe('E9876543');
+});

@@ -114,7 +114,9 @@ describe('functions clinicalDocumentExportFunctions', () => {
       code: 'permission-denied',
     });
 
-    expect(resolveRoleForEmail).toHaveBeenCalledWith('removed@hospitalhangaroa.cl');
+    expect(resolveRoleForEmail).toHaveBeenCalledWith('removed@hospitalhangaroa.cl', {
+      auth: { uid: 'u1', token: { email: 'removed@hospitalhangaroa.cl', role: 'doctor_urgency' } },
+    });
   });
 
   it('exports pdf to drive folder hierarchy for authorized doctor role', async () => {

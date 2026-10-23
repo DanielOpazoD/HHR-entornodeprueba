@@ -1,3 +1,9 @@
+import {
+  createDailyRecordQueryFn,
+  getDailyRecordQueryKey,
+} from '@/hooks/controllers/dailyRecordQueryController';
+import { createNotFoundDailyRecordReadResult } from '@/services/repositories/dailyRecordReadResultController';
+import { resolveDailyRecordBootstrapPhase } from '@/hooks/controllers/dailyRecordBootstrapController';
 import { QueryClientProvider, focusManager, onlineManager } from '@tanstack/react-query';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { type ReactNode } from 'react';
@@ -57,6 +63,53 @@ describe('useDailyRecordQuery', () => {
     focusManager.setFocused(undefined);
     onlineManager.setOnline(true);
     vi.restoreAllMocks();
+  });
+
+  it('revalidates a fresh cached absence before allowing empty UI on a new visit', async () => {
+    const client = createTestQueryClient({ defaultOptions: appQueryClient.getDefaultOptions() });
+    const cached = await createDailyRecordQueryFn(
+      {
+        getForDateWithMeta: vi
+          .fn()
+          .mockResolvedValue(createNotFoundDailyRecordReadResult(date, 'missing')),
+      },
+      date
+    )();
+    client.setQueryData(getDailyRecordQueryKey(date), cached);
+    let release!: (value: ReturnType<typeof createDailyRecordReadResult>) => void;
+    const repository = buildMockDailyRecordRepository();
+    vi.mocked(repository.getForDateWithMeta).mockImplementation(
+      () =>
+        new Promise(resolve => {
+          release = resolve;
+        })
+    );
+    const phases: string[] = [];
+    const { result } = renderHook(
+      () => {
+        const query = useDailyRecordQuery(date, false, 'ready');
+        phases.push(
+          resolveDailyRecordBootstrapPhase({
+            remoteSyncStatus: 'ready',
+            record: query.data,
+            runtime: query.runtime,
+            currentDateString: date,
+            isFetching: query.isFetching,
+            gracePeriodExpired: false,
+          })
+        );
+        return query;
+      },
+      { wrapper: createWrapper(repository, client) }
+    );
+    expect(result.current.isFetching).toBe(true);
+    expect(phases).not.toContain('confirmed_empty');
+    await act(async () => {
+      release(createDailyRecordReadResult(date, mockRecord, 'firestore'));
+    });
+    await waitFor(() => expect(result.current.data).toEqual(mockRecord));
+    expect(phases).not.toContain('confirmed_empty');
+    expect(phases).toContain('record_ready');
   });
 
   it.each([

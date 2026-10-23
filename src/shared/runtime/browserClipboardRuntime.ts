@@ -15,3 +15,11 @@ export const writeClipboardText = async (text: string): Promise<void> => {
 
 export const getNavigatorUserAgent = (): string =>
   typeof navigator !== 'undefined' ? navigator.userAgent : '';
+
+/** Sensitive values must never enter E2E captures or browser storage, including localhost. */
+export const writePrivateClipboardText = async (text: string): Promise<void> => {
+  if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {
+    throw new Error('Clipboard API no disponible');
+  }
+  await navigator.clipboard.writeText(text);
+};

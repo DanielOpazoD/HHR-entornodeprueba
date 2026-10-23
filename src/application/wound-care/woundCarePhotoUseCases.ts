@@ -25,6 +25,7 @@ import {
   type EpisodeContext,
   type WoundCarePhotoDeps,
 } from './woundCareUseCaseHelpers';
+import { hospitalTakenAt } from './woundCarePhotoTime';
 
 interface PhotoUploadInput {
   file: File;
@@ -114,7 +115,7 @@ export const executeUploadWoundCarePhoto = async (
       height: compressed.height,
       description: input.description,
       bodyLocation: input.bodyLocation,
-      takenAt: input.takenAt || now,
+      takenAt: input.takenAt || hospitalTakenAt(new Date(now)),
       uploadedAt: now,
       uploadedBy: input.actor,
       isDeleted: false,

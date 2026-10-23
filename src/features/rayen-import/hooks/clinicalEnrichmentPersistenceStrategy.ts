@@ -9,10 +9,6 @@ import {
   observeClinicalEnrichmentBatch,
 } from './applyClinicalEnrichmentBatch';
 import { rebuildClinicalEnrichmentOperations } from '../domain/rebuildClinicalEnrichmentOperations';
-import {
-  classifyRayenSyncError,
-  reportRayenSyncWarning,
-} from '../observability/rayenSyncDiagnostics';
 
 interface CreateClinicalEnrichmentPersistenceStrategyInput {
   mode: ClinicalEnrichmentBatchMode;
@@ -24,12 +20,6 @@ interface CreateClinicalEnrichmentPersistenceStrategyInput {
   observeBatch?: typeof observeClinicalEnrichmentBatch;
   rebuildOperations?: typeof rebuildClinicalEnrichmentOperations;
 }
-
-const recordRevision = (record: DailyRecord): unknown =>
-  (record as DailyRecord & { meta?: { revision?: unknown } }).meta?.revision;
-
-const sameAuthorityVersion = (left: DailyRecord, right: DailyRecord): boolean =>
-  left.lastUpdated === right.lastUpdated && recordRevision(left) === recordRevision(right);
 
 /** Selects one persistence owner once, before the clinical fill starts. */
 export const createClinicalEnrichmentPersistenceStrategy = ({
@@ -63,47 +53,16 @@ export const createClinicalEnrichmentPersistenceStrategy = ({
 
   return {
     disposition: 'deferred',
-    persist: async operations => {
-      // The clinical reads take several seconds, and the structural stage may have finished with
-      // a metadata checkpoint that bumped the authority version after this record was handed
-      // over. Sending that stale version guaranteed one rejected callable plus a full retry
-      // (observed as ~19% "errors" in telemetry). Re-read once, cheaply, and rebase upfront.
-      let currentRecord: DailyRecord | undefined;
-      try {
-        currentRecord = await refreshRecord();
-      } catch (error) {
-        reportRayenSyncWarning('clinical_batch_base_refresh_failed', {
-          runId,
-          errorKind: classifyRayenSyncError(error),
-        });
-      }
-      // Only an unavailable read may fall back to the original, server-guarded version.
-      // A successful read can reveal a conflicting field or removed episode: propagate that
-      // rejection so the runner leaves the data pending without sending a known stale batch.
-      let baseRecord = record;
-      let baseOperations = operations;
-      if (currentRecord && !sameAuthorityVersion(currentRecord, record)) {
-        baseOperations = rebuildOperations({ baseRecord: record, currentRecord, operations });
-        baseRecord = currentRecord;
-        reportRayenSyncWarning('clinical_batch_base_rebased', {
-          runId,
-          patientCount: baseOperations.length,
-        });
-      }
-      return applyBatch({
+    persist: operations =>
+      applyBatch({
         mode,
-        record: baseRecord,
+        record,
         runId,
-        operations: baseOperations,
+        operations,
         rebuildOperations: currentRecord =>
-          rebuildOperations({
-            baseRecord: record,
-            currentRecord,
-            operations,
-          }),
+          rebuildOperations({ baseRecord: record, currentRecord, operations }),
         applyPatch,
         refreshRecord,
-      });
-    },
+      }),
   };
 };

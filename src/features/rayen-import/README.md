@@ -2,9 +2,10 @@
 
 ## Fecha del egreso y día del censo
 
-La fecha/hora del alta corresponde al egreso estadístico de Gestión de Camas
-(liberación de cama por Enfermería), no a la emisión de la epicrisis ni a la
-confirmación de HHR. `correctedDay` identifica el censo del turno; `movementDate`
+La fecha/hora del alta corresponde al egreso estadístico de Gestión de Camas,
+referencia oficial de la estadística hospitalaria, aunque su registro sea posterior
+al egreso físico. No se sustituye por la emisión de la epicrisis ni la confirmación
+de HHR. `correctedDay` identifica el censo del turno; `movementDate`
 conserva la fecha calendario real en Rapa Nui. Un egreso de madrugada D+1 se
 archiva en D y muestra D+1. Los lectores de Firebase y caché local recuperan las
 fechas de importaciones antiguas que guardaron D como fecha del movimiento,
@@ -16,6 +17,28 @@ se convierten con `encounterWallClockInRapaNui`, igual que la selección del dí
 fallback de identidad de movimientos legacy. Los valores ya locales no se convierten de nuevo.
 El día clínico puede ser el anterior durante la madrugada; no reemplaza la fecha del evento.
 `birthDate` sigue siendo una fecha calendario, sin desplazamiento de zona horaria.
+
+El Excel de altas no declara zona y puede mezclar convenciones horarias. Se usa
+para localizar el episodio, contemplando que la celda ya sea hora insular cuando
+eso cambia el censo candidato. La consulta/PDF del episodio exacto debe confirmar
+la hora; la resta heredada de dos horas no es evidencia suficiente. Una respuesta
+individual sin offset se interpreta como hora local de Rapa Nui, igual que los
+ingresos; con offset se convierte una sola vez. `fechaEgreso` conserva el valor
+original y `correctedDay`/`correctedTime` su interpretación para el turno. El horario
+propuesto al ingresar manualmente también usa el reloj hospitalario y conserva
+la fecha elegida y cualquier hora ya guardada.
+
+### Rectificaciones de egreso: próximo bloque, pendiente de implementación
+
+No se corrigen fechas históricas por diferencias entre el antiguo manual y Eloísa.
+El mecanismo posterior debe distinguir una rectificación de la fuente oficial de
+una observación sobre el egreso físico. Cada ajuste debe conservar valor original
+y propuesto, tipo/motivo, respaldo, autor, instante de decisión y versión/episodio;
+mostrar su vigencia, permitir reversión trazable y preservar la decisión frente a
+una resincronización. La estadística mantiene por defecto el dato oficial de Eloísa;
+un cambio con efecto estadístico debe ser explícito. Reutilizar la procedencia y la
+auditoría existentes antes de añadir otro almacenamiento. Este bloque no implementa
+ese editor ni modifica datos históricos, elegibilidad, cálculo o cierres de CUDYR.
 
 ## Propósito
 
@@ -87,8 +110,23 @@ depender del estado clínico mutable, por lo que conservan idempotencia aunque e
 egresado.
 `shadow` puede dividir una observación grande porque no persiste. Si una ejecución `enforced`
 requiere varios fragmentos, falla antes de la primera mutación; la autoridad nunca acepta un lote
-clínico parcialmente aplicado. Un conflicto de revisión en el lote único reconstruye sus valores
-desde el censo canónico recién leído antes del único reintento.
+clínico parcialmente aplicado. El lote toma el mismo turno de escritura por fecha que las
+ediciones manuales y la importación estructural. Las lecturas de Eloísa ocurren fuera de ese turno;
+al adquirirlo, relee la autoridad y reconstruye el delta contra la base original. Sin esa lectura
+no envía un lote antiguo. Un conflicto de revisión en el lote único reconstruye sus valores
+desde el censo canónico recién leído antes del único reintento. Un fallo transitorio reenvía el
+mismo payload y `mutationId`; no cambia de escritor ni declara guardado sin confirmación. El lote
+histórico coordina la fecha que modifica, aunque su `authorityDate` sea la del censo actual.
+Agotado el reintento por pérdida de conexión, el resultado sigue sin confirmar: un timeout no
+demuestra cancelación remota. La exclusión local termina al asentarse la llamada del cliente;
+el CAS transaccional impide que un lote tardío sobrescriba una revisión posterior y los recibos
+evitan aplicar dos veces el mismo payload. Esto no establece un orden global entre equipos.
+El estado observable del coordinador distingue turnos pendientes del dueño activo; la interfaz
+sólo pausa los controles de camas y la confirmación de especialidades durante el commit de
+sincronización que ya adquirió su turno. La espera de turno, las lecturas y otra fecha no pausan
+esos controles. Los permisos de sólo lectura siguen siendo independientes: no se desmontan los
+modales ni se descartan sus borradores por una pausa temporal. La ronda puede seguir consultando
+Jev; si una sincronización comienza entre confirmaciones conserva las elecciones aún no enviadas.
 Desde que la política usa esquema v2, un guardado estructural completo conserva desde Firestore los
 campos clínicos propiedad del backend —por `clinicalEpisodeId`, aun con traslado de cama— y elimina
 esos campos si el episodio todavía no ha sido aceptado por la autoridad clínica. Volver a `off` no
@@ -109,10 +147,11 @@ Si ya terminó como parcial, **Reintentar sincronización** realiza una captura 
 `runId` autorizado; no se reabre ni se rebaja la política de una ejecución cerrada. Los conflictos estructurales reales permanecen en revisión y bloquean sólo
 los episodios afectados. La dotación Enfermería/TENS conserva su botón y decisión independientes.
 
-`rayenSyncHistory` guarda únicamente agregados de coordinación: contexto actual/histórico,
+Para la coordinación, `rayenSyncHistory` guarda sólo agregados: contexto actual/histórico,
 duraciones por etapa, replanteamientos por concurrencia, cantidades de episodios confirmados u
-omitidos y reintentos clínicos. No persiste fechas objetivo, camas, episodios, nombres ni valores
-clínicos en esa telemetría.
+omitidos y reintentos clínicos. Esa evidencia de coordinación no persiste fechas objetivo, camas,
+episodios, nombres ni valores clínicos; el detalle de cada incidencia se guarda aparte (ver
+«Trazabilidad para resolver incidencias»).
 
 ## Seguridad clínica
 
@@ -311,10 +350,13 @@ la del registro completo; no aplica tolerancias de minutos ni inventa una hora c
   comenzar y se descarta si un `runId` más nuevo ya reemplazó su estructura.
 - **Orden independiente:** las reubicaciones se planifican como lote; cadenas y permutas liberan
   sus orígenes antes de los ingresos, mientras una cadena bloqueada no libera ninguna cama.
-- **Trazabilidad sin PHI del paciente:** `rayenSyncHistory` guarda actor, tiempos, duración, salud
-  de fuentes y agregados del diff/cobertura. Si una asignación de personal se excluye cerca del
-  relevo, conserva evidencia operacional acotada del funcionario (nombre, rol, fuente y hora), pero
-  nunca nombres/RUN/diagnósticos de pacientes, contenido clínico ni errores crudos.
+- **Trazabilidad para resolver incidencias:** `rayenSyncHistory` guarda actor, tiempos, duración,
+  salud de fuentes y agregados del diff/cobertura. Para facilitar la resolución de problemas, cada
+  incidencia clínica o conflicto estructural en revisión conserva su detalle: cama, episodio, fecha
+  del censo, nombre y documento del paciente (en lecturas clínicas fallidas, sólo si el episodio
+  identifica a un único paciente) y el motivo del conflicto. Si una asignación de personal se
+  excluye cerca del relevo, conserva evidencia operacional acotada del funcionario (nombre, rol,
+  fuente y hora). Nunca guarda diagnósticos, contenido clínico, errores crudos ni credenciales.
 - **Historial acotado:** cada `runId` se actualiza en el mismo evento y se conservan máximo 20 por día.
 - **Telemetría técnica sin datos clínicos:** el mismo evento `rayenSyncHistory` registra tiempos de
   preflight, captura dual, reconciliación, evidencia histórica, lecturas clínicas, espera de
@@ -323,8 +365,8 @@ la del registro completo; no aplica tolerancias de minutos ni inventa una hora c
   disponibles mediante el catálogo HHR, usando sólo conteos. No crea otra colección, no se proyecta
   a `rayenSync` y sólo se muestra dentro del panel técnico plegado del historial; sus contratos no
   admiten RUN, nombres, camas, `ENC_ID` ni valores clínicos.
-- **Concurrencia por fuente:** dispositivos, historial y formularios usan colas independientes de
-  máximo cuatro lecturas. Un PDF lento no bloquea las otras fuentes; los guardados del censo
+- **Concurrencia por fuente:** dispositivos, historial, formularios y paquete clínico usan colas
+  independientes de máximo cuatro lecturas. Un PDF lento no bloquea las otras fuentes; los guardados del censo
   permanecen serializados para evitar conflictos de escritura.
 - **CUDYR histórico estrecho:** el cliente envía sólo la corrección CUDYR; la autoridad del
   servidor la fusiona con las demás escalas vigentes para no depender de una proyección local

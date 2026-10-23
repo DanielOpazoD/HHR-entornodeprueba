@@ -124,7 +124,11 @@ export const CudyrDailyTable = ({
                         type="button"
                         onClick={() => setSourceKey(row.key)}
                         aria-label={`Fuente del CUDYR de ${row.patientName}`}
-                        title="Ver fuente: Excel de categorización de Eloísa"
+                        title={
+                          row.evaluation?.adjustmentReason
+                            ? 'Ver fuente: excepción CUDYR justificada'
+                            : 'Ver fuente: Excel de categorización de Eloísa'
+                        }
                         className="shrink-0 rounded p-1 text-teal-700 hover:bg-teal-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700"
                       >
                         <FileSpreadsheet size={14} aria-hidden="true" />

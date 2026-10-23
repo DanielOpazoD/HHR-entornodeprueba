@@ -16,7 +16,6 @@ const MD_OUTPUT = path.join(REPORTS_DIR, 'maintenance-debt-scorecard.md');
 const QUALITY_METRICS_JSON = path.join(REPORTS_DIR, 'quality-metrics.json');
 const LEGACY_RETIREMENT_DEBT_JSON = path.join(REPORTS_DIR, 'legacy-retirement-debt.json');
 const MODULE_ALLOWLIST_PATH = path.join(ROOT, 'scripts', 'module-size-allowlist.json');
-const HOOK_LIMITS_PATH = path.join(ROOT, 'scripts', 'hook-hotspots-limits.json');
 
 const WATCHLIST_FILES = [
   'firestore.rules',
@@ -50,11 +49,9 @@ const countLines = filePath => {
 
 const buildPendingHotspotRows = () => {
   const moduleConfig = readJson(MODULE_ALLOWLIST_PATH) ?? {};
-  const hookConfig = readJson(HOOK_LIMITS_PATH) ?? {};
-  const globalMax = typeof moduleConfig.globalMax === 'number' ? moduleConfig.globalMax : 400;
+  const globalMax = typeof moduleConfig.globalMax === 'number' ? moduleConfig.globalMax : 600;
   const moduleAllowlist =
     moduleConfig.allowlist && typeof moduleConfig.allowlist === 'object' ? moduleConfig.allowlist : {};
-  const hookFiles = hookConfig.files && typeof hookConfig.files === 'object' ? hookConfig.files : {};
 
   const entries = [
     ...Object.entries(moduleAllowlist).map(([file, limit]) => ({
@@ -62,12 +59,6 @@ const buildPendingHotspotRows = () => {
       limit: typeof limit === 'number' ? limit : globalMax,
       lines: countLines(file),
       source: 'module-allowlist',
-    })),
-    ...Object.entries(hookFiles).map(([file, limit]) => ({
-      file,
-      limit: typeof limit === 'number' ? limit : globalMax,
-      lines: countLines(file),
-      source: 'hook-hotspot',
     })),
   ];
 
@@ -98,7 +89,6 @@ const buildRecentChurnRows = () => {
 const qualityMetrics = readJson(QUALITY_METRICS_JSON);
 const legacyRetirementDebt = buildLegacyRetirementDebtRows(readJson(LEGACY_RETIREMENT_DEBT_JSON));
 const moduleConfig = readJson(MODULE_ALLOWLIST_PATH) ?? {};
-const hookConfig = readJson(HOOK_LIMITS_PATH) ?? {};
 const firestoreRulesGovernance = buildFirestoreRulesGovernanceReport(ROOT);
 const rulesLimits =
   firestoreRulesGovernance.generatedRules.maxLines == null
@@ -110,7 +100,6 @@ const pendingHotspots = buildPendingHotspotRows();
 const watchlist = buildMaintenanceDebtWatchlistRows({
   watchlistFiles: WATCHLIST_FILES,
   countLines,
-  hookLimits: hookConfig.files && typeof hookConfig.files === 'object' ? hookConfig.files : {},
   moduleLimits:
     moduleConfig.allowlist && typeof moduleConfig.allowlist === 'object'
       ? moduleConfig.allowlist

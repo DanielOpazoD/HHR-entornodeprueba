@@ -44,7 +44,7 @@ describe('daily record metadata read contract', () => {
         record: null,
         runtime: {
           availabilityState:
-            consistencyState === 'unavailable' ? 'temporarily_unavailable' : 'confirmed_missing',
+            consistencyState === 'unavailable' ? 'temporarily_unavailable' : 'unconfirmed_missing',
           consistencyState,
           retryability: result.retryability,
           sourceOfTruth: result.sourceOfTruth,

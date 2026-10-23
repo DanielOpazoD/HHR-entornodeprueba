@@ -2,7 +2,8 @@ import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { EgresoReportRow, ReportEgreso } from '../contracts/egresoReport';
 import type { EgresoLookupResult, EgresoRecord } from '../contracts/egresoLookup';
-import { parseStatisticalEgresoInstant } from '../mapping/reportEgresoDateTime';
+import { encounterWallClockInRapaNui } from '../mapping/encounterWallClock';
+import { resolveClinicalDayForDateTime } from '@/utils/clinicalDayAdmissionUtils';
 import { applyEgresoReport } from './applyEgresoReport';
 import { confirmHospitalDischarge } from './dischargeVerification';
 import { normalizeRut } from '@/utils/rutUtils';
@@ -33,13 +34,15 @@ const lookupStamp = (
   egreso: EgresoRecord
 ): { fechaEgreso: string; correctedDay?: string; correctedTime?: string } => {
   const raw = String(egreso.dateDischarge || egreso.endPeriod || '').trim();
-  const instant = parseStatisticalEgresoInstant(raw);
-  if (instant) {
-    return { fechaEgreso: raw, correctedDay: instant.iso, correctedTime: instant.hhmm };
-  }
-  const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})[T\s]+(\d{1,2}):(\d{2})/);
+  const local = /[T\s]\d{1,2}:\d{2}/.test(raw) ? encounterWallClockInRapaNui(raw) : null;
+  if (!local) return { fechaEgreso: raw };
+  const calendarDay = local.slice(0, 10);
+  const time = local.slice(11, 16);
+  // An individual API clock is not a mainland bulk-report cell. Preserve its raw evidence.
   return {
-    fechaEgreso: iso ? `${iso[3]}-${iso[2]}-${iso[1]} ${iso[4]}:${iso[5]}` : raw,
+    fechaEgreso: raw,
+    correctedDay: resolveClinicalDayForDateTime(calendarDay, time),
+    correctedTime: time,
   };
 };
 

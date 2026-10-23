@@ -1,3 +1,4 @@
+const { movementRestoreRecord } = require('./movementRestoreSources');
 // Fuente de verdad: el CONTRATO ÚNICO de autoridad, compartido con el cliente.
 const {
   RAYEN_MANUALLY_MANAGED_DEVICE_FIELDS,
@@ -61,7 +62,10 @@ const preservePatientClinicalFields = (incomingPatient, remotePatients, clinical
 const preserveRayenClinicalFields = ({ remoteRecord, incomingRecord, fields }) => {
   const preservedFields = Array.isArray(fields) && fields.length ? fields : RAYEN_CLINICAL_FIELDS;
   const nextRecord = clonePlainValue(incomingRecord);
-  const remotePatients = collectRemotePatients(remoteRecord);
+  const remotePatients = new Map([
+    ...collectRemotePatients(movementRestoreRecord(remoteRecord, incomingRecord)),
+    ...collectRemotePatients(remoteRecord),
+  ]);
   const incomingBeds = isPlainObject(nextRecord?.beds) ? nextRecord.beds : {};
 
   Object.entries(incomingBeds).forEach(([bedId, bed]) => {

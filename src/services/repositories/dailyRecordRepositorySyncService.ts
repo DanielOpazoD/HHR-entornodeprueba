@@ -273,7 +273,9 @@ export const adoptAuthoritativeRecord = async (
         record: rebasedRecord,
         task: buildPendingDailyRecordReplacementTask({
           record: rebasedRecord,
-          existing: task,
+          // Reconciliation already removed durable paths. Merging the old ownership set
+          // here would resurrect fields acknowledged by the authoritative command.
+          existing: { ...task, syncContract: { ...task.syncContract, changedPaths: [] } },
           meta: {
             contexts: classifyConflictChangedContexts(changedPaths),
             origin: 'partial_update_retry',

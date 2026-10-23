@@ -5,8 +5,8 @@ import type { ArchiveCudyrHistoryRequest } from '@/types/domain/cudyrHistory';
 
 const h = vi.hoisted(() => ({ archive: vi.fn() }));
 vi.mock('@/services/cudyr/cudyrHistoryService', () => ({ archiveCudyrHistory: h.archive }));
-vi.mock('@/services/storage/sessionScopedStorageService', async importOriginal => ({
-  ...(await importOriginal<typeof import('@/services/storage/sessionScopedStorageService')>()),
+vi.mock('@/services/storage/sessionOwnerKey', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/storage/sessionOwnerKey')>()),
   getStoredSessionOwnerKey: () => 'user:synthetic',
 }));
 vi.mock('@/services/storage/sessionStorageTransition', async importOriginal => ({

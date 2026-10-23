@@ -1,15 +1,13 @@
 import 'fake-indexeddb/auto';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { afterEach, describe, it, expect, beforeEach, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexedDBService';
 import { logError } from '@/services/utils/errorService';
 
 vi.mock('firebase/firestore', async importOriginal => {
   const actual = await importOriginal<typeof import('firebase/firestore')>();
-  return {
-    ...actual,
-    setDoc: vi.fn().mockResolvedValue(undefined),
-    getDoc: vi.fn().mockResolvedValue({ exists: () => false, data: () => undefined }),
-  };
+  const { createSingleAttemptFirestoreMock } =
+    await import('./singleAttemptFirestoreTransactionMock');
+  return { ...actual, ...createSingleAttemptFirestoreMock() };
 });
 
 vi.mock('@/services/storage/firestore/firestoreShared', async importOriginal => {
@@ -32,7 +30,6 @@ vi.mock('@/services/utils/errorService', async importOriginal => {
 
 import { getDoc, setDoc } from 'firebase/firestore';
 import {
-  getSyncQueueDomainMetrics,
   queueSyncTask,
   processSyncQueue,
   getSyncQueueStats,
@@ -57,6 +54,8 @@ describe('storage/sync public entrypoint', () => {
   });
 
   beforeEach(async () => {
+    // These setDoc fixtures intentionally exercise the legacy transport lane.
+    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', 'client_only');
     await hospitalDB.syncQueue.clear();
     resetSyncMutationIdentityForTests();
     vi.clearAllMocks();
@@ -455,22 +454,6 @@ describe('storage/sync public entrypoint', () => {
     );
   });
 
-  it('uses domain metrics and recent operations to expose sync context', async () => {
-    await queueSyncTask('UPDATE_DAILY_RECORD', makeRecord('2025-01-09', 'v1'), {
-      contexts: ['staffing', 'handoff'],
-      origin: 'partial_update_retry',
-    });
-
-    const metrics = await getSyncQueueDomainMetrics();
-    const operations = await listRecentSyncQueueOperations(5);
-
-    expect(metrics.byContext.staffing.pending).toBe(1);
-    expect(metrics.byContext.handoff.pending).toBe(1);
-    expect(metrics.byOrigin.partial_update_retry).toBe(1);
-    expect(operations[0]?.contexts).toEqual(['staffing', 'handoff']);
-    expect(operations[0]?.recoveryPolicy).toBe('staffing_handoff_priority');
-  });
-
   it('applies a lower retry budget to metadata-only tasks', async () => {
     vi.mocked(setDoc).mockRejectedValue(new Error('Network down'));
 
@@ -496,3 +479,5 @@ describe('storage/sync public entrypoint', () => {
     expect(tasks[0].recoveryPolicy).toBe('metadata_remote_priority');
   });
 });
+
+afterEach(() => vi.unstubAllEnvs());

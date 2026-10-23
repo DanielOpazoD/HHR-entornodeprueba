@@ -15,8 +15,13 @@ export interface ArchivedCudyrSupplement {
   capture?: { source: 'extension_monthly_report'; observedAt: string };
   file: { name: string; sha256: string; byteLength: number };
 }
-export const callCudyrArchive = async <T>(endpoint: string, request: unknown): Promise<T> => {
+export const callCudyrArchive = async <T>(
+  endpoint: string,
+  request: unknown,
+  beforeCall?: () => void
+): Promise<T> => {
   const runtime = await defaultFunctionsRuntime.getRegionalFunctions('southamerica-east1');
+  beforeCall?.();
   return (await httpsCallable<unknown, T>(runtime, endpoint, { timeout: 20000 })(request)).data;
 };
 export const importCudyrSupplement = (request: {

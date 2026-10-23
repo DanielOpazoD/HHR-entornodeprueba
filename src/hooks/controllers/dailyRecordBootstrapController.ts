@@ -14,6 +14,9 @@ export interface ResolveDailyRecordBootstrapPhaseInput {
   record: unknown | null;
   runtime: DailyRecordQueryRuntime | null;
   gracePeriodExpired: boolean;
+  currentDateString?: string;
+  isFetching?: boolean;
+  isError?: boolean;
 }
 
 export interface ResolveCensusEmptyStatePolicyInput {
@@ -24,35 +27,35 @@ export interface ResolveCensusEmptyStatePolicyInput {
   bootstrapPhase: DailyRecordBootstrapPhase;
 }
 
-export type CensusEmptyStateDiagnosticSource =
-  | 'remote_missing'
-  | 'local_cache_empty'
-  | 'sync_pending'
-  | 'post_deploy_refresh'
-  | 'date_mismatch';
-
-export interface CensusEmptyStateDiagnostic {
-  source: CensusEmptyStateDiagnosticSource;
-  message: string;
-}
-
-export interface ResolveCensusEmptyStateDiagnosticInput extends ResolveCensusEmptyStatePolicyInput {
-  hasPostDeployRefreshMarker?: boolean;
-}
-
 export const resolveDailyRecordBootstrapPhase = ({
   remoteSyncStatus,
   record,
   runtime,
   gracePeriodExpired,
+  currentDateString,
+  isFetching = false,
+  isError = false,
 }: ResolveDailyRecordBootstrapPhaseInput): DailyRecordBootstrapPhase => {
   if (record) {
     return 'record_ready';
   }
 
-  if (remoteSyncStatus === 'ready' && runtime?.availabilityState === 'confirmed_missing') {
+  const sameDate = !currentDateString || runtime?.date === currentDateString;
+  const authoritativeAbsence =
+    runtime?.conflictSummary?.kind === 'remote_missing' ||
+    runtime?.consistencyState === 'missing_remote';
+  if (
+    remoteSyncStatus === 'ready' &&
+    sameDate &&
+    !isFetching &&
+    !isError &&
+    authoritativeAbsence &&
+    runtime?.availabilityState === 'confirmed_missing'
+  ) {
     return 'confirmed_empty';
   }
+
+  if (isError || gracePeriodExpired) return 'remote_record_timeout';
 
   if (remoteSyncStatus === 'bootstrapping') {
     return 'remote_runtime_bootstrapping';
@@ -76,9 +79,7 @@ export const shouldAttemptTodayEmptyRecovery = ({
   currentDateString: string;
   todayDateString: string;
   bootstrapPhase: DailyRecordBootstrapPhase;
-}): boolean =>
-  currentDateString === todayDateString &&
-  (bootstrapPhase === 'remote_record_bootstrapping' || bootstrapPhase === 'remote_record_timeout');
+}): boolean => currentDateString === todayDateString && bootstrapPhase === 'remote_record_timeout';
 
 export const resolveCensusEmptyStatePolicy = ({
   branch,
@@ -132,67 +133,3 @@ export const describeDailyRecordBootstrapPhase = (phase: DailyRecordBootstrapPha
       return 'El registro del dia quedo resuelto para la UI.';
   }
 };
-
-export const resolveCensusEmptyStateDiagnostic = ({
-  branch,
-  currentDateString,
-  todayDateString,
-  isAuthenticated,
-  bootstrapPhase,
-  hasPostDeployRefreshMarker = false,
-}: ResolveCensusEmptyStateDiagnosticInput): CensusEmptyStateDiagnostic => {
-  if (branch !== 'empty') {
-    return {
-      source: 'remote_missing',
-      message: '',
-    };
-  }
-
-  if (hasPostDeployRefreshMarker) {
-    return {
-      source: 'post_deploy_refresh',
-      message:
-        'La app se actualizo recientemente y esta revalidando los registros locales recientes antes de confirmar que el dia esta vacio.',
-    };
-  }
-
-  if (currentDateString !== todayDateString && bootstrapPhase === 'confirmed_empty') {
-    return {
-      source: 'date_mismatch',
-      message:
-        'No existe registro para la fecha seleccionada. Verifica que estes mirando el dia correcto antes de crear un censo nuevo.',
-    };
-  }
-
-  if (isAuthenticated && bootstrapPhase !== 'confirmed_empty') {
-    return {
-      source: 'sync_pending',
-      message:
-        'Todavia se esta verificando Firebase y la copia local. Si esperabas pacientes, espera la sincronizacion antes de crear un registro en blanco.',
-    };
-  }
-
-  if (bootstrapPhase === 'local_only') {
-    return {
-      source: 'local_cache_empty',
-      message:
-        'No hay registro en la copia local y la sincronizacion remota no esta disponible en este momento.',
-    };
-  }
-
-  return {
-    source: 'remote_missing',
-    message:
-      'Firebase y la copia local no tienen registro para esta fecha. Crea el dia solo si corresponde iniciar un censo nuevo.',
-  };
-};
-
-export const shouldRecordCensusEmptyStateDiagnostic = ({
-  branch,
-  source,
-  isVisible,
-}: {
-  branch: 'register' | 'empty' | 'analytics';
-  source: CensusEmptyStateDiagnosticSource;
-  isVisible: boolean;
-}): boolean => branch === 'empty' && isVisible && Boolean(source);

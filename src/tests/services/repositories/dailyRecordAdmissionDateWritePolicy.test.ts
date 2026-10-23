@@ -39,6 +39,80 @@ const buildRecord = (date: string, beds: Record<string, PatientData>): DailyReco
   });
 
 describe('dailyRecordAdmissionDateWritePolicy carryover episodes', () => {
+  it('validates a moved episode against its source, not the former occupant of its destination', () => {
+    const moved = buildPatient('H4C2', {
+      clinicalEpisodeId: 'episode-moving',
+      admissionDate: '2026-10-07',
+      admissionTime: '16:17',
+      firstSeenDate: undefined,
+    });
+    const previous = buildRecord('2026-10-21', {
+      H4C2: moved,
+      R2: buildPatient('R2', {
+        patientName: 'Otro paciente',
+        rut: '11.111.111-1',
+        clinicalEpisodeId: 'episode-departed',
+        admissionDate: '2026-10-17',
+        firstSeenDate: '2026-10-17',
+      }),
+    });
+    const next = buildRecord('2026-10-21', {
+      R2: { ...moved, bedId: 'R2', location: 'R2' },
+    });
+
+    expect(() => assertAdmissionDatePersistencePolicy('2026-10-21', next, previous)).not.toThrow();
+  });
+
+  it('still rejects an actual admission-date edit while the same episode moves beds', () => {
+    const moved = buildPatient('H4C2', {
+      clinicalEpisodeId: 'episode-moving',
+      admissionDate: '2026-10-07',
+      firstSeenDate: '2026-10-07',
+    });
+    const previous = buildRecord('2026-10-21', { H4C2: moved });
+    const next = buildRecord('2026-10-21', {
+      R2: { ...moved, bedId: 'R2', location: 'R2', admissionDate: '2026-10-08' },
+    });
+
+    expect(() => assertAdmissionDatePersistencePolicy('2026-10-21', next, previous)).toThrow(
+      'La fecha de ingreso solo puede modificarse durante el primer día observado del episodio.'
+    );
+  });
+
+  it('does not compare a new hospitalization against an older episode sharing its document', () => {
+    const previous = buildRecord('2026-10-21', {
+      R2: buildPatient('R2', {
+        clinicalEpisodeId: 'episode-previous',
+        admissionDate: '2026-10-07',
+        firstSeenDate: '2026-10-07',
+      }),
+    });
+    const next = buildRecord('2026-10-21', {
+      R2: buildPatient('R2', {
+        clinicalEpisodeId: 'episode-new',
+        admissionDate: '2026-10-20',
+        firstSeenDate: '2026-10-20',
+      }),
+    });
+
+    expect(() => assertAdmissionDatePersistencePolicy('2026-10-21', next, previous)).not.toThrow();
+  });
+
+  it('keeps the admission-date restriction for a legacy episode without an episode id', () => {
+    const patient = buildPatient('R2', {
+      clinicalEpisodeId: undefined,
+      admissionDate: '2026-10-07',
+      firstSeenDate: '2026-10-07',
+    });
+    const previous = buildRecord('2026-10-21', { R2: patient });
+    const next = buildRecord('2026-10-21', {
+      R2: { ...patient, admissionDate: '2026-10-08' },
+    });
+    expect(() => assertAdmissionDatePersistencePolicy('2026-10-21', next, previous)).toThrow(
+      'La fecha de ingreso solo puede modificarse durante el primer día observado del episodio.'
+    );
+  });
+
   it('allows saving an older episode on a later daily record', () => {
     const record = buildRecord('2026-05-09', {
       R1: buildPatient('R1'),

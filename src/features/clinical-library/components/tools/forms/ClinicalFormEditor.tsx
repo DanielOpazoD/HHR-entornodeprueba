@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Download, Eye, FileText, Printer, RefreshCw, Save, Settings2, Upload } from 'lucide-react';
 import {
   CLINICAL_FORMS,
@@ -19,7 +19,14 @@ import { ToolFrame } from '../ToolFrame';
 import { ClinicalFormFields } from './ClinicalFormFields';
 import { ClinicalFormSettings, downloadClinicalFormJson } from './ClinicalFormSettings';
 import { useClinicalFormDraft } from './useClinicalFormDraft';
-import { useClinicalFormPdf, type ClinicalFormPdfGenerator } from './useClinicalFormPdf';
+import {
+  useClinicalFormPdf,
+  type ClinicalFormPdfGenerator,
+  type ClinicalFormDocxGenerator,
+} from './useClinicalFormPdf';
+import { useClinicalFormAnnexes } from './useClinicalFormAnnexes';
+import { ClinicalFormAnnexPanel } from './ClinicalFormAnnexPanel';
+import { normalizeDicomPatientId } from '@/services/radiology/dicomTypes';
 import './clinicalForms.css';
 
 export interface ClinicalFormEditorProps {
@@ -30,6 +37,7 @@ export interface ClinicalFormEditorProps {
   onClose: () => void;
   onDirtyChange?: (dirty: boolean) => void;
   onGeneratePdf: ClinicalFormPdfGenerator;
+  onGenerateDocx?: ClinicalFormDocxGenerator;
 }
 
 export const ClinicalFormEditor: React.FC<ClinicalFormEditorProps> = ({
@@ -40,9 +48,22 @@ export const ClinicalFormEditor: React.FC<ClinicalFormEditorProps> = ({
   onClose,
   onDirtyChange,
   onGeneratePdf,
+  onGenerateDocx,
 }) => {
   const form = getClinicalForm(formId);
-  const draft = useClinicalFormDraft(formId, patients, onFormChange, onDirtyChange);
+  const draft = useClinicalFormDraft(formId, patients, onFormChange);
+  const patientId = String(draft.values.paciente_rut || '');
+  const annexContext = JSON.stringify([
+    draft.source?.key,
+    draft.source?.context.episodeId,
+    draft.source?.context.identity,
+    draft.sourceMissing,
+    normalizeDicomPatientId(patientId),
+  ]);
+  const annexes = useClinicalFormAnnexes(annexContext, patientId);
+  useEffect(() => {
+    onDirtyChange?.(draft.dirty || annexes.images.length > 0);
+  }, [draft.dirty, annexes.images.length, onDirtyChange]);
   const [query, setQuery] = useState('');
   const [settings, setSettings] = useState(false);
   const [overrides, setOverrides] = useState<Record<string, ClinicalFormPreferences>>({});
@@ -60,7 +81,9 @@ export const ClinicalFormEditor: React.FC<ClinicalFormEditorProps> = ({
       Boolean(draft.replacement),
     ]),
     onGeneratePdf,
-    draft.setNotice
+    draft.setNotice,
+    onGenerateDocx,
+    annexes.images
   );
   const blocked = Boolean(draft.replacement) || draft.sourceMissing || draft.sourceChanged;
   const changePreferences = (next: ClinicalFormPreferences) => {
@@ -278,6 +301,15 @@ export const ClinicalFormEditor: React.FC<ClinicalFormEditorProps> = ({
             </>
           )}
         </fieldset>
+        {formId === 'informe-traslado-hospital-salvador' && (
+          <ClinicalFormAnnexPanel
+            key={annexContext}
+            annexes={annexes}
+            patientId={patientId}
+            patientName={String(draft.values.paciente_nombre_completo || '')}
+            disabled={pdf.busy || blocked}
+          />
+        )}
         <div className="clinical-form-export">
           <div className="clinical-form-actions">
             <button
@@ -305,8 +337,19 @@ export const ClinicalFormEditor: React.FC<ClinicalFormEditorProps> = ({
               onClick={() => void pdf.download()}
             >
               <Download size={15} />
-              {pdf.busy ? 'Preparando…' : 'PDF imprimible'}
+              {pdf.busyFormat === 'pdf' ? 'Preparando…' : 'PDF imprimible'}
             </button>
+            {formId === 'informe-traslado-hospital-salvador' && (
+              <button
+                type="button"
+                className="clinical-form-button"
+                disabled={pdf.busy || blocked}
+                onClick={() => void pdf.downloadDocx()}
+              >
+                <FileText size={15} aria-hidden="true" />
+                {pdf.busyFormat === 'docx' ? 'Preparando…' : 'Word (.docx)'}
+              </button>
+            )}
           </div>
           {draft.notice && (
             <p role="status" className="clinical-form-notice">

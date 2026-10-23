@@ -197,7 +197,7 @@ export const persistLocalAndAttemptRemoteSync = async ({
   retryRemoteWriteOnStaleVersion?: (
     freshRemoteRecord: DailyRecord
   ) => Promise<RemoteAuthorityWriteResult | void>;
-  canRebaseStaleVersionConflict?: (freshRemoteRecord: DailyRecord) => boolean;
+  canRebaseStaleVersionConflict?: (freshRemoteRecord: DailyRecord, writeError: unknown) => boolean;
   /**
    * A guarded command can lose its CAS race after another writer already reached the same desired
    * state. When that can be proven from a fresh authoritative read, adopt that exact record instead
@@ -226,7 +226,18 @@ export const persistLocalAndAttemptRemoteSync = async ({
     }
     let remoteResult: RemoteAuthorityWriteResult | void;
     try {
-      remoteResult = await remoteWrite();
+      try {
+        remoteResult = await remoteWrite();
+      } catch (writeError) {
+        const rebased = await attemptStaleVersionRebaseRetry<RemoteAuthorityWriteResult>({
+          writeError,
+          date,
+          hooks: { retryRemoteWriteOnStaleVersion, canRebaseStaleVersionConflict },
+          readRemoteConfirmedRecord,
+        });
+        if (!rebased) throw writeError;
+        remoteResult = rebased.result;
+      }
     } catch (error) {
       const alreadyAppliedRecovery = await recoverAlreadyAppliedRemoteWrite({
         error,

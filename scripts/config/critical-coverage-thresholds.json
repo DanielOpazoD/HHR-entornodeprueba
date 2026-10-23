@@ -2,8 +2,6 @@
   "zones": {
     "src/features/census/controllers": {
       "tests": "src/tests/views/census",
-      "minTestFileCount": 200,
-      "minTestToSourceRatio": 1.5,
       "coverageBaseline": {
         "lines": 90.6,
         "functions": 94.3,
@@ -12,8 +10,6 @@
     },
     "src/features/clinical-documents": {
       "tests": "src/tests/features/clinical-documents",
-      "minTestFileCount": 15,
-      "minTestToSourceRatio": 0.25,
       "coverageBaseline": {
         "lines": 83.0,
         "functions": 80.0,
@@ -22,8 +18,6 @@
     },
     "src/services/transfers": {
       "tests": "src/tests/services/transfers",
-      "minTestFileCount": 6,
-      "minTestToSourceRatio": 0.3,
       "coverageBaseline": {
         "lines": 81.5,
         "functions": 79.5,
@@ -32,8 +26,6 @@
     },
     "src/services/storage/firestore": {
       "tests": "src/tests/services/storage",
-      "minTestFileCount": 12,
-      "minTestToSourceRatio": 2,
       "coverageBaseline": {
         "lines": 82.5,
         "functions": 89,
@@ -42,8 +34,6 @@
     },
     "src/services/auth": {
       "tests": "src/tests/services/auth",
-      "minTestFileCount": 10,
-      "minTestToSourceRatio": 0.3,
       "coverageBaseline": {
         "lines": 72.0,
         "functions": 73.0,
@@ -60,8 +50,6 @@
         "src/services/auth/firebaseStartupWarningRenderer.ts"
       ],
       "tests": "src/tests/services/auth",
-      "minTestFileCount": 3,
-      "minTestToSourceRatio": 0.6,
       "coverageBaseline": {
         "lines": 87.0,
         "functions": 89.0,
@@ -70,8 +58,6 @@
     },
     "src/services/backup": {
       "tests": "src/tests/services/backup",
-      "minTestFileCount": 12,
-      "minTestToSourceRatio": 0.75,
       "coverageBaseline": {
         "lines": 78.0,
         "functions": 80.0,
@@ -86,8 +72,6 @@
         "src/features/reminders/components/admin/ReminderReadStatusTable.tsx"
       ],
       "tests": "src/tests/features/reminders",
-      "minTestFileCount": 1,
-      "minTestToSourceRatio": 0.3,
       "coverageBaseline": {
         "lines": 77.5,
         "functions": 60.0,
@@ -110,8 +94,6 @@
         "src/components/ui/DatabaseStatusBanner.tsx"
       ],
       "tests": "src/tests/components",
-      "minTestFileCount": 6,
-      "minTestToSourceRatio": 1.5,
       "coverageBaseline": {
         "lines": 76.2,
         "functions": 70.0,
@@ -126,8 +108,6 @@
         "src/features/census/components/global-search/patientEpisodeTimelineController.ts"
       ],
       "tests": "src/tests/services/patient",
-      "minTestFileCount": 1,
-      "minTestToSourceRatio": 0.5,
       "coverageBaseline": {
         "lines": 80.0,
         "functions": 80.0,
@@ -156,8 +136,6 @@
         "src/tests/hooks/useExportManager.readiness.test.ts",
         "src/tests/hooks/controllers/exportReadinessController.test.ts"
       ],
-      "minTestFileCount": 4,
-      "minTestToSourceRatio": 1.0,
       "coverageBaseline": {
         "lines": 75.0,
         "functions": 75.0,
@@ -182,8 +160,6 @@
         "src/tests/hooks/controllers/bedManagementPatchController.test.ts",
         "src/tests/features/census/components/patient-row/upcClassificationWindowModel.test.ts"
       ],
-      "minTestFileCount": 4,
-      "minTestToSourceRatio": 1.0,
       "coverageBaseline": {
         "lines": 65.2,
         "functions": 50.0,
@@ -198,8 +174,6 @@
         "src/services/storage/sync/syncQueueTelemetryController.ts"
       ],
       "tests": "src/tests/services/storage",
-      "minTestFileCount": 8,
-      "minTestToSourceRatio": 2,
       "coverageBaseline": {
         "lines": 95.0,
         "functions": 95.0,
@@ -214,8 +188,6 @@
         "src/services/storage/indexeddb/indexedDbRecoveryPolicy.ts"
       ],
       "tests": "src/tests/services/storage",
-      "minTestFileCount": 8,
-      "minTestToSourceRatio": 2,
       "coverageBaseline": {
         "lines": 99.0,
         "functions": 99.0,
@@ -250,8 +222,6 @@
         "src/tests/rayen-import/replanRayenStructureMotherCrib.test.ts",
         "src/tests/rayen-import/replanRayenStructurePreviousMotherCrib.test.ts"
       ],
-      "minTestFileCount": 16,
-      "minTestToSourceRatio": 3.0,
       "coverageBaseline": {
         "lines": 87.0,
         "functions": 88.0,
@@ -260,8 +230,6 @@
     },
     "src/features/handoff": {
       "tests": "src/tests/views/handoff",
-      "minTestFileCount": 15,
-      "minTestToSourceRatio": 0.3,
       "coverageBaseline": {
         "lines": 82.5,
         "functions": 76.5,

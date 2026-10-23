@@ -8,6 +8,7 @@ import {
 } from '../../../domain/forms/clinicalFormPreferences';
 import type { ClinicalFormDefinition } from '../../../domain/forms/clinicalFormTypes';
 import { matchesClinicalFormField } from './ClinicalFormFields';
+import { isSuppressedClinicalFormField } from '../../../domain/forms/clinicalFormFieldPolicy';
 
 export const downloadClinicalFormJson = (text: string, name: string) => {
   const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
@@ -40,7 +41,9 @@ export const ClinicalFormSettings: React.FC<Props> = ({
     },
     []
   );
-  const visible = form.fields.filter(field => matchesClinicalFormField(field, query));
+  const visible = form.fields.filter(
+    field => !isSuppressedClinicalFormField(field) && matchesClinicalFormField(field, query)
+  );
   const importFile = async (file?: File) => {
     if (!file) return;
     const attempt = ++sequence.current;

@@ -71,6 +71,7 @@ it('does not return clinical payload when source metadata has changed', async ()
   const collection = (name: string) => ({
     doc: (id: string) => ({
       path: name + '/' + id,
+      collection: (child: string) => collection(name + '/' + id + '/' + child),
       get: async () => ({
         ref: { path: name + '/' + id },
         exists: name === 'cudyrOfficialReports',
@@ -143,6 +144,7 @@ it.each(['unchanged', 'documentary-change', 'legacy-correction', 'episode-correc
         const path = name + '/' + id;
         return {
           path,
+          collection: (child: string) => collection(path + '/' + child),
           get: async () => ({
             ref: { path },
             exists:
@@ -205,3 +207,47 @@ it.each(['unchanged', 'documentary-change', 'legacy-correction', 'episode-correc
     }
   }
 );
+
+it('keeps a closed month when only later columns and blank later admissions are added', () => {
+  const {
+    unchangedFollowingMorning,
+  } = require('../../../functions/lib/cudyrOfficialReportStore.js');
+  const row = (category: string | null, name = 'Synthetic') => ({
+    document: name,
+    patientName: name,
+    days: [
+      { sourceDate: '2026-10-01', category },
+      { sourceDate: '2026-10-12', category: 'B1' },
+    ],
+  });
+  const doc = (id: string, importedAt: string, patients: unknown[]) => ({
+    ref: { path: 'hospitals/test/cudyrMonthlySupplements/' + id },
+    data: () => ({
+      month: '2026-10',
+      importedAt,
+      capture: { source: 'extension_monthly_report' },
+      report: { patients },
+    }),
+  });
+  const old = doc('old', '2026-10-08T12:00:00Z', [row('C2')]);
+  const fresh = doc('new', '2026-10-18T12:00:00Z', [row('C2'), row(null, 'Later')]);
+  const unrelated = {
+    ref: { path: 'hospitals/test/cudyrVerifiedContexts/2026-09' },
+    data: () => ({}),
+  };
+  const snapshot = { savedAt: '2026-10-09T12:00:00Z' };
+  expect(unchangedFollowingMorning([old, fresh, unrelated], snapshot, '2026-09')).toEqual([
+    old,
+    unrelated,
+  ]);
+  for (const patients of [[row('B2')], [row(null)], [row('C2'), row('D3', 'New')]]) {
+    expect(
+      unchangedFollowingMorning(
+        [old, doc('changed', '2026-10-18T12:00:00Z', patients)],
+        snapshot,
+        '2026-09'
+      )
+    ).toBeNull();
+  }
+  expect(unchangedFollowingMorning([fresh], snapshot, '2026-09')).toBeNull();
+});

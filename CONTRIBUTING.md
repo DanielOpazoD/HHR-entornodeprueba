@@ -9,6 +9,10 @@ En cambios de flujo, indicar las reglas afectadas y los ejemplos de comportamien
 que deben conservarse. Si una regla necesita cambiar, registrar primero la decisión
 explícita del responsable del producto; no deducirla de un refactor o de un error existente.
 
+La [guía operativa navegable](docs/guia-operativa.html) reúne fuentes, escenarios y
+estados de implementación. El contrato es canónico; la guía no sustituye sus reglas
+ni demuestra por sí sola que el código o el despliegue las cumplan.
+
 ## Preparar el entorno
 
 El runtime declarado en `package.json` es Node **22.x**. Usar el lockfile vigente:

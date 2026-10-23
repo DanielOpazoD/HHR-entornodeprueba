@@ -11,6 +11,7 @@ import { formatLabExamColumnLabel } from '../controllers/labDateDisplayControlle
 import { parseLocalizedNumber, parseScientificValue } from '../controllers/labFormattingController';
 import { createWorkbook } from '@/services/exporters/excelUtils';
 import { createScopedLogger } from '@/services/utils/loggerScope';
+import { getTodayISO } from '@/utils/dateCoreUtils';
 
 const logger = createScopedLogger('labExcelService');
 
@@ -116,7 +117,7 @@ export const exportComparisonToExcel = async (
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `laboratorio_comparacion_${new Date().toISOString().substring(0, 10)}.xlsx`;
+    a.download = `laboratorio_comparacion_${getTodayISO()}.xlsx`;
     a.click();
     URL.revokeObjectURL(url);
   } catch (error) {

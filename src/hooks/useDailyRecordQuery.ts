@@ -72,6 +72,13 @@ export const useDailyRecordQuery = (
       shouldSyncFromRemote
     ),
     enabled: !!date,
+    // Negative cache entries must be revalidated on every visit. Another workstation
+    // may have created this census since the previous confirmed absence.
+    staleTime: query => {
+      if (!query.state.data?.record) return 0;
+      const configured = queryClient.getDefaultOptions().queries?.staleTime;
+      return typeof configured === 'number' || configured === 'static' ? configured : 0;
+    },
     // Brief tab returns can reuse fresh data. Stale resumes still pass through
     // the freshness gate; reconnect keeps the global forced remote check.
     refetchOnWindowFocus: true,

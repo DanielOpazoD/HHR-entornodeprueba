@@ -150,6 +150,47 @@ describe('patientAnalysisUseCase', () => {
     expect(outcome.data?.conflicts).toHaveLength(0);
   });
 
+  it('harmonizes every day even when one audit write is refused', async () => {
+    const repository = {
+      getAvailableDates: vi.fn(),
+      getForDate: vi.fn(),
+      updatePartial: vi.fn().mockResolvedValue(undefined),
+    };
+    const days = ['2026-03-05', '2026-03-06', '2026-03-07'];
+    const writeEvent = vi
+      .fn()
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('No se pudo guardar el evento de auditoría.'))
+      .mockResolvedValueOnce(undefined);
+
+    const outcome = await executeResolvePatientConflict({
+      analysis: {
+        totalRecords: 3,
+        uniquePatients: 1,
+        validPatients: [],
+        conflicts: [
+          {
+            rut: '11.111.111-1',
+            description: 'Diferencia',
+            options: ['Wrong Name', 'Correct Name'],
+            records: days,
+            bedMap: Object.fromEntries(days.map(day => [day, 'R1'])),
+          },
+        ],
+      },
+      rut: '11.111.111-1',
+      correctName: 'Correct Name',
+      harmonizeHistory: true,
+      dailyRecordRepository: repository,
+      auditPort: { writeEvent },
+      currentUserEmail: 'test@test.com',
+    });
+
+    expect(outcome.status).toBe('success');
+    expect(writeEvent).toHaveBeenCalledTimes(3);
+    expect(repository.updatePartial.mock.calls.map(([day]) => day)).toEqual(days);
+  });
+
   it('migrates valid patients through repository port', async () => {
     const outcome = await executeMigratePatients({
       analysis: {

@@ -50,11 +50,14 @@ export const RAYEN_FILL_STALE_AFTER_MS = 8 * 60 * 1000;
 
 let progress: RayenFillProgress = IDLE;
 let activeAttemptId: number | null = null;
+// The worker retains ownership after UI cancellation until it settles or expires.
+let workerAttemptId: number | null = null;
 let runningSinceMs: number | null = null;
 let activeAbort: (() => void) | null = null;
 
 /** Lets the stale-lock watchdog stop the worker instead of only freeing the button. */
-export const registerRayenFillAbort = (abort: (() => void) | null): void => {
+export const registerRayenFillAbort = (abort: (() => void) | null, attemptId: number): void => {
+  if (!progress.running || workerAttemptId !== attemptId) return;
   activeAbort = abort;
 };
 const listeners = new Set<() => void>();
@@ -73,6 +76,7 @@ const releaseStaleFill = (nowMs: number): boolean => {
     { attemptId: progress.attemptId, runningForMs: runningSinceMs ? nowMs - runningSinceMs : null }
   );
   activeAttemptId = null;
+  workerAttemptId = null;
   runningSinceMs = null;
   const abort = activeAbort;
   activeAbort = null;
@@ -106,6 +110,7 @@ export const beginRayenFill = (total: number, nowMs: number = Date.now()): boole
     return false;
   }
   activeAttemptId = attemptId;
+  workerAttemptId = attemptId;
   runningSinceMs = nowMs;
   emit({
     running: true,
@@ -125,6 +130,7 @@ export const resetRayenFillProgress = (nowMs: number = Date.now()): boolean => {
   releaseStaleFill(nowMs);
   if (progress.running || progress.staffingOutcome === 'applying') return false;
   activeAttemptId = null;
+  workerAttemptId = null;
   runningSinceMs = null;
   emit({ ...IDLE, attemptId: progress.attemptId });
   return true;
@@ -162,15 +168,17 @@ export const reportRayenStaffingOutcome = (
 };
 
 /** Report per-patient progress while the fill runs. */
-export const reportRayenFillProgress = (done: number, total: number): void => {
-  if (!progress.running) return;
+export const reportRayenFillProgress = (done: number, total: number, attemptId: number): void => {
+  if (!progress.running || workerAttemptId !== attemptId) return;
   emit({ ...progress, done, total });
 };
 
 /** Finish the run, keeping patient counts separate from report-level/global failures. */
-export const endRayenFill = (errors: number, hasAnyError: boolean = errors > 0): void => {
+export const endRayenFill = (errors: number, hasAnyError: boolean, attemptId: number): void => {
+  if (!progress.running || workerAttemptId !== attemptId) return;
   const completedLatestAttempt = activeAttemptId === progress.attemptId;
   activeAttemptId = null;
+  workerAttemptId = null;
   runningSinceMs = null;
   activeAbort = null;
   emit({

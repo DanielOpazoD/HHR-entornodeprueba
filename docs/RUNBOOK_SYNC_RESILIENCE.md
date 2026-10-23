@@ -420,3 +420,22 @@ la fuente o genera uno localizado; el reintento existente se limita a esa secci�
 Los canales individuales y el paquete clínico comparten los mismos normalizadores.
 CUDYR aplica el mismo criterio a `items`. No convertir una respuesta inválida en una
 lectura completada ni usarla para retirar información.
+
+### Rechazos de recetas y plantillas tras actualizar reglas
+
+Si falla una corrección de receta fotografiada, distinguir actualización de
+asignación/tipo de una sustitución de imagen, ruta o autor de carga. Las primeras
+requieren el actor de la sesión y la marca temporal de su comando; no reenviar
+un documento completo para corregir una sola propiedad. Enfermería conserva su
+eliminación manual existente. Una plantilla propia puede borrarse sin enviar un
+documento posterior a la eliminación. No ampliar roles para ocultar un rechazo.
+
+Una indicación archivada conserva el identificador del documento y la identidad
+del autor autenticado. Un rol informado debe coincidir con el efectivo; la
+ausencia de rol de registros antiguos sigue siendo compatible.
+
+Las pruebas de la cola que simulan `setDoc` fijan explícitamente el transporte
+legacy y restauran el entorno al terminar cada caso. El modo enforced de un build
+de release no debe cambiar accidentalmente el transporte de esos fixtures. Las
+suites de contrato callable y confirmación autoritativa siguen probando su ruta
+propia; esto no cambia la configuración del programa ni del despliegue.

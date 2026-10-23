@@ -55,9 +55,9 @@ Taxonomía operativa para el core del sistema. La idea es reducir carga cognitiv
 | `useCensusEmailMessageState`                  | `state`                              | Mensaje editable.                                    |
 | `useCensusEmailSendState`                     | `state`                              | Estado transitorio de envío.                         |
 | `useCensusEmailDeliveryActions`               | `delivery`                           | Email/link/share.                                    |
-| `useAudit`                                    | `facade`                             | UI + debounce de auditoría.                          |
-| `useAuditData`                                | `facade`                             | Fetch inicial + filtros/paginación + worker.         |
-| `useAuditWorker`                              | `compat` técnica / adapter-backed    | Wrapper mínimo del worker.                           |
+| `useAudit`                                    | `facade`                             | Registro de auditoría con ediciones agrupadas.       |
+| `useAuditTrail`                               | `facade`                             | Período, filtros, agrupación y vista de auditoría.   |
+| `useAuditConnectionTracker`                   | `bootstrap`                          | Conexión del equipo: inicio, latido y cortes de red. |
 | `useBackupFileBrowser`                        | `facade`                             | Navegación y acciones del browser de respaldos.      |
 | `useBackupFilesQuery`                         | `query`                              | Listing de Storage con outcome homogéneo.            |
 | `useBackupFileBrowserActions`                 | `delivery`                           | Delete/download/backfill.                            |

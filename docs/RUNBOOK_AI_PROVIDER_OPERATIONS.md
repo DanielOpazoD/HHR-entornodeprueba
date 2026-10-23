@@ -2,12 +2,11 @@
 
 ## Objetivo
 
-Operar y diagnosticar los providers AI usados por búsqueda CIE-10, importación de documentos y resumen clínico.
+Operar y diagnosticar los providers AI usados por búsqueda CIE-10, importación de documentos y nombres de archivos del episodio.
 
 ## Endpoints sensibles
 
 - `netlify/functions/cie10-ai-search.ts`
-- `netlify/functions/clinical-ai-summary.ts`
 - `netlify/functions/clinical-document-ai-import.ts`
 - `netlify/functions/admin-ai-provider-status.ts`
 - `netlify/functions/admin-ai-provider-test.ts`

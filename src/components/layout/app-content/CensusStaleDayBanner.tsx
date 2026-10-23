@@ -3,11 +3,6 @@ import { CalendarClock } from 'lucide-react';
 
 import { formatDateForDisplay } from '@/utils/dateDisplayUtils';
 
-const parseLocalDate = (isoDate: string): Date => {
-  const [year, month, day] = isoDate.split('-').map(Number);
-  return new Date(year, month - 1, day);
-};
-
 interface CensusStaleDayBannerProps {
   /** The day currently being viewed (YYYY-MM-DD). */
   currentDateString: string;
@@ -34,8 +29,8 @@ export const CensusStaleDayBanner: React.FC<CensusStaleDayBannerProps> = ({
     return null;
   }
 
-  const viewedLabel = formatDateForDisplay(parseLocalDate(currentDateString));
-  const todayLabel = formatDateForDisplay(parseLocalDate(clinicalToday));
+  const viewedLabel = formatDateForDisplay(currentDateString);
+  const todayLabel = formatDateForDisplay(clinicalToday);
 
   return (
     <div

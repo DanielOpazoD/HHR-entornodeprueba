@@ -1,4 +1,10 @@
-import { setDoc, Timestamp, updateDoc, type DocumentData, type UpdateData } from 'firebase/firestore';
+import {
+  setDoc,
+  Timestamp,
+  updateDoc,
+  type DocumentData,
+  type UpdateData,
+} from 'firebase/firestore';
 import type { DailyRecord, DailyRecordPatch } from '@/services/storage/storageDailyRecordContracts';
 import { withRetry } from '@/utils/networkUtils';
 import { DataRegressionError } from '@/utils/integrityGuard';
@@ -289,8 +295,8 @@ export const updateRecordPartial = async (
           : isE2EForcedMovementPatch
             ? 'enforced'
             : structuralAuthorityFenced
-            ? structuralAuthorityMode || 'shadow'
-            : null;
+              ? structuralAuthorityMode || 'shadow'
+              : null;
         if (
           shouldUseAuthorityCallable &&
           (callableAuthorityMode === 'enforced' ||
@@ -356,6 +362,9 @@ export const updateRecordPartial = async (
           }
         );
       };
+      // A protected specialty decision already uses the authority callable. Its
+      // rejection must never be retried as a legacy patch without that intent.
+      if (options.specialtyIntent) return await persist();
       return await runPartialUpdatePersistWithPermissionFallbacks({
         persist,
         date,
@@ -366,7 +375,7 @@ export const updateRecordPartial = async (
       });
     } catch (error: unknown) {
       const storageError = error as { code?: string };
-      if (storageError?.code === 'not-found') {
+      if (storageError?.code === 'not-found' && !options.specialtyIntent) {
         firestoreWriteLogger.warn('Firestore write fallback: partialUpdateNotFound', { date });
         await withRetry(() =>
           setDoc(docRef, guardedFallbackData ?? sanitizedData, { merge: true })

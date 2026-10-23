@@ -47,6 +47,7 @@ describe('explicit Google identity button', () => {
     config.callback({ credential: 'test-auth-token' });
     await Promise.resolve();
     expect(onCredential).toHaveBeenCalledTimes(1);
+    expect(button).toMatchObject({ type: 'icon', shape: 'circle', size: 'large' });
     expect(button.click_listener).toEqual(expect.any(Function));
     expect(mockBeginAuthPerfAttempt).not.toHaveBeenCalled();
   });

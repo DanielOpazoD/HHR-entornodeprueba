@@ -6,6 +6,7 @@
 import { Timestamp } from 'firebase/firestore';
 import { auditUtilsLogger } from '@/services/admin/adminLoggers';
 import { defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 // ============================================================================
 // User Identification
@@ -93,6 +94,7 @@ export const formatAuditTimestamp = (timestamp: unknown, locale = 'es-CL'): stri
   if (date.getTime() === 0) return 'Fecha desconocida';
 
   return date.toLocaleString(locale, {
+    timeZone: CLINICAL_TIME_ZONE,
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -106,6 +108,32 @@ export const formatAuditTimestamp = (timestamp: unknown, locale = 'es-CL'): stri
 /**
  * Get user display name if available
  */
+export interface AuditSessionIdentity {
+  uid: string;
+  email?: string;
+  displayName?: string;
+}
+
+/** The signed-in Firebase user exactly as authenticated: no cached or fallback values. */
+export const getCurrentAuditSession = (): AuditSessionIdentity | null => {
+  try {
+    const user = resolveCurrentUser();
+    if (!user?.uid) return null;
+    return {
+      uid: user.uid,
+      email: user.email || undefined,
+      displayName: user.displayName || undefined,
+    };
+  } catch (_e) {
+    return null;
+  }
+};
+
+/** Whether `actor` (an email or a uid) names the signed-in user. */
+export const isAuditSessionActor = (actor: string, session: AuditSessionIdentity): boolean =>
+  actor === session.uid ||
+  (Boolean(session.email) && actor.toLowerCase() === session.email?.toLowerCase());
+
 export const getCurrentUserDisplayName = (): string | undefined => {
   try {
     return resolveCurrentUser()?.displayName || undefined;

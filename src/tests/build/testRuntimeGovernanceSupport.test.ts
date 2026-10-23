@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { parseDocument } from 'yaml';
 
 import {
   buildTestRuntimeGovernanceReport,
@@ -59,6 +60,75 @@ describe('test runtime governance support', () => {
   it('fails if CI/runtime governance drifts from the contract', () => {
     expect(collectTestRuntimeGovernanceIssues(process.cwd())).toEqual([]);
   });
+
+  it('reads the workflows by structure, not by indentation or list style', () => {
+    const root = makeReportRoot();
+    for (const relative of [
+      '.github/workflows/ci-cd.yml',
+      '.github/workflows/nightly-test-runtime.yml',
+      'scripts/config/unit-shard-balance.json',
+      'src/tests/services/storage/syncQueueLoad.test.ts',
+    ]) {
+      fs.mkdirSync(path.dirname(path.join(root, relative)), { recursive: true });
+      fs.copyFileSync(relative, path.join(root, relative));
+    }
+    for (const relative of ['src/tests/support', 'src/tests/utils', 'src/tests/integration']) {
+      fs.mkdirSync(path.join(root, relative), { recursive: true });
+    }
+    fs.writeFileSync(path.join(root, 'src/tests/integration/setup.tsx'), '');
+    const ciPath = path.join(root, '.github/workflows/ci-cd.yml');
+    const reformatted = parseDocument(fs.readFileSync(ciPath, 'utf8'));
+    fs.writeFileSync(ciPath, reformatted.toString({ indent: 4 }));
+    expect(collectTestRuntimeGovernanceIssues(root)).toEqual([]);
+
+    reformatted.setIn(['jobs', 'unit-risk-shards', 'strategy', 'matrix', 'shard'], [1, 2, 3]);
+    fs.writeFileSync(ciPath, reformatted.toString({ indent: 4 }));
+    expect(collectTestRuntimeGovernanceIssues(root)).toContain(
+      'unit-risk-shards: CI matrix must keep four explicit shards.'
+    );
+  });
+
+  it.each(['test:ci:unit', 'test:ci:unit:shard'])(
+    'rejects a nightly load suite reintroduced through %s expansion',
+    script => {
+      const root = makeReportRoot();
+      for (const relative of [
+        '.github/workflows/ci-cd.yml',
+        '.github/workflows/nightly-test-runtime.yml',
+        'scripts/config/unit-shard-balance.json',
+        'src/tests/services/storage/syncQueueLoad.test.ts',
+      ]) {
+        fs.mkdirSync(path.dirname(path.join(root, relative)), { recursive: true });
+        fs.copyFileSync(relative, path.join(root, relative));
+      }
+      for (const relative of ['src/tests/support', 'src/tests/utils']) {
+        fs.mkdirSync(path.join(root, relative), { recursive: true });
+      }
+      fs.mkdirSync(path.join(root, 'src/tests/integration'), { recursive: true });
+      fs.writeFileSync(path.join(root, 'src/tests/integration/setup.tsx'), '');
+      expect(collectTestRuntimeGovernanceIssues(root)).toEqual([]);
+      const file = 'src/tests/services/storage/syncQueueLoad.test.ts';
+      if (script === 'test:ci:unit') {
+        const packagePath = path.join(root, 'package.json');
+        const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+        packageJson.scripts[script] = packageJson.scripts[script].replace(
+          ` --exclude "${file}"`,
+          ''
+        );
+        fs.writeFileSync(packagePath, JSON.stringify(packageJson));
+      } else {
+        const configPath = path.join(root, 'scripts/config/unit-shard-balance.json');
+        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        config.excludedFromUnitSuite = config.excludedFromUnitSuite.filter(
+          (excluded: string) => excluded !== file
+        );
+        fs.writeFileSync(configPath, JSON.stringify(config));
+      }
+      expect(collectTestRuntimeGovernanceIssues(root)).toEqual([
+        `sync-load: nightly-only file ${file} is included indirectly in ${script}.`,
+      ]);
+    }
+  );
 
   it('renders a compact report with slow-test and fixture governance sections', () => {
     const report = buildTestRuntimeGovernanceReport(process.cwd());

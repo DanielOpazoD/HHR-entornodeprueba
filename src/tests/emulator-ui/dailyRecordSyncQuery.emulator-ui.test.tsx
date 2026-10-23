@@ -17,6 +17,7 @@ import {
   resetDailyRecordFreshnessGateForTests,
 } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import { clearPendingDailyRecordPatchesForTests } from '@/hooks/controllers/dailyRecordPendingPatchController';
+import { getTodayISO } from '@/utils/dateCoreUtils';
 
 const runEmulatorUiTests =
   process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1' ||
@@ -28,7 +29,7 @@ const mockNotifyError = vi.fn();
 const mockNotifySuccess = vi.fn();
 const mockNotifyWarning = vi.fn();
 const mockNotifyInfo = vi.fn();
-const TODAY_ISO = new Date().toISOString().slice(0, 10);
+const TODAY_ISO = getTodayISO();
 
 vi.mock('@/context/UIContext', () => ({
   useNotification: () => ({
@@ -144,6 +145,8 @@ describeUiEmulator('UI sync flow with Firestore emulator', () => {
   });
 
   beforeEach(async () => {
+    // This UI fixture uses real legacy Firestore writes, without callable mocks.
+    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', 'client_only');
     vi.clearAllMocks();
     await testEnv.clearFirestore();
     await clearAllRecords();
@@ -172,6 +175,7 @@ describeUiEmulator('UI sync flow with Firestore emulator', () => {
       await Promise.resolve();
     });
     clearPendingDailyRecordPatchesForTests();
+    vi.unstubAllEnvs();
   });
 
   it('loads record from emulator and reflects remote updates via subscription', async () => {

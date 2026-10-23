@@ -65,6 +65,20 @@ export const createAuthRoleLookupService = (
       return role;
     } catch (error) {
       markPerf('auth-role:lookup-error');
+      // A server/identity denial is authoritative, not an offline fallback opportunity.
+      const code = (error as { code?: string } | null)?.code;
+      if (
+        code &&
+        [
+          'functions/permission-denied',
+          'functions/unauthenticated',
+          'auth/user-disabled',
+          'auth/user-token-expired',
+          'auth/invalid-user-token',
+        ].includes(code)
+      ) {
+        return null;
+      }
       throw createAuthError(
         AUTH_ROLE_LOOKUP_UNAVAILABLE_CODE,
         error instanceof Error && error.message

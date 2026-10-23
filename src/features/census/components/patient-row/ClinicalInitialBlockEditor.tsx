@@ -1,38 +1,33 @@
+import { buildPatientRowSaveScopeKey } from '@/features/census/controllers/patientRowInputController';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import { Check, SquarePen, X } from 'lucide-react';
 import { SPECIALTY_OPTIONS } from '@/constants/clinicalSpecialtyConstants';
 import { useStaffContext } from '@/context/StaffContext';
-import {
-  findProfessionalByCatalogKey,
-  findProfessionalByRayenIdentity,
-  professionalCatalogKey,
-  professionalSpecialtyToPatientSpecialty,
-} from '@/services/staff/treatingPhysicianCatalog';
+import { professionalSpecialtyToPatientSpecialty } from '@/services/staff/treatingPhysicianCatalog';
 import { TreatingPhysicianSelect } from './TreatingPhysicianSelect';
 import type {
   PatientData,
   PatientRowPatientPatch,
 } from '@/features/census/components/patient-row/patientRowContracts';
-import type { DebouncedTextHandler } from '@/features/census/components/patient-row/inputCellTypes';
+import { usePatientRowSaveState } from './usePatientRowSaveState';
+import { useFeatureFlag } from '@/hooks/useFeatureFlag';
+import type {
+  DebouncedTextHandler,
+  PatientRowSaveResult,
+} from '@/features/census/components/patient-row/inputCellTypes';
 import { usePortalPopoverRuntime } from '@/hooks/usePortalPopoverRuntime';
 import { resolveClinicalInitialBlockEditorPosition } from '@/features/census/controllers/clinicalInitialBlockEditorPosition';
 import {
-  dismissTreatingPhysician,
-  isDismissedTreatingPhysician,
-} from '@/shared/census/treatingPhysicianDismissal';
-// The clinical status was decoupled from this editor (rediseño 2026): it now lives in its own
-// column as a colored dot (StatusSelect). This editor only edits diagnosis + specialty.
-interface ClinicalInitialBlockDraft {
-  pathology: string;
-  treatingPhysicianKey: string;
-  physicianTouched: boolean;
-  specialtySelection: string;
-  specialtyOther: string;
-}
+  buildClinicalInitialBlockDraft,
+  buildClinicalInitialBlockPatch,
+  isKnownSpecialtyOption,
+  type ClinicalInitialBlockDraft,
+} from '@/features/census/controllers/clinicalInitialBlockEditorController';
 interface ClinicalInitialBlockEditorProps {
   data: PatientData;
+  currentDateString?: string;
   disabled?: boolean;
   viewOnly?: boolean;
   viewOnlyLabel?: string;
@@ -43,92 +38,11 @@ interface ClinicalInitialBlockEditorProps {
   triggerContent?: React.ReactNode;
   triggerTitle?: string;
   onChange: DebouncedTextHandler;
-  onMultipleUpdate?: (fields: PatientRowPatientPatch) => void;
+  onMultipleUpdate?: (fields: PatientRowPatientPatch) => PatientRowSaveResult;
 }
-const isKnownSpecialtyOption = (specialty: string): boolean =>
-  specialty === '' || SPECIALTY_OPTIONS.includes(specialty as (typeof SPECIALTY_OPTIONS)[number]);
-const buildClinicalInitialBlockDraft = (
-  data: PatientData,
-  professionalsCatalog: ReturnType<typeof useStaffContext>['professionalsCatalog']
-): ClinicalInitialBlockDraft => {
-  const specialty = data.specialty || '';
-  const isKnownSpecialty = isKnownSpecialtyOption(specialty);
-  const matchingProfessional = findProfessionalByRayenIdentity(
-    professionalsCatalog,
-    data.treatingPhysicianId,
-    data.treatingPhysicianName
-  );
-  const storedPhysicianDismissed = isDismissedTreatingPhysician(data, data);
-
-  return {
-    pathology: data.pathology || '',
-    physicianTouched: false,
-    treatingPhysicianKey: storedPhysicianDismissed
-      ? ''
-      : matchingProfessional
-        ? professionalCatalogKey(matchingProfessional)
-        : data.treatingPhysicianId
-          ? `rayen:${data.treatingPhysicianId}`
-          : data.treatingPhysicianName
-            ? `stored-name:${encodeURIComponent(data.treatingPhysicianName)}`
-            : '',
-    specialtySelection: isKnownSpecialty ? specialty : 'Otro',
-    specialtyOther: isKnownSpecialty ? '' : specialty,
-  };
-};
-const buildClinicalInitialBlockPatch = (
-  draft: ClinicalInitialBlockDraft,
-  professionalsCatalog: ReturnType<typeof useStaffContext>['professionalsCatalog'],
-  data: PatientData
-): PatientRowPatientPatch => {
-  const selectedProfessional = findProfessionalByCatalogKey(
-    professionalsCatalog,
-    draft.treatingPhysicianKey
-  );
-  const currentProfessional = findProfessionalByRayenIdentity(
-    professionalsCatalog,
-    data.treatingPhysicianId,
-    data.treatingPhysicianName
-  );
-  const keepsStoredIdentity =
-    Boolean(draft.treatingPhysicianKey) ||
-    (!draft.physicianTouched && isDismissedTreatingPhysician(data, data));
-  const physicianId = selectedProfessional
-    ? selectedProfessional.rayenPractitionerId
-    : draft.treatingPhysicianKey.startsWith('rayen:')
-      ? draft.treatingPhysicianKey.slice('rayen:'.length)
-      : keepsStoredIdentity
-        ? data.treatingPhysicianId
-        : undefined;
-  const physicianName =
-    selectedProfessional?.name ?? (keepsStoredIdentity ? data.treatingPhysicianName : undefined);
-  return {
-    pathology: draft.pathology,
-    treatingPhysicianId: physicianId,
-    treatingPhysicianName: physicianName,
-    ...(draft.physicianTouched
-      ? physicianId || physicianName
-        ? isDismissedTreatingPhysician(data, {
-            ...data,
-            treatingPhysicianId: physicianId,
-            treatingPhysicianName: physicianName,
-          })
-          ? { dismissedTreatingPhysician: undefined }
-          : {}
-        : data.treatingPhysicianId || data.treatingPhysicianName
-          ? dismissTreatingPhysician(data, {
-              practitionerId: currentProfessional?.rayenPractitionerId,
-              name: currentProfessional?.name,
-            })
-          : {}
-      : {}),
-    specialty: (draft.specialtySelection === 'Otro'
-      ? draft.specialtyOther.trim() || 'Otro'
-      : draft.specialtySelection) as PatientData['specialty'],
-  };
-};
 export const ClinicalInitialBlockEditor: React.FC<ClinicalInitialBlockEditorProps> = ({
   data,
+  currentDateString,
   disabled = false,
   viewOnly = false,
   viewOnlyLabel = 'Diagnóstico',
@@ -138,12 +52,19 @@ export const ClinicalInitialBlockEditor: React.FC<ClinicalInitialBlockEditorProp
   triggerClassName,
   triggerContent,
   triggerTitle = 'Abrir bloque clínico',
-  onChange,
   onMultipleUpdate,
 }) => {
+  const episodeMode = useFeatureFlag('SPECIALTY_EPISODE_ASSIGNMENT');
+  const scopeKey = buildPatientRowSaveScopeKey(currentDateString, data);
+  const saveState = usePatientRowSaveState(scopeKey);
   const staffContext = useStaffContext();
   const professionalsCatalog = staffContext.professionalsCatalog ?? [];
   const [isOpen, setIsOpen] = useState(false);
+  const [draftScopeKey, setDraftScopeKey] = useState(scopeKey);
+  if (draftScopeKey !== scopeKey) {
+    setDraftScopeKey(scopeKey);
+    setIsOpen(false);
+  }
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [draft, setDraft] = useState<ClinicalInitialBlockDraft>(() =>
@@ -190,21 +111,13 @@ export const ClinicalInitialBlockEditor: React.FC<ClinicalInitialBlockEditorProp
     setIsOpen(true);
   };
 
-  const saveDraft = () => {
+  const saveDraft = async () => {
+    if (disabled) return;
     const patch = buildClinicalInitialBlockPatch(draft, professionalsCatalog, data);
-    if (onMultipleUpdate) {
-      onMultipleUpdate(patch);
-    } else {
-      const fallbackSpecialty =
-        draft.specialtySelection === 'Otro'
-          ? draft.specialtyOther.trim() || 'Otro'
-          : draft.specialtySelection;
-      onChange('pathology')(draft.pathology);
-      onChange('treatingPhysicianId')(String(patch.treatingPhysicianId ?? ''));
-      onChange('treatingPhysicianName')(String(patch.treatingPhysicianName ?? ''));
-      onChange('specialty')(fallbackSpecialty);
+    if (episodeMode && draft.specialtyTouched && draft.specialtySelection === 'Otro') {
+      patch.specialty = 'Otro' as PatientData['specialty'];
     }
-    setIsOpen(false);
+    if (await saveState.save(() => onMultipleUpdate?.(patch))) setIsOpen(false);
   };
 
   return (
@@ -277,7 +190,7 @@ export const ClinicalInitialBlockEditor: React.FC<ClinicalInitialBlockEditorProp
               </div>
             )}
             {!viewOnly && (
-              <div className="space-y-2 p-3 pt-4">
+              <fieldset disabled={saveState.isSaving} className="space-y-2 p-3 pt-4">
                 <TreatingPhysicianSelect
                   bedId={data.bedId}
                   currentPhysicianName={data.treatingPhysicianName}
@@ -293,6 +206,7 @@ export const ClinicalInitialBlockEditor: React.FC<ClinicalInitialBlockEditorProp
                       physicianTouched: true,
                       ...(configuredSpecialty
                         ? {
+                            specialtyTouched: true,
                             specialtySelection: isKnownSpecialtyOption(configuredSpecialty)
                               ? configuredSpecialty
                               : 'Otro',
@@ -334,6 +248,7 @@ export const ClinicalInitialBlockEditor: React.FC<ClinicalInitialBlockEditorProp
                     onChange={event =>
                       setDraft(current => ({
                         ...current,
+                        specialtyTouched: true,
                         specialtySelection: event.target.value,
                         specialtyOther: event.target.value === 'Otro' ? current.specialtyOther : '',
                       }))
@@ -348,7 +263,7 @@ export const ClinicalInitialBlockEditor: React.FC<ClinicalInitialBlockEditorProp
                   </select>
                 </label>
 
-                {draft.specialtySelection === 'Otro' && (
+                {!episodeMode && draft.specialtySelection === 'Otro' && (
                   <label className="block">
                     <span className="mb-1 block text-[11px] font-semibold text-slate-600">
                       Describir especialidad
@@ -366,6 +281,16 @@ export const ClinicalInitialBlockEditor: React.FC<ClinicalInitialBlockEditorProp
                   </label>
                 )}
 
+                {saveState.isSaving && (
+                  <p role="status" className="text-[11px] text-slate-500">
+                    Guardando cambios…
+                  </p>
+                )}
+                {saveState.failed && (
+                  <p role="alert" className="text-[11px] text-red-700">
+                    No se pudo confirmar todo el cambio. Revisa los datos e inténtalo de nuevo.
+                  </p>
+                )}
                 <div className="flex justify-end gap-2 pt-1">
                   <button
                     type="button"
@@ -378,13 +303,14 @@ export const ClinicalInitialBlockEditor: React.FC<ClinicalInitialBlockEditorProp
                     type="button"
                     data-testid={`clinical-block-save-${data.bedId}`}
                     className="inline-flex items-center gap-1 rounded border border-medical-600 bg-medical-600 px-2 py-1 text-[12px] font-semibold text-white hover:bg-medical-700"
-                    onClick={saveDraft}
+                    disabled={saveState.isSaving}
+                    onClick={() => void saveDraft()}
                   >
                     <Check size={13} />
-                    Guardar
+                    {saveState.isSaving ? 'Guardando…' : 'Guardar'}
                   </button>
                 </div>
-              </div>
+              </fieldset>
             )}
           </div>,
           document.body

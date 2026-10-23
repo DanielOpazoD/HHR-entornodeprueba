@@ -1,3 +1,5 @@
+const { movementRestoreRecord } = require('./movementRestoreSources');
+const { isDeepStrictEqual } = require('node:util');
 // Clinical specialty is a scalar on the patient. This module protects its
 // provenance inside the existing DailyRecord transaction; it is not a second
 // patient store or a client-side rule engine.
@@ -73,7 +75,9 @@ const parseSpecialtyIntent = value => {
   };
 };
 
-const sameMeta = (left, right) => JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
+// Firestore maps and validated clients may enumerate the same keys differently.
+// Compare values and types; ordering of object keys is not a clinical change.
+const sameMeta = (left, right) => isDeepStrictEqual(left ?? null, right ?? null);
 const validExistingMeta = (meta, patient) =>
   object(meta) &&
   meta.schemaVersion === 3 &&
@@ -131,6 +135,7 @@ const protectSpecialtyDecisions = ({
   aiDecision,
   guardScalarChanges = true,
 }) => {
+  const restoredRecord = movementRestoreRecord(remoteRecord, candidate);
   const decisions = [];
   let intentApplied = false;
   if (intent) {
@@ -215,6 +220,18 @@ const protectSpecialtyDecisions = ({
       };
       patient.specialty = intent.value;
       patient.specialtyAssignment = nextMeta;
+      // A manual primary selection replaces its dependent classification in the
+      // same transaction. The caller still sends exactly one authorized scalar;
+      // a delayed second UI patch must never clear another patient's fields.
+      if (intent.kind === 'manual') {
+        patient.secondarySpecialty = null;
+        if (intent.value !== 'Ginecobstetricia') {
+          patient.ginecobstetriciaType = null;
+          patient.deliveryRoute = null;
+          patient.deliveryDate = null;
+          patient.deliveryCesareanLabor = null;
+        }
+      }
       decisions.push({
         bedId,
         target,
@@ -317,7 +334,7 @@ const protectSpecialtyDecisions = ({
     let prior = null;
     let priorFromPreviousDay = false;
     if (episodeId) {
-      for (const sourceRecord of [remoteRecord, priorRecord]) {
+      for (const sourceRecord of [remoteRecord, restoredRecord, priorRecord]) {
         eachTarget(sourceRecord, ({ patient: previous }) => {
           if (!prior && text(previous.clinicalEpisodeId) === episodeId) {
             prior = previous;

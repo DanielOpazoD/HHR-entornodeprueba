@@ -65,21 +65,10 @@ metadatos; el despliegue beta no cambia su destino ni sus permisos.
 
 ## 🛡️ Validación en Código
 
-El archivo `constants/firebaseEnvironments.ts` contiene:
-
-- Constantes de configuración para cada entorno
-- Funciones de validación (`canWriteTo`, `canReadFrom`)
-- Función de protección (`validateWriteOperation`)
-
-### Uso:
-
-```typescript
-import { validateWriteOperation, BETA_ENVIRONMENT } from './constants/firebaseEnvironments';
-
-// Antes de cualquier operación de escritura:
-validateWriteOperation(currentProjectId);
-// Lanza error si se intenta escribir en producción
-```
+El bloqueo activo vive en `src/services/storage/legacyfirebase/legacyFirebaseCore.ts`: si
+`VITE_LEGACY_FIREBASE_PROJECT_ID` apunta a `hospital-hanga-roa`, `resolveLegacyFirebaseConfig`
+devuelve `null` y la app no abre esa conexión. Lo cubre
+`src/tests/services/storage/legacyFirebaseCore.test.ts`.
 
 ---
 
@@ -125,3 +114,20 @@ No configurar `VITE_LEGACY_FIREBASE_*` para `hospital-hanga-roa` en este reposit
 ---
 
 _Última actualización: Enero 2026_
+
+### Revisión de permisos para preparar la transición
+
+Los permisos de plantillas propias, indicaciones inmutables y correcciones de
+metadatos de recetas se prueban en emulador antes de publicar reglas. Una
+corrección de asignación o tipo de receta no autoriza sustituir su fuente de
+carga ni atribuirla a otro funcionario. Los permisos existentes de eliminación
+manual de recetas y finalización/corrección de traslados se conservan.
+
+La revisión del candidato y el merge no acreditan despliegue ni autorizan por
+sí solos una publicación manual; registrar por separado las reglas efectivamente
+publicadas y su proyecto de destino.
+
+En Storage, tamaño y formato se validan al crear o actualizar archivos. El borrado
+se autoriza por separado: avatar sólo por su dueño; adjuntos clínicos y fotografías
+de heridas por sus respectivos roles de escritura existentes. No requiere un archivo
+de reemplazo ni amplía quién puede leer, subir o eliminar en otras rutas.

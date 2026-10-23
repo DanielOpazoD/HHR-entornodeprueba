@@ -1,5 +1,8 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react';
+import { useDicomReviewCache } from '@/components/radiology/useDicomReviewCache';
 import { Radio } from 'lucide-react';
+import { LAYER_Z_INDEX } from '@/shared/ui/layering';
+import { normalizeDicomPatientId, type DicomCapture } from '@/services/radiology/dicomTypes';
 import { BaseModal } from '@/components/shared/BaseModal';
 import {
   fetchMMRADPdfBlobUrl,
@@ -30,12 +33,19 @@ import {
   resolveMMRADDatePresetRange,
 } from '@/components/modals/controllers/radiologyViewerModalController';
 
+const DicomViewerDialog = React.lazy(() =>
+  import('@/components/radiology/DicomViewerDialog').then(module => ({
+    default: module.DicomViewerDialog,
+  }))
+);
+
 interface RadiologyViewerModalProps {
   isOpen: boolean;
   onClose: () => void;
   patients: RadiologyPatient[];
   initialPatientRut?: string;
   autoSearchInitialPatient?: boolean;
+  onCapture?: (capture: DicomCapture) => void;
 }
 
 interface RadiologyPatient {
@@ -52,8 +62,11 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
   patients,
   initialPatientRut,
   autoSearchInitialPatient = false,
+  onCapture,
 }) => {
   const [selectedRut, setSelectedRut] = useState(initialPatientRut || patients[0]?.rut || '');
+  const normalizedRut = normalizeDicomPatientId(selectedRut);
+  const reviewCache = useDicomReviewCache(isOpen, selectedRut);
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<MMRADSearchResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +80,11 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
     html: string;
   } | null>(null);
   const copiedReportResetTimeoutRef = useRef<number | null>(null);
+  const [dicomExam, setDicomExam] = useState<MMRADExam | null>(null);
+  const searchSequence = useRef(0);
+  const context = JSON.stringify([isOpen, selectedRut, dateFrom, dateTo]);
+  const latestContext = useRef(context);
+  latestContext.current = context;
   const autoSearchedRutRef = useRef<string | null>(null);
 
   const uniquePatients = useMemo(() => buildUniqueRadiologyPatients(patients), [patients]);
@@ -128,6 +146,9 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
 
   const handleSearch = useCallback(async () => {
     if (!selectedRut) return;
+    const sequence = ++searchSequence.current;
+    const requestContext = latestContext.current;
+    setDicomExam(null);
     setIsLoading(true);
     setError(null);
     setResult(null);
@@ -138,11 +159,13 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
         dateFrom: dateFrom || undefined,
         dateTo: dateTo || undefined,
       });
-      setResult(data);
+      if (sequence === searchSequence.current && latestContext.current === requestContext)
+        setResult(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al buscar exámenes');
+      if (sequence === searchSequence.current && latestContext.current === requestContext)
+        setError(err instanceof Error ? err.message : 'Error al buscar exámenes');
     } finally {
-      setIsLoading(false);
+      if (sequence === searchSequence.current) setIsLoading(false);
     }
   }, [selectedRut, dateFrom, dateTo]);
 
@@ -253,6 +276,8 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
   React.useEffect(() => {
     if (!isOpen) {
       setPortalReceiptPreview(null);
+      setDicomExam(null);
+      searchSequence.current++;
     }
   }, [isOpen]);
 
@@ -270,6 +295,7 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
     <>
       <BaseModal
         isOpen={isOpen}
+        backdropZIndex={LAYER_Z_INDEX.modal}
         onClose={onClose}
         variant="white"
         size="3xl"
@@ -293,6 +319,9 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
           dateFrom={dateFrom}
           dateTo={dateTo}
           onPatientChange={rut => {
+            searchSequence.current++;
+            setIsLoading(false);
+            setDicomExam(null);
             setSelectedRut(rut);
             setResult(null);
             setError(null);
@@ -325,12 +354,34 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
           onTabChange={setActiveModTab}
           onOpenPdf={handleOpenPdf}
           onOpenPortalReceipt={handleOpenPortalReceipt}
+          onOpenDicom={exam => {
+            if (result && normalizeDicomPatientId(result.rut) === normalizedRut) setDicomExam(exam);
+          }}
           onCopyReport={handleCopyReport}
           copiedReportExamKey={copiedReportExamKey}
         />
 
         {!result && !isLoading && !error && <RadiologyViewerEmptyState />}
       </BaseModal>
+      {dicomExam?.dicom_url && result && normalizeDicomPatientId(result.rut) === normalizedRut && (
+        <React.Suspense fallback={<p role="status">Cargando visor…</p>}>
+          <DicomViewerDialog
+            key={`${selectedRut}:${dicomExam.dicom_url}`}
+            reviewCache={reviewCache}
+            link={dicomExam.dicom_url}
+            patientId={selectedRut}
+            patientName={
+              uniquePatients.find(patient => normalizeDicomPatientId(patient.rut) === normalizedRut)
+                ?.patientName
+            }
+            studyDate={dicomExam.fecha_examen}
+            reportLink={dicomExam.pdf_url}
+            title={dicomExam.nombre_examen}
+            onClose={() => setDicomExam(null)}
+            onCapture={onCapture}
+          />
+        </React.Suspense>
+      )}
       {portalReceiptPreview && (
         <RadiologyPortalReceiptPreview
           title={portalReceiptPreview.title}

@@ -153,6 +153,27 @@ describe('clinical form drafts and preferences', () => {
     expect(values.paciente_rut).toBe('RUT inválido');
   });
 
+  it('always leaves clinical-record numbers blank, including old drafts and enabled preferences', () => {
+    for (const id of [
+      'consentimiento-informado',
+      'solicitud-imagenologia',
+      'solicitud-laboratorio-policlinico',
+    ] as const) {
+      const form = getClinicalForm(id);
+      const values = { paciente_nombre_completo: 'PRUEBA', paciente_ficha_numero: 'NO IMPRIMIR' };
+      expect(validateClinicalFormValues(form, values, []).paciente_ficha_numero).toBeNull();
+      expect(setClinicalFormValue({}, 'paciente_ficha_numero', '12345')).toEqual({});
+      expect(JSON.parse(exportClinicalFormDraft(id, values)).values).not.toHaveProperty(
+        'paciente_ficha_numero'
+      );
+      const imported = importClinicalFormDraft(
+        JSON.stringify({ kind: 'hhr-clinical-form-draft', version: 1, formId: id, values })
+      );
+      expect(imported.values).toEqual({ paciente_nombre_completo: 'PRUEBA' });
+      expect(values.paciente_ficha_numero).toBe('NO IMPRIMIR');
+    }
+  });
+
   it('persists only versioned configuration, strips extra data and rejects another template', () => {
     const preferences = {
       ...emptyClinicalFormPreferences(consent),

@@ -39,9 +39,11 @@ describe('validation schema helpers', () => {
     });
 
     it('should return error for invalid format', () => {
-      const result = validateAdmissionDate('2025/01/01');
-      expect(result.success).toBe(false);
-      expect(result.errors).toContain('Formato de fecha inválido (YYYY-MM-DD)');
+      for (const date of ['23-12-2024', '2024/12/23', 'December 23, 2024']) {
+        const result = validateAdmissionDate(date);
+        expect(result.success).toBe(false);
+        expect(result.errors).toContain('Formato de fecha inválido (YYYY-MM-DD)');
+      }
     });
 
     it('should return error for future date', () => {
@@ -52,9 +54,11 @@ describe('validation schema helpers', () => {
     });
 
     it('should return success for valid past date', () => {
-      const result = validateAdmissionDate('2020-01-01');
-      expect(result.success).toBe(true);
-      expect(result.data).toBe('2020-01-01');
+      for (const date of ['2020-01-01', '2024-12-23', '2024-01-01']) {
+        const result = validateAdmissionDate(date);
+        expect(result.success).toBe(true);
+        expect(result.data).toBe(date);
+      }
     });
   });
 

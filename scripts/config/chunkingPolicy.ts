@@ -59,6 +59,19 @@ export const chunkForModule = (moduleId: string): string | undefined => {
   }
 
   if (inNodeModules) {
+    // Imaging is explicitly opened; keep its renderer, parser and codecs out of census startup.
+    if (has('/node_modules/@cornerstonejs/core/')) return 'vendor-dicom-core';
+    if (has('/node_modules/@cornerstonejs/tools/')) return 'vendor-dicom-tools';
+    if (has('/node_modules/@kitware/')) return 'vendor-dicom-vtk';
+    if (has('/node_modules/@cornerstonejs/dicom-image-loader/')) return 'vendor-dicom-loader';
+    if (
+      has('/node_modules/@cornerstonejs/') ||
+      has('/node_modules/dicom-parser/') ||
+      has('/node_modules/jpeg-lossless-decoder-js/') ||
+      has('/node_modules/gl-matrix/') ||
+      has('/node_modules/comlink/')
+    )
+      return 'vendor-dicom-vtk';
     // React + libraries that call React.createContext at module scope must
     // live in the same chunk to avoid load-order race conditions in production.
     if (
@@ -67,8 +80,7 @@ export const chunkForModule = (moduleId: string): string | undefined => {
       has('/node_modules/react-error-boundary/') ||
       has('/node_modules/lucide-react/') ||
       has('/node_modules/@tanstack/react-query/') ||
-      has('/node_modules/@tanstack/query-core/') ||
-      has('/node_modules/@tanstack/react-virtual/')
+      has('/node_modules/@tanstack/query-core/')
     ) {
       return 'vendor-react';
     }

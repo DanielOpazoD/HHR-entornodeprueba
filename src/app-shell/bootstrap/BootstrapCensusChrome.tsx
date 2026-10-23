@@ -16,6 +16,7 @@ import {
 } from '@/hooks/controllers/appStateNavigationController';
 import { shouldRenderDateStrip } from '@/components/layout/app-content/appContentVisibilityController';
 import { broadcastLogout } from '@/services/auth/authBroadcastChannel';
+import { recordAuditConnectionEndLocally } from '@/services/admin/auditSession/auditConnectionTracker';
 import { markRecentManualLogout } from '@/services/auth/authLogoutState';
 import { signOut as firebaseSessionSignOut } from '@/services/auth/authSession';
 import {
@@ -45,6 +46,8 @@ const runBootstrapManualLogout = async (): Promise<void> => {
     // quota, blocked storage), and the user must still leave the shell.
     markRecentManualLogout();
     clearRecentAuthenticatedSessionHint();
+    // Firebase is not ready here: the end is kept on the device and sent at the next sign-in.
+    recordAuditConnectionEndLocally(window.localStorage, 'manual', Date.now());
     broadcastLogout('manual');
   } catch {
     // Best-effort: storage or broadcast failures must not block logout.

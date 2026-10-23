@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { buildLabTrendChartModel, type LabChartRow } from './labTrendChartModel';
 import {
   ResponsiveContainer,
   LineChart,
@@ -10,31 +11,31 @@ import {
   ReferenceArea,
 } from 'recharts';
 import type { LabTrendPoint } from '@/types/domain/labAnalyticsTypes';
-import {
-  formatLabTrendAxisDate,
-  formatLabTrendValue,
-  resolveSharedReferenceBand,
-  sortByDate,
-} from './LabTrendChartHelpers';
+import { formatLabTrendAxisDate, formatLabTrendValue } from './LabTrendChartHelpers';
 import { DASH_PATTERNS, LABEL_OFFSETS, LINE_COLORS } from '../constants/labChartConstants';
 
 export const StaggeredLabel: React.FC<{
   x?: number;
   y?: number;
   value?: number;
+  index?: number;
+  lastIndex: number;
   color: string;
   labelConfig: { position: 'top' | 'bottom'; dy: number };
-}> = ({ x, y, value, color, labelConfig }) => {
+}> = ({ x, y, value, index, lastIndex, color, labelConfig }) => {
   if (x == null || y == null || value == null) return null;
 
   return (
     <text
-      x={x}
+      x={x + (index === 0 ? 6 : index === lastIndex ? -6 : 0)}
       y={y + labelConfig.dy}
-      textAnchor="middle"
+      textAnchor={index === 0 ? 'start' : index === lastIndex ? 'end' : 'middle'}
       fill={color}
       fontSize={10.5}
       fontWeight={700}
+      stroke="white"
+      strokeWidth={3}
+      paintOrder="stroke"
     >
       {formatLabTrendValue(value)}
     </text>
@@ -86,35 +87,10 @@ export const UnitSubChart: React.FC<{
   colorOffset: number;
 }> = ({ varEntries, unit, colorOffset }) => {
   const varNames = Object.keys(varEntries);
-  const dateMap: Record<
-    string,
-    { date: string; __points: Record<string, LabTrendPoint>; [key: string]: unknown }
-  > = {};
-
-  for (const [name, points] of Object.entries(varEntries)) {
-    for (const point of points) {
-      if (!dateMap[point.date]) {
-        dateMap[point.date] = { date: point.date, __points: {} };
-      }
-      dateMap[point.date][name] = point.value;
-      dateMap[point.date].__points[name] = point;
-    }
-  }
-
-  const chartData = Object.values(dateMap).sort((a, b) => sortByDate(a.date, b.date));
-
-  const allVals: number[] = [];
-  for (const points of Object.values(varEntries)) {
-    for (const point of points) {
-      allVals.push(point.value);
-      if (point.refMin != null) allVals.push(point.refMin);
-      if (point.refMax != null) allVals.push(point.refMax);
-    }
-  }
-
-  const yMin = Math.floor(Math.min(...allVals) * 0.85);
-  const yMax = Math.ceil(Math.max(...allVals) * 1.15);
-  const sharedReference = resolveSharedReferenceBand(varEntries);
+  const { chartData, axisTicks, domain, sharedReference, showPointLabels } = useMemo(
+    () => buildLabTrendChartModel(varEntries),
+    [varEntries]
+  );
   const extraMargin = varNames.length > 2 ? 27 : 20;
 
   return (
@@ -143,12 +119,19 @@ export const UnitSubChart: React.FC<{
           );
         })}
       </div>
+      {!showPointLabels && (
+        <p className="mb-1 text-[11px] text-slate-500">
+          Pasa sobre un punto para ver su valor y referencia.
+        </p>
+      )}
       <div className="h-44 min-w-0">
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-          <LineChart data={chartData} margin={{ top: extraMargin, right: 20, left: 0, bottom: 8 }}>
+          <LineChart data={chartData} margin={{ top: extraMargin, right: 32, left: 12, bottom: 8 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
             <XAxis
               dataKey="date"
+              padding={{ left: 14, right: 14 }}
+              ticks={axisTicks}
               tick={{ fontSize: 11, fill: '#475569', fontWeight: 500 }}
               tickFormatter={formatLabTrendAxisDate}
               tickLine={false}
@@ -157,7 +140,8 @@ export const UnitSubChart: React.FC<{
               interval="preserveStartEnd"
             />
             <YAxis
-              domain={[yMin, yMax]}
+              domain={domain}
+              tickFormatter={formatLabTrendValue}
               tick={{ fontSize: 11, fill: '#475569', fontWeight: 500 }}
               tickLine={false}
               axisLine={false}
@@ -190,7 +174,7 @@ export const UnitSubChart: React.FC<{
                   key={name}
                   name={name}
                   type="linear"
-                  dataKey={name}
+                  dataKey={(row: LabChartRow) => row.values[name]}
                   stroke={color}
                   strokeWidth={2.5}
                   strokeDasharray={dash || undefined}
@@ -201,7 +185,18 @@ export const UnitSubChart: React.FC<{
                     stroke: '#fff',
                   }}
                   activeDot={{ r: 6, stroke: '#fff', strokeWidth: 2 }}
-                  label={<StaggeredLabel color={color} labelConfig={labelConfig} />}
+                  label={
+                    showPointLabels ? (
+                      <StaggeredLabel
+                        color={color}
+                        labelConfig={labelConfig}
+                        lastIndex={chartData.length - 1}
+                      />
+                    ) : (
+                      false
+                    )
+                  }
+                  isAnimationActive={false}
                   connectNulls
                 />
               );

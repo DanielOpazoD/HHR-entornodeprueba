@@ -91,7 +91,7 @@ describeEmulator('verified documentary context archive', () => {
     const fns = create();
     const source = {
       ...supplementRequest(),
-      capture: { source: 'extension_monthly_report', observedAt: new Date().toISOString() },
+      capture: { source: 'extension_monthly_report', observedAt: '2026-10-10T12:00:00.000Z' },
     };
     const imported = await fns.archiveCudyrHistory.run(source, context);
     const data = request(imported.id);

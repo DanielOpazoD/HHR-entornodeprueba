@@ -7,12 +7,19 @@ Responsable: mantenedor de HHR (Daniel Opazo).
 
 Se acepta únicamente GHSA-vfj7-8cjw-p6xm en la cadena de desarrollo del
 lockfile raíz aprobado, cuya SHA-256 es
-`a868d9aacaaf37d80bc5f1a4bba83f6216fa2c4a80e479a890f169d1ab6c54fd`.
+`3ef8b4de6739ad963b3ca53613ca05fbd5f4a87456d89258010792b1be05f343`.
 Daniel autorizó actualizar la huella el 9 de octubre de 2026 para el parche
 transitivo Handlebars 4.7.10 y el 11 de octubre para Firebase CLI 15.16.0.
-La última actualización cambia únicamente ese paquete resuelto, para corregir
-el despliegue entre regiones. Se mantienen los mismos siete paquetes, aviso,
-controles; no se acepta ninguna vulnerabilidad adicional.
+El 16 de octubre de 2026 autorizó explícitamente renovar sólo la huella para
+el visor DICOM del PR #874 (Cornerstone 4.22.13 y dicom-parser 1.8.21), conservando
+la misma excepción. La auditoría remota del lockfile nuevo conserva los mismos
+siete paquetes/versiones/rutas de desarrollo con severidad alta y cero críticos.
+Para el PR #885, Daniel autorizó explícitamente renovar únicamente la huella
+tras incorporar Mediabunny 1.61.6. La comparación con la auditoría remota
+confirmó los mismos siete paquetes, versiones y rutas afectados, sin aceptar
+vulnerabilidades adicionales.
+Se mantienen el aviso y todos los controles; no se acepta ninguna vulnerabilidad
+adicional. Los hallazgos bajos y moderados permanecen visibles en la auditoría.
 Las siete entradas son braces 3.0.3, micromatch 4.0.8, chokidar 3.6.0,
 lint-staged 16.2.7, firebase-tools 15.16.0, eslint-plugin-boundaries 6.0.2
 y @boundaries/elements 2.0.1; todas tienen `dev: true`. Functions no contiene
@@ -47,3 +54,31 @@ normal de auditoría aprobada, sin aplicar la excepción.
 Fuentes: [aviso oficial](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm),
 [discusión upstream](https://github.com/micromatch/braces/issues/70),
 [revisión abierta del aviso](https://github.com/github/advisory-database/pull/10132).
+
+El parche de dependencias de PR #922 actualiza únicamente Storybook, Vitest, Vite y
+markdown-it. La huella anterior se sustituye tras verificar que los siete nodos
+autorizados conservan exactamente sus versiones, rutas, integridades, dependencias
+y clasificación de desarrollo. La auditoría debe seguir aceptando exclusivamente
+GHSA-vfj7-8cjw-p6xm. Otros avisos altos o críticos bloquean la integración.
+
+El parche de seguridad de PR #965 actualiza únicamente DOMPurify de 3.4.11 a
+3.4.17 para corregir GHSA-cg2g-xh64-v4q7 y GHSA-mrv2-3pqr-j5jr. La huella anterior
+era `6c96794225084b71458e7fc1f96e66166cbf35bb8da10451c771aae38a0bcd32`.
+La comparación completa del lock confirma que solo cambian versión, URL e
+integridad de `node_modules/dompurify`; todas las demás entradas, incluidos los
+siete nodos de desarrollo autorizados, permanecen idénticas. Los archivos de
+dependencias de Functions tampoco cambian. Se conserva el mismo alcance de la
+excepción y el rechazo de cualquier aviso alto o crítico adicional; DOMPurify
+no se incorpora a la aceptación de riesgo.
+
+La limpieza de dependencias de PR #963 declara en `package.json` los paquetes que
+el código ya importaba (`@kitware/vtk.js`, `workbox-cacheable-response` y
+herramientas de pruebas y scripts) y elimina `motion` y `@tanstack/react-virtual`,
+que nada importa. La huella anterior era
+`998d4f112ae629d4b2418e131ea8a05380ba74127063922e39b0e14fe371adac`. La
+comparación completa del lock confirma que solo se eliminan `motion`,
+`framer-motion`, `motion-dom`, `motion-utils`, `@tanstack/react-virtual` y
+`@tanstack/virtual-core`, y que `@google-cloud/firestore` y sus dependencias dejan
+de figurar como opcionales al quedar declaradas. Ninguna versión cambia, los siete
+nodos de desarrollo autorizados permanecen idénticos y los archivos de
+dependencias de Functions no cambian. Se conserva el mismo alcance de la excepción.

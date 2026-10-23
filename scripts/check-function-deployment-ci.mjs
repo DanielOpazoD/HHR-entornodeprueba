@@ -3,8 +3,10 @@ import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import {
   affectsFunctionDeployment,
+  alreadyDeployed,
   deploymentChangedFiles,
-  deploymentSourceChanged,
+  findDeploymentBaseline,
+  resolveDeploymentScope,
   verifyFunctionDeploymentCi,
 } from './functionDeploymentSupport.mjs';
 
@@ -15,6 +17,28 @@ const changedFiles = (from, to) => deploymentChangedFiles(git, from, to);
 const output = (name, value) => {
   if (!process.env.GITHUB_OUTPUT) throw new Error('GITHUB_OUTPUT is required.');
   fs.appendFileSync(process.env.GITHUB_OUTPUT, `${name}=${value}\n`);
+};
+const githubContext = () => {
+  const repository = process.env.GITHUB_REPOSITORY;
+  const runId = process.env.GITHUB_RUN_ID;
+  const token = process.env.GITHUB_TOKEN;
+  if (
+    !/^[\w.-]+\/[\w.-]+$/.test(repository || '') ||
+    !/^\d+$/.test(runId || '') ||
+    !token ||
+    (process.env.GITHUB_API_URL && process.env.GITHUB_API_URL !== 'https://api.github.com')
+  ) {
+    throw new Error('GitHub verification context is incomplete.');
+  }
+  const api = async route => {
+    const response = await fetch(`https://api.github.com${route}`, {
+      headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!response.ok) throw new Error(`GitHub verification failed with HTTP ${response.status}.`);
+    return response.json();
+  };
+  return { repository, runId, token, api };
 };
 
 try {
@@ -29,29 +53,21 @@ try {
     if (event !== 'push') throw new Error('Automatic scope is only supported for main pushes.');
     const before = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8')).before;
     if (!/^[a-f0-9]{40}$/.test(before || '')) throw new Error('Invalid push base revision.');
-    const changed = /^0+$/.test(before) || deploymentSourceChanged(git, before, sha);
-    output('changed', changed);
-    console.log(`[functions-deployment] Relevant source changes: ${changed}`);
-  } else if (process.argv[2] === '--guard') {
-    const repository = process.env.GITHUB_REPOSITORY;
-    const runId = process.env.GITHUB_RUN_ID;
-    const token = process.env.GITHUB_TOKEN;
-    if (
-      !/^[\w.-]+\/[\w.-]+$/.test(repository || '') ||
-      !/^\d+$/.test(runId || '') ||
-      !token ||
-      (process.env.GITHUB_API_URL && process.env.GITHUB_API_URL !== 'https://api.github.com')
-    ) {
-      throw new Error('GitHub verification context is incomplete.');
+    let baseline;
+    try {
+      const { repository, api } = githubContext();
+      baseline = await findDeploymentBaseline({ repository, api });
+    } catch (error) {
+      // Never deploy less than the push diff requires because GitHub is unavailable.
+      console.log(`::warning::Last Functions deployment lookup unavailable: ${error.message}`);
     }
-    const api = async route => {
-      const response = await fetch(`https://api.github.com${route}`, {
-        headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${token}` },
-        signal: AbortSignal.timeout(15000),
-      });
-      if (!response.ok) throw new Error(`GitHub verification failed with HTTP ${response.status}.`);
-      return response.json();
-    };
+    const { changed, reason } = resolveDeploymentScope({ git, before, sha, baseline });
+    output('changed', changed);
+    console.log(
+      `[functions-deployment] Relevant source changes: ${changed} (${reason}; last successful deployment ${baseline?.lastSuccessSha ?? 'unknown'})`
+    );
+  } else if (process.argv[2] === '--guard') {
+    const { repository, runId, token, api } = githubContext();
     const verifiedRun = await verifyFunctionDeploymentCi({ repository, sha, event, runId, api });
     const remote = git(['remote', 'get-url', 'origin']);
     if (
@@ -79,9 +95,21 @@ try {
     // An older frontend-only revision can still carry identical Functions. Never
     // overwrite a newer Functions revision that arrived while CI was running.
     const stale = changedFiles(sha, 'origin/main').some(affectsFunctionDeployment);
-    output('eligible', !stale);
+    // Automatic deploys queue behind earlier ones; skip a rollout that an earlier
+    // push already completed. Manual retries always redeploy the validated head.
+    let deployed = false;
+    if (event === 'push' && !stale) {
+      try {
+        const baseline = await findDeploymentBaseline({ repository, api });
+        deployed = alreadyDeployed({ git, sha, baseline });
+      } catch (error) {
+        console.log(`::warning::Deployment baseline unavailable; deploying: ${error.message}`);
+      }
+    }
+    const eligible = !stale && !deployed;
+    output('eligible', eligible);
     console.log(
-      `[functions-deployment] CI run ${verifiedRun} verified; deploy eligible: ${!stale}`
+      `[functions-deployment] CI run ${verifiedRun} verified; deploy eligible: ${eligible}${deployed ? ' (identical Functions already deployed)' : ''}`
     );
   } else {
     throw new Error('Expected --scope or --guard.');

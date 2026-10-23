@@ -5,6 +5,7 @@ import { getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestor
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { sanitizeForFirestore } from '@/services/storage/firestore/firestoreShared';
+import { getDailyRecordWriteState } from '@/services/repositories/dailyRecordWriteCoordinator';
 import {
   createDailyRecordWriteAuthorityFunctions,
   makeContext,
@@ -87,8 +88,10 @@ describeEmulator('clinical batch client recovers a lost committed response', () 
       const recordRef = db.doc(recordPath);
       await recordRef.set(sanitizeForFirestore(seed) as FirebaseFirestore.DocumentData);
       const read = async () => (await recordRef.get()).data()!;
+      const sequence: string[] = [];
       const refreshRecord = vi.fn(async () => {
         const persisted = await read();
+        sequence.push(`read:${getDailyRecordWriteState(date).activeKind ?? 'idle'}`);
         return {
           ...persisted,
           lastUpdated:
@@ -109,6 +112,7 @@ describeEmulator('clinical batch client recovers a lost committed response', () 
       let expectedPersisted: FirebaseFirestore.DocumentData | undefined;
       let historyCount = 0;
       const invoke = vi.fn(async (payload: RayenClinicalEnrichmentBatchPayload) => {
+        sequence.push('invoke');
         const response = await clinical.applyRayenClinicalEnrichmentBatch.run(payload, auth);
         if (!firstPayload) {
           firstPayload = structuredClone(payload);
@@ -172,7 +176,24 @@ describeEmulator('clinical batch client recovers a lost committed response', () 
         retries: 1,
         batch: { parity: 'matched', clinicalTargets: 1, checkpointTargets: 1 },
       });
-      expect(refreshRecord).toHaveBeenCalledTimes(2);
+      expect(refreshRecord).toHaveBeenCalledTimes(3);
+      // Initial base, fresh authority inside the turn, identical replay after response
+      // loss, then readback. Ambiguous delivery must not rebase the committed identity.
+      expect(sequence).toEqual([
+        'read:idle',
+        'read:clinical_sync',
+        'invoke',
+        'invoke',
+        'read:clinical_sync',
+      ]);
+      expect(firstPayload).toMatchObject({
+        date,
+        authorityDate: date,
+        mutationId: 'synthetic-clinical-mutation',
+        expectedLastUpdated: seed.lastUpdated,
+        baseRevision: 2,
+      });
+      expect(getDailyRecordWriteState(date)).toEqual({ pendingCount: 0, activeKind: null });
       expect(await read()).toEqual(expectedPersisted);
       expect(historyCount).toBe(concurrentWriter ? 2 : 1);
       expect((await recordRef.collection('history').get()).size).toBe(historyCount);

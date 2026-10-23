@@ -49,6 +49,49 @@ const patient = (patientName: string, clinicalEpisodeId: string): PatientData =>
 });
 
 describe('historical mother and newborn discharge writer', () => {
+  it('keeps the exact historical newborn snapshot when its mother is already discharged', () => {
+    const motherEntry = dischargeEntry('Madre Sintética', '910001');
+    const childEntry = dischargeEntry('RN de Madre Sintética', '910080');
+    const motherMovement = applyCrossDayDiff(
+      makeRecord(),
+      [
+        {
+          entry: motherEntry,
+          patient: patient(motherEntry.patientName, '910001'),
+        },
+      ],
+      ctx
+    ).record.discharges[0];
+    const child = {
+      ...patient(childEntry.patientName, '910080'),
+      bedMode: 'Cuna' as const,
+      rut: '',
+      handoffNoteNightShift: 'Nota neonatal conservada',
+    };
+    const current = {
+      ...makeRecord([motherMovement]),
+      beds: { H4C2: { ...patient(motherEntry.patientName, '910001'), clinicalCrib: child } },
+    };
+    const result = applyCrossDayDiff(
+      current,
+      [
+        {
+          entry: childEntry,
+          patient: { ...child, handoffNoteNightShift: '' },
+          isNested: true,
+        },
+      ],
+      ctx
+    );
+    expect(result.record.beds).toEqual(current.beds);
+    expect(result.record.discharges[0]).toEqual(motherMovement);
+    expect(result.record.discharges[1]).toMatchObject({
+      isNested: true,
+      rut: '',
+      originalData: { handoffNoteNightShift: 'Nota neonatal conservada' },
+    });
+    expect(current.beds.H4C2.clinicalCrib).toEqual(child);
+  });
   it('uses exact episodes, preserves nested scope, replays safely and repairs a partial run', () => {
     const motherEntry = dischargeEntry('Paciente Madre Sintética', '910001');
     const newbornEntry = dischargeEntry('Rn De Paciente Madre Sintética', '910080');

@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ErrorLog } from '@/services/logging/errorLogTypes';
 import { restoreConsole, suppressConsole } from '@/tests/utils/consoleTestUtils';
 import {
-  auditErrorSink,
   buildDefaultErrorServiceSinks,
   createSafeErrorServiceSink,
   externalTelemetryErrorSink,
@@ -11,7 +10,7 @@ import {
 } from '@/services/utils/errorServiceSinks';
 
 vi.mock('@/services/admin/auditService', () => ({
-  logSystemError: vi.fn().mockResolvedValue(undefined),
+  logAuditEvent: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@/services/storage/indexeddb/indexedDbErrorLogService', () => ({
@@ -22,7 +21,7 @@ vi.mock('@/services/observability/operationalTelemetryExternalAdapter', () => ({
   dispatchOperationalTelemetryExternally: vi.fn().mockResolvedValue(true),
 }));
 
-import { logSystemError } from '@/services/admin/auditService';
+import { logAuditEvent } from '@/services/admin/auditService';
 import { saveErrorLog } from '@/services/storage/indexeddb/indexedDbErrorLogService';
 import { dispatchOperationalTelemetryExternally } from '@/services/observability/operationalTelemetryExternalAdapter';
 
@@ -41,19 +40,14 @@ describe('errorServiceSinks', () => {
     vi.clearAllMocks();
   });
 
-  it('persists high severity errors to audit and external telemetry', async () => {
+  it('sends high severity errors to external telemetry, never to the clinical audit', async () => {
     const errorLog = buildErrorLog('high');
 
-    await auditErrorSink(errorLog);
+    await runErrorServiceSinks(errorLog, buildDefaultErrorServiceSinks({ allowDevConsole: false }));
     await externalTelemetryErrorSink(errorLog);
 
-    expect(logSystemError).toHaveBeenCalledWith(
-      'Fallo de prueba',
-      'high',
-      expect.objectContaining({
-        originalErrorId: 'err-1',
-      })
-    );
+    expect(saveErrorLog).toHaveBeenCalledTimes(1);
+    expect(logAuditEvent).not.toHaveBeenCalled();
     expect(dispatchOperationalTelemetryExternally).toHaveBeenCalledWith(
       expect.objectContaining({
         category: 'sync',
@@ -70,7 +64,7 @@ describe('errorServiceSinks', () => {
     await runErrorServiceSinks(errorLog, sinks);
 
     expect(saveErrorLog).toHaveBeenCalledTimes(1);
-    expect(logSystemError).not.toHaveBeenCalled();
+    expect(logAuditEvent).not.toHaveBeenCalled();
     expect(dispatchOperationalTelemetryExternally).toHaveBeenCalledWith(
       expect.objectContaining({
         status: 'degraded',

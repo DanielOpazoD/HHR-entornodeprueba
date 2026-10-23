@@ -1,3 +1,4 @@
+import type { PatientRowSaveResult } from './inputCellTypes';
 import { usePatientRowChangeHandlers } from '@/features/census/components/patient-row/usePatientRowChangeHandlers';
 import {
   usePatientRowCribInputHandlers,
@@ -17,14 +18,17 @@ interface UsePatientRowHandlersModelParams {
   data: PatientData;
   documentType?: PatientRowPatientDocumentType;
   updatePatient: (bedId: string, field: PatientRowPatientField, value: PatientFieldValue) => void;
-  updatePatientMultiple: (bedId: string, fields: PatientRowPatientPatch) => void;
+  updatePatientMultiple: (bedId: string, fields: PatientRowPatientPatch) => PatientRowSaveResult;
   clearPatient: (bedId: string) => Promise<boolean>;
   updateClinicalCrib: (
     bedId: string,
     field: PatientRowPatientField,
     value: PatientFieldValue
   ) => void;
-  updateClinicalCribMultiple: (bedId: string, fields: PatientRowPatientPatch) => void;
+  updateClinicalCribMultiple: (
+    bedId: string,
+    fields: PatientRowPatientPatch
+  ) => PatientRowSaveResult;
 }
 
 export const usePatientRowHandlersModel = ({

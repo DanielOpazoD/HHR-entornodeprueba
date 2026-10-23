@@ -3,7 +3,7 @@ import type { Statistics } from '@/types/domain/statistics';
 import type { DailyRecord } from '@/features/census/contracts/censusRecordContracts';
 import type { CSSProperties } from 'react';
 import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
-import type { CensusEmptyStateDiagnostic } from '@/hooks/controllers/dailyRecordBootstrapController';
+import type { CensusEmptyStateDiagnostic } from '@/features/census/controllers/censusEmptyStateDiagnostic';
 import type { RenderCensusMedicalHandoffAction } from '@/features/census/contracts/censusMedicalHandoffAction';
 
 export type CensusViewBranch = 'empty' | 'register';

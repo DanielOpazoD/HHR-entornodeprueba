@@ -79,7 +79,7 @@ describe('RayenDayBootstrapButton', () => {
         onReady={onReady}
       />
     );
-    fireEvent.click(screen.getByRole('button', { name: /Copiar pacientes del 23/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Copiar censo y sincronizar/i }));
     await waitFor(() => expect(onCopyPrevious).toHaveBeenCalledOnce());
     expect(mocks.refresh).toHaveBeenCalledOnce();
     expect(onCreateBlank).not.toHaveBeenCalled();
@@ -103,7 +103,7 @@ describe('RayenDayBootstrapButton', () => {
         onReady={onReady}
       />
     );
-    fireEvent.click(screen.getByRole('button', { name: /Copiar pacientes del 23/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Copiar censo y sincronizar/i }));
     await waitFor(() => expect(onCopyPrevious).toHaveBeenCalledOnce());
     await waitFor(() => expect(mocks.warning).toHaveBeenCalledOnce());
     expect(onReady).not.toHaveBeenCalled();
@@ -119,7 +119,7 @@ describe('RayenDayBootstrapButton', () => {
         onReady={onReady}
       />
     );
-    fireEvent.click(screen.getByRole('button', { name: /Copiar pacientes del 23/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Copiar censo y sincronizar/i }));
     expect(await screen.findByText(/No se pudo copiar el censo anterior/)).toBeVisible();
     expect(mocks.refresh).not.toHaveBeenCalled();
     expect(onReady).not.toHaveBeenCalled();
@@ -219,6 +219,59 @@ describe('RayenDayBootstrapButton', () => {
     expect(
       screen.queryByRole('button', { name: 'Iniciar censo sin Eloísa' })
     ).not.toBeInTheDocument();
+    expect(onReady).not.toHaveBeenCalled();
+  });
+});
+
+describe('compact copy connection summary', () => {
+  it.each(['Ficha Médico', 'Gestión de Camas'])(
+    'does not show ready when %s is unavailable',
+    source => {
+      mocks.health.connection = 'blocked';
+      mocks.health.canSync = false;
+      mocks.health.message = `${source}: sesión vencida`;
+      render(
+        <RayenDayBootstrapButton
+          copySourceDate="2026-09-23"
+          onCopyPrevious={vi.fn()}
+          onCreateBlank={vi.fn()}
+          onReady={vi.fn()}
+        />
+      );
+      expect(screen.getByTestId('eloisa-bootstrap-status')).toHaveTextContent(
+        'Conexión incompleta'
+      );
+      expect(screen.getByTestId('eloisa-bootstrap-status')).toHaveAttribute(
+        'title',
+        `${source}: sesión vencida`
+      );
+      expect(screen.getByText('23 de septiembre de 2026')).toHaveAttribute(
+        'datetime',
+        '2026-09-23'
+      );
+      expect(screen.getByRole('button', { name: 'Copiar censo y sincronizar' })).toBeEnabled();
+    }
+  );
+});
+
+describe('creation schedule lock', () => {
+  it('keeps the action visible and prevents copy and sync when disabled', () => {
+    const onCopyPrevious = vi.fn();
+    const onReady = vi.fn();
+    render(
+      <RayenDayBootstrapButton
+        disabled
+        disabledReason="Disponible desde las 08:00"
+        copySourceDate="2026-09-23"
+        onCopyPrevious={onCopyPrevious}
+        onReady={onReady}
+        onCreateBlank={vi.fn()}
+      />
+    );
+    const button = screen.getByRole('button', { name: 'Copiar censo y sincronizar' });
+    expect(button).toBeDisabled();
+    fireEvent.click(button);
+    expect(onCopyPrevious).not.toHaveBeenCalled();
     expect(onReady).not.toHaveBeenCalled();
   });
 });

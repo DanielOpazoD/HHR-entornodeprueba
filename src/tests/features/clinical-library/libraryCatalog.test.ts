@@ -65,8 +65,12 @@ describe('clinical library catalog', () => {
     }
   });
 
-  it('declares each interactive tool exactly once', () => {
-    expect(tools.map(tool => tool.id).sort()).toEqual([...LIBRARY_TOOL_IDS].sort());
+  it('makes every interactive tool available as a tool or a document editor', () => {
+    const available = new Set<string>([
+      ...tools.map(tool => tool.id),
+      ...documents.flatMap(document => (document.editorId ? [document.editorId] : [])),
+    ]);
+    for (const id of LIBRARY_TOOL_IDS) expect(available).toContain(id);
     for (const tool of tools) expect(tool.category).toBe('tools');
   });
 

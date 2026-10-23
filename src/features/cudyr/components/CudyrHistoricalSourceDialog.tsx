@@ -1,3 +1,4 @@
+import { CUDYR_ADMIN_ADJUSTMENT_SOURCE } from '@/domain/evaluationScales/importedCudyr';
 import { BaseModal } from '@/components/shared/BaseModal';
 import type { CudyrReportRow } from '@/types/domain/cudyrReport';
 import { cudyrMomentLabel } from '@/services/cudyr/cudyrReportPresentation';
@@ -13,6 +14,14 @@ export const CudyrHistoricalSourceDialog = ({
     <div className="space-y-3 text-sm">
       <p className="font-semibold">{row.patientName}</p>
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
+        {row.evaluation?.adjustmentReason && (
+          <>
+            <dt>Fuente del resultado</dt>
+            <dd>HHR · excepción administrativa justificada</dd>
+            <dt>Respaldo</dt>
+            <dd className="break-all">{row.evaluation.adjustmentEvidence}</dd>
+          </>
+        )}
         <dt>Eloísa</dt>
         <dd>Gestión de Camas → Informes → Categorización de riesgo dependencia</dd>
         <dt>Archivo</dt>
@@ -25,12 +34,19 @@ export const CudyrHistoricalSourceDialog = ({
         <dd>{cudyrMomentLabel(row.monthlyEvidence?.checkedAt || '')}</dd>
       </dl>
       <p className="rounded bg-teal-50 p-3 text-teal-900">
-        {row.monthlyEvidence?.state === 'conflict'
-          ? 'Datos en conflicto. Pendiente de aclarar.'
-          : row.evaluation
-            ? 'Resultado válido de Eloísa. Solo cuenta si el paciente es elegible.'
-            : 'No registrado en el día consultado de Eloísa.'}
+        {row.evaluation?.source === CUDYR_ADMIN_ADJUSTMENT_SOURCE
+          ? 'Resultado válido por excepción administrativa. Solo cuenta si el paciente es elegible.'
+          : row.monthlyEvidence?.state === 'conflict'
+            ? 'Datos en conflicto. Pendiente de aclarar.'
+            : row.evaluation
+              ? 'Resultado válido de Eloísa. Solo cuenta si el paciente es elegible.'
+              : 'No registrado en el día consultado de Eloísa.'}
       </p>
+      {row.evaluation?.adjustmentReason && (
+        <p>
+          <strong>Motivo de la excepción:</strong> {row.evaluation.adjustmentReason}
+        </p>
+      )}
       {row.verifiedContext && (
         <details className="rounded border border-teal-100 p-2">
           <summary>Respaldo de la conciliación</summary>

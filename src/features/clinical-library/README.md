@@ -5,7 +5,7 @@
 Biblioteca de documentos y herramientas del censo diario. El botón «Documentos» de la barra de
 fechas abre un panel lateral con:
 
-- **Formularios**: diez documentos con acción **Completar**, además de imprimir o descargar el
+- **Formularios**: doce documentos con acción **Completar**, además de imprimir o descargar el
   original. MEDIF conserva su editor; los otros nueve comparten el editor de formularios clínicos.
 - **Protocolos** e **infografías**: categorías preparadas; se publican agregando archivos y entradas
   al catálogo.
@@ -23,8 +23,28 @@ los borradores con datos se descargan a petición del usuario y no se guardan au
 La impresión necesita cargar la plantilla pública en blanco de cada formulario. Los Word se
 conservan y tienen una exportación PDF verificada con el mismo diseño para la impresión.
 
+Las actas de devolución de fármacos y de entrega de fármacos o insumos eliminados tienen un
+editor de registros repetibles. El buscador conserva las 356 presentaciones del arsenal HHR
+2025; no representa stock ni vigencia 2026. El ingreso manual permite registrar insumos o
+presentaciones que no estén en ese catálogo. El nombre, presentación y cantidad de cada
+registro permanecen visibles antes de generar el PDF. Las tres causas de eliminación del
+original se conservan y el producto expirado exige su fecha de vencimiento.
+
+El perfil del responsable se propone desde la sesión actual y permanece editable. La cuenta
+administradora no implica una profesión. Solo los datos profesionales del UID actual pueden
+guardarse a petición del usuario; pacientes y registros de farmacia permanecen en memoria.
+La vista previa, descarga e impresión usan los mismos bytes y cualquier edición invalida el
+PDF preparado. Ambos tipos de acta admiten A4 o Carta vertical; cambiar el tamaño conserva
+los campos y exige generar nuevamente el PDF. Los formularios en blanco también incluyen sus
+Word institucionales editables.
+La procedencia y actualización del catálogo se describen en [actas de farmacia](../../../docs/actas-farmacia.md).
+
 La [guía de formularios compartidos](../../../docs/formularios-clinicos.md) documenta el catálogo
 común, los mapas de impresión y el modo de ingreso manual o desde una cama/cuna clínica.
+
+El informe del Salvador admite capturas DICOM seleccionadas como anexos al Word.
+El [contrato del visor y los anexos](../../../docs/MMRAD_DICOM.md) describe su carga
+diferida, vinculación al paciente, memoria temporal y límites de conexión.
 
 La [guía de MEDIF](../../../docs/medif.md) describe los modos manual y censo, las preferencias,
 los borradores y los PDF. El [diccionario de variables](../../../docs/medif-variables.md)

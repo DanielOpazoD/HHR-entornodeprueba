@@ -32,6 +32,56 @@ const setup = (candidates: ClinicalFillCandidate[] = [patient()]) => {
 };
 
 describe('clinical authorization recovery guards', () => {
+  it.each(['E9876543', '9876543'])(
+    'renews a known passport %s only through an exact live source episode and identifier',
+    async run => {
+      const refreshSnapshot = vi.fn(
+        async () => ({ encounters: [{ encounterId: '142040', run }] }) as RayenCensusSnapshot
+      );
+      const readForms = vi.fn(async () => ({ forms: [{ synthetic: true }] }));
+      const verifyEpisode = vi.fn();
+      const recovery = createClinicalFormsAuthorizationRecovery(
+        [patient({ rut: run, documentType: 'Pasaporte' })],
+        new AbortController().signal,
+        { readForms, verifyEpisode, refreshSnapshot }
+      );
+      recovery.observe('142040', denial);
+      expect(await recovery.readForms('142040')).toEqual({ forms: [{ synthetic: true }] });
+      expect(refreshSnapshot).toHaveBeenCalledTimes(1);
+      expect(verifyEpisode).not.toHaveBeenCalled();
+      expect(readForms).toHaveBeenCalledTimes(1);
+    }
+  );
+
+  it.each(
+    [
+      [],
+      [{ encounterId: '142040', run: 'F9876543' }],
+      [{ encounterId: '142040', run: '9876543' }],
+      [{ encounterId: '999999', run: 'E9876543' }],
+      [
+        { encounterId: '142040', run: 'E9876543' },
+        { encounterId: '142040', run: 'E9876543' },
+      ],
+    ].map(encounters => ({ encounters }))
+  )(
+    'does not fall back to a RUN lookup for an absent or contradictory passport snapshot $encounters',
+    async ({ encounters }) => {
+      const refreshSnapshot = vi.fn(async () => ({ encounters }) as RayenCensusSnapshot);
+      const readForms = vi.fn();
+      const verifyEpisode = vi.fn();
+      const recovery = createClinicalFormsAuthorizationRecovery(
+        [patient({ rut: 'E9876543', documentType: 'Pasaporte' })],
+        new AbortController().signal,
+        { readForms, verifyEpisode, refreshSnapshot }
+      );
+      recovery.observe('142040', denial);
+      expect(await recovery.readForms('142040')).toEqual(denial);
+      expect(readForms).not.toHaveBeenCalled();
+      expect(verifyEpisode).not.toHaveBeenCalled();
+    }
+  );
+
   it('shares one fresh capture across different denied episodes', async () => {
     const refreshSnapshot = vi.fn(
       async () =>

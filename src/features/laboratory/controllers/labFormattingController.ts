@@ -218,3 +218,7 @@ export const bedSortKey = (bedId: string): number => {
   if (hMatch) return 10 + (parseInt(hMatch[1], 10) - 1) * 2 + (parseInt(hMatch[2], 10) - 1);
   return 100;
 };
+
+/** Remove PDF column separators, preserving the clinical unit and its scale. */
+export const normalizeLabUnit = (unit: string): string =>
+  unit.replace(/^[\s|]+|[\s|]+$/g, '').trim();

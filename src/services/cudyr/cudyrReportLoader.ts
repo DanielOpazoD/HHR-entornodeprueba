@@ -156,29 +156,6 @@ export const loadCudyrReport = async (
     issues: [],
     pending: [],
   };
-  // Bounded concurrency for daily server reads. Failed days are distinct from absent censuses.
-  for (let index = 0; index < dates.length; index += 3) {
-    check();
-    const results = await Promise.all(
-      dates.slice(index, index + 3).map(async date => ({
-        date,
-        result: await ports.readRecord(date, { source: 'server' }),
-      }))
-    );
-    check();
-    for (const { date, result } of results) {
-      if (result.record) records.push(result.record);
-      input.coverage.push({
-        date,
-        state: result.status === 'failed' ? 'error' : result.record ? 'disponible' : 'sin_censo',
-        lastSyncedAt: result.record?.rayenSync?.at || '',
-        runId: result.record?.rayenSync?.runId || '',
-        recordVersion: result.record
-          ? `present:${result.record.lastUpdated || ''}:${result.record.rayenSync?.at || ''}:${result.record.cudyrUpdatedAt || ''}`
-          : 'missing',
-      });
-    }
-  }
   const pages = async <T, Cursor>(
     read: (cursor?: Cursor) => Promise<{ rows: T[]; next: Cursor | null }>
   ): Promise<T[]> => {
@@ -207,24 +184,57 @@ export const loadCudyrReport = async (
       input.issues.push(label + ': lectura incompleta. Vuelva a cargar el período.');
     }
   };
-  await collect('Historial CUDYR', async () => {
-    input.observations = await pages(async (cursor?: CudyrHistoryCursor) => {
-      const page = await ports.readHistory({ from, to, limit: 100, ...(cursor ? { cursor } : {}) });
-      return { rows: page.observations, next: page.nextCursor };
-    });
-  });
-  await collect('Capturas del período', async () => {
-    input.captures = await pages(async (cursor?: CudyrHistoryCursor) => {
-      const page = await ports.readCaptures({
-        kind: 'captures',
-        from,
-        to,
-        limit: 100,
-        ...(cursor ? { cursor } : {}),
+  await Promise.all([
+    (async () => {
+      // Bounded concurrency for daily server reads. Failed days are distinct from absent censuses.
+      for (let index = 0; index < dates.length; index += 3) {
+        check();
+        const results = await Promise.all(
+          dates.slice(index, index + 3).map(async date => ({
+            date,
+            result: await ports.readRecord(date, { source: 'server' }),
+          }))
+        );
+        check();
+        for (const { date, result } of results) {
+          if (result.record) records.push(result.record);
+          input.coverage.push({
+            date,
+            state:
+              result.status === 'failed' ? 'error' : result.record ? 'disponible' : 'sin_censo',
+            lastSyncedAt: result.record?.rayenSync?.at || '',
+            runId: result.record?.rayenSync?.runId || '',
+            recordVersion: result.record
+              ? `present:${result.record.lastUpdated || ''}:${result.record.rayenSync?.at || ''}:${result.record.cudyrUpdatedAt || ''}`
+              : 'missing',
+          });
+        }
+      }
+    })(),
+    collect('Historial CUDYR', async () => {
+      input.observations = await pages(async (cursor?: CudyrHistoryCursor) => {
+        const page = await ports.readHistory({
+          from,
+          to,
+          limit: 100,
+          ...(cursor ? { cursor } : {}),
+        });
+        return { rows: page.observations, next: page.nextCursor };
       });
-      return { rows: page.captures, next: page.nextCursor };
-    });
-  });
+    }),
+    collect('Capturas del período', async () => {
+      input.captures = await pages(async (cursor?: CudyrHistoryCursor) => {
+        const page = await ports.readCaptures({
+          kind: 'captures',
+          from,
+          to,
+          limit: 100,
+          ...(cursor ? { cursor } : {}),
+        });
+        return { rows: page.captures, next: page.nextCursor };
+      });
+    }),
+  ]);
   const episodes = [
     ...new Set(
       [
@@ -236,29 +246,31 @@ export const loadCudyrReport = async (
   ];
   for (let index = 0; index < episodes.length; index += 30) {
     const clinicalEpisodeIds = episodes.slice(index, index + 30);
-    await collect('Contexto histórico de camas', async () => {
-      const receipts = await pages(async (cursor?: CudyrHistoryCursor) => {
-        const page = await ports.readEpisodeCaptures({
-          kind: 'episode-captures',
-          clinicalEpisodeIds,
-          limit: 100,
-          ...(cursor ? { cursor } : {}),
+    await Promise.all([
+      collect('Contexto histórico de camas', async () => {
+        const receipts = await pages(async (cursor?: CudyrHistoryCursor) => {
+          const page = await ports.readEpisodeCaptures({
+            kind: 'episode-captures',
+            clinicalEpisodeIds,
+            limit: 100,
+            ...(cursor ? { cursor } : {}),
+          });
+          return { rows: page.captures, next: page.nextCursor };
         });
-        return { rows: page.captures, next: page.nextCursor };
-      });
-      input.captures = [
-        ...new Map([...input.captures, ...receipts].map(item => [item.id, item])).values(),
-      ];
-    });
-    await collect('Altas reales verificadas', async () => {
-      check();
-      const page = await ports.readDischarges({
-        kind: 'discharge-corrections',
-        clinicalEpisodeIds,
-      });
-      check();
-      input.corrections.push(...page.corrections);
-    });
+        input.captures = [
+          ...new Map([...input.captures, ...receipts].map(item => [item.id, item])).values(),
+        ];
+      }),
+      collect('Altas reales verificadas', async () => {
+        check();
+        const page = await ports.readDischarges({
+          kind: 'discharge-corrections',
+          clinicalEpisodeIds,
+        });
+        check();
+        input.corrections.push(...page.corrections);
+      }),
+    ]);
   }
   // Audit is fetched only for episodes that have a correction, including withdrawn dates.
   for (const correction of input.corrections)
@@ -274,42 +286,44 @@ export const loadCudyrReport = async (
       });
       input.dischargeAudit.push(...entries);
     });
-  await collect('Pendientes de este dispositivo', async () => {
-    input.pending = await ports.readPending();
-  });
-  if (ports.readExclusions) {
-    input.exclusions = [];
-    for (const month of new Set(dates.map(date => date.slice(0, 7))))
-      await collect('Exclusiones diarias', async () => {
-        input.exclusions!.push(...(await ports.readExclusions!(month, signal)));
-      });
-  }
-  check();
   let supplements: Awaited<ReturnType<typeof loadCudyrSupplements>> = [];
-  if (ports.readSupplements)
-    await collect('Informes mensuales Eloísa', async () => {
-      supplements = await ports.readSupplements!(
-        from,
-        getNextDay(to),
-        signal || new AbortController().signal
-      );
-    });
-  check();
   let censusSources: Awaited<ReturnType<typeof loadCudyrCensusSources>> = [];
-  if (ports.readCensusSources)
-    await collect('Censo histórico Eloísa', async () => {
-      censusSources = await ports.readCensusSources!(
-        from,
-        getNextDay(to),
-        signal || new AbortController().signal
-      );
-    });
-  check();
   let reviews: Awaited<ReturnType<typeof loadCudyrVerifiedContexts>> = [];
-  if (ports.readVerifiedContexts)
-    await collect('Conciliaciones documentales', async () => {
-      reviews = await ports.readVerifiedContexts!(from, to, signal || new AbortController().signal);
-    });
+  await Promise.all([
+    collect('Pendientes de este dispositivo', async () => {
+      input.pending = await ports.readPending();
+    }),
+    collect('Exclusiones diarias', async () => {
+      if (!ports.readExclusions) return;
+      input.exclusions = [];
+      for (const month of new Set(dates.map(date => date.slice(0, 7))))
+        input.exclusions.push(...(await ports.readExclusions(month, signal)));
+    }),
+    collect('Informes mensuales Eloísa', async () => {
+      if (ports.readSupplements)
+        supplements = await ports.readSupplements(
+          from,
+          getNextDay(to),
+          signal || new AbortController().signal
+        );
+    }),
+    collect('Censo histórico Eloísa', async () => {
+      if (ports.readCensusSources)
+        censusSources = await ports.readCensusSources(
+          from,
+          getNextDay(to),
+          signal || new AbortController().signal
+        );
+    }),
+    collect('Conciliaciones documentales', async () => {
+      if (ports.readVerifiedContexts)
+        reviews = await ports.readVerifiedContexts(
+          from,
+          to,
+          signal || new AbortController().signal
+        );
+    }),
+  ]);
   check();
   input.generatedAt = new Date().toISOString();
   const dataset = applyCudyrCensusEvidence(
@@ -335,12 +349,13 @@ export const loadCudyrReport = async (
     censusSources
   );
   const approved = await applyCudyrCensusApprovals(dataset, reviews);
+  const readIncomplete = input.issues.length > 0;
   check();
   if (native && sourceVersion) {
     try {
       const saved = await saveOfficialCudyrReport(approved, sourceVersion, signal);
       check();
-      return saved;
+      return { ...saved, readIncomplete };
     } catch (error) {
       check();
       if (
@@ -357,5 +372,5 @@ export const loadCudyrReport = async (
       );
     }
   }
-  return approved;
+  return { ...approved, readIncomplete };
 };

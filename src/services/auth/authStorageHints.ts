@@ -85,6 +85,19 @@ export const hasRecentAuthenticatedSessionHint = (): boolean => {
   }
 };
 
+/** Same-tab refreshes after this keep the authenticated bootstrap instead of the login page. */
+export const markRecentAuthenticatedSessionHint = (): void => {
+  if (!hasWindowStorage(resolveStorage('session'))) {
+    return;
+  }
+
+  try {
+    sessionStorage.setItem(AUTHENTICATED_SESSION_HINT_KEY, 'true');
+  } catch {
+    // Ignore storage errors
+  }
+};
+
 export const clearRecentAuthenticatedSessionHint = (): void => {
   if (!hasWindowStorage(resolveStorage('session'))) {
     return;

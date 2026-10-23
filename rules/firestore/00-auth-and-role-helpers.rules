@@ -5,8 +5,47 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    function individualAccessPolicy() {
+      let p = /databases/$(database)/documents/config/individualAccounts;
+      return exists(p) ? get(p).data : {};
+    }
+
+    function hasManagedAccount() {
+      return request.auth != null && exists(/databases/$(database)/documents/hhr_account_access/$(request.auth.uid));
+    }
+
+    function managedAccount() {
+      return get(/databases/$(database)/documents/hhr_account_access/$(request.auth.uid)).data;
+    }
+
+    function hasCurrentManagedSession() {
+      let account = managedAccount();
+      let authTime = request.auth.token.get('auth_time', 0);
+      return account.status == 'active' && account.get('credentialOperation', null) == null &&
+        request.auth.token.get('hhrAccountVersion', -1) == account.version &&
+        request.auth.token.get('firebase', {}).get('sign_in_provider', '') == 'password' &&
+        authTime > 0 && authTime <= request.time.toMillis() / 1000 + 60 &&
+        request.time.toMillis() / 1000 < authTime + 43200;
+    }
+
+    function protectedGoogleRole() {
+      let email = request.auth.token.get('email', '').lower();
+      let known = individualAccessPolicy().get('protectedGoogle', {});
+      let verified = request.auth.token.get('email_verified', false) &&
+        request.auth.token.get('firebase', {}).get('sign_in_provider', '') == 'google.com' &&
+        known.get(email, '') == request.auth.uid;
+      return verified ? individualAccessPolicy().get('protectedRoles', {}).get(request.auth.uid, null) : null;
+    }
+
+    function isIndividualAccessEnabled() {
+      return individualAccessPolicy().get('enabled', false) == true;
+    }
+
     function isAuthenticated() {
-      return request.auth != null;
+      return request.auth != null && (hasManagedAccount() ? hasCurrentManagedSession() :
+        (!request.auth.uid.matches('hhrn_.*') && !request.auth.token.keys().hasAny(['hhrAccountVersion']) &&
+          request.auth.token.get('firebase', {}).get('sign_in_provider', '') != 'password' &&
+          (!isIndividualAccessEnabled() || protectedGoogleRole() != null)));
     }
     
     function normalizeEmail(email) {
@@ -27,36 +66,30 @@ service cloud.firestore {
         : role;
     }
 
-    function getConfiguredRole() {
-      return hasEmail() &&
-             exists(/databases/$(database)/documents/config/roles)
-        ? normalizeRole(get(/databases/$(database)/documents/config/roles).data[getUserEmail()])
+    function getLegacyEffectiveRole() {
+      // Called only after the current-session guard in getEffectiveRole.
+      let email = request.auth.token.get('email', null);
+      let rolesPath = /databases/$(database)/documents/config/roles;
+      let configuredRole = email is string && exists(rolesPath)
+        ? get(rolesPath).data.get(email.lower(), null)
         : null;
-    }
-
-    function getClaimRole() {
-      return isAuthenticated() &&
-             request.auth.token.keys().hasAny(['role']) &&
-             request.auth.token.role != null
-        ? normalizeRole(request.auth.token.role)
-        : null;
+      return normalizeRole(configuredRole != null
+        ? configuredRole : request.auth.token.get('role', null));
     }
 
     function getEffectiveRole() {
-      let configuredRole = getConfiguredRole();
-      return configuredRole != null
-        ? configuredRole
-        : getClaimRole();
+      // Direct role consumers (including daily-record updates) must also fail closed.
+      return !isAuthenticated() ? null : hasManagedAccount() ? managedAccount().role :
+        isIndividualAccessEnabled() ? protectedGoogleRole() : getLegacyEffectiveRole();
     }
 
     function hasEffectiveRole(role) {
-      return isAuthenticated() && getEffectiveRole() == role;
+      return getEffectiveRole() == role;
     }
 
     function hasAnyEffectiveRole(roles) {
       let effectiveRole = getEffectiveRole();
-      return isAuthenticated() &&
-             effectiveRole != null &&
+      return effectiveRole != null &&
              roles.hasAny([effectiveRole]);
     }
 
@@ -69,7 +102,7 @@ service cloud.firestore {
     }
 
     function hasAdminOrEffectiveRole(role) {
-      return isAdmin() || hasEffectiveRole(role);
+      return hasAnyEffectiveRole(['admin', role]);
     }
 
     function isDoctor() {

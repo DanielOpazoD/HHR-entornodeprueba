@@ -8,11 +8,6 @@ export const CLINICAL_AI_ACTIONS = [
     description: 'Convierte texto PDF/DOCX en borradores editables de epicrisis o traslado.',
   },
   {
-    id: 'clinical_ai_summary',
-    label: 'Resumen clínico',
-    description: 'Resume contexto del paciente desde censo, entregas y documentos clínicos.',
-  },
-  {
     id: 'cie10_search',
     label: 'Búsqueda CIE-10/FONASA',
     description: 'Apoya codificación diagnóstica y búsqueda terminológica bajo demanda.',

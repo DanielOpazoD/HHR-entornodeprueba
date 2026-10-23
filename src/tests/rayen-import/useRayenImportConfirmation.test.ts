@@ -324,7 +324,7 @@ describe('useRayenImportConfirmation execution ownership', () => {
     await act(async () => harness.result.current());
 
     expect(harness.transitionExecution).toHaveBeenCalledWith({ type: 'failed' }, 'run-1');
-    expect(harness.failRun).toHaveBeenCalledWith('apply_failed', 'run-1');
+    expect(harness.failRun).toHaveBeenCalledWith('apply_failed', 'run-1', error);
     expect(harness.runClinicalStage).not.toHaveBeenCalled();
     expect(appliedState(harness.setState)).toMatchObject({
       isPreviewOpen: true,

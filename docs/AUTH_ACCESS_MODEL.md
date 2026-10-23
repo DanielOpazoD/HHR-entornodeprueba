@@ -17,7 +17,7 @@ entre documentos es necesario que todas las pestañas ejecuten la versión nueva
 
 Se intentan independientemente registros, cola y Web Storage. Un error se propaga
 y conserva la marca de limpieza pendiente; la admisión debe reintentarla antes de
-habilitar datos. No se cambia el conjunto de datos que debe eliminarse ni los roles.
+habilitar datos. Para cuentas individuales `hhrn_`, la cola pendiente se conserva bajo su propietario y se retiran leases/attemptId antes de admitir otro usuario. Los registros visibles y cachés de la sesión se limpian. Los demás usuarios mantienen la limpieza existente.
 Los adaptadores de registros y cola mantienen su comportamiento anterior salvo
 cuando la limpieza de sesión solicita explícitamente propagar errores.
 
@@ -75,7 +75,9 @@ Estado documental:
 
 Para el **login general** la fuente operativa de acceso es:
 
-- `config/roles` en Firestore
+- Cuentas individuales: `hhr_account_access/{uid}` (estado, rol y versión), validado por el servidor.
+- Google durante transición: `config/roles` en Firestore.
+- Con `config/individualAccounts.enabled`: sólo cuentas individuales activas y los dos Google protegidos, identificados por UID verificado; el mapa legacy deja de conceder acceso.
 
 No forman parte del login general:
 
@@ -83,12 +85,24 @@ No forman parte del login general:
 - listas hardcodeadas legacy de roles
 - lookups cloud legacy fuera del callable actual de resolución
 
+## Datos profesionales propuestos para documentos
+
+Después de un ingreso individual exitoso, el cliente puede proponer a Documentos el UID,
+nombre de Firebase y RUT validado que el usuario ya ingresó. Este dato auxiliar no concede
+acceso, no modifica claims y no contiene claves, tokens ni el correo interno de credenciales.
+Se mantiene en memoria hasta que una herramienta lo consume desde una sesión admitida;
+entonces se guarda por UID en `sessionStorage` con prefijo `hhr_`, sujeto a la limpieza habitual.
+El cierre de sesión también descarta la propuesta pendiente en memoria. Un fallo del caché no
+interrumpe la autenticación. Google y admin pueden completar un perfil editable propio; el
+rol administrador no determina la profesión. El responsable revisa los datos antes de imprimir.
+
 ## 2. Regla principal
 
 Un usuario puede iniciar sesión en el shell principal **solo si**:
 
-1. autenticó con Google/Firebase
-2. su correo tiene un rol válido en `config/roles`
+1. autenticó con Firebase mediante Google o RUT y clave privada;
+2. su estado de acceso vigente cumple la política anterior, incluida versión de sesión y proveedor;
+3. una cuenta individual ya estableció su clave mediante activación privada y su sesión no supera doce horas.
 
 Si no cumple eso:
 
@@ -176,7 +190,7 @@ Regla vigente:
 
 - el shell resuelve rol por el callable `checkUserRole`;
 - las Netlify Functions sensibles también deben resolver el rol efectivo por ese mismo callable;
-- `config/roles` sigue siendo la fuente de verdad;
+- el backend resuelve cuentas individuales por UID/estado/versión y Google según la política de transición;
 - claims sincronizados son auxiliares, no la fuente primaria para `LAB/MMRAD`.
 
 Esto evita el incidente clásico:
@@ -312,3 +326,243 @@ anclando al día correcto (nunca a la hora actual). Después, comprobar que la e
 ordinaria respeta la ventana y que un usuario no administrador no puede cambiar el
 timestamp. Esta integración no ejecuta reparaciones ni acredita cuántos registros
 legacy existen: no se consultó un inventario clínico real.
+
+## Revocación explícita de acceso
+
+Gestión de Roles conserva `unauthorized` en `config/roles` al retirar un acceso.
+No se debe borrar esa entrada: las reglas mantienen compatibilidad con claims
+legacy cuando no hay configuración. La marca explícita impide ese fallback en
+Firestore y Storage, incluso con un token emitido antes de retirar el permiso.
+Los usuarios revocados no aparecen en la lista de roles activos; asignarles un rol
+explícitamente permite restablecer el acceso. No modifica ni borra datos clínicos.
+
+Storage consulta el documento de roles de la base Firestore `(default)`. El despliegue
+necesita la integración de permisos entre ambos servicios; validarla antes de publicar
+las reglas en un entorno real. Un fallo de consulta no autoriza por el claim antiguo.
+Las pruebas usan emuladores de ambos servicios y la misma identidad antes/después.
+Esto no invalida archivos ya descargados ni enlaces de descarga con token de acceso.
+Las bajas anteriores que borraron su configuración requieren revisión separada; no
+se infiere quién fue revocado ni se retiran permisos históricos automáticamente.
+
+## Cuentas individuales de enfermería
+
+El RUT con DV es sólo el alias de ingreso. El padrón privado y su índice están
+vedados a clientes; sólo el administrador consulta el RUT mediante el callable.
+La identidad Firebase usa un UID estable y correo técnico opaco, sin RUT. Las
+contraseñas personales las almacena y verifica Firebase Auth. El usuario visible es
+el RUT completo sin puntos ni guion, con k minúscula (17752753k). Internamente se
+conserva el RUT canónico con DV para no romper índices existentes.
+
+La creación exige nombre, RUT válido y verificación individual. El importador
+sólo prepara candidatos en memoria: un nombre parecido no identifica una persona,
+un RUT duplicado bloquea la fila y ninguna importación activa usuarios en lote.
+La referencia de origen y el administrador verificador quedan en el padrón privado.
+Estas cuentas reciben únicamente el rol de enfermería; no pueden autoasignarse
+roles ni convertirse en administradoras.
+
+Las cuentas nuevas verificadas por el administrador empiezan pendientes, con Auth
+inhabilitado. La clave inicial es el cuerpo numérico del RUT (17752753 en el ejemplo),
+por decisión explícita de producto. Es predecible: conocer el RUT permite reclamar
+una cuenta aún no activada; el cambio obligatorio no acredita por sí solo identidad.
+El primer ingreso sólo entrega un permiso efímero de preparación, sin sesión ni
+acceso clínico. El titular debe elegir una clave y registrar su correo de recuperación.
+La clave personal requiere 6–128 caracteres (mínimo del proveedor), una mayúscula y
+un número; no requiere símbolos. Nunca se guarda la clave inicial/personal en Firestore.
+La clave inicial queda deshabilitada al canjear la preparación. No se restablecen
+claves de cuentas activas ni se migran cuentas reales automáticamente.
+
+Se conserva el código privado administrativo de un uso y una hora para recuperar
+activaciones interrumpidas o cuentas sin correo. Emitirlo revoca la clave inicial.
+El permiso de primer ingreso dura 10 minutos. Ambos están ligados a cuenta/versión;
+Firestore conserva hashes y el navegador sólo estado en memoria. La activación
+registrará el correo privado junto con la transición de credenciales.
+
+«Olvidé mi contraseña» pide el RUT y envía un código de 8 cifras al correo registrado
+por el titular, nunca a un correo enviado en esa solicitud. El código vence en 10
+minutos, admite cinco intentos y se consume transaccionalmente una sola vez. Cada
+cambio de clave invalida otros códigos por versión. Se aplican límites por cuenta/IP;
+una cuenta suspendida, retirada o con operación incierta no se recupera por correo.
+La respuesta pública no confirma existencia ni dirección de correo. Un envío fallido
+invalida el desafío; la pantalla indica condicionalmente el envío, sin afirmar entrega.
+El correo no incluye RUT ni información clínica. El proveedor de correo es Gmail
+institucional, con secretos sólo en la función de solicitud.
+
+Cambio de clave exige la clave actual; recuperación exige el código recibido o una
+nueva activación administrada para cuentas antiguas sin correo.
+Ambas incrementan la versión de autorización. Functions, Firestore
+y Storage comprueban estado activo, versión, proveedor password y antigüedad de
+sesión, sin confiar en claims antiguos. Un lock de credenciales mantiene cerrado
+el acceso durante escrituras Auth inciertas. Una recuperación administrativa
+puede cerrar una operación interrumpida después de cinco minutos, más que los
+60 segundos máximos del callable; conserva la identidad original y nunca activa
+por el mero estado enviado por el cliente.
+
+La sesión usa persistencia de navegador por pestaña y el control de inactividad
+existente. Un monitor consulta la autorización y cierra la UI conectada al detectar
+revocación; las reglas aplican la revocación en cada operación, independientemente
+de ese monitor. Las tareas offline legítimas permanecen asociadas a su UID, sin
+reintento automático ni transferencia de autor al siguiente usuario.
+
+Al montar el monitor se comparte la consulta de rol del bootstrap si sigue en curso
+o terminó dentro de la ventana existente de 10 segundos; si no existe o venció,
+se consulta al servidor. No se usa para esto el caché persistente de roles.
+Cada comprobación periódica de 60 segundos invalida esa reutilización y consulta
+de nuevo, aunque otro consumidor haya actualizado el rol recientemente. El límite
+absoluto de 12 horas se comprueba antes de reutilizar cualquier resultado.
+
+## Transición y recuperación administrativa
+
+El panel mantiene Google y permite crear, activar, suspender, retirar, recuperar y
+revocar sesiones individuales. Muestra auditoría acotada de operaciones, nunca claves
+ni códigos usados. La retirada global de accesos legacy es una acción explícita
+posterior al piloto: verifica que los UID de `daniel.opazo@hospitalhangaroa.cl` y
+`hospitalizados@hospitalhangaroa.cl` tengan Google verificado y estén habilitados.
+Sólo Daniel puede efectuar esa transición; no se borran identidades Firebase ni
+se reescriben censos, firmas, turnos, movimientos o autorías históricas. La cuenta
+institucional compartida conserva su propio UID; el enfermero seleccionado en
+un turno no se transforma en autor de su sesión.
+
+Desplegar primero Functions y reglas Firestore/Storage compatibles, comprobar el
+piloto sintético en el entorno de pruebas y después habilitar el nuevo cliente y
+las personas verificadas. Un merge no prueba ese despliegue ni la vigencia laboral
+del padrón. No activar masivamente candidatos ni borrar cuentas de aplicaciones
+que comparten el proyecto. El control de MFA de Google se mantiene en el proveedor;
+no se declara MFA verificado ni se sustituye por una marca local.
+
+Comprobación específica: `npm run test:accounts:emulator:ci` usa únicamente proyecto
+demo y loopback, valida activación/cambio/revocación contra Auth real emulado,
+Firestore y Storage, los dos Google y la inmutabilidad de un documento histórico
+sintético. CI ejecuta ese contrato además de los gates de reglas y runtime.
+
+Las identidades de contraseña sin perfil individual administrado quedan denegadas incluso antes del corte de accesos legados. No heredan roles por coincidencia de correo ni reciben claims del trigger de alta; así habilitar el proveedor de contraseña no abre los roles antiguos al autorregistro. Google conserva su flujo existente.
+
+Las pantallas de activación, cambio de clave y administración se cargan al abrirse, con su adaptador callable; requieren Firebase online y no forman parte de la precarga offline. El monitor de vencimiento y la conservación de pendientes siguen precargados. Copiar una activación usa el adaptador privado: no conserva el código en capturas E2E ni en Web Storage, incluido localhost.
+
+### Carga y disponibilidad sin conexión
+
+La administración de usuarios y permisos se carga al abrir su panel y necesita conexión para leer la autoridad vigente y modificar cuentas. Su chunk no pertenece al precache clínico. El menú de usuario se carga al abrirlo, permanece en precache y conserva un cierre de sesión inmediato aun si ese recurso tarda o falla. El monitor de sesiones individuales, la preservación de la cola y la semilla clínica continúan disponibles sin conexión. Los límites de tamaño permanecen sin cambios.
+
+### Administración de cuentas por RUT (PR 919)
+
+Nombre y rol se editan desde Usuarios del equipo usando la matriz asignable vigente.
+Cada modificación incrementa la versión de acceso y renueva los claims bajo el
+bloqueo de credenciales; una sesión anterior no retiene permisos del rol previo.
+Resetear vuelve al primer ingreso obligatorio. Deshabilitar conserva la contraseña;
+Eliminar borra Auth y mantiene una identidad retirada para autorías. La consulta
+administrativa devuelve el correo de recuperación exclusivamente a administradores
+con autenticación reciente. No se modifica la autoridad clínica ni CUDYR.
+
+### Presentación de acceso por RUT · 21-10-2026
+
+El recorrido principal es usuario (RUT con dígito verificador), contraseña e Ingresar;
+Enter envía el formulario existente. Recuperación permanece visible. El código de
+activación está dentro de la ayuda de primer ingreso. Desde el 22 de octubre,
+Ayuda de acceso ofrece «Recargar aplicación»: confirma una recarga normal, sin
+borrar IndexedDB, Web Storage, cachés, sesiones ni cambios pendientes de envío.
+La confirmación advierte que se perderá lo escrito en el formulario.
+Google conserva una acción
+secundaria pequeña. No hay selector previo de método ni transición automática
+a Google al fallar RUT.
+
+El arranque y la página lista comparten presentación; los controles de arranque
+son inertes hasta montar el formulario funcional. No se cambia persistencia de
+sesión, autorización, políticas de contraseña ni endpoints. Una sesión restaurada
+sigue usando el chrome del módulo correspondiente y no debe pasar por el login.
+
+El panel compacto conserva esa geometría al recargar: formulario de hasta 21rem,
+panel lateral de hasta 25rem y pie de soporte visible en los tamaños comprobados
+desde 320×568. La marca indica «Servicio de Hospitalizados»; Google es un icono
+circular con nombre accesible. Los campos, la imagen seleccionada y las acciones
+comparten espacio entre el estado provisional y el listo, sin textos decorativos
+introductorios ni una segunda fila provisional de ayuda.
+
+La carga prioriza el formulario RUT dentro de la pantalla de acceso, sin un
+segundo import lazy entre ver la página y poder escribir. La ayuda del login no
+invoca el módulo de mantenimiento local; la recuperación de bootstrap conserva
+su propio recorrido. Esto no demuestra por sí solo ahorro global de descarga.
+Durante la confirmación de recarga los accesos permanecen bloqueados, incluido
+Enter en el formulario RUT; cancelar conserva lo escrito y los errores visibles.
+Si no puede iniciarse la navegación, el formulario se desbloquea con un mensaje
+recuperable. La precarga común
+de Firebase Auth/Functions se conserva: es útil también para RUT. No se difieren
+las comprobaciones de permisos ni se sustituyen los métodos Google existentes.
+
+### Cierre de sesión con canal entre pestañas no disponible · 22-10-2026
+
+El aviso de cierre a otras pestañas es de mejor esfuerzo. Si BroadcastChannel
+rechaza el envío, el cierre de Firebase y la limpieza de la identidad local siguen
+ejecutándose; una recarga no debe recuperar esa sesión. Los pendientes clínicos
+se conservan con su propietario. Se retira el mensaje SYNC_COMPLETED, que no tenía
+consumidores, sin cambiar la sincronización de datos ni sus colas.
+
+### Ruta regional de ingreso por RUT · 22-10-2026
+
+Sólo la operación `signInWithRut` selecciona región. Cuando
+`VITE_ACCOUNT_FUNCTIONS_REGION` no está definida o está vacía, el cliente usa
+Santiago (`southamerica-west1`) únicamente si `VITE_FIREBASE_PROJECT_ID` es
+exactamente `hhr-pruebas`. Los demás proyectos conservan US (`us-central1`).
+Un valor explícito `us-central1`, `southamerica-east1` o `southamerica-west1`
+selecciona esa ruta; cualquier otro valor vuelve a US. No se aceptan regiones
+arbitrarias ni URLs como configuración de acceso.
+
+US y São Paulo conservan el nombre `signInWithRut` de Gen1. Santiago usa
+`signInWithRutSantiago`: un adaptador HTTP Gen2 que envuelve el callable Gen1 ya
+construido. Conserva su envelope, validación de entrada, contexto, CORS y errores;
+no introduce otro verificador de credenciales. La cuenta de servicio se declara
+como `${resolveFirebaseProjectId()}@appspot.gserviceaccount.com`, conservando la
+identidad de ejecución de Gen1 en vez de heredar la cuenta por defecto de Gen2.
+Santiago mantiene 256 MiB, CPU equivalente Gen1 (`gcf_gen1`), concurrencia 1,
+mínimo 0, máximo 10 instancias y 60 segundos de timeout.
+
+Si la ruta regional no entrega una respuesta utilizable, el cliente repite el
+ingreso una sola vez en el callable US `signInWithRut`. Eso ocurre con
+`functions/internal`, `functions/unavailable` o `functions/deadline-exceeded`:
+red caída, error de plataforma sin CORS, timeout o fallo inesperado. Cada
+repetición registra el evento operacional `auth`/`rut_sign_in_region_fallback`
+con la región y el código, sin RUT ni contraseña, para que una caída regional no
+quede oculta. La lista de privacidad de la telemetría deja salir esa operación,
+la región y el código; el evento es `degraded`, así que queda en el registro de
+la función `operational-telemetry` de Netlify y en Observabilidad del navegador,
+sin correo de alerta. Repetir el ingreso es seguro porque no cambia
+credenciales: a lo sumo consume otro intento del límite por cuenta/IP o deja sin
+usar una invitación inicial que vence en 10 minutos. Los rechazos de
+credenciales, de límite de intentos o de entrada se devuelven sin repetir. El
+respaldo se agregó tras la caída del 22-10-2026, cuando Santiago dejó de iniciar
+instancias. Activación, recuperación, cambio de clave y administración conservan
+sus endpoints y nunca se repiten en otra región. Tampoco cambian roles, sesión,
+reglas de acceso ni CUDYR. Para usar sólo US en `hhr-pruebas`, configurar
+explícitamente `VITE_ACCOUNT_FUNCTIONS_REGION=us-central1`; quitar la variable
+restablece el valor predeterminado Santiago. Comprobar el endpoint desplegado
+antes de publicar el cliente, sin inferir disponibilidad a partir del merge.
+
+La elección se apoya en cinco pares intercalados de ingresos reales del 22 de
+octubre de 2026: mediana remota de 1.917,1 ms en São Paulo frente a 959,7 ms en
+Santiago, y hasta autenticación de 2.613,9 frente a 1.517,5 ms. Los diez ingresos
+terminaron con el censo visible y se comprobó sesión/censo después de recargar.
+Se conservaron los accesos lentos: el primero observado en Santiago tardó
+8.949 ms. La muestra es de un Mac/red con carga variable, compara región y
+generación a la vez y no acredita arranque frío, p95 ni una mejora numérica de
+pintura del censo. Los picos iniciales siguen pendientes.
+
+### Lecturas del acceso por RUT · 22-10-2026
+
+El transporte agrupa los contadores de IP y cuenta y, para el ingreso, el índice
+privado RUT en un `getAll` de la misma transacción. Conserva 100 intentos por IP
+y 10 por cuenta en ventanas de cinco minutos. Un rechazo de cuenta consume el
+intento de IP; un rechazo de IP no consume el de cuenta. El índice sólo se devuelve
+cuando termina el commit, tomando el snapshot del intento definitivo si hubo
+reintentos. Un fallo de lectura o commit impide continuar con la autenticación.
+Activación, recuperación y cambio de clave conservan sus claves de limitación.
+
+Una clave que no tiene el formato numérico de la inicial evita consultar la
+preparación de primer ingreso. Esto no autoriza por formato: Firebase Auth debe
+verificar la clave y el token con comprobación de revocación; después se lee el
+estado vigente de acceso y se rechazan cuentas inactivas o con operación de
+credenciales pendiente. No se añade una caché de permisos. La preparación con
+clave inicial mantiene su revalidación transaccional de estado, versión y lock.
+
+En el cliente, la limpieza de resultados recientes de rol ocurre dentro de la
+transición serializada, después de comprobar formulario, usuario y generación de
+sesión. Una respuesta cancelada o desplazada por otra sesión no invalida el estado
+del nuevo propietario. Esta reducción de viajes y lecturas no demuestra la
+eliminación de esperas del proveedor, de red ni de arranques en frío de Functions.

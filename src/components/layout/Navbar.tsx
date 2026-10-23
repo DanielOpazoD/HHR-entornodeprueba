@@ -182,6 +182,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           {userEmail && onLogout && (
             <UserMenu
               userEmail={userEmail}
+              displayName={currentUser?.displayName}
+              isIndividualAccount={currentUser?.uid.startsWith('hhrn_')}
               role={role}
               isFirebaseConnected={isFirebaseConnected}
               remoteSyncStatus={remoteSyncStatus}

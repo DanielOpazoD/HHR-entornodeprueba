@@ -1,9 +1,9 @@
 /**
- * Parser for the official statistical discharge stamp printed by Gestión de Camas.
+ * Legacy mainland-clock interpretation of bulk-report cells from Gestión de Camas.
  *
- * Gestión de Camas prints report timestamps in the mainland Chile wall clock. HHR's census is
- * owned by Rapa Nui, so the value must be converted between named zones (including DST and day
- * rollover) rather than corrected with a fixed number of hours.
+ * Bulk cells have no zone and may mix clock conventions. Keep this compatibility path for
+ * discovery; exact episode API/PDF evidence supplies the confirmed clock. Never pass a local
+ * per-episode API clock here: use encounterWallClockInRapaNui before assigning its census day.
  */
 
 import { resolveClinicalDayForDateTime } from '@/utils/clinicalDayAdmissionUtils';

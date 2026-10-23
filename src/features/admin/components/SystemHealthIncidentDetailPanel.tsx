@@ -13,11 +13,13 @@ import {
 } from 'lucide-react';
 import type { UserHealthStatus } from '@/services/admin/healthService';
 import type { SystemHealthIncidentRow } from './systemHealthIncidentUtils';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 const formatDateTime = (timestamp: string): string => {
   const date = new Date(timestamp);
   if (Number.isNaN(date.getTime())) return 'Fecha no disponible';
   return new Intl.DateTimeFormat('es-CL', {
+    timeZone: CLINICAL_TIME_ZONE,
     dateStyle: 'short',
     timeStyle: 'short',
   }).format(date);

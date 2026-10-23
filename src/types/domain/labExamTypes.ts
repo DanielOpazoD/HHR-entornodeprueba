@@ -59,6 +59,8 @@ export interface SyslabSearchResponse {
 export interface SyslabDetailsResponse {
   success: boolean;
   data: SyslabExamDetail[];
+  /** Orders explicitly reported by Syslab as having no validated results. */
+  omittedUrls?: string[];
   error?: string;
 }
 

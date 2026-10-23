@@ -4,7 +4,7 @@ const { normalizeEmail } = require('./authEmailUtils');
 
 const assertRoleMutationAccess = async ({ context, resolveRoleForEmail }) => {
   const email = normalizeEmail(context?.auth?.token?.email);
-  if (!context?.auth || !email || (await resolveRoleForEmail(email)) !== 'admin') {
+  if (!context?.auth || !email || (await resolveRoleForEmail(email, context)) !== 'admin') {
     throw new functions.https.HttpsError('permission-denied', 'Only admins can set roles');
   }
 };

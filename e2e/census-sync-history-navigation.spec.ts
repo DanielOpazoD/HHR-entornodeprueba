@@ -53,7 +53,18 @@ const seedHistory = async (page: Page) => {
         sourceErrors: 3,
         completedAt: '2026-09-28T03:01:00Z',
         issues: [
-          { bedId: 'H5C2', source: 'vitals', reason: 'source_timeout' },
+          {
+            bedId: 'H5C2',
+            source: 'vitals',
+            reason: 'source_timeout',
+            diagnostic: {
+              patientName: 'PACIENTE SINTÉTICO ACTUAL',
+              document: '12345678-5',
+              clinicalEpisodeId: 'synthetic-navigation-episode',
+              censusDate: DATE,
+              bedId: 'H5C2',
+            },
+          },
           { bedId: 'R4', source: 'devices', reason: 'source_unavailable' },
           { bedId: 'H5C2', source: 'cudyr', reason: 'historical_archive_failed' },
         ],
@@ -97,10 +108,25 @@ test('navigates from history to the current occupied or empty bed and copies a c
   await seedHistory(page);
   await page.goto(`/census?date=${DATE}`);
   await page.getByTestId('rayen-sync-history-button').click();
+  const notice = page.getByText('Qué quedó pendiente en la información clínica', { exact: true });
+  await expect(notice.locator('..')).not.toHaveAttribute('open');
+  await notice.click();
   await expect(page.getByRole('link', { name: 'Ver cama H5C2 · 27-09-2026' })).toHaveAttribute(
     'href',
     `/census?date=${DATE}&focusBed=H5C2`
   );
+  await page.getByRole('button', { name: 'Copiar informe de sincronización' }).click();
+  await expect(page.getByText('Resumen copiado')).toBeVisible();
+  const report = JSON.parse(await page.evaluate(() => navigator.clipboard.readText()));
+  expect(report.format).toBe('hhr.sync-diagnostic-report.v1');
+  expect(report.attempts[0].issues[0]).toMatchObject({
+    code: CODE,
+    patientName: 'PACIENTE SINTÉTICO ACTUAL',
+    document: '12345678-5',
+    bedId: 'H5C2',
+    censusDate: DATE,
+    clinicalEpisodeId: 'synthetic-navigation-episode',
+  });
   await page.getByRole('button', { name: `Copiar código ${CODE}` }).click();
   await expect(page.getByText('Código copiado')).toBeVisible();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(CODE);
@@ -128,6 +154,7 @@ test('navigates from history to the current occupied or empty bed and copies a c
   });
 
   await page.getByTestId('rayen-sync-history-button').click();
+  await page.getByText('Qué quedó pendiente en la información clínica', { exact: true }).click();
   await page.getByRole('link', { name: 'Ver cama R4 · 27-09-2026' }).click();
   await expect(page.locator('tbody tr[data-bed-id="R4"]')).toBeFocused();
   await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -142,6 +169,7 @@ test('opens the previous census for historical CUDYR without assuming the curren
   await seedHistory(page);
   await page.goto(`/census?date=${DATE}`);
   await page.getByTestId('rayen-sync-history-button').click();
+  await page.getByText('Qué quedó pendiente en la información clínica', { exact: true }).click();
   const historicalLink = page.getByRole('link', { name: 'Ver censo · 26-09-2026' });
   await expect(historicalLink).toHaveAttribute('href', `/census?date=${PRIOR_DATE}`);
   await page.screenshot({

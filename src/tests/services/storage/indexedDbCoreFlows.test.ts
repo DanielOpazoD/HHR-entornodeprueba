@@ -174,43 +174,34 @@ describe('runFreshOpenAttempt', () => {
     const database = fakeDatabase();
     openIndexedDbWithRetriesMock.mockResolvedValueOnce(undefined);
 
-    const result = await runFreshOpenAttempt({
-      database,
-      attachDatabaseEvents: vi.fn(),
-    });
+    const result = await runFreshOpenAttempt({ database });
 
     expect(result.database).toBe(database);
     expect(result.fallbackMode).toBe(false);
     expect(result.shouldResetRecoveryTracking).toBe(true);
-    expect(result.shouldNotifyDatabaseRecreated).toBe(false);
     expect(result.shouldScheduleBackgroundRecovery).toBe(false);
     expect(recoverIndexedDbInitialOpenRuntimeFailureMock).not.toHaveBeenCalled();
   });
 
-  it('hands off to the recovery pipeline when open throws and forwards every flag', async () => {
+  it('hands off to the in-memory recovery when open throws and forwards its flags', async () => {
     const database = fakeDatabase();
-    const recoveredDatabase = fakeDatabase();
-    openIndexedDbWithRetriesMock.mockRejectedValueOnce(new Error('boom'));
+    const error = new Error('boom');
+    openIndexedDbWithRetriesMock.mockRejectedValueOnce(error);
     recoverIndexedDbInitialOpenRuntimeFailureMock.mockResolvedValueOnce({
-      database: recoveredDatabase,
+      database,
       fallbackMode: true,
       stickyFallbackMode: true,
-      shouldResetRecoveryTracking: false,
-      shouldNotifyDatabaseRecreated: true,
       shouldScheduleBackgroundRecovery: true,
     });
 
-    const result = await runFreshOpenAttempt({
-      database,
-      attachDatabaseEvents: vi.fn(),
-    });
+    const result = await runFreshOpenAttempt({ database });
 
+    expect(recoverIndexedDbInitialOpenRuntimeFailureMock).toHaveBeenCalledWith({ error, database });
     expect(result).toEqual({
-      database: recoveredDatabase,
+      database,
       fallbackMode: true,
       stickyFallbackMode: true,
       shouldResetRecoveryTracking: false,
-      shouldNotifyDatabaseRecreated: true,
       shouldScheduleBackgroundRecovery: true,
     });
   });

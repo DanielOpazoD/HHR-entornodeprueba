@@ -57,7 +57,7 @@ it('retains a complete official projection with its packed canonical copy above 
   }));
   report.officialSnapshot = {
     version: 'verified-version',
-    savedAt: new Date().toISOString(),
+    savedAt: '2026-10-10T12:00:00.000Z',
     packed: 'A'.repeat(230000),
   };
   expect(JSON.stringify(report).length).toBeGreaterThan(2_000_000);
@@ -97,4 +97,25 @@ it('retains the actual read start when a refreshed official prefix keeps its ful
   });
   expect(cache.get(report.from, report.to)?.readStartedAt).toBe('2026-10-10T20:01:00Z');
   expect(cache.get(report.from, report.to)?.indicatorSyncAt).toBe('2026-10-10T20:00:00Z');
+});
+
+it('reuses complete Firebase reads with clinical review warnings without treating them as network failures', () => {
+  const report = { ...buildCudyrReport(reportInput()), readIncomplete: false };
+  report.issues = ['Contexto clínico pendiente de conciliación'];
+  const cache = cudyrReportCache({}, 'clinical-warning:1', true);
+  cache.put(report);
+  const restored = cudyrReportCache({}, 'clinical-warning:1', true);
+  expect(restored.get(report.from, report.to)?.issues).toEqual(report.issues);
+  expect(restored.get(report.from, '2026-10-02')).toBeDefined();
+  cache.put({ ...report, readIncomplete: true, rows: [] });
+  expect(cache.get(report.from, report.to)?.rows).toEqual(report.rows);
+});
+
+it('uses the newest confirmed overlapping range after pending-only recovery', () => {
+  const report = buildCudyrReport(reportInput());
+  const cache = cudyrReportCache({}, 'recovery:1', false);
+  cache.put({ ...report, to: '2026-10-17', loadedAt: '2026-10-18T10:00:00Z' });
+  cache.put({ ...report, to: '2026-10-16', loadedAt: '2026-10-18T11:00:00Z' });
+  expect(cache.get(report.from, '2026-10-12')?.loadedAt).toBe('2026-10-18T11:00:00Z');
+  expect(cache.get(report.from, '2026-10-17')?.loadedAt).toBe('2026-10-18T10:00:00Z');
 });

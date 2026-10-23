@@ -54,7 +54,7 @@ const assertAdminRole = async (context, resolveRoleForEmail) => {
   const actor = getActor(context);
   const role =
     typeof resolveRoleForEmail === 'function'
-      ? await resolveRoleForEmail(actor.email)
+      ? await resolveRoleForEmail(actor.email, context)
       : actor.tokenRole;
 
   if (role !== 'admin') {
@@ -117,7 +117,9 @@ const loadMovementForReclassification = async ({
   movementKind,
   movementId,
 }) => {
-  const recordDoc = await getHospitalCollection(firestore, hospitalId, 'dailyRecords').doc(date).get();
+  const recordDoc = await getHospitalCollection(firestore, hospitalId, 'dailyRecords')
+    .doc(date)
+    .get();
   if (!recordDoc.exists) {
     throw new functions.https.HttpsError('not-found', 'Daily census record was not found.');
   }

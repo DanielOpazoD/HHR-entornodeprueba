@@ -1,12 +1,13 @@
 import type { Page, Route } from '@playwright/test';
 
-interface AuthorityCallablePayload {
+export interface AuthorityCallablePayload {
   date: string;
   patch: Record<string, unknown>;
   record?: Record<string, unknown>;
   mode: 'shadow' | 'enforced';
   syncContract?: {
     mutationId?: string;
+    baseRevision?: number;
   };
   intentionalBedClear?: {
     bedId: string;
@@ -124,7 +125,8 @@ const updateBrowserAuthorityShadow = async (
 
 export const installDailyRecordAuthorityRoute = async (
   page: Page,
-  initialRecord: Record<string, unknown> | Record<string, Record<string, unknown>>
+  initialRecord: Record<string, unknown> | Record<string, Record<string, unknown>>,
+  commit?: (payload: AuthorityCallablePayload) => Promise<Record<string, unknown>>
 ): Promise<DailyRecordAuthorityRouteController> => {
   const remoteRecords = normalizeInitialRecords(initialRecord);
   let sequence = 0;
@@ -188,7 +190,9 @@ export const installDailyRecordAuthorityRoute = async (
               cma: [],
             };
             const mutationBase = payload.record ? clone(payload.record) : currentRecord;
-            remoteRecords[payload.date] = applyAuthorityPatch(mutationBase, payload, sequence);
+            remoteRecords[payload.date] = commit
+              ? await commit(payload)
+              : applyAuthorityPatch(mutationBase, payload, sequence);
             const remoteRecord = remoteRecords[payload.date];
             await updateBrowserAuthorityShadow(page, payload.date, remoteRecord);
             const meta = isPlainObject(remoteRecord.meta) ? remoteRecord.meta : {};

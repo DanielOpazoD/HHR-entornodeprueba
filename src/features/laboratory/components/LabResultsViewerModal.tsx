@@ -129,8 +129,12 @@ export const LabResultsViewerModal: React.FC<LabResultsViewerModalProps> = ({
       <LabViewerProgress progress={lab.progress} />
 
       {lab.error && (
-        <div className="mb-4 rounded-xl border border-red-200/80 bg-red-50 px-4 py-3 text-[13px] text-red-700">
-          {lab.error}
+        <div
+          role="alert"
+          className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-[13px] leading-relaxed text-amber-900"
+        >
+          <p className="mb-1 font-semibold">No se pudo completar la consulta</p>
+          <p>{lab.error}</p>
         </div>
       )}
 

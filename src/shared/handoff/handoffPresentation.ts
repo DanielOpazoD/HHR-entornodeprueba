@@ -1,4 +1,6 @@
 import { formatCensusIsoDate } from '@/shared/census/censusPresentation';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
+import { formatCalendarDate } from '@/utils/dateDisplayUtils';
 
 export const formatHandoffDateTime = (isoTimestamp?: string | null): string => {
   if (!isoTimestamp) {
@@ -10,7 +12,7 @@ export const formatHandoffDateTime = (isoTimestamp?: string | null): string => {
     return 'sin registro';
   }
 
-  return parsed.toLocaleString('es-CL');
+  return parsed.toLocaleString('es-CL', { timeZone: CLINICAL_TIME_ZONE });
 };
 
 export const formatHandoffDate = (isoDate?: string | null): string => {
@@ -26,17 +28,14 @@ export const formatHandoffVerboseDate = (isoDate?: string | null): string => {
     return 'Sin fecha';
   }
 
-  const parsed = new Date(`${isoDate}T12:00:00`);
-  if (Number.isNaN(parsed.getTime())) {
-    return isoDate;
-  }
-
-  return parsed.toLocaleDateString('es-CL', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
+  return (
+    formatCalendarDate(isoDate, {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    }) ?? isoDate
+  );
 };
 
 export const resolveHandoffDocumentDate = (recordDate?: string): string | null => {

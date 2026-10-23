@@ -1,3 +1,4 @@
+import { CUDYR_ADMIN_ADJUSTMENT_SOURCE } from '@/domain/evaluationScales/importedCudyr';
 import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
 import type { ArchivedCudyrSupplement } from './cudyrSupplementService';
@@ -41,9 +42,17 @@ export const applyCudyrMonthlySources = (
 ): CudyrReportDataset => {
   const now = new Date(input.generatedAt);
   const rows = input.rows.map(r => ({ ...r, warnings: [...r.warnings] }));
-  // Only Eloísa results contribute. Legacy manual values remain in their original persisted record.
+  // Eloísa results and justified administrative exceptions contribute. Unreviewed legacy scores do not.
   for (const row of rows)
-    if (row.evaluation && !isEloisaCudyr(row.evaluation.source)) {
+    if (
+      row.evaluation &&
+      !isEloisaCudyr(row.evaluation.source) &&
+      !(
+        row.evaluation.source === CUDYR_ADMIN_ADJUSTMENT_SOURCE &&
+        row.evaluation.adjustmentReason?.trim() &&
+        row.evaluation.adjustmentEvidence?.trim()
+      )
+    ) {
       row.evaluation = null;
       row.evaluationCount = 0;
       row.evaluationCapturedAt = undefined;
@@ -247,6 +256,20 @@ export const applyCudyrMonthlySources = (
               }
             : {}),
         };
+        // A reviewed contingency remains authoritative; source evidence stays visible separately.
+        if (
+          row.evaluation?.source === CUDYR_ADMIN_ADJUSTMENT_SOURCE &&
+          row.evaluation.adjustmentReason &&
+          row.evaluation.adjustmentEvidence
+        ) {
+          if (cell.category && cell.category !== row.evaluation.category) {
+            const warning =
+              'Eloísa difiere del ajuste administrativo; se conserva la excepción autorizada.';
+            if (!row.warnings.includes(warning)) row.warnings.push(warning);
+          }
+          row.cudyrStatus = 'registrado';
+          continue;
+        }
         if (cell.category) {
           if (
             (positiveCategories.get(cellKey(patient.document, patient.patientName, cell.sourceDate))

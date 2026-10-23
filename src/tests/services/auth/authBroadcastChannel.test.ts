@@ -58,7 +58,6 @@ describe('authBroadcastChannel', () => {
     Reflect.deleteProperty(globalThis, 'BroadcastChannel');
 
     expect(() => api.broadcastLogout('manual')).not.toThrow();
-    expect(() => api.broadcastSyncCompleted(['daily:2026-04-05'])).not.toThrow();
     expect(() => api.broadcastSessionActivity('synthetic-user', 123)).not.toThrow();
     expect(constructor).not.toHaveBeenCalled();
   });
@@ -78,7 +77,6 @@ describe('authBroadcastChannel', () => {
     });
 
     expect(() => api.broadcastLogout('automatic')).not.toThrow();
-    expect(() => api.broadcastSyncCompleted(['staff:catalog'])).not.toThrow();
     expect(() => api.onAuthChannelMessage(vi.fn())()).not.toThrow();
     expect(channel.postMessage).not.toHaveBeenCalled();
     expect(channel.addEventListener).not.toHaveBeenCalled();
@@ -102,15 +100,14 @@ describe('authBroadcastChannel', () => {
     }
   );
 
-  it('includes task types and activity values while reusing the same channel', () => {
-    const taskTypes = ['daily:2026-04-05', 'staff:catalog'];
-    api.broadcastSyncCompleted(taskTypes);
+  it('includes logout and activity values while reusing the same channel', () => {
+    api.broadcastLogout('manual');
     api.broadcastSessionActivity('synthetic-user', 123);
 
     const tabId = channel.postMessage.mock.calls[0][0].tabId;
     expect(tabId).toEqual(expect.any(String));
     expect(channel.postMessage.mock.calls).toEqual([
-      [{ type: 'SYNC_COMPLETED', taskTypes, tabId }],
+      [{ type: 'LOGOUT', reason: 'manual', generation: null, tabId }],
       [{ type: 'ACTIVITY', userId: 'synthetic-user', at: 123, tabId }],
     ]);
     expect(constructor).toHaveBeenCalledTimes(1);
@@ -138,8 +135,9 @@ describe('authBroadcastChannel', () => {
     const cleanupSecond = api.onAuthChannelMessage(second);
     const firstHandler = channel.addEventListener.mock.calls[0][1];
     const message: AuthChannelMessage = {
-      type: 'SYNC_COMPLETED',
-      taskTypes: ['staff:catalog'],
+      type: 'ACTIVITY',
+      userId: 'synthetic-user',
+      at: 123,
       tabId: 'foreign-tab',
     };
 

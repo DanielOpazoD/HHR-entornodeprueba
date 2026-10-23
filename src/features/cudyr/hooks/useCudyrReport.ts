@@ -1,8 +1,9 @@
+import { readCudyrReadView, saveCudyrReadView } from '@/services/cudyr/cudyrReadView';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
 import { loadCudyrReport } from '@/services/cudyr/cudyrReportLoader';
-import { cudyrReportCache } from '@/services/cudyr/cudyrReportCache';
+import { cudyrReportCache, cudyrReportReadIncomplete } from '@/services/cudyr/cudyrReportCache';
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
@@ -67,7 +68,9 @@ export const useCudyrReport = (
       setError('');
       dataScope.current = scope;
       const visible = visibleData.current;
-      const lastGood = cached || (visible?.from === from && visible.to === to ? visible : null);
+      const lastGood =
+        cached ||
+        (visible?.from === from && visible.to === to && !visible.readViewSnapshot ? visible : null);
       setData(lastGood);
       const loadedAt = Date.parse(cached?.loadedAt || cached?.generatedAt || '');
       // The compact card keeps its daily snapshot; interactive verification remains unchanged.
@@ -85,6 +88,24 @@ export const useCudyrReport = (
         return;
       }
       setBusy(true);
+      let authoritativeFinished = false;
+      if (!lastGood && scope && loader === loadCudyrReport) {
+        void readCudyrReadView(from, to, request.signal)
+          .then(saved => {
+            if (
+              saved &&
+              !authoritativeFinished &&
+              !request.signal.aborted &&
+              active.current === request &&
+              sessionScope() === scope
+            ) {
+              setData(saved);
+            }
+          })
+          .catch(() => {
+            /* Optional view unavailable: the authoritative read continues. */
+          });
+      }
       try {
         const readStartedAt = new Date().toISOString();
         const loaded = await loader(from, to, request.signal);
@@ -97,13 +118,12 @@ export const useCudyrReport = (
           loadedAt: new Date().toISOString(),
         };
         if (!request.signal.aborted && active.current === request && sessionScope() === scope) {
+          authoritativeFinished = true;
           if (scope) {
-            if (result.issues.length || result.coverage.some(day => day.state === 'error'))
-              store.requireVerification();
+            if (cudyrReportReadIncomplete(result)) store.requireVerification();
             store.put(result);
           }
-          const incomplete =
-            result.issues.length || result.coverage.some(day => day.state === 'error');
+          const incomplete = cudyrReportReadIncomplete(result);
           if (incomplete) {
             setData(lastGood || result);
             setError(
@@ -111,14 +131,22 @@ export const useCudyrReport = (
                 ? 'Lectura incompleta de Firebase. Se conserva la copia anterior.'
                 : 'Lectura incompleta de Firebase.'
             );
-          } else setData(result);
+          } else {
+            setData(result);
+            if (loader === loadCudyrReport)
+              void saveCudyrReadView(result)?.catch(() => {
+                /* A read-view cache failure cannot invalidate clinical reads. */
+              });
+          }
         }
       } catch (caught) {
         if (!request.signal.aborted && active.current === request && sessionScope() === scope) {
           store.requireVerification();
+          setData(lastGood);
           setError(caught instanceof Error ? caught.message : 'No se pudo leer el reporte.');
         }
       } finally {
+        authoritativeFinished = true;
         if (!request.signal.aborted && active.current === request) setBusy(false);
       }
     },

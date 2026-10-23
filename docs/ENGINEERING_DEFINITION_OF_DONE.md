@@ -1,5 +1,7 @@
 # Engineering Definition Of Done
 
+> Sólo guía vigente. El historial de incidentes y parches va en la descripción del PR que los resuelve; el anterior está en el [historial de runbooks](archive/RUNBOOK_HISTORY_2026.md).
+
 Una change queda lista solo si cumple todo lo siguiente:
 
 1. `npm run typecheck`, `npm run lint`, `npm run check:quality` y `npm run build` pasan en verde.
@@ -11,6 +13,19 @@ Una change queda lista solo si cumple todo lo siguiente:
 7. Si toca un subsistema crítico, mantiene actualizado `scripts/config/technical-ownership-map.json` con owner, gate y runbook vigentes.
 8. Si la change entra en una categoría gobernada, sigue `scripts/config/sustainable-change-policy.json` y deja evidencia del gate o artefacto requerido.
 9. Si incluye lógica de app, assets estáticos o snapshots de `reports/`, separa esos concerns en commits distintos cuando no dependan del mismo fix.
+
+Para validar ingresos tras cambios de cama, probar el recorrido de conciliación,
+aplicación y validación con dos camas ocupadas que intercambian episodios. El
+comparador usa identidad de episodio y conserva el rechazo de cambios reales de
+fecha, incluidos episodios antiguos sin identificador. El historial de un guardado
+rechazado debe conservar la causa y la identidad del intento, sin errores crudos ni
+atribuir el fallo al ocupante posterior de la cama.
+
+Para cambios de identidad en la guarda de borrado, exigir paridad cliente/servidor, bloqueo
+de RN con documento materno y episodios distintos, y conservación de permutas, cuna a cama
+e hidratación `legacy_ep_` a id persistido. Probar que un rechazo del callable no escribe
+ni crea historia. La evidencia sintética no acredita datos reales ni el servidor desplegado;
+confirmar por separado el rollout automático antes de declarar la protección activa en ambos lados.
 
 Para instrumentación de transacciones clínicas, demostrar que los callbacks
 fallidos y reintentados se cuentan sin duplicar etapas, que la telemetría no incorpora
@@ -33,6 +48,13 @@ Para cambios en inicio de sesión o recarga autenticada, verificar que el eco in
 del observer no readmita una sesión idéntica, sin saltar la admisión pendiente,
 los cambios de permisos ni el cierre de sesión. Los providers diferidos no deben
 remontar la interfaz clínica ni borrar estado de controles al completar su carga.
+
+La recarga desde Ayuda de acceso debe preservar una tarea no confirmada real en
+IndexedDB, Web Storage y caché después de navegar, usando sólo fixtures sintéticos.
+Probar cancelación sin perder entradas ni errores y bloqueo de RUT/Google durante
+la confirmación. No sustituir esa conservación por una cola vaciada. El cierre de
+este cambio exige `ci:merge-gate`, `test:release-confidence`, revisión independiente
+y CI del head definitivo; las pruebas focalizadas no acreditan gates pendientes.
 
 Para exportaciones y respaldos, el vencimiento de la espera de guardado no equivale
 a un censo listo. Probar el guardado pendiente, el fallo de guardado y el cambio de

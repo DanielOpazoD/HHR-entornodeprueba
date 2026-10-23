@@ -198,7 +198,7 @@ const updatePatientCudyr = ({ patient, category, date, email }) => {
 const createAdminCudyrResultFunctions = ({ firestore, Timestamp, resolveRoleForEmail }) => ({
   setAdminCudyrResult: functions.https.onCall(async (data, context) => {
     const email = requireAuthenticatedEmail(context);
-    const role = await resolveRoleForEmail(email);
+    const role = await resolveRoleForEmail(email, context);
     if (role !== 'admin') {
       throw new functions.https.HttpsError(
         'permission-denied',
@@ -326,7 +326,8 @@ const createAdminCudyrResultFunctions = ({ firestore, Timestamp, resolveRoleForE
         transaction.set(recordRef, nextRecord);
         transaction.set(auditRef, {
           id: auditRef.id,
-          timestamp: now,
+          // ISO like every other audit event: the audit screen queries periods by this string.
+          timestamp: now.toDate().toISOString(),
           userId: email,
           userDisplayName: email,
           userUid: context.auth?.uid || null,

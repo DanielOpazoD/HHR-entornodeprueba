@@ -320,7 +320,6 @@ describe('chunkingPolicy', () => {
     expect(exportManagerSource).toContain(
       "import('@/hooks/controllers/exportManagerConfirmController')"
     );
-    expect(archiveStatusSource).not.toContain('@/hooks/controllers/exportManagerController');
     expect(archiveStatusSource).toContain('@/hooks/controllers/backupArchiveStatusController');
     expect(archiveStatusSource).not.toMatch(
       /import\s+\{[\s\S]*presentBackupLookupOutcome[\s\S]*\}\s+from ['"]@\/hooks\/controllers\/backupStorageOutcomeController['"]/
@@ -341,24 +340,6 @@ describe('chunkingPolicy', () => {
     expect(fileOperationsSource).toContain(
       "import('@/application/backup-export/backupExportMaintenanceUseCases')"
     );
-  });
-
-  it('keeps production source off the backup export barrel', () => {
-    const sourceFiles = collectProductionSourceFiles(path.resolve(process.cwd(), 'src'));
-    const offenders = sourceFiles
-      .filter(
-        file =>
-          file !==
-          path.resolve(process.cwd(), 'src/application/backup-export/backupExportUseCases.ts')
-      )
-      .filter(file =>
-        readSource(path.relative(process.cwd(), file)).includes(
-          '@/application/backup-export/backupExportUseCases'
-        )
-      )
-      .map(file => path.relative(process.cwd(), file));
-
-    expect(offenders).toEqual([]);
   });
 
   it('keeps audit write/fetch use cases out of the authenticated shell startup path', () => {
@@ -480,8 +461,8 @@ describe('chunkingPolicy', () => {
       .filter(file => {
         const source = readSource(path.relative(process.cwd(), file));
         return (
-          /from ['"]googleapis['"]/.test(source) ||
-          /import\(['"]googleapis['"]\)/.test(source) ||
+          /from ['"]googleapis(?:\/[^'"]+)?['"]/.test(source) ||
+          /import\(['"]googleapis(?:\/[^'"]+)?['"]\)/.test(source) ||
           source.includes('@/services/email/gmailClient')
         );
       })

@@ -15,7 +15,7 @@ export const TransferRowView: React.FC<TransferRowViewProps> = ({
   onOpenEpicrisis,
 }) => (
   <tr className="border-b border-slate-100 last:border-0 hover:bg-slate-50 print:border-slate-300">
-    <CensusMovementPrimaryCells viewModel={viewModel} />
+    <CensusMovementPrimaryCells viewModel={viewModel} showBedType={false} />
     <td className="p-2 text-slate-600">{viewModel.evacuationMethodLabel}</td>
     <td className="p-2 text-slate-600">
       <div>{viewModel.receivingCenterLabel}</div>

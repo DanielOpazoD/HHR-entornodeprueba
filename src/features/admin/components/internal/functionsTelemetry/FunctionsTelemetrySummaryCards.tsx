@@ -1,6 +1,7 @@
 import React from 'react';
 import { Activity, AlertTriangle, CheckCircle2, Clock, Timer } from 'lucide-react';
 import type { FunctionsTelemetryServiceSummary } from '@/types/functionsTelemetry';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 interface Props {
   summaries: FunctionsTelemetryServiceSummary[];
@@ -11,6 +12,7 @@ const formatDate = (iso?: string) => {
   if (!iso) return '—';
   try {
     return new Date(iso).toLocaleString('es-CL', {
+      timeZone: CLINICAL_TIME_ZONE,
       day: '2-digit',
       month: '2-digit',
       hour: '2-digit',

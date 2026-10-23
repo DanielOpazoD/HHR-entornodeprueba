@@ -1,4 +1,6 @@
 // @vitest-environment node
+// @flake-safe: the child CLI uses the real clock; freshness has a full-day margin,
+// while boundary cases above use a fixed clock. No timing or latency assertion.
 import { describe, expect, it } from 'vitest';
 import { spawnSync } from 'node:child_process';
 import { assessMigrationPreflight } from '../../../scripts/migration/cutoverPreflight.mjs';
@@ -26,8 +28,10 @@ const fixture = () => ({
   mirror: {
     ...base,
     project: 'hhr-serviciohospitalizados',
-    function: 'mirrorDailyRecords',
-    state: 'disabled',
+    function: 'mirror*',
+    scope: 'all-regions-all-mirror-functions',
+    remainingFunctions: [] as string[],
+    state: 'deleted',
   },
   deployment: { ...base, project, expectedCommit: sha, deployedCommit: sha },
   rules: { ...base, project, expectedHash: hash, deployedHash: hash },
@@ -90,6 +94,75 @@ describe('migration preflight evidence', () => {
     data.mirror.state = 'deleted';
     expect(assessMigrationPreflight(data, now).readyForRehearsal).toBe(true);
   });
+
+  it('does not accept old evidence that checked only the census mirror', () => {
+    const data = fixture();
+    data.mirror.function = 'mirrorDailyRecords';
+    expect(assessMigrationPreflight(data, now).readyForRehearsal).toBe(false);
+  });
+
+  it('holds remaining mirror functions even if the supplied state says deleted', () => {
+    const data = fixture();
+    data.mirror.remainingFunctions = ['mirrorSettings'];
+    expect(assessMigrationPreflight(data, now).readyForRehearsal).toBe(false);
+  });
+  const separateOrigin = () => ({
+    ...fixture().localSession,
+    strategy: 'separate-origin',
+    sourceOrigin: 'https://old.example.org',
+    targetOrigin: 'https://new.example.org',
+    sourceConfigProject: 'hhr-serviciohospitalizados',
+    targetConfigProject: project,
+    legacyOriginPreserved: true,
+    targetSessionTestPassed: true,
+    sameOriginTransitionTestPassed: false,
+  });
+
+  it('accepts reviewed separate origins without claiming a same-origin transition test', () => {
+    const data = fixture();
+    Object.assign(data.localSession, separateOrigin());
+    const report = assessMigrationPreflight(data, now);
+    expect(report.readyForRehearsal).toBe(true);
+    expect(report.authorizesProductionCutover).toBe(false);
+    expect(JSON.stringify(report)).not.toContain('example.org');
+  });
+
+  it.each([
+    { sourceOrigin: 'https://new.example.org' },
+    { sourceOrigin: 'http://old.example.org' },
+    { targetOrigin: 'http://new.example.org' },
+    { targetOrigin: 'https://new.example.org/census' },
+    { targetOrigin: 'https://account@new.example.org' },
+    { targetOrigin: 'https://new.example.org?project=hhr-pruebas' },
+    { targetOrigin: 'https://new.example.org#official' },
+    { targetOrigin: 'not-a-url' },
+    { targetOrigin: ['https://new.example.org'] },
+    { targetOrigin: ' https://new.example.org' },
+    { sourceConfigProject: project },
+    { targetConfigProject: 'hhr-serviciohospitalizados' },
+    { legacyOriginPreserved: false },
+    { targetSessionTestPassed: false },
+    { pendingOperations: 1 },
+    { projectIsolationVerified: false },
+    { strategy: 'unrecognized' },
+  ])('holds unverified or ambiguous separate-origin evidence: %j', change => {
+    const data = fixture();
+    Object.assign(data.localSession, separateOrigin(), change, {
+      sameOriginTransitionTestPassed: true,
+    });
+    expect(
+      assessMigrationPreflight(data, now).checks.find(item => item.id === 'localSession')
+    ).toMatchObject({ passed: false, reason: 'condition_not_met' });
+  });
+
+  it('retains the same-origin lane and never accepts it without a transition test', () => {
+    const data = fixture();
+    Object.assign(data.localSession, { strategy: 'same-origin' });
+    expect(assessMigrationPreflight(data, now).readyForRehearsal).toBe(true);
+    data.localSession.sameOriginTransitionTestPassed = false;
+    expect(assessMigrationPreflight(data, now).readyForRehearsal).toBe(false);
+  });
+
   it('rejects wrong projects, mismatched deployments/rules and outstanding operations', () => {
     const data = fixture();
     data.projects.targetId = 'other';

@@ -8,6 +8,55 @@ import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSup
 import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 describe('rebasePendingDailyRecordWrite', () => {
+  it.each(['replaced', 'removed'] as const)(
+    'drops an old crib draft when the crib is %s',
+    change => {
+      const date = '2026-08-29';
+      const pendingRecord = DataFactory.createMockDailyRecord(date, {
+        beds: {
+          R1: DataFactory.createMockPatient('R1', {
+            clinicalEpisodeId: 'parent-episode',
+            pathology: 'Diagnóstico pendiente de la madre',
+            clinicalCrib: DataFactory.createMockPatient('R1', {
+              clinicalEpisodeId: 'old-crib',
+              pathology: 'No copiar a otra cuna',
+            }),
+          }),
+        },
+      });
+      const currentCrib =
+        change === 'removed'
+          ? undefined
+          : DataFactory.createMockPatient('R1', {
+              clinicalEpisodeId: 'new-crib',
+              pathology: 'Diagnóstico de la nueva cuna',
+            });
+      const authoritativeRecord = structuredClone(pendingRecord);
+      authoritativeRecord.beds.R1.clinicalCrib = currentCrib;
+      const result = rebasePendingDailyRecordWrite({
+        authoritativeRecord,
+        pendingTask: {
+          taskId: 1,
+          record: pendingRecord,
+          recordRevision: pendingRecord.lastUpdated,
+          changedPaths: ['beds.R1'],
+        },
+        alreadyAppliedPatch:
+          change === 'removed'
+            ? { 'beds.R1.clinicalCrib': undefined }
+            : { 'beds.R1.clinicalCrib.clinicalEpisodeId': 'new-crib' },
+      });
+      expect(result.record.beds.R1.pathology).toBe('Diagnóstico pendiente de la madre');
+      if (currentCrib) {
+        expect(result.record.beds.R1.clinicalCrib).toMatchObject({
+          clinicalEpisodeId: currentCrib.clinicalEpisodeId,
+          patientName: currentCrib.patientName,
+          pathology: currentCrib.pathology,
+        });
+      } else expect(result.record.beds.R1.clinicalCrib).toBeUndefined();
+    }
+  );
+
   it('preserves authoritative clinical crib fields under an older pending bed object', () => {
     const date = '2026-08-29';
     const authoritativeCrib = DataFactory.createMockPatient('R1', {

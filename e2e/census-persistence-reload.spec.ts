@@ -4,11 +4,15 @@ import {
   buildCanonicalE2ERecord,
   ensureAuthenticated,
 } from './fixtures/auth';
-import { expectClinicalDiagnosis, updateClinicalDiagnosis } from './fixtures/clinicalBlockEditor';
+import {
+  expectClinicalDiagnosis,
+  getClinicalDiagnosisButton,
+} from './fixtures/clinicalBlockEditor';
 import { waitForPersistedBedFields } from './fixtures/censusPersistence';
 import { installDailyRecordAuthorityRoute } from './fixtures/dailyRecordAuthorityRoute';
+import { getTodayISO } from '../src/utils/dateCoreUtils';
 
-const PERSISTENCE_DATE = process.env.E2E_FIXED_DATE ?? new Date().toISOString().slice(0, 10);
+const PERSISTENCE_DATE = process.env.E2E_FIXED_DATE ?? getTodayISO();
 
 const getRow = (page: import('@playwright/test').Page, bedId: string) =>
   page.locator(`[data-testid="patient-row"][data-bed-id="${bedId}"]`).first();
@@ -75,11 +79,16 @@ test.describe('Census persistence and reload', () => {
 
     const patientNameInput = row.locator('input[name="patientName"]').first();
     await expect(patientNameInput).toHaveValue('Updated Patient');
-    await updateClinicalDiagnosis(page, row, 'R1', 'UPDATED DX');
+    await getClinicalDiagnosisButton(row).click();
+    await page.getByTestId('clinical-block-pathology-R1').fill('UPDATED DX');
+    await page.getByTestId('clinical-block-save-R1').click();
     const diagnosisSave = await authority.nextCall();
     expect(diagnosisSave.payload.date).toBe(PERSISTENCE_DATE);
     expect(diagnosisSave.payload.patch).toMatchObject({ 'beds.R1.pathology': 'UPDATED DX' });
+    // The editor stays open until the controlled authority response confirms the write.
+    await expect(page.getByTestId('clinical-block-editor-R1')).toBeVisible();
     await diagnosisSave.succeed();
+    await expect(page.getByTestId('clinical-block-editor-R1')).toBeHidden();
 
     await expectClinicalDiagnosis(row, 'UPDATED DX');
     await waitForPersistedBedFields({

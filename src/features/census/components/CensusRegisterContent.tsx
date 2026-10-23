@@ -12,6 +12,7 @@ import type { CensusAccessProfile } from '@/features/census/types/censusAccessPr
 import { isSpecialistCensusAccessProfile } from '@/features/census/types/censusAccessProfile';
 import { useDeferredCensusEnhancement } from '@/features/census/hooks/useDeferredCensusEnhancement';
 import { useDailyRecordStatus } from '@/context/DailyRecordContext';
+import { useDailyRecordWriteStatus } from '@/hooks/useDailyRecordWriteStatus';
 import { resolveCensusOperationalState } from '@/features/census/controllers/censusOperationalStateController';
 import type { CensusAttentionFilter } from '@/features/census/controllers/rowAcuityController';
 import { lazyWithRetry } from '@/utils/lazyWithRetry';
@@ -57,6 +58,8 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
   const shouldRenderDeferredSections = useDeferredCensusEnhancement(shouldRenderSections);
   const [attentionFilter, setAttentionFilter] = useState<CensusAttentionFilter>('all');
   const dailyRecordStatus = useDailyRecordStatus();
+  const writeStatus = useDailyRecordWriteStatus(currentDateString);
+  const editingReadOnly = readOnly || writeStatus.isSyncCommit;
   const operationalState = resolveCensusOperationalState({
     branch: 'register',
     bootstrapPhase: dailyRecordStatus.bootstrapPhase,
@@ -71,7 +74,6 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
 
       <div className="census-register space-y-4" style={marginStyle}>
         <CensusOperationalStateBanner state={operationalState} />
-
         <CensusStaffHeader
           selectedDate={currentDateString}
           readOnly={readOnly}
@@ -85,7 +87,7 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
 
         <CensusRegisterMainContent
           currentDateString={currentDateString}
-          readOnly={readOnly}
+          readOnly={editingReadOnly}
           visibleBeds={visibleBeds}
           beds={beds}
           accessProfile={accessProfile}

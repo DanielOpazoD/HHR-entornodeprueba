@@ -7,7 +7,7 @@
  */
 
 import type { NeonatalPlacementReview } from './neonatalPlacementReview';
-import type { RayenSyncCaseContext } from '@/types/domain/rayenSync';
+import type { RayenSyncCaseContext, RayenSyncDiagnosticContext } from '@/types/domain/rayenSync';
 import type { PatientData } from './rayenDomainContracts';
 import type { DischargeData } from '@/types/domain/movements';
 import type { RayenEncounter } from './rayenSnapshot';
@@ -181,6 +181,9 @@ export interface PendingAdministrativeDischargeEntry {
 
 /** Something that cannot be applied automatically and needs human resolution. */
 export interface ConflictEntry {
+  diagnostic?: RayenSyncDiagnosticContext;
+  /** Exact known subject when no current source encounter or occupied bed represents this case. */
+  clinicalEpisodeId?: string;
   /** Transient, episode-aware identity for prior-census continuity review (not a source capture). */
   continuityKey?: string;
   /** Original case location, separate from the current bed used for conflict isolation. */

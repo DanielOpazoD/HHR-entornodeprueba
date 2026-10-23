@@ -58,7 +58,6 @@ export const DevicesCell: React.FC<DevicesCellProps> = ({
         currentDate={currentDateString}
         disabled={readOnly || false}
       />
-
       {!isEmpty && !readOnly && (
         <button
           type="button"

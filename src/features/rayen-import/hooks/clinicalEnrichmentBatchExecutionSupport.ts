@@ -1,5 +1,6 @@
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type {
+  ClinicalFillBatchApplyResult,
   ClinicalFillBatchEvidence,
   ClinicalFillPatchOperation,
   ClinicalPersistenceEvidence,
@@ -25,6 +26,37 @@ export const failureMessage = (error: unknown): string =>
     : typeof (error as { message?: unknown } | null)?.message === 'string'
       ? String((error as { message: string }).message)
       : String(error || 'Error desconocido');
+
+export const applyLegacyClinicalEnrichmentOperations = async (
+  operations: ClinicalFillPatchOperation[],
+  applyPatch: (operation: ClinicalFillPatchOperation) => Promise<void>
+): Promise<ClinicalFillBatchApplyResult> => {
+  const failures: NonNullable<ClinicalFillBatchApplyResult['failures']> = [];
+  let patientWrites = 0;
+  let historySnapshots = 0;
+  for (const [index, operation] of operations.entries()) {
+    try {
+      const clinicalChange = (operation.clinicalFieldCount ?? 1) > 0;
+      const captureHistorySnapshot = clinicalChange && historySnapshots === 0;
+      await applyPatch({
+        patch: operation.patch,
+        target: {
+          ...operation.target,
+          captureHistorySnapshot,
+        },
+      });
+      patientWrites += 1;
+      if (captureHistorySnapshot) historySnapshots = 1;
+    } catch (error) {
+      failures.push({ index, message: failureMessage(error) });
+    }
+  }
+  return {
+    patientWrites,
+    historySnapshots,
+    ...(failures.length > 0 ? { failures } : {}),
+  };
+};
 
 export const isClinicalBatchRetryableError = (error: unknown): boolean => {
   const code = errorCode(error);

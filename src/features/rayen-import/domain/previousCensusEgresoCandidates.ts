@@ -1,13 +1,17 @@
-import { normalizeRut } from '@/utils/rutUtils';
+import { isValidRut } from '@/utils/rutUtils';
+import { normalizePatientRut as normalizeRut } from './censusPatientIdentityIndex';
 import type { EgresoLookupTarget } from '../contracts/egresoLookup';
 import type { EgresoReportRow } from '../contracts/egresoReport';
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
 import { correctedStamp } from './egresoReportPolicy';
 import { previousCensusDate } from './previousCensusContinuity';
+import { neonatalMaternalLookupRut } from './neonatalMaternalLookupIdentity';
 
 export interface PreviousCensusEgresoCandidate extends EgresoLookupTarget {
   patientName: string;
   fromClinicalCrib: boolean;
+  /** Distinct from the lookup RUN, which may belong to the parent. */
+  personalRun?: string;
 }
 
 const normalizedName = (value: string | undefined): string =>
@@ -40,6 +44,7 @@ export const previousCensusEgresoRowIdentity = (row: EgresoReportRow): string =>
 interface PreviousOccupant {
   patient: PatientData;
   fromClinicalCrib: boolean;
+  lookupRun: string;
 }
 
 const occupantIdentityWithoutDay = (patient: PatientData): string =>
@@ -54,12 +59,18 @@ const occupantIdentityWithoutDay = (patient: PatientData): string =>
 export const previousCensusEgresoCandidates = (
   previous: DailyRecord | null | undefined,
   rows: readonly EgresoReportRow[],
-  reportDate: string
+  reportDate: string,
+  historicalPresence = false
 ): PreviousCensusEgresoCandidate[] => {
-  if (!previous || previous.date !== previousCensusDate(reportDate)) return [];
+  if (!previous || ![reportDate, previousCensusDate(reportDate)].includes(previous.date)) return [];
   const eligibleRows = rows.filter(row => {
     const day = correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime).correctedDay;
-    return day === previous.date || day === reportDate;
+    // A later discharge can prove yesterday's presence. This is exact-episode discovery only;
+    // the movement planner still owns the discharge's actual clinical day.
+    return previous.date === reportDate
+      ? day === reportDate ||
+          Boolean(historicalPresence && day && previousCensusDate(day) === reportDate)
+      : day === previous.date || day === reportDate;
   });
   const rowIdentityCount = new Map<string, number>();
   for (const row of eligibleRows) {
@@ -67,22 +78,76 @@ export const previousCensusEgresoCandidates = (
     if (identity) rowIdentityCount.set(identity, (rowIdentityCount.get(identity) ?? 0) + 1);
   }
 
-  const occupants: PreviousOccupant[] = Object.values(previous.beds).flatMap(patient => [
-    ...(patient?.patientName?.trim() ? [{ patient, fromClinicalCrib: false }] : []),
+  const activeOccupants: PreviousOccupant[] = Object.values(previous.beds).flatMap(patient => [
+    ...(patient?.patientName?.trim()
+      ? [{ patient, fromClinicalCrib: false, lookupRun: patient.rut ?? '' }]
+      : []),
     ...(patient?.clinicalCrib?.patientName?.trim()
-      ? [{ patient: patient.clinicalCrib, fromClinicalCrib: true }]
+      ? [
+          {
+            patient: patient.clinicalCrib,
+            fromClinicalCrib: true,
+            lookupRun:
+              patient.clinicalCrib.rut ||
+              (isValidRut(patient.clinicalCrib.neonatalMaternalRut ?? '')
+                ? patient.clinicalCrib.neonatalMaternalRut
+                : '') ||
+              neonatalMaternalLookupRut(
+                previous,
+                [],
+                patient.clinicalCrib.clinicalEpisodeId ?? '',
+                patient.rut
+              ) ||
+              '',
+          },
+        ]
       : []),
   ]);
+  const recordedOccupants: PreviousOccupant[] = previous.discharges
+    .filter(movement => !movement.deletedAt && movement.originalData)
+    .map(movement => {
+      const patient = {
+        ...movement.originalData!,
+        clinicalEpisodeId: movement.clinicalEpisodeId || movement.originalData!.clinicalEpisodeId,
+        patientName: movement.patientName,
+        rut: movement.rut ?? movement.originalData!.rut,
+      };
+      return {
+        patient,
+        fromClinicalCrib: movement.isNested === true || patient.bedMode === 'Cuna',
+        lookupRun:
+          patient.rut ||
+          (isValidRut(patient.neonatalMaternalRut ?? '') ? patient.neonatalMaternalRut! : ''),
+      };
+    });
+  const occupants = [
+    ...new Map(
+      [...activeOccupants, ...recordedOccupants].map(item => [
+        [
+          item.patient.clinicalEpisodeId,
+          item.lookupRun,
+          item.patient.patientName,
+          item.fromClinicalCrib,
+        ].join('|'),
+        item,
+      ])
+    ).values(),
+  ];
   const occupantIdentityCount = new Map<string, number>();
   for (const occupant of occupants) {
-    const identity = occupantIdentityWithoutDay(occupant.patient);
+    const identity = occupantIdentityWithoutDay({ ...occupant.patient, rut: occupant.lookupRun });
     occupantIdentityCount.set(identity, (occupantIdentityCount.get(identity) ?? 0) + 1);
   }
 
-  return occupants.flatMap(({ patient, fromClinicalCrib }) => {
+  return occupants.flatMap(({ patient, fromClinicalCrib, lookupRun }) => {
     const encounterId = patient.clinicalEpisodeId?.trim() ?? '';
-    const patientIdentity = occupantIdentityWithoutDay(patient);
-    if (!/^\d+$/.test(encounterId) || occupantIdentityCount.get(patientIdentity) !== 1) return [];
+    const patientIdentity = occupantIdentityWithoutDay({ ...patient, rut: lookupRun });
+    if (
+      !normalizeRut(lookupRun) ||
+      !/^\d+$/.test(encounterId) ||
+      occupantIdentityCount.get(patientIdentity) !== 1
+    )
+      return [];
     const matchingRows = eligibleRows.filter(
       row => `${normalizeRut(row.run)}|${normalizedName(row.patientName)}` === patientIdentity
     );
@@ -98,7 +163,8 @@ export const previousCensusEgresoCandidates = (
     if (!dischargeDay) return [];
     return [
       {
-        run: patient.rut ?? '',
+        run: lookupRun,
+        ...(!patient.rut ? { personalRun: '' } : {}),
         encounterId,
         dischargeDay,
         patientName: patient.patientName ?? '',

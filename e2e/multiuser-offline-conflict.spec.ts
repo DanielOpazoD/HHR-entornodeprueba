@@ -5,11 +5,16 @@ import {
   ensureAuthenticated,
   readIndexedDbDailyRecord,
 } from './fixtures/auth';
-import { expectClinicalDiagnosis, updateClinicalDiagnosis } from './fixtures/clinicalBlockEditor';
+import {
+  expectClinicalDiagnosis,
+  expectClinicalEditorClosed,
+  submitClinicalDiagnosis,
+} from './fixtures/clinicalBlockEditor';
 import { waitForPersistedBedFields } from './fixtures/censusPersistence';
 import { installDailyRecordAuthorityRoute } from './fixtures/dailyRecordAuthorityRoute';
+import { getTodayISO } from '../src/utils/dateCoreUtils';
 
-const MULTIUSER_DATE = process.env.E2E_FIXED_DATE ?? new Date().toISOString().slice(0, 10);
+const MULTIUSER_DATE = process.env.E2E_FIXED_DATE ?? getTodayISO();
 
 const getRow = (page: Page, bedId: string) =>
   page.locator(`[data-testid="patient-row"][data-bed-id="${bedId}"]`).first();
@@ -183,7 +188,9 @@ test.describe('Offline local persistence and controlled remote-authority reload'
       await userAContext.setOffline(true);
       await expect.poll(() => userAPage.evaluate(() => navigator.onLine)).toBe(false);
 
-      await updateClinicalDiagnosis(userAPage, userARow, 'R1', 'USER A OFFLINE DX');
+      await submitClinicalDiagnosis(userAPage, userARow, 'R1', 'USER A OFFLINE DX');
+      await expect(userAPage.getByTestId('clinical-block-editor-R1')).toBeVisible();
+      await expect(userAPage.getByTestId('clinical-block-save-R1')).toBeDisabled();
       await expectClinicalDiagnosis(getRow(userAPage, 'R1'), 'USER A OFFLINE DX');
       expect(await readIndexedDbDailyRecord(userAPage, MULTIUSER_DATE)).toMatchObject({
         beds: { R1: { pathology: 'BASE DX' } },
@@ -199,10 +206,13 @@ test.describe('Offline local persistence and controlled remote-authority reload'
           pathology: 'USER A OFFLINE DX',
         },
       });
+      await expectClinicalEditorClosed(userAPage, 'R1');
 
-      await updateClinicalDiagnosis(userBPage, getRow(userBPage, 'R1'), 'R1', 'REMOTE USER B DX');
+      await submitClinicalDiagnosis(userBPage, getRow(userBPage, 'R1'), 'R1', 'REMOTE USER B DX');
       const remoteSave = await userBAuthority!.nextCall();
       expect(remoteSave.payload.patch).toMatchObject({ 'beds.R1.pathology': 'REMOTE USER B DX' });
+      await expect(userBPage.getByTestId('clinical-block-editor-R1')).toBeVisible();
+      await expect(userBPage.getByTestId('clinical-block-save-R1')).toBeDisabled();
       await remoteSave.succeed();
       await waitForPersistedBedFields({
         page: userBPage,
@@ -210,6 +220,7 @@ test.describe('Offline local persistence and controlled remote-authority reload'
         bedId: 'R1',
         expected: { pathology: 'REMOTE USER B DX', clinicalEpisodeId: 'synthetic-multiuser-r1' },
       });
+      await expectClinicalEditorClosed(userBPage, 'R1');
       const remoteSnapshot = await buildCurrentRecordSnapshot(userBPage);
       expect(remoteSnapshot).not.toBeNull();
       await injectRemoteSnapshotForNextLoad(userAPage, remoteSnapshot!);
@@ -254,7 +265,9 @@ test.describe('Offline local persistence and controlled remote-authority reload'
       await userAContext.setOffline(true);
       await expect.poll(() => userAPage.evaluate(() => navigator.onLine)).toBe(false);
 
-      await updateClinicalDiagnosis(userAPage, userAR1, 'R1', 'USER A LOCAL DX');
+      await submitClinicalDiagnosis(userAPage, userAR1, 'R1', 'USER A LOCAL DX');
+      await expect(userAPage.getByTestId('clinical-block-editor-R1')).toBeVisible();
+      await expect(userAPage.getByTestId('clinical-block-save-R1')).toBeDisabled();
       await expectClinicalDiagnosis(userAR1, 'USER A LOCAL DX');
       expect(await readIndexedDbDailyRecord(userAPage, MULTIUSER_DATE)).toMatchObject({
         beds: { R1: { pathology: 'BASE DX' } },
@@ -270,8 +283,9 @@ test.describe('Offline local persistence and controlled remote-authority reload'
           pathology: 'USER A LOCAL DX',
         },
       });
+      await expectClinicalEditorClosed(userAPage, 'R1');
 
-      await updateClinicalDiagnosis(
+      await submitClinicalDiagnosis(
         userBPage,
         getRow(userBPage, 'R2'),
         'R2',
@@ -281,6 +295,8 @@ test.describe('Offline local persistence and controlled remote-authority reload'
       expect(remoteSave.payload.patch).toMatchObject({
         'beds.R2.pathology': 'USER B NON CONFLICT DX',
       });
+      await expect(userBPage.getByTestId('clinical-block-editor-R2')).toBeVisible();
+      await expect(userBPage.getByTestId('clinical-block-save-R2')).toBeDisabled();
       await remoteSave.succeed();
       await waitForPersistedBedFields({
         page: userBPage,
@@ -288,6 +304,7 @@ test.describe('Offline local persistence and controlled remote-authority reload'
         bedId: 'R2',
         expected: { patientName: 'SECOND SYNTHETIC PATIENT', pathology: 'USER B NON CONFLICT DX' },
       });
+      await expectClinicalEditorClosed(userBPage, 'R2');
       const remoteSnapshot = await buildCurrentRecordSnapshot(userBPage);
       expect(remoteSnapshot).not.toBeNull();
       await injectRemoteSnapshotForNextLoad(userAPage, remoteSnapshot!);

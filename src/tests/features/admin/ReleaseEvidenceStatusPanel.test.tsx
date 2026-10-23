@@ -31,7 +31,8 @@ describe('ReleaseEvidenceStatusPanel', () => {
       timeStyle: 'short',
       timeZone: 'Pacific/Easter',
     }).format(new Date('2026-08-11T12:30:00.000Z'));
-    expect(screen.getByText(expectedGeneratedAt)).toBeInTheDocument();
+    // Intl may emit NBSP on macOS; compare the same whitespace normalization as Testing Library.
+    expect(screen.getByText(expectedGeneratedAt.replace(/\s+/g, ' '))).toBeInTheDocument();
   });
 
   it('fails closed when the runtime contract cannot be loaded', async () => {

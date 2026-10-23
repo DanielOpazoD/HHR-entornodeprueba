@@ -1,3 +1,4 @@
+import { buildPatientRowSaveScopeKey } from '@/features/census/controllers/patientRowInputController';
 import React, { useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
@@ -20,10 +21,12 @@ import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRunti
 import { usePortalPopoverRuntime } from '@/hooks/usePortalPopoverRuntime';
 import type { GinecobstetriciaType } from '@/features/census/contracts/censusObstetricContracts';
 import { ClinicalInitialBlockEditor } from './ClinicalInitialBlockEditor';
+import { usePatientRowSaveState } from './usePatientRowSaveState';
 import { DeliveryRoutePopover } from './DeliveryRoutePopover';
 
 interface ClinicalInitialBlockCellsProps {
   data: PatientData;
+  currentDateString?: string;
   readOnly?: boolean;
   onChange: DebouncedTextHandler;
   onMultipleUpdate?: PatientInputChangeHandlers['multiple'];
@@ -32,6 +35,7 @@ interface ClinicalInitialBlockCellsProps {
 
 interface ClinicalInitialBlockCellButtonProps {
   data: PatientData;
+  currentDateString?: string;
   label: string;
   value: string;
   placeholder: string;
@@ -52,6 +56,7 @@ const clinicalBlockButtonClassName = clsx(
 
 const ClinicalInitialBlockCellButton: React.FC<ClinicalInitialBlockCellButtonProps> = ({
   data,
+  currentDateString,
   label,
   value,
   placeholder,
@@ -63,6 +68,7 @@ const ClinicalInitialBlockCellButton: React.FC<ClinicalInitialBlockCellButtonPro
   onMultipleUpdate,
 }) => (
   <ClinicalInitialBlockEditor
+    currentDateString={currentDateString}
     data={data}
     disabled={readOnly}
     triggerAriaLabel={`${readOnly ? 'Ver' : 'Editar'} ${label}`}
@@ -92,6 +98,7 @@ const ClinicalInitialBlockCellButton: React.FC<ClinicalInitialBlockCellButtonPro
 
 interface GinecobstetriciaSubtypeControlProps {
   data: PatientData;
+  currentDateString?: string;
   disabled: boolean;
   onMultipleUpdate?: PatientInputChangeHandlers['multiple'];
 }
@@ -100,9 +107,11 @@ const GINECOB_SUBTYPE_POPOVER_WIDTH = 240;
 
 const GinecobstetriciaSubtypeControl: React.FC<GinecobstetriciaSubtypeControlProps> = ({
   data,
+  currentDateString,
   disabled,
   onMultipleUpdate,
 }) => {
+  const saveState = usePatientRowSaveState(buildPatientRowSaveScopeKey(currentDateString, data));
   const [isOpen, setIsOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -143,11 +152,16 @@ const GinecobstetriciaSubtypeControl: React.FC<GinecobstetriciaSubtypeControlPro
   );
 
   const handleSubtypeSelect = useCallback(
-    (ginecobstetriciaType: GinecobstetriciaType) => {
-      onMultipleUpdate?.(buildGinecobstetriciaTypePatch(ginecobstetriciaType));
-      closePopover();
+    async (ginecobstetriciaType: GinecobstetriciaType) => {
+      if (disabled) return;
+      if (
+        await saveState.save(() =>
+          onMultipleUpdate?.(buildGinecobstetriciaTypePatch(ginecobstetriciaType))
+        )
+      )
+        closePopover();
     },
-    [closePopover, onMultipleUpdate]
+    [closePopover, disabled, saveState, onMultipleUpdate]
   );
 
   return (
@@ -156,7 +170,7 @@ const GinecobstetriciaSubtypeControl: React.FC<GinecobstetriciaSubtypeControlPro
         ref={buttonRef}
         type="button"
         onClick={togglePopover}
-        disabled={disabled}
+        disabled={disabled || saveState.isSaving}
         className={clsx(
           'absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-md border p-1 transition-colors',
           disabled && 'cursor-not-allowed opacity-50',
@@ -168,6 +182,16 @@ const GinecobstetriciaSubtypeControl: React.FC<GinecobstetriciaSubtypeControlPro
         <Settings2 size={11} />
       </button>
 
+      {saveState.isSaving && (
+        <span role="status" className="text-[10px] text-slate-500">
+          Guardando tipo de atención…
+        </span>
+      )}
+      {saveState.failed && (
+        <span role="alert" className="text-[10px] text-red-700">
+          No se pudo confirmar el tipo de atención.
+        </span>
+      )}
       {isOpen &&
         createPortal(
           <div
@@ -197,7 +221,8 @@ const GinecobstetriciaSubtypeControl: React.FC<GinecobstetriciaSubtypeControlPro
                     <button
                       key={option}
                       type="button"
-                      onClick={() => handleSubtypeSelect(option)}
+                      disabled={saveState.isSaving}
+                      onClick={() => void handleSubtypeSelect(option)}
                       className={clsx(
                         'rounded-lg border px-2 py-2 text-[11px] font-bold transition-all',
                         data.ginecobstetriciaType === option
@@ -222,6 +247,7 @@ const GinecobstetriciaSubtypeControl: React.FC<GinecobstetriciaSubtypeControlPro
 
 export const ClinicalInitialBlockCells: React.FC<ClinicalInitialBlockCellsProps> = ({
   data,
+  currentDateString,
   readOnly = false,
   onChange,
   onMultipleUpdate,
@@ -249,6 +275,8 @@ export const ClinicalInitialBlockCells: React.FC<ClinicalInitialBlockCellsProps>
     <td className="census-diagnosis-cell py-0.5 px-1 border-r border-slate-200 min-w-[160px]">
       <div className="relative">
         <ClinicalInitialBlockCellButton
+          key={`diagnosis:${buildPatientRowSaveScopeKey(currentDateString, data)}`}
+          currentDateString={currentDateString}
           data={data}
           label="diagnóstico"
           value={data.pathology || ''}
@@ -271,6 +299,8 @@ export const ClinicalInitialBlockCells: React.FC<ClinicalInitialBlockCellsProps>
         />
         {isGinecobstetricia && (
           <GinecobstetriciaSubtypeControl
+            key={`obstetric-subtype:${buildPatientRowSaveScopeKey(currentDateString, data)}`}
+            currentDateString={currentDateString}
             data={data}
             disabled={readOnly}
             onMultipleUpdate={onMultipleUpdate}

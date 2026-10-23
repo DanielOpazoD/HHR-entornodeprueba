@@ -79,20 +79,27 @@ export const createRayenSnapshotEvidenceClient = (
     }
   );
 
-  const fetchStatisticalDischarge = async (encId: string) => {
-    const health = await getExtensionHealth();
-    if (!health.report) return { base64: '', error: health.error };
-    if (!supportsStatisticalDischargeEvidence(health.report)) {
-      return {
-        base64: '',
-        error: 'La extensión instalada no admite lectura del egreso individual.',
-      };
+  const fetchStatisticalDischarge = createPatientFlowRequestCache(
+    async (encId: string) => {
+      const health = await getExtensionHealth();
+      if (!health.report) return { base64: '', error: health.error };
+      if (!supportsStatisticalDischargeEvidence(health.report)) {
+        return {
+          base64: '',
+          error: 'La extensión instalada no admite lectura del egreso individual.',
+        };
+      }
+      counters.requests += 1;
+      const result = await requestStatisticalDischargeEvidence(encId);
+      if (isRayenTimeoutMessage(result.error)) counters.timeouts += 1;
+      return result;
+    },
+    {
+      onHit: () => {
+        counters.cacheHits += 1;
+      },
     }
-    counters.requests += 1;
-    const result = await requestStatisticalDischargeEvidence(encId);
-    if (isRayenTimeoutMessage(result.error)) counters.timeouts += 1;
-    return result;
-  };
+  );
 
   const lookupEgresos = async (targets: Parameters<typeof requestEgresoLookup>[0]) => {
     if (targets.length === 0) return [];

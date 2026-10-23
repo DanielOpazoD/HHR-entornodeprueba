@@ -117,6 +117,15 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
     () => presentPatientUpdates(diff?.updates ?? []),
     [diff?.updates]
   );
+  // A manual plan can contain only enrichment intentionally hidden from ordinary
+  // clinical labels. Keep the affected patients reviewable instead of a blank dialog.
+  const reviewUpdates =
+    presentedUpdates.length > 0
+      ? presentedUpdates
+      : (diff?.updates ?? []).map(entry => ({
+          ...entry,
+          visibleLabels: ['datos del episodio'],
+        }));
   const historicalConflicts =
     diff?.conflicts.filter(entry => entry.code === 'historical-reconstruction') ?? [];
   const blockingConflicts =
@@ -163,11 +172,29 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
           <p className="text-sm text-gray-500">Preparando la revisión del censo…</p>
         ) : (
           <>
+            {!hasChanges && !hasConflicts && canReview && !isApplied && (
+              <p className="py-2 text-sm text-slate-600">
+                Sin cambios de camas, ingresos ni egresos.
+              </p>
+            )}
+            {!showReview && hasConflicts && (
+              <>
+                <HistoricalReconstructionReview conflicts={historicalConflicts} />
+                <Section title="Cambios que requieren revisión" count={blockingConflicts.length}>
+                  {blockingConflicts.map((entry, index) => (
+                    <li key={`pending-${index}`} className="text-red-700">
+                      {entry.bedId ? `${entry.bedId}: ` : ''}
+                      {entry.reason}
+                    </li>
+                  ))}
+                </Section>
+              </>
+            )}
             {showReview && (
               <div>
                 <RayenImportSummaryChips
                   diff={diff}
-                  presentedUpdates={presentedUpdates.length}
+                  presentedUpdates={reviewUpdates.length}
                   historicalConflicts={historicalConflicts.length}
                   blockingConflicts={blockingConflicts.length}
                   bedCollisions={bedCollisions.length}
@@ -182,8 +209,8 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                   choices={neonatalResolutions}
                   onChange={setNeonatalResolutions}
                 />
-                <Section title="Actualizaciones" count={presentedUpdates.length}>
-                  {presentedUpdates.map(entry => (
+                <Section title="Actualizaciones" count={reviewUpdates.length}>
+                  {reviewUpdates.map(entry => (
                     <li key={updateEntryKey(entry)}>
                       <span className="font-semibold">{entry.bedId}</span> — {entry.patientName}:{' '}
                       <span className="text-gray-400">{entry.visibleLabels.join(', ')}</span>
@@ -334,7 +361,7 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
         acceptedEpisodes={neonatalSourceAcknowledgements}
         onChange={setNeonatalSourceAcknowledgements}
       />
-      <div className="mt-6 flex justify-end gap-3 border-t pt-4">
+      <div className="mt-3 flex justify-end gap-2 border-t pt-3">
         <button
           type="button"
           onClick={onCancel}

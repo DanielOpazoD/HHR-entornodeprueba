@@ -419,3 +419,72 @@ describe('report-only short-stay enrichment', () => {
     expect(result[0].encounterId).toBeUndefined();
   });
 });
+
+it('reads the exact neonatal maternal form rather than the shifted API clock', async () => {
+  const text = statisticalText
+    .replace(
+      '1.RUN:\n8 2 6 0 3 6 4 - 6',
+      `5 2 6 SEXO M
+2. RUN Materno/progenitor(a)
+1.RUN:
+-
+No de Pasaporte u otro documento
+1. Masculino
+8 2 6 0 3 6 4 6 54 IDENTIDAD DE GÉNERO 01`
+    )
+    .replace('29 EGRESO 2 0 - 2 9 1 3 - 0 8 - 2 6', '29 EGRESO 0 0 - 1 9 1 4 - 0 8 - 2 6');
+  const result = await enrichReportOnlyDischarges([row], '2026-08-13', {
+    lookupEgresos: vi.fn().mockResolvedValue([
+      {
+        run: row.run,
+        encounterId: '143322',
+        egreso: { id: '143322', dateDischarge: '2026-08-13T22:19:00-05:00' },
+      },
+    ]),
+    fetchStatisticalDischarge: vi.fn().mockResolvedValue({ base64: 'cGRm' }),
+    extractText: vi.fn().mockResolvedValue(text),
+    previousCensusCandidates: [
+      {
+        run: row.run,
+        personalRun: '',
+        patientName: row.patientName,
+        encounterId: '143322',
+        dischargeDay: '2026-08-13',
+        fromClinicalCrib: true,
+      },
+    ],
+  });
+  expect(result[0]).toMatchObject({
+    encounterId: '143322',
+    run: '',
+    correctedDay: '2026-08-13',
+    correctedTime: '00:19',
+    exactEpisodeVerification: 'verified',
+    fromClinicalCrib: true,
+  });
+});
+
+it('does not accept a personal maternal report as the blank-RUN newborn discharge', async () => {
+  const result = await enrichReportOnlyDischarges([row], '2026-08-13', {
+    lookupEgresos: vi.fn().mockResolvedValue([
+      {
+        run: row.run,
+        encounterId: '143322',
+        egreso: { id: '143322', dateDischarge: '2026-08-13T22:19:00-05:00' },
+      },
+    ]),
+    fetchStatisticalDischarge: vi.fn().mockResolvedValue({ base64: 'cGRm' }),
+    extractText: vi.fn().mockResolvedValue(statisticalText),
+    previousCensusCandidates: [
+      {
+        run: row.run,
+        personalRun: '',
+        patientName: row.patientName,
+        encounterId: '143322',
+        dischargeDay: '2026-08-13',
+        fromClinicalCrib: true,
+      },
+    ],
+  });
+  expect(result).toEqual([{ ...row, exactEpisodeVerification: 'unverified' }]);
+});

@@ -1,7 +1,5 @@
-import { httpsCallable } from 'firebase/functions';
 import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
 import type { SyncTaskContract } from '@/services/storage/syncQueueTypes';
-import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import type { DailyRecordAuthorityMode } from '@/services/storage/firestore/dailyRecordAuthorityMode';
 import type { RayenClinicalWriteGuard } from '@/types/domain/rayenSync';
 import type { IntentionalBedClearRequest } from '@/types/domain/intentionalBedClear';
@@ -29,12 +27,13 @@ const authorityErrorMessage = (error: unknown): string =>
 export const normalizeDailyRecordAuthorityError = (error: unknown): unknown => {
   const code = authorityErrorCode(error);
   const message = authorityErrorMessage(error);
-  if (
-    code === 'aborted' ||
-    /revision_mismatch|version_mismatch|base revision|remote revision/i.test(message)
-  ) {
+  const versionConflict =
+    /revision_mismatch|version_mismatch|base revision|remote revision/i.test(message) ||
+    message === 'Daily record changed remotely before the authorized write transaction.';
+  if (code === 'aborted' || versionConflict) {
     return new ConcurrencyError(
-      'HHR detectó una versión más reciente de este censo y evitó sobrescribirla.'
+      'HHR detectó una versión más reciente de este censo y evitó sobrescribirla.',
+      versionConflict ? 'version_mismatch' : 'semantic_conflict'
     );
   }
   return error;
@@ -112,44 +111,18 @@ export const DAILY_RECORD_AUTHORITY_FUNCTIONS_REGION = 'southamerica-east1';
  */
 export const DAILY_RECORD_AUTHORITY_CALLABLE_TIMEOUT_MS = 45_000;
 
-export const saveDailyRecordWithClinicalAuthorityCallable = async (
+export const AUTHORITY_READBACK_TIMEOUT_MS = 5_000;
+
+const invokeAuthority = async (
+  operation: 'save' | 'patch',
+  payload: DailyRecordAuthorityCallablePayload | DailyRecordAuthorityPatchCallablePayload
+): Promise<DailyRecordAuthorityCallableResponse> =>
+  (await import('./dailyRecordAuthorityTransport')).invokeAuthority(operation, payload);
+
+export const saveDailyRecordWithClinicalAuthorityCallable = (
   payload: DailyRecordAuthorityCallablePayload
-): Promise<DailyRecordAuthorityCallableResponse> => {
-  const functions = await defaultFunctionsRuntime.getRegionalFunctions(
-    DAILY_RECORD_AUTHORITY_FUNCTIONS_REGION
-  );
-  const callable = httpsCallable<
-    DailyRecordAuthorityCallablePayload,
-    DailyRecordAuthorityCallableResponse
-  >(functions, 'saveDailyRecordWithClinicalAuthority', {
-    timeout: DAILY_RECORD_AUTHORITY_CALLABLE_TIMEOUT_MS,
-  });
+): Promise<DailyRecordAuthorityCallableResponse> => invokeAuthority('save', payload);
 
-  try {
-    const result = await callable(payload);
-    return result.data;
-  } catch (error) {
-    throw normalizeDailyRecordAuthorityError(error);
-  }
-};
-
-export const patchDailyRecordWithClinicalAuthorityCallable = async (
+export const patchDailyRecordWithClinicalAuthorityCallable = (
   payload: DailyRecordAuthorityPatchCallablePayload
-): Promise<DailyRecordAuthorityCallableResponse> => {
-  const functions = await defaultFunctionsRuntime.getRegionalFunctions(
-    DAILY_RECORD_AUTHORITY_FUNCTIONS_REGION
-  );
-  const callable = httpsCallable<
-    DailyRecordAuthorityPatchCallablePayload,
-    DailyRecordAuthorityCallableResponse
-  >(functions, 'patchDailyRecordWithClinicalAuthority', {
-    timeout: DAILY_RECORD_AUTHORITY_CALLABLE_TIMEOUT_MS,
-  });
-
-  try {
-    const result = await callable(payload);
-    return result.data;
-  } catch (error) {
-    throw normalizeDailyRecordAuthorityError(error);
-  }
-};
+): Promise<DailyRecordAuthorityCallableResponse> => invokeAuthority('patch', payload);

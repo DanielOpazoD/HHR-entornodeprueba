@@ -41,7 +41,14 @@ describe('functions authCallablePolicy', () => {
         resolveRoleForEmail,
       })
     ).resolves.toBeUndefined();
-    expect(resolveRoleForEmail).toHaveBeenCalledWith('admin@example.invalid');
+    expect(resolveRoleForEmail).toHaveBeenCalledWith(
+      'admin@example.invalid',
+      expect.objectContaining({
+        auth: expect.objectContaining({
+          token: expect.objectContaining({ email: ' Admin@example.invalid ' }),
+        }),
+      })
+    );
 
     expect(() => assertAssignableRole('user@example.com', 'not-a-role')).toThrow(/Invalid role/);
   });

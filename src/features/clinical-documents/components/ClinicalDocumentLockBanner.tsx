@@ -15,6 +15,7 @@ import React from 'react';
 import { Lock } from 'lucide-react';
 
 import type { ClinicalDocumentRecord } from '@/features/clinical-documents/domain/entities';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 interface ClinicalDocumentLockBannerProps {
   isLocked: boolean;
@@ -28,6 +29,7 @@ const formatLockedDate = (lockedAt: string | undefined): string | null => {
     const date = new Date(lockedAt);
     if (Number.isNaN(date.getTime())) return null;
     return date.toLocaleString('es-CL', {
+      timeZone: CLINICAL_TIME_ZONE,
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',

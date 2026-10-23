@@ -1,3 +1,4 @@
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 type ClinicalDocumentStatus = 'draft' | 'ready_for_signature' | 'signed' | 'archived';
 
 export const formatClinicalDocumentDateTime = (isoString?: string): string => {
@@ -6,6 +7,7 @@ export const formatClinicalDocumentDateTime = (isoString?: string): string => {
   return Number.isNaN(value.getTime())
     ? isoString
     : value.toLocaleString('es-CL', {
+        timeZone: CLINICAL_TIME_ZONE,
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',

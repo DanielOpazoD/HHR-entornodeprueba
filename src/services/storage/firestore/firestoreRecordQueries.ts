@@ -245,16 +245,31 @@ export const getRecordsRangeFromFirestore = async (
   }
 };
 
+/** A month that could not be read from the server. It is never a month without records. */
+export class CensusMonthUnavailableError extends Error {
+  constructor(year: number, monthZeroBased: number, cause: unknown) {
+    super(
+      `No se pudieron leer los registros de ${String(monthZeroBased + 1).padStart(2, '0')}-${year} desde el servidor. Revisa la conexión y vuelve a intentar.`,
+      { cause }
+    );
+    this.name = 'CensusMonthUnavailableError';
+  }
+}
+
+/**
+ * Every census day of a month, read from the server. It feeds the census email, the census Excel
+ * and the monthly backups, so a failed read throws instead of looking like a month without records:
+ * an empty or cached month would send or archive an incomplete census without warning.
+ */
 export const getMonthRecordsFromFirestore = async (
   year: number,
   month: number
 ): Promise<DailyRecord[]> => {
+  const { startDate, endDate } = buildFirestoreMonthDateRange(year, month);
   try {
-    const { startDate, endDate } = buildFirestoreMonthDateRange(year, month);
-    return getRecordsRangeFromFirestore(startDate, endDate);
+    return await getRecordsRangeFromFirestore(startDate, endDate, { requireServer: true });
   } catch (error) {
-    logFirestoreQueryError('getMonthRecords', error, { year, month: month + 1 });
-    return [];
+    throw new CensusMonthUnavailableError(year, month, error);
   }
 };
 

@@ -5,7 +5,10 @@ import {
   ensureAuthenticated,
 } from './fixtures/auth';
 import { waitForPersistedBedFields } from './fixtures/censusPersistence';
-import { updateClinicalDiagnosis } from './fixtures/clinicalBlockEditor';
+import {
+  expectClinicalEditorClosed,
+  submitClinicalDiagnosis,
+} from './fixtures/clinicalBlockEditor';
 import { installDailyRecordAuthorityRoute } from './fixtures/dailyRecordAuthorityRoute';
 import { installSyncQueueTransportHarness } from './fixtures/syncQueueTransportHarness';
 
@@ -240,7 +243,7 @@ test.describe('Night admission critical sync recovery', () => {
     await expect(getPatientRow(page)).toContainText(`FI:${DISPLAY_ADMISSION_DATE}`);
     await waitForEmptyQueue(page);
 
-    await updateClinicalDiagnosis(page, getPatientRow(page), E2E_BED, DIAGNOSIS);
+    await submitClinicalDiagnosis(page, getPatientRow(page), E2E_BED, DIAGNOSIS);
     await waitForPersistedBedFields({
       page,
       date: E2E_DATE,
@@ -257,6 +260,7 @@ test.describe('Night admission critical sync recovery', () => {
     expect(diagnosisCall.payload.syncContract?.mutationId).toBe(diagnosisMutationId);
     await diagnosisCall.succeed();
     await waitForEmptyQueue(page);
+    await expectClinicalEditorClosed(page, E2E_BED);
 
     await page.reload();
     await ensureAuthenticated(page);
@@ -273,7 +277,7 @@ test.describe('Night admission critical sync recovery', () => {
     await pendingSave.click();
     const localSaveDetails = page.getByTestId('rayen-local-sync-details');
     await expect(localSaveDetails).toContainText('1 por enviar');
-    await localSaveDetails.locator('summary').click();
+    await localSaveDetails.locator(':scope > summary').click();
     await localSaveDetails.getByRole('button', { name: 'Reintentar', exact: true }).click();
     expect(await page.evaluate(() => navigator.onLine)).toBe(true);
     const retryCall = await syncTransport.nextCall();

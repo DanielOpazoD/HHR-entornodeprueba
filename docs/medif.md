@@ -91,7 +91,7 @@ El PDF en blanco ya presente en el catálogo, [medif-latam.pdf](../public/docs/b
 
 La exportación normaliza el texto a NFC y los saltos de línea. Usa Helvetica estándar; si un carácter no puede representarse en esa fuente, identifica el campo y detiene la generación. Los casilleros de una sola línea rechazan saltos de línea.
 
-Para acomodar el texto al espacio original, el tamaño se ajusta entre 8 y 4 puntos; las marcas comienzan en 5 puntos. El ajuste comprueba ancho y altura, también en campos multilínea. Si el contenido no cabe, muestra un error con la etiqueta del campo para que se abrevie: no se trunca automáticamente ni se agrega contenido fuera del formulario. Los textos extensos pueden necesitar un documento adjunto independiente.
+El texto insertado parte de 12 puntos, un 50% más que los 8 anteriores; el ajuste puede bajar hasta 4 puntos cuando lo exige el casillero original. Las marcas conservan 7,5 puntos y se centran horizontal y verticalmente. Se reservan las alturas de tildes y descendentes cuando corresponden. El ajuste comprueba ancho y altura, también en campos multilínea. Si el contenido no cabe, muestra un error con la etiqueta del campo para que se abrevie: no se trunca automáticamente ni se agrega contenido fuera del formulario. Los textos extensos pueden necesitar un documento adjunto independiente.
 
 Estas comprobaciones cubren la estructura y el ajuste al PDF. No establecen aptitud para volar, riesgo, dosis, requerimiento de oxígeno ni aceptación por la aerolínea. Los campos de firma siguen siendo texto: escribir un nombre no genera una firma electrónica. La declaración y el contenido clínico requieren revisión del responsable que emitirá el formulario.
 

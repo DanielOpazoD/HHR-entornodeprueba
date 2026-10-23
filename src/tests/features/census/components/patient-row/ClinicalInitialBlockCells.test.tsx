@@ -5,6 +5,54 @@ import { DataFactory } from '@/tests/factories/DataFactory';
 import { Specialty } from '@/types/domain/patientClassification';
 
 describe('ClinicalInitialBlockCells', () => {
+  it('keeps one current diagnosis when changing census days and the bed occupant', () => {
+    const patient = DataFactory.createMockPatient('R1', {
+      patientName: 'Paciente obstétrica sintética',
+      clinicalEpisodeId: 'episode-obstetric',
+      pathology: 'Diagnóstico obstétrico sintético',
+      specialty: Specialty.GINECOBSTETRICIA,
+      ginecobstetriciaType: 'Obstétrica',
+    });
+    const cells = (date: string, data = patient) => (
+      <table>
+        <tbody>
+          <tr>
+            <ClinicalInitialBlockCells
+              currentDateString={date}
+              data={data}
+              onChange={() => vi.fn()}
+              onMultipleUpdate={vi.fn()}
+            />
+          </tr>
+        </tbody>
+      </table>
+    );
+    const { rerender } = render(cells('2026-10-17'));
+
+    for (const date of ['2026-10-16', '2026-10-17', '2026-10-16', '2026-10-17']) {
+      rerender(cells(date));
+      expect(screen.getAllByRole('button', { name: 'Editar diagnóstico' })).toHaveLength(1);
+      expect(screen.getAllByText(patient.pathology)).toHaveLength(1);
+    }
+
+    rerender(
+      cells('2026-10-16', {
+        ...patient,
+        patientName: 'Otro paciente sintético',
+        clinicalEpisodeId: 'episode-medical',
+        pathology: 'Diagnóstico médico sintético',
+        specialty: Specialty.MEDICINA,
+      })
+    );
+    expect(screen.getAllByRole('button', { name: 'Editar diagnóstico' })).toHaveLength(1);
+    expect(screen.queryByText(patient.pathology)).not.toBeInTheDocument();
+    expect(screen.getByText('Diagnóstico médico sintético')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Editar diagnóstico' }));
+    expect(screen.getByTestId('clinical-block-pathology-R1')).toHaveValue(
+      'Diagnóstico médico sintético'
+    );
+  });
+
   it('uses one deterministic padding class when all diagnosis controls are visible', () => {
     render(
       <table>

@@ -10,10 +10,9 @@ describe('maintenanceDebtScorecardSupport', () => {
       buildMaintenanceDebtWatchlistRows({
         watchlistFiles: ['firestore.rules', 'src/hooks/useCensusEmailRecipientLists.ts'],
         countLines: (file: string) => (file === 'firestore.rules' ? 989 : 150),
-        hookLimits: {
+        moduleLimits: {
           'src/hooks/useCensusEmailRecipientLists.ts': 180,
         },
-        moduleLimits: {},
         rulesLimits: {
           'firestore.rules': 1050,
         },
@@ -30,7 +29,7 @@ describe('maintenanceDebtScorecardSupport', () => {
         file: 'src/hooks/useCensusEmailRecipientLists.ts',
         lines: 150,
         limit: 180,
-        limitSource: 'hook-hotspot',
+        limitSource: 'module-allowlist',
         remainingLines: 30,
       },
     ]);

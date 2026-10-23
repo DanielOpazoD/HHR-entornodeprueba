@@ -36,31 +36,31 @@ describe('Security hardening static guards', () => {
 
   it('keeps user avatars scoped to the authenticated owner and image-limited', () => {
     const rules = readProjectFile('storage.rules');
-    expect(rules).toContain('match /user-avatars/{userId}/{fileName}');
+    const block =
+      rules.match(/match \/user-avatars\/\{userId\}\/\{fileName\}\s*\{([^}]+)\}/m)?.[1] || '';
+    expect(block).not.toBe('');
     expect(rules).toContain('function isCurrentUser(userId)');
-    expect(rules).toMatch(
-      /match \/user-avatars\/\{userId\}\/\{fileName\}[\s\S]*?allow read:\s*if isCurrentUser\(userId\);/m
+    expect(block).toMatch(/allow read:\s*if isCurrentUser\(userId\);/m);
+    expect(block).toMatch(
+      /allow create, update:\s*if isCurrentUser\(userId\)[\s\S]*request\.resource\.size < 2 \* 1024 \* 1024[\s\S]*request\.resource\.contentType\.matches\('image\/\.\*'\);/m
     );
-    expect(rules).toMatch(
-      /match \/user-avatars\/\{userId\}\/\{fileName\}[\s\S]*?allow write:\s*if isCurrentUser\(userId\)[\s\S]*request\.resource\.size < 2 \* 1024 \* 1024[\s\S]*request\.resource\.contentType\.matches\('image\/\.\*'\);/m
-    );
-    expect(rules).not.toMatch(/match \/user-avatars\/\{userId\}\/\{fileName\}[\s\S]*?if true;/m);
+    expect(block).toMatch(/allow delete:\s*if isCurrentUser\(userId\);/m);
+    expect(block).not.toMatch(/allow write:|if true;/m);
   });
 
   it('keeps clinical attachment Storage scoped, authenticated, typed and size-limited', () => {
     const rules = readProjectFile('storage.rules');
-    expect(rules).toContain(
-      'match /clinical-attachments/{hospitalId}/{patientRutKey}/{episodeKey}/{attachmentId}/{fileName}'
+    const block =
+      rules.match(
+        /match \/clinical-attachments\/\{hospitalId\}\/\{patientRutKey\}\/\{episodeKey\}\/\{attachmentId\}\/\{fileName\}\s*\{([^}]+)\}/m
+      )?.[1] || '';
+    expect(block).not.toBe('');
+    expect(block).toMatch(/allow read:\s*if canReadClinicalAttachments\(\);/m);
+    expect(block).toMatch(
+      /allow create, update:\s*if canWriteClinicalAttachments\(\)[\s\S]*request\.resource\.size < 15 \* 1024 \* 1024[\s\S]*request\.resource\.contentType\.matches/m
     );
-    expect(rules).toMatch(
-      /match \/clinical-attachments\/\{hospitalId\}\/\{patientRutKey\}\/\{episodeKey\}\/\{attachmentId\}\/\{fileName\}[\s\S]*?allow read:\s*if canReadClinicalStorage\(\);/m
-    );
-    expect(rules).toMatch(
-      /match \/clinical-attachments\/\{hospitalId\}\/\{patientRutKey\}\/\{episodeKey\}\/\{attachmentId\}\/\{fileName\}[\s\S]*?allow write:\s*if hasClinicalWriteRole\(\)[\s\S]*request\.resource\.size < 15 \* 1024 \* 1024[\s\S]*request\.resource\.contentType\.matches/m
-    );
-    expect(rules).not.toMatch(
-      /match \/clinical-attachments\/\{hospitalId\}\/\{patientRutKey\}\/\{episodeKey\}\/\{attachmentId\}\/\{fileName\}[\s\S]*?allow write:\s*if true;/m
-    );
+    expect(block).toMatch(/allow delete:\s*if canWriteClinicalAttachments\(\);/m);
+    expect(block).not.toMatch(/allow write:|if true;/m);
   });
 
   it('authorizes setUserRole against the current configured admin role', () => {
@@ -69,7 +69,7 @@ describe('Security hardening static guards', () => {
 
     // Regression guard for precedence bug: !context.auth.token.role === 'admin'
     expect(authCallablePolicy).not.toContain('!context.auth.token.role ===');
-    expect(authCallablePolicy).toContain("(await resolveRoleForEmail(email)) !== 'admin'");
+    expect(authCallablePolicy).toContain("(await resolveRoleForEmail(email, context)) !== 'admin'");
     expect(authCallablePolicy).not.toContain("context.auth?.token?.role === 'admin'");
     expect(authFunctionsFactory).toContain('await assertRoleMutationAccess({');
     expect(authFunctionsFactory).toContain('resolveRoleForEmail: helpers.resolveRoleForEmail');
@@ -135,7 +135,7 @@ describe('Security hardening static guards', () => {
         /match \/prescriptions\/\{prescriptionId\}[\s\S]*?allow read:\s*if canReadClinicalData\(\);/m
       );
       expect(rules).toMatch(
-        /match \/prescriptions\/\{prescriptionId\}[\s\S]*?allow update:\s*if canEdit\(\);/m
+        /match \/prescriptions\/\{prescriptionId\}[\s\S]*?allow update:\s*if canUpdatePrescription\(\);/m
       );
       expect(rules).toMatch(
         /match \/prescriptions\/\{prescriptionId\}[\s\S]*?allow delete:\s*if canEdit\(\);/m

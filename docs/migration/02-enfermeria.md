@@ -1,5 +1,9 @@
 # Plan conservador de recuperación de enfermería
 
+Antes de ejecutar este procedimiento, aplicar la [política vigente de fuentes y
+alcance](00-fuentes-y-alcance.md). Las herramientas descritas conservan sus límites;
+no autorizan reabrir censos cerrados ni sobrescribir correcciones.
+
 ```sh
 node scripts/migration/planNursing.mjs < /ruta/privada/comparacion.json
 npx vitest run src/tests/build/migrationNursingPlanner.test.ts
@@ -75,3 +79,91 @@ ambos proyectos, validación clínica y de esquema del día, protección de CUDY
 transacción acotada, recibo, lectura posterior y repetición sin nuevas escrituras.
 Los casos de movimientos, RN, nombres contradictorios y episodios cerrados aún
 activos no se fuerzan mediante esta vía.
+
+## Contrato de la entrega completa en el programa receptor
+
+Recuperar las notas individuales no acredita la migración de toda la entrega.
+El destino conserva sus componentes, estructura, columnas y formato de impresión;
+se adaptan datos al modelo vigente, sin importar HTML, estilos ni contenedores del
+programa antiguo. Una descripción extensa debe ajustarse dentro de la tarjeta.
+En pantallas estrechas, el desplazamiento pertenece a la tabla, no a toda la página.
+
+La comprobación por fecha del censo debe incluir:
+
+| Bloque                       | Información que debe cotejarse                                                                              |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Pacientes                    | Notas de enfermería de día y noche, asociadas al paciente y episodio verificados.                           |
+| Checklist largo              | Braden, riesgo de caídas y evaluación LPP.                                                                  |
+| Checklist nocturno           | Estadística, CUDYR, encuestas de camas, conteos de medicamentos y próxima fecha de conteo.                  |
+| Personal                     | Enfermeros que entregan y reciben cada turno, TENS y dotación detallada compatible con las listas vigentes. |
+| Altas                        | Paciente/episodio, cama, diagnóstico, tipo, estado y fecha/hora real del egreso.                            |
+| Traslados                    | Paciente/episodio, ubicación, diagnóstico, medio, destino, acompañante y fecha/hora del movimiento.         |
+| Hospitalización diurna / CMA | Paciente/episodio, ubicación, diagnóstico, especialidad y tipo de intervención.                             |
+| Novedades                    | Texto general del turno largo y texto general del turno noche, por separado.                                |
+
+Las tres secciones de movimientos y Novedades deben seguir presentes, incluso sin
+registros. Se conserva el filtro vigente por turno: las horas de madrugada
+pertenecen al turno nocturno del censo correspondiente; la fecha real del egreso
+no se reemplaza por la fecha del censo. CMA mantiene su presentación diurna actual.
+
+Una casilla `false` es un registro desmarcado; no equivale a campo ausente. No se
+marca una tarea como realizada por inferencia. La casilla CUDYR del checklist no
+es el CUDYR clínico ni modifica el informe oficial, elegibilidad o cumplimiento.
+
+El día entrega la dotación diurna y recibe la nocturna. La noche entrega la
+nocturna y recibe la selección explícita `handoffNightReceives`; no se inventa a
+partir del día siguiente. Se cotejan `staffingDetailsV1`, listas canónicas y sus
+espejos heredados como un conjunto. La dotación no identifica al autor de una nota.
+Las firmas históricas se conservan; el catálogo puede reconocer alias explícitos.
+
+Para movimientos se cotejan identidad y episodio, fecha/hora y clasificación;
+el ID de fila antiguo por sí solo no prueba igualdad entre proyectos. Se respetan
+movimientos corregidos, reclasificaciones y eliminaciones registradas. No se
+duplican eventos ni se reemplazan arreglos o snapshots completos del destino.
+
+Las novedades se comparan con los campos almacenados de cada turno. Que la
+interfaz muestre el texto diurno como respaldo de una noche vacía no demuestra
+que exista una novedad nocturna: ese respaldo visual no se importa como tal.
+Se completan únicamente vacíos verificados; textos distintos y valores de
+personal ya corregidos se conservan para revisión.
+
+El planificador de notas anterior **no implementa** estos otros bloques. Antes
+de recuperarlos se requiere comparación, selección explícita, versiones exactas,
+cambio acotado, recibo, relectura y repetición sin duplicados. No se copia el
+documento del censo completo ni se recalcula el CUDYR saneado.
+
+## Checklist y novedades almacenadas
+
+```sh
+node scripts/migration/planHandoffContext.mjs < /ruta/privada/contexto.json
+npx vitest run src/tests/build/migrationHandoffContext.test.ts
+```
+
+La entrada contiene `source`, `target`, `dates` y `throughDate`, con la misma forma
+por fecha descrita arriba. Seleccionar entre uno y tres días históricos cerrados;
+`throughDate` es el último día autorizado. Debe ser anterior al día actual en
+Rapa Nui, obtenido del reloj del proceso; no se acepta un corte actual o futuro.
+El informe siempre registra selección, corte, día observado y huella del alcance,
+incluso cuando no existan candidatos. El reloj del operador debe ser correcto. Ambos documentos deben
+existir y declarar exactamente esa fecha. El ejecutor verifica además hospital,
+proyectos y versiones; esta herramienta offline no acredita esas comprobaciones.
+
+Propone únicamente casillas booleanas **ausentes** y próximas fechas de conteo
+válidas ausentes. Un `false`, `null` o texto vacío ya almacenado en una casilla se
+conserva para revisión; no se interpreta como ausencia. Las novedades generales se
+completan solo si el campo del mismo turno está ausente, nulo o en blanco. Se usa
+el texto almacenado; nunca el respaldo visual del otro turno. No se infieren
+cumplimiento, fechas, firmas ni autores. No incluye notas de pacientes, dotación,
+movimientos, datos clínicos ni CUDYR saneado.
+
+La salida pública del CLI contiene estados, cantidades, fechas y huellas, sin
+textos ni personal. Las propuestas completas permanecen en memoria y requieren
+relectura de las versiones exactas, comparación de los campos seleccionados,
+precondición de escritura, recibo y verificación posterior. No hay modo de
+aplicación ni conexión a Firebase. Repetir sobre datos ya completados no propone
+otra escritura. El estado del checklist CUDYR no modifica el informe oficial.
+
+La firma histórica se conserva aunque ya no exista en el catálogo activo. El
+selector de entrega/recepción incluye el valor guardado para mostrarlo sin
+reescribirlo, inferir otra identidad ni añadir funcionarios al catálogo.
+Una vacante explícita se mantiene. Comprobar ambos turnos y la vista compacta.

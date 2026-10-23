@@ -1,5 +1,4 @@
 import { extractPdfTextFromBuffer } from '@/services/pdf/pdfTextExtractionRuntime';
-import { normalizeRut } from '@/utils/rutUtils';
 import type { ConflictEntry } from '../contracts/censusImportDiff';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { EgresoReportRow } from '../contracts/egresoReport';
@@ -10,8 +9,9 @@ import { encounterWallClockInRapaNui } from '../mapping/encounterWallClock';
 import {
   firstPatientFlowTimestamp,
   latestPatientFlowPlacement,
-  patientRunFromFlowReport,
+  patientIdentifierFromFlowReport,
 } from '../mapping/parsePatientFlow';
+import { normalizePatientRut as normalizeRut } from './censusPatientIdentityIndex';
 import type {
   BedTraceabilityResolverDependencies,
   PatientFlowReportResult,
@@ -32,13 +32,17 @@ import {
 import {
   activeBedBackedCandidates,
   invalidReportBackedConflicts,
+  relevantHistoricalReportRows,
   latestReportRowsByEpisode,
   reportBackedCandidates,
   reportClinicalStamp,
+  verifiedHistoricalCribParent,
   type HistoricalCandidate,
 } from './historicalAdministrativeEvidence';
 import { isPavilionRecoveryLocation } from './pavilionRecoverySyncPolicy';
 import { censusNightCloseTimestamp } from './censusDayPolicy';
+import { clinicalCribAtHistoricalParent } from './historicalEncounterFromLocal';
+import { readHistoricalPatientFlow } from './historicalFlowAuthorizationRecovery';
 
 const MAX_PARALLEL_REPORTS = 4;
 const mapWithConcurrency = async <T, R>(
@@ -67,6 +71,7 @@ type ReconstructionEntry =
 interface HistoricalClinicalCribCandidate {
   candidate: HistoricalCandidate;
   currentParentBedId: string;
+  knownParentEpisodeId?: string;
 }
 
 const mappedPrincipalBedId = (encounter: RayenEncounter): string | null =>
@@ -91,19 +96,6 @@ const activePrincipalEncountersByBed = (
   }
   return result;
 };
-
-const clinicalCribAtHistoricalParent = (
-  encounter: RayenEncounter,
-  parentBedId: string
-): RayenEncounter => ({
-  ...encounter,
-  clinicalCribParentBedId: parentBedId,
-  hasMedicalDischarge: false,
-  hasNurseDischarge: false,
-  dischargeDatetime: undefined,
-  isDead: false,
-  verifiedBedPlacement: undefined,
-});
 
 export interface HistoricalSnapshotReconstruction {
   /** Point-in-time placements proven by one official patient-flow PDF per episode. */
@@ -149,9 +141,13 @@ export const reconstructHistoricalSnapshotAtClose = async (
 
   // The report describes a later administrative location, not necessarily the placement at this
   // historical cutoff. Patient-flow evidence below decides whether P-R1/P-R2 must be omitted.
-  const scopedReportRows = reportRows;
-  const reportByEpisode = latestReportRowsByEpisode(scopedReportRows);
-  conflicts.push(...invalidReportBackedConflicts(scopedReportRows, reportByEpisode));
+  const reportByEpisode = latestReportRowsByEpisode(reportRows);
+  conflicts.push(
+    ...invalidReportBackedConflicts(
+      relevantHistoricalReportRows(reportRows, censusDay, record, liveSnapshot.encounters),
+      reportByEpisode
+    )
+  );
   const liveEncounterIds = new Set(liveSnapshot.encounters.map(item => item.encounterId));
   // A current P-R1/P-R2 placement does not prove where the patient was at a historical cutoff.
   // Keep the episode as traceability input and exclude it only after resolving that past placement.
@@ -227,12 +223,16 @@ export const reconstructHistoricalSnapshotAtClose = async (
       continue;
     }
     if (admission && admission > cutoff) continue;
-    if (!/^\d+$/.test(encounter.encounterId) || !normalizeRut(encounter.run)) {
+    const knownParentEpisodeId = verifiedHistoricalCribParent(record, encounter, reportRow);
+    if (
+      !/^\d+$/.test(encounter.encounterId) ||
+      (!normalizeRut(encounter.run) && !knownParentEpisodeId)
+    ) {
       conflicts.push(unresolvedConflict(encounter, 'la identidad del episodio es incompleta.'));
       continue;
     }
     if (encounter.clinicalCribParentBedId) {
-      if (!liveEncounterIds.has(encounter.encounterId)) {
+      if (!liveEncounterIds.has(encounter.encounterId) && !knownParentEpisodeId) {
         conflicts.push(
           unresolvedConflict(encounter, 'la cuna RN requiere conservar su vínculo materno.')
         );
@@ -247,6 +247,7 @@ export const reconstructHistoricalSnapshotAtClose = async (
           exactDischargeAt,
         },
         currentParentBedId: encounter.clinicalCribParentBedId,
+        knownParentEpisodeId,
       });
       continue;
     }
@@ -263,7 +264,10 @@ export const reconstructHistoricalSnapshotAtClose = async (
   const entries = await mapWithConcurrency(eligible, async candidate => {
     const { encounter } = candidate;
     try {
-      const report: PatientFlowReportResult = await dependencies.fetchReport(encounter.encounterId);
+      const report: PatientFlowReportResult = await readHistoricalPatientFlow(
+        encounter,
+        dependencies
+      );
       if (!report.base64 || report.error) {
         const recovered = await recoverLocalBedFromDischarge(
           candidate,
@@ -280,7 +284,8 @@ export const reconstructHistoricalSnapshotAtClose = async (
         } satisfies ReconstructionEntry;
       }
       const text = await extractText(decodePdfBase64(report.base64));
-      if (patientRunFromFlowReport(text) !== normalizeRut(encounter.run)) {
+      const reportIdentity = patientIdentifierFromFlowReport(text);
+      if (reportIdentity !== normalizeRut(encounter.run)) {
         return {
           conflict: unresolvedConflict(encounter, 'el RUN del informe no coincide.'),
         } satisfies ReconstructionEntry;
@@ -345,10 +350,10 @@ export const reconstructHistoricalSnapshotAtClose = async (
   const reconstructedPrincipalsByEpisode = new Map(
     encounters.map(encounter => [encounter.encounterId, encounter] as const)
   );
-  for (const { candidate, currentParentBedId } of eligibleClinicalCribs) {
+  for (const { candidate, currentParentBedId, knownParentEpisodeId } of eligibleClinicalCribs) {
     const { encounter } = candidate;
     const currentPrincipals = livePrincipalsByBed.get(currentParentBedId) ?? [];
-    if (currentPrincipals.length !== 1) {
+    if (!knownParentEpisodeId && currentPrincipals.length !== 1) {
       conflicts.push(
         unresolvedConflict(
           encounter,
@@ -358,7 +363,7 @@ export const reconstructHistoricalSnapshotAtClose = async (
       continue;
     }
     const reconstructedMother = reconstructedPrincipalsByEpisode.get(
-      currentPrincipals[0].encounterId
+      knownParentEpisodeId ?? currentPrincipals[0].encounterId
     );
     if (!reconstructedMother) {
       conflicts.push(

@@ -1,5 +1,6 @@
 import { GoogleAuthProvider, signInWithCredential, signInWithPopup } from 'firebase/auth';
 import { runSessionStorageTransition } from '@/services/storage/sessionStorageTransition';
+import { waitForPendingLogout } from '@/services/auth/authLogoutState';
 
 import type { AuthUser } from '@/types/authRoleTypes';
 import {
@@ -119,6 +120,8 @@ export const signInWithGoogle = async (options?: AuthRuntimeOptions): Promise<Au
     const authRuntime = resolveAuthRuntime(options);
     try {
       await authRuntime.ready;
+      // A logout still under way would otherwise be read as the current user.
+      await waitForPendingLogout();
       await waitForE2EPopupDelay();
 
       const existingUser = await authorizeCurrentFirebaseUser({ authRuntime });

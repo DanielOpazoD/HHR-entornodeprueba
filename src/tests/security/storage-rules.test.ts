@@ -4,7 +4,8 @@ import {
   initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import type { RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { getBytes, ref, uploadBytes } from 'firebase/storage';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { deleteObject, getBytes, ref, uploadBytes } from 'firebase/storage';
 import * as fs from 'fs';
 import * as path from 'path';
 import { afterAll, beforeAll, describe, it } from 'vitest';
@@ -44,6 +45,9 @@ describeStorageRules('Storage Security Rules - clinical attachments', () => {
 
     testEnv = await initializeTestEnvironment({
       projectId: 'demo-hhr-storage-rules-test',
+      firestore: {
+        rules: fs.readFileSync(path.resolve(__dirname, '../../../firestore.rules'), 'utf8'),
+      },
       storage: {
         rules,
         host: emulatorConfig.host,
@@ -54,6 +58,31 @@ describeStorageRules('Storage Security Rules - clinical attachments', () => {
 
   afterAll(async () => {
     await testEnv?.cleanup();
+  });
+
+  it('revokes Storage and Firestore access for the same already-authenticated token', async () => {
+    const email = 'revoked@example.test';
+    const context = testEnv.authenticatedContext('revoked-user', { email, role: 'nurse_hospital' });
+    const storage = context.storage();
+    const recordPath = 'hospitals/H1/dailyRecords/2026-01-01';
+    const filePath = storagePath.replace('att_1', 'att_revocation');
+    await testEnv.withSecurityRulesDisabled(async admin => {
+      await setDoc(doc(admin.firestore(), 'config/roles'), { [email]: 'nurse_hospital' });
+      await setDoc(doc(admin.firestore(), recordPath), { date: '2026-01-01' });
+    });
+    await assertSucceeds(
+      uploadClinicalAttachment(storage, filePath, new Uint8Array(32), 'application/pdf')
+    );
+    await assertSucceeds(getBytes(ref(storage, filePath)));
+    await assertSucceeds(getDoc(doc(context.firestore(), recordPath)));
+    await testEnv.withSecurityRulesDisabled(async admin => {
+      await setDoc(doc(admin.firestore(), 'config/roles'), { [email]: 'unauthorized' });
+    });
+    await assertFails(getBytes(ref(storage, filePath)));
+    await assertFails(
+      uploadClinicalAttachment(storage, filePath, new Uint8Array(32), 'application/pdf')
+    );
+    await assertFails(getDoc(doc(context.firestore(), recordPath)));
   });
 
   it('allows clinical writers to upload allowed attachment files and clinical readers to read them', async () => {
@@ -157,5 +186,82 @@ describeStorageRules('Storage Security Rules - clinical attachments', () => {
     await assertFails(
       uploadClinicalAttachment(unauthStorage, storagePath, new Uint8Array(1024), 'application/pdf')
     );
+  });
+
+  it.each(['admin', 'nurse_hospital', 'doctor_urgency', 'doctor_specialist', 'editor'])(
+    'allows %s to remove an attachment after upload',
+    async role => {
+      const storage = testEnv.authenticatedContext(`delete_${role}`, { role }).storage();
+      const target = storagePath.replace('att_1', `delete_${role}`);
+      await assertSucceeds(
+        uploadClinicalAttachment(storage, target, new Uint8Array(64), 'application/pdf')
+      );
+      await assertSucceeds(deleteObject(ref(storage, target)));
+    }
+  );
+
+  it('denies attachment deletion for viewers and unauthenticated users', async () => {
+    const storage = testEnv.authenticatedContext('attachment_owner', { role: 'admin' }).storage();
+    const target = storagePath.replace('att_1', 'delete_denied');
+    await uploadClinicalAttachment(storage, target, new Uint8Array(64), 'application/pdf');
+    await assertFails(
+      deleteObject(
+        ref(testEnv.authenticatedContext('read_only', { role: 'viewer' }).storage(), target)
+      )
+    );
+    await assertFails(deleteObject(ref(testEnv.unauthenticatedContext().storage(), target)));
+  });
+
+  it('allows only the owner to delete an avatar', async () => {
+    const owner = testEnv.authenticatedContext('avatar_owner').storage();
+    const target = 'user-avatars/avatar_owner/photo.png';
+    await assertSucceeds(uploadClinicalAttachment(owner, target, new Uint8Array(64), 'image/png'));
+    await assertFails(
+      deleteObject(
+        ref(testEnv.authenticatedContext('other_user', { role: 'admin' }).storage(), target)
+      )
+    );
+    await assertFails(deleteObject(ref(testEnv.unauthenticatedContext().storage(), target)));
+    await assertSucceeds(deleteObject(ref(owner, target)));
+  });
+
+  it('preserves avatar size and content restrictions', async () => {
+    const owner = testEnv.authenticatedContext('avatar_limits').storage();
+    await assertFails(
+      uploadClinicalAttachment(
+        owner,
+        'user-avatars/avatar_limits/file.pdf',
+        new Uint8Array(64),
+        'application/pdf'
+      )
+    );
+    await assertFails(
+      uploadClinicalAttachment(
+        owner,
+        'user-avatars/avatar_limits/large.png',
+        new Uint8Array(2 * 1024 * 1024),
+        'image/png'
+      )
+    );
+  });
+
+  it('allows wound-care deletion only for the existing clinical writers', async () => {
+    const nurse = testEnv.authenticatedContext('wound_nurse', { role: 'nurse_hospital' }).storage();
+    const target = 'wound-care/hhr/test/photo.png';
+    await assertSucceeds(uploadClinicalAttachment(nurse, target, new Uint8Array(64), 'image/png'));
+    await assertFails(
+      deleteObject(
+        ref(
+          testEnv.authenticatedContext('wound_doctor', { role: 'doctor_urgency' }).storage(),
+          target
+        )
+      )
+    );
+    await assertFails(
+      deleteObject(
+        ref(testEnv.authenticatedContext('wound_viewer', { role: 'viewer' }).storage(), target)
+      )
+    );
+    await assertSucceeds(deleteObject(ref(nurse, target)));
   });
 });

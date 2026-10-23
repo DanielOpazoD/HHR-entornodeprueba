@@ -7,15 +7,13 @@ import {
 import { sendCensusEmail } from '../../../src/services/email/gmailClient';
 import type { SanitizedOperationalTelemetryEvent } from '../../../src/services/observability/operationalTelemetryIngestPolicy';
 const mocks = vi.hoisted(() => ({ send: vi.fn() }));
-vi.mock('googleapis', () => ({
-  google: {
-    auth: {
-      OAuth2: class {
-        setCredentials = vi.fn();
-      },
+vi.mock('googleapis/build/src/apis/gmail/index.js', () => ({
+  auth: {
+    OAuth2: class {
+      setCredentials = vi.fn();
     },
-    gmail: () => ({ users: { messages: { send: mocks.send } } }),
   },
+  gmail: () => ({ users: { messages: { send: mocks.send } } }),
 }));
 const env = {
   GMAIL_CLIENT_ID: 'test-client',

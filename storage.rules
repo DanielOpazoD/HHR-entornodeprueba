@@ -1,16 +1,69 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
+    function individualAccessPolicy() {
+      let p = /databases/(default)/documents/config/individualAccounts;
+      return firestore.exists(p) ? firestore.get(p).data : {};
+    }
+
+    // The server reserves hhrn_ UIDs for managed accounts. Route by signed identity
+    // before reading documents: legacy uses policy + roles, managed uses access only.
+    function isManagedIdentity() {
+      return request.auth != null && (request.auth.uid.matches('hhrn_.*') ||
+        request.auth.token.keys().hasAny(['hhrAccountVersion']));
+    }
+
+    function managedAccount() {
+      return firestore.get(/databases/(default)/documents/hhr_account_access/$(request.auth.uid)).data;
+    }
+
+    function hasCurrentManagedSession() {
+      let account = managedAccount();
+      let authTime = request.auth.token.get('auth_time', 0);
+      return account.status == 'active' && account.get('credentialOperation', null) == null &&
+        request.auth.token.get('hhrAccountVersion', -1) == account.version &&
+        request.auth.token.get('firebase', {}).get('sign_in_provider', '') == 'password' &&
+        authTime > 0 && authTime <= request.time.toMillis() / 1000 + 60 &&
+        request.time.toMillis() / 1000 < authTime + 43200;
+    }
+
+    function protectedGoogleRole() {
+      let email = request.auth.token.get('email', '').lower();
+      let known = individualAccessPolicy().get('protectedGoogle', {});
+      let verified = request.auth.token.get('email_verified', false) &&
+        request.auth.token.get('firebase', {}).get('sign_in_provider', '') == 'google.com' &&
+        known.get(email, '') == request.auth.uid;
+      return verified ? individualAccessPolicy().get('protectedRoles', {}).get(request.auth.uid, null) : null;
+    }
+
+    function isIndividualAccessEnabled() {
+      return individualAccessPolicy().get('enabled', false) == true;
+    }
+
     function isAuthenticated() {
-      return request.auth != null;
+      return request.auth != null && (isManagedIdentity() ? hasCurrentManagedSession() :
+        (request.auth.token.get('firebase', {}).get('sign_in_provider', '') != 'password' &&
+          (!isIndividualAccessEnabled() || protectedGoogleRole() != null)));
+    }
+
+    function normalizeRole(role) {
+      return role == 'viewer_census' ? 'viewer' : role;
+    }
+
+    function legacyNormalizedRole() {
+      let email = request.auth.token.get('email', null);
+      let rolesPath = /databases/(default)/documents/config/roles;
+      let configuredRole = email is string && firestore.exists(rolesPath)
+        ? firestore.get(rolesPath).data.get(email.lower(), null)
+        : null;
+      let claimRole = request.auth.token.get('role', null);
+      // Explicit revocations and downgrades take precedence over an already issued token.
+      return normalizeRole(configuredRole != null ? configuredRole : claimRole);
     }
 
     function normalizedRole() {
-      return !isAuthenticated() || request.auth.token.role == null
-        ? null
-        : request.auth.token.role == 'viewer_census'
-          ? 'viewer'
-          : request.auth.token.role;
+      return !isAuthenticated() ? null : isManagedIdentity() ? managedAccount().role :
+        isIndividualAccessEnabled() ? protectedGoogleRole() : legacyNormalizedRole();
     }
 
     function hasNormalizedRole(roles) {
@@ -102,16 +155,18 @@ service firebase.storage {
 
     match /user-avatars/{userId}/{fileName} {
       allow read: if isCurrentUser(userId);
-      allow write: if isCurrentUser(userId)
+      allow create, update: if isCurrentUser(userId)
                    && request.resource.size < 2 * 1024 * 1024
                    && request.resource.contentType.matches('image/.*');
+      allow delete: if isCurrentUser(userId);
     }
 
     match /clinical-attachments/{hospitalId}/{patientRutKey}/{episodeKey}/{attachmentId}/{fileName} {
       allow read: if canReadClinicalAttachments();
-      allow write: if canWriteClinicalAttachments()
+      allow create, update: if canWriteClinicalAttachments()
                       && request.resource.size < 15 * 1024 * 1024
                       && request.resource.contentType.matches('image/.*|application/pdf|application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      allow delete: if canWriteClinicalAttachments();
     }
 
     // Prescription-photo backup blobs are written and cleaned up only by
@@ -124,9 +179,10 @@ service firebase.storage {
     // Wound care: clinical photography and informed consent documents.
     match /wound-care/{allPaths=**} {
       allow read: if canReadClinicalStorage();
-      allow write: if hasClinicalWriteRole()
+      allow create, update: if hasClinicalWriteRole()
                       && request.resource.size < 15 * 1024 * 1024
                       && request.resource.contentType.matches('image/.*|application/pdf');
+      allow delete: if hasClinicalWriteRole();
     }
 
     // Default: deny all other access
