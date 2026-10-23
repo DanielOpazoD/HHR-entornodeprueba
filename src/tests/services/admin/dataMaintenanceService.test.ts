@@ -31,7 +31,7 @@ import {
 
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordsRange: mockGetRecordsRange,
-  getRecordForDate: mockGetRecordForDate,
+  getRecordForDateStrict: mockGetRecordForDate,
   saveRecords: mockSaveRecords,
 }));
 
@@ -302,5 +302,19 @@ describe('dataMaintenanceService', () => {
       undefined,
       { writeOrigin: 'backup_restore' }
     );
+
+    // A local day that cannot be read might be split: it fails closed, never as "no local day".
+    mockRepositorySave.mockClear();
+    mockGetRecordForDate.mockRejectedValue(new Error('synthetic IndexedDB failure'));
+    const unreadable = await importRecordsFromBackup({
+      version: '1.0',
+      exportDate: '2026-03-05T10:00:00.000Z',
+      year: 2026,
+      month: 3,
+      recordCount: 1,
+      records: [backupDay('2026-03-04')],
+    });
+    expect(unreadable).toEqual({ success: 0, failed: 1, repaired: 0, outcome: 'blocked' });
+    expect(mockRepositorySave).not.toHaveBeenCalled();
   });
 });

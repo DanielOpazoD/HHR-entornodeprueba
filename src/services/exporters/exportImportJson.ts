@@ -1,6 +1,6 @@
 import type { DailyRecord } from '@/services/contracts/dailyRecordServiceContracts';
 import {
-  getRecordForDate,
+  getRecordForDateStrict,
   saveRecordsStrict,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { hasStructuralRepairs, parseDailyRecordWithDefaultsReport } from '@/schemas/zodSchemas';
@@ -63,11 +63,15 @@ export const importDataJSONDetailed = async (file: File): Promise<JsonImportResu
       }
     });
 
-    // A local split day is never replaced by an older or equal copy without the marker (D10);
-    // the date is reported as skipped.
+    // A local split day is never replaced by a copy that is not newer and lost (or changed) its
+    // marker (D10). Such a date, or one whose local copy cannot be read, is reported as skipped.
     const acceptedRecords: DailyRecord[] = [];
     for (const record of importedRecords) {
-      if (isClinicalDerivedLayoutRegression(await getRecordForDate(record.date), record)) {
+      const local = await getRecordForDateStrict(record.date).catch((error: unknown) => {
+        jsonImportLogger.warn(`JSON import could not read the local day ${record.date}`, error);
+        return undefined;
+      });
+      if (local === undefined || isClinicalDerivedLayoutRegression(local, record)) {
         skippedEntries.push(record.date);
       } else {
         acceptedRecords.push(record);

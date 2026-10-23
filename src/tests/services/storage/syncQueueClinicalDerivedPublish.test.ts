@@ -5,7 +5,7 @@
  * queues are never purged). Unmarked days publish exactly as before. Synthetic data only.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Firestore, Transaction } from 'firebase/firestore';
+import { deleteField, type Firestore, type Transaction } from 'firebase/firestore';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { createFirestoreSyncTransport } from '@/services/storage/sync/firestoreSyncTransport';
 import { sanitizeForFirestore } from '@/services/storage/firestore/firestoreShared';
@@ -93,6 +93,20 @@ const run = (input: SyncTask) =>
     input
   );
 const written = () => mocks.set.mock.calls[0][1] as Holder & { beds: Record<string, Holder> };
+// Firestore set-merge: nested maps merge key by key and deleteField() removes the stored key.
+const DELETE = deleteField();
+const isMap = (value: unknown): value is Holder =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+const applyMerge = (stored: Holder, payload: Holder): Holder => {
+  const result: Holder = { ...stored };
+  Object.entries(payload).forEach(([key, value]) => {
+    if (DELETE.isEqual(value as typeof DELETE)) delete result[key];
+    else if (isMap(value) && !('isEqual' in value)) {
+      result[key] = applyMerge(isMap(result[key]) ? result[key] : {}, value);
+    } else result[key] = value;
+  });
+  return result;
+};
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -105,8 +119,9 @@ describe('queue publish to a split day', () => {
   it.each([
     ['an accepted task', undefined, `${date}T09:00:00.000Z`],
     [
+      // A wildcard merge would keep the local moved fields and meta without the hygiene.
       'a task revalidated against a newer remote',
-      { expectedVersion: `${date}T09:00:00.000Z`, changedPaths: ['beds.R1.handoffNote'] },
+      { expectedVersion: `${date}T09:00:00.000Z`, changedPaths: ['*'] },
       `${date}T09:30:00.000Z`,
     ],
   ])('drops the local moved fields for %s', async (_label, syncContract, storedAt) => {
@@ -128,6 +143,31 @@ describe('queue publish to a split day', () => {
     expect(outcome).toMatchObject({
       authoritativeRecord: { clinicalDerivedLayout: marker, meta: { revision: 8 } },
     });
+  });
+
+  it('leaves no other episode’s embedded copy under a bed’s new occupant (merge: true)', async () => {
+    // Stored: ep_c (not split yet) in R2. Queued: ep_new took R2, ep_c moved to R4.
+    const stored = day(
+      `${date}T09:00:00.000Z`,
+      { R2: patient('R2', 'ep_c', moved('stored-c')) },
+      { clinicalDerivedLayout: marker, meta: { revision: 8 } }
+    );
+    mocks.read.mockResolvedValue(snapshot(stored));
+    mocks.transactionRead.mockResolvedValue(snapshot(stored));
+    const local = day(`${date}T10:00:00.000Z`, {
+      R2: patient('R2', 'ep_new', moved('local-new')),
+      R4: patient('R4', 'ep_c', moved('local-c')),
+    });
+
+    await run(task(local));
+
+    const merged = applyMerge(sanitizeForFirestore(stored) as Holder, written()) as {
+      beds: Record<string, Holder>;
+    };
+    expect(merged.beds.R2).toMatchObject({ clinicalEpisodeId: 'ep_new' });
+    expect(merged.beds.R2).not.toHaveProperty('vitalSignsHistory');
+    expect(merged.beds.R2).not.toHaveProperty('clinicalSyncCheckpoint');
+    expect(merged.beds.R4).toMatchObject(moved('stored-c'));
   });
 
   it('never creates a day with a marker, even from a marked local copy', async () => {

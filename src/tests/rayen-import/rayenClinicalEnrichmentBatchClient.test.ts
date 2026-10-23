@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { CLIENT_RUNTIME_CONTRACT_VERSION } from '@/constants/runtimeContracts';
 import {
   callRayenClinicalEnrichmentBatch,
   type RayenClinicalEnrichmentBatchPayload,
@@ -60,7 +61,7 @@ describe('clinical batch regional client', () => {
     // The version travels as its own top-level field; the caller's payload is not mutated.
     expect(mocks.invoke).toHaveBeenCalledExactlyOnceWith({
       ...payload,
-      clientRuntimeContractVersion: 3,
+      clientRuntimeContractVersion: CLIENT_RUNTIME_CONTRACT_VERSION,
     });
     expect(payload).not.toHaveProperty('clientRuntimeContractVersion');
     expect(mocks.getFunctions).not.toHaveBeenCalled();

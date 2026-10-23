@@ -10,7 +10,9 @@ import {
   adoptStoredClinicalDerivedState,
   carriesClinicalDerivedLayout,
   isClinicalDerivedLayoutRegression,
+  withClearedStoredMovedFields,
 } from '@/services/storage/clinicalDerivedWriteHygiene';
+import { ensureDailyRecordClinicalEpisodeIds } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
 
 type Holder = Record<string, unknown>;
 type Day = Record<string, unknown> & { beds: Record<string, Holder> };
@@ -176,7 +178,7 @@ describe('adoptStoredClinicalDerivedState · a pre-split local copy over a split
     expect('vitalSignsHistory' in bed(written, 'R1')).toBe(false);
   });
 
-  it('matches an id stored twice only in its own slot, and a holder without id only an id-less slot', () => {
+  it('matches an id stored twice only in its own slot, and a holder without id only its own patient', () => {
     const twice = day(
       {
         R1: patient('ep_dup', 'stored-r1'),
@@ -190,7 +192,7 @@ describe('adoptStoredClinicalDerivedState · a pre-split local copy over a split
         R1: patient('ep_dup', 'local-r1'),
         R3: patient('ep_dup', 'local-r3'),
         R5: patient(undefined, 'local-r5'),
-        R6: patient(undefined, 'local-r6'),
+        R6: patient(undefined, 'local-r6', { rut: '33.333.333-3' }),
       }),
       twice
     );
@@ -199,6 +201,154 @@ describe('adoptStoredClinicalDerivedState · a pre-split local copy over a split
     expect(bed(written, 'R5').vitalSignsHistory).toEqual(moved('stored-r5').vitalSignsHistory);
     expect('vitalSignsHistory' in bed(written, 'R6')).toBe(false);
   });
+
+  it('never hands an id-less stored patient’s copy to another patient or a cleared bed', () => {
+    const storedY = day(
+      { R1: patient(undefined, 'stored-y', { rut: '22.222.222-2' }) },
+      { clinicalDerivedLayout: marker }
+    );
+    const other = adoptStoredClinicalDerivedState(
+      day({ R1: patient(undefined, 'local-x', { rut: '33.333.333-3' }) }),
+      storedY
+    );
+    expect(bed(other, 'R1')).not.toHaveProperty('vitalSignsHistory');
+    expect(bed(other, 'R1')).not.toHaveProperty('clinicalSyncCheckpoint');
+    const cleared = adoptStoredClinicalDerivedState(
+      day({ R1: { patientName: '', rut: '' } }),
+      storedY
+    );
+    expect(bed(cleared, 'R1')).toEqual({ patientName: '', rut: '' });
+  });
+
+  it('keeps the only copy of an id-less stored patient when the save backfilled a legacy id', () => {
+    const identity = { rut: '22.222.222-2', admissionDate: '2026-11-01' };
+    const stored = day(
+      { R1: patient(undefined, 'stored-y', identity) },
+      { clinicalDerivedLayout: marker }
+    );
+    // Every client save backfills a legacy id from the identity (dailyRecordPersistencePreparation).
+    const local = ensureDailyRecordClinicalEpisodeIds(
+      day({ R1: patient(undefined, 'local-y', identity) }) as never
+    ) as Day;
+    expect(bed(local, 'R1').clinicalEpisodeId).toMatch(/^legacy_ep_/);
+
+    const written = adoptStoredClinicalDerivedState(local, stored);
+    expect(bed(written, 'R1').vitalSignsHistory).toEqual(moved('stored-y').vitalSignsHistory);
+    expect(bed(written, 'R1').clinicalSyncCheckpoint).toEqual(
+      moved('stored-y').clinicalSyncCheckpoint
+    );
+  });
+
+  it('ignores a blocked bed that kept a stale id, so the active episode still matches', () => {
+    const stored = day(
+      {
+        R1: patient('ep_a', 'stored-a'),
+        R5: { isBlocked: true, clinicalEpisodeId: 'ep_a' },
+      },
+      { clinicalDerivedLayout: marker }
+    );
+    const written = adoptStoredClinicalDerivedState(
+      day({
+        R2: patient('ep_a', 'local-a'),
+        R5: { isBlocked: true, clinicalEpisodeId: 'ep_a', ...moved('local-blocked') },
+      }),
+      stored
+    );
+    expect(bed(written, 'R2').vitalSignsHistory).toEqual(moved('stored-a').vitalSignsHistory);
+    expect(bed(written, 'R5')).toEqual({ isBlocked: true, clinicalEpisodeId: 'ep_a' });
+  });
+
+  it('drops the local meta when the stored split day has none', () => {
+    const written = adoptStoredClinicalDerivedState(
+      day({}, { meta: { revision: 3 } }),
+      day({}, { clinicalDerivedLayout: marker })
+    );
+    expect(written).not.toHaveProperty('meta');
+  });
+
+  it('keeps a stored null marker as the rules see it: present, with the stored meta', () => {
+    const written = adoptStoredClinicalDerivedState(local, {
+      ...stored,
+      clinicalDerivedLayout: null,
+    });
+    expect(written.clinicalDerivedLayout).toBeNull();
+    expect(written.meta).toEqual(stored.meta);
+    expect('vitalSignsHistory' in bed(written, 'R1')).toBe(false);
+  });
+});
+
+// Firestore set-merge semantics: nested maps merge key by key, CLEAR deletes, anything else
+// replaces the stored value.
+const CLEAR = { clear: 'synthetic-delete-sentinel' };
+const applyMerge = (stored: unknown, payload: Holder): Holder => {
+  const result: Holder = { ...(stored as Holder) };
+  Object.entries(payload).forEach(([key, value]) => {
+    if (value === CLEAR) delete result[key];
+    else if (value && typeof value === 'object' && !Array.isArray(value)) {
+      const current = result[key];
+      result[key] = applyMerge(
+        current && typeof current === 'object' && !Array.isArray(current) ? current : {},
+        value as Holder
+      );
+    } else result[key] = value;
+  });
+  return result;
+};
+
+describe('withClearedStoredMovedFields · merge: true ends as a full set would', () => {
+  const stored = day(
+    {
+      R1: patient('ep_a', 'stored-a', { clinicalSyncCheckpoint: undefined }),
+      R2: { ...patient('ep_mother', 'stored-mother'), clinicalCrib: patient('ep_nb', 'stored-nb') },
+      R3: patient('ep_c', 'stored-c'),
+      R7: patient('ep_gone', 'stored-gone'),
+    },
+    { clinicalDerivedLayout: marker, meta: { revision: 7 } }
+  );
+  const local = day(
+    {
+      R1: patient('ep_a', 'local-a'),
+      R2: { ...patient('ep_mother', 'local-mother'), clinicalCrib: patient('ep_nb2', 'local-nb2') },
+      // ep_c moved to R4; a new episode took R3 and the stored R7 patient left.
+      R3: patient('ep_new', 'local-new'),
+      R4: patient('ep_c', 'local-c'),
+      R7: { patientName: '', rut: '' },
+    },
+    { meta: { revision: 3 } }
+  );
+
+  it('removes what another episode left in the slot and keeps each episode’s stored copy', () => {
+    const payload = adoptStoredClinicalDerivedState(local, stored);
+    const merged = applyMerge(
+      stored,
+      withClearedStoredMovedFields(payload, stored, () => CLEAR)
+    ) as Day;
+
+    expect(bed(merged, 'R3')).not.toHaveProperty('vitalSignsHistory');
+    expect(bed(merged, 'R3')).not.toHaveProperty('clinicalSyncCheckpoint');
+    expect(bed(merged, 'R7')).not.toHaveProperty('vitalSignsHistory');
+    expect(crib(merged, 'R2')).not.toHaveProperty('vitalSignsHistory');
+    expect(bed(merged, 'R4').vitalSignsHistory).toEqual(moved('stored-c').vitalSignsHistory);
+    expect(bed(merged, 'R2').vitalSignsHistory).toEqual(moved('stored-mother').vitalSignsHistory);
+    // Split episode: its document holds the data; nothing embedded stays nothing.
+    expect(bed(merged, 'R1').vitalSignsHistory).toEqual(moved('stored-a').vitalSignsHistory);
+    expect(bed(merged, 'R1').clinicalSyncCheckpoint).toBeUndefined();
+    // Every holder ends with exactly the moved fields of the adopted payload.
+    Object.keys(local.beds).forEach(bedId => {
+      ['clinicalSyncCheckpoint', 'vitalSignsHistory'].forEach(field => {
+        expect(bed(merged, bedId)[field]).toEqual(bed(payload, bedId)[field]);
+      });
+    });
+  });
+
+  it('returns the very same payload on an unmarked or missing stored day, or with nothing to clear', () => {
+    const payload = { ...local } as Holder;
+    const clear = () => CLEAR;
+    expect(withClearedStoredMovedFields(payload, day(stored.beds), clear)).toBe(payload);
+    expect(withClearedStoredMovedFields(payload, undefined, clear)).toBe(payload);
+    const adopted = adoptStoredClinicalDerivedState(day({ R3: patient('ep_c', 'x') }), stored);
+    expect(withClearedStoredMovedFields(adopted, stored, clear)).toBe(adopted);
+  });
 });
 
 describe('isClinicalDerivedLayoutRegression', () => {
@@ -206,14 +356,24 @@ describe('isClinicalDerivedLayoutRegression', () => {
     {},
     { clinicalDerivedLayout: marker, lastUpdated: `${DATE}T12:00:00.000Z` }
   );
+  const otherGeneration = { clinicalDerivedLayout: { version: 1, generation: 'gen_synthetic_b' } };
 
   it.each([
-    ['an older copy without marker', `${DATE}T11:00:00.000Z`, true],
-    ['a copy of the same version without marker', `${DATE}T12:00:00.000Z`, true],
-    ['an unreadable timestamp', 'not-a-date', true],
-    ['a strictly newer copy without marker', `${DATE}T13:00:00.000Z`, false],
-  ])('over a local split day, %s → %s', (_label, lastUpdated, expected) => {
-    expect(isClinicalDerivedLayoutRegression(localSplit, day({}, { lastUpdated }))).toBe(expected);
+    ['an older copy without marker', `${DATE}T11:00:00.000Z`, {}, true],
+    ['a copy of the same version without marker', `${DATE}T12:00:00.000Z`, {}, true],
+    ['an unreadable timestamp', 'not-a-date', {}, true],
+    ['an older copy from another generation', `${DATE}T11:00:00.000Z`, otherGeneration, true],
+    ['a strictly newer copy without marker', `${DATE}T13:00:00.000Z`, {}, false],
+    [
+      'a strictly newer copy from another generation',
+      `${DATE}T13:00:00.000Z`,
+      otherGeneration,
+      false,
+    ],
+  ])('over a local split day, %s → %s', (_label, lastUpdated, extra, expected) => {
+    expect(isClinicalDerivedLayoutRegression(localSplit, day({}, { lastUpdated, ...extra }))).toBe(
+      expected
+    );
   });
 
   it('never blocks when the local day is unmarked, missing, or the copy keeps its marker', () => {
@@ -225,8 +385,10 @@ describe('isClinicalDerivedLayoutRegression', () => {
     ).toBe(false);
   });
 
-  it('reads a null marker as no marker', () => {
-    expect(carriesClinicalDerivedLayout({ clinicalDerivedLayout: null })).toBe(false);
+  it('counts a null marker as present, like the rules', () => {
+    expect(carriesClinicalDerivedLayout({ clinicalDerivedLayout: null })).toBe(true);
     expect(carriesClinicalDerivedLayout({ clinicalDerivedLayout: marker })).toBe(true);
+    expect(carriesClinicalDerivedLayout({ clinicalDerivedLayout: undefined })).toBe(false);
+    expect(carriesClinicalDerivedLayout({})).toBe(false);
   });
 });

@@ -12,12 +12,13 @@
  * Used by the conflict auto-merge (stored = the remote record) and by the direct writes that read
  * the remote in their transaction (stored = the snapshot data, or undefined when the day does not
  * exist). Without a marker on either side the same object is returned: unmarked days are a no-op.
- * Only the constants are imported, so eager write paths do not pull in the overlay.
+ * The overlay is not imported, so eager write paths do not pull it in.
  */
 import {
   CLINICAL_DERIVED_LAYOUT_FIELD,
   CLINICAL_DERIVED_MOVED_FIELDS,
 } from '@/services/storage/clinicalDerivedConstants';
+import { ensurePatientClinicalEpisodeId } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
 
 type PlainObject = Record<string, unknown>;
 
@@ -42,39 +43,55 @@ const clonePlain = (value: unknown): unknown => {
   return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, clonePlain(item)]));
 };
 
-/** True when a stored or local day carries the marker, whatever its shape. */
+/**
+ * True when a day carries the marker key, whatever its value (`null` included): the rules' notion
+ * (`'clinicalDerivedLayout' in resource.data`), so a direct write never changes a stored key.
+ * Reads follow `readClinicalDerivedLayout` in clinicalDerivedContract.ts instead.
+ */
 export const carriesClinicalDerivedLayout = (record: unknown): boolean =>
-  isPlainObject(record) &&
-  record[CLINICAL_DERIVED_LAYOUT_FIELD] !== undefined &&
-  record[CLINICAL_DERIVED_LAYOUT_FIELD] !== null;
+  isPlainObject(record) && record[CLINICAL_DERIVED_LAYOUT_FIELD] !== undefined;
 
-const episodeIdOf = (holder: PlainObject): string =>
-  typeof holder.clinicalEpisodeId === 'string' ? holder.clinicalEpisodeId.trim() : '';
+// The episode id, or for a holder without one the id the legacy backfill of every client save
+// (ensureDailyRecordClinicalEpisodeIds) gives it: a stored id-less patient still matches its local
+// copy, and nobody else's. An empty holder has no key.
+const episodeKeyOf = (holder: PlainObject): string =>
+  String(
+    ensurePatientClinicalEpisodeId(holder as Parameters<typeof ensurePatientClinicalEpisodeId>[0])
+      .clinicalEpisodeId ?? ''
+  ).trim();
 
-const holdersOf = (record: PlainObject): Holder[] =>
+interface StoredHolder extends Holder {
+  key: string;
+}
+
+const holdersOf = (record: PlainObject): StoredHolder[] =>
   Object.entries(isPlainObject(record.beds) ? record.beds : {}).flatMap(([bedId, bed]) => {
     if (!isPlainObject(bed)) return [];
-    const holders: Holder[] = [{ bedId, target: 'bed', holder: bed }];
+    const holders: StoredHolder[] = [{ bedId, target: 'bed', holder: bed, key: episodeKeyOf(bed) }];
     if (isPlainObject(bed.clinicalCrib)) {
-      holders.push({ bedId, target: 'clinicalCrib', holder: bed.clinicalCrib });
+      const crib = bed.clinicalCrib;
+      holders.push({ bedId, target: 'clinicalCrib', holder: crib, key: episodeKeyOf(crib) });
     }
     return holders;
   });
 
+const sameSlotOf = (
+  stored: StoredHolder[],
+  local: Omit<Holder, 'holder'>
+): StoredHolder | undefined =>
+  stored.find(candidate => candidate.bedId === local.bedId && candidate.target === local.target);
+
 /**
- * The stored holder of the same episode, wherever it is (a crib<->bed move keeps the id). An id
- * stored more than once only matches its own slot; a holder without an id only matches its own
- * slot when that one has no id either.
+ * The stored holder of the same episode, wherever it is (a crib<->bed move keeps the id). Blocked
+ * holders are not active (as in clinicalDerivedContract.ts) and only match a blocked holder in
+ * their own slot; a key stored more than once only matches its own slot; no key, no match.
  */
-const findStoredHolder = (stored: Holder[], local: Holder): PlainObject | undefined => {
-  const sameSlot = stored.find(
-    candidate => candidate.bedId === local.bedId && candidate.target === local.target
-  );
-  const episodeId = episodeIdOf(local.holder);
-  if (!episodeId) {
-    return sameSlot && !episodeIdOf(sameSlot.holder) ? sameSlot.holder : undefined;
-  }
-  const matches = stored.filter(candidate => episodeIdOf(candidate.holder) === episodeId);
+const findStoredHolder = (stored: StoredHolder[], local: Holder): PlainObject | undefined => {
+  const sameSlot = sameSlotOf(stored, local);
+  if (local.holder.isBlocked) return sameSlot?.holder.isBlocked ? sameSlot.holder : undefined;
+  const key = episodeKeyOf(local.holder);
+  if (!key) return undefined;
+  const matches = stored.filter(candidate => !candidate.holder.isBlocked && candidate.key === key);
   if (matches.length === 1) return matches[0].holder;
   return matches.find(candidate => candidate === sameSlot)?.holder;
 };
@@ -103,14 +120,14 @@ export const adoptStoredClinicalDerivedState = <T extends object>(
   stored: unknown
 ): T => {
   const source = record as PlainObject;
-  const storedDay = isPlainObject(stored) ? stored : undefined;
-  if (!storedDay || storedDay[CLINICAL_DERIVED_LAYOUT_FIELD] === undefined) {
+  if (!carriesClinicalDerivedLayout(stored)) {
     if (!hasOwn(source, CLINICAL_DERIVED_LAYOUT_FIELD)) return record;
     const stripped: PlainObject = { ...source };
     delete stripped[CLINICAL_DERIVED_LAYOUT_FIELD];
     return stripped as T;
   }
 
+  const storedDay = stored as PlainObject;
   const next: PlainObject = {
     ...source,
     [CLINICAL_DERIVED_LAYOUT_FIELD]: clonePlain(storedDay[CLINICAL_DERIVED_LAYOUT_FIELD]),
@@ -148,14 +165,67 @@ export const adoptStoredClinicalDerivedState = <T extends object>(
 };
 
 /**
- * Imports never replace a local split day with a copy that lost its marker unless that copy is
- * strictly newer (an unreadable timestamp keeps the local day).
+ * `set(..., { merge: true })` keeps every key the payload omits. On a marked stored day, a moved
+ * field that the adopted payload leaves out of a holder while the stored holder in the same slot
+ * still carries it (another episode's copy, or one that is not this holder's) gets `clearValue()`,
+ * so the merged slot ends up as a full `set` would leave it: absent stored, absent result (D9).
+ * Pass the sanitized payload (sanitizeForFirestore would flatten a sentinel). Unmarked stored
+ * days, and payloads with nothing to clear, come back as the same object.
+ */
+export const withClearedStoredMovedFields = (
+  payload: PlainObject,
+  stored: unknown,
+  clearValue: () => unknown
+): PlainObject => {
+  if (!carriesClinicalDerivedLayout(stored) || !isPlainObject(payload.beds)) return payload;
+  const storedHolders = holdersOf(stored as PlainObject);
+  const clearMissing = (holder: PlainObject, slot: Omit<Holder, 'holder'>): PlainObject => {
+    const storedHolder = sameSlotOf(storedHolders, slot)?.holder;
+    const missing = CLINICAL_DERIVED_MOVED_FIELDS.filter(
+      field => storedHolder?.[field] !== undefined && holder[field] === undefined
+    );
+    if (missing.length === 0) return holder;
+    const next: PlainObject = { ...holder };
+    missing.forEach(field => {
+      next[field] = clearValue();
+    });
+    return next;
+  };
+
+  let changed = false;
+  const beds: PlainObject = {};
+  Object.entries(payload.beds).forEach(([bedId, bed]) => {
+    if (!isPlainObject(bed)) {
+      beds[bedId] = bed;
+      return;
+    }
+    let nextBed = clearMissing(bed, { bedId, target: 'bed' });
+    if (isPlainObject(bed.clinicalCrib)) {
+      const crib = clearMissing(bed.clinicalCrib, { bedId, target: 'clinicalCrib' });
+      if (crib !== bed.clinicalCrib) nextBed = { ...nextBed, clinicalCrib: crib };
+    }
+    if (nextBed !== bed) changed = true;
+    beds[bedId] = nextBed;
+  });
+  return changed ? { ...payload, beds } : payload;
+};
+
+/**
+ * Imports never replace a local split day with a copy that lost its marker, or carries another
+ * one, unless that copy is strictly newer (an unreadable timestamp keeps the local day).
  */
 const lastUpdatedMs = (record: unknown): number =>
   Date.parse(String(isPlainObject(record) ? (record.lastUpdated ?? '') : ''));
 
+const sameMarker = (left: PlainObject, right: unknown): boolean =>
+  isPlainObject(right) &&
+  JSON.stringify(left[CLINICAL_DERIVED_LAYOUT_FIELD]) ===
+    JSON.stringify(right[CLINICAL_DERIVED_LAYOUT_FIELD]);
+
 export const isClinicalDerivedLayoutRegression = (local: unknown, incoming: unknown): boolean => {
-  if (!carriesClinicalDerivedLayout(local) || carriesClinicalDerivedLayout(incoming)) return false;
+  if (!carriesClinicalDerivedLayout(local) || sameMarker(local as PlainObject, incoming)) {
+    return false;
+  }
   const localMs = lastUpdatedMs(local);
   const incomingMs = lastUpdatedMs(incoming);
   return !(Number.isFinite(localMs) && Number.isFinite(incomingMs) && incomingMs > localMs);

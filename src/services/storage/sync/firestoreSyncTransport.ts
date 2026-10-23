@@ -1,4 +1,4 @@
-import { getDoc, runTransaction, type Transaction } from 'firebase/firestore';
+import { deleteField, getDoc, runTransaction, type Transaction } from 'firebase/firestore';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type {
   SyncTransportPort,
@@ -36,7 +36,10 @@ import {
   hasRemoteAppliedMutation,
 } from '@/services/storage/sync/firestoreSyncConflictPolicy';
 import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
-import { adoptStoredClinicalDerivedState } from '@/services/storage/clinicalDerivedWriteHygiene';
+import {
+  adoptStoredClinicalDerivedState,
+  withClearedStoredMovedFields,
+} from '@/services/storage/clinicalDerivedWriteHygiene';
 
 const STRICT_REMOTE_DRIFT_TOLERANCE_MS = 0;
 
@@ -285,11 +288,16 @@ const syncDailyRecord = async (
         assertResolvedClinicalAuthority(task, current);
         // D9: the stored day keeps its split-day marker, meta and moved fields, and a create
         // never carries the marker (the rule would deny this entry forever; queues are never
-        // purged). The same object on unmarked days.
+        // purged). merge: true keeps omitted keys, so a moved field another episode left in the
+        // slot is deleted. The same record and payload on unmarked days.
         const committedRecord = adoptStoredClinicalDerivedState(current.record, current.storedData);
         transaction.set(
           getRecordDocRef(committedRecord.date, runtime),
-          sanitizeForFirestore(committedRecord) as Record<string, unknown>,
+          withClearedStoredMovedFields(
+            sanitizeForFirestore(committedRecord) as Record<string, unknown>,
+            current.storedData,
+            () => deleteField()
+          ),
           { merge: true }
         );
         return { ...current, record: committedRecord };

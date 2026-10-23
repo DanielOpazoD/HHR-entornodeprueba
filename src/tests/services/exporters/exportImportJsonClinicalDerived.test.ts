@@ -1,14 +1,15 @@
 /**
  * JSON import on split days (D10 of DESIGN_DAILY_RECORD_PHASE1_CLINICAL_DERIVED.md): an import
- * never replaces a newer (or the same) local split day with a copy that lost its marker; the date
- * is reported as skipped. Unmarked local days import exactly as before. Synthetic data only.
+ * never replaces a newer (or the same) local split day with a copy that lost or changed its marker,
+ * and a local day it cannot read counts as possibly split; the date is reported as skipped.
+ * Unmarked local days import exactly as before. Synthetic data only.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 const mocks = vi.hoisted(() => ({ getLocal: vi.fn(), saveMany: vi.fn() }));
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
-  getRecordForDate: mocks.getLocal,
+  getRecordForDateStrict: mocks.getLocal,
   saveRecordsStrict: mocks.saveMany,
 }));
 
@@ -77,6 +78,45 @@ describe('JSON import over local split days', () => {
 
     expect(result).toMatchObject({ success: false, outcome: 'blocked', importedCount: 0 });
     expect(mocks.saveMany).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['an unmarked copy', {}],
+    [
+      'a copy from another generation',
+      { clinicalDerivedLayout: { version: 1, generation: 'gen_b' } },
+    ],
+  ])('skips %s that is not newer than the local split day', async (_label, extra) => {
+    mocks.getLocal.mockResolvedValue(
+      day('2026-11-02', '2026-11-02T12:00:00.000Z', { clinicalDerivedLayout: marker })
+    );
+
+    const result = await importDataJSONDetailed(
+      file({
+        '2026-11-02': day('2026-11-02', '2026-11-02T11:00:00.000Z', extra),
+        '2026-11-03': day('2026-11-03', '2026-11-03T09:00:00.000Z'),
+      })
+    );
+
+    expect(result).toMatchObject({ outcome: 'partial', skippedEntries: ['2026-11-02'] });
+    expect(savedDates()).toEqual(['2026-11-03']);
+  });
+
+  it('skips a date whose local copy cannot be read instead of treating it as absent', async () => {
+    mocks.getLocal.mockImplementation(async (date: string) => {
+      if (date === '2026-11-02') throw new Error('synthetic IndexedDB failure');
+      return null;
+    });
+
+    const result = await importDataJSONDetailed(
+      file({
+        '2026-11-02': day('2026-11-02', '2026-11-02T09:00:00.000Z'),
+        '2026-11-03': day('2026-11-03', '2026-11-03T09:00:00.000Z'),
+      })
+    );
+
+    expect(result).toMatchObject({ outcome: 'partial', skippedEntries: ['2026-11-02'] });
+    expect(savedDates()).toEqual(['2026-11-03']);
   });
 
   it.each([

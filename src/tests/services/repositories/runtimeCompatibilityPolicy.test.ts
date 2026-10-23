@@ -10,7 +10,7 @@ describe('runtimeCompatibilityPolicy', () => {
   it('exposes a stable runtime compatibility snapshot', () => {
     const snapshot = getRuntimeCompatibilitySnapshot();
     expect(snapshot).toMatchObject({
-      clientRuntimeContractVersion: 3,
+      clientRuntimeContractVersion: 2,
       backendRuntimeContractVersion: 2,
       minSupportedBackendRuntimeContractVersion: 2,
       minSupportedClientRuntimeContractVersion: 1,

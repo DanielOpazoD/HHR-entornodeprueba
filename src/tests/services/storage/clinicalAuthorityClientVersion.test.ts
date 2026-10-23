@@ -4,6 +4,8 @@
  * receipts, so an idempotent retry still matches. The Rayen batch client is covered in
  * rayenClinicalEnrichmentBatchClient.test.ts. Synthetic data only.
  */
+import { readdirSync, readFileSync } from 'node:fs';
+import path from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
@@ -14,7 +16,10 @@ vi.mock('@/services/firebase-runtime/functionsRuntime', () => ({
 }));
 
 import { CLIENT_RUNTIME_CONTRACT_VERSION } from '@/constants/runtimeContracts';
-import { CLIENT_RUNTIME_CONTRACT_VERSION_FIELD } from '@/services/storage/clinicalDerivedConstants';
+import {
+  CLIENT_RUNTIME_CONTRACT_VERSION_FIELD,
+  CLINICAL_DERIVED_MIN_CLIENT_RUNTIME_CONTRACT_VERSION,
+} from '@/services/storage/clinicalDerivedConstants';
 import {
   patchDailyRecordWithClinicalAuthorityCallable as patch,
   saveDailyRecordWithClinicalAuthorityCallable as save,
@@ -31,8 +36,21 @@ beforeEach(() => {
 });
 
 describe('clinical authority callables · client runtime contract version', () => {
-  it('is contract v3, sent as clientRuntimeContractVersion', () => {
-    expect(CLIENT_RUNTIME_CONTRACT_VERSION).toBe(3);
+  // D7 trusts v3 to build moved fields from the combined view, and the published minimum is only a
+  // warning: a v3 build whose Rayen fill still reads the plain day would overwrite an episode's
+  // vitals history with the Rayen window. The claim and the D10 wiring land together.
+  it('claims the split-day minimum only once the Rayen fill reads the combined view (D10)', () => {
+    const featureDir = path.resolve(__dirname, '../../../features/rayen-import');
+    const wired = readdirSync(featureDir, { recursive: true, encoding: 'utf8' })
+      .filter(file => /\.tsx?$/.test(file))
+      .some(file =>
+        readFileSync(path.join(featureDir, file), 'utf8').includes(
+          'dailyRecordClinicalDerivedReadService'
+        )
+      );
+    expect(
+      CLIENT_RUNTIME_CONTRACT_VERSION >= CLINICAL_DERIVED_MIN_CLIENT_RUNTIME_CONTRACT_VERSION
+    ).toBe(wired);
     expect(CLIENT_RUNTIME_CONTRACT_VERSION_FIELD).toBe('clientRuntimeContractVersion');
   });
 
