@@ -72,6 +72,29 @@ const openClinicalDocumentsFromR1 = async (page: Page) => {
 test.describe('Clinical document formatting panel', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
+  test('starts a fresh editor session and closes laboratory when duplicating a document', async ({
+    page,
+  }) => {
+    await openAuthenticatedCensus(page);
+    await openClinicalDocumentsFromR1(page);
+    await page.getByRole('button', { name: /Crear documento/i }).click();
+
+    const editor = page.locator('[contenteditable="true"][data-section-editor]').first();
+    await expect(editor).toBeVisible();
+    await editor.fill('Texto sintético del documento original');
+    await expect(page.getByRole('button', { name: 'Deshacer', exact: true })).toBeEnabled();
+    await page.getByRole('button', { name: 'Insertar contenido' }).click();
+    await page.getByRole('button', { name: 'Laboratorio', exact: true }).click();
+    await expect(page.getByText('Insertar Laboratorio', { exact: true })).toBeVisible();
+
+    await page.getByTitle('Duplicar documento', { exact: true }).first().click();
+    await expect(page.getByTitle('Duplicar documento', { exact: true })).toHaveCount(2);
+    await expect(page.getByText('Insertar Laboratorio', { exact: true })).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Deshacer', exact: true })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Rehacer', exact: true })).toBeDisabled();
+    await expect(editor).toContainText('Texto sintético del documento original');
+  });
+
   test('formatting panel is reachable and indentation applies', async ({ page }) => {
     await openAuthenticatedCensus(page);
     await openClinicalDocumentsFromR1(page);

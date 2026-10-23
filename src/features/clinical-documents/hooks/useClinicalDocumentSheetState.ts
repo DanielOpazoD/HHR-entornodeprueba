@@ -10,7 +10,7 @@
  * documents resets transient UI without unmounting.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Dispatch, DragEvent, SetStateAction } from 'react';
 
 import type { ClinicalDocumentIndicationSpecialtyId } from '@/features/clinical-documents/controllers/clinicalDocumentIndicationsController';
@@ -72,6 +72,29 @@ const createDocumentScopedSheetState = (
   activePlanSubsectionId: DEFAULT_PLAN_SUBSECTION_ID,
 });
 
+interface DocumentEditorOwner {
+  documentId: string | null;
+  isEditable: boolean;
+}
+
+interface DocumentEditorSession {
+  owner: DocumentEditorOwner;
+  activeEditor: { sectionId: string; api: ClinicalDocumentSheetEditorApi } | null;
+  lastActiveEditorApi: ClinicalDocumentSheetEditorApi | null;
+}
+
+interface DocumentEditorState {
+  owner: DocumentEditorOwner;
+  activeEditorSectionId: string | null;
+  activeEditorHistoryState: Pick<ClinicalDocumentSheetEditorApi, 'canUndo' | 'canRedo'>;
+}
+
+const createEditorState = (owner: DocumentEditorOwner): DocumentEditorState => ({
+  owner,
+  activeEditorSectionId: null,
+  activeEditorHistoryState: { canUndo: false, canRedo: false },
+});
+
 /**
  * Manages the local UI state of the clinical document sheet.
  *
@@ -86,16 +109,25 @@ export const useClinicalDocumentSheetState = (selectedDocument: ClinicalDocument
   const [documentScopedState, setDocumentScopedState] = useState<DocumentScopedSheetState>(() =>
     createDocumentScopedSheetState(selectedDocument)
   );
-  const [activeEditorSectionId, setActiveEditorSectionId] = useState<string | null>(null);
-  const [activeEditorHistoryState, setActiveEditorHistoryState] = useState({
-    canUndo: false,
-    canRedo: false,
-  });
+  const documentId = selectedDocument?.id ?? null;
+  const isEditable = Boolean(selectedDocument && !selectedDocument.isLocked);
+  // A new selection owns a fresh session, including when returning to an earlier document.
+  const editorOwner = useMemo(() => ({ documentId, isEditable }), [documentId, isEditable]);
+  const editorSessionRef = useRef<DocumentEditorSession | null>(null);
+  const [editorState, setEditorState] = useState(() => createEditorState(editorOwner));
+  const { activeEditorSectionId, activeEditorHistoryState } =
+    editorState.owner === editorOwner ? editorState : createEditorState(editorOwner);
 
-  const activeEditorSectionIdRef = useRef<string | null>(null);
-  const activeEditorApiRef = useRef<ClinicalDocumentSheetEditorApi | null>(null);
-  /** Retains the last active editor API so undo/redo work even after blur. */
-  const lastActiveEditorApiRef = useRef<ClinicalDocumentSheetEditorApi | null>(null);
+  useLayoutEffect(() => {
+    editorSessionRef.current = {
+      owner: editorOwner,
+      activeEditor: null,
+      lastActiveEditorApi: null,
+    };
+    return () => {
+      editorSessionRef.current = null;
+    };
+  }, [editorOwner]);
   const currentDocumentScopedState = useMemo(() => {
     const expectedSignature = getDocumentSignature(selectedDocument);
     return documentScopedState.documentSignature === expectedSignature
@@ -117,42 +149,44 @@ export const useClinicalDocumentSheetState = (selectedDocument: ClinicalDocument
     [selectedDocument]
   );
 
-  /**
-   * Clears the active editor reference on blur. Intentionally preserves
-   * `activeEditorHistoryState` so undo/redo buttons stay enabled based
-   * on the last known state — `applyFormatting` uses `lastActiveEditorApiRef`
-   * to execute undo/redo even after the editor loses focus.
-   */
-  const clearActiveEditor = useCallback((sectionId: string) => {
-    setActiveEditorSectionId(current => (current === sectionId ? null : current));
-    if (activeEditorSectionIdRef.current === sectionId) {
-      activeEditorApiRef.current = null;
-      activeEditorSectionIdRef.current = null;
-      // NOTE: do NOT reset activeEditorHistoryState here.
-      // The last known canUndo/canRedo must persist so the toolbar
-      // buttons remain enabled after blur — applyFormatting already
-      // falls back to lastActiveEditorApiRef for undo/redo.
-    }
-  }, []);
+  /** Keeps history and the last editor available within this document after blur. */
+  const clearActiveEditor = useCallback(
+    (sectionId: string) => {
+      const session = editorSessionRef.current;
+      if (session?.owner !== editorOwner || session.activeEditor?.sectionId !== sectionId) {
+        return;
+      }
+      session.activeEditor = null;
+      setEditorState(current =>
+        current.owner === editorOwner ? { ...current, activeEditorSectionId: null } : current
+      );
+    },
+    [editorOwner]
+  );
 
   const handleEditorActivate = useCallback(
     (activeSectionId: string, editorApi: ClinicalDocumentSheetEditorApi) => {
-      activeEditorApiRef.current = editorApi;
-      lastActiveEditorApiRef.current = editorApi;
-      activeEditorSectionIdRef.current = activeSectionId;
-      setActiveEditorSectionId(current =>
-        current === activeSectionId ? current : activeSectionId
-      );
-      setActiveEditorHistoryState(current =>
-        current.canUndo === editorApi.canUndo && current.canRedo === editorApi.canRedo
+      const session = editorSessionRef.current;
+      if (session?.owner !== editorOwner || !editorOwner.isEditable) return;
+      session.activeEditor = { sectionId: activeSectionId, api: editorApi };
+      session.lastActiveEditorApi = editorApi;
+      setEditorState(current =>
+        current.owner === editorOwner &&
+        current.activeEditorSectionId === activeSectionId &&
+        current.activeEditorHistoryState.canUndo === editorApi.canUndo &&
+        current.activeEditorHistoryState.canRedo === editorApi.canRedo
           ? current
           : {
-              canUndo: editorApi.canUndo,
-              canRedo: editorApi.canRedo,
+              owner: editorOwner,
+              activeEditorSectionId: activeSectionId,
+              activeEditorHistoryState: {
+                canUndo: editorApi.canUndo,
+                canRedo: editorApi.canRedo,
+              },
             }
       );
     },
-    []
+    [editorOwner]
   );
 
   const handleEditorDeactivate = useCallback(
@@ -195,32 +229,35 @@ export const useClinicalDocumentSheetState = (selectedDocument: ClinicalDocument
     [updateDocumentScopedState]
   );
 
-  const formattingDisabled =
-    !selectedDocument || selectedDocument.isLocked || !activeEditorSectionId;
+  const formattingDisabled = !isEditable || !activeEditorSectionId;
 
   const applyFormatting = useCallback(
     (command: ClinicalDocumentFormattingCommand, value?: string) => {
-      // Undo/redo use the last active editor (even if deactivated/blurred),
-      // so the user can click undo without re-focusing the text area first.
+      const session = editorSessionRef.current;
+      if (session?.owner !== editorOwner || !editorOwner.isEditable) return;
       const isHistoryCommand = command === 'undo' || command === 'redo';
-      if (!isHistoryCommand && formattingDisabled) return;
       const targetApi = isHistoryCommand
-        ? activeEditorApiRef.current || lastActiveEditorApiRef.current
-        : activeEditorApiRef.current;
+        ? session.activeEditor?.api || session.lastActiveEditorApi
+        : session.activeEditor?.api;
       targetApi?.element?.focus();
       targetApi?.applyCommand(command, value);
     },
-    [formattingDisabled]
+    [editorOwner]
   );
 
   /** Inserts raw HTML at the cursor of the active (or last-active) editor. */
-  const insertHtml = useCallback((html: string) => {
-    const targetApi = activeEditorApiRef.current || lastActiveEditorApiRef.current;
-    if (!targetApi?.element) return false;
-    targetApi.element.focus();
-    targetApi.insertHtml(html);
-    return true;
-  }, []);
+  const insertHtml = useCallback(
+    (html: string) => {
+      const session = editorSessionRef.current;
+      if (session?.owner !== editorOwner || !editorOwner.isEditable) return false;
+      const targetApi = session.activeEditor?.api || session.lastActiveEditorApi;
+      if (!targetApi?.element) return false;
+      targetApi.element.focus();
+      targetApi.insertHtml(html);
+      return true;
+    },
+    [editorOwner]
+  );
 
   const sectionDragHandlers = useMemo(
     () => ({

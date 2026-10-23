@@ -24,6 +24,18 @@ This note captures the runtime contracts that keep the `clinical-documents` edit
    the same cancellation path. Content changes still publish eagerly through
    `onChange`; cancelling a history snapshot does not discard the draft.
 
+6. Editor APIs and undo history belong to the selected document session.
+   Switching documents discards the previous target immediately, including an
+   A → B → A selection. Blur keeps the last target available within the same
+   document; obsolete callbacks cannot activate or modify another session.
+
+7. External-result dialogs belong to the patient, episode and selected document.
+   Selection changes, deactivation and loss of editing access close the dialog.
+   Closing or unmounting discards pending list/detail completions; an earlier
+   patient's results cannot appear or be inserted in the current document.
+   An already-started clipboard write cannot be cancelled, but its completion
+   cannot mark a new session as copied or schedule its feedback timer.
+
 ## Draft / Sync Invariants
 
 1. Local dirty state wins over equivalent remote reloads.

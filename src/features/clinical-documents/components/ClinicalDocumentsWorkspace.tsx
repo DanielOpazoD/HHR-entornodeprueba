@@ -20,6 +20,11 @@ const ZOOM_MAX = 150;
 const ZOOM_DEFAULT = 110;
 const ZOOM_WITH_SIDEBAR_COLLAPSED = 130;
 
+interface ExternalDialogSelection {
+  contextKey: string;
+  kind: 'lab' | 'mmrad';
+}
+
 const escapeClinicalDocumentInlineHtml = (value: string): string =>
   value
     .replaceAll('&', '&amp;')
@@ -43,7 +48,7 @@ export const ClinicalDocumentsWorkspace: React.FC<ClinicalDocumentsWorkspaceProp
   isActive = true,
   headerActionsContainerId,
 }) => {
-  const { canRead, sidebarProps, sheetProps } = useClinicalDocumentsWorkspaceModel({
+  const { canRead, episodeKey, sidebarProps, sheetProps } = useClinicalDocumentsWorkspaceModel({
     patient,
     currentDateString,
     bedId,
@@ -56,8 +61,16 @@ export const ClinicalDocumentsWorkspace: React.FC<ClinicalDocumentsWorkspaceProp
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isCompactViewport, setIsCompactViewport] = useState(false);
   const zoomBeforeSidebarCollapseRef = useRef(ZOOM_DEFAULT);
-  const [showLabDialog, setShowLabDialog] = useState(false);
-  const [showMMRADDialog, setShowMMRADDialog] = useState(false);
+  const [externalDialog, setExternalDialog] = useState<ExternalDialogSelection | null>(null);
+  const externalDialogContextKey =
+    isActive && canRead && sheetProps.canEdit && patient.rut && sheetProps.selectedDocument
+      ? JSON.stringify([patient.rut, episodeKey, sheetProps.selectedDocument.id])
+      : null;
+  const visibleExternalDialog =
+    externalDialog?.contextKey === externalDialogContextKey ? externalDialog : null;
+  if (externalDialog && !visibleExternalDialog) {
+    setExternalDialog(null);
+  }
 
   const handleInsertLabText = useCallback(
     (text: string) => {
@@ -185,19 +198,13 @@ export const ClinicalDocumentsWorkspace: React.FC<ClinicalDocumentsWorkspaceProp
           <ClinicalDocumentsSidebar
             {...sidebarProps}
             onOpenLabDialog={
-              patient.rut && sheetProps.canEdit && sheetProps.selectedDocument
-                ? () => {
-                    setShowMMRADDialog(false);
-                    setShowLabDialog(true);
-                  }
+              externalDialogContextKey
+                ? () => setExternalDialog({ contextKey: externalDialogContextKey, kind: 'lab' })
                 : undefined
             }
             onOpenMMRADDialog={
-              patient.rut && sheetProps.canEdit && sheetProps.selectedDocument
-                ? () => {
-                    setShowLabDialog(false);
-                    setShowMMRADDialog(true);
-                  }
+              externalDialogContextKey
+                ? () => setExternalDialog({ contextKey: externalDialogContextKey, kind: 'mmrad' })
                 : undefined
             }
           />
@@ -243,17 +250,19 @@ export const ClinicalDocumentsWorkspace: React.FC<ClinicalDocumentsWorkspaceProp
         </div>
       </section>
 
-      {showLabDialog && patient.rut && (
+      {visibleExternalDialog?.kind === 'lab' && patient.rut && (
         <ClinicalDocumentLabInsertDialog
+          key={visibleExternalDialog.contextKey}
           patientRut={patient.rut}
           onInsert={handleInsertLabText}
-          onClose={() => setShowLabDialog(false)}
+          onClose={() => setExternalDialog(null)}
         />
       )}
-      {showMMRADDialog && patient.rut && (
+      {visibleExternalDialog?.kind === 'mmrad' && patient.rut && (
         <ClinicalDocumentMMRADCopyDialog
+          key={visibleExternalDialog.contextKey}
           patientRut={patient.rut}
-          onClose={() => setShowMMRADDialog(false)}
+          onClose={() => setExternalDialog(null)}
         />
       )}
     </div>
