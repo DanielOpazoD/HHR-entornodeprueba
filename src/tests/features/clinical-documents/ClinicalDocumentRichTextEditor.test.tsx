@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ClinicalDocumentRichTextEditor } from '@/features/clinical-documents/components/ClinicalDocumentRichTextEditor';
@@ -23,6 +24,59 @@ vi.mock('@/features/clinical-documents/components/ClinicalDocumentImageEditor', 
 }));
 
 describe('ClinicalDocumentRichTextEditor', () => {
+  it.each([
+    { delay: 0, modifier: 'Control', ctrlKey: true, metaKey: false },
+    { delay: 520, modifier: 'Control', ctrlKey: true, metaKey: false },
+    { delay: 0, modifier: 'Command', ctrlKey: false, metaKey: true },
+    { delay: 520, modifier: 'Command', ctrlKey: false, metaKey: true },
+  ])(
+    'undoes and redoes the first edit in an empty section ($modifier, $delay ms)',
+    ({ delay, ctrlKey, metaKey }) => {
+      vi.useFakeTimers();
+      const onChange = vi.fn();
+      const ControlledEditor = () => {
+        const [value, setValue] = useState('');
+        return (
+          <ClinicalDocumentRichTextEditor
+            sectionId="antecedentes"
+            sectionTitle="Antecedentes"
+            value={value}
+            onChange={nextValue => {
+              setValue(nextValue);
+              onChange(nextValue);
+            }}
+          />
+        );
+      };
+      const { unmount } = render(<ControlledEditor />);
+      try {
+        const editor = screen.getByRole('textbox', { name: /contenido antecedentes/i });
+        expect(editor.innerHTML).toBe('');
+        act(() => {
+          editor.focus();
+        });
+
+        editor.innerHTML = 'Primera edición';
+        fireEvent.input(editor);
+        expect(onChange).toHaveBeenLastCalledWith('Primera edición');
+        act(() => {
+          vi.advanceTimersByTime(delay);
+        });
+
+        fireEvent.keyDown(editor, { key: 'z', ctrlKey, metaKey });
+        expect(editor.innerHTML).toBe('');
+        expect(onChange).toHaveBeenLastCalledWith('');
+
+        fireEvent.keyDown(editor, { key: 'z', ctrlKey, metaKey, shiftKey: true });
+        expect(editor.innerHTML).toBe('Primera edición');
+        expect(onChange).toHaveBeenLastCalledWith('Primera edición');
+      } finally {
+        unmount();
+        vi.useRealTimers();
+      }
+    }
+  );
+
   it('keeps the focused editor content stable until blur when an external value arrives', async () => {
     const onChange = vi.fn();
     const { rerender } = render(
