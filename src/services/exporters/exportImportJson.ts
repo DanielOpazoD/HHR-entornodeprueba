@@ -1,7 +1,11 @@
 import type { DailyRecord } from '@/services/contracts/dailyRecordServiceContracts';
-import { saveRecordsStrict } from '@/services/storage/indexeddb/indexedDbRecordService';
+import {
+  getRecordForDate,
+  saveRecordsStrict,
+} from '@/services/storage/indexeddb/indexedDbRecordService';
 import { hasStructuralRepairs, parseDailyRecordWithDefaultsReport } from '@/schemas/zodSchemas';
 import { jsonImportLogger } from '@/services/exporters/exporterLoggers';
+import { isClinicalDerivedLayoutRegression } from '@/services/storage/clinicalDerivedWriteHygiene';
 
 export interface JsonImportResult {
   success: boolean;
@@ -59,7 +63,18 @@ export const importDataJSONDetailed = async (file: File): Promise<JsonImportResu
       }
     });
 
-    if (importedRecords.length === 0) {
+    // A local split day is never replaced by an older or equal copy without the marker (D10);
+    // the date is reported as skipped.
+    const acceptedRecords: DailyRecord[] = [];
+    for (const record of importedRecords) {
+      if (isClinicalDerivedLayoutRegression(await getRecordForDate(record.date), record)) {
+        skippedEntries.push(record.date);
+      } else {
+        acceptedRecords.push(record);
+      }
+    }
+
+    if (acceptedRecords.length === 0) {
       // No raw alert here: the caller (executeImportJsonBackup +
       // UI consumer) already presents the failure via useNotification
       // based on the outcome contract below.
@@ -72,7 +87,7 @@ export const importDataJSONDetailed = async (file: File): Promise<JsonImportResu
       };
     }
 
-    const persisted = await persistImportedRecords(importedRecords);
+    const persisted = await persistImportedRecords(acceptedRecords);
     if (!persisted) {
       return {
         success: false,
@@ -88,7 +103,7 @@ export const importDataJSONDetailed = async (file: File): Promise<JsonImportResu
     return {
       success: true,
       outcome,
-      importedCount: importedRecords.length,
+      importedCount: acceptedRecords.length,
       repairedCount,
       skippedEntries,
     };

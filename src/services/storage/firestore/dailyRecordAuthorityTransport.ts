@@ -8,6 +8,7 @@ import {
 } from './dailyRecordAuthorityCallableClient';
 import { getDocFromServer } from 'firebase/firestore';
 import { docToRecord, getRecordDocRef } from './firestoreShared';
+import { withClientRuntimeContractVersion } from '@/services/storage/clinicalAuthorityClientVersion';
 import type {
   DailyRecordAuthorityCallablePayload,
   DailyRecordAuthorityCallableResponse,
@@ -108,7 +109,7 @@ export const invokeAuthority = async (
     { timeout: DAILY_RECORD_AUTHORITY_CALLABLE_TIMEOUT_MS }
   );
   try {
-    return (await callable(payload)).data;
+    return (await callable(withClientRuntimeContractVersion(payload))).data;
   } catch (error) {
     return recoverLostAuthorityResponse(error, payload);
   }

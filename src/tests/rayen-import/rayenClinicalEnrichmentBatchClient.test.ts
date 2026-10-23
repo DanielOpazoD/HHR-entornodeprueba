@@ -39,7 +39,7 @@ describe('clinical batch regional client', () => {
     mocks.httpsCallable.mockReturnValue(mocks.invoke);
   });
 
-  it('uses the deployed regional runtime and preserves the payload and existing timeout', async () => {
+  it('uses the deployed regional runtime, adds the client contract version and keeps the timeout', async () => {
     const response = {
       success: true,
       date: payload.date,
@@ -57,8 +57,12 @@ describe('clinical batch regional client', () => {
       'applyRayenClinicalEnrichmentBatch',
       { timeout: 20_000 }
     );
-    expect(mocks.invoke).toHaveBeenCalledExactlyOnceWith(payload);
-    expect(mocks.invoke.mock.calls[0][0]).toBe(payload);
+    // The version travels as its own top-level field; the caller's payload is not mutated.
+    expect(mocks.invoke).toHaveBeenCalledExactlyOnceWith({
+      ...payload,
+      clientRuntimeContractVersion: 3,
+    });
+    expect(payload).not.toHaveProperty('clientRuntimeContractVersion');
     expect(mocks.getFunctions).not.toHaveBeenCalled();
   });
 

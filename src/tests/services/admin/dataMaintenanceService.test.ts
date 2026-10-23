@@ -3,6 +3,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 const {
   mockGetRecordsRange,
+  mockGetRecordForDate,
   mockSaveRecords,
   mockGetRemoteRecordsRange,
   mockLogAuditEvent,
@@ -10,6 +11,7 @@ const {
   mockRepositorySave,
 } = vi.hoisted(() => ({
   mockGetRecordsRange: vi.fn(),
+  mockGetRecordForDate: vi.fn(),
   mockSaveRecords: vi.fn(),
   mockGetRemoteRecordsRange: vi.fn(),
   mockLogAuditEvent: vi.fn(),
@@ -29,6 +31,7 @@ import {
 
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordsRange: mockGetRecordsRange,
+  getRecordForDate: mockGetRecordForDate,
   saveRecords: mockSaveRecords,
 }));
 
@@ -61,6 +64,7 @@ describe('dataMaintenanceService', () => {
     vi.clearAllMocks();
     vi.useRealTimers();
     mockRepositorySave.mockResolvedValue(undefined);
+    mockGetRecordForDate.mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -257,6 +261,46 @@ describe('dataMaintenanceService', () => {
       'dailyRecord',
       '2026-3',
       expect.objectContaining({ repairedCount: 1, outcome: 'repaired' })
+    );
+  });
+
+  it('never replaces a newer local split day with an unmarked backup copy (D10)', async () => {
+    const backupDay = (date: string) =>
+      ({
+        date,
+        beds: {},
+        discharges: [],
+        transfers: [],
+        cma: [],
+        activeExtraBeds: [],
+        lastUpdated: `${date}T09:00:00.000Z`,
+      }) as unknown as DailyRecord;
+    mockGetRecordForDate.mockImplementation(async (date: string) =>
+      date === '2026-03-03'
+        ? {
+            ...backupDay(date),
+            lastUpdated: `${date}T12:00:00.000Z`,
+            clinicalDerivedLayout: { version: 1, generation: 'gen_synthetic_a' },
+          }
+        : { ...backupDay(date), lastUpdated: `${date}T12:00:00.000Z` }
+    );
+
+    const result = await importRecordsFromBackup({
+      version: '1.0',
+      exportDate: '2026-03-05T10:00:00.000Z',
+      year: 2026,
+      month: 3,
+      recordCount: 2,
+      records: [backupDay('2026-03-03'), backupDay('2026-03-04')],
+    });
+
+    // The split day is left alone; the unmarked local day is restored as before.
+    expect(result).toEqual({ success: 1, failed: 1, repaired: 0, outcome: 'partial' });
+    expect(mockRepositorySave).toHaveBeenCalledTimes(1);
+    expect(mockRepositorySave).toHaveBeenCalledWith(
+      expect.objectContaining({ date: '2026-03-04' }),
+      undefined,
+      { writeOrigin: 'backup_restore' }
     );
   });
 });

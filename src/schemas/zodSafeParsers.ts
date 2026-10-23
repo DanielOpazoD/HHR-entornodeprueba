@@ -93,6 +93,7 @@ export const parseDailyRecordWithDefaultsReport = (
   >;
   const salvagedBeds: Record<string, PatientData> = {};
   const salvagedBedIds: string[] = [];
+  const keepClinicalEpisodeId = raw.clinicalDerivedLayout !== undefined;
 
   if (raw.beds && typeof raw.beds === 'object' && !Array.isArray(raw.beds)) {
     Object.entries(raw.beds as Record<string, unknown>).forEach(([id, patient]) => {
@@ -102,7 +103,7 @@ export const parseDailyRecordWithDefaultsReport = (
         return;
       }
 
-      salvagedBeds[id] = buildFallbackPatientData(patient, id);
+      salvagedBeds[id] = buildFallbackPatientData(patient, id, { keepClinicalEpisodeId });
       salvagedBedIds.push(id);
     });
   }

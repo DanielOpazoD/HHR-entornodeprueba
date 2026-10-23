@@ -65,6 +65,7 @@ import {
   createDirectFirestoreWriteReceipt,
   type DirectFirestoreWriteReceipt,
 } from './firestoreDirectWriteReceipt';
+import { adoptStoredClinicalDerivedState } from '@/services/storage/clinicalDerivedWriteHygiene';
 import { runPartialUpdatePersistWithPermissionFallbacks } from '@/services/storage/firestore/firestoreBedTreePermissionFallback';
 import { stripInheritedAuthorityRepair } from '@/services/storage/firestore/firestoreInheritedRepairSeparation';
 import {
@@ -144,16 +145,23 @@ export const saveRecordToFirestore = async (
         }
       );
 
+    let committed: Record<string, unknown>;
     try {
-      await persist();
+      committed = await persist();
     } catch (error) {
       if (isPermissionDeniedError(error) && (await tryRefreshCurrentUserRoleClaim(record.date))) {
-        await persist();
+        committed = await persist();
       } else {
         throw error;
       }
     }
-    if (options.returnCommittedRecord) return receipt;
+    if (options.returnCommittedRecord) {
+      // On a split day the transaction kept the stored marker, meta and moved fields (D9).
+      return createDirectFirestoreWriteReceipt(
+        adoptStoredClinicalDerivedState(record, committed),
+        committedAt.toDate()
+      );
+    }
   } catch (error) {
     logFirestoreWriteError('save', record.date, error);
     throw error;

@@ -403,3 +403,24 @@ a sus documentos. El lector sólo valida los documentos de la generación vigent
 día borrado se ignoran sin leerlos) y dice cuándo respondió la caché sin conexión; la lectura
 `bestEffort` lo informa como `cache_only`, así que una exportación o la herramienta de personal
 deben leer con `source: 'server'`.
+
+Higiene de escritura del cliente (P4, D9): ningún cliente escribe desde su copia local los campos
+movidos de un día marcado ni crea un día con marcador. El auto-merge de conflicto
+(`conflictResolutionMatrix.ts`), la publicación directa de la cola (`firestoreSyncTransport.ts`,
+`merge: true`) y el guardado directo completo (`saveRecordAtomically`, que también usa la
+restauración de versiones) pasan el registro por `adoptStoredClinicalDerivedState`
+(`clinicalDerivedWriteHygiene.ts`) con el día remoto leído en la misma transacción:
+
+- el marcador sale siempre del remoto; al crear o recrear un día (desde la cola, IndexedDB o un
+  JSON) se quita, porque la regla de creación lo niega y la cola nunca se purga;
+- en un día marcado también salen del remoto `meta` (una escritura directa no baja la revisión) y,
+  por `clinicalEpisodeId`, `clinicalSyncCheckpoint` y `vitalSignsHistory`: la copia embebida de un
+  episodio aún no dividido se conserva y una copia local nunca la reemplaza;
+- sin marcador en ningún lado el registro pasa igual que antes.
+
+El recibo del guardado directo refleja lo confirmado. La importación JSON local y la de respaldos
+del administrador no reemplazan un día local marcado por una copia sin marcador que no sea más
+nueva (la fecha queda omitida). La recuperación de una cama dañada de un día marcado conserva
+`clinicalEpisodeId` para que la superposición y la higiene la encuentren. Los callables de
+autoridad (guardado, parche y lote) mandan `clientRuntimeContractVersion` (contrato de cliente 3)
+como campo raíz aparte, fuera de `syncContract`, digests y recibos.

@@ -11,6 +11,9 @@ export type DailyRecordSyncOwnership =
   | 'derivedProjection'
   | 'default';
 
+// On a remote day that carries the clinicalDerived marker, `vitalSignsHistory` and
+// `clinicalSyncCheckpoint` come only from the remote, whatever this table says
+// (conflictResolutionMatrix → adoptStoredClinicalDerivedState).
 const PATIENT_FIELD_OWNERSHIP = {
   firstName: 'remoteCanonical',
   lastName: 'remoteCanonical',
