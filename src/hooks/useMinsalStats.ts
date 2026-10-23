@@ -147,9 +147,14 @@ export function useMinsalStats(
         return;
       }
 
-      // Never cancel a fetch that is still storing its own synced records.
+      // Never cancel a fetch that is still storing its own synced records. A hidden tab
+      // only marks the range stale: it rescans the local days once, when it is shown again.
       void queryClient.invalidateQueries(
-        { queryKey: localRecordsQueryKey, exact: true },
+        {
+          queryKey: localRecordsQueryKey,
+          exact: true,
+          refetchType: document.visibilityState === 'hidden' ? 'none' : 'active',
+        },
         { cancelRefetch: false }
       );
     };
@@ -183,10 +188,23 @@ export function useMinsalStats(
     },
     staleTime: 2 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
+    // Every local change in the range already invalidates this query, so a tab return only
+    // rescans when something changed or the data is older than its stale time.
+    refetchOnWindowFocus: true,
   });
+
+  const rangeRecords = useMemo(() => recordsQuery.data ?? [], [recordsQuery.data]);
+  const currentRangeRecords = useMemo(
+    () => filterRecordsByDateRange(rangeRecords, startDate, endDate),
+    [rangeRecords, startDate, endDate]
+  );
 
   const remoteStatsQuery = useQuery({
     queryKey: remoteStatsQueryKey,
+    // The screen shows the local stats whenever this range has local records (see
+    // resolveDisplayedMinsalStats), so the server calculation, which reads every day of the
+    // range, only runs when it is the one shown: no local records, or the local read failed.
+    enabled: recordsQuery.isError || (recordsQuery.isSuccess && currentRangeRecords.length === 0),
     queryFn: async (): Promise<MinsalStatistics> => {
       const functions = await defaultFunctionsRuntime.getFunctions();
       const calculateStats = httpsCallable(functions, 'calculateMinsalStats');
@@ -223,11 +241,6 @@ export function useMinsalStats(
     },
   });
 
-  const rangeRecords = useMemo(() => recordsQuery.data ?? [], [recordsQuery.data]);
-  const currentRangeRecords = useMemo(
-    () => filterRecordsByDateRange(rangeRecords, startDate, endDate),
-    [rangeRecords, startDate, endDate]
-  );
   const previousRangeRecords = useMemo(
     () => filterRecordsByDateRange(rangeRecords, previousPeriodStart, previousPeriodEnd),
     [rangeRecords, previousPeriodEnd, previousPeriodStart]
