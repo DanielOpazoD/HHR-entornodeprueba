@@ -23,6 +23,7 @@ vi.mock('@/services/firebase-runtime/authRuntime', () => ({ defaultAuthRuntime: 
 vi.mock('@/services/auth/authRoleLookup', () => ({ clearRecentAuthRoleLookups: vi.fn() }));
 
 import { callAccount } from '@/services/auth/nursingAccountService';
+import { sanitizeOperationalTelemetryEvent } from '@/services/observability/operationalTelemetryPrivacy';
 
 describe('RUT callable regional rollout', () => {
   beforeEach(() => {
@@ -163,6 +164,19 @@ describe('RUT callable regional rollout', () => {
       expect(JSON.stringify(mocks.recordTelemetry.mock.calls)).not.toMatch(
         /111111111|synthetic-password/
       );
+      // What actually leaves the device: the privacy allowlist must keep operation, region and code.
+      const [event] = mocks.recordTelemetry.mock.calls[0];
+      expect(
+        sanitizeOperationalTelemetryEvent({ ...event, timestamp: '2026-10-22T22:05:00.000Z' })
+      ).toMatchObject({
+        category: 'auth',
+        status: 'degraded',
+        operation: 'rut_sign_in_region_fallback',
+        runtimeState: 'recoverable',
+        issues: [code === 'functions/deadline-exceeded' ? 'timeout_issue' : 'unavailable_issue'],
+        context: { region, errorCode: code, isOnline: true },
+        droppedContextKeys: [],
+      });
     }
   );
 
@@ -174,6 +188,33 @@ describe('RUT callable regional rollout', () => {
     await expect(callAccount('signInWithRut', credentials)).rejects.toBe(rejection);
     expect(mocks.invoke).toHaveBeenCalledTimes(2);
     expect(mocks.recordTelemetry).toHaveBeenCalledOnce();
+  });
+
+  it('sends the sign-in to US only once even when US has no usable answer either', async () => {
+    const usFailure = functionsError('functions/internal');
+    mocks.invoke
+      .mockRejectedValueOnce(functionsError('functions/internal'))
+      .mockRejectedValueOnce(usFailure)
+      .mockResolvedValue({ data: { credentialEmail: 'uid@accounts.hhr.invalid' } });
+
+    await expect(callAccount('signInWithRut', credentials)).rejects.toBe(usFailure);
+    expect(mocks.invoke).toHaveBeenCalledTimes(2);
+    expect(mocks.getFunctions).toHaveBeenCalledOnce();
+    expect(mocks.recordTelemetry).toHaveBeenCalledOnce();
+  });
+
+  it('still falls back when recording the telemetry throws', async () => {
+    mocks.recordTelemetry.mockImplementation(() => {
+      throw new Error('synthetic-telemetry-failure');
+    });
+    mocks.invoke
+      .mockRejectedValueOnce(functionsError('functions/internal'))
+      .mockResolvedValueOnce({ data: { credentialEmail: 'uid@accounts.hhr.invalid' } });
+
+    await expect(callAccount('signInWithRut', credentials)).resolves.toEqual({
+      credentialEmail: 'uid@accounts.hhr.invalid',
+    });
+    expect(mocks.invoke).toHaveBeenCalledTimes(2);
   });
 
   it.each([

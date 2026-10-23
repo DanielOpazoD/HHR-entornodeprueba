@@ -513,17 +513,20 @@ ingreso una sola vez en el callable US `signInWithRut`. Eso ocurre con
 red caída, error de plataforma sin CORS, timeout o fallo inesperado. Cada
 repetición registra el evento operacional `auth`/`rut_sign_in_region_fallback`
 con la región y el código, sin RUT ni contraseña, para que una caída regional no
-quede oculta. Repetir el ingreso es seguro porque no cambia credenciales: a lo
-sumo consume otro intento del límite por cuenta/IP o deja sin usar una invitación
-inicial que vence en 10 minutos. Los rechazos de credenciales, de límite de
-intentos o de entrada se devuelven sin repetir. El respaldo se agregó tras la
-caída del 22-10-2026, cuando Santiago dejó de iniciar instancias. Activación,
-recuperación, cambio de clave y administración conservan sus endpoints y nunca
-se repiten en otra región. Tampoco cambian roles, sesión, reglas de acceso ni
-CUDYR. Para usar sólo US en `hhr-pruebas`, configurar explícitamente
-`VITE_ACCOUNT_FUNCTIONS_REGION=us-central1`; quitar la variable restablece el
-valor predeterminado Santiago. Comprobar el endpoint desplegado antes de publicar
-el cliente, sin inferir disponibilidad a partir del merge.
+quede oculta. La lista de privacidad de la telemetría deja salir esa operación,
+la región y el código; el evento es `degraded`, así que queda en el registro de
+la función `operational-telemetry` de Netlify y en Observabilidad del navegador,
+sin correo de alerta. Repetir el ingreso es seguro porque no cambia
+credenciales: a lo sumo consume otro intento del límite por cuenta/IP o deja sin
+usar una invitación inicial que vence en 10 minutos. Los rechazos de
+credenciales, de límite de intentos o de entrada se devuelven sin repetir. El
+respaldo se agregó tras la caída del 22-10-2026, cuando Santiago dejó de iniciar
+instancias. Activación, recuperación, cambio de clave y administración conservan
+sus endpoints y nunca se repiten en otra región. Tampoco cambian roles, sesión,
+reglas de acceso ni CUDYR. Para usar sólo US en `hhr-pruebas`, configurar
+explícitamente `VITE_ACCOUNT_FUNCTIONS_REGION=us-central1`; quitar la variable
+restablece el valor predeterminado Santiago. Comprobar el endpoint desplegado
+antes de publicar el cliente, sin inferir disponibilidad a partir del merge.
 
 La elección se apoya en cinco pares intercalados de ingresos reales del 22 de
 octubre de 2026: mediana remota de 1.917,1 ms en São Paulo frente a 959,7 ms en

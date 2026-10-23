@@ -325,9 +325,11 @@ administración, activación y recuperación.
 Si Santiago o São Paulo no entregan respuesta utilizable (`internal`,
 `unavailable` o `deadline-exceeded`), el cliente repite el ingreso una vez en US
 y registra `auth`/`rut_sign_in_region_fallback` con región y código. Varios
-eventos seguidos indican una caída regional. En el navegador puede verse como un
-error de CORS, porque un 500 de la plataforma no trae cabeceras CORS. Probar el
-preflight; sano responde 204 con `Access-Control-Allow-Origin`:
+eventos seguidos en el registro de la función `operational-telemetry` de Netlify
+indican una caída regional; son `degraded` y no envían correo. En el navegador
+puede verse como un error de CORS, porque un 500 de la plataforma no trae
+cabeceras CORS. Probar el preflight; sano responde 204 con
+`Access-Control-Allow-Origin`:
 
 ```sh
 curl -si -X OPTIONS -H 'Origin: https://hhr-hospitalizados.app' \

@@ -88,20 +88,22 @@ export const callAccount = async <T>(
     if (typeof code !== 'string' || !REGIONAL_SIGN_IN_FALLBACK_CODES.has(code)) throw error;
     // Sign-in changes no credential, so the US callable can run the same request again; it costs
     // one more rate-limit attempt. The event keeps a regional outage visible behind the fallback.
-    recordOperationalTelemetry({
-      category: 'auth',
-      operation: 'rut_sign_in_region_fallback',
-      status: 'degraded',
-      runtimeState: 'recoverable',
-      context: {
-        region: signInRegion,
-        errorCode: code,
-        isOnline: typeof window !== 'undefined' ? window.navigator.onLine : null,
-      },
-      issues: [
-        `El ingreso por RUT en ${signInRegion} falló (${code}); se reintentó en us-central1.`,
-      ],
-    });
+    try {
+      recordOperationalTelemetry({
+        category: 'auth',
+        operation: 'rut_sign_in_region_fallback',
+        status: 'degraded',
+        runtimeState: 'recoverable',
+        context: {
+          region: signInRegion,
+          errorCode: code,
+          isOnline: typeof window !== 'undefined' ? window.navigator.onLine : null,
+        },
+        issues: [`Ingreso por RUT: ${signInRegion} no disponible (${code}); se reintentó en US.`],
+      });
+    } catch {
+      // Telemetry must never cost the user the fallback sign-in.
+    }
     return invokeAccountCallable<T>(await defaultFunctionsRuntime.getFunctions(), name, data);
   }
 };

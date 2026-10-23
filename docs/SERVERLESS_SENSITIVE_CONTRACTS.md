@@ -122,11 +122,12 @@ no reemplaza la validación de credenciales y estado de la cuenta.
 El cliente selecciona Santiago por defecto sólo en `hhr-pruebas`; los overrides
 US/São Paulo/Santiago tienen allowlist y un valor inválido usa US. Si la ruta
 regional no entrega respuesta utilizable (`internal`, `unavailable` o
-`deadline-exceeded`), repite el ingreso una sola vez en el callable US y registra
-`auth`/`rut_sign_in_region_fallback` sin credenciales; los rechazos de
-credenciales, límite o entrada no se repiten. `signInWithRut` conserva sus
-endpoints Gen1 US/São Paulo para compatibilidad; los otros callables de cuentas y
-el correo de recuperación no cambian de región.
+`deadline-exceeded`), repite el ingreso una sola vez en el callable US y
+registra `auth`/`rut_sign_in_region_fallback` con región y código, sin
+credenciales ni correo de alerta; los rechazos de credenciales, límite o entrada
+no se repiten. `signInWithRut` conserva sus endpoints Gen1 US/São Paulo para
+compatibilidad; los otros callables de cuentas y el correo de recuperación no
+cambian de región.
 
 Pruebas específicas: `accountFunctionsRegions.test.ts`,
 `accountSantiagoFunction.test.ts` y `nursingAccountRegion.test.ts`. El protocolo
