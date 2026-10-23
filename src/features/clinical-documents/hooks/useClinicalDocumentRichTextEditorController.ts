@@ -64,7 +64,7 @@ export const useClinicalDocumentRichTextEditorController = ({
   onSlashLab,
 }: UseClinicalDocumentRichTextEditorControllerParams) => {
   const isActiveRef = useRef(false);
-  const lastLocalNormalizedValueRef = useRef('');
+  const lastLocalNormalizedValueRef = useRef<string | null>(null);
   const pendingExternalNormalizedValueRef = useRef<string | null>(null);
   const onActivateRef = useRef(onActivate);
   const onDeactivateRef = useRef(onDeactivate);

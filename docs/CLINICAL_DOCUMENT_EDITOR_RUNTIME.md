@@ -24,6 +24,11 @@ This note captures the runtime contracts that keep the `clinical-documents` edit
    the same cancellation path. Content changes still publish eagerly through
    `onChange`; cancelling a history snapshot does not discard the draft.
 
+   The initial normalized value, including an empty string, is a valid undo
+   baseline. The first edit can be undone to that value and redone, both before
+   and after the history debounce commits its snapshot. No local edit yet and
+   an edit whose content is empty are distinct states.
+
 6. Editor APIs and undo history belong to the selected document session.
    Switching documents discards the previous target immediately, including an
    A → B → A selection. Blur keeps the last target available within the same
@@ -52,6 +57,7 @@ This note captures the runtime contracts that keep the `clinical-documents` edit
 When touching this module, manually verify at least:
 
 - write, blur, and continue writing without cursor jumps
+- start with an empty section, type once, then undo and redo before and after the history debounce
 - indent/outdent across consecutive lines
 - indent a paragraph and leave the module before autosave debounce fires
 - indent a paragraph and switch to another document before autosave debounce fires

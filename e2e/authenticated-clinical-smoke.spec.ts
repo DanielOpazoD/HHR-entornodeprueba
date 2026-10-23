@@ -182,4 +182,27 @@ test.describe('Authenticated clinical smoke', () => {
     await expect(page.locator('[data-testid="patient-row"][data-bed-id="R1"]')).toBeVisible();
     await expectAuthenticatedAdminShell(page);
   });
+
+  test('undoes the first keyboard edit in an empty section and restores it with redo', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openAuthenticatedCensus(page);
+    await openClinicalDocumentsFromR1(page);
+    await page.getByRole('button', { name: /Crear documento/i }).click();
+
+    const editor = page.locator('[contenteditable="true"][data-section-editor="antecedentes"]');
+    const firstEdit = 'Primera entrada sintetica';
+    await expect(editor).toBeVisible();
+    await expect(editor).toHaveJSProperty('innerHTML', '');
+    await editor.focus();
+    await editor.pressSequentially(firstEdit);
+    await expect(editor).toHaveText(firstEdit);
+
+    await editor.press('ControlOrMeta+z');
+    await expect(editor).toHaveJSProperty('innerHTML', '');
+
+    await editor.press('ControlOrMeta+Shift+z');
+    await expect(editor).toHaveText(firstEdit);
+  });
 });
