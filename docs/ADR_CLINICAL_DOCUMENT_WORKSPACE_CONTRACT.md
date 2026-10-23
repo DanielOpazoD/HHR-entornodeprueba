@@ -32,6 +32,11 @@ No new document-type behavior should be reintroduced through ad hoc `if` branche
 - Read/write/export paths must validate contracts before leaving repositories/services.
 - Recoverable Drive/export failures must return user-safe outcomes, not raw exceptions as “normal flow”.
 - External callers must not depend on internal hooks/controllers/components.
+- Section types and validation belong to `src/domain/clinical-documents`.
+  The feature reuses that contract. An explicit `section.layout` survives
+  save and read even when content is empty; records without a layout retain
+  the existing content-based inference. Do not recreate a feature-only schema
+  that accepts fields the persistence parser discards.
 - The workspace must not expose manual remote-conflict UX: no "Actualización remota pendiente",
   "Recargar remoto" or "Descartar local" notices/actions in clinical documents.
 
