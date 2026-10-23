@@ -7,7 +7,7 @@ Responsable: mantenedor de HHR (Daniel Opazo).
 
 Se acepta únicamente GHSA-vfj7-8cjw-p6xm en la cadena de desarrollo del
 lockfile raíz aprobado, cuya SHA-256 es
-`b1960526ef71515a2a7992814677af53c6ef9d19621fd0197f025e7249d2b60e`.
+`28d36f9ed7edcd03714a57c6915a0a820e0a4888db1d300a13d343c669098feb`.
 Daniel autorizó actualizar la huella el 9 de octubre de 2026 para el parche
 transitivo Handlebars 4.7.10 y el 11 de octubre para Firebase CLI 15.16.0.
 El 16 de octubre de 2026 autorizó explícitamente renovar sólo la huella para
@@ -92,3 +92,10 @@ y el aviso de obsolescencia de `@opentelemetry/sdk-trace-base` y
 `@opentelemetry/sdk-trace-node`; los siete nodos de desarrollo autorizados
 permanecen idénticos y los archivos de dependencias de Functions no cambian. Se
 conserva el mismo alcance de la excepción.
+
+La actualización de Dependabot de PR #904 sube `jspdf-autotable` de 5.0.8 a
+5.0.9 y `pizzip` de 3.2.0 a 3.3.0. La huella anterior era `b1960526ef71515a2a7992814677af53c6ef9d19621fd0197f025e7249d2b60e`. La
+comparación completa del lock confirma que solo cambian esas dos entradas; los
+siete nodos de desarrollo autorizados permanecen idénticos y los archivos de
+dependencias de Functions no cambian. Se conserva el mismo alcance de la
+excepción.
