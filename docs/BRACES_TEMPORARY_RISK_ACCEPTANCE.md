@@ -7,7 +7,7 @@ Responsable: mantenedor de HHR (Daniel Opazo).
 
 Se acepta únicamente GHSA-vfj7-8cjw-p6xm en la cadena de desarrollo del
 lockfile raíz aprobado, cuya SHA-256 es
-`3ef8b4de6739ad963b3ca53613ca05fbd5f4a87456d89258010792b1be05f343`.
+`b1960526ef71515a2a7992814677af53c6ef9d19621fd0197f025e7249d2b60e`.
 Daniel autorizó actualizar la huella el 9 de octubre de 2026 para el parche
 transitivo Handlebars 4.7.10 y el 11 de octubre para Firebase CLI 15.16.0.
 El 16 de octubre de 2026 autorizó explícitamente renovar sólo la huella para
@@ -82,3 +82,13 @@ comparación completa del lock confirma que solo se eliminan `motion`,
 de figurar como opcionales al quedar declaradas. Ninguna versión cambia, los siete
 nodos de desarrollo autorizados permanecen idénticos y los archivos de
 dependencias de Functions no cambian. Se conserva el mismo alcance de la excepción.
+
+La actualización de Dependabot de PR #540 sube `@netlify/blobs` de 11.1.0 a
+11.1.4 junto con sus dependencias (`@netlify/dev-utils` 6.0.3, `@netlify/otel`
+7.0.4, `@envelop/instrumentation` 1.0.1, `ansis` 4.4.0, `cjs-module-lexer` 2.3.0,
+`import-in-the-middle` 3.5.2 y su `es-module-lexer` 3.0.4). La huella anterior era
+`3ef8b4de6739ad963b3ca53613ca05fbd5f4a87456d89258010792b1be05f343`. La comparación completa del lock confirma que solo cambian esas entradas
+y el aviso de obsolescencia de `@opentelemetry/sdk-trace-base` y
+`@opentelemetry/sdk-trace-node`; los siete nodos de desarrollo autorizados
+permanecen idénticos y los archivos de dependencias de Functions no cambian. Se
+conserva el mismo alcance de la excepción.
