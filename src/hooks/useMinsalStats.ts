@@ -185,8 +185,18 @@ export function useMinsalStats(
     gcTime: 15 * 60 * 1000,
   });
 
+  const rangeRecords = useMemo(() => recordsQuery.data ?? [], [recordsQuery.data]);
+  const currentRangeRecords = useMemo(
+    () => filterRecordsByDateRange(rangeRecords, startDate, endDate),
+    [rangeRecords, startDate, endDate]
+  );
+
   const remoteStatsQuery = useQuery({
     queryKey: remoteStatsQueryKey,
+    // The screen shows the local stats whenever this range has local records (see
+    // resolveDisplayedMinsalStats), so the server calculation, which reads every day of the
+    // range, only runs when it is the one shown: no local records, or the local read failed.
+    enabled: recordsQuery.isError || (recordsQuery.isSuccess && currentRangeRecords.length === 0),
     queryFn: async (): Promise<MinsalStatistics> => {
       const functions = await defaultFunctionsRuntime.getFunctions();
       const calculateStats = httpsCallable(functions, 'calculateMinsalStats');
@@ -223,11 +233,6 @@ export function useMinsalStats(
     },
   });
 
-  const rangeRecords = useMemo(() => recordsQuery.data ?? [], [recordsQuery.data]);
-  const currentRangeRecords = useMemo(
-    () => filterRecordsByDateRange(rangeRecords, startDate, endDate),
-    [rangeRecords, startDate, endDate]
-  );
   const previousRangeRecords = useMemo(
     () => filterRecordsByDateRange(rangeRecords, previousPeriodStart, previousPeriodEnd),
     [rangeRecords, previousPeriodEnd, previousPeriodStart]

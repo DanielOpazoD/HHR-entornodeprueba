@@ -132,9 +132,12 @@ describe('useMinsalStats', () => {
       '2026-03-31',
       { specialtyReclassifications: [] }
     );
+    // The screen does not wait for, nor ask, the server calculation it would not show.
+    expect(result.current.isLoading).toBe(false);
+    expect(mockCallable).not.toHaveBeenCalled();
   });
 
-  it('uses persisted specialty reclassifications locally and keeps remote calculations server-owned', async () => {
+  it('uses persisted specialty reclassifications locally without asking the server', async () => {
     const localRecords = [{ date: '2026-03-31' } as DailyRecord];
     const localStats = buildStats({ tasaOcupacion: 69.9 });
     const options = {
@@ -190,7 +193,33 @@ describe('useMinsalStats', () => {
       '2026-03-31',
       'hanga_roa'
     );
-    expect(mockCallable).toHaveBeenCalledWith({
+    // Local records cover the range, so the server calculation would never be shown.
+    expect(mockCallable).not.toHaveBeenCalled();
+  });
+
+  it('sends only server-owned options when the server calculation is the one shown', async () => {
+    mockFetchRecordsRangeSorted.mockResolvedValue([]);
+    mockSyncRecordsRange.mockResolvedValue([]);
+    mockCalculateMinsalStats.mockReturnValue(null);
+    mockCallable.mockResolvedValue({ data: buildStats({ tasaOcupacion: 30.1 }) });
+    const options = {
+      specialtyGroupingMode: 'group-other' as const,
+      specialtyReclassifications: [
+        {
+          date: '2026-03-31',
+          movementKind: 'discharge' as const,
+          movementId: 'd-1',
+          specialty: 'Cirugía',
+        },
+      ],
+    };
+
+    const { result } = renderHook(() => useMinsalStats('lastMonth', options), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.stats?.tasaOcupacion).toBe(30.1));
+    expect(mockCallable).toHaveBeenCalledExactlyOnceWith({
       hospitalId: 'hanga_roa',
       startDate: '2026-03-01',
       endDate: '2026-03-31',
@@ -198,6 +227,18 @@ describe('useMinsalStats', () => {
         specialtyGroupingMode: 'group-other',
       },
     });
+  });
+
+  it('asks the server when the local records cannot be read', async () => {
+    mockFetchRecordsRangeSorted.mockRejectedValue(new Error('synthetic local failure'));
+    mockCallable.mockResolvedValue({ data: buildStats({ tasaOcupacion: 44.4 }) });
+
+    const { result } = renderHook(() => useMinsalStats('lastMonth'), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.stats?.tasaOcupacion).toBe(44.4));
+    expect(mockCallable).toHaveBeenCalledTimes(1);
   });
 
   it('falls back to remote stats when there is no synchronized local range data', async () => {
@@ -261,7 +302,7 @@ describe('useMinsalStats', () => {
     expect(mockFetchRecordsRangeSorted).toHaveBeenCalledTimes(2);
     expect(mockFetchRecordsRangeSorted).toHaveBeenNthCalledWith(1, '2026-01-29', '2026-03-31');
     expect(mockFetchRecordsRangeSorted).toHaveBeenNthCalledWith(2, '2026-01-29', '2026-03-31');
-    expect(mockCallable).toHaveBeenCalledTimes(1);
+    expect(mockCallable).not.toHaveBeenCalled();
   });
 
   it('ignores local record changes outside the active range', async () => {
@@ -294,7 +335,7 @@ describe('useMinsalStats', () => {
     });
 
     expect(mockFetchRecordsRangeSorted).toHaveBeenCalledTimes(1);
-    expect(mockCallable).toHaveBeenCalledTimes(1);
+    expect(mockCallable).not.toHaveBeenCalled();
   });
 
   describe('remote range sync', () => {
