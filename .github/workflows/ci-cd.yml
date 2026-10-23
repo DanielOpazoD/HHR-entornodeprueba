@@ -7,7 +7,8 @@ on:
   push:
     branches: [main, develop]
   pull_request:
-    branches: [main, develop]
+    # Validate stacked Codex PRs before any parent is merged into main.
+    branches: [main, develop, 'codex/**']
 
 # Only a newer revision of the same PR supersedes an existing run.
 # Pushes use run_id so every main/develop validation is preserved.
