@@ -16,9 +16,24 @@
 'use strict';
 
 const crypto = require('node:crypto');
+const { isDeepStrictEqual } = require('node:util');
 const functions = require('firebase-functions/v1');
 const { movementRestoreRecord } = require('./movementRestoreSources');
 const { assertPersistedDocumentSize } = require('./rayenClinicalEnrichmentPolicy');
+const {
+  clonePlainValue,
+  embedsMovedField,
+  hasOwn,
+  holderKey,
+  holderOf,
+  holderPath,
+  isPlainObject,
+  mapHolders,
+  movedValues,
+  parseMovedFieldPath,
+  splittableHolders,
+  withMovedFieldsOf,
+} = require('./clinicalDerivedHolders');
 const {
   CLINICAL_DERIVED_COLLECTION,
   CLINICAL_DERIVED_DOC_SCHEMA_VERSION,
@@ -39,24 +54,9 @@ const CLINICAL_DERIVED_PREVIOUS_FIELD = 'clinicalDerivedPrevious';
 const CLINICAL_DERIVED_CLIENT_OUTDATED = 'clinical_derived_client_outdated';
 const CLINICAL_DERIVED_LAYOUT_UNSUPPORTED = 'clinical_derived_layout_unsupported';
 const CLINICAL_DERIVED_FIELD_CONTRACT_UNSUPPORTED = 'clinical_derived_field_contract_unsupported';
+const CLINICAL_DERIVED_PARTIAL_PATH_UNSUPPORTED = 'clinical_derived_partial_path_unsupported';
 
-const MOVED_FIELDS = new Set(CLINICAL_DERIVED_MOVED_FIELDS);
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
-
-const isPlainObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
-
-const hasOwn = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
-
-const clonePlainValue = value => {
-  if (Array.isArray(value)) return value.map(clonePlainValue);
-  if (value instanceof Date || typeof value?.toDate === 'function') return value;
-  if (isPlainObject(value)) {
-    return Object.fromEntries(
-      Object.entries(value).map(([key, nested]) => [key, clonePlainValue(nested)])
-    );
-  }
-  return value;
-};
 
 const isIsoCalendarDay = value => {
   if (typeof value !== 'string' || !ISO_DAY.test(value)) return false;
@@ -76,8 +76,15 @@ const isClinicalDerivedSplitDate = date => {
   return from !== null && isIsoCalendarDay(date) && date >= from;
 };
 
-const failedPrecondition = (reason, message) =>
-  new functions.https.HttpsError('failed-precondition', `${reason}: ${message}`);
+/** Day carries a marker, supported or not: its writes follow the split layout, never the switch. */
+const isClinicalDerivedSplitDay = record => readClinicalDerivedLayout(record).status !== 'unmarked';
+
+const failedPrecondition = (reason, message) => {
+  const error = new functions.https.HttpsError('failed-precondition', `${reason}: ${message}`);
+  // Closed enum for functionsTelemetry (e.g. `client_outdated`); the message never goes there.
+  error.clinicalDerivedRejection = reason.replace(/^clinical_derived_/, '');
+  return error;
+};
 
 const freshLayout = () => buildClinicalDerivedLayout(crypto.randomUUID());
 
@@ -93,21 +100,29 @@ const resolveWriteLayout = ({ record, date }) => {
   return isClinicalDerivedSplitDate(date) ? { status: 'marking', layout: freshLayout() } : null;
 };
 
-/** Runs after the idempotency classification, so a confirmed retry never reaches it. */
-const assertSplitWriteAccepted = ({ state, data, fieldContractVersion }) => {
+const assertLayoutSupported = state => {
   if (state.status === 'unsupported') {
     throw failedPrecondition(
       CLINICAL_DERIVED_LAYOUT_UNSUPPORTED,
       'this day uses a clinical data layout this server does not support.'
     );
   }
-  // D7: the published minimum client version is only advice; this per-request check is the fence.
+};
+
+// D7: the published minimum client version is only advice; this per-request check is the fence.
+const assertClientVersion = data => {
   if (!meetsClinicalDerivedClientVersion(data?.[CLIENT_RUNTIME_CONTRACT_VERSION_FIELD])) {
     throw failedPrecondition(
       CLINICAL_DERIVED_CLIENT_OUTDATED,
       'reload the app before writing clinical data on this day.'
     );
   }
+};
+
+/** Runs after the idempotency classification, so a confirmed retry never reaches it. */
+const assertSplitWriteAccepted = ({ state, data, fieldContractVersion }) => {
+  assertLayoutSupported(state);
+  assertClientVersion(data);
   // The v1 recursive merge would need the combined value as its base; v3 clients send v2.
   if (fieldContractVersion === 1) {
     throw failedPrecondition(
@@ -115,80 +130,6 @@ const assertSplitWriteAccepted = ({ state, data, fieldContractVersion }) => {
       'moved clinical fields require the canonical field contract.'
     );
   }
-};
-
-const holderKey = (bedId, target) => `${bedId}|${target}`;
-
-const holderOf = (record, bedId, target) => {
-  const bed = isPlainObject(record?.beds) ? record.beds[bedId] : undefined;
-  const holder = target === 'bed' ? bed : isPlainObject(bed) ? bed.clinicalCrib : undefined;
-  return isPlainObject(holder) ? holder : undefined;
-};
-
-/** Copy of `record` with `settle(holder, bedId, target)` applied to every bed and clinical crib. */
-const mapHolders = (record, settle) => {
-  if (!isPlainObject(record?.beds)) return record;
-  const beds = {};
-  Object.entries(record.beds).forEach(([bedId, bed]) => {
-    if (!isPlainObject(bed)) {
-      beds[bedId] = bed;
-      return;
-    }
-    const next = settle(bed, bedId, 'bed');
-    beds[bedId] = isPlainObject(bed.clinicalCrib)
-      ? { ...next, clinicalCrib: settle(bed.clinicalCrib, bedId, 'clinicalCrib') }
-      : next;
-  });
-  return { ...record, beds };
-};
-
-/** Copy of `holder` whose moved fields are those of `source`; absent there, absent here. */
-const withMovedFieldsOf = (holder, source) => {
-  const next = { ...holder };
-  CLINICAL_DERIVED_MOVED_FIELDS.forEach(field => {
-    if (isPlainObject(source) && hasOwn(source, field))
-      next[field] = clonePlainValue(source[field]);
-    else delete next[field];
-  });
-  return next;
-};
-
-/** Both moved fields, always present: null stands for "no value" (D2). */
-const movedValues = holder =>
-  Object.fromEntries(
-    CLINICAL_DERIVED_MOVED_FIELDS.map(field => [
-      field,
-      isPlainObject(holder) && holder[field] !== undefined ? clonePlainValue(holder[field]) : null,
-    ])
-  );
-
-const embedsMovedField = holder =>
-  isPlainObject(holder) && CLINICAL_DERIVED_MOVED_FIELDS.some(field => holder[field] !== undefined);
-
-/** Holders that may own an episode document: a valid id active only once in the day. */
-const splittableHolders = record =>
-  new Map(
-    collectClinicalDerivedEpisodes(record).episodes.map(episode => [
-      holderKey(episode.bedId, episode.target),
-      episode,
-    ])
-  );
-
-/** `beds.<bedId>[.clinicalCrib].<moved field>[...]`, else null. */
-const parseMovedFieldPath = path => {
-  const parts = String(path)
-    .split('.')
-    .map(part => part.trim())
-    .filter(Boolean);
-  if (parts[0] !== 'beds' || !parts[1]) return null;
-  const target = parts[2] === 'clinicalCrib' ? 'clinicalCrib' : 'bed';
-  const fieldIndex = target === 'bed' ? 2 : 3;
-  if (!MOVED_FIELDS.has(parts[fieldIndex])) return null;
-  return {
-    key: holderKey(parts[1], target),
-    field: parts[fieldIndex],
-    whole: parts.length === fieldIndex + 1,
-  };
 };
 
 const episodeDocRef = (dayRef, clinicalEpisodeId) =>
@@ -231,7 +172,17 @@ const previousEntry = (doc, remoteHolder) => ({
  * Writes shared by the patch and the batch: each split episode's full document (D2) with the day
  * revision of this transaction, the marker when this write marks the day, and the run copy (D11).
  */
-const buildSplitWrite = ({ state, dayRef, date, remoteData, docs, episodes, valuesOf, record }) => {
+const buildSplitWrite = ({
+  state,
+  dayRef,
+  date,
+  remoteData,
+  docs,
+  episodes,
+  valuesOf,
+  record,
+  deleteField,
+}) => {
   const docWrites = ({ now, mutationId }) =>
     episodes.map(episode => {
       const data = {
@@ -274,25 +225,48 @@ const buildSplitWrite = ({ state, dayRef, date, remoteData, docs, episodes, valu
       assertPersistedDocumentSize(data);
       return data;
     },
-    /** An existing run copy only gains the episodes it lacks: the run's first value wins. */
+    /**
+     * An existing run copy only gains the episodes it lacks: the run's first value wins. A moved
+     * value the copy's beds hold for such an episode, equal to the embedded one this write deletes,
+     * leaves the beds as in `withRunPrevious`; a different one is what the run found, and stays.
+     */
     extendRunCopy: ({ transaction, ref, snapshot }) => {
       const existing = snapshot?.data?.() || {};
-      const recorded = isPlainObject(existing[CLINICAL_DERIVED_PREVIOUS_FIELD])
-        ? existing[CLINICAL_DERIVED_PREVIOUS_FIELD]
-        : {};
-      const missing = Object.keys(previous).filter(id => !hasOwn(recorded, id));
-      if (missing.length === 0) return;
-      const added = Object.fromEntries(missing.map(id => [id, previous[id]]));
-      assertPersistedDocumentSize({
-        ...existing,
-        [CLINICAL_DERIVED_PREVIOUS_FIELD]: { ...recorded, ...added },
-      });
-      transaction.update(
-        ref,
-        Object.fromEntries(
-          missing.map(id => [`${CLINICAL_DERIVED_PREVIOUS_FIELD}.${id}`, added[id]])
-        )
+      const prior = existing[CLINICAL_DERIVED_PREVIOUS_FIELD];
+      const recorded = { ...(isPlainObject(prior) ? prior : {}) };
+      const inCopy = new Map(
+        [...splittableHolders(existing).values()].map(at => [at.clinicalEpisodeId, at])
       );
+      const update = {};
+      const leaving = new Set();
+      Object.keys(previous)
+        .filter(id => !hasOwn(recorded, id))
+        .forEach(id => {
+          recorded[id] = previous[id];
+          update[`${CLINICAL_DERIVED_PREVIOUS_FIELD}.${id}`] = previous[id];
+          const at = inCopy.get(id);
+          const holder = at ? holderOf(existing, at.bedId, at.target) : undefined;
+          CLINICAL_DERIVED_MOVED_FIELDS.filter(
+            field =>
+              holder?.[field] !== undefined &&
+              isDeepStrictEqual(holder[field], previous[id].embedded?.[field])
+          ).forEach(field => {
+            update[`${holderPath(at.bedId, at.target)}.${field}`] = deleteField();
+            leaving.add(`${holderKey(at.bedId, at.target)}|${field}`);
+          });
+        });
+      if (Object.keys(update).length === 0) return;
+      assertPersistedDocumentSize({
+        ...mapHolders(existing, (holder, bedId, target) =>
+          Object.fromEntries(
+            Object.entries(holder).filter(
+              ([field]) => !leaving.has(`${holderKey(bedId, target)}|${field}`)
+            )
+          )
+        ),
+        [CLINICAL_DERIVED_PREVIOUS_FIELD]: recorded,
+      });
+      transaction.update(ref, update);
     },
   };
 };
@@ -326,10 +300,11 @@ const createClinicalDerivedStore = ({ FieldValue } = {}) => {
     if (!state) return null;
     assertSplitWriteAccepted({ state, data });
     if (writes.some(({ moved }) => !moved.whole)) {
-      // Authorization never lets a partial moved-field path through; fail closed if it ever does.
+      // Unreachable today: guarded patches take whole fields, and other paths to these fields need
+      // the schema-v2 fence, which refuses them. Fail closed with its own reason if that changes.
       throw failedPrecondition(
-        CLINICAL_DERIVED_LAYOUT_UNSUPPORTED,
-        'a moved clinical field can only be written whole.'
+        CLINICAL_DERIVED_PARTIAL_PATH_UNSUPPORTED,
+        'a moved clinical field can only be written whole on this day.'
       );
     }
 
@@ -353,6 +328,7 @@ const createClinicalDerivedStore = ({ FieldValue } = {}) => {
         remoteData,
         docs,
         episodes,
+        deleteField,
         record: patchedRecord,
         // The patched field takes its new value; the other one keeps the combined value.
         valuesOf: ({ bedId, target }) =>
@@ -385,9 +361,8 @@ const createClinicalDerivedStore = ({ FieldValue } = {}) => {
             .filter(({ moved }) => splitKeys.has(moved.key))
             .forEach(({ path }) => delete txnUpdate[path]);
           episodes.forEach(({ bedId, target }) => {
-            const prefix = target === 'bed' ? `beds.${bedId}` : `beds.${bedId}.clinicalCrib`;
             CLINICAL_DERIVED_MOVED_FIELDS.forEach(field => {
-              txnUpdate[`${prefix}.${field}`] = deleteField();
+              txnUpdate[`${holderPath(bedId, target)}.${field}`] = deleteField();
             });
           });
           Object.assign(txnUpdate, write.marker);
@@ -409,8 +384,9 @@ const createClinicalDerivedStore = ({ FieldValue } = {}) => {
 
   /**
    * Clinical batch. Null unless a target writes a moved field on a marked day or on a day the batch
-   * marks. Reads the targets' documents right after the day; `assertAccepted` runs after the
-   * idempotency classification.
+   * marks. Reads the targets' documents right after the day. After the idempotency classification
+   * `assertSupported` fails closed on an unknown marker; `assertAccepted` (D7) runs after the
+   * canonical no-op, so a request that writes nothing is never fenced.
    */
   const prepareBatchSplit = async ({ get, dayRef, remoteData, payload }) => {
     const movedKeys = new Set(
@@ -442,6 +418,7 @@ const createClinicalDerivedStore = ({ FieldValue } = {}) => {
         remoteData,
         docs,
         episodes,
+        deleteField,
         record,
         valuesOf: ({ bedId, target }) => holderOf(record, bedId, target),
       });
@@ -471,6 +448,7 @@ const createClinicalDerivedStore = ({ FieldValue } = {}) => {
         embeddedEpisodes: movedKeys.size - episodes.length,
         view,
       }),
+      assertSupported: () => assertLayoutSupported(state),
       assertAccepted: data =>
         assertSplitWriteAccepted({
           state,
@@ -501,15 +479,32 @@ const remoteHoldersByEpisode = (remoteData, incoming) => {
 /**
  * Full save (D3, D5). A client marker never counts. A day created on or after the start gets a
  * fresh marker and no episode documents: what it seeds stays embedded until each episode's first
- * split write. An existing marked day keeps the remote marker and takes the moved fields of every
- * episode from the remote by episode id only (a crib<->bed move keeps the id), with or without the
- * fence. An existing unmarked day is never marked.
+ * split write, and it keeps a client's own moved fields only from a current client (D7; with the
+ * Rayen fence they are the server's carryover instead). An existing marked day keeps the remote
+ * marker and takes the moved fields of every episode from the remote by episode id only (a
+ * crib<->bed move keeps the id), with or without the fence. An existing unmarked day is never
+ * marked. Runs after the idempotency check.
  */
-const settleClinicalDerivedFullSave = ({ snapshotExists, remoteData, incoming, record, date }) => {
+const settleClinicalDerivedFullSave = ({
+  snapshotExists,
+  remoteData,
+  incoming,
+  record,
+  date,
+  data,
+  keepsClientMovedFields,
+}) => {
   const next = { ...record };
   delete next[CLINICAL_DERIVED_LAYOUT_FIELD];
   if (!snapshotExists) {
     if (!isClinicalDerivedSplitDate(date)) return { record: next, telemetry: null };
+    const beds = Object.values(isPlainObject(next.beds) ? next.beds : {});
+    if (
+      keepsClientMovedFields &&
+      beds.some(bed => embedsMovedField(bed) || embedsMovedField(bed?.clinicalCrib))
+    ) {
+      assertClientVersion(data);
+    }
     next[CLINICAL_DERIVED_LAYOUT_FIELD] = freshLayout();
     return { record: next, telemetry: { clinicalDerivedLayout: 'marking' } };
   }
@@ -566,8 +561,10 @@ module.exports = {
   CLINICAL_DERIVED_CLIENT_OUTDATED,
   CLINICAL_DERIVED_LAYOUT_UNSUPPORTED,
   CLINICAL_DERIVED_FIELD_CONTRACT_UNSUPPORTED,
+  CLINICAL_DERIVED_PARTIAL_PATH_UNSUPPORTED,
   createClinicalDerivedStore,
   isClinicalDerivedSplitDate,
+  isClinicalDerivedSplitDay,
   readClinicalDerivedSplitFrom,
   readPriorDayForCarryover,
   settleClinicalDerivedFullSave,

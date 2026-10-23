@@ -86,7 +86,9 @@ un evento histórico anterior al contrato clínico conserva la compatibilidad re
 mientras la política global siga ausente. En `shadow` y `enforced`, el callable exige que el modo y
 la revisión del evento coincidan con la política global vigente.
 La promoción y el rollback se realizan en Configuración → Integraciones; no dependen de una variable
-Vite del navegador. Cliente y backend usan contrato runtime v2 y la web exige backend v2. El backend
+Vite del navegador. El cliente usa contrato runtime v2 y la web exige backend v2; el backend publica
+v3 (días divididos de la fase 1a), y en esos días la valla real es la verificación por solicitud de
+`clientRuntimeContractVersion` (ver `functions/lib/runtime/README.md`). El backend
 acepta temporalmente clientes v1 sólo para poder desplegar primero Functions y después la web; la
 migración posterior de la política a esquema v2 activa el cerco irreversible que bloquea sus
 escrituras clínicas directas.

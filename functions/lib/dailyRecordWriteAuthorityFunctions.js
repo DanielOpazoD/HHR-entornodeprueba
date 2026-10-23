@@ -1402,6 +1402,7 @@ const createDailyRecordWriteAuthorityFunctions = ({
         await db.runTransaction(async transaction => {
           txnAttempts += 1;
           pendingHistoryData = null;
+          clinicalDerivedTelemetry = undefined;
           const snapshot = await transaction.get(docRef);
           // Day bootstrap first writes an empty census, then imports Eloísa. The first
           // occupied write still needs yesterday's confirmed episode decisions.
@@ -1477,6 +1478,14 @@ const createDailyRecordWriteAuthorityFunctions = ({
             incoming: record,
             record: recordForPersistence,
             date,
+            data,
+            // With the Rayen fence the server drops or reseeds the client's clinical fields.
+            keepsClientMovedFields: !shouldPreserveRayenClinicalFields({
+              policySnapshot,
+              snapshot,
+              origin,
+              role,
+            }),
           });
           recordForPersistence = derivedSave.record;
           clinicalDerivedTelemetry = derivedSave.telemetry || undefined;
@@ -1704,6 +1713,7 @@ const createDailyRecordWriteAuthorityFunctions = ({
         await db.runTransaction(async transaction => {
           txnAttempts += 1;
           pendingHistoryData = null;
+          clinicalDerivedTelemetry = undefined;
           const [
             snapshot,
             policySnapshot,

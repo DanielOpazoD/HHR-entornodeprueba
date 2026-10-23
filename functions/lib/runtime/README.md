@@ -13,7 +13,9 @@
   Function lo lee. La valla real es la verificación por solicitud: en un día dividido, o que la
   escritura dividiría, el parche con guarda y el lote clínico rechazan una escritura de campos
   movidos sin `clientRuntimeContractVersion` 3 o mayor (`clinical_derived_client_outdated`), después
-  de la clasificación idempotente. El guardado completo no la necesita: en esos días toma los campos
+  de la clasificación idempotente. El guardado completo la exige al crear un día que marca cuando
+  conserva campos movidos del propio cliente (sin la valla de Rayen; con ella, el servidor los quita
+  o los vuelve a sembrar). En un día marcado existente no la necesita, porque toma los campos
   movidos del remoto.
 
 ## Límites

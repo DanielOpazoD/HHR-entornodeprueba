@@ -145,7 +145,7 @@ export const expectClinicalTelemetryMetadata = (telemetry: unknown) => {
       },
       authorityStatus: expect.stringMatching(/^(ok|idempotent)$/),
       resultParity: expect.stringMatching(/^(matched|mismatch)$/),
-      parityContractVersion: 3,
+      parityContractVersion: 2,
       mismatchTargetCount: expect.any(Number),
       mismatchFieldCount: expect.any(Number),
       mismatchDeviceFieldCount: expect.any(Number),

@@ -216,5 +216,7 @@ describe('every callable behaves as before while the switch is off and no day is
     const day = fake.read(dayPath()) as { beds: Record<string, Record<string, unknown>> };
     expect(day.beds.R2.vitalSignsHistory).toEqual(NEW_VITALS);
     expect(day.beds.R1.clinicalSyncCheckpoint).toEqual(checkpoint('m-2'));
+    // D13: an unmarked day keeps reporting the v2 parity contract, so its evidence is unchanged.
+    expect(fake.telemetry()[0].context.parityContractVersion).toBe(2);
   });
 });

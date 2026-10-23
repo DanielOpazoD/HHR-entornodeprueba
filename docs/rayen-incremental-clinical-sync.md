@@ -24,7 +24,7 @@ escrituras paralelas.
     escribe el servidor. Un episodio que aún no tuvo una escritura dividida conserva su copia
     embebida y los lectores combinan ambos campo por campo.
   - Solo el servidor marca un día: en su primera escritura de un campo movido con fecha igual o
-    posterior a `HHR_CLINICAL_DERIVED_SPLIT_FROM`, o al crearlo después de esa fecha.
+    posterior a `HHR_CLINICAL_DERIVED_SPLIT_FROM`, o al crear un día con fecha igual o posterior.
 - El contrato tiene versiones independientes de esquema y huella. Una versión desconocida se ignora
   y se reconstruye desde la fuente; nunca bloquea la sincronización.
 - Si Eloísa entrega identidad estable, ésta identifica el hecho: `encounterEventId` en signos

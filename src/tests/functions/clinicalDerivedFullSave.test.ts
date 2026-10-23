@@ -25,9 +25,13 @@ type Day = Record<string, unknown> & {
 const fencePolicy = { schemaVersion: 2, mode: 'preview', revision: 4, clinicalBatchMode: 'shadow' };
 const forgedMarker = { version: 1, generation: 'client-forged' };
 
-const save = (fake: ReturnType<typeof createFakeFirestore>, record: Record<string, unknown>) =>
+const save = (
+  fake: ReturnType<typeof createFakeFirestore>,
+  record: Record<string, unknown>,
+  client: Record<string, unknown> = { clientRuntimeContractVersion: 3 }
+) =>
   writeApi(fake, 'admin').saveDailyRecordWithClinicalAuthority.run(
-    { date: record.date, mode: 'shadow', record },
+    { date: record.date, mode: 'shadow', record, ...client },
     makeContext()
   );
 
@@ -57,6 +61,44 @@ describe('full save on split days (phase 1a P5)', () => {
     expect(writesTo(fake, '/clinicalDerived/')).toEqual([]);
     expect(response.recordState.record.clinicalDerivedLayout).toEqual(day.clinicalDerivedLayout);
     expect(fake.telemetry()[0].context).toMatchObject({ clinicalDerivedLayout: 'marking' });
+  });
+
+  it('takes the moved fields of a day its creation marks only from a current client (D7)', async () => {
+    vi.stubEnv(SPLIT_ENV, DAY);
+    const fake = createFakeFirestore();
+
+    for (const client of [{}, { clientRuntimeContractVersion: 2 }]) {
+      await expect(save(fake, makeDay(), client)).rejects.toMatchObject({
+        code: 'failed-precondition',
+        message: expect.stringMatching(/^clinical_derived_client_outdated:/),
+      });
+    }
+    expect(fake.read(dayPath())).toBeUndefined();
+
+    // A creation that carries no moved field (the empty census of a new day) needs no version.
+    const empty = makeDay();
+    Object.values(empty.beds as Day['beds']).forEach(bed => {
+      delete bed.vitalSignsHistory;
+      delete bed.clinicalSyncCheckpoint;
+      delete bed.clinicalCrib?.vitalSignsHistory;
+    });
+    await save(fake, empty, {});
+    expect(fake.read(dayPath())).toHaveProperty('clinicalDerivedLayout');
+
+    // With the Rayen fence the server drops the client's clinical fields and seeds its own carryover:
+    // nothing the older client sent is kept, so it may create the day.
+    const fenced = createFakeFirestore();
+    fenced.seed(POLICY_PATH, fencePolicy);
+    fenced.seed(dayPath(PRIOR_DAY), makeDay({ date: PRIOR_DAY }));
+    const request = makeDay();
+    const beds = request.beds as Day['beds'];
+    beds.R1.vitalSignsHistory = [vitals('2026-11-02', 1)];
+    beds.R2.clinicalCarryover = { sourceDate: PRIOR_DAY };
+    await save(fenced, request, {});
+    const day = fenced.read(dayPath()) as Day;
+    expect(day).toHaveProperty('clinicalDerivedLayout');
+    expect(day.beds.R1).not.toHaveProperty('vitalSignsHistory');
+    expect(day.beds.R2.vitalSignsHistory).toEqual([vitals('2026-11-01', 70)]);
   });
 
   it('drops a client marker on a day created before the start', async () => {
@@ -172,6 +214,11 @@ describe('full save on split days (phase 1a P5)', () => {
       expect(day.beds.R3).toMatchObject({ rut: 'XK1234567', documentType: 'Pasaporte' });
       expect(fake.read(episodePath('ep_pasaporte_2'))).toEqual(documentBefore);
       expect(writesTo(fake, '/clinicalDerived/')).toEqual([]);
+      // Holders with a valid id (mother, passport patient, newborn) all settle from the remote.
+      expect(fake.telemetry()[0].context).toMatchObject({
+        clinicalDerivedLayout: 'marked',
+        clinicalDerivedPreservedEpisodes: 3,
+      });
       // D8: the response is the day as persisted.
       expect(response.recordState.record.clinicalDerivedLayout).toEqual(marker());
       expect(response.recordState.record.beds.R2).not.toHaveProperty('vitalSignsHistory');
@@ -180,6 +227,22 @@ describe('full save on split days (phase 1a P5)', () => {
       );
     }
   );
+
+  it('keeps a marker this server does not understand, byte for byte, with remote moved fields', async () => {
+    vi.stubEnv(SPLIT_ENV, PRIOR_DAY);
+    const fake = createFakeFirestore();
+    const unknownMarker = { version: 2, generation: 'g-next', extra: { shards: 4 } };
+    fake.seed(dayPath(), makeDay({ clinicalDerivedLayout: unknownMarker }));
+    const incoming = makeDay();
+    (incoming.beds as Day['beds']).R2.vitalSignsHistory = [vitals('2026-11-02', 75)];
+
+    await save(fake, incoming);
+
+    const day = fake.read(dayPath()) as Day;
+    expect(day.clinicalDerivedLayout).toEqual(unknownMarker);
+    expect(day.beds.R2.vitalSignsHistory).toEqual([vitals('2026-11-01', 70)]);
+    expect(fake.touched('/clinicalDerived/')).toEqual([]);
+  });
 
   it('never marks an existing unmarked day, even with the switch on and a client marker', async () => {
     vi.stubEnv(SPLIT_ENV, PRIOR_DAY);

@@ -50,22 +50,24 @@ const enabled =
     };
   };
 
-  beforeAll(() => {
+  beforeAll(async () => {
     if (!/^(127\.0\.0\.1|localhost):\d+$/.test(process.env.FIRESTORE_EMULATOR_HOST ?? '')) {
       throw new Error('Local emulator required');
     }
     app = initializeApp({ projectId: 'demo-hhr-clinical-derived-split' }, 'clinical-derived-split');
     db = getFirestore(app);
-  });
+    // Warm the client up outside the per-test hooks: the first RPC pays the cold start.
+    await db.doc(hospital).get();
+  }, 60_000);
   afterAll(async () => {
     if (db) await db.terminate();
     if (app) await deleteApp(app);
   });
   beforeEach(async () => {
+    await db.recursiveDelete(db.doc(hospital));
     // Pin the hospital day while the real Firestore transport keeps its own timers.
     vi.useFakeTimers({ toFake: ['Date'], now: new Date(`${DAY}T16:00:00.000Z`) });
     vi.stubEnv(SPLIT_ENV, PRIOR_DAY);
-    await db.recursiveDelete(db.doc(hospital));
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -188,6 +190,43 @@ const enabled =
       vitalSignsHistory: [vitals(DAY, 72)],
       clinicalSyncCheckpoint: checkpoint('p-1'),
     });
+    expect(batchCopies.docs[0].data().beds.R1.clinicalCrib.vitalSignsHistory).toEqual([
+      vitals(PRIOR_DAY, 140),
+    ]);
+
+    // 5b. A later chunk of that run splits the newborn: its value moves out of the copy's crib.
+    await api('nurse_hospital').applyRayenClinicalEnrichmentBatch.run(
+      {
+        date: DAY,
+        authorityDate: DAY,
+        runId: 'run-synthetic-2',
+        mutationId: 'batch-2',
+        expectedLastUpdated: await version(),
+        baseRevision: 10,
+        fieldContractVersion: 2,
+        mode: 'enforced',
+        patches: [
+          {
+            bedId: 'R1',
+            clinicalCrib: true,
+            clinicalEpisodeId: 'ep_rn_1',
+            fields: { vitalSignsHistory: [vitals(DAY, 150)] },
+          },
+        ],
+        checkpoints: [],
+        clientRuntimeContractVersion: 3,
+      },
+      makeContext()
+    );
+    const extended = (await batchCopies.docs[0].ref.get()).data();
+    expect(extended?.beds.R1.clinicalCrib).not.toHaveProperty('vitalSignsHistory');
+    expect(extended?.clinicalDerivedPrevious.ep_rn_1).toEqual({
+      embedded: { vitalSignsHistory: [vitals(PRIOR_DAY, 140)], clinicalSyncCheckpoint: null },
+    });
+    expect(Object.keys(extended?.clinicalDerivedPrevious ?? {}).sort()).toEqual([
+      'ep_pasaporte_2',
+      'ep_rn_1',
+    ]);
 
     // 6. A full save from a stale copy keeps the marker and the split; no embedded copy returns.
     const stale = makeDay();
@@ -201,8 +240,8 @@ const enabled =
     expect(day.beds.R2.pathology).toBe('Cambio estructural');
     expect(day.beds.R1).not.toHaveProperty('vitalSignsHistory');
     expect(day.beds.R2).not.toHaveProperty('vitalSignsHistory');
-    expect(day.beds.R1.clinicalCrib.vitalSignsHistory).toEqual([vitals(PRIOR_DAY, 140)]);
-    expect((await dayDoc().collection('clinicalDerived').get()).size).toBe(2);
+    expect(day.beds.R1.clinicalCrib).not.toHaveProperty('vitalSignsHistory');
+    expect((await dayDoc().collection('clinicalDerived').get()).size).toBe(3);
   });
 
   it('creates today marked and seeds its carryover from the split prior day', async () => {
@@ -227,6 +266,7 @@ const enabled =
     r2.clinicalCarryover = { sourceDate: PRIOR_DAY };
 
     await api('admin').saveDailyRecordWithClinicalAuthority.run(
+      // No client version: under the Rayen fence the server reseeds the moved fields itself.
       { date: DAY, mode: 'shadow', record: request },
       makeContext()
     );

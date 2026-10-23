@@ -103,8 +103,11 @@ no puede introducir esos campos desde el navegador.
    `service = rayenClinicalEnrichment`.
    Cada entrada declara `parityContractVersion`; el gate usa solo la versión más reciente y conserva
    las anteriores como auditoría. Un cambio de versión reinicia las cuatro ejecuciones y las ocho
-   horas exigidas. La versión vigente es la 3: la paridad compara la vista combinada de los días
-   divididos (ver "Días divididos"), así que la evidencia v2 ya no cuenta.
+   horas exigidas. La versión 3 corresponde a la vista combinada de los días divididos (ver "Días
+   divididos") y solo la declaran las entradas de un día marcado o de una escritura del lote que lo
+   marca; un día sin marcador sigue declarando la 2, igual que antes. Así, desplegar Functions con
+   la variable apagada no cambia la evidencia, y la primera entrada v3 tras la activación la
+   reinicia: desde ahí la evidencia v2 ya no cuenta.
 5. Usar el gate **Lote clínico transaccional** del panel técnico. Para recomendar `enforced` exige
    al menos 4 ejecuciones shadow coincidentes, 8 horas entre la primera y última evidencia, ninguna
    paridad ausente y cero señales bloqueantes.
@@ -126,8 +129,9 @@ Desde `DESIGN_DAILY_RECORD_PHASE1_CLINICAL_DERIVED.md`, `clinicalSyncCheckpoint`
 - La variable de Functions `HHR_CLINICAL_DERIVED_SPLIT_FROM=AAAA-MM-DD` se lee en cada llamada y
   solo una fecha estricta la enciende; por defecto está apagada. Un día con fecha igual o posterior
   queda marcado (`clinicalDerivedLayout`) en su primera escritura de un campo movido, según la
-  fecha objetivo del lote o del parche, nunca la de autoridad. Un día marcado lo gobierna su
-  marcador aunque la variable se apague; los días anteriores nunca se migran.
+  fecha objetivo del lote o del parche, nunca la de autoridad, o al crearlo el guardado completo
+  (`saveDailyRecordWithClinicalAuthority`). Un día marcado lo gobierna su marcador aunque la
+  variable se apague; los días anteriores nunca se migran.
 - En un día marcado, o que la escritura marca, el lote lee los documentos de sus objetivos justo
   después del día y antes de cualquier escritura. La detección de no-op, la aplicación y la
   paridad usan la vista combinada (documentos sobre el día); en `shadow` la paridad compara contra
@@ -136,22 +140,37 @@ Desde `DESIGN_DAILY_RECORD_PHASE1_CLINICAL_DERIVED.md`, `clinicalSyncCheckpoint`
   documento completo (los dos campos siempre presentes, `null` si no hay valor) con la revisión del
   lote en `dayRevision`. Revisa los 900 KB del día, de la copia y de cada documento. Los episodios
   que el lote no toca conservan su copia embebida.
-- Rechaza con `failed-precondition` y estos códigos al inicio del mensaje, después de la
-  clasificación idempotente (un reintento ya confirmado responde con su recibo):
+- Rechaza con `failed-precondition` y estos códigos al inicio del mensaje. Un reintento ya
+  confirmado responde antes con su recibo:
+  - `clinical_derived_layout_unsupported`: un marcador que este servidor no conoce. Se revisa justo
+    después de la clasificación idempotente, antes del no-op.
   - `clinical_derived_client_outdated`: el payload no trae `clientRuntimeContractVersion` 3 o
     mayor. Ese campo va aparte, fuera de digests y recibos. Es la valla real de clientes antiguos.
   - `clinical_derived_field_contract_unsupported`: `fieldContractVersion` 1 con campos movidos.
-  - `clinical_derived_layout_unsupported`: un marcador que este servidor no conoce.
+
+  Estos dos últimos se revisan después del no-op: una solicitud cuyos valores ya están en la vista
+  combinada responde `idempotent` aunque venga de un cliente antiguo. Son más estrictos que la letra
+  de D7 y D13 en dos puntos: también rigen en el día que la escritura marcaría, y también en
+  `shadow`, aunque no escriba, para que la evidencia v3 venga solo de clientes v3. Cada rechazo
+  cuenta como señal bloqueante del gate.
+
 - La copia de la corrida guarda en `clinicalDerivedPrevious`, por episodio dividido, sus campos
   movidos antes de que la corrida lo escribiera por primera vez: el documento que existía (de
   cualquier generación, en `document`) o la copia embebida que la escritura borra (en
-  `embedded`). Esos valores salen de las camas de la copia en vez de duplicarse. Si la copia ya
-  existe, la misma transacción le agrega solo los episodios que faltan. Lo mismo hace la copia
-  `rayen-{runId}` del parche con guarda (`off` y `shadow`). Un lote de solo checkpoint sigue sin
-  copia de historial.
+  `embedded`). En una copia que crea la escritura dividida, esos valores salen de las camas de la
+  copia en vez de duplicarse. Si la copia ya existe, la misma transacción le agrega solo los
+  episodios que faltan; un valor de sus camas igual al embebido que se borra también sale de ellas,
+  y uno distinto (lo que la corrida encontró antes de escribir ese episodio sin dividirlo) se queda.
+  Así un mismo valor nunca queda dos veces en la copia, y cada escritura revisa sus 900 KB. Lo mismo
+  hace la copia `rayen-{runId}` del parche con guarda (`off` y `shadow`). Un lote de solo
+  checkpoint sigue sin copia de historial.
 - La telemetría de los días divididos agrega solo `clinicalDerivedLayout` (`marked`, `marking` o
   `unsupported`) y los conteos `clinicalDerivedSplitEpisodes`, `clinicalDerivedEmbeddedEpisodes`
-  (episodios sin id válido que siguen embebidos) y `clinicalDerivedOverlaidEpisodes`.
+  (episodios sin id válido que siguen embebidos) y `clinicalDerivedOverlaidEpisodes`. Un lote
+  rechazado por las vallas anteriores agrega `clinicalDerivedRejection` (`client_outdated`,
+  `field_contract_unsupported` o `layout_unsupported`), nunca el mensaje. En el guardado completo
+  de un día marcado, `clinicalDerivedPreservedEpisodes` cuenta los episodios con id válido cuyos
+  campos movidos se toman del remoto.
 
 ## Incrementalidad de lectura y escritura
 
