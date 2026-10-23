@@ -9,6 +9,7 @@ import { defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import { clearRecentAuthRoleLookups } from './authRoleLookup';
 import { waitForPendingLogout } from './authLogoutState';
+import { captureSessionProfessionalIdentity } from '@/services/user-profile/sessionProfessionalIdentity';
 import {
   runSessionStorageTransition,
   SESSION_GENERATION_KEY,
@@ -108,7 +109,18 @@ export const establishNursingSession = async (
     }
     clearRecentAuthRoleLookups();
     await setPersistence(auth, browserSessionPersistence);
-    await signInWithEmailAndPassword(auth, response.credentialEmail, String(data.password));
+    const result = await signInWithEmailAndPassword(
+      auth,
+      response.credentialEmail,
+      String(data.password)
+    );
+    if (auth.currentUser === result.user && isCurrent()) {
+      captureSessionProfessionalIdentity({
+        uid: result.user.uid,
+        name: result.user.displayName ?? '',
+        rut: data.rut,
+      });
+    }
   });
 };
 

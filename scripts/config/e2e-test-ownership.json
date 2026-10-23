@@ -171,6 +171,14 @@
       "command": "npx playwright test e2e/clinical-document-formatting-panel.spec.ts --project=chromium"
     },
     {
+      "file": "e2e/clinical-library-pharmacy.spec.ts",
+      "lane": "ci",
+      "reason": "Built-preview pharmacy forms, institutional PDFs and mobile browser smoke in CI.",
+      "command": "npm run ci:preview-smoke:built",
+      "workflow": ".github/workflows/ci-cd.yml",
+      "entryJob": "preview-smoke-lanes"
+    },
+    {
       "file": "e2e/clinical-library-smoke.spec.ts",
       "lane": "ci",
       "reason": "Built-preview browser smoke in CI.",
