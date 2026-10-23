@@ -1,4 +1,5 @@
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
+import { CLINICAL_DERIVED_MOVED_FIELDS } from '@/services/storage/clinicalDerivedContract';
 
 /**
  * Measures how big each day's census document is and how often a device receives a new
@@ -8,12 +9,9 @@ import { recordOperationalTelemetry } from '@/services/observability/operational
  */
 
 // The same fields the server drops from its slim history copies: per-bed data written by the
-// clinical sync, not by hand. Their share says how much the day would shrink if they moved out.
-const HEAVY_DERIVED_BED_FIELDS = [
-  'clinicalSyncCheckpoint',
-  'vitalSignsHistory',
-  'evaluationScores',
-] as const;
+// clinical sync, not by hand. Their share says how much the day would shrink if they moved out;
+// the first two are the ones phase 1a moves.
+const HEAVY_DERIVED_BED_FIELDS = [...CLINICAL_DERIVED_MOVED_FIELDS, 'evaluationScores'] as const;
 
 /** Firestore rejects documents over 1 MiB; warn with room to act. */
 export const DAILY_RECORD_SIZE_WARNING_BYTES = 700_000;

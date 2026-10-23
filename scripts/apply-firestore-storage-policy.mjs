@@ -20,6 +20,10 @@ const allowed = new Set([
   ...['dailyRecords', 'history', 'deletedRecords'].flatMap(group =>
     payloadFields.map(field => `${group}/${field}`)
   ),
+  // Split-day episode payloads and the previous values kept in run history copies.
+  'clinicalDerived/clinicalSyncCheckpoint',
+  'clinicalDerived/vitalSignsHistory',
+  'history/clinicalDerivedPrevious',
   'conflictSnapshots/record',
   'conflictSnapshots/expireAt',
   'auditLogs/details',

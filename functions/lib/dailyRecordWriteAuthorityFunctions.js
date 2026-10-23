@@ -2,6 +2,7 @@ const { applyTrustedClinicalCarryover } = require('./clinicalCarryoverSeed');
 const { movementRestoreRecord } = require('./movementRestoreSources');
 const functions = require('firebase-functions/v1');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
+const { CLINICAL_DERIVED_MOVED_FIELDS } = require('./clinicalDerivedContract');
 const { requireAuthenticatedEmail } = require('./auth/authPolicies');
 const { sanitizeLogValue } = require('./logging/redaction');
 const {
@@ -293,11 +294,8 @@ const applyPatchToRecord = ({ date, remoteData, patch }) => {
 // ~7,5KB por cama medidos): duplicarlos en cada snapshot de historial es
 // cuadrático y no aporta a la auditoría del censo (viven en el registro vigente
 // y/o son historiales por sí mismos).
-const HEAVY_DERIVED_BED_FIELDS = [
-  'clinicalSyncCheckpoint',
-  'vitalSignsHistory',
-  'evaluationScores',
-];
+// The first two are the fields phase 1a moves out of the day (clinicalDerivedContract).
+const HEAVY_DERIVED_BED_FIELDS = [...CLINICAL_DERIVED_MOVED_FIELDS, 'evaluationScores'];
 
 const slimHistoryBed = bed => {
   if (!bed || typeof bed !== 'object' || Array.isArray(bed)) {

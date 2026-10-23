@@ -645,6 +645,13 @@ service cloud.firestore {
           )
         : false;
     }
+    function preservesClinicalDerivedLayout() {
+      return !request.resource.data.diff(resource.data).affectedKeys()
+               .hasAny(['clinicalDerivedLayout']) &&
+             (!('clinicalDerivedLayout' in resource.data) ||
+              request.resource.data.get(['meta', 'revision'], 0) >=
+                resource.data.get(['meta', 'revision'], 0));
+    }
     function canAdminMaintainHospitalDocument() {
       return isAdmin();
     }
@@ -660,7 +667,7 @@ service cloud.firestore {
       match /dailyRecords/{date} {
         allow read: if canReadClinicalData();
         allow create: if canEdit() && !isRayenClinicalWriteFenceActive(hospitalId) && !isSpecialtyDecisionFenceActive(hospitalId);
-        allow update: if canUpdatePersistedDailyRecord() && preservesServerOwnedClinicalState(hospitalId);
+        allow update: if canUpdatePersistedDailyRecord() && preservesServerOwnedClinicalState(hospitalId) && preservesClinicalDerivedLayout();
         allow delete: if isAdmin();
         match /history/{historyId} {
           allow read: if canReadClinicalData();
@@ -793,6 +800,10 @@ service cloud.firestore {
       }
     }
     match /hospitals/{hospitalId}/dailyRecords/{date}/specialtyDecisions/{decisionId} {
+      allow read: if canReadClinicalData();
+      allow create, update, delete: if false;
+    }
+    match /hospitals/{hospitalId}/dailyRecords/{date}/clinicalDerived/{clinicalEpisodeId} {
       allow read: if canReadClinicalData();
       allow create, update, delete: if false;
     }

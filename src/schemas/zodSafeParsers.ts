@@ -15,6 +15,7 @@ import {
 } from './zod/dailyRecord';
 import type { RayenSyncEvent } from '@/types/domain/rayenSync';
 import { PatientDataSchema } from './zod/patient';
+import { ClinicalDerivedLayoutSchema } from './zod/clinicalDerived';
 import { CMADataSchema, DischargeDataSchema, TransferDataSchema } from './zod/movements';
 import { buildFallbackPatientData } from './zodFallbackBuilders';
 import type { DailyRecordParseReport, PatientDataParseReport } from './zodParseReports';
@@ -134,6 +135,8 @@ export const parseDailyRecordWithDefaultsReport = (
     RayenSyncEventSchema
   );
   const salvagedRayenSyncMeta = RayenSyncMetaSchema.safeParse(raw.rayenSync);
+  // A salvaged split day must still read as split.
+  const salvagedLayout = ClinicalDerivedLayoutSchema.safeParse(raw.clinicalDerivedLayout);
 
   return {
     record: applyDailyRecordStaffingCompatibility({
@@ -178,6 +181,7 @@ export const parseDailyRecordWithDefaultsReport = (
         ? { rayenSyncHistory: salvagedRayenSyncHistory.values }
         : {}),
       ...(salvagedRayenSyncMeta.success ? { rayenSync: salvagedRayenSyncMeta.data } : {}),
+      ...(salvagedLayout.success ? { clinicalDerivedLayout: salvagedLayout.data } : {}),
     } as DailyRecord),
     report: {
       nullNormalization,

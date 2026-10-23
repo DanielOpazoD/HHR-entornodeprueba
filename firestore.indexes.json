@@ -93,6 +93,11 @@
       "indexes": []
     },
     {
+      "collectionGroup": "history",
+      "fieldPath": "clinicalDerivedPrevious",
+      "indexes": []
+    },
+    {
       "collectionGroup": "deletedRecords",
       "fieldPath": "beds",
       "indexes": []
@@ -115,6 +120,16 @@
     {
       "collectionGroup": "deletedRecords",
       "fieldPath": "rayenSyncHistory",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "clinicalDerived",
+      "fieldPath": "clinicalSyncCheckpoint",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "clinicalDerived",
+      "fieldPath": "vitalSignsHistory",
       "indexes": []
     },
     {

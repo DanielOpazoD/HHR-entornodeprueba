@@ -373,3 +373,14 @@ Regresiones: `dailyRecordSpecialtyRecovery.test.ts` comprueba diez cambios rápi
 cama/cuna, conflictos técnicos y semánticos, desconexión, respuesta perdida y
 conservación de proyecciones locales; `dailyRecordAuthorityCallableClient.test.ts`
 verifica la clasificación de errores del servidor.
+
+### Datos clínicos por episodio (fase 1a, sin activar)
+
+`hospitals/{hospitalId}/dailyRecords/{date}/clinicalDerived/{clinicalEpisodeId}` guardará
+`clinicalSyncCheckpoint` y `vitalSignsHistory` de cada episodio de un día marcado con
+`clinicalDerivedLayout`. Es una subcolección que sólo escribe el servidor, como
+`specialtyDecisions`: las reglas niegan toda escritura de clientes y ninguna actualización del día
+puede agregar, cambiar ni quitar el marcador o bajar `meta.revision` de un día marcado. Por ahora
+sólo existe la base de lectura: el contrato gemelo (`clinicalDerivedContract`), el lector
+`clinicalDerivedEpisodeReader.ts` y `dailyRecordClinicalDerivedReadService.ts`. Ningún flujo los
+llama ni hay escritor; nada marca un día hasta la activación del responsable.
