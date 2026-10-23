@@ -107,6 +107,18 @@ describe('authority commit with lost response', () => {
     expect(readServer).not.toHaveBeenCalled();
   });
 
+  it('confirms a commit stamped with a Firestore Timestamp, as the authority callables write it', async () => {
+    const stamp = { toMillis: () => Date.parse(`${date}T10:01:00.000Z`) };
+    invoke.mockRejectedValueOnce(failure());
+    readServer.mockResolvedValueOnce(snapshot({ ...committed(), lastUpdated: stamp } as never));
+    await expect(save(payload)).resolves.toMatchObject({
+      success: true,
+      mutationId: 'synthetic-mutation',
+      revision: 2,
+    });
+    expect(invoke).toHaveBeenCalledTimes(1);
+  });
+
   it.each([
     [
       'different mutation',
@@ -118,6 +130,10 @@ describe('authority commit with lost response', () => {
       () => ({ ...committed(), meta: { lastMutationId: 'synthetic-mutation' } }),
     ],
     ['invalid timestamp', () => ({ ...committed(), lastUpdated: 'invalid' })],
+    ['invalid Timestamp', () => ({ ...committed(), lastUpdated: { toMillis: () => NaN } })],
+    ['numeric stamp', () => ({ ...committed(), lastUpdated: 1_792_000_000_000 })],
+    ['missing stamp', () => ({ ...committed(), lastUpdated: null })],
+    ['plain map stamp', () => ({ ...committed(), lastUpdated: { seconds: 1 } })],
   ] as const)('retains the error for %s even when patient values match', async (_label, data) => {
     const error = failure();
     invoke.mockRejectedValueOnce(error);

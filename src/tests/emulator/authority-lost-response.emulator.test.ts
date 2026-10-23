@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { doc, getDocFromServer, setDoc } from 'firebase/firestore';
+import { Timestamp, doc, getDocFromServer, setDoc } from 'firebase/firestore';
 import { resolveFirestoreRulesEmulatorConfig } from '@/tests/security/firestoreRulesEmulatorConfig';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }));
@@ -105,4 +105,30 @@ describeEmulator('authority lost response with server-only Firestore evidence', 
       });
     }
   );
+
+  it('accepts a commit stamped with a Firestore Timestamp, as the authority callables write it', async () => {
+    const error = Object.assign(new Error('Synthetic lost response'), {
+      code: 'functions/deadline-exceeded',
+    });
+    const committed = {
+      ...record,
+      lastUpdated: Timestamp.fromDate(new Date(`${date}T10:01:00.000Z`)),
+      meta: { revision: 2, lastMutationId: 'synthetic-write' },
+    };
+    invoke.mockImplementationOnce(async () => {
+      await env.withSecurityRulesDisabled(async context => {
+        await setDoc(doc(context.firestore(), recordPath), committed);
+      });
+      throw error;
+    });
+
+    await expect(
+      save({ date, record, mode: 'enforced', syncContract: { mutationId: 'synthetic-write' } })
+    ).resolves.toMatchObject({
+      success: true,
+      revision: 2,
+      recordState: { lastUpdated: `${date}T10:01:00.000Z` },
+    });
+    expect(invoke).toHaveBeenCalledTimes(1);
+  });
 });
