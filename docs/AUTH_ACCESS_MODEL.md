@@ -85,6 +85,17 @@ No forman parte del login general:
 - listas hardcodeadas legacy de roles
 - lookups cloud legacy fuera del callable actual de resolución
 
+## Datos profesionales propuestos para documentos
+
+Después de un ingreso individual exitoso, el cliente puede proponer a Documentos el UID,
+nombre de Firebase y RUT validado que el usuario ya ingresó. Este dato auxiliar no concede
+acceso, no modifica claims y no contiene claves, tokens ni el correo interno de credenciales.
+Se mantiene en memoria hasta que una herramienta lo consume desde una sesión admitida;
+entonces se guarda por UID en `sessionStorage` con prefijo `hhr_`, sujeto a la limpieza habitual.
+El cierre de sesión también descarta la propuesta pendiente en memoria. Un fallo del caché no
+interrumpe la autenticación. Google y admin pueden completar un perfil editable propio; el
+rol administrador no determina la profesión. El responsable revisa los datos antes de imprimir.
+
 ## 2. Regla principal
 
 Un usuario puede iniciar sesión en el shell principal **solo si**:
