@@ -212,15 +212,11 @@ describeEmulator('Firestore emulator sync concurrency flow', () => {
 
   it('applies partial update when record exists and is within nurse edit window', async () => {
     const date = CURRENT_RECORD_DATE;
-    const now = Date.now();
     await testEnv.withSecurityRulesDisabled(async context => {
       await context
         .firestore()
         .doc(`hospitals/hanga_roa/dailyRecords/${date}`)
-        .set({
-          ...buildRecord(date, isoAt(date, '07:00:00')),
-          dateTimestamp: now,
-        });
+        .set(buildRecord(date, isoAt(date, '07:00:00')));
     });
 
     await expect(
