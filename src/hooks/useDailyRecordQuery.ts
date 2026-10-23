@@ -60,6 +60,7 @@ export const useDailyRecordQuery = (
   );
   const previousShouldSyncFromRemoteRef = useRef(shouldSyncFromRemote);
   const remoteConfirmedRef = useRef<string | null>(null);
+  const prefetchedPreviousForRef = useRef<string | null>(null);
   const lastRemoteConfirmedRecordRef = useRef<{ date: string; record: DailyRecord } | null>(null);
 
   const queryKey = getDailyRecordQueryKey(date);
@@ -191,6 +192,10 @@ export const useDailyRecordQuery = (
     // Only after the current day is server-confirmed: the previous day is a
     // convenience, and it used to compete with the census for the same connection.
     if (remoteConfirmedRef.current !== date) return;
+    // Once per selected day. Each live update of today re-runs this effect, and the
+    // 5-minute stale window turned that into a full re-read of yesterday every 5 minutes.
+    if (prefetchedPreviousForRef.current === date) return;
+    prefetchedPreviousForRef.current = date;
 
     prefetchPreviousDailyRecord(queryClient, dailyRecord, date);
   }, [date, queryClient, dailyRecord, shouldSyncFromRemote, query.data]);

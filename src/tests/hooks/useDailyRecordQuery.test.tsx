@@ -63,6 +63,7 @@ describe('useDailyRecordQuery', () => {
     focusManager.setFocused(undefined);
     onlineManager.setOnline(true);
     vi.restoreAllMocks();
+    vi.unstubAllEnvs();
   });
 
   it('revalidates a fresh cached absence before allowing empty UI on a new visit', async () => {
@@ -332,5 +333,60 @@ describe('useDailyRecordQuery', () => {
 
     expect(dailyRecord.subscribeDetailed).not.toHaveBeenCalled();
     expect(dailyRecord.subscribe).not.toHaveBeenCalled();
+  });
+
+  it('prefetches the previous day once per selected day, not on every live update', async () => {
+    vi.stubEnv('DEV', false);
+    const dailyRecord = buildMockDailyRecordRepository();
+    const queryClient = createTestQueryClient();
+    vi.mocked(dailyRecord.getForDateWithMeta).mockImplementation(async requestedDate =>
+      createDailyRecordReadResult(
+        requestedDate,
+        DataFactory.createMockDailyRecord(requestedDate),
+        'firestore'
+      )
+    );
+    const remoteReadsOf = (requestedDate: string) =>
+      vi
+        .mocked(dailyRecord.getForDateWithMeta)
+        .mock.calls.filter(([readDate, fromRemote]) => readDate === requestedDate && fromRemote)
+        .length;
+    const { result, rerender } = renderHook(
+      ({ selectedDate }: { selectedDate: string }) =>
+        useDailyRecordQuery(selectedDate, false, 'ready'),
+      { initialProps: { selectedDate: date }, wrapper: createWrapper(dailyRecord, queryClient) }
+    );
+    // Each live update lands past the 5-minute stale window and is rendered before the
+    // next one, so a prefetch on every update would show up as one more read each time.
+    let now = Date.parse('2026-04-03T12:00:00.000Z');
+    const liveUpdates = async (selectedDate: string, count: number) => {
+      for (let i = 0; i < count; i += 1) {
+        now += 6 * 60 * 1000;
+        vi.spyOn(Date, 'now').mockReturnValue(now);
+        const lastUpdated = new Date(now).toISOString();
+        act(() => {
+          queryClient.setQueryData(getDailyRecordQueryKey(selectedDate), (previous: unknown) => {
+            const current = previous as { record: DailyRecord };
+            return { ...current, record: { ...current.record, lastUpdated } };
+          });
+        });
+        await waitFor(() => expect(result.current.data?.lastUpdated).toBe(lastUpdated));
+        await waitFor(() => expect(queryClient.isFetching()).toBe(0));
+      }
+    };
+
+    await waitFor(() => expect(remoteReadsOf('2026-04-02')).toBe(1));
+    await liveUpdates(date, 10);
+    expect(remoteReadsOf('2026-04-02')).toBe(1);
+
+    const callsBeforeNextDay = remoteReadsOf(date);
+    now += 6 * 60 * 1000;
+    vi.spyOn(Date, 'now').mockReturnValue(now);
+    rerender({ selectedDate: '2026-04-04' });
+    await waitFor(() => expect(remoteReadsOf(date)).toBe(callsBeforeNextDay + 1));
+    await liveUpdates('2026-04-04', 10);
+    expect(remoteReadsOf(date)).toBe(callsBeforeNextDay + 1);
+    expect(remoteReadsOf('2026-04-02')).toBe(1);
+    queryClient.clear();
   });
 });
