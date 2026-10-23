@@ -2,7 +2,7 @@ import { createCudyrPolicyBlockedRecovery } from './cudyrPolicyBlockedRecovery';
 import { createDexieSyncQueueStore } from './dexieSyncQueueStore';
 import { ensureDbReady } from '@/services/storage/indexeddb/indexedDbCore';
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
+import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { createObsoleteCudyrCaptureRecovery } from './cudyrObsoleteCaptureRecovery';
 import { getDocFromServer } from 'firebase/firestore';
