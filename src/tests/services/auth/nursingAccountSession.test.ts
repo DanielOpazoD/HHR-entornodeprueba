@@ -27,6 +27,11 @@ describe('individual login respects session replacement', () => {
     vi.clearAllMocks();
     localStorage.clear();
     mocks.auth.currentUser = null;
+    mocks.signIn.mockImplementation(async () => {
+      const user = { uid: 'synthetic-user', displayName: 'Profesional de prueba' };
+      mocks.auth.currentUser = user;
+      return { user };
+    });
   });
   it('does not sign in after another document admitted a different owner', async () => {
     mocks.callable.mockImplementation(async () => {
