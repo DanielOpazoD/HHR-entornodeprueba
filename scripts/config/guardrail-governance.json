@@ -209,6 +209,8 @@
       { "id": "check:native-dialogs", "group": "boundaries" },
       { "id": "check:clinical-clock", "group": "boundaries" },
       { "id": "check:declared-dependencies", "group": "hygiene" },
+      { "id": "check:empty-on-failure-reads", "group": "boundaries" },
+      { "id": "check:import-cycles", "group": "boundaries" },
       { "id": "check:firestore-runtime-boundary", "group": "boundaries" },
       { "id": "check:firestore-emulator-governance", "group": "governance" },
       { "id": "check:ci-artifact-contracts", "group": "governance" },

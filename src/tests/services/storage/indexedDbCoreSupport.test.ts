@@ -5,7 +5,6 @@ import {
   resolveIndexedDbErrorDetails,
   resolveIndexedDbRecoveryDelay,
   runIndexedDbOperationWithTimeout,
-  shouldAttemptIndexedDbRecreation,
   waitForIndexedDbOpenResolution,
 } from '@/services/storage/indexeddb/indexedDbCoreSupport';
 
@@ -31,13 +30,6 @@ describe('indexedDbCoreSupport', () => {
     expect(resolveIndexedDbRecoveryDelay(1, [10, 20, 30])).toBe(10);
     expect(resolveIndexedDbRecoveryDelay(2, [10, 20, 30])).toBe(20);
     expect(resolveIndexedDbRecoveryDelay(99, [10, 20, 30])).toBe(30);
-  });
-
-  it('only attempts database recreation for non-backing-store unknown/version failures', () => {
-    expect(shouldAttemptIndexedDbRecreation('UnknownError', false)).toBe(true);
-    expect(shouldAttemptIndexedDbRecreation('VersionError', false)).toBe(true);
-    expect(shouldAttemptIndexedDbRecreation('VersionError', true)).toBe(false);
-    expect(shouldAttemptIndexedDbRecreation('AbortError', false)).toBe(false);
   });
 
   it('wraps IndexedDB operations with a timeout boundary', async () => {

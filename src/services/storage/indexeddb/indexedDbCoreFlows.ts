@@ -86,7 +86,6 @@ export const runOpeningWaitFlow = async (input: OpeningWaitInput): Promise<Openi
 
 export interface FreshOpenAttemptInput {
   database: HangaRoaDatabase;
-  attachDatabaseEvents: (database: HangaRoaDatabase) => void;
 }
 
 export interface FreshOpenAttemptResult {
@@ -94,7 +93,6 @@ export interface FreshOpenAttemptResult {
   fallbackMode: boolean;
   stickyFallbackMode: boolean;
   shouldResetRecoveryTracking: boolean;
-  shouldNotifyDatabaseRecreated: boolean;
   shouldScheduleBackgroundRecovery: boolean;
 }
 
@@ -102,7 +100,7 @@ export interface FreshOpenAttemptResult {
  * Runs the open-with-retries path and, if it fails, hands off to the
  * recovery pipeline. Returns the final database + flags the caller uses to
  * update its module state and decide whether to schedule background
- * recovery / notify consumers about the recreation.
+ * recovery.
  */
 export const runFreshOpenAttempt = async (
   input: FreshOpenAttemptInput
@@ -123,22 +121,19 @@ export const runFreshOpenAttempt = async (
       fallbackMode: false,
       stickyFallbackMode: false,
       shouldResetRecoveryTracking: true,
-      shouldNotifyDatabaseRecreated: false,
       shouldScheduleBackgroundRecovery: false,
     };
   } catch (error: unknown) {
     const recoveryOutcome = await recoverIndexedDbInitialOpenRuntimeFailure({
       error,
       database: input.database,
-      attachDatabaseEvents: input.attachDatabaseEvents,
     });
 
     return {
       database: recoveryOutcome.database,
       fallbackMode: recoveryOutcome.fallbackMode,
       stickyFallbackMode: recoveryOutcome.stickyFallbackMode,
-      shouldResetRecoveryTracking: recoveryOutcome.shouldResetRecoveryTracking,
-      shouldNotifyDatabaseRecreated: recoveryOutcome.shouldNotifyDatabaseRecreated,
+      shouldResetRecoveryTracking: false,
       shouldScheduleBackgroundRecovery: recoveryOutcome.shouldScheduleBackgroundRecovery,
     };
   }

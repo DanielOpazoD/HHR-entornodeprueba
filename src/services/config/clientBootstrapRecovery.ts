@@ -7,7 +7,7 @@ import {
 
 const VERSION_KEY = 'hhr_app_version';
 const FIREBASE_CONFIG_CACHE_KEY = 'hhr_firebase_config';
-const BOOTSTRAP_RECOVERY_KEY = 'hhr_bootstrap_recovery_v1';
+export const BOOTSTRAP_RECOVERY_KEY = 'hhr_bootstrap_recovery_v1';
 const VERSION_URL = '/version.json';
 
 export type BootstrapRecoveryReason = 'legacy-sw' | 'version-change' | 'local-dev';

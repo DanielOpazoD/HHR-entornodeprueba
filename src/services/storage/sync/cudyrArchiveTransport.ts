@@ -5,7 +5,7 @@ import { getRecordDocRef } from '@/services/storage/firestore/firestoreShared';
 import { archiveCudyrHistory } from '@/services/cudyr/cudyrHistoryService';
 import { assertCudyrArchiveAcknowledged } from '@/services/cudyr/cudyrArchiveAcknowledgement';
 import type { CudyrArchiveOutboxPayload } from '@/types/domain/cudyrHistory';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
+import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 
 export const replayCudyrArchive = async (
