@@ -7,7 +7,7 @@ Responsable: mantenedor de HHR (Daniel Opazo).
 
 Se acepta únicamente GHSA-vfj7-8cjw-p6xm en la cadena de desarrollo del
 lockfile raíz aprobado, cuya SHA-256 es
-`998d4f112ae629d4b2418e131ea8a05380ba74127063922e39b0e14fe371adac`.
+`3ef8b4de6739ad963b3ca53613ca05fbd5f4a87456d89258010792b1be05f343`.
 Daniel autorizó actualizar la huella el 9 de octubre de 2026 para el parche
 transitivo Handlebars 4.7.10 y el 11 de octubre para Firebase CLI 15.16.0.
 El 16 de octubre de 2026 autorizó explícitamente renovar sólo la huella para
@@ -70,3 +70,15 @@ siete nodos de desarrollo autorizados, permanecen idénticas. Los archivos de
 dependencias de Functions tampoco cambian. Se conserva el mismo alcance de la
 excepción y el rechazo de cualquier aviso alto o crítico adicional; DOMPurify
 no se incorpora a la aceptación de riesgo.
+
+La limpieza de dependencias de PR #963 declara en `package.json` los paquetes que
+el código ya importaba (`@kitware/vtk.js`, `workbox-cacheable-response` y
+herramientas de pruebas y scripts) y elimina `motion` y `@tanstack/react-virtual`,
+que nada importa. La huella anterior era
+`998d4f112ae629d4b2418e131ea8a05380ba74127063922e39b0e14fe371adac`. La
+comparación completa del lock confirma que solo se eliminan `motion`,
+`framer-motion`, `motion-dom`, `motion-utils`, `@tanstack/react-virtual` y
+`@tanstack/virtual-core`, y que `@google-cloud/firestore` y sus dependencias dejan
+de figurar como opcionales al quedar declaradas. Ninguna versión cambia, los siete
+nodos de desarrollo autorizados permanecen idénticos y los archivos de
+dependencias de Functions no cambian. Se conserva el mismo alcance de la excepción.
