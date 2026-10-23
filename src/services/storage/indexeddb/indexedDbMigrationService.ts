@@ -5,6 +5,7 @@ import { recordOperationalErrorTelemetry } from '@/services/observability/operat
 
 import { ensureDbReady, hospitalDB as db } from './indexedDbCore';
 import { saveCatalog } from './indexedDbCatalogService';
+import { dispatchDailyRecordStoreChanged } from './indexedDbRecordEvents';
 
 const STORAGE_KEY = 'hanga_roa_hospital_data';
 const NURSES_KEY = 'hanga_roa_nurses_list';
@@ -44,6 +45,10 @@ export const migrateFromLocalStorage = async (): Promise<boolean> => {
       const recordArray = Object.values(records);
       if (recordArray.length > 0) {
         await db.dailyRecords.bulkPut(recordArray);
+        dispatchDailyRecordStoreChanged({
+          operation: 'save',
+          dates: recordArray.map(record => record.date),
+        });
       }
     }
 

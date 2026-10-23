@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as idbService from '@/services/storage/indexedDBService';
 import * as indexedDbCore from '@/services/storage/indexeddb/indexedDbCore';
+import { DAILY_RECORD_STORE_CHANGED_EVENT } from '@/services/storage/indexeddb/indexedDbRecordEvents';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { AuditLogEntry } from '@/types/auditLogTypes';
 import { ErrorLog } from '@/services/utils/errorService';
@@ -220,8 +221,32 @@ describe('indexedDBService', () => {
       localStorage.setItem('hanga_roa_tens_list', JSON.stringify(tens));
       localStorage.setItem('hanga_roa_audit_logs', JSON.stringify(auditLogs));
 
+      const announced: unknown[] = [];
+      const steps: string[] = [];
+      const bulkPut = indexedDbCore.hospitalDB.dailyRecords.bulkPut.bind(
+        indexedDbCore.hospitalDB.dailyRecords
+      );
+      const bulkPutSpy = vi
+        .spyOn(indexedDbCore.hospitalDB.dailyRecords, 'bulkPut')
+        .mockImplementation((...args: Parameters<typeof bulkPut>) =>
+          bulkPut(...args).then(written => {
+            steps.push('written');
+            return written;
+          })
+        );
+      const listener = (event: Event) => {
+        steps.push('announced');
+        announced.push((event as CustomEvent).detail);
+      };
+      window.addEventListener(DAILY_RECORD_STORE_CHANGED_EVENT, listener);
       const migrated = await idbService.migrateFromLocalStorage();
+      window.removeEventListener(DAILY_RECORD_STORE_CHANGED_EVENT, listener);
+      bulkPutSpy.mockRestore();
       expect(migrated).toBe(true);
+      // Calendar markers and other local views refresh from this event, like any other save,
+      // so it must come after the records are written.
+      expect(announced).toEqual([{ operation: 'save', dates: ['2025-01-01'] }]);
+      expect(steps).toEqual(['written', 'announced']);
 
       expect(await idbService.getRecordForDate('2025-01-01')).toBeDefined();
       expect(await idbService.getCatalog('nurses')).toEqual(['Alice']);
