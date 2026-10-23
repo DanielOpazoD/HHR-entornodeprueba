@@ -147,9 +147,14 @@ export function useMinsalStats(
         return;
       }
 
-      // Never cancel a fetch that is still storing its own synced records.
+      // Never cancel a fetch that is still storing its own synced records. A hidden tab
+      // only marks the range stale: it rescans the local days once, when it is shown again.
       void queryClient.invalidateQueries(
-        { queryKey: localRecordsQueryKey, exact: true },
+        {
+          queryKey: localRecordsQueryKey,
+          exact: true,
+          refetchType: document.visibilityState === 'hidden' ? 'none' : 'active',
+        },
         { cancelRefetch: false }
       );
     };
@@ -183,6 +188,9 @@ export function useMinsalStats(
     },
     staleTime: 2 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
+    // Every local change in the range already invalidates this query, so a tab return only
+    // rescans when something changed or the data is older than its stale time.
+    refetchOnWindowFocus: true,
   });
 
   const rangeRecords = useMemo(() => recordsQuery.data ?? [], [recordsQuery.data]);

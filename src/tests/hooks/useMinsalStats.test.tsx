@@ -1,4 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
+import { focusManager } from '@tanstack/react-query';
+import { queryClient as appQueryClient } from '@/config/queryClient';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { useMinsalStats } from '@/hooks/useMinsalStats';
 import { DAILY_RECORD_STORE_CHANGED_EVENT } from '@/services/storage/indexeddb/indexedDbRecordEvents';
@@ -385,6 +387,74 @@ describe('useMinsalStats', () => {
       });
       await settle();
       expect(mockSyncRecordsRange).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('local rescans and tab visibility', () => {
+    const records = [{ date: '2026-03-31' } as DailyRecord];
+    const storeChanged = (date: string) =>
+      window.dispatchEvent(
+        new CustomEvent(DAILY_RECORD_STORE_CHANGED_EVENT, {
+          detail: { operation: 'save', dates: [date] },
+        })
+      );
+    const settle = () =>
+      act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      });
+
+    beforeEach(() => {
+      mockFetchRecordsRangeSorted.mockResolvedValue(records);
+      mockSyncRecordsRange.mockResolvedValue([]);
+      mockCalculateMinsalStats.mockReturnValue(buildStats());
+    });
+
+    it('only marks the range stale in a hidden tab and rescans once on return', async () => {
+      const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+      const { result } = renderHook(() => useMinsalStats('lastMonth'), {
+        wrapper: createWrapper(),
+      });
+      await waitFor(() => expect(result.current.allRecords).toEqual(records));
+      const readsBefore = mockFetchRecordsRangeSorted.mock.calls.length;
+      try {
+        visibility.mockReturnValue('hidden');
+        act(() => focusManager.setFocused(false));
+        await act(async () => {
+          ['2026-03-10', '2026-03-11', '2026-03-12'].forEach(storeChanged);
+        });
+        await settle();
+        expect(mockFetchRecordsRangeSorted).toHaveBeenCalledTimes(readsBefore);
+
+        visibility.mockReturnValue('visible');
+        act(() => focusManager.setFocused(true));
+        await waitFor(() =>
+          expect(mockFetchRecordsRangeSorted).toHaveBeenCalledTimes(readsBefore + 1)
+        );
+      } finally {
+        focusManager.setFocused(undefined);
+        visibility.mockRestore();
+      }
+    });
+
+    it('does not rescan the local days on a tab return when nothing changed', async () => {
+      // The app's defaults refetch every query on every tab return, even when fresh.
+      const { queryClient, wrapper } = createQueryClientTestWrapper({
+        config: { defaultOptions: appQueryClient.getDefaultOptions() },
+      });
+      const { result } = renderHook(() => useMinsalStats('lastMonth'), { wrapper });
+      await waitFor(() => expect(result.current.allRecords).toEqual(records));
+      const readsBefore = mockFetchRecordsRangeSorted.mock.calls.length;
+      try {
+        act(() => {
+          focusManager.setFocused(false);
+          focusManager.setFocused(true);
+        });
+        await settle();
+        expect(mockFetchRecordsRangeSorted).toHaveBeenCalledTimes(readsBefore);
+      } finally {
+        focusManager.setFocused(undefined);
+        queryClient.clear();
+      }
     });
   });
 });
