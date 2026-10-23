@@ -60,6 +60,7 @@ describe('check-declared-dependencies', () => {
         'src/app.ts': [
           "import { initializeApp } from 'firebase/app';",
           "import fs from 'node:fs';",
+          "import { test } from 'node:test';",
           "import path from 'path';",
           "import { helper } from '@/utils/helper';",
           "import local from './local';",

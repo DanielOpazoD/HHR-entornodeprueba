@@ -57,7 +57,11 @@ const builtins = new Set(builtinModules.flatMap(name => [name, `node:${name}`]))
 
 /** Package name of a bare specifier, or null for relative paths, aliases and virtual modules. */
 const packageNameOf = specifier => {
-  if (/^(?:\.|\/|@\/|~\/|virtual:|data:|https?:)/.test(specifier) || specifier.startsWith('\0'))
+  // `node:` names a built-in even when this Node's builtinModules omits it (node:test on Node 22).
+  if (
+    /^(?:\.|\/|@\/|~\/|node:|virtual:|data:|https?:)/.test(specifier) ||
+    specifier.startsWith('\0')
+  )
     return null;
   const [first, second] = specifier.split('/');
   const name = first.startsWith('@') ? `${first}/${second}` : first;
