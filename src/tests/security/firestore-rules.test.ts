@@ -2,6 +2,7 @@ import { registerMigrationReleaseGuards } from './firestoreRulesMigrationRelease
 /* @flake-safe: Safe usage of Date for setup only */
 
 import { registerFirestoreRulesAccessGroups } from './firestoreRulesAccessGroups';
+import { registerClinicalDerivedRules } from './firestoreRulesClinicalDerived';
 import { registerFirestoreRulesDomainGroups } from './firestoreRulesDomainGroups';
 import { registerFirestoreRulesIdentityGroups } from './firestoreRulesIdentityGroups';
 import { registerFirestoreRulesSuite } from './firestoreRulesTestHarness';
@@ -10,6 +11,7 @@ import { registerFirestoreRulesTemporalBoundaries } from './firestoreRulesTempor
 
 registerFirestoreRulesSuite(harness => {
   registerFirestoreRulesAccessGroups(harness);
+  registerClinicalDerivedRules(harness);
   registerFirestoreRulesDomainGroups(harness);
   registerMigrationReleaseGuards(harness);
   registerFirestoreRulesIdentityGroups(harness);

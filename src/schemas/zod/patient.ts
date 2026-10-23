@@ -163,7 +163,7 @@ const ClinicalSyncSourceCheckpointSchema = z.object({
   facts: z.array(ClinicalSyncFactCheckpointSchema).optional(),
 });
 
-const ClinicalSyncCheckpointSchema = z.object({
+export const ClinicalSyncCheckpointSchema = z.object({
   version: z.number().int(),
   fingerprintVersion: z.number().int(),
   sources: z

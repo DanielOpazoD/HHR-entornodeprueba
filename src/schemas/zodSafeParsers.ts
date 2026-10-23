@@ -134,6 +134,11 @@ export const parseDailyRecordWithDefaultsReport = (
     RayenSyncEventSchema
   );
   const salvagedRayenSyncMeta = RayenSyncMetaSchema.safeParse(raw.rayenSync);
+  // A salvaged split day must still read as split, and at its own revision: without `meta` every
+  // episode document would look ahead of the day and strict readers would fail closed for good.
+  const salvagedLayout = raw.clinicalDerivedLayout ?? undefined;
+  const salvagedMeta =
+    raw.meta && typeof raw.meta === 'object' && !Array.isArray(raw.meta) ? raw.meta : undefined;
 
   return {
     record: applyDailyRecordStaffingCompatibility({
@@ -178,6 +183,8 @@ export const parseDailyRecordWithDefaultsReport = (
         ? { rayenSyncHistory: salvagedRayenSyncHistory.values }
         : {}),
       ...(salvagedRayenSyncMeta.success ? { rayenSync: salvagedRayenSyncMeta.data } : {}),
+      ...(salvagedLayout !== undefined ? { clinicalDerivedLayout: salvagedLayout } : {}),
+      ...(salvagedMeta ? { meta: salvagedMeta } : {}),
     } as DailyRecord),
     report: {
       nullNormalization,

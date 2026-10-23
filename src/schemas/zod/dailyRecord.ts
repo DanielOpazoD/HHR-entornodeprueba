@@ -289,6 +289,10 @@ export const DailyRecordSchema: z.ZodType<DailyRecord, z.ZodTypeDef, unknown> = 
       rayenBedCollisionResolutions: nullableOptional(
         z.array(RayenBedCollisionResolutionReceiptSchema)
       ),
+      // Kept as stored, whatever its shape: the clinicalDerived contract decides whether the day
+      // is marked, unmarked or unsupported, so a marker this client does not understand is never
+      // dropped (and never sends the whole day to the salvage path).
+      clinicalDerivedLayout: nullableOptional(z.unknown()),
       dateTimestamp: nullableOptional(z.number()),
       schemaVersion: z.number().default(1),
       nurses: nullishDefault(z.array(StringSchema), () => ['', '']),
