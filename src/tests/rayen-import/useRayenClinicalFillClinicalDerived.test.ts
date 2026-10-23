@@ -118,6 +118,20 @@ const renderFill = (loadDailyRecord: () => Promise<DailyRecord>) => {
   return { fill: result.current, completeRun, patchDailyRecord };
 };
 
+const handoffOf = (confirmed: DailyRecord) =>
+  resolveConfirmedRayenCensusHandoff(
+    { record: confirmed, result: { date: DATE, outcome: 'clean' } as SaveDailyRecordResult },
+    {
+      date: DATE,
+      clinicalDay: DATE,
+      runId: RUN_ID,
+      diff: { conflicts: [] } as unknown as Pick<
+        CensusImportDiff,
+        'conflicts' | 'deferredHistoricalAdmissionBedIds'
+      >,
+    }
+  );
+
 const metaOf = (record: DailyRecord) => (record as unknown as { meta?: unknown }).meta;
 const motherHistory = (record: DailyRecord) => record.beds.R1.vitalSignsHistory;
 const newbornHistory = (record: DailyRecord) => record.beds.R1.clinicalCrib?.vitalSignsHistory;
@@ -183,18 +197,7 @@ describe('Rayen clinical fill on a split day (D10)', () => {
     const loadDailyRecord = vi.fn(async () => confirmed);
     const { fill, completeRun } = renderFill(loadDailyRecord);
     mocks.readDocs.mockResolvedValue(docsAt(5));
-    const handoff = resolveConfirmedRayenCensusHandoff(
-      { record: confirmed, result: { date: DATE, outcome: 'clean' } as SaveDailyRecordResult },
-      {
-        date: DATE,
-        clinicalDay: DATE,
-        runId: RUN_ID,
-        diff: { conflicts: [] } as unknown as Pick<
-          CensusImportDiff,
-          'conflicts' | 'deferredHistoricalAdmissionBedIds'
-        >,
-      }
-    );
+    const handoff = handoffOf(confirmed);
 
     await act(async () => {
       await fill(handoff);
@@ -253,6 +256,89 @@ describe('Rayen clinical fill on a split day (D10)', () => {
         pendingClinicalEpisodeIds: ['ep_mother', 'ep_newborn'],
       }),
     });
+  });
+
+  it('keeps the un-overlaid day in the retry token of a partial fill', async () => {
+    const confirmed = splitDay();
+    const { fill } = renderFill(vi.fn(async () => confirmed));
+    mocks.readDocs.mockResolvedValue(docsAt(5));
+    mocks.runClinicalFill.mockResolvedValueOnce({
+      total: 2,
+      patched: 1,
+      errors: [
+        {
+          bedId: 'R1',
+          clinicalEpisodeId: 'ep_mother',
+          source: 'vitals',
+          reason: 'source_unavailable',
+          message: 'synthetic',
+        },
+      ],
+    });
+
+    let outcome: { status: string; retry?: { source: { record?: DailyRecord } } } | undefined;
+    await act(async () => {
+      outcome = (await fill(handoffOf(confirmed))) as typeof outcome;
+    });
+
+    expect(outcome?.status).toBe('partial');
+    expect(outcome?.retry?.source.record).toBe(confirmed);
+    expect(motherHistory(confirmed)).toEqual(reading('embedded-mother'));
+  });
+
+  it('stops without filling when the re-read day belongs to a newer run', async () => {
+    const stale = splitDay(5);
+    const overtaken = splitDay(6);
+    (overtaken as unknown as { rayenSync: { runId: string } }).rayenSync = { runId: 'run-newer' };
+    const loadDailyRecord = vi
+      .fn<() => Promise<DailyRecord>>()
+      .mockResolvedValueOnce(stale)
+      .mockResolvedValueOnce(overtaken);
+    const { fill, completeRun } = renderFill(loadDailyRecord);
+    mocks.readDocs.mockResolvedValue(docsAt(6));
+
+    let outcome;
+    await act(async () => {
+      outcome = await fill(stale);
+    });
+
+    expect(outcome).toEqual({ status: 'failed' });
+    expect(loadDailyRecord).toHaveBeenCalledTimes(2);
+    expect(mocks.runClinicalFill).not.toHaveBeenCalled();
+    expect(completeRun).not.toHaveBeenCalled();
+  });
+
+  it('reads no episode document while the run waits for its policy', async () => {
+    const pending = splitDay();
+    (pending as unknown as { rayenSyncHistory: unknown[] }).rayenSyncHistory = [];
+    const { fill, completeRun } = renderFill(vi.fn(async () => pending));
+
+    let outcome: { status: string; retry?: unknown } | undefined;
+    await act(async () => {
+      outcome = (await fill(pending)) as typeof outcome;
+    });
+
+    expect(mocks.readDocs).not.toHaveBeenCalled();
+    expect(mocks.runClinicalFill).not.toHaveBeenCalled();
+    expect(completeRun).not.toHaveBeenCalled();
+    expect(outcome).toMatchObject({ status: 'failed', retry: { type: 'clinical_retry' } });
+  });
+
+  it('refreshes the day after a committed batch without reading documents', async () => {
+    const loaded = splitDay();
+    const loadDailyRecord = vi.fn(async () => loaded);
+    const { fill } = renderFill(loadDailyRecord);
+    mocks.readDocs.mockResolvedValue(docsAt(5));
+
+    await act(async () => {
+      await fill(loaded);
+    });
+    mocks.readDocs.mockClear();
+    loadDailyRecord.mockClear();
+    await strategyInput().refreshCommittedRecord();
+
+    expect(loadDailyRecord).toHaveBeenCalledTimes(1);
+    expect(mocks.readDocs).not.toHaveBeenCalled();
   });
 
   it('does no extra read and passes the same record on an unmarked day', async () => {

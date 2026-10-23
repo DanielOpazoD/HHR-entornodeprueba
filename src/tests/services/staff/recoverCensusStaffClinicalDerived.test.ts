@@ -94,15 +94,31 @@ describe('staff tool on split days (D10)', () => {
       'Diego Trasladado',
       'Elena Ambulatoria',
     ]);
-    expect(result).toMatchObject({ censuses: 2, nurseCount: 3, tensCount: 2 });
+    expect(result).toMatchObject({ censuses: 2, nurseCount: 3, tensCount: 2, unreadSplitDays: [] });
   });
 
-  it('publishes nothing when a split day cannot be read', async () => {
-    mocks.pages.mockResolvedValueOnce(page(splitDay));
-    mocks.readDocs.mockResolvedValueOnce({ status: 'failed', code: 'unavailable' });
+  it('publishes what it found and reports the split days it could not read', async () => {
+    const readableDay = serverDay('2026-11-03', { ...splitDay.data(), date: '2026-11-03' });
+    const futureLayoutDay = serverDay('2026-11-04', {
+      ...splitDay.data(),
+      clinicalDerivedLayout: { version: 2, generation: GENERATION },
+    });
+    mocks.pages.mockResolvedValueOnce(page(unmarkedDay, splitDay, readableDay, futureLayoutDay));
+    mocks.readDocs
+      .mockResolvedValueOnce({ status: 'failed', code: 'unavailable' })
+      .mockResolvedValueOnce({
+        status: 'resolved',
+        fromCache: false,
+        docs: [episodeDoc('ep_discharged', 'Carla Egresada', 'TENS')],
+      });
 
-    await expect(recoverCensusStaff(vi.fn())).rejects.toThrow(SPLIT_DAY);
-    expect(mocks.save).not.toHaveBeenCalled();
+    const result = await recoverCensusStaff(vi.fn());
+
+    // The future marker version is never read; it is reported like an unreadable day.
+    expect(mocks.readDocs).toHaveBeenCalledTimes(2);
+    expect(mocks.save).toHaveBeenCalledTimes(1);
+    expect(savedNames()).toEqual(['Ana Sintética', 'Carla Egresada']);
+    expect(result).toMatchObject({ censuses: 4, unreadSplitDays: [SPLIT_DAY, '2026-11-04'] });
   });
 
   it('stops at the abort signal while reading episode documents', async () => {

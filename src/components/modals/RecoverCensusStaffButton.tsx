@@ -17,9 +17,13 @@ export const RecoverCensusStaffButton = () => {
         count => setMessage(`${count} censos revisados…`),
         controller.signal
       );
+      const unread = result.unreadSplitDays.length;
       if (!controller.signal.aborted)
         setMessage(
-          `Catálogo compartido actualizado. ${result.censuses} censos · ${result.nurseCount} nombres de Enfermería · ${result.tensCount} de TENS encontrados.`
+          `Catálogo compartido actualizado. ${result.censuses} censos · ${result.nurseCount} nombres de Enfermería · ${result.tensCount} de TENS encontrados.` +
+            (unread > 0
+              ? ` No se pudo leer por completo ${unread === 1 ? '1 día' : `${unread} días`}; puedes reintentar.`
+              : '')
         );
     } catch {
       if (!controller.signal.aborted)

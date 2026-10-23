@@ -4,8 +4,8 @@ import { CensusTableViewport } from './CensusTableViewport';
 import { CensusTableHeader } from '@/features/census/components/CensusTableHeader';
 import { CensusTableBody } from '@/features/census/components/CensusTableBody';
 import {
-  ClinicalDerivedDayGenerationProvider,
-  resolveClinicalDerivedDayGeneration,
+  ClinicalDerivedDayProvider,
+  useCensusClinicalDerivedDay,
 } from '@/features/census/components/patient-row/clinicalDerivedDayContext';
 import { useCensusTableBindingsModel } from '@/features/census/hooks/useCensusTableBindingsModel';
 import { DragDropConfirmation } from '@/features/census/drag-drop/DragDropConfirmation';
@@ -79,10 +79,7 @@ export const CensusTable: React.FC<CensusTableProps> = ({
 
   const { moveOrCopyPatient, updatePatientMultiple } = useDailyRecordBedActions();
   const { record } = useDailyRecordData();
-  const clinicalDerivedGeneration =
-    record?.date === currentDateString
-      ? resolveClinicalDerivedDayGeneration(record.clinicalDerivedLayout)
-      : undefined;
+  const clinicalDerivedDay = useCensusClinicalDerivedDay(record, currentDateString);
   const canObserveTable = isReady && Boolean(bindings) && record?.date === currentDateString;
   useEffect(() => {
     if (canObserveTable) return observeCensusTable(currentDateString, tableRootRef.current);
@@ -314,7 +311,7 @@ export const CensusTable: React.FC<CensusTableProps> = ({
             style={tableStyle}
           >
             <CensusTableHeader {...headerProps} scoresAction={scoresAction} />
-            <ClinicalDerivedDayGenerationProvider value={clinicalDerivedGeneration}>
+            <ClinicalDerivedDayProvider value={clinicalDerivedDay}>
               <CensusTableBody
                 {...bodyProps}
                 recordLastUpdated={record?.lastUpdated}
@@ -323,7 +320,7 @@ export const CensusTable: React.FC<CensusTableProps> = ({
                 dragDrop={readOnly || clinicalEditingDisabled ? undefined : dragDrop}
                 clinicalDocumentInfoByBedId={clinicalDocumentInfoByBedId}
               />
-            </ClinicalDerivedDayGenerationProvider>
+            </ClinicalDerivedDayProvider>
           </table>
         </CensusTableViewport>
       </div>

@@ -66,13 +66,15 @@ const writeGuard = {
 };
 const patch = { 'beds.R1.vitalSignsHistory': reading('rayen') };
 
-const repositoryWith = (fresh: DailyRecord, authoritative: DailyRecord[] = []) => {
-  const getAuthoritativeForDate = vi.fn();
-  authoritative.forEach(record => getAuthoritativeForDate.mockResolvedValueOnce(record));
+/** The habitual read answers each record in turn, then keeps answering the last one. */
+const repositoryWith = (...records: DailyRecord[]) => {
+  const getForDateWithMeta = vi.fn().mockResolvedValue({ record: records[records.length - 1] });
+  records.forEach(record => getForDateWithMeta.mockResolvedValueOnce({ record }));
   return {
-    getForDateWithMeta: vi.fn().mockResolvedValue({ record: fresh }),
-    getAuthoritativeForDate,
+    getForDateWithMeta,
+    getAuthoritativeForDate: vi.fn(),
   } as unknown as DailyRecordRepositoryPort & {
+    getForDateWithMeta: ReturnType<typeof vi.fn>;
     getAuthoritativeForDate: ReturnType<typeof vi.fn>;
   };
 };
@@ -113,20 +115,38 @@ describe('patchFreshClinicalRecord on a split day (D10)', () => {
     expect(fresh.beds.R1.vitalSignsHistory).toEqual(reading('embedded'));
   });
 
-  it('re-reads the day from the server once when the document is ahead of it', async () => {
-    const fresh = day(5);
-    const repository = repositoryWith(fresh, [day(7)]);
+  it('re-reads the day once when the document is ahead and writes on the day it rebuilt against', async () => {
+    const stale = day(5);
+    const caughtUp = day(7);
+    const repository = repositoryWith(stale, caughtUp);
     mocks.readDoc.mockResolvedValue({ status: 'resolved', doc: episodeDoc(7), fromCache: false });
 
     await patchFreshClinicalRecord(repository, patch, target, writeGuard, overlaidBase(7));
 
-    expect(repository.getAuthoritativeForDate).toHaveBeenCalledTimes(1);
-    expect(repository.getAuthoritativeForDate).toHaveBeenCalledWith(DATE);
-    expect(mocks.patchDailyRecordWithCompatibility.mock.calls[0][3].baseRecord).toBe(fresh);
+    expect(repository.getForDateWithMeta).toHaveBeenCalledTimes(2);
+    expect(repository.getAuthoritativeForDate).not.toHaveBeenCalled();
+    expect(mocks.readDoc).toHaveBeenCalledTimes(2);
+    // The server checks the exact version: the base is the re-read day, never the older one.
+    const { baseRecord } = mocks.patchDailyRecordWithCompatibility.mock.calls[0][3];
+    expect(baseRecord).toBe(caughtUp);
+    expect(baseRecord.lastUpdated).toBe(caughtUp.lastUpdated);
+    expect(baseRecord.beds.R1.vitalSignsHistory).toEqual(reading('embedded'));
+  });
+
+  it('writes nothing when the re-read day no longer holds the episode at the target bed', async () => {
+    const moved = day(7);
+    moved.beds.R1.clinicalEpisodeId = 'ep_other';
+    const repository = repositoryWith(day(5), moved);
+    mocks.readDoc.mockResolvedValue({ status: 'resolved', doc: episodeDoc(7), fromCache: false });
+
+    await expect(
+      patchFreshClinicalRecord(repository, patch, target, writeGuard, overlaidBase(7))
+    ).rejects.toThrow('El paciente o su cama cambiaron');
+    expect(mocks.patchDailyRecordWithCompatibility).not.toHaveBeenCalled();
   });
 
   it('fails closed without writing when the re-read day is still behind', async () => {
-    const repository = repositoryWith(day(5), [day(5)]);
+    const repository = repositoryWith(day(5));
     mocks.readDoc.mockResolvedValue({ status: 'resolved', doc: episodeDoc(7), fromCache: false });
 
     const error = await patchFreshClinicalRecord(

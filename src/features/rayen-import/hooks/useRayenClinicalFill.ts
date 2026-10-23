@@ -168,16 +168,19 @@ export const useRayenClinicalFill = ({
               if (isSuperseded(freshRecord)) return { status: 'failed' };
               runPolicy = resolveClinicalEnrichmentBatchPolicyForRun(freshRecord, requestedRunId);
             }
-            const view = await readClinicalFillDerivedView(freshRecord, () =>
-              loadDailyRecord(record.date)
-            );
-            if (view.day !== freshRecord) {
-              // A document was ahead of the day, so the day was read again from the server.
-              freshRecord = view.day;
-              if (isSuperseded(freshRecord)) return { status: 'failed' };
-              runPolicy = resolveClinicalEnrichmentBatchPolicyForRun(freshRecord, requestedRunId);
+            // A run that waits for its policy reads no episode document.
+            if (runPolicy !== 'unavailable') {
+              const view = await readClinicalFillDerivedView(freshRecord, () =>
+                loadDailyRecord(record.date)
+              );
+              if (view.day !== freshRecord) {
+                // A document was ahead of the day, so the day was read again from the server.
+                freshRecord = view.day;
+                if (isSuperseded(freshRecord)) return { status: 'failed' };
+                runPolicy = resolveClinicalEnrichmentBatchPolicyForRun(freshRecord, requestedRunId);
+              }
+              fillRecord = view.record;
             }
-            fillRecord = view.record;
           } catch (error) {
             const errorKind = classifyRayenSyncError(error);
             reportRayenSyncWarning('clinical_record_load_failed', {
@@ -290,6 +293,8 @@ export const useRayenClinicalFill = ({
                   () => undefined
                 ),
               refreshRecord: refreshFillRecord,
+              // After a committed batch the day is only refreshed, never rebuilt: no documents.
+              refreshCommittedRecord: () => loadDailyRecord(freshRecord.date),
             });
             summary = await runClinicalFill(
               fillRecord,

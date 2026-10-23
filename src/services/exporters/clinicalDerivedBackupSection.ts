@@ -1,14 +1,15 @@
-import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecord } from '@/services/contracts/dailyRecordServiceContracts';
 import type { ClinicalDerivedEpisodeDoc } from '@/types/domain/clinicalDerived';
+import type { ApplicationIssue } from '@/shared/contracts/applicationOutcomeTypes';
 
 /**
  * JSON backups of split days (docs/DESIGN_DAILY_RECORD_PHASE1_CLINICAL_DERIVED.md, D10): the day
  * no longer holds each episode's moved fields, so the backup carries a `clinicalDerived` section
- * with the episode documents of every marked day, read from the server and keyed by date. A day
- * that could not be read is listed as `unavailable`, never left out. Importers skip the section:
- * only the server writes episode documents.
+ * (`CLINICAL_DERIVED_BACKUP_SECTION`) with the episode documents of every marked day, read from
+ * the server and keyed by date. A day that could not be read is listed as `unavailable`, never left
+ * out, and the export reports it. Importers skip the section: only the server writes episode
+ * documents.
  */
-export const CLINICAL_DERIVED_BACKUP_SECTION = 'clinicalDerived';
 
 export type ClinicalDerivedBackupDay =
   | { status: 'exported'; layoutGeneration: string; docs: ClinicalDerivedEpisodeDoc[] }
@@ -58,4 +59,29 @@ export const buildClinicalDerivedBackupSection = async (
   };
   await Promise.all(Array.from({ length: Math.min(READ_CONCURRENCY, pending.length) }, worker));
   return Object.fromEntries([...byDate].sort(([left], [right]) => left.localeCompare(right)));
+};
+
+/**
+ * The warning of a backup whose section lists unreadable days: the file is still written, but it
+ * is not a complete recovery copy of those days. `undefined` when every marked day was exported.
+ */
+export const describeIncompleteClinicalDerivedBackup = (
+  section: ClinicalDerivedBackupSection | undefined
+): ApplicationIssue | undefined => {
+  const dates = Object.entries(section ?? {})
+    .filter(([, backupDay]) => backupDay.status === 'unavailable')
+    .map(([date]) => date);
+  if (dates.length === 0) return undefined;
+  const userSafeMessage =
+    `El respaldo se generó sin los datos clínicos por episodio de ${dates.length} ` +
+    `${dates.length === 1 ? 'día' : 'días'} (${dates.join(', ')}). ` +
+    'Vuelve a exportarlo con conexión al servidor.';
+  return {
+    kind: 'unknown',
+    code: 'clinical_derived_backup_incomplete',
+    message: `clinicalDerived backup section incomplete for ${dates.join(', ')}`,
+    userSafeMessage,
+    severity: 'warning',
+    retryable: true,
+  };
 };

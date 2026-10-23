@@ -36,8 +36,9 @@ export const recoverCensusStaff = async (
     progress(dates.size);
   };
   let derivedReads: ClinicalDerivedReadServiceModule | undefined;
+  const unreadSplitDays: string[] = [];
   // A split day keeps vitals authors in its episode documents (phase 1a, D10): read them all from
-  // the server. A day that cannot be read fails the scan, so nothing partial is published.
+  // the server. The registry only adds names, so a day that cannot be read is reported, not fatal.
   const ingestClinicalDerived = async (record: Partial<DailyRecord>) => {
     if (record.clinicalDerivedLayout == null || !record.date) return;
     derivedReads ??= await import('@/services/repositories/dailyRecordClinicalDerivedReadService');
@@ -47,9 +48,7 @@ export const recoverCensusStaff = async (
       clinicalDerivedLayout: record.clinicalDerivedLayout,
     });
     signal?.throwIfAborted();
-    if (result.status === 'unavailable') {
-      throw new Error(`No se pudieron leer los datos clínicos por episodio del ${record.date}.`);
-    }
+    if (result.status === 'unavailable') unreadSplitDays.push(record.date);
     if (result.status === 'resolved') {
       found = mergeEloisaStaff(found, collectClinicalDerivedStaff(result.docs));
     }
@@ -81,5 +80,7 @@ export const recoverCensusStaff = async (
     censuses: dates.size,
     nurseCount: found.filter(entry => entry.role === 'nurse').length,
     tensCount: found.filter(entry => entry.role === 'tens').length,
+    /** Split days whose episode documents could not be read: a retry with a connection helps. */
+    unreadSplitDays,
   };
 };

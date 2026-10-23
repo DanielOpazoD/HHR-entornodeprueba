@@ -5,13 +5,11 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import * as ExportService from '@/services/exporters/exportService';
 import * as backupExportMaintenanceUseCases from '@/application/backup-export/backupExportMaintenanceUseCases';
 
+const notify = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), warning: vi.fn() }));
+
 // Mock context
 vi.mock('@/context/UIContext', () => ({
-  useNotification: () => ({
-    success: vi.fn(),
-    error: vi.fn(),
-    warning: vi.fn(),
-  }),
+  useNotification: () => notify,
 }));
 
 // Mock export service
@@ -72,6 +70,29 @@ describe('useFileOperations', () => {
     await waitFor(() => {
       expect(ExportService.exportDataJSONWithResult).toHaveBeenCalled();
     });
+  });
+
+  it('warns, instead of reporting success, when the JSON backup is incomplete', async () => {
+    vi.mocked(ExportService.exportDataJSONWithResult).mockResolvedValueOnce({
+      status: 'partial',
+      data: { exported: true },
+      issues: [],
+      userSafeMessage: 'El respaldo se generó sin los datos clínicos por episodio de 1 día.',
+    });
+    const { result } = renderHook(() => useFileOperations(mockRecord, mockOnRefresh));
+
+    act(() => {
+      result.current.handleExportJSON();
+    });
+
+    await waitFor(() => {
+      expect(notify.warning).toHaveBeenCalledWith(
+        'Respaldo incompleto',
+        'El respaldo se generó sin los datos clínicos por episodio de 1 día.'
+      );
+    });
+    expect(notify.success).not.toHaveBeenCalled();
+    expect(notify.error).not.toHaveBeenCalled();
   });
 
   it('should export CSV', async () => {

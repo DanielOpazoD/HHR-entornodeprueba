@@ -3,8 +3,9 @@ import { downloadBlob } from '@/services/exporters/exportDownload';
 import { buildDailyRecordCsv } from '@/services/exporters/exportCsvSerialization';
 import {
   buildClinicalDerivedBackupSection,
-  CLINICAL_DERIVED_BACKUP_SECTION,
+  describeIncompleteClinicalDerivedBackup,
 } from '@/services/exporters/clinicalDerivedBackupSection';
+import { CLINICAL_DERIVED_BACKUP_SECTION } from '@/services/storage/clinicalDerivedConstants';
 import {
   importDataJSON as importDataJSONFile,
   importDataJSONDetailed as importDataJSONDetailedFile,
@@ -16,6 +17,7 @@ import type {
 } from '@/services/contracts/dailyRecordServiceContracts';
 import {
   createApplicationFailed,
+  createApplicationPartial,
   createApplicationSuccess,
 } from '@/shared/contracts/applicationOutcomeFactories';
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
@@ -42,7 +44,14 @@ export const exportDataJSONWithResult = async (): Promise<
   );
   const blob = new Blob([jsonString], { type: 'application/json' });
   downloadBlob(blob, `hanga_roa_respaldo_${getTodayISO()}.json`);
-  return createApplicationSuccess({ exported: true });
+  // A split day whose episode documents could not be read is flagged in the file and here.
+  const incomplete = describeIncompleteClinicalDerivedBackup(clinicalDerived);
+  return incomplete
+    ? createApplicationPartial({ exported: true }, [incomplete], {
+        userSafeMessage: incomplete.userSafeMessage,
+        severity: 'warning',
+      })
+    : createApplicationSuccess({ exported: true });
 };
 
 type DailyRecordCsvExportInput = DailyRecordCsvExportState & DailyRecordDateRef;

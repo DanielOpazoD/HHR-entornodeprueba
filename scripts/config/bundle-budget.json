@@ -39,6 +39,8 @@
     "^assets/clinicalEnrichmentBatchPayload-.*\\.js$",
     "^assets/clinicalEnrichmentPersistenceStrategy-.*\\.js$",
     "^assets/clinicalEnrichmentBatchExecutionSupport-.*\\.js$",
+    "^assets/dailyRecordClinicalDerivedReadService-.*\\.js$",
+    "^assets/clinicalDerivedEpisodeReader-.*\\.js$",
     "^assets/replanRayenStructure-.*\\.js$",
     "^assets/PatientDocumentManagerDialog-.*\\.js$",
     "^assets/ClinicalPanelDrawer-.*\\.js$",

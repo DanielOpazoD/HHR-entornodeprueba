@@ -4,9 +4,9 @@ import {
   saveRecordsStrict,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { hasStructuralRepairs, parseDailyRecordWithDefaultsReport } from '@/schemas/zodSchemas';
+import { CLINICAL_DERIVED_BACKUP_SECTION } from '@/services/storage/clinicalDerivedConstants';
 import { jsonImportLogger } from '@/services/exporters/exporterLoggers';
 import { isClinicalDerivedLayoutRegression } from '@/services/storage/clinicalDerivedImportGuard';
-import { CLINICAL_DERIVED_BACKUP_SECTION } from '@/services/exporters/clinicalDerivedBackupSection';
 
 export interface JsonImportResult {
   success: boolean;

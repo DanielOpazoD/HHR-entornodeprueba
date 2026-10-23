@@ -1,6 +1,7 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ClinicalDerivedEpisodeDoc } from '@/types/domain/clinicalDerived';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
+import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import {
   findStaleClinicalDerivedEpisodeIds,
   isClinicalDerivedDocId,
@@ -98,6 +99,27 @@ const isE2EOverrideActive = (): boolean =>
 const failureReason = (failure: ClinicalDerivedReadFailure): ClinicalDerivedFallbackReason =>
   failure.status === 'permission_denied' ? 'permission_denied' : 'read_failed';
 
+/**
+ * A strict read that fails closed for a reason the reader did not report (it reports failed reads):
+ * operators can tell it from an ordinary record-load failure. Codes only, never the exception.
+ */
+const reportStrictFailClosed = (
+  date: string,
+  reason: ClinicalDerivedFallbackReason,
+  readScope: 'day' | 'episode'
+): void => {
+  if (reason === 'read_failed' || reason === 'permission_denied') return;
+  recordOperationalTelemetry({
+    category: 'firestore',
+    operation: 'clinical_derived_read',
+    status: 'failed',
+    runtimeState: 'blocked',
+    date,
+    issues: [reason],
+    context: { readScope, reason },
+  });
+};
+
 type DocsRead =
   | { status: 'resolved'; docs: ClinicalDerivedEpisodeDoc[]; fromCache: boolean }
   | ClinicalDerivedReadFailure;
@@ -146,7 +168,10 @@ export const readDailyRecordWithClinicalDerived = async (
     day: DailyRecord,
     code?: string
   ): ClinicalDerivedReadResult => {
-    if (strict) throw new ClinicalDerivedReadError(day.date, reason, code);
+    if (strict) {
+      reportStrictFailClosed(day.date, reason, clinicalEpisodeId ? 'episode' : 'day');
+      throw new ClinicalDerivedReadError(day.date, reason, code);
+    }
     return { record: day, day, overlaid: false, fallbackReason: reason };
   };
 
@@ -168,7 +193,7 @@ export const readDailyRecordWithClinicalDerived = async (
       overlaid: overlay.matchedEpisodeIds.length > 0,
     };
     if (overlay.skippedDuplicateEpisodeIds.length > 0) {
-      if (strict) throw new ClinicalDerivedReadError(day.date, 'duplicate_episode');
+      if (strict) fallBack('duplicate_episode', day);
       return { ...result, fallbackReason: 'duplicate_episode' };
     }
     return read.fromCache && !strict ? { ...result, fallbackReason: 'cache_only' } : result;

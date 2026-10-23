@@ -247,6 +247,10 @@ export default defineConfig(({ mode }) => {
             // Shared callable-batch support is consumed only by the online sync chunks above.
             // Cache it on demand with those owners; offline day creation does not import it.
             '**/assets/clinicalEnrichmentBatchExecutionSupport-*.js',
+            // Split-day reads (phase 1a, D10) load on demand and need the server or the SDK cache;
+            // a reader that cannot load keeps the day's embedded copy, as it shows today.
+            '**/assets/dailyRecordClinicalDerivedReadService-*.js',
+            '**/assets/clinicalDerivedEpisodeReader-*.js',
             // Account administration, activation and password changes require Firebase online.
             '**/assets/NursingAccountsPanel-*.js',
             '**/assets/RoleManagementPanel-*.js',

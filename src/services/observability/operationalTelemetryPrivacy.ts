@@ -165,7 +165,8 @@ const STRING_ENUMS = new Map<string, ReadonlySet<string>>(
       invalid_json invalid_shape auth_connecting auth_loading auth_unavailable backend_schema_drift
       backend_too_old compatible client_too_old_for_backend base_version_mismatch remote_blocked
       episode_closed clinical_day_changed historical_archive_failed default_local_priority
-      default_remote_priority metadata_remote_priority admin_remote_priority`,
+      default_remote_priority metadata_remote_priority admin_remote_priority stale_day
+      duplicate_episode unsupported_layout`,
     region: 'us-central1 southamerica-east1 southamerica-west1',
     errorCode: `functions/internal functions/unavailable functions/deadline-exceeded
       permission-denied unauthenticated unavailable deadline-exceeded resource-exhausted

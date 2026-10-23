@@ -144,6 +144,14 @@ describe('PWA precache policy', () => {
       expect(patterns.some(pattern => pattern.test(asset))).toBe(false);
     }
   });
+  it('keeps the split-day read path on demand: without it, readers keep the embedded copy', () => {
+    for (const chunk of ['dailyRecordClinicalDerivedReadService', 'clinicalDerivedEpisodeReader']) {
+      expect(readViteConfig()).toContain(`**/assets/${chunk}-*.js`);
+      expect(readBundleBudgetConfig().precacheIgnoredAssetPatterns).toContain(
+        `^assets/${chunk}-.*\\.js$`
+      );
+    }
+  });
   it('keeps server-verified archive recovery and shared online report facts on demand', () => {
     for (const chunk of [
       'publicCudyrPolicyRecovery',

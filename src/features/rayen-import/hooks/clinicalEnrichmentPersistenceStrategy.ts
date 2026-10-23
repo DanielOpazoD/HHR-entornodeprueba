@@ -16,6 +16,8 @@ interface CreateClinicalEnrichmentPersistenceStrategyInput {
   runId: string;
   applyPatch: (operation: ClinicalFillPatchOperation) => Promise<void>;
   refreshRecord: () => Promise<DailyRecord>;
+  /** Local refresh after a committed enforced batch; defaults to `refreshRecord`. */
+  refreshCommittedRecord?: () => Promise<unknown>;
   applyBatch?: typeof applyClinicalEnrichmentBatch;
   observeBatch?: typeof observeClinicalEnrichmentBatch;
   rebuildOperations?: typeof rebuildClinicalEnrichmentOperations;
@@ -28,6 +30,7 @@ export const createClinicalEnrichmentPersistenceStrategy = ({
   runId,
   applyPatch,
   refreshRecord,
+  refreshCommittedRecord,
   applyBatch = applyClinicalEnrichmentBatch,
   observeBatch = observeClinicalEnrichmentBatch,
   rebuildOperations = rebuildClinicalEnrichmentOperations,
@@ -63,6 +66,7 @@ export const createClinicalEnrichmentPersistenceStrategy = ({
           rebuildOperations({ baseRecord: record, currentRecord, operations }),
         applyPatch,
         refreshRecord,
+        ...(refreshCommittedRecord ? { refreshCommittedRecord } : {}),
       }),
   };
 };

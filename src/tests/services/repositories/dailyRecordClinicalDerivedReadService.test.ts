@@ -1,12 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { isFirestoreEnabled, readDocs, readDoc } = vi.hoisted(() => ({
+const { isFirestoreEnabled, readDocs, readDoc, recordOperationalTelemetry } = vi.hoisted(() => ({
   isFirestoreEnabled: vi.fn(() => true),
   readDocs: vi.fn(),
   readDoc: vi.fn(),
+  recordOperationalTelemetry: vi.fn(),
 }));
 
 vi.mock('@/services/repositories/repositoryConfig', () => ({ isFirestoreEnabled }));
+vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
+  recordOperationalTelemetry,
+}));
 vi.mock('@/services/storage/firestore/clinicalDerivedEpisodeReader', () => ({
   readClinicalDerivedEpisodeDocs: readDocs,
   readClinicalDerivedEpisodeDoc: readDoc,
@@ -16,6 +20,7 @@ import {
   ClinicalDerivedReadError,
   readDailyRecordWithClinicalDerived,
 } from '@/services/repositories/dailyRecordClinicalDerivedReadService';
+import { sanitizeOperationalTelemetryContextValues } from '@/services/observability/operationalTelemetryPrivacy';
 import type { ClinicalDerivedEpisodeDoc } from '@/types/domain/clinicalDerived';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
@@ -312,5 +317,48 @@ describe('readDailyRecordWithClinicalDerived', () => {
 
     expect(result.overlaid).toBe(true);
     expect(historyOf(result.record)).toEqual(reading('doc-ep_mother'));
+  });
+
+  it('reports a strict fail-closed overlay apart from failed reads, which the reader reports', async () => {
+    const duplicated = day({
+      beds: {
+        R1: { clinicalEpisodeId: 'ep_dup' },
+        R2: { clinicalEpisodeId: 'ep_dup' },
+      },
+    });
+    readDocs.mockResolvedValueOnce(resolved(episodeDoc('ep_mother', 7)));
+    await expectFailClosed(
+      readDailyRecordWithClinicalDerived(day(), { mode: 'strict' }),
+      'stale_day'
+    );
+    readDocs.mockResolvedValueOnce(resolved(episodeDoc('ep_dup')));
+    await expectFailClosed(
+      readDailyRecordWithClinicalDerived(duplicated, { mode: 'strict' }),
+      'duplicate_episode'
+    );
+    readDocs.mockResolvedValueOnce({ status: 'failed', code: 'unavailable' });
+    await expectFailClosed(
+      readDailyRecordWithClinicalDerived(day(), { mode: 'strict' }),
+      'read_failed',
+      'unavailable'
+    );
+    readDocs.mockResolvedValueOnce(resolved(episodeDoc('ep_mother', 7)));
+    await readDailyRecordWithClinicalDerived(day(), { mode: 'bestEffort' });
+
+    expect(recordOperationalTelemetry.mock.calls.map(([event]) => event)).toEqual([
+      expect.objectContaining({
+        operation: 'clinical_derived_read',
+        status: 'failed',
+        date: DATE,
+        context: { readScope: 'day', reason: 'stale_day' },
+      }),
+      expect.objectContaining({ context: { readScope: 'day', reason: 'duplicate_episode' } }),
+    ]);
+    for (const [event] of recordOperationalTelemetry.mock.calls) {
+      expect(sanitizeOperationalTelemetryContextValues(event.context)).toEqual({
+        context: event.context,
+        droppedCount: 0,
+      });
+    }
   });
 });

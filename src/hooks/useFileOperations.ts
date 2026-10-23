@@ -5,6 +5,7 @@ import { buildJsonImportNotifications } from '@/hooks/controllers/fileImportFeed
 import {
   buildExportCsvNotification,
   buildExportJsonNotification,
+  buildExportJsonPartialNotification,
   buildImportFileErrorNotification,
 } from '@/hooks/controllers/fileOperationsFeedbackController';
 import {
@@ -67,6 +68,10 @@ export const useFileOperations = (
       .then(outcome => {
         if (outcome.status === 'success') {
           dispatchNotification(buildExportJsonNotification('success'));
+          return;
+        }
+        if (outcome.status === 'partial') {
+          dispatchNotification(buildExportJsonPartialNotification(outcome.userSafeMessage));
           return;
         }
         dispatchNotification(buildExportJsonNotification('error'));

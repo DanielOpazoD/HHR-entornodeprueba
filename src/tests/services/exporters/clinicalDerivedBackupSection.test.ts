@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecord } from '@/services/contracts/dailyRecordServiceContracts';
 
 const mocks = vi.hoisted(() => ({
   readDocs: vi.fn(),
@@ -42,8 +42,10 @@ import {
 } from '@/services/exporters/exportService';
 import {
   exportMonthRecordsWithResult,
+  exportYearToDateRecordsWithOutcome,
   importRecordsFromBackup,
   type MonthBackup,
+  type YearToDateBackup,
 } from '@/services/admin/dataMaintenanceService';
 
 const GENERATION = 'gen_synthetic_a';
@@ -124,7 +126,7 @@ describe('clinicalDerived section of the JSON backups (D10)', () => {
     expect(await buildClinicalDerivedBackupSection([day('2026-11-01')])).toBeUndefined();
 
     mocks.getAllRecords.mockResolvedValue({ '2026-11-01': day('2026-11-01') });
-    await exportDataJSONWithResult();
+    expect(await exportDataJSONWithResult()).toMatchObject({ status: 'success', issues: [] });
 
     expect(await blobJson(mocks.downloadBlob.mock.calls[0][0])).toEqual({
       '2026-11-01': day('2026-11-01'),
@@ -140,7 +142,7 @@ describe('clinicalDerived section of the JSON backups (D10)', () => {
       '2026-11-02': day('2026-11-02', marker),
     });
 
-    await exportDataJSONWithResult();
+    expect(await exportDataJSONWithResult()).toMatchObject({ status: 'success', issues: [] });
     const backup = await blobJson(mocks.downloadBlob.mock.calls[0][0]);
 
     expect(backup.clinicalDerived).toEqual({
@@ -159,6 +161,31 @@ describe('clinicalDerived section of the JSON backups (D10)', () => {
     expect(JSON.stringify(saved)).not.toContain('ep_discharged');
   });
 
+  it('writes the local backup but reports it partial when a split day cannot be read', async () => {
+    mocks.readDocs.mockImplementation(async (date: string) =>
+      date === '2026-11-03' ? { status: 'failed', code: 'unavailable' } : docsFor(date)
+    );
+    mocks.getAllRecords.mockResolvedValue({
+      '2026-11-02': day('2026-11-02', marker),
+      '2026-11-03': day('2026-11-03', marker),
+    });
+
+    const outcome = await exportDataJSONWithResult();
+    const backup = await blobJson(mocks.downloadBlob.mock.calls[0][0]);
+
+    expect(outcome).toMatchObject({
+      status: 'partial',
+      data: { exported: true },
+      issues: [expect.objectContaining({ code: 'clinical_derived_backup_incomplete' })],
+    });
+    expect(outcome.userSafeMessage).toContain('2026-11-03');
+    expect(outcome.userSafeMessage).not.toContain('2026-11-02');
+    expect(backup.clinicalDerived).toMatchObject({
+      '2026-11-02': { status: 'exported' },
+      '2026-11-03': { status: 'unavailable', reason: 'read_failed' },
+    });
+  });
+
   it('adds the section to the monthly backup, and its restore only saves the days', async () => {
     mocks.readDocs.mockResolvedValueOnce({
       status: 'permission_denied',
@@ -167,9 +194,15 @@ describe('clinicalDerived section of the JSON backups (D10)', () => {
     mocks.getRecordsRange.mockResolvedValue([day('2026-11-02', marker)]);
     mocks.getRemoteRecordsRange.mockResolvedValue([]);
 
-    await exportMonthRecordsWithResult(2026, 11);
+    const result = await exportMonthRecordsWithResult(2026, 11);
     const backup = (await blobJson(mocks.saveAs.mock.calls[0][0])) as unknown as MonthBackup;
 
+    expect(result).toMatchObject({
+      status: 'partial',
+      reason: 'clinical_derived_incomplete',
+      recordCount: 1,
+    });
+    expect(result.userSafeMessage).toContain('2026-11-02');
     expect(backup.records).toHaveLength(1);
     expect(backup.clinicalDerived).toEqual({
       '2026-11-02': { status: 'unavailable', reason: 'permission_denied' },
@@ -180,5 +213,51 @@ describe('clinicalDerived section of the JSON backups (D10)', () => {
     expect(await importRecordsFromBackup(backup)).toMatchObject({ success: 1, failed: 0 });
     expect(mocks.repositorySave).toHaveBeenCalledTimes(1);
     expect(mocks.repositorySave.mock.calls[0][0].date).toBe('2026-11-02');
+  });
+
+  it('adds the section to the year-to-date backup only when a day is marked', async () => {
+    mocks.readDocs.mockImplementation(async (date: string) => docsFor(date));
+    mocks.getRemoteRecordsRange.mockResolvedValue([]);
+    mocks.getRecordsRange.mockResolvedValueOnce([day('2025-03-01'), day('2025-03-02', marker)]);
+
+    const marked = await exportYearToDateRecordsWithOutcome(2025);
+    const markedBackup = (await blobJson(
+      mocks.saveAs.mock.calls[0][0]
+    )) as unknown as YearToDateBackup;
+
+    expect(marked).toMatchObject({ status: 'success', data: { recordCount: 2 } });
+    expect(markedBackup.clinicalDerived).toEqual({
+      '2025-03-02': {
+        status: 'exported',
+        layoutGeneration: GENERATION,
+        docs: docsFor('2025-03-02').docs,
+      },
+    });
+    expect(mocks.readDocs).toHaveBeenCalledTimes(1);
+
+    mocks.readDocs.mockClear();
+    mocks.getRecordsRange.mockResolvedValueOnce([day('2025-03-01')]);
+    const unmarked = await exportYearToDateRecordsWithOutcome(2025);
+    const unmarkedBackup = await blobJson(mocks.saveAs.mock.calls[1][0]);
+
+    expect(unmarked).toMatchObject({ status: 'success' });
+    expect(unmarkedBackup).not.toHaveProperty('clinicalDerived');
+    expect(mocks.readDocs).not.toHaveBeenCalled();
+  });
+
+  it('reports a year-to-date backup with an unreadable split day as partial', async () => {
+    mocks.readDocs.mockResolvedValue({ status: 'failed', code: 'unavailable' });
+    mocks.getRemoteRecordsRange.mockResolvedValue([]);
+    mocks.getRecordsRange.mockResolvedValueOnce([day('2025-03-02', marker)]);
+
+    const outcome = await exportYearToDateRecordsWithOutcome(2025);
+
+    expect(outcome).toMatchObject({
+      status: 'partial',
+      reason: 'clinical_derived_incomplete',
+      issues: [expect.objectContaining({ severity: 'warning' })],
+    });
+    expect(outcome.userSafeMessage).toContain('2025-03-02');
+    expect(mocks.saveAs).toHaveBeenCalledTimes(1);
   });
 });

@@ -22,7 +22,7 @@ vi.mock('@/services/storage/firestore/clinicalDerivedEpisodeReader', () => ({
 import { VitalsCell } from '@/features/census/components/patient-row/VitalsCell';
 import { PatientInputFlowSection } from '@/features/census/components/patient-row/PatientInputCellSections';
 import {
-  ClinicalDerivedDayGenerationProvider,
+  ClinicalDerivedDayProvider,
   resolveClinicalDerivedDayGeneration,
 } from '@/features/census/components/patient-row/clinicalDerivedDayContext';
 import type { PatientInputFlowSectionBindings } from '@/features/census/components/patient-row/patientInputSectionContracts';
@@ -148,8 +148,7 @@ describe('vitals window on a split day (D10)', () => {
     expect(mocks.readDoc).not.toHaveBeenCalled();
   });
 
-  it('gets the date, the episode and the marker from the census row', async () => {
-    mocks.readDoc.mockResolvedValue(resolvedWith(episodeDoc({ vitalSignsHistory: [latest] })));
+  const openRowWindow = (duplicateEpisodeIds: string[] = []) => {
     const bindings = {
       shared: {
         data: patient(),
@@ -162,7 +161,9 @@ describe('vitals window on a split day (D10)', () => {
       onChange: {},
     } as unknown as PatientInputFlowSectionBindings;
     render(
-      <ClinicalDerivedDayGenerationProvider value={GENERATION}>
+      <ClinicalDerivedDayProvider
+        value={{ generation: GENERATION, duplicateEpisodeIds: new Set(duplicateEpisodeIds) }}
+      >
         <table>
           <tbody>
             <tr>
@@ -170,9 +171,14 @@ describe('vitals window on a split day (D10)', () => {
             </tr>
           </tbody>
         </table>
-      </ClinicalDerivedDayGenerationProvider>
+      </ClinicalDerivedDayProvider>
     );
     fireEvent.click(screen.getByRole('button', { name: 'Ver signos vitales' }));
+  };
+
+  it('gets the date, the episode and the marker from the census row', async () => {
+    mocks.readDoc.mockResolvedValue(resolvedWith(episodeDoc({ vitalSignsHistory: [latest] })));
+    openRowWindow();
 
     await screen.findByText('Última toma');
     await waitFor(() =>
@@ -181,6 +187,13 @@ describe('vitals window on a split day (D10)', () => {
       })
     );
     await waitFor(() => expect(screen.queryByText(/Historial/)).not.toBeInTheDocument());
+  });
+
+  it('reads nothing for an episode active twice on the day (D4)', async () => {
+    openRowWindow(['ep_synthetic']);
+
+    expect(await screen.findByText('Historial · 3 tomas')).toBeInTheDocument();
+    expect(mocks.readDoc).not.toHaveBeenCalled();
   });
 
   it('passes only the generation of a marker this client understands', () => {

@@ -7,7 +7,7 @@ import { DevicesCell } from './DevicesCell';
 import { ScoresCell } from './ScoresCell';
 import { UpcChecklistCell } from './UpcChecklistCell';
 import { ClinicalInitialBlockCells } from './ClinicalInitialBlockCells';
-import { useClinicalDerivedDayGeneration } from './clinicalDerivedDayContext';
+import { useClinicalDerivedEpisodeGeneration } from './clinicalDerivedDayContext';
 import type {
   PatientInputClinicalSectionBindings,
   PatientInputFlagsSectionBindings,
@@ -142,7 +142,7 @@ export const PatientInputClinicalSection: React.FC<
 export const PatientInputFlowSection: React.FC<
   PatientInputFlowSectionBindings & { accessProfile?: CensusAccessProfile }
 > = ({ shared, onChange, accessProfile = 'default' }) => {
-  const layoutGeneration = useClinicalDerivedDayGeneration();
+  const layoutGeneration = useClinicalDerivedEpisodeGeneration(shared.data.clinicalEpisodeId);
   return (
     <>
       {/* Rediseño censo 2026 "centro de vigilancia": la columna de Ingreso se reutiliza para los

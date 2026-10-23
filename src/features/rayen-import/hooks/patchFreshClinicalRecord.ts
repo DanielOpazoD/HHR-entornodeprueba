@@ -12,6 +12,15 @@ import { readClinicalFillDerivedView } from './clinicalFillDerivedView';
 const isConcurrencyFailure = (error: unknown): boolean =>
   error instanceof Error && error.name === 'ConcurrencyError';
 
+const readFreshRecord = async (
+  dailyRecord: DailyRecordRepositoryPort,
+  date: string
+): Promise<DailyRecord> => {
+  const fresh = await dailyRecord.getForDateWithMeta(date, true);
+  if (!fresh.record) throw new Error('No se pudo obtener la versión vigente del censo.');
+  return fresh.record as DailyRecord;
+};
+
 const writeFreshClinicalPatch = async (
   dailyRecord: DailyRecordRepositoryPort,
   patch: DailyRecordPatch,
@@ -19,18 +28,18 @@ const writeFreshClinicalPatch = async (
   writeGuard: RayenClinicalWriteGuard,
   baseRecord: DailyRecord
 ): Promise<void> => {
-  const fresh = await dailyRecord.getForDateWithMeta(target.censusDate, true);
-  if (!fresh.record) throw new Error('No se pudo obtener la versión vigente del censo.');
-  assertClinicalFillPatchTarget(fresh.record, target);
-  // D10: on a split day the rebuild compares against this episode's document, read from the
-  // server; a document ahead of the day re-reads the day from the server once, then fails closed.
-  // The write below keeps the un-overlaid day as its base: that one reaches IndexedDB and the queue.
+  const freshRecord = await readFreshRecord(dailyRecord, target.censusDate);
+  assertClinicalFillPatchTarget(freshRecord, target);
+  // D10: on a split day the rebuild compares against this episode's server document. A document
+  // ahead of the day re-reads the day once, with this same read (it keeps pending local edits in
+  // view for the rebuild's conflict check), then fails closed. The rebuild and the write always
+  // share one day; the write base is never the overlaid view.
   const current = await readClinicalFillDerivedView(
-    fresh.record,
-    () => dailyRecord.getAuthoritativeForDate(target.censusDate),
+    freshRecord,
+    () => readFreshRecord(dailyRecord, target.censusDate),
     target.clinicalEpisodeId
   );
-  if (current.day !== fresh.record) assertClinicalFillPatchTarget(current.record, target);
+  if (current.day !== freshRecord) assertClinicalFillPatchTarget(current.day, target);
   const [operation] = rebuildClinicalEnrichmentOperations({
     baseRecord,
     currentRecord: current.record,
@@ -42,7 +51,7 @@ const writeFreshClinicalPatch = async (
     target.censusDate,
     operation.patch,
     {
-      baseRecord: fresh.record,
+      baseRecord: current.day,
       historyPolicy: target.captureHistorySnapshot === false ? 'skip' : 'snapshot',
       rayenClinicalWriteGuard: writeGuard,
     }

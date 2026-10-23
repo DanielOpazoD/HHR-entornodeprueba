@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecord } from '@/services/contracts/dailyRecordServiceContracts';
 import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
 
 const mocks = vi.hoisted(() => ({
@@ -121,6 +121,16 @@ describe('client day creation from a split source day (D10)', () => {
 
   it('seeds from the embedded copies, as before, when the documents cannot be read', async () => {
     mocks.readDocs.mockResolvedValueOnce({ status: 'failed', code: 'unavailable' });
+
+    const created = await createDay(TODAY, sourceDay());
+
+    expect(heartRates(created)).toEqual([70]);
+    expect(created.beds.R1.clinicalCarryover).toMatchObject({ sourceDate: SOURCE });
+    expect(created).not.toHaveProperty('clinicalDerivedLayout');
+  });
+
+  it('seeds from the embedded copies when the read path throws', async () => {
+    mocks.readDocs.mockRejectedValueOnce(new Error('Failed to fetch dynamically imported module'));
 
     const created = await createDay(TODAY, sourceDay());
 
