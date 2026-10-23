@@ -18,12 +18,14 @@ export interface ClinicalDocumentPatientField {
 }
 
 export type ClinicalDocumentSectionKind = 'standard' | 'clinical-update';
+export type ClinicalDocumentSectionLayout = 'structured' | 'unified';
 
 export interface ClinicalDocumentSection {
   id: string;
   title: string;
   content: string;
   kind?: ClinicalDocumentSectionKind;
+  layout?: ClinicalDocumentSectionLayout;
   updateDate?: string;
   updateTime?: string;
   order: number;

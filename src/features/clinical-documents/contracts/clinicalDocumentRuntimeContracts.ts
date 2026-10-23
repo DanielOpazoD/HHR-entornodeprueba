@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { clinicalDocumentSectionSchema } from '@/domain/clinical-documents/runtimeContracts';
 import type {
   ClinicalDocumentRecord,
   ClinicalDocumentTemplate,
@@ -29,19 +30,6 @@ const patientFieldSchema = z.object({
   type: z.enum(['text', 'date', 'number', 'time']),
   placeholder: z.string().optional(),
   readonly: z.boolean().optional(),
-  visible: z.boolean().optional(),
-});
-
-const sectionSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  content: z.string(),
-  kind: z.enum(['standard', 'clinical-update']).optional(),
-  layout: z.enum(['structured', 'unified']).optional(),
-  updateDate: z.string().optional(),
-  updateTime: z.string().optional(),
-  order: z.number(),
-  required: z.boolean().optional(),
   visible: z.boolean().optional(),
 });
 
@@ -89,7 +77,7 @@ export const clinicalDocumentRecordSchema = z.object({
   sourceDailyRecordDate: z.string().optional(),
   sourceBedId: z.string().optional(),
   patientFields: z.array(patientFieldSchema),
-  sections: z.array(sectionSchema),
+  sections: z.array(clinicalDocumentSectionSchema),
   medico: z.string(),
   especialidad: z.string(),
   status: clinicalDocumentStatusSchema,

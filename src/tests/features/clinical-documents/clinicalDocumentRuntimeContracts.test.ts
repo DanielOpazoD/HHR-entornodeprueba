@@ -10,6 +10,10 @@ import {
   safeParseClinicalDocumentTemplate,
 } from '@/features/clinical-documents/contracts/clinicalDocumentRuntimeContracts';
 import { CLINICAL_DOCUMENT_TEMPLATES } from '@/features/clinical-documents/domain/rules';
+import {
+  parseClinicalDocumentRecord as parseDomainClinicalDocumentRecord,
+  safeParseClinicalDocumentRecord as safeParseDomainClinicalDocumentRecord,
+} from '@/domain/clinical-documents/runtimeContracts';
 
 const buildRecord = () =>
   createClinicalDocumentDraft({
@@ -124,5 +128,69 @@ describe('clinicalDocumentRuntimeContracts', () => {
         { path: ['sections', 0, 'title'], message: 'Required' },
       ])
     ).toEqual(['root: General error', 'sections.0.title: Required']);
+  });
+});
+
+describe.each([
+  {
+    name: 'domain',
+    parse: parseDomainClinicalDocumentRecord,
+    safeParse: safeParseDomainClinicalDocumentRecord,
+  },
+  {
+    name: 'feature',
+    parse: parseClinicalDocumentRecord,
+    safeParse: safeParseClinicalDocumentRecord,
+  },
+])('$name section persistence contract', ({ parse, safeParse }) => {
+  it.each(['structured', 'unified'])('preserves %s layout through record parsing', layout => {
+    const sections = [
+      {
+        id: 'standard-section',
+        title: 'Section title',
+        content: '<p>Section content</p>',
+        kind: 'standard',
+        layout,
+        updateDate: '2026-03-06',
+        updateTime: '10:30',
+        order: 0,
+        required: false,
+        visible: false,
+      },
+      {
+        id: 'clinical-update-section',
+        title: 'Update title',
+        content: '',
+        kind: 'clinical-update',
+        layout,
+        order: 1,
+        required: true,
+        visible: true,
+      },
+      { id: 'legacy-kind-section', title: 'Legacy title', content: '', layout, order: 2 },
+    ];
+    const parsed = parse({ ...buildRecord(), sections });
+
+    expect(parse(JSON.parse(JSON.stringify(parsed))).sections).toStrictEqual(sections);
+  });
+
+  it('accepts legacy sections without adding a layout default', () => {
+    const sections = [{ id: 'legacy-section', title: 'Legacy title', content: '', order: 0 }];
+
+    expect(parse({ ...buildRecord(), sections }).sections).toStrictEqual(sections);
+  });
+
+  it('rejects an invalid layout at the section boundary', () => {
+    const result = safeParse({
+      ...buildRecord(),
+      sections: [{ id: 'section', title: 'Title', content: '', order: 0, layout: 'compact' }],
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues).toEqual([
+        expect.objectContaining({ path: ['sections', 0, 'layout'] }),
+      ]);
+    }
   });
 });

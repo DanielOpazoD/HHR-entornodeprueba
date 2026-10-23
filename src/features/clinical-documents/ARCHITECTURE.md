@@ -6,6 +6,11 @@
 - Toda sección especializada debe registrarse en `domain/definitions.ts` y resolverse por renderer registrado.
 - Toda compatibilidad legacy o migración de shape debe pasar por `clinicalDocumentCompatibilityController.ts`.
 - Todo documento o template leído/persistido debe pasar por contratos runtime.
+- Los tipos y el esquema de sección tienen un único dueño en
+  `src/domain/clinical-documents`; el feature los reutiliza. La distribución
+  explícita `structured`/`unified` se conserva al guardar y leer, incluso con
+  contenido vacío. Los documentos sin esa preferencia mantienen la inferencia
+  existente por contenido.
 
 ## Reglas de calidad
 

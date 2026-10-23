@@ -3,6 +3,11 @@ import type {
   IeehBinaryFlag,
   IeehDischargeConditionCode,
 } from '@/application/shared/ieehContracts';
+import type {
+  ClinicalDocumentSection,
+  ClinicalDocumentSectionKind,
+  ClinicalDocumentSectionLayout,
+} from '@/domain/clinical-documents/entities';
 
 export type ClinicalDocumentType =
   | 'epicrisis'
@@ -23,21 +28,7 @@ export interface ClinicalDocumentPatientField {
   visible?: boolean;
 }
 
-export type ClinicalDocumentSectionKind = 'standard' | 'clinical-update';
-export type ClinicalDocumentSectionLayout = 'structured' | 'unified';
-
-export interface ClinicalDocumentSection {
-  id: string;
-  title: string;
-  content: string;
-  kind?: ClinicalDocumentSectionKind;
-  layout?: ClinicalDocumentSectionLayout;
-  updateDate?: string;
-  updateTime?: string;
-  order: number;
-  required?: boolean;
-  visible?: boolean;
-}
+export type { ClinicalDocumentSection, ClinicalDocumentSectionKind, ClinicalDocumentSectionLayout };
 
 export interface ClinicalDocumentAuditActor {
   uid: string;

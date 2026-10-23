@@ -27,11 +27,12 @@ const patientFieldSchema = z.object({
   readonly: z.boolean().optional(),
   visible: z.boolean().optional(),
 });
-const sectionSchema = z.object({
+export const clinicalDocumentSectionSchema = z.object({
   id: z.string(),
   title: z.string(),
   content: z.string(),
   kind: z.enum(['standard', 'clinical-update']).optional(),
+  layout: z.enum(['structured', 'unified']).optional(),
   updateDate: z.string().optional(),
   updateTime: z.string().optional(),
   order: z.number(),
@@ -80,7 +81,7 @@ export const clinicalDocumentRecordSchema = z.object({
   sourceDailyRecordDate: z.string().optional(),
   sourceBedId: z.string().optional(),
   patientFields: z.array(patientFieldSchema),
-  sections: z.array(sectionSchema),
+  sections: z.array(clinicalDocumentSectionSchema),
   medico: z.string(),
   especialidad: z.string(),
   status: clinicalDocumentStatusSchema,
