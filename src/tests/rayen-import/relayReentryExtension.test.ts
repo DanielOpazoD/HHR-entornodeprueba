@@ -32,7 +32,9 @@ const createWorld = (
   let announcementSequence = 0;
   let expectedAnnouncementSequence = 0;
   const windowObject = {
-    location: { origin: 'https://relay.test' },
+    location: {
+      origin: relay === 'hhr' ? 'https://hhr-hospitalizados.app' : 'https://relay.test',
+    },
     addEventListener: vi.fn((type: string, listener: (event: PageEvent) => void) => {
       if (type === 'message') pageListeners.add(listener);
     }),
@@ -87,6 +89,7 @@ const createWorld = (
     if (dependencies) {
       for (const file of [
         'message-contract.js',
+        'hhr-origin-policy.js',
         'bridge-generation.js',
         'health-push-ordering-runtime.js',
         'gestion-camas-bridge-health.js',
