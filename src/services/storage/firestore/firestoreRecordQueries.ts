@@ -23,6 +23,7 @@ import {
   getRecordsCollection,
 } from '@/services/storage/firestore/firestoreShared';
 import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/firestoreServiceRuntime';
+import { observeDailyRecordServerSnapshot } from '@/services/storage/firestore/dailyRecordSizeTelemetry';
 import {
   buildFirestoreMonthDateRange,
   mapFirestoreRecords,
@@ -298,7 +299,15 @@ export const subscribeToRecord = (
         docSnap.exists()
       );
       if (docSnap.exists()) {
-        callback(docToRecord(docSnap.data(), date), metadata.hasPendingWrites, metadata);
+        const data = docSnap.data();
+        callback(docToRecord(data, date), metadata.hasPendingWrites, metadata);
+        if (!metadata.fromCache && !metadata.hasPendingWrites) {
+          try {
+            observeDailyRecordServerSnapshot(date, data);
+          } catch {
+            // Measurement only: it must never break the census listener.
+          }
+        }
       } else {
         callback(null, metadata.hasPendingWrites, metadata);
       }

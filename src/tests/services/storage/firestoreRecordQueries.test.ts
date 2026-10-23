@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { firestoreQueryLoggerError } = vi.hoisted(() => ({
+const { firestoreQueryLoggerError, observeDailyRecordServerSnapshot } = vi.hoisted(() => ({
   firestoreQueryLoggerError: vi.fn(),
+  observeDailyRecordServerSnapshot: vi.fn(),
+}));
+
+vi.mock('@/services/storage/firestore/dailyRecordSizeTelemetry', () => ({
+  observeDailyRecordServerSnapshot,
 }));
 
 vi.mock('firebase/firestore', async () => {
@@ -356,6 +361,31 @@ describe('firestoreRecordQueries', () => {
         error: expect.any(Error),
       })
     );
+  });
+
+  it('measures only server-confirmed versions and never lets measurement break the listener', () => {
+    const callback = vi.fn();
+    const data = { beds: { R1: { patientName: 'Paciente Sintético' } }, lastUpdated: 'v1' };
+    const emit = (metadata: { fromCache: boolean; hasPendingWrites: boolean }) => {
+      vi.mocked(onSnapshot).mockImplementationOnce((...args: unknown[]) => {
+        (args[2] as (value: unknown) => void)({ exists: () => true, data: () => data, metadata });
+        return vi.fn();
+      });
+      subscribeToRecord('2026-03-16', callback);
+    };
+
+    emit({ fromCache: true, hasPendingWrites: false });
+    emit({ fromCache: false, hasPendingWrites: true });
+    expect(observeDailyRecordServerSnapshot).not.toHaveBeenCalled();
+
+    emit({ fromCache: false, hasPendingWrites: false });
+    expect(observeDailyRecordServerSnapshot).toHaveBeenCalledExactlyOnceWith('2026-03-16', data);
+
+    observeDailyRecordServerSnapshot.mockImplementationOnce(() => {
+      throw new Error('synthetic measurement failure');
+    });
+    expect(() => emit({ fromCache: false, hasPendingWrites: false })).not.toThrow();
+    expect(callback).toHaveBeenCalledTimes(4);
   });
 
   it('checks availability via hospital root doc', async () => {
