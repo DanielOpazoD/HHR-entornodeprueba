@@ -111,7 +111,10 @@ const prepareAndDownload = async (
 ): Promise<PDFDocument> => {
   await editor.getByRole('button', { name: 'Preparar vista previa', exact: true }).click();
   await expect(editor.locator('iframe[title^="Vista previa ·"]')).toBeVisible({ timeout: 15_000 });
-  const downloadEvent = page.waitForEvent('download');
+  // Headless Chromium can also download the embedded preview with a blob filename.
+  const downloadEvent = page.waitForEvent('download', download =>
+    download.suggestedFilename().startsWith('acta-')
+  );
   await editor.getByRole('button', { name: 'Descargar', exact: true }).click();
   const download = await downloadEvent;
   expect(download.suggestedFilename()).toMatch(/^acta-.*-2026-10-22\.pdf$/);
