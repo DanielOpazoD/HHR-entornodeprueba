@@ -3,7 +3,7 @@ import { AuditLogEntry } from '@/types/auditLogTypes';
 import { safeJsonParse } from '@/utils/jsonUtils';
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 
-import { ensureDbReady, hospitalDB as db, registerDatabaseRecreatedHandler } from './indexedDbCore';
+import { ensureDbReady, hospitalDB as db } from './indexedDbCore';
 import { saveCatalog } from './indexedDbCatalogService';
 
 const STORAGE_KEY = 'hanga_roa_hospital_data';
@@ -78,9 +78,3 @@ export const migrateFromLocalStorage = async (): Promise<boolean> => {
     return false;
   }
 };
-
-registerDatabaseRecreatedHandler(() => {
-  if (!canUseLocalStorage()) return;
-  localStorage.removeItem(MIGRATION_FLAG);
-  void migrateFromLocalStorage();
-});

@@ -41,12 +41,6 @@ export const isDatabaseClosedError = (error: unknown): boolean =>
     (error as { name?: string }).name === 'DatabaseClosedError'
   );
 
-export const shouldAttemptIndexedDbRecreation = (
-  errorName: string,
-  isBackingStoreError: boolean
-): boolean =>
-  (errorName === 'UnknownError' || errorName === 'VersionError') && !isBackingStoreError;
-
 export const resolveIndexedDbRecoveryDelay = (
   attempt: number,
   retryDelays: readonly number[]

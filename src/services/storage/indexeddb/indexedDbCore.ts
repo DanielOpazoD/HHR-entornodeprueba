@@ -21,7 +21,6 @@ import {
 let db: HangaRoaDatabase;
 let isUsingMock = false;
 let isOpening = false;
-let onDatabaseRecreated: (() => void) | null = null;
 let stickyFallbackMode = false;
 const emittedIndexedDbWarnings = new Set<string>();
 
@@ -56,10 +55,6 @@ const resetIndexedDbRecoveryTracking = () => {
 };
 
 initializeDatabase();
-
-export const registerDatabaseRecreatedHandler = (handler: () => void): void => {
-  onDatabaseRecreated = handler;
-};
 
 interface EnsureDbReadyOptions {
   allowRecoveryWhenMock?: boolean;
@@ -126,10 +121,7 @@ export const ensureDbReady = async (options: EnsureDbReadyOptions = {}): Promise
 
   isOpening = true;
   try {
-    const openOutcome = await runFreshOpenAttempt({
-      database: db,
-      attachDatabaseEvents,
-    });
+    const openOutcome = await runFreshOpenAttempt({ database: db });
 
     db = openOutcome.database;
     isUsingMock = openOutcome.fallbackMode;
@@ -137,10 +129,6 @@ export const ensureDbReady = async (options: EnsureDbReadyOptions = {}): Promise
 
     if (openOutcome.shouldResetRecoveryTracking) {
       resetIndexedDbRecoveryTracking();
-    }
-
-    if (openOutcome.shouldNotifyDatabaseRecreated) {
-      onDatabaseRecreated?.();
     }
 
     if (openOutcome.fallbackMode && openOutcome.shouldScheduleBackgroundRecovery) {
