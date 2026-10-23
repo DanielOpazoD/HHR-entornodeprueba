@@ -4,9 +4,10 @@ import {
   setPersistence,
   signInWithEmailAndPassword,
 } from 'firebase/auth';
-import { httpsCallable } from 'firebase/functions';
+import { httpsCallable, type Functions } from 'firebase/functions';
 import { defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
+import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { clearRecentAuthRoleLookups } from './authRoleLookup';
 import { waitForPendingLogout } from './authLogoutState';
 import { captureSessionProfessionalIdentity } from '@/services/user-profile/sessionProfessionalIdentity';
@@ -38,6 +39,25 @@ export interface NursingAccountList {
   recentAudit: { id: string; actorUid: string; targetUid: string; action: string; at: number }[];
 }
 
+// The SDK reports these when a regional endpoint gave no usable answer (network or CORS-less
+// platform failure, timeout) or failed unexpectedly. Credential and rate-limit rejections are final.
+const REGIONAL_SIGN_IN_FALLBACK_CODES = new Set([
+  'functions/internal',
+  'functions/unavailable',
+  'functions/deadline-exceeded',
+]);
+
+const invokeAccountCallable = async <T>(
+  functions: Functions,
+  callableName: string,
+  data: Record<string, unknown>
+): Promise<T> => {
+  const response = await httpsCallable<Record<string, unknown>, T>(functions, callableName, {
+    timeout: 60000,
+  })(data);
+  return response.data;
+};
+
 export const callAccount = async <T>(
   name: string,
   data: Record<string, unknown> = {}
@@ -53,16 +73,37 @@ export const callAccount = async <T>(
       : requestedRegion === 'southamerica-east1' || requestedRegion === 'southamerica-west1'
         ? requestedRegion
         : 'us-central1';
-  const regionalSignIn = name === 'signInWithRut' && signInRegion !== 'us-central1';
-  const functions = regionalSignIn
-    ? await defaultFunctionsRuntime.getRegionalFunctions(signInRegion)
-    : await defaultFunctionsRuntime.getFunctions();
-  const callableName =
-    regionalSignIn && signInRegion === 'southamerica-west1' ? 'signInWithRutSantiago' : name;
-  const response = await httpsCallable<Record<string, unknown>, T>(functions, callableName, {
-    timeout: 60000,
-  })(data);
-  return response.data;
+  if (name !== 'signInWithRut' || signInRegion === 'us-central1') {
+    return invokeAccountCallable<T>(await defaultFunctionsRuntime.getFunctions(), name, data);
+  }
+  const callableName = signInRegion === 'southamerica-west1' ? 'signInWithRutSantiago' : name;
+  try {
+    return await invokeAccountCallable<T>(
+      await defaultFunctionsRuntime.getRegionalFunctions(signInRegion),
+      callableName,
+      data
+    );
+  } catch (error) {
+    const code = (error as { code?: unknown })?.code;
+    if (typeof code !== 'string' || !REGIONAL_SIGN_IN_FALLBACK_CODES.has(code)) throw error;
+    // Sign-in changes no credential, so the US callable can run the same request again; it costs
+    // one more rate-limit attempt. The event keeps a regional outage visible behind the fallback.
+    recordOperationalTelemetry({
+      category: 'auth',
+      operation: 'rut_sign_in_region_fallback',
+      status: 'degraded',
+      runtimeState: 'recoverable',
+      context: {
+        region: signInRegion,
+        errorCode: code,
+        isOnline: typeof window !== 'undefined' ? window.navigator.onLine : null,
+      },
+      issues: [
+        `El ingreso por RUT en ${signInRegion} falló (${code}); se reintentó en us-central1.`,
+      ],
+    });
+    return invokeAccountCallable<T>(await defaultFunctionsRuntime.getFunctions(), name, data);
+  }
 };
 
 export interface InitialAccountSetup {

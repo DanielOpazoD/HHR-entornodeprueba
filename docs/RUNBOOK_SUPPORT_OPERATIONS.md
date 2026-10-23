@@ -322,10 +322,24 @@ invocación del transporte no se arregla omitiendo la validación de cuenta ni
 ampliando IAM de proyecto. Conservar `signInWithRut` US/São Paulo y las rutas de
 administración, activación y recuperación.
 
-Para volver a US en el cliente de pruebas, fijar explícitamente
-`VITE_ACCOUNT_FUNCTIONS_REGION=us-central1` y reconstruir/reiniciar ese cliente;
-quitar el flag vuelve al default Santiago. No hay fallback automático ante un
-timeout o una respuesta perdida: no reenviar la misma operación a otra región.
+Si Santiago o São Paulo no entregan respuesta utilizable (`internal`,
+`unavailable` o `deadline-exceeded`), el cliente repite el ingreso una vez en US
+y registra `auth`/`rut_sign_in_region_fallback` con región y código. Varios
+eventos seguidos indican una caída regional. En el navegador puede verse como un
+error de CORS, porque un 500 de la plataforma no trae cabeceras CORS. Probar el
+preflight; sano responde 204 con `Access-Control-Allow-Origin`:
+
+```sh
+curl -si -X OPTIONS -H 'Origin: https://hhr-hospitalizados.app' \
+  -H 'Access-Control-Request-Method: POST' \
+  https://southamerica-west1-hhr-pruebas.cloudfunctions.net/signInWithRutSantiago
+```
+
+Si la plataforma no inicia instancias, redesplegar sólo esa función con el código
+de main. Los rechazos de credenciales, límite o entrada nunca se repiten y las
+demás operaciones de cuentas no cambian de región. Para usar sólo US en el
+cliente de pruebas, fijar explícitamente `VITE_ACCOUNT_FUNCTIONS_REGION=us-central1`
+y reconstruir/reiniciar ese cliente; quitar el flag vuelve al default Santiago.
 No borrar sesión, cachés, colas ni datos para diagnosticar disponibilidad.
 
 Feedback focalizado:

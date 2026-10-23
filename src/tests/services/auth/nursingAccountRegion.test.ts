@@ -7,8 +7,12 @@ const mocks = vi.hoisted(() => ({
   getRegionalFunctions: vi.fn(),
   httpsCallable: vi.fn(),
   invoke: vi.fn(),
+  recordTelemetry: vi.fn(),
 }));
 vi.mock('firebase/functions', () => ({ httpsCallable: mocks.httpsCallable }));
+vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
+  recordOperationalTelemetry: mocks.recordTelemetry,
+}));
 vi.mock('@/services/firebase-runtime/functionsRuntime', () => ({
   defaultFunctionsRuntime: {
     getFunctions: mocks.getFunctions,
@@ -117,15 +121,80 @@ describe('RUT callable regional rollout', () => {
     }
   });
 
-  it.each(['us-central1', 'southamerica-east1', 'southamerica-west1'])(
-    'propagates a %s failure without retrying the credential operation elsewhere',
-    async region => {
+  const credentials = { rut: '111111111', password: 'synthetic-password' };
+  const functionsError = (code: string) => Object.assign(new Error(code), { code });
+
+  it.each([
+    ['southamerica-west1', 'signInWithRutSantiago', 'functions/internal'],
+    ['southamerica-west1', 'signInWithRutSantiago', 'functions/unavailable'],
+    ['southamerica-west1', 'signInWithRutSantiago', 'functions/deadline-exceeded'],
+    ['southamerica-east1', 'signInWithRut', 'functions/internal'],
+  ])(
+    'retries sign-in once in US after %s (%s) answers %s and records the fallback',
+    async (region, callableName, code) => {
       vi.stubEnv('VITE_ACCOUNT_FUNCTIONS_REGION', region);
-      const error = new Error('synthetic-unavailable');
+      mocks.invoke
+        .mockRejectedValueOnce(functionsError(code))
+        .mockResolvedValueOnce({ data: { credentialEmail: 'uid@accounts.hhr.invalid' } });
+
+      await expect(callAccount('signInWithRut', credentials)).resolves.toEqual({
+        credentialEmail: 'uid@accounts.hhr.invalid',
+      });
+
+      expect(mocks.getRegionalFunctions).toHaveBeenCalledExactlyOnceWith(region);
+      expect(mocks.getFunctions).toHaveBeenCalledOnce();
+      expect(mocks.httpsCallable.mock.calls).toEqual([
+        [mocks.regionalFunctions, callableName, { timeout: 60000 }],
+        [mocks.defaultFunctions, 'signInWithRut', { timeout: 60000 }],
+      ]);
+      expect(mocks.invoke.mock.calls).toEqual([[credentials], [credentials]]);
+      expect(mocks.recordTelemetry).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+          category: 'auth',
+          operation: 'rut_sign_in_region_fallback',
+          status: 'degraded',
+          runtimeState: 'recoverable',
+          context: expect.objectContaining({ region, errorCode: code }),
+        })
+      );
+      expect(mocks.recordTelemetry.mock.invocationCallOrder[0]).toBeLessThan(
+        mocks.getFunctions.mock.invocationCallOrder[0]
+      );
+      expect(JSON.stringify(mocks.recordTelemetry.mock.calls)).not.toMatch(
+        /111111111|synthetic-password/
+      );
+    }
+  );
+
+  it('surfaces the US answer when the fallback also fails', async () => {
+    const rejection = functionsError('functions/permission-denied');
+    mocks.invoke.mockRejectedValueOnce(functionsError('functions/internal'));
+    mocks.invoke.mockRejectedValueOnce(rejection);
+
+    await expect(callAccount('signInWithRut', credentials)).rejects.toBe(rejection);
+    expect(mocks.invoke).toHaveBeenCalledTimes(2);
+    expect(mocks.recordTelemetry).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ...['southamerica-west1', 'southamerica-east1'].flatMap(region =>
+      [
+        functionsError('functions/permission-denied'),
+        functionsError('functions/resource-exhausted'),
+        functionsError('functions/invalid-argument'),
+        new Error('synthetic-uncoded'),
+      ].map(error => [region, error] as const)
+    ),
+    ['us-central1', functionsError('functions/internal')] as const,
+  ])(
+    'propagates a %s rejection without sending the sign-in elsewhere: %s',
+    async (region, error) => {
+      vi.stubEnv('VITE_ACCOUNT_FUNCTIONS_REGION', region);
       mocks.invoke.mockRejectedValue(error);
-      await expect(callAccount('signInWithRut')).rejects.toBe(error);
+      await expect(callAccount('signInWithRut', credentials)).rejects.toBe(error);
       expect(mocks.invoke).toHaveBeenCalledOnce();
       expect(mocks.httpsCallable).toHaveBeenCalledOnce();
+      expect(mocks.recordTelemetry).not.toHaveBeenCalled();
       if (region === 'us-central1') {
         expect(mocks.getFunctions).toHaveBeenCalledOnce();
         expect(mocks.getRegionalFunctions).not.toHaveBeenCalled();
@@ -135,4 +204,13 @@ describe('RUT callable regional rollout', () => {
       }
     }
   );
+
+  it('never moves other account operations to another endpoint after a transport failure', async () => {
+    const error = functionsError('functions/internal');
+    mocks.invoke.mockRejectedValue(error);
+    await expect(callAccount('changeNursingPassword', credentials)).rejects.toBe(error);
+    expect(mocks.invoke).toHaveBeenCalledOnce();
+    expect(mocks.getRegionalFunctions).not.toHaveBeenCalled();
+    expect(mocks.recordTelemetry).not.toHaveBeenCalled();
+  });
 });

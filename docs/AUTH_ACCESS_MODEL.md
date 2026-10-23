@@ -507,13 +507,23 @@ identidad de ejecución de Gen1 en vez de heredar la cuenta por defecto de Gen2.
 Santiago mantiene 256 MiB, CPU equivalente Gen1 (`gcf_gen1`), concurrencia 1,
 mínimo 0, máximo 10 instancias y 60 segundos de timeout.
 
-Un error o respuesta incierta se devuelve al recorrido existente: no hay fallback
-a otra región ni segundo envío de la contraseña. Activación, recuperación,
-cambio de clave y administración conservan sus endpoints. Tampoco cambian roles,
-sesión, reglas de acceso ni CUDYR. Para volver a US en `hhr-pruebas`, configurar
-explícitamente `VITE_ACCOUNT_FUNCTIONS_REGION=us-central1`; quitar la variable
-restablece el valor predeterminado Santiago. Comprobar el endpoint desplegado
-antes de publicar el cliente, sin inferir disponibilidad a partir del merge.
+Si la ruta regional no entrega una respuesta utilizable, el cliente repite el
+ingreso una sola vez en el callable US `signInWithRut`. Eso ocurre con
+`functions/internal`, `functions/unavailable` o `functions/deadline-exceeded`:
+red caída, error de plataforma sin CORS, timeout o fallo inesperado. Cada
+repetición registra el evento operacional `auth`/`rut_sign_in_region_fallback`
+con la región y el código, sin RUT ni contraseña, para que una caída regional no
+quede oculta. Repetir el ingreso es seguro porque no cambia credenciales: a lo
+sumo consume otro intento del límite por cuenta/IP o deja sin usar una invitación
+inicial que vence en 10 minutos. Los rechazos de credenciales, de límite de
+intentos o de entrada se devuelven sin repetir. El respaldo se agregó tras la
+caída del 22-10-2026, cuando Santiago dejó de iniciar instancias. Activación,
+recuperación, cambio de clave y administración conservan sus endpoints y nunca
+se repiten en otra región. Tampoco cambian roles, sesión, reglas de acceso ni
+CUDYR. Para usar sólo US en `hhr-pruebas`, configurar explícitamente
+`VITE_ACCOUNT_FUNCTIONS_REGION=us-central1`; quitar la variable restablece el
+valor predeterminado Santiago. Comprobar el endpoint desplegado antes de publicar
+el cliente, sin inferir disponibilidad a partir del merge.
 
 La elección se apoya en cinco pares intercalados de ingresos reales del 22 de
 octubre de 2026: mediana remota de 1.917,1 ms en São Paulo frente a 959,7 ms en
