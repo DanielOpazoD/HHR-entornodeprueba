@@ -7,7 +7,7 @@ import {
   type ClientBootstrapRecoveryResult,
 } from '@/services/config/clientBootstrapRecovery';
 import { shouldUseStickyIndexedDbFallback } from '@/services/storage/indexeddb/indexedDbRecoveryPolicy';
-import { performClientHardReset } from '@/services/storage/indexeddb/indexedDbMaintenanceService';
+import { repairClientStorageKeepingPendingWork } from '@/services/storage/indexeddb/indexedDbMaintenanceService';
 import { defaultFirebaseConfigRuntimeAdapter } from '@/services/firebase-runtime/firebaseConfigRuntimeAdapter';
 import { createScopedLogger } from '@/services/utils/loggerScope';
 import type {
@@ -16,7 +16,7 @@ import type {
 } from '@/app-shell/bootstrap/bootstrapAppRuntime.types';
 
 const bootstrapRuntimeLogger = createScopedLogger('BootstrapRuntime');
-const BOOTSTRAP_STORAGE_REPAIR_KEY = 'hhr_bootstrap_storage_repair_v1';
+export const BOOTSTRAP_STORAGE_REPAIR_KEY = 'hhr_bootstrap_storage_repair_v1';
 
 const getErrorMessage = (error: unknown): string =>
   error && typeof error === 'object' && 'message' in error ? String(error.message) : String(error);
@@ -70,6 +70,7 @@ const getLocalStorageBootstrapWarningCopy = (): FirebaseStartupWarningCopy => ({
     'La app no pudo iniciar correctamente por un problema en el almacenamiento local de este navegador. La configuración de Firebase del entorno no parece ser la causa principal.',
   steps: [
     'Se recomienda limpiar los datos locales de este sitio y volver a cargar la aplicación.',
+    'Limpiar los datos del sitio borra también los cambios que aún no se sincronizaron desde este equipo. Si alguien trabajó sin conexión aquí, avisa antes al administrador.',
     'Si el problema ocurre solo en una sesión antigua y en incógnito funciona, el origen es casi siempre almacenamiento local dañado o un estado viejo del navegador.',
     'Si también falla en incógnito o en otros navegadores, recién ahí revisar variables y runtime en Netlify.',
   ],
@@ -79,7 +80,7 @@ const getLocalStorageBootstrapWarningCopy = (): FirebaseStartupWarningCopy => ({
 
 type BootstrapFailureResolution =
   | {
-      action: 'hard_reset_reload';
+      action: 'repair_reload';
     }
   | {
       action: 'blocked';
@@ -93,7 +94,7 @@ export const resolveBootstrapFailureResolution = (
 ): BootstrapFailureResolution => {
   if (isLocalStorageBootstrapFailure(error) && !hasStorageRepairAttempted) {
     return {
-      action: 'hard_reset_reload',
+      action: 'repair_reload',
     };
   }
 
@@ -166,12 +167,12 @@ export const resolveFirebaseBootstrapRuntime = async (
   } catch (error) {
     const resolution = resolveBootstrapFailureResolution(error, hasAttemptedStorageRepair());
 
-    if (resolution.action === 'hard_reset_reload') {
+    if (resolution.action === 'repair_reload') {
       markStorageRepairAttempt();
       bootstrapRuntimeLogger.warn(
-        'Detected local browser storage corruption during bootstrap; hard reset'
+        'Detected local browser storage corruption during bootstrap; repairing without touching pending work'
       );
-      await performClientHardReset();
+      await repairClientStorageKeepingPendingWork();
       return {
         status: 'reload',
         stage: 'firebase_ready',

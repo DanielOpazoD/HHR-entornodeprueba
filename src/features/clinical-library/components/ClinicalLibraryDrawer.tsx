@@ -17,7 +17,7 @@ import type {
 import { filterLibraryEntries, type LibraryCategoryFilter } from '../domain/librarySearch';
 import { printLibraryDocument } from '../services/libraryDocumentActions';
 import { LibraryEntryList } from './LibraryEntryList';
-import { loadMedifTool, TOOL_REGISTRY } from './toolRegistry';
+import { loadMedifTool, loadPharmacyTool, TOOL_REGISTRY } from './toolRegistry';
 import type { ClinicalFormId } from '../domain/forms/clinicalFormTypes';
 
 const loadClinicalFormTool = () => import('./tools/ClinicalFormTool');
@@ -31,6 +31,9 @@ const LibraryExitConfirmation = React.lazy(() =>
 );
 const ClinicalFormExitConfirmation = React.lazy(() =>
   loadClinicalFormTool().then(module => ({ default: module.LibraryExitConfirmation }))
+);
+const PharmacyExitConfirmation = React.lazy(() =>
+  loadPharmacyTool().then(module => ({ default: module.PharmacyExitConfirmation }))
 );
 
 export interface LibraryDocumentActions {
@@ -71,6 +74,7 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
   const searchRef = useRef<HTMLInputElement>(null);
   const drawerRef = useRef<HTMLElement>(null);
   const titleId = useId();
+  const isPharmacyTool = activeToolId === 'pharmacy-return' || activeToolId === 'pharmacy-disposal';
 
   const filtered = useMemo(
     () => filterLibraryEntries(CLINICAL_LIBRARY_ENTRIES, { query, category }),
@@ -80,7 +84,7 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
   // Escape y clic fuera retroceden un paso. MEDIF confirma antes de descartar datos.
   const requestExit = useCallback(
     (target: 'back' | 'close') => {
-      if ((activeToolId === 'medif' || activeFormId) && medifDirty) {
+      if ((activeToolId === 'medif' || isPharmacyTool || activeFormId) && medifDirty) {
         previousFocus.current = document.activeElement as HTMLElement | null;
         setPendingExit(target);
         return;
@@ -90,7 +94,7 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
         setActiveFormId(null);
       } else onClose();
     },
-    [activeToolId, activeFormId, medifDirty, onClose]
+    [activeToolId, isPharmacyTool, activeFormId, medifDirty, onClose]
   );
 
   const dismiss = useCallback(() => {
@@ -133,7 +137,11 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
   }, [activeToolId, activeFormId]);
 
   const activeTool = activeToolId ? TOOL_REGISTRY[activeToolId] : null;
-  const ExitConfirmation = activeFormId ? ClinicalFormExitConfirmation : LibraryExitConfirmation;
+  const ExitConfirmation = isPharmacyTool
+    ? PharmacyExitConfirmation
+    : activeFormId
+      ? ClinicalFormExitConfirmation
+      : LibraryExitConfirmation;
   const chips: ReadonlyArray<{ id: LibraryCategoryFilter; label: string }> = [
     { id: 'all', label: 'Todo' },
     ...LIBRARY_CATEGORIES.map(item => ({ id: item.id, label: item.label })),
@@ -164,7 +172,7 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
         onKeyDown={onDrawerKeyDown}
         className={clsx(
           'fixed right-0 top-0 flex h-full max-w-full flex-col border-l border-slate-200 bg-slate-50 shadow-xl focus:outline-none',
-          activeToolId === 'medif' || activeFormId ? 'w-[1180px]' : 'w-[500px]'
+          activeToolId === 'medif' || isPharmacyTool || activeFormId ? 'w-[1180px]' : 'w-[500px]'
         )}
       >
         <h2 id={titleId} className="sr-only">
@@ -318,6 +326,11 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
               onFillDocument={entry => {
                 setMedifDirty(false);
                 if (entry.editorId === 'medif') setActiveToolId('medif');
+                else if (
+                  entry.editorId === 'pharmacy-return' ||
+                  entry.editorId === 'pharmacy-disposal'
+                )
+                  setActiveToolId(entry.editorId);
                 else if (entry.editorId) setActiveFormId(entry.editorId);
               }}
             />

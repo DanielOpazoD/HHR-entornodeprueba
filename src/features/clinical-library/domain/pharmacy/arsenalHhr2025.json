@@ -1,0 +1,2146 @@
+{
+  "source": {
+    "title": "Arsenal farmacológico Hospital Hanga Roa",
+    "year": 2025,
+    "filename": "Arsenal 2025 HHROA (1).xlsx",
+    "sha256": "6de8e296c4d1904af6ea5cb79a83ce29eb5215927eceb8ce051f5ddb737bbcae"
+  },
+  "items": [
+    {
+      "id": "hhr-2025-r0002",
+      "name": "ACENOCUMAROL COMPRIMIDO 4 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0003",
+      "name": "ACETAZOLAMIDA COMPRIMIDO 250 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0004",
+      "name": "ACÉTICO, ÁCIDO 3% 500 ML - 100 ML",
+      "presentation": "FRASCO",
+      "observations": "Producto magistral y/o oficinal"
+    },
+    {
+      "id": "hhr-2025-r0005",
+      "name": "ACETILCISTEINA-N POLVO PARA SOLUCION ORAL 600 MG",
+      "presentation": "SOBRE",
+      "observations": "Para intoxicación por Paracetamol"
+    },
+    {
+      "id": "hhr-2025-r0006",
+      "name": "ACETILSALICÍLICO, ÁCIDO 100 MG COMPRIMIDO",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0007",
+      "name": "ACETILSALICÍLICO, ÁCIDO 500 MG COMPRIMIDO",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0008",
+      "name": "ACICLOVIR COMPRIMIDO 400 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0009",
+      "name": "ACICLOVIR SOLUCION INYECTABLE 250 MG 10 ML",
+      "presentation": "FRASCO AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0010",
+      "name": "ACTIVADOR DEL PLASMINÓGENO TISULAR HUMANO RECOMBINANTE (ALTEPLASA) LIOFILIZADO PARA SOLUCIÓN INYECTABLE 50 MG",
+      "presentation": "FRASCO AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0011",
+      "name": "ADENOSINA SOLUCION INYECTABLE 6 MG 2 ML",
+      "presentation": "FRASCO AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0012",
+      "name": "ADIFENINA CLORHIDRATO + PROPIFENAZONA (ANTIESPASMODICO ADULTO) SUPOSITORIO 50 MG + 440 MG",
+      "presentation": "SUPOSITORIO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0013",
+      "name": "AEROCAMARA PEDIATRICA",
+      "presentation": "UNIDAD",
+      "observations": "Dispensación con prescripción por receta"
+    },
+    {
+      "id": "hhr-2025-r0014",
+      "name": "AEROCAMARA VALVULADA ADULTO",
+      "presentation": "UNIDAD",
+      "observations": "Dispensación con prescripción por receta"
+    },
+    {
+      "id": "hhr-2025-r0015",
+      "name": "AGUA BIDESTILADA SOLUCION INYECTABLE 10 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0016",
+      "name": "ALBENDAZOL COMPRIMIDO 200 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0017",
+      "name": "ALBUMINA HUMANA SOLUCION INYECTABLE 20 % 50 ML",
+      "presentation": "VIAL",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0018",
+      "name": "ALOPURINOL COMPRIMIDO 100 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0019",
+      "name": "ALPRAZOLAM COMPRIMIDO 0,5 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": "Producto sujeto a control legal - Receta Blanca"
+    },
+    {
+      "id": "hhr-2025-r0020",
+      "name": "ALPROSTADIL SOLUCION INYECTABLE 0.5 MG 1 ML",
+      "presentation": "FRASCO AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0021",
+      "name": "ALUMINIO HIDROXIDO SUSPENSION ORAL 6 % 180 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0022",
+      "name": "AMIKACINA 500 MG SOLUCION INYECTABLE 500 MG 2 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0023",
+      "name": "AMIODARONA CLORHIDRATO COMP COMPRIMIDO 200 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0024",
+      "name": "AMIODARONA CLORHIDRATO SOLUCION INYECTABLE 150 MG 3 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0025",
+      "name": "AMITRIPTILINA COMPRIMIDO 25 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0026",
+      "name": "AMLODIPINO COMPRIMIDO 10 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0027",
+      "name": "AMOXICILINA + ACIDO CLAVULANICO SUSPENSION ORAL 400 MG + 57 MG 70 ML",
+      "presentation": "MILILITROS",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0028",
+      "name": "AMOXICILINA CAPSULAS 500 MG",
+      "presentation": "CAPSULA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0029",
+      "name": "AMOXICILINA SUSPENSION ORAL 500 MG/5 ML 60 ML",
+      "presentation": "MILILITROS",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0030",
+      "name": "AMOXICILINA + ACIDO CLAVULANICO COMPRIMIDO 875 MG + 125 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0031",
+      "name": "AMPICILINA POLVO PARA SOLUCION INYECTABLE 500 MG",
+      "presentation": "FRASCO AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0032",
+      "name": "AMPICILINA + SULBACTAM POLVO PARA SOLUCION INYECTABLE 1000 MG + 500 MG",
+      "presentation": "FRASCO AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0033",
+      "name": "ANFEBUTAMONA COMPRIMIDO 150 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0034",
+      "name": "ARIPIPRAZOL COMPRIMIDO 15 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0035",
+      "name": "ARTICAINA+EPINEFRINA 4% (72 MG+18 UG)",
+      "presentation": "AMPOLLA",
+      "observations": "Dental"
+    },
+    {
+      "id": "hhr-2025-r0036",
+      "name": "ATENOLOL COMPRIMIDO 50 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0037",
+      "name": "ATORVASTATINA COMPRIMIDO 20 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0038",
+      "name": "ATOSIBAN SOLUCION INYECTABLE 37.5 MG 5 ML",
+      "presentation": "FRASCO AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0039",
+      "name": "ATOSIBAN SOLUCION INYECTABLE 6.75 MG 0.9 ML",
+      "presentation": "FRASCO AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0040",
+      "name": "ATROPINA SULFATO SOLUCION INYECTABLE 1 MG 1 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0041",
+      "name": "ATROPINA SULFATO SOLUCION OFTALMICA 1 % 5 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0042",
+      "name": "AZITROMICINA COMPRIMIDO 500 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0043",
+      "name": "AZITROMICINA SUSPENSION ORAL 200 MG 5 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0044",
+      "name": "AZUL METILENO 1% SOLUCIÓN INYECTABLE 5 ML",
+      "presentation": "AMPOLLA",
+      "observations": "Producto magistral y/o oficinal"
+    },
+    {
+      "id": "hhr-2025-r0045",
+      "name": "BETAMETASONA CREMA TÓPICA 0.05 % 15 G",
+      "presentation": "POMO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0046",
+      "name": "BETAMETASONA SOLUCION INYECTABLE 4 MG 1 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0047",
+      "name": "BICARBONATO DE SODIO SOLUCION INYECTABLE 8,4 % 20 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0048",
+      "name": "BIFOSFATO + FOSFATO SODIO (ENEMA FOSFATO ADULTO) ENEMA RECTAL 19 G + 7 G 118 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0049",
+      "name": "BISOPROLOL COMPRIMIDO 2.5 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0050",
+      "name": "BISOPROLOL COMPRIMIDO 5 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0051",
+      "name": "BUDESONIDA AEROSOL PARA INHALACIÓN 200 MCG",
+      "presentation": "UNIDAD",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0052",
+      "name": "BUPIVACAINA SOLUCION INYECTABLE 50 MG 10 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0053",
+      "name": "BUPIVACAINA (HIPERBARICA) SOLUCION INYECTABLE 0.75 % 2 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0054",
+      "name": "CABERGOLINA 0,5 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": "Indicación por Gine - TV VIH"
+    },
+    {
+      "id": "hhr-2025-r0055",
+      "name": "CALCIO + VITAMINA D3 COMPRIMIDO 520 MG + 400 UI",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0056",
+      "name": "CALCIO, CARBONATO COMPRIMIDO 500 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0057",
+      "name": "CALCIO, CLORURO SOLUCION INYECTABLE 10 % 10 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0058",
+      "name": "CALCIO, GLUCONATO SOLUCION INYECTABLE 10 % 10 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0059",
+      "name": "CAPTOPRIL COMPRIMIDO 25 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0060",
+      "name": "CARBAMAZEPINA COMPRIMIDO 200 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0061",
+      "name": "CARBETOCINA SOLUCION INYECTABLE 100 MCG 1 ML",
+      "presentation": "FRASCO AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0062",
+      "name": "CARBON ACTIVADO POLVO ORAL 50 G -100 G",
+      "presentation": "SOBRE",
+      "observations": "Producto magistral y/o oficinal"
+    },
+    {
+      "id": "hhr-2025-r0063",
+      "name": "CARVEDILOL COMPRIMIDO 25 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0064",
+      "name": "CARVEDILOL COMPRIMIDO 6.25 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0065",
+      "name": "CEFADROXILO CAPSULAS 500 MG",
+      "presentation": "CAPSULA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0066",
+      "name": "CEFADROXILO SUSPENSION ORAL 250 MG 5 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0067",
+      "name": "CEFAZOLINA POLVO PARA SOLUCION INYECTABLE 1 GR",
+      "presentation": "FRASCO AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0068",
+      "name": "CEFTAZIDIMA POLVO PARA SOLUCION INYECTABLE 1 GR",
+      "presentation": "FRASCO AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0069",
+      "name": "CEFTRIAXONA POLVO PARA SOLUCION INYECTABLE 1 GR",
+      "presentation": "FRASCO AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0070",
+      "name": "CELECOXIB CAPSULA 200 MG",
+      "presentation": "CAPSULA",
+      "observations": "Restricción GES Artrosis"
+    },
+    {
+      "id": "hhr-2025-r0071",
+      "name": "CIANOCOBALAMINA SOLUCION INYECTABLE 100 MCG 1 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0072",
+      "name": "CICLOBENZAPRINA COMPRIMIDO 10 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0073",
+      "name": "CIPROFLOXACINO COMPRIMIDO 500 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0074",
+      "name": "CIPROFLOXACINO SOLUCION INYECTABLE 200 MG 100 ML",
+      "presentation": "FRASCO AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0075",
+      "name": "CIPROFLOXACINO SOLUCION OTICA 0.3 % 10 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0076",
+      "name": "CITALOPRAM COMPRIMIDO 20 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0077",
+      "name": "CLARITROMICINA COMPRIMIDO 500 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0078",
+      "name": "CLARITROMICINA POLVO PARA SUSPENSION ORAL 250 MG/5 ML 60 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0079",
+      "name": "CLINDAMICINA SOLUCION INYECTABLE 600 MG 4 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0080",
+      "name": "CLOBAZAM 10 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": "Producto sujeto a control legal -Receta Blanca"
+    },
+    {
+      "id": "hhr-2025-r0081",
+      "name": "CLOBETASOL CREMA TÓPICA 0,05 % 25 G",
+      "presentation": "POMO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0082",
+      "name": "CLONAZEPAM 0.50 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": "Producto sujeto a control legal -Receta Blanca"
+    },
+    {
+      "id": "hhr-2025-r0083",
+      "name": "CLONAZEPAM 2 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": "Producto sujeto a control legal -Receta Blanca"
+    },
+    {
+      "id": "hhr-2025-r0084",
+      "name": "CLONIXINATO DE LISINA COMPRIMIDO 125 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0085",
+      "name": "CLONIXINATO DE LISINA SOLUCION INYECTABLE 100 MG 2 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0086",
+      "name": "CLOPIDOGREL COMPRIMIDO 75 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0087",
+      "name": "CLORAMFENICOL SOLUCION OFTALMICA 0.5 % 10 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0088",
+      "name": "CLORAMFENICOL UNGUENTO OFTALMICO 1 %",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0089",
+      "name": "CLORFENAMINA COMPRIMIDO 4 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0090",
+      "name": "CLORFENAMINA SOLUCION INYECTABLE 10 MG/ML 1 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0091",
+      "name": "CLORHEXIDINA (ENJUAGUE BUCAL) COLUTORIO 0.12 % 150 ML",
+      "presentation": "FRASCO",
+      "observations": "Dental"
+    },
+    {
+      "id": "hhr-2025-r0092",
+      "name": "CLORHEXIDINA 0,12% + CPC 0,05 BIDON 5L",
+      "presentation": "BIDÓN",
+      "observations": "Dental"
+    },
+    {
+      "id": "hhr-2025-r0093",
+      "name": "CLORHEXIDINA 0,12% 3.8L",
+      "presentation": "BIDÓN",
+      "observations": "Dental"
+    },
+    {
+      "id": "hhr-2025-r0094",
+      "name": "CLORPROMAZINA COMPRIMIDO 100 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0095",
+      "name": "CLORPROMAZINA COMPRIMIDO 25 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0096",
+      "name": "CLORPROMAZINA SOLUCION INYECTABLE 25 MG 2 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0097",
+      "name": "CLOTRIMAZOL OVULOS 500 MG",
+      "presentation": "UNIDAD",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0098",
+      "name": "CLOTRIMAZOL CREMA TÓPICA 1 % 20 G",
+      "presentation": "POMO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0099",
+      "name": "CLOXACILINA CAPSULAS 500 MG",
+      "presentation": "CAPSULA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0100",
+      "name": "CLOXACILINA POLVO PARA SOLUCION INYECTABLE 500 MG",
+      "presentation": "FRASCO AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0101",
+      "name": "CLOZAPINA COMPRIMIDO 100 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": "Autorización PSQ - Seguimiento Farmacovigilancia"
+    },
+    {
+      "id": "hhr-2025-r0102",
+      "name": "COLCHICINA COMPRIMIDO 0.5 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0103",
+      "name": "DANTROLENO POLVO PARA SOLUCION INYECTABLE 20 MG",
+      "presentation": "VIAL",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0104",
+      "name": "DESLORATADINA JARABE 2.5 MG/5 ML 120 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0105",
+      "name": "DEXAMETASONA SOLUCION INYECTABLE 4 MG 1 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0106",
+      "name": "DEXMEDETOMIDINA 200 MG / 2 ML SOLUCION INYECTABLE",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0107",
+      "name": "DIAZEPAM 10 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": "Producto sujeto a control legal -Receta Blanca"
+    },
+    {
+      "id": "hhr-2025-r0108",
+      "name": "DIAZEPAM 10 MG/ 2ML",
+      "presentation": "AMPOLLA",
+      "observations": "Producto sujeto a control legal -Receta Blanca"
+    },
+    {
+      "id": "hhr-2025-r0109",
+      "name": "DICLOFENACO SODICO COMPRIMIDO 50 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0110",
+      "name": "DICLOFENACO SODICO SOLUCION INYECTABLE 75 MG 3 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0111",
+      "name": "DICLOFENACO SODICO SUSPENSION ORAL PARA GOTAS 15 MG/ML 25 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0112",
+      "name": "DICLOFENACO SODICO SUPOSITORIO 12.5 MG",
+      "presentation": "SUPOSITORIO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0113",
+      "name": "DIGOXINA COMPRIMIDO 0.25 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0114",
+      "name": "DISULFIRAMO COMPRIMIDO 500 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0115",
+      "name": "DOBUTAMINA SOLUCION INYECTABLE 250 MG 5 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0116",
+      "name": "TLD (DOLUTEGRAVIR/LAMIVUDINA/TENOFOVIR) 50/300/300 MG COMPRIMIDO",
+      "presentation": "COMPRIMIDO",
+      "observations": "Profilaxis post exposición VIH"
+    },
+    {
+      "id": "hhr-2025-r0117",
+      "name": "DOMPERIDONA COMPRIMIDO 10 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0118",
+      "name": "DOMPERIDONA SUSPENSION ORAL PARA GOTAS 10 MG/ML 20 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0119",
+      "name": "DOPAMINA SOLUCION INYECTABLE 200 MG 5 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0120",
+      "name": "DOXICICLINA CAPSULA 100 MG",
+      "presentation": "CAPSULA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0121",
+      "name": "DROPERIDOL SOLUCION INYECTABLE 5 MG 2 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0122",
+      "name": "DUTASTERIDA 0,5 MG/TAMSULOSINA CLORHIDRATO 0,4 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0123",
+      "name": "EFEDRINA SOLUCION INYECTABLE 6 % 1ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0124",
+      "name": "EMTRICITABINA + TENOFOVIR COMPRIMIDO 200 MG +300 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": "Profilaxis post exposición VIH"
+    },
+    {
+      "id": "hhr-2025-r0125",
+      "name": "ENALAPRIL COMPRIMIDO 10 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0126",
+      "name": "ENOXAPARINA SOLUCION INYECTABLE 60 MG 0.6 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0127",
+      "name": "EPINEFRINA SOLUCION INYECTABLE 1 MG 1 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0128",
+      "name": "ERGOMETRINA MALEATO SOLUCION INYECTABLE 0.2 MG 1 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0129",
+      "name": "ERITROMICINA COMPRIMIDO 500 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0130",
+      "name": "ERITROPOYETINA SOLUCION INYECTABLE 4.000 U.I 1 ML",
+      "presentation": "UNIDADES INTERNACIONALES",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0131",
+      "name": "ESCOPOLAMINA BROMURO SOLUCION INYECTABLE 20 MG 1 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0132",
+      "name": "ESPIRONOLACTONA COMPRIMIDO 25 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0133",
+      "name": "ESTRADIOL COMPRIMIDO 1 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": "Indicación por Ginecología"
+    },
+    {
+      "id": "hhr-2025-r0134",
+      "name": "ESTRADIOL GEL TRANSDÉRMICO 0.1 %",
+      "presentation": "FRASCO",
+      "observations": "Indicación por Ginecología"
+    },
+    {
+      "id": "hhr-2025-r0135",
+      "name": "ETOMIDATO SOLUCION INYECTABLE 20 MG 10 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0136",
+      "name": "ETONOGESTREL IMPLANTE SUBDÉRMICO 68 MG",
+      "presentation": "UNIDAD",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0137",
+      "name": "FENILEFRINA CLORHIDRATO SOLUCION INYECTABLE 10 MG 1 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0138",
+      "name": "FENITOINA COMPRIMIDO 100 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0139",
+      "name": "FENITOINA SODICA SOLUCION INYECTABLE 250 MG 5 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0140",
+      "name": "FENOBARBITAL 100 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": "Producto sujeto a control legal - Receta Verde"
+    },
+    {
+      "id": "hhr-2025-r0141",
+      "name": "FENOTEROL SOLUCION INYECTABLE 0.5 MG 10 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0142",
+      "name": "FENOTEROL + IPRATROPIO SOLUCION PARA NEBULIZACION 0,5 MG + 0.25 MG 20 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0143",
+      "name": "FENTANILO 0.1 MG/ 2 ML",
+      "presentation": "AMPOLLA",
+      "observations": "Producto sujeto a control legal - Receta Verde"
+    },
+    {
+      "id": "hhr-2025-r0144",
+      "name": "FENTANILO 0.5 MG/ 10 ML",
+      "presentation": "AMPOLLA",
+      "observations": "Producto sujeto a control legal - Receta Verde"
+    },
+    {
+      "id": "hhr-2025-r0145",
+      "name": "FERROSO, SULFATO SOLUCION ORAL PARA GOTAS 125 MG/ML 30 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0146",
+      "name": "FIERRO FUMARATO + VIT B1, ACIDO FOLICO +VIT C CAPSULA 300 MG + 2000 MCG + 100 MG",
+      "presentation": "CAPSULA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0147",
+      "name": "FILGRASTIM SOLUCION INYECTABLE 300 MCG/ML 1 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0148",
+      "name": "FITOQUINONA (FITOMENADIONA) SOLUCION INYECTABLE INTRAMUSCULAR 1 MG 1 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0149",
+      "name": "FITOQUINONA (FITOMENADIONA) SOLUCION INYECTABLE INTRAVENOSA U ORAL 10 MG 1 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0150",
+      "name": "FLUCLOXACILINA SUSPENSION ORAL 250 MG /5 ML 60 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0151",
+      "name": "FLUCONAZOL CAPSULA 150 MG",
+      "presentation": "CAPSULA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0152",
+      "name": "FLUFENAZINA DECANOATO SOLUCION INYECTABLE 250 MG 10 ML",
+      "presentation": "FRASCO AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0153",
+      "name": "FLUMAZENIL SOLUCION INYECTABLE 0.5 MG 5 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0154",
+      "name": "FLUNARIZINA COMPRIMIDO 10 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0155",
+      "name": "FLUOXETINA COMPRIMIDO 20 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0156",
+      "name": "FLUTICASONA 27,5 MCG/DOSIS SOL. PARA NEBULIZACION NASAL",
+      "presentation": "UNIDAD",
+      "observations": "Indicación por Pediatría"
+    },
+    {
+      "id": "hhr-2025-r0157",
+      "name": "FLUTICASONA AEROSOL PARA INHALACIÓN 125 MCG",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0158",
+      "name": "FÓLICO, ÁCIDO COMPRIMIDO 5 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0159",
+      "name": "FÓLICO, ÁCIDO COMPRIMIDO 1 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0160",
+      "name": "FOSFOSODA (BIFOSFATO+FOSFATO SODIO) SOLUCION ORAL 18 G + 48 G 45 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0161",
+      "name": "FUROSEMIDA SOLUCION INYECTABLE 20 MG/ML 1 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0162",
+      "name": "FUROSEMIDA COMPRIMIDO 40 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0163",
+      "name": "GEMFIBROZILO COMPRIMIDO 600 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0164",
+      "name": "GENTAMICINA SOLUCION INYECTABLE 80 MG 2 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0165",
+      "name": "GENTAMICINA UNGUENTO OFTALMICO 0.3 % 3.5 G",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0166",
+      "name": "GENTAMICINA SOLUCION OFTALMICA 0.3 % 5 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0167",
+      "name": "GLIBENCLAMIDA COMPRIMIDO 5 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0168",
+      "name": "GLUCOSA HIPERTÓNICA SOLUCION INYECTABLE 30 % 20 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0169",
+      "name": "HALOPERIDOL SOLUCION INYECTABLE 5 MG 1 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0170",
+      "name": "HALOPERIDOL COMPRIMIDO 5 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0171",
+      "name": "HEPARINA SÓDICA SOLUCION INYECTABLE 25.000 UI 5 ML",
+      "presentation": "FRASCO AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0172",
+      "name": "HIDRALAZINA COMPRIMIDO 50 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0173",
+      "name": "HIDROCLOROTIAZIDA COMPRIMIDO 50 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0174",
+      "name": "HIDROCORTISONA POLVO PARA SOLUCION INYECTABLE 100 MG",
+      "presentation": "FRASCO AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0175",
+      "name": "HIDROCORTISONA CREMA TÓPICA 1 %",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0176",
+      "name": "HIDROXICLOROQUINA COMPRIMIDO 200 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0177",
+      "name": "HIERRO SACARATO SOLUCION INYECTABLE 20 MG/ML 5 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0178",
+      "name": "IBUPROFENO COMPRIMIDO 400 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0179",
+      "name": "IBUPROFENO SUSPENSION ORAL 200 MG/5 ML 100 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0180",
+      "name": "IMIPENEM + CILASTATINA POLVO PARA SOLUCION INYECTABLE 500 MG + 500 MG",
+      "presentation": "FRASCO AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0181",
+      "name": "IMIPRAMINA COMPRIMIDO 25 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0182",
+      "name": "INMUNOGLOBULINA HUMANA ANTI D (RHO) 1500 UI - 300 MCG (RHOGAM)",
+      "presentation": "VIAL",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0183",
+      "name": "INSULINA CRISTALINA SUSPENSION INYECTABLE 100 UI/ML 10 ML",
+      "presentation": "VIAL",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0184",
+      "name": "INSULINA NPH SUSPENSION INYECTABLE 100 UI/ML 10 ML",
+      "presentation": "VIAL",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0185",
+      "name": "IPRATROPIO BROMURO AEROSOL PARA INHALACIÓN 20 MCG",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0186",
+      "name": "ISONIAZIDA 100MG/5ML 200ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0187",
+      "name": "ISOSORBIDE COMPRIMIDO 10 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0188",
+      "name": "KETAMINA 500 MG/ 10 ML SOLUCIÓN INYECTABLE",
+      "presentation": "FRASCO AMPOLLA",
+      "observations": "Producto sujeto a control legal - Receta Verde"
+    },
+    {
+      "id": "hhr-2025-r0189",
+      "name": "KETOPROFENO SOLUCION INYECTABLE 100 MG 2 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0190",
+      "name": "KETOROLACO SOLUCION INYECTABLE 30 MG 1 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0191",
+      "name": "LABETALOL SOLUCION INYECTABLE 100 MG 20 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0192",
+      "name": "LACTULOSA SOLUCION ORAL 66.7 % 200 ML",
+      "presentation": "FRASCO",
+      "observations": "Restricción Usuarios programa Dependiente"
+    },
+    {
+      "id": "hhr-2025-r0193",
+      "name": "LAGRIMAS ARTIFICIALES SOLUCION OFTALMICA 0.3 % 10 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0194",
+      "name": "LAMIVUDINA / ZIDOVUDINA 150/300 MG COMPRIMIDO",
+      "presentation": "COMPRIMIDO",
+      "observations": "Profilaxis post exposición VIH"
+    },
+    {
+      "id": "hhr-2025-r0195",
+      "name": "LAMIVUDINA 10MG/ML SOLUCION ORAL 240 ML",
+      "presentation": "FRASCO",
+      "observations": "Profilaxis post exposición VIH y Profilaxis perinatal VIH"
+    },
+    {
+      "id": "hhr-2025-r0196",
+      "name": "LAMOTRIGINA COMPRIMIDO 50 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0197",
+      "name": "LANATOSIDO C SOLUCION INYECTABLE 0.4 MG 2 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0198",
+      "name": "LATANOPROST SOLUCION OFTALMICA 50 MCG/ML 3 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0199",
+      "name": "LEVETIRACETAM COMPRIMIDO 1000 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0200",
+      "name": "LEVETIRACETAM COMPRIMIDO 500 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0201",
+      "name": "LEVETIRACETAM SOLUCION ORAL 100 MG/ML 300 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0202",
+      "name": "LEVODOPA + BENSERAZIDA COMPRIMIDO 200 MG+ 50 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0203",
+      "name": "LEVODOPA + CARBIDOPA COMPRIMIDO 250 MG + 50 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0204",
+      "name": "LEVONORGESTREL COMPRIMIDO 0.03 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0205",
+      "name": "LEVONORGESTREL (JADELLE O SIMILAR) IMPLANTE SUBDÉRMICO 75 MG",
+      "presentation": "UNIDAD",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0206",
+      "name": "LEVONORGESTREL + ETINILESTRADIOL COMPRIMIDO 0.15 MG + 0.03 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0207",
+      "name": "LEVONORGESTREL COMPRIMIDO 1.5 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0208",
+      "name": "LEVONORGESTREL SISTEMA DE LIBERACION INTRAUTERINO 20 MCG",
+      "presentation": "UNIDAD",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0209",
+      "name": "LEVOTIROXINA COMPRIMIDO 100 MCG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0210",
+      "name": "LIDOCAINA SOLUCION INYECTABLE 2 % 5 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0211",
+      "name": "LIDOCAINA (SPRAY) SOLUCION TOPICA 10 % 1 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0212",
+      "name": "LIDOCAINA 2% CON EPINEFRINA 1:100000 SOLUCION INYECTABLE",
+      "presentation": "AMPOLLA",
+      "observations": "Dental"
+    },
+    {
+      "id": "hhr-2025-r0213",
+      "name": "LIDOCAINA BASE + CETRIMIDA SPRAY",
+      "presentation": "FRASCO",
+      "observations": "Dental"
+    },
+    {
+      "id": "hhr-2025-r0214",
+      "name": "LIPIDOS 20% EMULSIÓN PARA PERFUSIÓN",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0215",
+      "name": "LITIO, CARBONATO COMPRIMIDO 300 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0216",
+      "name": "LOPERAMIDA COMPRIMIDO 2 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0217",
+      "name": "LORATADINA COMPRIMIDO 10 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0218",
+      "name": "LORAZEPAM 2 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": "Producto sujeto a control legal -Receta Blanca"
+    },
+    {
+      "id": "hhr-2025-r0219",
+      "name": "LORAZEPAM 4 MG / 2 ML",
+      "presentation": "AMPOLLA",
+      "observations": "Producto sujeto a control legal -Receta Blanca"
+    },
+    {
+      "id": "hhr-2025-r0220",
+      "name": "LOSARTAN POTASICO COMPRIMIDO 50 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0221",
+      "name": "LUBRICANTE GEL INTIMO",
+      "presentation": "FRASCO",
+      "observations": "Entrega directa por matrona"
+    },
+    {
+      "id": "hhr-2025-r0222",
+      "name": "LUGOL 5% SOLUCION USO EXTERNO 30 ML",
+      "presentation": "FRASCO",
+      "observations": "Producto magistral y/o oficinal"
+    },
+    {
+      "id": "hhr-2025-r0223",
+      "name": "MAGNESIO, SULFATO SOLUCION INYECTABLE 25 % 5 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0224",
+      "name": "MEBENDAZOL SUSPENSION ORAL 100 MG/5 ML 50 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0225",
+      "name": "MEDROXIPROGESTERONA ACETATO SUSPENSION INYECTABLE 150 MG 1 ML",
+      "presentation": "JERINGA PRECARGADA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0226",
+      "name": "MEDROXIPROGESTERONA SUSPENSION INYECTABLE 104 MG 0.65 ML",
+      "presentation": "JERINGA PRECARGADA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0227",
+      "name": "MEPIVACAINA CLORHIDRATO 3%",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0228",
+      "name": "MEROPENEM POLVO PARA SOLUCION INYECTABLE 500 MG",
+      "presentation": "FRASCO AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0229",
+      "name": "MEROPENEM POLVO PARA SOLUCION INYECTABLE 1 G",
+      "presentation": "FRASCO AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0230",
+      "name": "METADONA 10 MG / 2 ML",
+      "presentation": "AMPOLLA",
+      "observations": "Producto sujeto a control legal -Receta Verde"
+    },
+    {
+      "id": "hhr-2025-r0231",
+      "name": "METAMIZOL COMPRIMIDO 300 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0232",
+      "name": "METAMIZOL SOLUCION INYECTABLE 1 G 2 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0233",
+      "name": "METAMIZOL SUPOSITORIO 250 MG",
+      "presentation": "SUPOSITORIO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0234",
+      "name": "METFORMINA COMPRIMIDO 850 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0235",
+      "name": "METFORMINA COMPRIMIDO 1000 MG LP",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0236",
+      "name": "METILDOPA COMPRIMIDO 250 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0237",
+      "name": "METILFENIDATO 20 MG COMPRIMIDO LIBERACION PROLONGADA",
+      "presentation": "COMPRIMIDO LIBERACIÓN PROLONGADA",
+      "observations": "Producto sujeto a control legal -Receta Verde"
+    },
+    {
+      "id": "hhr-2025-r0238",
+      "name": "METILPREDNISOLONA POLVO PARA SOLUCION INYECTABLE 500 MG",
+      "presentation": "FRASCO AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0239",
+      "name": "METILPREDNISOLONA 40 MG / ML SUSPENSION INYECTABLE (DEPO-MEDROL)",
+      "presentation": "FRASCO AMPOLLA",
+      "observations": "Indicación por TMT"
+    },
+    {
+      "id": "hhr-2025-r0240",
+      "name": "METOCLOPRAMIDA COMPRIMIDO 10 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0241",
+      "name": "METOCLOPRAMIDA SOLUCION INYECTABLE 10 MG 2 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0242",
+      "name": "METOTREXATO COMPRIMIDO 2.5 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0243",
+      "name": "METRONIDAZOL COMPRIMIDO 500 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0244",
+      "name": "METRONIDAZOL OVULOS 500 MG",
+      "presentation": "UNIDAD",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0245",
+      "name": "METRONIDAZOL SOLUCION INYECTABLE 500 MG 100 ML",
+      "presentation": "VIAL",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0246",
+      "name": "MIDAZOLAM 5 MG / ML",
+      "presentation": "AMPOLLA",
+      "observations": "Producto sujeto a control legal -Receta Blanca"
+    },
+    {
+      "id": "hhr-2025-r0247",
+      "name": "MIDAZOLAM 50 MG / 10 ML",
+      "presentation": "AMPOLLA",
+      "observations": "Producto sujeto a control legal -Receta Blanca"
+    },
+    {
+      "id": "hhr-2025-r0248",
+      "name": "MIEL DE MONSEL (SUBSULFATO FERRICO SOL) VIAL 8 ML",
+      "presentation": "VIAL",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0249",
+      "name": "MILRINONA SOLUCION INYECTABLE 10 MG 10 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0250",
+      "name": "MISOPROSTOL COMPRIMIDO 200 MCG",
+      "presentation": "COMPRIMIDO",
+      "observations": "Indicación por Ginecología"
+    },
+    {
+      "id": "hhr-2025-r0251",
+      "name": "MORFINA DE 10 MG/ ML",
+      "presentation": "AMPOLLA",
+      "observations": "Producto sujeto a control legal -Receta Verde"
+    },
+    {
+      "id": "hhr-2025-r0252",
+      "name": "MUPIROCINA UNGUENTO TOPICO 2 % 15 G",
+      "presentation": "POMO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0253",
+      "name": "NALOXONA SOLUCION INYECTABLE 0.4 MG 1 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0254",
+      "name": "NAPROXENO COMPRIMIDO 550 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0255",
+      "name": "NEOSTIGMINA SOLUCION INYECTABLE 0.5 MG 1 ML",
+      "presentation": "MILIGRAMOS",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0256",
+      "name": "NEVIRAPINA 50 MG/ 5 ML X 240 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0257",
+      "name": "NIFEDIPINO COMPRIMIDO LIBERACION PROLONGADA 20 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0258",
+      "name": "NIMODIPINO COMPRIMIDO 30 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0259",
+      "name": "NISTATINA SUSPENSION ORAL PARA GOTAS 100.000 UI/ML 24 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0260",
+      "name": "NITROFURANTOINA MACROCRISTALES CAPSULA 100 MG",
+      "presentation": "CAPSULA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0261",
+      "name": "NITROGLICERINA SOLUCION INYECTABLE 50 MG 10 ML",
+      "presentation": "FRASCO AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0262",
+      "name": "NOREPINEFRINA SOLUCION INYECTABLE 4 MG 4 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0263",
+      "name": "NORETISTERONA ENANTATO + ESTRADIOL VALERATO SOLUCION INYECTABLE 50 MG + 5 MG 1 ML",
+      "presentation": "JERINGA PRECARGADA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0264",
+      "name": "OLANZAPINA COMPRIMIDO 10 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0265",
+      "name": "OMEPRAZOL CAPSULA CON GRANULOS CON RECUBRIMIENTO ENTERICO 20 MG",
+      "presentation": "CAPSULA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0266",
+      "name": "OMEPRAZOL POLVO PARA SOLUCION INYECTABLE 40 MG",
+      "presentation": "FRASCO AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0267",
+      "name": "ONDANSETRON SOLUCION INYECTABLE 4 MG 2 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0268",
+      "name": "OSELTAMIVIR CAPSULA 75 MG",
+      "presentation": "CAPSULA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0269",
+      "name": "OXIBUTININA COMPRIMIDO 5 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0270",
+      "name": "OXITOCINA SOLUCION INYECTABLE 5 UI 1 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0271",
+      "name": "PALIPERIDONA 150MG SUSPENSIÓN INYECTABLE DE LIBERACIÓN PROLONGADA ENVASADO EN JERINGA PRELLENADA (INVEGA SUSTENNA)",
+      "presentation": "JERINGA PRECARGADA",
+      "observations": "Indicación por PSQ - Casos en tratamiento"
+    },
+    {
+      "id": "hhr-2025-r0272",
+      "name": "PARACETAMOL SOLUCION ORAL PARA GOTAS 100 MG/ML 15 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0273",
+      "name": "PARACETAMOL SUPOSITORIO 125 MG",
+      "presentation": "SUPOSITORIO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0274",
+      "name": "PARACETAMOL COMPRIMIDO MASTICABLE 160MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0275",
+      "name": "PARACETAMOL SOLUCION PARA PERFUSION 1000 MG 100 ML",
+      "presentation": "VIAL",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0276",
+      "name": "PARACETAMOL COMPRIMIDO 500 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0277",
+      "name": "PARGEVERINA CLOHIDRATO + METAMIZOL MAGNESIO (ANTIESPASMODICO) SOLUCION INYECTABLE 5 MG + 2 G 4 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0278",
+      "name": "PARGEVERINA CLORHIDRATO (ANTIESPASMODICO GOTAS) SOLUCION ORAL PARA GOTAS 5 MG/ML 15 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0279",
+      "name": "PAROXETINA COMPRIMIDO 20 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0280",
+      "name": "PENICILINA BENZATINA POLVO PARA SUSPENSION INYECTABLE 1.200.000 UI",
+      "presentation": "UNIDADES INTERNACIONALES",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0281",
+      "name": "PENICILINA SODICA POLVO PARA SOLUCION INYECTABLE 2.000.000 UI",
+      "presentation": "UNIDADES INTERNACIONALES",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0282",
+      "name": "PERMETRINA 1% LOCION PEDICULICIDA 100 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0283",
+      "name": "PILOCARPINA SOLUCION OFTALMICA 2 % 10 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0284",
+      "name": "PIPERACILINA + TAZOBACTAM POLVO PARA SOLUCION INYECTABLE 4500 MG",
+      "presentation": "FRASCO AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0285",
+      "name": "PIRIDOXINA SOLUCION INYECTABLE 100 MG 1 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0286",
+      "name": "POLIETILENGLICOL 3350 POLVO ORAL 17 G",
+      "presentation": "SOBRE",
+      "observations": "Indicación por Pediatría - Casos en tratamiento"
+    },
+    {
+      "id": "hhr-2025-r0287",
+      "name": "POTASIO, CLORURO SOLUCION INYECTABLE 10 % 10 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0288",
+      "name": "POTASIO, GLUCONATO ELIXIR 31.2 % 200 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0289",
+      "name": "PRAMIPEXOL CLORHIDRATO COMPRIMIDO 0.25 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0290",
+      "name": "PRAMIPEXOL CLORHIDRATO COMPRIMIDO 1 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0291",
+      "name": "PREDNISONA COMPRIMIDO 20 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0292",
+      "name": "PREDNISONA COMPRIMIDO 5 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0293",
+      "name": "PREDNISONA SUSPENSION ORAL 20 MG/5 ML 60 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0294",
+      "name": "PRESERVATIVO LATEX C/LUBRICANTE",
+      "presentation": "UNIDAD",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0295",
+      "name": "PROGESTERONA MICRONIZADA CAPSULA ORAL O VAGINAL 200 MG",
+      "presentation": "CAPSULA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0296",
+      "name": "PROPARACAINA SOLUCION OFTALMICA 0.5 % 15 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0297",
+      "name": "PROPOFOL EMULSION INYECTABLE 1 % 20 ML",
+      "presentation": "FRASCO AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0298",
+      "name": "PROPOFOL EMULSION INYECTABLE 2% 100 ML",
+      "presentation": "FRASCO AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0299",
+      "name": "PROPRANOLOL COMPRIMIDO 40 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0300",
+      "name": "PROPRANOLOL SOLUCION INYECTABLE 1 MG 1 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0301",
+      "name": "PROTROMBINA HUMANA POLVO PARA SOLUCION INYECTABLE 500 UI",
+      "presentation": "FRASCO AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0302",
+      "name": "QUETIAPINA COMPRIMIDO 100 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0303",
+      "name": "QUETIAPINA COMPRIMIDO 25 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0304",
+      "name": "RALTEGRAVIR COMPRIMIDO RECUBIERTO 400 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": "Profilaxis post exposición VIH"
+    },
+    {
+      "id": "hhr-2025-r0305",
+      "name": "RANITIDINA SOLUCION INYECTABLE 50 MG 2 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0306",
+      "name": "RISPERIDONA COMPRIMIDO 1 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0307",
+      "name": "RISPERIDONA COMPRIMIDO 3 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0308",
+      "name": "RISPERIDONA SOLUCIÓN ORAL PARA GOTAS 1 MG/ML 30 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0309",
+      "name": "ROCURONIO BROMURO SOLUCION INYECTABLE 50 MG 5 ML",
+      "presentation": "FRASCO AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0310",
+      "name": "SALBUTAMOL AEROSOL PARA INHALACIÓN 100 MCG",
+      "presentation": "UNIDAD",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0311",
+      "name": "SALBUTAMOL SOLUCION PARA NEBULIZACIÓN 5 MG/ML 20 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0312",
+      "name": "SALES DE REHIDRATACION ADULTO POLVO PARA SOLUCION ORAL 90 MEQ",
+      "presentation": "SOBRE",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0313",
+      "name": "SALES DE REHIDRATACION INFANTIL POLVO PARA SOLUCION ORAL 60 MEQ",
+      "presentation": "SOBRE",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0314",
+      "name": "SALMETEROL AEROSOL PARA INHALACIÓN 25 MCG",
+      "presentation": "UNIDAD",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0315",
+      "name": "SALMETEROL + FLUTICASONA AEROSOL PARA INHALACIÓN 25 MCG + 125 MCG",
+      "presentation": "UNIDAD",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0316",
+      "name": "SALMETEROL + FLUTICASONA AEROSOL PARA INHALACIÓN 25 MCG + 250 MCG",
+      "presentation": "UNIDAD",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0317",
+      "name": "SERTRALINA COMPRIMIDO 50 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0318",
+      "name": "SEVOFLURANO LIQUIDO PARA INHALACION 250 ML 250 ML",
+      "presentation": "UNIDAD",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0319",
+      "name": "SODIO, CLORURO SOLUCION INYECTABLE 10 % 20 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0320",
+      "name": "SUGAMMADEX SOLUCION INYECTABLE 200 MG / 2 ML",
+      "presentation": "FRASCO AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0321",
+      "name": "SULFADIAZINA DE PLATA CREMA TÓPICA 1 % 50 G",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0322",
+      "name": "SURFACTANTE PULMONAR SUSPENSIÓN ENDOTRAQUEAL 25 MG/ML 8 ML",
+      "presentation": "FRASCO AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0323",
+      "name": "SUXAMETONIO CLORURO (SUCCINILCOLINA) SOLUCION INYECTABLE 100 MG 5 ML",
+      "presentation": "FRASCO AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0324",
+      "name": "T DE COBRE MODELO 380-A DISPOSITIVO INTRAUTERINO",
+      "presentation": "UNIDAD",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0325",
+      "name": "TAMOXIFENO COMPRIMIDO 20 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0326",
+      "name": "TAMSULOSINA CLORHIDRATO 0,4 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0327",
+      "name": "TENECTEPLASA POLVO PARA SOLUCION INYECTABLE 10.000 UI (50 MG)",
+      "presentation": "VIAL",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0328",
+      "name": "TERBINAFINA COMPRIMIDO 250 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0329",
+      "name": "TERBINAFINA CREMA TÓPICA 1 % 15 G",
+      "presentation": "POMO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0330",
+      "name": "TIAMINA SOLUCION INYECTABLE 30 MG 1 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0331",
+      "name": "TIBOLONA COMPRIMIDO 2.5 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0332",
+      "name": "TIMOLOL SOLUCION OFTALMICA 0.5 % 10 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0333",
+      "name": "TOBRAMICINA + DEXAMETASONA SUSPENSION OFTALMICA 0.3 % + 0.1 % 5 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0334",
+      "name": "TOLTERODINA COMPRIMIDO 2 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0335",
+      "name": "TRAMADOL SOLUCION INYECTABLE 100 MG/2 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0336",
+      "name": "TRAMADOL COMPRIMIDO 50 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": "Restricción GES Artrosis"
+    },
+    {
+      "id": "hhr-2025-r0337",
+      "name": "TRAMADOL SOLUCION ORAL PARA GOTAS 100 MG/ML 10 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0338",
+      "name": "TRANEXÁMICO, ÁCIDO SOLUCION INYECTABLE 1000 MG 10 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0339",
+      "name": "TRICLOROACETICO, ACIDO SOLUCION TOPICA 80 % 30 ML",
+      "presentation": "FRASCO",
+      "observations": "Producto magistral y/o oficinal"
+    },
+    {
+      "id": "hhr-2025-r0340",
+      "name": "TRIHEXIFENIDILO CLORHIDRATO COMPRIMIDO 2 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0341",
+      "name": "TRIMETOPRIM + SULFAMETOXAZOL (COTRIMOXAZOL FORTE) COMPRIMIDO 160 MG + 800 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0342",
+      "name": "VALPROICO, ÁCIDO 200 MG COMPRIMIDO",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0343",
+      "name": "VALPROICO, ÁCIDO 250 MG COMPRIMIDO REC. ENT.",
+      "presentation": "COMPRIMIDO REC. ENT",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0344",
+      "name": "VALPROICO, ÁCIDO SOLUCION ORAL PARA GOTAS 375 MG/ML 25 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0345",
+      "name": "VANCOMICINA POLVO PARA SOLUCION INYECTABLE 1 G",
+      "presentation": "FRASCO AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0346",
+      "name": "VASELINA AZUFRADA CREMA TOPICA 6 % 40 G",
+      "presentation": "POMO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0347",
+      "name": "VASELINA LIQUIDA MEDICINAL 1L",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0348",
+      "name": "VASELINA LIQUIDA ESTERIL ACEITE TÓPICO 10 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0349",
+      "name": "VENLAFAXINA CAPSULA CON COMPRIMIDOS DE LIBERACION PROLONGADA 75 MG",
+      "presentation": "CAPSULA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0350",
+      "name": "VERAPAMILO SOLUCION INYECTABLE 5 MG 2 ML",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0351",
+      "name": "VILDAGLIPTINA COMPRIMIDO 50 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": "Restricciónsegún criterios CFT"
+    },
+    {
+      "id": "hhr-2025-r0352",
+      "name": "VITAMINAS A + C + D3 SOLUCION ORAL PARA GOTAS 2500 UI + 75 MG + 400 UI 30 ML",
+      "presentation": "FRASCO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0353",
+      "name": "VITAMINAS B1+B6+B12 (COMPLEJO B) SOLUCION INYECTABLE 10.000 UI",
+      "presentation": "AMPOLLA",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0354",
+      "name": "WARFARINA COMPRIMIDO 5 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    },
+    {
+      "id": "hhr-2025-r0355",
+      "name": "ZIDOVUDINA 10 MG/ML OLUCIÓN ORAL 200 ML",
+      "presentation": "FRASCO",
+      "observations": "Profilaxis post exposición VIH / Profilaxis perinatal VIH"
+    },
+    {
+      "id": "hhr-2025-r0356",
+      "name": "ZIDOVUDINA 200 MG/20 ML SOLUCIÓN INYECTABLE",
+      "presentation": "FRASCO AMPOLLA",
+      "observations": "Profilaxis perinatal VIH"
+    },
+    {
+      "id": "hhr-2025-r0357",
+      "name": "ZOPICLONA COMPRIMIDO 7.5 MG",
+      "presentation": "COMPRIMIDO",
+      "observations": ""
+    }
+  ]
+}

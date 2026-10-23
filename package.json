@@ -120,6 +120,7 @@
     "check:native-dialogs": "node scripts/check-native-dialogs.mjs",
     "check:clinical-clock": "node scripts/check-clinical-clock.mjs",
     "check:empty-on-failure-reads": "node scripts/check-empty-on-failure-reads.mjs",
+    "check:import-cycles": "node scripts/check-import-cycles.mjs",
     "check:firestore-runtime-boundary": "node scripts/check-firestore-runtime-boundary.mjs",
     "check:firestore-emulator-governance": "node scripts/check-firestore-emulator-governance.mjs",
     "check:domain-hotspot-boundary": "node scripts/check-domain-hotspot-boundary.mjs",
@@ -206,7 +207,7 @@
     "ci:inner-loop": "npm run typecheck && npm run lint -- --max-warnings 0 && npm run check:quality && npm run test:unit:critical",
     "ci:pre-merge": "npm run typecheck && npm run lint -- --max-warnings 0 && npm run check:quality && npm run test:ci:unit",
     "ci:preview-gate": "npm run check:bundle-budget && npm run check:chunk-graph && npm run check:runtime-asset-margin && npm run ci:preview-smoke:built",
-    "ci:preview-smoke:built": "PLAYWRIGHT_SKIP_PREVIEW_BUILD=1 playwright test -c playwright.preview.config.ts e2e/census-preview-bootstrap.spec.ts e2e/clinical-library-smoke.spec.ts e2e/clinical-panel-reading-smoke.spec.ts e2e/census-sync-history-navigation.spec.ts e2e/dicom-viewer.spec.ts e2e/clinical-carryover-preview.spec.ts --project=chromium",
+    "ci:preview-smoke:built": "PLAYWRIGHT_SKIP_PREVIEW_BUILD=1 playwright test -c playwright.preview.config.ts e2e/census-preview-bootstrap.spec.ts e2e/clinical-library-smoke.spec.ts e2e/clinical-library-pharmacy.spec.ts e2e/clinical-panel-reading-smoke.spec.ts e2e/census-sync-history-navigation.spec.ts e2e/dicom-viewer.spec.ts e2e/clinical-carryover-preview.spec.ts --project=chromium",
     "ci:merge-gate": "npm run ci:pre-merge && npm run lint:strict:core && npm run check:critical-coverage && npm run check:netlify-functions-bundle && npm run build && npm run ci:preview-gate",
     "ci:release-gate": "npm run ci:merge-gate && npm run check:daily-record-authority-release-gate && npm run release:evidence:refresh && npm run check:release-evidence && npm run test:firestore:release:ci",
     "clean": "bash scripts/cleanup.sh",
@@ -335,7 +336,7 @@
   "overrides": {
     "@xmldom/xmldom": "0.9.10",
     "basic-ftp": "6.2.1",
-    "dompurify": "3.4.11",
+    "dompurify": "3.4.17",
     "minimatch@<4": {
       "brace-expansion": "1.1.21"
     },

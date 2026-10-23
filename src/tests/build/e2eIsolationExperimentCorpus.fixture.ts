@@ -82,6 +82,10 @@ export const previewCorpus = {
       ' '
     ),
   'e2e/clinical-carryover-preview.spec.ts': '78d76d3b9dd2f69d654d-bc763a7c3a0b487f2579'.split(' '),
+  'e2e/clinical-library-pharmacy.spec.ts':
+    'a0c449bcb0800b2c3a80-b8c6a1e8ceb2471e821b a0c449bcb0800b2c3a80-4817e6b5af816122d5ea a0c449bcb0800b2c3a80-f86354f44676424e45bb'.split(
+      ' '
+    ),
   'e2e/clinical-library-smoke.spec.ts':
     '7d789c4e137495d80b4b-0d11f5d3812829baddca 7d789c4e137495d80b4b-debb79c0120ed494e3cb 7d789c4e137495d80b4b-fbbf5fc7180c197aa206'.split(
       ' '

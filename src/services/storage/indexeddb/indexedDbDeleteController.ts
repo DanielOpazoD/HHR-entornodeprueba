@@ -61,7 +61,8 @@ export const deleteIndexedDatabase = (databaseName: string): Promise<void> =>
     };
   });
 
-export const clearIndexedDatabases = async (): Promise<void> => {
+/** Deletes every IndexedDB database of the origin except those in `keep`. */
+export const clearIndexedDatabases = async (keep: readonly string[] = []): Promise<void> => {
   if (!canUseWindow()) return;
 
   let databaseNames = KNOWN_INDEXEDDB_DATABASES_TO_RESET;
@@ -85,7 +86,11 @@ export const clearIndexedDatabases = async (): Promise<void> => {
   }
 
   try {
-    await Promise.all(databaseNames.map(databaseName => deleteIndexedDatabase(databaseName)));
+    await Promise.all(
+      databaseNames
+        .filter(databaseName => !keep.includes(databaseName))
+        .map(databaseName => deleteIndexedDatabase(databaseName))
+    );
   } catch (error) {
     recordOperationalErrorTelemetry('indexeddb', 'indexeddb_clear_databases', error, {
       code: 'indexeddb_clear_databases_failed',
