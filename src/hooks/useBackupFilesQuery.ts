@@ -32,6 +32,9 @@ export const useBackupFilesQuery = (backupType: string, path: string[]) => {
       return executeListBackupFiles({ backupType: backupType as BackupType, path });
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
+    // A failed listing comes back as data, not as a query error, so it would not count as
+    // stale; re-list after every reconnect so an offline failure recovers on its own.
+    refetchOnReconnect: 'always',
   });
 
   const listingOutcome = query.data;
