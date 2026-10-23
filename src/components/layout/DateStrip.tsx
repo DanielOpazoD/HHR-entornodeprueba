@@ -3,7 +3,7 @@
  * Navigation bar with date selection, action buttons, and export functionality.
  */
 
-import React, { useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { CalendarClock, Search } from 'lucide-react';
 import {
   resolveShiftedMonthYear,
@@ -180,6 +180,25 @@ export const DateStrip: React.FC<DateStripProps> = ({
   onOpenPatientSearch,
 }) => {
   const daysContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const container = daysContainerRef.current;
+    if (!container) return;
+    const revealSelection = () => {
+      const selected = container.querySelector('[aria-pressed="true"]');
+      if (!selected || container.scrollWidth <= container.clientWidth) return;
+      const bounds = container.getBoundingClientRect();
+      const selection = selected.getBoundingClientRect();
+      if (selection.left < bounds.left) container.scrollLeft -= bounds.left - selection.left;
+      else if (selection.right > bounds.right)
+        container.scrollLeft += selection.right - bounds.right;
+    };
+    revealSelection();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(revealSelection);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [selectedDay, selectedMonth, selectedYear]);
 
   const isGuest = role === 'viewer';
 

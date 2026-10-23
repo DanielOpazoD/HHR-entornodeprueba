@@ -101,6 +101,19 @@
   color: #b8c8d9;
 }
 
+/* Let the days yield space before they overlap the toolbar actions. On phones,
+   the full date navigation already owns horizontal scrolling. */
+@media (min-width: 768px) {
+  .hhr-date-navigation > div:has(> .hhr-toolbar-day) {
+    min-width: 0;
+    flex-shrink: 1;
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding-inline: 2px;
+    scrollbar-width: thin;
+  }
+}
+
 @media (max-width: 1100px) {
   .hhr-navbar-tabs {
     flex: 1 1 auto;
