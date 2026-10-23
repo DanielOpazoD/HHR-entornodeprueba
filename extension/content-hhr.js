@@ -107,7 +107,7 @@
     if (data.type === 'HHR_RAYEN_EXTENSION_HEALTH_REQUEST') {
       const reqId = data.reqId;
       chrome.runtime
-        .sendMessage({ type: runtimeMessages.EXTENSION_HEALTH_REQUEST })
+        .sendMessage(globalThis.HhrHealthRequestRuntime.runtimeRequest(runtimeMessages.EXTENSION_HEALTH_REQUEST, data))
         .then(report => {
           post({ type: 'HHR_RAYEN_EXTENSION_HEALTH_RESULT', reqId, report });
         })

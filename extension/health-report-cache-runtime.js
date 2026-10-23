@@ -5,35 +5,34 @@
     if (typeof readHealth !== 'function') {
       throw new Error('Falta el lector del estado de la extensión.');
     }
-    let cachedReport = null;
-    let cachedAt = 0;
-    let inFlight = null; let revision = 0;
-
+    let cached = null;
+    let inFlight = null;
+    let revision = 0;
     const invalidate = () => {
       revision += 1;
-      cachedReport = null; cachedAt = 0;
+      cached = null;
     };
 
-    const read = ({ force = false } = {}) => {
-      const timestamp = now();
-      if (!force && cachedReport && timestamp - cachedAt < ttlMs) {
-        return Promise.resolve(cachedReport);
+    const read = ({ force = false, verifySessions = false } = {}) => {
+      // Action probes invalidate passive work, including late replies from its old revision.
+      if (verifySessions && (!inFlight || !inFlight.verifySessions)) invalidate();
+      if (!force && !verifySessions && cached && now() - cached.at < ttlMs) {
+        return Promise.resolve(cached.report);
       }
       if (inFlight && inFlight.revision === revision) return inFlight.promise;
-      const readRevision = revision;
-      const promise = Promise.resolve()
-        .then(readHealth)
+      const request = { revision, verifySessions };
+      request.promise = Promise.resolve()
+        .then(() => readHealth(verifySessions ? { verifySessions: true } : undefined))
         .then(report => {
-          if (readRevision === revision) {
-            cachedReport = report; cachedAt = now();
-          }
+          if (request.revision === revision) cached = { report, at: now() };
           return report;
         })
-        .finally(() => { if (inFlight && inFlight.promise === promise) inFlight = null; });
-      inFlight = { revision: readRevision, promise };
-      return promise;
+        .finally(() => {
+          if (inFlight === request) inFlight = null;
+        });
+      inFlight = request;
+      return request.promise;
     };
-
     return Object.freeze({ read, invalidate });
   };
 

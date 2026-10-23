@@ -53,6 +53,14 @@ La clasificación remota `docs-only` se decide en CI; no forzar ni omitir checks
 
 ### Checklist de cierre
 
+La comprobación previa de Eloísa, las lecturas clínicas frescas por captura y la
+configuración del gesto manual de especialidad son `critical_runtime`. Verificar
+el bloqueo sin nueva ejecución cuando falta una fuente y conservar el fallo real
+posterior al inicio. Comprobar captura consecutiva con diagnóstico/código distintos,
+cama y cuna bajo los contextos Netlify, paquete de extensión y actualización desde
+la versión anterior. Exige `ci:merge-gate`, `test:release-confidence`, scorecard vigente,
+revisión independiente y CI del head final; conservar permisos y autoridad clínica.
+
 La compactación visual del acceso del 22 octubre 2026 es `safe_local_ui`:
 estrecha el panel y su formulario compartido con la pantalla de carga, elimina
 los textos introductorios y muestra Google como icono circular con nombre

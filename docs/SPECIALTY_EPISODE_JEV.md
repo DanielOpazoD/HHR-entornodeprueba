@@ -19,6 +19,12 @@ El panel de reglas lee la política con la operación `read_policy` de `requestS
 
 Los flags de interfaz empiezan apagados. Para un sitio que usa la autoridad por episodio de `hhr-pruebas`, configurar `VITE_HHR_SPECIALTY_EPISODE_ASSIGNMENT=enabled` en su entorno de compilación y volver a desplegar: activa sólo la decisión manual con episodio, sin activar Jev ni memoria. Debe acompañar a `HHR_SPECIALTY_EPISODE_ASSIGNMENT=enabled` en Functions; si falta en la web, el cliente envía `specialtyIntent: null` y el servidor rechaza el cambio con `specialty_explicit_intent_required`. Compartir repositorio o proyecto Firebase no copia las variables entre sitios Netlify.
 
+Los contextos `production` y `deploy-preview` de este sitio HHR declaran el interruptor
+manual en `netlify.toml`, junto al código que envía la intención. El contrato de despliegue
+prueba ambos contextos con cambios de cama y cuna, incluida la decisión aceptada por el
+protector del servidor. Jev y memoria conservan sus interruptores separados. Un sitio que
+use otro backend debe conservar su configuración de autoridad correspondiente.
+
 El interruptor existente `VITE_HHR_SPECIALTY_JEV_PILOT=enabled` sigue activando conjuntamente `SPECIALTY_EPISODE_ASSIGNMENT` y `SPECIALTY_JEV_CONSULTATION`; la memoria permanece apagada. La consulta comprueba además que el proyecto Firebase **real** sea `hhr-pruebas`. El workflow de despliegue genera `functions/.env.hhr-pruebas` con dos interruptores no secretos para la autoridad por episodio y Jev exclusivamente al desplegar Functions en ese proyecto. El backend sigue exigiendo `TYPESAFE_API_KEY` y `aiMode=consultative` en el catálogo. No configurar estas variables públicas en un sitio de producción distinto de `hhr-pruebas`.
 
 El flujo visual por paciente permanece disponible: abrir la especialidad pendiente → **Preparar consulta Jev** (lectura del catálogo; no llama al proveedor) → comprobar el CIE-10 y la etiqueta exacta → **Confirmar y consultar** → revisar la sugerencia → **Revisar aceptación** → **Confirmar asignación**. Se puede cancelar en ambas confirmaciones. El backend compara el código y la etiqueta que se mostraron antes de contactar a TypeSafe; si cambian, rechaza la solicitud sin consumir cuota. La sugerencia no modifica el censo. La aceptación confirma una única escritura para el episodio actual con CAS. Las respuestas `review_required` y los diagnósticos sin código CIE-10 válido se mantienen para asignación manual.

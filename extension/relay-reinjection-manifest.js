@@ -3,13 +3,13 @@
   const RELAYS = Object.freeze({
     'content-hhr.js': Object.freeze({
       ready: 'hhr',
-      main: Object.freeze([]),
       isolated: Object.freeze([
         'message-contract.js',
         'bridge-generation.js',
         'health-push-ordering-runtime.js',
         'content-hhr-sync-bundle.js',
         'content-hhr-connection-repair.js',
+        'health-request-runtime.js',
         'content-hhr.js',
         'content-hhr-patient-flow.js',
         'content-hhr-epicrisis.js',
@@ -31,6 +31,7 @@
         'fichamedico-diagnosis-coding.js',
         'fichamedico-normalization.js',
         'fichamedico-read-resilience.js',
+        'fichamedico-capture-cache.js',
         'fichamedico-census-runtime.js',
         'bridge-generation-main.js',
         'connection-relay-recovery.js',
@@ -63,7 +64,6 @@
     'syslab-bridge.js': Object.freeze({
       ready: null,
       allFrames: true,
-      main: Object.freeze([]),
       isolated: Object.freeze(['lab-result-parser.js', 'lab-viewer.js', 'syslab-bridge.js']),
     }),
   });
@@ -73,16 +73,16 @@
     return new RegExp('^' + escaped + '$').test(url);
   };
   const create = chromeApi => {
-    const entries = () => chromeApi.runtime.getManifest().content_scripts || [];
     const entryFor = (requiredFile, world) =>
-      entries().find(entry =>
+      (chromeApi.runtime.getManifest().content_scripts || []).find(entry =>
         (world === 'MAIN' ? entry.world === 'MAIN' : entry.world !== 'MAIN') &&
         Array.isArray(entry.js) && entry.js.includes(requiredFile)
       );
     const resolveRelay = requiredFile => {
-      const definition = RELAYS[requiredFile];
+      const config = RELAYS[requiredFile];
       const isolatedEntry = entryFor(requiredFile, 'ISOLATED');
-      if (!definition || !isolatedEntry) return null;
+      if (!config || !isolatedEntry) return null;
+      const definition = { main: [], ...config };
       if (!definition.isolated.every(file => isolatedEntry.js.includes(file))) return null;
       const mainEntry = definition.main.length ? entryFor(definition.main.at(-1), 'MAIN') : null;
       if (definition.main.length &&

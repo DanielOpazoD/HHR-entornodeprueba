@@ -91,6 +91,7 @@ describe('RayenImportButton · inicio del día desde Eloísa', () => {
       report: {
         version: '0.6.0',
         protocolVersion: RAYEN_EXTENSION_PROTOCOL_VERSION,
+        capabilities: ['sync-preflight-verification'],
         checkedAt: '2026-09-09T05:00:00.000Z',
         fichaMedico: { status: 'ready', message: 'Ficha Médico disponible.' },
         gestionCamas: { status: 'ready', message: 'Gestión de Camas disponible.' },
@@ -204,6 +205,44 @@ describe('RayenImportButton · inicio del día desde Eloísa', () => {
       reviewRequirement: 'day_bootstrap',
     });
     await waitFor(() => expect(onAutoStartHandled).toHaveBeenCalledTimes(1));
+  });
+
+  it('waits for both sources to reconnect before retrying a pending start without a busy loop', async () => {
+    const ready = mocks.useRayenExtensionHealth();
+    const onAutoStartHandled = vi.fn();
+    mocks.triggerImport.mockResolvedValue('started');
+    mocks.useRayenExtensionHealth.mockReturnValue({
+      ...ready,
+      connection: 'blocked',
+      canSync: false,
+    });
+    const view = render(
+      <RayenImportButton autoStartRequestId={18} onAutoStartHandled={onAutoStartHandled} />
+    );
+    expect(mocks.refreshHealth).not.toHaveBeenCalled();
+    expect(onAutoStartHandled).not.toHaveBeenCalled();
+    view.rerender(
+      <RayenImportButton autoStartRequestId={18} onAutoStartHandled={onAutoStartHandled} />
+    );
+    expect(mocks.refreshHealth).not.toHaveBeenCalled();
+
+    mocks.useRayenExtensionHealth.mockReturnValue(ready);
+    view.rerender(
+      <RayenImportButton autoStartRequestId={18} onAutoStartHandled={onAutoStartHandled} />
+    );
+    await waitFor(() => expect(mocks.triggerImport).toHaveBeenCalledTimes(1));
+    expect(onAutoStartHandled).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not repeatedly preflight an old extension that cannot verify both source sessions', () => {
+    const ready = mocks.useRayenExtensionHealth();
+    mocks.useRayenExtensionHealth.mockReturnValue({
+      ...ready,
+      report: { ...ready.report, capabilities: ['health-push'] },
+    });
+    const view = render(<RayenImportButton autoStartRequestId={20} onAutoStartHandled={vi.fn()} />);
+    view.rerender(<RayenImportButton autoStartRequestId={20} onAutoStartHandled={vi.fn()} />);
+    expect(mocks.refreshHealth).not.toHaveBeenCalled();
   });
 
   it('espera al censo del día antes de arrancar y no repite cuando llega', async () => {

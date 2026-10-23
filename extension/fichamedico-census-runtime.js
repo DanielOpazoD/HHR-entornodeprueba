@@ -4,7 +4,7 @@
   const tick = () => root.performance?.now?.() ?? Date.now();
   const elapsed = (start, end) => Math.max(0, Math.round(end - start));
   const read = async ({
-    getVerifiedClinicalContext, apiGet, getAuth, readClinicalCached,
+    getVerifiedClinicalContext, apiGet, getAuth, readClinicalCached: readDiagnosisCatalogCached,
     normalization, headerUrl, diagnosisUrl, isolationUrl,
     diagnosisCatalogCacheTtlMs, physicianNormalization, diagnosisCodingRuntime,
     documentRoot,
@@ -47,6 +47,7 @@
       ...(Array.isArray(active) ? active : []).map(item => ({ item, discharged: false })),
       ...(Array.isArray(discharged) ? discharged : []).map(item => ({ item, discharged: true })),
     ];
+    const readEncounterCached = root.HhrFichaMedicoCaptureCache.create();
     const { physicians, physicianById, physicianByEncounterId } = await physicianCatalogPromise;
     const listsReady = tick();
     // Keep a small concurrency ceiling: headers and diagnoses are independent, but the bridge
@@ -61,7 +62,7 @@
       isolationErrors: 0,
     };
     const diagnosisCoding = diagnosisCodingRuntime.createEnricher(() =>
-      readClinicalCached(`${context.apiOrigin}:diagnosis-catalog`,
+      readDiagnosisCatalogCached(`${context.apiOrigin}:diagnosis-catalog`,
         async () => normalization.indexDiagnosisCatalog(await apiGet(
           `${context.apiOrigin}/api/core/diagnosisClassify?tid=0`, getAuth()
         )), Date.now(), diagnosisCatalogCacheTtlMs));
@@ -70,21 +71,16 @@
       while (cursor < rows.length) {
         const index = cursor++;
         const { item, discharged: isDischarged } = rows[index];
-        const cachePrefix = [
-          context.identity.facilityId,
-          context.identity.practitionerId,
-          context.identity.practitionerRoleId,
-          item.id,
-        ].join(':');
+        const cachePrefix = String(item.id);
         const [headerResult, diagnosisResult, isolationResult] = await Promise.allSettled([
-          readClinicalCached(`${cachePrefix}:header`, () =>
+          readEncounterCached(`${cachePrefix}:header`, () =>
             apiGet(headerUrl(base, item.id), getAuth())
           ),
-          readClinicalCached(`${cachePrefix}:diagnosis`, () =>
+          readEncounterCached(`${cachePrefix}:diagnosis`, () =>
             apiGet(diagnosisUrl(base, item.id, context.identity.practitionerId), getAuth())
           ),
           normalization.requiresIsolationDetails(item)
-            ? readClinicalCached(`${cachePrefix}:isolation`, () =>
+            ? readEncounterCached(`${cachePrefix}:isolation`, () =>
                 apiGet(isolationUrl(base, item.id), getAuth())
               )
             : Promise.resolve([]),

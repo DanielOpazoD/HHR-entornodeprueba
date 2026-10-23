@@ -8,9 +8,9 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { build } from 'esbuild';
 
-// #482 is the last released 0.48.33 tree. Pin the commit so the fixture cannot
-// silently change when a branch or tag moves.
-const PREVIOUS_REF = 'eb77f41ae151251f7158fc28721cefe15145926c';
+// Pin the previous 0.48.56 release so this exercises the actual capability upgrade
+// while preserving the already-open documents and their MAIN readers.
+const PREVIOUS_REF = 'd0af164e076619f593433c53ad398581b92a6979';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE_EXTENSION = path.join(ROOT, 'extension');
 const currentManifest = JSON.parse(
@@ -156,7 +156,7 @@ try {
   const previousManifest = JSON.parse(
     await readFile(path.join(extensionPath, 'manifest.json'), 'utf8')
   );
-  assert.equal(previousManifest.version, '0.48.33', 'The pinned previous tree changed');
+  assert.equal(previousManifest.version, '0.48.56', 'The pinned previous tree changed');
   assert.notEqual(previousManifest.version, currentManifest.version);
 
   context = await chromium.launchPersistentContext('', {
@@ -260,9 +260,19 @@ try {
       }
     });
   });
+  // The previous release already requires a captured census to authorize form reads.
+  await oldWorker.evaluate(async () => {
+    const [tab] = await chrome.tabs.query({ url: 'http://localhost:3001/*' });
+    await patientFlowRuntime.authorizeSnapshotResponse(
+      { tab, url: tab.url, origin: new URL(tab.url).origin },
+      Promise.resolve({ snapshot: { encounters: [{ encounterId: '141121' }] } })
+    );
+  });
   await holdClinicalBackend(oldWorker);
   const day = await oldWorker.evaluate(() => HhrClinicalDayRuntime.clinicalDayAt(new Date()));
   const interruptedRead = clinicalBundle(hhr, day, 'interrupted');
+  // Keep a later browser failure visible even while this deliberately held read is pending.
+  void interruptedRead.catch(() => {});
   await expectHeldRead(oldWorker);
   assert.equal(await hhr.evaluate(() => window.__hhrUpgradeReads.interrupted.status), 'pending');
 
@@ -366,6 +376,7 @@ try {
   });
   await holdClinicalBackend(newWorker);
   const retryRead = clinicalBundle(hhr, day, 'retry');
+  void retryRead.catch(() => {});
   await expectHeldRead(newWorker);
   const ids = await hhr.evaluate(() => window.__hhrUpgradeRequestIds);
   assert.equal(ids.length, 2, 'An explicit retry must send exactly one new request');

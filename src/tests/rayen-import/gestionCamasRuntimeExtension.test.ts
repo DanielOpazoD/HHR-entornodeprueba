@@ -153,6 +153,53 @@ describe('Gestión de Camas connection runtime', () => {
     expect(fetchWithTimeout).not.toHaveBeenCalled();
   });
 
+  it.each(['expired', 'network'])(
+    'rechecks a fresh session during synchronization preflight and blocks %s connectivity',
+    async failure => {
+      const record = {
+        accessValue: 'fixture',
+        apiBase: 'https://hospbackend.rayensalud.cl/api',
+        facId: '1342',
+        sourceTabId: 7,
+        connectionAttemptId: '',
+        lastVerifiedAt: FINITE_SESSION_TIMESTAMP,
+      };
+      const { runtime, fetchWithTimeout } = createFixture({ 'gc-session': record });
+      await expect(runtime.health()).resolves.toMatchObject({ status: 'ready' });
+      expect(fetchWithTimeout).not.toHaveBeenCalled();
+      if (failure === 'expired') fetchWithTimeout.mockResolvedValue({ ok: false, status: 401 });
+      else fetchWithTimeout.mockRejectedValue(new Error('Failed to fetch'));
+
+      await expect(
+        runtime.health('generation', undefined, { verifySessions: true })
+      ).resolves.toMatchObject({ status: 'stale' });
+      expect(fetchWithTimeout).toHaveBeenCalledTimes(1);
+    }
+  );
+
+  it('does not restore cached green after a failed active check until a real probe recovers', async () => {
+    const record = {
+      accessValue: 'fixture',
+      apiBase: 'https://hospbackend.rayensalud.cl/api',
+      facId: '1342',
+      sourceTabId: 7,
+      connectionAttemptId: '',
+      lastVerifiedAt: FINITE_SESSION_TIMESTAMP,
+    };
+    const { runtime, fetchWithTimeout } = createFixture({ 'gc-session': record });
+    fetchWithTimeout.mockRejectedValue(new Error('Failed to fetch'));
+    await expect(
+      runtime.health('generation', undefined, { verifySessions: true })
+    ).resolves.toMatchObject({ status: 'stale' });
+    await expect(runtime.health()).resolves.toMatchObject({ status: 'stale' });
+    expect(fetchWithTimeout).toHaveBeenCalledTimes(2);
+
+    fetchWithTimeout.mockResolvedValue({ ok: true });
+    await expect(runtime.health()).resolves.toMatchObject({ status: 'ready' });
+    await runtime.health();
+    expect(fetchWithTimeout).toHaveBeenCalledTimes(3);
+  });
+
   it('scopes clean-repair health and the stored session to the exact new Gestión de Camas tab', async () => {
     const record = {
       accessValue: 'fixture',

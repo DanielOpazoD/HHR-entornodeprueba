@@ -1,3 +1,4 @@
+import { mocks, makeReport, expectConnection } from './support/extensionHealthHarness';
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -10,43 +11,9 @@ import {
   type RayenExtensionHealthState,
 } from '@/features/rayen-import/hooks/useRayenExtensionHealth';
 import {
-  RAYEN_EXTENSION_PROTOCOL_VERSION,
-  RAYEN_HEALTH_PUSH_CAPABILITY,
   RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS,
   type RayenExtensionHealthCheck,
-  type RayenExtensionHealthReport,
 } from '@/features/rayen-import/bridge/extensionHealthBridge';
-
-const mocks = vi.hoisted(() => ({
-  requestHealth: vi.fn(),
-}));
-
-vi.mock('@/features/rayen-import/bridge/extensionHealthBridge', async importOriginal => {
-  const actual =
-    await importOriginal<typeof import('@/features/rayen-import/bridge/extensionHealthBridge')>();
-  return { ...actual, requestRayenExtensionHealth: mocks.requestHealth };
-});
-
-const makeReport = (
-  overrides: Partial<RayenExtensionHealthReport> = {}
-): RayenExtensionHealthReport => ({
-  version: '0.6.0',
-  protocolVersion: RAYEN_EXTENSION_PROTOCOL_VERSION,
-  capabilities: [RAYEN_HEALTH_PUSH_CAPABILITY],
-  checkedAt: new Date().toISOString(),
-  fichaMedico: { status: 'ready', message: 'Ficha Médico disponible.' },
-  gestionCamas: { status: 'ready', message: 'Gestión de Camas disponible.' },
-  ...overrides,
-});
-
-const expectConnection = (
-  state: RayenExtensionHealthState,
-  connection: RayenExtensionHealthState['connection'],
-  canSync: boolean
-): void => {
-  expect(state.connection).toBe(connection);
-  expect(state.canSync).toBe(canSync);
-};
 
 describe('deriveHealthState', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -307,44 +274,6 @@ describe('useRayenExtensionHealth', () => {
     expect(result.current.report).toEqual(repaired);
   });
 
-  it('mantiene visible una conexión sana durante refrescos pasivos y reserva checking al preflight', async () => {
-    let resolvePassive!: (value: RayenExtensionHealthCheck) => void;
-    let resolvePreflight!: (value: RayenExtensionHealthCheck) => void;
-    mocks.requestHealth
-      .mockResolvedValueOnce({ report: makeReport() })
-      .mockImplementationOnce(
-        () => new Promise<RayenExtensionHealthCheck>(resolve => (resolvePassive = resolve))
-      )
-      .mockImplementationOnce(
-        () => new Promise<RayenExtensionHealthCheck>(resolve => (resolvePreflight = resolve))
-      );
-
-    const { result } = renderHook(() => useRayenExtensionHealth());
-    await act(async () => Promise.resolve());
-    expectConnection(result.current, 'ready', true);
-
-    let passiveRefresh!: Promise<RayenExtensionHealthState>;
-    act(() => {
-      passiveRefresh = result.current.refresh();
-    });
-    expectConnection(result.current, 'ready', true);
-    await act(async () => {
-      resolvePassive({ report: makeReport() });
-      await passiveRefresh;
-    });
-
-    let preflightRefresh!: Promise<RayenExtensionHealthState>;
-    act(() => {
-      preflightRefresh = result.current.refresh({ showChecking: true });
-    });
-    expectConnection(result.current, 'checking', true);
-    await act(async () => {
-      resolvePreflight({ report: makeReport() });
-      await preflightRefresh;
-    });
-    expectConnection(result.current, 'ready', true);
-  });
-
   it('vence automáticamente la señal y consulta de nuevo al volver a primer plano o recuperar red', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-09-03T12:00:00.000Z'));
@@ -380,6 +309,16 @@ describe('useRayenExtensionHealth', () => {
 
     // Dentro del arriendo se conserva el último verde en vez de parpadear a «desconectado».
     expect(absorbTransientHealthFailure(healthy, missed)).toBe(healthy);
+  });
+
+  it('does not retain a pending preflight forever when a concurrent passive refresh also times out', () => {
+    const pending: RayenExtensionHealthState = {
+      ...deriveHealthState(makeReport()),
+      connection: 'checking',
+      canSync: false,
+    };
+    const missed = deriveHealthState(null, 'La extensión no respondió.');
+    expect(absorbTransientHealthFailure(pending, missed)).toBe(missed);
   });
 
   it('acepta la desconexión cuando el último diagnóstico bueno ya venció', () => {

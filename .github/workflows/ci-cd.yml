@@ -645,12 +645,12 @@ jobs:
         uses: ./.github/actions/setup-ci-chromium
 
       - name: Fetch pinned previous extension release
-        run: git fetch --depth=1 origin eb77f41ae151251f7158fc28721cefe15145926c
+        run: git fetch --depth=1 origin d0af164e076619f593433c53ad398581b92a6979
 
       - name: Validate the packaged Rayen extension in Chromium
         run: npm run test:e2e:rayen-extension-runtime
 
-      - name: Validate 0.48.33 to current extension upgrade with open tabs
+      - name: Validate 0.48.56 to current extension upgrade with open tabs
         run: npm run test:e2e:rayen-extension-upgrade
 
       - name: Validate shared offscreen lifecycle in Chromium

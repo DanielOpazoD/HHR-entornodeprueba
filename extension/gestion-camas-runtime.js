@@ -3,11 +3,9 @@
   'use strict';
 
   const reasonOf = value => value && value.reason || 'session_unverified';
-  const verificationFailure = (error, reason = 'session_unverified') => ({ error, reason });
 
   const MATCH_PATTERN = 'https://hospitalizado.rayensalud.cl/*';
   const LOGIN_URL = 'https://hospitalizado.rayensalud.cl/';
-  const SESSION_PROBE_RUN = '000000000';
   const prioritizeTab = (tabs, pending, current) => {
     const tabId = pending?.tabId ?? current?.sourceTabId;
     return tabId == null ? tabs : tabs.slice().sort((left, right) =>
@@ -49,6 +47,7 @@
       throw new Error('No se pudo inicializar el runtime de Gestión de Camas.');
     }
 
+    const verification = root.HhrGestionCamasSessionVerification;
     const readStored = async key => (await chromeApi.storage.session.get(key))?.[key] || null;
     const readGestionCamasSession = () => readStored(session.SESSION_STORAGE_KEY);
     const readPendingGestionCamasConnection = () => readStored(session.PENDING_WINDOW_STORAGE_KEY);
@@ -81,7 +80,7 @@
     const clearGestionCamasSession = async expectedRecord => mutateGestionCamasSession(async () => {
       if (expectedRecord) {
         const current = await readGestionCamasSession();
-        if (!sameGestionCamasSession(current, expectedRecord)) return false;
+        if (!sameGestionCamasSession(current, expectedRecord) || !verification.sameEpoch(current, expectedRecord)) return false;
       }
       await chromeApi.storage.session.remove(session.SESSION_STORAGE_KEY);
       return true;
@@ -132,7 +131,7 @@
           ? await isGestionCamasTabOpen(current.sourceTabId)
           : false;
         const acceptsUnscopedCapture = Boolean(
-          (!current || !currentSourceTabAlive) &&
+          !currentSourceTabAlive &&
           !pending &&
           !suppliedAttemptId &&
           !(control && control.blocked)
@@ -144,15 +143,30 @@
         record.sourceTabId = normalizedSourceTabId;
         record.connectionAttemptId =
           matchesPendingAttempt && pending ? String(pending.attemptId || '') : suppliedAttemptId;
+        // Repeated capture of the same binding must retain its canonical verification epoch.
+        if (sameGestionCamasSession(current, record)) {
+          record.verificationEpoch = current.verificationEpoch;
+          record.lastVerifiedAt = current.lastVerifiedAt;
+        }
         await chromeApi.storage.session.set({ [session.SESSION_STORAGE_KEY]: record });
         return record;
       });
+
+    const updateVerification = (record, update) => mutateGestionCamasSession(async () => {
+      const current = await readGestionCamasSession();
+      if (!sameGestionCamasSession(current, record) || !verification.sameEpoch(current, record)) return null;
+      const next = update(current);
+      await chromeApi.storage.session.set({ [session.SESSION_STORAGE_KEY]: next });
+      return next;
+    });
+    const beginVerification = record => updateVerification(record, verification.begin);
+    const revokeVerification = record => updateVerification(record, verification.revoke);
 
     const markGestionCamasSessionVerified = async record => {
       let completedPopup = null;
       const verified = await mutateGestionCamasSession(async () => {
         const current = await readGestionCamasSession();
-        if (!sameGestionCamasSession(current, record)) return null;
+        if (!sameGestionCamasSession(current, record) || !verification.sameEpoch(current, record)) return null;
         const next = { ...current, lastVerifiedAt: Date.now() };
         await chromeApi.storage.session.set({ [session.SESSION_STORAGE_KEY]: next });
         const pending = await readPendingGestionCamasConnection();
@@ -326,47 +340,15 @@
       return verifyGestionCamasSession(replacement, timeoutMs, false);
     };
 
-    const verifyGestionCamasSession = async (
-      record,
-      timeoutMs = backendRequestTimeoutMs,
-      retryChanged = true
-    ) => {
-      if (!record || !record.facId) return { error: 'La sesión no informa el establecimiento.' };
-      const url =
-        `${record.apiBase}/facility/${record.facId}/encounter` +
-        `?facId=0&prefferedIdentifierCode=${SESSION_PROBE_RUN}&prefferedPeridentId=2`;
-      try {
-        const response = await fetchWithTimeout(
-          url,
-          { headers: { Authorization: record.token } },
-          timeoutMs
-        );
-        if (response.ok) {
-          const verified = await markGestionCamasSessionVerified(record);
-          return verified ? { record: verified } : retryChanged
-            ? reverifyChangedGestionCamasSession(timeoutMs) : { changed: true };
-        }
-        const rejection = await classifyGestionCamasRejection(response, record);
-        if (rejection === 'changed') return retryChanged
-          ? reverifyChangedGestionCamasSession(timeoutMs)
-          : { changed: true };
-        if (rejection === 'expired') {
-          return verificationFailure('La sesión de Gestión de Camas venció.', 'session_expired');
-        }
-        if (rejection === 'forbidden') {
-          return verificationFailure(
-            'Rayen rechazó la comprobación por permisos; la sesión no se marcó como vigente.'
-          );
-        }
-        return verificationFailure(
-          'Rayen respondió HTTP ' + response.status + ' al comprobar la sesión.'
-        );
-      } catch (error) {
-        return verificationFailure(
-          'No se pudo comprobar la sesión: ' + String((error && error.message) || error)
-        );
-      }
-    };
+    const verifyGestionCamasSession = verification.create({
+      fetchWithTimeout,
+      backendRequestTimeoutMs,
+      beginVerification,
+      revokeVerification,
+      markVerified: markGestionCamasSessionVerified,
+      classifyRejection: classifyGestionCamasRejection,
+      reverifyChanged: reverifyChangedGestionCamasSession,
+    });
 
     const handleGestionCamasHealth = root.HhrGestionCamasHealth.create({
       chromeApi,
