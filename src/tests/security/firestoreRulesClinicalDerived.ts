@@ -120,8 +120,13 @@ export function registerClinicalDerivedRules(harness: FirestoreRulesHarness): vo
       );
     });
 
-    it('a day recreated from a local copy may carry its marker on create', async () => {
-      await assertSucceeds(nurse().doc(recordPath).set(markedDay));
+    it('no client creates a day that already carries a marker, even from a local copy', async () => {
+      for (const db of [admin, nurse]) {
+        await assertFails(db().doc(recordPath).set(markedDay));
+      }
+      // The same day without the marker is created as usual; only the server marks it.
+      const { clinicalDerivedLayout: _marker, ...unmarkedCopy } = markedDay;
+      await assertSucceeds(nurse().doc(recordPath).set(unmarkedCopy));
     });
   });
 }

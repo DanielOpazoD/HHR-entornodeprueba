@@ -93,6 +93,12 @@
                  resource.data.get(['meta', 'revision'], 0)));
     }
 
+    // A client can never create a day that already carries the marker: only the server marks,
+    // with a fresh generation, so a forged or copied marker cannot switch a day to split mode.
+    function createsWithoutClinicalDerivedLayout() {
+      return !('clinicalDerivedLayout' in request.resource.data);
+    }
+
     function canAdminMaintainHospitalDocument() {
       return isAdmin();
     }

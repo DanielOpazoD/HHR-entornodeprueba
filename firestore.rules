@@ -653,6 +653,9 @@ service cloud.firestore {
                request.resource.data.get(['meta', 'revision'], 0) >=
                  resource.data.get(['meta', 'revision'], 0)));
     }
+    function createsWithoutClinicalDerivedLayout() {
+      return !('clinicalDerivedLayout' in request.resource.data);
+    }
     function canAdminMaintainHospitalDocument() {
       return isAdmin();
     }
@@ -667,7 +670,7 @@ service cloud.firestore {
       allow write: if isAdmin();
       match /dailyRecords/{date} {
         allow read: if canReadClinicalData();
-        allow create: if canEdit() && !isRayenClinicalWriteFenceActive(hospitalId) && !isSpecialtyDecisionFenceActive(hospitalId);
+        allow create: if canEdit() && !isRayenClinicalWriteFenceActive(hospitalId) && !isSpecialtyDecisionFenceActive(hospitalId) && createsWithoutClinicalDerivedLayout();
         allow update: if canUpdatePersistedDailyRecord() && preservesServerOwnedClinicalState(hospitalId) && preservesClinicalDerivedLayout();
         allow delete: if isAdmin();
         match /history/{historyId} {

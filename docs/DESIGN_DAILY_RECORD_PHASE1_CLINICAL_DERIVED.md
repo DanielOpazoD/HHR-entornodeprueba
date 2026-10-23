@@ -38,9 +38,9 @@ activa: cubre los dos escritores (parche con guarda y lote) y las dos rutas de g
   un documento chico por día y episodio.
   - Por día, porque todo lector trabaja sobre un día y el dato es "a esa fecha": el checkpoint se
     reinicia cada día y los signos vitales se copian a cada día.
-  - El id es el `clinicalEpisodeId` y debe cumplir `/^[A-Za-z0-9_-]{1,120}$/`. Así quedan fuera
-    `/`, `.`, `..` y `__x__`, que Firestore no admite; los `ep_` y `legacy_ep_` de
-    `clinicalEpisodeIdPolicy.ts` cumplen. Un episodio sin id válido guarda sus campos embebidos en
+  - El id es el `clinicalEpisodeId` y debe cumplir `/^[A-Za-z0-9_-]{1,120}$/` y no tener la forma
+    `__x__`. Así quedan fuera `/`, `.`, `..` y `__x__`, que Firestore no admite; los `ep_` y
+    `legacy_ep_` de `clinicalEpisodeIdPolicy.ts` cumplen. Un episodio sin id válido guarda sus campos embebidos en
     el día, como hoy.
   - Madre y recién nacido son episodios distintos: el servidor rechaza un mismo id activo dos veces
     (`duplicate_active_episode` en `dailyRecordClinicalAuthorityPolicy.js`). Ningún documento de
@@ -60,11 +60,11 @@ activa: cubre los dos escritores (parche con guarda y lote) y las dos rutas de g
 
 - **D3. Marcador del día.** Campo raíz `clinicalDerivedLayout = { version: 1, generation }`, con
   `generation` generada por el servidor.
-  - Solo el servidor lo pone. Un cliente puede traerlo al crear un día (un día recreado desde
-    IndexedDB o desde un JSON), pero el servidor ignora el marcador que manda un cliente y decide
-    él.
-  - Reglas: una actualización deja el marcador exactamente como está; no lo agrega, no lo cambia y
-    no lo quita. En un día marcado tampoco puede bajar `meta.revision` (ver "Semántica de la
+  - Solo el servidor lo pone, con una generación nueva. El servidor ignora el marcador que manda
+    un cliente y decide él.
+  - Reglas: ningún cliente crea un día con marcador, ni siquiera un día recreado desde IndexedDB o
+    desde un JSON; los clientes lo quitan al crear o recrear un día (P4). Una actualización deja el
+    marcador exactamente como está; no lo agrega, no lo cambia y no lo quita. En un día marcado tampoco puede bajar `meta.revision` (ver "Semántica de la
     revisión").
   - Los clientes copian el marcador remoto en sus guardados directos completos y en la restauración
     de versiones (D9).
@@ -297,18 +297,24 @@ Piezas comunes del cliente:
   - D5 decide por la fecha objetivo.
   - Estos objetivos no llevan campos movidos, así que no marcan. Sobre un día ya marcado, el lote
     escribe desde el remoto y conserva el marcador.
-- **Reglas al crear.** El esquema del día deja pasar campos raíz desconocidos (`.passthrough()` en
-  `src/schemas/zod/dailyRecord.ts`), así que las copias de IndexedDB o JSON traen el marcador. Negarlo
-  al crear bloquearía para siempre, con la valla apagada, la recreación de días desde esas copias.
-  - La regla de creación no cambia y el servidor ignora el marcador del cliente.
-  - Lo protege la regla de actualización.
+- **Reglas al crear.** Si un cliente pudiera crear un día con marcador, podría falsificar un
+  estado que solo pone el servidor: un día con un marcador inventado pasaría a modo dividido aunque
+  el interruptor esté apagado. La revisión de seguridad automática lo detectó en P3.
+  - La regla de creación niega el marcador (`createsWithoutClinicalDerivedLayout()`) para todo rol.
+  - Las copias de IndexedDB o JSON sí pueden traerlo, porque el esquema del día deja pasar campos
+    raíz desconocidos (`.passthrough()` en `src/schemas/zod/dailyRecord.ts`). Para que esas entradas
+    no queden negadas para siempre en la cola, que nunca se purga, el cliente quita el marcador al
+    crear o recrear un día, también al publicar la cola (P4).
+  - Un día recreado así queda sin marcador. El servidor lo vuelve a marcar, con una generación
+    nueva, en su primera escritura de un campo movido.
 - **Restos al borrar un día.** El borrado (`dailyRecordDeletionService.ts`) pasa el día a la
   papelera y lo borra. Los documentos quedan, porque Firestore no borra en cascada y los clientes no
   pueden escribirlos.
   - D14: un día que recrea el servidor no los ve. Si el servidor sobrescribe uno, D11 lo guarda en
     la copia de la corrida.
-  - Con la valla apagada, un cliente puede recrear el día desde una copia de esa misma vida
-    (IndexedDB o JSON). Trae su generación y vuelve a encontrar sus propios documentos.
+  - Un día que recrea un cliente desde una copia llega sin marcador (regla de creación) y no ve los
+    documentos de su vida anterior: tendrá generación nueva. Esos documentos siguen en Firestore, y
+    un administrador puede recuperarlos.
 - **Movimientos en la herramienta de personal.** Las fotos de altas, traslados y CMA (`originalData`)
   de días divididos ya no traen `vitalSignsHistory`. Superponer solo las camas activas perdería esos
   autores. D10 recorre todos los documentos del día.
@@ -378,7 +384,7 @@ Qué lleva cada PR (pruebas siempre con datos sintéticos):
   - Marcador en el tipo y el esquema del día, y tipo y esquema del documento.
   - Reglas: `clinicalDerived` con lectura `canReadClinicalData()` y escritura negada para todo rol,
     como `specialtyDecisions`. En `dailyRecords`, la actualización conserva el marcador y no baja la
-    revisión de un día marcado; la creación no cambia. Matriz crítica, `firestore.rules`
+    revisión de un día marcado; la creación niega el marcador. Matriz crítica, `firestore.rules`
     regenerado y pruebas de reglas.
   - Exenciones en `firestore.indexes.json`, con el operador y su prueba (21 → 24).
   - Pruebas de superposición (`null` gana, campo ausente usa lo embebido, generación o fecha ajena
@@ -388,6 +394,7 @@ Qué lleva cada PR (pruebas siempre con datos sintéticos):
 - **P4.**
   - Llamadas de D10, higiene de D9, versión de cliente 3 y `clientRuntimeContractVersion` en los
     payloads de los callables.
+  - Al crear o recrear un día, también al publicar la cola, el cliente quita el marcador.
   - `daily_record_size_observed` marca si el día está dividido.
   - Pruebas: el relleno superpone sus tres puntos y la base queda sin superponer; revisión
     adelantada con relectura y falla cerrada; merge de una copia local previa contra un remoto
