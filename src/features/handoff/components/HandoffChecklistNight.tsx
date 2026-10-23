@@ -1,5 +1,5 @@
 import React from 'react';
-import { ClipboardList } from 'lucide-react';
+import { ClipboardList, Pill } from 'lucide-react';
 import clsx from 'clsx';
 
 interface HandoffChecklistNightProps {
@@ -24,18 +24,18 @@ interface HandoffChecklistNightProps {
 const ChecklistItem: React.FC<{
   checked: boolean;
   onChange: (checked: boolean) => void;
-  label: string;
+  label: React.ReactNode;
   disabled: boolean;
 }> = ({ checked, onChange, label, disabled }) => {
   return (
-    <label className="flex items-center gap-2 cursor-pointer group print:gap-1">
-      <div className="relative flex items-center">
+    <label className="flex min-h-8 min-w-0 items-center gap-2 cursor-pointer group print:min-h-0 print:gap-1">
+      <div className="relative flex shrink-0 items-center">
         <input
           type="checkbox"
           className={clsx(
-            'h-4 w-4 cursor-pointer appearance-none rounded border shadow transition-all focus:ring-2',
+            'h-4 w-4 cursor-pointer appearance-none rounded border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-default print:shadow-none',
             'print:w-3 print:h-3 print:shadow-none',
-            'border-slate-300 focus:ring-slate-200',
+            'border-slate-300 focus-visible:ring-slate-400',
             // For screen: use :checked pseudo-class
             'checked:border-slate-600 checked:bg-slate-600',
             // For print: use conditional classes directly (these will always apply when checked)
@@ -57,6 +57,7 @@ const ChecklistItem: React.FC<{
             className="h-3 w-3 print:h-2 print:w-2"
             viewBox="0 0 20 20"
             fill="currentColor"
+            aria-hidden="true"
             stroke="currentColor"
             strokeWidth="1"
           >
@@ -68,7 +69,7 @@ const ChecklistItem: React.FC<{
           </svg>
         </span>
       </div>
-      <span className="text-slate-700 font-medium group-hover:text-slate-900 transition-colors text-[10px] print:text-[8px] print:text-black">
+      <span className="text-slate-700 font-medium leading-4 group-hover:text-slate-900 transition-colors text-xs print:text-[8px] print:text-black">
         {label}
       </span>
     </label>
@@ -81,10 +82,10 @@ export const HandoffChecklistNight: React.FC<HandoffChecklistNightProps> = ({
   readOnly = false,
 }) => {
   return (
-    <div className="-mt-px flex items-center gap-3 print:mt-0 print:gap-3 print:bg-transparent print:border-none print:p-0">
-      <div className="flex items-center gap-2 text-slate-700 shrink-0">
-        <ClipboardList size={14} className="print:w-3 print:h-3" />
-        <span className="text-[10px] font-bold uppercase print:text-black print:text-[9px]">
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-1 print:mt-0 print:flex-nowrap print:gap-3 print:bg-transparent print:border-none print:p-0">
+      <div className="flex w-full items-center gap-2 text-slate-500 shrink-0 lg:w-auto print:w-auto print:text-slate-700">
+        <ClipboardList size={14} className="print:w-3 print:h-3" aria-hidden="true" />
+        <span className="text-[10px] font-semibold uppercase tracking-wide print:font-bold print:tracking-normal print:text-black print:text-[9px]">
           Checklist
         </span>
       </div>
@@ -115,34 +116,55 @@ export const HandoffChecklistNight: React.FC<HandoffChecklistNightProps> = ({
       <ChecklistItem
         checked={!!data.conteoMedicamento}
         onChange={checked => onUpdate('conteoMedicamento', checked)}
-        label="Conteo 💊 controlados"
+        label={
+          <>
+            Conteo{' '}
+            <Pill
+              size={12}
+              className="inline align-[-2px] text-slate-500 print:hidden"
+              aria-hidden="true"
+            />
+            <span className="hidden print:inline">💊 </span>controlados
+          </>
+        }
         disabled={readOnly}
       />
 
       {/* Conteo Fármacos NO Controlados + Fecha */}
-      <div className="flex items-center gap-2 print:gap-1">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 print:flex-nowrap print:gap-1">
         <ChecklistItem
           checked={!!data.conteoNoControlados}
           onChange={checked => onUpdate('conteoNoControlados', checked)}
-          label="Conteo 💊 no-controlados"
+          label={
+            <>
+              Conteo{' '}
+              <Pill
+                size={12}
+                className="inline align-[-2px] text-slate-500 print:hidden"
+                aria-hidden="true"
+              />
+              <span className="hidden print:inline">💊 </span>no-controlados
+            </>
+          }
           disabled={readOnly}
         />
-        <div className="flex items-center gap-1 print:gap-0.5">
-          <span className="text-[10px] font-semibold text-slate-500 uppercase print:text-[7px] print:text-black">
+        <label className="flex min-w-0 items-center gap-2 print:gap-0.5">
+          <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide print:tracking-normal print:text-[7px] print:text-black">
             Próx:
           </span>
           <input
             type="date"
+            aria-label="Próximo conteo de medicamentos no controlados"
             value={data.conteoNoControladosProximaFecha || ''}
             onChange={e => onUpdate('conteoNoControladosProximaFecha', e.target.value)}
-            className="h-8 w-24 rounded border border-slate-200 px-2 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-400 print:hidden"
+            className="h-8 min-w-0 w-32 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 disabled:bg-slate-50 disabled:text-slate-500 print:hidden"
             disabled={readOnly}
           />
           {/* Print-only: show date as text without calendar icon */}
           <span className="hidden print:inline print:text-[8px] print:text-black">
             {data.conteoNoControladosProximaFecha || '-'}
           </span>
-        </div>
+        </label>
       </div>
     </div>
   );
