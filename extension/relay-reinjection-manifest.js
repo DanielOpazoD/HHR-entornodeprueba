@@ -5,6 +5,7 @@
       ready: 'hhr',
       isolated: Object.freeze([
         'message-contract.js',
+        'hhr-origin-policy.js',
         'bridge-generation.js',
         'health-push-ordering-runtime.js',
         'content-hhr-sync-bundle.js',
@@ -67,11 +68,7 @@
       isolated: Object.freeze(['lab-result-parser.js', 'lab-viewer.js', 'syslab-bridge.js']),
     }),
   });
-  const matchesPattern = (url, pattern) => {
-    if (typeof url !== 'string' || typeof pattern !== 'string') return false;
-    const escaped = pattern.replace(/[.+?^\${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
-    return new RegExp('^' + escaped + '$').test(url);
-  };
+  const matchesPattern = (url, pattern) => root.HhrAppOrigins.matchesPattern(url, pattern);
   const create = chromeApi => {
     const entryFor = (requiredFile, world) =>
       (chromeApi.runtime.getManifest().content_scripts || []).find(entry =>

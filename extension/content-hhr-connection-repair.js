@@ -1,7 +1,7 @@
 /** Page/runtime bridge for the clean Eloísa connection repair action. */
 (() => {
   'use strict';
-  if (globalThis.__hhrConnectionRepairBridgeInstalled) return;
+  if (!globalThis.HhrAppOrigins?.has(window.location.origin) || globalThis.__hhrConnectionRepairBridgeInstalled) return;
   const runtimeMessages = globalThis.HhrRayenMessageContract?.types;
   if (!runtimeMessages) return;
   globalThis.__hhrConnectionRepairBridgeInstalled = true;

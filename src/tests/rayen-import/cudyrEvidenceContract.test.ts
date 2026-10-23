@@ -1,3 +1,4 @@
+import { readHhrBridgeSource } from './support/hhrOriginPolicyFixture';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -9,7 +10,7 @@ import {
   requestCudyrCategories,
 } from '@/features/rayen-import/bridge/rayenImportBridge';
 
-const contentBridgeSource = readFileSync(path.resolve('extension/content-hhr.js'), 'utf8');
+const contentBridgeSource = readHhrBridgeSource('content-hhr.js');
 const bridgeGenerationSource = readFileSync(path.resolve('extension/bridge-generation.js'), 'utf8');
 
 describe('CUDYR evidence contract', () => {

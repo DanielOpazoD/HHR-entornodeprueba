@@ -76,6 +76,7 @@
         return { injectedTabs, failedTabs: 1, complete: false };
       }
       for (const tab of tabs) {
+        if (!(relay.isolatedEntry.matches || []).some(pattern => matchesPattern(tab.url, pattern))) continue;
         const result = await reinjectTab({ tabId: tab.id, requiredFile });
         if (result.injected) injectedTabs += 1;
         else failedTabs += 1;
