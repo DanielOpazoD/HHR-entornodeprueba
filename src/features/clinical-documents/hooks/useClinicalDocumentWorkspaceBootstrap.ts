@@ -17,7 +17,6 @@ import {
   resolveNextSelectedClinicalDocumentId,
   resolveSelectedClinicalTemplateId,
   filterClinicalDocumentsForCurrentEpisode,
-  shouldSeedClinicalDocumentTemplates,
 } from './clinicalDocumentWorkspaceBootstrapSupport';
 
 interface UseClinicalDocumentWorkspaceBootstrapParams {
@@ -52,8 +51,6 @@ export const useClinicalDocumentWorkspaceBootstrap = ({
   const [templates, setTemplates] = useState<ClinicalDocumentTemplate[]>(
     listActiveClinicalDocumentTemplates()
   );
-  const [remoteTemplateCount, setRemoteTemplateCount] = useState<number | null>(null);
-  const [hasLoadedRemoteTemplates, setHasLoadedRemoteTemplates] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('epicrisis');
   const [documentsState, setDocumentsState] = useState<{
     episodeKey: string;
@@ -111,12 +108,33 @@ export const useClinicalDocumentWorkspaceBootstrap = ({
           context: { hospitalId },
         }
       );
-      const remoteTemplates = remoteTemplatesOutcome.data;
-      if (!cancelled) {
-        setTemplates(remoteTemplates);
-        setRemoteTemplateCount(remoteTemplates.length);
-        setHasLoadedRemoteTemplates(true);
+      if (cancelled) {
+        return;
       }
+      if (remoteTemplatesOutcome.status !== 'success') {
+        setTemplates(listActiveClinicalDocumentTemplates());
+        return;
+      }
+      const remoteTemplates = remoteTemplatesOutcome.data;
+      setTemplates(remoteTemplates);
+      if (role !== 'admin' || remoteTemplates.length !== 0) {
+        return;
+      }
+
+      const outcome = await executeSeedClinicalDocumentTemplates(hospitalId);
+      clinicalDocumentObservability.recordOutcome('seed_clinical_document_templates', outcome, {
+        date: currentDateString,
+        context: { hospitalId },
+        allowSuccess: true,
+      });
+      if (cancelled) {
+        return;
+      }
+      if (outcome.status === 'failed') {
+        setTemplates(listActiveClinicalDocumentTemplates());
+        return;
+      }
+      setTemplates(outcome.data);
     };
 
     void loadTemplates();
@@ -124,40 +142,7 @@ export const useClinicalDocumentWorkspaceBootstrap = ({
     return () => {
       cancelled = true;
     };
-  }, [canRead, currentDateString, hospitalId, isActive]);
-
-  useEffect(() => {
-    if (
-      !shouldSeedClinicalDocumentTemplates({
-        isActive,
-        role,
-        hasLoadedRemoteTemplates,
-        remoteTemplateCount,
-      })
-    ) {
-      return;
-    }
-
-    void executeSeedClinicalDocumentTemplates(hospitalId).then(outcome => {
-      clinicalDocumentObservability.recordOutcome('seed_clinical_document_templates', outcome, {
-        date: currentDateString,
-        context: { hospitalId },
-        allowSuccess: true,
-      });
-      if (outcome.status === 'failed') {
-        setTemplates(listActiveClinicalDocumentTemplates());
-        return;
-      }
-      setTemplates(outcome.data);
-    });
-  }, [
-    currentDateString,
-    hasLoadedRemoteTemplates,
-    hospitalId,
-    isActive,
-    remoteTemplateCount,
-    role,
-  ]);
+  }, [canRead, currentDateString, hospitalId, isActive, role]);
 
   useEffect(() => {
     if (!isActive || !canRead) {

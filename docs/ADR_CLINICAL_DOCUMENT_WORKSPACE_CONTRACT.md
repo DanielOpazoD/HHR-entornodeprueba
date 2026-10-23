@@ -26,6 +26,15 @@ No new document-type behavior should be reintroduced through ad hoc `if` branche
 - Definitions and registries inside `src/features/clinical-documents/domain`
 - Repository/runtime contracts in feature services and repositories
 
+## Remote template bootstrap
+
+One effect owns the active context's template read and optional seed. Only a successful,
+empty read may seed, and only while the workspace is active, readable and administrative.
+A failed or incomplete read retains the local template fallback and never establishes an
+empty remote catalog. Hospital, role, activity or read-access changes invalidate pending
+responses before they can seed or replace the visible catalog. A seed already started
+keeps its original destination; invalidating its response does not abort the remote write.
+
 ## Invariants
 
 - New section behavior must be registered, not hard-coded in the sheet.

@@ -15,23 +15,6 @@ export const resolveSelectedClinicalTemplateId = (
   return templates[0]?.id || 'epicrisis';
 };
 
-export const shouldSeedClinicalDocumentTemplates = ({
-  isActive,
-  role,
-  hasLoadedRemoteTemplates,
-  remoteTemplateCount,
-}: {
-  isActive: boolean;
-  role: string;
-  hasLoadedRemoteTemplates: boolean;
-  remoteTemplateCount: number | null;
-}): boolean =>
-  isActive &&
-  role === 'admin' &&
-  hasLoadedRemoteTemplates &&
-  remoteTemplateCount !== null &&
-  remoteTemplateCount === 0;
-
 const normalizePatientRut = (rut?: string): string =>
   String(rut || '')
     .replace(/[^0-9kK]/g, '')

@@ -4,7 +4,6 @@ import {
   filterClinicalDocumentsForCurrentEpisode,
   resolveNextSelectedClinicalDocumentId,
   resolveSelectedClinicalTemplateId,
-  shouldSeedClinicalDocumentTemplates,
 } from '@/features/clinical-documents/hooks/clinicalDocumentWorkspaceBootstrapSupport';
 import { createClinicalDocumentDraft } from '@/features/clinical-documents/domain/factories';
 
@@ -67,25 +66,6 @@ describe('clinicalDocumentWorkspaceBootstrapSupport', () => {
         'missing'
       )
     ).toBe('epicrisis');
-  });
-
-  it('detects when template seeding should run for admin bootstrap', () => {
-    expect(
-      shouldSeedClinicalDocumentTemplates({
-        isActive: true,
-        role: 'admin',
-        hasLoadedRemoteTemplates: true,
-        remoteTemplateCount: 0,
-      })
-    ).toBe(true);
-    expect(
-      shouldSeedClinicalDocumentTemplates({
-        isActive: true,
-        role: 'doctor_urgency',
-        hasLoadedRemoteTemplates: true,
-        remoteTemplateCount: 0,
-      })
-    ).toBe(false);
   });
 
   it('keeps selection when still present and falls back to first document otherwise', () => {

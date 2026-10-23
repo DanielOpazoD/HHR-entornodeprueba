@@ -21,6 +21,15 @@
   - test de integridad del registry
   - test de compatibilidad si cambia `schemaVersion`
 
+## Catálogo de plantillas
+
+- El bootstrap resuelve lectura y seed dentro de un único ciclo por contexto. Un error
+  de lectura conserva el respaldo local y no equivale a un catálogo remoto vacío.
+- Solo un listado exitoso y vacío habilita seed para un administrador con lectura y
+  workspace activo. No se mantienen contadores ni marcas de carga fuera de ese ciclo.
+- Cambiar hospital, rol, actividad o permiso de lectura invalida las respuestas pendientes.
+  Una escritura iniciada conserva su destino original, pero no publica una respuesta obsoleta.
+
 ## Editor de texto enriquecido (rich text)
 
 - **Panel de formato flotante:** el panel avanzado (`ClinicalDocumentFormattingToolbar`)
