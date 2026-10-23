@@ -10,6 +10,7 @@ import type {
   PatientRowPatientPatch,
 } from '@/features/census/components/patient-row/patientRowContracts';
 import { createScopedLogger, type ScopedLogger } from '@/services/utils/loggerScope';
+import { parseCalendarDateUtcNoon } from '@/utils/clinicalDateUtils';
 
 const patientDemographicsEpisodeSyncLogger = createScopedLogger('PatientDemographicsEpisodeSync');
 
@@ -49,6 +50,28 @@ interface HarmonizeEpisodeDemographicsHistoryInput {
   dailyRecordWriteRepository?: EpisodeDemographicsWriteRepository;
   logger?: ScopedLogger;
 }
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const DAY_MS = 24 * 60 * 60 * 1000;
+// Episodes last days or weeks; past a year the full listing below is the cheaper read.
+const MAX_EPISODE_CALENDAR_DAYS = 366;
+
+/**
+ * Calendar days from the first day the patient was seen up to, but not including, today. Reading
+ * each day directly (a day without a census reads as missing) replaces listing every stored day,
+ * which downloads the whole census history. Null keeps that listing for non-ISO or very long spans.
+ */
+const listEpisodeCalendarDays = (firstSeenDate: string, currentDate: string): string[] | null => {
+  if (!ISO_DATE.test(firstSeenDate) || !ISO_DATE.test(currentDate)) return null;
+  const start = parseCalendarDateUtcNoon(firstSeenDate);
+  const end = parseCalendarDateUtcNoon(currentDate);
+  if (start === null || end === null) return null;
+  const span = Math.round((end - start) / DAY_MS);
+  if (span <= 0 || span > MAX_EPISODE_CALENDAR_DAYS) return null;
+  return Array.from({ length: span }, (_, index) =>
+    new Date(start + index * DAY_MS).toISOString().slice(0, 10)
+  );
+};
 
 const normalizeRut = (rut?: string): string =>
   (rut ?? '')
@@ -177,10 +200,11 @@ export const harmonizeEpisodeDemographicsHistory = async ({
     return;
   }
 
-  const availableDates = await dailyRecordReadRepository.getAvailableDates();
-  const episodeDates = availableDates
-    .filter(date => date >= sourceFirstSeenDate && date < currentDate)
-    .sort();
+  const episodeDates =
+    listEpisodeCalendarDays(sourceFirstSeenDate, currentDate) ??
+    (await dailyRecordReadRepository.getAvailableDates())
+      .filter(date => date >= sourceFirstSeenDate && date < currentDate)
+      .sort();
 
   for (const date of episodeDates) {
     const record = await dailyRecordReadRepository.getForDate(date);

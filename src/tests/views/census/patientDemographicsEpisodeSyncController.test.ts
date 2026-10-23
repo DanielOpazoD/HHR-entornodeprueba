@@ -146,6 +146,85 @@ describe('patientDemographicsEpisodeSyncController', () => {
     });
   });
 
+  const episodePatient = (firstSeenDate: string) =>
+    DataFactory.createMockPatient('R2', {
+      patientName: 'Nombre Antiguo',
+      firstSeenDate,
+      admissionDate: firstSeenDate,
+      rut: '12.345.678-9',
+    });
+  const dayWith = (date: string, firstSeenDate: string) =>
+    DataFactory.createMockDailyRecord(date, {
+      beds: {
+        R4: DataFactory.createMockPatient('R4', {
+          patientName: 'Nombre Antiguo',
+          firstSeenDate,
+          admissionDate: firstSeenDate,
+          rut: '12.345.678-9',
+        }),
+      },
+    });
+
+  it('reads only the calendar days of the episode, never the whole census history', async () => {
+    const getAvailableDates = vi.fn().mockRejectedValue(new Error('must not list all history'));
+    const getForDate = vi.fn(async (date: string) =>
+      // A day without a census reads as missing and is simply skipped.
+      date === '2026-04-10' ? null : dayWith(date, '2026-04-09')
+    );
+    const updatePartial = vi.fn().mockResolvedValue(undefined);
+
+    await harmonizeEpisodeDemographicsHistory({
+      currentDate: '2026-04-12',
+      sourcePatient: episodePatient('2026-04-09'),
+      updatedFields: { patientName: 'Nombre Corregido' },
+      dailyRecordReadRepository: { getAvailableDates, getForDate },
+      dailyRecordWriteRepository: { updatePartial },
+    });
+
+    expect(getAvailableDates).not.toHaveBeenCalled();
+    expect(getForDate.mock.calls.map(([date]) => date)).toEqual([
+      '2026-04-09',
+      '2026-04-10',
+      '2026-04-11',
+    ]);
+    expect(updatePartial.mock.calls.map(([date]) => date)).toEqual(['2026-04-09', '2026-04-11']);
+  });
+
+  it.each([
+    ['2026-12-30', '2027-01-02', ['2026-12-30', '2026-12-31', '2027-01-01']],
+    // Across Rapa Nui's April daylight-saving change: still one read per calendar day.
+    ['2026-04-03', '2026-04-07', ['2026-04-03', '2026-04-04', '2026-04-05', '2026-04-06']],
+  ])('walks %s to %s one calendar day at a time', async (firstSeenDate, currentDate, days) => {
+    const getForDate = vi.fn().mockResolvedValue(null);
+
+    await harmonizeEpisodeDemographicsHistory({
+      currentDate,
+      sourcePatient: episodePatient(firstSeenDate),
+      updatedFields: { patientName: 'Nombre Corregido' },
+      dailyRecordReadRepository: { getAvailableDates: vi.fn(), getForDate },
+      dailyRecordWriteRepository: { updatePartial: vi.fn() },
+    });
+
+    expect(getForDate.mock.calls.map(([date]) => date)).toEqual(days);
+  });
+
+  it.each([
+    ['a non-ISO first day', '09-04-2026', '2026-04-11'],
+    ['an episode longer than a year', '2025-01-01', '2026-04-11'],
+  ])('keeps the stored-day listing for %s', async (_case, firstSeenDate, currentDate) => {
+    const getAvailableDates = vi.fn().mockResolvedValue([]);
+
+    await harmonizeEpisodeDemographicsHistory({
+      currentDate,
+      sourcePatient: episodePatient(firstSeenDate),
+      updatedFields: { patientName: 'Nombre Corregido' },
+      dailyRecordReadRepository: { getAvailableDates, getForDate: vi.fn() },
+      dailyRecordWriteRepository: { updatePartial: vi.fn() },
+    });
+
+    expect(getAvailableDates).toHaveBeenCalledOnce();
+  });
+
   it('skips history propagation when there is no firstSeenDate anchor', async () => {
     const updatePartial = vi.fn().mockResolvedValue(undefined);
 
@@ -179,8 +258,8 @@ describe('patientDemographicsEpisodeSyncController', () => {
         }),
         updatedFields: { patientName: 'Corregido' },
         dailyRecordReadRepository: {
-          getAvailableDates: vi.fn().mockRejectedValue(new Error('boom')),
-          getForDate: vi.fn(),
+          getAvailableDates: vi.fn(),
+          getForDate: vi.fn().mockRejectedValue(new Error('boom')),
         },
         dailyRecordWriteRepository: {
           updatePartial: vi.fn(),
