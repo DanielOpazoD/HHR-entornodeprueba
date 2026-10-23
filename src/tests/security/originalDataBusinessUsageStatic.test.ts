@@ -54,6 +54,9 @@ const ALLOWED_ORIGINAL_DATA_REFERENCES = [
   // Integrity scoring recognizes a newly persisted movement snapshot as evidence that a
   // vacated patient was preserved rather than erased during a multi-discharge sync.
   'src/utils/integrityGuard.ts',
+  // Measurement only: daily-record size telemetry counts the bytes of the clinical-sync derived
+  // fields inside preserved snapshots. No value is read for meaning or leaves the device.
+  'src/services/storage/firestore/dailyRecordSizeTelemetry.ts',
   'src/types/virtual-minsal-shared.d.ts',
 ];
 

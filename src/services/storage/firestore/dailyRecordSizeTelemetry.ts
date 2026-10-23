@@ -24,8 +24,13 @@ const REPORTED_VERSION_COUNTS = new Set([1, 10, 50, 200]);
 export interface DailyRecordDocumentSize {
   /** Whole document as UTF-8 JSON bytes, an approximation of Firestore's own size. */
   sizeBytes: number;
-  /** Heavy derived per-bed fields, cribs included. */
+  /** Heavy derived per-bed fields, cribs included: the sum of the three below. */
   derivedBytes: number;
+  checkpointBytes: number;
+  vitalsHistoryBytes: number;
+  scoresBytes: number;
+  /** The same derived fields inside discharge, transfer and CMA patient snapshots. */
+  movementDerivedBytes: number;
   /** The Rayen sync log embedded in the day. */
   syncHistoryBytes: number;
   occupiedCount: number;
@@ -39,23 +44,50 @@ const jsonBytes = (value: unknown): number =>
 const isPlainRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
+type DerivedField = (typeof HEAVY_DERIVED_BED_FIELDS)[number];
+
+/** Bytes per derived field held by a patient and its crib. */
+const derivedFieldBytes = (patient: unknown): Record<DerivedField, number> => {
+  const totals = { clinicalSyncCheckpoint: 0, vitalSignsHistory: 0, evaluationScores: 0 };
+  if (!isPlainRecord(patient)) return totals;
+  for (const holder of [patient, patient.clinicalCrib]) {
+    if (!isPlainRecord(holder)) continue;
+    for (const field of HEAVY_DERIVED_BED_FIELDS) totals[field] += jsonBytes(holder[field]);
+  }
+  return totals;
+};
+
+const sumFields = (totals: Record<DerivedField, number>): number =>
+  totals.clinicalSyncCheckpoint + totals.vitalSignsHistory + totals.evaluationScores;
+
 export const measureDailyRecordDocument = (
   data: Record<string, unknown>
 ): DailyRecordDocumentSize => {
-  let derivedBytes = 0;
+  const bedTotals = { clinicalSyncCheckpoint: 0, vitalSignsHistory: 0, evaluationScores: 0 };
   let occupiedCount = 0;
   const beds = isPlainRecord(data.beds) ? Object.values(data.beds) : [];
   for (const bed of beds) {
     if (!isPlainRecord(bed)) continue;
     if (typeof bed.patientName === 'string' && bed.patientName.trim()) occupiedCount += 1;
-    for (const holder of [bed, bed.clinicalCrib]) {
-      if (!isPlainRecord(holder)) continue;
-      for (const field of HEAVY_DERIVED_BED_FIELDS) derivedBytes += jsonBytes(holder[field]);
+    const totals = derivedFieldBytes(bed);
+    for (const field of HEAVY_DERIVED_BED_FIELDS) bedTotals[field] += totals[field];
+  }
+  let movementDerivedBytes = 0;
+  for (const list of [data.discharges, data.transfers, data.cma]) {
+    if (!Array.isArray(list)) continue;
+    for (const movement of list) {
+      if (isPlainRecord(movement)) {
+        movementDerivedBytes += sumFields(derivedFieldBytes(movement.originalData));
+      }
     }
   }
   return {
     sizeBytes: jsonBytes(data),
-    derivedBytes,
+    derivedBytes: sumFields(bedTotals),
+    checkpointBytes: bedTotals.clinicalSyncCheckpoint,
+    vitalsHistoryBytes: bedTotals.vitalSignsHistory,
+    scoresBytes: bedTotals.evaluationScores,
+    movementDerivedBytes,
     syncHistoryBytes: jsonBytes(data.rayenSyncHistory),
     occupiedCount,
   };

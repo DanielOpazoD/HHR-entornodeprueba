@@ -23,6 +23,7 @@ const heavy = {
   evaluationScores: { braden: 18 },
 };
 const cribHeavy = { vitalSignsHistory: [{ at: '09:00', heartRate: 140 }] };
+const movementHeavy = { evaluationScores: { braden: 12 } };
 const syntheticDay = (lastUpdated: string, extra: Record<string, unknown> = {}) => ({
   date: '2026-10-23',
   lastUpdated,
@@ -37,6 +38,8 @@ const syntheticDay = (lastUpdated: string, extra: Record<string, unknown> = {}) 
     R2: { patientName: '  ', rut: '' },
   },
   rayenSyncHistory: [{ runId: 'run-1', status: 'ok' }],
+  discharges: [{ id: 'd1', originalData: { patientName: 'Alta Sintética', ...movementHeavy } }],
+  transfers: [{ id: 't1' }],
   ...extra,
 });
 
@@ -49,19 +52,26 @@ describe('daily record size telemetry', () => {
     const { measureDailyRecordDocument } = await loadTelemetry();
     const day = syntheticDay('2026-10-23T08:00:00Z');
 
+    const checkpointBytes = bytes(heavy.clinicalSyncCheckpoint);
+    const vitalsHistoryBytes = bytes(heavy.vitalSignsHistory) + bytes(cribHeavy.vitalSignsHistory);
+    const scoresBytes = bytes(heavy.evaluationScores);
     expect(measureDailyRecordDocument(day)).toEqual({
       sizeBytes: bytes(day),
-      derivedBytes:
-        bytes(heavy.clinicalSyncCheckpoint) +
-        bytes(heavy.vitalSignsHistory) +
-        bytes(heavy.evaluationScores) +
-        bytes(cribHeavy.vitalSignsHistory),
+      derivedBytes: checkpointBytes + vitalsHistoryBytes + scoresBytes,
+      checkpointBytes,
+      vitalsHistoryBytes,
+      scoresBytes,
+      movementDerivedBytes: bytes(movementHeavy.evaluationScores),
       syncHistoryBytes: bytes(day.rayenSyncHistory),
       occupiedCount: 1,
     });
     expect(measureDailyRecordDocument({ beds: ['not', 'a', 'map'] })).toEqual({
       sizeBytes: bytes({ beds: ['not', 'a', 'map'] }),
       derivedBytes: 0,
+      checkpointBytes: 0,
+      vitalsHistoryBytes: 0,
+      scoresBytes: 0,
+      movementDerivedBytes: 0,
       syncHistoryBytes: 0,
       occupiedCount: 0,
     });
@@ -138,6 +148,10 @@ describe('daily record size telemetry', () => {
         sizeBytes: event.context.sizeBytes,
         derivedBytes: event.context.derivedBytes,
         syncHistoryBytes: event.context.syncHistoryBytes,
+        checkpointBytes: event.context.checkpointBytes,
+        vitalsHistoryBytes: event.context.vitalsHistoryBytes,
+        scoresBytes: event.context.scoresBytes,
+        movementDerivedBytes: event.context.movementDerivedBytes,
         occupiedCount: 1,
         count: 1,
       },

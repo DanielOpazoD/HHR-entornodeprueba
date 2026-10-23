@@ -135,7 +135,7 @@ const DURATION_KEYS = tokens(`
 `);
 const SIZE_KEYS = tokens(`
   sizeBytes byteSize uploadBytes maxBytes queryLength sourceTextLength maxLength derivedBytes
-  syncHistoryBytes
+  syncHistoryBytes checkpointBytes vitalsHistoryBytes scoresBytes movementDerivedBytes
 `);
 const [MAX_COUNT, MAX_DURATION_MS, MAX_SIZE] = [1_000_000, 86_400_000, 1_073_741_824];
 
