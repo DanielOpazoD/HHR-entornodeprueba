@@ -143,6 +143,18 @@ describe('Syslab extension page bridge', () => {
     });
   });
 
+  it('preserves explicit pending order acknowledgements separately from reports', async () => {
+    installBridgeResponse(() => ({
+      ok: true,
+      analysis: { reports: [], omittedExamIds: ['43091284'] },
+    }));
+    await expect(fetchSyslabDetailsThroughExtension([OPAQUE_LINK])).resolves.toEqual({
+      success: true,
+      data: [],
+      omittedUrls: [OPAQUE_LINK],
+    });
+  });
+
   it('rejects oversized detail selections instead of returning a partial analysis', async () => {
     const links = Array.from(
       { length: 25 },

@@ -1,6 +1,10 @@
 import type { SyslabExamItem, SyslabExamDetail, LabResultRow } from '@/types/domain/labExamTypes';
 import type { LabMicrobiologyEntry } from '@/types/domain/labAnalyticsTypes';
-import { parseDateDDMMYYYY, normalizeAnalysisName } from './labFormattingController';
+import {
+  parseDateDDMMYYYY,
+  normalizeAnalysisName,
+  normalizeLabUnit,
+} from './labFormattingController';
 import {
   buildMicrobiologyEntriesForExam,
   resolveMicrobiologyCategoriesForExam,
@@ -107,6 +111,7 @@ export const processLabExamDetails = (
       collectExamFinding(
         {
           ...rawFinding,
+          unit: normalizeLabUnit(rawFinding.unit || ''),
           analysis: normalizeAnalysisName(rawFinding.analysis, rawFinding.section),
         },
         detailContext

@@ -237,12 +237,17 @@ export const fetchSyslabDetailsThroughExtension = async (
   const error = responseError(result, 'La extensión no pudo leer los informes de Syslab.');
   if (error) throw new Error(error);
   const analysis = result.response?.analysis as
-    | { reports?: Array<{ examId?: unknown; findings?: unknown[] }> }
+    | { reports?: Array<{ examId?: unknown; findings?: unknown[] }>; omittedExamIds?: unknown[] }
     | undefined;
   const reports = Array.isArray(analysis?.reports) ? analysis.reports : [];
   const linksByExamId = new Map(links.map(link => [link.match(/\/exam\/(\d+)$/)?.[1] || '', link]));
   return {
     success: result.response?.ok === true,
+    ...(analysis?.omittedExamIds?.length
+      ? {
+          omittedUrls: analysis.omittedExamIds.map(id => linksByExamId.get(String(id)) || ''),
+        }
+      : {}),
     data: reports.map(report => ({
       url: linksByExamId.get(String(report.examId || '')) || '',
       findings: Array.isArray(report.findings) ? report.findings : [],
