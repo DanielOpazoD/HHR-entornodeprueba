@@ -120,7 +120,7 @@ describe('firestoreRecordWrites', () => {
       undefined,
       'El registro ha sido modificado por otro usuario. Por favor recarga la página.',
       'save',
-      undefined
+      { assertSafeOverwrite: undefined, forceHistorySnapshot: false }
     );
     expect(setDoc).not.toHaveBeenCalled();
     expect(result).toMatchObject({
@@ -210,7 +210,7 @@ describe('firestoreRecordWrites', () => {
       '2026-03-16T10:00:00.000Z',
       'El registro ha sido modificado por otro usuario. Por favor recarga la página.',
       'save',
-      undefined
+      { assertSafeOverwrite: undefined, forceHistorySnapshot: false }
     );
     expect(result).toBeUndefined();
   });

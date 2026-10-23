@@ -12,6 +12,10 @@ import { COLLECTIONS, getActiveHospitalId, HOSPITAL_COLLECTIONS } from '@/consta
 import { createOperationalError } from '@/services/observability/operationalError';
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import { getRecordDocRef } from '@/services/storage/firestore/firestoreShared';
+import {
+  isHistorySnapshotDue,
+  markHistorySnapshotTaken,
+} from '@/services/storage/firestore/historySnapshotCadence';
 import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/firestoreServiceRuntime';
 import type { FirestoreServiceRuntimePort } from '@/services/storage/firestore/ports/firestoreServiceRuntimePort';
 import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
@@ -113,7 +117,7 @@ export const assertFirestoreConcurrency = async (
  * Writes a daily record using an atomic Firestore transaction that:
  *   1. Reads the current server state (never cache)
  *   2. Throws ConcurrencyError if the remote is newer than expectedLastUpdated
- *   3. Writes a history snapshot of the pre-write state
+ *   3. Writes a history snapshot of the pre-write state, at most hourly (historySnapshotCadence)
  *   4. Commits the new record
  *
  * This replaces the previous assertFirestoreConcurrency + saveHistorySnapshot + setDoc
@@ -125,12 +129,22 @@ export const saveRecordAtomically = async (
   expectedLastUpdated: string | undefined,
   conflictMessage: string,
   contextLabel: string,
-  assertSafeOverwrite?: (remoteData: Record<string, unknown>) => void,
+  {
+    assertSafeOverwrite,
+    forceHistorySnapshot = false,
+  }: {
+    assertSafeOverwrite?: (remoteData: Record<string, unknown>) => void;
+    /** Restores overwrite live data, so they always keep the previous state. */
+    forceHistorySnapshot?: boolean;
+  } = {},
   runtime: FirestoreServiceRuntimePort = defaultFirestoreServiceRuntime
 ): Promise<void> => {
   const db = runtime.getDb();
+  const captureHistory = forceHistorySnapshot || isHistorySnapshotDue(docRef.path);
+  let historyWritten = false;
 
   await runTransaction(db, async transaction => {
+    historyWritten = false;
     const snap = await transaction.get(docRef);
 
     // Refuse to full-replace an existing document without a base version: with no
@@ -196,21 +210,26 @@ export const saveRecordAtomically = async (
       // and closes the TOCTOU window between the pre-write integrity check and this commit.
       assertSafeOverwrite?.(snap.data() as Record<string, unknown>);
 
-      const historyRef = doc(collection(docRef, 'history'), new Date().toISOString());
-      transaction.set(historyRef, {
-        ...(snap.data() as Record<string, unknown>),
-        snapshotTimestamp: Timestamp.now(),
-      });
+      if (captureHistory) {
+        const historyRef = doc(collection(docRef, 'history'), new Date().toISOString());
+        transaction.set(historyRef, {
+          ...(snap.data() as Record<string, unknown>),
+          snapshotTimestamp: Timestamp.now(),
+        });
+        historyWritten = true;
+      }
     }
 
     transaction.set(docRef, record);
   });
+  if (historyWritten) markHistorySnapshotTaken(docRef.path);
 };
 
 /**
  * Applies a dot-notation partial update in the same transaction that verifies the caller's base
- * version and snapshots the previous document. This is reserved for mutations whose invariant
- * spans more than one field (for example, moving one egreso classification to another).
+ * version and, at most hourly, snapshots the previous document. This is reserved for mutations
+ * whose invariant spans more than one field (for example, moving one egreso classification to
+ * another).
  */
 export const updateRecordPartiallyAtomically = async (
   docRef: DocumentReference,
@@ -221,8 +240,11 @@ export const updateRecordPartiallyAtomically = async (
   runtime: FirestoreServiceRuntimePort = defaultFirestoreServiceRuntime
 ): Promise<void> => {
   const db = runtime.getDb();
+  const captureHistory = isHistorySnapshotDue(docRef.path);
+  let historyWritten = false;
 
   await runTransaction(db, async transaction => {
+    historyWritten = false;
     const snap = await transaction.get(docRef);
 
     // A partial mutation can never reconstruct a deleted daily record safely. Reclassification
@@ -284,18 +306,27 @@ export const updateRecordPartiallyAtomically = async (
       throw new ConcurrencyError(conflictMessage);
     }
 
-    const historyRef = doc(collection(docRef, 'history'), new Date().toISOString());
-    transaction.set(historyRef, {
-      ...(snap.data() as Record<string, unknown>),
-      snapshotTimestamp: Timestamp.now(),
-    });
+    if (captureHistory) {
+      const historyRef = doc(collection(docRef, 'history'), new Date().toISOString());
+      transaction.set(historyRef, {
+        ...(snap.data() as Record<string, unknown>),
+        snapshotTimestamp: Timestamp.now(),
+      });
+      historyWritten = true;
+    }
     transaction.update(docRef, partialData);
   });
+  if (historyWritten) markHistorySnapshotTaken(docRef.path);
 };
 
-export const saveHistorySnapshot = async (date: string): Promise<void> => {
+/** `force` is for explicit 'snapshot' requests, such as the one copy before an import run. */
+export const saveHistorySnapshot = async (
+  date: string,
+  { force = false }: { force?: boolean } = {}
+): Promise<void> => {
   try {
     const docRef = getRecordDocRef(date);
+    if (!force && !isHistorySnapshotDue(docRef.path)) return;
     const docSnap = await getDoc(docRef);
 
     if (!docSnap.exists()) {
@@ -309,6 +340,7 @@ export const saveHistorySnapshot = async (date: string): Promise<void> => {
       ...data,
       snapshotTimestamp: Timestamp.now(),
     });
+    markHistorySnapshotTaken(docRef.path);
   } catch (error) {
     recordOperationalErrorTelemetry('firestore', 'save_history_snapshot', error, {
       code: 'firestore_history_snapshot_failed',

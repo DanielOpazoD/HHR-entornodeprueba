@@ -60,6 +60,8 @@ export interface PartialUpdateDailyRecordOptions {
   /**
    * Automated multi-patch jobs capture one record snapshot before their first successful write and
    * skip repeated multi-megabyte snapshots for the remaining patches in the same logical run.
+   * Without a policy, direct writes copy at most hourly per device (historySnapshotCadence):
+   * 'snapshot' always copies and 'skip' never does.
    */
   historyPolicy?: 'snapshot' | 'skip';
   /**

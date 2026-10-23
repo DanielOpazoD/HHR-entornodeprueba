@@ -13,10 +13,12 @@ A day's census lives in a single Firestore document:
 concurrency token; writes made by the server authority also keep `meta.revision`,
 `meta.lastMutationId` and `meta.lastChangedPaths`. `beds` is a map of bed-id → patient (each
 bed may also carry a nested `clinicalCrib` patient). Earlier versions go to the `history`
-subcollection, but not on every path: `saveRecordAtomically` and `updateRecordPartiallyAtomically`
-snapshot inside their transaction, a plain `updateDoc` snapshots just before unless
-`historyPolicy: 'skip'`, the authority callables write a slim snapshot after the commit, and the
-direct queue publish writes none.
+subcollection, but not on every path. Client writes copy at most once per hour per document and
+device (`historySnapshotCadence`): `saveRecordAtomically` and `updateRecordPartiallyAtomically`
+inside their transaction, a plain `updateDoc` just before. `historyPolicy: 'snapshot'` always
+copies (version restores, backup restores and the first write of an automated run) and `'skip'`
+never does. The authority callables write a slim snapshot after the commit, and the direct queue
+publish writes none.
 
 ## Who writes: authority routing
 

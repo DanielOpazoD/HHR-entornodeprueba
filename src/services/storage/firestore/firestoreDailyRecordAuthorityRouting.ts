@@ -38,7 +38,7 @@ export interface DailyRecordPartialWriteOptions {
   syncContract?: SyncTaskContract;
   /** Enforces the base version inside the same transaction as the multi-field patch. */
   requireAtomicCas?: boolean;
-  /** See PartialUpdateDailyRecordOptions.historyPolicy. Defaults to the safe `snapshot` behavior. */
+  /** See PartialUpdateDailyRecordOptions.historyPolicy. Without it, copies follow the hourly cadence. */
   historyPolicy?: 'snapshot' | 'skip';
   /** Frozen Rayen run policy revalidated atomically with the legacy clinical write. */
   rayenClinicalWriteGuard?: RayenClinicalWriteGuard;
@@ -60,6 +60,11 @@ export interface DailyRecordSaveWriteOptions {
   assertSafeOverwrite?: (remoteData: Record<string, unknown>) => void;
   /** Intent reported to the clinical authority; `backup_restore` recreates a day with its clinical fields. */
   origin?: 'direct_save' | 'backup_restore';
+  /**
+   * 'snapshot' always copies the live document to `history` before overwriting it, as restores
+   * need. Otherwise copies follow the hourly cadence (historySnapshotCadence).
+   */
+  historyPolicy?: 'snapshot';
 }
 
 interface SpecialistMedicalHandoffCallablePayload {

@@ -24,6 +24,10 @@ Los índices desplegados son los cuatro compuestos del repositorio; no había
 exenciones de los campos grandes del censo. Las copias completas se repiten
 en `history` y heredan la indexación automática.
 
+Desde el 23-10-2026 el navegador guarda en `history` como máximo una copia por hora de cada día
+y equipo. Las restauraciones de versión o de respaldo y la primera escritura de cada importación
+automática siguen copiando siempre. Las copias ya existentes no cambian.
+
 El muestreo de diez o menos documentos por colección es orientativo, no una
 medición exacta del tamaño total de cada colección. Se registraron sólo conteos,
 tamaños y nombres de campos, sin valores clínicos ni credenciales.
