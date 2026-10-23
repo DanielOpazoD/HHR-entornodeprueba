@@ -8,7 +8,7 @@ import {
 
 const E2E_DATE = process.env.E2E_FIXED_DATE ?? '2026-02-20';
 
-const buildSmokeRecord = (date: string) => {
+const buildSmokeRecord = (date: string, clinicalEpisodeId?: string) => {
   const canonical = buildCanonicalE2ERecord(date);
   const beds = canonical.beds as Record<string, Record<string, unknown>>;
 
@@ -24,6 +24,7 @@ const buildSmokeRecord = (date: string) => {
         status: 'Estable',
         age: '45',
         admissionDate: date,
+        ...(clinicalEpisodeId ? { clinicalEpisodeId } : {}),
       },
     },
   });
@@ -36,11 +37,11 @@ const expectAuthenticatedAdminShell = async (page: Page) => {
   );
 };
 
-const openAuthenticatedCensus = async (page: Page) => {
+const openAuthenticatedCensus = async (page: Page, clinicalEpisodeId?: string) => {
   await bootstrapSeededRecord(page, {
     role: 'admin',
     date: E2E_DATE,
-    record: buildSmokeRecord(E2E_DATE),
+    record: buildSmokeRecord(E2E_DATE, clinicalEpisodeId),
     useRuntimeOverride: true,
     forceEditableRecord: true,
   });
@@ -85,6 +86,60 @@ const assertExportEntrypointIsOperational = async (page: Page) => {
 };
 
 test.describe('Authenticated clinical smoke', () => {
+  test('preserves empty plan layout choices across autosave and reload', async ({
+    page,
+  }, testInfo) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openAuthenticatedCensus(page, `ep_document_layout_${testInfo.retry}`);
+    await openClinicalDocumentsFromR1(page);
+    await page.getByRole('button', { name: /Crear documento/i }).click();
+
+    const restoreStructured = page.getByRole('button', {
+      name: 'Volver a indicaciones al alta estructuradas',
+      exact: true,
+    });
+    const simplifyPlan = page.getByRole('button', {
+      name: 'Simplificar indicaciones al alta',
+      exact: true,
+    });
+    const unifiedEditor = page.locator('[contenteditable="true"][data-section-editor="plan"]');
+    const structuredEditors = page.locator(
+      '[contenteditable="true"][data-section-editor^="plan:"]'
+    );
+    const autosaveStatus = page.locator('[data-autosave-phase]');
+    const reloadAndReopenDocuments = async () => {
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await expect(page.getByTestId('census-table')).toBeVisible({ timeout: 20000 });
+      await expectAuthenticatedAdminShell(page);
+      await openClinicalDocumentsFromR1(page);
+    };
+
+    await expect(restoreStructured).toBeVisible();
+    await expect(unifiedEditor).toHaveText('');
+    await restoreStructured.click();
+    await expect(simplifyPlan).toBeVisible();
+    await expect(structuredEditors).toHaveCount(3);
+    await expect(autosaveStatus).toHaveAttribute('data-autosave-phase', 'saved');
+
+    await reloadAndReopenDocuments();
+    await expect(simplifyPlan).toBeVisible();
+    await expect(structuredEditors).toHaveCount(3);
+    for (const editor of await structuredEditors.all()) {
+      await expect(editor).toHaveText('');
+    }
+
+    await simplifyPlan.click();
+    await expect(restoreStructured).toBeVisible();
+    await expect(unifiedEditor).toHaveText('');
+    await expect(autosaveStatus).toHaveAttribute('data-autosave-phase', 'saved');
+
+    await reloadAndReopenDocuments();
+    await expect(restoreStructured).toBeVisible();
+    await expect(unifiedEditor).toHaveText('');
+    await expect(structuredEditors).toHaveCount(0);
+  });
+
   test('starts a fresh editor session and closes laboratory when duplicating a document', async ({
     page,
   }) => {
