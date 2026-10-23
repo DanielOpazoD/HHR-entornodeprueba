@@ -7,6 +7,7 @@ import { isDailyRecordWriteRejectedResult } from '@/services/repositories/contra
 import type { RayenClinicalWriteGuard } from '@/types/domain/rayenSync';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import { rebuildClinicalEnrichmentOperations } from '../domain/rebuildClinicalEnrichmentOperations';
+import { readClinicalFillDerivedView } from './clinicalFillDerivedView';
 
 const isConcurrencyFailure = (error: unknown): boolean =>
   error instanceof Error && error.name === 'ConcurrencyError';
@@ -21,9 +22,18 @@ const writeFreshClinicalPatch = async (
   const fresh = await dailyRecord.getForDateWithMeta(target.censusDate, true);
   if (!fresh.record) throw new Error('No se pudo obtener la versión vigente del censo.');
   assertClinicalFillPatchTarget(fresh.record, target);
+  // D10: on a split day the rebuild compares against this episode's document, read from the
+  // server; a document ahead of the day re-reads the day from the server once, then fails closed.
+  // The write below keeps the un-overlaid day as its base: that one reaches IndexedDB and the queue.
+  const current = await readClinicalFillDerivedView(
+    fresh.record,
+    () => dailyRecord.getAuthoritativeForDate(target.censusDate),
+    target.clinicalEpisodeId
+  );
+  if (current.day !== fresh.record) assertClinicalFillPatchTarget(current.record, target);
   const [operation] = rebuildClinicalEnrichmentOperations({
     baseRecord,
-    currentRecord: fresh.record,
+    currentRecord: current.record,
     operations: [{ patch, target }],
   });
   if (!operation) return;

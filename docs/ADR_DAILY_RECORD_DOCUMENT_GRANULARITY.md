@@ -57,7 +57,9 @@ y conteos:
 - `movementDerivedBytes`: los mismos datos dentro de las fotos de altas, traslados y CMA;
 - `syncHistoryBytes`: el registro `rayenSyncHistory`;
 - `occupiedCount`: camas ocupadas;
-- `count`: versiones distintas que el equipo recibió en esa sesión.
+- `count`: versiones distintas que el equipo recibió en esa sesión;
+- `splitDay`: el día tiene el marcador de la fase 1a, es decir, sus campos movidos viven en
+  documentos por episodio (`DESIGN_DAILY_RECORD_PHASE1_CLINICAL_DERIVED.md`).
 
 A partir de 700 KB el evento es `degraded`, para actuar antes del límite de 1 MiB. Los eventos se
 ven en el registro de la función Netlify `operational-telemetry` y en Observabilidad del navegador.

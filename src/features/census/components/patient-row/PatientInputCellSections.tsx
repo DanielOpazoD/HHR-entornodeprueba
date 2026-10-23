@@ -7,6 +7,7 @@ import { DevicesCell } from './DevicesCell';
 import { ScoresCell } from './ScoresCell';
 import { UpcChecklistCell } from './UpcChecklistCell';
 import { ClinicalInitialBlockCells } from './ClinicalInitialBlockCells';
+import { useClinicalDerivedDayGeneration } from './clinicalDerivedDayContext';
 import type {
   PatientInputClinicalSectionBindings,
   PatientInputFlagsSectionBindings,
@@ -140,36 +141,46 @@ export const PatientInputClinicalSection: React.FC<
 
 export const PatientInputFlowSection: React.FC<
   PatientInputFlowSectionBindings & { accessProfile?: CensusAccessProfile }
-> = ({ shared, onChange, accessProfile = 'default' }) => (
-  <>
-    {/* Rediseño censo 2026 "centro de vigilancia": la columna de Ingreso se reutiliza para los
-        SIGNOS VITALES (PA·FC·SAT·T°). La fecha de ingreso se muestra junto al RUT en la celda
-        "Paciente" (PatientIdentityCell). AdmissionInput se conserva para reactivación futura. */}
-    <VitalsCell data={shared.data} isSubRow={shared.isSubRow} isEmpty={shared.isEmpty} />
-    {!isSpecialistCensusAccessProfile(accessProfile) && (
-      <>
-        <DevicesCell
-          data={shared.data}
-          isSubRow={shared.isSubRow}
-          isEmpty={shared.isEmpty}
-          readOnly={shared.isLocked}
-          currentDateString={shared.currentDateString}
-          onDevicesChange={onChange.devices}
-          onDeviceDetailsChange={onChange.deviceDetails}
-          onDeviceHistoryChange={onChange.deviceHistory}
-          onDeviceBundleChange={onChange.multiple}
-        />
-        <ScoresCell
-          data={shared.data}
-          isSubRow={shared.isSubRow}
-          isEmpty={shared.isEmpty}
-          readOnly={shared.isLocked}
-          currentDateString={shared.currentDateString}
-        />
-      </>
-    )}
-  </>
-);
+> = ({ shared, onChange, accessProfile = 'default' }) => {
+  const layoutGeneration = useClinicalDerivedDayGeneration();
+  return (
+    <>
+      {/* Rediseño censo 2026 "centro de vigilancia": la columna de Ingreso se reutiliza para los
+          SIGNOS VITALES (PA·FC·SAT·T°). La fecha de ingreso se muestra junto al RUT en la celda
+          "Paciente" (PatientIdentityCell). AdmissionInput se conserva para reactivación futura. */}
+      <VitalsCell
+        data={shared.data}
+        isSubRow={shared.isSubRow}
+        isEmpty={shared.isEmpty}
+        date={shared.currentDateString}
+        clinicalEpisodeId={shared.data.clinicalEpisodeId}
+        layoutGeneration={layoutGeneration}
+      />
+      {!isSpecialistCensusAccessProfile(accessProfile) && (
+        <>
+          <DevicesCell
+            data={shared.data}
+            isSubRow={shared.isSubRow}
+            isEmpty={shared.isEmpty}
+            readOnly={shared.isLocked}
+            currentDateString={shared.currentDateString}
+            onDevicesChange={onChange.devices}
+            onDeviceDetailsChange={onChange.deviceDetails}
+            onDeviceHistoryChange={onChange.deviceHistory}
+            onDeviceBundleChange={onChange.multiple}
+          />
+          <ScoresCell
+            data={shared.data}
+            isSubRow={shared.isSubRow}
+            isEmpty={shared.isEmpty}
+            readOnly={shared.isLocked}
+            currentDateString={shared.currentDateString}
+          />
+        </>
+      )}
+    </>
+  );
+};
 
 export const PatientInputFlagsSection: React.FC<PatientInputFlagsSectionBindings> = ({
   shared,

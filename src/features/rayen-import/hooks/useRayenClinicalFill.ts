@@ -53,11 +53,13 @@ import {
   mergeClinicalRetrySummary,
   resolveClinicalStageResult,
 } from '../domain/clinicalStageResolution';
+import { readClinicalFillDerivedView } from './clinicalFillDerivedView';
 
 interface UseRayenClinicalFillInput {
   nurseCatalog: string[];
   tensCatalog: string[];
   loadDailyRecord: (date: string) => Promise<DailyRecord>;
+  /** `baseRecord` is what the patch was computed from (its rebuild base), never a write base. */
   patchDailyRecord: (
     patch: DailyRecordPatch,
     target: ClinicalFillPatchTarget,
@@ -149,41 +151,54 @@ export const useRayenClinicalFill = ({
           );
           // Immediate fills use the accepted record; queued fills revalidate at dequeue time.
           let freshRecord = record;
+          // D10: what the fill reads and rebuilds from. On a split day it carries the episode
+          // documents; `freshRecord` stays the un-overlaid day for write bases, audit and retries.
+          let fillRecord = record;
           let runPolicy = resolveClinicalEnrichmentBatchPolicyForRun(freshRecord, requestedRunId);
           const hasConfirmedImmediateHandoff =
             confirmedHandoff?.runId === requestedRunId && !startedAfterQueue;
-          if (!hasConfirmedImmediateHandoff || runPolicy === 'unavailable') {
-            try {
+          const isSuperseded = (day: DailyRecord): boolean => {
+            if (!requestedRunId || day.rayenSync?.runId === requestedRunId) return false;
+            reportRayenSyncWarning('clinical_fill_superseded', { runId: requestedRunId });
+            return true;
+          };
+          try {
+            if (!hasConfirmedImmediateHandoff || runPolicy === 'unavailable') {
               freshRecord = await loadDailyRecord(record.date);
-              if (requestedRunId && freshRecord.rayenSync?.runId !== requestedRunId) {
-                reportRayenSyncWarning('clinical_fill_superseded', {
-                  runId: requestedRunId,
-                });
-                return { status: 'failed' };
-              }
+              if (isSuperseded(freshRecord)) return { status: 'failed' };
               runPolicy = resolveClinicalEnrichmentBatchPolicyForRun(freshRecord, requestedRunId);
-            } catch (error) {
-              const errorKind = classifyRayenSyncError(error);
-              reportRayenSyncWarning('clinical_record_load_failed', {
-                runId: requestedRunId,
-                errorKind,
-                issueReason: 'record_load_failed',
-              });
-              await completeRun(
-                record,
-                {
-                  total: requestedEligibleCount,
-                  patched: 0,
-                  errors: [buildGlobalClinicalFillError('clinical_record_load_failed')],
-                },
-                null,
-                requestedRunId
-              ).catch(() => undefined);
-              return {
-                status: 'failed',
-                retry: buildClinicalRetryToken(source, record, allowedClinicalEpisodeIds),
-              };
             }
+            const view = await readClinicalFillDerivedView(freshRecord, () =>
+              loadDailyRecord(record.date)
+            );
+            if (view.day !== freshRecord) {
+              // A document was ahead of the day, so the day was read again from the server.
+              freshRecord = view.day;
+              if (isSuperseded(freshRecord)) return { status: 'failed' };
+              runPolicy = resolveClinicalEnrichmentBatchPolicyForRun(freshRecord, requestedRunId);
+            }
+            fillRecord = view.record;
+          } catch (error) {
+            const errorKind = classifyRayenSyncError(error);
+            reportRayenSyncWarning('clinical_record_load_failed', {
+              runId: requestedRunId,
+              errorKind,
+              issueReason: 'record_load_failed',
+            });
+            await completeRun(
+              record,
+              {
+                total: requestedEligibleCount,
+                patched: 0,
+                errors: [buildGlobalClinicalFillError('clinical_record_load_failed')],
+              },
+              null,
+              requestedRunId
+            ).catch(() => undefined);
+            return {
+              status: 'failed',
+              retry: buildClinicalRetryToken(source, record, allowedClinicalEpisodeIds),
+            };
           }
           if (runPolicy === 'unavailable') {
             const eligibleCount = countClinicalFillEligiblePatients(
@@ -244,7 +259,7 @@ export const useRayenClinicalFill = ({
           }
           const attemptId = getRayenFillAttemptId();
           const clinicalCandidates = collectClinicalFillCandidates(
-            freshRecord,
+            fillRecord,
             allowedClinicalEpisodeIds
           );
 
@@ -258,18 +273,26 @@ export const useRayenClinicalFill = ({
             const { createClinicalEnrichmentPersistenceStrategy } =
               await import('./clinicalEnrichmentPersistenceStrategy');
             const { registerEloisaStaff } = await import('@/services/staff/eloisaStaffRegistry');
+            // The batch re-reads the day at its write turn: overlay that read too (D10).
+            const refreshFillRecord = async (): Promise<DailyRecord> => {
+              const day = await loadDailyRecord(freshRecord.date);
+              const view = await readClinicalFillDerivedView(day, () =>
+                loadDailyRecord(freshRecord.date)
+              );
+              return view.record;
+            };
             const persistenceStrategy = createClinicalEnrichmentPersistenceStrategy({
               mode: batchMode,
-              record: freshRecord,
+              record: fillRecord,
               runId: runPolicy.runId,
               applyPatch: operation =>
-                patchDailyRecord(operation.patch, operation.target, runPolicy, freshRecord).then(
+                patchDailyRecord(operation.patch, operation.target, runPolicy, fillRecord).then(
                   () => undefined
                 ),
-              refreshRecord: () => loadDailyRecord(freshRecord.date),
+              refreshRecord: refreshFillRecord,
             });
             summary = await runClinicalFill(
-              freshRecord,
+              fillRecord,
               resolveClinicalFillDay(source, freshRecord),
               {
                 diagnosticRunId: auditRunId,
@@ -279,7 +302,7 @@ export const useRayenClinicalFill = ({
                 ...createClinicalFillReaders(watchdog.signal, clinicalCandidates),
                 extractDeviceItems: extractDeviceTextItems,
                 applyPatch: async (patch, target) => {
-                  await patchDailyRecord(patch, target, runPolicy, freshRecord);
+                  await patchDailyRecord(patch, target, runPolicy, fillRecord);
                 },
                 persistenceStrategy,
                 ...historicalCudyrPersistence,

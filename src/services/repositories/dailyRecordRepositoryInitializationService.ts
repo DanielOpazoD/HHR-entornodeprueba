@@ -176,10 +176,15 @@ const initializeMissingDay = async (
     return initializationSeed.record;
   }
 
+  // Built field by field from the source: the new day never inherits the source's marker.
   let newRecord = buildInitializedDayRecord(date, initializationSeed.record);
   if (initializationSeed.record) {
-    const { applyClinicalDayCarryover } = await import('./clinicalDayCarryover');
-    newRecord = applyClinicalDayCarryover(newRecord, initializationSeed.record);
+    const { applyClinicalDayCarryover, readClinicalCarryoverSource } =
+      await import('./clinicalDayCarryover');
+    newRecord = applyClinicalDayCarryover(
+      newRecord,
+      await readClinicalCarryoverSource(date, initializationSeed.record)
+    );
   }
 
   await save(newRecord);

@@ -20,6 +20,10 @@ import {
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
 
 import {
+  buildClinicalDerivedBackupSection,
+  type ClinicalDerivedBackupSection,
+} from '@/services/exporters/clinicalDerivedBackupSection';
+import {
   DATA_MAINTENANCE_MONTH_NAMES,
   downloadJsonBackup,
   hydrateRangeRecords,
@@ -35,6 +39,8 @@ export interface MonthBackup {
   month: number;
   recordCount: number;
   records: DailyRecord[];
+  /** Episode documents of split days; present only when a day is marked, never imported. */
+  clinicalDerived?: ClinicalDerivedBackupSection;
 }
 
 export interface YearToDateBackup {
@@ -44,6 +50,7 @@ export interface YearToDateBackup {
   throughDate: string;
   recordCount: number;
   records: DailyRecord[];
+  clinicalDerived?: ClinicalDerivedBackupSection;
 }
 
 export interface BackupImportResult {
@@ -102,6 +109,7 @@ const exportMonthRecordsInternal = async (
       };
     }
 
+    const clinicalDerived = await buildClinicalDerivedBackupSection(records);
     const backup: MonthBackup = {
       version: '1.0',
       exportDate: new Date().toISOString(),
@@ -109,6 +117,7 @@ const exportMonthRecordsInternal = async (
       month,
       recordCount: records.length,
       records,
+      ...(clinicalDerived ? { clinicalDerived } : {}),
     };
 
     const monthName = DATA_MAINTENANCE_MONTH_NAMES[month - 1];
@@ -160,6 +169,7 @@ const exportYearToDateRecordsInternal = async (
       };
     }
 
+    const clinicalDerived = await buildClinicalDerivedBackupSection(records);
     const backup: YearToDateBackup = {
       version: '1.0',
       exportDate: new Date().toISOString(),
@@ -167,6 +177,7 @@ const exportYearToDateRecordsInternal = async (
       throughDate: endDate,
       recordCount: records.length,
       records,
+      ...(clinicalDerived ? { clinicalDerived } : {}),
     };
 
     const suffix = resolveYearToDateFileSuffix(year, now);

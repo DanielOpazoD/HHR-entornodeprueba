@@ -217,6 +217,9 @@ Cómo cambia cada escritor del servidor:
     `dataMaintenanceService.ts`).
     - La exportación agrega por día una sección `clinicalDerived` con los documentos de los días
       marcados, leídos del servidor. Un día que no se pudo leer queda indicado, no se omite.
+    - La sección va en la raíz del archivo (en el respaldo local, junto a las fechas) y solo
+      existe si hay días marcados: `{ [fecha]: { status: 'exported', layoutGeneration, docs } }`
+      o `{ status: 'unavailable', reason }`.
     - La importación no escribe esa sección y nunca reemplaza un registro local marcado más nuevo
       por uno sin marcador.
 

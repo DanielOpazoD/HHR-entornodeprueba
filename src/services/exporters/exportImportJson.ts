@@ -6,6 +6,7 @@ import {
 import { hasStructuralRepairs, parseDailyRecordWithDefaultsReport } from '@/schemas/zodSchemas';
 import { jsonImportLogger } from '@/services/exporters/exporterLoggers';
 import { isClinicalDerivedLayoutRegression } from '@/services/storage/clinicalDerivedImportGuard';
+import { CLINICAL_DERIVED_BACKUP_SECTION } from '@/services/exporters/clinicalDerivedBackupSection';
 
 export interface JsonImportResult {
   success: boolean;
@@ -51,6 +52,8 @@ export const importDataJSONDetailed = async (file: File): Promise<JsonImportResu
     let repairedCount = 0;
 
     Object.entries(payload).forEach(([key, value]) => {
+      // Episode documents of split days are exported for recovery, never imported.
+      if (key === CLINICAL_DERIVED_BACKUP_SECTION) return;
       try {
         const parsed = parseDailyRecordWithDefaultsReport(value, key);
         importedRecords.push(parsed.record);

@@ -147,7 +147,7 @@ const NUMERIC_BOUNDS = new Map<string, { min: number; max: number }>([
 
 /** Booleans carry a single bit, but the key still has to be a known operational flag. */
 const BOOLEAN_KEYS = new Set(
-  tokens('isOnline offline allowed authBootstrapPending fallbackUsed truncated retried')
+  tokens('isOnline offline allowed authBootstrapPending fallbackUsed truncated retried splitDay')
 );
 
 /**

@@ -2,6 +2,10 @@ import { getAllRecords } from '@/services/storage/indexeddb/indexedDbRecordServi
 import { downloadBlob } from '@/services/exporters/exportDownload';
 import { buildDailyRecordCsv } from '@/services/exporters/exportCsvSerialization';
 import {
+  buildClinicalDerivedBackupSection,
+  CLINICAL_DERIVED_BACKUP_SECTION,
+} from '@/services/exporters/clinicalDerivedBackupSection';
+import {
   importDataJSON as importDataJSONFile,
   importDataJSONDetailed as importDataJSONDetailedFile,
   JsonImportResult,
@@ -30,7 +34,12 @@ export const exportDataJSONWithResult = async (): Promise<
   ApplicationOutcome<{ exported: boolean }>
 > => {
   const data = await getAllRecords();
-  const jsonString = JSON.stringify(data, null, 2);
+  const clinicalDerived = await buildClinicalDerivedBackupSection(Object.values(data));
+  const jsonString = JSON.stringify(
+    clinicalDerived ? { ...data, [CLINICAL_DERIVED_BACKUP_SECTION]: clinicalDerived } : data,
+    null,
+    2
+  );
   const blob = new Blob([jsonString], { type: 'application/json' });
   downloadBlob(blob, `hanga_roa_respaldo_${getTodayISO()}.json`);
   return createApplicationSuccess({ exported: true });

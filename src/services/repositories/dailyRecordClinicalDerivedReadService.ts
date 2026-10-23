@@ -3,6 +3,7 @@ import type { ClinicalDerivedEpisodeDoc } from '@/types/domain/clinicalDerived';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import {
   findStaleClinicalDerivedEpisodeIds,
+  isClinicalDerivedDocId,
   overlayClinicalDerived,
   readClinicalDerivedLayout,
 } from '@/services/storage/clinicalDerivedContract';
@@ -19,6 +20,9 @@ import type {
  * - `strict` (inputs of a clinical write): reads from the server, checks that no current document
  *   is ahead of the day, and throws `ClinicalDerivedReadError` instead of returning embedded data.
  * - `bestEffort` (display and export): falls back to the embedded record and says why.
+ *
+ * Readers that need the documents themselves, not an overlay, use `readClinicalDerivedDayDocs`
+ * (every document of a day) and `readClinicalDerivedEpisodeForDisplay` (one episode).
  */
 
 type ClinicalDerivedEpisodeReaderModule =
@@ -176,4 +180,66 @@ export const readDailyRecordWithClinicalDerived = async (
   const reloaded = options.reloadRecord ? await options.reloadRecord() : null;
   const second = reloaded ? await overlayDay(reloaded) : 'stale';
   return second === 'stale' ? fallBack('stale_day', reloaded ?? record) : second;
+};
+
+const FIRESTORE_DISABLED_CODE = 'firestore_disabled';
+
+export type ClinicalDerivedDayDocsResult =
+  | { status: 'unmarked' }
+  | { status: 'resolved'; layoutGeneration: string; docs: ClinicalDerivedEpisodeDoc[] }
+  | { status: 'unavailable'; reason: ClinicalDerivedFallbackReason; code?: string };
+
+/**
+ * Every current episode document of a day, active or not (discharged, transferred and CMA
+ * episodes keep theirs), read from the server: the staff tool and the JSON backups. No read on an
+ * unmarked day; a marked day that cannot be read is `unavailable`, never an empty list.
+ */
+export const readClinicalDerivedDayDocs = async (
+  record: Pick<DailyRecord, 'date' | 'clinicalDerivedLayout'>
+): Promise<ClinicalDerivedDayDocsResult> => {
+  const layout = readClinicalDerivedLayout(record);
+  if (layout.status === 'unmarked') return { status: 'unmarked' };
+  if (layout.status === 'unsupported') {
+    return { status: 'unavailable', reason: 'unsupported_layout' };
+  }
+  if (!isFirestoreEnabled() || isE2EOverrideActive()) {
+    return { status: 'unavailable', reason: 'read_failed', code: FIRESTORE_DISABLED_CODE };
+  }
+  const generation = layout.layout.generation;
+  const read = await readDocs(record.date, generation, undefined, 'server');
+  if (read.status !== 'resolved') {
+    return { status: 'unavailable', reason: failureReason(read), code: read.code };
+  }
+  return { status: 'resolved', layoutGeneration: generation, docs: read.docs };
+};
+
+export type ClinicalDerivedDisplayDocResult =
+  | { status: 'skipped' }
+  | { status: 'resolved'; doc: ClinicalDerivedEpisodeDoc | null; fromCache: boolean }
+  | ClinicalDerivedReadFailure;
+
+/**
+ * One episode's current document for display (the vitals window): SDK default source, no
+ * listener. `skipped`, without a read, when the id or the generation cannot be a document id,
+ * without Firestore or under the E2E override. Failures come back typed: the caller keeps the
+ * day's embedded copy.
+ */
+export const readClinicalDerivedEpisodeForDisplay = async (
+  date: string,
+  layoutGeneration: string,
+  clinicalEpisodeId: string
+): Promise<ClinicalDerivedDisplayDocResult> => {
+  const episodeId = clinicalEpisodeId.trim();
+  if (
+    !isClinicalDerivedDocId(layoutGeneration) ||
+    !isClinicalDerivedDocId(episodeId) ||
+    !isFirestoreEnabled() ||
+    isE2EOverrideActive()
+  ) {
+    return { status: 'skipped' };
+  }
+  const read = await readDocs(date, layoutGeneration, episodeId, 'default');
+  return read.status === 'resolved'
+    ? { status: 'resolved', doc: read.docs[0] ?? null, fromCache: read.fromCache }
+    : read;
 };
