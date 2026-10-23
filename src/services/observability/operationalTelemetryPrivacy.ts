@@ -70,6 +70,7 @@ const ALLOWED_OPERATIONS = new Set([
     recover_today_empty_daily_record post_deploy_recent_record_refresh daily_record_bed_patch_failed
     daily_record_clinical_authority daily_record_clinical_consistency
     daily_record_remote_canonical_reconciled daily_record_clinical_patch_blocked_until_fresh
+    daily_record_size_observed
     daily_record_resume_refresh_started daily_record_resume_refresh_completed
     daily_record_resume_refresh_failed daily_record_resume_refresh_remote_newer
     daily_record_clinical_inputs_block_started daily_record_clinical_inputs_block_completed
@@ -133,7 +134,8 @@ const DURATION_KEYS = tokens(`
   driftSeconds remainingSeconds
 `);
 const SIZE_KEYS = tokens(`
-  sizeBytes byteSize uploadBytes maxBytes queryLength sourceTextLength maxLength
+  sizeBytes byteSize uploadBytes maxBytes queryLength sourceTextLength maxLength derivedBytes
+  syncHistoryBytes
 `);
 const [MAX_COUNT, MAX_DURATION_MS, MAX_SIZE] = [1_000_000, 86_400_000, 1_073_741_824];
 
