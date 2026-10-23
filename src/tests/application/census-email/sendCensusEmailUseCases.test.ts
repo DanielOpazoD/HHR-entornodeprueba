@@ -5,6 +5,7 @@ import {
 } from '@/application/census-email/sendCensusEmailUseCases';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { DataFactory } from '@/tests/factories/DataFactory';
+import { CensusMonthUnavailableError } from '@/services/storage/firestore/firestoreRecordQueries';
 
 const buildCensusMasterBinaryMock = vi.fn().mockResolvedValue(new Uint8Array());
 
@@ -157,6 +158,21 @@ describe('sendCensusEmailUseCases', () => {
       sendEmailWithResult: vi.fn().mockResolvedValue({ status: 'success', issues: [] }),
       uploadBackupWithResult: vi.fn().mockResolvedValue({ status: 'success', issues: [] }),
     },
+  });
+
+  it('does not send a partial census when the month cannot be read from the server', async () => {
+    const ports = dependencies();
+    ports.dailyRecordReadPort.getMonthRecords.mockRejectedValueOnce(
+      new CensusMonthUnavailableError(2026, 2, new Error('offline'))
+    );
+
+    const result = await executeSendCensusEmail(sendInput(upcRecord(true)), ports);
+
+    expect(result.status).toBe('failed');
+    expect(result.issues[0].message).toContain('No se pudieron leer los registros de 03-2026');
+    expect(buildCensusMasterBinaryMock).not.toHaveBeenCalled();
+    expect(ports.censusEmailDeliveryPort.sendEmailWithResult).not.toHaveBeenCalled();
+    expect(ports.censusEmailDeliveryPort.uploadBackupWithResult).not.toHaveBeenCalled();
   });
 
   it.each([false, true])(

@@ -45,6 +45,7 @@ vi.mock('firebase/firestore', async () => {
     updateDoc: vi.fn(),
     deleteDoc: vi.fn(),
     getDocs: vi.fn(),
+    getDocsFromServer: vi.fn(),
     query: vi.fn(),
     orderBy: vi.fn(),
     where: vi.fn(),
@@ -352,7 +353,7 @@ describe('firestoreService', () => {
   });
 
   it('should fetch records for a specific month', async () => {
-    const getDocsMock = vi.mocked(firestore.getDocs);
+    const getDocsMock = vi.mocked(firestore.getDocsFromServer);
     getDocsMock.mockResolvedValueOnce({
       docs: [{ id: '2024-12-01', data: () => ({ date: '2024-12-01' }) }],
     } as unknown as QuerySnapshot);
