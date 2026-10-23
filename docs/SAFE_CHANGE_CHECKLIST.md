@@ -46,6 +46,15 @@ Durante edición bastan pruebas focalizadas para obtener feedback; no acreditan
 el cierre. `ci:inner-loop` sirve para iterar y para los cambios locales de UI que
 la política clasifica expresamente como `safe_local_ui`.
 
+El acceso a actas de farmacia desde Documentos Clínicos es `architecture_contracts`:
+declara la dependencia unidireccional hacia la API pública de la biblioteca para
+componer dos accesos en el panel lateral. Reutiliza editor, confirmación de salida
+y PDF existentes. No cambia permisos, autorrelleno, persistencia clínica, catálogo
+ni exportación. Verificar `ci:merge-gate` (incluye calidad completa y build/budgets),
+el módulo de documentos clínicos y navegador: ambas actas desde Documentos Clínicos,
+foco al volver, Escape sin cerrar el documento y conservación del acta al cancelar
+su descarte. Exige revisión independiente y CI del head definitivo antes del merge.
+
 No encadenar gates completos: `ci:release-gate` contiene `ci:merge-gate`, que
 contiene `ci:pre-merge`. Un check fallido sigue pendiente aunque el resto pase.
 El CI del SHA final y la revisión independiente deben aprobarse antes del merge.
