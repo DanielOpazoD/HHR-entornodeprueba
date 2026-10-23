@@ -631,3 +631,11 @@ vencida, datos parciales ni timeouts. La cancelación impide iniciar el reintent
 descarta cualquier resultado tardío. Los contadores del historial incluyen estas
 segundas lecturas. Las conexiones mostradas en el historial son las del inicio del
 intento: un fallo de red posterior no demuestra una sesión vencida.
+
+### Diagnóstico de informes y unidades (0.48.56)
+
+El puente identifica orden/fecha ante un fallo de lectura y distingue sesión vencida,
+RUN distinto y encabezado no verificable. Se conservan los controles de identidad:
+todos los encabezados de paciente deben coincidir; no basta la primera página.
+El parser elimina separadores de columna al separar unidad y referencia, sin alterar
+valores, escalas ni comparadores. No cambian hosts, permisos, sesión ni CUDYR.

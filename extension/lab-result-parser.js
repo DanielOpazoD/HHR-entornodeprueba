@@ -179,10 +179,12 @@
   ];
 
   const extractRutBodyFromReportText = text => {
-    const line = String(text || '').split(/\r?\n/).find(value => /^\s*Rut\/?Fic\s*:/i.test(value));
-    if (!line) return '';
-    const match = line.replace(/^\s*Rut\/?Fic\s*:/i, '').match(/\d[\d.]*/);
-    return match ? match[0].replace(/\D/g, '') : '';
+    const bodies = String(text || '').split(/\r?\n/)
+      .filter(value => /^\s*Rut\/?Fic\s*:/i.test(value))
+      .map(line => line.replace(/^\s*Rut\/?Fic\s*:/i, '').match(/\d[\d.]*/))
+      .map(match => match ? match[0].replace(/\D/g, '') : '');
+    // Every patient header must agree; never accept the first page of a mixed report.
+    return bodies.length && bodies[0] && bodies.every(body => body === bodies[0]) ? bodies[0] : '';
   };
 
   const splitReportUnitAndReference = rest => {
@@ -191,7 +193,7 @@
     const rangeSuffix = cleaned.match(REFERENCE_SUFFIX_REGEX);
     if (rangeSuffix && Number.isInteger(rangeSuffix.index)) {
       return {
-        unit: cleaned.slice(0, rangeSuffix.index).trim(),
+        unit: cleaned.slice(0, rangeSuffix.index).replace(/[\s|]+$/g, '').trim(),
         refValue: rangeSuffix[1].trim(),
       };
     }

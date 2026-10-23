@@ -8,8 +8,11 @@ import { createHash } from 'node:crypto';
 import { version as esbuildVersion } from 'esbuild';
 import {
   buildFunctionBundle,
+  buildModernFunctionEsmArtifact,
   checkMailBundleBudgets,
+  loadEsmArtifact,
   readNetlifyExternalModules,
+  usesModernFunctionApi,
 } from './netlifyFunctionBundleSupport.mjs';
 import { profileMailBundles, smokeMailBundles } from './netlifyMailRuntimeSupport.mjs';
 
@@ -37,6 +40,7 @@ if (entryPoints.length === 0) {
 
 const failures = [];
 const bundles = [];
+const esmLoads = [];
 let profiles = [];
 let smoke = [];
 const loadAverageBefore = os.loadavg();
@@ -52,6 +56,25 @@ try {
           ? error.message
           : 'Unknown bundling error';
       failures.push(`${path.relative(ROOT, entryPoint)} -> ${errors}`);
+    }
+  }
+  // Modern-API functions run as unbundled ESM on Netlify: load each one the same way.
+  for (const entryPoint of entryPoints) {
+    if (!usesModernFunctionApi(fs.readFileSync(entryPoint, 'utf8'))) continue;
+    const name = path.basename(entryPoint, path.extname(entryPoint));
+    try {
+      const artifact = await buildModernFunctionEsmArtifact({
+        root: ROOT,
+        entryPoint,
+        outDir: path.join(TMP_DIR, 'esm'),
+      });
+      const loadError = loadEsmArtifact(artifact.path);
+      esmLoads.push({ name, loaded: loadError === null });
+      if (loadError) failures.push(`${name}: does not load as ESM on Netlify -> ${loadError}`);
+    } catch (error) {
+      failures.push(
+        `${name}: ESM build failed -> ${error instanceof Error ? error.message : error}`
+      );
     }
   }
   const budgetFailures = checkMailBundleBudgets(bundles, policy);
@@ -89,6 +112,7 @@ try {
     bundles: mailBundles.map(({ path: _temporaryPath, ...bundle }) => bundle),
     profiles,
     smoke,
+    esmLoads,
     failures,
     limitations: [
       'Bytes and gzip measure generated JavaScript; external packages and the deployment ZIP are excluded.',
@@ -96,6 +120,7 @@ try {
       'Load time covers requiring the artifact; Node startup and probe setup are excluded. RSS is sampled before and after loading, not peak memory.',
       'Timing is informational; size, artifact loading and safe smoke behavior are blocking.',
       'The scheduled retry export is checked without running its queue or contacting providers.',
+      'Modern-API functions are also built as ESM with packages left as imports and loaded in a fresh Node process, as Netlify runs them.',
     ],
   };
   fs.mkdirSync(REPORTS_DIR, { recursive: true });
@@ -124,6 +149,7 @@ try {
       '',
       ...report.limitations.map(item => `- ${item}`),
       '',
+      `ESM load (modern API): ${esmLoads.map(item => `${item.name} ${item.loaded ? 'ok' : 'FAILED'}`).join(', ') || 'none'}.`,
       `Smoke: ${smoke.length} artifact results. Failures: ${failures.length}.`,
       ...smoke.map(
         item =>
@@ -146,5 +172,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `[netlify-functions-bundle] OK (${entryPoints.length} entrypoints; ${profiles.length} mail profiles; ${smoke.length} artifact smoke results). Report: reports/netlify-mail-runtime.{json,md}`
+  `[netlify-functions-bundle] OK (${entryPoints.length} entrypoints; ${esmLoads.length} ESM loads; ${profiles.length} mail profiles; ${smoke.length} artifact smoke results). Report: reports/netlify-mail-runtime.{json,md}`
 );

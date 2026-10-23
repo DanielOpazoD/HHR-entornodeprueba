@@ -7,7 +7,7 @@ Responsable: mantenedor de HHR (Daniel Opazo).
 
 Se acepta únicamente GHSA-vfj7-8cjw-p6xm en la cadena de desarrollo del
 lockfile raíz aprobado, cuya SHA-256 es
-`6c96794225084b71458e7fc1f96e66166cbf35bb8da10451c771aae38a0bcd32`.
+`3d4f6c7a88a74978e23d37c3e5e8ae85b7cde49f139b1649c65d8d82e4be1ca3`.
 Daniel autorizó actualizar la huella el 9 de octubre de 2026 para el parche
 transitivo Handlebars 4.7.10 y el 11 de octubre para Firebase CLI 15.16.0.
 El 16 de octubre de 2026 autorizó explícitamente renovar sólo la huella para
@@ -60,3 +60,25 @@ markdown-it. La huella anterior se sustituye tras verificar que los siete nodos
 autorizados conservan exactamente sus versiones, rutas, integridades, dependencias
 y clasificación de desarrollo. La auditoría debe seguir aceptando exclusivamente
 GHSA-vfj7-8cjw-p6xm. Otros avisos altos o críticos bloquean la integración.
+
+El parche de seguridad de PR #965 actualiza únicamente DOMPurify de 3.4.11 a
+3.4.17 para corregir GHSA-cg2g-xh64-v4q7 y GHSA-mrv2-3pqr-j5jr. La huella anterior
+era `6c96794225084b71458e7fc1f96e66166cbf35bb8da10451c771aae38a0bcd32`.
+La comparación completa del lock confirma que solo cambian versión, URL e
+integridad de `node_modules/dompurify`; todas las demás entradas, incluidos los
+siete nodos de desarrollo autorizados, permanecen idénticas. Los archivos de
+dependencias de Functions tampoco cambian. Se conserva el mismo alcance de la
+excepción y el rechazo de cualquier aviso alto o crítico adicional; DOMPurify
+no se incorpora a la aceptación de riesgo.
+
+La limpieza de dependencias de PR #963 declara en `package.json` los paquetes que
+el código ya importaba (`@kitware/vtk.js`, `workbox-cacheable-response` y
+herramientas de pruebas y scripts) y elimina `motion` y `@tanstack/react-virtual`,
+que nada importa. La huella anterior era
+`998d4f112ae629d4b2418e131ea8a05380ba74127063922e39b0e14fe371adac`. La
+comparación completa del lock confirma que solo se eliminan `motion`,
+`framer-motion`, `motion-dom`, `motion-utils`, `@tanstack/react-virtual` y
+`@tanstack/virtual-core`, y que `@google-cloud/firestore` y sus dependencias dejan
+de figurar como opcionales al quedar declaradas. Ninguna versión cambia, los siete
+nodos de desarrollo autorizados permanecen idénticos y los archivos de
+dependencias de Functions no cambian. Se conserva el mismo alcance de la excepción.

@@ -10,7 +10,12 @@ import {
   getIsolationLanePlan,
   getIsolationVariantLanes,
 } from '../../../scripts/e2eIsolationExperimentSupport.mjs';
-import { criticalCorpus, fixture, report } from './e2eIsolationExperimentCorpus.fixture';
+import {
+  criticalCorpus,
+  fixture,
+  previewCorpus,
+  report,
+} from './e2eIsolationExperimentCorpus.fixture';
 
 const root = process.cwd();
 const directories: string[] = [];
@@ -65,6 +70,10 @@ describe('experimental evidence provenance and completeness', () => {
     expect(fingerprintIsolationCorpus(report(criticalCorpus, false))).toEqual({
       count: 46,
       hash: 'cd5ac1130f825cab1212853ffcf993d1d0e1be878b4f36dcf7bb35bbf82a5bbd',
+    });
+    expect(fingerprintIsolationCorpus(report(previewCorpus, false))).toEqual({
+      count: 64,
+      hash: '0f01cda2e6ba015fe5c0efd9a2797e468730016b476246f55555004e6b4d191c',
     });
     expect(collectIsolationExperimentIssues(fixture())).toEqual([]);
     expect(collectIsolationExperimentIssues(fixture('A'))).toEqual([]);
@@ -206,6 +215,16 @@ describe('experimental evidence provenance and completeness', () => {
         input.records[0].listed.report.suites[0].specs[0].id = 'other-id';
       },
       'frozen count or fingerprint',
+    ],
+    [
+      'missing pharmacy preview scope',
+      input => {
+        input.records[0].previewListed.report.suites =
+          input.records[0].previewListed.report.suites.filter(
+            suite => suite.file !== 'e2e/clinical-library-pharmacy.spec.ts'
+          );
+      },
+      'Collection file membership differs',
     ],
     [
       'extra execution ID',
