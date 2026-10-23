@@ -4,7 +4,10 @@ import { useDailyRecordData } from '@/context/DailyRecordContext';
 import { useRayenImport } from '../hooks/useRayenImport';
 import { useRayenFillProgress } from '../hooks/useRayenFillStatus';
 import { useRayenExtensionHealth } from '../hooks/useRayenExtensionHealth';
-import { RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS } from '../bridge/extensionHealthBridge';
+import {
+  RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS,
+  RAYEN_SYNC_PREFLIGHT_VERIFICATION_CAPABILITY,
+} from '../bridge/extensionHealthBridge';
 import { RayenImportPreviewModal } from './RayenImportPreviewModal';
 import { RayenImportFlowStatus } from './RayenImportFlowStatus';
 import { RayenNursingShiftProposalModal } from './RayenNursingShiftProposalModal';
@@ -153,6 +156,9 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
   );
 
   const bootstrapRecordReady = Boolean(recordForSelectedDate);
+  const canAutoStart =
+    extension.canSync &&
+    extension.report?.capabilities?.includes(RAYEN_SYNC_PREFLIGHT_VERIFICATION_CAPABILITY) === true;
   React.useEffect(() => {
     if (
       autoStartRequestId === undefined ||
@@ -162,10 +168,10 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
       return;
     }
     // La solicitud sobrevive a la espera: sólo se marca como atendida cuando la captura dejó
-    // evidencia (un run, aunque falle). Si la compuerta la bloqueó sin registrar nada (política
-    // cargando, censo aún sin cargar, revisión previa terminando), el token se conserva y el
-    // arranque se reintenta en cuanto cambie alguna de esas condiciones.
-    if (!policyReady || !bootstrapRecordReady) return;
+    // evidencia (un run, aunque falle). Si la compuerta la bloqueó sin registrar nada (fuentes
+    // desconectadas, política o censo cargando, revisión previa terminando), el token se conserva
+    // y el arranque se reintenta en cuanto cambie alguna de esas condiciones.
+    if (!policyReady || !bootstrapRecordReady || !canAutoStart) return;
     autoStartInFlightRef.current = autoStartRequestId;
     // The census did not exist a moment ago; this first import defines the whole day, so it is
     // reviewed by a human even when the global policy would otherwise apply it unattended.
@@ -175,7 +181,14 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
       autoStartHandledRef.current = autoStartRequestId;
       onAutoStartHandled?.();
     });
-  }, [autoStartRequestId, bootstrapRecordReady, handleSync, onAutoStartHandled, policyReady]);
+  }, [
+    autoStartRequestId,
+    bootstrapRecordReady,
+    canAutoStart,
+    handleSync,
+    onAutoStartHandled,
+    policyReady,
+  ]);
   const pendingChangeCount = diff
     ? diff.summary.admissions +
       diff.summary.updates +
@@ -222,6 +235,14 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
     setRecoveryBusy(true);
     try {
       if (recovery.action === 'retry_clinical') {
+        const health = await refreshExtension({
+          timeoutMs: RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS,
+          showChecking: true,
+        });
+        if (!health.canSync) {
+          setConnectionMonitorOpen(true);
+          return;
+        }
         closeHistory();
         await retryClinicalFill();
       } else if (recovery.action === 'retry_full') {

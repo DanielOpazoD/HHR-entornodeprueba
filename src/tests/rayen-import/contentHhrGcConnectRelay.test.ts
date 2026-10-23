@@ -69,6 +69,7 @@ const createHarness = (
     HhrRayenMessageContract: {
       types: {
         EXTENSION_RUNTIME_CONTEXT_REQUEST: 'RAYEN_EXTENSION_RUNTIME_CONTEXT_REQUEST',
+        EXTENSION_HEALTH_REQUEST: 'RAYEN_EXTENSION_HEALTH_REQUEST',
         GC_CONNECT_REQUEST: 'RAYEN_GC_CONNECT_REQUEST',
         CUDYR_CATEGORIES_REQUEST: 'RAYEN_CUDYR_CATEGORIES_REQUEST',
         CONNECTION_REPAIR_REQUEST: 'RAYEN_CONNECTION_REPAIR_REQUEST',
@@ -83,6 +84,11 @@ const createHarness = (
   vm.runInContext(repairBridgeSource, context, {
     filename: 'content-hhr-connection-repair.js',
   });
+  vm.runInContext(
+    readFileSync(path.resolve('extension/health-request-runtime.js'), 'utf8'),
+    context,
+    { filename: 'health-request-runtime.js' }
+  );
   vm.runInContext(contentBridgeSource, context, { filename: 'content-hhr.js' });
   return {
     onMessage: (event: PageMessage) =>
@@ -120,6 +126,25 @@ describe('content-hhr · relé de conexión de Gestión de Camas', () => {
         }),
         'http://localhost:3001'
       )
+    );
+  });
+
+  it('forwards active source verification to the background health reader', async () => {
+    const sendMessage = vi.fn().mockResolvedValue({ version: 'test' });
+    const relay = createHarness(sendMessage);
+    relay.onMessage({
+      source: relay.windowObject,
+      data: {
+        type: 'HHR_RAYEN_EXTENSION_HEALTH_REQUEST',
+        reqId: 'preflight',
+        verifySessions: true,
+      },
+    });
+    await vi.waitFor(() =>
+      expect(sendMessage).toHaveBeenCalledWith({
+        type: 'RAYEN_EXTENSION_HEALTH_REQUEST',
+        verifySessions: true,
+      })
     );
   });
 

@@ -738,6 +738,22 @@
       "hotspots": {
         "iife": 18
       }
+    },
+    "health-request-runtime.js": {
+      "maxLines": 22,
+      "hotspots": {}
+    },
+    "fichamedico-capture-cache.js": {
+      "maxLines": 15,
+      "hotspots": {}
+    },
+    "gestion-camas-session-health.js": {
+      "maxLines": 71,
+      "hotspots": {}
+    },
+    "gestion-camas-session-verification.js": {
+      "maxLines": 48,
+      "hotspots": {}
     }
   }
 }

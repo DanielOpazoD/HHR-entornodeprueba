@@ -11,6 +11,7 @@ const backgroundSource = readExtension('background.js');
 const clinicalHandoffRuntimeSource = readExtension('clinical-handoff-runtime.js');
 const gestionCamasRuntimeSource = readExtension('gestion-camas-runtime.js');
 const gestionCamasHealthSource = readExtension('gestion-camas-health.js');
+const gestionCamasSessionHealthSource = readExtension('gestion-camas-session-health.js');
 const gestionCamasEgresoLookupSource = readExtension('gestion-camas-egreso-lookup.js');
 const syslabRuntimeSource = readExtension('syslab-runtime.js');
 const fichaMedicoTransportSource = readExtension('fichamedico-transport-runtime.js');
@@ -35,7 +36,9 @@ describe('CodeRabbit clinical integration hardening', () => {
   it('uses the short health budget for both tab and backend session verification', () => {
     expect(gestionCamasHealthSource).toContain('verificationTimeoutMs: healthProbeTimeoutMs');
     expect(gestionCamasHealthSource).toContain('tabTimeoutMs: healthProbeTimeoutMs');
-    expect(gestionCamasHealthSource).toContain('verifySession(record, healthProbeTimeoutMs)');
+    expect(gestionCamasSessionHealthSource).toContain(
+      'verifySession(record, healthProbeTimeoutMs)'
+    );
   });
 
   it('fails startup closed when patient-flow runtime is missing', () => {

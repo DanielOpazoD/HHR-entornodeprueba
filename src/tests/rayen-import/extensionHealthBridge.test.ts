@@ -38,6 +38,8 @@ describe('extensionHealthBridge', () => {
       false
     );
     expect(isRayenExtensionHealthReport({ ...report, protocolVersion: '1' })).toBe(false);
+    expect(isRayenExtensionHealthReport({ ...report, syncPreflight: true })).toBe(true);
+    expect(isRayenExtensionHealthReport({ ...report, syncPreflight: 'true' })).toBe(false);
     expect(
       isRayenExtensionHealthReport({
         ...report,
@@ -84,6 +86,21 @@ describe('extensionHealthBridge', () => {
       })
     );
 
+    await expect(request).resolves.toEqual({ report });
+  });
+
+  it('requests authenticated source verification only for an active preflight', async () => {
+    const postMessageSpy = vi.spyOn(window, 'postMessage');
+    const request = requestRayenExtensionHealth(1000, { verifySessions: true });
+    const payload = postMessageSpy.mock.calls[0]?.[0] as { reqId: string; verifySessions: boolean };
+    expect(payload.verifySessions).toBe(true);
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: window.location.origin,
+        source: window,
+        data: { type: RAYEN_EXTENSION_HEALTH_RESULT_TYPE, reqId: payload.reqId, report },
+      })
+    );
     await expect(request).resolves.toEqual({ report });
   });
 

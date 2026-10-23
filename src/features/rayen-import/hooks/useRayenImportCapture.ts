@@ -19,7 +19,6 @@ import { classifyRayenSnapshotError } from '../domain/rayenSnapshotErrorClassifi
 import type { RayenCensusSnapshot, RayenSyncBundle } from '../contracts/rayenSnapshot';
 import * as rayenImportBridge from '../bridge/rayenImportBridge';
 import type { RayenExtensionHealthState } from './useRayenExtensionHealth';
-import { failureReasonFromHealth } from './useRayenSyncAudit';
 import { resetRayenFillProgress } from './useRayenFillStatus';
 import { getRayenImportErrorMessage, type RayenImportState } from './rayenImportState';
 import type { RayenSyncRequestController } from './rayenSyncRequestLifecycle';
@@ -217,6 +216,15 @@ export const useRayenImportCapture = ({
           }));
           return 'blocked';
         }
+        if (!health.canSync) {
+          setState(previous => ({
+            ...previous,
+            result: null,
+            hasSkippedItems: false,
+            error: null,
+          }));
+          return 'blocked';
+        }
         if (!resetRayenFillProgress()) {
           setState(previous => ({
             ...previous,
@@ -241,17 +249,6 @@ export const useRayenImportCapture = ({
           return 'blocked';
         }
         const run = startRun(health, performance, policy, options?.reviewRequirement);
-        if (!health.canSync) {
-          preparedSyncContextRef.current = null;
-          void failRun(failureReasonFromHealth(health), run.id);
-          setState(previous => ({
-            ...previous,
-            result: null,
-            hasSkippedItems: false,
-            error: null,
-          }));
-          return 'started';
-        }
         const selectedDate = toIsoReportDate(currentRecord);
         dispatchExecution({ type: 'prepare', runId: run.id, selectedDate });
         const generation = getSessionGeneration();

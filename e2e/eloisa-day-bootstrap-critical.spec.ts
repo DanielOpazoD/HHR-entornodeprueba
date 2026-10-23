@@ -43,6 +43,8 @@ const installFakeExtensionHealth = async (page: Page) => {
           report: {
             version: 'e2e-bootstrap',
             protocolVersion: 5,
+            capabilities: ['sync-preflight-verification'],
+            syncPreflight: event.data.verifySessions === true,
             checkedAt: new Date().toISOString(),
             fichaMedico: { status: 'ready', message: 'Ficha Médico disponible.' },
             gestionCamas: { status: 'ready', message: 'Gestión de Camas disponible.' },

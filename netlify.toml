@@ -7,9 +7,14 @@
   NODE_VERSION = "22"
 
 [context.production.environment]
+  # This site uses hhr-pruebas, whose authority requires episode-bound manual decisions.
+  VITE_HHR_SPECIALTY_EPISODE_ASSIGNMENT = "enabled"
   # Public Google OAuth client identifier (not a client secret).
   # Its JavaScript origins must include the deployed HHR hostname.
   VITE_GOOGLE_SIGN_IN_CLIENT_ID = "339724354374-cjq5ptt7r5p98vo8e1o8714m95h49ava.apps.googleusercontent.com"
+
+[context.deploy-preview.environment]
+  VITE_HHR_SPECIALTY_EPISODE_ASSIGNMENT = "enabled"
 
 [functions]
   node_bundler = "esbuild"

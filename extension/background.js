@@ -10,14 +10,15 @@ importScripts(
   'connection-relay-recovery.js', 'fichamedico-transport-runtime.js', 'fichamedico-history-read-model.js', 'fichamedico-device-evidence-runtime.js', 'clinical-read-error-contract.js', 'fichamedico-clinical-client.js', 'tab-encounter-authorization.js', 'fichamedico-patient-flow-runtime.js',
   'fichamedico-patient-context.js',
   'patient-document-manager-runtime.js',
-  'gestion-camas-session.js', 'gestion-camas-health.js',
+  'gestion-camas-session.js', 'gestion-camas-session-health.js', 'gestion-camas-health.js',
+  'gestion-camas-session-verification.js',
   'gestion-camas-runtime.js',
   'gestion-camas-egreso-lookup.js', 'gestion-camas-egreso-query-runtime.js', 'gestion-camas-egreso-report-runtime.js', 'gestion-camas-monthly-cudyr-runtime.js', 'gestion-camas-active-beds.js', 'gestion-camas-clinical-cribs.js',
   'gestion-camas-statistical-report-fetcher.js', 'gestion-camas-discharge-report-runtime.js', 'gestion-camas-statistical-evidence-runtime.js',
   'cudyr-capture-support.js', 'cudyr-placement-support.js', 'gestion-camas-cudyr.js',
   'patient-clinical-bundle-runtime.js',
   'runtime-generation-recovery.js', 'runtime-generation.js', 'connection-repair-runtime.js',
-  'health-report-cache-runtime.js', 'health-push-ordering-runtime.js', 'health-heartbeat-runtime.js', 'health-tab-events-runtime.js', 'health-relay-self-repair.js',
+  'health-report-cache-runtime.js', 'health-request-runtime.js', 'health-push-ordering-runtime.js', 'health-heartbeat-runtime.js', 'health-tab-events-runtime.js', 'health-relay-self-repair.js',
   'relay-reinjection-manifest.js', 'relay-reinjection-health.js', 'relay-reinjection-operations.js', 'relay-reinjection-session.js', 'relay-reinjection-tab-events.js', 'relay-reinjection-runtime.js',
   'clinical-panel-fetch.js',
   'clinical-panel-runtime.js',
@@ -279,7 +280,7 @@ const readExtensionHealthUncached = async (targets = {}) => {
   const runtimeContext = await getRuntimeContext();
   const [fichaMedico, gestionCamas, hhr] = await Promise.all([
     handleFichaMedicoHealth(runtimeContext.runtimeGeneration, targets.fichaMedicoTabIds),
-    handleGestionCamasHealth(runtimeContext.runtimeGeneration, targets.gestionCamasTabIds),
+    handleGestionCamasHealth(runtimeContext.runtimeGeneration, targets.gestionCamasTabIds, { verifySessions: targets.verifySessions === true }),
     handleHhrHealth(runtimeContext),
   ]);
 
@@ -291,7 +292,7 @@ const readExtensionHealthUncached = async (targets = {}) => {
       'statistical-discharge-evidence',
       'patient-clinical-bundle',
       'patient-document-manager',
-      'health-push',
+      'health-push', 'sync-preflight-verification',
       'clean-connection-repair', 'hhr-connection-repair-bridge',
     ],
     checkedAt: new Date().toISOString(),
@@ -302,8 +303,7 @@ const readExtensionHealthUncached = async (targets = {}) => {
   healthRelaySelfRepair.schedule(report);
   return report;
 };
-const healthReportCache = self.HhrHealthReportCacheRuntime.create({ readHealth: readExtensionHealthUncached, ttlMs: 3000 });
-const handleExtensionHealth = () => healthReportCache.read();
+const { healthReportCache, handleExtensionHealth } = self.HhrHealthRequestRuntime.create({ readHealth: readExtensionHealthUncached, ttlMs: 3000 });
 const connectionRepairRuntime = self.HhrConnectionRepairRuntime.create({
   chromeApi: chrome,
   // Repair must probe the tabs it just opened; the 3 s cache would keep answering for the old ones.
@@ -1168,7 +1168,7 @@ const handlePatientClinicalBundleRequest = self.HhrPatientClinicalBundleRuntime.
 
 const runtimeMessageRoutes = Object.freeze({
   [RUNTIME_MESSAGES.EXTENSION_HEALTH_REQUEST]: runtimeRoute(
-    () => handleExtensionHealth(),
+    message => handleExtensionHealth(message),
     'No se pudo verificar el estado de la extensión.'
   ),
   [RUNTIME_MESSAGES.EXTENSION_RUNTIME_CONTEXT_REQUEST]: runtimeRoute(

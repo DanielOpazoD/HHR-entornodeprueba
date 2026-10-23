@@ -109,9 +109,9 @@ const readRelayHealth = statusPage =>
     return { runtimeContext, fichaMedico, gestionCamas, hhr };
   });
 
-const requestHhrHealth = page =>
+const requestHhrHealth = (page, { verifySessions = false } = {}) =>
   page.evaluate(
-    () =>
+    verifySessions =>
       new Promise((resolve, reject) => {
         const reqId = `update-e2e-${Date.now()}-${Math.random()}`;
         const timeout = setTimeout(() => {
@@ -132,10 +132,11 @@ const requestHhrHealth = page =>
         };
         window.addEventListener('message', onMessage);
         window.postMessage(
-          { type: 'HHR_RAYEN_EXTENSION_HEALTH_REQUEST', reqId },
+          { type: 'HHR_RAYEN_EXTENSION_HEALTH_REQUEST', reqId, verifySessions },
           window.location.origin
         );
-      })
+      }),
+    verifySessions
   );
 
 const requestInvalidPatientFlow = page =>
@@ -605,6 +606,102 @@ try {
   assert.notEqual(hhrHealthResult.report.fichaMedico.reason, 'outdated_tab');
   assert.equal(hhrHealthResult.report.fichaMedico.status, 'ready');
 
+  // Exercise the packaged HHR → ISOLATED → MV3 preflight contract with a fresh cached
+  // green report. A revoked GC connection must bypass that report and its 15-minute lease.
+  await reloadedWorker.evaluate(async () => {
+    const [sourceTab] = await chrome.tabs.query({ url: 'https://hospitalizado.rayensalud.cl/*' });
+    const record = HhrGestionCamasSession.buildSessionRecord({
+      token: 'test-token-placeholder',
+      apiBase: 'https://hospbackend.rayensalud.cl',
+      facId: '1',
+    });
+    await chrome.storage.session.set({
+      [HhrGestionCamasSession.SESSION_STORAGE_KEY]: {
+        ...record,
+        sourceTabId: sourceTab.id,
+        lastVerifiedAt: Date.now(),
+      },
+    });
+    globalThis.__hhrGcProbeRequests = 0;
+    globalThis.__hhrGcProbeAvailable = true;
+    globalThis.__hhrGcOriginalFetch = globalThis.fetch;
+    globalThis.fetch = (input, init) => {
+      if (!String(input).startsWith('https://hospbackend.rayensalud.cl/'))
+        return globalThis.__hhrGcOriginalFetch(input, init);
+      globalThis.__hhrGcProbeRequests += 1;
+      return Promise.resolve(
+        new Response('[]', {
+          status: globalThis.__hhrGcProbeAvailable ? 200 : 503,
+        })
+      );
+    };
+  });
+  try {
+    const verifiedHealth = await requestHhrHealth(hhrPage, { verifySessions: true });
+    assert.equal(verifiedHealth.report.syncPreflight, true);
+    assert.ok(verifiedHealth.report.capabilities.includes('sync-preflight-verification'));
+    assert.equal(verifiedHealth.report.fichaMedico.status, 'ready');
+    assert.equal(verifiedHealth.report.gestionCamas.status, 'ready');
+    const verifiedRequests = await reloadedWorker.evaluate(() => globalThis.__hhrGcProbeRequests);
+    assert.ok(verifiedRequests >= 1, 'An action preflight did not verify GC remotely');
+
+    await reloadedWorker.evaluate(() => {
+      globalThis.__hhrGcProbeAvailable = false;
+    });
+    const cachedGreen = await requestHhrHealth(hhrPage);
+    assert.equal(cachedGreen.report.gestionCamas.status, 'ready');
+    assert.equal(
+      cachedGreen.report.syncPreflight,
+      false,
+      'A passive reply reused the action acknowledgment'
+    );
+    assert.equal(
+      await reloadedWorker.evaluate(() => globalThis.__hhrGcProbeRequests),
+      verifiedRequests
+    );
+
+    const rejectedPreflight = await requestHhrHealth(hhrPage, { verifySessions: true });
+    assert.equal(rejectedPreflight.report.syncPreflight, true);
+    assert.equal(rejectedPreflight.report.fichaMedico.status, 'ready');
+    assert.equal(rejectedPreflight.report.gestionCamas.status, 'stale');
+    assert.ok(
+      (await reloadedWorker.evaluate(() => globalThis.__hhrGcProbeRequests)) > verifiedRequests,
+      'The action preflight trusted the cached green session instead of checking the backend'
+    );
+    const blockedPassive = await requestHhrHealth(hhrPage);
+    assert.equal(blockedPassive.report.gestionCamas.status, 'stale');
+    assert.equal(blockedPassive.report.syncPreflight, false);
+
+    const persistedVerification = await reloadedStatusPage.evaluate(async () => {
+      const key = 'hhrGestionCamasSessionV1';
+      const record = (await chrome.storage.session.get(key))[key];
+      return { lastVerifiedAt: record?.lastVerifiedAt, epoch: record?.verificationEpoch };
+    });
+    assert.equal(
+      persistedVerification.lastVerifiedAt,
+      null,
+      'A failed action probe retained its green lease in canonical session storage'
+    );
+    assert.ok(Number.isSafeInteger(persistedVerification.epoch) && persistedVerification.epoch > 0);
+
+    await reloadedWorker.evaluate(() => {
+      globalThis.__hhrGcProbeAvailable = true;
+    });
+    const recoveredPreflight = await requestHhrHealth(hhrPage, { verifySessions: true });
+    assert.equal(recoveredPreflight.report.syncPreflight, true);
+    assert.equal(recoveredPreflight.report.fichaMedico.status, 'ready');
+    assert.equal(recoveredPreflight.report.gestionCamas.status, 'ready');
+    console.log(
+      '[preflight] cached green bypassed, disconnected GC blocked, verified recovery ready'
+    );
+  } finally {
+    await reloadedWorker.evaluate(async () => {
+      await chrome.storage.session.remove(HhrGestionCamasSession.SESSION_STORAGE_KEY);
+      globalThis.fetch = globalThis.__hhrGcOriginalFetch;
+      delete globalThis.__hhrGcOriginalFetch;
+    });
+  }
+
   // Published sites must receive the real manifest-declared content scripts too.
   // Fulfill all page traffic locally: never contact the deployed clinical application.
   for (const origin of [
@@ -705,6 +802,9 @@ try {
   sessionExpired = true;
   const expiredHealth = await readRelayHealth(reloadedStatusPage);
   assert.equal(expiredHealth.fichaMedico.ready, false);
+  const expiredPreflight = await requestHhrHealth(hhrPage, { verifySessions: true });
+  assert.equal(expiredPreflight.report.syncPreflight, true);
+  assert.notEqual(expiredPreflight.report.fichaMedico.status, 'ready');
   const expiredBundle = await requestClinicalBundle(hhrPage, syntheticClinicalDate);
   for (const section of ['devices', 'history', 'forms']) {
     assert.ok(expiredBundle[section]?.error, `${section} must reject an expired session`);

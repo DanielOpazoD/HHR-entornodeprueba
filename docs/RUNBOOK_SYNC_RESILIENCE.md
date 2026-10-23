@@ -134,6 +134,32 @@ de Firebase y caché queda en telemetría, sin ocupar la pantalla de enfermería
 No usar una copia del día anterior para sustituir la evidencia histórica. Las fechas anteriores
 al límite de siete días requieren revisión manual; el botón no aparece.
 
+## Conexión previa de Eloísa
+
+Antes de iniciar una sincronización o reintentar la información clínica, HHR solicita una
+comprobación nueva de Ficha Médico y Gestión de Camas. Esta acción omite la caché de salud
+y verifica la sesión autenticada de Gestión de Camas aunque exista un verde reciente.
+La extensión debe anunciar `sync-preflight-verification` y confirmar `syncPreflight: true`;
+si falta cualquiera, actualizar la extensión y recargar las pestañas implicadas.
+
+Una comprobación inicial sin ambas fuentes disponibles bloquea el intento antes de crear
+una ejecución: no suma una sincronización fallida al historial. Un error de lectura o
+persistencia posterior a una comprobación exitosa conserva su clasificación de fallo.
+Los sondeos pasivos mantienen su tolerancia breve a interrupciones y no habilitan por sí
+solos la acción. Al recuperar la conexión, se vuelve a comprobar antes de arrancar.
+
+La verificación de Gestión de Camas reserva una generación (`verificationEpoch`) y
+revoca `lastVerifiedAt` en su registro canónico de `chrome.storage.session` antes de
+sondear la fuente. Las respuestas sólo actualizan ese mismo vínculo y generación.
+Así, reiniciar el proceso de la extensión conserva la necesidad de verificar; una
+respuesta antigua tampoco revoca ni restablece una conexión posterior.
+
+Cada captura vuelve a consultar encabezado y diagnóstico del episodio; sólo deduplica esas
+lecturas dentro de la misma captura. El catálogo CIE-10 mantiene su caché de una hora.
+Si el diagnóstico sigue sin cambiar, comprobar el diagnóstico principal que entrega la
+fuente y la identidad del episodio; esta corrección no cambia la prioridad de selección
+entre diagnósticos ni demuestra qué información entrega un episodio real.
+
 ## Procedimiento 1: IndexedDB bloqueado
 
 Síntomas:

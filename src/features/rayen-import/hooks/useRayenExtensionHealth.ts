@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { normalizeHealthExpiry } from '../bridge/sourceHealthExpiry';
 import {
   RAYEN_HEALTH_PUSH_CAPABILITY,
+  RAYEN_SYNC_PREFLIGHT_VERIFICATION_CAPABILITY,
   RAYEN_EXTENSION_PROTOCOL_VERSION,
   requestRayenExtensionHealth,
   subscribeToRayenExtensionHealthPush,
@@ -102,7 +103,7 @@ export const absorbTransientHealthFailure = (
 ): RayenExtensionHealthState => {
   if (next.report || next.connection !== 'offline') return next;
   const previousReport = previous.report;
-  if (!previousReport || previous.connection === 'offline') return next;
+  if (!previousReport || previous.connection !== 'ready') return next;
   const checkedAt = Date.parse(previousReport.checkedAt);
   if (!Number.isFinite(checkedAt) || now - checkedAt >= RAYEN_EXTENSION_HEALTH_LEASE_MS) {
     return next;
@@ -214,6 +215,13 @@ export const useRayenExtensionHealth = () => {
   // decidir si absorbe un fallo transitorio, sin depender del ciclo de render.
   const latestHealth = useRef(health);
   const recoveryAttempts = useRef(0);
+  // A newer source failure revokes this attempt even if passive polling later reports green.
+  const activePreflight = useRef<{ invalidated: boolean } | null>(null);
+  const publishHealth = useCallback((next: RayenExtensionHealthState): void => {
+    latestHealth.current = next;
+    if (!next.canSync && activePreflight.current) activePreflight.current.invalidated = true;
+    setHealth(next);
+  }, []);
 
   useEffect(() => {
     latestHealth.current = health;
@@ -223,7 +231,20 @@ export const useRayenExtensionHealth = () => {
     async (
       options: RayenExtensionHealthRefreshOptions = {}
     ): Promise<RayenExtensionHealthState> => {
+      // A shorter passive deadline must not cancel the action sharing the extension probe.
+      if (
+        !options.showChecking &&
+        activePreflight.current &&
+        !activePreflight.current.invalidated
+      ) {
+        return { ...CHECKING_STATE, report: latestHealth.current.report };
+      }
       const sequence = ++requestSequence.current;
+      const preflight = options.showChecking ? { invalidated: false } : null;
+      if (preflight) {
+        if (activePreflight.current) activePreflight.current.invalidated = true;
+        activePreflight.current = preflight;
+      }
       setHealth(previous =>
         !options.showChecking && previous.connection === 'ready' && previous.report
           ? previous
@@ -231,26 +252,65 @@ export const useRayenExtensionHealth = () => {
               ...previous,
               connection: 'checking',
               message: 'Comprobando conexión…',
+              canSync: false,
             }
       );
-      const result = await requestRayenExtensionHealth(options.timeoutMs);
-      const next = deriveHealthState(result.report, result.error);
-      const applied = absorbTransientHealthFailure(latestHealth.current, next);
-      if (sequence === requestSequence.current) setHealth(applied);
-      return applied;
+      try {
+        const result = await (options.showChecking
+          ? requestRayenExtensionHealth(options.timeoutMs, { verifySessions: true })
+          : requestRayenExtensionHealth(options.timeoutMs));
+        const next = deriveHealthState(result.report, result.error);
+        const requiresUpdate =
+          options.showChecking &&
+          result.report &&
+          (!result.report.capabilities?.includes(RAYEN_SYNC_PREFLIGHT_VERIFICATION_CAPABILITY) ||
+            result.report.syncPreflight !== true);
+        const applied: RayenExtensionHealthState = requiresUpdate
+          ? {
+              connection: 'incompatible',
+              report: result.report,
+              canSync: false,
+              message:
+                'Actualiza y recarga la extensión Eloísa para comprobar ambas conexiones antes de sincronizar.',
+            }
+          : options.showChecking
+            ? next
+            : absorbTransientHealthFailure(latestHealth.current, next);
+        if (preflight?.invalidated) {
+          const current = latestHealth.current;
+          const blocked: RayenExtensionHealthState = current.canSync
+            ? {
+                ...current,
+                connection: 'blocked',
+                canSync: false,
+                message:
+                  'La conexión cambió durante la comprobación. Vuelve a sincronizar para verificar ambas fuentes.',
+              }
+            : current;
+          if (activePreflight.current === preflight && current.canSync) publishHealth(blocked);
+          return blocked;
+        }
+        if (
+          sequence === requestSequence.current ||
+          (preflight && activePreflight.current === preflight)
+        )
+          publishHealth(applied);
+        return applied;
+      } finally {
+        if (preflight && activePreflight.current === preflight) activePreflight.current = null;
+      }
     },
-    []
+    [publishHealth]
   );
 
   const adoptReport = useCallback(
     (report: RayenExtensionHealthReport): RayenExtensionHealthState => {
       requestSequence.current += 1;
       const next = deriveHealthState(report);
-      latestHealth.current = next;
-      setHealth(next);
+      publishHealth(next);
       return next;
     },
-    []
+    [publishHealth]
   );
 
   useEffect(() => {
@@ -259,7 +319,7 @@ export const useRayenExtensionHealth = () => {
     let refreshTimer: number | null = null;
     void requestRayenExtensionHealth().then(result => {
       if (active && sequence === requestSequence.current) {
-        setHealth(deriveHealthState(result.report, result.error));
+        publishHealth(deriveHealthState(result.report, result.error));
       }
     });
     const scheduleRefresh = (): void => {
@@ -285,10 +345,12 @@ export const useRayenExtensionHealth = () => {
     // un push fresco manda sobre cualquier chequeo en vuelo más antiguo.
     const unsubscribePush = subscribeToRayenExtensionHealthPush(report => {
       requestSequence.current += 1;
-      setHealth(deriveHealthState(report));
+      publishHealth(deriveHealthState(report));
     });
     return () => {
       active = false;
+      if (activePreflight.current) activePreflight.current.invalidated = true;
+      activePreflight.current = null;
       requestSequence.current += 1;
       if (refreshTimer !== null) window.clearTimeout(refreshTimer);
       window.removeEventListener('focus', onFocus);
@@ -296,7 +358,7 @@ export const useRayenExtensionHealth = () => {
       document.removeEventListener('visibilitychange', onVisibilityChange);
       unsubscribePush();
     };
-  }, [refresh]);
+  }, [publishHealth, refresh]);
 
   // Recuperación activa: mientras la conexión no esté sana, la propia página reintenta
   // sola con espera creciente. Antes sólo se reintentaba al enfocar la pestaña, de modo

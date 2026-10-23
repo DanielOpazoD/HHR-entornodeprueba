@@ -19,6 +19,19 @@ Si la change toca reglas generadas o documentación operativa, correr además:
 
 ## Gates activos
 
+### Conexión previa y diagnóstico de Eloísa
+
+Owner: sincronización clínica. Verificar `check:rayen-extension-release`, los smokes
+`test:e2e:rayen-extension-runtime` y `test:e2e:rayen-extension-upgrade`, y las regresiones
+de salud, inicio bloqueado y diagnóstico entre capturas. Los fixtures deben devolver
+`syncPreflight: true` únicamente cuando reciban `verifySessions: true`, además de anunciar
+la capacidad correspondiente. Un verde pasivo no acredita el inicio de una sincronización.
+Para especialidad, `specialtyDeploymentContract.test.ts` usa los contextos de `netlify.toml`
+y comprueba la intención manual para cama y cuna sin activar Jev o memoria. Mantener los
+rechazos autoritativos para clientes sin intención y servidores con modo apagado.
+El cierre exige `ci:merge-gate`, `test:release-confidence` y revisión independiente del
+head final. Los smokes sintéticos no acreditan la disponibilidad de las fuentes reales.
+
 ### Functions: preview rechazado por origen
 
 Un POST del visor MMRAD puede devolver `403 Origin not allowed` aunque la página

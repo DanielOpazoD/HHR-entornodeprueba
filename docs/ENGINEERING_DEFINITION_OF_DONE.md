@@ -14,6 +14,14 @@ Una change queda lista solo si cumple todo lo siguiente:
 8. Si la change entra en una categoría gobernada, sigue `scripts/config/sustainable-change-policy.json` y deja evidencia del gate o artefacto requerido.
 9. Si incluye lógica de app, assets estáticos o snapshots de `reports/`, separa esos concerns en commits distintos cuando no dependan del mismo fix.
 
+Para cambios en la conexión previa de Eloísa, probar el recorrido real de mensajes de
+extensión, incluidos un verde pasivo seguido de rechazo autenticado y una respuesta
+tardía. El bloqueo previo no crea una ejecución; un fallo después del arranque sí queda
+en el historial. Probar también dos capturas del mismo episodio con diagnóstico distinto
+y el gesto manual de especialidad bajo la configuración Netlify publicada, para cama y
+cuna. Una extensión anterior debe solicitar actualización antes de sincronizar. Validar
+el paquete generado, los smokes de runtime/actualización y los gates de runtime crítico.
+
 Para validar ingresos tras cambios de cama, probar el recorrido de conciliación,
 aplicación y validación con dos camas ocupadas que intercambian episodios. El
 comparador usa identidad de episodio y conserva el rechazo de cambios reales de

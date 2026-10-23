@@ -242,35 +242,45 @@ describe('RayenImportButton history and progress', () => {
     expect(screen.queryByTestId('rayen-structural-review-detail')).not.toBeInTheDocument();
   });
 
-  it('resumes an applied clinical fill without requesting the census snapshot again', async () => {
-    mocks.useDailyRecordData.mockReturnValue({
-      record: {
-        rayenSync: {
-          at: '2026-07-14T10:00:00.000Z',
-          by: 'Daniel Opazo',
-          runId: 'run-applied',
-          status: 'applied',
-        },
-        rayenSyncHistory: [
-          {
-            id: 'run-applied',
-            startedAt: '2026-07-14T10:00:00.000Z',
+  it.each([true, false])(
+    'only resumes an applied clinical fill after both sources pass preflight: %s',
+    async canSync => {
+      mocks.useDailyRecordData.mockReturnValue({
+        record: {
+          rayenSync: {
+            at: '2026-07-14T10:00:00.000Z',
             by: 'Daniel Opazo',
+            runId: 'run-applied',
             status: 'applied',
-            changes: { admissions: 0, updates: 0, moves: 0, discharges: 0, unchanged: 10 },
           },
-        ],
-      },
-    });
-    mocks.retryClinicalFill.mockResolvedValue(undefined);
-    render(<RayenImportButton />);
-    fireEvent.click(screen.getByTestId('rayen-sync-history-button'));
-    await screen.findByTestId('rayen-sync-history-modal');
-    fireEvent.click(screen.getByRole('button', { name: 'Reintentar información clínica' }));
-    await waitFor(() => expect(mocks.retryClinicalFill).toHaveBeenCalledOnce());
-    expect(mocks.refreshHealth).not.toHaveBeenCalled();
-    expect(mocks.triggerImport).not.toHaveBeenCalled();
-  });
+          rayenSyncHistory: [
+            {
+              id: 'run-applied',
+              startedAt: '2026-07-14T10:00:00.000Z',
+              by: 'Daniel Opazo',
+              status: 'applied',
+              changes: { admissions: 0, updates: 0, moves: 0, discharges: 0, unchanged: 10 },
+            },
+          ],
+        },
+      });
+      mocks.retryClinicalFill.mockResolvedValue(undefined);
+      mocks.refreshHealth.mockResolvedValue({ ...mocks.useRayenExtensionHealth(), canSync });
+      render(<RayenImportButton />);
+      fireEvent.click(screen.getByTestId('rayen-sync-history-button'));
+      await screen.findByTestId('rayen-sync-history-modal');
+      fireEvent.click(screen.getByRole('button', { name: 'Reintentar información clínica' }));
+      await waitFor(() =>
+        expect(mocks.refreshHealth).toHaveBeenCalledWith({
+          timeoutMs: 25_000,
+          showChecking: true,
+        })
+      );
+      if (canSync) await waitFor(() => expect(mocks.retryClinicalFill).toHaveBeenCalledOnce());
+      else expect(mocks.retryClinicalFill).not.toHaveBeenCalled();
+      expect(mocks.triggerImport).not.toHaveBeenCalled();
+    }
+  );
 
   it('shows the empty history state, closes with Escape and restores focus', async () => {
     mocks.useDailyRecordData.mockReturnValue({ record: {} });

@@ -19,6 +19,7 @@ export const RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_CAPABILITY = 'statistical-disc
 export const RAYEN_PATIENT_CLINICAL_BUNDLE_CAPABILITY = 'patient-clinical-bundle';
 export const RAYEN_PATIENT_DOCUMENT_MANAGER_CAPABILITY = 'patient-document-manager';
 export const RAYEN_HEALTH_PUSH_CAPABILITY = 'health-push';
+export const RAYEN_SYNC_PREFLIGHT_VERIFICATION_CAPABILITY = 'sync-preflight-verification';
 export const RAYEN_CLEAN_CONNECTION_REPAIR_CAPABILITY = 'clean-connection-repair';
 export const RAYEN_HHR_CONNECTION_REPAIR_BRIDGE_CAPABILITY = 'hhr-connection-repair-bridge';
 
@@ -81,6 +82,8 @@ export interface RayenExtensionHealthReport {
   runtimeGeneration?: string;
   runtimeStartedAt?: number;
   protocolVersion: number;
+  /** Only the background action route sets this after bypassing passive session leases. */
+  syncPreflight?: boolean;
   capabilities?: string[];
   checkedAt: string;
   fichaMedico: RayenSourceHealth;
@@ -136,6 +139,7 @@ export const isRayenExtensionHealthReport = (
       typeof candidate.runtimeGeneration === 'string') &&
     (candidate.runtimeStartedAt === undefined || typeof candidate.runtimeStartedAt === 'number') &&
     typeof candidate.protocolVersion === 'number' &&
+    (candidate.syncPreflight === undefined || typeof candidate.syncPreflight === 'boolean') &&
     (candidate.capabilities === undefined ||
       (Array.isArray(candidate.capabilities) &&
         candidate.capabilities.every(capability => typeof capability === 'string'))) &&
@@ -181,7 +185,8 @@ export const subscribeToRayenExtensionHealthPush = (
 };
 
 export const requestRayenExtensionHealth = (
-  timeoutMs = RAYEN_EXTENSION_PASSIVE_HEALTH_TIMEOUT_MS
+  timeoutMs = RAYEN_EXTENSION_PASSIVE_HEALTH_TIMEOUT_MS,
+  options: { verifySessions?: boolean } = {}
 ): Promise<RayenExtensionHealthCheck> =>
   new Promise(resolve => {
     if (typeof window === 'undefined') {
@@ -224,7 +229,11 @@ export const requestRayenExtensionHealth = (
 
     window.addEventListener('message', onMessage);
     window.postMessage(
-      { type: RAYEN_EXTENSION_HEALTH_REQUEST_TYPE, reqId },
+      {
+        type: RAYEN_EXTENSION_HEALTH_REQUEST_TYPE,
+        reqId,
+        ...(options.verifySessions ? { verifySessions: true } : {}),
+      },
       window.location.origin
     );
 

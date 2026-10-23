@@ -5,7 +5,7 @@ import '../../../extension/health-report-cache-runtime.js';
 
 type Runtime = {
   create: (deps: Record<string, unknown>) => {
-    read: (options?: { force?: boolean }) => Promise<unknown>;
+    read: (options?: { force?: boolean; verifySessions?: boolean }) => Promise<unknown>;
     invalidate: () => void;
   };
 };
@@ -51,6 +51,28 @@ describe('health report cache runtime', () => {
     await expect(cache.read()).resolves.toEqual({ sequence: 3 });
     now += 4000;
     await expect(cache.read()).resolves.toEqual({ sequence: 4 });
+  });
+
+  it('verifies sessions instead of joining a passive check or accepting its cached green report', async () => {
+    const releases: Array<(value: unknown) => void> = [];
+    const readHealth = vi.fn(() => new Promise(resolve => releases.push(resolve)));
+    const cache = runtime.create({ readHealth });
+    const passive = cache.read();
+    await vi.waitFor(() => expect(readHealth).toHaveBeenCalledTimes(1));
+    const preflight = cache.read({ verifySessions: true });
+    expect(cache.read({ verifySessions: true })).toBe(preflight);
+    await vi.waitFor(() => expect(readHealth).toHaveBeenCalledTimes(2));
+    expect(readHealth).toHaveBeenLastCalledWith({ verifySessions: true });
+    releases[1]?.({ status: 'stale' });
+    await expect(preflight).resolves.toEqual({ status: 'stale' });
+    releases[0]?.({ status: 'ready' });
+    await passive;
+    await expect(cache.read()).resolves.toEqual({ status: 'stale' });
+
+    const nextPreflight = cache.read({ verifySessions: true });
+    await vi.waitFor(() => expect(readHealth).toHaveBeenCalledTimes(3));
+    releases[2]?.({ status: 'ready' });
+    await nextPreflight;
   });
 
   it('does not cache a failed probe', async () => {

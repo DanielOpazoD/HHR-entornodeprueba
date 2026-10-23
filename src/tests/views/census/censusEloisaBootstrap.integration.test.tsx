@@ -133,8 +133,16 @@ vi.mock('@/features/rayen-import/components/RayenImportPreviewModal', () => ({
 
 const readyHealth = {
   connection: 'ready',
-  report: null,
-  message: 'Extensión Eloísa v0.48.19 operativa.',
+  report: {
+    version: 'test',
+    protocolVersion: 5,
+    checkedAt: '2026-09-10T17:00:00.000Z',
+    capabilities: ['sync-preflight-verification'],
+    syncPreflight: true,
+    fichaMedico: { status: 'ready', message: 'Disponible.' },
+    gestionCamas: { status: 'ready', message: 'Disponible.' },
+  },
+  message: 'Extensión Eloísa operativa.',
   canSync: true,
 };
 

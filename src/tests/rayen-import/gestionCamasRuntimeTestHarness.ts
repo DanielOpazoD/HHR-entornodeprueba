@@ -4,7 +4,9 @@ import { vi } from 'vitest';
 import '../../../extension/health-check.js';
 import '../../../extension/gestion-camas-session.js';
 import '../../../extension/connection-relay-recovery.js';
+import '../../../extension/gestion-camas-session-health.js';
 import '../../../extension/gestion-camas-health.js';
+import '../../../extension/gestion-camas-session-verification.js';
 import '../../../extension/gestion-camas-runtime.js';
 
 type StoredValues = Record<string, unknown>;
@@ -85,7 +87,8 @@ export const createFixture = (
           ) => Promise<string>;
           health: (
             runtimeGeneration?: string,
-            targetTabIds?: number[]
+            targetTabIds?: number[],
+            options?: { verifySessions?: boolean }
           ) => Promise<Record<string, unknown>>;
           connect: (options?: { renew?: boolean }) => Promise<Record<string, unknown>>;
           disconnect: () => Promise<Record<string, unknown>>;
@@ -100,42 +103,45 @@ export const createFixture = (
       ? { status: 'ready', message: 'Pestaña disponible.' }
       : { status: 'missing', message: 'Abre Gestión de Camas.' }
   );
-  const runtime = runtimeFactory.create({
-    chrome: chromeApi,
-    session: options.fullLifecycle
-      ? {
-          ...(globalThis as typeof globalThis & { HhrGestionCamasSession: Record<string, unknown> })
-            .HhrGestionCamasSession,
-          SESSION_STORAGE_KEY: session.SESSION_STORAGE_KEY,
-          PENDING_WINDOW_STORAGE_KEY: session.PENDING_WINDOW_STORAGE_KEY,
-          CONNECTION_CONTROL_STORAGE_KEY: session.CONNECTION_CONTROL_STORAGE_KEY,
-          CLOSING_WINDOW_STORAGE_KEY: session.CLOSING_WINDOW_STORAGE_KEY,
-        }
-      : session,
-    extensionHealth: options.fullLifecycle
-      ? (globalThis as typeof globalThis & { HhrExtensionHealth: Record<string, unknown> })
-          .HhrExtensionHealth
-      : {
-          orderTabs: (tabs: unknown[]) => tabs,
-          resolveTabs: async (
-            tabsApi: {
-              query: (query: unknown) => Promise<unknown[]>;
-              get: (id: number) => Promise<unknown>;
-            },
-            url: string,
-            targetTabIds?: number[]
-          ) =>
-            Array.isArray(targetTabIds)
-              ? (await Promise.all(targetTabIds.map(id => tabsApi.get(id)))).filter(Boolean)
-              : tabsApi.query({ url }),
-          probeTabs,
-        },
-    withTimeout: (promise: Promise<unknown>) => promise,
-    fetchWithTimeout,
-    backendRequestTimeoutMs: 45_000,
-    tabMessageTimeoutMs: 50_000,
-    healthProbeTimeoutMs: 5_000,
-  });
+  const restartRuntime = () =>
+    runtimeFactory.create({
+      chrome: chromeApi,
+      session: options.fullLifecycle
+        ? {
+            ...(
+              globalThis as typeof globalThis & { HhrGestionCamasSession: Record<string, unknown> }
+            ).HhrGestionCamasSession,
+            SESSION_STORAGE_KEY: session.SESSION_STORAGE_KEY,
+            PENDING_WINDOW_STORAGE_KEY: session.PENDING_WINDOW_STORAGE_KEY,
+            CONNECTION_CONTROL_STORAGE_KEY: session.CONNECTION_CONTROL_STORAGE_KEY,
+            CLOSING_WINDOW_STORAGE_KEY: session.CLOSING_WINDOW_STORAGE_KEY,
+          }
+        : session,
+      extensionHealth: options.fullLifecycle
+        ? (globalThis as typeof globalThis & { HhrExtensionHealth: Record<string, unknown> })
+            .HhrExtensionHealth
+        : {
+            orderTabs: (tabs: unknown[]) => tabs,
+            resolveTabs: async (
+              tabsApi: {
+                query: (query: unknown) => Promise<unknown[]>;
+                get: (id: number) => Promise<unknown>;
+              },
+              url: string,
+              targetTabIds?: number[]
+            ) =>
+              Array.isArray(targetTabIds)
+                ? (await Promise.all(targetTabIds.map(id => tabsApi.get(id)))).filter(Boolean)
+                : tabsApi.query({ url }),
+            probeTabs,
+          },
+      withTimeout: (promise: Promise<unknown>) => promise,
+      fetchWithTimeout,
+      backendRequestTimeoutMs: 45_000,
+      tabMessageTimeoutMs: 50_000,
+      healthProbeTimeoutMs: 5_000,
+    });
 
-  return { runtime, values, storage, fetchWithTimeout, chromeApi, probeTabs };
+  const runtime = restartRuntime();
+  return { runtime, restartRuntime, values, storage, fetchWithTimeout, chromeApi, probeTabs };
 };

@@ -52,7 +52,7 @@ const policy = { mode: 'preview' as const, clinicalBatchMode: 'enforced' as cons
 describe('useRayenImportCapture lifecycle guards', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('records one preflight failure without reading or writing the census', async () => {
+  it('blocks an unavailable preflight without creating a failed synchronization', async () => {
     const loadFreshRecord = vi.fn().mockResolvedValue(record);
     const startRequest = vi.fn();
     const failRun = vi.fn().mockResolvedValue(undefined);
@@ -95,9 +95,8 @@ describe('useRayenImportCapture lifecycle guards', () => {
       });
     });
 
-    expect(startRun).toHaveBeenCalledOnce();
-    expect(failRun).toHaveBeenCalledOnce();
-    expect(failRun).toHaveBeenCalledWith('extension_unavailable', 'run-offline');
+    expect(startRun).not.toHaveBeenCalled();
+    expect(failRun).not.toHaveBeenCalled();
     expect(loadFreshRecord).not.toHaveBeenCalled();
     expect(startRequest).not.toHaveBeenCalled();
   });

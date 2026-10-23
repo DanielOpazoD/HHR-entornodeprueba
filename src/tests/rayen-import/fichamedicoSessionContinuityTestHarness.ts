@@ -154,6 +154,9 @@ export const createHarness = async (
   vm.runInContext(diagnosisCodingSource, context, { filename: 'fichamedico-diagnosis-coding.js' });
   vm.runInContext(normalizationSource, context, { filename: 'fichamedico-normalization.js' });
   vm.runInContext(resilienceSource, context, { filename: 'fichamedico-read-resilience.js' });
+  vm.runInContext(extensionSource('fichamedico-capture-cache.js'), context, {
+    filename: 'fichamedico-capture-cache.js',
+  });
   vm.runInContext(censusSource, context, { filename: 'fichamedico-census-runtime.js' });
   vm.runInContext(bridgeGenerationSource, context, { filename: 'bridge-generation-main.js' });
   vm.runInContext(extensionSource('connection-relay-recovery.js'), context, {

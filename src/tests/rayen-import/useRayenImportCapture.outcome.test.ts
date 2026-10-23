@@ -105,7 +105,7 @@ describe('useRayenImportCapture · resultado del intento', () => {
     expect(deps.syncRequestController.start).toHaveBeenCalledTimes(1);
   });
 
-  it('reports `started` even when the extension is down, because the failure is recorded', async () => {
+  it('reports `blocked` when source connectivity is unavailable without recording a failed run', async () => {
     const { result, deps } = renderCapture();
 
     let outcome: unknown;
@@ -113,8 +113,10 @@ describe('useRayenImportCapture · resultado del intento', () => {
       outcome = await result.current(downHealth);
     });
 
-    expect(outcome).toBe('started');
-    expect(deps.failRun).toHaveBeenCalledWith(expect.any(String), 'run-outcome');
+    expect(outcome).toBe('blocked');
+    expect(deps.startRun).not.toHaveBeenCalled();
+    expect(deps.failRun).not.toHaveBeenCalled();
+    expect(deps.syncRequestController.start).not.toHaveBeenCalled();
   });
 
   it('reports `blocked` while the global policy is still loading', async () => {

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import '../../../extension/connection-relay-recovery.js';
 import '../../../extension/health-check.js';
+import '../../../extension/gestion-camas-session-health.js';
 import '../../../extension/gestion-camas-health.js';
 
 const health = (
