@@ -5,11 +5,24 @@ import {
   type CensusPromptState,
 } from '@/hooks/controllers/censusPromptController';
 import { defaultDailyRecordReadPort } from '@/application/ports/dailyRecordPort';
+import { getPreviousDay } from '@/utils/clinicalDayUtils';
 import {
   DAILY_RECORD_STORE_CHANGED_EVENT,
   type DailyRecordStoreChangedEventDetail,
   isDailyRecordStoreChangeRelevantToCensusPrompt,
 } from '@/services/storage/indexeddb/indexedDbRecordEvents';
+
+// The empty-day prompt only offers to copy yesterday, so it reads that one day, from the device
+// first. Listing the recent window used to download up to 35 whole census days for one answer.
+const readYesterday = async (currentDateString: string) => {
+  const yesterday = getPreviousDay(currentDateString);
+  return (
+    (await defaultDailyRecordReadPort.getLocalForDate(yesterday)) ??
+    (await defaultDailyRecordReadPort.getForDate(yesterday))
+  );
+};
+
+const NO_LISTED_DATES = async (): Promise<string[]> => [];
 
 export const useCensusPromptState = (
   currentDateString: string,
@@ -50,10 +63,8 @@ export const useCensusPromptState = (
     void (async () => {
       const nextPromptState = await executeLoadCensusPromptDataController({
         currentDateString,
-        getPreviousDay: defaultDailyRecordReadPort.getPreviousDay,
-        // Startup uses the bounded reader: it only needs the closest dates, not all history.
-        getAvailableDates: () =>
-          defaultDailyRecordReadPort.getRecentAvailableDates(currentDateString),
+        getPreviousDay: readYesterday,
+        getAvailableDates: NO_LISTED_DATES,
       });
 
       if (isDisposed || requestId !== requestIdRef.current) {

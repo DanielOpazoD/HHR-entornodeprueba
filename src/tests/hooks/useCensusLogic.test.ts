@@ -10,17 +10,24 @@ import * as statsCalculator from '@/services/calculations/statsCalculator';
 import * as censusPromptStateHook from '@/hooks/useCensusPromptState';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
+const contextState = vi.hoisted(() => ({
+  beds: null as Record<string, unknown> | null,
+  bootstrapPhase: 'local_only' as string,
+}));
+const POPULATED_BEDS = {
+  R1: { patientName: 'Patient 1', status: 'ESTABLE' },
+  R2: { patientName: 'Patient 2', status: 'CRITICO' },
+};
+
 // Mock contexts with correct hook names
 vi.mock('@/context/DailyRecordContext', () => ({
+  useDailyRecordStatus: () => ({ bootstrapPhase: contextState.bootstrapPhase }),
   useDailyRecordMovements: () => ({
     discharges: [],
     transfers: [],
     cma: [],
   }),
-  useDailyRecordBeds: () => ({
-    R1: { patientName: 'Patient 1', status: 'ESTABLE' },
-    R2: { patientName: 'Patient 2', status: 'CRITICO' },
-  }),
+  useDailyRecordBeds: () => contextState.beds,
   useDailyRecordStaff: () => ({ activeExtraBeds: [] }),
 }));
 
@@ -57,6 +64,8 @@ vi.mock('@/hooks/useCensusPromptState', () => ({
 describe('useCensusLogic', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    contextState.beds = POPULATED_BEDS;
+    contextState.bootstrapPhase = 'local_only';
 
     vi.mocked(statsCalculator.calculateStats).mockReturnValue(
       DataFactory.createMockStatistics({
@@ -91,6 +100,23 @@ describe('useCensusLogic', () => {
 
       expect(result.current.stats).toBeDefined();
       expect(statsCalculator.calculateStats).toHaveBeenCalled();
+    });
+  });
+
+  describe('Copy prompt demand', () => {
+    it.each([
+      ['while the day is still loading', null, 'remote_record_bootstrapping', false],
+      ['for a day only known locally so far', null, 'local_only', false],
+      ['once the day is confirmed empty', null, 'confirmed_empty', true],
+      ['for a populated day', POPULATED_BEDS, 'confirmed_empty', false],
+    ])('asks for the copy source only %s', (_case, beds, bootstrapPhase, enabled) => {
+      contextState.beds = beds;
+      contextState.bootstrapPhase = bootstrapPhase;
+      renderHook(() => useCensusLogic('2025-01-10'));
+      expect(censusPromptStateHook.useCensusPromptState).toHaveBeenCalledWith(
+        '2025-01-10',
+        enabled
+      );
     });
   });
 
