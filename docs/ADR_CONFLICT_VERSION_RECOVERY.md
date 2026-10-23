@@ -122,7 +122,8 @@ el campo `expireAt`):
   (por ejemplo handoff enfermería/médico posterior) quedan visibles como `review_required` y se
   registran en auditoría.
 - Luego, **full-save atómico** del `record` (reusa `saveRecordAtomically`): el CAS corre contra el
-  remoto actual, así que el estado que hubiera se snapshotea como de costumbre — **nunca destructivo**.
+  remoto actual y la restauración pide `historyPolicy: 'snapshot'`, así que el estado vivo se copia a
+  `history` aunque ya exista otra copia en la última hora — **nunca destructivo**.
 - El estado restaurado queda como **una nueva versión** en el historial; nada se pierde.
 - Idempotente / reentrante.
 

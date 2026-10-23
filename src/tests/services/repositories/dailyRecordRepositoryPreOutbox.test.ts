@@ -139,4 +139,20 @@ describe('dailyRecordRepositoryWriteService pre-outbox', () => {
     expect(queueSyncTask).not.toHaveBeenCalled();
     expect(saveToIndexedDB).not.toHaveBeenCalled();
   });
+
+  it.each([
+    [{}, {}],
+    [{ writeOrigin: 'backup_restore' as const }, { origin: 'backup_restore' }],
+    [{ rayenStructuralWriteGuard: true }, { historyPolicy: 'snapshot' }],
+    [{ historyPolicy: 'snapshot' as const }, { historyPolicy: 'snapshot' }],
+  ])('forwards the intents that force a history copy: %j', async (options, expected) => {
+    const record = buildRecord('2026-02-21');
+    record.lastUpdated = '2026-02-21T08:00:00.000Z';
+
+    await saveDetailed(record, '2026-02-21T07:55:00.000Z', options);
+
+    const writeOptions = vi.mocked(saveRecordToFirestore).mock.calls[0]?.[2];
+    expect(writeOptions).toMatchObject(expected);
+    if (!('historyPolicy' in expected)) expect(writeOptions).not.toHaveProperty('historyPolicy');
+  });
 });

@@ -307,7 +307,8 @@ describe('firestoreRecordWrites', () => {
       expect.objectContaining({ rayenSync: { runId: 'run-1' }, lastUpdated: expect.anything() }),
       '2026-03-14T10:00:00.000Z',
       'El egreso fue modificado por otro usuario. Recarga el censo antes de reclasificarlo.',
-      'movement reclassification'
+      'movement reclassification',
+      { historyPolicy: 'skip' }
     );
     expect(saveHistorySnapshot).not.toHaveBeenCalled();
     expect(updateDoc).not.toHaveBeenCalled();

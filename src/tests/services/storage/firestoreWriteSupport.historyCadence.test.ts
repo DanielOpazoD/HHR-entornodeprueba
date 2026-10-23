@@ -53,7 +53,11 @@ vi.mock('@/services/observability/operationalTelemetryOutcomeRecorder', () => ({
 }));
 
 vi.mock('@/services/storage/firestore/firestoreShared', () => ({
-  getRecordDocRef: vi.fn((date: string) => ({ kind: 'recordDocRef', date })),
+  getRecordDocRef: vi.fn((date: string) => ({
+    kind: 'recordDocRef',
+    date,
+    path: `hospitals/h/dailyRecords/${date}`,
+  })),
 }));
 
 vi.mock('@/services/storage/firestore/firestoreServiceRuntime', () => ({
@@ -100,6 +104,37 @@ describe('firestoreWriteSupport history cadence', () => {
       vi.mocked(getDoc).mockReset();
       vi.useRealTimers();
     }
+  });
+
+  it('keeps a separate cadence per day', async () => {
+    vi.mocked(getDoc).mockResolvedValue({ exists: () => true, data: () => ({}) } as never);
+    await saveHistorySnapshot('2026-03-22');
+    await saveHistorySnapshot('2026-03-23');
+    await saveHistorySnapshot('2026-03-22');
+    expect(setDoc).toHaveBeenCalledTimes(2);
+    vi.mocked(getDoc).mockReset();
+  });
+
+  it('does not count a copy whose write failed, so the next save copies again', async () => {
+    vi.mocked(getDoc).mockResolvedValue({ exists: () => true, data: () => ({}) } as never);
+    vi.mocked(setDoc).mockRejectedValueOnce(new Error('synthetic network failure'));
+    await saveHistorySnapshot('2026-03-24');
+    await saveHistorySnapshot('2026-03-24');
+    expect(setDoc).toHaveBeenCalledTimes(2);
+    vi.mocked(getDoc).mockReset();
+  });
+
+  it('stops re-reading the day for an hour when the rules deny the copy', async () => {
+    vi.mocked(getDoc).mockResolvedValue({ exists: () => true, data: () => ({}) } as never);
+    vi.mocked(setDoc).mockRejectedValueOnce(
+      Object.assign(new Error('Missing or insufficient permissions.'), {
+        code: 'permission-denied',
+      })
+    );
+    await saveHistorySnapshot('2026-03-25');
+    await saveHistorySnapshot('2026-03-25');
+    expect(getDoc).toHaveBeenCalledTimes(1);
+    vi.mocked(getDoc).mockReset();
   });
 
   describe('atomic writes', () => {
@@ -242,6 +277,93 @@ describe('firestoreWriteSupport history cadence', () => {
       } finally {
         vi.useRealTimers();
       }
+    });
+
+    const partialTx = () =>
+      makeTx({
+        exists: () => true,
+        data: () => ({ lastUpdated: '2026-02-20T10:00:00.000Z', beds: {} }),
+      });
+    const updateDay = (path: string, options?: { historyPolicy?: 'snapshot' | 'skip' }) =>
+      updateRecordPartiallyAtomically(
+        { kind: 'docRef', path } as never,
+        { discharges: [] },
+        '2026-02-20T10:00:00.000Z',
+        'conflict',
+        'movement reclassification',
+        options
+      );
+
+    it('keeps a separate cadence per day for partial updates and honours historyPolicy', async () => {
+      const tx = partialTx();
+      mockRunTransaction.mockImplementation((_db: unknown, fn: (tx: unknown) => Promise<void>) =>
+        fn(tx)
+      );
+      await updateDay('hospitals/h/dailyRecords/2026-02-24');
+      await updateDay('hospitals/h/dailyRecords/2026-02-25');
+      await updateDay('hospitals/h/dailyRecords/2026-02-24');
+      expect(tx.set).toHaveBeenCalledTimes(2);
+
+      await updateDay('hospitals/h/dailyRecords/2026-02-24', { historyPolicy: 'snapshot' });
+      expect(tx.set).toHaveBeenCalledTimes(3);
+      await updateDay('hospitals/h/dailyRecords/2026-02-26', { historyPolicy: 'skip' });
+      expect(tx.set).toHaveBeenCalledTimes(3);
+      await updateDay('hospitals/h/dailyRecords/2026-02-26');
+      expect(tx.set).toHaveBeenCalledTimes(4);
+    });
+
+    it('does not count a partial update copy whose transaction failed to commit', async () => {
+      const tx = partialTx();
+      mockRunTransaction.mockImplementationOnce(
+        async (_db: unknown, fn: (tx: unknown) => Promise<void>) => {
+          await fn(tx);
+          throw new Error('synthetic commit failure');
+        }
+      );
+      await expect(updateDay('hospitals/h/dailyRecords/2026-02-27')).rejects.toThrow(
+        'synthetic commit failure'
+      );
+      mockRunTransaction.mockImplementation((_db: unknown, fn: (tx: unknown) => Promise<void>) =>
+        fn(tx)
+      );
+      await updateDay('hospitals/h/dailyRecords/2026-02-27');
+      expect(tx.set).toHaveBeenCalledTimes(2);
+    });
+
+    it('marks only what the attempt that committed wrote when Firestore retries', async () => {
+      const day = { kind: 'docRef', path: 'hospitals/h/dailyRecords/2026-02-28' };
+      const existing = makeTx({
+        exists: () => true,
+        data: () => ({ lastUpdated: '2026-02-20T10:00:00.000Z', beds: {} }),
+      });
+      const gone = makeTx({ exists: () => false });
+      // First attempt copies, then the retry finds no document and commits without a copy.
+      mockRunTransaction.mockImplementationOnce(
+        async (_db: unknown, fn: (tx: unknown) => Promise<void>) => {
+          await fn(existing);
+          await fn(gone);
+        }
+      );
+      await saveRecordAtomically(
+        day as never,
+        { data: 'new' },
+        '2026-02-20T10:00:00.000Z',
+        'c',
+        's'
+      );
+
+      mockRunTransaction.mockImplementation((_db: unknown, fn: (tx: unknown) => Promise<void>) =>
+        fn(existing)
+      );
+      existing.set.mockClear();
+      await saveRecordAtomically(
+        day as never,
+        { data: 'new' },
+        '2026-02-20T10:00:00.000Z',
+        'c',
+        's'
+      );
+      expect(existing.set).toHaveBeenCalledTimes(2);
     });
   });
 });

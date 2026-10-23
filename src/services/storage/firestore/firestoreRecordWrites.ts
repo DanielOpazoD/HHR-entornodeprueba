@@ -344,7 +344,8 @@ export const updateRecordPartial = async (
                 asFirestoreUpdatePayload(sanitizedData),
                 expectedLastUpdated,
                 'El egreso fue modificado por otro usuario. Recarga el censo antes de reclasificarlo.',
-                'movement reclassification'
+                'movement reclassification',
+                { historyPolicy: options.historyPolicy }
               ),
             {
               onRetry: (err: unknown, attempt: number) =>

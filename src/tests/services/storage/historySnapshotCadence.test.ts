@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HISTORY_SNAPSHOT_INTERVAL_MS } from '@/services/storage/firestore/historySnapshotCadence';
 
 // Fresh module per test: the in-memory fallback lives as long as the tab.
@@ -13,7 +13,6 @@ const T0 = Date.parse('2026-10-23T08:00:00.000Z');
 
 describe('history snapshot cadence', () => {
   beforeEach(() => localStorage.clear());
-  afterEach(() => vi.restoreAllMocks());
 
   it('is due until a copy is taken, then again only after an hour, per document', async () => {
     const { isHistorySnapshotDue, markHistorySnapshotTaken } = await loadCadence();
@@ -51,16 +50,40 @@ describe('history snapshot cadence', () => {
     expect(isHistorySnapshotDue(OTHER_DAY, T0 + 1)).toBe(true);
   });
 
-  it('still bounds copies in memory when storage refuses writes', async () => {
+  it('still bounds copies in memory when storage refuses writes but can be read', async () => {
     const { isHistorySnapshotDue, markHistorySnapshotTaken } = await loadCadence();
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+    // The test setup replaces localStorage with a plain mock object: swap its method directly.
+    const originalSetItem = localStorage.setItem;
+    localStorage.setItem = () => {
       throw new Error('synthetic quota exceeded');
-    });
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
-      throw new Error('synthetic storage unavailable');
-    });
+    };
+    try {
+      markHistorySnapshotTaken(DAY, T0);
+      expect(localStorage.getItem('hhr_history_snapshot_cadence_v1')).toBeNull();
+      expect(isHistorySnapshotDue(DAY, T0 + 1)).toBe(false);
+    } finally {
+      localStorage.setItem = originalSetItem;
+    }
+  });
 
+  it('uses memory when storage cannot even be read', async () => {
+    const { isHistorySnapshotDue, markHistorySnapshotTaken } = await loadCadence();
     markHistorySnapshotTaken(DAY, T0);
-    expect(isHistorySnapshotDue(DAY, T0 + 1)).toBe(false);
+    const originalGetItem = localStorage.getItem;
+    localStorage.getItem = () => {
+      throw new Error('synthetic storage unavailable');
+    };
+    try {
+      expect(isHistorySnapshotDue(DAY, T0 + 1)).toBe(false);
+    } finally {
+      localStorage.getItem = originalGetItem;
+    }
+  });
+
+  it('copies again after logout clears the stored marks', async () => {
+    const { isHistorySnapshotDue, markHistorySnapshotTaken } = await loadCadence();
+    markHistorySnapshotTaken(DAY, T0);
+    localStorage.removeItem('hhr_history_snapshot_cadence_v1');
+    expect(isHistorySnapshotDue(DAY, T0 + 1)).toBe(true);
   });
 });

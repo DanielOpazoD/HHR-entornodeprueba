@@ -227,9 +227,9 @@ export const saveRecordAtomically = async (
 
 /**
  * Applies a dot-notation partial update in the same transaction that verifies the caller's base
- * version and, at most hourly, snapshots the previous document. This is reserved for mutations
- * whose invariant spans more than one field (for example, moving one egreso classification to
- * another).
+ * version and snapshots the previous document (hourly cadence unless `historyPolicy` says
+ * otherwise). This is reserved for mutations whose invariant spans more than one field (for
+ * example, moving one egreso classification to another).
  */
 export const updateRecordPartiallyAtomically = async (
   docRef: DocumentReference,
@@ -237,10 +237,12 @@ export const updateRecordPartiallyAtomically = async (
   expectedLastUpdated: string | undefined,
   conflictMessage: string,
   contextLabel: string,
+  { historyPolicy }: { historyPolicy?: 'snapshot' | 'skip' } = {},
   runtime: FirestoreServiceRuntimePort = defaultFirestoreServiceRuntime
 ): Promise<void> => {
   const db = runtime.getDb();
-  const captureHistory = isHistorySnapshotDue(docRef.path);
+  const captureHistory =
+    historyPolicy === 'snapshot' || (historyPolicy !== 'skip' && isHistorySnapshotDue(docRef.path));
   let historyWritten = false;
 
   await runTransaction(db, async transaction => {
@@ -324,9 +326,11 @@ export const saveHistorySnapshot = async (
   date: string,
   { force = false }: { force?: boolean } = {}
 ): Promise<void> => {
+  let documentPath: string | undefined;
   try {
     const docRef = getRecordDocRef(date);
-    if (!force && !isHistorySnapshotDue(docRef.path)) return;
+    documentPath = docRef.path;
+    if (!force && !isHistorySnapshotDue(documentPath)) return;
     const docSnap = await getDoc(docRef);
 
     if (!docSnap.exists()) {
@@ -342,6 +346,11 @@ export const saveHistorySnapshot = async (
     });
     markHistorySnapshotTaken(docRef.path);
   } catch (error) {
+    // Roles the rules do not let write history would otherwise re-read the whole day on every
+    // save; one denied attempt per hour is enough.
+    if (documentPath && (error as { code?: unknown })?.code === 'permission-denied') {
+      markHistorySnapshotTaken(documentPath);
+    }
     recordOperationalErrorTelemetry('firestore', 'save_history_snapshot', error, {
       code: 'firestore_history_snapshot_failed',
       message: 'No se pudo crear el snapshot histórico del registro.',

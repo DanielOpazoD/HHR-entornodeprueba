@@ -13,15 +13,18 @@ const STORAGE_KEY = 'hhr_history_snapshot_cadence_v1';
 const RETENTION_MS = 2 * 24 * HISTORY_SNAPSHOT_INTERVAL_MS;
 
 let memoryFallback: Record<string, number> = {};
+// After a failed write (quota, private mode) storage no longer holds this tab's latest marks.
+let storageHoldsLatest = true;
 
 const readTakenAt = (): Record<string, number> => {
+  if (!storageHoldsLatest) return memoryFallback;
   try {
     const parsed: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
     if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
       return parsed as Record<string, number>;
     }
   } catch {
-    // Unavailable or malformed storage falls back to what this tab wrote.
+    // Unreadable or malformed storage falls back to what this tab wrote.
   }
   return memoryFallback;
 };
@@ -30,8 +33,10 @@ const writeTakenAt = (takenAt: Record<string, number>): void => {
   memoryFallback = takenAt;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(takenAt));
+    storageHoldsLatest = true;
   } catch {
     // Without storage the in-memory map still bounds copies for this tab.
+    storageHoldsLatest = false;
   }
 };
 

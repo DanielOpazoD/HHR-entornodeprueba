@@ -161,6 +161,11 @@ describe('admissionDateBackfillService', () => {
       outcome: 'repaired',
     });
     expect(mockSaveDetailed).toHaveBeenCalledTimes(2);
+    // A bulk rewrite of past days keeps each day's previous state in history.
+    expect(mockSaveDetailed.mock.calls.map(call => call[2])).toEqual([
+      { historyPolicy: 'snapshot' },
+      { historyPolicy: 'snapshot' },
+    ]);
     expect(mockSaveDetailed.mock.calls[0]?.[0]).toMatchObject({
       date: '2026-03-01',
       beds: {

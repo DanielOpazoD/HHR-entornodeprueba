@@ -78,8 +78,14 @@ vi.mock('@/services/firebase-runtime/functionsRuntime', () => ({
     getRegionalFunctions: () => mockGetFunctions(),
   },
 }));
-import { saveRecordToFirestore } from '@/services/storage/firestore/firestoreRecordWrites';
-import { saveRecordAtomically } from '@/services/storage/firestore/firestoreWriteSupport';
+import {
+  saveRecordToFirestore,
+  updateRecordPartial,
+} from '@/services/storage/firestore/firestoreRecordWrites';
+import {
+  saveRecordAtomically,
+  updateRecordPartiallyAtomically,
+} from '@/services/storage/firestore/firestoreWriteSupport';
 
 // Full saves copy the live day to history at most hourly; restores always copy first.
 describe('firestoreRecordWrites history policy', () => {
@@ -111,4 +117,25 @@ describe('firestoreRecordWrites history policy', () => {
       expect.objectContaining({ forceHistorySnapshot: forced })
     );
   });
+
+  it.each([undefined, 'snapshot' as const, 'skip' as const])(
+    'passes historyPolicy %s to the atomic multi-field update',
+    async historyPolicy => {
+      await updateRecordPartial(
+        '2026-03-18',
+        { discharges: [] } as never,
+        '2026-03-18T10:00:00.000Z',
+        { requireAtomicCas: true, ...(historyPolicy ? { historyPolicy } : {}) }
+      );
+
+      expect(updateRecordPartiallyAtomically).toHaveBeenCalledWith(
+        { date: '2026-03-18' },
+        expect.anything(),
+        '2026-03-18T10:00:00.000Z',
+        expect.any(String),
+        'movement reclassification',
+        { historyPolicy }
+      );
+    }
+  );
 });

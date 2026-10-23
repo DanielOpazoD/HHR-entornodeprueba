@@ -183,6 +183,10 @@ const saveDetailedWithinLock = async (
         syncContract,
         returnCommittedRecord: options.requireConfirmedRecord,
         origin: options.writeOrigin,
+        // An automated structural import overwrites the day: keep the state it replaces.
+        ...(options.rayenStructuralWriteGuard || options.historyPolicy === 'snapshot'
+          ? { historyPolicy: 'snapshot' as const }
+          : {}),
         assertSafeOverwrite: remoteData =>
           assertNoPatientErasures(docToRecord(remoteData, command.date), validatedRecord),
       }),
