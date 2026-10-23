@@ -31,7 +31,15 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
+let visibility: DocumentVisibilityState;
+const setVisibility = async (next: DocumentVisibilityState) => {
+  visibility = next;
+  await act(async () => {
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+};
 describe('sync queue monitor polling', () => {
   it('lets a slow periodic read finish without overlapping or starving its result', async () => {
     const pending = deferred<typeof telemetry>();
@@ -131,5 +139,50 @@ describe('sync queue monitor polling', () => {
     expect(view.result.current.stats.pending).toBe(5);
     await act(async () => pending.resolve(telemetry));
     expect(view.result.current.stats.pending).toBe(5);
+  });
+
+  it('stops reading while the tab is hidden and reads once when it returns', async () => {
+    visibility = 'visible';
+    vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility);
+    const view = renderHook(() => useSyncQueueMonitor());
+    await act(async () => vi.advanceTimersByTimeAsync(8_000));
+    expect(mocks.telemetry).toHaveBeenCalledTimes(3);
+
+    await setVisibility('hidden');
+    await act(async () => vi.advanceTimersByTimeAsync(60_000));
+    expect(mocks.telemetry).toHaveBeenCalledTimes(3);
+    expect(mocks.operations).toHaveBeenCalledTimes(3);
+
+    mocks.telemetry.mockResolvedValue({ ...telemetry, pending: 4 });
+    await setVisibility('visible');
+    expect(mocks.telemetry).toHaveBeenCalledTimes(4);
+    expect(view.result.current.stats.pending).toBe(4);
+    await act(async () => vi.advanceTimersByTimeAsync(4_000));
+    expect(mocks.telemetry).toHaveBeenCalledTimes(5);
+  });
+
+  it('waits for the tab to be visible before the first read', async () => {
+    visibility = 'hidden';
+    vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility);
+    renderHook(() => useSyncQueueMonitor());
+    await act(async () => vi.advanceTimersByTimeAsync(20_000));
+    expect(mocks.telemetry).not.toHaveBeenCalled();
+
+    await setVisibility('visible');
+    expect(mocks.telemetry).toHaveBeenCalledTimes(1);
+  });
+
+  it('discards a read that finishes after the tab was hidden', async () => {
+    visibility = 'visible';
+    vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility);
+    const slow = deferred<typeof telemetry>();
+    mocks.telemetry.mockReturnValueOnce(slow.promise);
+    const view = renderHook(() => useSyncQueueMonitor());
+    await setVisibility('hidden');
+    await act(async () => slow.resolve({ ...telemetry, pending: 9 }));
+    expect(view.result.current.stats.pending).toBe(0);
+
+    await setVisibility('visible');
+    expect(view.result.current.stats.pending).toBe(2);
   });
 });
