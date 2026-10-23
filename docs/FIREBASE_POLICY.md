@@ -126,3 +126,8 @@ manual de recetas y finalización/corrección de traslados se conservan.
 La revisión del candidato y el merge no acreditan despliegue ni autorizan por
 sí solos una publicación manual; registrar por separado las reglas efectivamente
 publicadas y su proyecto de destino.
+
+En Storage, tamaño y formato se validan al crear o actualizar archivos. El borrado
+se autoriza por separado: avatar sólo por su dueño; adjuntos clínicos y fotografías
+de heridas por sus respectivos roles de escritura existentes. No requiere un archivo
+de reemplazo ni amplía quién puede leer, subir o eliminar en otras rutas.
