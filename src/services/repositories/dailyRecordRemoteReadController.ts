@@ -84,11 +84,7 @@ export const resolveRemoteGoldenPathReadResult = async ({
       // Another version means the store kept a projection with unsynced writes instead of this
       // read (they may have appeared while the read was in flight). Publish what is stored.
       if (storedRecord && storedRecord.lastUpdated !== recordToHydrate.lastUpdated) {
-        return createRetainedPendingProjectionReadResult(
-          date,
-          storedRecord,
-          effectiveRemoteReadResult.record
-        );
+        return createRetainedPendingProjectionReadResult(date, storedRecord);
       }
     } catch (error) {
       if (error instanceof AdmissionDatePolicyViolationError) {

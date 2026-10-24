@@ -196,7 +196,7 @@ export const createSyncQueueEngine = ({
         nextAttemptAt: resolveSyncTaskNextAttemptAt(now, options),
         ...resolvePreOutboxHoldState(now, options),
       },
-      options.rebaseOntoPendingProjection
+      options.patchWrite
     );
 
     if (!options.deferProcessing) {

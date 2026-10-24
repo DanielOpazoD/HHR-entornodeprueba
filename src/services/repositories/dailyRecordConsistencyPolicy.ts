@@ -16,8 +16,6 @@ interface ResolveReadConsistencyInput {
   selectedRecord: DailyRecord | null;
   remoteAvailability: RemoteAvailability;
   repairApplied?: boolean;
-  /** Cache hydration kept a projection whose local writes are still unsynced. */
-  pendingLocalWritesRetained?: boolean;
 }
 
 interface ResolveReadConsistencyResult extends DailyRecordConsistencyMetadata<DailyRecordReadConsistencyState> {
@@ -32,9 +30,6 @@ interface ResolveSyncConsistencyInput {
   /** Cache hydration kept a projection whose local writes are still unsynced. */
   pendingLocalWritesRetained?: boolean;
 }
-
-const PENDING_LOCAL_WRITES_MESSAGE =
-  'Se mantienen los cambios locales pendientes de sincronización.';
 
 const buildConflictSummary = (
   kind: DailyRecordConflictSummary['kind'],
@@ -71,7 +66,6 @@ export const resolveDailyRecordReadConsistency = ({
   selectedRecord,
   remoteAvailability,
   repairApplied = false,
-  pendingLocalWritesRetained = false,
 }: ResolveReadConsistencyInput): ResolveReadConsistencyResult => {
   if (!selectedRecord) {
     if (remoteAvailability === 'unavailable') {
@@ -117,29 +111,6 @@ export const resolveDailyRecordReadConsistency = ({
         observabilityTags: ['daily_record', 'read', 'missing'],
         userSafeMessage: 'No hay registro disponible para este día.',
         repairApplied: false,
-      }),
-      shouldHydrateLocal: false,
-    };
-  }
-
-  if (pendingLocalWritesRetained) {
-    return {
-      ...createConsistencyMetadata({
-        consistencyState: 'local_authoritative',
-        sourceOfTruth: 'local',
-        retryability: 'automatic_retry',
-        recoveryAction: 'defer_remote_sync',
-        conflictSummary: buildConflictSummary(
-          'remote_stale',
-          'local',
-          localRecord,
-          remoteRecord,
-          undefined,
-          PENDING_LOCAL_WRITES_MESSAGE
-        ),
-        observabilityTags: ['daily_record', 'read', 'pending_local_writes_retained'],
-        userSafeMessage: PENDING_LOCAL_WRITES_MESSAGE,
-        repairApplied,
       }),
       shouldHydrateLocal: false,
     };
@@ -304,27 +275,10 @@ export const resolveDailyRecordSyncConsistency = ({
     });
   }
 
-  if (pendingLocalWritesRetained && selectedRecord) {
-    return createConsistencyMetadata({
-      consistencyState: 'local_kept',
-      sourceOfTruth: 'local',
-      retryability: 'automatic_retry',
-      recoveryAction: 'defer_remote_sync',
-      conflictSummary: buildConflictSummary(
-        'remote_stale',
-        'local',
-        localRecord,
-        remoteRecord,
-        undefined,
-        PENDING_LOCAL_WRITES_MESSAGE
-      ),
-      observabilityTags: ['daily_record', 'sync', 'pending_local_writes_retained'],
-      userSafeMessage: PENDING_LOCAL_WRITES_MESSAGE,
-      repairApplied: false,
-    });
-  }
-
-  if (selectedRecord !== remoteRecord && isLocalNewer(localRecord, remoteRecord)) {
+  if (
+    selectedRecord !== remoteRecord &&
+    (pendingLocalWritesRetained || isLocalNewer(localRecord, remoteRecord))
+  ) {
     return createConsistencyMetadata({
       consistencyState: 'local_kept',
       sourceOfTruth: 'local',

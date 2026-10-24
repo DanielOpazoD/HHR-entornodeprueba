@@ -68,27 +68,22 @@ export const createLocalRuntimeReadResult = (
   });
 };
 
-/** The projection cache hydration kept because its local writes are still unsynced. */
+/** The stored projection that unsynced local writes hold; it is ahead of the remote copy. */
 export const createRetainedPendingProjectionReadResult = (
   date: string,
-  retainedRecord: DailyRecord,
-  remoteRecord: DailyRecord | null
-): DailyRecordReadResult => {
-  const candidate = createLocalRuntimeReadCandidate(date, retainedRecord);
-  return createLocalRuntimeReadResult(
+  retainedRecord: DailyRecord
+): DailyRecordReadResult =>
+  createLocalRuntimeReadResult(
     date,
-    candidate,
+    createLocalRuntimeReadCandidate(date, retainedRecord),
     'indexeddb',
-    resolveDailyRecordReadConsistency({
-      localRecord: candidate.record,
-      remoteRecord,
-      selectedRecord: candidate.record,
-      remoteAvailability: 'resolved',
-      repairApplied: candidate.repairApplied,
-      pendingLocalWritesRetained: true,
-    })
+    {
+      consistencyState: 'local_authoritative',
+      retryability: 'automatic_retry',
+      recoveryAction: 'defer_remote_sync',
+      observabilityTags: ['daily_record', 'read', 'pending_local_writes_retained'],
+    }
   );
-};
 
 export const createGoldenPathReadResult = (
   date: string,

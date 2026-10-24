@@ -287,24 +287,8 @@ export const queueDailyRecordSyncTaskWithLocalRecord = async (
     }
     return result;
   } catch (error) {
-    if (error instanceof ConcurrencyError) {
-      // A stale write the pending projection refused: a conflict for the caller, not a storage
-      // failure. Nothing was written.
-      recordOperationalTelemetry({
-        category: 'sync',
-        operation: 'sync_queue_task_conflict',
-        status: 'degraded',
-        runtimeState: 'recoverable',
-        issues: [error.message],
-        context: {
-          type: 'UPDATE_DAILY_RECORD',
-          date: record.date,
-          contexts: meta?.contexts,
-          origin: meta?.origin,
-        },
-      });
-      throw error;
-    }
+    // A stale write the stored day refused is a conflict for the caller, not a storage failure.
+    if (error instanceof ConcurrencyError) throw error;
     syncObservability.logger.error('Failed to queue task with local record', error);
     recordOperationalTelemetry({
       category: 'sync',

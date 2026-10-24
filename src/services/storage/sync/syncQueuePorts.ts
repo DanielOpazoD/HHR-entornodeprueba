@@ -1,5 +1,5 @@
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
-import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
+import type { DailyRecord, DailyRecordPatch } from '@/services/storage/storageDailyRecordContracts';
 import type { PendingDailyRecordSyncTaskIdentity } from '@/services/storage/sync/pendingDailyRecordSyncTask';
 
 export type SyncQueueTaskWriteMode = 'created' | 'reused';
@@ -15,19 +15,15 @@ export interface DailyRecordAuthorityAdoptionResult {
   record?: DailyRecord;
 }
 
-/** What is pending for a day: its local projection and the paths its unresolved write owns. */
-export interface PendingDailyRecordProjection {
-  projection: DailyRecord;
-  pendingChangedPaths: string[];
-}
-
 /**
- * Runs inside the enqueue transaction. Returns the write applied on top of the pending
- * projection, or null when the write already carries that pending work. Throws to reject it.
+ * A patch write: the record it was computed from, its patch, and how its writer prepares a
+ * patched record for storage. The outbox applies it again on the day's stored record.
  */
-export type DailyRecordPendingProjectionRebase = (
-  pending: PendingDailyRecordProjection
-) => DailyRecord | null;
+export interface DailyRecordPatchWrite {
+  baseRecord: DailyRecord;
+  patch: DailyRecordPatch;
+  prepare: (record: DailyRecord, patch: DailyRecordPatch) => DailyRecord;
+}
 
 export interface SyncQueueStorePort {
   /** Serialize standalone capacity checks and writes in the same storage transaction. */
@@ -49,7 +45,7 @@ export interface SyncQueueStorePort {
   saveDailyRecordWithTask(
     record: DailyRecord,
     task: SyncTask,
-    rebaseOntoPendingProjection?: DailyRecordPendingProjectionRebase
+    patchWrite?: DailyRecordPatchWrite
   ): Promise<SyncQueueTaskWriteMode>;
   /** Atomically replace an existing pending daily-record task; never creates a second task. */
   replacePendingDailyRecordWithTask?(

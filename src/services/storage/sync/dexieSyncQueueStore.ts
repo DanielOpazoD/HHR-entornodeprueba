@@ -1,15 +1,8 @@
 import type {
   DailyRecordAuthorityAdoptionResult,
-  DailyRecordPendingProjectionRebase,
   SyncQueueLeaseClaim,
   SyncQueueStorePort,
-  SyncQueueTaskWriteMode,
 } from '@/services/storage/sync/syncQueuePorts';
-import {
-  buildDailyRecordSyncContract,
-  mergeSyncTaskContracts,
-} from '@/services/storage/sync/syncTaskContractPolicy';
-import { buildRecordOverlayRebase } from '@/services/storage/sync/pendingDailyRecordProjectionPolicy';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { dispatchDailyRecordStoreChanged } from '@/services/storage/indexeddb/indexedDbRecordEvents';
 import { localPersistence } from '@/services/storage/localpersistence/localPersistenceService';
@@ -66,23 +59,6 @@ const withPendingTask = (
     );
     return task?.id ? operation({ ...task, id: task.id }) : false;
   });
-
-/** The local projection when an unresolved write of this owner still holds it as its payload. */
-const findPendingProjection = async (
-  date: string,
-  task: SyncTask
-): Promise<{ projection: DailyRecord; owner: SyncTask } | null> => {
-  const projection = await hospitalDB.dailyRecords.get(date);
-  if (!projection) return null;
-  const owner = (await listUnresolvedDailyRecordTasks(date)).find(
-    candidate =>
-      candidate.type === task.type &&
-      matchesOwner(task.ownerKey, candidate.ownerKey) &&
-      (candidate.payload as Partial<DailyRecord> | null | undefined)?.lastUpdated ===
-        projection.lastUpdated
-  );
-  return owner ? { projection, owner } : null;
-};
 
 const mirrorTransactionalDailyRecordWrite = (record: DailyRecord): void => {
   if (isE2ERuntimeEnabled() && typeof window !== 'undefined' && window.__HHR_E2E_OVERRIDE__) {
@@ -148,60 +124,10 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
   async add(task) {
     await hospitalDB.syncQueue.add(task);
   },
-  async saveDailyRecordWithTask(
-    record: DailyRecord,
-    task: SyncTask,
-    rebaseOntoPendingProjection?: DailyRecordPendingProjectionRebase
-  ): Promise<SyncQueueTaskWriteMode> {
-    const { mode, persistedRecord } = await hospitalDB.transaction(
-      'rw',
-      hospitalDB.dailyRecords,
-      hospitalDB.syncQueue,
-      async () => {
-        // The projection and its unresolved write are the day's pending truth. A write built
-        // from another base lands on top of them instead of replacing them.
-        const rebase =
-          rebaseOntoPendingProjection ??
-          buildRecordOverlayRebase(record, task.syncContract?.changedPaths);
-        const pending = rebase ? await findPendingProjection(record.date, task) : null;
-        const rebasedRecord =
-          pending && rebase
-            ? rebase({
-                projection: pending.projection,
-                pendingChangedPaths: pending.owner.syncContract?.changedPaths ?? [],
-              })
-            : null;
-        const persistedRecord = rebasedRecord ?? record;
-        const existing = task.key
-          ? await findReusableSyncTask(task.type, task.key, task.ownerKey)
-          : null;
-        const mergedContract = mergeSyncTaskContracts(existing?.syncContract, task.syncContract);
-        const nextTask: SyncTask =
-          rebasedRecord && pending
-            ? {
-                ...task,
-                payload: rebasedRecord,
-                // The payload now derives from the projection, so it keeps that write's remote base.
-                syncContract: buildDailyRecordSyncContract(rebasedRecord, {
-                  ...mergedContract,
-                  expectedVersion:
-                    pending.owner.syncContract?.expectedVersion ?? mergedContract?.expectedVersion,
-                  baseRevision: pending.owner.syncContract?.baseRevision,
-                }),
-              }
-            : { ...task, syncContract: mergedContract };
-
-        await hospitalDB.dailyRecords.put(persistedRecord);
-        if (existing?.id) {
-          await hospitalDB.syncQueue.put({ ...existing, ...nextTask, id: existing.id });
-          return { mode: 'reused' as const, persistedRecord };
-        }
-
-        await hospitalDB.syncQueue.add(nextTask);
-        return { mode: 'created' as const, persistedRecord };
-      }
-    );
-
+  async saveDailyRecordWithTask(record, task, patchWrite) {
+    const { mode, persistedRecord } = await (
+      await import('./dexieDailyRecordOutbox')
+    ).saveDailyRecordInOutbox(record, task, patchWrite);
     mirrorTransactionalDailyRecordWrite(persistedRecord);
     return mode;
   },

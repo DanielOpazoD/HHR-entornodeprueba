@@ -49,7 +49,6 @@ import { persistLocalAndAttemptRemoteSync } from '@/services/repositories/dailyR
 import { buildGranularPatchStaleVersionRetryHooks } from '@/services/repositories/dailyRecordStaleVersionRebase';
 import { buildPreOutboxRemoteAckOptions } from '@/services/repositories/dailyRecordPreOutboxRemoteAckPolicy';
 import { buildPreOutboxRemoteAckCallbacks } from '@/services/repositories/dailyRecordPreOutboxRemoteAckCallbacks';
-import { buildPendingProjectionRebase } from '@/services/repositories/dailyRecordPendingProjectionRebase';
 import { dailyRecordWriteLogger } from '@/services/repositories/repositoryLoggers';
 import { DataRegressionError, VersionMismatchError } from '@/utils/integrityGuard';
 import { AdmissionDatePolicyViolationError } from '@/application/patient-flow/admissionDatePolicy';
@@ -370,10 +369,12 @@ const updatePartialDetailedWithinLock = async (
         },
         {
           ...buildPreOutboxRemoteAckOptions(syncContract),
-          rebaseOntoPendingProjection: buildPendingProjectionRebase({
+          patchWrite: {
             baseRecord: current,
             patch: command.patch,
-          }),
+            prepare: (record, patch) =>
+              preparePatchedRecordForPersistence(record, command.date, patch).record,
+          },
         }
       ),
     ...buildPreOutboxRemoteAckCallbacks(validatedRecord, syncContract),
