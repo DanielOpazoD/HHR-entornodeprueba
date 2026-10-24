@@ -112,7 +112,9 @@ describe('clinicalDerived document reads for the staff tool, backups and the vit
       status: 'skipped',
     });
     expect(await readClinicalDerivedEpisodeForDisplay(DATE, GENERATION, '__ep__')).toEqual({
-      status: 'skipped',
+      status: 'resolved',
+      doc: null,
+      fromCache: false,
     });
     isFirestoreEnabled.mockReturnValueOnce(false);
     expect(await readClinicalDerivedEpisodeForDisplay(DATE, GENERATION, 'ep_a')).toEqual({

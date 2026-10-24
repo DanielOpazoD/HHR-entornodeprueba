@@ -227,11 +227,18 @@ Cómo cambia cada escritor del servidor:
     - `loadFreshClinicalRecord` no cambia: solo alimenta la auditoría y la revisión de dotación.
   - **Ventana de signos vitales.** Recibe la fecha, el episodio y el marcador del día.
     - Al abrirse lee el documento de su episodio, sin listener y con la fuente por defecto del SDK.
+      Relee cuando cambia `meta.revision` del día o se pulsa «Reintentar». Mientras está cerrada
+      no lee; los cambios de otras propiedades sin cambio de revisión tampoco disparan lecturas.
     - Si el documento tiene `vitalSignsHistory`, gana (`null` = vacío). Si no, usa la copia
       embebida o el resumen.
     - Un episodio activo más de una vez en el día no lee su documento (D4).
-    - Sin conexión, si el SDK tiene el documento en su caché, lo muestra. Si no lo tiene, o ante
-      cualquier error, muestra lo mismo que hoy.
+    - Un id de episodio inválido resuelve sin documento y conserva la copia embebida (D1).
+    - Sin conexión, si el SDK tiene el documento en su caché, lo muestra. Durante la primera
+      lectura o ante un error conserva la copia embebida; solo sin ella muestra «Cargando
+      historial…» o «Historial no disponible», con «Reintentar» en caso de error.
+    - Durante una relectura conserva la última respuesta válida del mismo día, generación y
+      episodio. Si falla, mantiene esa respuesta y avisa «No se pudo actualizar el historial»,
+      con «Reintentar». Una respuesta de una lectura anterior ya cancelada nunca la reemplaza.
   - **Creación del día en el cliente** (`dailyRecordRepositoryInitializationService.ts`). Solo
     cuando el destino es hoy, superpone una copia del día fuente antes de sembrar el arrastre (mejor
     esfuerzo). Si falla, siembra como hoy. Solo se guarda el día nuevo. Si la superposición lanza
@@ -274,7 +281,8 @@ Piezas comunes del cliente:
     26 documentos;
   - cada parche por paciente (modos `off` y `shadow`): una lectura del día y una del documento
     (dos de cada una si el documento va adelante);
-  - cada apertura de la ventana: una lectura;
+  - cada apertura de la ventana: una lectura del episodio válido, más una por cambio de
+    `meta.revision` mientras esté abierta y una por cada «Reintentar»;
   - la herramienta de personal y las exportaciones: una consulta por día.
 
   No se agregan listeners.

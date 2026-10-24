@@ -53,14 +53,33 @@ export const VitalsDetailModal: React.FC<VitalsDetailModalProps> = ({
   onClose,
 }) => {
   const documentHistory = useClinicalDerivedVitalsHistory(episodeDocument);
-  const history = resolveVitalsDetailHistory(
-    documentHistory.status === 'resolved'
-      ? documentHistory.history === undefined
-        ? vitalSignsHistory
-        : (documentHistory.history ?? undefined)
-      : undefined,
-    latestReading
-  );
+  let storedHistory = vitalSignsHistory;
+  let notice: 'loading' | 'unavailable' | 'refresh_failed' | undefined;
+  switch (documentHistory.status) {
+    case 'resolved':
+      storedHistory =
+        documentHistory.history === undefined
+          ? vitalSignsHistory
+          : (documentHistory.history ?? undefined);
+      break;
+    case 'loading':
+    case 'unavailable':
+      if (documentHistory.previous) {
+        storedHistory =
+          documentHistory.previous.history === undefined
+            ? vitalSignsHistory
+            : (documentHistory.previous.history ?? undefined);
+        if (documentHistory.status === 'unavailable') notice = 'refresh_failed';
+      } else if (!vitalSignsHistory?.length) {
+        notice = documentHistory.status;
+      }
+      break;
+    default: {
+      const exhaustive: never = documentHistory;
+      return exhaustive;
+    }
+  }
+  const history = resolveVitalsDetailHistory(storedHistory, latestReading);
   const rows = buildVitalsHistory(history, record => {
     if (birthDate) {
       return resolveVitalSignsProfile({ age, birthDate, referenceDate: record.recordedDate });
@@ -114,17 +133,21 @@ export const VitalsDetailModal: React.FC<VitalsDetailModalProps> = ({
           )}
         </section>
 
-        {documentHistory.status === 'loading' && (
+        {notice === 'loading' && (
           <p role="status" className="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-600">
             Cargando historial…
           </p>
         )}
-        {documentHistory.status === 'unavailable' && (
+        {(notice === 'unavailable' || notice === 'refresh_failed') && (
           <div
             role="alert"
             className="flex items-center justify-between gap-3 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800"
           >
-            <span>Historial no disponible</span>
+            <span>
+              {notice === 'refresh_failed'
+                ? 'No se pudo actualizar el historial'
+                : 'Historial no disponible'}
+            </span>
             <button
               type="button"
               onClick={documentHistory.retry}

@@ -9,10 +9,14 @@ export interface ClinicalDerivedVitalsSource {
   dayRevision?: number;
 }
 
+type ResolvedVitalsHistory = {
+  status: 'resolved';
+  history: PatientVitalSigns[] | null | undefined;
+};
+
 type VitalsHistoryReadState =
-  | { status: 'loading' }
-  | { status: 'resolved'; history: PatientVitalSigns[] | null | undefined }
-  | { status: 'unavailable' };
+  | ResolvedVitalsHistory
+  | { status: 'loading' | 'unavailable'; previous: ResolvedVitalsHistory | null };
 
 /** The detail history: the stored history, or the latest reading alone when there is none. */
 export const resolveVitalsDetailHistory = (
@@ -31,17 +35,35 @@ export const useClinicalDerivedVitalsHistory = (
   const dayRevision = source?.dayRevision;
   const [attempt, setAttempt] = useState(0);
   const retry = useCallback(() => setAttempt(value => value + 1), []);
+  const sourceKey = JSON.stringify([date, layoutGeneration, clinicalEpisodeId]);
   const key = JSON.stringify([date, layoutGeneration, clinicalEpisodeId, dayRevision, attempt]);
   const [answer, setAnswer] = useState<{
     key: string;
+    sourceKey: string;
     state: VitalsHistoryReadState;
   } | null>(null);
 
   useEffect(() => {
     if (!date || !clinicalEpisodeId || !layoutGeneration) return undefined;
     let active = true;
-    const resolve = (state: VitalsHistoryReadState) => {
-      if (active) setAnswer({ key, state });
+    const resolve = (state: ResolvedVitalsHistory | { status: 'unavailable' }) => {
+      if (active)
+        setAnswer(previous => ({
+          key,
+          sourceKey,
+          state:
+            state.status === 'resolved'
+              ? state
+              : {
+                  status: 'unavailable',
+                  previous:
+                    previous?.sourceKey === sourceKey
+                      ? previous.state.status === 'resolved'
+                        ? previous.state
+                        : previous.state.previous
+                      : null,
+                },
+        }));
     };
     import('@/services/repositories/dailyRecordClinicalDerivedReadService')
       .then(service =>
@@ -58,9 +80,18 @@ export const useClinicalDerivedVitalsHistory = (
     return () => {
       active = false;
     };
-  }, [date, clinicalEpisodeId, layoutGeneration, key]);
+  }, [date, clinicalEpisodeId, layoutGeneration, sourceKey, key]);
 
   if (!source) return { status: 'resolved', history: undefined, retry };
   if (answer?.key === key) return { ...answer.state, retry };
-  return { status: 'loading', retry };
+  return {
+    status: 'loading',
+    previous:
+      answer?.sourceKey === sourceKey
+        ? answer.state.status === 'resolved'
+          ? answer.state
+          : answer.state.previous
+        : null,
+    retry,
+  };
 };
