@@ -14,15 +14,20 @@ import { logger } from '@/services/utils/loggerService';
 const POLL_INTERVAL_MS = 5 * 60_000;
 const RETURN_REFRESH_AFTER_MS = 60_000;
 
-/**
- * Lightweight check for whether a patient episode has wound care photos.
- * Returns zero until a count for the selected episode is available.
- */
+type ActivePhotoCountState =
+  | { status: 'ready'; count: number }
+  | { status: 'loading' | 'unavailable'; previousCount: number | null };
+
+export type WoundCarePhotoCountState = { status: 'idle' } | ActivePhotoCountState;
+
 export const useWoundCarePhotoCount = (
   episodeKey: string | undefined,
   refreshToken = 0
-): number => {
-  const [result, setResult] = useState<{ episodeKey: string; count: number } | null>(null);
+): WoundCarePhotoCountState => {
+  const [result, setResult] = useState<{
+    episodeKey: string;
+    state: ActivePhotoCountState;
+  } | null>(null);
 
   useEffect(() => {
     if (!episodeKey) return;
@@ -31,16 +36,34 @@ export const useWoundCarePhotoCount = (
     let pending = false;
     let lastReadAt: number | null = null;
 
+    const previousCount = (previous: typeof result) => {
+      if (previous?.episodeKey !== episodeKey) return null;
+      return previous.state.status === 'ready'
+        ? previous.state.count
+        : previous.state.previousCount;
+    };
+
     const fetch = () => {
       if (pending || cancelled || document.visibilityState === 'hidden') return;
       pending = true;
       lastReadAt = Date.now();
+      setResult(previous => ({
+        episodeKey,
+        state: { status: 'loading', previousCount: previousCount(previous) },
+      }));
       WoundCarePhotoRepository.listByEpisode(episodeKey)
         .then(photos => {
-          if (!cancelled) setResult({ episodeKey, count: photos.length });
+          if (!cancelled)
+            setResult({ episodeKey, state: { status: 'ready', count: photos.length } });
         })
         .catch(error => {
-          if (!cancelled) logger.warn('Failed to refresh wound-care photo count', error);
+          if (!cancelled) {
+            setResult(previous => ({
+              episodeKey,
+              state: { status: 'unavailable', previousCount: previousCount(previous) },
+            }));
+            logger.warn('Failed to refresh wound-care photo count', error);
+          }
         })
         .finally(() => {
           pending = false;
@@ -64,5 +87,8 @@ export const useWoundCarePhotoCount = (
     };
   }, [episodeKey, refreshToken]);
 
-  return result && result.episodeKey === episodeKey ? result.count : 0;
+  if (!episodeKey) return { status: 'idle' };
+  return result?.episodeKey === episodeKey
+    ? result.state
+    : { status: 'loading', previousCount: null };
 };

@@ -31,6 +31,11 @@ Evitar que la deuda estructural vuelva a crecer después de las fases de estabil
 
 ## Cómo agregar un guardrail nuevo
 
+Los indicadores de lecturas remotas no deben convertir carga o fallo en un cero
+confirmado. El recuento audiovisual prueba ambos estados, la conservación del
+último dato del mismo episodio y el descarte de resultados de un episodio anterior.
+Su presentación debe comunicar la incertidumbre sin impedir abrir la galería.
+
 1. Preferir `scripts/check-*.mjs` o `scripts/report-*.mjs` antes de introducir tooling externo.
 2. Si el guardrail es informativo, agregarlo primero como report-only.
 3. Si luego se vuelve blocking, dejar baseline/allowlist documentada.
