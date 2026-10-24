@@ -22,10 +22,9 @@ export type {
   NotificationType,
 } from '@/context/uiContracts';
 
-// Combined context type
+// Shared actions stay stable; notifications are private to the provider's renderer.
 export interface UIContextType {
   // Notifications
-  notifications: Notification[];
   notify: (notification: Omit<Notification, 'id'>) => void;
   success: (title: string, message?: string) => void;
   error: (title: string, message?: string) => void;
@@ -98,7 +97,6 @@ export const UIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const contextValue = useMemo<UIContextType>(
     () => ({
       // Notifications
-      notifications,
       notify,
       success,
       error,
@@ -110,7 +108,7 @@ export const UIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       confirm,
       alert,
     }),
-    [notifications, notify, success, error, warning, info, dismiss, dismissAll, confirm, alert]
+    [notify, success, error, warning, info, dismiss, dismissAll, confirm, alert]
   );
 
   return (
