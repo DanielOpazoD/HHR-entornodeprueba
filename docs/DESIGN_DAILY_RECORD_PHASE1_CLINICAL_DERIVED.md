@@ -260,15 +260,23 @@ Cómo cambia cada escritor del servidor:
     - La importación (la local y la restauración del administrador) nunca escribe los
       documentos: incrusta sus campos movidos en el día, en el paciente de cama, la cuna clínica o
       la foto de un alta, traslado o CMA vigente con el mismo `clinicalEpisodeId`, nunca por cama
-      (`clinicalDerivedBackupRestore.ts`). Es la forma embebida de un día recreado (D3, D7): el
+      (`clinicalDerivedBackupRestore.ts`). Si más de uno lleva ese id (dos altas, o una cama y un
+      alta), no se incrusta en ninguno. Es la forma embebida de un día recreado (D3, D7): el
       servidor la conserva al recrear un día que ya no existe y, en un día marcado guardado, D3 y
       D9 conservan los valores guardados. La primera escritura dividida de cada episodio la lleva a
       su documento, y D14 guarda antes el documento de la vida anterior del día.
     - Un día que no recupera sus datos por episodio deja la importación parcial, con sus fechas:
-      la sección dice `unavailable`, un documento no es válido o no encuentra su episodio, o el
-      día que confirma el servidor no los trae ni conserva la generación del respaldo (por
-      ejemplo, un día existente que el servidor deja como estaba, o uno que recrea alguien que no
-      es administrador con la valla de Rayen activa). Nunca se informa limpia.
+      el día viene marcado y la sección no tiene su entrada (la exportación escribe una por cada
+      día marcado, así que falta saber dónde estaban), la sección dice `unavailable`, un documento
+      no es válido, no encuentra su episodio o lo encuentra en más de un lugar, o el servidor no
+      guarda lo que traía el respaldo. Nunca se informa limpia.
+    - La restauración del administrador lo comprueba con el día que confirma el servidor y los
+      documentos de su generación vigente, leídos del servidor: cada episodio restaurado debe
+      tener los valores del respaldo, tomando el documento, si lo tiene, sobre lo embebido. Por
+      ejemplo, no los tiene un día existente que el servidor deja como estaba sin el documento del
+      episodio o con otros valores, ni uno que recrea alguien que no es administrador con la valla
+      de Rayen activa. Si esa lectura falla, tampoco se confirma. La importación local solo guarda
+      en el equipo, sin esa comprobación.
     - Limitación conocida: un cliente anterior a P4 (por ejemplo, tras restaurar una publicación
       anterior) leería la sección del respaldo local como un día más y guardaría en IndexedDB un
       registro con fecha `clinicalDerived`. Los días reales no cambian.
@@ -290,7 +298,8 @@ Piezas comunes del cliente:
   - cada parche por paciente (modos `off` y `shadow`): una lectura del día y una del documento
     (dos de cada una si el documento va adelante);
   - cada apertura de la ventana: una lectura;
-  - la herramienta de personal y las exportaciones: una consulta por día.
+  - la herramienta de personal y las exportaciones: una consulta por día;
+  - la restauración del administrador: una consulta por día dividido, después de guardarlo.
 
   No se agregan listeners.
 
