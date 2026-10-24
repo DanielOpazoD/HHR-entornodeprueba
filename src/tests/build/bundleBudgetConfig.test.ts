@@ -85,8 +85,9 @@ describe('bundle budget config', () => {
     expect(
       config.startupChunkBudgets.find(budget => budget.label === 'app-authenticated-shell')
     ).toMatchObject({
-      // Preserve confirmed-cache ordering and episode metadata within measured allowances.
-      maxBytes: 631000,
+      // Preserve confirmed-cache ordering, episode metadata and split-day write hygiene within
+      // measured allowances (docs/BUNDLE_RISK_LEDGER.md).
+      maxBytes: 632000,
       severity: 'error',
     });
   });

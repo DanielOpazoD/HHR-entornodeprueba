@@ -5,7 +5,7 @@ import {
 } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { hasStructuralRepairs, parseDailyRecordWithDefaultsReport } from '@/schemas/zodSchemas';
 import { jsonImportLogger } from '@/services/exporters/exporterLoggers';
-import { isClinicalDerivedLayoutRegression } from '@/services/storage/clinicalDerivedWriteHygiene';
+import { isClinicalDerivedLayoutRegression } from '@/services/storage/clinicalDerivedImportGuard';
 
 export interface JsonImportResult {
   success: boolean;

@@ -12,7 +12,7 @@ import { getCurrentUserEmail } from './utils/auditUtils';
 import { parseDailyRecordWithDefaultsReport } from '@/schemas/zodSchemas';
 import { dataMaintenanceLogger } from '@/services/admin/adminLoggers';
 import { getRecordForDateStrict } from '@/services/storage/indexeddb/indexedDbRecordService';
-import { isClinicalDerivedLayoutRegression } from '@/services/storage/clinicalDerivedWriteHygiene';
+import { isClinicalDerivedLayoutRegression } from '@/services/storage/clinicalDerivedImportGuard';
 import {
   createApplicationFailed,
   createApplicationSuccess,

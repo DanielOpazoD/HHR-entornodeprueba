@@ -9,9 +9,9 @@ import { describe, expect, it } from 'vitest';
 import {
   adoptStoredClinicalDerivedState,
   carriesClinicalDerivedLayout,
-  isClinicalDerivedLayoutRegression,
   withClearedStoredMovedFields,
 } from '@/services/storage/clinicalDerivedWriteHygiene';
+import { isClinicalDerivedLayoutRegression } from '@/services/storage/clinicalDerivedImportGuard';
 import { ensureDailyRecordClinicalEpisodeIds } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
 
 type Holder = Record<string, unknown>;

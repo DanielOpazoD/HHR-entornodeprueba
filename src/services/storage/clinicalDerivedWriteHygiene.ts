@@ -209,24 +209,3 @@ export const withClearedStoredMovedFields = (
   });
   return changed ? { ...payload, beds } : payload;
 };
-
-/**
- * Imports never replace a local split day with a copy that lost its marker, or carries another
- * one, unless that copy is strictly newer (an unreadable timestamp keeps the local day).
- */
-const lastUpdatedMs = (record: unknown): number =>
-  Date.parse(String(isPlainObject(record) ? (record.lastUpdated ?? '') : ''));
-
-const sameMarker = (left: PlainObject, right: unknown): boolean =>
-  isPlainObject(right) &&
-  JSON.stringify(left[CLINICAL_DERIVED_LAYOUT_FIELD]) ===
-    JSON.stringify(right[CLINICAL_DERIVED_LAYOUT_FIELD]);
-
-export const isClinicalDerivedLayoutRegression = (local: unknown, incoming: unknown): boolean => {
-  if (!carriesClinicalDerivedLayout(local) || sameMarker(local as PlainObject, incoming)) {
-    return false;
-  }
-  const localMs = lastUpdatedMs(local);
-  const incomingMs = lastUpdatedMs(incoming);
-  return !(Number.isFinite(localMs) && Number.isFinite(incomingMs) && incomingMs > localMs);
-};
