@@ -115,6 +115,55 @@ describe('functions woundCareMobileUploadFunctions', () => {
     }
   });
 
+  describe.each([
+    ['summer', '2026-10-25T02:00:00.000Z', '2026-10-24'],
+    ['winter', '2026-07-02T03:00:00.000Z', '2026-07-01'],
+  ])('hospital evening in %s', (_season, now, hospitalDay) => {
+    beforeEach(() => {
+      vi.setSystemTime(new Date(now));
+    });
+
+    it('dates the QR validation audit on the hospital day at 21:00', async () => {
+      const { firebaseServices, setAudit } = createFirebaseServicesMock();
+      const functionsApi = createWoundCareMobileUploadFunctions(firebaseServices);
+      await functionsApi.validateWoundCareMobileUploadSession.run({ sessionId: 'session-1' }, {});
+      expect(setAudit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'WOUND_CARE_MOBILE_SESSION_VALIDATED',
+          timestamp: now,
+          recordDate: hospitalDay,
+        })
+      );
+    });
+
+    it('dates the photo audit and storage paths on the hospital day at 21:00', async () => {
+      const { firebaseServices, setPhoto, setAudit } = createFirebaseServicesMock();
+      const functionsApi = createWoundCareMobileUploadFunctions(firebaseServices);
+      await functionsApi.uploadWoundCareMobilePhoto.run(
+        {
+          sessionId: 'session-1',
+          imageBase64: Buffer.from('synthetic-image').toString('base64'),
+          thumbnailBase64: Buffer.from('synthetic-thumb').toString('base64'),
+        },
+        {}
+      );
+      expect(setAudit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'WOUND_CARE_PHOTO_UPLOADED',
+          timestamp: now,
+          recordDate: hospitalDay,
+        })
+      );
+      expect(setPhoto).toHaveBeenCalledWith(
+        expect.objectContaining({
+          uploadedAt: now,
+          storagePath: expect.stringContaining(`/${hospitalDay}/`),
+          thumbnailStoragePath: expect.stringContaining(`/${hospitalDay}/`),
+        })
+      );
+    });
+  });
+
   it('rejects expired or missing upload sessions', async () => {
     const expiredSession = {
       ...buildValidSession(),
