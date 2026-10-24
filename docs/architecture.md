@@ -218,3 +218,11 @@ se borra por una respuesta compatible que estaba pendiente; los errores liberan
 la petición para reintentar. Al desmontar, no se aplican respuestas tardías ni
 se inicia trabajo mediante callbacks anteriores. El endpoint y sus contratos
 permanecen intactos; no se añade caché ni se cancela el bootstrap de la sesión.
+
+### Estado de lectura del recuento audiovisual
+
+`useWoundCarePhotoCount` distingue episodio ausente, lectura pendiente, recuento
+confirmado y lectura no disponible. Sólo una respuesta válida confirma cero fotos.
+Durante una actualización o un fallo conserva el último recuento confirmado del
+mismo episodio; cambiar de episodio impide reutilizarlo. `HandoffPatientCell`
+presenta ese estado y mantiene disponible la apertura de la galería.
