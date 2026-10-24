@@ -157,13 +157,13 @@ describe('daily record marker', () => {
     expect(overlaid.record.beds.R1.vitalSignsHistory).toEqual([reading]);
   });
 
-  it('salvages an unmarked day as before, without the episode id', () => {
+  it('keeps patient and crib episode ids when salvaging an unmarked day', () => {
     const { record, report } = parseDailyRecordWithDefaultsReport(
       { date: DATE, beds: brokenBeds },
       DATE
     );
     expect(report.salvagedBeds).toEqual(['R1']);
-    expect(record.beds.R1.clinicalEpisodeId).toBeUndefined();
-    expect(record.beds.R1.clinicalCrib?.clinicalEpisodeId).toBeUndefined();
+    expect(record.beds.R1.clinicalEpisodeId).toBe('ep_a');
+    expect(record.beds.R1.clinicalCrib?.clinicalEpisodeId).toBe('ep_rn');
   });
 });

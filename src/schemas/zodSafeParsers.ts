@@ -16,7 +16,7 @@ import {
 import type { RayenSyncEvent } from '@/types/domain/rayenSync';
 import { PatientDataSchema } from './zod/patient';
 import { CMADataSchema, DischargeDataSchema, TransferDataSchema } from './zod/movements';
-import { buildFallbackPatientData } from './zodFallbackBuilders';
+import { buildFallbackPatientDataReport } from './zodFallbackBuilders';
 import { carriesClinicalDerivedLayout } from '@/services/storage/clinicalDerivedWriteHygiene';
 import type { DailyRecordParseReport, PatientDataParseReport } from './zodParseReports';
 
@@ -48,15 +48,18 @@ export const parsePatientDataWithDefaultsReport = (
       report: {
         nullNormalization,
         usedFallback: false,
+        droppedListItems: 0,
       },
     };
   }
 
+  const fallback = buildFallbackPatientDataReport(normalized, bedId);
   return {
-    patient: buildFallbackPatientData(normalized, bedId),
+    patient: fallback.patient,
     report: {
       nullNormalization,
       usedFallback: true,
+      droppedListItems: fallback.droppedListItems,
     },
   };
 };
@@ -77,6 +80,7 @@ export const parseDailyRecordWithDefaultsReport = (
         report: {
           nullNormalization,
           salvagedBeds: [],
+          droppedPatientListItems: 0,
           droppedDischargeItems: 0,
           droppedTransferItems: 0,
           droppedCmaItems: 0,
@@ -94,6 +98,7 @@ export const parseDailyRecordWithDefaultsReport = (
   >;
   const salvagedBeds: Record<string, PatientData> = {};
   const salvagedBedIds: string[] = [];
+  let droppedPatientListItems = 0;
   const keepClinicalEpisodeId = carriesClinicalDerivedLayout(raw);
 
   if (raw.beds && typeof raw.beds === 'object' && !Array.isArray(raw.beds)) {
@@ -104,7 +109,9 @@ export const parseDailyRecordWithDefaultsReport = (
         return;
       }
 
-      salvagedBeds[id] = buildFallbackPatientData(patient, id, { keepClinicalEpisodeId });
+      const fallback = buildFallbackPatientDataReport(patient, id, { keepClinicalEpisodeId });
+      salvagedBeds[id] = fallback.patient;
+      droppedPatientListItems += fallback.droppedListItems;
       salvagedBedIds.push(id);
     });
   }
@@ -191,6 +198,7 @@ export const parseDailyRecordWithDefaultsReport = (
     report: {
       nullNormalization,
       salvagedBeds: salvagedBedIds,
+      droppedPatientListItems,
       droppedDischargeItems: salvagedDischarges.dropped,
       droppedTransferItems: salvagedTransfers.dropped,
       droppedCmaItems: salvagedCma.dropped,
