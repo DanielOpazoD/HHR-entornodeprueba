@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   buildSystemHealthTriageModel,
   buildSystemHealthIncidentTimeline,
@@ -11,6 +11,16 @@ import {
 import { baseStatus } from './systemHealthIncidentTestFixtures';
 
 describe('systemHealthIncidentUtils', () => {
+  it('shifts the hospital day when no calendar day was selected at 23:30', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-25T04:30:00.000Z'));
+    try {
+      expect(shiftSystemHealthSelectedDate('', -1)).toBe('2026-10-23');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('builds actionable incident rows from recent events and conflict counters', () => {
     const rows = buildSystemHealthIncidentRows(
       baseStatus({

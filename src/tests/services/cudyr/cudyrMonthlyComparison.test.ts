@@ -54,6 +54,20 @@ const report = (category = 'C2', date = '2026-07-20'): CudyrSupplementReport => 
   ],
 });
 describe('read-only monthly reconciliation', () => {
+  it('matches an instant after UTC midnight to its hospital calendar day without mutating data', () => {
+    const d = dataset();
+    const evaluation = d.rows[0].evaluation;
+    if (!evaluation) throw new Error('Synthetic evaluation required');
+    evaluation.recordedAt = '2026-07-21T05:30:00.000Z';
+    const before = JSON.stringify(d);
+    expect(compareCudyrMonth(d, report())[0]).toMatchObject({
+      status: 'compatible',
+      sourceDate: '2026-07-20',
+      candidateKeys: [d.rows[0].key],
+    });
+    expect(JSON.stringify(d)).toBe(before);
+  });
+
   it('compares source calendar dates without overwriting census date, exclusions or totals', () => {
     const d = dataset();
     d.rows[0].eligibility = 'no_elegible';
@@ -75,7 +89,9 @@ describe('read-only monthly reconciliation', () => {
   });
   it('keeps manual results and missing dates separate from source applications', () => {
     const d = dataset();
-    d.rows[0].evaluation!.recordedAt = '';
+    const evaluation = d.rows[0].evaluation;
+    if (!evaluation) throw new Error('Synthetic evaluation required');
+    evaluation.recordedAt = '';
     d.rows[0].evaluation!.source = 'HHR · puntuación manual';
     const result = compareCudyrMonth(d, report('C2', '2026-07-19'));
     expect(result.map(r => r.status)).toEqual(['date_review', 'hhr_only']);
@@ -141,7 +157,9 @@ describe('read-only monthly reconciliation', () => {
   it('flags next-month evidence rather than losing the final night shift', () => {
     const d = dataset();
     d.rows[0].date = '2026-07-31';
-    d.rows[0].evaluation!.recordedAt = '2026-08-01T03:00:00-06:00';
+    const evaluation = d.rows[0].evaluation;
+    if (!evaluation) throw new Error('Synthetic evaluation required');
+    evaluation.recordedAt = '2026-08-01T03:00:00-06:00';
     expect(compareCudyrMonth(d, { ...report(), patients: [] })[0]).toMatchObject({
       status: 'hhr_only',
       sourceDate: '2026-08-01',
