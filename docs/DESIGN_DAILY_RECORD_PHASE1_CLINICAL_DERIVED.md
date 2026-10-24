@@ -199,6 +199,10 @@ Cómo cambia cada escritor del servidor:
     decide si se cierra.
 - **D10. Lectores.** Lo superpuesto nunca entra al repositorio, a `docToRecord`, a la caché de
   TanStack, a IndexedDB, a la cola, a las copias de conflicto ni a `originalData`.
+  - Todos leen por el mismo servicio. Si el lector de documentos no carga ni al segundo intento
+    (sin conexión, o un hash viejo tras una publicación), la lectura falla como cualquier lectura
+    fallida y el servicio la reporta una vez en `clinical_derived_read`, con el código
+    `reader_unavailable` y el alcance día o episodio.
   - **Relleno clínico de Rayen.** Superpone cada registro que llega a la reconstrucción
     (`rebuildClinicalEnrichmentOperations`). Son tres: `freshRecord` (`useRayenClinicalFill.ts`,
     tanto con la entrega confirmada como al recargar), `refreshRecord` del lote y el registro actual
@@ -214,9 +218,7 @@ Cómo cambia cada escritor del servidor:
     - Si un documento que cuenta trae `dayRevision` mayor que `meta.revision` del día, relee ambos
       una vez. Si sigue, falla cerrado como cuando hoy no carga el registro: mismo aviso y token de
       reintento. Esa falla cerrada (día atrasado, episodio repetido o marcador desconocido) queda en
-      `clinical_derived_read` con su motivo; las lecturas fallidas ya las reporta el lector. Si el
-      lector no carga ni al segundo intento (sin conexión, o un hash viejo tras una publicación), la
-      lectura falla y el servicio la reporta una vez, con el código `reader_unavailable`.
+      `clinical_derived_read` con su motivo; las lecturas fallidas ya las reporta el lector.
     - Una corrida que espera su política no lee documentos, y el refresco del día después de un
       lote confirmado tampoco: solo relee el día.
     - El registro base que reciben las escrituras (`baseRecord` de `updatePartialDetailed`) nunca se

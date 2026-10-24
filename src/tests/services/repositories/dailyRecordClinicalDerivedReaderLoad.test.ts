@@ -162,6 +162,8 @@ describe('clinicalDerived read service · reader chunk that fails to load', () =
       );
     }
     expect(await service.readClinicalDerivedDayDocs(unmarked)).toEqual({ status: 'unmarked' });
+    // The mock factory runs only once an import settles: catches a load started in the background.
+    await vi.dynamicImportSettled();
     expect(loader.imports).toBe(0);
     expect(loader.recordOperationalTelemetry).not.toHaveBeenCalled();
   });
