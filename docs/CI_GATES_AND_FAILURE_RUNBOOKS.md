@@ -19,6 +19,30 @@ Si la change toca reglas generadas o documentación operativa, correr además:
 
 ## Gates activos
 
+### Packs pequeños y cierre conjunto
+
+`test:smoke:critical-runtime` ejecuta sus archivos en una sola invocación de Vitest.
+`test:unit:critical` toma la unión de archivos de los scripts `test:risk:auth`,
+`test:risk:admin-health` y `test:risk:platform`, eliminando repeticiones. Esos scripts
+individuales siguen disponibles. Ambos packs conservan aislamiento por archivo y
+usan cuatro workers como máximo por defecto; `VITEST_MAX_WORKERS` permite indicar
+otro entero positivo. Un archivo ausente, fallo o interrupción produce error.
+
+Cuando se requieren `ci:merge-gate` y el perfil blocking de `test:release-confidence`,
+usar `npm run ci:close`. El plan se obtiene de los scripts y del perfil vigente,
+mantiene su orden y ejecuta una sola vez los comandos idénticos. Las cadenas con
+entorno propio, scripts de shell y hooks npm conservan su ejecución original.
+Las compilaciones internas de E2E mantienen su configuración; no se equiparan al
+build normal. El plan no se guarda ni acepta marcas externas de pasos aprobados.
+
+La corrida termina ante el primer fallo o interrupción, y comprueba que no cambien
+HEAD, código, configuración, archivos locales de entorno o el manifiesto instalado
+de dependencias. `reports/` contiene salidas regeneradas durante los gates. Si cambian
+las entradas, reiniciar el cierre sobre el árbol nuevo. Los gates independientes
+conservan su comportamiento. Owner: test infrastructure; rollback: volver a ejecutar
+los dos gates independientes y los packs individuales. Este comando no reemplaza
+el release de Firestore ni el perfil completo de confianza.
+
 ### Conexión previa y diagnóstico de Eloísa
 
 Owner: sincronización clínica. Verificar `check:rayen-extension-release`, los smokes
