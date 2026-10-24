@@ -1,3 +1,4 @@
+import { readClinicalTimestamp } from '@/utils/dateDisplayUtils';
 import {
   buildChecklistPatch,
   buildChecklistUpdateRecord,
@@ -182,7 +183,7 @@ export const executeConfirmMedicalSpecialtyNoChanges = async (
   }
 
   const effectiveDateKey = input.dateKey || input.record.date;
-  if (currentNote.updatedAt?.slice(0, 10) === effectiveDateKey) {
+  if (readClinicalTimestamp(currentNote.updatedAt || '')?.iso === effectiveDateKey) {
     return createValidationOutcome(
       null,
       'confirm_medical_specialty_no_changes',

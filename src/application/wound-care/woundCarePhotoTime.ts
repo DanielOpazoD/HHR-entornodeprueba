@@ -32,6 +32,7 @@ export const resolvePhotoWallClock = (
 ): WoundCarePhotoWallClock => {
   const { takenAt, uploadedAt } = photo;
   if (!takenAt || takenAt === uploadedAt) return fromInstant(takenAt || uploadedAt);
+  // clinical-clock-allow instant-calendar-slice: takenAt distinct from uploadedAt stores hospital wall time, including its legacy Z marker (#954).
   return { date: takenAt.slice(0, 10), time: takenAt.slice(11, 16) };
 };
 

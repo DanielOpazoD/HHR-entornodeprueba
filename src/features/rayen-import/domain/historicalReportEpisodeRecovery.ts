@@ -123,18 +123,22 @@ export const recoverHistoricalReportEpisodes = async (
       if (
         !evidence ||
         evidence.run !== normalizeRut(row.run) ||
+        // clinical-clock-allow instant-calendar-slice: Parsed report admissionAt is unzoned hospital wall time, matched to an episode calendar date.
         evidence.admissionAt.slice(0, 10) !== episode.startDate ||
+        // clinical-clock-allow instant-calendar-slice: Parsed report dischargeAt is unzoned hospital wall time, matched to an episode calendar date.
         evidence.dischargeAt.slice(0, 10) !== episode.endDate ||
         evidence.dischargeAt < evidence.admissionAt
       )
         return row;
       if (evidence.admissionAt > cutoff) return null;
+      // clinical-clock-allow instant-calendar-slice: Parsed report dischargeAt is unzoned hospital wall time; preserve its official calendar day.
       const day = evidence.dischargeAt.slice(0, 10);
       const time = evidence.dischargeAt.slice(11, 16);
       return {
         ...row,
         encounterId: episode.encId,
         exactEpisodeVerification: 'verified',
+        // clinical-clock-allow instant-calendar-slice: Parsed report admissionAt is unzoned hospital wall time; preserve its official calendar day.
         admissionDay: evidence.admissionAt.slice(0, 10),
         admissionTime: evidence.admissionAt.slice(11, 16),
         correctedDay: resolveClinicalDayForDateTime(day, time),
