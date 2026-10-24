@@ -255,6 +255,13 @@ describe('ClinicalDocumentsWorkspace', () => {
       expect(screen.getByDisplayValue('Doctor Test')).toBeInTheDocument();
     });
 
+    expect(
+      screen.getByRole('button', { name: 'Acta de devolución de fármacos' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Acta de entrega de fármacos eliminados' })
+    ).toBeInTheDocument();
+
     const antecedentesEditor = screen.getByRole('textbox', { name: /contenido antecedentes/i });
     antecedentesEditor.innerHTML = 'Antecedentes actualizados';
     fireEvent.input(antecedentesEditor);
