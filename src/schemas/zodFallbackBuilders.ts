@@ -1,54 +1,73 @@
+import * as z from 'zod';
 import type { PatientData } from '@/types/domain/patient';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
-import { CudyrScoreSchema } from '@/schemas/zod/patient';
-import { UpcChecklistSchema } from '@/schemas/zod/upc';
+import { PatientDataSchema } from '@/schemas/zod/patient';
 import { resolveEffectiveUpcState } from '@/shared/census/upcBedPolicy';
 
-export interface FallbackPatientDataOptions {
-  /**
-   * Set on a split day: its moved clinical fields are found by episode id (overlay and direct
-   * writes), so a salvaged bed or crib must keep it or it would read empty and a full save would
-   * drop its embedded copy. Unmarked days salvage as before.
-   */
-  keepClinicalEpisodeId?: boolean;
+const identityFields = new Set([
+  'documentType',
+  'rut',
+  'clinicalEpisodeId',
+  'identityStatus',
+  'patientName',
+  'firstName',
+  'lastName',
+  'secondLastName',
+  'admissionDate',
+  'admissionTime',
+]);
+
+export class PatientIdentityRepairRequiredError extends Error {
+  readonly code = 'patient_identity_repair_required';
+
+  constructor(
+    readonly bedId: string,
+    readonly fields: string[]
+  ) {
+    super(`La identidad del paciente requiere reparación (${fields.join(', ')}).`);
+    this.name = 'PatientIdentityRepairRequiredError';
+  }
 }
 
-export const buildFallbackPatientData = (
-  data: unknown,
-  bedId: string,
-  options: FallbackPatientDataOptions = {}
-): PatientData => {
-  const fallback = createEmptyPatient(bedId);
-  const raw = data && typeof data === 'object' ? (data as Record<string, unknown>) : {};
-
-  if (options.keepClinicalEpisodeId && typeof raw.clinicalEpisodeId === 'string') {
-    fallback.clinicalEpisodeId = raw.clinicalEpisodeId;
-  }
-  if (typeof raw.patientName === 'string') fallback.patientName = raw.patientName;
-  if (typeof raw.rut === 'string') fallback.rut = raw.rut;
-  if (typeof raw.pathology === 'string') fallback.pathology = raw.pathology;
-  if (typeof raw.age === 'string') fallback.age = raw.age;
-  if (typeof raw.admissionDate === 'string') fallback.admissionDate = raw.admissionDate;
-  if (typeof raw.admissionTime === 'string') fallback.admissionTime = raw.admissionTime;
-  if (raw.isBlocked === true) fallback.isBlocked = true;
-  if (raw.bedMode === 'Cama' || raw.bedMode === 'Cuna') fallback.bedMode = raw.bedMode;
-  if (raw.hasCompanionCrib === true) fallback.hasCompanionCrib = true;
-  const upc = UpcChecklistSchema.safeParse(raw.upcChecklist);
-  if (upc.success) fallback.upcChecklist = upc.data;
-  fallback.isUPC = resolveEffectiveUpcState({
+export const buildFallbackPatientData = (data: unknown, bedId: string): PatientData => {
+  const raw = z.record(z.string(), z.unknown()).safeParse(data);
+  const candidate: Record<string, unknown> = {
     bedId,
-    isUPC: raw.isUPC === true,
-    checklist: fallback.upcChecklist,
-  }).isUpc;
+    ...(raw.success ? raw.data : {}),
+  };
+  const defaults: Record<string, unknown> = {
+    ...createEmptyPatient(bedId),
+    documentType: undefined,
+  };
 
-  const cudyr = CudyrScoreSchema.safeParse(raw.cudyr);
-  if (cudyr.success) {
-    fallback.cudyr = cudyr.data;
+  if (candidate.clinicalCrib && typeof candidate.clinicalCrib === 'object') {
+    candidate.clinicalCrib = buildFallbackPatientData(candidate.clinicalCrib, bedId);
   }
 
-  if (raw.clinicalCrib && typeof raw.clinicalCrib === 'object') {
-    fallback.clinicalCrib = buildFallbackPatientData(raw.clinicalCrib, bedId, options);
+  const parsed = PatientDataSchema.safeParse(candidate);
+  if (!parsed.success) {
+    const invalidFields = new Set(
+      parsed.error.issues.flatMap(issue =>
+        typeof issue.path[0] === 'string' ? [issue.path[0]] : []
+      )
+    );
+    const invalidIdentityFields = [...invalidFields].filter(field => identityFields.has(field));
+    if (invalidIdentityFields.length > 0) {
+      // Existing read errors and skipped JSON entries must remain failures, never invented identities.
+      throw new PatientIdentityRepairRequiredError(bedId, invalidIdentityFields);
+    }
+    for (const field of invalidFields) {
+      candidate[field] = defaults[field];
+    }
   }
 
-  return fallback;
+  const patient = parsed.success ? parsed.data : PatientDataSchema.parse(candidate);
+  return {
+    ...patient,
+    isUPC: resolveEffectiveUpcState({
+      bedId,
+      isUPC: patient.isUPC,
+      checklist: patient.upcChecklist,
+    }).isUpc,
+  };
 };
