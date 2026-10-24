@@ -26,6 +26,7 @@ export const DataMaintenancePanel: React.FC<DataMaintenancePanelProps> = ({
   const [isExporting, setIsExporting] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [exportWarning, setExportWarning] = useState<string | null>(null);
   const [exportSuccess, setExportSuccess] = useState(false);
   const [exportingScope, setExportingScope] = useState<'month' | 'year' | null>(null);
   const [isAuditingAdmissionDates, setIsAuditingAdmissionDates] = useState(false);
@@ -59,12 +60,19 @@ export const DataMaintenancePanel: React.FC<DataMaintenancePanelProps> = ({
     setIsExporting(true);
     setExportingScope(scope);
     setExportError(null);
+    setExportWarning(null);
     setExportSuccess(false);
     try {
       const result =
         scope === 'month'
           ? await exportMonthRecordsWithOutcome(selectedYear, selectedMonth)
           : await exportYearToDateRecordsWithOutcome(selectedYear);
+
+      // Partial: the file was downloaded, but some split days lack their episode documents.
+      if (result.status === 'partial' && result.data) {
+        setExportWarning(result.userSafeMessage || result.data.userSafeMessage);
+        return;
+      }
 
       if (result.status !== 'success' || !result.data) {
         setExportError(
@@ -120,6 +128,7 @@ export const DataMaintenancePanel: React.FC<DataMaintenancePanelProps> = ({
         <DataMaintenanceExportCard
           isExporting={isExporting}
           exportError={exportError}
+          exportWarning={exportWarning}
           exportSuccess={exportSuccess}
           exportingScope={exportingScope}
           selectedYear={selectedYear}
