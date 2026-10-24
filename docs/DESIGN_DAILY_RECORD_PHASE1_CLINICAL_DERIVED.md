@@ -290,8 +290,9 @@ Piezas comunes del cliente:
   - Nunca devuelve una lista vacía ante un error (`scripts/check-empty-on-failure-reads.mjs`).
   - No usa `logFirestoreQueryError`, que reporta la denegación al detector de tormentas de permisos
     y puede cerrar la sesión.
-- La superposición y el servicio de lectura se cargan con import dinámico y quedan fuera del
-  precache de instalación: sin ellos, los lectores de mejor esfuerzo muestran lo embebido.
+- La superposición, el servicio de lectura y la restauración de respaldos se cargan con import
+  dinámico y quedan fuera del precache de instalación: sin ellos, los lectores de mejor esfuerzo
+  muestran lo embebido y una importación informa parciales sus días divididos.
 - Costo de lectura en días marcados:
   - cada carga del relleno y cada `refreshRecord`: una lectura del día y una consulta de unos 13 a
     26 documentos;
