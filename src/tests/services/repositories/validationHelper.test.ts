@@ -10,7 +10,7 @@ describe('validationHelper', () => {
         date: '2026-03-04',
         beds: {
           R1: {
-            patientName: 'Paciente Legacy',
+            patientName: 'PACIENTE SINTETICO P5',
             status: 'ESTADO_INVALIDO',
             clinicalEvents: [
               {
@@ -28,8 +28,16 @@ describe('validationHelper', () => {
       '2026-03-04'
     );
 
-    expect(record.beds.R1.patientName).toBe('Paciente Legacy');
-    expect(record.beds.R1.clinicalEvents).toEqual([]);
+    expect(record.beds.R1.patientName).toBe('PACIENTE SINTETICO P5');
+    expect(record.beds.R1.clinicalEvents).toEqual([
+      {
+        id: 'event-1',
+        name: 'Cultivo',
+        date: '2026-03-03',
+        note: undefined,
+        createdAt: '2026-03-03T10:00:00.000Z',
+      },
+    ]);
     expect(record.discharges).toEqual([]);
     expect(warnSpy).toHaveBeenCalled();
     expect(
