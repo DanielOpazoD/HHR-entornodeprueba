@@ -279,6 +279,14 @@ describe('split counters describe the attempt that answered', () => {
         );
       },
     ],
+    [
+      'clinical batch',
+      (fake: Fake) => {
+        fake.seed(POLICY_PATH, { ...shadowPolicy, clinicalBatchMode: 'enforced' });
+        fake.seed(dayPath(), makeDay({ rayenSyncHistory: [runEvent('enforced')] }));
+        return batchApi(fake).applyRayenClinicalEnrichmentBatch.run(batch(), makeContext());
+      },
+    ],
   ])('%s: a receipt found on retry reports no split', async (_label, call) => {
     vi.stubEnv(SPLIT_ENV, PRIOR_DAY);
     const fake = createFakeFirestore();

@@ -291,7 +291,6 @@ const createRayenClinicalEnrichmentFunctions = ({
             remoteData,
             payload,
           });
-          if (derived) requestSummary = { ...requestSummary, ...derived.telemetry };
           const view = derived?.view ?? remoteData;
           parityContractVersion =
             isClinicalDerivedSplitDay(remoteData) || (derived && !payload.dryRun)
@@ -326,6 +325,8 @@ const createRayenClinicalEnrichmentFunctions = ({
             revision = resolveRecordRevision(remoteData);
             return { historySnapshotWritten: false };
           }
+          // Split counters only once a receipt no longer answers, as in the other two callables.
+          if (derived) requestSummary = { ...requestSummary, ...derived.telemetry };
           derived?.assertSupported();
 
           assertHistoricalCudyrPayload(remoteData, payload);
