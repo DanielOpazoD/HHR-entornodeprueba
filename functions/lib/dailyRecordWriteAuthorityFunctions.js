@@ -1,3 +1,4 @@
+const { hospitalCalendarDay } = require('./hospitalCalendarDay');
 const { applyTrustedClinicalCarryover } = require('./clinicalCarryoverSeed');
 const { movementRestoreRecord } = require('./movementRestoreSources');
 const functions = require('firebase-functions/v1');
@@ -854,18 +855,6 @@ const toCalendarDayOrdinal = value => {
   return Number.isFinite(ordinal) ? ordinal : undefined;
 };
 
-const currentRapaNuiCalendarDay = () => {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Pacific/Easter',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  })
-    .formatToParts(new Date())
-    .reduce((result, part) => ({ ...result, [part.type]: part.value }), {});
-  return `${parts.year}-${parts.month}-${parts.day}`;
-};
-
 const isNurseStructuralEditWithinWindow = ({ date, remoteData }) => {
   const recordTimestamp = Number(remoteData?.dateTimestamp);
   const now = Date.now();
@@ -874,7 +863,7 @@ const isNurseStructuralEditWithinWindow = ({ date, remoteData }) => {
   }
 
   const recordDay = toCalendarDayOrdinal(date);
-  const currentDay = toCalendarDayOrdinal(currentRapaNuiCalendarDay());
+  const currentDay = toCalendarDayOrdinal(hospitalCalendarDay());
   if (recordDay === undefined || currentDay === undefined) return false;
   const dayOffset = Math.round((recordDay - currentDay) / 86_400_000);
   return dayOffset >= -1 && dayOffset <= 1;

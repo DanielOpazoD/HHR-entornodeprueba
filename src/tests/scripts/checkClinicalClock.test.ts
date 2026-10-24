@@ -69,7 +69,9 @@ describe('check-clinical-clock', () => {
       'e2e/a.spec.ts': `const day = process.env.E2E_FIXED_DATE ?? ${utcToday('substring(0, 10)')};\n`,
     });
 
-    expect(output).toContain('[utc-today] src/features/a.ts:1');
+    expect(output).toContain(
+      '[utc-today] src/features/a.ts:1 — use getTodayISO() (hospital calendar) instead of the UTC date'
+    );
     expect(output).toContain('[utc-today] src/tests/a.test.ts:1');
     expect(output).toContain('[utc-today] src/tests/a.test.ts:3');
     expect(output).toContain('[utc-today] e2e/a.spec.ts:1');
@@ -82,6 +84,91 @@ describe('check-clinical-clock', () => {
     });
 
     expect(output).toContain('[device-clock-today] src/features/a.ts:1');
+  });
+
+  it('rejects the pre-fix Functions prescription clock from origin/main', () => {
+    // Exact todayIso excerpt from git show origin/main:functions/lib/prescriptionAccessFunctions.js
+    // at 4a65a7518. Keep the fixture independent of later merges and shallow CI checkouts.
+    const source = [
+      'const todayIso = () => {',
+      '  const now = new Date();',
+      "  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;",
+      '};',
+    ].join('\n');
+    const { status, output } = runGuard({ 'functions/lib/prescriptionAccessFunctions.js': source });
+    expect(status).toBe(1);
+    expect(output).toContain('[server-clock-today] functions/lib/prescriptionAccessFunctions.js:2');
+  });
+
+  it.each([
+    'new Date(createdAt).getDate()',
+    'new Date(Date.now()).getMonth()',
+    'const created = new Date(createdAt);\ncreated.getFullYear()',
+    'const now = new Date();\nnow.getFullYear()',
+    'const now = new Date();\nnow.getMonth()',
+    'const now = new Date();\n' + 'const padding = 0;\n'.repeat(40) + 'now.getDate()',
+    'const created = new Date(createdAt);\n' +
+      'const padding = 0;\n'.repeat(40) +
+      'created.getDate()',
+  ])('rejects server-local instant calendar getters: %s', source => {
+    const { status, output } = runGuard({ 'functions/lib/clock.js': source });
+    expect(status).toBe(1);
+    expect(output).toContain('[server-clock-today] functions/lib/clock.js:1');
+  });
+
+  it.each([
+    [
+      'prescriptionAccessFunctions.js',
+      [
+        'const createdAtMatchesIsoDate = (createdAt, isoDate) => {',
+        '  const created = new Date(createdAt);',
+        '  if (Number.isNaN(created.getTime())) return false;',
+        "  const recordDate = `${created.getFullYear()}-${String(created.getMonth() + 1).padStart(2, '0')}-${String(created.getDate()).padStart(2, '0')}`;",
+        '  return recordDate === isoDate;',
+        '};',
+      ].join('\n'),
+    ],
+    [
+      'clinicalDocumentExportFunctions.js',
+      [
+        'const now = new Date();',
+        'const year = now.getFullYear().toString();',
+        'const monthFolderName = buildDriveMonthFolderName(now);',
+      ].join('\n'),
+    ],
+  ])('rejects the former server calendar code in %s', (file, source) => {
+    const { status, output } = runGuard({ [`functions/lib/${file}`]: source });
+    expect(status).toBe(1);
+    expect(output).toContain(`[server-clock-today] functions/lib/${file}`);
+  });
+
+  it('reports UTC today in Functions libraries and the entrypoint', () => {
+    const today = ['new Date()', 'toISOString()', 'slice(0, 10)'].join('.');
+    const { status, output } = runGuard({
+      'functions/lib/upload.js': `const day = ${today};`,
+      'functions/index.js': `const day = ${today};`,
+    });
+    expect(status).toBe(1);
+    for (const file of ['functions/lib/upload.js', 'functions/index.js']) {
+      expect(output).toContain(
+        `[utc-today] ${file}:1 — use hospitalCalendarDay() from functions/lib/hospitalCalendarDay instead of the UTC date`
+      );
+    }
+    expect(output).not.toContain('getTodayISO()');
+  });
+
+  it('allows Functions timestamps, explicit hospital dates and calendar arithmetic', () => {
+    const { status, output } = runGuard({
+      'functions/lib/calendar.js': [
+        'const timestamp = new Date().toISOString();',
+        "const format = new Intl.DateTimeFormat('en-CA', { timeZone: 'Pacific/Easter', year: 'numeric', month: '2-digit', day: '2-digit' });",
+        'const today = format.format(new Date());',
+        "const previousDay = iso => { const date = new Date(iso + 'T12:00:00Z'); date.setUTCDate(date.getUTCDate() - 1); return date.toISOString().slice(0, 10); };",
+        'const previousLocal = (year, month, day) => { const date = new Date(year, month, day); date.setDate(date.getDate() - 1); return date; };',
+      ].join('\n'),
+    });
+    expect(output).toContain('Clinical clock checks passed');
+    expect(status).toBe(0);
   });
 
   it('reports each date format call that leaves the zone to the device', () => {
