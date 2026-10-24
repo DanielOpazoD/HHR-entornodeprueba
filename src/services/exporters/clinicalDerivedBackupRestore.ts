@@ -2,11 +2,13 @@ import type { DailyRecord } from '@/services/contracts/dailyRecordServiceContrac
 import type { ClinicalDerivedEpisodeDoc } from '@/types/domain/clinicalDerived';
 import { ClinicalDerivedEpisodeDocSchema } from '@/schemas/zod/clinicalDerived';
 import {
+  CLINICAL_DERIVED_MOVED_FIELDS,
   applyMovedFields,
   isClinicalDerivedDocId,
   overlayClinicalDerived,
   readClinicalDerivedLayout,
 } from '@/services/storage/clinicalDerivedContract';
+import type { ClinicalDerivedDayRestore } from '@/services/exporters/clinicalDerivedBackupSection';
 
 /**
  * Restore of a split day from a JSON backup (D10 and D14 of
@@ -15,18 +17,12 @@ import {
  * their moved fields back into the day, the form a recreated day starts in until each episode's
  * first split write. Each document goes to the holders of its own `clinicalEpisodeId`, never to a
  * bed: an active bed patient or clinical crib (the D4 overlay, so mother and newborn stay apart)
- * and the snapshot of a live discharge, transfer or CMA. Loaded on demand by the importers.
+ * and the snapshot of a live discharge, transfer or CMA. Loaded on demand
+ * (`loadClinicalDerivedDayRestore`).
  */
 
+type MovedField = (typeof CLINICAL_DERIVED_MOVED_FIELDS)[number];
 type PlainObject = Record<string, unknown>;
-
-export type ClinicalDerivedDayRestore =
-  /** The backup holds no per-episode data for this day. */
-  | { kind: 'absent' }
-  /** Some of it is missing or has no place in the day; `record` carries what could be embedded. */
-  | { kind: 'incomplete'; record: DailyRecord }
-  /** Every document of the day found its episode. */
-  | { kind: 'embedded'; record: DailyRecord };
 
 const MOVEMENT_LISTS = ['discharges', 'transfers', 'cma'] as const;
 
@@ -46,6 +42,31 @@ const snapshotOf = (movement: unknown): PlainObject | undefined =>
 
 const snapshotEpisodeId = (movement: PlainObject, snapshot: PlainObject): string =>
   episodeIdOf(snapshot) || episodeIdOf(movement);
+
+/** Per episode id, the moved fields its bed, crib or live movement snapshot holds. */
+const carriedMovedFields = (record: DailyRecord): Map<string, Set<MovedField>> => {
+  const carried = new Map<string, Set<MovedField>>();
+  const visit = (holder: unknown, episodeId = episodeIdOf(holder)) => {
+    if (!episodeId || !isPlainObject(holder)) return;
+    const fields = carried.get(episodeId) ?? new Set<MovedField>();
+    CLINICAL_DERIVED_MOVED_FIELDS.forEach(field => {
+      if (holder[field] !== undefined && holder[field] !== null) fields.add(field);
+    });
+    carried.set(episodeId, fields);
+  };
+  Object.values(isPlainObject(record.beds) ? record.beds : {}).forEach(bed => {
+    visit(bed);
+    if (isPlainObject(bed)) visit(bed.clinicalCrib);
+  });
+  MOVEMENT_LISTS.forEach(list => {
+    const movements: unknown = record[list];
+    (Array.isArray(movements) ? movements : []).forEach((movement: unknown) => {
+      const snapshot = snapshotOf(movement);
+      if (snapshot) visit(snapshot, snapshotEpisodeId(movement as PlainObject, snapshot));
+    });
+  });
+  return carried;
+};
 
 /**
  * The section's documents of this day's layout, parsed. A document that does not parse, belongs to
@@ -93,6 +114,28 @@ const embedInMovements = (
 };
 
 /**
+ * Whether `saved` still holds what was brought back: it kept the backup's generation, so its
+ * server documents are the current copies, or each episode still carries every expected moved
+ * field. An existing day the server keeps as stored, or a recreated one whose clinical fields it
+ * dropped, does not.
+ */
+const keepsRestore = (
+  layoutGeneration: string,
+  expected: ReadonlyMap<string, ReadonlySet<MovedField>>,
+  saved: DailyRecord | undefined
+): boolean => {
+  if (!saved) return false;
+  const savedLayout = readClinicalDerivedLayout(saved);
+  if (savedLayout.status === 'marked' && savedLayout.layout.generation === layoutGeneration) {
+    return true;
+  }
+  const carried = carriedMovedFields(saved);
+  return [...expected].every(([id, fields]) =>
+    [...fields].every(field => carried.get(id)?.has(field) === true)
+  );
+};
+
+/**
  * The day to restore with the backup's per-episode data for `record.date` embedded. `section` is
  * the file's `clinicalDerived` value, untrusted: every document is parsed and must belong to this
  * day and to the generation the backup's day carries.
@@ -119,7 +162,19 @@ export const restoreClinicalDerivedBackupDay = (
   const overlay = overlayClinicalDerived(record, usable);
   const placed = new Set(overlay.matchedEpisodeIds);
   const restored = embedInMovements(overlay.record, docsById, placed);
-  return allUsable && placed.size === docsById.size
-    ? { kind: 'embedded', record: restored }
-    : { kind: 'incomplete', record: restored };
+  if (!allUsable || placed.size < docsById.size) return { kind: 'incomplete', record: restored };
+
+  const carried = carriedMovedFields(restored);
+  const expected = new Map(
+    [...placed]
+      .map(id => [id, carried.get(id) ?? new Set<MovedField>()] as const)
+      .filter(([, fields]) => fields.size > 0)
+  );
+  return {
+    kind: 'embedded',
+    record: restored,
+    needsConfirmation: expected.size > 0,
+    isKeptBy: saved =>
+      expected.size === 0 || keepsRestore(layout.layout.generation, expected, saved),
+  };
 };

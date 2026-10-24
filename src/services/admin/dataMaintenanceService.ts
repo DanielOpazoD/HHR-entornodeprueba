@@ -23,6 +23,7 @@ import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTy
 import {
   buildClinicalDerivedBackupSection,
   describeIncompleteClinicalDerivedBackup,
+  loadClinicalDerivedDayRestore,
   type ClinicalDerivedBackupSection,
 } from '@/services/exporters/clinicalDerivedBackupSection';
 import {
@@ -63,6 +64,11 @@ export interface BackupImportResult {
   failed: number;
   repaired: number;
   outcome: 'clean' | 'repaired' | 'partial' | 'blocked';
+  /**
+   * Restored split days whose per-episode data (vitals history, Rayen checkpoint) did not come
+   * back; such a restore is `partial`. Absent when there are none.
+   */
+  clinicalDerivedIncompleteDates?: string[];
 }
 
 export interface DataMaintenanceExportResult {
@@ -294,10 +300,8 @@ export const importRecordsFromBackup = async (
   let success = 0;
   let failed = 0;
   let repaired = 0;
-  const clinicalDerivedRestore =
-    backup.clinicalDerived === undefined
-      ? null
-      : await import('@/services/exporters/clinicalDerivedBackupRestore').catch(() => null);
+  const clinicalDerivedIncompleteDates: string[] = [];
+  const restoreClinicalDerivedDay = await loadClinicalDerivedDayRestore(backup.clinicalDerived);
 
   for (let i = 0; i < backup.records.length; i++) {
     const record = backup.records[i];
@@ -326,16 +330,29 @@ export const importRecordsFromBackup = async (
       // A split day gets each episode's vitals history and Rayen checkpoint back from the backup's
       // section, embedded where the episode lives. Declared intent: the clinical authority keeps
       // Rayen vitals/devices/scales when an administrator recreates a day that no longer exists
-      // remotely (see functions fence); on a stored split day it keeps the stored values instead.
-      const restore = clinicalDerivedRestore?.restoreClinicalDerivedBackupDay(
-        parsed.record,
-        backup.clinicalDerived
+      // remotely (see functions fence); on a stored split day it keeps the stored values instead,
+      // so the day the server confirms tells whether they came back.
+      const restore = restoreClinicalDerivedDay(parsed.record);
+      const confirmsRestore = restore.kind === 'embedded' && restore.needsConfirmation;
+      const saved = await saveDailyRecordDetailed(
+        restore.kind === 'absent' ? parsed.record : restore.record,
+        undefined,
+        {
+          writeOrigin: 'backup_restore',
+          ...(confirmsRestore ? { requireConfirmedRecord: true } : {}),
+        }
       );
-      const restoredRecord = !restore || restore.kind === 'absent' ? parsed.record : restore.record;
-      await saveDailyRecordDetailed(restoredRecord, undefined, { writeOrigin: 'backup_restore' });
       success++;
       if (hadRepairs) {
         repaired++;
+      }
+      const keptClinicalDerived =
+        restore.kind === 'absent' ||
+        (restore.kind === 'embedded' &&
+          (!restore.needsConfirmation ||
+            restore.isKeptBy(saved?.savedRemotely ? saved.confirmedRecord : undefined)));
+      if (!keptClinicalDerived) {
+        clinicalDerivedIncompleteDates.push(parsed.record.date);
       }
     } catch (error) {
       dataMaintenanceLogger.error(`Failed to import record for ${record.date}`, error);
@@ -347,9 +364,19 @@ export const importRecordsFromBackup = async (
     }
   }
 
+  const outcome =
+    success === 0
+      ? 'blocked'
+      : failed > 0 || clinicalDerivedIncompleteDates.length > 0
+        ? 'partial'
+        : repaired > 0
+          ? 'repaired'
+          : 'clean';
+  const incomplete =
+    clinicalDerivedIncompleteDates.length > 0 ? { clinicalDerivedIncompleteDates } : {};
+
   // Audit log
   if (success > 0) {
-    const outcome = failed > 0 ? 'partial' : repaired > 0 ? 'repaired' : 'clean';
     await logAuditEvent(
       getCurrentUserEmail(),
       'DATA_IMPORTED',
@@ -362,14 +389,12 @@ export const importRecordsFromBackup = async (
         failedCount: failed,
         repairedCount: repaired,
         outcome,
+        ...incomplete,
       }
     );
   }
 
-  const outcome =
-    success === 0 ? 'blocked' : failed > 0 ? 'partial' : repaired > 0 ? 'repaired' : 'clean';
-
-  return { success, failed, repaired, outcome };
+  return { success, failed, repaired, outcome, ...incomplete };
 };
 
 /**

@@ -79,14 +79,16 @@ const HISTORY = [vitals(DAY, 72), vitals(PRIOR_DAY, 70)];
     if (db) await db.terminate();
     if (app) await deleteApp(app);
   });
+  let restorerRole = 'admin';
   beforeEach(async () => {
+    restorerRole = 'admin';
     await db.recursiveDelete(db.doc(hospital));
     vi.useFakeTimers({ toFake: ['Date'], now: new Date(`${DAY}T16:00:00.000Z`) });
     vi.stubEnv(SPLIT_ENV, PRIOR_DAY);
     // The repository save as the authority callable runs it for an administrator's restore.
     boundary.save.mockImplementation(
       async (record: DailyRecord, _expected: unknown, options: { writeOrigin?: string }) => {
-        await api('admin').saveDailyRecordWithClinicalAuthority.run(
+        await api(restorerRole).saveDailyRecordWithClinicalAuthority.run(
           {
             date: record.date,
             // As the callable client sends it: JSON, so undefined fields are left out.
@@ -112,7 +114,8 @@ const HISTORY = [vitals(DAY, 72), vitals(PRIOR_DAY, 70)];
     vi.unstubAllEnvs();
   });
 
-  it('brings the history back and keeps the deleted generation document', async () => {
+  /** A split day with R2's history in its document, then its JSON backup, then deleted. */
+  const splitBackUpAndDelete = async () => {
     await db.doc(`${hospital}/settings/rayenImportPolicy`).set(shadowPolicy);
     const day = makeDay();
     const beds = day.beds as Record<string, Data>;
@@ -150,8 +153,15 @@ const HISTORY = [vitals(DAY, 72), vitals(PRIOR_DAY, 70)];
     );
 
     await dayDoc().delete();
+    return { backup, leftover };
+  };
+
+  it('brings the history back and keeps the deleted generation document', async () => {
+    const { backup, leftover } = await splitBackUpAndDelete();
+
     const result = await importRecordsFromBackup(backup);
-    expect(result).toMatchObject({ success: 1, failed: 0 });
+    // The synthetic server-shaped day needs the client's default repairs; nothing is partial.
+    expect(result).toEqual({ success: 1, failed: 0, repaired: 1, outcome: 'repaired' });
 
     const restored = await read();
     expect(restored.clinicalDerivedLayout.generation).not.toBe(leftover.layoutGeneration);
@@ -201,5 +211,20 @@ const HISTORY = [vitals(DAY, 72), vitals(PRIOR_DAY, 70)];
     expect(copies.docs.map(copy => copy.data().clinicalDerivedPrevious)).toEqual([
       { ep_pasaporte_2: { document: leftover } },
     ]);
+  });
+
+  it('reports the restore partial when the server recreates the day without the history', async () => {
+    const { backup } = await splitBackUpAndDelete();
+    // Under the Rayen fence only an administrator's restore keeps the clinical fields.
+    restorerRole = 'nurse_hospital';
+
+    const result = await importRecordsFromBackup(backup);
+
+    expect((await read()).beds.R2).not.toHaveProperty('vitalSignsHistory');
+    expect(result).toMatchObject({
+      success: 1,
+      outcome: 'partial',
+      clinicalDerivedIncompleteDates: [DAY],
+    });
   });
 });

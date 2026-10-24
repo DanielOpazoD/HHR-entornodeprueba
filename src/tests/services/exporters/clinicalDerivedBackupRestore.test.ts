@@ -220,3 +220,188 @@ describe('restoring the per-episode data of a split day', () => {
     expect(saved.beds.R1).not.toHaveProperty('clinicalSyncCheckpoint');
   });
 });
+
+type Section = ReturnType<typeof section>;
+const monthBackup = (records: DailyRecord[], clinicalDerived: unknown = section()) => ({
+  version: '1.0',
+  exportDate: `${DATE}T13:00:00.000Z`,
+  year: 2026,
+  month: 11,
+  recordCount: records.length,
+  records,
+  clinicalDerived: clinicalDerived as never,
+});
+
+const stripMoved = <T extends PatientData | undefined>(holder: T): T => {
+  if (!holder) return holder;
+  const copy: PatientData = { ...holder };
+  delete copy.vitalSignsHistory;
+  delete copy.clinicalSyncCheckpoint;
+  return copy as T;
+};
+/** The day as a server that kept none of the embedded per-episode values would confirm it. */
+const withoutMovedFields = (record: DailyRecord): DailyRecord => ({
+  ...record,
+  beds: Object.fromEntries(
+    Object.entries(record.beds).map(([bedId, bed]) => [
+      bedId,
+      {
+        ...stripMoved(bed),
+        ...(bed.clinicalCrib ? { clinicalCrib: stripMoved(bed.clinicalCrib) } : {}),
+      },
+    ])
+  ),
+  discharges: record.discharges.map(movement => ({
+    ...movement,
+    originalData: stripMoved(movement.originalData),
+  })),
+});
+const NEW_LAYOUT = { version: 1, generation: 'gen_synthetic_recreated' };
+/** The repository save: the server confirms `confirm(sent)`. */
+const serverConfirms = (confirm: (sent: DailyRecord) => DailyRecord) =>
+  mocks.saveRemote.mockImplementation(async (sent: DailyRecord) => ({
+    outcome: 'clean',
+    savedLocally: true,
+    savedRemotely: true,
+    confirmedRecord: confirm(sent),
+  }));
+
+describe('reporting a restore whose per-episode data did not come back', () => {
+  it('is clean when the server recreates the day with the embedded values', async () => {
+    serverConfirms(sent => ({ ...sent, clinicalDerivedLayout: NEW_LAYOUT }));
+
+    const result = await importRecordsFromBackup(monthBackup([splitDay()]));
+
+    expect(result).toEqual({ success: 1, failed: 0, repaired: 0, outcome: 'clean' });
+  });
+
+  it('is clean when the server keeps the stored split day of the same generation', async () => {
+    serverConfirms(sent => withoutMovedFields(sent));
+
+    const result = await importRecordsFromBackup(monthBackup([splitDay()]));
+
+    expect(result.outcome).toBe('clean');
+  });
+
+  it('is partial when the server drops the embedded values of a recreated day', async () => {
+    serverConfirms(sent => ({ ...withoutMovedFields(sent), clinicalDerivedLayout: NEW_LAYOUT }));
+
+    const result = await importRecordsFromBackup(monthBackup([splitDay()]));
+
+    expect(result).toEqual({
+      success: 1,
+      failed: 0,
+      repaired: 0,
+      outcome: 'partial',
+      clinicalDerivedIncompleteDates: [DATE],
+    });
+  });
+
+  it('is partial when the restored day did not reach the server', async () => {
+    mocks.saveRemote.mockResolvedValue({
+      outcome: 'queued',
+      savedLocally: true,
+      savedRemotely: false,
+      queuedForRetry: true,
+    });
+
+    const result = await importRecordsFromBackup(monthBackup([splitDay()]));
+
+    expect(result).toMatchObject({ outcome: 'partial', clinicalDerivedIncompleteDates: [DATE] });
+  });
+
+  it.each<[string, (value: Section) => unknown]>([
+    [
+      'the backup could not read the day',
+      () => ({ [DATE]: { status: 'unavailable', reason: 'read_failed' } }),
+    ],
+    [
+      'a document belongs to an episode the day does not hold',
+      value => {
+        value[DATE].docs.push(doc('ep_ausente_9', { vitalSignsHistory: [reading(60)] }));
+        return value;
+      },
+    ],
+    [
+      'a document is malformed',
+      value => {
+        value[DATE].docs[0] = { ...value[DATE].docs[0], dayRevision: -1 };
+        return value;
+      },
+    ],
+    [
+      'the section is from another generation',
+      value => ({ [DATE]: { ...value[DATE], layoutGeneration: 'gen_synthetic_other' } }),
+    ],
+  ])('is partial when %s', async (_label, edit) => {
+    serverConfirms(sent => ({ ...sent, clinicalDerivedLayout: NEW_LAYOUT }));
+
+    const result = await importRecordsFromBackup(monthBackup([splitDay()], edit(section())));
+
+    expect(result).toMatchObject({
+      success: 1,
+      outcome: 'partial',
+      clinicalDerivedIncompleteDates: [DATE],
+    });
+    expect(mocks.saveRemote).toHaveBeenCalledTimes(1);
+  });
+
+  it('lists only the days that lost their per-episode data', async () => {
+    serverConfirms(sent => ({ ...sent, clinicalDerivedLayout: NEW_LAYOUT }));
+    const other = { ...splitDay(), date: '2026-11-03' };
+
+    const result = await importRecordsFromBackup(
+      monthBackup([splitDay(), other], {
+        ...section(),
+        '2026-11-03': { status: 'unavailable', reason: 'permission_denied' },
+      })
+    );
+
+    expect(result).toMatchObject({
+      success: 2,
+      outcome: 'partial',
+      clinicalDerivedIncompleteDates: ['2026-11-03'],
+    });
+  });
+
+  it('the local JSON import reports a day it could not complete as partial', async () => {
+    const file = new File(
+      [
+        JSON.stringify({
+          [DATE]: splitDay(),
+          clinicalDerived: { [DATE]: { status: 'unavailable', reason: 'read_failed' } },
+        }),
+      ],
+      'respaldo-sintetico.json',
+      { type: 'application/json' }
+    );
+
+    const result = await importDataJSONDetailed(file);
+
+    expect(result).toMatchObject({
+      success: true,
+      outcome: 'partial',
+      importedCount: 1,
+      skippedEntries: [],
+      clinicalDerivedIncompleteDates: [DATE],
+    });
+  });
+
+  it('the local JSON import of a complete section is clean', async () => {
+    const file = new File(
+      [JSON.stringify({ [DATE]: splitDay(), clinicalDerived: section() })],
+      'respaldo-sintetico.json',
+      { type: 'application/json' }
+    );
+
+    const result = await importDataJSONDetailed(file);
+
+    expect(result).toEqual({
+      success: true,
+      outcome: 'clean',
+      importedCount: 1,
+      repairedCount: 0,
+      skippedEntries: [],
+    });
+  });
+});

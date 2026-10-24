@@ -264,6 +264,11 @@ Cómo cambia cada escritor del servidor:
       servidor la conserva al recrear un día que ya no existe y, en un día marcado guardado, D3 y
       D9 conservan los valores guardados. La primera escritura dividida de cada episodio la lleva a
       su documento, y D14 guarda antes el documento de la vida anterior del día.
+    - Un día que no recupera sus datos por episodio deja la importación parcial, con sus fechas:
+      la sección dice `unavailable`, un documento no es válido o no encuentra su episodio, o el
+      día que confirma el servidor no los trae ni conserva la generación del respaldo (por
+      ejemplo, un día existente que el servidor deja como estaba, o uno que recrea alguien que no
+      es administrador con la valla de Rayen activa). Nunca se informa limpia.
     - Limitación conocida: un cliente anterior a P4 (por ejemplo, tras restaurar una publicación
       anterior) leería la sección del respaldo local como un día más y guardaría en IndexedDB un
       registro con fecha `clinicalDerived`. Los días reales no cambian.
