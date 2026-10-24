@@ -40,6 +40,7 @@ import {
   adoptStoredClinicalDerivedState,
   withClearedStoredMovedFields,
 } from '@/services/storage/clinicalDerivedWriteHygiene';
+import { adoptStoredIdentityUnderReview } from '@/services/storage/identityReviewWriteHygiene';
 
 const STRICT_REMOTE_DRIFT_TOLERANCE_MS = 0;
 
@@ -231,6 +232,12 @@ const syncDailyRecord = async (
         return { authoritativeRecord: resolved.record };
       }
       const recordToWrite = resolved.record;
+      const storedIdentityRecord = () =>
+        adoptStoredIdentityUnderReview(
+          recordToWrite,
+          resolved.storedData,
+          task.syncContract?.changedPaths
+        );
 
       assertResolvedClinicalAuthority(task, resolved);
 
@@ -239,7 +246,7 @@ const syncDailyRecord = async (
       if (effectiveAuthorityMode === 'enforced' || writeFenceActive) {
         const response = await saveDailyRecordWithClinicalAuthorityCallable({
           date: recordToWrite.date,
-          record: recordToWrite,
+          record: storedIdentityRecord(),
           expectedLastUpdated: task.syncContract?.expectedVersion,
           mode: effectiveAuthorityMode === 'enforced' ? 'enforced' : 'shadow',
           origin: task.origin,
@@ -268,7 +275,7 @@ const syncDailyRecord = async (
         try {
           await saveDailyRecordWithClinicalAuthorityCallable({
             date: recordToWrite.date,
-            record: recordToWrite,
+            record: storedIdentityRecord(),
             expectedLastUpdated: task.syncContract?.expectedVersion,
             mode: 'shadow',
             origin: task.origin,
@@ -294,7 +301,13 @@ const syncDailyRecord = async (
         transaction.set(
           getRecordDocRef(committedRecord.date, runtime),
           withClearedStoredMovedFields(
-            sanitizeForFirestore(committedRecord) as Record<string, unknown>,
+            sanitizeForFirestore(
+              adoptStoredIdentityUnderReview(
+                committedRecord,
+                current.storedData,
+                task.syncContract?.changedPaths
+              )
+            ) as Record<string, unknown>,
             current.storedData,
             () => deleteField()
           ),

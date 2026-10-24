@@ -17,6 +17,7 @@ import { assertAdmissionDatePersistencePolicy } from '@/services/repositories/da
 import { buildInvariantRepairReviewContext } from '@/services/repositories/invariantRepairReviewContext';
 import { buildDailyRecordClinicalEpisodeIdPatches } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
 import { mergeRayenSyncHistory } from '@/services/repositories/dailyRecordRayenSyncHistoryPolicy';
+import { clearReviewedIdentityFields } from '@/shared/census/patientIdentityReview';
 
 export const preparePatchedRecordPersistence = (
   current: DailyRecord,
@@ -72,7 +73,10 @@ export const preparePatchedRecordPersistence = (
     );
   }
 
-  const updated = applyPatches(current, mergedPatches);
+  const updated = clearReviewedIdentityFields(
+    applyPatches(current, mergedPatches),
+    Object.keys(inputPatch)
+  );
   touchDailyRecordLastUpdated(updated);
 
   const validatedRecord = validateAndSalvageRecord(updated, date);

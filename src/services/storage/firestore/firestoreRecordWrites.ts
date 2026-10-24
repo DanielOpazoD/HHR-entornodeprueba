@@ -66,6 +66,7 @@ import {
   type DirectFirestoreWriteReceipt,
 } from './firestoreDirectWriteReceipt';
 import { adoptStoredClinicalDerivedState } from '@/services/storage/clinicalDerivedWriteHygiene';
+import { assertNoIdentityReviewInWrite } from '@/shared/census/patientIdentityReview';
 import { runPartialUpdatePersistWithPermissionFallbacks } from '@/services/storage/firestore/firestoreBedTreePermissionFallback';
 import { stripInheritedAuthorityRepair } from '@/services/storage/firestore/firestoreInheritedRepairSeparation';
 import {
@@ -88,6 +89,7 @@ export const saveRecordToFirestore = async (
   expectedLastUpdated?: string,
   options: DailyRecordSaveWriteOptions = {}
 ) => {
+  assertNoIdentityReviewInWrite(record);
   try {
     const docRef = getRecordDocRef(record.date);
     assertDailyRecordClinicalAuthority(record);
@@ -225,6 +227,7 @@ export const updateRecordPartial = async (
   expectedLastUpdated?: string,
   options: DailyRecordPartialWriteOptions = {}
 ): Promise<DailyRecordAuthorityCallableResponse | DirectFirestoreWriteReceipt | void> => {
+  assertNoIdentityReviewInWrite(partialData);
   try {
     const docRef = getRecordDocRef(date);
     // La verificación de concurrencia por lectura directa sólo protege las rutas

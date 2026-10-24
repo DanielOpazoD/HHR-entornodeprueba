@@ -66,6 +66,10 @@ import {
 } from '@/services/repositories/dailyRecordGuardedCommandPolicy';
 import { adoptAuthoritativeRecord } from '@/services/repositories/dailyRecordRepositorySyncService';
 import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
+import {
+  assertNoIdentityReviewInWrite,
+  PatientIdentityRepairRequiredError,
+} from '@/shared/census/patientIdentityReview';
 import { isValidRemoteAuthorityRecord } from '@/services/repositories/dailyRecordRemotePersistenceState';
 const tryAutoMergeBlockedFullSaveRegression = async (
   date: string,
@@ -163,6 +167,8 @@ const saveDetailedWithinLock = async (
       command.date,
       currentLocalRecord
     );
+    // A full save rewrites every bed, so a bed under identity review would store its guess.
+    assertNoIdentityReviewInWrite(validatedRecord);
     await runRemoteSaveIntegrityCheck(command.date, validatedRecord);
   } catch (err) {
     if (
@@ -177,7 +183,8 @@ const saveDetailedWithinLock = async (
     if (
       err instanceof DataRegressionError ||
       err instanceof VersionMismatchError ||
-      err instanceof AdmissionDatePolicyViolationError
+      err instanceof AdmissionDatePolicyViolationError ||
+      err instanceof PatientIdentityRepairRequiredError
     ) {
       applyBlockedSaveRecoveryToState(remoteState, err);
       return buildBlockedSaveResult(command.date, remoteState);
@@ -299,8 +306,14 @@ const updatePartialDetailedWithinLock = async (
       command.date,
       command.patch
     ));
+    // Field edits reach a bed under identity review; a whole copy of it (move, copy, discharge
+    // snapshot) would store its guess.
+    assertNoIdentityReviewInWrite(mergedPatches);
   } catch (err) {
-    if (err instanceof AdmissionDatePolicyViolationError) {
+    if (
+      err instanceof AdmissionDatePolicyViolationError ||
+      err instanceof PatientIdentityRepairRequiredError
+    ) {
       return buildValidationBlockedPartialUpdateResult({
         date: command.date,
         state: remoteState,

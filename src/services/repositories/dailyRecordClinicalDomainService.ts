@@ -166,7 +166,7 @@ export const buildClinicalBedsFromPreviousRecord = (
 };
 
 export const syncPatientFhirResource = (patient: PatientData | undefined): void => {
-  if (!patient?.patientName?.trim()) {
+  if (!patient?.patientName?.trim() || patient.identityReview) {
     return;
   }
 
@@ -262,11 +262,12 @@ export const addClinicalFhirPatchesForTouchedBeds = (
       return;
     }
 
-    if (patient.patientName?.trim()) {
+    // A FHIR identity built from an identity under review would store its guess.
+    if (patient.patientName?.trim() && !patient.identityReview) {
       mergedPatches[`beds.${bedId}.fhir_resource`] = mapPatientToFhir(patient);
     }
 
-    if (patient.clinicalCrib?.patientName?.trim()) {
+    if (patient.clinicalCrib?.patientName?.trim() && !patient.clinicalCrib.identityReview) {
       mergedPatches[`beds.${bedId}.clinicalCrib.fhir_resource`] = mapPatientToFhir(
         patient.clinicalCrib
       );

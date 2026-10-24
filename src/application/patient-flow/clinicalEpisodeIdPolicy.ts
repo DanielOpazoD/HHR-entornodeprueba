@@ -1,4 +1,5 @@
 import type { PatientEpisodeContract } from '@/application/patient-flow/clinicalEpisodeContracts';
+import type { PatientIdentityReview } from '@/types/domain/patientIdentity';
 import {
   buildClinicalEpisodeKey,
   normalizeClinicalEpisodeId,
@@ -11,6 +12,7 @@ export const LEGACY_EPISODE_ID_PREFIX = 'legacy_ep_';
 type EpisodePatient = PatientEpisodeContract & {
   bedId?: string;
   pathology?: string;
+  identityReview?: PatientIdentityReview;
   clinicalCrib?: EpisodePatient;
 };
 
@@ -90,6 +92,10 @@ export const ensurePatientClinicalEpisodeId = <T extends EpisodePatient>(
     mode?: 'admission' | 'legacy';
   } = {}
 ): T => {
+  // An episode derived from, or rewritten over, an unreadable identity would be stored as a guess.
+  if (patient.identityReview) {
+    return patient;
+  }
   const existing = normalizeClinicalEpisodeId(patient.clinicalEpisodeId);
   if (existing) {
     return existing === patient.clinicalEpisodeId

@@ -54,6 +54,7 @@ const getCategory = (code: string, messageLower: string, name: string): SyncErro
   if (
     code === 'sync_ack_invalid_record' ||
     code === 'sync_ack_missing_projection' ||
+    code === 'patient_identity_repair_required' ||
     code.includes('invalid-argument') ||
     code.includes('failed-precondition')
   ) {
