@@ -27,6 +27,7 @@ import {
 } from '@/features/census/components/patient-row/clinicalDerivedDayContext';
 import type { PatientInputFlowSectionBindings } from '@/features/census/components/patient-row/patientInputSectionContracts';
 import { DataFactory } from '@/tests/factories/DataFactory';
+import { splitEpisode } from '@/tests/factories/splitEpisode';
 // Warm the lazy modal and the read path so a loaded machine does not time the window out.
 import '@/features/census/components/patient-row/VitalsDetailModal';
 import '@/services/repositories/dailyRecordClinicalDerivedReadService';
@@ -79,7 +80,7 @@ const openWindow = (layoutGeneration?: string) => {
       <tbody>
         <tr>
           <VitalsCell
-            data={patient()}
+            data={layoutGeneration ? splitEpisode(patient()) : patient()}
             date={DATE}
             clinicalEpisodeId="ep_synthetic"
             layoutGeneration={layoutGeneration}
@@ -112,7 +113,7 @@ describe('vitals window on a split day (D10)', () => {
     });
   });
 
-  it('a document that clears the history wins over the embedded copy', async () => {
+  it('a document that clears the history leaves only the latest reading', async () => {
     mocks.readDoc.mockResolvedValue(resolvedWith(episodeDoc({ vitalSignsHistory: null })));
     openWindow(GENERATION);
 
@@ -123,22 +124,21 @@ describe('vitals window on a split day (D10)', () => {
   it.each([
     ['a document without the field', resolvedWith(episodeDoc({}))],
     ['no document', resolvedWith(null)],
-    ['an offline read without a cached copy', { status: 'failed', code: 'unavailable' }],
-    ['a denied read', { status: 'permission_denied', code: 'permission-denied' }],
-  ])('keeps the embedded history with %s', async (_label, result) => {
+  ])('shows only the latest reading with %s', async (_label, result) => {
     mocks.readDoc.mockResolvedValue(result);
     openWindow(GENERATION);
 
-    expect(await screen.findByText('Historial · 3 tomas')).toBeInTheDocument();
+    await screen.findByText('Última toma');
     await waitFor(() => expect(mocks.readDoc).toHaveBeenCalledTimes(1));
-    expect(screen.getByText('Historial · 3 tomas')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument());
+    expect(screen.queryByText(/Historial/)).not.toBeInTheDocument();
   });
 
-  it('keeps the embedded history when the read throws', async () => {
+  it('shows unavailable history when the read throws', async () => {
     mocks.readDoc.mockRejectedValue(new Error('synthetic failure'));
     openWindow(GENERATION);
 
-    expect(await screen.findByText('Historial · 3 tomas')).toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Historial no disponible');
   });
 
   it('reads nothing on an unmarked day', async () => {

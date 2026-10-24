@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
 
 /** Where a split day keeps this episode's vitals history (D10). */
@@ -6,7 +6,13 @@ export interface ClinicalDerivedVitalsSource {
   date: string;
   clinicalEpisodeId: string;
   layoutGeneration: string;
+  dayRevision?: number;
 }
+
+type VitalsHistoryReadState =
+  | { status: 'loading' }
+  | { status: 'resolved'; history: PatientVitalSigns[] | null | undefined }
+  | { status: 'unavailable' };
 
 /** The detail history: the stored history, or the latest reading alone when there is none. */
 export const resolveVitalsDetailHistory = (
@@ -15,45 +21,46 @@ export const resolveVitalsDetailHistory = (
 ): PatientVitalSigns[] =>
   vitalSignsHistory?.length ? vitalSignsHistory : latestReading ? [latestReading] : [];
 
-/**
- * The vitals window reads its episode document once when it opens: no listener, SDK default
- * source. Returns the document's `vitalSignsHistory` (`null` when the document clears it) or
- * `undefined` while there is no such answer. No document, a document without the field, an
- * offline read without a cached copy or any failure keep the day's embedded copy, as before.
- */
+/** Read on opening, revision change or retry; a failed read never means absent history. */
 export const useClinicalDerivedVitalsHistory = (
   source: ClinicalDerivedVitalsSource | undefined
-): PatientVitalSigns[] | null | undefined => {
+): VitalsHistoryReadState & { retry: () => void } => {
   const date = source?.date;
   const clinicalEpisodeId = source?.clinicalEpisodeId;
   const layoutGeneration = source?.layoutGeneration;
-  const key =
-    date && clinicalEpisodeId && layoutGeneration
-      ? `${date}|${layoutGeneration}|${clinicalEpisodeId}`
-      : '';
+  const dayRevision = source?.dayRevision;
+  const [attempt, setAttempt] = useState(0);
+  const retry = useCallback(() => setAttempt(value => value + 1), []);
+  const key = JSON.stringify([date, layoutGeneration, clinicalEpisodeId, dayRevision, attempt]);
   const [answer, setAnswer] = useState<{
     key: string;
-    history: PatientVitalSigns[] | null;
+    state: VitalsHistoryReadState;
   } | null>(null);
 
   useEffect(() => {
     if (!date || !clinicalEpisodeId || !layoutGeneration) return undefined;
     let active = true;
-    const requestKey = `${date}|${layoutGeneration}|${clinicalEpisodeId}`;
+    const resolve = (state: VitalsHistoryReadState) => {
+      if (active) setAnswer({ key, state });
+    };
     import('@/services/repositories/dailyRecordClinicalDerivedReadService')
       .then(service =>
         service.readClinicalDerivedEpisodeForDisplay(date, layoutGeneration, clinicalEpisodeId)
       )
-      .then(result => {
-        const history = result.status === 'resolved' ? result.doc?.vitalSignsHistory : undefined;
-        if (active && history !== undefined) setAnswer({ key: requestKey, history });
-      })
-      // A read path that fails to load keeps the embedded copy too.
-      .catch(() => undefined);
+      .then(result =>
+        resolve(
+          result.status === 'resolved'
+            ? { status: 'resolved', history: result.doc?.vitalSignsHistory }
+            : { status: 'unavailable' }
+        )
+      )
+      .catch(() => resolve({ status: 'unavailable' }));
     return () => {
       active = false;
     };
-  }, [date, clinicalEpisodeId, layoutGeneration]);
+  }, [date, clinicalEpisodeId, layoutGeneration, key]);
 
-  return answer?.key === key ? answer.history : undefined;
+  if (!source) return { status: 'resolved', history: undefined, retry };
+  if (answer?.key === key) return { ...answer.state, retry };
+  return { status: 'loading', retry };
 };
