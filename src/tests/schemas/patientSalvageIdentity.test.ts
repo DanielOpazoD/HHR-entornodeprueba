@@ -1,6 +1,7 @@
 // @vitest-environment node
 
 import { describe, expect, it } from 'vitest';
+import type { PatientData } from '@/types/domain/patient';
 import {
   hasStructuralRepairs,
   parseDailyRecordWithDefaultsReport,
@@ -82,7 +83,7 @@ it('retains the structural repair reports for unrelated invalid fields', () => {
   expect(hasStructuralRepairs(daily.report)).toBe(true);
 });
 
-const invalidNonIdentityFields = [
+const invalidNonIdentityFields: (keyof PatientData)[] = [
   'isBlocked',
   'blockedReason',
   'bedMode',
@@ -196,7 +197,8 @@ it('reports zero drops for clean lists and keeps schema normalization', () => {
   const daily = parseDailyRecordWithDefaultsReport(day(raw), DATE);
   expect(single.report).toMatchObject({ usedFallback: false, droppedListItems: 0 });
   expect(daily.report).toMatchObject({ salvagedBeds: [], droppedPatientListItems: 0 });
-  expect(single.patient.clinicalEvents[0].note).toBeUndefined();
+  expect(single.patient.clinicalEvents).toHaveLength(1);
+  expect(single.patient.clinicalEvents?.[0]?.note).toBeUndefined();
 });
 
 const invalidIdentityFields = [
