@@ -223,17 +223,23 @@ const foldWriteIntoOutbox = ({
         })
       : null;
   const merged = mergeSyncTaskContracts(existing?.syncContract, task.syncContract);
-  return rebased && owner
-    ? {
-        ...task,
-        payload: rebased,
-        syncContract: buildDailyRecordSyncContract(rebased, {
-          ...merged,
-          expectedVersion: owner.syncContract?.expectedVersion ?? merged?.expectedVersion,
-          baseRevision: owner.syncContract?.baseRevision,
-        }),
-      }
-    : { ...task, syncContract: merged };
+  const payload = rebased ?? (task.payload as DailyRecord);
+  const baseContract = existing?.syncContract ?? owner?.syncContract;
+  return {
+    ...task,
+    payload,
+    syncContract: {
+      ...buildDailyRecordSyncContract(payload, merged),
+      // A local edit is not a publication. Compaction keeps the unresolved remote base,
+      // including an absent revision, even when the next write already carries the projection.
+      ...(baseContract
+        ? {
+            expectedVersion: baseContract.expectedVersion,
+            baseRevision: baseContract.baseRevision,
+          }
+        : {}),
+    },
+  };
 };
 
 /** Writes the day's record and its outbox task in one transaction. */
