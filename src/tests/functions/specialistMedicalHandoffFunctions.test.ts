@@ -33,8 +33,8 @@ const createFirebaseServices = ({
   get = vi.fn(),
   update = vi.fn(),
 }: {
-  get?: ReturnType<typeof vi.fn>;
-  update?: ReturnType<typeof vi.fn>;
+  get?: () => unknown;
+  update?: (patch: unknown) => unknown;
 } = {}) => ({
   firestore: {
     runTransaction: async (fn: (transaction: unknown) => Promise<unknown>) =>
@@ -489,12 +489,10 @@ describe('functions specialistMedicalHandoffFunctions', () => {
 
   it('rejects inconsistent persisted record dates', async () => {
     const update = vi.fn();
-    const get = vi
-      .fn()
-      .mockResolvedValue({
-        exists: true,
-        data: () => ({ date: '2001-01-01', beds: { R4: { ...occupant } } }),
-      });
+    const get = vi.fn().mockResolvedValue({
+      exists: true,
+      data: () => ({ date: '2001-01-01', beds: { R4: { ...occupant } } }),
+    });
     const api = createSpecialistMedicalHandoffFunctions({
       ...createFirebaseServices({ get, update }),
       resolveRoleForEmail: vi.fn().mockResolvedValue('doctor_specialist'),
@@ -514,12 +512,10 @@ describe('functions specialistMedicalHandoffFunctions', () => {
 
   it('preserves the configured admin historical-edit override', async () => {
     const update = vi.fn().mockResolvedValue(undefined);
-    const get = vi
-      .fn()
-      .mockResolvedValue({
-        exists: true,
-        data: () => ({ date: '2001-01-01', beds: { R4: { ...occupant } } }),
-      });
+    const get = vi.fn().mockResolvedValue({
+      exists: true,
+      data: () => ({ date: '2001-01-01', beds: { R4: { ...occupant } } }),
+    });
     const api = createSpecialistMedicalHandoffFunctions({
       ...createFirebaseServices({ get, update }),
       resolveRoleForEmail: vi.fn().mockResolvedValue('admin'),
