@@ -20,6 +20,7 @@ import {
 import {
   buildDailyRecordSyncContract,
   mergeSyncTaskContracts,
+  resolveRecordBaseRevision,
 } from '@/services/storage/sync/syncTaskContractPolicy';
 
 /**
@@ -29,32 +30,16 @@ import {
  * The outbox store loads this module on demand, so it stays off the authenticated startup shell.
  */
 
-/** Returns the write applied on the pending projection, or null when it already carries it. */
-type PendingProjectionRebase = (pending: {
-  projection: DailyRecord;
-  pendingChangedPaths: string[];
-}) => DailyRecord | null;
+type PendingProjectionRebase = (projection: DailyRecord) => DailyRecord;
 
 // Same mergeable roots as the publish-time same-path check (firestoreSyncConflictPolicy).
 const MOVEMENT_LOG_PATHS = new Set(['discharges', 'transfers', 'cma']);
 const BED_SLOT_FIELDS = new Set(['isBlocked', 'blockedReason']);
-const BED_FIELD_PATH = /^beds\.([^.]+)\.([^.]+)/;
-
-const pathsOverlap = (left: string, right: string): boolean =>
-  left === right || left.startsWith(`${right}.`) || right.startsWith(`${left}.`);
+const BED_FIELD_PATH = /^beds\.([^.]+)(?:\.([^.]+))?/;
 
 /** A legacy or whole-record write does not say which paths it owns. */
 const isOpaqueChangedPaths = (paths: readonly string[]): boolean =>
   paths.length === 0 || paths.includes('*');
-
-const carriesProjectionValuesAt = (
-  source: DailyRecord,
-  projection: DailyRecord,
-  paths: readonly string[]
-): boolean =>
-  paths.every(path =>
-    hasSameComparableValue(getValueAtPath(source, path), getValueAtPath(projection, path))
-  );
 
 const hasIdentity = (patient: PatientData | undefined): boolean =>
   Boolean(
@@ -98,7 +83,7 @@ const assertSameOccupantAtPath = (
   const projectedBed = projection.beds?.[bedId];
   if (
     hasSameOccupant(writtenBed, projectedBed) &&
-    (field !== 'clinicalCrib' ||
+    ((field && field !== 'clinicalCrib') ||
       hasSameOccupant(writtenBed?.clinicalCrib, projectedBed?.clinicalCrib))
   ) {
     return;
@@ -128,17 +113,7 @@ const buildRecordOverlayRebase = (
 ): PendingProjectionRebase | undefined => {
   const ownPaths = (changedPaths ?? []).filter(Boolean);
   if (isOpaqueChangedPaths(ownPaths)) return undefined;
-  return ({ projection, pendingChangedPaths }) => {
-    const otherPendingPaths = pendingChangedPaths.filter(
-      pendingPath => !ownPaths.some(ownPath => pathsOverlap(ownPath, pendingPath))
-    );
-    if (
-      record.lastUpdated === projection.lastUpdated ||
-      (!isOpaqueChangedPaths(pendingChangedPaths) &&
-        carriesProjectionValuesAt(record, projection, otherPendingPaths))
-    ) {
-      return null;
-    }
+  return projection => {
     const patch: DailyRecordPatch = {};
     ownPaths.forEach(path => {
       assertSameOccupantAtPath(path, record, projection);
@@ -157,22 +132,14 @@ const buildRecordOverlayRebase = (
  */
 const buildPatchRebase =
   ({ baseRecord, patch, prepare }: DailyRecordPatchWrite): PendingProjectionRebase =>
-  ({ projection, pendingChangedPaths }) => {
-    if (baseRecord.lastUpdated === projection.lastUpdated) return null;
-    // Compare with the base as it would have been stored: saving drops empty staffing slots and
-    // derives bed fields, so a tab's own optimistic copy must not read as another tab's change.
+  projection => {
+    // Normalize the optimistic base just as persistence does before comparing its values.
     const storedBase = prepare(baseRecord, {});
-    if (
-      !isOpaqueChangedPaths(pendingChangedPaths) &&
-      carriesProjectionValuesAt(storedBase, projection, pendingChangedPaths)
-    ) {
-      return null;
-    }
-
+    const storedProjection = prepare(projection, {});
     const rebasedPatch: DailyRecordPatch = {};
     Object.entries(patch).forEach(([path, value]) => {
-      assertSameOccupantAtPath(path, storedBase, projection);
-      const projected = getValueAtPath(projection, path);
+      assertSameOccupantAtPath(path, storedBase, storedProjection);
+      const projected = getValueAtPath(storedProjection, path);
       if (
         hasSameComparableValue(getValueAtPath(storedBase, path), projected) ||
         hasSameComparableValue(value, projected)
@@ -208,23 +175,22 @@ const foldWriteIntoOutbox = ({
   unresolved: SyncTask[];
   rebase: PendingProjectionRebase | undefined;
 }): SyncTask => {
-  const owner =
-    stored &&
-    unresolved.find(
-      candidate =>
-        (candidate.payload as Partial<DailyRecord> | null | undefined)?.lastUpdated ===
-        stored.lastUpdated
-    );
-  const rebased =
-    owner && rebase
-      ? rebase({
-          projection: stored,
-          pendingChangedPaths: owner.syncContract?.changedPaths ?? [],
-        })
-      : null;
+  const owner = unresolved.find(
+    candidate => stored && hasSameComparableValue(candidate.payload, stored)
+  );
+  // A published replacement has no pending task, but its content and patient still own the day.
+  const rebased = stored && rebase ? rebase(stored) : null;
   const merged = mergeSyncTaskContracts(existing?.syncContract, task.syncContract);
   const payload = rebased ?? (task.payload as DailyRecord);
-  const baseContract = existing?.syncContract ?? owner?.syncContract;
+  const baseContract =
+    existing?.syncContract ??
+    owner?.syncContract ??
+    (rebased && stored
+      ? {
+          expectedVersion: stored.lastUpdated,
+          baseRevision: resolveRecordBaseRevision(stored),
+        }
+      : undefined);
   return {
     ...task,
     payload,
