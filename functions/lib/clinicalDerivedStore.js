@@ -1,6 +1,6 @@
 /**
  * Server side of the per-episode clinical data split (phase 1a,
- * docs/DESIGN_DAILY_RECORD_PHASE1_CLINICAL_DERIVED.md: D5-D8 and D11).
+ * docs/DESIGN_DAILY_RECORD_PHASE1_CLINICAL_DERIVED.md: D5-D8, D11 and D14).
  *
  * The three authority callables only call in here. While no day carries the marker and
  * `HHR_CLINICAL_DERIVED_SPLIT_FROM` is unset every entry point returns null, or the record without
@@ -11,6 +11,8 @@
  * - compares and applies on the combined view (`overlayClinicalDerived`, D4);
  * - persists the day as the remote plus its change, without the written episodes' moved fields,
  *   and each written episode's document in full with `set`;
+ * - first keeps in the day's history, whole, a written episode's document that does not count for
+ *   the day, such as a deleted day's leftover (D14);
  * - keeps in the run's history copy what each episode had before the run first wrote it (D11).
  */
 'use strict';
@@ -19,7 +21,7 @@ const crypto = require('node:crypto');
 const { isDeepStrictEqual } = require('node:util');
 const functions = require('firebase-functions/v1');
 const { movementRestoreRecord } = require('./movementRestoreSources');
-const { assertPersistedDocumentSize } = require('./rayenClinicalEnrichmentPolicy');
+const { assertPersistedDocumentSize, digestValue } = require('./rayenClinicalEnrichmentPolicy');
 const {
   clonePlainValue,
   embedsMovedField,
@@ -51,6 +53,8 @@ const {
 const CLINICAL_DERIVED_SPLIT_FROM_ENV = 'HHR_CLINICAL_DERIVED_SPLIT_FROM';
 /** Root field of a run's history copy: each split episode's moved fields before the run (D11). */
 const CLINICAL_DERIVED_PREVIOUS_FIELD = 'clinicalDerivedPrevious';
+/** History copy of an episode document a split write replaces while it does not count (D14). */
+const CLINICAL_DERIVED_DISPLACED_REASON = 'clinical_derived_displaced';
 const CLINICAL_DERIVED_CLIENT_OUTDATED = 'clinical_derived_client_outdated';
 const CLINICAL_DERIVED_LAYOUT_UNSUPPORTED = 'clinical_derived_layout_unsupported';
 const CLINICAL_DERIVED_FIELD_CONTRACT_UNSUPPORTED = 'clinical_derived_field_contract_unsupported';
@@ -144,6 +148,44 @@ const readEpisodeDocs = async ({ get, dayRef, episodeIds }) => {
   );
 };
 
+/**
+ * Read documents of the written episodes that the overlay (D4) would not use on this layout: a
+ * deleted day's leftover, or any other generation, date or schema. Their id is the episode, not
+ * the generation, so the split write `set`s over them.
+ */
+const displacedDocsOf = ({ docs, episodes, date, layout }) =>
+  episodes
+    .map(({ clinicalEpisodeId }) => ({ clinicalEpisodeId, doc: docs.get(clinicalEpisodeId) }))
+    .filter(
+      ({ clinicalEpisodeId, doc }) =>
+        doc &&
+        !(
+          doc.schemaVersion === CLINICAL_DERIVED_DOC_SCHEMA_VERSION &&
+          doc.clinicalEpisodeId === clinicalEpisodeId &&
+          doc.date === date &&
+          doc.layoutGeneration === layout?.generation
+        )
+    );
+
+/**
+ * D14: the transaction keeps each displaced document whole in the day's history before replacing
+ * it. The copy's id derives from the document's content, so a retried transaction writes the same
+ * copy and two different documents never share one.
+ */
+const displacedCopyWrites = ({ dayRef, displaced, now }) =>
+  displaced.map(({ clinicalEpisodeId, doc }) => {
+    const data = {
+      snapshotReason: CLINICAL_DERIVED_DISPLACED_REASON,
+      snapshotTimestamp: now,
+      [CLINICAL_DERIVED_PREVIOUS_FIELD]: {
+        [clinicalEpisodeId]: { document: clonePlainValue(doc) },
+      },
+    };
+    assertPersistedDocumentSize(data);
+    const id = `clinical-derived-${clinicalEpisodeId}-${digestValue(doc).slice(0, 24)}`;
+    return { ref: dayRef.collection('history').doc(id), data };
+  });
+
 /** D4 view; a day this write marks has no current documents yet, so it stays as read. */
 const combinedView = (record, docsById) =>
   overlayClinicalDerived(
@@ -169,8 +211,9 @@ const previousEntry = (doc, remoteHolder) => ({
 });
 
 /**
- * Writes shared by the patch and the batch: each split episode's full document (D2) with the day
- * revision of this transaction, the marker when this write marks the day, and the run copy (D11).
+ * Writes shared by the patch and the batch: the history copy of each displaced document (D14),
+ * each split episode's full document (D2) with the day revision of this transaction, the marker
+ * when this write marks the day, and the run copy (D11).
  */
 const buildSplitWrite = ({
   state,
@@ -178,13 +221,15 @@ const buildSplitWrite = ({
   date,
   remoteData,
   docs,
+  displaced,
   episodes,
   valuesOf,
   record,
   deleteField,
 }) => {
-  const docWrites = ({ now, mutationId }) =>
-    episodes.map(episode => {
+  const docWrites = ({ now, mutationId }) => [
+    ...displacedCopyWrites({ dayRef, displaced, now }),
+    ...episodes.map(episode => {
       const data = {
         schemaVersion: CLINICAL_DERIVED_DOC_SCHEMA_VERSION,
         date,
@@ -199,7 +244,8 @@ const buildSplitWrite = ({
       };
       assertPersistedDocumentSize(data);
       return { ref: episodeDocRef(dayRef, episode.clinicalEpisodeId), data };
-    });
+    }),
+  ];
   const previous = Object.fromEntries(
     episodes.map(({ clinicalEpisodeId, bedId, target }) => [
       clinicalEpisodeId,
@@ -272,11 +318,12 @@ const buildSplitWrite = ({
 };
 
 /** Split counters for functionsTelemetry: an enum and counts, never ids, beds or values. */
-const splitTelemetry = ({ state, splitEpisodes, embeddedEpisodes, view }) => ({
+const splitTelemetry = ({ state, splitEpisodes, embeddedEpisodes, view, displaced }) => ({
   clinicalDerivedLayout: state.status,
   clinicalDerivedSplitEpisodes: splitEpisodes,
   clinicalDerivedEmbeddedEpisodes: embeddedEpisodes,
   clinicalDerivedOverlaidEpisodes: view.matchedEpisodeIds.length,
+  clinicalDerivedDisplacedDocs: displaced.length,
 });
 
 const createClinicalDerivedStore = ({ FieldValue } = {}) => {
@@ -319,6 +366,7 @@ const createClinicalDerivedStore = ({ FieldValue } = {}) => {
       episodeIds: episodes.map(episode => episode.clinicalEpisodeId),
     });
     const view = combinedView(remoteData, docs);
+    const displaced = displacedDocsOf({ docs, episodes, date, layout: state.layout });
 
     const plan = ({ patchedRecord, now, mutationId }) => {
       const write = buildSplitWrite({
@@ -327,6 +375,7 @@ const createClinicalDerivedStore = ({ FieldValue } = {}) => {
         date,
         remoteData,
         docs,
+        displaced,
         episodes,
         deleteField,
         record: patchedRecord,
@@ -377,6 +426,7 @@ const createClinicalDerivedStore = ({ FieldValue } = {}) => {
         splitEpisodes: episodes.length,
         embeddedEpisodes: writtenKeys.size - episodes.length,
         view,
+        displaced,
       }),
       plan,
     };
@@ -409,6 +459,7 @@ const createClinicalDerivedStore = ({ FieldValue } = {}) => {
       episodeIds: episodes.map(episode => episode.clinicalEpisodeId),
     });
     const view = combinedView(remoteData, docs);
+    const displaced = displacedDocsOf({ docs, episodes, date: payload.date, layout: state.layout });
 
     const finalize = ({ record, now }) => {
       const write = buildSplitWrite({
@@ -417,6 +468,7 @@ const createClinicalDerivedStore = ({ FieldValue } = {}) => {
         date: payload.date,
         remoteData,
         docs,
+        displaced,
         episodes,
         deleteField,
         record,
@@ -447,6 +499,7 @@ const createClinicalDerivedStore = ({ FieldValue } = {}) => {
         splitEpisodes: episodes.length,
         embeddedEpisodes: movedKeys.size - episodes.length,
         view,
+        displaced,
       }),
       assertSupported: () => assertLayoutSupported(state),
       assertAccepted: data =>

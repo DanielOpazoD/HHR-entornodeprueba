@@ -121,7 +121,8 @@ activa: cubre los dos escritores (parche con guarda y lote) y las dos rutas de g
     revisa con el mismo control de 900 KB del lote.
   - Un lote de solo checkpoint sigue sin copia de historial. El checkpoint es un índice de la
     sincronización incremental, no un dato clínico: perder un valor anterior solo obliga a
-    revalidar.
+    revalidar. Un documento que no cuenta para el día y que la escritura reemplaza se guarda
+    igual, aparte (D14).
 - **D13. Paridad.** `PARITY_CONTRACT_VERSION` (`rayenClinicalEnrichmentFunctions.js`) sube a 3, y la
   paridad en `shadow` compara la vista combinada (documentos sobre el día). La evidencia anterior
   deja de contar para el paso de `shadow` a `enforced` (`functionsTelemetryService.ts`).
@@ -287,6 +288,17 @@ Piezas comunes del cliente:
   La exención de `beds` solo cubre `dailyRecords`, `history` y `deletedRecords`.
 - **D14. Restos de un día borrado.** Los documentos de un día borrado se ignoran por la generación
   del marcador: un día que recrea el servidor recibe una generación nueva. Nunca se borran.
+  - El id del documento es el episodio, no la generación. La primera escritura dividida de ese
+    episodio en el día recreado lo sobrescribe con `set`.
+  - Por eso toda escritura dividida (parche con guarda, lote, también de solo checkpoint) que
+    reemplaza un documento que la superposición no usaría (otra generación, fecha o esquema)
+    primero lo copia entero, en la misma transacción, a
+    `history/clinical-derived-{clinicalEpisodeId}-{digest}`: `snapshotReason`
+    `clinical_derived_displaced` y el documento en `clinicalDerivedPrevious.{id}.document`. Esa
+    ruta ya tiene la exención de D12.
+  - El id sale del contenido: un reintento escribe la misma copia y dos documentos distintos nunca
+    comparten una. La telemetría cuenta `clinicalDerivedDisplacedDocs`. El guardado completo no
+    escribe documentos de episodio, así que no reemplaza ninguno.
 - **D15. Fase 1b diferida.** `evaluationScores.history` espera a que la medición por campo la
   justifique. Antes de moverlo, `braden.latestApplication` y `downton.latestApplication` deben estar
   siempre en el día: sin ellos, los chips del censo y la agudeza de la fila leen
@@ -350,8 +362,8 @@ Piezas comunes del cliente:
 - **Restos al borrar un día.** El borrado (`dailyRecordDeletionService.ts`) pasa el día a la
   papelera y lo borra. Los documentos quedan, porque Firestore no borra en cascada y los clientes no
   pueden escribirlos.
-  - D14: un día que recrea el servidor no los ve. Si el servidor sobrescribe uno, D11 lo guarda en
-    la copia de la corrida.
+  - D14: un día que recrea el servidor no los ve. Si el servidor sobrescribe uno, primero lo
+    guarda entero en el historial del día; D11 además lo anota en la copia de la corrida.
   - Un día que recrea un cliente desde una copia llega sin marcador (regla de creación) y no ve los
     documentos de su vida anterior: tendrá generación nueva. Esos documentos siguen en Firestore, y
     un administrador puede recuperarlos.
