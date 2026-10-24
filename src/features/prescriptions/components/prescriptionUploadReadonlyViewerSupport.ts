@@ -1,5 +1,4 @@
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
-import { getPreviousDay } from '@/utils/clinicalDayScheduleUtils';
 
 export type PrescriptionUploadViewerDayKey = 'today' | 'yesterday';
 
@@ -20,7 +19,9 @@ export const buildPrescriptionUploadViewerDayOptions = (
   now = new Date()
 ): PrescriptionUploadViewerDayOption[] => {
   const todayIso = getClinicalCalendarDateISO(now);
-  const yesterdayIso = getPreviousDay(todayIso);
+  const yesterday = new Date(`${todayIso}T12:00:00Z`);
+  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+  const yesterdayIso = yesterday.toISOString().slice(0, 10);
 
   return [
     {

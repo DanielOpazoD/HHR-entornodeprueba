@@ -156,7 +156,10 @@ const RULES = [
     find: regexRule(
       /new Date\(\)\s*\.\s*toISOString\(\)\s*\.\s*(?:(?:slice|substring|substr)\(\s*0\s*,\s*10\s*\)|split\(\s*['"]T['"]\s*\)\s*\[\s*0\s*\])/
     ),
-    hint: 'use getTodayISO() (hospital calendar) instead of the UTC date',
+    hint: relativePath =>
+      relativePath.startsWith('functions/')
+        ? 'use hospitalCalendarDay() from functions/lib/hospitalCalendarDay instead of the UTC date'
+        : 'use getTodayISO() (hospital calendar) instead of the UTC date',
   },
   {
     rule: 'zone-less-format',
@@ -178,7 +181,11 @@ for (const { rule, files, find, hint } of RULES) {
   for (const relativePath of files) {
     const source = fs.readFileSync(path.join(ROOT, relativePath), 'utf8');
     for (const line of find(source))
-      violations.push({ rule, location: `${relativePath}:${line}`, hint });
+      violations.push({
+        rule,
+        location: `${relativePath}:${line}`,
+        hint: typeof hint === 'function' ? hint(relativePath) : hint,
+      });
   }
 }
 

@@ -26,6 +26,14 @@ describe.each([
     '2026-10-24T01:30:00.000Z',
   ],
   [
+    'late evening at 23:30',
+    '2026-10-25T04:30:00.000Z',
+    '2026-10-24',
+    '2026-10-23',
+    '2026-10-25T04:00:00.000Z',
+    '2026-10-24T04:00:00.000Z',
+  ],
+  [
     'winter',
     '2026-07-02T03:00:00.000Z',
     '2026-07-01',
@@ -59,7 +67,7 @@ describe.each([
     });
   };
 
-  it('returns tonight for Hoy at 21:00 hospital time', async () => {
+  it('returns tonight for Hoy during the hospital evening', async () => {
     const handler = await createEveningHandler();
     const result = await handler({ pin: '7351', date: today }, undefined);
     expect(result.date).toBe(today);

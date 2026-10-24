@@ -69,7 +69,9 @@ describe('check-clinical-clock', () => {
       'e2e/a.spec.ts': `const day = process.env.E2E_FIXED_DATE ?? ${utcToday('substring(0, 10)')};\n`,
     });
 
-    expect(output).toContain('[utc-today] src/features/a.ts:1');
+    expect(output).toContain(
+      '[utc-today] src/features/a.ts:1 — use getTodayISO() (hospital calendar) instead of the UTC date'
+    );
     expect(output).toContain('[utc-today] src/tests/a.test.ts:1');
     expect(output).toContain('[utc-today] src/tests/a.test.ts:3');
     expect(output).toContain('[utc-today] e2e/a.spec.ts:1');
@@ -147,8 +149,12 @@ describe('check-clinical-clock', () => {
       'functions/index.js': `const day = ${today};`,
     });
     expect(status).toBe(1);
-    expect(output).toContain('[utc-today] functions/lib/upload.js:1');
-    expect(output).toContain('[utc-today] functions/index.js:1');
+    for (const file of ['functions/lib/upload.js', 'functions/index.js']) {
+      expect(output).toContain(
+        `[utc-today] ${file}:1 — use hospitalCalendarDay() from functions/lib/hospitalCalendarDay instead of the UTC date`
+      );
+    }
+    expect(output).not.toContain('getTodayISO()');
   });
 
   it('allows Functions timestamps, explicit hospital dates and calendar arithmetic', () => {

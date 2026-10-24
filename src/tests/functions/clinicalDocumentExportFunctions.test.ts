@@ -123,7 +123,9 @@ describe('functions clinicalDocumentExportFunctions', () => {
 
   it.each([
     ['2026-11-01T02:00:00.000Z', '2026', 'Octubre 2026'],
+    ['2026-11-01T04:30:00.000Z', '2026', 'Octubre 2026'],
     ['2027-01-01T02:00:00.000Z', '2026', 'Diciembre 2026'],
+    ['2027-01-01T04:30:00.000Z', '2026', 'Diciembre 2026'],
   ])('exports at %s into the hospital month and year', async (instant, year, month) => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date(instant));
