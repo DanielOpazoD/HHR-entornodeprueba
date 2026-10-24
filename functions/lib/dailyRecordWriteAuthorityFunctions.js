@@ -3,6 +3,11 @@ const { movementRestoreRecord } = require('./movementRestoreSources');
 const functions = require('firebase-functions/v1');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
 const { CLINICAL_DERIVED_MOVED_FIELDS } = require('./clinicalDerivedContract');
+const {
+  createClinicalDerivedStore,
+  readPriorDayForCarryover,
+  settleClinicalDerivedFullSave,
+} = require('./clinicalDerivedStore');
 const { requireAuthenticatedEmail } = require('./auth/authPolicies');
 const { sanitizeLogValue } = require('./logging/redaction');
 const {
@@ -1213,6 +1218,7 @@ const recordAuthorityTelemetry = async ({
   errorMessage,
   startedAt,
   timings,
+  clinicalDerived,
 }) => {
   try {
     const changedPaths = collectChangedPaths(syncContract);
@@ -1253,6 +1259,8 @@ const recordAuthorityTelemetry = async ({
           canonicalEpisodeIds: safeCoverage.canonicalEpisodeIds,
           fallbackEpisodeKeys: safeCoverage.fallbackEpisodeKeys,
           degenerateFallbackEpisodeKeys: safeCoverage.degenerateFallbackEpisodeKeys,
+          // Split-day counters (clinicalDerivedStore); absent on legacy days.
+          ...(clinicalDerived || {}),
         },
       });
   } catch (error) {
@@ -1317,6 +1325,7 @@ const assertNoPatientErasures = ({ snapshot, record, intentionalBedClear = null 
 const createDailyRecordWriteAuthorityFunctions = ({
   firestore,
   Timestamp,
+  FieldValue,
   resolveRoleForEmail,
 }) => ({
   saveDailyRecordWithClinicalAuthority: functions
@@ -1386,12 +1395,14 @@ const createDailyRecordWriteAuthorityFunctions = ({
       let recordState;
       let responseAuthority = authority;
       let responseCoverage = coverage;
+      let clinicalDerivedTelemetry;
 
       try {
         txnStartedAt = Date.now();
         await db.runTransaction(async transaction => {
           txnAttempts += 1;
           pendingHistoryData = null;
+          clinicalDerivedTelemetry = undefined;
           const snapshot = await transaction.get(docRef);
           // Day bootstrap first writes an empty census, then imports Eloísa. The first
           // occupied write still needs yesterday's confirmed episode decisions.
@@ -1453,9 +1464,31 @@ const createDailyRecordWriteAuthorityFunctions = ({
             recordForPersistence = applyTrustedClinicalCarryover({
               candidate: recordForPersistence,
               requested: record,
-              priorRecord: priorSnapshot.data(),
+              // A split prior day is seen with its episode documents overlaid.
+              priorRecord: await readPriorDayForCarryover({
+                transaction,
+                priorRef,
+                priorData: priorSnapshot.data(),
+              }),
             });
           }
+          const derivedSave = settleClinicalDerivedFullSave({
+            snapshotExists: snapshot.exists,
+            remoteData,
+            incoming: record,
+            record: recordForPersistence,
+            date,
+            data,
+            // With the Rayen fence the server drops or reseeds the client's clinical fields.
+            keepsClientMovedFields: !shouldPreserveRayenClinicalFields({
+              policySnapshot,
+              snapshot,
+              origin,
+              role,
+            }),
+          });
+          recordForPersistence = derivedSave.record;
+          clinicalDerivedTelemetry = derivedSave.telemetry || undefined;
           await assertTrustedSpecialtyAssignments({
             transaction,
             hospitalRef,
@@ -1572,6 +1605,7 @@ const createDailyRecordWriteAuthorityFunctions = ({
           status: 'success',
           startedAt,
           timings: buildTimings(),
+          clinicalDerived: clinicalDerivedTelemetry,
         });
 
         return buildAuthorityResponse({
@@ -1600,6 +1634,7 @@ const createDailyRecordWriteAuthorityFunctions = ({
             errorMessage: handledError.message,
             startedAt,
             timings: buildTimings(),
+            clinicalDerived: clinicalDerivedTelemetry,
           });
           throw handledError;
         }
@@ -1666,6 +1701,8 @@ const createDailyRecordWriteAuthorityFunctions = ({
       let coverage;
       let revision;
       let recordState;
+      let clinicalDerivedTelemetry;
+      const clinicalDerived = createClinicalDerivedStore({ FieldValue });
       const mutationId = normalizeShortString(syncContract?.mutationId);
       const guardedHistoryRef = rayenClinicalWriteGuard
         ? docRef.collection('history').doc(`rayen-${rayenClinicalWriteGuard.runId}`)
@@ -1676,6 +1713,7 @@ const createDailyRecordWriteAuthorityFunctions = ({
         await db.runTransaction(async transaction => {
           txnAttempts += 1;
           pendingHistoryData = null;
+          clinicalDerivedTelemetry = undefined;
           const [
             snapshot,
             policySnapshot,
@@ -1824,6 +1862,16 @@ const createDailyRecordWriteAuthorityFunctions = ({
           if (patchInspection.requiresStructuralAuthority) {
             assertStructuralPatchPolicy({ date, policySnapshot, remoteData, role });
           }
+          // Phase 1a split (clinicalDerivedStore): null unless moved fields go to a split day.
+          const derivedSplit = await clinicalDerived.preparePatchSplit({
+            transaction,
+            dayRef: docRef,
+            date,
+            remoteData,
+            patch: authorizedPatch,
+            data,
+          });
+          clinicalDerivedTelemetry = derivedSplit?.telemetry;
           const now = Timestamp.now();
           const patchedCandidate = applyPatchToRecord({
             date,
@@ -1890,12 +1938,14 @@ const createDailyRecordWriteAuthorityFunctions = ({
             intentionalBedClear,
           });
           patchedRecord.meta = buildNextMeta({ remoteData, syncContract, now });
+          const derivedWrite = derivedSplit?.plan({ patchedRecord, now, mutationId });
 
           authority = assertClinicalAuthority(patchedRecord);
           coverage = collectClinicalEpisodeCoverage(patchedRecord);
           revision = patchedRecord.meta.revision;
           recordState = buildAuthorityRecordState({
-            record: patchedRecord,
+            // D8: on a split day, the day exactly as persisted (never an overlaid record).
+            record: derivedWrite?.persistedRecord ?? patchedRecord,
             lastUpdated: now,
             meta: patchedRecord.meta,
           });
@@ -1913,7 +1963,17 @@ const createDailyRecordWriteAuthorityFunctions = ({
 
           if (guardedHistoryRef) {
             if (!guardedHistorySnapshot?.exists) {
-              transaction.set(guardedHistoryRef, buildSlimHistorySnapshot(remoteData, now));
+              const runCopy = buildSlimHistorySnapshot(remoteData, now);
+              transaction.set(
+                guardedHistoryRef,
+                derivedWrite ? derivedWrite.withRunPrevious(runCopy) : runCopy
+              );
+            } else {
+              derivedWrite?.extendRunCopy({
+                transaction,
+                ref: guardedHistoryRef,
+                snapshot: guardedHistorySnapshot,
+              });
             }
           } else {
             // El snapshot de historial se escribe DESPUÉS del commit y adelgazado:
@@ -1955,6 +2015,7 @@ const createDailyRecordWriteAuthorityFunctions = ({
               acceptedAt: new Date().toISOString(),
             });
           }
+          derivedWrite?.apply(transaction, txnUpdate);
           transaction.update(docRef, txnUpdate);
         });
         txnMs = Date.now() - txnStartedAt;
@@ -1988,6 +2049,7 @@ const createDailyRecordWriteAuthorityFunctions = ({
           status: 'success',
           startedAt,
           timings: buildTimings(),
+          clinicalDerived: clinicalDerivedTelemetry,
         });
 
         return buildAuthorityResponse({
@@ -2017,6 +2079,7 @@ const createDailyRecordWriteAuthorityFunctions = ({
             errorMessage: handledError.message,
             startedAt,
             timings: buildTimings(),
+            clinicalDerived: clinicalDerivedTelemetry,
           });
           throw handledError;
         }

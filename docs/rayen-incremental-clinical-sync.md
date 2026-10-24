@@ -16,8 +16,15 @@ escrituras paralelas.
 ## Identidad, checkpoint y correcciones
 
 - Cada paciente/episodio guarda un `clinicalSyncCheckpoint` por fuente (`vitals`, `scales`,
-  `staffing`) dentro del registro del día. Al sembrar el día siguiente se elimina y se reconstruye
-  en la primera verificación.
+  `staffing`). Al sembrar el día siguiente se elimina y se reconstruye en la primera verificación.
+- Dónde vive depende del día (fase 1a, `DESIGN_DAILY_RECORD_PHASE1_CLINICAL_DERIVED.md`):
+  - En un día sin marcador `clinicalDerivedLayout`, dentro del registro del día, como siempre.
+  - En un día marcado, junto con `vitalSignsHistory`, en
+    `dailyRecords/{fecha}/clinicalDerived/{clinicalEpisodeId}`, un documento por episodio que solo
+    escribe el servidor. Un episodio que aún no tuvo una escritura dividida conserva su copia
+    embebida y los lectores combinan ambos campo por campo.
+  - Solo el servidor marca un día: en su primera escritura de un campo movido con fecha igual o
+    posterior a `HHR_CLINICAL_DERIVED_SPLIT_FROM`, o al crear un día con fecha igual o posterior.
 - El contrato tiene versiones independientes de esquema y huella. Una versión desconocida se ignora
   y se reconstruye desde la fuente; nunca bloquea la sincronización.
 - Si Eloísa entrega identidad estable, ésta identifica el hecho: `encounterEventId` en signos
@@ -62,7 +69,10 @@ otra toma. La recuperación requiere releer la fuente; no modifica datos en Elo�
   deja un reintento.
 - Cada corrida deja como máximo una copia histórica fija por `runId` y día. Por paciente, el
   servidor crea `history/rayen-{runId}` sólo si no existe, aunque el cliente la vuelva a pedir tras
-  un fallo; el lote crea su copia `rayen-clinical-…` sólo cuando trae parches clínicos.
+  un fallo; el lote crea su copia `rayen-clinical-…` sólo cuando trae parches clínicos. En un día
+  marcado la copia guarda además, en `clinicalDerivedPrevious`, el checkpoint y el historial de
+  signos vitales de cada episodio antes de su primera escritura en la corrida; los parches
+  siguientes de la misma corrida solo agregan los episodios que faltan.
 - Una ejecución sin cambios produce cero parches por paciente; sólo puede actualizar el evento de
   auditoría agregado. Excepciones acotadas: un parche sólo de checkpoint en la primera lectura
   confirmada o cuando se mueven las marcas de la validación completa diaria, y la reparación de

@@ -1,7 +1,6 @@
 # Diseño fase 1: datos clínicos derivados fuera del registro del día
 
-**Estado:** Aprobada (2026-10-23). Todavía no hay código que la implemente; el orden está en el plan
-de PR.
+**Estado:** Aprobada (2026-10-23). En implementación, en el orden del plan de PR.
 **Ámbito:** fase 1a de `ADR_DAILY_RECORD_DOCUMENT_GRANULARITY.md`.
 **Relacionado:** `ADR_DAILY_CENSUS_CLINICAL_DATA_OWNERSHIP.md`,
 `ADR_DAILY_CENSUS_TRUTH_CONTRACT.md`, `ADR_CONFLICT_VERSION_RECOVERY.md`,
@@ -414,6 +413,14 @@ Qué lleva cada PR (pruebas siempre con datos sintéticos):
     `rayen-incremental-clinical-sync.md` (dónde vive el checkpoint) y
     `functions/lib/runtime/README.md` (la versión mínima es un aviso; la valla es la verificación
     por solicitud).
+  - Precisiones de la implementación, para que el responsable las confirme:
+    - D13: solo las entradas de un día marcado, o de un lote que lo marca al escribir, declaran
+      `parityContractVersion` 3; un día sin marcador sigue en 2. Con la variable apagada la
+      telemetría no cambia, y la evidencia se reinicia con el primer día dividido.
+    - D7: en el lote, la valla corre después del no-op (una solicitud que no escribe responde
+      `idempotent`) y rige también en `shadow` y en el día que la escritura marcaría. El guardado
+      completo la exige al crear un día que marca si conserva campos movidos del propio cliente
+      (sin la valla de Rayen).
 
 ## Activación
 
