@@ -1,7 +1,17 @@
+import { shouldRouteSpecialistPatchViaCallable } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
+vi.mock(
+  '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting',
+  async importOriginal => ({
+    ...(await importOriginal<
+      typeof import('@/services/storage/firestore/firestoreDailyRecordAuthorityRouting')
+    >()),
+    shouldRouteSpecialistPatchViaCallable: vi.fn().mockResolvedValue(false),
+  })
+);
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordForDate: vi.fn(),
   saveRecord: vi.fn(),
@@ -96,8 +106,10 @@ const buildPatient = (bedId: string, patientName: string): PatientData => ({
 describe('dailyRecordRepositoryWriteService specialist handoff patches', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(shouldRouteSpecialistPatchViaCallable).mockResolvedValue(false);
   });
   it('binds the edited occupant and rejects turnover without saving or queueing the note', async () => {
+    vi.mocked(shouldRouteSpecialistPatchViaCallable).mockResolvedValue(true);
     const current = buildRecord('2026-02-11');
     current.beds = {
       R1: {
@@ -142,10 +154,6 @@ describe('dailyRecordRepositoryWriteService specialist handoff patches', () => {
   it('does not append fhir patches for specialist-scoped medical handoff updates', async () => {
     const current = buildRecord('2026-02-11');
     current.beds = { R1: buildPatient('R1', 'Paciente local') };
-    vi.mocked(getRecordFromFirestore).mockResolvedValue({
-      ...current,
-      lastUpdated: '2026-02-19T01:00:00.000Z',
-    });
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
     await updatePartial('2026-02-11', {
       'beds.R1.medicalHandoffNote': 'Evolución especialista',
@@ -175,10 +183,6 @@ describe('dailyRecordRepositoryWriteService specialist handoff patches', () => {
   it('does not append structural bed normalization patches for specialist-scoped medical handoff updates', async () => {
     const current = buildRecord('2026-02-11');
     current.beds = { R1: buildPatient('R1', 'Paciente local') };
-    vi.mocked(getRecordFromFirestore).mockResolvedValue({
-      ...current,
-      lastUpdated: '2026-02-19T01:00:00.000Z',
-    });
 
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
 

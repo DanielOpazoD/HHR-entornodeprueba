@@ -1,3 +1,4 @@
+import { shouldRouteSpecialistPatchViaCallable } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import { buildSpecialistHandoffTargets } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
 import { isSpecialistScopedDailyRecordPatch } from './dailyRecordClinicalDomainService';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -328,7 +329,9 @@ const updatePartialDetailedWithinLock = async (
     mutationId: syncContract.mutationId,
   });
   const isReclassification = isMovementReclassificationPatch(command.patch);
-  const specialistHandoff = isSpecialistScopedDailyRecordPatch(command.patch);
+  const specialistScopedPatch = isSpecialistScopedDailyRecordPatch(command.patch);
+  const specialistHandoff =
+    specialistScopedPatch && (await shouldRouteSpecialistPatchViaCallable());
   const remoteWriteOptions = buildGuardedDailyRecordRemoteWriteOptions({
     options,
     policy: guardedCommandPolicy,
@@ -336,7 +339,7 @@ const updatePartialDetailedWithinLock = async (
     isReclassification,
   });
 
-  if (specialistHandoff) {
+  if (specialistScopedPatch) {
     remoteWriteOptions.specialistHandoffTargets = buildSpecialistHandoffTargets(
       current,
       command.patch

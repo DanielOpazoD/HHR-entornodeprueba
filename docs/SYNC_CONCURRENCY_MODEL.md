@@ -98,7 +98,7 @@ The first matching route wins:
    in one transaction. Missing episode metadata or an occupant mismatch rejects with
    `failed-precondition` naming the bed and asking to reload. This callable has no contract-version
    compatibility mechanism, so old clients must reload. The client presents the rejection as an
-   editing conflict. Scoped handoff patches commit remotely before entering durable local storage;
+   editing conflict. Specialist handoff patches commit remotely before entering durable local storage;
    they never rebase, auto-merge or queue a rejected note against a replacement occupant.
 2. **Frozen Rayen run guard** (`rayenClinicalWriteGuard`) — patch callable; the server requires the
    exact base version and creates `history/rayen-{runId}` once per run.
