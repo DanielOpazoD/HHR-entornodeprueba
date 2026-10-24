@@ -463,9 +463,10 @@ Solo la hace el responsable. P3, P4 y P5 ya están en `main`. Lo que pasa de ver
   `functions/` o `deploy-functions.yml` (`scripts/functionDeploymentSupport.mjs`). Si ese
   despliegue falla o se salta, el siguiente push a `main` lo reintenta. Por eso fusionar P6 es
   activar el servidor: la fecha de inicio llega con ese despliegue.
-- La publicación de Netlify es manual. El día de inicio debe estar publicado P4b o posterior
-  (contrato 3); con un cliente anterior, cada relleno de un día dividido falla cerrado con
-  `clinical_derived_client_outdated`.
+- Netlify publica cada fusión a `main` en unos minutos, antes de que termine el CI, salvo que la
+  publicación automática del sitio esté bloqueada; entonces se publica a mano. El día de inicio
+  debe estar publicado P4b o posterior (contrato 3); con un cliente anterior, cada relleno de un día
+  dividido falla cerrado con `clinical_derived_client_outdated`.
 - Nunca desplegar Functions desde un portátil: `functions/.env.*` está en `.gitignore` y solo lo
   escribe el CI, así que se perderían el interruptor y las dos banderas de Jev. Un despliegue de
   emergencia va por `workflow_dispatch` de `deploy-functions.yml`.
@@ -478,21 +479,23 @@ Pasos:
    `--apply`, como indica `FIRESTORE_STORAGE_COST_CONTROL.md`. Comprobar las tres nuevas. Necesita
    `gcloud`. Nunca `firebase deploy --only firestore:indexes`: activaría también el TTL de
    `specialtyAiRequests` que el script excluye. Sin las exenciones nada se rompe, pero cada hoja del
-   checkpoint y cada arreglo de signos se indexa.
+   checkpoint y cada arreglo de signos se indexa. Hecho en `hhr-pruebas` el 2026-10-24.
 3. Comprobar en Actions que `validated-functions-deployment` terminó bien para P5 o posterior. Sin
-   la variable, el relleno y el lote siguen como antes.
-4. Publicar en Netlify un deploy de P4b (#1004) o posterior, y comprobar que el deploy publicado lo
-   incluye. Sin días marcados no lee nada nuevo.
+   la variable, el relleno y el lote siguen como antes. Hecho el 2026-10-24 (`3fe595547`).
+4. Comprobar que el deploy publicado en Netlify es de P4b (#1004) o posterior, y publicarlo si no.
+   Sin días marcados no lee nada nuevo. Hecho el 2026-10-24 (`3fe595547`).
 5. Fusionar P6 después de 2 y 4, fuera del tren automático, con una fecha de inicio al menos dos días
    (hora de Rapa Nui) después de la fusión. El CI despliega Functions con
    `HHR_CLINICAL_DERIVED_SPLIT_FROM=<fecha>`. En `hhr-pruebas` la escribe `deploy-functions.yml`;
    otro proyecto necesita su propio `functions/.env.<proyecto>`, o la división queda apagada. Una
    prueba (`clinicalDerivedSplitSwitchWorkflow.test.ts`) comprueba que el servidor lee esa fecha:
    cualquier otro valor la deja apagada sin error.
-6. El mismo día, publicar en Netlify el commit de la fusión de P6 y comprobar que
-   `/.netlify/functions/runtime-contract` responde `minSupportedClientRuntimeContractVersion` 3: las
-   pestañas viejas ven el aviso de actualización. Desde 24 horas antes de la fecha de inicio hasta el
-   día siguiente, no volver a publicar.
+6. El mismo día, comprobar que el deploy publicado es el de la fusión de P6 o posterior (publicarlo
+   si la publicación automática está bloqueada) y que `/.netlify/functions/runtime-contract`
+   responde `minSupportedClientRuntimeContractVersion` 3: las pestañas viejas ven el aviso de
+   actualización. Desde 24 horas antes de la fecha de inicio hasta el día siguiente, no publicar
+   otro cliente; con la publicación automática activa, eso significa no fusionar a `main` cambios
+   que lleguen al cliente.
 7. El día de inicio, varias veces (la vista de telemetría de Functions carga las últimas 500 filas):
    - en `dailyRecordWriteAuthority`, un solo `marking` por fecha, cero rechazos `clinical_derived_*`
      y `EmbeddedEpisodes` cerca de 0;
