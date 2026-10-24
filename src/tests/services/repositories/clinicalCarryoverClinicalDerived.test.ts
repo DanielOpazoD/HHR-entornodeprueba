@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   getForDate: vi.fn(),
   save: vi.fn(),
   loadRemote: vi.fn(),
+  recordOperationalTelemetry: vi.fn(),
 }));
 
 vi.mock('@/services/repositories/repositoryConfig', () => ({
@@ -32,8 +33,12 @@ vi.mock('@/services/repositories/dailyRecordRemoteLoader', () => ({
 vi.mock('@/services/repositories/dailyRecordLocalCachePersistence', () => ({
   persistHydratedRecordToLocalCache: vi.fn(),
 }));
+vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
+  recordOperationalTelemetry: mocks.recordOperationalTelemetry,
+}));
 
 import { initializeDay } from '@/services/repositories/dailyRecordRepositoryInitializationService';
+import { sanitizeOperationalTelemetryEvent } from '@/services/observability/operationalTelemetryPrivacy';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
 // The Rapa Nui clock reads 2026-10-19 at this instant: the only day the carryover seeds.
@@ -78,6 +83,29 @@ const episodeDoc = (date = SOURCE) => ({
 
 const heartRates = (record: DailyRecord) =>
   record.beds.R1.vitalSignsHistory?.map(reading => reading.heartRate);
+
+const SECRET = 'Failed to fetch dynamically imported module: Paciente Sintético';
+
+// The seed falls back without its documents: one reason-only event, never the exception.
+const expectOneOverlayFailedEvent = () => {
+  const events = mocks.recordOperationalTelemetry.mock.calls.map(([event]) => event);
+  expect(events).toEqual([
+    {
+      category: 'firestore',
+      operation: 'clinical_derived_read',
+      status: 'degraded',
+      runtimeState: 'degraded',
+      date: SOURCE,
+      issues: ['carryover_overlay_failed'],
+      context: { readScope: 'day', reason: 'carryover_overlay_failed' },
+    },
+  ]);
+  expect(sanitizeOperationalTelemetryEvent(events[0])).toMatchObject({
+    context: { readScope: 'day', reason: 'carryover_overlay_failed' },
+    droppedContextKeys: [],
+  });
+  expect(JSON.stringify(events)).not.toMatch(/fetch|Sintético|Error/);
+};
 
 const createDay = async (date: string, source: DailyRecord) => {
   mocks.getForDate.mockImplementation(async (requested: string) =>
@@ -127,16 +155,19 @@ describe('client day creation from a split source day (D10)', () => {
     expect(heartRates(created)).toEqual([70]);
     expect(created.beds.R1.clinicalCarryover).toMatchObject({ sourceDate: SOURCE });
     expect(created).not.toHaveProperty('clinicalDerivedLayout');
+    // The reader reports its failed reads; the carryover does not report them again.
+    expect(mocks.recordOperationalTelemetry).not.toHaveBeenCalled();
   });
 
-  it('seeds from the embedded copies when the read path throws', async () => {
-    mocks.readDocs.mockRejectedValueOnce(new Error('Failed to fetch dynamically imported module'));
+  it('seeds from the embedded copies when the read path throws, and says so once', async () => {
+    mocks.readDocs.mockRejectedValueOnce(new Error(SECRET));
 
     const created = await createDay(TODAY, sourceDay());
 
     expect(heartRates(created)).toEqual([70]);
     expect(created.beds.R1.clinicalCarryover).toMatchObject({ sourceDate: SOURCE });
     expect(created).not.toHaveProperty('clinicalDerivedLayout');
+    expectOneOverlayFailedEvent();
   });
 
   it('reads nothing when the new day is not today', async () => {
@@ -145,6 +176,7 @@ describe('client day creation from a split source day (D10)', () => {
     expect(mocks.readDocs).not.toHaveBeenCalled();
     expect(created.beds.R1.vitalSignsHistory).toBeUndefined();
     expect(created).not.toHaveProperty('clinicalDerivedLayout');
+    expect(mocks.recordOperationalTelemetry).not.toHaveBeenCalled();
   });
 
   it('reads nothing when the source day is unmarked', async () => {
@@ -153,5 +185,23 @@ describe('client day creation from a split source day (D10)', () => {
     expect(mocks.readDocs).not.toHaveBeenCalled();
     expect(mocks.readDoc).not.toHaveBeenCalled();
     expect(heartRates(created)).toEqual([70]);
+    expect(mocks.recordOperationalTelemetry).not.toHaveBeenCalled();
+  });
+
+  it('reports the read path chunk that does not load, and seeds from the source', async () => {
+    vi.resetModules();
+    vi.doMock('@/services/repositories/dailyRecordClinicalDerivedReadService', () => {
+      throw new Error(SECRET);
+    });
+    try {
+      const { readClinicalCarryoverSource } =
+        await import('@/services/repositories/clinicalDayCarryover');
+      const source = sourceDay();
+
+      expect(await readClinicalCarryoverSource(TODAY, source)).toBe(source);
+      expectOneOverlayFailedEvent();
+    } finally {
+      vi.doUnmock('@/services/repositories/dailyRecordClinicalDerivedReadService');
+    }
   });
 });

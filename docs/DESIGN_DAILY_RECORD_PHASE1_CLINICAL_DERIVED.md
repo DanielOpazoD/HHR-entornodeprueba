@@ -214,7 +214,9 @@ Cómo cambia cada escritor del servidor:
     - Si un documento que cuenta trae `dayRevision` mayor que `meta.revision` del día, relee ambos
       una vez. Si sigue, falla cerrado como cuando hoy no carga el registro: mismo aviso y token de
       reintento. Esa falla cerrada (día atrasado, episodio repetido o marcador desconocido) queda en
-      `clinical_derived_read` con su motivo; las lecturas fallidas ya las reporta el lector.
+      `clinical_derived_read` con su motivo; las lecturas fallidas ya las reporta el lector. Si el
+      lector no carga ni al segundo intento (sin conexión, o un hash viejo tras una publicación), la
+      lectura falla y el servicio la reporta una vez, con el código `reader_unavailable`.
     - Una corrida que espera su política no lee documentos, y el refresco del día después de un
       lote confirmado tampoco: solo relee el día.
     - El registro base que reciben las escrituras (`baseRecord` de `updatePartialDetailed`) nunca se
@@ -229,7 +231,10 @@ Cómo cambia cada escritor del servidor:
       cualquier error, muestra lo mismo que hoy.
   - **Creación del día en el cliente** (`dailyRecordRepositoryInitializationService.ts`). Solo
     cuando el destino es hoy, superpone una copia del día fuente antes de sembrar el arrastre (mejor
-    esfuerzo). Si falla, siembra como hoy. Solo se guarda el día nuevo.
+    esfuerzo). Si falla, siembra como hoy. Solo se guarda el día nuevo. Si la superposición lanza
+    (por ejemplo, no carga el servicio de lectura), el día nuevo se siembra sin el historial de
+    signos de los documentos de episodio: queda en `clinical_derived_read` con el motivo
+    `carryover_overlay_failed`, sin el texto del error.
   - **Herramienta de personal** (`recoverCensusStaff.ts`). En los días marcados lee todos los
     documentos de episodio y recorre cada uno como un paciente suelto, además del día.
     - Un día que no se puede leer, o con un marcador que este cliente no entiende, no detiene la
