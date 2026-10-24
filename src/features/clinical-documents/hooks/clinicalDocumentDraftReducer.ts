@@ -1,4 +1,8 @@
 import type { ClinicalDocumentRecord } from '@/features/clinical-documents/domain/entities';
+import {
+  updateClinicalDocumentPdfFailure,
+  updateClinicalDocumentPdfSuccess,
+} from './clinicalDocumentWorkspaceActionSupport';
 import { normalizeClinicalDocumentContentForStorage } from '@/features/clinical-documents/controllers/clinicalDocumentRichTextController';
 import { normalizeClinicalDocumentSectionTitle } from '@/features/clinical-documents/controllers/clinicalDocumentSectionTitleController';
 import { restoreClinicalDocumentDraftTemplate } from '@/features/clinical-documents/domain/factories';
@@ -23,6 +27,13 @@ export interface ClinicalDocumentDraftReducerState {
   pendingRemoteState: ClinicalDocumentDraftBaseState;
 }
 
+export type ClinicalDocumentPdfExportResult = {
+  target: Pick<ClinicalDocumentRecord, 'id' | 'hospitalId' | 'episodeKey'>;
+} & (
+  | { status: 'success'; pdf: NonNullable<ClinicalDocumentRecord['pdf']> }
+  | { status: 'failed'; errorMessage: string }
+);
+
 export type ClinicalDocumentDraftAction =
   | {
       type: 'LOAD_DOCUMENT';
@@ -30,6 +41,7 @@ export type ClinicalDocumentDraftAction =
       snapshot: string;
       commitAsBase?: boolean;
     }
+  | { type: 'APPLY_PDF_EXPORT_RESULT'; result: ClinicalDocumentPdfExportResult }
   | { type: 'REMOTE_UPDATE_RECEIVED'; document: ClinicalDocumentRecord; snapshot: string }
   | { type: 'APPLY_REMOTE_UPDATE' }
   | { type: 'PATCH_FIELD'; fieldId: string; value: string }
@@ -159,6 +171,38 @@ const markAutosaveClean = (
 
 const actionSnapshotKey = (snapshot: string): string => snapshot;
 
+const applyPdfExportResult = (
+  state: ClinicalDocumentDraftReducerState,
+  result: ClinicalDocumentPdfExportResult
+): ClinicalDocumentDraftReducerState => {
+  const updatePdf = (document: ClinicalDocumentRecord | null) =>
+    result.status === 'success'
+      ? updateClinicalDocumentPdfSuccess(document, result.pdf, result.target)
+      : updateClinicalDocumentPdfFailure(document, result.errorMessage, result.target);
+  const draft = updatePdf(state.draft);
+  const baseDocument = updatePdf(state.baseState.document);
+  if (draft === state.draft && baseDocument === state.baseState.document) {
+    return state;
+  }
+
+  // Autosave can acknowledge a visible snapshot whose audit differs from the stored record.
+  const baseSnapshot: unknown = state.baseState.snapshot
+    ? JSON.parse(state.baseState.snapshot)
+    : null;
+  return {
+    ...state,
+    draft,
+    baseState: {
+      ...state.baseState,
+      document: baseDocument,
+      snapshot:
+        baseSnapshot && typeof baseSnapshot === 'object'
+          ? JSON.stringify({ ...baseSnapshot, pdf: baseDocument?.pdf })
+          : state.baseState.snapshot,
+    },
+  };
+};
+
 export const clinicalDocumentDraftReducer = (
   state: ClinicalDocumentDraftReducerState,
   action: ClinicalDocumentDraftAction
@@ -171,6 +215,8 @@ export const clinicalDocumentDraftReducer = (
             draft: action.document ? structuredClone(action.document) : null,
           }
         : commitDocumentAsBase(state, action.document, action.snapshot);
+    case 'APPLY_PDF_EXPORT_RESULT':
+      return applyPdfExportResult(state, action.result);
     case 'REMOTE_UPDATE_RECEIVED':
       return {
         ...state,
