@@ -25,6 +25,10 @@ describe('clinicalEventsPanelController', () => {
     });
   });
 
+  it('reads an instant on the hospital calendar before midnight', () => {
+    expect(buildClinicalEventToday('2026-10-25T04:30:00.000Z')).toBe('2026-10-24');
+  });
+
   it('maps an existing event into editable form state', () => {
     const event: ClinicalEvent = {
       id: 'evt-1',

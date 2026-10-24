@@ -15,6 +15,7 @@ type Marker = { date: string; time: string; kind: 'Ingreso' | 'Egreso' };
 const validDate = (date: string) =>
   /^\d{4}-\d{2}-\d{2}$/.test(date) &&
   Number.isFinite(Date.parse(date)) &&
+  // clinical-clock-allow instant-calendar-slice: date passed the YYYY-MM-DD check; this UTC round trip validates the report calendar day.
   new Date(date).toISOString().slice(0, 10) === date;
 const validTime = (time: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(time);
 

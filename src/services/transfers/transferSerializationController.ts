@@ -1,3 +1,4 @@
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import { Timestamp } from 'firebase/firestore';
 import type { StatusChange, TransferRequest } from '@/types/transferRequestTypes';
 import {
@@ -19,7 +20,7 @@ const normalizeFirestoreDate = (value: unknown): string => {
 
 const normalizeRequestDate = (value: unknown): string => {
   if (value instanceof Timestamp) {
-    return value.toDate().toISOString().split('T')[0];
+    return getClinicalCalendarDateISO(value.toDate());
   }
 
   return String(value || '');
