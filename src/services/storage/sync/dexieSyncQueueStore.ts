@@ -216,10 +216,17 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
     return outcome;
   },
   deletePendingByKey: (type, key, ownerKey, mutationId) =>
-    withPendingTask(type, key, ownerKey, mutationId, async task => {
-      await hospitalDB.syncQueue.delete(task.id);
-      return true;
-    }),
+    withPendingTask(
+      type,
+      key,
+      ownerKey,
+      mutationId,
+      async task => {
+        await hospitalDB.syncQueue.delete(task.id);
+        return true;
+      },
+      task => !task.syncContract?.mutationIds?.some(id => id !== mutationId)
+    ),
   releasePreOutboxHoldByKey: (type, key, ownerKey, mutationId) =>
     withPendingTask(type, key, ownerKey, mutationId, async task => {
       await hospitalDB.syncQueue.update(task.id, {

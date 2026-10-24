@@ -146,4 +146,27 @@ describeEmulator('the outbox publishes compacted offline work through Firestore'
     });
     expect(await hospitalDB.syncQueue.count()).toBe(0);
   });
+
+  it('publishes offline A after the direct ACK and remote mutation marker of B', async () => {
+    setFirestoreEnabled(false);
+    await updatePartialDetailed(
+      DATE,
+      { nursesDayShift: ['SINTETICA SIN RED'] },
+      { baseRecord: baseRecord() }
+    );
+    setFirestoreEnabled(true);
+    await updatePartialDetailed(
+      DATE,
+      { tensDayShift: ['SINTETICO DIRECTO'] },
+      { baseRecord: await localRecord() }
+    );
+
+    await publishQueue();
+
+    expect(await readRemote()).toMatchObject({
+      nursesDayShift: expect.arrayContaining(['SINTETICA SIN RED']),
+      tensDayShift: expect.arrayContaining(['SINTETICO DIRECTO']),
+    });
+    expect(await hospitalDB.syncQueue.count()).toBe(0);
+  });
 });

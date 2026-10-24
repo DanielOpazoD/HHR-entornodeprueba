@@ -53,13 +53,26 @@ export const createDailyRecordSyncQueueActions = ({
     runPendingAction(
       record,
       syncContract,
-      key =>
-        store.deletePendingByKey(
+      async key => {
+        const acknowledged = await store.deletePendingByKey(
           'UPDATE_DAILY_RECORD',
           key,
           getOwnerKey(),
           syncContract?.mutationId
-        ),
+        );
+        // A direct patch cannot acknowledge the other mutations in a compacted task.
+        if (
+          !acknowledged &&
+          (await store.releasePreOutboxHoldByKey(
+            'UPDATE_DAILY_RECORD',
+            key,
+            getOwnerKey(),
+            syncContract?.mutationId
+          ))
+        )
+          triggerProcessing();
+        return acknowledged;
+      },
       error => {
         logger.warn('Failed to ack daily record sync task', error);
         recordSyncQueueAckFailure(record, syncContract, error);
