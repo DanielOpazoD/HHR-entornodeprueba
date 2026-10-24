@@ -121,7 +121,8 @@ activa: cubre los dos escritores (parche con guarda y lote) y las dos rutas de g
     revisa con el mismo control de 900 KB del lote.
   - Un lote de solo checkpoint sigue sin copia de historial. El checkpoint es un índice de la
     sincronización incremental, no un dato clínico: perder un valor anterior solo obliga a
-    revalidar.
+    revalidar. Un documento que no cuenta para el día y que la escritura reemplaza se guarda
+    igual, aparte (D14).
 - **D13. Paridad.** `PARITY_CONTRACT_VERSION` (`rayenClinicalEnrichmentFunctions.js`) sube a 3, y la
   paridad en `shadow` compara la vista combinada (documentos sobre el día). La evidencia anterior
   deja de contar para el paso de `shadow` a `enforced` (`functionsTelemetryService.ts`).
@@ -199,7 +200,9 @@ Cómo cambia cada escritor del servidor:
     `vitalsHistoryBytes` y `checkpointBytes` de los días divididos; antes de 1b el responsable
     decide si se cierra.
 - **D10. Lectores.** Lo superpuesto nunca entra al repositorio, a `docToRecord`, a la caché de
-  TanStack, a IndexedDB, a la cola, a las copias de conflicto ni a `originalData`.
+  TanStack, a IndexedDB, a la cola, a las copias de conflicto ni a `originalData`. La única
+  excepción es la restauración de un respaldo JSON (ver "Respaldos JSON"), que devuelve al día la
+  forma embebida de un día recreado.
   - Todos leen por el mismo servicio. Si el lector de documentos no carga ni al segundo intento
     (sin conexión, o un hash viejo tras una publicación), la lectura falla como cualquier lectura
     fallida y el servicio la reporta una vez en `clinical_derived_read`, con el código
@@ -252,8 +255,20 @@ Cómo cambia cada escritor del servidor:
       o `{ status: 'unavailable', reason }`.
     - Si algún día queda `unavailable`, el archivo se descarga igual, pero la exportación se
       informa incompleta, con las fechas y la indicación de repetirla con conexión.
-    - La importación no escribe esa sección y nunca reemplaza un registro local marcado más nuevo
-      por uno sin marcador (esto último lo hace P4a, en la higiene de escritura).
+    - La importación nunca reemplaza un registro local marcado más nuevo por uno sin marcador
+      (P4a, en la higiene de escritura).
+    - La importación (la local y la restauración del administrador) nunca escribe los
+      documentos: incrusta sus campos movidos en el día, en el paciente de cama, la cuna clínica o
+      la foto de un alta, traslado o CMA vigente con el mismo `clinicalEpisodeId`, nunca por cama
+      (`clinicalDerivedBackupRestore.ts`). Es la forma embebida de un día recreado (D3, D7): el
+      servidor la conserva al recrear un día que ya no existe y, en un día marcado guardado, D3 y
+      D9 conservan los valores guardados. La primera escritura dividida de cada episodio la lleva a
+      su documento, y D14 guarda antes el documento de la vida anterior del día.
+    - Un día que no recupera sus datos por episodio deja la importación parcial, con sus fechas:
+      la sección dice `unavailable`, un documento no es válido o no encuentra su episodio, o el
+      día que confirma el servidor no los trae ni conserva la generación del respaldo (por
+      ejemplo, un día existente que el servidor deja como estaba, o uno que recrea alguien que no
+      es administrador con la valla de Rayen activa). Nunca se informa limpia.
     - Limitación conocida: un cliente anterior a P4 (por ejemplo, tras restaurar una publicación
       anterior) leería la sección del respaldo local como un día más y guardaría en IndexedDB un
       registro con fecha `clinicalDerived`. Los días reales no cambian.
@@ -287,6 +302,17 @@ Piezas comunes del cliente:
   La exención de `beds` solo cubre `dailyRecords`, `history` y `deletedRecords`.
 - **D14. Restos de un día borrado.** Los documentos de un día borrado se ignoran por la generación
   del marcador: un día que recrea el servidor recibe una generación nueva. Nunca se borran.
+  - El id del documento es el episodio, no la generación. La primera escritura dividida de ese
+    episodio en el día recreado lo sobrescribe con `set`.
+  - Por eso toda escritura dividida (parche con guarda, lote, también de solo checkpoint) que
+    reemplaza un documento que la superposición no usaría (otra generación, fecha o esquema)
+    primero lo copia entero, en la misma transacción, a
+    `history/clinical-derived-{clinicalEpisodeId}-{digest}`: `snapshotReason`
+    `clinical_derived_displaced` y el documento en `clinicalDerivedPrevious.{id}.document`. Esa
+    ruta ya tiene la exención de D12.
+  - El id sale del contenido: un reintento escribe la misma copia y dos documentos distintos nunca
+    comparten una. La telemetría cuenta `clinicalDerivedDisplacedDocs`. El guardado completo no
+    escribe documentos de episodio, así que no reemplaza ninguno.
 - **D15. Fase 1b diferida.** `evaluationScores.history` espera a que la medición por campo la
   justifique. Antes de moverlo, `braden.latestApplication` y `downton.latestApplication` deben estar
   siempre en el día: sin ellos, los chips del censo y la agudeza de la fila leen
@@ -350,8 +376,8 @@ Piezas comunes del cliente:
 - **Restos al borrar un día.** El borrado (`dailyRecordDeletionService.ts`) pasa el día a la
   papelera y lo borra. Los documentos quedan, porque Firestore no borra en cascada y los clientes no
   pueden escribirlos.
-  - D14: un día que recrea el servidor no los ve. Si el servidor sobrescribe uno, D11 lo guarda en
-    la copia de la corrida.
+  - D14: un día que recrea el servidor no los ve. Si el servidor sobrescribe uno, primero lo
+    guarda entero en el historial del día; D11 además lo anota en la copia de la corrida.
   - Un día que recrea un cliente desde una copia llega sin marcador (regla de creación) y no ve los
     documentos de su vida anterior: tendrá generación nueva. Esos documentos siguen en Firestore, y
     un administrador puede recuperarlos.
@@ -365,6 +391,7 @@ Piezas comunes del cliente:
   - El ADR pide un respaldo verificable antes de mover datos clínicos existentes. Los días antiguos
     no se migran, y lo que una escritura dividida saca del día queda en la copia de la corrida (D11)
     y en las exportaciones.
+  - Restaurar un respaldo devuelve esos campos al día (D10, "Respaldos JSON").
 - **Clientes viejos y vuelta atrás.**
   - Un cliente v2 arma `vitalSignsHistory` desde el registro que leyó (`mergeReportVitals.ts`), sin
     las lecturas que ya están en el documento; si se aceptara, las perdería. D7 lo rechaza por

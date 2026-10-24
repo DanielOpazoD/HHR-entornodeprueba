@@ -7,8 +7,8 @@ import type { ApplicationIssue } from '@/shared/contracts/applicationOutcomeType
  * no longer holds each episode's moved fields, so the backup carries a `clinicalDerived` section
  * (`CLINICAL_DERIVED_BACKUP_SECTION`) with the episode documents of every marked day, read from
  * the server and keyed by date. A day that could not be read is listed as `unavailable`, never left
- * out, and the export reports it. Importers skip the section: only the server writes episode
- * documents.
+ * out, and the export reports it. Importers embed the documents' moved fields back into their
+ * days (clinicalDerivedBackupRestore): only the server writes episode documents.
  */
 
 export type ClinicalDerivedBackupDay =
@@ -16,6 +16,22 @@ export type ClinicalDerivedBackupDay =
   | { status: 'unavailable'; reason: string };
 
 export type ClinicalDerivedBackupSection = Record<string, ClinicalDerivedBackupDay>;
+
+/** What restoring one day of a backup brings back of its section (clinicalDerivedBackupRestore). */
+export type ClinicalDerivedDayRestore =
+  /** The backup holds no per-episode data for this day. */
+  | { kind: 'absent' }
+  /** Some of it is missing or has no place in the day; `record` carries what could be embedded. */
+  | { kind: 'incomplete'; record: DailyRecord }
+  /** Every document of the day found its episode; `record` carries their moved fields. */
+  | {
+      kind: 'embedded';
+      record: DailyRecord;
+      /** Some episode got a moved field back: check the saved day with `isKeptBy`. */
+      needsConfirmation: boolean;
+      /** Whether the day as saved (`undefined`: it did not reach the server) still holds them. */
+      isKeptBy: (saved: DailyRecord | undefined) => boolean;
+    };
 
 const READ_CONCURRENCY = 4;
 const READ_PATH_UNAVAILABLE = 'read_failed';
@@ -59,6 +75,29 @@ export const buildClinicalDerivedBackupSection = async (
   };
   await Promise.all(Array.from({ length: Math.min(READ_CONCURRENCY, pending.length) }, worker));
   return Object.fromEntries([...byDate].sort(([left], [right]) => left.localeCompare(right)));
+};
+
+/**
+ * The restore of each day of a backup whose file carries `section` (absent: nothing loads). The
+ * restore loads on demand; if it cannot, a day the section covers comes back `incomplete`, never
+ * as a day without per-episode data.
+ */
+export const loadClinicalDerivedDayRestore = async (
+  section: unknown
+): Promise<(record: DailyRecord) => ClinicalDerivedDayRestore> => {
+  if (section === undefined) return () => ({ kind: 'absent' });
+  const restoreDay = await import('@/services/exporters/clinicalDerivedBackupRestore')
+    .then(module => module.restoreClinicalDerivedBackupDay)
+    .catch(() => null);
+  return record => {
+    if (restoreDay) return restoreDay(record, section);
+    const covered =
+      section !== null &&
+      typeof section === 'object' &&
+      !Array.isArray(section) &&
+      (section as Record<string, unknown>)[record.date] !== undefined;
+    return covered ? { kind: 'incomplete', record } : { kind: 'absent' };
+  };
 };
 
 /**
