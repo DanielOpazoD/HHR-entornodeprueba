@@ -88,6 +88,12 @@ invalida la vista previa anterior. El generador añade texto sobre el original y
 no cabe a un tamaño legible; no recorta silenciosamente ni cambia la paginación. Las firmas quedan
 para el documento impreso. El consentimiento sólo se marca por una acción explícita del usuario.
 
+Una exportación en curso conserva el bloqueo hasta terminar la descarga, también si reutiliza
+una vista previa. Cerrar el editor o cambiar su contexto invalida el resultado pendiente, aunque
+después vuelva el contexto anterior. La vista previa invalidada libera su URL temporal. Un fallo
+permite reintentar con los datos del formulario conservados. MEDIF cancela asimismo la descarga
+pendiente al cerrar o modificar su contexto, sin cancelar la carga compartida de la plantilla vacía.
+
 El tamaño preferido del texto insertado sube de 9 a **13,5 puntos** y en MEDIF de 8 a **12 puntos**
 (50%). Las X conservan su tamaño y centrado previamente revisados. El ajuste sigue respetando
 los espacios reales de la plantilla: un casillero estrecho o con renglones puede requerir un

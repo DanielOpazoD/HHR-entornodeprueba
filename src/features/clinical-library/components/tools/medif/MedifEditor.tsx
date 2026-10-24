@@ -64,7 +64,29 @@ export const MedifEditor: React.FC<MedifEditorProps> = ({
   const draftInput = useRef<HTMLInputElement>(null);
   const currentValues = useRef(values);
   const importSequence = useRef(0);
+  const exportController = useRef<AbortController | null>(null);
+  const mounted = useRef(true);
+  const exportContext = JSON.stringify([
+    values,
+    preferences,
+    selectedKey,
+    Boolean(replacement),
+    patients.find(patient => patient.key === selectedKey),
+  ]);
   const dirty = hasMedifDraftData(values);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  useEffect(
+    () => () => {
+      exportController.current?.abort();
+    },
+    [exportContext]
+  );
 
   useEffect(() => {
     onDirtyChange?.(dirty);
@@ -140,17 +162,28 @@ export const MedifEditor: React.FC<MedifEditorProps> = ({
     }
   };
   const generate = async (mode: 'print' | 'editable'): Promise<void> => {
+    if (exportController.current) return;
+    const controller = new AbortController();
+    exportController.current = controller;
     setBusy(true);
     setNotice('');
     try {
-      await onGeneratePdf(values, preferences, mode);
+      await onGeneratePdf(
+        { ...values },
+        { ...preferences, hiddenFieldIds: [...preferences.hiddenFieldIds] },
+        mode,
+        controller.signal
+      );
+      if (controller.signal.aborted) return;
       setNotice(mode === 'print' ? 'PDF imprimible preparado.' : 'PDF editable preparado.');
     } catch (error) {
+      if (controller.signal.aborted) return;
       setNotice(
         error instanceof Error ? error.message : 'No se pudo generar el PDF. Inténtalo nuevamente.'
       );
     } finally {
-      setBusy(false);
+      exportController.current = null;
+      if (mounted.current) setBusy(false);
     }
   };
   const openField = (id: string): void => {

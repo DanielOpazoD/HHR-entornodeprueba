@@ -49,7 +49,9 @@ export const ClinicalFormSettings: React.FC<Props> = ({
     const attempt = ++sequence.current;
     try {
       if (file.size > 100_000) throw new Error('El archivo de preferencias es demasiado grande.');
-      const text = await file.text();
+      const text = await file.text().catch(() => {
+        throw new Error('No se pudo leer el archivo de preferencias. Vuelve a intentarlo.');
+      });
       if (attempt === sequence.current) onChange(parseClinicalFormPreferences(text, form));
     } catch (error) {
       if (attempt === sequence.current)
