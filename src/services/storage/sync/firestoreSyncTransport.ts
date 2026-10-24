@@ -1,4 +1,4 @@
-import { getDoc, runTransaction, type Transaction } from 'firebase/firestore';
+import { deleteField, getDoc, runTransaction, type Transaction } from 'firebase/firestore';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type {
   SyncTransportPort,
@@ -36,6 +36,10 @@ import {
   hasRemoteAppliedMutation,
 } from '@/services/storage/sync/firestoreSyncConflictPolicy';
 import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
+import {
+  adoptStoredClinicalDerivedState,
+  withClearedStoredMovedFields,
+} from '@/services/storage/clinicalDerivedWriteHygiene';
 
 const STRICT_REMOTE_DRIFT_TOLERANCE_MS = 0;
 
@@ -99,6 +103,8 @@ interface ResolvedSyncRecordForTask {
   record: DailyRecord;
   resolution: NonNullable<SyncTask['syncContract']>['resolution'];
   acceptedVersion?: string;
+  /** Stored day this resolution read; undefined when the day does not exist yet. */
+  storedData?: Record<string, unknown>;
 }
 
 const resolveRecordForSyncTask = async (
@@ -124,6 +130,7 @@ const resolveRecordForSyncTask = async (
       record: docToRecord(remoteData, record.date),
       resolution: 'already_applied',
       acceptedVersion: remoteLastUpdated,
+      storedData: remoteData,
     };
   }
 
@@ -133,6 +140,7 @@ const resolveRecordForSyncTask = async (
       record,
       resolution: 'accepted',
       acceptedVersion: record.lastUpdated,
+      storedData: remoteData,
     };
   }
 
@@ -174,6 +182,7 @@ const resolveRecordForSyncTask = async (
     record: consistency.record,
     resolution: 'merged',
     acceptedVersion: consistency.record.lastUpdated,
+    storedData: remoteData,
   };
 };
 
@@ -275,15 +284,23 @@ const syncDailyRecord = async (
         // Re-evaluate the original intent against the snapshot protected by this transaction.
         // Firestore reruns this callback if another writer changes the document before commit.
         const current = await resolveRecordForSyncTask(task, record, runtime, transaction);
-        if (current.resolution !== 'already_applied') {
-          assertResolvedClinicalAuthority(task, current);
-          transaction.set(
-            getRecordDocRef(current.record.date, runtime),
-            sanitizeForFirestore(current.record) as Record<string, unknown>,
-            { merge: true }
-          );
-        }
-        return current;
+        if (current.resolution === 'already_applied') return current;
+        assertResolvedClinicalAuthority(task, current);
+        // D9: the stored day keeps its split-day marker, meta and moved fields, and a create
+        // never carries the marker (the rule would deny this entry forever; queues are never
+        // purged). merge: true keeps omitted keys, so a moved field another episode left in the
+        // slot is deleted. The same record and payload on unmarked days.
+        const committedRecord = adoptStoredClinicalDerivedState(current.record, current.storedData);
+        transaction.set(
+          getRecordDocRef(committedRecord.date, runtime),
+          withClearedStoredMovedFields(
+            sanitizeForFirestore(committedRecord) as Record<string, unknown>,
+            current.storedData,
+            () => deleteField()
+          ),
+          { merge: true }
+        );
+        return { ...current, record: committedRecord };
       });
       recordSyncQueueTruthSelectionTelemetry(task, {
         resolution: committed.resolution,

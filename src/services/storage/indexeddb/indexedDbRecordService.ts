@@ -124,16 +124,21 @@ export const getRecordsRange = async (
   }
 };
 
+/** The local day, or null when there is none; a failed read throws instead of looking empty. */
+export const getRecordForDateStrict = async (date: string): Promise<DailyRecord | null> => {
+  await ensureDbReady();
+
+  if (isDatabaseInFallbackMode()) {
+    return localPersistence.records.getForDate(date);
+  }
+
+  const record = await db.dailyRecords.get(date);
+  return record || null;
+};
+
 export const getRecordForDate = async (date: string): Promise<DailyRecord | null> => {
   try {
-    await ensureDbReady();
-
-    if (isDatabaseInFallbackMode()) {
-      return localPersistence.records.getForDate(date);
-    }
-
-    const record = await db.dailyRecords.get(date);
-    return record || null;
+    return await getRecordForDateStrict(date);
   } catch (error) {
     recordOperationalErrorTelemetry('indexeddb', 'indexeddb_get_record_for_date', error, {
       code: 'indexeddb_get_record_for_date_failed',

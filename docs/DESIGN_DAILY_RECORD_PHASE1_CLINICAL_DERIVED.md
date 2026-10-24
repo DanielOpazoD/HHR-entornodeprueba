@@ -394,6 +394,10 @@ Qué lleva cada PR (pruebas siempre con datos sintéticos):
 - **P4.**
   - Llamadas de D10, higiene de D9, versión de cliente 3 y `clientRuntimeContractVersion` en los
     payloads de los callables.
+  - La versión 3 entra junto con las llamadas de D10 del relleno, nunca antes: D7 confía en ella, y
+    un cliente v3 que arme `vitalSignsHistory` desde el día sin superponer pasaría la valla. Si P4
+    se divide, la parte de D9 ya manda el campo, con la versión 2. Una prueba exige las dos cosas
+    juntas.
   - Al crear o recrear un día, también al publicar la cola, el cliente quita el marcador.
   - `daily_record_size_observed` marca si el día está dividido.
   - Pruebas: el relleno superpone sus tres puntos y la base queda sin superponer; revisión

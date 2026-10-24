@@ -1,7 +1,11 @@
 import type { DailyRecord } from '@/services/contracts/dailyRecordServiceContracts';
-import { saveRecordsStrict } from '@/services/storage/indexeddb/indexedDbRecordService';
+import {
+  getRecordForDateStrict,
+  saveRecordsStrict,
+} from '@/services/storage/indexeddb/indexedDbRecordService';
 import { hasStructuralRepairs, parseDailyRecordWithDefaultsReport } from '@/schemas/zodSchemas';
 import { jsonImportLogger } from '@/services/exporters/exporterLoggers';
+import { isClinicalDerivedLayoutRegression } from '@/services/storage/clinicalDerivedImportGuard';
 
 export interface JsonImportResult {
   success: boolean;
@@ -59,7 +63,22 @@ export const importDataJSONDetailed = async (file: File): Promise<JsonImportResu
       }
     });
 
-    if (importedRecords.length === 0) {
+    // A local split day is never replaced by a copy that is not newer and lost (or changed) its
+    // marker (D10). Such a date, or one whose local copy cannot be read, is reported as skipped.
+    const acceptedRecords: DailyRecord[] = [];
+    for (const record of importedRecords) {
+      const local = await getRecordForDateStrict(record.date).catch((error: unknown) => {
+        jsonImportLogger.warn(`JSON import could not read the local day ${record.date}`, error);
+        return undefined;
+      });
+      if (local === undefined || isClinicalDerivedLayoutRegression(local, record)) {
+        skippedEntries.push(record.date);
+      } else {
+        acceptedRecords.push(record);
+      }
+    }
+
+    if (acceptedRecords.length === 0) {
       // No raw alert here: the caller (executeImportJsonBackup +
       // UI consumer) already presents the failure via useNotification
       // based on the outcome contract below.
@@ -72,7 +91,7 @@ export const importDataJSONDetailed = async (file: File): Promise<JsonImportResu
       };
     }
 
-    const persisted = await persistImportedRecords(importedRecords);
+    const persisted = await persistImportedRecords(acceptedRecords);
     if (!persisted) {
       return {
         success: false,
@@ -88,7 +107,7 @@ export const importDataJSONDetailed = async (file: File): Promise<JsonImportResu
     return {
       success: true,
       outcome,
-      importedCount: importedRecords.length,
+      importedCount: acceptedRecords.length,
       repairedCount,
       skippedEntries,
     };

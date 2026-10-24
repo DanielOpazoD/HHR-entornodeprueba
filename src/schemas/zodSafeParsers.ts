@@ -17,6 +17,7 @@ import type { RayenSyncEvent } from '@/types/domain/rayenSync';
 import { PatientDataSchema } from './zod/patient';
 import { CMADataSchema, DischargeDataSchema, TransferDataSchema } from './zod/movements';
 import { buildFallbackPatientData } from './zodFallbackBuilders';
+import { carriesClinicalDerivedLayout } from '@/services/storage/clinicalDerivedWriteHygiene';
 import type { DailyRecordParseReport, PatientDataParseReport } from './zodParseReports';
 
 export const safeParseDailyRecord = (data: unknown): DailyRecord | null => {
@@ -93,6 +94,7 @@ export const parseDailyRecordWithDefaultsReport = (
   >;
   const salvagedBeds: Record<string, PatientData> = {};
   const salvagedBedIds: string[] = [];
+  const keepClinicalEpisodeId = carriesClinicalDerivedLayout(raw);
 
   if (raw.beds && typeof raw.beds === 'object' && !Array.isArray(raw.beds)) {
     Object.entries(raw.beds as Record<string, unknown>).forEach(([id, patient]) => {
@@ -102,7 +104,7 @@ export const parseDailyRecordWithDefaultsReport = (
         return;
       }
 
-      salvagedBeds[id] = buildFallbackPatientData(patient, id);
+      salvagedBeds[id] = buildFallbackPatientData(patient, id, { keepClinicalEpisodeId });
       salvagedBedIds.push(id);
     });
   }

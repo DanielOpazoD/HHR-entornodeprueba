@@ -19,6 +19,7 @@ import {
 import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/firestoreServiceRuntime';
 import type { FirestoreServiceRuntimePort } from '@/services/storage/firestore/ports/firestoreServiceRuntimePort';
 import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
+import { adoptStoredClinicalDerivedState } from '@/services/storage/clinicalDerivedWriteHygiene';
 
 export { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 
@@ -118,10 +119,12 @@ export const assertFirestoreConcurrency = async (
  *   1. Reads the current server state (never cache)
  *   2. Throws ConcurrencyError if the remote is newer than expectedLastUpdated
  *   3. Writes a history snapshot of the pre-write state, at most hourly (historySnapshotCadence)
- *   4. Commits the new record
+ *   4. Commits the new record, with the stored split-day state (D9): the stored marker, meta and
+ *      moved fields on a marked day, and never a marker on a create
  *
- * This replaces the previous assertFirestoreConcurrency + saveHistorySnapshot + setDoc
- * three-step sequence, which had a TOCTOU race and could fail open on network errors.
+ * Resolves with the record as committed. This replaces the previous assertFirestoreConcurrency +
+ * saveHistorySnapshot + setDoc three-step sequence, which had a TOCTOU race and could fail open
+ * on network errors.
  */
 export const saveRecordAtomically = async (
   docRef: DocumentReference,
@@ -138,10 +141,11 @@ export const saveRecordAtomically = async (
     forceHistorySnapshot?: boolean;
   } = {},
   runtime: FirestoreServiceRuntimePort = defaultFirestoreServiceRuntime
-): Promise<void> => {
+): Promise<Record<string, unknown>> => {
   const db = runtime.getDb();
   const captureHistory = forceHistorySnapshot || isHistorySnapshotDue(docRef.path);
   let historyWritten = false;
+  let committedRecord = record;
 
   await runTransaction(db, async transaction => {
     historyWritten = false;
@@ -220,9 +224,14 @@ export const saveRecordAtomically = async (
       }
     }
 
-    transaction.set(docRef, record);
+    committedRecord = adoptStoredClinicalDerivedState(
+      record,
+      snap.exists() ? (snap.data() as Record<string, unknown>) : undefined
+    );
+    transaction.set(docRef, committedRecord);
   });
   if (historyWritten) markHistorySnapshotTaken(docRef.path);
+  return committedRecord;
 };
 
 /**

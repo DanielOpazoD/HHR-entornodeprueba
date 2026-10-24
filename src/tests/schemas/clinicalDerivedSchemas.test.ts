@@ -5,6 +5,7 @@ import { ClinicalDerivedEpisodeDocSchema } from '@/schemas/zod/clinicalDerived';
 import { DailyRecordSchema, parseDailyRecordWithDefaultsReport } from '@/schemas/zodSchemas';
 import {
   findStaleClinicalDerivedEpisodeIds,
+  overlayClinicalDerived,
   readClinicalDerivedLayout,
 } from '@/services/storage/clinicalDerivedContract';
 import { docToRecord } from '@/services/storage/firestore/firestoreShared';
@@ -128,5 +129,41 @@ describe('daily record marker', () => {
     expect(
       findStaleClinicalDerivedEpisodeIds(record, [current as unknown as ClinicalDerivedEpisodeDoc])
     ).toEqual([]);
+  });
+
+  // A broken bed goes through buildFallbackPatientData. On a split day its moved fields are found
+  // by episode id (overlay and direct writes), so the salvaged bed and crib keep that id.
+  const brokenBeds = {
+    R1: {
+      patientName: 'Paciente Sintético',
+      status: 'ESTADO_INVALIDO',
+      clinicalEpisodeId: 'ep_a',
+      clinicalCrib: { patientName: 'RN Sintético', clinicalEpisodeId: 'ep_rn' },
+    },
+  };
+
+  it('a salvaged bed and crib keep their episode ids on a split day, so the overlay finds them', () => {
+    const { record, report } = parseDailyRecordWithDefaultsReport(
+      { ...day(marker), meta: { revision: 5 }, beds: brokenBeds },
+      DATE
+    );
+    expect(report.salvagedBeds).toEqual(['R1']);
+    expect(record.beds.R1.clinicalEpisodeId).toBe('ep_a');
+    expect(record.beds.R1.clinicalCrib?.clinicalEpisodeId).toBe('ep_rn');
+
+    const current = doc({ vitalSignsHistory: [reading] }) as unknown as ClinicalDerivedEpisodeDoc;
+    const overlaid = overlayClinicalDerived(record, [current]);
+    expect(overlaid.matchedEpisodeIds).toEqual(['ep_a']);
+    expect(overlaid.record.beds.R1.vitalSignsHistory).toEqual([reading]);
+  });
+
+  it('salvages an unmarked day as before, without the episode id', () => {
+    const { record, report } = parseDailyRecordWithDefaultsReport(
+      { date: DATE, beds: brokenBeds },
+      DATE
+    );
+    expect(report.salvagedBeds).toEqual(['R1']);
+    expect(record.beds.R1.clinicalEpisodeId).toBeUndefined();
+    expect(record.beds.R1.clinicalCrib?.clinicalEpisodeId).toBeUndefined();
   });
 });

@@ -2,6 +2,7 @@ import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import { resolveDailyRecordConflict } from '@/services/repositories/conflictResolutionMatrix';
 import { mergePatientData } from '@/services/repositories/conflictResolutionMergeUtils';
+import { adoptStoredClinicalDerivedState } from '@/services/storage/clinicalDerivedWriteHygiene';
 import type { DailyRecordQueuedWriteState } from '@/services/storage/syncQueueTypes';
 
 const isOccupied = (patient: PatientData | undefined): patient is PatientData =>
@@ -319,15 +320,20 @@ export const buildRayenStructuralPersistenceBase = (
     beds[bedId] = { ...patient, bedId, clinicalEpisodeId: episodeId };
   });
 
-  return {
-    ...merged,
-    date: authoritative.date,
-    beds,
-    discharges: authoritative.discharges,
-    transfers: authoritative.transfers,
-    cma: authoritative.cma,
-    activeExtraBeds: authoritative.activeExtraBeds,
-    // The structural save still compares against the exact remote revision.
-    lastUpdated: authoritative.lastUpdated,
-  };
+  // The beds above are merged again, so on a split day the moved clinical fields are taken from the
+  // authoritative day once more (D9); the same record on unmarked days.
+  return adoptStoredClinicalDerivedState(
+    {
+      ...merged,
+      date: authoritative.date,
+      beds,
+      discharges: authoritative.discharges,
+      transfers: authoritative.transfers,
+      cma: authoritative.cma,
+      activeExtraBeds: authoritative.activeExtraBeds,
+      // The structural save still compares against the exact remote revision.
+      lastUpdated: authoritative.lastUpdated,
+    },
+    authoritative
+  );
 };

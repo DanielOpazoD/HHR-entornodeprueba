@@ -66,6 +66,10 @@ const enrichReviewContextWithImpact = (
  * becomes the new live record; it bypasses the erasure pre-check that normal saves run (choosing a
  * version is an explicit, reversible clinical-conflict-manager action). The other conflict versions remain in
  * `conflictSnapshots/` until their TTL. See docs/ADR_CONFLICT_VERSION_RECOVERY.md.
+ *
+ * On a split day the save keeps the live marker, `meta` and moved clinical fields (D9 of
+ * DESIGN_DAILY_RECORD_PHASE1_CLINICAL_DERIVED.md): a version taken before the day was split never
+ * unmarks it, lowers its revision or brings back an old embedded copy.
  */
 export const restoreDailyRecordVersion = async (
   date: string,

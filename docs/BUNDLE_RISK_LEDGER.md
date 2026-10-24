@@ -135,6 +135,22 @@ Guardrails: session-readiness and timer tests, lease/quarantine tests, critical
 E2E recovery, bundle budget and preview smoke. Rollback: revert PR #892; persisted
 outbox entries remain intact. This allowance is not headroom for new UI features.
 
+## Fase 1a P4a: higiene de escritura en días divididos
+
+Con el mismo toolchain local (Node 24.14.1, mismo lockfile), `main` en `257900995` mide
+628.935 bytes y la higiene de escritura de días divididos mide 631.549 bytes (+0,42 %). La
+higiene impide que un cliente vuelva a escribir en un día dividido copias locales de
+`clinicalSyncCheckpoint` y `vitalSignsHistory`, o que cree un día con el marcador
+(`docs/DESIGN_DAILY_RECORD_PHASE1_CLINICAL_DERIVED.md`, D9). La usan el auto-merge de conflictos,
+que es síncrono y vive en este chunk, el guardado directo y la publicación de la cola; por eso no
+puede quedar detrás de un import dinámico. La guarda de importación, que solo usan la importación
+JSON y la restauración de respaldos, ya se separó a su propio módulo (−220 bytes). Se sube solo
+este techo a 632.000 bytes; los demás presupuestos no cambian. Riesgo: un poco más de carga
+inicial, sin dependencias ni lecturas nuevas. Guardas: pruebas de higiene, conflictos, cola,
+restauración e importación, presupuesto de bundle y grafo de chunks. Rollback: revertir la PR; en
+días sin marcador el comportamiento es idéntico. Este margen no es espacio para funciones nuevas
+de interfaz.
+
 ## Historical sync diagnostic context (2026-10-18)
 
 Owner: census synchronization. The authenticated shell measured 630,690 bytes

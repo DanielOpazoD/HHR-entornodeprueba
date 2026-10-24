@@ -1,5 +1,6 @@
 import { httpsCallable } from 'firebase/functions';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
+import { withClientRuntimeContractVersion } from '@/services/storage/clinicalAuthorityClientVersion';
 import {
   RAYEN_OWNED_CLINICAL_FIELDS,
   type RayenOwnedClinicalField,
@@ -87,6 +88,6 @@ export const callRayenClinicalEnrichmentBatch = async (
   >(functions, 'applyRayenClinicalEnrichmentBatch', {
     timeout: RAYEN_CLINICAL_ENRICHMENT_TIMEOUT_MS,
   });
-  const result = await callable(payload);
+  const result = await callable(withClientRuntimeContractVersion(payload));
   return result.data;
 };

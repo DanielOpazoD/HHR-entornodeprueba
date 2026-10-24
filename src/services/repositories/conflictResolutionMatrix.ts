@@ -37,6 +37,8 @@ import {
   resolveStaffingSlotArray,
 } from '@/services/repositories/conflictResolutionStaffingMergeUtils';
 import { resolvePathValueWithMatrix } from '@/services/repositories/conflictResolutionPathMatrix';
+import { CLINICAL_DERIVED_LAYOUT_FIELD } from '@/services/storage/clinicalDerivedConstants';
+import { adoptStoredClinicalDerivedState } from '@/services/storage/clinicalDerivedWriteHygiene';
 
 interface ConflictResolutionOptions {
   changedPaths?: string[];
@@ -62,22 +64,39 @@ export const resolveDailyRecordConflictWithTrace = (
 ): ConflictResolutionResult => {
   const traceContext = createConflictResolutionTraceContext();
   const changedPaths = normalizeChangedPaths(options.changedPaths);
-  if (changedPaths.length === 0 || changedPaths.includes('*')) {
-    return {
-      record: resolveWholeRecord(remote, local, traceContext),
-      trace: {
-        policyVersion: CONFLICT_RESOLUTION_POLICY_VERSION,
-        entries: traceContext.entries,
-      },
-    };
-  }
+  const resolved =
+    changedPaths.length === 0 || changedPaths.includes('*')
+      ? resolveWholeRecord(remote, local, traceContext)
+      : resolveByChangedPaths(remote, local, changedPaths, traceContext);
   return {
-    record: resolveByChangedPaths(remote, local, changedPaths, traceContext),
+    record: adoptRemoteClinicalDerivedState(remote, resolved, traceContext),
     trace: {
       policyVersion: CONFLICT_RESOLUTION_POLICY_VERSION,
       entries: traceContext.entries,
     },
   };
+};
+
+/**
+ * Split days (D9): the marker, and on a marked remote also `meta` and each episode's moved
+ * clinical fields, come only from the remote; when the remote lacks them, so does the result.
+ * Without a marker on either side the merge is returned untouched.
+ */
+const adoptRemoteClinicalDerivedState = (
+  remote: DailyRecord,
+  resolved: DailyRecord,
+  traceContext: ConflictResolutionTraceContext
+): DailyRecord => {
+  const adopted = adoptStoredClinicalDerivedState(resolved, remote);
+  if (adopted !== resolved) {
+    traceContext.add({
+      path: CLINICAL_DERIVED_LAYOUT_FIELD,
+      strategy: 'copy_remote_value',
+      winner: 'remote',
+      reason: 'clinical_derived_remote_only',
+    });
+  }
+  return adopted;
 };
 
 const resolveWholeRecord = (

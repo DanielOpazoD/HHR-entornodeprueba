@@ -11,6 +11,8 @@ import { logAuditEvent } from './auditService';
 import { getCurrentUserEmail } from './utils/auditUtils';
 import { parseDailyRecordWithDefaultsReport } from '@/schemas/zodSchemas';
 import { dataMaintenanceLogger } from '@/services/admin/adminLoggers';
+import { getRecordForDateStrict } from '@/services/storage/indexeddb/indexedDbRecordService';
+import { isClinicalDerivedLayoutRegression } from '@/services/storage/clinicalDerivedImportGuard';
 import {
   createApplicationFailed,
   createApplicationSuccess,
@@ -258,6 +260,17 @@ export const importRecordsFromBackup = async (
         parsed.report.droppedTransferItems > 0 ||
         parsed.report.droppedCmaItems > 0 ||
         parsed.report.droppedRayenSyncEvents > 0;
+
+      // A local split day is never replaced by a copy that is not newer and lost (or changed) its
+      // marker (D10). The date counts as failed, as does one whose local copy cannot be read.
+      if (
+        isClinicalDerivedLayoutRegression(
+          await getRecordForDateStrict(parsed.record.date),
+          parsed.record
+        )
+      ) {
+        throw new Error('El día local está dividido y la copia del respaldo no es más nueva.');
+      }
 
       // Declared intent: the clinical authority keeps Rayen vitals/devices/scales when an
       // administrator recreates a day that no longer exists remotely (see functions fence).
