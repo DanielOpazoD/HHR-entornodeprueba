@@ -22,7 +22,13 @@ export const parseClinicalFormPreferences = (
   text: string,
   form: ClinicalFormDefinition
 ): ClinicalFormPreferences => {
-  const input: unknown = JSON.parse(text);
+  if (text.length > 100_000) throw new Error('El archivo de preferencias es demasiado grande.');
+  let input: unknown;
+  try {
+    input = JSON.parse(text);
+  } catch {
+    throw new Error('El archivo de preferencias no es un JSON válido.');
+  }
   if (!input || typeof input !== 'object' || Array.isArray(input))
     throw new Error('Preferencias no válidas.');
   const data = input as Record<string, unknown>;
