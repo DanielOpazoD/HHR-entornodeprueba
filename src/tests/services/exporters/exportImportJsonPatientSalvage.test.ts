@@ -62,6 +62,13 @@ describe('JSON patient salvage', () => {
     ['documentType', 'UNKNOWN_DOCUMENT'],
     ['rut', 123],
     ['clinicalEpisodeId', 123],
+    ['identityStatus', 'tentative'],
+    ['patientName', 42],
+    ['firstName', { given: 'PACIENTE' }],
+    ['lastName', ['SINTETICO']],
+    ['secondLastName', 5],
+    ['admissionDate', { seconds: 1, nanoseconds: 0 }],
+    ['admissionTime', 930],
   ])(
     'reports an invalid %s as blocked instead of importing a fabricated identity',
     async (field, value) => {

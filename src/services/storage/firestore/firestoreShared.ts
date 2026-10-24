@@ -2,6 +2,7 @@ import { collection, doc, type DocumentReference, Timestamp } from 'firebase/fir
 import { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
 import { COLLECTIONS, getActiveHospitalId, HOSPITAL_COLLECTIONS } from '@/constants/firestorePaths';
 import { migrateLegacyData } from '@/services/repositories/dataMigration';
+import { withoutStoredIdentityReviews } from '@/shared/census/patientIdentityReview';
 import { normalizeUnknownDailyRecordStaffing } from '@/services/staff/dailyRecordStaffing';
 import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/firestoreServiceRuntime';
 import type { FirestoreServiceRuntimePort } from '@/services/storage/firestore/ports/firestoreServiceRuntimePort';
@@ -112,6 +113,7 @@ export const docToRecord = (docData: Record<string, unknown>, docId: string): Da
     tensDayShift: ensureArray(rawData.tensDayShift, 3),
     tensNightShift: ensureArray(rawData.tensNightShift, 3),
     activeExtraBeds: Array.isArray(rawData.activeExtraBeds) ? rawData.activeExtraBeds : [],
+    beds: withoutStoredIdentityReviews(rawData.beds),
   });
 
   return migrateLegacyData(rawData as unknown as DailyRecord, docId);

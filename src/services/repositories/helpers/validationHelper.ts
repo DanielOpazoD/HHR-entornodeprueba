@@ -4,6 +4,7 @@ import {
   hasStructuralRepairs,
   parseDailyRecordWithDefaultsReport,
 } from '@/schemas/zodSchemas';
+import type { UnreadableIdentityPolicy } from '@/schemas/zodFallbackBuilders';
 import { repositoryValidationLogger } from '@/services/repositories/repositoryLoggers';
 
 const logSalvageSummary = (
@@ -23,10 +24,16 @@ const logSalvageSummary = (
  *
  * @param record - The record to validate
  * @param date - The date identifier for reporting/salvage
+ * @param options.unreadableIdentity - `quarantine` only for a record read from storage
  * @returns A strictly validated DailyRecord
  * @throws Error if the record is completely corrupt and cannot be salvaged
+ * @throws PatientIdentityRepairRequiredError for an unreadable identity under `reject`
  */
-export const validateAndSalvageRecord = (record: DailyRecord, date: string): DailyRecord => {
+export const validateAndSalvageRecord = (
+  record: DailyRecord,
+  date: string,
+  options: { unreadableIdentity?: UnreadableIdentityPolicy } = {}
+): DailyRecord => {
   try {
     // 1. Attempt strict parse
     return DailyRecordSchema.parse(record);
@@ -37,7 +44,7 @@ export const validateAndSalvageRecord = (record: DailyRecord, date: string): Dai
     );
 
     // 2. Fallback to salvage logic
-    const { record: salvaged, report } = parseDailyRecordWithDefaultsReport(record, date);
+    const { record: salvaged, report } = parseDailyRecordWithDefaultsReport(record, date, options);
     logSalvageSummary(date, report);
 
     // 3. Re-validate the salvaged record to guarantee it meets the schema

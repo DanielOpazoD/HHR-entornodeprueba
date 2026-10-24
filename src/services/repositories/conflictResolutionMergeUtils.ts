@@ -265,6 +265,19 @@ export const mergePatientData = (
     const remoteValue = remoteRecord[key];
     const localValue = localRecord[key];
 
+    // An identity review describes the stored identity, so the stored side decides it, even when
+    // it has none: a local review the stored day no longer needs must not survive the merge.
+    if (key === 'identityReview') {
+      merged[key] = remoteValue;
+      traceContext?.add({
+        path: `${pathPrefix}.${key}`,
+        strategy: 'scalar_policy',
+        winner: 'remote',
+        reason: 'clinical_census_remote_priority',
+      });
+      return;
+    }
+
     if (
       shouldKeepExplicitLocalCensusValue(key, remotePatient, localPatient, remoteValue, localValue)
     ) {

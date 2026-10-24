@@ -9,6 +9,7 @@
 
 import { DailyRecord } from '@/types/domain/dailyRecord';
 import { parseDailyRecordWithDefaultsReport } from '@/schemas/zodSchemas';
+import { findIdentityReviews } from '@/shared/census/patientIdentityReview';
 import { normalizeDailyRecordInvariants } from '@/utils/recordInvariants';
 import { recoverImportedMovementCalendarDate } from '@/utils/movementCalendarDate';
 import {
@@ -227,10 +228,12 @@ export const migrateLegacyDataWithReport = (
   const schemaMigration = migrateRecordSchemaToCurrent(record, date);
   const compatibilityAssessment = assessSchemaCompatibility(record);
 
-  // 1. Initial pass through Zod to apply defaults and recover basic structure
+  // 1. Initial pass through Zod to apply defaults and recover basic structure. This reads stored
+  // data, so one unreadable identity keeps its bed readable under review instead of failing the day.
   const schemaParse = parseDailyRecordWithDefaultsReport(
     schemaMigration.record as LegacyDailyRecordShape,
-    date
+    date,
+    { unreadableIdentity: 'quarantine' }
   );
   let migrated = schemaParse.record;
   pushRule(appliedRules, 'schema_defaults_applied');
@@ -240,6 +243,13 @@ export const migrateLegacyDataWithReport = (
   if (schemaParse.report.salvagedBeds.length > 0) {
     pushRule(appliedRules, 'salvage_patient_fallback_applied');
   }
+  findIdentityReviews(migrated.beds).forEach(({ bedId, slot, fields }) => {
+    pushRule(appliedRules, 'salvage_patient_fallback_applied');
+    pushRecoveredIssue(
+      recoveredIssues,
+      `patient_identity_review:${bedId}${slot === 'clinicalCrib' ? ':clinicalCrib' : ''}:${fields.join(',')}`
+    );
+  });
 
   // 2. Apply invariants so the current runtime never sees sparse bed maps.
   migrated = normalizeDailyRecordInvariants(migrated).record;

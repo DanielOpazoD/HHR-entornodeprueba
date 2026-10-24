@@ -13,14 +13,17 @@ const toLocalPersistenceError = (result: LocalRecordWriteResult): Error =>
 /**
  * Local cache hydration must respect the same record invariants and admission
  * date policy used by repository writes. This keeps remote/legacy hydration from
- * silently reintroducing invalid critical fields into IndexedDB.
+ * silently reintroducing invalid critical fields into IndexedDB. The record was read from storage,
+ * so an unreadable identity keeps its bed under review instead of failing the adoption.
  */
 export const persistHydratedRecordToLocalCache = async (
   record: DailyRecord,
   date: string,
   previousRecord?: DailyRecord | null
 ): Promise<DailyRecord> => {
-  const validatedRecord = prepareDailyRecordForPersistence(record, date, previousRecord);
+  const validatedRecord = prepareDailyRecordForPersistence(record, date, previousRecord, {
+    unreadableIdentity: 'quarantine',
+  });
   const result = await saveToIndexedDB(validatedRecord, { preserveUnresolvedWrites: true });
   if (!result.ok) {
     throw toLocalPersistenceError(result);

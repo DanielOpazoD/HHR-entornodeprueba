@@ -1,6 +1,6 @@
 import type { ClinicalCarryover } from './clinicalCarryover';
 import type { NeonatalPlacementDecision } from './neonatalPlacementDecision';
-import type { PatientIdentityStatus } from './patientIdentity';
+import type { PatientIdentityReview, PatientIdentityStatus } from './patientIdentity';
 import type { Specialty, PatientStatus } from './patientClassification';
 import type { ClinicalEvent } from './clinicalEvents';
 import type { CudyrScore } from './cudyr';
@@ -73,6 +73,8 @@ export interface PatientData {
   lastName?: string;
   secondLastName?: string;
   identityStatus?: PatientIdentityStatus;
+  /** Set when the stored identity could not be read. See PatientIdentityReview. */
+  identityReview?: PatientIdentityReview;
   rut: string;
   documentType?: 'RUT' | 'Pasaporte'; // Switcher
   age: string;

@@ -16,7 +16,7 @@ import {
 import type { RayenSyncEvent } from '@/types/domain/rayenSync';
 import { PatientDataSchema } from './zod/patient';
 import { CMADataSchema, DischargeDataSchema, TransferDataSchema } from './zod/movements';
-import { buildFallbackPatientData } from './zodFallbackBuilders';
+import { buildFallbackPatientData, type UnreadableIdentityPolicy } from './zodFallbackBuilders';
 import type { DailyRecordParseReport, PatientDataParseReport } from './zodParseReports';
 
 export const safeParseDailyRecord = (data: unknown): DailyRecord | null => {
@@ -47,15 +47,18 @@ export const parsePatientDataWithDefaultsReport = (
       report: {
         nullNormalization,
         usedFallback: false,
+        droppedListItems: 0,
       },
     };
   }
 
+  const fallback = buildFallbackPatientData(normalized, bedId);
   return {
-    patient: buildFallbackPatientData(normalized, bedId),
+    patient: fallback.patient,
     report: {
       nullNormalization,
       usedFallback: true,
+      droppedListItems: fallback.droppedListItems,
     },
   };
 };
@@ -65,7 +68,8 @@ export const parsePatientDataWithDefaults = (data: unknown, bedId: string): Pati
 
 export const parseDailyRecordWithDefaultsReport = (
   data: unknown,
-  docId: string
+  docId: string,
+  { unreadableIdentity = 'reject' }: { unreadableIdentity?: UnreadableIdentityPolicy } = {}
 ): { record: DailyRecord; report: DailyRecordParseReport } => {
   const { normalized, report: nullNormalization } = normalizeLegacyNullsDeep(data);
   try {
@@ -76,6 +80,7 @@ export const parseDailyRecordWithDefaultsReport = (
         report: {
           nullNormalization,
           salvagedBeds: [],
+          droppedPatientListItems: 0,
           droppedDischargeItems: 0,
           droppedTransferItems: 0,
           droppedCmaItems: 0,
@@ -93,6 +98,7 @@ export const parseDailyRecordWithDefaultsReport = (
   >;
   const salvagedBeds: Record<string, PatientData> = {};
   const salvagedBedIds: string[] = [];
+  let droppedPatientListItems = 0;
 
   if (raw.beds && typeof raw.beds === 'object' && !Array.isArray(raw.beds)) {
     Object.entries(raw.beds as Record<string, unknown>).forEach(([id, patient]) => {
@@ -102,7 +108,9 @@ export const parseDailyRecordWithDefaultsReport = (
         return;
       }
 
-      salvagedBeds[id] = buildFallbackPatientData(patient, id);
+      const salvaged = buildFallbackPatientData(patient, id, { unreadableIdentity });
+      salvagedBeds[id] = salvaged.patient;
+      droppedPatientListItems += salvaged.droppedListItems;
       salvagedBedIds.push(id);
     });
   }
@@ -189,6 +197,7 @@ export const parseDailyRecordWithDefaultsReport = (
     report: {
       nullNormalization,
       salvagedBeds: salvagedBedIds,
+      droppedPatientListItems,
       droppedDischargeItems: salvagedDischarges.dropped,
       droppedTransferItems: salvagedTransfers.dropped,
       droppedCmaItems: salvagedCma.dropped,

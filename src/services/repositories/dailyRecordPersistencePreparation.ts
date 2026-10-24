@@ -3,6 +3,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { normalizeDailyRecordInvariants } from '@/utils/recordInvariants';
 import { normalizeMovementBedConsistency } from '@/services/repositories/clinicalMovementBedConsistencyPolicy';
 import { validateAndSalvageRecord } from '@/services/repositories/helpers/validationHelper';
+import type { UnreadableIdentityPolicy } from '@/schemas/zodFallbackBuilders';
 import { logError } from '@/services/utils/errorService';
 import { ensureDailyRecordDateTimestamp } from '@/services/repositories/dailyRecordMetadataDomainService';
 import { syncDailyRecordClinicalResources } from '@/services/repositories/dailyRecordClinicalDomainService';
@@ -41,9 +42,10 @@ const normalizePreparedRecord = (record: DailyRecord): DailyRecord => {
 export const prepareDailyRecordForPersistence = (
   record: DailyRecord,
   date: string,
-  previousRecord?: DailyRecord | null
+  previousRecord?: DailyRecord | null,
+  options: { unreadableIdentity?: UnreadableIdentityPolicy } = {}
 ): DailyRecord => {
-  const recordWithSchemaDefaults = validateAndSalvageRecord(record, date);
+  const recordWithSchemaDefaults = validateAndSalvageRecord(record, date, options);
   assertAdmissionDatePersistencePolicy(date, recordWithSchemaDefaults, previousRecord);
   ensureDailyRecordDateTimestamp(recordWithSchemaDefaults);
   return normalizePreparedRecord(recordWithSchemaDefaults);

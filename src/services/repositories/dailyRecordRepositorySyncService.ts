@@ -235,7 +235,9 @@ export const adoptAuthoritativeRecord = async (
   if (!alreadyAppliedPatch) {
     return persistHydratedRecordToLocalCache(record, record.date);
   }
-  const authoritativeRecord = prepareDailyRecordForPersistence(record, record.date);
+  const authoritativeRecord = prepareDailyRecordForPersistence(record, record.date, undefined, {
+    unreadableIdentity: 'quarantine',
+  });
   const adoption = await adoptAuthoritativeDailyRecordAtomically(
     authoritativeRecord,
     (localRecord, task) => {

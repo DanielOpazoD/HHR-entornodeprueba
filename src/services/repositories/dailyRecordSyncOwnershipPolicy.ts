@@ -19,6 +19,7 @@ const PATIENT_FIELD_OWNERSHIP = {
   lastName: 'remoteCanonical',
   secondLastName: 'remoteCanonical',
   identityStatus: 'remoteCanonical',
+  identityReview: 'remoteCanonical',
   patientName: 'remoteCanonical',
   rut: 'remoteCanonical',
   documentType: 'remoteCanonical',

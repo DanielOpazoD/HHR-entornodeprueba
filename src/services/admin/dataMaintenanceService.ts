@@ -300,6 +300,7 @@ export const importRecordsFromBackup = async (
         parsed.report.nullNormalization.replacedNullCount > 0 ||
         parsed.report.nullNormalization.droppedArrayEntriesCount > 0 ||
         parsed.report.salvagedBeds.length > 0 ||
+        parsed.report.droppedPatientListItems > 0 ||
         parsed.report.droppedDischargeItems > 0 ||
         parsed.report.droppedTransferItems > 0 ||
         parsed.report.droppedCmaItems > 0 ||
