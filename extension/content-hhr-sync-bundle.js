@@ -3,7 +3,7 @@
   'use strict';
 
   const runtimeMessages = globalThis.HhrRayenMessageContract?.types;
-  if (!runtimeMessages) return;
+  if (!runtimeMessages || !globalThis.HhrAppOrigins?.has(window.location.origin)) return;
   const post = message => chrome.runtime?.id && window.postMessage(message, window.location.origin);
 
   window.addEventListener('message', event => {

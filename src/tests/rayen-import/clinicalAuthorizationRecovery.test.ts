@@ -39,7 +39,11 @@ const candidate = {
 
 const loadRuntime = () => {
   const context = vm.createContext({ Date });
-  for (const file of ['tab-encounter-authorization.js', 'fichamedico-patient-flow-runtime.js'])
+  for (const file of [
+    'hhr-origin-policy.js',
+    'tab-encounter-authorization.js',
+    'fichamedico-patient-flow-runtime.js',
+  ])
     vm.runInContext(readFileSync(`extension/${file}`, 'utf8'), context);
   return vm.runInContext(
     'HhrFichaMedicoPatientFlowRuntime.create',

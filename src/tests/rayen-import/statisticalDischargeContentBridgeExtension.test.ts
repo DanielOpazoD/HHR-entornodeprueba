@@ -1,15 +1,11 @@
 // @vitest-environment node
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
+import { readHhrBridgeSource } from './support/hhrOriginPolicyFixture';
 import vm from 'node:vm';
 
 import { describe, expect, it, vi } from 'vitest';
 
-const source = readFileSync(path.resolve('extension/content-hhr-statistical-discharge.js'), 'utf8');
-const evidenceSource = readFileSync(
-  path.resolve('extension/content-hhr-statistical-evidence.js'),
-  'utf8'
-);
+const source = readHhrBridgeSource('content-hhr-statistical-discharge.js');
+const evidenceSource = readHhrBridgeSource('content-hhr-statistical-evidence.js');
 
 describe('HHR statistical-discharge content bridge', () => {
   it('only installs on trusted HHR origins', () => {

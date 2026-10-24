@@ -705,8 +705,17 @@ try {
   // Published sites must receive the real manifest-declared content scripts too.
   // Fulfill all page traffic locally: never contact the deployed clinical application.
   for (const origin of [
+    ...['localhost', '127.0.0.1'].flatMap(host =>
+      Array.from({ length: 21 }, (_, index) => `http://${host}:${3000 + index}`)
+    ),
+    'https://hhr-hospitalizados.app',
     'https://testinghhr.netlify.app',
     'https://hhr-entorno-prueba.netlify.app',
+    ...['testinghhr', 'hhr-entorno-prueba'].flatMap(site => [
+      `https://deploy-preview-992--${site}.netlify.app`,
+      `https://feature-origins--${site}.netlify.app`,
+      `https://0123456789abcdef01234567--${site}.netlify.app`,
+    ]),
   ]) {
     await context.route(`${origin}/**`, route =>
       route.fulfill({
@@ -728,6 +737,41 @@ try {
       await publishedPage.close();
     }
   }
+
+  for (const origin of [
+    'http://localhost:2999',
+    'http://localhost:3021',
+    'http://127.0.0.1:3021',
+    'https://unrelated.netlify.app',
+    'https://deploy-preview-992--unrelated.netlify.app',
+    'https://deploy-preview-992--testinghhr-evil.netlify.app',
+  ]) {
+    await context.route(`${origin}/**`, route =>
+      route.fulfill({
+        status: 200,
+        contentType: 'text/html',
+        body: minimalFixtureHtml('Origen no HHR'),
+      })
+    );
+    const unrelatedPage = await context.newPage();
+    try {
+      await unrelatedPage.goto(`${origin}/census`);
+      const answered = await reloadedStatusPage.evaluate(async url => {
+        const tab = (await chrome.tabs.query({})).find(candidate => candidate.url === url);
+        if (!Number.isInteger(tab?.id)) throw new Error('Missing negative origin fixture tab');
+        try {
+          await chrome.tabs.sendMessage(tab.id, { type: 'RAYEN_EXTENSION_RELAY_PING' });
+          return true;
+        } catch {
+          return false;
+        }
+      }, `${origin}/census`);
+      assert.equal(answered, false, `${origin} installed an unauthorized HHR relay`);
+    } finally {
+      await unrelatedPage.close();
+    }
+  }
+  console.log('[origins] 51 approved HHR origins connected; six unrelated origins have no relay');
 
   // A green relay is insufficient: exercise the entire data path through HHR's page bridge,
   // the replacement MV3 worker, the surviving Ficha session, and all three clinical readers.

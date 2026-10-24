@@ -5,7 +5,7 @@
   const create = ({
     chromeApi,
     readHealth, invalidateHealth = () => undefined,
-    targetMatchPatterns,
+    targetMatchPatterns, isTargetTab = () => true,
     alarmName = 'hhr-health-heartbeat',
     periodMinutes = 1,
     log = (...args) => console.warn(...args),
@@ -58,7 +58,7 @@
       if (generation !== pushGeneration) return { pushed: 0 };
       let pushed = 0;
       await Promise.all(
-        tabs.map(async tab => {
+        tabs.filter(isTargetTab).map(async tab => {
           if (generation !== pushGeneration) return;
           try {
             await chromeApi.tabs.sendMessage(tab.id, {

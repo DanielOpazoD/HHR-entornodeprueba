@@ -6,6 +6,16 @@ Médico** y lo entrega al **censo local HHR** para importarlo con revisión. Ade
 vigente oficial de Eloísa. Como respaldo sin backend intermedio, cada paciente activo puede copiarse
 como un código versionado que HHR valida antes de una admisión manual y de la elección de cama.
 
+## Puente 0.48.58: direcciones HHR y despliegues
+
+El puente admite `https://hhr-hospitalizados.app`, los sitios `testinghhr.netlify.app` y
+`hhr-entorno-prueba.netlify.app`, sus deploy previews, despliegues por rama y enlaces permanentes
+de deploy. En desarrollo admite HTTP en `localhost` y `127.0.0.1`, puertos 3000–3020 inclusive.
+`hhr-origin-policy.js` mantiene la misma autorización en los puentes, la trazabilidad y la
+recuperación de pestañas. El patrón Netlify del manifiesto se restringe en ejecución a esos dos
+proyectos; otros sitios de Netlify no instalan el puente ni reciben consultas o mensajes.
+Actualizar/recargar la extensión y las pestañas HHR para aplicar las nuevas direcciones.
+
 ## Puente 0.48.52: identidad en el índice de informes
 
 La lista de hospitalizaciones transmite también el nombre y el tipo de identificador de cada

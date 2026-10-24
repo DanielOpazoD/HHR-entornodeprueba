@@ -1,11 +1,10 @@
 // @vitest-environment node
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
+import { readHhrBridgeSource } from './support/hhrOriginPolicyFixture';
 import vm from 'node:vm';
 
 import { describe, expect, it, vi } from 'vitest';
 
-const source = readFileSync(path.resolve('extension/content-hhr-syslab.js'), 'utf8');
+const source = readHhrBridgeSource('content-hhr-syslab.js');
 
 const runtimeTypes = {
   SYSLAB_STATUS_REQUEST: 'RAYEN_SYSLAB_STATUS_REQUEST',
