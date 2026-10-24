@@ -110,4 +110,50 @@ describe('check-clinical-clock', () => {
     expect(output).toContain('[device-clock-time] src/features/a.ts:1');
     expect(output).toContain('[device-clock-time] src/features/a.ts:2');
   });
+  it('reports device toTimeString calls as well as locale time calls without a zone', () => {
+    const { status, output } = runGuard({
+      'src/features/a.ts': [
+        'const a = new Date().toTimeString().slice(0, 5);',
+        "const b = date.toLocaleTimeString('es-CL');",
+        "const c = date.toLocaleTimeString('es-CL', { timeZone: CLINICAL_TIME_ZONE });",
+      ].join('\n'),
+    });
+    expect(status).toBe(1);
+    expect(output).toContain('[device-clock-time] src/features/a.ts:1');
+    expect(output).toContain('[zone-less-format] src/features/a.ts:2');
+    expect(output).not.toContain('src/features/a.ts:3');
+  });
+
+  it('reports UTC date cuts of stored instants including optional and fallback receivers', () => {
+    const { status, output } = runGuard({
+      'src/features/a.ts': [
+        'const a = note.updatedAt?.slice(0, 10);',
+        "const b = createdAt.split('T')[0];",
+        'const c = signedAt.substring(0, 10);',
+        'const d = event.timestamp.slice(0, 10);',
+        "const e = (photo.takenAt || photo.uploadedAt).split('T')[0];",
+        'const f = event.uploadedAt . slice ( 0 , 10 );',
+      ].join('\n'),
+    });
+    expect(status).toBe(1);
+    for (const line of [1, 2, 3, 4, 5, 6]) {
+      expect(output).toContain(`[instant-calendar-slice] src/features/a.ts:${line}`);
+    }
+  });
+
+  it('allows only a local date-cut exception with a reason', () => {
+    const { status, output } = runGuard({
+      'src/features/a.ts': [
+        '// clinical-clock-allow instant-calendar-slice: Rayen admissionAt is unzoned hospital wall time.',
+        'const a = evidence.admissionAt.slice(0, 10);',
+        'const b = evidence.updatedAt.slice(0, 10);',
+        '// clinical-clock-allow instant-calendar-slice:',
+        'const c = evidence.createdAt.slice(0, 10);',
+      ].join('\n'),
+    });
+    expect(status).toBe(1);
+    expect(output).not.toContain('src/features/a.ts:2');
+    expect(output).toContain('[instant-calendar-slice] src/features/a.ts:3');
+    expect(output).toContain('[instant-calendar-slice] src/features/a.ts:5');
+  });
 });

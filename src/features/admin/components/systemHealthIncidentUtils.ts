@@ -1,3 +1,4 @@
+import { readClinicalTimestamp } from '@/utils/dateDisplayUtils';
 import { evaluateSystemHealthState } from './systemHealthStatusPolicy';
 import type { UserHealthStatus } from '@/services/admin/healthService';
 import {
@@ -46,7 +47,7 @@ const isWithinDateRange = (
 ): boolean => {
   if (dateRange === 'all') return true;
   if (dateRange === 'day') {
-    return !!selectedDate && !!timestamp && timestamp.slice(0, 10) === selectedDate;
+    return !!selectedDate && !!timestamp && readClinicalTimestamp(timestamp)?.iso === selectedDate;
   }
   const eventMs = toMs(timestamp);
   if (eventMs <= 0) return false;
@@ -191,7 +192,7 @@ export const buildSystemHealthIncidentTimeline = (
 ): SystemHealthIncidentTimelineDay[] => {
   const groupedByDate = new Map<string, SystemHealthIncidentRow[]>();
   incidents.forEach(incident => {
-    const date = incident.timestamp.slice(0, 10);
+    const date = readClinicalTimestamp(incident.timestamp)?.iso;
     if (!date) return;
     groupedByDate.set(date, [...(groupedByDate.get(date) || []), incident]);
   });

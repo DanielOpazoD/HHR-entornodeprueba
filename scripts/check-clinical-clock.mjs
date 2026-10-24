@@ -17,13 +17,16 @@
  *     `toLocaleDateString`, `toLocaleTimeString` and `new Intl.DateTimeFormat` call, and every
  *     date `toLocaleString`, passes `timeZone`: `CLINICAL_TIME_ZONE`, or `'UTC'` for calendar
  *     dates anchored in UTC. Without it the device zone (mainland Chile) leaks into the display.
- *  5. device-clock-time: nobody reads hours or minutes with `getHours()` / `getMinutes()`. They
- *     only exist on instants, and those local getters answer in the device zone.
+ *  5. device-clock-time: nobody reads hours or minutes with `getHours()`, `getMinutes()` or
+ *     `toTimeString()`. They only exist on instants and answer in the device zone.
+ *  6. instant-calendar-slice: cutting a stored instant to its UTC date bypasses the hospital
+ *     calendar. A preceding `clinical-clock-allow instant-calendar-slice: <reason>` comment
+ *     exempts only the next line when a legacy field is actually a hospital wall-clock value.
  *
  * `getTodayISO` / `getClinicalCalendarDateISO` / `calendarStampInClinicalTimeZone` and the
  * formatters in `src/utils/dateDisplayUtils.ts` (`formatCalendarDate`, `formatTimestamp`,
- * `readClinicalTimestamp`) are the doors. No allowlist on purpose: the baseline is zero and must
- * stay there.
+ * `readClinicalTimestamp`) are the doors. Exceptions are local and reasoned; unreviewed
+ * violations must stay at zero.
  */
 
 import fs from 'node:fs';
@@ -129,8 +132,24 @@ const RULES = [
     rule: 'device-clock-time',
     files: productionFiles,
     find: source =>
-      [...source.matchAll(/\.get(?:Hours|Minutes)\(\)/g)].map(match => lineOf(source, match.index)),
+      [...source.matchAll(/\.(?:get(?:Hours|Minutes)|toTimeString)\s*\(\s*\)/g)].map(match =>
+        lineOf(source, match.index)
+      ),
     hint: 'read the hospital clock: readClinicalTimestamp() / calendarStampInClinicalTimeZone()',
+  },
+  {
+    rule: 'instant-calendar-slice',
+    files: productionFiles,
+    find: source => {
+      const lines = source.split('\n');
+      return regexRule(
+        /\b\w*(?:At|[tT]imestamp)\b\s*\)?\s*\??\.\s*(?:(?:slice|substring|substr)\s*\(\s*0\s*,\s*10\s*\)|split\s*\(\s*['"]T['"]\s*\)\s*\[\s*0\s*\])/
+      )(source).filter(
+        line =>
+          !/^\s*\/\/ clinical-clock-allow instant-calendar-slice: \S.*$/.test(lines[line - 2] ?? '')
+      );
+    },
+    hint: 'convert stored instants with readClinicalTimestamp() / getClinicalCalendarDateISO(); exempt only documented wall-clock fields',
   },
 ];
 

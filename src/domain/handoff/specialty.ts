@@ -1,3 +1,4 @@
+import { readClinicalTimestamp } from '@/utils/dateDisplayUtils';
 import type { AuthUser } from '@/types/authRoleTypes';
 import type { DailyRecordMedicalHandoffSummaryState } from '@/types/domain/dailyRecordSlices';
 import type {
@@ -45,7 +46,7 @@ export const resolveMedicalSpecialtyDailyStatus = (
   dateKey: string
 ): MedicalSpecialtyDailyStatus => {
   if (!note) return 'pending';
-  if (note.updatedAt?.slice(0, 10) === dateKey) return 'updated_by_specialist';
+  if (readClinicalTimestamp(note.updatedAt || '')?.iso === dateKey) return 'updated_by_specialist';
   const continuity = note.dailyContinuity?.[dateKey];
   if (continuity?.status === 'confirmed_no_changes') return 'confirmed_no_changes';
   if (continuity?.status === 'updated_by_specialist') return 'updated_by_specialist';
