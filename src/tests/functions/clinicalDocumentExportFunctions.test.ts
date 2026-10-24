@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const driveMocks = vi.hoisted(() => ({
   list: vi.fn(),
@@ -117,6 +117,54 @@ describe('functions clinicalDocumentExportFunctions', () => {
     expect(resolveRoleForEmail).toHaveBeenCalledWith('removed@hospitalhangaroa.cl', {
       auth: { uid: 'u1', token: { email: 'removed@hospitalhangaroa.cl', role: 'doctor_urgency' } },
     });
+  });
+
+  afterEach(() => vi.useRealTimers());
+
+  it.each([
+    ['2026-11-01T02:00:00.000Z', '2026', 'Octubre 2026'],
+    ['2027-01-01T02:00:00.000Z', '2026', 'Diciembre 2026'],
+  ])('exports at %s into the hospital month and year', async (instant, year, month) => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(instant));
+    driveMocks.list.mockResolvedValue({ data: { files: [] } });
+    driveMocks.create.mockImplementation(
+      async ({ requestBody }: { requestBody: { mimeType?: string } }) => ({
+        data: {
+          id:
+            requestBody.mimeType === 'application/vnd.google-apps.folder'
+              ? `folder-${nextFolderId++}`
+              : 'file-synthetic',
+        },
+      })
+    );
+    const api = createClinicalDocumentExportFunctions({
+      firestore: { collection: vi.fn() },
+      resolveRoleForEmail: vi.fn().mockResolvedValue('doctor_urgency'),
+      buildDriveClientOverride: () => ({ files: driveMocks }),
+    });
+    const result = await api.exportClinicalDocumentPdfToDrive.run(
+      {
+        fileName: 'Prueba.pdf',
+        documentType: 'epicrisis',
+        patientName: 'Paciente Sintético',
+        patientRut: '11.111.111-1',
+        episodeKey: 'synthetic-episode',
+        contentBase64: Buffer.from('synthetic-pdf').toString('base64'),
+      },
+      { auth: { uid: 'synthetic', token: { email: 'synthetic@example.com' } } }
+    );
+    expect(result.folderPath).toBe(`${year}/${month}`);
+    expect(driveMocks.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestBody: expect.objectContaining({ name: year, parents: ['folder-1'] }),
+      })
+    );
+    expect(driveMocks.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestBody: expect.objectContaining({ name: month, parents: ['folder-2'] }),
+      })
+    );
   });
 
   it('exports pdf to drive folder hierarchy for authorized doctor role', async () => {

@@ -1,3 +1,6 @@
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
+import { getPreviousDay } from '@/utils/clinicalDayScheduleUtils';
+
 export type PrescriptionUploadViewerDayKey = 'today' | 'yesterday';
 
 export interface PrescriptionUploadViewerDayOption {
@@ -6,11 +9,6 @@ export interface PrescriptionUploadViewerDayOption {
   isoDate: string;
   displayDate: string;
 }
-
-const padDatePart = (value: number): string => String(value).padStart(2, '0');
-
-const toLocalIsoDate = (date: Date): string =>
-  `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())}`;
 
 export const formatPrescriptionUploadViewerDate = (isoDate: string): string => {
   const [year, month, day] = isoDate.split('-');
@@ -21,12 +19,8 @@ export const formatPrescriptionUploadViewerDate = (isoDate: string): string => {
 export const buildPrescriptionUploadViewerDayOptions = (
   now = new Date()
 ): PrescriptionUploadViewerDayOption[] => {
-  const today = new Date(now);
-  const yesterday = new Date(now);
-  yesterday.setDate(today.getDate() - 1);
-
-  const todayIso = toLocalIsoDate(today);
-  const yesterdayIso = toLocalIsoDate(yesterday);
+  const todayIso = getClinicalCalendarDateISO(now);
+  const yesterdayIso = getPreviousDay(todayIso);
 
   return [
     {

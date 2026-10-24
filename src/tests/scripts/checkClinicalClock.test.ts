@@ -98,6 +98,48 @@ describe('check-clinical-clock', () => {
     expect(output).toContain('[server-clock-today] functions/lib/prescriptionAccessFunctions.js:2');
   });
 
+  it.each([
+    'new Date(createdAt).getDate()',
+    'new Date(Date.now()).getMonth()',
+    'const created = new Date(createdAt);\ncreated.getFullYear()',
+    'const now = new Date();\nnow.getFullYear()',
+    'const now = new Date();\nnow.getMonth()',
+    'const now = new Date();\n' + 'const padding = 0;\n'.repeat(40) + 'now.getDate()',
+    'const created = new Date(createdAt);\n' +
+      'const padding = 0;\n'.repeat(40) +
+      'created.getDate()',
+  ])('rejects server-local instant calendar getters: %s', source => {
+    const { status, output } = runGuard({ 'functions/lib/clock.js': source });
+    expect(status).toBe(1);
+    expect(output).toContain('[server-clock-today] functions/lib/clock.js:1');
+  });
+
+  it.each([
+    [
+      'prescriptionAccessFunctions.js',
+      [
+        'const createdAtMatchesIsoDate = (createdAt, isoDate) => {',
+        '  const created = new Date(createdAt);',
+        '  if (Number.isNaN(created.getTime())) return false;',
+        "  const recordDate = `${created.getFullYear()}-${String(created.getMonth() + 1).padStart(2, '0')}-${String(created.getDate()).padStart(2, '0')}`;",
+        '  return recordDate === isoDate;',
+        '};',
+      ].join('\n'),
+    ],
+    [
+      'clinicalDocumentExportFunctions.js',
+      [
+        'const now = new Date();',
+        'const year = now.getFullYear().toString();',
+        'const monthFolderName = buildDriveMonthFolderName(now);',
+      ].join('\n'),
+    ],
+  ])('rejects the former server calendar code in %s', (file, source) => {
+    const { status, output } = runGuard({ [`functions/lib/${file}`]: source });
+    expect(status).toBe(1);
+    expect(output).toContain(`[server-clock-today] functions/lib/${file}`);
+  });
+
   it('reports UTC today in Functions libraries and the entrypoint', () => {
     const today = ['new Date()', 'toISOString()', 'slice(0, 10)'].join('.');
     const { status, output } = runGuard({

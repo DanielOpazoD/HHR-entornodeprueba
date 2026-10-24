@@ -10,7 +10,7 @@ describe('prescriptionUploadReadonlyViewerSupport', () => {
     expect(formatPrescriptionUploadViewerDate('2026-12-31')).toBe('31-12-2026');
   });
 
-  it('builds today and yesterday options from the current local day', () => {
+  it('builds today and yesterday options from the current hospital day', () => {
     const options = buildPrescriptionUploadViewerDayOptions(new Date(2026, 4, 29, 12));
 
     expect(options).toEqual([

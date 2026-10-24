@@ -19,6 +19,10 @@
  *     dates anchored in UTC. Without it the device zone (mainland Chile) leaks into the display.
  *  5. device-clock-time: nobody reads hours or minutes with `getHours()` / `getMinutes()`. They
  *     only exist on instants, and those local getters answer in the device zone.
+ *  6. server-clock-today (functions/ only): local getFullYear/getMonth/getDate on a Date
+ *     constructed from now or an instant are forbidden, both inline and through a variable.
+ *     Calendar arithmetic on a multi-argument Date(year, month, day) and UTC getters is allowed.
+ *     Use functions/lib/hospitalCalendarDay.js for the hospital calendar.
  *
  * `getTodayISO` / `getClinicalCalendarDateISO` / `calendarStampInClinicalTimeZone` and the
  * formatters in `src/utils/dateDisplayUtils.ts` (`formatCalendarDate`, `formatTimestamp`,
@@ -102,13 +106,36 @@ const zoneLessFormatLines = source => {
   return lines;
 };
 
+const serverClockCalendarLines = source => {
+  const lines = [];
+  const constructors = /(?:\b(?:const|let|var)\s+(\w+)\s*=\s*)?new\s+Date\s*\(/g;
+  const localGetter = /^\s*\.\s*get(?:FullYear|Month|Date)\s*\(\s*\)/;
+  for (const match of source.matchAll(constructors)) {
+    const openIndex = match.index + match[0].length - 1;
+    const args = argumentsAt(source, openIndex);
+    // Multi-argument constructors build calendar values, rather than reading an instant.
+    if (/^\s*\w+\s*,/.test(args)) continue;
+    const afterConstructor = source.slice(openIndex + args.length + 2);
+    const variableGetter = match[1]
+      ? new RegExp(`\\b${match[1]}\\s*\\.\\s*get(?:FullYear|Month|Date)\\s*\\(\\s*\\)`)
+      : null;
+    const nextDeclaration = match[1]
+      ? afterConstructor.search(new RegExp(`\\b(?:const|let|var)\\s+${match[1]}\\b`))
+      : -1;
+    const variableUses =
+      nextDeclaration < 0 ? afterConstructor : afterConstructor.slice(0, nextDeclaration);
+    if (localGetter.test(afterConstructor) || variableGetter?.test(variableUses)) {
+      lines.push(lineOf(source, match.index));
+    }
+  }
+  return lines;
+};
+
 const RULES = [
   {
     rule: 'server-clock-today',
     files: functionsFiles,
-    find: regexRule(
-      /new\s+Date\(\)\s*\.\s*get(?:FullYear|Month|Date)\(\)|\b(?:const|let|var)\s+(\w+)\s*=\s*new\s+Date\(\);(?:(?!\n\s*\};)[\s\S]){0,400}?\b\1\.getDate\(\)/
-    ),
+    find: serverClockCalendarLines,
     hint: 'use hospitalCalendarDay() from functions/lib/hospitalCalendarDay for the hospital day',
   },
   {
