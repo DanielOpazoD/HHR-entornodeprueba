@@ -62,6 +62,10 @@ const productionFiles = walk(
   'src',
   relativePath => !relativePath.endsWith('.d.ts') && !isTestFile(relativePath)
 );
+const functionsFiles = [
+  ...walk('functions/lib', relativePath => !isTestFile(relativePath)),
+  ...(fs.existsSync(path.join(ROOT, 'functions/index.js')) ? ['functions/index.js'] : []),
+];
 const testFiles = walk('src/tests', () => true);
 const e2eFiles = [
   ...walk('e2e', () => true),
@@ -100,6 +104,14 @@ const zoneLessFormatLines = source => {
 
 const RULES = [
   {
+    rule: 'server-clock-today',
+    files: functionsFiles,
+    find: regexRule(
+      /new\s+Date\(\)\s*\.\s*get(?:FullYear|Month|Date)\(\)|\b(?:const|let|var)\s+(\w+)\s*=\s*new\s+Date\(\);(?:(?!\n\s*\};)[\s\S]){0,400}?\b\1\.getDate\(\)/
+    ),
+    hint: 'use hospitalCalendarDay() from functions/lib/hospitalCalendarDay for the hospital day',
+  },
+  {
     rule: 'zone-literal',
     files: [...productionFiles, ...e2eFiles].filter(file => file !== CLOCK_SOURCE),
     find: regexRule(/['"`]Pacific\/Easter['"`]/),
@@ -113,7 +125,7 @@ const RULES = [
   },
   {
     rule: 'utc-today',
-    files: [...productionFiles, ...testFiles, ...e2eFiles],
+    files: [...productionFiles, ...testFiles, ...e2eFiles, ...functionsFiles],
     find: regexRule(
       /new Date\(\)\s*\.\s*toISOString\(\)\s*\.\s*(?:(?:slice|substring|substr)\(\s*0\s*,\s*10\s*\)|split\(\s*['"]T['"]\s*\)\s*\[\s*0\s*\])/
     ),

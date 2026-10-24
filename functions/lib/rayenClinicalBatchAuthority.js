@@ -1,3 +1,4 @@
+const { hospitalCalendarDay } = require('./hospitalCalendarDay');
 const functions = require('firebase-functions/v1');
 
 const POLICY_SCHEMA_VERSION = 2;
@@ -27,18 +28,6 @@ const parseGlobalPolicy = snapshot => {
   return policy;
 };
 
-const currentRapaNuiCalendarDay = () => {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Pacific/Easter',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  })
-    .formatToParts(new Date())
-    .reduce((result, part) => ({ ...result, [part.type]: part.value }), {});
-  return `${parts.year}-${parts.month}-${parts.day}`;
-};
-
 const parseLegacyGlobalPolicy = snapshot => {
   if (!snapshot?.exists) {
     return { mode: 'preview', revision: 0 };
@@ -58,7 +47,7 @@ const parseLegacyGlobalPolicy = snapshot => {
 const assertLegacyRayenClinicalBatchAuthority = ({ policySnapshot, record, payload }) => {
   if (
     payload.date !== payload.authorityDate ||
-    payload.date !== currentRapaNuiCalendarDay() ||
+    payload.date !== hospitalCalendarDay() ||
     record?.date !== payload.date
   ) {
     failPolicyAuthority();
@@ -102,7 +91,10 @@ const assertRayenClinicalRunAuthority = ({ record, payload }) => {
  * A policy change during a run deliberately invalidates the old request so a new run
  * can retry under one coherent authority decision.
  */
-const assertRayenClinicalBatchAuthority = ({ policySnapshot, record, payload }, archive = false) => {
+const assertRayenClinicalBatchAuthority = (
+  { policySnapshot, record, payload },
+  archive = false
+) => {
   if (payload.legacyAuthorityInference === true) {
     return assertLegacyRayenClinicalBatchAuthority({ policySnapshot, record, payload });
   }

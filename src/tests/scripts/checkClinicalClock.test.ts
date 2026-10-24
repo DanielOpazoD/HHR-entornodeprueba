@@ -84,6 +84,45 @@ describe('check-clinical-clock', () => {
     expect(output).toContain('[device-clock-today] src/features/a.ts:1');
   });
 
+  it('rejects the pre-fix Functions prescription clock from origin/main', () => {
+    // Exact todayIso excerpt from git show origin/main:functions/lib/prescriptionAccessFunctions.js
+    // at 4a65a7518. Keep the fixture independent of later merges and shallow CI checkouts.
+    const source = [
+      'const todayIso = () => {',
+      '  const now = new Date();',
+      "  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;",
+      '};',
+    ].join('\n');
+    const { status, output } = runGuard({ 'functions/lib/prescriptionAccessFunctions.js': source });
+    expect(status).toBe(1);
+    expect(output).toContain('[server-clock-today] functions/lib/prescriptionAccessFunctions.js:2');
+  });
+
+  it('reports UTC today in Functions libraries and the entrypoint', () => {
+    const today = ['new Date()', 'toISOString()', 'slice(0, 10)'].join('.');
+    const { status, output } = runGuard({
+      'functions/lib/upload.js': `const day = ${today};`,
+      'functions/index.js': `const day = ${today};`,
+    });
+    expect(status).toBe(1);
+    expect(output).toContain('[utc-today] functions/lib/upload.js:1');
+    expect(output).toContain('[utc-today] functions/index.js:1');
+  });
+
+  it('allows Functions timestamps, explicit hospital dates and calendar arithmetic', () => {
+    const { status, output } = runGuard({
+      'functions/lib/calendar.js': [
+        'const timestamp = new Date().toISOString();',
+        "const format = new Intl.DateTimeFormat('en-CA', { timeZone: 'Pacific/Easter', year: 'numeric', month: '2-digit', day: '2-digit' });",
+        'const today = format.format(new Date());',
+        "const previousDay = iso => { const date = new Date(iso + 'T12:00:00Z'); date.setUTCDate(date.getUTCDate() - 1); return date.toISOString().slice(0, 10); };",
+        'const previousLocal = (year, month, day) => { const date = new Date(year, month, day); date.setDate(date.getDate() - 1); return date; };',
+      ].join('\n'),
+    });
+    expect(output).toContain('Clinical clock checks passed');
+    expect(status).toBe(0);
+  });
+
   it('reports each date format call that leaves the zone to the device', () => {
     const { output } = runGuard({
       'src/features/a.tsx': [
