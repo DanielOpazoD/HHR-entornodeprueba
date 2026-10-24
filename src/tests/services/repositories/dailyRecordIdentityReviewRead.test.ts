@@ -26,6 +26,7 @@ import {
 } from '@/services/storage/firestore/firestoreRecordQueries';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositoryReadService';
+import { migrateLegacyDataWithReport } from '@/services/repositories/dataMigration';
 import { subscribeDetailed } from '@/services/repositories/dailyRecordRepositorySyncService';
 import { getRecordForDate } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
@@ -117,6 +118,22 @@ describe('a census day where one bed has an unreadable stored identity', () => {
 
     expect(offline.source).toBe('indexeddb');
     expectReviewedDay(offline.record);
+    expect(offline.migrationRulesApplied).toContain('salvage_patient_fallback_applied');
+  });
+
+  it('names each reviewed bed and crib in the recovered issues of the migration report', () => {
+    const newborn = syntheticIdentity('R1', 'RN SINTETICO', 'FAKE-PASSPORT-RN', { rut: 99 });
+    const report = migrateLegacyDataWithReport(
+      storedDay({ documentType: 'Cedula', clinicalCrib: newborn }) as never,
+      DATE
+    );
+
+    expect(report.recoveredIssues).toEqual(
+      expect.arrayContaining([
+        'patient_identity_review:R1:documentType',
+        'patient_identity_review:R1:clinicalCrib:rut',
+      ])
+    );
   });
 
   it('reads offline a local copy that holds the unreadable value itself', async () => {

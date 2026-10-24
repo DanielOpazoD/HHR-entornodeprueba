@@ -2,6 +2,7 @@ import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { PatientIdentityCell } from '@/features/census/components/patient-row/PatientIdentityCell';
+import { PatientLaboratoryTrigger } from '@/features/census/components/patient-row/PatientLaboratoryTrigger';
 import { UIProvider } from '@/context/UIContext';
 import { docToRecord } from '@/services/storage/firestore/firestoreShared';
 import type { DebouncedTextHandler } from '@/features/census/components/patient-row/inputCellTypes';
@@ -11,6 +12,8 @@ import { IDENTITY_REVIEW_DATE as DATE, storedDay } from '@/tests/fixtures/identi
 vi.mock('@/context/StaffContext', () => ({
   useStaffContext: () => ({ professionalsCatalog: [] }),
 }));
+vi.mock('@/features/laboratory', () => ({ LabResultsViewerModal: () => null }));
+vi.mock('@/components/modals/ExamRequestModal', () => ({ ExamRequestModal: () => null }));
 
 const noopChange: DebouncedTextHandler = () => vi.fn();
 
@@ -63,5 +66,19 @@ describe('a census bed whose stored identity is under review', () => {
     expect(screen.queryByText('Identidad por revisar')).not.toBeInTheDocument();
     expect(screen.getByTitle('RUT válido')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Abrir MMRAD/ })).toBeVisible();
+  });
+});
+
+describe('the laboratory lookup of a bed whose stored identity is under review', () => {
+  it('is not offered, since it would look the document up as a RUT', () => {
+    render(<PatientLaboratoryTrigger patient={readR1('Cedula')} censusDate={DATE} />);
+
+    expect(screen.queryByRole('button', { name: /Abrir laboratorio/ })).not.toBeInTheDocument();
+  });
+
+  it('is offered for a readable RUT', () => {
+    render(<PatientLaboratoryTrigger patient={readR1('RUT')} censusDate={DATE} />);
+
+    expect(screen.getByRole('button', { name: /Abrir laboratorio/ })).toBeInTheDocument();
   });
 });

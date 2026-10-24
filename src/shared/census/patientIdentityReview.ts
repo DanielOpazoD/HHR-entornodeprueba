@@ -120,20 +120,14 @@ export const clearReviewedIdentityFields = <T extends { beds: Record<string, Pat
     };
   }, record);
 
-// Rebuilds only plain objects and arrays on the way to a review; anything else, Firestore
-// timestamps included, is kept as the same instance.
-const isPlainData = (value: unknown): value is Record<string, unknown> => {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-  const prototype = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
-};
-
+// Copy on write: only the objects on the way to a review are rebuilt, so every other value,
+// Firestore timestamps included, stays the same instance.
 const stripStoredReviews = (value: unknown): unknown => {
   if (Array.isArray(value)) {
     const items = value.map(stripStoredReviews);
     return items.some((item, index) => item !== value[index]) ? items : value;
   }
-  if (!isPlainData(value)) return value;
+  if (!isPlainObject(value)) return value;
   let changed = Object.hasOwn(value, 'identityReview');
   const next: Record<string, unknown> = {};
   Object.entries(value).forEach(([key, child]) => {

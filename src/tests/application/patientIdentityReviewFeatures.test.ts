@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 import { describe, expect, it, vi } from 'vitest';
-import { docToRecord } from '@/services/storage/firestore/firestoreShared';
+import { docToRecord, sanitizeForFirestore } from '@/services/storage/firestore/firestoreShared';
 import { canCarryClinicalEvidence } from '@/services/repositories/clinicalCarryoverIdentity';
 import { createCensusPatientIdentityIndex } from '@/features/rayen-import/domain/censusPatientIdentityIndex';
 import { harmonizeEpisodeDemographicsHistory } from '@/features/census/controllers/patientDemographicsEpisodeSyncController';
@@ -22,10 +22,12 @@ const readable = (date = TODAY) => readR1({ documentType: 'Pasaporte' }, date);
 const reviewed = (date = TODAY) => readR1(undefined, date);
 
 describe('identity features never match a patient whose identity is under review', () => {
-  it('carries clinical evidence to the next day only between readable identities', () => {
-    expect(canCarryClinicalEvidence(readable(PRIOR), readable(), PRIOR, TODAY)).toBe(true);
-    expect(canCarryClinicalEvidence(reviewed(PRIOR), readable(), PRIOR, TODAY)).toBe(false);
-    expect(canCarryClinicalEvidence(readable(PRIOR), reviewed(), PRIOR, TODAY)).toBe(false);
+  it('never carries clinical evidence onto a RUT for a passport whose type could not be read', () => {
+    const asRut = (date = TODAY) => readR1({ documentType: 'RUT' }, date);
+
+    expect(canCarryClinicalEvidence(asRut(PRIOR), asRut(), PRIOR, TODAY)).toBe(true);
+    expect(canCarryClinicalEvidence(reviewed(PRIOR), asRut(), PRIOR, TODAY)).toBe(false);
+    expect(canCarryClinicalEvidence(asRut(PRIOR), reviewed(), PRIOR, TODAY)).toBe(false);
   });
 
   it('keeps the bed occupied for Rayen but never matches its episode or document', () => {
@@ -98,9 +100,10 @@ describe('identity features never match a patient whose identity is under review
     const repairedElsewhere = day(readable());
     const staleLocal = day(reviewed());
 
-    expect(resolveDailyRecordConflict(repairedElsewhere, staleLocal).beds.R1.identityReview).toBe(
-      undefined
-    );
+    const merged = resolveDailyRecordConflict(repairedElsewhere, staleLocal);
+    expect(merged.beds.R1.identityReview).toBeUndefined();
+    // What a write of the merged day would send carries no review, not even an empty one.
+    expect(JSON.stringify(sanitizeForFirestore(merged))).not.toContain('identityReview');
     expect(
       resolveDailyRecordConflict(staleLocal, repairedElsewhere).beds.R1.identityReview?.fields
     ).toEqual(['documentType']);

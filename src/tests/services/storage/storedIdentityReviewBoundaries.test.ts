@@ -21,6 +21,7 @@ vi.mock('@/services/firebase-runtime/functionsRuntime', () => ({
   defaultFunctionsRuntime: { getRegionalFunctions: vi.fn(async () => ({})) },
 }));
 
+import * as firestoreModule from 'firebase/firestore';
 import { invokeAuthority } from '@/services/storage/firestore/dailyRecordAuthorityTransport';
 import {
   getConflictVersionSnapshot,
@@ -49,6 +50,16 @@ describe('stored identity reviews at the other storage boundaries', () => {
 
     expect(JSON.stringify(answer)).not.toContain('identityReview');
     expect(answer.recordState?.record.discharges[0].originalData?.patientName).toBe('PACIENTE UNO');
+  });
+
+  it('keeps Firestore timestamps while it drops a review from a stored document', () => {
+    const { Timestamp } = firestoreModule;
+    const stamp = Timestamp.fromMillis(Date.parse(`${DATE}T08:00:00.000Z`));
+
+    const record = docToRecord({ ...storedDayWithPlantedReviews(), lastUpdated: stamp }, DATE);
+
+    expect(record.lastUpdated).toBe(`${DATE}T08:00:00.000Z`);
+    expect(JSON.stringify(record)).not.toContain('identityReview');
   });
 
   it('drops every review from a legacy Firebase day', () => {
