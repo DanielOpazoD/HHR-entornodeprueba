@@ -89,9 +89,7 @@ describe('read-only monthly reconciliation', () => {
   });
   it('keeps manual results and missing dates separate from source applications', () => {
     const d = dataset();
-    const evaluation = d.rows[0].evaluation;
-    if (!evaluation) throw new Error('Synthetic evaluation required');
-    evaluation.recordedAt = '';
+    d.rows[0].evaluation!.recordedAt = '';
     d.rows[0].evaluation!.source = 'HHR · puntuación manual';
     const result = compareCudyrMonth(d, report('C2', '2026-07-19'));
     expect(result.map(r => r.status)).toEqual(['date_review', 'hhr_only']);
@@ -157,9 +155,7 @@ describe('read-only monthly reconciliation', () => {
   it('flags next-month evidence rather than losing the final night shift', () => {
     const d = dataset();
     d.rows[0].date = '2026-07-31';
-    const evaluation = d.rows[0].evaluation;
-    if (!evaluation) throw new Error('Synthetic evaluation required');
-    evaluation.recordedAt = '2026-08-01T03:00:00-06:00';
+    d.rows[0].evaluation!.recordedAt = '2026-08-01T03:00:00-06:00';
     expect(compareCudyrMonth(d, { ...report(), patients: [] })[0]).toMatchObject({
       status: 'hhr_only',
       sourceDate: '2026-08-01',

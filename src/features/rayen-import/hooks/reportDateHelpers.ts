@@ -17,6 +17,7 @@ export const toIsoReportDate = (record: DailyRecord): string => {
   // Use the persisted UTC date, never today's date or the device's local calendar.
   if (typeof record.dateTimestamp === 'number' && Number.isFinite(record.dateTimestamp)) {
     const fromTimestamp = new Date(record.dateTimestamp);
+    // clinical-clock-allow instant-calendar-slice: Legacy record.dateTimestamp represents the persisted census calendar day; preserve that report key.
     if (!Number.isNaN(fromTimestamp.getTime())) return fromTimestamp.toISOString().slice(0, 10);
   }
   const raw = (record.date ?? '').trim();
