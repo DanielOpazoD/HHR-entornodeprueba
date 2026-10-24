@@ -42,6 +42,7 @@ export const useClinicalFormPdf = (
   const [busyFormat, setBusyFormat] = useState<'pdf' | 'docx' | null>(null);
   const busy = busyFormat !== null;
   const [prepared, setPrepared] = useState<PreparedPdf | null>(null);
+  const ownedPdf = useRef<PreparedPdf | null>(null);
   const fingerprint = JSON.stringify([
     form.id,
     values,
@@ -65,14 +66,16 @@ export const useClinicalFormPdf = (
     return () => {
       mounted.current = false;
       sequence.current += 1;
+      if (ownedPdf.current) URL.revokeObjectURL(ownedPdf.current.url);
+      ownedPdf.current = null;
     };
   }, []);
-  useEffect(
-    () => () => {
-      if (prepared) URL.revokeObjectURL(prepared.url);
-    },
-    [prepared, revision]
-  );
+  useEffect(() => {
+    if (ownedPdf.current && ownedPdf.current.revision < revision) {
+      URL.revokeObjectURL(ownedPdf.current.url);
+      ownedPdf.current = null;
+    }
+  }, [revision]);
 
   const changedMessage = (format: 'pdf' | 'docx') =>
     `Los datos cambiaron mientras se preparaba ${format === 'pdf' ? 'el PDF' : 'Word'}. Revisa y vuelve a generar.`;
@@ -112,7 +115,7 @@ export const useClinicalFormPdf = (
   };
   const preparePdf = async (attempt: number): Promise<PreparedPdf | null> => {
     if (!isCurrent(attempt, 'pdf')) return null;
-    if (currentPdf) return currentPdf;
+    if (ownedPdf.current?.revision === revision) return ownedPdf.current;
     const bytes = await generate(form, { ...values }, [...hidden]);
     if (!isCurrent(attempt, 'pdf')) return null;
     const result = {
@@ -121,20 +124,37 @@ export const useClinicalFormPdf = (
       fingerprint,
       revision,
     };
+    if (ownedPdf.current) URL.revokeObjectURL(ownedPdf.current.url);
+    // Own the URL immediately, even if the editor closes before the state commits.
+    ownedPdf.current = result;
     setPrepared(result);
     return result;
+  };
+  const saveDocument = async (attempt: number, format: 'pdf' | 'docx', bytes: Uint8Array) => {
+    try {
+      const { saveAs } = await import('file-saver');
+      if (!isCurrent(attempt, format)) return;
+      saveAs(
+        new Blob([new Uint8Array(bytes)], {
+          type:
+            format === 'pdf'
+              ? 'application/pdf'
+              : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        }),
+        format === 'pdf' ? `${form.id}-imprimible.pdf` : `${form.id}.docx`
+      );
+    } catch {
+      throw new Error(
+        `No se pudo descargar ${format === 'pdf' ? 'el PDF' : 'Word'}. Vuelve a intentarlo.`
+      );
+    }
   };
   const prepare = () => run('pdf', preparePdf);
   const download = () =>
     run('pdf', async attempt => {
       const result = await preparePdf(attempt);
       if (!result || !isCurrent(attempt, 'pdf')) return;
-      const { saveAs } = await import('file-saver');
-      if (!isCurrent(attempt, 'pdf')) return;
-      saveAs(
-        new Blob([new Uint8Array(result.bytes)], { type: 'application/pdf' }),
-        `${form.id}-imprimible.pdf`
-      );
+      await saveDocument(attempt, 'pdf', result.bytes);
     });
   const downloadDocx = () =>
     run('docx', async attempt => {
@@ -146,14 +166,7 @@ export const useClinicalFormPdf = (
         annexes.map(image => ({ ...image }))
       );
       if (!isCurrent(attempt, 'docx')) return;
-      const { saveAs } = await import('file-saver');
-      if (!isCurrent(attempt, 'docx')) return;
-      saveAs(
-        new Blob([new Uint8Array(bytes)], {
-          type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        }),
-        `${form.id}.docx`
-      );
+      await saveDocument(attempt, 'docx', bytes);
     });
   return {
     busy,

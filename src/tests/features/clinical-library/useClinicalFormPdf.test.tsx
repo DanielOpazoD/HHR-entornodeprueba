@@ -67,6 +67,16 @@ describe('clinical form export lifecycle', () => {
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:synthetic-form');
   });
 
+  it('releases the generated URL when closed before React commits the preview', async () => {
+    const view = setup();
+    await act(async () => {
+      await view.result.current.prepare();
+      view.unmount();
+    });
+    expect(URL.createObjectURL).toHaveBeenCalledOnce();
+    expect(URL.revokeObjectURL).toHaveBeenCalledExactlyOnceWith('blob:synthetic-form');
+  });
+
   it.each(['prepare', 'download', 'downloadDocx'] as const)(
     'accepts only one %s action before React commits its busy state',
     async action => {
@@ -92,6 +102,9 @@ describe('clinical form export lifecycle', () => {
       await Promise.all([view.result.current.download(), view.result.current.download()]);
     });
     expect(saveAs).toHaveBeenCalledOnce();
+    expect(view.notice).toHaveBeenLastCalledWith(
+      'No se pudo descargar el PDF. Vuelve a intentarlo.'
+    );
     expect(view.result.current.busy).toBe(false);
     await act(async () => {
       await view.result.current.download();
