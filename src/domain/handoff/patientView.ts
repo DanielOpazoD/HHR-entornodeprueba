@@ -1,3 +1,4 @@
+import { readClinicalTimestamp } from '@/utils/dateDisplayUtils';
 import type { MedicalHandoffEntry, PatientData } from '@/domain/handoff/patientContracts';
 import {
   formatMedicalHandoffActorLabel,
@@ -62,7 +63,7 @@ export const resolveMedicalHandoffValidityViewModel = (
   // 1. updatedAt matches the reportDate (note was written/edited on this day), OR
   // 2. currentStatusDate matches the reportDate (note was validated for this day)
   const wasUpdatedToday =
-    (Boolean(entry.updatedAt) && entry.updatedAt?.slice(0, 10) === reportDate) ||
+    readClinicalTimestamp(entry.updatedAt || '')?.iso === reportDate ||
     entry.currentStatusDate === reportDate;
   const statusLabel = wasUpdatedToday ? 'Nota vigente' : 'Nota: pendiente de actualizar';
   const canRefreshAsCurrent = Boolean(entry.note.trim());
@@ -83,16 +84,19 @@ export const resolveMedicalEntryMetadataViewModel = (
 ): MedicalEntryMetadataViewModel => {
   const originalActor = entry.originalNoteBy || entry.updatedBy;
   const originalAt = entry.originalNoteAt || entry.updatedAt;
+  const wasUpdatedToday = entry.updatedAt
+    ? readClinicalTimestamp(entry.updatedAt)?.iso === reportDate
+    : false;
   const currentActor =
     entry.currentStatusDate === reportDate
       ? entry.currentStatusBy || entry.updatedBy
-      : entry.updatedAt?.slice(0, 10) === reportDate
+      : wasUpdatedToday
         ? entry.updatedBy
         : undefined;
   const currentAt =
     entry.currentStatusDate === reportDate
       ? entry.currentStatusAt || entry.updatedAt
-      : entry.updatedAt?.slice(0, 10) === reportDate
+      : wasUpdatedToday
         ? entry.updatedAt
         : undefined;
 
