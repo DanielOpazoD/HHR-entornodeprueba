@@ -4,7 +4,7 @@
  * Firebase vars are required in DEV (loaded from .env) but optional in PROD
  * (fetched at runtime from the Netlify `firebase-config` function).
  */
-import { z } from 'zod';
+import * as z from 'zod';
 import { createScopedLogger } from '@/services/utils/loggerScope';
 
 const envValidatorLogger = createScopedLogger('EnvValidator');
@@ -140,7 +140,7 @@ export function validateClientEnv(): ClientEnvValidationResult {
   }
 
   const issues = result.error.issues.map(issue => {
-    const path = issue.path.join('.');
+    const path = issue.path.map(String).join('.');
     return `${path}: ${issue.message}`;
   });
 

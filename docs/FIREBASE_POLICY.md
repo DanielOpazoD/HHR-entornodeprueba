@@ -131,3 +131,8 @@ En Storage, tamaño y formato se validan al crear o actualizar archivos. El borr
 se autoriza por separado: avatar sólo por su dueño; adjuntos clínicos y fotografías
 de heridas por sus respectivos roles de escritura existentes. No requiere un archivo
 de reemplazo ni amplía quién puede leer, subir o eliminar en otras rutas.
+
+Al actualizar Firebase CLI o parsers transitivos de Functions, validar los dos
+lockfiles, ejecutar el gate de release y el pack de confianza con emuladores, y
+comprobar el runtime PDF de Functions. Un CLI actualizado o un CI aprobado no
+acreditan publicación de Functions, reglas ni activación de un layout clínico.

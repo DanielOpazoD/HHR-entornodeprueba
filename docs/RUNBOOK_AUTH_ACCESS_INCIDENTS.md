@@ -189,3 +189,12 @@ Antes de eliminar la compatibilidad del alias legacy en functions o rules:
 - [functions/lib/auth/authHelpersFactory.js](../functions/lib/auth/authHelpersFactory.js)
 - [netlify/functions/lib/firebase-auth.ts](../netlify/functions/lib/firebase-auth.ts)
 - [docs/architecture/NETLIFY_AUTH_ROLE_CONVERGENCE.md](./architecture/NETLIFY_AUTH_ROLE_CONVERGENCE.md)
+
+### Auditoría bloqueada por el validador o parsers transitivos
+
+Consultar `reports/security/dependency-audit.json` de root y Functions. Para
+GHSA-mrhx-c7xc-m3w5 y GHSA-27r3-jxmh-p828, verificar Zod 4.6.7 y body-parser
+1.20.9/2.4.0 en el árbol instalado, incluidos los nodos de Firebase CLI. Completar
+`ci:release-gate`, `test:release-confidence` y auditoría antes de integrar; conservar
+la política de admisión y las reglas existentes. Revertir restaura el estado anterior,
+pero no elimina la vulnerabilidad ni autoriza ignorar el fallo del control.

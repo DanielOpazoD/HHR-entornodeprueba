@@ -11,7 +11,7 @@
  * issues are stable codes, context is an allowlist of bounded values, and the operation is a known
  * literal or the generic bucket.
  */
-import { z } from 'zod';
+import * as z from 'zod';
 
 import {
   OPERATIONAL_TELEMETRY_CATEGORIES,

@@ -59,12 +59,13 @@ describe('census measurement release gate', () => {
     expect(spec).toContain('const url = new URL(route.request().url())');
     expect(spec).not.toContain('previewFirebase');
   });
-  it('retains production ceilings and the documented confirmed-cache bundle allowance', () => {
+  it('retains production ceilings and the documented critical-runtime bundle allowances', () => {
     const flow = JSON.parse(read('scripts/config/flow-performance-budgets.json'));
     expect(flow.flows.censoVisibleMs.enforcedMaxMs).toBe(2000);
     expect(flow.flows.censoRecordReadyMs.enforcedMaxMs).toBe(5000);
     const bundle = JSON.parse(read('scripts/config/bundle-budget.json'));
-    expect(bundle.precacheMaxBytes).toBe(4952064);
+    // Include only the measured 40 KiB Zod security allowance (BUNDLE_RISK_LEDGER.md).
+    expect(bundle.precacheMaxBytes).toBe(4952064 + 40960);
     expect(
       bundle.startupChunkBudgets.find(
         (b: { label: string }) => b.label === 'app-authenticated-shell'

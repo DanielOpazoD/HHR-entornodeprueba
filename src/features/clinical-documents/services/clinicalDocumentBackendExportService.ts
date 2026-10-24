@@ -1,6 +1,6 @@
 import { httpsCallable } from 'firebase/functions';
 import type { ClinicalDocumentType } from '@/features/clinical-documents/domain/entities';
-import { z } from 'zod';
+import * as z from 'zod';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import type { FunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import { blobToBase64 } from '@/features/clinical-documents/services/clinicalDocumentPdfBinarySupport';

@@ -2,7 +2,7 @@
  * Zod Validation Schemas for Wound Care Photo Documentation
  */
 
-import { z } from 'zod';
+import * as z from 'zod';
 import { nullableOptional } from './helpers';
 
 // ============================================================================
@@ -70,7 +70,7 @@ export const WoundCarePhotoSchema = z
     uploadedViaSessionId: nullableOptional(z.string()),
     deletedAt: nullableOptional(z.string()),
     deletedBy: nullableOptional(WoundCareAuditActorSchema),
-    isDeleted: z.boolean().default(false),
+    isDeleted: z.boolean().prefault(false),
   })
   .passthrough();
 
