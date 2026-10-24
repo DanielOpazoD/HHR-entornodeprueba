@@ -120,10 +120,12 @@ export const recoverPreviousCensusDischarges = async (
             evidence.run !== normalizeRut(lookupRun)
           )
             return [];
+          // clinical-clock-allow instant-calendar-slice: Parsed report dischargeAt is unzoned hospital wall time; preserve its official calendar day.
           const calendarIso = evidence.dischargeAt.slice(0, 10);
           const hhmm = evidence.dischargeAt.slice(11, 16);
           const iso = resolveClinicalDayForDateTime(calendarIso, hhmm) ?? calendarIso;
           stamp = { iso, calendarIso, hhmm, text: evidence.dischargeAt };
+          // clinical-clock-allow instant-calendar-slice: Parsed report admissionAt is unzoned hospital wall time, compared to the stored admission calendar date.
           if (patient.admissionDate?.slice(0, 10) !== evidence.admissionAt.slice(0, 10)) return [];
         } catch {
           return [];

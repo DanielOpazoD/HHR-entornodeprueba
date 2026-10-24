@@ -21,6 +21,8 @@ describe('prescription-image-proxy', () => {
       ...originalEnv,
       URL: 'https://app.example.com',
       HHR_ALLOW_LOCAL_FUNCTION_ORIGINS: 'true',
+      VITE_FIREBASE_STORAGE_BUCKET: 'hhr-pruebas.firebasestorage.app',
+      VITE_FIREBASE_PROJECT_ID: '',
     };
     fetchMock.mockResolvedValue({
       ok: true,
@@ -60,6 +62,8 @@ describe('prescription-image-proxy', () => {
     expect(response.isBase64Encoded).toBe(true);
     expect(response.headers?.['Content-Type']).toBe('image/jpeg');
     expect(response.headers?.['X-Prescription-Image-Optimization']).toBe('optimized');
+    expect(response.headers?.['X-Content-Type-Options']).toBe('nosniff');
+    expect(response.headers?.['Content-Security-Policy']).toBe("default-src 'none'; sandbox");
     expect(response.headers?.['Access-Control-Allow-Origin']).toBe('http://localhost:3021');
     expect(fetchMock).toHaveBeenCalledWith(sourceUrl);
     expect(transformImageMock).toHaveBeenCalledWith(expect.any(Uint8Array), {
@@ -85,6 +89,67 @@ describe('prescription-image-proxy', () => {
 
     expect(response.statusCode).toBe(400);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    'https://firebasestorage.googleapis.com/v0/b/other-project.firebasestorage.app/o/prescriptions%2Fx.jpg?alt=media',
+    'https://other-project.firebasestorage.app/v0/b/hhr-pruebas.firebasestorage.app/o/prescriptions%2Fx.jpg?alt=media',
+    'https://firebasestorage.googleapis.com/v0/b/hhr-pruebas.firebasestorage.app/o/avatars%2Fx.jpg?alt=media',
+  ])('rejects a source outside the HHR prescriptions bucket: %s', async sourceUrl => {
+    const handler = await loadHandler();
+
+    const response = await handler({
+      httpMethod: 'GET',
+      headers: {},
+      body: null,
+      rawQuery: new URLSearchParams({ url: sourceUrl }).toString(),
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects every remote source when no bucket is configured', async () => {
+    process.env.VITE_FIREBASE_STORAGE_BUCKET = '';
+    const handler = await loadHandler();
+
+    const response = await handler({
+      httpMethod: 'GET',
+      headers: {},
+      body: null,
+      rawQuery: new URLSearchParams({
+        url: 'https://firebasestorage.googleapis.com/v0/b/hhr-pruebas.firebasestorage.app/o/prescriptions%2Fx.jpg?alt=media',
+      }).toString(),
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('never passes through a file the optimizer cannot read unless it is an image', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'text/html; charset=utf-8' }),
+      arrayBuffer: vi.fn().mockResolvedValue(new TextEncoder().encode('<script></script>').buffer),
+    });
+    transformImageMock.mockRejectedValueOnce(new Error('unsupported image format'));
+    const handler = await loadHandler();
+
+    const response = (await handler({
+      httpMethod: 'GET',
+      headers: {},
+      body: null,
+      rawQuery: new URLSearchParams({
+        url: 'https://firebasestorage.googleapis.com/v0/b/hhr-pruebas.firebasestorage.app/o/prescriptions%2Fx.html?alt=media',
+      }).toString(),
+    })) as { statusCode: number; headers?: Record<string, string>; body: string };
+
+    expect(response.statusCode).toBe(415);
+    expect(response.headers?.['Content-Type']).toContain('application/json');
+    expect(response.body).not.toContain('<script>');
+    warnSpy.mockRestore();
   });
 
   it('falls back to the source image when optimization fails', async () => {
