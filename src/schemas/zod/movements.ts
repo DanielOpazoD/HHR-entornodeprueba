@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import { Specialty } from '@/types/domain/patientClassification';
 import { DischargeData, TransferData, CMAData, MovementProvenance } from '@/types/domain/movements';
 import {
@@ -35,7 +35,7 @@ const MovementProvenanceSharedSchema = {
   classifiedBy: NullableOptionalStringSchema,
 };
 
-export const MovementProvenanceSchema: z.ZodType<MovementProvenance, z.ZodTypeDef, unknown> =
+export const MovementProvenanceSchema: z.ZodType<MovementProvenance, unknown> =
   z.discriminatedUnion('source', [
     z.object({
       ...MovementProvenanceSharedSchema,
@@ -60,7 +60,7 @@ const MovementEpisodeFieldsSchema = {
   movementProvenance: nullableOptional(MovementProvenanceSchema),
 };
 
-export const DischargeDataSchema: z.ZodType<DischargeData, z.ZodTypeDef, unknown> = z
+export const DischargeDataSchema: z.ZodType<DischargeData, unknown> = z
   .object({
     ...MovementTombstoneFieldsSchema,
     ...MovementEpisodeFieldsSchema,
@@ -75,7 +75,7 @@ export const DischargeDataSchema: z.ZodType<DischargeData, z.ZodTypeDef, unknown
     diagnosis: DefaultEmptyStringSchema,
     specialty: NullableOptionalStringSchema,
     time: DefaultEmptyStringSchema,
-    status: z.enum(['Vivo', 'Fallecido']).default('Vivo'),
+    status: z.enum(['Vivo', 'Fallecido']).prefault('Vivo'),
     dischargeType: nullableOptional(z.enum(['Domicilio (Habitual)', 'Voluntaria', 'Fuga', 'Otra'])),
     dischargeTypeOther: NullableOptionalStringSchema,
     age: NullableOptionalStringSchema,
@@ -88,7 +88,7 @@ export const DischargeDataSchema: z.ZodType<DischargeData, z.ZodTypeDef, unknown
   })
   .passthrough();
 
-export const TransferDataSchema: z.ZodType<TransferData, z.ZodTypeDef, unknown> = z
+export const TransferDataSchema: z.ZodType<TransferData, unknown> = z
   .object({
     ...MovementTombstoneFieldsSchema,
     ...MovementEpisodeFieldsSchema,
@@ -116,7 +116,7 @@ export const TransferDataSchema: z.ZodType<TransferData, z.ZodTypeDef, unknown> 
   })
   .passthrough();
 
-export const CMADataSchema: z.ZodType<CMAData, z.ZodTypeDef, unknown> = z
+export const CMADataSchema: z.ZodType<CMAData, unknown> = z
   .object({
     ...MovementTombstoneFieldsSchema,
     ...MovementEpisodeFieldsSchema,
@@ -128,10 +128,10 @@ export const CMADataSchema: z.ZodType<CMAData, z.ZodTypeDef, unknown> = z
     diagnosis: DefaultEmptyStringSchema,
     specialty: z
       .union([z.nativeEnum(Specialty), StringSchema.transform(value => value.trim())])
-      .default(Specialty.EMPTY),
+      .prefault(Specialty.EMPTY),
     interventionType: z
       .enum(['Cirugía Mayor Ambulatoria', 'Procedimiento Médico Ambulatorio'])
-      .default('Cirugía Mayor Ambulatoria'),
+      .prefault('Cirugía Mayor Ambulatoria'),
     dischargeTime: NullableOptionalStringSchema,
     enteredBy: NullableOptionalStringSchema,
     timestamp: NullableOptionalStringSchema,

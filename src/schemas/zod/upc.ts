@@ -1,14 +1,14 @@
-import { z } from 'zod';
+import * as z from 'zod';
 
 /** Restore No UPC after legacy null normalization; retain optional legacy audit data. */
 const UpcEvaluationSnapshotSchema = z
   .object({
     evaluationId: z.string().optional(),
     criterionLabels: z.array(z.string()).optional(),
-    uciCriteria: z.array(z.string()).default([]),
-    utiCriteria: z.array(z.string()).default([]),
-    classification: z.enum(['UPC_UCI', 'UPC_UTI']).nullable().default(null),
-    evaluatedAt: z.string().default(''),
+    uciCriteria: z.array(z.string()).prefault([]),
+    utiCriteria: z.array(z.string()).prefault([]),
+    classification: z.enum(['UPC_UCI', 'UPC_UTI']).nullable().prefault(null),
+    evaluatedAt: z.string().prefault(''),
     evaluatedBy: z.object({ uid: z.string(), displayName: z.string() }).optional(),
     evaluatedForDate: z.string().optional(),
     evaluatedBedId: z.string().optional(),

@@ -1,5 +1,5 @@
 import { RayenSyncDiagnosticContextSchema } from './rayenSyncDiagnosticContext';
-import { z } from 'zod';
+import * as z from 'zod';
 import { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   DATE_REGEX,
@@ -41,7 +41,7 @@ const MedicalSpecialtyHandoffNoteSchema = z.object({
   updatedAt: StringSchema,
   author: MedicalHandoffActorSchema,
   lastEditor: nullableOptional(MedicalHandoffActorSchema),
-  version: z.number().default(1),
+  version: z.number().prefault(1),
   dailyContinuity: nullableOptional(
     z.record(StringSchema, MedicalHandoffDailyContinuityEntrySchema)
   ),
@@ -59,12 +59,12 @@ const DetailedStaffAssignmentSchema = z.object({
 
 const DailyRecordStaffingDetailsSchema = z.object({
   day: z.object({
-    nurses: z.array(DetailedStaffAssignmentSchema).default([]),
-    tens: z.array(DetailedStaffAssignmentSchema).default([]),
+    nurses: z.array(DetailedStaffAssignmentSchema).prefault([]),
+    tens: z.array(DetailedStaffAssignmentSchema).prefault([]),
   }),
   night: z.object({
-    nurses: z.array(DetailedStaffAssignmentSchema).default([]),
-    tens: z.array(DetailedStaffAssignmentSchema).default([]),
+    nurses: z.array(DetailedStaffAssignmentSchema).prefault([]),
+    tens: z.array(DetailedStaffAssignmentSchema).prefault([]),
   }),
 });
 
@@ -165,7 +165,7 @@ const RayenSyncStructuralReviewSchema = z.object({
         z.object({
           // Legacy null normalization removes explicit nulls. A bed-less structural conflict
           // must still survive the daily-record read as a nullable, privacy-safe issue.
-          bedId: StringSchema.nullable().default(null),
+          bedId: StringSchema.nullable().prefault(null),
           diagnostic: RayenSyncDiagnosticContextSchema,
           caseContext: nullableOptional(
             z
@@ -252,7 +252,7 @@ export const RayenBedCollisionResolutionReceiptSchema = z.object({
   ]),
 });
 
-export const DailyRecordSchema: z.ZodType<DailyRecord, z.ZodTypeDef, unknown> = z.preprocess(
+export const DailyRecordSchema: z.ZodType<DailyRecord, unknown> = z.preprocess(
   input => {
     if (!input || typeof input !== 'object' || Array.isArray(input)) {
       return input;
@@ -265,7 +265,7 @@ export const DailyRecordSchema: z.ZodType<DailyRecord, z.ZodTypeDef, unknown> = 
   z
     .object({
       date: StringSchema.regex(DATE_REGEX),
-      beds: z.record(StringSchema, PatientDataSchema).default({}),
+      beds: z.record(StringSchema, PatientDataSchema).prefault({}),
       bedTypeOverrides: z
         .preprocess(
           val => {
@@ -279,11 +279,11 @@ export const DailyRecordSchema: z.ZodType<DailyRecord, z.ZodTypeDef, unknown> = 
           },
           z.record(StringSchema, BedTypeSchema)
         )
-        .default({}),
+        .prefault({}),
       discharges: nullishDefault(z.array(DischargeDataSchema), () => []),
       transfers: nullishDefault(z.array(TransferDataSchema), () => []),
       cma: nullishDefault(z.array(CMADataSchema), () => []),
-      lastUpdated: StringSchema.default(() => new Date().toISOString()),
+      lastUpdated: StringSchema.prefault(() => new Date().toISOString()),
       rayenSync: nullableOptional(RayenSyncMetaSchema),
       rayenSyncHistory: nullableOptional(z.array(RayenSyncEventSchema)),
       rayenBedCollisionResolutions: nullableOptional(
@@ -294,7 +294,7 @@ export const DailyRecordSchema: z.ZodType<DailyRecord, z.ZodTypeDef, unknown> = 
       // dropped (and never sends the whole day to the salvage path).
       clinicalDerivedLayout: nullableOptional(z.unknown()),
       dateTimestamp: nullableOptional(z.number()),
-      schemaVersion: z.number().default(1),
+      schemaVersion: z.number().prefault(1),
       nurses: nullishDefault(z.array(StringSchema), () => ['', '']),
       nurseName: NullableOptionalStringSchema,
       nursesDayShift: nullishDefault(z.array(StringSchema), () => ['', '']),
@@ -309,7 +309,7 @@ export const DailyRecordSchema: z.ZodType<DailyRecord, z.ZodTypeDef, unknown> = 
           escalaRiesgoCaidas: nullableOptional(z.boolean()),
           escalaRiesgoLPP: nullableOptional(z.boolean()),
         })
-        .default({}),
+        .prefault({}),
       handoffNightChecklist: z
         .object({
           estadistica: nullableOptional(z.boolean()),
@@ -320,7 +320,7 @@ export const DailyRecordSchema: z.ZodType<DailyRecord, z.ZodTypeDef, unknown> = 
           conteoNoControlados: nullableOptional(z.boolean()),
           conteoNoControladosProximaFecha: NullableOptionalStringSchema,
         })
-        .default({}),
+        .prefault({}),
       handoffNovedadesDayShift: NullableOptionalStringSchema,
       handoffNovedadesNightShift: NullableOptionalStringSchema,
       medicalHandoffNovedades: NullableOptionalStringSchema,

@@ -813,3 +813,12 @@ despliegue. No omitir el control ni ampliar permisos. **Rollback:** revertir est
 bloque restaura el workflow anterior; no modifica datos clínicos ni IAM.
 
 Referencia de cola: [concurrencia de GitHub Actions](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency).
+
+### Compatibilidad tras actualizar Zod y Firebase CLI
+
+El gate de dependencias debe aprobar root y Functions sin nuevas excepciones.
+Probar defaults y opcionales de días/pacientes, reparación legacy, respaldos,
+contratos serverless y lecturas de documentos por episodio. El pack de confianza
+y `ci:release-gate` ejercitan el CLI actualizado con emuladores y entradas sintéticas.
+Conservar scorecard y auditoría del commit final; una prueba focalizada no reemplaza
+los controles pendientes ni acredita un despliegue.

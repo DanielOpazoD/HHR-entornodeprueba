@@ -246,3 +246,17 @@ hallazgos originales de braces y su aviso visible. Actualizar la huella del
 lockfile exige comprobar los siete nodos previamente autorizados y no permite
 aceptar nuevos avisos altos o críticos. La instalación, Storybook, TypeDoc y
 `ci:merge-gate` complementan las regresiones del control de auditoría.
+
+### Migración de Zod y corrección de body-parser (2026-10-24)
+
+Usar Zod 4.6.7 y su API de tipos/resultados. `prefault` conserva el parseo de los
+defaults de Zod 3; no cambiarlo por un retorno inmediato que omita transformaciones.
+Los tests de compatibilidad comprueban campos de episodio ausentes y rechazo de
+colecciones excesivas antes de inspeccionar cada elemento. La auditoría debe aprobar
+root y Functions sin extender la excepción histórica de braces. Firebase CLI
+15.34.1 usa Zod 4 y evita mantener Zod 3 transitivo. Verificar también body-parser
+1.20.9/2.4.0 en ambos lockfiles y los smokes/emuladores del CLI actualizado.
+
+Con esbuild, importar el namespace con `import * as z from 'zod'` permite eliminar
+exports no usados; importar el objeto `z` reexportado incorpora el namespace completo.
+Conservar los presupuestos existentes de Functions y comprobar sus artefactos reales.

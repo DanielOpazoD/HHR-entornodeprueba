@@ -107,3 +107,9 @@ Para cambios en el recuento audiovisual, comprobar carga inicial, fallo inicial,
 cero confirmado, actualización fallida con dato anterior y cambio de episodio.
 El texto accesible y el indicador visible deben reflejar el resultado de lectura;
 la galería sigue disponible mientras el recuento está pendiente o no disponible.
+
+Una actualización mayor del validador compartido exige probar defaults, ausencia
+de opcionales, reparación de datos legacy, respaldo y documentos por episodio,
+además de contratos serverless. Verificar la corrección de colecciones excesivas
+con entradas sintéticas y conservar los límites de lectura/escritura de la migración.
+La auditoría de ambos árboles debe aprobar antes de integrar las dependencias.

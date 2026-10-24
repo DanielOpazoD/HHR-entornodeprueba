@@ -139,3 +139,16 @@ de desarrollo aprobados. Daniel retiró explícitamente el vencimiento el 12-10-
 para esperar una actualización oficial de braces. Se conservan
 los hallazgos originales y un aviso visible; otros riesgos siguen bloqueando.
 Owner, riesgo residual, rollback y validación: [registro de aceptación](BRACES_TEMPORARY_RISK_ACCEPTANCE.md).
+
+### Validadores y parsers de solicitudes (2026-10-24)
+
+Owner: `platform`, con revisión de `storage` y `backup` para los contratos de datos.
+Motivo: corregir GHSA-mrhx-c7xc-m3w5 y GHSA-27r3-jxmh-p828.
+Targets: Zod 4.6.7, Firebase CLI 15.34.1, body-parser 1.20.9/2.4.0 según su rama
+y qs 6.16.1, compatible con el parser actualizado.
+Riesgo: alto por el cambio mayor del validador compartido; conservar defaults,
+campos opcionales, lectura de días legacy/marcados y validación de respaldos.
+Rollback: revertir el cambio completo de dependencias y adaptadores; restaurar
+versiones vulnerables vuelve a bloquear la auditoría y no constituye cierre del incidente.
+Gates: `typecheck`, `lint`, `ci:release-gate`, `test:release-confidence` y
+`check:dependency-vulnerabilities`, con scorecard del commit final.

@@ -25,7 +25,7 @@ import {
   subscribeToCurrentShift,
 } from '@/services/integrations/whatsapp/whatsappShiftStore';
 import { whatsappServiceLogger } from '@/services/integrations/integrationLoggers';
-import { z } from 'zod';
+import * as z from 'zod';
 
 export type { MessageTemplate };
 

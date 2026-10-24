@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 
 import type { PatientData } from '@/types/domain/patient';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -10,12 +10,14 @@ import { DailyRecordSchema, FullBackupSchema } from './zod/dailyRecord';
 import { DischargeDataSchema, TransferDataSchema } from './zod/movements';
 import type { ValidationResult } from './zodParseReports';
 
-const toValidationResult = <T>(result: z.SafeParseReturnType<unknown, T>): ValidationResult<T> =>
+const toValidationResult = <T>(result: z.ZodSafeParseResult<T>): ValidationResult<T> =>
   result.success
     ? { success: true, data: result.data }
     : {
         success: false,
-        errors: result.error.errors.map(error => `${error.path.join('.')}: ${error.message}`),
+        errors: result.error.issues.map(
+          error => `${error.path.map(String).join('.')}: ${error.message}`
+        ),
       };
 
 export const validatePatientData = (data: unknown): ValidationResult<PatientData> =>
