@@ -11,6 +11,7 @@ import { updatePartialDetailed } from '@/services/repositories/dailyRecordReposi
 import { resolveRemoteWriteRecovery } from '@/services/repositories/dailyRecordRemoteWriteController';
 import { applyOptimisticDailyRecordPatch } from '@/hooks/controllers/dailyRecordQueryController';
 import { DataFactory } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
@@ -112,22 +113,35 @@ describe('a stale-base patch applies on top of the pending local projection', ()
   it('keeps sequential edits of one tab whose base is its optimistic copy', async () => {
     const base = baseRecord();
     await hospitalDB.dailyRecords.put(base);
-    const first: DailyRecordPatch = { nursesDayShift: ['SINTETICA ESCRIBE'] };
-    const second: DailyRecordPatch = { nursesDayShift: ['SINTETICA ESCRIBE MAS'] };
-    const third: DailyRecordPatch = { tensDayShift: ['SINTETICO TURNO'] };
+    const admitted = DataFactory.createMockPatient('R2', {
+      patientName: 'PACIENTE SINTETICO MOVIDO',
+      rut: '33.333.333-3',
+      admissionDate: '2026-10-24',
+    });
+    const patches: DailyRecordPatch[] = [
+      // Saving drops the empty slot; the optimistic copy keeps it.
+      { nursesDayShift: ['SINTETICA ESCRIBE', ''] },
+      { nursesDayShift: ['SINTETICA ESCRIBE', 'SINTETICA DOS'] },
+      // Saving adds derived fields to a whole bed; the optimistic copy lacks them.
+      { 'beds.R2': admitted },
+      { 'beds.R3': { ...admitted, bedId: 'R3' }, 'beds.R2': createEmptyPatient('R2') },
+      { tensDayShift: ['SINTETICO TURNO'] },
+    ];
 
     // The UI keeps patching its optimistic cache, whose version never equals the projection's.
     let optimistic = base;
-    for (const patch of [first, second, third]) {
+    for (const patch of patches) {
       const result = await updatePartialDetailed(date, patch, { baseRecord: optimistic });
       expect(result.savedLocally).toBe(true);
       optimistic = applyOptimisticDailyRecordPatch(optimistic, patch);
     }
 
-    expect((await projection())?.nursesDayShift).toEqual(['SINTETICA ESCRIBE MAS']);
-    expect((await projection())?.tensDayShift).toEqual(['SINTETICO TURNO']);
-    expect((await pendingPayload())?.nursesDayShift).toEqual(['SINTETICA ESCRIBE MAS']);
-    expect((await pendingPayload())?.tensDayShift).toEqual(['SINTETICO TURNO']);
+    for (const record of [await projection(), await pendingPayload()]) {
+      expect(record?.nursesDayShift).toEqual(['SINTETICA ESCRIBE', 'SINTETICA DOS']);
+      expect(record?.beds.R3.patientName).toBe('PACIENTE SINTETICO MOVIDO');
+      expect(record?.beds.R2.patientName).toBe('');
+      expect(record?.tensDayShift).toEqual(['SINTETICO TURNO']);
+    }
   });
 
   it('rejects a stale edit of the same field instead of erasing the accepted one', async () => {

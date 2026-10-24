@@ -27,20 +27,23 @@ export const buildPendingProjectionRebase =
     patch: DailyRecordPatch;
   }): DailyRecordPendingProjectionRebase =>
   ({ projection, pendingChangedPaths }) => {
+    if (baseRecord.lastUpdated === projection.lastUpdated) return null;
+    // Compare with the base as it would have been stored: saving drops empty staffing slots and
+    // derives bed fields, so a tab's own optimistic copy must not read as another tab's change.
+    const storedBase = preparePatchedRecordForPersistence(baseRecord, baseRecord.date, {}).record;
     if (
-      baseRecord.lastUpdated === projection.lastUpdated ||
-      (!isOpaqueChangedPaths(pendingChangedPaths) &&
-        carriesProjectionValuesAt(baseRecord, projection, pendingChangedPaths))
+      !isOpaqueChangedPaths(pendingChangedPaths) &&
+      carriesProjectionValuesAt(storedBase, projection, pendingChangedPaths)
     ) {
       return null;
     }
 
     const rebasedPatch: DailyRecordPatch = {};
     Object.entries(patch).forEach(([path, value]) => {
-      assertSameOccupantAtPath(path, baseRecord, projection);
+      assertSameOccupantAtPath(path, storedBase, projection);
       const projected = readRecordPath(projection, path);
       if (
-        isSameRecordValue(readRecordPath(baseRecord, path), projected) ||
+        isSameRecordValue(readRecordPath(storedBase, path), projected) ||
         isSameRecordValue(value, projected)
       ) {
         rebasedPatch[path] = value;
