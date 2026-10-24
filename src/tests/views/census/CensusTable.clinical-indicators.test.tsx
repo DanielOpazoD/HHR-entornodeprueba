@@ -19,6 +19,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useCensusActionCommands } from '@/features/census/context/censusActionContexts';
 import { CensusTable } from '@/features/census/components/CensusTable';
 import { useClinicalDocumentPresenceByBed } from '@/features/census/hooks/useClinicalDocumentPresenceByBed';
+import { useClinicalDerivedEpisodeGeneration } from '@/features/census/components/patient-row/clinicalDerivedDayContext';
 import { DataFactory } from '../../factories/DataFactory';
 
 vi.mock('@/features/census/context/censusActionContexts', () => ({
@@ -103,6 +104,19 @@ vi.mock('@/components/ui/ResizableHeader', () => ({
 }));
 
 const asContextReturn = <T,>(value: Partial<T>): T => value as T;
+
+/** Renders which marker generation the census table hands to each row's episode. */
+function GenerationProbeRow(props: unknown) {
+  const { data } = props as { data?: { clinicalEpisodeId?: string } };
+  const generation = useClinicalDerivedEpisodeGeneration(data?.clinicalEpisodeId);
+  return (
+    <tr
+      data-testid="patient-row"
+      data-episode={data?.clinicalEpisodeId}
+      data-generation={generation ?? 'none'}
+    />
+  );
+}
 
 describe('CensusTable clinical indicators', () => {
   const mockRecord = DataFactory.createMockDailyRecord('2025-01-08', {
@@ -324,5 +338,56 @@ describe('CensusTable clinical indicators', () => {
         );
       })
     ).toBe(true);
+  });
+
+  describe('split-day marker for the vitals window (D10)', () => {
+    const GENERATION = 'gen_synthetic_a';
+    const beds = {
+      R1: DataFactory.createMockPatient('R1', { clinicalEpisodeId: 'ep_single' }),
+      R2: DataFactory.createMockPatient('R2', { clinicalEpisodeId: 'ep_repeated' }),
+      R3: DataFactory.createMockPatient('R3', { clinicalEpisodeId: 'ep_repeated' }),
+    };
+    const renderWithRecord = (date: string, marked: boolean) => {
+      vi.mocked(useDailyRecordData).mockReturnValue(
+        asContextReturn<ReturnType<typeof useDailyRecordData>>({
+          record: DataFactory.createMockDailyRecord(date, {
+            beds,
+            ...(marked ? { clinicalDerivedLayout: { version: 1, generation: GENERATION } } : {}),
+          }),
+        })
+      );
+      vi.mocked(useDailyRecordBeds).mockReturnValue(
+        asContextReturn<ReturnType<typeof useDailyRecordBeds>>(beds)
+      );
+      patientRowMock.mockImplementation(GenerationProbeRow);
+      const { container, unmount } = render(<CensusTable currentDateString="2025-01-08" />);
+      const generations = Object.fromEntries(
+        [...container.querySelectorAll('[data-testid="patient-row"]')].map(row => [
+          row.getAttribute('data-episode'),
+          row.getAttribute('data-generation'),
+        ])
+      );
+      unmount();
+      return generations;
+    };
+
+    afterEach(() => {
+      patientRowMock.mockImplementation(() => <tr data-testid="patient-row" />);
+    });
+
+    it("hands the marked day's generation to rows, except to an episode active twice", () => {
+      expect(renderWithRecord('2025-01-08', true)).toEqual({
+        ep_single: GENERATION,
+        ep_repeated: 'none',
+      });
+    });
+
+    it('hands nothing on an unmarked day or for a record of another date', () => {
+      expect(renderWithRecord('2025-01-08', false)).toEqual({
+        ep_single: 'none',
+        ep_repeated: 'none',
+      });
+      expect(renderWithRecord('2025-01-07', true)).toMatchObject({ ep_single: 'none' });
+    });
   });
 });

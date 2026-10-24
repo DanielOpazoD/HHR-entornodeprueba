@@ -15,10 +15,16 @@ import { getRecordForDateStrict } from '@/services/storage/indexeddb/indexedDbRe
 import { isClinicalDerivedLayoutRegression } from '@/services/storage/clinicalDerivedImportGuard';
 import {
   createApplicationFailed,
+  createApplicationPartial,
   createApplicationSuccess,
 } from '@/shared/contracts/applicationOutcomeFactories';
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
 
+import {
+  buildClinicalDerivedBackupSection,
+  describeIncompleteClinicalDerivedBackup,
+  type ClinicalDerivedBackupSection,
+} from '@/services/exporters/clinicalDerivedBackupSection';
 import {
   DATA_MAINTENANCE_MONTH_NAMES,
   downloadJsonBackup,
@@ -35,6 +41,8 @@ export interface MonthBackup {
   month: number;
   recordCount: number;
   records: DailyRecord[];
+  /** Episode documents of split days; present only when a day is marked, never imported. */
+  clinicalDerived?: ClinicalDerivedBackupSection;
 }
 
 export interface YearToDateBackup {
@@ -44,6 +52,7 @@ export interface YearToDateBackup {
   throughDate: string;
   recordCount: number;
   records: DailyRecord[];
+  clinicalDerived?: ClinicalDerivedBackupSection;
 }
 
 export interface BackupImportResult {
@@ -54,11 +63,29 @@ export interface BackupImportResult {
 }
 
 export interface DataMaintenanceExportResult {
-  status: 'success' | 'failed';
-  reason: 'no_records' | 'unknown';
+  /** `partial`: the file was written, but some split days lack their episode documents. */
+  status: 'success' | 'partial' | 'failed';
+  reason: 'no_records' | 'clinical_derived_incomplete' | 'unknown';
   userSafeMessage: string;
   recordCount: number;
 }
+
+/** The result of a written backup: partial when its clinicalDerived section lists unread days. */
+const completedExportResult = (
+  clinicalDerived: ClinicalDerivedBackupSection | undefined,
+  userSafeMessage: string,
+  recordCount: number
+): DataMaintenanceExportResult => {
+  const incomplete = describeIncompleteClinicalDerivedBackup(clinicalDerived);
+  return incomplete?.userSafeMessage
+    ? {
+        status: 'partial',
+        reason: 'clinical_derived_incomplete',
+        userSafeMessage: incomplete.userSafeMessage,
+        recordCount,
+      }
+    : { status: 'success', reason: 'unknown', userSafeMessage, recordCount };
+};
 
 const toDataMaintenanceOutcome = (
   result: DataMaintenanceExportResult
@@ -68,22 +95,37 @@ const toDataMaintenanceOutcome = (
         reason: result.reason,
         userSafeMessage: result.userSafeMessage,
       })
-    : createApplicationFailed(
-        null,
-        [
+    : result.status === 'partial'
+      ? createApplicationPartial(
+          result,
+          [
+            {
+              kind: 'unknown',
+              code: result.reason,
+              message: result.userSafeMessage,
+              userSafeMessage: result.userSafeMessage,
+              severity: 'warning',
+              retryable: true,
+            },
+          ],
+          { reason: result.reason, userSafeMessage: result.userSafeMessage, severity: 'warning' }
+        )
+      : createApplicationFailed(
+          null,
+          [
+            {
+              kind: result.reason === 'no_records' ? 'not_found' : 'unknown',
+              message: result.userSafeMessage,
+              userSafeMessage: result.userSafeMessage,
+              severity: 'warning',
+            },
+          ],
           {
-            kind: result.reason === 'no_records' ? 'not_found' : 'unknown',
-            message: result.userSafeMessage,
+            reason: result.reason,
             userSafeMessage: result.userSafeMessage,
             severity: 'warning',
-          },
-        ],
-        {
-          reason: result.reason,
-          userSafeMessage: result.userSafeMessage,
-          severity: 'warning',
-        }
-      );
+          }
+        );
 
 const exportMonthRecordsInternal = async (
   year: number,
@@ -102,6 +144,7 @@ const exportMonthRecordsInternal = async (
       };
     }
 
+    const clinicalDerived = await buildClinicalDerivedBackupSection(records);
     const backup: MonthBackup = {
       version: '1.0',
       exportDate: new Date().toISOString(),
@@ -109,6 +152,7 @@ const exportMonthRecordsInternal = async (
       month,
       recordCount: records.length,
       records,
+      ...(clinicalDerived ? { clinicalDerived } : {}),
     };
 
     const monthName = DATA_MAINTENANCE_MONTH_NAMES[month - 1];
@@ -121,12 +165,11 @@ const exportMonthRecordsInternal = async (
       month,
       recordCount: records.length,
     });
-    return {
-      status: 'success',
-      reason: 'unknown',
-      userSafeMessage: 'Respaldo generado correctamente.',
-      recordCount: records.length,
-    };
+    return completedExportResult(
+      clinicalDerived,
+      'Respaldo generado correctamente.',
+      records.length
+    );
   } catch (error) {
     dataMaintenanceLogger.error('Monthly export failed', error);
     return {
@@ -160,6 +203,7 @@ const exportYearToDateRecordsInternal = async (
       };
     }
 
+    const clinicalDerived = await buildClinicalDerivedBackupSection(records);
     const backup: YearToDateBackup = {
       version: '1.0',
       exportDate: new Date().toISOString(),
@@ -167,6 +211,7 @@ const exportYearToDateRecordsInternal = async (
       throughDate: endDate,
       recordCount: records.length,
       records,
+      ...(clinicalDerived ? { clinicalDerived } : {}),
     };
 
     const suffix = resolveYearToDateFileSuffix(year, now);
@@ -179,12 +224,11 @@ const exportYearToDateRecordsInternal = async (
       recordCount: records.length,
       exportScope: 'year-to-date',
     });
-    return {
-      status: 'success',
-      reason: 'unknown',
-      userSafeMessage: 'Respaldo anual generado correctamente.',
-      recordCount: records.length,
-    };
+    return completedExportResult(
+      clinicalDerived,
+      'Respaldo anual generado correctamente.',
+      records.length
+    );
   } catch (error) {
     dataMaintenanceLogger.error('Year-to-date export failed', error);
     return {

@@ -1,5 +1,8 @@
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
-import { CLINICAL_DERIVED_MOVED_FIELDS } from '@/services/storage/clinicalDerivedConstants';
+import {
+  CLINICAL_DERIVED_LAYOUT_FIELD,
+  CLINICAL_DERIVED_MOVED_FIELDS,
+} from '@/services/storage/clinicalDerivedConstants';
 
 /**
  * Measures how big each day's census document is and how often a device receives a new
@@ -128,7 +131,12 @@ export const observeDailyRecordServerSnapshot = (
           }
         : {}),
       date,
-      context: { ...size, count: state.count },
+      // A split day (phase 1a) keeps its episodes' moved fields in their own documents.
+      context: {
+        ...size,
+        count: state.count,
+        splitDay: data[CLINICAL_DERIVED_LAYOUT_FIELD] != null,
+      },
     },
     { allowSuccess: true }
   );

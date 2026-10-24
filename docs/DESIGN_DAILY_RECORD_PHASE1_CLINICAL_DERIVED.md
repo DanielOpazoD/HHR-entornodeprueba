@@ -1,6 +1,7 @@
 # Diseño fase 1: datos clínicos derivados fuera del registro del día
 
-**Estado:** Aprobada (2026-10-23). En implementación, en el orden del plan de PR.
+**Estado:** Aprobada (2026-10-23). P3 (#997), P4a (#1002), P5 (#1003) y este P4b están en el
+código, todo sin activar. La activación (P6) la hace el responsable.
 **Ámbito:** fase 1a de `ADR_DAILY_RECORD_DOCUMENT_GRANULARITY.md`.
 **Relacionado:** `ADR_DAILY_CENSUS_CLINICAL_DATA_OWNERSHIP.md`,
 `ADR_DAILY_CENSUS_TRUTH_CONTRACT.md`, `ADR_CONFLICT_VERSION_RECOVERY.md`,
@@ -197,9 +198,17 @@ Cómo cambia cada escritor del servidor:
     - Lee el día del servidor (`getAuthoritativeForDate`), no con la lectura habitual, que puede
       venir de la caché y repetir el desfase. Luego, si está marcado, lee sus documentos del
       servidor; en `patchFreshClinicalRecord` basta el del episodio del parche.
+    - Excepción: `patchFreshClinicalRecord` sigue leyendo el día con la lectura habitual, porque
+      ese día también es la base de su escritura y deja a la vista de la reconstrucción las
+      ediciones locales pendientes que hoy la frenan. Su relectura usa esa misma lectura, y la
+      reconstrucción y la escritura usan siempre el mismo día; la verificación de versión exacta
+      del servidor rechaza una base atrasada.
     - Si un documento que cuenta trae `dayRevision` mayor que `meta.revision` del día, relee ambos
       una vez. Si sigue, falla cerrado como cuando hoy no carga el registro: mismo aviso y token de
-      reintento.
+      reintento. Esa falla cerrada (día atrasado, episodio repetido o marcador desconocido) queda en
+      `clinical_derived_read` con su motivo; las lecturas fallidas ya las reporta el lector.
+    - Una corrida que espera su política no lee documentos, y el refresco del día después de un
+      lote confirmado tampoco: solo relee el día.
     - El registro base que reciben las escrituras (`baseRecord` de `updatePartialDetailed`) nunca se
       superpone, porque se guarda en IndexedDB y en la cola.
     - `loadFreshClinicalRecord` no cambia: solo alimenta la auditoría y la revisión de dotación.
@@ -207,18 +216,31 @@ Cómo cambia cada escritor del servidor:
     - Al abrirse lee el documento de su episodio, sin listener y con la fuente por defecto del SDK.
     - Si el documento tiene `vitalSignsHistory`, gana (`null` = vacío). Si no, usa la copia
       embebida o el resumen.
-    - Sin conexión o ante cualquier error muestra lo mismo que hoy.
+    - Un episodio activo más de una vez en el día no lee su documento (D4).
+    - Sin conexión, si el SDK tiene el documento en su caché, lo muestra. Si no lo tiene, o ante
+      cualquier error, muestra lo mismo que hoy.
   - **Creación del día en el cliente** (`dailyRecordRepositoryInitializationService.ts`). Solo
     cuando el destino es hoy, superpone una copia del día fuente antes de sembrar el arrastre (mejor
     esfuerzo). Si falla, siembra como hoy. Solo se guarda el día nuevo.
   - **Herramienta de personal** (`recoverCensusStaff.ts`). En los días marcados lee todos los
     documentos de episodio y recorre cada uno como un paciente suelto, además del día.
+    - Un día que no se puede leer, o con un marcador que este cliente no entiende, no detiene la
+      búsqueda: el catálogo solo agrega nombres, así que se publica lo encontrado y el mensaje dice
+      cuántos días faltaron.
   - **Respaldos JSON** (el local de `exportService.ts` y los mensuales y anuales de
     `dataMaintenanceService.ts`).
     - La exportación agrega por día una sección `clinicalDerived` con los documentos de los días
       marcados, leídos del servidor. Un día que no se pudo leer queda indicado, no se omite.
+    - La sección va en la raíz del archivo (en el respaldo local, junto a las fechas) y solo
+      existe si hay días marcados: `{ [fecha]: { status: 'exported', layoutGeneration, docs } }`
+      o `{ status: 'unavailable', reason }`.
+    - Si algún día queda `unavailable`, el archivo se descarga igual, pero la exportación se
+      informa incompleta, con las fechas y la indicación de repetirla con conexión.
     - La importación no escribe esa sección y nunca reemplaza un registro local marcado más nuevo
-      por uno sin marcador.
+      por uno sin marcador (esto último lo hace P4a, en la higiene de escritura).
+    - Limitación conocida: un cliente anterior a P4 (por ejemplo, tras restaurar una publicación
+      anterior) leería la sección del respaldo local como un día más y guardaría en IndexedDB un
+      registro con fecha `clinicalDerived`. Los días reales no cambian.
 
 Piezas comunes del cliente:
 
@@ -229,11 +251,13 @@ Piezas comunes del cliente:
   - Nunca devuelve una lista vacía ante un error (`scripts/check-empty-on-failure-reads.mjs`).
   - No usa `logFirestoreQueryError`, que reporta la denegación al detector de tormentas de permisos
     y puede cerrar la sesión.
-- La superposición y el servicio de lectura se cargan con import dinámico.
+- La superposición y el servicio de lectura se cargan con import dinámico y quedan fuera del
+  precache de instalación: sin ellos, los lectores de mejor esfuerzo muestran lo embebido.
 - Costo de lectura en días marcados:
   - cada carga del relleno y cada `refreshRecord`: una lectura del día y una consulta de unos 13 a
     26 documentos;
-  - cada parche por paciente (modos `off` y `shadow`): una lectura del día y una del documento;
+  - cada parche por paciente (modos `off` y `shadow`): una lectura del día y una del documento
+    (dos de cada una si el documento va adelante);
   - cada apertura de la ventana: una lectura;
   - la herramienta de personal y las exportaciones: una consulta por día.
 

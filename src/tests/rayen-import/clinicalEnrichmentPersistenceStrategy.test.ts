@@ -97,11 +97,30 @@ describe('createClinicalEnrichmentPersistenceStrategy', () => {
     expect(rebuildOperations).not.toHaveBeenCalled();
     const request = applyBatch.mock.calls[0]?.[0];
     expect(request).toMatchObject({ record: initial, operations, refreshRecord, applyPatch });
+    expect(request).not.toHaveProperty('refreshCommittedRecord');
     expect(request.rebuildOperations(refreshed)).toBe(rebuilt);
     expect(rebuildOperations).toHaveBeenCalledWith({
       baseRecord: initial,
       currentRecord: refreshed,
       operations,
     });
+  });
+
+  it('hands a separate post-commit refresh to the batch when given one', async () => {
+    const applyBatch = vi.fn().mockResolvedValue({ patientWrites: 1, historySnapshots: 1 });
+    const refreshCommittedRecord = vi.fn();
+    const strategy = createClinicalEnrichmentPersistenceStrategy({
+      mode: 'enforced',
+      record: record('initial'),
+      runId: 'sync-enforced',
+      applyPatch: vi.fn(),
+      refreshRecord: vi.fn(),
+      refreshCommittedRecord,
+      applyBatch,
+    });
+
+    await strategy.persist(operations);
+
+    expect(applyBatch.mock.calls[0]?.[0].refreshCommittedRecord).toBe(refreshCommittedRecord);
   });
 });

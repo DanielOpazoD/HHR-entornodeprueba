@@ -7,9 +7,19 @@ import { isDailyRecordWriteRejectedResult } from '@/services/repositories/contra
 import type { RayenClinicalWriteGuard } from '@/types/domain/rayenSync';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import { rebuildClinicalEnrichmentOperations } from '../domain/rebuildClinicalEnrichmentOperations';
+import { readClinicalFillDerivedView } from './clinicalFillDerivedView';
 
 const isConcurrencyFailure = (error: unknown): boolean =>
   error instanceof Error && error.name === 'ConcurrencyError';
+
+const readFreshRecord = async (
+  dailyRecord: DailyRecordRepositoryPort,
+  date: string
+): Promise<DailyRecord> => {
+  const fresh = await dailyRecord.getForDateWithMeta(date, true);
+  if (!fresh.record) throw new Error('No se pudo obtener la versión vigente del censo.');
+  return fresh.record as DailyRecord;
+};
 
 const writeFreshClinicalPatch = async (
   dailyRecord: DailyRecordRepositoryPort,
@@ -18,12 +28,21 @@ const writeFreshClinicalPatch = async (
   writeGuard: RayenClinicalWriteGuard,
   baseRecord: DailyRecord
 ): Promise<void> => {
-  const fresh = await dailyRecord.getForDateWithMeta(target.censusDate, true);
-  if (!fresh.record) throw new Error('No se pudo obtener la versión vigente del censo.');
-  assertClinicalFillPatchTarget(fresh.record, target);
+  const freshRecord = await readFreshRecord(dailyRecord, target.censusDate);
+  assertClinicalFillPatchTarget(freshRecord, target);
+  // D10: on a split day the rebuild compares against this episode's server document. A document
+  // ahead of the day re-reads the day once, with this same read (it keeps pending local edits in
+  // view for the rebuild's conflict check), then fails closed. The rebuild and the write always
+  // share one day; the write base is never the overlaid view.
+  const current = await readClinicalFillDerivedView(
+    freshRecord,
+    () => readFreshRecord(dailyRecord, target.censusDate),
+    target.clinicalEpisodeId
+  );
+  if (current.day !== freshRecord) assertClinicalFillPatchTarget(current.day, target);
   const [operation] = rebuildClinicalEnrichmentOperations({
     baseRecord,
-    currentRecord: fresh.record,
+    currentRecord: current.record,
     operations: [{ patch, target }],
   });
   if (!operation) return;
@@ -32,7 +51,7 @@ const writeFreshClinicalPatch = async (
     target.censusDate,
     operation.patch,
     {
-      baseRecord: fresh.record,
+      baseRecord: current.day,
       historyPolicy: target.captureHistorySnapshot === false ? 'skip' : 'snapshot',
       rayenClinicalWriteGuard: writeGuard,
     }

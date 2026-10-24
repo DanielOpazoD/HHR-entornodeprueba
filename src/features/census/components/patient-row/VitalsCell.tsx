@@ -39,10 +39,20 @@ const GRID_CLASS =
 const READING_CLASS =
   'grid min-w-0 grid-cols-[18px_minmax(0,1fr)] items-baseline whitespace-nowrap';
 
-export const VitalsCell: React.FC<BaseCellProps> = ({
+interface VitalsCellProps extends BaseCellProps {
+  /** Census day, episode and marker generation: on a split day the window reads its document. */
+  date?: string;
+  clinicalEpisodeId?: string;
+  layoutGeneration?: string;
+}
+
+export const VitalsCell: React.FC<VitalsCellProps> = ({
   data,
   isSubRow = false,
   isEmpty = false,
+  date,
+  clinicalEpisodeId,
+  layoutGeneration,
 }) => {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
@@ -105,12 +115,12 @@ export const VitalsCell: React.FC<BaseCellProps> = ({
           <VitalsDetailModal
             patientName={data.patientName}
             vitals={vitals}
-            history={
-              data.vitalSignsHistory?.length
-                ? data.vitalSignsHistory
-                : data.vitalSigns
-                  ? [data.vitalSigns]
-                  : []
+            vitalSignsHistory={data.vitalSignsHistory}
+            latestReading={data.vitalSigns}
+            episodeDocument={
+              date && clinicalEpisodeId && layoutGeneration
+                ? { date, clinicalEpisodeId, layoutGeneration }
+                : undefined
             }
             age={data.age}
             birthDate={data.birthDate}

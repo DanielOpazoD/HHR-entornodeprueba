@@ -50,6 +50,8 @@ interface ApplyClinicalEnrichmentBatchInput {
   applyPatch: (operation: ClinicalFillPatchOperation) => Promise<void>;
   /** Must read server authority, without merging pending local projections. */
   refreshRecord: () => Promise<DailyRecord>;
+  /** Local refresh after a committed batch; its result is unused. Defaults to `refreshRecord`. */
+  refreshCommittedRecord?: () => Promise<unknown>;
   invoke?: typeof callRayenClinicalEnrichmentBatch;
   createMutationId?: () => string;
 }
@@ -117,6 +119,7 @@ export const applyClinicalEnrichmentBatch = async ({
   rebuildOperations,
   applyPatch,
   refreshRecord,
+  refreshCommittedRecord = refreshRecord,
   invoke = callRayenClinicalEnrichmentBatch,
   createMutationId = createSyncMutationId,
 }: ApplyClinicalEnrichmentBatchInput): Promise<ClinicalFillBatchApplyResult> => {
@@ -360,7 +363,7 @@ export const applyClinicalEnrichmentBatch = async ({
       batchEvidence.push(checked.batch);
 
       try {
-        await refreshRecord();
+        await refreshCommittedRecord();
       } catch (error) {
         reportRayenSyncWarning('clinical_batch_local_refresh_deferred', {
           runId,

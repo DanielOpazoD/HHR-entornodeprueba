@@ -27,6 +27,27 @@ const baseRecord = (): DailyRecord =>
   }) as DailyRecord;
 
 describe('clinical batches share the census write turn', () => {
+  it('refreshes a committed batch with its own reader; the write-turn read stays the rebuild input', async () => {
+    const deps = createDependencies();
+    const refreshCommittedRecord = vi.fn().mockResolvedValue(undefined);
+
+    await applyClinicalEnrichmentBatch({
+      mode: 'enforced',
+      record,
+      runId: 'run-committed-refresh',
+      operations,
+      ...deps,
+      refreshCommittedRecord,
+    });
+
+    expect(deps.invoke).toHaveBeenCalledOnce();
+    expect(deps.refreshRecord).toHaveBeenCalledOnce();
+    expect(refreshCommittedRecord).toHaveBeenCalledOnce();
+    expect(refreshCommittedRecord.mock.invocationCallOrder[0]).toBeGreaterThan(
+      deps.invoke.mock.invocationCallOrder[0]!
+    );
+  });
+
   it('revalidates after a preceding manual write and keeps its specialty decision', async () => {
     const base = baseRecord();
     let current = base;

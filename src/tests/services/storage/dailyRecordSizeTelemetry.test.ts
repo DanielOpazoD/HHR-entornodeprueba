@@ -154,10 +154,27 @@ describe('daily record size telemetry', () => {
         movementDerivedBytes: event.context.movementDerivedBytes,
         occupiedCount: 1,
         count: 1,
+        splitDay: false,
       },
       droppedContextKeys: [],
     });
     // Only sizes and counts leave the device, never patient data.
     expect(JSON.stringify(event)).not.toMatch(/Sintético|11\.111\.111-1/);
+  });
+
+  it('says whether the day is split (phase 1a marker), through the privacy allowlist', async () => {
+    const { observeDailyRecordServerSnapshot } = await loadTelemetry();
+    observeDailyRecordServerSnapshot(
+      '2026-10-23',
+      syntheticDay('v1', { clinicalDerivedLayout: { version: 1, generation: 'gen_synthetic' } })
+    );
+    observeDailyRecordServerSnapshot('2026-10-24', syntheticDay('v1'));
+    const [[split], [unsplit]] = recordOperationalTelemetry.mock.calls;
+
+    expect(split.context.splitDay).toBe(true);
+    expect(unsplit.context.splitDay).toBe(false);
+    expect(
+      sanitizeOperationalTelemetryEvent({ ...split, timestamp: '2026-10-23T08:00:00.000Z' })
+    ).toMatchObject({ context: { splitDay: true }, droppedContextKeys: [] });
   });
 });

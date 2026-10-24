@@ -1,10 +1,19 @@
 import React from 'react';
-import { AlertCircle, ChevronDown, Database, Download, FileJson, ShieldCheck } from 'lucide-react';
+import {
+  AlertCircle,
+  AlertTriangle,
+  ChevronDown,
+  Database,
+  Download,
+  FileJson,
+  ShieldCheck,
+} from 'lucide-react';
 import clsx from 'clsx';
 
 interface DataMaintenanceExportCardProps {
   isExporting: boolean;
   exportError: string | null;
+  exportWarning: string | null;
   exportSuccess: boolean;
   exportingScope: 'month' | 'year' | null;
   selectedYear: number;
@@ -19,6 +28,7 @@ interface DataMaintenanceExportCardProps {
 export const DataMaintenanceExportCard: React.FC<DataMaintenanceExportCardProps> = ({
   isExporting,
   exportError,
+  exportWarning,
   exportSuccess,
   exportingScope,
   selectedYear,
@@ -87,9 +97,21 @@ export const DataMaintenanceExportCard: React.FC<DataMaintenanceExportCardProps>
 
     <div className="mt-auto space-y-4">
       {exportError && (
-        <div className="flex items-center gap-2 rounded-xl border border-rose-100 bg-rose-50 p-3 text-xs font-bold text-rose-700">
+        <div
+          role="alert"
+          className="flex items-center gap-2 rounded-xl border border-rose-100 bg-rose-50 p-3 text-xs font-bold text-rose-700"
+        >
           <AlertCircle size={14} />
           {exportError}
+        </div>
+      )}
+      {exportWarning && (
+        <div
+          role="status"
+          className="flex items-center gap-2 rounded-xl border border-amber-100 bg-amber-50 p-3 text-xs font-bold text-amber-800"
+        >
+          <AlertTriangle size={14} className="shrink-0" />
+          {exportWarning}
         </div>
       )}
       {exportSuccess && (

@@ -13,10 +13,13 @@ import { defaultFirestoreServiceRuntime as runtime } from '@/services/storage/fi
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { getAllRecords } from '@/services/storage/indexeddb/indexedDbRecordService';
 import type { DailyRecord } from '@/services/contracts/dailyRecordServiceContracts';
-import { collectCensusStaff } from './censusStaffDiscovery';
+import { collectCensusStaff, collectClinicalDerivedStaff } from './censusStaffDiscovery';
 import { mergeEloisaStaff } from './eloisaStaffDiscovery';
 import { saveDiscoveredStaff } from './eloisaStaffRegistry';
 import type { EloisaStaffIdentity } from './eloisaStaffIdentity';
+
+type ClinicalDerivedReadServiceModule =
+  typeof import('@/services/repositories/dailyRecordClinicalDerivedReadService');
 
 export const recoverCensusStaff = async (
   progress: (count: number) => void,
@@ -32,6 +35,24 @@ export const recoverCensusStaff = async (
     if (record.date) dates.add(record.date);
     progress(dates.size);
   };
+  let derivedReads: ClinicalDerivedReadServiceModule | undefined;
+  const unreadSplitDays: string[] = [];
+  // A split day keeps vitals authors in its episode documents (phase 1a, D10): read them all from
+  // the server. The registry only adds names, so a day that cannot be read is reported, not fatal.
+  const ingestClinicalDerived = async (record: Partial<DailyRecord>) => {
+    if (record.clinicalDerivedLayout == null || !record.date) return;
+    derivedReads ??= await import('@/services/repositories/dailyRecordClinicalDerivedReadService');
+    signal?.throwIfAborted();
+    const result = await derivedReads.readClinicalDerivedDayDocs({
+      date: record.date,
+      clinicalDerivedLayout: record.clinicalDerivedLayout,
+    });
+    signal?.throwIfAborted();
+    if (result.status === 'unavailable') unreadSplitDays.push(record.date);
+    if (result.status === 'resolved') {
+      found = mergeEloisaStaff(found, collectClinicalDerivedStaff(result.docs));
+    }
+  };
   for (const record of Object.values(await getAllRecords())) ingest(record);
   const records = collection(
     runtime.getDb(),
@@ -45,9 +66,11 @@ export const recoverCensusStaff = async (
     const page = await getDocsFromServer(
       query(records, orderBy(documentId()), limit(50), ...(cursor ? [startAfter(cursor)] : []))
     );
-    page.docs.forEach(snapshot =>
-      ingest({ ...snapshot.data(), date: snapshot.id } as Partial<DailyRecord>)
-    );
+    for (const snapshot of page.docs) {
+      const record = { ...snapshot.data(), date: snapshot.id } as Partial<DailyRecord>;
+      ingest(record);
+      await ingestClinicalDerived(record);
+    }
     if (page.size < 50) break;
     cursor = page.docs[page.docs.length - 1];
   }
@@ -57,5 +80,7 @@ export const recoverCensusStaff = async (
     censuses: dates.size,
     nurseCount: found.filter(entry => entry.role === 'nurse').length,
     tensCount: found.filter(entry => entry.role === 'tens').length,
+    /** Split days whose episode documents could not be read: a retry with a connection helps. */
+    unreadSplitDays,
   };
 };

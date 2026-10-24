@@ -1,5 +1,5 @@
 export interface FileOperationNotification {
-  channel: 'success' | 'error';
+  channel: 'success' | 'warning' | 'error';
   title: string;
   message?: string;
 }
@@ -18,6 +18,15 @@ export const buildExportJsonNotification = (
         title: 'Exportación fallida',
         message: 'No se pudo generar el respaldo JSON.',
       };
+
+/** The file was written, but it is not complete (for example, split days it could not read). */
+export const buildExportJsonPartialNotification = (
+  message: string | undefined
+): FileOperationNotification => ({
+  channel: 'warning',
+  title: 'Respaldo incompleto',
+  message: message || 'El respaldo JSON se generó incompleto.',
+});
 
 export const buildExportCsvNotification = (
   outcome: 'success' | 'error'

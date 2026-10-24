@@ -15,11 +15,20 @@ import {
 } from '@/features/census/controllers/vitalSignsView';
 import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
 import { resolveVitalSignsProfile } from '@/utils/vitalSignsProfileResolver';
+import {
+  resolveVitalsDetailHistory,
+  useClinicalDerivedVitalsHistory,
+  type ClinicalDerivedVitalsSource,
+} from './useClinicalDerivedVitalsHistory';
 
 interface VitalsDetailModalProps {
   patientName: string;
   vitals: VitalSignsView;
-  history: PatientVitalSigns[];
+  /** The day's embedded history and latest reading. */
+  vitalSignsHistory?: PatientVitalSigns[];
+  latestReading?: PatientVitalSigns;
+  /** Split day only: the episode document whose history, when it has one, replaces the embedded. */
+  episodeDocument?: ClinicalDerivedVitalsSource;
   age?: string;
   birthDate?: string;
   profile: VitalSignsProfile;
@@ -35,12 +44,19 @@ const dayHeading = (isoDay: string): string => {
 export const VitalsDetailModal: React.FC<VitalsDetailModalProps> = ({
   patientName,
   vitals,
-  history,
+  vitalSignsHistory,
+  latestReading,
+  episodeDocument,
   age,
   birthDate,
   profile,
   onClose,
 }) => {
+  const documentHistory = useClinicalDerivedVitalsHistory(episodeDocument);
+  const history = resolveVitalsDetailHistory(
+    documentHistory === undefined ? vitalSignsHistory : (documentHistory ?? undefined),
+    latestReading
+  );
   const rows = buildVitalsHistory(history, record => {
     if (birthDate) {
       return resolveVitalSignsProfile({ age, birthDate, referenceDate: record.recordedDate });

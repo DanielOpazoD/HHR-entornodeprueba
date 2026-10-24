@@ -25,3 +25,9 @@ export const CLINICAL_DERIVED_DOC_SCHEMA_VERSION = 1;
  */
 export const CLIENT_RUNTIME_CONTRACT_VERSION_FIELD = 'clientRuntimeContractVersion';
 export const CLINICAL_DERIVED_MIN_CLIENT_RUNTIME_CONTRACT_VERSION = 3;
+
+/**
+ * Root key of the JSON backups' section with the episode documents of split days. Importers skip
+ * it without loading the section builder.
+ */
+export const CLINICAL_DERIVED_BACKUP_SECTION = 'clinicalDerived';
