@@ -7,8 +7,8 @@ import type { ApplicationIssue } from '@/shared/contracts/applicationOutcomeType
  * no longer holds each episode's moved fields, so the backup carries a `clinicalDerived` section
  * (`CLINICAL_DERIVED_BACKUP_SECTION`) with the episode documents of every marked day, read from
  * the server and keyed by date. A day that could not be read is listed as `unavailable`, never left
- * out, and the export reports it. Importers skip the section: only the server writes episode
- * documents.
+ * out, and the export reports it. Importers embed the documents' moved fields back into their
+ * days (clinicalDerivedBackupRestore): only the server writes episode documents.
  */
 
 export type ClinicalDerivedBackupDay =

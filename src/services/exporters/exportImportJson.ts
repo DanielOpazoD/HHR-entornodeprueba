@@ -50,9 +50,10 @@ export const importDataJSONDetailed = async (file: File): Promise<JsonImportResu
     const importedRecords: DailyRecord[] = [];
     const skippedEntries: string[] = [];
     let repairedCount = 0;
+    const clinicalDerivedSection = payload[CLINICAL_DERIVED_BACKUP_SECTION];
 
     Object.entries(payload).forEach(([key, value]) => {
-      // Episode documents of split days are exported for recovery, never imported.
+      // The episode documents of split days are not a day: they go back into their days below.
       if (key === CLINICAL_DERIVED_BACKUP_SECTION) return;
       try {
         const parsed = parseDailyRecordWithDefaultsReport(value, key);
@@ -94,7 +95,21 @@ export const importDataJSONDetailed = async (file: File): Promise<JsonImportResu
       };
     }
 
-    const persisted = await persistImportedRecords(acceptedRecords);
+    // Each split day gets its episodes' vitals history and Rayen checkpoint back, embedded where
+    // each episode lives; only the server writes episode documents.
+    const clinicalDerivedRestore =
+      clinicalDerivedSection === undefined
+        ? null
+        : await import('@/services/exporters/clinicalDerivedBackupRestore').catch(() => null);
+    const restoredRecords = acceptedRecords.map(record => {
+      const restore = clinicalDerivedRestore?.restoreClinicalDerivedBackupDay(
+        record,
+        clinicalDerivedSection
+      );
+      return !restore || restore.kind === 'absent' ? record : restore.record;
+    });
+
+    const persisted = await persistImportedRecords(restoredRecords);
     if (!persisted) {
       return {
         success: false,

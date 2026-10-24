@@ -200,7 +200,9 @@ Cómo cambia cada escritor del servidor:
     `vitalsHistoryBytes` y `checkpointBytes` de los días divididos; antes de 1b el responsable
     decide si se cierra.
 - **D10. Lectores.** Lo superpuesto nunca entra al repositorio, a `docToRecord`, a la caché de
-  TanStack, a IndexedDB, a la cola, a las copias de conflicto ni a `originalData`.
+  TanStack, a IndexedDB, a la cola, a las copias de conflicto ni a `originalData`. La única
+  excepción es la restauración de un respaldo JSON (ver "Respaldos JSON"), que devuelve al día la
+  forma embebida de un día recreado.
   - Todos leen por el mismo servicio. Si el lector de documentos no carga ni al segundo intento
     (sin conexión, o un hash viejo tras una publicación), la lectura falla como cualquier lectura
     fallida y el servicio la reporta una vez en `clinical_derived_read`, con el código
@@ -253,8 +255,15 @@ Cómo cambia cada escritor del servidor:
       o `{ status: 'unavailable', reason }`.
     - Si algún día queda `unavailable`, el archivo se descarga igual, pero la exportación se
       informa incompleta, con las fechas y la indicación de repetirla con conexión.
-    - La importación no escribe esa sección y nunca reemplaza un registro local marcado más nuevo
-      por uno sin marcador (esto último lo hace P4a, en la higiene de escritura).
+    - La importación nunca reemplaza un registro local marcado más nuevo por uno sin marcador
+      (P4a, en la higiene de escritura).
+    - La importación (la local y la restauración del administrador) nunca escribe los
+      documentos: incrusta sus campos movidos en el día, en el paciente de cama, la cuna clínica o
+      la foto de un alta, traslado o CMA vigente con el mismo `clinicalEpisodeId`, nunca por cama
+      (`clinicalDerivedBackupRestore.ts`). Es la forma embebida de un día recreado (D3, D7): el
+      servidor la conserva al recrear un día que ya no existe y, en un día marcado guardado, D3 y
+      D9 conservan los valores guardados. La primera escritura dividida de cada episodio la lleva a
+      su documento, y D14 guarda antes el documento de la vida anterior del día.
     - Limitación conocida: un cliente anterior a P4 (por ejemplo, tras restaurar una publicación
       anterior) leería la sección del respaldo local como un día más y guardaría en IndexedDB un
       registro con fecha `clinicalDerived`. Los días reales no cambian.
@@ -377,6 +386,7 @@ Piezas comunes del cliente:
   - El ADR pide un respaldo verificable antes de mover datos clínicos existentes. Los días antiguos
     no se migran, y lo que una escritura dividida saca del día queda en la copia de la corrida (D11)
     y en las exportaciones.
+  - Restaurar un respaldo devuelve esos campos al día (D10, "Respaldos JSON").
 - **Clientes viejos y vuelta atrás.**
   - Un cliente v2 arma `vitalSignsHistory` desde el registro que leyó (`mergeReportVitals.ts`), sin
     las lecturas que ya están en el documento; si se aceptara, las perdería. D7 lo rechaza por

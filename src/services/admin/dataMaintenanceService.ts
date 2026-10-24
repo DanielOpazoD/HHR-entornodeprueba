@@ -41,7 +41,10 @@ export interface MonthBackup {
   month: number;
   recordCount: number;
   records: DailyRecord[];
-  /** Episode documents of split days; present only when a day is marked, never imported. */
+  /**
+   * Episode documents of split days; present only when a day is marked. A restore embeds their
+   * moved fields back into each day (clinicalDerivedBackupRestore); it never writes the documents.
+   */
   clinicalDerived?: ClinicalDerivedBackupSection;
 }
 
@@ -291,6 +294,10 @@ export const importRecordsFromBackup = async (
   let success = 0;
   let failed = 0;
   let repaired = 0;
+  const clinicalDerivedRestore =
+    backup.clinicalDerived === undefined
+      ? null
+      : await import('@/services/exporters/clinicalDerivedBackupRestore').catch(() => null);
 
   for (let i = 0; i < backup.records.length; i++) {
     const record = backup.records[i];
@@ -316,9 +323,16 @@ export const importRecordsFromBackup = async (
         throw new Error('El día local está dividido y la copia del respaldo no es más nueva.');
       }
 
-      // Declared intent: the clinical authority keeps Rayen vitals/devices/scales when an
-      // administrator recreates a day that no longer exists remotely (see functions fence).
-      await saveDailyRecordDetailed(parsed.record, undefined, { writeOrigin: 'backup_restore' });
+      // A split day gets each episode's vitals history and Rayen checkpoint back from the backup's
+      // section, embedded where the episode lives. Declared intent: the clinical authority keeps
+      // Rayen vitals/devices/scales when an administrator recreates a day that no longer exists
+      // remotely (see functions fence); on a stored split day it keeps the stored values instead.
+      const restore = clinicalDerivedRestore?.restoreClinicalDerivedBackupDay(
+        parsed.record,
+        backup.clinicalDerived
+      );
+      const restoredRecord = !restore || restore.kind === 'absent' ? parsed.record : restore.record;
+      await saveDailyRecordDetailed(restoredRecord, undefined, { writeOrigin: 'backup_restore' });
       success++;
       if (hadRepairs) {
         repaired++;
