@@ -84,6 +84,7 @@ export const useClinicalDocumentsWorkspaceModel = ({
     draft,
     hasLocalDraftChanges,
     setDraft,
+    applyPdfExportResult,
     isSaving,
     lastSavedAt,
     validationIssues,
@@ -269,7 +270,7 @@ export const useClinicalDocumentsWorkspaceModel = ({
       selectedDocument,
       hospitalId,
       notify: notifyPort,
-      setDraft,
+      applyPdfExportResult,
     });
 
   const scrollToAnnex = useCallback(() => {
