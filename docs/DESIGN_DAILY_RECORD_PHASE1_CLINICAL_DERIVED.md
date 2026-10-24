@@ -1,7 +1,8 @@
 # Diseño fase 1: datos clínicos derivados fuera del registro del día
 
-**Estado:** Aprobada (2026-10-23). P3 (#997), P4a (#1002), P5 (#1003) y este P4b están en el
-código, todo sin activar. La activación (P6) la hace el responsable.
+**Estado:** Aprobada (2026-10-23). P3 (#997), P4a (#1002), P5 (#1003) y P4b (#1004) están en
+`main`. P6 fija la fecha de inicio y la versión mínima 3; al fusionarse despliega Functions, y la
+división empieza en esa fecha (ver Activación).
 **Ámbito:** fase 1a de `ADR_DAILY_RECORD_DOCUMENT_GRANULARITY.md`.
 **Relacionado:** `ADR_DAILY_CENSUS_CLINICAL_DATA_OWNERSHIP.md`,
 `ADR_DAILY_CENSUS_TRUTH_CONTRACT.md`, `ADR_CONFLICT_VERSION_RECOVERY.md`,
@@ -189,6 +190,13 @@ Cómo cambia cada escritor del servidor:
     campos movidos del remoto.
   - Así no borran la copia embebida de un episodio aún no dividido. Además, como las escrituras
     directas no suben la revisión, tampoco la bajan.
+  - Límite conocido: la actualización parcial directa (`updateRecordPartial`; mover o copiar un
+    paciente escribe `beds.<cama>` completo) no pasa por esta higiene y puede volver a incrustar
+    valores locales en un día marcado. Solo agrega peso: la superposición toma el documento del
+    episodio y la siguiente escritura dividida de ese episodio borra la copia. Con la valla de
+    Rayen de esquema v2, las reglas niegan esos cambios del cliente en `beds`. Se mide con
+    `vitalsHistoryBytes` y `checkpointBytes` de los días divididos; antes de 1b el responsable
+    decide si se cierra.
 - **D10. Lectores.** Lo superpuesto nunca entra al repositorio, a `docToRecord`, a la caché de
   TanStack, a IndexedDB, a la cola, a las copias de conflicto ni a `originalData`.
   - **Relleno clínico de Rayen.** Superpone cada registro que llega a la reconstrucción
@@ -284,7 +292,8 @@ Piezas comunes del cliente:
   - D8: en días divididos se devuelve el día guardado.
   - Con una escritura local pendiente, la adopción vuelve a aplicar el parche
     (`rebasePendingDailyRecordWrite`), y la copia local puede quedar otra vez con valores movidos.
-    Son los recién escritos, y ninguna escritura directa los sube (D9).
+    Son los recién escritos. La publicación de la cola y el guardado completo no los suben (D9);
+    una actualización parcial directa sí puede (límite conocido de D9).
 - **Auto-merge que resucita copias.** Cuando el remoto no tiene un campo, gana el local
   (`remote_undefined_fallback` en `conflictResolutionPolicy.ts`). `vitalSignsHistory` sigue ese
   camino, y el checkpoint se rearma desde el local (`mergeUnknown`). D9 lo corta: estos campos y el
@@ -448,30 +457,60 @@ Qué lleva cada PR (pruebas siempre con datos sintéticos):
 
 ## Activación
 
-Solo la hace el responsable. Antes de empezar, P3, P4 y P5 deben estar en `main`.
+Solo la hace el responsable. P3, P4 y P5 ya están en `main`. Lo que pasa de verdad:
 
-1. Desplegar las reglas generadas (`firestore.rules`) de ese `main`.
-2. Aplicar las exenciones en cada proyecto con `scripts/apply-firestore-storage-policy.mjs`: primero
-   sin `--apply` para ver el plan, luego con `--apply`, como indica
-   `FIRESTORE_STORAGE_COST_CONTROL.md`. Comprobar las tres nuevas.
-3. Publicar el cliente (P4). Sin días marcados no lee nada nuevo.
-4. Desplegar Functions (P5) sin la variable. Comprobar en Observabilidad que el relleno y el lote
-   siguen como antes.
-5. Fusionar P6, con una fecha de inicio posterior al día del despliegue (hora de Rapa Nui).
-6. Publicar el cliente con la versión mínima 3: las pestañas viejas ven el aviso de actualización.
-7. Desplegar Functions con `HHR_CLINICAL_DERIVED_SPLIT_FROM=<fecha>`. En `hhr-pruebas` la escribe
-   `deploy-functions.yml`; otro proyecto necesita su propio `functions/.env.<proyecto>`, o la
-   división queda apagada.
-8. El primer día marcado, comprobar desde la app:
-   - `daily_record_size_observed` con la marca de día dividido y un tamaño acorde a la estimación;
+- Functions se despliega solo desde `main`, después de `ci-summary`, cuando el push toca
+  `functions/` o `deploy-functions.yml` (`scripts/functionDeploymentSupport.mjs`). Si ese
+  despliegue falla o se salta, el siguiente push a `main` lo reintenta. Por eso fusionar P6 es
+  activar el servidor: la fecha de inicio llega con ese despliegue.
+- La publicación de Netlify es manual. El día de inicio debe estar publicado P4b o posterior
+  (contrato 3); con un cliente anterior, cada relleno de un día dividido falla cerrado con
+  `clinical_derived_client_outdated`.
+- Nunca desplegar Functions desde un portátil: `functions/.env.*` está en `.gitignore` y solo lo
+  escribe el CI, así que se perderían el interruptor y las dos banderas de Jev. Un despliegue de
+  emergencia va por `workflow_dispatch` de `deploy-functions.yml`.
+
+Pasos:
+
+1. Desplegar las reglas generadas (`firestore.rules`) de `main` (hecho el 2026-10-24).
+2. Aplicar las exenciones con `scripts/apply-firestore-storage-policy.mjs` en `hhr-pruebas` y en
+   todo proyecto donde se encienda la división: primero sin `--apply` para ver el plan, luego con
+   `--apply`, como indica `FIRESTORE_STORAGE_COST_CONTROL.md`. Comprobar las tres nuevas. Necesita
+   `gcloud`. Nunca `firebase deploy --only firestore:indexes`: activaría también el TTL de
+   `specialtyAiRequests` que el script excluye. Sin las exenciones nada se rompe, pero cada hoja del
+   checkpoint y cada arreglo de signos se indexa.
+3. Comprobar en Actions que `validated-functions-deployment` terminó bien para P5 o posterior. Sin
+   la variable, el relleno y el lote siguen como antes.
+4. Publicar en Netlify un deploy de P4b (#1004) o posterior, y comprobar que el deploy publicado lo
+   incluye. Sin días marcados no lee nada nuevo.
+5. Fusionar P6 después de 2 y 4, fuera del tren automático, con una fecha de inicio al menos dos días
+   (hora de Rapa Nui) después de la fusión. El CI despliega Functions con
+   `HHR_CLINICAL_DERIVED_SPLIT_FROM=<fecha>`. En `hhr-pruebas` la escribe `deploy-functions.yml`;
+   otro proyecto necesita su propio `functions/.env.<proyecto>`, o la división queda apagada. Una
+   prueba (`clinicalDerivedSplitSwitchWorkflow.test.ts`) comprueba que el servidor lee esa fecha:
+   cualquier otro valor la deja apagada sin error.
+6. El mismo día, publicar en Netlify el commit de la fusión de P6 y comprobar que
+   `/.netlify/functions/runtime-contract` responde `minSupportedClientRuntimeContractVersion` 3: las
+   pestañas viejas ven el aviso de actualización. Desde 24 horas antes de la fecha de inicio hasta el
+   día siguiente, no volver a publicar.
+7. El día de inicio, varias veces (la vista de telemetría de Functions carga las últimas 500 filas):
+   - en `dailyRecordWriteAuthority`, un solo `marking` por fecha, cero rechazos `clinical_derived_*`
+     y `EmbeddedEpisodes` cerca de 0;
+   - `daily_record_size_observed` con la marca de día dividido, `vitalsHistoryBytes` y
+     `checkpointBytes` bajando hacia 0 y un tamaño acorde a la estimación;
    - corridas del relleno sin `clinical_derived_client_outdated` de clientes actuales ni fallas de
      carga por la superposición;
    - en `shadow` o `enforced`, evidencia del contrato v3 en la tarjeta del lote;
    - la ventana de signos vitales con el historial completo.
+8. El día siguiente, después de la copia de las 08:00: la ventana de signos de un episodio dividido
+   trae el historial arrastrado, y no hay lecturas degradadas al crear el día.
 
 Volver atrás:
 
-- Apagar es mover la fecha hacia adelante o quitar la variable y redesplegar Functions. Los días ya
-  marcados siguen divididos y funcionando.
-- Nunca volver Functions a una versión anterior a P5. Nunca retirar la regla de lectura de
-  `clinicalDerived`. Nunca borrar documentos de episodio ni marcadores.
+- Apagar es un PR que solo mueve la fecha hacia adelante o la quita; al fusionarlo, el CI redespliega
+  Functions. Los días ya marcados siguen divididos y funcionando, y se corrige hacia adelante.
+- Cliente: corregir hacia adelante. Después del primer día marcado, nunca restaurar en Netlify un
+  deploy anterior a P4b.
+- Nunca volver Functions a una versión anterior a P5: la versión mínima de backend 3 hace fallar
+  ese revert en `check:runtime-contracts`. Nunca retirar la regla de lectura de `clinicalDerived`.
+  Nunca borrar documentos de episodio ni marcadores, ni purgar colas.
