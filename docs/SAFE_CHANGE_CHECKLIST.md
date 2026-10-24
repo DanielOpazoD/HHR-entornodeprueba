@@ -42,6 +42,13 @@ por tipo de cambio. Esta tabla orienta la selección, no sustituye esa política
 | Runtime clínico, auth, storage, bundle o contratos de arquitectura | `ci:merge-gate` y controles adicionales exigidos por la política                         |
 | Release o reglas persistentes                                      | `ci:release-gate` y controles adicionales exigidos por la política                       |
 
+Si la política exige a la vez `ci:merge-gate` y `test:release-confidence`,
+`npm run ci:close` ejecuta su unión en una sola corrida. Conserva las etapas y sus
+argumentos, y evita repetir comandos idénticos de build, cobertura o bundle.
+No reutiliza resultados de otra ejecución. Un fallo, interrupción o cambio del
+código/configuración durante la corrida bloquea el cierre. Los informes generados
+pueden actualizarse. No sustituye `ci:release-gate` ni el perfil `full` de confianza.
+
 Durante edición bastan pruebas focalizadas para obtener feedback; no acreditan
 el cierre. `ci:inner-loop` sirve para iterar y para los cambios locales de UI que
 la política clasifica expresamente como `safe_local_ui`.
