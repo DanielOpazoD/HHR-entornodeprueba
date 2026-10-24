@@ -146,7 +146,8 @@ Cache hydration keeps a projection that still has unresolved writes. The read, t
 snapshot and the manual sync then publish that projection (`local_authoritative` or `local_kept`)
 instead of the remote copy, so the next edit starts from the pending work. This snapshot is read
 after remote selection, including when no hydration is needed, timestamps match, or the remote
-record is absent. A missing remote record still reports `missing_remote`.
+record is absent. A manual sync with a missing remote record still reports `missing_remote`;
+read results retain their separate `local_authoritative` consistency contract.
 
 A direct-write ACK only deletes a task containing that write alone. If compaction added other
 mutations, it releases the hold and leaves the aggregate for queue publication. The confirmed

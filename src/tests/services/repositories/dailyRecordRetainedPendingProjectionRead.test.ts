@@ -176,4 +176,21 @@ describe('a read never publishes another copy over a pending local edit', () => 
     expect(result.record?.tensDayShift).toEqual(['SINTETICO PENDIENTE']);
     expect(result.sourceOfTruth).toBe('local');
   });
+
+  it('a manual sync with a missing remote keeps the in-flight edit and the missing outcome', async () => {
+    firestoreEnabled.value = true;
+    await hospitalDB.dailyRecords.put(base());
+    loadRemote.mockImplementation(async () => {
+      await queueDailyRecordSyncTaskWithLocalRecord(pendingEdit());
+      return { ...remoteLoad(base()), record: null };
+    });
+
+    const result = await syncWithFirestoreDetailed(date);
+
+    expect(result?.record?.tensDayShift).toEqual(['SINTETICO PENDIENTE']);
+    expect(result?.sourceOfTruth).toBe('local');
+    expect(result?.outcome).toBe('missing');
+    expect(result?.consistencyState).toBe('missing_remote');
+    expect(result?.conflictSummary?.kind).toBe('remote_missing');
+  });
 });
