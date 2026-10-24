@@ -2,7 +2,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import ts from 'typescript';
-import { getManifest } from 'workbox-build';
+import { build } from 'vite';
+import { VitePWA } from 'vite-plugin-pwa';
 import { expect, it } from 'vitest';
 
 it('generates the same precache membership that the budget accounts for', async () => {
@@ -59,18 +60,47 @@ it('generates the same precache membership that the budget accounts for', async 
   fs.mkdirSync(cache, { recursive: true });
   const directory = fs.mkdtempSync(path.join(cache, 'pwa-manifest-'));
   try {
+    const output = path.join(directory, 'dist');
     for (const asset of assets) {
-      const file = path.join(directory, asset);
+      const file = path.join(output, asset);
       fs.mkdirSync(path.dirname(file), { recursive: true });
       fs.writeFileSync(file, '/* synthetic asset */');
     }
-    const { manifestEntries, warnings } = await getManifest({
-      globDirectory: directory,
-      globPatterns: ['**/*'],
-      globIgnores,
+    const input = path.join(directory, 'entry.js');
+    fs.writeFileSync(input, 'export const synthetic = true;');
+    let urls: string[] = [];
+    // Build only this synthetic entry, using the declared PWA plugin's Workbox integration.
+    await build({
+      configFile: false,
+      root: directory,
+      publicDir: false,
+      logLevel: 'silent',
+      build: {
+        outDir: output,
+        emptyOutDir: false,
+        rollupOptions: {
+          input,
+          output: { entryFileNames: 'assets/app-authenticated-shell-fixture.js' },
+        },
+      },
+      plugins: [
+        VitePWA({
+          manifest: false,
+          injectRegister: false,
+          workbox: {
+            globPatterns: ['**/*'],
+            globIgnores,
+            inlineWorkboxRuntime: true,
+            manifestTransforms: [
+              async entries => {
+                urls = entries.map(entry => entry.url).sort();
+                return { manifest: entries, warnings: [] };
+              },
+            ],
+          },
+        }),
+      ],
     });
-    expect(warnings).toEqual([]);
-    const urls = manifestEntries.map(entry => entry.url).sort();
     expect(urls).toEqual(assets.filter(asset => !patterns.some(p => p.test(asset))).sort());
     expect(urls).not.toContain('assets/clinicalFormDocx-fixture.js');
     expect(urls).toContain('assets/dexieDailyRecordOutbox-fixture.js');
