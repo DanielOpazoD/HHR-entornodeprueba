@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Baby, Camera } from 'lucide-react';
+import { Baby, Camera, Loader2 } from 'lucide-react';
 import type { PatientData } from '@/domain/handoff/patientContracts';
 import { buildClinicalEpisodeKey } from '@/application/patient-flow/clinicalEpisode';
 import {
@@ -13,6 +13,25 @@ interface HandoffPatientCellProps {
   isSubRow?: boolean;
 }
 
+const describePhotoCount = (state: ReturnType<typeof useWoundCarePhotoCount>): string => {
+  const label = 'Registro clínico audiovisual';
+  switch (state.status) {
+    case 'idle':
+      return label;
+    case 'ready':
+      return `${label} (${state.count} foto${state.count === 1 ? '' : 's'})`;
+    case 'loading':
+    case 'unavailable': {
+      const status = state.status === 'loading' ? 'consultando fotos' : 'recuento no disponible';
+      const previous =
+        state.previousCount === null
+          ? ''
+          : `; último recuento: ${state.previousCount} foto${state.previousCount === 1 ? '' : 's'}`;
+      return `${label}: ${status}${previous}`;
+    }
+  }
+};
+
 export const HandoffPatientCell: React.FC<HandoffPatientCellProps> = ({ patient, isSubRow }) => {
   const [showWoundCare, setShowWoundCare] = useState(false);
   const [photoRefreshToken, setPhotoRefreshToken] = useState(0);
@@ -25,7 +44,16 @@ export const HandoffPatientCell: React.FC<HandoffPatientCellProps> = ({ patient,
     hasValidEpisode && !isSubRow ? episodeKey : undefined,
     photoRefreshToken
   );
-  const hasPhotos = photoCount > 0;
+  const count =
+    photoCount.status === 'ready'
+      ? photoCount.count
+      : 'previousCount' in photoCount
+        ? photoCount.previousCount
+        : null;
+  const hasPhotos = count !== null && count > 0;
+  const loading = photoCount.status === 'loading';
+  const unavailable = photoCount.status === 'unavailable';
+  const photoCountDescription = describePhotoCount(photoCount);
 
   return (
     <td className="p-2 border-r border-slate-200/60 min-w-[150px] align-middle print:min-w-0 print:w-auto print:text-[10px] print:p-1">
@@ -41,15 +69,28 @@ export const HandoffPatientCell: React.FC<HandoffPatientCellProps> = ({ patient,
               type="button"
               onClick={() => setShowWoundCare(true)}
               className={`transition-colors print:hidden ${
-                hasPhotos ? 'text-sky-500 hover:text-sky-600' : 'text-slate-300 hover:text-sky-500'
+                unavailable
+                  ? 'text-amber-600 hover:text-amber-700'
+                  : hasPhotos
+                    ? 'text-sky-500 hover:text-sky-600'
+                    : 'text-slate-300 hover:text-sky-500'
               }`}
-              title={
-                hasPhotos
-                  ? `Registro clínico audiovisual (${photoCount} foto${photoCount > 1 ? 's' : ''})`
-                  : 'Registro clínico audiovisual'
-              }
+              title={photoCountDescription}
+              aria-label={photoCountDescription}
+              aria-busy={loading}
             >
-              <Camera size={14} />
+              {loading ? (
+                <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+              ) : (
+                <span className="inline-flex items-center gap-0.5">
+                  <Camera size={14} aria-hidden="true" />
+                  {unavailable && (
+                    <span className="text-[10px] font-bold" aria-hidden="true">
+                      ?
+                    </span>
+                  )}
+                </span>
+              )}
             </button>
           )}
         </div>

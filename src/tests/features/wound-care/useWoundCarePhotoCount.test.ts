@@ -56,11 +56,52 @@ describe('useWoundCarePhotoCount', () => {
     vi.restoreAllMocks();
   });
 
+  it('distinguishes pending and unavailable reads from a confirmed empty result', async () => {
+    vi.spyOn(logger, 'warn').mockImplementation(() => {});
+    const pending = deferred();
+    vi.mocked(WoundCarePhotoRepository.listByEpisode).mockReturnValueOnce(pending.promise);
+    const { result } = renderHook(() => useWoundCarePhotoCount('episode-a'));
+    expect(result.current).toEqual({ status: 'loading', previousCount: null });
+    await act(async () => pending.reject(new Error('offline')));
+    expect(result.current).toEqual({ status: 'unavailable', previousCount: null });
+
+    vi.mocked(WoundCarePhotoRepository.listByEpisode).mockResolvedValueOnce([]);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300_000);
+    });
+    expect(result.current).toEqual({ status: 'ready', count: 0 });
+  });
+
+  it.each([0, 1])(
+    'preserves a confirmed count of %s during refresh and failure for the same episode',
+    async count => {
+      vi.spyOn(logger, 'warn').mockImplementation(() => {});
+      vi.mocked(WoundCarePhotoRepository.listByEpisode).mockResolvedValueOnce(count ? photos : []);
+      const { result, rerender } = renderHook(
+        ({ token, episode }) => useWoundCarePhotoCount(episode, token),
+        { initialProps: { token: 0, episode: 'episode-a' } }
+      );
+      await act(async () => {});
+      expect(result.current).toEqual({ status: 'ready', count });
+
+      const refresh = deferred();
+      vi.mocked(WoundCarePhotoRepository.listByEpisode).mockReturnValueOnce(refresh.promise);
+      rerender({ token: 1, episode: 'episode-a' });
+      expect(result.current).toEqual({ status: 'loading', previousCount: count });
+      await act(async () => refresh.reject(new Error('offline')));
+      expect(result.current).toEqual({ status: 'unavailable', previousCount: count });
+
+      vi.mocked(WoundCarePhotoRepository.listByEpisode).mockRejectedValueOnce(new Error('offline'));
+      await act(async () => rerender({ token: 1, episode: 'episode-b' }));
+      expect(result.current).toEqual({ status: 'unavailable', previousCount: null });
+    }
+  );
+
   it('skips hidden polling and refreshes once when visible again', async () => {
     const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
     const { result, unmount } = renderHook(() => useWoundCarePhotoCount('episode-a'));
     await act(async () => {});
-    expect(result.current).toBe(1);
+    expect(result.current).toEqual({ status: 'ready', count: 1 });
 
     visibility.mockReturnValue('hidden');
     act(() => document.dispatchEvent(new Event('visibilitychange')));
@@ -81,7 +122,7 @@ describe('useWoundCarePhotoCount', () => {
     await act(async () => {
       pending.resolve([]);
     });
-    expect(result.current).toBe(0);
+    expect(result.current).toEqual({ status: 'ready', count: 0 });
     unmount();
     act(() => document.dispatchEvent(new Event('visibilitychange')));
     await vi.advanceTimersByTimeAsync(30_000);
@@ -98,17 +139,17 @@ describe('useWoundCarePhotoCount', () => {
       await vi.advanceTimersByTimeAsync(60_000);
     });
     expect(WoundCarePhotoRepository.listByEpisode).not.toHaveBeenCalled();
-    expect(result.current).toBe(0);
+    expect(result.current).toEqual({ status: 'loading', previousCount: null });
     visibility.mockReturnValue('visible');
     await act(async () => document.dispatchEvent(new Event('visibilitychange')));
     expect(WoundCarePhotoRepository.listByEpisode).toHaveBeenCalledExactlyOnceWith('episode-b');
-    expect(result.current).toBe(1);
+    expect(result.current).toEqual({ status: 'ready', count: 1 });
   });
 
   it('does not query without an episode', async () => {
     const { result } = renderHook(() => useWoundCarePhotoCount(undefined));
     await vi.advanceTimersByTimeAsync(60_000);
-    expect(result.current).toBe(0);
+    expect(result.current).toEqual({ status: 'idle' });
     expect(WoundCarePhotoRepository.listByEpisode).not.toHaveBeenCalled();
   });
 
@@ -118,17 +159,17 @@ describe('useWoundCarePhotoCount', () => {
       { initialProps: { episode: 'episode-a' as string | undefined } }
     );
     await act(async () => {});
-    expect(result.current).toBe(1);
+    expect(result.current).toEqual({ status: 'ready', count: 1 });
     const next = deferred();
     vi.mocked(WoundCarePhotoRepository.listByEpisode).mockReturnValueOnce(next.promise);
     rerender({ episode: 'episode-b' });
-    expect(result.current).toBe(0);
+    expect(result.current).toEqual({ status: 'loading', previousCount: null });
     await act(async () => {
       next.resolve(photos);
     });
-    expect(result.current).toBe(1);
+    expect(result.current).toEqual({ status: 'ready', count: 1 });
     rerender({ episode: undefined });
-    expect(result.current).toBe(0);
+    expect(result.current).toEqual({ status: 'idle' });
   });
 
   it('does not overlap slow polling reads and resumes after completion', async () => {
@@ -142,13 +183,13 @@ describe('useWoundCarePhotoCount', () => {
     await act(async () => {
       pending.resolve(photos);
     });
-    expect(result.current).toBe(1);
+    expect(result.current).toEqual({ status: 'ready', count: 1 });
     vi.mocked(WoundCarePhotoRepository.listByEpisode).mockResolvedValueOnce([]);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(240_000);
     });
     expect(WoundCarePhotoRepository.listByEpisode).toHaveBeenCalledTimes(2);
-    expect(result.current).toBe(0);
+    expect(result.current).toEqual({ status: 'ready', count: 0 });
     unmount();
     await vi.advanceTimersByTimeAsync(60_000);
     expect(WoundCarePhotoRepository.listByEpisode).toHaveBeenCalledTimes(2);
@@ -168,7 +209,7 @@ describe('useWoundCarePhotoCount', () => {
     await act(async () => {
       pending.resolve(photos);
     });
-    expect(result.current).toBe(0);
+    expect(result.current).toEqual({ status: 'ready', count: 0 });
   });
 
   it('allows the next poll after a rejected read', async () => {
@@ -180,7 +221,7 @@ describe('useWoundCarePhotoCount', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(300_000);
     });
-    expect(result.current).toBe(1);
+    expect(result.current).toEqual({ status: 'ready', count: 1 });
     expect(WoundCarePhotoRepository.listByEpisode).toHaveBeenCalledTimes(2);
   });
 
@@ -222,12 +263,12 @@ describe('useWoundCarePhotoCount', () => {
       { initialProps: { token: 0 } }
     );
     await act(async () => {});
-    expect(result.current).toBe(1);
+    expect(result.current).toEqual({ status: 'ready', count: 1 });
     vi.mocked(WoundCarePhotoRepository.listByEpisode).mockResolvedValueOnce([]);
     await act(async () => {
       rerender({ token: 1 });
     });
     expect(WoundCarePhotoRepository.listByEpisode).toHaveBeenCalledTimes(2);
-    expect(result.current).toBe(0);
+    expect(result.current).toEqual({ status: 'ready', count: 0 });
   });
 });
