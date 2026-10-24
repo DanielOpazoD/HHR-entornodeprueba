@@ -214,6 +214,31 @@ describe('PWA precache policy', () => {
     expect(publicApi).toContain("import('./components/CudyrView')");
   });
 
+  it('defers network-only census email delivery while retaining offline clinical and export chunks', () => {
+    for (const chunk of ['sendCensusEmailUseCases', 'nursingPasswordPolicy']) {
+      expect(readViteConfig()).toContain(`**/assets/${chunk}-*.js`);
+    }
+    const patterns = readBundleBudgetConfig().precacheIgnoredAssetPatterns.map(
+      pattern => new RegExp(pattern)
+    );
+    const isExcluded = (asset: string) => patterns.some(pattern => pattern.test(asset));
+    expect(isExcluded('assets/sendCensusEmailUseCases-fixture.js')).toBe(true);
+    expect(isExcluded('assets/nursingPasswordPolicy-fixture.js')).toBe(true);
+    for (const chunk of [
+      'app-authenticated-shell',
+      'CensusRouteView',
+      'handoffPdfGenerator',
+      'backupExportArchiveUseCases',
+      'exportService',
+      'whatsappService',
+      'censusRecipientListUseCases',
+      'vendor-firebase-firestore',
+      'vendor-localdb',
+    ]) {
+      expect(isExcluded(`assets/${chunk}-fixture.js`), chunk).toBe(false);
+    }
+  });
+
   it('keeps callable Functions on demand because every invocation requires network access', () => {
     const viteConfig = readViteConfig();
     const bundleBudgetConfig = readBundleBudgetConfig();

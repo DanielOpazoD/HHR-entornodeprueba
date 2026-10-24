@@ -255,6 +255,7 @@ export default defineConfig(({ mode }) => {
             '**/assets/NursingAccountsPanel-*.js',
             '**/assets/RoleManagementPanel-*.js',
             '**/assets/NursingPasswordDialog-*.js',
+            '**/assets/nursingPasswordPolicy-*.js',
             '**/assets/NursingAccessForm-*.js',
             '**/assets/nursingAccountService-*.js',
             // Contextual CUDYR reports read server-authoritative history and cannot
@@ -290,6 +291,8 @@ export default defineConfig(({ mode }) => {
             '**/assets/ClinicalPanelDrawer-*.js',
             // Sync history panel: reviewed on demand while Eloísa is connected.
             '**/assets/RayenSyncHistoryModal-*.js',
+            // Census email delivery always needs the network; local exports stay cached.
+            '**/assets/sendCensusEmailUseCases-*.js',
             // Optional console-only formatter. Core timing capture remains offline-capable.
             '**/assets/perfAuditReport-*.js',
             '**/assets/SystemHealthReporterBridge-*.js',
