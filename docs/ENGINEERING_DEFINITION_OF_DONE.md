@@ -14,11 +14,6 @@ Una change queda lista solo si cumple todo lo siguiente:
 8. Si la change entra en una categoría gobernada, sigue `scripts/config/sustainable-change-policy.json` y deja evidencia del gate o artefacto requerido.
 9. Si incluye lógica de app, assets estáticos o snapshots de `reports/`, separa esos concerns en commits distintos cuando no dependan del mismo fix.
 
-Para cambios en el recuento audiovisual, comprobar carga inicial, fallo inicial,
-cero confirmado, actualización fallida con dato anterior y cambio de episodio.
-El texto accesible y el indicador visible deben reflejar el resultado de lectura;
-la galería sigue disponible mientras el recuento está pendiente o no disponible.
-
 Para cambios en la conexión previa de Eloísa, probar el recorrido real de mensajes de
 extensión, incluidos un verde pasivo seguido de rechazo autenticado y una respuesta
 tardía. El bloqueo previo no crea una ejecución; un fallo después del arranque sí queda
@@ -107,3 +102,8 @@ Comparar el YAML estructuralmente para conservar todos los gates, condiciones,
 permisos, matrices y presupuestos. Ejecutar los contratos de scheduling/caché y
 el CI completo del head final; informar los hits y tiempos observados sin atribuir
 el ahorro de un paso a todo el pipeline ni al rendimiento de la aplicación.
+
+Para cambios en el recuento audiovisual, comprobar carga inicial, fallo inicial,
+cero confirmado, actualización fallida con dato anterior y cambio de episodio.
+El texto accesible y el indicador visible deben reflejar el resultado de lectura;
+la galería sigue disponible mientras el recuento está pendiente o no disponible.
