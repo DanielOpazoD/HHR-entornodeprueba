@@ -17,7 +17,10 @@ import {
   type PartialUpdateDailyRecordOptions,
   type SaveDailyRecordOptions,
 } from '@/services/repositories/contracts/dailyRecordCommands';
-import { buildDailyRecordSyncContract } from '@/services/storage/sync/syncTaskContractPolicy';
+import {
+  buildDailyRecordSyncContract,
+  resolveRecordBaseRevision,
+} from '@/services/storage/sync/syncTaskContractPolicy';
 import { queueDailyRecordSyncTaskWithLocalRecord } from '@/services/storage/sync';
 import { prepareDailyRecordForPersistence } from '@/services/repositories/dailyRecordPersistencePreparation';
 import { preparePatchedRecordForPersistence } from '@/services/repositories/dailyRecordPatchPreparation';
@@ -98,6 +101,19 @@ const resolvePartialUpdateBaseRecord = async (
   options: PartialUpdateDailyRecordOptions = {}
 ): Promise<DailyRecord | null> => {
   if (options.baseRecord?.date === date) {
+    if (options.specialtyIntent?.kind === 'manual') {
+      // A preceding write in this date's turn may already have adopted a newer day locally.
+      // This is only a proposed CAS base: the server still confirms the episode and decision.
+      const localRecord = await getRecordFromIndexedDB(date).catch(() => null);
+      if (
+        isValidRemoteAuthorityRecord(localRecord, date) &&
+        (resolveRecordBaseRevision(localRecord) ?? -1) >
+          (resolveRecordBaseRevision(options.baseRecord) ?? -1) &&
+        canRebaseManualSpecialtyIntent(options.specialtyIntent, options.baseRecord, localRecord)
+      ) {
+        return localRecord;
+      }
+    }
     return options.baseRecord;
   }
 
@@ -253,23 +269,26 @@ const updatePartialDetailedWithinLock = async (
     });
   }
 
-  // The hook's displayed base can predate a queued clinical commit. Refresh only
-  // after acquiring this date's write turn; never move a decision to a new episode.
+  // Try the observed version first. The authority transaction owns CAS and the episode/decision
+  // check; a technical version conflict already has one guarded fresh-read/rebase below.
   if (options.specialtyIntent?.kind === 'manual') {
     if (!isFirestoreEnabled()) {
       throw new Error('La autoridad remota no está disponible para esta escritura clínica.');
     }
-    const remoteRecord = await getRecordFromFirestore(command.date, { source: 'server' });
-    if (!isValidRemoteAuthorityRecord(remoteRecord, command.date)) {
-      throw new Error('No se pudo verificar la versión remota del censo. Vuelve a intentarlo.');
+    const observedRecord = current;
+    if (resolveRecordBaseRevision(current) === undefined) {
+      const remoteRecord = await getRecordFromFirestore(command.date, { source: 'server' });
+      if (!isValidRemoteAuthorityRecord(remoteRecord, command.date)) {
+        throw new Error('No se pudo verificar la versión remota del censo. Vuelve a intentarlo.');
+      }
+      current = remoteRecord;
     }
-    if (!canRebaseManualSpecialtyIntent(options.specialtyIntent, current, remoteRecord)) {
+    if (!canRebaseManualSpecialtyIntent(options.specialtyIntent, observedRecord, current)) {
       throw new ConcurrencyError(
         'El paciente o su especialidad cambió. Revisa el censo antes de volver a elegir.',
         'semantic_conflict'
       );
     }
-    current = remoteRecord;
   }
 
   let validatedRecord: DailyRecord;

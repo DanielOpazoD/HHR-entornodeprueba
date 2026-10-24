@@ -15,6 +15,16 @@ Una especialidad heredada sin `clinicalEpisodeId` se conserva durante ediciones 
 
 ## Barreras y activación
 
+El guardado manual intenta primero la revisión observada, sin descargar otra vez el día antes
+del callable. Si esa copia no tiene una revisión válida, conserva la lectura previa del servidor.
+Tras adquirir el turno de escritura, puede usar una copia local con revisión superior si
+conserva el mismo episodio, decisión y valor observado; esa copia sólo propone la base del CAS,
+nunca confirma el cambio. Un conflicto técnico permite una lectura fresca y un único reintento
+con el mismo ID de mutación. Un cambio de episodio, decisión o valor impide ese rebase. La
+interfaz sigue esperando la confirmación del servidor y la adopción local, sin encolar rechazos.
+Este recorrido conserva `clinicalDerivedLayout` en los días divididos y usa únicamente el día
+almacenado que devuelve la autoridad; nunca persiste una vista con datos de episodio superpuestos.
+
 El panel de reglas lee la política con la operación `read_policy` de `requestSpecialtyJevSuggestion`, una callable autenticada ya desplegada que devuelve únicamente revisión, interruptores y reglas sin consultar al proveedor ni requerir su clave. Reutilizar esa callable evita ampliar los permisos IAM del desplegador para crear un endpoint nuevo. La lectura no depende de que las reglas Firestore del proyecto remoto hayan publicado el acceso directo a `specialtyPolicies`; ese documento sigue sin escritura desde clientes. Si todavía no existe una política, el panel administrador muestra **«Configurar piloto Jev»** y publica con revisión esperada 0 los criterios y la cuota no secretos del archivo de configuración. Hasta ese paso, las asignaciones manuales continúan disponibles, pero Jev indica claramente que no está configurado. La versión actualizada de la callable debe estar desplegada en `hhr-pruebas` antes de usar los paneles en localhost o Netlify.
 
 Los flags de interfaz empiezan apagados. Para un sitio que usa la autoridad por episodio de `hhr-pruebas`, configurar `VITE_HHR_SPECIALTY_EPISODE_ASSIGNMENT=enabled` en su entorno de compilación y volver a desplegar: activa sólo la decisión manual con episodio, sin activar Jev ni memoria. Debe acompañar a `HHR_SPECIALTY_EPISODE_ASSIGNMENT=enabled` en Functions; si falta en la web, el cliente envía `specialtyIntent: null` y el servidor rechaza el cambio con `specialty_explicit_intent_required`. Compartir repositorio o proyecto Firebase no copia las variables entre sitios Netlify.
