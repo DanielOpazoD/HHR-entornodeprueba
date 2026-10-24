@@ -21,7 +21,7 @@ vi.mock('@/services/repositories/dailyRecordRepositoryWriteService', () => ({
 }));
 // No day here is confirmed against the server: a read would never run.
 vi.mock('@/services/repositories/dailyRecordClinicalDerivedReadService', () => ({
-  readClinicalDerivedDayDocs: vi.fn(),
+  readClinicalDerivedDaySnapshot: vi.fn(),
 }));
 vi.mock('@/services/admin/auditService', () => ({ logAuditEvent: vi.fn() }));
 vi.mock('@/services/admin/utils/auditUtils', () => ({

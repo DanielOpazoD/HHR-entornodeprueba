@@ -18,7 +18,12 @@ import {
 } from '@/tests/functions/clinicalDerivedServer.test-support';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
-const boundary = vi.hoisted(() => ({ save: vi.fn(), clientDb: null as unknown }));
+const boundary = vi.hoisted(() => ({
+  save: vi.fn(),
+  clientDb: null as unknown,
+  /** Another writer, between the restore's save and its confirmation. */
+  afterSave: null as null | (() => Promise<void>),
+}));
 vi.mock('@/services/repositories/dailyRecordRepositoryWriteService', () => ({
   saveDetailed: boundary.save,
 }));
@@ -106,6 +111,7 @@ const HISTORY = [vitals(DAY, 72), vitals(PRIOR_DAY, 70)];
   let restorerRole = 'admin';
   beforeEach(async () => {
     restorerRole = 'admin';
+    boundary.afterSave = null;
     await db.recursiveDelete(db.doc(hospital));
     vi.useFakeTimers({ toFake: ['Date'], now: new Date(`${DAY}T16:00:00.000Z`) });
     vi.stubEnv(SPLIT_ENV, PRIOR_DAY);
@@ -124,6 +130,7 @@ const HISTORY = [vitals(DAY, 72), vitals(PRIOR_DAY, 70)];
           makeContext()
         );
         const saved = await read();
+        await boundary.afterSave?.();
         return {
           outcome: 'clean',
           savedLocally: true,
@@ -288,6 +295,46 @@ const HISTORY = [vitals(DAY, 72), vitals(PRIOR_DAY, 70)];
 
     expect((await read()).beds.R2.vitalSignsHistory).toEqual([vitals(PRIOR_DAY, 199)]);
     expect(result).toMatchObject({ outcome: 'partial', clinicalDerivedIncompleteDates: [DAY] });
+  });
+
+  it('reports the restore partial when another writer recreates the day after its save', async () => {
+    const { backup } = await splitBackUpAndDelete();
+    const generation = 'gen_synthetic_recreated_after_save';
+    boundary.afterSave = async () => {
+      // The save confirmed the restored day; the day the server holds now has a new generation
+      // whose episode document carries other values.
+      const recreated = await read();
+      recreated.clinicalDerivedLayout = { version: 1, generation };
+      delete recreated.beds.R2.vitalSignsHistory;
+      delete recreated.beds.R2.clinicalSyncCheckpoint;
+      await dayDoc().set(recreated);
+      await episodeRef('ep_pasaporte_2').set({
+        schemaVersion: 1,
+        date: DAY,
+        clinicalEpisodeId: 'ep_pasaporte_2',
+        layoutGeneration: generation,
+        target: 'bed',
+        bedId: 'R2',
+        dayRevision: recreated.meta.revision,
+        lastMutationId: 'synthetic-recreate',
+        vitalSignsHistory: [vitals(PRIOR_DAY, 199)],
+        clinicalSyncCheckpoint: checkpoint('unrelated'),
+      });
+    };
+
+    const result = await importRecordsFromBackup(backup);
+
+    expect((await episodeRef('ep_pasaporte_2').get()).data()).toMatchObject({
+      layoutGeneration: generation,
+      vitalSignsHistory: [vitals(PRIOR_DAY, 199)],
+    });
+    expect(result).toEqual({
+      success: 1,
+      failed: 0,
+      repaired: 1,
+      outcome: 'partial',
+      clinicalDerivedIncompleteDates: [DAY],
+    });
   });
 
   it.each([true, false])(

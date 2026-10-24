@@ -27,10 +27,10 @@ export type ClinicalDerivedDayRestore =
   | {
       kind: 'embedded';
       record: DailyRecord;
-      /** Some episode got its document back: check the saved day (`confirmClinicalDerivedDayRestore`). */
+      /** Some episode got its document back: check the server's day (`confirmClinicalDerivedDayRestore`). */
       needsConfirmation: boolean;
-      /** Whether `saved` and its current episode documents hold each restored episode's values. */
-      isKeptBy: (saved: DailyRecord, savedDocs: readonly ClinicalDerivedEpisodeDoc[]) => boolean;
+      /** Whether `day` and its current episode documents hold each restored episode's values. */
+      isKeptBy: (day: DailyRecord, docs: readonly ClinicalDerivedEpisodeDoc[]) => boolean;
     };
 
 type EmbeddedDayRestore = Extract<ClinicalDerivedDayRestore, { kind: 'embedded' }>;
@@ -41,20 +41,17 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> =>
 const READ_CONCURRENCY = 4;
 const READ_PATH_UNAVAILABLE = 'read_failed';
 
-type DayDocsReader =
-  typeof import('@/services/repositories/dailyRecordClinicalDerivedReadService').readClinicalDerivedDayDocs;
+type ReadService = typeof import('@/services/repositories/dailyRecordClinicalDerivedReadService');
 
-const loadDayDocsReader = (): Promise<DayDocsReader | null> =>
-  import('@/services/repositories/dailyRecordClinicalDerivedReadService')
-    .then(module => module.readClinicalDerivedDayDocs)
-    .catch(() => null);
+const loadReadService = (): Promise<ReadService | null> =>
+  import('@/services/repositories/dailyRecordClinicalDerivedReadService').catch(() => null);
 
 const readBackupDay = async (
-  readDayDocs: DayDocsReader | null,
+  readService: ReadService | null,
   record: DailyRecord
 ): Promise<ClinicalDerivedBackupDay> => {
-  if (!readDayDocs) return { status: 'unavailable', reason: READ_PATH_UNAVAILABLE };
-  const result = await readDayDocs(record);
+  if (!readService) return { status: 'unavailable', reason: READ_PATH_UNAVAILABLE };
+  const result = await readService.readClinicalDerivedDayDocs(record);
   if (result.status === 'resolved') {
     return { status: 'exported', layoutGeneration: result.layoutGeneration, docs: result.docs };
   }
@@ -73,12 +70,12 @@ export const buildClinicalDerivedBackupSection = async (
 ): Promise<ClinicalDerivedBackupSection | undefined> => {
   const marked = records.filter(record => record.clinicalDerivedLayout != null);
   if (marked.length === 0) return undefined;
-  const readDayDocs = await loadDayDocsReader();
+  const readService = await loadReadService();
   const byDate = new Map<string, ClinicalDerivedBackupDay>();
   const pending = [...marked];
   const worker = async () => {
     for (let record = pending.shift(); record; record = pending.shift()) {
-      byDate.set(record.date, await readBackupDay(readDayDocs, record));
+      byDate.set(record.date, await readBackupDay(readService, record));
     }
   };
   await Promise.all(Array.from({ length: Math.min(READ_CONCURRENCY, pending.length) }, worker));
@@ -115,21 +112,22 @@ export const loadClinicalDerivedDayRestore = async (
 };
 
 /**
- * Whether the server kept what `restore` embedded. `saved` is the day it confirms (`undefined`: the
- * save did not reach it); the day's current episode documents are read from the server, because
- * on a stored split day it keeps their values instead of the embedded ones. A read that fails, or
- * a saved day that does not hold every restored episode's values, is not a confirmation.
+ * Whether the server holds what `restore` embedded, once its save reached the server
+ * (`savedRemotely`; until then nothing is read). The day is read back from the server with the
+ * episode documents of its current generation, in one coherent read: on a stored split day the
+ * server keeps their values instead of the embedded ones, and another writer may recreate the day
+ * after the save. A read that fails, a day that changed while it was read or no longer exists, or
+ * a day that does not hold every restored episode's values, is not a confirmation.
  */
 export const confirmClinicalDerivedDayRestore = async (
   restore: EmbeddedDayRestore,
-  saved: DailyRecord | undefined
+  { savedRemotely }: { savedRemotely: boolean }
 ): Promise<boolean> => {
   if (!restore.needsConfirmation) return true;
-  if (!saved) return false;
-  const readDayDocs = await loadDayDocsReader();
-  const read = readDayDocs ? await readDayDocs(saved) : null;
-  if (!read || read.status === 'unavailable') return false;
-  return restore.isKeptBy(saved, read.status === 'resolved' ? read.docs : []);
+  if (!savedRemotely) return false;
+  const readService = await loadReadService();
+  const read = await readService?.readClinicalDerivedDaySnapshot(restore.record.date);
+  return read?.status === 'resolved' && restore.isKeptBy(read.day, read.docs);
 };
 
 /**

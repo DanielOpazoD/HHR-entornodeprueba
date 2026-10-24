@@ -123,26 +123,26 @@ const movedFieldsKey = (holder: unknown): string =>
 
 /**
  * Whether the day the server keeps holds, for each restored episode, what the backup carried: the
- * moved fields of its only holder in `saved`, under its current document (D4) when it has one.
+ * moved fields of its only holder in `day`, under its current document (D4) when it has one.
  */
 const holdsRestoredEpisodes = (
   restored: ReadonlyMap<string, string>,
-  saved: DailyRecord,
-  savedDocs: readonly ClinicalDerivedEpisodeDoc[]
+  day: DailyRecord,
+  docs: readonly ClinicalDerivedEpisodeDoc[]
 ): boolean => {
-  const layout = readClinicalDerivedLayout(saved);
+  const layout = readClinicalDerivedLayout(day);
   if (layout.status === 'unsupported') return false;
   const current = new Map(
-    savedDocs
+    docs
       .filter(
         doc =>
           layout.status === 'marked' &&
-          doc.date === saved.date &&
+          doc.date === day.date &&
           doc.layoutGeneration === layout.layout.generation
       )
       .map(doc => [doc.clinicalEpisodeId, doc])
   );
-  const holders = holdersByEpisode(saved);
+  const holders = holdersByEpisode(day);
   return [...restored].every(([episodeId, expected]) => {
     const found = holders.get(episodeId);
     if (!found || found === 'ambiguous') return false;
@@ -214,6 +214,6 @@ export const restoreClinicalDerivedBackupDay = (
     kind: 'embedded',
     record: next,
     needsConfirmation: restored.size > 0,
-    isKeptBy: (saved, savedDocs) => holdsRestoredEpisodes(restored, saved, savedDocs),
+    isKeptBy: (day, docs) => holdsRestoredEpisodes(restored, day, docs),
   };
 };

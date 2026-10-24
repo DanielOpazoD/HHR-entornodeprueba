@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   saveMany: vi.fn(),
   saveRemote: vi.fn(),
   readDayDocs: vi.fn(),
+  readDaySnapshot: vi.fn(),
 }));
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordForDateStrict: mocks.getLocal,
@@ -21,9 +22,10 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
 vi.mock('@/services/repositories/dailyRecordRepositoryWriteService', () => ({
   saveDetailed: mocks.saveRemote,
 }));
-// The server's episode documents of the day the restore saved, read to confirm it.
+// The read service over the fake server below: the restore confirms what it holds.
 vi.mock('@/services/repositories/dailyRecordClinicalDerivedReadService', () => ({
   readClinicalDerivedDayDocs: mocks.readDayDocs,
+  readClinicalDerivedDaySnapshot: mocks.readDaySnapshot,
 }));
 vi.mock('@/services/admin/auditService', () => ({ logAuditEvent: vi.fn() }));
 vi.mock('@/services/admin/utils/auditUtils', () => ({
@@ -72,11 +74,27 @@ const expectEpisodesBack = (record: DailyRecord) => {
   expect(record.beds.R4).not.toHaveProperty('vitalSignsHistory');
 };
 
-/** The episode documents the server holds for the saved day's current generation. */
+/** The server: the day it holds (set by the save) and the episode documents under it. */
+let serverDay: DailyRecord | null = null;
 let serverDocs: unknown[] = [];
+
+/** The documents of `day`'s generation, as the reader returns them. */
+const serverDocsOf = (day: DailyRecord) => {
+  const layout = readClinicalDerivedLayout(day);
+  return layout.status === 'marked'
+    ? serverDocs.filter(
+        item =>
+          typeof item === 'object' &&
+          item !== null &&
+          'layoutGeneration' in item &&
+          item.layoutGeneration === layout.layout.generation
+      )
+    : [];
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
+  serverDay = null;
   serverDocs = [];
   mocks.getLocal.mockResolvedValue(null);
   mocks.saveMany.mockResolvedValue({ ok: true });
@@ -87,8 +105,17 @@ beforeEach(() => {
     if (layout.status === 'unsupported') {
       return { status: 'unavailable', reason: 'unsupported_layout' };
     }
-    return { status: 'resolved', layoutGeneration: layout.layout.generation, docs: serverDocs };
+    return {
+      status: 'resolved',
+      layoutGeneration: layout.layout.generation,
+      docs: serverDocsOf(day),
+    };
   });
+  mocks.readDaySnapshot.mockImplementation(async () =>
+    serverDay
+      ? { status: 'resolved', day: serverDay, docs: serverDocsOf(serverDay) }
+      : { status: 'missing' }
+  );
 });
 
 describe('restoring the per-episode data of a split day', () => {
@@ -145,14 +172,17 @@ describe('restoring the per-episode data of a split day', () => {
   });
 });
 
-/** The repository save: the server confirms `confirm(sent)`. */
+/** The repository save: the server stores and confirms `confirm(sent)`. */
 const serverConfirms = (confirm: (sent: DailyRecord) => DailyRecord) =>
-  mocks.saveRemote.mockImplementation(async (sent: DailyRecord) => ({
-    outcome: 'clean',
-    savedLocally: true,
-    savedRemotely: true,
-    confirmedRecord: confirm(sent),
-  }));
+  mocks.saveRemote.mockImplementation(async (sent: DailyRecord) => {
+    serverDay = confirm(sent);
+    return {
+      outcome: 'clean',
+      savedLocally: true,
+      savedRemotely: true,
+      confirmedRecord: serverDay,
+    };
+  });
 
 describe('reporting a restore whose per-episode data did not come back', () => {
   it('is clean when the server recreates the day with the embedded values', async () => {
@@ -216,7 +246,55 @@ describe('reporting a restore whose per-episode data did not come back', () => {
 
   it('is partial when the saved day’s episode documents cannot be read', async () => {
     serverConfirms(sent => withoutMovedFields(sent));
+    serverDocs = section()[DATE].docs;
     mocks.readDayDocs.mockResolvedValue({ status: 'unavailable', reason: 'read_failed' });
+    mocks.readDaySnapshot.mockResolvedValue({ status: 'unavailable', reason: 'read_failed' });
+
+    const result = await importRecordsFromBackup(monthBackup([splitDay()]));
+
+    expect(result).toMatchObject({ outcome: 'partial', clinicalDerivedIncompleteDates: [DATE] });
+  });
+
+  it('is partial when another writer recreates the day with other values after the save', async () => {
+    const otherGeneration = 'gen_synthetic_after_save';
+    mocks.saveRemote.mockImplementation(async (sent: DailyRecord) => {
+      // The save confirms the day recreated with the embedded values...
+      const confirmedRecord = { ...sent, clinicalDerivedLayout: NEW_LAYOUT };
+      // ...then another writer recreates it: R2's episode keeps other values in its document.
+      const recreated = structuredClone(confirmedRecord);
+      recreated.clinicalDerivedLayout = { version: 1, generation: otherGeneration };
+      delete recreated.beds.R2.vitalSignsHistory;
+      delete recreated.beds.R2.clinicalSyncCheckpoint;
+      serverDay = recreated;
+      serverDocs = [
+        doc('ep_pasaporte_2', {
+          layoutGeneration: otherGeneration,
+          vitalSignsHistory: [reading(199)],
+          clinicalSyncCheckpoint: checkpoint('unrelated'),
+        }),
+      ];
+      return { outcome: 'clean', savedLocally: true, savedRemotely: true, confirmedRecord };
+    });
+
+    const result = await importRecordsFromBackup(monthBackup([splitDay()]));
+
+    expect(result).toEqual({
+      success: 1,
+      failed: 0,
+      repaired: 0,
+      outcome: 'partial',
+      clinicalDerivedIncompleteDates: [DATE],
+    });
+  });
+
+  it('is partial when the server no longer has the day it confirmed', async () => {
+    // Confirmed with the embedded values, then deleted before the restore checks it.
+    mocks.saveRemote.mockImplementation(async (sent: DailyRecord) => ({
+      outcome: 'clean',
+      savedLocally: true,
+      savedRemotely: true,
+      confirmedRecord: { ...sent, clinicalDerivedLayout: NEW_LAYOUT },
+    }));
 
     const result = await importRecordsFromBackup(monthBackup([splitDay()]));
 
