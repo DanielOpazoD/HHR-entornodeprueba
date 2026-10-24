@@ -120,13 +120,16 @@ jobs:
         working-directory: functions
         run: node scripts/checkDeployRuntime.js
 
-      - name: Configure hhr-pruebas Jev pilot flags
+      - name: Configure hhr-pruebas rollout switches
         run: |
           # These are non-secret rollout switches; the provider credential stays
           # in Firebase Secret Manager and is never written by this workflow.
+          # HHR_CLINICAL_DERIVED_SPLIT_FROM starts the phase 1a per-episode split on that
+          # target date (docs/DESIGN_DAILY_RECORD_PHASE1_CLINICAL_DERIVED.md, Activación).
           printf '%s\n' \
             'HHR_SPECIALTY_EPISODE_ASSIGNMENT=enabled' \
             'HHR_JEV_CLINICAL_APPROVED=enabled' \
+            'HHR_CLINICAL_DERIVED_SPLIT_FROM=2026-10-26' \
             > functions/.env.hhr-pruebas
 
       - name: Write service account credentials to disk

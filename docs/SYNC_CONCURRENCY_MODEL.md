@@ -384,17 +384,19 @@ cama/cuna, conflictos técnicos y semánticos, desconexión, respuesta perdida y
 conservación de proyecciones locales; `dailyRecordAuthorityCallableClient.test.ts`
 verifica la clasificación de errores del servidor.
 
-### Datos clínicos por episodio (fase 1a, sin activar)
+### Datos clínicos por episodio (fase 1a)
 
-`hospitals/{hospitalId}/dailyRecords/{date}/clinicalDerived/{clinicalEpisodeId}` guardará
+`hospitals/{hospitalId}/dailyRecords/{date}/clinicalDerived/{clinicalEpisodeId}` guarda
 `clinicalSyncCheckpoint` y `vitalSignsHistory` de cada episodio de un día marcado con
 `clinicalDerivedLayout`. Es una subcolección que sólo escribe el servidor, como
 `specialtyDecisions`: las reglas niegan toda escritura de clientes y ninguna actualización del día
 puede agregar, cambiar ni quitar el marcador o bajar `meta.revision` de un día marcado (ni dejarla
-fuera de un entero). Por ahora sólo existe la base de lectura: el contrato gemelo
-(`clinicalDerivedContract`), el lector `clinicalDerivedEpisodeReader.ts` y
-`dailyRecordClinicalDerivedReadService.ts`. Ningún flujo los llama ni hay escritor; nada marca un
-día hasta la activación del responsable.
+fuera de un entero). Escriben y marcan solo los callables de autoridad y el lote clínico
+(`functions/lib/clinicalDerivedStore.js`), desde la fecha de `HHR_CLINICAL_DERIVED_SPLIT_FROM`.
+El cliente lee la vista combinada con el contrato gemelo (`clinicalDerivedContract`), el lector
+`clinicalDerivedEpisodeReader.ts` y `dailyRecordClinicalDerivedReadService.ts` en el relleno de
+Rayen, la ventana de signos vitales, la creación del día, la herramienta de personal y los respaldos
+JSON. La activación y la vuelta atrás están en `DESIGN_DAILY_RECORD_PHASE1_CLINICAL_DERIVED.md`.
 
 El esquema del día guarda el marcador tal como viene, sea cual sea su forma, y la recuperación de
 un día con una cama dañada conserva el marcador y `meta`: el contrato decide si el día está
