@@ -1,6 +1,6 @@
 # Documentation Map
 
-Última actualización: 2026-10-22
+Última actualización: 2026-10-24
 
 > Índice único del repositorio. Si un documento nuevo no aparece aquí, o queda
 > sin categoría, debe añadirse en el mismo PR que lo crea. `check:docs-drift`
@@ -11,7 +11,7 @@
 
 1. [README.md](../README.md)
 2. [Contrato operativo](DOMAIN_RULES.md) y [glosario](GLOSSARY.md); después, [arquitectura y flujos vigentes](architecture.md)
-3. [Cómo contribuir y validar](../CONTRIBUTING.md)
+3. [Cómo contribuir y validar](../CONTRIBUTING.md) y [reglas para agentes](../AGENTS.md), que Claude Code carga desde [CLAUDE.md](../CLAUDE.md)
 4. [docs/CODEBASE_CANON.md](CODEBASE_CANON.md)
 5. README del módulo que vas a tocar en `src/features/*/README.md` o `src/*/README.md`
 6. [docs/RUNBOOK_INDEX.md](RUNBOOK_INDEX.md)
