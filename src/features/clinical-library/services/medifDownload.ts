@@ -23,11 +23,16 @@ const loadTemplate = (): Promise<ArrayBuffer> => {
 export const downloadMedifPdf = async (
   values: MedifValues,
   preferences: MedifPreferences,
-  mode: MedifPdfMode
+  mode: MedifPdfMode,
+  signal?: AbortSignal
 ): Promise<void> => {
+  signal?.throwIfAborted();
   const template = await loadTemplate();
+  signal?.throwIfAborted();
   const bytes = await createMedifPdf(template, values, preferences, mode);
+  signal?.throwIfAborted();
   const { saveAs } = await import('file-saver');
+  signal?.throwIfAborted();
   saveAs(
     new Blob([new Uint8Array(bytes)], { type: 'application/pdf' }),
     `MEDIF-${mode === 'print' ? 'imprimible' : 'editable'}.pdf`

@@ -53,7 +53,8 @@ describe('MEDIF green check', () => {
         p1_itinerario_1_hacia: 'Santiago',
       }),
       expect.anything(),
-      'editable'
+      'editable',
+      expect.any(AbortSignal)
     );
     fireEvent.click(button);
     expect(screen.getByRole('status')).toHaveTextContent(
@@ -78,7 +79,8 @@ describe('MEDIF green check', () => {
         p2_bano_si: 'X',
       }),
       expect.anything(),
-      'print'
+      'print',
+      expect.any(AbortSignal)
     );
   });
 });

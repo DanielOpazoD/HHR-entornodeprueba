@@ -125,9 +125,12 @@ export const useClinicalFormDraft = (
     const sequence = ++importSequence.current;
     try {
       if (file.size > 1_000_000) throw new Error('El borrador es demasiado grande.');
-      const text = await file.text();
+      const text = await file.text().catch(() => {
+        throw new Error('No se pudo leer el archivo de borrador. Vuelve a intentarlo.');
+      });
       if (sequence !== importSequence.current) return;
       const imported = importClinicalFormDraft(text);
+      setNotice('');
       request({ ...imported, source: null });
     } catch (error) {
       if (sequence === importSequence.current)

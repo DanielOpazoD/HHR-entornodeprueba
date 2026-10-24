@@ -44,7 +44,8 @@ describe('MEDIF fixed fields and compact controls', () => {
         p1_declaracion_fecha: '16/10/2026',
       }),
       expect.anything(),
-      'editable'
+      'editable',
+      expect.any(AbortSignal)
     );
     fireEvent.change(document.getElementById('medif-p3_fecha_declaracion')!, {
       target: { value: '' },

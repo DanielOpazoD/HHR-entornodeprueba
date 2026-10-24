@@ -15,7 +15,8 @@ export interface MedifEditorProps {
   onGeneratePdf: (
     values: MedifValues,
     preferences: MedifPreferences,
-    mode: 'print' | 'editable'
+    mode: 'print' | 'editable',
+    signal?: AbortSignal
   ) => Promise<void>;
   onDirtyChange?: (dirty: boolean) => void;
 }
