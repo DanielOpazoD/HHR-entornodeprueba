@@ -1,3 +1,4 @@
+import { readClinicalTimestamp } from '@/utils/dateDisplayUtils';
 import { getDoc, getDocs, setDoc } from 'firebase/firestore';
 import { defaultReminderFirestoreRuntime } from '@/services/firebase-runtime/reminderRuntime';
 import type { ReminderReadReceipt, ReminderShift } from '@/types/reminders';
@@ -50,7 +51,7 @@ export const createReminderReadService = ({
     const receiptId = buildReminderReadReceiptId(
       receipt.userId,
       receipt.shift,
-      receipt.dateKey ?? receipt.readAt.slice(0, 10)
+      receipt.dateKey ?? readClinicalTimestamp(receipt.readAt)?.iso ?? ''
     );
     try {
       await setDoc(getReminderReadReceiptDocRef(reminderId, receiptId, runtime), receipt);

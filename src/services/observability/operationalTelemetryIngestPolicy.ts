@@ -11,6 +11,7 @@
  * issues are stable codes, context is an allowlist of bounded values, and the operation is a known
  * literal or the generic bucket.
  */
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import * as z from 'zod';
 
 import {
@@ -124,7 +125,7 @@ export const buildOperationalTelemetryAlert = (
     : event.status === 'failed'
       ? 'FALLO'
       : 'PARCIAL';
-  const subject = `[HHR] ${statusLabel} · ${event.operation} · ${event.date ?? event.timestamp.slice(0, 10)}`;
+  const subject = `[HHR] ${statusLabel} · ${event.operation} · ${event.date ?? getClinicalCalendarDateISO(new Date(event.timestamp))}`;
   const lines = [
     isProbe
       ? 'PRUEBA CONTROLADA del canal de alertas. No corresponde a un incidente clínico ni operacional.'

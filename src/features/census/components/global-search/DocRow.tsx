@@ -4,6 +4,7 @@
  * Renders a single clinical document row with type, date, author,
  * and actions to open the clinical documents viewer or PDF preview.
  */
+import { readClinicalTimestamp } from '@/utils/dateDisplayUtils';
 
 import React, { useCallback, useState } from 'react';
 import { FileText, ExternalLink, Loader2 } from 'lucide-react';
@@ -49,7 +50,9 @@ export const DocRow: React.FC<DocRowProps> = ({ doc, onDownloadPdf, onOpenDocume
     onOpenDocument?.(doc);
   }, [doc, onOpenDocument]);
 
-  const dateDisplay = doc.updatedAt ? formatDateToCL(doc.updatedAt.split('T')[0]) : '';
+  const dateDisplay = doc.updatedAt
+    ? formatDateToCL(readClinicalTimestamp(doc.updatedAt)?.iso ?? '')
+    : '';
   const docTypeLabel = formatDocType(doc.documentType);
 
   return (

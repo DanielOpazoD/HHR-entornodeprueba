@@ -1,3 +1,4 @@
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   listPatientOptionsWithPrescriptionPin,
@@ -39,13 +40,7 @@ const resolvePinAccessErrorMessage = (error: unknown): string => {
   return message || 'No se pudo validar el PIN.';
 };
 
-const buildPdfFileName = (): string => {
-  const now = new Date();
-  const day = [now.getFullYear(), now.getMonth() + 1, now.getDate()]
-    .map(value => String(value).padStart(2, '0'))
-    .join('-');
-  return `documento-escaneado-${day}.pdf`;
-};
+const buildPdfFileName = (): string => `documento-escaneado-${getClinicalCalendarDateISO()}.pdf`;
 
 const downloadBuffer = (buffer: ArrayBuffer, fileName: string): void => {
   const objectUrl = URL.createObjectURL(new Blob([buffer], { type: 'application/pdf' }));
@@ -54,13 +49,6 @@ const downloadBuffer = (buffer: ArrayBuffer, fileName: string): void => {
   anchor.download = fileName;
   anchor.click();
   setTimeout(() => URL.revokeObjectURL(objectUrl), 1_000);
-};
-
-const getLocalCalendarDate = (): string => {
-  const date = new Date();
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
-    date.getDate()
-  ).padStart(2, '0')}`;
 };
 
 const isFailedPreconditionError = (error: unknown): boolean => {
@@ -335,7 +323,7 @@ export const useDocumentScannerDemoController = () => {
     setSelectedPatientKey('');
     setErrorMessage(null);
     const pin = pinRef.current;
-    if (pin && patientOptionsRequestDateRef.current !== getLocalCalendarDate()) {
+    if (pin && patientOptionsRequestDateRef.current !== getClinicalCalendarDateISO()) {
       setPhase('loading-patients');
       try {
         applyPatientOptionsResult(await listPatientOptionsWithPrescriptionPin(pin));

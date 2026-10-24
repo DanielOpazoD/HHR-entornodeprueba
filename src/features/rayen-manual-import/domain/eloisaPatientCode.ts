@@ -1,3 +1,4 @@
+import { readClinicalTimestamp } from '@/utils/dateDisplayUtils';
 import * as z from 'zod';
 
 export const ELOISA_PATIENT_CODE_PREFIX = 'HHR-PACIENTE-2';
@@ -58,7 +59,8 @@ const validateClinicalDates = (
       message: 'La fecha de nacimiento no puede ser posterior al ingreso.',
     });
   }
-  if (payload.admissionDate > payload.capturedAt.slice(0, 10)) {
+  const capturedDay = readClinicalTimestamp(payload.capturedAt)?.iso;
+  if (capturedDay && payload.admissionDate > capturedDay) {
     context.addIssue({
       code: 'custom',
       path: ['admissionDate'],

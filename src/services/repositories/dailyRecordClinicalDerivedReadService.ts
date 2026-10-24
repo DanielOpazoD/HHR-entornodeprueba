@@ -262,9 +262,9 @@ export type ClinicalDerivedDisplayDocResult =
 
 /**
  * One episode's current document for display (the vitals window): SDK default source, no
- * listener. `skipped`, without a read, when the id or the generation cannot be a document id,
- * without Firestore or under the E2E override. Failures come back typed: the caller keeps the
- * day's embedded copy.
+ * listener. An invalid episode id resolves without a document: that episode stays embedded.
+ * Invalid generations, disabled Firestore and E2E overrides skip the read. Failures come back
+ * typed so the caller can distinguish unavailable history from absent history.
  */
 export const readClinicalDerivedEpisodeForDisplay = async (
   date: string,
@@ -272,12 +272,10 @@ export const readClinicalDerivedEpisodeForDisplay = async (
   clinicalEpisodeId: string
 ): Promise<ClinicalDerivedDisplayDocResult> => {
   const episodeId = clinicalEpisodeId.trim();
-  if (
-    !isClinicalDerivedDocId(layoutGeneration) ||
-    !isClinicalDerivedDocId(episodeId) ||
-    !isFirestoreEnabled() ||
-    isE2EOverrideActive()
-  ) {
+  if (!isClinicalDerivedDocId(episodeId)) {
+    return { status: 'resolved', doc: null, fromCache: false };
+  }
+  if (!isClinicalDerivedDocId(layoutGeneration) || !isFirestoreEnabled() || isE2EOverrideActive()) {
     return { status: 'skipped' };
   }
   const read = await readDocs(date, layoutGeneration, episodeId, 'default');

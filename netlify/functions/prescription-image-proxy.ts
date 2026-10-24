@@ -32,14 +32,32 @@ const parseBoundedNumber = (
   return Math.min(max, Math.max(min, Math.round(parsed)));
 };
 
-const decodeStorageObjectPath = (sourceUrl: URL): string => {
-  const objectPath = sourceUrl.pathname.match(/\/o\/(.+)$/)?.[1];
-  if (!objectPath) return '';
+// Served unchanged only when sharp cannot re-encode them: types a browser never runs as a page.
+const PASSTHROUGH_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+
+const decodePathSegment = (value: string | undefined): string => {
+  if (!value) return '';
   try {
-    return decodeURIComponent(objectPath);
+    return decodeURIComponent(value);
   } catch {
     return '';
   }
+};
+
+const decodeStorageObjectPath = (sourceUrl: URL): string =>
+  decodePathSegment(sourceUrl.pathname.match(/\/o\/(.+)$/)?.[1]);
+
+const decodeStorageBucket = (sourceUrl: URL): string =>
+  decodePathSegment(sourceUrl.pathname.match(/^\/v0\/b\/([^/]+)\/o\//)?.[1]);
+
+/** HHR's own Storage bucket. Without it configured, no remote source is allowed. */
+const resolveAllowedStorageBuckets = (): string[] => {
+  const projectId = String(process.env.VITE_FIREBASE_PROJECT_ID || '').trim();
+  return [
+    String(process.env.VITE_FIREBASE_STORAGE_BUCKET || '').trim(),
+    projectId ? `${projectId}.firebasestorage.app` : '',
+    projectId ? `${projectId}.appspot.com` : '',
+  ].filter(Boolean);
 };
 
 const isAllowedFirebasePrescriptionUrl = (urlValue: string): boolean => {
@@ -51,13 +69,14 @@ const isAllowedFirebasePrescriptionUrl = (urlValue: string): boolean => {
   }
 
   if (sourceUrl.protocol !== 'https:') return false;
-  const isFirebaseStorageHost =
-    sourceUrl.hostname === 'firebasestorage.googleapis.com' ||
-    sourceUrl.hostname.endsWith('.firebasestorage.app');
-  if (!isFirebaseStorageHost) return false;
+  if (sourceUrl.hostname !== 'firebasestorage.googleapis.com') return false;
+  if (!resolveAllowedStorageBuckets().includes(decodeStorageBucket(sourceUrl))) return false;
 
   return decodeStorageObjectPath(sourceUrl).startsWith('prescriptions/');
 };
+
+const mediaTypeOf = (contentType: string): string =>
+  contentType.split(';')[0]?.trim().toLowerCase() ?? '';
 
 const isLocalFixtureProxyEnabled = (): boolean =>
   process.env.HHR_ALLOW_PRESCRIPTION_IMAGE_PROXY_FIXTURE === 'true';
@@ -156,6 +175,13 @@ export const createPrescriptionImageProxyHandler =
         optimizationStatus = 'optimized';
       } catch (transformError) {
         console.warn('Prescription image optimization fallback', transformError);
+        if (!PASSTHROUGH_IMAGE_TYPES.has(mediaTypeOf(upstreamContentType))) {
+          return buildJsonResponse(
+            415,
+            { error: 'Unsupported prescription image type.' },
+            { requestOrigin }
+          );
+        }
       }
 
       return {
@@ -163,18 +189,18 @@ export const createPrescriptionImageProxyHandler =
         headers: {
           ...corsHeaders,
           'Content-Type': contentType,
+          'Content-Security-Policy': "default-src 'none'; sandbox",
+          'X-Content-Type-Options': 'nosniff',
           'X-Prescription-Image-Optimization': optimizationStatus,
         },
         body: Buffer.from(transformed).toString('base64'),
         isBase64Encoded: true,
       };
     } catch (error) {
+      console.warn('Prescription image proxy failed', error);
       return buildJsonResponse(
         502,
-        {
-          error: 'No se pudo optimizar la imagen de receta.',
-          details: error instanceof Error ? error.message : String(error),
-        },
+        { error: 'No se pudo optimizar la imagen de receta.' },
         { requestOrigin }
       );
     }

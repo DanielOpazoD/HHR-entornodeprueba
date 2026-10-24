@@ -40,6 +40,7 @@ vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
 import { initializeDay } from '@/services/repositories/dailyRecordRepositoryInitializationService';
 import { sanitizeOperationalTelemetryEvent } from '@/services/observability/operationalTelemetryPrivacy';
 import { DataFactory } from '@/tests/factories/DataFactory';
+import { splitEpisode } from '@/tests/factories/splitEpisode';
 
 // The Rapa Nui clock reads 2026-10-19 at this instant: the only day the carryover seeds.
 const NOW = new Date('2026-10-19T16:00:00Z');
@@ -55,22 +56,23 @@ const vital = (heartRate: number, hour: string): PatientVitalSigns =>
     heartRate,
   }) as PatientVitalSigns;
 
-const sourceDay = (sourceDate = SOURCE, marked = true): DailyRecord =>
-  DataFactory.createMockDailyRecord(sourceDate, {
+const sourceDay = (sourceDate = SOURCE, marked = true): DailyRecord => {
+  const patient = DataFactory.createMockPatient('R1', {
+    patientName: 'Paciente Sintético',
+    clinicalEpisodeId: 'ep_synthetic',
+    rut: '00000000-0',
+    admissionDate: '2026-10-17',
+    admissionTime: '08:00',
+    vitalSigns: vital(70, '10:00'),
+    vitalSignsHistory: [vital(70, '10:00')],
+  });
+  const overrides = {
     meta: { revision: 4 },
     ...(marked ? { clinicalDerivedLayout: { version: 1, generation: GENERATION } } : {}),
-    beds: {
-      R1: DataFactory.createMockPatient('R1', {
-        patientName: 'Paciente Sintético',
-        clinicalEpisodeId: 'ep_synthetic',
-        rut: '12345678-5',
-        admissionDate: '2026-10-17',
-        admissionTime: '08:00',
-        vitalSigns: vital(70, '10:00'),
-        vitalSignsHistory: [vital(70, '10:00')],
-      }),
-    },
-  } as Partial<DailyRecord>);
+    beds: { R1: marked ? splitEpisode(patient) : patient },
+  };
+  return DataFactory.createMockDailyRecord(sourceDate, overrides);
+};
 
 const episodeDoc = (date = SOURCE) => ({
   schemaVersion: 1,
@@ -148,7 +150,7 @@ describe('client day creation from a split source day (D10)', () => {
     expect(source).toEqual(before);
   });
 
-  it('seeds from the embedded copies, as before, when the documents cannot be read', async () => {
+  it('seeds only the latest reading when the documents cannot be read', async () => {
     mocks.readDocs.mockResolvedValueOnce({ status: 'failed', code: 'unavailable' });
 
     const created = await createDay(TODAY, sourceDay());
@@ -160,7 +162,7 @@ describe('client day creation from a split source day (D10)', () => {
     expect(mocks.recordOperationalTelemetry).not.toHaveBeenCalled();
   });
 
-  it('seeds from the embedded copies when the read path throws, and says so once', async () => {
+  it('seeds only the latest reading when the read path throws, and says so once', async () => {
     mocks.readDocs.mockRejectedValueOnce(new Error(SECRET));
 
     const created = await createDay(TODAY, sourceDay());
@@ -198,7 +200,7 @@ describe('client day creation from a split source day (D10)', () => {
       expect(mocks.recordOperationalTelemetry).not.toHaveBeenCalled();
     };
 
-    it('seeds today from the embedded copies and reports it once', async () => {
+    it('seeds today from the latest reading and reports it once', async () => {
       const created = await createDay(TODAY, sourceDay(), initializeWithoutReadPath);
 
       expect(readServiceLoads).toBe(1);

@@ -1,3 +1,4 @@
+const { hospitalCalendarDay } = require('./hospitalCalendarDay');
 const functions = require('firebase-functions/v1');
 const { Readable } = require('stream');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
@@ -101,9 +102,10 @@ const decodeBase64Payload = payload => {
   return buffer;
 };
 
-const buildDriveMonthFolderName = date => {
-  const monthName = SPANISH_MONTH_NAMES[date.getMonth()] || 'Mes';
-  return `${monthName} ${date.getFullYear()}`;
+const buildDriveMonthFolderName = hospitalDay => {
+  const [year, month] = hospitalDay.split('-');
+  const monthName = SPANISH_MONTH_NAMES[Number(month) - 1] || 'Mes';
+  return `${monthName} ${year}`;
 };
 
 const buildDriveClient = () => {
@@ -309,9 +311,9 @@ const createClinicalDocumentExportFunctions = ({
       const mimeType = typeof data?.mimeType === 'string' ? data.mimeType : 'application/pdf';
       const content = decodeBase64Payload(data?.contentBase64);
 
-      const now = new Date();
-      const year = now.getFullYear().toString();
-      const monthFolderName = buildDriveMonthFolderName(now);
+      const hospitalDay = hospitalCalendarDay();
+      const year = hospitalDay.slice(0, 4);
+      const monthFolderName = buildDriveMonthFolderName(hospitalDay);
       const typeFolderName = DOCUMENT_TYPE_FOLDER_MAPPING[documentType] || 'Otros';
 
       const drive = buildDriveClientOverride ? buildDriveClientOverride() : buildDriveClient();

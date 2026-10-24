@@ -1,3 +1,4 @@
+const { hospitalCalendarDay } = require('./hospitalCalendarDay');
 const crypto = require('node:crypto');
 const { SPECIALTIES, getPatient } = require('./specialtyDecisionContract');
 const { validRubrics } = require('./specialtyJevAdapter');
@@ -7,16 +8,7 @@ const normalizeCode = value => text(value).toUpperCase().replace(/\s+/g, '');
 const validCode = value => /^[A-Z][0-9]{2}(?:\.[0-9A-Z]{1,4})?$/.test(value);
 const validRuleId = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,80}$/.test(value);
 const allowedSpecialty = value => SPECIALTIES.has(value) && value !== '' && value !== 'Otro';
-const isCurrentRapaNuiDay = date => {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Pacific/Easter',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(new Date());
-  const calendar = Object.fromEntries(parts.map(part => [part.type, part.value]));
-  return date === `${calendar.year}-${calendar.month}-${calendar.day}`;
-};
+const isCurrentRapaNuiDay = date => date === hospitalCalendarDay();
 
 const validatePolicy = policy => {
   if (
