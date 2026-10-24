@@ -14,6 +14,16 @@ import type {
   DailyRecordAuthorityPatchCallablePayload,
 } from './dailyRecordAuthorityCallableClient';
 
+/**
+ * The authority callables store lastUpdated as a Firestore Timestamp (Timestamp.now()); older
+ * copies carry ISO text. Either is a commit stamp; anything else is not evidence.
+ */
+const hasCommitStamp = (value: unknown): boolean => {
+  if (typeof value === 'string') return Number.isFinite(Date.parse(value));
+  const toMillis = (value as { toMillis?: unknown } | null)?.toMillis;
+  return typeof toMillis === 'function' && Number.isFinite(toMillis.call(value));
+};
+
 /** A server-only read proves one exact commit; matching field values are not a receipt. */
 const readConfirmedAuthorityMutation = async (
   payload: DailyRecordAuthorityCallablePayload | DailyRecordAuthorityPatchCallablePayload
@@ -31,8 +41,7 @@ const readConfirmedAuthorityMutation = async (
       meta?.lastMutationId !== mutationId ||
       !Number.isSafeInteger(meta.revision) ||
       meta.revision <= 0 ||
-      typeof data.lastUpdated !== 'string' ||
-      !Number.isFinite(Date.parse(data.lastUpdated))
+      !hasCommitStamp(data.lastUpdated)
     )
       return null;
     const record = docToRecord(data, payload.date);
