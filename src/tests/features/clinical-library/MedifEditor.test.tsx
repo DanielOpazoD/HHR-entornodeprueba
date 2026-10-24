@@ -138,7 +138,8 @@ describe('MedifEditor', () => {
         p3_medico_declaracion: 'Dra. Prueba Ñáñez',
       }),
       expect.anything(),
-      'editable'
+      'editable',
+      expect.any(AbortSignal)
     );
     fireEvent.change(physician, { target: { value: '' } });
     await act(async () => {
@@ -151,7 +152,8 @@ describe('MedifEditor', () => {
         p3_medico_declaracion: '',
       }),
       expect.anything(),
-      'print'
+      'print',
+      expect.any(AbortSignal)
     );
   });
 

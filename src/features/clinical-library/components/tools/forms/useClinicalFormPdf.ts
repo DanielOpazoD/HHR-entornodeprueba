@@ -23,6 +23,7 @@ interface PreparedPdf {
   bytes: Uint8Array;
   url: string;
   fingerprint: string;
+  revision: number;
 }
 
 export const useClinicalFormPdf = (
@@ -49,88 +50,111 @@ export const useClinicalFormPdf = (
     annexes.map(image => [image.id, image.caption]),
   ]);
   const latest = useRef(fingerprint);
-  latest.current = fingerprint;
+  const contextRevision = useRef(0);
+  if (latest.current !== fingerprint) {
+    latest.current = fingerprint;
+    contextRevision.current += 1;
+  }
+  const revision = contextRevision.current;
   const sequence = useRef(0);
-  const currentPdf = prepared?.fingerprint === fingerprint ? prepared : null;
-  useEffect(
-    () => () => {
+  const active = useRef(false);
+  const mounted = useRef(true);
+  const currentPdf = prepared?.revision === revision ? prepared : null;
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
       sequence.current += 1;
-    },
-    []
-  );
+    };
+  }, []);
   useEffect(
     () => () => {
       if (prepared) URL.revokeObjectURL(prepared.url);
     },
-    [prepared]
+    [prepared, revision]
   );
 
-  const prepare = async (): Promise<PreparedPdf | null> => {
-    if (currentPdf) return currentPdf;
+  const changedMessage = (format: 'pdf' | 'docx') =>
+    `Los datos cambiaron mientras se preparaba ${format === 'pdf' ? 'el PDF' : 'Word'}. Revisa y vuelve a generar.`;
+  const isCurrent = (attempt: number, format: 'pdf' | 'docx'): boolean => {
+    if (!mounted.current || attempt !== sequence.current) return false;
+    if (revision !== contextRevision.current) throw new Error(changedMessage(format));
+    return true;
+  };
+  // Keep the lock through the deferred download module, including cached PDFs.
+  const run = async <T>(
+    format: 'pdf' | 'docx',
+    action: (attempt: number) => Promise<T>
+  ): Promise<T | null> => {
+    if (active.current || !mounted.current) return null;
+    active.current = true;
     const attempt = ++sequence.current;
-    setBusyFormat('pdf');
+    setBusyFormat(format);
     onNotice('');
     try {
-      const bytes = await generate(form, { ...values }, [...hidden]);
-      if (attempt !== sequence.current) return null;
-      if (latest.current !== fingerprint)
-        throw new Error(
-          'Los datos cambiaron mientras se preparaba el PDF. Revisa y vuelve a generar.'
-        );
-      const result = {
-        bytes,
-        url: URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: 'application/pdf' })),
-        fingerprint,
-      };
-      setPrepared(result);
-      return result;
+      return await action(attempt);
     } catch (error) {
       if (attempt === sequence.current)
-        onNotice(error instanceof Error ? error.message : 'No se pudo preparar el PDF.');
+        onNotice(
+          revision !== contextRevision.current
+            ? changedMessage(format)
+            : error instanceof Error
+              ? error.message
+              : 'No se pudo preparar el documento. Vuelve a intentarlo.'
+        );
       return null;
     } finally {
-      if (attempt === sequence.current) setBusyFormat(null);
+      if (attempt === sequence.current) {
+        active.current = false;
+        setBusyFormat(null);
+      }
     }
   };
-  const download = async () => {
-    const result = await prepare();
-    if (!result || latest.current !== result.fingerprint) return;
-    try {
+  const preparePdf = async (attempt: number): Promise<PreparedPdf | null> => {
+    if (!isCurrent(attempt, 'pdf')) return null;
+    if (currentPdf) return currentPdf;
+    const bytes = await generate(form, { ...values }, [...hidden]);
+    if (!isCurrent(attempt, 'pdf')) return null;
+    const result = {
+      bytes,
+      url: URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: 'application/pdf' })),
+      fingerprint,
+      revision,
+    };
+    setPrepared(result);
+    return result;
+  };
+  const prepare = () => run('pdf', preparePdf);
+  const download = () =>
+    run('pdf', async attempt => {
+      const result = await preparePdf(attempt);
+      if (!result || !isCurrent(attempt, 'pdf')) return;
       const { saveAs } = await import('file-saver');
-      if (latest.current !== result.fingerprint) return;
+      if (!isCurrent(attempt, 'pdf')) return;
       saveAs(
         new Blob([new Uint8Array(result.bytes)], { type: 'application/pdf' }),
         `${form.id}-imprimible.pdf`
       );
-    } catch {
-      onNotice('No se pudo descargar el PDF. Vuelve a intentarlo.');
-    }
-  };
-  const downloadDocx = async () => {
-    const attempt = ++sequence.current;
-    setBusyFormat('docx');
-    onNotice('');
-    try {
-      const bytes = await generateDocx(form, { ...values }, [...hidden], [...annexes]);
+    });
+  const downloadDocx = () =>
+    run('docx', async attempt => {
+      if (!isCurrent(attempt, 'docx')) return;
+      const bytes = await generateDocx(
+        form,
+        { ...values },
+        [...hidden],
+        annexes.map(image => ({ ...image }))
+      );
+      if (!isCurrent(attempt, 'docx')) return;
       const { saveAs } = await import('file-saver');
-      if (attempt !== sequence.current) return;
-      if (latest.current !== fingerprint)
-        throw new Error(
-          'Los datos cambiaron mientras se preparaba Word. Revisa y vuelve a generar.'
-        );
+      if (!isCurrent(attempt, 'docx')) return;
       saveAs(
         new Blob([new Uint8Array(bytes)], {
           type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         }),
         `${form.id}.docx`
       );
-    } catch (error) {
-      if (attempt === sequence.current)
-        onNotice(error instanceof Error ? error.message : 'No se pudo descargar Word.');
-    } finally {
-      if (attempt === sequence.current) setBusyFormat(null);
-    }
-  };
+    });
   return {
     busy,
     busyFormat,
@@ -139,7 +163,8 @@ export const useClinicalFormPdf = (
     download,
     downloadDocx,
     print: () => {
-      if (currentPdf) printLibraryDocument(currentPdf.url);
+      if (mounted.current && currentPdf && revision === contextRevision.current)
+        printLibraryDocument(currentPdf.url);
     },
   };
 };
