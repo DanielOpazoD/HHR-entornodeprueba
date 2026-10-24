@@ -14,6 +14,7 @@ import { dailyRecordReadLogger } from '@/services/repositories/repositoryLoggers
 import type { DailyRecordRemoteLoadResult } from '@/services/repositories/dailyRecordRemoteLoader';
 import type { DailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { getPendingDailyRecordProjection } from '@/services/storage/sync/dailyRecordSyncQueueReadService';
 
 interface ResolveRemoteGoldenPathReadResultInput {
   date: string;
@@ -76,16 +77,7 @@ export const resolveRemoteGoldenPathReadResult = async ({
 
   if (recordToHydrate) {
     try {
-      const storedRecord = await persistHydratedRecord(
-        recordToHydrate,
-        date,
-        localCandidate?.record || null
-      );
-      // Another version means the store kept a projection with unsynced writes instead of this
-      // read (they may have appeared while the read was in flight). Publish what is stored.
-      if (storedRecord && storedRecord.lastUpdated !== recordToHydrate.lastUpdated) {
-        return createRetainedPendingProjectionReadResult(date, storedRecord);
-      }
+      await persistHydratedRecord(recordToHydrate, date, localCandidate?.record || null);
     } catch (error) {
       if (error instanceof AdmissionDatePolicyViolationError) {
         dailyRecordReadLogger.warn(
@@ -98,6 +90,8 @@ export const resolveRemoteGoldenPathReadResult = async ({
     }
   }
 
+  const retainedRecord = await getPendingDailyRecordProjection(date);
+  if (retainedRecord) return createRetainedPendingProjectionReadResult(date, retainedRecord);
   return createGoldenPathReadResult(date, goldenPath, localCandidate, effectiveRemoteReadResult);
 };
 

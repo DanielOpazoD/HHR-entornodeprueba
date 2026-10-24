@@ -24,26 +24,26 @@ import { rebasePendingDailyRecordWrite } from '@/services/repositories/dailyReco
 import { prepareDailyRecordForPersistence } from '@/services/repositories/dailyRecordPersistencePreparation';
 import { buildPendingDailyRecordReplacementTask } from '@/services/storage/sync/syncQueuePendingDailyRecordReplacement';
 import type { DailyRecord as StoredDailyRecord } from '@/services/storage/storageDailyRecordContracts';
+import { getPendingDailyRecordProjection } from '@/services/storage/sync/dailyRecordSyncQueueReadService';
 
 /**
- * Hydrates the local cache with the selected record. Returns the projection the store kept
- * instead, when unsynced local writes own it: that, not the remote copy, is what gets published.
+ * Cache hydration preserves unresolved writes atomically. Callers then read the pending
+ * projection afresh, including when golden-path selection did not need hydration.
  */
 const hydrateLocalCache = async (
   record: DailyRecord,
   date: string,
   localRecord: DailyRecord | null
-): Promise<DailyRecord | null> => {
+): Promise<void> => {
   try {
-    const storedRecord = await persistHydratedRecordToLocalCache(record, date, localRecord);
-    return storedRecord && storedRecord.lastUpdated !== record.lastUpdated ? storedRecord : null;
+    await persistHydratedRecordToLocalCache(record, date, localRecord);
   } catch (error) {
     if (error instanceof AdmissionDatePolicyViolationError) {
       dailyRecordSyncLogger.warn(
         `Skipped local hydration for ${date} due to admissionDate validation`,
         error
       );
-      return null;
+      return;
     }
     throw error;
   }
@@ -61,10 +61,10 @@ const resolveSubscriptionResult = async (
     remoteAvailability,
     clinicalConsistencyPhase: 'sync_publish',
   });
-  const retainedRecord =
-    goldenPath.shouldHydrateLocal && remoteRecord
-      ? await hydrateLocalCache(goldenPath.selectedRecord || remoteRecord, date, localRecord)
-      : null;
+  if (goldenPath.shouldHydrateLocal && remoteRecord) {
+    await hydrateLocalCache(goldenPath.selectedRecord || remoteRecord, date, localRecord);
+  }
+  const retainedRecord = await getPendingDailyRecordProjection(date);
   const record = retainedRecord ?? goldenPath.selectedRecord;
   const consistency = resolveDailyRecordSyncConsistency({
     localRecord: retainedRecord ?? localRecord,
@@ -170,14 +170,14 @@ export const syncWithFirestoreDetailed = async (date: string) => {
           remoteAvailability: remoteResult.record ? 'resolved' : 'missing',
           clinicalConsistencyPhase: 'sync_publish',
         });
-        const retainedRecord =
-          goldenPath.shouldHydrateLocal && remoteResult.record
-            ? await hydrateLocalCache(
-                goldenPath.selectedRecord || remoteResult.record,
-                date,
-                localRecord
-              )
-            : null;
+        if (goldenPath.shouldHydrateLocal && remoteResult.record) {
+          await hydrateLocalCache(
+            goldenPath.selectedRecord || remoteResult.record,
+            date,
+            localRecord
+          );
+        }
+        const retainedRecord = await getPendingDailyRecordProjection(date);
         const record = retainedRecord ?? goldenPath.selectedRecord;
         const consistency = resolveDailyRecordSyncConsistency({
           localRecord: retainedRecord ?? localRecord,

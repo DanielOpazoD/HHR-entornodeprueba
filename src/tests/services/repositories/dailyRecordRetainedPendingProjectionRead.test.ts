@@ -113,3 +113,67 @@ describe('a read that meets a pending local edit publishes the retained projecti
     expect(result.sourceOfTruth).toBe('local');
   });
 });
+
+describe('a read never publishes another copy over a pending local edit', () => {
+  beforeEach(async () => {
+    await hospitalDB.syncQueue.clear();
+    await hospitalDB.dailyRecords.clear();
+    localStorage.clear();
+    firestoreEnabled.value = false;
+    loadRemote.mockReset();
+    subscriptionCallbacks.length = 0;
+  });
+
+  it('keeps the pending edit when the remote copy carries the same version time', async () => {
+    const localBeforeRead = base();
+    await hospitalDB.dailyRecords.put(localBeforeRead);
+    await queueDailyRecordSyncTaskWithLocalRecord({
+      ...pendingEdit(),
+      lastUpdated: newerRemote().lastUpdated,
+    });
+
+    const result = await resolveRemoteGoldenPathReadResult({
+      date,
+      localCandidate: createLocalRuntimeReadCandidate(date, localBeforeRead),
+      remoteReadResult: remoteLoad(newerRemote()),
+    });
+
+    expect((await hospitalDB.dailyRecords.get(date))?.tensDayShift).toEqual([
+      'SINTETICO PENDIENTE',
+    ]);
+    expect(result.record?.tensDayShift).toEqual(['SINTETICO PENDIENTE']);
+    expect(result.sourceOfTruth).toBe('local');
+  });
+
+  it('a manual sync publishes an edit saved while the remote read was in flight', async () => {
+    firestoreEnabled.value = true;
+    await hospitalDB.dailyRecords.put(base());
+    loadRemote.mockImplementation(async () => {
+      await queueDailyRecordSyncTaskWithLocalRecord(pendingEdit());
+      return remoteLoad(base());
+    });
+
+    const result = await syncWithFirestoreDetailed(date);
+
+    expect((await hospitalDB.dailyRecords.get(date))?.tensDayShift).toEqual([
+      'SINTETICO PENDIENTE',
+    ]);
+    expect(result?.record?.tensDayShift).toEqual(['SINTETICO PENDIENTE']);
+    expect(result?.sourceOfTruth).toBe('local');
+  });
+
+  it('a read that finds no remote copy publishes the pending edit saved meanwhile', async () => {
+    const localBeforeRead = base();
+    await hospitalDB.dailyRecords.put(localBeforeRead);
+    await queueDailyRecordSyncTaskWithLocalRecord(pendingEdit());
+
+    const result = await resolveRemoteGoldenPathReadResult({
+      date,
+      localCandidate: createLocalRuntimeReadCandidate(date, localBeforeRead),
+      remoteReadResult: { ...remoteLoad(base()), record: null },
+    });
+
+    expect(result.record?.tensDayShift).toEqual(['SINTETICO PENDIENTE']);
+    expect(result.sourceOfTruth).toBe('local');
+  });
+});
