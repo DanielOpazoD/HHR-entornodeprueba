@@ -25,6 +25,30 @@ import { prepareDailyRecordForPersistence } from '@/services/repositories/dailyR
 import { buildPendingDailyRecordReplacementTask } from '@/services/storage/sync/syncQueuePendingDailyRecordReplacement';
 import type { DailyRecord as StoredDailyRecord } from '@/services/storage/storageDailyRecordContracts';
 
+/**
+ * Hydrates the local cache with the selected record. Returns the projection the store kept
+ * instead, when unsynced local writes own it: that, not the remote copy, is what gets published.
+ */
+const hydrateLocalCache = async (
+  record: DailyRecord,
+  date: string,
+  localRecord: DailyRecord | null
+): Promise<DailyRecord | null> => {
+  try {
+    const storedRecord = await persistHydratedRecordToLocalCache(record, date, localRecord);
+    return storedRecord && storedRecord.lastUpdated !== record.lastUpdated ? storedRecord : null;
+  } catch (error) {
+    if (error instanceof AdmissionDatePolicyViolationError) {
+      dailyRecordSyncLogger.warn(
+        `Skipped local hydration for ${date} due to admissionDate validation`,
+        error
+      );
+      return null;
+    }
+    throw error;
+  }
+};
+
 const resolveSubscriptionResult = async (
   date: string,
   remoteRecord: DailyRecord | null,
@@ -37,30 +61,17 @@ const resolveSubscriptionResult = async (
     remoteAvailability,
     clinicalConsistencyPhase: 'sync_publish',
   });
-  if (goldenPath.shouldHydrateLocal && remoteRecord) {
-    try {
-      await persistHydratedRecordToLocalCache(
-        goldenPath.selectedRecord || remoteRecord,
-        date,
-        localRecord
-      );
-    } catch (error) {
-      if (error instanceof AdmissionDatePolicyViolationError) {
-        dailyRecordSyncLogger.warn(
-          `Skipped local hydration for ${date} due to admissionDate validation`,
-          error
-        );
-      } else {
-        throw error;
-      }
-    }
-  }
-  const record = goldenPath.selectedRecord;
+  const retainedRecord =
+    goldenPath.shouldHydrateLocal && remoteRecord
+      ? await hydrateLocalCache(goldenPath.selectedRecord || remoteRecord, date, localRecord)
+      : null;
+  const record = retainedRecord ?? goldenPath.selectedRecord;
   const consistency = resolveDailyRecordSyncConsistency({
-    localRecord,
+    localRecord: retainedRecord ?? localRecord,
     remoteRecord,
     selectedRecord: record,
     remoteAvailability,
+    pendingLocalWritesRetained: Boolean(retainedRecord),
   });
 
   return createSyncDailyRecordResult({
@@ -159,30 +170,21 @@ export const syncWithFirestoreDetailed = async (date: string) => {
           remoteAvailability: remoteResult.record ? 'resolved' : 'missing',
           clinicalConsistencyPhase: 'sync_publish',
         });
-        if (goldenPath.shouldHydrateLocal && remoteResult.record) {
-          try {
-            await persistHydratedRecordToLocalCache(
-              goldenPath.selectedRecord || remoteResult.record,
-              date,
-              localRecord
-            );
-          } catch (error) {
-            if (error instanceof AdmissionDatePolicyViolationError) {
-              dailyRecordSyncLogger.warn(
-                `Skipped local hydration for ${date} due to admissionDate validation`,
-                error
-              );
-            } else {
-              throw error;
-            }
-          }
-        }
-        const record = goldenPath.selectedRecord;
+        const retainedRecord =
+          goldenPath.shouldHydrateLocal && remoteResult.record
+            ? await hydrateLocalCache(
+                goldenPath.selectedRecord || remoteResult.record,
+                date,
+                localRecord
+              )
+            : null;
+        const record = retainedRecord ?? goldenPath.selectedRecord;
         const consistency = resolveDailyRecordSyncConsistency({
-          localRecord,
+          localRecord: retainedRecord ?? localRecord,
           remoteRecord: remoteResult.record,
           selectedRecord: record,
           remoteAvailability: remoteResult.record ? 'resolved' : 'missing',
+          pendingLocalWritesRetained: Boolean(retainedRecord),
         });
         return createSyncDailyRecordResult({
           date,

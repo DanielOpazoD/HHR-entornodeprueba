@@ -7,6 +7,7 @@ import {
 import { resolveDailyRecordConflict } from '@/services/repositories/conflictResolutionMatrix';
 import {
   createGoldenPathReadResult,
+  createRetainedPendingProjectionReadResult,
   type LocalRuntimeReadCandidate,
 } from '@/services/repositories/dailyRecordReadResultController';
 import { dailyRecordReadLogger } from '@/services/repositories/repositoryLoggers';
@@ -75,7 +76,20 @@ export const resolveRemoteGoldenPathReadResult = async ({
 
   if (recordToHydrate) {
     try {
-      await persistHydratedRecord(recordToHydrate, date, localCandidate?.record || null);
+      const storedRecord = await persistHydratedRecord(
+        recordToHydrate,
+        date,
+        localCandidate?.record || null
+      );
+      // Another version means the store kept a projection with unsynced writes instead of this
+      // read (they may have appeared while the read was in flight). Publish what is stored.
+      if (storedRecord && storedRecord.lastUpdated !== recordToHydrate.lastUpdated) {
+        return createRetainedPendingProjectionReadResult(
+          date,
+          storedRecord,
+          effectiveRemoteReadResult.record
+        );
+      }
     } catch (error) {
       if (error instanceof AdmissionDatePolicyViolationError) {
         dailyRecordReadLogger.warn(

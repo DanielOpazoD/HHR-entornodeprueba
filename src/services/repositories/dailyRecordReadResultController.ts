@@ -68,6 +68,28 @@ export const createLocalRuntimeReadResult = (
   });
 };
 
+/** The projection cache hydration kept because its local writes are still unsynced. */
+export const createRetainedPendingProjectionReadResult = (
+  date: string,
+  retainedRecord: DailyRecord,
+  remoteRecord: DailyRecord | null
+): DailyRecordReadResult => {
+  const candidate = createLocalRuntimeReadCandidate(date, retainedRecord);
+  return createLocalRuntimeReadResult(
+    date,
+    candidate,
+    'indexeddb',
+    resolveDailyRecordReadConsistency({
+      localRecord: candidate.record,
+      remoteRecord,
+      selectedRecord: candidate.record,
+      remoteAvailability: 'resolved',
+      repairApplied: candidate.repairApplied,
+      pendingLocalWritesRetained: true,
+    })
+  );
+};
+
 export const createGoldenPathReadResult = (
   date: string,
   goldenPath: ReturnType<typeof resolveDailyRecordPersistenceGoldenPath>,
