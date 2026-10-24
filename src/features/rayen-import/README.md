@@ -86,12 +86,11 @@ un evento histórico anterior al contrato clínico conserva la compatibilidad re
 mientras la política global siga ausente. En `shadow` y `enforced`, el callable exige que el modo y
 la revisión del evento coincidan con la política global vigente.
 La promoción y el rollback se realizan en Configuración → Integraciones; no dependen de una variable
-Vite del navegador. El cliente usa contrato runtime v2 y la web exige backend v2; el backend publica
-v3 (días divididos de la fase 1a), y en esos días la valla real es la verificación por solicitud de
-`clientRuntimeContractVersion` (ver `functions/lib/runtime/README.md`). El backend
-acepta temporalmente clientes v1 sólo para poder desplegar primero Functions y después la web; la
-migración posterior de la política a esquema v2 activa el cerco irreversible que bloquea sus
-escrituras clínicas directas.
+Vite del navegador. El cliente y el backend usan contrato runtime v3 (días divididos de la fase 1a),
+y la versión mínima de ambos es 3. La mínima de cliente es un aviso; en los días divididos la valla
+real es la verificación por solicitud de `clientRuntimeContractVersion` (ver
+`functions/lib/runtime/README.md`). La migración de la política a esquema v2 activa el cerco
+irreversible que bloquea las escrituras clínicas directas de clientes viejos.
 En `off` y `shadow`, cada parche individual demuestra atómicamente mediante el callable que la
 revisión congelada sigue vigente antes de tocar la caché local. Una promoción concurrente a
 `enforced` cancela los parches restantes y no deja escrituras antiguas en la cola para un replay
