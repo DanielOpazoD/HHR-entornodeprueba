@@ -21,7 +21,7 @@ export const matchesCensusEpisodeIdentity = (
       );
 
 const isOccupied = (patient: PatientData | undefined): patient is PatientData =>
-  !!patient && !!patient.patientName?.trim() && !patient.isBlocked;
+  !!patient && !patient.isBlocked && (!!patient.patientName?.trim() || !!patient.identityReview);
 
 export interface CurrentPatientRef {
   bedId: string;
@@ -79,13 +79,19 @@ export const createCensusPatientIdentityIndex = (
     if (!isOccupied(patient)) continue;
     occupiedBedIds.add(bedId);
     const ref = { bedId, patient };
-    if (patient.clinicalEpisodeId) principalByEpisode.set(patient.clinicalEpisodeId, ref);
+    // A bed under identity review stays occupied but is never matched: its identity is not evidence.
+    const principalReadable = !patient.identityReview;
+    if (principalReadable && patient.clinicalEpisodeId) {
+      principalByEpisode.set(patient.clinicalEpisodeId, ref);
+    }
     const rut = normalizePatientRut(patient.rut);
     // RUN is a legacy fallback only. Once HHR knows the episode, another hospitalization of the
     // same person must not inherit this bed or its pending movements.
-    if (rut && !patient.clinicalEpisodeId) appendLegacy(legacyPrincipalsByRut, rut, ref);
+    if (principalReadable && rut && !patient.clinicalEpisodeId) {
+      appendLegacy(legacyPrincipalsByRut, rut, ref);
+    }
 
-    if (!isOccupied(patient.clinicalCrib)) continue;
+    if (!isOccupied(patient.clinicalCrib) || patient.clinicalCrib.identityReview) continue;
     const cribRef = { bedId, patient: patient.clinicalCrib };
     if (patient.clinicalCrib.clinicalEpisodeId) {
       cribByEpisode.set(patient.clinicalCrib.clinicalEpisodeId, cribRef);

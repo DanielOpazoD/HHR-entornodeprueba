@@ -144,6 +144,11 @@ export const DemographicsPersonalSection: React.FC<DemographicsPersonalSectionPr
                 setError(null);
               }}
             >
+              {localData.documentType === '' && (
+                <option value="" disabled>
+                  Por revisar
+                </option>
+              )}
               <option value="RUT">RUT</option>
               <option value="Pasaporte">Pasaporte</option>
             </select>

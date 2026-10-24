@@ -35,6 +35,7 @@ export const PatientRadiologyTrigger: React.FC<PatientRadiologyTriggerProps> = (
     !patientRut ||
     patientRut === '-' ||
     patient.documentType === 'Pasaporte' ||
+    patient.identityReview ||
     !isValidRut(patientRut)
   ) {
     return null;

@@ -3,7 +3,7 @@ import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 
 export const isOccupiedCensusPatient = (patient: PatientData | undefined): patient is PatientData =>
-  !!patient && !!patient.patientName?.trim() && !patient.isBlocked;
+  !!patient && !patient.isBlocked && (!!patient.patientName?.trim() || !!patient.identityReview);
 
 export const isDischargedEncounter = (encounter: RayenEncounter): boolean =>
   !!encounter.hasMedicalDischarge ||

@@ -15,7 +15,7 @@ import { buildPatientRowSaveScopeKey } from '@/features/census/controllers/patie
 
 import React, { useEffect, useState } from 'react';
 import clsx from 'clsx';
-import { X } from 'lucide-react';
+import { AlertTriangle, X } from 'lucide-react';
 import { DebouncedInput } from '@/components/ui/DebouncedInput';
 import { PatientInputSchema } from '@/schemas/inputSchemas';
 import { isValidRut } from '@/utils/rutUtils';
@@ -31,6 +31,7 @@ import {
   dismissTreatingPhysician,
   isDismissedTreatingPhysician,
 } from '@/shared/census/treatingPhysicianDismissal';
+import { describeIdentityReview } from '@/shared/census/patientIdentityReview';
 import { resolveNameInputState } from './nameInputController';
 import { ClinicalPanelTrigger } from './ClinicalPanelTrigger';
 import { PatientLaboratoryTrigger } from './PatientLaboratoryTrigger';
@@ -93,7 +94,11 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
   const hasAgeValidationError =
     !PatientInputSchema.pick({ age: true }).safeParse({ age: data.age }).success && !!data.age;
 
-  const documentType = data.documentType || 'RUT';
+  const identityReview = data.identityReview;
+  // An unreadable document type is neither RUT nor passport: it is shown as under review.
+  const documentType = identityReview?.fields.includes('documentType')
+    ? undefined
+    : data.documentType || 'RUT';
   const rutValue = (data.rut || '').trim();
   const hasRutValue = rutValue !== '' && rutValue !== '-';
   const isRutMode = documentType === 'RUT';
@@ -245,6 +250,17 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
         </div>
         {!isEmpty && (
           <div className="census-identity-details col-start-1 row-start-2 mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 pl-0.5 text-[10px] leading-tight text-slate-500">
+            {identityReview && (
+              <span
+                role="img"
+                className="inline-flex items-center gap-0.5 rounded bg-amber-100 px-1 py-px text-[9px] font-bold leading-none text-amber-700 ring-1 ring-amber-300"
+                title={describeIdentityReview(identityReview)}
+                aria-label={describeIdentityReview(identityReview)}
+              >
+                <AlertTriangle size={9} strokeWidth={2.5} aria-hidden="true" />
+                Identidad por revisar
+              </span>
+            )}
             {hasRutValue ? (
               <>
                 <span
@@ -258,7 +274,7 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
                 >
                   {rutValue}
                 </span>
-                {!isRutMode && (
+                {documentType === 'Pasaporte' && (
                   <span className="text-[9px] font-bold text-slate-400" title="Documento pasaporte">
                     PAS
                   </span>

@@ -21,6 +21,8 @@ export const canCarryClinicalEvidence = (
   const episode = source.clinicalEpisodeId?.trim();
   const admissionDate = source.admissionDate;
   return Boolean(
+    !source.identityReview &&
+    !destination.identityReview &&
     isIsoDay(sourceDate) &&
     isIsoDay(destinationDate) &&
     Date.parse(`${destinationDate}T00:00:00Z`) - Date.parse(`${sourceDate}T00:00:00Z`) ===

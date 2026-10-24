@@ -91,7 +91,9 @@ export const buildLocalData = (
     provisionalName: normalizeNamePart(data.patientName || ''),
     identityStatus: inferIdentityStatus(data, isClinicalCribPatient),
     rut: data.rut || '',
-    documentType: (data.documentType || 'RUT') as DocumentType,
+    documentType: data.identityReview?.fields.includes('documentType')
+      ? ''
+      : ((data.documentType || 'RUT') as DocumentType),
     birthDate: data.birthDate || '',
     insurance: (data.insurance || 'Fonasa') as Insurance,
     admissionOrigin: (data.admissionOrigin || '') as AdmissionOrigin | '',

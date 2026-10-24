@@ -107,6 +107,8 @@ const pickDemographicUpdates = (
 };
 
 const matchesPatientIdentity = (sourcePatient: PatientData, candidate: PatientData): boolean => {
+  // An identity under review is not evidence of who the patient is.
+  if (sourcePatient.identityReview || candidate.identityReview) return false;
   const sourceDocument = normalizeDocument(sourcePatient.rut);
   const candidateDocument = normalizeDocument(candidate.rut);
 
@@ -194,7 +196,7 @@ export const harmonizeEpisodeDemographicsHistory = async ({
   dailyRecordWriteRepository = defaultDailyRecordWritePort,
 }: HarmonizeEpisodeDemographicsHistoryInput): Promise<void> => {
   const sourceFirstSeenDate = sourcePatient.firstSeenDate?.trim();
-  if (!sourceFirstSeenDate || sourceFirstSeenDate >= currentDate) {
+  if (!sourceFirstSeenDate || sourceFirstSeenDate >= currentDate || sourcePatient.identityReview) {
     return;
   }
 

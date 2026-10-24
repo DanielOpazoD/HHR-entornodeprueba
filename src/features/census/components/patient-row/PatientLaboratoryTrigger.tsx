@@ -50,6 +50,7 @@ export const PatientLaboratoryTrigger: React.FC<PatientLaboratoryTriggerProps> =
     !patientRut ||
     patientRut === '-' ||
     patient.documentType === 'Pasaporte' ||
+    patient.identityReview ||
     !clinicalEpisodeId
   ) {
     return null;

@@ -27,6 +27,7 @@ export type DemographicSubset = Pick<
   | 'biologicalSex'
   | 'admissionDate'
   | 'admissionTime'
+  | 'identityReview'
 >;
 
 export interface DemographicsModalProps {
@@ -51,7 +52,8 @@ export interface LocalDemographicsState {
   provisionalName: string;
   identityStatus: PatientIdentityStatus;
   rut: string;
-  documentType: DocumentType;
+  /** Empty while a stored document type that could not be read waits for an explicit choice. */
+  documentType: DocumentType | '';
   birthDate: string;
   insurance: Insurance;
   admissionOrigin: AdmissionOrigin | '';

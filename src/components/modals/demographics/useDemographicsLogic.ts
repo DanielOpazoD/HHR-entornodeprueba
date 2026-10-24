@@ -153,6 +153,12 @@ export const useDemographicsLogic = ({
       return;
     }
 
+    const documentType = localData.documentType;
+    if (!documentType) {
+      setError('Elige RUT o pasaporte: el tipo de documento guardado no se pudo leer.');
+      return;
+    }
+
     const fullName = composeFullName(
       localData.firstName,
       localData.lastName,
@@ -175,7 +181,7 @@ export const useDemographicsLogic = ({
       secondLastName: normalizeNamePart(localData.secondLastName),
       patientName: fullName,
       rut: localData.rut.trim(),
-      documentType: localData.documentType,
+      documentType,
       birthDate: localData.birthDate,
       admissionDate: localData.admissionDate,
       admissionTime: localData.admissionTime,

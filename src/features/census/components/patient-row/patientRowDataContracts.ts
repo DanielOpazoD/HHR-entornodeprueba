@@ -26,5 +26,5 @@ export type PatientRowDeliveryPatch = Pick<
 >;
 export type PatientRowStateContract = Pick<
   PatientRowPatientContract,
-  'bedMode' | 'hasCompanionCrib' | 'clinicalCrib' | 'isBlocked' | 'patientName'
+  'bedMode' | 'hasCompanionCrib' | 'clinicalCrib' | 'isBlocked' | 'patientName' | 'identityReview'
 >;
