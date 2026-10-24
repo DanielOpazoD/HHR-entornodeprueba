@@ -433,6 +433,6 @@ día marcado conserva `clinicalEpisodeId` para que la superposición y la higien
 
 Los callables de autoridad (guardado, parche y lote) mandan `clientRuntimeContractVersion` como
 campo raíz aparte, fuera de `syncContract`, digests y recibos. Vale
-`CLIENT_RUNTIME_CONTRACT_VERSION`, que sigue en 2: D7 solo acepta campos movidos de la versión 3, y
-el cliente la declara en el mismo cambio que hace que el relleno de Rayen lea la vista combinada
-(D10). Una prueba (`clinicalAuthorityClientVersion.test.ts`) exige las dos cosas juntas.
+`CLIENT_RUNTIME_CONTRACT_VERSION`, que es 3 desde que el relleno de Rayen lee la vista combinada
+(D10, P4b): D7 solo acepta campos movidos de la versión 3, y el cliente la declaró en ese mismo
+cambio. Una prueba (`clinicalAuthorityClientVersion.test.ts`) exige las dos cosas juntas.

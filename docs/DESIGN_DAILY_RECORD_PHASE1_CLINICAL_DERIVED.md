@@ -1,6 +1,7 @@
 # Diseño fase 1: datos clínicos derivados fuera del registro del día
 
-**Estado:** Aprobada (2026-10-23). En implementación, en el orden del plan de PR.
+**Estado:** Aprobada (2026-10-23). P3 (#997), P4a (#1002), P5 (#1003) y este P4b están en el
+código, todo sin activar. La activación (P6) la hace el responsable.
 **Ámbito:** fase 1a de `ADR_DAILY_RECORD_DOCUMENT_GRANULARITY.md`.
 **Relacionado:** `ADR_DAILY_CENSUS_CLINICAL_DATA_OWNERSHIP.md`,
 `ADR_DAILY_CENSUS_TRUTH_CONTRACT.md`, `ADR_CONFLICT_VERSION_RECOVERY.md`,
