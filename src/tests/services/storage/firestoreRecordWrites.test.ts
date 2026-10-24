@@ -1,84 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-const { firestoreWriteLoggerWarn, firestoreWriteLoggerError } = vi.hoisted(() => ({
-  firestoreWriteLoggerWarn: vi.fn(),
-  firestoreWriteLoggerError: vi.fn(),
-}));
-const { mockEnsureUserRoleClaim, mockResolveFirebaseUserRole, mockGetCurrentUser, mockAuthReady } =
-  vi.hoisted(() => ({
-    mockEnsureUserRoleClaim: vi.fn(),
-    mockResolveFirebaseUserRole: vi.fn(),
-    mockGetCurrentUser: vi.fn(),
-    mockAuthReady: Promise.resolve(),
-  }));
-const { mockHttpsCallable, mockSpecialistCallable, mockGetFunctions } = vi.hoisted(() => ({
-  mockHttpsCallable: vi.fn(),
-  mockSpecialistCallable: vi.fn(),
-  mockGetFunctions: vi.fn().mockResolvedValue({ name: 'functions-runtime' }),
-}));
-vi.mock('firebase/firestore', async () => {
-  const actual = await vi.importActual('firebase/firestore');
-
-  class MockTimestamp {
-    static now = vi.fn(() => new MockTimestamp());
-
-    toDate = () => new Date('2026-03-14T12:34:56.789Z');
-  }
-
-  return {
-    ...actual,
-    getDoc: vi.fn(),
-    collection: vi.fn(),
-    deleteDoc: vi.fn(),
-    doc: vi.fn(),
-    setDoc: vi.fn(),
-    Timestamp: MockTimestamp,
-    updateDoc: vi.fn(),
-  };
-});
-vi.mock('firebase/functions', () => ({
-  httpsCallable: (...args: unknown[]) => mockHttpsCallable(...args),
-}));
-vi.mock('@/utils/networkUtils', () => ({
-  withRetry: vi.fn((operation: () => Promise<unknown> | unknown) => operation()),
-}));
-vi.mock('@/services/storage/firestore/firestoreShared', () => ({
-  flattenObject: vi.fn((value: Record<string, unknown>) => value),
-  getRecordDocRef: vi.fn((date: string) => ({ date })),
-  sanitizeForFirestore: vi.fn((value: unknown) => value),
-}));
-vi.mock('@/services/storage/firestore/firestoreWriteSupport', async () => ({
-  ConcurrencyError: (await import('@/services/storage/syncErrorCatalog')).ConcurrencyError,
-  asFirestoreUpdatePayload: vi.fn((payload: Record<string, unknown>) => payload),
-  assertFirestoreConcurrency: vi.fn(),
-  createDeletedRecordRef: vi.fn((date: string) => ({ trashRef: date })),
-  saveHistorySnapshot: vi.fn(),
-  saveRecordAtomically: vi.fn(),
-  updateRecordPartiallyAtomically: vi.fn(),
-}));
-vi.mock('@/services/storage/storageLoggers', () => ({
-  firestoreWriteLogger: {
-    warn: firestoreWriteLoggerWarn,
-    error: firestoreWriteLoggerError,
-  },
-}));
-vi.mock('@/services/auth/authClaimSyncService', () => ({
-  ensureUserRoleClaim: (...args: unknown[]) => mockEnsureUserRoleClaim(...args),
-}));
-vi.mock('@/services/auth/authAccessResolution', () => ({
-  resolveFirebaseUserRole: (...args: unknown[]) => mockResolveFirebaseUserRole(...args),
-}));
-vi.mock('@/services/firebase-runtime/authRuntime', () => ({
-  defaultAuthRuntime: {
-    ready: mockAuthReady,
-    getCurrentUser: () => mockGetCurrentUser(),
-  },
-}));
-vi.mock('@/services/firebase-runtime/functionsRuntime', () => ({
-  defaultFunctionsRuntime: {
-    getFunctions: () => mockGetFunctions(),
-    getRegionalFunctions: () => mockGetFunctions(),
-  },
-}));
+import {
+  firestoreWriteLoggerWarn,
+  firestoreWriteLoggerError,
+  mockEnsureUserRoleClaim,
+  mockResolveFirebaseUserRole,
+  mockGetCurrentUser,
+  mockHttpsCallable,
+  mockSpecialistCallable,
+  mockGetFunctions,
+  specialistHandoffTargets,
+  specialistSnapshot,
+} from './firestoreRecordWritesTestSupport';
 import { deleteDoc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import {
   deleteRecordFromFirestore,
@@ -93,25 +25,7 @@ import {
   saveRecordAtomically,
   updateRecordPartiallyAtomically,
 } from '@/services/storage/firestore/firestoreWriteSupport';
-import { resolvePatchErrorFeedback } from '@/hooks/controllers/dailyRecordSyncNotificationController';
-import { classifySyncError } from '@/services/storage/syncErrorCatalog';
-import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 import { withRetry } from '@/utils/networkUtils';
-
-const specialistHandoffTargets = [
-  {
-    bedId: 'R4',
-    target: 'bed' as const,
-    clinicalEpisodeId: 'synthetic-episode-A',
-    patientName: 'Paciente A Sintético',
-    rut: '99.999.999-9',
-    documentType: 'RUT',
-  },
-];
-const specialistSnapshot = (episode = 'synthetic-episode-A') => ({
-  exists: () => true,
-  data: () => ({ beds: { R4: { ...specialistHandoffTargets[0], clinicalEpisodeId: episode } } }),
-});
 
 describe('firestoreRecordWrites', () => {
   beforeEach(() => {
@@ -400,60 +314,6 @@ describe('firestoreRecordWrites', () => {
         'beds.R4.medicalHandoffAudit': { currentStatus: 'updated_by_specialist' },
       },
     });
-    expect(updateDoc).not.toHaveBeenCalled();
-  });
-
-  it('does not resend a specialist note after turnover during a transport retry', async () => {
-    mockGetCurrentUser.mockReturnValue({ uid: 'synthetic', isAnonymous: false });
-    mockResolveFirebaseUserRole.mockResolvedValue('doctor_specialist');
-    const actual =
-      await vi.importActual<typeof import('@/utils/networkUtils')>('@/utils/networkUtils');
-    vi.mocked(withRetry).mockImplementation((operation, options) =>
-      actual.withRetry(operation, { ...options, initialDelay: 0 })
-    );
-    vi.mocked(getDoc)
-      .mockResolvedValueOnce(specialistSnapshot() as never)
-      .mockResolvedValue(specialistSnapshot('synthetic-episode-B') as never);
-    mockSpecialistCallable.mockRejectedValueOnce({ code: 'functions/unavailable' });
-    const error = await updateRecordPartial(
-      '2026-03-20',
-      { 'beds.R4.medicalHandoffNote': 'Nota de A' },
-      undefined,
-      { specialistHandoffTargets }
-    ).catch(error => error);
-    expect(error).toBeInstanceOf(ConcurrencyError);
-    expect(error.message).toMatch(/R4.*[Cc]ambió/);
-    expect(classifySyncError(error)).toMatchObject({ category: 'conflict', retryable: false });
-    expect(mockSpecialistCallable).toHaveBeenCalledTimes(1);
-    expect(updateDoc).not.toHaveBeenCalled();
-  });
-
-  it('surfaces the server episode rejection as a non-retryable user conflict', async () => {
-    mockGetCurrentUser.mockReturnValue({ uid: 'synthetic', isAnonymous: false });
-    mockResolveFirebaseUserRole.mockResolvedValue('doctor_specialist');
-    const actual =
-      await vi.importActual<typeof import('@/utils/networkUtils')>('@/utils/networkUtils');
-    vi.mocked(withRetry).mockImplementation((operation, options) =>
-      actual.withRetry(operation, { ...options, initialDelay: 0 })
-    );
-    mockSpecialistCallable.mockRejectedValue({
-      code: 'functions/failed-precondition',
-      message: 'El episodio de R4 cambió',
-    });
-    const error = await updateRecordPartial(
-      '2026-03-20',
-      { 'beds.R4.medicalHandoffNote': 'Nota de A' },
-      undefined,
-      { specialistHandoffTargets }
-    ).catch(error => error);
-    expect(error).toBeInstanceOf(ConcurrencyError);
-    expect(error.message).toMatch(/R4.*Recarga/);
-    expect(resolvePatchErrorFeedback(error)).toMatchObject({
-      title: 'Conflicto de Edición',
-      message: error.message,
-    });
-    expect(classifySyncError(error)).toMatchObject({ category: 'conflict', retryable: false });
-    expect(mockSpecialistCallable).toHaveBeenCalledTimes(1);
     expect(updateDoc).not.toHaveBeenCalled();
   });
 
