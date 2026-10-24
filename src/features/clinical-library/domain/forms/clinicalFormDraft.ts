@@ -122,7 +122,13 @@ export const exportClinicalFormDraft = (
 export const importClinicalFormDraft = (
   text: string
 ): { formId: ClinicalFormId; values: ClinicalFormValues } => {
-  const input: unknown = JSON.parse(text);
+  if (text.length > 1_000_000) throw new Error('El borrador es demasiado grande.');
+  let input: unknown;
+  try {
+    input = JSON.parse(text);
+  } catch {
+    throw new Error('El archivo de borrador no es un JSON válido.');
+  }
   if (!input || typeof input !== 'object' || Array.isArray(input))
     throw new Error('Borrador no válido.');
   const data = input as Record<string, unknown>;

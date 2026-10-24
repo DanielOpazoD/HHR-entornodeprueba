@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   getForDate: vi.fn(),
   save: vi.fn(),
   loadRemote: vi.fn(),
+  recordOperationalTelemetry: vi.fn(),
 }));
 
 vi.mock('@/services/repositories/repositoryConfig', () => ({
@@ -32,8 +33,12 @@ vi.mock('@/services/repositories/dailyRecordRemoteLoader', () => ({
 vi.mock('@/services/repositories/dailyRecordLocalCachePersistence', () => ({
   persistHydratedRecordToLocalCache: vi.fn(),
 }));
+vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
+  recordOperationalTelemetry: mocks.recordOperationalTelemetry,
+}));
 
 import { initializeDay } from '@/services/repositories/dailyRecordRepositoryInitializationService';
+import { sanitizeOperationalTelemetryEvent } from '@/services/observability/operationalTelemetryPrivacy';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
 // The Rapa Nui clock reads 2026-10-19 at this instant: the only day the carryover seeds.
@@ -79,11 +84,35 @@ const episodeDoc = (date = SOURCE) => ({
 const heartRates = (record: DailyRecord) =>
   record.beds.R1.vitalSignsHistory?.map(reading => reading.heartRate);
 
-const createDay = async (date: string, source: DailyRecord) => {
+const SECRET = 'Failed to fetch dynamically imported module: Paciente Sintético';
+
+// The seed falls back without its documents: one reason-only event, never the exception.
+const expectOneOverlayFailedEvent = () => {
+  const events = mocks.recordOperationalTelemetry.mock.calls.map(([event]) => event);
+  expect(events).toEqual([
+    {
+      category: 'firestore',
+      operation: 'clinical_derived_read',
+      status: 'degraded',
+      runtimeState: 'degraded',
+      date: SOURCE,
+      issues: ['carryover_overlay_failed'],
+      context: { readScope: 'day', reason: 'carryover_overlay_failed' },
+    },
+  ]);
+  expect(sanitizeOperationalTelemetryEvent(events[0])).toMatchObject({
+    issues: ['unclassified_issue'],
+    context: { readScope: 'day', reason: 'carryover_overlay_failed' },
+    droppedContextKeys: [],
+  });
+  expect(JSON.stringify(events)).not.toMatch(/fetch|Sintético|Error/);
+};
+
+const createDay = async (date: string, source: DailyRecord, initialize = initializeDay) => {
   mocks.getForDate.mockImplementation(async (requested: string) =>
     requested === source.date ? source : null
   );
-  const record = await initializeDay(date, source.date);
+  const record = await initialize(date, source.date);
   expect(mocks.save).toHaveBeenCalledTimes(1);
   expect(mocks.save).toHaveBeenCalledWith(record);
   return record;
@@ -127,31 +156,76 @@ describe('client day creation from a split source day (D10)', () => {
     expect(heartRates(created)).toEqual([70]);
     expect(created.beds.R1.clinicalCarryover).toMatchObject({ sourceDate: SOURCE });
     expect(created).not.toHaveProperty('clinicalDerivedLayout');
+    // The reader reports its failed reads; the carryover does not report them again.
+    expect(mocks.recordOperationalTelemetry).not.toHaveBeenCalled();
   });
 
-  it('seeds from the embedded copies when the read path throws', async () => {
-    mocks.readDocs.mockRejectedValueOnce(new Error('Failed to fetch dynamically imported module'));
+  it('seeds from the embedded copies when the read path throws, and says so once', async () => {
+    mocks.readDocs.mockRejectedValueOnce(new Error(SECRET));
 
     const created = await createDay(TODAY, sourceDay());
 
     expect(heartRates(created)).toEqual([70]);
     expect(created.beds.R1.clinicalCarryover).toMatchObject({ sourceDate: SOURCE });
     expect(created).not.toHaveProperty('clinicalDerivedLayout');
+    expectOneOverlayFailedEvent();
   });
 
-  it('reads nothing when the new day is not today', async () => {
-    const created = await createDay('2026-10-21', sourceDay('2026-10-20'));
+  // The read path chunk never loads (a stale hash after a deploy): a day that is not overlaid must
+  // not even try to load it, and so cannot report its failure.
+  describe('with a read path chunk that does not load', () => {
+    let readServiceLoads = 0;
+    let initializeWithoutReadPath: typeof initializeDay;
 
-    expect(mocks.readDocs).not.toHaveBeenCalled();
-    expect(created.beds.R1.vitalSignsHistory).toBeUndefined();
-    expect(created).not.toHaveProperty('clinicalDerivedLayout');
-  });
+    beforeEach(async () => {
+      vi.resetModules();
+      readServiceLoads = 0;
+      vi.doMock('@/services/repositories/dailyRecordClinicalDerivedReadService', () => {
+        readServiceLoads += 1;
+        throw new Error(SECRET);
+      });
+      ({ initializeDay: initializeWithoutReadPath } =
+        await import('@/services/repositories/dailyRecordRepositoryInitializationService'));
+    });
+    afterEach(() => vi.doUnmock('@/services/repositories/dailyRecordClinicalDerivedReadService'));
 
-  it('reads nothing when the source day is unmarked', async () => {
-    const created = await createDay(TODAY, sourceDay(SOURCE, false));
+    const expectNothingLoaded = async () => {
+      // The mock factory runs only once an import settles: catches a load started in the background.
+      await vi.dynamicImportSettled();
+      expect(readServiceLoads).toBe(0);
+      expect(mocks.readDocs).not.toHaveBeenCalled();
+      expect(mocks.readDoc).not.toHaveBeenCalled();
+      expect(mocks.recordOperationalTelemetry).not.toHaveBeenCalled();
+    };
 
-    expect(mocks.readDocs).not.toHaveBeenCalled();
-    expect(mocks.readDoc).not.toHaveBeenCalled();
-    expect(heartRates(created)).toEqual([70]);
+    it('seeds today from the embedded copies and reports it once', async () => {
+      const created = await createDay(TODAY, sourceDay(), initializeWithoutReadPath);
+
+      expect(readServiceLoads).toBe(1);
+      expect(heartRates(created)).toEqual([70]);
+      expect(created.beds.R1.clinicalCarryover).toMatchObject({ sourceDate: SOURCE });
+      expect(created).not.toHaveProperty('clinicalDerivedLayout');
+      expectOneOverlayFailedEvent();
+    });
+
+    it('loads, reads and reports nothing when the new day is not today', async () => {
+      const created = await createDay(
+        '2026-10-21',
+        sourceDay('2026-10-20'),
+        initializeWithoutReadPath
+      );
+
+      expect(created.beds.R1.vitalSignsHistory).toBeUndefined();
+      expect(created).not.toHaveProperty('clinicalDerivedLayout');
+      await expectNothingLoaded();
+    });
+
+    it('loads, reads and reports nothing when the source day is unmarked', async () => {
+      const created = await createDay(TODAY, sourceDay(SOURCE, false), initializeWithoutReadPath);
+
+      expect(heartRates(created)).toEqual([70]);
+      expect(created.beds.R1.clinicalCarryover).toMatchObject({ sourceDate: SOURCE });
+      await expectNothingLoaded();
+    });
   });
 });

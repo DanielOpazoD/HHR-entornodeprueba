@@ -38,7 +38,6 @@ const bedActions = {
 const dialogActions = {
   confirm: vi.fn<DialogActions['confirm']>(),
   alert: vi.fn<DialogActions['alert']>().mockResolvedValue(undefined),
-  notifications: [],
   notify: vi.fn<DialogActions['notify']>(),
   success: vi.fn<DialogActions['success']>(),
   error: vi.fn<DialogActions['error']>(),
