@@ -18,6 +18,7 @@ import { PatientDataSchema } from './zod/patient';
 import { CMADataSchema, DischargeDataSchema, TransferDataSchema } from './zod/movements';
 import { buildFallbackPatientData, type UnreadableIdentityPolicy } from './zodFallbackBuilders';
 import type { DailyRecordParseReport, PatientDataParseReport } from './zodParseReports';
+import { withoutStoredIdentityReviews } from '@/shared/census/patientIdentityReview';
 
 export const safeParseDailyRecord = (data: unknown): DailyRecord | null => {
   const { normalized } = normalizeLegacyNullsDeep(data);
@@ -206,5 +207,6 @@ export const parseDailyRecordWithDefaultsReport = (
   };
 };
 
+/** Reads a legacy Firebase day: like any stored day, it never brings an identity review. */
 export const parseDailyRecordWithDefaults = (data: unknown, docId: string): DailyRecord =>
-  parseDailyRecordWithDefaultsReport(data, docId).record;
+  parseDailyRecordWithDefaultsReport(withoutStoredIdentityReviews(data), docId).record;

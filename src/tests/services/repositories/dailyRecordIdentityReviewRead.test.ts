@@ -36,6 +36,7 @@ import {
   expectedReviewedR1,
   IDENTITY_REVIEW_DATE as DATE,
   storedDay,
+  storedDayWithPlantedReviews,
   storedSnapshot,
   syntheticIdentity,
 } from '@/tests/fixtures/identityReviewDayFixture';
@@ -169,5 +170,34 @@ describe('a census day where one bed has an unreadable stored identity', () => {
       expect(days[1].beds.R1.identityReview).toEqual(R1_REVIEW);
       expect(days[1].beds.R1.documentType).toBeUndefined();
     }
+  });
+});
+
+describe('a review left in Firestore by any writer', () => {
+  /** No review reaches the record, and every planted holder still arrives. */
+  const expectNoStoredReview = (record: DailyRecord | null | undefined) => {
+    expect(JSON.stringify(record)).not.toContain('identityReview');
+    expect(record?.beds.R2.clinicalCrib?.patientName).toBe('RN SINTETICO');
+    expect(record?.discharges[0].originalData?.clinicalCrib?.patientName).toBe('RN SINTETICO');
+    expect(record?.transfers[0].originalData?.patientName).toBe('PACIENTE UNO');
+    expect(record?.cma[0].originalData?.rut).toBe('FAKE-PASSPORT-R1');
+  };
+
+  it('never reaches a read, the local copy, the realtime census, a range or the month', async () => {
+    vi.mocked(getDoc).mockResolvedValue(storedSnapshot(storedDayWithPlantedReviews()) as never);
+    const docs = [{ id: DATE, data: () => storedDayWithPlantedReviews() }];
+    vi.mocked(getDocs).mockResolvedValue({ docs, size: 1 } as never);
+    vi.mocked(getDocsFromServer).mockResolvedValue({ docs, size: 1 } as never);
+    const emit = captureSnapshotListener();
+    const delivered: Array<DailyRecord | null> = [];
+    subscribeToRecord(DATE, record => delivered.push(record));
+    emit(storedSnapshot(storedDayWithPlantedReviews()));
+
+    expectNoStoredReview((await getRecordFromFirestoreDetailed(DATE)).record);
+    expectNoStoredReview((await getForDateWithMeta(DATE, true)).record);
+    expectNoStoredReview(await getRecordForDate(DATE));
+    expectNoStoredReview(delivered[0]);
+    expectNoStoredReview((await getRecordsRangeFromFirestore('2026-10-01', '2026-10-31'))[0]);
+    expectNoStoredReview((await getMonthRecordsFromFirestore(2026, 9))[0]);
   });
 });

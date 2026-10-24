@@ -41,8 +41,20 @@ import {
   withClearedStoredMovedFields,
 } from '@/services/storage/clinicalDerivedWriteHygiene';
 import { adoptStoredIdentityUnderReview } from '@/services/storage/identityReviewWriteHygiene';
+import { DailyRecordSchema, parseDailyRecordWithDefaultsReport } from '@/schemas/zodSchemas';
 
 const STRICT_REMOTE_DRIFT_TOLERANCE_MS = 0;
+
+/**
+ * The authority answers with the stored day, which may hold an identity this client cannot read
+ * (the replay wrote it back as stored). That day reaches the device cache with the bed under
+ * review, like any read; a day that fits the schema is kept as it came.
+ */
+const readAuthorityAnswer = (record: DailyRecord): DailyRecord =>
+  DailyRecordSchema.safeParse(record).success
+    ? record
+    : parseDailyRecordWithDefaultsReport(record, record.date, { unreadableIdentity: 'quarantine' })
+        .record;
 
 const runE2ESyncTransport = async (task: SyncTask): Promise<boolean> => {
   if (!isE2ERuntimeEnabled() || typeof window === 'undefined') return false;
@@ -268,7 +280,7 @@ const syncDailyRecord = async (
           acceptedRevision: response?.revision,
           selectedTruth: 'authority_intent_invariants',
         });
-        return { authoritativeRecord };
+        return { authoritativeRecord: readAuthorityAnswer(authoritativeRecord) };
       }
 
       if (effectiveAuthorityMode === 'shadow') {

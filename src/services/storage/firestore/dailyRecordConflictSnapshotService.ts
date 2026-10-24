@@ -16,6 +16,10 @@ import {
 import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/firestoreServiceRuntime';
 import type { FirestoreServiceRuntimePort } from '@/services/storage/firestore/ports/firestoreServiceRuntimePort';
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
+import {
+  assertNoIdentityReviewInWrite,
+  withoutStoredIdentityReviews,
+} from '@/shared/census/patientIdentityReview';
 
 /**
  * Recoverable conflict snapshots auto-expire ~48h after creation via a Firestore TTL policy on the
@@ -76,6 +80,8 @@ export const saveConflictVersionSnapshots = async (
     const expireAtMs = Date.now() + CONFLICT_SNAPSHOT_TTL_MS;
     const expireAt = Timestamp.fromMillis(expireAtMs);
 
+    // A bed under identity review holds a guess: archiving it would let a restore store it.
+    assertNoIdentityReviewInWrite(versions);
     const batch = writeBatch(db);
     entries.forEach(({ origin, record }, index) => {
       batch.set(doc(snapshotsRef, snapshotIds[index]), {
@@ -126,7 +132,7 @@ const toConflictVersionSnapshot = (id: string, data: DocumentData): ConflictVers
   conflictId: typeof data.conflictId === 'string' ? data.conflictId : undefined,
   sourceLastUpdated:
     typeof data.sourceLastUpdated === 'string' ? data.sourceLastUpdated : undefined,
-  record: data.record as DailyRecord,
+  record: withoutStoredIdentityReviews(data.record) as DailyRecord,
 });
 
 /**

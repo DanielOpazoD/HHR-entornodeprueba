@@ -65,3 +65,42 @@ export const expectedReviewedR1 = () => {
   const { documentType: _unreadable, ...readable } = syntheticIdentity(...R1_PASSPORT);
   return readable;
 };
+
+const PLANTED_REVIEW = { bedId: 'R2', slot: 'bed', fields: ['documentType'] };
+
+/**
+ * A readable stored day where every place a patient can sit carries an `identityReview` that a
+ * writer left in Firestore: a bed and its crib, the snapshot of a discharge and the crib inside
+ * it, a transfer and its snapshot, and a CMA snapshot. None of them was produced by a read.
+ */
+export const storedDayWithPlantedReviews = (): Json => {
+  const day = storedDay({ documentType: 'Pasaporte' });
+  const beds = day.beds as Record<string, Json>;
+  const newborn = syntheticPatient('R1', 'RN SINTETICO', 'FAKE-PASSPORT-RN', { bedMode: 'Cuna' });
+  const snapshot = {
+    ...r1Passport(),
+    identityReview: PLANTED_REVIEW,
+    clinicalCrib: { ...newborn, identityReview: PLANTED_REVIEW },
+  };
+  beds.R2 = {
+    ...beds.R2,
+    identityReview: PLANTED_REVIEW,
+    clinicalCrib: { ...newborn, bedId: 'R2', identityReview: PLANTED_REVIEW },
+  };
+  return {
+    ...day,
+    discharges: [
+      DataFactory.createMockDischarge({ id: 'discharge-planted', originalData: snapshot as never }),
+    ],
+    transfers: [
+      {
+        ...DataFactory.createMockTransfer({
+          id: 'transfer-planted',
+          originalData: snapshot as never,
+        }),
+        identityReview: PLANTED_REVIEW,
+      },
+    ],
+    cma: [DataFactory.createMockCMA({ id: 'cma-planted', originalData: snapshot as never })],
+  };
+};

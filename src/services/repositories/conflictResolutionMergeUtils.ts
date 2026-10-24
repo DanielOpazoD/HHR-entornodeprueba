@@ -268,7 +268,7 @@ export const mergePatientData = (
     // An identity review describes the stored identity, so the stored side decides it, even when
     // it has none: a local review the stored day no longer needs must not survive the merge.
     if (key === 'identityReview') {
-      merged[key] = remoteValue;
+      if (remoteValue !== undefined) merged[key] = remoteValue;
       traceContext?.add({
         path: `${pathPrefix}.${key}`,
         strategy: 'scalar_policy',

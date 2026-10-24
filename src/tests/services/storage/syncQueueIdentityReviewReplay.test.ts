@@ -5,6 +5,7 @@ import { resolveSyncQueueFailureDecision } from '@/services/storage/sync/syncQue
 import { docToRecord } from '@/services/storage/firestore/firestoreShared';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { DataFactory } from '@/tests/factories/DataFactory';
 import { IDENTITY_REVIEW_DATE as DATE, storedDay } from '@/tests/fixtures/identityReviewDayFixture';
 
 const mocks = vi.hoisted(() => ({
@@ -153,4 +154,54 @@ describe.each(['client_only', 'enforced'])('replay of a queued edit (%s)', mode 
     expect(decision).toMatchObject({ status: 'FAILED', lastErrorCategory: 'validation' });
     expect(decision.error).toContain('Identidad de la cama R1 por revisar');
   });
+
+  it('writes nothing about a review once the stored day was repaired elsewhere', async () => {
+    const repaired = storedDay(
+      { documentType: 'Pasaporte' },
+      { lastUpdated: `${DATE}T08:30:00.000Z` }
+    );
+    mocks.read.mockResolvedValue(snapshot(repaired));
+    mocks.transactionRead.mockResolvedValue(snapshot(repaired));
+    const payload = queuedEdit(record => {
+      record.beds.R2.pathology = 'DIAGNOSTICO EDITADO';
+    });
+
+    await run(task(payload, ['beds.R2.pathology'], STORED_AT));
+
+    const written = writtenDay();
+    expect((written.beds as Record<string, Json>).R1.documentType).toBe('Pasaporte');
+    expect(JSON.stringify(written)).not.toContain('identityReview');
+  });
+
+  it('refuses a queued day whose movement snapshot copied the reviewed patient', async () => {
+    const payload = queuedEdit(record => {
+      record.discharges = [
+        DataFactory.createMockDischarge({ id: 'discharge-r1', originalData: record.beds.R1 }),
+      ];
+    });
+
+    const error = await run(task(payload, ['discharges'], STORED_AT)).catch(caught => caught);
+
+    expect(error).toMatchObject({ code: 'patient_identity_repair_required', bedId: 'R1' });
+    expect(mocks.set).not.toHaveBeenCalled();
+    expect(mocks.callable).not.toHaveBeenCalled();
+  });
+});
+
+it('hands the device cache the authority answer with R1 under review, not its raw value', async () => {
+  mocks.mode = 'enforced';
+  const payload = queuedEdit(record => {
+    record.beds.R2.pathology = 'DIAGNOSTICO EDITADO';
+  });
+
+  const outcome = await run(task(payload, ['beds.R2.pathology'], STORED_AT));
+  const adopted = (outcome as { authoritativeRecord: DailyRecord }).authoritativeRecord;
+
+  expect(adopted.beds.R1.identityReview).toEqual({
+    bedId: 'R1',
+    slot: 'bed',
+    fields: ['documentType'],
+  });
+  expect(adopted.beds.R1.documentType).toBeUndefined();
+  expect(adopted.beds.R2.pathology).toBe('DIAGNOSTICO EDITADO');
 });

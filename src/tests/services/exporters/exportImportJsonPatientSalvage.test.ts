@@ -8,6 +8,7 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
 }));
 
 import { importDataJSONDetailed } from '@/services/exporters/exportImportJson';
+import { storedDayWithPlantedReviews } from '@/tests/fixtures/identityReviewDayFixture';
 
 const DATE = '2026-10-24';
 const passport = () => ({
@@ -84,4 +85,16 @@ describe('JSON patient salvage', () => {
       expect(storage.save).not.toHaveBeenCalled();
     }
   );
+
+  it('imports a file that carries identity reviews without any of them', async () => {
+    const day = storedDayWithPlantedReviews();
+    const result = await importDataJSONDetailed(
+      new File([JSON.stringify({ [DATE]: day })], 'synthetic.json', { type: 'application/json' })
+    );
+
+    expect(result).toMatchObject({ success: true, importedCount: 1, skippedEntries: [] });
+    const saved: DailyRecord[] = storage.save.mock.calls[0][0];
+    expect(JSON.stringify(saved)).not.toContain('identityReview');
+    expect(saved[0].discharges[0].originalData?.clinicalCrib?.patientName).toBe('RN SINTETICO');
+  });
 });

@@ -89,14 +89,14 @@ export const assertNoIdentityReviewInWrite = (value: unknown): void => {
   if (review) throw new PatientIdentityRepairRequiredError(review);
 };
 
-const withoutReviewedField = (patient: PatientData, field: PatientIdentityField): PatientData => {
-  const { identityReview, ...rest } = patient;
-  const fields = identityReview
-    ? toReviewFields(identityReview.fields.filter(reviewed => reviewed !== field))
-    : null;
-  return identityReview && fields
-    ? { ...rest, identityReview: { ...identityReview, fields } }
-    : rest;
+const withoutReviewedField = (
+  patient: PatientData,
+  review: PatientIdentityReview,
+  field: PatientIdentityField
+): PatientData => {
+  const { identityReview: _review, ...rest } = patient;
+  const fields = toReviewFields(review.fields.filter(reviewed => reviewed !== field));
+  return fields ? { ...rest, identityReview: { ...review, fields } } : rest;
 };
 
 const BED_FIELD_PATH = /^beds\.([^.]+)\.(?:(clinicalCrib)\.)?([^.]+)$/;
@@ -110,33 +110,43 @@ export const clearReviewedIdentityFields = <T extends { beds: Record<string, Pat
     const [, bedId, crib, field] = BED_FIELD_PATH.exec(path) ?? [];
     const bed = bedId ? current.beds[bedId] : undefined;
     const target = crib ? bed?.clinicalCrib : bed;
-    if (!bed || !target?.identityReview || !isPatientIdentityField(field)) return current;
-    if (!target.identityReview.fields.includes(field)) return current;
-    const next = withoutReviewedField(target, field);
+    const review = target?.identityReview;
+    if (!bed || !target || !review || !isPatientIdentityField(field)) return current;
+    if (!review.fields.includes(field)) return current;
+    const next = withoutReviewedField(target, review, field);
     return {
       ...current,
       beds: { ...current.beds, [bedId]: crib ? { ...bed, clinicalCrib: next } : next },
     };
   }, record);
 
-const withoutStoredReview = (value: unknown): unknown => {
-  if (!isPlainObject(value) || !('identityReview' in value)) return value;
-  const { identityReview: _stored, ...rest } = value;
-  return rest;
+// Rebuilds only plain objects and arrays on the way to a review; anything else, Firestore
+// timestamps included, is kept as the same instance.
+const isPlainData = (value: unknown): value is Record<string, unknown> => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
 };
 
-/** A review read back from Firestore is not evidence: only this client's own read sets one. */
-export const withoutStoredIdentityReviews = (beds: unknown): unknown => {
-  if (!isPlainObject(beds)) return beds;
-  return Object.fromEntries(
-    Object.entries(beds).map(([bedId, bed]) => {
-      const patient = withoutStoredReview(bed);
-      return [
-        bedId,
-        isPlainObject(patient) && isPlainObject(patient.clinicalCrib)
-          ? { ...patient, clinicalCrib: withoutStoredReview(patient.clinicalCrib) }
-          : patient,
-      ];
-    })
-  );
+const stripStoredReviews = (value: unknown): unknown => {
+  if (Array.isArray(value)) {
+    const items = value.map(stripStoredReviews);
+    return items.some((item, index) => item !== value[index]) ? items : value;
+  }
+  if (!isPlainData(value)) return value;
+  let changed = Object.hasOwn(value, 'identityReview');
+  const next: Record<string, unknown> = {};
+  Object.entries(value).forEach(([key, child]) => {
+    if (key === 'identityReview') return;
+    next[key] = stripStoredReviews(child);
+    if (next[key] !== child) changed = true;
+  });
+  return changed ? next : value;
 };
+
+/**
+ * Data read from outside this device (Firestore, a server answer, an imported file) never brings
+ * an identity review: only this client's own read of an identity sets one. Removes every review,
+ * wherever it sits (beds, cribs, movement snapshots), and keeps everything else as it is.
+ */
+export const withoutStoredIdentityReviews = <T>(value: T): T => stripStoredReviews(value) as T;

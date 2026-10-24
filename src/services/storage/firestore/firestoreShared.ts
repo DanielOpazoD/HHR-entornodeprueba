@@ -93,7 +93,7 @@ export const flattenObject = (
 };
 
 export const docToRecord = (docData: Record<string, unknown>, docId: string): DailyRecord => {
-  const rawData = { ...docData };
+  const rawData = { ...withoutStoredIdentityReviews(docData) };
 
   if (rawData.lastUpdated instanceof Timestamp) {
     rawData.lastUpdated = rawData.lastUpdated.toDate().toISOString();
@@ -113,7 +113,6 @@ export const docToRecord = (docData: Record<string, unknown>, docId: string): Da
     tensDayShift: ensureArray(rawData.tensDayShift, 3),
     tensNightShift: ensureArray(rawData.tensNightShift, 3),
     activeExtraBeds: Array.isArray(rawData.activeExtraBeds) ? rawData.activeExtraBeds : [],
-    beds: withoutStoredIdentityReviews(rawData.beds),
   });
 
   return migrateLegacyData(rawData as unknown as DailyRecord, docId);

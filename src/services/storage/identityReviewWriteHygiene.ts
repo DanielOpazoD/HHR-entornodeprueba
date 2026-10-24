@@ -1,4 +1,5 @@
 import {
+  assertNoIdentityReviewInWrite,
   isIdentityReview,
   PatientIdentityRepairRequiredError,
 } from '@/shared/census/patientIdentityReview';
@@ -30,7 +31,7 @@ const keepStoredIdentity = (
  * A queued day replays onto the stored day. A bed under identity review shows text or nothing
  * where its stored identity could not be read, so those fields go back exactly as stored, unless
  * the task wrote that exact field. With no stored bed there is nothing to keep, and the write stops
- * instead of storing the guess.
+ * instead of storing the guess; so does a review anywhere else (a copied patient snapshot).
  */
 export const adoptStoredIdentityUnderReview = <T extends object>(
   record: T,
@@ -57,5 +58,7 @@ export const adoptStoredIdentityUnderReview = <T extends object>(
       return [bedId, next];
     })
   );
-  return changed ? ({ ...source, beds } as T) : record;
+  const payload = changed ? ({ ...source, beds } as T) : record;
+  assertNoIdentityReviewInWrite(payload);
+  return payload;
 };

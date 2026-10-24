@@ -145,7 +145,11 @@ export const CensusTable: React.FC<CensusTableProps> = ({
   const emptyBedOptions = useMemo(
     () =>
       Object.entries(beds ?? {})
-        .filter(([, patient]) => !patient?.patientName?.trim() && !patient?.isBlocked)
+        // A bed under identity review is occupied even when its name could not be read.
+        .filter(
+          ([, patient]) =>
+            !patient?.patientName?.trim() && !patient?.isBlocked && !patient?.identityReview
+        )
         .map(([bedId, patient]) => ({ id: bedId, label: patient?.bedName || bedId })),
     [beds]
   );
@@ -153,7 +157,7 @@ export const CensusTable: React.FC<CensusTableProps> = ({
   const importEloisaPatient = useCallback(
     async (payload: EloisaManualPatientPayload, targetBedId: string): Promise<string | null> => {
       const target = record?.beds?.[targetBedId];
-      if (!target || target.patientName?.trim() || target.isBlocked) {
+      if (!target || target.patientName?.trim() || target.isBlocked || target.identityReview) {
         return 'La cama seleccionada ya no está disponible. Actualiza la selección.';
       }
       const duplicate = findManualPatientDuplicate(record, payload);

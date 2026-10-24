@@ -9,6 +9,7 @@ import {
 import { getDocFromServer } from 'firebase/firestore';
 import { docToRecord, getRecordDocRef } from './firestoreShared';
 import { withClientRuntimeContractVersion } from '@/services/storage/clinicalAuthorityClientVersion';
+import { withoutStoredIdentityReviews } from '@/shared/census/patientIdentityReview';
 import type {
   DailyRecordAuthorityCallablePayload,
   DailyRecordAuthorityCallableResponse,
@@ -109,7 +110,10 @@ export const invokeAuthority = async (
     { timeout: DAILY_RECORD_AUTHORITY_CALLABLE_TIMEOUT_MS }
   );
   try {
-    return (await callable(withClientRuntimeContractVersion(payload))).data;
+    // The answer carries the stored day: it is read like one.
+    return withoutStoredIdentityReviews(
+      (await callable(withClientRuntimeContractVersion(payload))).data
+    );
   } catch (error) {
     return recoverLostAuthorityResponse(error, payload);
   }
