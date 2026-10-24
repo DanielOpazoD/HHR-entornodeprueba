@@ -49,7 +49,8 @@ const localRecord = async (): Promise<DailyRecord> => {
   if (!record) throw new Error('missing synthetic local record');
   return record;
 };
-const offline = () => Object.assign(new Error('synthetic network failure'), { code: 'unavailable' });
+const offline = () =>
+  Object.assign(new Error('synthetic network failure'), { code: 'unavailable' });
 
 /** The queue publishes each task's changed paths onto the synthetic remote day. */
 const publishQueue = async (): Promise<void> => {
@@ -63,7 +64,10 @@ const publishQueue = async (): Promise<void> => {
         (task.syncContract?.changedPaths ?? []).forEach(path => {
           patch[path] = readPath(payload, path);
         });
-        remote.record = { ...applyPatches(remote.record!, patch), lastUpdated: payload.lastUpdated };
+        remote.record = {
+          ...applyPatches(remote.record!, patch),
+          lastUpdated: payload.lastUpdated,
+        };
         return { authoritativeRecord: remote.record };
       },
     },

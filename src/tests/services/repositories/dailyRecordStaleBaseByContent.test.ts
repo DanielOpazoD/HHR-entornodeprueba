@@ -81,7 +81,11 @@ describe('a write proves its base by content, never by version time alone', () =
   it('rejects an edit for the previous patient after the replacement was published', async () => {
     const base = baseRecord({ R1: patient('ep-sintetico-a') });
     await hospitalDB.dailyRecords.put(base);
-    await updatePartialDetailed(date, { 'beds.R1': patient('ep-sintetico-b') }, { baseRecord: base });
+    await updatePartialDetailed(
+      date,
+      { 'beds.R1': patient('ep-sintetico-b') },
+      { baseRecord: base }
+    );
     await publishQueue();
     expect(await tasks()).toHaveLength(0);
 
@@ -100,7 +104,11 @@ describe('a write proves its base by content, never by version time alone', () =
     vi.setSystemTime(new Date(baseVersion));
     const base = baseRecord({ R1: patient('ep-sintetico-a') });
     await hospitalDB.dailyRecords.put(base);
-    await updatePartialDetailed(date, { 'beds.R1': patient('ep-sintetico-b') }, { baseRecord: base });
+    await updatePartialDetailed(
+      date,
+      { 'beds.R1': patient('ep-sintetico-b') },
+      { baseRecord: base }
+    );
     expect((await localRecord()).lastUpdated).toBe(baseVersion);
 
     await expect(
@@ -154,7 +162,11 @@ describe('a write proves its base by content, never by version time alone', () =
   it('a queued retry for the previous patient is rejected when only that bed is pending', async () => {
     const base = baseRecord({ R1: patient('ep-sintetico-a') });
     await hospitalDB.dailyRecords.put(base);
-    await updatePartialDetailed(date, { 'beds.R1': patient('ep-sintetico-b') }, { baseRecord: base });
+    await updatePartialDetailed(
+      date,
+      { 'beds.R1': patient('ep-sintetico-b') },
+      { baseRecord: base }
+    );
 
     await expect(
       queueDailyRecordSyncTaskWithLocalRecord(

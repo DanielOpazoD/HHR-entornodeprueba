@@ -23,7 +23,11 @@ describe('sync invariants support', () => {
   });
 
   it.each([
-    ['firestoreSyncTransport.ts', /if\s*\(\s*hasRemoteAppliedMutation\(/, 'if (missingMutationCheck('],
+    [
+      'firestoreSyncTransport.ts',
+      /if\s*\(\s*hasRemoteAppliedMutation\(/,
+      'if (missingMutationCheck(',
+    ],
     ['firestoreSyncTransport.ts', 'record: docToRecord(remoteData, record.date)', 'record: null'],
     ['firestoreSyncTransport.ts', 'return { authoritativeRecord: resolved.record }', 'return'],
     [
