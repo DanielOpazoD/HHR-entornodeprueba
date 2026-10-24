@@ -139,10 +139,27 @@ recarga, teclado y movimiento reducido), además de revisión independiente y CI
 21. Si la change toca documentos clínicos, revisar [docs/ADR_CLINICAL_DOCUMENT_WORKSPACE_CONTRACT.md](./ADR_CLINICAL_DOCUMENT_WORKSPACE_CONTRACT.md).
 22. Si la change toca handoff, revisar [docs/ADR_HANDOFF_RUNTIME_SURFACES.md](./ADR_HANDOFF_RUNTIME_SURFACES.md).
 
-### Aceptación temporal de braces (2026-10-07)
+### Aceptación de braces cerrada (2026-10-24)
 
-Excepción autorizada explícitamente por Daniel Opazo, limitada al aviso y árbol
-de desarrollo aprobados. Daniel retiró explícitamente el vencimiento el 12-10-2026
-para esperar una actualización oficial de braces. Se conservan
-los hallazgos originales y un aviso visible; otros riesgos siguen bloqueando.
-Owner, riesgo residual, rollback y validación: [registro de aceptación](BRACES_TEMPORARY_RISK_ACCEPTANCE.md).
+El aviso fue retirado oficialmente el 23-10-2026 y la auditoría fresca confirmó
+su ausencia. Se elimina la aceptación temporal conforme a su criterio de cierre;
+raíz y Functions deben aprobar sin excepciones altas/críticas. Las regresiones
+del CLI conservan evidencia cruda y prueban rechazo alto/crítico, incluidos futuros
+avisos de braces. Fuente, owner e historial: [registro de aceptación](BRACES_TEMPORARY_RISK_ACCEPTANCE.md).
+
+### Validadores y parsers de solicitudes (2026-10-24)
+
+La medición de precache del upgrade se registra en [BUNDLE_RISK_LEDGER.md](BUNDLE_RISK_LEDGER.md):
+40 KiB de margen acotado y techo dedicado de 96.000 bytes para Zod. Se mantienen
+los 239 archivos offline y todos los demás límites.
+
+Owner: `platform`, con revisión de `storage` y `backup` para los contratos de datos.
+Motivo: corregir GHSA-mrhx-c7xc-m3w5 y GHSA-27r3-jxmh-p828.
+Targets: Zod 4.6.7, Firebase CLI 15.34.1, body-parser 1.20.9/2.4.0 según su rama
+y qs 6.16.1, compatible con el parser actualizado.
+Riesgo: alto por el cambio mayor del validador compartido; conservar defaults,
+campos opcionales, lectura de días legacy/marcados y validación de respaldos.
+Rollback: revertir el cambio completo de dependencias y adaptadores; restaurar
+versiones vulnerables vuelve a bloquear la auditoría y no constituye cierre del incidente.
+Gates: `typecheck`, `lint`, `ci:release-gate`, `test:release-confidence` y
+`check:dependency-vulnerabilities`, con scorecard del commit final.

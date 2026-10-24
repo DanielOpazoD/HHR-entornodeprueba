@@ -1,6 +1,6 @@
 import { resolveCurrentUserAuthHeaders } from '@/services/auth/authRequestHeaders';
 import { createScopedLogger } from '@/services/utils/loggerScope';
-import { z } from 'zod';
+import * as z from 'zod';
 
 const fugaNotificationResponseSchema = z.object({
   success: z.boolean(),

@@ -11,8 +11,6 @@ import {
   shouldRetryAuditWithSystemCa,
 } from './lib/dependencyAuditSupport.mjs';
 
-import { evaluateBracesException } from './lib/bracesAuditException.mjs';
-
 const root = process.cwd();
 const reportsDir = path.join(root, 'reports', 'security');
 const outputJsonPath = path.join(reportsDir, 'dependency-audit.json');
@@ -214,33 +212,8 @@ const runAuditForWorkspace = workspace => {
 };
 
 const workspaceResults = workspaceConfigs.map(runAuditForWorkspace);
-const readJsonOrNull = file => {
-  try {
-    return JSON.parse(fs.readFileSync(path.join(root, file), 'utf8'));
-  } catch {
-    return null;
-  }
-};
-let lockText = '';
-try {
-  lockText = fs.readFileSync(path.join(root, 'package-lock.json'), 'utf8');
-} catch {
-  /* Keep the gate closed. */
-}
-const exception = evaluateBracesException({
-  workspace: workspaceResults.find(result => result.id === 'root'),
-  lockText,
-  functionsLock: readJsonOrNull('functions/package-lock.json'),
-});
-const auditPassed = workspaceResults.every(result => result.status === 'ok');
-const gatePassed =
-  auditPassed ||
-  (exception.accepted &&
-    workspaceResults.every(result => result.id === 'root' || result.status === 'ok'));
-const overallStatus = auditPassed ? 'ok' : gatePassed ? 'accepted_with_exception' : 'failed';
-const exceptionNotice = exception.accepted
-  ? `TEMPORARY RISK ACCEPTANCE: ${exception.advisory}; ${exception.packages.length} high findings remain. Development dependencies only. No calendar expiry; review when an official fix or withdrawal is verified. Authorized by ${exception.authorizedBy}. The vulnerability is NOT fixed.`
-  : null;
+const gatePassed = workspaceResults.every(result => result.status === 'ok');
+const overallStatus = gatePassed ? 'ok' : 'failed';
 const reproducibility = buildAuditReproducibilityMetadata({
   failureCategories: workspaceResults.flatMap(result =>
     [result.firstFailureCategory, result.failureCategory].filter(Boolean)
@@ -257,7 +230,6 @@ const summary = {
     workspaces: workspaceConfigs.map(workspace => workspace.id),
   },
   reproducibility,
-  exception,
   workspaces: workspaceResults,
 };
 
@@ -265,7 +237,6 @@ const markdown = [
   '# Dependency Audit',
   '',
   `- Overall status: \`${overallStatus}\``,
-  ...(exceptionNotice ? [`> ${exceptionNotice}`, ''] : []),
   '- Scope: `all dependencies`',
   '- Blocking severities: `high`, `critical`',
   '',
@@ -323,8 +294,6 @@ fs.writeFileSync(outputMarkdownPath, `${markdown}\n`, 'utf8');
 if (process.env.GITHUB_STEP_SUMMARY) {
   fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${markdown}\n`, 'utf8');
 }
-
-if (exceptionNotice) console.warn(`[dependency-vulnerabilities] ${exceptionNotice}`);
 
 if (!gatePassed) {
   console.error('[dependency-vulnerabilities] Dependency audit failed.');

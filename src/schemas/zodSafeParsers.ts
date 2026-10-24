@@ -4,7 +4,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 import { applyDailyRecordStaffingCompatibility } from '@/services/staff/dailyRecordStaffing';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
-import type { SafeParseReturnType } from 'zod';
+import type { ZodSafeParseResult } from 'zod';
 
 import { normalizeLegacyNullsDeep } from './zod/legacyNormalization';
 import {
@@ -31,7 +31,7 @@ export const safeParseDailyRecord = (data: unknown): DailyRecord | null => {
     status: 'degraded',
     issues: result.error.issues
       .slice(0, 5)
-      .map(issue => `${issue.path.join('.')}: ${issue.message}`),
+      .map(issue => `${issue.path.map(String).join('.')}: ${issue.message}`),
   });
   return null;
 };
@@ -111,7 +111,7 @@ export const parseDailyRecordWithDefaultsReport = (
 
   const salvageArrayItems = <T>(
     items: unknown,
-    schema: { safeParse: (value: unknown) => SafeParseReturnType<unknown, T> }
+    schema: { safeParse: (value: unknown) => ZodSafeParseResult<T> }
   ): { values: T[]; dropped: number } => {
     const values: T[] = [];
     let dropped = 0;

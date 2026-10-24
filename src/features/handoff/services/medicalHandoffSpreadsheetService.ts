@@ -1,5 +1,5 @@
 import { httpsCallable } from 'firebase/functions';
-import { z } from 'zod';
+import * as z from 'zod';
 
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import type { FunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';

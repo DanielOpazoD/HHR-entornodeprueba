@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import { UpcChecklistSchema } from './upc';
 import { BedType } from '@/types/domain/beds';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
@@ -13,7 +13,7 @@ import {
   DefaultEmptyStringSchema,
 } from './helpers';
 
-const DefaultFalseSchema = z.boolean().default(false);
+const DefaultFalseSchema = z.boolean().prefault(false);
 const CudyrItemSchema = z.number().min(0).max(4).catch(0);
 
 export const BedTypeSchema = z.nativeEnum(BedType) as z.ZodType<BedType>;
@@ -172,18 +172,18 @@ export const ClinicalSyncCheckpointSchema = z.object({
       scales: nullableOptional(ClinicalSyncSourceCheckpointSchema),
       staffing: nullableOptional(ClinicalSyncSourceCheckpointSchema),
     })
-    .default({}),
+    .prefault({}),
 });
 
 import { PatientData } from '@/types/domain/patient';
 
-export const PatientDataSchema: z.ZodType<PatientData, z.ZodTypeDef, unknown> = z.lazy(() =>
+export const PatientDataSchema: z.ZodType<PatientData, unknown> = z.lazy(() =>
   z
     .object({
       bedId: DefaultEmptyStringSchema,
       isBlocked: DefaultFalseSchema,
       blockedReason: NullableOptionalStringSchema,
-      bedMode: z.enum(['Cama', 'Cuna']).default('Cama'),
+      bedMode: z.enum(['Cama', 'Cuna']).prefault('Cama'),
       neonatalMaternalRut: NullableOptionalStringSchema.catch(undefined),
       neonatalPlacementDecision: nullableOptional(
         z.object({
@@ -245,7 +245,7 @@ export const PatientDataSchema: z.ZodType<PatientData, z.ZodTypeDef, unknown> = 
           displayName: NullableOptionalStringSchema,
         })
       ),
-      specialty: SpecialtySchema.default(Specialty.EMPTY),
+      specialty: SpecialtySchema.prefault(Specialty.EMPTY),
       specialtyAssignment: nullableOptional(
         z.object({
           schemaVersion: z.literal(3),
@@ -275,7 +275,7 @@ export const PatientDataSchema: z.ZodType<PatientData, z.ZodTypeDef, unknown> = 
         emptyStringToUndefined(z.enum(['Obstétrica', 'Ginecológica']))
       ),
       secondarySpecialty: nullableOptional(z.union([z.nativeEnum(Specialty), StringSchema])),
-      status: z.nativeEnum(PatientStatus).default(PatientStatus.EMPTY),
+      status: z.nativeEnum(PatientStatus).prefault(PatientStatus.EMPTY),
       admissionDate: DefaultEmptyStringSchema,
       admissionTime: DefaultEmptyStringSchema,
       clinicalEpisodeId: NullableOptionalStringSchema,
@@ -292,7 +292,7 @@ export const PatientDataSchema: z.ZodType<PatientData, z.ZodTypeDef, unknown> = 
           sourceTrust: z.literal('user_confirmed_unverified'),
         })
       ),
-      hasWristband: z.boolean().default(true),
+      hasWristband: z.boolean().prefault(true),
       devices: nullishDefault(z.array(StringSchema), () => []),
       deviceDetails: nullableOptional(DeviceDetailsSchema),
       surgicalComplication: DefaultFalseSchema,

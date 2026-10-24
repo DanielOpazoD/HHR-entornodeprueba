@@ -12,8 +12,8 @@ describe('runtimeCompatibilityPolicy', () => {
     expect(snapshot).toMatchObject({
       clientRuntimeContractVersion: 3,
       backendRuntimeContractVersion: 3,
-      minSupportedBackendRuntimeContractVersion: 2,
-      minSupportedClientRuntimeContractVersion: 1,
+      minSupportedBackendRuntimeContractVersion: 3,
+      minSupportedClientRuntimeContractVersion: 3,
     });
     expect(snapshot.currentSchemaVersion).toBeGreaterThanOrEqual(snapshot.legacySchemaVersion);
   });

@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import { isValidRut } from '@/utils/rutUtils';
 import type { PharmacyProfessional } from '../../../domain/pharmacy/pharmacyTypes';
 

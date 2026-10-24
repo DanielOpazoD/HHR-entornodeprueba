@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 export const RayenSyncDiagnosticContextSchema = z
   .object({
     patientName: z.string().max(240).optional(),

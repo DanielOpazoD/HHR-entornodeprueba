@@ -95,8 +95,9 @@ describe('bundle budget config', () => {
   it('keeps the install-time precache budget focused on critical runtime files', () => {
     const config = readBundleBudgetConfig();
 
-    // Keep bounded allowances, including Eloisa state and clinical-coverage validation.
-    expect(config.precacheMaxBytes).toBe(4840192 + 2048 + 67840 + 31744 + 2048 + 8192);
+    // Preserve offline clinical validation with the measured security-upgrade allowance.
+    expect(config.precacheMaxBytes).toBe(4840192 + 2048 + 67840 + 31744 + 2048 + 8192 + 40960);
+    expect(findBudget(config, '^vendor-zod-.*\\.js$')).toMatchObject({ maxBytes: 96000 });
     expect(
       config.precacheIgnoredAssetPatterns.some(pattern => /sessionActivity|auth/i.test(pattern))
     ).toBe(false);

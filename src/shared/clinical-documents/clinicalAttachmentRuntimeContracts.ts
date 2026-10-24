@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 
 const clinicalAttachmentActorSchema = z.object({
   uid: z.string(),

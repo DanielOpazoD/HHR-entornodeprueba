@@ -1,5 +1,5 @@
 import { httpsCallable } from 'firebase/functions';
-import { z } from 'zod';
+import * as z from 'zod';
 
 import type { ClinicalDocumentRecord } from '@/features/clinical-documents/domain/entities';
 import { buildClinicalDocumentPrintHtml } from '@/features/clinical-documents/services/clinicalDocumentPrintHtmlBuilder';

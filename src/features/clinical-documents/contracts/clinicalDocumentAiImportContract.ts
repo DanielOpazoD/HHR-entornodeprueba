@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 
 export const CLINICAL_DOCUMENT_AI_IMPORT_MAX_FILE_BYTES = 8 * 1024 * 1024;
 const CLINICAL_DOCUMENT_AI_IMPORT_MIN_TEXT_LENGTH = 80;

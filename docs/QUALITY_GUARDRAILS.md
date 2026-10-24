@@ -29,7 +29,16 @@ Evitar que la deuda estructural vuelva a crecer después de las fases de estabil
 10. Si `backup/export` pasa a ser subsistema crítico de release, debe quedar también reflejado en `critical-coverage` y en `technical-ownership-map`, no solo en budgets de flujo.
 11. Los chunks de arranque del shell crítico deben vivir en `scripts/config/bundle-budget.json` y no quedar como heurísticas hardcodeadas en el checker.
 
+Los contextos de acciones no deben incluir estado que sólo usa su renderizador.
+En `UIContext`, conservar estables las acciones al añadir o retirar notificaciones;
+verificar el proveedor real y consumidores memoizados con JSX nuevo del padre.
+
 ## Cómo agregar un guardrail nuevo
+
+Los indicadores de lecturas remotas no deben convertir carga o fallo en un cero
+confirmado. El recuento audiovisual prueba ambos estados, la conservación del
+último dato del mismo episodio y el descarte de resultados de un episodio anterior.
+Su presentación debe comunicar la incertidumbre sin impedir abrir la galería.
 
 1. Preferir `scripts/check-*.mjs` o `scripts/report-*.mjs` antes de introducir tooling externo.
 2. Si el guardrail es informativo, agregarlo primero como report-only.
@@ -207,13 +216,14 @@ resoluciones oficiales verificadas por SHA-512. Los artefactos de diagnóstico n
 sustituyen el audit requerido del PR; la cadena braces sigue siendo bloqueante.
 No se mantiene un workflow diagnóstico ni un fork de dependencias en main.
 
-### Aceptación temporal de braces (2026-10-07)
+### Aceptación de braces cerrada (2026-10-24)
 
-Excepción autorizada explícitamente por Daniel Opazo, limitada al aviso y árbol
-de desarrollo aprobados. Daniel retiró explícitamente el vencimiento el 12-10-2026
-para esperar una actualización oficial de braces. Se conservan
-los hallazgos originales y un aviso visible; otros riesgos siguen bloqueando.
-Owner, riesgo residual, rollback y validación: [registro de aceptación](BRACES_TEMPORARY_RISK_ACCEPTANCE.md).
+GitHub retiró el aviso el 23-10-2026. Tras verificar la auditoría fresca se retiran
+el helper y la aceptación temporal. Los informes conservan los hallazgos y conteos
+originales; cualquier alto/crítico de raíz o Functions bloquea, también si vuelve
+a aparecer en braces. El [registro de aceptación](BRACES_TEMPORARY_RISK_ACCEPTANCE.md)
+conserva la autorización histórica y la evidencia de cierre. Las notas históricas
+de renovación de huellas de abajo describen los PR anteriores al cierre.
 
 ## Calibración de particiones unitarias
 
@@ -241,3 +251,21 @@ hallazgos originales de braces y su aviso visible. Actualizar la huella del
 lockfile exige comprobar los siete nodos previamente autorizados y no permite
 aceptar nuevos avisos altos o críticos. La instalación, Storybook, TypeDoc y
 `ci:merge-gate` complementan las regresiones del control de auditoría.
+
+### Migración de Zod y corrección de body-parser (2026-10-24)
+
+Usar Zod 4.6.7 y su API de tipos/resultados. `prefault` conserva el parseo de los
+defaults de Zod 3; no cambiarlo por un retorno inmediato que omita transformaciones.
+Los tests de compatibilidad comprueban campos de episodio ausentes y rechazo de
+colecciones excesivas antes de inspeccionar cada elemento. La auditoría debe aprobar
+root y Functions sin excepciones altas/críticas. Firebase CLI
+15.34.1 usa Zod 4 y evita mantener Zod 3 transitivo. Verificar también body-parser
+1.20.9/2.4.0 en ambos lockfiles y los smokes/emuladores del CLI actualizado.
+
+Con esbuild, importar el namespace con `import * as z from 'zod'` permite eliminar
+exports no usados; importar el objeto `z` reexportado incorpora el namespace completo.
+Conservar los presupuestos existentes de Functions y comprobar sus artefactos reales.
+
+La precarga conserva el validador offline. Su aumento medido de 38.875 bytes
+se limita con el margen de 40 KiB y el techo Zod de 96.000 bytes documentados
+en [BUNDLE_RISK_LEDGER.md](BUNDLE_RISK_LEDGER.md); los demás límites siguen vigentes.

@@ -14,7 +14,7 @@ describe('runtimeContractGovernance', () => {
     expect(snapshot.minSupportedClientRuntimeContractVersion).toBeLessThanOrEqual(
       snapshot.clientRuntimeContractVersion
     );
-    expect(snapshot.minSupportedClientRuntimeContractVersion).toBe(1);
+    expect(snapshot.minSupportedClientRuntimeContractVersion).toBe(3);
     expect(snapshot.minSupportedBackendRuntimeContractVersion).toBeLessThanOrEqual(
       snapshot.backendRuntimeContractVersion
     );

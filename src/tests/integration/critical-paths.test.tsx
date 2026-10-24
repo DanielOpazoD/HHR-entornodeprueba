@@ -232,12 +232,16 @@ describe('Critical Integration Paths', () => {
       await result.current.createDay(false);
     });
 
+    await waitFor(() => expect(result.current.record).not.toBeNull());
+    let admissionAccepted = false;
     await act(async () => {
-      result.current.updatePatientMultiple('bed-1', {
-        patientName: 'Maria Silva',
-        rut: '11.111.111-1',
-      });
+      admissionAccepted =
+        (await result.current.updatePatientMultiple('bed-1', {
+          patientName: 'Maria Silva',
+          rut: '11.111.111-1',
+        })) === true;
     });
+    expect(admissionAccepted).toBe(true);
 
     await waitFor(() =>
       expect(result.current.record?.beds['bed-1'].patientName).toBe('Maria Silva')

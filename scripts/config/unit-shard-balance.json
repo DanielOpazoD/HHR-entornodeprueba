@@ -265,7 +265,7 @@
     {
       "id": "ci-measured-800ms",
       "globs": [
-        "src/tests/build/bracesAuditException.test.ts",
+        "src/tests/build/dependencyAuditGate.test.ts",
         "src/tests/components/BedManagerModal.integration.test.tsx",
         "src/tests/components/DeviceSelector.test.tsx",
         "src/tests/features/census/NurseSelector.test.tsx",

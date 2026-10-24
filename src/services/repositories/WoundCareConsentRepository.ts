@@ -41,7 +41,9 @@ const validateReadConsent = (record: WoundCareConsent): WoundCareConsent | null 
       category: 'clinical_document',
       status: 'failed',
       operation: 'consent_repository_invalid_read_record',
-      issues: parsed.error.issues.map(issue => `${issue.path.join('.')}: ${issue.message}`),
+      issues: parsed.error.issues.map(
+        issue => `${issue.path.map(String).join('.')}: ${issue.message}`
+      ),
       context: { consentId: record.id, episodeKey: record.episodeKey },
     });
     return null;

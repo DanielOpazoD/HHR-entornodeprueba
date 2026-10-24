@@ -837,3 +837,21 @@ despliegue. No omitir el control ni ampliar permisos. **Rollback:** revertir est
 bloque restaura el workflow anterior; no modifica datos clínicos ni IAM.
 
 Referencia de cola: [concurrencia de GitHub Actions](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency).
+
+### Compatibilidad tras actualizar Zod y Firebase CLI
+
+El gate de dependencias debe aprobar root y Functions sin nuevas excepciones.
+Probar defaults y opcionales de días/pacientes, reparación legacy, respaldos,
+contratos serverless y lecturas de documentos por episodio. El pack de confianza
+y `ci:release-gate` ejercitan el CLI actualizado con emuladores y entradas sintéticas.
+Conservar scorecard y auditoría del commit final; una prueba focalizada no reemplaza
+los controles pendientes ni acredita un despliegue.
+
+La excepción histórica de braces se retira tras el retiro oficial de
+GHSA-vfj7-8cjw-p6xm del 23-10-2026 y la auditoría fresca sin ese aviso.
+`dependencyAuditGate.test.ts` ejecuta el CLI con informes sintéticos: altos y
+críticos de ambos paquetes bloquean, un futuro aviso de braces también, y los
+hallazgos moderados e informes originales siguen visibles. No renovar huellas
+ni suprimir nuevos avisos para recuperar el verde. El
+[registro de cierre](BRACES_TEMPORARY_RISK_ACCEPTANCE.md) conserva la fuente y
+la autorización histórica.

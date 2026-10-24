@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import type { CensusExportRecord } from '@/services/contracts/censusExportServiceContracts';
 import type { CensusWorkbookSheetDescriptor } from '@/services/exporters/censusMasterWorkbook';
 
@@ -157,8 +157,8 @@ export const FhirCapabilityStatementSchema = z.object({
 
 export type FhirCapabilityStatement = z.infer<typeof FhirCapabilityStatementSchema>;
 
-const CensusWorkbookSheetDescriptorSchema: z.ZodType<CensusWorkbookSheetDescriptor> = z.custom();
-const CensusExportRecordArraySchema: z.ZodType<CensusExportRecord[]> = z.custom(
+const CensusWorkbookSheetDescriptorSchema = z.custom<CensusWorkbookSheetDescriptor>();
+const CensusExportRecordArraySchema = z.custom<CensusExportRecord[]>(
   (value): value is CensusExportRecord[] =>
     Array.isArray(value) &&
     value.every(

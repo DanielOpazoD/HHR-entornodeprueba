@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import { BEDS } from '@/constants/beds';
 import { PatientDataSchema } from '@/schemas/zod/patient';
 import { getActiveDischarges } from '@/application/census/movementTombstonePolicy';

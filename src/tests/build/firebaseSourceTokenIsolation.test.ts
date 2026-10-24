@@ -45,7 +45,17 @@ describe('Firebase deployment source isolation', () => {
       return [];
     });
     vi.spyOn(fabricator, 'applyDeletes').mockResolvedValue([]);
-    await fabricator.applyPlan(Object.fromEntries(groups.map((group, i) => [i, group])));
+    await fabricator.applyPlan({
+      default: {
+        regionalChangesets: {
+          'default-us-central1-default': groups[0],
+          'default-southamerica-east1-default': groups[1],
+        },
+      },
+      other: {
+        regionalChangesets: { 'other-us-central1-default': groups[2] },
+      },
+    });
     expect(seen).toHaveLength(groups.length);
     for (const result of seen) {
       expect(result.initialV1).toBeUndefined();
