@@ -129,7 +129,7 @@ jobs:
           printf '%s\n' \
             'HHR_SPECIALTY_EPISODE_ASSIGNMENT=enabled' \
             'HHR_JEV_CLINICAL_APPROVED=enabled' \
-            'HHR_CLINICAL_DERIVED_SPLIT_FROM=2026-10-26' \
+            'HHR_CLINICAL_DERIVED_SPLIT_FROM=2026-10-24' \
             > functions/.env.hhr-pruebas
 
       - name: Write service account credentials to disk

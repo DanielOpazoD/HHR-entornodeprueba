@@ -1,8 +1,9 @@
 # Diseño fase 1: datos clínicos derivados fuera del registro del día
 
 **Estado:** Aprobada (2026-10-23). P3 (#997), P4a (#1002), P5 (#1003) y P4b (#1004) están en
-`main`. P6 fija la fecha de inicio y la versión mínima 3; al fusionarse despliega Functions, y la
-división empieza en esa fecha (ver Activación).
+`main`. P6 (#1005) fijó la versión mínima 3 y la fecha de inicio. El responsable la adelantó al
+2026-10-24: HHR todavía es el sistema alternativo (enfermería usa otro), así que la división se
+observa en marcha en vez de esperar dos días (ver Activación).
 **Ámbito:** fase 1a de `ADR_DAILY_RECORD_DOCUMENT_GRANULARITY.md`.
 **Relacionado:** `ADR_DAILY_CENSUS_CLINICAL_DATA_OWNERSHIP.md`,
 `ADR_DAILY_CENSUS_TRUTH_CONTRACT.md`, `ADR_CONFLICT_VERSION_RECOVERY.md`,
@@ -496,7 +497,9 @@ Pasos:
    `HHR_CLINICAL_DERIVED_SPLIT_FROM=<fecha>`. En `hhr-pruebas` la escribe `deploy-functions.yml`;
    otro proyecto necesita su propio `functions/.env.<proyecto>`, o la división queda apagada. Una
    prueba (`clinicalDerivedSplitSwitchWorkflow.test.ts`) comprueba que el servidor lee esa fecha:
-   cualquier otro valor la deja apagada sin error.
+   cualquier otro valor la deja apagada sin error. El margen de dos días protege a un sistema
+   principal; mientras HHR sea el alternativo, el responsable puede adelantarla, como hizo el
+   2026-10-24 (el primer parche clínico de ese día lo marca, aunque el día ya exista).
 6. El mismo día, comprobar que el deploy publicado es el de la fusión de P6 o posterior (publicarlo
    si la publicación automática está bloqueada) y que `/.netlify/functions/runtime-contract`
    responde `minSupportedClientRuntimeContractVersion` 3: las pestañas viejas ven el aviso de
