@@ -142,6 +142,10 @@ avisos de braces. Fuente, owner e historial: [registro de aceptación](BRACES_TE
 
 ### Validadores y parsers de solicitudes (2026-10-24)
 
+La medición de precache del upgrade se registra en [BUNDLE_RISK_LEDGER.md](BUNDLE_RISK_LEDGER.md):
+40 KiB de margen acotado y techo dedicado de 96.000 bytes para Zod. Se mantienen
+los 239 archivos offline y todos los demás límites.
+
 Owner: `platform`, con revisión de `storage` y `backup` para los contratos de datos.
 Motivo: corregir GHSA-mrhx-c7xc-m3w5 y GHSA-27r3-jxmh-p828.
 Targets: Zod 4.6.7, Firebase CLI 15.34.1, body-parser 1.20.9/2.4.0 según su rama

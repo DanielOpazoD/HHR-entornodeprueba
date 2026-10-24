@@ -261,3 +261,7 @@ root y Functions sin excepciones altas/críticas. Firebase CLI
 Con esbuild, importar el namespace con `import * as z from 'zod'` permite eliminar
 exports no usados; importar el objeto `z` reexportado incorpora el namespace completo.
 Conservar los presupuestos existentes de Functions y comprobar sus artefactos reales.
+
+La precarga conserva el validador offline. Su aumento medido de 38.875 bytes
+se limita con el margen de 40 KiB y el techo Zod de 96.000 bytes documentados
+en [BUNDLE_RISK_LEDGER.md](BUNDLE_RISK_LEDGER.md); los demás límites siguen vigentes.
