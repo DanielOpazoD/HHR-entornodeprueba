@@ -49,6 +49,7 @@ import { persistLocalAndAttemptRemoteSync } from '@/services/repositories/dailyR
 import { buildGranularPatchStaleVersionRetryHooks } from '@/services/repositories/dailyRecordStaleVersionRebase';
 import { buildPreOutboxRemoteAckOptions } from '@/services/repositories/dailyRecordPreOutboxRemoteAckPolicy';
 import { buildPreOutboxRemoteAckCallbacks } from '@/services/repositories/dailyRecordPreOutboxRemoteAckCallbacks';
+import { buildPendingProjectionRebase } from '@/services/repositories/dailyRecordPendingProjectionRebase';
 import { dailyRecordWriteLogger } from '@/services/repositories/repositoryLoggers';
 import { DataRegressionError, VersionMismatchError } from '@/utils/integrityGuard';
 import { AdmissionDatePolicyViolationError } from '@/application/patient-flow/admissionDatePolicy';
@@ -367,7 +368,13 @@ const updatePartialDetailedWithinLock = async (
           origin: 'direct_queue',
           syncContract,
         },
-        buildPreOutboxRemoteAckOptions(syncContract)
+        {
+          ...buildPreOutboxRemoteAckOptions(syncContract),
+          rebaseOntoPendingProjection: buildPendingProjectionRebase({
+            baseRecord: current,
+            patch: command.patch,
+          }),
+        }
       ),
     ...buildPreOutboxRemoteAckCallbacks(validatedRecord, syncContract),
     readRemoteConfirmedRecord: () => getRecordFromFirestore(command.date, { source: 'server' }),

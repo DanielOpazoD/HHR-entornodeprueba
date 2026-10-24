@@ -23,10 +23,7 @@ import {
   recordSyncQueueDecisionTelemetry,
   recordSyncQueueStaleClaimTelemetry,
 } from '@/services/storage/sync/syncQueueTelemetryController';
-import {
-  buildSyncTaskContract,
-  mergeSyncTaskContracts,
-} from '@/services/storage/sync/syncTaskContractPolicy';
+import { buildSyncTaskContract } from '@/services/storage/sync/syncTaskContractPolicy';
 import {
   clearSyncTaskRuntimeState,
   buildTaskClaim,
@@ -168,10 +165,8 @@ export const createSyncQueueEngine = ({
       recoveryPolicy: meta?.recoveryPolicy,
     });
     const existing = key ? await store.findReusableTask(type, key, ownerKey) : null;
-    const syncContract = mergeSyncTaskContracts(
-      existing?.syncContract,
-      buildSyncTaskContract(type, record, meta?.syncContract)
-    );
+    // The store merges this write's own intent with the pending task inside its transaction.
+    const syncContract = buildSyncTaskContract(type, record, meta?.syncContract);
 
     const pendingTasks = await countActiveTasks(ownerKey);
     if (!existing && pendingTasks >= maxPendingTasks) {
@@ -183,22 +178,26 @@ export const createSyncQueueEngine = ({
       };
     }
 
-    const mode = await store.saveDailyRecordWithTask(record, {
-      opId: `${type}:${key ?? 'global'}:${now}`,
-      type,
-      payload: record,
-      timestamp: now,
-      retryCount: 0,
-      key,
-      ownerKey: taskOwnerKey,
-      contexts: contextMeta.contexts,
-      origin: meta?.origin || existing?.origin || 'direct_queue',
-      recoveryPolicy: contextMeta.recoveryPolicy,
-      syncContract,
-      ...clearSyncTaskRuntimeState(),
-      nextAttemptAt: resolveSyncTaskNextAttemptAt(now, options),
-      ...resolvePreOutboxHoldState(now, options),
-    });
+    const mode = await store.saveDailyRecordWithTask(
+      record,
+      {
+        opId: `${type}:${key ?? 'global'}:${now}`,
+        type,
+        payload: record,
+        timestamp: now,
+        retryCount: 0,
+        key,
+        ownerKey: taskOwnerKey,
+        contexts: contextMeta.contexts,
+        origin: meta?.origin || existing?.origin || 'direct_queue',
+        recoveryPolicy: contextMeta.recoveryPolicy,
+        syncContract,
+        ...clearSyncTaskRuntimeState(),
+        nextAttemptAt: resolveSyncTaskNextAttemptAt(now, options),
+        ...resolvePreOutboxHoldState(now, options),
+      },
+      options.rebaseOntoPendingProjection
+    );
 
     if (!options.deferProcessing) {
       triggerProcessing();

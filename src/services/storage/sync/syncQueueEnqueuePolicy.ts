@@ -1,10 +1,13 @@
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
+import type { DailyRecordPendingProjectionRebase } from '@/services/storage/sync/syncQueuePorts';
 
 export interface SyncQueueEnqueueOptions {
   deferProcessing?: boolean;
   holdForMs?: number;
   preOutboxHoldOwner?: string;
   preOutboxHoldReason?: 'awaiting_remote_ack';
+  /** How a granular daily-record write lands on another write's pending projection. */
+  rebaseOntoPendingProjection?: DailyRecordPendingProjectionRebase;
 }
 
 export const countActiveSyncTasks = (tasks: SyncTask[]): number =>

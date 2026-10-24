@@ -36,6 +36,11 @@ export type {
 export type { SyncQueueEnqueueResult } from '@/services/storage/sync/syncQueueEngineContracts';
 
 export type {
+  DailyRecordPendingProjectionRebase,
+  PendingDailyRecordProjection,
+} from '@/services/storage/sync/syncQueuePorts';
+
+export type {
   SyncQueueDomainMetrics,
   SyncQueueOperationSnapshot,
   SyncQueueTelemetry,

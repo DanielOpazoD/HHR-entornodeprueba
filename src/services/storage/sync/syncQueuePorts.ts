@@ -15,6 +15,20 @@ export interface DailyRecordAuthorityAdoptionResult {
   record?: DailyRecord;
 }
 
+/** What is pending for a day: its local projection and the paths its unresolved write owns. */
+export interface PendingDailyRecordProjection {
+  projection: DailyRecord;
+  pendingChangedPaths: string[];
+}
+
+/**
+ * Runs inside the enqueue transaction. Returns the write applied on top of the pending
+ * projection, or null when the write already carries that pending work. Throws to reject it.
+ */
+export type DailyRecordPendingProjectionRebase = (
+  pending: PendingDailyRecordProjection
+) => DailyRecord | null;
+
 export interface SyncQueueStorePort {
   /** Serialize standalone capacity checks and writes in the same storage transaction. */
   withEnqueueTransaction?<T>(operation: () => Promise<T>): Promise<T>;
@@ -32,7 +46,11 @@ export interface SyncQueueStorePort {
     ownerKey?: string | null
   ): Promise<SyncTask | null>;
   add(task: SyncTask): Promise<void>;
-  saveDailyRecordWithTask(record: DailyRecord, task: SyncTask): Promise<SyncQueueTaskWriteMode>;
+  saveDailyRecordWithTask(
+    record: DailyRecord,
+    task: SyncTask,
+    rebaseOntoPendingProjection?: DailyRecordPendingProjectionRebase
+  ): Promise<SyncQueueTaskWriteMode>;
   /** Atomically replace an existing pending daily-record task; never creates a second task. */
   replacePendingDailyRecordWithTask?(
     record: DailyRecord,
