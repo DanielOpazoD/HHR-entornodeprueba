@@ -50,13 +50,13 @@ patches stay direct: the server rejects them unless the fence is active.
 
 ## Write paths
 
-| Path                     | Entry                                           | Direct client writer (`client_only`, no fence)                                                   | Authority writer (`enforced` or fenced)                                                         |
-| ------------------------ | ----------------------------------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
-| **Full save**            | `saveDetailed` → `saveRecordToFirestore`        | `saveRecordAtomically`: `runTransaction`, full-replace `set` ✅                                  | `saveDailyRecordWithClinicalAuthority`: server transaction ✅                                   |
-| **Partial update**       | `updatePartialDetailed` → `updateRecordPartial` | `updateRecordPartiallyAtomically` when `requireAtomicCas` ✅; otherwise `updateDoc` dot-paths ❌ | `patchDailyRecordWithClinicalAuthority` (clinical paths; bed-tree paths only when fenced) ✅    |
-| **Sync queue**           | `syncDailyRecord` (`firestoreSyncTransport.ts`) | `runTransaction` that re-resolves the task, then `transaction.set(…, { merge: true })` ✅        | `saveDailyRecordWithClinicalAuthority` with the task's `syncContract` ✅                        |
-| **Rayen clinical batch** | `applyRayenClinicalEnrichmentBatch` callable    | —                                                                                                | Server transaction, allowlisted clinical fields ✅                                              |
-| **Specialist handoff**   | `updateSpecialistMedicalHandoff` callable       | —                                                                                                | Used for a `doctor_specialist` specialist-scoped patch, after a fail-closed client version read |
+| Path                     | Entry                                           | Direct client writer (`client_only`, no fence)                                                   | Authority writer (`enforced` or fenced)                                                      |
+| ------------------------ | ----------------------------------------------- | ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| **Full save**            | `saveDetailed` → `saveRecordToFirestore`        | `saveRecordAtomically`: `runTransaction`, full-replace `set` ✅                                  | `saveDailyRecordWithClinicalAuthority`: server transaction ✅                                |
+| **Partial update**       | `updatePartialDetailed` → `updateRecordPartial` | `updateRecordPartiallyAtomically` when `requireAtomicCas` ✅; otherwise `updateDoc` dot-paths ❌ | `patchDailyRecordWithClinicalAuthority` (clinical paths; bed-tree paths only when fenced) ✅ |
+| **Sync queue**           | `syncDailyRecord` (`firestoreSyncTransport.ts`) | `runTransaction` that re-resolves the task, then `transaction.set(…, { merge: true })` ✅        | `saveDailyRecordWithClinicalAuthority` with the task's `syncContract` ✅                     |
+| **Rayen clinical batch** | `applyRayenClinicalEnrichmentBatch` callable    | —                                                                                                | Server transaction, allowlisted clinical fields ✅                                           |
+| **Specialist handoff**   | `updateSpecialistMedicalHandoff` callable       | —                                                                                                | Patient/episode-bound server transaction for a `doctor_specialist` specialist-scoped patch   |
 
 Other server writers (CUDYR admin adjustments, specialty policy application) also stamp
 `meta.lastChangedPaths`. Client direct writes never do.
@@ -92,7 +92,14 @@ must not be retried.
 The first matching route wins:
 
 1. **Specialist-scoped patch by a `doctor_specialist`** — `assertFirestoreConcurrency`
-   (fail-closed, no tolerance) and then the `updateSpecialistMedicalHandoff` callable.
+   (fail-closed, no tolerance) and then the `updateSpecialistMedicalHandoff` callable. The typed
+   payload requires `expectedOccupants`, frozen from the edited record, separately for the bed and
+   its clinical crib. Every client retry re-reads those identities; the server checks them and writes
+   in one transaction. Missing episode metadata or an occupant mismatch rejects with
+   `failed-precondition` naming the bed and asking to reload. This callable has no contract-version
+   compatibility mechanism, so old clients must reload. The client presents the rejection as an
+   editing conflict. Scoped handoff patches commit remotely before entering durable local storage;
+   they never rebase, auto-merge or queue a rejected note against a replacement occupant.
 2. **Frozen Rayen run guard** (`rayenClinicalWriteGuard`) — patch callable; the server requires the
    exact base version and creates `history/rayen-{runId}` once per run.
 3. **Clinical envelope or bed tree** — a clinical-envelope patch goes to the patch callable when

@@ -26,6 +26,7 @@ vi.mock('firebase/firestore', async () => {
 
   return {
     ...actual,
+    getDoc: vi.fn(),
     collection: vi.fn(),
     deleteDoc: vi.fn(),
     doc: vi.fn(),
@@ -45,8 +46,8 @@ vi.mock('@/services/storage/firestore/firestoreShared', () => ({
   getRecordDocRef: vi.fn((date: string) => ({ date })),
   sanitizeForFirestore: vi.fn((value: unknown) => value),
 }));
-vi.mock('@/services/storage/firestore/firestoreWriteSupport', () => ({
-  ConcurrencyError: class ConcurrencyError extends Error {},
+vi.mock('@/services/storage/firestore/firestoreWriteSupport', async () => ({
+  ConcurrencyError: (await import('@/services/storage/syncErrorCatalog')).ConcurrencyError,
   asFirestoreUpdatePayload: vi.fn((payload: Record<string, unknown>) => payload),
   assertFirestoreConcurrency: vi.fn(),
   createDeletedRecordRef: vi.fn((date: string) => ({ trashRef: date })),
@@ -78,7 +79,7 @@ vi.mock('@/services/firebase-runtime/functionsRuntime', () => ({
     getRegionalFunctions: () => mockGetFunctions(),
   },
 }));
-import { deleteDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { deleteDoc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import {
   deleteRecordFromFirestore,
   moveRecordToTrash,
@@ -92,11 +93,31 @@ import {
   saveRecordAtomically,
   updateRecordPartiallyAtomically,
 } from '@/services/storage/firestore/firestoreWriteSupport';
+import { resolvePatchErrorFeedback } from '@/hooks/controllers/dailyRecordSyncNotificationController';
+import { classifySyncError } from '@/services/storage/syncErrorCatalog';
+import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 import { withRetry } from '@/utils/networkUtils';
+
+const specialistHandoffTargets = [
+  {
+    bedId: 'R4',
+    target: 'bed' as const,
+    clinicalEpisodeId: 'synthetic-episode-A',
+    patientName: 'Paciente A Sintético',
+    rut: '99.999.999-9',
+    documentType: 'RUT',
+  },
+];
+const specialistSnapshot = (episode = 'synthetic-episode-A') => ({
+  exists: () => true,
+  data: () => ({ beds: { R4: { ...specialistHandoffTargets[0], clinicalEpisodeId: episode } } }),
+});
 
 describe('firestoreRecordWrites', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(withRetry).mockImplementation(operation => operation());
+    vi.mocked(getDoc).mockResolvedValue(specialistSnapshot() as never);
     delete (import.meta.env as Record<string, string | undefined>)
       .VITE_DAILY_RECORD_AUTHORITY_CALLABLE;
     delete (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE;
@@ -353,11 +374,16 @@ describe('firestoreRecordWrites', () => {
     mockGetCurrentUser.mockReturnValue(currentUser);
     mockResolveFirebaseUserRole.mockResolvedValue('doctor_specialist');
 
-    await updateRecordPartial('2026-03-20', {
-      'beds.R4.medicalHandoffEntries': [{ id: 'entry-1', note: 'Seguimiento' }],
-      'beds.R4.medicalHandoffNote': 'Seguimiento',
-      'beds.R4.medicalHandoffAudit': { currentStatus: 'updated_by_specialist' },
-    } as never);
+    await updateRecordPartial(
+      '2026-03-20',
+      {
+        'beds.R4.medicalHandoffEntries': [{ id: 'entry-1', note: 'Seguimiento' }],
+        'beds.R4.medicalHandoffNote': 'Seguimiento',
+        'beds.R4.medicalHandoffAudit': { currentStatus: 'updated_by_specialist' },
+      } as never,
+      undefined,
+      { specialistHandoffTargets }
+    );
 
     expect(mockGetFunctions).toHaveBeenCalled();
     expect(mockHttpsCallable).toHaveBeenCalledWith(
@@ -367,12 +393,67 @@ describe('firestoreRecordWrites', () => {
     );
     expect(mockSpecialistCallable).toHaveBeenCalledWith({
       date: '2026-03-20',
+      expectedOccupants: specialistHandoffTargets,
       patch: {
         'beds.R4.medicalHandoffEntries': [{ id: 'entry-1', note: 'Seguimiento' }],
         'beds.R4.medicalHandoffNote': 'Seguimiento',
         'beds.R4.medicalHandoffAudit': { currentStatus: 'updated_by_specialist' },
       },
     });
+    expect(updateDoc).not.toHaveBeenCalled();
+  });
+
+  it('does not resend a specialist note after turnover during a transport retry', async () => {
+    mockGetCurrentUser.mockReturnValue({ uid: 'synthetic', isAnonymous: false });
+    mockResolveFirebaseUserRole.mockResolvedValue('doctor_specialist');
+    const actual =
+      await vi.importActual<typeof import('@/utils/networkUtils')>('@/utils/networkUtils');
+    vi.mocked(withRetry).mockImplementation((operation, options) =>
+      actual.withRetry(operation, { ...options, initialDelay: 0 })
+    );
+    vi.mocked(getDoc)
+      .mockResolvedValueOnce(specialistSnapshot() as never)
+      .mockResolvedValue(specialistSnapshot('synthetic-episode-B') as never);
+    mockSpecialistCallable.mockRejectedValueOnce({ code: 'functions/unavailable' });
+    const error = await updateRecordPartial(
+      '2026-03-20',
+      { 'beds.R4.medicalHandoffNote': 'Nota de A' },
+      undefined,
+      { specialistHandoffTargets }
+    ).catch(error => error);
+    expect(error).toBeInstanceOf(ConcurrencyError);
+    expect(error.message).toMatch(/R4.*[Cc]ambió/);
+    expect(classifySyncError(error)).toMatchObject({ category: 'conflict', retryable: false });
+    expect(mockSpecialistCallable).toHaveBeenCalledTimes(1);
+    expect(updateDoc).not.toHaveBeenCalled();
+  });
+
+  it('surfaces the server episode rejection as a non-retryable user conflict', async () => {
+    mockGetCurrentUser.mockReturnValue({ uid: 'synthetic', isAnonymous: false });
+    mockResolveFirebaseUserRole.mockResolvedValue('doctor_specialist');
+    const actual =
+      await vi.importActual<typeof import('@/utils/networkUtils')>('@/utils/networkUtils');
+    vi.mocked(withRetry).mockImplementation((operation, options) =>
+      actual.withRetry(operation, { ...options, initialDelay: 0 })
+    );
+    mockSpecialistCallable.mockRejectedValue({
+      code: 'functions/failed-precondition',
+      message: 'El episodio de R4 cambió',
+    });
+    const error = await updateRecordPartial(
+      '2026-03-20',
+      { 'beds.R4.medicalHandoffNote': 'Nota de A' },
+      undefined,
+      { specialistHandoffTargets }
+    ).catch(error => error);
+    expect(error).toBeInstanceOf(ConcurrencyError);
+    expect(error.message).toMatch(/R4.*Recarga/);
+    expect(resolvePatchErrorFeedback(error)).toMatchObject({
+      title: 'Conflicto de Edición',
+      message: error.message,
+    });
+    expect(classifySyncError(error)).toMatchObject({ category: 'conflict', retryable: false });
+    expect(mockSpecialistCallable).toHaveBeenCalledTimes(1);
     expect(updateDoc).not.toHaveBeenCalled();
   });
 

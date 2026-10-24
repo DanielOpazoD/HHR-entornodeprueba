@@ -64,6 +64,7 @@ import { getRecordForDate as getRecordFromIndexedDB } from '@/services/storage/i
 import { saveRecordStrict as saveToIndexedDB } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
 import { updateRecordPartial as updateRecordPartialToFirestore } from '@/services/storage/firestore/firestoreRecordWrites';
+import { queueDailyRecordSyncTaskWithLocalRecord } from '@/services/storage/sync';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 const buildRecord = (date: string): DailyRecord => ({
   date,
@@ -96,9 +97,55 @@ describe('dailyRecordRepositoryWriteService specialist handoff patches', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
+  it('binds the edited occupant and rejects turnover without saving or queueing the note', async () => {
+    const current = buildRecord('2026-02-11');
+    current.beds = {
+      R1: {
+        ...buildPatient('R1', 'Paciente A Sintético'),
+        clinicalEpisodeId: 'synthetic-episode-A',
+      },
+    };
+    const conflict = new ConcurrencyError(
+      'El episodio de R1 cambió. Recarga.',
+      'semantic_conflict'
+    );
+    vi.mocked(updateRecordPartialToFirestore).mockRejectedValueOnce(conflict);
+    await expect(
+      updatePartialDetailed(
+        current.date,
+        { 'beds.R1.medicalHandoffNote': 'Nota de A' },
+        { baseRecord: current }
+      )
+    ).rejects.toBe(conflict);
+    expect(updateRecordPartialToFirestore).toHaveBeenCalledTimes(1);
+    expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(
+      current.date,
+      expect.anything(),
+      current.lastUpdated,
+      expect.objectContaining({
+        specialistHandoffTargets: [
+          {
+            bedId: 'R1',
+            target: 'bed',
+            clinicalEpisodeId: 'synthetic-episode-A',
+            patientName: 'Paciente A Sintético',
+            rut: current.beds.R1.rut,
+            documentType: 'RUT',
+          },
+        ],
+      })
+    );
+    expect(saveToIndexedDB).not.toHaveBeenCalled();
+    expect(queueDailyRecordSyncTaskWithLocalRecord).not.toHaveBeenCalled();
+  });
+
   it('does not append fhir patches for specialist-scoped medical handoff updates', async () => {
     const current = buildRecord('2026-02-11');
     current.beds = { R1: buildPatient('R1', 'Paciente local') };
+    vi.mocked(getRecordFromFirestore).mockResolvedValue({
+      ...current,
+      lastUpdated: '2026-02-19T01:00:00.000Z',
+    });
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
     await updatePartial('2026-02-11', {
       'beds.R1.medicalHandoffNote': 'Evolución especialista',
@@ -128,6 +175,10 @@ describe('dailyRecordRepositoryWriteService specialist handoff patches', () => {
   it('does not append structural bed normalization patches for specialist-scoped medical handoff updates', async () => {
     const current = buildRecord('2026-02-11');
     current.beds = { R1: buildPatient('R1', 'Paciente local') };
+    vi.mocked(getRecordFromFirestore).mockResolvedValue({
+      ...current,
+      lastUpdated: '2026-02-19T01:00:00.000Z',
+    });
 
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
 

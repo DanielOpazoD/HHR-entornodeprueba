@@ -4,6 +4,7 @@ import { useDailyRecordSyncQuery } from '@/hooks/useDailyRecordSyncQuery';
 import { defaultDailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 import { DataFactory } from '@/tests/factories/DataFactory';
+import { updateSpecialistMedicalHandoffViaCallable } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import { UIProvider } from '@/context/UIContext';
 import { createSaveDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 
@@ -26,6 +27,36 @@ const { repository } = vi.hoisted(() => ({
     getMonthRecords: vi.fn(),
     copyPatientToDateDetailed: vi.fn(),
   },
+}));
+
+vi.mock('firebase/functions', () => ({
+  httpsCallable: () => async () => {
+    throw Object.assign(new Error('Synthetic episode conflict'), {
+      code: 'functions/failed-precondition',
+    });
+  },
+}));
+vi.mock('@/services/firebase-runtime/functionsRuntime', () => ({
+  defaultFunctionsRuntime: { getFunctions: async () => ({}) },
+}));
+vi.mock('firebase/firestore', async importOriginal => ({
+  ...(await importOriginal<typeof import('firebase/firestore')>()),
+  getDoc: async () => ({
+    exists: () => true,
+    data: () => ({
+      beds: {
+        R4: {
+          clinicalEpisodeId: 'synthetic-episode-A',
+          patientName: 'Paciente A Sintético',
+          rut: '99.999.999-9',
+        },
+      },
+    }),
+  }),
+}));
+vi.mock('@/services/storage/firestore/firestoreShared', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/storage/firestore/firestoreShared')>()),
+  getRecordDocRef: () => ({}),
 }));
 
 vi.mock('@/utils/dateCoreUtils', async () => ({
@@ -110,6 +141,36 @@ describe('useDailyRecordSyncQuery notification ownership', () => {
         autoMerged: false,
       })
     );
+  });
+
+  it('shows the specialist server episode rejection as an editing conflict, never as saved', async () => {
+    const partial = { 'beds.R4.medicalHandoffNote': 'Nota sintética de A' };
+    vi.mocked(defaultDailyRecordRepositoryPort.updatePartialDetailed).mockImplementationOnce(
+      async () => {
+        await updateSpecialistMedicalHandoffViaCallable(mockDate, partial, [
+          {
+            bedId: 'R4',
+            target: 'bed',
+            clinicalEpisodeId: 'synthetic-episode-A',
+            patientName: 'Paciente A Sintético',
+            rut: '99.999.999-9',
+            documentType: 'RUT',
+          },
+        ]);
+        throw new Error('Expected the server to reject the replaced episode');
+      }
+    );
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(result.current.record).not.toBeNull());
+    await act(async () => {
+      await expect(result.current.patchRecord(partial)).rejects.toThrow(/R4.*Recarga/);
+    });
+    expect(screen.getAllByText('Conflicto de Edición')).toHaveLength(1);
+    expect(screen.getByText(/episodio de la cama R4.*Recarga/)).toBeInTheDocument();
+    expect(screen.queryByText('Cambio guardado')).not.toBeInTheDocument();
+    expect(repository.updatePartialDetailed).toHaveBeenCalledTimes(1);
   });
 
   it('emits exactly one truthful notice for a server-confirmed save', async () => {

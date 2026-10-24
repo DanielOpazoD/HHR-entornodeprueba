@@ -228,7 +228,8 @@ export const updateRecordPartial = async (
   try {
     const docRef = getRecordDocRef(date);
     // La verificación de concurrencia por lectura directa sólo protege las rutas
-    // SIN CAS del lado servidor (updateDoc directo y el callable specialist).
+    // SIN CAS de versión del lado servidor (updateDoc directo y el callable specialist,
+    // cuya transacción protege además la identidad del paciente y episodio).
     // Las rutas del callable de autoridad y la transacción atómica ya validan
     // versión/revisión al commitear: duplicar la lectura aquí costaba un viaje
     // remoto extra por edición y rechazaba ráfagas legítimas cuando el eco de la
@@ -274,10 +275,19 @@ export const updateRecordPartial = async (
       const persist = async () => {
         if (specialistScopedPatch && (await shouldRouteSpecialistPatchViaCallable())) {
           await assertDirectWriteConcurrency();
-          return withRetry(() => updateSpecialistMedicalHandoffViaCallable(date, sanitizedPatch), {
-            onRetry: (err: unknown, attempt: number) =>
-              logFirestoreWriteRetry('partialUpdate', date, attempt, err),
-          });
+          return withRetry(
+            () =>
+              updateSpecialistMedicalHandoffViaCallable(
+                date,
+                sanitizedPatch,
+                options.specialistHandoffTargets ?? []
+              ),
+            {
+              shouldRetry: shouldRetryDailyRecordAuthorityError,
+              onRetry: (err: unknown, attempt: number) =>
+                logFirestoreWriteRetry('partialUpdate', date, attempt, err),
+            }
+          );
         }
 
         if (rayenClinicalWriteGuard && guardedPatch) {

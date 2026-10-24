@@ -1,4 +1,7 @@
 import { httpsCallable } from 'firebase/functions';
+import { getDoc } from 'firebase/firestore';
+import { getRecordDocRef } from './firestoreShared';
+import type { SpecialistHandoffTarget } from './specialistMedicalHandoffIdentity';
 import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
 import {
   evaluateDailyRecordClinicalAuthority,
@@ -35,6 +38,7 @@ import type { SpecialtyManualIntent } from '@/types/domain/specialtyDecision';
 import { isE2EDailyRecordAuthorityCallableForced } from '@/shared/runtime/e2eRuntime';
 
 export interface DailyRecordPartialWriteOptions {
+  specialistHandoffTargets?: SpecialistHandoffTarget[];
   syncContract?: SyncTaskContract;
   /** Enforces the base version inside the same transaction as the multi-field patch. */
   requireAtomicCas?: boolean;
@@ -73,6 +77,7 @@ export interface DailyRecordSaveWriteOptions {
 }
 
 interface SpecialistMedicalHandoffCallablePayload {
+  expectedOccupants: SpecialistHandoffTarget[];
   date: string;
   patch: Record<string, unknown>;
 }
@@ -170,18 +175,55 @@ export const shouldRouteSpecialistPatchViaCallable = async (): Promise<boolean> 
 
 export const updateSpecialistMedicalHandoffViaCallable = async (
   date: string,
-  patch: Record<string, unknown>
+  patch: Record<string, unknown>,
+  expectedOccupants: SpecialistHandoffTarget[]
 ): Promise<void> => {
+  const conflict = () =>
+    new ConcurrencyError(
+      `El paciente o episodio de la cama ${expectedOccupants.map(target => target.bedId).join(', ')} cambió o no se pudo confirmar. Recarga antes de guardar la entrega médica.`,
+      'semantic_conflict'
+    );
+  if (!expectedOccupants.length || expectedOccupants.some(target => !target.clinicalEpisodeId)) {
+    throw conflict();
+  }
+  // Re-read on EVERY attempt, including retries after ambiguous transport failures.
+  const snapshot = await getDoc(getRecordDocRef(date));
+  const record = snapshot.data();
+  if (
+    !snapshot.exists() ||
+    expectedOccupants.some(expected => {
+      const bed = record?.beds?.[expected.bedId];
+      const patient = expected.target === 'clinicalCrib' ? bed?.clinicalCrib : bed;
+      return (
+        !patient ||
+        !patient.patientName?.trim() ||
+        patient.clinicalEpisodeId?.trim() !== expected.clinicalEpisodeId ||
+        (patient.rut?.trim() ?? '') !== expected.rut ||
+        (patient.documentType ?? 'RUT') !== expected.documentType ||
+        (patient.patientName?.trim() ?? '') !== expected.patientName
+      );
+    })
+  )
+    throw conflict();
   const functions = await defaultFunctionsRuntime.getFunctions();
   const callable = httpsCallable<
     SpecialistMedicalHandoffCallablePayload,
     { success: boolean; date: string; bedId: string }
   >(functions, 'updateSpecialistMedicalHandoff', { timeout: 45_000 });
 
-  await callable({
-    date,
-    patch,
-  });
+  try {
+    await callable({ date, patch, expectedOccupants });
+  } catch (error) {
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      (error.code === 'functions/failed-precondition' || error.code === 'failed-precondition')
+    ) {
+      throw conflict();
+    }
+    throw error;
+  }
 };
 
 export const shouldRouteDailyRecordSaveViaCallable = async (): Promise<boolean> => {

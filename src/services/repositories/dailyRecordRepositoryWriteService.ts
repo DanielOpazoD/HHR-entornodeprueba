@@ -1,3 +1,5 @@
+import { buildSpecialistHandoffTargets } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
+import { isSpecialistScopedDailyRecordPatch } from './dailyRecordClinicalDomainService';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import {
@@ -326,12 +328,20 @@ const updatePartialDetailedWithinLock = async (
     mutationId: syncContract.mutationId,
   });
   const isReclassification = isMovementReclassificationPatch(command.patch);
+  const specialistHandoff = isSpecialistScopedDailyRecordPatch(command.patch);
   const remoteWriteOptions = buildGuardedDailyRecordRemoteWriteOptions({
     options,
     policy: guardedCommandPolicy,
     syncContract,
     isReclassification,
   });
+
+  if (specialistHandoff) {
+    remoteWriteOptions.specialistHandoffTargets = buildSpecialistHandoffTargets(
+      current,
+      command.patch
+    );
+  }
 
   const suspiciousShrinkages = await resolveBlockingFieldShrinkages(
     command.date,
@@ -371,15 +381,16 @@ const updatePartialDetailedWithinLock = async (
       ),
     ...buildPreOutboxRemoteAckCallbacks(validatedRecord, syncContract),
     readRemoteConfirmedRecord: () => getRecordFromFirestore(command.date, { source: 'server' }),
-    ...buildGranularPatchStaleVersionRetryHooks({
-      date: command.date,
-      options,
-      policy: guardedCommandPolicy,
-      isReclassification,
-      semanticChangedPaths,
-      baseRecord: current,
-      syncContract,
-    }),
+    ...(!specialistHandoff &&
+      buildGranularPatchStaleVersionRetryHooks({
+        date: command.date,
+        options,
+        policy: guardedCommandPolicy,
+        isReclassification,
+        semanticChangedPaths,
+        baseRecord: current,
+        syncContract,
+      })),
     resolveAlreadyAppliedRemoteRecord: guardedCommandPolicy.resolveAlreadyAppliedRemoteRecord,
     adoptRemoteAuthorityRecord: authoritativeRecord =>
       adoptAuthoritativeRecord(
@@ -392,12 +403,13 @@ const updatePartialDetailedWithinLock = async (
     },
     expectedVersion: current.lastUpdated,
     allowConflictAutoMerge:
+      !specialistHandoff &&
       !isReclassification &&
       !options.rayenClinicalWriteGuard &&
       !options.specialtyIntent &&
       !options.requireAtomicCas &&
       !guardedCommandPolicy.requireAtomicCas,
-    remoteAuthorityFirst: guardedCommandPolicy.remoteAuthorityFirst,
+    remoteAuthorityFirst: specialistHandoff || guardedCommandPolicy.remoteAuthorityFirst,
   });
   if (nextAction === 'return') {
     return buildPartialUpdateResult(command.date, remoteState, patchedFields);

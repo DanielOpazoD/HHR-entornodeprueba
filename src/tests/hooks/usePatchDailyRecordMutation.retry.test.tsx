@@ -1,7 +1,8 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import * as freshnessController from '@/hooks/controllers/dailyRecordMutationFreshnessController';
 import { usePatchDailyRecordMutation } from '@/hooks/usePatchDailyRecordMutation';
 import { executeBedManagementAction } from '@/hooks/controllers/bedManagementDispatchController';
 import { getDailyRecordQueryKey } from '@/hooks/controllers/dailyRecordQueryController';
@@ -25,6 +26,88 @@ describe('daily record patch retry ownership', () => {
   beforeEach(() => {
     resetDailyRecordFreshnessGateForTests();
     vi.clearAllMocks();
+  });
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it('keeps handoff bound to the displayed patient when freshness returns another occupant', async () => {
+    const date = '2026-05-16';
+    const displayed = DataFactory.createMockDailyRecord(date);
+    displayed.beds.R1 = {
+      ...displayed.beds.R1,
+      clinicalEpisodeId: 'synthetic-episode-A',
+      patientName: 'Paciente A Sintético',
+    };
+    const replacement = {
+      ...displayed,
+      beds: {
+        ...displayed.beds,
+        R1: {
+          ...displayed.beds.R1,
+          clinicalEpisodeId: 'synthetic-episode-B',
+          patientName: 'Paciente B Sintético',
+        },
+      },
+    };
+    const runtime = {
+      date,
+      availabilityState: 'resolved',
+      consistencyState: 'remote_authoritative',
+      sourceOfTruth: 'remote',
+      retryability: 'not_applicable',
+      recoveryAction: 'none',
+      conflictSummary: null,
+      observabilityTags: ['daily_record', 'read'],
+      repairApplied: false,
+    } as const;
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(
+      getDailyRecordQueryKey(date),
+      createDailyRecordQueryResult(displayed, {
+        ...runtime,
+        observabilityTags: [...runtime.observabilityTags],
+      })
+    );
+    vi.spyOn(freshnessController, 'ensureFreshClinicalPatchMutation').mockResolvedValue(
+      createDailyRecordQueryResult(replacement, {
+        ...runtime,
+        observabilityTags: [...runtime.observabilityTags],
+      })
+    );
+    const dailyRecord = buildMockDailyRecordRepository();
+    const conflict = new ConcurrencyError(
+      'El paciente de R1 cambió. Recarga.',
+      'semantic_conflict'
+    );
+    vi.mocked(dailyRecord.updatePartialDetailed).mockRejectedValue(conflict);
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>
+        <RepositoryProvider value={createRepositoryContainer({ dailyRecord })}>
+          {children}
+        </RepositoryProvider>
+      </QueryClientProvider>
+    );
+    const { result } = renderHook(() => usePatchDailyRecordMutation(date), { wrapper });
+    const partial = { 'beds.R1.medicalHandoffNote': 'Nota de A sintético' };
+    await act(async () => {
+      await expect(result.current.mutateAsync(partial)).rejects.toBe(conflict);
+    });
+    expect(dailyRecord.updatePartialDetailed).toHaveBeenCalledWith(
+      date,
+      partial,
+      expect.objectContaining({
+        baseRecord: expect.objectContaining({
+          beds: expect.objectContaining({
+            R1: expect.objectContaining({ clinicalEpisodeId: 'synthetic-episode-A' }),
+          }),
+        }),
+      })
+    );
+    expect(
+      queryClient.getQueryData<{ record: typeof displayed }>(getDailyRecordQueryKey(date))?.record
+        .beds.R1.medicalHandoffNote
+    ).not.toBe('Nota de A sintético');
+    queryClient.clear();
   });
 
   it.each([

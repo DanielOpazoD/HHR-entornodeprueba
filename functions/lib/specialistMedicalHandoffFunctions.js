@@ -214,47 +214,97 @@ const createSpecialistMedicalHandoffFunctions = ({
       .collection('dailyRecords')
       .doc(date);
 
-    const snapshot = await docRef.get();
-    if (!snapshot.exists) {
-      throw new functions.https.HttpsError('not-found', 'Daily record not found.');
-    }
-
-    const record = snapshot.data();
-    if (record?.date != null && record.date !== date) {
-      throw new functions.https.HttpsError('failed-precondition', 'Daily record date mismatch.');
-    }
+    const targetNames = new Set(
+      Object.keys(patch)
+        .filter(path => path.startsWith('beds.'))
+        .map(path => (path.split('.')[2] === 'clinicalCrib' ? 'clinicalCrib' : 'bed'))
+    );
+    const expectedOccupants = data?.expectedOccupants;
     if (
-      patch.dateTimestamp !== undefined &&
-      record?.dateTimestamp != null &&
-      patch.dateTimestamp !== record.dateTimestamp
+      !Array.isArray(expectedOccupants) ||
+      expectedOccupants.length !== targetNames.size ||
+      [...targetNames].some(
+        target =>
+          expectedOccupants.filter(
+            expected =>
+              isPlainObject(expected) &&
+              expected.bedId === bedId &&
+              expected.target === target &&
+              typeof expected.clinicalEpisodeId === 'string' &&
+              expected.clinicalEpisodeId.trim() &&
+              typeof expected.rut === 'string' &&
+              typeof expected.patientName === 'string' &&
+              expected.patientName.trim() &&
+              ['RUT', 'Pasaporte'].includes(expected.documentType)
+          ).length !== 1
+      )
     ) {
-      throw new functions.https.HttpsError('permission-denied', 'Record timestamp is immutable.');
-    }
-    delete patch.dateTimestamp;
-    const existingBed = record?.beds?.[bedId];
-    if (!existingBed || typeof existingBed !== 'object') {
       throw new functions.https.HttpsError(
         'failed-precondition',
-        'Daily record bed is missing or invalid for specialist medical handoff.'
+        `Falta la identidad del paciente o episodio de la cama ${bedId}. Recarga la página antes de guardar la entrega médica.`
       );
     }
 
-    assertSpecialistClinicalDay(date, resolvedRole);
     try {
-      await docRef.update({
-        ...patch,
-        lastUpdated: Timestamp.now(),
-      });
+      return await firestore.runTransaction(async transaction => {
+        const snapshot = await transaction.get(docRef);
+        if (!snapshot.exists) {
+          throw new functions.https.HttpsError('not-found', 'Daily record not found.');
+        }
 
-      return {
-        success: true,
-        date,
-        bedId,
-      };
+        const record = snapshot.data();
+        if (record?.date != null && record.date !== date) {
+          throw new functions.https.HttpsError(
+            'failed-precondition',
+            'Daily record date mismatch.'
+          );
+        }
+        if (
+          patch.dateTimestamp !== undefined &&
+          record?.dateTimestamp != null &&
+          patch.dateTimestamp !== record.dateTimestamp
+        ) {
+          throw new functions.https.HttpsError(
+            'permission-denied',
+            'Record timestamp is immutable.'
+          );
+        }
+
+        for (const expected of expectedOccupants) {
+          const bed = record?.beds?.[bedId];
+          const patient = expected.target === 'clinicalCrib' ? bed?.clinicalCrib : bed;
+          if (
+            !isPlainObject(patient) ||
+            !patient.patientName?.trim() ||
+            patient.clinicalEpisodeId?.trim() !== expected.clinicalEpisodeId.trim() ||
+            (patient.rut?.trim() || '') !== expected.rut.trim() ||
+            (patient.documentType || 'RUT') !== expected.documentType ||
+            patient.patientName.trim() !== expected.patientName.trim()
+          ) {
+            throw new functions.https.HttpsError(
+              'failed-precondition',
+              `El paciente o episodio de la cama ${bedId}${expected.target === 'clinicalCrib' ? ' (cuna)' : ''} cambió. Recarga antes de guardar la entrega médica.`
+            );
+          }
+        }
+
+        assertSpecialistClinicalDay(date, resolvedRole);
+        transaction.update(docRef, {
+          ...Object.fromEntries(Object.entries(patch).filter(([path]) => path !== 'dateTimestamp')),
+          lastUpdated: Timestamp.now(),
+        });
+
+        return {
+          success: true,
+          date,
+          bedId,
+        };
+      });
     } catch (error) {
+      if (error instanceof functions.https.HttpsError) throw error;
       console.error(
         'Error updating specialist medical handoff',
-        sanitizeLogValue({ email, date, bedId, error })
+        sanitizeLogValue({ email, date, bedId, code: error?.code })
       );
       throw new functions.https.HttpsError(
         'internal',
