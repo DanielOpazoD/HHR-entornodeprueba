@@ -143,12 +143,13 @@ describe('a stored patient with one unreadable identity field', () => {
   });
 
   it('reports the review through the day salvage channel', () => {
-    const { report } = parseDailyRecordWithDefaultsReport(
+    const { record, report } = parseDailyRecordWithDefaultsReport(
       day({ ...passport(), documentType: 'Cedula' }),
       DATE,
       { unreadableIdentity: 'quarantine' }
     );
 
+    expect(record.beds.R1.identityReview?.fields).toEqual(['documentType']);
     expect(report.salvagedBeds).toEqual(['R1']);
     expect(hasStructuralRepairs(report)).toBe(true);
   });

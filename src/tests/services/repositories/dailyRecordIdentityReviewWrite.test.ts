@@ -123,6 +123,9 @@ describe('field edits on a day with one bed under identity review', () => {
   });
 
   it('keeps an offline repair of the document type queued and ends the review locally', async () => {
+    expect((await getRecordForDate(DATE))?.beds.R1.identityReview?.fields).toEqual([
+      'documentType',
+    ]);
     vi.mocked(updateRecordPartial).mockRejectedValue(
       Object.assign(new Error('Failed to fetch'), { code: 'unavailable' })
     );
