@@ -35,6 +35,7 @@ vi.mock('@/services/admin/utils/auditUtils', () => ({
 import { importRecordsFromBackup } from '@/services/admin/dataMaintenanceService';
 import { importDataJSONDetailed } from '@/services/exporters/exportImportJson';
 import { restoreClinicalDerivedBackupDay } from '@/services/exporters/clinicalDerivedBackupRestore';
+import { readClinicalDerivedLayout } from '@/services/storage/clinicalDerivedContract';
 
 const DATE = '2026-11-02';
 const GENERATION = 'gen_synthetic_restore';
@@ -175,15 +176,14 @@ beforeEach(() => {
   mocks.getLocal.mockResolvedValue(null);
   mocks.saveMany.mockResolvedValue({ ok: true });
   mocks.saveRemote.mockResolvedValue(undefined);
-  mocks.readDayDocs.mockImplementation(async (day: DailyRecord) =>
-    day.clinicalDerivedLayout
-      ? {
-          status: 'resolved',
-          layoutGeneration: day.clinicalDerivedLayout.generation,
-          docs: serverDocs,
-        }
-      : { status: 'unmarked' }
-  );
+  mocks.readDayDocs.mockImplementation(async (day: DailyRecord) => {
+    const layout = readClinicalDerivedLayout(day);
+    if (layout.status === 'unmarked') return { status: 'unmarked' };
+    if (layout.status === 'unsupported') {
+      return { status: 'unavailable', reason: 'unsupported_layout' };
+    }
+    return { status: 'resolved', layoutGeneration: layout.layout.generation, docs: serverDocs };
+  });
 });
 
 describe('restoring the per-episode data of a split day', () => {
