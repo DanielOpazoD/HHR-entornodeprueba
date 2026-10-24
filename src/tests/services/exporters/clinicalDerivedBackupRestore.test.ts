@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   getLocal: vi.fn(),
   saveMany: vi.fn(),
   saveRemote: vi.fn(),
+  readDayDocs: vi.fn(),
 }));
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordForDateStrict: mocks.getLocal,
@@ -22,6 +23,10 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
 vi.mock('@/services/repositories/dailyRecordRepositoryWriteService', () => ({
   saveDetailed: mocks.saveRemote,
 }));
+// The server's episode documents of the day the restore saved, read to confirm it.
+vi.mock('@/services/repositories/dailyRecordClinicalDerivedReadService', () => ({
+  readClinicalDerivedDayDocs: mocks.readDayDocs,
+}));
 vi.mock('@/services/admin/auditService', () => ({ logAuditEvent: vi.fn() }));
 vi.mock('@/services/admin/utils/auditUtils', () => ({
   getCurrentUserEmail: () => 'admin@example.invalid',
@@ -29,6 +34,7 @@ vi.mock('@/services/admin/utils/auditUtils', () => ({
 
 import { importRecordsFromBackup } from '@/services/admin/dataMaintenanceService';
 import { importDataJSONDetailed } from '@/services/exporters/exportImportJson';
+import { restoreClinicalDerivedBackupDay } from '@/services/exporters/clinicalDerivedBackupRestore';
 
 const DATE = '2026-11-02';
 const GENERATION = 'gen_synthetic_restore';
@@ -160,11 +166,24 @@ const expectEpisodesBack = (record: DailyRecord) => {
   expect(record.beds.R4).not.toHaveProperty('vitalSignsHistory');
 };
 
+/** The episode documents the server holds for the saved day's current generation. */
+let serverDocs: unknown[] = [];
+
 beforeEach(() => {
   vi.clearAllMocks();
+  serverDocs = [];
   mocks.getLocal.mockResolvedValue(null);
   mocks.saveMany.mockResolvedValue({ ok: true });
   mocks.saveRemote.mockResolvedValue(undefined);
+  mocks.readDayDocs.mockImplementation(async (day: DailyRecord) =>
+    day.clinicalDerivedLayout
+      ? {
+          status: 'resolved',
+          layoutGeneration: day.clinicalDerivedLayout.generation,
+          docs: serverDocs,
+        }
+      : { status: 'unmarked' }
+  );
 });
 
 describe('restoring the per-episode data of a split day', () => {
@@ -275,12 +294,64 @@ describe('reporting a restore whose per-episode data did not come back', () => {
     expect(result).toEqual({ success: 1, failed: 0, repaired: 0, outcome: 'clean' });
   });
 
-  it('is clean when the server keeps the stored split day of the same generation', async () => {
+  it('is clean when the server keeps the stored split day and its episode documents', async () => {
     serverConfirms(sent => withoutMovedFields(sent));
+    serverDocs = section()[DATE].docs;
 
     const result = await importRecordsFromBackup(monthBackup([splitDay()]));
 
     expect(result.outcome).toBe('clean');
+  });
+
+  it.each<[string, (sent: DailyRecord) => DailyRecord, () => unknown[]]>([
+    [
+      'keeps the stored split day without an episode document',
+      sent => withoutMovedFields(sent),
+      () => section()[DATE].docs.filter(item => item.clinicalEpisodeId !== 'ep_pasaporte_2'),
+    ],
+    [
+      'keeps the stored split day with a document that holds other values',
+      sent => withoutMovedFields(sent),
+      () =>
+        section()[DATE].docs.map(item =>
+          item.clinicalEpisodeId === 'ep_pasaporte_2'
+            ? { ...item, vitalSignsHistory: [reading(199)] }
+            : item
+        ),
+    ],
+    [
+      'keeps a stored day of another generation with other embedded values',
+      sent => {
+        const kept = structuredClone(sent);
+        kept.clinicalDerivedLayout = { version: 1, generation: 'gen_synthetic_stored' };
+        kept.beds.R2.vitalSignsHistory = [reading(199)];
+        kept.beds.R2.clinicalSyncCheckpoint = checkpoint('unrelated');
+        return kept;
+      },
+      () => [],
+    ],
+  ])('is partial when the server %s', async (_label, confirm, docs) => {
+    serverConfirms(confirm);
+    serverDocs = docs();
+
+    const result = await importRecordsFromBackup(monthBackup([splitDay()]));
+
+    expect(result).toEqual({
+      success: 1,
+      failed: 0,
+      repaired: 0,
+      outcome: 'partial',
+      clinicalDerivedIncompleteDates: [DATE],
+    });
+  });
+
+  it('is partial when the saved day’s episode documents cannot be read', async () => {
+    serverConfirms(sent => withoutMovedFields(sent));
+    mocks.readDayDocs.mockResolvedValue({ status: 'unavailable', reason: 'read_failed' });
+
+    const result = await importRecordsFromBackup(monthBackup([splitDay()]));
+
+    expect(result).toMatchObject({ outcome: 'partial', clinicalDerivedIncompleteDates: [DATE] });
   });
 
   it('is partial when the server drops the embedded values of a recreated day', async () => {
@@ -403,5 +474,88 @@ describe('reporting a restore whose per-episode data did not come back', () => {
       repairedCount: 0,
       skippedEntries: [],
     });
+  });
+});
+
+describe('an episode id more than one holder of the day carries', () => {
+  /** A discharge snapshot of another patient that carries `ep_alta_3` too. */
+  const otherSnapshot = (day: DailyRecord) => {
+    const other = structuredClone(day.discharges[0]);
+    other.id = 'alta-sintetica-2';
+    other.patientName = 'Otra Alta Sintética';
+    other.originalData = patient('R3', { rut: '33.333.333-3', clinicalEpisodeId: 'ep_alta_3' });
+    return other;
+  };
+
+  it.each<[string, (day: DailyRecord) => DailyRecord]>([
+    [
+      'two discharge snapshots',
+      day => ({ ...day, discharges: [...day.discharges, otherSnapshot(day)] }),
+    ],
+    [
+      'a discharge and a transfer snapshot',
+      day => ({
+        ...day,
+        transfers: [
+          DataFactory.createMockTransfer({
+            bedId: 'R5',
+            patientName: 'Traslado Sintético',
+            clinicalEpisodeId: 'ep_alta_3',
+            originalData: patient('R5', { rut: '33.333.333-3', clinicalEpisodeId: 'ep_alta_3' }),
+          }),
+        ],
+      }),
+    ],
+    [
+      'a bed patient and a discharge snapshot',
+      day => ({
+        ...day,
+        beds: {
+          ...day.beds,
+          R4: patient('R4', { rut: '33.333.333-3', clinicalEpisodeId: 'ep_alta_3' }),
+        },
+      }),
+    ],
+  ])('gives the document to none of %s and reports the day partial', async (_label, edit) => {
+    serverConfirms(sent => ({ ...sent, clinicalDerivedLayout: NEW_LAYOUT }));
+
+    const result = await importRecordsFromBackup(monthBackup([edit(splitDay())]));
+
+    expect(result).toMatchObject({ outcome: 'partial', clinicalDerivedIncompleteDates: [DATE] });
+    const [saved] = mocks.saveRemote.mock.calls[0] as [DailyRecord];
+    const holders = [
+      ...Object.values(saved.beds),
+      ...[...saved.discharges, ...saved.transfers].map(movement => movement.originalData),
+    ].filter(holder => holder?.clinicalEpisodeId === 'ep_alta_3');
+    expect(holders.map(holder => holder?.rut).sort()).toEqual(['22.222.222-2', '33.333.333-3']);
+    holders.forEach(holder => {
+      expect(holder).not.toHaveProperty('vitalSignsHistory');
+      expect(holder).not.toHaveProperty('clinicalSyncCheckpoint');
+    });
+    // The other episodes still get their own.
+    expect(saved.beds.R2.vitalSignsHistory).toEqual([reading(70)]);
+  });
+
+  it('gives the document to neither of two bed patients with the same episode', () => {
+    const day = splitDay();
+    day.beds.R4 = { ...day.beds.R2, bedId: 'R4', rut: '33.333.333-3' };
+
+    const restored = restoreClinicalDerivedBackupDay(day, section());
+
+    expect(restored.kind).toBe('incomplete');
+    if (restored.kind === 'absent') return;
+    expect(restored.record.beds.R2).not.toHaveProperty('vitalSignsHistory');
+    expect(restored.record.beds.R4).not.toHaveProperty('vitalSignsHistory');
+  });
+
+  it('never falls back to the bed when the episode is gone from it', () => {
+    const day = splitDay();
+    delete day.beds.R2.clinicalEpisodeId;
+
+    const restored = restoreClinicalDerivedBackupDay(day, section());
+
+    expect(restored.kind).toBe('incomplete');
+    if (restored.kind === 'absent') return;
+    expect(restored.record.beds.R2).not.toHaveProperty('vitalSignsHistory');
   });
 });

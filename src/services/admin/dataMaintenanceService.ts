@@ -22,6 +22,7 @@ import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTy
 
 import {
   buildClinicalDerivedBackupSection,
+  confirmClinicalDerivedDayRestore,
   describeIncompleteClinicalDerivedBackup,
   loadClinicalDerivedDayRestore,
   type ClinicalDerivedBackupSection,
@@ -331,7 +332,8 @@ export const importRecordsFromBackup = async (
       // section, embedded where the episode lives. Declared intent: the clinical authority keeps
       // Rayen vitals/devices/scales when an administrator recreates a day that no longer exists
       // remotely (see functions fence); on a stored split day it keeps the stored values instead,
-      // so the day the server confirms tells whether they came back.
+      // so the day the server confirms, with its current episode documents, tells whether they
+      // came back.
       const restore = restoreClinicalDerivedDay(parsed.record);
       const confirmsRestore = restore.kind === 'embedded' && restore.needsConfirmation;
       const saved = await saveDailyRecordDetailed(
@@ -349,8 +351,10 @@ export const importRecordsFromBackup = async (
       const keptClinicalDerived =
         restore.kind === 'absent' ||
         (restore.kind === 'embedded' &&
-          (!restore.needsConfirmation ||
-            restore.isKeptBy(saved?.savedRemotely ? saved.confirmedRecord : undefined)));
+          (await confirmClinicalDerivedDayRestore(
+            restore,
+            saved?.savedRemotely ? saved.confirmedRecord : undefined
+          )));
       if (!keptClinicalDerived) {
         clinicalDerivedIncompleteDates.push(parsed.record.date);
       }

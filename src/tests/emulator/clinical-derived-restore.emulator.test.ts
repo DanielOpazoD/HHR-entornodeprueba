@@ -1,6 +1,9 @@
+import { readFileSync } from 'node:fs';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
 import { deleteApp, initializeApp, type App } from 'firebase-admin/app';
 import { FieldValue, getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestore';
+import { resolveFirestoreRulesEmulatorConfig } from '@/tests/security/firestoreRulesEmulatorConfig';
 import {
   DAY,
   PRIOR_DAY,
@@ -15,7 +18,7 @@ import {
 } from '@/tests/functions/clinicalDerivedServer.test-support';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
-const boundary = vi.hoisted(() => ({ save: vi.fn() }));
+const boundary = vi.hoisted(() => ({ save: vi.fn(), clientDb: null as unknown }));
 vi.mock('@/services/repositories/dailyRecordRepositoryWriteService', () => ({
   saveDetailed: boundary.save,
 }));
@@ -28,8 +31,15 @@ vi.mock('@/services/admin/auditService', () => ({ logAuditEvent: async () => und
 vi.mock('@/services/admin/utils/auditUtils', () => ({
   getCurrentUserEmail: () => 'admin@example.invalid',
 }));
+// The restore confirms the saved day with the real client reader: an administrator reading the
+// emulator under the real rules, never a configured Firebase project.
+vi.mock('@/firebaseConfig', () => ({ db: null, auth: null }));
+vi.mock('@/services/storage/firestore/firestoreServiceRuntime', () => ({
+  defaultFirestoreServiceRuntime: { ready: Promise.resolve(), getDb: () => boundary.clientDb },
+}));
 
 import { importRecordsFromBackup } from '@/services/admin/dataMaintenanceService';
+import { restoreClinicalDerivedBackupDay } from '@/services/exporters/clinicalDerivedBackupRestore';
 
 type Data = FirebaseFirestore.DocumentData;
 
@@ -48,6 +58,7 @@ const HISTORY = [vitals(DAY, 72), vitals(PRIOR_DAY, 70)];
 (enabled ? describe : describe.skip)('restore of a split day on Firestore', () => {
   let app: App;
   let db: Firestore;
+  let rules: RulesTestEnvironment;
   const hospital = 'hospitals/hanga_roa';
   const dayDoc = () => db.doc(`${hospital}/dailyRecords/${DAY}`);
   const episodeRef = (episodeId: string) => dayDoc().collection('clinicalDerived').doc(episodeId);
@@ -71,11 +82,24 @@ const HISTORY = [vitals(DAY, 72), vitals(PRIOR_DAY, 70)];
     if (!/^(127\.0\.0\.1|localhost):\d+$/.test(process.env.FIRESTORE_EMULATOR_HOST ?? '')) {
       throw new Error('Local emulator required');
     }
-    app = initializeApp({ projectId: 'demo-hhr-clinical-derived-restore' }, 'derived-restore');
+    const projectId = 'demo-hhr-clinical-derived-restore';
+    app = initializeApp({ projectId }, 'derived-restore');
     db = getFirestore(app);
     await db.doc(hospital).get();
-  }, 60_000);
+    rules = await initializeTestEnvironment({
+      projectId,
+      firestore: {
+        ...resolveFirestoreRulesEmulatorConfig(process.env.FIRESTORE_EMULATOR_HOST),
+        rules: readFileSync('firestore.rules', 'utf8'),
+      },
+    });
+    boundary.clientDb = rules
+      .authenticatedContext('synthetic-admin', { role: 'admin' })
+      .firestore();
+    // Compiling the rules can take more than a minute on a loaded machine.
+  }, 300_000);
   afterAll(async () => {
+    if (rules) await rules.cleanup();
     if (db) await db.terminate();
     if (app) await deleteApp(app);
   });
@@ -179,24 +203,24 @@ const HISTORY = [vitals(DAY, 72), vitals(PRIOR_DAY, 70)];
         policy: { mode: 'preview', revision: 5, clinicalBatchMode: 'enforced' },
       }),
     });
-    await api('nurse_hospital').applyRayenClinicalEnrichmentBatch.run(
-      {
-        date: DAY,
-        authorityDate: DAY,
-        runId: 'run-synthetic-2',
-        mutationId: 'batch-after-restore',
-        expectedLastUpdated: iso((await read()).lastUpdated),
-        baseRevision: restored.meta.revision,
-        fieldContractVersion: 2,
-        mode: 'enforced',
-        patches: [],
-        checkpoints: [
-          { bedId: 'R2', clinicalEpisodeId: 'ep_pasaporte_2', checkpoint: checkpoint('p-3') },
-        ],
-        clientRuntimeContractVersion: 3,
-      },
-      makeContext()
-    );
+    const batch = {
+      date: DAY,
+      authorityDate: DAY,
+      runId: 'run-synthetic-2',
+      mutationId: 'batch-after-restore',
+      expectedLastUpdated: iso((await read()).lastUpdated),
+      baseRevision: restored.meta.revision,
+      fieldContractVersion: 2,
+      mode: 'enforced',
+      patches: [],
+      checkpoints: [
+        { bedId: 'R2', clinicalEpisodeId: 'ep_pasaporte_2', checkpoint: checkpoint('p-3') },
+      ],
+      clientRuntimeContractVersion: 3,
+    };
+    // Sent twice, as a retry after a lost response would.
+    await api('nurse_hospital').applyRayenClinicalEnrichmentBatch.run(batch, makeContext());
+    await api('nurse_hospital').applyRayenClinicalEnrichmentBatch.run(batch, makeContext());
 
     expect((await read()).beds.R2).not.toHaveProperty('vitalSignsHistory');
     expect((await episodeRef('ep_pasaporte_2').get()).data()).toMatchObject({
@@ -226,5 +250,117 @@ const HISTORY = [vitals(DAY, 72), vitals(PRIOR_DAY, 70)];
       outcome: 'partial',
       clinicalDerivedIncompleteDates: [DAY],
     });
+  });
+
+  it('confirms a restore over the stored split day through its episode document', async () => {
+    const { backup, leftover } = await splitBackUpAndDelete();
+    await dayDoc().set(backup.records[0]);
+
+    const result = await importRecordsFromBackup(backup);
+
+    expect(result).toEqual({ success: 1, failed: 0, repaired: 1, outcome: 'repaired' });
+    // The server kept the stored day: the history is still in the document, untouched.
+    expect((await read()).beds.R2).not.toHaveProperty('vitalSignsHistory');
+    expect((await episodeRef('ep_pasaporte_2').get()).data()).toEqual(leftover);
+  });
+
+  it('reports the restore partial when the stored split day lost its episode document', async () => {
+    const { backup } = await splitBackUpAndDelete();
+    await dayDoc().set(backup.records[0]);
+    await episodeRef('ep_pasaporte_2').delete();
+
+    const result = await importRecordsFromBackup(backup);
+
+    expect((await read()).beds.R2).not.toHaveProperty('vitalSignsHistory');
+    expect((await episodeRef('ep_pasaporte_2').get()).exists).toBe(false);
+    expect(result).toMatchObject({ outcome: 'partial', clinicalDerivedIncompleteDates: [DAY] });
+  });
+
+  it('reports the restore partial when a stored day of another generation keeps other values', async () => {
+    const { backup } = await splitBackUpAndDelete();
+    const stored = structuredClone(backup.records[0]);
+    stored.clinicalDerivedLayout.generation = 'gen_synthetic_other';
+    stored.beds.R2.vitalSignsHistory = [vitals(PRIOR_DAY, 199)];
+    stored.beds.R2.clinicalSyncCheckpoint = checkpoint('unrelated');
+    await dayDoc().set(stored);
+
+    const result = await importRecordsFromBackup(backup);
+
+    expect((await read()).beds.R2.vitalSignsHistory).toEqual([vitals(PRIOR_DAY, 199)]);
+    expect(result).toMatchObject({ outcome: 'partial', clinicalDerivedIncompleteDates: [DAY] });
+  });
+
+  it.each([true, false])(
+    'brings the history back for an administrator with the Rayen fence %s',
+    async fence => {
+      const { backup, leftover } = await splitBackUpAndDelete();
+      if (!fence) await db.doc(`${hospital}/settings/rayenImportPolicy`).delete();
+
+      const result = await importRecordsFromBackup(backup);
+
+      expect(result).toEqual({ success: 1, failed: 0, repaired: 1, outcome: 'repaired' });
+      const restored = await read();
+      expect(restored.beds.R2.vitalSignsHistory).toEqual(HISTORY);
+      expect(restored.beds.R2.clinicalSyncCheckpoint).toEqual(checkpoint('p-2'));
+      expect((await episodeRef('ep_pasaporte_2').get()).data()).toEqual(leftover);
+    }
+  );
+
+  it.each([true, false])(
+    'rejects an outdated client restoring the split day with the Rayen fence %s',
+    async fence => {
+      const { backup } = await splitBackUpAndDelete();
+      if (!fence) await db.doc(`${hospital}/settings/rayenImportPolicy`).delete();
+      const restore = restoreClinicalDerivedBackupDay(backup.records[0], backup.clinicalDerived);
+      if (restore.kind !== 'embedded') throw new Error('The synthetic backup must restore.');
+
+      await expect(
+        api('admin').saveDailyRecordWithClinicalAuthority.run(
+          {
+            date: DAY,
+            record: JSON.parse(JSON.stringify(restore.record)),
+            mode: 'shadow',
+            origin: 'backup_restore',
+            clientRuntimeContractVersion: 2,
+          },
+          makeContext()
+        )
+      ).rejects.toMatchObject({
+        code: 'failed-precondition',
+        message: expect.stringContaining('clinical_derived_client_outdated'),
+      });
+      expect((await dayDoc().get()).exists).toBe(false);
+    }
+  );
+
+  it('a guarded patch after the restore keeps the history and one displaced copy on retry', async () => {
+    const { backup, leftover } = await splitBackUpAndDelete();
+    await importRecordsFromBackup(backup);
+    await dayDoc().update({ rayenSyncHistory: makeDay().rayenSyncHistory });
+    const payload = guardedPatch(
+      { 'beds.R2.clinicalSyncCheckpoint': checkpoint('p-guarded') },
+      {
+        expectedLastUpdated: iso((await read()).lastUpdated),
+        syncContract: {
+          mutationId: 'patch-after-restore',
+          changedPaths: ['beds.R2.clinicalSyncCheckpoint'],
+        },
+      }
+    );
+
+    await api('nurse_hospital').patchDailyRecordWithClinicalAuthority.run(payload, makeContext());
+    await api('nurse_hospital').patchDailyRecordWithClinicalAuthority.run(payload, makeContext());
+
+    expect((await episodeRef('ep_pasaporte_2').get()).data()).toMatchObject({
+      vitalSignsHistory: HISTORY,
+      clinicalSyncCheckpoint: checkpoint('p-guarded'),
+    });
+    const copies = await dayDoc()
+      .collection('history')
+      .where('snapshotReason', '==', 'clinical_derived_displaced')
+      .get();
+    expect(copies.docs.map(copy => copy.data().clinicalDerivedPrevious)).toEqual([
+      { ep_pasaporte_2: { document: leftover } },
+    ]);
   });
 });

@@ -1,11 +1,14 @@
 import type { DailyRecord } from '@/services/contracts/dailyRecordServiceContracts';
-import type { ClinicalDerivedEpisodeDoc } from '@/types/domain/clinicalDerived';
+import type {
+  ClinicalDerivedEpisodeDoc,
+  ClinicalDerivedTarget,
+} from '@/types/domain/clinicalDerived';
 import { ClinicalDerivedEpisodeDocSchema } from '@/schemas/zod/clinicalDerived';
 import {
   CLINICAL_DERIVED_MOVED_FIELDS,
   applyMovedFields,
+  collectClinicalDerivedEpisodes,
   isClinicalDerivedDocId,
-  overlayClinicalDerived,
   readClinicalDerivedLayout,
 } from '@/services/storage/clinicalDerivedContract';
 import type { ClinicalDerivedDayRestore } from '@/services/exporters/clinicalDerivedBackupSection';
@@ -15,16 +18,23 @@ import type { ClinicalDerivedDayRestore } from '@/services/exporters/clinicalDer
  * docs/DESIGN_DAILY_RECORD_PHASE1_CLINICAL_DERIVED.md). The backup's `clinicalDerived` section
  * holds each episode's document; a client never writes those documents, so the restore embeds
  * their moved fields back into the day, the form a recreated day starts in until each episode's
- * first split write. Each document goes to the holders of its own `clinicalEpisodeId`, never to a
- * bed: an active bed patient or clinical crib (the D4 overlay, so mother and newborn stay apart)
- * and the snapshot of a live discharge, transfer or CMA. Loaded on demand
- * (`loadClinicalDerivedDayRestore`).
+ * first split write. Each document goes to the single holder of its own `clinicalEpisodeId`, never
+ * to a bed: an active bed patient or clinical crib (the D4 notion, so mother and newborn stay
+ * apart) or the snapshot of a live discharge, transfer or CMA. An id more than one holder carries
+ * is ambiguous: none of them gets the document. Loaded on demand (`loadClinicalDerivedDayRestore`).
  */
 
-type MovedField = (typeof CLINICAL_DERIVED_MOVED_FIELDS)[number];
 type PlainObject = Record<string, unknown>;
 
 const MOVEMENT_LISTS = ['discharges', 'transfers', 'cma'] as const;
+
+/** Where an episode lives in a day. */
+type HolderLocation =
+  | { kind: ClinicalDerivedTarget; bedId: string }
+  | { kind: 'movement'; list: (typeof MOVEMENT_LISTS)[number]; index: number };
+
+/** Each episode's only holder in a day, or `ambiguous` when more than one carries its id. */
+type EpisodeHolders = Map<string, { location: HolderLocation; holder: unknown } | 'ambiguous'>;
 
 const isPlainObject = (value: unknown): value is PlainObject =>
   value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -34,38 +44,108 @@ const episodeIdOf = (holder: unknown): string =>
     ? holder.clinicalEpisodeId.trim()
     : '';
 
-/** A movement whose snapshot can be restored: not deleted, with the patient it took out. */
-const snapshotOf = (movement: unknown): PlainObject | undefined =>
-  isPlainObject(movement) && !movement.deletedAt && isPlainObject(movement.originalData)
-    ? movement.originalData
-    : undefined;
+/** The patient a live (not deleted) movement took out, with that patient's episode id. */
+const liveSnapshotOf = (movement: unknown): { snapshot: PlainObject; episodeId: string } | null => {
+  if (!isPlainObject(movement) || movement.deletedAt || !isPlainObject(movement.originalData)) {
+    return null;
+  }
+  const episodeId = episodeIdOf(movement.originalData) || episodeIdOf(movement);
+  return episodeId ? { snapshot: movement.originalData, episodeId } : null;
+};
 
-const snapshotEpisodeId = (movement: PlainObject, snapshot: PlainObject): string =>
-  episodeIdOf(snapshot) || episodeIdOf(movement);
-
-/** Per episode id, the moved fields its bed, crib or live movement snapshot holds. */
-const carriedMovedFields = (record: DailyRecord): Map<string, Set<MovedField>> => {
-  const carried = new Map<string, Set<MovedField>>();
-  const visit = (holder: unknown, episodeId = episodeIdOf(holder)) => {
-    if (!episodeId || !isPlainObject(holder)) return;
-    const fields = carried.get(episodeId) ?? new Set<MovedField>();
-    CLINICAL_DERIVED_MOVED_FIELDS.forEach(field => {
-      if (holder[field] !== undefined && holder[field] !== null) fields.add(field);
-    });
-    carried.set(episodeId, fields);
-  };
-  Object.values(isPlainObject(record.beds) ? record.beds : {}).forEach(bed => {
-    visit(bed);
-    if (isPlainObject(bed)) visit(bed.clinicalCrib);
+const holdersByEpisode = (record: DailyRecord): EpisodeHolders => {
+  const holders: EpisodeHolders = new Map();
+  const add = (episodeId: string, location: HolderLocation, holder: unknown) =>
+    holders.set(episodeId, holders.has(episodeId) ? 'ambiguous' : { location, holder });
+  const { episodes, duplicateEpisodeIds } = collectClinicalDerivedEpisodes(record);
+  episodes.forEach(({ bedId, target, clinicalEpisodeId }) => {
+    const bed: unknown = record.beds[bedId];
+    const holder = target === 'bed' ? bed : isPlainObject(bed) ? bed.clinicalCrib : undefined;
+    add(clinicalEpisodeId, { kind: target, bedId }, holder);
   });
+  duplicateEpisodeIds.forEach(episodeId => holders.set(episodeId, 'ambiguous'));
   MOVEMENT_LISTS.forEach(list => {
     const movements: unknown = record[list];
-    (Array.isArray(movements) ? movements : []).forEach((movement: unknown) => {
-      const snapshot = snapshotOf(movement);
-      if (snapshot) visit(snapshot, snapshotEpisodeId(movement as PlainObject, snapshot));
+    (Array.isArray(movements) ? movements : []).forEach((movement: unknown, index) => {
+      const live = liveSnapshotOf(movement);
+      if (live) add(live.episodeId, { kind: 'movement', list, index }, live.snapshot);
     });
   });
-  return carried;
+  return holders;
+};
+
+/** `record` with `holder` in place of the one at `location`. Never mutates `record`. */
+const withHolderAt = (
+  record: DailyRecord,
+  location: HolderLocation,
+  holder: PlainObject
+): DailyRecord => {
+  const next: PlainObject = { ...record };
+  if (location.kind === 'movement') {
+    const movements: unknown[] = record[location.list];
+    next[location.list] = movements.map((movement, index) =>
+      index === location.index && isPlainObject(movement)
+        ? { ...movement, originalData: holder }
+        : movement
+    );
+  } else {
+    const bed = record.beds[location.bedId];
+    next.beds = {
+      ...record.beds,
+      [location.bedId]: location.kind === 'bed' ? holder : { ...bed, clinicalCrib: holder },
+    };
+  }
+  return next as unknown as DailyRecord;
+};
+
+const canonical = (value: unknown): string => {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
+  if (!isPlainObject(value)) return JSON.stringify(value) ?? 'null';
+  const keys = Object.keys(value)
+    .filter(key => value[key] !== undefined)
+    .sort();
+  return `{${keys.map(key => `${JSON.stringify(key)}:${canonical(value[key])}`).join(',')}}`;
+};
+
+/** The moved fields a holder carries, comparable across a server round trip (absent = null). */
+const movedFieldsKey = (holder: unknown): string =>
+  canonical(
+    Object.fromEntries(
+      CLINICAL_DERIVED_MOVED_FIELDS.map(field => [
+        field,
+        isPlainObject(holder) ? (holder[field] ?? undefined) : undefined,
+      ])
+    )
+  );
+
+/**
+ * Whether the day the server keeps holds, for each restored episode, what the backup carried: the
+ * moved fields of its only holder in `saved`, under its current document (D4) when it has one.
+ */
+const holdsRestoredEpisodes = (
+  restored: ReadonlyMap<string, string>,
+  saved: DailyRecord,
+  savedDocs: readonly ClinicalDerivedEpisodeDoc[]
+): boolean => {
+  const layout = readClinicalDerivedLayout(saved);
+  if (layout.status === 'unsupported') return false;
+  const current = new Map(
+    savedDocs
+      .filter(
+        doc =>
+          layout.status === 'marked' &&
+          doc.date === saved.date &&
+          doc.layoutGeneration === layout.layout.generation
+      )
+      .map(doc => [doc.clinicalEpisodeId, doc])
+  );
+  const holders = holdersByEpisode(saved);
+  return [...restored].every(([episodeId, expected]) => {
+    const found = holders.get(episodeId);
+    if (!found || found === 'ambiguous') return false;
+    const doc = current.get(episodeId);
+    return movedFieldsKey(doc ? applyMovedFields(found.holder, doc) : found.holder) === expected;
+  });
 };
 
 /**
@@ -92,49 +172,6 @@ const parseDayDocs = (record: DailyRecord, layoutGeneration: string, docs: unkno
   return { usable, allUsable: usable.length === docs.length };
 };
 
-/** `record` with the documents' moved fields in the live movement snapshots of their episode. */
-const embedInMovements = (
-  record: DailyRecord,
-  docsById: ReadonlyMap<string, ClinicalDerivedEpisodeDoc>,
-  placed: Set<string>
-): DailyRecord => {
-  const next: PlainObject = { ...record };
-  MOVEMENT_LISTS.forEach(list => {
-    const movements: unknown = record[list];
-    if (!Array.isArray(movements)) return;
-    next[list] = movements.map((movement: unknown) => {
-      const snapshot = snapshotOf(movement);
-      const doc = snapshot && docsById.get(snapshotEpisodeId(movement as PlainObject, snapshot));
-      if (!snapshot || !doc) return movement;
-      placed.add(doc.clinicalEpisodeId);
-      return { ...(movement as PlainObject), originalData: applyMovedFields(snapshot, doc) };
-    });
-  });
-  return next as unknown as DailyRecord;
-};
-
-/**
- * Whether `saved` still holds what was brought back: it kept the backup's generation, so its
- * server documents are the current copies, or each episode still carries every expected moved
- * field. An existing day the server keeps as stored, or a recreated one whose clinical fields it
- * dropped, does not.
- */
-const keepsRestore = (
-  layoutGeneration: string,
-  expected: ReadonlyMap<string, ReadonlySet<MovedField>>,
-  saved: DailyRecord | undefined
-): boolean => {
-  if (!saved) return false;
-  const savedLayout = readClinicalDerivedLayout(saved);
-  if (savedLayout.status === 'marked' && savedLayout.layout.generation === layoutGeneration) {
-    return true;
-  }
-  const carried = carriedMovedFields(saved);
-  return [...expected].every(([id, fields]) =>
-    [...fields].every(field => carried.get(id)?.has(field) === true)
-  );
-};
-
 /**
  * The day to restore with the backup's per-episode data for `record.date` embedded. `section` is
  * the file's `clinicalDerived` value, untrusted: every document is parsed and must belong to this
@@ -158,23 +195,22 @@ export const restoreClinicalDerivedBackupDay = (
   }
 
   const { usable, allUsable } = parseDayDocs(record, layout.layout.generation, entry.docs);
-  const docsById = new Map(usable.map(doc => [doc.clinicalEpisodeId, doc]));
-  const overlay = overlayClinicalDerived(record, usable);
-  const placed = new Set(overlay.matchedEpisodeIds);
-  const restored = embedInMovements(overlay.record, docsById, placed);
-  if (!allUsable || placed.size < docsById.size) return { kind: 'incomplete', record: restored };
+  const holders = holdersByEpisode(record);
+  const restored = new Map<string, string>();
+  let next = record;
+  usable.forEach(doc => {
+    const found = holders.get(doc.clinicalEpisodeId);
+    if (!found || found === 'ambiguous') return;
+    const holder = applyMovedFields(found.holder, doc);
+    next = withHolderAt(next, found.location, holder);
+    restored.set(doc.clinicalEpisodeId, movedFieldsKey(holder));
+  });
+  if (!allUsable || restored.size < usable.length) return { kind: 'incomplete', record: next };
 
-  const carried = carriedMovedFields(restored);
-  const expected = new Map(
-    [...placed]
-      .map(id => [id, carried.get(id) ?? new Set<MovedField>()] as const)
-      .filter(([, fields]) => fields.size > 0)
-  );
   return {
     kind: 'embedded',
-    record: restored,
-    needsConfirmation: expected.size > 0,
-    isKeptBy: saved =>
-      expected.size === 0 || keepsRestore(layout.layout.generation, expected, saved),
+    record: next,
+    needsConfirmation: restored.size > 0,
+    isKeptBy: (saved, savedDocs) => holdsRestoredEpisodes(restored, saved, savedDocs),
   };
 };
