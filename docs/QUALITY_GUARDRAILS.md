@@ -212,13 +212,14 @@ resoluciones oficiales verificadas por SHA-512. Los artefactos de diagnóstico n
 sustituyen el audit requerido del PR; la cadena braces sigue siendo bloqueante.
 No se mantiene un workflow diagnóstico ni un fork de dependencias en main.
 
-### Aceptación temporal de braces (2026-10-07)
+### Aceptación de braces cerrada (2026-10-24)
 
-Excepción autorizada explícitamente por Daniel Opazo, limitada al aviso y árbol
-de desarrollo aprobados. Daniel retiró explícitamente el vencimiento el 12-10-2026
-para esperar una actualización oficial de braces. Se conservan
-los hallazgos originales y un aviso visible; otros riesgos siguen bloqueando.
-Owner, riesgo residual, rollback y validación: [registro de aceptación](BRACES_TEMPORARY_RISK_ACCEPTANCE.md).
+GitHub retiró el aviso el 23-10-2026. Tras verificar la auditoría fresca se retiran
+el helper y la aceptación temporal. Los informes conservan los hallazgos y conteos
+originales; cualquier alto/crítico de raíz o Functions bloquea, también si vuelve
+a aparecer en braces. El [registro de aceptación](BRACES_TEMPORARY_RISK_ACCEPTANCE.md)
+conserva la autorización histórica y la evidencia de cierre. Las notas históricas
+de renovación de huellas de abajo describen los PR anteriores al cierre.
 
 ## Calibración de particiones unitarias
 
@@ -253,7 +254,7 @@ Usar Zod 4.6.7 y su API de tipos/resultados. `prefault` conserva el parseo de lo
 defaults de Zod 3; no cambiarlo por un retorno inmediato que omita transformaciones.
 Los tests de compatibilidad comprueban campos de episodio ausentes y rechazo de
 colecciones excesivas antes de inspeccionar cada elemento. La auditoría debe aprobar
-root y Functions sin extender la excepción histórica de braces. Firebase CLI
+root y Functions sin excepciones altas/críticas. Firebase CLI
 15.34.1 usa Zod 4 y evita mantener Zod 3 transitivo. Verificar también body-parser
 1.20.9/2.4.0 en ambos lockfiles y los smokes/emuladores del CLI actualizado.
 

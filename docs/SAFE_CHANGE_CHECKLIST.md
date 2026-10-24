@@ -132,13 +132,13 @@ recarga, teclado y movimiento reducido), además de revisión independiente y CI
 21. Si la change toca documentos clínicos, revisar [docs/ADR_CLINICAL_DOCUMENT_WORKSPACE_CONTRACT.md](./ADR_CLINICAL_DOCUMENT_WORKSPACE_CONTRACT.md).
 22. Si la change toca handoff, revisar [docs/ADR_HANDOFF_RUNTIME_SURFACES.md](./ADR_HANDOFF_RUNTIME_SURFACES.md).
 
-### Aceptación temporal de braces (2026-10-07)
+### Aceptación de braces cerrada (2026-10-24)
 
-Excepción autorizada explícitamente por Daniel Opazo, limitada al aviso y árbol
-de desarrollo aprobados. Daniel retiró explícitamente el vencimiento el 12-10-2026
-para esperar una actualización oficial de braces. Se conservan
-los hallazgos originales y un aviso visible; otros riesgos siguen bloqueando.
-Owner, riesgo residual, rollback y validación: [registro de aceptación](BRACES_TEMPORARY_RISK_ACCEPTANCE.md).
+El aviso fue retirado oficialmente el 23-10-2026 y la auditoría fresca confirmó
+su ausencia. Se elimina la aceptación temporal conforme a su criterio de cierre;
+raíz y Functions deben aprobar sin excepciones altas/críticas. Las regresiones
+del CLI conservan evidencia cruda y prueban rechazo alto/crítico, incluidos futuros
+avisos de braces. Fuente, owner e historial: [registro de aceptación](BRACES_TEMPORARY_RISK_ACCEPTANCE.md).
 
 ### Validadores y parsers de solicitudes (2026-10-24)
 

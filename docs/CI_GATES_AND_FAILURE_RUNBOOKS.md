@@ -822,3 +822,12 @@ contratos serverless y lecturas de documentos por episodio. El pack de confianza
 y `ci:release-gate` ejercitan el CLI actualizado con emuladores y entradas sintéticas.
 Conservar scorecard y auditoría del commit final; una prueba focalizada no reemplaza
 los controles pendientes ni acredita un despliegue.
+
+La excepción histórica de braces se retira tras el retiro oficial de
+GHSA-vfj7-8cjw-p6xm del 23-10-2026 y la auditoría fresca sin ese aviso.
+`dependencyAuditGate.test.ts` ejecuta el CLI con informes sintéticos: altos y
+críticos de ambos paquetes bloquean, un futuro aviso de braces también, y los
+hallazgos moderados e informes originales siguen visibles. No renovar huellas
+ni suprimir nuevos avisos para recuperar el verde. El
+[registro de cierre](BRACES_TEMPORARY_RISK_ACCEPTANCE.md) conserva la fuente y
+la autorización histórica.
