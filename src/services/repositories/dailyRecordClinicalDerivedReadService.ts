@@ -31,15 +31,18 @@ type ClinicalDerivedEpisodeReaderModule =
 
 let readerPromise: Promise<ClinicalDerivedEpisodeReaderModule> | null = null;
 
-// A chunk that failed to load (offline on first use, a stale hash after a deploy) is not cached:
-// the next call tries again.
+const importReader = (): Promise<ClinicalDerivedEpisodeReaderModule> =>
+  import('@/services/storage/firestore/clinicalDerivedEpisodeReader');
+
+// A chunk that fails to load (offline on first use, a stale hash after a deploy) is retried once,
+// then not cached: the next call tries again.
 const loadReader = (): Promise<ClinicalDerivedEpisodeReaderModule> => {
-  readerPromise ??= import('@/services/storage/firestore/clinicalDerivedEpisodeReader').catch(
-    (error: unknown) => {
+  readerPromise ??= importReader()
+    .catch(() => importReader())
+    .catch((error: unknown) => {
       readerPromise = null;
       throw error;
-    }
-  );
+    });
   return readerPromise;
 };
 
@@ -100,8 +103,9 @@ const failureReason = (failure: ClinicalDerivedReadFailure): ClinicalDerivedFall
   failure.status === 'permission_denied' ? 'permission_denied' : 'read_failed';
 
 /**
- * A strict read that fails closed for a reason the reader did not report (it reports failed reads):
- * operators can tell it from an ordinary record-load failure. Codes only, never the exception.
+ * A strict read that fails closed for a reason no read reported (failed reads are reported by the
+ * reader, or by `readDocs` when the reader would not load): operators can tell it from an ordinary
+ * record-load failure. Codes only, never the exception.
  */
 const reportStrictFailClosed = (
   date: string,
@@ -136,6 +140,19 @@ const readDocs = async (
   try {
     reader = await loadReader();
   } catch {
+    // The reader never ran, so it could not report this failed read. Codes only.
+    recordOperationalTelemetry({
+      category: 'firestore',
+      operation: 'clinical_derived_read',
+      status: 'degraded',
+      runtimeState: 'degraded',
+      date,
+      issues: [READER_UNAVAILABLE_CODE],
+      context: {
+        readScope: clinicalEpisodeId === undefined ? 'day' : 'episode',
+        errorCode: READER_UNAVAILABLE_CODE,
+      },
+    });
     return { status: 'failed', code: READER_UNAVAILABLE_CODE };
   }
   if (clinicalEpisodeId === undefined) {

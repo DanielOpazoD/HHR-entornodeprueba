@@ -2,16 +2,20 @@ import { canCarryClinicalEvidence } from './clinicalCarryoverIdentity';
 import type { PatientData } from '@/types/domain/patient';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
+import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { seedClinicalCarryover } from './clinicalCarryoverSeed';
 
 const isCarryoverDestination = (date: string): boolean =>
   date === calendarStampInClinicalTimeZone(new Date()).iso;
 
+const CARRYOVER_OVERLAY_FAILED = 'carryover_overlay_failed';
+
 /**
  * A split source day keeps its vitals history in episode documents (docs/DESIGN_DAILY_RECORD_
  * PHASE1_CLINICAL_DERIVED.md, D10). Only when the destination is today, the one day seeded, the
  * carryover reads an overlaid copy of the source, best effort: on any failure it seeds from the
- * embedded copies, as before. The copy only feeds the seed; it is never saved.
+ * embedded copies, as before. The read path reports failed reads; a throw is reported here.
+ * The copy only feeds the seed; it is never saved.
  */
 export const readClinicalCarryoverSource = async (
   destinationDate: string,
@@ -25,6 +29,17 @@ export const readClinicalCarryoverSource = async (
       await import('./dailyRecordClinicalDerivedReadService');
     return (await readDailyRecordWithClinicalDerived(source, { mode: 'bestEffort' })).record;
   } catch {
+    // Only a marked source day gets here: the seed misses its split episodes' vitals history.
+    // Reason only, never the exception.
+    recordOperationalTelemetry({
+      category: 'firestore',
+      operation: 'clinical_derived_read',
+      status: 'degraded',
+      runtimeState: 'degraded',
+      date: source.date,
+      issues: [CARRYOVER_OVERLAY_FAILED],
+      context: { readScope: 'day', reason: CARRYOVER_OVERLAY_FAILED },
+    });
     return source;
   }
 };

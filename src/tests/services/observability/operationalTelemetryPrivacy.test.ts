@@ -228,6 +228,19 @@ describe('operational telemetry privacy: context', () => {
     });
   });
 
+  it('keeps the clinicalDerived read codes: an unloadable reader and a failed carryover overlay', () => {
+    for (const context of [
+      { readScope: 'episode', errorCode: 'reader_unavailable' },
+      { readScope: 'day', reason: 'carryover_overlay_failed' },
+    ]) {
+      expect(sanitizeOperationalTelemetryContextValues(context)).toEqual({
+        context,
+        droppedCount: 0,
+      });
+    }
+    expect(classifyOperationalTelemetryIssue('reader_unavailable')).toBe('unavailable_issue');
+  });
+
   it('caps the number of kept keys and never reports a raw dropped key name', () => {
     const flood: Record<string, unknown> = {};
     for (let index = 0; index < 60; index += 1) flood[`rut_${RUT}_${index}`] = `${PATIENT}${index}`;
