@@ -127,7 +127,6 @@ describe('CensusTable clinical indicators', () => {
 
   const createUiMock = (): ReturnType<typeof useConfirmDialog> =>
     asContextReturn<ReturnType<typeof useConfirmDialog>>({
-      notifications: [],
       notify: vi.fn(),
       success: vi.fn(),
       error: vi.fn(),

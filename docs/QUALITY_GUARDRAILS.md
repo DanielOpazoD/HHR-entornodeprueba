@@ -29,6 +29,10 @@ Evitar que la deuda estructural vuelva a crecer después de las fases de estabil
 10. Si `backup/export` pasa a ser subsistema crítico de release, debe quedar también reflejado en `critical-coverage` y en `technical-ownership-map`, no solo en budgets de flujo.
 11. Los chunks de arranque del shell crítico deben vivir en `scripts/config/bundle-budget.json` y no quedar como heurísticas hardcodeadas en el checker.
 
+Los contextos de acciones no deben incluir estado que sólo usa su renderizador.
+En `UIContext`, conservar estables las acciones al añadir o retirar notificaciones;
+verificar el proveedor real y consumidores memoizados con JSX nuevo del padre.
+
 ## Cómo agregar un guardrail nuevo
 
 1. Preferir `scripts/check-*.mjs` o `scripts/report-*.mjs` antes de introducir tooling externo.

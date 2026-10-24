@@ -14,6 +14,11 @@ Una change queda lista solo si cumple todo lo siguiente:
 8. Si la change entra en una categoría gobernada, sigue `scripts/config/sustainable-change-policy.json` y deja evidencia del gate o artefacto requerido.
 9. Si incluye lógica de app, assets estáticos o snapshots de `reports/`, separa esos concerns en commits distintos cuando no dependan del mismo fix.
 
+Para cambios en `UIContext`, verificar avisos, descarte, confirmación, cancelación y
+limpieza al desmontar con el proveedor real. Los consumidores de acciones conservan
+sus ediciones y no se actualizan al cambiar la lista privada de notificaciones;
+probar también JSX nuevo del padre, sin atribuir el conteo de renders a latencia real.
+
 Para cambios en la conexión previa de Eloísa, probar el recorrido real de mensajes de
 extensión, incluidos un verde pasivo seguido de rechazo autenticado y una respuesta
 tardía. El bloqueo previo no crea una ejecución; un fallo después del arranque sí queda

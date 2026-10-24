@@ -154,6 +154,10 @@ estado de sus gestores no cambien. Cambios reales siguen notificando consumidore
 El calendario conserva un listener por mes activo y QueryClient, con cleanup al
 cambiar mes, deshabilitar o desmontar. No añadir stores para sustituir esas garantías.
 
+`UIContext` comparte únicamente las acciones estables de avisos y confirmaciones.
+La lista de notificaciones vive en `UIProvider` y la consume su renderizador; añadir
+o retirar un aviso no actualiza a quienes sólo necesitan invocar una acción.
+
 ## Decisiones por subsistema
 
 - [Censo, precedencia y recuperación](ADR_DAILY_RECORD_RUNTIME_PATH.md)
