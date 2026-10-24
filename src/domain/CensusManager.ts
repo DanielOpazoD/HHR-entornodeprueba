@@ -1,3 +1,4 @@
+import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 import { ActionState, DischargeState, TransferState } from '@/domain/censusActionContracts';
 import { CMAData } from '@/types/domain/movements';
 import { PatientData } from '@/types/domain/patient';
@@ -30,7 +31,7 @@ export class CensusManager {
       hasClinicalCrib: hasBaby,
       clinicalCribName: patient.clinicalCrib?.patientName,
       clinicalCribStatus: DEFAULT_DISCHARGE_STATUS,
-      time: new Date().toTimeString().slice(0, 5),
+      time: calendarStampInClinicalTimeZone().hhmm,
       dischargeTarget: hasBaby ? 'both' : undefined,
     };
   }
@@ -51,7 +52,7 @@ export class CensusManager {
       evacuationMethod: defaultMethods.evacuation,
       receivingCenter: defaultMethods.center,
       transferEscort: DEFAULT_TRANSFER_ESCORT,
-      time: new Date().toTimeString().slice(0, 5),
+      time: calendarStampInClinicalTimeZone().hhmm,
       hasClinicalCrib: hasBaby,
       clinicalCribName: patient.clinicalCrib?.patientName,
     };
@@ -83,8 +84,7 @@ export class CensusManager {
    * Formats CMA discharge data from patient information.
    */
   static formatCMAData(patient: PatientData, bedId: string): Omit<CMAData, 'id' | 'timestamp'> {
-    const now = new Date();
-    const dischargeTime = now.toTimeString().slice(0, 5);
+    const dischargeTime = calendarStampInClinicalTimeZone().hhmm;
 
     return {
       bedName: bedId,

@@ -35,6 +35,7 @@ const crypto = require('crypto');
 const { promisify } = require('util');
 const functions = require('firebase-functions/v1');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
+const { hospitalCalendarDay } = require('./hospitalCalendarDay');
 
 const PRESCRIPTION_TYPES = new Set(['comun', 'psicotropicos', 'benzodiazepinas']);
 const PRESCRIPTION_ASSIGNMENT_SCOPES = new Set(['patient', 'unassigned', 'hospitalized_stock']);
@@ -124,13 +125,8 @@ const resolveCallerRole = async (context, resolveRoleForEmail) => {
 const optionalString = (value, maxLength = 512) =>
   typeof value === 'string' && value.trim() ? value.trim().slice(0, maxLength) : undefined;
 
-const todayIso = () => {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-};
-
 const resolveIsoDate = value => {
-  if (value === undefined || value === null || value === '') return todayIso();
+  if (value === undefined || value === null || value === '') return hospitalCalendarDay();
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     throw new functions.https.HttpsError('invalid-argument', 'Fecha de censo inválida.');
   }
@@ -444,7 +440,7 @@ const resolveUploadPatientOptionForExactDate = async (
 };
 
 const assertReadonlyUploadDateAllowed = date => {
-  const today = todayIso();
+  const today = hospitalCalendarDay();
   const yesterday = previousIsoDay(today);
   if (date !== today && date !== yesterday) {
     throw new functions.https.HttpsError(
@@ -457,10 +453,7 @@ const assertReadonlyUploadDateAllowed = date => {
 const createdAtMatchesIsoDate = (createdAt, isoDate) => {
   const created = new Date(createdAt);
   if (Number.isNaN(created.getTime())) return false;
-  const recordDate = `${created.getFullYear()}-${String(created.getMonth() + 1).padStart(2, '0')}-${String(
-    created.getDate()
-  ).padStart(2, '0')}`;
-  return recordDate === isoDate;
+  return hospitalCalendarDay(created) === isoDate;
 };
 
 const buildFirebaseStorageDownloadUrl = (bucketName, storagePath, token) =>
