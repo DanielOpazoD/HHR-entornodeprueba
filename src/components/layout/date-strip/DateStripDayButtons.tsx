@@ -118,6 +118,7 @@ export const DateStripDayButtons: React.FC<DateStripDayButtonsProps> = ({
           key={day}
           onClick={() => !isFutureBlocked && setSelectedDay(day)}
           disabled={isFutureBlocked}
+          aria-pressed={isSelected}
           aria-label={isClinicalToday ? `${fullDate} (hoy)` : fullDate}
           title={fullDate}
           className={clsx(

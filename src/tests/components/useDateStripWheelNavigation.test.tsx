@@ -26,4 +26,16 @@ describe('useDateStripWheelNavigation', () => {
     fireEvent.wheel(screen.getByTestId('wheel-area'), { deltaY: -100 });
     expect(navigateDays).toHaveBeenCalledWith(-1);
   });
+
+  it.each([
+    { deltaX: 100, deltaY: 5 },
+    { deltaX: 0, deltaY: 100, shiftKey: true },
+  ])('preserves native horizontal scrolling for %o', wheel => {
+    const navigateDays = vi.fn();
+    render(<WheelHarness navigateDays={navigateDays} />);
+    const event = new WheelEvent('wheel', { ...wheel, bubbles: true, cancelable: true });
+    fireEvent(screen.getByTestId('wheel-area'), event);
+    expect(navigateDays).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+  });
 });
