@@ -5,6 +5,11 @@ import React from 'react';
 import { createClinicalDocumentDraft } from '@/features/clinical-documents/domain/factories';
 import type { ClinicalDocumentRecord } from '@/features/clinical-documents/domain/entities';
 import { useClinicalDocumentWorkspaceExportActions } from '@/features/clinical-documents/hooks/useClinicalDocumentWorkspaceExportActions';
+import {
+  clinicalDocumentDraftReducer,
+  createClinicalDocumentDraftReducerInitialState,
+} from '@/features/clinical-documents/hooks/clinicalDocumentDraftReducer';
+import type { ClinicalDocumentWorkspaceDraftState } from '@/features/clinical-documents/hooks/useClinicalDocumentWorkspaceDraft';
 import * as pdfExportUseCase from '@/application/clinical-documents/clinicalDocumentPdfExportUseCase';
 import * as printOpenUseCase from '@/application/clinical-documents/clinicalDocumentPrintOpenUseCase';
 
@@ -84,11 +89,11 @@ describe('useClinicalDocumentWorkspaceExportActions', () => {
     info: vi.fn(),
   };
 
-  let setDraft: React.Dispatch<React.SetStateAction<ClinicalDocumentRecord | null>>;
+  let applyPdfExportResult: ClinicalDocumentWorkspaceDraftState['applyPdfExportResult'];
 
   beforeEach(() => {
     vi.clearAllMocks();
-    setDraft = vi.fn();
+    applyPdfExportResult = vi.fn();
     vi.mocked(printOpenUseCase.executeOpenClinicalDocumentPrint).mockResolvedValue(true);
     vi.mocked(pdfExportUseCase.executeExportClinicalDocumentPdf).mockResolvedValue({
       status: 'success',
@@ -119,14 +124,19 @@ describe('useClinicalDocumentWorkspaceExportActions', () => {
       const original = buildRecord();
       const other = { ...original, id: 'another-document', episodeKey: 'another-episode' };
       const { result } = renderHook(() => {
-        const [draft, select] = React.useState(original);
+        const [state, dispatch] = React.useReducer(clinicalDocumentDraftReducer, {
+          ...createClinicalDocumentDraftReducerInitialState(),
+          draft: original,
+        });
+        const select = (document: ClinicalDocumentRecord) =>
+          dispatch({ type: 'LOAD_DOCUMENT', document, snapshot: JSON.stringify(document) });
         const actions = useClinicalDocumentWorkspaceExportActions({
-          selectedDocument: draft,
+          selectedDocument: state.draft,
           hospitalId: 'hhr',
           notify,
-          setDraft: select as typeof setDraft,
+          applyPdfExportResult: result => dispatch({ type: 'APPLY_PDF_EXPORT_RESULT', result }),
         });
-        return { ...actions, draft, select };
+        return { ...actions, draft: state.draft, select };
       });
       let upload!: Promise<void>;
       act(() => {
@@ -156,7 +166,7 @@ describe('useClinicalDocumentWorkspaceExportActions', () => {
           );
         await upload;
       });
-      expect(result.current.draft).toBe(other);
+      expect(result.current.draft).toEqual(other);
       expect(result.current.isUploadingPdf).toBe(false);
       expect(recordCriticalClinicalAction).toHaveBeenCalledWith(
         expect.objectContaining({ documentId: original.id })
@@ -170,7 +180,7 @@ describe('useClinicalDocumentWorkspaceExportActions', () => {
         selectedDocument: buildRecord(),
         hospitalId: 'hhr',
         notify,
-        setDraft,
+        applyPdfExportResult,
       })
     );
 
@@ -224,7 +234,7 @@ describe('useClinicalDocumentWorkspaceExportActions', () => {
         selectedDocument: document,
         hospitalId: 'hhr',
         notify,
-        setDraft,
+        applyPdfExportResult,
       })
     );
 
@@ -241,7 +251,11 @@ describe('useClinicalDocumentWorkspaceExportActions', () => {
         issues: ['drive down'],
       })
     );
-    expect(setDraft).toHaveBeenCalledWith(expect.any(Function));
+    expect(applyPdfExportResult).toHaveBeenCalledWith({
+      target: document,
+      status: 'failed',
+      errorMessage: 'drive down',
+    });
   });
 
   it('prefers userSafeMessage when the export use case fails', async () => {
@@ -258,7 +272,7 @@ describe('useClinicalDocumentWorkspaceExportActions', () => {
         selectedDocument: document,
         hospitalId: 'hhr',
         notify,
-        setDraft,
+        applyPdfExportResult,
       })
     );
 
@@ -281,7 +295,7 @@ describe('useClinicalDocumentWorkspaceExportActions', () => {
         selectedDocument: document,
         hospitalId: 'hhr',
         notify,
-        setDraft,
+        applyPdfExportResult,
       })
     );
 
@@ -312,7 +326,7 @@ describe('useClinicalDocumentWorkspaceExportActions', () => {
         selectedDocument: document,
         hospitalId: 'hhr',
         notify,
-        setDraft,
+        applyPdfExportResult,
       })
     );
 
@@ -364,7 +378,7 @@ describe('useClinicalDocumentWorkspaceExportActions', () => {
         selectedDocument: document,
         hospitalId: 'hhr',
         notify,
-        setDraft,
+        applyPdfExportResult,
       })
     );
 
@@ -391,7 +405,7 @@ describe('useClinicalDocumentWorkspaceExportActions', () => {
         selectedDocument: document,
         hospitalId: 'hhr',
         notify,
-        setDraft,
+        applyPdfExportResult,
       })
     );
 
