@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import { sendCensusEmail } from '../../src/services/email/gmailClient';
 import { getFirebaseServer } from './lib/firebase-server';
 import {

@@ -42,7 +42,9 @@ const validateReadPhoto = (record: WoundCarePhoto): WoundCarePhoto | null => {
       category: 'clinical_document',
       status: 'failed',
       operation: 'photo_repository_invalid_read_record',
-      issues: parsed.error.issues.map(issue => `${issue.path.join('.')}: ${issue.message}`),
+      issues: parsed.error.issues.map(
+        issue => `${issue.path.map(String).join('.')}: ${issue.message}`
+      ),
       context: { photoId: record.id, episodeKey: record.episodeKey },
     });
     return null;

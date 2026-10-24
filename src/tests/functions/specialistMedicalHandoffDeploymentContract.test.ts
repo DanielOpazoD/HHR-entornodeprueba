@@ -10,7 +10,7 @@ const callableObservation = z.object({
   result: z.unknown(),
   error: z.string().nullable(),
   reads: z.array(z.string()),
-  updates: z.array(z.object({ path: z.string(), data: z.record(z.unknown()) })),
+  updates: z.array(z.object({ path: z.string(), data: z.record(z.string(), z.unknown()) })),
   firebaseAdminLoaded: z.boolean(),
 });
 

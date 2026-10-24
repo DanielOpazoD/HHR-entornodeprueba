@@ -1,5 +1,20 @@
 # Aceptación temporal de riesgo de desarrollo: braces
 
+## Cerrada tras el retiro oficial del aviso (2026-10-24)
+
+GitHub retiró [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)
+el 23 de octubre de 2026. La auditoría fresca de raíz y Functions ya no contiene
+este aviso; el CI de #1010 confirmó cero hallazgos altos/críticos tras corregir
+Zod y body-parser. Se cumple el criterio de cierre documentado abajo.
+
+Se retiran el helper de aceptación y su decisión `accepted_with_exception`.
+El gate exige que ambas auditorías aprueben: cualquier hallazgo alto/crítico,
+incluido un nuevo aviso de braces, bloquea. Las pruebas ejecutan el CLI real con
+informes sintéticos y conservan los hallazgos originales, sus conteos y errores.
+No se renueva la huella del lockfile ni se amplía ninguna aceptación.
+
+## Registro histórico de autorización y alcance
+
 Daniel Opazo autorizó explícitamente esta excepción en la tarea CUDYR el
 7 de octubre de 2026. El 12 de octubre autorizó explícitamente retirar el
 vencimiento de calendario y esperar una actualización oficial de braces.

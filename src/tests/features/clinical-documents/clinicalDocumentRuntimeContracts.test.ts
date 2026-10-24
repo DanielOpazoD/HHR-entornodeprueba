@@ -11,6 +11,7 @@ import {
 } from '@/features/clinical-documents/contracts/clinicalDocumentRuntimeContracts';
 import { CLINICAL_DOCUMENT_TEMPLATES } from '@/features/clinical-documents/domain/rules';
 import {
+  formatClinicalDocumentContractIssues as formatDomainClinicalDocumentContractIssues,
   parseClinicalDocumentRecord as parseDomainClinicalDocumentRecord,
   safeParseClinicalDocumentRecord as safeParseDomainClinicalDocumentRecord,
 } from '@/domain/clinical-documents/runtimeContracts';
@@ -121,13 +122,17 @@ describe('clinicalDocumentRuntimeContracts', () => {
     expect(invalidTemplate.success).toBe(false);
   });
 
-  it('formats contract issues using root and nested paths', () => {
+  it.each([
+    { name: 'domain', format: formatDomainClinicalDocumentContractIssues },
+    { name: 'feature', format: formatClinicalDocumentContractIssues },
+  ])('formats $name contract issues using root, nested and symbol paths', ({ format }) => {
     expect(
-      formatClinicalDocumentContractIssues([
+      format([
         { path: [], message: 'General error' },
         { path: ['sections', 0, 'title'], message: 'Required' },
+        { path: [Symbol('field')], message: 'Invalid key' },
       ])
-    ).toEqual(['root: General error', 'sections.0.title: Required']);
+    ).toEqual(['root: General error', 'sections.0.title: Required', 'Symbol(field): Invalid key']);
   });
 });
 

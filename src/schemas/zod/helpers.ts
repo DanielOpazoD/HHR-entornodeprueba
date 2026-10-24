@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 
 export const RUT_REGEX = /^(\d{1,2}\.?\d{3}\.?\d{3}[-]?[\dkK])?$/; // Chilean RUT format (optional)
 export const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/; // YYYY-MM-DD format
@@ -6,7 +6,7 @@ export const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/; // YYYY-MM-DD format
 /**
  * Helper for fields that can be null in Firestore (empty) but should be undefined in the app
  */
-export const nullableOptional = <T extends z.ZodTypeAny>(schema: T) =>
+export const nullableOptional = <T extends z.ZodType>(schema: T) =>
   schema
     .nullable()
     .optional()
@@ -16,14 +16,12 @@ export const nullableOptional = <T extends z.ZodTypeAny>(schema: T) =>
 export const StringSchema = z.string();
 export const OptionalStringSchema = StringSchema.optional();
 export const NullableOptionalStringSchema = nullableOptional(StringSchema);
-export const DefaultEmptyStringSchema = StringSchema.default('');
+export const DefaultEmptyStringSchema = StringSchema.prefault('');
 
-export const nullishDefault = <T extends z.ZodTypeAny>(
-  schema: T,
-  createDefault: () => z.input<T>
-) => z.preprocess(v => (v === null || v === undefined ? createDefault() : v), schema);
+export const nullishDefault = <T extends z.ZodType>(schema: T, createDefault: () => z.input<T>) =>
+  z.preprocess(v => (v === null || v === undefined ? createDefault() : v), schema);
 
-export const emptyStringToUndefined = <T extends z.ZodTypeAny>(schema: T) =>
+export const emptyStringToUndefined = <T extends z.ZodType>(schema: T) =>
   z.preprocess(v => (v === '' ? undefined : v), schema.optional());
 
 export const resolveLegacyNameParts = (

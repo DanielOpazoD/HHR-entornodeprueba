@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 
 import { clinicalDocumentSectionSchema } from '@/domain/clinical-documents/runtimeContracts';
 import type {
@@ -182,5 +182,6 @@ export const safeParseClinicalDocumentTemplate = (template: unknown) =>
   clinicalDocumentTemplateSchema.safeParse(template);
 
 export const formatClinicalDocumentContractIssues = (
-  issues: Array<{ path: Array<string | number>; message: string }>
-): string[] => issues.map(issue => `${issue.path.join('.') || 'root'}: ${issue.message}`);
+  issues: ReadonlyArray<{ path: ReadonlyArray<PropertyKey>; message: string }>
+): string[] =>
+  issues.map(issue => `${issue.path.map(String).join('.') || 'root'}: ${issue.message}`);

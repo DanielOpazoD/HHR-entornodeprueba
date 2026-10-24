@@ -163,3 +163,39 @@ Risk: a small startup payload increase, without dependencies or additional reads
 Guardrails: schema roundtrip, episode isolation, bundle budget, chunk graph,
 preview bootstrap and critical coverage. Rollback: revert this PR; optional
 diagnostic fields remain backward compatible and clinical values are unchanged.
+
+## PR #1010: validación offline con Zod 4 corregido
+
+Owner: platform y arquitectura. Zod 4.6.7 corrige
+[GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5).
+El validador compartido debe seguir disponible sin conexión para leer y guardar
+censos y respaldos. Se conserva en el precache; no cambia la clasificación de
+chunks ni se excluyen archivos clínicos.
+
+Comparación local secuencial con Node 22.22.2, Vite 6.4.4, modo production y
+`VITE_E2E_MODE=true` (sin dotenv), sobre `main` `329df64ab` y el candidato
+`0f3181337` con los adaptadores de Zod 4:
+
+| Artefacto            |    Zod 3 / main | Zod 4 / candidato |
+| -------------------- | --------------: | ----------------: |
+| vendor-zod           |    55.634 bytes |      94.434 bytes |
+| Precarga total       | 4.949.726 bytes |   4.988.601 bytes |
+| Archivos precargados |             239 |               239 |
+
+La diferencia total es 38.875 bytes (0,785 %), de los cuales 38.800 corresponden
+al validador. El CI de `65db89c` mostró 4.871,7 KiB frente al límite de
+4.836 KiB. Los imports de namespace ya eliminan exports no usados. Adoptar la API funcional Mini exigiría reescribir
+los validadores clínicos; queda fuera de esta corrección de dependencias.
+
+Se permite sólo 40 KiB adicionales en precache: de 4.952.064 a 4.993.024 bytes.
+Zod tiene además un techo dedicado de 96.000 bytes, conservando los demás
+límites de chunks, arranque, assets y Functions. Este margen cubre la corrección
+de seguridad y no reserva espacio para nuevas funciones. El aumento afecta
+la descarga e instalación offline; no acredita mayor consumo sostenido ni una
+mejora de latencia.
+
+Gates: compatibilidad de esquemas/defaults, `check:bundle-budget`,
+`check:chunk-graph`, `check:runtime-asset-margin`, preview bootstrap y los E2E
+críticos. Rollback: revertir dependencias, adaptadores y este margen juntos; el
+regreso a las versiones vulnerables vuelve a bloquear la auditoría y no debe
+presentarse como un cierre válido.

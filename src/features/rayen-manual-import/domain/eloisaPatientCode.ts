@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 
 export const ELOISA_PATIENT_CODE_PREFIX = 'HHR-PACIENTE-2';
 export const ELOISA_PATIENT_CODE_FORMAT_VERSION = 2 as const;

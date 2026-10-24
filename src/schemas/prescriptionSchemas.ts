@@ -6,7 +6,7 @@
  * documents instead of letting them flow into the visor unparsed.
  */
 
-import { z } from 'zod';
+import * as z from 'zod';
 
 import {
   PRESCRIPTION_ASSIGNMENT_SCOPES,
