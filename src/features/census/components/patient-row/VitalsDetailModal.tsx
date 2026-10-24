@@ -54,7 +54,11 @@ export const VitalsDetailModal: React.FC<VitalsDetailModalProps> = ({
 }) => {
   const documentHistory = useClinicalDerivedVitalsHistory(episodeDocument);
   const history = resolveVitalsDetailHistory(
-    documentHistory === undefined ? vitalSignsHistory : (documentHistory ?? undefined),
+    documentHistory.status === 'resolved'
+      ? documentHistory.history === undefined
+        ? vitalSignsHistory
+        : (documentHistory.history ?? undefined)
+      : undefined,
     latestReading
   );
   const rows = buildVitalsHistory(history, record => {
@@ -109,6 +113,27 @@ export const VitalsDetailModal: React.FC<VitalsDetailModalProps> = ({
             </p>
           )}
         </section>
+
+        {documentHistory.status === 'loading' && (
+          <p role="status" className="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-600">
+            Cargando historial…
+          </p>
+        )}
+        {documentHistory.status === 'unavailable' && (
+          <div
+            role="alert"
+            className="flex items-center justify-between gap-3 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800"
+          >
+            <span>Historial no disponible</span>
+            <button
+              type="button"
+              onClick={documentHistory.retry}
+              className="rounded px-2 py-1 font-semibold underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1"
+            >
+              Reintentar
+            </button>
+          </div>
+        )}
 
         {rows.length > 1 && (
           <section>
