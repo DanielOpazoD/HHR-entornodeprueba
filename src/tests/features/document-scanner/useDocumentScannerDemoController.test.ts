@@ -100,6 +100,8 @@ describe('useDocumentScannerDemoController', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it('creates an idempotency key when randomUUID is unavailable on local HTTP', () => {
@@ -169,9 +171,54 @@ describe('useDocumentScannerDemoController', () => {
     expect(hook.result.current.phase).toBe('success');
   });
 
+  it('downloads the PDF with the hospital day in its file name', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2027-01-01T04:30:00.000Z'));
+    vi.stubGlobal('URL', {
+      createObjectURL: vi.fn(() => 'blob:synthetic-pdf'),
+      revokeObjectURL: vi.fn(),
+    });
+    const downloads: string[] = [];
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+      this: HTMLAnchorElement
+    ) {
+      downloads.push(this.download);
+    });
+    scannerMocks.createSession.mockResolvedValue({ pages: [{ filterMode: 'color' }] });
+    scannerMocks.createPreview.mockResolvedValue({
+      objectUrl: 'blob:preview',
+      pageCount: 1,
+      detectedPageCount: 1,
+    });
+    const hook = renderHook(() => useDocumentScannerDemoController());
+
+    await act(async () => {
+      await hook.result.current.startScanning([
+        new File(['synthetic-photo'], 'documento.jpg', { type: 'image/jpeg' }),
+      ]);
+    });
+    await act(async () => hook.result.current.downloadPdf());
+
+    expect(downloads).toEqual(['documento-escaneado-2026-12-31.pdf']);
+    act(() => vi.runOnlyPendingTimers());
+  });
+
+  it('starts another document without refreshing at mainland midnight, then refreshes at hospital midnight', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-25T03:30:00.000Z'));
+    scannerMocks.listPatientOptions.mockResolvedValue({ date: '2026-10-24', patientOptions: [] });
+    const hook = renderHook(() => useDocumentScannerDemoController());
+    await act(async () => hook.result.current.submitPin('1313'));
+    await act(async () => hook.result.current.startAnotherDocument());
+    expect(scannerMocks.listPatientOptions).toHaveBeenCalledTimes(1);
+    vi.setSystemTime(new Date('2026-10-25T05:00:00.000Z'));
+    await act(async () => hook.result.current.startAnotherDocument());
+    expect(scannerMocks.listPatientOptions).toHaveBeenCalledTimes(2);
+  });
+
   it('requires a new patient selection when the census changes across midnight', async () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date(2026, 6, 22, 23, 59));
+    vi.setSystemTime(new Date('2026-07-23T05:59:00.000Z'));
     const session = { pages: [{ filterMode: 'color' }] };
     scannerMocks.createSession.mockResolvedValue(session);
     scannerMocks.createPreview.mockResolvedValue({
@@ -213,7 +260,7 @@ describe('useDocumentScannerDemoController', () => {
       ]);
     });
     act(() => hook.result.current.setSelectedPatientKey('H1C2'));
-    vi.setSystemTime(new Date(2026, 6, 23, 0, 1));
+    vi.setSystemTime(new Date('2026-07-23T06:01:00.000Z'));
     await act(async () => {
       await hook.result.current.uploadDocument();
     });

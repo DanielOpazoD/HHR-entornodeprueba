@@ -50,9 +50,10 @@ export const buildAdminHarness = (
   const dailyRecords = harnessOptions.dailyRecords || {};
 
   const docHandle = (path: string) => ({
+    path,
     get: async () =>
       path.endsWith('config/prescriptionsAccess')
-        ? { exists: accessConfig.data !== null, data: () => accessConfig.data }
+        ? { exists: accessConfig.data !== null, data: () => structuredClone(accessConfig.data) }
         : path.startsWith('dailyRecords/')
           ? {
               exists: dailyRecords[path.replace('dailyRecords/', '')] !== undefined,
@@ -99,8 +100,52 @@ export const buildAdminHarness = (
     collection,
   };
 
+  type AccessConfigRef = ReturnType<typeof docHandle>;
+  const assertAccessConfigRef = (ref: AccessConfigRef) => {
+    if (ref.path !== 'config/prescriptionsAccess') {
+      throw new Error(`fake transaction does not support ${ref.path}`);
+    }
+  };
+
+  // Optimistic concurrency like Firestore: a transaction whose read document
+  // changed before commit is retried from a fresh read.
+  const runTransaction = async <T>(
+    updateFunction: (tx: {
+      get: (ref: AccessConfigRef) => ReturnType<AccessConfigRef['get']>;
+      set: (
+        ref: AccessConfigRef,
+        data: Record<string, unknown>,
+        options?: { merge?: boolean }
+      ) => void;
+    }) => Promise<T>
+  ): Promise<T> => {
+    for (let attempt = 0; attempt < 50; attempt += 1) {
+      const readVersion = accessConfig.data;
+      const writes: Array<{ data: Record<string, unknown>; merge: boolean }> = [];
+      const result = await updateFunction({
+        get: async ref => {
+          assertAccessConfigRef(ref);
+          return ref.get();
+        },
+        set: (ref, data, options) => {
+          assertAccessConfigRef(ref);
+          writes.push({ data, merge: options?.merge === true });
+        },
+      });
+      if (accessConfig.data !== readVersion) continue;
+      for (const write of writes) {
+        accessConfig.data = write.merge
+          ? { ...(accessConfig.data || {}), ...write.data }
+          : write.data;
+      }
+      return result;
+    }
+    throw new Error('fake transaction contention exceeded');
+  };
+
   const admin = {
     firestore: () => ({
+      runTransaction,
       collection: (name: string) => {
         if (name === 'hospitals') {
           return {

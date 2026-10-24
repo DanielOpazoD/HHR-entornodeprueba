@@ -80,15 +80,15 @@ describe('dateUtils', () => {
 
   describe('getTimeRoundedToStep', () => {
     it('should round time to default 5 minute step', () => {
-      const date = new Date(2024, 11, 25, 10, 12, 0); // 10:12
+      const date = new Date('2024-12-25T15:12:00Z'); // 10:12
       expect(getTimeRoundedToStep(date)).toBe('10:10');
 
-      const date2 = new Date(2024, 11, 25, 10, 13, 0); // 10:13
+      const date2 = new Date('2024-12-25T15:13:00Z'); // 10:13
       expect(getTimeRoundedToStep(date2)).toBe('10:15');
     });
 
     it('should round time to custom step', () => {
-      const date = new Date(2024, 11, 25, 10, 22, 0); // 10:22
+      const date = new Date('2024-12-25T15:22:00Z'); // 10:22
       expect(getTimeRoundedToStep(date, 30)).toBe('10:30');
     });
   });
