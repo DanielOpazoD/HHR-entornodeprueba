@@ -1,4 +1,4 @@
-import type { PatientData } from '@/types/domain/patient';
+import type { PatientData } from '@/shared/contracts/patientDomainContracts';
 import {
   PATIENT_IDENTITY_FIELDS,
   type PatientIdentityField,

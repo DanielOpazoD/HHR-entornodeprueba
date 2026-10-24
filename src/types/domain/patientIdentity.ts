@@ -1,5 +1,3 @@
-import type { PatientData } from './patient';
-
 export type PatientIdentityStatus = 'provisional' | 'official';
 
 /** The fields that say who a patient is and which admission this is. */
@@ -14,7 +12,7 @@ export const PATIENT_IDENTITY_FIELDS = [
   'secondLastName',
   'admissionDate',
   'admissionTime',
-] as const satisfies readonly (keyof PatientData)[];
+] as const;
 
 export type PatientIdentityField = (typeof PATIENT_IDENTITY_FIELDS)[number];
 
