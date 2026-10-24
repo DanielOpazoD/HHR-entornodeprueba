@@ -107,7 +107,7 @@ describe('clinicalDerived document reads for the staff tool, backups and the vit
     });
   });
 
-  it('skips the display read for ids that cannot be documents, without Firestore or under E2E', async () => {
+  it('resolves invalid episode ids without a document and skips invalid generations, disabled Firestore or E2E reads', async () => {
     expect(await readClinicalDerivedEpisodeForDisplay(DATE, 'gen/x', 'ep_a')).toEqual({
       status: 'skipped',
     });

@@ -68,19 +68,23 @@ const deferred = () => {
 
 const CensusDay = ({
   revision = 4,
+  date = DATE,
+  generation = GENERATION,
   patient = splitEpisode({ vitalSigns: vital(9) }),
 }: {
   revision?: number;
+  date?: string;
+  generation?: string;
   patient?: PatientData;
 }) => {
   const record = {
-    ...DataFactory.createMockDailyRecord(DATE, {
-      clinicalDerivedLayout: { version: 1, generation: GENERATION },
+    ...DataFactory.createMockDailyRecord(date, {
+      clinicalDerivedLayout: { version: 1, generation },
       beds: { R1: patient },
     }),
     meta: { revision },
   };
-  const day = useCensusClinicalDerivedDay(record, DATE);
+  const day = useCensusClinicalDerivedDay(record, date);
   return (
     <ClinicalDerivedDayProvider value={day}>
       <table>
@@ -88,9 +92,9 @@ const CensusDay = ({
           <tr>
             <VitalsCell
               data={patient}
-              date={DATE}
+              date={date}
               clinicalEpisodeId={patient.clinicalEpisodeId}
-              layoutGeneration={GENERATION}
+              layoutGeneration={generation}
             />
           </tr>
         </tbody>
@@ -98,7 +102,12 @@ const CensusDay = ({
     </ClinicalDerivedDayProvider>
   );
 };
-const open = () => fireEvent.click(screen.getByRole('button', { name: 'Ver signos vitales' }));
+const open = async () => {
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Ver signos vitales' }));
+    await vi.dynamicImportSettled();
+  });
+};
 
 describe('split episode vitals history read state', () => {
   beforeEach(() => {
@@ -111,7 +120,7 @@ describe('split episode vitals history read state', () => {
     const pending = deferred();
     reader.readDoc.mockReturnValue(pending.promise);
     render(<CensusDay />);
-    open();
+    await open();
 
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Cargando historial'));
     expect(screen.getByText('Última toma')).toBeInTheDocument();
@@ -132,7 +141,7 @@ describe('split episode vitals history read state', () => {
             : { status: 'failed', code: 'unavailable' }
         );
       render(<CensusDay />);
-      open();
+      await open();
 
       expect(await screen.findByRole('alert')).toHaveTextContent('Historial no disponible');
       expect(screen.getByText('Última toma')).toBeInTheDocument();
@@ -160,10 +169,10 @@ describe('split episode vitals history read state', () => {
             };
       reader.readDoc.mockResolvedValueOnce({ status: 'resolved', doc, fromCache: false });
       render(<CensusDay />);
-      open();
+      await open();
       await screen.findByText('Última toma');
       await waitFor(() => expect(reader.readDoc).toHaveBeenCalledOnce());
-      await vi.dynamicImportSettled();
+      await act(async () => vi.dynamicImportSettled());
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
       expect(screen.queryByRole('status')).not.toBeInTheDocument();
     }
@@ -172,7 +181,7 @@ describe('split episode vitals history read state', () => {
   it('refreshes history on a day revision change even when the latest reading is unchanged', async () => {
     reader.readDoc.mockResolvedValueOnce(resolved([9, 8]));
     const view = render(<CensusDay />);
-    open();
+    await open();
     expect(await screen.findByText('Historial · 2 tomas')).toBeInTheDocument();
 
     const pending = deferred();
@@ -181,8 +190,10 @@ describe('split episode vitals history read state', () => {
     await waitFor(() => expect(reader.readDoc).toHaveBeenCalledTimes(2));
     expect(screen.getByText('Historial · 2 tomas')).toBeInTheDocument();
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     await act(async () => pending.resolve(resolved([9, 8, 7])));
     expect(await screen.findByText('Historial · 3 tomas')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('ignores an older response while reading the new day revision', async () => {
@@ -190,7 +201,7 @@ describe('split episode vitals history read state', () => {
     const newer = deferred();
     reader.readDoc.mockReturnValueOnce(older.promise).mockReturnValueOnce(newer.promise);
     const view = render(<CensusDay />);
-    open();
+    await open();
     await waitFor(() => expect(reader.readDoc).toHaveBeenCalledOnce());
     view.rerender(<CensusDay revision={5} />);
     await waitFor(() => expect(reader.readDoc).toHaveBeenCalledTimes(2));
@@ -209,7 +220,7 @@ describe('split episode vitals history read state', () => {
       const newer = deferred();
       reader.readDoc.mockReturnValueOnce(older.promise).mockReturnValueOnce(newer.promise);
       const view = render(<CensusDay />);
-      open();
+      await open();
       await waitFor(() => expect(reader.readDoc).toHaveBeenCalledOnce());
       view.rerender(<CensusDay revision={5} />);
       await waitFor(() => expect(reader.readDoc).toHaveBeenCalledTimes(2));
@@ -231,7 +242,7 @@ describe('split episode vitals history read state', () => {
   it('ignores a late retry failure after the newer revision has resolved', async () => {
     reader.readDoc.mockRejectedValueOnce(new Error('synthetic first failure'));
     const view = render(<CensusDay />);
-    open();
+    await open();
     await screen.findByRole('alert');
     const retry = deferred();
     const newer = deferred();
@@ -252,7 +263,7 @@ describe('split episode vitals history read state', () => {
     async outcome => {
       reader.readDoc.mockResolvedValueOnce(resolved([9, 8, 7]));
       const view = render(<CensusDay />);
-      open();
+      await open();
       expect(await screen.findByText('Historial · 3 tomas')).toBeInTheDocument();
       if (outcome === 'rejected')
         reader.readDoc.mockRejectedValueOnce(new Error('synthetic transient failure'));
@@ -277,7 +288,7 @@ describe('split episode vitals history read state', () => {
   it('does not show another episode history while its first read is pending or failed', async () => {
     reader.readDoc.mockResolvedValueOnce(resolved([9, 8, 7]));
     const view = render(<CensusDay />);
-    open();
+    await open();
     expect(await screen.findByText('Historial · 3 tomas')).toBeInTheDocument();
     const pending = deferred();
     reader.readDoc.mockReturnValueOnce(pending.promise);
@@ -291,6 +302,55 @@ describe('split episode vitals history read state', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Cargando historial');
     await act(async () => pending.reject(new Error('synthetic other failure')));
     expect(await screen.findByRole('alert')).toHaveTextContent('Historial no disponible');
+  });
+
+  it.each([
+    ['day', { date: '2026-11-03' }],
+    ['restored generation', { generation: 'gen_synthetic_restored' }],
+  ])(
+    'discards the old table when the %s changes and the new read fails',
+    async (_source, change) => {
+      reader.readDoc.mockResolvedValueOnce(resolved([9, 8, 7]));
+      const view = render(<CensusDay />);
+      await open();
+      expect(await screen.findByText('Historial · 3 tomas')).toBeInTheDocument();
+
+      const pending = deferred();
+      reader.readDoc.mockReturnValueOnce(pending.promise);
+      view.rerender(<CensusDay {...change} />);
+      await waitFor(() => expect(reader.readDoc).toHaveBeenCalledTimes(2));
+      expect(screen.queryByText(/Historial ·/)).not.toBeInTheDocument();
+      expect(screen.getByRole('status')).toHaveTextContent('Cargando historial');
+      await act(async () => pending.resolve({ status: 'failed', code: 'unavailable' }));
+      expect(screen.getByRole('alert')).toHaveTextContent('Historial no disponible');
+      expect(screen.queryByText(/Historial ·/)).not.toBeInTheDocument();
+      expect(screen.getByText('Última toma')).toBeInTheDocument();
+    }
+  );
+
+  it('keeps the last resolved table when an offline refresh and its retry both fail', async () => {
+    reader.readDoc.mockResolvedValueOnce(resolved([9, 8, 7]));
+    const view = render(<CensusDay />);
+    await open();
+    expect(await screen.findByText('Historial · 3 tomas')).toBeInTheDocument();
+    const refresh = deferred();
+    reader.readDoc.mockReturnValueOnce(refresh.promise);
+    view.rerender(<CensusDay revision={5} />);
+    await waitFor(() => expect(reader.readDoc).toHaveBeenCalledTimes(2));
+    await act(async () => refresh.resolve({ status: 'failed', code: 'unavailable' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('No se pudo actualizar el historial');
+    expect(screen.getByText('Historial · 3 tomas')).toBeInTheDocument();
+
+    const retry = deferred();
+    reader.readDoc.mockReturnValueOnce(retry.promise);
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+    await waitFor(() => expect(reader.readDoc).toHaveBeenCalledTimes(3));
+    expect(screen.getByText('Historial · 3 tomas')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    await act(async () => retry.resolve({ status: 'failed', code: 'unavailable' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('No se pudo actualizar el historial');
+    expect(screen.getByText('Historial · 3 tomas')).toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
   // D6: marked days may still contain episodes before their first split write.
@@ -316,8 +376,8 @@ describe('split episode vitals history read state', () => {
             : { status: 'failed', code: 'unavailable' }
         );
       render(<CensusDay patient={unsplit()} />);
-      open();
-      await vi.dynamicImportSettled();
+      await open();
+      await act(async () => vi.dynamicImportSettled());
       expect(screen.getByText('Historial · 3 tomas')).toBeInTheDocument();
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
       expect(screen.queryByRole('status')).not.toBeInTheDocument();
@@ -328,7 +388,7 @@ describe('split episode vitals history read state', () => {
     const pending = deferred();
     reader.readDoc.mockReturnValueOnce(pending.promise);
     render(<CensusDay patient={unsplit()} />);
-    open();
+    await open();
     await waitFor(() => expect(reader.readDoc).toHaveBeenCalledOnce());
     expect(screen.getByText('Historial · 3 tomas')).toBeInTheDocument();
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
@@ -338,8 +398,8 @@ describe('split episode vitals history read state', () => {
 
   it('keeps embedded history for an invalid episode id without a read or retry notice', async () => {
     render(<CensusDay patient={unsplit('ep/invalid')} />);
-    open();
-    await vi.dynamicImportSettled();
+    await open();
+    await act(async () => vi.dynamicImportSettled());
     expect(screen.getByText('Historial · 3 tomas')).toBeInTheDocument();
     expect(reader.readDoc).not.toHaveBeenCalled();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -347,12 +407,55 @@ describe('split episode vitals history read state', () => {
   });
 
   it.each(['no document', 'no field', 'null', 'empty', 'history'])(
+    'applies D4 to the kept %s answer during a pending and failed refresh',
+    async outcome => {
+      const initial = deferred();
+      reader.readDoc.mockReturnValueOnce(initial.promise);
+      const patient = unsplit();
+      const view = render(<CensusDay patient={patient} />);
+      await open();
+      await waitFor(() => expect(reader.readDoc).toHaveBeenCalledOnce());
+      const doc = resolved([9, 8, 7, 6]);
+      if (outcome === 'no document') doc.doc = null;
+      else if (doc.doc) {
+        if (outcome === 'no field') delete doc.doc.vitalSignsHistory;
+        else if (outcome === 'null') doc.doc.vitalSignsHistory = null;
+        else if (outcome === 'empty') doc.doc.vitalSignsHistory = [];
+      }
+      await act(async () => initial.resolve(doc));
+      const expectKeptHistory = () => {
+        if (outcome === 'null' || outcome === 'empty') {
+          expect(screen.queryByText(/Historial ·/)).not.toBeInTheDocument();
+        } else {
+          expect(
+            screen.getByText(`Historial · ${outcome === 'history' ? 4 : 3} tomas`)
+          ).toBeInTheDocument();
+        }
+        expect(screen.getByText('Última toma')).toBeInTheDocument();
+      };
+      expectKeptHistory();
+
+      const refresh = deferred();
+      reader.readDoc.mockReturnValueOnce(refresh.promise);
+      view.rerender(<CensusDay patient={patient} revision={5} />);
+      await waitFor(() => expect(reader.readDoc).toHaveBeenCalledTimes(2));
+      expectKeptHistory();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+      await act(async () => refresh.resolve({ status: 'failed', code: 'unavailable' }));
+      expect(screen.getByRole('alert')).toHaveTextContent('No se pudo actualizar el historial');
+      expectKeptHistory();
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    }
+  );
+
+  it.each(['no document', 'no field', 'null', 'empty', 'history'])(
     'applies D4 with an embedded copy and a resolved %s',
     async outcome => {
       const pending = deferred();
       reader.readDoc.mockReturnValueOnce(pending.promise);
       render(<CensusDay patient={unsplit()} />);
-      open();
+      await open();
       await waitFor(() => expect(reader.readDoc).toHaveBeenCalledOnce());
       const doc = resolved([9, 8, 7, 6]);
       if (outcome === 'no document') doc.doc = null;
