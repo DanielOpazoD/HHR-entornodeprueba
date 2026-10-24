@@ -60,9 +60,11 @@ import {
   saveRecord as saveRecordLocal,
 } from '@/services/storage/indexedDBService';
 import { getSyncQueueTelemetry, processSyncQueue, queueSyncTask } from '@/services/storage/sync';
+import { queueDailyRecordSyncTaskWithLocalRecord } from '@/services/storage/sync';
 import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
 import { updateRecordPartial as updateRecordPartialToFirestore } from '@/services/storage/firestore/firestoreRecordWrites';
 import { updatePartial } from '@/services/repositories/dailyRecordRepositoryWriteService';
+import { attemptConflictAutoMergeRecovery } from '@/services/repositories/dailyRecordConflictAutoMergeController';
 
 const buildPatient = (bedId: string, overrides: Partial<PatientData> = {}): PatientData => ({
   bedId,
@@ -210,5 +212,55 @@ describe('Sync resilience integration', () => {
         changedPaths: expect.arrayContaining(['beds.R1.pathology']),
       })
     );
+  });
+
+  it('keeps another accepted offline edit when a clinical auto-merge adopts remote bed state', async () => {
+    const date = '2026-02-17';
+    const local = buildRecord(date);
+    local.beds.R1 = buildPatient('R1', { bedMode: 'Cuna' });
+    local.nursesNightShift = ['Enfermera sintetica', ''];
+    await queueDailyRecordSyncTaskWithLocalRecord(local, {
+      syncContract: { changedPaths: ['nursesNightShift'], expectedVersion: local.lastUpdated },
+    });
+    const remote = buildRecord(date);
+    remote.beds.R1 = buildPatient('R1', { bedMode: 'Cama' });
+    vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
+
+    const incoming = structuredClone(local);
+    incoming.beds.R1.pathology = 'Diagnostico sintetico local';
+    expect(await attemptConflictAutoMergeRecovery(date, incoming, ['beds.R1.pathology'])).toEqual({
+      status: 'auto_merged',
+    });
+
+    const tasks = await hospitalDB.syncQueue.toArray();
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0].origin).toBe('conflict_auto_merge');
+    const payload = tasks[0].payload as DailyRecord;
+    expect(payload.beds.R1.bedMode).toBe('Cama');
+    expect(payload.beds.R1.pathology).toBe('Diagnostico sintetico local');
+    expect(payload.nursesNightShift).toEqual(local.nursesNightShift);
+    expect(await hospitalDB.dailyRecords.get(date)).toEqual(payload);
+    expect(tasks[0].syncContract?.changedPaths).toEqual(
+      expect.arrayContaining(['nursesNightShift', 'beds.R1.pathology'])
+    );
+  });
+
+  it('leaves an opaque pending write intact when a clinical auto-merge cannot reconcile it', async () => {
+    const date = '2026-02-17';
+    const local = buildRecord(date);
+    local.beds.R1 = buildPatient('R1', { bedMode: 'Cuna' });
+    await queueDailyRecordSyncTaskWithLocalRecord(local, {
+      syncContract: { changedPaths: ['*'] },
+    });
+    const before = await hospitalDB.syncQueue.toArray();
+    const remote = structuredClone(local);
+    remote.beds.R1.bedMode = 'Cama';
+    vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
+
+    expect(await attemptConflictAutoMergeRecovery(date, local, ['beds.R1.pathology'])).toEqual({
+      status: 'not_possible',
+    });
+    expect(await hospitalDB.syncQueue.toArray()).toEqual(before);
+    expect(await hospitalDB.dailyRecords.get(date)).toEqual(local);
   });
 });

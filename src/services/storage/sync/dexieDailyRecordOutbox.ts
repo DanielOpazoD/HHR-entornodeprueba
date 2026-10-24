@@ -4,6 +4,7 @@ import type { DailyRecordPatchWrite } from '@/services/storage/sync/syncQueuePor
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import { hasSamePatientEpisodeIdentity } from '@/application/patient-flow/patientEpisodeIdentityPolicy';
 import { mergeMovementArrayById } from '@/services/repositories/conflictResolutionMovementMergePolicy';
+import { resolveDailyRecordConflict } from '@/services/repositories/conflictResolutionMatrix';
 import {
   getValueAtPath,
   hasSameComparableValue,
@@ -29,7 +30,7 @@ import {
  * The outbox store loads this module on demand, so it stays off the authenticated startup shell.
  */
 
-type PendingProjectionRebase = (projection: DailyRecord) => DailyRecord;
+type PendingProjectionRebase = (projection: DailyRecord, pendingPaths: string[]) => DailyRecord;
 
 // Same mergeable roots as the publish-time same-path check (firestoreSyncConflictPolicy).
 const MOVEMENT_LOG_PATHS = new Set(['discharges', 'transfers', 'cma']);
@@ -108,18 +109,33 @@ const mergeMovementLogValue = (
  */
 const buildRecordOverlayRebase = (
   record: DailyRecord,
-  changedPaths: readonly string[] | undefined
+  changedPaths: readonly string[] | undefined,
+  isRemoteMerge: boolean
 ): PendingProjectionRebase | undefined => {
   const ownPaths = (changedPaths ?? []).filter(Boolean);
   if (isOpaqueChangedPaths(ownPaths)) return undefined;
-  return projection => {
+  return (projection, pendingPaths) => {
+    let base = projection;
+    if (isRemoteMerge) {
+      // This record already resolved a remote conflict. Keep its canonical bed state,
+      // while reconciling every other accepted write under the same conflict policy.
+      if (pendingPaths.includes('*')) {
+        throw new ConcurrencyError(
+          'No se puede reconciliar una escritura pendiente sin sus rutas.'
+        );
+      }
+      pendingPaths.forEach(path => assertSameOccupantAtPath(path, projection, record));
+      base = pendingPaths.length
+        ? resolveDailyRecordConflict(record, projection, { changedPaths: pendingPaths })
+        : record;
+    }
     const patch: DailyRecordPatch = {};
     ownPaths.forEach(path => {
       assertSameOccupantAtPath(path, record, projection);
       const value = getValueAtPath(record, path);
-      patch[path] = mergeMovementLogValue(path, value, getValueAtPath(projection, path)) ?? value;
+      patch[path] = mergeMovementLogValue(path, value, getValueAtPath(base, path)) ?? value;
     });
-    return { ...applyPatches(projection, patch), lastUpdated: record.lastUpdated };
+    return { ...applyPatches(base, patch), lastUpdated: record.lastUpdated };
   };
 };
 
@@ -178,7 +194,14 @@ const foldWriteIntoOutbox = ({
     candidate => stored && hasSameComparableValue(candidate.payload, stored)
   );
   // A published replacement has no pending task, but its content and patient still own the day.
-  const rebased = stored && rebase ? rebase(stored) : null;
+  const pendingPaths = Array.from(
+    new Set(
+      unresolved.flatMap(candidate =>
+        candidate.syncContract?.changedPaths?.length ? candidate.syncContract.changedPaths : ['*']
+      )
+    )
+  );
+  const rebased = stored && rebase ? rebase(stored, pendingPaths) : null;
   const merged = mergeSyncTaskContracts(existing?.syncContract, task.syncContract);
   const payload = rebased ?? (task.payload as DailyRecord);
   const baseContract = existing?.syncContract ?? owner?.syncContract;
@@ -207,7 +230,11 @@ export const saveDailyRecordInOutbox = (
 ): Promise<{ mode: 'created' | 'reused'; persistedRecord: DailyRecord }> => {
   const rebase = patchWrite
     ? buildPatchRebase(patchWrite)
-    : buildRecordOverlayRebase(record, task.syncContract?.changedPaths);
+    : buildRecordOverlayRebase(
+        record,
+        task.syncContract?.changedPaths,
+        task.origin === 'conflict_auto_merge'
+      );
   return hospitalDB
     .transaction('rw', hospitalDB.dailyRecords, hospitalDB.syncQueue, async () => {
       const existing = task.key
