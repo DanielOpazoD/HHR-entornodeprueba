@@ -123,7 +123,7 @@ describe('a write proves its base by content, never by version time alone', () =
     const base = baseRecord();
     await hospitalDB.dailyRecords.put(base);
     await updatePartialDetailed(date, { nursesDayShift: ['SINTETICA A'] }, { baseRecord: base });
-    const confirmed = await publishQueue();
+    await publishQueue();
 
     await updatePartialDetailed(date, { tensDayShift: ['SINTETICO B'] }, { baseRecord: base });
 
@@ -131,7 +131,7 @@ describe('a write proves its base by content, never by version time alone', () =
       expect(record?.nursesDayShift).toEqual(['SINTETICA A']);
       expect(record?.tensDayShift).toEqual(['SINTETICO B']);
     }
-    expect((await tasks())[0].syncContract?.expectedVersion).toBe(confirmed?.lastUpdated);
+    expect((await tasks())[0].syncContract?.expectedVersion).toBe(baseVersion);
   });
 
   it('a queued retry merges discharges by id even when every pending path overlaps', async () => {

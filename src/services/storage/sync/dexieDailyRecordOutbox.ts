@@ -20,7 +20,6 @@ import {
 import {
   buildDailyRecordSyncContract,
   mergeSyncTaskContracts,
-  resolveRecordBaseRevision,
 } from '@/services/storage/sync/syncTaskContractPolicy';
 
 /**
@@ -182,15 +181,7 @@ const foldWriteIntoOutbox = ({
   const rebased = stored && rebase ? rebase(stored) : null;
   const merged = mergeSyncTaskContracts(existing?.syncContract, task.syncContract);
   const payload = rebased ?? (task.payload as DailyRecord);
-  const baseContract =
-    existing?.syncContract ??
-    owner?.syncContract ??
-    (rebased && stored
-      ? {
-          expectedVersion: stored.lastUpdated,
-          baseRevision: resolveRecordBaseRevision(stored),
-        }
-      : undefined);
+  const baseContract = existing?.syncContract ?? owner?.syncContract;
   return {
     ...task,
     payload,
