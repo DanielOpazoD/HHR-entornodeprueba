@@ -125,26 +125,38 @@ A `not-found` on a non-specialty route recreates the document with `setDoc(…, 
 ### Local outbox — `saveDailyRecordWithTask` (`dexieSyncQueueStore.ts`)
 
 The day's projection in IndexedDB and the unresolved task that holds it as its payload are the
-single local record of what is pending. One Dexie transaction writes both. When a write was
+single local record of what is pending. One Dexie transaction writes both. Equal timestamps do
+not prove equal content; patches compare normalized values and patient-plus-episode identity
+against the stored projection even after its previous task has been published. When a write was
 computed from another base (a second tab, or a read that showed an older copy), it lands on top of
-that projection instead of replacing it, and the task keeps the original `expectedVersion`:
+that projection instead of replacing it, and compacting an unresolved task keeps its original
+`expectedVersion` and `baseRevision` even for ordinary sequential edits:
 
-- a new patch (`buildPendingProjectionRebase`) is prepared again over the projection. A path that
+- a new patch (`buildPatchRebase` in `dexieDailyRecordOutbox.ts`) is prepared again over the projection. A path that
   both writes changed follows the same-path policy, not last-write-wins: movement logs merge by
   id, anything else is rejected with `ConcurrencyError`. So is a field edit whose bed or crib now
   holds another patient or episode; a RUT never matches a passport;
 - a record queued again without its base, such as a retry or an auto-merge
   (`buildRecordOverlayRebase`), keeps the values of its own changed paths, and every other
-  pending path keeps the projection's value;
+  pending path keeps the projection's value. Movement arrays always merge by id and identity checks
+  run even when every pending path overlaps;
 - whole-record writes (`*`) still replace the projection.
 
 Cache hydration keeps a projection that still has unresolved writes. The read, the realtime
 snapshot and the manual sync then publish that projection (`local_authoritative` or `local_kept`)
-instead of the remote copy, so the next edit starts from the pending work.
+instead of the remote copy, so the next edit starts from the pending work. This snapshot is read
+after remote selection, including when no hydration is needed, timestamps match, or the remote
+record is absent. A missing remote record still reports `missing_remote`.
+
+A direct-write ACK only deletes a task containing that write alone. If compaction added other
+mutations, it releases the hold and leaves the aggregate for queue publication. The confirmed
+latest mutation marker does not by itself acknowledge the other mutations.
 
 ### Sync queue — `firestoreSyncTransport.ts`
 
-1. **Already applied** — the remote `meta.lastMutationId` equals the task's `mutationId`: no write;
+1. **Already applied** — the remote `meta.lastMutationId` equals the task's `mutationId`: no write
+   for a single mutation. A compacted task additionally requires all its granular changed values
+   to be present remotely; otherwise the remaining work is merged and published;
    the remote record is returned as the authoritative result.
 2. **Stale task** (remote `lastUpdated` newer than the task's `expectedVersion`) —
    `assertNoSamePathRemoteMutation` blocks when the remote `meta.lastChangedPaths` overlaps the

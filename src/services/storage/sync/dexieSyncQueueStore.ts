@@ -1,5 +1,4 @@
 import type {
-  DailyRecordAuthorityAdoptionResult,
   SyncQueueLeaseClaim,
   SyncQueueStorePort,
 } from '@/services/storage/sync/syncQueuePorts';
@@ -17,7 +16,6 @@ import {
   matchesOwner,
   requeueQuarantinedTask,
   listUnresolvedDailyRecordTasks,
-  REUSABLE_TASK_STATES,
 } from '@/services/storage/sync/dexieSyncQueueQuarantine';
 
 const isReadyForClaim = (task: SyncTask, now: number): boolean => {
@@ -162,55 +160,11 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
     return replaced;
   },
   async adoptAuthoritativeDailyRecord(authoritativeRecord, ownerKey, buildReplacement) {
-    const outcome: DailyRecordAuthorityAdoptionResult = await hospitalDB.transaction(
-      'rw',
-      hospitalDB.dailyRecords,
-      hospitalDB.syncQueue,
-      async () => {
-        const unresolvedTasks = (
-          await listUnresolvedDailyRecordTasks(authoritativeRecord.date)
-        ).filter(task => matchesOwner(ownerKey, task.ownerKey));
-        const blocked = { status: 'blocked' as const };
-        if (unresolvedTasks.length === 0) {
-          await hospitalDB.dailyRecords.put(authoritativeRecord);
-          return { status: 'adopted' as const, record: authoritativeRecord };
-        }
-        if (unresolvedTasks.length !== 1) return blocked;
-        const [pendingTask] = unresolvedTasks;
-        const localRecord = await hospitalDB.dailyRecords.get(authoritativeRecord.date);
-        const pendingPayload = pendingTask.payload as Partial<DailyRecord> | null | undefined;
-        if (
-          !REUSABLE_TASK_STATES.has(pendingTask.status) ||
-          !localRecord ||
-          pendingPayload?.date !== localRecord.date ||
-          pendingPayload.lastUpdated !== localRecord.lastUpdated
-        ) {
-          return blocked;
-        }
-        const replacement = buildReplacement(localRecord, pendingTask);
-        // A confirmed command may fully supersede quarantine. Residual edits must
-        // remain quarantined; reconciliation alone does not authorize retrying them.
-        if (
-          !replacement ||
-          !pendingTask.id ||
-          (pendingTask.status !== 'PENDING' && replacement.task !== null)
-        )
-          return blocked;
-        await hospitalDB.dailyRecords.put(replacement.record);
-        if (replacement.task === null) {
-          // Supersesión total: el comando confirmado ya cubre todo lo pendiente.
-          // Reemplazarla re-declararía paths ya aplicados y mantendría viva la
-          // propiedad del subárbol, bloqueando el siguiente comando cama–cuna.
-          await hospitalDB.syncQueue.delete(pendingTask.id);
-          return { status: 'adopted' as const, record: replacement.record };
-        }
-        await hospitalDB.syncQueue.put({
-          ...pendingTask,
-          ...replacement.task,
-          id: pendingTask.id,
-        });
-        return { status: 'replaced' as const, record: replacement.record };
-      }
+    const { adoptAuthoritativeDailyRecordInOutbox } = await import('./dexieSyncQueueAuthorityAck');
+    const outcome = await adoptAuthoritativeDailyRecordInOutbox(
+      authoritativeRecord,
+      ownerKey,
+      buildReplacement
     );
     if (outcome.record) mirrorTransactionalDailyRecordWrite(outcome.record);
     return outcome;
