@@ -182,7 +182,7 @@ describe('lists inside a salvaged patient', () => {
   it('keeps every valid entry and counts the dropped ones', () => {
     const { record, report } = parseDailyRecordWithDefaultsReport(day(listPatient()), DATE);
 
-    expect(record.beds.R1.clinicalEvents.map(item => item.id)).toEqual(['ev-1', 'ev-3']);
+    expect(record.beds.R1.clinicalEvents?.map(item => item.id)).toEqual(['ev-1', 'ev-3']);
     expect(record.beds.R1.medicalHandoffEntries?.map(item => item.id)).toEqual(['me-1', 'me-2']);
     expect(record.beds.R1.devices).toEqual(['CVC', 'VMI']);
     expect(record.beds.R1).toMatchObject(passport());

@@ -38,9 +38,11 @@ export const r1Passport = (extra: Json = {}) =>
  */
 export const storedDay = (
   r1Extra: Json = { documentType: 'Cedula' },
-  { date = IDENTITY_REVIEW_DATE, lastUpdated = `${date}T08:00:00.000Z` } = {}
+  { date = IDENTITY_REVIEW_DATE, lastUpdated }: { date?: string; lastUpdated?: string } = {}
 ): Json => {
-  const base = DataFactory.createMockDailyRecord(date, { lastUpdated }) as unknown as Json;
+  const base = DataFactory.createMockDailyRecord(date, {
+    lastUpdated: lastUpdated ?? `${date}T08:00:00.000Z`,
+  }) as unknown as Json;
   return {
     ...base,
     schemaVersion: 1,
