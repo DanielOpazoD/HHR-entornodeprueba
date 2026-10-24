@@ -477,6 +477,61 @@ describe('reporting a restore whose per-episode data did not come back', () => {
   });
 });
 
+describe('restoring a split day whose backup has no section entry for it', () => {
+  it.each([
+    ['omitted', undefined],
+    ['null', null],
+    ['empty', {}],
+  ])('the monthly restore is partial when the section is %s', async (_label, missing) => {
+    serverConfirms(sent => ({ ...sent, clinicalDerivedLayout: NEW_LAYOUT }));
+
+    const result = await importRecordsFromBackup({
+      ...monthBackup([splitDay()]),
+      clinicalDerived: missing as never,
+    });
+
+    expect(result).toEqual({
+      success: 1,
+      failed: 0,
+      repaired: 0,
+      outcome: 'partial',
+      clinicalDerivedIncompleteDates: [DATE],
+    });
+    // The day itself is still restored, as backed up.
+    const [saved] = mocks.saveRemote.mock.calls[0] as [DailyRecord];
+    expect(saved.beds.R2).toMatchObject({ rut: 'AB123456', clinicalEpisodeId: 'ep_pasaporte_2' });
+    expect(saved.beds.R2).not.toHaveProperty('vitalSignsHistory');
+  });
+
+  it('the local JSON import is partial without the section', async () => {
+    const file = new File([JSON.stringify({ [DATE]: splitDay() })], 'respaldo-sintetico.json', {
+      type: 'application/json',
+    });
+
+    const result = await importDataJSONDetailed(file);
+
+    expect(result).toMatchObject({
+      success: true,
+      outcome: 'partial',
+      importedCount: 1,
+      skippedEntries: [],
+      clinicalDerivedIncompleteDates: [DATE],
+    });
+  });
+
+  it('an unmarked day without the section stays clean', async () => {
+    serverConfirms(sent => sent);
+    const unmarked: DailyRecord = { ...splitDay(), clinicalDerivedLayout: undefined };
+
+    const result = await importRecordsFromBackup({
+      ...monthBackup([unmarked]),
+      clinicalDerived: undefined,
+    });
+
+    expect(result).toEqual({ success: 1, failed: 0, repaired: 0, outcome: 'clean' });
+  });
+});
+
 describe('an episode id more than one holder of the day carries', () => {
   /** A discharge snapshot of another patient that carries `ep_alta_3` too. */
   const otherSnapshot = (day: DailyRecord) => {

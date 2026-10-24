@@ -11,7 +11,10 @@ import {
   isClinicalDerivedDocId,
   readClinicalDerivedLayout,
 } from '@/services/storage/clinicalDerivedContract';
-import type { ClinicalDerivedDayRestore } from '@/services/exporters/clinicalDerivedBackupSection';
+import {
+  restoreWithoutSectionEntry,
+  type ClinicalDerivedDayRestore,
+} from '@/services/exporters/clinicalDerivedBackupSection';
 
 /**
  * Restore of a split day from a JSON backup (D10 and D14 of
@@ -182,7 +185,7 @@ export const restoreClinicalDerivedBackupDay = (
   section: unknown
 ): ClinicalDerivedDayRestore => {
   const entry = isPlainObject(section) ? section[record.date] : undefined;
-  if (entry === undefined) return { kind: 'absent' };
+  if (entry === undefined) return restoreWithoutSectionEntry(record);
   const layout = readClinicalDerivedLayout(record);
   if (
     !isPlainObject(entry) ||

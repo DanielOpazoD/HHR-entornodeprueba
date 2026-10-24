@@ -19,7 +19,7 @@ export type ClinicalDerivedBackupSection = Record<string, ClinicalDerivedBackupD
 
 /** What restoring one day of a backup brings back of its section (clinicalDerivedBackupRestore). */
 export type ClinicalDerivedDayRestore =
-  /** The backup holds no per-episode data for this day. */
+  /** An unmarked day the section does not cover: it has no per-episode data. */
   | { kind: 'absent' }
   /** Some of it is missing or has no single place in the day; `record` carries what was embedded. */
   | { kind: 'incomplete'; record: DailyRecord }
@@ -86,21 +86,31 @@ export const buildClinicalDerivedBackupSection = async (
 };
 
 /**
- * The restore of each day of a backup whose file carries `section` (absent: nothing loads). The
- * restore loads on demand; if it cannot, a day the section covers comes back `incomplete`, never
- * as a day without per-episode data.
+ * A day the backup's section has no entry for. The export writes one for every marked day (same
+ * test as `buildClinicalDerivedBackupSection`), so a marked day without it comes from a file that
+ * does not say where its per-episode data was: incomplete, never a day without such data.
+ */
+export const restoreWithoutSectionEntry = (record: DailyRecord): ClinicalDerivedDayRestore =>
+  record.clinicalDerivedLayout != null ? { kind: 'incomplete', record } : { kind: 'absent' };
+
+/**
+ * The restore of each day of a backup whose file carries `section`. The restore loads on demand,
+ * only when the section has entries; if it cannot, a day the section covers comes back
+ * `incomplete`, never as a day without per-episode data.
  */
 export const loadClinicalDerivedDayRestore = async (
   section: unknown
 ): Promise<(record: DailyRecord) => ClinicalDerivedDayRestore> => {
-  if (section === undefined) return () => ({ kind: 'absent' });
-  const restoreDay = await import('@/services/exporters/clinicalDerivedBackupRestore')
-    .then(module => module.restoreClinicalDerivedBackupDay)
-    .catch(() => null);
+  const entries = isPlainObject(section) ? section : {};
+  const restoreDay =
+    Object.keys(entries).length === 0
+      ? null
+      : await import('@/services/exporters/clinicalDerivedBackupRestore')
+          .then(module => module.restoreClinicalDerivedBackupDay)
+          .catch(() => null);
   return record => {
-    if (restoreDay) return restoreDay(record, section);
-    const covered = isPlainObject(section) && section[record.date] !== undefined;
-    return covered ? { kind: 'incomplete', record } : { kind: 'absent' };
+    if (entries[record.date] === undefined) return restoreWithoutSectionEntry(record);
+    return restoreDay ? restoreDay(record, entries) : { kind: 'incomplete', record };
   };
 };
 
