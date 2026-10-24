@@ -277,13 +277,18 @@ Cómo cambia cada escritor del servidor:
       día marcado, así que falta saber dónde estaban), la sección dice `unavailable`, un documento
       no es válido, no encuentra su episodio o lo encuentra en más de un lugar, o el servidor no
       guarda lo que traía el respaldo. Nunca se informa limpia.
-    - La restauración del administrador lo comprueba con el día que confirma el servidor y los
-      documentos de su generación vigente, leídos del servidor: cada episodio restaurado debe
-      tener los valores del respaldo, tomando el documento, si lo tiene, sobre lo embebido. Por
-      ejemplo, no los tiene un día existente que el servidor deja como estaba sin el documento del
-      episodio o con otros valores, ni uno que recrea alguien que no es administrador con la valla
-      de Rayen activa. Si esa lectura falla, tampoco se confirma. La importación local solo guarda
-      en el equipo, sin esa comprobación.
+    - La restauración del administrador lo comprueba después de guardar, con el día que tiene el
+      servidor en ese momento y los documentos de su generación vigente: cada episodio restaurado
+      debe tener los valores del respaldo, tomando el documento, si lo tiene, sobre lo embebido.
+      Por ejemplo, no los tiene un día existente que el servidor deja como estaba sin el documento
+      del episodio o con otros valores, ni uno que recrea alguien que no es administrador con la
+      valla de Rayen activa, ni uno que otro escritor recrea entre el guardado y la comprobación.
+      - Es una sola lectura coherente del servidor: el día, los documentos de su generación y otra
+        vez el día. El servidor escribe cada documento en la misma transacción que la revisión del
+        día que anota (D2), así que si la generación y `meta.revision` no cambiaron entre medio,
+        esos documentos son los de ese día.
+      - Si la lectura falla, el día cambió entre medio o ya no existe, no se confirma.
+      - La importación local solo guarda en el equipo, sin esa comprobación.
     - Limitación conocida: un cliente anterior a P4 (por ejemplo, tras restaurar una publicación
       anterior) leería la sección del respaldo local como un día más y guardaría en IndexedDB un
       registro con fecha `clinicalDerived`. Los días reales no cambian.
@@ -308,7 +313,8 @@ Piezas comunes del cliente:
   - cada apertura de la ventana: una lectura del episodio válido, más una por cambio de
     `meta.revision` mientras esté abierta y una por cada «Reintentar»;
   - la herramienta de personal y las exportaciones: una consulta por día;
-  - la restauración del administrador: una consulta por día dividido, después de guardarlo.
+  - la restauración del administrador: por día dividido, después de guardarlo, dos lecturas del
+    día y una consulta.
 
   No se agregan listeners.
 
