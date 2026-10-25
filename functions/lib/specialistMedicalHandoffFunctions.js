@@ -1,3 +1,4 @@
+const { createHash } = require('node:crypto');
 const functions = require('firebase-functions/v1');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
 const { requireAuthenticatedEmail } = require('./auth/authPolicies');
@@ -101,6 +102,36 @@ const patchedHandoffTextState = (patient, patch, path) => {
   });
 };
 
+// Key order never changes the digest of an operation.
+const canonicalJson = value =>
+  Array.isArray(value)
+    ? `[${value.map(canonicalJson).join(',')}]`
+    : isPlainObject(value)
+      ? `{${Object.keys(value)
+          .sort()
+          .map(key => `${JSON.stringify(key)}:${canonicalJson(value[key])}`)
+          .join(',')}}`
+      : JSON.stringify(value ?? null);
+
+/** One write: its day, its patients and episodes, and the exact paths and values it writes. */
+const operationDigest = (date, writes, expectedOccupants) =>
+  createHash('sha256')
+    .update(
+      canonicalJson({
+        date,
+        writes,
+        occupants: expectedOccupants.map(occupant => [
+          occupant.bedId,
+          occupant.target,
+          occupant.documentType,
+          occupant.rut,
+          occupant.patientName,
+          occupant.clinicalEpisodeId,
+        ]),
+      })
+    )
+    .digest('hex');
+
 const MAX_HANDOFF_BASES = 8;
 const MAX_HANDOFF_BASE_LENGTH = 200000;
 const isValidHandoffBases = bases =>
@@ -121,10 +152,10 @@ const assertStringField = (value, fieldName) => {
   return value.trim();
 };
 
+// Whole fields only. A nested or array-index path would bypass the note text check, and Firestore
+// would turn the entries array into a map; no client sends one.
 const isAllowedSpecialistPath = nestedPath =>
-  ALLOWED_SPECIALIST_BED_PATH_PREFIXES.some(
-    prefix => nestedPath === prefix || nestedPath.startsWith(`${prefix}.`)
-  );
+  ALLOWED_SPECIALIST_BED_PATH_PREFIXES.includes(nestedPath);
 
 const assertRecordDate = date => {
   const parsed = Date.parse(`${date}T00:00:00.000Z`);
@@ -326,9 +357,21 @@ const createSpecialistMedicalHandoffFunctions = ({
             'Record timestamp is immutable.'
           );
         }
-        // A replay of the write this record last took (its answer was lost) changes nothing.
+        // A replay of the write this record last took (its answer was lost) changes nothing. The
+        // same id with another payload, patient or episode is never taken as that write.
+        const writes = Object.fromEntries(
+          Object.entries(patch).filter(([path]) => path !== 'dateTimestamp')
+        );
+        const digest = mutationId ? operationDigest(date, writes, expectedOccupants) : null;
         if (mutationId && record?.meta?.lastMutationId === mutationId) {
-          return { success: true, date, bedId, alreadyApplied: true };
+          if (record.meta.lastMutationDigest === digest) {
+            return { success: true, date, bedId, alreadyApplied: true };
+          }
+          console.warn('specialist_handoff_write_id_reused', sanitizeLogValue({ date, bedId }));
+          throw new functions.https.HttpsError(
+            'failed-precondition',
+            `El envío de la nota de la cama ${bedId} no coincide con el que ya se guardó. Revisa el borrador antes de guardarlo.`
+          );
         }
 
         // Transitional compatibility for pre-deploy tabs: retain the former allowlisted
@@ -374,15 +417,16 @@ const createSpecialistMedicalHandoffFunctions = ({
         }
 
         assertSpecialistClinicalDay(date, resolvedRole);
-        const writes = Object.fromEntries(
-          Object.entries(patch).filter(([path]) => path !== 'dateTimestamp')
-        );
         transaction.update(docRef, {
           ...writes,
           lastUpdated: Timestamp.now(),
           // Like the other server writers, so a replay or a stale queued edit can recognize it.
           ...(mutationId
-            ? { 'meta.lastMutationId': mutationId, 'meta.lastChangedPaths': Object.keys(writes) }
+            ? {
+                'meta.lastMutationId': mutationId,
+                'meta.lastMutationDigest': digest,
+                'meta.lastChangedPaths': Object.keys(writes),
+              }
             : {}),
         });
 

@@ -3,7 +3,7 @@
  * replay of a write the server already took changes nothing.
  */
 import { createRequire } from 'node:module';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const require = createRequire(import.meta.url);
 const {
@@ -26,10 +26,20 @@ const notePatch = (note: string) => ({
   'beds.R4.medicalHandoffNote': note,
 });
 
-const setup = (storedNote: string, meta?: Record<string, unknown>) => {
-  const record = {
+/** Applies a Firestore update's dotted paths, as the real transaction does. */
+const setPath = (target: Record<string, unknown>, path: string, value: unknown) => {
+  const parts = path.split('.');
+  let current = target;
+  for (const part of parts.slice(0, -1)) {
+    current[part] ??= {};
+    current = current[part] as Record<string, unknown>;
+  }
+  current[parts[parts.length - 1]] = value;
+};
+
+const setup = (storedNote: string) => {
+  const record: Record<string, unknown> = {
     date: '2026-01-01',
-    ...(meta ? { meta } : {}),
     beds: {
       R4: {
         ...identity,
@@ -38,14 +48,16 @@ const setup = (storedNote: string, meta?: Record<string, unknown>) => {
       },
     },
   };
-  const update = vi.fn();
+  const update = vi.fn((patch: Record<string, unknown>) => {
+    for (const [path, value] of Object.entries(patch)) setPath(record, path, value);
+  });
   const api = createSpecialistMedicalHandoffFunctions({
     firestore: {
       collection: () => ({ doc: () => ({ collection: () => ({ doc: () => ({}) }) }) }),
       runTransaction: async (run: (transaction: unknown) => Promise<unknown>) =>
         run({
           get: async () => ({ exists: true, data: () => structuredClone(record) }),
-          update: (_ref: unknown, patch: unknown) => update(patch),
+          update: (_ref: unknown, patch: Record<string, unknown>) => update(patch),
         }),
     },
     Timestamp: { now: () => 'server-time' },
@@ -53,17 +65,28 @@ const setup = (storedNote: string, meta?: Record<string, unknown>) => {
   });
   const write = (
     note: string,
-    { bases, mutationId }: { bases?: unknown; mutationId?: unknown } = {}
+    {
+      bases,
+      mutationId,
+      patch,
+      occupant,
+    }: {
+      bases?: unknown;
+      mutationId?: unknown;
+      patch?: Record<string, unknown>;
+      occupant?: Record<string, unknown>;
+    } = {}
   ) =>
     api.updateSpecialistMedicalHandoff.run(
       {
         date: '2026-01-01',
-        patch: notePatch(note),
+        patch: patch ?? notePatch(note),
         expectedOccupants: [
           {
             bedId: 'R4',
             target: 'bed',
             ...identity,
+            ...occupant,
             ...(bases === undefined ? {} : { handoffBases: bases }),
           },
         ],
@@ -71,10 +94,15 @@ const setup = (storedNote: string, meta?: Record<string, unknown>) => {
       },
       context
     );
-  return { write, update };
+  const stored = () => (record.beds as Record<string, Record<string, unknown>>).R4;
+  return { write, update, record, stored };
 };
 
 describe('specialist note text base', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('refuses a note whose edit started before another stored note, and writes nothing', async () => {
     const app = setup('Nota guardada después por un colega');
     await expect(
@@ -101,14 +129,71 @@ describe('specialist note text base', () => {
   });
 
   it('acknowledges a replay of the write it took last without writing it again', async () => {
-    const app = setup('Nota de A ya publicada', { lastMutationId: 'm-lost-answer' });
-    await expect(
-      app.write('Nota de A ya publicada', {
-        bases: [textState('')],
-        mutationId: 'm-lost-answer',
-      })
-    ).resolves.toMatchObject({ success: true, alreadyApplied: true });
+    const app = setup('');
+    const replay = () =>
+      app.write('Nota de A ya publicada', { bases: [textState('')], mutationId: 'm-lost-answer' });
+    await replay();
+    app.update.mockClear();
+    await expect(replay()).resolves.toMatchObject({ success: true, alreadyApplied: true });
     expect(app.update).not.toHaveBeenCalled();
+  });
+
+  it('records a digest of the write, never its text, beside the write id', async () => {
+    const app = setup('');
+    await app.write('Nota de A', { bases: [textState('')], mutationId: 'm-1' });
+    expect(app.record.meta).toEqual({
+      lastMutationId: 'm-1',
+      lastMutationDigest: expect.stringMatching(/^[0-9a-f]{64}$/),
+      lastChangedPaths: ['beds.R4.medicalHandoffEntries', 'beds.R4.medicalHandoffNote'],
+    });
+    expect(JSON.stringify(app.record.meta)).not.toContain('Nota de A');
+  });
+
+  it.each([
+    ['another text', { note: 'Otro texto con el mismo envío' }],
+    [
+      'another episode',
+      { note: 'Nota de A', occupant: { clinicalEpisodeId: 'synthetic-episode-B' } },
+    ],
+    ['another path', { note: 'Nota de A', patch: { 'beds.R4.medicalHandoffNote': 'Nota de A' } }],
+  ])('refuses the same write id reused with %s, and stores nothing', async (_label, reuse) => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const app = setup('');
+    await app.write('Nota de A', { bases: [textState('')], mutationId: 'm-1' });
+    app.update.mockClear();
+    await expect(
+      app.write(reuse.note, {
+        bases: [textState('')],
+        mutationId: 'm-1',
+        ...('occupant' in reuse ? { occupant: reuse.occupant } : {}),
+        ...('patch' in reuse ? { patch: reuse.patch } : {}),
+      })
+    ).rejects.toMatchObject({ code: 'failed-precondition' });
+    expect(app.update).not.toHaveBeenCalled();
+    expect(app.stored().medicalHandoffNote).toBe('Nota de A');
+    expect(warn).toHaveBeenCalledWith('specialist_handoff_write_id_reused', {
+      date: '2026-01-01',
+      bedId: 'R4',
+    });
+  });
+
+  it.each([
+    'beds.R4.medicalHandoffEntries.0.note',
+    'beds.R4.medicalHandoffEntries.0',
+    'beds.R4.medicalHandoffNote.extra',
+    'beds.R4.medicalHandoffAudit.currentStatus',
+    'beds.R4.clinicalEvents.0',
+  ])('refuses the nested path %s, which the text check cannot protect', async path => {
+    const app = setup('Nota guardada');
+    await expect(
+      app.write('', {
+        bases: [textState('Nota anterior')],
+        mutationId: 'm-nested',
+        patch: { [path]: 'x' },
+      })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(app.update).not.toHaveBeenCalled();
+    expect(app.stored().medicalHandoffEntries).toEqual(entries('Nota guardada'));
   });
 
   it('takes a stored text this device already sent for the same note', async () => {
