@@ -191,6 +191,22 @@ describe('a bed under identity review with a specialist note and a census edit p
     await discardFromPanel(NOTE_OF_A);
   });
 
+  it('keeps a note in conflict after a numeric document is repaired to the same readable text', async () => {
+    const read = await readStored({ R4: A('R4', { rut: unreadable(12345678) }), R6: E() });
+    await writeNote(read, 'R4', 'entry-A', 'Nota de A');
+    h.remote = day(DATE, { R4: A('R4', { rut: '12345678' }), R6: E() }, LATER);
+
+    await reconnect();
+
+    expect(remote().beds.R4.medicalHandoffNote).toBe('');
+    expect((await queue()).map(task => [task.type, task.status])).toEqual([
+      ['UPDATE_SPECIALIST_HANDOFF', 'CONFLICT'],
+    ]);
+    expect(draftsFor('Paciente A Sintético')).toEqual([[DATE, 'entry-A', 'Nota de A']]);
+    await renderPanel();
+    await discardFromPanel(NOTE_OF_A);
+  });
+
   it.each<[string, Record<string, unknown> | 'crib']>([
     ['its own field', { 'beds.R4.clinicalCrib.pathology': 'Dx RN pendiente' }],
     ['the whole crib', 'crib'],

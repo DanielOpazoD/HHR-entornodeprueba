@@ -43,6 +43,8 @@ export const resolvePathValueWithMatrix = (
   const localSlot = getValueAtPath(local, slotPath) as PatientData | undefined;
 
   if (crib && !patientField) {
+    // A reviewed crib came from an earlier read, so its absence cannot recreate that occupant.
+    if (!remoteSlot && localSlot?.identityReview) return undefined;
     // A whole crib merges like a whole bed.
     return remoteSlot || localSlot
       ? mergePatientData(remoteSlot, localSlot, true, traceContext, path, true)

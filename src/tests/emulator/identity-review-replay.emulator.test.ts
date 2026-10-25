@@ -242,6 +242,35 @@ describe.skipIf(!enabled)(
       }
     );
 
+    it.each(['beds.R1.clinicalCrib', 'beds.R1'])(
+      'keeps the pending edit of %s after another session removed the newborn',
+      async path => {
+        await storeWithNewborn(
+          newborn('RN SINTETICO A', 'ep_synthetic_rn_a', { documentType: 'Cedula' })
+        );
+        await queueNewbornDiagnosis(path);
+        const { clinicalCrib: _removed, ...mother } = await storedBed('R1');
+        await writeElsewhere({ 'beds.R1': mother });
+
+        await createEngine().processQueue();
+
+        expect([null, undefined]).toContain((await storedBed('R1')).clinicalCrib);
+        expect((await hospitalDB.dailyRecords.get(date))?.beds.R1.clinicalCrib).toBeUndefined();
+        const tasks = await hospitalDB.syncQueue.toArray();
+        expect(tasks).toHaveLength(1);
+        expect(tasks[0]).toMatchObject({
+          status: 'CONFLICT',
+          lastErrorCode: 'occupant_changed',
+          syncContract: { changedPaths: ['beds.R1.clinicalCrib'] },
+        });
+        expect(tasks[0].key).toContain(':detached:');
+        expect((tasks[0].payload as DailyRecord).beds.R1.clinicalCrib).toMatchObject({
+          pathology: PENDING,
+          clinicalEpisodeId: 'ep_synthetic_rn_a',
+        });
+      }
+    );
+
     it('never lets an old repair of the newborn RUT replace a newer one', async () => {
       await storeWithNewborn(
         newborn('RN SINTETICO A', 'ep_synthetic_rn_a', { documentType: 'Pasaporte', rut: 12345678 })

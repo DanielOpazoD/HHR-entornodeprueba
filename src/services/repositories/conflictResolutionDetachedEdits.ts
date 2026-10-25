@@ -27,9 +27,10 @@ export const findDetachedReviewEdits = (
       const remoteSlot = bedId ? slotOf(remote) : undefined;
       const localSlot = bedId ? slotOf(local) : undefined;
       return (
-        !!remoteSlot &&
         !!localSlot &&
-        isSameIdentityUnderReview(remoteSlot, localSlot) === false &&
+        (remoteSlot
+          ? isSameIdentityUnderReview(remoteSlot, localSlot) === false
+          : !!localSlot.identityReview) &&
         JSON.stringify(getValueAtPath(merged, path)) !== JSON.stringify(getValueAtPath(local, path))
       );
     });

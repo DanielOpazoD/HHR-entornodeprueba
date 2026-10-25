@@ -355,6 +355,10 @@ export const mergePatientData = (
     }
 
     if (key === 'clinicalCrib') {
+      if (!remoteValue && (localValue as PatientData | undefined)?.identityReview) {
+        merged[key] = undefined;
+        return;
+      }
       merged[key] = mergePatientData(
         remoteValue as PatientData | undefined,
         localValue as PatientData | undefined,

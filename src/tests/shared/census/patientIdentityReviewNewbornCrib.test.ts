@@ -124,4 +124,20 @@ describe('pending work on a newborn crib, which follows the rules of a bed', () 
 
     expect(merged.beds.R1.clinicalCrib?.rut).toBe('FAKE-RN-REMOTE-NEW');
   });
+
+  it.each(['beds.R1.clinicalCrib', 'beds.R1'])(
+    'keeps the edit queued as %s detached when the stored day no longer has the newborn',
+    path => {
+      const remote = docToRecord(
+        storedDay({ documentType: 'Pasaporte' }, { lastUpdated: EDITED_AT }),
+        DATE
+      );
+
+      const { merged, detached } = merge(remote, localDay(), path);
+
+      expect(merged.beds.R1.clinicalCrib).toBeUndefined();
+      expect(merged.beds.R1.patientName).toBe('PACIENTE UNO');
+      expect(detached).toEqual(['beds.R1.clinicalCrib']);
+    }
+  );
 });
