@@ -1,6 +1,6 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, type ComponentType } from 'react';
 
-const Notice = lazy(() =>
+const Notice = lazy<ComponentType>(() =>
   import('./FunctionsRecoveryNotice').catch(() => ({ default: () => null }))
 );
 

@@ -28,38 +28,40 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-it('keeps payload and retry budget pending through sticky imports, then syncs after recovery', async () => {
-  const importModule = vi.fn(
-    (): ReturnType<typeof loadFunctionsModule> =>
-      Promise.reject(new TypeError('Importing a module script failed.'))
-  );
-  const payload = { date: '2026-10-24', beds: {}, synthetic: 'pending-change' };
-  await hospitalDB.syncQueue.add({
-    opId: 'synthetic-functions-recovery',
-    type: 'UPDATE_DAILY_RECORD',
-    payload,
-    key: 'daily:2026-10-24',
-    status: 'PENDING',
-    timestamp: 1,
-    retryCount: 2,
-  });
-  const engine = createEngine(async () => {
-    await loadFunctionsModule(importModule);
-  });
-  for (let attempt = 0; attempt < 7; attempt++) {
+it.each(['Importing a module script failed.', "'text/html' is not a valid JavaScript MIME type."])(
+  'keeps pending work and retry budget through %s, then syncs after recovery',
+  async message => {
+    const importModule = vi.fn(
+      (): ReturnType<typeof loadFunctionsModule> => Promise.reject(new TypeError(message))
+    );
+    const payload = { date: '2026-10-24', beds: {}, synthetic: 'pending-change' };
+    await hospitalDB.syncQueue.add({
+      opId: 'synthetic-functions-recovery',
+      type: 'UPDATE_DAILY_RECORD',
+      payload,
+      key: 'daily:2026-10-24',
+      status: 'PENDING',
+      timestamp: 1,
+      retryCount: 2,
+    });
+    const engine = createEngine(async () => {
+      await loadFunctionsModule(importModule);
+    });
+    for (let attempt = 0; attempt < 7; attempt++) {
+      await hospitalDB.syncQueue.toCollection().modify({ nextAttemptAt: 0 });
+      await engine.processQueue();
+      expect(isFunctionsReloadRequired()).toBe(true);
+      const [task] = await hospitalDB.syncQueue.toArray();
+      expect(task).toMatchObject({ status: 'PENDING', retryCount: 2, payload });
+      expect(task.leaseOwner).toBeUndefined();
+    }
+    importModule.mockImplementation(() => import('firebase/functions'));
     await hospitalDB.syncQueue.toCollection().modify({ nextAttemptAt: 0 });
     await engine.processQueue();
-    expect(isFunctionsReloadRequired()).toBe(true);
-    const [task] = await hospitalDB.syncQueue.toArray();
-    expect(task).toMatchObject({ status: 'PENDING', retryCount: 2, payload });
-    expect(task.leaseOwner).toBeUndefined();
+    expect(isFunctionsReloadRequired()).toBe(false);
+    expect(await hospitalDB.syncQueue.count()).toBe(0);
   }
-  importModule.mockImplementation(() => import('firebase/functions'));
-  await hospitalDB.syncQueue.toCollection().modify({ nextAttemptAt: 0 });
-  await engine.processQueue();
-  expect(isFunctionsReloadRequired()).toBe(false);
-  expect(await hospitalDB.syncQueue.count()).toBe(0);
-});
+);
 
 it('keeps permanent authorization failures quarantined while Functions recovery is pending', async () => {
   await loadFunctionsModule(() =>
