@@ -1,3 +1,4 @@
+import { isFunctionsReloadRequired } from '@/services/firebase-runtime/functionsModuleLoader';
 import { buildSyncErrorSummary, classifySyncError } from '@/services/storage/syncErrorCatalog';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import {
@@ -76,6 +77,18 @@ export const resolveSyncQueueFailureDecision = ({
 }: SyncQueueFailurePolicyOptions): SyncQueueFailureDecision => {
   const { classification, errorMeta } = buildSyncQueueTaskErrorMeta(error, now);
   const { contexts, recoveryPolicy, domainProfile } = buildSyncQueueTaskContextMeta(task);
+
+  if (isFunctionsReloadRequired() && classification.category === 'network') {
+    return {
+      ...errorMeta,
+      contexts,
+      recoveryPolicy,
+      status: 'PENDING',
+      retryCount: task.retryCount,
+      nextAttemptAt: now + maxRetryDelayMs,
+      shouldLogPermanentFailure: false,
+    };
+  }
 
   if (classification.category === 'conflict') {
     return {

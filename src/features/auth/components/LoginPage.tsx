@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { FunctionsRecovery } from '@/components/ui/FunctionsRecovery';
 import { LoginPageCard } from './LoginPageCard';
 import { useLoginPageController } from './useLoginPageController';
 import { LoginScreenLayout } from '@/components/ui/LoginScreenLayout';
@@ -30,6 +31,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, initialAut
       authState={isGoogleLoading ? 'google-loading' : individualBusy ? 'rut-loading' : 'idle'}
       onToggleMode={toggleBackgroundMode}
     >
+      <FunctionsRecovery />
       <LoginPageCard
         isDayGradient={isDayGradient}
         isAnyLoading={isAnyLoading || individualBusy}

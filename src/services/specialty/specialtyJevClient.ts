@@ -13,8 +13,8 @@ export class JevSuggestionUnavailableError extends Error {}
 export class JevSuggestionPendingError extends Error {}
 
 export const describeSpecialtySetupError = (error: unknown): string => {
-  if (!navigator.onLine) return 'Sin conexión.';
   if (error instanceof JevSuggestionUnavailableError) return error.message;
+  if (!navigator.onLine) return 'Sin conexión.';
   const code = (error as { code?: unknown } | null)?.code;
   if (
     code === 'permission-denied' ||

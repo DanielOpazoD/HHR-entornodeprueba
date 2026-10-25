@@ -137,6 +137,9 @@ it.each([
   'SaveDropdown',
   'EmailDropdown',
   'PdfButtons',
+  'MoaHelpButton',
+  'PatientRowOrbitalQuickActionsPortal',
+  'FunctionsRecoveryNotice',
 ])('protects %s and its static dependencies across dynamic boot boundaries', name => {
   for (const dependency of ['terminologyService', 'replanRayenStructure']) {
     const root = `assets/${name}-fixture.js`;
@@ -185,6 +188,9 @@ const bootRoots = [
   'SaveDropdown',
   'EmailDropdown',
   'PdfButtons',
+  'MoaHelpButton',
+  'PatientRowOrbitalQuickActionsPortal',
+  'FunctionsRecoveryNotice',
 ];
 const bootFixture = (): Parameters<typeof assertPrecacheStaticImports>[0][number][] =>
   bootRoots.map(name => ({

@@ -28,7 +28,7 @@ export const PRECACHE_STATIC_IMPORT_EXCEPTIONS = [
 
 // Dynamic route boundaries and lazy mounts of the offline census (including
 // toolbar, empty-day and deferred movement sections) are independent roots.
-const OFFLINE_BOOT_CHUNKS = [
+export const OFFLINE_BOOT_CHUNKS = [
   'App',
   'app-authenticated-shell',
   'CensusRouteView',
@@ -47,6 +47,9 @@ const OFFLINE_BOOT_CHUNKS = [
   'SaveDropdown',
   'EmailDropdown',
   'PdfButtons',
+  'MoaHelpButton',
+  'PatientRowOrbitalQuickActionsPortal',
+  'FunctionsRecoveryNotice',
 ];
 
 type Chunk = Pick<Rollup.OutputChunk, 'fileName' | 'imports' | 'isEntry'>;

@@ -216,24 +216,39 @@ un manifest con Workbox sobre assets sintéticos y compara su pertenencia con
 la contabilidad del presupuesto. El total definitivo corresponde al build de CI.
 Rollback: restaurar ambas entradas de `clinicalFormDocx`; no elevar el límite.
 
-## PR #1028: import de callables con conectividad aparente (2026-10-24)
+## PR #1028: recuperación de imports de callables (2026-10-25)
 
-Owner: platform/auth y census/sync. Functions se importa al invocar una callable;
-si `navigator.onLine` es false, los resolvers rechazan antes del import con
-`functions/unavailable`, reintentable para la cola. No se precarga Functions.
+Owner: platform/auth y census/sync. El SDK de Functions sigue fuera del precache.
+Login y shell autenticado lo calientan al montar y al recibir el evento online.
+Los resolvers rechazan antes del import cuando el navegador está offline, con
+`functions/unavailable`; no se envían callables ni se cambia el comportamiento offline.
 
-Riesgo residual observado por el verificador P12c: si `navigator.onLine` sigue
-siendo true pero el servidor es inalcanzable, puede fallar el primer import.
-En Chromium hasta 153 el fallo queda retenido hasta recargar; Chrome 156 se
-recupera. En esos Chromium antiguos, el ingreso por RUT y `checkUserRole` pueden
-seguir fallando tras recuperar la red hasta una recarga. Las escrituras callable
-encoladas terminan en FAILED después de 3 a 5 intentos, permanecen en IndexedDB
-y admiten reintento manual. No se descartan datos ni se cambia la política de cola.
+El verificador reprodujo imports retenidos hasta recargar en Firefox 144,
+WebKit 26 (Safari y navegadores iOS) y Chromium 143, dentro del alcance conocido
+Chromium ≤153. Ocurre tanto con conexión rechazada como con HTTP 503, aunque
+`navigator.onLine` siga true. Afecta a todas las callables, incluidos patch/save
+del registro diario, entrega especialista, lotes Rayen, firmas, QR y CUDYR.
+Chrome 156 puede recuperar el mismo URL sin recarga.
 
-Se acepta este riesgo en esta ronda para reservar margen a las PR de seguridad
-de datos pendientes. El chunk `vendor-firebase-functions` mide 12.023 bytes en
-la medición del verificador. Opciones de seguimiento: precargarlo cuando exista
-presupuesto, o mostrar una solicitud de recarga después de recuperar la conexión
-si falló un import callable. Ninguna de las dos se implementa aquí. No se amplían
-los límites de shell ni precache. Guardas: grafo generado con mutaciones,
-resolvers offline/reconexión y prueba de ingreso por RUT sin conexión.
+Un fallo de carga del SDK marca el runtime como pendiente de recuperación.
+Mientras persista esa marca, los errores de red de la cola conservan PENDING,
+payload y contador de intentos; no agotan el presupuesto ni pasan a FAILED.
+Los errores permanentes y conflictos mantienen su política vigente. Una petición
+sin caché a version.json confirma conectividad antes de reintentar el import.
+Si el navegador sigue reteniéndolo, se muestra un aviso no bloqueante con recarga
+confirmada que advierte de lo escrito sin guardar. Recargar conserva IndexedDB y
+reanuda el envío pendiente. Si el import se recupera, se retira la marca sin recargar.
+No hay recarga automática, purga ni modificación de datos clínicos.
+
+El aviso está en un chunk lazy precacheado. El build local de esta ronda mide
+4.983.685 bytes de precache (margen 9.339) y 621.271 bytes de shell (margen 10.729).
+El chunk del aviso mide 1.735 bytes. No se elevan límites ni se añade Functions
+(12.028 bytes) al precache. El margen permanece reservado para seguridad de datos.
+
+Guardas: el grafo generado protege también MoaHelpButton y el portal orbital;
+un escáner AST clasifica todos los lazy/lazyWithRetry e imports dinámicos de los
+árboles de primer pintado, con roots o excepciones opcionales justificadas.
+Una nueva carga sin clasificar hace fallar src/tests/build. Se conservan las 17
+excepciones del grafo. La recuperación se prueba con el engine y store Dexie reales,
+aviso, confirmación, import HTTP fallido y callable sintética tras recargar en los
+cuatro motores; los probes de arranque frío y especialidad usan sólo datos sintéticos.

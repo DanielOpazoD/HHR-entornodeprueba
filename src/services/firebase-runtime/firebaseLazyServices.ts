@@ -1,6 +1,7 @@
 import type { FirebaseApp } from 'firebase/app';
 import type { FirebaseStorage } from 'firebase/storage';
 import type { Functions } from 'firebase/functions';
+import { loadFunctionsModule } from './functionsModuleLoader';
 import { parseEmulatorHost } from '@/services/firebase-runtime/firebaseEnvironmentPolicy';
 import { firebaseLazyServicesLogger } from '@/services/firebase-runtime/firebaseRuntimeLoggers';
 
@@ -31,23 +32,13 @@ export const resolveStorageInstance = async (
   return state.storage;
 };
 
-const assertFunctionsOnline = (): void => {
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-    // A failed ESM fetch is cached by the browser until reload. Reject before
-    // importing, with the network code understood by the existing sync queue.
-    throw Object.assign(new Error('Functions unavailable while offline.'), {
-      code: 'functions/unavailable',
-    });
-  }
-};
-
 export const resolveFunctionsInstance = async (
   app: FirebaseApp,
   state: FirebaseLazyServicesState
 ): Promise<Functions> => {
-  assertFunctionsOnline();
+  const sdk = await loadFunctionsModule();
   if (!state.functions) {
-    const { getFunctions } = await import('firebase/functions');
+    const { getFunctions } = sdk;
     state.functions = getFunctions(app);
   }
 
@@ -62,7 +53,7 @@ export const resolveFunctionsInstance = async (
         );
         return state.functions;
       }
-      const { connectFunctionsEmulator } = await import('firebase/functions');
+      const { connectFunctionsEmulator } = sdk;
       connectFunctionsEmulator(state.functions, emulatorHost.host, emulatorHost.port);
       state.functionsEmulatorConnected = true;
     }
@@ -81,10 +72,10 @@ export const resolveRegionalFunctionsInstance = async (
   state: FirebaseLazyServicesState,
   region: string
 ): Promise<Functions> => {
-  assertFunctionsOnline();
+  const sdk = await loadFunctionsModule();
   let instance = state.regionalFunctions.get(region);
   if (!instance) {
-    const { getFunctions } = await import('firebase/functions');
+    const { getFunctions } = sdk;
     instance = getFunctions(app, region);
     state.regionalFunctions.set(region, instance);
   }
@@ -100,7 +91,7 @@ export const resolveRegionalFunctionsInstance = async (
         );
         return instance;
       }
-      const { connectFunctionsEmulator } = await import('firebase/functions');
+      const { connectFunctionsEmulator } = sdk;
       connectFunctionsEmulator(instance, emulatorHost.host, emulatorHost.port);
       state.regionalFunctionsEmulatorConnected.add(region);
     }
