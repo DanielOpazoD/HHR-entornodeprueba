@@ -1,3 +1,4 @@
+import type { FirestoreServiceRuntimePort } from '@/services/storage/firestore/ports/firestoreServiceRuntimePort';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
@@ -57,7 +58,11 @@ const makeTask = (record: DailyRecord): SyncTask => ({
     mutationId: 'synthetic-mutation',
   },
 });
-const transport = () => createFirestoreSyncTransport({ getDb: vi.fn() });
+const transport = () =>
+  createFirestoreSyncTransport({
+    getDb: vi.fn<FirestoreServiceRuntimePort['getDb']>(),
+    ready: Promise.resolve(),
+  });
 beforeEach(() => {
   vi.clearAllMocks();
   h.remote = makeRecord();

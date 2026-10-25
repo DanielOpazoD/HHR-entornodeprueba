@@ -1,4 +1,3 @@
-import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 import { shouldRouteSpecialistPatchViaCallable } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import { buildSpecialistHandoffTargets } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
 import { isSpecialistScopedDailyRecordPatch } from './dailyRecordClinicalDomainService';
