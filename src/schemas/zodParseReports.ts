@@ -9,6 +9,7 @@ export interface ValidationResult<T> {
 export interface DailyRecordParseReport {
   nullNormalization: LegacyNullNormalizationReport;
   salvagedBeds: string[];
+  droppedPatientListItems: number;
   droppedDischargeItems: number;
   droppedTransferItems: number;
   droppedCmaItems: number;
@@ -19,6 +20,7 @@ export interface DailyRecordParseReport {
 export interface PatientDataParseReport {
   nullNormalization: LegacyNullNormalizationReport;
   usedFallback: boolean;
+  droppedListItems: number;
 }
 
 export const hasStructuralRepairs = (
@@ -35,6 +37,7 @@ export const hasStructuralRepairs = (
   return (
     hasNullRepairs ||
     report.salvagedBeds.length > 0 ||
+    report.droppedPatientListItems > 0 ||
     report.droppedDischargeItems > 0 ||
     report.droppedTransferItems > 0 ||
     report.droppedCmaItems > 0 ||

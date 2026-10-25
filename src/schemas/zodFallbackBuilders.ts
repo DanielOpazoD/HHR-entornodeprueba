@@ -1,6 +1,7 @@
+import type { ZodIssue } from 'zod';
 import type { PatientData } from '@/types/domain/patient';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
-import { CudyrScoreSchema } from '@/schemas/zod/patient';
+import { CudyrScoreSchema, PatientDataSchema } from '@/schemas/zod/patient';
 import { UpcChecklistSchema } from '@/schemas/zod/upc';
 import { resolveEffectiveUpcState } from '@/shared/census/upcBedPolicy';
 
@@ -8,12 +9,12 @@ export interface FallbackPatientDataOptions {
   /**
    * Set on a split day: its moved clinical fields are found by episode id (overlay and direct
    * writes), so a salvaged bed or crib must keep it or it would read empty and a full save would
-   * drop its embedded copy. Unmarked days salvage as before.
+   * drop its embedded copy. Also applies to the legacy fallback for invalid identity fields.
    */
   keepClinicalEpisodeId?: boolean;
 }
 
-export const buildFallbackPatientData = (
+const buildLegacyFallbackPatientData = (
   data: unknown,
   bedId: string,
   options: FallbackPatientDataOptions = {}
@@ -47,8 +48,94 @@ export const buildFallbackPatientData = (
   }
 
   if (raw.clinicalCrib && typeof raw.clinicalCrib === 'object') {
-    fallback.clinicalCrib = buildFallbackPatientData(raw.clinicalCrib, bedId, options);
+    fallback.clinicalCrib = buildLegacyFallbackPatientData(raw.clinicalCrib, bedId, options);
   }
 
   return fallback;
 };
+
+const identityFields = new Set([
+  'documentType',
+  'rut',
+  'clinicalEpisodeId',
+  'identityStatus',
+  'patientName',
+  'firstName',
+  'lastName',
+  'secondLastName',
+  'admissionDate',
+  'admissionTime',
+]);
+
+export const buildFallbackPatientDataReport = (
+  data: unknown,
+  bedId: string,
+  options: FallbackPatientDataOptions = {}
+): { patient: PatientData; droppedListItems: number } => {
+  const candidate: Record<string, unknown> = {
+    ...createEmptyPatient(bedId),
+    ...(data && typeof data === 'object' ? data : {}),
+    bedId,
+  };
+  const initial = PatientDataSchema.safeParse(candidate);
+  if (
+    !initial.success &&
+    initial.error.issues.some(issue => identityFields.has(String(issue.path[0])))
+  ) {
+    // Identity corruption keeps the legacy fallback until the separate identity-repair change.
+    return { patient: buildLegacyFallbackPatientData(data, bedId, options), droppedListItems: 0 };
+  }
+
+  let droppedListItems = 0;
+  let clinicalCrib: PatientData | undefined;
+  if (candidate.clinicalCrib && typeof candidate.clinicalCrib === 'object') {
+    const crib = buildFallbackPatientDataReport(candidate.clinicalCrib, bedId, options);
+    clinicalCrib = crib.patient;
+    candidate.clinicalCrib = clinicalCrib;
+    droppedListItems += crib.droppedListItems;
+  }
+
+  const parsed = PatientDataSchema.safeParse(candidate);
+  if (!parsed.success) {
+    const defaults: Record<string, unknown> = { ...createEmptyPatient(bedId) };
+    const issuesByField = new Map<string, ZodIssue[]>();
+    for (const issue of parsed.error.issues) {
+      const field = issue.path[0];
+      if (typeof field === 'string') {
+        const issues = issuesByField.get(field) ?? [];
+        issues.push(issue);
+        issuesByField.set(field, issues);
+      }
+    }
+    for (const [field, issues] of issuesByField) {
+      const list = candidate[field];
+      if (Array.isArray(list) && issues.every(issue => typeof issue.path[1] === 'number')) {
+        const invalidIndexes = new Set(issues.map(issue => issue.path[1]));
+        candidate[field] = list.filter((_, index) => !invalidIndexes.has(index));
+        droppedListItems += invalidIndexes.size;
+      } else {
+        candidate[field] = defaults[field];
+      }
+    }
+  }
+
+  const patient = parsed.success ? parsed.data : PatientDataSchema.parse(candidate);
+  return {
+    patient: {
+      ...patient,
+      ...(clinicalCrib ? { clinicalCrib } : {}),
+      isUPC: resolveEffectiveUpcState({
+        bedId,
+        isUPC: patient.isUPC,
+        checklist: patient.upcChecklist,
+      }).isUpc,
+    },
+    droppedListItems,
+  };
+};
+
+export const buildFallbackPatientData = (
+  data: unknown,
+  bedId: string,
+  options: FallbackPatientDataOptions = {}
+): PatientData => buildFallbackPatientDataReport(data, bedId, options).patient;
