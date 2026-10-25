@@ -103,9 +103,16 @@ The first matching route wins:
    and text) the edit started from, and the texts this device already sent for that note. In the
    same transaction the server refuses any other stored text, unless the stored note already holds
    this write's text, so a queued or lost-answer replay never replaces a note saved after the edit
-   began; the specialist's text stays as a draft. The request carries the write's `mutationId`:
-   the server answers a replay of the write the record last took (`meta.lastMutationId`) without
-   writing, and records the id and its paths in `meta` when it writes.
+   began; the specialist's text stays as a draft. The request carries the write's `mutationId`.
+   When it writes, the server records in `meta` the id, its paths and `lastMutationDigest`, a
+   SHA-256 of the operation: date, exact paths and values, and each target's patient and episode.
+   It answers without writing only a replay whose id and digest both match the write the record
+   last took; that id with any other text, path, patient or episode is a `failed-precondition`
+   conflict, logged as `specialist_handoff_write_id_reused` with date and bed only, and the text
+   stays as a draft. Only whole note fields are accepted (`medicalHandoffEntries`,
+   `medicalHandoffNote`, `medicalHandoffAudit`, `clinicalEvents`, and the same under
+   `clinicalCrib`): a nested or array-index path would escape the text check, and Firestore would
+   turn the entries array into a map. No client sends one.
 
    On a network failure the note becomes its own `UPDATE_SPECIALIST_HANDOFF` task, keyed by date,
    bed, bed or crib, and patient plus episode, whose payload is the callable request. It never
@@ -117,8 +124,12 @@ The first matching route wins:
 
    Typed text is kept from the first keystroke as a draft: one localStorage key per draft and
    editing session, for the signed-in user, clinical date, patient, episode and entry. A session
-   writes only its own key; deletes are conditional on the exact text. Only a server confirmation
-   of that exact text for that identity clears a draft (callable success online or on replay, a
+   writes only its own key; deletes are conditional on the exact text. Drafts an earlier version
+   saved as one shared list per user are copied to their own keys on every read until the list is
+   gone. The list is removed only while it still holds exactly what was copied: a list an older
+   tab saved meanwhile is copied again, and a failed copy (full storage) leaves it in place for
+   the next read or another tab's storage change. Only a server confirmation of that exact text
+   for that identity clears a draft (callable success online or on replay, a
    remote success with the expected targets, or a day-task ACK record); a matching local copy never
    does. The editor owns its text while focused, while a debounce or a send is pending, and while
    its draft is unconfirmed; a stored value that is neither its base nor a text it sent shows both
