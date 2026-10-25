@@ -16,7 +16,10 @@ import {
 import type { RayenSyncEvent } from '@/types/domain/rayenSync';
 import { PatientDataSchema } from './zod/patient';
 import { CMADataSchema, DischargeDataSchema, TransferDataSchema } from './zod/movements';
-import { buildFallbackPatientData, type UnreadableIdentityPolicy } from './zodFallbackBuilders';
+import {
+  buildFallbackPatientDataReport,
+  type UnreadableIdentityPolicy,
+} from './zodFallbackBuilders';
 import type { DailyRecordParseReport, PatientDataParseReport } from './zodParseReports';
 import { withoutStoredIdentityReviews } from '@/shared/census/patientIdentityReview';
 
@@ -53,7 +56,7 @@ export const parsePatientDataWithDefaultsReport = (
     };
   }
 
-  const fallback = buildFallbackPatientData(normalized, bedId);
+  const fallback = buildFallbackPatientDataReport(normalized, bedId);
   return {
     patient: fallback.patient,
     report: {
@@ -109,9 +112,9 @@ export const parseDailyRecordWithDefaultsReport = (
         return;
       }
 
-      const salvaged = buildFallbackPatientData(patient, id, { unreadableIdentity });
-      salvagedBeds[id] = salvaged.patient;
-      droppedPatientListItems += salvaged.droppedListItems;
+      const fallback = buildFallbackPatientDataReport(patient, id, { unreadableIdentity });
+      salvagedBeds[id] = fallback.patient;
+      droppedPatientListItems += fallback.droppedListItems;
       salvagedBedIds.push(id);
     });
   }

@@ -1,4 +1,8 @@
-import { ensureDbReady, hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
+import {
+  ensureDbReady,
+  hospitalDB,
+  isDatabaseInFallbackMode,
+} from '@/services/storage/indexeddb/indexedDbCore';
 import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
 import type { DailyRecordQueuedWriteState, SyncTask } from '@/services/storage/syncQueueTypes';
 
@@ -21,6 +25,27 @@ const isExactDailyRecordVersion = (task: SyncTask, date: string, lastUpdated: st
 
 const isDailyRecordWriteForDate = (task: SyncTask, date: string): boolean =>
   task.type === 'UPDATE_DAILY_RECORD' && task.key === `daily:${date}`;
+
+/** Read the pending projection after remote work finishes, even if its timestamp did not change. */
+export const getPendingDailyRecordProjection = async (
+  date: string
+): Promise<DailyRecord | null> => {
+  await ensureDbReady();
+  if (isDatabaseInFallbackMode()) return null;
+  return hospitalDB.transaction('r', hospitalDB.dailyRecords, hospitalDB.syncQueue, async () => {
+    const tasks = await hospitalDB.syncQueue.where('key').equals(`daily:${date}`).toArray();
+    if (
+      !tasks.some(
+        task => isDailyRecordWriteForDate(task, date) && UNRESOLVED_WRITE_STATES.has(task.status)
+      )
+    ) {
+      return null;
+    }
+    const record = await hospitalDB.dailyRecords.get(date);
+    if (!record) throw new Error('No existe la copia local de una escritura pendiente.');
+    return record;
+  });
+};
 
 /**
  * Detects any write for the census date that can still reach Firestore, regardless of which

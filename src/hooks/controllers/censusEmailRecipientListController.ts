@@ -2,7 +2,7 @@ import {
   buildGlobalEmailRecipientListId,
   CENSUS_GLOBAL_EMAIL_RECIPIENT_LIST,
   type GlobalEmailRecipientList,
-} from '@/services/email/emailRecipientListService';
+} from '@/services/email/emailRecipientListSupport';
 
 interface RecipientListActor {
   uid?: string | null;

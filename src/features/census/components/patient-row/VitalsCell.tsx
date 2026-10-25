@@ -8,6 +8,7 @@ import React, { lazy, useState } from 'react';
 import type { BaseCellProps } from './inputCellTypes';
 import { PatientEmptyCell } from './PatientEmptyCell';
 import { ClinicalDetailLoadBoundary } from './ClinicalDetailLoadBoundary';
+import { useClinicalDerivedDayRevision } from './clinicalDerivedDayContext';
 import {
   buildVitalSignsView,
   type VitalReadingView,
@@ -55,6 +56,7 @@ export const VitalsCell: React.FC<VitalsCellProps> = ({
   layoutGeneration,
 }) => {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const dayRevision = useClinicalDerivedDayRevision();
 
   if (isEmpty && !isSubRow) {
     return <PatientEmptyCell tdClassName="py-0.5 px-1 border-r border-slate-200 relative" />;
@@ -119,7 +121,7 @@ export const VitalsCell: React.FC<VitalsCellProps> = ({
             latestReading={data.vitalSigns}
             episodeDocument={
               date && clinicalEpisodeId && layoutGeneration
-                ? { date, clinicalEpisodeId, layoutGeneration }
+                ? { date, clinicalEpisodeId, layoutGeneration, dayRevision }
                 : undefined
             }
             age={data.age}

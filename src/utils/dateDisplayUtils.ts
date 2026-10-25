@@ -86,6 +86,7 @@ export const readClinicalTimestamp = (value: string): ClinicalCalendarStamp | nu
     return calendarStampInClinicalTimeZone(timestamp.date);
   }
   const wallClock = timestamp.date.toISOString();
+  // clinical-clock-allow instant-calendar-slice: readTimestamp already classified this value as unzoned hospital wall time, encoded in UTC.
   return { iso: wallClock.slice(0, 10), hhmm: wallClock.slice(11, 16) };
 };
 

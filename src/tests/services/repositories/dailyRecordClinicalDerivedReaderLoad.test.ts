@@ -103,9 +103,12 @@ describe('clinicalDerived read service · reader chunk that fails to load', () =
     expectOneReaderUnavailableEvent('day');
   });
 
-  it('the vitals window and the staff tool get a typed failure and one report each', async () => {
-    const { readClinicalDerivedEpisodeForDisplay, readClinicalDerivedDayDocs } =
-      await loadService();
+  it('the vitals window, the staff tool and the restore get a typed failure and one report each', async () => {
+    const {
+      readClinicalDerivedEpisodeForDisplay,
+      readClinicalDerivedDayDocs,
+      readClinicalDerivedDaySnapshot,
+    } = await loadService();
 
     loader.failures = 2;
     expect(await readClinicalDerivedEpisodeForDisplay(DATE, GENERATION, 'ep_a')).toEqual({
@@ -117,6 +120,15 @@ describe('clinicalDerived read service · reader chunk that fails to load', () =
     loader.recordOperationalTelemetry.mockClear();
     loader.failures = 2;
     expect(await readClinicalDerivedDayDocs(record)).toEqual({
+      status: 'unavailable',
+      reason: 'read_failed',
+      code: 'reader_unavailable',
+    });
+    expectOneReaderUnavailableEvent('day');
+
+    loader.recordOperationalTelemetry.mockClear();
+    loader.failures = 2;
+    expect(await readClinicalDerivedDaySnapshot(DATE)).toEqual({
       status: 'unavailable',
       reason: 'read_failed',
       code: 'reader_unavailable',

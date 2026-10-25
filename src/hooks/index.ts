@@ -34,12 +34,7 @@ export { useLatest } from './useLatest';
 export { useLatestRef } from './useLatestRef';
 
 // React Query Hooks
-export {
-  useDailyRecordQuery,
-  useSaveDailyRecordMutation,
-  usePrefetchDailyRecord,
-  useInvalidateDailyRecord,
-} from './useDailyRecordQuery';
+export { useDailyRecordQuery, useSaveDailyRecordMutation } from './useDailyRecordQuery';
 export {
   useNursesQuery,
   useTensQuery,

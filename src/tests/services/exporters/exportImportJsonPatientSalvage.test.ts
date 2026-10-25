@@ -58,6 +58,33 @@ describe('JSON patient salvage', () => {
     expect(saved[0].beds.R1).toMatchObject(original);
     expect(saved[0].beds.R1.insurance).toBeUndefined();
   });
+  it('imports valid clinical events and devices from partially invalid lists', async () => {
+    const event = {
+      id: 'synthetic',
+      name: 'EVENTO SINTETICO',
+      date: DATE,
+      createdAt: `${DATE}T10:00:00Z`,
+    };
+    const result = await importDataJSONDetailed(
+      file({
+        ...passport(),
+        devices: ['CVC', 7, 'VMI'],
+        clinicalEvents: [event, { ...event, name: 7 }],
+      })
+    );
+    expect(result).toMatchObject({
+      success: true,
+      outcome: 'repaired',
+      importedCount: 1,
+      repairedCount: 1,
+    });
+    const saved: DailyRecord[] = storage.save.mock.calls[0][0];
+    expect(saved[0].beds.R1).toMatchObject({
+      ...passport(),
+      devices: ['CVC', 'VMI'],
+      clinicalEvents: [event],
+    });
+  });
 
   it.each([
     ['documentType', 'UNKNOWN_DOCUMENT'],

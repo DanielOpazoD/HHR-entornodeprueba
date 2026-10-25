@@ -1,4 +1,3 @@
-import { httpsCallable } from 'firebase/functions';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import {
   AUTHORITY_READBACK_TIMEOUT_MS,
@@ -104,6 +103,7 @@ export const invokeAuthority = async (
   const functions = await defaultFunctionsRuntime.getRegionalFunctions(
     DAILY_RECORD_AUTHORITY_FUNCTIONS_REGION
   );
+  const { httpsCallable } = await import('firebase/functions');
   const callable = httpsCallable<typeof payload, DailyRecordAuthorityCallableResponse>(
     functions,
     `${operation}DailyRecordWithClinicalAuthority`,

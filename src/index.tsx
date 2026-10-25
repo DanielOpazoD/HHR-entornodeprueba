@@ -1,3 +1,4 @@
+import { isChunkLoadError } from '@/utils/chunkLoadError';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import {
@@ -56,9 +57,7 @@ const isAppShellLoadFailure = (error: unknown): boolean => {
       : error && typeof error === 'object' && 'message' in error
         ? String(error.message)
         : String(error);
-  return /chunkloaderror|failed to fetch dynamically imported module|cannot access '.+' before initialization/i.test(
-    message
-  );
+  return isChunkLoadError(error) || /cannot access '.+' before initialization/i.test(message);
 };
 
 const renderBootstrapLoadingScreen = () => {

@@ -1,4 +1,5 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import Dexie from 'dexie';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { normalizeDailyRecordInvariants } from '@/utils/recordInvariants';
 import { normalizeMovementBedConsistency } from '@/services/repositories/clinicalMovementBedConsistencyPolicy';
@@ -61,15 +62,18 @@ export const preparePatchedRecordPersistence = (
   ];
 
   if (!shouldSkipStructuralNormalization && repairPaths.length > 0) {
-    logError(
-      'Invariant repair applied on updatePartial',
-      undefined,
-      buildInvariantRepairReviewContext({
-        date,
-        operation: 'updatePartial',
-        repairPaths,
-        touchedPaths: Object.keys(inputPatch),
-      })
+    // Diagnostics use errorLogs, outside the outbox's dailyRecords/syncQueue transaction.
+    Dexie.ignoreTransaction(() =>
+      logError(
+        'Invariant repair applied on updatePartial',
+        undefined,
+        buildInvariantRepairReviewContext({
+          date,
+          operation: 'updatePartial',
+          repairPaths,
+          touchedPaths: Object.keys(inputPatch),
+        })
+      )
     );
   }
 

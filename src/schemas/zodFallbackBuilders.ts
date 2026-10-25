@@ -1,4 +1,4 @@
-import * as z from 'zod';
+import type { ZodIssue } from 'zod';
 import type { PatientData } from '@/types/domain/patient';
 import type { PatientIdentityField, PatientIdentityReview } from '@/types/domain/patientIdentity';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
@@ -24,12 +24,6 @@ export interface FallbackPatientDataOptions {
   slot?: PatientIdentityReview['slot'];
 }
 
-export interface FallbackPatientDataResult {
-  patient: PatientData;
-  /** Invalid entries left out of the patient's lists (events, handoff entries, devices). */
-  droppedListItems: number;
-}
-
 const IDENTITY_FIELD_KIND: Record<PatientIdentityField, 'text' | 'choice'> = {
   documentType: 'choice',
   identityStatus: 'choice',
@@ -52,73 +46,64 @@ const readableIdentityValue = (
   return typeof stored === 'number' || typeof stored === 'boolean' ? String(stored) : emptyValue;
 };
 
-/** Entry indexes behind a list's issues, or null when an issue concerns the list itself. */
-const invalidListEntries = (issues: z.ZodIssue[]): Set<number> | null => {
-  const entries = new Set<number>();
-  for (const issue of issues) {
-    const index = issue.path[1];
-    if (typeof index !== 'number') return null;
-    entries.add(index);
-  }
-  return entries;
-};
-
-const groupIssuesByField = (issues: z.ZodIssue[]): Map<string, z.ZodIssue[]> => {
-  const byField = new Map<string, z.ZodIssue[]>();
-  issues.forEach(issue => {
-    const field = issue.path[0];
-    if (typeof field === 'string') byField.set(field, [...(byField.get(field) ?? []), issue]);
-  });
-  return byField;
-};
-
-/** Rebuilds a stored patient that failed its schema: valid fields stay, each invalid one is repaired alone. */
-export const buildFallbackPatientData = (
+export const buildFallbackPatientDataReport = (
   data: unknown,
   bedId: string,
   { unreadableIdentity = 'reject', slot = 'bed' }: FallbackPatientDataOptions = {}
-): FallbackPatientDataResult => {
-  const stored = z.record(z.string(), z.unknown()).safeParse(data);
-  // The bed key is the location; a stored bedId does not move the patient.
-  const candidate: Record<string, unknown> = { ...(stored.success ? stored.data : {}), bedId };
-  const emptyPatient: Record<string, unknown> = { ...createEmptyPatient(bedId) };
+): { patient: PatientData; droppedListItems: number } => {
+  const candidate: Record<string, unknown> = {
+    ...createEmptyPatient(bedId),
+    ...(data && typeof data === 'object' ? data : {}),
+    bedId,
+  };
   const reviewed = new Set<PatientIdentityField>(
     isIdentityReview(candidate.identityReview) ? candidate.identityReview.fields : []
   );
-  let droppedListItems = 0;
 
+  let droppedListItems = 0;
+  let clinicalCrib: PatientData | undefined;
   if (candidate.clinicalCrib && typeof candidate.clinicalCrib === 'object') {
     // The newborn is another patient: salvaged, and reviewed, on its own.
-    const crib = buildFallbackPatientData(candidate.clinicalCrib, bedId, {
+    const crib = buildFallbackPatientDataReport(candidate.clinicalCrib, bedId, {
       unreadableIdentity,
       slot: 'clinicalCrib',
     });
-    candidate.clinicalCrib = crib.patient;
+    clinicalCrib = crib.patient;
+    candidate.clinicalCrib = clinicalCrib;
     droppedListItems += crib.droppedListItems;
   }
 
   const parsed = PatientDataSchema.safeParse(candidate);
   if (!parsed.success) {
-    const issuesByField = groupIssuesByField(parsed.error.issues);
+    const defaults: Record<string, unknown> = { ...createEmptyPatient(bedId) };
+    const issuesByField = new Map<string, ZodIssue[]>();
+    for (const issue of parsed.error.issues) {
+      const field = issue.path[0];
+      if (typeof field === 'string') {
+        const issues = issuesByField.get(field) ?? [];
+        issues.push(issue);
+        issuesByField.set(field, issues);
+      }
+    }
     const unreadable = toReviewFields([...issuesByField.keys()].filter(isPatientIdentityField));
     if (unreadable && unreadableIdentity === 'reject') {
       throw new PatientIdentityRepairRequiredError({ bedId, slot, fields: unreadable });
     }
-    issuesByField.forEach((issues, field) => {
+    for (const [field, issues] of issuesByField) {
       if (isPatientIdentityField(field)) {
-        candidate[field] = readableIdentityValue(field, candidate[field], emptyPatient[field]);
+        candidate[field] = readableIdentityValue(field, candidate[field], defaults[field]);
         reviewed.add(field);
-        return;
+        continue;
       }
       const list = candidate[field];
-      const invalidEntries = Array.isArray(list) ? invalidListEntries(issues) : null;
-      if (Array.isArray(list) && invalidEntries) {
-        candidate[field] = list.filter((_, index) => !invalidEntries.has(index));
-        droppedListItems += invalidEntries.size;
-        return;
+      if (Array.isArray(list) && issues.every(issue => typeof issue.path[1] === 'number')) {
+        const invalidIndexes = new Set(issues.map(issue => issue.path[1]));
+        candidate[field] = list.filter((_, index) => !invalidIndexes.has(index));
+        droppedListItems += invalidIndexes.size;
+      } else {
+        candidate[field] = defaults[field];
       }
-      candidate[field] = emptyPatient[field];
-    });
+    }
   }
 
   const { identityReview: _previousReview, ...patient } = parsed.success
@@ -128,6 +113,7 @@ export const buildFallbackPatientData = (
   return {
     patient: {
       ...patient,
+      ...(clinicalCrib ? { clinicalCrib } : {}),
       isUPC: resolveEffectiveUpcState({
         bedId,
         isUPC: patient.isUPC,
@@ -138,3 +124,9 @@ export const buildFallbackPatientData = (
     droppedListItems,
   };
 };
+
+export const buildFallbackPatientData = (
+  data: unknown,
+  bedId: string,
+  options: FallbackPatientDataOptions = {}
+): PatientData => buildFallbackPatientDataReport(data, bedId, options).patient;

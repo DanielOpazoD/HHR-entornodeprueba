@@ -1,4 +1,3 @@
-import { httpsCallable } from 'firebase/functions';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import { normalizeDailyRecordAuthorityError } from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import type {
@@ -19,6 +18,7 @@ const callHistory = async <Request, Response>(
 ): Promise<Response> => {
   const functions = await defaultFunctionsRuntime.getRegionalFunctions('southamerica-east1');
   try {
+    const { httpsCallable } = await import('firebase/functions');
     return (await httpsCallable<Request, Response>(functions, name, { timeout: 20_000 })(payload))
       .data;
   } catch (error) {

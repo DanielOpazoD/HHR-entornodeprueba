@@ -151,6 +151,7 @@ describe('authRoleLookup', () => {
     const service = createAuthRoleLookupService();
 
     const previousSessionLookup = service.getDynamicRoleForEmail('same-user@hospital.cl');
+    await vi.waitFor(() => expect(checkUserRoleCall).toHaveBeenCalledTimes(1));
     service.clearRecentLookups();
 
     await expect(service.getDynamicRoleForEmail('same-user@hospital.cl')).resolves.toBe('viewer');

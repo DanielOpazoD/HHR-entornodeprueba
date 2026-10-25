@@ -7,12 +7,14 @@ import {
 import { resolveDailyRecordConflict } from '@/services/repositories/conflictResolutionMatrix';
 import {
   createGoldenPathReadResult,
+  createRetainedPendingProjectionReadResult,
   type LocalRuntimeReadCandidate,
 } from '@/services/repositories/dailyRecordReadResultController';
 import { dailyRecordReadLogger } from '@/services/repositories/repositoryLoggers';
 import type { DailyRecordRemoteLoadResult } from '@/services/repositories/dailyRecordRemoteLoader';
 import type { DailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { getPendingDailyRecordProjection } from '@/services/storage/sync/dailyRecordSyncQueueReadService';
 
 interface ResolveRemoteGoldenPathReadResultInput {
   date: string;
@@ -88,6 +90,8 @@ export const resolveRemoteGoldenPathReadResult = async ({
     }
   }
 
+  const retainedRecord = await getPendingDailyRecordProjection(date);
+  if (retainedRecord) return createRetainedPendingProjectionReadResult(date, retainedRecord);
   return createGoldenPathReadResult(date, goldenPath, localCandidate, effectiveRemoteReadResult);
 };
 

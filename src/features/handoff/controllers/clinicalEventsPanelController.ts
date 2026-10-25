@@ -1,3 +1,4 @@
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import type { ClinicalEvent } from '@/types/domain/clinicalEvents';
 
 export interface ClinicalEventFormData {
@@ -12,7 +13,8 @@ export const EMPTY_CLINICAL_EVENT_FORM: ClinicalEventFormData = {
   note: '',
 };
 
-export const buildClinicalEventToday = (isoNow: string): string => isoNow.split('T')[0] ?? '';
+export const buildClinicalEventToday = (isoNow: string): string =>
+  getClinicalCalendarDateISO(new Date(isoNow));
 
 export const buildClinicalEventAddForm = (today: string): ClinicalEventFormData => ({
   name: '',

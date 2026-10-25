@@ -1,4 +1,3 @@
-import { httpsCallable } from 'firebase/functions';
 import * as z from 'zod';
 
 import type { ClinicalDocumentRecord } from '@/features/clinical-documents/domain/entities';
@@ -29,6 +28,7 @@ export const createClinicalDocumentPdfRenderService = (
 ) => {
   const generateBackendPrintStyledPdfBlob = async (html: string): Promise<Blob> => {
     const functions = await functionsRuntime.getFunctions();
+    const { httpsCallable } = await import('firebase/functions');
     const callable = httpsCallable<
       RenderClinicalDocumentPdfPayload,
       RenderClinicalDocumentPdfResult

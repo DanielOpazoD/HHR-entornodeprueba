@@ -4,6 +4,7 @@
  * Command-palette style modal for searching patients globally
  * across all dates by name, last name, or RUT.
  */
+import { readClinicalTimestamp } from '@/utils/dateDisplayUtils';
 
 import React, { lazy, Suspense, useRef, useEffect, useCallback, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -82,7 +83,7 @@ export const GlobalPatientSearchModal: React.FC<GlobalPatientSearchModalProps> =
           firstSeenDate: admissionDate,
           clinicalEpisodeId: doc.episodeKey,
         },
-        currentDateString: admissionDate || doc.updatedAt.split('T')[0] || '',
+        currentDateString: admissionDate || readClinicalTimestamp(doc.updatedAt)?.iso || '',
         bedId: 'global-search',
       });
     },

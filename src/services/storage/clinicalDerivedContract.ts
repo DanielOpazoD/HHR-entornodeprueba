@@ -190,7 +190,11 @@ const currentDocsByEpisode = (
   return current;
 };
 
-const applyMovedFields = (holder: unknown, doc: ClinicalDerivedEpisodeDoc): PlainObject => {
+/**
+ * `holder` with the moved fields `doc` has: a field present there wins even when null (null
+ * leaves it absent), a field it lacks keeps the holder's copy. Never mutates either.
+ */
+export const applyMovedFields = (holder: unknown, doc: ClinicalDerivedEpisodeDoc): PlainObject => {
   const next: PlainObject = { ...(holder as PlainObject) };
   const source = doc as unknown as PlainObject;
   CLINICAL_DERIVED_MOVED_FIELDS.forEach(field => {

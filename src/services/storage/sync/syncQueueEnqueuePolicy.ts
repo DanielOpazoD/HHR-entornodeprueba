@@ -1,10 +1,13 @@
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
+import type { DailyRecordPatchWrite } from '@/services/storage/sync/syncQueuePorts';
 
 export interface SyncQueueEnqueueOptions {
   deferProcessing?: boolean;
   holdForMs?: number;
   preOutboxHoldOwner?: string;
   preOutboxHoldReason?: 'awaiting_remote_ack';
+  /** A daily-record patch write, applied again on the day's stored record. */
+  patchWrite?: DailyRecordPatchWrite;
 }
 
 export const countActiveSyncTasks = (tasks: SyncTask[]): number =>

@@ -2,7 +2,7 @@ import {
   areGlobalEmailRecipientsEqual,
   CENSUS_GLOBAL_EMAIL_RECIPIENT_LIST,
   type GlobalEmailRecipientList,
-} from '@/services/email/emailRecipientListService';
+} from '@/services/email/emailRecipientListSupport';
 import { buildRecipientListSavePayload } from '@/hooks/controllers/censusEmailRecipientListController';
 
 interface RecipientSyncActor {

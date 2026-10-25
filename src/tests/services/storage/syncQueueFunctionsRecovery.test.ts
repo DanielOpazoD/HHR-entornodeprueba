@@ -1,0 +1,181 @@
+import 'fake-indexeddb/auto';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
+import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
+import { createSyncQueueEngine } from '@/services/storage/sync/syncQueueEngine';
+import {
+  loadFunctionsModule,
+  isFunctionsReloadRequired,
+} from '@/services/firebase-runtime/functionsModuleLoader';
+
+const createEngine = (run: () => Promise<void>) =>
+  createSyncQueueEngine({
+    store: createDexieSyncQueueStore(),
+    runtime: { isOnline: () => true, getOwnerKey: () => null, onOnline: () => undefined },
+    transport: { run },
+    batchSize: 25,
+    maxPendingTasks: 100,
+    maxRetries: 3,
+    baseRetryDelayMs: 1000,
+    maxRetryDelayMs: 30_000,
+  });
+
+beforeEach(async () => {
+  vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+  await hospitalDB.syncQueue.clear();
+});
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+it.each(['Importing a module script failed.', "'text/html' is not a valid JavaScript MIME type."])(
+  'keeps pending work and retry budget through %s, then syncs after recovery',
+  async message => {
+    const importModule = vi.fn(
+      (): ReturnType<typeof loadFunctionsModule> => Promise.reject(new TypeError(message))
+    );
+    const payload = { date: '2026-10-24', beds: {}, synthetic: 'pending-change' };
+    await hospitalDB.syncQueue.add({
+      opId: 'synthetic-functions-recovery',
+      type: 'UPDATE_DAILY_RECORD',
+      payload,
+      key: 'daily:2026-10-24',
+      status: 'PENDING',
+      timestamp: 1,
+      retryCount: 2,
+    });
+    const engine = createEngine(async () => {
+      await loadFunctionsModule(importModule);
+    });
+    for (let attempt = 0; attempt < 7; attempt++) {
+      await hospitalDB.syncQueue.toCollection().modify({ nextAttemptAt: 0 });
+      await engine.processQueue();
+      expect(isFunctionsReloadRequired()).toBe(true);
+      const [task] = await hospitalDB.syncQueue.toArray();
+      expect(task).toMatchObject({ status: 'PENDING', retryCount: 2, payload });
+      expect(task.leaseOwner).toBeUndefined();
+    }
+    importModule.mockImplementation(() => import('firebase/functions'));
+    await hospitalDB.syncQueue.toCollection().modify({ nextAttemptAt: 0 });
+    await engine.processQueue();
+    expect(isFunctionsReloadRequired()).toBe(false);
+    expect(await hospitalDB.syncQueue.count()).toBe(0);
+  }
+);
+
+it('keeps permanent authorization failures quarantined while Functions recovery is pending', async () => {
+  await loadFunctionsModule(() =>
+    Promise.reject(new TypeError('Importing a module script failed.'))
+  ).catch(() => {});
+  await hospitalDB.syncQueue.add({
+    opId: 'synthetic-permission-failure',
+    type: 'UPDATE_DAILY_RECORD',
+    payload: { date: '2026-10-24' },
+    key: 'daily:2026-10-24',
+    status: 'PENDING',
+    timestamp: 1,
+    retryCount: 0,
+  });
+  const engine = createEngine(async () => {
+    throw Object.assign(new Error('Synthetic denied'), { code: 'functions/permission-denied' });
+  });
+  await engine.processQueue();
+  expect((await hospitalDB.syncQueue.toArray())[0]).toMatchObject({
+    status: 'FAILED',
+    retryCount: 0,
+  });
+  await loadFunctionsModule();
+});
+
+it('waits a minimum of one minute before retrying a retained module import', async () => {
+  let now = Date.now();
+  vi.spyOn(Date, 'now').mockImplementation(() => now);
+  const imported = vi.fn(() => Promise.reject(new TypeError('Importing a module script failed.')));
+  await hospitalDB.syncQueue.add({
+    opId: 'synthetic-recovery-delay',
+    type: 'UPDATE_DAILY_RECORD',
+    payload: { date: '2026-10-24' },
+    key: 'daily:2026-10-24',
+    status: 'PENDING',
+    timestamp: now,
+    retryCount: 2,
+  });
+  const engine = createEngine(async () => {
+    await loadFunctionsModule(imported);
+  });
+  await engine.processQueue();
+  expect(imported).toHaveBeenCalledTimes(1);
+  now += 59_999;
+  await engine.processQueue();
+  expect(imported).toHaveBeenCalledTimes(1);
+  now += 1;
+  await engine.processQueue();
+  expect(imported).toHaveBeenCalledTimes(2);
+  expect((await hospitalDB.syncQueue.toArray())[0]).toMatchObject({
+    status: 'PENDING',
+    retryCount: 2,
+  });
+  await loadFunctionsModule();
+});
+
+it.each([5_000, 15_000, 30_000, 45_000, 59_000])(
+  'resumes retained work immediately after reload at +%s ms without resetting attempts',
+  async reloadAfterMs => {
+    let now = Date.now();
+    vi.spyOn(Date, 'now').mockImplementation(() => now);
+    const payload = { synthetic: 'retained-after-reload' };
+    await hospitalDB.syncQueue.add({
+      opId: 'synthetic-reload',
+      type: 'UPDATE_DAILY_RECORD',
+      payload,
+      status: 'PENDING',
+      timestamp: now,
+      retryCount: 2,
+    });
+    await createEngine(async () => {
+      await loadFunctionsModule(() =>
+        Promise.reject(new TypeError('Importing a module script failed.'))
+      );
+    }).processQueue();
+    expect((await hospitalDB.syncQueue.toArray())[0]).toMatchObject({
+      status: 'PENDING',
+      retryCount: 2,
+      payload,
+    });
+    now += reloadAfterMs;
+    await loadFunctionsModule();
+    const synced = vi.fn(async () => {});
+    await createEngine(synced).processQueue();
+    expect(synced).toHaveBeenCalledWith(expect.objectContaining({ retryCount: 2, payload }));
+    expect(await hospitalDB.syncQueue.count()).toBe(0);
+  }
+);
+
+it('keeps ordinary network backoff after Functions recovery clears', async () => {
+  const now = Date.now();
+  vi.spyOn(Date, 'now').mockReturnValue(now);
+  vi.spyOn(Math, 'random').mockReturnValue(0);
+  await loadFunctionsModule();
+  await hospitalDB.syncQueue.add({
+    opId: 'synthetic-normal-backoff',
+    type: 'UPDATE_DAILY_RECORD',
+    payload: { synthetic: 'normal-backoff' },
+    status: 'PENDING',
+    timestamp: now,
+    retryCount: 0,
+  });
+  await createEngine(async () => {
+    throw Object.assign(new Error('Synthetic 503'), { code: 'functions/unavailable' });
+  }).processQueue();
+  await loadFunctionsModule();
+  const synced = vi.fn(async () => {});
+  const engine = createEngine(synced);
+  await engine.processQueue();
+  expect(synced).not.toHaveBeenCalled();
+  const [task] = await hospitalDB.syncQueue.toArray();
+  expect(task).toMatchObject({ status: 'PENDING', retryCount: 1 });
+  vi.mocked(Date.now).mockReturnValue(task.nextAttemptAt!);
+  await engine.processQueue();
+  expect(synced).toHaveBeenCalledOnce();
+  expect(await hospitalDB.syncQueue.count()).toBe(0);
+});

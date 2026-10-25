@@ -4,6 +4,8 @@ import { signInWithGoogleRedirect, handleSignInRedirectResult } from '@/services
 import { signOut } from '@/services/auth/authSession';
 import * as authRedirectRuntime from '@/services/auth/authRedirectRuntime';
 import * as firebaseAuth from 'firebase/auth';
+import { warmGoogleSignInRuntime } from '@/services/auth/authGoogleFlow';
+import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 
 vi.unmock('../../services/auth/authFlow');
 vi.unmock('@/services/auth/authFlow');
@@ -90,6 +92,17 @@ describe('auth public entrypoints', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it('does not fetch network-only Functions when the login warms auth', async () => {
+    const getFunctions = vi.spyOn(defaultFunctionsRuntime, 'getFunctions');
+    try {
+      warmGoogleSignInRuntime();
+      await Promise.resolve();
+      expect(getFunctions).not.toHaveBeenCalled();
+    } finally {
+      getFunctions.mockRestore();
+    }
   });
 
   describe('signIn', () => {

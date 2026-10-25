@@ -2,7 +2,10 @@
  * DiagnosisInput - Diagnosis input with CIE-10 and free text modes
  */
 
-import React from 'react';
+import React, { useCallback, useState } from 'react';
+import { ErrorBoundary } from 'react-error-boundary';
+import { DiagnosisCie10Fallback } from './DiagnosisCie10Fallback';
+import type { DiagnosisCie10CellProps } from './DiagnosisCie10Cell';
 import clsx from 'clsx';
 import { DebouncedInput } from '@/components/ui/DebouncedInput';
 import { DeliveryRoutePopover } from './DeliveryRoutePopover';
@@ -59,6 +62,12 @@ export const DiagnosisInput: React.FC<DiagnosisInputProps> = ({
   onMultipleUpdate,
   onDeliveryRouteChange,
 }) => {
+  const [Cie10Cell, setCie10Cell] = useState<React.ComponentType<DiagnosisCie10CellProps>>(
+    () => DiagnosisCie10Cell
+  );
+  const recoverCie10 = useCallback((cell: React.ComponentType<DiagnosisCie10CellProps>) => {
+    setCie10Cell(() => cell);
+  }, []);
   const freshnessPause = useClinicalFieldFreshnessPause(clinicalPause);
   const isGinecobstetricia = isGinecobstetriciaSpecialty(data.specialty);
   const canShowDeliveryRoute =
@@ -81,26 +90,7 @@ export const DiagnosisInput: React.FC<DiagnosisInputProps> = ({
     return <PatientEmptyCell tdClassName="py-0.5 px-1 border-r border-slate-200 min-w-[160px]" />;
   }
 
-  // CIE-10 Mode
-  if (diagnosisMode === 'cie10') {
-    return (
-      <React.Suspense fallback={<DiagnosisCie10CellFallback readOnlyReason={readOnlyReason} />}>
-        <DiagnosisCie10Cell
-          data={data}
-          isSubRow={isSubRow}
-          readOnly={readOnly}
-          readOnlyReason={readOnlyReason}
-          onChange={onChange}
-          onMultipleUpdate={onMultipleUpdate}
-          canShowClinicalInitialBlockEditor={canShowClinicalInitialBlockEditor}
-          freshnessPause={freshnessPause}
-        />
-      </React.Suspense>
-    );
-  }
-
-  // Free Text Mode
-  return (
+  const freeTextCell = (
     <td
       className="census-diagnosis-cell py-0.5 px-1 border-r border-slate-200 min-w-[160px]"
       title={readOnlyReason}
@@ -162,4 +152,30 @@ export const DiagnosisInput: React.FC<DiagnosisInputProps> = ({
       </div>
     </td>
   );
+  // CIE-10 Mode
+  if (diagnosisMode === 'cie10') {
+    return (
+      <ErrorBoundary
+        resetKeys={[Cie10Cell]}
+        fallbackRender={() => (
+          <DiagnosisCie10Fallback onRecovered={recoverCie10}>{freeTextCell}</DiagnosisCie10Fallback>
+        )}
+      >
+        <React.Suspense fallback={<DiagnosisCie10CellFallback readOnlyReason={readOnlyReason} />}>
+          <Cie10Cell
+            data={data}
+            isSubRow={isSubRow}
+            readOnly={readOnly}
+            readOnlyReason={readOnlyReason}
+            onChange={onChange}
+            onMultipleUpdate={onMultipleUpdate}
+            canShowClinicalInitialBlockEditor={canShowClinicalInitialBlockEditor}
+            freshnessPause={freshnessPause}
+          />
+        </React.Suspense>
+      </ErrorBoundary>
+    );
+  }
+
+  return freeTextCell;
 };

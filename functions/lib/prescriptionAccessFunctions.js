@@ -35,6 +35,7 @@ const crypto = require('crypto');
 const { promisify } = require('util');
 const functions = require('firebase-functions/v1');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
+const { hospitalCalendarDay } = require('./hospitalCalendarDay');
 
 const PRESCRIPTION_TYPES = new Set(['comun', 'psicotropicos', 'benzodiazepinas']);
 const PRESCRIPTION_ASSIGNMENT_SCOPES = new Set(['patient', 'unassigned', 'hospitalized_stock']);
@@ -124,13 +125,8 @@ const resolveCallerRole = async (context, resolveRoleForEmail) => {
 const optionalString = (value, maxLength = 512) =>
   typeof value === 'string' && value.trim() ? value.trim().slice(0, maxLength) : undefined;
 
-const todayIso = () => {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-};
-
 const resolveIsoDate = value => {
-  if (value === undefined || value === null || value === '') return todayIso();
+  if (value === undefined || value === null || value === '') return hospitalCalendarDay();
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     throw new functions.https.HttpsError('invalid-argument', 'Fecha de censo inválida.');
   }
@@ -197,56 +193,70 @@ const requirePinString = pin => {
 const validatePinAgainstConfig = async (firestore, providedPin) => {
   const trimmed = requirePinString(providedPin);
   const ref = getAccessConfigRef(firestore);
-  const snap = await ref.get();
-  if (!snap.exists) {
-    throw new functions.https.HttpsError(
-      'failed-precondition',
-      'Acceso de recetas no configurado. Pide al administrador que defina un PIN.'
-    );
-  }
-  const data = snap.data() || {};
-  if (!data.pinHash || !data.pinSalt) {
-    throw new functions.https.HttpsError(
-      'failed-precondition',
-      'Acceso de recetas no configurado.'
-    );
-  }
-
-  // Brute-force lockout: if too many recent failures landed us in the
-  // cooldown window, refuse the attempt without even checking the hash.
-  const now = Date.now();
-  if (data.lockedUntil && Date.parse(data.lockedUntil) > now) {
-    const minutesLeft = Math.max(1, Math.ceil((Date.parse(data.lockedUntil) - now) / 60_000));
-    throw new functions.https.HttpsError(
-      'permission-denied',
-      `Demasiados intentos fallidos. Reintenta en ${minutesLeft} minuto(s).`
-    );
-  }
-
-  const candidate =
-    data.pinHashAlgorithm === PIN_HASH_ALGORITHM
-      ? await hashPin(trimmed, data.pinSalt, data.pinHashParams)
-      : hashPinLegacySha256(trimmed, data.pinSalt);
-  if (candidate !== data.pinHash) {
-    const failedAttempts = Number(data.failedAttempts || 0) + 1;
-    const update = { failedAttempts };
-    if (failedAttempts >= MAX_PIN_FAILED_ATTEMPTS) {
-      update.lockedUntil = new Date(now + PIN_LOCKOUT_MS).toISOString();
-      update.failedAttempts = 0; // Reset counter when entering lockout.
-    }
-    await ref.set(update, { merge: true });
-    if (update.lockedUntil) {
+  // The lock check, the hash comparison and the counter update share one
+  // transaction so every failed attempt counts against fresh state.
+  const outcome = await firestore.runTransaction(async tx => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) {
       throw new functions.https.HttpsError(
-        'permission-denied',
-        `Demasiados intentos fallidos. Acceso bloqueado por ${PIN_LOCKOUT_MINUTES} minutos.`
+        'failed-precondition',
+        'Acceso de recetas no configurado. Pide al administrador que defina un PIN.'
       );
     }
-    throw new functions.https.HttpsError('permission-denied', 'PIN inválido.');
-  }
+    const data = snap.data() || {};
+    if (!data.pinHash || !data.pinSalt) {
+      throw new functions.https.HttpsError(
+        'failed-precondition',
+        'Acceso de recetas no configurado.'
+      );
+    }
 
-  // Successful PIN: clear any in-flight failure counter / lockout marker.
-  if (data.failedAttempts || data.lockedUntil) {
-    await ref.set({ failedAttempts: 0, lockedUntil: null }, { merge: true });
+    // Brute-force lockout: if too many recent failures landed us in the
+    // cooldown window, refuse the attempt without even checking the hash.
+    const now = Date.now();
+    if (data.lockedUntil && Date.parse(data.lockedUntil) > now) {
+      const minutesLeft = Math.max(1, Math.ceil((Date.parse(data.lockedUntil) - now) / 60_000));
+      return { kind: 'locked', minutesLeft };
+    }
+
+    const candidate =
+      data.pinHashAlgorithm === PIN_HASH_ALGORITHM
+        ? await hashPin(trimmed, data.pinSalt, data.pinHashParams)
+        : hashPinLegacySha256(trimmed, data.pinSalt);
+    // Failed attempts are committed and reported after the transaction;
+    // throwing here would roll the counter update back.
+    if (candidate !== data.pinHash) {
+      const failedAttempts = Number(data.failedAttempts || 0) + 1;
+      const update = { failedAttempts };
+      if (failedAttempts >= MAX_PIN_FAILED_ATTEMPTS) {
+        update.lockedUntil = new Date(now + PIN_LOCKOUT_MS).toISOString();
+        update.failedAttempts = 0; // Reset counter when entering lockout.
+      }
+      tx.set(ref, update, { merge: true });
+      return { kind: update.lockedUntil ? 'lockedNow' : 'invalid' };
+    }
+
+    // Successful PIN: clear any in-flight failure counter / lockout marker.
+    if (data.failedAttempts || data.lockedUntil) {
+      tx.set(ref, { failedAttempts: 0, lockedUntil: null }, { merge: true });
+    }
+    return { kind: 'valid' };
+  });
+
+  if (outcome.kind === 'locked') {
+    throw new functions.https.HttpsError(
+      'permission-denied',
+      `Demasiados intentos fallidos. Reintenta en ${outcome.minutesLeft} minuto(s).`
+    );
+  }
+  if (outcome.kind === 'lockedNow') {
+    throw new functions.https.HttpsError(
+      'permission-denied',
+      `Demasiados intentos fallidos. Acceso bloqueado por ${PIN_LOCKOUT_MINUTES} minutos.`
+    );
+  }
+  if (outcome.kind === 'invalid') {
+    throw new functions.https.HttpsError('permission-denied', 'PIN inválido.');
   }
 };
 
@@ -430,7 +440,7 @@ const resolveUploadPatientOptionForExactDate = async (
 };
 
 const assertReadonlyUploadDateAllowed = date => {
-  const today = todayIso();
+  const today = hospitalCalendarDay();
   const yesterday = previousIsoDay(today);
   if (date !== today && date !== yesterday) {
     throw new functions.https.HttpsError(
@@ -443,10 +453,7 @@ const assertReadonlyUploadDateAllowed = date => {
 const createdAtMatchesIsoDate = (createdAt, isoDate) => {
   const created = new Date(createdAt);
   if (Number.isNaN(created.getTime())) return false;
-  const recordDate = `${created.getFullYear()}-${String(created.getMonth() + 1).padStart(2, '0')}-${String(
-    created.getDate()
-  ).padStart(2, '0')}`;
-  return recordDate === isoDate;
+  return hospitalCalendarDay(created) === isoDate;
 };
 
 const buildFirebaseStorageDownloadUrl = (bucketName, storagePath, token) =>

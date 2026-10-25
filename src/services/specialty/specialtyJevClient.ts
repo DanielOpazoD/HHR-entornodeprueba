@@ -1,4 +1,3 @@
-import { httpsCallable } from 'firebase/functions';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/firestoreServiceRuntime';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
@@ -15,6 +14,7 @@ export class JevSuggestionPendingError extends Error {}
 
 export const describeSpecialtySetupError = (error: unknown): string => {
   if (error instanceof JevSuggestionUnavailableError) return error.message;
+  if (!navigator.onLine) return 'Sin conexión.';
   const code = (error as { code?: unknown } | null)?.code;
   if (
     code === 'permission-denied' ||
@@ -109,6 +109,7 @@ export interface SpecialtyRoundSetup {
 
 const loadSpecialtyPolicy = async (): Promise<SpecialtyRoundSetup['policy']> => {
   const functions = await defaultFunctionsRuntime.getRegionalFunctions(REGION);
+  const { httpsCallable } = await import('firebase/functions');
   const callable = httpsCallable<{ action: 'read_policy' }, SpecialtyRoundSetup['policy']>(
     functions,
     'requestSpecialtyJevSuggestion',
@@ -157,6 +158,7 @@ export const saveSpecialtyRules = async (
   applyDate?: string
 ): Promise<{ appliedDecisions?: number; applicationStatus?: string }> => {
   const functions = await defaultFunctionsRuntime.getRegionalFunctions(REGION);
+  const { httpsCallable } = await import('firebase/functions');
   const callable = httpsCallable<
     Record<string, unknown>,
     {
@@ -201,6 +203,7 @@ export const requestSpecialtySuggestion = async (
   preparation: JevConsultationPreparation
 ): Promise<JevSuggestion> => {
   const functions = await defaultFunctionsRuntime.getRegionalFunctions(REGION);
+  const { httpsCallable } = await import('firebase/functions');
   const callable = httpsCallable<
     SpecialtyTarget & { requestId: string; expectedCode: string; expectedCanonicalLabel: string },
     { status: string; result?: JevSuggestion }
@@ -274,6 +277,7 @@ export const publishSpecialtyMemory = async (
 ): Promise<void> => {
   const { revision: expectedRevision } = await loadSpecialtyPolicy();
   const functions = await defaultFunctionsRuntime.getRegionalFunctions(REGION);
+  const { httpsCallable } = await import('firebase/functions');
   const callable = httpsCallable<
     SpecialtyTarget & {
       specialty: string;

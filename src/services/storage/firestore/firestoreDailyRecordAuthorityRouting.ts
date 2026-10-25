@@ -1,4 +1,3 @@
-import { httpsCallable } from 'firebase/functions';
 import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
 import {
   evaluateDailyRecordClinicalAuthority,
@@ -173,6 +172,7 @@ export const updateSpecialistMedicalHandoffViaCallable = async (
   patch: Record<string, unknown>
 ): Promise<void> => {
   const functions = await defaultFunctionsRuntime.getFunctions();
+  const { httpsCallable } = await import('firebase/functions');
   const callable = httpsCallable<
     SpecialistMedicalHandoffCallablePayload,
     { success: boolean; date: string; bedId: string }

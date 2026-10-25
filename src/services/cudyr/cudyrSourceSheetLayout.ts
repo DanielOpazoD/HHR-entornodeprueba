@@ -1,9 +1,12 @@
 import type { Cell, Worksheet } from 'exceljs';
 
-const displayText = (cell: Cell) =>
-  cell.value instanceof Date && cell.numFmt === 'dd-mm-yyyy'
-    ? cell.value.toISOString().slice(0, 10).split('-').reverse().join('-')
-    : cell.text;
+const displayText = (cell: Cell) => {
+  if (cell.value instanceof Date && cell.numFmt === 'dd-mm-yyyy') {
+    // clinical-clock-allow instant-calendar-slice: Excel dd-mm-yyyy cells encode calendar dates in UTC, not clinical event instants.
+    return cell.value.toISOString().slice(0, 10).split('-').reverse().join('-');
+  }
+  return cell.text;
+};
 
 /** Source widths are a starting point, not a constraint on readable values. */
 export const fitCudyrSourceSheet = (

@@ -15,6 +15,10 @@ import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/fir
 import type { FirestoreServiceRuntimePort } from '@/services/storage/firestore/ports/firestoreServiceRuntimePort';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 import { resolveDailyRecordConflict } from '@/services/repositories/conflictResolutionMatrix';
+import {
+  getValueAtPath,
+  hasSameValuesAtPaths,
+} from '@/services/repositories/conflictResolutionUtils';
 import { evaluateDailyRecordConflictPostMergeInvariants } from '@/services/repositories/dailyRecordConflictPostMergeInvariantChecker';
 import {
   applyDailyRecordClinicalConsistencyCheck,
@@ -138,7 +142,20 @@ const resolveRecordForSyncTask = async (
 
   const remoteData = remoteSnap.data() as Record<string, unknown>;
   const remoteLastUpdated = getRemoteLastUpdated(remoteData);
-  if (hasRemoteAppliedMutation(task, remoteData.meta as Record<string, unknown> | undefined)) {
+  const contract = task.syncContract;
+  const compacted = contract?.mutationIds?.some(id => id !== contract.mutationId);
+  const changedPaths = contract?.changedPaths ?? [];
+  const allCompactedValuesApplied =
+    changedPaths.length > 0 &&
+    !changedPaths.includes('*') &&
+    hasSameValuesAtPaths(
+      remoteData,
+      Object.fromEntries(changedPaths.map(path => [path, getValueAtPath(record, path)]))
+    );
+  if (
+    hasRemoteAppliedMutation(task, remoteData.meta as Record<string, unknown> | undefined) &&
+    (!compacted || allCompactedValuesApplied)
+  ) {
     return {
       record: docToRecord(remoteData, record.date),
       resolution: 'already_applied',

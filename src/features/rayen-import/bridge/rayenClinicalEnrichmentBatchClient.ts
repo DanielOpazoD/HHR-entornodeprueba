@@ -1,4 +1,3 @@
-import { httpsCallable } from 'firebase/functions';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import { withClientRuntimeContractVersion } from '@/services/storage/clinicalAuthorityClientVersion';
 import {
@@ -82,6 +81,7 @@ export const callRayenClinicalEnrichmentBatch = async (
   payload: RayenClinicalEnrichmentBatchPayload
 ): Promise<RayenClinicalEnrichmentBatchResponse> => {
   const functions = await defaultFunctionsRuntime.getRegionalFunctions('southamerica-east1');
+  const { httpsCallable } = await import('firebase/functions');
   const callable = httpsCallable<
     RayenClinicalEnrichmentBatchPayload,
     RayenClinicalEnrichmentBatchResponse

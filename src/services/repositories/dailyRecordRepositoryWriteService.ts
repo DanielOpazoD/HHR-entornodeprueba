@@ -380,7 +380,15 @@ const updatePartialDetailedWithinLock = async (
           origin: 'direct_queue',
           syncContract,
         },
-        buildPreOutboxRemoteAckOptions(syncContract)
+        {
+          ...buildPreOutboxRemoteAckOptions(syncContract),
+          patchWrite: {
+            baseRecord: current,
+            patch: command.patch,
+            prepare: (record, patch) =>
+              preparePatchedRecordForPersistence(record, command.date, patch).record,
+          },
+        }
       ),
     ...buildPreOutboxRemoteAckCallbacks(validatedRecord, syncContract),
     readRemoteConfirmedRecord: () => getRecordFromFirestore(command.date, { source: 'server' }),

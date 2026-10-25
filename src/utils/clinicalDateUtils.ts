@@ -34,6 +34,7 @@ export const parseCalendarDateUtcNoon = (value?: string): number | null => {
 export const addCalendarDays = (dateString: string, days: number): string => {
   const date = new Date(`${dateString}T12:00:00`);
   date.setDate(date.getDate() + days);
+  // clinical-clock-allow instant-calendar-slice: date represents the input calendar day shifted from noon; it is not an event instant.
   return date.toISOString().split('T')[0];
 };
 

@@ -1,4 +1,4 @@
-import { httpsCallable } from 'firebase/functions';
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import type { FunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 
@@ -21,13 +21,6 @@ interface QrDocumentAccessServiceDeps {
   functionsRuntime?: Pick<FunctionsRuntime, 'getFunctions'>;
 }
 
-const todayIso = (): string => {
-  const date = new Date();
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
-    date.getDate()
-  ).padStart(2, '0')}`;
-};
-
 export const createQrDocumentAccessService = (deps: QrDocumentAccessServiceDeps = {}) => {
   const functionsRuntime = deps.functionsRuntime ?? defaultFunctionsRuntime;
   return {
@@ -35,11 +28,12 @@ export const createQrDocumentAccessService = (deps: QrDocumentAccessServiceDeps 
       pin: string
     ): Promise<QrDocumentPatientOptionsResult> {
       const functions = await functionsRuntime.getFunctions();
+      const { httpsCallable } = await import('firebase/functions');
       const callable = httpsCallable<{ pin: string; date: string }, QrDocumentPatientOptionsResult>(
         functions,
         'listPrescriptionUploadPatientOptions'
       );
-      return (await callable({ pin, date: todayIso() })).data;
+      return (await callable({ pin, date: getClinicalCalendarDateISO() })).data;
     },
   };
 };

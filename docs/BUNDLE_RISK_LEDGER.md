@@ -199,3 +199,65 @@ Gates: compatibilidad de esquemas/defaults, `check:bundle-budget`,
 críticos. Rollback: revertir dependencias, adaptadores y este margen juntos; el
 regreso a las versiones vulnerables vuelve a bloquear la auditoría y no debe
 presentarse como un cierre válido.
+
+## PR #1024: exportación Word de formularios bajo demanda
+
+El CI de `b37a9f0` midió 4.878,2 KiB de precache frente al límite de 4.876 KiB.
+`clinicalFormDocx` ocupa 4,50 kB en ese build y sólo se carga desde el editor
+de formularios opcional, ya excluido. Su plantilla Word vive en `docs/`, también
+fuera del precache. Se excluye ese chunk con el mismo patrón en Vite y el control
+de presupuesto. Se alinean además las exclusiones existentes de descargas,
+verificación de arrastre e informes CUDYR en la configuración del control;
+el control sigue sumando los archivos del manifest generado, sin restar exclusiones.
+
+Se conservan los límites, el outbox, el censo, los calculadores y la carátula
+de traslado disponibles sin conexión. La prueba `pwaGeneratedManifest` genera
+un manifest con Workbox sobre assets sintéticos y compara su pertenencia con
+la contabilidad del presupuesto. El total definitivo corresponde al build de CI.
+Rollback: restaurar ambas entradas de `clinicalFormDocx`; no elevar el límite.
+
+## PR #1028: recuperación de imports de callables (2026-10-25)
+
+Owner: platform/auth y census/sync. El SDK de Functions sigue fuera del precache.
+App monta una sola recuperación y calentamiento online para todas las rutas, incluidos
+login, shell, escáner/QR, recetas, heridas y firmas. El aviso lazy tiene un fallback
+vacío si no puede cargar, sin sustituir la pantalla ni los formularios.
+Los resolvers rechazan antes del import cuando el navegador está offline, con
+`functions/unavailable`; no se envían callables ni se cambia el comportamiento offline.
+
+El verificador reprodujo imports retenidos hasta recargar en Firefox 144,
+WebKit 26 (Safari y navegadores iOS) y Chromium 143, dentro del alcance conocido
+Chromium ≤153. Ocurre tanto con conexión rechazada como con HTTP 503, aunque
+`navigator.onLine` siga true. Afecta a todas las callables, incluidos patch/save
+del registro diario, entrega especialista, lotes Rayen, firmas, QR y CUDYR.
+Chrome 156 puede recuperar el mismo URL sin recarga.
+
+Un fallo de carga del SDK marca el runtime como pendiente de recuperación. Incluye
+el caso de despliegue con hash antiguo: el fallback SPA responde HTML al URL del
+chunk y WebKit rechaza el MIME JavaScript. El detector compartido también cubre
+los mensajes de Firefox y WebKit en los componentes lazy.
+Mientras persista esa marca, los errores de red de la cola conservan PENDING,
+payload y contador de intentos; no agotan el presupuesto ni pasan a FAILED.
+Los reintentos de recuperación esperan al menos un minuto, incluso cuando el
+backoff normal de la cola está limitado a 30 segundos.
+Los errores permanentes y conflictos mantienen su política vigente. Una petición
+sin caché a version.json confirma conectividad antes de reintentar el import.
+Si el navegador sigue reteniéndolo, una región viva estable muestra un aviso fijo
+que permanece visible al desplazarse. El login RUT indica recargar para restablecer
+el acceso. El aviso ofrece una recarga
+confirmada que advierte de lo escrito sin guardar. Recargar conserva IndexedDB y
+reanuda el envío pendiente. Si el import se recupera, se retira la marca sin recargar.
+No hay recarga automática, purga ni modificación de datos clínicos.
+
+El aviso está en un chunk lazy precacheado. El build local de esta ronda mide
+4.984.925 bytes de precache (margen 8.099) y 621.079 bytes de shell (margen 10.921).
+El chunk del aviso mide 1.857 bytes. No se elevan límites ni se añade Functions
+(12.028 bytes) al precache. El margen permanece reservado para seguridad de datos.
+
+Guardas: el grafo generado protege también MoaHelpButton y el portal orbital;
+un escáner AST clasifica todos los lazy/lazyWithRetry e imports dinámicos de los
+árboles de primer pintado, con roots o excepciones opcionales justificadas.
+Una nueva carga sin clasificar hace fallar src/tests/build. Se conservan las 17
+excepciones del grafo. La recuperación se prueba con el engine y store Dexie reales,
+aviso, confirmación, import HTTP fallido y callable sintética tras recargar en los
+cuatro motores; los probes de arranque frío y especialidad usan sólo datos sintéticos.

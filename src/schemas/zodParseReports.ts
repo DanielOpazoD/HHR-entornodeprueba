@@ -9,7 +9,6 @@ export interface ValidationResult<T> {
 export interface DailyRecordParseReport {
   nullNormalization: LegacyNullNormalizationReport;
   salvagedBeds: string[];
-  /** Invalid entries left out of salvaged patients' lists (events, handoff entries, devices). */
   droppedPatientListItems: number;
   droppedDischargeItems: number;
   droppedTransferItems: number;

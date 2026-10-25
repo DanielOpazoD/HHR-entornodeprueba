@@ -22,7 +22,8 @@ vi.mock('@/services/firebase-runtime/functionsRuntime', () => ({
 vi.mock('@/services/firebase-runtime/authRuntime', () => ({ defaultAuthRuntime: {} }));
 vi.mock('@/services/auth/authRoleLookup', () => ({ clearRecentAuthRoleLookups: vi.fn() }));
 
-import { callAccount } from '@/services/auth/nursingAccountService';
+import { callAccount, accountErrorMessage } from '@/services/auth/nursingAccountService';
+import { loadFunctionsModule } from '@/services/firebase-runtime/functionsModuleLoader';
 import { sanitizeOperationalTelemetryEvent } from '@/services/observability/operationalTelemetryPrivacy';
 
 describe('RUT callable regional rollout', () => {
@@ -254,4 +255,43 @@ describe('RUT callable regional rollout', () => {
     expect(mocks.getRegionalFunctions).not.toHaveBeenCalled();
     expect(mocks.recordTelemetry).not.toHaveBeenCalled();
   });
+});
+
+describe('nursing account error messages', () => {
+  afterEach(() => vi.restoreAllMocks());
+  it('explains offline RUT login and nursing account failures before mapping callable codes', () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    for (const error of [{ code: 'functions/unavailable' }, new Error('synthetic failure')]) {
+      expect(accountErrorMessage(error)).toMatch(/sin conexión/i);
+      expect(accountErrorMessage(error)).not.toMatch(/recuperación por correo|administrador/i);
+    }
+  });
+  it('preserves the recovery service message when online', () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+    expect(accountErrorMessage({ code: 'functions/unavailable' })).toContain(
+      'recuperación por correo'
+    );
+  });
+});
+
+it('directs RUT login to reload during sticky module recovery and clears that message on success', async () => {
+  vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+  try {
+    await loadFunctionsModule(() =>
+      Promise.reject(new TypeError("'text/html' is not a valid JavaScript MIME type."))
+    ).catch(() => {});
+    expect(accountErrorMessage({ code: 'functions/unavailable' })).toMatch(
+      /Recarga la aplicación.*acceso/
+    );
+    expect(accountErrorMessage({ code: 'functions/unavailable' })).not.toMatch(
+      /correo|administrador/
+    );
+    await loadFunctionsModule();
+    expect(accountErrorMessage({ code: 'functions/unavailable' })).toMatch(
+      /recuperación por correo/
+    );
+  } finally {
+    await loadFunctionsModule();
+    vi.restoreAllMocks();
+  }
 });

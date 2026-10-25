@@ -8,6 +8,7 @@ import tailwindcss from '@tailwindcss/vite';
 import viteCompression from 'vite-plugin-compression';
 import { VitePWA } from 'vite-plugin-pwa';
 import { chunkForModule } from './scripts/config/chunkingPolicy';
+import { createPrecacheGraphGuard } from './scripts/config/pwaPrecacheGraph';
 import { minsalSharedInteropPlugin } from './scripts/config/minsalSharedInteropPlugin';
 import { netlifyFunctionDevServerPlugin } from './scripts/config/netlifyFunctionDevServer';
 import { bindReleaseEvidenceToBuild } from './scripts/config/releaseEvidenceRuntimeAsset';
@@ -135,6 +136,7 @@ function excelJsRuntimeAssetPlugin(): Plugin {
 
 export default defineConfig(({ mode }) => {
   const isProduction = mode === 'production';
+  const precacheGraph = createPrecacheGraphGuard();
   const isNetlifyLocalDev =
     process.env.NETLIFY_LOCAL === 'true' ||
     process.env.NETLIFY === 'true' ||
@@ -190,6 +192,7 @@ export default defineConfig(({ mode }) => {
         fastRefresh: !isNetlifyLocalDev,
       } as unknown as Parameters<typeof react>[0]),
       tailwindcss(),
+      precacheGraph.plugin,
       // PWA plugin configuration
       VitePWA({
         disable: process.env.STORYBOOK === 'true',
@@ -199,6 +202,7 @@ export default defineConfig(({ mode }) => {
         injectManifest: {
           swSrc: 'src/service-worker.ts',
           injectionPoint: 'self.__WB_MANIFEST',
+          manifestTransforms: [precacheGraph.manifestTransform],
           // Keep large optional references/runtime chunks out of install-time
           // precache. They remain available as normal on-demand assets, while
           // first-run PWA install stays focused on app shell/critical runtime.
@@ -220,6 +224,8 @@ export default defineConfig(({ mode }) => {
             // The additional PDF editors use the same explicit-load policy as MEDIF.
             '**/assets/ClinicalFormTool-*.js',
             '**/assets/ClinicalFormTool-*.css',
+            // Word export needs the form's template under docs/, already on demand.
+            '**/assets/clinicalFormDocx-*.js',
             '**/vendor/exceljs.bare.min.js',
             '**/assets/exceljs.min-*.js',
             '**/assets/pdf.worker-*.mjs',
@@ -251,12 +257,16 @@ export default defineConfig(({ mode }) => {
             // a reader that cannot load keeps the day's embedded copy, as it shows today.
             '**/assets/dailyRecordClinicalDerivedReadService-*.js',
             '**/assets/clinicalDerivedEpisodeReader-*.js',
+            // The backup restore of split days shares the contract and the episode schema with
+            // them. A restore that cannot load it reports those days partial, never clean.
+            '**/assets/clinicalDerivedBackupRestore-*.js',
+            '**/assets/clinicalDerivedContract-*.js',
+            '**/assets/clinicalDerived-*.js',
             // Account administration, activation and password changes require Firebase online.
             '**/assets/NursingAccountsPanel-*.js',
             '**/assets/RoleManagementPanel-*.js',
             '**/assets/NursingPasswordDialog-*.js',
             '**/assets/NursingAccessForm-*.js',
-            '**/assets/nursingAccountService-*.js',
             // Contextual CUDYR reports read server-authoritative history and cannot
             // load offline. Keep the new explorer and workbook on demand as well.
             '**/assets/CudyrReportExplorer-*.js',
@@ -287,9 +297,14 @@ export default defineConfig(({ mode }) => {
             // The patient repository requires a live Eloisa/extension session and is opened
             // explicitly from the clinical drawer, so it remains an online-only lazy surface.
             '**/assets/PatientDocumentManagerDialog-*.js',
+            // Official hospitalization reports need a live Eloisa session. Their deferred
+            // dialog already contains chunk failures without replacing the editable census.
+            '**/assets/PatientHospitalizationReportsDialog-*.js',
             '**/assets/ClinicalPanelDrawer-*.js',
             // Sync history panel: reviewed on demand while Eloísa is connected.
             '**/assets/RayenSyncHistoryModal-*.js',
+            // Census email delivery always needs the network; local exports stay cached.
+            '**/assets/sendCensusEmailUseCases-*.js',
             // Optional console-only formatter. Core timing capture remains offline-capable.
             '**/assets/perfAuditReport-*.js',
             '**/assets/SystemHealthReporterBridge-*.js',

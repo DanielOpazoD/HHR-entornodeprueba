@@ -3,10 +3,6 @@ import type { ApplyDailyRecordPatch } from '@/application/shared/dailyRecordCore
 import type { DailyRecord } from '@/domain/handoff/recordContracts';
 import type { MedicalHandoffScope } from '@/types/medicalHandoff';
 import {
-  formatHandoffMessage,
-  sendWhatsAppMessage,
-} from '@/services/integrations/whatsapp/whatsappService';
-import {
   createApplicationFailed,
   createApplicationSuccess,
 } from '@/shared/contracts/applicationOutcomeFactories';
@@ -63,6 +59,8 @@ export const executeSendMedicalHandoff = async (
   input: SendMedicalHandoffInput
 ): Promise<ApplicationOutcome<SendMedicalHandoffOutput | null>> => {
   try {
+    const { formatHandoffMessage, sendWhatsAppMessage } =
+      await import('@/services/integrations/whatsapp/whatsappService');
     const scope = input.scope || 'all';
     const doctorName = await resolveDoctorName(input.record, input.getPreviousDay);
     const { hospitalized, freeBeds } = resolveHandoffStats(input.record);
@@ -164,11 +162,11 @@ export const executeSendMedicalHandoff = async (
       handoffUrl,
       nextRecord: sentOutcome.data.nextRecord,
     });
-  } catch (error) {
+  } catch {
     return createApplicationFailed(null, [
       {
         kind: 'unknown',
-        message: error instanceof Error ? error.message : 'No se pudo enviar la entrega médica.',
+        message: 'No se pudo enviar la entrega médica. Intente nuevamente con conexión.',
       },
     ]);
   }

@@ -26,7 +26,7 @@ describe('zod schema modules', () => {
         clinicalCrib: { patientName: 'Bebe' },
       },
       'a1'
-    ).patient;
+    );
     expect(patient.patientName).toBe('RN');
     expect(patient.bedMode).toBe('Cuna');
     expect(patient.clinicalCrib?.patientName).toBe('Bebe');
@@ -55,7 +55,7 @@ describe('zod schema modules', () => {
         },
       },
       'R1'
-    ).patient;
+    );
 
     expect(patient.cudyr).toMatchObject({
       changeClothes: 2,
