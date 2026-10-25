@@ -108,4 +108,30 @@ describe('identity fields storage holds as null', () => {
     });
     expect(JSON.stringify(withStoredIdentity(record))).not.toContain('identityNulls');
   });
+
+  it('gives back the nulls whose values the read had to infer, until the nurse writes one', () => {
+    const day = readDay({
+      documentType: 'Pasaporte',
+      identityStatus: null,
+      firstName: null,
+      lastName: null,
+      secondLastName: null,
+    });
+    // The read shows an official status and name parts split from the full name.
+    expect(day.beds.R1).toMatchObject({ identityStatus: 'official', firstName: 'PACIENTE' });
+    const { record } = preparePatchedRecordPersistence(day, DATE, {
+      'beds.R1.identityStatus': 'provisional',
+    } as DailyRecordPatch);
+
+    expect(withStoredIdentity(withR2Edited(day)).beds.R1).toMatchObject({
+      identityStatus: null,
+      firstName: null,
+      lastName: null,
+      secondLastName: null,
+    });
+    expect(withStoredIdentity(record).beds.R1).toMatchObject({
+      identityStatus: 'provisional',
+      firstName: null,
+    });
+  });
 });

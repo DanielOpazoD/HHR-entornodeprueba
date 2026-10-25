@@ -80,10 +80,11 @@ export interface PatientData {
   /** Set when the stored identity could not be read. See PatientIdentityReview. */
   identityReview?: PatientIdentityReview;
   /**
-   * The identity fields storage holds as null, which this client shows empty. Only a read sets it,
-   * and it never reaches Firestore: a write gives each one back as null while it is still empty.
+   * Each identity field storage holds as null, with what the read showed instead: empty, or what
+   * the schema inferred. Only a read sets it, and it never reaches Firestore: a write gives the
+   * null back while the field still shows that.
    */
-  identityNulls?: readonly PatientIdentityField[];
+  identityNulls?: Readonly<Partial<Record<PatientIdentityField, string>>>;
   rut: string;
   documentType?: 'RUT' | 'Pasaporte'; // Switcher
   age: string;

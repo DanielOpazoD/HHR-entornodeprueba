@@ -113,10 +113,10 @@ const mapReviews = (value: unknown, path: string, store: boolean): unknown => {
       });
     }
   }
-  // A null the read showed empty goes back as null while the field is still empty.
-  if (store && Array.isArray(nulls) && BED_SLOT_PATH.test(path)) {
-    nulls.forEach(field => {
-      if (isPatientIdentityField(field) && (next[field] ?? '') === '') next[field] = null;
+  // A stored null goes back as null while the field still shows what the read showed for it.
+  if (store && isPlainObject(nulls) && BED_SLOT_PATH.test(path)) {
+    Object.entries(nulls).forEach(([field, shown]) => {
+      if (isPatientIdentityField(field) && (next[field] ?? '') === shown) next[field] = null;
     });
   }
   if (!changed) return value;
@@ -161,19 +161,23 @@ export const isSameIdentityUnderReview = (a: PatientData, b: PatientData): boole
     : undefined;
 
 /**
- * `patient` as a read of `stored` shows it, marking each identity field storage holds as null: the
- * read shows it empty, and a write gives it back as null.
+ * `patient` as a read of `stored` shows it, marking each identity field storage holds as null with
+ * what the read shows instead: a write gives the null back while the field still shows that.
  */
 export const withReadIdentityNulls = (patient: PatientData, stored: unknown): PatientData => {
   if (!isPlainObject(stored)) return patient;
   const crib =
     patient.clinicalCrib && withReadIdentityNulls(patient.clinicalCrib, stored.clinicalCrib);
-  const nulls = PATIENT_IDENTITY_FIELDS.filter(field => stored[field] === null);
+  // What the read shows for a null: empty, or what the schema inferred (a status, name parts).
+  const nulls = PATIENT_IDENTITY_FIELDS.filter(field => stored[field] === null).map(field => [
+    field,
+    String(patient[field] ?? ''),
+  ]);
   return nulls.length || crib !== patient.clinicalCrib
     ? {
         ...patient,
         ...(crib ? { clinicalCrib: crib } : {}),
-        ...(nulls.length ? { identityNulls: nulls } : {}),
+        ...(nulls.length ? { identityNulls: Object.fromEntries(nulls) } : {}),
       }
     : patient;
 };
@@ -206,14 +210,17 @@ export const clearReviewedIdentityFields = <T extends { beds: Record<string, Pat
         const shown = { ...review.shown, [field]: target[field] };
         kept = fields.length ? { ...review, fields, shown, stored } : undefined;
       }
-      keptNulls = nulls?.filter(stored => stored !== field);
+      if (nulls) {
+        const { [field]: _written, ...rest } = nulls;
+        keptNulls = rest;
+      }
     } else if (review && !holdsReadOccupant(next, review, Boolean(crib))) {
       kept = undefined;
     }
     const patient: PatientData = {
       ...next,
       ...(kept ? { identityReview: kept } : {}),
-      ...(keptNulls?.length ? { identityNulls: keptNulls } : {}),
+      ...(keptNulls && Object.keys(keptNulls).length ? { identityNulls: keptNulls } : {}),
     };
     return {
       ...current,

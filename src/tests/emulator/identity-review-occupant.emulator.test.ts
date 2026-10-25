@@ -179,4 +179,27 @@ describe.skipIf(!enabled)('writes after a bed under identity review changes hand
     expect(r1.admissionTime).toBeNull();
     expect(JSON.stringify(r1)).not.toContain('identityNulls');
   });
+
+  it('a later save of another bed keeps the nulls whose values the read inferred', async () => {
+    await storeR1({
+      documentType: 'Pasaporte',
+      identityStatus: null,
+      firstName: null,
+      lastName: null,
+      secondLastName: null,
+    });
+    signInAs('admin', 'synthetic-admin@example.invalid');
+    const day = (await getRecordFromFirestore(date))!;
+    expect(day.beds.R1).toMatchObject({ identityStatus: 'official', firstName: 'PACIENTE' });
+    day.beds.R2.pathology = 'DIAGNOSTICO EDITADO';
+
+    await saveRecordToFirestore(day, storedAt);
+
+    expect(await storedBed('R1')).toMatchObject({
+      identityStatus: null,
+      firstName: null,
+      lastName: null,
+      secondLastName: null,
+    });
+  });
 });
