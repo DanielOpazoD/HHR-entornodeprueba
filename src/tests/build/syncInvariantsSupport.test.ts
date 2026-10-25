@@ -32,7 +32,7 @@ describe('sync invariants support', () => {
     ['firestoreSyncTransport.ts', 'return { authoritativeRecord: resolved.record }', 'return'],
     [
       'syncQueueEngine.ts',
-      /store\.deleteClaimed\(\s*task\.id,\s*claim,\s*result\.authoritativeRecord\s*\)/,
+      /store\.deleteClaimed\(\s*task\.id,\s*claim,\s*result\.authoritativeRecord,\s*result\.detachedConflicts\s*\)/,
       'store.deleteClaimed(task.id, claim)',
     ],
   ])('rejects broken idempotent ACK evidence in %s: %s', (file, before, after) => {

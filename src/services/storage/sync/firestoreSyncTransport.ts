@@ -151,31 +151,26 @@ const resolveRecordForSyncTask = async (
       remoteData,
       Object.fromEntries(changedPaths.map(path => [path, getValueAtPath(record, path)]))
     );
+  const alreadyApplied = (detached?: DetachedOccupantWork): ResolvedSyncRecordForTask => ({
+    record: docToRecord(remoteData, record.date),
+    resolution: 'already_applied',
+    acceptedVersion: remoteLastUpdated,
+    storedData: remoteData,
+    detached,
+  });
   if (
     hasRemoteAppliedMutation(task, remoteData.meta as Record<string, unknown> | undefined) &&
     (!compacted || allCompactedValuesApplied)
   ) {
-    return {
-      record: docToRecord(remoteData, record.date),
-      resolution: 'already_applied',
-      acceptedVersion: remoteLastUpdated,
-      storedData: remoteData,
-    };
+    return alreadyApplied();
   }
   // Edits written for a patient who left the bed or crib never reach the next occupant.
   const detached =
     detachStaleOccupantPaths?.(task, record, docToRecord(remoteData, record.date)) ?? undefined;
   if (detached) {
     ({ task, record } = detached);
-    if (!task.syncContract?.changedPaths?.length) {
-      return {
-        record: docToRecord(remoteData, record.date),
-        resolution: 'already_applied',
-        acceptedVersion: remoteLastUpdated,
-        storedData: remoteData,
-        detached,
-      };
-    }
+    // Nothing else to publish: the stored day stays as it is.
+    if (!task.syncContract?.changedPaths?.length) return alreadyApplied(detached);
   }
 
   if (
