@@ -191,18 +191,19 @@ latest mutation marker does not by itself acknowledge the other mutations.
    for a single mutation. A compacted task additionally requires all its granular changed values
    to be present remotely; otherwise the remaining work is merged and published;
    the remote record is returned as the authoritative result.
-2. **Stale task** (remote `lastUpdated` newer than the task's `expectedVersion`) —
+2. **Departed occupant** — a bed or crib whose field edits were written for a patient or episode
+   it no longer holds: none of those edits are written to the new occupant, whatever the server
+   stamped. They leave the task as one `CONFLICT` bound to the original patient
+   (`dayTaskOccupantDetach.ts`), the other beds go on to step 3 (always merged against the remote),
+   and step 6 writes that conflict in the same transaction that completes the task. A task that
+   itself changed the occupant (admission, discharge, identity correction) is not detached.
+3. **Stale task** (remote `lastUpdated` newer than the task's `expectedVersion`) —
    `assertNoSamePathRemoteMutation` blocks when the remote `meta.lastChangedPaths` overlaps the
    task's `changedPaths` (movement arrays and disjoint medical-handoff entries/specialties may
    merge). Then `resolveDailyRecordConflict` by `changedPaths`, the post-merge invariants and the
    clinical consistency check; any block → `ConcurrencyError`. Otherwise (remote not newer, or no
    `expectedVersion`) the payload's `lastUpdated` gets the strict drift check
    (`assertSyncQueueConcurrency`, drift > 0 → `ConcurrencyError`).
-3. **Departed occupant** — a bed or crib whose field edits were written for a patient or episode
-   it no longer holds: none of those edits are written to the new occupant. They leave the task as
-   one `CONFLICT` bound to the original patient (`dayTaskOccupantDetach.ts`), the other beds
-   publish, and step 6 writes that conflict in the same transaction that completes the task. A task
-   that itself changed the occupant (admission, discharge, identity correction) is not detached.
 4. **Clinical authority** — `evaluateDailyRecordClinicalAuthority` must not block.
 5. **Publish** — enforced or fenced: the save callable, whose response must carry the committed
    record. Otherwise `runTransaction` re-runs steps 1–4 against the transactional snapshot and
@@ -212,10 +213,11 @@ latest mutation marker does not by itself acknowledge the other mutations.
    when no other task for that date is unresolved, adopts the authoritative record into IndexedDB,
    all in the same Dexie transaction.
 
-Step 2 only sees what the last server writer stamped in `meta.lastChangedPaths`. Client direct
+Step 3 only sees what the last server writer stamped in `meta.lastChangedPaths`. Client direct
 writes stamp nothing, and full saves stamp `['*']`, which the overlap check compares literally; in
-both cases the merge decides per field by episode (`isSameEpisodeForExplicitCensusPatch`). See the
-limitations below. Conflict snapshots and their restore flow are described in
+both cases the merge decides per field by episode (`isSameEpisodeForExplicitCensusPatch`), and a
+bed whose occupant changed was already set aside in step 2. See the limitations below. Conflict
+snapshots and their restore flow are described in
 [ADR_CONFLICT_VERSION_RECOVERY.md](ADR_CONFLICT_VERSION_RECOVERY.md).
 
 ### Authority callables — `dailyRecordWriteAuthorityFunctions.js`
@@ -287,7 +289,7 @@ that the records never contained. Correcting a name during a move requires a sta
   incomplete legacy rows remains indistinguishable without additional identity/admission data.
   The guard checks emptied slots, not replacements of one occupied slot by another patient.
 - **Stale queued edit after a relocation.** A queued field edit (e.g. `pathology`) made before
-  another session moved the bed's occupant is never applied to the new occupant: step 3 keeps it
+  another session moved the bed's occupant is never applied to the new occupant: step 2 keeps it
   as a conflict bound to the original patient. It does not follow the moved patient to the new
   bed; the user reviews or discards it from the local sync panel.
 - **`findPatientErasures` movement matching** uses the patient name and the bed; the

@@ -4,7 +4,6 @@ import type { Firestore, Transaction } from 'firebase/firestore';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import { createFirestoreSyncTransport } from '@/services/storage/sync/firestoreSyncTransport';
-import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 import { assertAdmissionDatePersistencePolicy } from '@/services/repositories/dailyRecordAdmissionDateWritePolicy';
 import { AdmissionDatePolicyViolationError } from '@/application/patient-flow/admissionDatePolicy';
 import { findPatientErasures } from '@/services/repositories/dailyRecordErasureGuard';
@@ -197,52 +196,60 @@ describe('bed swap with a mother and her newborn across write guards', () => {
     ]);
   });
 
-  it('rejects a stale queued edit whose path the authority stamped for the swap', async () => {
+  // The stale edit was written for A, who left R1. It reaches neither the mother now in R1 nor
+  // A in R2: the transport detaches it as a conflict bound to A, and the queue store writes that
+  // conflict in the same transaction that completes the task (`completeClaimedSyncTask`).
+  const expectStaleEditHeldForA = async () => {
+    const outcome = await replay(staleDiagnosisTask());
+
+    expect(mocks.set).not.toHaveBeenCalled();
+    expect(outcome).toMatchObject({
+      authoritativeRecord: {
+        beds: {
+          R1: { patientName: 'Madre Sintetica', pathology: 'Diagnostico madre' },
+          R2: { patientName: 'Paciente Sintetico A', pathology: 'Diagnostico A' },
+        },
+      },
+      detachedConflicts: [
+        {
+          status: 'CONFLICT',
+          lastErrorCode: 'occupant_changed',
+          error: expect.stringContaining('La cama R1 ya no tiene a Paciente Sintetico A'),
+          syncContract: { changedPaths: ['beds.R1.pathology'] },
+          payload: {
+            beds: {
+              R1: {
+                patientName: 'Paciente Sintetico A',
+                clinicalEpisodeId: 'episode-swap-a',
+                pathology: 'Diagnostico A editado antes del cambio',
+              },
+            },
+          },
+        },
+      ],
+    });
+  };
+
+  it('holds a stale queued edit as a conflict for A when the authority stamped the swap', async () => {
     serveRemote({
       ...afterSwap(),
       meta: { lastMutationId: 'swap-mutation', lastChangedPaths: SWAPPED_BEDS },
     });
 
-    const rejection = replay(staleDiagnosisTask());
-    await expect(rejection).rejects.toBeInstanceOf(ConcurrencyError);
-    await expect(rejection).rejects.toThrow(/same changed path/);
-    expect(mocks.set).not.toHaveBeenCalled();
+    await expectStaleEditHeldForA();
   });
 
-  const expectStaleEditDropped = async () => {
-    const outcome = await replay(staleDiagnosisTask());
-
-    expect(mocks.set).toHaveBeenCalledOnce();
-    const written = mocks.set.mock.calls[0][1] as DailyRecord;
-    expect(mocks.set.mock.calls[0][2]).toEqual({ merge: true });
-    expect(written.beds.R1).toMatchObject({
-      patientName: 'Madre Sintetica',
-      clinicalEpisodeId: 'episode-swap-madre',
-      pathology: 'Diagnostico madre',
-      clinicalCrib: { patientName: 'RN Sintetico', clinicalEpisodeId: 'episode-swap-rn' },
-    });
-    // The edit does not follow the moved patient either. On success the queue engine deletes the
-    // task and adopts this record (`completeClaimedSyncTask`), so no conflict is ever raised.
-    expect(written.beds.R2).toMatchObject({
-      patientName: 'Paciente Sintetico A',
-      clinicalEpisodeId: 'episode-swap-a',
-      pathology: 'Diagnostico A',
-      admissionDate: '2026-06-28',
-    });
-    expect(outcome).toMatchObject({ authoritativeRecord: { beds: { R2: written.beds.R2 } } });
-  };
-
-  it('known limit: direct publish drops the stale edit instead of moving or blocking it', async () => {
-    // Client direct writes leave no `meta.lastChangedPaths`, so the queue merges by episode.
+  it('holds the stale edit as a conflict for A after a direct publish', async () => {
+    // Client direct writes leave no `meta.lastChangedPaths`; the edit used to be dropped here.
     serveRemote(afterSwap());
 
-    await expectStaleEditDropped();
+    await expectStaleEditHeldForA();
   });
 
-  it('known limit: a full-save stamp does not block the stale edit', async () => {
-    // Full saves declare `changedPaths: ['*']`; the same-path check compares it literally.
+  it('holds the stale edit as a conflict for A after a full-save stamp', async () => {
+    // Full saves declare `changedPaths: ['*']`; the edit used to be dropped here too.
     serveRemote({ ...afterSwap(), meta: { lastMutationId: 'full-save', lastChangedPaths: ['*'] } });
 
-    await expectStaleEditDropped();
+    await expectStaleEditHeldForA();
   });
 });
