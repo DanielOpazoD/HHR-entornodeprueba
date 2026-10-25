@@ -1,7 +1,4 @@
-import {
-  buildSpecialistHandoffTargets,
-  sameSpecialistHandoffTarget,
-} from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
+import { assertPendingHandoffContinuity } from './syncTaskContractPolicy';
 import { updateSpecialistMedicalHandoffViaCallable } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import { deleteField, getDoc, runTransaction, type Transaction } from 'firebase/firestore';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
@@ -109,23 +106,6 @@ const handoffPathsForTask = (task: SyncTask): string[] =>
     /^beds\.[^.]+\.(?:clinicalCrib\.)?medicalHandoff(?:Note|Entries|Audit)$/.test(path)
   );
 
-const assertQueuedHandoffOccupants = (task: SyncTask, record: DailyRecord, remote: DailyRecord) => {
-  const paths = handoffPathsForTask(task);
-  if (!paths.length) return;
-  const patch = Object.fromEntries(paths.map(path => [path, undefined]));
-  const expected =
-    task.syncContract?.specialistHandoffTargets || buildSpecialistHandoffTargets(record, patch);
-  const actual = buildSpecialistHandoffTargets(remote, patch);
-  if (
-    expected.some(target => !actual.some(current => sameSpecialistHandoffTarget(current, target)))
-  ) {
-    throw new ConcurrencyError(
-      'La entrega pendiente pertenece a otro paciente o episodio. Se conserva en la cola para revisión manual.',
-      'semantic_conflict'
-    );
-  }
-};
-
 const queuedPatchValue = (record: DailyRecord, path: string): unknown => {
   const [, bedId, field, nestedField] = path.split('.');
   const patient = field === 'clinicalCrib' ? record.beds[bedId]?.clinicalCrib : record.beds[bedId];
@@ -161,7 +141,7 @@ const resolveRecordForSyncTask = async (
   }
 
   const remoteData = remoteSnap.data() as Record<string, unknown>;
-  assertQueuedHandoffOccupants(task, record, docToRecord(remoteData, record.date));
+  assertPendingHandoffContinuity(task, docToRecord(remoteData, record.date));
   const remoteLastUpdated = getRemoteLastUpdated(remoteData);
   if (hasRemoteAppliedMutation(task, remoteData.meta as Record<string, unknown> | undefined)) {
     return {

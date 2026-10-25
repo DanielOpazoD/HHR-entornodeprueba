@@ -101,7 +101,7 @@ const DraftEditor: React.FC<Props> = ({ patient, reportDate, entryId, value, onC
         <div className="text-xs text-amber-800 print:hidden">
           <p role="status">
             {storageFailed
-              ? 'Borrador sin guardar, solo en memoria. Inicia sesión o conserva el texto antes de cerrar.'
+              ? 'Borrador solo en memoria. Copia el texto antes de cerrar o cambiar de sesión.'
               : 'Borrador pendiente; no se reenvía automáticamente.'}
           </p>
           <details>

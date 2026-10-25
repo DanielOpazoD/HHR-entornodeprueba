@@ -186,11 +186,9 @@ export const preserveIncompatibleHandoffTask = async (
     await store.update(existing.id, {
       key: `${existing.key}:handoff-conflict:${existing.id}`,
       status: 'CONFLICT',
-      error:
-        'Entrega pendiente del paciente y episodio originales. Conservada para revisión; las nuevas ediciones del día pueden continuar.',
+      error: 'Entrega pendiente de otro paciente o episodio. Se conserva para revisión.',
       lastErrorCategory: 'conflict',
-      lastErrorAction:
-        'Revisar la entrega original en las operaciones de sincronización antes de reintentar o descartar.',
+      lastErrorAction: 'Revisar la entrega original antes de reintentar o descartar.',
     });
     return null;
   }
