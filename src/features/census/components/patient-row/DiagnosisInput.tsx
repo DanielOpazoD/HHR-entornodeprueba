@@ -158,7 +158,9 @@ export const DiagnosisInput: React.FC<DiagnosisInputProps> = ({
       <ErrorBoundary
         resetKeys={[Cie10Cell]}
         fallbackRender={() => (
-          <DiagnosisCie10Fallback onRecovered={recoverCie10}>{freeTextCell}</DiagnosisCie10Fallback>
+          <DiagnosisCie10Fallback onRecovered={recoverCie10} readOnly={readOnly}>
+            {freeTextCell}
+          </DiagnosisCie10Fallback>
         )}
       >
         <React.Suspense fallback={<DiagnosisCie10CellFallback readOnlyReason={readOnlyReason} />}>
