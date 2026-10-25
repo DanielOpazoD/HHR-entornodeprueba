@@ -70,6 +70,14 @@ describe('text typed while the session is lost', () => {
     expect(storedDraftText()).not.toContain('Texto sin sesión');
     first.unmount();
 
+    // Still signed out: a remount keeps the text in the box, with the honest notice.
+    const remounted = render(view(save));
+    expect(box()).toHaveValue('Texto sin sesión');
+    expect(screen.getByRole('status')).toHaveTextContent(/solo en memoria/);
+    fireEvent.focus(box());
+    fireEvent.blur(box());
+    remounted.unmount();
+
     localStorage.setItem(OWNER_KEY, FIRST_USER);
     render(view(save));
     fireEvent.click(screen.getByText('Revisar borrador'));
