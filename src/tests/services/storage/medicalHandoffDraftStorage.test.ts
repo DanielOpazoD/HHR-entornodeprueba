@@ -129,6 +129,25 @@ describe('drafts across tabs', () => {
     expect(await storedValues()).toEqual(['Nota antigua 1', 'Nota antigua 2']);
   });
 
+  it('retries a migration that failed on a full storage, so the old drafts come back', async () => {
+    localStorage.setItem(
+      `hhr.medicalHandoffDrafts.v1:${owner}`,
+      JSON.stringify([{ ...draft('entry-1', 'Nota antigua'), key: 'v1' }])
+    );
+    const tab = await openTab();
+    injectSetItem(quotaExceeded);
+    tab.readMedicalHandoffDrafts();
+    injectSetItem(realSetItem);
+    write(tab, draft('entry-2', 'Nota nueva'));
+    expect(
+      tab
+        .readMedicalHandoffDrafts()
+        .map(item => item.value)
+        .sort()
+    ).toEqual(['Nota antigua', 'Nota nueva']);
+    expect(localStorage.getItem(`hhr.medicalHandoffDrafts.v1:${owner}`)).toBeNull();
+  });
+
   it('keeps the shared array when a migrated copy cannot be written', async () => {
     const legacy = JSON.stringify([{ ...draft('entry-1', 'Nota antigua'), key: 'v1' }]);
     localStorage.setItem(`hhr.medicalHandoffDrafts.v1:${owner}`, legacy);

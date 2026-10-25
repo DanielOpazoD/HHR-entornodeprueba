@@ -49,7 +49,8 @@ const heldFor = new Map<string, string | null>();
 const editors = new Map<string, number>();
 const listeners = new Set<() => void>();
 const ownerResets = new Set<() => void>();
-const migratedOwners = new Set<string>();
+/** Per owner: migrated (true), or the store version its last attempt failed at. */
+const migration = new Map<string, true | number>();
 let observedOwner: string | null | undefined;
 let lastKnownOwner: string | null = null;
 let discardedForeignDraft = false;
@@ -155,20 +156,28 @@ const flushPending = (owner: string | null) => {
   }
 };
 
+/** Done only once every old draft has its slot; a failed attempt retries after any change. */
 const migrateLegacyDrafts = (owner: string) => {
-  if (migratedOwners.has(owner)) return;
-  migratedOwners.add(owner);
+  const state = migration.get(owner);
+  if (state === true || state === version) return;
   try {
     const raw = localStorage.getItem(LEGACY_PREFIX + owner);
     const parsed = draftSchema.array().safeParse(JSON.parse(raw ?? 'null'));
-    if (!parsed.success) return;
-    const migrated = parsed.data.every(draft =>
-      persist(owner, `${ownerPrefix(owner)}v1:${medicalHandoffDraftKey(draft)}`, draft)
-    );
-    if (migrated) localStorage.removeItem(LEGACY_PREFIX + owner);
+    if (!parsed.success) return void migration.set(owner, true);
+    if (
+      parsed.data.every(draft =>
+        persist(owner, `${ownerPrefix(owner)}v1:${medicalHandoffDraftKey(draft)}`, draft)
+      )
+    ) {
+      localStorage.removeItem(LEGACY_PREFIX + owner);
+      migration.set(owner, true);
+      version += 1;
+      return;
+    }
   } catch {
-    // Unreadable legacy data stays where it is; nothing is deleted on a failed migration.
+    // Nothing is deleted on a failed migration; the old drafts stay where they are.
   }
+  migration.set(owner, version);
 };
 
 export const readMedicalHandoffDrafts = (): MedicalHandoffDraft[] => {
@@ -344,6 +353,7 @@ export const resetMedicalHandoffDraftMemoryForTests = (): void => {
   pending.clear();
   heldFor.clear();
   editors.clear();
+  migration.clear();
   observedOwner = undefined;
   lastKnownOwner = null;
   discardedForeignDraft = false;
