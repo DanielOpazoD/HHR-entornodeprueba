@@ -148,6 +148,72 @@ describe('drafts across tabs', () => {
     expect(localStorage.getItem(`hhr.medicalHandoffDrafts.v1:${owner}`)).toBeNull();
   });
 
+  it('keeps a shared list an older tab saves while it is being copied, and copies it again', async () => {
+    const legacyKey = `hhr.medicalHandoffDrafts.v1:${owner}`;
+    localStorage.setItem(legacyKey, JSON.stringify([draft('entry-1', 'Versión vieja')]));
+    let olderTabSaves = true;
+    injectSetItem((key, value) => {
+      realSetItem(key, value);
+      if (olderTabSaves && key.startsWith('hhr.medicalHandoffDraft.v2:')) {
+        olderTabSaves = false;
+        realSetItem(
+          legacyKey,
+          JSON.stringify([
+            draft('entry-1', 'Versión nueva de la otra pestaña'),
+            draft('entry-2', 'Otra nota de la otra pestaña'),
+          ])
+        );
+      }
+    });
+    const tab = await openTab();
+    tab.readMedicalHandoffDrafts();
+    injectSetItem(realSetItem);
+    expect(olderTabSaves).toBe(false);
+    expect(localStorage.getItem(legacyKey)).toContain('Versión nueva de la otra pestaña');
+
+    const newer = ['Otra nota de la otra pestaña', 'Versión nueva de la otra pestaña'];
+    expect(
+      tab
+        .readMedicalHandoffDrafts()
+        .map(item => item.value)
+        .sort()
+    ).toEqual(newer);
+    expect(localStorage.getItem(legacyKey)).toBeNull();
+    expect(await storedValues()).toEqual(newer);
+  });
+
+  it('shows the old drafts on the next read once storage has room, with no new edit', async () => {
+    const legacyKey = `hhr.medicalHandoffDrafts.v1:${owner}`;
+    localStorage.setItem(legacyKey, JSON.stringify([draft('entry-1', 'Nota antigua')]));
+    const tab = await openTab();
+    injectSetItem(quotaExceeded);
+    expect(tab.readMedicalHandoffDrafts()).toEqual([]);
+    injectSetItem(realSetItem);
+    expect(tab.readMedicalHandoffDrafts().map(item => item.value)).toEqual(['Nota antigua']);
+    expect(localStorage.getItem(legacyKey)).toBeNull();
+  });
+
+  it('tells the view once another tab frees space for old drafts still waiting', async () => {
+    localStorage.setItem(
+      `hhr.medicalHandoffDrafts.v1:${owner}`,
+      JSON.stringify([draft('entry-1', 'Nota antigua')])
+    );
+    const tab = await openTab();
+    injectSetItem(quotaExceeded);
+    tab.readMedicalHandoffDrafts();
+    const listener = vi.fn();
+    tab.subscribeMedicalHandoffDrafts(listener);
+    const otherTabChange = () =>
+      window.dispatchEvent(new StorageEvent('storage', { key: 'synthetic-unrelated-cache' }));
+    otherTabChange();
+    expect(listener).not.toHaveBeenCalled();
+    injectSetItem(realSetItem);
+    otherTabChange();
+    await Promise.resolve();
+    expect(listener).toHaveBeenCalled();
+    expect(tab.readMedicalHandoffDrafts().map(item => item.value)).toEqual(['Nota antigua']);
+  });
+
   it('keeps the shared array when a migrated copy cannot be written', async () => {
     const legacy = JSON.stringify([{ ...draft('entry-1', 'Nota antigua'), key: 'v1' }]);
     localStorage.setItem(`hhr.medicalHandoffDrafts.v1:${owner}`, legacy);
