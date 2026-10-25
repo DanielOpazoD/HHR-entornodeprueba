@@ -191,7 +191,13 @@ that projection instead of replacing it, and compacting an unresolved task keeps
   run even when every pending path overlaps;
 - whole-record writes (`*`) still replace the projection;
 - a specialist note task (`UPDATE_SPECIALIST_HANDOFF`) lands its projection with the same patch
-  rebase, but never changes a projection that a pending day task still holds.
+  rebase, but never changes a projection that a pending day task still holds. The projection
+  publishes nothing, so the day keeps the `lastUpdated` it was read at: a later day write starts
+  from that version, and a read still prefers a newer server day. The task records the values the
+  projection replaced; once the note can no longer publish (`CONFLICT`, `FAILED` or discarded),
+  the stored day and any day write folded on top get them back wherever they still show the
+  note's values. A note queued before this rule recorded nothing: the day then counts as older
+  than any server version (`UNKNOWN_SERVER_VERSION`), and its day writes merge by changed paths.
 
 Cache hydration keeps a projection that still has unresolved writes. The read, the realtime
 snapshot and the manual sync then publish that projection (`local_authoritative` or `local_kept`)
@@ -224,12 +230,17 @@ latest mutation marker does not by itself acknowledge the other mutations.
    `assertNoSamePathRemoteMutation` blocks when the remote `meta.lastChangedPaths` overlaps the
    task's `changedPaths` (movement arrays and disjoint medical-handoff entries/specialties may
    merge). Then `resolveDailyRecordConflict` by `changedPaths`, the post-merge invariants and the
-   clinical consistency check; any block → `ConcurrencyError`. Otherwise (remote not newer, or no
-   `expectedVersion`) the payload's `lastUpdated` gets the strict drift check
-   (`assertSyncQueueConcurrency`, drift > 0 → `ConcurrencyError`).
+   clinical consistency check; any block → `ConcurrencyError`. A task whose copy holds another
+   patient or episode than the stored day in a bed or crib it did not touch is merged the same
+   way: its version cannot be that day's. Otherwise (remote not newer, or no `expectedVersion`)
+   the payload's `lastUpdated` gets the strict drift check (`assertSyncQueueConcurrency`, drift > 0
+   → `ConcurrencyError`), and note fields (`medicalHandoffEntries`, `medicalHandoffNote`,
+   `medicalHandoffAudit`, `clinicalEvents`, bed and crib) outside its changed paths keep the stored
+   day's values: a day write never publishes a note it did not write.
 4. **Clinical authority** — `evaluateDailyRecordClinicalAuthority` must not block.
 5. **Publish** — enforced or fenced: the save callable, whose response must carry the committed
-   record. Otherwise `runTransaction` re-runs steps 1–4 against the transactional snapshot and
+   record. A merged task sends the version and revision of the stored day it merged onto as its
+   base, so the callable refuses only a write that landed after that read. Otherwise `runTransaction` re-runs steps 1–4 against the transactional snapshot and
    writes with `{ merge: true }`, so beds absent from the payload are never dropped. With the
    deployment mode `shadow`, a dry-run callable runs first and its failure never blocks.
 6. **Acknowledge** — `completeClaimedSyncTask` writes any detached conflict, deletes the task and,
