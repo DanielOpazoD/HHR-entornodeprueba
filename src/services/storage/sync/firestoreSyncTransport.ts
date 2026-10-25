@@ -38,9 +38,7 @@ import { saveDailyRecordWithClinicalAuthorityCallable } from '@/services/storage
 import { recordSyncQueueTruthSelectionTelemetry } from '@/services/storage/sync/syncQueueTelemetryController';
 import {
   assertNoSamePathRemoteMutation,
-  hasOtherOccupantInUntouchedBed,
   hasRemoteAppliedMutation,
-  keepStoredNoteFields,
 } from '@/services/storage/sync/firestoreSyncConflictPolicy';
 import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
 import { resolveRecordBaseRevision } from '@/services/storage/sync/syncTaskContractPolicy';
@@ -118,18 +116,18 @@ interface ResolvedSyncRecordForTask {
   detached?: DetachedOccupantWork;
 }
 
-type DetachStaleOccupantPaths = (
-  task: SyncTask,
-  record: DailyRecord,
-  remote: DailyRecord
-) => DetachedOccupantWork | null;
+/** The day task's occupant and replay checks, loaded with the outbox for a task that names paths. */
+type ReplayChecks = Pick<
+  typeof import('./dexieDailyRecordOutbox'),
+  'detachStaleOccupantPaths' | 'hasOtherOccupantInUntouchedBed' | 'keepStoredNoteFields'
+>;
 
 const resolveRecordForSyncTask = async (
   queuedTask: SyncTask,
   queuedRecord: DailyRecord,
   runtime: FirestoreServiceRuntimePort,
   transaction?: Transaction,
-  detachStaleOccupantPaths?: DetachStaleOccupantPaths
+  checks?: ReplayChecks
 ): Promise<ResolvedSyncRecordForTask> => {
   let task = queuedTask;
   let record = queuedRecord;
@@ -165,7 +163,8 @@ const resolveRecordForSyncTask = async (
   // Edits written for a patient who left the bed or crib never reach the next occupant. They are
   // rebuilt even when the rest already landed, since the ACK that kept them may have rolled back.
   const detached =
-    detachStaleOccupantPaths?.(task, record, docToRecord(remoteData, record.date)) ?? undefined;
+    checks?.detachStaleOccupantPaths(task, record, docToRecord(remoteData, record.date)) ??
+    undefined;
   if (
     hasRemoteAppliedMutation(task, remoteData.meta as Record<string, unknown> | undefined) &&
     (!compacted || allCompactedValuesApplied)
@@ -182,11 +181,11 @@ const resolveRecordForSyncTask = async (
   if (
     !detached &&
     !shouldRevalidateAgainstRemote(remoteLastUpdated, task.syncContract?.expectedVersion) &&
-    !hasOtherOccupantInUntouchedBed(task, record, remoteRecord)
+    !checks?.hasOtherOccupantInUntouchedBed(task, record, remoteRecord)
   ) {
     assertSyncQueueConcurrency(record, remoteLastUpdated);
     return {
-      record: keepStoredNoteFields(task, record, remoteRecord),
+      record: checks?.keepStoredNoteFields(task, record, remoteRecord) ?? record,
       resolution: 'accepted',
       acceptedVersion: record.lastUpdated,
       storedData: remoteData,
@@ -267,15 +266,17 @@ const syncDailyRecord = async (
   runtime: FirestoreServiceRuntimePort
 ): Promise<SyncTransportResult | void> => {
   if (await runE2ESyncTransport(task)) return;
-  const occupants = task.syncContract?.changedPaths?.some(path => /^beds\.[^.]+\./.test(path))
-    ? await import('./dexieDailyRecordOutbox')
-    : undefined;
-  const detach = occupants?.detachStaleOccupantPaths;
+  // A task that names its paths replays with the occupant checks; a whole-record one writes it all.
+  const changedPaths = task.syncContract?.changedPaths ?? [];
+  const occupants =
+    changedPaths.length && !changedPaths.includes('*')
+      ? await import('./dexieDailyRecordOutbox')
+      : undefined;
   let detached: DetachedOccupantWork | undefined;
   const result = await measureRepositoryOperation(
     'syncQueue.writeDailyRecord',
     async (): Promise<SyncTransportResult> => {
-      const resolved = await resolveRecordForSyncTask(task, record, runtime, undefined, detach);
+      const resolved = await resolveRecordForSyncTask(task, record, runtime, undefined, occupants);
       detached = resolved.detached;
       if (resolved.resolution === 'already_applied') {
         recordSyncQueueTruthSelectionTelemetry(task, {
@@ -356,7 +357,13 @@ const syncDailyRecord = async (
       const committed = await runTransaction(runtime.getDb(), async transaction => {
         // Re-evaluate the original intent against the snapshot protected by this transaction.
         // Firestore reruns this callback if another writer changes the document before commit.
-        const current = await resolveRecordForSyncTask(task, record, runtime, transaction, detach);
+        const current = await resolveRecordForSyncTask(
+          task,
+          record,
+          runtime,
+          transaction,
+          occupants
+        );
         detached = current.detached;
         if (current.resolution === 'already_applied') return current;
         assertResolvedClinicalAuthority(task, current);

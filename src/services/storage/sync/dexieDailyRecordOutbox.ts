@@ -5,8 +5,12 @@ import type { SpecialistHandoffSyncPayload, SyncTask } from '@/services/storage/
 import type { PatientData } from '@/types/domain/patient';
 import { specialistHandoffTextState } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
 import { hasSameBedOccupant } from '@/services/storage/sync/bedOccupantIdentity';
-// The replay-time occupant check ships with the enqueue-time one, in this lazy chunk.
+// The replay-time occupant checks ship with the enqueue-time one, in this lazy chunk.
 export { detachStaleOccupantPaths } from '@/services/storage/sync/dayTaskOccupantDetach';
+export {
+  hasOtherOccupantInUntouchedBed,
+  keepStoredNoteFields,
+} from '@/services/storage/sync/dayTaskReplayGuard';
 import { mergeMovementArrayById } from '@/services/repositories/conflictResolutionMovementMergePolicy';
 import { mergeRayenSyncHistory } from '@/services/repositories/dailyRecordRayenSyncHistoryPolicy';
 import {
