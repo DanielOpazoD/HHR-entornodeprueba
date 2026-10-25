@@ -1,3 +1,7 @@
+import {
+  FUNCTIONS_RELOAD_REQUIRED_MESSAGE,
+  isFunctionsReloadRequired,
+} from '@/services/firebase-runtime/functionsModuleLoader';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -23,6 +27,7 @@ export type { DocumentScannerDemoPhase } from './documentScannerControllerTypes'
 
 const resolvePinAccessErrorMessage = (error: unknown): string => {
   if (!navigator.onLine) return 'Sin conexión.';
+  if (isFunctionsReloadRequired()) return FUNCTIONS_RELOAD_REQUIRED_MESSAGE;
   const code =
     error && typeof error === 'object' && 'code' in error
       ? String((error as { code?: unknown }).code || '')
@@ -35,7 +40,10 @@ const resolvePinAccessErrorMessage = (error: unknown): string => {
     code === 'functions/unavailable' ||
     message.trim().toLowerCase() === 'internal'
   ) {
-    return 'El servicio de acceso no está disponible en este entorno. Inicia las funciones locales o usa el ambiente de pruebas desplegado.';
+    if (import.meta.env.DEV && code === 'functions/not-found') {
+      return 'El servicio de acceso no está disponible en este entorno. Inicia las funciones locales o usa el ambiente de pruebas desplegado.';
+    }
+    return 'El servicio de acceso no está disponible ahora. Reintenta en unos minutos.';
   }
 
   return message || 'No se pudo validar el PIN.';
