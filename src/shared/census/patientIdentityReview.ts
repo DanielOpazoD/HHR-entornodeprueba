@@ -116,6 +116,21 @@ export const withStoredIdentity = <T>(value: T): T => mapReviews(value, '', true
  */
 export const withoutStoredIdentityReviews = <T>(value: T): T => mapReviews(value, '', false) as T;
 
+const identityOf = (patient: PatientData) =>
+  JSON.stringify([
+    PATIENT_IDENTITY_FIELDS.map(field => patient[field]),
+    patient.identityReview?.fields,
+    patient.identityReview?.stored,
+  ]);
+
+/**
+ * Whether two copies of a bed hold the same patient when either identity is under review: only a
+ * copy with that very identity, as shown and as stored, does. A name or an admission date is no
+ * evidence. Undefined when neither is under review.
+ */
+export const isSameIdentityUnderReview = (a: PatientData, b: PatientData): boolean | undefined =>
+  a.identityReview || b.identityReview ? identityOf(a) === identityOf(b) : undefined;
+
 const BED_FIELD_PATH = /^beds\.([^.]+)\.(?:(clinicalCrib)\.)?([^.]+)$/;
 
 /** A field written explicitly by a patch is no longer under review; the write validated it. */

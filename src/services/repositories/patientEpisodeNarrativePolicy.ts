@@ -1,6 +1,7 @@
 import type { PatientData } from '@/services/contracts/patientServiceContracts';
 import { buildClinicalEpisodeKey } from '@/application/patient-flow/clinicalEpisode';
 import { LEGACY_EPISODE_ID_PREFIX } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
+import { isSameIdentityUnderReview } from '@/shared/census/patientIdentityReview';
 
 const EPISODE_SCOPED_PATIENT_STRUCTURED_FIELDS = new Set([
   'clinicalEvents',
@@ -65,6 +66,10 @@ export const shouldPreserveLocalPatientNarrative = (
 ): boolean => {
   if (!remotePatient || !localPatient) {
     return true;
+  }
+  const sameIdentityUnderReview = isSameIdentityUnderReview(remotePatient, localPatient);
+  if (sameIdentityUnderReview !== undefined) {
+    return sameIdentityUnderReview;
   }
 
   const remoteClinicalEpisodeId = resolvePersistedClinicalEpisodeId(remotePatient);

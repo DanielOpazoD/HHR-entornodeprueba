@@ -12,6 +12,7 @@ import {
   shouldUseRemoteEpisodeScopedValue,
 } from '@/services/repositories/patientEpisodeNarrativePolicy';
 import { isPlainObject, isPrimitive } from '@/services/repositories/conflictResolutionUtils';
+import { isSameIdentityUnderReview } from '@/shared/census/patientIdentityReview';
 import {
   mergePatientDevices,
   type DeviceDetailsLike,
@@ -218,6 +219,15 @@ export const mergePatientData = (
   }
   if (!remotePatient && !localPatient) {
     return {} as PatientData;
+  }
+  // A copy that is not the same identity under review shares nothing with the stored patient: no
+  // field of one fills or replaces the other, so the stored side stays as it is.
+  if (
+    remotePatient &&
+    localPatient &&
+    isSameIdentityUnderReview(remotePatient, localPatient) === false
+  ) {
+    return remotePatient;
   }
 
   if (

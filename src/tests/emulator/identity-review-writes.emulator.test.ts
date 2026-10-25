@@ -41,7 +41,8 @@ import {
   updateRecordPartial,
 } from '@/services/storage/firestore/firestoreRecordWrites';
 import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
-import { sanitizeForFirestore } from '@/services/storage/firestore/firestoreShared';
+import { docToRecord, sanitizeForFirestore } from '@/services/storage/firestore/firestoreShared';
+import { resolveDailyRecordConflict } from '@/services/repositories/conflictResolutionMatrix';
 import { createFirestoreSyncTransport } from '@/services/storage/sync/firestoreSyncTransport';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { importRecordsFromBackup } from '@/services/admin/dataMaintenanceService';
@@ -71,14 +72,14 @@ describe.skipIf(!enabled)('writes against a stored day with an unreadable identi
   };
   const storedBed = async (bedId: string, path = docPath) =>
     ((await readStored(path)).beds as Record<string, Json>)[bedId];
-  const storeR1 = async (fields: Json) =>
+  const storeR1 = async (fields: Json, day: Json = {}) =>
     environment.withSecurityRulesDisabled(async context => {
       const stored = await readStored();
       const beds = stored.beds as Record<string, Json>;
       await context
         .firestore()
         .doc(docPath)
-        .set({ ...stored, beds: { ...beds, R1: { ...beds.R1, ...fields } } });
+        .set({ ...stored, ...day, beds: { ...beds, R1: { ...beds.R1, ...fields } } });
     });
   const signInAs = (role: string, email: string) => {
     activeDb = environment.authenticatedContext(`synthetic-${role}`, { email, role }).firestore();
@@ -244,5 +245,82 @@ describe.skipIf(!enabled)('writes against a stored day with an unreadable identi
     });
     expect((await storedBed('R2', dayPath(nextDate))).patientName).toBe('PACIENTE DOS');
     expect(JSON.stringify(await readStored(dayPath(nextDate)))).not.toContain('identityReview');
+  });
+
+  it('a merge with a same-named copy that is not that identity stores none of its text', async () => {
+    await storeR1({
+      rut: { fake: 'REMOTE-DOC' },
+      clinicalEpisodeId: { fake: 'REMOTE-EP' },
+      pathology: '',
+      medicalHandoffNote: '',
+    });
+    const remote = (await getRecordFromFirestore(date))!;
+    const local = docToRecord(
+      storedDay(
+        {
+          rut: '',
+          clinicalEpisodeId: undefined,
+          pathology: 'OTRO DIAGNOSTICO SINTETICO',
+          medicalHandoffNote: 'OTRA NOTA SINTETICA',
+        },
+        { date, lastUpdated: storedAt }
+      ),
+      date
+    );
+    signInAs('admin', 'synthetic-admin@example.invalid');
+
+    await saveRecordToFirestore(resolveDailyRecordConflict(remote, local), storedAt);
+
+    expect(await storedBed('R1')).toMatchObject({
+      rut: { fake: 'REMOTE-DOC' },
+      clinicalEpisodeId: { fake: 'REMOTE-EP' },
+      pathology: '',
+      medicalHandoffNote: '',
+    });
+  });
+
+  it('the replay of such a copy onto a newer stored day stores none of its text', async () => {
+    const newerAt = `${date}T08:30:00.000Z`;
+    await storeR1(
+      {
+        rut: { fake: 'REMOTE-DOC' },
+        clinicalEpisodeId: { fake: 'REMOTE-EP' },
+        pathology: '',
+        medicalHandoffNote: '',
+      },
+      { lastUpdated: newerAt }
+    );
+    const payload = (await getRecordFromFirestore(date))!;
+    payload.lastUpdated = storedAt;
+    payload.beds.R1 = docToRecord(
+      storedDay({
+        rut: '',
+        clinicalEpisodeId: undefined,
+        pathology: 'OTRO DIAGNOSTICO SINTETICO',
+        medicalHandoffNote: 'OTRA NOTA SINTETICA',
+      }),
+      date
+    ).beds.R1;
+    signInAs('admin', 'synthetic-admin@example.invalid');
+    const runtime = { getDb: () => activeDb as Firestore, ready: Promise.resolve() };
+
+    await createFirestoreSyncTransport(runtime).run({
+      opId: 'synthetic-same-name-op',
+      type: 'UPDATE_DAILY_RECORD',
+      payload,
+      timestamp: 1,
+      retryCount: 0,
+      status: 'PENDING',
+      syncContract: {
+        expectedVersion: storedAt,
+        changedPaths: ['beds.R1.pathology', 'beds.R1.medicalHandoffNote'],
+      },
+    });
+
+    expect(await storedBed('R1')).toMatchObject({
+      rut: { fake: 'REMOTE-DOC' },
+      pathology: '',
+      medicalHandoffNote: '',
+    });
   });
 });

@@ -1,6 +1,7 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 import { CLINICAL_AUTHORITY_BED_FIELDS } from '@/services/storage/dailyRecordAuthorityContract';
+import { isSameIdentityUnderReview } from '@/shared/census/patientIdentityReview';
 
 // Fuente de verdad: el contrato único de autoridad (compartido con functions).
 export const CLINICAL_CENSUS_EDITABLE_FIELDS = CLINICAL_AUTHORITY_BED_FIELDS;
@@ -26,6 +27,10 @@ export const isSameEpisodeForExplicitCensusPatch = (
 ): boolean => {
   if (!remotePatient || !localPatient) {
     return false;
+  }
+  const sameIdentityUnderReview = isSameIdentityUnderReview(remotePatient, localPatient);
+  if (sameIdentityUnderReview !== undefined) {
+    return sameIdentityUnderReview;
   }
 
   const remoteEpisodeId = normalizeEpisodeScalar(remotePatient.clinicalEpisodeId);

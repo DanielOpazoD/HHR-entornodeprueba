@@ -19,6 +19,7 @@ import { syncPatientsToMasterInBackground } from '@/services/repositories/dailyR
 import { PatientMasterRepository } from '@/services/repositories/PatientMasterRepository';
 import type { RayenEncounter } from '@/features/rayen-import/contracts/rayenSnapshot';
 import type { PatientData } from '@/types/domain/patient';
+import { withStoredIdentity } from '@/shared/census/patientIdentityReview';
 import { storedDay } from '@/tests/fixtures/identityReviewDayFixture';
 
 const PRIOR = '2026-10-23';
@@ -116,6 +117,59 @@ describe('identity features never match a patient whose identity is under review
     expect(
       resolveDailyRecordConflict(staleLocal, repairedElsewhere).beds.R1.identityReview?.fields
     ).toEqual(['documentType']);
+  });
+
+  it('never moves the clinical text of another copy onto an identity under review', () => {
+    // Stored: a passport whose number and episode cannot be read. The local copy has the same name
+    // and admission date, no document or episode, and another patient's diagnosis and note.
+    const remote = docToRecord(
+      storedDay({
+        rut: { fake: 'REMOTE-DOC' },
+        clinicalEpisodeId: { fake: 'REMOTE-EP' },
+        pathology: '',
+        medicalHandoffNote: '',
+      }),
+      TODAY
+    );
+    const local = docToRecord(
+      storedDay({
+        rut: '',
+        clinicalEpisodeId: undefined,
+        pathology: 'OTRO DIAGNOSTICO SINTETICO',
+        medicalHandoffNote: 'OTRA NOTA SINTETICA',
+      }),
+      TODAY
+    );
+
+    [
+      resolveDailyRecordConflict(remote, local),
+      resolveDailyRecordConflict(remote, local, { changedPaths: ['beds.R1'] }),
+      resolveDailyRecordConflict(remote, local, {
+        changedPaths: ['beds.R1.pathology', 'beds.R1.medicalHandoffNote'],
+      }),
+    ].forEach(merged => {
+      expect(merged.beds.R1).toMatchObject({ pathology: '', medicalHandoffNote: '' });
+      expect(withStoredIdentity(merged).beds.R1).toMatchObject({
+        rut: { fake: 'REMOTE-DOC' },
+        clinicalEpisodeId: { fake: 'REMOTE-EP' },
+      });
+    });
+  });
+
+  it('merges a clinical edit of the very same identity under review', () => {
+    const remote = docToRecord(
+      storedDay(undefined, { lastUpdated: `${TODAY}T09:00:00.000Z` }),
+      TODAY
+    );
+    const local = docToRecord(storedDay(), TODAY);
+    local.beds.R1.pathology = 'DIAGNOSTICO EDITADO';
+
+    const merged = resolveDailyRecordConflict(remote, local, {
+      changedPaths: ['beds.R1.pathology'],
+    });
+
+    expect(merged.beds.R1.pathology).toBe('DIAGNOSTICO EDITADO');
+    expect(merged.beds.R1.identityReview?.fields).toEqual(['documentType']);
   });
 
   it('never opens documents, requests or history found by a RUT under review', () => {
