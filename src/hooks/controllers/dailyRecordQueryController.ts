@@ -338,6 +338,7 @@ export const createDailyRecordSubscription = (
 export const buildPreviousDayDate = (date: string) => {
   const currentDate = new Date(`${date}T12:00:00`);
   currentDate.setDate(currentDate.getDate() - 1);
+  // clinical-clock-allow instant-calendar-slice: currentDate is calendar arithmetic from the requested day at noon, not an event instant.
   return currentDate.toISOString().split('T')[0];
 };
 

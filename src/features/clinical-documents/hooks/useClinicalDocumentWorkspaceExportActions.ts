@@ -16,11 +16,8 @@ import { recordOperationalTelemetry } from '@/services/observability/operational
 import { recordCriticalClinicalAction } from '@/services/observability/criticalClinicalActionRecorder';
 import type { OperationalTelemetryStatus } from '@/services/observability/operationalTelemetryTypes';
 import { useAuditContext } from '@/context/AuditContext';
-import {
-  resolveClinicalDocumentExceptionMessage,
-  updateClinicalDocumentPdfFailure,
-  updateClinicalDocumentPdfSuccess,
-} from './clinicalDocumentWorkspaceActionSupport';
+import { resolveClinicalDocumentExceptionMessage } from './clinicalDocumentWorkspaceActionSupport';
+import type { ClinicalDocumentWorkspaceDraftState } from './useClinicalDocumentWorkspaceDraft';
 
 interface NotificationPort {
   success: (title: string, message?: string) => void;
@@ -34,7 +31,7 @@ interface UseClinicalDocumentWorkspaceExportActionsParams {
   selectedDocument: ClinicalDocumentRecord | null;
   hospitalId: string;
   notify: NotificationPort;
-  setDraft: React.Dispatch<React.SetStateAction<ClinicalDocumentRecord | null>>;
+  applyPdfExportResult: ClinicalDocumentWorkspaceDraftState['applyPdfExportResult'];
 }
 
 interface UploadPdfOptions {
@@ -101,7 +98,7 @@ export const useClinicalDocumentWorkspaceExportActions = ({
   selectedDocument,
   hospitalId,
   notify,
-  setDraft,
+  applyPdfExportResult,
 }: UseClinicalDocumentWorkspaceExportActionsParams) => {
   const [isUploadingPdf, setIsUploadingPdf] = useState(false);
   const { logEvent } = useAuditContext();
@@ -222,13 +219,11 @@ export const useClinicalDocumentWorkspaceExportActions = ({
             exportType: 'pdf',
             issues: [outcomeError || 'No se pudo exportar el PDF clínico.'],
           });
-          setDraft(prev =>
-            updateClinicalDocumentPdfFailure(
-              prev,
-              outcomeError || 'No se pudo exportar el PDF clínico.',
-              recordToExport
-            )
-          );
+          applyPdfExportResult({
+            target: recordToExport,
+            status: 'failed',
+            errorMessage: outcomeError || 'No se pudo exportar el PDF clínico.',
+          });
           notify.error('Falló la exportación', outcomeError || 'El PDF no se pudo subir.');
           return;
         }
@@ -247,7 +242,7 @@ export const useClinicalDocumentWorkspaceExportActions = ({
           fileId: exportedPdf.fileId,
           annexMode: options.annexMode,
         });
-        setDraft(prev => updateClinicalDocumentPdfSuccess(prev, exportedPdf, recordToExport));
+        applyPdfExportResult({ target: recordToExport, status: 'success', pdf: exportedPdf });
         if (options.notifySuccess !== false) {
           notify.success(
             options.successTitle || 'PDF exportado',
@@ -275,13 +270,13 @@ export const useClinicalDocumentWorkspaceExportActions = ({
           exportType: 'pdf',
           issues: [errorMessage],
         });
-        setDraft(prev => updateClinicalDocumentPdfFailure(prev, errorMessage, recordToExport));
+        applyPdfExportResult({ target: recordToExport, status: 'failed', errorMessage });
         notify.error('Falló la exportación', errorMessage);
       } finally {
         setIsUploadingPdf(false);
       }
     },
-    [hospitalId, logClinicalDocumentExportAudit, notify, selectedDocument, setDraft]
+    [hospitalId, logClinicalDocumentExportAudit, notify, selectedDocument, applyPdfExportResult]
   );
 
   const handlePrint = useCallback(async () => {

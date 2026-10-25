@@ -38,6 +38,7 @@ export const cudyrSourceNonHospitalAdmission = (rows: CudyrReportRow[]) => {
     dates.size !== 1 ||
     !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
     !Number.isFinite(Date.parse(date)) ||
+    // clinical-clock-allow instant-calendar-slice: date passed the YYYY-MM-DD check; this UTC round trip rejects nonexistent calendar dates.
     new Date(date).toISOString().slice(0, 10) !== date
   )
     return null;

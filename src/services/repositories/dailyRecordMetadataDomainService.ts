@@ -19,6 +19,7 @@ export const ensureDailyRecordDateTimestamp = (record: DailyRecordMetadataState)
   const { date, dateTimestamp } = record;
   if (
     date &&
+    // clinical-clock-allow instant-calendar-slice: Legacy census dateTimestamp encodes the census day; this comparison validates that stored calendar key.
     (!Number.isInteger(dateTimestamp) || new Date(dateTimestamp!).toJSON()?.slice(0, 10) !== date)
   ) {
     record.dateTimestamp = createRecordDateTimestamp(date);

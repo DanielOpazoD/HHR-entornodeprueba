@@ -7,6 +7,7 @@ import { hasStructuralRepairs, parseDailyRecordWithDefaultsReport } from '@/sche
 import { CLINICAL_DERIVED_BACKUP_SECTION } from '@/services/storage/clinicalDerivedConstants';
 import { jsonImportLogger } from '@/services/exporters/exporterLoggers';
 import { isClinicalDerivedLayoutRegression } from '@/services/storage/clinicalDerivedImportGuard';
+import { loadClinicalDerivedDayRestore } from '@/services/exporters/clinicalDerivedBackupSection';
 
 export interface JsonImportResult {
   success: boolean;
@@ -14,6 +15,11 @@ export interface JsonImportResult {
   importedCount: number;
   repairedCount: number;
   skippedEntries: string[];
+  /**
+   * Imported split days whose per-episode data (vitals history, Rayen checkpoint) did not come
+   * back; such an import is `partial`. Absent when there are none.
+   */
+  clinicalDerivedIncompleteDates?: string[];
 }
 
 const readFileAsText = (file: File): Promise<string> =>
@@ -50,9 +56,10 @@ export const importDataJSONDetailed = async (file: File): Promise<JsonImportResu
     const importedRecords: DailyRecord[] = [];
     const skippedEntries: string[] = [];
     let repairedCount = 0;
+    const clinicalDerivedSection = payload[CLINICAL_DERIVED_BACKUP_SECTION];
 
     Object.entries(payload).forEach(([key, value]) => {
-      // Episode documents of split days are exported for recovery, never imported.
+      // The episode documents of split days are not a day: they go back into their days below.
       if (key === CLINICAL_DERIVED_BACKUP_SECTION) return;
       try {
         const parsed = parseDailyRecordWithDefaultsReport(value, key);
@@ -94,7 +101,18 @@ export const importDataJSONDetailed = async (file: File): Promise<JsonImportResu
       };
     }
 
-    const persisted = await persistImportedRecords(acceptedRecords);
+    // Each split day gets its episodes' vitals history and Rayen checkpoint back, embedded where
+    // each episode lives; only the server writes episode documents.
+    const restoreClinicalDerivedDay = await loadClinicalDerivedDayRestore(clinicalDerivedSection);
+    const clinicalDerivedIncompleteDates: string[] = [];
+    const restoredRecords = acceptedRecords.map(record => {
+      const restore = restoreClinicalDerivedDay(record);
+      if (restore.kind === 'absent') return record;
+      if (restore.kind === 'incomplete') clinicalDerivedIncompleteDates.push(record.date);
+      return restore.record;
+    });
+
+    const persisted = await persistImportedRecords(restoredRecords);
     if (!persisted) {
       return {
         success: false,
@@ -106,13 +124,18 @@ export const importDataJSONDetailed = async (file: File): Promise<JsonImportResu
     }
 
     const outcome =
-      skippedEntries.length > 0 ? 'partial' : repairedCount > 0 ? 'repaired' : 'clean';
+      skippedEntries.length > 0 || clinicalDerivedIncompleteDates.length > 0
+        ? 'partial'
+        : repairedCount > 0
+          ? 'repaired'
+          : 'clean';
     return {
       success: true,
       outcome,
       importedCount: acceptedRecords.length,
       repairedCount,
       skippedEntries,
+      ...(clinicalDerivedIncompleteDates.length > 0 ? { clinicalDerivedIncompleteDates } : {}),
     };
   } catch (error) {
     jsonImportLogger.error('JSON import failed', error);

@@ -100,6 +100,8 @@ describe('VitalsCell', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ver signos vitales' }));
     // The detail modal surfaces FR / EVA / observations that are not inline in the cell.
     expect(await screen.findByText('PAM 94')).toBeInTheDocument();
+    expect(screen.queryByText('Cargando historial…')).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('renders an empty marker when there are no vitals', () => {

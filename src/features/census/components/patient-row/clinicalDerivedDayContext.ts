@@ -10,6 +10,7 @@ import { CLINICAL_DERIVED_LAYOUT_VERSION } from '@/services/storage/clinicalDeri
  */
 export interface ClinicalDerivedDayLayout {
   generation: string;
+  dayRevision?: number;
   duplicateEpisodeIds: ReadonlySet<string>;
 }
 
@@ -25,6 +26,10 @@ export const useClinicalDerivedEpisodeGeneration = (
   const episodeId = clinicalEpisodeId?.trim();
   return day && episodeId && !day.duplicateEpisodeIds.has(episodeId) ? day.generation : undefined;
 };
+
+/** Server episode writes advance the day revision in the same transaction. */
+export const useClinicalDerivedDayRevision = (): number | undefined =>
+  useContext(ClinicalDerivedDayContext)?.dayRevision;
 
 /** Readers validate the generation again before any read. */
 export const resolveClinicalDerivedDayGeneration = (marker: unknown): string | undefined => {
@@ -66,7 +71,7 @@ export const collectDuplicateActiveEpisodeIds = (beds: unknown): string[] => {
 
 /**
  * The census table's provider value: only for the record of the date it shows, and stable while
- * the generation and the repeated ids stay the same, so rows do not re-render for it.
+ * the generation, revision and repeated ids stay the same.
  */
 export const useCensusClinicalDerivedDay = (
   record: { date?: string; beds?: unknown; clinicalDerivedLayout?: unknown } | null | undefined,
@@ -79,11 +84,20 @@ export const useCensusClinicalDerivedDay = (
   const duplicatesKey = generation
     ? JSON.stringify(collectDuplicateActiveEpisodeIds(record?.beds))
     : '[]';
+  const meta = record && 'meta' in record ? record.meta : undefined;
+  const dayRevision =
+    meta && typeof meta === 'object' && 'revision' in meta && typeof meta.revision === 'number'
+      ? meta.revision
+      : undefined;
   return useMemo(
     () =>
       generation
-        ? { generation, duplicateEpisodeIds: new Set(JSON.parse(duplicatesKey) as string[]) }
+        ? {
+            generation,
+            dayRevision,
+            duplicateEpisodeIds: new Set(JSON.parse(duplicatesKey) as string[]),
+          }
         : undefined,
-    [generation, duplicatesKey]
+    [generation, dayRevision, duplicatesKey]
   );
 };

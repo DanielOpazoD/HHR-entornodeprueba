@@ -1,7 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
 import { useNotification } from '@/context/UIContext';
-import { buildJsonImportNotifications } from '@/hooks/controllers/fileImportFeedbackController';
 import {
   buildExportCsvNotification,
   buildExportJsonNotification,
@@ -18,10 +17,15 @@ import { createScopedLogger } from '@/services/utils/loggerScope';
 
 const logger = createScopedLogger('useFileOperations');
 const loadExportService = () => import('@/services/exporters/exportService');
-const loadBackupImportUseCase = () =>
-  import('@/application/backup-export/backupExportMaintenanceUseCases').then(
-    module => module.executeImportJsonBackup
-  );
+// The import and its feedback load together, so a completed import never lacks its notices.
+const loadJsonImport = () =>
+  Promise.all([
+    import('@/application/backup-export/backupExportMaintenanceUseCases'),
+    import('@/hooks/controllers/fileImportFeedbackController'),
+  ]).then(([useCases, feedback]) => ({
+    executeImportJsonBackup: useCases.executeImportJsonBackup,
+    buildJsonImportNotifications: feedback.buildJsonImportNotifications,
+  }));
 const loadBackupExportOutcomePresenter = () =>
   import('@/hooks/controllers/backupExportOutcomeController').then(
     module => module.presentBackupExportOutcome
@@ -102,7 +106,7 @@ export const useFileOperations = (
   const handleImportFile = async (file: File) => {
     setError(null);
     if (isJsonImportFile(file)) {
-      const executeImportJsonBackup = await loadBackupImportUseCase();
+      const { executeImportJsonBackup, buildJsonImportNotifications } = await loadJsonImport();
       const outcome = await executeImportJsonBackup(file);
       recordOperationalOutcome('backup', 'import_json_backup', outcome, {
         context: { fileName: file.name },

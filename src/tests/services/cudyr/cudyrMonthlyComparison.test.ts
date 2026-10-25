@@ -54,6 +54,20 @@ const report = (category = 'C2', date = '2026-07-20'): CudyrSupplementReport => 
   ],
 });
 describe('read-only monthly reconciliation', () => {
+  it('matches an instant after UTC midnight to its hospital calendar day without mutating data', () => {
+    const d = dataset();
+    const evaluation = d.rows[0].evaluation;
+    if (!evaluation) throw new Error('Synthetic evaluation required');
+    evaluation.recordedAt = '2026-07-21T05:30:00.000Z';
+    const before = JSON.stringify(d);
+    expect(compareCudyrMonth(d, report())[0]).toMatchObject({
+      status: 'compatible',
+      sourceDate: '2026-07-20',
+      candidateKeys: [d.rows[0].key],
+    });
+    expect(JSON.stringify(d)).toBe(before);
+  });
+
   it('compares source calendar dates without overwriting census date, exclusions or totals', () => {
     const d = dataset();
     d.rows[0].eligibility = 'no_elegible';

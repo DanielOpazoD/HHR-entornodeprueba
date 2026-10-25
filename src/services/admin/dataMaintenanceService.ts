@@ -22,7 +22,9 @@ import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTy
 
 import {
   buildClinicalDerivedBackupSection,
+  confirmClinicalDerivedDayRestore,
   describeIncompleteClinicalDerivedBackup,
+  loadClinicalDerivedDayRestore,
   type ClinicalDerivedBackupSection,
 } from '@/services/exporters/clinicalDerivedBackupSection';
 import {
@@ -41,7 +43,10 @@ export interface MonthBackup {
   month: number;
   recordCount: number;
   records: DailyRecord[];
-  /** Episode documents of split days; present only when a day is marked, never imported. */
+  /**
+   * Episode documents of split days; present only when a day is marked. A restore embeds their
+   * moved fields back into each day (clinicalDerivedBackupRestore); it never writes the documents.
+   */
   clinicalDerived?: ClinicalDerivedBackupSection;
 }
 
@@ -60,6 +65,11 @@ export interface BackupImportResult {
   failed: number;
   repaired: number;
   outcome: 'clean' | 'repaired' | 'partial' | 'blocked';
+  /**
+   * Restored split days whose per-episode data (vitals history, Rayen checkpoint) did not come
+   * back; such a restore is `partial`. Absent when there are none.
+   */
+  clinicalDerivedIncompleteDates?: string[];
 }
 
 export interface DataMaintenanceExportResult {
@@ -291,6 +301,8 @@ export const importRecordsFromBackup = async (
   let success = 0;
   let failed = 0;
   let repaired = 0;
+  const clinicalDerivedIncompleteDates: string[] = [];
+  const restoreClinicalDerivedDay = await loadClinicalDerivedDayRestore(backup.clinicalDerived);
 
   for (let i = 0; i < backup.records.length; i++) {
     const record = backup.records[i];
@@ -316,12 +328,30 @@ export const importRecordsFromBackup = async (
         throw new Error('El día local está dividido y la copia del respaldo no es más nueva.');
       }
 
-      // Declared intent: the clinical authority keeps Rayen vitals/devices/scales when an
-      // administrator recreates a day that no longer exists remotely (see functions fence).
-      await saveDailyRecordDetailed(parsed.record, undefined, { writeOrigin: 'backup_restore' });
+      // A split day gets each episode's vitals history and Rayen checkpoint back from the backup's
+      // section, embedded where the episode lives. Declared intent: the clinical authority keeps
+      // Rayen vitals/devices/scales when an administrator recreates a day that no longer exists
+      // remotely (see functions fence); on a stored split day it keeps the stored values instead,
+      // and another writer may recreate the day after this save, so the day the server holds
+      // afterwards, with its current episode documents, tells whether they came back.
+      const restore = restoreClinicalDerivedDay(parsed.record);
+      const saved = await saveDailyRecordDetailed(
+        restore.kind === 'absent' ? parsed.record : restore.record,
+        undefined,
+        { writeOrigin: 'backup_restore' }
+      );
       success++;
       if (hadRepairs) {
         repaired++;
+      }
+      const keptClinicalDerived =
+        restore.kind === 'absent' ||
+        (restore.kind === 'embedded' &&
+          (await confirmClinicalDerivedDayRestore(restore, {
+            savedRemotely: saved?.savedRemotely === true,
+          })));
+      if (!keptClinicalDerived) {
+        clinicalDerivedIncompleteDates.push(parsed.record.date);
       }
     } catch (error) {
       dataMaintenanceLogger.error(`Failed to import record for ${record.date}`, error);
@@ -333,9 +363,19 @@ export const importRecordsFromBackup = async (
     }
   }
 
+  const outcome =
+    success === 0
+      ? 'blocked'
+      : failed > 0 || clinicalDerivedIncompleteDates.length > 0
+        ? 'partial'
+        : repaired > 0
+          ? 'repaired'
+          : 'clean';
+  const incomplete =
+    clinicalDerivedIncompleteDates.length > 0 ? { clinicalDerivedIncompleteDates } : {};
+
   // Audit log
   if (success > 0) {
-    const outcome = failed > 0 ? 'partial' : repaired > 0 ? 'repaired' : 'clean';
     await logAuditEvent(
       getCurrentUserEmail(),
       'DATA_IMPORTED',
@@ -348,14 +388,12 @@ export const importRecordsFromBackup = async (
         failedCount: failed,
         repairedCount: repaired,
         outcome,
+        ...incomplete,
       }
     );
   }
 
-  const outcome =
-    success === 0 ? 'blocked' : failed > 0 ? 'partial' : repaired > 0 ? 'repaired' : 'clean';
-
-  return { success, failed, repaired, outcome };
+  return { success, failed, repaired, outcome, ...incomplete };
 };
 
 /**

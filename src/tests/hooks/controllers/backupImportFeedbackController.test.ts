@@ -21,4 +21,17 @@ describe('backupImportFeedbackController', () => {
       })
     ).toContain('1 fallaron');
   });
+
+  it('names the restored days whose per-episode clinical data did not come back', () => {
+    const summary = summarizeBackupImportOutcome({
+      success: 2,
+      failed: 0,
+      repaired: 0,
+      outcome: 'partial',
+      clinicalDerivedIncompleteDates: ['2026-11-02'],
+    });
+
+    expect(summary).toContain('No se restauraron los datos clínicos por episodio');
+    expect(summary).toContain('1 día (2026-11-02)');
+  });
 });

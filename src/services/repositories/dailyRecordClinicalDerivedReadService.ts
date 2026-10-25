@@ -23,7 +23,8 @@ import type {
  * - `bestEffort` (display and export): falls back to the embedded record and says why.
  *
  * Readers that need the documents themselves, not an overlay, use `readClinicalDerivedDayDocs`
- * (every document of a day) and `readClinicalDerivedEpisodeForDisplay` (one episode).
+ * (every document of a day), `readClinicalDerivedDaySnapshot` (the current day with them) and
+ * `readClinicalDerivedEpisodeForDisplay` (one episode).
  */
 
 type ClinicalDerivedEpisodeReaderModule =
@@ -130,15 +131,16 @@ type DocsRead =
 
 const READER_UNAVAILABLE_CODE = 'reader_unavailable';
 
-const readDocs = async (
+/** The reader, or a failed read when it would not load: this reports that read. */
+const loadReaderOrReport = async (
   date: string,
-  layoutGeneration: string,
-  clinicalEpisodeId: string | undefined,
-  source: ClinicalDerivedReadSource
-): Promise<DocsRead> => {
-  let reader: ClinicalDerivedEpisodeReaderModule;
+  readScope: 'day' | 'episode'
+): Promise<
+  | { status: 'loaded'; reader: ClinicalDerivedEpisodeReaderModule }
+  | { status: 'failed'; code: string }
+> => {
   try {
-    reader = await loadReader();
+    return { status: 'loaded', reader: await loadReader() };
   } catch {
     // The reader never ran, so it could not report this failed read. Codes only.
     recordOperationalTelemetry({
@@ -148,13 +150,24 @@ const readDocs = async (
       runtimeState: 'degraded',
       date,
       issues: [READER_UNAVAILABLE_CODE],
-      context: {
-        readScope: clinicalEpisodeId === undefined ? 'day' : 'episode',
-        errorCode: READER_UNAVAILABLE_CODE,
-      },
+      context: { readScope, errorCode: READER_UNAVAILABLE_CODE },
     });
     return { status: 'failed', code: READER_UNAVAILABLE_CODE };
   }
+};
+
+const readDocs = async (
+  date: string,
+  layoutGeneration: string,
+  clinicalEpisodeId: string | undefined,
+  source: ClinicalDerivedReadSource
+): Promise<DocsRead> => {
+  const loaded = await loadReaderOrReport(
+    date,
+    clinicalEpisodeId === undefined ? 'day' : 'episode'
+  );
+  if (loaded.status === 'failed') return loaded;
+  const { reader } = loaded;
   if (clinicalEpisodeId === undefined) {
     return reader.readClinicalDerivedEpisodeDocs(date, layoutGeneration, { source });
   }
@@ -255,6 +268,31 @@ export const readClinicalDerivedDayDocs = async (
   return { status: 'resolved', layoutGeneration: generation, docs: read.docs };
 };
 
+export type ClinicalDerivedDaySnapshotResult =
+  | { status: 'resolved'; day: DailyRecord; docs: ClinicalDerivedEpisodeDoc[] }
+  | { status: 'missing' }
+  | { status: 'unavailable'; reason: ClinicalDerivedFallbackReason; code?: string };
+
+/**
+ * The day as the server holds it now, with the documents of its current generation, in one
+ * coherent read: the backup restore's confirmation. A read that fails, or a day that changed
+ * while it was read (`day_changed`), is `unavailable`; a day the server does not have is `missing`.
+ */
+export const readClinicalDerivedDaySnapshot = async (
+  date: string
+): Promise<ClinicalDerivedDaySnapshotResult> => {
+  if (!isFirestoreEnabled() || isE2EOverrideActive()) {
+    return { status: 'unavailable', reason: 'read_failed', code: FIRESTORE_DISABLED_CODE };
+  }
+  const loaded = await loadReaderOrReport(date, 'day');
+  if (loaded.status === 'failed') {
+    return { status: 'unavailable', reason: 'read_failed', code: loaded.code };
+  }
+  const read = await loaded.reader.readClinicalDerivedDaySnapshot(date);
+  if (read.status === 'resolved' || read.status === 'missing') return read;
+  return { status: 'unavailable', reason: failureReason(read), code: read.code };
+};
+
 export type ClinicalDerivedDisplayDocResult =
   | { status: 'skipped' }
   | { status: 'resolved'; doc: ClinicalDerivedEpisodeDoc | null; fromCache: boolean }
@@ -262,9 +300,9 @@ export type ClinicalDerivedDisplayDocResult =
 
 /**
  * One episode's current document for display (the vitals window): SDK default source, no
- * listener. `skipped`, without a read, when the id or the generation cannot be a document id,
- * without Firestore or under the E2E override. Failures come back typed: the caller keeps the
- * day's embedded copy.
+ * listener. An invalid episode id resolves without a document: that episode stays embedded.
+ * Invalid generations, disabled Firestore and E2E overrides skip the read. Failures come back
+ * typed so the caller can distinguish unavailable history from absent history.
  */
 export const readClinicalDerivedEpisodeForDisplay = async (
   date: string,
@@ -272,12 +310,10 @@ export const readClinicalDerivedEpisodeForDisplay = async (
   clinicalEpisodeId: string
 ): Promise<ClinicalDerivedDisplayDocResult> => {
   const episodeId = clinicalEpisodeId.trim();
-  if (
-    !isClinicalDerivedDocId(layoutGeneration) ||
-    !isClinicalDerivedDocId(episodeId) ||
-    !isFirestoreEnabled() ||
-    isE2EOverrideActive()
-  ) {
+  if (!isClinicalDerivedDocId(episodeId)) {
+    return { status: 'resolved', doc: null, fromCache: false };
+  }
+  if (!isClinicalDerivedDocId(layoutGeneration) || !isFirestoreEnabled() || isE2EOverrideActive()) {
     return { status: 'skipped' };
   }
   const read = await readDocs(date, layoutGeneration, episodeId, 'default');

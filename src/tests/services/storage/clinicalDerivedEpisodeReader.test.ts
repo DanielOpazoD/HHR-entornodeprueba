@@ -16,6 +16,7 @@ const { recordOperationalTelemetry, reportBasicReadPermissionDenied } = vi.hoist
 vi.mock('firebase/firestore', () => firestore);
 vi.mock('@/services/storage/firestore/firestoreShared', () => ({
   getRecordDocRef: vi.fn((date: string) => ({ kind: 'recordDocRef', date })),
+  docToRecord: (data: Record<string, unknown>, date: string) => ({ ...data, date }),
 }));
 vi.mock('@/services/storage/firestore/firestoreServiceRuntime', () => ({
   defaultFirestoreServiceRuntime: { getDb: () => ({ kind: 'db' }) },
@@ -28,6 +29,7 @@ vi.mock('@/services/auth/sessionPermissionStormDetector', () => ({
 }));
 
 import {
+  readClinicalDerivedDaySnapshot,
   readClinicalDerivedEpisodeDoc,
   readClinicalDerivedEpisodeDocs,
 } from '@/services/storage/firestore/clinicalDerivedEpisodeReader';
@@ -249,5 +251,110 @@ describe('clinicalDerivedEpisodeReader', () => {
       context: { readScope: 'day', errorCode: code },
       droppedContextKeys: [],
     });
+  });
+});
+
+describe('readClinicalDerivedDaySnapshot', () => {
+  const day = (revision: number, generation: string | null = GENERATION) => ({
+    date: DATE,
+    meta: { revision },
+    ...(generation ? { clinicalDerivedLayout: { version: 1, generation } } : {}),
+  });
+  /** The server's day on each read, in order, and the documents under it. */
+  const serverHolds = (days: Array<Record<string, unknown> | undefined>, ...docIds: string[]) => {
+    days.forEach(data => firestore.getDocFromServer.mockResolvedValueOnce(docSnapshot(DATE, data)));
+    firestore.getDocsFromServer.mockResolvedValueOnce(
+      snapshotOf(...docIds.map(id => ({ id, data: episode(id) })), {
+        id: 'ep_old',
+        data: episode('ep_old', { layoutGeneration: 'gen_deleted' }),
+      })
+    );
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns the day with its generation’s documents, all read from the server', async () => {
+    serverHolds([day(4), day(4)], 'ep_a');
+
+    expect(await readClinicalDerivedDaySnapshot(DATE)).toEqual({
+      status: 'resolved',
+      day: day(4),
+      docs: [episode('ep_a')],
+    });
+    expect(firestore.getDocFromServer).toHaveBeenCalledTimes(2);
+    expect(firestore.getDoc).not.toHaveBeenCalled();
+    expect(firestore.getDocs).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['gets another generation', day(4, 'gen_synthetic_b')],
+    ['gets another revision', day(5)],
+    ['loses its marker', day(4, null)],
+    ['is deleted', undefined],
+  ])('fails when the day %s while its documents are read', async (_label, after) => {
+    serverHolds([day(4), after], 'ep_a');
+
+    expect(await readClinicalDerivedDaySnapshot(DATE)).toEqual({
+      status: 'failed',
+      code: 'day_changed',
+    });
+  });
+
+  it('fails on a day this client still has unconfirmed writes for, marked or not', async () => {
+    const pending = (data: Record<string, unknown>) => ({
+      ...docSnapshot(DATE, data),
+      metadata: { fromCache: false, hasPendingWrites: true },
+    });
+    firestore.getDocFromServer
+      .mockResolvedValueOnce(pending(day(4)))
+      .mockResolvedValueOnce(docSnapshot(DATE, day(4)));
+    firestore.getDocsFromServer.mockResolvedValueOnce(snapshotOf());
+    expect(await readClinicalDerivedDaySnapshot(DATE)).toEqual({
+      status: 'failed',
+      code: 'day_changed',
+    });
+
+    firestore.getDocFromServer.mockResolvedValueOnce(pending(day(4, null)));
+    expect(await readClinicalDerivedDaySnapshot(DATE)).toEqual({
+      status: 'failed',
+      code: 'day_changed',
+    });
+    expect(firestore.getDocFromServer).toHaveBeenCalledTimes(3);
+  });
+
+  it('resolves a day the server does not have, and an unmarked day without a query', async () => {
+    firestore.getDocFromServer.mockResolvedValueOnce(docSnapshot(DATE));
+    expect(await readClinicalDerivedDaySnapshot(DATE)).toEqual({ status: 'missing' });
+
+    firestore.getDocFromServer.mockResolvedValueOnce(docSnapshot(DATE, day(4, null)));
+    expect(await readClinicalDerivedDaySnapshot(DATE)).toEqual({
+      status: 'resolved',
+      day: day(4, null),
+      docs: [],
+    });
+    expect(firestore.getDocsFromServer).not.toHaveBeenCalled();
+  });
+
+  it('returns a failed day or document read typed, reporting only its code', async () => {
+    firestore.getDocFromServer.mockRejectedValueOnce(rawError);
+    expect(await readClinicalDerivedDaySnapshot(DATE)).toEqual({
+      status: 'permission_denied',
+      code: 'permission-denied',
+    });
+
+    firestore.getDocFromServer.mockResolvedValueOnce(docSnapshot(DATE, day(4)));
+    firestore.getDocsFromServer.mockRejectedValueOnce({ code: 'unavailable' });
+    expect(await readClinicalDerivedDaySnapshot(DATE)).toEqual({
+      status: 'failed',
+      code: 'unavailable',
+    });
+    expect(recordOperationalTelemetry.mock.calls.map(([event]) => event.context)).toEqual([
+      { readScope: 'day', errorCode: 'permission-denied' },
+      { readScope: 'day', errorCode: 'unavailable' },
+    ]);
+    expect(JSON.stringify(recordOperationalTelemetry.mock.calls)).not.toContain('secret detail');
+    expect(reportBasicReadPermissionDenied).not.toHaveBeenCalled();
   });
 });
