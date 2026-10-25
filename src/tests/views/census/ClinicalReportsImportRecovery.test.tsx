@@ -17,6 +17,7 @@ const openPanel = () =>
 const renderCensus = () =>
   render(
     <>
+      <input aria-label="Borrador local" defaultValue="Edición pendiente" />
       <button>Guardar censo</button>
       <ClinicalPanelTrigger {...patient} />
     </>
@@ -29,8 +30,9 @@ afterEach(() => {
 });
 
 describe('reports import recovery', () => {
-  it('keeps a failed reports panel above the drawer, dismisses it and retries on reopen', async () => {
+  it('keeps an offline chunk failure above the drawer without losing the local draft', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     vi.doMock('@/features/census/components/patient-row/ClinicalPanelDrawer', () => ({
       ClinicalPanelDrawer: ({
         onOpenHospitalizationReports,
@@ -46,11 +48,15 @@ describe('reports import recovery', () => {
       throw new Error('Failed to fetch dynamically imported module');
     });
     renderCensus();
+    const draft = screen.getByRole('textbox', { name: 'Borrador local' });
+    fireEvent.change(draft, { target: { value: 'Texto editado sin guardar' } });
     openPanel();
     const openReports = await screen.findByRole('button', { name: 'Abrir informes' });
     openReports.focus();
     fireEvent.click(openReports);
-    await screen.findByRole('alert');
+    expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo abrir este panel');
+    expect(screen.getByRole('alert')).not.toHaveTextContent('Failed to fetch');
+    expect(draft).toHaveValue('Texto editado sin guardar');
     expect(screen.getByTestId('reports-module-loading').parentElement).toHaveStyle({
       zIndex: '10000',
     });
@@ -63,6 +69,8 @@ describe('reports import recovery', () => {
     }));
     fireEvent.click(openReports);
     expect(await screen.findByText('Informes recuperados')).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Borrador local' })).toBe(draft);
+    expect(draft).toHaveValue('Texto editado sin guardar');
     expect(screen.getByRole('button', { name: 'Guardar censo' })).toBeEnabled();
   });
 });

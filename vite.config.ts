@@ -292,6 +292,9 @@ export default defineConfig(({ mode }) => {
             // The patient repository requires a live Eloisa/extension session and is opened
             // explicitly from the clinical drawer, so it remains an online-only lazy surface.
             '**/assets/PatientDocumentManagerDialog-*.js',
+            // Official hospitalization reports need a live Eloisa session. Their deferred
+            // dialog already contains chunk failures without replacing the editable census.
+            '**/assets/PatientHospitalizationReportsDialog-*.js',
             '**/assets/ClinicalPanelDrawer-*.js',
             // Sync history panel: reviewed on demand while Eloísa is connected.
             '**/assets/RayenSyncHistoryModal-*.js',
