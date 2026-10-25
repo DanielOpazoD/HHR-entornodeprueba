@@ -404,6 +404,8 @@ const updatePartialDetailedWithinLock = async (
               syncContract: {
                 changedPaths: semanticChangedPaths,
                 mutationId: syncContract.mutationId,
+                // A day write queued after this note starts from the same stored day.
+                expectedVersion: syncContract.expectedVersion,
               },
             },
             { patchWrite },
