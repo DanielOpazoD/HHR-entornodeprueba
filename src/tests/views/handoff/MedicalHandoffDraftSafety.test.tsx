@@ -6,10 +6,14 @@ import { MedicalHandoffDraftsPanel } from '@/features/handoff/components/Medical
 import { DataFactory } from '@/tests/factories/DataFactory';
 import {
   confirmMedicalHandoffDrafts,
+  publishSpecialistHandoffConflict,
   readMedicalHandoffDrafts,
   resetMedicalHandoffDraftMemoryForTests,
 } from '@/services/storage/medicalHandoffDraftStorage';
-import { buildSpecialistHandoffIdentity } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
+import {
+  buildSpecialistHandoffIdentity,
+  buildSpecialistHandoffTargets,
+} from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
 
 const patient = DataFactory.createMockPatient('R4', {
   patientName: 'Paciente A Sintético',
@@ -160,6 +164,32 @@ describe('medical handoff draft recovery', () => {
     expect(screen.getByText('Texto de entrada eliminada')).toBeVisible();
     expect(screen.queryByText('Restaurar y guardar borrador')).not.toBeInTheDocument();
     expect(save).toHaveBeenCalledTimes(1);
+  });
+
+  it('restores a refused note-only draft into the same patient editor while the bed shows no note', () => {
+    const save = vi.fn();
+    const noteOnly = { ...patient, medicalHandoffEntries: undefined, medicalHandoffNote: '' };
+    const refused = { 'beds.R4.medicalHandoffNote': 'Nota rechazada de A' };
+    publishSpecialistHandoffConflict({
+      date: '2026-10-24',
+      patch: refused,
+      expectedOccupants: buildSpecialistHandoffTargets(
+        DataFactory.createMockDailyRecord('2026-10-24', { beds: { R4: noteOnly } }),
+        refused
+      ),
+    });
+    render(
+      <>
+        {cell(noteOnly, save)}
+        <MedicalHandoffDraftsPanel />
+      </>
+    );
+    expect(screen.queryByText(/Revisar borradores de entrega/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('Revisar borrador'));
+    fireEvent.click(screen.getByText('Restaurar y guardar borrador'));
+    expect(save).toHaveBeenCalledWith('Nota rechazada de A');
+    expect(screen.getByRole('textbox')).toHaveValue('Nota rechazada de A');
+    expect(readMedicalHandoffDrafts().map(draft => draft.value)).toEqual(['Nota rechazada de A']);
   });
 
   it('D4c never persists an unauthenticated draft and says it is only in memory', () => {

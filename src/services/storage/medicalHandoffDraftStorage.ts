@@ -68,6 +68,12 @@ const currentOwner = (): string | null => {
 };
 const ownerPrefix = (owner: string | null) => `${PREFIX}${owner ?? ''}:`;
 
+/**
+ * A patient's single note is one entry: the empty-note editor writes it as `primary-note`, and a
+ * stored note alone is shown and published as `legacy-primary`. They never coexist.
+ */
+const draftEntryId = (entryId: string) => (entryId === 'legacy-primary' ? 'primary-note' : entryId);
+
 export const medicalHandoffDraftKey = (draft: Omit<MedicalHandoffDraftInput, 'value'>): string =>
   JSON.stringify([
     draft.date,
@@ -75,7 +81,7 @@ export const medicalHandoffDraftKey = (draft: Omit<MedicalHandoffDraftInput, 'va
     draft.rut,
     draft.patientName,
     draft.clinicalEpisodeId,
-    draft.entryId,
+    draftEntryId(draft.entryId),
   ]);
 
 /** A new writer per editing session; its slots are never written by anyone else. */
