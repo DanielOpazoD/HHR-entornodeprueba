@@ -126,8 +126,6 @@ export interface SyncTransportPort {
 
 export interface SyncTransportResult {
   authoritativeRecord: DailyRecord;
-  /** Changed paths the write left out: never acknowledged as written. */
-  detachedPaths?: string[];
   /** Edits for a patient who left the bed, kept as conflicts instead of being published. */
   detachedConflicts?: SyncTask[];
 }

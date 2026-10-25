@@ -187,18 +187,23 @@ describe.skipIf(!enabled)(
         clinicalEpisodeId: 'ep_synthetic_other',
       });
       expect(r1.pathology).not.toBe(PENDING);
-      // The edit stays on this device as a visible conflict, bound to the copy it was written on.
+      // The edit stays on this device as a visible conflict, bound to the copy it was written on,
+      // with its own write id: the ACK of the day task never stands for it.
       const tasks = await hospitalDB.syncQueue.toArray();
       expect(tasks).toHaveLength(1);
       expect(tasks[0]).toMatchObject({
         status: 'CONFLICT',
+        lastErrorCode: 'occupant_changed',
         syncContract: { changedPaths: ['beds.R1.pathology'] },
       });
+      expect(tasks[0].key).toContain(':detached:');
+      expect(tasks[0].syncContract?.mutationId).toContain(':detached:R1.bed');
       expect((tasks[0].payload as DailyRecord).beds.R1).toMatchObject({
         pathology: PENDING,
         clinicalEpisodeId: 'ep_synthetic_R1',
       });
-      expect((await hospitalDB.dailyRecords.get(date))?.beds.R1.pathology).toBe(PENDING);
+      // The day itself is not held back: this device shows what the bed holds now.
+      expect((await hospitalDB.dailyRecords.get(date))?.beds.R1.patientName).toBe('PACIENTE OTRO');
     });
 
     it.each(['beds.R1.clinicalCrib.pathology', 'beds.R1.clinicalCrib', 'beds.R1'])(
@@ -226,6 +231,10 @@ describe.skipIf(!enabled)(
         const tasks = await hospitalDB.syncQueue.toArray();
         expect(tasks).toHaveLength(1);
         expect(tasks[0].status).toBe('CONFLICT');
+        expect(tasks[0].key).toContain(':detached:');
+        expect(tasks[0].syncContract?.changedPaths).toEqual([
+          path === 'beds.R1' ? 'beds.R1.clinicalCrib' : path,
+        ]);
         expect((tasks[0].payload as DailyRecord).beds.R1.clinicalCrib).toMatchObject({
           pathology: PENDING,
           clinicalEpisodeId: 'ep_synthetic_rn_a',

@@ -7,16 +7,19 @@ export type { SpecialistHandoffTarget } from '@/types/domain/specialistHandoffTa
 
 export type SpecialistHandoffIdentity = Omit<SpecialistHandoffTarget, 'bedId' | 'target'>;
 
-/** Patient plus episode, as the server checks them. Rows, drafts and queue keys all use this. */
+/**
+ * Patient plus episode, as the server checks them. Rows, drafts and queue keys all use this. A
+ * stored identity may not be text (it is read as unreadable): it never matches a readable one.
+ */
 export const buildSpecialistHandoffIdentity = (
   patient?: PatientData
 ): SpecialistHandoffIdentity => ({
   clinicalEpisodeId: patient
-    ? patient.clinicalEpisodeId?.trim() || buildLegacyClinicalEpisodeId(patient) || ''
+    ? String(patient.clinicalEpisodeId ?? '').trim() || buildLegacyClinicalEpisodeId(patient) || ''
     : '',
-  rut: patient?.rut?.trim() ?? '',
+  rut: String(patient?.rut ?? '').trim(),
   documentType: patient?.documentType ?? 'RUT',
-  patientName: patient?.patientName?.trim() ?? '',
+  patientName: String(patient?.patientName ?? '').trim(),
 });
 
 export const specialistHandoffIdentityKey = (identity: SpecialistHandoffIdentity): string =>

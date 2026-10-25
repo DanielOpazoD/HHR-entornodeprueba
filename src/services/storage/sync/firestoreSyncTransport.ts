@@ -16,7 +16,6 @@ import type { FirestoreServiceRuntimePort } from '@/services/storage/firestore/p
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 import { loadSpecialistMedicalHandoffClient } from '@/services/storage/firestore/firestoreRecordWrites';
 import { resolveDailyRecordConflict } from '@/services/repositories/conflictResolutionMatrix';
-import { findDetachedReviewEdits } from '@/services/repositories/conflictResolutionDetachedEdits';
 import {
   getValueAtPath,
   hasSameValuesAtPaths,
@@ -43,6 +42,7 @@ import {
 } from '@/services/storage/sync/firestoreSyncConflictPolicy';
 import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
 import type { DetachedOccupantWork } from './dayTaskOccupantDetach';
+import type * as OccupantOutbox from './dexieDailyRecordOutbox';
 import {
   adoptStoredClinicalDerivedState,
   withClearedStoredMovedFields,
@@ -124,24 +124,21 @@ interface ResolvedSyncRecordForTask {
   acceptedVersion?: string;
   /** Stored day this resolution read; undefined when the day does not exist yet. */
   storedData?: Record<string, unknown>;
-  /** Changed paths the merge left out: they stay pending as a conflict. */
-  detachedPaths?: string[];
   /** Edits left out because their bed or crib now holds another patient or episode. */
   detached?: DetachedOccupantWork;
 }
 
-type DetachStaleOccupantPaths = (
-  task: SyncTask,
-  record: DailyRecord,
-  remote: DailyRecord
-) => DetachedOccupantWork | null;
+type OccupantChecks = Pick<
+  typeof OccupantOutbox,
+  'detachStaleOccupantPaths' | 'holdReviewedOccupantEdits'
+>;
 
 const resolveRecordForSyncTask = async (
   queuedTask: SyncTask,
   queuedRecord: DailyRecord,
   runtime: FirestoreServiceRuntimePort,
   transaction?: Transaction,
-  detachStaleOccupantPaths?: DetachStaleOccupantPaths
+  occupants?: OccupantChecks
 ): Promise<ResolvedSyncRecordForTask> => {
   let task = queuedTask;
   let record = queuedRecord;
@@ -176,13 +173,16 @@ const resolveRecordForSyncTask = async (
   });
   // Edits written for a patient who left the bed or crib never reach the next occupant. They are
   // rebuilt even when the rest already landed, since the ACK that kept them may have rolled back.
-  const detached =
-    detachStaleOccupantPaths?.(task, record, docToRecord(remoteData, record.date)) ?? undefined;
+  const storedRecord = docToRecord(remoteData, record.date);
+  const detached = occupants?.detachStaleOccupantPaths(task, record, storedRecord) ?? undefined;
   if (
     hasRemoteAppliedMutation(task, remoteData.meta as Record<string, unknown> | undefined) &&
     (!compacted || allCompactedValuesApplied)
   ) {
-    return alreadyApplied(detached);
+    // The stored day is that publish: what it left out of a bed under review is held again too.
+    return alreadyApplied(
+      occupants?.holdReviewedOccupantEdits(task, record, storedRecord, storedRecord, detached)
+    );
   }
   if (detached) {
     ({ task, record } = detached);
@@ -242,8 +242,14 @@ const resolveRecordForSyncTask = async (
     resolution: 'merged',
     acceptedVersion: consistency.record.lastUpdated,
     storedData: remoteData,
-    detachedPaths: findDetachedReviewEdits(remoteRecord, record, consistency.record, changedPaths),
-    detached,
+    // What the merge left out of a bed or crib under review is held with the detached edits.
+    detached: occupants?.holdReviewedOccupantEdits(
+      queuedTask,
+      queuedRecord,
+      remoteRecord,
+      consistency.record,
+      detached
+    ),
   };
 };
 
@@ -279,15 +285,17 @@ const syncDailyRecord = async (
   runtime: FirestoreServiceRuntimePort
 ): Promise<SyncTransportResult | void> => {
   if (await runE2ESyncTransport(task)) return;
-  const occupants = task.syncContract?.changedPaths?.some(path => /^beds\.[^.]+\./.test(path))
-    ? await import('./dexieDailyRecordOutbox')
-    : undefined;
-  const detach = occupants?.detachStaleOccupantPaths;
+  // A whole bed or day may also hold edits for a bed under review that its merge leaves out.
+  const paths = task.syncContract?.changedPaths;
+  const occupants =
+    !paths?.length || paths.some(path => /^(?:beds|\*)(?:\.|$)/.test(path))
+      ? await import('./dexieDailyRecordOutbox')
+      : undefined;
   let detached: DetachedOccupantWork | undefined;
   const result = await measureRepositoryOperation(
     'syncQueue.writeDailyRecord',
     async (): Promise<SyncTransportResult> => {
-      const resolved = await resolveRecordForSyncTask(task, record, runtime, undefined, detach);
+      const resolved = await resolveRecordForSyncTask(task, record, runtime, undefined, occupants);
       detached = resolved.detached;
       if (resolved.resolution === 'already_applied') {
         recordSyncQueueTruthSelectionTelemetry(task, {
@@ -328,10 +336,7 @@ const syncDailyRecord = async (
           acceptedRevision: response?.revision,
           selectedTruth: 'authority_intent_invariants',
         });
-        return {
-          authoritativeRecord: readAuthorityAnswer(authoritativeRecord),
-          detachedPaths: resolved.detachedPaths,
-        };
+        return { authoritativeRecord: readAuthorityAnswer(authoritativeRecord) };
       }
 
       if (effectiveAuthorityMode === 'shadow') {
@@ -353,7 +358,13 @@ const syncDailyRecord = async (
       const committed = await runTransaction(runtime.getDb(), async transaction => {
         // Re-evaluate the original intent against the snapshot protected by this transaction.
         // Firestore reruns this callback if another writer changes the document before commit.
-        const current = await resolveRecordForSyncTask(task, record, runtime, transaction, detach);
+        const current = await resolveRecordForSyncTask(
+          task,
+          record,
+          runtime,
+          transaction,
+          occupants
+        );
         detached = current.detached;
         if (current.resolution === 'already_applied') return current;
         assertResolvedClinicalAuthority(task, current);
@@ -381,7 +392,7 @@ const syncDailyRecord = async (
             ? 'remote_already_applied'
             : 'legacy_direct_publish',
       });
-      return { authoritativeRecord: committed.record, detachedPaths: committed.detachedPaths };
+      return { authoritativeRecord: committed.record };
     },
     { thresholdMs: 180, context: record.date }
   );

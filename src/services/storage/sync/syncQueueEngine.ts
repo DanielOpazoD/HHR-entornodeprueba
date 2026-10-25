@@ -17,7 +17,6 @@ import type { SyncQueueTelemetry } from '@/services/storage/sync/syncQueueTeleme
 import {
   resolveSyncQueueFailureDecision,
   buildSyncQueueTaskContextMeta,
-  buildDetachedEditsConflict,
 } from '@/services/storage/sync/syncQueueFailurePolicy';
 import {
   buildSyncQueueTelemetryFromRows,
@@ -291,14 +290,7 @@ export const createSyncQueueEngine = ({
                 task.leaseUntil = leaseUntil;
                 const result: Partial<SyncTransportResult> = (await transport.run(task)) || {};
                 const claim = buildTaskClaim(task);
-                if (claim && result.detachedPaths?.length) {
-                  // What the write left out is never acknowledged: the claimed task becomes, in
-                  // one claimed update, a conflict holding only it, on the day it was written on.
-                  await updateClaimedTaskState(
-                    task,
-                    buildDetachedEditsConflict(task, result.detachedPaths)
-                  );
-                } else if (claim) {
+                if (claim) {
                   const deleted = await store.deleteClaimed(
                     task.id,
                     claim,

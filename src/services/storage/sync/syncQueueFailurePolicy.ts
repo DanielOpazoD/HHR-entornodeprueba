@@ -1,7 +1,6 @@
 import { isFunctionsReloadRequired } from '@/services/firebase-runtime/functionsModuleLoader';
 import { buildSyncErrorSummary, classifySyncError } from '@/services/storage/syncErrorCatalog';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
-import { buildSyncMutationIdentity } from '@/services/storage/sync/syncMutationIdentity';
 import {
   normalizeSyncTaskContexts,
   resolveSyncDomainRetryProfile,
@@ -67,29 +66,6 @@ const computeBackoffMs = (
   const delay = Math.min(baseRetryDelayMs * Math.pow(2, attempt - 1), maxRetryDelayMs);
   return delay + jitter;
 };
-
-/**
- * The queued write left as a conflict holding only the `detachedPaths` a replay could not apply.
- * The nurse retries or discards it; a later edit of the same day picks it up again.
- */
-export const buildDetachedEditsConflict = (task: SyncTask, detachedPaths: string[]) => ({
-  status: 'CONFLICT' as const,
-  syncContract: {
-    ...task.syncContract,
-    changedPaths: detachedPaths,
-    // The stored day never applied them: a replay must not pass for one that did.
-    mutationId: buildSyncMutationIdentity().mutationId,
-    mutationIds: undefined,
-  },
-  error: `Edición de ${[...new Set(detachedPaths.map(path => path.split('.')[1]))].join(', ')} sin escribir: la identidad cambió en otra sesión.`,
-  lastErrorCode: 'identity_review_edit_detached',
-  lastErrorCategory: 'conflict' as const,
-  lastErrorAt: Date.now(),
-  leaseOwner: undefined,
-  leaseUntil: undefined,
-  attemptId: undefined,
-  processingStartedAt: undefined,
-});
 
 export const resolveSyncQueueFailureDecision = ({
   task,

@@ -46,7 +46,10 @@ export const targetLabelFromKey = (
     try {
       const occupants = JSON.parse(named[2]) as string[] | string[][];
       names = (Array.isArray(occupants[0]) ? (occupants as string[][]) : [occupants as string[]])
-        .map(occupant => occupant[4])
+        // A name under review is not readable: the bed or crib names it instead.
+        .map(
+          ([bedId, target, , , name]) => name || `${target === 'bed' ? 'cama' : 'cuna'} ${bedId}`
+        )
         .join(' y ');
     } catch {
       // Keep the generic label for a malformed key.
