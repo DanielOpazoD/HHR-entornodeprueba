@@ -1,4 +1,4 @@
-import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
+import type { DailyRecord, DailyRecordPatch } from '@/services/storage/storageDailyRecordContracts';
 import type { PatientData } from '@/types/domain/patient';
 import type { SpecialistHandoffSyncPayload, SyncTask } from '@/services/storage/syncQueueTypes';
 import {
@@ -75,7 +75,7 @@ export const detachStaleOccupantPaths = (
         changedPaths: changedPaths.filter(path => !detached.includes(path)),
       },
     },
-    record: applyPatches(record, valuesIn(remote, detached)),
+    record: applyPatches(record, valuesIn(remote, detached) as DailyRecordPatch),
     conflicts: stale.map(group => {
       const identity = buildSpecialistHandoffIdentity(occupantOf(record, group));
       const key = `daily:${record.date}:detached:${task.id ?? task.opId}:${JSON.stringify([

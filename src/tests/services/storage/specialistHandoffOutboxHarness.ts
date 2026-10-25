@@ -4,7 +4,7 @@
  */
 import { createRequire } from 'node:module';
 import { vi } from 'vitest';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecord, DailyRecordPatch } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
@@ -196,7 +196,7 @@ export const writeNote = async (
   const { fields } = buildMedicalEntryNoteFields(occupant, entryId, value, null, record.date, T0);
   const patch = Object.fromEntries(
     Object.entries(fields).map(([field, fieldValue]) => [`beds.${bedId}.${field}`, fieldValue])
-  );
+  ) as DailyRecordPatch;
   h.offline = offline;
   try {
     const result = await updatePartialDetailed(record.date, patch, { baseRecord: record });

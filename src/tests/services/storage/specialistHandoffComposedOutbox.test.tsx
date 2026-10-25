@@ -35,7 +35,7 @@ import {
 import { buildSpecialistHandoffIdentity } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
 import { RayenSyncQueueDetails } from '@/features/rayen-import/components/RayenSyncQueueDetails';
 import type { SyncQueueStats } from '@/hooks/useSyncQueueMonitor';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecord, DailyRecordPatch } from '@/types/domain/dailyRecord';
 
 const DATE = '2026-10-24';
 const OWNER = 'user:synthetic-composed';
@@ -48,7 +48,7 @@ const writeDay = async (record: DailyRecord, patch: Record<string, unknown>) => 
   vi.mocked(shouldRouteSpecialistPatchViaCallable).mockResolvedValue(false);
   h.offline = true;
   try {
-    return await updatePartialDetailed(DATE, patch, { baseRecord: record });
+    return await updatePartialDetailed(DATE, patch as DailyRecordPatch, { baseRecord: record });
   } finally {
     h.offline = false;
     vi.mocked(shouldRouteSpecialistPatchViaCallable).mockResolvedValue(true);
