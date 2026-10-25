@@ -360,6 +360,13 @@ const updatePartialDetailedWithinLock = async (
     : undefined;
   remoteWriteOptions.specialistHandoffTargets = handoffTargets;
 
+  // The outbox applies this patch again on the day's stored projection (#1024).
+  const patchWrite = {
+    baseRecord: current,
+    patch: command.patch,
+    prepare: (record: DailyRecord, patch: DailyRecordPatch) =>
+      preparePatchedRecordForPersistence(record, command.date, patch).record,
+  };
   const suspiciousShrinkages = await resolveBlockingFieldShrinkages(
     command.date,
     current,
@@ -399,7 +406,7 @@ const updatePartialDetailedWithinLock = async (
                 mutationId: syncContract.mutationId,
               },
             },
-            undefined,
+            { patchWrite },
             {
               date: command.date,
               patch: sanitizeForFirestore(guardedCommandPolicy.remoteAuthorityPatch) as Record<
@@ -416,7 +423,7 @@ const updatePartialDetailedWithinLock = async (
               origin: 'direct_queue',
               syncContract,
             },
-            buildPreOutboxRemoteAckOptions(syncContract)
+            { ...buildPreOutboxRemoteAckOptions(syncContract), patchWrite }
           ),
     ...buildPreOutboxRemoteAckCallbacks(validatedRecord, syncContract),
     readRemoteConfirmedRecord: () => getRecordFromFirestore(command.date, { source: 'server' }),

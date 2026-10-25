@@ -27,6 +27,8 @@ interface ResolveSyncConsistencyInput {
   remoteRecord: DailyRecord | null;
   selectedRecord: DailyRecord | null;
   remoteAvailability: Exclude<RemoteAvailability, 'not_requested'>;
+  /** Cache hydration kept a projection whose local writes are still unsynced. */
+  pendingLocalWritesRetained?: boolean;
 }
 
 const buildConflictSummary = (
@@ -231,6 +233,7 @@ export const resolveDailyRecordSyncConsistency = ({
   remoteRecord,
   selectedRecord,
   remoteAvailability,
+  pendingLocalWritesRetained = false,
 }: ResolveSyncConsistencyInput): DailyRecordConsistencyMetadata<DailyRecordSyncConsistencyState> => {
   if (remoteAvailability === 'unavailable') {
     return createConsistencyMetadata({
@@ -272,7 +275,10 @@ export const resolveDailyRecordSyncConsistency = ({
     });
   }
 
-  if (selectedRecord !== remoteRecord && isLocalNewer(localRecord, remoteRecord)) {
+  if (
+    selectedRecord !== remoteRecord &&
+    (pendingLocalWritesRetained || isLocalNewer(localRecord, remoteRecord))
+  ) {
     return createConsistencyMetadata({
       consistencyState: 'local_kept',
       sourceOfTruth: 'local',

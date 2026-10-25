@@ -13,7 +13,7 @@ import type { SyncQueueEnqueueOptions } from '@/services/storage/sync/syncQueueE
 import type { SyncQueueOperationSnapshot } from '@/services/storage/sync/syncQueueOperationSnapshot';
 import type { SyncQueueDomainMetrics } from '@/services/storage/sync/syncDomainPolicy';
 import type { SyncQueueTelemetry } from '@/services/storage/sync/syncQueueTelemetryContracts';
-import { classifySyncError } from '@/services/storage/syncErrorCatalog';
+import { classifySyncError, ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 import { createDomainObservability } from '@/services/observability/domainObservability';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import {
@@ -294,6 +294,8 @@ export const queueDailyRecordSyncTaskWithLocalRecord = async (
     }
     return result;
   } catch (error) {
+    // A stale write the stored day refused is a conflict for the caller, not a storage failure.
+    if (error instanceof ConcurrencyError) throw error;
     syncObservability.logger.error('Failed to queue task with local record', error);
     recordOperationalTelemetry({
       category: 'sync',
