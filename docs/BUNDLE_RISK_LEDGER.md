@@ -248,8 +248,8 @@ reanuda el envío pendiente. Si el import se recupera, se retira la marca sin re
 No hay recarga automática, purga ni modificación de datos clínicos.
 
 El aviso está en un chunk lazy precacheado. El build local de esta ronda mide
-4.983.685 bytes de precache (margen 9.339) y 621.271 bytes de shell (margen 10.729).
-El chunk del aviso mide 1.735 bytes. No se elevan límites ni se añade Functions
+4.984.911 bytes de precache (margen 8.113) y 621.065 bytes de shell (margen 10.935).
+El chunk del aviso mide 1.857 bytes. No se elevan límites ni se añade Functions
 (12.028 bytes) al precache. El margen permanece reservado para seguridad de datos.
 
 Guardas: el grafo generado protege también MoaHelpButton y el portal orbital;
