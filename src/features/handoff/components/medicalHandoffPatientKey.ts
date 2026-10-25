@@ -1,10 +1,9 @@
 import type { PatientData } from '@/domain/handoff/patientContracts';
-import { buildLegacyClinicalEpisodeId } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
+import {
+  buildSpecialistHandoffIdentity,
+  specialistHandoffIdentityKey,
+} from '@/hooks/useMedicalHandoffDraft';
 
+/** Rows and editors remount when the patient or episode changes, never only by bed. */
 export const medicalHandoffPatientKey = (patient: PatientData): string =>
-  JSON.stringify([
-    patient.documentType || 'RUT',
-    patient.rut,
-    patient.patientName,
-    patient.clinicalEpisodeId || buildLegacyClinicalEpisodeId(patient),
-  ]);
+  specialistHandoffIdentityKey(buildSpecialistHandoffIdentity(patient));

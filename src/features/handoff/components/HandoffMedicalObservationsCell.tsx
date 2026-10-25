@@ -3,7 +3,7 @@ import {
   shouldShowMedicalPrimaryNoteFallback,
 } from '@/features/handoff/controllers/handoffRowCellsController';
 import React from 'react';
-import type { PatientData } from '@/domain/handoff/patientContracts';
+import type { MedicalHandoffEntry, PatientData } from '@/domain/handoff/patientContracts';
 import { MedicalHandoffDraftTextarea } from './MedicalHandoffDraftTextarea';
 import { medicalHandoffPatientKey } from './medicalHandoffPatientKey';
 import { MedicalHandoffObservationEntry } from './MedicalHandoffObservationEntry';
@@ -15,9 +15,9 @@ interface HandoffMedicalObservationsCellProps {
   reportDate: string;
   isFieldReadOnly: boolean;
   primaryNoteValue: string;
-  onPrimaryNoteChange: (value: string) => void;
+  onPrimaryNoteChange: (value: string) => unknown;
   onCreatePrimaryEntry?: () => void;
-  onEntryNoteChange: (entryId: string, value: string) => void;
+  onEntryNoteChange: (entryId: string, value: string) => unknown;
   onEntrySpecialtyChange?: (entryId: string, specialty: string) => void;
   onAddEntry?: () => void;
   onDeleteEntry?: (entryId: string) => void;
@@ -44,7 +44,22 @@ export const HandoffMedicalObservationsCell: React.FC<HandoffMedicalObservations
     isFieldReadOnly,
     hasCreatePrimaryEntryAction: Boolean(onCreatePrimaryEntry),
   });
-  const displayEntries = entries;
+  // An entry being edited stays on screen if a stale snapshot briefly drops it.
+  const [editingEntries, setEditingEntries] = React.useState<Record<string, MedicalHandoffEntry>>(
+    {}
+  );
+  const displayEntries = [
+    ...entries,
+    ...Object.values(editingEntries).filter(entry => !entries.some(item => item.id === entry.id)),
+  ];
+  const reportEditing = (entry: MedicalHandoffEntry) => (editing: boolean) =>
+    setEditingEntries(current => {
+      if (Boolean(current[entry.id]) === editing) return current;
+      const next = { ...current };
+      if (editing) next[entry.id] = entry;
+      else delete next[entry.id];
+      return next;
+    });
   const emptyState = resolveMedicalObservationEmptyState({
     displayEntriesCount: displayEntries.length,
     isFieldReadOnly,
@@ -102,6 +117,7 @@ export const HandoffMedicalObservationsCell: React.FC<HandoffMedicalObservations
               specialtyOptions={specialtyOptions}
               canEditSpecialty={Boolean(onEntrySpecialtyChange)}
               onEntryNoteChange={onEntryNoteChange}
+              onEditingChange={reportEditing(entry)}
               onEntrySpecialtyChange={onEntrySpecialtyChange}
               onAddEntry={onAddEntry}
               onDeleteEntry={onDeleteEntry}

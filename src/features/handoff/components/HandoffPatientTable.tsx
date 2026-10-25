@@ -99,10 +99,11 @@ export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
       reportDate={record.date}
       isSubRow={options.isNested}
       noteField={noteField}
-      onNoteChange={value => {
-        if (stillOccupies(bed.id, options.isNested, patient))
-          onNoteChange(bed.id, value, options.isNested);
-      }}
+      onNoteChange={value =>
+        stillOccupies(bed.id, options.isNested, patient)
+          ? onNoteChange(bed.id, value, options.isNested)
+          : undefined
+      }
       medicalActions={resolveRowMedicalActions(bed.id, options.isNested, patient)}
       readOnly={readOnly}
       isMedical={isMedical}
@@ -113,7 +114,7 @@ export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 ring-1 ring-black/[0.02] overflow-hidden print:shadow-none print:border-none print:rounded-none print:overflow-visible">
-      {isMedical && <MedicalHandoffDraftsPanel date={record.date} />}
+      {isMedical && <MedicalHandoffDraftsPanel />}
       <div className="overflow-x-auto">
         <table className="w-full table-fixed text-left border-collapse print:[&_th]:p-1 print:[&_td]:p-1 print:[&_th]:text-[10px] print:[&_td]:text-[10px]">
           <thead>

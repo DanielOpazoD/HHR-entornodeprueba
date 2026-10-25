@@ -5,7 +5,6 @@ interface DebouncedTextareaProps extends React.TextareaHTMLAttributes<HTMLTextAr
   onChangeValue: (value: string) => void;
   debounceMs?: number;
   minRows?: number;
-  syncWhileFocused?: boolean;
 }
 
 /**
@@ -19,7 +18,6 @@ export const DebouncedTextarea: React.FC<DebouncedTextareaProps> = ({
   className = '',
   debounceMs = 1000,
   minRows = 2,
-  syncWhileFocused = false,
   ...props
 }) => {
   const [localValue, setLocalValue] = useState(value);
@@ -40,7 +38,7 @@ export const DebouncedTextarea: React.FC<DebouncedTextareaProps> = ({
 
   // Sync local value with prop when not focused (State derivation pattern)
   const [prevValue, setPrevValue] = useState(value);
-  if (value !== prevValue && (!isFocused || syncWhileFocused)) {
+  if (value !== prevValue && !isFocused) {
     setLocalValue(value);
     setPrevValue(value);
   }
@@ -62,7 +60,6 @@ export const DebouncedTextarea: React.FC<DebouncedTextareaProps> = ({
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
     setLocalValue(newValue);
-    props.onChange?.(e);
 
     // Clear existing timer
     if (debounceTimerRef.current) {

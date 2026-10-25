@@ -17,7 +17,8 @@ interface MedicalHandoffObservationEntryProps {
   isFieldReadOnly: boolean;
   specialtyOptions: string[];
   canEditSpecialty?: boolean;
-  onEntryNoteChange: (entryId: string, value: string) => void;
+  onEntryNoteChange: (entryId: string, value: string) => unknown;
+  onEditingChange?: (editing: boolean) => void;
   onEntrySpecialtyChange?: (entryId: string, specialty: string) => void;
   onAddEntry?: () => void;
   onDeleteEntry?: (entryId: string) => void;
@@ -34,6 +35,7 @@ export const MedicalHandoffObservationEntry: React.FC<MedicalHandoffObservationE
   specialtyOptions,
   canEditSpecialty = true,
   onEntryNoteChange,
+  onEditingChange,
   onEntrySpecialtyChange,
   onAddEntry,
   onDeleteEntry,
@@ -146,6 +148,7 @@ export const MedicalHandoffObservationEntry: React.FC<MedicalHandoffObservationE
               entryId={entry.id}
               value={entry.note}
               onChangeValue={value => onEntryNoteChange(entry.id, value)}
+              onEditingChange={onEditingChange}
             />
           </div>
           <div className="hidden print:block whitespace-pre-wrap break-words text-slate-800 print:text-[8px] print:leading-tight">
