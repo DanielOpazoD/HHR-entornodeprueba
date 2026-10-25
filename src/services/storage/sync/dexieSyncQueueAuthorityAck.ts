@@ -46,9 +46,11 @@ export const completeClaimedSyncTask = async (
     let adopted = false;
     if (authoritativeRecord) {
       const payload = task.payload as Partial<DailyRecord> | undefined;
+      const dayKey = `daily:${authoritativeRecord.date}`;
       if (
         task.type !== 'UPDATE_DAILY_RECORD' ||
-        task.key !== `daily:${authoritativeRecord.date}` ||
+        // A held conflict published once its patient is back completes like its day task.
+        (task.key !== dayKey && !task.key?.startsWith(`${dayKey}:detached:`)) ||
         payload?.date !== authoritativeRecord.date
       )
         throw new SyncQueueAckError('sync_ack_invalid_record', 'Invalid ACK record.');

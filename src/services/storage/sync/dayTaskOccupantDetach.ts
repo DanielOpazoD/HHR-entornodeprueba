@@ -7,6 +7,7 @@ import {
 } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
 import { getValueAtPath } from '@/services/repositories/conflictResolutionUtils';
 import { applyPatches } from '@/utils/patchUtils';
+import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 import { hasSameBedOccupant } from './bedOccupantIdentity';
 import { clearSyncTaskRuntimeState } from './syncQueueTaskFactory';
 
@@ -33,6 +34,10 @@ const fieldTarget = (path: string): (Target & { field: string }) | null => {
 };
 const occupantOf = (record: DailyRecord, { bedId, target }: Target): PatientData | undefined =>
   target === 'clinicalCrib' ? record.beds?.[bedId]?.clinicalCrib : record.beds?.[bedId];
+const heldMessage = (record: DailyRecord, group: Target) =>
+  `La ${group.target === 'clinicalCrib' ? 'cuna' : 'cama'} ${group.bedId} ya no tiene a ${
+    buildSpecialistHandoffIdentity(occupantOf(record, group)).patientName || 'este paciente'
+  }. Sus cambios no se publicaron y se conservan para revisión.`;
 
 /**
  * Field edits belong to the occupant they were written for. When the stored bed or crib now
@@ -63,7 +68,12 @@ export const detachStaleOccupantPaths = (
       !hasSameBedOccupant(occupantOf(record, group), occupantOf(remote, group))
   );
   if (!stale.length) return null;
+  // A held conflict retried while its patient is still gone stays that same conflict.
+  if (/^daily:[^:]+:detached:/.test(task.key ?? ''))
+    throw new ConcurrencyError(heldMessage(record, stale[0]), 'semantic_conflict');
   const detached = stale.flatMap(group => group.paths);
+  // Its own mutation id: the day task's publish never acknowledges the held edits.
+  const { mutationIds: _compacted, ...contract } = task.syncContract ?? {};
   const valuesIn = (source: DailyRecord, paths: string[]) =>
     Object.fromEntries(paths.map(path => [path, getValueAtPath(source, path)]));
   const notePaths = detached.filter(path => /\.medicalHandoff(?:Note|Entries|Audit)$/.test(path));
@@ -94,8 +104,12 @@ export const detachStaleOccupantPaths = (
         key,
         payload: record,
         status: 'CONFLICT',
-        syncContract: { ...task.syncContract, changedPaths: group.paths },
-        error: `La ${group.target === 'clinicalCrib' ? 'cuna' : 'cama'} ${group.bedId} ya no tiene a ${identity.patientName || 'este paciente'}. Sus cambios no se publicaron y se conservan para revisión.`,
+        syncContract: {
+          ...contract,
+          changedPaths: group.paths,
+          mutationId: `${contract.mutationId ?? task.opId}:detached:${group.bedId}.${group.target}`,
+        },
+        error: heldMessage(record, group),
         lastErrorCode: 'occupant_changed',
         lastErrorCategory: 'conflict',
         lastErrorAt: Date.now(),

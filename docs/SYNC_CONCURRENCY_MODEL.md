@@ -196,7 +196,9 @@ latest mutation marker does not by itself acknowledge the other mutations.
    stamped. They leave the task as one `CONFLICT` bound to the original patient
    (`dayTaskOccupantDetach.ts`), the other beds go on to step 3 (always merged against the remote),
    and step 6 writes that conflict in the same transaction that completes the task. A task that
-   itself changed the occupant (admission, discharge, identity correction) is not detached.
+   itself changed the occupant (admission, discharge, identity correction) is not detached. The
+   held conflict has its own mutation id; retried while its patient is still gone it stays that
+   conflict, and once the same patient and episode are back it publishes and completes.
 3. **Stale task** (remote `lastUpdated` newer than the task's `expectedVersion`) —
    `assertNoSamePathRemoteMutation` blocks when the remote `meta.lastChangedPaths` overlaps the
    task's `changedPaths` (movement arrays and disjoint medical-handoff entries/specialties may

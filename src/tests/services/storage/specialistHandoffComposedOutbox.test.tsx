@@ -23,7 +23,7 @@ const h = harnessState();
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexedDBService';
-import { listRecentSyncQueueOperations } from '@/services/storage/sync';
+import { listRecentSyncQueueOperations, retryQuarantinedSyncTask } from '@/services/storage/sync';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { shouldRouteSpecialistPatchViaCallable } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import {
@@ -61,6 +61,14 @@ const notePatch = (record: DailyRecord, bedId: string, value: string) => ({
   ],
 });
 const queue = async () => hospitalDB.syncQueue.toArray();
+/** A retry also starts a background run; reconnect until no task is waiting or in flight. */
+const settleQueue = async () => {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    await reconnect();
+    const tasks = await queue();
+    if (!tasks.some(task => task.status === 'PENDING' || task.status === 'PROCESSING')) return;
+  }
+};
 
 beforeEach(async () => {
   Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
@@ -131,6 +139,47 @@ describe('a day task never writes a patient edits to the next occupant', () => {
     );
     expect(screen.getByText('Cambios de Paciente A Sintético · 24-10-2026')).toBeInTheDocument();
     expect(screen.queryByText('Reintentar')).not.toBeInTheDocument();
+  });
+
+  it('keeps a retried held conflict while A is gone, and publishes it once A and the episode are back', async () => {
+    const base = day(DATE, { R4: A('R4', { pathology: 'Dx A' }), R6: E() });
+    await hospitalDB.dailyRecords.put(base);
+    h.remote = clone(base);
+    await writeDay(base, { 'beds.R4.pathology': 'Dx A corregido' });
+    await writeDay(await local(), { 'beds.R6.pathology': 'Dx E corregido' });
+    h.remote = day(
+      DATE,
+      { R4: { ...B(), pathology: 'Dx B' }, R6: E() },
+      '2026-10-24T11:00:00.000Z'
+    );
+    await reconnect();
+    const [held] = await queue();
+
+    expect(await retryQuarantinedSyncTask(held.id!)).toBe(true);
+    await settleQueue();
+    expect(await queue()).toEqual([
+      expect.objectContaining({ id: held.id, key: held.key, status: 'CONFLICT' }),
+    ]);
+    expect(remote().beds.R4).toMatchObject({
+      patientName: 'Paciente B Sintético',
+      pathology: 'Dx B',
+    });
+
+    // Another device undoes the move: A is back in R4 with the same episode.
+    h.remote = day(
+      DATE,
+      { R4: A('R4', { pathology: 'Dx A' }), R6: E({ pathology: 'Dx E corregido' }) },
+      '2026-10-24T12:00:00.000Z'
+    );
+    expect(await retryQuarantinedSyncTask(held.id!)).toBe(true);
+    await settleQueue();
+    expect(remote().beds.R4).toMatchObject({
+      clinicalEpisodeId: 'ep-A',
+      pathology: 'Dx A corregido',
+    });
+    expect(remote().beds.R6.pathology).toBe('Dx E corregido');
+    expect(await queue()).toEqual([]);
+    expect((await local()).beds.R4.pathology).toBe('Dx A corregido');
   });
 
   it.each([
