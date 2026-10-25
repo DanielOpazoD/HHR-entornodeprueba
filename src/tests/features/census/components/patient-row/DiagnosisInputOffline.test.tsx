@@ -11,11 +11,15 @@ const setOnline = (value: boolean) =>
 const chunkError = () => new Error('Failed to fetch dynamically imported module');
 
 async function mount({ fails = true, recovers = false, readOnly = false, isSubRow = true } = {}) {
+  const realCell =
+    await vi.importActual<
+      typeof import('@/features/census/components/patient-row/DiagnosisCie10Cell')
+    >(chunk);
   let attempts = 0;
-  vi.doMock(chunk, async () => {
+  vi.doMock(chunk, () => {
     attempts++;
     if (fails && (!recovers || attempts === 1)) throw chunkError();
-    return vi.importActual(chunk);
+    return realCell;
   });
   const { DiagnosisInput: Input } =
     await import('@/features/census/components/patient-row/DiagnosisInput');
@@ -66,8 +70,9 @@ beforeEach(() => {
   setOnline(false);
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
-afterEach(() => {
+afterEach(async () => {
   cleanup();
+  await vi.dynamicImportSettled();
   vi.doUnmock(chunk);
   vi.restoreAllMocks();
   setOnline(true);
