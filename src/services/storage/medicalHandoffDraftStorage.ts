@@ -17,11 +17,12 @@ let cachedRaw: string | null | undefined;
 let cachedOwner: string | null | undefined;
 let drafts: MedicalHandoffDraft[] = [];
 let storageFailed = false;
+// Pending clinical work is durable and owner-scoped, outside ephemeral hhr_ session keys.
 const storageKey = () => {
   try {
-    return `hhr_medical_handoff_drafts:${getStoredSessionOwnerKey() || 'local'}`;
+    return `hhr.medicalHandoffDrafts.v1:${getStoredSessionOwnerKey() || 'local'}`;
   } catch {
-    return 'hhr_medical_handoff_drafts:unavailable';
+    return 'hhr.medicalHandoffDrafts.v1:unavailable';
   }
 };
 

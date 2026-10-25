@@ -99,8 +99,9 @@ The first matching route wins:
    ID as client hydration (identity and admission, never bed alone). An occupant mismatch rejects
    with `failed-precondition`, surfaced as an editing conflict. Typed text is retained on each
    keystroke as an owner-scoped local draft tied to patient, episode, date and entry; it survives
-   rollback, remount and reload, and remains reviewable after turnover. Drafts are never submitted
-   on mount. A storage failure is visible and disables the reload action.
+   rollback, remount and reload, and remains reviewable after turnover. Pending drafts survive
+   session cleanup in durable owner-scoped storage; other session owners cannot view them. Drafts
+   are never submitted on mount. A storage failure is visible and disables the reload action.
 
    Network failures retain the local record and the existing outbox task with the frozen occupants.
    Specialist replay uses the same callable, never generic merge. An occupant conflict remains
