@@ -1,3 +1,4 @@
+import { preserveQueuedMedicalHandoffDrafts } from '../medicalHandoffDraftStorage';
 import { buildSpecialistHandoffTargets } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
 import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 import { resolveClinicalEpisodeIdentifier } from '@/application/patient-flow/clinicalEpisode';
@@ -181,5 +182,30 @@ export const assertPendingHandoffContinuity = (
       'La cola conserva una entrega del paciente anterior. Revisa ese conflicto antes de reemplazar su contenido.',
       'semantic_conflict'
     );
+  }
+};
+
+/** Keep the original payload recoverable without owning the day's next write. */
+export const preserveIncompatibleHandoffTask = async (
+  store: Pick<import('./syncQueuePorts').SyncQueueStorePort, 'update'>,
+  existing: SyncTask | null,
+  record: DailyRecord
+): Promise<SyncTask | null> => {
+  try {
+    assertPendingHandoffContinuity(existing, record);
+    return existing;
+  } catch (error) {
+    if (!(error instanceof ConcurrencyError) || !existing?.id) throw error;
+    preserveQueuedMedicalHandoffDrafts(existing);
+    await store.update(existing.id, {
+      key: `${existing.key}:handoff-conflict:${existing.id}`,
+      status: 'CONFLICT',
+      error:
+        'Entrega pendiente del paciente y episodio originales. Conservada para revisión; las nuevas ediciones del día pueden continuar.',
+      lastErrorCategory: 'conflict',
+      lastErrorAction:
+        'Revisar la entrega original en las operaciones de sincronización antes de reintentar o descartar.',
+    });
+    return null;
   }
 };

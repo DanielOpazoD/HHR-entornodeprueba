@@ -1,14 +1,11 @@
-import { useMedicalHandoffDrafts } from '@/hooks/useMedicalHandoffDraft';
 import {
   resolveMedicalObservationEmptyState,
   shouldShowMedicalPrimaryNoteFallback,
 } from '@/features/handoff/controllers/handoffRowCellsController';
 import React from 'react';
 import type { PatientData } from '@/domain/handoff/patientContracts';
-import {
-  MedicalHandoffDraftTextarea,
-  medicalHandoffPatientKey,
-} from './MedicalHandoffDraftTextarea';
+import { MedicalHandoffDraftTextarea } from './MedicalHandoffDraftTextarea';
+import { medicalHandoffPatientKey } from './medicalHandoffPatientKey';
 import { MedicalHandoffObservationEntry } from './MedicalHandoffObservationEntry';
 import { getMedicalHandoffSpecialtyOptions } from '@/domain/handoff/patientEntries';
 import { resolveMedicalObservationEntries } from '@/domain/handoff/patientView';
@@ -47,19 +44,7 @@ export const HandoffMedicalObservationsCell: React.FC<HandoffMedicalObservations
     isFieldReadOnly,
     hasCreatePrimaryEntryAction: Boolean(onCreatePrimaryEntry),
   });
-  const drafts = useMedicalHandoffDrafts();
-  const prefix = `${reportDate}:${medicalHandoffPatientKey(patient)}:`;
-  const draftOnlyEntries = isFieldReadOnly
-    ? []
-    : drafts
-        .filter(
-          draft =>
-            draft.key.startsWith(prefix) &&
-            draft.entryId !== 'primary-note' &&
-            !entries.some(entry => entry.id === draft.entryId)
-        )
-        .map(draft => ({ id: draft.entryId, specialty: patient.specialty || '', note: '' }));
-  const displayEntries = [...entries, ...draftOnlyEntries];
+  const displayEntries = entries;
   const emptyState = resolveMedicalObservationEmptyState({
     displayEntriesCount: displayEntries.length,
     isFieldReadOnly,

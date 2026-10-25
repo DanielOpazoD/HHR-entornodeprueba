@@ -29,6 +29,7 @@ const cell = (p = patient, onChange = vi.fn()) => (
 );
 beforeEach(() => {
   localStorage.clear();
+  localStorage.setItem('hhr_session_owner_v1', 'user:synthetic-A');
   vi.useFakeTimers();
 });
 afterEach(() => {
@@ -53,7 +54,9 @@ describe('medical draft continuity and episode ownership', () => {
     render(cell(patient, save));
     act(() => vi.advanceTimersByTime(5000));
     fireEvent.blur(screen.getByRole('textbox'));
-    expect(screen.getByRole('textbox')).toHaveValue('Nota larga escrita para A');
+    expect(screen.getByRole('textbox')).toHaveValue('Persistida A');
+    fireEvent.click(screen.getByText('Revisar borrador'));
+    expect(screen.getByText('Nota larga escrita para A')).toBeVisible();
     expect(save).toHaveBeenCalledTimes(1);
   });
 

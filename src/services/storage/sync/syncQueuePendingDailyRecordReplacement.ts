@@ -7,6 +7,7 @@ import {
   buildSyncTaskContract,
   mergeSyncTaskContracts,
   assertPendingHandoffContinuity,
+  preserveIncompatibleHandoffTask,
 } from '@/services/storage/sync/syncTaskContractPolicy';
 import {
   clearSyncTaskRuntimeState,
@@ -49,12 +50,11 @@ export const buildPendingDailyRecordReplacementTask = ({
   };
 };
 
-export const replacePendingDailyRecordTask = async ({
+const replaceWithinTransaction = async ({
   record,
   meta,
   store,
   runtime,
-  triggerProcessing,
   expectedTask,
 }: {
   record: DailyRecord;
@@ -81,12 +81,25 @@ export const replacePendingDailyRecordTask = async ({
     return false;
   }
 
+  // A replacement cannot acknowledge the orphan as saved. Leave it in quarantine
+  // and let the caller enqueue the fresh write through the ordinary atomic path.
+  if (!(await preserveIncompatibleHandoffTask(store, existing, record))) return false;
   const replacementTask = buildPendingDailyRecordReplacementTask({ record, meta, existing });
   const replaced = await store.replacePendingDailyRecordWithTask(
     record,
     { ...replacementTask, key, ownerKey: ownerKey ?? undefined },
     expectedTask
   );
-  if (replaced) triggerProcessing();
+  return replaced;
+};
+
+export const replacePendingDailyRecordTask = async (
+  args: Parameters<typeof replaceWithinTransaction>[0]
+): Promise<boolean> => {
+  const operation = () => replaceWithinTransaction(args);
+  const replaced = await (args.store.withEnqueueTransaction
+    ? args.store.withEnqueueTransaction(operation)
+    : operation());
+  if (replaced) args.triggerProcessing();
   return replaced;
 };

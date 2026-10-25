@@ -4,6 +4,13 @@ import { mockAuthContextValue } from '../../setup';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import React from 'react';
+import { readMedicalHandoffDrafts } from '@/services/storage/medicalHandoffDraftStorage';
+
+const waitForMedicalCell = () =>
+  act(async () => {
+    await import('@/features/handoff/components/HandoffMedicalObservationsCell');
+    await import('@/features/handoff/components/MedicalHandoffDraftsPanel');
+  });
 
 import { HandoffView } from '@/features/handoff/components/HandoffView';
 import { DailyRecordProvider } from '@/context/DailyRecordContext';
@@ -74,6 +81,7 @@ const setAuthorizedSpecialistAuth = () => {
 describe('HandoffView medical flows', () => {
   beforeEach(() => {
     localStorage.clear();
+    localStorage.setItem('hhr_session_owner_v1', 'user:synthetic-A');
     vi.clearAllMocks();
     vi.useRealTimers();
     mockUseAuthState.user = {
@@ -106,7 +114,7 @@ describe('HandoffView medical flows', () => {
     );
   });
 
-  it('handles medical handoff view', () => {
+  it('handles medical handoff view', async () => {
     const record = createMockRecord('2024-12-11');
     record.beds['R1'] = createMockPatient({
       bedId: 'R1',
@@ -122,6 +130,7 @@ describe('HandoffView medical flows', () => {
     render(<HandoffView type="medical" />, {
       contextValue: createMockDailyRecordContext(record),
     });
+    await waitForMedicalCell();
 
     expect(screen.getByText(/Entrega Turno Médicos/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Especialidad/i).length).toBeGreaterThan(0);
@@ -133,7 +142,7 @@ describe('HandoffView medical flows', () => {
     ).toBeInTheDocument();
   });
 
-  it('keeps patient-level medical handoff creation enabled for doctor_specialist on the current day', () => {
+  it('keeps patient-level medical handoff creation enabled for doctor_specialist on the current day', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-12T12:00:00-06:00'));
     setAuthorizedSpecialistAuth();
@@ -149,6 +158,7 @@ describe('HandoffView medical flows', () => {
     render(<HandoffView type="medical" />, {
       contextValue: createMockDailyRecordContext(record),
     });
+    await waitForMedicalCell();
 
     const mainTable = screen.getAllByRole('table')[0];
     expect(within(mainTable).getByRole('button', { name: /crear entrega/i })).toBeInTheDocument();
@@ -156,7 +166,7 @@ describe('HandoffView medical flows', () => {
     vi.useRealTimers();
   });
 
-  it('keeps existing medical handoff entries editable for doctor_specialist during the overnight clinical day window', () => {
+  it('keeps existing medical handoff entries editable for doctor_specialist during the overnight clinical day window', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 3, 22, 6, 59, 0));
     setAuthorizedSpecialistAuth();
@@ -178,6 +188,7 @@ describe('HandoffView medical flows', () => {
     render(<HandoffView type="medical" />, {
       contextValue: createMockDailyRecordContext(record),
     });
+    await waitForMedicalCell();
 
     const mainTable = screen.getAllByRole('table')[0];
     expect(within(mainTable).getByDisplayValue('Plan vigente')).toBeInTheDocument();
@@ -185,7 +196,7 @@ describe('HandoffView medical flows', () => {
     vi.useRealTimers();
   });
 
-  it('blocks specialist editing outside the overnight clinical day window', () => {
+  it('blocks specialist editing outside the overnight clinical day window', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-22T15:01:00.000Z')); // 09:01 in Rapa Nui
     setAuthorizedSpecialistAuth();
@@ -201,6 +212,7 @@ describe('HandoffView medical flows', () => {
     render(<HandoffView type="medical" />, {
       contextValue: createMockDailyRecordContext(record),
     });
+    await waitForMedicalCell();
 
     const mainTable = screen.getAllByRole('table')[0];
     expect(
@@ -291,6 +303,7 @@ describe('HandoffView medical flows', () => {
     };
 
     render(<FirstSpecialistSaveRoundTrip />);
+    await waitForMedicalCell();
 
     fireEvent.click(
       within(screen.getAllByRole('table')[0]).getByRole('button', { name: /crear entrega/i })
@@ -306,12 +319,16 @@ describe('HandoffView medical flows', () => {
         'Primera evolución especialista'
       );
 
-    expect(getInteractiveSavedNotes().length).toBeGreaterThan(0);
+    expect(readMedicalHandoffDrafts()).toContainEqual(
+      expect.objectContaining({ value: 'Primera evolución especialista' })
+    );
 
     act(() => {
       vi.advanceTimersByTime(25);
     });
-    expect(getInteractiveSavedNotes().length).toBeGreaterThan(0);
+    expect(readMedicalHandoffDrafts()).toContainEqual(
+      expect.objectContaining({ value: 'Primera evolución especialista' })
+    );
 
     await act(async () => {
       vi.advanceTimersByTime(50);
@@ -341,6 +358,7 @@ describe('HandoffView medical flows', () => {
     render(<HandoffView type="medical" />, {
       contextValue: createMockDailyRecordContext(record),
     });
+    await waitForMedicalCell();
 
     fireEvent.click(screen.getAllByTitle(/Expandir todos los eventos/i)[0]);
 
@@ -363,6 +381,7 @@ describe('HandoffView medical flows', () => {
     const { mockContext } = render(<HandoffView type="medical" />, {
       contextValue: createMockDailyRecordContext(record),
     });
+    await waitForMedicalCell();
 
     const initialTable = screen.getAllByRole('table')[0];
     expect(within(initialTable).getByText('PACIENTE MEDICINA')).toBeInTheDocument();
@@ -398,6 +417,7 @@ describe('HandoffView medical flows', () => {
     render(<HandoffView type="medical" medicalScope="all" />, {
       contextValue: createMockDailyRecordContext(record),
     });
+    await waitForMedicalCell();
 
     expect(screen.getByRole('button', { name: /^todos \(2\)$/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^upc \(1\)$/i })).toBeInTheDocument();
@@ -421,7 +441,7 @@ describe('HandoffView medical flows', () => {
     });
   });
 
-  it('shows scoped medical signature only in the matching filtered view', () => {
+  it('shows scoped medical signature only in the matching filtered view', async () => {
     const record = createMockRecord('2024-12-11');
     record.beds['R1'] = {
       ...createMockPatient({
@@ -442,6 +462,7 @@ describe('HandoffView medical flows', () => {
     const { rerender } = render(<HandoffView type="medical" medicalScope="all" />, {
       contextValue: createMockDailyRecordContext(record),
     });
+    await waitForMedicalCell();
 
     expect(screen.queryByText('Dr. UPC')).not.toBeInTheDocument();
     expect(screen.getByText(/Pendiente de firma/i)).toBeInTheDocument();
@@ -451,12 +472,13 @@ describe('HandoffView medical flows', () => {
     expect(screen.getByText('Dr. UPC')).toBeInTheDocument();
   });
 
-  it('does not rewrite the signature link URL when an external ui state is provided', () => {
+  it('does not rewrite the signature link URL when an external ui state is provided', async () => {
     window.history.replaceState(
       {},
       '',
       '/admin?mode=signature&date=2026-04-05&scope=all&token=test-token'
     );
+    await waitForMedicalCell();
 
     const record = createMockRecord('2026-04-05');
     const ui = createMockUIState({
@@ -466,10 +488,12 @@ describe('HandoffView medical flows', () => {
     render(<HandoffView type="medical" readOnly={true} ui={ui} medicalScope="all" />, {
       contextValue: createMockDailyRecordContext(record),
     });
+    await waitForMedicalCell();
 
     expect(window.location.pathname).toBe('/admin');
     expect(window.location.search).toBe(
       '?mode=signature&date=2026-04-05&scope=all&token=test-token'
     );
+    await waitForMedicalCell();
   });
 });

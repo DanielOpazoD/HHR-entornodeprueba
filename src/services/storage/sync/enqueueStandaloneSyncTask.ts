@@ -8,7 +8,7 @@ import { buildSyncQueueTaskContextMeta } from './syncQueueFailurePolicy';
 import {
   buildSyncTaskContract,
   mergeSyncTaskContracts,
-  assertPendingHandoffContinuity,
+  preserveIncompatibleHandoffTask,
 } from './syncTaskContractPolicy';
 import { getSyncTaskKey, clearSyncTaskRuntimeState } from './syncQueueTaskFactory';
 import {
@@ -45,10 +45,12 @@ const enqueueWithinTransaction = async (
   const syncContract = buildSyncTaskContract(type, payload, meta?.syncContract);
 
   if (key) {
-    const existing = await store.findReusableTask(type, key, ownerKey);
+    const candidate = await store.findReusableTask(type, key, ownerKey);
+    const existing =
+      type === 'UPDATE_DAILY_RECORD'
+        ? await preserveIncompatibleHandoffTask(store, candidate, payload as DailyRecord)
+        : candidate;
     if (existing?.id) {
-      if (type === 'UPDATE_DAILY_RECORD')
-        assertPendingHandoffContinuity(existing, payload as DailyRecord);
       const mergedSyncContract = mergeSyncTaskContracts(existing.syncContract, syncContract);
       await store.update(existing.id, {
         payload,

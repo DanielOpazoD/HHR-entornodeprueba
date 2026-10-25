@@ -105,4 +105,22 @@ describe('specialist callable retries', () => {
     expect(mockSpecialistCallable).toHaveBeenCalledTimes(1);
     expect(updateDoc).not.toHaveBeenCalled();
   });
+  it('keeps a note crossing the clinical day as a recoverable conflict instead of FAILED', async () => {
+    mockGetCurrentUser.mockReturnValue({ uid: 'synthetic', isAnonymous: false });
+    mockResolveFirebaseUserRole.mockResolvedValue('doctor_specialist');
+    mockSpecialistCallable.mockRejectedValue(
+      Object.assign(new Error('Specialists can only update the current clinical day.'), {
+        code: 'functions/permission-denied',
+      })
+    );
+    const error = await updateRecordPartial(
+      '2026-03-20',
+      { 'beds.R4.medicalHandoffNote': 'Nota pendiente' },
+      undefined,
+      { specialistHandoffTargets }
+    ).catch(error => error);
+    expect(error).toBeInstanceOf(ConcurrencyError);
+    expect(error.message).toMatch(/día clínico.*conserva/);
+    expect(classifySyncError(error)).toMatchObject({ category: 'conflict', retryable: false });
+  });
 });

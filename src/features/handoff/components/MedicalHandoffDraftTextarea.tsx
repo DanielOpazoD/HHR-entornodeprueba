@@ -1,17 +1,16 @@
-import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
 import React from 'react';
 import { DebouncedTextarea } from '@/components/ui/DebouncedTextarea';
+import { MedicalHandoffDraftReview } from './MedicalHandoffDraftReview';
 import type { PatientData } from '@/domain/handoff/patientContracts';
 import { buildLegacyClinicalEpisodeId } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
-import { useMedicalHandoffDrafts, writeMedicalHandoffDraft } from '@/hooks/useMedicalHandoffDraft';
-
-export const medicalHandoffPatientKey = (patient: PatientData): string =>
-  JSON.stringify([
-    patient.documentType || 'RUT',
-    patient.rut,
-    patient.patientName,
-    patient.clinicalEpisodeId || buildLegacyClinicalEpisodeId(patient),
-  ]);
+import {
+  useMedicalHandoffDrafts,
+  writeMedicalHandoffDraft,
+  deleteMedicalHandoffDraft,
+  medicalHandoffDraftKey,
+  registerMedicalHandoffDraftRestore,
+} from '@/hooks/useMedicalHandoffDraft';
+import { medicalHandoffPatientKey } from './medicalHandoffPatientKey';
 
 interface Props {
   patient: PatientData;
@@ -21,7 +20,6 @@ interface Props {
   onChangeValue: (value: string) => void;
 }
 
-// A keyed editor freezes its patient's callback when typing starts. Remounting never submits.
 export const MedicalHandoffDraftTextarea: React.FC<Props> = props => (
   <DraftEditor
     key={`${props.reportDate}:${medicalHandoffPatientKey(props.patient)}:${props.entryId}`}
@@ -30,13 +28,24 @@ export const MedicalHandoffDraftTextarea: React.FC<Props> = props => (
 );
 
 const DraftEditor: React.FC<Props> = ({ patient, reportDate, entryId, value, onChangeValue }) => {
-  const key = `${reportDate}:${medicalHandoffPatientKey(patient)}:${entryId}`;
-  const drafts = useMedicalHandoffDrafts();
-  const draft = drafts.find(item => item.key === key);
+  const identity = {
+    documentType: patient.documentType || 'RUT',
+    rut: patient.rut,
+    clinicalEpisodeId: patient.clinicalEpisodeId || buildLegacyClinicalEpisodeId(patient) || '',
+    entryId,
+  };
+  const key = medicalHandoffDraftKey(identity);
+  const draft = useMedicalHandoffDrafts().find(item => item.key === key);
+  const [editing, setEditing] = React.useState<string | null>(null);
   const [storageFailed, setStorageFailed] = React.useState(false);
-  const [reviewing, setReviewing] = React.useState(false);
   const pendingValue = React.useRef<string | null>(null);
   const capturedSave = React.useRef<typeof onChangeValue | null>(null);
+  React.useEffect(() => {
+    pendingValue.current = null;
+    capturedSave.current = null;
+    setEditing(null);
+    deleteMedicalHandoffDraft(key, value);
+  }, [key, value]);
   const submitPending = () => {
     if (pendingValue.current === null) return;
     const next = pendingValue.current;
@@ -45,23 +54,38 @@ const DraftEditor: React.FC<Props> = ({ patient, reportDate, entryId, value, onC
     capturedSave.current = null;
     save?.(next);
   };
+  React.useEffect(() => {
+    if (!draft) {
+      pendingValue.current = null;
+      capturedSave.current = null;
+      setEditing(null);
+    }
+  }, [draft]);
+  React.useEffect(
+    () =>
+      registerMedicalHandoffDraftRestore(key, () => {
+        if (!draft) return;
+        pendingValue.current = null;
+        capturedSave.current = null;
+        setEditing(draft.value);
+        onChangeValue(draft.value);
+      }),
+    [key, draft, onChangeValue]
+  );
   return (
     <>
       <DebouncedTextarea
-        value={draft?.value ?? value}
+        value={editing ?? value}
         onChange={event => {
           capturedSave.current ??= onChangeValue;
           pendingValue.current = event.target.value;
+          setEditing(event.target.value);
           setStorageFailed(
             !writeMedicalHandoffDraft({
+              ...identity,
               key,
               date: reportDate,
               patientName: patient.patientName,
-              rut: patient.rut,
-              documentType: patient.documentType || 'RUT',
-              clinicalEpisodeId:
-                patient.clinicalEpisodeId || buildLegacyClinicalEpisodeId(patient) || '',
-              entryId,
               value: event.target.value,
             })
           );
@@ -71,33 +95,19 @@ const DraftEditor: React.FC<Props> = ({ patient, reportDate, entryId, value, onC
         className="w-full rounded border border-slate-200 bg-white px-2 py-1.5 text-[13px] leading-snug focus:ring-2 focus:ring-medical-500 focus:outline-none"
         minRows={1}
         debounceMs={1500}
+        syncWhileFocused
       />
-      {draft && (
-        <div className="text-xs text-amber-800 print:hidden" role="status">
-          {storageFailed
-            ? 'Borrador solo en pantalla: no se pudo guardar en el dispositivo.'
-            : 'Copia local del texto; verifica el guardado antes de cerrar.'}
-          <button type="button" onClick={() => setReviewing(!reviewing)}>
-            Revisar borrador
-          </button>
-          {reviewing && (
-            <div>
-              <p>
-                {draft.patientName} · Episodio {draft.clinicalEpisodeId}
-              </p>
-              <p>Texto del borrador:</p>
-              <pre className="whitespace-pre-wrap">{draft.value}</pre>
-              <p>Texto recibido del registro:</p>
-              <pre className="whitespace-pre-wrap">{value}</pre>
-              <button
-                type="button"
-                disabled={storageFailed}
-                onClick={() => defaultBrowserWindowRuntime.reload()}
-              >
-                Recargar conservando borrador
-              </button>
-            </div>
-          )}
+      {draft && draft.value !== value && (
+        <div className="text-xs text-amber-800 print:hidden">
+          <p role="status">
+            {storageFailed
+              ? 'Borrador sin guardar, solo en memoria. Inicia sesión o conserva el texto antes de cerrar.'
+              : 'Borrador pendiente; no se reenvía automáticamente.'}
+          </p>
+          <details>
+            <summary>Revisar borrador</summary>
+            <MedicalHandoffDraftReview draft={draft} />
+          </details>
         </div>
       )}
     </>

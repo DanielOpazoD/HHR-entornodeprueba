@@ -98,16 +98,25 @@ The first matching route wins:
    in one transaction. Stored patients without episode metadata use the same deterministic legacy
    ID as client hydration (identity and admission, never bed alone). An occupant mismatch rejects
    with `failed-precondition`, surfaced as an editing conflict. Typed text is retained on each
-   keystroke as an owner-scoped local draft tied to patient, episode, date and entry; it survives
-   rollback, remount and reload, and remains reviewable after turnover. Pending drafts survive
-   session cleanup in durable owner-scoped storage; other session owners cannot view them. Drafts
-   are never submitted on mount. A storage failure is visible and disables the reload action.
+   keystroke as an owner-scoped local draft tied to patient, episode and entry. Only the latest
+   pending text for that identity is retained across report dates. The editor opens on the current
+   registry text; a different pending draft is offered for explicit restore or discard, never sent
+   on mount. Exact registry confirmation or discard removes the draft. Medical handoff patches do
+   not publish an optimistic registry value that could falsely acknowledge and erase the draft.
+   Pending authenticated drafts survive logout under their original user; without an authenticated
+   owner the text stays in memory with a visible unsaved warning. A remotely removed entry stays
+   recoverable in the review panel without resurrecting an editor that cannot save.
 
    Network failures retain the local record and the existing outbox task with the frozen occupants.
    Specialist replay uses the same callable, never generic merge. An occupant conflict remains
    unresolved for manual review. Generic replay also checks handoff identity for legacy queued tasks
    before selecting/merging truth, so a note cannot be silently discarded after turnover. Enqueue
-   and replacement also reject coalescing a pending handoff into another occupant’s census.
+   and replacement quarantine an incompatible handoff under a separate conflict key, keeping its
+   entire original payload and a visible patient-bound draft. Atomic enqueue then saves the new
+   census and task without merging the orphan's paths or occupants. The conflict does not own the
+   next daily write or adopt an old census when explicitly retried. A note that crosses the clinical
+   day boundary becomes a recoverable conflict with an explicit message, rather than FAILED.
+   The medical editor and recovery UI load lazily and remain precached for offline use.
 
    **Deploy transition:** requests that omit `expectedOccupants` entirely keep the old allowlisted
    semantics inside the transaction; malformed or empty supplied metadata still fails closed.

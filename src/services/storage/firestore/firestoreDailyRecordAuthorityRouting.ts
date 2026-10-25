@@ -224,6 +224,12 @@ export const updateSpecialistMedicalHandoffViaCallable = async (
     ) {
       throw conflict();
     }
+    if (error instanceof Error && error.message.includes('current clinical day')) {
+      throw new ConcurrencyError(
+        'Cambió el día clínico. La entrega pendiente se conserva para revisión manual; no fue publicada.',
+        'semantic_conflict'
+      );
+    }
     throw error;
   }
 };

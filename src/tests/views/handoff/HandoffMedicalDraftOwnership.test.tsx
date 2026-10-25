@@ -60,6 +60,8 @@ describe('medical draft owner recovery', () => {
     other.unmount();
     localStorage.setItem('hhr_session_owner_v1', 'user:synthetic-A');
     render(cell());
-    expect(screen.getByRole('textbox')).toHaveValue('Borrador conservado de A');
+    expect(screen.getByRole('textbox')).toHaveValue('Persistida A');
+    fireEvent.click(screen.getByText('Revisar borrador'));
+    expect(screen.getByText('Borrador conservado de A')).toBeVisible();
   });
 });

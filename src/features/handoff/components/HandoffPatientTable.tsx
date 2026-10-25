@@ -1,5 +1,9 @@
-import { medicalHandoffPatientKey } from './MedicalHandoffDraftTextarea';
-import { MedicalHandoffDraftsPanel } from './MedicalHandoffDraftsPanel';
+import { medicalHandoffPatientKey } from './medicalHandoffPatientKey';
+const MedicalHandoffDraftsPanel = React.lazy(() =>
+  import('./MedicalHandoffDraftsPanel').then(module => ({
+    default: module.MedicalHandoffDraftsPanel,
+  }))
+);
 import React, { useState } from 'react';
 import { BedDefinition } from '@/types/domain/beds';
 import type { DailyRecord } from '@/domain/handoff/recordContracts';
@@ -113,7 +117,11 @@ export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 ring-1 ring-black/[0.02] overflow-hidden print:shadow-none print:border-none print:rounded-none print:overflow-visible">
-      {isMedical && <MedicalHandoffDraftsPanel date={record.date} />}
+      {isMedical && (
+        <React.Suspense fallback={null}>
+          <MedicalHandoffDraftsPanel date={record.date} />
+        </React.Suspense>
+      )}
       <div className="overflow-x-auto">
         <table className="w-full table-fixed text-left border-collapse print:[&_th]:p-1 print:[&_td]:p-1 print:[&_th]:text-[10px] print:[&_td]:text-[10px]">
           <thead>

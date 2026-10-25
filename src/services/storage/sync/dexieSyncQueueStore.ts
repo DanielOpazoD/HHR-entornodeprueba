@@ -82,7 +82,9 @@ const mirrorTransactionalDailyRecordWrite = (record: DailyRecord): void => {
 
 export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
   withEnqueueTransaction: operation =>
-    hospitalDB.transaction('rw', hospitalDB.syncQueue, async () => operation()),
+    hospitalDB.transaction('rw', hospitalDB.dailyRecords, hospitalDB.syncQueue, async () =>
+      operation()
+    ),
   async listAll(ownerKey) {
     const tasks = await hospitalDB.syncQueue.toArray();
     return tasks.filter(task => matchesOwner(ownerKey, task.ownerKey));

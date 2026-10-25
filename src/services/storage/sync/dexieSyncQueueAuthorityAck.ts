@@ -34,10 +34,17 @@ export const completeClaimedSyncTask = (
       const payload = task.payload as Partial<DailyRecord> | undefined;
       if (
         task.type !== 'UPDATE_DAILY_RECORD' ||
-        task.key !== `daily:${authoritativeRecord.date}` ||
+        (task.key !== `daily:${authoritativeRecord.date}` &&
+          !task.key?.startsWith(`daily:${authoritativeRecord.date}:handoff-conflict:`)) ||
         payload?.date !== authoritativeRecord.date
       )
         throw new SyncQueueAckError('sync_ack_invalid_record', 'Invalid ACK record.');
+      // A manually retried orphan may finish, but its old census must never
+      // replace the current local occupants or unrelated edits.
+      if (task.key?.includes(':handoff-conflict:')) {
+        await db.syncQueue.delete(taskId);
+        return { deleted: true, adopted: false };
+      }
       const local = await db.dailyRecords.get(authoritativeRecord.date);
       const unresolved = (await pending(authoritativeRecord.date)).some(
         candidate => candidate.id !== taskId

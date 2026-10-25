@@ -79,7 +79,13 @@ describe('daily record patch retry ownership', () => {
       'El paciente de R1 cambió. Recarga.',
       'semantic_conflict'
     );
-    vi.mocked(dailyRecord.updatePartialDetailed).mockRejectedValue(conflict);
+    vi.mocked(dailyRecord.updatePartialDetailed).mockImplementation(async () => {
+      expect(
+        queryClient.getQueryData<{ record: typeof displayed }>(getDailyRecordQueryKey(date))?.record
+          .beds.R1.medicalHandoffNote
+      ).not.toBe('Nota de A sintético');
+      throw conflict;
+    });
     const wrapper = ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={queryClient}>
         <RepositoryProvider value={createRepositoryContainer({ dailyRecord })}>

@@ -116,6 +116,18 @@ describe('transactional outbox authority ACK', () => {
     }
   );
 
+  it('finishes an explicitly retried detached handoff without replacing the current census', async () => {
+    const { processing, finish, task } = await beginAck();
+    await hospitalDB.syncQueue.update(task.id!, {
+      key: `daily:${date}:handoff-conflict:${task.id}`,
+    });
+    await hospitalDB.dailyRecords.put(newer());
+    finish();
+    await processing;
+    expect(await hospitalDB.syncQueue.count()).toBe(0);
+    expect(await hospitalDB.dailyRecords.get(date)).toEqual(newer());
+  });
+
   it('adopts the authoritative record and deletes its own task when no later work exists', async () => {
     const { processing, finish } = await beginAck();
     finish();

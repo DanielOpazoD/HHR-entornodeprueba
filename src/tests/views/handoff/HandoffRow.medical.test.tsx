@@ -3,6 +3,13 @@ import '../../setup';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, fireEvent, screen } from '@testing-library/react';
 import React from 'react';
+import { readMedicalHandoffDrafts } from '@/services/storage/medicalHandoffDraftStorage';
+
+const waitForMedicalCell = () =>
+  act(async () => {
+    await import('@/features/handoff/components/HandoffMedicalObservationsCell');
+    await import('@/features/handoff/components/MedicalHandoffDraftsPanel');
+  });
 
 import { HandoffRow } from '@/features/handoff/components/HandoffRow';
 import {
@@ -14,7 +21,10 @@ import {
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 
 describe('HandoffRow medical flows', () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => {
+    localStorage.clear();
+    localStorage.setItem('hhr_session_owner_v1', 'user:synthetic-A');
+  });
   const mockPatient = createMockPatient({
     patientName: 'Test Patient',
     pathology: 'Pathology Test',
@@ -33,7 +43,7 @@ describe('HandoffRow medical flows', () => {
     isMedical: false,
   };
 
-  it('offers an inline action to refresh a medical note as current', () => {
+  it('offers an inline action to refresh a medical note as current', async () => {
     const onMedicalRefreshAsCurrent = vi.fn();
     render(
       <table>
@@ -58,12 +68,13 @@ describe('HandoffRow medical flows', () => {
         </tbody>
       </table>
     );
+    await waitForMedicalCell();
 
     fireEvent.click(screen.getByRole('button', { name: /Validar nota/i }));
     expect(onMedicalRefreshAsCurrent).toHaveBeenCalledWith('entry-1');
   });
 
-  it('allows deleting a specialty handoff entry', () => {
+  it('allows deleting a specialty handoff entry', async () => {
     const onMedicalEntryDelete = vi.fn();
     render(
       <table>
@@ -87,12 +98,13 @@ describe('HandoffRow medical flows', () => {
         </tbody>
       </table>
     );
+    await waitForMedicalCell();
 
     fireEvent.click(screen.getByRole('button', { name: /Eliminar entrega 1/i }));
     expect(onMedicalEntryDelete).toHaveBeenCalledWith('entry-1');
   });
 
-  it('keeps the latest medical entry note visible during a transient stale rerender after blur', () => {
+  it('keeps the latest medical entry note visible during a transient stale rerender after blur', async () => {
     const onMedicalEntryNoteChange = vi.fn();
     const patientWithEditableEntry = {
       ...mockPatient,
@@ -116,6 +128,7 @@ describe('HandoffRow medical flows', () => {
         </tbody>
       </table>
     );
+    await waitForMedicalCell();
 
     const textarea = screen.getByRole('textbox');
     fireEvent.focus(textarea);
@@ -145,7 +158,9 @@ describe('HandoffRow medical flows', () => {
       </table>
     );
 
-    expect(screen.getByDisplayValue('Plan actualizado por especialista')).toBeInTheDocument();
+    expect(readMedicalHandoffDrafts()).toContainEqual(
+      expect.objectContaining({ value: 'Plan actualizado por especialista' })
+    );
     expect(screen.queryByText(/sin entrega registrada/i)).not.toBeInTheDocument();
 
     rerender(
@@ -179,7 +194,7 @@ describe('HandoffRow medical flows', () => {
     expect(screen.getByDisplayValue('Plan actualizado por especialista')).toBeInTheDocument();
   });
 
-  it('keeps the first saved medical note visible while a stale snapshot briefly removes the newly created entry', () => {
+  it('keeps the first saved medical note visible while a stale snapshot briefly removes the newly created entry', async () => {
     vi.useFakeTimers();
 
     const FirstWriteRoundTrip = () => {
@@ -220,19 +235,24 @@ describe('HandoffRow medical flows', () => {
     };
 
     render(<FirstWriteRoundTrip />);
+    await waitForMedicalCell();
 
     const textarea = screen.getByRole('textbox');
     fireEvent.focus(textarea);
     fireEvent.change(textarea, { target: { value: 'Primera evolución especialista' } });
     fireEvent.blur(textarea);
 
-    expect(screen.getByDisplayValue('Primera evolución especialista')).toBeInTheDocument();
+    expect(readMedicalHandoffDrafts()).toContainEqual(
+      expect.objectContaining({ value: 'Primera evolución especialista' })
+    );
 
     act(() => {
       vi.advanceTimersByTime(25);
     });
 
-    expect(screen.getByDisplayValue('Primera evolución especialista')).toBeInTheDocument();
+    expect(readMedicalHandoffDrafts()).toContainEqual(
+      expect.objectContaining({ value: 'Primera evolución especialista' })
+    );
 
     act(() => {
       vi.advanceTimersByTime(50);
@@ -242,7 +262,7 @@ describe('HandoffRow medical flows', () => {
     vi.useRealTimers();
   });
 
-  it('keeps the create-entry action available for medical rows even when generic stability rules lock the note field', () => {
+  it('keeps the create-entry action available for medical rows even when generic stability rules lock the note field', async () => {
     const onCreatePrimaryEntry = vi.fn();
     const lockedContext = createMockDailyRecordContext(createMockRecord('2024-12-28'));
     lockedContext.stabilityRules = {
@@ -265,12 +285,13 @@ describe('HandoffRow medical flows', () => {
       </table>,
       { contextValue: lockedContext }
     );
+    await waitForMedicalCell();
 
     fireEvent.click(screen.getByRole('button', { name: /crear entrega/i }));
     expect(onCreatePrimaryEntry).toHaveBeenCalled();
   });
 
-  it('keeps the primary medical note editor available when generic stability rules lock the field but the medical fallback path is editable', () => {
+  it('keeps the primary medical note editor available when generic stability rules lock the field but the medical fallback path is editable', async () => {
     const onNoteChange = vi.fn();
     const lockedContext = createMockDailyRecordContext(createMockRecord('2024-12-28'));
     lockedContext.stabilityRules = {
@@ -292,6 +313,7 @@ describe('HandoffRow medical flows', () => {
       </table>,
       { contextValue: lockedContext }
     );
+    await waitForMedicalCell();
 
     const textarea = screen.getByRole('textbox');
     fireEvent.change(textarea, { target: { value: 'Evolución de especialista' } });
@@ -300,7 +322,7 @@ describe('HandoffRow medical flows', () => {
     expect(onNoteChange).toHaveBeenCalledWith('Evolución de especialista');
   });
 
-  it('shows specialty selector, professional metadata and inline current-note status for each note', () => {
+  it('shows specialty selector, professional metadata and inline current-note status for each note', async () => {
     render(
       <table>
         <tbody>
@@ -353,6 +375,7 @@ describe('HandoffRow medical flows', () => {
         </tbody>
       </table>
     );
+    await waitForMedicalCell();
 
     expect(screen.getByRole('combobox', { name: /Especialidad 1/i })).toHaveValue('Med Interna');
     expect(screen.queryByText(/Nota actual: actualizada hoy/i)).not.toBeInTheDocument();
@@ -366,7 +389,7 @@ describe('HandoffRow medical flows', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('shows inline author metadata when a different user marked the note as current', () => {
+  it('shows inline author metadata when a different user marked the note as current', async () => {
     render(
       <table>
         <tbody>
@@ -415,6 +438,7 @@ describe('HandoffRow medical flows', () => {
         </tbody>
       </table>
     );
+    await waitForMedicalCell();
 
     expect(screen.getAllByText(/Admin Test ·/i).length).toBeGreaterThan(0);
     expect(
@@ -422,7 +446,7 @@ describe('HandoffRow medical flows', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('shows a create button for specialist-style medical access when there is no handoff entry yet', () => {
+  it('shows a create button for specialist-style medical access when there is no handoff entry yet', async () => {
     const onCreatePrimaryEntry = vi.fn();
 
     render(
@@ -444,12 +468,13 @@ describe('HandoffRow medical flows', () => {
         </tbody>
       </table>
     );
+    await waitForMedicalCell();
 
     fireEvent.click(screen.getByRole('button', { name: /Crear entrega/i }));
     expect(onCreatePrimaryEntry).toHaveBeenCalledTimes(1);
   });
 
-  it('renders specialty as read-only pill when specialty changes are restricted', () => {
+  it('renders specialty as read-only pill when specialty changes are restricted', async () => {
     render(
       <table>
         <tbody>
@@ -470,6 +495,7 @@ describe('HandoffRow medical flows', () => {
         </tbody>
       </table>
     );
+    await waitForMedicalCell();
 
     expect(screen.queryByRole('combobox', { name: /Especialidad 1/i })).not.toBeInTheDocument();
     expect(screen.getAllByText('Med Interna').length).toBeGreaterThan(0);

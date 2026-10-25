@@ -288,7 +288,9 @@ export const usePatchDailyRecordMutation = (date: string) => {
         );
 
         await queryClient.cancelQueries({ queryKey: queryKeys.dailyRecord.byDate(date) });
-        const isRemoteAuthorityFirst = options?.requireRemoteAuthorityFirst === true;
+        const isRemoteAuthorityFirst =
+          options?.requireRemoteAuthorityFirst === true ||
+          isSpecialistScopedDailyRecordPatch(partial);
         const unregisterPendingPatch = isRemoteAuthorityFirst
           ? () => {}
           : registerPendingDailyRecordPatch(date, partial);

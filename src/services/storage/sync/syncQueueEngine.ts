@@ -26,7 +26,7 @@ import {
 import {
   buildSyncTaskContract,
   mergeSyncTaskContracts,
-  assertPendingHandoffContinuity,
+  preserveIncompatibleHandoffTask,
 } from '@/services/storage/sync/syncTaskContractPolicy';
 import {
   clearSyncTaskRuntimeState,
@@ -154,7 +154,7 @@ export const createSyncQueueEngine = ({
     );
   };
 
-  const queueDailyRecordTaskWithLocalRecord = async (
+  const enqueueDailyRecordWithLocalRecord = async (
     record: DailyRecord,
     meta?: Pick<SyncTask, 'contexts' | 'origin' | 'recoveryPolicy' | 'syncContract'>,
     options: SyncQueueEnqueueOptions = {}
@@ -168,8 +168,11 @@ export const createSyncQueueEngine = ({
       contexts: meta?.contexts,
       recoveryPolicy: meta?.recoveryPolicy,
     });
-    const existing = key ? await store.findReusableTask(type, key, ownerKey) : null;
-    assertPendingHandoffContinuity(existing, record);
+    const existing = await preserveIncompatibleHandoffTask(
+      store,
+      key ? await store.findReusableTask(type, key, ownerKey) : null,
+      record
+    );
     const syncContract = mergeSyncTaskContracts(
       existing?.syncContract,
       buildSyncTaskContract(type, record, meta?.syncContract)
@@ -202,15 +205,22 @@ export const createSyncQueueEngine = ({
       ...resolvePreOutboxHoldState(now, options),
     });
 
-    if (!options.deferProcessing) {
-      triggerProcessing();
-    }
     return {
       accepted: true,
       mode,
       pendingTasks: mode === 'created' ? pendingTasks + 1 : pendingTasks,
       maxPendingTasks,
     };
+  };
+  const queueDailyRecordTaskWithLocalRecord = async (
+    ...args: Parameters<typeof enqueueDailyRecordWithLocalRecord>
+  ): Promise<SyncQueueEnqueueResult> => {
+    const operation = () => enqueueDailyRecordWithLocalRecord(...args);
+    const result = await (store.withEnqueueTransaction
+      ? store.withEnqueueTransaction(operation)
+      : operation());
+    if (result.accepted && !args[2]?.deferProcessing) triggerProcessing();
+    return result;
   };
   const replacePendingDailyRecordTaskWithLocalRecord = async (
     record: DailyRecord,
