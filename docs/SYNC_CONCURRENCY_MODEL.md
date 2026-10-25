@@ -50,16 +50,16 @@ patches stay direct: the server rejects them unless the fence is active.
 
 ## Write paths
 
-| Path                     | Entry                                           | Direct client writer (`client_only`, no fence)                                                   | Authority writer (`enforced` or fenced)                                                         |
-| ------------------------ | ----------------------------------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
-| **Full save**            | `saveDetailed` → `saveRecordToFirestore`        | `saveRecordAtomically`: `runTransaction`, full-replace `set` ✅                                  | `saveDailyRecordWithClinicalAuthority`: server transaction ✅                                   |
-| **Partial update**       | `updatePartialDetailed` → `updateRecordPartial` | `updateRecordPartiallyAtomically` when `requireAtomicCas` ✅; otherwise `updateDoc` dot-paths ❌ | `patchDailyRecordWithClinicalAuthority` (clinical paths; bed-tree paths only when fenced) ✅    |
-| **Sync queue**           | `syncDailyRecord` (`firestoreSyncTransport.ts`) | `runTransaction` that re-resolves the task, then `transaction.set(…, { merge: true })` ✅        | `saveDailyRecordWithClinicalAuthority` with the task's `syncContract` ✅                        |
-| **Rayen clinical batch** | `applyRayenClinicalEnrichmentBatch` callable    | —                                                                                                | Server transaction, allowlisted clinical fields ✅                                              |
-| **Specialist handoff**   | `updateSpecialistMedicalHandoff` callable       | —                                                                                                | Used for a `doctor_specialist` specialist-scoped patch, after a fail-closed client version read |
+| Path                     | Entry                                           | Direct client writer (`client_only`, no fence)                                                   | Authority writer (`enforced` or fenced)                                                      |
+| ------------------------ | ----------------------------------------------- | ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| **Full save**            | `saveDetailed` → `saveRecordToFirestore`        | `saveRecordAtomically`: `runTransaction`, full-replace `set` ✅                                  | `saveDailyRecordWithClinicalAuthority`: server transaction ✅                                |
+| **Partial update**       | `updatePartialDetailed` → `updateRecordPartial` | `updateRecordPartiallyAtomically` when `requireAtomicCas` ✅; otherwise `updateDoc` dot-paths ❌ | `patchDailyRecordWithClinicalAuthority` (clinical paths; bed-tree paths only when fenced) ✅ |
+| **Sync queue**           | `syncDailyRecord` (`firestoreSyncTransport.ts`) | `runTransaction` that re-resolves the task, then `transaction.set(…, { merge: true })` ✅        | `saveDailyRecordWithClinicalAuthority` with the task's `syncContract` ✅                     |
+| **Rayen clinical batch** | `applyRayenClinicalEnrichmentBatch` callable    | —                                                                                                | Server transaction, allowlisted clinical fields ✅                                           |
+| **Specialist handoff**   | `updateSpecialistMedicalHandoff` callable       | —                                                                                                | Patient/episode-bound server transaction for a `doctor_specialist` specialist-scoped patch   |
 
-Other server writers (CUDYR admin adjustments, specialty policy application) also stamp
-`meta.lastChangedPaths`. Client direct writes never do.
+Other server writers (CUDYR admin adjustments, specialty policy application, specialist notes)
+also stamp `meta.lastChangedPaths`. Client direct writes never do.
 
 ## Guards, by path
 
@@ -92,7 +92,56 @@ must not be retried.
 The first matching route wins:
 
 1. **Specialist-scoped patch by a `doctor_specialist`** — `assertFirestoreConcurrency`
-   (fail-closed, no tolerance) and then the `updateSpecialistMedicalHandoff` callable.
+   (fail-closed, no tolerance) and then the `updateSpecialistMedicalHandoff` callable, loaded on
+   demand (`specialistMedicalHandoffClient.ts`). The payload carries `expectedOccupants`, frozen
+   from the edited record for the bed and its clinical crib separately. Every attempt re-reads
+   them; the server checks them and writes in one transaction, and a mismatch is a
+   `failed-precondition` editing conflict. Stored patients without episode metadata use the same
+   deterministic legacy ID as client hydration (identity and admission, never the bed alone).
+
+   Each target also carries `handoffBases`: the stored note text (the note plus each entry's id
+   and text) the edit started from, and the texts this device already sent for that note. In the
+   same transaction the server refuses any other stored text, unless the stored note already holds
+   this write's text, so a queued or lost-answer replay never replaces a note saved after the edit
+   began; the specialist's text stays as a draft. The request carries the write's `mutationId`.
+   Every write records in `meta` its paths, its id and `lastMutationDigest`, a SHA-256 of the
+   operation (date, exact paths and values, and each target's patient and episode); a write
+   without an id records `null` for both, so no earlier id outlives it. The server answers
+   without writing only a replay whose id and digest both match the write the record last took
+   while the record still holds the values it wrote. That id with any other text, path, patient
+   or episode (logged as `specialist_handoff_write_id_reused`, with date and bed only), or over
+   values another write changed since, is a `failed-precondition` conflict, and the text stays as
+   a draft. Only whole note fields are accepted (`medicalHandoffEntries`,
+   `medicalHandoffNote`, `medicalHandoffAudit`, `clinicalEvents`, and the same under
+   `clinicalCrib`): a nested or array-index path would escape the text check, and Firestore would
+   turn the entries array into a map. No client sends one.
+
+   On a network failure the note becomes its own `UPDATE_SPECIALIST_HANDOFF` task, keyed by date,
+   bed, bed or crib, and patient plus episode, whose payload is the callable request. It never
+   joins the day's `UPDATE_DAILY_RECORD` task, so its conflict cannot hold another edit of the
+   day. A later edit of the same note folds into the task and keeps its earlier bases and sent
+   texts. Replay uses the same callable. A refused note (other occupant, or the clinical day closed)
+   stays in the queue as that task's `CONFLICT`; the local sync panel names it by patient and date
+   and offers a confirmed discard, never a retry that always fails.
+
+   Typed text is kept from the first keystroke as a draft: one localStorage key per draft and
+   editing session, for the signed-in user, clinical date, patient, episode and entry. A session
+   writes only its own key; deletes are conditional on the exact text. Only a server confirmation
+   of that exact text for that identity clears a draft (callable success online or on replay, a
+   remote success with the expected targets, or a day-task ACK record); a matching local copy never
+   does. The editor owns its text while focused, while a debounce or a send is pending, and while
+   its draft is unconfirmed; a stored value that is neither its base nor a text it sent shows both
+   texts and holds sending until the user chooses. Text typed without a signed-in user stays in
+   memory and goes back only to the user last signed in on that tab; another user gets a notice
+   without patient data. Any owner change clears this page's unsaved copies and editing sessions.
+
+   **Deploy transition:** requests that omit `expectedOccupants` entirely keep the old allowlisted
+   semantics inside the transaction; malformed or empty supplied metadata still fails closed.
+   Requests without `handoffBases` or `mutationId` skip those two checks.
+   `specialist_handoff_legacy_client` telemetry identifies this temporary path. Remove it in a
+   separate release only after supported tabs have refreshed and legacy traffic has reached zero.
+   Old tabs retain their original occupant-binding limitation until refreshed.
+
 2. **Frozen Rayen run guard** (`rayenClinicalWriteGuard`) — patch callable; the server requires the
    exact base version and creates `history/rayen-{runId}` once per run.
 3. **Clinical envelope or bed tree** — a clinical-envelope patch goes to the patch callable when
@@ -140,7 +189,9 @@ that projection instead of replacing it, and compacting an unresolved task keeps
   (`buildRecordOverlayRebase`), keeps the values of its own changed paths, and every other
   pending path keeps the projection's value. Movement arrays always merge by id and identity checks
   run even when every pending path overlaps;
-- whole-record writes (`*`) still replace the projection.
+- whole-record writes (`*`) still replace the projection;
+- a specialist note task (`UPDATE_SPECIALIST_HANDOFF`) lands its projection with the same patch
+  rebase, but never changes a projection that a pending day task still holds.
 
 Cache hydration keeps a projection that still has unresolved writes. The read, the realtime
 snapshot and the manual sync then publish that projection (`local_authoritative` or `local_kept`)
@@ -158,27 +209,38 @@ latest mutation marker does not by itself acknowledge the other mutations.
 1. **Already applied** — the remote `meta.lastMutationId` equals the task's `mutationId`: no write
    for a single mutation. A compacted task additionally requires all its granular changed values
    to be present remotely; otherwise the remaining work is merged and published;
-   the remote record is returned as the authoritative result.
-2. **Stale task** (remote `lastUpdated` newer than the task's `expectedVersion`) —
+   the remote record is returned as the authoritative result. A task still queued after its
+   write landed (its ACK rolled back) rebuilds its held conflicts (step 2) on this path too, so
+   completing it never drops them.
+2. **Departed occupant** — a bed or crib whose field edits were written for a patient or episode
+   it no longer holds: none of those edits are written to the new occupant, whatever the server
+   stamped. They leave the task as one `CONFLICT` bound to the original patient
+   (`dayTaskOccupantDetach.ts`), the other beds go on to step 3 (always merged against the remote),
+   and step 6 writes that conflict in the same transaction that completes the task. A task that
+   itself changed the occupant (admission, discharge, identity correction) is not detached. The
+   held conflict has its own mutation id; retried while its patient is still gone it stays that
+   conflict, and once the same patient and episode are back it publishes and completes.
+3. **Stale task** (remote `lastUpdated` newer than the task's `expectedVersion`) —
    `assertNoSamePathRemoteMutation` blocks when the remote `meta.lastChangedPaths` overlaps the
    task's `changedPaths` (movement arrays and disjoint medical-handoff entries/specialties may
    merge). Then `resolveDailyRecordConflict` by `changedPaths`, the post-merge invariants and the
    clinical consistency check; any block → `ConcurrencyError`. Otherwise (remote not newer, or no
    `expectedVersion`) the payload's `lastUpdated` gets the strict drift check
    (`assertSyncQueueConcurrency`, drift > 0 → `ConcurrencyError`).
-3. **Clinical authority** — `evaluateDailyRecordClinicalAuthority` must not block.
-4. **Publish** — enforced or fenced: the save callable, whose response must carry the committed
-   record. Otherwise `runTransaction` re-runs steps 1–3 against the transactional snapshot and
+4. **Clinical authority** — `evaluateDailyRecordClinicalAuthority` must not block.
+5. **Publish** — enforced or fenced: the save callable, whose response must carry the committed
+   record. Otherwise `runTransaction` re-runs steps 1–4 against the transactional snapshot and
    writes with `{ merge: true }`, so beds absent from the payload are never dropped. With the
    deployment mode `shadow`, a dry-run callable runs first and its failure never blocks.
-5. **Acknowledge** — `completeClaimedSyncTask` deletes the task and, when no other task for that
-   date is unresolved, adopts the authoritative record into IndexedDB in the same Dexie
-   transaction.
+6. **Acknowledge** — `completeClaimedSyncTask` writes any detached conflict, deletes the task and,
+   when no other task for that date is unresolved, adopts the authoritative record into IndexedDB,
+   all in the same Dexie transaction.
 
-Step 2 only sees what the last server writer stamped in `meta.lastChangedPaths`. Client direct
+Step 3 only sees what the last server writer stamped in `meta.lastChangedPaths`. Client direct
 writes stamp nothing, and full saves stamp `['*']`, which the overlap check compares literally; in
-both cases the merge decides per field by episode (`isSameEpisodeForExplicitCensusPatch`). See the
-limitations below. Conflict snapshots and their restore flow are described in
+both cases the merge decides per field by episode (`isSameEpisodeForExplicitCensusPatch`), and a
+bed whose occupant changed was already set aside in step 2. See the limitations below. Conflict
+snapshots and their restore flow are described in
 [ADR_CONFLICT_VERSION_RECOVERY.md](ADR_CONFLICT_VERSION_RECOVERY.md).
 
 ### Authority callables — `dailyRecordWriteAuthorityFunctions.js`
@@ -249,13 +311,10 @@ that the records never contained. Correcting a name during a move requires a sta
 - **Legacy identity ambiguity.** The guard blocks non-unique matches. A unique pair of equally
   incomplete legacy rows remains indistinguishable without additional identity/admission data.
   The guard checks emptied slots, not replacements of one occupied slot by another patient.
-- **Stale queued edit after a relocation.** A queued edit to an explicit census field (e.g.
-  `pathology`) made before another session moved the bed's occupant is not applied to the new
-  occupant, because the merge compares episodes, but it does not follow the moved patient
-  either. It is blocked with `ConcurrencyError` only when the last server stamp overlaps its path
-  (for example `beds` or `beds.R1`). With no stamp (client direct write), a full-save stamp
-  `['*']` or a stamp on other beds, the task is acknowledged and the edit is lost without a
-  conflict.
+- **Stale queued edit after a relocation.** A queued field edit (e.g. `pathology`) made before
+  another session moved the bed's occupant is never applied to the new occupant: step 2 keeps it
+  as a conflict bound to the original patient. It does not follow the moved patient to the new
+  bed; the user reviews or discards it from the local sync panel.
 - **`findPatientErasures` movement matching** uses the patient name and the bed; the
   density-regression thresholds (40% / 50 points) are coarse and tuned for a full census.
 - **Partial update via plain `updateDoc` is not atomic.** It relies on field-scoped merge +

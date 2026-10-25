@@ -1,3 +1,4 @@
+import { isSpecialistScopedDailyRecordPatch } from '@/services/repositories/dailyRecordClinicalDomainService';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRef } from 'react';
 import type { DailyRecord, DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
@@ -278,10 +279,18 @@ export const usePatchDailyRecordMutation = (date: string) => {
           });
           freshRecord = freshness.record;
         }
-        rememberDailyRecordPatchBaseRecord(patchBaseRecords, partial, freshRecord);
+        rememberDailyRecordPatchBaseRecord(
+          patchBaseRecords,
+          partial,
+          isSpecialistScopedDailyRecordPatch(partial)
+            ? (previousRecordBeforeFreshness ?? freshRecord)
+            : freshRecord
+        );
 
         await queryClient.cancelQueries({ queryKey: queryKeys.dailyRecord.byDate(date) });
-        const isRemoteAuthorityFirst = options?.requireRemoteAuthorityFirst === true;
+        const isRemoteAuthorityFirst =
+          options?.requireRemoteAuthorityFirst === true ||
+          isSpecialistScopedDailyRecordPatch(partial);
         const unregisterPendingPatch = isRemoteAuthorityFirst
           ? () => {}
           : registerPendingDailyRecordPatch(date, partial);

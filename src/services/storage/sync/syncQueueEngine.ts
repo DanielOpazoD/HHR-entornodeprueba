@@ -1,7 +1,7 @@
 import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
 import type { ErrorSeverity } from '@/services/logging/errorLogTypes';
 import { logError } from '@/services/utils/errorService';
-import type { SyncTask } from '@/services/storage/syncQueueTypes';
+import type { SpecialistHandoffSyncPayload, SyncTask } from '@/services/storage/syncQueueTypes';
 import type { SyncTransportResult } from '@/services/storage/sync/syncQueuePorts';
 import type { SyncErrorCategory } from '@/services/storage/syncErrorCatalog';
 import type {
@@ -153,10 +153,13 @@ export const createSyncQueueEngine = ({
   const queueDailyRecordTaskWithLocalRecord = async (
     record: DailyRecord,
     meta?: Pick<SyncTask, 'contexts' | 'origin' | 'recoveryPolicy' | 'syncContract'>,
-    options: SyncQueueEnqueueOptions = {}
+    options: SyncQueueEnqueueOptions = {},
+    /** A specialist note is its own task: never coalesced into the day record task. */
+    handoff?: SpecialistHandoffSyncPayload
   ): Promise<SyncQueueEnqueueResult> => {
-    const type: SyncTask['type'] = 'UPDATE_DAILY_RECORD';
-    const key = getSyncTaskKey(type, record);
+    const type: SyncTask['type'] = handoff ? 'UPDATE_SPECIALIST_HANDOFF' : 'UPDATE_DAILY_RECORD';
+    const payload = handoff ?? record;
+    const key = getSyncTaskKey(type, payload);
     const ownerKey = runtime.getOwnerKey();
     const taskOwnerKey = ownerKey ?? undefined;
     const now = Date.now();
@@ -166,7 +169,7 @@ export const createSyncQueueEngine = ({
     });
     const existing = key ? await store.findReusableTask(type, key, ownerKey) : null;
     // The store merges this write's own intent with the pending task inside its transaction.
-    const syncContract = buildSyncTaskContract(type, record, meta?.syncContract);
+    const syncContract = buildSyncTaskContract(type, payload, meta?.syncContract);
 
     const pendingTasks = await countActiveTasks(ownerKey);
     if (!existing && pendingTasks >= maxPendingTasks) {
@@ -183,7 +186,7 @@ export const createSyncQueueEngine = ({
       {
         opId: `${type}:${key ?? 'global'}:${now}`,
         type,
-        payload: record,
+        payload,
         timestamp: now,
         retryCount: 0,
         key,
@@ -291,7 +294,8 @@ export const createSyncQueueEngine = ({
                   const deleted = await store.deleteClaimed(
                     task.id,
                     claim,
-                    result.authoritativeRecord
+                    result.authoritativeRecord,
+                    result.detachedConflicts
                   );
                   if (!deleted) {
                     recordSyncQueueStaleClaimTelemetry(task, 'delete');

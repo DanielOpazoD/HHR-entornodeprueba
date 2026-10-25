@@ -1,4 +1,9 @@
-import type { ApplyDailyRecordPatch, DailyRecord, DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
+import { buildSpecialistHandoffTargets } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
+import type {
+  ApplyDailyRecordPatch,
+  DailyRecord,
+  DailyRecordPatch,
+} from '@/application/shared/dailyRecordCoreContracts';
 import type { PatientData } from '@/hooks/contracts/patientHookContracts';
 import type { CudyrScore } from '@/types/domain/cudyr';
 import type { PatientFieldValue } from '@/types/valueTypes';
@@ -276,23 +281,35 @@ export const executeBedManagementAction = async ({
   }
 
   const specialtyControls = isFeatureEnabled('SPECIALTY_EPISODE_ASSIGNMENT')
-    ? await import('@/hooks/controllers/bedManagementSpecialtyIntentController') : null;
+    ? await import('@/hooks/controllers/bedManagementSpecialtyIntentController')
+    : null;
   try {
     const originalPatch = bedManagementReducer(currentRecord, validatedAction);
     if (!originalPatch) {
       return false;
     }
-    const specialtyIntent = specialtyControls?.resolveManualSpecialtyIntent(
-      validatedAction, currentRecord, originalPatch
-    ) ?? null;
+    const specialtyIntent =
+      specialtyControls?.resolveManualSpecialtyIntent(
+        validatedAction,
+        currentRecord,
+        originalPatch
+      ) ?? null;
     const patch = specialtyControls
-      ? specialtyControls.preserveExplicitEmptySpecialtyChoice(originalPatch, specialtyIntent, currentRecord)
+      ? specialtyControls.preserveExplicitEmptySpecialtyChoice(
+          originalPatch,
+          specialtyIntent,
+          currentRecord
+        )
       : originalPatch;
-    if (specialtyControls?.blocksUnanchoredSpecialtyEdit(validatedAction, patch, specialtyIntent)) return false;
+    if (specialtyControls?.blocksUnanchoredSpecialtyEdit(validatedAction, patch, specialtyIntent))
+      return false;
     // One accepted decision is one scalar write. The server enforces this too,
     // including for direct callers and Jev acceptance.
-    if (specialtyIntent &&
-        !specialtyControls?.isExclusiveSpecialtyIntentPatch(patch, specialtyIntent)) return false;
+    if (
+      specialtyIntent &&
+      !specialtyControls?.isExclusiveSpecialtyIntentPatch(patch, specialtyIntent)
+    )
+      return false;
     if (Object.keys(patch).length === 0) {
       // Diff vacío: el gesto no cambia nada respecto del registro vigente.
       // No hay nada que escribir, auditar ni confirmar (tampoco prompt de día
@@ -307,7 +324,29 @@ export const executeBedManagementAction = async ({
     }
 
     try {
-      if (validatedAction.type === 'CLEAR_PATIENT') {
+      if (
+        (validatedAction.type === 'UPDATE_PATIENT_MULTIPLE' ||
+          validatedAction.type === 'UPDATE_CLINICAL_CRIB_MULTIPLE') &&
+        validatedAction.expectedHandoffPatient
+      ) {
+        const bedId = validatedAction.bedId;
+        const nested = validatedAction.type === 'UPDATE_CLINICAL_CRIB_MULTIPLE';
+        const editedRecord = {
+          ...currentRecord,
+          beds: {
+            ...currentRecord.beds,
+            [bedId]: nested
+              ? {
+                  ...currentRecord.beds[bedId],
+                  clinicalCrib: validatedAction.expectedHandoffPatient,
+                }
+              : validatedAction.expectedHandoffPatient,
+          },
+        };
+        await patchRecord(patch, {
+          specialistHandoffTargets: buildSpecialistHandoffTargets(editedRecord, patch),
+        });
+      } else if (validatedAction.type === 'CLEAR_PATIENT') {
         const currentBed = currentRecord.beds[validatedAction.bedId]!;
         await patchRecord(patch, {
           consistency: 'remote_confirmed',
@@ -372,7 +411,9 @@ export const executeBedManagementAction = async ({
             await patchRecord(patch, { consistency: 'remote_confirmed', requireAtomicCas: true });
           } else if (specialtyIntent) {
             await patchRecord(patch, {
-              consistency: 'remote_confirmed', requireAtomicCas: true, specialtyIntent,
+              consistency: 'remote_confirmed',
+              requireAtomicCas: true,
+              specialtyIntent,
             });
           } else {
             await patchRecord(patch);

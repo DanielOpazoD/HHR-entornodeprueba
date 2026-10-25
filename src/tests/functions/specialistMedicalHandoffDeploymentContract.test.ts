@@ -39,7 +39,7 @@ const document = pathname => ({
     reads.push(pathname);
     return {
       exists: true,
-      data: () => ({ date: '2026-01-01', beds: { R4: {} } }),
+      data: () => ({ date: '2026-01-01', beds: { R4: { clinicalEpisodeId: 'synthetic-episode', patientName: 'Paciente Sintético', rut: '99.999.999-9' } } }),
     };
   },
   update: async data => { updates.push({ path: pathname, data }); },
@@ -49,7 +49,10 @@ cache('./lib/appContext', {
   auth: deniedService,
   storage: deniedService,
   FieldValue: deniedService,
-  firestore: { collection: name => document(name) },
+  firestore: {
+    collection: name => document(name),
+    runTransaction: async callback => callback({ get: ref => ref.get(), update: (ref, data) => ref.update(data) }),
+  },
   Timestamp: { now: () => ({ seconds: 1767225600, nanoseconds: 123 }) },
   HOSPITAL_CAPACITY: 1,
 });
@@ -107,6 +110,7 @@ cache('./lib/prescriptionAccessFunctions', {
     result = await api.updateSpecialistMedicalHandoff.run(
       {
         date: '2026-01-01',
+        expectedOccupants: [{ bedId: 'R4', target: 'bed', clinicalEpisodeId: 'synthetic-episode', patientName: 'Paciente Sintético', rut: '99.999.999-9', documentType: 'RUT' }],
         patch: {
           'beds.R4.medicalHandoffNote': 'Synthetic handoff note',
           lastUpdated: 'client-value-ignored',
@@ -161,6 +165,9 @@ describe('specialist medical handoff entrypoint contract', () => {
           data: {
             'beds.R4.medicalHandoffNote': 'Synthetic handoff note',
             lastUpdated: { seconds: 1767225600, nanoseconds: 123 },
+            'meta.lastMutationId': null,
+            'meta.lastMutationDigest': null,
+            'meta.lastChangedPaths': ['beds.R4.medicalHandoffNote'],
           },
         },
       ],

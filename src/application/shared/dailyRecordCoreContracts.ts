@@ -1,3 +1,4 @@
+import type { SpecialistHandoffTarget } from '@/types/domain/specialistHandoffTarget';
 import type { DailyRecord as RootDailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch as RootDailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { DailyRecordDateRef as RootDailyRecordDateRef } from '@/types/domain/dailyRecordSlices';
@@ -18,6 +19,7 @@ export type DailyRecordPatch = RootDailyRecordPatch;
 export type DailyRecordDateRef = RootDailyRecordDateRef;
 
 export type ApplyDailyRecordPatchOptions = {
+  specialistHandoffTargets?: SpecialistHandoffTarget[];
   /**
    * Wait for the remote authority to return the exact committed record before
    * exposing the mutation as successful. Used for destructive actions and
