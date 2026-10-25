@@ -66,7 +66,7 @@ import {
   type DirectFirestoreWriteReceipt,
 } from './firestoreDirectWriteReceipt';
 import { adoptStoredClinicalDerivedState } from '@/services/storage/clinicalDerivedWriteHygiene';
-import { assertNoIdentityReviewInWrite } from '@/shared/census/patientIdentityReview';
+import { withStoredIdentity } from '@/shared/census/patientIdentityReview';
 import { runPartialUpdatePersistWithPermissionFallbacks } from '@/services/storage/firestore/firestoreBedTreePermissionFallback';
 import { stripInheritedAuthorityRepair } from '@/services/storage/firestore/firestoreInheritedRepairSeparation';
 import {
@@ -89,7 +89,7 @@ export const saveRecordToFirestore = async (
   expectedLastUpdated?: string,
   options: DailyRecordSaveWriteOptions = {}
 ) => {
-  assertNoIdentityReviewInWrite(record);
+  const storedRecord = withStoredIdentity(record);
   try {
     const docRef = getRecordDocRef(record.date);
     assertDailyRecordClinicalAuthority(record);
@@ -101,7 +101,7 @@ export const saveRecordToFirestore = async (
         () =>
           saveDailyRecordWithClinicalAuthorityCallable({
             date: record.date,
-            record,
+            record: storedRecord,
             expectedLastUpdated,
             mode: callableAuthorityMode || 'shadow',
             origin: options.origin ?? 'direct_save',
@@ -115,12 +115,15 @@ export const saveRecordToFirestore = async (
       );
     }
 
-    await tryShadowDailyRecordSaveViaCallable(record, expectedLastUpdated, options.syncContract);
+    await tryShadowDailyRecordSaveViaCallable(
+      storedRecord,
+      expectedLastUpdated,
+      options.syncContract
+    );
 
     const committedAt = Timestamp.now();
-    const receipt = createDirectFirestoreWriteReceipt(record, committedAt.toDate());
     const sanitizedRecord = sanitizeForFirestore({
-      ...receipt.recordState.record,
+      ...storedRecord,
       lastUpdated: committedAt,
     }) as Record<string, unknown>;
 
@@ -223,11 +226,11 @@ const buildAtomicPartialCommitReceipt = (
 
 export const updateRecordPartial = async (
   date: string,
-  partialData: DailyRecordPatch,
+  patch: DailyRecordPatch,
   expectedLastUpdated?: string,
   options: DailyRecordPartialWriteOptions = {}
 ): Promise<DailyRecordAuthorityCallableResponse | DirectFirestoreWriteReceipt | void> => {
-  assertNoIdentityReviewInWrite(partialData);
+  const partialData = withStoredIdentity(patch);
   try {
     const docRef = getRecordDocRef(date);
     // La verificación de concurrencia por lectura directa sólo protege las rutas

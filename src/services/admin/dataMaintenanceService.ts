@@ -10,7 +10,7 @@ import { saveDetailed as saveDailyRecordDetailed } from '@/services/repositories
 import { logAuditEvent } from './auditService';
 import { getCurrentUserEmail } from './utils/auditUtils';
 import { parseDailyRecordWithDefaultsReport } from '@/schemas/zodSchemas';
-import { withoutStoredIdentityReviews } from '@/shared/census/patientIdentityReview';
+import { withStoredIdentity } from '@/shared/census/patientIdentityReview';
 import { dataMaintenanceLogger } from '@/services/admin/adminLoggers';
 import { getRecordForDateStrict } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { isClinicalDerivedLayoutRegression } from '@/services/storage/clinicalDerivedImportGuard';
@@ -308,10 +308,8 @@ export const importRecordsFromBackup = async (
   for (let i = 0; i < backup.records.length; i++) {
     const record = backup.records[i];
     try {
-      const parsed = parseDailyRecordWithDefaultsReport(
-        withoutStoredIdentityReviews(record),
-        record.date
-      );
+      // A backup holds the day as this client read it: a review gives back what storage held.
+      const parsed = parseDailyRecordWithDefaultsReport(withStoredIdentity(record), record.date);
       const hadRepairs =
         parsed.report.nullNormalization.replacedNullCount > 0 ||
         parsed.report.nullNormalization.droppedArrayEntriesCount > 0 ||

@@ -4,7 +4,7 @@ import {
   saveRecordsStrict,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { hasStructuralRepairs, parseDailyRecordWithDefaultsReport } from '@/schemas/zodSchemas';
-import { withoutStoredIdentityReviews } from '@/shared/census/patientIdentityReview';
+import { withStoredIdentity } from '@/shared/census/patientIdentityReview';
 import { CLINICAL_DERIVED_BACKUP_SECTION } from '@/services/storage/clinicalDerivedConstants';
 import { jsonImportLogger } from '@/services/exporters/exporterLoggers';
 import { isClinicalDerivedLayoutRegression } from '@/services/storage/clinicalDerivedImportGuard';
@@ -63,7 +63,8 @@ export const importDataJSONDetailed = async (file: File): Promise<JsonImportResu
       // The episode documents of split days are not a day: they go back into their days below.
       if (key === CLINICAL_DERIVED_BACKUP_SECTION) return;
       try {
-        const parsed = parseDailyRecordWithDefaultsReport(withoutStoredIdentityReviews(value), key);
+        // A file holds the day as this client read it: a review gives back what storage held.
+        const parsed = parseDailyRecordWithDefaultsReport(withStoredIdentity(value), key);
         importedRecords.push(parsed.record);
 
         if (hasStructuralRepairs(parsed.report)) {

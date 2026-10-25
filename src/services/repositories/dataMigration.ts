@@ -9,7 +9,6 @@
 
 import { DailyRecord } from '@/types/domain/dailyRecord';
 import { parseDailyRecordWithDefaultsReport } from '@/schemas/zodSchemas';
-import { findIdentityReviews } from '@/shared/census/patientIdentityReview';
 import { normalizeDailyRecordInvariants } from '@/utils/recordInvariants';
 import { recoverImportedMovementCalendarDate } from '@/utils/movementCalendarDate';
 import {
@@ -228,28 +227,23 @@ export const migrateLegacyDataWithReport = (
   const schemaMigration = migrateRecordSchemaToCurrent(record, date);
   const compatibilityAssessment = assessSchemaCompatibility(record);
 
-  // 1. Initial pass through Zod to apply defaults and recover basic structure. This reads stored
-  // data, so one unreadable identity keeps its bed readable under review instead of failing the day.
+  // 1. Initial pass through Zod to apply defaults and recover basic structure
   const schemaParse = parseDailyRecordWithDefaultsReport(
     schemaMigration.record as LegacyDailyRecordShape,
-    date,
-    { unreadableIdentity: 'quarantine' }
+    date
   );
   let migrated = schemaParse.record;
   pushRule(appliedRules, 'schema_defaults_applied');
   if (schemaParse.report.nullNormalization.replacedNullCount > 0) {
     pushRule(appliedRules, 'legacy_nulls_normalized');
   }
-  if (schemaParse.report.salvagedBeds.length > 0) {
+  // A local copy already read under review is still a repaired day, even when it parses as is.
+  if (
+    schemaParse.report.salvagedBeds.length > 0 ||
+    Object.values(migrated.beds).some(bed => bed.identityReview || bed.clinicalCrib?.identityReview)
+  ) {
     pushRule(appliedRules, 'salvage_patient_fallback_applied');
   }
-  findIdentityReviews(migrated.beds).forEach(({ bedId, slot, fields }) => {
-    pushRule(appliedRules, 'salvage_patient_fallback_applied');
-    pushRecoveredIssue(
-      recoveredIssues,
-      `patient_identity_review:${bedId}${slot === 'clinicalCrib' ? ':clinicalCrib' : ''}:${fields.join(',')}`
-    );
-  });
 
   // 2. Apply invariants so the current runtime never sees sparse bed maps.
   migrated = normalizeDailyRecordInvariants(migrated).record;

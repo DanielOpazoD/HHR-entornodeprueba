@@ -266,15 +266,10 @@ export const mergePatientData = (
     const localValue = localRecord[key];
 
     // An identity review describes the stored identity, so the stored side decides it, even when
-    // it has none: a local review the stored day no longer needs must not survive the merge.
+    // it has none: a local review the stored day no longer needs must not survive the merge. It is
+    // device state, not a stored field, so the trace does not list it.
     if (key === 'identityReview') {
       if (remoteValue !== undefined) merged[key] = remoteValue;
-      traceContext?.add({
-        path: `${pathPrefix}.${key}`,
-        strategy: 'scalar_policy',
-        winner: 'remote',
-        reason: 'clinical_census_remote_priority',
-      });
       return;
     }
 

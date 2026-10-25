@@ -67,8 +67,8 @@ import {
 import { adoptAuthoritativeRecord } from '@/services/repositories/dailyRecordRepositorySyncService';
 import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 import {
-  assertNoIdentityReviewInWrite,
   PatientIdentityRepairRequiredError,
+  withStoredIdentity,
 } from '@/shared/census/patientIdentityReview';
 import { isValidRemoteAuthorityRecord } from '@/services/repositories/dailyRecordRemotePersistenceState';
 const tryAutoMergeBlockedFullSaveRegression = async (
@@ -167,8 +167,8 @@ const saveDetailedWithinLock = async (
       command.date,
       currentLocalRecord
     );
-    // A full save rewrites every bed, so a bed under identity review would store its guess.
-    assertNoIdentityReviewInWrite(validatedRecord);
+    // A review the remote write cannot store is refused before the local save.
+    withStoredIdentity(validatedRecord);
     await runRemoteSaveIntegrityCheck(command.date, validatedRecord);
   } catch (err) {
     if (
@@ -306,9 +306,8 @@ const updatePartialDetailedWithinLock = async (
       command.date,
       command.patch
     ));
-    // Field edits reach a bed under identity review; a whole copy of it (move, copy, discharge
-    // snapshot) would store its guess.
-    assertNoIdentityReviewInWrite(mergedPatches);
+    // A review the remote write cannot store is refused before the local save.
+    withStoredIdentity(mergedPatches);
   } catch (err) {
     if (
       err instanceof AdmissionDatePolicyViolationError ||

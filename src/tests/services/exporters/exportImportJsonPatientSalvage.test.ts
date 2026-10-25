@@ -8,7 +8,8 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
 }));
 
 import { importDataJSONDetailed } from '@/services/exporters/exportImportJson';
-import { storedDayWithPlantedReviews } from '@/tests/fixtures/identityReviewDayFixture';
+import { docToRecord } from '@/services/storage/firestore/firestoreShared';
+import { storedDay, storedDayWithPlantedReviews } from '@/tests/fixtures/identityReviewDayFixture';
 
 const DATE = '2026-10-24';
 const passport = () => ({
@@ -98,30 +99,45 @@ describe('JSON patient salvage', () => {
     ['admissionDate', { seconds: 1, nanoseconds: 0 }],
     ['admissionTime', 930],
   ])(
-    'reports an invalid %s as blocked instead of importing a fabricated identity',
+    'imports a day whose %s cannot be read with the bed under review and its stored value',
     async (field, value) => {
       const result = await importDataJSONDetailed(file({ ...passport(), [field]: value }));
 
-      expect(result).toEqual({
-        success: false,
-        outcome: 'blocked',
-        importedCount: 0,
-        repairedCount: 0,
-        skippedEntries: [DATE],
+      expect(result).toMatchObject({ success: true, importedCount: 1, skippedEntries: [] });
+      const saved: DailyRecord[] = storage.save.mock.calls[0][0];
+      expect(saved[0].beds.R1.identityReview).toEqual({
+        bedId: 'R1',
+        slot: 'bed',
+        fields: [field],
+        stored: { [field]: value },
       });
-      expect(storage.save).not.toHaveBeenCalled();
+      expect(saved[0].beds.R1.documentType).not.toBe('RUT');
     }
   );
 
-  it('imports a file that carries identity reviews without any of them', async () => {
+  it('gives back the stored RUT of a file made from a day read under review', async () => {
+    const read = docToRecord(storedDay({ documentType: 'RUT', rut: 12345678 }), DATE);
+    const exported = new File([JSON.stringify({ [DATE]: read })], 'synthetic.json', {
+      type: 'application/json',
+    });
+
+    const result = await importDataJSONDetailed(exported);
+
+    expect(result).toMatchObject({ success: true, importedCount: 1 });
+    const saved: DailyRecord[] = storage.save.mock.calls[0][0];
+    expect(saved[0].beds.R1.identityReview).toMatchObject({
+      fields: ['rut'],
+      stored: { rut: 12345678 },
+    });
+  });
+
+  it('refuses a file whose identity reviews do not hold what storage held', async () => {
     const day = storedDayWithPlantedReviews();
     const result = await importDataJSONDetailed(
       new File([JSON.stringify({ [DATE]: day })], 'synthetic.json', { type: 'application/json' })
     );
 
-    expect(result).toMatchObject({ success: true, importedCount: 1, skippedEntries: [] });
-    const saved: DailyRecord[] = storage.save.mock.calls[0][0];
-    expect(JSON.stringify(saved)).not.toContain('identityReview');
-    expect(saved[0].discharges[0].originalData?.clinicalCrib?.patientName).toBe('RN SINTETICO');
+    expect(result).toMatchObject({ success: false, importedCount: 0, skippedEntries: [DATE] });
+    expect(storage.save).not.toHaveBeenCalled();
   });
 });

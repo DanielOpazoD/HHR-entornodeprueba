@@ -73,7 +73,7 @@ export const parsePatientDataWithDefaults = (data: unknown, bedId: string): Pati
 export const parseDailyRecordWithDefaultsReport = (
   data: unknown,
   docId: string,
-  { unreadableIdentity = 'reject' }: { unreadableIdentity?: UnreadableIdentityPolicy } = {}
+  { unreadableIdentity }: { unreadableIdentity?: UnreadableIdentityPolicy } = {}
 ): { record: DailyRecord; report: DailyRecordParseReport } => {
   const { normalized, report: nullNormalization } = normalizeLegacyNullsDeep(data);
   try {
@@ -210,6 +210,6 @@ export const parseDailyRecordWithDefaultsReport = (
   };
 };
 
-/** Reads a legacy Firebase day: like any stored day, it never brings an identity review. */
+/** Reads a legacy Firebase day like any stored day: an unreadable identity is put under review. */
 export const parseDailyRecordWithDefaults = (data: unknown, docId: string): DailyRecord =>
   parseDailyRecordWithDefaultsReport(withoutStoredIdentityReviews(data), docId).record;

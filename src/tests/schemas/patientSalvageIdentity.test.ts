@@ -11,6 +11,7 @@ import {
 import { PatientDataSchema } from '@/schemas/zod/patient';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { docToRecord } from '@/services/storage/firestore/firestoreShared';
+import { validateAndSalvageRecord } from '@/services/repositories/helpers/validationHelper';
 
 const DATE = '2026-10-24';
 const passport = () => ({
@@ -203,7 +204,8 @@ it('reports zero drops for clean lists and keeps schema normalization', () => {
   expect(single.patient.clinicalEvents?.[0]?.note).toBeUndefined();
 });
 
-const strictReaders = readers.filter(({ name }) => name !== 'docToRecord');
+/** A write of a day validates it: what it cannot read it refuses, instead of storing it. */
+const writeDay = (value: unknown) => validateAndSalvageRecord(day(value) as never, DATE);
 const neighbour = () => ({
   ...passport(),
   bedId: 'R2',
@@ -231,21 +233,27 @@ const unreadableIdentity: Array<[PatientIdentityField, unknown, unknown]> = [
 ];
 
 describe('a stored patient with one unreadable identity field', () => {
-  it.each(unreadableIdentity)(
-    'imports and writes refuse %s instead of guessing it',
-    (field, invalid) => {
-      strictReaders.forEach(({ read }) => {
-        expect(() => read({ ...passport(), [field]: invalid })).toThrow(
-          expect.objectContaining({
-            code: 'patient_identity_repair_required',
-            bedId: 'R1',
-            slot: 'bed',
-            fields: [field],
-          })
-        );
+  it.each(unreadableIdentity)('a write refuses %s instead of storing it', (field, invalid) => {
+    expect(() => writeDay({ ...passport(), [field]: invalid })).toThrow(
+      expect.objectContaining({
+        code: 'patient_identity_repair_required',
+        bedId: 'R1',
+        slot: 'bed',
+        fields: [field],
+      })
+    );
+  });
+
+  it.each(unreadableIdentity)('every reader shows %s under review', (field, invalid) => {
+    readers.forEach(({ read }) => {
+      expect(read({ ...passport(), [field]: invalid }).identityReview).toEqual({
+        bedId: 'R1',
+        slot: 'bed',
+        fields: [field],
+        stored: { [field]: invalid },
       });
-    }
-  );
+    });
+  });
 
   it.each(unreadableIdentity)(
     'a read keeps the day and the bed, and puts %s under review',
@@ -256,7 +264,12 @@ describe('a stored patient with one unreadable identity field', () => {
       expect(record.beds.R1).toMatchObject(untouched);
       expect(record.beds.R1[field]).toEqual(shown);
       expect(record.beds.R1.documentType).not.toBe('RUT');
-      expect(record.beds.R1.identityReview).toEqual({ bedId: 'R1', slot: 'bed', fields: [field] });
+      expect(record.beds.R1.identityReview).toEqual({
+        bedId: 'R1',
+        slot: 'bed',
+        fields: [field],
+        stored: { [field]: invalid },
+      });
       expect(record.beds.R2).toMatchObject(neighbour());
       expect(record.beds.R2.identityReview).toBeUndefined();
     }
@@ -283,8 +296,9 @@ describe('a stored patient with one unreadable identity field', () => {
       bedId: 'R1',
       slot: 'clinicalCrib',
       fields: ['documentType'],
+      stored: { documentType: 'Cedula' },
     });
-    expect(() => parseDailyRecordWithDefaultsReport(day(mother), DATE)).toThrow(
+    expect(() => writeDay(mother)).toThrow(
       expect.objectContaining({ bedId: 'R1', slot: 'clinicalCrib', fields: ['documentType'] })
     );
   });
@@ -292,8 +306,7 @@ describe('a stored patient with one unreadable identity field', () => {
   it('reports the review through the day salvage channel', () => {
     const { record, report } = parseDailyRecordWithDefaultsReport(
       day({ ...passport(), documentType: 'Cedula' }),
-      DATE,
-      { unreadableIdentity: 'quarantine' }
+      DATE
     );
 
     expect(record.beds.R1.identityReview?.fields).toEqual(['documentType']);

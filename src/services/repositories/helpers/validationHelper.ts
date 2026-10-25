@@ -32,7 +32,7 @@ const logSalvageSummary = (
 export const validateAndSalvageRecord = (
   record: DailyRecord,
   date: string,
-  options: { unreadableIdentity?: UnreadableIdentityPolicy } = {}
+  { unreadableIdentity = 'reject' }: { unreadableIdentity?: UnreadableIdentityPolicy } = {}
 ): DailyRecord => {
   try {
     // 1. Attempt strict parse
@@ -44,7 +44,9 @@ export const validateAndSalvageRecord = (
     );
 
     // 2. Fallback to salvage logic
-    const { record: salvaged, report } = parseDailyRecordWithDefaultsReport(record, date, options);
+    const { record: salvaged, report } = parseDailyRecordWithDefaultsReport(record, date, {
+      unreadableIdentity,
+    });
     logSalvageSummary(date, report);
 
     // 3. Re-validate the salvaged record to guarantee it meets the schema

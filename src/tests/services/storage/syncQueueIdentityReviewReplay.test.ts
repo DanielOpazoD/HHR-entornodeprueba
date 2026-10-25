@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Firestore, Transaction } from 'firebase/firestore';
 import { createFirestoreSyncTransport } from '@/services/storage/sync/firestoreSyncTransport';
-import { resolveSyncQueueFailureDecision } from '@/services/storage/sync/syncQueueFailurePolicy';
+import { preparePatchedRecordPersistence } from '@/services/repositories/dailyRecordPatchPersistenceController';
 import { docToRecord } from '@/services/storage/firestore/firestoreShared';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -121,38 +121,35 @@ describe.each(['client_only', 'enforced'])('replay of a queued edit (%s)', mode 
     const newer = storedDay(undefined, { lastUpdated: `${DATE}T08:30:00.000Z` });
     mocks.read.mockResolvedValue(snapshot(newer));
     mocks.transactionRead.mockResolvedValue(snapshot(newer));
-    const payload = queuedEdit(record => {
-      record.beds.R1.documentType = 'Pasaporte';
-    });
+    // The repair is a field edit: the queued day is the one its patch prepared.
+    const payload = {
+      ...preparePatchedRecordPersistence(docToRecord(storedDay(), DATE), DATE, {
+        'beds.R1.documentType': 'Pasaporte',
+      }).record,
+      lastUpdated: STORED_AT,
+    };
 
-    await run(task(payload, ['beds.R1.documentType'], STORED_AT));
+    const outcome = await run(task(payload, ['beds.R1.documentType'], STORED_AT));
 
     expect((writtenDay().beds as Record<string, Json>).R1.documentType).toBe('Pasaporte');
+    expect(JSON.stringify(writtenDay())).not.toContain('identityReview');
+    // The device adopts the repaired bed, not the review the stored day still held.
+    const adopted = (outcome as { authoritativeRecord: DailyRecord }).authoritativeRecord;
+    expect(adopted.beds.R1.documentType).toBe('Pasaporte');
+    expect(adopted.beds.R1.identityReview).toBeUndefined();
   });
 
-  it('stops, without losing the task, when the stored day is gone', async () => {
+  it('recreates a day that is gone with R1 exactly as stored', async () => {
     mocks.read.mockResolvedValue(missing());
     mocks.transactionRead.mockResolvedValue(missing());
-    const queued = task(
-      queuedEdit(() => undefined),
-      ['beds.R2.pathology'],
-      STORED_AT
-    );
-
-    const error = await run(queued).catch((caught: unknown) => caught);
-
-    expect(error).toMatchObject({ code: 'patient_identity_repair_required', bedId: 'R1' });
-    expect(mocks.set).not.toHaveBeenCalled();
-    expect(mocks.callable).not.toHaveBeenCalled();
-    const decision = resolveSyncQueueFailureDecision({
-      task: queued,
-      error,
-      maxRetries: 5,
-      baseRetryDelayMs: 1000,
-      maxRetryDelayMs: 30000,
+    const payload = queuedEdit(record => {
+      record.beds.R2.pathology = 'DIAGNOSTICO EDITADO';
     });
-    expect(decision).toMatchObject({ status: 'FAILED', lastErrorCategory: 'validation' });
-    expect(decision.error).toContain('Identidad de la cama R1 por revisar');
+
+    await run(task(payload, ['beds.R2.pathology'], STORED_AT));
+
+    expectR1AsStored(writtenDay());
+    expect((writtenDay().beds as Record<string, Json>).R2.pathology).toBe('DIAGNOSTICO EDITADO');
   });
 
   it('writes nothing about a review once the stored day was repaired elsewhere', async () => {
@@ -201,6 +198,7 @@ it('hands the device cache the authority answer with R1 under review, not its ra
     bedId: 'R1',
     slot: 'bed',
     fields: ['documentType'],
+    stored: { documentType: 'Cedula' },
   });
   expect(adopted.beds.R1.documentType).toBeUndefined();
   expect(adopted.beds.R2.pathology).toBe('DIAGNOSTICO EDITADO');

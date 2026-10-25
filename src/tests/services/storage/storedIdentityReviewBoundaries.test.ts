@@ -62,6 +62,13 @@ describe('stored identity reviews at the other storage boundaries', () => {
     expect(JSON.stringify(record)).not.toContain('identityReview');
   });
 
+  it('reads a legacy Firebase day with an unreadable identity, with the bed under review', () => {
+    const record = parseDailyRecordWithDefaults(storedDay(), DATE);
+
+    expect(record.beds.R1.identityReview).toMatchObject({ fields: ['documentType'] });
+    expect(record.beds.R2.patientName).toBe('PACIENTE DOS');
+  });
+
   it('drops every review from a legacy Firebase day', () => {
     const record = parseDailyRecordWithDefaults(storedDayWithPlantedReviews(), DATE);
 
@@ -86,7 +93,7 @@ describe('stored identity reviews at the other storage boundaries', () => {
     expect(JSON.stringify(snapshot)).not.toContain('identityReview');
   });
 
-  it('never archives a conflict version that holds a bed under identity review', async () => {
+  it('archives a conflict version with the reviewed bed exactly as storage held it', async () => {
     const reviewed: DailyRecord = docToRecord(storedDay(), DATE);
 
     const result = await saveConflictVersionSnapshots(
@@ -96,9 +103,13 @@ describe('stored identity reviews at the other storage boundaries', () => {
       runtime
     );
 
-    expect(result.status).toBe('failed');
-    expect(firestore.batchSet).not.toHaveBeenCalled();
-    expect(firestore.batchCommit).not.toHaveBeenCalled();
+    expect(result.status).toBe('saved');
+    const archived = firestore.batchSet.mock.calls.map(([, snapshot]) => snapshot.record);
+    expect(archived).toHaveLength(2);
+    archived.forEach(record => {
+      expect(record.beds.R1.documentType).toBe('Cedula');
+      expect(JSON.stringify(record)).not.toContain('identityReview');
+    });
   });
 
   it('still archives a readable conflict version', async () => {

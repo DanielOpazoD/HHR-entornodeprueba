@@ -18,12 +18,15 @@ export type PatientIdentityField = (typeof PATIENT_IDENTITY_FIELDS)[number];
 
 /**
  * A stored identity this client could not read. Only a read of a stored record sets it; it lives
- * in memory and in the device cache, never in Firestore. The listed fields hold the stored value
- * as text, or nothing, never a guess, so a write may change them only one field at a time.
+ * in memory, in the device cache and in this client's backups, never in Firestore. The listed
+ * fields show the stored value as text, or nothing, never a guess; every write and every import
+ * puts `stored` back in their place.
  */
 export interface PatientIdentityReview {
   /** Where it was read: the bed, or the newborn crib nested in it. */
   readonly bedId: string;
   readonly slot: 'bed' | 'clinicalCrib';
-  readonly fields: readonly [PatientIdentityField, ...PatientIdentityField[]];
+  readonly fields: readonly PatientIdentityField[];
+  /** Each listed field exactly as storage holds it. */
+  readonly stored: Readonly<Partial<Record<PatientIdentityField, unknown>>>;
 }

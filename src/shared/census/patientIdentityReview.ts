@@ -18,9 +18,7 @@ const FIELD_LABELS: Record<PatientIdentityField, string> = {
   admissionTime: 'hora de ingreso',
 };
 
-const SLOTS: ReadonlySet<unknown> = new Set<PatientIdentityReview['slot']>(['bed', 'clinicalCrib']);
-
-type ReviewFields = PatientIdentityReview['fields'];
+type ReviewTarget = Pick<PatientIdentityReview, 'bedId' | 'slot' | 'fields'>;
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -28,33 +26,25 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> =>
 export const isPatientIdentityField = (value: unknown): value is PatientIdentityField =>
   (PATIENT_IDENTITY_FIELDS as readonly unknown[]).includes(value);
 
-/** Identity fields in their canonical order, or null when there are none. */
-export const toReviewFields = (fields: Iterable<PatientIdentityField>): ReviewFields | null => {
-  const present = new Set(fields);
-  const [first, ...rest] = PATIENT_IDENTITY_FIELDS.filter(field => present.has(field));
-  return first ? [first, ...rest] : null;
-};
-
 export const isIdentityReview = (value: unknown): value is PatientIdentityReview =>
   isPlainObject(value) &&
   typeof value.bedId === 'string' &&
-  SLOTS.has(value.slot) &&
   Array.isArray(value.fields) &&
-  value.fields.length > 0 &&
-  value.fields.every(isPatientIdentityField);
+  value.fields.every(isPatientIdentityField) &&
+  isPlainObject(value.stored);
 
-export const describeIdentityReview = ({ bedId, slot, fields }: PatientIdentityReview): string =>
+export const describeIdentityReview = ({ bedId, slot, fields }: ReviewTarget): string =>
   `Identidad de ${slot === 'clinicalCrib' ? 'la cuna RN de la cama' : 'la cama'} ${bedId} ` +
-  `por revisar: ${fields.map(field => FIELD_LABELS[field]).join(', ')}.`;
+  `por revisar${fields.length ? `: ${fields.map(field => FIELD_LABELS[field]).join(', ')}` : ''}.`;
 
 /** A stored identity that cannot be read, or a write that would replace one with a guess. */
 export class PatientIdentityRepairRequiredError extends Error {
   readonly code = 'patient_identity_repair_required';
   readonly bedId: string;
   readonly slot: PatientIdentityReview['slot'];
-  readonly fields: ReviewFields;
+  readonly fields: PatientIdentityReview['fields'];
 
-  constructor(review: PatientIdentityReview) {
+  constructor(review: ReviewTarget) {
     super(describeIdentityReview(review));
     this.name = 'PatientIdentityRepairRequiredError';
     this.bedId = review.bedId;
@@ -63,41 +53,68 @@ export class PatientIdentityRepairRequiredError extends Error {
   }
 }
 
-/** Every identity review carried by a value about to leave the device. */
-export const findIdentityReviews = (value: unknown): PatientIdentityReview[] => {
-  const found: PatientIdentityReview[] = [];
-  const visit = (node: unknown): void => {
-    if (Array.isArray(node)) {
-      node.forEach(visit);
+const BED_SLOT_PATH = /^beds\.([^.]+)(\.clinicalCrib)?$/;
+const REVIEW_KEY = /(^|\.)identityReview$/;
+
+const repairRequired = (path: string, review: unknown) => {
+  const [, bedId = path, crib] = BED_SLOT_PATH.exec(path) ?? [];
+  return new PatientIdentityRepairRequiredError(
+    isIdentityReview(review) ? review : { bedId, slot: crib ? 'clinicalCrib' : 'bed', fields: [] }
+  );
+};
+
+// Copy on write: only the objects on the way to a review are rebuilt, so every other value,
+// Firestore timestamps included, stays the same instance. `path` is where `value` sits in a day,
+// whether the patch spells it nested or dotted.
+const mapReviews = (value: unknown, path: string, store: boolean): unknown => {
+  if (!value || typeof value !== 'object') return value;
+  const next: Record<string, unknown> = {};
+  let changed = false;
+  Object.entries(value).forEach(([key, child]) => {
+    const childPath = path ? `${path}.${key}` : key;
+    if (REVIEW_KEY.test(key)) {
+      // A patch of the review itself, even one that clears it, would erase what was not read.
+      if (
+        store &&
+        (key !== 'identityReview' || (child !== undefined && !BED_SLOT_PATH.test(path)))
+      ) {
+        throw repairRequired(childPath.replace(REVIEW_KEY, ''), child);
+      }
+      changed = true;
       return;
     }
-    if (!isPlainObject(node)) return;
-    if (isIdentityReview(node.identityReview)) found.push(node.identityReview);
-    Object.values(node).forEach(visit);
-  };
-  visit(value);
-  return found;
+    next[key] = mapReviews(child, childPath, store);
+    if (next[key] !== child) changed = true;
+  });
+  const review = 'identityReview' in value ? value.identityReview : undefined;
+  if (store && review !== undefined) {
+    if (
+      !isIdentityReview(review) ||
+      !review.fields.every(field => Object.hasOwn(review.stored, field))
+    ) {
+      throw repairRequired(path, review);
+    }
+    review.fields.forEach(field => {
+      next[field] = review.stored[field];
+    });
+  }
+  if (!changed) return value;
+  return Array.isArray(value) ? Object.assign([], next) : next;
 };
 
 /**
- * A reviewed patient copied whole (full save, whole-bed patch, move, copy, discharge snapshot,
- * new day) would store its shown text or unset values as if they were read. Only field-by-field
- * edits may reach it until the identity is repaired.
+ * What storage receives for a value leaving the device (a day, a patch, a snapshot): a bed or crib
+ * under review goes back with its stored identity and no review. A review anywhere else, such as a
+ * patient copied into a movement, would store a guess, so the write fails.
  */
-export const assertNoIdentityReviewInWrite = (value: unknown): void => {
-  const [review] = findIdentityReviews(value);
-  if (review) throw new PatientIdentityRepairRequiredError(review);
-};
+export const withStoredIdentity = <T>(value: T): T => mapReviews(value, '', true) as T;
 
-const withoutReviewedField = (
-  patient: PatientData,
-  review: PatientIdentityReview,
-  field: PatientIdentityField
-): PatientData => {
-  const { identityReview: _review, ...rest } = patient;
-  const fields = toReviewFields(review.fields.filter(reviewed => reviewed !== field));
-  return fields ? { ...rest, identityReview: { ...review, fields } } : rest;
-};
+/**
+ * Data read from outside this device (Firestore, a server answer) never brings an identity review:
+ * only this client's own read of an identity sets one. Removes every review, wherever it sits, and
+ * keeps everything else as it is.
+ */
+export const withoutStoredIdentityReviews = <T>(value: T): T => mapReviews(value, '', false) as T;
 
 const BED_FIELD_PATH = /^beds\.([^.]+)\.(?:(clinicalCrib)\.)?([^.]+)$/;
 
@@ -113,34 +130,15 @@ export const clearReviewedIdentityFields = <T extends { beds: Record<string, Pat
     const review = target?.identityReview;
     if (!bed || !target || !review || !isPatientIdentityField(field)) return current;
     if (!review.fields.includes(field)) return current;
-    const next = withoutReviewedField(target, review, field);
+    const { identityReview: _review, ...next } = target;
+    const fields = review.fields.filter(reviewed => reviewed !== field);
+    const stored = { ...review.stored };
+    delete stored[field];
+    const patient = fields.length
+      ? { ...next, identityReview: { ...review, fields, stored } }
+      : next;
     return {
       ...current,
-      beds: { ...current.beds, [bedId]: crib ? { ...bed, clinicalCrib: next } : next },
+      beds: { ...current.beds, [bedId]: crib ? { ...bed, clinicalCrib: patient } : patient },
     };
   }, record);
-
-// Copy on write: only the objects on the way to a review are rebuilt, so every other value,
-// Firestore timestamps included, stays the same instance.
-const stripStoredReviews = (value: unknown): unknown => {
-  if (Array.isArray(value)) {
-    const items = value.map(stripStoredReviews);
-    return items.some((item, index) => item !== value[index]) ? items : value;
-  }
-  if (!isPlainObject(value)) return value;
-  let changed = Object.hasOwn(value, 'identityReview');
-  const next: Record<string, unknown> = {};
-  Object.entries(value).forEach(([key, child]) => {
-    if (key === 'identityReview') return;
-    next[key] = stripStoredReviews(child);
-    if (next[key] !== child) changed = true;
-  });
-  return changed ? next : value;
-};
-
-/**
- * Data read from outside this device (Firestore, a server answer, an imported file) never brings
- * an identity review: only this client's own read of an identity sets one. Removes every review,
- * wherever it sits (beds, cribs, movement snapshots), and keeps everything else as it is.
- */
-export const withoutStoredIdentityReviews = <T>(value: T): T => stripStoredReviews(value) as T;

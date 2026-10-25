@@ -17,8 +17,8 @@ import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/fir
 import type { FirestoreServiceRuntimePort } from '@/services/storage/firestore/ports/firestoreServiceRuntimePort';
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import {
-  assertNoIdentityReviewInWrite,
   withoutStoredIdentityReviews,
+  withStoredIdentity,
 } from '@/shared/census/patientIdentityReview';
 
 /**
@@ -80,8 +80,6 @@ export const saveConflictVersionSnapshots = async (
     const expireAtMs = Date.now() + CONFLICT_SNAPSHOT_TTL_MS;
     const expireAt = Timestamp.fromMillis(expireAtMs);
 
-    // A bed under identity review holds a guess: archiving it would let a restore store it.
-    assertNoIdentityReviewInWrite(versions);
     const batch = writeBatch(db);
     entries.forEach(({ origin, record }, index) => {
       batch.set(doc(snapshotsRef, snapshotIds[index]), {
@@ -90,7 +88,7 @@ export const saveConflictVersionSnapshots = async (
         snapshotTimestamp,
         expireAt,
         sourceLastUpdated: sourceLastUpdatedOf(record),
-        record: sanitizeForFirestore(record) as DocumentData,
+        record: sanitizeForFirestore(withStoredIdentity(record)) as DocumentData,
       });
     });
     await batch.commit();

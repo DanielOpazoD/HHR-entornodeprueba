@@ -38,6 +38,7 @@ import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { docToRecord } from '@/services/storage/firestore/firestoreShared';
 import { buildMovePatientPatches } from '@/hooks/controllers/bedManagementPatchController';
 import { buildDischargeEntries } from '@/features/census/controllers/patientMovementDischargeMutationController';
+import { buildInitializedDayRecord } from '@/services/repositories/dailyRecordInitializationSupport';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import {
   IDENTITY_REVIEW_DATE as DATE,
@@ -49,6 +50,7 @@ type Json = Record<string, unknown>;
 
 const R1_BLOCKED = 'Identidad de la cama R1 por revisar: tipo de documento.';
 const COMMITTED_AT = `${DATE}T09:00:00.000Z`;
+const NEXT_DATE = '2026-10-25';
 
 /** The stored day after the server applied a patch: R1 keeps its unreadable value. */
 const serverDayAfter = (beds: Record<string, Json>) => {
@@ -155,30 +157,56 @@ describe('field edits on a day with one bed under identity review', () => {
   });
 });
 
-describe('writes that copy the reviewed bed whole', () => {
-  const expectRefusedUntouched = async (result: { outcome: string; userSafeMessage?: string }) => {
+describe('writes that carry the reviewed bed whole', () => {
+  const R1_STORED = { fields: ['documentType'], stored: { documentType: 'Cedula' } };
+
+  const expectRefusedUntouched = async (
+    result: { outcome: string; userSafeMessage?: string },
+    message = R1_BLOCKED
+  ) => {
     expect(result.outcome).toBe('blocked');
-    expect(result.userSafeMessage).toBe(R1_BLOCKED);
+    expect(result.userSafeMessage).toBe(message);
     expect(updateRecordPartial).not.toHaveBeenCalled();
     expect(saveRecordToFirestore).not.toHaveBeenCalled();
     expect(await outbox()).toEqual([]);
     const local = await getRecordForDate(DATE);
     expect(local?.beds.R1.patientName).toBe('PACIENTE UNO');
-    expect(local?.beds.R1.identityReview?.fields).toEqual(['documentType']);
+    expect(local?.beds.R1.identityReview).toMatchObject(R1_STORED);
   };
 
-  it('refuses a full save of the day', async () => {
+  it('saves the whole day and hands R1 to storage with what storage held', async () => {
     const local = await getRecordForDate(DATE);
 
-    await expectRefusedUntouched(await saveDetailed(local!));
+    const result = await saveDetailed(local!);
+
+    expect(result.outcome).toBe('clean');
+    const [sent] = vi.mocked(saveRecordToFirestore).mock.calls[0];
+    expect(sent.beds.R1.identityReview).toMatchObject(R1_STORED);
+    expect(sent.beds.R2.identityReview).toBeUndefined();
   });
 
-  it('refuses moving the patient to another bed', async () => {
+  it('saves the whole next day with the reviewed patient still in its bed', async () => {
+    const next = buildInitializedDayRecord(NEXT_DATE, (await getRecordForDate(DATE))!);
+
+    const result = await saveDetailed(next);
+
+    expect(result.outcome).toBe('clean');
+    const [sent] = vi.mocked(saveRecordToFirestore).mock.calls[0];
+    expect(sent.date).toBe(NEXT_DATE);
+    expect(sent.beds.R1).toMatchObject({ patientName: 'PACIENTE UNO', rut: 'FAKE-PASSPORT-R1' });
+    expect(sent.beds.R1.identityReview).toMatchObject(R1_STORED);
+    expect(sent.beds.R2.patientName).toBe('PACIENTE DOS');
+  });
+
+  it('moves the patient to another bed with its review', async () => {
     const local = await getRecordForDate(DATE);
 
-    await expectRefusedUntouched(
-      await updatePartialDetailed(DATE, buildMovePatientPatches(local!, 'R1', 'R4'))
-    );
+    const result = await updatePartialDetailed(DATE, buildMovePatientPatches(local!, 'R1', 'R4'));
+
+    expect(result.outcome).not.toBe('blocked');
+    const [, sent] = vi.mocked(updateRecordPartial).mock.calls[0];
+    const moved = (sent as Record<string, Json>)['beds.R4'];
+    expect(moved).toMatchObject({ patientName: 'PACIENTE UNO', identityReview: R1_STORED });
   });
 
   it('refuses a discharge, whose snapshot would copy the identity', async () => {
@@ -194,5 +222,22 @@ describe('writes that copy the reviewed bed whole', () => {
     await expectRefusedUntouched(
       await updatePartialDetailed(DATE, { discharges } as DailyRecordPatch)
     );
+  });
+
+  it.each([
+    ['clears', 'R1', undefined],
+    ['sets', 'R2', { bedId: 'R2', slot: 'bed', fields: ['rut'], stored: { rut: 'X' } }],
+  ])('refuses a patch that %s the review of %s', async (_verb, bedId, review) => {
+    const result = await updatePartialDetailed(DATE, {
+      [`beds.${bedId}.identityReview`]: review,
+    } as unknown as DailyRecordPatch);
+
+    await expectRefusedUntouched(
+      result,
+      review
+        ? 'Identidad de la cama R2 por revisar: RUT o pasaporte.'
+        : 'Identidad de la cama R1 por revisar.'
+    );
+    expect((await getRecordForDate(DATE))?.beds.R2.identityReview).toBeUndefined();
   });
 });

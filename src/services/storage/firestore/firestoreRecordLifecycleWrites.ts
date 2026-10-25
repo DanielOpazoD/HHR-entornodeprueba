@@ -6,7 +6,7 @@ import {
   sanitizeForFirestore,
 } from '@/services/storage/firestore/firestoreShared';
 import { createDeletedRecordRef } from '@/services/storage/firestore/firestoreWriteSupport';
-import { assertNoIdentityReviewInWrite } from '@/shared/census/patientIdentityReview';
+import { withStoredIdentity } from '@/shared/census/patientIdentityReview';
 import {
   logFirestoreWriteError,
   logFirestoreWriteRetry,
@@ -26,12 +26,12 @@ export const deleteRecordFromFirestore = async (date: string): Promise<void> => 
 };
 
 export const moveRecordToTrash = async (record: DailyRecord): Promise<void> => {
-  assertNoIdentityReviewInWrite(record);
+  const storedRecord = withStoredIdentity(record);
   try {
     const trashRef = createDeletedRecordRef(record.date);
     await withRetry(() =>
       setDoc(trashRef, {
-        ...(sanitizeForFirestore(record) as Record<string, unknown>),
+        ...(sanitizeForFirestore(storedRecord) as Record<string, unknown>),
         deletedAt: Timestamp.now(),
         originalDate: record.date,
       })

@@ -8,14 +8,13 @@ import {
   isIdentityReview,
   isPatientIdentityField,
   PatientIdentityRepairRequiredError,
-  toReviewFields,
 } from '@/shared/census/patientIdentityReview';
 
 /**
- * What a salvage does with a stored identity field it cannot read. `reject` throws: imports and
- * writes must not store it. `quarantine` keeps a read of stored data usable: the patient carries an
- * identity review, and the field holds the stored value as text when that loses nothing, else
- * nothing. A choice outside its options (a document type, an identity status) is never guessed.
+ * What a salvage does with an identity field it cannot read. `quarantine`, for stored data, keeps
+ * the day readable: the patient carries an identity review, and the field holds the stored value as
+ * text when that loses nothing, else nothing. A choice outside its options (a document type, an
+ * identity status) is never guessed. `reject`, for a write, throws instead of storing it.
  */
 export type UnreadableIdentityPolicy = 'reject' | 'quarantine';
 
@@ -24,41 +23,30 @@ export interface FallbackPatientDataOptions {
   slot?: PatientIdentityReview['slot'];
 }
 
-const IDENTITY_FIELD_KIND: Record<PatientIdentityField, 'text' | 'choice'> = {
-  documentType: 'choice',
-  identityStatus: 'choice',
-  rut: 'text',
-  clinicalEpisodeId: 'text',
-  patientName: 'text',
-  firstName: 'text',
-  lastName: 'text',
-  secondLastName: 'text',
-  admissionDate: 'text',
-  admissionTime: 'text',
-};
-
 const readableIdentityValue = (
   field: PatientIdentityField,
   stored: unknown,
   emptyValue: unknown
 ): unknown => {
-  if (IDENTITY_FIELD_KIND[field] === 'choice') return undefined;
+  if (field === 'documentType' || field === 'identityStatus') return undefined;
   return typeof stored === 'number' || typeof stored === 'boolean' ? String(stored) : emptyValue;
 };
 
 export const buildFallbackPatientDataReport = (
   data: unknown,
   bedId: string,
-  { unreadableIdentity = 'reject', slot = 'bed' }: FallbackPatientDataOptions = {}
+  { unreadableIdentity = 'quarantine', slot = 'bed' }: FallbackPatientDataOptions = {}
 ): { patient: PatientData; droppedListItems: number } => {
   const candidate: Record<string, unknown> = {
     ...createEmptyPatient(bedId),
     ...(data && typeof data === 'object' ? data : {}),
     bedId,
   };
-  const reviewed = new Set<PatientIdentityField>(
-    isIdentityReview(candidate.identityReview) ? candidate.identityReview.fields : []
-  );
+  const previousReview = isIdentityReview(candidate.identityReview)
+    ? candidate.identityReview
+    : undefined;
+  const reviewed = new Set<PatientIdentityField>(previousReview?.fields);
+  const stored: Partial<Record<PatientIdentityField, unknown>> = { ...previousReview?.stored };
 
   let droppedListItems = 0;
   let clinicalCrib: PatientData | undefined;
@@ -85,12 +73,13 @@ export const buildFallbackPatientDataReport = (
         issuesByField.set(field, issues);
       }
     }
-    const unreadable = toReviewFields([...issuesByField.keys()].filter(isPatientIdentityField));
-    if (unreadable && unreadableIdentity === 'reject') {
+    const unreadable = [...issuesByField.keys()].filter(isPatientIdentityField);
+    if (unreadable.length && unreadableIdentity === 'reject') {
       throw new PatientIdentityRepairRequiredError({ bedId, slot, fields: unreadable });
     }
     for (const [field, issues] of issuesByField) {
       if (isPatientIdentityField(field)) {
+        stored[field] = candidate[field];
         candidate[field] = readableIdentityValue(field, candidate[field], defaults[field]);
         reviewed.add(field);
         continue;
@@ -109,7 +98,7 @@ export const buildFallbackPatientDataReport = (
   const { identityReview: _previousReview, ...patient } = parsed.success
     ? parsed.data
     : PatientDataSchema.parse(candidate);
-  const fields = toReviewFields(reviewed);
+  const fields = [...reviewed];
   return {
     patient: {
       ...patient,
@@ -119,7 +108,7 @@ export const buildFallbackPatientDataReport = (
         isUPC: patient.isUPC,
         checklist: patient.upcChecklist,
       }).isUpc,
-      ...(fields ? { identityReview: { bedId, slot, fields } } : {}),
+      ...(fields.length ? { identityReview: { bedId, slot, fields, stored } } : {}),
     },
     droppedListItems,
   };

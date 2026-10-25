@@ -44,7 +44,10 @@ import {
   adoptStoredClinicalDerivedState,
   withClearedStoredMovedFields,
 } from '@/services/storage/clinicalDerivedWriteHygiene';
-import { adoptStoredIdentityUnderReview } from '@/services/storage/identityReviewWriteHygiene';
+import {
+  clearReviewedIdentityFields,
+  withStoredIdentity,
+} from '@/shared/census/patientIdentityReview';
 import { DailyRecordSchema, parseDailyRecordWithDefaultsReport } from '@/schemas/zodSchemas';
 
 const STRICT_REMOTE_DRIFT_TOLERANCE_MS = 0;
@@ -57,8 +60,7 @@ const STRICT_REMOTE_DRIFT_TOLERANCE_MS = 0;
 const readAuthorityAnswer = (record: DailyRecord): DailyRecord =>
   DailyRecordSchema.safeParse(record).success
     ? record
-    : parseDailyRecordWithDefaultsReport(record, record.date, { unreadableIdentity: 'quarantine' })
-        .record;
+    : parseDailyRecordWithDefaultsReport(record, record.date).record;
 
 const runE2ESyncTransport = async (task: SyncTask): Promise<boolean> => {
   if (!isE2ERuntimeEnabled() || typeof window === 'undefined') return false;
@@ -209,7 +211,8 @@ const resolveRecordForSyncTask = async (
   }
 
   return {
-    record: consistency.record,
+    // The merge takes the review from the stored day; the fields this task wrote are not under it.
+    record: clearReviewedIdentityFields(consistency.record, changedPaths),
     resolution: 'merged',
     acceptedVersion: consistency.record.lastUpdated,
     storedData: remoteData,
@@ -261,12 +264,6 @@ const syncDailyRecord = async (
         return { authoritativeRecord: resolved.record };
       }
       const recordToWrite = resolved.record;
-      const storedIdentityRecord = () =>
-        adoptStoredIdentityUnderReview(
-          recordToWrite,
-          resolved.storedData,
-          task.syncContract?.changedPaths
-        );
 
       assertResolvedClinicalAuthority(task, resolved);
 
@@ -275,7 +272,7 @@ const syncDailyRecord = async (
       if (effectiveAuthorityMode === 'enforced' || writeFenceActive) {
         const response = await saveDailyRecordWithClinicalAuthorityCallable({
           date: recordToWrite.date,
-          record: storedIdentityRecord(),
+          record: withStoredIdentity(recordToWrite),
           expectedLastUpdated: task.syncContract?.expectedVersion,
           mode: effectiveAuthorityMode === 'enforced' ? 'enforced' : 'shadow',
           origin: task.origin,
@@ -304,7 +301,7 @@ const syncDailyRecord = async (
         try {
           await saveDailyRecordWithClinicalAuthorityCallable({
             date: recordToWrite.date,
-            record: storedIdentityRecord(),
+            record: withStoredIdentity(recordToWrite),
             expectedLastUpdated: task.syncContract?.expectedVersion,
             mode: 'shadow',
             origin: task.origin,
@@ -330,13 +327,7 @@ const syncDailyRecord = async (
         transaction.set(
           getRecordDocRef(committedRecord.date, runtime),
           withClearedStoredMovedFields(
-            sanitizeForFirestore(
-              adoptStoredIdentityUnderReview(
-                committedRecord,
-                current.storedData,
-                task.syncContract?.changedPaths
-              )
-            ) as Record<string, unknown>,
+            sanitizeForFirestore(withStoredIdentity(committedRecord)) as Record<string, unknown>,
             current.storedData,
             () => deleteField()
           ),
