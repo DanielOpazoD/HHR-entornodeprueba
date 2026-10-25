@@ -83,7 +83,7 @@ vi.mock(
     saveDailyRecordWithClinicalAuthorityCallable: async (payload: unknown) => {
       const { createAdminMock, createDailyRecordWriteAuthorityFunctions, makeContext } =
         await import('@/tests/functions/dailyRecordWriteAuthorityFunctions.test-support');
-      const { admin } = createAdminMock({ remoteData: clone(h.remote) as Doc });
+      const { admin } = createAdminMock({ remoteData: clone(h.remote) as unknown as Doc });
       const response = await createDailyRecordWriteAuthorityFunctions({
         firestore: admin.firestore(),
         Timestamp: admin.firestore.Timestamp,
