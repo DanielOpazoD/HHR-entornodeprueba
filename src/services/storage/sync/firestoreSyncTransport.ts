@@ -38,9 +38,12 @@ import { saveDailyRecordWithClinicalAuthorityCallable } from '@/services/storage
 import { recordSyncQueueTruthSelectionTelemetry } from '@/services/storage/sync/syncQueueTelemetryController';
 import {
   assertNoSamePathRemoteMutation,
+  hasOtherOccupantInUntouchedBed,
   hasRemoteAppliedMutation,
+  keepStoredNoteFields,
 } from '@/services/storage/sync/firestoreSyncConflictPolicy';
 import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
+import { resolveRecordBaseRevision } from '@/services/storage/sync/syncTaskContractPolicy';
 import type { DetachedOccupantWork } from './dayTaskOccupantDetach';
 import {
   adoptStoredClinicalDerivedState,
@@ -175,20 +178,21 @@ const resolveRecordForSyncTask = async (
     if (!task.syncContract?.changedPaths?.length) return alreadyApplied(detached);
   }
 
+  const remoteRecord = docToRecord(remoteData, record.date);
   if (
     !detached &&
-    !shouldRevalidateAgainstRemote(remoteLastUpdated, task.syncContract?.expectedVersion)
+    !shouldRevalidateAgainstRemote(remoteLastUpdated, task.syncContract?.expectedVersion) &&
+    !hasOtherOccupantInUntouchedBed(task, record, remoteRecord)
   ) {
     assertSyncQueueConcurrency(record, remoteLastUpdated);
     return {
-      record,
+      record: keepStoredNoteFields(task, record, remoteRecord),
       resolution: 'accepted',
       acceptedVersion: record.lastUpdated,
       storedData: remoteData,
     };
   }
 
-  const remoteRecord = docToRecord(remoteData, record.date);
   assertNoSamePathRemoteMutation(task, remoteData, remoteRecord, record);
   const mergedRecord = resolveDailyRecordConflict(remoteRecord, record, {
     changedPaths: task.syncContract?.changedPaths,
@@ -287,14 +291,32 @@ const syncDailyRecord = async (
 
       const effectiveAuthorityMode = await resolveEffectiveDailyRecordAuthorityMode(runtime);
       const writeFenceActive = await isServerClinicalWriteFenceActive(runtime);
+      // A merged task carries its changes onto the stored day it just read: that day is the version
+      // the write expects, so the authority refuses only a write landed after that read.
+      const mergedBase =
+        resolved.resolution === 'merged' && resolved.storedData
+          ? {
+              expectedVersion: getRemoteLastUpdated(resolved.storedData),
+              baseRevision: resolveRecordBaseRevision(
+                resolved.storedData as unknown as DailyRecord
+              ),
+            }
+          : undefined;
+      const authorityContract = {
+        ...(resolved.detached?.task.syncContract ?? task.syncContract),
+        ...mergedBase,
+      };
+      const expectedLastUpdated = mergedBase
+        ? mergedBase.expectedVersion
+        : task.syncContract?.expectedVersion;
       if (effectiveAuthorityMode === 'enforced' || writeFenceActive) {
         const response = await saveDailyRecordWithClinicalAuthorityCallable({
           date: recordToWrite.date,
           record: recordToWrite,
-          expectedLastUpdated: task.syncContract?.expectedVersion,
+          expectedLastUpdated,
           mode: effectiveAuthorityMode === 'enforced' ? 'enforced' : 'shadow',
           origin: task.origin,
-          syncContract: resolved.detached?.task.syncContract ?? task.syncContract,
+          syncContract: authorityContract,
         });
         const authoritativeRecord = response.recordState?.record;
         if (
@@ -320,10 +342,10 @@ const syncDailyRecord = async (
           await saveDailyRecordWithClinicalAuthorityCallable({
             date: recordToWrite.date,
             record: recordToWrite,
-            expectedLastUpdated: task.syncContract?.expectedVersion,
+            expectedLastUpdated,
             mode: 'shadow',
             origin: task.origin,
-            syncContract: resolved.detached?.task.syncContract ?? task.syncContract,
+            syncContract: authorityContract,
             dryRun: true,
           });
         } catch {
