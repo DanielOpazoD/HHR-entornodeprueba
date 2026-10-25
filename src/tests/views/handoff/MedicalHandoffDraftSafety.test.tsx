@@ -6,9 +6,11 @@ import { MedicalHandoffDraftsPanel } from '@/features/handoff/components/Medical
 import { DataFactory } from '@/tests/factories/DataFactory';
 import {
   confirmMedicalHandoffDrafts,
+  createMedicalHandoffDraftWriter,
   publishSpecialistHandoffConflict,
   readMedicalHandoffDrafts,
   resetMedicalHandoffDraftMemoryForTests,
+  writeMedicalHandoffDraft,
 } from '@/services/storage/medicalHandoffDraftStorage';
 import {
   buildSpecialistHandoffIdentity,
@@ -190,6 +192,34 @@ describe('medical handoff draft recovery', () => {
     expect(save).toHaveBeenCalledWith('Nota rechazada de A');
     expect(screen.getByRole('textbox')).toHaveValue('Nota rechazada de A');
     expect(readMedicalHandoffDrafts().map(draft => draft.value)).toEqual(['Nota rechazada de A']);
+  });
+
+  it('keeps the stored draft when its restored copy cannot be stored and the send is refused', async () => {
+    writeMedicalHandoffDraft(createMedicalHandoffDraftWriter(), {
+      date: '2026-10-24',
+      ...buildSpecialistHandoffIdentity(patient),
+      entryId: 'entry-A',
+      value: 'Texto rechazado',
+    });
+    const save = vi.fn(() => Promise.reject(new Error('Synthetic refusal')));
+    render(cell(patient, save));
+    fireEvent.click(screen.getByText('Revisar borrador'));
+    const realSetItem = localStorage.setItem;
+    localStorage.setItem = () => {
+      throw new DOMException('Synthetic storage limit', 'QuotaExceededError');
+    };
+    try {
+      await act(async () => {
+        fireEvent.click(screen.getByText('Restaurar y guardar borrador'));
+      });
+    } finally {
+      localStorage.setItem = realSetItem;
+    }
+    expect(save).toHaveBeenCalledTimes(1);
+    reload();
+    expect(readMedicalHandoffDrafts()).toEqual([
+      expect.objectContaining({ value: 'Texto rechazado', durable: true }),
+    ]);
   });
 
   it('D4c never persists an unauthenticated draft and says it is only in memory', () => {

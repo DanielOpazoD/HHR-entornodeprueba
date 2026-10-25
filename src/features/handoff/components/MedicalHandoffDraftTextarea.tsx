@@ -165,8 +165,9 @@ const DraftEditor: React.FC<Props> = ({
   );
   const conflict = Boolean(session && isOthers(session, stored));
   const restore = (item: MedicalHandoffDraft) => {
-    writeMedicalHandoffDraft(startSession(item.value).writer, draft(item.value));
-    discardMedicalHandoffDraft(item);
+    // The original may be the only stored copy: it goes only once its replacement is stored.
+    if (writeMedicalHandoffDraft(startSession(item.value).writer, draft(item.value)))
+      discardMedicalHandoffDraft(item);
     flush(true);
   };
 
