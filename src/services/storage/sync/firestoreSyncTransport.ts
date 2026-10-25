@@ -158,15 +158,18 @@ const resolveRecordForSyncTask = async (
     storedData: remoteData,
     detached,
   });
+  // Edits written for a patient who left the bed or crib never reach the next occupant.
+  const detachFromRemote = () =>
+    detachStaleOccupantPaths?.(task, record, docToRecord(remoteData, record.date)) ?? undefined;
   if (
     hasRemoteAppliedMutation(task, remoteData.meta as Record<string, unknown> | undefined) &&
     (!compacted || allCompactedValuesApplied)
   ) {
-    return alreadyApplied();
+    // The rest landed but this task is still queued (its ACK may have rolled back): rebuild its
+    // held edits, so completing it never drops them. A held conflict holds nothing else.
+    return alreadyApplied(task.key?.includes(':detached:') ? undefined : detachFromRemote());
   }
-  // Edits written for a patient who left the bed or crib never reach the next occupant.
-  const detached =
-    detachStaleOccupantPaths?.(task, record, docToRecord(remoteData, record.date)) ?? undefined;
+  const detached = detachFromRemote();
   if (detached) {
     ({ task, record } = detached);
     // Nothing else to publish: the stored day stays as it is.

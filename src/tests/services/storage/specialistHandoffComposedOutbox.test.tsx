@@ -33,6 +33,8 @@ import {
   writeMedicalHandoffDraft,
 } from '@/services/storage/medicalHandoffDraftStorage';
 import { buildSpecialistHandoffIdentity } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
+import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
+import { createFirestoreSyncTransport } from '@/services/storage/sync/firestoreSyncTransport';
 import { RayenSyncQueueDetails } from '@/features/rayen-import/components/RayenSyncQueueDetails';
 import type { SyncQueueStats } from '@/hooks/useSyncQueueMonitor';
 import type { DailyRecord, DailyRecordPatch } from '@/types/domain/dailyRecord';
@@ -82,10 +84,61 @@ beforeEach(async () => {
   h.offline = false;
   h.loseNextResponse = false;
   h.callableCalls = 0;
+  h.authorityMode = false;
 });
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 describe('a day task never writes a patient edits to the next occupant', () => {
+  it('rebuilds the held edits when the authority already published the task and its ACK rolled back', async () => {
+    const base = day(DATE, { R4: A('R4', { pathology: 'Dx A' }), R6: E() });
+    await hospitalDB.dailyRecords.put(base);
+    h.remote = clone(base);
+    await writeDay(base, {
+      'beds.R4.pathology': 'Dx A pendiente',
+      'beds.R4.medicalHandoffNote': 'Nota A pendiente',
+      'beds.R6.pathology': 'Dx E corregido',
+    });
+    // Same version on the server, another patient in R4: the authority accepts the base.
+    h.remote = day(DATE, { R4: B(), R6: E() }, base.lastUpdated);
+    h.authorityMode = true;
+    const store = createDexieSyncQueueStore();
+    const transport = createFirestoreSyncTransport();
+    const now = Date.now() + 60 * 60 * 1000;
+    const claim = { leaseOwner: 'synthetic-lease', leaseUntil: now + 60_000, attemptId: 'try-1' };
+    const [task] = await store.claimReadyPending(now, 25, OWNER, claim);
+    const first = await transport.run(task);
+    expect(first?.detachedConflicts).toHaveLength(1);
+    vi.spyOn(hospitalDB.syncQueue, 'delete').mockRejectedValueOnce(
+      new DOMException('Synthetic failure after the conflict insert', 'QuotaExceededError')
+    );
+    await expect(
+      store.deleteClaimed(task.id!, claim, first?.authoritativeRecord, first?.detachedConflicts)
+    ).rejects.toThrow();
+    expect(await queue()).toEqual([expect.objectContaining({ id: task.id })]);
+
+    const replay = await transport.run(task);
+    await store.deleteClaimed(
+      task.id!,
+      claim,
+      replay?.authoritativeRecord,
+      replay?.detachedConflicts
+    );
+
+    expect(remote().beds.R6.pathology).toBe('Dx E corregido');
+    expect(remote().beds.R4).toMatchObject({ patientName: 'Paciente B Sintético' });
+    const [held, ...rest] = await queue();
+    expect(rest).toEqual([]);
+    expect(held).toMatchObject({ status: 'CONFLICT', lastErrorCode: 'occupant_changed' });
+    expect((held.payload as DailyRecord).beds.R4).toMatchObject({
+      clinicalEpisodeId: 'ep-A',
+      pathology: 'Dx A pendiente',
+      medicalHandoffNote: 'Nota A pendiente',
+    });
+  });
+
   it('detaches a diagnosis and a note written for A as one conflict, while another bed syncs', async () => {
     const base = day(DATE, { R4: A('R4', { pathology: 'Dx A' }), R6: E() });
     await hospitalDB.dailyRecords.put(base);

@@ -24,6 +24,8 @@ const h = vi.hoisted(() => ({
   /** Run the server handler, then lose its response once. */
   loseNextResponse: false,
   callableCalls: 0,
+  /** Day tasks publish through the real clinical authority handler instead of a direct write. */
+  authorityMode: false,
 }));
 /** Shared fake state; vi.hoisted bindings cannot be exported directly. */
 export const harnessState = () => h;
@@ -70,7 +72,26 @@ vi.mock(
   async importOriginal => ({
     ...(await importOriginal<object>()),
     isServerClinicalWriteFenceActive: async () => false,
-    resolveEffectiveDailyRecordAuthorityMode: async () => 'client_only',
+    resolveEffectiveDailyRecordAuthorityMode: async () =>
+      h.authorityMode ? 'enforced' : 'client_only',
+  })
+);
+vi.mock(
+  '@/services/storage/firestore/dailyRecordAuthorityCallableClient',
+  async importOriginal => ({
+    ...(await importOriginal<object>()),
+    saveDailyRecordWithClinicalAuthorityCallable: async (payload: unknown) => {
+      const { createAdminMock, createDailyRecordWriteAuthorityFunctions, makeContext } =
+        await import('@/tests/functions/dailyRecordWriteAuthorityFunctions.test-support');
+      const { admin } = createAdminMock({ remoteData: clone(h.remote) as Doc });
+      const response = await createDailyRecordWriteAuthorityFunctions({
+        firestore: admin.firestore(),
+        Timestamp: admin.firestore.Timestamp,
+        resolveRoleForEmail: async () => 'admin',
+      }).saveDailyRecordWithClinicalAuthority.run(payload, makeContext());
+      h.remote = clone(response.recordState.record);
+      return response;
+    },
   })
 );
 vi.mock('@/services/firebase-runtime/functionsRuntime', () => ({
