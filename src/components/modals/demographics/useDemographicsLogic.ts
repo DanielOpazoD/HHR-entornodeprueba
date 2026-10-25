@@ -20,6 +20,8 @@ import {
 import type { PatientData } from '@/types/domain/patient';
 import { isPatientIdentityField } from '@/shared/census/patientIdentityReview';
 
+// The form inputs identity fields are written from: each one its own field, except the provisional
+// name, which is the full name. An official patient's full name has no input of its own.
 const IDENTITY_INPUTS = [
   'firstName',
   'lastName',
@@ -32,8 +34,8 @@ const IDENTITY_INPUTS = [
   'admissionTime',
 ] as const satisfies readonly (keyof LocalDemographicsState)[];
 
-const withoutIdentity = (fields: Partial<PatientData>): Partial<PatientData> =>
-  Object.fromEntries(Object.entries(fields).filter(([field]) => !isPatientIdentityField(field)));
+const identityInputOf = (field: string) =>
+  IDENTITY_INPUTS.find(input => input === (field === 'patientName' ? 'provisionalName' : field));
 
 interface UseDemographicsLogicProps {
   data: DemographicSubset;
@@ -111,12 +113,22 @@ export const useDemographicsLogic = ({
     ? `Faltan ${requiredCompletion.missingFields.length}`
     : null;
 
-  // An identity under review is written only by an edit of it: saving what the form showed would
-  // stand in for the review.
-  const writesIdentity =
-    !data.identityReview || IDENTITY_INPUTS.some(input => localData[input] !== initialData[input]);
+  // For a patient under review the form writes only the identity fields the nurse edited, never a
+  // name or a document composed from other inputs: what was not edited keeps what storage holds.
+  const isEdited = (field: string) => {
+    const input = identityInputOf(field);
+    return input !== undefined && localData[input] !== initialData[input];
+  };
   const save = (fields: Partial<PatientData>) =>
-    onSave(writesIdentity ? fields : withoutIdentity(fields));
+    onSave(
+      data.identityReview
+        ? Object.fromEntries(
+            Object.entries(fields).filter(
+              ([field]) => !isPatientIdentityField(field) || isEdited(field)
+            )
+          )
+        : fields
+    );
 
   const handleSave = () => {
     if (!requiredCompletion.isComplete) {
@@ -175,11 +187,8 @@ export const useDemographicsLogic = ({
       return;
     }
 
+    // Empty only while a document type under review was not chosen, and then it is not written.
     const documentType = localData.documentType || undefined;
-    if (!documentType && writesIdentity) {
-      setError('Elige RUT o pasaporte: el tipo de documento guardado no se pudo leer.');
-      return;
-    }
 
     const fullName = composeFullName(
       localData.firstName,

@@ -6,6 +6,7 @@ import { useDemographicsLogic } from '@/components/modals/demographics/useDemogr
 import { buildUpdatePatientPatches } from '@/hooks/controllers/bedManagementPatchController';
 import { preparePatchedRecordPersistence } from '@/services/repositories/dailyRecordPatchPersistenceController';
 import { docToRecord } from '@/services/storage/firestore/firestoreShared';
+import { withStoredIdentity } from '@/shared/census/patientIdentityReview';
 import { PATIENT_IDENTITY_FIELDS } from '@/types/domain/patientIdentity';
 import type { PatientData } from '@/types/domain/patient';
 import { IDENTITY_REVIEW_DATE as DATE, storedDay } from '@/tests/fixtures/identityReviewDayFixture';
@@ -47,7 +48,7 @@ describe('demographics of a patient whose stored document type could not be read
     expect(identityFieldsIn(onSave.mock.calls[0][0])).toEqual([]);
   });
 
-  it('asks for RUT or passport when the nurse edits the identity', () => {
+  it('writes the RUT the nurse edited and leaves the unread document type as stored', () => {
     const onSave = renderModal('Cedula');
 
     fireEvent.change(screen.getByDisplayValue('FAKE-PASSPORT-R1'), {
@@ -55,19 +56,18 @@ describe('demographics of a patient whose stored document type could not be read
     });
     save();
 
-    expect(onSave).not.toHaveBeenCalled();
-    expect(screen.getByText(/Elige RUT o pasaporte/)).toBeInTheDocument();
+    expect(onSave.mock.calls[0][0]).toMatchObject({ rut: 'FAKE-PASSPORT-R1B' });
+    expect(identityFieldsIn(onSave.mock.calls[0][0])).toEqual(['rut']);
   });
 
-  it('saves the document type the nurse chose', () => {
+  it('writes only the document type the nurse chose', () => {
     const onSave = renderModal('Cedula');
 
     fireEvent.change(screen.getByDisplayValue('Por revisar'), { target: { value: 'Pasaporte' } });
     save();
 
-    expect(onSave).toHaveBeenCalledWith(
-      expect.objectContaining({ documentType: 'Pasaporte', rut: 'FAKE-PASSPORT-R1' })
-    );
+    expect(onSave.mock.calls[0][0]).toMatchObject({ documentType: 'Pasaporte' });
+    expect(identityFieldsIn(onSave.mock.calls[0][0])).toEqual(['documentType']);
   });
 
   it('keeps a readable passport as it is', () => {
@@ -79,13 +79,14 @@ describe('demographics of a patient whose stored document type could not be read
   });
 });
 
-describe('saving demographics of a patient whose first name could not be read', () => {
-  // The stored first name is not text: the read shows it empty and puts it under review.
-  const day = () => docToRecord(storedDay({ firstName: { given: 'PACIENTE' } }), DATE);
-
-  /** The form for R1, an edit, a save, and the day the resulting patch would store locally. */
-  const saveForm = (edit: (local: ReturnType<typeof useDemographicsLogic>) => void) => {
-    const record = day();
+describe('saving demographics of a patient under identity review', () => {
+  /** The form for R1 as read, an edit, a save, and the day the resulting patch stores locally. */
+  const saveForm = (
+    edit: (local: ReturnType<typeof useDemographicsLogic>) => void,
+    // By default the stored first name is not text: the read shows it empty and puts it in review.
+    storedR1: Record<string, unknown> = { firstName: { given: 'PACIENTE' } }
+  ) => {
+    const record = docToRecord(storedDay(storedR1), DATE);
     const onSave = vi.fn();
     const { result } = renderHook(() =>
       useDemographicsLogic({
@@ -102,13 +103,13 @@ describe('saving demographics of a patient whose first name could not be read', 
     act(() => result.current.handleSave());
     expect(onSave).toHaveBeenCalledOnce();
     const patch = buildUpdatePatientPatches(record, 'R1', onSave.mock.calls[0][0]);
-    return preparePatchedRecordPersistence(record, DATE, patch as never).record.beds.R1;
+    return preparePatchedRecordPersistence(record, DATE, patch as never).record;
   };
 
   it('keeps the review and every stored name part when only another field changes', () => {
     const saved = saveForm(form =>
       form.setLocalData(current => ({ ...current, isRapanui: !current.isRapanui }))
-    );
+    ).beds.R1;
 
     expect(saved.identityReview).toMatchObject({ fields: ['firstName'] });
     expect(saved).toMatchObject({
@@ -122,9 +123,23 @@ describe('saving demographics of a patient whose first name could not be read', 
   it('ends the review of the first name the nurse typed', () => {
     const saved = saveForm(form =>
       form.setLocalData(current => ({ ...current, firstName: 'PACIENTE' }))
-    );
+    ).beds.R1;
 
     expect(saved.identityReview).toBeUndefined();
     expect(saved).toMatchObject({ firstName: 'PACIENTE', lastName: 'SINTETICO' });
+  });
+
+  it('repairs the document type alone and keeps the unread name as stored', () => {
+    const saved = saveForm(
+      form => form.setLocalData(current => ({ ...current, documentType: 'Pasaporte' })),
+      { documentType: 'Cedula', patientName: { full: 'FAKE-NAME' } }
+    );
+
+    expect(saved.beds.R1.documentType).toBe('Pasaporte');
+    expect(saved.beds.R1.identityReview).toMatchObject({
+      fields: ['patientName'],
+      stored: { patientName: { full: 'FAKE-NAME' } },
+    });
+    expect(withStoredIdentity(saved).beds.R1.patientName).toEqual({ full: 'FAKE-NAME' });
   });
 });
