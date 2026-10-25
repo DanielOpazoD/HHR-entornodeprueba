@@ -12,6 +12,7 @@ export function DiagnosisCie10Fallback({
   onRecovered: (cell: Cie10Cell) => void;
 }) {
   const cellRef = useRef<HTMLTableCellElement>(null);
+  const focused = useRef(false);
   const recovered = useRef<Cie10Cell | null>(null);
   const retryRef = useRef<() => void>(() => {});
 
@@ -26,7 +27,7 @@ export function DiagnosisCie10Fallback({
         if (!active) return;
         recovered.current = module.default;
         // Blurring flushes DebouncedInput before the editor can be replaced.
-        if (!cellRef.current?.contains(document.activeElement)) onRecovered(module.default);
+        if (!focused.current) onRecovered(module.default);
       } catch {
         // Browsers may retain a failed import until an explicit page reload.
       } finally {
@@ -45,11 +46,19 @@ export function DiagnosisCie10Fallback({
     children,
     {
       ref: cellRef,
+      // React focus events include the free-text editor's portalled popovers.
+      onFocusCapture: event => {
+        focused.current = true;
+        children.props.onFocusCapture?.(event);
+      },
       onBlur: event => {
         children.props.onBlur?.(event);
-        if (recovered.current && !event.currentTarget.contains(event.relatedTarget)) {
-          onRecovered(recovered.current);
-        }
+        focused.current = false;
+        setTimeout(() => {
+          if (cellRef.current && !focused.current && recovered.current) {
+            onRecovered(recovered.current);
+          }
+        }, 0);
       },
     },
     children.props.children,

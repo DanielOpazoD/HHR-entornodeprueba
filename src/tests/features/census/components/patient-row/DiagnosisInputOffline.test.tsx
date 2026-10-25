@@ -10,7 +10,7 @@ const setOnline = (value: boolean) =>
   Object.defineProperty(navigator, 'onLine', { configurable: true, value });
 const chunkError = () => new Error('Failed to fetch dynamically imported module');
 
-async function mount({ fails = true, recovers = false, readOnly = false } = {}) {
+async function mount({ fails = true, recovers = false, readOnly = false, isSubRow = true } = {}) {
   let attempts = 0;
   vi.doMock(chunk, async () => {
     attempts++;
@@ -44,7 +44,7 @@ async function mount({ fails = true, recovers = false, readOnly = false } = {}) 
               </td>
               <Input
                 data={data}
-                isSubRow
+                isSubRow={isSubRow}
                 diagnosisMode="cie10"
                 readOnly={readOnly}
                 onChange={onChange}
@@ -116,6 +116,29 @@ describe('DiagnosisInput unavailable CIE-10 chunk', () => {
     );
     expect(save).toHaveBeenCalledWith('pathology', 'Borrador al reconectar');
     expect(screen.getByTestId('saved-patient')).toHaveTextContent('Borrador al reconectar');
+  });
+
+  it('keeps a clinical editor portal draft while the chunk recovers', async () => {
+    const { multiple } = await mount({ recovers: true, isSubRow: false });
+    await screen.findByPlaceholderText('Diagnóstico (texto libre)');
+    fireEvent.click(screen.getByLabelText('Editar bloque clínico'));
+    const draft = screen.getByLabelText('Diagnóstico');
+    act(() => draft.focus());
+    fireEvent.change(draft, { target: { value: 'Borrador clínico en portal' } });
+    setOnline(true);
+    await act(async () => {
+      window.dispatchEvent(new Event('online'));
+      await vi.dynamicImportSettled();
+    });
+    expect(screen.getByLabelText('Diagnóstico')).toBe(draft);
+    expect(draft).toHaveValue('Borrador clínico en portal');
+    expect(multiple).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    await waitFor(() =>
+      expect(multiple).toHaveBeenCalledWith(
+        expect.objectContaining({ pathology: 'Borrador clínico en portal' })
+      )
+    );
   });
 
   it('keeps the fallback after a cached import failure and reloads only with confirmation', async () => {
