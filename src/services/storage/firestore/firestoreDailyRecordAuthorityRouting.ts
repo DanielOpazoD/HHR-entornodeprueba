@@ -1,4 +1,3 @@
-import { httpsCallable } from 'firebase/functions';
 import type { SpecialistHandoffTarget } from './specialistMedicalHandoffIdentity';
 import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
 import {
@@ -14,7 +13,6 @@ import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSup
 import { firestoreWriteLogger } from '@/services/storage/storageLoggers';
 import { resolveFirebaseUserRole } from '@/services/auth/authAccessResolution';
 import { defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
-import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import { shouldShadowDailyRecordAuthorityCallable } from '@/services/storage/firestore/dailyRecordAuthorityMode';
 import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/firestoreServiceRuntime';
 import {
