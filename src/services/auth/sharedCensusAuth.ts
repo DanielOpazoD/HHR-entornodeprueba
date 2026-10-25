@@ -1,4 +1,3 @@
-import { httpsCallable } from 'firebase/functions';
 import { defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
 import type { AuthRuntime } from '@/services/firebase-runtime/authRuntime';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
@@ -39,6 +38,7 @@ export const createSharedCensusAuthService = (
       }
       try {
         const functions = await functionsRuntime.getFunctions();
+        const { httpsCallable } = await import('firebase/functions');
         const checkSharedAccess = httpsCallable<Record<string, never>, SharedCensusAccessResult>(
           functions,
           'checkSharedCensusAccess'

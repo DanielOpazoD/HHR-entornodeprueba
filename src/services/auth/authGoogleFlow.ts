@@ -25,7 +25,6 @@ import {
 } from '@/services/auth/authOperationalTelemetry';
 import { signInWithGoogleRedirect } from '@/services/auth/authFallback';
 import { type AuthRuntime, defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
-import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import { markPerf } from '@/shared/runtime/perfAudit';
 import { recordAuthPerfEvent } from '@/shared/runtime/censusStartupPerf';
 
@@ -44,13 +43,11 @@ const resolveAuthRuntime = ({ authRuntime }: AuthRuntimeOptions = {}): AuthRunti
   authRuntime ?? defaultAuthRuntime;
 
 /**
- * Fire-and-forget warm-up for the sign-in critical path: resolves the Firebase
- * auth runtime and loads/initializes the Functions client so the post-popup
- * role lookup (checkUserRole) does not pay the dynamic-import cost.
+ * Warm only auth. Speculatively fetching the network-only Functions chunk can
+ * leave its module URL permanently failed after an offline PWA launch.
  */
 export const warmGoogleSignInRuntime = (options?: AuthRuntimeOptions): void => {
   void resolveAuthRuntime(options).ready.catch(() => {});
-  void defaultFunctionsRuntime.getFunctions().catch(() => {});
 };
 
 const waitForE2EPopupDelay = async (): Promise<void> => {

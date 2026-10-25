@@ -1,5 +1,4 @@
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
-import { httpsCallable } from 'firebase/functions';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import type { FunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 
@@ -29,6 +28,7 @@ export const createQrDocumentAccessService = (deps: QrDocumentAccessServiceDeps 
       pin: string
     ): Promise<QrDocumentPatientOptionsResult> {
       const functions = await functionsRuntime.getFunctions();
+      const { httpsCallable } = await import('firebase/functions');
       const callable = httpsCallable<{ pin: string; date: string }, QrDocumentPatientOptionsResult>(
         functions,
         'listPrescriptionUploadPatientOptions'

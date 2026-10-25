@@ -85,6 +85,28 @@ describe('bootstrapRuntimeTelemetry', () => {
     );
   });
 
+  it('records a plain fetch failure as a runtime failure in both bootstrap paths', () => {
+    const error = new TypeError('Failed to fetch');
+    recordBootstrapRuntimeResult({
+      status: 'blocked',
+      stage: 'firebase_ready',
+      clientRecovery: { status: 'continue', reason: null },
+      error,
+      message: 'No se pudo cargar la configuración sintética.',
+    });
+    expect(mockRecordOperationalTelemetry).toHaveBeenCalledWith(
+      expect.objectContaining({ operation: 'bootstrap_runtime_failed' })
+    );
+    recordBootstrapRuntimeError(error);
+    expect(mockRecordOperationalErrorTelemetry).toHaveBeenCalledWith(
+      'auth',
+      'bootstrap_runtime_failed',
+      error,
+      expect.objectContaining({ code: 'bootstrap_runtime_failed' }),
+      expect.any(Object)
+    );
+  });
+
   it('wires window error and rejection listeners to structured telemetry', () => {
     const listeners = new Map<string, EventListener>();
     const target = {

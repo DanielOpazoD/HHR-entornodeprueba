@@ -137,6 +137,18 @@ describe('useDocumentScannerDemoController', () => {
     expect(hook.result.current.errorMessage).toContain('servicio de acceso no está disponible');
   });
 
+  it('explains an offline PIN lookup without suggesting a backend configuration change', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    scannerMocks.listPatientOptions.mockRejectedValueOnce({ code: 'functions/unavailable' });
+    const hook = renderHook(() => useDocumentScannerDemoController());
+    await act(async () => {
+      await hook.result.current.submitPin('1313');
+    });
+    expect(hook.result.current.phase).toBe('awaiting-pin');
+    expect(hook.result.current.errorMessage).toMatch(/sin conexión/i);
+    expect(hook.result.current.errorMessage).not.toMatch(/funciones locales|entorno/);
+  });
+
   it('uploads the processed PDF with the selected bed and keeps deletion out of the mobile flow', async () => {
     const session = { pages: [{ filterMode: 'color' }] };
     scannerMocks.createSession.mockResolvedValue(session);

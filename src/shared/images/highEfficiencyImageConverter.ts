@@ -1,3 +1,4 @@
+import { isChunkLoadError } from '@/utils/chunkLoadError';
 import { HeicConverterLoadFailure, loadHeicConverter } from './heicConverterLoader';
 
 const HIGH_EFFICIENCY_IMAGE_DECODE_ERROR =
@@ -6,9 +7,6 @@ const HIGH_EFFICIENCY_IMAGE_DECODE_ERROR =
 const HIGH_EFFICIENCY_IMAGE_CONVERTER_LOAD_ERROR =
   'No se pudo cargar el conversor HEIC/HEIF. Revisa la conexión, abre la app con internet e intenta nuevamente.';
 
-const dynamicImportLoadErrorPattern =
-  /chunkloaderror|failed to fetch dynamically imported module|error loading dynamically imported module|importing a module script failed|loading chunk [^ ]+ failed/i;
-
 export const buildHighEfficiencyImageDecodeError = (cause?: unknown): Error =>
   new Error(HIGH_EFFICIENCY_IMAGE_DECODE_ERROR, { cause });
 
@@ -16,11 +14,9 @@ export const buildHighEfficiencyImageConverterLoadError = (cause?: unknown): Err
   new Error(HIGH_EFFICIENCY_IMAGE_CONVERTER_LOAD_ERROR, { cause });
 
 const findDynamicImportLoadError = (error: unknown): unknown | null => {
-  if (error instanceof TypeError && dynamicImportLoadErrorPattern.test(error.message)) return error;
+  if (error instanceof TypeError && isChunkLoadError(error)) return error;
   const cause = error instanceof Error ? error.cause : undefined;
-  return cause instanceof TypeError && dynamicImportLoadErrorPattern.test(cause.message)
-    ? cause
-    : null;
+  return cause instanceof TypeError && isChunkLoadError(cause) ? cause : null;
 };
 
 export const withJpegExtension = (fileName: string): string => {

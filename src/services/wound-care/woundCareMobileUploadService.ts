@@ -1,4 +1,3 @@
-import { httpsCallable } from 'firebase/functions';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import type { FunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 
@@ -35,6 +34,7 @@ export const createWoundCareMobileUploadService = (
 ) => ({
   validateSession: async (sessionId: string): Promise<WoundCareMobileUploadSessionPayload> => {
     const functions = await functionsRuntime.getFunctions();
+    const { httpsCallable } = await import('firebase/functions');
     const callable = httpsCallable<{ sessionId: string }, WoundCareMobileUploadSessionPayload>(
       functions,
       'validateWoundCareMobileUploadSession'
@@ -47,6 +47,7 @@ export const createWoundCareMobileUploadService = (
     input: WoundCareMobilePhotoUploadInput
   ): Promise<WoundCareMobilePhotoUploadResult> => {
     const functions = await functionsRuntime.getFunctions();
+    const { httpsCallable } = await import('firebase/functions');
     const callable = httpsCallable<
       WoundCareMobilePhotoUploadInput & { userAgent?: string },
       WoundCareMobilePhotoUploadResult

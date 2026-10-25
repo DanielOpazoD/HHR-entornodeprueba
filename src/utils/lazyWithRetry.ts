@@ -7,6 +7,7 @@
  */
 
 import { createElement, lazy, type ComponentProps, type ComponentType } from 'react';
+import { isChunkLoadError } from '@/utils/chunkLoadError';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 
@@ -55,17 +56,6 @@ const waitForBrowserOnline = (): Promise<void> => {
     window.addEventListener('online', () => resolve(), { once: true });
   });
 };
-
-function isChunkLoadError(error: unknown): boolean {
-  if (!(error instanceof Error)) return false;
-  const msg = error.message.toLowerCase();
-  return (
-    msg.includes('loading chunk') ||
-    msg.includes('dynamically imported module') ||
-    msg.includes('failed to fetch') ||
-    error.name === 'ChunkLoadError'
-  );
-}
 
 // ComponentType<any> preserves the wrapped lazy component props; unknown erases them.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

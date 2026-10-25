@@ -23,7 +23,18 @@ vi.mock('@/features/auth', () => ({
   LoginPage: () => <div data-testid="login-page">Login Page</div>,
 }));
 
+vi.mock('@/components/ui/FunctionsRecovery', () => ({
+  FunctionsRecovery: () => <div data-testid="functions-recovery" />,
+}));
+
 vi.mock('@/views/LazyViews', () => ({
+  DocumentScannerDemoView: () => <div>Scanner</div>,
+  DocumentScannerQueueView: () => <div>Queue</div>,
+  DocumentScannerLocalQueueView: () => <div>Local queue</div>,
+  PrescriptionUploadView: () => <div>Prescription upload</div>,
+  PrescriptionVisorView: () => <div>Prescription viewer</div>,
+  PrescriptionAdminView: () => <div>Prescription admin</div>,
+  WoundCareMobileUploadView: () => <div>Wound upload</div>,
   MedicalSignatureView: () => <div data-testid="signature-view">Signature View</div>,
 }));
 
@@ -87,6 +98,25 @@ describe('App loading behavior', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it.each([
+    ['/', 'unauthenticated'],
+    ['/census', 'authenticated'],
+    ['/documentos/escanear-demo', 'authenticated'],
+    ['/documentos/pendientes', 'authenticated'],
+    ['/recetas/upload', 'unauthenticated'],
+    ['/recetas/visor', 'authenticated'],
+    ['/admin/recetas-config', 'authenticated'],
+    ['/wound-care/mobile-upload/synthetic', 'unauthenticated'],
+    ['/firma/synthetic', 'signature_mode'],
+  ])('mounts one shared recovery on %s (%s)', async (pathname, status) => {
+    window.location.pathname = pathname;
+    mockUseAppBootstrapState.mockReturnValue({ status, auth: createAuth() });
+    await act(async () => {
+      render(<App />);
+    });
+    expect(screen.getAllByTestId('functions-recovery')).toHaveLength(1);
   });
 
   it('keeps the login shell (never the legacy spinner) on the root route while bootstrap is loading', () => {

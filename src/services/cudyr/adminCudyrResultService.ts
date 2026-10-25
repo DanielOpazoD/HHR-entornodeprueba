@@ -1,4 +1,3 @@
-import { httpsCallable } from 'firebase/functions';
 import type {
   AdminCudyrResultAdjustment,
   CudyrResultOption,
@@ -34,6 +33,7 @@ export const setAdminCudyrResult = async (
   payload: AdminCudyrResultPayload
 ): Promise<AdminCudyrResultResponse> => {
   const functions = await defaultFunctionsRuntime.getFunctions();
+  const { httpsCallable } = await import('firebase/functions');
   const callable = httpsCallable<AdminCudyrResultPayload, AdminCudyrResultResponse>(
     functions,
     'setAdminCudyrResult'

@@ -64,11 +64,16 @@ describe('lazyWithRetry', () => {
     expect(await screen.findByText('Prop conservada')).toBeVisible();
   });
 
-  it('waits offline and retries after reconnection without replacing the draft', async () => {
+  it.each([
+    'Failed to fetch dynamically imported module',
+    'Importing a module script failed.',
+    'error loading dynamically imported module: /synthetic.js',
+    "'text/html' is not a valid JavaScript MIME type.",
+  ])('waits offline and preserves the draft for %s', async message => {
     setOnline(false);
     const factory = vi
       .fn()
-      .mockRejectedValueOnce(chunkError())
+      .mockRejectedValueOnce(new TypeError(message))
       .mockResolvedValueOnce({ default: Chunk });
     const reload = vi.spyOn(defaultBrowserWindowRuntime, 'reload').mockImplementation(() => {});
     mount(factory);
