@@ -15,6 +15,7 @@ import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/fir
 import type { FirestoreServiceRuntimePort } from '@/services/storage/firestore/ports/firestoreServiceRuntimePort';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 import { resolveDailyRecordConflict } from '@/services/repositories/conflictResolutionMatrix';
+import { findDetachedReviewEdits } from '@/services/repositories/conflictResolutionDetachedEdits';
 import {
   getValueAtPath,
   hasSameValuesAtPaths,
@@ -121,6 +122,8 @@ interface ResolvedSyncRecordForTask {
   acceptedVersion?: string;
   /** Stored day this resolution read; undefined when the day does not exist yet. */
   storedData?: Record<string, unknown>;
+  /** Changed paths the merge left out: they stay pending as a conflict. */
+  detachedPaths?: string[];
 }
 
 const resolveRecordForSyncTask = async (
@@ -212,6 +215,7 @@ const resolveRecordForSyncTask = async (
     resolution: 'merged',
     acceptedVersion: consistency.record.lastUpdated,
     storedData: remoteData,
+    detachedPaths: findDetachedReviewEdits(remoteRecord, record, consistency.record, changedPaths),
   };
 };
 
@@ -290,7 +294,10 @@ const syncDailyRecord = async (
           acceptedRevision: response?.revision,
           selectedTruth: 'authority_intent_invariants',
         });
-        return { authoritativeRecord: readAuthorityAnswer(authoritativeRecord) };
+        return {
+          authoritativeRecord: readAuthorityAnswer(authoritativeRecord),
+          detachedPaths: resolved.detachedPaths,
+        };
       }
 
       if (effectiveAuthorityMode === 'shadow') {
@@ -339,7 +346,7 @@ const syncDailyRecord = async (
             ? 'remote_already_applied'
             : 'legacy_direct_publish',
       });
-      return { authoritativeRecord: committed.record };
+      return { authoritativeRecord: committed.record, detachedPaths: committed.detachedPaths };
     },
     { thresholdMs: 180, context: record.date }
   );

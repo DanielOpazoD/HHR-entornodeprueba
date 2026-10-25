@@ -2,6 +2,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ConflictAutoMergeRecoveryResult } from '@/services/repositories/contracts/dailyRecordWriteRecoveryResult';
 import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
 import { resolveDailyRecordConflictWithTrace } from '@/services/repositories/conflictResolutionMatrix';
+import { findDetachedReviewEdits } from '@/services/repositories/conflictResolutionDetachedEdits';
 import { evaluateDailyRecordConflictPostMergeInvariants } from '@/services/repositories/dailyRecordConflictPostMergeInvariantChecker';
 import { buildConflictAutoMergeAuditDetails } from '@/services/repositories/conflictResolutionAuditSummary';
 import { logRepositoryConflictAutoMerged } from '@/services/repositories/ports/repositoryAuditPort';
@@ -62,6 +63,11 @@ export const attemptConflictAutoMergeRecovery = async (
         changedPaths: effectiveChangedPaths,
       }
     );
+    // An edit the merge cannot apply to the stored patient keeps its queued write, which the queue
+    // turns into a conflict: the merged day would leave it out.
+    if (findDetachedReviewEdits(remoteRecord, localRecord, merged, effectiveChangedPaths).length) {
+      return { status: 'not_possible' };
+    }
     const postMergeInvariants = evaluateDailyRecordConflictPostMergeInvariants({
       remote: remoteRecord,
       local: localRecord,

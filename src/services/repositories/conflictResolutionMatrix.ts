@@ -316,9 +316,17 @@ const resolveByChangedPaths = (
     traceContext.add(traceFromScalarDecision(path, decision));
   }
 
-  // The merge takes each review from the stored day: the fields it took from the local copy are not
-  // under it any more.
-  const merged = clearReviewedIdentityFields(applyPatches(remote, patches), changedPaths);
+  // The merge takes each review from the stored day: a field it took from the local copy is not
+  // under it any more, and one where the stored side won still is.
+  const patched = applyPatches(remote, patches);
+  const merged = clearReviewedIdentityFields(
+    patched,
+    changedPaths.filter(
+      path =>
+        JSON.stringify(getValueAtPath(patched, path)) ===
+        JSON.stringify(getValueAtPath(local, path))
+    )
+  );
   merged.lastUpdated = toIso(Math.max(toMillis(remote.lastUpdated), toMillis(local.lastUpdated)));
   return normalizeMovementBedConsistency(merged).record;
 };

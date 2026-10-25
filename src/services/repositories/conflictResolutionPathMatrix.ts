@@ -23,6 +23,7 @@ import {
   EXPLICIT_LOCAL_CENSUS_PATCH_FIELDS,
   isSameEpisodeForExplicitCensusPatch,
 } from '@/services/repositories/explicitLocalCensusPatchPolicy';
+import { isSameIdentityUnderReview } from '@/shared/census/patientIdentityReview';
 
 export const resolvePathValueWithMatrix = (
   remote: DailyRecord,
@@ -43,6 +44,16 @@ export const resolvePathValueWithMatrix = (
     );
     traceContext.add(traceFromScalarDecision(path, decision));
     return decision.value;
+  }
+
+  // A field the stored day cannot read shows only a placeholder there: the same patient's repair
+  // of it wins.
+  const remoteBed = remote.beds[bedId];
+  if (
+    (remoteBed?.identityReview?.fields as readonly string[] | undefined)?.includes(patientField) &&
+    isSameIdentityUnderReview(remoteBed, local.beds[bedId])
+  ) {
+    return getValueAtPath(local, path);
   }
 
   if (EXPLICIT_LOCAL_CENSUS_PATCH_FIELDS.has(patientField)) {

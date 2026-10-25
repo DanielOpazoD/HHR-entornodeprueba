@@ -122,4 +122,6 @@ export interface SyncTransportPort {
 
 export interface SyncTransportResult {
   authoritativeRecord: DailyRecord;
+  /** Changed paths the write left out: never acknowledged as written. */
+  detachedPaths?: string[];
 }
