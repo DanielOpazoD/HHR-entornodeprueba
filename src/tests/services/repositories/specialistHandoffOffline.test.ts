@@ -1,7 +1,3 @@
-import {
-  isFirestoreEnabled,
-  getFirestoreSyncState,
-} from '@/services/repositories/repositoryConfig';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildRecord, buildPatient } from './dailyRecordHandoffPatchTestSupport';
 import {
