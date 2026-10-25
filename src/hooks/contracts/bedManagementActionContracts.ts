@@ -5,7 +5,12 @@ import type { ConfirmedBedOccupantIdentity } from '@/types/domain/intentionalBed
 
 export type BedAction =
   | { type: 'UPDATE_PATIENT'; bedId: string; field: keyof PatientData; value: PatientFieldValue }
-  | { type: 'UPDATE_PATIENT_MULTIPLE'; bedId: string; fields: Partial<PatientData> }
+  | {
+      type: 'UPDATE_PATIENT_MULTIPLE';
+      bedId: string;
+      fields: Partial<PatientData>;
+      expectedHandoffPatient?: PatientData;
+    }
   | { type: 'UPDATE_CUDYR'; bedId: string; field: keyof CudyrScore; value: number }
   | { type: 'UPDATE_CUDYR_MULTIPLE'; bedId: string; fields: CudyrScorePatch }
   | { type: 'UPDATE_CUDYR_BATCH'; changes: CudyrBatchUpdate }
@@ -35,7 +40,12 @@ export type BedAction =
       field: keyof PatientData;
       value: PatientFieldValue;
     }
-  | { type: 'UPDATE_CLINICAL_CRIB_MULTIPLE'; bedId: string; fields: Partial<PatientData> }
+  | {
+      type: 'UPDATE_CLINICAL_CRIB_MULTIPLE';
+      bedId: string;
+      fields: Partial<PatientData>;
+      expectedHandoffPatient?: PatientData;
+    }
   | { type: 'UPDATE_CLINICAL_CRIB_CUDYR'; bedId: string; field: keyof CudyrScore; value: number }
   | { type: 'UPDATE_CLINICAL_CRIB_CUDYR_MULTIPLE'; bedId: string; fields: CudyrScorePatch }
   | { type: 'TOGGLE_BED_TYPE'; bedId: string };

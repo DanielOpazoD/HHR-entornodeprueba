@@ -244,9 +244,9 @@ export default defineConfig(({ mode }) => {
             '**/assets/fonasaDatabase-*.js',
             '**/assets/clinicalDocumentTemplateEditorController-*.js',
             '**/assets/vendor-heic2any-*.js',
-            // Callable Functions always require network access. Keep their runtime
-            // on demand instead of charging every offline installation for it.
-            '**/assets/vendor-firebase-functions-*.js',
+            // The specialist note callable and its queued replay need the network. They load
+            // through the shared Functions loader, which queues the note while offline.
+            '**/assets/specialistMedicalHandoffClient-*.js',
             // Carryover verification requires fresh remote clinical reports; load it with sync.
             // The copied evidence and its creation seed remain available in offline precache.
             '**/assets/clinicalCarryoverVerification-*.js',

@@ -1,7 +1,7 @@
 import { CloudUpload } from 'lucide-react';
 import React from 'react';
 import type { SyncQueueOperation, SyncQueueStats } from '@/hooks/useSyncQueueMonitor';
-import { retryQuarantinedSyncTask } from '@/services/storage/sync';
+import { discardQuarantinedSyncTask, retryQuarantinedSyncTask } from '@/services/storage/sync';
 import { isPolicyBlockedCudyrArchive } from '@/services/storage/sync/cudyrPolicyBlockedRecovery';
 import { listQuarantinedOperations, targetLabelFromKey } from './localSyncPresentation';
 
@@ -14,6 +14,7 @@ export const RayenSyncQueueDetails: React.FC<{
 }> = ({ stats, operations, refresh, working }) => {
   const [busy, setBusy] = React.useState(false);
   const [actionFailed, setActionFailed] = React.useState(false);
+  const [confirmingDiscard, setConfirmingDiscard] = React.useState<number | null>(null);
   const policyBlocked = operations.some(isPolicyBlockedCudyrArchive);
   const blocked = listQuarantinedOperations(
     operations.filter(op => !isPolicyBlockedCudyrArchive(op))
@@ -22,11 +23,12 @@ export const RayenSyncQueueDetails: React.FC<{
   const unavailable =
     stats.readState === 'unavailable' || stats.recentOperationsReadState === 'unavailable';
   if (!total && !unavailable) return null;
-  const retry = async (id: number) => {
+  const run = async (id: number, action: (taskId: number) => Promise<boolean>) => {
     setBusy(true);
     setActionFailed(false);
+    setConfirmingDiscard(null);
     try {
-      setActionFailed(!(await retryQuarantinedSyncTask(id)));
+      setActionFailed(!(await action(id)));
       await refresh();
     } catch {
       setActionFailed(true);
@@ -73,14 +75,42 @@ export const RayenSyncQueueDetails: React.FC<{
               )}
             </span>
 
-            <button
-              type="button"
-              onClick={() => void retry(operation.id)}
-              disabled={working || busy}
-              className="text-teal-700 disabled:opacity-50"
-            >
-              Reintentar
-            </button>
+            {!operation.refusedHandoff ? (
+              <button
+                type="button"
+                onClick={() => void run(operation.id, retryQuarantinedSyncTask)}
+                disabled={working || busy}
+                className="text-teal-700 disabled:opacity-50"
+              >
+                Reintentar
+              </button>
+            ) : confirmingDiscard === operation.id ? (
+              <span className="text-right">
+                {operation.refusedHandoff === 'note'
+                  ? 'Revisa antes su borrador en Entrega médica.'
+                  : 'Estos cambios no se enviarán.'}{' '}
+                <button
+                  type="button"
+                  onClick={() => void run(operation.id, discardQuarantinedSyncTask)}
+                  disabled={working || busy}
+                  className="text-rose-700 disabled:opacity-50"
+                >
+                  Sí, descartar envío
+                </button>{' '}
+                <button type="button" onClick={() => setConfirmingDiscard(null)}>
+                  Cancelar
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmingDiscard(operation.id)}
+                disabled={working || busy}
+                className="text-rose-700 disabled:opacity-50"
+              >
+                Descartar
+              </button>
+            )}
           </li>
         ))}
       </ul>

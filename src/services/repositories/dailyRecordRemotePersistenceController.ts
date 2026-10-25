@@ -1,9 +1,13 @@
+import { classifySyncError } from '@/services/storage/syncErrorCatalog';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   saveRecordStrict as saveToIndexedDB,
   type LocalRecordWriteResult,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
-import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
+import {
+  isFirestoreEnabled,
+  getFirestoreSyncState,
+} from '@/services/repositories/repositoryConfig';
 import { logger } from '@/services/utils/loggerService';
 import { resolveRemoteWriteRecovery } from '@/services/repositories/dailyRecordRemoteWriteController';
 import {
@@ -208,6 +212,7 @@ export const persistLocalAndAttemptRemoteSync = async ({
   requireConfirmedRecord = false,
   allowConflictAutoMerge = true,
   remoteAuthorityFirst = false,
+  allowOfflineQueue = false,
 }: {
   date: string;
   record: DailyRecord;
@@ -249,14 +254,23 @@ export const persistLocalAndAttemptRemoteSync = async ({
    * IndexedDB, and never enqueue a rejected stale writer for later replay.
    */
   remoteAuthorityFirst?: boolean;
+  allowOfflineQueue?: boolean;
 }): Promise<'continue' | 'return'> => {
   if (remoteAuthorityFirst) {
-    if (!isFirestoreEnabled()) {
+    if (
+      !isFirestoreEnabled() &&
+      (!allowOfflineQueue || getFirestoreSyncState().reason !== 'offline')
+    ) {
       throw new Error('La autoridad remota no está disponible para esta escritura clínica.');
     }
     let remoteResult: RemoteAuthorityWriteResult | void;
     try {
       try {
+        if (!isFirestoreEnabled()) {
+          throw Object.assign(new Error('La sincronización está sin conexión.'), {
+            code: 'unavailable',
+          });
+        }
         remoteResult = await remoteWrite();
       } catch (writeError) {
         const rebased = await attemptStaleVersionRebaseRetry<RemoteAuthorityWriteResult>({
@@ -280,6 +294,31 @@ export const persistLocalAndAttemptRemoteSync = async ({
       if (alreadyAppliedRecovery !== 'not_applied') return alreadyAppliedRecovery;
 
       onRemoteFailure(error);
+      if (
+        allowOfflineQueue &&
+        classifySyncError(error).category === 'network' &&
+        queueLocalBeforeRemote
+      ) {
+        const queued = await queueLocalBeforeRemote();
+        if (!queued.accepted) {
+          applyLocalPersistenceFailure(
+            date,
+            changedPaths,
+            toRejectedOutboxPersistenceResult(queued),
+            remoteState
+          );
+          return 'return';
+        }
+        markLocalWriteSucceeded(remoteState);
+        await releaseLocalPreOutboxHold?.();
+        remoteState.queuedForRetry = true;
+        remoteState.consistencyState = 'queued_for_retry';
+        remoteState.retryability = 'automatic_retry';
+        remoteState.recoveryAction = 'queue_retry';
+        remoteState.userSafeMessage =
+          'Entrega guardada en este dispositivo, pendiente de sincronización para el paciente y episodio originales.';
+        return 'return';
+      }
       throw error;
     }
     markRemoteWriteSucceeded(remoteState);

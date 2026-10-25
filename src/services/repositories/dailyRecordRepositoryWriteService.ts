@@ -1,3 +1,9 @@
+import { shouldRouteSpecialistPatchViaCallable } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
+import {
+  buildSpecialistHandoffTargets,
+  sameSpecialistHandoffTarget,
+} from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
+import { isSpecialistScopedDailyRecordPatch } from './dailyRecordClinicalDomainService';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import {
@@ -9,7 +15,7 @@ import {
   updateRecordPartial as updateRecordPartialToFirestore,
 } from '@/services/storage/firestore/firestoreRecordWrites';
 import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
-import { docToRecord } from '@/services/storage/firestore/firestoreShared';
+import { docToRecord, sanitizeForFirestore } from '@/services/storage/firestore/firestoreShared';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import {
   createPartialUpdateDailyRecordCommand,
@@ -338,6 +344,9 @@ const updatePartialDetailedWithinLock = async (
     mutationId: syncContract.mutationId,
   });
   const isReclassification = isMovementReclassificationPatch(command.patch);
+  const specialistScopedPatch = isSpecialistScopedDailyRecordPatch(command.patch);
+  const specialistHandoff =
+    specialistScopedPatch && (await shouldRouteSpecialistPatchViaCallable());
   const remoteWriteOptions = buildGuardedDailyRecordRemoteWriteOptions({
     options,
     policy: guardedCommandPolicy,
@@ -345,6 +354,31 @@ const updatePartialDetailedWithinLock = async (
     isReclassification,
   });
 
+  if (specialistScopedPatch && options.specialistHandoffTargets) {
+    const actual = buildSpecialistHandoffTargets(current, command.patch);
+    if (
+      options.specialistHandoffTargets.some(
+        expected => !actual.some(target => sameSpecialistHandoffTarget(target, expected))
+      )
+    ) {
+      throw new ConcurrencyError(
+        'El paciente o episodio cambió mientras escribías. El texto permanece en el borrador del paciente original.',
+        'semantic_conflict'
+      );
+    }
+  }
+  const handoffTargets = specialistScopedPatch
+    ? options.specialistHandoffTargets || buildSpecialistHandoffTargets(current, command.patch)
+    : undefined;
+  remoteWriteOptions.specialistHandoffTargets = handoffTargets;
+
+  // The outbox applies this patch again on the day's stored projection (#1024).
+  const patchWrite = {
+    baseRecord: current,
+    patch: command.patch,
+    prepare: (record: DailyRecord, patch: DailyRecordPatch) =>
+      preparePatchedRecordForPersistence(record, command.date, patch).record,
+  };
   const suspiciousShrinkages = await resolveBlockingFieldShrinkages(
     command.date,
     current,
@@ -359,7 +393,7 @@ const updatePartialDetailedWithinLock = async (
     });
   }
 
-  const nextAction = await persistLocalAndAttemptRemoteSync({
+  await persistLocalAndAttemptRemoteSync({
     date: command.date,
     record: validatedRecord,
     changedPaths: semanticChangedPaths,
@@ -372,34 +406,50 @@ const updatePartialDetailedWithinLock = async (
         remoteWriteOptions
       ),
     queueLocalBeforeRemote: () =>
-      queueDailyRecordSyncTaskWithLocalRecord(
-        validatedRecord,
-        {
-          contexts: classifyConflictChangedContexts(semanticChangedPaths),
-          origin: 'direct_queue',
-          syncContract,
-        },
-        {
-          ...buildPreOutboxRemoteAckOptions(syncContract),
-          patchWrite: {
-            baseRecord: current,
-            patch: command.patch,
-            prepare: (record, patch) =>
-              preparePatchedRecordForPersistence(record, command.date, patch).record,
-          },
-        }
-      ),
+      specialistHandoff && handoffTargets
+        ? // Its own task, replayed through the same occupant-bound callable.
+          queueDailyRecordSyncTaskWithLocalRecord(
+            validatedRecord,
+            {
+              contexts: ['handoff'],
+              origin: 'direct_queue',
+              syncContract: {
+                changedPaths: semanticChangedPaths,
+                mutationId: syncContract.mutationId,
+              },
+            },
+            { patchWrite },
+            {
+              date: command.date,
+              patch: sanitizeForFirestore(guardedCommandPolicy.remoteAuthorityPatch) as Record<
+                string,
+                unknown
+              >,
+              expectedOccupants: handoffTargets,
+              mutationId: syncContract.mutationId,
+            }
+          )
+        : queueDailyRecordSyncTaskWithLocalRecord(
+            validatedRecord,
+            {
+              contexts: classifyConflictChangedContexts(semanticChangedPaths),
+              origin: 'direct_queue',
+              syncContract,
+            },
+            { ...buildPreOutboxRemoteAckOptions(syncContract), patchWrite }
+          ),
     ...buildPreOutboxRemoteAckCallbacks(validatedRecord, syncContract),
     readRemoteConfirmedRecord: () => getRecordFromFirestore(command.date, { source: 'server' }),
-    ...buildGranularPatchStaleVersionRetryHooks({
-      date: command.date,
-      options,
-      policy: guardedCommandPolicy,
-      isReclassification,
-      semanticChangedPaths,
-      baseRecord: current,
-      syncContract,
-    }),
+    ...(!specialistHandoff &&
+      buildGranularPatchStaleVersionRetryHooks({
+        date: command.date,
+        options,
+        policy: guardedCommandPolicy,
+        isReclassification,
+        semanticChangedPaths,
+        baseRecord: current,
+        syncContract,
+      })),
     resolveAlreadyAppliedRemoteRecord: guardedCommandPolicy.resolveAlreadyAppliedRemoteRecord,
     adoptRemoteAuthorityRecord: authoritativeRecord =>
       adoptAuthoritativeRecord(
@@ -412,17 +462,25 @@ const updatePartialDetailedWithinLock = async (
     },
     expectedVersion: current.lastUpdated,
     allowConflictAutoMerge:
+      !specialistHandoff &&
       !isReclassification &&
       !options.rayenClinicalWriteGuard &&
       !options.specialtyIntent &&
       !options.requireAtomicCas &&
       !guardedCommandPolicy.requireAtomicCas,
-    remoteAuthorityFirst: guardedCommandPolicy.remoteAuthorityFirst,
+    remoteAuthorityFirst: specialistHandoff || guardedCommandPolicy.remoteAuthorityFirst,
+    allowOfflineQueue: specialistHandoff,
   });
-  if (nextAction === 'return') {
-    return buildPartialUpdateResult(command.date, remoteState, patchedFields);
+  if (remoteState.savedRemotely && handoffTargets) {
+    // The server took this exact text for these patients: only now may its drafts go.
+    const { confirmSpecialistHandoffDrafts } =
+      await import('@/services/storage/medicalHandoffDraftStorage');
+    confirmSpecialistHandoffDrafts({
+      date: command.date,
+      patch: command.patch,
+      expectedOccupants: handoffTargets,
+    });
   }
-
   return buildPartialUpdateResult(command.date, remoteState, patchedFields);
 };
 

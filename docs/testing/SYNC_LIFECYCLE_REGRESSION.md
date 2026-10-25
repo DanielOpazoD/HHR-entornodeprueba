@@ -41,7 +41,7 @@ forman parte del descubrimiento unitario de CI.
 | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------- |
 | Intercambio A↔B entre camas ocupadas; una con madre y cuna RN que comparte su documento         | Fecha de ingreso, guard de borrado (cliente y servidor), consistencia y autoridad aceptan la permuta; cada episodio conserva sus datos     | `syncQueueBedSwapComposition.test.ts`     |
 | La misma permuta reescribe una fecha de ingreso después del primer día observado                | La política de fecha de ingreso sigue bloqueando                                                                                           | `syncQueueBedSwapComposition.test.ts`     |
-| Edición atrasada en cola sobre la cama permutada, reproducida por el transporte real de la cola | Si el último sello del servidor cubre su ruta: `ConcurrencyError` sin escritura. En los demás casos nunca llega a la nueva ocupante        | `syncQueueBedSwapComposition.test.ts`     |
+| Edición atrasada en cola sobre la cama permutada, reproducida por el transporte real de la cola | Nunca llega a la nueva ocupante: queda como conflicto ligado a la paciente original, haya o no sello del servidor                          | `syncQueueBedSwapComposition.test.ts`     |
 | Mismo par de ocupantes evaluado por los tres comparadores de identidad                          | Fija dónde divergen el guard de borrado, el comparador canónico de episodio y el de fusión de ediciones                                    | `patientIdentityGuardComposition.test.ts` |
 | Pestañas de Ficha Médico que responden al ping pero no a la lectura                             | Una pestaña atascada seguida de otra sana responde dentro del plazo de HHR; la recuperación de captura no repite un timeout ya clasificado | `fichamedicoStuckReadDeadline.test.ts`    |
 
@@ -52,9 +52,9 @@ trasladada a cama independiente. `dailyRecordWriteAuthorityErasureIdentity.test.
 que el callable bloquea el RN perdido sin escribir ni generar historia y conserva la reubicación
 válida. Estas suites pertenecen al descubrimiento unitario existente.
 
-Los casos rotulados «known limit» siguen describiendo comportamiento actual, no deseado: la
-edición atrasada se descarta sin conflicto cuando ningún sello del servidor cubre su ruta
-(escritura directa del cliente o guardado completo con `['*']`); con dos pestañas atascadas, HHR
-agota su plazo antes del timeout clasificado de la extensión. Están descritos en
-`docs/SYNC_CONCURRENCY_MODEL.md` y `docs/SYNC_PERFORMANCE_REGRESSION_CHECKS.md`.
+Los casos rotulados «known limit» siguen describiendo comportamiento actual, no deseado: con dos
+pestañas atascadas, HHR agota su plazo antes del timeout clasificado de la extensión. Está descrito
+en `docs/SYNC_PERFORMANCE_REGRESSION_CHECKS.md`. La edición atrasada que se descartaba sin
+conflicto tras una permuta ya queda como conflicto ligado a la paciente original
+(`docs/SYNC_CONCURRENCY_MODEL.md`).
 Al corregir uno, convertir su prueba en la expectativa nueva en el mismo cambio.

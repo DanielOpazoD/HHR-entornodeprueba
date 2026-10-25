@@ -235,7 +235,7 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
   async delete(taskId) {
     await hospitalDB.syncQueue.delete(taskId);
   },
-  async deleteClaimed(taskId, claim, authoritativeRecord) {
+  async deleteClaimed(taskId, claim, authoritativeRecord, detachedConflicts) {
     const { completeClaimedSyncTask } = await import('./dexieSyncQueueAuthorityAck');
     const result = await completeClaimedSyncTask(
       {
@@ -245,7 +245,8 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
       },
       taskId,
       claim,
-      authoritativeRecord
+      authoritativeRecord,
+      detachedConflicts
     );
     if (result.adopted && authoritativeRecord)
       mirrorTransactionalDailyRecordWrite(authoritativeRecord);

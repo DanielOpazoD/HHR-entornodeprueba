@@ -2,89 +2,105 @@ import React from 'react';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HandoffMedicalObservationsCell } from '@/features/handoff/components/HandoffMedicalObservationsCell';
+import { MedicalHandoffDraftsPanel } from '@/features/handoff/components/MedicalHandoffDraftsPanel';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import type { MedicalHandoffEntry } from '@/domain/handoff/patientContracts';
-const rendered = vi.hoisted(() => vi.fn());
-vi.mock('@/features/handoff/components/MedicalHandoffObservationEntry', () => ({
-  MedicalHandoffObservationEntry: ({
-    entry,
-    onEntryNoteChange,
-  }: {
-    entry: MedicalHandoffEntry;
-    onEntryNoteChange: (id: string, value: string) => void;
-  }) => {
-    rendered();
-    return (
-      <input
-        aria-label={entry.id}
-        value={entry.note}
-        onChange={event => onEntryNoteChange(entry.id, event.target.value)}
-      />
-    );
-  },
-}));
-const patient = DataFactory.createMockPatient('R1', {
+import { resetMedicalHandoffDraftMemoryForTests } from '@/services/storage/medicalHandoffDraftStorage';
+
+const patient = DataFactory.createMockPatient('R4', {
+  patientName: 'Paciente A Sintético',
+  rut: '99.999.999-9',
+  clinicalEpisodeId: 'ep-A',
   medicalHandoffEntries: [
-    { id: 'entry-a', specialty: 'Medicina Interna', note: 'Persistida A' },
-    { id: 'entry-b', specialty: 'Medicina Interna', note: 'Persistida B' },
+    { id: 'primary-entry', specialty: 'Medicina Interna', note: 'Persistida A' },
   ],
 });
-const setup = () => {
-  const onChange = vi.fn();
-  const view = render(
-    <table>
-      <tbody>
-        <HandoffMedicalObservationsCell
-          patient={patient}
-          reportDate="2026-10-03"
-          isFieldReadOnly={false}
-          primaryNoteValue=""
-          onPrimaryNoteChange={vi.fn()}
-          onEntryNoteChange={onChange}
-        />
-      </tbody>
-    </table>
-  );
-  return { ...view, onChange };
-};
+const cell = (p = patient, onChange = vi.fn()) => (
+  <table>
+    <tbody>
+      <HandoffMedicalObservationsCell
+        patient={p}
+        reportDate="2026-10-24"
+        isFieldReadOnly={false}
+        primaryNoteValue=""
+        onPrimaryNoteChange={onChange}
+        onEntryNoteChange={onChange}
+      />
+    </tbody>
+  </table>
+);
 beforeEach(() => {
+  resetMedicalHandoffDraftMemoryForTests();
+  localStorage.clear();
+  localStorage.setItem('hhr_session_owner_v1', 'user:synthetic-A');
   vi.useFakeTimers();
-  rendered.mockClear();
 });
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
 });
-describe('medical draft timer ownership', () => {
-  it('replaces the previous deadline for repeated edits and stays idle until expiry', () => {
-    const view = setup();
-    fireEvent.change(screen.getByLabelText('entry-a'), { target: { value: 'Borrador 1' } });
-    act(() => vi.advanceTimersByTime(1000));
-    fireEvent.change(screen.getByLabelText('entry-a'), { target: { value: 'Borrador 2' } });
-    expect(vi.getTimerCount()).toBe(1);
-    const renderCount = rendered.mock.calls.length;
-    act(() => vi.advanceTimersByTime(1500));
-    expect(screen.getByLabelText('entry-a')).toHaveValue('Borrador 2');
-    expect(rendered).toHaveBeenCalledTimes(renderCount);
-    act(() => vi.advanceTimersByTime(1000));
-    expect(screen.getByLabelText('entry-a')).toHaveValue('Persistida A');
-    expect(view.onChange.mock.calls).toEqual([
-      ['entry-a', 'Borrador 1'],
-      ['entry-a', 'Borrador 2'],
-    ]);
-    expect(vi.getTimerCount()).toBe(0);
-  });
-  it('expires different drafts independently and cancels remaining deadlines on unmount', () => {
-    const view = setup();
-    fireEvent.change(screen.getByLabelText('entry-a'), { target: { value: 'Borrador A' } });
-    act(() => vi.advanceTimersByTime(1000));
-    fireEvent.change(screen.getByLabelText('entry-b'), { target: { value: 'Borrador B' } });
-    expect(vi.getTimerCount()).toBe(2);
-    act(() => vi.advanceTimersByTime(1500));
-    expect(screen.getByLabelText('entry-a')).toHaveValue('Persistida A');
-    expect(screen.getByLabelText('entry-b')).toHaveValue('Borrador B');
-    expect(vi.getTimerCount()).toBe(1);
+
+describe('medical draft continuity and episode ownership', () => {
+  it('keeps a rejected note visible past 2.5 seconds and after a reload without retrying', async () => {
+    const save = vi.fn();
+    const view = render(cell(patient, save));
+    const box = screen.getByRole('textbox');
+    fireEvent.focus(box);
+    fireEvent.change(box, { target: { value: 'Nota larga escrita para A' } });
+    fireEvent.blur(box);
+    expect(save).toHaveBeenCalledWith('primary-entry', 'Nota larga escrita para A');
+    await act(async () => {});
+    act(() => vi.advanceTimersByTime(5000));
+    expect(screen.getByRole('textbox')).toHaveValue('Nota larga escrita para A');
+    expect(screen.getByRole('status')).toHaveTextContent(/Pendiente de confirmar/);
     view.unmount();
-    expect(vi.getTimerCount()).toBe(0);
+    resetMedicalHandoffDraftMemoryForTests();
+    render(cell(patient, save));
+    act(() => vi.advanceTimersByTime(5000));
+    fireEvent.blur(screen.getByRole('textbox'));
+    expect(screen.getByRole('textbox')).toHaveValue('Persistida A');
+    fireEvent.click(screen.getByText('Revisar borrador'));
+    expect(screen.getByText('Nota larga escrita para A')).toBeVisible();
+    expect(screen.getByText(/Episodio ep-A/)).toBeVisible();
+    expect(save).toHaveBeenCalledTimes(1);
+  });
+
+  it('replaces the editor on turnover while keeping A’s unblurred text for review, never sending it to B', () => {
+    const saveA = vi.fn();
+    const saveB = vi.fn();
+    const view = render(cell(patient, saveA));
+    const box = screen.getByRole('textbox');
+    fireEvent.focus(box);
+    fireEvent.change(box, { target: { value: 'Nota escrita para A' } });
+    const b = {
+      ...patient,
+      patientName: 'Paciente B Sintético',
+      clinicalEpisodeId: 'ep-B',
+      medicalHandoffEntries: [
+        { id: 'primary-entry', specialty: 'Medicina Interna', note: 'Persistida B' },
+      ],
+    };
+    view.rerender(cell(b, saveB));
+    expect(screen.getByRole('textbox')).not.toBe(box);
+    expect(screen.getByRole('textbox')).toHaveValue('Persistida B');
+    fireEvent.blur(screen.getByRole('textbox'));
+    act(() => vi.advanceTimersByTime(5000));
+    expect(saveA).not.toHaveBeenCalled();
+    expect(saveB).not.toHaveBeenCalled();
+    render(<MedicalHandoffDraftsPanel />);
+    fireEvent.click(screen.getByText(/Revisar borradores de entrega/));
+    expect(screen.getByText('Nota escrita para A')).toBeVisible();
+    expect(screen.getByText('Nota de entrega de Paciente A Sintético · 24-10-2026')).toBeVisible();
+    expect(screen.getByText(/Episodio ep-A/)).toBeVisible();
+  });
+
+  it('captures the save callback on the first keystroke rather than on blur', () => {
+    const original = vi.fn();
+    const later = vi.fn();
+    const view = render(cell(patient, original));
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Texto para A' } });
+    view.rerender(cell(patient, later));
+    fireEvent.blur(screen.getByRole('textbox'));
+    expect(original).toHaveBeenCalledWith('primary-entry', 'Texto para A');
+    expect(later).not.toHaveBeenCalled();
   });
 });

@@ -1,9 +1,12 @@
 import type { DailyRecord, DailyRecordPatch } from '@/services/storage/storageDailyRecordContracts';
-import type { PatientData } from '@/types/domain/patient';
 import type { RayenSyncEvent } from '@/types/domain/rayenSync';
 import type { DailyRecordPatchWrite } from '@/services/storage/sync/syncQueuePorts';
-import type { SyncTask } from '@/services/storage/syncQueueTypes';
-import { hasSamePatientEpisodeIdentity } from '@/application/patient-flow/patientEpisodeIdentityPolicy';
+import type { SpecialistHandoffSyncPayload, SyncTask } from '@/services/storage/syncQueueTypes';
+import type { PatientData } from '@/types/domain/patient';
+import { specialistHandoffTextState } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
+import { hasSameBedOccupant } from '@/services/storage/sync/bedOccupantIdentity';
+// The replay-time occupant check ships with the enqueue-time one, in this lazy chunk.
+export { detachStaleOccupantPaths } from '@/services/storage/sync/dayTaskOccupantDetach';
 import { mergeMovementArrayById } from '@/services/repositories/conflictResolutionMovementMergePolicy';
 import { mergeRayenSyncHistory } from '@/services/repositories/dailyRecordRayenSyncHistoryPolicy';
 import {
@@ -23,6 +26,12 @@ import {
   buildDailyRecordSyncContract,
   mergeSyncTaskContracts,
 } from '@/services/storage/sync/syncTaskContractPolicy';
+
+/** A detached note's text is also offered as drafts in the handoff view. */
+export const publishDetachedNotes = async (notes: SpecialistHandoffSyncPayload) =>
+  (await import('@/services/storage/medicalHandoffDraftStorage')).publishSpecialistHandoffConflict(
+    notes
+  );
 
 /**
  * A day's pending truth is its local projection plus the unresolved write that holds it. A write
@@ -55,35 +64,6 @@ const hasSamePatchBaseValue = (left: unknown, right: unknown): boolean =>
   hasSameComparableValue(left, right) ||
   (isEmptyPatchBaseValue(left) && isEmptyPatchBaseValue(right));
 
-const hasIdentity = (patient: PatientData | undefined): boolean =>
-  Boolean(
-    patient &&
-    [patient.clinicalEpisodeId, patient.rut, patient.patientName].some(value =>
-      String(value ?? '').trim()
-    )
-  );
-
-const documentOf = (patient: PatientData): string =>
-  `${patient.documentType ?? 'RUT'}:${String(patient.rut ?? '')
-    .trim()
-    .toUpperCase()}`;
-
-/** Both slots empty, or the same patient and episode. A RUT never matches a passport. */
-const hasSameOccupant = (
-  left: PatientData | undefined,
-  right: PatientData | undefined
-): boolean => {
-  if (!hasIdentity(left) && !hasIdentity(right)) return true;
-  return Boolean(
-    left &&
-    right &&
-    hasIdentity(left) &&
-    hasIdentity(right) &&
-    hasSamePatientEpisodeIdentity(left, right) &&
-    documentOf(left) === documentOf(right)
-  );
-};
-
 /** A field edit belongs to the occupant it was written for; a whole-bed value compares by value. */
 const assertSameOccupantAtPath = (
   path: string,
@@ -96,9 +76,9 @@ const assertSameOccupantAtPath = (
   const writtenBed = writtenFor.beds?.[bedId];
   const projectedBed = projection.beds?.[bedId];
   if (
-    hasSameOccupant(writtenBed, projectedBed) &&
+    hasSameBedOccupant(writtenBed, projectedBed) &&
     ((field && field !== 'clinicalCrib') ||
-      hasSameOccupant(writtenBed?.clinicalCrib, projectedBed?.clinicalCrib))
+      hasSameBedOccupant(writtenBed?.clinicalCrib, projectedBed?.clinicalCrib))
   ) {
     return;
   }
@@ -265,12 +245,86 @@ const foldWriteIntoOutbox = ({
   };
 };
 
+/**
+ * A note write folded into a pending one keeps every stored text it may replace: the first
+ * edit's base, and the texts this device already sent for that note, since one of them may have
+ * landed without its answer.
+ */
+const mergeHandoffBases = (
+  previous: SpecialistHandoffSyncPayload,
+  next: SpecialistHandoffSyncPayload
+): SpecialistHandoffSyncPayload => ({
+  ...next,
+  expectedOccupants: next.expectedOccupants.map(target => {
+    const before = previous.expectedOccupants.find(
+      item => item.bedId === target.bedId && item.target === target.target
+    );
+    if (!before?.handoffBases || !target.handoffBases) return target;
+    const path = `beds.${target.bedId}${target.target === 'clinicalCrib' ? '.clinicalCrib' : ''}`;
+    const sent =
+      `${path}.medicalHandoffNote` in previous.patch &&
+      `${path}.medicalHandoffEntries` in previous.patch
+        ? [
+            specialistHandoffTextState({
+              medicalHandoffNote: previous.patch[`${path}.medicalHandoffNote`] as string,
+              medicalHandoffEntries: previous.patch[
+                `${path}.medicalHandoffEntries`
+              ] as PatientData['medicalHandoffEntries'],
+            }),
+          ]
+        : [];
+    const [first, ...rest] = [
+      ...new Set([...before.handoffBases, ...sent, ...target.handoffBases]),
+    ];
+    return { ...target, handoffBases: [first, ...rest.slice(-7)] };
+  }),
+});
+
+/**
+ * A specialist note is its own task, not a day write. Its projection lands on the stored day by
+ * the same stale-base rules, but never changes a projection a pending day task still holds.
+ */
+const saveSpecialistHandoffInOutbox = (
+  record: DailyRecord,
+  task: SyncTask,
+  patchWrite?: DailyRecordPatchWrite
+) =>
+  hospitalDB.transaction('rw', hospitalDB.dailyRecords, hospitalDB.syncQueue, async () => {
+    const stored = await hospitalDB.dailyRecords.get(record.date);
+    const projection = stored && patchWrite ? buildPatchRebase(patchWrite)(stored, []) : record;
+    const persistedRecord = (await listUnresolvedDailyRecordTasks(record.date)).length
+      ? (stored ?? record)
+      : projection;
+    if (persistedRecord === projection) await hospitalDB.dailyRecords.put(projection);
+    const existing = task.key
+      ? await findReusableSyncTask(task.type, task.key, task.ownerKey)
+      : null;
+    const nextTask = {
+      ...task,
+      payload: existing
+        ? mergeHandoffBases(
+            existing.payload as SpecialistHandoffSyncPayload,
+            task.payload as SpecialistHandoffSyncPayload
+          )
+        : task.payload,
+      syncContract: mergeSyncTaskContracts(existing?.syncContract, task.syncContract),
+    };
+    if (existing?.id) {
+      await hospitalDB.syncQueue.put({ ...existing, ...nextTask, id: existing.id });
+      return { mode: 'reused' as const, persistedRecord };
+    }
+    await hospitalDB.syncQueue.add(nextTask);
+    return { mode: 'created' as const, persistedRecord };
+  });
+
 /** Writes the day's record and its outbox task in one transaction. */
 export const saveDailyRecordInOutbox = (
   record: DailyRecord,
   task: SyncTask,
   patchWrite?: DailyRecordPatchWrite
 ): Promise<{ mode: 'created' | 'reused'; persistedRecord: DailyRecord }> => {
+  if (task.type === 'UPDATE_SPECIALIST_HANDOFF')
+    return saveSpecialistHandoffInOutbox(record, task, patchWrite);
   const rebase = patchWrite
     ? buildPatchRebase(patchWrite)
     : buildRecordOverlayRebase(
