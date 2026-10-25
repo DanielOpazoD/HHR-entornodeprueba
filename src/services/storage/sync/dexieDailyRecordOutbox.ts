@@ -1,5 +1,6 @@
 import type { DailyRecord, DailyRecordPatch } from '@/services/storage/storageDailyRecordContracts';
 import type { PatientData } from '@/types/domain/patient';
+import type { RayenSyncEvent } from '@/types/domain/rayenSync';
 import type { DailyRecordPatchWrite } from '@/services/storage/sync/syncQueuePorts';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import { hasSamePatientEpisodeIdentity } from '@/application/patient-flow/patientEpisodeIdentityPolicy';
@@ -106,17 +107,36 @@ const assertSameOccupantAtPath = (
   );
 };
 
-/** Movement and Rayen journals keep concurrent entries by id. */
-const mergeJournalValue = (path: string, value: unknown, projected: unknown): unknown[] | null => {
+/** Journals keep concurrent ids; a Rayen entry changes only against its writer's base. */
+const mergeJournalValue = (
+  path: string,
+  value: unknown,
+  projected: unknown,
+  base?: unknown
+): unknown[] | null => {
   if (
     path === 'rayenSyncHistory' &&
     Array.isArray(value) &&
     (projected == null || Array.isArray(projected))
   ) {
-    return mergeRayenSyncHistory(
-      projected as DailyRecord['rayenSyncHistory'],
-      value as DailyRecord['rayenSyncHistory']
+    const current = projected as DailyRecord['rayenSyncHistory'];
+    const currentById = new Map((current ?? []).map(event => [event.id, event]));
+    const baseById = new Map(
+      (Array.isArray(base) ? (base as RayenSyncEvent[]) : []).map(event => [event.id, event])
     );
+    const incomingById = new Map((value as RayenSyncEvent[]).map(event => [event.id, event]));
+    const changed = Array.from(incomingById.values()).filter(event => {
+      const previous = baseById.get(event.id);
+      if (hasSameComparableValue(event, previous)) return false;
+      const stored = currentById.get(event.id);
+      if (!hasSameComparableValue(stored, previous) && !hasSameComparableValue(stored, event)) {
+        throw new ConcurrencyError(
+          'Otra pestaña cambió la misma corrida Rayen. Recargue el censo antes de continuar.'
+        );
+      }
+      return true;
+    });
+    return mergeRayenSyncHistory(current, changed);
   }
   return MOVEMENT_LOG_PATHS.has(path) && Array.isArray(value) && Array.isArray(projected)
     ? mergeMovementArrayById(projected, value, true)
@@ -185,7 +205,7 @@ const buildPatchRebase =
         rebasedPatch[path] = value;
         return;
       }
-      const merged = mergeJournalValue(path, value, projected);
+      const merged = mergeJournalValue(path, value, projected, getValueAtPath(storedBase, path));
       if (!merged) {
         throw new ConcurrencyError(
           'Otra pestaña cambió el mismo dato del censo. Recargue el censo antes de continuar.'
