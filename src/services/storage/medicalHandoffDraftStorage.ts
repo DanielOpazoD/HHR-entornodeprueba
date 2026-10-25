@@ -5,7 +5,7 @@ import {
   buildSpecialistHandoffIdentity,
   type SpecialistHandoffIdentity,
 } from './firestore/specialistMedicalHandoffIdentity';
-import { getStoredSessionOwnerKey } from './sessionOwnerKey';
+import { getStoredSessionOwnerKey, SESSION_OWNER_KEY } from './sessionOwnerKey';
 
 /**
  * Unconfirmed medical handoff text, one localStorage key per draft and editing session.
@@ -44,9 +44,15 @@ let version = 0;
 let snapshot: { version: number; owner: string | null; drafts: MedicalHandoffDraft[] } | null =
   null;
 const pending = new Map<string, MedicalHandoffDraft>();
+/** Text typed with no session: the user last signed in on this tab when it was typed, if any. */
+const heldFor = new Map<string, string | null>();
 const editors = new Map<string, number>();
 const listeners = new Set<() => void>();
+const ownerResets = new Set<() => void>();
 const migratedOwners = new Set<string>();
+let observedOwner: string | null | undefined;
+let lastKnownOwner: string | null = null;
+let discardedForeignDraft = false;
 
 const changed = () => {
   version += 1;
@@ -96,17 +102,50 @@ const parseSlot = (slot: string): MedicalHandoffDraft | null => {
   }
 };
 
-/** Retry pending copies; text typed without a session is adopted once an owner signs in. */
-const flushPending = (owner: string | null) => {
-  for (const [slot, draft] of [...pending]) {
-    let target = slot;
-    if (owner && slot.startsWith(ownerPrefix(null))) {
-      target = ownerPrefix(owner) + slot.slice(ownerPrefix(null).length);
+/**
+ * Nothing typed under one identity survives in memory into another one or past a logout. Text
+ * typed with no session goes back only to the user last signed in on this tab; anyone else gets
+ * a notice without patient data, never the text.
+ */
+const syncOwner = (): string | null => {
+  const owner = currentOwner();
+  if (observedOwner !== undefined && owner !== observedOwner) {
+    discardedForeignDraft = false;
+    for (const [slot, draft] of [...pending]) {
+      const ownerless = slot.startsWith(ownerPrefix(null));
+      if (ownerless && !owner) continue;
+      const held = heldFor.get(slot);
       pending.delete(slot);
-      pending.set(target, { ...draft, slot: target });
+      heldFor.delete(slot);
+      if (!ownerless) continue;
+      if (!owner || held !== owner) {
+        discardedForeignDraft = true;
+        continue;
+      }
+      const target = ownerPrefix(owner) + slot.slice(ownerPrefix(null).length);
+      if (!persist(owner, target, draft)) pending.set(target, { ...draft, slot: target });
     }
-    if (target.startsWith(ownerPrefix(owner)) && persist(owner, target, draft))
-      pending.delete(target);
+    ownerResets.forEach(reset => reset());
+    version += 1;
+  }
+  observedOwner = owner;
+  if (owner) lastKnownOwner = owner;
+  return owner;
+};
+
+/** The signed-in owner, after applying any change since the last call. */
+export const getMedicalHandoffDraftOwner = (): string | null => syncOwner();
+export const hasDiscardedForeignMedicalHandoffDraft = (): boolean => discardedForeignDraft;
+/** Editors drop their in-memory sessions whenever the signed-in owner changes. */
+export const registerMedicalHandoffOwnerReset = (reset: () => void) => {
+  ownerResets.add(reset);
+};
+
+/** Retry this owner's copies that could not be written yet. */
+const flushPending = (owner: string | null) => {
+  if (!owner) return;
+  for (const [slot, draft] of [...pending]) {
+    if (slot.startsWith(ownerPrefix(owner)) && persist(owner, slot, draft)) pending.delete(slot);
   }
 };
 
@@ -127,14 +166,8 @@ const migrateLegacyDrafts = (owner: string) => {
 };
 
 export const readMedicalHandoffDrafts = (): MedicalHandoffDraft[] => {
-  const owner = currentOwner();
-  if (owner) {
-    migrateLegacyDrafts(owner);
-    if ([...pending.keys()].some(slot => slot.startsWith(ownerPrefix(null)))) {
-      flushPending(owner);
-      version += 1;
-    }
-  }
+  const owner = syncOwner();
+  if (owner) migrateLegacyDrafts(owner);
   if (snapshot?.version === version && snapshot.owner === owner) return snapshot.drafts;
   const drafts = new Map<string, MedicalHandoffDraft>();
   if (owner) {
@@ -159,7 +192,7 @@ export const subscribeMedicalHandoffDrafts = (listener: () => void) => {
 };
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', event => {
-    if (!event.key || event.key.startsWith(PREFIX)) changed();
+    if (!event.key || event.key.startsWith(PREFIX) || event.key === SESSION_OWNER_KEY) changed();
   });
 }
 
@@ -168,12 +201,13 @@ export const writeMedicalHandoffDraft = (
   writer: string,
   draft: MedicalHandoffDraftInput
 ): boolean => {
-  const owner = currentOwner();
+  const owner = syncOwner();
   const key = medicalHandoffDraftKey(draft);
   const slot = `${ownerPrefix(owner)}${writer}:${key}`;
   const durable = persist(owner, slot, draft);
   if (durable) pending.delete(slot);
   else pending.set(slot, { ...draft, key, slot, durable: false });
+  if (!owner) heldFor.set(slot, lastKnownOwner);
   flushPending(owner);
   changed();
   return durable;
@@ -184,6 +218,7 @@ const removeIfUnchanged = (slot: string, value: string): boolean => {
   const newest = pending.get(slot) ?? parseSlot(slot);
   if (newest?.value !== value) return false;
   pending.delete(slot);
+  heldFor.delete(slot);
   try {
     localStorage.removeItem(slot);
     return true;
@@ -228,14 +263,18 @@ const identityOf = (identity: SpecialistHandoffIdentity): SpecialistHandoffIdent
   clinicalEpisodeId: identity.clinicalEpisodeId,
 });
 
+/** Drafts carry the editor's entry id: the entry ids, or `legacy-primary` for a note alone. */
 const payloadOccupants = ({ patch, expectedOccupants }: SpecialistHandoffSyncPayload) =>
-  expectedOccupants.map(occupant => ({
-    ...identityOf(occupant),
-    entries:
-      patch[
-        `beds.${occupant.bedId}${occupant.target === 'clinicalCrib' ? '.clinicalCrib' : ''}.medicalHandoffEntries`
-      ],
-  }));
+  expectedOccupants.map(occupant => {
+    const path = `beds.${occupant.bedId}${occupant.target === 'clinicalCrib' ? '.clinicalCrib' : ''}`;
+    const note = patch[`${path}.medicalHandoffNote`];
+    return {
+      ...identityOf(occupant),
+      entries:
+        patch[`${path}.medicalHandoffEntries`] ??
+        (typeof note === 'string' ? [{ id: 'legacy-primary', note }] : undefined),
+    };
+  });
 
 export const confirmSpecialistHandoffDrafts = (payload: SpecialistHandoffSyncPayload): void =>
   confirmMedicalHandoffDrafts(payload.date, payloadOccupants(payload));
@@ -293,3 +332,15 @@ export const registerMedicalHandoffEditor = (key: string) => {
   };
 };
 export const hasMountedMedicalHandoffEditor = (key: string): boolean => editors.has(key);
+
+/** Test helper: forget this page's in-memory drafts and sessions, as a reload would. */
+export const resetMedicalHandoffDraftMemoryForTests = (): void => {
+  pending.clear();
+  heldFor.clear();
+  editors.clear();
+  observedOwner = undefined;
+  lastKnownOwner = null;
+  discardedForeignDraft = false;
+  ownerResets.forEach(reset => reset());
+  changed();
+};

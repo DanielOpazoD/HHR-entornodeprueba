@@ -4,8 +4,10 @@ import {
   buildSpecialistHandoffIdentity,
   createMedicalHandoffDraftWriter,
   discardMedicalHandoffDraft,
+  getMedicalHandoffDraftOwner,
   medicalHandoffDraftKey,
   registerMedicalHandoffEditor,
+  registerMedicalHandoffOwnerReset,
   useMedicalHandoffDrafts,
   writeMedicalHandoffDraft,
   type MedicalHandoffDraft,
@@ -35,6 +37,8 @@ interface Session {
   save: (value: string) => unknown;
 }
 const sessions = new Map<string, Session>();
+// A session typed under one identity never sends or shows its text under another one.
+registerMedicalHandoffOwnerReset(() => sessions.clear());
 const DEBOUNCE_MS = 1500;
 
 export const MedicalHandoffDraftTextarea: React.FC<Props> = props => (
@@ -63,6 +67,15 @@ const DraftEditor: React.FC<Props> = ({
   const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const inFlight = React.useRef(0);
   const textarea = React.useRef<HTMLTextAreaElement>(null);
+  const mounted = React.useRef(false);
+  // Resume a session from an earlier mount only while its own draft still exists; a draft
+  // confirmed or discarded meanwhile must not come back into the box.
+  if (!mounted.current) {
+    mounted.current = true;
+    const resumed = sessions.get(key);
+    if (resumed && !drafts.some(item => item.slot.includes(`:${resumed.writer}:`)))
+      sessions.delete(key);
+  }
   const session = sessions.get(key);
   const editing = () => focused.current || timer.current !== null || inFlight.current > 0;
   const isOthers = (current: Session, value: string) =>
@@ -77,7 +90,9 @@ const DraftEditor: React.FC<Props> = ({
   const flush = (force = false) => {
     if (timer.current) clearTimeout(timer.current);
     timer.current = null;
-    const current = sessions.get(key);
+    // No signed-in user: keep the text held in memory, never send it.
+    const signedIn = getMedicalHandoffDraftOwner() !== null;
+    const current = signedIn ? sessions.get(key) : undefined;
     const text = current?.text;
     if (
       !current ||
@@ -120,11 +135,12 @@ const DraftEditor: React.FC<Props> = ({
   React.useEffect(() => {
     if (sessions.has(key)) settle();
   }, [stored]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Unmounting never sends: a remount for another patient must not carry this text along.
   React.useEffect(
     () => () => {
-      if (timer.current) flush();
+      if (timer.current) clearTimeout(timer.current);
     },
-    [] // eslint-disable-line react-hooks/exhaustive-deps
+    []
   );
   React.useLayoutEffect(() => {
     const element = textarea.current;
@@ -152,6 +168,7 @@ const DraftEditor: React.FC<Props> = ({
         ref={textarea}
         value={session ? session.text : stored}
         onChange={event => {
+          getMedicalHandoffDraftOwner(); // an owner change resets sessions before this one starts
           const current = sessions.get(key) ?? startSession(event.target.value);
           current.text = event.target.value;
           writeMedicalHandoffDraft(current.writer, draft(current.text));

@@ -6,9 +6,12 @@ import {
 export {
   createMedicalHandoffDraftWriter,
   discardMedicalHandoffDraft,
+  getMedicalHandoffDraftOwner,
+  hasDiscardedForeignMedicalHandoffDraft,
   hasMountedMedicalHandoffEditor,
   medicalHandoffDraftKey,
   registerMedicalHandoffEditor,
+  registerMedicalHandoffOwnerReset,
   writeMedicalHandoffDraft,
 } from '@/services/storage/medicalHandoffDraftStorage';
 export type { MedicalHandoffDraft } from '@/services/storage/medicalHandoffDraftStorage';
