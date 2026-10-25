@@ -98,10 +98,22 @@ describe('poisoned day', () => {
       expect(h.remoteCalls).toContainEqual(
         expect.objectContaining({ 'beds.R5.pathology': 'Diagnóstico corregido C' })
       );
-      expect(tasks).toContainEqual(expect.objectContaining({ status: 'CONFLICT', payload: recA }));
+      expect(h.remoteCalls).not.toContainEqual(
+        expect.objectContaining({ 'beds.R4.medicalHandoffNote': expect.anything() })
+      );
+      // The unsent note stays pending with the patient it was typed for, never under B.
+      expect(tasks).toHaveLength(1);
+      const pending = tasks[0].payload as typeof recA;
+      expect(pending.beds.R4).toMatchObject({
+        clinicalEpisodeId: 'ep-A',
+        medicalHandoffNote: 'Nota de A no sincronizada',
+      });
+      expect(pending.beds.R5.pathology).toBe('Diagnóstico corregido C');
       const stored = await hospitalDB.dailyRecords.get(DATE);
-      expect(stored?.beds.R4.clinicalEpisodeId).toBe('ep-B');
       expect(stored?.beds.R5.pathology).toBe('Diagnóstico corregido C');
+      expect(
+        stored?.beds.R4.clinicalEpisodeId === 'ep-B' && stored.beds.R4.medicalHandoffNote
+      ).toBeFalsy();
     }
   );
 });

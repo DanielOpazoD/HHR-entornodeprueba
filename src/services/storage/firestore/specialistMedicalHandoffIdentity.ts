@@ -57,22 +57,3 @@ export const sameSpecialistHandoffTarget = (
   left.rut === right.rut &&
   left.documentType === right.documentType &&
   left.patientName === right.patientName;
-
-/** A queued handoff path whose bed now holds another patient or episode than when it was typed. */
-export const hasChangedHandoffOccupant = (
-  changedPaths: string[] = [],
-  queued: DailyRecord,
-  remote: DailyRecord
-): boolean => {
-  const patch = Object.fromEntries(
-    changedPaths
-      .filter(path =>
-        /^beds\.[^.]+\.(?:clinicalCrib\.)?medicalHandoff(?:Note|Entries|Audit)$/.test(path)
-      )
-      .map(path => [path, null])
-  );
-  const actual = buildSpecialistHandoffTargets(remote, patch);
-  return buildSpecialistHandoffTargets(queued, patch).some(
-    expected => !actual.some(target => sameSpecialistHandoffTarget(target, expected))
-  );
-};

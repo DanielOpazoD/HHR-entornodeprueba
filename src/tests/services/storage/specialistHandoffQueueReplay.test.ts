@@ -1,7 +1,8 @@
+import 'fake-indexeddb/auto';
 import type { FirestoreServiceRuntimePort } from '@/services/storage/firestore/ports/firestoreServiceRuntimePort';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import type { SyncTask } from '@/services/storage/syncQueueTypes';
+import type { SpecialistHandoffSyncPayload, SyncTask } from '@/services/storage/syncQueueTypes';
 import { DataFactory } from '@/tests/factories/DataFactory';
 const h = vi.hoisted(() => ({ remote: {} as DailyRecord, written: undefined as unknown }));
 vi.mock('firebase/firestore', async importOriginal => ({
@@ -25,13 +26,21 @@ vi.mock('@/services/storage/firestore/firestoreRayenClinicalAuthorityMode', () =
   isServerClinicalWriteFenceActive: async () => false,
   resolveEffectiveDailyRecordAuthorityMode: async () => 'client_only',
 }));
-vi.mock('@/services/storage/firestore/firestoreDailyRecordAuthorityRouting', () => ({
+vi.mock('@/services/storage/firestore/specialistMedicalHandoffClient', () => ({
   updateSpecialistMedicalHandoffViaCallable: vi.fn(),
 }));
 import { createFirestoreSyncTransport } from '@/services/storage/sync/firestoreSyncTransport';
-import { updateSpecialistMedicalHandoffViaCallable } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
+import { updateSpecialistMedicalHandoffViaCallable } from '@/services/storage/firestore/specialistMedicalHandoffClient';
 import { buildSpecialistHandoffTargets } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
-import { mergeSyncTaskContracts } from '@/services/storage/sync/syncTaskContractPolicy';
+import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
+import { queueDailyRecordSyncTaskWithLocalRecord } from '@/services/storage/sync';
+import { hospitalDB } from '@/services/storage/indexedDBService';
+import {
+  readMedicalHandoffDrafts,
+  resetMedicalHandoffDraftMemoryForTests,
+} from '@/services/storage/medicalHandoffDraftStorage';
+
+const entries = (note: string) => [{ id: 'entry-A', specialty: 'Medicina Interna', note }];
 const makeRecord = () =>
   DataFactory.createMockDailyRecord('2026-10-24', {
     lastUpdated: '2026-10-24T10:00:00.000Z',
@@ -41,10 +50,11 @@ const makeRecord = () =>
         rut: '99.999.999-9',
         clinicalEpisodeId: 'ep-A',
         medicalHandoffNote: 'Nota de A',
+        medicalHandoffEntries: entries('Nota de A'),
       }),
     },
   });
-const makeTask = (record: DailyRecord): SyncTask => ({
+const makeDayTask = (record: DailyRecord): SyncTask => ({
   opId: 'synthetic-op',
   type: 'UPDATE_DAILY_RECORD',
   payload: record,
@@ -53,28 +63,53 @@ const makeTask = (record: DailyRecord): SyncTask => ({
   status: 'PENDING',
   origin: 'direct_queue',
   syncContract: {
-    changedPaths: ['beds.R4.medicalHandoffNote'],
+    changedPaths: ['beds.R4.medicalHandoffNote', 'beds.R4.medicalHandoffEntries'],
     expectedVersion: record.lastUpdated,
     mutationId: 'synthetic-mutation',
   },
+});
+const notePatch = {
+  'beds.R4.medicalHandoffNote': 'Nota de A',
+  'beds.R4.medicalHandoffEntries': entries('Nota de A'),
+};
+const makeHandoffPayload = (record = makeRecord()): SpecialistHandoffSyncPayload => ({
+  date: record.date,
+  patch: notePatch,
+  expectedOccupants: buildSpecialistHandoffTargets(record, notePatch),
+});
+const makeHandoffTask = (payload = makeHandoffPayload()): SyncTask => ({
+  opId: 'synthetic-handoff',
+  type: 'UPDATE_SPECIALIST_HANDOFF',
+  payload,
+  timestamp: 1,
+  retryCount: 0,
+  status: 'PENDING',
+  origin: 'direct_queue',
 });
 const transport = () =>
   createFirestoreSyncTransport({
     getDb: vi.fn<FirestoreServiceRuntimePort['getDb']>(),
     ready: Promise.resolve(),
   });
-beforeEach(() => {
+const draftValues = () => readMedicalHandoffDrafts().map(draft => [draft.patientName, draft.value]);
+beforeEach(async () => {
   vi.clearAllMocks();
+  resetMedicalHandoffDraftMemoryForTests();
+  localStorage.clear();
+  localStorage.setItem('hhr_session_owner_v1', 'user:synthetic-specialist');
+  await hospitalDB.syncQueue.clear();
   h.remote = makeRecord();
   h.written = undefined;
 });
 
 describe('queued handoff preserves the original patient and episode', () => {
   it.each(['turnover', 'readmission', 'passport'])(
-    'retains an old-client note for manual conflict resolution on %s instead of silently dropping it',
+    'detaches a note typed before the deploy on %s: nothing reaches the bed, its text stays a draft',
     async scenario => {
       const local = makeRecord();
       h.remote.lastUpdated = '2026-10-24T11:00:00.000Z';
+      h.remote.beds.R4.medicalHandoffNote = '';
+      h.remote.beds.R4.medicalHandoffEntries = [];
       if (scenario === 'turnover')
         Object.assign(h.remote.beds.R4, {
           patientName: 'Paciente B Sintético',
@@ -82,67 +117,88 @@ describe('queued handoff preserves the original patient and episode', () => {
         });
       if (scenario === 'readmission') h.remote.beds.R4.clinicalEpisodeId = 'ep-A2';
       if (scenario === 'passport') h.remote.beds.R4.documentType = 'Pasaporte';
-      const task = makeTask(local);
-      await expect(transport().run(task)).rejects.toMatchObject({
-        name: 'ConcurrencyError',
-        reason: 'semantic_conflict',
-      });
+      const task = makeDayTask(local);
+      await transport().run(task);
       expect(h.written).toBeUndefined();
       expect(task.payload).toEqual(local);
-      expect(local.beds.R4.medicalHandoffNote).toBe('Nota de A');
+      expect(draftValues()).toEqual([['Paciente A Sintético', 'Nota de A']]);
     }
   );
+  it('still publishes the other edits of a day task whose note lost its patient', async () => {
+    const local = makeRecord();
+    local.beds.R6 = DataFactory.createMockPatient('R6', {
+      patientName: 'Paciente E',
+      pathology: 'Dx corregido',
+    });
+    h.remote.lastUpdated = '2026-10-24T11:00:00.000Z';
+    h.remote.beds.R4 = {
+      ...h.remote.beds.R4,
+      patientName: 'Paciente B Sintético',
+      clinicalEpisodeId: 'ep-B',
+      medicalHandoffNote: '',
+      medicalHandoffEntries: [],
+    };
+    h.remote.beds.R6 = DataFactory.createMockPatient('R6', {
+      patientName: 'Paciente E',
+      pathology: 'Dx',
+    });
+    const task = makeDayTask(local);
+    task.syncContract = {
+      ...task.syncContract,
+      changedPaths: [...(task.syncContract?.changedPaths ?? []), 'beds.R6.pathology'],
+    };
+    await transport().run(task);
+    expect(h.written).toMatchObject({
+      beds: {
+        R4: { patientName: 'Paciente B Sintético', medicalHandoffNote: '' },
+        R6: { pathology: 'Dx corregido' },
+      },
+    });
+    expect(draftValues()).toEqual([['Paciente A Sintético', 'Nota de A']]);
+  });
   it('still publishes a legacy task for the unchanged patient', async () => {
-    await transport().run(makeTask(makeRecord()));
+    await transport().run(makeDayTask(makeRecord()));
     expect(h.written).toMatchObject({
       beds: { R4: { patientName: 'Paciente A Sintético', medicalHandoffNote: 'Nota de A' } },
     });
   });
-  it('replays a new specialist task through the occupant-bound callable', async () => {
-    const local = makeRecord();
-    const task = makeTask(local);
-    const expected = buildSpecialistHandoffTargets(local, {
-      'beds.R4.medicalHandoffNote': 'Nota de A',
-    });
-    task.syncContract = { ...task.syncContract, specialistHandoffTargets: expected };
-    await transport().run(task);
+  it('replays a specialist note through the occupant-bound callable, never the generic write', async () => {
+    const payload = makeHandoffPayload();
+    await transport().run(makeHandoffTask(payload));
     expect(updateSpecialistMedicalHandoffViaCallable).toHaveBeenCalledWith(
-      local.date,
-      { 'beds.R4.medicalHandoffNote': 'Nota de A' },
-      expected
+      payload.date,
+      payload.patch,
+      payload.expectedOccupants
     );
     expect(h.written).toBeUndefined();
   });
-  it('keeps a rejected specialist replay unresolved without a generic write', async () => {
-    const local = makeRecord();
-    const task = makeTask(local);
-    task.syncContract = {
-      ...task.syncContract,
-      specialistHandoffTargets: buildSpecialistHandoffTargets(local, {
-        'beds.R4.medicalHandoffNote': '',
-      }),
-    };
+  it('keeps a refused specialist note as its own conflict and publishes its draft', async () => {
     vi.mocked(updateSpecialistMedicalHandoffViaCallable).mockRejectedValueOnce(
-      new Error('synthetic occupant conflict')
+      new ConcurrencyError('synthetic occupant conflict', 'semantic_conflict')
     );
+    const task = makeHandoffTask();
     await expect(transport().run(task)).rejects.toThrow('synthetic occupant conflict');
     expect(h.written).toBeUndefined();
-    expect(task.payload).toEqual(local);
+    expect(draftValues()).toEqual([['Paciente A Sintético', 'Nota de A']]);
   });
-  it('cannot replace an unresolved queued note with another occupant’s note', () => {
-    const expected = buildSpecialistHandoffTargets(makeRecord(), {
-      'beds.R4.medicalHandoffNote': '',
-    });
-    expect(() =>
-      mergeSyncTaskContracts(
-        { specialistHandoffTargets: expected },
-        {
-          specialistHandoffTargets: expected.map(target => ({
-            ...target,
-            clinicalEpisodeId: 'ep-B',
-          })),
-        }
+  it('never coalesces a note for another occupant into an unresolved note', async () => {
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+    const record = makeRecord();
+    const other = {
+      ...record,
+      beds: {
+        R4: { ...record.beds.R4, patientName: 'Paciente B Sintético', clinicalEpisodeId: 'ep-B' },
+      },
+    };
+    await queueDailyRecordSyncTaskWithLocalRecord(record, {}, {}, makeHandoffPayload(record));
+    await queueDailyRecordSyncTaskWithLocalRecord(other, {}, {}, makeHandoffPayload(other));
+    await queueDailyRecordSyncTaskWithLocalRecord(record, {}, {}, makeHandoffPayload(record));
+    const tasks = await hospitalDB.syncQueue.toArray();
+    Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
+    expect(
+      tasks.map(
+        task => (task.payload as SpecialistHandoffSyncPayload).expectedOccupants[0].patientName
       )
-    ).toThrow(/otro paciente o episodio/);
+    ).toEqual(['Paciente A Sintético', 'Paciente B Sintético']);
   });
 });

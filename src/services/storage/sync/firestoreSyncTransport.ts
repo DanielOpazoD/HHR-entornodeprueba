@@ -40,7 +40,7 @@ import {
   hasRemoteAppliedMutation,
 } from '@/services/storage/sync/firestoreSyncConflictPolicy';
 import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
-import { hasChangedHandoffOccupant } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
+import type { DetachedHandoffNotes } from './dayTaskHandoffContinuity';
 import {
   adoptStoredClinicalDerivedState,
   withClearedStoredMovedFields,
@@ -110,14 +110,25 @@ interface ResolvedSyncRecordForTask {
   acceptedVersion?: string;
   /** Stored day this resolution read; undefined when the day does not exist yet. */
   storedData?: Record<string, unknown>;
+  /** Note paths left out because their bed now holds another patient or episode. */
+  detachedNotes?: DetachedHandoffNotes['notes'];
 }
 
-const resolveRecordForSyncTask = async (
+type DetachHandoffNotes = (
   task: SyncTask,
   record: DailyRecord,
+  remote: DailyRecord
+) => DetachedHandoffNotes | null;
+
+const resolveRecordForSyncTask = async (
+  queuedTask: SyncTask,
+  queuedRecord: DailyRecord,
   runtime: FirestoreServiceRuntimePort,
-  transaction?: Transaction
+  transaction?: Transaction,
+  detachHandoffNotes?: DetachHandoffNotes
 ): Promise<ResolvedSyncRecordForTask> => {
+  let task = queuedTask;
+  let record = queuedRecord;
   const docRef = getRecordDocRef(record.date, runtime);
   const remoteSnap = await (transaction ? transaction.get(docRef) : getDoc(docRef));
   if (!remoteSnap.exists()) {
@@ -151,18 +162,19 @@ const resolveRecordForSyncTask = async (
       storedData: remoteData,
     };
   }
-  // A day task typed before the deploy, or by a non-specialist, never moves a note to the next occupant.
-  if (
-    hasChangedHandoffOccupant(
-      task.syncContract?.changedPaths,
-      record,
-      docToRecord(remoteData, record.date)
-    )
-  ) {
-    throw new ConcurrencyError(
-      'La cola conserva una entrega del paciente anterior. Revísala antes de reemplazarla.',
-      'semantic_conflict'
-    );
+  // A note typed for a patient who left the bed never moves to the next occupant.
+  const detached = detachHandoffNotes?.(task, record, docToRecord(remoteData, record.date));
+  if (detached) {
+    ({ task, record } = detached);
+    if (!task.syncContract?.changedPaths?.length) {
+      return {
+        record: docToRecord(remoteData, record.date),
+        resolution: 'already_applied',
+        acceptedVersion: remoteLastUpdated,
+        storedData: remoteData,
+        detachedNotes: detached.notes,
+      };
+    }
   }
 
   if (!shouldRevalidateAgainstRemote(remoteLastUpdated, task.syncContract?.expectedVersion)) {
@@ -172,6 +184,7 @@ const resolveRecordForSyncTask = async (
       resolution: 'accepted',
       acceptedVersion: record.lastUpdated,
       storedData: remoteData,
+      detachedNotes: detached?.notes,
     };
   }
 
@@ -214,6 +227,7 @@ const resolveRecordForSyncTask = async (
     resolution: 'merged',
     acceptedVersion: consistency.record.lastUpdated,
     storedData: remoteData,
+    detachedNotes: detached?.notes,
   };
 };
 
@@ -249,10 +263,17 @@ const syncDailyRecord = async (
   runtime: FirestoreServiceRuntimePort
 ): Promise<SyncTransportResult | void> => {
   if (await runE2ESyncTransport(task)) return;
-  return measureRepositoryOperation(
+  const detach = task.syncContract?.changedPaths?.some(path =>
+    /\.medicalHandoff(?:Note|Entries|Audit)$/.test(path)
+  )
+    ? (await import('./dayTaskHandoffContinuity')).detachChangedOccupantNotes
+    : undefined;
+  let detachedNotes: ResolvedSyncRecordForTask['detachedNotes'];
+  const result = await measureRepositoryOperation(
     'syncQueue.writeDailyRecord',
     async () => {
-      const resolved = await resolveRecordForSyncTask(task, record, runtime);
+      const resolved = await resolveRecordForSyncTask(task, record, runtime, undefined, detach);
+      detachedNotes = resolved.detachedNotes;
       if (resolved.resolution === 'already_applied') {
         recordSyncQueueTruthSelectionTelemetry(task, {
           resolution: resolved.resolution,
@@ -314,7 +335,8 @@ const syncDailyRecord = async (
       const committed = await runTransaction(runtime.getDb(), async transaction => {
         // Re-evaluate the original intent against the snapshot protected by this transaction.
         // Firestore reruns this callback if another writer changes the document before commit.
-        const current = await resolveRecordForSyncTask(task, record, runtime, transaction);
+        const current = await resolveRecordForSyncTask(task, record, runtime, transaction, detach);
+        detachedNotes = current.detachedNotes;
         if (current.resolution === 'already_applied') return current;
         assertResolvedClinicalAuthority(task, current);
         // D9: the stored day keeps its split-day marker, meta and moved fields, and a create
@@ -345,6 +367,9 @@ const syncDailyRecord = async (
     },
     { thresholdMs: 180, context: record.date }
   );
+  if (detachedNotes)
+    (await import('../medicalHandoffDraftStorage')).publishSpecialistHandoffConflict(detachedNotes);
+  return result;
 };
 
 export const createFirestoreSyncTransport = (
