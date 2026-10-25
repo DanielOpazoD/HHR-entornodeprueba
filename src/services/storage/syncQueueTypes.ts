@@ -12,6 +12,8 @@ export interface SpecialistHandoffSyncPayload {
   date: string;
   patch: Record<string, unknown>;
   expectedOccupants: SpecialistHandoffTarget[];
+  /** The write's id: the server acknowledges a replay of a write it already took. */
+  mutationId?: string;
 }
 
 export interface SyncTask {

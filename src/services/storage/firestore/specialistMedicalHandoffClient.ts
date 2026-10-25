@@ -4,7 +4,6 @@ import { getRecordDocRef } from './firestoreShared';
 import {
   buildSpecialistHandoffTargets,
   sameSpecialistHandoffTarget,
-  type SpecialistHandoffTarget,
 } from './specialistMedicalHandoffIdentity';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
@@ -16,17 +15,19 @@ import {
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 /**
- * Only path for a specialist note: the server checks the expected occupants and writes in one
- * transaction. Loaded on demand, for the online save and for the queued replay alike.
+ * Only path for a specialist note: in one transaction the server checks the expected occupants
+ * and that the stored note is still the one the edit started from, and acknowledges a replay of
+ * a write it already took. Loaded on demand, for the online save and for the queued replay.
  */
-export const updateSpecialistMedicalHandoffViaCallable = async (
-  date: string,
-  patch: Record<string, unknown>,
-  expectedOccupants: SpecialistHandoffTarget[]
-): Promise<void> => {
+export const updateSpecialistMedicalHandoffViaCallable = async ({
+  date,
+  patch,
+  expectedOccupants,
+  mutationId,
+}: SpecialistHandoffSyncPayload): Promise<void> => {
   const conflict = () =>
     new ConcurrencyError(
-      `El paciente o episodio de la cama ${expectedOccupants.map(target => target.bedId).join(', ')} cambió o no se pudo confirmar. El texto se conserva como borrador del paciente original; revísalo antes de recargar.`,
+      `El paciente, el episodio o la nota de la cama ${expectedOccupants.map(target => target.bedId).join(', ')} cambió o no se pudo confirmar. El texto se conserva como borrador del paciente original; revísalo antes de recargar.`,
       'semantic_conflict'
     );
   if (
@@ -49,12 +50,12 @@ export const updateSpecialistMedicalHandoffViaCallable = async (
     throw conflict();
   const functions = await defaultFunctionsRuntime.getFunctions();
   const callable = httpsCallable<
-    { date: string; patch: Record<string, unknown>; expectedOccupants: SpecialistHandoffTarget[] },
+    SpecialistHandoffSyncPayload,
     { success: boolean; date: string; bedId: string }
   >(functions, 'updateSpecialistMedicalHandoff', { timeout: 45_000 });
 
   try {
-    await callable({ date, patch, expectedOccupants });
+    await callable({ date, patch, expectedOccupants, ...(mutationId ? { mutationId } : {}) });
   } catch (error) {
     if (
       typeof error === 'object' &&
@@ -81,11 +82,7 @@ export const updateSpecialistMedicalHandoffViaCallable = async (
 export const replaySpecialistHandoff = async (task: SyncTask): Promise<void> => {
   const payload = task.payload as SpecialistHandoffSyncPayload;
   try {
-    await updateSpecialistMedicalHandoffViaCallable(
-      payload.date,
-      payload.patch,
-      payload.expectedOccupants
-    );
+    await updateSpecialistMedicalHandoffViaCallable(payload);
   } catch (error) {
     if (error instanceof ConcurrencyError) publishSpecialistHandoffConflict(payload);
     throw error;

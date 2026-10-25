@@ -414,6 +414,7 @@ const updatePartialDetailedWithinLock = async (
                 unknown
               >,
               expectedOccupants: handoffTargets,
+              mutationId: syncContract.mutationId,
             }
           )
         : queueDailyRecordSyncTaskWithLocalRecord(

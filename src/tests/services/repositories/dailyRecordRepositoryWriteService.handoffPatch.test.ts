@@ -13,6 +13,7 @@ import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRe
 import { updateRecordPartial as updateRecordPartialToFirestore } from '@/services/storage/firestore/firestoreRecordWrites';
 import { queueDailyRecordSyncTaskWithLocalRecord } from '@/services/storage/sync';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
+import { specialistHandoffTextState } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
 
 describe('dailyRecordRepositoryWriteService specialist handoff patches', () => {
   beforeEach(() => {
@@ -54,6 +55,8 @@ describe('dailyRecordRepositoryWriteService specialist handoff patches', () => {
             patientName: 'Paciente A Sintético',
             rut: current.beds.R1.rut,
             documentType: 'RUT',
+            // The note text this edit started from, which the server compares before writing.
+            handoffBases: [specialistHandoffTextState(current.beds.R1)],
           },
         ],
       })

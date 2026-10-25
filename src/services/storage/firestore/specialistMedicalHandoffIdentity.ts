@@ -27,7 +27,24 @@ export const specialistHandoffIdentityKey = (identity: SpecialistHandoffIdentity
     identity.clinicalEpisodeId,
   ]);
 
-/** Freeze the identities from the edited record, never from a retry's fresh occupant. */
+/**
+ * A patient's note text as the server compares it before a specialist write: the note and each
+ * entry's id and text. The callable builds the same string.
+ */
+export const specialistHandoffTextState = (
+  patient?: Pick<PatientData, 'medicalHandoffNote' | 'medicalHandoffEntries'>
+): string =>
+  JSON.stringify([
+    String(patient?.medicalHandoffNote ?? ''),
+    (Array.isArray(patient?.medicalHandoffEntries) ? patient.medicalHandoffEntries : []).map(
+      entry => [String(entry?.id ?? ''), String(entry?.note ?? '')]
+    ),
+  ]);
+
+/**
+ * Freeze the identities, and the note text each edit started from, from the edited record,
+ * never from a retry's fresh occupant.
+ */
 export const buildSpecialistHandoffTargets = (
   record: DailyRecord,
   patch: object
@@ -38,10 +55,12 @@ export const buildSpecialistHandoffTargets = (
     if (root !== 'beds' || !bedId) continue;
     const target = field === 'clinicalCrib' ? 'clinicalCrib' : 'bed';
     const bed = record.beds?.[bedId];
+    const patient = target === 'clinicalCrib' ? bed?.clinicalCrib : bed;
     targets.set(`${bedId}.${target}`, {
       bedId,
       target,
-      ...buildSpecialistHandoffIdentity(target === 'clinicalCrib' ? bed?.clinicalCrib : bed),
+      ...buildSpecialistHandoffIdentity(patient),
+      handoffBases: [specialistHandoffTextState(patient)],
     });
   }
   return [...targets.values()];

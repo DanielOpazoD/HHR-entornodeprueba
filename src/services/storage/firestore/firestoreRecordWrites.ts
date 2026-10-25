@@ -278,11 +278,12 @@ export const updateRecordPartial = async (
             await import('./specialistMedicalHandoffClient');
           return withRetry(
             () =>
-              updateSpecialistMedicalHandoffViaCallable(
+              updateSpecialistMedicalHandoffViaCallable({
                 date,
-                sanitizedPatch,
-                options.specialistHandoffTargets ?? []
-              ),
+                patch: sanitizedPatch,
+                expectedOccupants: options.specialistHandoffTargets ?? [],
+                mutationId: options.syncContract?.mutationId,
+              }),
             {
               shouldRetry: shouldRetryDailyRecordAuthorityError,
               onRetry: (err: unknown, attempt: number) =>

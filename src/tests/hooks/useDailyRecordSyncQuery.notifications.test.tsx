@@ -147,16 +147,20 @@ describe('useDailyRecordSyncQuery notification ownership', () => {
     const partial = { 'beds.R4.medicalHandoffNote': 'Nota sintética de A' };
     vi.mocked(defaultDailyRecordRepositoryPort.updatePartialDetailed).mockImplementationOnce(
       async () => {
-        await updateSpecialistMedicalHandoffViaCallable(mockDate, partial, [
-          {
-            bedId: 'R4',
-            target: 'bed',
-            clinicalEpisodeId: 'synthetic-episode-A',
-            patientName: 'Paciente A Sintético',
-            rut: '99.999.999-9',
-            documentType: 'RUT',
-          },
-        ]);
+        await updateSpecialistMedicalHandoffViaCallable({
+          date: mockDate,
+          patch: partial,
+          expectedOccupants: [
+            {
+              bedId: 'R4',
+              target: 'bed',
+              clinicalEpisodeId: 'synthetic-episode-A',
+              patientName: 'Paciente A Sintético',
+              rut: '99.999.999-9',
+              documentType: 'RUT',
+            },
+          ],
+        });
         throw new Error('Expected the server to reject the replaced episode');
       }
     );
@@ -168,7 +172,7 @@ describe('useDailyRecordSyncQuery notification ownership', () => {
       await expect(result.current.patchRecord(partial)).rejects.toThrow(/R4.*borrador/);
     });
     expect(screen.getAllByText('Conflicto de Edición')).toHaveLength(1);
-    expect(screen.getByText(/episodio de la cama R4.*borrador/)).toBeInTheDocument();
+    expect(screen.getByText(/episodio o la nota de la cama R4.*borrador/)).toBeInTheDocument();
     expect(screen.queryByText('Cambio guardado')).not.toBeInTheDocument();
     expect(repository.updatePartialDetailed).toHaveBeenCalledTimes(1);
   });

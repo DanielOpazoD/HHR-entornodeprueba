@@ -1,7 +1,9 @@
 import type { DailyRecord, DailyRecordPatch } from '@/services/storage/storageDailyRecordContracts';
 import type { RayenSyncEvent } from '@/types/domain/rayenSync';
 import type { DailyRecordPatchWrite } from '@/services/storage/sync/syncQueuePorts';
-import type { SyncTask } from '@/services/storage/syncQueueTypes';
+import type { SpecialistHandoffSyncPayload, SyncTask } from '@/services/storage/syncQueueTypes';
+import type { PatientData } from '@/types/domain/patient';
+import { specialistHandoffTextState } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
 import { hasSameBedOccupant } from '@/services/storage/sync/bedOccupantIdentity';
 // The replay-time occupant check ships with the enqueue-time one, in this lazy chunk.
 export { detachStaleOccupantPaths } from '@/services/storage/sync/dayTaskOccupantDetach';
@@ -238,6 +240,41 @@ const foldWriteIntoOutbox = ({
 };
 
 /**
+ * A note write folded into a pending one keeps every stored text it may replace: the first
+ * edit's base, and the texts this device already sent for that note, since one of them may have
+ * landed without its answer.
+ */
+const mergeHandoffBases = (
+  previous: SpecialistHandoffSyncPayload,
+  next: SpecialistHandoffSyncPayload
+): SpecialistHandoffSyncPayload => ({
+  ...next,
+  expectedOccupants: next.expectedOccupants.map(target => {
+    const before = previous.expectedOccupants.find(
+      item => item.bedId === target.bedId && item.target === target.target
+    );
+    if (!before?.handoffBases || !target.handoffBases) return target;
+    const path = `beds.${target.bedId}${target.target === 'clinicalCrib' ? '.clinicalCrib' : ''}`;
+    const sent =
+      `${path}.medicalHandoffNote` in previous.patch &&
+      `${path}.medicalHandoffEntries` in previous.patch
+        ? [
+            specialistHandoffTextState({
+              medicalHandoffNote: previous.patch[`${path}.medicalHandoffNote`] as string,
+              medicalHandoffEntries: previous.patch[
+                `${path}.medicalHandoffEntries`
+              ] as PatientData['medicalHandoffEntries'],
+            }),
+          ]
+        : [];
+    const [first, ...rest] = [
+      ...new Set([...before.handoffBases, ...sent, ...target.handoffBases]),
+    ];
+    return { ...target, handoffBases: [first, ...rest.slice(-7)] };
+  }),
+});
+
+/**
  * A specialist note is its own task, not a day write. Its projection lands on the stored day by
  * the same stale-base rules, but never changes a projection a pending day task still holds.
  */
@@ -258,6 +295,12 @@ const saveSpecialistHandoffInOutbox = (
       : null;
     const nextTask = {
       ...task,
+      payload: existing
+        ? mergeHandoffBases(
+            existing.payload as SpecialistHandoffSyncPayload,
+            task.payload as SpecialistHandoffSyncPayload
+          )
+        : task.payload,
       syncContract: mergeSyncTaskContracts(existing?.syncContract, task.syncContract),
     };
     if (existing?.id) {
