@@ -46,6 +46,7 @@
     "^assets/clinicalDerived-.*\\.js$",
     "^assets/replanRayenStructure-.*\\.js$",
     "^assets/PatientDocumentManagerDialog-.*\\.js$",
+    "^assets/PatientHospitalizationReportsDialog-.*\\.js$",
     "^assets/ClinicalPanelDrawer-.*\\.js$",
     "^assets/RayenSyncHistoryModal-.*\\.js$",
     "^assets/perfAuditReport-.*\\.js$",
