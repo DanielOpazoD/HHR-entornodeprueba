@@ -3,7 +3,11 @@ import type { Plugin, Rollup } from 'vite';
 // Existing optional features are not an offline promise. These exceptions never
 // apply to a dependency of the login screen or authenticated census shell.
 export const PRECACHE_STATIC_IMPORT_EXCEPTIONS = [
-  { name: 'replanRayenStructure', reason: 'Historical reconstruction needs fresh Eloisa reports.' },
+  {
+    name: 'replanRayenStructure',
+    reason:
+      'Both generated chunks are optional: historical Eloisa reconstruction, and shared PDF loaders/utilities used by document, handoff, clinical-panel and pharmacy tools. Neither belongs to offline census startup.',
+  },
   { name: 'RayenImportButton', reason: 'Eloisa import requires the online source and extension.' },
   { name: 'LineChart', reason: 'Optional laboratory trend viewer, opened from a report.' },
   { name: 'vendor-dicom-vtk', reason: 'Optional imaging renderer and codecs.' },
@@ -22,6 +26,29 @@ export const PRECACHE_STATIC_IMPORT_EXCEPTIONS = [
   { name: 'terminologyService', reason: 'Online clinical terminology search.' },
 ];
 
+// Dynamic route boundaries and lazy mounts of the offline census (including
+// toolbar, empty-day and deferred movement sections) are independent roots.
+const OFFLINE_BOOT_CHUNKS = [
+  'App',
+  'app-authenticated-shell',
+  'CensusRouteView',
+  'census-view',
+  'CensusRegisterSections',
+  'CensusModals',
+  'EmptyDayPrompt',
+  'AppContentOverlays',
+  'ReminderBadge',
+  'BookmarkBar',
+  'CensusConflictQuickAction',
+  'DateStripQuickActions',
+  'DateStripBookmarkToggle',
+  'DateStripYearNavigator',
+  'DateStripMonthNavigator',
+  'SaveDropdown',
+  'EmailDropdown',
+  'PdfButtons',
+];
+
 type Chunk = Pick<Rollup.OutputChunk, 'fileName' | 'imports' | 'isEntry'>;
 
 export const assertPrecacheStaticImports = (chunks: readonly Chunk[], urls: readonly string[]) => {
@@ -34,9 +61,15 @@ export const assertPrecacheStaticImports = (chunks: readonly Chunk[], urls: read
     byName.get(name)?.imports.forEach(visit);
   };
   chunks
-    .filter(chunk => chunk.isEntry || /\/App-|\/app-authenticated-shell-/.test(chunk.fileName))
+    .filter(
+      chunk =>
+        chunk.isEntry ||
+        OFFLINE_BOOT_CHUNKS.some(name => chunk.fileName.startsWith(`assets/${name}-`))
+    )
     .forEach(chunk => visit(chunk.fileName));
-  const violations: string[] = [];
+  const violations: string[] = [...boot]
+    .filter(name => byName.has(name) && !precached.has(name))
+    .map(name => `offline boot -> ${name}`);
   for (const chunk of chunks) {
     if (!precached.has(chunk.fileName)) continue;
     for (const dependency of chunk.imports) {

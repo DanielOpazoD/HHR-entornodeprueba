@@ -31,10 +31,21 @@ export const resolveStorageInstance = async (
   return state.storage;
 };
 
+const assertFunctionsOnline = (): void => {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    // A failed ESM fetch is cached by the browser until reload. Reject before
+    // importing, with the network code understood by the existing sync queue.
+    throw Object.assign(new Error('Functions unavailable while offline.'), {
+      code: 'functions/unavailable',
+    });
+  }
+};
+
 export const resolveFunctionsInstance = async (
   app: FirebaseApp,
   state: FirebaseLazyServicesState
 ): Promise<Functions> => {
+  assertFunctionsOnline();
   if (!state.functions) {
     const { getFunctions } = await import('firebase/functions');
     state.functions = getFunctions(app);
@@ -70,6 +81,7 @@ export const resolveRegionalFunctionsInstance = async (
   state: FirebaseLazyServicesState,
   region: string
 ): Promise<Functions> => {
+  assertFunctionsOnline();
   let instance = state.regionalFunctions.get(region);
   if (!instance) {
     const { getFunctions } = await import('firebase/functions');

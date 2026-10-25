@@ -115,3 +115,52 @@ describe('precache static import guard', () => {
     }
   );
 });
+
+// These are separate dynamic import boundaries, including lazyWithRetry mounts.
+it.each([
+  'App',
+  'app-authenticated-shell',
+  'CensusRouteView',
+  'census-view',
+  'CensusRegisterSections',
+  'CensusModals',
+  'EmptyDayPrompt',
+  'AppContentOverlays',
+  'ReminderBadge',
+  'BookmarkBar',
+  'CensusConflictQuickAction',
+  'DateStripQuickActions',
+  'DateStripBookmarkToggle',
+  'DateStripYearNavigator',
+  'DateStripMonthNavigator',
+  'SaveDropdown',
+  'EmailDropdown',
+  'PdfButtons',
+])('protects %s and its static dependencies across dynamic boot boundaries', name => {
+  for (const dependency of ['terminologyService', 'replanRayenStructure']) {
+    const root = `assets/${name}-fixture.js`;
+    const shared = 'assets/shared-fixture.js';
+    const missing = `assets/${dependency}-fixture.js`;
+    const chunks = [
+      { fileName: root, imports: [shared], isEntry: false },
+      { fileName: shared, imports: [], isEntry: false },
+      { fileName: missing, imports: [], isEntry: false },
+    ];
+    expect(() => assertPrecacheStaticImports(chunks, [root, shared])).not.toThrow();
+    chunks[0].imports.push(missing);
+    expect(() => assertPrecacheStaticImports(chunks, [root, shared])).toThrow(missing);
+    chunks[0].imports.pop();
+    chunks[1].imports.push(missing);
+    expect(() => assertPrecacheStaticImports(chunks, [root, shared])).toThrow(missing);
+  }
+});
+
+it.each(['CensusRouteView', 'census-view', 'CensusRegisterSections'])(
+  'rejects an omitted %s dynamic boot chunk itself',
+  name => {
+    const fileName = `assets/${name}-fixture.js`;
+    expect(() =>
+      assertPrecacheStaticImports([{ fileName, imports: [], isEntry: false }], [])
+    ).toThrow(`offline boot -> ${fileName}`);
+  }
+);
