@@ -58,8 +58,8 @@ patches stay direct: the server rejects them unless the fence is active.
 | **Rayen clinical batch** | `applyRayenClinicalEnrichmentBatch` callable    | —                                                                                                | Server transaction, allowlisted clinical fields ✅                                           |
 | **Specialist handoff**   | `updateSpecialistMedicalHandoff` callable       | —                                                                                                | Patient/episode-bound server transaction for a `doctor_specialist` specialist-scoped patch   |
 
-Other server writers (CUDYR admin adjustments, specialty policy application) also stamp
-`meta.lastChangedPaths`. Client direct writes never do.
+Other server writers (CUDYR admin adjustments, specialty policy application, specialist notes
+that carry a write id) also stamp `meta.lastChangedPaths`. Client direct writes never do.
 
 ## Guards, by path
 
@@ -99,10 +99,19 @@ The first matching route wins:
    `failed-precondition` editing conflict. Stored patients without episode metadata use the same
    deterministic legacy ID as client hydration (identity and admission, never the bed alone).
 
+   Each target also carries `handoffBases`: the stored note text (the note plus each entry's id
+   and text) the edit started from, and the texts this device already sent for that note. In the
+   same transaction the server refuses any other stored text, unless the stored note already holds
+   this write's text, so a queued or lost-answer replay never replaces a note saved after the edit
+   began; the specialist's text stays as a draft. The request carries the write's `mutationId`:
+   the server answers a replay of the write the record last took (`meta.lastMutationId`) without
+   writing, and records the id and its paths in `meta` when it writes.
+
    On a network failure the note becomes its own `UPDATE_SPECIALIST_HANDOFF` task, keyed by date,
    bed, bed or crib, and patient plus episode, whose payload is the callable request. It never
    joins the day's `UPDATE_DAILY_RECORD` task, so its conflict cannot hold another edit of the
-   day. Replay uses the same callable. A refused note (other occupant, or the clinical day closed)
+   day. A later edit of the same note folds into the task and keeps its earlier bases and sent
+   texts. Replay uses the same callable. A refused note (other occupant, or the clinical day closed)
    stays in the queue as that task's `CONFLICT`; the local sync panel names it by patient and date
    and offers a confirmed discard, never a retry that always fails.
 
@@ -119,6 +128,7 @@ The first matching route wins:
 
    **Deploy transition:** requests that omit `expectedOccupants` entirely keep the old allowlisted
    semantics inside the transaction; malformed or empty supplied metadata still fails closed.
+   Requests without `handoffBases` or `mutationId` skip those two checks.
    `specialist_handoff_legacy_client` telemetry identifies this temporary path. Remove it in a
    separate release only after supported tabs have refreshed and legacy traffic has reached zero.
    Old tabs retain their original occupant-binding limitation until refreshed.
@@ -190,7 +200,9 @@ latest mutation marker does not by itself acknowledge the other mutations.
 1. **Already applied** — the remote `meta.lastMutationId` equals the task's `mutationId`: no write
    for a single mutation. A compacted task additionally requires all its granular changed values
    to be present remotely; otherwise the remaining work is merged and published;
-   the remote record is returned as the authoritative result.
+   the remote record is returned as the authoritative result. A task still queued after its
+   write landed (its ACK rolled back) rebuilds its held conflicts (step 2) on this path too, so
+   completing it never drops them.
 2. **Departed occupant** — a bed or crib whose field edits were written for a patient or episode
    it no longer holds: none of those edits are written to the new occupant, whatever the server
    stamped. They leave the task as one `CONFLICT` bound to the original patient
