@@ -4,7 +4,6 @@ import type { DailyRecordPatchWrite } from '@/services/storage/sync/syncQueuePor
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import { hasSamePatientEpisodeIdentity } from '@/application/patient-flow/patientEpisodeIdentityPolicy';
 import { mergeMovementArrayById } from '@/services/repositories/conflictResolutionMovementMergePolicy';
-import { resolveDailyRecordConflict } from '@/services/repositories/conflictResolutionMatrix';
 import { mergeRayenSyncHistory } from '@/services/repositories/dailyRecordRayenSyncHistoryPolicy';
 import {
   getValueAtPath,
@@ -138,17 +137,20 @@ const buildRecordOverlayRebase = (
   return (projection, pendingPaths) => {
     let base = projection;
     if (isRemoteMerge) {
-      // This record already resolved a remote conflict. Keep its canonical bed state,
-      // while reconciling every other accepted write under the same conflict policy.
+      // This record already resolved a remote conflict. Retain remote fields except
+      // where an unresolved accepted write explicitly owns a pending local value.
       if (pendingPaths.includes('*')) {
         throw new ConcurrencyError(
           'No se puede reconciliar una escritura pendiente sin sus rutas.'
         );
       }
-      pendingPaths.forEach(path => assertSameOccupantAtPath(path, projection, record));
-      base = pendingPaths.length
-        ? resolveDailyRecordConflict(record, projection, { changedPaths: pendingPaths })
-        : record;
+      const pendingPatch: DailyRecordPatch = {};
+      pendingPaths.forEach(path => {
+        assertSameOccupantAtPath(path, projection, record);
+        const value = getValueAtPath(projection, path);
+        pendingPatch[path] = mergeJournalValue(path, value, getValueAtPath(record, path)) ?? value;
+      });
+      base = applyPatches(record, pendingPatch);
     }
     const patch: DailyRecordPatch = {};
     ownPaths.forEach(path => {

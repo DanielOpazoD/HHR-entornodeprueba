@@ -263,4 +263,31 @@ describe('Sync resilience integration', () => {
     expect(await hospitalDB.syncQueue.toArray()).toEqual(before);
     expect(await hospitalDB.dailyRecords.get(date)).toEqual(local);
   });
+
+  it('retains an explicitly pending bed-mode change during a clinical auto-merge', async () => {
+    const date = '2026-02-17';
+    const local = buildRecord(date);
+    local.beds.R1 = buildPatient('R1', { bedMode: 'Cuna' });
+    await queueDailyRecordSyncTaskWithLocalRecord(local, {
+      syncContract: { changedPaths: ['beds.R1.bedMode'], expectedVersion: local.lastUpdated },
+    });
+    const remote = buildRecord(date);
+    remote.beds.R1 = buildPatient('R1', { bedMode: 'Cama' });
+    vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
+    const incoming = structuredClone(local);
+    incoming.beds.R1.pathology = 'DIAGNOSTICO SINTETICO';
+
+    expect(await attemptConflictAutoMergeRecovery(date, incoming, ['beds.R1.pathology'])).toEqual({
+      status: 'auto_merged',
+    });
+    const tasks = await hospitalDB.syncQueue.toArray();
+    expect(tasks).toHaveLength(1);
+    const payload = tasks[0].payload as DailyRecord;
+    expect(payload.beds.R1.bedMode).toBe('Cuna');
+    expect(payload.beds.R1.pathology).toBe('DIAGNOSTICO SINTETICO');
+    expect(tasks[0].syncContract?.changedPaths).toEqual(
+      expect.arrayContaining(['beds.R1.bedMode', 'beds.R1.pathology'])
+    );
+    expect(await hospitalDB.dailyRecords.get(date)).toEqual(payload);
+  });
 });
