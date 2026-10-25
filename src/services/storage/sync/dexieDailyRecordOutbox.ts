@@ -1,9 +1,8 @@
 import type { DailyRecord, DailyRecordPatch } from '@/services/storage/storageDailyRecordContracts';
-import type { PatientData } from '@/types/domain/patient';
 import type { RayenSyncEvent } from '@/types/domain/rayenSync';
 import type { DailyRecordPatchWrite } from '@/services/storage/sync/syncQueuePorts';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
-import { hasSamePatientEpisodeIdentity } from '@/application/patient-flow/patientEpisodeIdentityPolicy';
+import { hasSameBedOccupant } from '@/services/storage/sync/bedOccupantIdentity';
 import { mergeMovementArrayById } from '@/services/repositories/conflictResolutionMovementMergePolicy';
 import { mergeRayenSyncHistory } from '@/services/repositories/dailyRecordRayenSyncHistoryPolicy';
 import {
@@ -55,35 +54,6 @@ const hasSamePatchBaseValue = (left: unknown, right: unknown): boolean =>
   hasSameComparableValue(left, right) ||
   (isEmptyPatchBaseValue(left) && isEmptyPatchBaseValue(right));
 
-const hasIdentity = (patient: PatientData | undefined): boolean =>
-  Boolean(
-    patient &&
-    [patient.clinicalEpisodeId, patient.rut, patient.patientName].some(value =>
-      String(value ?? '').trim()
-    )
-  );
-
-const documentOf = (patient: PatientData): string =>
-  `${patient.documentType ?? 'RUT'}:${String(patient.rut ?? '')
-    .trim()
-    .toUpperCase()}`;
-
-/** Both slots empty, or the same patient and episode. A RUT never matches a passport. */
-const hasSameOccupant = (
-  left: PatientData | undefined,
-  right: PatientData | undefined
-): boolean => {
-  if (!hasIdentity(left) && !hasIdentity(right)) return true;
-  return Boolean(
-    left &&
-    right &&
-    hasIdentity(left) &&
-    hasIdentity(right) &&
-    hasSamePatientEpisodeIdentity(left, right) &&
-    documentOf(left) === documentOf(right)
-  );
-};
-
 /** A field edit belongs to the occupant it was written for; a whole-bed value compares by value. */
 const assertSameOccupantAtPath = (
   path: string,
@@ -96,9 +66,9 @@ const assertSameOccupantAtPath = (
   const writtenBed = writtenFor.beds?.[bedId];
   const projectedBed = projection.beds?.[bedId];
   if (
-    hasSameOccupant(writtenBed, projectedBed) &&
+    hasSameBedOccupant(writtenBed, projectedBed) &&
     ((field && field !== 'clinicalCrib') ||
-      hasSameOccupant(writtenBed?.clinicalCrib, projectedBed?.clinicalCrib))
+      hasSameBedOccupant(writtenBed?.clinicalCrib, projectedBed?.clinicalCrib))
   ) {
     return;
   }

@@ -40,7 +40,7 @@ import {
   hasRemoteAppliedMutation,
 } from '@/services/storage/sync/firestoreSyncConflictPolicy';
 import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
-import type { DetachedHandoffNotes } from './dayTaskHandoffContinuity';
+import type { DetachedOccupantWork } from './dayTaskOccupantDetach';
 import {
   adoptStoredClinicalDerivedState,
   withClearedStoredMovedFields,
@@ -110,22 +110,22 @@ interface ResolvedSyncRecordForTask {
   acceptedVersion?: string;
   /** Stored day this resolution read; undefined when the day does not exist yet. */
   storedData?: Record<string, unknown>;
-  /** Note paths left out because their bed now holds another patient or episode. */
-  detachedNotes?: DetachedHandoffNotes['notes'];
+  /** Edits left out because their bed or crib now holds another patient or episode. */
+  detached?: DetachedOccupantWork;
 }
 
-type DetachHandoffNotes = (
+type DetachStaleOccupantPaths = (
   task: SyncTask,
   record: DailyRecord,
   remote: DailyRecord
-) => DetachedHandoffNotes | null;
+) => DetachedOccupantWork | null;
 
 const resolveRecordForSyncTask = async (
   queuedTask: SyncTask,
   queuedRecord: DailyRecord,
   runtime: FirestoreServiceRuntimePort,
   transaction?: Transaction,
-  detachHandoffNotes?: DetachHandoffNotes
+  detachStaleOccupantPaths?: DetachStaleOccupantPaths
 ): Promise<ResolvedSyncRecordForTask> => {
   let task = queuedTask;
   let record = queuedRecord;
@@ -162,8 +162,9 @@ const resolveRecordForSyncTask = async (
       storedData: remoteData,
     };
   }
-  // A note typed for a patient who left the bed never moves to the next occupant.
-  const detached = detachHandoffNotes?.(task, record, docToRecord(remoteData, record.date));
+  // Edits written for a patient who left the bed or crib never reach the next occupant.
+  const detached =
+    detachStaleOccupantPaths?.(task, record, docToRecord(remoteData, record.date)) ?? undefined;
   if (detached) {
     ({ task, record } = detached);
     if (!task.syncContract?.changedPaths?.length) {
@@ -172,19 +173,21 @@ const resolveRecordForSyncTask = async (
         resolution: 'already_applied',
         acceptedVersion: remoteLastUpdated,
         storedData: remoteData,
-        detachedNotes: detached.notes,
+        detached,
       };
     }
   }
 
-  if (!shouldRevalidateAgainstRemote(remoteLastUpdated, task.syncContract?.expectedVersion)) {
+  if (
+    !detached &&
+    !shouldRevalidateAgainstRemote(remoteLastUpdated, task.syncContract?.expectedVersion)
+  ) {
     assertSyncQueueConcurrency(record, remoteLastUpdated);
     return {
       record,
       resolution: 'accepted',
       acceptedVersion: record.lastUpdated,
       storedData: remoteData,
-      detachedNotes: detached?.notes,
     };
   }
 
@@ -227,7 +230,7 @@ const resolveRecordForSyncTask = async (
     resolution: 'merged',
     acceptedVersion: consistency.record.lastUpdated,
     storedData: remoteData,
-    detachedNotes: detached?.notes,
+    detached,
   };
 };
 
@@ -263,17 +266,15 @@ const syncDailyRecord = async (
   runtime: FirestoreServiceRuntimePort
 ): Promise<SyncTransportResult | void> => {
   if (await runE2ESyncTransport(task)) return;
-  const detach = task.syncContract?.changedPaths?.some(path =>
-    /\.medicalHandoff(?:Note|Entries|Audit)$/.test(path)
-  )
-    ? (await import('./dayTaskHandoffContinuity')).detachChangedOccupantNotes
+  const detach = task.syncContract?.changedPaths?.some(path => /^beds\.[^.]+\./.test(path))
+    ? (await import('./dayTaskOccupantDetach')).detachStaleOccupantPaths
     : undefined;
-  let detachedNotes: ResolvedSyncRecordForTask['detachedNotes'];
+  let detached: DetachedOccupantWork | undefined;
   const result = await measureRepositoryOperation(
     'syncQueue.writeDailyRecord',
-    async () => {
+    async (): Promise<SyncTransportResult> => {
       const resolved = await resolveRecordForSyncTask(task, record, runtime, undefined, detach);
-      detachedNotes = resolved.detachedNotes;
+      detached = resolved.detached;
       if (resolved.resolution === 'already_applied') {
         recordSyncQueueTruthSelectionTelemetry(task, {
           resolution: resolved.resolution,
@@ -295,7 +296,7 @@ const syncDailyRecord = async (
           expectedLastUpdated: task.syncContract?.expectedVersion,
           mode: effectiveAuthorityMode === 'enforced' ? 'enforced' : 'shadow',
           origin: task.origin,
-          syncContract: task.syncContract,
+          syncContract: resolved.detached?.task.syncContract ?? task.syncContract,
         });
         const authoritativeRecord = response.recordState?.record;
         if (
@@ -324,7 +325,7 @@ const syncDailyRecord = async (
             expectedLastUpdated: task.syncContract?.expectedVersion,
             mode: 'shadow',
             origin: task.origin,
-            syncContract: task.syncContract,
+            syncContract: resolved.detached?.task.syncContract ?? task.syncContract,
             dryRun: true,
           });
         } catch {
@@ -336,7 +337,7 @@ const syncDailyRecord = async (
         // Re-evaluate the original intent against the snapshot protected by this transaction.
         // Firestore reruns this callback if another writer changes the document before commit.
         const current = await resolveRecordForSyncTask(task, record, runtime, transaction, detach);
-        detachedNotes = current.detachedNotes;
+        detached = current.detached;
         if (current.resolution === 'already_applied') return current;
         assertResolvedClinicalAuthority(task, current);
         // D9: the stored day keeps its split-day marker, meta and moved fields, and a create
@@ -367,9 +368,14 @@ const syncDailyRecord = async (
     },
     { thresholdMs: 180, context: record.date }
   );
-  if (detachedNotes)
-    (await import('../medicalHandoffDraftStorage')).publishSpecialistHandoffConflict(detachedNotes);
-  return result;
+  if (!detached) return result;
+  // The conflicts are durable: the store writes them with this task's completion. The drafts
+  // only offer the note text in the handoff view.
+  if (detached.notes)
+    (await import('../medicalHandoffDraftStorage')).publishSpecialistHandoffConflict(
+      detached.notes
+    );
+  return { ...result, detachedConflicts: detached.conflicts };
 };
 
 export const createFirestoreSyncTransport = (

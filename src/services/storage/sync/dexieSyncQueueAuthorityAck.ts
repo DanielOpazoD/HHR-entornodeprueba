@@ -1,4 +1,5 @@
 import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
+import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import type { matchesTaskClaim } from '@/services/storage/sync/syncQueueTaskFactory';
 import type {
@@ -32,7 +33,8 @@ export const completeClaimedSyncTask = async (
   { db, matchesClaim, pending }: AckRuntime,
   taskId: number,
   claim: SyncQueueLeaseClaim,
-  authoritativeRecord?: DailyRecord
+  authoritativeRecord?: DailyRecord,
+  detachedConflicts: SyncTask[] = []
 ): Promise<{ deleted: boolean; adopted: boolean }> => {
   let handoffNotes = false;
   const result = await db.transaction('rw', db.syncQueue, db.dailyRecords, async () => {
@@ -67,6 +69,14 @@ export const completeClaimedSyncTask = async (
         await db.dailyRecords.put(authoritativeRecord);
         adopted = true;
       }
+    }
+    // Edits detached from this task stay durable, as conflicts, before the task leaves the queue.
+    for (const conflict of detachedConflicts) {
+      const existing = conflict.key
+        ? await db.syncQueue.where('key').equals(conflict.key).first()
+        : undefined;
+      if (existing?.id) await db.syncQueue.put({ ...conflict, id: existing.id });
+      else await db.syncQueue.add({ ...conflict, ownerKey: task.ownerKey });
     }
     await db.syncQueue.delete(taskId);
     return { deleted: true, adopted };

@@ -294,7 +294,8 @@ export const createSyncQueueEngine = ({
                   const deleted = await store.deleteClaimed(
                     task.id,
                     claim,
-                    result.authoritativeRecord
+                    result.authoritativeRecord,
+                    result.detachedConflicts
                   );
                   if (!deleted) {
                     recordSyncQueueStaleClaimTelemetry(task, 'delete');
