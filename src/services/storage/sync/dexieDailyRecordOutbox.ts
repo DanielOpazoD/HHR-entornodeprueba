@@ -180,7 +180,7 @@ const buildPatchRebase =
       const projected = getValueAtPath(storedProjection, path);
       if (
         hasSamePatchBaseValue(getValueAtPath(storedBase, path), projected) ||
-        hasSamePatchBaseValue(value, projected)
+        hasSameComparableValue(value, projected)
       ) {
         rebasedPatch[path] = value;
         return;

@@ -101,4 +101,20 @@ describe('patch bases with optional empty cache fields', () => {
     ).rejects.toBeInstanceOf(ConcurrencyError);
     expect((await hospitalDB.dailyRecords.get(date))?.handoffNovedadesDayShift).toBe('NOVEDAD A');
   });
+
+  it('requires an exact proposed value match when the patch base is stale', async () => {
+    const stored = record();
+    await hospitalDB.dailyRecords.put(stored);
+    await expect(
+      updatePartialDetailed(
+        date,
+        { handoffNovedadesDayShift: '' },
+        {
+          baseRecord: { ...stored, handoffNovedadesDayShift: 'NOVEDAD ANTERIOR' },
+        }
+      )
+    ).rejects.toBeInstanceOf(ConcurrencyError);
+    expect(await hospitalDB.dailyRecords.get(date)).toEqual(stored);
+    expect(await hospitalDB.syncQueue.count()).toBe(0);
+  });
 });
