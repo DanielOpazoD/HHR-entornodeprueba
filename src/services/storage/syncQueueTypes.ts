@@ -53,6 +53,11 @@ export interface SyncTask {
   origin?: SyncTaskOrigin;
   recoveryPolicy?: string;
   syncContract?: SyncTaskContract;
+  /** A note's projection on the stored day: the values it replaced and the values it showed. */
+  handoffProjection?: {
+    replaced: Record<string, unknown>;
+    projected: Record<string, unknown>;
+  };
 }
 
 export type DailyRecordQueuedWriteState = 'none' | 'active' | 'failed' | 'conflict';

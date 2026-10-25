@@ -110,6 +110,18 @@ export const createSyncQueueEngine = ({
       attemptId: undefined,
       processingStartedAt: undefined,
     });
+    // A note that can no longer publish stops shaping the stored day; its text stays in the task.
+    if (task.type === 'UPDATE_SPECIALIST_HANDOFF' && decision.status !== 'PENDING') {
+      await store
+        .releaseSpecialistHandoffProjection?.(task)
+        .catch(releaseError =>
+          logError(
+            'Releasing a refused note projection failed',
+            releaseError instanceof Error ? releaseError : undefined,
+            { taskId: task.id, key: task.key }
+          )
+        );
+    }
 
     if (decision.shouldLogPermanentFailure) {
       logError('Sync task permanently failed', error instanceof Error ? error : undefined, {

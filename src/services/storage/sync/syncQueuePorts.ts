@@ -92,6 +92,8 @@ export interface SyncQueueStorePort {
   requeueQuarantinedTask?(taskId: number, ownerKey?: string | null): Promise<boolean>;
   /** Elimina una tarea FAILED/CONFLICT; nunca toca tareas activas (acción explícita del usuario). */
   discardQuarantinedTask?(taskId: number, ownerKey?: string | null): Promise<boolean>;
+  /** A note that can no longer publish stops shaping the stored day (see the outbox). */
+  releaseSpecialistHandoffProjection?(task: SyncTask): Promise<void>;
   update(taskId: number, patch: Partial<SyncTask>): Promise<void>;
   updateClaimed(
     taskId: number,

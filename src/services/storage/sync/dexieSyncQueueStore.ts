@@ -81,6 +81,9 @@ const mirrorTransactionalDailyRecordWrite = (record: DailyRecord): void => {
   dispatchDailyRecordStoreChanged({ operation: 'save', dates: [record.date] });
 };
 
+const releaseSpecialistHandoffProjection = async (task: SyncTask): Promise<void> =>
+  (await import('./dexieDailyRecordOutbox')).releaseSpecialistHandoffProjection(task);
+
 export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
   withEnqueueTransaction: operation =>
     hospitalDB.transaction('rw', hospitalDB.syncQueue, async () => operation()),
@@ -218,7 +221,15 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
         (task.preOutboxHoldUntil || 0) > now
     ),
   requeueQuarantinedTask,
-  discardQuarantinedTask,
+  async discardQuarantinedTask(taskId, ownerKey) {
+    const task = await hospitalDB.syncQueue.get(taskId);
+    const discarded = await discardQuarantinedTask(taskId, ownerKey);
+    // A discarded note no longer shapes the stored day.
+    if (discarded && task?.type === 'UPDATE_SPECIALIST_HANDOFF')
+      await releaseSpecialistHandoffProjection(task);
+    return discarded;
+  },
+  releaseSpecialistHandoffProjection,
   async update(taskId, patch) {
     await hospitalDB.syncQueue.update(taskId, patch);
   },

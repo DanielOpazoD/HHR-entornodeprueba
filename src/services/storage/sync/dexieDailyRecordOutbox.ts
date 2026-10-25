@@ -14,6 +14,7 @@ import {
   hasSameComparableValue,
 } from '@/services/repositories/conflictResolutionUtils';
 import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
+import { UNKNOWN_SERVER_VERSION } from '@/services/storage/sync/syncTaskContractPolicy';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { applyPatches } from '@/utils/patchUtils';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
@@ -206,14 +207,12 @@ const foldWriteIntoOutbox = ({
   stored,
   unresolved,
   rebase,
-  noteBase,
 }: {
   task: SyncTask;
   existing: SyncTask | null;
   stored: DailyRecord | undefined;
   unresolved: SyncTask[];
   rebase: PendingProjectionRebase | undefined;
-  noteBase?: string;
 }): SyncTask => {
   const owner = unresolved.find(
     candidate => stored && hasSameComparableValue(candidate.payload, stored)
@@ -229,14 +228,7 @@ const foldWriteIntoOutbox = ({
   const rebased = stored && rebase ? rebase(stored, pendingPaths) : null;
   const merged = mergeSyncTaskContracts(existing?.syncContract, task.syncContract);
   const payload = rebased ?? (task.payload as DailyRecord);
-  // A note queued offline moved the stored projection past the day it was read from, unpublished:
-  // the first day write after it keeps that base, so its replay merges what others wrote since.
-  const baseContract =
-    existing?.syncContract ??
-    owner?.syncContract ??
-    (noteBase && noteBase < (task.syncContract?.expectedVersion ?? noteBase)
-      ? { expectedVersion: noteBase, baseRevision: task.syncContract?.baseRevision }
-      : undefined);
+  const baseContract = existing?.syncContract ?? owner?.syncContract;
   return {
     ...task,
     payload,
@@ -289,9 +281,17 @@ const mergeHandoffBases = (
   }),
 });
 
+const handoffPaths = (task: SyncTask) =>
+  Object.keys((task.payload as SpecialistHandoffSyncPayload).patch).filter(
+    path => path !== 'dateTimestamp'
+  );
+
 /**
  * A specialist note is its own task, not a day write. Its projection lands on the stored day by
  * the same stale-base rules, but never changes a projection a pending day task still holds.
+ * It publishes nothing, so the day keeps the version it was read at: no later write or read takes
+ * a note shown only on this device for a version of the server's day. The task keeps what the
+ * projection replaced, so a note that can no longer publish leaves the day as it was.
  */
 const saveSpecialistHandoffInOutbox = (
   record: DailyRecord,
@@ -300,14 +300,32 @@ const saveSpecialistHandoffInOutbox = (
 ) =>
   hospitalDB.transaction('rw', hospitalDB.dailyRecords, hospitalDB.syncQueue, async () => {
     const stored = await hospitalDB.dailyRecords.get(record.date);
-    const projection = stored && patchWrite ? buildPatchRebase(patchWrite)(stored, []) : record;
-    const persistedRecord = (await listUnresolvedDailyRecordTasks(record.date)).length
-      ? (stored ?? record)
-      : projection;
-    if (persistedRecord === projection) await hospitalDB.dailyRecords.put(projection);
+    const before = stored ?? patchWrite?.baseRecord ?? record;
+    const projection = {
+      ...(stored && patchWrite ? buildPatchRebase(patchWrite)(stored, []) : record),
+      lastUpdated: before.lastUpdated,
+    };
+    const projected = !(await listUnresolvedDailyRecordTasks(record.date)).length;
+    const persistedRecord = projected ? projection : (stored ?? record);
+    if (projected) await hospitalDB.dailyRecords.put(projection);
     const existing = task.key
       ? await findReusableSyncTask(task.type, task.key, task.ownerKey)
       : null;
+    const paths = handoffPaths(task);
+    // A pending edit of this note already projected; a refused one gave its values back.
+    const pendingProjection =
+      existing?.status === 'PENDING' ? existing.handoffProjection : undefined;
+    const handoffProjection = projected
+      ? {
+          replaced: {
+            ...Object.fromEntries(paths.map(path => [path, getValueAtPath(before, path)])),
+            ...pendingProjection?.replaced,
+          },
+          projected: Object.fromEntries(
+            paths.map(path => [path, getValueAtPath(projection, path)])
+          ),
+        }
+      : (pendingProjection ?? { replaced: {}, projected: {} });
     const nextTask = {
       ...task,
       payload: existing
@@ -316,12 +334,8 @@ const saveSpecialistHandoffInOutbox = (
             task.payload as SpecialistHandoffSyncPayload
           )
         : task.payload,
-      syncContract: {
-        ...mergeSyncTaskContracts(existing?.syncContract, task.syncContract),
-        // The day this note was first written on, before any projection of its own.
-        expectedVersion:
-          existing?.syncContract?.expectedVersion ?? task.syncContract?.expectedVersion,
-      },
+      syncContract: mergeSyncTaskContracts(existing?.syncContract, task.syncContract),
+      handoffProjection,
     };
     if (existing?.id) {
       await hospitalDB.syncQueue.put({ ...existing, ...nextTask, id: existing.id });
@@ -329,6 +343,47 @@ const saveSpecialistHandoffInOutbox = (
     }
     await hospitalDB.syncQueue.add(nextTask);
     return { mode: 'created' as const, persistedRecord };
+  });
+
+/**
+ * A note that can no longer publish (refused, failed or discarded) stops shaping the day. Where the
+ * stored day, or a day write folded on top of it, still shows what the note projected, those fields
+ * go back to what it replaced; the text stays in the note's task and drafts. A note queued before
+ * this rule recorded nothing, and its projection may have moved the day's version: the day then
+ * counts as older than any server version, so the next read takes the server's day, and a day
+ * write queued meanwhile merges by its changed paths.
+ */
+export const releaseSpecialistHandoffProjection = (task: SyncTask): Promise<void> =>
+  hospitalDB.transaction('rw', hospitalDB.dailyRecords, hospitalDB.syncQueue, async () => {
+    const { date } = task.payload as SpecialistHandoffSyncPayload;
+    const projection = task.handoffProjection;
+    const stored = await hospitalDB.dailyRecords.get(date);
+    const dayTasks = (await listUnresolvedDailyRecordTasks(date)).filter(dayTask => dayTask.id);
+    if (!projection) {
+      if (stored && !dayTasks.length)
+        await hospitalDB.dailyRecords.put({ ...stored, lastUpdated: UNKNOWN_SERVER_VERSION });
+      for (const dayTask of dayTasks)
+        await hospitalDB.syncQueue.update(dayTask.id!, {
+          syncContract: { ...dayTask.syncContract, expectedVersion: UNKNOWN_SERVER_VERSION },
+        });
+      return;
+    }
+    const restore = (day: DailyRecord): DailyRecord | null => {
+      const restored = Object.fromEntries(
+        Object.entries(projection.replaced).filter(([path]) =>
+          hasSameComparableValue(getValueAtPath(day, path), projection.projected[path])
+        )
+      );
+      return Object.keys(restored).length
+        ? { ...applyPatches(day, restored as DailyRecordPatch), lastUpdated: day.lastUpdated }
+        : null;
+    };
+    const day = stored && restore(stored);
+    if (day) await hospitalDB.dailyRecords.put(day);
+    for (const dayTask of dayTasks) {
+      const payload = restore(dayTask.payload as DailyRecord);
+      if (payload) await hospitalDB.syncQueue.update(dayTask.id!, { payload });
+    }
   });
 
 /** Writes the day's record and its outbox task in one transaction. */
@@ -351,10 +406,6 @@ export const saveDailyRecordInOutbox = (
       const existing = task.key
         ? await findReusableSyncTask(task.type, task.key, task.ownerKey)
         : null;
-      const notes = await hospitalDB.syncQueue
-        .where('key')
-        .startsWith(`handoff:${record.date}:`)
-        .toArray();
       const nextTask = foldWriteIntoOutbox({
         task,
         existing,
@@ -364,11 +415,6 @@ export const saveDailyRecordInOutbox = (
           candidate =>
             candidate.type === task.type && matchesOwner(task.ownerKey, candidate.ownerKey)
         ),
-        noteBase: notes
-          .filter(note => matchesOwner(task.ownerKey, note.ownerKey))
-          .map(note => note.syncContract?.expectedVersion ?? '')
-          .filter(Boolean)
-          .sort()[0],
       });
       const persistedRecord = nextTask.payload as DailyRecord;
       await hospitalDB.dailyRecords.put(persistedRecord);
