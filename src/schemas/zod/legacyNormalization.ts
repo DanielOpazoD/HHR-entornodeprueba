@@ -40,7 +40,9 @@ const normalizeNode = (
   const normalizedEntries = Object.entries(value as Record<string, unknown>)
     .map(([key, child]) => {
       const childPath = path ? `${path}.${key}` : key;
-      const normalizedChild = normalizeNode(child, childPath, report);
+      // An identity review holds what storage held: it is never normalized.
+      const normalizedChild =
+        key === 'identityReview' ? child : normalizeNode(child, childPath, report);
       return [key, normalizedChild] as const;
     })
     .filter(([, child]) => child !== undefined);

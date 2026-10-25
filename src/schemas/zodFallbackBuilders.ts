@@ -1,41 +1,38 @@
 import type { ZodIssue } from 'zod';
 import type { PatientData } from '@/types/domain/patient';
-import type { PatientIdentityField, PatientIdentityReview } from '@/types/domain/patientIdentity';
+import {
+  PATIENT_IDENTITY_FIELDS,
+  type PatientIdentityField,
+  type PatientIdentityReview,
+} from '@/types/domain/patientIdentity';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { PatientDataSchema } from '@/schemas/zod/patient';
 import { resolveEffectiveUpcState } from '@/shared/census/upcBedPolicy';
 import {
   isIdentityReview,
   isPatientIdentityField,
+  isPlainObject,
   PatientIdentityRepairRequiredError,
 } from '@/shared/census/patientIdentityReview';
 
 /**
  * What a salvage does with an identity field it cannot read. `quarantine`, for stored data, keeps
- * the day readable: the patient carries an identity review, and the field holds the stored value as
- * text when that loses nothing, else nothing. A choice outside its options (a document type, an
- * identity status) is never guessed. `reject`, for a write, throws instead of storing it.
+ * the day readable: the patient carries an identity review and the field shows nothing, never a
+ * guess or a conversion. `reject`, for a write, throws instead of storing it.
  */
 export type UnreadableIdentityPolicy = 'reject' | 'quarantine';
 
 export interface FallbackPatientDataOptions {
   unreadableIdentity?: UnreadableIdentityPolicy;
   slot?: PatientIdentityReview['slot'];
+  /** The patient as storage holds it, before legacy normalization; `data` otherwise. */
+  raw?: unknown;
 }
-
-const readableIdentityValue = (
-  field: PatientIdentityField,
-  stored: unknown,
-  emptyValue: unknown
-): unknown => {
-  if (field === 'documentType' || field === 'identityStatus') return undefined;
-  return typeof stored === 'number' || typeof stored === 'boolean' ? String(stored) : emptyValue;
-};
 
 export const buildFallbackPatientDataReport = (
   data: unknown,
   bedId: string,
-  { unreadableIdentity = 'quarantine', slot = 'bed' }: FallbackPatientDataOptions = {}
+  { unreadableIdentity = 'quarantine', slot = 'bed', raw = data }: FallbackPatientDataOptions = {}
 ): { patient: PatientData; droppedListItems: number } => {
   const candidate: Record<string, unknown> = {
     ...createEmptyPatient(bedId),
@@ -46,7 +43,6 @@ export const buildFallbackPatientDataReport = (
     ? candidate.identityReview
     : undefined;
   const reviewed = new Set<PatientIdentityField>(previousReview?.fields);
-  const stored: Partial<Record<PatientIdentityField, unknown>> = { ...previousReview?.stored };
 
   let droppedListItems = 0;
   let clinicalCrib: PatientData | undefined;
@@ -55,6 +51,7 @@ export const buildFallbackPatientDataReport = (
     const crib = buildFallbackPatientDataReport(candidate.clinicalCrib, bedId, {
       unreadableIdentity,
       slot: 'clinicalCrib',
+      raw: isPlainObject(raw) ? raw.clinicalCrib : undefined,
     });
     clinicalCrib = crib.patient;
     candidate.clinicalCrib = clinicalCrib;
@@ -79,8 +76,9 @@ export const buildFallbackPatientDataReport = (
     }
     for (const [field, issues] of issuesByField) {
       if (isPatientIdentityField(field)) {
-        stored[field] = candidate[field];
-        candidate[field] = readableIdentityValue(field, candidate[field], defaults[field]);
+        // A choice outside its options (a document type, an identity status) gets no default.
+        candidate[field] =
+          field === 'documentType' || field === 'identityStatus' ? undefined : defaults[field];
         reviewed.add(field);
         continue;
       }
@@ -99,6 +97,14 @@ export const buildFallbackPatientDataReport = (
     ? parsed.data
     : PatientDataSchema.parse(candidate);
   const fields = [...reviewed];
+  // The identity exactly as storage holds it, before any normalization: nulls included.
+  const source = isPlainObject(raw) ? raw : {};
+  const stored = Object.fromEntries(
+    PATIENT_IDENTITY_FIELDS.filter(field => Object.hasOwn(source, field)).map(field => [
+      field,
+      source[field],
+    ])
+  );
   return {
     patient: {
       ...patient,
@@ -108,7 +114,16 @@ export const buildFallbackPatientDataReport = (
         isUPC: patient.isUPC,
         checklist: patient.upcChecklist,
       }).isUpc,
-      ...(fields.length ? { identityReview: { bedId, slot, fields, stored } } : {}),
+      ...(fields.length
+        ? {
+            identityReview: {
+              bedId,
+              slot,
+              fields,
+              stored: { ...stored, ...previousReview?.stored },
+            },
+          }
+        : {}),
     },
     droppedListItems,
   };

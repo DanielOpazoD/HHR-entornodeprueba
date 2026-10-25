@@ -56,7 +56,7 @@ export const parsePatientDataWithDefaultsReport = (
     };
   }
 
-  const fallback = buildFallbackPatientDataReport(normalized, bedId);
+  const fallback = buildFallbackPatientDataReport(normalized, bedId, { raw: data });
   return {
     patient: fallback.patient,
     report: {
@@ -103,6 +103,7 @@ export const parseDailyRecordWithDefaultsReport = (
   const salvagedBeds: Record<string, PatientData> = {};
   const salvagedBedIds: string[] = [];
   let droppedPatientListItems = 0;
+  const storedBeds = (data as { beds?: Record<string, unknown> } | null)?.beds;
 
   if (raw.beds && typeof raw.beds === 'object' && !Array.isArray(raw.beds)) {
     Object.entries(raw.beds as Record<string, unknown>).forEach(([id, patient]) => {
@@ -112,7 +113,10 @@ export const parseDailyRecordWithDefaultsReport = (
         return;
       }
 
-      const fallback = buildFallbackPatientDataReport(patient, id, { unreadableIdentity });
+      const fallback = buildFallbackPatientDataReport(patient, id, {
+        unreadableIdentity,
+        raw: storedBeds?.[id],
+      });
       salvagedBeds[id] = fallback.patient;
       droppedPatientListItems += fallback.droppedListItems;
       salvagedBedIds.push(id);

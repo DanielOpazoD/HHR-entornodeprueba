@@ -173,7 +173,7 @@ describe('identity features never match a patient whose identity is under review
   });
 
   it('never opens documents, requests or history found by a RUT under review', () => {
-    // The stored RUT is a number: a read shows it as text, which could be another patient's RUT.
+    // The stored RUT is a number: a read shows none, and the RUT stays under review.
     const asNumber = readR1({ documentType: 'RUT', rut: 12345678, clinicalEpisodeId: undefined });
     const row = (patient: PatientData) =>
       resolvePatientRowCapabilities({
@@ -240,6 +240,17 @@ describe('identity features never match a patient whose identity is under review
       append.mockRestore();
       vi.useRealTimers();
     }
+  });
+
+  it('carries what storage held to the next day, nulls included', () => {
+    const stored = { documentType: 'Cedula', secondLastName: null, rut: ['FAKE-RUT', null] };
+
+    const next = buildClinicalBedsFromPreviousRecord(
+      buildEmptyClinicalBeds(),
+      docToRecord(storedDay(stored), TODAY)
+    );
+
+    expect(next.R1.identityReview?.stored).toMatchObject(stored);
   });
 
   it('carries a patient under review to the next day, even with no name or document read', () => {

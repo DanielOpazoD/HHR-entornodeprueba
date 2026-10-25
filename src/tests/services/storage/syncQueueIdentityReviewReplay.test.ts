@@ -194,7 +194,7 @@ it('hands the device cache the authority answer with R1 under review, not its ra
   const outcome = await run(task(payload, ['beds.R2.pathology'], STORED_AT));
   const adopted = (outcome as { authoritativeRecord: DailyRecord }).authoritativeRecord;
 
-  expect(adopted.beds.R1.identityReview).toEqual({
+  expect(adopted.beds.R1.identityReview).toMatchObject({
     bedId: 'R1',
     slot: 'bed',
     fields: ['documentType'],

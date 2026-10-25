@@ -105,7 +105,7 @@ describe('JSON patient salvage', () => {
 
       expect(result).toMatchObject({ success: true, importedCount: 1, skippedEntries: [] });
       const saved: DailyRecord[] = storage.save.mock.calls[0][0];
-      expect(saved[0].beds.R1.identityReview).toEqual({
+      expect(saved[0].beds.R1.identityReview).toMatchObject({
         bedId: 'R1',
         slot: 'bed',
         fields: [field],

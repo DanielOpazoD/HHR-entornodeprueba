@@ -20,7 +20,7 @@ const FIELD_LABELS: Record<PatientIdentityField, string> = {
 
 type ReviewTarget = Pick<PatientIdentityReview, 'bedId' | 'slot' | 'fields'>;
 
-const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+export const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
 export const isPatientIdentityField = (value: unknown): value is PatientIdentityField =>
@@ -94,8 +94,8 @@ const mapReviews = (value: unknown, path: string, store: boolean): unknown => {
     ) {
       throw repairRequired(path, review);
     }
-    review.fields.forEach(field => {
-      next[field] = review.stored[field];
+    Object.entries(review.stored).forEach(([field, stored]) => {
+      if (isPatientIdentityField(field)) next[field] = stored;
     });
   }
   if (!changed) return value;
@@ -144,7 +144,7 @@ export const clearReviewedIdentityFields = <T extends { beds: Record<string, Pat
     const target = crib ? bed?.clinicalCrib : bed;
     const review = target?.identityReview;
     if (!bed || !target || !review || !isPatientIdentityField(field)) return current;
-    if (!review.fields.includes(field)) return current;
+    if (!review.fields.includes(field) && !Object.hasOwn(review.stored, field)) return current;
     const { identityReview: _review, ...next } = target;
     const fields = review.fields.filter(reviewed => reviewed !== field);
     const stored = { ...review.stored };

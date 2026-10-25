@@ -5,7 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
 import type { Firestore } from 'firebase/firestore';
 import { resolveFirestoreRulesEmulatorConfig } from '@/tests/security/firestoreRulesEmulatorConfig';
-import { storedDay } from '@/tests/fixtures/identityReviewDayFixture';
+import { storedDay, syntheticPatient } from '@/tests/fixtures/identityReviewDayFixture';
 
 const enabled =
   process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1' ||
@@ -35,6 +35,26 @@ vi.mock('@/services/repositories/dailyRecordRepositoryWriteService', async () =>
   };
 });
 vi.mock('@/services/admin/auditService', () => ({ logAuditEvent: async () => undefined }));
+const downloads = vi.hoisted(() => ({ blob: undefined as Blob | undefined }));
+vi.mock('@/services/exporters/exportDownload', () => ({
+  downloadBlob: (blob: Blob) => {
+    downloads.blob = blob;
+  },
+}));
+// The JSON importer reads the file through FileReader, which this environment lacks.
+vi.stubGlobal(
+  'FileReader',
+  class {
+    onload: ((event: unknown) => void) | null = null;
+    onerror: ((error: unknown) => void) | null = null;
+    readAsText(file: File) {
+      file.text().then(
+        text => this.onload?.({ target: { result: text } }),
+        error => this.onerror?.(error)
+      );
+    }
+  }
+);
 
 import {
   saveRecordToFirestore,
@@ -42,7 +62,20 @@ import {
 } from '@/services/storage/firestore/firestoreRecordWrites';
 import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
 import { docToRecord, sanitizeForFirestore } from '@/services/storage/firestore/firestoreShared';
+import { moveRecordToTrash } from '@/services/storage/firestore/firestoreRecordLifecycleWrites';
+import {
+  getConflictVersionSnapshot,
+  saveConflictVersionSnapshots,
+} from '@/services/storage/firestore/dailyRecordConflictSnapshotService';
+import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
+import {
+  getRecordForDateStrict,
+  saveRecordStrict,
+} from '@/services/storage/indexeddb/indexedDbRecordService';
+import { exportDataJSONWithResult } from '@/services/exporters/exportService';
+import { importDataJSONDetailed } from '@/services/exporters/exportImportJson';
 import { resolveDailyRecordConflict } from '@/services/repositories/conflictResolutionMatrix';
+import { PATIENT_IDENTITY_FIELDS } from '@/types/domain/patientIdentity';
 import { createFirestoreSyncTransport } from '@/services/storage/sync/firestoreSyncTransport';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { importRecordsFromBackup } from '@/services/admin/dataMaintenanceService';
@@ -79,7 +112,13 @@ describe.skipIf(!enabled)('writes against a stored day with an unreadable identi
       await context
         .firestore()
         .doc(docPath)
-        .set({ ...stored, ...day, beds: { ...beds, R1: { ...beds.R1, ...fields } } });
+        .set(
+          sanitizeForFirestore({
+            ...stored,
+            ...day,
+            beds: { ...beds, R1: { ...beds.R1, ...fields } },
+          }) as Json
+        );
     });
   const signInAs = (role: string, email: string) => {
     activeDb = environment.authenticatedContext(`synthetic-${role}`, { email, role }).firestore();
@@ -98,6 +137,8 @@ describe.skipIf(!enabled)('writes against a stored day with an unreadable identi
   });
 
   beforeEach(async () => {
+    await hospitalDB.dailyRecords.clear();
+    await hospitalDB.syncQueue.clear();
     await environment.clearFirestore();
     await environment.withSecurityRulesDisabled(async context => {
       await context
@@ -321,6 +362,124 @@ describe.skipIf(!enabled)('writes against a stored day with an unreadable identi
       rut: { fake: 'REMOTE-DOC' },
       pathology: '',
       medicalHandoffNote: '',
+    });
+  });
+
+  const identityOf = (patient: Json) =>
+    Object.fromEntries(
+      PATIENT_IDENTITY_FIELDS.filter(field => Object.hasOwn(patient, field)).map(field => [
+        field,
+        patient[field],
+      ])
+    );
+  const expectIdentityAsStored = (actual: Json, expected: Json) => {
+    expect(identityOf(actual)).toEqual(identityOf(expected));
+    if (expected.clinicalCrib) {
+      expect(identityOf(actual.clinicalCrib as Json)).toEqual(
+        identityOf(expected.clinicalCrib as Json)
+      );
+    }
+  };
+  const storedShapes: Array<[string, Json]> = [
+    ['an unknown document type', { documentType: 'Cedula', rut: 'FAKE-PASSPORT-MATRIX' }],
+    ['a RUT that is an object', { documentType: 'RUT', rut: { unreadable: 'FAKE-RUT' } }],
+    ['a RUT that is a number', { documentType: 'RUT', rut: 12345678 }],
+    ['a null name', { documentType: 'Cedula', patientName: null }],
+    ['a name that is an object', { documentType: 'Pasaporte', patientName: { full: 'FAKE NAME' } }],
+    ['a null inside the RUT', { documentType: 'RUT', rut: ['FAKE-RUT', null] }],
+    [
+      'a newborn of its own',
+      {
+        documentType: 'Pasaporte',
+        clinicalCrib: syntheticPatient('R1', 'RN SINTETICO', 'FAKE-RN-PASSPORT', {
+          documentType: 'Cedula',
+          rut: 87654321,
+          bedMode: 'Cuna',
+          clinicalEpisodeId: 'ep_synthetic_RN',
+        }),
+      },
+    ],
+  ];
+  const routes = [
+    'backup restore',
+    'JSON export and import',
+    'next day',
+    'trash and restore',
+    'conflict snapshot and restore',
+    'sync replay',
+  ] as const;
+
+  describe.each(storedShapes)('a stored identity with %s', (_shape, fields) => {
+    it.each(routes)('comes back exactly as stored after the %s', async route => {
+      signInAs('admin', 'synthetic-admin@example.invalid');
+      await storeR1(fields);
+      const expected = await storedBed('R1');
+      const read = (await getRecordFromFirestore(date))!;
+      const runtime = { getDb: () => activeDb as Firestore, ready: Promise.resolve() };
+      let destination = docPath;
+
+      if (route === 'backup restore') {
+        const backup = JSON.parse(
+          JSON.stringify({
+            version: '1',
+            exportDate: date,
+            year: 2026,
+            month: 10,
+            recordCount: 1,
+            records: [read],
+          })
+        );
+        expect(await importRecordsFromBackup(backup)).toMatchObject({ success: 1, failed: 0 });
+      } else if (route === 'JSON export and import') {
+        expect((await saveRecordStrict(read)).ok).toBe(true);
+        await exportDataJSONWithResult();
+        const file = new File([await downloads.blob!.text()], 'synthetic.json', {
+          type: 'application/json',
+        });
+        await hospitalDB.dailyRecords.clear();
+        expect(await importDataJSONDetailed(file)).toMatchObject({ importedCount: 1 });
+        await saveRecordToFirestore((await getRecordForDateStrict(date))!, storedAt);
+      } else if (route === 'next day') {
+        destination = dayPath(getNextDay(date));
+        await initializeDay(getNextDay(date), date);
+      } else if (route === 'trash and restore') {
+        await moveRecordToTrash(read);
+        let trashed: Json = {};
+        await environment.withSecurityRulesDisabled(async context => {
+          const docs = await context
+            .firestore()
+            .collection('hospitals/hanga_roa/deletedRecords')
+            .get();
+          trashed = docs.docs[0].data();
+        });
+        expectIdentityAsStored((trashed.beds as Record<string, Json>).R1, expected);
+        await saveRecordToFirestore(docToRecord(trashed, date), storedAt);
+      } else if (route === 'conflict snapshot and restore') {
+        const saved = await saveConflictVersionSnapshots(
+          date,
+          'synthetic-conflict',
+          { remote: read, incoming: read },
+          runtime
+        );
+        const snapshot = await getConflictVersionSnapshot(date, saved.snapshotIds[0], runtime);
+        expectIdentityAsStored(snapshot!.record.beds.R1 as unknown as Json, expected);
+        await saveRecordToFirestore(docToRecord(snapshot!.record as never, date), storedAt);
+      } else {
+        read.beds.R2.pathology = 'DIAGNOSTICO EDITADO';
+        await createFirestoreSyncTransport(runtime).run({
+          opId: 'synthetic-matrix-op',
+          type: 'UPDATE_DAILY_RECORD',
+          payload: read,
+          timestamp: 1,
+          retryCount: 0,
+          status: 'PENDING',
+          syncContract: { expectedVersion: storedAt, changedPaths: ['beds.R2.pathology'] },
+        });
+      }
+
+      expectIdentityAsStored(await storedBed('R1', destination), expected);
+      expect(JSON.stringify(await readStored(destination))).not.toContain('identityReview');
+      expect((await storedBed('R2', destination)).patientName).toBe('PACIENTE DOS');
     });
   });
 });

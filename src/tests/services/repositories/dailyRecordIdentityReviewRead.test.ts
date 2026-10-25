@@ -52,7 +52,7 @@ const R1_REVIEW = {
 const expectReviewedDay = (record: DailyRecord | null | undefined) => {
   expect(record?.beds.R1).toMatchObject(expectedReviewedR1());
   expect(record?.beds.R1.documentType).toBeUndefined();
-  expect(record?.beds.R1.identityReview).toEqual(R1_REVIEW);
+  expect(record?.beds.R1.identityReview).toMatchObject(R1_REVIEW);
   expect(record?.beds.R2).toMatchObject(syntheticIdentity('R2', 'PACIENTE DOS', '11.111.111-1'));
   expect(record?.beds.R3.identityReview).toBeUndefined();
 };
@@ -144,6 +144,17 @@ describe('a census day where one bed has an unreadable stored identity', () => {
     expect(record?.beds.R1.documentType).toBeUndefined();
   });
 
+  it('keeps what storage held when the device reads its own copy again', async () => {
+    const stored = { documentType: 'Cedula', patientName: null, rut: ['FAKE-RUT', null] };
+    vi.mocked(getDoc).mockResolvedValue(storedSnapshot(storedDay(stored)) as never);
+    await getForDateWithMeta(DATE, true);
+
+    const offline = await getForDateWithMeta(DATE, false);
+
+    expect(offline.source).toBe('indexeddb');
+    expect(offline.record?.beds.R1.identityReview?.stored).toMatchObject(stored);
+  });
+
   it('reads offline a local copy that holds the unreadable value itself', async () => {
     await hospitalDB.dailyRecords.put(storedDay() as never);
 
@@ -192,7 +203,7 @@ describe('a census day where one bed has an unreadable stored identity', () => {
 
     for (const days of [range, month]) {
       expect(days.map(record => record.date)).toEqual(['2026-10-22', '2026-10-23', '2026-10-24']);
-      expect(days[1].beds.R1.identityReview).toEqual(R1_REVIEW);
+      expect(days[1].beds.R1.identityReview).toMatchObject(R1_REVIEW);
       expect(days[1].beds.R1.documentType).toBeUndefined();
     }
   });

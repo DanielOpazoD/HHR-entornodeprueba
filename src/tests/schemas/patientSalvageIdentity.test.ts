@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { PatientData } from '@/types/domain/patient';
-import type { PatientIdentityField } from '@/types/domain/patientIdentity';
+import { PATIENT_IDENTITY_FIELDS, type PatientIdentityField } from '@/types/domain/patientIdentity';
 import {
   hasStructuralRepairs,
   parseDailyRecordWithDefaultsReport,
@@ -12,6 +12,7 @@ import { PatientDataSchema } from '@/schemas/zod/patient';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { docToRecord } from '@/services/storage/firestore/firestoreShared';
 import { validateAndSalvageRecord } from '@/services/repositories/helpers/validationHelper';
+import { withStoredIdentity } from '@/shared/census/patientIdentityReview';
 
 const DATE = '2026-10-24';
 const passport = () => ({
@@ -217,20 +218,26 @@ const neighbour = () => ({
 const readStored = (r1: unknown) =>
   docToRecord({ ...day(r1), beds: { R1: r1, R2: neighbour() } }, DATE);
 
-// One invalid stored value per identity field, and what a read may show for it: the stored value
-// as text when that loses nothing, otherwise nothing. Never a guess.
+// One invalid stored value per identity field, and what a read shows for it: nothing, never a
+// guess or a conversion. A missing status is inferred by the schema as for any patient.
 const unreadableIdentity: Array<[PatientIdentityField, unknown, unknown]> = [
   ['documentType', 'Cedula', undefined],
-  ['rut', 12345678, '12345678'],
-  ['clinicalEpisodeId', 4321, '4321'],
+  ['rut', 12345678, ''],
+  ['clinicalEpisodeId', 4321, undefined],
   ['identityStatus', 'tentative', 'official'],
-  ['patientName', 42, '42'],
+  ['patientName', 42, ''],
   ['firstName', { given: 'PACIENTE' }, ''],
   ['lastName', ['SINTETICO'], ''],
-  ['secondLastName', 5, '5'],
+  ['secondLastName', 5, ''],
   ['admissionDate', { seconds: 1, nanoseconds: 0 }, ''],
-  ['admissionTime', 930, '930'],
+  ['admissionTime', 930, ''],
 ];
+
+/** The identity fields of a patient exactly as storage holds them. */
+const storedIdentityOf = (patient: Record<string, unknown>) =>
+  Object.fromEntries(
+    PATIENT_IDENTITY_FIELDS.filter(field => field in patient).map(field => [field, patient[field]])
+  );
 
 describe('a stored patient with one unreadable identity field', () => {
   it.each(unreadableIdentity)('a write refuses %s instead of storing it', (field, invalid) => {
@@ -250,7 +257,7 @@ describe('a stored patient with one unreadable identity field', () => {
         bedId: 'R1',
         slot: 'bed',
         fields: [field],
-        stored: { [field]: invalid },
+        stored: storedIdentityOf({ ...passport(), [field]: invalid }),
       });
     });
   });
@@ -268,7 +275,7 @@ describe('a stored patient with one unreadable identity field', () => {
         bedId: 'R1',
         slot: 'bed',
         fields: [field],
-        stored: { [field]: invalid },
+        stored: storedIdentityOf({ ...passport(), [field]: invalid }),
       });
       expect(record.beds.R2).toMatchObject(neighbour());
       expect(record.beds.R2.identityReview).toBeUndefined();
@@ -296,7 +303,7 @@ describe('a stored patient with one unreadable identity field', () => {
       bedId: 'R1',
       slot: 'clinicalCrib',
       fields: ['documentType'],
-      stored: { documentType: 'Cedula' },
+      stored: storedIdentityOf(mother.clinicalCrib),
     });
     expect(() => writeDay(mother)).toThrow(
       expect.objectContaining({ bedId: 'R1', slot: 'clinicalCrib', fields: ['documentType'] })
@@ -312,6 +319,31 @@ describe('a stored patient with one unreadable identity field', () => {
     expect(record.beds.R1.identityReview?.fields).toEqual(['documentType']);
     expect(report.salvagedBeds).toEqual(['R1']);
     expect(hasStructuralRepairs(report)).toBe(true);
+  });
+
+  const nullable: Array<[PatientIdentityField, unknown]> = [
+    ['patientName', null],
+    ['secondLastName', null],
+    ['rut', ['FAKE-RUT', null]],
+  ];
+
+  it.each(nullable)(
+    'keeps %s exactly as stored, before the legacy normalization',
+    (field, value) => {
+      const record = readStored({ ...passport(), documentType: 'Cedula', [field]: value });
+
+      expect(record.beds.R1.identityReview?.stored).toEqual(
+        expect.objectContaining({ documentType: 'Cedula', [field]: value })
+      );
+      expect(withStoredIdentity(record).beds.R1[field]).toEqual(value);
+    }
+  );
+
+  it('normalizes a null name as before when nothing else is unreadable', () => {
+    const record = readStored({ ...passport(), patientName: null });
+
+    expect(record.beds.R1.identityReview).toBeUndefined();
+    expect(record.beds.R1.patientName).toBe('');
   });
 
   it('ignores a review stored in Firestore: only a read decides one', () => {
