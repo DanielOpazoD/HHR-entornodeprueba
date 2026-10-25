@@ -1,5 +1,5 @@
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
-import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
+import type { DailyRecord, DailyRecordPatch } from '@/services/storage/storageDailyRecordContracts';
 import type { PendingDailyRecordSyncTaskIdentity } from '@/services/storage/sync/pendingDailyRecordSyncTask';
 
 export type SyncQueueTaskWriteMode = 'created' | 'reused';
@@ -13,6 +13,16 @@ export interface SyncQueueLeaseClaim {
 export interface DailyRecordAuthorityAdoptionResult {
   status: 'adopted' | 'replaced' | 'blocked';
   record?: DailyRecord;
+}
+
+/**
+ * A patch write: the record it was computed from, its patch, and how its writer prepares a
+ * patched record for storage. The outbox applies it again on the day's stored record.
+ */
+export interface DailyRecordPatchWrite {
+  baseRecord: DailyRecord;
+  patch: DailyRecordPatch;
+  prepare: (record: DailyRecord, patch: DailyRecordPatch) => DailyRecord;
 }
 
 export interface SyncQueueStorePort {
@@ -32,7 +42,11 @@ export interface SyncQueueStorePort {
     ownerKey?: string | null
   ): Promise<SyncTask | null>;
   add(task: SyncTask): Promise<void>;
-  saveDailyRecordWithTask(record: DailyRecord, task: SyncTask): Promise<SyncQueueTaskWriteMode>;
+  saveDailyRecordWithTask(
+    record: DailyRecord,
+    task: SyncTask,
+    patchWrite?: DailyRecordPatchWrite
+  ): Promise<SyncQueueTaskWriteMode>;
   /** Atomically replace an existing pending daily-record task; never creates a second task. */
   replacePendingDailyRecordWithTask?(
     record: DailyRecord,

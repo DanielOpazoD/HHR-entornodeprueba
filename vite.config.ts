@@ -224,6 +224,8 @@ export default defineConfig(({ mode }) => {
             // The additional PDF editors use the same explicit-load policy as MEDIF.
             '**/assets/ClinicalFormTool-*.js',
             '**/assets/ClinicalFormTool-*.css',
+            // Word export needs the form's template under docs/, already on demand.
+            '**/assets/clinicalFormDocx-*.js',
             '**/vendor/exceljs.bare.min.js',
             '**/assets/exceljs.min-*.js',
             '**/assets/pdf.worker-*.mjs',

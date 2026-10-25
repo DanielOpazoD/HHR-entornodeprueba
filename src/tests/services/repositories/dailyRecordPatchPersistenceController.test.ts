@@ -1,4 +1,6 @@
+import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { preparePatchedRecordPersistence } from '@/services/repositories/dailyRecordPatchPersistenceController';
@@ -90,6 +92,29 @@ describe('dailyRecordPatchPersistenceController', () => {
       'beds.R2': { bedId: 'R2' },
     });
     expect(logErrorMock).toHaveBeenCalled();
+  });
+
+  it('persists repair diagnostics outside an outbox transaction that excludes errorLogs', async () => {
+    const id = 'synthetic-outbox-repair-log';
+    await hospitalDB.errorLogs.delete(id);
+    let logWrite: Promise<unknown> | undefined;
+    logErrorMock.mockImplementationOnce((message: string) => {
+      logWrite = hospitalDB.errorLogs.add({
+        id,
+        message,
+        timestamp: '2026-04-19T10:00:00.000Z',
+        severity: 'low',
+      });
+      void logWrite.catch(() => undefined);
+    });
+    await hospitalDB.transaction('rw', hospitalDB.dailyRecords, hospitalDB.syncQueue, async () => {
+      preparePatchedRecordPersistence(current, current.date, { nursesDayShift: ['SINTETICA'] });
+    });
+    await expect(logWrite).resolves.toBe(id);
+    expect(await hospitalDB.errorLogs.get(id)).toMatchObject({
+      message: 'Invariant repair applied on updatePartial',
+    });
+    await hospitalDB.errorLogs.delete(id);
   });
 
   it('merges movement-bed consistency repairs into the outgoing patch', () => {

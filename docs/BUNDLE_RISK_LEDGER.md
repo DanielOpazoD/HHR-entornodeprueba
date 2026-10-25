@@ -200,6 +200,22 @@ críticos. Rollback: revertir dependencias, adaptadores y este margen juntos; el
 regreso a las versiones vulnerables vuelve a bloquear la auditoría y no debe
 presentarse como un cierre válido.
 
+## PR #1024: exportación Word de formularios bajo demanda
+
+El CI de `b37a9f0` midió 4.878,2 KiB de precache frente al límite de 4.876 KiB.
+`clinicalFormDocx` ocupa 4,50 kB en ese build y sólo se carga desde el editor
+de formularios opcional, ya excluido. Su plantilla Word vive en `docs/`, también
+fuera del precache. Se excluye ese chunk con el mismo patrón en Vite y el control
+de presupuesto. Se alinean además las exclusiones existentes de descargas,
+verificación de arrastre e informes CUDYR en la configuración del control;
+el control sigue sumando los archivos del manifest generado, sin restar exclusiones.
+
+Se conservan los límites, el outbox, el censo, los calculadores y la carátula
+de traslado disponibles sin conexión. La prueba `pwaGeneratedManifest` genera
+un manifest con Workbox sobre assets sintéticos y compara su pertenencia con
+la contabilidad del presupuesto. El total definitivo corresponde al build de CI.
+Rollback: restaurar ambas entradas de `clinicalFormDocx`; no elevar el límite.
+
 ## PR #1028: import de callables con conectividad aparente (2026-10-24)
 
 Owner: platform/auth y census/sync. Functions se importa al invocar una callable;

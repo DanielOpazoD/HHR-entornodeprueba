@@ -39,6 +39,7 @@ vi.mock('@/services/repositories/dailyRecordRemoteLoader', () => ({
 }));
 
 vi.mock('@/services/storage/sync/dailyRecordSyncQueueReadService', () => ({
+  getPendingDailyRecordProjection: vi.fn().mockResolvedValue(null),
   getDailyRecordWriteStateForVersion: vi.fn(),
   hasUnresolvedDailyRecordWriteForDate: vi.fn(),
 }));

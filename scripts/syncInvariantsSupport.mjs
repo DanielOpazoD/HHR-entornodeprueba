@@ -150,7 +150,7 @@ export const evaluateSyncInvariants = root => {
     ),
     buildInvariant(
       'idempotent-mutation-drain',
-      transport.includes('if (hasRemoteAppliedMutation(') &&
+      /if\s*\(\s*hasRemoteAppliedMutation\(/.test(transport) &&
         transport.includes("resolution: 'already_applied'") &&
         transport.includes('record: docToRecord(remoteData, record.date)') &&
         transport.includes("resolved.resolution === 'already_applied'") &&
