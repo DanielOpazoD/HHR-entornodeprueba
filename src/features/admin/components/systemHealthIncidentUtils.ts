@@ -1,3 +1,4 @@
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import { readClinicalTimestamp } from '@/utils/dateDisplayUtils';
 import { evaluateSystemHealthState } from './systemHealthStatusPolicy';
 import type { UserHealthStatus } from '@/services/admin/healthService';
@@ -320,7 +321,7 @@ export const buildSystemHealthTriageModel = (
 };
 
 export const shiftSystemHealthSelectedDate = (selectedDate: string, deltaDays: number): string => {
-  const sourceDate = selectedDate ? new Date(`${selectedDate}T00:00:00.000Z`) : new Date();
+  const sourceDate = new Date(`${selectedDate || getClinicalCalendarDateISO()}T12:00:00Z`);
   if (Number.isNaN(sourceDate.getTime())) return selectedDate;
   sourceDate.setUTCDate(sourceDate.getUTCDate() + deltaDays);
   return sourceDate.toISOString().slice(0, 10);

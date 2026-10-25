@@ -16,6 +16,35 @@ const readBundleBudgetConfig = (): BundleBudgetConfig =>
   ) as BundleBudgetConfig;
 
 describe('PWA precache policy', () => {
+  it('defers official Eloisa hospitalization reports while retaining offline census work', () => {
+    const viteConfig = readViteConfig();
+    const patterns = readBundleBudgetConfig().precacheIgnoredAssetPatterns.map(
+      pattern => new RegExp(pattern)
+    );
+    expect(viteConfig).toContain('**/assets/PatientHospitalizationReportsDialog-*.js');
+    expect(
+      patterns.some(pattern =>
+        pattern.test('assets/PatientHospitalizationReportsDialog-fixture.js')
+      )
+    ).toBe(true);
+    for (const chunk of [
+      'App',
+      'app-authenticated-shell',
+      'census-view',
+      'CudyrView',
+      'ClinicalDocumentIeehPanel',
+      'VitalsDetailModal',
+      'MedicalIndicationsDialog',
+      'hospitalizationReportsBridge',
+    ]) {
+      expect(
+        patterns.some(pattern => pattern.test(`assets/${chunk}-fixture.js`)),
+        chunk
+      ).toBe(false);
+      expect(viteConfig).not.toContain(`**/assets/${chunk}-*.js`);
+    }
+  });
+
   it('loads MEDIF on demand with its PDF template while retaining the offline clinical library', () => {
     const viteConfig = readViteConfig();
     const patterns = readBundleBudgetConfig().precacheIgnoredAssetPatterns.map(
@@ -145,7 +174,15 @@ describe('PWA precache policy', () => {
     }
   });
   it('keeps the split-day read path on demand: without it, readers keep the embedded copy', () => {
-    for (const chunk of ['dailyRecordClinicalDerivedReadService', 'clinicalDerivedEpisodeReader']) {
+    for (const chunk of [
+      'dailyRecordClinicalDerivedReadService',
+      'clinicalDerivedEpisodeReader',
+      // The backup restore and the modules it shares with the readers; without them a restore
+      // reports its split days partial.
+      'clinicalDerivedBackupRestore',
+      'clinicalDerivedContract',
+      'clinicalDerived',
+    ]) {
       expect(readViteConfig()).toContain(`**/assets/${chunk}-*.js`);
       expect(readBundleBudgetConfig().precacheIgnoredAssetPatterns).toContain(
         `^assets/${chunk}-.*\\.js$`
