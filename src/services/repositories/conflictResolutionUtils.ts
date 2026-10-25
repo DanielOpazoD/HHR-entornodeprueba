@@ -32,15 +32,17 @@ const toComparablePatchValue = (value: unknown): unknown => {
   );
 };
 
+/** Key order and Firestore-omitted undefined values do not change a value. */
+export const hasSameComparableValue = (left: unknown, right: unknown): boolean =>
+  JSON.stringify(toComparablePatchValue(left)) === JSON.stringify(toComparablePatchValue(right));
+
 /** Compare every requested patch path after normalizing Firestore-omitted undefined values. */
 export const hasSameValuesAtPaths = (
   source: unknown,
   expectedValues: Record<string, unknown>
 ): boolean =>
-  Object.entries(expectedValues).every(
-    ([path, expected]) =>
-      JSON.stringify(toComparablePatchValue(getValueAtPath(source, path))) ===
-      JSON.stringify(toComparablePatchValue(expected))
+  Object.entries(expectedValues).every(([path, expected]) =>
+    hasSameComparableValue(getValueAtPath(source, path), expected)
   );
 
 export const normalizeChangedPaths = (changedPaths?: string[]): string[] => {

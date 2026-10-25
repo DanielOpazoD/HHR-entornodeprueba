@@ -68,6 +68,23 @@ export const createLocalRuntimeReadResult = (
   });
 };
 
+/** The stored projection that unsynced local writes hold; it is ahead of the remote copy. */
+export const createRetainedPendingProjectionReadResult = (
+  date: string,
+  retainedRecord: DailyRecord
+): DailyRecordReadResult =>
+  createLocalRuntimeReadResult(
+    date,
+    createLocalRuntimeReadCandidate(date, retainedRecord),
+    'indexeddb',
+    {
+      consistencyState: 'local_authoritative',
+      retryability: 'automatic_retry',
+      recoveryAction: 'defer_remote_sync',
+      observabilityTags: ['daily_record', 'read', 'pending_local_writes_retained'],
+    }
+  );
+
 export const createGoldenPathReadResult = (
   date: string,
   goldenPath: ReturnType<typeof resolveDailyRecordPersistenceGoldenPath>,
