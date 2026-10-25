@@ -33,9 +33,14 @@ export const loadFunctionsModule = async (
   } catch (error) {
     if (isChunkLoadError(error)) {
       setReloadRequired(true);
-      throw Object.assign(new Error('Functions module requires recovery.'), {
-        code: 'functions/unavailable',
-      });
+      throw Object.assign(
+        new Error(
+          'Recarga la aplicación para restablecer el acceso. Los cambios pendientes se conservan.'
+        ),
+        {
+          code: 'functions/unavailable',
+        }
+      );
     }
     throw error;
   }

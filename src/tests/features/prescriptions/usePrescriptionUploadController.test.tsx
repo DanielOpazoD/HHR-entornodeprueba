@@ -38,6 +38,8 @@ import {
   type PrescriptionUploadControllerHandle,
 } from '@/features/prescriptions/hooks/usePrescriptionUploadController';
 
+import { loadFunctionsModule } from '@/services/firebase-runtime/functionsModuleLoader';
+
 const ControllerProbe: React.FC<{
   bypassPinGate?: boolean;
   onReady: (handle: PrescriptionUploadControllerHandle) => void;
@@ -98,6 +100,27 @@ describe('usePrescriptionUploadController', () => {
       />
     );
   };
+
+  it('shows the shared Spanish recovery message when the PIN callable cannot load', async () => {
+    vi.mocked(validatePrescriptionAccessPin).mockImplementationOnce(async () => {
+      await loadFunctionsModule(() =>
+        Promise.reject(new TypeError('Importing a module script failed.'))
+      );
+      return { valid: true };
+    });
+    mountController();
+    try {
+      await act(async () => {
+        await captured.submitPin('0000');
+      });
+      expect(captured.errorMessage).toBe(
+        'Recarga la aplicación para restablecer el acceso. Los cambios pendientes se conservan.'
+      );
+      expect(captured.phase).toBe('awaiting-pin');
+    } finally {
+      await loadFunctionsModule();
+    }
+  });
 
   it('starts in awaiting-pin phase by default', async () => {
     mountController();

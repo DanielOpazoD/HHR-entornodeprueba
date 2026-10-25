@@ -26,7 +26,11 @@ it.each([
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
     await expect(
       loadFunctionsModule(() => Promise.reject(new TypeError(message)))
-    ).rejects.toMatchObject({ code: 'functions/unavailable' });
+    ).rejects.toMatchObject({
+      code: 'functions/unavailable',
+      message:
+        'Recarga la aplicación para restablecer el acceso. Los cambios pendientes se conservan.',
+    });
     expect(isFunctionsReloadRequired()).toBe(true);
     await expect(loadFunctionsModule()).resolves.toBeDefined();
     expect(isFunctionsReloadRequired()).toBe(false);
@@ -43,6 +47,12 @@ it('recognizes a named ChunkLoadError even without a browser-specific message', 
 });
 it('does not classify SDK evaluation errors as connectivity recovery', async () => {
   const error = new Error('Synthetic invalid SDK configuration');
+  await expect(loadFunctionsModule(() => Promise.reject(error))).rejects.toBe(error);
+  expect(isFunctionsReloadRequired()).toBe(false);
+});
+
+it('propagates plain fetch failures without requesting module recovery', async () => {
+  const error = new TypeError('Failed to fetch');
   await expect(loadFunctionsModule(() => Promise.reject(error))).rejects.toBe(error);
   expect(isFunctionsReloadRequired()).toBe(false);
 });

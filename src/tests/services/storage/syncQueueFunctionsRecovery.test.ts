@@ -117,3 +117,65 @@ it('waits a minimum of one minute before retrying a retained module import', asy
   });
   await loadFunctionsModule();
 });
+
+it.each([5_000, 15_000, 30_000, 45_000, 59_000])(
+  'resumes retained work immediately after reload at +%s ms without resetting attempts',
+  async reloadAfterMs => {
+    let now = Date.now();
+    vi.spyOn(Date, 'now').mockImplementation(() => now);
+    const payload = { synthetic: 'retained-after-reload' };
+    await hospitalDB.syncQueue.add({
+      opId: 'synthetic-reload',
+      type: 'UPDATE_DAILY_RECORD',
+      payload,
+      status: 'PENDING',
+      timestamp: now,
+      retryCount: 2,
+    });
+    await createEngine(async () => {
+      await loadFunctionsModule(() =>
+        Promise.reject(new TypeError('Importing a module script failed.'))
+      );
+    }).processQueue();
+    expect((await hospitalDB.syncQueue.toArray())[0]).toMatchObject({
+      status: 'PENDING',
+      retryCount: 2,
+      payload,
+    });
+    now += reloadAfterMs;
+    await loadFunctionsModule();
+    const synced = vi.fn(async () => {});
+    await createEngine(synced).processQueue();
+    expect(synced).toHaveBeenCalledWith(expect.objectContaining({ retryCount: 2, payload }));
+    expect(await hospitalDB.syncQueue.count()).toBe(0);
+  }
+);
+
+it('keeps ordinary network backoff after Functions recovery clears', async () => {
+  const now = Date.now();
+  vi.spyOn(Date, 'now').mockReturnValue(now);
+  vi.spyOn(Math, 'random').mockReturnValue(0);
+  await loadFunctionsModule();
+  await hospitalDB.syncQueue.add({
+    opId: 'synthetic-normal-backoff',
+    type: 'UPDATE_DAILY_RECORD',
+    payload: { synthetic: 'normal-backoff' },
+    status: 'PENDING',
+    timestamp: now,
+    retryCount: 0,
+  });
+  await createEngine(async () => {
+    throw Object.assign(new Error('Synthetic 503'), { code: 'functions/unavailable' });
+  }).processQueue();
+  await loadFunctionsModule();
+  const synced = vi.fn(async () => {});
+  const engine = createEngine(synced);
+  await engine.processQueue();
+  expect(synced).not.toHaveBeenCalled();
+  const [task] = await hospitalDB.syncQueue.toArray();
+  expect(task).toMatchObject({ status: 'PENDING', retryCount: 1 });
+  vi.mocked(Date.now).mockReturnValue(task.nextAttemptAt!);
+  await engine.processQueue();
+  expect(synced).toHaveBeenCalledOnce();
+  expect(await hospitalDB.syncQueue.count()).toBe(0);
+});

@@ -81,6 +81,7 @@ export const resolveSyncQueueFailureDecision = ({
   if (isFunctionsReloadRequired() && classification.category === 'network') {
     return {
       ...errorMeta,
+      lastErrorAction: 'reload_functions',
       contexts,
       recoveryPolicy,
       status: 'PENDING',
