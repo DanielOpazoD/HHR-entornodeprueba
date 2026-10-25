@@ -162,11 +162,11 @@ export const executeSendMedicalHandoff = async (
       handoffUrl,
       nextRecord: sentOutcome.data.nextRecord,
     });
-  } catch (error) {
+  } catch {
     return createApplicationFailed(null, [
       {
         kind: 'unknown',
-        message: error instanceof Error ? error.message : 'No se pudo enviar la entrega médica.',
+        message: 'No se pudo enviar la entrega médica. Intente nuevamente con conexión.',
       },
     ]);
   }

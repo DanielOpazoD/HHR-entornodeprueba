@@ -4,7 +4,6 @@
  */
 
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
-import { httpsCallable } from 'firebase/functions';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/config/queryClient';
 import { fetchRecordsRangeSorted, syncRecordsRange } from '@/services/records/recordQueryService';
@@ -207,6 +206,7 @@ export function useMinsalStats(
     enabled: recordsQuery.isError || (recordsQuery.isSuccess && currentRangeRecords.length === 0),
     queryFn: async (): Promise<MinsalStatistics> => {
       const functions = await defaultFunctionsRuntime.getFunctions();
+      const { httpsCallable } = await import('firebase/functions');
       const calculateStats = httpsCallable(functions, 'calculateMinsalStats');
       const result = await calculateStats({
         hospitalId,

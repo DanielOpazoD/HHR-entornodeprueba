@@ -215,15 +215,14 @@ describe('PWA precache policy', () => {
   });
 
   it('defers network-only census email delivery while retaining offline clinical and export chunks', () => {
-    for (const chunk of ['sendCensusEmailUseCases', 'nursingPasswordPolicy']) {
-      expect(readViteConfig()).toContain(`**/assets/${chunk}-*.js`);
-    }
+    expect(readViteConfig()).toContain('**/assets/sendCensusEmailUseCases-*.js');
     const patterns = readBundleBudgetConfig().precacheIgnoredAssetPatterns.map(
       pattern => new RegExp(pattern)
     );
     const isExcluded = (asset: string) => patterns.some(pattern => pattern.test(asset));
     expect(isExcluded('assets/sendCensusEmailUseCases-fixture.js')).toBe(true);
-    expect(isExcluded('assets/nursingPasswordPolicy-fixture.js')).toBe(true);
+    expect(isExcluded('assets/nursingPasswordPolicy-fixture.js')).toBe(false);
+    expect(isExcluded('assets/nursingAccountService-fixture.js')).toBe(false);
     for (const chunk of [
       'app-authenticated-shell',
       'CensusRouteView',

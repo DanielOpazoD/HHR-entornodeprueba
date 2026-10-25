@@ -1,4 +1,3 @@
-import { httpsCallable } from 'firebase/functions';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import type { FunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 
@@ -34,6 +33,7 @@ const buildService = (
 ) => {
   const call = async <Input, Output>(name: string, payload: Input): Promise<Output> => {
     const functions = await functionsRuntime.getFunctions();
+    const { httpsCallable } = await import('firebase/functions');
     return (await httpsCallable<Input, Output>(functions, name)(payload)).data;
   };
 

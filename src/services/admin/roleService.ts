@@ -1,5 +1,4 @@
 import { firestoreDb, type IDatabaseProvider } from '@/services/storage/firestore';
-import { httpsCallable } from 'firebase/functions';
 import {
   isGeneralLoginRole,
   isManagedUserRole,
@@ -190,6 +189,7 @@ export const createRoleService = (
     role: ManagedUserRole | 'unauthorized'
   ): Promise<{ success?: boolean; message?: string }> {
     const functions = await functionsRuntime.getFunctions();
+    const { httpsCallable } = await import('firebase/functions');
     const setUserRole = httpsCallable(functions, 'setUserRole');
     const result = await setUserRole({ email, role });
     return (result as { data?: { success?: boolean; message?: string } }).data || {};

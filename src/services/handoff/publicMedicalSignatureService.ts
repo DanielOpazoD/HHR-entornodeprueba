@@ -1,4 +1,3 @@
-import { httpsCallable } from 'firebase/functions';
 import type { DailyRecord } from '@/domain/handoff/recordContracts';
 import type { MedicalHandoffScope } from '@/types/medicalHandoff';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
@@ -29,6 +28,7 @@ export const createPublicMedicalSignatureService = (
     token: string
   ): Promise<PublicMedicalHandoffPayload> => {
     const functions = await functionsRuntime.getFunctions();
+    const { httpsCallable } = await import('firebase/functions');
     const callable = httpsCallable<
       { date: string; scope: MedicalHandoffScope; token: string },
       PublicMedicalHandoffPayload
@@ -49,6 +49,7 @@ export const createPublicMedicalSignatureService = (
     doctorName: string;
   }): Promise<SubmitMedicalHandoffSignaturePayload> => {
     const functions = await functionsRuntime.getFunctions();
+    const { httpsCallable } = await import('firebase/functions');
     const callable = httpsCallable<
       {
         date: string;

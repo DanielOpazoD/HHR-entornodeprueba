@@ -1,4 +1,3 @@
-import { httpsCallable } from 'firebase/functions';
 import type { UserRole } from '@/types/authRoleTypes';
 import { normalizeEmail } from '@/services/auth/authShared';
 import { isGeneralLoginRole } from '@/shared/access/roleAccessMatrix';
@@ -48,6 +47,7 @@ export const createAuthRoleLookupService = (
     try {
       markPerf('auth-role:lookup-start');
       const functions = await functionsRuntime.getFunctions();
+      const { httpsCallable } = await import('firebase/functions');
       const checkUserRole = httpsCallable<Record<string, never>, CheckUserRoleCallableData>(
         functions,
         'checkUserRole',

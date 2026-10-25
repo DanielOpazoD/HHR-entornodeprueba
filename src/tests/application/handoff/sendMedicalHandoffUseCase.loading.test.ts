@@ -59,6 +59,22 @@ describe('medical handoff transport loading', () => {
     expect(input.patchRecord).toHaveBeenCalled();
   });
 
+  it('reports a safe failure when preparing the delivery throws unexpectedly', async () => {
+    const input = createInput();
+    input.record.medicalHandoffDoctor = '';
+    input.getPreviousDay.mockRejectedValueOnce(new Error('Synthetic internal preparation detail'));
+    const outcome = await executeSendMedicalHandoff(input);
+    expect(outcome).toMatchObject({
+      status: 'failed',
+      data: null,
+      issues: [
+        { message: 'No se pudo enviar la entrega médica. Intente nuevamente con conexión.' },
+      ],
+    });
+    expect(input.patchRecord).not.toHaveBeenCalled();
+    expect(JSON.stringify(outcome)).not.toContain('Synthetic internal preparation detail');
+  });
+
   it('reports a failed delivery and preserves sent metadata if the transport cannot load', async () => {
     vi.resetModules();
     vi.doMock('@/services/integrations/whatsapp/whatsappService', () => {
@@ -69,7 +85,14 @@ describe('medical handoff transport loading', () => {
         await import('@/application/handoff/sendMedicalHandoffUseCase');
       const input = createInput();
       const outcome = await send(input);
-      expect(outcome).toMatchObject({ status: 'failed', data: null });
+      expect(outcome).toMatchObject({
+        status: 'failed',
+        data: null,
+        issues: [
+          { message: 'No se pudo enviar la entrega médica. Intente nuevamente con conexión.' },
+        ],
+      });
+      expect(JSON.stringify(outcome)).not.toContain('Synthetic unavailable transport chunk');
       expect(input.patchRecord).not.toHaveBeenCalled();
     } finally {
       vi.doUnmock('@/services/integrations/whatsapp/whatsappService');
