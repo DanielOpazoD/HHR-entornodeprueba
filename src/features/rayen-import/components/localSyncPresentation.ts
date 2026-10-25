@@ -27,7 +27,8 @@ export interface QuarantinedOperationView {
   categoryLabel: string;
   code?: string;
   detail?: string;
-  refusedHandoff: boolean;
+  /** A refused note or edits detached from a departed patient: offered a discard, not a retry. */
+  refusedHandoff?: 'note' | 'detached';
 }
 
 export const targetLabelFromKey = (
@@ -63,12 +64,13 @@ export const targetLabelFromKey = (
  * A refused specialist note, or edits detached from a patient who left the bed, can never be
  * sent as they are: a retry always fails, so the panel offers a confirmed discard instead.
  */
-export const isRefusedSpecialistHandoff = (
+const refusedHandoffKind = (
   operation: Pick<SyncQueueOperation, 'type' | 'status' | 'key'>
-) =>
-  operation.status === 'CONFLICT' &&
-  (operation.type === 'UPDATE_SPECIALIST_HANDOFF' ||
-    Boolean(operation.key?.includes(':detached:')));
+): QuarantinedOperationView['refusedHandoff'] => {
+  if (operation.status !== 'CONFLICT') return undefined;
+  if (operation.type === 'UPDATE_SPECIALIST_HANDOFF') return 'note';
+  return operation.key?.includes(':detached:') ? 'detached' : undefined;
+};
 
 export const listQuarantinedOperations = (
   operations: SyncQueueOperation[]
@@ -76,13 +78,16 @@ export const listQuarantinedOperations = (
   operations
     .filter(operation => operation.status === 'FAILED' || operation.status === 'CONFLICT')
     .filter(operation => typeof operation.id === 'number')
-    .map(operation => ({
-      id: operation.id as number,
-      code: operation.lastErrorCode,
-      detail: operation.error,
-      targetLabel: targetLabelFromKey(operation.key, operation.type),
-      refusedHandoff: isRefusedSpecialistHandoff(operation),
-      categoryLabel: isPolicyBlockedCudyrArchive(operation)
-        ? 'Autorización anterior'
-        : (CATEGORY_LABELS[operation.lastErrorCategory ?? 'unknown'] ?? 'Error desconocido'),
-    }));
+    .map(operation => {
+      const refusedHandoff = refusedHandoffKind(operation);
+      return {
+        id: operation.id as number,
+        code: operation.lastErrorCode,
+        detail: operation.error,
+        targetLabel: targetLabelFromKey(operation.key, operation.type),
+        categoryLabel: isPolicyBlockedCudyrArchive(operation)
+          ? 'Autorización anterior'
+          : (CATEGORY_LABELS[operation.lastErrorCategory ?? 'unknown'] ?? 'Error desconocido'),
+        ...(refusedHandoff ? { refusedHandoff } : {}),
+      };
+    });
