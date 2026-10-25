@@ -19,6 +19,7 @@ it.each([
   'error loading dynamically imported module: /sdk.js',
   'Importing a module script failed.',
   'Loading chunk 123 failed.',
+  "'text/html' is not a valid JavaScript MIME type.",
 ])(
   'holds recovery for browser chunk failure %s and clears it after a successful import',
   async message => {

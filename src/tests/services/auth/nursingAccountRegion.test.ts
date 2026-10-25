@@ -23,6 +23,7 @@ vi.mock('@/services/firebase-runtime/authRuntime', () => ({ defaultAuthRuntime: 
 vi.mock('@/services/auth/authRoleLookup', () => ({ clearRecentAuthRoleLookups: vi.fn() }));
 
 import { callAccount, accountErrorMessage } from '@/services/auth/nursingAccountService';
+import { loadFunctionsModule } from '@/services/firebase-runtime/functionsModuleLoader';
 import { sanitizeOperationalTelemetryEvent } from '@/services/observability/operationalTelemetryPrivacy';
 
 describe('RUT callable regional rollout', () => {
@@ -271,4 +272,26 @@ describe('nursing account error messages', () => {
       'recuperación por correo'
     );
   });
+});
+
+it('directs RUT login to reload during sticky module recovery and clears that message on success', async () => {
+  vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+  try {
+    await loadFunctionsModule(() =>
+      Promise.reject(new TypeError("'text/html' is not a valid JavaScript MIME type."))
+    ).catch(() => {});
+    expect(accountErrorMessage({ code: 'functions/unavailable' })).toMatch(
+      /Recarga la aplicación.*acceso/
+    );
+    expect(accountErrorMessage({ code: 'functions/unavailable' })).not.toMatch(
+      /correo|administrador/
+    );
+    await loadFunctionsModule();
+    expect(accountErrorMessage({ code: 'functions/unavailable' })).toMatch(
+      /recuperación por correo/
+    );
+  } finally {
+    await loadFunctionsModule();
+    vi.restoreAllMocks();
+  }
 });

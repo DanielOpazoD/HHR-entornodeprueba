@@ -1,3 +1,4 @@
+import { isFunctionsReloadRequired } from '@/services/firebase-runtime/functionsModuleLoader';
 import type { ManagedUserRole } from '@/shared/access/roleAccessMatrix';
 import {
   browserSessionPersistence,
@@ -170,6 +171,8 @@ export const establishNursingSession = async (
 
 export const accountErrorMessage = (error: unknown): string => {
   if (!navigator.onLine) return 'Sin conexión.';
+  if (isFunctionsReloadRequired())
+    return 'Recarga la aplicación para restablecer el acceso. Los cambios pendientes se conservan.';
   const code = (error as { code?: string })?.code;
   if (code === 'functions/unavailable')
     return 'La recuperación por correo no está disponible ahora. Contacta al administrador.';

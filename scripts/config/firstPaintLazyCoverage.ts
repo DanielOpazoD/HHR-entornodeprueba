@@ -53,7 +53,7 @@ const OPTIONAL_TARGETS: Record<string, string> = {
   'src/context/ReminderCenterContext':
     'Deferred reminder provider has a local fallback if unavailable.',
   'src/features/census/components/FugaNotificationModal':
-    'Notification opens after the user selects the action.',
+    'Fuga notification can mount on first paint; failures stay inside Altas del Día.',
   'src/features/census/components/PatientHospitalizationReportsDialog':
     'Reports open on request with a local error boundary.',
   'src/features/census/components/StaffShiftDetailsModal': 'Staff detail dialog opens on request.',

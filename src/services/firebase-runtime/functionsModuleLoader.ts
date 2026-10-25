@@ -1,3 +1,5 @@
+import { isChunkLoadError } from '@/utils/chunkLoadError';
+
 let reloadRequired = false;
 const listeners = new Set<() => void>();
 
@@ -29,13 +31,7 @@ export const loadFunctionsModule = async (
     setReloadRequired(false);
     return sdk;
   } catch (error) {
-    if (
-      error instanceof Error &&
-      (error.name === 'ChunkLoadError' ||
-        /loading chunk|dynamically imported module|failed to fetch|importing a module script failed/i.test(
-          error.message
-        ))
-    ) {
+    if (isChunkLoadError(error)) {
       setReloadRequired(true);
       throw Object.assign(new Error('Functions module requires recovery.'), {
         code: 'functions/unavailable',

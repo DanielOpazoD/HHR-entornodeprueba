@@ -219,7 +219,9 @@ Rollback: restaurar ambas entradas de `clinicalFormDocx`; no elevar el límite.
 ## PR #1028: recuperación de imports de callables (2026-10-25)
 
 Owner: platform/auth y census/sync. El SDK de Functions sigue fuera del precache.
-Login y shell autenticado lo calientan al montar y al recibir el evento online.
+App monta una sola recuperación y calentamiento online para todas las rutas, incluidos
+login, shell, escáner/QR, recetas, heridas y firmas. El aviso lazy tiene un fallback
+vacío si no puede cargar, sin sustituir la pantalla ni los formularios.
 Los resolvers rechazan antes del import cuando el navegador está offline, con
 `functions/unavailable`; no se envían callables ni se cambia el comportamiento offline.
 
@@ -230,12 +232,17 @@ Chromium ≤153. Ocurre tanto con conexión rechazada como con HTTP 503, aunque
 del registro diario, entrega especialista, lotes Rayen, firmas, QR y CUDYR.
 Chrome 156 puede recuperar el mismo URL sin recarga.
 
-Un fallo de carga del SDK marca el runtime como pendiente de recuperación.
+Un fallo de carga del SDK marca el runtime como pendiente de recuperación. Incluye
+el caso de despliegue con hash antiguo: el fallback SPA responde HTML al URL del
+chunk y WebKit rechaza el MIME JavaScript. El detector compartido también cubre
+los mensajes de Firefox y WebKit en los componentes lazy.
 Mientras persista esa marca, los errores de red de la cola conservan PENDING,
 payload y contador de intentos; no agotan el presupuesto ni pasan a FAILED.
 Los errores permanentes y conflictos mantienen su política vigente. Una petición
 sin caché a version.json confirma conectividad antes de reintentar el import.
-Si el navegador sigue reteniéndolo, se muestra un aviso no bloqueante con recarga
+Si el navegador sigue reteniéndolo, una región viva estable muestra un aviso fijo
+que permanece visible al desplazarse. El login RUT indica recargar para restablecer
+el acceso. El aviso ofrece una recarga
 confirmada que advierte de lo escrito sin guardar. Recargar conserva IndexedDB y
 reanuda el envío pendiente. Si el import se recupera, se retira la marca sin recargar.
 No hay recarga automática, purga ni modificación de datos clínicos.

@@ -31,7 +31,7 @@ it('warms while online at mount and after the online event, without invoking a c
   await waitFor(() => expect(getFunctions).toHaveBeenCalledTimes(1));
   fireEvent.online(window);
   await waitFor(() => expect(getFunctions).toHaveBeenCalledTimes(2));
-  expect(screen.queryByRole('status')).toBeNull();
+  expect(screen.getByRole('status')).toBeEmptyDOMElement();
 });
 it('does not import offline, then warms when the browser reports online', async () => {
   const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
@@ -47,13 +47,17 @@ it('waits for a successful connectivity probe and preserves the confirmation bef
   const confirm = vi.spyOn(defaultBrowserWindowRuntime, 'confirm').mockReturnValue(false);
   const reload = vi.spyOn(defaultBrowserWindowRuntime, 'reload').mockImplementation(() => {});
   render(<FunctionsRecoveryNotice />);
+  const liveRegion = screen.getByRole('status');
+  expect(liveRegion).toBeEmptyDOMElement();
   await waitFor(() => expect(fetch).toHaveBeenCalled());
-  expect(screen.queryByRole('status')).toBeNull();
+  expect(screen.getByRole('status')).toBeEmptyDOMElement();
   vi.mocked(fetch).mockResolvedValue({ ok: true } as Response);
   fireEvent.online(window);
   expect(await screen.findByRole('status')).toHaveTextContent(
     'los cambios pendientes se conservan'
   );
+  expect(screen.getByRole('status')).toBe(liveRegion);
+  expect(liveRegion).toHaveClass('fixed', 'bottom-0');
   fireEvent.click(screen.getByRole('button', { name: 'Recargar aplicación' }));
   expect(confirm).toHaveBeenCalledWith(
     expect.stringContaining('Lo escrito en este formulario se perderá')
@@ -71,5 +75,5 @@ it('clears recovery when the browser can import the same module after connectivi
   vi.mocked(fetch).mockResolvedValue({ ok: true } as Response);
   fireEvent.online(window);
   await waitFor(() => expect(isFunctionsReloadRequired()).toBe(false));
-  expect(screen.queryByRole('status')).toBeNull();
+  expect(screen.getByRole('status')).toBeEmptyDOMElement();
 });

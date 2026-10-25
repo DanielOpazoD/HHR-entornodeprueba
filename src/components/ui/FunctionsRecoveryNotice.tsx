@@ -23,7 +23,16 @@ export default function FunctionsRecoveryNotice() {
     window.addEventListener('online', warm);
     return () => window.removeEventListener('online', warm);
   }, []);
-  return needsReload ? <FunctionsRecoveryBanner /> : null;
+  return (
+    <aside
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+      className="fixed inset-x-0 bottom-0 z-[100]"
+    >
+      {needsReload ? <FunctionsRecoveryBanner /> : null}
+    </aside>
+  );
 }
 
 function FunctionsRecoveryBanner() {
@@ -66,9 +75,9 @@ function FunctionsRecoveryBanner() {
   }, []);
   if (!connected) return null;
   return (
-    <aside role="status" className="border border-amber-200 bg-amber-50 p-2 text-sm text-amber-900">
-      Se restableció la conexión. Recarga para reanudar la sincronización; los cambios pendientes se
-      conservan.{' '}
+    <div className="border border-amber-200 bg-amber-50 p-2 text-sm text-amber-900">
+      Se restableció la conexión. Recarga para reanudar el acceso y la sincronización; los cambios
+      pendientes se conservan.{' '}
       <button
         type="button"
         className="underline"
@@ -80,6 +89,6 @@ function FunctionsRecoveryBanner() {
       >
         Recargar aplicación
       </button>
-    </aside>
+    </div>
   );
 }

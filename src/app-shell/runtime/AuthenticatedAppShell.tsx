@@ -1,5 +1,4 @@
 import React from 'react';
-import { FunctionsRecovery } from '@/components/ui/FunctionsRecovery';
 import { FlaskConical } from 'lucide-react';
 import { AppContent } from '@/components/layout/AppContent';
 import { CensusProvider } from '@/context/CensusContext';
@@ -73,7 +72,6 @@ export const AuthenticatedAppShell = ({ auth, dateNav }: AuthenticatedAppShellPr
 
   return (
     <CensusProvider value={censusContextValue}>
-      <FunctionsRecovery />
       <DeferredSystemHealthReporter />
       <AppContent
         ui={ui}
