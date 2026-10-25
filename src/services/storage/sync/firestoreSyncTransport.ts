@@ -14,6 +14,7 @@ import {
 import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/firestoreServiceRuntime';
 import type { FirestoreServiceRuntimePort } from '@/services/storage/firestore/ports/firestoreServiceRuntimePort';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
+import { loadSpecialistMedicalHandoffClient } from '@/services/storage/firestore/firestoreRecordWrites';
 import { resolveDailyRecordConflict } from '@/services/repositories/conflictResolutionMatrix';
 import {
   getValueAtPath,
@@ -389,8 +390,8 @@ export const createFirestoreSyncTransport = (
       case 'UPDATE_DAILY_RECORD':
         return syncDailyRecord(task, task.payload as DailyRecord, runtime);
       case 'UPDATE_SPECIALIST_HANDOFF':
-        return import('../firestore/specialistMedicalHandoffClient').then(
-          ({ replaySpecialistHandoff }) => replaySpecialistHandoff(task)
+        return loadSpecialistMedicalHandoffClient().then(({ replaySpecialistHandoff }) =>
+          replaySpecialistHandoff(task)
         );
       default:
         throw new Error(`[SyncQueue] Unsupported task type: ${String(task.type)}`);

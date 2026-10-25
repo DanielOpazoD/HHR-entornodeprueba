@@ -1,4 +1,3 @@
-import { buildSpecialistHandoffTargets } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
 import type {
   ApplyDailyRecordPatch,
   DailyRecord,
@@ -343,6 +342,9 @@ export const executeBedManagementAction = async ({
               : validatedAction.expectedHandoffPatient,
           },
         };
+        // Loaded on demand: only the medical handoff writes these notes.
+        const { buildSpecialistHandoffTargets } =
+          await import('@/services/storage/firestore/specialistMedicalHandoffIdentity');
         await patchRecord(patch, {
           specialistHandoffTargets: buildSpecialistHandoffTargets(editedRecord, patch),
         });

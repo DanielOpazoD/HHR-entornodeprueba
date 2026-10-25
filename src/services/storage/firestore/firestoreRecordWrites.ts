@@ -218,6 +218,17 @@ const buildAtomicPartialCommitReceipt = (
   }
 };
 
+/**
+ * The note callable needs the network, so its client is not precached. Failing to load it is a
+ * network failure, and the note goes to the queue like any other offline save.
+ */
+export const loadSpecialistMedicalHandoffClient = () =>
+  import('./specialistMedicalHandoffClient').catch(() => {
+    throw Object.assign(new Error('Sin conexión para enviar la entrega médica.'), {
+      code: 'unavailable',
+    });
+  });
+
 export const updateRecordPartial = async (
   date: string,
   partialData: DailyRecordPatch,
@@ -275,7 +286,7 @@ export const updateRecordPartial = async (
         if (specialistScopedPatch && (await shouldRouteSpecialistPatchViaCallable())) {
           await assertDirectWriteConcurrency();
           const { updateSpecialistMedicalHandoffViaCallable } =
-            await import('./specialistMedicalHandoffClient');
+            await loadSpecialistMedicalHandoffClient();
           return withRetry(
             () =>
               updateSpecialistMedicalHandoffViaCallable({
