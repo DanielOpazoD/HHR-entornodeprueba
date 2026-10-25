@@ -159,3 +159,6 @@ export const resolvePathValueWithMatrix = (
   traceContext.add(traceFromScalarDecision(path, decision));
   return decision.value;
 };
+
+// Kept with the path rules it mirrors: the shell chunk carries it for both of its lazy users.
+export { findDetachedReviewEdits } from '@/services/repositories/conflictResolutionDetachedEdits';
