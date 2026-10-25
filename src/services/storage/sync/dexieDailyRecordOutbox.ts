@@ -206,12 +206,14 @@ const foldWriteIntoOutbox = ({
   stored,
   unresolved,
   rebase,
+  noteBase,
 }: {
   task: SyncTask;
   existing: SyncTask | null;
   stored: DailyRecord | undefined;
   unresolved: SyncTask[];
   rebase: PendingProjectionRebase | undefined;
+  noteBase?: string;
 }): SyncTask => {
   const owner = unresolved.find(
     candidate => stored && hasSameComparableValue(candidate.payload, stored)
@@ -227,7 +229,14 @@ const foldWriteIntoOutbox = ({
   const rebased = stored && rebase ? rebase(stored, pendingPaths) : null;
   const merged = mergeSyncTaskContracts(existing?.syncContract, task.syncContract);
   const payload = rebased ?? (task.payload as DailyRecord);
-  const baseContract = existing?.syncContract ?? owner?.syncContract;
+  // A note queued offline moved the stored projection past the day it was read from, unpublished:
+  // the first day write after it keeps that base, so its replay merges what others wrote since.
+  const baseContract =
+    existing?.syncContract ??
+    owner?.syncContract ??
+    (noteBase && noteBase < (task.syncContract?.expectedVersion ?? noteBase)
+      ? { expectedVersion: noteBase, baseRevision: task.syncContract?.baseRevision }
+      : undefined);
   return {
     ...task,
     payload,
@@ -307,7 +316,12 @@ const saveSpecialistHandoffInOutbox = (
             task.payload as SpecialistHandoffSyncPayload
           )
         : task.payload,
-      syncContract: mergeSyncTaskContracts(existing?.syncContract, task.syncContract),
+      syncContract: {
+        ...mergeSyncTaskContracts(existing?.syncContract, task.syncContract),
+        // The day this note was first written on, before any projection of its own.
+        expectedVersion:
+          existing?.syncContract?.expectedVersion ?? task.syncContract?.expectedVersion,
+      },
     };
     if (existing?.id) {
       await hospitalDB.syncQueue.put({ ...existing, ...nextTask, id: existing.id });
@@ -337,6 +351,10 @@ export const saveDailyRecordInOutbox = (
       const existing = task.key
         ? await findReusableSyncTask(task.type, task.key, task.ownerKey)
         : null;
+      const notes = await hospitalDB.syncQueue
+        .where('key')
+        .startsWith(`handoff:${record.date}:`)
+        .toArray();
       const nextTask = foldWriteIntoOutbox({
         task,
         existing,
@@ -346,6 +364,11 @@ export const saveDailyRecordInOutbox = (
           candidate =>
             candidate.type === task.type && matchesOwner(task.ownerKey, candidate.ownerKey)
         ),
+        noteBase: notes
+          .filter(note => matchesOwner(task.ownerKey, note.ownerKey))
+          .map(note => note.syncContract?.expectedVersion ?? '')
+          .filter(Boolean)
+          .sort()[0],
       });
       const persistedRecord = nextTask.payload as DailyRecord;
       await hospitalDB.dailyRecords.put(persistedRecord);
