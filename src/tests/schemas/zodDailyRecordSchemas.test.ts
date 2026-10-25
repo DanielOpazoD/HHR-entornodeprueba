@@ -337,7 +337,7 @@ describe('zod daily record schemas', () => {
 
       expect(result.beds.R1.patientName).toBe('Paciente Irregular');
       expect(result.beds.R1.bedId).toBe('R1');
-      expect(result.beds.R1.devices).toEqual([]);
+      expect(result.beds.R1.devices).toEqual(['CVC']);
       expect(result.beds.R1.status).toBeDefined();
     });
   });
