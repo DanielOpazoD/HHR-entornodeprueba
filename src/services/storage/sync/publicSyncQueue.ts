@@ -1,6 +1,6 @@
 import { createCudyrArchiveQueue } from './publicCudyrArchiveQueue';
 import { ensureDbReady } from '@/services/storage/indexeddb/indexedDbCore';
-import type { SyncTask } from '@/services/storage/syncQueueTypes';
+import type { SpecialistHandoffSyncPayload, SyncTask } from '@/services/storage/syncQueueTypes';
 import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
 import { createBrowserSyncRuntime } from '@/services/storage/sync/browserSyncRuntime';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
@@ -261,11 +261,18 @@ export const queueCudyrArchiveTask = createCudyrArchiveQueue(syncQueueEngine.que
 export const queueDailyRecordSyncTaskWithLocalRecord = async (
   record: DailyRecord,
   meta?: Pick<SyncTask, 'contexts' | 'origin' | 'recoveryPolicy' | 'syncContract'>,
-  options?: SyncQueueEnqueueOptions
+  options?: SyncQueueEnqueueOptions,
+  handoff?: SpecialistHandoffSyncPayload
 ): Promise<SyncQueueEnqueueResult> => {
+  const type = handoff ? 'UPDATE_SPECIALIST_HANDOFF' : 'UPDATE_DAILY_RECORD';
   try {
     await ensureDbReady();
-    const result = await syncQueueEngine.queueDailyRecordTaskWithLocalRecord(record, meta, options);
+    const result = await syncQueueEngine.queueDailyRecordTaskWithLocalRecord(
+      record,
+      meta,
+      options,
+      handoff
+    );
     if (!result.accepted && result.mode === 'rejected_backpressure') {
       recordOperationalTelemetry({
         category: 'sync',
@@ -276,7 +283,7 @@ export const queueDailyRecordSyncTaskWithLocalRecord = async (
           'La cola de sincronizacion alcanzo su limite operativo y no acepto una nueva tarea.',
         ],
         context: {
-          type: 'UPDATE_DAILY_RECORD',
+          type,
           contexts: meta?.contexts,
           origin: meta?.origin,
           recoveryPolicy: meta?.recoveryPolicy,
@@ -300,7 +307,7 @@ export const queueDailyRecordSyncTaskWithLocalRecord = async (
         ),
       ],
       context: {
-        type: 'UPDATE_DAILY_RECORD',
+        type,
         date: record.date,
         contexts: meta?.contexts,
         origin: meta?.origin,

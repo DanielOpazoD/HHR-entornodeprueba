@@ -1,4 +1,3 @@
-import type { SpecialistHandoffTarget } from './firestore/specialistMedicalHandoffIdentity';
 /**
  * Sync queue task contracts shared by storage services.
  */
@@ -6,11 +5,19 @@ import type {
   SyncDomainContext,
   SyncTaskOrigin,
 } from '@/services/storage/sync/syncDomainContracts';
+import type { SpecialistHandoffTarget } from '@/types/domain/specialistHandoffTarget';
+
+/** One specialist callable request: the handoff fields of one bed or crib, for the patients typed for. */
+export interface SpecialistHandoffSyncPayload {
+  date: string;
+  patch: Record<string, unknown>;
+  expectedOccupants: SpecialistHandoffTarget[];
+}
 
 export interface SyncTask {
   id?: number;
   opId: string;
-  type: 'UPDATE_DAILY_RECORD' | 'UPDATE_PATIENT' | 'ARCHIVE_CUDYR';
+  type: 'UPDATE_DAILY_RECORD' | 'UPDATE_PATIENT' | 'ARCHIVE_CUDYR' | 'UPDATE_SPECIALIST_HANDOFF';
   payload: unknown;
   timestamp: number;
   retryCount: number;
@@ -57,7 +64,6 @@ export type SyncTaskResolution =
   | 'already_applied';
 
 export interface SyncTaskContract {
-  specialistHandoffTargets?: SpecialistHandoffTarget[];
   expectedVersion?: string;
   acceptedVersion?: string;
   acceptedRevision?: number;

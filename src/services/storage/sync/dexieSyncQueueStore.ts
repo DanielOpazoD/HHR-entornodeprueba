@@ -82,9 +82,7 @@ const mirrorTransactionalDailyRecordWrite = (record: DailyRecord): void => {
 
 export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
   withEnqueueTransaction: operation =>
-    hospitalDB.transaction('rw', hospitalDB.dailyRecords, hospitalDB.syncQueue, async () =>
-      operation()
-    ),
+    hospitalDB.transaction('rw', hospitalDB.syncQueue, async () => operation()),
   async listAll(ownerKey) {
     const tasks = await hospitalDB.syncQueue.toArray();
     return tasks.filter(task => matchesOwner(ownerKey, task.ownerKey));
@@ -136,7 +134,12 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
       hospitalDB.dailyRecords,
       hospitalDB.syncQueue,
       async () => {
-        await hospitalDB.dailyRecords.put(record);
+        // A pending day task owns the projection; a separate note must not change it under it.
+        if (
+          task.type === 'UPDATE_DAILY_RECORD' ||
+          !(await listUnresolvedDailyRecordTasks(record.date)).length
+        )
+          await hospitalDB.dailyRecords.put(record);
 
         if (task.key) {
           const existing = await findReusableSyncTask(task.type, task.key, task.ownerKey);

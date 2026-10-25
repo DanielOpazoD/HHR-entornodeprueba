@@ -15,7 +15,7 @@ import {
   updateRecordPartial as updateRecordPartialToFirestore,
 } from '@/services/storage/firestore/firestoreRecordWrites';
 import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
-import { docToRecord } from '@/services/storage/firestore/firestoreShared';
+import { docToRecord, sanitizeForFirestore } from '@/services/storage/firestore/firestoreShared';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import {
   createPartialUpdateDailyRecordCommand,
@@ -355,12 +355,10 @@ const updatePartialDetailedWithinLock = async (
       );
     }
   }
-  if (specialistScopedPatch) {
-    remoteWriteOptions.specialistHandoffTargets =
-      options.specialistHandoffTargets || buildSpecialistHandoffTargets(current, command.patch);
-    if (specialistHandoff)
-      syncContract.specialistHandoffTargets = remoteWriteOptions.specialistHandoffTargets;
-  }
+  const handoffTargets = specialistScopedPatch
+    ? options.specialistHandoffTargets || buildSpecialistHandoffTargets(current, command.patch)
+    : undefined;
+  remoteWriteOptions.specialistHandoffTargets = handoffTargets;
 
   const suspiciousShrinkages = await resolveBlockingFieldShrinkages(
     command.date,
@@ -376,7 +374,7 @@ const updatePartialDetailedWithinLock = async (
     });
   }
 
-  const nextAction = await persistLocalAndAttemptRemoteSync({
+  await persistLocalAndAttemptRemoteSync({
     date: command.date,
     record: validatedRecord,
     changedPaths: semanticChangedPaths,
@@ -389,15 +387,37 @@ const updatePartialDetailedWithinLock = async (
         remoteWriteOptions
       ),
     queueLocalBeforeRemote: () =>
-      queueDailyRecordSyncTaskWithLocalRecord(
-        validatedRecord,
-        {
-          contexts: classifyConflictChangedContexts(semanticChangedPaths),
-          origin: 'direct_queue',
-          syncContract,
-        },
-        buildPreOutboxRemoteAckOptions(syncContract)
-      ),
+      specialistHandoff && handoffTargets
+        ? // Its own task, replayed through the same occupant-bound callable.
+          queueDailyRecordSyncTaskWithLocalRecord(
+            validatedRecord,
+            {
+              contexts: ['handoff'],
+              origin: 'direct_queue',
+              syncContract: {
+                changedPaths: semanticChangedPaths,
+                mutationId: syncContract.mutationId,
+              },
+            },
+            undefined,
+            {
+              date: command.date,
+              patch: sanitizeForFirestore(guardedCommandPolicy.remoteAuthorityPatch) as Record<
+                string,
+                unknown
+              >,
+              expectedOccupants: handoffTargets,
+            }
+          )
+        : queueDailyRecordSyncTaskWithLocalRecord(
+            validatedRecord,
+            {
+              contexts: classifyConflictChangedContexts(semanticChangedPaths),
+              origin: 'direct_queue',
+              syncContract,
+            },
+            buildPreOutboxRemoteAckOptions(syncContract)
+          ),
     ...buildPreOutboxRemoteAckCallbacks(validatedRecord, syncContract),
     readRemoteConfirmedRecord: () => getRecordFromFirestore(command.date, { source: 'server' }),
     ...(!specialistHandoff &&
@@ -431,10 +451,16 @@ const updatePartialDetailedWithinLock = async (
     remoteAuthorityFirst: specialistHandoff || guardedCommandPolicy.remoteAuthorityFirst,
     allowOfflineQueue: specialistHandoff,
   });
-  if (nextAction === 'return') {
-    return buildPartialUpdateResult(command.date, remoteState, patchedFields);
+  if (remoteState.savedRemotely && handoffTargets) {
+    // The server took this exact text for these patients: only now may its drafts go.
+    const { confirmSpecialistHandoffDrafts } =
+      await import('@/services/storage/medicalHandoffDraftStorage');
+    confirmSpecialistHandoffDrafts({
+      date: command.date,
+      patch: command.patch,
+      expectedOccupants: handoffTargets,
+    });
   }
-
   return buildPartialUpdateResult(command.date, remoteState, patchedFields);
 };
 

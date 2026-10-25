@@ -1,7 +1,7 @@
 import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
 import type { ErrorSeverity } from '@/services/logging/errorLogTypes';
 import { logError } from '@/services/utils/errorService';
-import type { SyncTask } from '@/services/storage/syncQueueTypes';
+import type { SpecialistHandoffSyncPayload, SyncTask } from '@/services/storage/syncQueueTypes';
 import type { SyncTransportResult } from '@/services/storage/sync/syncQueuePorts';
 import type { SyncErrorCategory } from '@/services/storage/syncErrorCatalog';
 import type {
@@ -26,8 +26,6 @@ import {
 import {
   buildSyncTaskContract,
   mergeSyncTaskContracts,
-  preserveIncompatibleHandoffTask,
-  publishPreservedHandoffDraft,
 } from '@/services/storage/sync/syncTaskContractPolicy';
 import {
   clearSyncTaskRuntimeState,
@@ -155,14 +153,16 @@ export const createSyncQueueEngine = ({
     );
   };
 
-  const enqueueDailyRecordWithLocalRecord = async (
+  const queueDailyRecordTaskWithLocalRecord = async (
     record: DailyRecord,
     meta?: Pick<SyncTask, 'contexts' | 'origin' | 'recoveryPolicy' | 'syncContract'>,
     options: SyncQueueEnqueueOptions = {},
-    onConflict: (task: SyncTask) => void = () => {}
+    /** A specialist note is its own task: never coalesced into the day record task. */
+    handoff?: SpecialistHandoffSyncPayload
   ): Promise<SyncQueueEnqueueResult> => {
-    const type: SyncTask['type'] = 'UPDATE_DAILY_RECORD';
-    const key = getSyncTaskKey(type, record);
+    const type: SyncTask['type'] = handoff ? 'UPDATE_SPECIALIST_HANDOFF' : 'UPDATE_DAILY_RECORD';
+    const payload = handoff ?? record;
+    const key = getSyncTaskKey(type, payload);
     const ownerKey = runtime.getOwnerKey();
     const taskOwnerKey = ownerKey ?? undefined;
     const now = Date.now();
@@ -170,15 +170,10 @@ export const createSyncQueueEngine = ({
       contexts: meta?.contexts,
       recoveryPolicy: meta?.recoveryPolicy,
     });
-    const existing = await preserveIncompatibleHandoffTask(
-      store,
-      key ? await store.findReusableTask(type, key, ownerKey) : null,
-      record,
-      onConflict
-    );
+    const existing = key ? await store.findReusableTask(type, key, ownerKey) : null;
     const syncContract = mergeSyncTaskContracts(
       existing?.syncContract,
-      buildSyncTaskContract(type, record, meta?.syncContract)
+      buildSyncTaskContract(type, payload, meta?.syncContract)
     );
 
     const pendingTasks = await countActiveTasks(ownerKey);
@@ -194,7 +189,7 @@ export const createSyncQueueEngine = ({
     const mode = await store.saveDailyRecordWithTask(record, {
       opId: `${type}:${key ?? 'global'}:${now}`,
       type,
-      payload: record,
+      payload,
       timestamp: now,
       retryCount: 0,
       key,
@@ -208,29 +203,15 @@ export const createSyncQueueEngine = ({
       ...resolvePreOutboxHoldState(now, options),
     });
 
+    if (!options.deferProcessing) {
+      triggerProcessing();
+    }
     return {
       accepted: true,
       mode,
       pendingTasks: mode === 'created' ? pendingTasks + 1 : pendingTasks,
       maxPendingTasks,
     };
-  };
-  const queueDailyRecordTaskWithLocalRecord = async (
-    record: DailyRecord,
-    meta?: Pick<SyncTask, 'contexts' | 'origin' | 'recoveryPolicy' | 'syncContract'>,
-    options: SyncQueueEnqueueOptions = {}
-  ): Promise<SyncQueueEnqueueResult> => {
-    let orphan: SyncTask | undefined;
-    const operation = () =>
-      enqueueDailyRecordWithLocalRecord(record, meta, options, task => {
-        orphan = task;
-      });
-    const result = await (store.withEnqueueTransaction
-      ? store.withEnqueueTransaction(operation)
-      : operation());
-    await publishPreservedHandoffDraft(orphan);
-    if (result.accepted && !options.deferProcessing) triggerProcessing();
-    return result;
   };
   const replacePendingDailyRecordTaskWithLocalRecord = async (
     record: DailyRecord,

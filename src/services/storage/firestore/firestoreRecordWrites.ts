@@ -53,7 +53,6 @@ import {
   shouldRouteSpecialistPatchViaCallable,
   tryShadowDailyRecordPatchViaCallable,
   tryShadowDailyRecordSaveViaCallable,
-  updateSpecialistMedicalHandoffViaCallable,
   type DailyRecordPartialWriteOptions,
   type DailyRecordSaveWriteOptions,
 } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
@@ -275,6 +274,8 @@ export const updateRecordPartial = async (
       const persist = async () => {
         if (specialistScopedPatch && (await shouldRouteSpecialistPatchViaCallable())) {
           await assertDirectWriteConcurrency();
+          const { updateSpecialistMedicalHandoffViaCallable } =
+            await import('./specialistMedicalHandoffClient');
           return withRetry(
             () =>
               updateSpecialistMedicalHandoffViaCallable(

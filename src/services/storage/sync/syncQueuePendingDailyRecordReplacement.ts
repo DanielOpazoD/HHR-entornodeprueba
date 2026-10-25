@@ -6,9 +6,6 @@ import { buildSyncQueueTaskContextMeta } from '@/services/storage/sync/syncQueue
 import {
   buildSyncTaskContract,
   mergeSyncTaskContracts,
-  assertPendingHandoffContinuity,
-  preserveIncompatibleHandoffTask,
-  publishPreservedHandoffDraft,
 } from '@/services/storage/sync/syncTaskContractPolicy';
 import {
   clearSyncTaskRuntimeState,
@@ -29,7 +26,6 @@ export const buildPendingDailyRecordReplacementTask = ({
   meta?: ReplacementMeta;
   existing: SyncTask;
 }): SyncTask => {
-  assertPendingHandoffContinuity(existing, record);
   const contextMeta = buildSyncQueueTaskContextMeta({
     contexts: meta?.contexts,
     recoveryPolicy: meta?.recoveryPolicy,
@@ -51,13 +47,13 @@ export const buildPendingDailyRecordReplacementTask = ({
   };
 };
 
-const replaceWithinTransaction = async ({
+export const replacePendingDailyRecordTask = async ({
   record,
   meta,
   store,
   runtime,
+  triggerProcessing,
   expectedTask,
-  onConflict,
 }: {
   record: DailyRecord;
   meta?: ReplacementMeta;
@@ -65,7 +61,6 @@ const replaceWithinTransaction = async ({
   runtime: SyncRuntimePort;
   triggerProcessing: () => void;
   expectedTask?: PendingDailyRecordSyncTaskIdentity;
-  onConflict?: (task: SyncTask) => void;
 }): Promise<boolean> => {
   if (!store.replacePendingDailyRecordWithTask) return false;
   const type: SyncTask['type'] = 'UPDATE_DAILY_RECORD';
@@ -84,34 +79,12 @@ const replaceWithinTransaction = async ({
     return false;
   }
 
-  // A replacement cannot acknowledge the orphan as saved. Leave it in quarantine
-  // and let the caller enqueue the fresh write through the ordinary atomic path.
-  if (!(await preserveIncompatibleHandoffTask(store, existing, record, onConflict || (() => {}))))
-    return false;
   const replacementTask = buildPendingDailyRecordReplacementTask({ record, meta, existing });
   const replaced = await store.replacePendingDailyRecordWithTask(
     record,
     { ...replacementTask, key, ownerKey: ownerKey ?? undefined },
     expectedTask
   );
-  return replaced;
-};
-
-export const replacePendingDailyRecordTask = async (
-  args: Parameters<typeof replaceWithinTransaction>[0]
-): Promise<boolean> => {
-  let orphan: SyncTask | undefined;
-  const operation = () =>
-    replaceWithinTransaction({
-      ...args,
-      onConflict: task => {
-        orphan = task;
-      },
-    });
-  const replaced = await (args.store.withEnqueueTransaction
-    ? args.store.withEnqueueTransaction(operation)
-    : operation());
-  await publishPreservedHandoffDraft(orphan);
-  if (replaced) args.triggerProcessing();
+  if (replaced) triggerProcessing();
   return replaced;
 };

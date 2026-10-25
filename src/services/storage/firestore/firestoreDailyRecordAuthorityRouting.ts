@@ -1,7 +1,4 @@
-import { buildLegacyClinicalEpisodeId } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
 import { httpsCallable } from 'firebase/functions';
-import { getDoc } from 'firebase/firestore';
-import { getRecordDocRef } from './firestoreShared';
 import type { SpecialistHandoffTarget } from './specialistMedicalHandoffIdentity';
 import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
 import {
@@ -75,12 +72,6 @@ export interface DailyRecordSaveWriteOptions {
    * need. Otherwise copies follow the hourly cadence (historySnapshotCadence).
    */
   historyPolicy?: 'snapshot';
-}
-
-interface SpecialistMedicalHandoffCallablePayload {
-  expectedOccupants: SpecialistHandoffTarget[];
-  date: string;
-  patch: Record<string, unknown>;
 }
 
 // Clasificación de rutas: delega en el CONTRATO ÚNICO de autoridad (la
@@ -171,66 +162,6 @@ export const shouldRouteSpecialistPatchViaCallable = async (): Promise<boolean> 
   } catch (error) {
     firestoreWriteLogger.warn('Specialist callable routing role check failed', { error });
     return false;
-  }
-};
-
-export const updateSpecialistMedicalHandoffViaCallable = async (
-  date: string,
-  patch: Record<string, unknown>,
-  expectedOccupants: SpecialistHandoffTarget[]
-): Promise<void> => {
-  const conflict = () =>
-    new ConcurrencyError(
-      `El paciente o episodio de la cama ${expectedOccupants.map(target => target.bedId).join(', ')} cambió o no se pudo confirmar. El texto se conserva como borrador del paciente original; revísalo antes de recargar.`,
-      'semantic_conflict'
-    );
-  if (!expectedOccupants.length || expectedOccupants.some(target => !target.clinicalEpisodeId)) {
-    throw conflict();
-  }
-  // Re-read on EVERY attempt, including retries after ambiguous transport failures.
-  const snapshot = await getDoc(getRecordDocRef(date));
-  const record = snapshot.data();
-  if (
-    !snapshot.exists() ||
-    expectedOccupants.some(expected => {
-      const bed = record?.beds?.[expected.bedId];
-      const patient = expected.target === 'clinicalCrib' ? bed?.clinicalCrib : bed;
-      return (
-        !patient ||
-        !patient.patientName?.trim() ||
-        (patient.clinicalEpisodeId?.trim() || buildLegacyClinicalEpisodeId(patient)) !==
-          expected.clinicalEpisodeId ||
-        (patient.rut?.trim() ?? '') !== expected.rut ||
-        (patient.documentType ?? 'RUT') !== expected.documentType ||
-        (patient.patientName?.trim() ?? '') !== expected.patientName
-      );
-    })
-  )
-    throw conflict();
-  const functions = await defaultFunctionsRuntime.getFunctions();
-  const callable = httpsCallable<
-    SpecialistMedicalHandoffCallablePayload,
-    { success: boolean; date: string; bedId: string }
-  >(functions, 'updateSpecialistMedicalHandoff', { timeout: 45_000 });
-
-  try {
-    await callable({ date, patch, expectedOccupants });
-  } catch (error) {
-    if (
-      typeof error === 'object' &&
-      error !== null &&
-      'code' in error &&
-      (error.code === 'functions/failed-precondition' || error.code === 'failed-precondition')
-    ) {
-      throw conflict();
-    }
-    if (error instanceof Error && error.message.includes('current clinical day')) {
-      throw new ConcurrencyError(
-        'Cambió el día clínico. La entrega pendiente se conserva para revisión manual; no fue publicada.',
-        'semantic_conflict'
-      );
-    }
-    throw error;
   }
 };
 

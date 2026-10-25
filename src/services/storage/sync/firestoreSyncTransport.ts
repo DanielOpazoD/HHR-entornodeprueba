@@ -1,5 +1,3 @@
-import { assertPendingHandoffContinuity } from './syncTaskContractPolicy';
-import { updateSpecialistMedicalHandoffViaCallable } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import { deleteField, getDoc, runTransaction, type Transaction } from 'firebase/firestore';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type {
@@ -38,6 +36,7 @@ import {
   hasRemoteAppliedMutation,
 } from '@/services/storage/sync/firestoreSyncConflictPolicy';
 import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
+import { hasChangedHandoffOccupant } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
 import {
   adoptStoredClinicalDerivedState,
   withClearedStoredMovedFields,
@@ -101,21 +100,6 @@ const shouldRevalidateAgainstRemote = (
   return toMillis(remoteLastUpdated) > toMillis(expectedVersion);
 };
 
-const handoffPathsForTask = (task: SyncTask): string[] =>
-  (task.syncContract?.changedPaths || []).filter(path =>
-    /^beds\.[^.]+\.(?:clinicalCrib\.)?medicalHandoff(?:Note|Entries|Audit)$/.test(path)
-  );
-
-const queuedPatchValue = (record: DailyRecord, path: string): unknown => {
-  const [, bedId, field, nestedField] = path.split('.');
-  const patient = field === 'clinicalCrib' ? record.beds[bedId]?.clinicalCrib : record.beds[bedId];
-  const key = nestedField || field;
-  if (key === 'medicalHandoffNote') return patient?.medicalHandoffNote;
-  if (key === 'medicalHandoffEntries') return patient?.medicalHandoffEntries;
-  if (key === 'medicalHandoffAudit') return patient?.medicalHandoffAudit;
-  throw new Error('Invalid queued handoff field');
-};
-
 interface ResolvedSyncRecordForTask {
   record: DailyRecord;
   resolution: NonNullable<SyncTask['syncContract']>['resolution'];
@@ -141,7 +125,6 @@ const resolveRecordForSyncTask = async (
   }
 
   const remoteData = remoteSnap.data() as Record<string, unknown>;
-  assertPendingHandoffContinuity(task, docToRecord(remoteData, record.date));
   const remoteLastUpdated = getRemoteLastUpdated(remoteData);
   if (hasRemoteAppliedMutation(task, remoteData.meta as Record<string, unknown> | undefined)) {
     return {
@@ -150,6 +133,19 @@ const resolveRecordForSyncTask = async (
       acceptedVersion: remoteLastUpdated,
       storedData: remoteData,
     };
+  }
+  // A day task typed before the deploy, or by a non-specialist, never moves a note to the next occupant.
+  if (
+    hasChangedHandoffOccupant(
+      task.syncContract?.changedPaths,
+      record,
+      docToRecord(remoteData, record.date)
+    )
+  ) {
+    throw new ConcurrencyError(
+      'La cola conserva una entrega del paciente anterior. Revísala antes de reemplazarla.',
+      'semantic_conflict'
+    );
   }
 
   if (!shouldRevalidateAgainstRemote(remoteLastUpdated, task.syncContract?.expectedVersion)) {
@@ -239,32 +235,6 @@ const syncDailyRecord = async (
   return measureRepositoryOperation(
     'syncQueue.writeDailyRecord',
     async () => {
-      if (task.syncContract?.specialistHandoffTargets?.length) {
-        const paths = handoffPathsForTask(task);
-        if (paths.length !== task.syncContract.changedPaths?.length) {
-          throw new ConcurrencyError(
-            'La entrega pendiente requiere revisión antes de publicar otros cambios.',
-            'semantic_conflict'
-          );
-        }
-        for (const bedId of new Set(
-          task.syncContract.specialistHandoffTargets.map(target => target.bedId)
-        )) {
-          await updateSpecialistMedicalHandoffViaCallable(
-            record.date,
-            Object.fromEntries(
-              paths
-                .filter(path => path.split('.')[1] === bedId)
-                .map(path => [path, queuedPatchValue(record, path)])
-            ),
-            task.syncContract.specialistHandoffTargets.filter(target => target.bedId === bedId)
-          );
-        }
-        const snapshot = await getDoc(getRecordDocRef(record.date, runtime));
-        if (!snapshot.exists())
-          throw new ConcurrencyError('No se pudo confirmar la entrega sincronizada.');
-        return { authoritativeRecord: docToRecord(snapshot.data(), record.date) };
-      }
       const resolved = await resolveRecordForSyncTask(task, record, runtime);
       if (resolved.resolution === 'already_applied') {
         recordSyncQueueTruthSelectionTelemetry(task, {
@@ -372,6 +342,10 @@ export const createFirestoreSyncTransport = (
         return;
       case 'UPDATE_DAILY_RECORD':
         return syncDailyRecord(task, task.payload as DailyRecord, runtime);
+      case 'UPDATE_SPECIALIST_HANDOFF':
+        return import('./specialistHandoffSyncTransport').then(({ replaySpecialistHandoff }) =>
+          replaySpecialistHandoff(task)
+        );
       default:
         throw new Error(`[SyncQueue] Unsupported task type: ${String(task.type)}`);
     }

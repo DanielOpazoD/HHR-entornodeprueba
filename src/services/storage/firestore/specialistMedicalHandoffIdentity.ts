@@ -1,31 +1,47 @@
 import { buildLegacyClinicalEpisodeId } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
+import type { PatientData } from '@/types/domain/patient';
 
 import type { SpecialistHandoffTarget } from '@/types/domain/specialistHandoffTarget';
 export type { SpecialistHandoffTarget } from '@/types/domain/specialistHandoffTarget';
 
+export type SpecialistHandoffIdentity = Omit<SpecialistHandoffTarget, 'bedId' | 'target'>;
+
+/** Patient plus episode, as the server checks them. Rows, drafts and queue keys all use this. */
+export const buildSpecialistHandoffIdentity = (
+  patient?: PatientData
+): SpecialistHandoffIdentity => ({
+  clinicalEpisodeId: patient
+    ? patient.clinicalEpisodeId?.trim() || buildLegacyClinicalEpisodeId(patient) || ''
+    : '',
+  rut: patient?.rut?.trim() ?? '',
+  documentType: patient?.documentType ?? 'RUT',
+  patientName: patient?.patientName?.trim() ?? '',
+});
+
+export const specialistHandoffIdentityKey = (identity: SpecialistHandoffIdentity): string =>
+  JSON.stringify([
+    identity.documentType,
+    identity.rut,
+    identity.patientName,
+    identity.clinicalEpisodeId,
+  ]);
+
 /** Freeze the identities from the edited record, never from a retry's fresh occupant. */
 export const buildSpecialistHandoffTargets = (
   record: DailyRecord,
-  patch: DailyRecordPatch
+  patch: object
 ): SpecialistHandoffTarget[] => {
   const targets = new Map<string, SpecialistHandoffTarget>();
   for (const path of Object.keys(patch)) {
     const [root, bedId, field] = path.split('.');
     if (root !== 'beds' || !bedId) continue;
     const target = field === 'clinicalCrib' ? 'clinicalCrib' : 'bed';
-    const bed = record.beds[bedId];
-    const patient = target === 'clinicalCrib' ? bed?.clinicalCrib : bed;
+    const bed = record.beds?.[bedId];
     targets.set(`${bedId}.${target}`, {
       bedId,
       target,
-      clinicalEpisodeId: patient
-        ? patient.clinicalEpisodeId?.trim() || buildLegacyClinicalEpisodeId(patient) || ''
-        : '',
-      rut: patient?.rut?.trim() ?? '',
-      documentType: patient?.documentType ?? 'RUT',
-      patientName: patient?.patientName?.trim() ?? '',
+      ...buildSpecialistHandoffIdentity(target === 'clinicalCrib' ? bed?.clinicalCrib : bed),
     });
   }
   return [...targets.values()];
@@ -41,3 +57,22 @@ export const sameSpecialistHandoffTarget = (
   left.rut === right.rut &&
   left.documentType === right.documentType &&
   left.patientName === right.patientName;
+
+/** A queued handoff path whose bed now holds another patient or episode than when it was typed. */
+export const hasChangedHandoffOccupant = (
+  changedPaths: string[] = [],
+  queued: DailyRecord,
+  remote: DailyRecord
+): boolean => {
+  const patch = Object.fromEntries(
+    changedPaths
+      .filter(path =>
+        /^beds\.[^.]+\.(?:clinicalCrib\.)?medicalHandoff(?:Note|Entries|Audit)$/.test(path)
+      )
+      .map(path => [path, null])
+  );
+  const actual = buildSpecialistHandoffTargets(remote, patch);
+  return buildSpecialistHandoffTargets(queued, patch).some(
+    expected => !actual.some(target => sameSpecialistHandoffTarget(target, expected))
+  );
+};
