@@ -22,6 +22,36 @@ describe('specialist callable retries', () => {
     mockHttpsCallable.mockReturnValue(mockSpecialistCallable);
     mockSpecialistCallable.mockResolvedValue({ data: { success: true } });
   });
+  it('accepts the same legacy id from a stored patient without episode metadata', async () => {
+    mockGetCurrentUser.mockReturnValue({ uid: 'synthetic', isAnonymous: false });
+    mockResolveFirebaseUserRole.mockResolvedValue('doctor_specialist');
+    const { buildLegacyClinicalEpisodeId } =
+      await import('@/application/patient-flow/clinicalEpisodeIdPolicy');
+    const patient = {
+      ...specialistHandoffTargets[0],
+      clinicalEpisodeId: undefined,
+      admissionDate: '2026-03-18',
+      admissionTime: '10:00',
+    };
+    const clinicalEpisodeId = buildLegacyClinicalEpisodeId(patient) || '';
+    vi.mocked(getDoc).mockResolvedValue({
+      exists: () => true,
+      data: () => ({ beds: { R4: patient } }),
+    } as never);
+    await updateRecordPartial(
+      '2026-03-20',
+      { 'beds.R4.medicalHandoffNote': 'Nota heredada' },
+      undefined,
+      {
+        specialistHandoffTargets: [{ ...specialistHandoffTargets[0], clinicalEpisodeId }],
+      }
+    );
+    expect(mockSpecialistCallable).toHaveBeenCalledWith(
+      expect.objectContaining({
+        expectedOccupants: [expect.objectContaining({ clinicalEpisodeId })],
+      })
+    );
+  });
   it('does not resend a specialist note after turnover during a transport retry', async () => {
     mockGetCurrentUser.mockReturnValue({ uid: 'synthetic', isAnonymous: false });
     mockResolveFirebaseUserRole.mockResolvedValue('doctor_specialist');
@@ -66,7 +96,7 @@ describe('specialist callable retries', () => {
       { specialistHandoffTargets }
     ).catch(error => error);
     expect(error).toBeInstanceOf(ConcurrencyError);
-    expect(error.message).toMatch(/R4.*Recarga/);
+    expect(error.message).toMatch(/R4.*borrador/);
     expect(resolvePatchErrorFeedback(error)).toMatchObject({
       title: 'Conflicto de Edición',
       message: error.message,

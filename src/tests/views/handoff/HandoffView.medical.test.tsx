@@ -73,6 +73,7 @@ const setAuthorizedSpecialistAuth = () => {
 
 describe('HandoffView medical flows', () => {
   beforeEach(() => {
+    localStorage.clear();
     vi.clearAllMocks();
     vi.useRealTimers();
     mockUseAuthState.user = {

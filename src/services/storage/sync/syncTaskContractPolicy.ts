@@ -1,3 +1,5 @@
+import { buildSpecialistHandoffTargets } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
+import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 import { resolveClinicalEpisodeIdentifier } from '@/application/patient-flow/clinicalEpisode';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
@@ -112,13 +114,72 @@ export const mergeSyncTaskContracts = (
   if (!existing) return next;
   if (!next) return existing;
 
+  const targets = [
+    ...(existing.specialistHandoffTargets || []),
+    ...(next.specialistHandoffTargets || []),
+  ];
+  const byTarget = new Map<string, (typeof targets)[number]>();
+  for (const target of targets) {
+    const key = `${target.bedId}.${target.target}`;
+    const previous = byTarget.get(key);
+    if (
+      previous &&
+      (previous.clinicalEpisodeId !== target.clinicalEpisodeId ||
+        previous.rut !== target.rut ||
+        previous.documentType !== target.documentType ||
+        previous.patientName !== target.patientName)
+    ) {
+      throw new ConcurrencyError(
+        'Existe una entrega pendiente de otro paciente o episodio; debe revisarse antes de reemplazarla.',
+        'semantic_conflict'
+      );
+    }
+    byTarget.set(key, target);
+  }
   return {
     ...existing,
     ...next,
+    ...(byTarget.size ? { specialistHandoffTargets: [...byTarget.values()] } : {}),
     expectedVersion: next.expectedVersion ?? existing.expectedVersion,
     baseRevision: next.baseRevision ?? existing.baseRevision,
     changedPaths: mergeUnique(existing.changedPaths, next.changedPaths),
     clinicalEpisodeKeys: mergeUnique(existing.clinicalEpisodeKeys, next.clinicalEpisodeKeys),
     mutationIds: mergeMutationIds(existing, next),
   };
+};
+
+/** Refuse a coalesced payload that would erase an unresolved note from its original occupant. */
+export const assertPendingHandoffContinuity = (
+  existing: SyncTask | null,
+  next: DailyRecord
+): void => {
+  if (!existing || existing.type !== 'UPDATE_DAILY_RECORD') return;
+  const paths = (existing.syncContract?.changedPaths || []).filter(path =>
+    /^beds\.[^.]+\.(?:clinicalCrib\.)?medicalHandoff(?:Note|Entries|Audit)$/.test(path)
+  );
+  if (!paths.length) return;
+  const patch = Object.fromEntries(paths.map(path => [path, undefined]));
+  const expected =
+    existing.syncContract?.specialistHandoffTargets ||
+    buildSpecialistHandoffTargets(existing.payload as DailyRecord, patch);
+  const actual = buildSpecialistHandoffTargets(next, patch);
+  if (
+    expected.some(
+      target =>
+        !actual.some(
+          current =>
+            current.bedId === target.bedId &&
+            current.target === target.target &&
+            current.clinicalEpisodeId === target.clinicalEpisodeId &&
+            current.rut === target.rut &&
+            current.documentType === target.documentType &&
+            current.patientName === target.patientName
+        )
+    )
+  ) {
+    throw new ConcurrencyError(
+      'La cola conserva una entrega del paciente anterior. Revisa ese conflicto antes de reemplazar su contenido.',
+      'semantic_conflict'
+    );
+  }
 };

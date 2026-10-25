@@ -1,5 +1,6 @@
 import { createRequire } from 'node:module';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { buildLegacyClinicalEpisodeId } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
 
 const require = createRequire(import.meta.url);
 const {
@@ -24,8 +25,14 @@ const replacement = {
 
 // Models Firestore's optimistic transaction: a concurrent version discards staged writes and
 // reruns the callback with the new snapshot. Direct updates intentionally have no such protection.
-const setup = (turnover?: () => typeof patient, crib = false) => {
-  let occupant = { ...patient };
+type Occupant = Omit<typeof patient, 'clinicalEpisodeId'> & {
+  clinicalEpisodeId?: string;
+  admissionDate?: string;
+  firstSeenDate?: string;
+  admissionTime?: string;
+};
+const setup = (turnover?: () => Occupant, crib = false, initial: Occupant = patient) => {
+  let occupant = { ...initial };
   const writes: Record<string, unknown>[] = [];
   const snapshot = () => {
     const captured = { ...occupant };
@@ -91,6 +98,11 @@ const setup = (turnover?: () => typeof patient, crib = false) => {
         },
         context
       ),
+    legacyWrite: () =>
+      api.updateSpecialistMedicalHandoff.run(
+        { date: '2026-01-01', patch: { 'beds.R4.medicalHandoffNote': 'Nota antigua sintética' } },
+        context
+      ),
     writes,
     occupant: () => occupant,
   };
@@ -109,6 +121,23 @@ describe('specialist handoff occupant binding', () => {
       expect(app.occupant().medicalHandoffNote).toBe('');
     }
   );
+
+  it('rejects a same-patient readmission with a different episode', async () => {
+    const app = setup(() => ({ ...patient, clinicalEpisodeId: 'synthetic-readmission' }));
+    await expect(app.write()).rejects.toMatchObject({ code: 'failed-precondition' });
+    expect(app.writes).toEqual([]);
+  });
+
+  it('rejects a mother’s bed note when the newborn moves into that bed', async () => {
+    const app = setup(() => ({
+      ...patient,
+      rut: '',
+      patientName: 'RN Sintético',
+      clinicalEpisodeId: 'synthetic-newborn',
+    }));
+    await expect(app.write()).rejects.toMatchObject({ code: 'failed-precondition' });
+    expect(app.writes).toEqual([]);
+  });
 
   it('rejects a different patient even when an episode id was reused', async () => {
     const app = setup(() => ({ ...replacement, clinicalEpisodeId: patient.clinicalEpisodeId }));
@@ -134,6 +163,39 @@ describe('specialist handoff occupant binding', () => {
       code: 'failed-precondition',
     });
     expect(app.writes).toEqual([]);
+  });
+
+  it.each([false, true])(
+    'accepts hydrated or raw legacy patients using the existing id policy (crib=%s)',
+    async crib => {
+      const legacy = {
+        ...patient,
+        clinicalEpisodeId: undefined,
+        admissionDate: '2025-12-30',
+        admissionTime: '09:10',
+      };
+      const app = setup(undefined, crib, legacy);
+      const clinicalEpisodeId = buildLegacyClinicalEpisodeId(legacy);
+      await expect(
+        app.write([{ ...expected, target: crib ? 'clinicalCrib' : 'bed', clinicalEpisodeId }])
+      ).resolves.toMatchObject({ success: true });
+      expect(app.occupant().medicalHandoffNote).toBe('Nota de A sintético');
+    }
+  );
+
+  it('accepts the pre-deploy payload atomically and emits removable compatibility telemetry', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const app = setup();
+      await expect(app.legacyWrite()).resolves.toMatchObject({ success: true });
+      expect(app.occupant().medicalHandoffNote).toBe('Nota antigua sintética');
+      expect(warn).toHaveBeenCalledWith(
+        'specialist_handoff_legacy_client',
+        expect.objectContaining({ bedId: 'R4' })
+      );
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it('writes the note normally for the expected patient and episode', async () => {

@@ -26,6 +26,7 @@ import {
 import {
   buildSyncTaskContract,
   mergeSyncTaskContracts,
+  assertPendingHandoffContinuity,
 } from '@/services/storage/sync/syncTaskContractPolicy';
 import {
   clearSyncTaskRuntimeState,
@@ -168,6 +169,7 @@ export const createSyncQueueEngine = ({
       recoveryPolicy: meta?.recoveryPolicy,
     });
     const existing = key ? await store.findReusableTask(type, key, ownerKey) : null;
+    assertPendingHandoffContinuity(existing, record);
     const syncContract = mergeSyncTaskContracts(
       existing?.syncContract,
       buildSyncTaskContract(type, record, meta?.syncContract)

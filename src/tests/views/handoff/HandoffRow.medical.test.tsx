@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import '../../setup';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, fireEvent, screen } from '@testing-library/react';
 import React from 'react';
 
@@ -14,6 +14,7 @@ import {
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 
 describe('HandoffRow medical flows', () => {
+  beforeEach(() => localStorage.clear());
   const mockPatient = createMockPatient({
     patientName: 'Test Patient',
     pathology: 'Pathology Test',

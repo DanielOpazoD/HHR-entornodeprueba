@@ -61,7 +61,8 @@ describe('useHandoffLogic medical handoff', () => {
             note: 'Evolución especialista',
           }),
         ]),
-      })
+      }),
+      expect.objectContaining({ patientName: expect.any(String), rut: expect.any(String) })
     );
 
     setDailyRecordDataMock({
@@ -107,7 +108,8 @@ describe('useHandoffLogic medical handoff', () => {
             currentStatus: 'updated_by_specialist',
           }),
         ]),
-      })
+      }),
+      expect.objectContaining({ patientName: expect.any(String), rut: expect.any(String) })
     );
     expect(DEFAULT_NO_CHANGES_COMMENT).toContain('sin cambios');
   });
@@ -188,7 +190,8 @@ describe('useHandoffLogic medical handoff', () => {
       'R1',
       expect.objectContaining({
         medicalHandoffNote: 'Nota RN',
-      })
+      }),
+      expect.objectContaining({ patientName: expect.any(String), rut: expect.any(String) })
     );
   });
 

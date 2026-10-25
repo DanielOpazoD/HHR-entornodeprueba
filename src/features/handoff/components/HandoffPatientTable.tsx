@@ -1,3 +1,5 @@
+import { medicalHandoffPatientKey } from './MedicalHandoffDraftTextarea';
+import { MedicalHandoffDraftsPanel } from './MedicalHandoffDraftsPanel';
 import React, { useState } from 'react';
 import { BedDefinition } from '@/types/domain/beds';
 import type { DailyRecord } from '@/domain/handoff/recordContracts';
@@ -37,12 +39,20 @@ export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
 }) => {
   const [allEventsExpanded, setAllEventsExpanded] = useState(false);
 
-  const resolveRowMedicalActions = (bedId: string, isNested: boolean) => ({
+  const currentRecord = React.useRef(record);
+  currentRecord.current = record;
+  const stillOccupies = (bedId: string, isNested: boolean, patient: PatientData) => {
+    const bed = currentRecord.current.beds[bedId];
+    const current = isNested ? bed?.clinicalCrib : bed;
+    return current && medicalHandoffPatientKey(current) === medicalHandoffPatientKey(patient);
+  };
+  const resolveRowMedicalActions = (bedId: string, isNested: boolean, patient: PatientData) => ({
     onCreatePrimaryEntry: medicalActions?.onCreatePrimaryEntry
       ? () => medicalActions.onCreatePrimaryEntry?.(bedId, isNested)
       : undefined,
     onEntryNoteChange: medicalActions?.onEntryNoteChange
       ? (entryId: string, value: string) =>
+          stillOccupies(bedId, isNested, patient) &&
           medicalActions.onEntryNoteChange?.(bedId, entryId, value, isNested)
       : undefined,
     onEntrySpecialtyChange: medicalActions?.onEntrySpecialtyChange
@@ -80,15 +90,18 @@ export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
     options: { isNested: boolean; forcedExpand?: boolean }
   ) => (
     <HandoffRow
-      key={`${bed.id}-${options.isNested ? 'crib' : 'main'}`}
+      key={`${bed.id}-${options.isNested ? 'crib' : 'main'}:${medicalHandoffPatientKey(patient)}`}
       bedName={bed.name}
       bedType={options.isNested ? 'Cuna' : bed.type}
       patient={patient}
       reportDate={record.date}
       isSubRow={options.isNested}
       noteField={noteField}
-      onNoteChange={value => onNoteChange(bed.id, value, options.isNested)}
-      medicalActions={resolveRowMedicalActions(bed.id, options.isNested)}
+      onNoteChange={value => {
+        if (stillOccupies(bed.id, options.isNested, patient))
+          onNoteChange(bed.id, value, options.isNested);
+      }}
+      medicalActions={resolveRowMedicalActions(bed.id, options.isNested, patient)}
       readOnly={readOnly}
       isMedical={isMedical}
       forcedExpand={options.forcedExpand}
@@ -98,6 +111,7 @@ export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 ring-1 ring-black/[0.02] overflow-hidden print:shadow-none print:border-none print:rounded-none print:overflow-visible">
+      {isMedical && <MedicalHandoffDraftsPanel date={record.date} />}
       <div className="overflow-x-auto">
         <table className="w-full table-fixed text-left border-collapse print:[&_th]:p-1 print:[&_td]:p-1 print:[&_th]:text-[10px] print:[&_td]:text-[10px]">
           <thead>

@@ -1,3 +1,4 @@
+import { buildLegacyClinicalEpisodeId } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
 import type {
   MedicalHandoffAuditActor,
   MedicalHandoffEntry,
@@ -149,7 +150,7 @@ export const buildMedicalPrimaryEntryCreateFields = (
 
   return buildMedicalHandoffFieldsFromEntries(patient, [
     createMedicalHandoffEntry(patient.specialty || getNextMedicalHandoffSpecialty(patient, []), {
-      id: 'primary-entry',
+      id: `primary-entry:${JSON.stringify([patient.documentType || 'RUT', patient.rut, patient.patientName, patient.clinicalEpisodeId || buildLegacyClinicalEpisodeId(patient)])}`,
     }),
   ]);
 };

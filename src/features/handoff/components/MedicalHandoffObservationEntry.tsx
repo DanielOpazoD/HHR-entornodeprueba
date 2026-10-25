@@ -2,7 +2,7 @@ import React from 'react';
 import clsx from 'clsx';
 import type { MedicalHandoffEntry, PatientData } from '@/domain/handoff/patientContracts';
 import { CheckCircle, Plus, Trash2 } from 'lucide-react';
-import { DebouncedTextarea } from '@/components/ui/DebouncedTextarea';
+import { MedicalHandoffDraftTextarea } from './MedicalHandoffDraftTextarea';
 import {
   resolveMedicalEntryInlineMeta,
   resolveMedicalHandoffValidityViewModel,
@@ -140,12 +140,12 @@ export const MedicalHandoffObservationEntry: React.FC<MedicalHandoffObservationE
       ) : (
         <>
           <div className="print:hidden">
-            <DebouncedTextarea
+            <MedicalHandoffDraftTextarea
+              patient={patient}
+              reportDate={reportDate}
+              entryId={entry.id}
               value={entry.note}
               onChangeValue={value => onEntryNoteChange(entry.id, value)}
-              className="w-full rounded border border-slate-200 bg-white px-2 py-1.5 text-[13px] leading-snug focus:ring-2 focus:ring-medical-500 focus:outline-none"
-              minRows={1}
-              debounceMs={1500}
             />
           </div>
           <div className="hidden print:block whitespace-pre-wrap break-words text-slate-800 print:text-[8px] print:leading-tight">

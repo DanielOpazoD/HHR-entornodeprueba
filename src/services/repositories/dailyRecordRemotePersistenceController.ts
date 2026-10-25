@@ -1,3 +1,4 @@
+import { classifySyncError } from '@/services/storage/syncErrorCatalog';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   saveRecordStrict as saveToIndexedDB,
@@ -208,6 +209,7 @@ export const persistLocalAndAttemptRemoteSync = async ({
   requireConfirmedRecord = false,
   allowConflictAutoMerge = true,
   remoteAuthorityFirst = false,
+  allowOfflineQueue = false,
 }: {
   date: string;
   record: DailyRecord;
@@ -249,6 +251,7 @@ export const persistLocalAndAttemptRemoteSync = async ({
    * IndexedDB, and never enqueue a rejected stale writer for later replay.
    */
   remoteAuthorityFirst?: boolean;
+  allowOfflineQueue?: boolean;
 }): Promise<'continue' | 'return'> => {
   if (remoteAuthorityFirst) {
     if (!isFirestoreEnabled()) {
@@ -280,6 +283,31 @@ export const persistLocalAndAttemptRemoteSync = async ({
       if (alreadyAppliedRecovery !== 'not_applied') return alreadyAppliedRecovery;
 
       onRemoteFailure(error);
+      if (
+        allowOfflineQueue &&
+        classifySyncError(error).category === 'network' &&
+        queueLocalBeforeRemote
+      ) {
+        const queued = await queueLocalBeforeRemote();
+        if (!queued.accepted) {
+          applyLocalPersistenceFailure(
+            date,
+            changedPaths,
+            toRejectedOutboxPersistenceResult(queued),
+            remoteState
+          );
+          return 'return';
+        }
+        markLocalWriteSucceeded(remoteState);
+        await releaseLocalPreOutboxHold?.();
+        remoteState.queuedForRetry = true;
+        remoteState.consistencyState = 'queued_for_retry';
+        remoteState.retryability = 'automatic_retry';
+        remoteState.recoveryAction = 'queue_retry';
+        remoteState.userSafeMessage =
+          'Entrega guardada en este dispositivo, pendiente de sincronización para el paciente y episodio originales.';
+        return 'return';
+      }
       throw error;
     }
     markRemoteWriteSucceeded(remoteState);

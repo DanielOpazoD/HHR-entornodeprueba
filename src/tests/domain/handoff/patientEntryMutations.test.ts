@@ -11,6 +11,7 @@ import {
   buildMedicalEntryRefreshFields,
   buildMedicalEntrySpecialtyFields,
   buildMedicalPrimaryNoteFields,
+  buildMedicalPrimaryEntryCreateFields,
 } from '@/domain/handoff/patientEntryMutations';
 
 const REPORT_DATE = '2026-03-03';
@@ -44,6 +45,20 @@ const createPatient = (overrides: Partial<PatientData> = {}): PatientData =>
   }) as PatientData;
 
 describe('medical patient handoff mutations domain', () => {
+  it('creates a primary entry bound to its patient and episode rather than a shared fixed id', () => {
+    const a = createPatient({
+      patientName: 'Paciente A Sintético',
+      rut: '99.999.999-9',
+      clinicalEpisodeId: 'ep-A',
+    });
+    const id = (patient: PatientData) =>
+      buildMedicalPrimaryEntryCreateFields(patient).medicalHandoffEntries?.[0].id;
+    expect(id(a)).not.toBe('primary-entry');
+    expect(id(a)).not.toBe(id({ ...a, clinicalEpisodeId: 'ep-A2' }));
+    expect(id(a)).not.toBe(id({ ...a, rut: '88.888.888-8' }));
+    expect(id(a)).toBe(id({ ...a, bedId: 'R4' }));
+  });
+
   it('builds legacy-compatible fields when updating the primary medical note', () => {
     const patient = createPatient();
 

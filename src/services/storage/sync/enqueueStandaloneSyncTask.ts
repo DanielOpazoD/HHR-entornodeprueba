@@ -1,10 +1,15 @@
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type {
   CreateSyncQueueEngineOptions,
   SyncQueueEnqueueResult,
 } from './syncQueueEngineContracts';
 import { buildSyncQueueTaskContextMeta } from './syncQueueFailurePolicy';
-import { buildSyncTaskContract, mergeSyncTaskContracts } from './syncTaskContractPolicy';
+import {
+  buildSyncTaskContract,
+  mergeSyncTaskContracts,
+  assertPendingHandoffContinuity,
+} from './syncTaskContractPolicy';
 import { getSyncTaskKey, clearSyncTaskRuntimeState } from './syncQueueTaskFactory';
 import {
   countActiveSyncTasks,
@@ -42,6 +47,8 @@ const enqueueWithinTransaction = async (
   if (key) {
     const existing = await store.findReusableTask(type, key, ownerKey);
     if (existing?.id) {
+      if (type === 'UPDATE_DAILY_RECORD')
+        assertPendingHandoffContinuity(existing, payload as DailyRecord);
       const mergedSyncContract = mergeSyncTaskContracts(existing.syncContract, syncContract);
       await store.update(existing.id, {
         payload,

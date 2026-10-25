@@ -7,6 +7,24 @@ const {
   resolveClinicalDayForDateTime,
 } = require('./generated/cudyrSourceParser.cjs');
 
+// Same FNV-1a legacy identity policy as clinicalEpisodeIdPolicy.ts; never includes a bed.
+const resolveHandoffEpisodeId = patient => {
+  const existing = String(patient?.clinicalEpisodeId || '').trim();
+  if (existing) return existing;
+  const identity = patient?.rut || patient?.patientName || 'sin-rut';
+  const admission = patient?.firstSeenDate || patient?.admissionDate || 'sin-ingreso';
+  const time = String(patient?.admissionTime || '').trim();
+  const key = `${identity}__${admission}${time ? `__${time}` : ''}`;
+  if (key === 'sin-rut__sin-ingreso') return undefined;
+  let hash = 0x811c9dc5;
+  const normalized = key.toLowerCase();
+  for (let i = 0; i < normalized.length; i += 1) {
+    hash ^= normalized.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return `legacy_ep_${(hash >>> 0).toString(36)}`;
+};
+
 /**
  * Productive write path for specialist medical handoff notes.
  *
@@ -219,25 +237,27 @@ const createSpecialistMedicalHandoffFunctions = ({
         .filter(path => path.startsWith('beds.'))
         .map(path => (path.split('.')[2] === 'clinicalCrib' ? 'clinicalCrib' : 'bed'))
     );
-    const expectedOccupants = data?.expectedOccupants;
+    const legacyClient = !Object.prototype.hasOwnProperty.call(data, 'expectedOccupants');
+    const expectedOccupants = legacyClient ? [] : data.expectedOccupants;
     if (
-      !Array.isArray(expectedOccupants) ||
-      expectedOccupants.length !== targetNames.size ||
-      [...targetNames].some(
-        target =>
-          expectedOccupants.filter(
-            expected =>
-              isPlainObject(expected) &&
-              expected.bedId === bedId &&
-              expected.target === target &&
-              typeof expected.clinicalEpisodeId === 'string' &&
-              expected.clinicalEpisodeId.trim() &&
-              typeof expected.rut === 'string' &&
-              typeof expected.patientName === 'string' &&
-              expected.patientName.trim() &&
-              ['RUT', 'Pasaporte'].includes(expected.documentType)
-          ).length !== 1
-      )
+      !legacyClient &&
+      (!Array.isArray(expectedOccupants) ||
+        expectedOccupants.length !== targetNames.size ||
+        [...targetNames].some(
+          target =>
+            expectedOccupants.filter(
+              expected =>
+                isPlainObject(expected) &&
+                expected.bedId === bedId &&
+                expected.target === target &&
+                typeof expected.clinicalEpisodeId === 'string' &&
+                expected.clinicalEpisodeId.trim() &&
+                typeof expected.rut === 'string' &&
+                typeof expected.patientName === 'string' &&
+                expected.patientName.trim() &&
+                ['RUT', 'Pasaporte'].includes(expected.documentType)
+            ).length !== 1
+        ))
     ) {
       throw new functions.https.HttpsError(
         'failed-precondition',
@@ -270,13 +290,24 @@ const createSpecialistMedicalHandoffFunctions = ({
           );
         }
 
+        // Transitional compatibility for pre-deploy tabs: retain the former allowlisted
+        // behavior, now atomically. Remove only after legacy traffic reaches zero.
+        if (legacyClient) {
+          console.warn('specialist_handoff_legacy_client', sanitizeLogValue({ date, bedId }));
+          if (!isPlainObject(record?.beds?.[bedId])) {
+            throw new functions.https.HttpsError(
+              'failed-precondition',
+              'Daily record bed is missing or invalid.'
+            );
+          }
+        }
         for (const expected of expectedOccupants) {
           const bed = record?.beds?.[bedId];
           const patient = expected.target === 'clinicalCrib' ? bed?.clinicalCrib : bed;
           if (
             !isPlainObject(patient) ||
             !patient.patientName?.trim() ||
-            patient.clinicalEpisodeId?.trim() !== expected.clinicalEpisodeId.trim() ||
+            resolveHandoffEpisodeId(patient) !== expected.clinicalEpisodeId.trim() ||
             (patient.rut?.trim() || '') !== expected.rut.trim() ||
             (patient.documentType || 'RUT') !== expected.documentType ||
             patient.patientName.trim() !== expected.patientName.trim()

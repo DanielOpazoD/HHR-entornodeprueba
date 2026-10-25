@@ -6,6 +6,7 @@ import { buildSyncQueueTaskContextMeta } from '@/services/storage/sync/syncQueue
 import {
   buildSyncTaskContract,
   mergeSyncTaskContracts,
+  assertPendingHandoffContinuity,
 } from '@/services/storage/sync/syncTaskContractPolicy';
 import {
   clearSyncTaskRuntimeState,
@@ -26,6 +27,7 @@ export const buildPendingDailyRecordReplacementTask = ({
   meta?: ReplacementMeta;
   existing: SyncTask;
 }): SyncTask => {
+  assertPendingHandoffContinuity(existing, record);
   const contextMeta = buildSyncQueueTaskContextMeta({
     contexts: meta?.contexts,
     recoveryPolicy: meta?.recoveryPolicy,

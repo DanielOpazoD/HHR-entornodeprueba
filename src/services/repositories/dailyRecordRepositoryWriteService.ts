@@ -1,3 +1,4 @@
+import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 import { shouldRouteSpecialistPatchViaCallable } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import { buildSpecialistHandoffTargets } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
 import { isSpecialistScopedDailyRecordPatch } from './dailyRecordClinicalDomainService';
@@ -339,11 +340,33 @@ const updatePartialDetailedWithinLock = async (
     isReclassification,
   });
 
+  if (specialistScopedPatch && options.specialistHandoffTargets) {
+    const actual = buildSpecialistHandoffTargets(current, command.patch);
+    if (
+      options.specialistHandoffTargets.some(
+        expected =>
+          !actual.some(
+            target =>
+              target.bedId === expected.bedId &&
+              target.target === expected.target &&
+              target.clinicalEpisodeId === expected.clinicalEpisodeId &&
+              target.rut === expected.rut &&
+              target.documentType === expected.documentType &&
+              target.patientName === expected.patientName
+          )
+      )
+    ) {
+      throw new ConcurrencyError(
+        'El paciente o episodio cambió mientras escribías. El texto permanece en el borrador del paciente original.',
+        'semantic_conflict'
+      );
+    }
+  }
   if (specialistScopedPatch) {
-    remoteWriteOptions.specialistHandoffTargets = buildSpecialistHandoffTargets(
-      current,
-      command.patch
-    );
+    remoteWriteOptions.specialistHandoffTargets =
+      options.specialistHandoffTargets || buildSpecialistHandoffTargets(current, command.patch);
+    if (specialistHandoff)
+      syncContract.specialistHandoffTargets = remoteWriteOptions.specialistHandoffTargets;
   }
 
   const suspiciousShrinkages = await resolveBlockingFieldShrinkages(
@@ -413,6 +436,7 @@ const updatePartialDetailedWithinLock = async (
       !options.requireAtomicCas &&
       !guardedCommandPolicy.requireAtomicCas,
     remoteAuthorityFirst: specialistHandoff || guardedCommandPolicy.remoteAuthorityFirst,
+    allowOfflineQueue: specialistHandoff,
   });
   if (nextAction === 'return') {
     return buildPartialUpdateResult(command.date, remoteState, patchedFields);

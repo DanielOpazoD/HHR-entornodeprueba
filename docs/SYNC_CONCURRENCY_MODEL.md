@@ -95,11 +95,26 @@ The first matching route wins:
    (fail-closed, no tolerance) and then the `updateSpecialistMedicalHandoff` callable. The typed
    payload requires `expectedOccupants`, frozen from the edited record, separately for the bed and
    its clinical crib. Every client retry re-reads those identities; the server checks them and writes
-   in one transaction. Missing episode metadata or an occupant mismatch rejects with
-   `failed-precondition` naming the bed and asking to reload. This callable has no contract-version
-   compatibility mechanism, so old clients must reload. The client presents the rejection as an
-   editing conflict. Specialist handoff patches commit remotely before entering durable local storage;
-   they never rebase, auto-merge or queue a rejected note against a replacement occupant.
+   in one transaction. Stored patients without episode metadata use the same deterministic legacy
+   ID as client hydration (identity and admission, never bed alone). An occupant mismatch rejects
+   with `failed-precondition`, surfaced as an editing conflict. Typed text is retained on each
+   keystroke as an owner-scoped local draft tied to patient, episode, date and entry; it survives
+   rollback, remount and reload, and remains reviewable after turnover. Drafts are never submitted
+   on mount. A storage failure is visible and disables the reload action.
+
+   Network failures retain the local record and the existing outbox task with the frozen occupants.
+   Specialist replay uses the same callable, never generic merge. An occupant conflict remains
+   unresolved for manual review. Generic replay also checks handoff identity for legacy queued tasks
+   before selecting/merging truth, so a note cannot be silently discarded after turnover. Enqueue
+   and replacement also reject coalescing a pending handoff into another occupant’s census.
+
+   **Deploy transition:** requests that omit `expectedOccupants` entirely keep the old allowlisted
+   semantics inside the transaction; malformed or empty supplied metadata still fails closed.
+   `specialist_handoff_legacy_client` telemetry identifies this temporary path. Remove it in a
+   separate release only after supported tabs have refreshed and legacy traffic has reached zero.
+   Old tabs retain their original occupant-binding limitation until refreshed; the transition avoids
+   creating an incompatible failed-precondition/queue-loss window for their in-flight notes.
+
 2. **Frozen Rayen run guard** (`rayenClinicalWriteGuard`) — patch callable; the server requires the
    exact base version and creates `history/rayen-{runId}` once per run.
 3. **Clinical envelope or bed tree** — a clinical-envelope patch goes to the patch callable when

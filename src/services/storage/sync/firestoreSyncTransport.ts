@@ -1,3 +1,5 @@
+import { buildSpecialistHandoffTargets } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
+import { updateSpecialistMedicalHandoffViaCallable } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import { deleteField, getDoc, runTransaction, type Transaction } from 'firebase/firestore';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type {
@@ -99,6 +101,49 @@ const shouldRevalidateAgainstRemote = (
   return toMillis(remoteLastUpdated) > toMillis(expectedVersion);
 };
 
+const handoffPathsForTask = (task: SyncTask): string[] =>
+  (task.syncContract?.changedPaths || []).filter(path =>
+    /^beds\.[^.]+\.(?:clinicalCrib\.)?medicalHandoff(?:Note|Entries|Audit)$/.test(path)
+  );
+
+const assertQueuedHandoffOccupants = (task: SyncTask, record: DailyRecord, remote: DailyRecord) => {
+  const paths = handoffPathsForTask(task);
+  if (!paths.length) return;
+  const patch = Object.fromEntries(paths.map(path => [path, undefined]));
+  const expected =
+    task.syncContract?.specialistHandoffTargets || buildSpecialistHandoffTargets(record, patch);
+  const actual = buildSpecialistHandoffTargets(remote, patch);
+  if (
+    expected.some(
+      target =>
+        !actual.some(
+          current =>
+            current.bedId === target.bedId &&
+            current.target === target.target &&
+            current.clinicalEpisodeId === target.clinicalEpisodeId &&
+            current.rut === target.rut &&
+            current.documentType === target.documentType &&
+            current.patientName === target.patientName
+        )
+    )
+  ) {
+    throw new ConcurrencyError(
+      'La entrega pendiente pertenece a otro paciente o episodio. Se conserva en la cola para revisión manual.',
+      'semantic_conflict'
+    );
+  }
+};
+
+const queuedPatchValue = (record: DailyRecord, path: string): unknown => {
+  const [, bedId, field, nestedField] = path.split('.');
+  const patient = field === 'clinicalCrib' ? record.beds[bedId]?.clinicalCrib : record.beds[bedId];
+  const key = nestedField || field;
+  if (key === 'medicalHandoffNote') return patient?.medicalHandoffNote;
+  if (key === 'medicalHandoffEntries') return patient?.medicalHandoffEntries;
+  if (key === 'medicalHandoffAudit') return patient?.medicalHandoffAudit;
+  throw new Error('Invalid queued handoff field');
+};
+
 interface ResolvedSyncRecordForTask {
   record: DailyRecord;
   resolution: NonNullable<SyncTask['syncContract']>['resolution'];
@@ -124,6 +169,7 @@ const resolveRecordForSyncTask = async (
   }
 
   const remoteData = remoteSnap.data() as Record<string, unknown>;
+  assertQueuedHandoffOccupants(task, record, docToRecord(remoteData, record.date));
   const remoteLastUpdated = getRemoteLastUpdated(remoteData);
   if (hasRemoteAppliedMutation(task, remoteData.meta as Record<string, unknown> | undefined)) {
     return {
@@ -221,6 +267,32 @@ const syncDailyRecord = async (
   return measureRepositoryOperation(
     'syncQueue.writeDailyRecord',
     async () => {
+      if (task.syncContract?.specialistHandoffTargets?.length) {
+        const paths = handoffPathsForTask(task);
+        if (paths.length !== task.syncContract.changedPaths?.length) {
+          throw new ConcurrencyError(
+            'La entrega pendiente requiere revisión antes de publicar otros cambios.',
+            'semantic_conflict'
+          );
+        }
+        for (const bedId of new Set(
+          task.syncContract.specialistHandoffTargets.map(target => target.bedId)
+        )) {
+          await updateSpecialistMedicalHandoffViaCallable(
+            record.date,
+            Object.fromEntries(
+              paths
+                .filter(path => path.split('.')[1] === bedId)
+                .map(path => [path, queuedPatchValue(record, path)])
+            ),
+            task.syncContract.specialistHandoffTargets.filter(target => target.bedId === bedId)
+          );
+        }
+        const snapshot = await getDoc(getRecordDocRef(record.date, runtime));
+        if (!snapshot.exists())
+          throw new ConcurrencyError('No se pudo confirmar la entrega sincronizada.');
+        return { authoritativeRecord: docToRecord(snapshot.data(), record.date) };
+      }
       const resolved = await resolveRecordForSyncTask(task, record, runtime);
       if (resolved.resolution === 'already_applied') {
         recordSyncQueueTruthSelectionTelemetry(task, {

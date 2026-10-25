@@ -165,12 +165,43 @@ describe('useDailyRecordSyncQuery notification ownership', () => {
     });
     await waitFor(() => expect(result.current.record).not.toBeNull());
     await act(async () => {
-      await expect(result.current.patchRecord(partial)).rejects.toThrow(/R4.*Recarga/);
+      await expect(result.current.patchRecord(partial)).rejects.toThrow(/R4.*borrador/);
     });
     expect(screen.getAllByText('Conflicto de Edición')).toHaveLength(1);
-    expect(screen.getByText(/episodio de la cama R4.*Recarga/)).toBeInTheDocument();
+    expect(screen.getByText(/episodio de la cama R4.*borrador/)).toBeInTheDocument();
     expect(screen.queryByText('Cambio guardado')).not.toBeInTheDocument();
     expect(repository.updatePartialDetailed).toHaveBeenCalledTimes(1);
+  });
+
+  it('passes the identity captured while typing through the patch boundary without forcing online-only persistence', async () => {
+    const expected = [
+      {
+        bedId: 'R4',
+        target: 'bed' as const,
+        clinicalEpisodeId: 'ep-A',
+        rut: '99.999.999-9',
+        documentType: 'RUT',
+        patientName: 'Paciente A Sintético',
+      },
+    ];
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(result.current.record).not.toBeNull());
+    await act(async () => {
+      await result.current.patchRecord(
+        { 'beds.R4.medicalHandoffNote': 'Nota de A' },
+        { specialistHandoffTargets: expected }
+      );
+    });
+    expect(repository.updatePartialDetailed).toHaveBeenCalledWith(
+      mockDate,
+      expect.anything(),
+      expect.objectContaining({ specialistHandoffTargets: expected })
+    );
+    expect(repository.updatePartialDetailed.mock.calls[0][2]).not.toHaveProperty(
+      'requireRemoteAuthorityFirst'
+    );
   });
 
   it('emits exactly one truthful notice for a server-confirmed save', async () => {

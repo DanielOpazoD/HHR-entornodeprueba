@@ -1,3 +1,4 @@
+import type { SpecialistHandoffTarget } from './firestore/specialistMedicalHandoffIdentity';
 /**
  * Sync queue task contracts shared by storage services.
  */
@@ -56,6 +57,7 @@ export type SyncTaskResolution =
   | 'already_applied';
 
 export interface SyncTaskContract {
+  specialistHandoffTargets?: SpecialistHandoffTarget[];
   expectedVersion?: string;
   acceptedVersion?: string;
   acceptedRevision?: number;

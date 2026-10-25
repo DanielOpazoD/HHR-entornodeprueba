@@ -1,14 +1,9 @@
+import { buildLegacyClinicalEpisodeId } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 
-export interface SpecialistHandoffTarget {
-  bedId: string;
-  target: 'bed' | 'clinicalCrib';
-  clinicalEpisodeId: string;
-  rut: string;
-  documentType: string;
-  patientName: string;
-}
+import type { SpecialistHandoffTarget } from '@/types/domain/specialistHandoffTarget';
+export type { SpecialistHandoffTarget } from '@/types/domain/specialistHandoffTarget';
 
 /** Freeze the identities from the edited record, never from a retry's fresh occupant. */
 export const buildSpecialistHandoffTargets = (
@@ -25,7 +20,9 @@ export const buildSpecialistHandoffTargets = (
     targets.set(`${bedId}.${target}`, {
       bedId,
       target,
-      clinicalEpisodeId: patient?.clinicalEpisodeId?.trim() ?? '',
+      clinicalEpisodeId: patient
+        ? patient.clinicalEpisodeId?.trim() || buildLegacyClinicalEpisodeId(patient) || ''
+        : '',
       rut: patient?.rut?.trim() ?? '',
       documentType: patient?.documentType ?? 'RUT',
       patientName: patient?.patientName?.trim() ?? '',

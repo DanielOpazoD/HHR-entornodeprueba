@@ -1,3 +1,4 @@
+import { buildLegacyClinicalEpisodeId } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
 import { httpsCallable } from 'firebase/functions';
 import { getDoc } from 'firebase/firestore';
 import { getRecordDocRef } from './firestoreShared';
@@ -180,7 +181,7 @@ export const updateSpecialistMedicalHandoffViaCallable = async (
 ): Promise<void> => {
   const conflict = () =>
     new ConcurrencyError(
-      `El paciente o episodio de la cama ${expectedOccupants.map(target => target.bedId).join(', ')} cambió o no se pudo confirmar. Recarga antes de guardar la entrega médica.`,
+      `El paciente o episodio de la cama ${expectedOccupants.map(target => target.bedId).join(', ')} cambió o no se pudo confirmar. El texto se conserva como borrador del paciente original; revísalo antes de recargar.`,
       'semantic_conflict'
     );
   if (!expectedOccupants.length || expectedOccupants.some(target => !target.clinicalEpisodeId)) {
@@ -197,7 +198,8 @@ export const updateSpecialistMedicalHandoffViaCallable = async (
       return (
         !patient ||
         !patient.patientName?.trim() ||
-        patient.clinicalEpisodeId?.trim() !== expected.clinicalEpisodeId ||
+        (patient.clinicalEpisodeId?.trim() || buildLegacyClinicalEpisodeId(patient)) !==
+          expected.clinicalEpisodeId ||
         (patient.rut?.trim() ?? '') !== expected.rut ||
         (patient.documentType ?? 'RUT') !== expected.documentType ||
         (patient.patientName?.trim() ?? '') !== expected.patientName

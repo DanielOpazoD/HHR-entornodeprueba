@@ -1,3 +1,4 @@
+import { DataFactory } from '@/tests/factories/DataFactory';
 import { describe, expect, it, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useBedManagementActionCreators } from '@/hooks/useBedManagementActionCreators';
@@ -15,6 +16,24 @@ const evaluation: UpcChecklistRecord = {
 };
 
 describe('useBedManagementActionCreators', () => {
+  it.each(['updatePatientMultiple', 'updateClinicalCribMultiple'] as const)(
+    '%s preserves the captured handoff patient in the dispatched action',
+    async action => {
+      const dispatch = vi.fn();
+      const dispatchAndWait = vi.fn().mockResolvedValue(true);
+      const patient = DataFactory.createMockPatient('R1', {
+        patientName: 'Paciente A Sintético',
+        clinicalEpisodeId: 'ep-A',
+      });
+      const { result } = renderHook(() =>
+        useBedManagementActionCreators(dispatch, dispatchAndWait)
+      );
+      await result.current[action]('R1', { medicalHandoffNote: 'Texto para A' }, patient);
+      expect(dispatchAndWait).toHaveBeenCalledWith(
+        expect.objectContaining({ expectedHandoffPatient: patient })
+      );
+    }
+  );
   it.each(['updatePatientMultiple', 'updateClinicalCribMultiple'] as const)(
     '%s does not dispatch UPC without an awaitable confirmation',
     async action => {
