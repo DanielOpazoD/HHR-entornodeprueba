@@ -9,6 +9,10 @@ import {
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import type { SpecialistHandoffSyncPayload, SyncTask } from '@/services/storage/syncQueueTypes';
+import {
+  confirmSpecialistHandoffDrafts,
+  publishSpecialistHandoffConflict,
+} from '@/services/storage/medicalHandoffDraftStorage';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 /**
@@ -76,7 +80,6 @@ export const updateSpecialistMedicalHandoffViaCallable = async (
  */
 export const replaySpecialistHandoff = async (task: SyncTask): Promise<void> => {
   const payload = task.payload as SpecialistHandoffSyncPayload;
-  const drafts = () => import('@/services/storage/medicalHandoffDraftStorage');
   try {
     await updateSpecialistMedicalHandoffViaCallable(
       payload.date,
@@ -84,9 +87,8 @@ export const replaySpecialistHandoff = async (task: SyncTask): Promise<void> => 
       payload.expectedOccupants
     );
   } catch (error) {
-    if (error instanceof ConcurrencyError)
-      (await drafts()).publishSpecialistHandoffConflict(payload);
+    if (error instanceof ConcurrencyError) publishSpecialistHandoffConflict(payload);
     throw error;
   }
-  (await drafts()).confirmSpecialistHandoffDrafts(payload);
+  confirmSpecialistHandoffDrafts(payload);
 };
