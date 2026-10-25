@@ -85,7 +85,7 @@ export const resolveSyncQueueFailureDecision = ({
       recoveryPolicy,
       status: 'PENDING',
       retryCount: task.retryCount,
-      nextAttemptAt: now + maxRetryDelayMs,
+      nextAttemptAt: now + Math.max(60_000, maxRetryDelayMs),
       shouldLogPermanentFailure: false,
     };
   }

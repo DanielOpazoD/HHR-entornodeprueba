@@ -238,6 +238,8 @@ chunk y WebKit rechaza el MIME JavaScript. El detector compartido también cubre
 los mensajes de Firefox y WebKit en los componentes lazy.
 Mientras persista esa marca, los errores de red de la cola conservan PENDING,
 payload y contador de intentos; no agotan el presupuesto ni pasan a FAILED.
+Los reintentos de recuperación esperan al menos un minuto, incluso cuando el
+backoff normal de la cola está limitado a 30 segundos.
 Los errores permanentes y conflictos mantienen su política vigente. Una petición
 sin caché a version.json confirma conectividad antes de reintentar el import.
 Si el navegador sigue reteniéndolo, una región viva estable muestra un aviso fijo

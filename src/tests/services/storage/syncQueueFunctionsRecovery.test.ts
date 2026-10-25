@@ -86,3 +86,34 @@ it('keeps permanent authorization failures quarantined while Functions recovery 
   });
   await loadFunctionsModule();
 });
+
+it('waits a minimum of one minute before retrying a retained module import', async () => {
+  let now = Date.now();
+  vi.spyOn(Date, 'now').mockImplementation(() => now);
+  const imported = vi.fn(() => Promise.reject(new TypeError('Importing a module script failed.')));
+  await hospitalDB.syncQueue.add({
+    opId: 'synthetic-recovery-delay',
+    type: 'UPDATE_DAILY_RECORD',
+    payload: { date: '2026-10-24' },
+    key: 'daily:2026-10-24',
+    status: 'PENDING',
+    timestamp: now,
+    retryCount: 2,
+  });
+  const engine = createEngine(async () => {
+    await loadFunctionsModule(imported);
+  });
+  await engine.processQueue();
+  expect(imported).toHaveBeenCalledTimes(1);
+  now += 59_999;
+  await engine.processQueue();
+  expect(imported).toHaveBeenCalledTimes(1);
+  now += 1;
+  await engine.processQueue();
+  expect(imported).toHaveBeenCalledTimes(2);
+  expect((await hospitalDB.syncQueue.toArray())[0]).toMatchObject({
+    status: 'PENDING',
+    retryCount: 2,
+  });
+  await loadFunctionsModule();
+});
