@@ -1,4 +1,3 @@
-import { httpsCallable } from 'firebase/functions';
 import * as z from 'zod';
 
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
@@ -27,6 +26,7 @@ export const createMedicalHandoffSpreadsheetService = (
     payload: OpenMedicalHandoffSpreadsheetRequest
   ): Promise<OpenMedicalHandoffSpreadsheetResult> => {
     const functions = await functionsRuntime.getFunctions();
+    const { httpsCallable } = await import('firebase/functions');
     const callable = httpsCallable<
       OpenMedicalHandoffSpreadsheetRequest,
       OpenMedicalHandoffSpreadsheetResult

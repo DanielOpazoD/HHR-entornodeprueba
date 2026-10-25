@@ -1,6 +1,5 @@
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
-import { httpsCallable } from 'firebase/functions';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import type { CudyrSupplementReport } from '@/types/domain/cudyrSupplement';
 export interface ArchivedCudyrSupplement {
@@ -22,6 +21,7 @@ export const callCudyrArchive = async <T>(
 ): Promise<T> => {
   const runtime = await defaultFunctionsRuntime.getRegionalFunctions('southamerica-east1');
   beforeCall?.();
+  const { httpsCallable } = await import('firebase/functions');
   return (await httpsCallable<unknown, T>(runtime, endpoint, { timeout: 20000 })(request)).data;
 };
 export const importCudyrSupplement = (request: {

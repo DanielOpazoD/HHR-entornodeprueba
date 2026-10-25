@@ -1,3 +1,4 @@
+import { isFunctionsReloadRequired } from '@/services/firebase-runtime/functionsModuleLoader';
 import type {
   SyncQueueLeaseClaim,
   SyncQueueStorePort,
@@ -23,7 +24,10 @@ const isReadyForClaim = (task: SyncTask, now: number): boolean => {
     return false;
   }
 
-  if ((task.nextAttemptAt || 0) > now) {
+  if (
+    (task.nextAttemptAt || 0) > now &&
+    (task.lastErrorAction !== 'reload_functions' || isFunctionsReloadRequired())
+  ) {
     return false;
   }
 

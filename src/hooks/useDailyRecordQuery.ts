@@ -30,7 +30,6 @@ import {
   ensureFreshDailyRecordSaveMutation,
   ensureFreshDailyRecordQuery,
   persistDailyRecordSaveMutation,
-  prefetchDailyRecordQuery,
   type SaveDailyRecordMutationInput,
 } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
 export { usePatchDailyRecordMutation } from '@/hooks/usePatchDailyRecordMutation';
@@ -261,80 +260,6 @@ export const useSaveDailyRecordMutation = () => {
       if (payload?.record) {
         invalidateDailyRecordQuery(queryClient, payload.record.date);
       }
-    },
-  });
-};
-
-/**
- * Hook to prefetch a daily record.
- * Useful for prefetching next/previous day's data.
- */
-export const usePrefetchDailyRecord = () => {
-  const queryClient = useQueryClient();
-  const { dailyRecord } = useRepositories();
-
-  return async (date: string) => {
-    await prefetchDailyRecordQuery(queryClient, dailyRecord, date);
-    const result = queryClient.getQueryData<DailyRecordQueryResult>(getDailyRecordQueryKey(date));
-    if (
-      result?.record &&
-      result.runtime.sourceOfTruth === 'remote' &&
-      result.runtime.consistencyState !== 'unavailable' &&
-      result.runtime.conflictSummary?.kind !== 'remote_unavailable'
-    ) {
-      markDailyRecordRemoteConfirmed(date, {
-        source: 'manual_refresh',
-        remoteLastUpdated: result.record.lastUpdated,
-      });
-    }
-  };
-};
-
-/**
- * Hook to invalidate daily record cache.
- * Call this after external updates.
- */
-export const useInvalidateDailyRecord = () => {
-  const queryClient = useQueryClient();
-
-  return (date?: string) => {
-    invalidateDailyRecordQuery(queryClient, date);
-  };
-};
-
-/**
- * Hook for initializing a new daily record.
- */
-export const useInitializeDailyRecordMutation = () => {
-  const queryClient = useQueryClient();
-  const { dailyRecord } = useRepositories();
-
-  return useMutation({
-    mutationFn: async ({ date, copyFromDate }: { date: string; copyFromDate?: string }) => {
-      return await dailyRecord.initializeDay(date, copyFromDate);
-    },
-    onSuccess: newRecord => {
-      setDailyRecordQueryData(queryClient, newRecord.date, newRecord);
-      invalidateDailyRecordQuery(queryClient, newRecord.date);
-    },
-  });
-};
-
-/**
- * Hook for deleting a daily record.
- */
-export const useDeleteDailyRecordMutation = () => {
-  const queryClient = useQueryClient();
-  const { dailyRecord } = useRepositories();
-
-  return useMutation({
-    mutationFn: async (date: string) => {
-      await dailyRecord.deleteDay(date);
-      return date;
-    },
-    onSuccess: date => {
-      setDailyRecordQueryData(queryClient, date, null);
-      invalidateDailyRecordQuery(queryClient, date);
     },
   });
 };

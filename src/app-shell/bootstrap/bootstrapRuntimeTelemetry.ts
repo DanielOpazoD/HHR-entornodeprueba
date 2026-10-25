@@ -1,3 +1,4 @@
+import { isChunkLoadError } from '@/utils/chunkLoadError';
 import type { AppBootstrapRuntimeResult } from '@/app-shell/bootstrap/bootstrapAppRuntime.types';
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
@@ -18,9 +19,7 @@ const recentEventKeys: string[] = [];
 const recentEventKeySet = new Set<string>();
 
 const isChunkLoadFailureMessage = (message: string): boolean =>
-  /(chunkloaderror|failed to fetch dynamically imported module|loading chunk [^ ]+ failed|cannot access '.+' before initialization)/i.test(
-    message
-  );
+  isChunkLoadError(message) || /cannot access '.+' before initialization/i.test(message);
 
 const getErrorMessage = (error: unknown): string => {
   if (error instanceof Error) {

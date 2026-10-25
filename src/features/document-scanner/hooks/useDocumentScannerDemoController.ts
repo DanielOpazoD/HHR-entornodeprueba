@@ -22,6 +22,7 @@ import { useDocumentScannerPageEditor } from './useDocumentScannerPageEditor';
 export type { DocumentScannerDemoPhase } from './documentScannerControllerTypes';
 
 const resolvePinAccessErrorMessage = (error: unknown): string => {
+  if (!navigator.onLine) return 'Sin conexión.';
   const code =
     error && typeof error === 'object' && 'code' in error
       ? String((error as { code?: unknown }).code || '')

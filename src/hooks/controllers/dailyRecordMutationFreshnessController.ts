@@ -5,10 +5,7 @@ import type {
   PartialUpdateDailyRecordOptions,
   SaveDailyRecordOptions,
 } from '@/services/repositories/contracts/dailyRecordCommands';
-import {
-  createReconciledDailyRecordQueryFn,
-  getDailyRecordQueryKey,
-} from '@/hooks/controllers/dailyRecordQueryController';
+import { createReconciledDailyRecordQueryFn } from '@/hooks/controllers/dailyRecordQueryController';
 import {
   DailyRecordFreshnessGateError,
   ensureDailyRecordRemoteFreshness,
@@ -240,13 +237,3 @@ export const ensureFreshDailyRecordSaveMutation = async (
     : input.record;
   await ensureFreshClinicalSaveMutation(anchor, dependencies);
 };
-
-export const prefetchDailyRecordQuery = (
-  queryClient: QueryClient,
-  dailyRecord: DailyRecordRepositoryPort,
-  date: string
-) =>
-  queryClient.prefetchQuery({
-    queryKey: getDailyRecordQueryKey(date),
-    queryFn: createReconciledDailyRecordQueryFn(dailyRecord, date, queryClient),
-  });

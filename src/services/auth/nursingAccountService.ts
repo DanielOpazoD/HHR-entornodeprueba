@@ -1,10 +1,11 @@
+import { isFunctionsReloadRequired } from '@/services/firebase-runtime/functionsModuleLoader';
 import type { ManagedUserRole } from '@/shared/access/roleAccessMatrix';
 import {
   browserSessionPersistence,
   setPersistence,
   signInWithEmailAndPassword,
 } from 'firebase/auth';
-import { httpsCallable, type Functions } from 'firebase/functions';
+import type { Functions } from 'firebase/functions';
 import { defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
@@ -52,6 +53,7 @@ const invokeAccountCallable = async <T>(
   callableName: string,
   data: Record<string, unknown>
 ): Promise<T> => {
+  const { httpsCallable } = await import('firebase/functions');
   const response = await httpsCallable<Record<string, unknown>, T>(functions, callableName, {
     timeout: 60000,
   })(data);
@@ -168,6 +170,9 @@ export const establishNursingSession = async (
 };
 
 export const accountErrorMessage = (error: unknown): string => {
+  if (!navigator.onLine) return 'Sin conexión.';
+  if (isFunctionsReloadRequired())
+    return 'Recarga la aplicación para restablecer el acceso. Los cambios pendientes se conservan.';
   const code = (error as { code?: string })?.code;
   if (code === 'functions/unavailable')
     return 'La recuperación por correo no está disponible ahora. Contacta al administrador.';

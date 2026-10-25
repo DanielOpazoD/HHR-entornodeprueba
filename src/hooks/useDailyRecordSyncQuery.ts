@@ -5,8 +5,6 @@ import {
   useDailyRecordQuery,
   useSaveDailyRecordMutation,
   usePatchDailyRecordMutation,
-  useInitializeDailyRecordMutation,
-  useDeleteDailyRecordMutation,
 } from './useDailyRecordQuery';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../config/queryClient';
@@ -30,10 +28,6 @@ import {
   assertDailyRecordWriteAccepted,
   DailyRecordWriteBlockedOutcomeError,
 } from '@/hooks/controllers/dailyRecordWriteOutcomeGuard';
-import {
-  buildCreateDaySuccessMessage,
-  resolveCreateDaySourceDate,
-} from '@/hooks/controllers/dailyRecordSyncController';
 import { resolveDailyRecordSyncStatus } from '@/hooks/controllers/dailyRecordSyncStatusController';
 import { presentDailyRecordRefreshOutcome } from '@/hooks/controllers/dailyRecordRefreshOutcomeController';
 import { dailyRecordSyncLogger } from '@/hooks/hookLoggers';
@@ -90,8 +84,6 @@ export const useDailyRecordSyncQuery = (
   // 2. Mutations
   const saveMutation = useSaveDailyRecordMutation();
   const patchMutation = usePatchDailyRecordMutation(currentDateString);
-  const initMutation = useInitializeDailyRecordMutation();
-  const deleteMutation = useDeleteDailyRecordMutation();
   const pendingRefetchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMountedRef = useRef(true);
   const refreshRequestIdRef = useRef(0);
@@ -141,12 +133,7 @@ export const useDailyRecordSyncQuery = (
   });
 
   // 3. Status Mapping
-  const syncStatus = resolveDailyRecordSyncStatus([
-    saveMutation,
-    patchMutation,
-    initMutation,
-    deleteMutation,
-  ]);
+  const syncStatus = resolveDailyRecordSyncStatus([saveMutation, patchMutation]);
 
   const lastSyncTime = useMemo(
     () => (dataUpdatedAt ? new Date(dataUpdatedAt) : null),
@@ -314,30 +301,6 @@ export const useDailyRecordSyncQuery = (
       });
   }, [currentDateString, notifyError, refetch, runRemoteSync, success, warning]);
 
-  const createDay = useCallback(
-    async (copyFromPrevious: boolean, specificDate?: string) => {
-      const prevDate = await resolveCreateDaySourceDate(
-        dailyRecord,
-        currentDateString,
-        copyFromPrevious,
-        specificDate,
-        warning
-      );
-      if (prevDate === null) {
-        return;
-      }
-
-      await initMutation.mutateAsync({ date: currentDateString, copyFromDate: prevDate });
-      success('Día creado', buildCreateDaySuccessMessage(prevDate || undefined));
-    },
-    [currentDateString, initMutation, success, warning, dailyRecord]
-  );
-
-  const resetDay = useCallback(async () => {
-    await deleteMutation.mutateAsync(currentDateString);
-    success('Registro eliminado', 'El registro del día ha sido eliminado.');
-  }, [currentDateString, deleteMutation, success]);
-
   return {
     record: record ?? null,
     setRecord,
@@ -348,7 +311,5 @@ export const useDailyRecordSyncQuery = (
     patchRecord,
     markLocalChange,
     refresh,
-    createDay,
-    resetDay,
   };
 };

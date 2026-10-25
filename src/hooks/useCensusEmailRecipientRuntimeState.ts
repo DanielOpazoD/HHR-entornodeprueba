@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { CENSUS_DEFAULT_RECIPIENTS } from '@/constants/email';
-import { CENSUS_GLOBAL_EMAIL_RECIPIENT_LIST } from '@/services/email/emailRecipientListService';
-import type { GlobalEmailRecipientList } from '@/services/email/emailRecipientListService';
+import { CENSUS_GLOBAL_EMAIL_RECIPIENT_LIST } from '@/services/email/emailRecipientListSupport';
+import type { GlobalEmailRecipientList } from '@/services/email/emailRecipientListSupport';
 import {
   applyRecipientSyncRuntimeMetadata,
   type RecipientRuntimeMetadata,

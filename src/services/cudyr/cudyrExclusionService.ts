@@ -1,4 +1,3 @@
-import { httpsCallable } from 'firebase/functions';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import type { CudyrDailyExclusion, SaveCudyrExclusionRequest } from '@/types/domain/cudyrExclusion';
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
@@ -15,6 +14,7 @@ const call = async <T>(endpoint: string, request: unknown, signal?: AbortSignal)
   check();
   const runtime = await defaultFunctionsRuntime.getRegionalFunctions('southamerica-east1');
   check();
+  const { httpsCallable } = await import('firebase/functions');
   const result = await httpsCallable<unknown, T>(runtime, endpoint, { timeout: 20000 })(request);
   check();
   return result.data;
