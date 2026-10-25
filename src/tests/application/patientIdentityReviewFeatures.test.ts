@@ -250,7 +250,7 @@ describe('identity features never match a patient whose identity is under review
       docToRecord(storedDay(stored), TODAY)
     );
 
-    expect(next.R1.identityReview?.stored).toMatchObject(stored);
+    expect(withStoredIdentity({ beds: next }).beds.R1).toMatchObject(stored);
   });
 
   it('carries a patient under review to the next day, even with no name or document read', () => {

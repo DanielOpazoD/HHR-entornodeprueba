@@ -21,7 +21,10 @@ import {
   type UnreadableIdentityPolicy,
 } from './zodFallbackBuilders';
 import type { DailyRecordParseReport, PatientDataParseReport } from './zodParseReports';
-import { withoutStoredIdentityReviews } from '@/shared/census/patientIdentityReview';
+import {
+  withoutStoredIdentityReviews,
+  withReadIdentityNulls,
+} from '@/shared/census/patientIdentityReview';
 
 export const safeParseDailyRecord = (data: unknown): DailyRecord | null => {
   const { normalized } = normalizeLegacyNullsDeep(data);
@@ -47,7 +50,7 @@ export const parsePatientDataWithDefaultsReport = (
   const parsed = PatientDataSchema.safeParse(normalized);
   if (parsed.success) {
     return {
-      patient: parsed.data,
+      patient: withReadIdentityNulls(parsed.data, data),
       report: {
         nullNormalization,
         usedFallback: false,
@@ -58,7 +61,7 @@ export const parsePatientDataWithDefaultsReport = (
 
   const fallback = buildFallbackPatientDataReport(normalized, bedId, { raw: data });
   return {
-    patient: fallback.patient,
+    patient: withReadIdentityNulls(fallback.patient, data),
     report: {
       nullNormalization,
       usedFallback: true,
@@ -76,11 +79,16 @@ export const parseDailyRecordWithDefaultsReport = (
   { unreadableIdentity }: { unreadableIdentity?: UnreadableIdentityPolicy } = {}
 ): { record: DailyRecord; report: DailyRecordParseReport } => {
   const { normalized, report: nullNormalization } = normalizeLegacyNullsDeep(data);
+  const storedBeds = (data as { beds?: Record<string, unknown> } | null)?.beds;
   try {
     const result = DailyRecordSchema.safeParse(normalized);
     if (result.success) {
+      const record = result.data as DailyRecord;
+      Object.keys(record.beds).forEach(id => {
+        record.beds[id] = withReadIdentityNulls(record.beds[id], storedBeds?.[id]);
+      });
       return {
-        record: result.data as DailyRecord,
+        record,
         report: {
           nullNormalization,
           salvagedBeds: [],
@@ -103,13 +111,12 @@ export const parseDailyRecordWithDefaultsReport = (
   const salvagedBeds: Record<string, PatientData> = {};
   const salvagedBedIds: string[] = [];
   let droppedPatientListItems = 0;
-  const storedBeds = (data as { beds?: Record<string, unknown> } | null)?.beds;
 
   if (raw.beds && typeof raw.beds === 'object' && !Array.isArray(raw.beds)) {
     Object.entries(raw.beds as Record<string, unknown>).forEach(([id, patient]) => {
       const parsed = PatientDataSchema.safeParse(patient);
       if (parsed.success) {
-        salvagedBeds[id] = parsed.data;
+        salvagedBeds[id] = withReadIdentityNulls(parsed.data, storedBeds?.[id]);
         return;
       }
 
@@ -117,7 +124,7 @@ export const parseDailyRecordWithDefaultsReport = (
         unreadableIdentity,
         raw: storedBeds?.[id],
       });
-      salvagedBeds[id] = fallback.patient;
+      salvagedBeds[id] = withReadIdentityNulls(fallback.patient, storedBeds?.[id]);
       droppedPatientListItems += fallback.droppedListItems;
       salvagedBedIds.push(id);
     });

@@ -158,4 +158,25 @@ describe.skipIf(!enabled)('writes after a bed under identity review changes hand
     expect(r1.rut).toEqual(['FAKE-RUT', null]);
     expect((await storedBed('R2')).pathology).toBe('DIAGNOSTICO EDITADO');
   });
+
+  it('a later save of another bed keeps the nulls of a bed whose last review was repaired', async () => {
+    await storeR1({ documentType: 'Cedula', patientName: null, admissionTime: null });
+    signInAs('admin', 'synthetic-admin@example.invalid');
+    const read = (await getRecordFromFirestore(date))!;
+    const { record, mergedPatches } = preparePatchedRecordPersistence(read, date, {
+      'beds.R1.documentType': 'Pasaporte',
+    } as DailyRecordPatch);
+    await updateRecordPartial(date, mergedPatches, storedAt);
+    const { lastUpdated } = (await getRecordFromFirestore(date))!;
+    expect(record.beds.R1.identityReview).toBeUndefined();
+    record.beds.R2.pathology = 'DIAGNOSTICO EDITADO';
+
+    await saveRecordToFirestore({ ...record, lastUpdated }, lastUpdated);
+
+    const r1 = await storedBed('R1');
+    expect(r1.documentType).toBe('Pasaporte');
+    expect(r1.patientName).toBeNull();
+    expect(r1.admissionTime).toBeNull();
+    expect(JSON.stringify(r1)).not.toContain('identityNulls');
+  });
 });

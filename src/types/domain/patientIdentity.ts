@@ -31,6 +31,6 @@ export interface PatientIdentityReview {
   readonly fields: readonly PatientIdentityField[];
   /** Every identity field as the read showed it: the occupant this review was read for. */
   readonly shown: Readonly<Partial<Record<PatientIdentityField, unknown>>>;
-  /** Exactly as storage holds them: each listed field, and each null the read showed as empty. */
+  /** Each listed field exactly as storage holds it. */
   readonly stored: Readonly<Partial<Record<PatientIdentityField, unknown>>>;
 }

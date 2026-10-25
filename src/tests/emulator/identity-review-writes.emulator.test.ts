@@ -387,6 +387,18 @@ describe.skipIf(!enabled)('writes against a stored day with an unreadable identi
     ['a null name', { documentType: 'Cedula', patientName: null }],
     ['a name that is an object', { documentType: 'Pasaporte', patientName: { full: 'FAKE NAME' } }],
     ['a null inside the RUT', { documentType: 'RUT', rut: ['FAKE-RUT', null] }],
+    // No review at all: only the null cannot be shown as stored.
+    ['a null name with a readable type', { documentType: 'Pasaporte', patientName: null }],
+    [
+      'every raw shape at once',
+      {
+        documentType: 'Cedula',
+        patientName: null,
+        rut: ['FAKE', null, 7, { a: null }],
+        clinicalEpisodeId: { a: [1, null] },
+        admissionTime: null,
+      },
+    ],
     [
       'a newborn of its own',
       {

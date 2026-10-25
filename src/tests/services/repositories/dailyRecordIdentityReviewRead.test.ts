@@ -28,6 +28,7 @@ import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositoryReadService';
 import { subscribeDetailed } from '@/services/repositories/dailyRecordRepositorySyncService';
 import { getRecordForDate } from '@/services/storage/indexeddb/indexedDbRecordService';
+import { withStoredIdentity } from '@/shared/census/patientIdentityReview';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { createDailyRecordQueryFn } from '@/hooks/controllers/dailyRecordQueryController';
 import { resolveDailyRecordBootstrapPhase } from '@/hooks/controllers/dailyRecordBootstrapController';
@@ -152,7 +153,7 @@ describe('a census day where one bed has an unreadable stored identity', () => {
     const offline = await getForDateWithMeta(DATE, false);
 
     expect(offline.source).toBe('indexeddb');
-    expect(offline.record?.beds.R1.identityReview?.stored).toMatchObject(stored);
+    expect(withStoredIdentity(offline.record)?.beds.R1).toMatchObject(stored);
   });
 
   it('reads offline a local copy that holds the unreadable value itself', async () => {

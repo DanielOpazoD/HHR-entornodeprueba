@@ -1,6 +1,10 @@
 import type { ClinicalCarryover } from './clinicalCarryover';
 import type { NeonatalPlacementDecision } from './neonatalPlacementDecision';
-import type { PatientIdentityReview, PatientIdentityStatus } from './patientIdentity';
+import type {
+  PatientIdentityField,
+  PatientIdentityReview,
+  PatientIdentityStatus,
+} from './patientIdentity';
 import type { Specialty, PatientStatus } from './patientClassification';
 import type { ClinicalEvent } from './clinicalEvents';
 import type { CudyrScore } from './cudyr';
@@ -75,6 +79,11 @@ export interface PatientData {
   identityStatus?: PatientIdentityStatus;
   /** Set when the stored identity could not be read. See PatientIdentityReview. */
   identityReview?: PatientIdentityReview;
+  /**
+   * The identity fields storage holds as null, which this client shows empty. Only a read sets it,
+   * and it never reaches Firestore: a write gives each one back as null while it is still empty.
+   */
+  identityNulls?: readonly PatientIdentityField[];
   rut: string;
   documentType?: 'RUT' | 'Pasaporte'; // Switcher
   age: string;

@@ -32,6 +32,12 @@ const merge = (remote: DailyRecord, local: DailyRecord) => {
   return { merged, detached: findDetachedReviewEdits(remote, local, merged, PATHOLOGY) };
 };
 
+/** The day after a write that has nothing to do with R1: an edit of R2. */
+const withR2Edited = (day: DailyRecord): DailyRecord => ({
+  ...day,
+  beds: { ...day.beds, R2: { ...day.beds.R2, pathology: 'DIAGNOSTICO EDITADO' } },
+});
+
 describe('pending work on a bed whose identity under review changed elsewhere', () => {
   it('writes the pending diagnosis when the stored day only repaired the type', () => {
     // Another session chose the type of the very same patient and episode.
@@ -66,5 +72,40 @@ describe('pending work on a bed whose identity under review changed elsewhere', 
 
     expect(withStoredIdentity(merged).beds.R1.rut).toBe('FAKE-PASSPORT-R1B');
     expect(merged.beds.R1.identityReview).toBeUndefined();
+  });
+});
+
+describe('identity fields storage holds as null', () => {
+  it('keeps the nulls a repair never touched after it closes the last review', () => {
+    const { record } = preparePatchedRecordPersistence(
+      readDay({ documentType: 'Cedula', patientName: null, admissionTime: null }),
+      DATE,
+      { 'beds.R1.documentType': 'Pasaporte' } as DailyRecordPatch
+    );
+
+    expect(record.beds.R1.identityReview).toBeUndefined();
+    expect(withStoredIdentity(withR2Edited(record)).beds.R1).toMatchObject({
+      documentType: 'Pasaporte',
+      patientName: null,
+      admissionTime: null,
+    });
+  });
+
+  it('gives a null back with no review at all, and what the nurse wrote over one', () => {
+    const day = readDay({ documentType: 'Pasaporte', patientName: null, secondLastName: null });
+    const { record } = preparePatchedRecordPersistence(day, DATE, {
+      'beds.R1.patientName': 'PACIENTE ESCRITO',
+    } as DailyRecordPatch);
+
+    expect(day.beds.R1.identityReview).toBeUndefined();
+    expect(withStoredIdentity(day).beds.R1).toMatchObject({
+      patientName: null,
+      secondLastName: null,
+    });
+    expect(withStoredIdentity(record).beds.R1).toMatchObject({
+      patientName: 'PACIENTE ESCRITO',
+      secondLastName: null,
+    });
+    expect(JSON.stringify(withStoredIdentity(record))).not.toContain('identityNulls');
   });
 });

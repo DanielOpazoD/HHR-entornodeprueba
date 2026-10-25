@@ -59,6 +59,7 @@ export class PatientIdentityRepairRequiredError extends Error {
 
 const BED_SLOT_PATH = /^beds\.[^.]+(\.clinicalCrib)?$/;
 const REVIEW_KEY = /(^|\.)identityReview$/;
+const NULLS_KEY = /(^|\.)identityNulls$/;
 
 const repairRequired = (path: string, review: unknown) =>
   new PatientIdentityRepairRequiredError(
@@ -74,6 +75,11 @@ const mapReviews = (value: unknown, path: string, store: boolean): unknown => {
   let changed = false;
   Object.entries(value).forEach(([key, child]) => {
     const childPath = path ? `${path}.${key}` : key;
+    // What a read marked as stored null is device state too: it never leaves, wherever it sits.
+    if (NULLS_KEY.test(key)) {
+      changed = true;
+      return;
+    }
     if (REVIEW_KEY.test(key)) {
       // A patch of the review itself, even one that clears it, would erase what was not read.
       if (
@@ -88,7 +94,10 @@ const mapReviews = (value: unknown, path: string, store: boolean): unknown => {
     next[key] = mapReviews(child, childPath, store);
     if (next[key] !== child) changed = true;
   });
-  const review = (value as { identityReview?: unknown }).identityReview;
+  const { identityReview: review, identityNulls: nulls } = value as {
+    identityReview?: unknown;
+    identityNulls?: unknown;
+  };
   if (store && review !== undefined) {
     if (
       !isIdentityReview(review) ||
@@ -104,6 +113,12 @@ const mapReviews = (value: unknown, path: string, store: boolean): unknown => {
       });
     }
   }
+  // A null the read showed empty goes back as null while the field is still empty.
+  if (store && Array.isArray(nulls) && BED_SLOT_PATH.test(path)) {
+    nulls.forEach(field => {
+      if (isPatientIdentityField(field) && (next[field] ?? '') === '') next[field] = null;
+    });
+  }
   if (!changed) return value;
   return Array.isArray(value) ? Object.assign([], next) : next;
 };
@@ -111,8 +126,9 @@ const mapReviews = (value: unknown, path: string, store: boolean): unknown => {
 /**
  * What storage receives for a value leaving the device (a day, a patch, a snapshot): a bed or crib
  * under review goes back with no review, and with what storage held for each field it could not
- * show, unless the slot now holds another occupant or the field was written since. A review
- * anywhere else, such as a patient copied into a movement, would store a guess, so the write fails.
+ * read, unless the slot now holds another occupant or the field was written since. A field storage
+ * holds as null goes back as null while it is still empty. A review anywhere else, such as a
+ * patient copied into a movement, would store a guess, so the write fails.
  */
 export const withStoredIdentity = <T>(value: T): T => mapReviews(value, '', true) as T;
 
@@ -144,12 +160,31 @@ export const isSameIdentityUnderReview = (a: PatientData, b: PatientData): boole
       (episodeOf(a) !== undefined && episodeOf(a) === episodeOf(b))
     : undefined;
 
+/**
+ * `patient` as a read of `stored` shows it, marking each identity field storage holds as null: the
+ * read shows it empty, and a write gives it back as null.
+ */
+export const withReadIdentityNulls = (patient: PatientData, stored: unknown): PatientData => {
+  if (!isPlainObject(stored)) return patient;
+  const crib =
+    patient.clinicalCrib && withReadIdentityNulls(patient.clinicalCrib, stored.clinicalCrib);
+  const nulls = PATIENT_IDENTITY_FIELDS.filter(field => stored[field] === null);
+  return nulls.length || crib !== patient.clinicalCrib
+    ? {
+        ...patient,
+        ...(crib ? { clinicalCrib: crib } : {}),
+        ...(nulls.length ? { identityNulls: nulls } : {}),
+      }
+    : patient;
+};
+
 const PATCH_PATH = /^beds\.([^.]+)(?:\.(clinicalCrib))?(?:\.([^.]+))?$/;
 
 /**
  * Keeps the reviews of a day in step with the patches applied to it. A patched identity field shows
- * what the patch wrote: it is no longer under review, and storage does not get back what it held for
- * it. A patch of a whole bed or crib keeps a review only for the occupant it was read for.
+ * what the patch wrote: it is no longer under review or a stored null, and storage does not get back
+ * what it held for it. A patch of a whole bed or crib keeps a review only for the occupant it was
+ * read for.
  */
 export const clearReviewedIdentityFields = <T extends { beds: Record<string, PatientData> }>(
   record: T,
@@ -159,19 +194,27 @@ export const clearReviewedIdentityFields = <T extends { beds: Record<string, Pat
     const [, bedId, crib, field] = PATCH_PATH.exec(path) ?? [];
     const bed = bedId ? current.beds[bedId] : undefined;
     const target = crib ? bed?.clinicalCrib : bed;
-    const review = target?.identityReview;
-    if (!bed || !target || !review || (field && !isPatientIdentityField(field))) return current;
-    const { identityReview: _review, ...next } = target;
-    let kept: PatientIdentityReview | undefined = review;
+    if (!bed || !target || (field && !isPatientIdentityField(field))) return current;
+    const { identityReview: review, identityNulls: nulls, ...next } = target;
+    if (!review && !nulls) return current;
+    let kept = review;
+    let keptNulls = nulls;
     if (isPatientIdentityField(field)) {
-      const { [field]: _stored, ...stored } = review.stored;
-      const fields = review.fields.filter(reviewed => reviewed !== field);
-      const shown = { ...review.shown, [field]: target[field] };
-      kept = fields.length ? { ...review, fields, shown, stored } : undefined;
-    } else if (!holdsReadOccupant(next, review, Boolean(crib))) {
+      if (review) {
+        const { [field]: _stored, ...stored } = review.stored;
+        const fields = review.fields.filter(reviewed => reviewed !== field);
+        const shown = { ...review.shown, [field]: target[field] };
+        kept = fields.length ? { ...review, fields, shown, stored } : undefined;
+      }
+      keptNulls = nulls?.filter(stored => stored !== field);
+    } else if (review && !holdsReadOccupant(next, review, Boolean(crib))) {
       kept = undefined;
     }
-    const patient = kept ? { ...next, identityReview: kept } : next;
+    const patient: PatientData = {
+      ...next,
+      ...(kept ? { identityReview: kept } : {}),
+      ...(keptNulls?.length ? { identityNulls: keptNulls } : {}),
+    };
     return {
       ...current,
       beds: { ...current.beds, [bedId]: crib ? { ...bed, clinicalCrib: patient } : patient },

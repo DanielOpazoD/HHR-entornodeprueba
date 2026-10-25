@@ -96,13 +96,10 @@ export const buildFallbackPatientDataReport = (
     ? parsed.data
     : PatientDataSchema.parse(candidate);
   const fields = [...reviewed];
-  // Exactly as storage holds it, before any normalization: each field the read cannot show as it is
-  // stored, whether unreadable or a null it shows as empty.
+  // Each unreadable field exactly as storage holds it, before any normalization.
   const source = isPlainObject(raw) ? raw : {};
   const stored = Object.fromEntries(
-    PATIENT_IDENTITY_FIELDS.filter(
-      field => Object.hasOwn(source, field) && (reviewed.has(field) || source[field] === null)
-    ).map(field => [field, source[field]])
+    fields.filter(field => Object.hasOwn(source, field)).map(field => [field, source[field]])
   );
   return {
     patient: {
