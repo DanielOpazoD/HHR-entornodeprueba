@@ -41,7 +41,7 @@ const OFFLINE_BOOT_CHUNKS = [
   'BookmarkBar',
   'CensusConflictQuickAction',
   'DateStripQuickActions',
-  'DateStripBookmarkToggle',
+  'quick-action',
   'DateStripYearNavigator',
   'DateStripMonthNavigator',
   'SaveDropdown',
@@ -51,7 +51,17 @@ const OFFLINE_BOOT_CHUNKS = [
 
 type Chunk = Pick<Rollup.OutputChunk, 'fileName' | 'imports' | 'isEntry'>;
 
-export const assertPrecacheStaticImports = (chunks: readonly Chunk[], urls: readonly string[]) => {
+export const assertPrecacheStaticImports = (
+  chunks: readonly Chunk[],
+  urls: readonly string[],
+  bootChunkNames: readonly string[] = OFFLINE_BOOT_CHUNKS
+) => {
+  const missingRoots = bootChunkNames.filter(
+    name => !chunks.some(chunk => chunk.fileName.startsWith(`assets/${name}-`))
+  );
+  if (missingRoots.length) {
+    throw new Error(`Offline boot roots have no generated chunks: ${missingRoots.join(', ')}`);
+  }
   const precached = new Set(urls.map(url => url.replace(/^\//, '').split('?')[0]));
   const byName = new Map(chunks.map(chunk => [chunk.fileName, chunk]));
   const boot = new Set<string>();
@@ -63,8 +73,7 @@ export const assertPrecacheStaticImports = (chunks: readonly Chunk[], urls: read
   chunks
     .filter(
       chunk =>
-        chunk.isEntry ||
-        OFFLINE_BOOT_CHUNKS.some(name => chunk.fileName.startsWith(`assets/${name}-`))
+        chunk.isEntry || bootChunkNames.some(name => chunk.fileName.startsWith(`assets/${name}-`))
     )
     .forEach(chunk => visit(chunk.fileName));
   const violations: string[] = [...boot]
@@ -89,7 +98,9 @@ export const assertPrecacheStaticImports = (chunks: readonly Chunk[], urls: read
   }
 };
 
-export const createPrecacheGraphGuard = () => {
+export const createPrecacheGraphGuard = (
+  bootChunkNames: readonly string[] = OFFLINE_BOOT_CHUNKS
+) => {
   let chunks: Rollup.OutputChunk[] = [];
   const plugin: Plugin = {
     name: 'pwa-precache-static-import-guard',
@@ -101,7 +112,8 @@ export const createPrecacheGraphGuard = () => {
   const manifestTransform = async <Entry extends { url: string }>(manifest: Entry[]) => {
     assertPrecacheStaticImports(
       chunks,
-      manifest.map(entry => entry.url)
+      manifest.map(entry => entry.url),
+      bootChunkNames
     );
     return { manifest, warnings: [] };
   };

@@ -199,3 +199,25 @@ Gates: compatibilidad de esquemas/defaults, `check:bundle-budget`,
 críticos. Rollback: revertir dependencias, adaptadores y este margen juntos; el
 regreso a las versiones vulnerables vuelve a bloquear la auditoría y no debe
 presentarse como un cierre válido.
+
+## PR #1028: import de callables con conectividad aparente (2026-10-24)
+
+Owner: platform/auth y census/sync. Functions se importa al invocar una callable;
+si `navigator.onLine` es false, los resolvers rechazan antes del import con
+`functions/unavailable`, reintentable para la cola. No se precarga Functions.
+
+Riesgo residual observado por el verificador P12c: si `navigator.onLine` sigue
+siendo true pero el servidor es inalcanzable, puede fallar el primer import.
+En Chromium hasta 153 el fallo queda retenido hasta recargar; Chrome 156 se
+recupera. En esos Chromium antiguos, el ingreso por RUT y `checkUserRole` pueden
+seguir fallando tras recuperar la red hasta una recarga. Las escrituras callable
+encoladas terminan en FAILED después de 3 a 5 intentos, permanecen en IndexedDB
+y admiten reintento manual. No se descartan datos ni se cambia la política de cola.
+
+Se acepta este riesgo en esta ronda para reservar margen a las PR de seguridad
+de datos pendientes. El chunk `vendor-firebase-functions` mide 12.023 bytes en
+la medición del verificador. Opciones de seguimiento: precargarlo cuando exista
+presupuesto, o mostrar una solicitud de recarga después de recuperar la conexión
+si falló un import callable. Ninguna de las dos se implementa aquí. No se amplían
+los límites de shell ni precache. Guardas: grafo generado con mutaciones,
+resolvers offline/reconexión y prueba de ingreso por RUT sin conexión.

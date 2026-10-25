@@ -169,6 +169,7 @@ export const establishNursingSession = async (
 };
 
 export const accountErrorMessage = (error: unknown): string => {
+  if (!navigator.onLine) return 'Sin conexión.';
   const code = (error as { code?: string })?.code;
   if (code === 'functions/unavailable')
     return 'La recuperación por correo no está disponible ahora. Contacta al administrador.';

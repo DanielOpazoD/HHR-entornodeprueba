@@ -105,8 +105,8 @@ export const useLoginPageController = (
   );
 
   useEffect(() => {
-    // Warm the Firebase auth/functions runtime while the user reads the login
-    // screen so the click → popup → role-lookup path pays no lazy-load cost.
+    // Warm Firebase auth while the user reads the login screen. Functions
+    // stays deferred until an online callable request.
     executeGoogleSignInWarmup();
 
     // Prefetch the post-login shell/route chunks on idle time so the

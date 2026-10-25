@@ -22,7 +22,7 @@ vi.mock('@/services/firebase-runtime/functionsRuntime', () => ({
 vi.mock('@/services/firebase-runtime/authRuntime', () => ({ defaultAuthRuntime: {} }));
 vi.mock('@/services/auth/authRoleLookup', () => ({ clearRecentAuthRoleLookups: vi.fn() }));
 
-import { callAccount } from '@/services/auth/nursingAccountService';
+import { callAccount, accountErrorMessage } from '@/services/auth/nursingAccountService';
 import { sanitizeOperationalTelemetryEvent } from '@/services/observability/operationalTelemetryPrivacy';
 
 describe('RUT callable regional rollout', () => {
@@ -253,5 +253,22 @@ describe('RUT callable regional rollout', () => {
     expect(mocks.invoke).toHaveBeenCalledOnce();
     expect(mocks.getRegionalFunctions).not.toHaveBeenCalled();
     expect(mocks.recordTelemetry).not.toHaveBeenCalled();
+  });
+});
+
+describe('nursing account error messages', () => {
+  afterEach(() => vi.restoreAllMocks());
+  it('explains offline RUT login and nursing account failures before mapping callable codes', () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    for (const error of [{ code: 'functions/unavailable' }, new Error('synthetic failure')]) {
+      expect(accountErrorMessage(error)).toMatch(/sin conexión/i);
+      expect(accountErrorMessage(error)).not.toMatch(/recuperación por correo|administrador/i);
+    }
+  });
+  it('preserves the recovery service message when online', () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+    expect(accountErrorMessage({ code: 'functions/unavailable' })).toContain(
+      'recuperación por correo'
+    );
   });
 });
