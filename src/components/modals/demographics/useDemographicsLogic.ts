@@ -20,22 +20,7 @@ import {
 import type { PatientData } from '@/types/domain/patient';
 import { isPatientIdentityField } from '@/shared/census/patientIdentityReview';
 
-// The form inputs identity fields are written from: each one its own field, except the provisional
-// name, which is the full name. An official patient's full name has no input of its own.
-const IDENTITY_INPUTS = [
-  'firstName',
-  'lastName',
-  'secondLastName',
-  'provisionalName',
-  'identityStatus',
-  'rut',
-  'documentType',
-  'admissionDate',
-  'admissionTime',
-] as const satisfies readonly (keyof LocalDemographicsState)[];
-
-const identityInputOf = (field: string) =>
-  IDENTITY_INPUTS.find(input => input === (field === 'patientName' ? 'provisionalName' : field));
+const NAME_PARTS = ['firstName', 'lastName', 'secondLastName'] as const;
 
 interface UseDemographicsLogicProps {
   data: DemographicSubset;
@@ -113,18 +98,23 @@ export const useDemographicsLogic = ({
     ? `Faltan ${requiredCompletion.missingFields.length}`
     : null;
 
-  // For a patient under review the form writes only the identity fields the nurse edited, never a
-  // name or a document composed from other inputs: what was not edited keeps what storage holds.
-  const isEdited = (field: string) => {
-    const input = identityInputOf(field);
-    return input !== undefined && localData[input] !== initialData[input];
-  };
+  // For a patient under review the form writes an identity field only when the nurse edited it, so
+  // what was not edited keeps what storage holds. Editing a name part edits the full name, which is
+  // then written whole: composed from all three parts, never from one that could not be read.
+  const review = data.identityReview;
+  const edited = (field: string): boolean =>
+    field === 'patientName'
+      ? isProvisionalRnMode
+        ? edited('provisionalName')
+        : NAME_PARTS.some(edited)
+      : localData[field as keyof LocalDemographicsState] !==
+        initialData[field as keyof LocalDemographicsState];
   const save = (fields: Partial<PatientData>) =>
     onSave(
-      data.identityReview
+      review
         ? Object.fromEntries(
             Object.entries(fields).filter(
-              ([field]) => !isPatientIdentityField(field) || isEdited(field)
+              ([field]) => !isPatientIdentityField(field) || edited(field)
             )
           )
         : fields
@@ -187,8 +177,20 @@ export const useDemographicsLogic = ({
       return;
     }
 
-    // Empty only while a document type under review was not chosen, and then it is not written.
+    // Empty only while a document type under review was not chosen: it is then not written, and no
+    // document number is written without it.
     const documentType = localData.documentType || undefined;
+    if (edited('rut') && !documentType) {
+      setError('Elige RUT o pasaporte: el tipo guardado no se pudo leer.');
+      return;
+    }
+    if (
+      NAME_PARTS.some(part => review?.fields.includes(part) && !edited(part)) &&
+      edited('patientName')
+    ) {
+      setError('Completa el nombre: una parte no se pudo leer.');
+      return;
+    }
 
     const fullName = composeFullName(
       localData.firstName,

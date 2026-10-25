@@ -45,6 +45,8 @@ const date = getTodayISO();
 const storedAt = `${date}T08:00:00.000Z`;
 const docPath = `hospitals/hanga_roa/dailyRecords/${date}`;
 
+type Form = ReturnType<typeof useDemographicsLogic>;
+
 describe.skipIf(!enabled)('repairing one identity field of a stored day under review', () => {
   let environment: RulesTestEnvironment;
 
@@ -55,6 +57,50 @@ describe.skipIf(!enabled)('repairing one identity field of a stored day under re
       bed = (data.beds as Record<string, Json>).R1;
     });
     return bed;
+  };
+  const storeR1 = (r1: Json) =>
+    environment.withSecurityRulesDisabled(async context => {
+      const day = storedDay(r1, { date, lastUpdated: storedAt });
+      await context
+        .firestore()
+        .doc(docPath)
+        .set(sanitizeForFirestore(day) as Json);
+    });
+
+  /** The demographics form of R1 as read from Firestore, after an edit and a save. */
+  const submitForm = async (edit: (form: Form) => void) => {
+    const day = (await getRecordFromFirestore(date))!;
+    const onSave = vi.fn();
+    const { result } = renderHook(() =>
+      useDemographicsLogic({
+        data: day.beds.R1,
+        isClinicalCribPatient: false,
+        isOpen: true,
+        bedId: 'R1',
+        recordDate: date,
+        onSave,
+        onClose: vi.fn(),
+      })
+    );
+    act(() => edit(result.current));
+    act(() => result.current.handleSave());
+    return { day, onSave, error: result.current.error };
+  };
+
+  /** Saves the form as the census does: its patch to Firestore, then a full save of the day. */
+  const saveForm = async (edit: (form: Form) => void) => {
+    const { day, onSave } = await submitForm(edit);
+    const patch = buildUpdatePatientPatches(day, 'R1', onSave.mock.calls[0][0]);
+    const { record, mergedPatches } = preparePatchedRecordPersistence(
+      day,
+      date,
+      patch as DailyRecordPatch
+    );
+    await updateRecordPartial(date, mergedPatches, storedAt);
+    const afterPatch = await storedR1();
+    const { lastUpdated } = (await getRecordFromFirestore(date))!;
+    await saveRecordToFirestore({ ...record, lastUpdated }, lastUpdated);
+    return { afterPatch, afterFullSave: await storedR1() };
   };
 
   beforeAll(async () => {
@@ -71,17 +117,6 @@ describe.skipIf(!enabled)('repairing one identity field of a stored day under re
 
   beforeEach(async () => {
     await environment.clearFirestore();
-    await environment.withSecurityRulesDisabled(async context => {
-      // R1's document type and full name are both unreadable as stored.
-      const day = storedDay(
-        { documentType: 'Cedula', patientName: { full: 'FAKE-NAME' } },
-        { date, lastUpdated: storedAt }
-      );
-      await context
-        .firestore()
-        .doc(docPath)
-        .set(sanitizeForFirestore(day) as Json);
-    });
     activeDb = environment
       .authenticatedContext('synthetic-admin', {
         email: 'synthetic-admin@example.invalid',
@@ -96,42 +131,47 @@ describe.skipIf(!enabled)('repairing one identity field of a stored day under re
   });
 
   it('stores only the document type the nurse chose and keeps the unread name', async () => {
-    const day = (await getRecordFromFirestore(date))!;
-    const onSave = vi.fn();
-    const { result } = renderHook(() =>
-      useDemographicsLogic({
-        data: day.beds.R1,
-        isClinicalCribPatient: false,
-        isOpen: true,
-        bedId: 'R1',
-        recordDate: date,
-        onSave,
-        onClose: vi.fn(),
-      })
-    );
-    act(() => result.current.setLocalData(current => ({ ...current, documentType: 'Pasaporte' })));
-    act(() => result.current.handleSave());
-    const patch = buildUpdatePatientPatches(day, 'R1', onSave.mock.calls[0][0]);
-    const { record, mergedPatches } = preparePatchedRecordPersistence(
-      day,
-      date,
-      patch as DailyRecordPatch
+    // R1's document type and full name are both unreadable as stored.
+    await storeR1({ documentType: 'Cedula', patientName: { full: 'FAKE-NAME' } });
+
+    const saved = await saveForm(form =>
+      form.setLocalData(current => ({ ...current, documentType: 'Pasaporte' }))
     );
 
-    await updateRecordPartial(date, mergedPatches, storedAt);
+    for (const r1 of [saved.afterPatch, saved.afterFullSave]) {
+      expect(r1).toMatchObject({ documentType: 'Pasaporte', patientName: { full: 'FAKE-NAME' } });
+    }
+  });
 
-    expect(await storedR1()).toMatchObject({
-      documentType: 'Pasaporte',
-      patientName: { full: 'FAKE-NAME' },
-    });
+  it('stores the full name composed from its parts when the nurse edits one', async () => {
+    await storeR1({ documentType: 'Cedula', patientName: { full: 'FAKE-NAME' } });
 
-    // A later full save of the day this device now holds keeps the unread name too.
-    const { lastUpdated } = (await getRecordFromFirestore(date))!;
-    await saveRecordToFirestore({ ...record, lastUpdated }, lastUpdated);
+    const saved = await saveForm(form =>
+      form.setLocalData(current => ({ ...current, lastName: 'SINTETICA' }))
+    );
 
-    expect(await storedR1()).toMatchObject({
-      documentType: 'Pasaporte',
-      patientName: { full: 'FAKE-NAME' },
-    });
+    for (const r1 of [saved.afterPatch, saved.afterFullSave]) {
+      expect(r1).toMatchObject({
+        patientName: 'PACIENTE SINTETICA R1',
+        firstName: 'PACIENTE',
+        lastName: 'SINTETICA',
+        secondLastName: 'R1',
+        // Not edited, so still as stored and under review.
+        documentType: 'Cedula',
+      });
+    }
+  });
+
+  it('stores nothing while another part of the name is unread', async () => {
+    await storeR1({ firstName: { given: 'PACIENTE' } });
+    const before = await storedR1();
+
+    const { onSave, error } = await submitForm(form =>
+      form.setLocalData(current => ({ ...current, lastName: 'SINTETICA' }))
+    );
+
+    expect(onSave).not.toHaveBeenCalled();
+    expect(error).toBe('Completa el nombre: una parte no se pudo leer.');
+    expect(await storedR1()).toEqual(before);
   });
 });
