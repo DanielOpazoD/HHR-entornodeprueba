@@ -194,7 +194,11 @@ run('shared staff catalog emulator', () => {
       error = vi.fn();
     const unsubscribe = subscribeEloisaStaff(next, error, true);
     try {
-      await vi.waitFor(() => expect(next).toHaveBeenLastCalledWith(confirmed));
+      // The shared snapshot reaches the local catalog through a lazy import, a Firestore
+      // listener and an IndexedDB write; loaded CI runners can exceed waitFor's 1 s default.
+      await vi.waitFor(() => expect(next).toHaveBeenLastCalledWith(confirmed), {
+        timeout: 10_000,
+      });
       expect(await readEloisaStaff()).toEqual(confirmed);
       expect(error).not.toHaveBeenCalled();
     } finally {

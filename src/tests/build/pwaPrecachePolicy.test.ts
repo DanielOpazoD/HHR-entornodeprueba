@@ -16,6 +16,35 @@ const readBundleBudgetConfig = (): BundleBudgetConfig =>
   ) as BundleBudgetConfig;
 
 describe('PWA precache policy', () => {
+  it('defers official Eloisa hospitalization reports while retaining offline census work', () => {
+    const viteConfig = readViteConfig();
+    const patterns = readBundleBudgetConfig().precacheIgnoredAssetPatterns.map(
+      pattern => new RegExp(pattern)
+    );
+    expect(viteConfig).toContain('**/assets/PatientHospitalizationReportsDialog-*.js');
+    expect(
+      patterns.some(pattern =>
+        pattern.test('assets/PatientHospitalizationReportsDialog-fixture.js')
+      )
+    ).toBe(true);
+    for (const chunk of [
+      'App',
+      'app-authenticated-shell',
+      'census-view',
+      'CudyrView',
+      'ClinicalDocumentIeehPanel',
+      'VitalsDetailModal',
+      'MedicalIndicationsDialog',
+      'hospitalizationReportsBridge',
+    ]) {
+      expect(
+        patterns.some(pattern => pattern.test(`assets/${chunk}-fixture.js`)),
+        chunk
+      ).toBe(false);
+      expect(viteConfig).not.toContain(`**/assets/${chunk}-*.js`);
+    }
+  });
+
   it('loads MEDIF on demand with its PDF template while retaining the offline clinical library', () => {
     const viteConfig = readViteConfig();
     const patterns = readBundleBudgetConfig().precacheIgnoredAssetPatterns.map(
