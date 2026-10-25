@@ -262,7 +262,7 @@ const syncDailyRecord = async (
 ): Promise<SyncTransportResult | void> => {
   if (await runE2ESyncTransport(task)) return;
   const detach = task.syncContract?.changedPaths?.some(path => /^beds\.[^.]+\./.test(path))
-    ? (await import('./dayTaskOccupantDetach')).detachStaleOccupantPaths
+    ? (await import('./dexieDailyRecordOutbox')).detachStaleOccupantPaths
     : undefined;
   let detached: DetachedOccupantWork | undefined;
   const result = await measureRepositoryOperation(
@@ -386,8 +386,8 @@ export const createFirestoreSyncTransport = (
       case 'UPDATE_DAILY_RECORD':
         return syncDailyRecord(task, task.payload as DailyRecord, runtime);
       case 'UPDATE_SPECIALIST_HANDOFF':
-        return import('./specialistHandoffSyncTransport').then(({ replaySpecialistHandoff }) =>
-          replaySpecialistHandoff(task)
+        return import('../firestore/specialistMedicalHandoffClient').then(
+          ({ replaySpecialistHandoff }) => replaySpecialistHandoff(task)
         );
       default:
         throw new Error(`[SyncQueue] Unsupported task type: ${String(task.type)}`);

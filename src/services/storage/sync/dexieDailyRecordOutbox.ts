@@ -3,6 +3,8 @@ import type { RayenSyncEvent } from '@/types/domain/rayenSync';
 import type { DailyRecordPatchWrite } from '@/services/storage/sync/syncQueuePorts';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import { hasSameBedOccupant } from '@/services/storage/sync/bedOccupantIdentity';
+// The replay-time occupant check ships with the enqueue-time one, in this lazy chunk.
+export { detachStaleOccupantPaths } from '@/services/storage/sync/dayTaskOccupantDetach';
 import { mergeMovementArrayById } from '@/services/repositories/conflictResolutionMovementMergePolicy';
 import { mergeRayenSyncHistory } from '@/services/repositories/dailyRecordRayenSyncHistoryPolicy';
 import {

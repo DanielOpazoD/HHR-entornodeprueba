@@ -4,7 +4,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { SpecialistHandoffSyncPayload, SyncTask } from '@/services/storage/syncQueueTypes';
 import { DataFactory } from '@/tests/factories/DataFactory';
-const h = vi.hoisted(() => ({ remote: {} as DailyRecord, written: undefined as unknown }));
+const h = vi.hoisted(() => ({
+  remote: {} as DailyRecord,
+  written: undefined as unknown,
+  callable: vi.fn(async (_request: unknown) => ({ data: { success: true } })),
+}));
 vi.mock('firebase/firestore', async importOriginal => ({
   ...(await importOriginal<typeof import('firebase/firestore')>()),
   getDoc: vi.fn(async () => ({ exists: () => true, data: () => h.remote })),
@@ -26,11 +30,11 @@ vi.mock('@/services/storage/firestore/firestoreRayenClinicalAuthorityMode', () =
   isServerClinicalWriteFenceActive: async () => false,
   resolveEffectiveDailyRecordAuthorityMode: async () => 'client_only',
 }));
-vi.mock('@/services/storage/firestore/specialistMedicalHandoffClient', () => ({
-  updateSpecialistMedicalHandoffViaCallable: vi.fn(),
+vi.mock('@/services/firebase-runtime/functionsRuntime', () => ({
+  defaultFunctionsRuntime: { getFunctions: async () => ({}) },
 }));
+vi.mock('firebase/functions', () => ({ httpsCallable: () => h.callable }));
 import { createFirestoreSyncTransport } from '@/services/storage/sync/firestoreSyncTransport';
-import { updateSpecialistMedicalHandoffViaCallable } from '@/services/storage/firestore/specialistMedicalHandoffClient';
 import { buildSpecialistHandoffTargets } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
 import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 import { queueDailyRecordSyncTaskWithLocalRecord } from '@/services/storage/sync';
@@ -165,19 +169,21 @@ describe('queued handoff preserves the original patient and episode', () => {
   it('replays a specialist note through the occupant-bound callable, never the generic write', async () => {
     const payload = makeHandoffPayload();
     await transport().run(makeHandoffTask(payload));
-    expect(updateSpecialistMedicalHandoffViaCallable).toHaveBeenCalledWith(
-      payload.date,
-      payload.patch,
-      payload.expectedOccupants
-    );
+    expect(h.callable).toHaveBeenCalledWith({
+      date: payload.date,
+      patch: payload.patch,
+      expectedOccupants: payload.expectedOccupants,
+    });
     expect(h.written).toBeUndefined();
   });
   it('keeps a refused specialist note as its own conflict and publishes its draft', async () => {
-    vi.mocked(updateSpecialistMedicalHandoffViaCallable).mockRejectedValueOnce(
-      new ConcurrencyError('synthetic occupant conflict', 'semantic_conflict')
+    h.callable.mockRejectedValueOnce(
+      Object.assign(new Error('synthetic occupant conflict'), {
+        code: 'functions/failed-precondition',
+      })
     );
     const task = makeHandoffTask();
-    await expect(transport().run(task)).rejects.toThrow('synthetic occupant conflict');
+    await expect(transport().run(task)).rejects.toBeInstanceOf(ConcurrencyError);
     expect(h.written).toBeUndefined();
     expect(draftValues()).toEqual([['Paciente A Sintético', 'Nota de A']]);
   });
