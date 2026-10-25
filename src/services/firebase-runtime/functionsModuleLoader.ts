@@ -1,5 +1,8 @@
 import { isChunkLoadError } from '@/utils/chunkLoadError';
 
+export const FUNCTIONS_RELOAD_REQUIRED_MESSAGE =
+  'Recarga la aplicación para restablecer el acceso. Los cambios pendientes se conservan.';
+
 let reloadRequired = false;
 const listeners = new Set<() => void>();
 
@@ -22,7 +25,7 @@ export const loadFunctionsModule = async (
     import('firebase/functions')
 ) => {
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
-    throw Object.assign(new Error('Functions unavailable while offline.'), {
+    throw Object.assign(new Error('Sin conexión.'), {
       code: 'functions/unavailable',
     });
   }
@@ -33,14 +36,9 @@ export const loadFunctionsModule = async (
   } catch (error) {
     if (isChunkLoadError(error)) {
       setReloadRequired(true);
-      throw Object.assign(
-        new Error(
-          'Recarga la aplicación para restablecer el acceso. Los cambios pendientes se conservan.'
-        ),
-        {
-          code: 'functions/unavailable',
-        }
-      );
+      throw Object.assign(new Error(FUNCTIONS_RELOAD_REQUIRED_MESSAGE), {
+        code: 'functions/unavailable',
+      });
     }
     throw error;
   }

@@ -5,6 +5,8 @@ import {
   useDocumentScannerDemoController,
 } from '@/features/document-scanner/hooks/useDocumentScannerDemoController';
 
+import { loadFunctionsModule } from '@/services/firebase-runtime/functionsModuleLoader';
+
 const scannerMocks = vi.hoisted(() => ({
   appendPages: vi.fn(),
   createSession: vi.fn(),
@@ -102,6 +104,7 @@ describe('useDocumentScannerDemoController', () => {
     vi.useRealTimers();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
   });
 
   it('creates an idempotency key when randomUUID is unavailable on local HTTP', () => {
@@ -135,6 +138,60 @@ describe('useDocumentScannerDemoController', () => {
 
     expect(hook.result.current.phase).toBe('awaiting-pin');
     expect(hook.result.current.errorMessage).toContain('servicio de acceso no está disponible');
+  });
+
+  it('shows the shared reload message when a cold PIN request cannot import Functions', async () => {
+    scannerMocks.listPatientOptions.mockImplementationOnce(async () => {
+      await loadFunctionsModule(() =>
+        Promise.reject(new TypeError('Importing a module script failed.'))
+      );
+    });
+    const hook = renderHook(() => useDocumentScannerDemoController());
+    try {
+      await act(async () => {
+        await hook.result.current.submitPin('1313');
+      });
+      expect(hook.result.current.phase).toBe('awaiting-pin');
+      expect(hook.result.current.errorMessage).toBe(
+        'Recarga la aplicación para restablecer el acceso. Los cambios pendientes se conservan.'
+      );
+      vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+      scannerMocks.listPatientOptions.mockRejectedValueOnce({ code: 'functions/unavailable' });
+      await act(async () => {
+        await hook.result.current.submitPin('1313');
+      });
+      expect(hook.result.current.errorMessage).toBe('Sin conexión.');
+    } finally {
+      vi.restoreAllMocks();
+      await loadFunctionsModule();
+    }
+  });
+
+  it.each(['functions/internal', 'functions/not-found', 'functions/unavailable'])(
+    'shows a clinician-facing service message for %s in production',
+    async code => {
+      vi.stubEnv('DEV', false);
+      scannerMocks.listPatientOptions.mockRejectedValueOnce(
+        Object.assign(new Error('internal'), { code })
+      );
+      const hook = renderHook(() => useDocumentScannerDemoController());
+      await act(async () => {
+        await hook.result.current.submitPin('1313');
+      });
+      expect(hook.result.current.errorMessage).toBe(
+        'El servicio de acceso no está disponible ahora. Reintenta en unos minutos.'
+      );
+    }
+  );
+
+  it('keeps the local backend hint for a missing callable in development', async () => {
+    vi.stubEnv('DEV', true);
+    scannerMocks.listPatientOptions.mockRejectedValueOnce({ code: 'functions/not-found' });
+    const hook = renderHook(() => useDocumentScannerDemoController());
+    await act(async () => {
+      await hook.result.current.submitPin('1313');
+    });
+    expect(hook.result.current.errorMessage).toContain('Inicia las funciones locales');
   });
 
   it('explains an offline PIN lookup without suggesting a backend configuration change', async () => {
