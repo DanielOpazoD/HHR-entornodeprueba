@@ -40,6 +40,19 @@ afterEach(() => {
 });
 
 describe('operational alert delivery policy', () => {
+  it('uses the hospital day of an alert instant at 23:30 on a Santiago device', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-25T04:30:00.000Z'));
+    const sendEmail = vi.fn().mockResolvedValue(undefined);
+    const mailer = createAlertMailer({ env: () => env, sendEmail });
+    expect(
+      await mailer({ ...event, timestamp: new Date().toISOString() }, 'fake-night-alert')
+    ).toEqual({ kind: 'sent', code: 'accepted' });
+    expect(sendEmail).toHaveBeenLastCalledWith(expect.objectContaining({ date: '2026-10-24' }));
+    await mailer({ ...event, date: '2026-10-23' }, 'fake-explicit-date');
+    expect(sendEmail).toHaveBeenLastCalledWith(expect.objectContaining({ date: '2026-10-23' }));
+  });
+
   it('keeps the shared sender by default but fails closed on a half configured dedicated mailbox', () => {
     expect(resolveAlertMailbox(env)?.sender.email).toBe('hospitalizados@hospitalhangaroa.cl');
     expect(

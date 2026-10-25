@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { BEDS } from '@/constants/beds';
 import {
@@ -14,6 +14,23 @@ import { createMockRecord, parseIsoDateLocal } from './minsalStatsCalculatorTest
 
 describe('minsalStatsCalculator ranges and snapshots', () => {
   describe('getDateRangeFromPreset', () => {
+    it('ends today and relative ranges on the hospital day at 23:30', () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-10-25T04:30:00.000Z'));
+      try {
+        expect(getDateRangeFromPreset('today')).toEqual({
+          startDate: '2026-10-24',
+          endDate: '2026-10-24',
+        });
+        expect(getDateRangeFromPreset('last7days')).toEqual({
+          startDate: '2026-10-18',
+          endDate: '2026-10-24',
+        });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it('should return today for "today" preset', () => {
       const result = getDateRangeFromPreset('today');
       expect(result.startDate).toBe(result.endDate);

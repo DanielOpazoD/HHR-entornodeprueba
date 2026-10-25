@@ -21,6 +21,7 @@ import {
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 import { clearAllRecords } from '@/services/storage/indexedDBService';
+import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 
 const createDeferred = () => {
   let resolve!: () => void;
@@ -160,6 +161,7 @@ const createValidPatient = (id: string, overrides: Partial<PatientData> = {}): P
 describe('DailyRecordRepository (Expanded)', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
+    await hospitalDB.syncQueue.clear();
     await clearAllRecords();
 
     setFirestoreEnabled(true);

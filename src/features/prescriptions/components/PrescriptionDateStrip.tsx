@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import clsx from 'clsx';
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import type { PrescriptionRecord } from '@/types/prescriptionTypes';
 
 interface PrescriptionDateStripProps {
@@ -29,16 +30,13 @@ const MONTH_LABELS = [
 
 const WEEKDAY_LABELS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
 
-const toIsoDay = (date: Date): string =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-
 export const PrescriptionDateStrip: React.FC<PrescriptionDateStripProps> = ({
   selectedDate,
   onSelectDate,
   records,
   daysBack = 30,
 }) => {
-  const today = useMemo(() => new Date(), []);
+  const today = useMemo(() => new Date(`${getClinicalCalendarDateISO()}T12:00:00Z`), []);
   const stripRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -50,9 +48,9 @@ export const PrescriptionDateStrip: React.FC<PrescriptionDateStripProps> = ({
     const out: Array<{ iso: string; date: Date; isToday: boolean }> = [];
     for (let offset = daysBack - 1; offset >= 0; offset -= 1) {
       const d = new Date(today);
-      d.setDate(today.getDate() - offset);
+      d.setUTCDate(today.getUTCDate() - offset);
       out.push({
-        iso: toIsoDay(d),
+        iso: getClinicalCalendarDateISO(d),
         date: d,
         isToday: offset === 0,
       });
@@ -65,7 +63,7 @@ export const PrescriptionDateStrip: React.FC<PrescriptionDateStripProps> = ({
     for (const record of records) {
       const d = new Date(record.createdAt);
       if (Number.isNaN(d.getTime())) continue;
-      set.add(toIsoDay(d));
+      set.add(getClinicalCalendarDateISO(d));
     }
     return set;
   }, [records]);
@@ -98,9 +96,9 @@ export const PrescriptionDateStrip: React.FC<PrescriptionDateStripProps> = ({
         {days.map(({ iso, date, isToday }) => {
           const isSelected = selectedDate === iso;
           const hasData = daysWithData.has(iso);
-          const day = date.getDate();
-          const monthLabel = MONTH_LABELS[date.getMonth()];
-          const weekdayLabel = WEEKDAY_LABELS[date.getDay()];
+          const day = date.getUTCDate();
+          const monthLabel = MONTH_LABELS[date.getUTCMonth()];
+          const weekdayLabel = WEEKDAY_LABELS[date.getUTCDay()];
 
           return (
             <button

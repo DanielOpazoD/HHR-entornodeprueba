@@ -6,7 +6,10 @@ import {
   importRecordsFromBackup,
 } from '@/services/admin/dataMaintenanceService';
 import { BaseModal } from '@/components/shared/BaseModal';
-import { summarizeBackupImportOutcome } from '@/hooks/controllers/backupImportFeedbackController';
+import {
+  summarizeBackupImportOutcome,
+  type BackupImportSummary,
+} from '@/hooks/controllers/backupImportFeedbackController';
 
 interface DataImportModalProps {
   isOpen: boolean;
@@ -21,11 +24,11 @@ export const DataImportModal: React.FC<DataImportModalProps> = ({ isOpen, onClos
     'IDLE' | 'READING' | 'VALIDATED' | 'IMPORTING' | 'SUCCESS' | 'ERROR'
   >('IDLE');
   const [progress, setProgress] = useState({ current: 0, total: 0 });
-  const [results, setResults] = useState({
+  const [results, setResults] = useState<BackupImportSummary>({
     success: 0,
     failed: 0,
     repaired: 0,
-    outcome: 'clean' as 'clean' | 'repaired' | 'partial' | 'blocked',
+    outcome: 'clean',
   });
   const [error, setError] = useState<string | null>(null);
 

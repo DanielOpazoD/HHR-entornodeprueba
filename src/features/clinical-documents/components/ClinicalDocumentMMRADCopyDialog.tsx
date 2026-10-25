@@ -12,6 +12,7 @@ interface ClinicalDocumentMMRADCopyDialogProps {
   onClose: () => void;
 }
 
+// clinical-clock-allow instant-calendar-slice: Only caller supplies a calendar bound anchored at UTC noon, not an event instant.
 const toIsoDate = (date: Date): string => date.toISOString().split('T')[0];
 
 const buildLastThirtyDaysRange = (): { dateFrom: string; dateTo: string } => {

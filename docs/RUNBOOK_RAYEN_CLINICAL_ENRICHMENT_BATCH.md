@@ -164,10 +164,15 @@ Desde `DESIGN_DAILY_RECORD_PHASE1_CLINICAL_DERIVED.md`, `clinicalSyncCheckpoint`
   Así un mismo valor nunca queda dos veces en la copia, y cada escritura revisa sus 900 KB. Lo mismo
   hace la copia `rayen-{runId}` del parche con guarda (`off` y `shadow`). Un lote de solo
   checkpoint sigue sin copia de historial.
+- Si una escritura dividida reemplaza un documento de episodio que no cuenta para el día (el resto
+  de un día borrado y restaurado, con otra generación), la misma transacción lo copia entero a
+  `history/clinical-derived-{clinicalEpisodeId}-{digest}` (`snapshotReason`
+  `clinical_derived_displaced`), también en un lote de solo checkpoint (D14).
 - La telemetría de los días divididos agrega solo `clinicalDerivedLayout` (`marked`, `marking` o
   `unsupported`) y los conteos `clinicalDerivedSplitEpisodes`, `clinicalDerivedEmbeddedEpisodes`
-  (episodios sin id válido que siguen embebidos) y `clinicalDerivedOverlaidEpisodes`. Un lote
-  rechazado por las vallas anteriores agrega `clinicalDerivedRejection` (`client_outdated`,
+  (episodios sin id válido que siguen embebidos), `clinicalDerivedOverlaidEpisodes` y
+  `clinicalDerivedDisplacedDocs` (documentos que no contaban y se copiaron antes de reemplazarlos).
+  Un lote rechazado por las vallas anteriores agrega `clinicalDerivedRejection` (`client_outdated`,
   `field_contract_unsupported` o `layout_unsupported`), nunca el mensaje. En el guardado completo
   de un día marcado, `clinicalDerivedPreservedEpisodes` cuenta los episodios con id válido cuyos
   campos movidos se toman del remoto.
@@ -177,8 +182,9 @@ Desde `DESIGN_DAILY_RECORD_PHASE1_CLINICAL_DERIVED.md`, `clinicalSyncCheckpoint`
 - El cliente compara el contenido clínico canónico y excluye del lote todo paciente sin un cambio
   clínico efectivo ni avance de checkpoint.
 - Un target que solo cambia `clinicalSyncCheckpoint` se persiste en la misma transacción, pero no
-  cuenta como parche clínico ni genera snapshot en `history/`. El cliente lo envía en la sección
-  `checkpoints`, no duplicado dentro de `patches`.
+  cuenta como parche clínico ni genera snapshot en `history/` (salvo la copia de D14, si reemplaza
+  un documento de episodio que no contaba). El cliente lo envía en la sección `checkpoints`, no
+  duplicado dentro de `patches`.
 - Signos vitales, escalas y actividad de dotación conservan identidades/fingerprints acotados y un
   watermark por fuente. La ruta histórica actual de Ficha Médico no acepta un watermark explícito:
   se mantiene su ventana adaptativa normal y se realiza como máximo una revalidación completa cada

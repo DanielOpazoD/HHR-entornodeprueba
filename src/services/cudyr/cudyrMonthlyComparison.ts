@@ -1,3 +1,4 @@
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import { createCudyrIdentityResolver } from './cudyrNameReconciliation';
 import type { CudyrReportDataset, CudyrReportRow } from '@/types/domain/cudyrReport';
 import type { CudyrSupplementReport } from '@/types/domain/cudyrSupplement';
@@ -21,7 +22,7 @@ const documentKey = (v: string) => v.replace(/[.\s-]/g, '').toUpperCase();
 const sourceDate = (r: CudyrReportRow) => {
   const at = r.evaluation?.recordedAt || '';
   return /^\d{4}-\d{2}-\d{2}T.+(?:Z|[+-]\d{2}:\d{2})$/.test(at) && Number.isFinite(Date.parse(at))
-    ? at.slice(0, 10)
+    ? getClinicalCalendarDateISO(new Date(at))
     : '';
 };
 

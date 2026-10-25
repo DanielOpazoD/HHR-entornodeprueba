@@ -14,6 +14,26 @@ import {
 } from '@/constants/clinicalMovementConstants';
 
 describe('censusTransferSyncController', () => {
+  it('uses the hospital day for a transfer without an explicit date at 23:30', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-25T04:30:00.000Z'));
+    const getLatest = vi.fn().mockResolvedValue({ id: 'fake-transfer' });
+    try {
+      await syncCensusTransferRequest({
+        bedId: 'R1',
+        patient: DataFactory.createMockPatient('R1'),
+        destinationHospital: 'Hospital Sintético',
+        createdByEmail: 'fake@example.com',
+        getLatestOpenTransferRequestByBedId: getLatest,
+        createFinalizedTransferRequestWithResult: vi.fn(),
+        completeTransferWithResult: vi.fn().mockResolvedValue({ status: 'success', data: null }),
+      });
+      expect(getLatest).toHaveBeenCalledWith('R1', { referenceDate: '2026-10-24' });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('resolves destination hospital using custom text for other/extrasystem centers', () => {
     expect(resolveTransferDestinationHospital('Hospital Base', '')).toBe('Hospital Base');
     expect(resolveTransferDestinationHospital(RECEIVING_CENTER_OTHER, 'Clinica X')).toBe(

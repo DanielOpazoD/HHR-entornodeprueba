@@ -3,6 +3,7 @@ import {
   buildOperationalTelemetryAlert,
   type SanitizedOperationalTelemetryEvent,
 } from '../../../../src/services/observability/operationalTelemetryIngestPolicy';
+import { getClinicalCalendarDateISO } from '../../../../src/utils/clinicalTimeZone';
 
 export type AlertMailOutcome = {
   kind: 'sent' | 'retryable' | 'permanent' | 'uncertain';
@@ -72,7 +73,7 @@ export const createAlertMailer =
       const timeoutMs = deps.timeoutMs ?? ALERT_MAIL_TIMEOUT_MS;
       await Promise.race([
         (deps.sendEmail ?? sendCensusEmail)({
-          date: event.date ?? event.timestamp.slice(0, 10),
+          date: event.date ?? getClinicalCalendarDateISO(new Date(event.timestamp)),
           ...mailbox,
           subject,
           body: `${body}\n\nReferencia de entrega: ${id}`,
