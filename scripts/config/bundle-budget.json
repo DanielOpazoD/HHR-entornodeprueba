@@ -1,8 +1,8 @@
 {
   "entryMaxBytes": 700000,
   "chunkMaxBytes": 1250000,
-  "precacheMaxBytes": 4993024,
-  "_precacheMaxBytesComment": "PR #353 integrated with #356-358 (2026-09-06): preserve both bounded allowances over the 4840192-byte baseline: +2048 bytes for shared inactivity and +67840 bytes for the offline clinical library. Total 4910080; no additional merge allowance. PR #374 adds an explicit 2 KB safety allowance for sync-notification orchestration changes and transient TSX diffing in the authenticated bootstrap path. Auth monitoring and calculators stay cached; documents remain outside precache under docs/ and templates/. No new exclusions or relaxed warning bands. Auth evidence/rollback: docs/AUTH_ACCESS_MODEL.md; library evidence: src/features/clinical-library/README.md. Clinical library v2 (2026-09-06): +31744 bytes (0.65%) more for the transfer cover, the critical medications sheet and three additional scores inside the lazy ClinicalLibraryDrawer chunk (84.8 KB), kept in the precache so they work offline. PR #384 adds a bounded 8192-byte allowance for explicit Eloisa page-state/freshness messaging and clinical-coverage validation; it adds no ignored asset pattern. Total 4952064. PR #1010 adds only 40960 bytes for the measured Zod 4 security upgrade (vendor 55634 to 94434 bytes, total precache +38875 bytes); new total 4993024. All offline assets remain cached. See docs/BUNDLE_RISK_LEDGER.md.",
+  "precacheMaxBytes": 5031936,
+  "_precacheMaxBytesComment": "PR #353 integrated with #356-358 (2026-09-06): preserve both bounded allowances over the 4840192-byte baseline: +2048 bytes for shared inactivity and +67840 bytes for the offline clinical library. Total 4910080; no additional merge allowance. PR #374 adds an explicit 2 KB safety allowance for sync-notification orchestration changes and transient TSX diffing in the authenticated bootstrap path. Auth monitoring and calculators stay cached; documents remain outside precache under docs/ and templates/. No new exclusions or relaxed warning bands. Auth evidence/rollback: docs/AUTH_ACCESS_MODEL.md; library evidence: src/features/clinical-library/README.md. Clinical library v2 (2026-09-06): +31744 bytes (0.65%) more for the transfer cover, the critical medications sheet and three additional scores inside the lazy ClinicalLibraryDrawer chunk (84.8 KB), kept in the precache so they work offline. PR #384 adds a bounded 8192-byte allowance for explicit Eloisa page-state/freshness messaging and clinical-coverage validation; it adds no ignored asset pattern. Total 4952064. PR #1010 adds only 40960 bytes for the measured Zod 4 security upgrade (vendor 55634 to 94434 bytes, total precache +38875 bytes); new total 4993024. All offline assets remain cached. See docs/BUNDLE_RISK_LEDGER.md. Owner-approved raise (2026-10-25, option C): +38912 bytes, new total 5031936. It precaches vendor-firebase-functions (12028 bytes) and the new shared-runtime-loaders chunk (2008 bytes); splitting those loaders out of the online-only Rayen chunk removed the need to precache that 43 KB chunk. It also makes room for #1026 (about 16.3 KB, specialist notes bound to patient and episode) and #1022 (about 5.8 KB, unreadable identity), leaving about 9 KB of margin. See docs/BUNDLE_RISK_LEDGER.md.",
   "precacheIgnoredAssetPatterns": [
     "^images/moa/",
     "^assets/MoaCompanion-.*\\.js$",
@@ -29,7 +29,6 @@
     "^assets/fonasaDatabase-.*\\.js$",
     "^assets/clinicalDocumentTemplateEditorController-.*\\.js$",
     "^assets/vendor-heic2any-.*\\.js$",
-    "^assets/vendor-firebase-functions-.*\\.js$",
     "^assets/specialistMedicalHandoffClient-.*\\.js$",
     "^assets/NursingAccountsPanel-.*\\.js$",
     "^assets/RoleManagementPanel-.*\\.js$",
@@ -129,7 +128,7 @@
     },
     {
       "pattern": "^vendor-firebase-functions-.*\\.js$",
-      "_comment": "Callable Functions are network-only and excluded from install-time precache. Keep their dedicated runtime bounded so dependency drift remains visible.",
+      "_comment": "Callable Functions are precached since 2026-10-25 (owner-approved budget raise): browsers that keep a failed dynamic import until reload (WebKit, Firefox, Chromium <=153) stalled every callable write after a flaky first load. Callables still need the network; the shared loader rejects offline before calling. Keep the dedicated runtime bounded so dependency drift remains visible.",
       "maxBytes": 30000
     },
     {

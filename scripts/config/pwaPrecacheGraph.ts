@@ -6,7 +6,7 @@ export const PRECACHE_STATIC_IMPORT_EXCEPTIONS = [
   {
     name: 'replanRayenStructure',
     reason:
-      'Both generated chunks are optional: historical Eloisa reconstruction, and shared PDF loaders/utilities used by document, handoff, clinical-panel and pharmacy tools. Neither belongs to offline census startup.',
+      'Both generated chunks hold online-only Eloisa/Rayen domain logic: historical reconstruction, and the import, enrichment and clinical-panel rules. Shared PDF, image and CUDYR loaders live in the precached shared-runtime-loaders chunk instead. Neither belongs to offline census startup.',
   },
   { name: 'RayenImportButton', reason: 'Eloisa import requires the online source and extension.' },
   { name: 'LineChart', reason: 'Optional laboratory trend viewer, opened from a report.' },

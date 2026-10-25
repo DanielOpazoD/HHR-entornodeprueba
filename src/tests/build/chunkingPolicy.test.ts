@@ -419,6 +419,14 @@ describe('chunkingPolicy', () => {
     expect(chunkForModule('/repo/node_modules/firebase/functions/dist/index.mjs')).toBe(
       'vendor-firebase-functions'
     );
+    for (const shared of [
+      'src/services/runtime/createCachedRuntimeLoader.ts',
+      'src/services/pdf/pdfJsTextRuntime.ts',
+      'src/services/pdf/pdfTextExtractionRuntime.ts',
+      'src/utils/eloisaPersonName.ts',
+    ]) {
+      expect(chunkForModule(`/repo/${shared}`), shared).toBe('shared-runtime-loaders');
+    }
     expect(chunkForModule('/repo/node_modules/jspdf/dist/jspdf.es.min.js')).toBe('vendor-pdf-core');
     expect(chunkForModule('/repo/node_modules/pdfjs-dist/legacy/build/pdf.mjs')).toBe(
       'vendor-pdfjs'
