@@ -29,7 +29,14 @@ describe('validationHelper', () => {
     );
 
     expect(record.beds.R1.patientName).toBe('Paciente Legacy');
-    expect(record.beds.R1.clinicalEvents).toEqual([]);
+    expect(record.beds.R1.clinicalEvents).toEqual([
+      {
+        id: 'event-1',
+        name: 'Cultivo',
+        date: '2026-03-03',
+        createdAt: '2026-03-03T10:00:00.000Z',
+      },
+    ]);
     expect(record.discharges).toEqual([]);
     expect(warnSpy).toHaveBeenCalled();
     expect(
