@@ -17,10 +17,14 @@ const setReloadRequired = (value: boolean) => {
   listeners.forEach(listener => listener());
 };
 
-export const loadFunctionsModule = async (
-  importModule: () => Promise<typeof import('firebase/functions')> = () =>
-    import('firebase/functions')
-) => {
+/**
+ * Loads the Functions SDK, or a module that only works with it (a callable client), with the same
+ * offline rejection and reload recovery.
+ */
+export const loadFunctionsModule = async <Module = typeof import('firebase/functions')>(
+  importModule: () => Promise<Module> = () =>
+    import('firebase/functions') as unknown as Promise<Module>
+): Promise<Module> => {
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
     throw Object.assign(new Error('Functions unavailable while offline.'), {
       code: 'functions/unavailable',

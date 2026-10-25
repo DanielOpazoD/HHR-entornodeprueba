@@ -229,6 +229,9 @@ export const writeNote = async (
     Object.entries(fields).map(([field, fieldValue]) => [`beds.${bedId}.${field}`, fieldValue])
   ) as DailyRecordPatch;
   h.offline = offline;
+  // The shared Functions loader also checks the browser's own online flag.
+  const wasOnline = navigator.onLine;
+  Object.defineProperty(navigator, 'onLine', { value: !offline, configurable: true });
   try {
     const result = await updatePartialDetailed(record.date, patch, { baseRecord: record });
     return {
@@ -237,6 +240,7 @@ export const writeNote = async (
     };
   } finally {
     h.offline = false;
+    Object.defineProperty(navigator, 'onLine', { value: wasOnline, configurable: true });
   }
 };
 /** Back online once any pre-outbox hold has expired, as it does on its own in the app. */

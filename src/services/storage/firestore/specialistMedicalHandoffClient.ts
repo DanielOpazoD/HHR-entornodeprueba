@@ -1,4 +1,3 @@
-import { httpsCallable } from 'firebase/functions';
 import { getDoc } from 'firebase/firestore';
 import { getRecordDocRef } from './firestoreShared';
 import {
@@ -51,7 +50,9 @@ export const updateSpecialistMedicalHandoffViaCallable = async ({
     )
   )
     throw conflict();
+  // The shared Functions loader: offline refusal and reload recovery, as for every callable.
   const functions = await defaultFunctionsRuntime.getFunctions();
+  const { httpsCallable } = await import('firebase/functions');
   const callable = httpsCallable<
     SpecialistHandoffSyncPayload,
     { success: boolean; date: string; bedId: string }

@@ -7,6 +7,7 @@ import {
 } from 'firebase/firestore';
 import type { DailyRecord, DailyRecordPatch } from '@/services/storage/storageDailyRecordContracts';
 import { withRetry } from '@/utils/networkUtils';
+import { loadFunctionsModule } from '@/services/firebase-runtime/functionsModuleLoader';
 import { DataRegressionError } from '@/utils/integrityGuard';
 import {
   docToRecord,
@@ -219,13 +220,12 @@ const buildAtomicPartialCommitReceipt = (
 };
 
 /**
- * The note callable needs the network, so its client is not precached. Failing to load it is a
- * network failure, and the note goes to the queue like any other offline save.
+ * The note callable needs the network, so its client is not precached. It loads through the
+ * shared Functions loader: offline it is refused as unavailable, so the note goes to the queue,
+ * and a stale chunk asks for a reload while queued notes stay pending.
  */
 export const loadSpecialistMedicalHandoffClient = () =>
-  import('./specialistMedicalHandoffClient').catch(() => {
-    throw Object.assign(new Error('offline'), { code: 'unavailable' });
-  });
+  loadFunctionsModule(() => import('./specialistMedicalHandoffClient'));
 
 export const updateRecordPartial = async (
   date: string,

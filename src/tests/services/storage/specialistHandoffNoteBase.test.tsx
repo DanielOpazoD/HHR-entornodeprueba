@@ -16,7 +16,9 @@ import {
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexedDBService';
 import { resetMedicalHandoffDraftMemoryForTests } from '@/services/storage/medicalHandoffDraftStorage';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
+import { buildMedicalEntryNoteFields } from '@/domain/handoff/patientEntryMutations';
+import type { DailyRecord, DailyRecordPatch } from '@/types/domain/dailyRecord';
 
 const h = harnessState();
 const DATE = '2026-10-24';
@@ -57,12 +59,40 @@ beforeEach(async () => {
   h.role = 'admin';
   h.offline = false;
   h.loseNextResponse = false;
+  h.callableCalls = 0;
 });
 afterEach(() => {
   h.loseNextResponse = false;
 });
 
 describe('a queued specialist note keeps a later note', () => {
+  it('queues the note through the shared Functions loader when the browser has no connection', async () => {
+    const base = await start();
+    const { fields } = buildMedicalEntryNoteFields(
+      base.beds.R4,
+      'entry-A',
+      'Nota sin red',
+      null,
+      DATE,
+      ''
+    );
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+
+    const result = await updatePartialDetailed(
+      DATE,
+      Object.fromEntries(
+        Object.entries(fields).map(([field, value]) => [`beds.R4.${field}`, value])
+      ) as DailyRecordPatch,
+      { baseRecord: base }
+    );
+
+    expect(result).toMatchObject({ queuedForRetry: true, updatedRemotely: false });
+    expect(h.callableCalls).toBe(0);
+    expect(await queue()).toEqual([
+      expect.objectContaining({ type: 'UPDATE_SPECIALIST_HANDOFF', status: 'PENDING' }),
+    ]);
+  });
+
   it('never writes an offline note over a colleague note saved after the edit began', async () => {
     const base = await start();
     await writeNote(base, 'R4', 'entry-A', 'Nota antigua sin conexión');
