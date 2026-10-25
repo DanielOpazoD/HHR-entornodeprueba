@@ -5,18 +5,17 @@
       "id": "vendor-firebase-functions",
       "owner": "firebase-runtime/functions",
       "workflow": "Callable Firebase Functions",
-      "loadReason": "Callable Functions cannot complete offline, so their isolated SDK runtime is fetched only when an online workflow requests it.",
+      "loadReason": "Callable Functions cannot complete offline, but their isolated SDK runtime is precached so a flaky first load can never leave a browser holding a failed import for the rest of the session.",
       "thresholdLabel": "30,000 bytes network-only vendor budget",
       "chunkBudgetPattern": "^vendor-firebase-functions-.*\\.js$",
-      "precacheIgnoredPattern": "^assets/vendor-firebase-functions-.*\\.js$",
-      "releasePosture": "Keep Functions isolated, on demand and outside install-time precache; Firebase app, auth, Firestore and Storage remain cached.",
+      "releasePosture": "Keep Functions isolated and precached (owner-approved 2026-10-25); the shared loader still imports it at call time and rejects offline before calling.",
       "guardrails": [
         "check:bundle-budget",
         "check:chunk-graph",
         "src/tests/build/chunkingPolicy.test.ts",
         "src/tests/build/pwaPrecachePolicy.test.ts"
       ],
-      "nextAction": "Revisit only if an offline-capable workflow gains a local Functions substitute or the dedicated chunk crosses its limit."
+      "nextAction": "Revisit if the dedicated chunk crosses its limit; the recovery notice for a failed import stays as a backstop for first visits without a service worker."
     },
     {
       "id": "vendor-heic2any",
