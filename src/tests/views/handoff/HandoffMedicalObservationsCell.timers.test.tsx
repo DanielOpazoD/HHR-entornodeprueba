@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HandoffMedicalObservationsCell } from '@/features/handoff/components/HandoffMedicalObservationsCell';
 import { MedicalHandoffDraftsPanel } from '@/features/handoff/components/MedicalHandoffDraftsPanel';
 import { DataFactory } from '@/tests/factories/DataFactory';
+import { resetMedicalHandoffDraftMemoryForTests } from '@/services/storage/medicalHandoffDraftStorage';
 
 const patient = DataFactory.createMockPatient('R4', {
   patientName: 'Paciente A Sintético',
@@ -28,6 +29,7 @@ const cell = (p = patient, onChange = vi.fn()) => (
   </table>
 );
 beforeEach(() => {
+  resetMedicalHandoffDraftMemoryForTests();
   localStorage.clear();
   localStorage.setItem('hhr_session_owner_v1', 'user:synthetic-A');
   vi.useFakeTimers();
@@ -38,7 +40,7 @@ afterEach(() => {
 });
 
 describe('medical draft continuity and episode ownership', () => {
-  it('keeps a rejected note visible past 2.5 seconds and after remount without retrying', () => {
+  it('keeps a rejected note visible past 2.5 seconds and after a reload without retrying', async () => {
     const save = vi.fn();
     const view = render(cell(patient, save));
     const box = screen.getByRole('textbox');
@@ -46,17 +48,19 @@ describe('medical draft continuity and episode ownership', () => {
     fireEvent.change(box, { target: { value: 'Nota larga escrita para A' } });
     fireEvent.blur(box);
     expect(save).toHaveBeenCalledWith('primary-entry', 'Nota larga escrita para A');
+    await act(async () => {});
     act(() => vi.advanceTimersByTime(5000));
     expect(screen.getByRole('textbox')).toHaveValue('Nota larga escrita para A');
-    fireEvent.click(screen.getByText('Revisar borrador'));
-    expect(screen.getByText(/Episodio ep-A/)).toBeVisible();
+    expect(screen.getByRole('status')).toHaveTextContent(/Pendiente de confirmar/);
     view.unmount();
+    resetMedicalHandoffDraftMemoryForTests();
     render(cell(patient, save));
     act(() => vi.advanceTimersByTime(5000));
     fireEvent.blur(screen.getByRole('textbox'));
     expect(screen.getByRole('textbox')).toHaveValue('Persistida A');
     fireEvent.click(screen.getByText('Revisar borrador'));
     expect(screen.getByText('Nota larga escrita para A')).toBeVisible();
+    expect(screen.getByText(/Episodio ep-A/)).toBeVisible();
     expect(save).toHaveBeenCalledTimes(1);
   });
 
@@ -82,10 +86,11 @@ describe('medical draft continuity and episode ownership', () => {
     act(() => vi.advanceTimersByTime(5000));
     expect(saveA).not.toHaveBeenCalled();
     expect(saveB).not.toHaveBeenCalled();
-    render(<MedicalHandoffDraftsPanel date="2026-10-24" />);
+    render(<MedicalHandoffDraftsPanel />);
     fireEvent.click(screen.getByText(/Revisar borradores de entrega/));
     expect(screen.getByText('Nota escrita para A')).toBeVisible();
-    expect(screen.getByText(/Paciente A Sintético.*Episodio ep-A/)).toBeVisible();
+    expect(screen.getByText('Nota de entrega de Paciente A Sintético · 24-10-2026')).toBeVisible();
+    expect(screen.getByText(/Episodio ep-A/)).toBeVisible();
   });
 
   it('captures the save callback on the first keystroke rather than on blur', () => {

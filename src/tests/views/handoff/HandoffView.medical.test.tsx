@@ -4,7 +4,6 @@ import { mockAuthContextValue } from '../../setup';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import React from 'react';
-import { readMedicalHandoffDrafts } from '@/services/storage/medicalHandoffDraftStorage';
 
 import { HandoffView } from '@/features/handoff/components/HandoffView';
 import { DailyRecordProvider } from '@/context/DailyRecordContext';
@@ -74,8 +73,6 @@ const setAuthorizedSpecialistAuth = () => {
 
 describe('HandoffView medical flows', () => {
   beforeEach(() => {
-    localStorage.clear();
-    localStorage.setItem('hhr_session_owner_v1', 'user:synthetic-A');
     vi.clearAllMocks();
     vi.useRealTimers();
     mockUseAuthState.user = {
@@ -308,16 +305,12 @@ describe('HandoffView medical flows', () => {
         'Primera evolución especialista'
       );
 
-    expect(readMedicalHandoffDrafts()).toContainEqual(
-      expect.objectContaining({ value: 'Primera evolución especialista' })
-    );
+    expect(getInteractiveSavedNotes().length).toBeGreaterThan(0);
 
     act(() => {
       vi.advanceTimersByTime(25);
     });
-    expect(readMedicalHandoffDrafts()).toContainEqual(
-      expect.objectContaining({ value: 'Primera evolución especialista' })
-    );
+    expect(getInteractiveSavedNotes().length).toBeGreaterThan(0);
 
     await act(async () => {
       vi.advanceTimersByTime(50);

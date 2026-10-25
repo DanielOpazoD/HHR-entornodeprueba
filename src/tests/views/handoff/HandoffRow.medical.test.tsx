@@ -3,7 +3,7 @@ import '../../setup';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, fireEvent, screen } from '@testing-library/react';
 import React from 'react';
-import { readMedicalHandoffDrafts } from '@/services/storage/medicalHandoffDraftStorage';
+import { resetMedicalHandoffDraftMemoryForTests } from '@/services/storage/medicalHandoffDraftStorage';
 
 import { HandoffRow } from '@/features/handoff/components/HandoffRow';
 import {
@@ -16,6 +16,7 @@ import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 
 describe('HandoffRow medical flows', () => {
   beforeEach(() => {
+    resetMedicalHandoffDraftMemoryForTests();
     localStorage.clear();
     localStorage.setItem('hhr_session_owner_v1', 'user:synthetic-A');
   });
@@ -149,9 +150,7 @@ describe('HandoffRow medical flows', () => {
       </table>
     );
 
-    expect(readMedicalHandoffDrafts()).toContainEqual(
-      expect.objectContaining({ value: 'Plan actualizado por especialista' })
-    );
+    expect(screen.getByDisplayValue('Plan actualizado por especialista')).toBeInTheDocument();
     expect(screen.queryByText(/sin entrega registrada/i)).not.toBeInTheDocument();
 
     rerender(
@@ -232,17 +231,13 @@ describe('HandoffRow medical flows', () => {
     fireEvent.change(textarea, { target: { value: 'Primera evolución especialista' } });
     fireEvent.blur(textarea);
 
-    expect(readMedicalHandoffDrafts()).toContainEqual(
-      expect.objectContaining({ value: 'Primera evolución especialista' })
-    );
+    expect(screen.getByDisplayValue('Primera evolución especialista')).toBeInTheDocument();
 
     act(() => {
       vi.advanceTimersByTime(25);
     });
 
-    expect(readMedicalHandoffDrafts()).toContainEqual(
-      expect.objectContaining({ value: 'Primera evolución especialista' })
-    );
+    expect(screen.getByDisplayValue('Primera evolución especialista')).toBeInTheDocument();
 
     act(() => {
       vi.advanceTimersByTime(50);

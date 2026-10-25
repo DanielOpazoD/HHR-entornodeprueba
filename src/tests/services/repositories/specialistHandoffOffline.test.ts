@@ -75,16 +75,18 @@ describe('specialist handoff offline durability', () => {
       queuedForRetry: true,
     });
     expect(updateRecordPartialToFirestore).not.toHaveBeenCalled();
+    // Its own task, never the day record task: the payload is the callable request.
     expect(queueDailyRecordSyncTaskWithLocalRecord).toHaveBeenCalledWith(
       expect.objectContaining({
         beds: { R1: expect.objectContaining({ medicalHandoffNote: 'Nota offline de A' }) },
       }),
+      expect.objectContaining({ contexts: ['handoff'] }),
+      expect.anything(),
       expect.objectContaining({
-        syncContract: expect.objectContaining({
-          specialistHandoffTargets: [expect.objectContaining({ clinicalEpisodeId: 'ep-A' })],
-        }),
-      }),
-      expect.anything()
+        date: current.date,
+        patch: expect.objectContaining({ 'beds.R1.medicalHandoffNote': 'Nota offline de A' }),
+        expectedOccupants: [expect.objectContaining({ clinicalEpisodeId: 'ep-A' })],
+      })
     );
   });
 
@@ -113,17 +115,16 @@ describe('specialist handoff offline durability', () => {
           R1: expect.objectContaining({ medicalHandoffNote: 'Nota offline para A' }),
         }),
       }),
+      expect.objectContaining({ contexts: ['handoff'] }),
+      expect.anything(),
       expect.objectContaining({
-        syncContract: expect.objectContaining({
-          specialistHandoffTargets: [
-            expect.objectContaining({
-              clinicalEpisodeId: 'ep-A',
-              patientName: 'Paciente A Sintético',
-            }),
-          ],
-        }),
-      }),
-      expect.anything()
+        expectedOccupants: [
+          expect.objectContaining({
+            clinicalEpisodeId: 'ep-A',
+            patientName: 'Paciente A Sintético',
+          }),
+        ],
+      })
     );
   });
 });
