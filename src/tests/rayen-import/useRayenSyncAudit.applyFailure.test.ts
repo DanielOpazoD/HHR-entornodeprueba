@@ -26,7 +26,7 @@ describe('failed structural synchronization diagnostics', () => {
     await act(async () => {
       await result.current.failRun('apply_failed', 'run-failure', error);
     });
-    const patch = patchDailyRecord.mock.calls.at(-1)?.[0];
+    const patch = patchDailyRecord.mock.calls.at(-1)?.[0]?.partial;
     return buildRayenSyncDiagnosticReport([RayenSyncEventSchema.parse(patch.rayenSyncHistory[0])]);
   };
 

@@ -57,9 +57,9 @@ export interface PartialUpdateDailyRecordCommand {
 
 export interface PartialUpdateDailyRecordOptions {
   /**
-   * Fresh clinical base already resolved by the read/freshness pipeline.
-   * Used by mutation paths that just hydrated remote truth so writes do not
-   * fail solely because IndexedDB was cleared or not yet repopulated.
+   * Snapshot used to construct this patch. Preserve it through cache refreshes so rebase can
+   * distinguish the writer's changes from stale copies. Also supports writes after remote
+   * hydration when IndexedDB was cleared or not yet repopulated.
    */
   baseRecord?: DailyRecord | null;
   /**

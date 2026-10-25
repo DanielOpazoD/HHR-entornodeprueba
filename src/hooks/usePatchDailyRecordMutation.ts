@@ -278,7 +278,12 @@ export const usePatchDailyRecordMutation = (date: string) => {
           });
           freshRecord = freshness.record;
         }
-        rememberDailyRecordPatchBaseRecord(patchBaseRecords, partial, freshRecord);
+        // Freshness may advance the cache, but it cannot change the base that authored a patch.
+        rememberDailyRecordPatchBaseRecord(
+          patchBaseRecords,
+          partial,
+          options?.baseRecord ?? freshRecord
+        );
 
         await queryClient.cancelQueries({ queryKey: queryKeys.dailyRecord.byDate(date) });
         const isRemoteAuthorityFirst = options?.requireRemoteAuthorityFirst === true;

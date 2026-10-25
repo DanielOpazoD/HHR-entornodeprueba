@@ -37,7 +37,10 @@ import {
 
 interface UseRayenSyncAuditInput {
   currentRecordRef: MutableRefObject<DailyRecord | null | undefined>;
-  patchDailyRecord: (patch: DailyRecordPatch) => Promise<unknown>;
+  patchDailyRecord: (input: {
+    partial: DailyRecordPatch;
+    options: { baseRecord: DailyRecord };
+  }) => Promise<unknown>;
   loadDailyRecord?: (date: string) => Promise<DailyRecord>;
   actor: string;
   now?: () => Date;
@@ -139,7 +142,9 @@ export const useRayenSyncAudit = ({
         const prepared = build(base);
         if (!prepared.patch) return prepared.value;
         try {
-          assertMetadataPatchAccepted(await patchDailyRecord(prepared.patch));
+          assertMetadataPatchAccepted(
+            await patchDailyRecord({ partial: prepared.patch, options: { baseRecord: base } })
+          );
           return prepared.value;
         } catch (error) {
           lastError = error;

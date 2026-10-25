@@ -6,7 +6,6 @@ import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 
 vi.mock('@/services/repositories/repositoryConfig', async original => ({
   ...(await original<typeof import('@/services/repositories/repositoryConfig')>()),
@@ -44,17 +43,15 @@ it('persists a failed Rayen run after a concurrency retry refreshes the base fro
       },
     ],
   });
-  let writerBase = oldBase;
   const loadDailyRecord = vi.fn(async () => {
     const fresh = await hospitalDB.dailyRecords.get(date);
     if (!fresh) throw new Error('Synthetic record missing');
-    writerBase = fresh;
     return fresh;
   });
   const patchDailyRecord = vi
-    .fn<(patch: DailyRecordPatch) => Promise<unknown>>()
+    .fn<Parameters<typeof useRayenSyncAudit>[0]['patchDailyRecord']>()
     .mockRejectedValueOnce(new ConcurrencyError('Conflicto sintetico de otra corrida'))
-    .mockImplementation(patch => updatePartialDetailed(date, patch, { baseRecord: writerBase }));
+    .mockImplementation(({ partial, options }) => updatePartialDetailed(date, partial, options));
   const { result } = renderHook(() =>
     useRayenSyncAudit({
       currentRecordRef: { current: oldBase },

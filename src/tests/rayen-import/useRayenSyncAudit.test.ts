@@ -83,7 +83,7 @@ describe('useRayenSyncAudit', () => {
     });
 
     expect(stamped.rayenSyncHistory).toHaveLength(1);
-    expect(patchDailyRecord).toHaveBeenCalledWith(
+    expect(patchDailyRecord.mock.calls[0]?.[0]?.partial).toEqual(
       expect.objectContaining({
         rayenSync: expect.objectContaining({ runId: 'run-1', status: 'complete' }),
         rayenSyncHistory: [
@@ -111,7 +111,7 @@ describe('useRayenSyncAudit', () => {
         ],
       })
     );
-    expect(patchDailyRecord.mock.calls[0][0].rayenSync).not.toHaveProperty('performance');
+    expect(patchDailyRecord.mock.calls[0][0].partial.rayenSync).not.toHaveProperty('performance');
   });
 
   it('records a sanitized failure but never replaces the latest applied sync projection', async () => {
@@ -139,7 +139,7 @@ describe('useRayenSyncAudit', () => {
       await result.current.failRun('snapshot_timeout');
     });
 
-    expect(patchDailyRecord).toHaveBeenCalledWith({
+    expect(patchDailyRecord.mock.calls[0]?.[0]?.partial).toEqual({
       rayenSyncHistory: [
         expect.objectContaining({
           id: 'failed-run',
@@ -148,7 +148,7 @@ describe('useRayenSyncAudit', () => {
         }),
       ],
     });
-    expect(patchDailyRecord.mock.calls[0][0]).not.toHaveProperty('rayenSync');
+    expect(patchDailyRecord.mock.calls[0][0].partial).not.toHaveProperty('rayenSync');
   });
 
   it('completes the applied run even when a newer run becomes active', async () => {
@@ -180,7 +180,7 @@ describe('useRayenSyncAudit', () => {
       await result.current.completeRun(firstApplied, { total: 2, patched: 2, errors: [] });
     });
 
-    expect(patchDailyRecord).toHaveBeenCalledWith(
+    expect(patchDailyRecord.mock.calls[0]?.[0]?.partial).toEqual(
       expect.objectContaining({
         rayenSyncHistory: expect.arrayContaining([
           expect.objectContaining({ id: 'run-1', status: 'complete' }),
@@ -188,7 +188,7 @@ describe('useRayenSyncAudit', () => {
         ]),
       })
     );
-    expect(patchDailyRecord.mock.calls[0][0]).not.toHaveProperty('rayenSync');
+    expect(patchDailyRecord.mock.calls[0][0].partial).not.toHaveProperty('rayenSync');
   });
 
   it('keeps applied-stage telemetry when only the persisted event remains at completion', async () => {
@@ -226,7 +226,7 @@ describe('useRayenSyncAudit', () => {
       });
     });
 
-    expect(patchDailyRecord).toHaveBeenCalledWith(
+    expect(patchDailyRecord.mock.calls[0]?.[0]?.partial).toEqual(
       expect.objectContaining({
         rayenSyncHistory: [
           expect.objectContaining({
@@ -341,7 +341,7 @@ describe('useRayenSyncAudit', () => {
 
     expect(loadDailyRecord).toHaveBeenCalledWith('2026-07-14');
     expect(patchDailyRecord).toHaveBeenCalledTimes(2);
-    expect(patchDailyRecord.mock.calls[1][0].rayenSyncHistory).toEqual(
+    expect(patchDailyRecord.mock.calls[1][0].partial.rayenSyncHistory).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ id: 'other-run' }),
         expect.objectContaining({ id: 'run-1', status: 'applied' }),

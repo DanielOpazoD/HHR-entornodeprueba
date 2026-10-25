@@ -70,7 +70,7 @@ export const replay = async (
   const audit = renderHook(() =>
     useRayenSyncAudit({
       currentRecordRef,
-      patchDailyRecord: persistPatch,
+      patchDailyRecord: ({ partial }) => persistPatch(partial),
       actor: 'Operador sintético',
       now: () => new Date(now.getTime() + auditClockTick++ * 1_000),
       createId: () => runId,
