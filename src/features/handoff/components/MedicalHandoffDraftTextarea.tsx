@@ -61,17 +61,20 @@ const DraftEditor: React.FC<Props> = ({
   const key = medicalHandoffDraftKey(draft(''));
   const drafts = useMedicalHandoffDrafts();
   const [, render] = React.useReducer((count: number) => count + 1, 0);
+  const [editingNow, setEditingNow] = React.useState(false);
   const storedRef = React.useRef(stored);
-  storedRef.current = stored;
+  React.useLayoutEffect(() => {
+    storedRef.current = stored;
+  });
   const focused = React.useRef(false);
   const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const inFlight = React.useRef(0);
   const textarea = React.useRef<HTMLTextAreaElement>(null);
-  const mounted = React.useRef(false);
+  const resumeChecked = React.useRef<true | null>(null);
   // Resume a session from an earlier mount only while its own draft still exists; a draft
   // confirmed or discarded meanwhile must not come back into the box.
-  if (!mounted.current) {
-    mounted.current = true;
+  if (resumeChecked.current == null) {
+    resumeChecked.current = true;
     const resumed = sessions.get(key);
     if (resumed && !drafts.some(item => item.slot.includes(`:${resumed.writer}:`)))
       sessions.delete(key);
@@ -81,10 +84,15 @@ const DraftEditor: React.FC<Props> = ({
   const isOthers = (current: Session, value: string) =>
     value !== current.text && value !== current.base && !current.sent.includes(value);
 
+  const report = () => {
+    const now = editing();
+    setEditingNow(now);
+    onEditingChange?.(now);
+  };
   const settle = () => {
     const current = sessions.get(key);
     if (current && !editing() && storedRef.current === current.text) sessions.delete(key);
-    onEditingChange?.(editing());
+    report();
     render();
   };
   const flush = (force = false) => {
@@ -174,12 +182,12 @@ const DraftEditor: React.FC<Props> = ({
           writeMedicalHandoffDraft(current.writer, draft(current.text));
           if (timer.current) clearTimeout(timer.current);
           timer.current = setTimeout(() => flush(), DEBOUNCE_MS);
-          onEditingChange?.(true);
+          report();
           render();
         }}
         onFocus={() => {
           focused.current = true;
-          onEditingChange?.(true);
+          report();
         }}
         onBlur={() => {
           focused.current = false;
@@ -188,7 +196,7 @@ const DraftEditor: React.FC<Props> = ({
         rows={1}
         className="w-full overflow-hidden resize-none rounded border border-slate-200 bg-white px-2 py-1.5 text-[13px] leading-snug focus:ring-2 focus:ring-medical-500 focus:outline-none"
       />
-      {session && (conflict || !own?.durable || (!editing() && stored !== session.text)) && (
+      {session && (conflict || !own?.durable || (!editingNow && stored !== session.text)) && (
         <div role="status" className="text-xs text-amber-800 print:hidden">
           {conflict ? (
             <>
@@ -197,7 +205,8 @@ const DraftEditor: React.FC<Props> = ({
               <button
                 type="button"
                 onClick={() => {
-                  session.base = stored;
+                  const current = sessions.get(key);
+                  if (current) current.base = stored;
                   flush(true);
                 }}
               >
