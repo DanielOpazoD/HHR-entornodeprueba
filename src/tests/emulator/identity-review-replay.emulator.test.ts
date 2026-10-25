@@ -29,9 +29,11 @@ import { createSyncQueueEngine } from '@/services/storage/sync/syncQueueEngine';
 import { createFirestoreSyncTransport } from '@/services/storage/sync/firestoreSyncTransport';
 import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
 import { sanitizeForFirestore } from '@/services/storage/firestore/firestoreShared';
+import { preparePatchedRecordPersistence } from '@/services/repositories/dailyRecordPatchPersistenceController';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 
 type Json = Record<string, unknown>;
 
@@ -81,6 +83,36 @@ describe.skipIf(!enabled)(
       await createEngine().queueDailyRecordTaskWithLocalRecord(
         day,
         { syncContract: { expectedVersion: storedAt, changedPaths: ['beds.R1.pathology'] } },
+        { deferProcessing: true }
+      );
+    };
+
+    const newborn = (name: string, episode: string, extra: Json = {}) =>
+      syntheticPatient('R1', name, `FAKE-${name.replace(/\s/g, '-')}`, {
+        bedMode: 'Cuna',
+        clinicalEpisodeId: episode,
+        ...extra,
+      });
+    /** The stored day with a readable mother in R1 and `crib` as her newborn. */
+    const storeWithNewborn = (crib: Json) =>
+      environment.withSecurityRulesDisabled(async context => {
+        const day = storedDay(
+          { documentType: 'Pasaporte', clinicalCrib: crib },
+          { date, lastUpdated: storedAt }
+        );
+        await context
+          .firestore()
+          .doc(docPath)
+          .set(sanitizeForFirestore(day) as Json);
+      });
+    /** This device edits the diagnosis of the newborn, under review, offline, as `path`. */
+    const queueNewbornDiagnosis = async (path: string) => {
+      const day = (await getRecordFromFirestore(date))!;
+      expect(day.beds.R1.clinicalCrib?.identityReview?.fields).toEqual(['documentType']);
+      day.beds.R1.clinicalCrib!.pathology = PENDING;
+      await createEngine().queueDailyRecordTaskWithLocalRecord(
+        day,
+        { syncContract: { expectedVersion: storedAt, changedPaths: [path] } },
         { deferProcessing: true }
       );
     };
@@ -167,6 +199,58 @@ describe.skipIf(!enabled)(
         clinicalEpisodeId: 'ep_synthetic_R1',
       });
       expect((await hospitalDB.dailyRecords.get(date))?.beds.R1.pathology).toBe(PENDING);
+    });
+
+    it.each(['beds.R1.clinicalCrib.pathology', 'beds.R1.clinicalCrib', 'beds.R1'])(
+      'keeps the newborn diagnosis queued as %s as a conflict when another newborn holds the crib',
+      async path => {
+        await storeWithNewborn(
+          newborn('RN SINTETICO A', 'ep_synthetic_rn_a', { documentType: 'Cedula' })
+        );
+        await queueNewbornDiagnosis(path);
+        await writeElsewhere({
+          'beds.R1.clinicalCrib': sanitizeForFirestore(
+            newborn('RN SINTETICO B', 'ep_synthetic_rn_b', { documentType: 'Pasaporte' })
+          ),
+        });
+
+        await createEngine().processQueue();
+
+        const r1 = await storedBed('R1');
+        expect(r1.patientName).toBe('PACIENTE UNO');
+        expect(r1.clinicalCrib).toMatchObject({
+          patientName: 'RN SINTETICO B',
+          clinicalEpisodeId: 'ep_synthetic_rn_b',
+        });
+        expect((r1.clinicalCrib as Json).pathology).not.toBe(PENDING);
+        const tasks = await hospitalDB.syncQueue.toArray();
+        expect(tasks).toHaveLength(1);
+        expect(tasks[0].status).toBe('CONFLICT');
+        expect((tasks[0].payload as DailyRecord).beds.R1.clinicalCrib).toMatchObject({
+          pathology: PENDING,
+          clinicalEpisodeId: 'ep_synthetic_rn_a',
+        });
+      }
+    );
+
+    it('never lets an old repair of the newborn RUT replace a newer one', async () => {
+      await storeWithNewborn(
+        newborn('RN SINTETICO A', 'ep_synthetic_rn_a', { documentType: 'Pasaporte', rut: 12345678 })
+      );
+      const read = (await getRecordFromFirestore(date))!;
+      const { record } = preparePatchedRecordPersistence(read, date, {
+        'beds.R1.clinicalCrib.rut': 'FAKE-RN-LOCAL-OLD',
+      } as DailyRecordPatch);
+      await createEngine().queueDailyRecordTaskWithLocalRecord(
+        record,
+        { syncContract: { expectedVersion: storedAt, changedPaths: ['beds.R1.clinicalCrib.rut'] } },
+        { deferProcessing: true }
+      );
+      await writeElsewhere({ 'beds.R1.clinicalCrib.rut': 'FAKE-RN-REMOTE-NEW' });
+
+      await createEngine().processQueue();
+
+      expect(((await storedBed('R1')).clinicalCrib as Json).rut).toBe('FAKE-RN-REMOTE-NEW');
     });
   }
 );

@@ -17,16 +17,19 @@ export const findDetachedReviewEdits = (
 ): string[] =>
   (changedPaths.length && !changedPaths.some(path => path === '*' || path === 'beds')
     ? changedPaths
-    : Object.keys(local.beds).flatMap(bedId => [`beds.${bedId}`, `beds.${bedId}.clinicalCrib`])
-  ).filter(path => {
-    const [, bedId, crib] = SLOT_PATH.exec(path) ?? [];
-    const slotOf = (day: DailyRecord) => (crib ? day.beds[bedId]?.clinicalCrib : day.beds[bedId]);
-    const remoteSlot = bedId ? slotOf(remote) : undefined;
-    const localSlot = bedId ? slotOf(local) : undefined;
-    return (
-      !!remoteSlot &&
-      !!localSlot &&
-      isSameIdentityUnderReview(remoteSlot, localSlot) === false &&
-      JSON.stringify(getValueAtPath(merged, path)) !== JSON.stringify(getValueAtPath(local, path))
-    );
-  });
+    : Object.keys(local.beds).map(bedId => `beds.${bedId}`)
+  )
+    // A whole bed holds a newborn crib of its own identity: each slot answers for itself.
+    .flatMap(path => (/^beds\.[^.]+$/.test(path) ? [path, `${path}.clinicalCrib`] : [path]))
+    .filter(path => {
+      const [, bedId, crib] = SLOT_PATH.exec(path) ?? [];
+      const slotOf = (day: DailyRecord) => (crib ? day.beds[bedId]?.clinicalCrib : day.beds[bedId]);
+      const remoteSlot = bedId ? slotOf(remote) : undefined;
+      const localSlot = bedId ? slotOf(local) : undefined;
+      return (
+        !!remoteSlot &&
+        !!localSlot &&
+        isSameIdentityUnderReview(remoteSlot, localSlot) === false &&
+        JSON.stringify(getValueAtPath(merged, path)) !== JSON.stringify(getValueAtPath(local, path))
+      );
+    });

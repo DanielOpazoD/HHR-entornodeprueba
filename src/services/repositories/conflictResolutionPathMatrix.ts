@@ -1,4 +1,5 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { PatientData } from '@/types/domain/patient';
 import {
   decideScalarByPolicy,
   isClinicalCensusRemotePriorityField,
@@ -13,6 +14,7 @@ import {
   PATIENT_ID_ARRAY_FIELDS,
   PATIENT_UNIQUE_ARRAY_FIELDS,
   mergeArrayById,
+  mergePatientData,
 } from '@/services/repositories/conflictResolutionMergeUtils';
 import {
   shouldPreserveLocalPatientNarrative,
@@ -33,7 +35,19 @@ export const resolvePathValueWithMatrix = (
 ): unknown => {
   const parts = path.split('.');
   const bedId = parts[1];
-  const patientField = parts[2];
+  // The newborn crib is a slot of its own, with the rules of a bed: its own identity decides.
+  const crib = parts[2] === 'clinicalCrib';
+  const patientField = parts[crib ? 3 : 2];
+  const slotPath = crib ? `beds.${bedId}.clinicalCrib` : `beds.${bedId}`;
+  const remoteSlot = getValueAtPath(remote, slotPath) as PatientData | undefined;
+  const localSlot = getValueAtPath(local, slotPath) as PatientData | undefined;
+
+  if (crib && !patientField) {
+    // A whole crib merges like a whole bed.
+    return remoteSlot || localSlot
+      ? mergePatientData(remoteSlot, localSlot, true, traceContext, path, true)
+      : undefined;
+  }
 
   if (!bedId || !patientField) {
     const decision = decideScalarByPolicy(
@@ -48,16 +62,17 @@ export const resolvePathValueWithMatrix = (
 
   // A field the stored day cannot read shows only a placeholder there: the same patient's repair
   // of it wins.
-  const remoteBed = remote.beds[bedId];
   if (
-    (remoteBed?.identityReview?.fields as readonly string[] | undefined)?.includes(patientField) &&
-    isSameIdentityUnderReview(remoteBed, local.beds[bedId])
+    remoteSlot &&
+    localSlot &&
+    (remoteSlot.identityReview?.fields as readonly string[] | undefined)?.includes(patientField) &&
+    isSameIdentityUnderReview(remoteSlot, localSlot)
   ) {
     return getValueAtPath(local, path);
   }
 
   if (EXPLICIT_LOCAL_CENSUS_PATCH_FIELDS.has(patientField)) {
-    if (isSameEpisodeForExplicitCensusPatch(remote.beds[bedId], local.beds[bedId])) {
+    if (isSameEpisodeForExplicitCensusPatch(remoteSlot, localSlot)) {
       traceContext.add({
         path,
         strategy: 'copy_local_value',
@@ -88,7 +103,7 @@ export const resolvePathValueWithMatrix = (
 
   if (
     isLocalNarrativePatientField(patientField) &&
-    !shouldPreserveLocalPatientNarrative(remote.beds[bedId], local.beds[bedId])
+    !shouldPreserveLocalPatientNarrative(remoteSlot, localSlot)
   ) {
     traceContext.add({
       path,
@@ -99,7 +114,7 @@ export const resolvePathValueWithMatrix = (
     return getValueAtPath(remote, path);
   }
 
-  if (shouldUseRemoteEpisodeScopedValue(patientField, remote.beds[bedId], local.beds[bedId])) {
+  if (shouldUseRemoteEpisodeScopedValue(patientField, remoteSlot, localSlot)) {
     traceContext.add({
       path,
       strategy: 'copy_remote_value',
@@ -122,10 +137,10 @@ export const resolvePathValueWithMatrix = (
     return mergePatientDevices(
       (getValueAtPath(remote, path) as string[]) || [],
       (getValueAtPath(local, path) as string[]) || [],
-      getValueAtPath(local, `beds.${bedId}.deviceDetails`) as
+      getValueAtPath(local, `${slotPath}.deviceDetails`) as
         | Record<string, { removalDate?: unknown }>
         | undefined,
-      getValueAtPath(local, `beds.${bedId}.deviceInstanceHistory`) as
+      getValueAtPath(local, `${slotPath}.deviceInstanceHistory`) as
         | Array<{ type?: unknown; status?: unknown; removalDate?: unknown }>
         | undefined,
       true,

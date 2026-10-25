@@ -111,7 +111,8 @@ export const decideScalarByPolicy = (
 
   const parts = path.split('.');
   if (parts[0] === 'beds' && parts.length >= 3) {
-    const patientField = parts[2];
+    // A field of the newborn crib follows the rules of the same field of a bed.
+    const patientField = parts[2] === 'clinicalCrib' && parts[3] ? parts[3] : parts[2];
     if (isClinicalCensusRemotePriorityField(patientField)) {
       if (isEmptyClinicalValue(local) && !isEmptyClinicalValue(remote)) {
         return {
