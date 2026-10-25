@@ -3,7 +3,7 @@
  * inside a real Firestore transaction.
  */
 import { createRequire } from 'node:module';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { deleteApp, initializeApp, type App } from 'firebase-admin/app';
 import { getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestore';
 
@@ -78,6 +78,9 @@ describeEmulator('specialist note callable in a real Firestore transaction', () 
   beforeEach(async () => {
     await db.recursiveDelete(db.collection('hospitals').doc(HOSPITAL_ID));
   });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
   afterAll(async () => {
     if (db) await db.terminate();
     if (app) await deleteApp(app);
@@ -111,6 +114,36 @@ describeEmulator('specialist note callable in a real Firestore transaction', () 
       lastChangedPaths: ['beds.R4.medicalHandoffNote', 'beds.R4.medicalHandoffEntries'],
     });
     expect(JSON.stringify(record?.meta)).not.toContain('Nota original');
+  });
+
+  it('refuses a replay once a write from an earlier tab replaced its note', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await seed('Nota base');
+    await write(notePatch('Nota original'), 'Nota base', 'synthetic-lost-answer');
+    await run({ date, patch: notePatch('Nota de una pestaña anterior') });
+    expect((await stored())?.meta).toEqual({
+      lastMutationId: null,
+      lastMutationDigest: null,
+      lastChangedPaths: ['beds.R4.medicalHandoffNote', 'beds.R4.medicalHandoffEntries'],
+    });
+
+    await expect(
+      write(notePatch('Nota original'), 'Nota base', 'synthetic-lost-answer')
+    ).rejects.toMatchObject({ code: 'failed-precondition' });
+    expect((await stored())?.beds.R4.medicalHandoffNote).toBe('Nota de una pestaña anterior');
+  });
+
+  it('refuses a replay once a direct write that leaves meta replaced its note', async () => {
+    await seed('Nota base');
+    await write(notePatch('Nota original'), 'Nota base', 'synthetic-lost-answer');
+    await recordRef().update(notePatch('Nota directa de un colega'));
+
+    await expect(
+      write(notePatch('Nota original'), 'Nota base', 'synthetic-lost-answer')
+    ).rejects.toMatchObject({ code: 'failed-precondition' });
+    const record = await stored();
+    expect(record?.beds.R4.medicalHandoffNote).toBe('Nota directa de un colega');
+    expect(record?.meta?.lastMutationId).toBe('synthetic-lost-answer');
   });
 
   it('refuses a nested note path and keeps the stored entries a whole array', async () => {

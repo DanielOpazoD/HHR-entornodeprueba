@@ -165,6 +165,9 @@ describe('specialist medical handoff entrypoint contract', () => {
           data: {
             'beds.R4.medicalHandoffNote': 'Synthetic handoff note',
             lastUpdated: { seconds: 1767225600, nanoseconds: 123 },
+            'meta.lastMutationId': null,
+            'meta.lastMutationDigest': null,
+            'meta.lastChangedPaths': ['beds.R4.medicalHandoffNote'],
           },
         },
       ],

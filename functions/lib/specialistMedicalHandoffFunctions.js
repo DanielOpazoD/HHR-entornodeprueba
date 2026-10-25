@@ -102,6 +102,9 @@ const patchedHandoffTextState = (patient, patch, path) => {
   });
 };
 
+const storedValueAt = (record, path) =>
+  path.split('.').reduce((value, key) => (isPlainObject(value) ? value[key] : undefined), record);
+
 // Key order never changes the digest of an operation.
 const canonicalJson = value =>
   Array.isArray(value)
@@ -357,21 +360,32 @@ const createSpecialistMedicalHandoffFunctions = ({
             'Record timestamp is immutable.'
           );
         }
-        // A replay of the write this record last took (its answer was lost) changes nothing. The
-        // same id with another payload, patient or episode is never taken as that write.
+        // A replay of the write this record last took (its answer was lost) changes nothing, while
+        // the record still holds what that write wrote. The same id with another payload, patient
+        // or episode, or over fields another write changed since, is a conflict.
         const writes = Object.fromEntries(
           Object.entries(patch).filter(([path]) => path !== 'dateTimestamp')
         );
         const digest = mutationId ? operationDigest(date, writes, expectedOccupants) : null;
         if (mutationId && record?.meta?.lastMutationId === mutationId) {
-          if (record.meta.lastMutationDigest === digest) {
-            return { success: true, date, bedId, alreadyApplied: true };
+          if (record.meta.lastMutationDigest !== digest) {
+            console.warn('specialist_handoff_write_id_reused', sanitizeLogValue({ date, bedId }));
+            throw new functions.https.HttpsError(
+              'failed-precondition',
+              `El envío de la nota de la cama ${bedId} no coincide con el que ya se guardó. Revisa el borrador antes de guardarlo.`
+            );
           }
-          console.warn('specialist_handoff_write_id_reused', sanitizeLogValue({ date, bedId }));
-          throw new functions.https.HttpsError(
-            'failed-precondition',
-            `El envío de la nota de la cama ${bedId} no coincide con el que ya se guardó. Revisa el borrador antes de guardarlo.`
-          );
+          if (
+            Object.entries(writes).some(
+              ([path, value]) => canonicalJson(storedValueAt(record, path)) !== canonicalJson(value)
+            )
+          ) {
+            throw new functions.https.HttpsError(
+              'failed-precondition',
+              `La nota de la cama ${bedId} cambió después de este envío. Revisa el borrador antes de guardarlo.`
+            );
+          }
+          return { success: true, date, bedId, alreadyApplied: true };
         }
 
         // Transitional compatibility for pre-deploy tabs: retain the former allowlisted
@@ -421,13 +435,10 @@ const createSpecialistMedicalHandoffFunctions = ({
           ...writes,
           lastUpdated: Timestamp.now(),
           // Like the other server writers, so a replay or a stale queued edit can recognize it.
-          ...(mutationId
-            ? {
-                'meta.lastMutationId': mutationId,
-                'meta.lastMutationDigest': digest,
-                'meta.lastChangedPaths': Object.keys(writes),
-              }
-            : {}),
+          // A write without an id clears them, so no earlier id outlives a later write.
+          'meta.lastMutationId': mutationId ?? null,
+          'meta.lastMutationDigest': digest,
+          'meta.lastChangedPaths': Object.keys(writes),
         });
 
         return {

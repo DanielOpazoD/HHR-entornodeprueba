@@ -1,6 +1,6 @@
 /**
  * Synthetic-only: a specialist note never replaces a stored note saved after its edit began, and a
- * replay of a write the server already took changes nothing.
+ * replay of a write the server already took changes nothing while the record still holds it.
  */
 import { createRequire } from 'node:module';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -94,8 +94,11 @@ const setup = (storedNote: string) => {
       },
       context
     );
+  /** A tab deployed before this change: no occupants, bases or write id. */
+  const legacyWrite = (note: string) =>
+    api.updateSpecialistMedicalHandoff.run({ date: '2026-01-01', patch: notePatch(note) }, context);
   const stored = () => (record.beds as Record<string, Record<string, unknown>>).R4;
-  return { write, update, record, stored };
+  return { write, legacyWrite, update, record, stored };
 };
 
 describe('specialist note text base', () => {
@@ -177,6 +180,45 @@ describe('specialist note text base', () => {
     });
   });
 
+  it('refuses a replay once a write from an earlier tab replaced its note, and keeps that note', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const app = setup('');
+    const original = () =>
+      app.write('Nota original', { bases: [textState('')], mutationId: 'm-lost-answer' });
+    await original();
+    await app.legacyWrite('Nota posterior desde una pestaña anterior');
+    expect(app.record.meta).toEqual({
+      lastMutationId: null,
+      lastMutationDigest: null,
+      lastChangedPaths: ['beds.R4.medicalHandoffEntries', 'beds.R4.medicalHandoffNote'],
+    });
+    app.update.mockClear();
+
+    await expect(original()).rejects.toMatchObject({ code: 'failed-precondition' });
+    expect(app.update).not.toHaveBeenCalled();
+    expect(app.stored().medicalHandoffNote).toBe('Nota posterior desde una pestaña anterior');
+  });
+
+  it('refuses a replay once a direct write that leaves meta replaced its note', async () => {
+    const app = setup('');
+    const original = () =>
+      app.write('Nota original', { bases: [textState('')], mutationId: 'm-lost-answer' });
+    await original();
+    // A direct write never touches meta, so the record still names the specialist write.
+    Object.assign(app.stored(), {
+      medicalHandoffNote: 'Nota posterior de un colega',
+      medicalHandoffEntries: entries('Nota posterior de un colega'),
+    });
+    app.update.mockClear();
+
+    await expect(original()).rejects.toMatchObject({
+      code: 'failed-precondition',
+      message: expect.stringContaining('R4'),
+    });
+    expect(app.update).not.toHaveBeenCalled();
+    expect(app.stored().medicalHandoffNote).toBe('Nota posterior de un colega');
+  });
+
   it.each([
     'beds.R4.medicalHandoffEntries.0.note',
     'beds.R4.medicalHandoffEntries.0',
@@ -214,11 +256,15 @@ describe('specialist note text base', () => {
     ).resolves.toMatchObject({ success: true });
   });
 
-  it('keeps the earlier payload without bases or write id working as before', async () => {
+  it('keeps the earlier payload without bases or write id working, and clears the last id', async () => {
     const app = setup('Nota de un colega');
     await expect(app.write('Nota sin base')).resolves.toMatchObject({ success: true });
     expect(app.update).toHaveBeenCalledWith(
-      expect.not.objectContaining({ 'meta.lastMutationId': expect.anything() })
+      expect.objectContaining({
+        ...notePatch('Nota sin base'),
+        'meta.lastMutationId': null,
+        'meta.lastMutationDigest': null,
+      })
     );
   });
 
