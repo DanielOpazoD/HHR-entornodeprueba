@@ -4,7 +4,10 @@ import {
   saveRecordStrict as saveToIndexedDB,
   type LocalRecordWriteResult,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
-import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
+import {
+  isFirestoreEnabled,
+  getFirestoreSyncState,
+} from '@/services/repositories/repositoryConfig';
 import { logger } from '@/services/utils/loggerService';
 import { resolveRemoteWriteRecovery } from '@/services/repositories/dailyRecordRemoteWriteController';
 import {
@@ -254,12 +257,20 @@ export const persistLocalAndAttemptRemoteSync = async ({
   allowOfflineQueue?: boolean;
 }): Promise<'continue' | 'return'> => {
   if (remoteAuthorityFirst) {
-    if (!isFirestoreEnabled()) {
+    if (
+      !isFirestoreEnabled() &&
+      (!allowOfflineQueue || getFirestoreSyncState().reason !== 'offline')
+    ) {
       throw new Error('La autoridad remota no está disponible para esta escritura clínica.');
     }
     let remoteResult: RemoteAuthorityWriteResult | void;
     try {
       try {
+        if (!isFirestoreEnabled()) {
+          throw Object.assign(new Error('La sincronización está sin conexión.'), {
+            code: 'unavailable',
+          });
+        }
         remoteResult = await remoteWrite();
       } catch (writeError) {
         const rebased = await attemptStaleVersionRebaseRetry<RemoteAuthorityWriteResult>({

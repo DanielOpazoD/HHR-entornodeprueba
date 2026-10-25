@@ -55,6 +55,7 @@ vi.mock('@/services/storage/sync', () => ({
 }));
 vi.mock('@/services/repositories/repositoryConfig', () => ({
   isFirestoreEnabled: vi.fn(() => true),
+  getFirestoreSyncState: vi.fn(() => ({ mode: 'enabled', reason: 'ready' })),
 }));
 vi.mock('@/utils/recordInvariants', () => ({
   normalizeDailyRecordInvariants: vi.fn((record: DailyRecord) => ({ record, patches: {} })),

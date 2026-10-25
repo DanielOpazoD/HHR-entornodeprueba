@@ -1,12 +1,24 @@
+import {
+  isFirestoreEnabled,
+  getFirestoreSyncState,
+} from '@/services/repositories/repositoryConfig';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildRecord, buildPatient } from './dailyRecordHandoffPatchTestSupport';
+import {
+  isFirestoreEnabled,
+  getFirestoreSyncState,
+} from '@/services/repositories/repositoryConfig';
 import { shouldRouteSpecialistPatchViaCallable } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { updateRecordPartial as updateRecordPartialToFirestore } from '@/services/storage/firestore/firestoreRecordWrites';
 import { queueDailyRecordSyncTaskWithLocalRecord } from '@/services/storage/sync';
 import { buildSpecialistHandoffTargets } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
 describe('specialist handoff offline durability', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(isFirestoreEnabled).mockReturnValue(true);
+    vi.mocked(getFirestoreSyncState).mockReturnValue({ mode: 'enabled', reason: 'ready' });
+  });
   it('rejects an identity captured while typing if another patient occupies the local row before persistence', async () => {
     vi.mocked(shouldRouteSpecialistPatchViaCallable).mockResolvedValue(true);
     const edited = buildRecord('2026-10-24');
@@ -47,6 +59,36 @@ describe('specialist handoff offline durability', () => {
           expect.objectContaining({ clinicalEpisodeId: expect.stringMatching(/^legacy_ep_.+/) }),
         ],
       })
+    );
+  });
+
+  it('saves and queues the specialist note when the runtime has explicitly entered offline mode', async () => {
+    vi.mocked(shouldRouteSpecialistPatchViaCallable).mockResolvedValue(true);
+    vi.mocked(isFirestoreEnabled).mockReturnValue(false);
+    vi.mocked(getFirestoreSyncState).mockReturnValue({ mode: 'local_only', reason: 'offline' });
+    const current = buildRecord('2026-10-24');
+    current.beds.R1 = { ...buildPatient('R1', 'Paciente A Sintético'), clinicalEpisodeId: 'ep-A' };
+    const result = await updatePartialDetailed(
+      current.date,
+      { 'beds.R1.medicalHandoffNote': 'Nota offline de A' },
+      { baseRecord: current }
+    );
+    expect(result).toMatchObject({
+      savedLocally: true,
+      updatedRemotely: false,
+      queuedForRetry: true,
+    });
+    expect(updateRecordPartialToFirestore).not.toHaveBeenCalled();
+    expect(queueDailyRecordSyncTaskWithLocalRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        beds: { R1: expect.objectContaining({ medicalHandoffNote: 'Nota offline de A' }) },
+      }),
+      expect.objectContaining({
+        syncContract: expect.objectContaining({
+          specialistHandoffTargets: [expect.objectContaining({ clinicalEpisodeId: 'ep-A' })],
+        }),
+      }),
+      expect.anything()
     );
   });
 
