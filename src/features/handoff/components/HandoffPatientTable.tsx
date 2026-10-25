@@ -40,7 +40,9 @@ export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
   const [allEventsExpanded, setAllEventsExpanded] = useState(false);
 
   const currentRecord = React.useRef(record);
-  currentRecord.current = record;
+  React.useLayoutEffect(() => {
+    currentRecord.current = record;
+  }, [record]);
   const stillOccupies = (bedId: string, isNested: boolean, patient: PatientData) => {
     const bed = currentRecord.current.beds[bedId];
     const current = isNested ? bed?.clinicalCrib : bed;
