@@ -12,9 +12,13 @@ import { buildMedicalEntryNoteFields } from '@/domain/handoff/patientEntryMutati
 import { processSyncQueue } from '@/services/storage/sync';
 import { readMedicalHandoffDrafts } from '@/services/storage/medicalHandoffDraftStorage';
 
+type Doc = Record<string, unknown>;
+interface SpecialistHandler {
+  updateSpecialistMedicalHandoff: { run: (data: unknown, context: unknown) => Promise<unknown> };
+}
 const h = vi.hoisted(() => ({
-  remote: null as Record<string, any> | null,
-  handler: null as any,
+  remote: null as DailyRecord | null,
+  handler: null as SpecialistHandler | null,
   role: 'admin',
   offline: false,
   /** Run the server handler, then lose its response once. */
@@ -25,12 +29,14 @@ const h = vi.hoisted(() => ({
 export const harnessState = () => h;
 export const clone = <T>(value: T): T =>
   value === undefined ? value : JSON.parse(JSON.stringify(value));
-const isObject = (value: unknown): value is Record<string, any> =>
+const isObject = (value: unknown): value is Doc =>
   value !== null && typeof value === 'object' && !Array.isArray(value);
-const mergeDeep = (target: Record<string, any>, source: Record<string, any>) => {
+const remoteDoc = () => (h.remote ?? {}) as unknown as Doc;
+const mergeDeep = (target: Doc, source: Doc) => {
   for (const [key, value] of Object.entries(source)) {
+    const current = target[key];
     if (value === '__delete__') delete target[key];
-    else if (isObject(value) && isObject(target[key])) mergeDeep(target[key], value);
+    else if (isObject(value) && isObject(current)) mergeDeep(current, value);
     else target[key] = clone(value);
   }
 };
@@ -46,11 +52,11 @@ vi.mock('firebase/firestore', async importOriginal => ({
   runTransaction: vi.fn(async (_db: unknown, run: (transaction: unknown) => unknown) =>
     run({
       get: () => remoteSnapshot(),
-      set: (_ref: unknown, data: Record<string, any>, options?: { merge?: boolean }) => {
-        if (options?.merge && h.remote) mergeDeep(h.remote, data);
-        else h.remote = clone(data);
+      set: (_ref: unknown, data: Doc, options?: { merge?: boolean }) => {
+        if (options?.merge && h.remote) mergeDeep(remoteDoc(), data);
+        else h.remote = clone(data) as unknown as DailyRecord;
       },
-      update: (_ref: unknown, data: Record<string, any>) => mergeDeep(h.remote ?? {}, data),
+      update: (_ref: unknown, data: Doc) => mergeDeep(remoteDoc(), data),
     })
   ),
   deleteField: () => '__delete__',
@@ -81,7 +87,7 @@ vi.mock('firebase/functions', () => ({
       const context = {
         auth: { uid: 'synthetic', token: { email: 'specialist@example.invalid' } },
       };
-      result = await h.handler.updateSpecialistMedicalHandoff.run(data, context);
+      result = await h.handler?.updateSpecialistMedicalHandoff.run(data, context);
     } catch (error) {
       const failure = error as { message: string; code: string };
       throw Object.assign(new Error(failure.message), { code: `functions/${failure.code}` });
@@ -113,16 +119,21 @@ vi.mock('@/services/repositories/repositoryConfig', async importOriginal => ({
 }));
 
 const require = createRequire(import.meta.url);
-const setPath = (target: Record<string, any>, path: string, value: unknown) => {
+const setPath = (target: Doc, path: string, value: unknown) => {
   const parts = path.split('.');
   let current = target;
   for (const part of parts.slice(0, -1)) {
-    if (!isObject(current[part])) current[part] = {};
-    current = current[part];
+    const next = current[part];
+    if (isObject(next)) current = next;
+    else {
+      const created: Doc = {};
+      current[part] = created;
+      current = created;
+    }
   }
   current[parts[parts.length - 1]] = value;
 };
-export const createServerHandler = () => {
+export const createServerHandler = (): SpecialistHandler => {
   const {
     createSpecialistMedicalHandoffFunctions,
   } = require('../../../../functions/lib/specialistMedicalHandoffFunctions.js');
@@ -137,8 +148,7 @@ export const createServerHandler = () => {
             staged = patch;
           },
         });
-        for (const [path, value] of Object.entries(staged ?? {}))
-          setPath(h.remote ?? {}, path, value);
+        for (const [path, value] of Object.entries(staged ?? {})) setPath(remoteDoc(), path, value);
         return result;
       },
     },
