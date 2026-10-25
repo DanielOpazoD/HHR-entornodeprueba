@@ -27,6 +27,12 @@ import {
   mergeSyncTaskContracts,
 } from '@/services/storage/sync/syncTaskContractPolicy';
 
+/** A detached note's text is also offered as drafts in the handoff view. */
+export const publishDetachedNotes = async (notes: SpecialistHandoffSyncPayload) =>
+  (await import('@/services/storage/medicalHandoffDraftStorage')).publishSpecialistHandoffConflict(
+    notes
+  );
+
 /**
  * A day's pending truth is its local projection plus the unresolved write that holds it. A write
  * computed from another base must land on top of that projection: its changed paths take its

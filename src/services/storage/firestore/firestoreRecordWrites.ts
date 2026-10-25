@@ -224,9 +224,7 @@ const buildAtomicPartialCommitReceipt = (
  */
 export const loadSpecialistMedicalHandoffClient = () =>
   import('./specialistMedicalHandoffClient').catch(() => {
-    throw Object.assign(new Error('Sin conexión para enviar la entrega médica.'), {
-      code: 'unavailable',
-    });
+    throw Object.assign(new Error('offline'), { code: 'unavailable' });
   });
 
 export const updateRecordPartial = async (
@@ -285,22 +283,12 @@ export const updateRecordPartial = async (
       const persist = async () => {
         if (specialistScopedPatch && (await shouldRouteSpecialistPatchViaCallable())) {
           await assertDirectWriteConcurrency();
-          const { updateSpecialistMedicalHandoffViaCallable } =
-            await loadSpecialistMedicalHandoffClient();
-          return withRetry(
-            () =>
-              updateSpecialistMedicalHandoffViaCallable({
-                date,
-                patch: sanitizedPatch,
-                expectedOccupants: options.specialistHandoffTargets ?? [],
-                mutationId: options.syncContract?.mutationId,
-              }),
-            {
-              shouldRetry: shouldRetryDailyRecordAuthorityError,
-              onRetry: (err: unknown, attempt: number) =>
-                logFirestoreWriteRetry('partialUpdate', date, attempt, err),
-            }
-          );
+          return (await loadSpecialistMedicalHandoffClient()).saveSpecialistMedicalHandoff({
+            date,
+            patch: sanitizedPatch,
+            expectedOccupants: options.specialistHandoffTargets ?? [],
+            mutationId: options.syncContract?.mutationId,
+          });
         }
 
         if (rayenClinicalWriteGuard && guardedPatch) {

@@ -6,6 +6,9 @@ import {
   sameSpecialistHandoffTarget,
 } from './specialistMedicalHandoffIdentity';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
+import { shouldRetryDailyRecordAuthorityError } from './dailyRecordAuthorityCallableClient';
+import { logFirestoreWriteRetry } from './firestoreRecordWriteUtilities';
+import { withRetry } from '@/utils/networkUtils';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import type { SpecialistHandoffSyncPayload, SyncTask } from '@/services/storage/syncQueueTypes';
 import {
@@ -74,6 +77,14 @@ export const updateSpecialistMedicalHandoffViaCallable = async ({
     throw error;
   }
 };
+
+/** The online save: the same request, retried only on failures the server may not have seen. */
+export const saveSpecialistMedicalHandoff = (request: SpecialistHandoffSyncPayload) =>
+  withRetry(() => updateSpecialistMedicalHandoffViaCallable(request), {
+    shouldRetry: shouldRetryDailyRecordAuthorityError,
+    onRetry: (err: unknown, attempt: number) =>
+      logFirestoreWriteRetry('partialUpdate', request.date, attempt, err),
+  });
 
 /**
  * Replays one queued specialist note through the same callable. It never touches the day task:

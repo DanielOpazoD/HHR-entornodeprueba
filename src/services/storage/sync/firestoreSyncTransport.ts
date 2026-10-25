@@ -159,18 +159,16 @@ const resolveRecordForSyncTask = async (
     storedData: remoteData,
     detached,
   });
-  // Edits written for a patient who left the bed or crib never reach the next occupant.
-  const detachFromRemote = () =>
+  // Edits written for a patient who left the bed or crib never reach the next occupant. They are
+  // rebuilt even when the rest already landed, since the ACK that kept them may have rolled back.
+  const detached =
     detachStaleOccupantPaths?.(task, record, docToRecord(remoteData, record.date)) ?? undefined;
   if (
     hasRemoteAppliedMutation(task, remoteData.meta as Record<string, unknown> | undefined) &&
     (!compacted || allCompactedValuesApplied)
   ) {
-    // The rest landed but this task is still queued (its ACK may have rolled back): rebuild its
-    // held edits, so completing it never drops them. A held conflict holds nothing else.
-    return alreadyApplied(task.key?.includes(':detached:') ? undefined : detachFromRemote());
+    return alreadyApplied(detached);
   }
-  const detached = detachFromRemote();
   if (detached) {
     ({ task, record } = detached);
     // Nothing else to publish: the stored day stays as it is.
@@ -265,9 +263,10 @@ const syncDailyRecord = async (
   runtime: FirestoreServiceRuntimePort
 ): Promise<SyncTransportResult | void> => {
   if (await runE2ESyncTransport(task)) return;
-  const detach = task.syncContract?.changedPaths?.some(path => /^beds\.[^.]+\./.test(path))
-    ? (await import('./dexieDailyRecordOutbox')).detachStaleOccupantPaths
+  const occupants = task.syncContract?.changedPaths?.some(path => /^beds\.[^.]+\./.test(path))
+    ? await import('./dexieDailyRecordOutbox')
     : undefined;
+  const detach = occupants?.detachStaleOccupantPaths;
   let detached: DetachedOccupantWork | undefined;
   const result = await measureRepositoryOperation(
     'syncQueue.writeDailyRecord',
@@ -370,10 +369,7 @@ const syncDailyRecord = async (
   if (!detached) return result;
   // The conflicts are durable: the store writes them with this task's completion. The drafts
   // only offer the note text in the handoff view.
-  if (detached.notes)
-    (await import('../medicalHandoffDraftStorage')).publishSpecialistHandoffConflict(
-      detached.notes
-    );
+  if (detached.notes) await occupants?.publishDetachedNotes(detached.notes);
   return { ...result, detachedConflicts: detached.conflicts };
 };
 
