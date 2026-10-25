@@ -228,6 +228,71 @@ describe('check-clinical-clock', () => {
     }
   });
 
+  it('keeps calendar arithmetic, unrelated arrays, shadowed aliases and source text out of instant violations', () => {
+    const { status, output } = runGuard({
+      'src/features/a.ts': [
+        'const day = new Date(Date.UTC(2026, 9, 24, 12)).toISOString().slice(0,10);',
+        'const anchor = new Date(`${key}T12:00:00Z`);',
+        "const next = new Date(anchor.getTime() + 86400000).toISOString().split('T')[0];",
+        'const subset = records.slice(0,10);',
+        'const iso = n.updatedAt;',
+        'function label(iso: string) { return iso.slice(0,10); }',
+        "function other() { const iso = 'ordinary text'; return iso.slice(0,10); }",
+        '// n.updatedAt!.slice(0,10)',
+        'const text = "n.updatedAt!.slice(0,10)";',
+        '// clinical-clock-allow instant-calendar-slice: Rayen admissionAt is unzoned hospital wall time.',
+        'const allowed = (n.admissionAt as string).slice(0,10);',
+      ].join('\n'),
+    });
+    expect(output).toContain('Clinical clock checks passed');
+    expect(status).toBe(0);
+  });
+
+  it('does not treat a calendar fallback or a Date.UTC instant with noncalendar hours as calendar proof', () => {
+    const { status, output } = runGuard({
+      'src/features/a.ts': [
+        'new Date(x || Date.UTC(2026, 9, 24)).toISOString().slice(0,10);',
+        'new Date(Date.UTC(2026, 9, 25, hour, minute)).toISOString().slice(0,10);',
+      ].join('\n'),
+    });
+    expect(status).toBe(1);
+    expect(output).toContain('[instant-calendar-slice] src/features/a.ts:1');
+    expect(output).toContain('[instant-calendar-slice] src/features/a.ts:2');
+  });
+
+  it.each([
+    'const iso = n.updatedAt; iso.slice(0,10)',
+    'n.updatedAt!.slice(0,10)',
+    '(n.updatedAt as string).slice(0,10)',
+    "(n.updatedAt || '').slice(0,10)",
+    'r.lastUpdated.slice(0,10)',
+    "isoNow.split('T')[0]",
+    'new Date(x).toISOString().slice(0,10)',
+    "v.toDate().toISOString().split('T')[0]",
+  ])('rejects hidden instant date cuts in src and Netlify: %s', expression => {
+    for (const file of ['src/features/a.ts', 'netlify/functions/a.ts']) {
+      const { status, output } = runGuard({ [file]: expression });
+      expect(output).toContain(`[instant-calendar-slice] ${file}:1`);
+      expect(status).toBe(1);
+    }
+  });
+
+  it('parses TypeScript angle assertions using the source extension', () => {
+    const { status, output } = runGuard({
+      'src/features/a.ts': '(<string>n.updatedAt).slice(0,10);',
+    });
+    expect(status).toBe(1);
+    expect(output).toContain('[instant-calendar-slice] src/features/a.ts:1');
+  });
+
+  it.each(['', ' ', '   ', '\t'])('rejects an exception without a reason: %j', reason => {
+    const { status, output } = runGuard({
+      'src/features/a.ts': `// clinical-clock-allow instant-calendar-slice: ${reason}\nconst day = n.updatedAt.slice(0,10);`,
+    });
+    expect(output).toContain('[instant-calendar-slice] src/features/a.ts:2');
+    expect(status).toBe(1);
+  });
+
   it('allows only a local date-cut exception with a reason', () => {
     const { status, output } = runGuard({
       'src/features/a.ts': [

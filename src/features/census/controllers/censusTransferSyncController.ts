@@ -1,3 +1,4 @@
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import {
   RECEIVING_CENTER_EXTRASYSTEM,
   RECEIVING_CENTER_OTHER,
@@ -103,7 +104,9 @@ export const syncCensusTransferRequest = async ({
   createFinalizedTransferRequestWithResult,
   completeTransferWithResult,
 }: SyncCensusTransferRequestParams): Promise<void> => {
-  const requestDate = (data?.movementDate || recordDate || new Date().toISOString()).split('T')[0];
+  const requestDate = (data?.movementDate || recordDate || getClinicalCalendarDateISO()).split(
+    'T'
+  )[0];
   const linkedRequest = await getLatestOpenTransferRequestByBedId(bedId, {
     referenceDate: requestDate,
   });

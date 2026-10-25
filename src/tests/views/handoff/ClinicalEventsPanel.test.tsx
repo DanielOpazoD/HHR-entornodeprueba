@@ -1,12 +1,23 @@
 /** @vitest-environment jsdom */
 import '../../setup';
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { ClinicalEventsPanel } from '@/features/handoff/components/ClinicalEventsPanel';
 import type { ClinicalEvent } from '@/types/domain/clinicalEvents';
 
 describe('ClinicalEventsPanel', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('defaults a new event to the hospital day at 23:30 on a Santiago device', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-25T04:30:00.000Z'));
+    render(
+      <ClinicalEventsPanel events={[]} onAdd={vi.fn()} onUpdate={vi.fn()} onDelete={vi.fn()} />
+    );
+    fireEvent.click(screen.getByTitle(/Agregar evento/i));
+    expect(screen.getByDisplayValue('2026-10-24')).toHaveAttribute('type', 'date');
+  });
   const mockEvents: ClinicalEvent[] = [
     {
       id: 'evt-1',
