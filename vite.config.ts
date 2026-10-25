@@ -251,6 +251,11 @@ export default defineConfig(({ mode }) => {
             // a reader that cannot load keeps the day's embedded copy, as it shows today.
             '**/assets/dailyRecordClinicalDerivedReadService-*.js',
             '**/assets/clinicalDerivedEpisodeReader-*.js',
+            // The backup restore of split days shares the contract and the episode schema with
+            // them. A restore that cannot load it reports those days partial, never clean.
+            '**/assets/clinicalDerivedBackupRestore-*.js',
+            '**/assets/clinicalDerivedContract-*.js',
+            '**/assets/clinicalDerived-*.js',
             // Account administration, activation and password changes require Firebase online.
             '**/assets/NursingAccountsPanel-*.js',
             '**/assets/RoleManagementPanel-*.js',

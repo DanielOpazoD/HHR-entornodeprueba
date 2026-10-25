@@ -145,7 +145,15 @@ describe('PWA precache policy', () => {
     }
   });
   it('keeps the split-day read path on demand: without it, readers keep the embedded copy', () => {
-    for (const chunk of ['dailyRecordClinicalDerivedReadService', 'clinicalDerivedEpisodeReader']) {
+    for (const chunk of [
+      'dailyRecordClinicalDerivedReadService',
+      'clinicalDerivedEpisodeReader',
+      // The backup restore and the modules it shares with the readers; without them a restore
+      // reports its split days partial.
+      'clinicalDerivedBackupRestore',
+      'clinicalDerivedContract',
+      'clinicalDerived',
+    ]) {
       expect(readViteConfig()).toContain(`**/assets/${chunk}-*.js`);
       expect(readBundleBudgetConfig().precacheIgnoredAssetPatterns).toContain(
         `^assets/${chunk}-.*\\.js$`

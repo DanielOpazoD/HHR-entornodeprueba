@@ -57,6 +57,10 @@ const ALLOWED_ORIGINAL_DATA_REFERENCES = [
   // Measurement only: daily-record size telemetry counts the bytes of the clinical-sync derived
   // fields inside preserved snapshots. No value is read for meaning or leaves the device.
   'src/services/storage/firestore/dailyRecordSizeTelemetry.ts',
+  // Historical maintenance: a JSON backup restore puts each split episode's vitals history and
+  // Rayen checkpoint back into the snapshot of its live discharge, transfer or CMA, matched by
+  // the episode id that only that snapshot carries. Nothing else in the snapshot is read.
+  'src/services/exporters/clinicalDerivedBackupRestore.ts',
   'src/types/virtual-minsal-shared.d.ts',
 ];
 
