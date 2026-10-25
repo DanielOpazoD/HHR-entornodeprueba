@@ -15,7 +15,6 @@ import { getStoredSessionOwnerKey, SESSION_OWNER_KEY } from './sessionOwnerKey';
  * the server or discarded by the user. A failed write stays in memory, marked as not durable.
  */
 const PREFIX = 'hhr.medicalHandoffDraft.v2:';
-const LEGACY_PREFIX = 'hhr.medicalHandoffDrafts.v1:';
 
 const draftSchema = z.object({
   date: z.string(),
@@ -49,8 +48,6 @@ const heldFor = new Map<string, string | null>();
 const editors = new Map<string, number>();
 const listeners = new Set<() => void>();
 const ownerResets = new Set<() => void>();
-/** An old shared list is still waiting to be copied; another tab's storage change may allow it. */
-let legacyPending = false;
 let observedOwner: string | null | undefined;
 let lastKnownOwner: string | null = null;
 let discardedForeignDraft = false;
@@ -141,7 +138,7 @@ const syncOwner = (): string | null => {
 };
 
 /** The signed-in owner, after applying any change since the last call. */
-export const getMedicalHandoffDraftOwner: () => string | null = syncOwner;
+export const getMedicalHandoffDraftOwner = (): string | null => syncOwner();
 export const hasDiscardedForeignMedicalHandoffDraft = (): boolean => discardedForeignDraft;
 /** Editors drop their in-memory sessions whenever the signed-in owner changes. */
 export const registerMedicalHandoffOwnerReset = (reset: () => void) => {
@@ -156,37 +153,8 @@ const flushPending = (owner: string | null) => {
   }
 };
 
-/**
- * Copies the old shared list into one slot per draft, on every read until it is gone. The list is
- * removed only while it still holds exactly what was copied. A list another tab saved meanwhile
- * stays, and that tab's storage change copies it again, as does any later read; a failed copy
- * leaves everything in place. Subscribers hear of the copy after the read, never during a render.
- */
-const migrateLegacyDrafts = (owner: string) => {
-  const legacyKey = LEGACY_PREFIX + owner;
-  legacyPending = false;
-  try {
-    const raw = localStorage.getItem(legacyKey);
-    if (raw === null) return;
-    for (const draft of draftSchema.array().parse(JSON.parse(raw)))
-      localStorage.setItem(
-        `${ownerPrefix(owner)}v1:${medicalHandoffDraftKey(draft)}`,
-        JSON.stringify(draft)
-      );
-    if (localStorage.getItem(legacyKey) === raw) {
-      localStorage.removeItem(legacyKey);
-      version += 1;
-      return queueMicrotask(changed);
-    }
-  } catch {
-    // Nothing is deleted on a failed copy; the old list stays where it is.
-  }
-  legacyPending = true;
-};
-
 export const readMedicalHandoffDrafts = (): MedicalHandoffDraft[] => {
   const owner = syncOwner();
-  if (owner) migrateLegacyDrafts(owner);
   if (snapshot?.version === version && snapshot.owner === owner) return snapshot.drafts;
   const drafts = new Map<string, MedicalHandoffDraft>();
   if (owner) {
@@ -211,10 +179,7 @@ export const subscribeMedicalHandoffDrafts = (listener: () => void) => {
 };
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', event => {
-    if (!event.key || event.key.startsWith(PREFIX) || event.key === SESSION_OWNER_KEY)
-      return changed();
-    // Another tab may have freed the space old drafts were waiting for, or saved a newer list.
-    if (legacyPending) readMedicalHandoffDrafts();
+    if (!event.key || event.key.startsWith(PREFIX) || event.key === SESSION_OWNER_KEY) changed();
   });
 }
 
@@ -360,7 +325,6 @@ export const resetMedicalHandoffDraftMemoryForTests = (): void => {
   pending.clear();
   heldFor.clear();
   editors.clear();
-  legacyPending = false;
   observedOwner = undefined;
   lastKnownOwner = null;
   discardedForeignDraft = false;
