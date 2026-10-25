@@ -27,6 +27,7 @@ import {
   buildSyncTaskContract,
   mergeSyncTaskContracts,
   preserveIncompatibleHandoffTask,
+  publishPreservedHandoffDraft,
 } from '@/services/storage/sync/syncTaskContractPolicy';
 import {
   clearSyncTaskRuntimeState,
@@ -157,7 +158,8 @@ export const createSyncQueueEngine = ({
   const enqueueDailyRecordWithLocalRecord = async (
     record: DailyRecord,
     meta?: Pick<SyncTask, 'contexts' | 'origin' | 'recoveryPolicy' | 'syncContract'>,
-    options: SyncQueueEnqueueOptions = {}
+    options: SyncQueueEnqueueOptions = {},
+    onConflict: (task: SyncTask) => void = () => {}
   ): Promise<SyncQueueEnqueueResult> => {
     const type: SyncTask['type'] = 'UPDATE_DAILY_RECORD';
     const key = getSyncTaskKey(type, record);
@@ -171,7 +173,8 @@ export const createSyncQueueEngine = ({
     const existing = await preserveIncompatibleHandoffTask(
       store,
       key ? await store.findReusableTask(type, key, ownerKey) : null,
-      record
+      record,
+      onConflict
     );
     const syncContract = mergeSyncTaskContracts(
       existing?.syncContract,
@@ -213,13 +216,20 @@ export const createSyncQueueEngine = ({
     };
   };
   const queueDailyRecordTaskWithLocalRecord = async (
-    ...args: Parameters<typeof enqueueDailyRecordWithLocalRecord>
+    record: DailyRecord,
+    meta?: Pick<SyncTask, 'contexts' | 'origin' | 'recoveryPolicy' | 'syncContract'>,
+    options: SyncQueueEnqueueOptions = {}
   ): Promise<SyncQueueEnqueueResult> => {
-    const operation = () => enqueueDailyRecordWithLocalRecord(...args);
+    let orphan: SyncTask | undefined;
+    const operation = () =>
+      enqueueDailyRecordWithLocalRecord(record, meta, options, task => {
+        orphan = task;
+      });
     const result = await (store.withEnqueueTransaction
       ? store.withEnqueueTransaction(operation)
       : operation());
-    if (result.accepted && !args[2]?.deferProcessing) triggerProcessing();
+    await publishPreservedHandoffDraft(orphan);
+    if (result.accepted && !options.deferProcessing) triggerProcessing();
     return result;
   };
   const replacePendingDailyRecordTaskWithLocalRecord = async (

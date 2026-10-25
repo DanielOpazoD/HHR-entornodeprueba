@@ -30,3 +30,14 @@ export const buildSpecialistHandoffTargets = (
   }
   return [...targets.values()];
 };
+
+export const sameSpecialistHandoffTarget = (
+  left: SpecialistHandoffTarget,
+  right: SpecialistHandoffTarget
+): boolean =>
+  left.bedId === right.bedId &&
+  left.target === right.target &&
+  left.clinicalEpisodeId === right.clinicalEpisodeId &&
+  left.rut === right.rut &&
+  left.documentType === right.documentType &&
+  left.patientName === right.patientName;

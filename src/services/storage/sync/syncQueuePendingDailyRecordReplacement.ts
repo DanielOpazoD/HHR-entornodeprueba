@@ -8,6 +8,7 @@ import {
   mergeSyncTaskContracts,
   assertPendingHandoffContinuity,
   preserveIncompatibleHandoffTask,
+  publishPreservedHandoffDraft,
 } from '@/services/storage/sync/syncTaskContractPolicy';
 import {
   clearSyncTaskRuntimeState,
@@ -56,6 +57,7 @@ const replaceWithinTransaction = async ({
   store,
   runtime,
   expectedTask,
+  onConflict,
 }: {
   record: DailyRecord;
   meta?: ReplacementMeta;
@@ -63,6 +65,7 @@ const replaceWithinTransaction = async ({
   runtime: SyncRuntimePort;
   triggerProcessing: () => void;
   expectedTask?: PendingDailyRecordSyncTaskIdentity;
+  onConflict?: (task: SyncTask) => void;
 }): Promise<boolean> => {
   if (!store.replacePendingDailyRecordWithTask) return false;
   const type: SyncTask['type'] = 'UPDATE_DAILY_RECORD';
@@ -83,7 +86,8 @@ const replaceWithinTransaction = async ({
 
   // A replacement cannot acknowledge the orphan as saved. Leave it in quarantine
   // and let the caller enqueue the fresh write through the ordinary atomic path.
-  if (!(await preserveIncompatibleHandoffTask(store, existing, record))) return false;
+  if (!(await preserveIncompatibleHandoffTask(store, existing, record, onConflict || (() => {}))))
+    return false;
   const replacementTask = buildPendingDailyRecordReplacementTask({ record, meta, existing });
   const replaced = await store.replacePendingDailyRecordWithTask(
     record,
@@ -96,10 +100,18 @@ const replaceWithinTransaction = async ({
 export const replacePendingDailyRecordTask = async (
   args: Parameters<typeof replaceWithinTransaction>[0]
 ): Promise<boolean> => {
-  const operation = () => replaceWithinTransaction(args);
+  let orphan: SyncTask | undefined;
+  const operation = () =>
+    replaceWithinTransaction({
+      ...args,
+      onConflict: task => {
+        orphan = task;
+      },
+    });
   const replaced = await (args.store.withEnqueueTransaction
     ? args.store.withEnqueueTransaction(operation)
     : operation());
+  await publishPreservedHandoffDraft(orphan);
   if (replaced) args.triggerProcessing();
   return replaced;
 };

@@ -9,6 +9,7 @@ import {
   buildSyncTaskContract,
   mergeSyncTaskContracts,
   preserveIncompatibleHandoffTask,
+  publishPreservedHandoffDraft,
 } from './syncTaskContractPolicy';
 import { getSyncTaskKey, clearSyncTaskRuntimeState } from './syncQueueTaskFactory';
 import {
@@ -24,8 +25,10 @@ const enqueueWithinTransaction = async (
     store,
     runtime,
     maxPendingTasks,
+    onConflict,
   }: Pick<CreateSyncQueueEngineOptions, 'store' | 'runtime' | 'maxPendingTasks'> & {
     triggerProcessing: () => void;
+    onConflict?: (task: SyncTask) => void;
   },
   type: SyncTask['type'],
   payload: unknown,
@@ -48,7 +51,12 @@ const enqueueWithinTransaction = async (
     const candidate = await store.findReusableTask(type, key, ownerKey);
     const existing =
       type === 'UPDATE_DAILY_RECORD'
-        ? await preserveIncompatibleHandoffTask(store, candidate, payload as DailyRecord)
+        ? await preserveIncompatibleHandoffTask(
+            store,
+            candidate,
+            payload as DailyRecord,
+            onConflict || (() => {})
+          )
         : candidate;
     if (existing?.id) {
       const mergedSyncContract = mergeSyncTaskContracts(existing.syncContract, syncContract);
@@ -113,11 +121,26 @@ const enqueueWithinTransaction = async (
 export const enqueueStandaloneSyncTask = async (
   ...args: Parameters<typeof enqueueWithinTransaction>
 ): Promise<SyncQueueEnqueueResult> => {
-  const [{ store, triggerProcessing }, , , , options] = args;
-  const operation = () => enqueueWithinTransaction(...args);
+  const [dependencies, type, payload, meta, options] = args;
+  const { store, triggerProcessing } = dependencies;
+  let orphan: SyncTask | undefined;
+  const operation = () =>
+    enqueueWithinTransaction(
+      {
+        ...dependencies,
+        onConflict: task => {
+          orphan = task;
+        },
+      },
+      type,
+      payload,
+      meta,
+      options
+    );
   const result = await (store.withEnqueueTransaction
     ? store.withEnqueueTransaction(operation)
     : operation());
+  await publishPreservedHandoffDraft(orphan);
   if (result.accepted && !options?.deferProcessing) triggerProcessing();
   return result;
 };

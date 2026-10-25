@@ -10,11 +10,7 @@ import { HandoffPatientCell } from './HandoffPatientCell';
 import { HandoffDiagnosisCell } from './HandoffDiagnosisCell';
 import { HandoffDevicesCell } from './HandoffDevicesCell';
 import { HandoffObservationsCell } from './HandoffObservationsCell';
-const HandoffMedicalObservationsCell = React.lazy(() =>
-  import('./HandoffMedicalObservationsCell').then(module => ({
-    default: module.HandoffMedicalObservationsCell,
-  }))
-);
+import { HandoffMedicalObservationsCell } from './HandoffMedicalObservationsCell';
 import {
   hasActiveMedicalMutationPaths,
   resolveHandoffRowReadOnly,
@@ -143,23 +139,21 @@ export const HandoffRow: React.FC<HandoffRowProps> = ({
       {!isMedical && <HandoffDevicesCell patient={patient} reportDate={reportDate} />}
 
       {isMedical ? (
-        <React.Suspense fallback={<td role="status">Cargando entrega médica…</td>}>
-          <HandoffMedicalObservationsCell
-            patient={patient}
-            reportDate={reportDate}
-            isFieldReadOnly={isFieldReadOnly}
-            primaryNoteValue={noteValue}
-            onPrimaryNoteChange={onNoteChange}
-            onCreatePrimaryEntry={medicalActions?.onCreatePrimaryEntry}
-            onEntryNoteChange={resolveMedicalEntryNoteChangeHandler(
-              medicalActions?.onEntryNoteChange
-            )}
-            onEntrySpecialtyChange={medicalActions?.onEntrySpecialtyChange}
-            onAddEntry={medicalActions?.onEntryAdd}
-            onDeleteEntry={medicalActions?.onEntryDelete}
-            onRefreshAsCurrent={medicalActions?.onRefreshAsCurrent}
-          />
-        </React.Suspense>
+        <HandoffMedicalObservationsCell
+          patient={patient}
+          reportDate={reportDate}
+          isFieldReadOnly={isFieldReadOnly}
+          primaryNoteValue={noteValue}
+          onPrimaryNoteChange={onNoteChange}
+          onCreatePrimaryEntry={medicalActions?.onCreatePrimaryEntry}
+          onEntryNoteChange={resolveMedicalEntryNoteChangeHandler(
+            medicalActions?.onEntryNoteChange
+          )}
+          onEntrySpecialtyChange={medicalActions?.onEntrySpecialtyChange}
+          onAddEntry={medicalActions?.onEntryAdd}
+          onDeleteEntry={medicalActions?.onEntryDelete}
+          onRefreshAsCurrent={medicalActions?.onRefreshAsCurrent}
+        />
       ) : (
         <HandoffObservationsCell
           noteValue={noteValue}

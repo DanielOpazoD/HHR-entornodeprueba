@@ -1,5 +1,8 @@
 import { shouldRouteSpecialistPatchViaCallable } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
-import { buildSpecialistHandoffTargets } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
+import {
+  buildSpecialistHandoffTargets,
+  sameSpecialistHandoffTarget,
+} from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
 import { isSpecialistScopedDailyRecordPatch } from './dailyRecordClinicalDomainService';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
@@ -343,16 +346,7 @@ const updatePartialDetailedWithinLock = async (
     const actual = buildSpecialistHandoffTargets(current, command.patch);
     if (
       options.specialistHandoffTargets.some(
-        expected =>
-          !actual.some(
-            target =>
-              target.bedId === expected.bedId &&
-              target.target === expected.target &&
-              target.clinicalEpisodeId === expected.clinicalEpisodeId &&
-              target.rut === expected.rut &&
-              target.documentType === expected.documentType &&
-              target.patientName === expected.patientName
-          )
+        expected => !actual.some(target => sameSpecialistHandoffTarget(target, expected))
       )
     ) {
       throw new ConcurrencyError(

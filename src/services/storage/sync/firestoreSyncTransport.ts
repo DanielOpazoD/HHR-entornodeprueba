@@ -1,4 +1,7 @@
-import { buildSpecialistHandoffTargets } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
+import {
+  buildSpecialistHandoffTargets,
+  sameSpecialistHandoffTarget,
+} from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
 import { updateSpecialistMedicalHandoffViaCallable } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import { deleteField, getDoc, runTransaction, type Transaction } from 'firebase/firestore';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
@@ -114,18 +117,7 @@ const assertQueuedHandoffOccupants = (task: SyncTask, record: DailyRecord, remot
     task.syncContract?.specialistHandoffTargets || buildSpecialistHandoffTargets(record, patch);
   const actual = buildSpecialistHandoffTargets(remote, patch);
   if (
-    expected.some(
-      target =>
-        !actual.some(
-          current =>
-            current.bedId === target.bedId &&
-            current.target === target.target &&
-            current.clinicalEpisodeId === target.clinicalEpisodeId &&
-            current.rut === target.rut &&
-            current.documentType === target.documentType &&
-            current.patientName === target.patientName
-        )
-    )
+    expected.some(target => !actual.some(current => sameSpecialistHandoffTarget(current, target)))
   ) {
     throw new ConcurrencyError(
       'La entrega pendiente pertenece a otro paciente o episodio. Se conserva en la cola para revisión manual.',

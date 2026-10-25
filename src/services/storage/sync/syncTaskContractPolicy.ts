@@ -1,5 +1,7 @@
-import { preserveQueuedMedicalHandoffDrafts } from '../medicalHandoffDraftStorage';
-import { buildSpecialistHandoffTargets } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
+import {
+  buildSpecialistHandoffTargets,
+  sameSpecialistHandoffTarget,
+} from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
 import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 import { resolveClinicalEpisodeIdentifier } from '@/application/patient-flow/clinicalEpisode';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -123,13 +125,7 @@ export const mergeSyncTaskContracts = (
   for (const target of targets) {
     const key = `${target.bedId}.${target.target}`;
     const previous = byTarget.get(key);
-    if (
-      previous &&
-      (previous.clinicalEpisodeId !== target.clinicalEpisodeId ||
-        previous.rut !== target.rut ||
-        previous.documentType !== target.documentType ||
-        previous.patientName !== target.patientName)
-    ) {
+    if (previous && !sameSpecialistHandoffTarget(previous, target)) {
       throw new ConcurrencyError(
         'Existe una entrega pendiente de otro paciente o episodio; debe revisarse antes de reemplazarla.',
         'semantic_conflict'
@@ -165,18 +161,7 @@ export const assertPendingHandoffContinuity = (
     buildSpecialistHandoffTargets(existing.payload as DailyRecord, patch);
   const actual = buildSpecialistHandoffTargets(next, patch);
   if (
-    expected.some(
-      target =>
-        !actual.some(
-          current =>
-            current.bedId === target.bedId &&
-            current.target === target.target &&
-            current.clinicalEpisodeId === target.clinicalEpisodeId &&
-            current.rut === target.rut &&
-            current.documentType === target.documentType &&
-            current.patientName === target.patientName
-        )
-    )
+    expected.some(target => !actual.some(current => sameSpecialistHandoffTarget(current, target)))
   ) {
     throw new ConcurrencyError(
       'La cola conserva una entrega del paciente anterior. Revisa ese conflicto antes de reemplazar su contenido.',
@@ -189,14 +174,15 @@ export const assertPendingHandoffContinuity = (
 export const preserveIncompatibleHandoffTask = async (
   store: Pick<import('./syncQueuePorts').SyncQueueStorePort, 'update'>,
   existing: SyncTask | null,
-  record: DailyRecord
+  record: DailyRecord,
+  onConflict: (task: SyncTask) => void
 ): Promise<SyncTask | null> => {
   try {
     assertPendingHandoffContinuity(existing, record);
     return existing;
   } catch (error) {
     if (!(error instanceof ConcurrencyError) || !existing?.id) throw error;
-    preserveQueuedMedicalHandoffDrafts(existing);
+    onConflict(existing);
     await store.update(existing.id, {
       key: `${existing.key}:handoff-conflict:${existing.id}`,
       status: 'CONFLICT',
@@ -208,4 +194,10 @@ export const preserveIncompatibleHandoffTask = async (
     });
     return null;
   }
+};
+
+export const publishPreservedHandoffDraft = async (task?: SyncTask): Promise<void> => {
+  if (!task) return;
+  const { preserveQueuedMedicalHandoffDrafts } = await import('../medicalHandoffDraftStorage');
+  preserveQueuedMedicalHandoffDrafts(task);
 };
