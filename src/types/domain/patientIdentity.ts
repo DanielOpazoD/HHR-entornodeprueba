@@ -19,14 +19,18 @@ export type PatientIdentityField = (typeof PATIENT_IDENTITY_FIELDS)[number];
 /**
  * A stored identity this client could not read. Only a read of a stored record sets it; it lives
  * in memory, in the device cache and in this client's backups, never in Firestore. The listed
- * fields show what a missing value shows, never a guess or a conversion of the stored one; every
- * write and every import puts `stored` back in their place.
+ * fields show what a missing value shows, never a guess or a conversion of the stored one. It
+ * belongs to the occupant it was read for: a write gives storage back what it held only while the
+ * slot still holds that occupant, and only for a value nobody changed since the read.
  */
 export interface PatientIdentityReview {
   /** Where it was read: the bed, or the newborn crib nested in it. */
   readonly bedId: string;
   readonly slot: 'bed' | 'clinicalCrib';
+  /** The fields storage holds in a form this client cannot read: each waits for a repair. */
   readonly fields: readonly PatientIdentityField[];
-  /** Every identity field exactly as storage holds it, before any normalization. */
+  /** Every identity field as the read showed it: the occupant this review was read for. */
+  readonly shown: Readonly<Partial<Record<PatientIdentityField, unknown>>>;
+  /** Exactly as storage holds them: each listed field, and each null the read showed as empty. */
   readonly stored: Readonly<Partial<Record<PatientIdentityField, unknown>>>;
 }

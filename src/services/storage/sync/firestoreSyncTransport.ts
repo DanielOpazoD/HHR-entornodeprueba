@@ -44,10 +44,7 @@ import {
   adoptStoredClinicalDerivedState,
   withClearedStoredMovedFields,
 } from '@/services/storage/clinicalDerivedWriteHygiene';
-import {
-  clearReviewedIdentityFields,
-  withStoredIdentity,
-} from '@/shared/census/patientIdentityReview';
+import { withStoredIdentity } from '@/shared/census/patientIdentityReview';
 import { DailyRecordSchema, parseDailyRecordWithDefaultsReport } from '@/schemas/zodSchemas';
 
 const STRICT_REMOTE_DRIFT_TOLERANCE_MS = 0;
@@ -211,8 +208,7 @@ const resolveRecordForSyncTask = async (
   }
 
   return {
-    // The merge takes the review from the stored day; the fields this task wrote are not under it.
-    record: clearReviewedIdentityFields(consistency.record, changedPaths),
+    record: consistency.record,
     resolution: 'merged',
     acceptedVersion: consistency.record.lastUpdated,
     storedData: remoteData,

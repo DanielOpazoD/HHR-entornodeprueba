@@ -17,8 +17,8 @@ import {
 
 /**
  * What a salvage does with an identity field it cannot read. `quarantine`, for stored data, keeps
- * the day readable: the patient carries an identity review and the field shows nothing, never a
- * guess or a conversion. `reject`, for a write, throws instead of storing it.
+ * the day readable: the patient carries an identity review and the field shows what a missing value
+ * shows, never a guess or a conversion. `reject`, for a write, throws instead of storing it.
  */
 export type UnreadableIdentityPolicy = 'reject' | 'quarantine';
 
@@ -96,13 +96,13 @@ export const buildFallbackPatientDataReport = (
     ? parsed.data
     : PatientDataSchema.parse(candidate);
   const fields = [...reviewed];
-  // The identity exactly as storage holds it, before any normalization: nulls included.
+  // Exactly as storage holds it, before any normalization: each field the read cannot show as it is
+  // stored, whether unreadable or a null it shows as empty.
   const source = isPlainObject(raw) ? raw : {};
   const stored = Object.fromEntries(
-    PATIENT_IDENTITY_FIELDS.filter(field => Object.hasOwn(source, field)).map(field => [
-      field,
-      source[field],
-    ])
+    PATIENT_IDENTITY_FIELDS.filter(
+      field => Object.hasOwn(source, field) && (reviewed.has(field) || source[field] === null)
+    ).map(field => [field, source[field]])
   );
   return {
     patient: {
@@ -119,6 +119,10 @@ export const buildFallbackPatientDataReport = (
               bedId,
               slot,
               fields,
+              // What the read shows: the occupant this review is for.
+              shown:
+                previousReview?.shown ??
+                Object.fromEntries(PATIENT_IDENTITY_FIELDS.map(field => [field, patient[field]])),
               stored: { ...stored, ...previousReview?.stored },
             },
           }

@@ -233,10 +233,10 @@ const unreadableIdentity: Array<[PatientIdentityField, unknown, unknown]> = [
   ['admissionTime', 930, ''],
 ];
 
-/** The identity fields of a patient exactly as storage holds them. */
-const storedIdentityOf = (patient: Record<string, unknown>) =>
+/** Every identity field of a patient, as it holds it. */
+const identityOf = (patient: object) =>
   Object.fromEntries(
-    PATIENT_IDENTITY_FIELDS.filter(field => field in patient).map(field => [field, patient[field]])
+    PATIENT_IDENTITY_FIELDS.map(field => [field, (patient as Record<string, unknown>)[field]])
   );
 
 describe('a stored patient with one unreadable identity field', () => {
@@ -252,11 +252,15 @@ describe('a stored patient with one unreadable identity field', () => {
 
   it.each(unreadableIdentity)('every reader shows %s under review', (field, invalid) => {
     readers.forEach(({ read }) => {
-      expect(read({ ...passport(), [field]: invalid }).identityReview).toEqual({
+      const patient = read({ ...passport(), [field]: invalid });
+      const { identityReview, ...shown } = patient;
+
+      expect(identityReview).toEqual({
         bedId: 'R1',
         slot: 'bed',
         fields: [field],
-        stored: storedIdentityOf({ ...passport(), [field]: invalid }),
+        shown: identityOf(shown),
+        stored: { [field]: invalid },
       });
     });
   });
@@ -274,7 +278,8 @@ describe('a stored patient with one unreadable identity field', () => {
         bedId: 'R1',
         slot: 'bed',
         fields: [field],
-        stored: storedIdentityOf({ ...passport(), [field]: invalid }),
+        shown: identityOf(record.beds.R1),
+        stored: { [field]: invalid },
       });
       expect(record.beds.R2).toMatchObject(neighbour());
       expect(record.beds.R2.identityReview).toBeUndefined();
@@ -302,7 +307,8 @@ describe('a stored patient with one unreadable identity field', () => {
       bedId: 'R1',
       slot: 'clinicalCrib',
       fields: ['documentType'],
-      stored: storedIdentityOf(mother.clinicalCrib),
+      shown: identityOf(record.beds.R1.clinicalCrib!),
+      stored: { documentType: 'Cedula' },
     });
     expect(() => writeDay(mother)).toThrow(
       expect.objectContaining({

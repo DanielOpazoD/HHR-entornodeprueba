@@ -19,7 +19,27 @@ export const isIdentityReview = (value: unknown): value is PatientIdentityReview
   typeof value.bedId === 'string' &&
   Array.isArray(value.fields) &&
   value.fields.every(isPatientIdentityField) &&
+  isPlainObject(value.shown) &&
   isPlainObject(value.stored);
+
+type IdentityValues = Partial<Record<PatientIdentityField, unknown>>;
+
+/** Whether `field` of `patient` still shows what the read of `review` showed. */
+const showsAsRead = (
+  patient: IdentityValues,
+  review: PatientIdentityReview,
+  field: PatientIdentityField
+) => JSON.stringify(patient[field]) === JSON.stringify(review.shown[field]);
+
+/**
+ * Whether `patient`, in a bed or in the newborn crib of one, is still the occupant `review` was read
+ * for: in the same slot, every field the read could show still showing what it showed.
+ */
+const holdsReadOccupant = (patient: IdentityValues, review: PatientIdentityReview, crib: boolean) =>
+  (review.slot === 'clinicalCrib') === crib &&
+  PATIENT_IDENTITY_FIELDS.every(
+    field => review.fields.includes(field) || showsAsRead(patient, review, field)
+  );
 
 /** Where a review sits, as the census names it. */
 export const identityReviewTitle = ({ bedId, slot }: ReviewPlace) =>
@@ -76,9 +96,13 @@ const mapReviews = (value: unknown, path: string, store: boolean): unknown => {
     ) {
       throw repairRequired(path, review);
     }
-    Object.entries(review.stored).forEach(([field, stored]) => {
-      if (isPatientIdentityField(field)) next[field] = stored;
-    });
+    // Storage gets back what it held only for the occupant the review was read for, and only where a
+    // value still shows what the read showed: a new patient, a repair or an edit is stored as written.
+    if (holdsReadOccupant(next, review, path.endsWith('.clinicalCrib'))) {
+      Object.entries(review.stored).forEach(([field, stored]) => {
+        if (isPatientIdentityField(field) && showsAsRead(next, review, field)) next[field] = stored;
+      });
+    }
   }
   if (!changed) return value;
   return Array.isArray(value) ? Object.assign([], next) : next;
@@ -86,8 +110,9 @@ const mapReviews = (value: unknown, path: string, store: boolean): unknown => {
 
 /**
  * What storage receives for a value leaving the device (a day, a patch, a snapshot): a bed or crib
- * under review goes back with its stored identity and no review. A review anywhere else, such as a
- * patient copied into a movement, would store a guess, so the write fails.
+ * under review goes back with no review, and with what storage held for each field it could not
+ * show, unless the slot now holds another occupant or the field was written since. A review
+ * anywhere else, such as a patient copied into a movement, would store a guess, so the write fails.
  */
 export const withStoredIdentity = <T>(value: T): T => mapReviews(value, '', true) as T;
 
@@ -109,27 +134,34 @@ const identityOf = (patient: PatientData) =>
 export const isSameIdentityUnderReview = (a: PatientData, b: PatientData): boolean | undefined =>
   a.identityReview || b.identityReview ? identityOf(a) === identityOf(b) : undefined;
 
-const BED_FIELD_PATH = /^beds\.([^.]+)\.(?:(clinicalCrib)\.)?([^.]+)$/;
+const PATCH_PATH = /^beds\.([^.]+)(?:\.(clinicalCrib))?(?:\.([^.]+))?$/;
 
-/** A field written explicitly by a patch is no longer under review; the write validated it. */
+/**
+ * Keeps the reviews of a day in step with the patches applied to it. A patched identity field shows
+ * what the patch wrote: it is no longer under review, and storage does not get back what it held for
+ * it. A patch of a whole bed or crib keeps a review only for the occupant it was read for.
+ */
 export const clearReviewedIdentityFields = <T extends { beds: Record<string, PatientData> }>(
   record: T,
   patchPaths: readonly string[]
 ): T =>
   patchPaths.reduce<T>((current, path) => {
-    const [, bedId, crib, field] = BED_FIELD_PATH.exec(path) ?? [];
+    const [, bedId, crib, field] = PATCH_PATH.exec(path) ?? [];
     const bed = bedId ? current.beds[bedId] : undefined;
     const target = crib ? bed?.clinicalCrib : bed;
     const review = target?.identityReview;
-    if (!bed || !target || !review || !isPatientIdentityField(field)) return current;
-    if (!review.fields.includes(field) && !Object.hasOwn(review.stored, field)) return current;
+    if (!bed || !target || !review || (field && !isPatientIdentityField(field))) return current;
     const { identityReview: _review, ...next } = target;
-    const fields = review.fields.filter(reviewed => reviewed !== field);
-    const stored = { ...review.stored };
-    delete stored[field];
-    const patient = fields.length
-      ? { ...next, identityReview: { ...review, fields, stored } }
-      : next;
+    let kept: PatientIdentityReview | undefined = review;
+    if (isPatientIdentityField(field)) {
+      const { [field]: _stored, ...stored } = review.stored;
+      const fields = review.fields.filter(reviewed => reviewed !== field);
+      const shown = { ...review.shown, [field]: target[field] };
+      kept = fields.length ? { ...review, fields, shown, stored } : undefined;
+    } else if (!holdsReadOccupant(next, review, Boolean(crib))) {
+      kept = undefined;
+    }
+    const patient = kept ? { ...next, identityReview: kept } : next;
     return {
       ...current,
       beds: { ...current.beds, [bedId]: crib ? { ...bed, clinicalCrib: patient } : patient },

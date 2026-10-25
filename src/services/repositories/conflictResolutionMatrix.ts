@@ -39,6 +39,7 @@ import {
 import { resolvePathValueWithMatrix } from '@/services/repositories/conflictResolutionPathMatrix';
 import { CLINICAL_DERIVED_LAYOUT_FIELD } from '@/services/storage/clinicalDerivedConstants';
 import { adoptStoredClinicalDerivedState } from '@/services/storage/clinicalDerivedWriteHygiene';
+import { clearReviewedIdentityFields } from '@/shared/census/patientIdentityReview';
 
 interface ConflictResolutionOptions {
   changedPaths?: string[];
@@ -315,7 +316,9 @@ const resolveByChangedPaths = (
     traceContext.add(traceFromScalarDecision(path, decision));
   }
 
-  const merged = applyPatches(remote, patches);
+  // The merge takes each review from the stored day: the fields it took from the local copy are not
+  // under it any more.
+  const merged = clearReviewedIdentityFields(applyPatches(remote, patches), changedPaths);
   merged.lastUpdated = toIso(Math.max(toMillis(remote.lastUpdated), toMillis(local.lastUpdated)));
   return normalizeMovementBedConsistency(merged).record;
 };

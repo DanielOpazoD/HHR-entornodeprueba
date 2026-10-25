@@ -220,16 +220,6 @@ export const mergePatientData = (
   if (!remotePatient && !localPatient) {
     return {} as PatientData;
   }
-  // A copy that is not the same identity under review shares nothing with the stored patient: no
-  // field of one fills or replaces the other, so the stored side stays as it is.
-  if (
-    remotePatient &&
-    localPatient &&
-    isSameIdentityUnderReview(remotePatient, localPatient) === false
-  ) {
-    return remotePatient;
-  }
-
   if (
     preferLocal &&
     isExplicitlyChangedPath &&
@@ -243,6 +233,16 @@ export const mergePatientData = (
       reason: 'intentional_local_bed_clear',
     });
     return localPatient as PatientData;
+  }
+
+  // A copy that is not the same identity under review shares nothing with the stored patient: no
+  // field of one fills or replaces the other, so the stored side stays as it is.
+  if (
+    remotePatient &&
+    localPatient &&
+    isSameIdentityUnderReview(remotePatient, localPatient) === false
+  ) {
+    return remotePatient;
   }
 
   if (
