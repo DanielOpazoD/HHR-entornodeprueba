@@ -8,6 +8,15 @@ import { harmonizeEpisodeDemographicsHistory } from '@/features/census/controlle
 import { ensurePatientClinicalEpisodeId } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
 import { derivePatientRowState } from '@/features/census/controllers/patientRowStateController';
 import { resolveDailyRecordConflict } from '@/services/repositories/conflictResolutionMatrix';
+import { resolvePatientRowCapabilities } from '@/features/census/controllers/patientRowCapabilitiesController';
+import { resolveClinicalDocumentsWorkspaceAccessState } from '@/features/clinical-documents/hooks/clinicalDocumentsWorkspaceModelSupport';
+import {
+  buildClinicalBedsFromPreviousRecord,
+  buildEmptyClinicalBeds,
+  preserveCIE10FromPreviousDay,
+} from '@/services/repositories/dailyRecordClinicalDomainService';
+import { syncPatientsToMasterInBackground } from '@/services/repositories/dailyRecordBackgroundMasterSyncController';
+import { PatientMasterRepository } from '@/services/repositories/PatientMasterRepository';
 import type { RayenEncounter } from '@/features/rayen-import/contracts/rayenSnapshot';
 import type { PatientData } from '@/types/domain/patient';
 import { storedDay } from '@/tests/fixtures/identityReviewDayFixture';
@@ -107,5 +116,92 @@ describe('identity features never match a patient whose identity is under review
     expect(
       resolveDailyRecordConflict(staleLocal, repairedElsewhere).beds.R1.identityReview?.fields
     ).toEqual(['documentType']);
+  });
+
+  it('never opens documents, requests or history found by a RUT under review', () => {
+    // The stored RUT is a number: a read shows it as text, which could be another patient's RUT.
+    const asNumber = readR1({ documentType: 'RUT', rut: 12345678, clinicalEpisodeId: undefined });
+    const row = (patient: PatientData) =>
+      resolvePatientRowCapabilities({
+        role: 'nurse_hospital',
+        patient,
+        isBlocked: false,
+        isEmpty: false,
+      });
+
+    expect(row(readable())).toMatchObject({ canOpenClinicalDocuments: true, canOpenHistory: true });
+    expect(row(asNumber)).toEqual({
+      canOpenClinicalDocuments: false,
+      canOpenExamRequest: false,
+      canOpenImagingRequest: false,
+      canOpenHistory: false,
+      canShowClinicalDocumentIndicator: false,
+    });
+    expect(resolveClinicalDocumentsWorkspaceAccessState(readable(), 'nurse_hospital').canRead).toBe(
+      true
+    );
+    expect(resolveClinicalDocumentsWorkspaceAccessState(asNumber, 'nurse_hospital')).toMatchObject({
+      canRead: false,
+      canEdit: false,
+      readOnlyMessage: 'Identidad de la cama R1 por revisar: RUT o pasaporte.',
+    });
+  });
+
+  it('never gives another patient in the bed the CIE-10 of a name under review', () => {
+    const beds = (r1: PatientData) => ({ ...docToRecord(storedDay(), TODAY).beds, R1: r1 });
+    const diagnosed = (r1: PatientData) => beds({ ...r1, cie10Code: 'A00' });
+    // Another passport, another episode, the same name.
+    const otherPatient = readR1({ rut: 'OTRO-PASAPORTE', clinicalEpisodeId: 'ep_otro' });
+
+    const samePatient = beds(readable());
+    preserveCIE10FromPreviousDay(samePatient, diagnosed(readable(PRIOR)));
+    const afterReview = beds(otherPatient);
+    preserveCIE10FromPreviousDay(afterReview, diagnosed(reviewed(PRIOR)));
+
+    expect(samePatient.R1.cie10Code).toBe('A00');
+    expect(afterReview.R1.cie10Code).toBeUndefined();
+  });
+
+  it('never files a patient under review in the patient master', async () => {
+    vi.useFakeTimers();
+    const upsert = vi.spyOn(PatientMasterRepository, 'upsertPatient').mockResolvedValue(undefined);
+    const append = vi
+      .spyOn(PatientMasterRepository, 'appendHospitalizationEvent')
+      .mockResolvedValue(undefined);
+    try {
+      const day = docToRecord(storedDay({ documentType: 'RUT', rut: 12345678 }), TODAY);
+      day.beds.R2.clinicalCrib = {
+        ...day.beds.R1,
+        bedId: 'R2',
+        identityReview: day.beds.R1.identityReview,
+      };
+
+      syncPatientsToMasterInBackground(day);
+      await vi.runOnlyPendingTimersAsync();
+
+      const filed = upsert.mock.calls.map(([patient]) => patient.rut);
+      expect(filed).toEqual(['11.111.111-1', '22.222.222-2']);
+    } finally {
+      upsert.mockRestore();
+      append.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it('carries a patient under review to the next day, even with no name or document read', () => {
+    const day = docToRecord(
+      storedDay({ documentType: 'Pasaporte', patientName: { text: 'X' }, rut: ['FAKE'] }),
+      TODAY
+    );
+
+    const next = buildClinicalBedsFromPreviousRecord(buildEmptyClinicalBeds(), day);
+
+    expect(next.R1).toMatchObject({
+      firstName: 'PACIENTE',
+      clinicalEpisodeId: 'ep_synthetic_R1',
+      identityReview: { stored: { rut: ['FAKE'], patientName: { text: 'X' } } },
+    });
+    expect(next.R1.identityReview?.fields).toHaveLength(2);
+    expect(next.R2.patientName).toBe('PACIENTE DOS');
   });
 });

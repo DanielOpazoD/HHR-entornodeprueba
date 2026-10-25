@@ -11,6 +11,7 @@ import {
   canReadClinicalDocuments,
 } from '@/features/clinical-documents/controllers/clinicalDocumentPermissionController';
 import type { UserRole } from '@/types/authRoleTypes';
+import { describeIdentityReview } from '@/shared/census/patientIdentityReview';
 
 export interface ClinicalDocumentsWorkspaceAccessState {
   canRead: boolean;
@@ -26,10 +27,12 @@ export const resolveClinicalDocumentsWorkspaceAccessState = (
   patient: PatientData,
   role: UserRole | undefined
 ): ClinicalDocumentsWorkspaceAccessState => {
-  const canRead = canReadClinicalDocuments(role);
+  // Documents are found by RUT and episode: an identity under review would show another patient's.
+  const review = patient.identityReview;
+  const canRead = canReadClinicalDocuments(role) && !review;
   const canEditByRole = canEditClinicalDocuments(role);
   const canDeleteByRole = canDeleteClinicalDocuments(role);
-  const canMutateEpisode = canMutateClinicalDocumentsEpisode(patient, role);
+  const canMutateEpisode = canMutateClinicalDocumentsEpisode(patient, role) && !review;
 
   return {
     canRead,
@@ -37,7 +40,9 @@ export const resolveClinicalDocumentsWorkspaceAccessState = (
     canDelete: canDeleteByRole && canMutateEpisode,
     canDeleteByRole,
     canMutateEpisode,
-    readOnlyMessage: buildClinicalDocumentsReadOnlyMessage(patient, role, canEditByRole),
+    readOnlyMessage: review
+      ? describeIdentityReview(review)
+      : buildClinicalDocumentsReadOnlyMessage(patient, role, canEditByRole),
     persistReason: resolveClinicalDocumentPersistReason(patient, role),
   };
 };

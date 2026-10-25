@@ -19,6 +19,7 @@ const normalizeComparablePatientName = (patientName: string | undefined): string
     .trim()
     .toLowerCase();
 
+// A name under identity review is not evidence that two patients are the same one.
 const areSameNamedPatients = (
   currentPatient: PatientData | undefined,
   previousPatient: PatientData | undefined
@@ -26,6 +27,8 @@ const areSameNamedPatients = (
   Boolean(
     currentPatient &&
     previousPatient &&
+    !currentPatient.identityReview &&
+    !previousPatient.identityReview &&
     normalizeComparablePatientName(currentPatient.patientName) &&
     normalizeComparablePatientName(currentPatient.patientName) ===
       normalizeComparablePatientName(previousPatient.patientName)
@@ -57,8 +60,9 @@ const resetCarryoverRayenClinicalFields = (patient: PatientData): void => {
   }
 };
 
+// A patient under identity review stays in the bed, even when no name or date could be read.
 const shouldClonePreviousPatient = (prevPatient: PatientData): boolean =>
-  Boolean(prevPatient.isBlocked || hasCarryoverIdentity(prevPatient));
+  Boolean(prevPatient.isBlocked || prevPatient.identityReview || hasCarryoverIdentity(prevPatient));
 
 export const preparePatientForCarryover = (
   sourcePatient: PatientData,
@@ -183,13 +187,15 @@ export const syncDailyRecordClinicalResources = (record: DailyRecord): void => {
 export const collectDailyRecordPatientsForMasterSync = (record: DailyRecord): PatientData[] => {
   const patientsToSync: PatientData[] = [];
 
+  // The master index is keyed by RUT: an identity under review would file a guess under it.
   createDailyRecordAggregate(record).clinical.forEachPatient(patient => {
-    if (patient.patientName?.trim() && patient.rut?.trim()) {
+    if (patient.patientName?.trim() && patient.rut?.trim() && !patient.identityReview) {
       patientsToSync.push(patient);
     }
 
-    if (patient.clinicalCrib?.patientName?.trim() && patient.clinicalCrib.rut?.trim()) {
-      patientsToSync.push(patient.clinicalCrib);
+    const crib = patient.clinicalCrib;
+    if (crib?.patientName?.trim() && crib.rut?.trim() && !crib.identityReview) {
+      patientsToSync.push(crib);
     }
   });
 

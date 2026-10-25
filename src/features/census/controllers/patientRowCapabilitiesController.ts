@@ -1,4 +1,5 @@
 import type { UserRole } from '@/types/authRoleTypes';
+import type { PatientIdentityReview } from '@/types/domain/patientIdentity';
 import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
 import {
   canOpenClinicalDocumentsFromCensus,
@@ -10,6 +11,7 @@ interface ResolvePatientRowCapabilitiesParams {
   patient: {
     patientName?: string;
     rut?: string;
+    identityReview?: PatientIdentityReview;
   } | null;
   isBlocked: boolean;
   isEmpty: boolean;
@@ -24,9 +26,11 @@ export interface PatientRowCapabilities {
   canShowClinicalDocumentIndicator: boolean;
 }
 
+// Documents, requests and history are found or filled by name and RUT: an identity under review
+// would reach another patient's.
 const resolvePatientIdentityFlags = (patient: ResolvePatientRowCapabilitiesParams['patient']) => ({
-  hasPatientName: Boolean(patient?.patientName?.trim()),
-  hasRut: Boolean(patient?.rut?.trim()),
+  hasPatientName: Boolean(patient?.patientName?.trim() && !patient.identityReview),
+  hasRut: Boolean(patient?.rut?.trim() && !patient.identityReview),
 });
 
 export const resolvePatientRowCapabilities = ({
