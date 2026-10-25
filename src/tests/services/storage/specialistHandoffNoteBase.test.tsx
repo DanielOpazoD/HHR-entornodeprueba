@@ -36,6 +36,20 @@ const colleagueWrites = (note: string, { stampsMeta }: { stampsMeta: boolean }) 
       lastChangedPaths: ['beds.R4.medicalHandoffEntries', 'beds.R4.medicalHandoffNote'],
     };
 };
+/** A tab deployed before this change saves through the callable without occupants or a write id. */
+const legacyTabWrites = async (note: string) => {
+  const entries = (h.remote as DailyRecord).beds.R4.medicalHandoffEntries!;
+  await h.handler?.updateSpecialistMedicalHandoff.run(
+    {
+      date: DATE,
+      patch: {
+        'beds.R4.medicalHandoffEntries': [{ ...entries[0], note }],
+        'beds.R4.medicalHandoffNote': note,
+      },
+    },
+    { auth: { uid: 'synthetic-colleague', token: { email: 'colleague@example.invalid' } } }
+  );
+};
 const reopen = async () => {
   hospitalDB.close();
   await hospitalDB.open();
@@ -125,19 +139,28 @@ describe('a queued specialist note keeps a later note', () => {
     expect(await queue()).toEqual([expect.objectContaining({ status: 'CONFLICT' })]);
   });
 
-  it('acknowledges a lost answer once the record still shows that write was the last one', async () => {
-    const base = await start();
-    h.loseNextResponse = true;
-    await writeNote(base, 'R4', 'entry-A', 'Nota de A publicada', { offline: false });
-    // A direct write records no write id, so the specialist write is still the last one known.
-    colleagueWrites('Nota posterior de un colega', { stampsMeta: false });
+  it.each([
+    [
+      'a direct write that leaves meta',
+      () => colleagueWrites('Nota posterior', { stampsMeta: false }),
+    ],
+    ['a tab from before the deploy', () => legacyTabWrites('Nota posterior')],
+  ])(
+    'keeps a note whose answer was lost as a conflict once %s replaced it',
+    async (_label, laterWrite) => {
+      const base = await start();
+      h.loseNextResponse = true;
+      await writeNote(base, 'R4', 'entry-A', 'Nota de A publicada', { offline: false });
+      await laterWrite();
 
-    await reopen();
-    await reconnect();
+      await reopen();
+      await reconnect();
 
-    expect(remoteNote()).toBe('Nota posterior de un colega');
-    expect(await queue()).toEqual([]);
-  });
+      expect(remoteNote()).toBe('Nota posterior');
+      expect(await queue()).toEqual([expect.objectContaining({ status: 'CONFLICT' })]);
+      expect(draftsFor('Paciente A Sintético')).toEqual([[DATE, 'entry-A', 'Nota de A publicada']]);
+    }
+  );
 
   it('folds a later offline edit into a note whose answer was lost and publishes the latest text', async () => {
     const base = await start();
