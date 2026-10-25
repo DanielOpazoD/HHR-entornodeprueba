@@ -18,6 +18,22 @@ import {
   resolveRequiredDemographicsCompletion,
 } from './utils';
 import type { PatientData } from '@/types/domain/patient';
+import { isPatientIdentityField } from '@/shared/census/patientIdentityReview';
+
+const IDENTITY_INPUTS = [
+  'firstName',
+  'lastName',
+  'secondLastName',
+  'provisionalName',
+  'identityStatus',
+  'rut',
+  'documentType',
+  'admissionDate',
+  'admissionTime',
+] as const satisfies readonly (keyof LocalDemographicsState)[];
+
+const withoutIdentity = (fields: Partial<PatientData>): Partial<PatientData> =>
+  Object.fromEntries(Object.entries(fields).filter(([field]) => !isPatientIdentityField(field)));
 
 interface UseDemographicsLogicProps {
   data: DemographicSubset;
@@ -49,9 +65,8 @@ export const useDemographicsLogic = ({
   requiresCompleteDemographics = false,
 }: UseDemographicsLogicProps) => {
   const { logPatientView } = useAuditContext();
-  const [localData, setLocalData] = useState<LocalDemographicsState>(() =>
-    buildLocalData(data, isClinicalCribPatient)
-  );
+  const [initialData] = useState(() => buildLocalData(data, isClinicalCribPatient));
+  const [localData, setLocalData] = useState<LocalDemographicsState>(initialData);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -96,6 +111,13 @@ export const useDemographicsLogic = ({
     ? `Faltan ${requiredCompletion.missingFields.length}`
     : null;
 
+  // An identity under review is written only by an edit of it: saving what the form showed would
+  // stand in for the review.
+  const writesIdentity =
+    !data.identityReview || IDENTITY_INPUTS.some(input => localData[input] !== initialData[input]);
+  const save = (fields: Partial<PatientData>) =>
+    onSave(writesIdentity ? fields : withoutIdentity(fields));
+
   const handleSave = () => {
     if (!requiredCompletion.isComplete) {
       setError(requiredCompletionMessage);
@@ -130,7 +152,7 @@ export const useDemographicsLogic = ({
         return;
       }
 
-      onSave({
+      save({
         identityStatus: 'provisional',
         patientName: provisionalName,
         firstName: '',
@@ -153,8 +175,8 @@ export const useDemographicsLogic = ({
       return;
     }
 
-    const documentType = localData.documentType;
-    if (!documentType) {
+    const documentType = localData.documentType || undefined;
+    if (!documentType && writesIdentity) {
       setError('Elige RUT o pasaporte: el tipo de documento guardado no se pudo leer.');
       return;
     }
@@ -174,7 +196,7 @@ export const useDemographicsLogic = ({
       }
     }
 
-    onSave({
+    save({
       identityStatus: 'official',
       firstName: normalizeNamePart(localData.firstName),
       lastName: normalizeNamePart(localData.lastName),

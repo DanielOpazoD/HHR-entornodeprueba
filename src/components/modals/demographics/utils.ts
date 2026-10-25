@@ -75,8 +75,9 @@ export const buildLocalData = (
     hasExplicitNameParts &&
     normalizeComparableName(explicitFullName) !== normalizeComparableName(data.patientName || '');
 
+  // A patient under identity review shows its name parts as read, never split from the full name.
   const initialNameParts =
-    hasExplicitNameParts && !hasMismatchedExplicitNameParts
+    data.identityReview || (hasExplicitNameParts && !hasMismatchedExplicitNameParts)
       ? {
           firstName: data.firstName || '',
           lastName: data.lastName || '',

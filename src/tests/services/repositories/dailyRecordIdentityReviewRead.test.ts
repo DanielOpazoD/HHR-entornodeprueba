@@ -125,6 +125,25 @@ describe('a census day where one bed has an unreadable stored identity', () => {
     expect(offline.migrationRulesApplied).toContain('salvage_patient_fallback_applied');
   });
 
+  it('shows an old day without a schema version as read, never reconciled by inference', async () => {
+    // The number reads as a valid RUT and the full name splits cleanly: neither may stand in for
+    // the document type and first name that could not be read.
+    const { schemaVersion: _unversioned, ...oldDay } = storedDay({
+      documentType: 'Cedula',
+      rut: '12.345.678-5',
+      firstName: { given: 'PACIENTE' },
+    });
+    vi.mocked(getDoc).mockResolvedValue(storedSnapshot(oldDay) as never);
+
+    const { record } = await getRecordFromFirestoreDetailed(DATE);
+
+    expect(record?.beds.R1.identityReview?.fields).toEqual(
+      expect.arrayContaining(['documentType', 'firstName'])
+    );
+    expect(record?.beds.R1).toMatchObject({ rut: '12.345.678-5', firstName: '' });
+    expect(record?.beds.R1.documentType).toBeUndefined();
+  });
+
   it('reads offline a local copy that holds the unreadable value itself', async () => {
     await hospitalDB.dailyRecords.put(storedDay() as never);
 

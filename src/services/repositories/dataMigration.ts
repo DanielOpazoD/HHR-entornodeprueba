@@ -117,6 +117,11 @@ const reconcileLegacyPatientIdentity = (
   if (!patient) {
     return;
   }
+  if (patient.identityReview) {
+    // An identity under review is shown as read: reconciling it would show a guess.
+    reconcileLegacyPatientIdentity(patient.clinicalCrib, recoveredIssues);
+    return;
+  }
 
   const patientReference = patient.bedId || patient.patientName || 'cama_sin_id';
   const normalizedIdentityValue = normalizeLegacyIdentityValue(patient.rut);
