@@ -7,14 +7,15 @@ type Cie10Cell = typeof DiagnosisCie10Cell;
 export function DiagnosisCie10Fallback({
   children,
   onRecovered,
+  readOnly,
 }: {
   children: React.ReactElement<React.ComponentPropsWithRef<'td'>>;
   onRecovered: (cell: Cie10Cell) => void;
+  readOnly: boolean;
 }) {
   const cellRef = useRef<HTMLTableCellElement>(null);
   const focused = useRef(false);
   const recovered = useRef<Cie10Cell | null>(null);
-  const retryRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     let active = true;
@@ -34,7 +35,6 @@ export function DiagnosisCie10Fallback({
         loading = false;
       }
     };
-    retryRef.current = () => void retry();
     window.addEventListener('online', retry);
     return () => {
       active = false;
@@ -63,10 +63,9 @@ export function DiagnosisCie10Fallback({
     },
     children.props.children,
     <div className="text-[11px] text-amber-800">
-      <p role="status">Buscador CIE-10 no disponible. Puedes editar en texto libre.</p>
-      <button type="button" className="underline mr-2" onClick={() => retryRef.current()}>
-        Reintentar buscador CIE-10
-      </button>
+      <p role="status">
+        Buscador CIE-10 no disponible.{!readOnly && ' Puedes editar en texto libre.'}
+      </p>
       <button type="button" className="underline" onClick={reloadAfterChunkLoadFailure}>
         Recargar aplicación
       </button>

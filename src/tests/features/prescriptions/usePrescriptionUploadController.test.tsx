@@ -122,6 +122,26 @@ describe('usePrescriptionUploadController', () => {
     }
   });
 
+  it('shows Sin conexión for an offline PIN request and accepts it after reconnecting', async () => {
+    const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    vi.mocked(validatePrescriptionAccessPin).mockImplementation(async () => {
+      await loadFunctionsModule();
+      return { valid: true };
+    });
+    mountController();
+    await act(async () => {
+      await captured.submitPin('0000');
+    });
+    expect(captured.errorMessage).toBe('Sin conexión.');
+    expect(captured.phase).toBe('awaiting-pin');
+    online.mockReturnValue(true);
+    await act(async () => {
+      await captured.submitPin('0000');
+    });
+    expect(captured.errorMessage).toBeNull();
+    expect(captured.phase).toBe('ready');
+  });
+
   it('starts in awaiting-pin phase by default', async () => {
     mountController();
     expect(captured.phase).toBe('awaiting-pin');

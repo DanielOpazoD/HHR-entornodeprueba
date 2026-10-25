@@ -10,6 +10,7 @@ it('never requests the SDK while offline and keeps the existing retryable code',
   const imported = vi.fn(() => import('firebase/functions'));
   await expect(loadFunctionsModule(imported)).rejects.toMatchObject({
     code: 'functions/unavailable',
+    message: 'Sin conexión.',
   });
   expect(imported).not.toHaveBeenCalled();
   expect(isFunctionsReloadRequired()).toBe(false);

@@ -173,8 +173,27 @@ describe('DiagnosisInput unavailable CIE-10 chunk', () => {
   it('preserves read-only access in the fallback', async () => {
     const { save } = await mount({ readOnly: true });
     expect(await screen.findByPlaceholderText('Diagnóstico (texto libre)')).toBeDisabled();
+    expect(screen.getByText(/Buscador CIE-10 no disponible/)).toHaveTextContent(
+      /^Buscador CIE-10 no disponible\.$/
+    );
     expect(save).not.toHaveBeenCalled();
   });
+
+  it.each([false, true])(
+    'offers explicit reload without an ineffective retry when online=%s',
+    async online => {
+      setOnline(online);
+      await mount();
+      await screen.findByPlaceholderText('Diagnóstico (texto libre)');
+      expect(screen.getByText(/Buscador CIE-10 no disponible/)).toHaveTextContent(
+        'Puedes editar en texto libre.'
+      );
+      expect(
+        screen.queryByRole('button', { name: 'Reintentar buscador CIE-10' })
+      ).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Recargar aplicación' })).toBeVisible();
+    }
+  );
 
   it('still loads the real CIE-10 editor and saves code selection through the normal patch', async () => {
     setOnline(true);
