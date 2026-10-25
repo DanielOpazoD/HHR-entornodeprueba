@@ -1,5 +1,3 @@
-import { httpsCallable } from 'firebase/functions';
-
 import {
   getActiveHospitalId,
   getAnalyticsSpecialtyReclassificationsPath,
@@ -150,6 +148,7 @@ export const saveAnalyticsSpecialtyReclassification = async ({
   }
 
   const functions = await defaultFunctionsRuntime.getFunctions();
+  const { httpsCallable } = await import('firebase/functions');
   const setReclassification = httpsCallable(functions, 'setMinsalSpecialtyReclassification');
   await setReclassification(payload);
 };

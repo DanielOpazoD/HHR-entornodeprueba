@@ -291,6 +291,49 @@ describe('useHandoffCommunication', () => {
     );
   });
 
+  it('keeps the sending indicator active until the deferred delivery finishes', async () => {
+    vi.mocked(getWhatsAppConfig).mockResolvedValue({
+      enabled: true,
+      status: 'connected',
+      shiftParser: { enabled: false, sourceGroupId: '' },
+      handoffNotifications: {
+        enabled: true,
+        targetGroupId: 'synthetic-group',
+        autoSendTime: '17:00',
+      },
+    });
+    vi.mocked(getMessageTemplates).mockResolvedValue([
+      { name: 'Synthetic handoff', type: 'handoff', content: 'synthetic-template' },
+    ]);
+    let finish = () => {};
+    const delivery = new Promise<void>(resolve => {
+      finish = resolve;
+    });
+    const send = vi.fn(() => delivery);
+    const { result } = renderHook(() =>
+      useHandoffCommunication(
+        createRecord(),
+        [],
+        send,
+        ensureMedicalHandoffSignatureLink,
+        onSuccess
+      )
+    );
+    let sending: Promise<void> | undefined;
+    act(() => {
+      sending = result.current.handleSendWhatsApp();
+    });
+    await waitFor(() => expect(send).toHaveBeenCalledOnce());
+    expect(result.current.whatsappSending).toBe(true);
+    expect(result.current.whatsappSent).toBe(false);
+    await act(async () => {
+      finish();
+      await sending;
+    });
+    expect(result.current.whatsappSending).toBe(false);
+    expect(result.current.whatsappSent).toBe(true);
+  });
+
   it('opens manual WhatsApp URL through runtime adapter', async () => {
     const templates: MessageTemplate[] = [
       { name: 'handoff', type: 'handoff', content: 'handoff-template' },

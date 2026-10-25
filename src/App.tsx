@@ -5,6 +5,7 @@
  */
 
 import React from 'react';
+import { FunctionsRecovery } from '@/components/ui/FunctionsRecovery';
 import { LoginPage } from '@/features/auth/public';
 import { GlobalErrorBoundary } from '@/components/shared/GlobalErrorBoundary';
 import { VersionProvider } from '@/context/VersionContext';
@@ -214,6 +215,7 @@ function App() {
 const AppWithErrorBoundary = () => {
   return (
     <GlobalErrorBoundary>
+      <FunctionsRecovery />
       <App />
     </GlobalErrorBoundary>
   );

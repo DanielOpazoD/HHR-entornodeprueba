@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FirebaseApp } from 'firebase/app';
+import { classifySyncError } from '@/services/storage/syncErrorCatalog';
 
 // ── Mocks ────────────────────────────────────────────────────────────
 
@@ -32,6 +33,7 @@ import {
   createFirebaseLazyServicesState,
   resolveStorageInstance,
   resolveFunctionsInstance,
+  resolveRegionalFunctionsInstance,
 } from '@/services/firebase-runtime/firebaseLazyServices';
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -54,6 +56,7 @@ describe('firebaseLazyServices', () => {
 
   afterEach(() => {
     setDevMode(true);
+    vi.restoreAllMocks();
   });
 
   // ── createFirebaseLazyServicesState ──────────────────────────────
@@ -71,6 +74,38 @@ describe('firebaseLazyServices', () => {
       const a = createFirebaseLazyServicesState();
       const b = createFirebaseLazyServicesState();
       expect(a).not.toBe(b);
+    });
+  });
+
+  describe.each(['default', 'regional'] as const)('%s Functions offline recovery', region => {
+    const resolve = (state: ReturnType<typeof createFirebaseLazyServicesState>) =>
+      region === 'default'
+        ? resolveFunctionsInstance(mockApp, state)
+        : resolveRegionalFunctionsInstance(mockApp, state, 'southamerica-east1');
+
+    it('rejects offline with a retryable network code and recovers without replacing state', async () => {
+      setDevMode(false);
+      const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+      const state = createFirebaseLazyServicesState();
+
+      const unavailable = await resolve(state).catch((error: unknown) => error);
+      expect(unavailable).toMatchObject({ code: 'functions/unavailable' });
+      expect(classifySyncError(unavailable)).toMatchObject({
+        category: 'network',
+        retryable: true,
+      });
+      expect(getFunctionsMock).not.toHaveBeenCalled();
+
+      online.mockReturnValue(true);
+      await expect(resolve(state)).resolves.toEqual({ name: 'test-functions' });
+      expect(getFunctionsMock).toHaveBeenCalledTimes(1);
+
+      // A previously initialized instance must also stop callers before their SDK import.
+      online.mockReturnValue(false);
+      await expect(resolve(state)).rejects.toMatchObject({ code: 'functions/unavailable' });
+      online.mockReturnValue(true);
+      await expect(resolve(state)).resolves.toEqual({ name: 'test-functions' });
+      expect(getFunctionsMock).toHaveBeenCalledTimes(1);
     });
   });
 

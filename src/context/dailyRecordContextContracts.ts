@@ -46,12 +46,6 @@ export interface UseDailyRecordSyncResult {
   patchRecord: ApplyDailyRecordPatch;
   markLocalChange: () => void;
   refresh: () => void;
-  createDay: (
-    copyFromPrevious: boolean,
-    specificDate?: string,
-    options?: { forceCopyScheduleOverride?: boolean }
-  ) => Promise<void>;
-  resetDay: () => Promise<void>;
 }
 
 export interface DailyRecordDataContextType {

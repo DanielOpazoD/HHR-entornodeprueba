@@ -4,7 +4,6 @@
  * never have to know about the Firebase Functions plumbing.
  */
 
-import { httpsCallable } from 'firebase/functions';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import type { FunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import type {
@@ -89,6 +88,7 @@ const buildService = (
 ) => {
   const getCallable = async <Input, Output>(name: string) => {
     const functions = await functionsRuntime.getFunctions();
+    const { httpsCallable } = await import('firebase/functions');
     return httpsCallable<Input, Output>(functions, name);
   };
 
