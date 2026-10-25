@@ -10,6 +10,16 @@ import { createElement, lazy, type ComponentProps, type ComponentType } from 're
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 
+export const reloadAfterChunkLoadFailure = () => {
+  if (
+    defaultBrowserWindowRuntime.confirm(
+      'Recargar la aplicación puede descartar cambios sin guardar. ¿Quieres continuar?'
+    )
+  ) {
+    defaultBrowserWindowRuntime.reload();
+  }
+};
+
 const ChunkLoadFailure = () =>
   createElement(
     'div',
@@ -27,15 +37,7 @@ const ChunkLoadFailure = () =>
       {
         type: 'button',
         className: 'mt-1 underline',
-        onClick: () => {
-          if (
-            defaultBrowserWindowRuntime.confirm(
-              'Recargar la aplicación puede descartar cambios sin guardar. ¿Quieres continuar?'
-            )
-          ) {
-            defaultBrowserWindowRuntime.reload();
-          }
-        },
+        onClick: reloadAfterChunkLoadFailure,
       },
       'Recargar aplicación'
     )
