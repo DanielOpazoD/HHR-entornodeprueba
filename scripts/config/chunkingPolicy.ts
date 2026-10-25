@@ -13,6 +13,18 @@ export const chunkForModule = (moduleId: string): string | undefined => {
     return 'date-strip-controls';
   }
 
+  // Small runtime loaders shared by PDF, image and CUDYR tools. Left to Rollup they
+  // landed inside the online-only Rayen reconstruction chunk, so prescriptions, the
+  // scanner and every PDF tool depended on it offline. Keep them in their own chunk.
+  if (
+    has('/src/services/runtime/createCachedRuntimeLoader.ts') ||
+    has('/src/services/pdf/pdfJsTextRuntime.ts') ||
+    has('/src/services/pdf/pdfTextExtractionRuntime.ts') ||
+    has('/src/utils/eloisaPersonName.ts')
+  ) {
+    return 'shared-runtime-loaders';
+  }
+
   // Historical evidence is online-only, like its structural reconstruction owner.
   // Keep the shared resolver in that existing lazy chunk, outside offline census startup.
   if (

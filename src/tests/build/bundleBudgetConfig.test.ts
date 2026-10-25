@@ -95,8 +95,11 @@ describe('bundle budget config', () => {
   it('keeps the install-time precache budget focused on critical runtime files', () => {
     const config = readBundleBudgetConfig();
 
-    // Preserve offline clinical validation with the measured security-upgrade allowance.
-    expect(config.precacheMaxBytes).toBe(4840192 + 2048 + 67840 + 31744 + 2048 + 8192 + 40960);
+    // Preserve offline clinical validation with the measured security-upgrade allowance,
+    // plus the owner-approved 2026-10-25 raise (Functions, shared loaders, #1026, #1022).
+    expect(config.precacheMaxBytes).toBe(
+      4840192 + 2048 + 67840 + 31744 + 2048 + 8192 + 40960 + 38912
+    );
     expect(findBudget(config, '^vendor-zod-.*\\.js$')).toMatchObject({ maxBytes: 96000 });
     expect(
       config.precacheIgnoredAssetPatterns.some(pattern => /sessionActivity|auth/i.test(pattern))

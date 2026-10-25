@@ -261,3 +261,26 @@ Una nueva carga sin clasificar hace fallar src/tests/build. Se conservan las 17
 excepciones del grafo. La recuperación se prueba con el engine y store Dexie reales,
 aviso, confirmación, import HTTP fallido y callable sintética tras recargar en los
 cuatro motores; los probes de arranque frío y especialidad usan sólo datos sintéticos.
+
+## Aumento de precarga aprobado por el dueño (2026-10-25, opción C)
+
+**Decisión.** El dueño aprobó subir el límite de precarga hasta unos 78 KB. Se usan 38.912 bytes: de 4.993.024 a 5.031.936 (4.914,0 KB).
+
+**En qué se usan:**
+
+- **`vendor-firebase-functions` (12.028 B) pasa a la precarga.** WebKit, Firefox y Chromium ≤153 retienen un import dinámico fallido hasta recargar. Por eso, una primera carga inestable dejaba sin funcionar todas las escrituras por callables. Con el chunk en el service worker, eso ya no ocurre en sesiones instaladas. El aviso de recuperación de #1028 queda como respaldo para primeras visitas. Las callables siguen necesitando red, y el cargador compartido las rechaza sin conexión antes de llamar.
+- **Nuevo chunk `shared-runtime-loaders` (2.008 B), precargado.** Reúne `createCachedRuntimeLoader`, los runtimes de texto PDF y `eloisaPersonName`. Antes, Rollup los dejaba dentro del chunk `replanRayenStructure-*` (unos 43 KB), que es solo en línea y está fuera de la precarga. Así, 37 chunks quedaban atados a él (los PDF, las recetas, el escáner, farmacia y CUDYR), y las recetas y el escáner no arrancaban sin conexión. Después de separarlos solo lo importan las herramientas de Rayen y Eloísa, y el chunk de 43 KB sigue fuera de la precarga.
+- **Espacio para dos PR de seguridad de datos:**
+  - #1026, la nota del especialista ligada a paciente y episodio: unos 16,3 KB;
+  - #1022, identidad ilegible en cuarentena: unos 5,8 KB.
+
+  Con los dos fusionados queda un margen de unos 9 KB.
+
+**Controles:**
+
+- `check:bundle-budget`, con el manifiesto igual a la contabilidad.
+- El guard de grafo de precarga y el escáner AST de #1028 (`src/tests/build`).
+- `pwaPrecachePolicy.test.ts`, que fija que Functions y `shared-runtime-loaders` se precargan.
+- `chunkingPolicy.test.ts`, que fija los cuatro módulos del chunk compartido.
+
+**Reversión.** Volver a excluir `vendor-firebase-functions` en Vite y en el presupuesto, quitar la regla `shared-runtime-loaders` y restaurar el límite anterior. Cualquier aumento posterior requiere una nueva aprobación del dueño.
