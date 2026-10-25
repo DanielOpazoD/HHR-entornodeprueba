@@ -5,6 +5,7 @@ import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import { hasSamePatientEpisodeIdentity } from '@/application/patient-flow/patientEpisodeIdentityPolicy';
 import { mergeMovementArrayById } from '@/services/repositories/conflictResolutionMovementMergePolicy';
 import { resolveDailyRecordConflict } from '@/services/repositories/conflictResolutionMatrix';
+import { mergeRayenSyncHistory } from '@/services/repositories/dailyRecordRayenSyncHistoryPolicy';
 import {
   getValueAtPath,
   hasSameComparableValue,
@@ -40,6 +41,19 @@ const BED_FIELD_PATH = /^beds\.([^.]+)(?:\.([^.]+))?/;
 /** A legacy or whole-record write does not say which paths it owns. */
 const isOpaqueChangedPaths = (paths: readonly string[]): boolean =>
   paths.length === 0 || paths.includes('*');
+
+/** Cache hydration can materialize an absent optional field without creating an edit. */
+const isEmptyPatchBaseValue = (value: unknown): boolean =>
+  value == null ||
+  value === '' ||
+  (Array.isArray(value) && value.length === 0) ||
+  (typeof value === 'object' &&
+    Object.getPrototypeOf(value) === Object.prototype &&
+    Object.keys(value).length === 0);
+
+const hasSamePatchBaseValue = (left: unknown, right: unknown): boolean =>
+  hasSameComparableValue(left, right) ||
+  (isEmptyPatchBaseValue(left) && isEmptyPatchBaseValue(right));
 
 const hasIdentity = (patient: PatientData | undefined): boolean =>
   Boolean(
@@ -93,15 +107,22 @@ const assertSameOccupantAtPath = (
   );
 };
 
-/** Movement logs are bitácoras by id: both writes keep their entries. */
-const mergeMovementLogValue = (
-  path: string,
-  value: unknown,
-  projected: unknown
-): unknown[] | null =>
-  MOVEMENT_LOG_PATHS.has(path) && Array.isArray(value) && Array.isArray(projected)
+/** Movement and Rayen journals keep concurrent entries by id. */
+const mergeJournalValue = (path: string, value: unknown, projected: unknown): unknown[] | null => {
+  if (
+    path === 'rayenSyncHistory' &&
+    Array.isArray(value) &&
+    (projected == null || Array.isArray(projected))
+  ) {
+    return mergeRayenSyncHistory(
+      projected as DailyRecord['rayenSyncHistory'],
+      value as DailyRecord['rayenSyncHistory']
+    );
+  }
+  return MOVEMENT_LOG_PATHS.has(path) && Array.isArray(value) && Array.isArray(projected)
     ? mergeMovementArrayById(projected, value, true)
     : null;
+};
 
 /**
  * Default for a record queued without its base (a retry or an auto-merge of a write that already
@@ -133,7 +154,7 @@ const buildRecordOverlayRebase = (
     ownPaths.forEach(path => {
       assertSameOccupantAtPath(path, record, projection);
       const value = getValueAtPath(record, path);
-      patch[path] = mergeMovementLogValue(path, value, getValueAtPath(base, path)) ?? value;
+      patch[path] = mergeJournalValue(path, value, getValueAtPath(base, path)) ?? value;
     });
     return { ...applyPatches(base, patch), lastUpdated: record.lastUpdated };
   };
@@ -143,7 +164,7 @@ const buildRecordOverlayRebase = (
  * A new patch and the record it was computed from. When another accepted write already changed
  * the day's pending projection (another tab, or a read that showed an older copy), the patch is
  * prepared again on top of that projection. A path both writes changed follows the conflict
- * policy, not last-write-wins: movement logs merge by id, anything else is rejected.
+ * policy, not last-write-wins: append-only journals merge by id, anything else is rejected.
  */
 const buildPatchRebase =
   ({ baseRecord, patch, prepare }: DailyRecordPatchWrite): PendingProjectionRebase =>
@@ -156,13 +177,13 @@ const buildPatchRebase =
       assertSameOccupantAtPath(path, storedBase, storedProjection);
       const projected = getValueAtPath(storedProjection, path);
       if (
-        hasSameComparableValue(getValueAtPath(storedBase, path), projected) ||
-        hasSameComparableValue(value, projected)
+        hasSamePatchBaseValue(getValueAtPath(storedBase, path), projected) ||
+        hasSamePatchBaseValue(value, projected)
       ) {
         rebasedPatch[path] = value;
         return;
       }
-      const merged = mergeMovementLogValue(path, value, projected);
+      const merged = mergeJournalValue(path, value, projected);
       if (!merged) {
         throw new ConcurrencyError(
           'Otra pestaña cambió el mismo dato del censo. Recargue el censo antes de continuar.'
