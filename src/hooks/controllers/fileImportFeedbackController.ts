@@ -43,6 +43,16 @@ export const buildJsonImportNotifications = (result: JsonImportResult): ImportNo
     });
   }
 
+  if (result.clinicalDerivedIncompleteDates?.length) {
+    notifications.push({
+      channel: 'warning',
+      title: 'Faltan datos clínicos por episodio',
+      message:
+        'No se restauraron el historial de signos vitales ni el punto de sincronización de ' +
+        `Rayen de: ${result.clinicalDerivedIncompleteDates.slice(0, 5).join(', ')}`,
+    });
+  }
+
   if (result.skippedEntries.length > 0) {
     notifications.push({
       channel: 'error',

@@ -1,19 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { isFirestoreEnabled, readDocs, readDoc } = vi.hoisted(() => ({
+const { isFirestoreEnabled, readDocs, readDoc, readSnapshot } = vi.hoisted(() => ({
   isFirestoreEnabled: vi.fn(() => true),
   readDocs: vi.fn(),
   readDoc: vi.fn(),
+  readSnapshot: vi.fn(),
 }));
 
 vi.mock('@/services/repositories/repositoryConfig', () => ({ isFirestoreEnabled }));
 vi.mock('@/services/storage/firestore/clinicalDerivedEpisodeReader', () => ({
   readClinicalDerivedEpisodeDocs: readDocs,
   readClinicalDerivedEpisodeDoc: readDoc,
+  readClinicalDerivedDaySnapshot: readSnapshot,
 }));
 
 import {
   readClinicalDerivedDayDocs,
+  readClinicalDerivedDaySnapshot,
   readClinicalDerivedEpisodeForDisplay,
 } from '@/services/repositories/dailyRecordClinicalDerivedReadService';
 import type { ClinicalDerivedEpisodeDoc } from '@/types/domain/clinicalDerived';
@@ -81,6 +84,39 @@ describe('clinicalDerived document reads for the staff tool, backups and the vit
     expect(readDocs).toHaveBeenCalledTimes(2);
   });
 
+  it('reads the current day with its documents, and never turns a failed one into a day', async () => {
+    const day = { ...marked, meta: { revision: 4 } };
+    readSnapshot.mockResolvedValueOnce({ status: 'resolved', day, docs: [episodeDoc('ep_a')] });
+    expect(await readClinicalDerivedDaySnapshot(DATE)).toEqual({
+      status: 'resolved',
+      day,
+      docs: [episodeDoc('ep_a')],
+    });
+    readSnapshot.mockResolvedValueOnce({ status: 'missing' });
+    expect(await readClinicalDerivedDaySnapshot(DATE)).toEqual({ status: 'missing' });
+
+    readSnapshot.mockResolvedValueOnce({ status: 'failed', code: 'day_changed' });
+    expect(await readClinicalDerivedDaySnapshot(DATE)).toEqual({
+      status: 'unavailable',
+      reason: 'read_failed',
+      code: 'day_changed',
+    });
+    readSnapshot.mockResolvedValueOnce({ status: 'permission_denied', code: 'permission-denied' });
+    expect(await readClinicalDerivedDaySnapshot(DATE)).toEqual({
+      status: 'unavailable',
+      reason: 'permission_denied',
+      code: 'permission-denied',
+    });
+    isFirestoreEnabled.mockReturnValueOnce(false);
+    expect(await readClinicalDerivedDaySnapshot(DATE)).toEqual({
+      status: 'unavailable',
+      reason: 'read_failed',
+      code: 'firestore_disabled',
+    });
+    expect(readSnapshot).toHaveBeenCalledTimes(4);
+    expect(readSnapshot).toHaveBeenCalledWith(DATE);
+  });
+
   it('does not read an unmarked day', async () => {
     expect(await readClinicalDerivedDayDocs({ date: DATE })).toEqual({ status: 'unmarked' });
     expect(await readClinicalDerivedDayDocs({ date: DATE, clinicalDerivedLayout: null })).toEqual({
@@ -107,12 +143,14 @@ describe('clinicalDerived document reads for the staff tool, backups and the vit
     });
   });
 
-  it('skips the display read for ids that cannot be documents, without Firestore or under E2E', async () => {
+  it('resolves invalid episode ids without a document and skips invalid generations, disabled Firestore or E2E reads', async () => {
     expect(await readClinicalDerivedEpisodeForDisplay(DATE, 'gen/x', 'ep_a')).toEqual({
       status: 'skipped',
     });
     expect(await readClinicalDerivedEpisodeForDisplay(DATE, GENERATION, '__ep__')).toEqual({
-      status: 'skipped',
+      status: 'resolved',
+      doc: null,
+      fromCache: false,
     });
     isFirestoreEnabled.mockReturnValueOnce(false);
     expect(await readClinicalDerivedEpisodeForDisplay(DATE, GENERATION, 'ep_a')).toEqual({

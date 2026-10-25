@@ -244,6 +244,76 @@ const enabled =
     expect((await dayDoc().collection('clinicalDerived').get()).size).toBe(3);
   });
 
+  it("keeps a deleted day's episode document when the restored day's first split write replaces it", async () => {
+    await db.doc(`${hospital}/settings/rayenImportPolicy`).set(shadowPolicy);
+    await dayDoc().set(makeDay());
+    await api('nurse_hospital').patchDailyRecordWithClinicalAuthority.run(
+      guardedPatch({ 'beds.R2.vitalSignsHistory': [vitals(DAY, 72), vitals(PRIOR_DAY, 70)] }),
+      makeContext()
+    );
+    const backupDay = await read();
+    const leftover = (await episodeRef('ep_pasaporte_2').get()).data();
+    await dayDoc().delete();
+
+    // The full save writes no episode document: the restored day gets a new generation.
+    await api('admin').saveDailyRecordWithClinicalAuthority.run(
+      {
+        date: DAY,
+        mode: 'shadow',
+        origin: 'backup_restore',
+        record: backupDay,
+        clientRuntimeContractVersion: 3,
+      },
+      makeContext()
+    );
+    const restored = await read();
+    expect(restored.clinicalDerivedLayout.generation).not.toBe(leftover?.layoutGeneration);
+    expect((await episodeRef('ep_pasaporte_2').get()).data()).toEqual(leftover);
+
+    // A checkpoint-only batch keeps no run copy, and its document id is the episode's.
+    await db
+      .doc(`${hospital}/settings/rayenImportPolicy`)
+      .set({ ...shadowPolicy, revision: 5, clinicalBatchMode: 'enforced' });
+    await dayDoc().update({
+      rayenSyncHistory: FieldValue.arrayUnion({
+        id: 'run-synthetic-2',
+        status: 'applied',
+        sourceDate: DAY,
+        policy: { mode: 'preview', revision: 5, clinicalBatchMode: 'enforced' },
+      }),
+    });
+    await api('nurse_hospital').applyRayenClinicalEnrichmentBatch.run(
+      {
+        date: DAY,
+        authorityDate: DAY,
+        runId: 'run-synthetic-2',
+        mutationId: 'batch-after-restore',
+        expectedLastUpdated: await version(),
+        baseRevision: restored.meta.revision,
+        fieldContractVersion: 2,
+        mode: 'enforced',
+        patches: [],
+        checkpoints: [
+          { bedId: 'R2', clinicalEpisodeId: 'ep_pasaporte_2', checkpoint: checkpoint('p-9') },
+        ],
+        clientRuntimeContractVersion: 3,
+      },
+      makeContext()
+    );
+
+    expect((await episodeRef('ep_pasaporte_2').get()).data()).toMatchObject({
+      layoutGeneration: restored.clinicalDerivedLayout.generation,
+      clinicalSyncCheckpoint: checkpoint('p-9'),
+    });
+    const copies = await dayDoc()
+      .collection('history')
+      .where('snapshotReason', '==', 'clinical_derived_displaced')
+      .get();
+    expect(copies.docs.map(copy => copy.data().clinicalDerivedPrevious)).toEqual([
+      { ep_pasaporte_2: { document: leftover } },
+    ]);
+  });
+
   it('creates today marked and seeds its carryover from the split prior day', async () => {
     await db.doc(`${hospital}/settings/rayenImportPolicy`).set(shadowPolicy);
     const prior = makeDay({

@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const functions = require('firebase-functions/v1');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
+const { hospitalCalendarDay } = require('./hospitalCalendarDay');
 
 const SESSION_SCOPE = 'wound_care_upload_only';
 const MAX_BASE64_BYTES = 8 * 1024 * 1024;
@@ -60,7 +61,7 @@ const getAuditLogsRef = firestore => getHospitalRef(firestore).collection('audit
 const generateId = prefix => `${prefix}_${Date.now()}_${crypto.randomBytes(6).toString('hex')}`;
 
 const buildStoragePath = ({ hospitalId, patientRut, episodeKey, photoId, suffix }) => {
-  const date = new Date().toISOString().slice(0, 10);
+  const date = hospitalCalendarDay();
   const fileName = suffix === 'thumbnails' ? `${photoId}_thumb.webp` : `${photoId}.webp`;
   return `wound-care/${suffix}/${hospitalId}/${patientRut}/${episodeKey}/${date}/${fileName}`;
 };
@@ -136,7 +137,7 @@ const createAuditEntry = ({ session, photoId, requestData }) => ({
     source: 'wound_care_mobile_qr',
     userAgent: optionalStringField(requestData.userAgent, 512),
   },
-  recordDate: new Date().toISOString().slice(0, 10),
+  recordDate: hospitalCalendarDay(),
 });
 
 const createValidateSessionAuditEntry = ({ session, requestData, appCheckPresent }) => ({
@@ -160,7 +161,7 @@ const createValidateSessionAuditEntry = ({ session, requestData, appCheckPresent
     appCheckPresent,
     appCheckEnforced: isAppCheckEnforced(),
   },
-  recordDate: new Date().toISOString().slice(0, 10),
+  recordDate: hospitalCalendarDay(),
 });
 
 const assertUploadCapacity = session => {
@@ -300,9 +301,12 @@ const createWoundCareMobileUploadFunctions = ({ firestore, storage, FieldValue }
     // but does not roll back the photo write — losing one increment is
     // strictly safer than failing an already-persisted upload.
     try {
-      const updatePayload = FieldValue && typeof FieldValue.increment === 'function'
-        ? { uploadCount: FieldValue.increment(1) }
-        : { uploadCount: (typeof session.uploadCount === 'number' ? session.uploadCount : 0) + 1 };
+      const updatePayload =
+        FieldValue && typeof FieldValue.increment === 'function'
+          ? { uploadCount: FieldValue.increment(1) }
+          : {
+              uploadCount: (typeof session.uploadCount === 'number' ? session.uploadCount : 0) + 1,
+            };
       await getSessionsRef(firestore).doc(sessionId).update(updatePayload);
     } catch (counterError) {
       console.warn('[wound-care] uploadCount increment failed', counterError);

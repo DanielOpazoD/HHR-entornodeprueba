@@ -340,6 +340,12 @@ describe('chunkingPolicy', () => {
     expect(fileOperationsSource).toContain(
       "import('@/application/backup-export/backupExportMaintenanceUseCases')"
     );
+    expect(fileOperationsSource).not.toMatch(
+      /import\s+\{[\s\S]*buildJsonImportNotifications[\s\S]*\}\s+from ['"]@\/hooks\/controllers\/fileImportFeedbackController['"]/
+    );
+    expect(fileOperationsSource).toContain(
+      "import('@/hooks/controllers/fileImportFeedbackController')"
+    );
   });
 
   it('keeps audit write/fetch use cases out of the authenticated shell startup path', () => {

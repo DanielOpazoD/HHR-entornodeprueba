@@ -24,4 +24,22 @@ describe('fileImportFeedbackController', () => {
       },
     ]);
   });
+
+  it('warns about the imported days whose per-episode clinical data did not come back', () => {
+    const notifications = buildJsonImportNotifications({
+      success: true,
+      outcome: 'partial',
+      importedCount: 1,
+      repairedCount: 0,
+      skippedEntries: [],
+      clinicalDerivedIncompleteDates: ['2026-11-02'],
+    });
+
+    expect(notifications).toContainEqual({
+      channel: 'warning',
+      title: 'Faltan datos clínicos por episodio',
+      message:
+        'No se restauraron el historial de signos vitales ni el punto de sincronización de Rayen de: 2026-11-02',
+    });
+  });
 });

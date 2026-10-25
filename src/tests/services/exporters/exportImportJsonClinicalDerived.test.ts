@@ -28,8 +28,8 @@ const day = (date: string, lastUpdated: string, extra: Record<string, unknown> =
     activeExtraBeds: [],
     ...extra,
   }) as unknown as DailyRecord;
-const file = (records: Record<string, DailyRecord>) =>
-  new File([JSON.stringify(records)], 'respaldo-sintetico.json', { type: 'application/json' });
+const file = (entries: Record<string, unknown>) =>
+  new File([JSON.stringify(entries)], 'respaldo-sintetico.json', { type: 'application/json' });
 const savedDates = () => (mocks.saveMany.mock.calls[0]?.[0] as DailyRecord[]).map(r => r.date);
 
 beforeEach(() => {
@@ -120,18 +120,51 @@ describe('JSON import over local split days', () => {
   });
 
   it.each([
-    ['a strictly newer unmarked copy', '2026-11-02T13:00:00.000Z', {}],
-    ['a copy that keeps its marker', '2026-11-02T09:00:00.000Z', { clinicalDerivedLayout: marker }],
-  ])('imports %s', async (_label, lastUpdated, extra) => {
+    ['a strictly newer unmarked copy', '2026-11-02T13:00:00.000Z', {}, {}],
+    [
+      // The export writes a section entry for every marked day; this one has no episode documents.
+      'a copy that keeps its marker',
+      '2026-11-02T09:00:00.000Z',
+      { clinicalDerivedLayout: marker },
+      {
+        clinicalDerived: {
+          '2026-11-02': { status: 'exported', layoutGeneration: marker.generation, docs: [] },
+        },
+      },
+    ],
+  ])('imports %s', async (_label, lastUpdated, extra, section) => {
     mocks.getLocal.mockResolvedValue(
       day('2026-11-02', '2026-11-02T12:00:00.000Z', { clinicalDerivedLayout: marker })
     );
 
     const result = await importDataJSONDetailed(
-      file({ '2026-11-02': day('2026-11-02', lastUpdated, extra) })
+      file({ '2026-11-02': day('2026-11-02', lastUpdated, extra), ...section })
     );
 
     expect(result).toMatchObject({ success: true, outcome: 'clean', importedCount: 1 });
+    expect(savedDates()).toEqual(['2026-11-02']);
+  });
+
+  it('imports a copy that keeps its marker but without its section entry as partial', async () => {
+    mocks.getLocal.mockResolvedValue(
+      day('2026-11-02', '2026-11-02T12:00:00.000Z', { clinicalDerivedLayout: marker })
+    );
+
+    const result = await importDataJSONDetailed(
+      file({
+        '2026-11-02': day('2026-11-02', '2026-11-02T09:00:00.000Z', {
+          clinicalDerivedLayout: marker,
+        }),
+      })
+    );
+
+    expect(result).toMatchObject({
+      success: true,
+      outcome: 'partial',
+      importedCount: 1,
+      skippedEntries: [],
+      clinicalDerivedIncompleteDates: ['2026-11-02'],
+    });
     expect(savedDates()).toEqual(['2026-11-02']);
   });
 });

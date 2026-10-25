@@ -253,6 +253,11 @@ export default defineConfig(({ mode }) => {
             // a reader that cannot load keeps the day's embedded copy, as it shows today.
             '**/assets/dailyRecordClinicalDerivedReadService-*.js',
             '**/assets/clinicalDerivedEpisodeReader-*.js',
+            // The backup restore of split days shares the contract and the episode schema with
+            // them. A restore that cannot load it reports those days partial, never clean.
+            '**/assets/clinicalDerivedBackupRestore-*.js',
+            '**/assets/clinicalDerivedContract-*.js',
+            '**/assets/clinicalDerived-*.js',
             // Account administration, activation and password changes require Firebase online.
             '**/assets/NursingAccountsPanel-*.js',
             '**/assets/RoleManagementPanel-*.js',
@@ -289,6 +294,9 @@ export default defineConfig(({ mode }) => {
             // The patient repository requires a live Eloisa/extension session and is opened
             // explicitly from the clinical drawer, so it remains an online-only lazy surface.
             '**/assets/PatientDocumentManagerDialog-*.js',
+            // Official hospitalization reports need a live Eloisa session. Their deferred
+            // dialog already contains chunk failures without replacing the editable census.
+            '**/assets/PatientHospitalizationReportsDialog-*.js',
             '**/assets/ClinicalPanelDrawer-*.js',
             // Sync history panel: reviewed on demand while Eloísa is connected.
             '**/assets/RayenSyncHistoryModal-*.js',

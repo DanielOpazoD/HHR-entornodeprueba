@@ -39,6 +39,7 @@ interface ReportOnlyDischargeDependencies {
   lookupHospitalizations?: HistoricalReportEpisodeDependencies['lookupHospitalizations'];
 }
 
+// clinical-clock-allow instant-calendar-slice: The statistical report parser supplies unzoned hospital admission/discharge wall time.
 const exactDay = (timestamp: string): string => timestamp.slice(0, 10);
 const exactTime = (timestamp: string): string => timestamp.slice(11, 16);
 const censusDay = (timestamp: string): string | undefined =>

@@ -9,7 +9,7 @@ vi.mock('@/services/repositories/dailyRecordClinicalDerivedReadService', () => {
 });
 
 import { VitalsCell } from '@/features/census/components/patient-row/VitalsCell';
-import { DataFactory } from '@/tests/factories/DataFactory';
+import { splitEpisode } from '@/tests/factories/splitEpisode';
 import '@/features/census/components/patient-row/VitalsDetailModal';
 
 const DATE = '2026-11-02';
@@ -33,7 +33,7 @@ const vital = (hour: number): PatientVitalSigns => ({
 });
 
 describe('vitals window without its read path (D10)', () => {
-  it('shows what the day holds when the read path cannot load', async () => {
+  it('shows unavailable history when the read path cannot load', async () => {
     const unhandled = vi.fn();
     process.on('unhandledRejection', unhandled);
     render(
@@ -41,12 +41,11 @@ describe('vitals window without its read path (D10)', () => {
         <tbody>
           <tr>
             <VitalsCell
-              data={DataFactory.createMockPatient('R1', {
+              data={splitEpisode({
                 patientName: 'Paciente Sintético',
                 age: '40',
                 clinicalEpisodeId: 'ep_synthetic',
                 vitalSigns: vital(9),
-                vitalSignsHistory: [vital(9), vital(8)],
               })}
               date={DATE}
               clinicalEpisodeId="ep_synthetic"
@@ -58,9 +57,9 @@ describe('vitals window without its read path (D10)', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Ver signos vitales' }));
 
-    expect(await screen.findByText('Historial · 2 tomas')).toBeInTheDocument();
-    await new Promise(resolve => setTimeout(resolve, 20));
-    expect(screen.getByText('Historial · 2 tomas')).toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Historial no disponible');
+    expect(screen.getByRole('button', { name: 'Reintentar' })).toBeInTheDocument();
+    expect(screen.getByText('Última toma')).toBeInTheDocument();
     process.off('unhandledRejection', unhandled);
     expect(unhandled).not.toHaveBeenCalled();
   });

@@ -49,6 +49,7 @@ export const applyCudyrCensusContinuity = (
       for (let offset = 1; offset < gap; offset++) {
         const date = new Date(Date.parse(before.date) + offset * 86400000)
           .toISOString()
+          // clinical-clock-allow instant-calendar-slice: before.date is a census calendar key; whole-day UTC arithmetic fills calendar gaps.
           .slice(0, 10);
         if (
           (!reconstructedDates.has(date) &&

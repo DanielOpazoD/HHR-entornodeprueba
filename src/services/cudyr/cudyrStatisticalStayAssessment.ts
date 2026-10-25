@@ -78,6 +78,7 @@ export const assessCudyrStatisticalDay = (
     if (!hospital(event.unit)) return false;
     const end = events[index + 1]?.changedAt || evidence.dischargeAt;
     const hospitalDay = resolveClinicalDayForDateTime(
+      // clinical-clock-allow instant-calendar-slice: Statistical report unit changedAt is unzoned hospital wall time, used with its written hour.
       event.changedAt.slice(0, 10),
       event.changedAt.slice(11, 16)
     );

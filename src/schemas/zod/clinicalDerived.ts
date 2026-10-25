@@ -9,8 +9,9 @@ import { DATE_REGEX, StringSchema } from './helpers';
 import { ClinicalSyncCheckpointSchema } from './patient';
 
 /*
- * Only the episode reader (loaded on demand) imports this module. The day marker is not validated
- * here: the day schema keeps it as stored and the clinicalDerived contract classifies it.
+ * Only the episode reader and the backup restore (both loaded on demand) import this module. The
+ * day marker is not validated here: the day schema keeps it as stored and the clinicalDerived
+ * contract classifies it.
  */
 
 // The day's embedded copy is not validated beyond this either: readers sort and show readings by
