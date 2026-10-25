@@ -45,11 +45,37 @@ describe('a census bed whose stored identity is under review', () => {
 
     expect(screen.getByText('PACIENTE UNO')).toBeInTheDocument();
     expect(screen.getByText('12.345.678-5')).toBeInTheDocument();
-    expect(
-      screen.getByRole('img', {
-        name: 'Identidad de la cama R1 por revisar: tipo de documento.',
-      })
-    ).toHaveTextContent('Identidad por revisar');
+    expect(screen.getByText('Identidad por revisar')).toHaveAttribute(
+      'title',
+      'Identidad de la cama R1 por revisar: tipo de documento.'
+    );
+  });
+
+  it('names every identity field that could not be read by its own label', () => {
+    const labels: Record<string, string> = {
+      documentType: 'tipo de documento',
+      rut: 'RUT o pasaporte',
+      clinicalEpisodeId: 'episodio',
+      identityStatus: 'estado',
+      patientName: 'nombre',
+      firstName: 'nombres',
+      lastName: 'primer apellido',
+      secondLastName: 'segundo apellido',
+      admissionDate: 'fecha de ingreso',
+      admissionTime: 'hora',
+    };
+    const unreadable = Object.fromEntries(
+      Object.keys(labels).map((field, index) => [field, index])
+    );
+    const patient = docToRecord(storedDay(unreadable), DATE).beds.R1;
+    renderCell(patient);
+
+    const fields = patient.identityReview?.fields ?? [];
+    expect(fields).toHaveLength(10);
+    expect(screen.getByText('Identidad por revisar')).toHaveAttribute(
+      'title',
+      `Identidad de la cama R1 por revisar: ${fields.map(field => labels[field]).join(', ')}.`
+    );
   });
 
   it('treats the document as neither RUT nor passport, and offers no RUT lookups', () => {

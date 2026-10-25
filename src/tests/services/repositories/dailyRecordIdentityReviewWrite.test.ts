@@ -48,7 +48,7 @@ import {
 
 type Json = Record<string, unknown>;
 
-const R1_BLOCKED = 'Identidad de la cama R1 por revisar: tipo de documento.';
+const R1_BLOCKED = 'Identidad de la cama R1 por revisar.';
 const COMMITTED_AT = `${DATE}T09:00:00.000Z`;
 const NEXT_DATE = '2026-10-25';
 
@@ -232,12 +232,7 @@ describe('writes that carry the reviewed bed whole', () => {
       [`beds.${bedId}.identityReview`]: review,
     } as unknown as DailyRecordPatch);
 
-    await expectRefusedUntouched(
-      result,
-      review
-        ? 'Identidad de la cama R2 por revisar: RUT o pasaporte.'
-        : 'Identidad de la cama R1 por revisar.'
-    );
+    await expectRefusedUntouched(result, `Identidad de la cama ${bedId} por revisar.`);
     expect((await getRecordForDate(DATE))?.beds.R2.identityReview).toBeUndefined();
   });
 });

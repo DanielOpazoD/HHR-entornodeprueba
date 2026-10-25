@@ -15,7 +15,7 @@ import { buildPatientRowSaveScopeKey } from '@/features/census/controllers/patie
 
 import React, { useEffect, useState } from 'react';
 import clsx from 'clsx';
-import { AlertTriangle, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { DebouncedInput } from '@/components/ui/DebouncedInput';
 import { PatientInputSchema } from '@/schemas/inputSchemas';
 import { isValidRut } from '@/utils/rutUtils';
@@ -31,7 +31,7 @@ import {
   dismissTreatingPhysician,
   isDismissedTreatingPhysician,
 } from '@/shared/census/treatingPhysicianDismissal';
-import { describeIdentityReview } from '@/shared/census/patientIdentityReview';
+import { describeIdentityReview } from '@/shared/census/patientIdentityReviewLabels';
 import { resolveNameInputState } from './nameInputController';
 import { ClinicalPanelTrigger } from './ClinicalPanelTrigger';
 import { PatientLaboratoryTrigger } from './PatientLaboratoryTrigger';
@@ -252,12 +252,9 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
           <div className="census-identity-details col-start-1 row-start-2 mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 pl-0.5 text-[10px] leading-tight text-slate-500">
             {identityReview && (
               <span
-                role="img"
-                className="inline-flex items-center gap-0.5 rounded bg-amber-100 px-1 py-px text-[9px] font-bold leading-none text-amber-700 ring-1 ring-amber-300"
+                className="text-[9px] font-bold text-amber-700"
                 title={describeIdentityReview(identityReview)}
-                aria-label={describeIdentityReview(identityReview)}
               >
-                <AlertTriangle size={9} strokeWidth={2.5} aria-hidden="true" />
                 Identidad por revisar
               </span>
             )}

@@ -245,8 +245,7 @@ describe('a stored patient with one unreadable identity field', () => {
       expect.objectContaining({
         code: 'patient_identity_repair_required',
         bedId: 'R1',
-        slot: 'bed',
-        fields: [field],
+        message: 'Identidad de la cama R1 por revisar.',
       })
     );
   });
@@ -306,7 +305,10 @@ describe('a stored patient with one unreadable identity field', () => {
       stored: storedIdentityOf(mother.clinicalCrib),
     });
     expect(() => writeDay(mother)).toThrow(
-      expect.objectContaining({ bedId: 'R1', slot: 'clinicalCrib', fields: ['documentType'] })
+      expect.objectContaining({
+        bedId: 'R1',
+        message: 'Identidad de la cuna RN de la cama R1 por revisar.',
+      })
     );
   });
 

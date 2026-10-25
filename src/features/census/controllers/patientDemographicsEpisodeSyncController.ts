@@ -107,8 +107,9 @@ const pickDemographicUpdates = (
 };
 
 const matchesPatientIdentity = (sourcePatient: PatientData, candidate: PatientData): boolean => {
-  // An identity under review is not evidence of who the patient is.
-  if (sourcePatient.identityReview || candidate.identityReview) return false;
+  // An identity under review is not evidence of who the patient is (a reviewed source never gets
+  // here: harmonizeEpisodeDemographicsHistory stops first).
+  if (candidate.identityReview) return false;
   const sourceDocument = normalizeDocument(sourcePatient.rut);
   const candidateDocument = normalizeDocument(candidate.rut);
 

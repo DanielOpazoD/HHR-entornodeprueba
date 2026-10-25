@@ -5,20 +5,8 @@ import {
   type PatientIdentityReview,
 } from '@/types/domain/patientIdentity';
 
-const FIELD_LABELS: Record<PatientIdentityField, string> = {
-  documentType: 'tipo de documento',
-  rut: 'RUT o pasaporte',
-  clinicalEpisodeId: 'episodio',
-  identityStatus: 'estado de identidad',
-  patientName: 'nombre',
-  firstName: 'nombres',
-  lastName: 'primer apellido',
-  secondLastName: 'segundo apellido',
-  admissionDate: 'fecha de ingreso',
-  admissionTime: 'hora de ingreso',
-};
-
-type ReviewTarget = Pick<PatientIdentityReview, 'bedId' | 'slot' | 'fields'>;
+/** Where a review sits: the bed, or the newborn crib nested in it. */
+type ReviewPlace = { bedId: string; slot?: PatientIdentityReview['slot'] };
 
 export const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -33,35 +21,29 @@ export const isIdentityReview = (value: unknown): value is PatientIdentityReview
   value.fields.every(isPatientIdentityField) &&
   isPlainObject(value.stored);
 
-export const describeIdentityReview = ({ bedId, slot, fields }: ReviewTarget): string =>
-  `Identidad de ${slot === 'clinicalCrib' ? 'la cuna RN de la cama' : 'la cama'} ${bedId} ` +
-  `por revisar${fields.length ? `: ${fields.map(field => FIELD_LABELS[field]).join(', ')}` : ''}.`;
+/** Where a review sits, as the census names it. */
+export const identityReviewTitle = ({ bedId, slot }: ReviewPlace) =>
+  `Identidad de ${slot === 'clinicalCrib' ? 'la cuna RN de la cama' : 'la cama'} ${bedId} por revisar`;
 
 /** A stored identity that cannot be read, or a write that would replace one with a guess. */
 export class PatientIdentityRepairRequiredError extends Error {
   readonly code = 'patient_identity_repair_required';
   readonly bedId: string;
-  readonly slot: PatientIdentityReview['slot'];
-  readonly fields: PatientIdentityReview['fields'];
 
-  constructor(review: ReviewTarget) {
-    super(describeIdentityReview(review));
+  constructor(review: ReviewPlace) {
+    super(`${identityReviewTitle(review)}.`);
     this.name = 'PatientIdentityRepairRequiredError';
     this.bedId = review.bedId;
-    this.slot = review.slot;
-    this.fields = review.fields;
   }
 }
 
-const BED_SLOT_PATH = /^beds\.([^.]+)(\.clinicalCrib)?$/;
+const BED_SLOT_PATH = /^beds\.[^.]+(\.clinicalCrib)?$/;
 const REVIEW_KEY = /(^|\.)identityReview$/;
 
-const repairRequired = (path: string, review: unknown) => {
-  const [, bedId = path, crib] = BED_SLOT_PATH.exec(path) ?? [];
-  return new PatientIdentityRepairRequiredError(
-    isIdentityReview(review) ? review : { bedId, slot: crib ? 'clinicalCrib' : 'bed', fields: [] }
+const repairRequired = (path: string, review: unknown) =>
+  new PatientIdentityRepairRequiredError(
+    isIdentityReview(review) ? review : { bedId: path.replace(/^beds\./, '') }
   );
-};
 
 // Copy on write: only the objects on the way to a review are rebuilt, so every other value,
 // Firestore timestamps included, stays the same instance. `path` is where `value` sits in a day,
@@ -86,7 +68,7 @@ const mapReviews = (value: unknown, path: string, store: boolean): unknown => {
     next[key] = mapReviews(child, childPath, store);
     if (next[key] !== child) changed = true;
   });
-  const review = 'identityReview' in value ? value.identityReview : undefined;
+  const review = (value as { identityReview?: unknown }).identityReview;
   if (store && review !== undefined) {
     if (
       !isIdentityReview(review) ||
@@ -117,16 +99,12 @@ export const withStoredIdentity = <T>(value: T): T => mapReviews(value, '', true
 export const withoutStoredIdentityReviews = <T>(value: T): T => mapReviews(value, '', false) as T;
 
 const identityOf = (patient: PatientData) =>
-  JSON.stringify([
-    PATIENT_IDENTITY_FIELDS.map(field => patient[field]),
-    patient.identityReview?.fields,
-    patient.identityReview?.stored,
-  ]);
+  JSON.stringify([PATIENT_IDENTITY_FIELDS.map(field => patient[field]), patient.identityReview]);
 
 /**
  * Whether two copies of a bed hold the same patient when either identity is under review: only a
- * copy with that very identity, as shown and as stored, does. A name or an admission date is no
- * evidence. Undefined when neither is under review.
+ * copy with that very identity, as shown and as stored, under the same review, does. A name or an
+ * admission date is no evidence. Undefined when neither is under review.
  */
 export const isSameIdentityUnderReview = (a: PatientData, b: PatientData): boolean | undefined =>
   a.identityReview || b.identityReview ? identityOf(a) === identityOf(b) : undefined;

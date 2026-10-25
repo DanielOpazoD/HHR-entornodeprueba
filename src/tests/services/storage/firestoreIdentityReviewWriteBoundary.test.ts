@@ -114,7 +114,7 @@ describe('the Firestore write boundary', () => {
 
     await expect(updateRecordPartial(DATE, patch)).rejects.toMatchObject({
       code: 'patient_identity_repair_required',
-      message: 'Identidad de la cama R1 por revisar: tipo de documento.',
+      message: 'Identidad de la cama R1 por revisar.',
     });
     expectNothingSent();
   });

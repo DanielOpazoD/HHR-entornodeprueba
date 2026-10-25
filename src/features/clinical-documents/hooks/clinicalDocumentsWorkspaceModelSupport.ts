@@ -11,7 +11,7 @@ import {
   canReadClinicalDocuments,
 } from '@/features/clinical-documents/controllers/clinicalDocumentPermissionController';
 import type { UserRole } from '@/types/authRoleTypes';
-import { describeIdentityReview } from '@/shared/census/patientIdentityReview';
+import { describeIdentityReview } from '@/shared/census/patientIdentityReviewLabels';
 
 export interface ClinicalDocumentsWorkspaceAccessState {
   canRead: boolean;

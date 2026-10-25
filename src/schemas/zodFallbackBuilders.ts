@@ -51,7 +51,7 @@ export const buildFallbackPatientDataReport = (
     const crib = buildFallbackPatientDataReport(candidate.clinicalCrib, bedId, {
       unreadableIdentity,
       slot: 'clinicalCrib',
-      raw: isPlainObject(raw) ? raw.clinicalCrib : undefined,
+      raw: (raw as { clinicalCrib?: unknown } | null | undefined)?.clinicalCrib,
     });
     clinicalCrib = crib.patient;
     candidate.clinicalCrib = clinicalCrib;
@@ -70,9 +70,8 @@ export const buildFallbackPatientDataReport = (
         issuesByField.set(field, issues);
       }
     }
-    const unreadable = [...issuesByField.keys()].filter(isPatientIdentityField);
-    if (unreadable.length && unreadableIdentity === 'reject') {
-      throw new PatientIdentityRepairRequiredError({ bedId, slot, fields: unreadable });
+    if (unreadableIdentity === 'reject' && [...issuesByField.keys()].some(isPatientIdentityField)) {
+      throw new PatientIdentityRepairRequiredError({ bedId, slot });
     }
     for (const [field, issues] of issuesByField) {
       if (isPatientIdentityField(field)) {
