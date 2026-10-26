@@ -8,9 +8,67 @@ test.use({ serviceWorkers: 'block' });
 const DATE = '2026-09-27';
 const PRIOR_DATE = '2026-09-26';
 const CODE = 'HHR-SYNC-1/vitals/source_timeout';
+const BACKGROUND_FIREBASE_REQUEST =
+  /^https:\/\/(?:firestore\.googleapis\.com\/|www\.google\.com\/images\/cleardot\.gif(?:\?|$))/;
 
-const seedHistory = async (page: Page) => {
+type RuntimeEvidence = { errors: string[]; blockedRequestUrls: Set<string> };
+
+const isFixtureBackgroundRequest = (
+  request: import('@playwright/test').Request,
+  project: string
+) => {
+  const url = new URL(request.url());
+  if (url.hostname === 'www.google.com')
+    return request.method() === 'GET' && url.pathname === '/images/cleardot.gif';
+  if (request.method() !== 'POST') return false;
+  const database = `projects/${project}/databases/(default)`;
+  const bodies = [...new URLSearchParams(request.postData() || '')]
+    .filter(([key]) => /^req\d+___data__$/.test(key))
+    .map(([, value]) => JSON.parse(value));
+  if (!bodies.length) return false;
+  return bodies.every(body => {
+    if (body.database !== database) return false;
+    if (url.pathname === '/google.firestore.v1.Firestore/Write/channel')
+      return Object.keys(body).length === 1; // Initial SDK handshake, never a write payload.
+    if (url.pathname !== '/google.firestore.v1.Firestore/Listen/channel') return false;
+    if (Object.keys(body).some(key => !['database', 'addTarget'].includes(key))) return false;
+    const target = body.addTarget;
+    const documents = target?.documents?.documents;
+    if (documents)
+      return (
+        documents.length === 1 &&
+        [
+          `${database}/documents/emailRecipientLists/census-default`,
+          `${database}/documents/hospitals/hanga_roa/settings/rayenImportPolicy`,
+        ].includes(documents[0])
+      );
+    const query = target?.query;
+    return (
+      query?.parent === `${database}/documents` &&
+      query.structuredQuery?.from?.length === 1 &&
+      query.structuredQuery.from[0].collectionId === 'emailRecipientLists'
+    );
+  });
+};
+
+const seedHistory = async (page: Page, runtime: RuntimeEvidence) => {
   const config = await installPreviewFirebaseRuntime(page);
+  // Only known nonclinical bootstrap traffic may be unavailable in this local fixture.
+  await page.route(BACKGROUND_FIREBASE_REQUEST, route => {
+    const request = route.request();
+    let expected = false;
+    try {
+      expected = isFixtureBackgroundRequest(request, config.projectId);
+    } catch {
+      /* malformed payload is unexpected */
+    }
+    if (expected) runtime.blockedRequestUrls.add(request.url());
+    else
+      runtime.errors.push(
+        `Unexpected remote request: ${request.method()} ${new URL(request.url()).pathname}`
+      );
+    return route.abort('internetdisconnected');
+  });
   // Backup listing is unrelated to the synthetic census navigation fixture.
   await page.route('https://firebasestorage.googleapis.com/**', route =>
     route.fulfill({
@@ -81,6 +139,7 @@ const seedHistory = async (page: Page) => {
       (window as Window & { __HHR_E2E_OVERRIDE__?: Record<string, unknown> }).__HHR_E2E_OVERRIDE__ =
         records;
       localStorage.setItem('hhr_e2e_bootstrap_user', JSON.stringify(user));
+      localStorage.setItem('hhr_e2e_force_local_only_sync', 'true');
       localStorage.setItem('firebase:authUser:test:[DEFAULT]', JSON.stringify({ uid: 'preview' }));
       localStorage.setItem('hhr_firebase_config', JSON.stringify(config));
       localStorage.setItem('hanga_roa_hospital_data', JSON.stringify(records));
@@ -89,23 +148,28 @@ const seedHistory = async (page: Page) => {
   );
 };
 
-const trackRuntimeErrors = (page: Page): string[] => {
+const trackRuntimeErrors = (page: Page): RuntimeEvidence => {
   const errors: string[] = [];
+  const blockedRequestUrls = new Set<string>();
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => {
-    if (message.type() === 'error') errors.push(message.text());
+    if (message.type() !== 'error') return;
+    const blockedFixtureRequest =
+      message.text() === 'Failed to load resource: net::ERR_INTERNET_DISCONNECTED' &&
+      blockedRequestUrls.has(message.location().url);
+    if (!blockedFixtureRequest) errors.push(message.text());
   });
-  return errors;
+  return { errors, blockedRequestUrls };
 };
 
 test('navigates from history to the current occupied or empty bed and copies a category-only code', async ({
   page,
   context,
 }) => {
-  const errors = trackRuntimeErrors(page);
+  const runtime = trackRuntimeErrors(page);
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.setViewportSize({ width: 1280, height: 832 });
-  await seedHistory(page);
+  await seedHistory(page, runtime);
   await page.goto(`/census?date=${DATE}`);
   await page.getByTestId('rayen-sync-history-button').click();
   const notice = page.getByText('Qué quedó pendiente en la información clínica', { exact: true });
@@ -158,15 +222,15 @@ test('navigates from history to the current occupied or empty bed and copies a c
   await page.getByRole('link', { name: 'Ver cama R4 · 27-09-2026' }).click();
   await expect(page.locator('tbody tr[data-bed-id="R4"]')).toBeFocused();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  expect(errors).toEqual([]);
+  expect(runtime.errors).toEqual([]);
 });
 
 test('opens the previous census for historical CUDYR without assuming the current bed', async ({
   page,
 }) => {
-  const errors = trackRuntimeErrors(page);
+  const runtime = trackRuntimeErrors(page);
   await page.setViewportSize({ width: 1024, height: 666 });
-  await seedHistory(page);
+  await seedHistory(page, runtime);
   await page.goto(`/census?date=${DATE}`);
   await page.getByTestId('rayen-sync-history-button').click();
   await page.getByText('Qué quedó pendiente en la información clínica', { exact: true }).click();
@@ -182,5 +246,5 @@ test('opens the previous census for historical CUDYR without assuming the curren
   );
   await expect(page).toHaveURL(new RegExp(`/census\\?date=${PRIOR_DATE}$`));
   await expect(page.locator('tbody tr[data-bed-id="H5C2"]')).not.toBeFocused();
-  expect(errors).toEqual([]);
+  expect(runtime.errors).toEqual([]);
 });
