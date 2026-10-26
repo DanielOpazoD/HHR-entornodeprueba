@@ -196,8 +196,13 @@ that projection instead of replacing it, and compacting an unresolved task keeps
   from that version, and a read still prefers a newer server day. The task records the values the
   projection replaced; once the note can no longer publish (`CONFLICT`, `FAILED` or discarded),
   the stored day and any day write folded on top get them back wherever they still show the
-  note's values. A note queued before this rule recorded nothing: the day then counts as older
-  than any server version (`UNKNOWN_SERVER_VERSION`), and its day writes merge by changed paths.
+  note's values, a later note projected over it now replaces those values, and the view is told
+  to refresh the day. A note queued before this rule recorded nothing: every queue pass first
+  releases such notes once, so the day counts as older than any server version
+  (`UNKNOWN_SERVER_VERSION`) and its day writes merge by changed paths. That may hold an edit as a
+  conflict when the last writer before this device's read changed the same path. Each task of a
+  claimed batch replays as stored when it is dispatched, so a release earlier in the batch reaches
+  it.
 
 Cache hydration keeps a projection that still has unresolved writes. The read, the realtime
 snapshot and the manual sync then publish that projection (`local_authoritative` or `local_kept`)
@@ -231,16 +236,19 @@ latest mutation marker does not by itself acknowledge the other mutations.
    task's `changedPaths` (movement arrays and disjoint medical-handoff entries/specialties may
    merge). Then `resolveDailyRecordConflict` by `changedPaths`, the post-merge invariants and the
    clinical consistency check; any block → `ConcurrencyError`. A task whose copy holds another
-   patient or episode than the stored day in a bed or crib it did not touch is merged the same
-   way: its version cannot be that day's. Otherwise (remote not newer, or no `expectedVersion`)
-   the payload's `lastUpdated` gets the strict drift check (`assertSyncQueueConcurrency`, drift > 0
-   → `ConcurrencyError`), and note fields (`medicalHandoffEntries`, `medicalHandoffNote`,
-   `medicalHandoffAudit`, `clinicalEvents`, bed and crib) outside its changed paths keep the stored
-   day's values: a day write never publishes a note it did not write.
+   patient or episode than the stored day in a slot it did not touch is merged the same way: its
+   version cannot be that day's. The bed's patient and the crib's newborn are separate slots, so
+   an edit of one never writes the other from the stale copy; a touched slot whose patient left is
+   step 2's conflict. Otherwise (remote not newer, or no `expectedVersion`) the payload's
+   `lastUpdated` gets the strict drift check (`assertSyncQueueConcurrency`, drift > 0 →
+   `ConcurrencyError`), and note fields (`medicalHandoffEntries`, `medicalHandoffNote`,
+   `medicalHandoffAudit`, `clinicalEvents`, bed and crib) keep the stored day's values outside the
+   task's changed paths, or, for a whole-record write, wherever they hold what a specialist note
+   still queued for the day wants there: a day write never publishes a note it did not write.
 4. **Clinical authority** — `evaluateDailyRecordClinicalAuthority` must not block.
 5. **Publish** — enforced or fenced: the save callable, whose response must carry the committed
-   record. A merged task sends the version and revision of the stored day it merged onto as its
-   base, so the callable refuses only a write that landed after that read. Otherwise `runTransaction` re-runs steps 1–4 against the transactional snapshot and
+   record. A merged task still sends its own base, so the callable refuses it while the stored day
+   is newer and the task stays queued (a known limit: it is held, not lost). Otherwise `runTransaction` re-runs steps 1–4 against the transactional snapshot and
    writes with `{ merge: true }`, so beds absent from the payload are never dropped. With the
    deployment mode `shadow`, a dry-run callable runs first and its failure never blocks.
 6. **Acknowledge** — `completeClaimedSyncTask` writes any detached conflict, deletes the task and,
