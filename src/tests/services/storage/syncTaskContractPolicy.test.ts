@@ -16,26 +16,61 @@ const recordWithRevision = (revision: unknown): DailyRecord =>
   }) as unknown as DailyRecord;
 
 describe('syncTaskContractPolicy', () => {
+  it('keeps an explicitly unknown version instead of substituting the local edit time', () => {
+    expect(
+      buildDailyRecordSyncContract(recordWithRevision(undefined), { expectedVersion: '' })
+        .expectedVersion
+    ).toBe('');
+  });
   it('includes a numeric daily-record base revision', () => {
     expect(buildDailyRecordSyncContract(recordWithRevision(6))).toMatchObject({
       baseRevision: 6,
     });
   });
 
-  it.each([null, undefined, ''])('omits an absent base revision represented by %p', revision => {
+  it.each(
+    [
+      null,
+      undefined,
+      '',
+      false,
+      true,
+      [],
+      [0],
+      {},
+      ' ',
+      '0x0',
+      -1,
+      1.5,
+      Number.MAX_SAFE_INTEGER + 1,
+    ].map(value => [value])
+  )('omits an absent base revision represented by %p', revision => {
     expect(buildDailyRecordSyncContract(recordWithRevision(revision))).not.toHaveProperty(
       'baseRevision'
     );
   });
 
-  it.each([null, undefined, ''])(
-    'removes an explicit absent base revision represented by %p',
-    revision => {
-      expect(
-        buildDailyRecordSyncContract(recordWithRevision(null), {
-          baseRevision: revision as never,
-        })
-      ).not.toHaveProperty('baseRevision');
-    }
-  );
+  it.each(
+    [
+      null,
+      undefined,
+      '',
+      false,
+      true,
+      [],
+      [0],
+      {},
+      ' ',
+      '0x0',
+      -1,
+      1.5,
+      Number.MAX_SAFE_INTEGER + 1,
+    ].map(value => [value])
+  )('removes an explicit absent base revision represented by %p', revision => {
+    expect(
+      buildDailyRecordSyncContract(recordWithRevision(null), {
+        baseRevision: revision as never,
+      })
+    ).not.toHaveProperty('baseRevision');
+  });
 });

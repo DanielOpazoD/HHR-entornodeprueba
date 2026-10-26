@@ -150,8 +150,9 @@ describe.each(MODES)('a refused note no longer shapes the day (%s)', (_mode, enf
     await replay();
 
     expectBInR4();
-    expect(remote().beds.R6.pathology).toBe('Dx E corregido');
-    expect(await dayTasks()).toEqual([]);
+    // The legacy projection's timestamp was never a remote base. Keep the accepted edit
+    // quarantined under authority instead of adopting a later read as its original version.
+    await expectDayEditsPublishedOrKept(enforced, { 'beds.R6.pathology': 'Dx E corregido' });
     expect(draftsFor('Paciente A Sintético')).toEqual([[DATE, 'entry-A', 'Nota de A']]);
   });
 });

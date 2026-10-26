@@ -28,11 +28,11 @@ describe('dailyRecordWriteAuthorityFunctions', () => {
     const result = await functionsApi.saveDailyRecordWithClinicalAuthority.run(
       {
         date: '2026-05-13',
-        expectedLastUpdated: '2026-05-13T10:00:05.000Z',
+        expectedLastUpdated: '2026-05-13T10:00:00.000Z',
         mode: 'enforced',
         origin: 'outbox',
         syncContract: {
-          expectedVersion: '2026-05-13T10:00:05.000Z',
+          expectedVersion: '2026-05-13T10:00:00.000Z',
           changedPaths: ['beds.R1.pathology'],
         },
         record: makeRecord(),
@@ -262,6 +262,7 @@ describe('dailyRecordWriteAuthorityFunctions', () => {
     await expect(
       functionsApi.patchDailyRecordWithClinicalAuthority.run(
         {
+          expectedLastUpdated: makeRecord().lastUpdated,
           date: '2026-05-13',
           mode: 'enforced',
           origin: 'direct_partial_update',
@@ -291,6 +292,7 @@ describe('dailyRecordWriteAuthorityFunctions', () => {
     await expect(
       functionsApi.patchDailyRecordWithClinicalAuthority.run(
         {
+          expectedLastUpdated: makeRecord().lastUpdated,
           date: '2026-05-13',
           mode: 'enforced',
           origin: 'direct_partial_update',
@@ -405,6 +407,7 @@ describe('dailyRecordWriteAuthorityFunctions', () => {
     await expect(
       functionsApi.saveDailyRecordWithClinicalAuthority.run(
         {
+          expectedLastUpdated: makeRecord().lastUpdated,
           date: '2026-05-13',
           record,
         },
@@ -458,6 +461,7 @@ describe('dailyRecordWriteAuthorityFunctions', () => {
     await expect(
       functionsApi.saveDailyRecordWithClinicalAuthority.run(
         {
+          expectedLastUpdated: makeRecord().lastUpdated,
           date: '2026-05-13',
           record: makeRecord(),
         },

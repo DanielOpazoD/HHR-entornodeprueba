@@ -53,7 +53,13 @@ const runSave = async ({
   });
   const record = makeBackupRecord();
   await functionsApi.saveDailyRecordWithClinicalAuthority.run(
-    { date: record.date, mode: 'enforced', origin, record },
+    {
+      expectedLastUpdated: remoteData?.lastUpdated,
+      date: record.date,
+      mode: 'enforced',
+      origin,
+      record,
+    },
     makeContext()
   );
   const persisted = mock.set.mock.calls.at(-1)?.[1] as { beds: Record<string, unknown> };

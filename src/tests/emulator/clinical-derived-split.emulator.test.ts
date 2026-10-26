@@ -228,11 +228,17 @@ const enabled =
       'ep_rn_1',
     ]);
 
-    // 6. A full save from a stale copy keeps the marker and the split; no embedded copy returns.
+    // 6. A full save at the read revision carries stale clinical fields; the server keeps the split.
+    const base = await read();
     const stale = makeDay();
     (stale.beds as Record<string, Data>).R2.pathology = 'Cambio estructural';
     await api('admin').saveDailyRecordWithClinicalAuthority.run(
-      { date: DAY, mode: 'shadow', record: stale },
+      {
+        date: DAY,
+        mode: 'shadow',
+        record: stale,
+        syncContract: { baseRevision: base.meta.revision },
+      },
       makeContext()
     );
     day = await read();

@@ -133,7 +133,7 @@ const runSaves = async () => {
     makeContext()
   );
   const update = await api.saveDailyRecordWithClinicalAuthority.run(
-    { date: PRIOR_DAY, mode: 'shadow', record: prior },
+    { date: PRIOR_DAY, mode: 'shadow', record: prior, expectedLastUpdated: prior.lastUpdated },
     makeContext()
   );
   return { fake, response: [creation, update] };

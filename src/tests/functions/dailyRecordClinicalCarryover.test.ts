@@ -56,7 +56,12 @@ const run = async (
     resolveRoleForEmail: vi.fn().mockResolvedValue('admin'),
   });
   await api.saveDailyRecordWithClinicalAuthority.run(
-    { date: '2026-05-13', mode: 'shadow', record: request() },
+    {
+      date: '2026-05-13',
+      mode: 'shadow',
+      record: request(),
+      expectedLastUpdated: remoteData?.lastUpdated,
+    },
     makeContext()
   );
   return mock;

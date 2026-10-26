@@ -31,7 +31,13 @@ const save = (
   client: Record<string, unknown> = { clientRuntimeContractVersion: 3 }
 ) =>
   writeApi(fake, 'admin').saveDailyRecordWithClinicalAuthority.run(
-    { date: record.date, mode: 'shadow', record, ...client },
+    {
+      date: record.date,
+      mode: 'shadow',
+      record,
+      expectedLastUpdated: record.lastUpdated,
+      ...client,
+    },
     makeContext()
   );
 
