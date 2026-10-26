@@ -272,6 +272,29 @@ describe('useDailyRecordSyncQuery', () => {
     );
   });
 
+  it('preserves a stale whole-save writer base when the displayed note was refreshed at the same timestamp', async () => {
+    const patient = DataFactory.createMockPatient('R1', { medicalHandoffNote: '' });
+    const refreshed = { ...mockRecord, beds: { R1: patient } };
+    const baseRecord = structuredClone(refreshed);
+    baseRecord.beds.R1.medicalHandoffNote = 'Nota descartada';
+    vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockResolvedValue(
+      buildReadResult(refreshed)
+    );
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(result.current.record).toEqual(refreshed));
+    const updatedRecord = { ...baseRecord, handoffNovedadesDayShift: 'Edición independiente' };
+    await act(async () => {
+      await result.current.saveAndUpdate(updatedRecord, baseRecord);
+    });
+    expect(defaultDailyRecordRepositoryPort.saveDetailed).toHaveBeenCalledWith(
+      updatedRecord,
+      baseRecord.lastUpdated,
+      expect.objectContaining({ baseRecord })
+    );
+  });
+
   it('refreshes through detailed sync before refetching', async () => {
     vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockResolvedValue(
       buildReadResult(mockRecord)

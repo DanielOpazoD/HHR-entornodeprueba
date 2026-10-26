@@ -169,6 +169,11 @@ const saveDetailedWithinLock = async (
       command.date,
       currentLocalRecord
     );
+    if (options.rayenStructuralWriteGuard) {
+      const { assertWholeRecordNoteBase } =
+        await import('@/services/storage/sync/dexieDailyRecordOutbox');
+      await assertWholeRecordNoteBase(validatedRecord, options.baseRecord);
+    }
     await runRemoteSaveIntegrityCheck(command.date, validatedRecord);
   } catch (err) {
     if (
@@ -220,7 +225,7 @@ const saveDetailedWithinLock = async (
           origin: 'direct_queue',
           syncContract,
         },
-        buildPreOutboxRemoteAckOptions(syncContract)
+        { ...buildPreOutboxRemoteAckOptions(syncContract), wholeRecordBase: options.baseRecord }
       ),
     ...buildPreOutboxRemoteAckCallbacks(validatedRecord, syncContract),
     readRemoteConfirmedRecord: () => getRecordFromFirestore(command.date, { source: 'server' }),

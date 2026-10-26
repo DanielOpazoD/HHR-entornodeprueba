@@ -37,7 +37,7 @@ describe('usePatientMovementUndoExecutor', () => {
 
     expect(notifyUndoError).not.toHaveBeenCalled();
     expect(applyUndoRecord).toHaveBeenCalledTimes(1);
-    expect(saveAndUpdate).toHaveBeenCalledWith(updatedRecord);
+    expect(saveAndUpdate).toHaveBeenCalledWith(updatedRecord, record);
   });
 
   it('fires undo success only after persistence accepts the change', async () => {

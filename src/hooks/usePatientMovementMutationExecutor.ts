@@ -41,7 +41,7 @@ export const usePatientMovementMutationExecutor = ({
         return;
       }
 
-      await saveAndUpdate(updatedRecord);
+      await saveAndUpdate(updatedRecord, record);
     },
     [movementKey, patchRecord, recordRef, saveAndUpdate]
   );

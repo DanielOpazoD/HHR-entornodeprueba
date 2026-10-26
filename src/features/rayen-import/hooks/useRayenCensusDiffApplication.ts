@@ -39,7 +39,8 @@ interface RayenCensusDiffApplicationInput {
   saveDailyRecord: (
     record: DailyRecord,
     expectedLastUpdated: string,
-    writeLease: DailyRecordWriteLease
+    writeLease: DailyRecordWriteLease,
+    baseRecord: DailyRecord
   ) => Promise<RayenCensusPersistencePayload>;
   checkpointRepository: Pick<DailyRecordRepositoryPort, 'updatePartialDetailed'>;
   queryClient: QueryClient;
@@ -168,7 +169,12 @@ export const useRayenCensusDiffApplication = ({
               );
             }
           } else {
-            persistence = await saveDailyRecord(stamped, record.lastUpdated, writeLease);
+            persistence = await saveDailyRecord(
+              stamped,
+              record.lastUpdated,
+              writeLease,
+              persistenceBase
+            );
             // Paridad con la ruta checkpoint (#267): un guardado completo aceptado
             // cuya confirmación llega sin el sello puede venir de una lectura
             // anterior al commit; una única relectura autoritativa evita convertir

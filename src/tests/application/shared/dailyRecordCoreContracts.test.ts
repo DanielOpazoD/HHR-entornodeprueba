@@ -22,6 +22,8 @@ describe('dailyRecordCoreContracts', () => {
     expectTypeOf<ApplyDailyRecordPatch>().toEqualTypeOf<
       (patch: RootDailyRecordPatch, options?: ApplyDailyRecordPatchOptions) => Promise<void>
     >();
-    expectTypeOf<PersistDailyRecord>().toEqualTypeOf<(record: RootDailyRecord) => Promise<void>>();
+    expectTypeOf<PersistDailyRecord>().toEqualTypeOf<
+      (record: RootDailyRecord, baseRecord?: RootDailyRecord) => Promise<void>
+    >();
   });
 });

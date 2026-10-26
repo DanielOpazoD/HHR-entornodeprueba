@@ -1,3 +1,4 @@
+import { assertFullSaveNoteBase } from '@/services/storage/sync/fullSaveNoteBaseGuard';
 import type { DailyRecord, DailyRecordPatch } from '@/services/storage/storageDailyRecordContracts';
 import type { RayenSyncEvent } from '@/types/domain/rayenSync';
 import type { DailyRecordPatchWrite } from '@/services/storage/sync/syncQueuePorts';
@@ -525,7 +526,8 @@ export const reconcileSpecialistHandoffProjections = (): Promise<string[]> =>
 export const saveDailyRecordInOutbox = (
   record: DailyRecord,
   task: SyncTask,
-  patchWrite?: DailyRecordPatchWrite
+  patchWrite?: DailyRecordPatchWrite,
+  wholeRecordBase?: DailyRecord
 ): Promise<{ mode: 'created' | 'reused'; persistedRecord: DailyRecord }> => {
   if (task.type === 'UPDATE_SPECIALIST_HANDOFF')
     return saveSpecialistHandoffInOutbox(record, task, patchWrite);
@@ -541,11 +543,15 @@ export const saveDailyRecordInOutbox = (
       const existing = task.key
         ? await findReusableSyncTask(task.type, task.key, task.ownerKey)
         : null;
+      const stored = await hospitalDB.dailyRecords.get(record.date);
+      if (!patchWrite && isOpaqueChangedPaths(task.syncContract?.changedPaths ?? [])) {
+        assertFullSaveNoteBase(record, stored, wholeRecordBase);
+      }
       const nextTask = foldWriteIntoOutbox({
         task,
         existing,
         rebase,
-        stored: await hospitalDB.dailyRecords.get(record.date),
+        stored,
         unresolved: (await listUnresolvedDailyRecordTasks(record.date)).filter(
           candidate =>
             candidate.type === task.type && matchesOwner(task.ownerKey, candidate.ownerKey)
@@ -580,3 +586,10 @@ export const saveDailyRecordInOutbox = (
       throw error;
     });
 };
+
+/** A remote-first full save must validate its note base before reaching the network. */
+export const assertWholeRecordNoteBase = (record: DailyRecord, base?: DailyRecord): Promise<void> =>
+  hospitalDB.transaction('r', hospitalDB.dailyRecords, async () => {
+    const stored = await hospitalDB.dailyRecords.get(record.date);
+    assertFullSaveNoteBase(record, stored, base);
+  });

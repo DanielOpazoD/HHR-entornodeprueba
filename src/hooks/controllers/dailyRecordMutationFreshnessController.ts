@@ -50,6 +50,7 @@ interface FreshnessDependencies {
 
 export interface SaveDailyRecordMutationInput {
   record: DailyRecord;
+  baseRecord?: DailyRecord;
   expectedLastUpdated?: string;
   requireConfirmedRecord?: boolean;
   rayenStructuralWriteGuard?: boolean;
@@ -68,7 +69,8 @@ export const saveDailyRecordWithCompatibility = async (
       : dailyRecord.saveDetailed(record, expectedLastUpdated);
   }
 
-  await dailyRecord.save(record, expectedLastUpdated);
+  if (options) await dailyRecord.save(record, expectedLastUpdated, options);
+  else await dailyRecord.save(record, expectedLastUpdated);
   return null;
 };
 
@@ -78,14 +80,15 @@ export const persistDailyRecordSaveMutation = async (
 ) => {
   const {
     record,
+    baseRecord,
     expectedLastUpdated,
     requireConfirmedRecord,
     rayenStructuralWriteGuard,
     dailyRecordWriteLease,
   } = input;
   const options =
-    requireConfirmedRecord || rayenStructuralWriteGuard || dailyRecordWriteLease
-      ? { requireConfirmedRecord, rayenStructuralWriteGuard, dailyRecordWriteLease }
+    baseRecord || requireConfirmedRecord || rayenStructuralWriteGuard || dailyRecordWriteLease
+      ? { baseRecord, requireConfirmedRecord, rayenStructuralWriteGuard, dailyRecordWriteLease }
       : undefined;
   const result = await saveDailyRecordWithCompatibility(
     dailyRecord,

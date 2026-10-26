@@ -128,6 +128,7 @@ export const usePatientDischarges = (
           kind: 'discharge',
           bedId,
           resolution,
+          baseRecord: currentRecord,
           onSuccess: value => {
             logDischargeEntries(value.auditEntries, currentRecord.date);
           },
@@ -255,7 +256,7 @@ export const usePatientDischarges = (
           persist: () =>
             patchRecord
               ? patchRecord({ discharges: updatedRecord.discharges, cma: updatedRecord.cma })
-              : saveAndUpdate(updatedRecord),
+              : saveAndUpdate(updatedRecord, currentRecord),
           onPersisted: () => {
             if (!summary) return;
             try {
@@ -296,7 +297,8 @@ export const usePatientDischarges = (
         executeReclassification({
           recordDate: currentRecord.date,
           sourceMovementId: id,
-          persist: () => (patchRecord ? patchRecord(patch) : saveAndUpdate(updatedRecord)),
+          persist: () =>
+            patchRecord ? patchRecord(patch) : saveAndUpdate(updatedRecord, currentRecord),
           onPersisted: () => {
             if (!summary) return;
             try {

@@ -144,9 +144,13 @@ export const useDailyRecordSyncQuery = (
 
   // 4. Compatibility handlers
   const saveAndUpdate = useCallback(
-    async (updatedRecord: DailyRecord) => {
+    async (updatedRecord: DailyRecord, baseRecord?: DailyRecord) => {
       try {
-        const payload = await saveMutation.mutateAsync({ record: updatedRecord });
+        const payload = await saveMutation.mutateAsync({
+          record: updatedRecord,
+          baseRecord,
+          expectedLastUpdated: baseRecord?.lastUpdated,
+        });
         presentSyncOutcomeFeedback(resolveSaveOutcomeFeedback(payload.result), 'Guardado', {
           error: notifyError,
           success,

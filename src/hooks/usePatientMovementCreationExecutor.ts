@@ -25,6 +25,7 @@ interface ExecuteMovementCreationParams<TValue extends { updatedRecord: DailyRec
   kind: MovementKind;
   bedId: string;
   resolution: MovementCreationResolution<TValue>;
+  baseRecord?: DailyRecord;
   onSuccess?: (value: TValue) => void;
 }
 
@@ -44,6 +45,7 @@ export const usePatientMovementCreationExecutor = ({
       kind,
       bedId,
       resolution,
+      baseRecord,
       onSuccess,
     }: ExecuteMovementCreationParams<TValue>): Promise<void> => {
       if (!resolution.ok) {
@@ -60,7 +62,7 @@ export const usePatientMovementCreationExecutor = ({
           })
         );
       } else {
-        await saveAndUpdate(resolution.value.updatedRecord);
+        await saveAndUpdate(resolution.value.updatedRecord, baseRecord);
       }
       onSuccess?.(resolution.value);
     },

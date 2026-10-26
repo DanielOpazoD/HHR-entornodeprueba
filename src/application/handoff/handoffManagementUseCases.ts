@@ -99,7 +99,7 @@ const persistWithPatchPreference = async (
   if (input.patchRecord && patch) {
     await input.patchRecord(patch);
   } else {
-    await input.saveRecord(updatedRecord);
+    await input.saveRecord(updatedRecord, input.record ?? undefined);
   }
 };
 

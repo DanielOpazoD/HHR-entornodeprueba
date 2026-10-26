@@ -47,7 +47,8 @@ describe('useMovements', () => {
               bedId: bedId,
             }),
           ]),
-        })
+        }),
+        mockRecord
       );
 
       // Should have cleared the bed
@@ -165,7 +166,8 @@ describe('useMovements', () => {
       expect(saveAndUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           discharges: [expect.objectContaining({ id: 'd1', status: 'Fallecido', time: '15:00' })],
-        })
+        }),
+        mockRecord
       );
     });
 
@@ -290,7 +292,8 @@ describe('useMovements', () => {
               receivingCenter: 'Hosp A',
             }),
           ]),
-        })
+        }),
+        mockRecord
       );
       expect(saveAndUpdate.mock.calls[0][0].beds[bedId].patientName).toBe('');
     });
@@ -330,7 +333,8 @@ describe('useMovements', () => {
       expect(saveAndUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           transfers: [expect.objectContaining({ id: transferId, receivingCenter: 'Center B' })],
-        })
+        }),
+        mockRecord
       );
 
       act(() => {
