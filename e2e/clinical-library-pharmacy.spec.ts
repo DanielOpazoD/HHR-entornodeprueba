@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { z } from 'zod';
 import { PDFArray, PDFDict, PDFDocument, PDFName, PDFRawStream, decodePDFRawStream } from 'pdf-lib';
 import { buildCanonicalE2ERecord, MOCK_USERS } from './fixtures/auth';
 import { installPreviewFirebaseRuntime } from './fixtures/previewFirebase';
@@ -28,7 +29,8 @@ const capture = async (page: Page, name: string): Promise<void> => {
 
 const seedPersistedSession = async (
   page: Page,
-  role: keyof typeof MOCK_USERS = 'admin'
+  role: keyof typeof MOCK_USERS = 'admin',
+  record = buildCanonicalE2ERecord(PREVIEW_DATE)
 ): Promise<void> => {
   const firebaseConfig = await installPreviewFirebaseRuntime(page);
   await page.addInitScript(
@@ -43,7 +45,7 @@ const seedPersistedSession = async (
     {
       bootstrapUser: MOCK_USERS[role],
       date: PREVIEW_DATE,
-      seededRecord: buildCanonicalE2ERecord(PREVIEW_DATE),
+      seededRecord: record,
       runtimeConfig: firebaseConfig,
     }
   );
@@ -109,7 +111,10 @@ const prepareAndDownload = async (
 ): Promise<PDFDocument> => {
   await editor.getByRole('button', { name: 'Preparar vista previa', exact: true }).click();
   await expect(editor.locator('iframe[title^="Vista previa ·"]')).toBeVisible({ timeout: 15_000 });
-  const downloadEvent = page.waitForEvent('download');
+  // Headless Chromium can also download the embedded preview with a blob filename.
+  const downloadEvent = page.waitForEvent('download', download =>
+    download.suggestedFilename().startsWith('acta-')
+  );
   await editor.getByRole('button', { name: 'Descargar', exact: true }).click();
   const download = await downloadEvent;
   expect(download.suggestedFilename()).toMatch(/^acta-.*-2026-10-22\.pdf$/);
@@ -124,6 +129,51 @@ const expectPreviewInvalidated = async (editor: Locator): Promise<void> => {
   await expect(editor.getByRole('button', { name: 'Descargar', exact: true })).toHaveCount(0);
   await expect(editor.getByRole('button', { name: 'Imprimir', exact: true })).toHaveCount(0);
 };
+
+test('pharmacy acts are reachable inside clinical documents without closing its workspace', async ({
+  page,
+}) => {
+  const beds = z
+    .record(z.string(), z.record(z.string(), z.unknown()))
+    .parse(buildCanonicalE2ERecord(PREVIEW_DATE).beds);
+  beds.R1 = {
+    ...beds.R1,
+    patientName: 'Paciente de validación',
+    rut: '12345678-5',
+    admissionDate: PREVIEW_DATE,
+  };
+  await seedPersistedSession(page, 'admin', buildCanonicalE2ERecord(PREVIEW_DATE, { beds }));
+  await page.goto(`/?date=${PREVIEW_DATE}`);
+  const row = page.locator('[data-testid="patient-row"][data-bed-id="R1"]').first();
+  await row.getByRole('button', { name: /Datos del Paciente/i }).focus();
+  await page.getByLabel('Acciones clínicas rápidas').click();
+  await page.getByTitle('Documentos clínicos', { exact: true }).click();
+  const workspace = page.getByTestId('clinical-documents-workspace');
+  await expect(workspace).toBeVisible();
+  await capture(page, 'clinical-documents-pharmacy-entrypoints.png');
+  for (const [label, kind] of [
+    ['Acta de devolución de fármacos', 'return'],
+    ['Acta de entrega de fármacos eliminados', 'disposal'],
+  ]) {
+    const opener = workspace.getByRole('button', { name: label, exact: true });
+    await opener.click();
+    const editor = page.getByTestId(`library-tool-pharmacy-${kind}`);
+    const name = editor.getByLabel('Nombre del responsable', { exact: true });
+    await expect(name).toHaveValue(MOCK_USERS.admin.displayName);
+    await expect(editor.getByLabel('Tamaño de papel')).toBeVisible();
+    await name.fill('Responsable de validación');
+    await name.press('Escape');
+    const confirmation = page.getByRole('alertdialog');
+    await expect(confirmation).toBeVisible();
+    await confirmation.getByRole('button', { name: 'Seguir editando' }).click();
+    await expect(name).toHaveValue('Responsable de validación');
+    await editor.getByRole('button', { name: 'Cerrar documentos', exact: true }).click();
+    await confirmation.getByRole('button', { name: 'Salir y descartar' }).click();
+    await expect(editor).toHaveCount(0);
+    await expect(workspace).toBeVisible();
+    await expect(opener).toBeFocused();
+  }
+});
 
 const pageOperators = (pdf: PDFDocument, index: number): string => {
   const contents = pdf.getPage(index).node.Contents();
