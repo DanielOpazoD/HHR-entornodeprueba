@@ -185,37 +185,46 @@ test.describe('Confirmed specialty saves', () => {
     expect(browserErrors).toEqual([]);
   });
 
-  test('shows a rejected choice on a narrow screen and allows a confirmed retry', async ({
-    page,
-  }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    const { authority, browserErrors } = await openCensus(page);
-    const row = getRow(page, 'R1');
-    await selectSpecialty(page, row, 'Medicina', 'Cirugía', true);
-    const rejectedCall = await authority.nextCall();
-    expect(rejectedCall.payload.patch).toEqual({ 'beds.R1.specialty': 'Cirugía' });
-    expect(await readLocalSpecialties(page)).toEqual(['Medicina', 'Medicina']);
-    await rejectedCall.reject();
+  for (const height of [844, 780]) {
+    test(`shows a rejected choice at ${height}px height and allows a confirmed retry`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: 390, height });
+      const { authority, browserErrors } = await openCensus(page);
+      const row = getRow(page, 'R1');
+      await selectSpecialty(page, row, 'Medicina', 'Cirugía', true);
+      const rejectedCall = await authority.nextCall();
+      expect(rejectedCall.payload.patch).toEqual({ 'beds.R1.specialty': 'Cirugía' });
+      expect(await readLocalSpecialties(page)).toEqual(['Medicina', 'Medicina']);
+      await rejectedCall.reject();
 
-    await expect(page.getByRole('alert').filter({ hasText: SAVE_ERROR })).toBeVisible();
-    expect((await server.read(E2E_DATE))?.beds.R1.specialty).toBe('Medicina');
-    await expect(getSpecialtyButton(row, 'Medicina')).toBeEnabled();
-    expect(await readLocalSpecialties(page)).toEqual(['Medicina', 'Medicina']);
+      await expect(page.getByRole('alert').filter({ hasText: SAVE_ERROR })).toBeVisible();
+      expect((await server.read(E2E_DATE))?.beds.R1.specialty).toBe('Medicina');
+      await expect(getSpecialtyButton(row, 'Medicina')).toBeEnabled();
+      expect(await readLocalSpecialties(page)).toEqual(['Medicina', 'Medicina']);
 
-    await selectSpecialty(page, row, 'Medicina', 'Cirugía');
-    const retryCall = await authority.nextCall();
-    expect(retryCall.payload.patch).toEqual({ 'beds.R1.specialty': 'Cirugía' });
-    await retryCall.succeed();
-    await expect.poll(() => readLocalSpecialties(page)).toEqual(['Cirugía', 'Medicina']);
-    await expect(getSpecialtyButton(row, 'Cirugía')).toBeEnabled();
-    expect((await server.read(E2E_DATE))?.beds.R1).toMatchObject({
-      specialty: 'Cirugía',
-      specialtyAssignment: {
-        source: 'manual',
-        decisionId: retryCall.payload.syncContract?.mutationId,
-      },
+      // The mobile error toast covers the row's retry button until dismissed.
+      const rejectionNotice = page.getByRole('alert').filter({ hasText: 'Cambio no guardado' });
+      await expect(rejectionNotice).toBeVisible();
+      await rejectionNotice.getByRole('button', { name: 'Cerrar notificación' }).click();
+      await expect(rejectionNotice).toHaveCount(0);
+      await expect(page.getByRole('alert').filter({ hasText: SAVE_ERROR })).toBeVisible();
+
+      await selectSpecialty(page, row, 'Medicina', 'Cirugía');
+      const retryCall = await authority.nextCall();
+      expect(retryCall.payload.patch).toEqual({ 'beds.R1.specialty': 'Cirugía' });
+      await retryCall.succeed();
+      await expect.poll(() => readLocalSpecialties(page)).toEqual(['Cirugía', 'Medicina']);
+      await expect(getSpecialtyButton(row, 'Cirugía')).toBeEnabled();
+      expect((await server.read(E2E_DATE))?.beds.R1).toMatchObject({
+        specialty: 'Cirugía',
+        specialtyAssignment: {
+          source: 'manual',
+          decisionId: retryCall.payload.syncContract?.mutationId,
+        },
+      });
+      await expect(page.getByRole('alert').filter({ hasText: SAVE_ERROR })).toHaveCount(0);
+      expect(browserErrors).toEqual([]);
     });
-    await expect(page.getByRole('alert').filter({ hasText: SAVE_ERROR })).toHaveCount(0);
-    expect(browserErrors).toEqual([]);
-  });
+  }
 });
