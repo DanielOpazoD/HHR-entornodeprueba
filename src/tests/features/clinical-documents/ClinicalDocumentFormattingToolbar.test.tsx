@@ -70,6 +70,11 @@ describe('ClinicalDocumentFormattingToolbar', () => {
 
     expect(screen.getByText('Formato de texto')).toBeInTheDocument();
     expect(screen.getByText('Listas y sangría')).toBeInTheDocument();
+    for (const groupName of ['Historial', 'Formato', 'Documento', 'Vista']) {
+      expect(screen.getByRole('group', { name: groupName })).toHaveAttribute(
+        'data-clinical-document-toolbar-cluster'
+      );
+    }
     expect(screen.getAllByText('Tablas y enlaces')).toHaveLength(1);
     expect(screen.queryByText('Imágenes y anexos')).not.toBeInTheDocument();
     expect(

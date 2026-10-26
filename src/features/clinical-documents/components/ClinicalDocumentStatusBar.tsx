@@ -30,7 +30,7 @@ interface ClinicalDocumentStatusBarProps {
 }
 
 const btnBase =
-  'inline-flex h-7 items-center rounded-md border px-2 text-[9px] font-bold uppercase tracking-[0.12em] transition-colors disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300';
+  'inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-medical-500 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400';
 
 interface AutosaveBadgeVariant {
   Icon: typeof CheckCircle2;
@@ -98,17 +98,17 @@ export const ClinicalDocumentStatusBar: React.FC<ClinicalDocumentStatusBarProps>
         aria-label={accessibleLabel}
         title={accessibleLabel}
         data-autosave-phase={autosaveState.phase}
-        className={`inline-flex h-7 min-w-[148px] items-center justify-center gap-1.5 rounded-md border px-2 text-[9px] font-bold uppercase tracking-[0.12em] transition-colors ${variant.containerClass}`}
+        className={`inline-flex h-8 min-w-[148px] items-center justify-center gap-1.5 rounded-md border px-2.5 text-[11px] font-medium transition-colors ${variant.containerClass}`}
       >
-        <VariantIcon size={12} className={variant.iconClass} />
+        <VariantIcon size={14} className={variant.iconClass} aria-hidden="true" />
         <span className="whitespace-nowrap">{visibleLabel}</span>
       </span>
 
       <div className="flex items-center gap-1.5">
         {pdf?.exportStatus === 'exported' ? (
           <>
-            <span className="group relative inline-flex items-center gap-1 rounded-md border border-emerald-200 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-700">
-              <CheckCircle2 size={11} />
+            <span className="inline-flex h-8 items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 text-[11px] font-medium text-emerald-700">
+              <CheckCircle2 size={14} aria-hidden="true" />
               Drive exportado
             </span>
             {pdf.webViewLink && (
@@ -116,9 +116,9 @@ export const ClinicalDocumentStatusBar: React.FC<ClinicalDocumentStatusBarProps>
                 href={pdf.webViewLink}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex h-7 items-center rounded-md border border-slate-200 px-2 text-[9px] font-bold uppercase tracking-[0.12em] text-slate-600 hover:bg-slate-50"
+                className={`${btnBase} border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-800`}
               >
-                <ExternalLink size={11} className="mr-1" />
+                <ExternalLink size={14} aria-hidden="true" />
                 Abrir Drive
               </a>
             )}
@@ -127,10 +127,10 @@ export const ClinicalDocumentStatusBar: React.FC<ClinicalDocumentStatusBarProps>
           <>
             {pdf?.exportStatus === 'failed' && (
               <span
-                className="inline-flex max-w-[220px] items-center gap-1 truncate rounded-md border border-red-200 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-red-700"
+                className="inline-flex h-8 max-w-[220px] items-center gap-1.5 truncate rounded-md border border-red-200 bg-red-50 px-2.5 text-[11px] font-medium text-red-700"
                 title={pdf.exportError || 'Error al exportar a Drive'}
               >
-                <AlertCircle size={11} />
+                <AlertCircle size={14} className="shrink-0" aria-hidden="true" />
                 Drive falló
                 {pdf.exportError ? `: ${pdf.exportError}` : ''}
               </span>
@@ -140,12 +140,12 @@ export const ClinicalDocumentStatusBar: React.FC<ClinicalDocumentStatusBarProps>
               onClick={onUploadPdf}
               disabled={isUploadingPdf}
               aria-label={pdf?.exportStatus === 'failed' ? 'Reintentar Drive' : 'Exportar a Drive'}
-              className={`${btnBase} border-blue-200 text-blue-700 hover:bg-blue-50`}
+              className={`${btnBase} border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-800`}
             >
               {isUploadingPdf ? (
-                <Loader2 size={11} className="mr-1 inline animate-spin" />
+                <Loader2 size={14} className="animate-spin" aria-hidden="true" />
               ) : (
-                <UploadCloud size={11} className="mr-1 inline" />
+                <UploadCloud size={14} aria-hidden="true" />
               )}
               {pdf?.exportStatus === 'failed' ? 'Reintentar' : 'Drive pendiente'}
             </button>

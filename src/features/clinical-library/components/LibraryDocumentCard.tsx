@@ -11,7 +11,7 @@ const FORMAT_ICONS: Readonly<Record<LibraryDocumentFormat, React.ReactNode>> = {
 };
 
 const ACTION_CLASS =
-  'inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-medical-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-600';
+  'inline-flex h-8 min-w-8 shrink-0 items-center justify-center gap-1.5 rounded-md px-2 text-[11px] font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-medical-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-medical-500';
 
 interface LibraryDocumentCardProps {
   entry: LibraryDocumentEntry;
@@ -19,21 +19,27 @@ interface LibraryDocumentCardProps {
   onFill?: (entry: LibraryDocumentEntry) => void;
 }
 
-/** Fila plana: título en dos líneas, formato junto a él y una acción explícita. */
+/** Fila plana: título completo, formato junto a él y una acción explícita. */
 export const LibraryDocumentCard: React.FC<LibraryDocumentCardProps> = ({
   entry,
   onPrint,
   onFill,
 }) => (
-  <li data-testid={`library-document-${entry.id}`} className="flex items-center gap-2.5 py-1.5">
-    <span className="inline-flex size-5 shrink-0 items-center justify-center text-slate-400">
+  <li
+    data-testid={`library-document-${entry.id}`}
+    className="flex min-h-11 items-center gap-2.5 rounded-md px-2 py-2 transition-colors hover:bg-slate-50 focus-within:bg-slate-50"
+  >
+    <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-500">
       {FORMAT_ICONS[entry.format]}
     </span>
     <div className="min-w-0 flex-1">
-      <p className="line-clamp-2 text-[13px] leading-snug text-slate-800" title={entry.title}>
+      <p
+        className="break-words text-[12px] font-medium leading-snug text-slate-800"
+        title={entry.title}
+      >
         {entry.title}
       </p>
-      <p className="mt-0.5 text-[10px] text-slate-500">
+      <p className="mt-0.5 text-[11px] text-slate-500">
         {documentFormatLabel(entry.format, entry.pages)}
       </p>
     </div>

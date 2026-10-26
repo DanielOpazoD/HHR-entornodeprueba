@@ -36,6 +36,7 @@ const FORMATTING_KEEP_OPEN_SELECTOR = [
   '.clinical-document-input',
   '.clinical-document-textarea',
   '.clinical-document-global-toolbar-modal',
+  '[data-clinical-document-toolbar-cluster]',
   '.clinical-document-toolbar-cluster',
   '[role="dialog"]',
 ].join(', ');
