@@ -26,6 +26,16 @@ No new document-type behavior should be reintroduced through ad hoc `if` branche
 - Definitions and registries inside `src/features/clinical-documents/domain`
 - Repository/runtime contracts in feature services and repositories
 
+## Pharmacy forms access
+
+The sidebar exposes the two pharmacy acts through the existing public API of
+`clinical-library`. That feature continues to own their catalog, editor,
+professional identity, dirty-state confirmation and PDF generation. The dependency
+matrix declares this one-way UI composition; the library does not depend on the
+clinical documents workspace. Pharmacy acts are not clinical document templates
+or records and are not persisted against the open patient's episode. Opening or
+closing an act leaves the patient's document workspace mounted.
+
 ## Remote template bootstrap
 
 One effect owns the active context's template read and optional seed. Only a successful,

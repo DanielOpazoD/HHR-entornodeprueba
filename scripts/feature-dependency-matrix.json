@@ -12,7 +12,7 @@
       "rayen-manual-import",
       "wound-care"
     ],
-    "clinical-documents": ["laboratory"],
+    "clinical-documents": ["clinical-library", "laboratory"],
     "clinical-library": [],
     "cudyr": [],
     "document-scanner": [],
