@@ -10,10 +10,10 @@ interface ToastRendererProps {
 
 export const ToastRenderer: React.FC<ToastRendererProps> = ({ notification, onDismiss }) => {
   const icons = {
-    success: <CheckCircle className="text-green-500" size={12} />,
-    error: <AlertCircle className="text-red-500" size={12} />,
-    warning: <AlertTriangle className="text-amber-500" size={12} />,
-    info: <Info className="text-blue-500" size={12} />,
+    success: <CheckCircle className="text-green-600" size={16} aria-hidden="true" />,
+    error: <AlertCircle className="text-red-600" size={16} aria-hidden="true" />,
+    warning: <AlertTriangle className="text-amber-600" size={16} aria-hidden="true" />,
+    info: <Info className="text-blue-600" size={16} aria-hidden="true" />,
   };
 
   const bgColors = {
@@ -25,24 +25,27 @@ export const ToastRenderer: React.FC<ToastRendererProps> = ({ notification, onDi
 
   return (
     <div
+      role={notification.type === 'error' ? 'alert' : 'status'}
+      aria-atomic="true"
       className={clsx(
-        'flex items-start gap-2 px-2 py-1.5 rounded border shadow-md animate-slide-in-right max-w-[200px]',
+        'pointer-events-auto flex w-full items-start gap-2.5 rounded-lg border px-3 py-2.5 shadow-md animate-slide-in-right',
         bgColors[notification.type]
       )}
     >
-      <div className="flex-shrink-0 mt-0.5">{icons[notification.type]}</div>
-      <div className="flex-1 min-w-0">
-        <p className="font-medium text-[10px] text-slate-800 leading-tight">{notification.title}</p>
+      <div className="mt-0.5 shrink-0">{icons[notification.type]}</div>
+      <div className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+        <p className="text-xs font-semibold leading-5 text-slate-800">{notification.title}</p>
         {notification.message && (
-          <p className="text-[9px] text-slate-500 leading-tight">{notification.message}</p>
+          <p className="text-[11px] leading-4 text-slate-600">{notification.message}</p>
         )}
       </div>
       <button
+        type="button"
         onClick={onDismiss}
-        className="flex-shrink-0 text-slate-400 hover:text-slate-600 transition-colors"
-        aria-label="Cerrar notificacion"
+        className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-white/70 hover:text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-medical-600"
+        aria-label="Cerrar notificación"
       >
-        <X size={10} />
+        <X size={14} aria-hidden="true" />
       </button>
     </div>
   );

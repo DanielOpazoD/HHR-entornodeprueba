@@ -15,7 +15,11 @@ export const HandoffSaveDropdown: React.FC<HandoffSaveDropdownProps> = ({
   isBackingUp,
   showFirebaseBackupOption = true,
 }) => {
-  const { isOpen, menuRef, toggle, close } = useDropdownMenu();
+  const { isOpen, menuRef, toggle, close } = useDropdownMenu({
+    closeOnOutsideClick: false,
+    closeOnEscape: false,
+  });
+  const panelId = React.useId();
 
   const handleAction = async (action: 'pdf' | 'print-options' | 'backup') => {
     close();
@@ -47,6 +51,7 @@ export const HandoffSaveDropdown: React.FC<HandoffSaveDropdownProps> = ({
   return (
     <div className="relative" ref={menuRef}>
       <button
+        type="button"
         onClick={toggle}
         disabled={isBackingUp}
         className={clsx(
@@ -56,27 +61,34 @@ export const HandoffSaveDropdown: React.FC<HandoffSaveDropdownProps> = ({
         )}
         title="Opciones de guardado (PDF/Nube)"
         aria-label={uiState.label}
+        aria-expanded={isOpen}
+        aria-controls={isOpen ? panelId : undefined}
         data-save-status={isBackingUp ? 'loading' : isArchived ? 'archived' : 'idle'}
       >
-        {uiState.iconKind === 'loading' && <Loader2 size={14} className="animate-spin" />}
-        {uiState.iconKind === 'archived' && <CheckCircle size={14} />}
-        {uiState.iconKind === 'default' && <Save size={14} />}
+        {uiState.iconKind === 'loading' && (
+          <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+        )}
+        {uiState.iconKind === 'archived' && <CheckCircle size={14} aria-hidden="true" />}
+        {uiState.iconKind === 'default' && <Save size={14} aria-hidden="true" />}
       </button>
 
       {isOpen && (
         <DateStripDropdownPanel
-          title="Opciones de Guardado"
+          id={panelId}
+          anchorRef={menuRef}
+          onClose={close}
+          title="Opciones de guardado"
           widthClassName="w-60"
           headerAction={
             onPrintWithBrowserOptions ? (
               <button
                 type="button"
                 onClick={() => void handleAction('print-options')}
-                className="flex h-5 w-5 items-center justify-center rounded-full border border-sky-100 bg-sky-50 text-sky-700 transition-colors hover:bg-sky-100 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-sky-100 bg-sky-50 text-sky-700 transition-colors hover:bg-sky-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-600"
                 title="Imprimir con opciones: escala, margenes y papel"
                 aria-label="Imprimir con opciones de Chrome"
               >
-                <Plus size={11} strokeWidth={2.4} />
+                <Plus size={12} strokeWidth={2.4} aria-hidden="true" />
               </button>
             ) : undefined
           }

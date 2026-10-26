@@ -11,21 +11,19 @@ export const PatientActionMenuClinicalSection: React.FC<PatientActionMenuClinica
   clinicalActions,
   onAction,
 }) => (
-  <div className="py-1.5">
-    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em] px-3 py-1 block">
+  <div className="p-1.5">
+    <span className="block px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
       Gestión Clínica
     </span>
     {clinicalActions.map(({ action, icon: Icon, label, iconClassName }) => (
       <button
         key={action}
+        type="button"
         onClick={() => onAction(action)}
-        className="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2.5 text-slate-700 group"
+        className="flex min-h-9 w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-slate-700 transition-colors hover:bg-slate-50 focus-visible:bg-teal-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-teal-600"
       >
-        <Icon
-          size={15}
-          className={`${iconClassName} group-hover:translate-x-0.5 transition-transform`}
-        />
-        <span className="text-[15px]">{label}</span>
+        <Icon size={15} className={`${iconClassName} shrink-0`} aria-hidden="true" />
+        <span className="text-[13px] font-medium">{label}</span>
       </button>
     ))}
   </div>
