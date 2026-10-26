@@ -94,6 +94,14 @@ export interface SyncQueueStorePort {
   discardQuarantinedTask?(taskId: number, ownerKey?: string | null): Promise<boolean>;
   /** A note that can no longer publish stops shaping the stored day (see the outbox). */
   releaseSpecialistHandoffProjection?(task: SyncTask): Promise<void>;
+  /** Releases once the notes queued before that rule, before any task replays. */
+  releaseLegacySpecialistHandoffProjections?(): Promise<void>;
+  /** Renews a claim and returns the task as stored now, or null when the claim was lost. */
+  renewClaim?(
+    taskId: number,
+    leaseUntil: number,
+    claim: SyncQueueLeaseClaim
+  ): Promise<SyncTask | null>;
   update(taskId: number, patch: Partial<SyncTask>): Promise<void>;
   updateClaimed(
     taskId: number,

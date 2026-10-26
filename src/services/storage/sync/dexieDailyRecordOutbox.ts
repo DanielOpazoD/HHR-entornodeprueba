@@ -11,6 +11,7 @@ export {
   hasOtherOccupantInUntouchedBed,
   keepStoredNoteFields,
 } from '@/services/storage/sync/dayTaskReplayGuard';
+import { hasSameNoteValue } from '@/services/storage/sync/dayTaskReplayGuard';
 import { mergeMovementArrayById } from '@/services/repositories/conflictResolutionMovementMergePolicy';
 import { mergeRayenSyncHistory } from '@/services/repositories/dailyRecordRayenSyncHistoryPolicy';
 import {
@@ -349,33 +350,74 @@ const saveSpecialistHandoffInOutbox = (
     return { mode: 'created' as const, persistedRecord };
   });
 
+const noteTasksFor = async (date: string) =>
+  (await hospitalDB.syncQueue.where('key').startsWith(`handoff:${date}:`).toArray()).filter(
+    task => task.type === 'UPDATE_SPECIALIST_HANDOFF' && task.status !== 'RETIRED'
+  );
+
+/** What the specialist notes still queued for a day want written, by path. */
+export const listSpecialistNoteValues = async (date: string): Promise<Map<string, unknown[]>> => {
+  const values = new Map<string, unknown[]>();
+  for (const task of await noteTasksFor(date)) {
+    for (const path of handoffPaths(task))
+      values.set(path, [
+        ...(values.get(path) ?? []),
+        (task.payload as SpecialistHandoffSyncPayload).patch[path],
+      ]);
+  }
+  return values;
+};
+
+/** Released, or projected before this rule: nothing left to give back. */
+const RELEASED = { replaced: {}, projected: {} };
+
 /**
  * A note that can no longer publish (refused, failed or discarded) stops shaping the day. Where the
  * stored day, or a day write folded on top of it, still shows what the note projected, those fields
- * go back to what it replaced; the text stays in the note's task and drafts. A note queued before
- * this rule recorded nothing, and its projection may have moved the day's version: the day then
- * counts as older than any server version, so the next read takes the server's day, and a day
- * write queued meanwhile merges by its changed paths.
+ * go back to what it replaced, and a later note projected over it now replaces those values; the
+ * text stays in the note's task and drafts. A note queued before this rule recorded nothing, and
+ * its projection may have moved the day's version: the day then counts as older than any server
+ * version, so the next read takes the server's day, and a day write queued meanwhile merges by
+ * its changed paths. Returns whether the stored day changed.
  */
-export const releaseSpecialistHandoffProjection = (task: SyncTask): Promise<void> =>
+export const releaseSpecialistHandoffProjection = (task: SyncTask): Promise<boolean> =>
   hospitalDB.transaction('rw', hospitalDB.dailyRecords, hospitalDB.syncQueue, async () => {
     const { date } = task.payload as SpecialistHandoffSyncPayload;
     const projection = task.handoffProjection;
     const stored = await hospitalDB.dailyRecords.get(date);
     const dayTasks = (await listUnresolvedDailyRecordTasks(date)).filter(dayTask => dayTask.id);
+    if (task.id) await hospitalDB.syncQueue.update(task.id, { handoffProjection: RELEASED });
     if (!projection) {
-      if (stored && !dayTasks.length)
-        await hospitalDB.dailyRecords.put({ ...stored, lastUpdated: UNKNOWN_SERVER_VERSION });
       for (const dayTask of dayTasks)
         await hospitalDB.syncQueue.update(dayTask.id!, {
           syncContract: { ...dayTask.syncContract, expectedVersion: UNKNOWN_SERVER_VERSION },
         });
-      return;
+      if (!stored || dayTasks.length) return false;
+      await hospitalDB.dailyRecords.put({ ...stored, lastUpdated: UNKNOWN_SERVER_VERSION });
+      return true;
+    }
+    const shows = (value: unknown, path: string) =>
+      hasSameNoteValue(value, projection.projected[path]);
+    for (const other of await noteTasksFor(date)) {
+      const replaced = other.id !== task.id ? other.handoffProjection?.replaced : undefined;
+      if (!replaced || !Object.entries(replaced).some(([path, value]) => shows(value, path)))
+        continue;
+      await hospitalDB.syncQueue.update(other.id!, {
+        handoffProjection: {
+          ...other.handoffProjection!,
+          replaced: Object.fromEntries(
+            Object.entries(replaced).map(([path, value]) => [
+              path,
+              shows(value, path) && path in projection.replaced ? projection.replaced[path] : value,
+            ])
+          ),
+        },
+      });
     }
     const restore = (day: DailyRecord): DailyRecord | null => {
       const restored = Object.fromEntries(
         Object.entries(projection.replaced).filter(([path]) =>
-          hasSameComparableValue(getValueAtPath(day, path), projection.projected[path])
+          shows(getValueAtPath(day, path), path)
         )
       );
       return Object.keys(restored).length
@@ -388,7 +430,20 @@ export const releaseSpecialistHandoffProjection = (task: SyncTask): Promise<void
       const payload = restore(dayTask.payload as DailyRecord);
       if (payload) await hospitalDB.syncQueue.update(dayTask.id!, { payload });
     }
+    return Boolean(day);
   });
+
+/** Notes queued before this rule are released once, before any task replays. */
+export const releaseLegacySpecialistHandoffProjections = async (): Promise<string[]> => {
+  const legacy = (
+    await hospitalDB.syncQueue.where('type').equals('UPDATE_SPECIALIST_HANDOFF').toArray()
+  ).filter(task => !task.handoffProjection);
+  const changed: string[] = [];
+  for (const task of legacy)
+    if (await releaseSpecialistHandoffProjection(task))
+      changed.push((task.payload as SpecialistHandoffSyncPayload).date);
+  return changed;
+};
 
 /** Writes the day's record and its outbox task in one transaction. */
 export const saveDailyRecordInOutbox = (

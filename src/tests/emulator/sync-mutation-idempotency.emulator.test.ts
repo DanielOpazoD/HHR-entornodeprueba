@@ -406,14 +406,9 @@ describeEmulator('Firestore emulator mutation idempotency', () => {
       mode: string;
       expectedLastUpdated?: string;
     };
-    // The merged task expects the stored day it merged onto, which the authority checks.
     expect(authorityPayload).toMatchObject({
       mode: 'enforced',
-      expectedLastUpdated: remoteAfterClientA.lastUpdated,
-      syncContract: expect.objectContaining({
-        expectedVersion: remoteAfterClientA.lastUpdated,
-        baseRevision: 8,
-      }),
+      expectedLastUpdated: base.lastUpdated,
     });
     expect(authorityPayload.record.discharges.map(item => item.id)).toEqual([
       'discharge-remote-a',

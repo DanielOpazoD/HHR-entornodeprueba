@@ -81,8 +81,22 @@ const mirrorTransactionalDailyRecordWrite = (record: DailyRecord): void => {
   dispatchDailyRecordStoreChanged({ operation: 'save', dates: [record.date] });
 };
 
-const releaseSpecialistHandoffProjection = async (task: SyncTask): Promise<void> =>
-  (await import('./dexieDailyRecordOutbox')).releaseSpecialistHandoffProjection(task);
+/** The view refreshes the day a released note no longer shapes. */
+const releaseSpecialistHandoffProjection = async (task: SyncTask): Promise<void> => {
+  const { releaseSpecialistHandoffProjection: release } = await import('./dexieDailyRecordOutbox');
+  if (await release(task))
+    dispatchDailyRecordStoreChanged({
+      operation: 'save',
+      dates: [(task.payload as { date: string }).date],
+    });
+};
+
+const releaseLegacySpecialistHandoffProjections = async (): Promise<void> => {
+  const { releaseLegacySpecialistHandoffProjections: release } =
+    await import('./dexieDailyRecordOutbox');
+  const dates = await release();
+  if (dates.length) dispatchDailyRecordStoreChanged({ operation: 'save', dates });
+};
 
 export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
   withEnqueueTransaction: operation =>
@@ -230,8 +244,17 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
     return discarded;
   },
   releaseSpecialistHandoffProjection,
+  releaseLegacySpecialistHandoffProjections,
   async update(taskId, patch) {
     await hospitalDB.syncQueue.update(taskId, patch);
+  },
+  async renewClaim(taskId, leaseUntil, claim) {
+    return hospitalDB.transaction('rw', hospitalDB.syncQueue, async () => {
+      const task = await hospitalDB.syncQueue.get(taskId);
+      if (!task || !matchesTaskClaim(task, claim)) return null;
+      await hospitalDB.syncQueue.update(taskId, { leaseUntil });
+      return { ...task, leaseUntil };
+    });
   },
   async updateClaimed(taskId, patch, claim) {
     return hospitalDB.transaction('rw', hospitalDB.syncQueue, async () => {

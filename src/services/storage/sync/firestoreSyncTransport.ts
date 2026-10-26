@@ -41,7 +41,6 @@ import {
   hasRemoteAppliedMutation,
 } from '@/services/storage/sync/firestoreSyncConflictPolicy';
 import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
-import { resolveRecordBaseRevision } from '@/services/storage/sync/syncTaskContractPolicy';
 import type { DetachedOccupantWork } from './dayTaskOccupantDetach';
 import {
   adoptStoredClinicalDerivedState,
@@ -116,11 +115,13 @@ interface ResolvedSyncRecordForTask {
   detached?: DetachedOccupantWork;
 }
 
-/** The day task's occupant and replay checks, loaded with the outbox for a task that names paths. */
-type ReplayChecks = Pick<
+/** The day task's occupant and replay checks, loaded with the outbox, and the day's queued notes. */
+interface ReplayChecks extends Pick<
   typeof import('./dexieDailyRecordOutbox'),
   'detachStaleOccupantPaths' | 'hasOtherOccupantInUntouchedBed' | 'keepStoredNoteFields'
->;
+> {
+  noteValues: ReadonlyMap<string, readonly unknown[]>;
+}
 
 const resolveRecordForSyncTask = async (
   queuedTask: SyncTask,
@@ -185,7 +186,7 @@ const resolveRecordForSyncTask = async (
   ) {
     assertSyncQueueConcurrency(record, remoteLastUpdated);
     return {
-      record: checks?.keepStoredNoteFields(task, record, remoteRecord) ?? record,
+      record: checks?.keepStoredNoteFields(task, record, remoteRecord, checks.noteValues) ?? record,
       resolution: 'accepted',
       acceptedVersion: record.lastUpdated,
       storedData: remoteData,
@@ -266,12 +267,11 @@ const syncDailyRecord = async (
   runtime: FirestoreServiceRuntimePort
 ): Promise<SyncTransportResult | void> => {
   if (await runE2ESyncTransport(task)) return;
-  // A task that names its paths replays with the occupant checks; a whole-record one writes it all.
-  const changedPaths = task.syncContract?.changedPaths ?? [];
-  const occupants =
-    changedPaths.length && !changedPaths.includes('*')
-      ? await import('./dexieDailyRecordOutbox')
-      : undefined;
+  const outbox = await import('./dexieDailyRecordOutbox');
+  const occupants: ReplayChecks = {
+    ...outbox,
+    noteValues: await outbox.listSpecialistNoteValues(record.date),
+  };
   let detached: DetachedOccupantWork | undefined;
   const result = await measureRepositoryOperation(
     'syncQueue.writeDailyRecord',
@@ -292,32 +292,14 @@ const syncDailyRecord = async (
 
       const effectiveAuthorityMode = await resolveEffectiveDailyRecordAuthorityMode(runtime);
       const writeFenceActive = await isServerClinicalWriteFenceActive(runtime);
-      // A merged task carries its changes onto the stored day it just read: that day is the version
-      // the write expects, so the authority refuses only a write landed after that read.
-      const mergedBase =
-        resolved.resolution === 'merged' && resolved.storedData
-          ? {
-              expectedVersion: getRemoteLastUpdated(resolved.storedData),
-              baseRevision: resolveRecordBaseRevision(
-                resolved.storedData as unknown as DailyRecord
-              ),
-            }
-          : undefined;
-      const authorityContract = {
-        ...(resolved.detached?.task.syncContract ?? task.syncContract),
-        ...mergedBase,
-      };
-      const expectedLastUpdated = mergedBase
-        ? mergedBase.expectedVersion
-        : task.syncContract?.expectedVersion;
       if (effectiveAuthorityMode === 'enforced' || writeFenceActive) {
         const response = await saveDailyRecordWithClinicalAuthorityCallable({
           date: recordToWrite.date,
           record: recordToWrite,
-          expectedLastUpdated,
+          expectedLastUpdated: task.syncContract?.expectedVersion,
           mode: effectiveAuthorityMode === 'enforced' ? 'enforced' : 'shadow',
           origin: task.origin,
-          syncContract: authorityContract,
+          syncContract: resolved.detached?.task.syncContract ?? task.syncContract,
         });
         const authoritativeRecord = response.recordState?.record;
         if (
@@ -343,10 +325,10 @@ const syncDailyRecord = async (
           await saveDailyRecordWithClinicalAuthorityCallable({
             date: recordToWrite.date,
             record: recordToWrite,
-            expectedLastUpdated,
+            expectedLastUpdated: task.syncContract?.expectedVersion,
             mode: 'shadow',
             origin: task.origin,
-            syncContract: authorityContract,
+            syncContract: resolved.detached?.task.syncContract ?? task.syncContract,
             dryRun: true,
           });
         } catch {
@@ -398,7 +380,7 @@ const syncDailyRecord = async (
   if (!detached) return result;
   // The conflicts are durable: the store writes them with this task's completion. The drafts
   // only offer the note text in the handoff view.
-  if (detached.notes) await occupants?.publishDetachedNotes(detached.notes);
+  if (detached.notes) await outbox.publishDetachedNotes(detached.notes);
   return { ...result, detachedConflicts: detached.conflicts };
 };
 
