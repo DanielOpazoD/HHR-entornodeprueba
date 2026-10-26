@@ -1,5 +1,5 @@
 import React from 'react';
-import { UserMinus, UserPlus } from 'lucide-react';
+import { UserRound, UserRoundCheck } from 'lucide-react';
 
 interface HandoffStaffSelectorProps {
   label: string;
@@ -40,21 +40,23 @@ export const HandoffStaffSelector: React.FC<HandoffStaffSelectorProps> = ({
     onUpdate(newList);
   };
 
-  const Icon = type === 'delivers' ? UserMinus : UserPlus;
-  const iconColor = type === 'delivers' ? 'text-red-500' : 'text-green-500';
+  const Icon = type === 'delivers' ? UserRound : UserRoundCheck;
+  const iconColor = type === 'delivers' ? 'text-slate-500' : 'text-teal-600';
 
   if (compact) {
     // Compact horizontal layout - single row
     return (
-      <div className={`flex items-center gap-2 ${bgClass}`}>
-        <div className={`flex items-center gap-1 ${iconColor}`}>
-          <Icon size={12} />
-          <span className="text-[10px] font-bold uppercase text-slate-500 whitespace-nowrap">
+      <div
+        className={`grid min-w-0 grid-cols-[4.5rem_minmax(0,1fr)_minmax(0,1fr)] items-center gap-2 ${bgClass}`}
+      >
+        <div className={`flex items-center gap-1.5 ${iconColor}`}>
+          <Icon size={14} className="shrink-0" aria-hidden="true" />
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">
             {label}
           </span>
         </div>
         <select
-          className="flex-1 text-xs py-0.5 px-1 border border-slate-300 rounded focus:ring-1 focus:ring-indigo-500 focus:outline-none bg-white min-w-[100px]"
+          className="h-8 w-full min-w-0 text-xs px-1.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 focus:outline-none bg-white disabled:bg-slate-50 disabled:text-slate-500"
           aria-label={`${label}: enfermería 1`}
           value={nurse1}
           onChange={e => handleChange(0, e.target.value)}
@@ -68,7 +70,7 @@ export const HandoffStaffSelector: React.FC<HandoffStaffSelectorProps> = ({
           ))}
         </select>
         <select
-          className="flex-1 text-xs py-0.5 px-1 border border-slate-300 rounded focus:ring-1 focus:ring-indigo-500 focus:outline-none bg-white min-w-[100px]"
+          className="h-8 w-full min-w-0 text-xs px-1.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 focus:outline-none bg-white disabled:bg-slate-50 disabled:text-slate-500"
           aria-label={`${label}: enfermería 2`}
           value={nurse2}
           onChange={e => handleChange(1, e.target.value)}
@@ -89,12 +91,12 @@ export const HandoffStaffSelector: React.FC<HandoffStaffSelectorProps> = ({
   return (
     <div className={`p-3 rounded-lg border border-slate-200 ${bgClass}`}>
       <h4 className="text-xs font-bold uppercase text-slate-500 mb-2 flex items-center gap-2">
-        <Icon size={14} />
+        <Icon size={14} aria-hidden="true" />
         {label}
       </h4>
       <div className="flex flex-col gap-2">
         <select
-          className="w-full text-xs p-1 border border-slate-300 rounded focus:ring-1 focus:ring-indigo-500 focus:outline-none bg-white"
+          className="h-8 w-full min-w-0 text-xs px-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 focus:outline-none bg-white disabled:bg-slate-50 disabled:text-slate-500"
           aria-label={`${label}: enfermería 1`}
           value={nurse1}
           onChange={e => handleChange(0, e.target.value)}
@@ -108,7 +110,7 @@ export const HandoffStaffSelector: React.FC<HandoffStaffSelectorProps> = ({
           ))}
         </select>
         <select
-          className="w-full text-xs p-1 border border-slate-300 rounded focus:ring-1 focus:ring-indigo-500 focus:outline-none bg-white"
+          className="h-8 w-full min-w-0 text-xs px-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 focus:outline-none bg-white disabled:bg-slate-50 disabled:text-slate-500"
           aria-label={`${label}: enfermería 2`}
           value={nurse2}
           onChange={e => handleChange(1, e.target.value)}

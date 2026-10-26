@@ -37,13 +37,17 @@ export const MovementsSummary: React.FC<MovementsSummaryProps> = ({
   return (
     <div className="min-w-0 w-full space-y-4 print:space-y-2 print:text-[11px] print:leading-tight">
       {/* Discharges - Filtered by shift */}
-      <div className="min-w-0 max-w-full bg-white rounded-xl shadow-sm border border-slate-200 p-4 print:p-0 print:shadow-none print:border-none print:bg-transparent">
-        <h3 className="font-bold text-lg text-slate-700 mb-2 flex items-center gap-2 print:text-sm print:mb-1 print:text-black">
-          <UserMinus size={20} className="text-red-500 print:w-4 print:h-4" />
+      <div className="min-w-0 max-w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 p-4 print:rounded-xl print:p-0 print:shadow-none print:border-none print:bg-transparent">
+        <h3 className="font-semibold text-sm text-slate-700 mb-3 flex items-center gap-2 print:font-bold print:text-sm print:mb-1 print:text-black">
+          <UserMinus
+            size={16}
+            className="shrink-0 text-teal-600 print:w-4 print:h-4 print:text-red-500"
+            aria-hidden="true"
+          />
           Altas
         </h3>
         {discharges.items.length === 0 ? (
-          <p className="text-slate-400 italic text-sm print:text-[10px]">
+          <p className="rounded-lg bg-slate-50 px-3 py-2 text-slate-500 text-sm leading-5 print:rounded-none print:bg-transparent print:p-0 print:text-slate-400 print:italic print:text-[10px]">
             {discharges.emptyMessage}
           </p>
         ) : (
@@ -104,13 +108,17 @@ export const MovementsSummary: React.FC<MovementsSummaryProps> = ({
       </div>
 
       {/* Transfers - Filtered by shift */}
-      <div className="min-w-0 max-w-full bg-white rounded-xl shadow-sm border border-slate-200 p-4 print:p-0 print:shadow-none print:border-none print:bg-transparent">
-        <h3 className="font-bold text-lg text-slate-700 mb-2 flex items-center gap-2 print:text-sm print:mb-1 print:text-black">
-          <ArrowRightLeft size={20} className="text-blue-500 print:w-4 print:h-4" />
+      <div className="min-w-0 max-w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 p-4 print:rounded-xl print:p-0 print:shadow-none print:border-none print:bg-transparent">
+        <h3 className="font-semibold text-sm text-slate-700 mb-3 flex items-center gap-2 print:font-bold print:text-sm print:mb-1 print:text-black">
+          <ArrowRightLeft
+            size={16}
+            className="shrink-0 text-teal-600 print:w-4 print:h-4 print:text-blue-500"
+            aria-hidden="true"
+          />
           Traslados
         </h3>
         {transfers.items.length === 0 ? (
-          <p className="text-slate-400 italic text-sm print:text-[10px]">
+          <p className="rounded-lg bg-slate-50 px-3 py-2 text-slate-500 text-sm leading-5 print:rounded-none print:bg-transparent print:p-0 print:text-slate-400 print:italic print:text-[10px]">
             {transfers.emptyMessage}
           </p>
         ) : (
@@ -177,13 +185,19 @@ export const MovementsSummary: React.FC<MovementsSummaryProps> = ({
       </div>
 
       {/* CMA - Day shift only */}
-      <div className="min-w-0 max-w-full bg-white rounded-xl shadow-sm border border-slate-200 p-4 print:p-0 print:shadow-none print:border-none print:bg-transparent">
-        <h3 className="font-bold text-lg text-slate-700 mb-2 flex items-center gap-2 print:text-sm print:mb-1 print:text-black">
-          <Sun size={20} className="text-orange-500 print:w-4 print:h-4" />
+      <div className="min-w-0 max-w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 p-4 print:rounded-xl print:p-0 print:shadow-none print:border-none print:bg-transparent">
+        <h3 className="font-semibold text-sm text-slate-700 mb-3 flex items-center gap-2 print:font-bold print:text-sm print:mb-1 print:text-black">
+          <Sun
+            size={16}
+            className="shrink-0 text-teal-600 print:w-4 print:h-4 print:text-orange-500"
+            aria-hidden="true"
+          />
           Hospitalización Diurna / CMA
         </h3>
         {cma.items.length === 0 ? (
-          <p className="text-slate-400 italic text-sm print:text-[10px]">{cma.emptyMessage}</p>
+          <p className="rounded-lg bg-slate-50 px-3 py-2 text-slate-500 text-sm leading-5 print:rounded-none print:bg-transparent print:p-0 print:text-slate-400 print:italic print:text-[10px]">
+            {cma.emptyMessage}
+          </p>
         ) : (
           <div
             className="max-w-full overflow-x-auto print:overflow-visible"
