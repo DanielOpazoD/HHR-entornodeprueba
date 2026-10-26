@@ -7,7 +7,6 @@ import { updatePartialDetailed } from '@/services/repositories/dailyRecordReposi
 import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 import { queueDailyRecordSyncTaskWithLocalRecord } from '@/services/storage/sync';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { RayenSyncEvent } from '@/types/domain/rayenSync';
 
 vi.mock('@/services/repositories/repositoryConfig', async original => ({
@@ -129,15 +128,15 @@ describe('Rayen history rebase against the writer base', () => {
 
 describe('Rayen terminal hooks with another stale run in their history', () => {
   const renderAudit = (base: DailyRecord) => {
-    let writerBase = base;
     const loadDailyRecord = vi.fn(async () => {
       const fresh = await hospitalDB.dailyRecords.get(date);
       if (!fresh) throw new Error('Missing synthetic record');
-      writerBase = fresh;
       return fresh;
     });
-    const patchDailyRecord = (patch: DailyRecordPatch) =>
-      updatePartialDetailed(date, patch, { baseRecord: writerBase });
+    const patchDailyRecord: Parameters<typeof useRayenSyncAudit>[0]['patchDailyRecord'] = ({
+      partial,
+      options,
+    }) => updatePartialDetailed(date, partial, options);
     const hook = renderHook(() =>
       useRayenSyncAudit({
         currentRecordRef: { current: base },

@@ -154,6 +154,13 @@ omitidos y reintentos clínicos. Esa evidencia de coordinación no persiste fech
 episodios, nombres ni valores clínicos; el detalle de cada incidencia se guarda aparte (ver
 «Trazabilidad para resolver incidencias»).
 
+Cada parche de auditoría conserva la base usada para construir su historial, incluso si la
+caché avanza mientras espera su turno de escritura. El outbox compara cada corrida contra
+esa base: conserva las entradas que el escritor no cambió y rechaza cambios incompatibles.
+Tras un conflicto, el hook reconstruye el parche y su base con la nueva lectura; el reintento
+no depende de que esa lectura también actualice la caché de React Query. Una lectura fallida
+conserva la tarea pendiente y no confirma la finalización (SAVE-01 a SAVE-03).
+
 ## Seguridad clínica
 
 - **Dos fuentes obligatorias:** una sincronización estructural solo comienza cuando Ficha Médico y

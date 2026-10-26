@@ -113,7 +113,7 @@ describe('useRayenSyncAudit terminal outcomes', () => {
         ],
       });
     });
-    const firstPatch = patchDailyRecord.mock.calls[0]?.[0] as Partial<DailyRecord>;
+    const firstPatch = patchDailyRecord.mock.calls[0]?.[0].partial as Partial<DailyRecord>;
     const partiallyCompleted = { ...applied, ...firstPatch } as DailyRecord;
     currentRecordRef.current = partiallyCompleted;
 
@@ -128,7 +128,7 @@ describe('useRayenSyncAudit terminal outcomes', () => {
     });
 
     expect(patchDailyRecord).toHaveBeenCalledTimes(2);
-    expect(patchDailyRecord.mock.calls[1]?.[0]).toEqual(
+    expect(patchDailyRecord.mock.calls[1]?.[0].partial).toEqual(
       expect.objectContaining({
         rayenSyncHistory: [
           expect.objectContaining({
@@ -166,7 +166,7 @@ describe('useRayenSyncAudit terminal outcomes', () => {
     pendingWrite.resolve(undefined);
     await act(async () => completion);
 
-    const persisted = patchDailyRecord.mock.calls[0][0].rayenSyncHistory as Array<{
+    const persisted = patchDailyRecord.mock.calls[0][0].partial.rayenSyncHistory as Array<{
       status: string;
     }>;
     expect(persisted[0]?.status).toBe('complete');
@@ -230,7 +230,7 @@ describe('useRayenSyncAudit terminal outcomes', () => {
     ).resolves.toBeUndefined();
 
     expect(patchDailyRecord).toHaveBeenCalledTimes(2);
-    expect(patchDailyRecord.mock.calls[1]?.[0]).toEqual(
+    expect(patchDailyRecord.mock.calls[1]?.[0].partial).toEqual(
       expect.objectContaining({
         rayenSync: expect.objectContaining({
           runId: 'completion-write-failed',
@@ -288,7 +288,7 @@ describe('useRayenSyncAudit terminal outcomes', () => {
     ).resolves.toBeUndefined();
 
     expect(patchDailyRecord).toHaveBeenCalledTimes(3);
-    expect(patchDailyRecord.mock.calls[2]?.[0]).toEqual(
+    expect(patchDailyRecord.mock.calls[2]?.[0].partial).toEqual(
       expect.objectContaining({
         rayenSyncHistory: [expect.objectContaining({ id: 'retryable-run', status: 'complete' })],
       })
@@ -343,7 +343,7 @@ describe('useRayenSyncAudit terminal outcomes', () => {
     });
 
     expect(patchDailyRecord).toHaveBeenCalledTimes(1);
-    expect(patchDailyRecord).toHaveBeenCalledWith(
+    expect(patchDailyRecord.mock.calls[0]?.[0]?.partial).toEqual(
       expect.objectContaining({
         rayenSyncHistory: [
           expect.objectContaining({ id: 'missing-event-run', status: 'complete' }),
@@ -381,7 +381,7 @@ describe('useRayenSyncAudit terminal outcomes', () => {
     await act(async () => result.current.failRun('snapshot_error', 'older-run'));
 
     expect(result.current.ensureRun().id).toBe('newer-run');
-    expect(patchDailyRecord).toHaveBeenCalledWith({
+    expect(patchDailyRecord.mock.calls[0]?.[0]?.partial).toEqual({
       rayenSyncHistory: [expect.objectContaining({ id: 'older-run', status: 'failed' })],
     });
   });

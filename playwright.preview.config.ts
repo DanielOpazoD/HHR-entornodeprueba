@@ -4,10 +4,13 @@ import { TEST_DEVICE_TIME_ZONE, pinTestTimeZone } from './scripts/config/testTim
 
 pinTestTimeZone();
 
+const previewPort = Number.parseInt(process.env.PLAYWRIGHT_WEB_SERVER_PORT || '4173', 10);
+const previewOrigin = `http://127.0.0.1:${previewPort}`;
+const previewServer = `npm run preview -- --host 127.0.0.1 --port ${previewPort} --strictPort`;
 const previewCommand =
   process.env.PLAYWRIGHT_SKIP_PREVIEW_BUILD === '1'
-    ? 'npm run preview -- --host 127.0.0.1 --port 4173'
-    : 'npm run build && npm run preview -- --host 127.0.0.1 --port 4173';
+    ? previewServer
+    : `npm run build && ${previewServer}`;
 const previewArtifactsDir =
   process.env.PLAYWRIGHT_PREVIEW_ARTIFACTS_DIR || 'reports/e2e/preview-bootstrap';
 
@@ -50,7 +53,7 @@ export default defineConfig({
   use: {
     timezoneId: TEST_DEVICE_TIME_ZONE,
     launchOptions: { args: ['--enable-unsafe-swiftshader'] },
-    baseURL: 'http://127.0.0.1:4173',
+    baseURL: previewOrigin,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
@@ -62,7 +65,7 @@ export default defineConfig({
   ],
   webServer: {
     command: previewCommand,
-    url: 'http://127.0.0.1:4173',
+    url: previewOrigin,
     reuseExistingServer: false,
     timeout: 180000,
   },
