@@ -7,6 +7,7 @@ import type { PatientData } from '@/features/clinical-documents/contracts/clinic
 import { ClinicalDocumentFormattingToolbar } from '@/features/clinical-documents/components/ClinicalDocumentFormattingToolbar';
 import { ClinicalDocumentStatusBar } from '@/features/clinical-documents/components/ClinicalDocumentStatusBar';
 import { ClinicalDocumentsSidebar } from '@/features/clinical-documents/components/ClinicalDocumentsSidebar';
+import { ClinicalDocumentPharmacyForms } from '@/features/clinical-documents/components/ClinicalDocumentPharmacyForms';
 import { ClinicalDocumentSheet } from '@/features/clinical-documents/components/ClinicalDocumentSheet';
 import { ClinicalDocumentLabInsertDialog } from '@/features/clinical-documents/components/ClinicalDocumentLabInsertDialog';
 import { ClinicalDocumentMMRADCopyDialog } from '@/features/clinical-documents/components/ClinicalDocumentMMRADCopyDialog';
@@ -208,6 +209,7 @@ export const ClinicalDocumentsWorkspace: React.FC<ClinicalDocumentsWorkspaceProp
                 : undefined
             }
           />
+          <ClinicalDocumentPharmacyForms />
         </div>
       )}
 

@@ -1,6 +1,9 @@
 # Actas de farmacia
 
-En **Documentos → Formularios**, las actas de devolución y entrega de eliminados admiten
+En **Documentos Clínicos → Actas de farmacia**, el panel lateral permite abrir las actas
+de devolución y entrega de eliminados. El acceso **Documentos → Formularios** del censo
+conserva las mismas actas como atajo; ambos accesos usan el mismo editor y generador PDF.
+Las actas admiten
 descarga en blanco y **Completar**. El editor propone al responsable, permite buscar la
 presentación del fármaco o ingresar un insumo manualmente, y genera un PDF con logo HHR,
 tablas paginadas y firmas manuscritas en blanco. Ambas actas se generan en vertical y permiten
