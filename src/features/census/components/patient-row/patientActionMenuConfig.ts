@@ -42,7 +42,7 @@ export const UTILITY_ACTIONS: readonly UtilityActionConfig[] = [
     label: 'Copiar',
     title: 'Copiar a otro día',
     icon: Copy,
-    iconClassName: 'hover:text-blue-600',
+    iconClassName: 'hover:text-teal-700',
     visibleWhenBlocked: false,
   },
   {
@@ -50,7 +50,7 @@ export const UTILITY_ACTIONS: readonly UtilityActionConfig[] = [
     label: 'Mover',
     title: 'Mover de cama',
     icon: ArrowRightLeft,
-    iconClassName: 'hover:text-amber-600',
+    iconClassName: 'hover:text-teal-700',
     visibleWhenBlocked: false,
   },
 ] as const;
@@ -60,19 +60,19 @@ export const CLINICAL_ACTIONS: readonly ClinicalActionConfig[] = [
     action: 'discharge',
     label: 'Dar de Alta',
     icon: LogOut,
-    iconClassName: 'text-green-600',
+    iconClassName: 'text-teal-600',
   },
   {
     action: 'transfer',
     label: 'Trasladar',
     icon: Ambulance,
-    iconClassName: 'text-blue-600',
+    iconClassName: 'text-teal-600',
   },
   {
     action: 'cma',
     label: 'Egreso CMA',
     icon: Scissors,
-    iconClassName: 'text-orange-600',
+    iconClassName: 'text-teal-600',
   },
 ] as const;
 

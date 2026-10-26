@@ -13,7 +13,11 @@ export const EmailDropdown: React.FC<EmailDropdownProps> = ({
   emailErrorMessage,
   emailBlockedReason,
 }) => {
-  const { isOpen, menuRef, toggle, close } = useDropdownMenu();
+  const { isOpen, menuRef, toggle, close } = useDropdownMenu({
+    closeOnOutsideClick: false,
+    closeOnEscape: false,
+  });
+  const panelId = React.useId();
 
   if (!onSendEmail) {
     return null;
@@ -27,11 +31,18 @@ export const EmailDropdown: React.FC<EmailDropdownProps> = ({
           emailStatus={emailStatus}
           emailErrorMessage={emailErrorMessage}
           isOpen={isOpen}
+          controlsId={panelId}
         />
       </div>
 
       {isOpen && (
-        <DateStripDropdownPanel title="Opciones de Envío" widthClassName="w-56">
+        <DateStripDropdownPanel
+          id={panelId}
+          anchorRef={menuRef}
+          onClose={close}
+          title="Opciones de envío"
+          widthClassName="w-60"
+        >
           <DateStripActionItem
             disabled={Boolean(emailBlockedReason)}
             onClick={() => {
@@ -43,7 +54,6 @@ export const EmailDropdown: React.FC<EmailDropdownProps> = ({
             subtitle="Adjunto clásico con contraseña"
             colorClassName="bg-blue-50 text-blue-600"
             iconHoverColorClassName="group-hover:bg-blue-100"
-            className="px-3 py-2"
           />
           {emailBlockedReason && (
             <p role="status" className="mx-3 mb-2 rounded bg-amber-50 p-2 text-xs text-amber-900">
@@ -62,7 +72,6 @@ export const EmailDropdown: React.FC<EmailDropdownProps> = ({
               subtitle="Destinatarios y mensaje"
               colorClassName="bg-slate-100 text-slate-600"
               iconHoverColorClassName="group-hover:bg-slate-200"
-              className="px-3 py-2"
             />
           )}
         </DateStripDropdownPanel>

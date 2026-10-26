@@ -26,33 +26,20 @@ interface RayenSyncHistoryModalProps {
   targetDate?: string | null;
 }
 
+const statusStyles = {
+  success: { Icon: CheckCircle2, className: 'text-emerald-700' },
+  warning: { Icon: AlertTriangle, className: 'text-amber-700' },
+  danger: { Icon: CircleX, className: 'text-red-700' },
+  info: { Icon: Clock3, className: 'text-slate-500' },
+};
+
 const statusPresentation = (event: RayenSyncEvent) => {
   const outcome = presentRayenSyncOutcome(event);
-  if (outcome.tone === 'success') {
-    return {
-      label: outcome.label,
-      icon: <CheckCircle2 size={15} aria-hidden="true" />,
-      className: 'text-emerald-700',
-    };
-  }
-  if (outcome.tone === 'warning') {
-    return {
-      label: outcome.label,
-      icon: <AlertTriangle size={15} aria-hidden="true" />,
-      className: 'text-amber-700',
-    };
-  }
-  if (outcome.tone === 'danger') {
-    return {
-      label: outcome.label,
-      icon: <CircleX size={15} aria-hidden="true" />,
-      className: 'text-red-700',
-    };
-  }
+  const { Icon, className } = statusStyles[outcome.tone];
   return {
     label: outcome.label,
-    icon: <Clock3 size={15} aria-hidden="true" />,
-    className: 'text-slate-500',
+    icon: <Icon size={15} aria-hidden="true" />,
+    className,
   };
 };
 
