@@ -268,9 +268,14 @@ const syncDailyRecord = async (
 ): Promise<SyncTransportResult | void> => {
   if (await runE2ESyncTransport(task)) return;
   const outbox = await import('./dexieDailyRecordOutbox');
+  // Only a whole-record write needs to know what the day's queued notes want written.
+  const changedPaths = task.syncContract?.changedPaths ?? [];
   const occupants: ReplayChecks = {
     ...outbox,
-    noteValues: await outbox.listSpecialistNoteValues(record.date),
+    noteValues:
+      !changedPaths.length || changedPaths.includes('*')
+        ? await outbox.listSpecialistNoteValues(record.date)
+        : new Map(),
   };
   let detached: DetachedOccupantWork | undefined;
   const result = await measureRepositoryOperation(
