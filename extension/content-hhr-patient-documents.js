@@ -3,12 +3,7 @@
   'use strict';
   const runtimeMessages = globalThis.HhrRayenMessageContract &&
     globalThis.HhrRayenMessageContract.types;
-  const trustedOrigins = new Set([
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'https://testinghhr.netlify.app', 'https://hhr-entorno-prueba.netlify.app',
-  ]);
-  if (!runtimeMessages || !trustedOrigins.has(window.location.origin)) return;
+  if (!runtimeMessages || !globalThis.HhrAppOrigins?.has(window.location.origin)) return;
 
   window.addEventListener('message', event => {
     if (!chrome.runtime?.id || event.source !== window || event.origin !== window.location.origin) return;

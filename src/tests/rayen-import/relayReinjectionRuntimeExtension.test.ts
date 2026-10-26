@@ -7,6 +7,32 @@ const fileInjections = (mock: ReturnType<typeof createFixture>['executeScript'])
   mock.mock.calls.filter(([injection]) => Boolean(injection.files));
 
 describe('relay reinjection runtime (extension)', () => {
+  it('repairs only HHR project previews from wildcard Netlify candidates', async () => {
+    const { runtime, chromeApi, executeScript } = createFixture();
+    const manifest = structuredClone(MANIFEST);
+    manifest.content_scripts[4].matches = ['https://*.netlify.app/*'];
+    chromeApi.runtime.getManifest = () => manifest;
+    const tabs = [
+      { id: 8, url: 'https://deploy-preview-992--testinghhr.netlify.app/census' },
+      { id: 99, url: 'https://unrelated.netlify.app/census' },
+    ];
+    chromeApi.tabs.query.mockImplementation(async () => tabs);
+    chromeApi.tabs.get.mockImplementation(async id => tabs.find(tab => tab.id === id)!);
+    await expect(runtime.reinjectRelay('content-hhr.js')).resolves.toEqual({
+      injectedTabs: 1,
+      failedTabs: 0,
+      complete: true,
+    });
+    expect(fileInjections(executeScript)).toHaveLength(1);
+    expect(fileInjections(executeScript)[0][0].target.tabId).toBe(8);
+    await expect(
+      runtime.reinjectTab({ tabId: 99, requiredFile: 'content-hhr.js' })
+    ).resolves.toEqual({
+      injected: false,
+      reason: 'tab_url_mismatch',
+    });
+  });
+
   it('re-inyecta solo los relés ISOLATED del manifest y avisa al terminar', async () => {
     const { runtime, chromeApi, executeScript, onReinjected } = createFixture();
 

@@ -1,11 +1,10 @@
 // @vitest-environment node
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
+import { readHhrBridgeSource } from './support/hhrOriginPolicyFixture';
 import vm from 'node:vm';
 
 import { describe, expect, it, vi } from 'vitest';
 
-const source = readFileSync(path.resolve('extension/content-hhr-patient-documents.js'), 'utf8');
+const source = readHhrBridgeSource('content-hhr-patient-documents.js');
 
 describe('HHR patient documents content bridge', () => {
   it('does not install on an untrusted origin', () => {

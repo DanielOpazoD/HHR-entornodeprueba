@@ -2,12 +2,7 @@
 (() => {
   'use strict';
 
-  const trustedOrigins = new Set([
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'https://testinghhr.netlify.app', 'https://hhr-entorno-prueba.netlify.app',
-  ]);
-  if (!trustedOrigins.has(window.location.origin)) return;
+  if (!globalThis.HhrAppOrigins?.has(window.location.origin)) return;
 
   const runtimeMessages = globalThis.HhrRayenMessageContract && globalThis.HhrRayenMessageContract.types;
   if (!runtimeMessages) return;

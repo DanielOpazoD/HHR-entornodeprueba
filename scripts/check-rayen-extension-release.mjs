@@ -279,8 +279,11 @@ const allowedHosts = new Set([
   'https://hospitalizado.rayensalud.cl/*',
   'https://hospbackend.rayensalud.cl/*',
   'http://10.4.69.90/syslab/*',
-  'http://localhost:3000/*',
-  'http://localhost:3001/*',
+  ...['localhost', '127.0.0.1'].flatMap(host =>
+    Array.from({ length: 21 }, (_, index) => `http://${host}:${3000 + index}/*`)
+  ),
+  'https://hhr-hospitalizados.app/*',
+  'https://*.netlify.app/*',
   'https://testinghhr.netlify.app/*',
   'https://hhr-entorno-prueba.netlify.app/*',
 ]);

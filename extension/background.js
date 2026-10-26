@@ -3,7 +3,7 @@
 
 // MV3 requires initial imports. Excel/PDF stay here until their separate offscreen migrations.
 importScripts(
-  'message-contract.js', 'eloisa-patient-code-contract.js', 'fichamedico-manual-patient-code-runtime.js',
+  'message-contract.js', 'hhr-origin-policy.js', 'eloisa-patient-code-contract.js', 'fichamedico-manual-patient-code-runtime.js',
   'encounter-navigation.js',
   'hhr-request-forms.js',
   'health-check.js', 'clinical-day-runtime.js', 'clinical-history-coverage.js', 'census-sync-horizon-runtime.js', 'capture-read-recovery.js', 'rayen-sync-bundle-runtime.js', 'sync-bundle-cancellation-runtime.js',
@@ -262,7 +262,7 @@ const {
   disconnect: handleDisconnectGestionCamas,
 } = gestionCamasRuntime;
 const handleGestionCamasHealth = self.HhrConnectionRelayRecovery.repairHealth(readGestionCamasHealth, () => relayReinjectionRuntime?.reinjectRelay('content-gestioncamas.js'));
-// Los hosts HHR viven solo en el manifest, sin duplicar la lista aquí.
+// Chrome discovers candidates from the manifest; the shared policy restricts preview sites.
 const HHR_TAB_MATCH_PATTERNS = (chrome.runtime.getManifest().content_scripts || [])
   .filter(entry => (entry.js || []).includes('content-hhr.js'))
   .flatMap(entry => entry.matches || []);
@@ -270,7 +270,7 @@ const handleHhrHealth = self.HhrExtensionHealth.createHhrProbe({
   chromeApi: chrome,
   withTimeout,
   timeoutMs: HEALTH_PROBE_TIMEOUT_MS,
-  matches: HHR_TAB_MATCH_PATTERNS,
+  matches: HHR_TAB_MATCH_PATTERNS, isTargetTab: tab => self.HhrAppOrigins.matchesUrl(tab.url),
 });
 const healthRelaySelfRepair = self.HhrHealthRelaySelfRepair.create({
   repairRelay: requiredFile => relayReinjectionRuntime?.repairMissingRelay(requiredFile),
@@ -309,7 +309,7 @@ const connectionRepairRuntime = self.HhrConnectionRepairRuntime.create({
   // Repair must probe the tabs it just opened; the 3 s cache would keep answering for the old ones.
   readHealth: targets => readExtensionHealthUncached(targets),
 });
-const healthHeartbeat = self.HhrHealthHeartbeatRuntime.create({ chromeApi: chrome, readHealth: () => healthReportCache.read({ force: true }), invalidateHealth: healthReportCache.invalidate });
+const healthHeartbeat = self.HhrHealthHeartbeatRuntime.create({ chromeApi: chrome, readHealth: () => healthReportCache.read({ force: true }), invalidateHealth: healthReportCache.invalidate, isTargetTab: tab => self.HhrAppOrigins.matchesRelayUrl(tab.url) });
 healthHeartbeat.start();
 self.HhrHealthTabEventsRuntime.create({ chromeApi: chrome, pushHealth: healthHeartbeat.pushNow }).start();
 relayReinjectionRuntime = self.HhrRelayReinjectionRuntime.create({

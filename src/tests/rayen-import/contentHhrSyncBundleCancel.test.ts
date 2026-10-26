@@ -1,6 +1,5 @@
 // @vitest-environment node
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
+import { readHhrBridgeSource } from './support/hhrOriginPolicyFixture';
 import vm from 'node:vm';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -12,7 +11,7 @@ import { describe, expect, it, vi } from 'vitest';
  * la reenvía al service worker y silencia cualquier respuesta marcada como cancelada.
  */
 
-const relaySource = readFileSync(path.resolve('extension/content-hhr-sync-bundle.js'), 'utf8');
+const relaySource = readHhrBridgeSource('content-hhr-sync-bundle.js');
 const ORIGIN = 'http://localhost:3001';
 
 type PageMessage = { source: unknown; origin: string; data: Record<string, unknown> };
