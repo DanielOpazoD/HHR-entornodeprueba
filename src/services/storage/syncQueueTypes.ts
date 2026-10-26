@@ -53,6 +53,13 @@ export interface SyncTask {
   origin?: SyncTaskOrigin;
   recoveryPolicy?: string;
   syncContract?: SyncTaskContract;
+  /** A note's base and its projected or already-held day values, settled on refusal or ACK. */
+  handoffProjection?: {
+    replaced: Record<string, unknown>;
+    projected: Record<string, unknown>;
+    /** Refusal restored the base; keep both values for a later explicit retry and ACK. */
+    released?: true;
+  };
 }
 
 export type DailyRecordQueuedWriteState = 'none' | 'active' | 'failed' | 'conflict';

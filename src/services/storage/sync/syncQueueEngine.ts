@@ -255,6 +255,16 @@ export const createSyncQueueEngine = ({
     isProcessing = true;
 
     try {
+      // Never dispatch from a day whose note projections could not be repaired.
+      try {
+        await store.reconcileSpecialistHandoffProjections?.();
+      } catch (releaseError) {
+        logError(
+          'Repairing specialist note projections failed; queue replay deferred',
+          releaseError instanceof Error ? releaseError : undefined
+        );
+        return;
+      }
       await measureRepositoryOperation(
         'syncQueue.process',
         async () => {
@@ -282,12 +292,19 @@ export const createSyncQueueEngine = ({
                 if (!dispatchClaim) continue;
                 const leaseUntil = Date.now() + SYNC_QUEUE_LEASE_MS;
                 // A slow preceding task can outlive the batch lease. Fence and renew
-                // atomically before dispatch, so another worker's task is never replayed.
-                if (!(await store.updateClaimed(task.id, { leaseUntil }, dispatchClaim))) {
+                // atomically before dispatch, so another worker's task is never replayed. The
+                // task replays as stored now: an earlier task of this batch may have changed it
+                // (a refused note gives its values back to the day writes folded over it).
+                const stored = store.renewClaim
+                  ? await store.renewClaim(task.id, leaseUntil, dispatchClaim)
+                  : (await store.updateClaimed(task.id, { leaseUntil }, dispatchClaim))
+                    ? task
+                    : null;
+                if (!stored) {
                   recordSyncQueueStaleClaimTelemetry(task, 'update');
                   continue;
                 }
-                task.leaseUntil = leaseUntil;
+                Object.assign(task, stored, { leaseUntil });
                 const result: Partial<SyncTransportResult> = (await transport.run(task)) || {};
                 const claim = buildTaskClaim(task);
                 if (claim) {
