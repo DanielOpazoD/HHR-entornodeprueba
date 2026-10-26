@@ -13,6 +13,7 @@ import {
   cribNote,
   dayTasks,
   expectBInR4,
+  expectDayEditsPublishedOrKept,
   expectRefusedNoteKept,
   local,
   note,
@@ -59,8 +60,7 @@ describe.each(MODES)(
       await replay();
 
       expectBInR4();
-      expect(remote().beds.R6.pathology).toBe('Dx E corregido');
-      expect(await dayTasks()).toEqual([]);
+      await expectDayEditsPublishedOrKept(enforced, { 'beds.R6.pathology': 'Dx E corregido' });
       await expectRefusedNoteKept();
     });
 
@@ -75,8 +75,7 @@ describe.each(MODES)(
 
       expectBInR4();
       expect(remote().beds.H1C1.medicalHandoffNote).toBe('Nota de C');
-      expect(remote().beds.R6.pathology).toBe('Dx E corregido');
-      expect(await dayTasks()).toEqual([]);
+      await expectDayEditsPublishedOrKept(enforced, { 'beds.R6.pathology': 'Dx E corregido' });
       await expectRefusedNoteKept();
     });
 
@@ -93,11 +92,11 @@ describe.each(MODES)(
 
       expectBInR4();
       expect(remote().beds.R4.pathology).not.toBe('Dx A corregido');
-      expect(remote().beds.R6.pathology).toBe('Dx E corregido');
-      const held = (await queue()).filter(
-        task => task.type === 'UPDATE_DAILY_RECORD' && task.status === 'CONFLICT'
-      );
-      expect(held.map(task => (task.payload as DailyRecord).beds.R4.pathology)).toEqual([
+      // client_only holds the departed patient's edit as its own conflict and publishes the rest;
+      // enforced keeps the whole day write queued.
+      await expectDayEditsPublishedOrKept(enforced, { 'beds.R6.pathology': 'Dx E corregido' });
+      const kept = (await queue()).filter(task => task.type === 'UPDATE_DAILY_RECORD');
+      expect(kept.map(task => (task.payload as DailyRecord).beds.R4.pathology)).toEqual([
         'Dx A corregido',
       ]);
       await expectRefusedNoteKept();
@@ -116,9 +115,10 @@ describe.each(MODES)(
       await replay();
 
       expectBInR4();
-      expect(remote().beds.R6.pathology).toBe('Dx E v2');
-      expect(remote().beds.R7.pathology).toBe('Dx F corregido');
-      expect(await dayTasks()).toEqual([]);
+      await expectDayEditsPublishedOrKept(enforced, {
+        'beds.R6.pathology': 'Dx E v2',
+        'beds.R7.pathology': 'Dx F corregido',
+      });
       await expectRefusedNoteKept();
     });
 
@@ -154,8 +154,7 @@ describe.each(MODES)(
         clinicalEpisodeId: 'ep-RNB',
       });
       expect(JSON.stringify(remote().beds.R4)).not.toContain('Nota de RN A');
-      expect(remote().beds.R6.pathology).toBe('Dx E corregido');
-      expect(await dayTasks()).toEqual([]);
+      await expectDayEditsPublishedOrKept(enforced, { 'beds.R6.pathology': 'Dx E corregido' });
       await expectRefusedNoteKept('RN A Sintético', 'entry-RN', 'Nota de RN A');
     });
 
@@ -175,7 +174,7 @@ describe.each(MODES)(
       expect(await queue()).toEqual([]);
     });
 
-    it('publishes the note and the edit, with no conflict, when nobody else wrote', async () => {
+    it('publishes the note, with no conflict, when nobody else wrote', async () => {
       await readStored({ R4: A('R4'), R6: E() });
       await note('R4', 'entry-A', 'Nota de A');
       await writeDay({ 'beds.R6.pathology': 'Dx E corregido' });
@@ -183,8 +182,9 @@ describe.each(MODES)(
       await replay();
 
       expect(remote().beds.R4.medicalHandoffNote).toBe('Nota de A');
-      expect(remote().beds.R6.pathology).toBe('Dx E corregido');
-      expect(await queue()).toEqual([]);
+      // The note's own write is newer than the edit's base.
+      await expectDayEditsPublishedOrKept(enforced, { 'beds.R6.pathology': 'Dx E corregido' });
+      expect(await queue()).toHaveLength(enforced ? 1 : 0);
     });
 
     it('changes nothing for a census edit with no pending note, and keeps B', async () => {
@@ -198,8 +198,7 @@ describe.each(MODES)(
       await replay();
 
       expectBInR4();
-      expect(remote().beds.R6.pathology).toBe('Dx E corregido');
-      expect(await queue()).toEqual([]);
+      await expectDayEditsPublishedOrKept(enforced, { 'beds.R6.pathology': 'Dx E corregido' });
     });
 
     it('keeps B when another user edits the census after this user wrote a note offline', async () => {
@@ -215,7 +214,7 @@ describe.each(MODES)(
 
       await replay();
       expectBInR4();
-      expect(remote().beds.R6.pathology).toBe('Dx E corregido');
+      await expectDayEditsPublishedOrKept(enforced, { 'beds.R6.pathology': 'Dx E corregido' });
       localStorage.setItem('hhr_session_owner_v1', OWNER);
       await replay();
 

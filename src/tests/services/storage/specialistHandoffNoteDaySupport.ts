@@ -14,11 +14,15 @@ import {
   writeNote,
 } from './specialistHandoffOutboxHarness';
 import { hospitalDB } from '@/services/storage/indexedDBService';
-import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
+import {
+  saveDetailed,
+  updatePartialDetailed,
+} from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { shouldRouteSpecialistPatchViaCallable } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import { resetMedicalHandoffDraftMemoryForTests } from '@/services/storage/medicalHandoffDraftStorage';
 import { docToRecord } from '@/services/storage/firestore/firestoreShared';
 import { buildMedicalEntryNoteFields } from '@/domain/handoff/patientEntryMutations';
+import { getValueAtPath } from '@/services/repositories/conflictResolutionUtils';
 import type { DailyRecord, DailyRecordPatch } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 
@@ -62,12 +66,50 @@ export const resetNoteDay = async (owner: string) => {
   h.authorityMode = false;
 };
 
+const withMeta = (record: DailyRecord, meta?: Record<string, unknown>) =>
+  (meta ? { ...record, meta } : record) as DailyRecord;
+
 /** Firestore holds `beds`, and this device read them. */
-export const readStored = async (beds: Record<string, PatientData>, lastUpdated = T0) => {
-  h.remote = day(DATE, beds, lastUpdated);
+export const readStored = async (
+  beds: Record<string, PatientData>,
+  lastUpdated = T0,
+  meta?: Record<string, unknown>
+) => {
+  h.remote = withMeta(day(DATE, beds, lastUpdated), meta);
   const read = docToRecord(clone(h.remote) as never, DATE);
   await hospitalDB.dailyRecords.put(read);
   return read;
+};
+
+/** Another session writes the day; this device has not read it. */
+export const remoteWrite = (
+  beds: Record<string, PatientData>,
+  lastUpdated: string,
+  meta?: Record<string, unknown>
+) => {
+  h.remote = withMeta(day(DATE, beds, lastUpdated), meta);
+};
+
+/** A whole-record save, offline, as the census view saves the record it shows. */
+export const saveWholeDay = (record: DailyRecord, when = '2026-10-24T10:46:00.000Z') =>
+  at(when, async () => {
+    h.offline = true;
+    try {
+      return await saveDetailed(record, record.lastUpdated);
+    } finally {
+      h.offline = false;
+    }
+  });
+
+/** As a device updated from #1026 keeps a note: no record of its projection, day at its time. */
+export const asQueuedBeforeFix = async (status?: 'CONFLICT') => {
+  for (const task of (await queue()).filter(item => item.type === 'UPDATE_SPECIALIST_HANDOFF'))
+    await hospitalDB.syncQueue.update(task.id!, {
+      handoffProjection: undefined,
+      ...(status ? { status, lastErrorCode: 'synthetic_refused_before_fix' } : {}),
+    });
+  const stored = await local();
+  await hospitalDB.dailyRecords.put({ ...stored, lastUpdated: '2026-10-24T10:30:00.000Z' });
 };
 
 /** A census edit, offline: it goes through the day task. */
@@ -138,4 +180,27 @@ export const expectRefusedNoteKept = async (
   const notes = (await queue()).filter(task => task.type === 'UPDATE_SPECIALIST_HANDOFF');
   expect(notes.map(task => task.status)).toEqual(['CONFLICT']);
   expect(draftsFor(name)).toEqual([[DATE, entryId, text]]);
+};
+
+/**
+ * A day write whose base is older than the stored day: client_only merges its changes onto that
+ * day; enforced keeps it queued, since the authority refuses an older base. Held, never lost.
+ */
+export const expectDayEditsPublishedOrKept = async (
+  enforced: boolean,
+  edits: Record<string, unknown>
+) => {
+  const tasks = await dayTasks();
+  if (!enforced) {
+    for (const [path, value] of Object.entries(edits))
+      expect(getValueAtPath(remote(), path)).toEqual(value);
+    expect(tasks).toEqual([]);
+    return;
+  }
+  expect(tasks).toHaveLength(1);
+  expect(['PENDING', 'CONFLICT']).toContain(tasks[0].status);
+  for (const [path, value] of Object.entries(edits)) {
+    expect(getValueAtPath(tasks[0].payload, path)).toEqual(value);
+    expect(getValueAtPath(remote(), path)).not.toEqual(value);
+  }
 };

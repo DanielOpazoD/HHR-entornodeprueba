@@ -12,6 +12,7 @@ import {
   MODES,
   dayTasks,
   expectBInR4,
+  expectDayEditsPublishedOrKept,
   expectRefusedNoteKept,
   local,
   note,
@@ -131,8 +132,7 @@ describe.each(MODES)('a refused note no longer shapes the day (%s)', (_mode, enf
     await replay();
 
     expectBInR4();
-    expect(remote().beds.R6.pathology).toBe('Dx E corregido');
-    expect(await dayTasks()).toEqual([]);
+    await expectDayEditsPublishedOrKept(enforced, { 'beds.R6.pathology': 'Dx E corregido' });
     await expectRefusedNoteKept();
   });
 
