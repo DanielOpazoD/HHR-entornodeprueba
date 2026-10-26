@@ -3,6 +3,7 @@ import {
   normalizeDailyRecordAuthorityError,
   shouldRetryDailyRecordAuthorityError,
 } from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
+import { classifySyncError } from '@/services/storage/syncErrorCatalog';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 
 describe('dailyRecordAuthorityCallableClient', () => {
@@ -43,4 +44,14 @@ describe('dailyRecordAuthorityCallableClient', () => {
   it('does not retry a normalized concurrency conflict', () => {
     expect(shouldRetryDailyRecordAuthorityError(new ConcurrencyError('stale'))).toBe(false);
   });
+});
+
+it('keeps a missing authority base as non-retryable validation, never an automatic version rebase', () => {
+  const normalized = normalizeDailyRecordAuthorityError({
+    code: 'functions/failed-precondition',
+    message: 'base_required: An existing daily record requires a verifiable base version.',
+  });
+  expect(normalized).not.toBeInstanceOf(ConcurrencyError);
+  expect(classifySyncError(normalized)).toMatchObject({ category: 'validation', retryable: false });
+  expect(shouldRetryDailyRecordAuthorityError(normalized)).toBe(false);
 });

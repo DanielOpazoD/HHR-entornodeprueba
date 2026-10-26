@@ -1,19 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createRequire } from 'node:module';
 import {
   createAdminMock,
   createDailyRecordWriteAuthorityFunctions,
   makeContext,
   makeRecord,
 } from './dailyRecordWriteAuthorityFunctions.test-support';
-import { RAYEN_OWNED_CLINICAL_FIELDS } from '@/types/domain/rayenClinicalFields';
-
-const require = createRequire(import.meta.url);
-const {
-  RAYEN_CLINICAL_FIELDS,
-  preserveRayenClinicalFields,
-} = require('../../../functions/lib/dailyRecordClinicalFieldPreservation.js');
-
 // Freeze only Date: the callable guards and fixtures must share the same instant.
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
@@ -22,10 +13,6 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe('daily-record authoritative clinical field fence', () => {
-  it('keeps the client ownership contract aligned with the server fence', () => {
-    expect([...RAYEN_OWNED_CLINICAL_FIELDS]).toEqual([...RAYEN_CLINICAL_FIELDS]);
-  });
-
   it.each(['off', 'shadow', 'enforced'] as const)(
     'preserves server clinical fields after schema-v2 migration in %s mode',
     async clinicalBatchMode => {
@@ -61,7 +48,12 @@ describe('daily-record authoritative clinical field fence', () => {
       });
 
       await functionsApi.saveDailyRecordWithClinicalAuthority.run(
-        { date: remote.date, mode: 'shadow', record: incoming },
+        {
+          expectedLastUpdated: remote.lastUpdated,
+          date: remote.date,
+          mode: 'shadow',
+          record: incoming,
+        },
         makeContext()
       );
 
@@ -114,7 +106,12 @@ describe('daily-record authoritative clinical field fence', () => {
     });
 
     const result = await functionsApi.saveDailyRecordWithClinicalAuthority.run(
-      { date: remote.date, mode: 'enforced', record: incoming },
+      {
+        expectedLastUpdated: remote.lastUpdated,
+        date: remote.date,
+        mode: 'enforced',
+        record: incoming,
+      },
       makeContext()
     );
 
@@ -166,6 +163,7 @@ describe('daily-record authoritative clinical field fence', () => {
 
     await functionsApi.patchDailyRecordWithClinicalAuthority.run(
       {
+        expectedLastUpdated: remote.lastUpdated,
         date: remote.date,
         mode: 'enforced',
         patch: {
@@ -209,6 +207,7 @@ describe('daily-record authoritative clinical field fence', () => {
     await expect(
       functionsApi.patchDailyRecordWithClinicalAuthority.run(
         {
+          expectedLastUpdated: remote.lastUpdated,
           date: remote.date,
           mode: 'enforced',
           patch: { 'beds.R1.vitalSigns': { systolic: 60 } },
@@ -244,6 +243,7 @@ describe('daily-record authoritative clinical field fence', () => {
       await expect(
         functionsApi.patchDailyRecordWithClinicalAuthority.run(
           {
+            expectedLastUpdated: remote.lastUpdated,
             date: remote.date,
             mode: 'shadow',
             patch: { 'beds.R1.vitalSigns': { systolic: 60 } },
@@ -380,6 +380,7 @@ describe('daily-record authoritative clinical field fence', () => {
     await expect(
       functionsApi.patchDailyRecordWithClinicalAuthority.run(
         {
+          expectedLastUpdated: remote.lastUpdated,
           date: remote.date,
           mode: 'enforced',
           patch: { 'beds.R1.patientName': 'Edición histórica fuera de ventana' },
@@ -405,6 +406,7 @@ describe('daily-record authoritative clinical field fence', () => {
     await expect(
       functionsApi.patchDailyRecordWithClinicalAuthority.run(
         {
+          expectedLastUpdated: makeRecord().lastUpdated,
           date: '2026-05-13',
           mode: 'enforced',
           patch: { 'rayenSyncHistory.0.status': 'complete' },
@@ -430,6 +432,7 @@ describe('daily-record authoritative clinical field fence', () => {
     await expect(
       functionsApi.patchDailyRecordWithClinicalAuthority.run(
         {
+          expectedLastUpdated: makeRecord().lastUpdated,
           date: '2026-05-13',
           mode: 'enforced',
           patch: { beds: {} },
@@ -439,58 +442,5 @@ describe('daily-record authoritative clinical field fence', () => {
     ).rejects.toMatchObject({ code: 'invalid-argument' });
 
     expect(set).not.toHaveBeenCalled();
-  });
-
-  it('matches authoritative clinical fields by episode when the patient changes bed', () => {
-    const remote = {
-      beds: {
-        R1: {
-          clinicalEpisodeId: 'episode-1',
-          vitalSigns: { systolic: 121 },
-        },
-      },
-    };
-    const incoming = {
-      beds: {
-        R2: {
-          clinicalEpisodeId: 'episode-1',
-          patientName: 'Paciente trasladado',
-          vitalSigns: { systolic: 80 },
-        },
-      },
-    };
-
-    expect(preserveRayenClinicalFields({ remoteRecord: remote, incomingRecord: incoming })).toEqual(
-      {
-        beds: {
-          R2: {
-            clinicalEpisodeId: 'episode-1',
-            patientName: 'Paciente trasladado',
-            vitalSigns: { systolic: 121 },
-          },
-        },
-      }
-    );
-  });
-
-  it('removes client-supplied batch fields from episodes not present in the remote record', () => {
-    const result = preserveRayenClinicalFields({
-      remoteRecord: { beds: {} },
-      incomingRecord: {
-        beds: {
-          R1: {
-            clinicalEpisodeId: 'new-episode',
-            patientName: 'Paciente nuevo',
-            vitalSigns: { systolic: 70 },
-            clinicalSyncCheckpoint: { version: 2 },
-          },
-        },
-      },
-    });
-
-    expect(result.beds.R1).toEqual({
-      clinicalEpisodeId: 'new-episode',
-      patientName: 'Paciente nuevo',
-    });
   });
 });

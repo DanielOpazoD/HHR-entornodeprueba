@@ -92,7 +92,12 @@ const enabled =
       devicesPending: true,
     });
     await api.saveDailyRecordWithClinicalAuthority.run(
-      { date: today, mode: 'shadow', record: request },
+      {
+        date: today,
+        mode: 'shadow',
+        record: request,
+        syncContract: { baseRevision: saved.meta.revision },
+      },
       makeContext()
     );
     const repeated = (await destination.get()).data()!.beds.R1;

@@ -30,9 +30,10 @@ const collectPatientEpisodeKeys = (patient: PatientData | undefined): string[] =
 };
 
 const resolveOptionalBaseRevision = (value: unknown): number | undefined => {
-  if (value === null || value === undefined || value === '') return undefined;
+  if (typeof value !== 'number' && !(typeof value === 'string' && /^\d+$/.test(value.trim())))
+    return undefined;
   const revision = Number(value);
-  return Number.isInteger(revision) && revision >= 0 ? revision : undefined;
+  return Number.isSafeInteger(revision) && revision >= 0 ? revision : undefined;
 };
 
 /** A day version older than any the server stamps: a write based on it always merges by paths. */
@@ -59,7 +60,7 @@ export const buildDailyRecordSyncContract = (
 
   return {
     ...baseContractWithoutRevision,
-    expectedVersion: baseContract.expectedVersion || record.lastUpdated,
+    expectedVersion: baseContract.expectedVersion ?? record.lastUpdated,
     ...(baseRevision !== undefined ? { baseRevision } : {}),
     recordRevision: record.lastUpdated,
     clinicalEpisodeKeys,

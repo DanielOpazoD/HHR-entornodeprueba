@@ -90,8 +90,9 @@ describe.each(MODES)('day write replay guards (%s)', (_mode, enforced) => {
     await replay();
 
     expect(remote().beds.R4.clinicalCrib).toMatchObject({ patientName: 'RN B Sintético' });
-    expect(remote().beds.R4.pathology).toBe('Dx M corregido');
-    expect(await dayTasks()).toEqual([]);
+    // An older remote clock does not prove the queued base is current. Authority keeps this
+    // mismatch for review, with the mother's edit intact and the new newborn untouched.
+    await expectDayEditsPublishedOrKept(enforced, { 'beds.R4.pathology': 'Dx M corregido' });
   });
 
   it('never writes a departed mother over the bed while it edits the newborn', async () => {

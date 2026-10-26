@@ -34,6 +34,7 @@ describe('hospital-day authority at 02:00 UTC', () => {
     await api.patchDailyRecordWithClinicalAuthority.run(
       {
         date: remote.date,
+        expectedLastUpdated: remote.lastUpdated,
         mode: 'enforced',
         patch: { 'beds.R1.patientName': 'Paciente Sintético' },
       },

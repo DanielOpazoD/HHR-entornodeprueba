@@ -17,6 +17,7 @@ import {
   vitals,
 } from '@/tests/functions/clinicalDerivedServer.test-support';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { buildDailyRecordSyncContract } from '@/services/storage/sync/syncTaskContractPolicy';
 
 const boundary = vi.hoisted(() => ({
   save: vi.fn(),
@@ -117,12 +118,22 @@ const HISTORY = [vitals(DAY, 72), vitals(PRIOR_DAY, 70)];
     vi.stubEnv(SPLIT_ENV, PRIOR_DAY);
     // The repository save as the authority callable runs it for an administrator's restore.
     boundary.save.mockImplementation(
-      async (record: DailyRecord, _expected: unknown, options: { writeOrigin?: string }) => {
+      async (
+        record: DailyRecord,
+        expected: string | undefined,
+        options: { writeOrigin?: string }
+      ) => {
         await api(restorerRole).saveDailyRecordWithClinicalAuthority.run(
           {
             date: record.date,
             // As the callable client sends it: JSON, so undefined fields are left out.
             record: JSON.parse(JSON.stringify(record)),
+            // Forward the original backup base as the real repository does, not a new read.
+            expectedLastUpdated: expected ?? record.lastUpdated,
+            syncContract: buildDailyRecordSyncContract(record, {
+              expectedVersion: expected ?? record.lastUpdated,
+              changedPaths: ['*'],
+            }),
             mode: 'shadow',
             origin: options.writeOrigin,
             clientRuntimeContractVersion: 3,

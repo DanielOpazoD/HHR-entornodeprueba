@@ -88,7 +88,15 @@ vi.mock(
         firestore: admin.firestore(),
         Timestamp: admin.firestore.Timestamp,
         resolveRoleForEmail: async () => 'admin',
-      }).saveDailyRecordWithClinicalAuthority.run(payload, makeContext());
+      })
+        .saveDailyRecordWithClinicalAuthority.run(payload, makeContext())
+        .catch(async (error: unknown) => {
+          const { normalizeDailyRecordAuthorityError } =
+            await importOriginal<
+              typeof import('@/services/storage/firestore/dailyRecordAuthorityCallableClient')
+            >();
+          throw normalizeDailyRecordAuthorityError(error);
+        });
       h.remote = clone(response.recordState.record);
       return response;
     },

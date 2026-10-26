@@ -44,6 +44,7 @@ describe('daily-record clinical fence · edición manual de dispositivos', () =>
 
     await functionsApi.patchDailyRecordWithClinicalAuthority.run(
       {
+        expectedLastUpdated: remote.lastUpdated,
         date: remote.date,
         mode: 'enforced',
         patch: {
@@ -82,7 +83,12 @@ describe('daily-record clinical fence · toggle manual de tipo de cama', () => {
 
     await expect(
       functionsApi.patchDailyRecordWithClinicalAuthority.run(
-        { date: remote.date, mode: 'enforced', patch: { 'bedTypeOverrides.R1': 'UCI' } },
+        {
+          expectedLastUpdated: remote.lastUpdated,
+          date: remote.date,
+          mode: 'enforced',
+          patch: { 'bedTypeOverrides.R1': 'UCI' },
+        },
         makeContext()
       )
     ).rejects.toMatchObject({ message: expect.stringContaining('accompany a UPC patch') });
@@ -105,6 +111,7 @@ describe('daily-record clinical fence · toggle manual de tipo de cama', () => {
 
     await functionsApi.patchDailyRecordWithClinicalAuthority.run(
       {
+        expectedLastUpdated: remote.lastUpdated,
         date: remote.date,
         mode: 'enforced',
         patch: { 'bedTypeOverrides.R1': 'UCI', 'beds.R1.isUPC': false },

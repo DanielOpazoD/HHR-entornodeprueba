@@ -187,7 +187,7 @@ const initializeMissingDay = async (
     );
   }
 
-  await save(newRecord);
+  await save(newRecord, '');
   return newRecord;
 };
 
