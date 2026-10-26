@@ -6,12 +6,13 @@ import {
   FileText,
   FilePlus2,
   FlaskConical,
+  Image,
+  ListPlus,
   MoreHorizontal,
   PenLine,
   Sparkles,
   Trash2,
   Upload,
-  Zap,
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -23,6 +24,9 @@ import {
 import { withCurrentClinicalDocumentVersionSnapshotFallback } from '@/domain/clinical-documents/versionHistory';
 import type { ClinicalDocumentsSidebarProps } from '@/features/clinical-documents/contracts/clinicalDocumentsSidebarContracts';
 import { ClinicalDocumentVersionBadge } from '@/features/clinical-documents/components/ClinicalDocumentVersionBadge';
+
+const secondaryActionClass =
+  'inline-flex min-h-8 items-center justify-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 text-[11px] font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-medical-500 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400';
 
 export const ClinicalDocumentsSidebar: React.FC<ClinicalDocumentsSidebarProps> = ({
   canEdit,
@@ -59,16 +63,16 @@ export const ClinicalDocumentsSidebar: React.FC<ClinicalDocumentsSidebarProps> =
   const hasInsertActions = Boolean(onOpenLabDialog || onOpenMMRADDialog);
 
   return (
-    <aside className="space-y-2.5 border-r border-slate-200 bg-slate-50/70 p-2.5">
+    <aside className="space-y-3 border-r border-slate-200 bg-slate-50/70 p-3">
       {/* Patient context + quick shortcuts */}
       {patientName && (
-        <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-2">
+        <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5">
           <div className="flex-1 min-w-0">
-            <p className="text-[12px] font-bold text-slate-800 leading-tight truncate">
+            <p className="text-[12px] font-semibold text-slate-800 leading-snug truncate">
               {patientName}
             </p>
             {patientRut && (
-              <p className="text-[10px] font-mono text-slate-400 mt-0.5">{patientRut}</p>
+              <p className="text-[11px] font-mono text-slate-500 mt-0.5">{patientRut}</p>
             )}
           </div>
         </div>
@@ -82,13 +86,11 @@ export const ClinicalDocumentsSidebar: React.FC<ClinicalDocumentsSidebarProps> =
         )}
         <div className="space-y-1.5 rounded-lg border border-slate-200 bg-white p-2">
           <label className="flex flex-col gap-1">
-            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
-              Tipo de documento
-            </span>
+            <span className="text-[11px] font-semibold text-slate-500">Tipo de documento</span>
             <select
               value={selectedTemplateId}
               onChange={event => onSelectTemplate(event.target.value)}
-              className="rounded-md border border-slate-300 bg-slate-50 px-2.5 py-1.5 text-[12px] text-slate-800"
+              className="h-8 rounded-md border border-slate-200 bg-white px-2.5 text-[12px] text-slate-800 focus:border-medical-500 focus:outline-none focus:ring-2 focus:ring-medical-200"
             >
               {templates.map(template => (
                 <option key={template.id} value={template.id}>
@@ -102,13 +104,13 @@ export const ClinicalDocumentsSidebar: React.FC<ClinicalDocumentsSidebarProps> =
             onClick={onCreateDocument}
             disabled={!canEdit || !patientName}
             className={clsx(
-              'w-full rounded-lg border px-2 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] transition-all',
+              'inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md border px-2 text-[12px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-medical-500 focus-visible:ring-offset-1',
               canEdit && patientName
                 ? 'border-medical-300 bg-medical-50 text-medical-800 hover:bg-medical-100'
                 : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
             )}
           >
-            <FilePlus2 size={12} className="inline mr-1.5" />
+            <FilePlus2 size={14} aria-hidden="true" />
             Crear documento
           </button>
           {hasInsertActions && (
@@ -117,13 +119,14 @@ export const ClinicalDocumentsSidebar: React.FC<ClinicalDocumentsSidebarProps> =
                 type="button"
                 onClick={() => setShowInsertTray(current => !current)}
                 aria-expanded={showInsertTray}
-                className="inline-flex h-8 w-full items-center justify-center rounded-lg border border-sky-200 bg-sky-50 px-2 text-[10px] font-black uppercase tracking-[0.12em] text-sky-700 transition-colors hover:bg-sky-100"
+                className={`${secondaryActionClass} w-full`}
               >
-                <Zap size={11} className="mr-1.5" />
+                <ListPlus size={14} aria-hidden="true" />
                 Insertar contenido
                 <ChevronDown
-                  size={11}
-                  className={clsx('ml-1.5 transition-transform', showInsertTray && 'rotate-180')}
+                  size={13}
+                  aria-hidden="true"
+                  className={clsx('transition-transform', showInsertTray && 'rotate-180')}
                 />
               </button>
               {showInsertTray && (
@@ -135,9 +138,9 @@ export const ClinicalDocumentsSidebar: React.FC<ClinicalDocumentsSidebarProps> =
                         setShowInsertTray(false);
                         onOpenLabDialog();
                       }}
-                      className="flex w-full items-center rounded-md px-2 py-1.5 text-left text-[11px] font-semibold text-slate-700 transition-colors hover:bg-emerald-50 hover:text-emerald-700"
+                      className="flex min-h-8 w-full items-center gap-2 rounded-md px-2 text-left text-[12px] font-medium text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-medical-500"
                     >
-                      <FlaskConical size={12} className="mr-2 text-emerald-600" />
+                      <FlaskConical size={14} className="text-slate-500" aria-hidden="true" />
                       Laboratorio
                     </button>
                   )}
@@ -148,9 +151,9 @@ export const ClinicalDocumentsSidebar: React.FC<ClinicalDocumentsSidebarProps> =
                         setShowInsertTray(false);
                         onOpenMMRADDialog();
                       }}
-                      className="flex w-full items-center rounded-md px-2 py-1.5 text-left text-[11px] font-semibold text-slate-700 transition-colors hover:bg-violet-50 hover:text-violet-700"
+                      className="flex min-h-8 w-full items-center gap-2 rounded-md px-2 text-left text-[12px] font-medium text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-medical-500"
                     >
-                      <Zap size={12} className="mr-2 text-violet-600" />
+                      <Image size={14} className="text-slate-500" aria-hidden="true" />
                       Imagenología MMRAD
                     </button>
                   )}
@@ -164,9 +167,9 @@ export const ClinicalDocumentsSidebar: React.FC<ClinicalDocumentsSidebarProps> =
                 <button
                   type="button"
                   onClick={onAddClinicalUpdate}
-                  className="flex-1 rounded-lg border border-violet-200 bg-violet-50 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-violet-700 hover:bg-violet-100 transition-colors"
+                  className={`${secondaryActionClass} flex-1`}
                 >
-                  <PenLine size={10} className="inline mr-1" />
+                  <PenLine size={14} className="shrink-0" aria-hidden="true" />
                   Actualización
                 </button>
               )}
@@ -174,14 +177,15 @@ export const ClinicalDocumentsSidebar: React.FC<ClinicalDocumentsSidebarProps> =
                 <button
                   type="button"
                   onClick={onToggleAnnex}
+                  aria-pressed={Boolean(hasAnnex)}
                   className={clsx(
-                    'flex-1 rounded-lg border px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] transition-colors',
+                    'inline-flex min-h-8 flex-1 items-center justify-center gap-1.5 rounded-md border px-2 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-medical-500 focus-visible:ring-offset-1',
                     hasAnnex
                       ? 'border-medical-300 bg-medical-50 text-medical-700'
                       : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                   )}
                 >
-                  <FileText size={10} className="inline mr-1" />
+                  <FileText size={14} className="shrink-0" aria-hidden="true" />
                   Agregar Anexos
                 </button>
               )}
@@ -193,9 +197,9 @@ export const ClinicalDocumentsSidebar: React.FC<ClinicalDocumentsSidebarProps> =
                 type="button"
                 onClick={() => setShowAdvancedTools(current => !current)}
                 aria-expanded={showAdvancedTools}
-                className="inline-flex h-7 w-full items-center justify-center rounded-md border border-slate-200 px-2 text-[9px] font-bold uppercase tracking-[0.12em] text-slate-500 hover:bg-slate-50 transition-colors"
+                className={`${secondaryActionClass} w-full`}
               >
-                <MoreHorizontal size={11} className="mr-1" />
+                <MoreHorizontal size={14} aria-hidden="true" />
                 Herramientas avanzadas
               </button>
               {showAdvancedTools && (
@@ -206,10 +210,10 @@ export const ClinicalDocumentsSidebar: React.FC<ClinicalDocumentsSidebarProps> =
                         <button
                           type="button"
                           onClick={() => onExportJson(selectedDocument)}
-                          className="flex-1 rounded-lg border border-sky-200 bg-sky-50 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-sky-700 hover:bg-sky-100 transition-colors"
+                          className={`${secondaryActionClass} flex-1`}
                           title="Exportar JSON"
                         >
-                          <Download size={10} className="inline mr-1" />
+                          <Download size={14} className="shrink-0" aria-hidden="true" />
                           Exportar JSON
                         </button>
                       )}
@@ -233,15 +237,10 @@ export const ClinicalDocumentsSidebar: React.FC<ClinicalDocumentsSidebarProps> =
                             type="button"
                             onClick={() => importInputRef.current?.click()}
                             disabled={!canEdit}
-                            className={clsx(
-                              'flex-1 rounded-lg border px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] transition-colors',
-                              canEdit
-                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                                : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
-                            )}
+                            className={`${secondaryActionClass} flex-1`}
                             title="Importar JSON"
                           >
-                            <Upload size={10} className="inline mr-1" />
+                            <Upload size={14} className="shrink-0" aria-hidden="true" />
                             Importar JSON
                           </button>
                         </>
@@ -268,15 +267,10 @@ export const ClinicalDocumentsSidebar: React.FC<ClinicalDocumentsSidebarProps> =
                         type="button"
                         onClick={() => aiImportInputRef.current?.click()}
                         disabled={!canEdit || isImportingWithAi}
-                        className={clsx(
-                          'w-full rounded-lg border px-2 py-1.5 text-[9px] font-bold uppercase tracking-[0.12em] transition-colors',
-                          canEdit && !isImportingWithAi
-                            ? 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700 hover:bg-fuchsia-100'
-                            : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
-                        )}
+                        className={`${secondaryActionClass} w-full`}
                         title="Importar informe de traslado con IA"
                       >
-                        <Sparkles size={10} className="inline mr-1" />
+                        <Sparkles size={14} aria-hidden="true" />
                         {isImportingWithAi ? 'Importando con IA' : 'Importar con IA'}
                       </button>
                     </>
@@ -289,9 +283,7 @@ export const ClinicalDocumentsSidebar: React.FC<ClinicalDocumentsSidebarProps> =
       </div>
 
       <div className="space-y-1.5">
-        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">
-          Episodio actual
-        </p>
+        <p className="text-[11px] font-semibold text-slate-500">Episodio actual</p>
         {documents.length === 0 ? (
           <div className="rounded-xl border border-dashed border-slate-300 bg-white p-4 text-xs text-slate-500">
             No hay documentos clínicos para este episodio.
@@ -305,22 +297,23 @@ export const ClinicalDocumentsSidebar: React.FC<ClinicalDocumentsSidebarProps> =
                 <div
                   key={document.id}
                   className={clsx(
-                    'group/doc rounded-lg border bg-white px-2 py-1.5 transition-all',
+                    'group/doc rounded-lg border px-2.5 py-2 transition-colors',
                     selectedDocumentId === document.id
                       ? 'border-medical-300 bg-medical-50'
-                      : 'border-slate-200 hover:border-slate-300'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
                   )}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <button
                       type="button"
                       onClick={() => onSelectDocument(document.id)}
-                      className="flex-1 text-left"
+                      aria-pressed={selectedDocumentId === document.id}
+                      className="min-w-0 flex-1 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-medical-500 focus-visible:ring-offset-2"
                     >
-                      <span className="text-[11px] font-semibold leading-tight text-slate-700">
+                      <span className="block text-[12px] font-semibold leading-snug text-slate-800">
                         {document.title}
                       </span>
-                      <span className="mt-0.5 block text-[9px] font-medium text-slate-400">
+                      <span className="mt-0.5 block text-[11px] text-slate-500">
                         {getClinicalDocumentTypeLabel(document.documentType)}
                       </span>
                     </button>
@@ -329,26 +322,28 @@ export const ClinicalDocumentsSidebar: React.FC<ClinicalDocumentsSidebarProps> =
                         <button
                           type="button"
                           onClick={() => onDuplicateDocument(document)}
-                          className="rounded-md p-[3px] text-slate-300 opacity-0 transition-all group-hover/doc:opacity-100 hover:text-medical-600 hover:bg-medical-50"
+                          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-medical-100 hover:text-medical-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-medical-500"
+                          aria-label="Duplicar documento"
                           title="Duplicar documento"
                         >
-                          <Copy size={11} />
+                          <Copy size={14} aria-hidden="true" />
                         </button>
                       )}
                       {canDeleteThisDocument && (
                         <button
                           type="button"
                           onClick={() => onDeleteDocument(document)}
-                          className="rounded-md p-[3px] text-slate-300 opacity-0 transition-all group-hover/doc:opacity-100 hover:text-red-500 hover:bg-red-50"
+                          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                          aria-label="Eliminar documento"
                           title="Eliminar documento"
                         >
-                          <Trash2 size={11} />
+                          <Trash2 size={14} aria-hidden="true" />
                         </button>
                       )}
                     </div>
                   </div>
-                  <div className="mt-0.5 flex items-center justify-between">
-                    <p className="text-[9px] text-slate-500">
+                  <div className="mt-1.5 flex flex-wrap items-center justify-between gap-1">
+                    <p className="text-[10px] leading-snug text-slate-500">
                       {formatClinicalDocumentAuthorName(document.audit.updatedBy.displayName)} ·{' '}
                       {formatClinicalDocumentDateTime(document.audit.updatedAt)}
                     </p>
