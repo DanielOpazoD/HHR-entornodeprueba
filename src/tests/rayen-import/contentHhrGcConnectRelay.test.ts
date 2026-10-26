@@ -1,15 +1,13 @@
 // @vitest-environment node
+import { readHhrBridgeSource } from './support/hhrOriginPolicyFixture';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 
 import { describe, expect, it, vi } from 'vitest';
 
-const contentBridgeSource = readFileSync(path.resolve('extension/content-hhr.js'), 'utf8');
-const repairBridgeSource = readFileSync(
-  path.resolve('extension/content-hhr-connection-repair.js'),
-  'utf8'
-);
+const contentBridgeSource = readHhrBridgeSource('content-hhr.js');
+const repairBridgeSource = readHhrBridgeSource('content-hhr-connection-repair.js');
 const bridgeGenerationSource = readFileSync(path.resolve('extension/bridge-generation.js'), 'utf8');
 const healthPushOrderingSource = readFileSync(
   path.resolve('extension/health-push-ordering-runtime.js'),

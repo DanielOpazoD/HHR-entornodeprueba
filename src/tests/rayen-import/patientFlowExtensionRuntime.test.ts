@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
+import '../../../extension/hhr-origin-policy.js';
 import '../../../extension/tab-encounter-authorization.js';
 import '../../../extension/fichamedico-patient-flow-runtime.js';
 
@@ -81,9 +82,17 @@ describe('Ficha Médico patient-flow runtime', () => {
       Promise.resolve({ snapshot: { encounters: [{ encounterId: '142040' }] } })
     );
 
-  it('authorizes the published HHR origin only for its verified tab and episode', async () => {
+  it.each([
+    'https://hhr-hospitalizados.app',
+    'https://hhr-entorno-prueba.netlify.app',
+    'https://deploy-preview-992--testinghhr.netlify.app',
+    'https://feature-origins--hhr-entorno-prueba.netlify.app',
+    'http://localhost:3000',
+    'http://localhost:3010',
+    'http://localhost:3020',
+    'http://127.0.0.1:3020',
+  ])('authorizes %s only for its verified tab and episode', async origin => {
     const runtime = createRuntime();
-    const origin = 'https://hhr-entorno-prueba.netlify.app';
     const publishedSender = { origin, tab: { id: 90, url: `${origin}/census` } };
     expect(runtime.isAuthorized(publishedSender, '142040')).toBe(false);
     await runtime.authorizeSnapshotResponse(

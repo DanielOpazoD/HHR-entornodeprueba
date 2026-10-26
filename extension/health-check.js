@@ -88,9 +88,9 @@
     };
   };
 
-  const createHhrProbe = ({ chromeApi, withTimeout, timeoutMs, matches }) =>
+  const createHhrProbe = ({ chromeApi, withTimeout, timeoutMs, matches, isTargetTab = () => true }) =>
     runtimeContext => chromeApi.tabs.query({ url: matches }).then(tabs => probeTabs({
-      tabs,
+      tabs: tabs.filter(isTargetTab),
       sendMessage: (tabId, message) => withTimeout(
         chromeApi.tabs.sendMessage(tabId, message),
         timeoutMs,
