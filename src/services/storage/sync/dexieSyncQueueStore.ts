@@ -81,6 +81,13 @@ const mirrorTransactionalDailyRecordWrite = (record: DailyRecord): void => {
   dispatchDailyRecordStoreChanged({ operation: 'save', dates: [record.date] });
 };
 
+const reconcileSpecialistHandoffProjections = async (): Promise<void> => {
+  const { reconcileSpecialistHandoffProjections: release } =
+    await import('./dexieDailyRecordOutbox');
+  const dates = await release();
+  if (dates.length) dispatchDailyRecordStoreChanged({ operation: 'save', dates });
+};
+
 export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
   withEnqueueTransaction: operation =>
     hospitalDB.transaction('rw', hospitalDB.syncQueue, async () => operation()),
@@ -218,37 +225,83 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
         (task.preOutboxHoldUntil || 0) > now
     ),
   requeueQuarantinedTask,
-  discardQuarantinedTask,
+  async discardQuarantinedTask(taskId, ownerKey) {
+    const { releaseSpecialistHandoffProjection: release } =
+      await import('./dexieDailyRecordOutbox');
+    let changedDate: string | undefined;
+    // Deletion and restoration commit together: a failure keeps the note and its provenance.
+    const discarded = await hospitalDB.transaction(
+      'rw',
+      hospitalDB.dailyRecords,
+      hospitalDB.syncQueue,
+      async () => {
+        const task = await hospitalDB.syncQueue.get(taskId);
+        const applied = await discardQuarantinedTask(taskId, ownerKey);
+        if (applied && task?.type === 'UPDATE_SPECIALIST_HANDOFF' && (await release(task)))
+          changedDate = (task.payload as { date: string }).date;
+        return applied;
+      }
+    );
+    if (changedDate) dispatchDailyRecordStoreChanged({ operation: 'save', dates: [changedDate] });
+    return discarded;
+  },
+  reconcileSpecialistHandoffProjections,
   async update(taskId, patch) {
     await hospitalDB.syncQueue.update(taskId, patch);
   },
-  async updateClaimed(taskId, patch, claim) {
+  async renewClaim(taskId, leaseUntil, claim) {
     return hospitalDB.transaction('rw', hospitalDB.syncQueue, async () => {
       const task = await hospitalDB.syncQueue.get(taskId);
-      if (!matchesTaskClaim(task, claim)) {
-        return false;
-      }
-      await hospitalDB.syncQueue.update(taskId, patch);
-      return true;
+      if (!task || !matchesTaskClaim(task, claim)) return null;
+      await hospitalDB.syncQueue.update(taskId, { leaseUntil });
+      return { ...task, leaseUntil };
     });
+  },
+  async updateClaimed(taskId, patch, claim) {
+    const release =
+      patch.status === 'FAILED' || patch.status === 'CONFLICT'
+        ? (await import('./dexieDailyRecordOutbox')).releaseSpecialistHandoffProjection
+        : undefined;
+    let changedDate: string | undefined;
+    // A refused note is quarantined only if its projection is restored in the same transaction.
+    const updated = await hospitalDB.transaction(
+      'rw',
+      hospitalDB.dailyRecords,
+      hospitalDB.syncQueue,
+      async () => {
+        const task = await hospitalDB.syncQueue.get(taskId);
+        if (!matchesTaskClaim(task, claim)) return false;
+        await hospitalDB.syncQueue.update(taskId, patch);
+        if (release && task?.type === 'UPDATE_SPECIALIST_HANDOFF' && (await release(task)))
+          changedDate = (task.payload as { date: string }).date;
+        return true;
+      }
+    );
+    if (changedDate) dispatchDailyRecordStoreChanged({ operation: 'save', dates: [changedDate] });
+    return updated;
   },
   async delete(taskId) {
     await hospitalDB.syncQueue.delete(taskId);
   },
-  async deleteClaimed(taskId, claim, authoritativeRecord) {
+  async deleteClaimed(taskId, claim, authoritativeRecord, detachedConflicts) {
     const { completeClaimedSyncTask } = await import('./dexieSyncQueueAuthorityAck');
+    const { confirmSpecialistHandoffProjection } = await import('./dexieDailyRecordOutbox');
     const result = await completeClaimedSyncTask(
       {
         db: hospitalDB,
         matchesClaim: matchesTaskClaim,
         pending: listUnresolvedDailyRecordTasks,
+        confirmNote: confirmSpecialistHandoffProjection,
       },
       taskId,
       claim,
-      authoritativeRecord
+      authoritativeRecord,
+      detachedConflicts
     );
     if (result.adopted && authoritativeRecord)
       mirrorTransactionalDailyRecordWrite(authoritativeRecord);
+    if (result.noteProjectionDate)
+      dispatchDailyRecordStoreChanged({ operation: 'save', dates: [result.noteProjectionDate] });
     return result.deleted;
   },
   async deleteAll() {

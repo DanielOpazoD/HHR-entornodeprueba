@@ -10,7 +10,7 @@ import {
   BaseModalBody,
   BaseModalHeader,
 } from '@/components/shared/baseModalLayout';
-import { useBaseModalLifecycle } from '@/components/shared/useBaseModalLifecycle';
+import { useBaseModalLifecycle } from '@/hooks/useBaseModalLifecycle';
 
 export const BaseModalContent: React.FC<BaseModalProps> = ({
   isOpen,

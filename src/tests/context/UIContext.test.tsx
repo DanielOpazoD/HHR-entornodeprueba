@@ -277,4 +277,91 @@ describe('UIContext', () => {
   it('should throw error when useUI is used outside provider', () => {
     expect(() => renderHook(() => useUI())).toThrow('useUI must be used within a UIProvider');
   });
+
+  it('announces feedback by severity and dismisses only the chosen toast', () => {
+    render(
+      <UIProvider>
+        <TestComponent />
+      </UIProvider>
+    );
+    fireEvent.click(screen.getByText('Notify Success'));
+    fireEvent.click(screen.getByText('Notify Error'));
+    expect(screen.getByRole('status')).toHaveTextContent('Success Title');
+    expect(screen.getByRole('alert')).toHaveTextContent('Error Title');
+    fireEvent.click(screen.getAllByRole('button', { name: 'Cerrar notificación' })[0]);
+    expect(screen.queryByText('Success Title')).not.toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Error Title');
+  });
+
+  it('contains keyboard focus in a confirmation and restores the opener on Escape', async () => {
+    render(
+      <UIProvider>
+        <TestComponent />
+      </UIProvider>
+    );
+    const opener = screen.getByRole('button', { name: 'Trigger Confirm' });
+    opener.focus();
+    fireEvent.click(opener);
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveAccessibleDescription('Confirm Message');
+    const confirm = screen.getByRole('button', { name: 'Confirmar' });
+    expect(confirm).toHaveFocus();
+    fireEvent.keyDown(confirm, { key: 'Tab' });
+    const close = screen.getByRole('button', { name: 'Cerrar diálogo' });
+    expect(close).toHaveFocus();
+    fireEvent.keyDown(close, { key: 'Tab', shiftKey: true });
+    expect(confirm).toHaveFocus();
+    await act(async () => {
+      fireEvent.keyDown(confirm, { key: 'Escape' });
+    });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(opener).toHaveFocus();
+  });
+
+  it('preserves the required confirmation phrase and keeps alerts open on Escape', async () => {
+    let result: boolean | null = null;
+    const Requester = () => {
+      const { confirm, alert } = useUI();
+      return (
+        <>
+          <button
+            onClick={async () => {
+              result = await confirm({
+                message: 'Confirmación de prueba',
+                requireInputConfirm: 'ELIMINAR',
+              });
+            }}
+          >
+            Confirm with phrase
+          </button>
+          <button onClick={() => alert('Aviso de prueba')}>Open alert</button>
+        </>
+      );
+    };
+    render(
+      <UIProvider>
+        <Requester />
+      </UIProvider>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm with phrase' }));
+    const input = screen.getByLabelText(/Escriba ELIMINAR para confirmar/);
+    const confirm = screen.getByRole('button', { name: 'Confirmar' });
+    expect(input).toHaveFocus();
+    expect(confirm).toBeDisabled();
+    fireEvent.change(input, { target: { value: 'incorrecto' } });
+    expect(confirm).toBeDisabled();
+    fireEvent.change(input, { target: { value: ' eliminar ' } });
+    expect(confirm).toBeDisabled();
+    fireEvent.change(input, { target: { value: ' ELIMINAR ' } });
+    expect(confirm).toBeEnabled();
+    await act(async () => {
+      fireEvent.click(confirm);
+    });
+    expect(result).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Open alert' }));
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Aceptar' }), { key: 'Escape' });
+    expect(screen.getByRole('dialog')).toHaveTextContent('Aviso de prueba');
+    fireEvent.click(screen.getByRole('button', { name: 'Aceptar' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
 });

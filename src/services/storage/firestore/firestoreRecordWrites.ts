@@ -7,6 +7,7 @@ import {
 } from 'firebase/firestore';
 import type { DailyRecord, DailyRecordPatch } from '@/services/storage/storageDailyRecordContracts';
 import { withRetry } from '@/utils/networkUtils';
+import { loadFunctionsModule } from '@/services/firebase-runtime/functionsModuleLoader';
 import { DataRegressionError } from '@/utils/integrityGuard';
 import {
   docToRecord,
@@ -53,7 +54,6 @@ import {
   shouldRouteSpecialistPatchViaCallable,
   tryShadowDailyRecordPatchViaCallable,
   tryShadowDailyRecordSaveViaCallable,
-  updateSpecialistMedicalHandoffViaCallable,
   type DailyRecordPartialWriteOptions,
   type DailyRecordSaveWriteOptions,
 } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
@@ -219,6 +219,14 @@ const buildAtomicPartialCommitReceipt = (
   }
 };
 
+/**
+ * The note callable needs the network, so its client is not precached. It loads through the
+ * shared Functions loader: offline it is refused as unavailable, so the note goes to the queue,
+ * and a stale chunk asks for a reload while queued notes stay pending.
+ */
+export const loadSpecialistMedicalHandoffClient = () =>
+  loadFunctionsModule(() => import('./specialistMedicalHandoffClient'));
+
 export const updateRecordPartial = async (
   date: string,
   partialData: DailyRecordPatch,
@@ -228,7 +236,8 @@ export const updateRecordPartial = async (
   try {
     const docRef = getRecordDocRef(date);
     // La verificación de concurrencia por lectura directa sólo protege las rutas
-    // SIN CAS del lado servidor (updateDoc directo y el callable specialist).
+    // SIN CAS de versión del lado servidor (updateDoc directo y el callable specialist,
+    // cuya transacción protege además la identidad del paciente y episodio).
     // Las rutas del callable de autoridad y la transacción atómica ya validan
     // versión/revisión al commitear: duplicar la lectura aquí costaba un viaje
     // remoto extra por edición y rechazaba ráfagas legítimas cuando el eco de la
@@ -274,9 +283,11 @@ export const updateRecordPartial = async (
       const persist = async () => {
         if (specialistScopedPatch && (await shouldRouteSpecialistPatchViaCallable())) {
           await assertDirectWriteConcurrency();
-          return withRetry(() => updateSpecialistMedicalHandoffViaCallable(date, sanitizedPatch), {
-            onRetry: (err: unknown, attempt: number) =>
-              logFirestoreWriteRetry('partialUpdate', date, attempt, err),
+          return (await loadSpecialistMedicalHandoffClient()).saveSpecialistMedicalHandoff({
+            date,
+            patch: sanitizedPatch,
+            expectedOccupants: options.specialistHandoffTargets ?? [],
+            mutationId: options.syncContract?.mutationId,
           });
         }
 

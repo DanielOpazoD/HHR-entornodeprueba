@@ -35,6 +35,9 @@ const resolveOptionalBaseRevision = (value: unknown): number | undefined => {
   return Number.isInteger(revision) && revision >= 0 ? revision : undefined;
 };
 
+/** A day version older than any the server stamps: a write based on it always merges by paths. */
+export const UNKNOWN_SERVER_VERSION = new Date(0).toISOString();
+
 export const resolveRecordBaseRevision = (record: DailyRecord): number | undefined =>
   resolveOptionalBaseRevision((record as { meta?: { revision?: unknown } }).meta?.revision);
 

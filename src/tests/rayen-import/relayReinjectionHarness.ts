@@ -1,5 +1,6 @@
 import { vi } from 'vitest';
 
+import '../../../extension/hhr-origin-policy.js';
 import '../../../extension/relay-reinjection-manifest.js';
 import '../../../extension/relay-reinjection-health.js';
 import '../../../extension/relay-reinjection-operations.js';
@@ -92,6 +93,7 @@ export const MANIFEST = {
       matches: ['http://localhost:3001/*'],
       js: [
         'message-contract.js',
+        'hhr-origin-policy.js',
         'bridge-generation.js',
         'health-push-ordering-runtime.js',
         'content-hhr-sync-bundle.js',

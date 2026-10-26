@@ -1,3 +1,4 @@
+import type { SpecialistHandoffTarget } from '@/types/domain/specialistHandoffTarget';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { RayenClinicalWriteGuard } from '@/types/domain/rayenSync';
@@ -56,6 +57,7 @@ export interface PartialUpdateDailyRecordCommand {
 }
 
 export interface PartialUpdateDailyRecordOptions {
+  specialistHandoffTargets?: SpecialistHandoffTarget[];
   /**
    * Snapshot used to construct this patch. Preserve it through cache refreshes so rebase can
    * distinguish the writer's changes from stale copies. Also supports writes after remote

@@ -1,7 +1,7 @@
 import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
 import type { ErrorSeverity } from '@/services/logging/errorLogTypes';
 import { logError } from '@/services/utils/errorService';
-import type { SyncTask } from '@/services/storage/syncQueueTypes';
+import type { SpecialistHandoffSyncPayload, SyncTask } from '@/services/storage/syncQueueTypes';
 import type { SyncTransportResult } from '@/services/storage/sync/syncQueuePorts';
 import type { SyncErrorCategory } from '@/services/storage/syncErrorCatalog';
 import type {
@@ -153,10 +153,13 @@ export const createSyncQueueEngine = ({
   const queueDailyRecordTaskWithLocalRecord = async (
     record: DailyRecord,
     meta?: Pick<SyncTask, 'contexts' | 'origin' | 'recoveryPolicy' | 'syncContract'>,
-    options: SyncQueueEnqueueOptions = {}
+    options: SyncQueueEnqueueOptions = {},
+    /** A specialist note is its own task: never coalesced into the day record task. */
+    handoff?: SpecialistHandoffSyncPayload
   ): Promise<SyncQueueEnqueueResult> => {
-    const type: SyncTask['type'] = 'UPDATE_DAILY_RECORD';
-    const key = getSyncTaskKey(type, record);
+    const type: SyncTask['type'] = handoff ? 'UPDATE_SPECIALIST_HANDOFF' : 'UPDATE_DAILY_RECORD';
+    const payload = handoff ?? record;
+    const key = getSyncTaskKey(type, payload);
     const ownerKey = runtime.getOwnerKey();
     const taskOwnerKey = ownerKey ?? undefined;
     const now = Date.now();
@@ -166,7 +169,7 @@ export const createSyncQueueEngine = ({
     });
     const existing = key ? await store.findReusableTask(type, key, ownerKey) : null;
     // The store merges this write's own intent with the pending task inside its transaction.
-    const syncContract = buildSyncTaskContract(type, record, meta?.syncContract);
+    const syncContract = buildSyncTaskContract(type, payload, meta?.syncContract);
 
     const pendingTasks = await countActiveTasks(ownerKey);
     if (!existing && pendingTasks >= maxPendingTasks) {
@@ -183,7 +186,7 @@ export const createSyncQueueEngine = ({
       {
         opId: `${type}:${key ?? 'global'}:${now}`,
         type,
-        payload: record,
+        payload,
         timestamp: now,
         retryCount: 0,
         key,
@@ -252,6 +255,16 @@ export const createSyncQueueEngine = ({
     isProcessing = true;
 
     try {
+      // Never dispatch from a day whose note projections could not be repaired.
+      try {
+        await store.reconcileSpecialistHandoffProjections?.();
+      } catch (releaseError) {
+        logError(
+          'Repairing specialist note projections failed; queue replay deferred',
+          releaseError instanceof Error ? releaseError : undefined
+        );
+        return;
+      }
       await measureRepositoryOperation(
         'syncQueue.process',
         async () => {
@@ -279,19 +292,27 @@ export const createSyncQueueEngine = ({
                 if (!dispatchClaim) continue;
                 const leaseUntil = Date.now() + SYNC_QUEUE_LEASE_MS;
                 // A slow preceding task can outlive the batch lease. Fence and renew
-                // atomically before dispatch, so another worker's task is never replayed.
-                if (!(await store.updateClaimed(task.id, { leaseUntil }, dispatchClaim))) {
+                // atomically before dispatch, so another worker's task is never replayed. The
+                // task replays as stored now: an earlier task of this batch may have changed it
+                // (a refused note gives its values back to the day writes folded over it).
+                const stored = store.renewClaim
+                  ? await store.renewClaim(task.id, leaseUntil, dispatchClaim)
+                  : (await store.updateClaimed(task.id, { leaseUntil }, dispatchClaim))
+                    ? task
+                    : null;
+                if (!stored) {
                   recordSyncQueueStaleClaimTelemetry(task, 'update');
                   continue;
                 }
-                task.leaseUntil = leaseUntil;
+                Object.assign(task, stored, { leaseUntil });
                 const result: Partial<SyncTransportResult> = (await transport.run(task)) || {};
                 const claim = buildTaskClaim(task);
                 if (claim) {
                   const deleted = await store.deleteClaimed(
                     task.id,
                     claim,
-                    result.authoritativeRecord
+                    result.authoritativeRecord,
+                    result.detachedConflicts
                   );
                   if (!deleted) {
                     recordSyncQueueStaleClaimTelemetry(task, 'delete');

@@ -4,12 +4,7 @@
 
   const runtimeMessages = globalThis.HhrRayenMessageContract &&
     globalThis.HhrRayenMessageContract.types;
-  const trustedOrigins = new Set([
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'https://testinghhr.netlify.app', 'https://hhr-entorno-prueba.netlify.app',
-  ]);
-  if (!runtimeMessages || !trustedOrigins.has(window.location.origin)) return;
+  if (!runtimeMessages || !globalThis.HhrAppOrigins?.has(window.location.origin)) return;
 
   const post = message => chrome.runtime?.id && window.postMessage(message, window.location.origin);
 

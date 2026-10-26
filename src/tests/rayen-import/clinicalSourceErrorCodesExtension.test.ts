@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { readHhrBridgeSource } from './support/hhrOriginPolicyFixture';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { describe, expect, it, vi } from 'vitest';
@@ -96,7 +97,7 @@ it.each([undefined, 'episode_not_authorized', 'future_code'])(
       postMessage: done,
     };
     const error = 'Mensaje conservado para HHR anterior';
-    vm.runInNewContext(readFileSync('extension/content-hhr.js', 'utf8'), {
+    vm.runInNewContext(readHhrBridgeSource('content-hhr.js'), {
       window: page,
       console,
       chrome: {

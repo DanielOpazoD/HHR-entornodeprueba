@@ -1,84 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-const { firestoreWriteLoggerWarn, firestoreWriteLoggerError } = vi.hoisted(() => ({
-  firestoreWriteLoggerWarn: vi.fn(),
-  firestoreWriteLoggerError: vi.fn(),
-}));
-const { mockEnsureUserRoleClaim, mockResolveFirebaseUserRole, mockGetCurrentUser, mockAuthReady } =
-  vi.hoisted(() => ({
-    mockEnsureUserRoleClaim: vi.fn(),
-    mockResolveFirebaseUserRole: vi.fn(),
-    mockGetCurrentUser: vi.fn(),
-    mockAuthReady: Promise.resolve(),
-  }));
-const { mockHttpsCallable, mockSpecialistCallable, mockGetFunctions } = vi.hoisted(() => ({
-  mockHttpsCallable: vi.fn(),
-  mockSpecialistCallable: vi.fn(),
-  mockGetFunctions: vi.fn().mockResolvedValue({ name: 'functions-runtime' }),
-}));
-vi.mock('firebase/firestore', async () => {
-  const actual = await vi.importActual('firebase/firestore');
-
-  class MockTimestamp {
-    static now = vi.fn(() => new MockTimestamp());
-
-    toDate = () => new Date('2026-03-14T12:34:56.789Z');
-  }
-
-  return {
-    ...actual,
-    collection: vi.fn(),
-    deleteDoc: vi.fn(),
-    doc: vi.fn(),
-    setDoc: vi.fn(),
-    Timestamp: MockTimestamp,
-    updateDoc: vi.fn(),
-  };
-});
-vi.mock('firebase/functions', () => ({
-  httpsCallable: (...args: unknown[]) => mockHttpsCallable(...args),
-}));
-vi.mock('@/utils/networkUtils', () => ({
-  withRetry: vi.fn((operation: () => Promise<unknown> | unknown) => operation()),
-}));
-vi.mock('@/services/storage/firestore/firestoreShared', () => ({
-  flattenObject: vi.fn((value: Record<string, unknown>) => value),
-  getRecordDocRef: vi.fn((date: string) => ({ date })),
-  sanitizeForFirestore: vi.fn((value: unknown) => value),
-}));
-vi.mock('@/services/storage/firestore/firestoreWriteSupport', () => ({
-  ConcurrencyError: class ConcurrencyError extends Error {},
-  asFirestoreUpdatePayload: vi.fn((payload: Record<string, unknown>) => payload),
-  assertFirestoreConcurrency: vi.fn(),
-  createDeletedRecordRef: vi.fn((date: string) => ({ trashRef: date })),
-  saveHistorySnapshot: vi.fn(),
-  saveRecordAtomically: vi.fn(),
-  updateRecordPartiallyAtomically: vi.fn(),
-}));
-vi.mock('@/services/storage/storageLoggers', () => ({
-  firestoreWriteLogger: {
-    warn: firestoreWriteLoggerWarn,
-    error: firestoreWriteLoggerError,
-  },
-}));
-vi.mock('@/services/auth/authClaimSyncService', () => ({
-  ensureUserRoleClaim: (...args: unknown[]) => mockEnsureUserRoleClaim(...args),
-}));
-vi.mock('@/services/auth/authAccessResolution', () => ({
-  resolveFirebaseUserRole: (...args: unknown[]) => mockResolveFirebaseUserRole(...args),
-}));
-vi.mock('@/services/firebase-runtime/authRuntime', () => ({
-  defaultAuthRuntime: {
-    ready: mockAuthReady,
-    getCurrentUser: () => mockGetCurrentUser(),
-  },
-}));
-vi.mock('@/services/firebase-runtime/functionsRuntime', () => ({
-  defaultFunctionsRuntime: {
-    getFunctions: () => mockGetFunctions(),
-    getRegionalFunctions: () => mockGetFunctions(),
-  },
-}));
-import { deleteDoc, setDoc, updateDoc } from 'firebase/firestore';
+import {
+  firestoreWriteLoggerWarn,
+  firestoreWriteLoggerError,
+  mockEnsureUserRoleClaim,
+  mockResolveFirebaseUserRole,
+  mockGetCurrentUser,
+  mockHttpsCallable,
+  mockSpecialistCallable,
+  mockGetFunctions,
+  specialistHandoffTargets,
+  specialistSnapshot,
+} from './firestoreRecordWritesTestSupport';
+import { deleteDoc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import {
   deleteRecordFromFirestore,
   moveRecordToTrash,
@@ -97,6 +30,8 @@ import { withRetry } from '@/utils/networkUtils';
 describe('firestoreRecordWrites', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(withRetry).mockImplementation(operation => operation());
+    vi.mocked(getDoc).mockResolvedValue(specialistSnapshot() as never);
     delete (import.meta.env as Record<string, string | undefined>)
       .VITE_DAILY_RECORD_AUTHORITY_CALLABLE;
     delete (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE;
@@ -353,11 +288,16 @@ describe('firestoreRecordWrites', () => {
     mockGetCurrentUser.mockReturnValue(currentUser);
     mockResolveFirebaseUserRole.mockResolvedValue('doctor_specialist');
 
-    await updateRecordPartial('2026-03-20', {
-      'beds.R4.medicalHandoffEntries': [{ id: 'entry-1', note: 'Seguimiento' }],
-      'beds.R4.medicalHandoffNote': 'Seguimiento',
-      'beds.R4.medicalHandoffAudit': { currentStatus: 'updated_by_specialist' },
-    } as never);
+    await updateRecordPartial(
+      '2026-03-20',
+      {
+        'beds.R4.medicalHandoffEntries': [{ id: 'entry-1', note: 'Seguimiento' }],
+        'beds.R4.medicalHandoffNote': 'Seguimiento',
+        'beds.R4.medicalHandoffAudit': { currentStatus: 'updated_by_specialist' },
+      } as never,
+      undefined,
+      { specialistHandoffTargets }
+    );
 
     expect(mockGetFunctions).toHaveBeenCalled();
     expect(mockHttpsCallable).toHaveBeenCalledWith(
@@ -367,6 +307,7 @@ describe('firestoreRecordWrites', () => {
     );
     expect(mockSpecialistCallable).toHaveBeenCalledWith({
       date: '2026-03-20',
+      expectedOccupants: specialistHandoffTargets,
       patch: {
         'beds.R4.medicalHandoffEntries': [{ id: 'entry-1', note: 'Seguimiento' }],
         'beds.R4.medicalHandoffNote': 'Seguimiento',

@@ -92,6 +92,14 @@ export interface SyncQueueStorePort {
   requeueQuarantinedTask?(taskId: number, ownerKey?: string | null): Promise<boolean>;
   /** Elimina una tarea FAILED/CONFLICT; nunca toca tareas activas (acción explícita del usuario). */
   discardQuarantinedTask?(taskId: number, ownerKey?: string | null): Promise<boolean>;
+  /** Repairs pre-fix and unreleased quarantined note projections before any task replays. */
+  reconcileSpecialistHandoffProjections?(): Promise<void>;
+  /** Renews a claim and returns the task as stored now, or null when the claim was lost. */
+  renewClaim?(
+    taskId: number,
+    leaseUntil: number,
+    claim: SyncQueueLeaseClaim
+  ): Promise<SyncTask | null>;
   update(taskId: number, patch: Partial<SyncTask>): Promise<void>;
   updateClaimed(
     taskId: number,
@@ -99,11 +107,15 @@ export interface SyncQueueStorePort {
     claim: SyncQueueLeaseClaim
   ): Promise<boolean>;
   delete(taskId: number): Promise<void>;
-  /** Complete the claim and optionally adopt its ACK without replacing unresolved projections. */
+  /**
+   * Complete the claim and optionally adopt its ACK without replacing unresolved projections.
+   * Detached conflicts are written in the same transaction, so they are durable before it ends.
+   */
   deleteClaimed(
     taskId: number,
     claim: SyncQueueLeaseClaim,
-    authoritativeRecord?: DailyRecord
+    authoritativeRecord?: DailyRecord,
+    detachedConflicts?: SyncTask[]
   ): Promise<boolean>;
   deleteAll(): Promise<void>;
   deleteByOwner(ownerKey: string | null): Promise<void>;
@@ -122,4 +134,6 @@ export interface SyncTransportPort {
 
 export interface SyncTransportResult {
   authoritativeRecord: DailyRecord;
+  /** Edits for a patient who left the bed, kept as conflicts instead of being published. */
+  detachedConflicts?: SyncTask[];
 }

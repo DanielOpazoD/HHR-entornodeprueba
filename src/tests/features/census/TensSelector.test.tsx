@@ -123,7 +123,7 @@ describe('TensSelector', () => {
 
     expect(vacancySelect).toHaveClass(
       'rounded-md',
-      'bg-slate-150',
+      'bg-slate-100',
       'text-slate-600',
       'border-slate-300'
     );

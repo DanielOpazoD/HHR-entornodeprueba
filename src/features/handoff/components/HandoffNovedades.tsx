@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { MessageCircle } from 'lucide-react';
 import { DebouncedTextarea } from '@/components/ui/DebouncedTextarea';
 import clsx from 'clsx';
@@ -42,10 +42,19 @@ export const HandoffNovedades: React.FC<HandoffNovedadesProps> = ({
   onChange,
   readOnly = false,
 }) => {
+  const headingId = useId();
+
   return (
-    <div className="min-w-0 max-w-full bg-white border border-slate-200 rounded-lg p-4 mt-4 print:border-none print:p-0 print:mt-2 print:bg-transparent">
-      <h3 className="font-bold text-lg text-slate-700 mb-2 flex items-center gap-2 print:text-sm print:mb-1 print:text-black">
-        <MessageCircle size={20} className="text-amber-500 print:w-4 print:h-4" />
+    <div className="min-w-0 max-w-full bg-white border border-slate-200/80 rounded-2xl shadow-sm p-4 mt-4 print:rounded-lg print:shadow-none print:border-none print:p-0 print:mt-2 print:bg-transparent">
+      <h3
+        id={headingId}
+        className="font-semibold text-sm text-slate-700 mb-3 flex items-center gap-2 print:font-bold print:text-sm print:mb-1 print:text-black"
+      >
+        <MessageCircle
+          size={16}
+          className="shrink-0 text-teal-600 print:w-4 print:h-4 print:text-amber-500"
+          aria-hidden="true"
+        />
         Novedades
       </h3>
 
@@ -63,6 +72,7 @@ export const HandoffNovedades: React.FC<HandoffNovedadesProps> = ({
             readOnly && 'bg-slate-50 cursor-not-allowed text-slate-500'
           )}
           debounceMs={1500}
+          aria-labelledby={headingId}
         />
       </div>
 

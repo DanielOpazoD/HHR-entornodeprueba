@@ -1,8 +1,9 @@
 /** @vitest-environment jsdom */
 import '../../setup';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, fireEvent, screen } from '@testing-library/react';
 import React from 'react';
+import { resetMedicalHandoffDraftMemoryForTests } from '@/services/storage/medicalHandoffDraftStorage';
 
 import { HandoffRow } from '@/features/handoff/components/HandoffRow';
 import {
@@ -14,6 +15,11 @@ import {
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 
 describe('HandoffRow medical flows', () => {
+  beforeEach(() => {
+    resetMedicalHandoffDraftMemoryForTests();
+    localStorage.clear();
+    localStorage.setItem('hhr_session_owner_v1', 'user:synthetic-A');
+  });
   const mockPatient = createMockPatient({
     patientName: 'Test Patient',
     pathology: 'Pathology Test',

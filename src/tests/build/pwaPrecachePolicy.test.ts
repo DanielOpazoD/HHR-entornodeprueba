@@ -227,7 +227,6 @@ describe('PWA precache policy', () => {
     expect(viteConfig).toContain('**/assets/fonasaDatabase-*.js');
     expect(viteConfig).toContain('**/assets/clinicalDocumentTemplateEditorController-*.js');
     expect(viteConfig).toContain('**/assets/vendor-heic2any-*.js');
-    expect(viteConfig).toContain('**/assets/vendor-firebase-functions-*.js');
     expect(viteConfig).toContain('**/assets/applyClinicalEnrichmentBatch-*.js');
     expect(viteConfig).toContain('**/assets/applyHistoricalCudyr-*.js');
     expect(viteConfig).toContain('**/assets/clinicalFillRunner-*.js');
@@ -275,14 +274,28 @@ describe('PWA precache policy', () => {
     }
   });
 
-  it('keeps callable Functions on demand because every invocation requires network access', () => {
+  it('precaches the callable Functions runtime so a flaky first load cannot stick', () => {
     const viteConfig = readViteConfig();
     const bundleBudgetConfig = readBundleBudgetConfig();
-
-    expect(viteConfig).toContain('**/assets/vendor-firebase-functions-*.js');
-    expect(bundleBudgetConfig.precacheIgnoredAssetPatterns).toContain(
-      '^assets/vendor-firebase-functions-.*\\.js$'
+    const patterns = bundleBudgetConfig.precacheIgnoredAssetPatterns.map(
+      (pattern: string) => new RegExp(pattern)
     );
+
+    expect(viteConfig).not.toContain('**/assets/vendor-firebase-functions-*.js');
+    expect(
+      patterns.some((pattern: RegExp) => pattern.test('assets/vendor-firebase-functions-x.js'))
+    ).toBe(false);
+  });
+
+  it('precaches the small runtime loaders shared by PDF, image and CUDYR tools', () => {
+    const patterns = readBundleBudgetConfig().precacheIgnoredAssetPatterns.map(
+      (pattern: string) => new RegExp(pattern)
+    );
+
+    expect(
+      patterns.some((pattern: RegExp) => pattern.test('assets/shared-runtime-loaders-x.js'))
+    ).toBe(false);
+    expect(readViteConfig()).not.toContain('shared-runtime-loaders');
   });
 
   it('keeps HEIC and PDF.js runtimes excluded from both PWA config and bundle budget precache accounting', () => {

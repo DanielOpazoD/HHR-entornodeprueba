@@ -1,3 +1,4 @@
+import type { SpecialistHandoffTarget } from './specialistMedicalHandoffIdentity';
 import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
 import {
   evaluateDailyRecordClinicalAuthority,
@@ -12,7 +13,6 @@ import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSup
 import { firestoreWriteLogger } from '@/services/storage/storageLoggers';
 import { resolveFirebaseUserRole } from '@/services/auth/authAccessResolution';
 import { defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
-import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import { shouldShadowDailyRecordAuthorityCallable } from '@/services/storage/firestore/dailyRecordAuthorityMode';
 import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/firestoreServiceRuntime';
 import {
@@ -34,6 +34,7 @@ import type { SpecialtyManualIntent } from '@/types/domain/specialtyDecision';
 import { isE2EDailyRecordAuthorityCallableForced } from '@/shared/runtime/e2eRuntime';
 
 export interface DailyRecordPartialWriteOptions {
+  specialistHandoffTargets?: SpecialistHandoffTarget[];
   syncContract?: SyncTaskContract;
   /** Enforces the base version inside the same transaction as the multi-field patch. */
   requireAtomicCas?: boolean;
@@ -69,11 +70,6 @@ export interface DailyRecordSaveWriteOptions {
    * need. Otherwise copies follow the hourly cadence (historySnapshotCadence).
    */
   historyPolicy?: 'snapshot';
-}
-
-interface SpecialistMedicalHandoffCallablePayload {
-  date: string;
-  patch: Record<string, unknown>;
 }
 
 // Clasificación de rutas: delega en el CONTRATO ÚNICO de autoridad (la
@@ -165,23 +161,6 @@ export const shouldRouteSpecialistPatchViaCallable = async (): Promise<boolean> 
     firestoreWriteLogger.warn('Specialist callable routing role check failed', { error });
     return false;
   }
-};
-
-export const updateSpecialistMedicalHandoffViaCallable = async (
-  date: string,
-  patch: Record<string, unknown>
-): Promise<void> => {
-  const functions = await defaultFunctionsRuntime.getFunctions();
-  const { httpsCallable } = await import('firebase/functions');
-  const callable = httpsCallable<
-    SpecialistMedicalHandoffCallablePayload,
-    { success: boolean; date: string; bedId: string }
-  >(functions, 'updateSpecialistMedicalHandoff', { timeout: 45_000 });
-
-  await callable({
-    date,
-    patch,
-  });
 };
 
 export const shouldRouteDailyRecordSaveViaCallable = async (): Promise<boolean> => {

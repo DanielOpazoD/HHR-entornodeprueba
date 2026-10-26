@@ -117,12 +117,12 @@ export const useHandoffLogic = ({
   const persistMedicalFields = useCallback(
     async (bedId: string, fields: MedicalPatientFields, isNested: boolean) => {
       if (isNested) {
-        await updateClinicalCribMultiple(bedId, fields);
+        await updateClinicalCribMultiple(bedId, fields, record?.beds[bedId]?.clinicalCrib);
         return;
       }
-      await updatePatientMultiple(bedId, fields);
+      await updatePatientMultiple(bedId, fields, record?.beds[bedId]);
     },
-    [updateClinicalCribMultiple, updatePatientMultiple]
+    [record, updateClinicalCribMultiple, updatePatientMultiple]
   );
 
   const nursingHandlers = useNursingHandoffHandlers({

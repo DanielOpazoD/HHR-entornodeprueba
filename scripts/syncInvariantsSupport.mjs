@@ -155,7 +155,7 @@ export const evaluateSyncInvariants = root => {
         transport.includes('record: docToRecord(remoteData, record.date)') &&
         transport.includes("resolved.resolution === 'already_applied'") &&
         transport.includes('return { authoritativeRecord: resolved.record }') &&
-        /store\.deleteClaimed\(\s*task\.id,\s*claim,\s*result\.authoritativeRecord\s*\)/.test(
+        /store\.deleteClaimed\(\s*task\.id,\s*claim,\s*result\.authoritativeRecord(?:,\s*result\.detachedConflicts)?\s*\)/.test(
           engine
         ) &&
         conflictPolicy.includes('lastMutationId'),

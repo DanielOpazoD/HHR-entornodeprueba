@@ -211,7 +211,9 @@ export const useDailyRecordSyncQuery = (
                   ...(options.specialtyIntent ? { specialtyIntent: options.specialtyIntent } : {}),
                 },
               }
-            : partial
+            : options?.specialistHandoffTargets
+              ? { partial, options: { specialistHandoffTargets: options.specialistHandoffTargets } }
+              : partial
         );
         presentSyncOutcomeFeedback(resolvePatchOutcomeFeedback(payload.result), 'Actualización', {
           error: notifyError,

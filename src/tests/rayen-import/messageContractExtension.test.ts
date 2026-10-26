@@ -362,10 +362,13 @@ describe('shared Rayen runtime-message contract', () => {
       entry.js?.includes('content-hhr-patient-flow.js')
     );
     expect(patientFlowEntry?.matches).toEqual([
-      'http://localhost:3000/*',
-      'http://localhost:3001/*',
+      ...['localhost', '127.0.0.1'].flatMap(host =>
+        Array.from({ length: 21 }, (_, index) => `http://${host}:${3000 + index}/*`)
+      ),
+      'https://hhr-hospitalizados.app/*',
       'https://testinghhr.netlify.app/*',
       'https://hhr-entorno-prueba.netlify.app/*',
+      'https://*.netlify.app/*',
     ]);
     expect(background).toContain('const readAuthorizedSnapshot = sender =>');
     expect(background).toContain('patientFlowRuntime.authorizeSnapshotResponse(');

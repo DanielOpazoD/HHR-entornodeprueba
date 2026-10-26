@@ -18,7 +18,7 @@ const TONE_FOCUS_RING_CLASSES: Record<StaffSelectionSlotTone, string> = {
   night: 'focus:ring-slate-500',
 };
 
-const VACANCY_CLASSES = 'rounded-md bg-slate-150 text-slate-600 border-slate-300 shadow-none';
+const VACANCY_CLASSES = 'rounded-md bg-slate-100 text-slate-600 border-slate-300 shadow-none';
 
 export const buildStaffSelectionSelectClassName = ({
   baseClassName,

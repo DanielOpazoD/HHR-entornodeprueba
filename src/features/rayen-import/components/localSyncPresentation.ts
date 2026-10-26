@@ -27,6 +27,8 @@ export interface QuarantinedOperationView {
   categoryLabel: string;
   code?: string;
   detail?: string;
+  /** A refused note or edits detached from a departed patient: offered a discard, not a retry. */
+  refusedHandoff?: 'note' | 'detached';
 }
 
 export const targetLabelFromKey = (
@@ -35,10 +37,39 @@ export const targetLabelFromKey = (
 ): string => {
   if (type === 'ARCHIVE_CUDYR') return 'Archivo CUDYR';
   if (type === 'UPDATE_PATIENT') return 'Datos del paciente';
+  // handoff:<date>:[[bed, target, documentType, rut, patientName, episode], ...]
+  // daily:<date>:detached:<task>:[bed, target, documentType, rut, patientName, episode]
+  const named =
+    key?.match(/^handoff:([^:]*):(.*)$/) ?? key?.match(/^daily:([^:]*):detached:[^:]*:(.*)$/);
+  if (named) {
+    let names = 'paciente';
+    try {
+      const occupants = JSON.parse(named[2]) as string[] | string[][];
+      names = (Array.isArray(occupants[0]) ? (occupants as string[][]) : [occupants as string[]])
+        .map(occupant => occupant[4])
+        .join(' y ');
+    } catch {
+      // Keep the generic label for a malformed key.
+    }
+    const what = type === 'UPDATE_SPECIALIST_HANDOFF' ? 'Nota de entrega' : 'Cambios';
+    return `${what} de ${names} · ${named[1].split('-').reverse().join('-')}`;
+  }
   const date = key?.startsWith('daily:') ? key.slice('daily:'.length) : null;
   if (!date) return 'Registro del censo';
   const [year, month, day] = date.split('-');
   return year && month && day ? `Censo del ${day}-${month}-${year}` : `Censo del ${date}`;
+};
+
+/**
+ * A refused specialist note, or edits detached from a patient who left the bed, can never be
+ * sent as they are: a retry always fails, so the panel offers a confirmed discard instead.
+ */
+const refusedHandoffKind = (
+  operation: Pick<SyncQueueOperation, 'type' | 'status' | 'key'>
+): QuarantinedOperationView['refusedHandoff'] => {
+  if (operation.status !== 'CONFLICT') return undefined;
+  if (operation.type === 'UPDATE_SPECIALIST_HANDOFF') return 'note';
+  return operation.key?.includes(':detached:') ? 'detached' : undefined;
 };
 
 export const listQuarantinedOperations = (
@@ -47,12 +78,16 @@ export const listQuarantinedOperations = (
   operations
     .filter(operation => operation.status === 'FAILED' || operation.status === 'CONFLICT')
     .filter(operation => typeof operation.id === 'number')
-    .map(operation => ({
-      id: operation.id as number,
-      code: operation.lastErrorCode,
-      detail: operation.error,
-      targetLabel: targetLabelFromKey(operation.key, operation.type),
-      categoryLabel: isPolicyBlockedCudyrArchive(operation)
-        ? 'Autorización anterior'
-        : (CATEGORY_LABELS[operation.lastErrorCategory ?? 'unknown'] ?? 'Error desconocido'),
-    }));
+    .map(operation => {
+      const refusedHandoff = refusedHandoffKind(operation);
+      return {
+        id: operation.id as number,
+        code: operation.lastErrorCode,
+        detail: operation.error,
+        targetLabel: targetLabelFromKey(operation.key, operation.type),
+        categoryLabel: isPolicyBlockedCudyrArchive(operation)
+          ? 'Autorización anterior'
+          : (CATEGORY_LABELS[operation.lastErrorCategory ?? 'unknown'] ?? 'Error desconocido'),
+        ...(refusedHandoff ? { refusedHandoff } : {}),
+      };
+    });

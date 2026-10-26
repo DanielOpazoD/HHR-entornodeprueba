@@ -59,6 +59,31 @@ const openHandoff = async (page: Page, mode: 'nursing' | 'medical') => {
 };
 
 test.describe('Nursing Handoff', () => {
+  test('keeps the night checklist usable within a mobile viewport', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openHandoff(page, 'nursing');
+    await page.getByTestId('handoff-shift-night-button').click();
+
+    const nextCountDate = page.getByLabel('Próximo conteo de medicamentos no controlados');
+    await expect(nextCountDate).toBeVisible();
+    const checklist = page.getByRole('checkbox', { name: 'Estadística', exact: true });
+    await checklist.focus();
+    await checklist.press('Space');
+    await expect(checklist).toBeChecked();
+    await nextCountDate.fill('2026-10-28');
+    await expect(nextCountDate).toHaveValue('2026-10-28');
+
+    const labels = page.locator('label').filter({ has: page.getByRole('checkbox') });
+    await expect(labels).toHaveCount(6);
+    for (const control of [...(await labels.all()), nextCountDate]) {
+      const bounds = await control.boundingBox();
+      expect(bounds).not.toBeNull();
+      expect(bounds!.x).toBeGreaterThanOrEqual(0);
+      expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(390);
+    }
+    await page.screenshot({ path: test.info().outputPath('nursing-night-mobile.png') });
+  });
+
   test.describe('Shift Selection', () => {
     test('should display shift toggle buttons', async ({ page }) => {
       await openHandoff(page, 'nursing');

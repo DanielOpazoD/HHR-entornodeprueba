@@ -63,6 +63,19 @@ const createFixture = (overrides: Record<string, unknown> = {}) => {
 };
 
 describe('health heartbeat runtime (extension)', () => {
+  it('does not publish health to unrelated wildcard candidate tabs', async () => {
+    const { runtime, chromeApi } = createFixture({
+      isTargetTab: (tab: { url?: string }) =>
+        tab.url === 'https://deploy-preview-992--testinghhr.netlify.app/census',
+    });
+    chromeApi.tabs.query.mockImplementation(async () => [
+      { id: 3, url: 'https://unrelated.netlify.app/census' },
+      { id: 9, url: 'https://deploy-preview-992--testinghhr.netlify.app/census' },
+    ]);
+    await expect(runtime.pushNow('origin-filter')).resolves.toEqual({ pushed: 1 });
+    expect(chromeApi.tabs.sendMessage).toHaveBeenCalledExactlyOnceWith(9, expect.any(Object));
+  });
+
   it('registra la alarma periódica y empuja el reporte en cada latido', async () => {
     const { runtime, chromeApi, alarmListeners } = createFixture();
 

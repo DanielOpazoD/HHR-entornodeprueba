@@ -27,7 +27,7 @@
   'use strict';
   const runtimeMessages = globalThis.HhrRayenMessageContract &&
     globalThis.HhrRayenMessageContract.types;
-  if (!runtimeMessages) return;
+  if (!runtimeMessages || !globalThis.HhrAppOrigins?.has(window.location.origin)) return;
   const previousRelay = globalThis.__hhrAppRelayInstalled; try {
     chrome.runtime.onMessage.removeListener?.(previousRelay?.runtimeListener);
     window.removeEventListener('message', previousRelay?.pageListener);

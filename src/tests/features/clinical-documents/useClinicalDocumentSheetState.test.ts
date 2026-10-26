@@ -358,4 +358,26 @@ describe('useClinicalDocumentSheetState', () => {
 
     keepOpenTarget.remove();
   });
+
+  it('keeps formatting open when double-clicking a toolbar control outside a dialog', () => {
+    const { result } = renderHook(() => useClinicalDocumentSheetState(createDocument()));
+    const cluster = document.createElement('div');
+    const zoomButton = document.createElement('button');
+    cluster.setAttribute('data-clinical-document-toolbar-cluster', '');
+    zoomButton.textContent = 'Aumentar zoom';
+    cluster.appendChild(zoomButton);
+    document.body.appendChild(cluster);
+
+    act(() => {
+      result.current.setIsFormattingOpen(true);
+    });
+
+    fireEvent.doubleClick(zoomButton);
+    expect(result.current.isFormattingOpen).toBe(true);
+
+    fireEvent.doubleClick(document.body);
+    expect(result.current.isFormattingOpen).toBe(false);
+
+    cluster.remove();
+  });
 });

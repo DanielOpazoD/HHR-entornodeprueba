@@ -32,6 +32,8 @@ test.describe('Census persistence and reload', () => {
       status: 'Estable',
       age: '39',
       admissionDate: PERSISTENCE_DATE,
+      // Keep the mocked authority snapshot canonical when the admission time is unknown.
+      admissionTime: '',
     };
 
     const record = { ...baseRecord, beds };
@@ -74,6 +76,7 @@ test.describe('Census persistence and reload', () => {
         patientName: 'Updated Patient',
         pathology: 'INITIAL DX',
         clinicalEpisodeId: 'e2e-persistence-episode',
+        admissionTime: '',
       },
     });
 
@@ -100,6 +103,7 @@ test.describe('Census persistence and reload', () => {
         firstName: 'Updated',
         lastName: 'Patient',
         secondLastName: '',
+        admissionTime: '',
         pathology: 'UPDATED DX',
       },
     });

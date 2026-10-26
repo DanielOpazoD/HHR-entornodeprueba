@@ -2,39 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 
 import { ClinicalDocumentsSidebar } from '@/features/clinical-documents/components/ClinicalDocumentsSidebar';
-import { createClinicalDocumentDraft } from '@/features/clinical-documents/domain/factories';
-
-const buildDocument = () =>
-  createClinicalDocumentDraft({
-    templateId: 'epicrisis',
-    hospitalId: 'hhr',
-    actor: {
-      uid: 'u1',
-      email: 'doctor@test.com',
-      displayName: 'Doctor Test',
-      role: 'doctor_urgency',
-    },
-    episode: {
-      patientRut: '11.111.111-1',
-      patientName: 'Paciente Test',
-      episodeKey: '11.111.111-1__2026-03-06',
-      admissionDate: '2026-03-06',
-      sourceDailyRecordDate: '2026-03-06',
-      sourceBedId: 'R1',
-      specialty: 'Medicina',
-    },
-    patientFieldValues: {
-      nombre: 'Paciente Test',
-      rut: '11.111.111-1',
-      edad: '40a',
-      fecnac: '1986-01-01',
-      fing: '2026-03-06',
-      finf: '2026-03-06',
-      hinf: '10:30',
-    },
-    medico: 'Doctor Test',
-    especialidad: 'Medicina',
-  });
+import { buildDocument } from './ClinicalDocumentsSidebar.testSupport';
 
 describe('ClinicalDocumentsSidebar', () => {
   it('shows read-only notice and disables create without patient name', () => {
@@ -63,6 +31,7 @@ describe('ClinicalDocumentsSidebar', () => {
 
   it('renders documents with their saved title and delegates selection and deletion', () => {
     const document = { ...buildDocument(), title: 'Evolución médica 25/05/2026' };
+    const otherDocument = { ...document, id: 'other-document', title: 'Control médico' };
     const onSelectDocument = vi.fn();
     const onDuplicateDocument = vi.fn();
     const onDeleteDocument = vi.fn();
@@ -77,7 +46,7 @@ describe('ClinicalDocumentsSidebar', () => {
         selectedTemplateId="epicrisis"
         onSelectTemplate={() => {}}
         onCreateDocument={() => {}}
-        documents={[document]}
+        documents={[document, otherDocument]}
         selectedDocumentId={document.id}
         onSelectDocument={onSelectDocument}
         onDuplicateDocument={onDuplicateDocument}
@@ -85,20 +54,26 @@ describe('ClinicalDocumentsSidebar', () => {
       />
     );
 
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: /evolución médica 25\/05\/2026/i,
-      })
-    );
+    const selectedDocument = screen.getByRole('button', {
+      name: /evolución médica 25\/05\/2026/i,
+      pressed: true,
+    });
+    expect(
+      screen.getByRole('button', { name: /control médico/i, pressed: false })
+    ).toBeInTheDocument();
+    fireEvent.click(selectedDocument);
     expect(onSelectDocument).toHaveBeenCalledWith(document.id);
 
-    fireEvent.click(screen.getByTitle(/duplicar documento/i));
+    const duplicateActions = screen.getAllByRole('button', { name: 'Duplicar documento' });
+    duplicateActions[0].focus();
+    expect(duplicateActions[0]).toHaveFocus();
+    fireEvent.click(duplicateActions[0]);
     expect(onDuplicateDocument).toHaveBeenCalledWith(document);
 
-    fireEvent.click(screen.getByTitle(/eliminar documento/i));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Eliminar documento' })[0]);
     expect(onDeleteDocument).toHaveBeenCalledWith(document);
     expect(screen.getByText('Evolución médica 25/05/2026')).toBeInTheDocument();
-    expect(screen.getByText(/doctor test/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/doctor test/i)).toHaveLength(2);
     expect(screen.queryByText(/borrador/i)).not.toBeInTheDocument();
   });
 
@@ -248,7 +223,9 @@ describe('ClinicalDocumentsSidebar', () => {
     expect(
       screen.queryByRole('button', { name: /documento complementario/i })
     ).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /agregar anexos/i }));
+    const annexAction = screen.getByRole('button', { name: /agregar anexos/i });
+    expect(annexAction).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(annexAction);
 
     expect(onToggleAnnex).toHaveBeenCalledTimes(1);
   });
@@ -366,134 +343,5 @@ describe('ClinicalDocumentsSidebar', () => {
     });
 
     expect(onImportWithAi).not.toHaveBeenCalled();
-  });
-
-  it('restores one section from a version history snapshot', () => {
-    const document = {
-      ...buildDocument(),
-      currentVersion: 2,
-      versionHistory: [
-        {
-          version: 2,
-          savedAt: '2026-04-24T10:00:00.000Z',
-          savedBy: {
-            uid: 'u1',
-            email: 'doctor@test.com',
-            displayName: 'Doctor Test',
-            role: 'doctor_urgency',
-          },
-          reason: 'manual' as const,
-          changedSectionIds: ['evolucion'],
-          sectionSnapshots: [
-            {
-              sectionId: 'evolucion',
-              title: 'Evolución clínica',
-              content: 'Texto anterior de evolución.',
-              order: 1,
-            },
-          ],
-        },
-        {
-          version: 1,
-          savedAt: '2026-04-24T09:00:00.000Z',
-          savedBy: {
-            uid: 'u1',
-            email: 'doctor@test.com',
-            displayName: 'Doctor Test',
-            role: 'doctor_urgency',
-          },
-          reason: 'manual' as const,
-          sectionSnapshots: [
-            {
-              sectionId: 'evolucion',
-              title: 'Evolución clínica',
-              content: 'Texto base de evolución.',
-              order: 1,
-            },
-          ],
-        },
-      ],
-    };
-    const onRestoreVersionSection = vi.fn();
-
-    render(
-      <ClinicalDocumentsSidebar
-        canEdit={true}
-        canDelete={false}
-        readOnlyMessage={null}
-        patientName="Paciente Test"
-        templates={[{ id: 'epicrisis', name: 'Epicrisis' }]}
-        selectedTemplateId="epicrisis"
-        onSelectTemplate={() => {}}
-        onCreateDocument={() => {}}
-        documents={[document]}
-        selectedDocumentId={document.id}
-        onSelectDocument={() => {}}
-        onDuplicateDocument={() => {}}
-        onDeleteDocument={() => {}}
-        onRestoreVersionSection={onRestoreVersionSection}
-      />
-    );
-
-    fireEvent.click(screen.getByTitle(/ver historial de versiones/i));
-    fireEvent.click(screen.getByRole('button', { name: /restaurar evolución clínica/i }));
-
-    expect(onRestoreVersionSection).toHaveBeenCalledWith({
-      sectionId: 'evolucion',
-      title: 'Evolución clínica',
-      content: 'Texto anterior de evolución.',
-    });
-  });
-
-  it('does not show section-level changes when the latest version has no comparable snapshot', () => {
-    const document = {
-      ...buildDocument(),
-      currentVersion: 2,
-      sections: [
-        {
-          id: 'evolucion',
-          title: 'Evolución clínica',
-          content: 'Contenido actual recuperable.',
-          order: 1,
-        },
-      ],
-      versionHistory: [
-        {
-          version: 2,
-          savedAt: '2026-04-25T09:40:00.000Z',
-          savedBy: {
-            uid: 'u1',
-            email: 'doctor@test.com',
-            displayName: 'Doctor Test',
-            role: 'doctor_urgency',
-          },
-          reason: 'autosave' as const,
-        },
-      ],
-    };
-
-    render(
-      <ClinicalDocumentsSidebar
-        canEdit={true}
-        canDelete={false}
-        readOnlyMessage={null}
-        patientName="Paciente Test"
-        templates={[{ id: 'epicrisis', name: 'Epicrisis' }]}
-        selectedTemplateId="epicrisis"
-        onSelectTemplate={() => {}}
-        onCreateDocument={() => {}}
-        documents={[document]}
-        selectedDocumentId={document.id}
-        onSelectDocument={() => {}}
-        onDuplicateDocument={() => {}}
-        onDeleteDocument={() => {}}
-      />
-    );
-
-    fireEvent.click(screen.getByTitle(/ver historial de versiones/i));
-
-    expect(screen.queryByText('Cambios')).not.toBeInTheDocument();
-    expect(screen.queryByText('Evolución clínica')).not.toBeInTheDocument();
-    expect(screen.queryByText(/versión sin detalle por sección/i)).not.toBeInTheDocument();
   });
 });

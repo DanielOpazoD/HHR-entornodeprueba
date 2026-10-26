@@ -261,3 +261,55 @@ Una nueva carga sin clasificar hace fallar src/tests/build. Se conservan las 17
 excepciones del grafo. La recuperación se prueba con el engine y store Dexie reales,
 aviso, confirmación, import HTTP fallido y callable sintética tras recargar en los
 cuatro motores; los probes de arranque frío y especialidad usan sólo datos sintéticos.
+
+## Aumento de precarga aprobado por el dueño (2026-10-25, opción C)
+
+**Decisión.** El dueño aprobó subir el límite de precarga hasta unos 78 KB. Se usan 38.912 bytes: de 4.993.024 a 5.031.936 (4.914,0 KB).
+
+**En qué se usan:**
+
+- **`vendor-firebase-functions` (12.028 B) pasa a la precarga.** WebKit, Firefox y Chromium ≤153 retienen un import dinámico fallido hasta recargar. Por eso, una primera carga inestable dejaba sin funcionar todas las escrituras por callables. Con el chunk en el service worker, eso ya no ocurre en sesiones instaladas. El aviso de recuperación de #1028 queda como respaldo para primeras visitas. Las callables siguen necesitando red, y el cargador compartido las rechaza sin conexión antes de llamar.
+- **Nuevo chunk `shared-runtime-loaders` (2.008 B), precargado.** Reúne `createCachedRuntimeLoader`, los runtimes de texto PDF y `eloisaPersonName`. Antes, Rollup los dejaba dentro del chunk `replanRayenStructure-*` (unos 43 KB), que es solo en línea y está fuera de la precarga. Así, 37 chunks quedaban atados a él (los PDF, las recetas, el escáner, farmacia y CUDYR), y las recetas y el escáner no arrancaban sin conexión. Después de separarlos solo lo importan las herramientas de Rayen y Eloísa, y el chunk de 43 KB sigue fuera de la precarga.
+- **Espacio para dos PR de seguridad de datos:**
+  - #1026, la nota del especialista ligada a paciente y episodio: unos 16,3 KB;
+  - #1022, identidad ilegible en cuarentena: unos 5,8 KB.
+
+  Con los dos fusionados queda un margen de unos 9 KB.
+
+**Controles:**
+
+- `check:bundle-budget`, con el manifiesto igual a la contabilidad.
+- El guard de grafo de precarga y el escáner AST de #1028 (`src/tests/build`).
+- `pwaPrecachePolicy.test.ts`, que fija que Functions y `shared-runtime-loaders` se precargan.
+- `chunkingPolicy.test.ts`, que fija los cuatro módulos del chunk compartido.
+
+**Reversión.** Volver a excluir `vendor-firebase-functions` en Vite y en el presupuesto, quitar la regla `shared-runtime-loaders` y restaurar el límite anterior. Cualquier aumento posterior requiere una nueva aprobación del dueño.
+
+## PR #1034: proyecciones de notas y confirmación del censo (2026-10-26)
+
+Owner: census/sync. El dueño eligió la opción C el 25 de octubre: aproximadamente
+78 KiB adicionales. La integración de #1033 había aplicado 38 KiB de esa autorización.
+Esta corrección de las notas de #1026 utiliza otros 8 KiB del mismo margen autorizado:
+5.031.936 → 5.040.128 bytes. El aumento acumulado desde 4.993.024 bytes es 47.104
+bytes (46 KiB), por debajo de los aproximadamente 78 KiB aprobados.
+
+El candidato con Node 22.22.2 y los lockfiles sin cambios mide 5.037.813 bytes en
+246 entradas de precarga: supera el límite anterior en 5.877 bytes y queda con
+2.315 bytes de margen bajo el nuevo. El aumento está en las protecciones de notas,
+identidad, rechazo, reintento y confirmación del censo: deben seguir disponibles
+sin conexión. El build previo de main tras #998 mostraba 4.912,9 KiB; el candidato
+muestra 4.919,7 KiB. Son mediciones de artefactos locales, no de latencia en producción.
+
+Se probó una tercera pasada de Terser: el resultado fue 5.037.456 bytes, solo
+357 bytes menos y todavía fuera del límite anterior. Se revirtió esa prueba;
+se conservan dos pasadas, todas las entradas offline, las exclusiones existentes,
+los otros límites y la banda de advertencia. Este margen corresponde a esta
+corrección medida, no a funcionalidades añadidas sin medición.
+
+Controles de cierre: `check:bundle-budget`, política y grafo de precarga, grafo de
+chunks, margen de recursos, pruebas de sincronización y el cierre completo
+`ci:close`. Las aserciones del límite exacto se actualizan en los dos controles
+existentes; ninguno queda desactivado. Reversión: si se retira la corrección,
+revertir con ella estos 8 KiB y las dos aserciones. Para mantener las protecciones
+bajo el límite anterior debe demostrarse primero una reducción equivalente, sin
+retirar capacidades clínicas offline.
