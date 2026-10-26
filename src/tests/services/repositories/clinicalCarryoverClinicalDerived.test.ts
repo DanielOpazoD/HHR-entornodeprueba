@@ -116,7 +116,7 @@ const createDay = async (date: string, source: DailyRecord, initialize = initial
   );
   const record = await initialize(date, source.date);
   expect(mocks.save).toHaveBeenCalledTimes(1);
-  expect(mocks.save).toHaveBeenCalledWith(record);
+  expect(mocks.save).toHaveBeenCalledWith(record, '');
   return record;
 };
 
