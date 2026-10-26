@@ -96,9 +96,9 @@ describe('bundle budget config', () => {
     const config = readBundleBudgetConfig();
 
     // Preserve offline clinical validation with the measured security-upgrade allowance,
-    // plus the owner-approved 2026-10-25 raise (Functions, shared loaders, #1026, #1022).
+    // plus the option-C allowance and its bounded 8 KiB allocation for #1034 note replay.
     expect(config.precacheMaxBytes).toBe(
-      4840192 + 2048 + 67840 + 31744 + 2048 + 8192 + 40960 + 38912
+      4840192 + 2048 + 67840 + 31744 + 2048 + 8192 + 40960 + 38912 + 8192
     );
     expect(findBudget(config, '^vendor-zod-.*\\.js$')).toMatchObject({ maxBytes: 96000 });
     expect(

@@ -191,7 +191,49 @@ that projection instead of replacing it, and compacting an unresolved task keeps
   run even when every pending path overlaps;
 - whole-record writes (`*`) still replace the projection;
 - a specialist note task (`UPDATE_SPECIALIST_HANDOFF`) lands its projection with the same patch
-  rebase, but never changes a projection that a pending day task still holds.
+  rebase, but never changes a projection that a pending day task still holds. The projection
+  publishes nothing, so the day keeps the `lastUpdated` it was read at: a later day write starts
+  from that version, and a read still prefers a newer server day. The task records the values the
+  projection replaced; once the note can no longer publish (`CONFLICT`, `FAILED` or discarded),
+  the stored day and any day write folded on top get them back wherever they still show the
+  note's values, a later note projected over it now replaces those values, and the view is told
+  to refresh the day. Quarantine or explicit discard and restoration commit in one IndexedDB
+  transaction: a storage failure keeps the task and its projection metadata for retry. Every queue
+  pass repairs any unreleased quarantined projection; a repair failure stops the pass before any
+  task is dispatched. A note queued before this rule recorded nothing: the same repair releases
+  such notes once, so the day counts as older than any server version
+  (`UNKNOWN_SERVER_VERSION`) and its day writes merge by changed paths. That may hold an edit as a
+  conflict when the last writer before this device's read changed the same path. The cached version
+  is invalidated even while a day task is held, without changing that task's payload. Its ACK can
+  adopt the committed day only if every cached value besides that invalidated version still
+  matches the claimed payload; a different local edit continues to block adoption. Each task of a
+  claimed batch replays as stored when it is dispatched, so a release earlier in the batch reaches
+  it. On a successful note publish, its local ACK replaces any still-matching older projection in
+  the stored day and queued day payloads with the published note values before removing the note
+  task, in the same transaction. This leaves the day version unchanged and preserves unrelated
+  pending edits. If a day task already owned the projection when the note was created, the note
+  records those existing field values for the same ACK step without changing the day up front.
+  Refusal marks the projection as released while retaining both its before and projected values.
+  An explicit retry can then settle either the restored value or a stale pre-refusal copy to the
+  confirmed note. It never replaces a newer, different local value or another occupant's note.
+  Releasing the same projection again does nothing.
+  If the ACK fails, its projection metadata remains available for retry. Retired notes do not
+  participate in projection repair. Restoration and confirmation also require the note's original
+  patient and episode in the affected bed or crib; identical text on another occupant is untouched.
+
+  Known pre-existing limit: explicit discard deletes the note task after restoring the stored
+  day and tasks already queued. A stale tab can later create a new whole-record save containing
+  the discarded text. With no remaining note task, the replay guard cannot identify that text's
+  origin, and it may publish it. This also reproduces on main before this change, in client-only
+  and enforced modes. Preventing it requires a separate durable provenance or whole-save ownership
+  contract; this change does not retain discarded-note tombstones or claim to close that gap.
+
+  A legacy whole-record task (`*` or absent changed paths) whose base became unknown stays in
+  `CONFLICT` for review, including after an explicit retry or when the remote day is missing.
+  Its payload is retained: without field-level intent or a trustworthy base, replay cannot prove
+  that it would not undo a subsequently confirmed note. A matching server mutation receipt can
+  still acknowledge an already committed write. Tasks with explicit changed paths keep the usual
+  reconciliation and authority checks.
 
 Cache hydration keeps a projection that still has unresolved writes. The read, the realtime
 snapshot and the manual sync then publish that projection (`local_authoritative` or `local_kept`)
@@ -224,12 +266,21 @@ latest mutation marker does not by itself acknowledge the other mutations.
    `assertNoSamePathRemoteMutation` blocks when the remote `meta.lastChangedPaths` overlaps the
    task's `changedPaths` (movement arrays and disjoint medical-handoff entries/specialties may
    merge). Then `resolveDailyRecordConflict` by `changedPaths`, the post-merge invariants and the
-   clinical consistency check; any block → `ConcurrencyError`. Otherwise (remote not newer, or no
-   `expectedVersion`) the payload's `lastUpdated` gets the strict drift check
-   (`assertSyncQueueConcurrency`, drift > 0 → `ConcurrencyError`).
+   clinical consistency check; any block → `ConcurrencyError`. A task whose copy holds another
+   patient or episode than the stored day in a slot it did not touch is merged the same way: its
+   version cannot be that day's. The bed's patient and the crib's newborn are separate slots, so
+   an edit of one never writes the other from the stale copy; a touched slot whose patient left is
+   step 2's conflict. Otherwise (remote not newer, or no `expectedVersion`) the payload's
+   `lastUpdated` gets the strict drift check (`assertSyncQueueConcurrency`, drift > 0 →
+   `ConcurrencyError`). Before either acceptance or merging, note fields (`medicalHandoffEntries`,
+   `medicalHandoffNote`, `medicalHandoffAudit`, `clinicalEvents`, bed and crib) keep the stored day's
+   values outside the task's changed paths, or, for a whole-record write, wherever they hold what
+   a specialist note still queued for the day wants there. A recreated day uses absent stored
+   values for the same check: a day write never publishes a note it did not write.
 4. **Clinical authority** — `evaluateDailyRecordClinicalAuthority` must not block.
 5. **Publish** — enforced or fenced: the save callable, whose response must carry the committed
-   record. Otherwise `runTransaction` re-runs steps 1–4 against the transactional snapshot and
+   record. A merged task still sends its own base, so the callable refuses it while the stored day
+   is newer and the task stays queued (a known limit: it is held, not lost). Otherwise `runTransaction` re-runs steps 1–4 against the transactional snapshot and
    writes with `{ merge: true }`, so beds absent from the payload are never dropped. With the
    deployment mode `shadow`, a dry-run callable runs first and its failure never blocks.
 6. **Acknowledge** — `completeClaimedSyncTask` writes any detached conflict, deletes the task and,

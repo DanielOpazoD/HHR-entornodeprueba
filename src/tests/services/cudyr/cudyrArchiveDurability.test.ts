@@ -3,7 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexedDBService';
 import type { ArchiveCudyrHistoryRequest } from '@/types/domain/cudyrHistory';
 
-const h = vi.hoisted(() => ({ archive: vi.fn() }));
+const h = vi.hoisted(() => {
+  // The imported queue registers its initial wakeup before beforeEach can set offline mode.
+  Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+  return { archive: vi.fn() };
+});
 vi.mock('@/services/cudyr/cudyrHistoryService', () => ({ archiveCudyrHistory: h.archive }));
 vi.mock('@/services/storage/sessionOwnerKey', async importOriginal => ({
   ...(await importOriginal<typeof import('@/services/storage/sessionOwnerKey')>()),
@@ -87,6 +91,10 @@ describe('CUDYR archive real IndexedDB outbox', () => {
     expect(results.filter(result => result.accepted)).toHaveLength(1);
     expect(results.filter(result => result.mode === 'rejected_backpressure')).toHaveLength(2);
     expect(await hospitalDB.syncQueue.count()).toBe(2);
+    expect((await hospitalDB.syncQueue.toArray()).map(task => task.status)).toEqual([
+      'PENDING',
+      'PENDING',
+    ]);
     expect((await enqueue(existingId)).mode).toBe('reused');
     expect(await hospitalDB.syncQueue.count()).toBe(2);
   });

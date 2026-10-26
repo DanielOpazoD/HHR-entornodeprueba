@@ -19,6 +19,7 @@ import { resolveDailyRecordConflict } from '@/services/repositories/conflictReso
 import {
   getValueAtPath,
   hasSameValuesAtPaths,
+  normalizeChangedPaths,
 } from '@/services/repositories/conflictResolutionUtils';
 import { evaluateDailyRecordConflictPostMergeInvariants } from '@/services/repositories/dailyRecordConflictPostMergeInvariantChecker';
 import {
@@ -42,6 +43,8 @@ import {
 } from '@/services/storage/sync/firestoreSyncConflictPolicy';
 import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
 import type { DetachedOccupantWork } from './dayTaskOccupantDetach';
+import type { SpecialistNoteValue } from './dayTaskReplayGuard';
+import { UNKNOWN_SERVER_VERSION } from './syncTaskContractPolicy';
 import {
   adoptStoredClinicalDerivedState,
   withClearedStoredMovedFields,
@@ -105,6 +108,19 @@ const shouldRevalidateAgainstRemote = (
   return toMillis(remoteLastUpdated) > toMillis(expectedVersion);
 };
 
+const assertKnownWholeRecordBase = (task: SyncTask): void => {
+  const paths = normalizeChangedPaths(task.syncContract?.changedPaths);
+  if (
+    task.syncContract?.expectedVersion === UNKNOWN_SERVER_VERSION &&
+    (!paths.length || paths.includes('*'))
+  ) {
+    throw new ConcurrencyError(
+      'El censo pendiente no conserva una base verificable. Sus cambios se mantienen para revisión antes de publicar un registro completo.',
+      'semantic_conflict'
+    );
+  }
+};
+
 interface ResolvedSyncRecordForTask {
   record: DailyRecord;
   resolution: NonNullable<SyncTask['syncContract']>['resolution'];
@@ -115,26 +131,29 @@ interface ResolvedSyncRecordForTask {
   detached?: DetachedOccupantWork;
 }
 
-type DetachStaleOccupantPaths = (
-  task: SyncTask,
-  record: DailyRecord,
-  remote: DailyRecord
-) => DetachedOccupantWork | null;
+/** The day task's occupant and replay checks, loaded with the outbox, and the day's queued notes. */
+interface ReplayChecks extends Pick<
+  typeof import('./dexieDailyRecordOutbox'),
+  'detachStaleOccupantPaths' | 'hasOtherOccupantInUntouchedBed' | 'keepStoredNoteFields'
+> {
+  noteValues: ReadonlyMap<string, readonly SpecialistNoteValue[]>;
+}
 
 const resolveRecordForSyncTask = async (
   queuedTask: SyncTask,
   queuedRecord: DailyRecord,
   runtime: FirestoreServiceRuntimePort,
   transaction?: Transaction,
-  detachStaleOccupantPaths?: DetachStaleOccupantPaths
+  checks?: ReplayChecks
 ): Promise<ResolvedSyncRecordForTask> => {
   let task = queuedTask;
   let record = queuedRecord;
   const docRef = getRecordDocRef(record.date, runtime);
   const remoteSnap = await (transaction ? transaction.get(docRef) : getDoc(docRef));
   if (!remoteSnap.exists()) {
+    assertKnownWholeRecordBase(task);
     return {
-      record,
+      record: checks?.keepStoredNoteFields(task, record, undefined, checks.noteValues) ?? record,
       resolution: 'accepted',
       acceptedVersion: record.lastUpdated,
     };
@@ -162,22 +181,31 @@ const resolveRecordForSyncTask = async (
   // Edits written for a patient who left the bed or crib never reach the next occupant. They are
   // rebuilt even when the rest already landed, since the ACK that kept them may have rolled back.
   const detached =
-    detachStaleOccupantPaths?.(task, record, docToRecord(remoteData, record.date)) ?? undefined;
+    checks?.detachStaleOccupantPaths(task, record, docToRecord(remoteData, record.date)) ??
+    undefined;
   if (
     hasRemoteAppliedMutation(task, remoteData.meta as Record<string, unknown> | undefined) &&
     (!compacted || allCompactedValuesApplied)
   ) {
     return alreadyApplied(detached);
   }
+  // A confirmed mutation can be acknowledged above. An opaque legacy snapshot without a
+  // trustworthy base cannot prove what it owns, so keep it for review instead of replaying it.
+  assertKnownWholeRecordBase(task);
   if (detached) {
     ({ task, record } = detached);
     // Nothing else to publish: the stored day stays as it is.
     if (!task.syncContract?.changedPaths?.length) return alreadyApplied(detached);
   }
 
+  const remoteRecord = docToRecord(remoteData, record.date);
+  // A stale whole-day save can carry a refused note too. Strip it before either acceptance or
+  // conflict merging, so merging arrays cannot hide that the value belongs to the note's task.
+  record = checks?.keepStoredNoteFields(task, record, remoteRecord, checks.noteValues) ?? record;
   if (
     !detached &&
-    !shouldRevalidateAgainstRemote(remoteLastUpdated, task.syncContract?.expectedVersion)
+    !shouldRevalidateAgainstRemote(remoteLastUpdated, task.syncContract?.expectedVersion) &&
+    !checks?.hasOtherOccupantInUntouchedBed(task, record, remoteRecord)
   ) {
     assertSyncQueueConcurrency(record, remoteLastUpdated);
     return {
@@ -188,7 +216,6 @@ const resolveRecordForSyncTask = async (
     };
   }
 
-  const remoteRecord = docToRecord(remoteData, record.date);
   assertNoSamePathRemoteMutation(task, remoteData, remoteRecord, record);
   const mergedRecord = resolveDailyRecordConflict(remoteRecord, record, {
     changedPaths: task.syncContract?.changedPaths,
@@ -263,15 +290,21 @@ const syncDailyRecord = async (
   runtime: FirestoreServiceRuntimePort
 ): Promise<SyncTransportResult | void> => {
   if (await runE2ESyncTransport(task)) return;
-  const occupants = task.syncContract?.changedPaths?.some(path => /^beds\.[^.]+\./.test(path))
-    ? await import('./dexieDailyRecordOutbox')
-    : undefined;
-  const detach = occupants?.detachStaleOccupantPaths;
+  const outbox = await import('./dexieDailyRecordOutbox');
+  // Only a whole-record write needs to know what the day's queued notes want written.
+  const changedPaths = task.syncContract?.changedPaths ?? [];
+  const occupants: ReplayChecks = {
+    ...outbox,
+    noteValues:
+      !changedPaths.length || changedPaths.includes('*')
+        ? await outbox.listSpecialistNoteValues(record.date)
+        : new Map(),
+  };
   let detached: DetachedOccupantWork | undefined;
   const result = await measureRepositoryOperation(
     'syncQueue.writeDailyRecord',
     async (): Promise<SyncTransportResult> => {
-      const resolved = await resolveRecordForSyncTask(task, record, runtime, undefined, detach);
+      const resolved = await resolveRecordForSyncTask(task, record, runtime, undefined, occupants);
       detached = resolved.detached;
       if (resolved.resolution === 'already_applied') {
         recordSyncQueueTruthSelectionTelemetry(task, {
@@ -334,7 +367,13 @@ const syncDailyRecord = async (
       const committed = await runTransaction(runtime.getDb(), async transaction => {
         // Re-evaluate the original intent against the snapshot protected by this transaction.
         // Firestore reruns this callback if another writer changes the document before commit.
-        const current = await resolveRecordForSyncTask(task, record, runtime, transaction, detach);
+        const current = await resolveRecordForSyncTask(
+          task,
+          record,
+          runtime,
+          transaction,
+          occupants
+        );
         detached = current.detached;
         if (current.resolution === 'already_applied') return current;
         assertResolvedClinicalAuthority(task, current);
@@ -369,7 +408,7 @@ const syncDailyRecord = async (
   if (!detached) return result;
   // The conflicts are durable: the store writes them with this task's completion. The drafts
   // only offer the note text in the handoff view.
-  if (detached.notes) await occupants?.publishDetachedNotes(detached.notes);
+  if (detached.notes) await outbox.publishDetachedNotes(detached.notes);
   return { ...result, detachedConflicts: detached.conflicts };
 };
 

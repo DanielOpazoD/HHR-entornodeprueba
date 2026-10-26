@@ -5,6 +5,7 @@
  * left in a bed stays under its new occupant, and a recreated day never carries a marker (the
  * create rule denies it). Synthetic data only.
  */
+import 'fake-indexeddb/auto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from 'vitest';

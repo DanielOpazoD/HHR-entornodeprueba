@@ -92,6 +92,14 @@ export interface SyncQueueStorePort {
   requeueQuarantinedTask?(taskId: number, ownerKey?: string | null): Promise<boolean>;
   /** Elimina una tarea FAILED/CONFLICT; nunca toca tareas activas (acción explícita del usuario). */
   discardQuarantinedTask?(taskId: number, ownerKey?: string | null): Promise<boolean>;
+  /** Repairs pre-fix and unreleased quarantined note projections before any task replays. */
+  reconcileSpecialistHandoffProjections?(): Promise<void>;
+  /** Renews a claim and returns the task as stored now, or null when the claim was lost. */
+  renewClaim?(
+    taskId: number,
+    leaseUntil: number,
+    claim: SyncQueueLeaseClaim
+  ): Promise<SyncTask | null>;
   update(taskId: number, patch: Partial<SyncTask>): Promise<void>;
   updateClaimed(
     taskId: number,

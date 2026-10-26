@@ -65,15 +65,20 @@ describe('poisoned day', () => {
         }),
         '2026-10-24T10:00:00.000Z'
       );
-      await queueDailyRecordSyncTaskWithLocalRecord(recA, {
-        contexts: ['handoff'],
-        origin: 'direct_queue',
-        syncContract: {
-          changedPaths: ['beds.R4.medicalHandoffNote'],
-          expectedVersion: '2026-10-24T10:00:00.000Z',
-          mutationId: 'm-A',
+      // Kept out of a replay in flight: the task stays unresolved while the nurse edits.
+      await queueDailyRecordSyncTaskWithLocalRecord(
+        recA,
+        {
+          contexts: ['handoff'],
+          origin: 'direct_queue',
+          syncContract: {
+            changedPaths: ['beds.R4.medicalHandoffNote'],
+            expectedVersion: '2026-10-24T10:00:00.000Z',
+            mutationId: 'm-A',
+          },
         },
-      });
+        { deferProcessing: true }
+      );
       const [task] = await hospitalDB.syncQueue.toArray();
       await hospitalDB.syncQueue.update(task.id!, { status });
       // Another device discharged A and admitted B; this device now holds B in R4.

@@ -3,10 +3,22 @@ import type { RayenSyncEvent } from '@/types/domain/rayenSync';
 import type { DailyRecordPatchWrite } from '@/services/storage/sync/syncQueuePorts';
 import type { SpecialistHandoffSyncPayload, SyncTask } from '@/services/storage/syncQueueTypes';
 import type { PatientData } from '@/types/domain/patient';
-import { specialistHandoffTextState } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
+import {
+  buildSpecialistHandoffTargets,
+  sameSpecialistHandoffTarget,
+  specialistHandoffTextState,
+} from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
 import { hasSameBedOccupant } from '@/services/storage/sync/bedOccupantIdentity';
-// The replay-time occupant check ships with the enqueue-time one, in this lazy chunk.
+// The replay-time occupant checks ship with the enqueue-time one, in this lazy chunk.
 export { detachStaleOccupantPaths } from '@/services/storage/sync/dayTaskOccupantDetach';
+export {
+  hasOtherOccupantInUntouchedBed,
+  keepStoredNoteFields,
+} from '@/services/storage/sync/dayTaskReplayGuard';
+import {
+  hasSameNoteValue,
+  type SpecialistNoteValue,
+} from '@/services/storage/sync/dayTaskReplayGuard';
 import { mergeMovementArrayById } from '@/services/repositories/conflictResolutionMovementMergePolicy';
 import { mergeRayenSyncHistory } from '@/services/repositories/dailyRecordRayenSyncHistoryPolicy';
 import {
@@ -14,6 +26,7 @@ import {
   hasSameComparableValue,
 } from '@/services/repositories/conflictResolutionUtils';
 import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
+import { UNKNOWN_SERVER_VERSION } from '@/services/storage/sync/syncTaskContractPolicy';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { applyPatches } from '@/utils/patchUtils';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
@@ -280,9 +293,17 @@ const mergeHandoffBases = (
   }),
 });
 
+const handoffPaths = (task: SyncTask) =>
+  Object.keys((task.payload as SpecialistHandoffSyncPayload).patch).filter(
+    path => path !== 'dateTimestamp'
+  );
+
 /**
  * A specialist note is its own task, not a day write. Its projection lands on the stored day by
  * the same stale-base rules, but never changes a projection a pending day task still holds.
+ * It publishes nothing, so the day keeps the version it was read at: no later write or read takes
+ * a note shown only on this device for a version of the server's day. The task keeps what the
+ * projection replaced, so a note that can no longer publish leaves the day as it was.
  */
 const saveSpecialistHandoffInOutbox = (
   record: DailyRecord,
@@ -291,14 +312,37 @@ const saveSpecialistHandoffInOutbox = (
 ) =>
   hospitalDB.transaction('rw', hospitalDB.dailyRecords, hospitalDB.syncQueue, async () => {
     const stored = await hospitalDB.dailyRecords.get(record.date);
-    const projection = stored && patchWrite ? buildPatchRebase(patchWrite)(stored, []) : record;
-    const persistedRecord = (await listUnresolvedDailyRecordTasks(record.date)).length
-      ? (stored ?? record)
-      : projection;
-    if (persistedRecord === projection) await hospitalDB.dailyRecords.put(projection);
+    const before = stored ?? patchWrite?.baseRecord ?? record;
+    const projection = {
+      ...(stored && patchWrite ? buildPatchRebase(patchWrite)(stored, []) : record),
+      lastUpdated: before.lastUpdated,
+    };
+    const projected = !(await listUnresolvedDailyRecordTasks(record.date)).length;
+    const persistedRecord = projected ? projection : (stored ?? record);
+    if (projected) await hospitalDB.dailyRecords.put(projection);
     const existing = task.key
       ? await findReusableSyncTask(task.type, task.key, task.ownerKey)
       : null;
+    const paths = handoffPaths(task);
+    const heldValues = Object.fromEntries(paths.map(path => [path, getValueAtPath(before, path)]));
+    // A pending edit of this note already projected; a refused one gave its values back.
+    const pendingProjection =
+      existing?.status === 'PENDING' ? existing.handoffProjection : undefined;
+    const handoffProjection = projected
+      ? {
+          replaced: {
+            ...heldValues,
+            ...pendingProjection?.replaced,
+          },
+          projected: Object.fromEntries(
+            paths.map(path => [path, getValueAtPath(projection, path)])
+          ),
+        }
+      : pendingProjection && Object.keys(pendingProjection.projected).length
+        ? pendingProjection
+        : // The day already owns its projection. Remember its note values without changing them,
+          // so a later successful note ACK can replace that stale copy before the day retries.
+          { replaced: heldValues, projected: heldValues };
     const nextTask = {
       ...task,
       payload: existing
@@ -308,6 +352,7 @@ const saveSpecialistHandoffInOutbox = (
           )
         : task.payload,
       syncContract: mergeSyncTaskContracts(existing?.syncContract, task.syncContract),
+      handoffProjection,
     };
     if (existing?.id) {
       await hospitalDB.syncQueue.put({ ...existing, ...nextTask, id: existing.id });
@@ -315,6 +360,165 @@ const saveSpecialistHandoffInOutbox = (
     }
     await hospitalDB.syncQueue.add(nextTask);
     return { mode: 'created' as const, persistedRecord };
+  });
+
+const noteTasksFor = async (date: string) =>
+  (await hospitalDB.syncQueue.where('key').startsWith(`handoff:${date}:`).toArray()).filter(
+    task => task.type === 'UPDATE_SPECIALIST_HANDOFF' && task.status !== 'RETIRED'
+  );
+
+/** Both the current note and its older projection still belong to the note task. */
+export const listSpecialistNoteValues = async (
+  date: string
+): Promise<Map<string, SpecialistNoteValue[]>> => {
+  const values = new Map<string, SpecialistNoteValue[]>();
+  for (const task of await noteTasksFor(date)) {
+    const payload = task.payload as SpecialistHandoffSyncPayload;
+    const projected = task.handoffProjection?.projected ?? {};
+    for (const path of new Set([...handoffPaths(task), ...Object.keys(projected)])) {
+      const [, bedId, field] = path.split('.');
+      const target = payload.expectedOccupants.find(
+        occupant =>
+          occupant.bedId === bedId &&
+          occupant.target === (field === 'clinicalCrib' ? 'clinicalCrib' : 'bed')
+      );
+      if (!target?.clinicalEpisodeId || !target.patientName) continue;
+      values.set(path, [
+        ...(values.get(path) ?? []),
+        { target, value: payload.patch[path] },
+        ...(path in projected ? [{ target, value: projected[path] }] : []),
+      ]);
+    }
+  }
+  return values;
+};
+
+/** A legacy note has no recorded values to restore. */
+const RELEASED = { replaced: {}, projected: {} };
+
+/**
+ * A note that can no longer publish (refused, failed or discarded) stops shaping the day. Where the
+ * stored day, or a day write folded on top of it, still shows what the note projected, those fields
+ * go back to what it replaced, and a later note projected over it now replaces those values; the
+ * text stays in the note's task and drafts. A note queued before this rule recorded nothing, and
+ * its projection may have moved the day's version: the day then counts as older than any server
+ * version, so the next read takes the server's day, and a day write queued meanwhile merges by
+ * its changed paths. A confirmed note instead settles its old projection to the values just
+ * published, in the ACK transaction, so a queued day never writes the old note back afterward.
+ * Returns whether the stored day changed.
+ */
+const settleSpecialistHandoffProjection = (task: SyncTask, confirmed: boolean): Promise<boolean> =>
+  hospitalDB.transaction('rw', hospitalDB.dailyRecords, hospitalDB.syncQueue, async () => {
+    const { date } = task.payload as SpecialistHandoffSyncPayload;
+    const projection = task.handoffProjection;
+    const stored = await hospitalDB.dailyRecords.get(date);
+    const dayTasks = (await listUnresolvedDailyRecordTasks(date)).filter(dayTask => dayTask.id);
+    if (!confirmed && projection?.released) return false;
+    if (task.id && !confirmed)
+      await hospitalDB.syncQueue.update(task.id, {
+        handoffProjection: projection ? { ...projection, released: true } : RELEASED,
+      });
+    if (!projection) {
+      for (const dayTask of dayTasks)
+        await hospitalDB.syncQueue.update(dayTask.id!, {
+          syncContract: { ...dayTask.syncContract, expectedVersion: UNKNOWN_SERVER_VERSION },
+        });
+      if (!stored) return false;
+      await hospitalDB.dailyRecords.put({ ...stored, lastUpdated: UNKNOWN_SERVER_VERSION });
+      return true;
+    }
+    const shows = (value: unknown, path: string) =>
+      hasSameNoteValue(value, projection.projected[path]) ||
+      (confirmed &&
+        Boolean(projection.released) &&
+        hasSameNoteValue(value, projection.replaced[path]));
+    const replacement = confirmed
+      ? Object.fromEntries(
+          handoffPaths(task).map(path => [
+            path,
+            (task.payload as SpecialistHandoffSyncPayload).patch[path],
+          ])
+        )
+      : projection.replaced;
+    const ownsPath = (path: string, targets: SpecialistHandoffSyncPayload['expectedOccupants']) => {
+      const [, bedId, field] = path.split('.');
+      const expected = (task.payload as SpecialistHandoffSyncPayload).expectedOccupants.find(
+        target =>
+          target.bedId === bedId &&
+          target.target === (field === 'clinicalCrib' ? 'clinicalCrib' : 'bed')
+      );
+      return Boolean(
+        expected?.clinicalEpisodeId &&
+        expected.patientName &&
+        targets.some(target => sameSpecialistHandoffTarget(target, expected))
+      );
+    };
+    for (const other of await noteTasksFor(date)) {
+      const replaced = other.id !== task.id ? other.handoffProjection?.replaced : undefined;
+      const targets = (other.payload as SpecialistHandoffSyncPayload).expectedOccupants;
+      const matches = (value: unknown, path: string) =>
+        ownsPath(path, targets) && shows(value, path);
+      if (!replaced || !Object.entries(replaced).some(([path, value]) => matches(value, path)))
+        continue;
+      await hospitalDB.syncQueue.update(other.id!, {
+        handoffProjection: {
+          ...other.handoffProjection!,
+          replaced: Object.fromEntries(
+            Object.entries(replaced).map(([path, value]) => [
+              path,
+              matches(value, path) && path in replacement ? replacement[path] : value,
+            ])
+          ),
+        },
+      });
+    }
+    const restore = (day: DailyRecord): DailyRecord | null => {
+      const targets = buildSpecialistHandoffTargets(day, replacement);
+      const restored = Object.fromEntries(
+        Object.entries(replacement).filter(
+          ([path]) =>
+            path in projection.projected &&
+            ownsPath(path, targets) &&
+            shows(getValueAtPath(day, path), path)
+        )
+      );
+      return Object.keys(restored).length
+        ? { ...applyPatches(day, restored as DailyRecordPatch), lastUpdated: day.lastUpdated }
+        : null;
+    };
+    const day = stored && restore(stored);
+    if (day) await hospitalDB.dailyRecords.put(day);
+    for (const dayTask of dayTasks) {
+      const payload = restore(dayTask.payload as DailyRecord);
+      if (payload) await hospitalDB.syncQueue.update(dayTask.id!, { payload });
+    }
+    return Boolean(day);
+  });
+
+export const releaseSpecialistHandoffProjection = (task: SyncTask): Promise<boolean> =>
+  settleSpecialistHandoffProjection(task, false);
+
+export const confirmSpecialistHandoffProjection = (task: SyncTask): Promise<boolean> =>
+  settleSpecialistHandoffProjection(task, true);
+
+/** Repair legacy projections and retry any quarantined cleanup, before dispatching day tasks. */
+export const reconcileSpecialistHandoffProjections = (): Promise<string[]> =>
+  hospitalDB.transaction('rw', hospitalDB.dailyRecords, hospitalDB.syncQueue, async () => {
+    const notes = (
+      await hospitalDB.syncQueue.where('type').equals('UPDATE_SPECIALIST_HANDOFF').toArray()
+    ).filter(
+      task =>
+        task.status !== 'RETIRED' &&
+        (!task.handoffProjection ||
+          ((task.status === 'FAILED' || task.status === 'CONFLICT') &&
+            !task.handoffProjection.released &&
+            Object.keys(task.handoffProjection.projected).length > 0))
+    );
+    const changed: string[] = [];
+    for (const task of notes)
+      if (await releaseSpecialistHandoffProjection(task))
+        changed.push((task.payload as SpecialistHandoffSyncPayload).date);
+    return changed;
   });
 
 /** Writes the day's record and its outbox task in one transaction. */
