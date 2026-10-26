@@ -237,4 +237,28 @@ describe('DateStrip', () => {
     fireEvent.click(screen.getByText('5'));
     expect(defaultProps.setSelectedDay).toHaveBeenCalledWith(5);
   });
+
+  it('identifies month and year arrows and preserves their navigation actions', async () => {
+    render(<DateStrip {...defaultProps} />);
+
+    await screen.findByText('Febrero');
+    const previousMonth = screen.getByRole('button', { name: 'Mes anterior' });
+    await waitFor(() => expect(previousMonth).toBeEnabled());
+    fireEvent.click(previousMonth);
+    expect(defaultProps.setSelectedMonth).toHaveBeenLastCalledWith(0);
+    expect(defaultProps.setSelectedDay).toHaveBeenCalledWith(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mes siguiente' }));
+    expect(defaultProps.setSelectedMonth).toHaveBeenLastCalledWith(2);
+
+    const previousYear = screen.getByRole('button', { name: 'Año anterior' });
+    await waitFor(() => expect(previousYear).toBeEnabled());
+    fireEvent.click(previousYear);
+    const previousYearUpdate = defaultProps.setSelectedYear.mock.lastCall?.[0];
+    expect(previousYearUpdate(2024)).toBe(2023);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Año siguiente' }));
+    const nextYearUpdate = defaultProps.setSelectedYear.mock.lastCall?.[0];
+    expect(nextYearUpdate(2024)).toBe(2025);
+  });
 });

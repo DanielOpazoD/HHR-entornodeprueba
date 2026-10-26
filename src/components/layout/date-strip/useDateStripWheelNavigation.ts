@@ -17,6 +17,8 @@ export const useDateStripWheelNavigation = ({
     }
 
     const handleNativeWheel = (event: WheelEvent) => {
+      // Preserve native horizontal trackpad scrolling through the visible days.
+      if (event.shiftKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
       event.preventDefault();
 
       if (event.deltaY > 0) {
