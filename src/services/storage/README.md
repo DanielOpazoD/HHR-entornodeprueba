@@ -50,6 +50,9 @@ El motor comparte una sola lectura de contadores mediante su telemetría. Las AP
 estadísticas agregadas conservan su contrato y aislamiento por sesión en la fachada
 pública, sin retener cálculos sin consumidores dentro del motor de envíos.
 La fachada pública vive en `sync/publicSyncQueue.ts`.
+Las lecturas de operaciones recientes y lotes listos filtran en el cursor de
+IndexedDB antes de aplicar el límite. Conservan el orden temporal y los controles
+de propietario, espera y lease, sin reunir toda la cola en memoria para recortarla.
 El outbox ahora se arma sobre un engine con puertos (`sync/syncQueueEngine.ts`, `sync/syncQueuePorts.ts`) para separar runtime navegador, store Dexie y transporte Firestore.
 `sync/syncDomainPolicy.ts` clasifica tareas por contexto (`clinical`, `staffing`, `movements`, `handoff`, `metadata`) para aplicar budgets de retry y métricas de conflicto más específicas.
 `getSyncQueueTelemetry()` puede devolver `readState = unavailable` cuando la cola no puede inspeccionarse;

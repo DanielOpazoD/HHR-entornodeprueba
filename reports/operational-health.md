@@ -7,6 +7,10 @@
 
 ## Sync Queue
 
+Las páginas recientes y los lotes de procesamiento detienen el cursor al completar
+su límite de tareas elegibles. Los respaldos retirados y las tareas de otros
+propietarios se conservan; no cambian los umbrales ni las reglas de reintento.
+
 La lectura de envíos recientes distingue fallo y lista vacía. Ante
 `sync_queue_recent_operations_unavailable`, Eloísa indica «por comprobar» y el
 reporte conserva los contadores disponibles y el evento de error. Este contrato

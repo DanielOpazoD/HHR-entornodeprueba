@@ -96,10 +96,12 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
     return tasks.filter(task => matchesOwner(ownerKey, task.ownerKey));
   },
   async listRecent(limit, ownerKey) {
-    const tasks = await hospitalDB.syncQueue.orderBy('timestamp').reverse().toArray();
-    return tasks
+    return hospitalDB.syncQueue
+      .orderBy('timestamp')
+      .reverse()
       .filter(task => task.status !== 'RETIRED' && matchesOwner(ownerKey, task.ownerKey))
-      .slice(0, limit);
+      .limit(limit)
+      .toArray();
   },
   async claimReadyPending(
     now: number,
@@ -108,10 +110,11 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
     claim: SyncQueueLeaseClaim
   ): Promise<SyncTask[]> {
     return hospitalDB.transaction('rw', hospitalDB.syncQueue, async () => {
-      const tasks = await hospitalDB.syncQueue.orderBy('timestamp').toArray();
-      const readyTasks = tasks
+      const readyTasks = await hospitalDB.syncQueue
+        .orderBy('timestamp')
         .filter(task => matchesOwner(ownerKey, task.ownerKey) && isReadyForClaim(task, now))
-        .slice(0, limit);
+        .limit(limit)
+        .toArray();
 
       const claimedTasks: SyncTask[] = [];
       for (const task of readyTasks) {
