@@ -107,6 +107,7 @@ test('withdraws an unnecessary permission-blocked send with a downloadable backu
     lastErrorCode: 'permission-denied',
     lastErrorCategory: 'authorization',
     error: 'Missing or insufficient permissions',
+    syncContract: { changedPaths: ['nurses'] },
     payload: { date: '2026-10-22', beds: {}, nurses: ['SYNTHETIC WITHDRAWN SEND'] },
   };
   const id = await insertSyncTask(page, task);
@@ -121,6 +122,10 @@ test('withdraws an unnecessary permission-blocked send with a downloadable backu
   await details.getByRole('button', { name: 'Descartar envío', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Descartar envío del censo' });
   await expect(dialog.getByText('Censo del 22-10-2026')).toBeVisible();
+  await expect(dialog.getByRole('list', { name: 'Contenido del envío' })).toContainText(
+    'Dotación y turnos'
+  );
+  await expect(dialog.getByText(/no compara con el servidor/)).toBeVisible();
   await expect(dialog.getByRole('button', { name: 'Sí, descartar envío' })).toBeDisabled();
   await dialog.getByRole('button', { name: 'Cancelar' }).click();
   expect(await readSyncTask(page, id)).toEqual({ ...task, id });
