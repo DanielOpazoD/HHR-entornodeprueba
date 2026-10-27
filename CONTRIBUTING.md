@@ -83,13 +83,17 @@ La política y los comandos de cierre viven en
 [Safe Change Checklist](docs/SAFE_CHANGE_CHECKLIST.md),
 [Definition of Done](docs/ENGINEERING_DEFINITION_OF_DONE.md) y
 [CI y recuperación](docs/CI_GATES_AND_FAILURE_RUNBOOKS.md).
-Clasificar el cambio y ejecutar el gate correspondiente; las pruebas focalizadas
-no lo sustituyen. `ci:pre-merge` contiene tipos, lint, calidad y unitarios;
+Clasificar el cambio y acreditar los controles correspondientes con CI del SHA final;
+no se exige repetirlos localmente. Comprobar el alcance ejecutado y conservar el enlace
+al run y sus artefactos. Ejecutar localmente las regresiones durante la edición y sólo
+las comprobaciones adicionales que CI no cubra. Las pruebas focalizadas solas no
+sustituyen CI. `ci:pre-merge` contiene tipos, lint, calidad y unitarios;
 `ci:merge-gate` añade cobertura crítica, funciones, build y preview. No repetir
 sus componentes sobre el mismo diff salvo fallo o nueva incertidumbre.
 
+Publicar después de las comprobaciones focalizadas; esperar CI antes del merge:
+
 ```sh
-npm run ci:merge-gate
 git diff --check
 git add ruta/del/archivo
 git commit -m "refactor(area): simplificación concreta"
@@ -97,7 +101,8 @@ git push -u origin codex/descripcion-del-cambio
 ```
 
 El hook de commit comprueba tipos, secretos y archivos staged; no saltarlo.
-Para cambios críticos, aplicar también los controles adicionales de su categoría.
+Los gates locales completos quedan disponibles para diagnóstico o cobertura que
+falte en CI. Para cambios críticos, verificar también los controles de su categoría.
 
 El PR debe explicar problema, comportamiento resultante, alcance, evidencia,
 riesgos y reversión. Revisar el diff final de forma independiente. Antes del merge,
