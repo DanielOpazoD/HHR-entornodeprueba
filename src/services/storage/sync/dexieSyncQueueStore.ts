@@ -1,3 +1,4 @@
+import Dexie from 'dexie';
 import { isFunctionsReloadRequired } from '@/services/firebase-runtime/functionsModuleLoader';
 import type {
   SyncQueueLeaseClaim,
@@ -110,11 +111,19 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
     claim: SyncQueueLeaseClaim
   ): Promise<SyncTask[]> {
     return hospitalDB.transaction('rw', hospitalDB.syncQueue, async () => {
-      const readyTasks = await hospitalDB.syncQueue
-        .orderBy('timestamp')
-        .filter(task => matchesOwner(ownerKey, task.ownerKey) && isReadyForClaim(task, now))
-        .limit(limit)
-        .toArray();
+      const readState = (status: 'PENDING' | 'PROCESSING') =>
+        hospitalDB.syncQueue
+          .where('[status+timestamp]')
+          .between([status, Dexie.minKey], [status, Dexie.maxKey], true, true)
+          .filter(task => matchesOwner(ownerKey, task.ownerKey) && isReadyForClaim(task, now))
+          .limit(limit)
+          .toArray();
+      const candidates = await Promise.all([readState('PENDING'), readState('PROCESSING')]);
+      // Each range is ordered already; its first limit rows contain every possible batch member.
+      const readyTasks = candidates
+        .flat()
+        .sort((a, b) => a.timestamp - b.timestamp || (a.id ?? 0) - (b.id ?? 0))
+        .slice(0, limit);
 
       const claimedTasks: SyncTask[] = [];
       for (const task of readyTasks) {
