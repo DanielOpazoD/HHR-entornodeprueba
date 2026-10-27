@@ -324,6 +324,11 @@ La política formal de upgrades, excepciones y tipos de cambio vive en `scripts/
 La clasificación compacta de guardrails blocking vs report-only vive en `scripts/config/guardrail-governance.json` y se valida con `npm run check:guardrail-governance`.
 La clasificación de runtime de tests vive en `scripts/config/test-runtime-governance.json` y se valida con `npm run check:test-runtime-governance`.
 El workflow `.github/workflows/nightly-test-runtime.yml` concentra suites largas en `workflow_dispatch`/`schedule`: `test:sync-load`, `test:release-confidence:full` y `test:e2e:clinical-stability:ci`.
+Su job usa `ubuntu-24.04` y el instalador compartido `setup-ci-chromium`, igual que
+el E2E clínico de PR. No cambiarlo a `ubuntu-latest` sin comprobar que la versión
+fijada de Playwright admite la nueva imagen: un fallo de instalación no acredita
+ninguna de las suites nocturnas. El instalador verifica el arranque del navegador;
+su caché no omite las dependencias del sistema ni esa comprobación.
 La señal observada de shards conserva la ejecución, fecha y commit del perfil leído.
 Es una observación almacenada: regenerar el informe no vuelve actuales esos tiempos.
 Para evaluar un workflow, usar su artifact `ci-runtime-telemetry`, generado al terminar

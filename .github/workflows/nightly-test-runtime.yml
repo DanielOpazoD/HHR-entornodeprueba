@@ -11,7 +11,8 @@ on:
 jobs:
   nightly-runtime-governance:
     name: nightly-runtime-governance
-    runs-on: ubuntu-latest
+    # Match the supported browser host used by the PR clinical E2E lane.
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout code
@@ -33,7 +34,7 @@ jobs:
         run: npm ci
 
       - name: Install Playwright browser for nightly clinical flows
-        run: npx playwright install --with-deps chromium
+        uses: ./.github/actions/setup-ci-chromium
 
       - name: Validate runtime governance contract
         run: npm run check:test-runtime-governance
