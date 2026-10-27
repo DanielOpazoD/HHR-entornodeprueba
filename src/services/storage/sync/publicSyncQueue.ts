@@ -176,7 +176,7 @@ export const listRecentSyncQueueOperations = async (
       source: 'public_sync_queue',
       limit,
     });
-    return [];
+    throw error;
   }
 };
 

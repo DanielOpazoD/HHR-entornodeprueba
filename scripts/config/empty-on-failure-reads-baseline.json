@@ -30,7 +30,6 @@
     "src/services/storage/indexeddb/indexedDbRecordService.ts::getRecordsForMonth",
     "src/services/storage/indexeddb/indexedDbRecordService.ts::getRecordsRange",
     "src/services/storage/sync/publicDailyRecordSyncQueueActions.ts::getPendingDailyRecordSyncTaskSnapshot",
-    "src/services/storage/sync/publicSyncQueue.ts::listRecentSyncQueueOperations",
     "src/services/storage/sync/syncBroadcastChannel.ts::getChannel",
     "src/services/storage/sync/syncMutationIdentity.ts::readLocalStorage",
     "src/services/storage/sync/syncMutationIdentity.ts::readSessionStorage"

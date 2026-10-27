@@ -200,4 +200,28 @@ describe('useSyncQueueMonitor', () => {
       },
     ]);
   });
+
+  it('clears the unavailable-list state after a successful refresh', async () => {
+    mockGetSyncQueueTelemetry.mockResolvedValue({
+      pending: 0,
+      failed: 0,
+      conflict: 0,
+      retrying: 0,
+      readState: 'ok',
+    });
+    mockListRecentSyncQueueOperations
+      .mockRejectedValueOnce(new Error('Synthetic read failure'))
+      .mockResolvedValueOnce([]);
+    const { result } = renderHook(() => useSyncQueueMonitor({ pollIntervalMs: 60_000 }));
+    await waitFor(() => expect(result.current.stats.recentOperationsReadState).toBe('unavailable'));
+    expect(result.current.hasQueueIssues).toBe(true);
+
+    await act(() => result.current.refresh());
+    expect(result.current.stats).toMatchObject({
+      readState: 'ok',
+      recentOperationsReadState: 'ok',
+    });
+    expect(result.current.hasQueueIssues).toBe(false);
+    expect(result.current.operations).toEqual([]);
+  });
 });

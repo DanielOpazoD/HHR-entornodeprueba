@@ -38,9 +38,14 @@ describe('localSyncPresentation', () => {
     expect(hasLocalSyncAttention(makeStats({ oldestPendingAgeMs: 300_000 }))).toBe(false);
   });
 
-  it.each([{ failed: 1 }, { conflict: 1 }, { retrying: 1 }, { readState: 'unavailable' as const }])(
-    'shows interrupted saves immediately: %j',
-    stats => expect(hasLocalSyncAttention(makeStats(stats))).toBe(true)
+  it.each([
+    { failed: 1 },
+    { conflict: 1 },
+    { retrying: 1 },
+    { readState: 'unavailable' as const },
+    { recentOperationsReadState: 'unavailable' as const },
+  ])('shows interrupted saves immediately: %j', stats =>
+    expect(hasLocalSyncAttention(makeStats(stats))).toBe(true)
   );
 
   it('presenta las operaciones en cuarentena con la taxonomía en castellano', () => {

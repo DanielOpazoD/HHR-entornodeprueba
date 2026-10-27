@@ -7,6 +7,11 @@
 
 ## Sync Queue
 
+La lectura de envíos recientes distingue fallo y lista vacía. Ante
+`sync_queue_recent_operations_unavailable`, Eloísa indica «por comprobar» y el
+reporte conserva los contadores disponibles y el evento de error. Este contrato
+no modifica los umbrales del snapshot generado a continuación.
+
 - Batch size: 25
 - Max retries: 5
 - Base retry delay (ms): 1

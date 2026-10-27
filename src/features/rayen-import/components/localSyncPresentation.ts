@@ -12,6 +12,7 @@ export const hasLocalSyncAttention = (stats: SyncQueueStats): boolean =>
   stats.failed + stats.conflict > 0 ||
   stats.retrying > 0 ||
   stats.readState === 'unavailable' ||
+  stats.recentOperationsReadState === 'unavailable' ||
   (stats.pending > 0 && stats.oldestPendingAgeMs >= LOCAL_SYNC_PENDING_VISIBILITY_MS);
 
 const CATEGORY_LABELS: Record<string, string> = {

@@ -58,7 +58,9 @@ export const useSystemHealthReporter = (enabled = true) => {
         const localErrorCount = logs.length;
         const [syncTelemetry, recentSyncOperations] = await Promise.all([
           getSyncQueueTelemetry(),
-          listRecentSyncQueueOperations(8),
+          // The public reader records this failure. Keep that event and the known counts
+          // reportable even when this optional list of recent operations is unavailable.
+          listRecentSyncQueueOperations(8).catch(() => []),
         ]);
         const pendingSyncTasks = syncTelemetry.pending;
         const failedSyncTasks = syncTelemetry.failed;

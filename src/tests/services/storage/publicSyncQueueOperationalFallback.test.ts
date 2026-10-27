@@ -84,6 +84,38 @@ describe('publicSyncQueue operational fallback', () => {
     );
   });
 
+  it.each(['initialization', 'operations'])(
+    'rejects an unavailable %s read and recovers without inventing an empty queue',
+    async source => {
+      const failure = new Error('Synthetic queue read unavailable');
+      if (source === 'initialization') ensureDbReady.mockRejectedValueOnce(failure);
+      else listRecentOperations.mockRejectedValueOnce(failure);
+      const { listRecentSyncQueueOperations } =
+        await import('@/services/storage/sync/publicSyncQueue');
+
+      await expect(listRecentSyncQueueOperations(5)).rejects.toBe(failure);
+      expect(recordOperationalTelemetry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          operation: 'sync_queue_recent_operations_unavailable',
+          status: 'failed',
+          runtimeState: 'blocked',
+        })
+      );
+
+      const operation = {
+        id: 12,
+        type: 'UPDATE_DAILY_RECORD',
+        status: 'FAILED',
+        timestamp: 1,
+        retryCount: 0,
+      };
+      listRecentOperations.mockResolvedValueOnce([operation]);
+      await expect(listRecentSyncQueueOperations(5)).resolves.toEqual([operation]);
+      listRecentOperations.mockResolvedValueOnce([]);
+      await expect(listRecentSyncQueueOperations(5)).resolves.toEqual([]);
+    }
+  );
+
   it('records a structured event when processing the queue fails', async () => {
     ensureDbReady.mockResolvedValueOnce(undefined);
     processQueue.mockRejectedValueOnce(new Error('transport failed'));
