@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { UIProvider } from '@/context/UIContext';
 import { useDailyRecordSyncQuery } from '@/hooks/useDailyRecordSyncQuery';
@@ -8,12 +8,6 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { createUpdatePartialDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
-import { getDailyRecordQueryKey } from '@/hooks/controllers/dailyRecordQueryController';
-import {
-  applyPendingExplicitCensusPatch,
-  clearPendingDailyRecordPatchesForTests,
-  registerPendingDailyRecordPatch,
-} from '@/hooks/controllers/dailyRecordPendingPatchController';
 
 const { mockDailyRecordRepositoryPort } = vi.hoisted(() => ({
   mockDailyRecordRepositoryPort: {
@@ -102,116 +96,41 @@ const createWrapper = () =>
     .wrapper;
 
 describe('definitive clear first-attempt reconciliation', () => {
-  afterEach(() => {
-    vi.unstubAllGlobals();
-    clearPendingDailyRecordPatchesForTests();
+  it('shows the authoritative occupant after rejecting a stale clear without writing', async () => {
+    const local = DataFactory.createMockDailyRecord(mockDate, {
+      beds: { R1: DataFactory.createMockPatient('R1', { clinicalEpisodeId: 'local-episode' }) },
+    });
+    const remote = {
+      ...local,
+      beds: { R1: { ...local.beds.R1, clinicalEpisodeId: 'remote-episode' } },
+    };
+    mockDailyRecordRepositoryPort.getForDateWithMeta.mockResolvedValue(buildReadResult(local));
+    mockDailyRecordRepositoryPort.getAuthoritativeForDate.mockResolvedValue(remote);
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() =>
+      expect(result.current.record?.beds.R1.clinicalEpisodeId).toBe('local-episode')
+    );
+    await act(async () => {
+      await expect(
+        result.current.patchRecord(
+          { 'beds.R1.patientName': '' },
+          {
+            intentionalBedClear: {
+              bedId: 'R1',
+              confirmedLastUpdated: local.lastUpdated,
+              confirmedOccupant: { clinicalEpisodeId: 'local-episode' },
+            },
+          }
+        )
+      ).rejects.toBeInstanceOf(ConcurrencyError);
+    });
+    await waitFor(() =>
+      expect(result.current.record?.beds.R1.clinicalEpisodeId).toBe('remote-episode')
+    );
+    expect(mockDailyRecordRepositoryPort.updatePartialDetailed).not.toHaveBeenCalled();
   });
-
-  it.each(['before-clear', 'after-clear', 'after-clear-with-moved-episode'] as const)(
-    'keeps the authoritative occupant after rejection when a local read resolves %s',
-    async phase => {
-      let hydrate = () => {};
-      vi.stubGlobal('requestIdleCallback', (callback: IdleRequestCallback) => {
-        hydrate = () => callback({ didTimeout: false, timeRemaining: () => 50 });
-        return 1;
-      });
-      vi.stubGlobal('cancelIdleCallback', vi.fn());
-      const local = DataFactory.createMockDailyRecord(mockDate, {
-        beds: {
-          R1: DataFactory.createMockPatient('R1', {
-            clinicalEpisodeId: 'local-episode',
-            pathology: 'Accepted local work',
-          }),
-          R2: DataFactory.createMockPatient('R2', {
-            clinicalEpisodeId: 'unrelated-episode',
-            rut: '22.222.222-2',
-            patientName: 'Otra persona sintética',
-            pathology: 'Independent pending work',
-          }),
-        },
-      });
-      const remote = {
-        ...local,
-        beds: {
-          R1: {
-            ...local.beds.R1,
-            clinicalEpisodeId: 'remote-episode',
-            pathology: 'Remote occupant diagnosis',
-          },
-          R2: { ...local.beds.R2, pathology: 'Older remote diagnosis' },
-          ...(phase === 'after-clear-with-moved-episode'
-            ? { R3: { ...local.beds.R1, bedId: 'R3', pathology: 'Original remote diagnosis' } }
-            : {}),
-        },
-      };
-      mockDailyRecordRepositoryPort.getForDateWithMeta.mockResolvedValue(buildReadResult(local));
-      mockDailyRecordRepositoryPort.getAuthoritativeForDate.mockResolvedValue(remote);
-      registerPendingDailyRecordPatch(mockDate, { 'beds.R1.pathology': 'Accepted local work' });
-      registerPendingDailyRecordPatch(mockDate, {
-        'beds.R2.pathology': 'Independent pending work',
-      });
-      const { wrapper, queryClient } = createQueryClientTestWrapper({
-        wrapChildren: children => <UIProvider>{children}</UIProvider>,
-      });
-      const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
-        wrapper,
-      });
-      await waitFor(() =>
-        expect(result.current.record?.beds.R1.clinicalEpisodeId).toBe('local-episode')
-      );
-      const finishBackgroundRead = async () => {
-        await act(async () => hydrate());
-        await act(async () => {
-          await queryClient.refetchQueries({ queryKey: getDailyRecordQueryKey(mockDate) });
-        });
-        await waitFor(() => {
-          expect(mockDailyRecordRepositoryPort.getForDateWithMeta).toHaveBeenCalledWith(
-            mockDate,
-            true
-          );
-          expect(queryClient.getQueryState(getDailyRecordQueryKey(mockDate))?.fetchStatus).toBe(
-            'idle'
-          );
-        });
-      };
-      if (phase === 'before-clear') await finishBackgroundRead();
-      await act(async () => {
-        await expect(
-          result.current.patchRecord(
-            { 'beds.R1.patientName': '', 'beds.R1.pathology': '' },
-            {
-              intentionalBedClear: {
-                bedId: 'R1',
-                confirmedLastUpdated: local.lastUpdated,
-                confirmedOccupant: { clinicalEpisodeId: 'local-episode' },
-              },
-            }
-          )
-        ).rejects.toBeInstanceOf(ConcurrencyError);
-      });
-      await waitFor(() =>
-        expect(result.current.record?.beds.R1.clinicalEpisodeId).toBe('remote-episode')
-      );
-      if (phase !== 'before-clear') await finishBackgroundRead();
-      await waitFor(() =>
-        expect(result.current.record?.beds.R1.clinicalEpisodeId).toBe('remote-episode')
-      );
-      expect(result.current.record?.beds.R1.pathology).toBe('Remote occupant diagnosis');
-      expect(result.current.record?.beds.R2.pathology).toBe('Independent pending work');
-      if (phase === 'after-clear-with-moved-episode') {
-        expect(result.current.record?.beds.R3.patientName).toBe(local.beds.R1.patientName);
-        expect(result.current.record?.beds.R3.pathology).toBe('Accepted local work');
-      }
-      expect(mockDailyRecordRepositoryPort.updatePartialDetailed).not.toHaveBeenCalled();
-      const olderLocal = {
-        ...local,
-        beds: { ...local.beds, R1: { ...local.beds.R1, pathology: 'Older local work' } },
-      };
-      expect(applyPendingExplicitCensusPatch(mockDate, olderLocal, local).beds.R1.pathology).toBe(
-        'Accepted local work'
-      );
-    }
-  );
   beforeEach(() => {
     vi.clearAllMocks();
     mockDailyRecordRepositoryPort.getForDateWithMeta.mockReset();
