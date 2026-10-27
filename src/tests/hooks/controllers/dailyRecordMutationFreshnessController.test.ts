@@ -4,7 +4,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   saveDailyRecordWithCompatibility,
   persistDailyRecordSaveMutation,
-} from '@/hooks/controllers/dailyRecordMutationFreshnessController';
+} from '@/hooks/controllers/dailyRecordSavePersistenceController';
 
 const record = {
   date: '2026-08-07',

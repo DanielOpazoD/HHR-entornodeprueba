@@ -1,9 +1,7 @@
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
-import {
-  patchDailyRecordWithCompatibility,
-  saveDailyRecordWithCompatibility,
-} from '@/hooks/controllers/dailyRecordMutationFreshnessController';
+import { patchDailyRecordWithCompatibility } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
+import { saveDailyRecordWithCompatibility } from '@/hooks/controllers/dailyRecordSavePersistenceController';
 import { isDailyRecordWriteRejectedResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { assertRayenCensusPersistenceConfirmed } from '../hooks/rayenCensusPersistenceGuard';
 

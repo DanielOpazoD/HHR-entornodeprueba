@@ -29,7 +29,6 @@ import type { RemoteSyncRuntimeStatus } from '@/services/repositories/repository
 import {
   ensureFreshDailyRecordSaveMutation,
   ensureFreshDailyRecordQuery,
-  persistDailyRecordSaveMutation,
   type SaveDailyRecordMutationInput,
 } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
 export { usePatchDailyRecordMutation } from '@/hooks/usePatchDailyRecordMutation';
@@ -213,8 +212,11 @@ export const useSaveDailyRecordMutation = () => {
   const { dailyRecord } = useRepositories();
 
   return useMutation({
-    mutationFn: (input: SaveDailyRecordMutationInput) =>
-      persistDailyRecordSaveMutation(dailyRecord, input),
+    mutationFn: async (input: SaveDailyRecordMutationInput) => {
+      const { persistDailyRecordSaveMutation } =
+        await import('@/hooks/controllers/dailyRecordSavePersistenceController');
+      return persistDailyRecordSaveMutation(dailyRecord, input);
+    },
     onMutate: async (input: SaveDailyRecordMutationInput) => {
       const newRecord = input.record;
       await ensureFreshDailyRecordSaveMutation(input, { dailyRecord, queryClient });
