@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
-import { preserveNursingSessionQueue } from '@/services/storage/nursingSessionQueue';
+import { preserveSessionSyncQueue } from '@/services/storage/sessionSyncQueuePreservation';
 import { matchesTaskClaim } from '@/services/storage/sync/syncQueueTaskFactory';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
@@ -28,7 +28,7 @@ describe('individual session logout preserves pending edits', () => {
     const other = task('other', 'user:other');
     const id = await hospitalDB.syncQueue.add(own);
     await hospitalDB.syncQueue.add(other);
-    await preserveNursingSessionQueue(owner);
+    await preserveSessionSyncQueue(owner);
     const preserved = await hospitalDB.syncQueue.get(id);
     expect(preserved).toMatchObject({
       payload: own.payload,
@@ -57,7 +57,7 @@ describe('individual session logout preserves pending edits', () => {
       verifiedRunId: 'original-run',
     };
     await hospitalDB.syncQueue.add({ ...task('retired', owner), status: 'RETIRED', retirement });
-    await preserveNursingSessionQueue(owner);
+    await preserveSessionSyncQueue(owner);
     const all = await hospitalDB.syncQueue.toArray();
     expect(all).toHaveLength(3);
     expect(all.find(t => t.opId === 'retired')).toMatchObject({ status: 'RETIRED', retirement });

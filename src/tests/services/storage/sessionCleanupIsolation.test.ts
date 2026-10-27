@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearAllRecords } from '@/services/storage/indexeddb/indexedDbRecordService';
-import { clearSyncQueueForOwner } from '@/services/storage/sync';
+import { preserveSessionSyncQueue } from '@/services/storage/sessionSyncQueuePreservation';
 import {
   clearSessionScopedClientState,
   getStoredSessionOwnerKey,
@@ -16,8 +16,10 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   clearAllRecords: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('@/services/storage/sync', () => ({
-  clearSyncQueueForOwner: vi.fn().mockResolvedValue(undefined),
   recordSyncQueueOwnershipTelemetry: vi.fn(),
+}));
+vi.mock('@/services/storage/sessionSyncQueuePreservation', () => ({
+  preserveSessionSyncQueue: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
   recordOperationalTelemetry: vi.fn(),
@@ -83,7 +85,7 @@ describe('session cleanup isolation', () => {
     sessionStorage.setItem('hhr_private', 'old');
     vi.mocked(clearAllRecords).mockRejectedValueOnce(new Error('store unavailable'));
     await clearSessionScopedClientState('manual').catch(() => undefined);
-    expect(clearSyncQueueForOwner).toHaveBeenCalledWith('user:old', true);
+    expect(preserveSessionSyncQueue).toHaveBeenCalledWith('user:old');
     expect(localStorage.getItem('hhr_private')).toBeNull();
     expect(sessionStorage.getItem('hhr_private')).toBeNull();
   });
@@ -131,7 +133,7 @@ describe('session cleanup isolation', () => {
     await expect(clearSessionScopedClientState('manual', signOut)).rejects.toThrow('quota');
     expect(signOut).toHaveBeenCalledTimes(1);
     expect(clearAllRecords).toHaveBeenCalledTimes(1);
-    expect(clearSyncQueueForOwner).toHaveBeenCalledTimes(1);
+    expect(preserveSessionSyncQueue).toHaveBeenCalledTimes(1);
     expect(sessionStorage.getItem('hhr_private')).toBeNull();
   });
 

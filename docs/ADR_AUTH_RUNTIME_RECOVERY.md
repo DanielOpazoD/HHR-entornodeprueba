@@ -34,6 +34,11 @@ Auth problems in this app are rarely pure login failures. They usually happen at
 - Custom claim refresh is allowed to fail in a controlled way without tearing down an otherwise authorized session.
 - Auth bootstrap incidents must surface as operational issues before they become a visible hard failure.
 - Grace periods around popup/session resolution belong to auth policy/runtime, not to random buttons or screens.
+- Logout and owner changes preserve queued work for every account through
+  `sessionSyncQueuePreservation.ts`. Active sends become blocked for review by their original
+  owner; existing failures, conflicts and retired backups retain their diagnosis. Unattributed
+  work is isolated rather than adopted by the next account. Firebase closure and clinical-cache
+  cleanup still run; a new account cannot publish another account's work (SAVE-03).
 
 ## How To Change Safely
 

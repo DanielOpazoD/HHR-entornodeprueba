@@ -94,3 +94,27 @@ describe('localSyncPresentation', () => {
     ]);
   });
 });
+
+it('distinguishes a preserved logout send from a server permission refusal', () => {
+  const operations = listQuarantinedOperations([
+    {
+      id: 24,
+      type: 'UPDATE_DAILY_RECORD',
+      key: 'daily:2026-10-22',
+      status: 'FAILED',
+      retryCount: 0,
+      timestamp: 1,
+      lastErrorCategory: 'authorization',
+      lastErrorCode: 'session_owner_logged_out',
+    },
+  ]);
+  expect(operations).toEqual([
+    expect.objectContaining({
+      categoryLabel: 'Sesión cerrada',
+      recovery: 'review_authorization',
+      canRetire: true,
+      retryGuidance:
+        'Este envío quedó pendiente al cerrar sesión. Revisa que ingresaste con su cuenta original antes de reenviarlo.',
+    }),
+  ]);
+});
