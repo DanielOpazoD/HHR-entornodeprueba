@@ -366,8 +366,7 @@ const createMedicalHandoffEvidence = async (
     bedId: 'R1',
     expected: { medicalHandoffNote: note },
   });
-  // Handoff canonical URLs drop the date; reopen the same clinical day explicitly.
-  await page.goto(`/medical-handoff?date=${E2E_DATE}`, { waitUntil: 'domcontentloaded' });
+  await page.reload({ waitUntil: 'domcontentloaded' });
   await expect(page.locator('textarea').first()).toHaveValue(note, { timeout: 10_000 });
 };
 
