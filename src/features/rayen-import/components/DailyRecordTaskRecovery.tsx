@@ -11,7 +11,7 @@ import { downloadBlob } from '@/services/exporters/exportDownload';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import { targetLabelFromKey } from './localSyncPresentation';
 import {
-  resolveConflictDomainContextForPath,
+  classifyConflictChangedContexts,
   type ConflictDomainContext,
 } from '@/services/repositories/conflictResolutionDomainPolicy';
 
@@ -31,9 +31,7 @@ const DeclaredScope: React.FC<{ task: SyncTask }> = ({ task }) => {
     paths.length > 0 &&
     paths.every(path => typeof path === 'string' && path.trim() && !path.includes('*'));
   const labels = hasFieldDetail
-    ? Array.from(
-        new Set(paths.map(path => SCOPE_LABELS[resolveConflictDomainContextForPath(path)]))
-      )
+    ? classifyConflictChangedContexts(paths).map(context => SCOPE_LABELS[context])
     : [];
   return (
     <div>
