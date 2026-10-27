@@ -13,8 +13,79 @@ import {
 import { waitForPersistedBedFields } from './fixtures/censusPersistence';
 import { installDailyRecordAuthorityRoute } from './fixtures/dailyRecordAuthorityRoute';
 import { getTodayISO } from '../src/utils/dateCoreUtils';
+import type { SyncTask } from '../src/services/storage/syncQueueTypes';
 
 const MULTIUSER_DATE = process.env.E2E_FIXED_DATE ?? getTodayISO();
+
+test('keeps a write without its original version available for review after reload', async ({
+  page,
+}) => {
+  await openSeededCensus(page);
+  const task: SyncTask = {
+    opId: 'synthetic-baseless-review',
+    type: 'UPDATE_DAILY_RECORD',
+    key: `daily:${MULTIUSER_DATE}`,
+    timestamp: Date.now(),
+    retryCount: 0,
+    status: 'FAILED',
+    lastErrorCode: 'functions/failed-precondition',
+    lastErrorCategory: 'validation',
+    error:
+      '[validation/functions/failed-precondition] base_required: An existing daily record requires a verifiable base version.',
+    syncContract: { expectedVersion: '', changedPaths: ['beds.R1.pathology'] },
+    payload: { date: MULTIUSER_DATE, beds: { R1: { pathology: 'PENDIENTE SINTETICO' } } },
+  };
+  const id = await page.evaluate(async pending => {
+    const request = indexedDB.open('HangaRoaDB');
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    try {
+      const transaction = db.transaction('syncQueue', 'readwrite');
+      const insert = transaction.objectStore('syncQueue').add(pending);
+      await new Promise<void>((resolve, reject) => {
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
+        transaction.onabort = () => reject(transaction.error);
+      });
+      const taskId = insert.result;
+      if (typeof taskId !== 'number') throw new Error('Expected a numeric sync task id');
+      return taskId;
+    } finally {
+      db.close();
+    }
+  }, task);
+
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(page.getByTestId('census-table')).toBeVisible();
+  await page.getByRole('button', { name: 'Guardado pendiente · Ver detalle' }).click();
+  const details = page.getByTestId('rayen-local-sync-details');
+  await details.locator('summary').first().click();
+  await expect(details.getByText('Requiere revisión de la versión de origen')).toBeVisible();
+  await expect(details.getByText(/Los cambios siguen guardados en este equipo/)).toBeVisible();
+  await expect(details.getByRole('button', { name: 'Reintentar', exact: true })).toHaveCount(0);
+  await expect(details.getByRole('button', { name: 'Descartar', exact: true })).toHaveCount(0);
+
+  // Read the durable row, rather than inferring persistence from the visible diagnosis.
+  const stored = await page.evaluate(async taskId => {
+    const request = indexedDB.open('HangaRoaDB');
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    try {
+      const read = db.transaction('syncQueue', 'readonly').objectStore('syncQueue').get(taskId);
+      return await new Promise<unknown>((resolve, reject) => {
+        read.onsuccess = () => resolve(read.result);
+        read.onerror = () => reject(read.error);
+      });
+    } finally {
+      db.close();
+    }
+  }, id);
+  expect(stored).toEqual({ ...task, id });
+});
 
 const getRow = (page: Page, bedId: string) =>
   page.locator(`[data-testid="patient-row"][data-bed-id="${bedId}"]`).first();
@@ -100,7 +171,7 @@ const openSeededCensus = async (page: Page, remoteWriter = false) => {
   }, record);
   // Authenticate the existing bootstrap page before the single final census navigation.
   await ensureAuthenticated(page);
-  await page.goto(`/census?date=${MULTIUSER_DATE}`);
+  await page.goto(`/census?date=${MULTIUSER_DATE}`, { waitUntil: 'domcontentloaded' });
   await expect(page.getByTestId('census-table')).toBeVisible({ timeout: 20_000 });
   return authority;
 };
