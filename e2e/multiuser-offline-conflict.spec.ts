@@ -156,6 +156,68 @@ test('withdraws an unnecessary permission-blocked send with a downloadable backu
 const getRow = (page: Page, bedId: string) =>
   page.locator(`[data-testid="patient-row"][data-bed-id="${bedId}"]`).first();
 
+test('reaches an older blocked send beyond two pages and withdraws only that send with its backup', async ({
+  page,
+}) => {
+  await openSeededCensus(page);
+  const blocked: SyncTask = {
+    opId: 'synthetic-old-blocked-send',
+    type: 'UPDATE_DAILY_RECORD',
+    key: 'daily:2026-10-22',
+    timestamp: Date.now() - 3_600_000,
+    status: 'FAILED',
+    retryCount: 0,
+    lastErrorCategory: 'authorization',
+    lastErrorCode: 'permission-denied',
+    payload: { date: '2026-10-22', beds: {}, nurses: ['SYNTHETIC OLD SEND'] },
+  };
+  const blockedId = await insertSyncTask(page, blocked);
+  const pendingIds: number[] = [];
+  for (let index = 1; index <= 24; index++) {
+    const date = `2026-02-${String(index).padStart(2, '0')}`;
+    pendingIds.push(
+      await insertSyncTask(page, {
+        opId: `synthetic-newer-${index}`,
+        type: 'UPDATE_DAILY_RECORD',
+        key: `daily:${date}`,
+        timestamp: Date.now() + index,
+        status: 'PENDING',
+        retryCount: index === 1 ? 1 : 0,
+        payload: { date, beds: {}, nurses: [] },
+      })
+    );
+  }
+  await page.getByRole('button', { name: 'Guardado pendiente · Ver detalle' }).click();
+  const details = page.getByTestId('rayen-local-sync-details');
+  await details.locator('summary').first().click();
+  await expect(details.getByText('Guardado local · 25 por enviar')).toBeVisible();
+  const oldSend = details.getByText('Censo del 22-10-2026');
+  await expect(oldSend).toHaveCount(0);
+  await details.getByRole('button', { name: 'Ver más envíos' }).click();
+  await expect(oldSend).toHaveCount(0);
+  await details.getByRole('button', { name: 'Ver más envíos' }).click();
+  await expect(oldSend).toBeVisible();
+  await expect(details.getByRole('button', { name: 'Ver más envíos' })).toHaveCount(0);
+  await details.getByRole('button', { name: 'Descartar envío', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Descartar envío del censo' });
+  await dialog.getByRole('checkbox').check();
+  await dialog.getByRole('button', { name: 'Sí, descartar envío' }).click();
+  await expect(page.getByRole('button', { name: 'Descargar respaldo' })).toBeVisible();
+  expect(await readSyncTask(page, blockedId)).toMatchObject({
+    ...blocked,
+    status: 'RETIRED',
+    retirement: { reason: 'manual_discard' },
+  });
+  expect(await readSyncTask(page, pendingIds[0])).toMatchObject({
+    status: 'PENDING',
+    retryCount: 1,
+  });
+  expect(await readSyncTask(page, pendingIds[23])).toMatchObject({
+    status: 'PENDING',
+    opId: 'synthetic-newer-24',
+  });
+});
+
 test('shows a failed recent-send read instead of a healthy empty queue and recovers after reload', async ({
   page,
 }) => {

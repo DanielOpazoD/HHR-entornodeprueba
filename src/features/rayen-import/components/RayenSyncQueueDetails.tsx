@@ -13,7 +13,8 @@ export const RayenSyncQueueDetails: React.FC<{
   operations: SyncQueueOperation[];
   refresh: () => Promise<void>;
   working: boolean;
-}> = ({ stats, operations, refresh, working }) => {
+  pagination?: { hasMore: boolean; onShowMore: () => void };
+}> = ({ stats, operations, refresh, working, pagination }) => {
   const [busy, setBusy] = React.useState(false);
   const [actionFailed, setActionFailed] = React.useState(false);
   const [confirmingDiscard, setConfirmingDiscard] = React.useState<number | null>(null);
@@ -23,7 +24,8 @@ export const RayenSyncQueueDetails: React.FC<{
   const blocked = listQuarantinedOperations(
     operations.filter(op => !isPolicyBlockedCudyrArchive(op))
   );
-  const total = stats.pending + stats.failed + stats.conflict + (stats.retrying ?? 0);
+  // Retrying tasks are already included in pending.
+  const total = stats.pending + stats.failed + stats.conflict;
   const unavailable =
     stats.readState === 'unavailable' || stats.recentOperationsReadState === 'unavailable';
   const run = async (id: number, action: (taskId: number) => Promise<boolean>) => {
@@ -165,9 +167,15 @@ export const RayenSyncQueueDetails: React.FC<{
               </li>
             ))}
           </ul>
-          {operations.filter(op => op.status === 'FAILED' || op.status === 'CONFLICT').length <
-            stats.failed + stats.conflict && (
-            <p className="mt-1 text-slate-400">Mostrando los últimos envíos.</p>
+          {pagination?.hasMore && (
+            <button
+              type="button"
+              onClick={pagination.onShowMore}
+              disabled={working || busy}
+              className="mt-1 text-teal-700 disabled:opacity-50"
+            >
+              Ver más envíos
+            </button>
           )}
           {actionFailed && (
             <p className="mt-1 text-amber-700" role="status">
