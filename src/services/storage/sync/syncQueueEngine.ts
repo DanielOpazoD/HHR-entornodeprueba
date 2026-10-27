@@ -9,10 +9,6 @@ import type {
   SyncQueueEnqueueResult,
 } from '@/services/storage/sync/syncQueueEngineContracts';
 import { measureRepositoryOperation } from '@/services/repositories/repositoryPerformance';
-import {
-  buildSyncQueueDomainMetrics,
-  type SyncQueueDomainMetrics,
-} from '@/services/storage/sync/syncDomainPolicy';
 import type { SyncQueueTelemetry } from '@/services/storage/sync/syncQueueTelemetryContracts';
 import {
   resolveSyncQueueFailureDecision,
@@ -232,23 +228,9 @@ export const createSyncQueueEngine = ({
     return buildSyncQueueTelemetryFromRows(rows, Date.now(), batchSize);
   };
 
-  const getStats = async (): Promise<{ pending: number; failed: number; conflict: number }> => {
-    const telemetry = await getTelemetry();
-    return {
-      pending: telemetry.pending,
-      failed: telemetry.failed,
-      conflict: telemetry.conflict,
-    };
-  };
-
   const listRecentOperations = async (limit: number): Promise<SyncQueueOperationSnapshot[]> => {
     const rows = await store.listRecent(limit, runtime.getOwnerKey());
     return rows.map(toSyncQueueOperationSnapshot);
-  };
-
-  const getDomainMetrics = async (): Promise<SyncQueueDomainMetrics> => {
-    const rows = await store.listAll(runtime.getOwnerKey());
-    return buildSyncQueueDomainMetrics(rows);
   };
 
   const processQueue = async (): Promise<void> => {
@@ -346,8 +328,6 @@ export const createSyncQueueEngine = ({
     replacePendingDailyRecordTaskWithLocalRecord,
     processQueue,
     getTelemetry,
-    getDomainMetrics,
-    getStats,
     listRecentOperations,
     ensureOnlineListener,
     triggerProcessing,
