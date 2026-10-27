@@ -13,6 +13,7 @@ import type { DailyRecordQueryResult } from '@/services/repositories/contracts/d
 import {
   applyOptimisticDailyRecordPatch,
   getDailyRecordQueryKey,
+  setAuthoritativeDailyRecordRead,
   setDailyRecordQueryData,
 } from '@/hooks/controllers/dailyRecordQueryController';
 import {
@@ -332,7 +333,7 @@ export const usePatchDailyRecordMutation = (date: string) => {
             error.authoritativeRecord
           )
         ) {
-          setDailyRecordQueryData(queryClient, date, error.authoritativeRecord);
+          setAuthoritativeDailyRecordRead(queryClient, date, error.authoritativeRecord);
         }
       } else if (context?.optimisticApplied && context.previousRecord) {
         const cachedRecord = queryClient.getQueryData<DailyRecordQueryResult>(
