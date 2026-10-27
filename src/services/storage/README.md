@@ -45,6 +45,10 @@ La construcción de rangos mensuales y helpers de escritura sigue viviendo en
 Los flujos de documento único deben preferir `firestore/firestoreDocumentStore.ts`
 para centralizar `runtime.ready`, `getDoc/setDoc` y preparación de suscripciones.
 `storage/sync` es la fuente soportada para telemetría (`getSyncQueueTelemetry()`), stats (`getSyncQueueStats()`) y operaciones recientes (`listRecentSyncQueueOperations()`).
+
+El motor comparte una sola lectura de contadores mediante su telemetría. Las APIs de
+estadísticas agregadas conservan su contrato y aislamiento por sesión en la fachada
+pública, sin retener cálculos sin consumidores dentro del motor de envíos.
 La fachada pública vive en `sync/publicSyncQueue.ts`.
 El outbox ahora se arma sobre un engine con puertos (`sync/syncQueueEngine.ts`, `sync/syncQueuePorts.ts`) para separar runtime navegador, store Dexie y transporte Firestore.
 `sync/syncDomainPolicy.ts` clasifica tareas por contexto (`clinical`, `staffing`, `movements`, `handoff`, `metadata`) para aplicar budgets de retry y métricas de conflicto más específicas.

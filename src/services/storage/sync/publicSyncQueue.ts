@@ -11,7 +11,10 @@ import { createSyncQueueEngine } from '@/services/storage/sync/syncQueueEngine';
 import type { SyncQueueEnqueueResult } from '@/services/storage/sync/syncQueueEngineContracts';
 import type { SyncQueueEnqueueOptions } from '@/services/storage/sync/syncQueueEnqueuePolicy';
 import type { SyncQueueOperationSnapshot } from '@/services/storage/sync/syncQueueOperationSnapshot';
-import type { SyncQueueDomainMetrics } from '@/services/storage/sync/syncDomainPolicy';
+import {
+  buildSyncQueueDomainMetrics,
+  type SyncQueueDomainMetrics,
+} from '@/services/storage/sync/syncDomainPolicy';
 import type { SyncQueueTelemetry } from '@/services/storage/sync/syncQueueTelemetryContracts';
 import { classifySyncError, ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 import { createDomainObservability } from '@/services/observability/domainObservability';
@@ -124,7 +127,8 @@ export const getSyncQueueStats = async (): Promise<{
 }> => {
   try {
     await ensureDbReady();
-    return await syncQueueEngine.getStats();
+    const { pending, failed, conflict } = await syncQueueEngine.getTelemetry();
+    return { pending, failed, conflict };
   } catch (error) {
     syncObservability.logger.warn('Failed to read queue stats', error);
     recordSyncRuntimeReadFailure('sync_queue_stats_unavailable', error, {
@@ -183,7 +187,7 @@ export const listRecentSyncQueueOperations = async (
 export const getSyncQueueDomainMetrics = async (): Promise<SyncQueueDomainMetrics> => {
   try {
     await ensureDbReady();
-    return await syncQueueEngine.getDomainMetrics();
+    return buildSyncQueueDomainMetrics(await syncQueueStore.listAll(getSyncOwnerKey()));
   } catch (error) {
     syncObservability.logger.warn('Failed to read domain metrics', error);
     recordSyncRuntimeReadFailure('sync_queue_domain_metrics_unavailable', error, {
