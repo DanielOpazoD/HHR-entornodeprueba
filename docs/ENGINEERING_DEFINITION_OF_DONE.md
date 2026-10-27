@@ -14,6 +14,13 @@ Una change queda lista solo si cumple todo lo siguiente:
 8. Si la change entra en una categoría gobernada, sigue `scripts/config/sustainable-change-policy.json` y deja evidencia del gate o artefacto requerido.
 9. Si incluye lógica de app, assets estáticos o snapshots de `reports/`, separa esos concerns en commits distintos cuando no dependan del mismo fix.
 
+Los controles anteriores pueden acreditarse con CI del SHA final: no se exige una
+segunda ejecución local. Verificar el alcance, `ci-summary`, rama al día, revisiones
+y artefactos correspondientes según [Safe Change Checklist](SAFE_CHANGE_CHECKLIST.md).
+Los controles adicionales de cada área conservan su alcance, pero no se repiten si
+CI ya los cubrió. Las comprobaciones no cubiertas y los defectos reproducibles sí
+requieren trabajo; un fallo local se conserva y diagnostica, no se oculta con CI verde.
+
 Para cambios en `UIContext`, verificar avisos, descarte, confirmación, cancelación y
 limpieza al desmontar con el proveedor real. Los consumidores de acciones conservan
 sus ediciones y no se actualizan al cambiar la lista privada de notificaciones;

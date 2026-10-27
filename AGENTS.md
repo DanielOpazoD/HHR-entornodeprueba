@@ -60,15 +60,16 @@ lea este archivo.
 
 ### Producción y pull requests
 
-| Regla                                                                                                                                                        | Qué la impone                |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------- |
-| Publicar, desplegar Functions o reglas, o cambiar la configuración de Netlify, solo si el responsable lo pide. Un merge a `main` ya publica.                 | **[docs]**                   |
-| `ci-summary` es el único check requerido, y `main` exige ramas al día. No saltarlo ni relajarlo.                                                             | Ruleset de `main`            |
-| Un agente mergea solo sus propias PRs, en verde y de a una. Las PRs de otros hilos no se tocan.                                                              | Ruleset en parte; **[docs]** |
-| Antes de decir «listo», comprobar que la PR se puede mergear con `main` (`gh pr view --json mergeStateStatus`) y decir con qué evidencia se probó el cambio. | **[docs]**                   |
-| Una PR resuelve una sola cosa. No corregir de paso lo que no se pidió.                                                                                       | **[docs]**                   |
-| Los commits se escriben en inglés (Conventional Commits). Los títulos y descripciones de PR, en español.                                                     | **[docs]**                   |
-| Nunca usar `git stash` sin una etiqueta propia, porque el stash se comparte entre worktrees y sesiones.                                                      | **[docs]**                   |
+| Regla                                                                                                                                                        | Qué la impone                             |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------- |
+| Publicar, desplegar Functions o reglas, o cambiar la configuración de Netlify, solo si el responsable lo pide. Un merge a `main` ya publica.                 | **[docs]**                                |
+| `ci-summary` es el único check requerido, y `main` exige ramas al día. No saltarlo ni relajarlo.                                                             | Ruleset de `main`                         |
+| CI del SHA final acredita sus controles: no duplicar la matriz local. Verificar alcance y fallos conocidos; ver `docs/SAFE_CHANGE_CHECKLIST.md`.             | `ci-summary`; **[docs]** para no duplicar |
+| Un agente mergea solo sus propias PRs, en verde y de a una. Las PRs de otros hilos no se tocan.                                                              | Ruleset en parte; **[docs]**              |
+| Antes de decir «listo», comprobar que la PR se puede mergear con `main` (`gh pr view --json mergeStateStatus`) y decir con qué evidencia se probó el cambio. | **[docs]**                                |
+| Una PR resuelve una sola cosa. No corregir de paso lo que no se pidió.                                                                                       | **[docs]**                                |
+| Los commits se escriben en inglés (Conventional Commits). Los títulos y descripciones de PR, en español.                                                     | **[docs]**                                |
+| Nunca usar `git stash` sin una etiqueta propia, porque el stash se comparte entre worktrees y sesiones.                                                      | **[docs]**                                |
 
 ### Trabajo con el responsable
 
