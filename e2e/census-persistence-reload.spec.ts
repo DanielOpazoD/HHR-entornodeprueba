@@ -49,6 +49,28 @@ test.describe('Census persistence and reload', () => {
       forceEditableRecord: true,
       forceLocalOnlySync: true,
     });
+    // Auth chrome can mount before Dexie creates its stores. Opening a missing
+    // database here would create an empty schema ahead of the application.
+    await expect
+      .poll(() =>
+        page.evaluate(async () => {
+          if (!(await indexedDB.databases()).some(database => database.name === 'HangaRoaDB')) {
+            return false;
+          }
+          const request = indexedDB.open('HangaRoaDB');
+          request.onupgradeneeded = () => request.transaction?.abort();
+          const db = await new Promise<IDBDatabase>((resolve, reject) => {
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+          });
+          try {
+            return db.objectStoreNames.contains('dailyRecords');
+          } finally {
+            db.close();
+          }
+        })
+      )
+      .toBe(true);
     await page.evaluate(async record => {
       const cached = JSON.parse(localStorage.getItem('hanga_roa_hospital_data') ?? '{}');
       cached[record.date] = record;
