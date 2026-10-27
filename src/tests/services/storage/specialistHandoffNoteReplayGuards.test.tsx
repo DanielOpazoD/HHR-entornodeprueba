@@ -206,14 +206,18 @@ describe.each(MODES)('day write replay guards (%s)', (_mode, enforced) => {
       });
       const edited = { ...newPatient, ...noteFields };
       if (!exists) h.remote = null;
-      await saveWholeDay({
-        ...fresh,
-        beds: {
-          ...fresh.beds,
-          R4: slot === 'bed' ? edited : mother(edited),
-          R6: { ...fresh.beds.R6, handoffNote: 'Entrega E conservada' },
+      await saveWholeDay(
+        {
+          ...fresh,
+          beds: {
+            ...fresh.beds,
+            R4: slot === 'bed' ? edited : mother(edited),
+            R6: { ...fresh.beds.R6, handoffNote: 'Entrega E conservada' },
+          },
         },
-      });
+        undefined,
+        fresh
+      );
 
       await replay();
 
@@ -248,10 +252,21 @@ describe.each(MODES)('day write replay guards (%s)', (_mode, enforced) => {
     await note('R4', 'entry-A', 'Nota de A');
     const staleView = await local();
     await replayRefusingNotes();
-    await saveWholeDay({
-      ...staleView,
-      beds: { ...staleView.beds, R6: { ...staleView.beds.R6, pathology: 'Dx E entero' } },
-    });
+    await expect(
+      saveWholeDay({
+        ...staleView,
+        beds: { ...staleView.beds, R6: { ...staleView.beds.R6, pathology: 'Dx E entero' } },
+      })
+    ).rejects.toMatchObject({ name: 'ConcurrencyError' });
+    const fresh = await local();
+    await saveWholeDay(
+      {
+        ...fresh,
+        beds: { ...fresh.beds, R6: { ...fresh.beds.R6, pathology: 'Dx E entero' } },
+      },
+      undefined,
+      fresh
+    );
 
     await replay();
 
@@ -271,13 +286,24 @@ describe.each(MODES)('day write replay guards (%s)', (_mode, enforced) => {
       } else {
         h.remote = null;
       }
-      await saveWholeDay({
-        ...staleView,
-        beds: {
-          ...staleView.beds,
-          R6: { ...staleView.beds.R6, handoffNote: 'Entrega E conservada' },
+      await expect(
+        saveWholeDay({
+          ...staleView,
+          beds: {
+            ...staleView.beds,
+            R6: { ...staleView.beds.R6, handoffNote: 'Entrega E conservada' },
+          },
+        })
+      ).rejects.toMatchObject({ name: 'ConcurrencyError' });
+      const fresh = await local();
+      await saveWholeDay(
+        {
+          ...fresh,
+          beds: { ...fresh.beds, R6: { ...fresh.beds.R6, handoffNote: 'Entrega E conservada' } },
         },
-      });
+        undefined,
+        fresh
+      );
 
       await replay();
 

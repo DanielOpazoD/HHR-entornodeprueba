@@ -133,10 +133,10 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
   async add(task) {
     await hospitalDB.syncQueue.add(task);
   },
-  async saveDailyRecordWithTask(record, task, patchWrite) {
+  async saveDailyRecordWithTask(record, task, patchWrite, wholeRecordBase) {
     const { mode, persistedRecord } = await (
       await import('./dexieDailyRecordOutbox')
-    ).saveDailyRecordInOutbox(record, task, patchWrite);
+    ).saveDailyRecordInOutbox(record, task, patchWrite, wholeRecordBase);
     mirrorTransactionalDailyRecordWrite(persistedRecord);
     return mode;
   },

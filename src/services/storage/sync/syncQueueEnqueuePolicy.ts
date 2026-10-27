@@ -1,3 +1,4 @@
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type { DailyRecordPatchWrite } from '@/services/storage/sync/syncQueuePorts';
 
@@ -8,6 +9,7 @@ export interface SyncQueueEnqueueOptions {
   preOutboxHoldReason?: 'awaiting_remote_ack';
   /** A daily-record patch write, applied again on the day's stored record. */
   patchWrite?: DailyRecordPatchWrite;
+  wholeRecordBase?: DailyRecord;
 }
 
 export const countActiveSyncTasks = (tasks: SyncTask[]): number =>

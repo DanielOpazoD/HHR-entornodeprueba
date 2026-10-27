@@ -24,6 +24,8 @@ export interface SaveDailyRecordCommand {
 }
 
 export interface SaveDailyRecordOptions {
+  /** The day used to construct the full save, before edits or later cache refreshes. */
+  baseRecord?: DailyRecord;
   /**
    * Require the exact server-confirmed record after this write.
    * Reserved for a structural Rayen import immediately before its clinical handoff.

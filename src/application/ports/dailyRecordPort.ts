@@ -147,7 +147,11 @@ export interface DailyRecordWritePort {
     patch: DailyRecordPatch,
     options?: PartialUpdateDailyRecordOptions
   ) => Promise<UpdatePartialDailyRecordResult>;
-  save: (record: DailyRecord, expectedLastUpdated?: string) => Promise<SaveDailyRecordResult>;
+  save: (
+    record: DailyRecord,
+    expectedLastUpdated?: string,
+    options?: SaveDailyRecordOptions
+  ) => Promise<SaveDailyRecordResult>;
   delete: (date: string) => Promise<void>;
 }
 

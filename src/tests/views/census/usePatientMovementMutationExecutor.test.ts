@@ -34,9 +34,13 @@ describe('usePatientMovementMutationExecutor', () => {
       })
     );
 
-    await result.current(() => updatedRecord);
+    await result.current(base => {
+      expect(base).toBe(record);
+      recordRef.current = { ...record, lastUpdated: '2025-01-01T23:00:00.000Z' };
+      return updatedRecord;
+    });
 
-    expect(saveAndUpdate).toHaveBeenCalledWith(updatedRecord);
+    expect(saveAndUpdate).toHaveBeenCalledWith(updatedRecord, record);
   });
 
   it('returns a persistence promise instead of fire-and-forget', async () => {

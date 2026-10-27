@@ -111,6 +111,7 @@ export const usePatientTransfers = (
           kind: 'transfer',
           bedId,
           resolution,
+          baseRecord: currentRecord,
           onSuccess: value => {
             logTransferEntry(value.auditEntry, currentRecord.date);
           },
@@ -225,7 +226,8 @@ export const usePatientTransfers = (
         executeReclassification({
           recordDate: currentRecord.date,
           sourceMovementId: id,
-          persist: () => (patchRecord ? patchRecord(patch) : saveAndUpdate(updatedRecord)),
+          persist: () =>
+            patchRecord ? patchRecord(patch) : saveAndUpdate(updatedRecord, currentRecord),
           onPersisted: () => {
             if (!summary) return;
             try {
@@ -263,7 +265,8 @@ export const usePatientTransfers = (
         executeReclassification({
           recordDate: currentRecord.date,
           sourceMovementId: id,
-          persist: () => (patchRecord ? patchRecord(patch) : saveAndUpdate(updatedRecord)),
+          persist: () =>
+            patchRecord ? patchRecord(patch) : saveAndUpdate(updatedRecord, currentRecord),
           onPersisted: () => {
             if (!summary) return;
             try {

@@ -6,10 +6,8 @@ import {
   computePreviousDayEdits,
   fileCrossDayCorrections,
 } from '@/features/rayen-import/domain/previousDayCorrections';
-import {
-  patchDailyRecordWithCompatibility,
-  saveDailyRecordWithCompatibility,
-} from '@/hooks/controllers/dailyRecordMutationFreshnessController';
+import { patchDailyRecordWithCompatibility } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
+import { saveDailyRecordWithCompatibility } from '@/hooks/controllers/dailyRecordSavePersistenceController';
 import { createSaveDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
@@ -19,6 +17,8 @@ const { evaluateDailyRecordClinicalAuthority } = createRequire(import.meta.url)(
 );
 vi.mock('@/hooks/controllers/dailyRecordMutationFreshnessController', () => ({
   patchDailyRecordWithCompatibility: vi.fn(),
+}));
+vi.mock('@/hooks/controllers/dailyRecordSavePersistenceController', () => ({
   saveDailyRecordWithCompatibility: vi.fn(),
 }));
 const setup = (recoverChild: boolean) => {

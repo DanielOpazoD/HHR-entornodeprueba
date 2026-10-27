@@ -31,7 +31,8 @@ describe('usePatientMovementCreationExecutor', () => {
     const saveAndUpdate = vi.fn().mockResolvedValue(undefined);
     const notifyCreationError = vi.fn();
     const onSuccess = vi.fn();
-    const updatedRecord = DataFactory.createMockDailyRecord('2025-01-01');
+    const baseRecord = DataFactory.createMockDailyRecord('2025-01-01');
+    const updatedRecord = { ...baseRecord, lastUpdated: '2025-01-01T23:00:00.000Z' };
     const { result } = renderHook(() =>
       usePatientMovementCreationExecutor({
         saveAndUpdate,
@@ -41,6 +42,7 @@ describe('usePatientMovementCreationExecutor', () => {
 
     await result.current({
       kind: 'transfer',
+      baseRecord,
       bedId: 'R2',
       resolution: {
         ok: true,
@@ -58,7 +60,7 @@ describe('usePatientMovementCreationExecutor', () => {
     });
 
     expect(notifyCreationError).not.toHaveBeenCalled();
-    expect(saveAndUpdate).toHaveBeenCalledWith(updatedRecord);
+    expect(saveAndUpdate).toHaveBeenCalledWith(updatedRecord, baseRecord);
     expect(onSuccess).toHaveBeenCalledTimes(1);
   });
 

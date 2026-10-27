@@ -91,11 +91,15 @@ export const remoteWrite = (
 };
 
 /** A whole-record save, offline, as the census view saves the record it shows. */
-export const saveWholeDay = (record: DailyRecord, when = '2026-10-24T10:46:00.000Z') =>
+export const saveWholeDay = (
+  record: DailyRecord,
+  when = '2026-10-24T10:46:00.000Z',
+  baseRecord?: DailyRecord
+) =>
   at(when, async () => {
     h.offline = true;
     try {
-      return await saveDetailed(record, record.lastUpdated);
+      return await saveDetailed(record, record.lastUpdated, { baseRecord });
     } finally {
       h.offline = false;
     }

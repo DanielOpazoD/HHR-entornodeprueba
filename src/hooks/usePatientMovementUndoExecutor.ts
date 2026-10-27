@@ -84,7 +84,7 @@ export const usePatientMovementUndoExecutor = ({
           })
         );
       } else {
-        await saveAndUpdate(nextRecord);
+        await saveAndUpdate(nextRecord, record);
       }
 
       onSuccess?.({ movement, updatedBed: resolution.value.updatedBed });

@@ -72,20 +72,19 @@ it.each(MODES)(
 );
 
 it.each(MODES)(
-  'settles a stale pre-refusal day copy after note retry (%s)',
+  'settles an already accepted pre-refusal day copy after note retry (%s)',
   async (_mode, enforced) => {
     h.authorityMode = enforced;
     const task = await queueNote();
     const stale = await local();
-    await saveWholeDay(stale);
+    await saveWholeDay({
+      ...stale,
+      beds: { ...stale.beds, R6: { ...stale.beds.R6, handoffNote: 'Entrega E' } },
+    });
     await note('R4', 'entry-A', 'Nota confirmada', '2026-10-24T10:50:00.000Z');
     h.role = 'doctor_specialist';
     await reconnect();
     h.role = 'admin';
-    await saveWholeDay(
-      { ...stale, beds: { ...stale.beds, R6: { ...stale.beds.R6, handoffNote: 'Entrega E' } } },
-      '2026-10-24T10:55:00.000Z'
-    );
     const store = createDexieSyncQueueStore();
     expect(await store.requeueQuarantinedTask!(task.id!, OWNER)).toBe(true);
     await reconnect();

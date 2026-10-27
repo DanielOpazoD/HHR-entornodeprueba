@@ -99,6 +99,7 @@ describe('useRayenCensusDiffApplication', () => {
     const [savedRecord, expectedLastUpdated] = saveDailyRecord.mock.calls[0];
     expect(savedRecord.lastUpdated).not.toBe(baseRecord.lastUpdated);
     expect(expectedLastUpdated).toBe(baseRecord.lastUpdated);
+    expect(saveDailyRecord.mock.calls[0].at(3)).toBe(baseRecord);
   });
 
   it('hands the server-confirmed revision to the clinical stage in the same execution', async () => {

@@ -45,4 +45,4 @@ export type ApplyDailyRecordPatch = (
   patch: DailyRecordPatch,
   options?: ApplyDailyRecordPatchOptions
 ) => Promise<void>;
-export type PersistDailyRecord = (record: DailyRecord) => Promise<void>;
+export type PersistDailyRecord = (record: DailyRecord, baseRecord?: DailyRecord) => Promise<void>;

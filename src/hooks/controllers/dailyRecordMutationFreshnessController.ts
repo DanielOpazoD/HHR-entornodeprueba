@@ -14,10 +14,7 @@ import {
 } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import { didDailyRecordFreshnessHydrateNewerRemote } from '@/hooks/controllers/dailyRecordFreshnessHydrationController';
 import { PENDING_DAILY_RECORD_PATCH_TTL_MS } from '@/hooks/controllers/dailyRecordPendingPatchController';
-import type {
-  SaveDailyRecordResult,
-  UpdatePartialDailyRecordResult,
-} from '@/services/repositories/contracts/dailyRecordResults';
+import type { UpdatePartialDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import type { DailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import { toRecordTimestamp } from '@/services/repositories/dailyRecordConsistencyPolicy';
 import {
@@ -50,51 +47,12 @@ interface FreshnessDependencies {
 
 export interface SaveDailyRecordMutationInput {
   record: DailyRecord;
+  baseRecord?: DailyRecord;
   expectedLastUpdated?: string;
   requireConfirmedRecord?: boolean;
   rayenStructuralWriteGuard?: boolean;
   dailyRecordWriteLease?: SaveDailyRecordOptions['dailyRecordWriteLease'];
 }
-
-export const saveDailyRecordWithCompatibility = async (
-  dailyRecord: DailyRecordRepositoryPort,
-  record: DailyRecord,
-  expectedLastUpdated: string = record.lastUpdated,
-  options?: SaveDailyRecordOptions
-): Promise<SaveDailyRecordResult | null> => {
-  if (typeof dailyRecord.saveDetailed === 'function') {
-    return options
-      ? dailyRecord.saveDetailed(record, expectedLastUpdated, options)
-      : dailyRecord.saveDetailed(record, expectedLastUpdated);
-  }
-
-  await dailyRecord.save(record, expectedLastUpdated);
-  return null;
-};
-
-export const persistDailyRecordSaveMutation = async (
-  dailyRecord: DailyRecordRepositoryPort,
-  input: SaveDailyRecordMutationInput
-) => {
-  const {
-    record,
-    expectedLastUpdated,
-    requireConfirmedRecord,
-    rayenStructuralWriteGuard,
-    dailyRecordWriteLease,
-  } = input;
-  const options =
-    requireConfirmedRecord || rayenStructuralWriteGuard || dailyRecordWriteLease
-      ? { requireConfirmedRecord, rayenStructuralWriteGuard, dailyRecordWriteLease }
-      : undefined;
-  const result = await saveDailyRecordWithCompatibility(
-    dailyRecord,
-    record,
-    expectedLastUpdated,
-    options
-  );
-  return { record: result?.confirmedRecord ?? record, result };
-};
 
 export const patchDailyRecordWithCompatibility = async (
   dailyRecord: DailyRecordRepositoryPort,

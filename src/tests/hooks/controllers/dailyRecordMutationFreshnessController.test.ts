@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import { saveDailyRecordWithCompatibility } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
+import {
+  saveDailyRecordWithCompatibility,
+  persistDailyRecordSaveMutation,
+} from '@/hooks/controllers/dailyRecordSavePersistenceController';
 
 const record = {
   date: '2026-08-07',
@@ -51,3 +54,23 @@ describe('saveDailyRecordWithCompatibility', () => {
     });
   });
 });
+
+it.each(['saveDetailed', 'save'] as const)(
+  'preserves the whole-save writer base through %s',
+  async method => {
+    const persist = vi.fn().mockResolvedValue(null);
+    const repository = { [method]: persist } as unknown as DailyRecordRepositoryPort;
+    const baseRecord = { ...record, lastUpdated: '2026-08-07T23:00:00.000Z' };
+    await persistDailyRecordSaveMutation(repository, {
+      record,
+      baseRecord,
+      expectedLastUpdated: baseRecord.lastUpdated,
+    });
+    expect(persist).toHaveBeenCalledWith(
+      record,
+      baseRecord.lastUpdated,
+      expect.objectContaining({ baseRecord })
+    );
+    expect(persist.mock.calls[0][2].baseRecord).toBe(baseRecord);
+  }
+);

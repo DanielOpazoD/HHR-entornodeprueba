@@ -169,27 +169,31 @@ describe('handoffManagementPersistenceController', () => {
 
   it('persists the handoff doctor through the canonical use case', async () => {
     const saveRecord = vi.fn();
+    const record = baseRecord();
     const outcome = await executeUpdateMedicalHandoffDoctor({
-      record: baseRecord(),
+      record,
       doctorName: 'Dr. Nuevo',
       saveRecord,
     });
     expect(outcome.data?.updatedRecord.medicalHandoffDoctor).toBe('Dr. Nuevo');
     expect(outcome.data?.updatedRecord.lastUpdated).toBeTypeOf('string');
-    expect(saveRecord).toHaveBeenCalledWith(outcome.data?.updatedRecord);
+    expect(saveRecord).toHaveBeenCalledWith(outcome.data?.updatedRecord, record);
+    expect(saveRecord.mock.calls[0][1]).toBe(record);
   });
 
   it('persists the canonical staff shift fields', async () => {
     const saveRecord = vi.fn();
+    const record = baseRecord();
     const outcome = await executeUpdateHandoffStaff({
-      record: baseRecord(),
+      record,
       shift: 'day',
       type: 'receives',
       staffList: ['Recibe Día'],
       saveRecord,
     });
     expect(outcome.data?.updatedRecord.nursesNightShift).toEqual(['Recibe Día']);
-    expect(saveRecord).toHaveBeenCalledWith(outcome.data?.updatedRecord);
+    expect(saveRecord).toHaveBeenCalledWith(outcome.data?.updatedRecord, record);
+    expect(saveRecord.mock.calls[0][1]).toBe(record);
   });
 
   it('persists specialty notes and preserves their audit details', async () => {
@@ -203,7 +207,8 @@ describe('handoffManagementPersistenceController', () => {
       saveRecord,
     });
     expect(outcome.data?.updatedRecord.medicalHandoffBySpecialty?.cirugia?.note).toBe('Nueva nota');
-    expect(saveRecord).toHaveBeenCalledWith(outcome.data?.updatedRecord);
+    expect(saveRecord).toHaveBeenCalledWith(outcome.data?.updatedRecord, record);
+    expect(saveRecord.mock.calls[0][1]).toBe(record);
     expect(buildMedicalSpecialtyAuditEvent(record, 'cirugia', 'Nueva nota').details).toEqual(
       expect.objectContaining({ specialty: 'cirugia', operation: 'specialty_note_update' })
     );
@@ -211,9 +216,10 @@ describe('handoffManagementPersistenceController', () => {
 
   it('persists continuity with its effective date and audit details', async () => {
     const saveRecord = vi.fn();
+    const record = baseRecord();
     const actor = { displayName: 'Dra. Test', email: 'dra@test.cl' };
     const outcome = await executeConfirmMedicalSpecialtyNoChanges({
-      record: baseRecord(),
+      record,
       specialty: 'cirugia',
       actor,
       comment: 'Sin cambios',
@@ -225,7 +231,8 @@ describe('handoffManagementPersistenceController', () => {
     expect(
       data.updatedRecord.medicalHandoffBySpecialty?.cirugia?.dailyContinuity?.['2026-03-08']?.status
     ).toBe('confirmed_no_changes');
-    expect(saveRecord).toHaveBeenCalledWith(data.updatedRecord);
+    expect(saveRecord).toHaveBeenCalledWith(data.updatedRecord, record);
+    expect(saveRecord.mock.calls[0][1]).toBe(record);
     expect(
       buildMedicalNoChangesAuditPayload(
         data.updatedRecord,

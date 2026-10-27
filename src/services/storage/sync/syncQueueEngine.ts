@@ -199,7 +199,8 @@ export const createSyncQueueEngine = ({
         nextAttemptAt: resolveSyncTaskNextAttemptAt(now, options),
         ...resolvePreOutboxHoldState(now, options),
       },
-      options.patchWrite
+      options.patchWrite,
+      options.wholeRecordBase
     );
 
     if (!options.deferProcessing) {
