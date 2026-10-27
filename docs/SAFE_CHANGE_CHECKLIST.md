@@ -22,32 +22,47 @@ El runner compartido conserva la política de imports y excepciones. El control 
 reutiliza un snapshot en memoria durante una sola invocación; cada ejecución nueva
 lee de nuevo el código. No añadir otra política basada en grep en un test de módulo.
 
-Al cerrar, elegir un gate existente de la lista inferior. `ci:pre-merge` ya incluye
-typecheck, lint, calidad completa y unitarios: no ejecutar de nuevo sus componentes
-si ya pasaron sobre el mismo diff y entorno. `ci:merge-gate` amplía ese gate con build
-y validaciones de preview. Si el código cambia después, revalidar lo afectado y dejar
-que CI compruebe el head definitivo. Registrar comando, SHA/diff y resultado; nunca
-tratar un resultado anterior a una modificación como evidencia del nuevo código.
+### Cerrar con la evidencia de CI
 
-### Selección local del gate
+La validación de GitHub del SHA final es la evidencia normal de cierre. No se exige
+una segunda ejecución local de los controles que CI ya aprobó. Antes del merge:
+
+1. Comprobar que el head de la PR coincide con el SHA de la ejecución aprobada,
+   que `ci-summary` está en verde y que la rama está al día y se puede mergear.
+2. Verificar que el alcance seleccionado por CI cubre el cambio y los controles
+   requeridos. Registrar el enlace al run y a los jobs o artefactos pertinentes;
+   un job omitido no acredita un control y un informe de otro SHA no sirve.
+3. Ejecutar sólo las comprobaciones específicas que CI no cubra: una regresión
+   nueva, un entorno particular o una validación de release expresamente requerida.
+   Una revisión pendiente o un defecto reproducible sigue bloqueando el merge.
+
+Durante la edición, las pruebas locales sirven para reproducir y corregir problemas.
+Conservar los fallos y su diagnóstico; CI verde no permite ocultar un fallo conocido.
+Un fallo local no reproducido se documenta con su contraste y sus límites: no obliga
+a repetir toda la matriz local ni se presenta como una ejecución local aprobada.
+Si cambia el código, revalidar lo afectado y esperar CI del nuevo SHA.
+
+### Cobertura requerida y comandos disponibles
 
 `package.json` define las etapas ejecutadas; la política de
 `scripts/config/sustainable-change-policy.json` conserva los requisitos adicionales
-por tipo de cambio. Esta tabla orienta la selección, no sustituye esa política.
+por tipo de cambio. Sus `requiredGates` describen la cobertura requerida, no una
+obligación de ejecutarla otra vez localmente. Esta tabla orienta la selección.
 
-| Alcance                                                            | Validación local de cierre                                                               |
+| Alcance                                                            | Cobertura requerida; CI puede acreditarla                                                |
 | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
 | Solo documentación operativa, sin scripts, código ni configuración | `check:docs-drift` y `check:operational-runbooks`; comprobar enlaces y comandos editados |
 | Código habitual                                                    | `ci:pre-merge`                                                                           |
 | Runtime clínico, auth, storage, bundle o contratos de arquitectura | `ci:merge-gate` y controles adicionales exigidos por la política                         |
 | Release o reglas persistentes                                      | `ci:release-gate` y controles adicionales exigidos por la política                       |
 
-Si la política exige a la vez `ci:merge-gate` y `test:release-confidence`,
-`npm run ci:close` ejecuta su unión en una sola corrida. Conserva las etapas y sus
-argumentos, y evita repetir comandos idénticos de build, cobertura o bundle.
-No reutiliza resultados de otra ejecución. Un fallo, interrupción o cambio del
-código/configuración durante la corrida bloquea el cierre. Los informes generados
-pueden actualizarse. No sustituye `ci:release-gate` ni el perfil `full` de confianza.
+`npm run ci:close` queda disponible para validar localmente la unión de
+`ci:merge-gate` y `test:release-confidence` cuando haga falta, no como requisito
+adicional a CI aprobado. El runner conserva sus etapas y argumentos, evita comandos
+idénticos y no reutiliza resultados de otra ejecución. Un fallo, interrupción o cambio
+de entradas invalida esa corrida local; no invalida por sí solo evidencia independiente
+de CI del mismo SHA. No sustituye los controles de `ci:release-gate` ni el perfil `full`
+que no estén cubiertos por CI. Los informes generados pueden actualizarse.
 
 Durante edición bastan pruebas focalizadas para obtener feedback; no acreditan
 el cierre. `ci:inner-loop` sirve para iterar y para los cambios locales de UI que
@@ -128,10 +143,10 @@ recarga, teclado y movimiento reducido), además de revisión independiente y CI
 2. Actualizar tests unitarios e integración afectados por la change.
 3. Si la change es upgrade o excepción, documentar owner, riesgo, rollback y criterio de cierre.
 4. Revisar si la change toca reglas clínicas de fecha/turno, sync o identidad paciente.
-5. Seleccionar el gate según el alcance y la política; ver [Selección local del gate](#selección-local-del-gate).
-6. No ejecutar por separado tipos/calidad si ya están incluidos en ese gate.
-7. Ejecutar el gate elegido:
-   `npm run ci:inner-loop`, `npm run ci:pre-merge`, `npm run ci:merge-gate` o `npm run ci:release-gate`.
+5. Verificar la evidencia de CI y completar sólo lo no cubierto; ver [Cobertura requerida y comandos disponibles](#cobertura-requerida-y-comandos-disponibles).
+6. No repetir tipos/calidad ni otros controles ya acreditados por CI del SHA final.
+7. Si falta evidencia, ejecutar sólo el control necesario. Los gates locales
+   `ci:inner-loop`, `ci:pre-merge`, `ci:merge-gate` y `ci:release-gate` siguen disponibles.
 8. Verificar límites de tamaño/hotspots si el cambio toca archivos grandes.
 9. Revisar contratos runtime si la change toca repositorios, Firestore, templates o serialización.
 10. Revisar si la change impacta `firestore.rules`, emulador o E2E crítico.
@@ -142,7 +157,7 @@ recarga, teclado y movimiento reducido), además de revisión independiente y CI
 15. Si el budget por flujo cambia, regenerar y revisar `reports/e2e/flow-performance-budget-summary.json` y `.md`.
 16. Si la change toca `index.html`, login o refresh autenticado de módulos críticos, revisar y preservar el contrato de [docs/system-behaviors.md](./system-behaviors.md) y mantener verdes `src/tests/security/startupPrebootContractStatic.test.ts`, `src/tests/app-shell/BootstrapRouteChrome.test.tsx` y `src/tests/components/AppLoadingBehavior.test.tsx`.
 17. Si la change toca login, roles o auth bootstrap, revisar y actualizar [docs/AUTH_ACCESS_MODEL.md](./AUTH_ACCESS_MODEL.md).
-18. Si la policy lo exige, regenerar `reports/release-readiness-scorecard.md`.
+18. Si la policy lo exige, verificar `reports/release-readiness-scorecard.md` del run vigente; regenerarlo sólo si falta evidencia válida.
 19. Si la change toca `daily-record/sync`, revisar [docs/ADR_DAILY_RECORD_RUNTIME_PATH.md](./ADR_DAILY_RECORD_RUNTIME_PATH.md).
 20. Si la change toca auth runtime, revisar [docs/ADR_AUTH_RUNTIME_RECOVERY.md](./ADR_AUTH_RUNTIME_RECOVERY.md).
 21. Si la change toca documentos clínicos, revisar [docs/ADR_CLINICAL_DOCUMENT_WORKSPACE_CONTRACT.md](./ADR_CLINICAL_DOCUMENT_WORKSPACE_CONTRACT.md).

@@ -11,13 +11,38 @@ Definir una ruta corta para desarrollo diario y una ruta blocking para merge/rel
 - Para elegir runbook por incidente o tipo de cambio: [docs/RUNBOOK_INDEX.md](./RUNBOOK_INDEX.md)
 - Para comandos curados del repo: [docs/DEVELOPER_COMMANDS.md](./DEVELOPER_COMMANDS.md)
 
-Si la change toca reglas generadas o documentación operativa, correr además:
+Si la change toca reglas generadas o documentación operativa, verificar además los
+controles siguientes. CI del SHA final puede acreditarlos sin repetirlos localmente;
+ejecutarlos localmente sólo para generar los assets modificados o completar evidencia
+que falte en CI:
 
 - `npm run build:rules-assets` si cambias `firestore.rules` o `storage.rules`
 - `npm run check:docs-drift`
 - `npm run check:operational-runbooks`
 
 ## Gates activos
+
+### Evidencia de CI sin segunda ejecución local
+
+Para cerrar una PR, usar la ejecución aprobada de GitHub del SHA final, conforme a
+[Safe Change Checklist](SAFE_CHANGE_CHECKLIST.md). `ci-summary` y las protecciones
+de `main` se mantienen. Comprobar el alcance y los jobs realmente ejecutados; no
+equiparar un job omitido o un informe antiguo con una prueba aprobada.
+
+En la ruta `full`, los jobs de calidad, los cuatro shards unitarios y de cobertura,
+`build-budget` y `preview-smoke` acreditan los controles equivalentes de
+`ci:merge-gate`. `rules-emulator`, `e2e-critical` y `final-confidence-and-readiness`
+aportan reglas, sincronización, E2E y evidencia de rendimiento. Los packs unitarios
+incluidos en los shards no necesitan una segunda ejecución local. Verificar siempre
+el workflow y la selección de archivos vigentes; un cambio de cobertura exige revisar
+esta correspondencia. Los artefactos formales de release, signoff clínico o pruebas
+de un entorno desplegado no quedan aprobados por un build o por pruebas simuladas.
+
+Ejecutar localmente sólo la regresión durante el desarrollo, el diagnóstico necesario
+o la comprobación que CI no cubra. No iniciar ni reiniciar toda la matriz local para
+duplicar un run verde. Conservar los fallos previos y su diagnóstico; una ejecución
+local interrumpida no se convierte en aprobada, y un defecto reproducible bloquea
+el cierre aunque CI pase. Registrar el run y SHA utilizados como evidencia de merge.
 
 ### Packs pequeños y cierre conjunto
 
@@ -28,8 +53,9 @@ individuales siguen disponibles. Ambos packs conservan aislamiento por archivo y
 usan cuatro workers como máximo por defecto; `VITEST_MAX_WORKERS` permite indicar
 otro entero positivo. Un archivo ausente, fallo o interrupción produce error.
 
-Cuando se requieren `ci:merge-gate` y el perfil blocking de `test:release-confidence`,
-usar `npm run ci:close`. El plan se obtiene de los scripts y del perfil vigente,
+Cuando sea necesaria una validación local completa de `ci:merge-gate` y el perfil
+blocking de `test:release-confidence`, se puede usar `npm run ci:close`. No es una
+segunda validación obligatoria después de CI. El plan se obtiene de los scripts y del perfil vigente,
 mantiene su orden y ejecuta una sola vez los comandos idénticos. Las cadenas con
 entorno propio, scripts de shell y hooks npm conservan su ejecución original.
 Las compilaciones internas de E2E mantienen su configuración; no se equiparan al
@@ -38,7 +64,8 @@ build normal. El plan no se guarda ni acepta marcas externas de pasos aprobados.
 La corrida termina ante el primer fallo o interrupción, y comprueba que no cambien
 HEAD, código, configuración, archivos locales de entorno o el manifiesto instalado
 de dependencias. `reports/` contiene salidas regeneradas durante los gates. Si cambian
-las entradas, reiniciar el cierre sobre el árbol nuevo. Los gates independientes
+las entradas, esa corrida no acredita el árbol nuevo; reiniciarla sólo si aún hace
+falta esa validación local. Los gates independientes
 conservan su comportamiento. Owner: test infrastructure; rollback: volver a ejecutar
 los dos gates independientes y los packs individuales. Este comando no reemplaza
 el release de Firestore ni el perfil completo de confianza.
@@ -134,9 +161,9 @@ Borrados, renombres, más de 50 archivos, documentación API generada, cambios e
 los gates enfocados terminen en `success` y que los jobs completos estén exactamente
 en `skipped`; así, un salto inesperado también falla.
 
-Esta clasificación reduce el tiempo de feedback del PR. No cambia la selección local:
-usar el comando más pequeño que cubra el riesgo durante la iteración y ampliar a
-`ci:pre-merge`, `ci:merge-gate` o `ci:release-gate` según el impacto.
+Esta clasificación determina qué evidencia aporta CI. Durante la iteración local,
+usar el comando más pequeño que cubra el riesgo. Al cerrar, comprobar que el alcance
+de CI fue correcto; no ampliar automáticamente a un gate local completo.
 
 ### Evidencia final de rendimiento
 
@@ -197,9 +224,9 @@ Salida esperada:
 
 ### `ci:pre-merge`
 
-Usar como gate base para cambios habituales de código; los gates ampliados lo
-contienen y no deben ejecutarse después de repetirlo. Para documentación pura,
-ver la selección local en [SAFE_CHANGE_CHECKLIST.md](./SAFE_CHANGE_CHECKLIST.md).
+Comando disponible para validar localmente cambios habituales de código; los gates
+ampliados lo contienen. CI puede acreditar sus controles sin ejecutarlo localmente.
+Para elegir evidencia, ver [SAFE_CHANGE_CHECKLIST.md](./SAFE_CHANGE_CHECKLIST.md).
 
 Incluye:
 
@@ -210,11 +237,13 @@ Incluye:
 
 Salida esperada:
 
-- contrato base de tipado, lint, guardrails y suite unitaria/integración de CI en verde antes de abrir o actualizar un PR.
+- contrato base de tipado, lint, guardrails y suite unitaria/integración en verde;
+  puede acreditarse en GitHub antes del merge, sin exigirlo localmente antes del push.
 
 ### `ci:merge-gate`
 
-Usar cuando una change toca código clínico, almacenamiento, auth, bundle o lazy loading.
+Cobertura para código clínico, almacenamiento, auth, bundle o lazy loading. Ejecutar
+este comando local sólo cuando sea necesario; CI equivalente acredita el mismo cierre.
 
 Incluye:
 

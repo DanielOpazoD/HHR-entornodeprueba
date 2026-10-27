@@ -43,7 +43,8 @@ redujo la memoria del grupo medido, pero tardó más. Usar pruebas focalizadas d
 edición y evitar ejecutar gates duplicados simultáneamente. CI y el modo habitual
 conservan su configuración; no extrapolar el resultado a toda la suite.
 
-Elige el gate en la [selección local de SAFE_CHANGE_CHECKLIST.md](./SAFE_CHANGE_CHECKLIST.md#selección-local-del-gate).
+Consulta la [cobertura requerida en SAFE_CHANGE_CHECKLIST.md](./SAFE_CHANGE_CHECKLIST.md#cobertura-requerida-y-comandos-disponibles).
+CI del SHA final acredita los controles que ejecutó; no se exige repetirlos localmente.
 Esa referencia distingue documentación, cambios habituales, runtime y releases,
 y conserva los requisitos adicionales de la política. Las etapas efectivas se
 definen en `package.json`; su explicación está en

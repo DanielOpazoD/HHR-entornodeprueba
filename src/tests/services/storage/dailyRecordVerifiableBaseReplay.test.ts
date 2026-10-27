@@ -23,6 +23,7 @@ import { updateRecordPartial } from '@/services/storage/firestore/firestoreRecor
 import { extractClinicalAuthorityPatch } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import { normalizeDailyRecordAuthorityError } from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import * as authority from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
+import { retryQuarantinedSyncTask } from '@/services/storage/sync';
 
 // Local repository and durable queue are real. Execute the production server handler at the
 // simulated network boundary and keep the same error translation as the callable transport.
@@ -89,10 +90,18 @@ it.each([false, true])(
     const [refused] = await queue();
     expect(remote().beds.R6.pathology).toBe('Dx E');
     expect(refused).toMatchObject({ id: pending.id, status: 'FAILED', payload: pending.payload });
+    // Replaying an unchanged, baseless write cannot supply its original remote version.
+    expect(refused.id).toEqual(expect.any(Number));
+    if (refused.id === undefined) throw new Error('Expected a durable queue id');
+    hospitalDB.close();
+    await hospitalDB.open();
+    await expect(retryQuarantinedSyncTask(refused.id)).resolves.toBe(false);
+    expect(await queue()).toEqual([refused]);
     expect(await queue()).toHaveLength(1);
     const hydrated = await persistHydratedRecordToLocalCache(remote(), base.date);
     expect(hydrated.beds.R6.pathology).toBe('PENDIENTE SINTETICO');
     expect(await queue()).toEqual([refused]);
+    await expect(retryQuarantinedSyncTask(refused.id)).resolves.toBe(false);
     await reconnect();
     expect(remote().beds.R6.pathology).toBe('Dx E');
     expect(await queue()).toEqual([refused]);

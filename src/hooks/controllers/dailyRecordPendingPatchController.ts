@@ -195,7 +195,8 @@ const getPatchPathValue = (record: DailyRecord, path: string): unknown =>
 const findIncomingBedIdForSameEpisode = (
   incomingRecord: DailyRecord,
   previousRecord: DailyRecord,
-  previousBedId: string
+  previousBedId: string,
+  matchesEpisode = isSameEpisodeForExplicitCensusPatch
 ): string | undefined => {
   const previousPatient = previousRecord.beds[previousBedId];
   if (!previousPatient) {
@@ -205,7 +206,7 @@ const findIncomingBedIdForSameEpisode = (
   return Object.keys(incomingRecord.beds).find(
     incomingBedId =>
       incomingBedId !== previousBedId &&
-      isSameEpisodeForExplicitCensusPatch(incomingRecord.beds[incomingBedId], previousPatient)
+      matchesEpisode(incomingRecord.beds[incomingBedId], previousPatient)
   );
 };
 
@@ -242,7 +243,8 @@ export const clearPendingDailyRecordPatchesForTests = (): void => {
 const collectPendingExplicitCensusPatch = (
   date: string,
   incomingRecord: DailyRecord,
-  previousRecord: DailyRecord | undefined
+  previousRecord: DailyRecord | undefined,
+  matchesEpisode: typeof isSameEpisodeForExplicitCensusPatch
 ): DailyRecordPatch => {
   const pendingPatches = getPendingEntriesForDate(date);
   if (pendingPatches.length === 0 || !previousRecord) {
@@ -257,14 +259,17 @@ const collectPendingExplicitCensusPatch = (
         return;
       }
 
-      if (
-        isSameEpisodeForExplicitCensusPatch(incomingRecord.beds[bedId], previousRecord.beds[bedId])
-      ) {
+      if (matchesEpisode(incomingRecord.beds[bedId], previousRecord.beds[bedId])) {
         resolvedPatch[path] = value;
         return;
       }
 
-      const movedBedId = findIncomingBedIdForSameEpisode(incomingRecord, previousRecord, bedId);
+      const movedBedId = findIncomingBedIdForSameEpisode(
+        incomingRecord,
+        previousRecord,
+        bedId,
+        matchesEpisode
+      );
       if (movedBedId) {
         resolvedPatch[`beds.${movedBedId}.${field}`] = value;
       }
@@ -342,9 +347,15 @@ export const releaseConfirmedPendingDailyRecordPatches = (
 export const applyPendingExplicitCensusPatch = (
   date: string,
   incomingRecord: DailyRecord,
-  previousRecord: DailyRecord | undefined
+  previousRecord: DailyRecord | undefined,
+  matchesEpisode = isSameEpisodeForExplicitCensusPatch
 ): DailyRecord => {
-  const patch = collectPendingExplicitCensusPatch(date, incomingRecord, previousRecord);
+  const patch = collectPendingExplicitCensusPatch(
+    date,
+    incomingRecord,
+    previousRecord,
+    matchesEpisode
+  );
   if (Object.keys(patch).length === 0) {
     return incomingRecord;
   }

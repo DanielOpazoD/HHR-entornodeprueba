@@ -38,9 +38,7 @@ export const createQuarantinedSyncTaskActions = ({
         operation,
         status: applied ? 'success' : 'degraded',
         runtimeState: applied ? undefined : 'recoverable',
-        issues: applied
-          ? []
-          : ['La tarea en cuarentena ya no existe o cambió de estado antes de la acción.'],
+        issues: applied ? [] : ['La tarea no admite esta acción o ya no está disponible.'],
         context: { taskId },
       });
       return applied;
