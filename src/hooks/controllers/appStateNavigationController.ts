@@ -82,26 +82,32 @@ export const resolveInitialModuleFromLocation = ({
   return 'CENSUS';
 };
 
-const shouldPreserveDateParamForModule = (module: ModuleType, url: URL): boolean =>
-  module === 'CENSUS' && url.searchParams.has('date');
+const DATE_SCOPED_MODULES: readonly ModuleType[] = [
+  'CENSUS',
+  'NURSING_HANDOFF',
+  'MEDICAL_HANDOFF',
+  'CUDYR',
+];
 
 export const resolveSyncedModuleUrl = ({
   module,
   href,
+  date,
 }: {
   module: ModuleType;
   href: string;
+  date?: string;
 }): URL => {
   const url = new URL(href);
   url.pathname = `/${MODULE_PATH_SEGMENTS[module]}`;
   url.searchParams.delete('module');
-  if (!shouldPreserveDateParamForModule(module, url)) {
-    url.searchParams.delete('date');
-  }
+  if (DATE_SCOPED_MODULES.includes(module)) {
+    if (date) url.searchParams.set('date', date);
+  } else url.searchParams.delete('date');
   return url;
 };
 
-export const syncModuleToUrl = (module: ModuleType): void => {
+export const syncModuleToUrl = ({ module, date }: { module: ModuleType; date?: string }): void => {
   if (typeof window === 'undefined') {
     return;
   }
@@ -109,6 +115,7 @@ export const syncModuleToUrl = (module: ModuleType): void => {
   const url = resolveSyncedModuleUrl({
     module,
     href: window.location.href,
+    date,
   });
   window.history.replaceState(window.history.state, '', url);
 };

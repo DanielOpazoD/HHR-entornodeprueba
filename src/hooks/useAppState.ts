@@ -58,6 +58,8 @@ export interface UseAppStateReturn {
 }
 
 export interface UseAppStateOptions {
+  /** Selected by the shared clinical date owner, never inferred from a stale URL. */
+  date?: string;
   initialModule?: ModuleType;
   syncUrl?: boolean;
 }
@@ -66,7 +68,7 @@ export interface UseAppStateOptions {
  * Hook that manages all UI state for the main application shell
  */
 export function useAppState(options: UseAppStateOptions = {}): UseAppStateReturn {
-  const { initialModule, syncUrl = true } = options;
+  const { initialModule, syncUrl = true, date } = options;
 
   // Module navigation
   const [currentModule, setCurrentModule] = useState<ModuleType>(
@@ -96,8 +98,8 @@ export function useAppState(options: UseAppStateOptions = {}): UseAppStateReturn
     if (!syncUrl) {
       return;
     }
-    syncModuleToUrl(currentModule);
-  }, [currentModule, syncUrl]);
+    syncModuleToUrl({ module: currentModule, date });
+  }, [currentModule, syncUrl, date]);
 
   return {
     // Module navigation

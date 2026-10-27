@@ -62,13 +62,13 @@ describe('appStateNavigationController', () => {
       expect(url.search).toBe('?date=2026-04-22');
     });
 
-    it('drops legacy date params outside census routes', () => {
+    it('drops legacy date params for modules without a clinical day', () => {
       const url = resolveSyncedModuleUrl({
-        module: 'MEDICAL_HANDOFF',
-        href: 'http://localhost:3001/?module=MEDICAL_HANDOFF&date=2026-04-22',
+        module: 'AUDIT',
+        href: 'http://localhost:3001/?module=AUDIT&date=2026-04-22',
       });
 
-      expect(url.pathname).toBe('/medical-handoff');
+      expect(url.pathname).toBe('/audit');
       expect(url.search).toBe('');
     });
   });

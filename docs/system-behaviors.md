@@ -324,6 +324,7 @@ El contrato ya no es “solo censo”; aplica al módulo origen desde el que el 
 4. El contenido inferior del módulo puede seguir cargando por separado, pero `Navbar` y `DateStrip` deben conservar continuidad visual cuando ese módulo los usa.
 5. Si el módulo origen no usa `DateStrip` real, el bootstrap tampoco debe inventarlo.
 6. Si el chunk lazy del módulo todavía no cargó, el router debe mostrar un loader interno bajo el chrome, no una pantalla blanca ni un spinner full-screen.
+7. Censo, entrega médica, entrega de enfermería y CUDYR conservan en la URL la fecha seleccionada por la navegación clínica compartida. Cambiar de día actualiza ese parámetro; recargar conserva módulo, fecha y registro, también en cambios de mes o año. El primer ingreso sin fecha se resuelve con el reloj clínico del hospital. Los módulos sin fecha clínica retiran el parámetro; las vistas embebidas con sincronización de URL desactivada conservan su URL íntegra. Esto no modifica las reglas de permisos ni la ventana de edición de días anteriores.
 
 ### Contrato visual preboot actual para refresh autenticado
 

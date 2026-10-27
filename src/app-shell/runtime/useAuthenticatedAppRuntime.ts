@@ -103,7 +103,7 @@ export const useAuthenticatedAppRuntime = ({
   auth,
   dateNav,
 }: UseAuthenticatedAppRuntimeParams): AuthenticatedAppRuntime => {
-  const ui = useAppState();
+  const ui = useAppState({ date: dateNav.currentDateString });
   const clinicalToday = useClinicalToday();
   const { setSelectedYear, setSelectedMonth, setSelectedDay } = dateNav;
   const goToClinicalToday = React.useCallback(() => {
