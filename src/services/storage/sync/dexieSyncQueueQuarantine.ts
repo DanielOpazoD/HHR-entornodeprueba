@@ -1,6 +1,7 @@
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import { clearSyncTaskRuntimeState } from '@/services/storage/sync/syncQueueTaskFactory';
+import { requiresDailyRecordBaseReview } from '@/services/storage/sync/dailyRecordBaseReview';
 
 /**
  * Estados de cuarentena de la cola y sus operaciones de recuperación.
@@ -57,7 +58,8 @@ export const requeueQuarantinedTask = (
     if (
       !task ||
       !matchesOwner(ownerKey, task.ownerKey) ||
-      !QUARANTINED_TASK_STATES.has(task.status)
+      !QUARANTINED_TASK_STATES.has(task.status) ||
+      requiresDailyRecordBaseReview(task)
     ) {
       return false;
     }

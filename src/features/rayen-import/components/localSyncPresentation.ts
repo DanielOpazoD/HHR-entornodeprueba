@@ -1,4 +1,5 @@
 import { isPolicyBlockedCudyrArchive } from '@/services/storage/sync/cudyrPolicyBlockedRecovery';
+import { requiresDailyRecordBaseReview } from '@/services/storage/sync/dailyRecordBaseReview';
 import type { SyncQueueOperation, SyncQueueStats } from '@/hooks/useSyncQueueMonitor';
 
 /**
@@ -27,8 +28,7 @@ export interface QuarantinedOperationView {
   categoryLabel: string;
   code?: string;
   detail?: string;
-  /** A refused note or edits detached from a departed patient: offered a discard, not a retry. */
-  refusedHandoff?: 'note' | 'detached';
+  recovery: 'retry' | 'review_base' | 'discard_note' | 'discard_detached';
 }
 
 export const targetLabelFromKey = (
@@ -64,12 +64,13 @@ export const targetLabelFromKey = (
  * A refused specialist note, or edits detached from a patient who left the bed, can never be
  * sent as they are: a retry always fails, so the panel offers a confirmed discard instead.
  */
-const refusedHandoffKind = (
-  operation: Pick<SyncQueueOperation, 'type' | 'status' | 'key'>
-): QuarantinedOperationView['refusedHandoff'] => {
-  if (operation.status !== 'CONFLICT') return undefined;
-  if (operation.type === 'UPDATE_SPECIALIST_HANDOFF') return 'note';
-  return operation.key?.includes(':detached:') ? 'detached' : undefined;
+const resolveQuarantineRecovery = (
+  operation: SyncQueueOperation
+): QuarantinedOperationView['recovery'] => {
+  if (requiresDailyRecordBaseReview(operation)) return 'review_base';
+  if (operation.status !== 'CONFLICT') return 'retry';
+  if (operation.type === 'UPDATE_SPECIALIST_HANDOFF') return 'discard_note';
+  return operation.key?.includes(':detached:') ? 'discard_detached' : 'retry';
 };
 
 export const listQuarantinedOperations = (
@@ -79,15 +80,18 @@ export const listQuarantinedOperations = (
     .filter(operation => operation.status === 'FAILED' || operation.status === 'CONFLICT')
     .filter(operation => typeof operation.id === 'number')
     .map(operation => {
-      const refusedHandoff = refusedHandoffKind(operation);
+      const recovery = resolveQuarantineRecovery(operation);
       return {
         id: operation.id as number,
         code: operation.lastErrorCode,
         detail: operation.error,
         targetLabel: targetLabelFromKey(operation.key, operation.type),
-        categoryLabel: isPolicyBlockedCudyrArchive(operation)
-          ? 'Autorización anterior'
-          : (CATEGORY_LABELS[operation.lastErrorCategory ?? 'unknown'] ?? 'Error desconocido'),
-        ...(refusedHandoff ? { refusedHandoff } : {}),
+        categoryLabel:
+          recovery === 'review_base'
+            ? 'Requiere revisión de la versión de origen'
+            : isPolicyBlockedCudyrArchive(operation)
+              ? 'Autorización anterior'
+              : (CATEGORY_LABELS[operation.lastErrorCategory ?? 'unknown'] ?? 'Error desconocido'),
+        recovery,
       };
     });
