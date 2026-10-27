@@ -17,25 +17,8 @@ import type { SyncTask } from '../src/services/storage/syncQueueTypes';
 
 const MULTIUSER_DATE = process.env.E2E_FIXED_DATE ?? getTodayISO();
 
-test('keeps a write without its original version available for review after reload', async ({
-  page,
-}) => {
-  await openSeededCensus(page);
-  const task: SyncTask = {
-    opId: 'synthetic-baseless-review',
-    type: 'UPDATE_DAILY_RECORD',
-    key: `daily:${MULTIUSER_DATE}`,
-    timestamp: Date.now(),
-    retryCount: 0,
-    status: 'FAILED',
-    lastErrorCode: 'functions/failed-precondition',
-    lastErrorCategory: 'validation',
-    error:
-      '[validation/functions/failed-precondition] base_required: An existing daily record requires a verifiable base version.',
-    syncContract: { expectedVersion: '', changedPaths: ['beds.R1.pathology'] },
-    payload: { date: MULTIUSER_DATE, beds: { R1: { pathology: 'PENDIENTE SINTETICO' } } },
-  };
-  const id = await page.evaluate(async pending => {
+const insertSyncTask = (page: Page, task: SyncTask) =>
+  page.evaluate(async pending => {
     const request = indexedDB.open('HangaRoaDB');
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
       request.onsuccess = () => resolve(request.result);
@@ -57,18 +40,8 @@ test('keeps a write without its original version available for review after relo
     }
   }, task);
 
-  await page.reload({ waitUntil: 'domcontentloaded' });
-  await expect(page.getByTestId('census-table')).toBeVisible();
-  await page.getByRole('button', { name: 'Guardado pendiente · Ver detalle' }).click();
-  const details = page.getByTestId('rayen-local-sync-details');
-  await details.locator('summary').first().click();
-  await expect(details.getByText('Requiere revisión de la versión de origen')).toBeVisible();
-  await expect(details.getByText(/Los cambios siguen guardados en este equipo/)).toBeVisible();
-  await expect(details.getByRole('button', { name: 'Reintentar', exact: true })).toHaveCount(0);
-  await expect(details.getByRole('button', { name: 'Descartar', exact: true })).toHaveCount(0);
-
-  // Read the durable row, rather than inferring persistence from the visible diagnosis.
-  const stored = await page.evaluate(async taskId => {
+const readSyncTask = (page: Page, id: number) =>
+  page.evaluate(async taskId => {
     const request = indexedDB.open('HangaRoaDB');
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
       request.onsuccess = () => resolve(request.result);
@@ -84,7 +57,96 @@ test('keeps a write without its original version available for review after relo
       db.close();
     }
   }, id);
+
+test('keeps a write without its original version available for review after reload', async ({
+  page,
+}) => {
+  await openSeededCensus(page);
+  const task: SyncTask = {
+    opId: 'synthetic-baseless-review',
+    type: 'UPDATE_DAILY_RECORD',
+    key: `daily:${MULTIUSER_DATE}`,
+    timestamp: Date.now(),
+    retryCount: 0,
+    status: 'FAILED',
+    lastErrorCode: 'functions/failed-precondition',
+    lastErrorCategory: 'validation',
+    error:
+      '[validation/functions/failed-precondition] base_required: An existing daily record requires a verifiable base version.',
+    syncContract: { expectedVersion: '', changedPaths: ['beds.R1.pathology'] },
+    payload: { date: MULTIUSER_DATE, beds: { R1: { pathology: 'PENDIENTE SINTETICO' } } },
+  };
+  const id = await insertSyncTask(page, task);
+
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(page.getByTestId('census-table')).toBeVisible();
+  await page.getByRole('button', { name: 'Guardado pendiente · Ver detalle' }).click();
+  const details = page.getByTestId('rayen-local-sync-details');
+  await details.locator('summary').first().click();
+  await expect(details.getByText('Requiere revisión de la versión de origen')).toBeVisible();
+  await expect(details.getByText(/Los cambios siguen guardados en este equipo/)).toBeVisible();
+  await expect(details.getByRole('button', { name: 'Reintentar', exact: true })).toHaveCount(0);
+  await expect(details.getByRole('button', { name: 'Descartar', exact: true })).toHaveCount(0);
+
+  // Read the durable row, rather than inferring persistence from the visible diagnosis.
+  const stored = await readSyncTask(page, id);
   expect(stored).toEqual({ ...task, id });
+});
+
+test('withdraws an unnecessary permission-blocked send with a downloadable backup that survives reload', async ({
+  page,
+}) => {
+  await openSeededCensus(page);
+  const task: SyncTask = {
+    opId: 'synthetic-permission-withdrawal',
+    type: 'UPDATE_DAILY_RECORD',
+    key: 'daily:2026-10-22',
+    timestamp: Date.now(),
+    retryCount: 0,
+    status: 'FAILED',
+    lastErrorCode: 'permission-denied',
+    lastErrorCategory: 'authorization',
+    error: 'Missing or insufficient permissions',
+    payload: { date: '2026-10-22', beds: {}, nurses: ['SYNTHETIC WITHDRAWN SEND'] },
+  };
+  const id = await insertSyncTask(page, task);
+  await page.getByRole('button', { name: 'Guardado pendiente · Ver detalle' }).click();
+  const details = page.getByTestId('rayen-local-sync-details');
+  await details.locator('summary').first().click();
+  await expect(details.getByText('Sin permisos')).toBeVisible();
+  await details.getByRole('button', { name: 'Descartar envío', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Descartar envío del censo' });
+  await expect(dialog.getByText('Censo del 22-10-2026')).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Sí, descartar envío' })).toBeDisabled();
+  await dialog.getByRole('button', { name: 'Cancelar' }).click();
+  expect(await readSyncTask(page, id)).toEqual({ ...task, id });
+  await details.getByRole('button', { name: 'Descartar envío', exact: true }).click();
+  await dialog.getByRole('checkbox').check();
+  await dialog.getByRole('button', { name: 'Sí, descartar envío' }).click();
+  await expect(page.getByRole('button', { name: 'Descargar respaldo' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Guardado pendiente · Ver detalle' })).toHaveCount(
+    0
+  );
+  const stored = await readSyncTask(page, id);
+  expect(stored).toMatchObject({
+    ...task,
+    id,
+    status: 'RETIRED',
+    retirement: { reason: 'manual_discard' },
+  });
+  const downloaded = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Descargar respaldo' }).click();
+  const download = await downloaded;
+  const stream = await download.createReadStream();
+  let contents = '';
+  for await (const chunk of stream) contents += chunk.toString();
+  expect(JSON.parse(contents)).toMatchObject({ remotelyConfirmed: false, task: stored });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(page.getByTestId('census-table')).toBeVisible();
+  expect(await readSyncTask(page, id)).toEqual(stored);
+  await expect(page.getByRole('button', { name: 'Guardado pendiente · Ver detalle' })).toHaveCount(
+    0
+  );
 });
 
 const getRow = (page: Page, bedId: string) =>

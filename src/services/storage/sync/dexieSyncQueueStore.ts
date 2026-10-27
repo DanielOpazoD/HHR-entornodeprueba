@@ -97,7 +97,9 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
   },
   async listRecent(limit, ownerKey) {
     const tasks = await hospitalDB.syncQueue.orderBy('timestamp').reverse().toArray();
-    return tasks.filter(task => matchesOwner(ownerKey, task.ownerKey)).slice(0, limit);
+    return tasks
+      .filter(task => task.status !== 'RETIRED' && matchesOwner(ownerKey, task.ownerKey))
+      .slice(0, limit);
   },
   async claimReadyPending(
     now: number,
@@ -308,22 +310,16 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
     await hospitalDB.syncQueue.clear();
   },
   async deleteByOwner(ownerKey) {
-    if (!ownerKey) {
-      await hospitalDB.syncQueue.filter(task => !task.ownerKey).delete();
-      return;
-    }
-
     await hospitalDB.syncQueue
-      .filter(task => task.ownerKey === ownerKey || !task.ownerKey)
+      .filter(
+        task =>
+          task.retirement?.reason !== 'manual_discard' && matchesOwner(ownerKey, task.ownerKey)
+      )
       .delete();
   },
   async countForeign(ownerKey) {
-    if (!ownerKey) {
-      return hospitalDB.syncQueue.filter(task => !!task.ownerKey).count();
-    }
-
     return hospitalDB.syncQueue
-      .filter(task => !!task.ownerKey && task.ownerKey !== ownerKey)
+      .filter(task => task.status !== 'RETIRED' && !!task.ownerKey && task.ownerKey !== ownerKey)
       .count();
   },
 });

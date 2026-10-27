@@ -57,6 +57,8 @@
     "^assets/healthService-.*\\.js$",
     "^assets/DiagnosisCie10Cell-.*\\.js$",
     "^assets/RayenImportButton-.*\\.js$",
+    "^assets/RayenSyncQueueDetails-.*\\.js$",
+    "^assets/DailyRecordTaskRecovery-.*\\.js$",
     "^assets/cudyrSupplement\\.worker-.*\\.js$",
     "^assets/cudyrReportModel-.*\\.js$",
     "^assets/CudyrMonthlyIndicator-.*\\.js$",

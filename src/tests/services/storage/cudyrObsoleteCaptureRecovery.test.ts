@@ -100,9 +100,14 @@ describe('obsolete empty CUDYR checks', () => {
     expect(s.read).toHaveBeenCalledTimes(1);
     const rows = await hospitalDB.syncQueue.toArray();
     expect(rows.map(t => t.payload)).toEqual(before.map(t => t.payload));
-    expect(rows.every(t => t.status === 'RETIRED' && t.retirement?.verifiedRunId === 'new')).toBe(
-      true
-    );
+    expect(
+      rows.every(
+        t =>
+          t.status === 'RETIRED' &&
+          t.retirement?.reason === 'empty_capture_without_census_context' &&
+          t.retirement.verifiedRunId === 'new'
+      )
+    ).toBe(true);
     expect(buildSyncQueueTelemetryFromRows(rows, 1, 50)).toMatchObject({
       pending: 0,
       failed: 0,
