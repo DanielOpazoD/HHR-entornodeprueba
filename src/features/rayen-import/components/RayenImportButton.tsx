@@ -37,6 +37,8 @@ const LazyRayenSyncHistoryModal = lazy(() =>
   import('./RayenSyncHistoryModal').then(module => ({ default: module.RayenSyncHistoryModal }))
 );
 
+const SYNC_QUEUE_PAGE_SIZE = 12;
+
 /**
  * "Sincronizar Eloísa" module for the census toolbar: the sync trigger plus its provenance line —
  * when the last sync of this day ran and who ran it (`record.rayenSync`, stamped on every apply).
@@ -61,7 +63,12 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
   const [historyOpen, setHistoryOpen] = React.useState(false);
   const [recoveryBusy, setRecoveryBusy] = React.useState(false);
   const [connectionMonitorOpen, setConnectionMonitorOpen] = React.useState(false);
-  const queue = useSyncQueueMonitor({ operationLimit: 12 });
+  const [operationLimit, setOperationLimit] = React.useState(SYNC_QUEUE_PAGE_SIZE);
+  // One extra row establishes whether another page exists, including sends already in flight.
+  // Keep the closed panel's background snapshot small even after expanding it.
+  const queue = useSyncQueueMonitor({
+    operationLimit: (connectionMonitorOpen ? operationLimit : SYNC_QUEUE_PAGE_SIZE) + 1,
+  });
   const queueAttention = hasLocalSyncAttention(queue.stats);
   const [staffingReviewOpen, setStaffingReviewOpen] = React.useState(false);
   const historyTriggerRef = React.useRef<HTMLButtonElement>(null);
@@ -281,9 +288,13 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
             <React.Suspense fallback={<span>Leyendo guardados locales…</span>}>
               <RayenSyncQueueDetails
                 stats={queue.stats}
-                operations={queue.operations}
+                operations={queue.operations.slice(0, operationLimit)}
                 refresh={queue.refresh}
                 working={working}
+                pagination={{
+                  hasMore: queue.operations.length > operationLimit,
+                  onShowMore: () => setOperationLimit(limit => limit + SYNC_QUEUE_PAGE_SIZE),
+                }}
               />
             </React.Suspense>
           }

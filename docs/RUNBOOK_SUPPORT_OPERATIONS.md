@@ -121,6 +121,10 @@ Criterio de cierre:
 ## Caso D: Cola atascada (`pending` crece)
 
 1. Abrir **Eloísa → Guardado local** y revisar fecha y motivo del bloqueo. «Sin permisos» no significa falta de conexión; reenviar sin resolver el permiso puede volver a fallar.
+   Si el envío antiguo no aparece, usar **Ver más envíos** hasta llegar a su fecha.
+   La lista amplía de doce en doce y vuelve a consultar la misma cola de esta sesión;
+   consultar más no reintenta ni retira nada. Los envíos reintentando ya están incluidos
+   en el total pendiente y no se suman una segunda vez.
 2. «Sesión no validada» significa que el servidor no pudo validar la sesión de ese envío; comprobar la sesión actual. Para ambos rechazos, **Revisar reintento** explica el bloqueo y **Ya revisé, reintentar** reenvía sólo por decisión de la persona. Abrir el detalle no inicia un envío. Para un envío transitorio, comprobar la conexión y esperar un ciclo de backoff. Una escritura sin versión de origen exige revisión; no se reintenta sin cambios.
 3. Si el censo compartido ya está correcto y ese envío no hace falta, elegir **Descartar envío**, revisar o descargar su copia y confirmar que esos cambios no se necesitan. Cancelar conserva el pendiente.
 4. El envío retirado deja el contador y no se reintenta. En **Envíos descartados → Descargar respaldo** queda su contenido original, base y motivo del rechazo. El respaldo puede contener datos clínicos: mantenerlo en un destino autorizado. No es una confirmación del servidor ni se reenvía automáticamente.

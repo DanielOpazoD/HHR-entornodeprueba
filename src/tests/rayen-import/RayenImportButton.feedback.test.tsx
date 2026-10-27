@@ -3,6 +3,9 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RayenImportButton } from '@/features/rayen-import/components/RayenImportButton';
 import { RAYEN_EXTENSION_PROTOCOL_VERSION } from '@/features/rayen-import/bridge/extensionHealthBridge';
+import { buildSyncQueueTelemetryFromRows } from '@/services/storage/sync/syncQueueTelemetryController';
+import { buildSyncQueueStats } from '@/hooks/controllers/syncQueueMonitorController';
+import type { SyncTask } from '@/services/storage/syncQueueTypes';
 
 const mocks = vi.hoisted(() => ({
   useSyncQueueMonitor: vi.fn(),
@@ -14,7 +17,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/hooks/useSyncQueueMonitor', () => ({
-  useSyncQueueMonitor: () => mocks.useSyncQueueMonitor(),
+  useSyncQueueMonitor: (options: unknown) => mocks.useSyncQueueMonitor(options),
 }));
 
 vi.mock('@/context/DailyRecordContext', () => ({
@@ -109,7 +112,7 @@ describe('RayenImportButton feedback', () => {
 
   it('keeps active retries visible in the usual panel without triggering a sync', async () => {
     mocks.useSyncQueueMonitor.mockReturnValue({
-      stats: { pending: 0, failed: 0, conflict: 0, retrying: 2, oldestPendingAgeMs: 0 },
+      stats: { pending: 2, failed: 0, conflict: 0, retrying: 2, oldestPendingAgeMs: 0 },
       operations: [],
       refresh: vi.fn(),
     });
@@ -119,6 +122,52 @@ describe('RayenImportButton feedback', () => {
     expect(screen.getByText('2 reintentando.')).toBeInTheDocument();
     expect(mocks.triggerImport).not.toHaveBeenCalled();
   });
+
+  it.each(['PENDING', 'PROCESSING'] as const)(
+    'reaches an older blocked send behind multiple pages of %s operations',
+    async status => {
+      const rows: SyncTask[] = Array.from({ length: 25 }, (_, index) => ({
+        id: index + 1,
+        opId: `synthetic-page-${index}`,
+        type: 'UPDATE_DAILY_RECORD',
+        key:
+          index === 24 ? 'daily:2026-10-22' : `daily:2026-02-${String(index + 1).padStart(2, '0')}`,
+        payload: {},
+        timestamp: 100 - index,
+        status: index === 24 ? 'FAILED' : status,
+        retryCount: status === 'PENDING' && index === 0 ? 1 : 0,
+        ...(index === 24
+          ? ({ lastErrorCategory: 'authorization', lastErrorCode: 'permission-denied' } as const)
+          : {}),
+      }));
+      const stats = buildSyncQueueStats(buildSyncQueueTelemetryFromRows(rows, 1000, 25));
+      mocks.useSyncQueueMonitor.mockImplementation(
+        ({ operationLimit }: { operationLimit: number }) => ({
+          stats,
+          operations: rows.slice(0, operationLimit),
+          refresh: vi.fn(),
+        })
+      );
+      render(<RayenImportButton />);
+      fireEvent.click(screen.getByRole('button', { name: 'Guardado pendiente · Ver detalle' }));
+      expect(
+        await screen.findByText(`Guardado local · ${status === 'PENDING' ? 25 : 1} por enviar`)
+      ).toBeInTheDocument();
+      expect(screen.queryByText('Censo del 22-10-2026')).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Ver más envíos' }));
+      expect(screen.queryByText('Censo del 22-10-2026')).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Ver más envíos' }));
+      expect(screen.getByText('Censo del 22-10-2026')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Descartar envío' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Ver más envíos' })).not.toBeInTheDocument();
+      expect(mocks.useSyncQueueMonitor).toHaveBeenCalledWith({ operationLimit: 13 });
+      expect(mocks.useSyncQueueMonitor).toHaveBeenCalledWith({ operationLimit: 25 });
+      expect(mocks.useSyncQueueMonitor).toHaveBeenCalledWith({ operationLimit: 37 });
+      expect(mocks.triggerImport).not.toHaveBeenCalled();
+      fireEvent.pointerDown(document.body);
+      expect(mocks.useSyncQueueMonitor).toHaveBeenLastCalledWith({ operationLimit: 13 });
+    }
+  );
 
   it('exposes an unavailable send list even with zero counts and clears the warning after recovery', async () => {
     const queue = {
