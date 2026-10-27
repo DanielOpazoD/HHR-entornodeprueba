@@ -1,5 +1,6 @@
 import { createCudyrArchiveQueue } from './publicCudyrArchiveQueue';
 import { ensureDbReady } from '@/services/storage/indexeddb/indexedDbCore';
+import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import type { SpecialistHandoffSyncPayload, SyncTask } from '@/services/storage/syncQueueTypes';
 import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
 import { createBrowserSyncRuntime } from '@/services/storage/sync/browserSyncRuntime';
@@ -32,6 +33,16 @@ const syncObservability = createDomainObservability('sync', 'SyncQueue');
 const syncQueueStore = createDexieSyncQueueStore();
 const syncRuntime = createBrowserSyncRuntime();
 const getSyncOwnerKey = (): string | null => syncRuntime.getOwnerKey();
+
+const captureReadSession = (): (() => void) => {
+  const ownerKey = getSyncOwnerKey();
+  const generation = getSessionGeneration();
+  return () => {
+    if (ownerKey !== getSyncOwnerKey() || generation !== getSessionGeneration()) {
+      throw new Error('La sesión cambió durante la lectura de pendientes.');
+    }
+  };
+};
 
 const toSyncIssueMessage = (error: unknown, fallback: string): string =>
   error instanceof Error && error.message.trim().length > 0 ? error.message : fallback;
@@ -126,8 +137,10 @@ export const getSyncQueueStats = async (): Promise<{
   conflict: number;
 }> => {
   try {
+    const assertCurrentSession = captureReadSession();
     await ensureDbReady();
     const { pending, failed, conflict } = await syncQueueEngine.getTelemetry();
+    assertCurrentSession();
     return { pending, failed, conflict };
   } catch (error) {
     syncObservability.logger.warn('Failed to read queue stats', error);
@@ -140,10 +153,12 @@ export const getSyncQueueStats = async (): Promise<{
 
 export const getSyncQueueTelemetry = async (): Promise<SyncQueueTelemetry> => {
   try {
+    const assertCurrentSession = captureReadSession();
     await ensureDbReady();
     const telemetry = await syncQueueEngine.getTelemetry();
     const ownerKey = getSyncOwnerKey();
     const orphanedTasks = await syncQueueStore.countForeign(ownerKey);
+    assertCurrentSession();
     recordSyncQueueBudgetTelemetry(telemetry, {
       source: 'public_sync_queue',
       batchSize: SYNC_QUEUE_BATCH_SIZE,
@@ -172,8 +187,11 @@ export const listRecentSyncQueueOperations = async (
   limit: number
 ): Promise<SyncQueueOperationSnapshot[]> => {
   try {
+    const assertCurrentSession = captureReadSession();
     await ensureDbReady();
-    return await syncQueueEngine.listRecentOperations(limit);
+    const operations = await syncQueueEngine.listRecentOperations(limit);
+    assertCurrentSession();
+    return operations;
   } catch (error) {
     syncObservability.logger.warn('Failed to list recent operations', error);
     recordSyncRuntimeReadFailure('sync_queue_recent_operations_unavailable', error, {
@@ -186,8 +204,11 @@ export const listRecentSyncQueueOperations = async (
 
 export const getSyncQueueDomainMetrics = async (): Promise<SyncQueueDomainMetrics> => {
   try {
+    const assertCurrentSession = captureReadSession();
     await ensureDbReady();
-    return buildSyncQueueDomainMetrics(await syncQueueStore.listAll(getSyncOwnerKey()));
+    const tasks = await syncQueueStore.listAll(getSyncOwnerKey());
+    assertCurrentSession();
+    return buildSyncQueueDomainMetrics(tasks);
   } catch (error) {
     syncObservability.logger.warn('Failed to read domain metrics', error);
     recordSyncRuntimeReadFailure('sync_queue_domain_metrics_unavailable', error, {

@@ -50,6 +50,9 @@ El motor comparte una sola lectura de contadores mediante su telemetría. Las AP
 estadísticas agregadas conservan su contrato y aislamiento por sesión en la fachada
 pública, sin retener cálculos sin consumidores dentro del motor de envíos.
 La fachada pública vive en `sync/publicSyncQueue.ts`.
+Sus lecturas comprueban el propietario y la generación de sesión antes de devolver
+resultados. Si cambian mientras espera IndexedDB, usan el diagnóstico de lectura
+no disponible; una consulta nueva puede recuperar los datos de la sesión vigente.
 Las lecturas de operaciones recientes y lotes listos filtran en el cursor de
 IndexedDB antes de aplicar el límite. Conservan el orden temporal y los controles
 de propietario, espera y lease, sin reunir toda la cola en memoria para recortarla.

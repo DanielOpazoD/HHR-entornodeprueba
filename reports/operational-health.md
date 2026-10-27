@@ -7,6 +7,10 @@
 
 ## Sync Queue
 
+Las lecturas que atraviesan un cambio de propietario o de generación de sesión
+no publican resultados anteriores. La telemetría y el listado usan su estado de
+lectura no disponible; las APIs de compatibilidad conservan su fallback documentado.
+
 Las páginas recientes y los lotes de procesamiento detienen el cursor al completar
 su límite de tareas elegibles. Los respaldos retirados y las tareas de otros
 propietarios se conservan; no cambian los umbrales ni las reglas de reintento.
