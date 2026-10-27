@@ -66,6 +66,12 @@ export const RayenSyncQueueDetails: React.FC<{
             <span>
               {operation.targetLabel}
               <span className="block text-[10px] text-slate-500">{operation.categoryLabel}</span>
+              {operation.recovery === 'review_base' && (
+                <span className="block text-[10px] text-amber-700">
+                  Los cambios siguen guardados en este equipo. Solicita su revisión antes de
+                  reenviarlos.
+                </span>
+              )}
               {(operation.code || operation.detail) && (
                 <details className="text-[10px] text-slate-400">
                   <summary>Detalle técnico</summary>
@@ -75,7 +81,7 @@ export const RayenSyncQueueDetails: React.FC<{
               )}
             </span>
 
-            {!operation.refusedHandoff ? (
+            {operation.recovery === 'review_base' ? null : operation.recovery === 'retry' ? (
               <button
                 type="button"
                 onClick={() => void run(operation.id, retryQuarantinedSyncTask)}
@@ -86,7 +92,7 @@ export const RayenSyncQueueDetails: React.FC<{
               </button>
             ) : confirmingDiscard === operation.id ? (
               <span className="text-right">
-                {operation.refusedHandoff === 'note'
+                {operation.recovery === 'discard_note'
                   ? 'Revisa antes su borrador en Entrega médica.'
                   : 'Estos cambios no se enviarán.'}{' '}
                 <button
