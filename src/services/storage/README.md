@@ -50,6 +50,11 @@ El outbox ahora se arma sobre un engine con puertos (`sync/syncQueueEngine.ts`, 
 `sync/syncDomainPolicy.ts` clasifica tareas por contexto (`clinical`, `staffing`, `movements`, `handoff`, `metadata`) para aplicar budgets de retry y métricas de conflicto más específicas.
 `getSyncQueueTelemetry()` puede devolver `readState = unavailable` cuando la cola no puede inspeccionarse;
 ese caso debe tratarse como degradación operativa real, no como cola vacía.
+`listRecentSyncQueueOperations()` registra el fallo y rechaza la lectura; sólo una
+lectura correcta puede devolver una lista vacía. El monitor distingue ese fallo de
+los contadores disponibles y lo muestra como «Guardado local · por comprobar».
+El reporte de salud conserva los contadores y el evento del fallo aunque no pueda
+adjuntar la lista reciente. Una lectura posterior correcta restablece el monitor.
 `storage/index.ts` queda como barrel de compatibilidad mínima; nuevos imports deben ir a `storage/firestore`, `storage/sync`, `storage/core`, `storage/records` o `storage/runtime`.
 Los adapters de storage que necesiten `DailyRecord` deben importarlo desde
 `storageDailyRecordContracts.ts`, no directo desde `src/types/domain/dailyRecord`.

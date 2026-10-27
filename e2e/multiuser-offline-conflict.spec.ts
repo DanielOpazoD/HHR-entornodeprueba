@@ -156,6 +156,34 @@ test('withdraws an unnecessary permission-blocked send with a downloadable backu
 const getRow = (page: Page, bedId: string) =>
   page.locator(`[data-testid="patient-row"][data-bed-id="${bedId}"]`).first();
 
+test('shows a failed recent-send read instead of a healthy empty queue and recovers after reload', async ({
+  page,
+}) => {
+  await openSeededCensus(page);
+  await page.evaluate(() => {
+    const index = IDBObjectStore.prototype.index;
+    IDBObjectStore.prototype.index = function (this: IDBObjectStore, name: string) {
+      if (this.name === 'syncQueue' && name === 'timestamp') {
+        throw new DOMException('Synthetic recent-send read failure', 'UnknownError');
+      }
+      return index.call(this, name);
+    };
+  });
+
+  const attention = page.getByRole('button', { name: 'Guardado pendiente · Ver detalle' });
+  await expect(attention).toBeVisible({ timeout: 10_000 });
+  await attention.click();
+  const details = page.getByTestId('rayen-local-sync-details');
+  await details.locator('summary').first().click();
+  await expect(details.getByText('Guardado local · por comprobar')).toBeVisible();
+  await expect(details.getByText('No se pudo leer la cola local.')).toBeVisible();
+  await expect(details.getByText('Guardado local · 0 por enviar')).toHaveCount(0);
+
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(page.getByTestId('census-table')).toBeVisible();
+  await expect(attention).toHaveCount(0);
+});
+
 const openSeededCensus = async (page: Page, remoteWriter = false) => {
   const baseRecord = buildCanonicalE2ERecord(MULTIUSER_DATE);
   const beds = (baseRecord.beds as Record<string, Record<string, unknown>>) || {};

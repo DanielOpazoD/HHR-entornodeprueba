@@ -46,6 +46,14 @@ ni prometer que Firestore reconstruirá cambios que nunca recibió.
 
 ## Señales clave en dashboard
 
+Si Eloísa muestra **Guardado local · por comprobar**, abrir el detalle. «No se pudo
+leer la cola local» también puede indicar que falló sólo la lista de envíos, aunque
+los contadores se hayan leído. No interpretarlo como cero pendientes ni usarlo para
+autorizar una limpieza. El monitor vuelve a consultar mientras la pestaña está
+visible y retira el aviso cuando la lectura se recupera; no reenvía ni descarta tareas
+por mostrarlo. El evento `sync_queue_recent_operations_unavailable` sigue disponible
+en salud operativa aunque no se pueda adjuntar la lista reciente.
+
 Revisar `Admin > System Health` por usuario:
 
 - `pendingMutations`

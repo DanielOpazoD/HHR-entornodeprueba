@@ -45,6 +45,7 @@ Budgets monitoreables desde `reports/operational-health.md`:
 - warning/critical para tareas reintentando
 - perfiles de recovery por contexto
 - `readState = unavailable` cuando la cola no puede leerse desde runtime local
+- `recentOperationsReadState = unavailable` cuando falla la lista reciente, incluso si los contadores están disponibles; Eloísa indica «por comprobar» hasta recuperar la lectura.
 
 Regla operativa:
 

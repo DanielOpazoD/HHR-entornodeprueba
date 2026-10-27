@@ -119,6 +119,39 @@ describe('RayenImportButton feedback', () => {
     expect(screen.getByText('2 reintentando.')).toBeInTheDocument();
     expect(mocks.triggerImport).not.toHaveBeenCalled();
   });
+
+  it('exposes an unavailable send list even with zero counts and clears the warning after recovery', async () => {
+    const queue = {
+      stats: {
+        pending: 0,
+        failed: 0,
+        conflict: 0,
+        retrying: 0,
+        oldestPendingAgeMs: 0,
+        readState: 'ok',
+        recentOperationsReadState: 'unavailable',
+      },
+      operations: [],
+      refresh: vi.fn(),
+    };
+    mocks.useSyncQueueMonitor.mockReturnValue(queue);
+    const { rerender } = render(<RayenImportButton />);
+    fireEvent.click(screen.getByRole('button', { name: 'Guardado pendiente · Ver detalle' }));
+    expect(await screen.findByText('Guardado local · por comprobar')).toBeInTheDocument();
+    expect(screen.getByText('No se pudo leer la cola local.')).toBeInTheDocument();
+    expect(screen.queryByText('Guardado local · 0 por enviar')).not.toBeInTheDocument();
+    expect(mocks.triggerImport).not.toHaveBeenCalled();
+
+    mocks.useSyncQueueMonitor.mockReturnValue({
+      ...queue,
+      stats: { ...queue.stats, recentOperationsReadState: 'ok' },
+    });
+    rerender(<RayenImportButton />);
+    expect(screen.queryByText('No se pudo leer la cola local.')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Guardado pendiente · Ver detalle' })
+    ).not.toBeInTheDocument();
+  });
   it('keeps a completed-change summary in the history instead of expanding the toolbar', () => {
     mocks.useRayenImport.mockReturnValue({
       mode: 'preview',
