@@ -6,6 +6,11 @@ import {
   buildCanonicalE2ERecord,
   ensureAuthenticated,
 } from './fixtures/auth';
+import {
+  installDailyRecordAuthorityRoute,
+  type DailyRecordAuthorityRouteController,
+} from './fixtures/dailyRecordAuthorityRoute';
+import { waitForPersistedBedFields } from './fixtures/censusPersistence';
 
 const E2E_DATE = process.env.E2E_FIXED_DATE ?? '2026-02-20';
 const EXCEL_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -322,7 +327,10 @@ const createClinicalDocumentEvidence = async (page: Page) => {
   await expect(editableSection).toContainText('smoke visual de release');
 };
 
-const createMedicalHandoffEvidence = async (page: Page) => {
+const createMedicalHandoffEvidence = async (
+  page: Page,
+  authority: DailyRecordAuthorityRouteController
+) => {
   const createMedicalHandoffButton = page
     .getByTestId('medical-handoff-create-entry-button')
     .first();
@@ -330,11 +338,37 @@ const createMedicalHandoffEvidence = async (page: Page) => {
     timeout: 20_000,
   });
   await createMedicalHandoffButton.click();
+  const creation = await authority.nextCall();
+  expect(creation.payload.date).toBe(E2E_DATE);
+  expect(creation.payload.patch['beds.R1.medicalHandoffEntries']).toEqual([
+    expect.objectContaining({ id: 'primary-entry', specialty: 'Medicina', note: '' }),
+  ]);
+  // A locally queued entry is not a remote confirmation of the medical handoff.
+  await expect(page.locator('textarea')).toHaveCount(0);
+  await creation.succeed();
 
   const handoffTextarea = page.locator('textarea').first();
   await expect(handoffTextarea).toBeVisible({ timeout: 10_000 });
-  await handoffTextarea.fill('Entrega médica creada desde smoke visual de release.');
+  const note = 'Entrega médica creada desde smoke visual de release.';
+  await handoffTextarea.fill(note);
   await expect(handoffTextarea).toHaveValue(/smoke visual de release/i);
+  await handoffTextarea.blur();
+  const save = await authority.nextCall();
+  expect(save.payload.date).toBe(E2E_DATE);
+  expect(save.payload.patch).toMatchObject({ 'beds.R1.medicalHandoffNote': note });
+  expect(save.payload.patch['beds.R1.medicalHandoffEntries']).toEqual([
+    expect.objectContaining({ id: 'primary-entry', note }),
+  ]);
+  await save.succeed();
+  await waitForPersistedBedFields({
+    page,
+    date: E2E_DATE,
+    bedId: 'R1',
+    expected: { medicalHandoffNote: note },
+  });
+  // Handoff canonical URLs drop the date; reopen the same clinical day explicitly.
+  await page.goto(`/medical-handoff?date=${E2E_DATE}`, { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('textarea').first()).toHaveValue(note, { timeout: 10_000 });
 };
 
 const createCudyrEvidence = async (page: Page) => {
@@ -494,9 +528,22 @@ test.describe('Clinical release visual smoke', () => {
     await verifyMobileViewportEvidence(page, testInfo, 'clinical-release-cudyr-mobile');
     await verifyCudyrExcelDownload(page, testInfo);
 
+    // Earlier modules use local fixtures; medical handoff creation requires a confirmed writer.
+    const record = buildVisualReleaseRecord(E2E_DATE);
+    const authority = await installDailyRecordAuthorityRoute(page, record);
+    await bootstrapSeededRecord(page, {
+      role: 'admin',
+      date: E2E_DATE,
+      record,
+      forceLocalOnlySync: false,
+      seedRemoteAuthority: true,
+      forceAuthorityCallable: true,
+      useRuntimeOverride: true,
+      forceEditableRecord: true,
+    });
     await page.goto(`/medical-handoff?date=${E2E_DATE}`, { waitUntil: 'domcontentloaded' });
     await expect(page).toHaveURL(/\/medical-handoff/, { timeout: 20_000 });
-    await createMedicalHandoffEvidence(page);
+    await createMedicalHandoffEvidence(page, authority);
     await expectNoHorizontalOverflow(page);
     await attachViewportEvidence(page, testInfo, 'clinical-release-medical-handoff');
   });
