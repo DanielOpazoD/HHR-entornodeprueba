@@ -474,6 +474,21 @@ El reporte `reports/security/dependency-audit.md` debe conservar comandos de rep
 
 ## Qué hacer cuando falla
 
+### Se atasca la preparación de Chromium
+
+Cada paso que invoca `setup-ci-chromium` tiene un límite de 15 minutos para
+preparar el navegador, sus librerías y su caché. El límite se declara en el
+workflow llamador, donde GitHub admite `timeout-minutes` para pasos `uses`.
+Una espera de apt o una descarga atascada debe fallar y bloquear CI; no cuenta
+como navegador listo. Se mantienen la instalación obligatoria, la prueba real
+de arranque y el único reintento del instalador. El límite no cambia los tiempos
+de las pruebas ni su alcance. Ver la [sintaxis de pasos de GitHub](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idstepstimeout-minutes).
+
+Conservar el log para distinguir instalación, red y prueba clínica. Si la evidencia
+justifica recuperar infraestructura, relanzar el job afectado y sus dependientes
+sobre el mismo SHA, conservando los jobs aprobados. Una repetición que vuelve a
+atascarse requiere corregir la causa antes de otro intento; no omitir el control.
+
 ### Falla `check:bundle-budget`
 
 1. correr `npm run build`

@@ -616,6 +616,7 @@ jobs:
 
       - name: Prepare Chromium for individual account browser flow
         uses: ./.github/actions/setup-ci-chromium
+        timeout-minutes: 15
 
       - name: Validate individual accounts with Auth, Firestore and Storage emulators
         run: npm run test:accounts:emulator:ci
@@ -644,6 +645,7 @@ jobs:
 
       - name: Install Playwright browser for critical E2E gate
         uses: ./.github/actions/setup-ci-chromium
+        timeout-minutes: 15
 
       - name: Fetch pinned previous extension release
         run: git fetch --depth=1 origin d0af164e076619f593433c53ad398581b92a6979
@@ -878,6 +880,7 @@ jobs:
 
       - name: Install Playwright browsers for preview bootstrap smoke
         uses: ./.github/actions/setup-ci-chromium
+        timeout-minutes: 15
 
       - name: Run preview smoke lane
         run: node scripts/run-preview-smoke-lane.mjs --lane=${{ matrix.lane }}
@@ -1096,6 +1099,7 @@ jobs:
         uses: ./.github/actions/setup-ci-dependencies
       - name: Install Chromium
         uses: ./.github/actions/setup-ci-chromium
+        timeout-minutes: 15
       - name: Validate measurement report contracts
         run: npm run test:census-performance-report
       - name: Measure populated census navigations per scenario

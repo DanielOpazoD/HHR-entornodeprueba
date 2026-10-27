@@ -112,3 +112,48 @@ it('also rejects incompatible platforms in newly added Chromium consumers', () =
   };
   expect(() => assertSupportedChromiumRunners(candidate)).toThrow();
 });
+
+const assertBoundedChromiumPreparation = (candidate: ReturnType<typeof parseWorkflow>) => {
+  for (const [jobName, job] of Object.entries(candidate.jobs)) {
+    for (const step of job.steps.filter(
+      step => step.uses === './.github/actions/setup-ci-chromium'
+    )) {
+      const deadline = step['timeout-minutes'];
+      expect(Number.isInteger(deadline), `Chromium setup deadline for ${jobName}`).toBe(true);
+      expect(deadline).toBeGreaterThan(0);
+      expect(deadline).toBeLessThanOrEqual(15);
+      expect(step['continue-on-error']).not.toBe(true);
+    }
+  }
+};
+
+it('bounds Chromium preparation in every workflow without accepting a failed install', () => {
+  for (const name of fs.readdirSync('.github/workflows').filter(name => /\.ya?ml$/.test(name))) {
+    assertBoundedChromiumPreparation(
+      parseWorkflow(fs.readFileSync(`.github/workflows/${name}`, 'utf8'))
+    );
+  }
+});
+
+it.each([undefined, 0, -1, 1.5, 16])(
+  'rejects an unbounded or invalid setup deadline %s',
+  deadline => {
+    const candidate = parseWorkflow(workflow);
+    const step = candidate.jobs['rules-emulator'].steps.find(
+      step => step.uses === './.github/actions/setup-ci-chromium'
+    );
+    if (!step) throw new Error('Expected the individual account browser preparation');
+    step['timeout-minutes'] = deadline;
+    expect(() => assertBoundedChromiumPreparation(candidate)).toThrow();
+  }
+);
+
+it('rejects a Chromium preparation that hides its failure', () => {
+  const candidate = parseWorkflow(workflow);
+  const step = candidate.jobs['rules-emulator'].steps.find(
+    step => step.uses === './.github/actions/setup-ci-chromium'
+  );
+  if (!step) throw new Error('Expected the individual account browser preparation');
+  step['continue-on-error'] = true;
+  expect(() => assertBoundedChromiumPreparation(candidate)).toThrow();
+});
