@@ -56,6 +56,10 @@ no disponible; una consulta nueva puede recuperar los datos de la sesión vigent
 Las lecturas de operaciones recientes y lotes listos filtran en el cursor de
 IndexedDB antes de aplicar el límite. Conservan el orden temporal y los controles
 de propietario, espera y lease, sin reunir toda la cola en memoria para recortarla.
+El trabajador consulta los rangos `PENDING` y `PROCESSING` del índice existente
+`[status+timestamp]`, toma hasta un lote por rango y combina por timestamp e id.
+Así no recorre respaldos retirados o tareas en cuarentena para encontrar trabajo
+listo. La selección y la reclamación siguen dentro de la misma transacción.
 El outbox ahora se arma sobre un engine con puertos (`sync/syncQueueEngine.ts`, `sync/syncQueuePorts.ts`) para separar runtime navegador, store Dexie y transporte Firestore.
 `sync/syncDomainPolicy.ts` clasifica tareas por contexto (`clinical`, `staffing`, `movements`, `handoff`, `metadata`) para aplicar budgets de retry y métricas de conflicto más específicas.
 `getSyncQueueTelemetry()` puede devolver `readState = unavailable` cuando la cola no puede inspeccionarse;

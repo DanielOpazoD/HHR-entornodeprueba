@@ -108,4 +108,48 @@ describe('bounded sync queue reads', () => {
       before.slice(0, 7)
     );
   });
+
+  it.each([0, 20, 1000])('skips %i retired rows without visiting their payloads', async retired => {
+    await hospitalDB.syncQueue.bulkAdd([
+      ...Array.from({ length: retired }, (_, index) => makeTask(index + 1, { status: 'RETIRED' })),
+      ...Array.from({ length: 10 }, (_, index) => makeTask(index + retired + 1)),
+    ]);
+    let visited = 0;
+    const original = IDBIndex.prototype.openCursor;
+    vi.spyOn(IDBIndex.prototype, 'openCursor').mockImplementation(function (
+      this: IDBIndex,
+      ...args
+    ) {
+      const request = original.apply(this, args);
+      request.addEventListener('success', () => {
+        if (request.result) visited += 1;
+      });
+      return request;
+    });
+    const rows = await store.claimReadyPending(NOW, 3, OWNER, claim);
+    expect(rows.map(task => task.timestamp)).toEqual([retired + 1, retired + 2, retired + 3]);
+    expect(visited).toBe(3);
+    expect(await hospitalDB.syncQueue.where('status').equals('RETIRED').count()).toBe(retired);
+  });
+
+  it('merges both ready states by timestamp and primary key before claiming a batch', async () => {
+    const expiredId = await hospitalDB.syncQueue.add(
+      makeTask(1, { status: 'PROCESSING', leaseUntil: NOW - 1 })
+    );
+    const pendingId = await hospitalDB.syncQueue.add(makeTask(1));
+    await hospitalDB.syncQueue.bulkAdd([
+      makeTask(2, { status: 'PROCESSING', leaseUntil: NOW - 1 }),
+      makeTask(3),
+      makeTask(4, { status: 'PROCESSING', leaseUntil: NOW - 1 }),
+      makeTask(5),
+    ]);
+    const first = await store.claimReadyPending(NOW, 3, OWNER, claim);
+    expect(first.map(task => task.timestamp)).toEqual([1, 1, 2]);
+    expect(first.slice(0, 2).map(task => task.id)).toEqual([expiredId, pendingId]);
+    const next = await store.claimReadyPending(NOW, 3, OWNER, {
+      ...claim,
+      leaseOwner: 'synthetic-second-worker',
+    });
+    expect(next.map(task => task.timestamp)).toEqual([3, 4, 5]);
+  });
 });
