@@ -17,6 +17,8 @@ export interface WorkflowJob {
     if?: string;
     with?: Record<string, unknown>;
     env?: Record<string, string>;
+    'timeout-minutes'?: number;
+    'continue-on-error'?: boolean;
   }>;
 }
 

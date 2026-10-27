@@ -35,6 +35,7 @@ jobs:
 
       - name: Install Playwright browser for nightly clinical flows
         uses: ./.github/actions/setup-ci-chromium
+        timeout-minutes: 15
 
       - name: Validate runtime governance contract
         run: npm run check:test-runtime-governance

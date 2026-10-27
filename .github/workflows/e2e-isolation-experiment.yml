@@ -64,6 +64,7 @@ jobs:
         uses: ./.github/actions/setup-ci-firestore-emulator
       - name: Prepare Chromium
         uses: ./.github/actions/setup-ci-chromium
+        timeout-minutes: 15
       - name: Fetch pinned extension release
         if: matrix.lane != 'lane-2'
         run: git fetch --depth=1 origin eb77f41ae151251f7158fc28721cefe15145926c
