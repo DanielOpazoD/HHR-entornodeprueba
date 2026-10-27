@@ -108,7 +108,10 @@ export const RayenSyncQueueDetails: React.FC<{
                   )}
                   {operation.recovery === 'review_base' ? null : operation.recovery ===
                     'review_authorization' ? (
-                    <details className="max-w-32 text-right">
+                    <details
+                      className="text-right"
+                      style={{ maxWidth: 'calc(var(--spacing) * 32)' }}
+                    >
                       <summary className="cursor-pointer text-teal-700">Revisar reintento</summary>
                       <span className="block text-[10px] text-slate-500">
                         Reintenta solo si resolviste el bloqueo.
