@@ -244,6 +244,111 @@ test.describe('Auth login resilience matrix', () => {
     await expectLoginIdle(page);
   });
 
+  test('manual logout preserves the original owned send for review instead of deleting it', async ({
+    page,
+  }) => {
+    const date = process.env.E2E_FIXED_DATE ?? '2026-02-20';
+    await bootstrapSeededRecord(page, {
+      role: 'admin',
+      date,
+      record: buildCanonicalE2ERecord(date),
+      useRuntimeOverride: false,
+      forceLocalOnlySync: true,
+    });
+    await page.goto(`/census?date=${date}`);
+    await expect(page.getByTestId('census-table')).toBeVisible();
+    const ownerKey = await page.evaluate(() => localStorage.getItem('hhr_session_owner_v1'));
+    if (!ownerKey) throw new Error('Expected the authenticated synthetic session owner');
+    expect(ownerKey).not.toContain('hhrn_');
+    const task: SyncTask = {
+      opId: 'synthetic-logout-owned-send',
+      ownerKey,
+      type: 'UPDATE_DAILY_RECORD',
+      key: `daily:${date}`,
+      payload: { date, beds: {}, nurses: ['SYNTHETIC LOGOUT WORK'] },
+      timestamp: Date.now(),
+      retryCount: 0,
+      status: 'PROCESSING',
+      leaseOwner: 'synthetic-old-worker',
+      attemptId: 'synthetic-old-attempt',
+      leaseUntil: Date.now() + 60_000,
+      syncContract: {
+        expectedVersion: 'synthetic-original-version',
+        changedPaths: ['nurses'],
+        mutationId: 'synthetic-logout-mutation',
+      },
+    };
+    const id = await page.evaluate(async pending => {
+      const request = indexedDB.open('HangaRoaDB');
+      const db = await new Promise<IDBDatabase>((resolve, reject) => {
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      try {
+        const tx = db.transaction('syncQueue', 'readwrite');
+        const insert = tx.objectStore('syncQueue').add(pending);
+        await new Promise<void>((resolve, reject) => {
+          tx.oncomplete = () => resolve();
+          tx.onerror = tx.onabort = () => reject(tx.error);
+        });
+        if (typeof insert.result !== 'number') throw new Error('Expected a numeric task id');
+        return insert.result;
+      } finally {
+        db.close();
+      }
+    }, task);
+    await page.getByTestId('authenticated-user-menu-button').click();
+    await page.getByRole('button', { name: 'Cerrar sesión', exact: true }).click();
+    await expect(page.getByTestId('login-google-button')).toBeVisible();
+    const readStored = () =>
+      page.evaluate(async taskId => {
+        const request = indexedDB.open('HangaRoaDB');
+        const db = await new Promise<IDBDatabase>((resolve, reject) => {
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+        try {
+          const read = db.transaction('syncQueue', 'readonly').objectStore('syncQueue').get(taskId);
+          return await new Promise<SyncTask>((resolve, reject) => {
+            read.onsuccess = () => resolve(read.result);
+            read.onerror = () => reject(read.error);
+          });
+        } finally {
+          db.close();
+        }
+      }, id);
+    // The login form appears before asynchronous storage cleanup finishes.
+    await expect
+      .poll(readStored)
+      .toMatchObject({ status: 'FAILED', lastErrorCode: 'session_owner_logged_out' });
+    const stored = await readStored();
+    expect(stored).toMatchObject({
+      id,
+      ownerKey,
+      payload: task.payload,
+      syncContract: task.syncContract,
+      status: 'FAILED',
+      lastErrorCode: 'session_owner_logged_out',
+    });
+    expect(stored.leaseOwner).toBeUndefined();
+    expect(stored.attemptId).toBeUndefined();
+    await bootstrapSeededRecord(page, {
+      role: 'admin',
+      date,
+      record: buildCanonicalE2ERecord(date),
+      useRuntimeOverride: false,
+      forceLocalOnlySync: true,
+    });
+    await page.goto(`/census?date=${date}`);
+    await expect(page.getByTestId('census-table')).toBeVisible();
+    await page.getByRole('button', { name: 'Guardado pendiente · Ver detalle' }).click();
+    const detail = page.getByTestId('rayen-local-sync-details');
+    await detail.locator('summary').first().click();
+    await expect(detail.getByText('Sesión cerrada', { exact: true })).toBeVisible();
+    await expect(detail.getByText(/Este envío quedó pendiente al cerrar sesión/)).toBeVisible();
+    expect(await readStored()).toEqual(stored);
+  });
+
   test('reload preserves local work and returns to a usable login', async ({ page: warmup }) => {
     const context = warmup.context();
     try {

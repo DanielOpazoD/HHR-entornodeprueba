@@ -106,6 +106,15 @@ export const listQuarantinedOperations = (
           /^daily:\d{4}-\d{2}-\d{2}$/.test(operation.key ?? ''),
       };
       if (recovery === 'review_authorization') {
+        if (operation.lastErrorCode === 'session_owner_logged_out') {
+          return {
+            ...target,
+            recovery,
+            categoryLabel: 'Sesión cerrada',
+            retryGuidance:
+              'Este envío quedó pendiente al cerrar sesión. Revisa que ingresaste con su cuenta original antes de reenviarlo.',
+          };
+        }
         const sessionNotValidated = /(?:^|\/)unauthenticated$/.test(operation.lastErrorCode ?? '');
         return {
           ...target,

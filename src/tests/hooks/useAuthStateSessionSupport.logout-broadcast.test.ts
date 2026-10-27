@@ -6,7 +6,7 @@ import {
   SESSION_GENERATION_KEY,
   setSessionGeneration,
 } from '@/services/storage/sessionStorageTransition';
-import { preserveNursingSessionQueue } from '@/services/storage/nursingSessionQueue';
+import { preserveSessionSyncQueue } from '@/services/storage/sessionSyncQueuePreservation';
 import { clearSyncQueueForOwner } from '@/services/storage/sync';
 
 vi.mock('@/application/ports/auditPort', () => ({
@@ -20,8 +20,8 @@ vi.mock('@/services/storage/sync', () => ({
   clearSyncQueueForOwner: vi.fn().mockResolvedValue(undefined),
   recordSyncQueueOwnershipTelemetry: vi.fn(),
 }));
-vi.mock('@/services/storage/nursingSessionQueue', () => ({
-  preserveNursingSessionQueue: vi.fn().mockResolvedValue(undefined),
+vi.mock('@/services/storage/sessionSyncQueuePreservation', () => ({
+  preserveSessionSyncQueue: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
   recordOperationalTelemetry: vi.fn(),
@@ -85,7 +85,7 @@ describe('createHandleLogout when the cross-tab channel fails', () => {
       expect(localStorage.getItem(SESSION_GENERATION_KEY)).toBeNull();
       expect(localStorage.getItem(persistedAuthKey)).toBeNull();
       expect(sessionStorage.getItem('hhr_logged_this_session')).toBeNull();
-      expect(preserveNursingSessionQueue).toHaveBeenCalledExactlyOnceWith(ownerKey);
+      expect(preserveSessionSyncQueue).toHaveBeenCalledExactlyOnceWith(ownerKey);
       expect(clearSyncQueueForOwner).not.toHaveBeenCalled();
     }
   );

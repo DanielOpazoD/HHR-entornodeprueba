@@ -8,8 +8,10 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   clearAllRecords: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('@/services/storage/sync', () => ({
-  clearSyncQueueForOwner: vi.fn().mockResolvedValue(undefined),
   recordSyncQueueOwnershipTelemetry: vi.fn(),
+}));
+vi.mock('@/services/storage/sessionSyncQueuePreservation', () => ({
+  preserveSessionSyncQueue: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
   recordOperationalTelemetry: vi.fn(),

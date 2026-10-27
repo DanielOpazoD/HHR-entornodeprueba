@@ -1,5 +1,5 @@
 import { clearAllRecords } from '@/services/storage/indexeddb/indexedDbRecordService';
-import { clearSyncQueueForOwner, recordSyncQueueOwnershipTelemetry } from '@/services/storage/sync';
+import { recordSyncQueueOwnershipTelemetry } from '@/services/storage/sync';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import {
   getLogoutGeneration,
@@ -102,12 +102,8 @@ const clearSensitiveSessionState = async (ownerKey: string | null): Promise<void
   const results = await Promise.allSettled([
     Promise.resolve().then(() => clearAllRecords({ throwOnError: true })),
     Promise.resolve().then(async () => {
-      if (ownerKey?.startsWith('user:hhrn_')) {
-        const { preserveNursingSessionQueue } = await import('./nursingSessionQueue');
-        await preserveNursingSessionQueue(ownerKey);
-      } else {
-        await clearSyncQueueForOwner(ownerKey, true);
-      }
+      const { preserveSessionSyncQueue } = await import('./sessionSyncQueuePreservation');
+      await preserveSessionSyncQueue(ownerKey);
     }),
     Promise.resolve().then(clearUserScopedLocalStorage),
     Promise.resolve().then(clearUserScopedSessionStorage),
