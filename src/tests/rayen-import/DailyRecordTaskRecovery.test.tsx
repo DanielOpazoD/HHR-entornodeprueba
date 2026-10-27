@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import React from 'react';
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { RayenSyncQueueDetails } from '@/features/rayen-import/components/RayenSyncQueueDetails';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
@@ -120,4 +120,59 @@ it('keeps the failed send visible when its retirement cannot be persisted', asyn
   await screen.findByText(/No se pudo completar la acción/);
   expect(await hospitalDB.syncQueue.get(id)).toEqual({ ...task, id });
   expect(screen.getByText('Guardado local · 1 por enviar')).toBeVisible();
+});
+
+it('shows the declared clinical, handoff and staffing scope before discarding, without changing the send', async () => {
+  const syncContract = {
+    changedPaths: [
+      'beds.R1.pathology',
+      'beds.R2.pathology',
+      'beds.R1.clinicalCrib.medicalHandoffEntries',
+      'nursesDayShift',
+    ],
+  };
+  await hospitalDB.syncQueue.update(id, { syncContract });
+  await openPanel();
+  const review = within(screen.getByRole('dialog', { name: 'Descartar envío del censo' }));
+  const summary = review.getByRole('list', { name: 'Contenido del envío' });
+  expect(within(summary).getAllByRole('listitem')).toHaveLength(3);
+  expect(within(summary).getByText('Datos de pacientes, camas o cunas')).toBeVisible();
+  expect(within(summary).getByText('Notas y novedades de entrega')).toBeVisible();
+  expect(within(summary).getByText('Dotación y turnos')).toBeVisible();
+  expect(review.getByText(/no compara con el servidor/)).toBeVisible();
+  expect(review.getByRole('button', { name: 'Sí, descartar envío' })).toBeDisabled();
+  expect(await hospitalDB.syncQueue.get(id)).toEqual({ ...task, id, syncContract });
+});
+
+it.each([
+  { changedPaths: undefined },
+  { changedPaths: [] },
+  { changedPaths: ['*'] },
+  { changedPaths: ['beds.R1.pathology', '*'] },
+])(
+  'does not invent a field summary when the send has no granular scope (%j)',
+  async ({ changedPaths }) => {
+    await hospitalDB.syncQueue.update(id, { syncContract: { changedPaths } });
+    await openPanel();
+    const review = within(screen.getByRole('dialog', { name: 'Descartar envío del censo' }));
+    expect(review.getByText(/No hay detalle por campo/)).toBeVisible();
+    expect(review.queryByRole('list', { name: 'Contenido del envío' })).not.toBeInTheDocument();
+    expect(review.getByRole('button', { name: 'Descargar copia para revisar' })).toBeEnabled();
+    expect(review.getByRole('button', { name: 'Sí, descartar envío' })).toBeDisabled();
+    expect(await hospitalDB.syncQueue.get(id)).toMatchObject({
+      status: 'FAILED',
+      payload: task.payload,
+    });
+  }
+);
+
+it('keeps unfamiliar paths visible as other census fields rather than hiding their scope', async () => {
+  await hospitalDB.syncQueue.update(id, {
+    syncContract: { changedPaths: ['discharges', 'lastUpdated', 'futureClinicalField'] },
+  });
+  await openPanel();
+  const summary = screen.getByRole('list', { name: 'Contenido del envío' });
+  expect(within(summary).getByText('Altas, traslados o CMA')).toBeVisible();
+  expect(within(summary).getByText('Fechas y datos de control')).toBeVisible();
+  expect(within(summary).getByText('Otros campos del censo')).toBeVisible();
 });

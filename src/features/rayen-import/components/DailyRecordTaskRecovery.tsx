@@ -10,6 +10,52 @@ import {
 import { downloadBlob } from '@/services/exporters/exportDownload';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import { targetLabelFromKey } from './localSyncPresentation';
+import {
+  resolveConflictDomainContextForPath,
+  type ConflictDomainContext,
+} from '@/services/repositories/conflictResolutionDomainPolicy';
+
+const SCOPE_LABELS: Record<ConflictDomainContext, string> = {
+  clinical: 'Datos de pacientes, camas o cunas',
+  handoff: 'Notas y novedades de entrega',
+  staffing: 'Dotación y turnos',
+  movements: 'Altas, traslados o CMA',
+  metadata: 'Fechas y datos de control',
+  unknown: 'Otros campos del censo',
+};
+
+const DeclaredScope: React.FC<{ task: SyncTask }> = ({ task }) => {
+  const paths = task.syncContract?.changedPaths;
+  const hasFieldDetail =
+    Array.isArray(paths) &&
+    paths.length > 0 &&
+    paths.every(path => typeof path === 'string' && path.trim() && !path.includes('*'));
+  const labels = hasFieldDetail
+    ? Array.from(
+        new Set(paths.map(path => SCOPE_LABELS[resolveConflictDomainContextForPath(path)]))
+      )
+    : [];
+  return (
+    <div>
+      <p className="font-medium">Contenido del envío</p>
+      {labels.length > 0 ? (
+        <>
+          <p>Cambios indicados por este envío:</p>
+          <ul aria-label="Contenido del envío" className="list-disc pl-4">
+            {labels.map(label => (
+              <li key={label}>{label}</li>
+            ))}
+          </ul>
+          <p>
+            Este resumen no compara con el servidor. Descarga la copia para revisar los valores.
+          </p>
+        </>
+      ) : (
+        <p>No hay detalle por campo de este envío. Descarga la copia para revisar su contenido.</p>
+      )}
+    </div>
+  );
+};
 
 const saveBackup = (content: string | null, id: number) => {
   if (!content) throw new Error('El envío o la sesión cambió.');
@@ -63,6 +109,7 @@ const Review: React.FC<{
       {review && (
         <>
           <p className="font-semibold">{targetLabelFromKey(review.task.key, review.task.type)}</p>
+          <DeclaredScope task={review.task} />
           <p>
             Este envío no se enviará. Lo guardado en el servidor no cambia. Se conservará una copia
             local descargable.
