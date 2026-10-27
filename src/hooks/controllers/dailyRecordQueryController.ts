@@ -1,6 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/config/queryClient';
 import type { DailyRecord, DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
+import { hasSamePatientEpisodeIdentity } from '@/application/patient-flow/patientEpisodeIdentityPolicy';
 import { applyPatches } from '@/utils/patchUtils';
 import {
   applyPendingExplicitCensusPatch,
@@ -356,6 +357,30 @@ export const prefetchPreviousDailyRecord = (
     ),
     staleTime: 5 * 60 * 1000,
   });
+
+/** Publishes a server read after a rejected command without acknowledging pending writes. */
+export const setAuthoritativeDailyRecordRead = (
+  queryClient: QueryClient,
+  date: string,
+  record: DailyRecord
+) =>
+  queryClient.setQueryData<DailyRecordQueryResult>(getDailyRecordQueryKey(date), previous =>
+    createQueryResultFromRecord(
+      date,
+      applyPendingExplicitCensusPatch(
+        date,
+        record,
+        previous?.record ?? undefined,
+        hasSamePatientEpisodeIdentity
+      ),
+      {
+        ...createDefaultRuntime(date, record),
+        consistencyState: 'remote_authoritative',
+        sourceOfTruth: 'remote',
+        observabilityTags: ['daily_record', 'read', 'remote_confirmed'],
+      }
+    )
+  );
 
 export const setDailyRecordQueryData = (
   queryClient: QueryClient,
