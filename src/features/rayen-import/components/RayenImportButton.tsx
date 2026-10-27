@@ -14,7 +14,8 @@ import { RayenNursingShiftProposalModal } from './RayenNursingShiftProposalModal
 import { RayenConnectionMonitor } from './RayenConnectionMonitor';
 import { useSyncQueueMonitor } from '@/hooks/useSyncQueueMonitor';
 import { hasLocalSyncAttention } from './localSyncPresentation';
-import { RayenSyncQueueDetails, RayenSyncStatusLine } from './RayenSyncQueueDetails';
+import { RayenSyncStatusLine } from './RayenSyncStatusLine';
+import { lazyWithRetry } from '@/utils/lazyWithRetry';
 import { rayenPrimaryActionLabel } from './rayenSyncPresentation';
 import { presentRayenSyncRecovery } from './rayenSyncRecoveryPresentation';
 import { formatLastSync } from './formatRayenLastSync';
@@ -28,6 +29,10 @@ import { buildRayenSyncBarViewModel } from './rayenSyncBarViewModel';
 
 // The sync history is an on-demand panel that only matters while Eloísa is connected, so its
 // sections and technical metrics stay out of the census view and the PWA precache.
+const RayenSyncQueueDetails = lazyWithRetry(() =>
+  import('./RayenSyncQueueDetails').then(module => ({ default: module.RayenSyncQueueDetails }))
+);
+
 const LazyRayenSyncHistoryModal = lazy(() =>
   import('./RayenSyncHistoryModal').then(module => ({ default: module.RayenSyncHistoryModal }))
 );
@@ -273,12 +278,14 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
           extension={extension}
           working={working}
           syncQueueDetail={
-            <RayenSyncQueueDetails
-              stats={queue.stats}
-              operations={queue.operations}
-              refresh={queue.refresh}
-              working={working}
-            />
+            <React.Suspense fallback={<span>Leyendo guardados locales…</span>}>
+              <RayenSyncQueueDetails
+                stats={queue.stats}
+                operations={queue.operations}
+                refresh={queue.refresh}
+                working={working}
+              />
+            </React.Suspense>
           }
           lastSyncLine={
             <RayenSyncStatusLine

@@ -28,6 +28,7 @@ export interface QuarantinedOperationView {
   categoryLabel: string;
   code?: string;
   detail?: string;
+  canRetire: boolean;
   recovery: 'retry' | 'review_base' | 'discard_note' | 'discard_detached';
 }
 
@@ -93,5 +94,8 @@ export const listQuarantinedOperations = (
               ? 'Autorización anterior'
               : (CATEGORY_LABELS[operation.lastErrorCategory ?? 'unknown'] ?? 'Error desconocido'),
         recovery,
+        canRetire:
+          operation.type === 'UPDATE_DAILY_RECORD' &&
+          /^daily:\d{4}-\d{2}-\d{2}$/.test(operation.key ?? ''),
       };
     });

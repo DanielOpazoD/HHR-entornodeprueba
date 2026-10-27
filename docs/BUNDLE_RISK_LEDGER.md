@@ -313,3 +313,24 @@ existentes; ninguno queda desactivado. Reversión: si se retira la corrección,
 revertir con ella estos 8 KiB y las dos aserciones. Para mantener las protecciones
 bajo el límite anterior debe demostrarse primero una reducción equivalente, sin
 retirar capacidades clínicas offline.
+
+## Revisión manual de envíos bloqueados (27 octubre 2026)
+
+El retiro confirmado conserva la fila como respaldo local `RETIRED`; la persistencia,
+las comprobaciones de sesión y el procesamiento de la cola siguen en sus caminos
+existentes. La nueva interfaz de revisión y descarga se abre desde el panel Eloísa.
+
+La primera compilación añadió un chunk de 6.067 bytes y excedió la precarga en unos
+6,5 KiB; el panel Rayen también cruzó su límite de chunk. Se separan
+`RayenSyncQueueDetails` y `DailyRecordTaskRecovery` como herramientas bajo demanda
+del panel `RayenImportButton`, ya excluido de la precarga. Las exclusiones de Workbox
+y de contabilidad enumeran exactamente esos dos chunks. Ningún límite aumenta.
+El guard del grafo conserva la protección de las dependencias del arranque clínico.
+
+Límite: abrir estas herramientas por primera vez requiere descargar sus módulos.
+Si la carga falla, el cargador existente contiene el error y conserva el censo y
+los envíos; no retira nada ni recarga automáticamente. Tras cargar, el retiro y
+la descarga del respaldo operan contra IndexedDB sin escribir en el servidor.
+La captura clínica, el guardado local y el worker no dependen de estas herramientas.
+Reversión: revertir el cambio del panel y sus dos exclusiones; preservar cualquier
+fila ya retirada, que nunca constituye un ACK remoto.

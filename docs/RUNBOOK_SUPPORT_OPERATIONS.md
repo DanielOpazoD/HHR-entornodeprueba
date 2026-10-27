@@ -120,12 +120,11 @@ Criterio de cierre:
 
 ## Caso D: Cola atascada (`pending` crece)
 
-1. Confirmar conectividad real (`ONLINE` + red estable).
-2. Esperar un ciclo de backoff.
-3. Forzar recarga de sesión.
-4. Si persiste:
-   - exportar evidencia de consola.
-   - revisar tipo de error dominante.
+1. Abrir **Eloísa → Guardado local** y revisar fecha y motivo del bloqueo. «Sin permisos» no significa falta de conexión; reenviar sin resolver el permiso puede volver a fallar.
+2. Para un envío transitorio, comprobar la conexión y esperar un ciclo de backoff. Una escritura sin versión de origen exige revisión; no se reintenta sin cambios.
+3. Si el censo compartido ya está correcto y ese envío no hace falta, elegir **Descartar envío**, revisar o descargar su copia y confirmar que esos cambios no se necesitan. Cancelar conserva el pendiente.
+4. El envío retirado deja el contador y no se reintenta. En **Envíos descartados → Descargar respaldo** queda su contenido original, base y motivo del rechazo. El respaldo puede contener datos clínicos: mantenerlo en un destino autorizado. No es una confirmación del servidor ni se reenvía automáticamente.
+5. Si el envío cambió en otra pestaña o no se pudo persistir el retiro, permanece pendiente: volver a revisar. No borrar IndexedDB ni cerrar sesión para ocultar el indicador.
 
 Criterio de cierre:
 

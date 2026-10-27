@@ -294,6 +294,10 @@ export default defineConfig(({ mode }) => {
             // The Rayen import workflow requires a live Eloisa session, so it is an
             // online-only surface rather than PWA install payload.
             '**/assets/RayenImportButton-*.js',
+            // Optional send review and backup tools belong to that same on-demand panel.
+            // They never participate in clinical capture, persistence or queue processing.
+            '**/assets/RayenSyncQueueDetails-*.js',
+            '**/assets/DailyRecordTaskRecovery-*.js',
             // The patient repository requires a live Eloisa/extension session and is opened
             // explicitly from the clinical drawer, so it remains an online-only lazy surface.
             '**/assets/PatientDocumentManagerDialog-*.js',

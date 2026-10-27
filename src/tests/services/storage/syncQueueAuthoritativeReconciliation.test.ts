@@ -111,6 +111,21 @@ describe('authoritative reconciliation of quarantined daily writes', () => {
     expect(await hospitalDB.dailyRecords.get(DATE)).toEqual(local);
   });
 
+  it('adopts the confirmed record after an explicitly reviewed withdrawal while preserving its backup', async () => {
+    const { remote, task } = await setup('RETIRED');
+    const retirement: SyncTask['retirement'] = {
+      reason: 'manual_discard',
+      retiredAt: new Date().toISOString(),
+      previousStatus: 'FAILED',
+    };
+    await hospitalDB.syncQueue.update(task.id!, { retirement });
+    await expect(
+      adoptAuthoritativeRecord(remote, { nursesDayShift: remote.nursesDayShift })
+    ).resolves.toMatchObject({ lastUpdated: REMOTE_REVISION });
+    expect(await hospitalDB.syncQueue.toArray()).toEqual([{ ...task, retirement }]);
+    expect((await hospitalDB.dailyRecords.get(DATE))?.lastUpdated).toBe(REMOTE_REVISION);
+  });
+
   it('preserves a newer local revision while reconciling an older failed payload', async () => {
     const { local, remote, task } = await setup('FAILED');
     const newer = { ...local, lastUpdated: `${DATE}T12:00:02.000Z` };

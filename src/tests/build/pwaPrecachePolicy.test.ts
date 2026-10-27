@@ -16,6 +16,20 @@ const readBundleBudgetConfig = (): BundleBudgetConfig =>
   ) as BundleBudgetConfig;
 
 describe('PWA precache policy', () => {
+  it('loads optional send review tools with the Eloisa panel while retaining offline persistence', () => {
+    const viteConfig = readViteConfig();
+    const patterns = readBundleBudgetConfig().precacheIgnoredAssetPatterns.map(
+      pattern => new RegExp(pattern)
+    );
+    for (const tool of ['RayenSyncQueueDetails', 'DailyRecordTaskRecovery']) {
+      expect(viteConfig).toContain(`**/assets/${tool}-*.js`);
+      expect(patterns.some(pattern => pattern.test(`assets/${tool}-fixture.js`))).toBe(true);
+    }
+    for (const core of ['dexieDailyRecordOutbox', 'syncQueueEngine', 'app-authenticated-shell']) {
+      expect(patterns.some(pattern => pattern.test(`assets/${core}-fixture.js`))).toBe(false);
+    }
+  });
+
   it('defers official Eloisa hospitalization reports while retaining offline census work', () => {
     const viteConfig = readViteConfig();
     const patterns = readBundleBudgetConfig().precacheIgnoredAssetPatterns.map(

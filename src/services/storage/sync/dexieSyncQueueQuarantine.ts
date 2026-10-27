@@ -32,7 +32,11 @@ export const REUSABLE_TASK_STATES = new Set<SyncTask['status']>(['PENDING', 'FAI
 
 // Keys are namespaced by type; completed writes leave the queue.
 export const listUnresolvedDailyRecordTasks = async (date: string): Promise<SyncTask[]> =>
-  hospitalDB.syncQueue.where('key').equals(`daily:${date}`).toArray();
+  hospitalDB.syncQueue
+    .where('key')
+    .equals(`daily:${date}`)
+    .filter(task => task.status !== 'RETIRED' || task.retirement?.reason !== 'manual_discard')
+    .toArray();
 
 export const findReusableSyncTask = async (
   type: SyncTask['type'],

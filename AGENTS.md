@@ -32,12 +32,12 @@ lea este archivo.
 
 ### Guardado y sincronización
 
-| Regla                                                                                                                                                          | Qué la impone                                                                        |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| Ninguna reparación, cierre de sesión o reinicio borra la cola de sincronización, los parches pendientes ni el outbox sin una confirmación explícita (SAVE-03). | Pruebas de arranque y de cola; **[docs]** para rutas nuevas                          |
-| Nunca purgar una cola por antigüedad ni por número de fallos.                                                                                                  | **[docs]**                                                                           |
-| Una lectura fallida no es «sin datos». Una escritura fallida no es «guardado» (SAVE-01).                                                                       | `npm run check:empty-on-failure-reads` en la capa de datos; **[docs]** fuera de ella |
-| Los documentos `clinicalDerived` de la fase 1a los escribe solo el servidor. No cambiar `HHR_CLINICAL_DERIVED_SPLIT_FROM` sin el responsable.                  | `firestore.rules`; **[docs]**                                                        |
+| Regla                                                                                                                                                                                                                                    | Qué la impone                                                                        |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Ninguna reparación, cierre de sesión o reinicio borra la cola, los parches pendientes ni el outbox sin confirmación explícita. Descartar un censo bloqueado conserva un respaldo descargable y no cuenta como guardado remoto (SAVE-03). | Pruebas de arranque y de cola; **[docs]** para rutas nuevas                          |
+| Nunca purgar una cola por antigüedad ni por número de fallos.                                                                                                                                                                            | **[docs]**                                                                           |
+| Una lectura fallida no es «sin datos». Una escritura fallida no es «guardado» (SAVE-01).                                                                                                                                                 | `npm run check:empty-on-failure-reads` en la capa de datos; **[docs]** fuera de ella |
+| Los documentos `clinicalDerived` de la fase 1a los escribe solo el servidor. No cambiar `HHR_CLINICAL_DERIVED_SPLIT_FROM` sin el responsable.                                                                                            | `firestore.rules`; **[docs]**                                                        |
 
 ### Pruebas y datos reales
 

@@ -75,12 +75,14 @@ describe('localSyncPresentation', () => {
         targetLabel: 'Censo del 01-09-2026',
         categoryLabel: 'Sin permisos',
         recovery: 'retry',
+        canRetire: true,
       },
       {
         id: 8,
         targetLabel: 'Censo del 02-09-2026',
         categoryLabel: 'Conflicto de versiones',
         recovery: 'retry',
+        canRetire: true,
       },
     ]);
   });
