@@ -100,3 +100,44 @@ it('offers a confirmed retirement for a census blocked by permissions', async ()
   fireEvent.click(screen.getByText('Guardado local · 1 por enviar'));
   expect(await screen.findByRole('button', { name: 'Descartar envío' })).toBeVisible();
 });
+
+it.each([
+  ['permission-denied', 'Sin permisos', 'El servidor rechazó este envío por permisos.'],
+  [
+    'functions/unauthenticated',
+    'Sesión no validada',
+    'El servidor no pudo validar la sesión de este envío.',
+  ],
+])(
+  'requires review before manually retrying %s, while retaining discard',
+  async (code, category, guidance) => {
+    render(
+      <RayenSyncQueueDetails
+        stats={{ pending: 0, failed: 1, conflict: 0, retrying: 0, acked: 0, oldestPendingAgeMs: 0 }}
+        operations={[
+          {
+            id: 61,
+            type: 'UPDATE_DAILY_RECORD',
+            status: 'FAILED',
+            retryCount: 0,
+            timestamp: 1,
+            key: 'daily:2026-10-22',
+            lastErrorCategory: 'authorization',
+            lastErrorCode: code,
+          },
+        ]}
+        working={false}
+        refresh={vi.fn().mockResolvedValue(undefined)}
+      />
+    );
+    fireEvent.click(screen.getByText('Guardado local · 1 por enviar'));
+    expect(screen.getByText(category)).toBeVisible();
+    expect(screen.getByText(guidance, { exact: false })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Descartar envío' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Reintentar' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('Revisar reintento'));
+    expect(retryQuarantinedSyncTask).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Ya revisé, reintentar' }));
+    expect(retryQuarantinedSyncTask).toHaveBeenCalledExactlyOnceWith(61);
+  }
+);

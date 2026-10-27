@@ -22,15 +22,20 @@ const CATEGORY_LABELS: Record<string, string> = {
   unknown: 'Error desconocido',
 };
 
-export interface QuarantinedOperationView {
+interface QuarantinedOperationTarget {
   id: number;
   targetLabel: string;
   categoryLabel: string;
   code?: string;
   detail?: string;
   canRetire: boolean;
-  recovery: 'retry' | 'review_base' | 'discard_note' | 'discard_detached';
 }
+
+export type QuarantinedOperationView = QuarantinedOperationTarget &
+  (
+    | { recovery: 'review_authorization'; retryGuidance: string }
+    | { recovery: 'retry' | 'review_base' | 'discard_note' | 'discard_detached' }
+  );
 
 export const targetLabelFromKey = (
   key: string | undefined,
@@ -69,6 +74,8 @@ const resolveQuarantineRecovery = (
   operation: SyncQueueOperation
 ): QuarantinedOperationView['recovery'] => {
   if (requiresDailyRecordBaseReview(operation)) return 'review_base';
+  if (operation.status === 'FAILED' && operation.lastErrorCategory === 'authorization')
+    return 'review_authorization';
   if (operation.status !== 'CONFLICT') return 'retry';
   if (operation.type === 'UPDATE_SPECIALIST_HANDOFF') return 'discard_note';
   return operation.key?.includes(':detached:') ? 'discard_detached' : 'retry';
@@ -82,7 +89,7 @@ export const listQuarantinedOperations = (
     .filter(operation => typeof operation.id === 'number')
     .map(operation => {
       const recovery = resolveQuarantineRecovery(operation);
-      return {
+      const target = {
         id: operation.id as number,
         code: operation.lastErrorCode,
         detail: operation.error,
@@ -93,9 +100,20 @@ export const listQuarantinedOperations = (
             : isPolicyBlockedCudyrArchive(operation)
               ? 'Autorización anterior'
               : (CATEGORY_LABELS[operation.lastErrorCategory ?? 'unknown'] ?? 'Error desconocido'),
-        recovery,
         canRetire:
           operation.type === 'UPDATE_DAILY_RECORD' &&
           /^daily:\d{4}-\d{2}-\d{2}$/.test(operation.key ?? ''),
       };
+      if (recovery === 'review_authorization') {
+        const sessionNotValidated = /(?:^|\/)unauthenticated$/.test(operation.lastErrorCode ?? '');
+        return {
+          ...target,
+          recovery,
+          categoryLabel: sessionNotValidated ? 'Sesión no validada' : 'Sin permisos',
+          retryGuidance: sessionNotValidated
+            ? 'El servidor no pudo validar la sesión de este envío. Comprueba tu sesión antes de reenviarlo.'
+            : 'El servidor rechazó este envío por permisos. Revisa el acceso de tu cuenta antes de reenviarlo.',
+        };
+      }
+      return { ...target, recovery };
     });

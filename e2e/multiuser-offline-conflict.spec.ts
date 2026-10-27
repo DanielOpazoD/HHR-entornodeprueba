@@ -114,6 +114,10 @@ test('withdraws an unnecessary permission-blocked send with a downloadable backu
   const details = page.getByTestId('rayen-local-sync-details');
   await details.locator('summary').first().click();
   await expect(details.getByText('Sin permisos')).toBeVisible();
+  await expect(details.getByText(/El servidor rechazó este envío por permisos/)).toBeVisible();
+  await details.getByText('Revisar reintento', { exact: true }).click();
+  expect(await readSyncTask(page, id)).toEqual({ ...task, id });
+  await details.getByText('Revisar reintento', { exact: true }).click();
   await details.getByRole('button', { name: 'Descartar envío', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Descartar envío del censo' });
   await expect(dialog.getByText('Censo del 22-10-2026')).toBeVisible();

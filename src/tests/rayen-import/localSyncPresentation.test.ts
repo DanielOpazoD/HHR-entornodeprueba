@@ -74,7 +74,9 @@ describe('localSyncPresentation', () => {
         id: 7,
         targetLabel: 'Censo del 01-09-2026',
         categoryLabel: 'Sin permisos',
-        recovery: 'retry',
+        recovery: 'review_authorization',
+        retryGuidance:
+          'El servidor rechazó este envío por permisos. Revisa el acceso de tu cuenta antes de reenviarlo.',
         canRetire: true,
       },
       {

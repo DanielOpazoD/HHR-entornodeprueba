@@ -70,7 +70,7 @@ export const RayenSyncQueueDetails: React.FC<{
               ))}
             {blocked.map(operation => (
               <li key={operation.id} className="flex items-center justify-between gap-2">
-                <span>
+                <span className="min-w-0 flex-1">
                   {operation.targetLabel}
                   <span className="block text-[10px] text-slate-500">
                     {operation.categoryLabel}
@@ -79,6 +79,11 @@ export const RayenSyncQueueDetails: React.FC<{
                     <span className="block text-[10px] text-amber-700">
                       Los cambios siguen guardados en este equipo. Solicita su revisión antes de
                       reenviarlos.
+                    </span>
+                  )}
+                  {operation.recovery === 'review_authorization' && (
+                    <span className="block text-[10px] text-amber-700">
+                      {operation.retryGuidance}
                     </span>
                   )}
                   {(operation.code || operation.detail) && (
@@ -101,7 +106,23 @@ export const RayenSyncQueueDetails: React.FC<{
                       Descartar envío
                     </button>
                   )}
-                  {operation.recovery === 'review_base' ? null : operation.recovery === 'retry' ? (
+                  {operation.recovery === 'review_base' ? null : operation.recovery ===
+                    'review_authorization' ? (
+                    <details className="max-w-32 text-right">
+                      <summary className="cursor-pointer text-teal-700">Revisar reintento</summary>
+                      <span className="block text-[10px] text-slate-500">
+                        Reintenta solo si resolviste el bloqueo.
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => void run(operation.id, retryQuarantinedSyncTask)}
+                        disabled={working || busy}
+                        className="text-teal-700 disabled:opacity-50"
+                      >
+                        Ya revisé, reintentar
+                      </button>
+                    </details>
+                  ) : operation.recovery === 'retry' ? (
                     <button
                       type="button"
                       onClick={() => void run(operation.id, retryQuarantinedSyncTask)}
