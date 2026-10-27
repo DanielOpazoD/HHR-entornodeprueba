@@ -35,7 +35,7 @@ export const listUnresolvedDailyRecordTasks = async (date: string): Promise<Sync
   hospitalDB.syncQueue
     .where('key')
     .equals(`daily:${date}`)
-    .filter(task => task.status !== 'RETIRED')
+    .filter(task => task.status !== 'RETIRED' || task.retirement?.reason !== 'manual_discard')
     .toArray();
 
 export const findReusableSyncTask = async (

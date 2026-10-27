@@ -83,7 +83,7 @@ describe('RayenImportButton feedback', () => {
     });
   });
 
-  it('consolidates old CUDYR archive failures in the Eloísa panel without a floating queue chip', () => {
+  it('consolidates old CUDYR archive failures in the Eloísa panel without a floating queue chip', async () => {
     mocks.useSyncQueueMonitor.mockReturnValue({
       stats: { pending: 0, failed: 17, conflict: 0, retrying: 0, oldestPendingAgeMs: 0 },
       operations: Array.from({ length: 12 }, (_, i) => ({
@@ -101,13 +101,13 @@ describe('RayenImportButton feedback', () => {
     render(<RayenImportButton />);
     expect(screen.queryByTestId('sync-queue-status-chip')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Guardado pendiente · Ver detalle' }));
-    expect(screen.getByText('Guardado local · 17 por enviar')).toBeInTheDocument();
+    expect(await screen.findByText('Guardado local · 17 por enviar')).toBeInTheDocument();
     expect(screen.getAllByText(/CUDYR · autorización anterior/)).toHaveLength(1);
     expect(screen.queryByText('Registro del censo')).not.toBeInTheDocument();
     expect(mocks.triggerImport).not.toHaveBeenCalled();
   });
 
-  it('keeps active retries visible in the usual panel without triggering a sync', () => {
+  it('keeps active retries visible in the usual panel without triggering a sync', async () => {
     mocks.useSyncQueueMonitor.mockReturnValue({
       stats: { pending: 0, failed: 0, conflict: 0, retrying: 2, oldestPendingAgeMs: 0 },
       operations: [],
@@ -115,7 +115,7 @@ describe('RayenImportButton feedback', () => {
     });
     render(<RayenImportButton />);
     fireEvent.click(screen.getByRole('button', { name: 'Guardado pendiente · Ver detalle' }));
-    expect(screen.getByText('Guardado local · 2 por enviar')).toBeInTheDocument();
+    expect(await screen.findByText('Guardado local · 2 por enviar')).toBeInTheDocument();
     expect(screen.getByText('2 reintentando.')).toBeInTheDocument();
     expect(mocks.triggerImport).not.toHaveBeenCalled();
   });
