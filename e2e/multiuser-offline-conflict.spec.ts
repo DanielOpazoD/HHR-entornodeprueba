@@ -58,40 +58,70 @@ const readSyncTask = (page: Page, id: number) =>
     }
   }, id);
 
-test('keeps a write without its original version available for review after reload', async ({
-  page,
-}) => {
-  await openSeededCensus(page);
-  const task: SyncTask = {
-    opId: 'synthetic-baseless-review',
-    type: 'UPDATE_DAILY_RECORD',
-    key: `daily:${MULTIUSER_DATE}`,
-    timestamp: Date.now(),
-    retryCount: 0,
+for (const rejection of [
+  {
+    label: 'no original version',
     status: 'FAILED',
-    lastErrorCode: 'functions/failed-precondition',
-    lastErrorCategory: 'validation',
+    code: 'functions/failed-precondition',
+    category: 'validation',
+    version: '',
+    paths: ['beds.R1.pathology'],
     error:
       '[validation/functions/failed-precondition] base_required: An existing daily record requires a verifiable base version.',
-    syncContract: { expectedVersion: '', changedPaths: ['beds.R1.pathology'] },
-    payload: { date: MULTIUSER_DATE, beds: { R1: { pathology: 'PENDIENTE SINTETICO' } } },
-  };
-  const id = await insertSyncTask(page, task);
+  },
+  {
+    label: 'a changed full-record base',
+    status: 'CONFLICT',
+    code: 'sync_daily_record_base_review',
+    category: 'conflict',
+    version: `${MULTIUSER_DATE}T08:00:00.000Z`,
+    paths: ['*'],
+    error:
+      '[conflict/sync_daily_record_base_review] El censo cambió o su base no es verificable. Conservamos los cambios para revisión.',
+  },
+] satisfies Array<{
+  label: string;
+  status: SyncTask['status'];
+  code: string;
+  category: NonNullable<SyncTask['lastErrorCategory']>;
+  version: string;
+  paths: string[];
+  error: string;
+}>) {
+  test(`keeps a write with ${rejection.label} available for review after reload`, async ({
+    page,
+  }) => {
+    await openSeededCensus(page);
+    const task: SyncTask = {
+      opId: 'synthetic-baseless-review',
+      type: 'UPDATE_DAILY_RECORD',
+      key: `daily:${MULTIUSER_DATE}`,
+      timestamp: Date.now(),
+      retryCount: 0,
+      status: rejection.status,
+      lastErrorCode: rejection.code,
+      lastErrorCategory: rejection.category,
+      error: rejection.error,
+      syncContract: { expectedVersion: rejection.version, changedPaths: rejection.paths },
+      payload: { date: MULTIUSER_DATE, beds: { R1: { pathology: 'PENDIENTE SINTETICO' } } },
+    };
+    const id = await insertSyncTask(page, task);
 
-  await page.reload({ waitUntil: 'domcontentloaded' });
-  await expect(page.getByTestId('census-table')).toBeVisible();
-  await page.getByRole('button', { name: 'Guardado pendiente · Ver detalle' }).click();
-  const details = page.getByTestId('rayen-local-sync-details');
-  await details.locator('summary').first().click();
-  await expect(details.getByText('Requiere revisión de la versión de origen')).toBeVisible();
-  await expect(details.getByText(/Los cambios siguen guardados en este equipo/)).toBeVisible();
-  await expect(details.getByRole('button', { name: 'Reintentar', exact: true })).toHaveCount(0);
-  await expect(details.getByRole('button', { name: 'Descartar', exact: true })).toHaveCount(0);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.getByTestId('census-table')).toBeVisible();
+    await page.getByRole('button', { name: 'Guardado pendiente · Ver detalle' }).click();
+    const details = page.getByTestId('rayen-local-sync-details');
+    await details.locator('summary').first().click();
+    await expect(details.getByText('Requiere revisión de la versión de origen')).toBeVisible();
+    await expect(details.getByText(/Los cambios siguen guardados en este equipo/)).toBeVisible();
+    await expect(details.getByRole('button', { name: 'Reintentar', exact: true })).toHaveCount(0);
+    await expect(details.getByRole('button', { name: 'Descartar', exact: true })).toHaveCount(0);
 
-  // Read the durable row, rather than inferring persistence from the visible diagnosis.
-  const stored = await readSyncTask(page, id);
-  expect(stored).toEqual({ ...task, id });
-});
+    // Read the durable row, rather than inferring persistence from the visible diagnosis.
+    const stored = await readSyncTask(page, id);
+    expect(stored).toEqual({ ...task, id });
+  });
+}
 
 test('withdraws an unnecessary permission-blocked send with a downloadable backup that survives reload', async ({
   page,
