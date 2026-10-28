@@ -6,15 +6,21 @@ import {
 } from '@/services/repositories/conflictResolutionUtils';
 import type { PatientData } from '@/types/domain/patient';
 import { hasSameBedOccupant } from '@/services/storage/sync/bedOccupantIdentity';
-import { hasSameNoteValue } from '@/services/storage/sync/dayTaskReplayGuard';
+import { hasSameNoteValue, NOTE_FIELDS } from '@/services/storage/sync/dayTaskReplayGuard';
 import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 
-const NOTE_FIELDS = [
-  'medicalHandoffEntries',
-  'medicalHandoffNote',
-  'medicalHandoffAudit',
-  'clinicalEvents',
-] as const;
+export const staleDailyRecordError = (
+  detail: string,
+  reason?: ConstructorParameters<typeof ConcurrencyError>[1]
+): ConcurrencyError =>
+  new ConcurrencyError(`${detail}. Recargue y revise el censo antes de guardar.`, reason);
+
+export const localProjectionIds = (task?: SyncTask): Set<string> =>
+  new Set(
+    [...(task?.localProjectionBaseIds ?? []), task?.syncContract?.mutationId].filter(
+      (id): id is string => Boolean(id)
+    )
+  );
 const patientsInRecord = (record?: DailyRecord): PatientData[] =>
   Object.values(record?.beds ?? {}).flatMap(bed => [
     bed,
@@ -56,9 +62,7 @@ export const assertFullSaveNoteBase = (
       bases.length !== 1 ||
       NOTE_FIELDS.some(field => !hasSameNoteBase(bases[0][field], patient[field]))
     )
-      throw new ConcurrencyError(
-        'La entrega del paciente cambió. Recargue y revísela antes de retirarlo del censo.'
-      );
+      throw staleDailyRecordError('La entrega del paciente cambió');
   }
   for (const patient of incomingPatients) {
     if (!patient || ![patient.clinicalEpisodeId, patient.rut, patient.patientName].some(Boolean))
@@ -68,9 +72,7 @@ export const assertFullSaveNoteBase = (
     if (!matches.length) {
       const carriesNote = NOTE_FIELDS.some(field => !isEmptyNoteValue(patient[field]));
       if (carriesNote && (!base || bases.length > 0))
-        throw new ConcurrencyError(
-          'La nota corresponde a una copia anterior del paciente. Recargue y revise la entrega antes de guardar.'
-        );
+        throw staleDailyRecordError('La nota pertenece a otra copia del paciente');
       continue;
     }
     for (const field of NOTE_FIELDS) {
@@ -80,9 +82,7 @@ export const assertFullSaveNoteBase = (
         bases.length !== 1 ||
         !hasSameNoteBase(bases[0][field], matches[0][field])
       )
-        throw new ConcurrencyError(
-          'No se pudo comprobar que esta nota siga vigente. Recargue y revise la entrega médica antes de guardar.'
-        );
+        throw staleDailyRecordError('Esta nota cambió desde su lectura');
     }
   }
 };
@@ -108,9 +108,7 @@ export const assertSameOccupantAtPath = (
   ) {
     return;
   }
-  throw new ConcurrencyError(
-    'La cama o la cuna cambió de paciente en otra pestaña. Recargue el censo antes de continuar.'
-  );
+  throw staleDailyRecordError('La cama o cuna cambió de paciente');
 };
 
 /** A full snapshot may replace pending values only when its writer actually read them. */
@@ -124,16 +122,11 @@ export const assertPendingFullSaveBase = ({
   base?: DailyRecord;
 }): void => {
   const reject = (): never => {
-    throw new ConcurrencyError(
-      'El censo cambió. Recargue y revise los cambios pendientes.',
-      'semantic_conflict'
-    );
+    throw staleDailyRecordError('Hay cambios pendientes sin revisar', 'semantic_conflict');
   };
   const writes = pending.map(task => ({
     task,
-    ids: new Set(
-      [task.syncContract?.mutationId, ...(task.localProjectionBaseIds ?? [])].filter(Boolean)
-    ),
+    ids: localProjectionIds(task),
   }));
   const incorporates = (next: (typeof writes)[number], previous: (typeof writes)[number]) =>
     previous.ids.size > 0 &&

@@ -28,7 +28,7 @@ const pathsOverlap = (left: string, right: string): boolean =>
   left === right || left.startsWith(`${right}.`) || right.startsWith(`${left}.`);
 
 /** Fields a specialist note writes on a patient; its own task publishes them. */
-const NOTE_FIELDS = [
+export const NOTE_FIELDS = [
   'medicalHandoffEntries',
   'medicalHandoffNote',
   'medicalHandoffAudit',

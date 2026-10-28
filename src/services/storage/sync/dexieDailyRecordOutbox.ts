@@ -3,6 +3,8 @@ import {
   assertPendingFullSaveBase,
   assertSameOccupantAtPath,
   hasSamePatchBaseValue,
+  localProjectionIds,
+  staleDailyRecordError,
 } from '@/services/storage/sync/fullSaveNoteBaseGuard';
 import type { DailyRecord, DailyRecordPatch } from '@/services/storage/storageDailyRecordContracts';
 import type { RayenSyncEvent } from '@/types/domain/rayenSync';
@@ -90,9 +92,7 @@ const mergeJournalValue = (
       if (hasSameComparableValue(event, previous)) return false;
       const stored = currentById.get(event.id);
       if (!hasSameComparableValue(stored, previous) && !hasSameComparableValue(stored, event)) {
-        throw new ConcurrencyError(
-          'Otra pestaña cambió la misma corrida Rayen. Recargue el censo antes de continuar.'
-        );
+        throw staleDailyRecordError('Otra pestaña cambió esta corrida Rayen');
       }
       return true;
     });
@@ -167,9 +167,7 @@ const buildPatchRebase =
       }
       const merged = mergeJournalValue(path, value, projected, getValueAtPath(storedBase, path));
       if (!merged) {
-        throw new ConcurrencyError(
-          'Otra pestaña cambió el mismo dato del censo. Recargue el censo antes de continuar.'
-        );
+        throw staleDailyRecordError('Otra pestaña cambió este dato');
       }
       rebasedPatch[path] = merged;
     });
@@ -220,13 +218,7 @@ const foldWriteIntoOutbox = ({
   return {
     ...task,
     payload,
-    localProjectionBaseIds: Array.from(
-      new Set(
-        [...(owner?.localProjectionBaseIds ?? []), owner?.syncContract?.mutationId].filter(
-          (id): id is string => Boolean(id)
-        )
-      )
-    ),
+    localProjectionBaseIds: [...localProjectionIds(owner)],
     syncContract: {
       ...buildDailyRecordSyncContract(payload, merged),
       // A local edit is not a publication. Compaction keeps the unresolved remote base,
