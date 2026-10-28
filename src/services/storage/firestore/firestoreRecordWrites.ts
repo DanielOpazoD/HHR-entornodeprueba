@@ -417,15 +417,22 @@ export const updateRecordPartial = async (
             buildAuthorityPatchSyncContract(options.syncContract, authorityPatch)
           );
         }
-        if (options.requireAtomicCas) {
+        const isStaffingPatch = Object.keys(sanitizedPatch).some(path =>
+          /^(nurses|nurseName|nursesDayShift|nursesNightShift|tensDayShift|tensNightShift|staffingDetailsV1)(\.|$)/.test(
+            path
+          )
+        );
+        if (options.requireAtomicCas || isStaffingPatch) {
           const committedBase = await withRetry(
             () =>
               updateRecordPartiallyAtomically(
                 docRef,
                 asFirestoreUpdatePayload(sanitizedData),
                 expectedLastUpdated,
-                'El egreso fue modificado por otro usuario. Recarga el censo antes de reclasificarlo.',
-                'movement reclassification',
+                isStaffingPatch
+                  ? 'La dotación cambió en otro equipo. Recarga el censo antes de volver a guardar.'
+                  : 'El egreso fue modificado por otro usuario. Recarga el censo antes de reclasificarlo.',
+                isStaffingPatch ? 'staffing update' : 'movement reclassification',
                 { historyPolicy: options.historyPolicy }
               ),
             {
@@ -434,7 +441,7 @@ export const updateRecordPartial = async (
               shouldRetry: (err: unknown) => !(err instanceof ConcurrencyError),
             }
           );
-          // Plain local-first writes (reclassification) stay receipt-less, because a returned
+          // Plain local-first writes stay receipt-less, because a returned
           // result sends the controller into its confirm-and-adopt path.
           return options.returnCommittedRecord
             ? buildAtomicPartialCommitReceipt(date, committedBase, sanitizedData)

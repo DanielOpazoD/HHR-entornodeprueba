@@ -229,6 +229,26 @@ describe('firestoreRecordWrites', () => {
     );
   });
 
+  it.each([
+    { nursesDayShift: ['SYNTHETIC NURSE'], tensDayShift: ['SYNTHETIC TENS'] },
+    { 'staffingDetailsV1.day.nurses': [] },
+    { nurseName: 'SYNTHETIC LEGACY NURSE' },
+  ])('uses an atomic version check for staffing without a caller flag: %j', async patch => {
+    await updateRecordPartial('2026-03-14', patch, '2026-03-14T10:00:00.000Z');
+
+    expect(updateRecordPartiallyAtomically).toHaveBeenCalledWith(
+      { date: '2026-03-14' },
+      expect.objectContaining(patch),
+      '2026-03-14T10:00:00.000Z',
+      expect.stringContaining('dotación'),
+      'staffing update',
+      { historyPolicy: undefined }
+    );
+    expect(assertFirestoreConcurrency).not.toHaveBeenCalled();
+    expect(updateDoc).not.toHaveBeenCalled();
+    expect(saveHistorySnapshot).not.toHaveBeenCalled();
+  });
+
   it('lets atomic partial updates perform the only authoritative concurrency check', async () => {
     await updateRecordPartial(
       '2026-03-14',
