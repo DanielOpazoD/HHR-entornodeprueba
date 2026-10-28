@@ -1,7 +1,7 @@
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { ImportedCudyr } from '@/types/domain/evaluationScores';
-import type { HistoricalCudyrApplyResult } from '../clinicalFillRunner';
 import type {
+  HistoricalCudyrApplyResult,
   HistoricalCudyrBatchExecutionResult,
   HistoricalCudyrBatchItem,
   HistoricalCudyrBatchItemResult,
