@@ -30,6 +30,44 @@ describe('dailyRecordConfirmedCacheController', () => {
     clearPendingDailyRecordPatchesForTests();
   });
 
+  it('keeps an explicitly retained copy local even when it matches the confirmed record', async () => {
+    const date = '2025-01-08';
+    const queryClient = new QueryClient();
+    const confirmed = DataFactory.createMockDailyRecord(date);
+    await setRemoteConfirmedDailyRecordQueryData(queryClient, date, confirmed);
+
+    await setAcknowledgedDailyRecordQueryData(
+      queryClient,
+      date,
+      structuredClone(confirmed),
+      confirmed,
+      undefined,
+      { retainedProjection: true }
+    );
+
+    expect(queryClient.getQueryData(getDailyRecordQueryKey(date))).toMatchObject({
+      record: confirmed,
+      runtime: {
+        sourceOfTruth: 'local',
+        consistencyState: 'local_only',
+        observabilityTags: ['daily_record', 'write', 'local_projection'],
+      },
+    });
+  });
+
+  it('publishes a save without server confirmation as a local record', async () => {
+    const date = '2025-01-08';
+    const queryClient = new QueryClient();
+    const localRecord = DataFactory.createMockDailyRecord(date);
+
+    await setAcknowledgedDailyRecordQueryData(queryClient, date, localRecord);
+
+    expect(queryClient.getQueryData(getDailyRecordQueryKey(date))).toMatchObject({
+      record: localRecord,
+      runtime: { sourceOfTruth: 'local', consistencyState: 'local_only' },
+    });
+  });
+
   it('does not let a delayed realtime snapshot erase a server-confirmed sync attempt', async () => {
     const date = '2025-01-08';
     const queryClient = new QueryClient();
