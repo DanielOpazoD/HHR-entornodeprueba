@@ -233,6 +233,11 @@ Usar esta tabla cuando soporte vea tareas en `listRecentSyncQueueOperations` o e
 | `FAILED`                              | Error no recuperable automático, usualmente permisos/configuración.          | Ir a Procedimiento 3 y corregir rol/reglas antes de pedir nuevo intento. |
 | `CONFLICT`                            | La mutación local no pudo fusionarse sin riesgo de pérdida.                  | Ir a Procedimiento 4; validar campos afectados antes de resolver.        |
 
+El contador de pendientes incluye `PENDING` y `PROCESSING` hasta su confirmación.
+La antigüedad y los reintentos se conservan durante el envío. El detalle muestra
+`Enviando`; un primer intento reciente mantiene la gracia de diez segundos antes
+del aviso. Los envíos retirados quedan fuera del contador.
+
 Regla de seguridad: nunca borrar tareas `PENDING`/`PROCESSING` desde soporte si no
 hay confirmación explícita de que la mutación ya está reflejada en Firestore y en
 la UI del usuario. Un lease vencido debe reintentarse; no es señal de descarte.
