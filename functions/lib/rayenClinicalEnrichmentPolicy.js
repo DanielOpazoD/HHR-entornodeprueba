@@ -1,5 +1,6 @@
 const crypto = require('node:crypto');
 const functions = require('firebase-functions/v1');
+const { DOCUMENTARY_FIELD_CONTRACT_VERSION } = require('./rayenDocumentaryCudyrPolicy');
 
 const MAX_BATCH_TARGETS = 32;
 const MAX_BATCH_BYTES = 500_000;
@@ -242,7 +243,8 @@ const parseClinicalEnrichmentPayload = data => {
   if (
     data?.fieldContractVersion !== undefined &&
     data.fieldContractVersion !== 1 &&
-    data.fieldContractVersion !== CANONICAL_FIELD_CONTRACT_VERSION
+    data.fieldContractVersion !== CANONICAL_FIELD_CONTRACT_VERSION &&
+    data.fieldContractVersion !== DOCUMENTARY_FIELD_CONTRACT_VERSION
   ) {
     throw new functions.https.HttpsError(
       'invalid-argument',
@@ -250,9 +252,7 @@ const parseClinicalEnrichmentPayload = data => {
     );
   }
   const fieldContractVersion =
-    data?.fieldContractVersion === CANONICAL_FIELD_CONTRACT_VERSION
-      ? CANONICAL_FIELD_CONTRACT_VERSION
-      : 1;
+    data?.fieldContractVersion >= CANONICAL_FIELD_CONTRACT_VERSION ? data.fieldContractVersion : 1;
   if (!authorityDateProvided && fieldContractVersion !== CANONICAL_FIELD_CONTRACT_VERSION) {
     throw new functions.https.HttpsError(
       'invalid-argument',
@@ -505,6 +505,7 @@ const assertAdministrativeCudyrAuthority = (record, payload) => {
       canonicalize(currentCudyr) === canonicalize(requestedScores.cudyr);
     const legacyPatchCannotRemoveCudyr =
       isPlainObject(requestedScores) &&
+      Object.keys(requestedScores).length > 0 &&
       !hasRequestedCudyr &&
       payload.fieldContractVersion < CANONICAL_FIELD_CONTRACT_VERSION;
     if (preservesAdministrativeCudyr || legacyPatchCannotRemoveCudyr) return;
