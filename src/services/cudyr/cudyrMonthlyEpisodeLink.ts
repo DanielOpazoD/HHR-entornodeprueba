@@ -3,7 +3,7 @@ import type { CudyrSupplementReport } from '@/types/domain/cudyrSupplement';
 import { previousCensusIsoDay } from '@/domain/evaluationScales/importedCudyr';
 import { resolveClinicalDayForDateTime } from '@/utils/clinicalDayAdmissionUtils';
 import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
-import { cudyrDocumentKey, cudyrIdentity } from './cudyrSourceIdentity';
+import { cudyrDocumentKey, cudyrIdentity } from '@/domain/cudyr/cudyrSourceIdentity';
 
 const sourceDay = new Intl.DateTimeFormat('en-CA', {
   timeZone: CLINICAL_TIME_ZONE,

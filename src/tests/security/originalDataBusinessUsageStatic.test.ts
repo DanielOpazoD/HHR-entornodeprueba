@@ -31,6 +31,9 @@ const ALLOWED_ORIGINAL_DATA_REFERENCES = [
   // Capture ownership: legacy movements may preserve the episode ID only in their snapshot.
   // This read discovers an archive target; the server revalidates it against the census.
   'src/features/rayen-import/domain/cudyrCapturePlan.ts',
+  // Read-only documentary attribution: preserved movement/crib identities can disprove a
+  // unique episode. They never supply CUDYR values, current occupancy or a write target.
+  'src/domain/evaluationScales/documentaryCudyr.ts',
   // Continuity D-1 reads the preserved pre-discharge identity only to prove that an
   // episode missing from today's census already has an explicit clinical outcome.
   'src/features/rayen-import/domain/previousCensusContinuity.ts',

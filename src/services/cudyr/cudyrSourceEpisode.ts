@@ -2,7 +2,7 @@ import { getNextDay } from '@/utils/clinicalDayUtils';
 import type { CudyrReportRow } from '@/types/domain/cudyrReport';
 import type { CudyrSupplementPatient } from '@/types/domain/cudyrSupplement';
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
-import { cudyrIdentity } from './cudyrSourceIdentity';
+import { cudyrIdentity } from '@/domain/cudyr/cudyrSourceIdentity';
 
 /** Compare instants, not ISO spellings: UTC and an explicit local offset may be identical. */
 export const cudyrSourceAdmissionInstant = (rows: CudyrReportRow[]): number | null => {

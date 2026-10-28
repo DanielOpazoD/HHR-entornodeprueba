@@ -1,5 +1,5 @@
 import type { CudyrReportRow } from '@/types/domain/cudyrReport';
-import { cudyrDocumentKey } from './cudyrSourceIdentity';
+import { cudyrDocumentKey } from '@/domain/cudyr/cudyrSourceIdentity';
 
 const labels = {
   cma_pabellon: 'CMA · Pabellón',

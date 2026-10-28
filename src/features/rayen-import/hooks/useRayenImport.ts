@@ -87,6 +87,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
   );
   const {
     patchClinicalRecord,
+    loadCudyrIdentityContext,
     loadFreshClinicalRecord,
     loadAuthoritativeStructuralRecord,
     loadLocalStructuralRecord,
@@ -195,6 +196,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     tensCatalog: tensList,
     loadDailyRecord: loadAuthoritativeStructuralRecord,
     patchDailyRecord: patchClinicalRecord,
+    loadCudyrIdentityContext,
     applyHistoricalCudyr,
     applyHistoricalCudyrBatch,
     applyHistoricalCudyrEnforcedBatch,

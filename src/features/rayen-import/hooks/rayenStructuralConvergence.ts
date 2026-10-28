@@ -93,7 +93,8 @@ export const collectRecordClinicalEpisodeIds = (record: DailyRecord): string[] =
 
 export const collectSafeClinicalEpisodeIds = (
   record: DailyRecord,
-  conflicts: readonly StructuralConflict[]
+  conflicts: readonly StructuralConflict[],
+  candidateEpisodeIds: readonly string[] = collectRecordClinicalEpisodeIds(record)
 ): string[] => {
   // A conflict without an episode or bed cannot be isolated safely. Keep the whole clinical stage
   // blocked instead of guessing which patients are unaffected.
@@ -111,7 +112,5 @@ export const collectSafeClinicalEpisodeIds = (
       blockedEpisodes.add(patient.clinicalCrib.clinicalEpisodeId);
     }
   }
-  return collectRecordClinicalEpisodeIds(record).filter(
-    episodeId => !blockedEpisodes.has(episodeId)
-  );
+  return candidateEpisodeIds.filter(episodeId => !blockedEpisodes.has(episodeId));
 };

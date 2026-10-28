@@ -11,16 +11,22 @@ import type {
   HistoricalCudyrBatchExecutionResult,
   HistoricalCudyrBatchItem,
   HistoricalCudyrBatchItemResult,
+  DailyCudyrRecoveryResult,
 } from '../contracts/clinicalFillContracts';
 import { buildClinicalFillError } from '../observability/rayenSyncDiagnostics';
 import { readPersistenceFailureEvidence } from '../hooks/clinicalEnrichmentBatchExecutionSupport';
 import type { ClinicalCudyrSource } from './clinicalCudyrPreflight';
 import { clinicalValuesEqual } from './clinicalIncrementalSync';
+import {
+  CUDYR_DOCUMENTARY_SOURCE,
+  hasAcceptedCudyr,
+} from '@/domain/evaluationScales/documentaryCudyr';
 
 interface ClinicalCudyrCoordinatorInput {
   censusDate: string;
   clinicalEpisodeIds: string[];
   source: ClinicalCudyrSource;
+  recovery?: DailyCudyrRecoveryResult;
   applyBatch?: (
     censusDay: string,
     items: HistoricalCudyrBatchItem[]
@@ -60,6 +66,7 @@ export const createClinicalCudyrCoordinator = ({
   censusDate,
   clinicalEpisodeIds,
   source,
+  recovery,
   applyBatch,
   applySingle,
   enqueueWrite,
@@ -70,16 +77,23 @@ export const createClinicalCudyrCoordinator = ({
   onError,
 }: ClinicalCudyrCoordinatorInput) => {
   const priorCensusDay = previousCensusIsoDay(censusDate);
+  const priorValue = (id: string) => {
+    const row = source.map.get(id);
+    return (
+      (source.historyAvailable && row?.source === 'gestion_camas'
+        ? buildImportedCudyr(row, priorCensusDay)
+        : null) ??
+      recovery?.previous.find(item => item.clinicalEpisodeId === id)?.cudyr ??
+      null
+    );
+  };
   const batchResults: Promise<SharedBatchOutcome> | null =
-    applyBatch && source.historyAvailable
+    applyBatch && (source.historyAvailable || recovery?.previous.length)
       ? Promise.resolve()
           .then(() => {
             const items = clinicalEpisodeIds.flatMap<HistoricalCudyrBatchItem>(
               clinicalEpisodeId => {
-                const row = source.map.get(clinicalEpisodeId);
-                // A fallback-only row has no official history and cannot be archived retrospectively.
-                const cudyr =
-                  row?.source === 'gestion_camas' ? buildImportedCudyr(row, priorCensusDay) : null;
+                const cudyr = priorValue(clinicalEpisodeId);
                 return cudyr ? [{ clinicalEpisodeId, cudyr }] : [];
               }
             );
@@ -101,33 +115,27 @@ export const createClinicalCudyrCoordinator = ({
           })
       : null;
 
-  const apply = async (
-    patient: PatientData,
-    clinicalEpisodeId: string,
-    bedId: string
-  ): Promise<{ patient: PatientData; historicalChanged: boolean }> => {
-    const row = source.map.get(clinicalEpisodeId);
-    const currentCudyr = row ? buildImportedCudyr(row, censusDate) : null;
-    const priorCudyr =
-      source.historyAvailable && row?.source === 'gestion_camas'
-        ? buildImportedCudyr(row, priorCensusDay)
-        : null;
-    const episodeHistoryAuthoritative =
-      source.historyAvailable &&
-      (row
-        ? row.source === 'gestion_camas'
-        : source.captureContract === 1 && source.observedEpisodeIds?.includes(clinicalEpisodeId));
+  const handledHistoricalEpisodes = new Set<string>();
+  const applyPrevious = async (clinicalEpisodeId: string, bedId: string) => {
+    handledHistoricalEpisodes.add(clinicalEpisodeId);
+    const priorCudyr = priorValue(clinicalEpisodeId);
     let priorPersisted = !priorCudyr;
     let historicalChanged = false;
 
-    if (priorCudyr && (batchResults || applySingle)) {
+    if (
+      priorCudyr &&
+      (batchResults || applySingle || priorCudyr.source === CUDYR_DOCUMENTARY_SOURCE)
+    ) {
       try {
+        if (!batchResults && !applySingle)
+          throw new Error('No hay escritor autorizado para el censo histórico.');
         const batchOutcome = batchResults ? await batchResults : null;
         if (batchOutcome?.status === 'rejected') throw batchOutcome.error;
         const result = batchOutcome
           ? batchOutcome.results.get(clinicalEpisodeId)
           : await enqueueWrite(() => applySingle!(clinicalEpisodeId, priorCensusDay, priorCudyr));
-        const notApplicable = result?.applicable === false;
+        const notApplicable =
+          result?.applicable === false && priorCudyr.source !== CUDYR_DOCUMENTARY_SOURCE;
         const administrativeOverridePreserved = Boolean(result?.administrativeOverridePreserved);
         priorPersisted = Boolean(result?.persisted || administrativeOverridePreserved);
         historicalChanged = Boolean(result?.changed);
@@ -157,7 +165,27 @@ export const createClinicalCudyrCoordinator = ({
       }
     }
 
+    return { priorPersisted, historicalChanged };
+  };
+
+  const apply = async (
+    patient: PatientData,
+    clinicalEpisodeId: string,
+    bedId: string
+  ): Promise<{ patient: PatientData; historicalChanged: boolean }> => {
+    const row = source.map.get(clinicalEpisodeId);
+    const currentCudyr =
+      (row ? buildImportedCudyr(row, censusDate) : null) ??
+      (!hasAcceptedCudyr(patient) ? recovery?.current.get(clinicalEpisodeId) : undefined);
+    const episodeHistoryAuthoritative =
+      source.historyAvailable &&
+      (row
+        ? row.source === 'gestion_camas'
+        : source.captureContract === 1 && source.observedEpisodeIds?.includes(clinicalEpisodeId));
+    const { priorPersisted, historicalChanged } = await applyPrevious(clinicalEpisodeId, bedId);
+
     const existingCudyr = patient.evaluationScores?.cudyr;
+    if (existingCudyr?.source === CUDYR_DOCUMENTARY_SOURCE) return { patient, historicalChanged };
     if (
       isAdministrativeCudyrAdjustment(existingCudyr) &&
       (currentCudyr
@@ -183,5 +211,13 @@ export const createClinicalCudyrCoordinator = ({
     return { patient, historicalChanged };
   };
 
-  return { apply };
+  const completeHistorical = async (): Promise<number> => {
+    const pending = [...new Set(clinicalEpisodeIds)].filter(
+      id => !handledHistoricalEpisodes.has(id)
+    );
+    const results = await Promise.all(pending.map(id => applyPrevious(id, '*')));
+    return results.filter(result => result.historicalChanged).length;
+  };
+
+  return { apply, completeHistorical };
 };

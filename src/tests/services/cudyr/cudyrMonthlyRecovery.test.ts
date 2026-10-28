@@ -34,7 +34,7 @@ const setup = () => ({
     file: { name: file.name, base64: 'AA==' },
     operationId: 'op',
   })),
-  save: vi.fn().mockResolvedValue({ persisted: true, captureStored: true }),
+  save: vi.fn().mockResolvedValue({ persisted: true, captureStored: true, id: 'synthetic-report' }),
 });
 const run = (ports: ReturnType<typeof setup>, signal = new AbortController().signal) =>
   recoverCudyrMonthlyReports('2026-08', signal, vi.fn(), ports as never, now);

@@ -83,6 +83,16 @@ export interface ImportedCudyrHistoryEntry {
 
 /** Imported CUDYR from the official Gestión de Camas work list (or Ficha Médico fallback). */
 export interface ImportedCudyr {
+  /** Documentary category, not an individual application or an invented application timestamp. */
+  documentaryEvidence?: {
+    reportId: string;
+    sourceRow: number;
+    sourceDate: string;
+    clinicalEpisodeId: string;
+    document: string;
+    patientName: string;
+    documentType: 'RUT';
+  };
   /** Explicitly authorized contingency; never inferred from an empty source report. */
   adjustmentReason?: string;
   adjustmentRecordedAt?: string;

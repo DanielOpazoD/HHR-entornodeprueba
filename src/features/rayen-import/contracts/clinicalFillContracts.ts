@@ -29,6 +29,14 @@ export interface ClinicalFillDeps {
   signal?: AbortSignal;
   /** Limits enrichment to structurally confirmed episodes from the accepted census revision. */
   allowedClinicalEpisodeIds?: readonly string[];
+  /** Independently confirmed episodes eligible for prior-night CUDYR, including discharges. */
+  historicalCudyrEpisodeIds?: readonly string[];
+  /** Positive documentary evidence only; never changes live-query completeness or absence. */
+  recoverMissingCudyr?: (
+    record: import('./rayenDomainContracts').DailyRecord,
+    clinicalEpisodeIds: readonly string[],
+    source: import('../domain/clinicalCudyrPreflight').ClinicalCudyrSource
+  ) => Promise<DailyCudyrRecoveryResult>;
   /** Proven missing reads from the same in-memory run; omitted after reload or uncertain failure. */
   pendingReads?: ClinicalReadSelection;
   nurseCatalog?: string[];
@@ -171,6 +179,12 @@ export interface HistoricalCudyrApplyResult {
 export interface HistoricalCudyrBatchItem {
   clinicalEpisodeId: string;
   cudyr: ImportedCudyr;
+}
+
+export interface DailyCudyrRecoveryResult {
+  current: Map<string, import('@/domain/evaluationScales/documentaryCudyr').DocumentaryCudyr>;
+  previous: HistoricalCudyrBatchItem[];
+  errors: ClinicalFillError[];
 }
 
 export interface HistoricalCudyrBatchItemResult extends HistoricalCudyrApplyResult {

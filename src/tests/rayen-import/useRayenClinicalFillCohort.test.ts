@@ -103,4 +103,64 @@ describe('legacy clinical retry cohort', () => {
       read.mockResolvedValue(census(['original', 'new-admission', 'another-admission']));
     }
   });
+  it('retries a discharged-only CUDYR episode through the existing daily clinical hook', async () => {
+    const original = census([]);
+    original.discharges = [
+      {
+        id: 'synthetic-discharge',
+        clinicalEpisodeId: 'discharged',
+        bedId: 'R1',
+        bedName: 'R1',
+        bedType: 'Intermedia',
+        patientName: 'Paciente sintético',
+        rut: '11.111.111-1',
+        diagnosis: '',
+        time: '14:00',
+        status: 'Vivo',
+      },
+    ];
+    const fill = vi
+      .spyOn(runner, 'runClinicalFill')
+      .mockResolvedValueOnce({
+        total: 1,
+        patched: 0,
+        errors: [
+          {
+            bedId: '*',
+            clinicalEpisodeId: 'discharged',
+            source: 'cudyr',
+            reason: 'historical_archive_failed',
+            message: 'synthetic pending',
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ total: 1, patched: 1, errors: [] });
+    const { result } = renderHook(() =>
+      useRayenClinicalFill({
+        nurseCatalog: [],
+        tensCatalog: [],
+        loadDailyRecord: async () => original,
+        patchDailyRecord: vi.fn(),
+        applyHistoricalCudyr: vi.fn(),
+        completeRun: vi.fn(),
+        onStaffingProposal: vi.fn(),
+        createId: () => 'id',
+      })
+    );
+    let outcome: ClinicalStageResult | undefined;
+    await act(async () => {
+      outcome = await result.current(original);
+    });
+    if (!outcome || outcome.status === 'complete' || !outcome.retry)
+      throw new Error('Expected historical retry');
+    expect(outcome.retry.pendingClinicalEpisodeIds).toEqual([]);
+    expect(outcome.retry.pendingHistoricalCudyrEpisodeIds).toEqual(['discharged']);
+    const retry = outcome.retry;
+    await act(async () => {
+      outcome = await result.current(retry);
+    });
+    expect(outcome).toEqual({ status: 'complete' });
+    expect(fill.mock.calls[0][2].historicalCudyrEpisodeIds).toEqual(['discharged']);
+    expect(fill.mock.calls[1][2].historicalCudyrEpisodeIds).toEqual(['discharged']);
+  });
 });

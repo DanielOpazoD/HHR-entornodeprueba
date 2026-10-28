@@ -1,5 +1,5 @@
 import { createCudyrRecoveredRow } from './cudyrRecoveredRow';
-import { cudyrDocumentKey, cudyrIdentity, cudyrNameKey } from './cudyrSourceIdentity';
+import { cudyrDocumentKey, cudyrIdentity, cudyrNameKey } from '@/domain/cudyr/cudyrSourceIdentity';
 import type { CudyrReportDataset, CudyrReportRow } from '@/types/domain/cudyrReport';
 import type { ArchivedCudyrSupplement } from './cudyrSupplementService';
 import { monthlySourceIsFinal } from './cudyrMonthlyProjection';

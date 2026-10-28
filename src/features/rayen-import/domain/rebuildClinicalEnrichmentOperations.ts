@@ -1,9 +1,15 @@
+import { clinicalValuesEqual } from './clinicalIncrementalSync';
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
 import type { ClinicalFillPatchOperation } from '../contracts/clinicalFillContracts';
 import {
   clinicalFieldValuesEqual,
   type CanonicalClinicalField,
 } from './clinicalFieldCanonicalization';
+import {
+  assertDocumentaryCudyrTarget,
+  CUDYR_DOCUMENTARY_SOURCE,
+  hasAcceptedCudyr,
+} from '@/domain/evaluationScales/documentaryCudyr';
 
 const CLINICAL_FIELDS = new Set<CanonicalClinicalField>([
   'devices',
@@ -104,6 +110,25 @@ export const rebuildClinicalEnrichmentOperations = ({
         throw new Error('El lote clínico contiene un campo que no puede reconstruirse.');
       }
       const desiredValue = desired as PatientData[CanonicalClinicalField];
+      if (field === 'evaluationScores') {
+        const cudyr = (desired as PatientData['evaluationScores'])?.cudyr;
+        if (
+          cudyr &&
+          (cudyr.source === CUDYR_DOCUMENTARY_SOURCE || cudyr.documentaryEvidence) &&
+          !clinicalValuesEqual(current.patient.evaluationScores?.cudyr, cudyr)
+        ) {
+          assertDocumentaryCudyrTarget(currentRecord, current.patient, cudyr);
+          if (
+            hasAcceptedCudyr(current.patient) &&
+            !clinicalFieldValuesEqual(
+              'evaluationScores',
+              current.patient.evaluationScores,
+              desiredValue
+            )
+          )
+            throw new Error('El CUDYR ya fue registrado durante la recuperación mensual.');
+        }
+      }
       const baseValue = fieldValue(base.patient, field);
       const currentValue = fieldValue(current.patient, field);
       if (clinicalFieldValuesEqual(field, currentValue, desiredValue)) continue;

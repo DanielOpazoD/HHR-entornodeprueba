@@ -4,6 +4,11 @@ import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { ClinicalFillPatchOperation } from '../contracts/clinicalFillContracts';
 import { isAdministrativeCudyrAdjustment } from '@/domain/evaluationScales/importedCudyr';
+import {
+  assertDocumentaryCudyrTarget,
+  CUDYR_DOCUMENTARY_SOURCE,
+  hasAcceptedCudyr,
+} from '@/domain/evaluationScales/documentaryCudyr';
 
 export interface HistoricalCudyrPatchResolution {
   matched: boolean;
@@ -15,25 +20,29 @@ interface LocatedHistoricalCudyrTarget {
   bedId: string;
   clinicalCrib?: true;
   evaluationScores: DailyRecord['beds'][string]['evaluationScores'];
+  patient: DailyRecord['beds'][string];
 }
 
 const locateHistoricalCudyrTarget = (
   record: DailyRecord,
   clinicalEpisodeId: string
 ): LocatedHistoricalCudyrTarget | null => {
+  const matches: LocatedHistoricalCudyrTarget[] = [];
   for (const [bedId, patient] of Object.entries(record.beds)) {
     if (String(patient?.clinicalEpisodeId || '') === clinicalEpisodeId) {
-      return { bedId, evaluationScores: patient.evaluationScores };
+      matches.push({ bedId, patient, evaluationScores: patient.evaluationScores });
     }
-    if (String(patient?.clinicalCrib?.clinicalEpisodeId || '') === clinicalEpisodeId) {
-      return {
+    const crib = patient?.clinicalCrib;
+    if (crib && String(crib.clinicalEpisodeId || '') === clinicalEpisodeId) {
+      matches.push({
         bedId,
         clinicalCrib: true,
         evaluationScores: patient.clinicalCrib?.evaluationScores,
-      };
+        patient: crib,
+      });
     }
   }
-  return null;
+  return matches.length === 1 ? matches[0] : null;
 };
 
 const sameCudyr = (current: ImportedCudyr | undefined, cudyr: ImportedCudyr): boolean =>
@@ -53,8 +62,8 @@ const sameCudyr = (current: ImportedCudyr | undefined, cudyr: ImportedCudyr): bo
 
 /**
  * Builds the narrow historical patch for an official CUDYR result.
- * A different imported copy is stale and must be replaced. Administrative corrections retain
- * authority until an administrator explicitly changes or removes them.
+ * Ordinary imported copies may be refreshed. Documentary results and administrative corrections
+ * retain their accepted value; daily synchronization does not replace them.
  */
 export const resolveHistoricalCudyrPatch = (
   record: DailyRecord,
@@ -63,6 +72,18 @@ export const resolveHistoricalCudyrPatch = (
 ): HistoricalCudyrPatchResolution => {
   const target = locateHistoricalCudyrTarget(record, clinicalEpisodeId);
   if (!target) return { matched: false, patch: null };
+  if (
+    target.evaluationScores?.cudyr?.source === CUDYR_DOCUMENTARY_SOURCE ||
+    (cudyr.source === CUDYR_DOCUMENTARY_SOURCE && hasAcceptedCudyr(target.patient))
+  )
+    return {
+      matched: true,
+      patch: null,
+      ...(isAdministrativeCudyrAdjustment(target.evaluationScores?.cudyr)
+        ? { administrativeOverridePreserved: true }
+        : {}),
+    };
+  assertDocumentaryCudyrTarget(record, target.patient, cudyr);
   if (sameCudyr(target.evaluationScores?.cudyr, cudyr)) return { matched: true, patch: null };
   if (isAdministrativeCudyrAdjustment(target.evaluationScores?.cudyr)) {
     return { matched: true, patch: null, administrativeOverridePreserved: true };
@@ -92,6 +113,18 @@ export const resolveHistoricalCudyrBatchOperation = (
 } => {
   const target = locateHistoricalCudyrTarget(record, clinicalEpisodeId);
   if (!target) return { matched: false, operation: null };
+  if (
+    target.evaluationScores?.cudyr?.source === CUDYR_DOCUMENTARY_SOURCE ||
+    (cudyr.source === CUDYR_DOCUMENTARY_SOURCE && hasAcceptedCudyr(target.patient))
+  )
+    return {
+      matched: true,
+      operation: null,
+      ...(isAdministrativeCudyrAdjustment(target.evaluationScores?.cudyr)
+        ? { administrativeOverridePreserved: true }
+        : {}),
+    };
+  assertDocumentaryCudyrTarget(record, target.patient, cudyr);
   if (sameCudyr(target.evaluationScores?.cudyr, cudyr)) {
     return { matched: true, operation: null };
   }

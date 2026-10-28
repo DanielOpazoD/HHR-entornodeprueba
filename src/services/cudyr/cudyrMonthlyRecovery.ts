@@ -1,3 +1,4 @@
+import { captureCudyrMonthlyReport, cudyrMonthlyReportPorts } from './cudyrMonthlyReportCapture';
 import { cudyrReportCache } from './cudyrReportCache';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
 import { loadCudyrReport } from './cudyrReportLoader';
@@ -8,47 +9,12 @@ import {
   readCudyrCensusFile,
 } from './cudyrCensusSourceService';
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
-import { requestViaBridgeChannel } from '@/services/transport/extensionRequestChannel';
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
-import { readCudyrSupplementFile } from './cudyrSupplementFile';
-import {
-  importCudyrSupplement,
-  loadCudyrSupplements,
-  type ArchivedCudyrSupplement,
-} from './cudyrSupplementService';
+import { loadCudyrSupplements, type ArchivedCudyrSupplement } from './cudyrSupplementService';
 
 import { monthlyRecoveryWindow, pendingCudyrRecoveryPlan } from './cudyrMonthlyRecoveryPlan';
 export { monthlyRecoveryPeriod, monthlyRecoveryWindow } from './cudyrMonthlyRecoveryPlan';
-
-type SourceReport = { month: string; base64: string; capturedAt: string };
-const fetchReport = (month: string, signal: AbortSignal, censusDate?: string) =>
-  requestViaBridgeChannel<SourceReport>({
-    prefix: 'cudyr-month',
-    requestType: 'HHR_RAYEN_MONTHLY_CUDYR_REPORT_REQUEST',
-    resultType: 'HHR_RAYEN_MONTHLY_CUDYR_REPORT_RESULT',
-    payload: { month, ...(censusDate ? { censusDate } : {}) },
-    signal,
-    timeoutMs: 40000,
-    onTimeout: () => {
-      throw new Error('La extensión no respondió. Actualícela o conecte Gestión de Camas.');
-    },
-    mapResult: data => {
-      if (
-        data.ok !== true ||
-        data.month !== month ||
-        (censusDate !== undefined && data.censusDate !== censusDate) ||
-        typeof data.base64 !== 'string' ||
-        data.base64.length > 349528 ||
-        typeof data.capturedAt !== 'string' ||
-        !Number.isFinite(Date.parse(data.capturedAt))
-      )
-        throw new Error(
-          typeof data.error === 'string' ? data.error : 'Informe mensual incompleto.'
-        );
-      return { month, base64: data.base64, capturedAt: data.capturedAt };
-    },
-  });
 
 export interface MonthlyRecoveryProgress {
   reportMonth: string;
@@ -69,9 +35,7 @@ export interface MonthlyRecoveryResult {
   verification: 'documentary';
 }
 const dependencies = {
-  fetchReport,
-  readFile: readCudyrSupplementFile,
-  save: importCudyrSupplement,
+  ...cudyrMonthlyReportPorts,
   load: loadCudyrSupplements,
   readCensus: loadCudyrReport,
 };
@@ -215,23 +179,7 @@ export const recoverCudyrMonthlyReports = async (
     }
     onProgress({ reportMonth, status: 'reading' });
     try {
-      const source = await ports.fetchReport(reportMonth, signal);
-      check();
-      const bytes = Uint8Array.from(atob(source.base64), c => c.charCodeAt(0));
-      const parsed = await ports.readFile(
-        new File([bytes], `Categorizacion_${reportMonth}.xls`),
-        signal
-      );
-      check();
-      if (parsed.report.month !== reportMonth)
-        throw new Error('El informe corresponde a otro mes.');
-      const saved = await ports.save({
-        ...parsed,
-        capture: { source: 'extension_monthly_report', observedAt: source.capturedAt },
-      });
-      check();
-      if (!saved.persisted || !saved.captureStored)
-        throw new Error('El servidor no confirmó el respaldo para reanudar.');
+      await captureCudyrMonthlyReport(reportMonth, signal, check, ports);
       result.recovered++;
       onProgress({ reportMonth, status: 'saved' });
     } catch (error) {

@@ -20,7 +20,6 @@ import {
   registerRayenFillAbort,
   reportRayenFillProgress,
 } from './useRayenFillStatus';
-import { selectHistoricalCudyrPersistence } from './historicalCudyrPersistenceSelection';
 import { toIsoReportDate } from './reportDateHelpers';
 import { createClinicalFillReaders } from '../bridge/clinicalFillReaders';
 import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
@@ -59,6 +58,7 @@ interface UseRayenClinicalFillInput {
   nurseCatalog: string[];
   tensCatalog: string[];
   loadDailyRecord: (date: string) => Promise<DailyRecord>;
+  loadCudyrIdentityContext?: (date: string) => Promise<DailyRecord | null>;
   /** `baseRecord` is what the patch was computed from (its rebuild base), never a write base. */
   patchDailyRecord: (
     patch: DailyRecordPatch,
@@ -113,6 +113,7 @@ export const useRayenClinicalFill = ({
   nurseCatalog,
   tensCatalog,
   loadDailyRecord,
+  loadCudyrIdentityContext,
   patchDailyRecord,
   applyHistoricalCudyr,
   applyHistoricalCudyrBatch,
@@ -143,8 +144,14 @@ export const useRayenClinicalFill = ({
         async ({ startedAfterQueue }) => {
           // The watchdog only exists while a fill runs, so it ships with the on-demand runner
           // chunk (outside the PWA precache) instead of the authenticated shell.
-          const { countClinicalFillEligiblePatients, createClinicalFillWatchdog, runClinicalFill } =
-            await import('../clinicalFillRunner');
+          const {
+            countClinicalFillEligiblePatients,
+            createClinicalFillWatchdog,
+            runClinicalFill,
+            collectDailyCudyrRecoveryEpisodes,
+            selectHistoricalCudyrPersistence,
+            createDailyCudyrRecoveryReader,
+          } = await import('../clinicalFillRunner');
           const requestedEligibleCount = countClinicalFillEligiblePatients(
             record,
             allowedClinicalEpisodeIds
@@ -265,6 +272,12 @@ export const useRayenClinicalFill = ({
             fillRecord,
             allowedClinicalEpisodeIds
           );
+          const historicalCudyrEpisodeIds = collectDailyCudyrRecoveryEpisodes({
+            acceptedRecord: record,
+            currentRecord: fillRecord,
+            conflicts: confirmedHandoff?.isolatedConflicts ?? [],
+            pendingEpisodeIds: retryRequest?.pendingHistoricalCudyrEpisodeIds,
+          });
 
           let summary: ClinicalFillSummary;
           const watchdog = createClinicalFillWatchdog({
@@ -303,6 +316,15 @@ export const useRayenClinicalFill = ({
                 diagnosticRunId: auditRunId,
                 signal: watchdog.signal,
                 allowedClinicalEpisodeIds,
+                historicalCudyrEpisodeIds,
+                ...(batchMode === 'enforced'
+                  ? {
+                      recoverMissingCudyr: createDailyCudyrRecoveryReader({
+                        signal: watchdog.signal,
+                        loadDay: loadCudyrIdentityContext ?? loadDailyRecord,
+                      }),
+                    }
+                  : {}),
                 pendingReads: retryRequest?.pendingReads,
                 ...createClinicalFillReaders(watchdog.signal, clinicalCandidates),
                 extractDeviceItems: extractDeviceTextItems,
@@ -350,7 +372,10 @@ export const useRayenClinicalFill = ({
             retryRequest?.previousSummary,
             summary,
             new Set(clinicalCandidates.map(candidate => candidate.bedId)),
-            new Set(clinicalCandidates.map(({ patient }) => patient.clinicalEpisodeId!))
+            new Set([
+              ...clinicalCandidates.map(({ patient }) => patient.clinicalEpisodeId!),
+              ...historicalCudyrEpisodeIds,
+            ])
           );
 
           if (summary.errors.length > 0) {
@@ -400,7 +425,8 @@ export const useRayenClinicalFill = ({
             confirmedHandoff?.safeClinicalEpisodeIds ??
               collectClinicalFillCandidates(record).map(
                 candidate => candidate.patient.clinicalEpisodeId!
-              )
+              ),
+            historicalCudyrEpisodeIds
           );
         }
       );
@@ -419,6 +445,7 @@ export const useRayenClinicalFill = ({
       completeRun,
       createId,
       loadDailyRecord,
+      loadCudyrIdentityContext,
       nurseCatalog,
       tensCatalog,
       onStaffingProposal,

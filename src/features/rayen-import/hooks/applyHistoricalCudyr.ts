@@ -13,6 +13,8 @@ import { canWritePreviousDay } from '../domain/previousDayCorrections';
 import type { RayenClinicalWriteGuard } from '@/types/domain/rayenSync';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import { resolveHistoricalCudyrBatchOperation } from '../domain/historicalCudyrPatch';
+import { CUDYR_DOCUMENTARY_SOURCE } from '@/domain/evaluationScales/documentaryCudyr';
+import { readClinicalFillDerivedView } from './clinicalFillDerivedView';
 
 type ApplyClinicalEnrichmentBatch =
   typeof import('./applyClinicalEnrichmentBatch').applyClinicalEnrichmentBatch;
@@ -37,8 +39,8 @@ const writeHistoricalCudyrBatch = async ({
   items: HistoricalCudyrBatchItem[];
   writeGuard?: RayenClinicalWriteGuard;
 }): Promise<HistoricalCudyrBatchItemResult[]> => {
-  const historicalRecord = await dailyRecord.getAuthoritativeForDate(censusDay);
-  if (!historicalRecord) {
+  const historicalDay = await dailyRecord.getAuthoritativeForDate(censusDay);
+  if (!historicalDay) {
     return items.map(({ clinicalEpisodeId }) => ({
       clinicalEpisodeId,
       persisted: false,
@@ -46,6 +48,10 @@ const writeHistoricalCudyrBatch = async ({
       applicable: false,
     }));
   }
+  const historicalView = await readClinicalFillDerivedView(historicalDay, () =>
+    dailyRecord.getAuthoritativeForDate(censusDay)
+  );
+  const historicalRecord = historicalView.record;
 
   const resolutions = items.map(({ clinicalEpisodeId, cudyr }) => ({
     clinicalEpisodeId,
@@ -68,7 +74,7 @@ const writeHistoricalCudyrBatch = async ({
   }
 
   const result = await patchDailyRecordWithCompatibility(dailyRecord, censusDay, patch, {
-    baseRecord: historicalRecord,
+    baseRecord: historicalView.day,
     ...(writeGuard ? { rayenClinicalWriteGuard: writeGuard } : {}),
   });
   if (isDailyRecordWriteRejectedResult(result)) {
@@ -127,6 +133,14 @@ export const applyHistoricalCudyrBatch = async ({
 }): Promise<HistoricalCudyrBatchItemResult[]> => {
   const uniqueItems = uniqueBatchItems(items);
   if (uniqueItems.length === 0) return [];
+  if (
+    uniqueItems.some(
+      item => item.cudyr.source === CUDYR_DOCUMENTARY_SOURCE || item.cudyr.documentaryEvidence
+    )
+  )
+    throw new Error(
+      'La recuperación mensual requiere el lote clínico con validación atómica de identidad.'
+    );
   const canWriteTargetDay = writeGuard
     ? canWriteAuthoritativeHistoricalDay({
         censusDay,
@@ -196,7 +210,11 @@ export const applyHistoricalCudyrBatchAuthoritatively = async ({
   const loadHistoricalRecord = async (): Promise<DailyRecord> => {
     const historicalRecord = await dailyRecord.getAuthoritativeForDate(censusDay);
     if (!historicalRecord) throw new Error('No existe el censo histórico para archivar CUDYR.');
-    return historicalRecord;
+    return (
+      await readClinicalFillDerivedView(historicalRecord, () =>
+        dailyRecord.getAuthoritativeForDate(censusDay)
+      )
+    ).record;
   };
   const historicalRecord = await dailyRecord.getAuthoritativeForDate(censusDay);
   // A previous CUDYR application can exist even when HHR has no census for that owning night.
@@ -212,9 +230,12 @@ export const applyHistoricalCudyrBatchAuthoritatively = async ({
       })),
     };
   }
+  const historicalView = await readClinicalFillDerivedView(historicalRecord, () =>
+    dailyRecord.getAuthoritativeForDate(censusDay)
+  );
   const resolutions = uniqueItems.map(({ clinicalEpisodeId, cudyr }) => ({
     clinicalEpisodeId,
-    ...resolveHistoricalCudyrBatchOperation(historicalRecord, clinicalEpisodeId, cudyr),
+    ...resolveHistoricalCudyrBatchOperation(historicalView.record, clinicalEpisodeId, cudyr),
   }));
   const effectiveResolutions = new Map(
     resolutions.map(resolution => [resolution.clinicalEpisodeId, resolution])
@@ -246,7 +267,7 @@ export const applyHistoricalCudyrBatchAuthoritatively = async ({
       applyBatch ?? (await import('./applyClinicalEnrichmentBatch')).applyClinicalEnrichmentBatch;
     const batchResult = await authoritativeApplyBatch({
       mode: 'enforced',
-      record: historicalRecord,
+      record: historicalView.day,
       authorityDate: sourceRecord.date,
       runId,
       operations,
