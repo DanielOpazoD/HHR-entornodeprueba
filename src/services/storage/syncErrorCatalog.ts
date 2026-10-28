@@ -12,6 +12,14 @@ export class ConcurrencyError extends Error {
   }
 }
 
+export class DailyRecordBaseReviewError extends ConcurrencyError {
+  readonly code = 'sync_daily_record_base_review';
+
+  constructor(message: string) {
+    super(message, 'semantic_conflict');
+  }
+}
+
 export interface SyncErrorClassification {
   code: string;
   message: string;

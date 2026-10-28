@@ -189,7 +189,9 @@ that projection instead of replacing it, and compacting an unresolved task keeps
   (`buildRecordOverlayRebase`), keeps the values of its own changed paths, and every other
   pending path keeps the projection's value. Movement arrays always merge by id and identity checks
   run even when every pending path overlaps;
-- whole-record writes (`*`) still replace the projection;
+- whole-record writes (`*`) replace the projection only after checking their construction
+  base and preserving accepted pending edits. A stale opaque replay keeps its original
+  base and payload for review instead of choosing the newer clock;
 - a specialist note task (`UPDATE_SPECIALIST_HANDOFF`) lands its projection with the same patch
   rebase, but never changes a projection that a pending day task still holds. The projection
   publishes nothing, so the day keeps the `lastUpdated` it was read at: a later day write starts
@@ -297,10 +299,11 @@ snapshots and their restore flow are described in
 ### Authority callables — `dailyRecordWriteAuthorityFunctions.js`
 
 - Server `runTransaction` for save and patch.
-- **Version** — `assertExpectedVersion` rejects a newer remote but does nothing when no base
-  version is sent (unlike the client missing-base guard). Guarded Rayen patches and
-  `intentionalBedClear` use `assertExactExpectedVersion`. `meta.revision` must equal
-  `syncContract.baseRevision` when the contract sends one.
+- **Version** — an existing day requires a verifiable base inside the transaction.
+  `meta.revision` must equal `syncContract.baseRevision` when supplied; without a revision,
+  the timestamp must match exactly. A full save also checks any supplied timestamp even
+  when its revision matches. Guarded Rayen patches and `intentionalBedClear` keep their
+  exact-version checks. A known committed mutation is acknowledged before the base checks.
 - **Idempotency** — a single slot, `meta.lastMutationId`: a replay is recognised only while no
   other mutation has landed since.
 - **Erasure guard** — `assertNoPatientErasures` (server mirror) on save and patch; the patch
@@ -370,8 +373,8 @@ that the records never contained. Correcting a name during a move requires a sta
   density-regression thresholds (40% / 50 points) are coarse and tuned for a full census.
 - **Partial update via plain `updateDoc` is not atomic.** It relies on field-scoped merge +
   fail-closed pre-check + the sync queue's re-check, not a transaction.
-- **Authority callable** — fail-open version check when no base version is sent, and a
-  one-mutation idempotency slot.
+- **Authority callable** — a one-mutation idempotency slot. A missing or changed base
+  blocks publication; an opaque queued copy requires review before reissue.
 - **The erasure guard is duplicated** on client and server. The parity test runs a shared battery
   through both and fails on any drift.
 
