@@ -13,7 +13,10 @@ import {
 } from '@/services/storage/firestore/firestoreShared';
 import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/firestoreServiceRuntime';
 import type { FirestoreServiceRuntimePort } from '@/services/storage/firestore/ports/firestoreServiceRuntimePort';
-import { ConcurrencyError, DailyRecordBaseReviewError } from '@/services/storage/syncErrorCatalog';
+import {
+  ConcurrencyError,
+  createDailyRecordBaseReviewError,
+} from '@/services/storage/syncErrorCatalog';
 import { loadSpecialistMedicalHandoffClient } from '@/services/storage/firestore/firestoreRecordWrites';
 import { resolveDailyRecordConflict } from '@/services/repositories/conflictResolutionMatrix';
 import {
@@ -135,7 +138,7 @@ const assertKnownWholeRecordBase = (task: SyncTask, remoteData?: Record<string, 
         : matchingVersion;
   }
   if (!knownBase) {
-    throw new DailyRecordBaseReviewError(
+    throw createDailyRecordBaseReviewError(
       'El censo cambió o su base no es verificable. Conservamos los cambios para revisión.'
     );
   }
@@ -354,7 +357,7 @@ const syncDailyRecord = async (
             error.reason === 'version_mismatch' &&
             isWholeRecordTask(task)
           ) {
-            throw new DailyRecordBaseReviewError(error.message);
+            throw createDailyRecordBaseReviewError(error.message);
           }
           throw error;
         });
