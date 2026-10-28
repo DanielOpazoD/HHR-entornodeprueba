@@ -20,6 +20,16 @@ El cambio de cuenta no reutiliza los datos clínicos de la sesión anterior.
 - **No elegible:** el caso permanece visible, pero queda fuera del cumplimiento; conserva su detalle en el Excel mensual.
 - **Oficial:** población reconstruida y resultados aprobados con trazabilidad, no cumplimiento del 100%.
 
+Una sincronización posterior al alta puede no encontrar el episodio en las camas
+actuales. Esa ausencia conserva el CUDYR ya recibido y se muestra como **Verificación
+pendiente** si aún no hay resultado; no acredita que el instrumento no se aplicó.
+La madrugada del 27 pertenece a la noche censal del 26, aunque el día 27 se cree
+a las 20:00. La copia del día nuevo no desplaza el resultado de la noche anterior.
+Para recuperar resultados no capturados antes del alta, **Actualizar CUDYR** consulta
+los informes históricos de Eloísa de las noches cerradas pendientes, independientemente
+de la ocupación actual. Un informe fallido o una identidad/episodio ambiguos mantienen
+la verificación pendiente; nunca se reconstruyen puntajes por suposición.
+
 Los días abiertos muestran progreso; no penalizan el acumulado cerrado. La aplicación
 puede registrarse hasta las 11:59 del día siguiente. La 01:00 es la referencia fija para
 calcular ocho horas, no la hora obligatoria de registro del instrumento.

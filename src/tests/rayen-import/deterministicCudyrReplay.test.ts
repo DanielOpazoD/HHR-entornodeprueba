@@ -6,6 +6,7 @@ import {
   vitalSignsForm,
 } from './deterministicClinicalReplay.fixtures';
 import { replay } from './deterministicClinicalReplay.harness';
+import type { RayenCudyrCategoriesResponse } from '@/features/rayen-import/contracts/rayenCudyr';
 
 const officialCudyr = (episode: string, at: string) => ({
   items: [
@@ -91,48 +92,80 @@ describe('CUDYR through the persisted clinical replay', () => {
     expect(recovered.record.beds.H1C1.vitalSignsHistory).toHaveLength(1);
   });
 
-  it('preserves existing CUDYR on unavailable source and removes it only with official empty evidence', async () => {
-    const day = '2026-09-27';
-    const now = new Date('2026-09-28T01:05:00-05:00');
-    const patient = syntheticEncounter('admission');
-    const capture = captureFor(day, [patient]);
-    const formsByEpisode = { [patient.encounterId]: [vitalSignsForm(day, 1001)] };
-    const first = await replay(
-      emptyRecordFor(day),
-      capture,
-      {
-        formsByEpisode,
-        cudyrResponse: officialCudyr(patient.encounterId, '2026-09-28T01:00:00-05:00'),
-      },
-      now
-    );
-    const failed = await replay(
-      first.record,
-      capture,
-      {
-        formsByEpisode,
-        cudyrResponse: { items: [], error: 'Fuente sintética temporalmente indisponible' },
-      },
-      now
-    );
-    expect(failed.terminalEvent.status).toBe('partial');
-    expect(failed.recovery).not.toBeNull();
-    expect(failed.record.beds.H1C1.evaluationScores?.cudyr).toEqual(
-      first.record.beds.H1C1.evaluationScores?.cudyr
-    );
-    expect(failed.record.beds.H1C1.vitalSignsHistory).toHaveLength(1);
-    const recovered = await replay(
-      failed.record,
-      capture,
-      {
-        formsByEpisode,
-        cudyrResponse: { items: [], source: 'gestion_camas', historyAvailable: true },
-      },
-      now
-    );
-    expect(recovered.terminalEvent.status).toBe('complete');
-    expect(recovered.recovery).toBeNull();
-    expect(recovered.record.beds.H1C1.evaluationScores?.cudyr).toBeUndefined();
-    expect(recovered.record.beds.H1C1.vitalSignsHistory).toHaveLength(1);
-  });
+  it.each(['empty row', 'observed episode only'])(
+    'preserves existing CUDYR on unavailable or unobserved source until %s confirms an empty history',
+    async emptyEvidence => {
+      const day = '2026-09-27';
+      const now = new Date('2026-09-28T01:05:00-05:00');
+      const patient = syntheticEncounter('admission');
+      const capture = captureFor(day, [patient]);
+      const formsByEpisode = { [patient.encounterId]: [vitalSignsForm(day, 1001)] };
+      const first = await replay(
+        emptyRecordFor(day),
+        capture,
+        {
+          formsByEpisode,
+          cudyrResponse: officialCudyr(patient.encounterId, '2026-09-28T01:00:00-05:00'),
+        },
+        now
+      );
+      const failed = await replay(
+        first.record,
+        capture,
+        {
+          formsByEpisode,
+          cudyrResponse: { items: [], error: 'Fuente sintética temporalmente indisponible' },
+        },
+        now
+      );
+      expect(failed.terminalEvent.status).toBe('partial');
+      expect(failed.recovery).not.toBeNull();
+      expect(failed.record.beds.H1C1.evaluationScores?.cudyr).toEqual(
+        first.record.beds.H1C1.evaluationScores?.cudyr
+      );
+      expect(failed.record.beds.H1C1.vitalSignsHistory).toHaveLength(1);
+      const unobservedSources: RayenCudyrCategoriesResponse[] = [
+        { items: [], source: 'gestion_camas', historyAvailable: true },
+        {
+          items: [],
+          source: 'gestion_camas',
+          historyAvailable: true,
+          captureContract: 1,
+          observedEpisodeIds: [],
+        },
+      ];
+      let latest = failed.record;
+      for (const cudyrResponse of unobservedSources) {
+        const unobserved = await replay(latest, capture, { formsByEpisode, cudyrResponse }, now);
+        expect(unobserved.record.beds.H1C1.evaluationScores?.cudyr).toEqual(
+          first.record.beds.H1C1.evaluationScores?.cudyr
+        );
+        expect(unobserved.record.beds.H1C1.vitalSignsHistory).toHaveLength(1);
+        latest = unobserved.record;
+      }
+      const recovered = await replay(
+        latest,
+        capture,
+        {
+          formsByEpisode,
+          cudyrResponse: {
+            items:
+              emptyEvidence === 'empty row'
+                ? [{ encId: patient.encounterId, crdValue: '', crdDateTime: '', history: [] }]
+                : [],
+            source: 'gestion_camas',
+            historyAvailable: true,
+            captureContract: emptyEvidence === 'observed episode only' ? 1 : undefined,
+            observedEpisodeIds:
+              emptyEvidence === 'observed episode only' ? [patient.encounterId] : undefined,
+          },
+        },
+        now
+      );
+      expect(recovered.terminalEvent.status).toBe('complete');
+      expect(recovered.recovery).toBeNull();
+      expect(recovered.record.beds.H1C1.evaluationScores?.cudyr).toBeUndefined();
+      expect(recovered.record.beds.H1C1.vitalSignsHistory).toHaveLength(1);
+    }
+  );
 });

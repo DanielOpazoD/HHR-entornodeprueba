@@ -4,6 +4,7 @@ import { buildCudyrReport, cudyrReportTotals } from '@/services/cudyr/cudyrRepor
 import { confirmedReportInput, reportRecord, reportPatient } from './reportFixtures';
 import { supplementRequest } from '@/tests/fixtures/cudyrSupplementFixture';
 import type { ArchivedCudyrSupplement } from '@/services/cudyr/cudyrSupplementService';
+import { cudyrControlStatus } from '@/services/cudyr/cudyrDailyControl';
 const make = () => {
   const data = buildCudyrReport(
     confirmedReportInput({ records: [reportRecord('2026-10-02', { R1: reportPatient() })] })
@@ -33,6 +34,55 @@ const make = () => {
   return { data, source };
 };
 describe('official monthly CUDYR projection', () => {
+  it.each(['category', 'blank', 'missing patient'])(
+    'resolves a late October 26 query from historical evidence (%s), without current occupancy',
+    kind => {
+      const { source } = make();
+      const previous = reportRecord('2026-10-26', {
+        R1: reportPatient({ cudyr: undefined }),
+      });
+      const current = reportRecord('2026-10-27', {});
+      const data = buildCudyrReport(
+        confirmedReportInput({
+          from: previous.date,
+          to: previous.date,
+          generatedAt: '2026-10-27T20:00:00-05:00',
+          records: [previous, current],
+        })
+      );
+      source.importedAt = '2026-10-27T20:00:00-05:00';
+      source.capture = {
+        source: 'extension_monthly_report',
+        observedAt: '2026-10-27T19:59:00-05:00',
+      };
+      source.report.patients[0].days.forEach(day => {
+        day.category = day.sourceDay === 27 && kind === 'category' ? 'C2' : null;
+        day.originalValue = day.category || '';
+        day.state = day.category ? 'category' : 'blank';
+      });
+      if (kind === 'missing patient') source.report.patients = [];
+      const before = structuredClone([previous, current]);
+      const result = applyCudyrMonthlySources(data, [source]);
+      const row = result.rows.find(r => r.date === previous.date);
+      expect(row).toBeDefined();
+      if (!row) throw new Error('Synthetic previous-night row required');
+      expect(row.clinicalEpisodeId).toBe('synthetic-episode');
+      expect(cudyrControlStatus(row)).toBe(
+        kind === 'category'
+          ? 'Registrado'
+          : kind === 'blank'
+            ? 'No registrado'
+            : 'Verificación pendiente'
+      );
+      expect(row.evaluation?.category).toBe(kind === 'category' ? 'C2' : undefined);
+      if (kind === 'category') {
+        expect(row.monthlyEvidence).toMatchObject({ sourceDate: '2026-10-27', state: 'found' });
+        expect(row.evaluation?.recordedAt).toBe('');
+      }
+      expect([previous, current]).toEqual(before);
+    }
+  );
+
   it.each([null, 'B1'])(
     'preserves a justified exception when Eloísa returns %s, including repeated refresh',
     category => {

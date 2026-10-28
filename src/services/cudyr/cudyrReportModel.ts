@@ -104,9 +104,9 @@ export const buildCudyrReport = (input: CudyrReportInput): CudyrReportDataset =>
         )
       );
       const latest = capture.latest;
-      const captureInconclusive = ['captura_incompleta', 'fuente_no_disponible'].includes(
-        capture.status
-      );
+      const captureInconclusive =
+        ['captura_incompleta', 'fuente_no_disponible'].includes(capture.status) ||
+        (capture.status === 'sin_captura' && Boolean(latest));
       // An archived source result proves its own existence even if another capture part failed.
       // Legacy local scores do not provide that evidence of an Eloísa result.
       const sourceResultAvailable = Boolean(
