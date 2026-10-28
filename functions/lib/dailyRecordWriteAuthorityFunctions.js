@@ -1345,7 +1345,17 @@ const createDailyRecordWriteAuthorityFunctions = ({
 
           assertFullRecordWritePolicy({ date, snapshot, record, role });
 
-          if (!dryRun) assertVerifiableWriteBase({ snapshot, syncContract, expectedLastUpdated });
+          if (!dryRun) {
+            const changedPaths = collectChangedPaths(syncContract);
+            assertVerifiableWriteBase({
+              snapshot,
+              syncContract,
+              expectedLastUpdated,
+              requireExactExpectedVersion:
+                data?.expectedLastUpdated !== undefined &&
+                (!changedPaths.length || changedPaths.includes('*')),
+            });
+          }
           assertExpectedVersion({ snapshot, expectedLastUpdated });
           assertExpectedRevision({ snapshot, syncContract });
           assertNoPatientErasures({ snapshot, record });
