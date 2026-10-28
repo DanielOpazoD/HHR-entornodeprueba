@@ -1,4 +1,11 @@
-import { assertFullSaveNoteBase } from '@/services/storage/sync/fullSaveNoteBaseGuard';
+import {
+  assertFullSaveNoteBase,
+  assertPendingFullSaveBase,
+  assertSameOccupantAtPath,
+  hasSamePatchBaseValue,
+  localProjectionIds,
+  staleDailyRecordError,
+} from '@/services/storage/sync/fullSaveNoteBaseGuard';
 import type { DailyRecord, DailyRecordPatch } from '@/services/storage/storageDailyRecordContracts';
 import type { RayenSyncEvent } from '@/types/domain/rayenSync';
 import type { DailyRecordPatchWrite } from '@/services/storage/sync/syncQueuePorts';
@@ -9,7 +16,6 @@ import {
   sameSpecialistHandoffTarget,
   specialistHandoffTextState,
 } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
-import { hasSameBedOccupant } from '@/services/storage/sync/bedOccupantIdentity';
 // The replay-time occupant checks ship with the enqueue-time one, in this lazy chunk.
 export { detachStaleOccupantPaths } from '@/services/storage/sync/dayTaskOccupantDetach';
 export {
@@ -58,48 +64,10 @@ type PendingProjectionRebase = (projection: DailyRecord, pendingPaths: string[])
 
 // Same mergeable roots as the publish-time same-path check (firestoreSyncConflictPolicy).
 const MOVEMENT_LOG_PATHS = new Set(['discharges', 'transfers', 'cma']);
-const BED_SLOT_FIELDS = new Set(['isBlocked', 'blockedReason']);
-const BED_FIELD_PATH = /^beds\.([^.]+)(?:\.([^.]+))?/;
 
 /** A legacy or whole-record write does not say which paths it owns. */
 const isOpaqueChangedPaths = (paths: readonly string[]): boolean =>
   paths.length === 0 || paths.includes('*');
-
-/** Cache hydration can materialize an absent optional field without creating an edit. */
-const isEmptyPatchBaseValue = (value: unknown): boolean =>
-  value == null ||
-  value === '' ||
-  (Array.isArray(value) && value.length === 0) ||
-  (typeof value === 'object' &&
-    Object.getPrototypeOf(value) === Object.prototype &&
-    Object.keys(value).length === 0);
-
-const hasSamePatchBaseValue = (left: unknown, right: unknown): boolean =>
-  hasSameComparableValue(left, right) ||
-  (isEmptyPatchBaseValue(left) && isEmptyPatchBaseValue(right));
-
-/** A field edit belongs to the occupant it was written for; a whole-bed value compares by value. */
-const assertSameOccupantAtPath = (
-  path: string,
-  writtenFor: DailyRecord,
-  projection: DailyRecord
-): void => {
-  const match = BED_FIELD_PATH.exec(path);
-  if (!match || BED_SLOT_FIELDS.has(match[2])) return;
-  const [, bedId, field] = match;
-  const writtenBed = writtenFor.beds?.[bedId];
-  const projectedBed = projection.beds?.[bedId];
-  if (
-    hasSameBedOccupant(writtenBed, projectedBed) &&
-    ((field && field !== 'clinicalCrib') ||
-      hasSameBedOccupant(writtenBed?.clinicalCrib, projectedBed?.clinicalCrib))
-  ) {
-    return;
-  }
-  throw new ConcurrencyError(
-    'La cama o la cuna cambió de paciente en otra pestaña. Recargue el censo antes de continuar.'
-  );
-};
 
 /** Journals keep concurrent ids; a Rayen entry changes only against its writer's base. */
 const mergeJournalValue = (
@@ -124,9 +92,7 @@ const mergeJournalValue = (
       if (hasSameComparableValue(event, previous)) return false;
       const stored = currentById.get(event.id);
       if (!hasSameComparableValue(stored, previous) && !hasSameComparableValue(stored, event)) {
-        throw new ConcurrencyError(
-          'Otra pestaña cambió la misma corrida Rayen. Recargue el censo antes de continuar.'
-        );
+        throw staleDailyRecordError('Otra pestaña cambió esta corrida Rayen');
       }
       return true;
     });
@@ -201,9 +167,7 @@ const buildPatchRebase =
       }
       const merged = mergeJournalValue(path, value, projected, getValueAtPath(storedBase, path));
       if (!merged) {
-        throw new ConcurrencyError(
-          'Otra pestaña cambió el mismo dato del censo. Recargue el censo antes de continuar.'
-        );
+        throw staleDailyRecordError('Otra pestaña cambió este dato');
       }
       rebasedPatch[path] = merged;
     });
@@ -220,12 +184,14 @@ const foldWriteIntoOutbox = ({
   stored,
   unresolved,
   rebase,
+  wholeRecordBase,
 }: {
   task: SyncTask;
   existing: SyncTask | null;
   stored: DailyRecord | undefined;
   unresolved: SyncTask[];
   rebase: PendingProjectionRebase | undefined;
+  wholeRecordBase?: DailyRecord;
 }): SyncTask => {
   const owner = unresolved.find(
     candidate => stored && hasSameComparableValue(candidate.payload, stored)
@@ -238,6 +204,13 @@ const foldWriteIntoOutbox = ({
       )
     )
   );
+  if (!rebase) {
+    assertPendingFullSaveBase({
+      incoming: task.payload as DailyRecord,
+      pending: unresolved,
+      base: wholeRecordBase,
+    });
+  }
   const rebased = stored && rebase ? rebase(stored, pendingPaths) : null;
   const merged = mergeSyncTaskContracts(existing?.syncContract, task.syncContract);
   const payload = rebased ?? (task.payload as DailyRecord);
@@ -245,6 +218,7 @@ const foldWriteIntoOutbox = ({
   return {
     ...task,
     payload,
+    localProjectionBaseIds: [...localProjectionIds(owner)],
     syncContract: {
       ...buildDailyRecordSyncContract(payload, merged),
       // A local edit is not a publication. Compaction keeps the unresolved remote base,
@@ -552,6 +526,7 @@ export const saveDailyRecordInOutbox = (
         existing,
         rebase,
         stored,
+        wholeRecordBase,
         unresolved: (await listUnresolvedDailyRecordTasks(record.date)).filter(
           candidate =>
             candidate.type === task.type && matchesOwner(task.ownerKey, candidate.ownerKey)

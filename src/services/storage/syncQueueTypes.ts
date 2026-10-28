@@ -59,6 +59,8 @@ export interface SyncTask {
   origin?: SyncTaskOrigin;
   recoveryPolicy?: string;
   syncContract?: SyncTaskContract;
+  /** Local projection ancestry only; these ids never acknowledge publication of another task. */
+  localProjectionBaseIds?: string[];
   /** A note's base and its projected or already-held day values, settled on refusal or ACK. */
   handoffProjection?: {
     replaced: Record<string, unknown>;

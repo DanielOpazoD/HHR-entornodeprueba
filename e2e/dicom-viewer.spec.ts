@@ -711,11 +711,41 @@ test.describe('DICOM viewer and Salvador annexes', () => {
       canvas.height = movie.videoHeight;
       const ctx = canvas.getContext('2d')!;
       const values: number[] = [];
-      for (let i = 0; i < 6; i++) {
-        await new Promise<void>(resolve => {
+      const seekToFrame = async (index: number) => {
+        let callbackId = 0;
+        let timer = 0;
+        let observedTime: number | undefined;
+        const seeked = new Promise<void>(resolve => {
           movie.addEventListener('seeked', () => resolve(), { once: true });
-          movie.currentTime = i / 5 + 0.05;
         });
+        const presented = new Promise<void>(resolve => {
+          callbackId = movie.requestVideoFrameCallback(function onFrame(_now, metadata) {
+            observedTime = metadata.mediaTime;
+            if (Math.round(metadata.mediaTime * 5) === index) resolve();
+            else callbackId = movie.requestVideoFrameCallback(onFrame);
+          });
+        });
+        const deadline = new Promise<never>((_, reject) => {
+          timer = window.setTimeout(
+            () =>
+              reject(
+                new Error(`Frame ${index} not presented; last mediaTime=${observedTime ?? 'none'}`)
+              ),
+            5000
+          );
+        });
+        try {
+          movie.currentTime = index / 5 + 0.05;
+          await Promise.race([Promise.all([seeked, presented]), deadline]);
+        } finally {
+          window.clearTimeout(timer);
+          movie.cancelVideoFrameCallback(callbackId);
+        }
+      };
+      // Start elsewhere so sampling frame zero also waits for a new presentation.
+      await seekToFrame(5);
+      for (let i = 0; i < 6; i++) {
+        await seekToFrame(i);
         ctx.drawImage(movie, 0, 0);
         values.push(
           ctx.getImageData(Math.floor(canvas.width / 2), Math.floor(canvas.height / 2), 1, 1)
@@ -724,9 +754,6 @@ test.describe('DICOM viewer and Salvador annexes', () => {
       }
       return values;
     });
-    for (let i = 1; i < intensities.length; i++)
-      expect(intensities[i]).toBeGreaterThan(intensities[i - 1] + 3);
-
     await expect(viewer.getByRole('link', { name: 'Descargar MP4', exact: true })).toHaveCount(0);
     await viewer.getByRole('checkbox', { name: /Revisé el video completo/ }).check();
     const downloading = page.waitForEvent('download');
@@ -734,6 +761,9 @@ test.describe('DICOM viewer and Salvador annexes', () => {
     const download = await downloading;
     expect(download.suggestedFilename()).toBe('secuencia-dicom.mp4');
     const bytes = fs.readFileSync((await download.path())!);
+    await test.info().attach('synthetic-dicom-cine.mp4', { body: bytes, contentType: 'video/mp4' });
+    for (let i = 1; i < intensities.length; i++)
+      expect(intensities[i]).toBeGreaterThan(intensities[i - 1] + 3);
     const input = new Input({ source: new BufferSource(bytes), formats: [MP4] });
     try {
       const track = await input.getPrimaryVideoTrack();
