@@ -13,7 +13,10 @@ import {
 } from '@/services/storage/firestore/firestoreShared';
 import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/firestoreServiceRuntime';
 import type { FirestoreServiceRuntimePort } from '@/services/storage/firestore/ports/firestoreServiceRuntimePort';
-import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
+import {
+  ConcurrencyError,
+  createDailyRecordBaseReviewError,
+} from '@/services/storage/syncErrorCatalog';
 import { loadSpecialistMedicalHandoffClient } from '@/services/storage/firestore/firestoreRecordWrites';
 import { resolveDailyRecordConflict } from '@/services/repositories/conflictResolutionMatrix';
 import {
@@ -108,9 +111,13 @@ const shouldRevalidateAgainstRemote = (
   return toMillis(remoteLastUpdated) > toMillis(expectedVersion);
 };
 
-const assertKnownWholeRecordBase = (task: SyncTask, remoteData?: Record<string, unknown>): void => {
+const isWholeRecordTask = (task: SyncTask): boolean => {
   const paths = normalizeChangedPaths(task.syncContract?.changedPaths);
-  if (paths.length && !paths.includes('*')) return;
+  return !paths.length || paths.includes('*');
+};
+
+const assertKnownWholeRecordBase = (task: SyncTask, remoteData?: Record<string, unknown>): void => {
+  if (!isWholeRecordTask(task)) return;
 
   const expectedVersion = task.syncContract?.expectedVersion;
   let knownBase = expectedVersion !== UNKNOWN_SERVER_VERSION;
@@ -131,9 +138,8 @@ const assertKnownWholeRecordBase = (task: SyncTask, remoteData?: Record<string, 
         : matchingVersion;
   }
   if (!knownBase) {
-    throw new ConcurrencyError(
-      'El censo cambió o su base no es verificable. Conservamos los cambios para revisión.',
-      'semantic_conflict'
+    throw createDailyRecordBaseReviewError(
+      'El censo cambió o su base no es verificable. Conservamos los cambios para revisión.'
     );
   }
 };
@@ -345,6 +351,15 @@ const syncDailyRecord = async (
           mode: effectiveAuthorityMode === 'enforced' ? 'enforced' : 'shadow',
           origin: task.origin,
           syncContract: resolved.detached?.task.syncContract ?? task.syncContract,
+        }).catch(error => {
+          if (
+            error instanceof ConcurrencyError &&
+            error.reason === 'version_mismatch' &&
+            isWholeRecordTask(task)
+          ) {
+            throw createDailyRecordBaseReviewError(error.message);
+          }
+          throw error;
         });
         const authoritativeRecord = response.recordState?.record;
         if (

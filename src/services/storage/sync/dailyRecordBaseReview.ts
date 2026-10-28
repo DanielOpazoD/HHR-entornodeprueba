@@ -6,6 +6,7 @@ export const requiresDailyRecordBaseReview = (
 ): boolean =>
   task.type === 'UPDATE_DAILY_RECORD' &&
   (task.status === 'FAILED' || task.status === 'CONFLICT') &&
-  (task.lastErrorCode === 'failed-precondition' ||
-    task.lastErrorCode === 'functions/failed-precondition') &&
-  /\bbase_required:/.test(task.error ?? '');
+  (task.lastErrorCode === 'sync_daily_record_base_review' ||
+    ((task.lastErrorCode === 'failed-precondition' ||
+      task.lastErrorCode === 'functions/failed-precondition') &&
+      /\bbase_required:/.test(task.error ?? '')));

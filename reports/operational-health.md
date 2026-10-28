@@ -7,6 +7,12 @@
 
 ## Sync Queue
 
+Una copia completa cuya base cambió o no es verificable conserva un motivo de
+revisión estable. El panel y la cola impiden reenviarla sin cambios; permiten
+revisar y descargar su respaldo o confirmar su retirada. Ni el bloqueo ni la
+retirada cuentan como confirmación remota. Los reintentos por red o permisos y los
+conflictos granulares conservan su política.
+
 El conteo, la antigüedad y los reintentos pendientes incluyen envíos `PROCESSING`
 hasta su confirmación. Salud operacional conserva ese trabajo activo y la renovación
 de copias locales tras una actualización espera a que termine.

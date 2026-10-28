@@ -12,6 +12,11 @@ export class ConcurrencyError extends Error {
   }
 }
 
+export const createDailyRecordBaseReviewError = (message: string) =>
+  Object.assign(new ConcurrencyError(message, 'semantic_conflict'), {
+    code: 'sync_daily_record_base_review',
+  } as const);
+
 export interface SyncErrorClassification {
   code: string;
   message: string;

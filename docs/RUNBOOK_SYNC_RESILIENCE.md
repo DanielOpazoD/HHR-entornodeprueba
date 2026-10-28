@@ -205,7 +205,9 @@ Acciones:
 4. Si no baja, recargar sesión del usuario.
 5. Si sigue crítico, solicitar captura de consola y revisar tipo de error:
    - `permission-denied` -> ir a Procedimiento 3.
-   - `ConcurrencyError` -> ir a Procedimiento 4.
+   - `sync_daily_record_base_review` -> la copia completa conserva una base que cambió
+     o que ya no puede verificarse. Seguir la revisión de origen descrita a continuación.
+   - Otros `ConcurrencyError` -> ir a Procedimiento 4.
    - `failed-precondition` con `base_required` -> falta una versión de origen verificable.
      El panel indica **Requiere revisión de la versión de origen** y conserva los cambios
      en el equipo. Reintentar el mismo envío no resuelve la causa y la cola lo impide.
