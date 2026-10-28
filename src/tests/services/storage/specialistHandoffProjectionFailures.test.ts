@@ -7,7 +7,6 @@ import {
   DATE,
   dayTasks,
   expectRefusedNoteKept,
-  expectDayEditsPublishedOrKept,
   local,
   MODES,
   note,
@@ -42,7 +41,7 @@ const queueNote = async () => {
 };
 
 it.each(MODES)(
-  'settles an explicitly retried note before later whole-day saves (%s)',
+  'settles an explicitly retried note and retains a later stale whole-day save (%s)',
   async (_mode, enforced) => {
     h.authorityMode = enforced;
     const task = await queueNote();
@@ -63,9 +62,19 @@ it.each(MODES)(
       ...shown,
       beds: { ...shown.beds, R6: { ...shown.beds.R6, handoffNote: 'Entrega E' } },
     });
+    const [pending] = await dayTasks();
     await reconnect();
     expect(remote().beds.R4.medicalHandoffNote).toBe('Nota de A');
-    await expectDayEditsPublishedOrKept(enforced, { 'beds.R6.handoffNote': 'Entrega E' });
+    expect(remote().beds.R6.handoffNote).toBe('');
+    expect((await local()).beds.R6.handoffNote).toBe('Entrega E');
+    expect(await dayTasks()).toMatchObject([
+      {
+        id: pending.id,
+        status: 'CONFLICT',
+        payload: pending.payload,
+        syncContract: pending.syncContract,
+      },
+    ]);
     for (const held of await dayTasks())
       expect((held.payload as DailyRecord).beds.R4.medicalHandoffNote).toBe('Nota de A');
   }

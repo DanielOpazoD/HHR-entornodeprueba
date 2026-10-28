@@ -42,7 +42,7 @@ const patient = (bedId: string, clinicalEpisodeId: string, extra: object = {}) =
   } as Partial<PatientData>);
 const day = (lastUpdated: string, beds: Record<string, PatientData>, extra: object = {}) =>
   ({ ...DataFactory.createMockDailyRecord(date, { lastUpdated }), beds, ...extra }) as DailyRecord;
-const publish = (payload: DailyRecord) => {
+const publish = (payload: DailyRecord, expectedVersion?: string) => {
   const db = environment.authenticatedContext('synthetic-admin', { role: 'admin' }).firestore();
   return createFirestoreSyncTransport({
     getDb: () => db as unknown as Firestore,
@@ -54,6 +54,7 @@ const publish = (payload: DailyRecord) => {
     timestamp: 1,
     retryCount: 0,
     status: 'PENDING',
+    syncContract: { expectedVersion },
   });
 };
 const stored = async () => {
@@ -106,7 +107,8 @@ it.skipIf(!enabled)(
           R4: patient('R4', 'ep_c', moved('local-c')),
         },
         { meta: { revision: 3 } }
-      )
+      ),
+      seed.lastUpdated
     );
 
     const data = await stored();

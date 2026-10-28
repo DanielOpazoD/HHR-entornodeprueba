@@ -88,6 +88,7 @@ it.skipIf(!enabled)(
         timestamp: 1,
         retryCount: 0,
         status: 'PENDING',
+        syncContract: { changedPaths: ['*'], expectedVersion: record('09').lastUpdated },
       })
     ).rejects.toMatchObject({ name: 'ConcurrencyError' });
     expect(intervened).toBe(true);
