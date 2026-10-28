@@ -39,6 +39,8 @@ const {
   summarizeClinicalEnrichmentMismatches,
 } = require('./rayenClinicalEnrichmentPolicy');
 
+const { assertDocumentaryCudyrAuthority } = require('./rayenDocumentaryCudyrPolicy');
+
 const operation = 'applyRayenClinicalEnrichmentBatch';
 // v3: parity compares the combined view (episode documents over the day, phase 1a D13). Only
 // split days report it, so unmarked days keep their v2 evidence exactly as before.
@@ -356,6 +358,14 @@ const createRayenClinicalEnrichmentFunctions = ({
               ? assertLegacyReplayRevision(remoteData, payload, idempotency.receipt)
               : assertRecordRevision(remoteData, payload);
           assertAdministrativeCudyrAuthority(remoteData, payload);
+          await assertDocumentaryCudyrAuthority({
+            payload,
+            record: remoteData,
+            hospitalRef,
+            read,
+            authorityRecord: authoritySnapshot.data() || {},
+            valuesEqual: (left, right) => digestValue(left) === digestValue(right),
+          });
           const effectiveTargets = resolveHistoricalCudyrTargets(remoteData, payload);
           if (clinicalEnrichmentMatches(view, effectiveTargets, payload.fieldContractVersion)) {
             // Reuse the established status so older clients remain compatible
