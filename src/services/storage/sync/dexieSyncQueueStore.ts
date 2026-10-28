@@ -90,6 +90,12 @@ const reconcileSpecialistHandoffProjections = async (): Promise<void> => {
 };
 
 export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
+  async completeDirectDailyRecord(input) {
+    const { completeDirectDailyRecord } = await import('./dexieSyncQueueAuthorityAck');
+    const result = await completeDirectDailyRecord(input);
+    if (result.status === 'adopted') mirrorTransactionalDailyRecordWrite(result.record);
+    return result;
+  },
   withEnqueueTransaction: operation =>
     hospitalDB.transaction('rw', hospitalDB.syncQueue, async () => operation()),
   async listAll(ownerKey) {

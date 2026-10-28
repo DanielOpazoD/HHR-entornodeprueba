@@ -207,6 +207,7 @@ export const persistLocalAndAttemptRemoteSync = async ({
   readRemoteConfirmedRecord,
   resolveAlreadyAppliedRemoteRecord,
   adoptRemoteAuthorityRecord,
+  completeConfirmedLocalWrite,
   retryRemoteWriteOnStaleVersion,
   canRebaseStaleVersionConflict,
   requireConfirmedRecord = false,
@@ -241,6 +242,8 @@ export const persistLocalAndAttemptRemoteSync = async ({
   resolveAlreadyAppliedRemoteRecord?: (error: unknown) => Promise<DailyRecord | null>;
   /** Reconciles a confirmed guarded record with any exact pending local outbox projection. */
   adoptRemoteAuthorityRecord?: (record: DailyRecord) => Promise<DailyRecord>;
+  /** Atomically completes only a confirmed local-first full save and returns retained work. */
+  completeConfirmedLocalWrite?: (record: DailyRecord) => Promise<DailyRecord | undefined>;
   /**
    * Require the exact server-confirmed revision even when the remote adapter returns `void`.
    * Rayen structural imports need this handoff before starting their clinical stage; ordinary
@@ -432,9 +435,11 @@ export const persistLocalAndAttemptRemoteSync = async ({
         authoritativeRecord,
         remoteState,
         adoptRemoteAuthorityRecord,
+        completeConfirmedLocalWrite,
         releaseLocalPreOutboxHold,
       });
       if (!persistedLocally) return 'return';
+      if (completeConfirmedLocalWrite) return 'continue';
     }
     await ackLocalAfterRemote?.();
     return 'continue';

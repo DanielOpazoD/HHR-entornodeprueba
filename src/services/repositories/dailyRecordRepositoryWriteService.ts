@@ -27,7 +27,10 @@ import {
   buildDailyRecordSyncContract,
   resolveRecordBaseRevision,
 } from '@/services/storage/sync/syncTaskContractPolicy';
-import { queueDailyRecordSyncTaskWithLocalRecord } from '@/services/storage/sync';
+import {
+  queueDailyRecordSyncTaskWithLocalRecord,
+  completeDirectDailyRecordSyncTask,
+} from '@/services/storage/sync';
 import { prepareDailyRecordForPersistence } from '@/services/repositories/dailyRecordPersistencePreparation';
 import { preparePatchedRecordForPersistence } from '@/services/repositories/dailyRecordPatchPreparation';
 import {
@@ -228,6 +231,12 @@ const saveDetailedWithinLock = async (
         { ...buildPreOutboxRemoteAckOptions(syncContract), wholeRecordBase: options.baseRecord }
       ),
     ...buildPreOutboxRemoteAckCallbacks(validatedRecord, syncContract),
+    completeConfirmedLocalWrite: confirmedRecord =>
+      completeDirectDailyRecordSyncTask({
+        sentRecord: validatedRecord,
+        confirmedRecord,
+        syncContract,
+      }),
     readRemoteConfirmedRecord: () => getRecordFromFirestore(command.date, { source: 'server' }),
     requireConfirmedRecord: options.requireConfirmedRecord,
     onRemoteFailure: err => {

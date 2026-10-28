@@ -35,6 +35,8 @@ export interface SaveDailyRecordResult {
   blockingError?: Error;
   /** Exact server-confirmed state returned by the authority callable, when available. */
   confirmedRecord?: DailyRecord;
+  /** Retained local work that the full-save response did not confirm. */
+  localProjectionRecord?: DailyRecord;
 }
 
 type SaveDailyRecordResultInput = Pick<

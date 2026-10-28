@@ -79,6 +79,32 @@ export const createDailyRecordSyncQueueActions = ({
       }
     );
 
+  const completeDirectDailyRecordSyncTask = async ({
+    sentRecord,
+    confirmedRecord,
+    syncContract,
+  }: {
+    sentRecord: DailyRecord;
+    confirmedRecord: DailyRecord;
+    syncContract: NonNullable<SyncTask['syncContract']>;
+  }): Promise<DailyRecord | undefined> => {
+    if (!syncContract.mutationId?.trim() || !store.completeDirectDailyRecord) {
+      throw new Error('Direct full-save ACK requires a mutation identity and transactional store.');
+    }
+    await ensureReady();
+    const result = await store.completeDirectDailyRecord({
+      sentRecord,
+      confirmedRecord,
+      mutationId: syncContract.mutationId,
+      ownerKey: getOwnerKey(),
+    });
+    if (result.status === 'retained') {
+      if (result.releasedHold) triggerProcessing();
+      return result.record;
+    }
+    return undefined;
+  };
+
   const releaseDailyRecordPreOutboxHold = (
     record: DailyRecord,
     syncContract?: SyncTask['syncContract']
@@ -187,6 +213,7 @@ export const createDailyRecordSyncQueueActions = ({
   };
 
   return {
+    completeDirectDailyRecordSyncTask,
     ackDailyRecordSyncTask,
     releaseDailyRecordPreOutboxHold,
     renewDailyRecordPreOutboxHold,

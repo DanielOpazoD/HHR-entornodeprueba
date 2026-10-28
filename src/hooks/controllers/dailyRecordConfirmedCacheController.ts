@@ -6,6 +6,7 @@ import type {
 } from '@/services/repositories/contracts/dailyRecordQueries';
 import { createDailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import { toRecordTimestamp } from '@/services/repositories/dailyRecordConsistencyPolicy';
+import { hasSameComparableValue } from '@/services/repositories/conflictResolutionUtils';
 import {
   getDailyRecordQueryKey,
   setDailyRecordQueryData,
@@ -39,6 +40,17 @@ const createLocalProjectionRuntime = (date: string): DailyRecordQueryRuntime => 
   repairApplied: false,
 });
 
+const hasInterveningCachedEdit = (
+  cachedRecord: DailyRecord,
+  confirmedRecord: DailyRecord,
+  optimisticRecord?: DailyRecord
+) =>
+  Boolean(
+    optimisticRecord &&
+    !hasSameComparableValue(cachedRecord, optimisticRecord) &&
+    !hasSameComparableValue(cachedRecord, confirmedRecord)
+  );
+
 export const didDailyRecordCacheAdvanceBeyondConfirmation = (
   cachedRecord: DailyRecord | null | undefined,
   confirmedRecord: DailyRecord | null | undefined,
@@ -56,7 +68,7 @@ export const setRemoteConfirmedDailyRecordQueryData = async (
   queryClient: QueryClient,
   date: string,
   confirmedRecord: DailyRecord,
-  options: { replaceOptimisticLastUpdated?: string } = {}
+  options: { replaceOptimisticLastUpdated?: string; optimisticRecord?: DailyRecord } = {}
 ) => {
   const queryKey = getDailyRecordQueryKey(date);
   await queryClient.cancelQueries({ queryKey, exact: true });
@@ -64,9 +76,10 @@ export const setRemoteConfirmedDailyRecordQueryData = async (
     releaseConfirmedPendingDailyRecordPatches(date, confirmedRecord, previous?.record ?? undefined);
     if (
       previous?.record &&
-      previous.record.lastUpdated !== options.replaceOptimisticLastUpdated &&
-      toRecordTimestamp(previous.record.lastUpdated) >
-        toRecordTimestamp(confirmedRecord.lastUpdated)
+      (hasInterveningCachedEdit(previous.record, confirmedRecord, options.optimisticRecord) ||
+        (previous.record.lastUpdated !== options.replaceOptimisticLastUpdated &&
+          toRecordTimestamp(previous.record.lastUpdated) >
+            toRecordTimestamp(confirmedRecord.lastUpdated)))
     ) {
       return {
         ...previous,
@@ -88,10 +101,13 @@ export const setAcknowledgedDailyRecordQueryData = async (
   date: string,
   displayRecord: DailyRecord,
   confirmedRecord?: DailyRecord,
-  optimisticLastUpdated?: string
+  optimisticLastUpdated?: string,
+  options: { retainedProjection?: boolean; optimisticRecord?: DailyRecord } = {}
 ) => {
   const isConfirmedProjection = Boolean(
-    confirmedRecord && displayRecord.lastUpdated === confirmedRecord.lastUpdated
+    !options.retainedProjection &&
+    confirmedRecord &&
+    hasSameComparableValue(displayRecord, confirmedRecord)
   );
   if (!confirmedRecord) {
     setDailyRecordQueryData(queryClient, date, displayRecord);
@@ -108,9 +124,13 @@ export const setAcknowledgedDailyRecordQueryData = async (
       );
       if (
         previous?.record &&
-        previous.record.lastUpdated !== optimisticLastUpdated &&
-        toRecordTimestamp(previous.record.lastUpdated) >
-          toRecordTimestamp(displayRecord.lastUpdated)
+        !hasSameComparableValue(previous.record, displayRecord) &&
+        (!options.retainedProjection ||
+          !hasSameComparableValue(previous.record, confirmedRecord)) &&
+        (hasInterveningCachedEdit(previous.record, confirmedRecord, options.optimisticRecord) ||
+          (previous.record.lastUpdated !== optimisticLastUpdated &&
+            toRecordTimestamp(previous.record.lastUpdated) >
+              toRecordTimestamp(displayRecord.lastUpdated)))
       ) {
         return {
           ...previous,
@@ -122,7 +142,10 @@ export const setAcknowledgedDailyRecordQueryData = async (
         displayRecord,
         previous?.record ?? undefined
       );
-      if (previous?.record?.lastUpdated === displayRecord.lastUpdated) {
+      if (
+        !options.retainedProjection &&
+        previous?.record?.lastUpdated === displayRecord.lastUpdated
+      ) {
         return { ...previous, record: reconciledDisplay };
       }
       return createDailyRecordQueryResult(reconciledDisplay, createLocalProjectionRuntime(date));
@@ -131,5 +154,6 @@ export const setAcknowledgedDailyRecordQueryData = async (
   }
   await setRemoteConfirmedDailyRecordQueryData(queryClient, date, confirmedRecord, {
     replaceOptimisticLastUpdated: optimisticLastUpdated,
+    optimisticRecord: options.optimisticRecord,
   });
 };

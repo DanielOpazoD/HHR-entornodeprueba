@@ -20,7 +20,11 @@ vi.mock('@/firebaseConfig', () => ({
   auth: null,
 }));
 
-import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
+import {
+  saveDetailed,
+  updatePartialDetailed,
+} from '@/services/repositories/dailyRecordRepositoryWriteService';
+import * as recordWrites from '@/services/storage/firestore/firestoreRecordWrites';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import {
   clearAllRecords,
@@ -28,7 +32,11 @@ import {
   saveRecord,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
-import { clearAllSyncQueue, processSyncQueue } from '@/services/storage/sync';
+import {
+  clearAllSyncQueue,
+  processSyncQueue,
+  queueDailyRecordSyncTaskWithLocalRecord,
+} from '@/services/storage/sync';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 
 const DATE = getTodayISO();
@@ -167,6 +175,73 @@ describeEmulator('the outbox publishes compacted offline work through Firestore'
       nursesDayShift: expect.arrayContaining(['SINTETICA SIN RED']),
       tensDayShift: expect.arrayContaining(['SINTETICO DIRECTO']),
     });
+    expect(await hospitalDB.syncQueue.count()).toBe(0);
+  });
+
+  it('retains B through a full-save ACK and publishes it on replay', async () => {
+    let remoteCommitted!: () => void;
+    const committed = new Promise<void>(resolve => {
+      remoteCommitted = resolve;
+    });
+    let releaseAck!: () => void;
+    const holdAck = new Promise<void>(resolve => {
+      releaseAck = resolve;
+    });
+    const saveRemote = recordWrites.saveRecordToFirestore;
+    vi.spyOn(recordWrites, 'saveRecordToFirestore').mockImplementationOnce(async (...args) => {
+      const receipt = await saveRemote(...args);
+      remoteCommitted();
+      await holdAck;
+      return receipt;
+    });
+    const saving = saveDetailed(
+      { ...baseRecord(), nursesDayShift: ['SINTETICA A'] },
+      baseRecord().lastUpdated,
+      {
+        baseRecord: baseRecord(),
+        requireConfirmedRecord: true,
+      }
+    );
+    await committed;
+    const sent = await localRecord();
+    const later = {
+      ...sent,
+      tensDayShift: ['SINTETICO B'],
+      lastUpdated: new Date().toISOString(),
+    };
+    try {
+      await queueDailyRecordSyncTaskWithLocalRecord(
+        later,
+        {
+          syncContract: {
+            mutationId: 'synthetic-later-b',
+            changedPaths: ['tensDayShift'],
+            expectedVersion: sent.lastUpdated,
+          },
+        },
+        { wholeRecordBase: sent }
+      );
+      expect(await readRemote()).toMatchObject({
+        nursesDayShift: ['SINTETICA A'],
+        tensDayShift: ['SINTETICO BASE'],
+      });
+    } finally {
+      releaseAck();
+    }
+    const result = await saving;
+    expect(result.confirmedRecord?.tensDayShift).toEqual(['SINTETICO BASE']);
+    expect(result.localProjectionRecord?.tensDayShift).toEqual(['SINTETICO B']);
+    expect((await localRecord()).tensDayShift).toEqual(['SINTETICO B']);
+    expect(await hospitalDB.syncQueue.count()).toBe(1);
+
+    await publishQueue();
+
+    expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
+    expect(await readRemote()).toMatchObject({
+      nursesDayShift: ['SINTETICA A'],
+      tensDayShift: ['SINTETICO B', '', ''],
+    });
+    expect((await localRecord()).tensDayShift).toEqual(['SINTETICO B', '', '']);
     expect(await hospitalDB.syncQueue.count()).toBe(0);
   });
 });

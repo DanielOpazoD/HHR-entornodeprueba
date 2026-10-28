@@ -5,6 +5,8 @@ import type { matchesTaskClaim } from '@/services/storage/sync/syncQueueTaskFact
 import type {
   SyncQueueStorePort,
   SyncQueueLeaseClaim,
+  DirectDailyRecordAckInput,
+  DirectDailyRecordAckResult,
 } from '@/services/storage/sync/syncQueuePorts';
 import { UNKNOWN_SERVER_VERSION } from '@/services/storage/sync/syncTaskContractPolicy';
 import { hasSameComparableValue } from '@/services/repositories/conflictResolutionUtils';
@@ -31,6 +33,77 @@ class SyncQueueAckError extends Error {
     this.name = 'SyncQueueAckError';
   }
 }
+
+export const completeDirectDailyRecord = async ({
+  sentRecord,
+  confirmedRecord,
+  mutationId,
+  ownerKey,
+}: DirectDailyRecordAckInput): Promise<DirectDailyRecordAckResult> => {
+  if (!mutationId.trim() || sentRecord.date !== confirmedRecord.date) {
+    throw new SyncQueueAckError('sync_ack_invalid_record', 'Invalid direct ACK identity.');
+  }
+  return hospitalDB.transaction('rw', hospitalDB.dailyRecords, hospitalDB.syncQueue, async () => {
+    const unresolved = await listUnresolvedDailyRecordTasks(sentRecord.date);
+    const matching = unresolved.filter(
+      task =>
+        task.type === 'UPDATE_DAILY_RECORD' &&
+        matchesOwner(ownerKey, task.ownerKey) &&
+        task.status === 'PENDING' &&
+        task.syncContract?.mutationId === mutationId
+    );
+    if (matching.length > 1) {
+      throw new SyncQueueAckError('sync_ack_projection_conflict', 'Ambiguous direct ACK.');
+    }
+    const [candidate] = matching;
+    const eligible =
+      candidate &&
+      !candidate.syncContract?.mutationIds?.some(id => id !== mutationId) &&
+      hasSameComparableValue(candidate.payload, sentRecord)
+        ? candidate
+        : undefined;
+    const local = await hospitalDB.dailyRecords.get(sentRecord.date);
+    if (!local) {
+      throw new SyncQueueAckError('sync_ack_missing_projection', 'Missing local projection.');
+    }
+    const remaining = unresolved.filter(task => !eligible || task.id !== eligible.id);
+    if (remaining.length) {
+      if (eligible?.id) await hospitalDB.syncQueue.delete(eligible.id);
+      const releasedHold = Boolean(
+        candidate?.id && !eligible && candidate.preOutboxHoldState === 'AWAITING_REMOTE_ACK'
+      );
+      if (releasedHold && candidate?.id) {
+        await hospitalDB.syncQueue.update(candidate.id, {
+          nextAttemptAt: 0,
+          preOutboxHoldState: undefined,
+          preOutboxHoldOwner: undefined,
+          preOutboxHoldUntil: undefined,
+          preOutboxHoldReason: undefined,
+          preOutboxHoldHeartbeatAt: undefined,
+        });
+      }
+      return { status: 'retained', record: local, releasedHold };
+    }
+    if (!eligible) {
+      if (!hasSameComparableValue(local, confirmedRecord)) {
+        throw new SyncQueueAckError('sync_ack_projection_conflict', 'Stale direct ACK.');
+      }
+      return { status: 'adopted', record: local };
+    }
+    if (
+      !hasSameComparableValue(local, sentRecord) &&
+      !hasSameComparableValue(local, confirmedRecord)
+    ) {
+      throw new SyncQueueAckError(
+        'sync_ack_projection_conflict',
+        'Direct ACK projection conflict.'
+      );
+    }
+    await hospitalDB.dailyRecords.put(confirmedRecord);
+    if (eligible.id) await hospitalDB.syncQueue.delete(eligible.id);
+    return { status: 'adopted', record: confirmedRecord };
+  });
+};
 
 export const completeClaimedSyncTask = async (
   { db, matchesClaim, pending, confirmNote }: AckRuntime,

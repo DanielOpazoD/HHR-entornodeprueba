@@ -12,7 +12,7 @@ import {
   setDailyRecordQueryData,
   shouldUseDailyRecordRealtimeSync,
 } from '@/hooks/controllers/dailyRecordQueryController';
-import { setRemoteConfirmedDailyRecordQueryData } from '@/hooks/controllers/dailyRecordConfirmedCacheController';
+import { setAcknowledgedDailyRecordQueryData } from '@/hooks/controllers/dailyRecordConfirmedCacheController';
 import {
   markDailyRecordRemoteConfirmed,
   markDailyRecordStaleBaseline,
@@ -245,11 +245,16 @@ export const useSaveDailyRecordMutation = () => {
       }
       if (!payload.result?.savedRemotely) return;
       if (payload.result.confirmedRecord) {
-        await setRemoteConfirmedDailyRecordQueryData(
+        await setAcknowledgedDailyRecordQueryData(
           queryClient,
           payload.record.date,
+          payload.result.localProjectionRecord ?? payload.result.confirmedRecord,
           payload.result.confirmedRecord,
-          { replaceOptimisticLastUpdated: input.record.lastUpdated }
+          input.record.lastUpdated,
+          {
+            retainedProjection: Boolean(payload.result.localProjectionRecord),
+            optimisticRecord: input.record,
+          }
         );
       }
       markDailyRecordRemoteConfirmed(payload.record.date, {
