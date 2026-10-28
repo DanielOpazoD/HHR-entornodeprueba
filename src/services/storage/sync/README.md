@@ -33,8 +33,10 @@ El runtime despierta el mismo worker al abrir la aplicación, recuperar conexió
 
 Un guardado completo conserva los valores de las ediciones aceptadas o demuestra
 que su base ya los incluía antes de sustituirlos. La comprobación y el reemplazo
-comparten la transacción del outbox. Una tarea que incorpora otra conserva sus
-identificadores de mutación y sus rutas; la validación usa esos identificadores
-para distinguir el valor vigente de uno ya sustituido, sin ordenar por timestamps.
+comparten la transacción del outbox. `localProjectionBaseIds` registra únicamente
+las bases locales incorporadas: no amplía las rutas ni las confirmaciones remotas
+de otra tarea en vuelo. La validación usa esa relación para comprobar las rutas de
+cada pendiente contra sus valores vigentes, sin ordenar por timestamps. Las tareas
+históricas sin ese campo conservan su protección sin inferir una base.
 Cada tarea permanece hasta su propia confirmación. Una base obsoleta se rechaza sin cambiar el
 registro ni sus tareas, incluso si la copia local falta o quedó atrasada (SAVE-01, SAVE-02).

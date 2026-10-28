@@ -14,7 +14,6 @@ import {
   sameSpecialistHandoffTarget,
   specialistHandoffTextState,
 } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
-import { hasSameBedOccupant } from '@/services/storage/sync/bedOccupantIdentity';
 // The replay-time occupant checks ship with the enqueue-time one, in this lazy chunk.
 export { detachStaleOccupantPaths } from '@/services/storage/sync/dayTaskOccupantDetach';
 export {
@@ -215,15 +214,19 @@ const foldWriteIntoOutbox = ({
     });
   }
   const rebased = stored && rebase ? rebase(stored, pendingPaths) : null;
-  const merged = mergeSyncTaskContracts(
-    mergeSyncTaskContracts(existing?.syncContract, owner?.syncContract),
-    task.syncContract
-  );
+  const merged = mergeSyncTaskContracts(existing?.syncContract, task.syncContract);
   const payload = rebased ?? (task.payload as DailyRecord);
   const baseContract = existing?.syncContract ?? owner?.syncContract;
   return {
     ...task,
     payload,
+    localProjectionBaseIds: Array.from(
+      new Set(
+        [...(owner?.localProjectionBaseIds ?? []), owner?.syncContract?.mutationId].filter(
+          (id): id is string => Boolean(id)
+        )
+      )
+    ),
     syncContract: {
       ...buildDailyRecordSyncContract(payload, merged),
       // A local edit is not a publication. Compaction keeps the unresolved remote base,

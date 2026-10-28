@@ -132,28 +132,30 @@ export const assertPendingFullSaveBase = ({
   const writes = pending.map(task => ({
     task,
     ids: new Set(
-      [task.syncContract?.mutationId, ...(task.syncContract?.mutationIds ?? [])].filter(Boolean)
+      [task.syncContract?.mutationId, ...(task.localProjectionBaseIds ?? [])].filter(Boolean)
     ),
   }));
-  for (const { task, ids } of writes) {
-    // A strict superset proves incorporation; equal or unknown claims keep their protection.
-    if (
-      ids.size &&
-      writes.some(other => other.ids.size > ids.size && [...ids].every(id => other.ids.has(id)))
-    )
-      continue;
-    const current = task.payload as DailyRecord;
-    if (!current || current.date !== incoming.date || (base && base.date !== incoming.date))
-      reject();
-    const paths = task.syncContract?.changedPaths;
-    for (const path of paths?.length && !paths.includes('*')
-      ? paths
-      : Object.keys({ ...base, ...incoming, ...current })) {
-      if (path === 'lastUpdated') continue;
-      const value = getValueAtPath(current, path);
-      const read = base && hasSamePatchBaseValue(value, getValueAtPath(base, path));
-      assertSameOccupantAtPath(path, read ? base : incoming, current);
-      if (!read && !hasSamePatchBaseValue(value, getValueAtPath(incoming, path))) reject();
+  const incorporates = (next: (typeof writes)[number], previous: (typeof writes)[number]) =>
+    previous.ids.size > 0 &&
+    next.ids.size > previous.ids.size &&
+    [...previous.ids].every(id => next.ids.has(id));
+  const heads = writes.filter(write => !writes.some(other => incorporates(other, write)));
+  for (const write of writes) {
+    // Keep each ancestor's owned paths, but use their values after accepted local supersession.
+    for (const { task } of heads.filter(head => head === write || incorporates(head, write))) {
+      const current = task.payload as DailyRecord;
+      if (!current || current.date !== incoming.date || (base && base.date !== incoming.date))
+        reject();
+      const paths = write.task.syncContract?.changedPaths;
+      for (const path of paths?.length && !paths.includes('*')
+        ? paths
+        : Object.keys({ ...base, ...incoming, ...current })) {
+        if (path === 'lastUpdated') continue;
+        const value = getValueAtPath(current, path);
+        const read = base && hasSamePatchBaseValue(value, getValueAtPath(base, path));
+        assertSameOccupantAtPath(path, read ? base : incoming, current);
+        if (!read && !hasSamePatchBaseValue(value, getValueAtPath(incoming, path))) reject();
+      }
     }
   }
 };

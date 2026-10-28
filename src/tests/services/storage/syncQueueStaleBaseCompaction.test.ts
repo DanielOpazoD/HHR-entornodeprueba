@@ -320,6 +320,79 @@ describe('queue compaction keeps every accepted pending edit', () => {
     }
   );
 
+  it('protects ancestor paths without making the later task publish them', async () => {
+    const { queue, base, accepted } = await seedAccepted();
+    await hospitalDB.syncQueue.toCollection().modify({ status: 'PROCESSING' });
+    const newer = { ...accepted, tensDayShift: ['SINTETICO B'] };
+    await queue.queueDailyRecordTaskWithLocalRecord(newer, {
+      syncContract: { changedPaths: ['tensDayShift'] },
+    });
+    const before = await hospitalDB.syncQueue.toArray();
+    expect(before[1].syncContract?.changedPaths).toEqual(['tensDayShift']);
+    const stale = { ...base, tensDayShift: newer.tensDayShift };
+    await expect(
+      queue.queueDailyRecordTaskWithLocalRecord(
+        stale,
+        { syncContract: { changedPaths: ['*'] } },
+        { wholeRecordBase: stale }
+      )
+    ).rejects.toMatchObject({ name: 'ConcurrencyError' });
+    expect(await hospitalDB.syncQueue.toArray()).toEqual(before);
+    expect(await hospitalDB.dailyRecords.get(date)).toEqual(newer);
+  });
+
+  it('does not infer a missing local base from publication receipt ids', async () => {
+    const { queue, accepted } = await seedAccepted();
+    await hospitalDB.syncQueue.toCollection().modify({ status: 'PROCESSING' });
+    const newer = { ...accepted, nursesDayShift: ['SINTETICA B'] };
+    await queue.queueDailyRecordTaskWithLocalRecord(newer, {
+      syncContract: { changedPaths: ['nursesDayShift'] },
+    });
+    const tasks = await hospitalDB.syncQueue.toArray();
+    await hospitalDB.syncQueue.toCollection().modify(task => {
+      delete task.localProjectionBaseIds;
+    });
+    await hospitalDB.syncQueue.update(tasks[1].id!, {
+      syncContract: {
+        ...tasks[1].syncContract,
+        mutationIds: tasks
+          .map(task => task.syncContract?.mutationId)
+          .filter(id => typeof id === 'string'),
+      },
+    });
+    const before = await hospitalDB.syncQueue.toArray();
+    await expect(
+      queue.queueDailyRecordTaskWithLocalRecord(
+        newer,
+        { syncContract: { changedPaths: ['*'] } },
+        { wholeRecordBase: newer }
+      )
+    ).rejects.toMatchObject({ name: 'ConcurrencyError' });
+    expect(await hospitalDB.syncQueue.toArray()).toEqual(before);
+    expect(await hospitalDB.dailyRecords.get(date)).toEqual(newer);
+  });
+
+  it('allows a fresh full save after three same-field edits with equal timestamps', async () => {
+    const { queue, accepted } = await seedAccepted();
+    let current = accepted;
+    for (const nurse of ['SINTETICA B', 'SINTETICA C']) {
+      await hospitalDB.syncQueue.toCollection().modify({ status: 'PROCESSING' });
+      current = { ...current, nursesDayShift: [nurse] };
+      await queue.queueDailyRecordTaskWithLocalRecord(current, {
+        syncContract: { changedPaths: ['nursesDayShift'] },
+      });
+    }
+    const before = await hospitalDB.syncQueue.toArray();
+    const next = { ...current, tensDayShift: ['SINTETICO D'] };
+    await queue.queueDailyRecordTaskWithLocalRecord(
+      next,
+      { syncContract: { changedPaths: ['*'] } },
+      { wholeRecordBase: current }
+    );
+    expect(await hospitalDB.dailyRecords.get(date)).toEqual(next);
+    expect((await hospitalDB.syncQueue.toArray()).slice(0, 2)).toEqual(before.slice(0, 2));
+  });
+
   it('does not treat an identical pending clinical value as permission to replace its episode', async () => {
     const patient = DataFactory.createMockPatient('R1', {
       clinicalEpisodeId: 'synthetic-episode-a',

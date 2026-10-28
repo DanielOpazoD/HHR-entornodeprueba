@@ -100,6 +100,7 @@ describe('transactional outbox authority ACK', () => {
     async status => {
       const { engine, processing, finish, task } = await beginAck();
       await engine.queueDailyRecordTaskWithLocalRecord(newer(), undefined, {
+        wholeRecordBase: first(),
         deferProcessing: true,
         holdForMs: 60000,
       });
@@ -143,6 +144,7 @@ describe('transactional outbox authority ACK', () => {
   it('does not overwrite an unresolved projection owned by another user', async () => {
     const { engine, processing, finish, task } = await beginAck();
     await engine.queueDailyRecordTaskWithLocalRecord(newer(), undefined, {
+      wholeRecordBase: first(),
       deferProcessing: true,
       holdForMs: 60000,
     });
@@ -187,6 +189,7 @@ describe('transactional outbox authority ACK', () => {
   it('does not discard tasks if their unresolved local projection is missing', async () => {
     const { engine, processing, finish } = await beginAck();
     await engine.queueDailyRecordTaskWithLocalRecord(newer(), undefined, {
+      wholeRecordBase: first(),
       deferProcessing: true,
       holdForMs: 60000,
     });
@@ -224,6 +227,7 @@ describe('transactional outbox authority ACK', () => {
   it('replays B after completing A without losing B or treating A as its confirmation', async () => {
     const { engine, processing, finish, task } = await beginAck();
     await engine.queueDailyRecordTaskWithLocalRecord(newer(), undefined, {
+      wholeRecordBase: first(),
       deferProcessing: true,
       holdForMs: 60000,
     });
