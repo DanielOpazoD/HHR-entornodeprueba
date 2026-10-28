@@ -64,7 +64,7 @@ beforeEach(() => {
 });
 it('revalidates a concurrent write that appeared after the initial read', async () => {
   mocks.transactionRead.mockResolvedValue(snapshot(record(date + 'T10:01:00Z')));
-  await expect(run()).rejects.toThrow(/newer/);
+  await expect(run({ ...task(), syncContract: { baseRevision: 0 } })).rejects.toThrow(/newer/);
   expect(mocks.transaction).toHaveBeenCalledOnce();
   expect(mocks.set).not.toHaveBeenCalled();
   expect(mocks.directSet).not.toHaveBeenCalled();
@@ -76,7 +76,7 @@ it('revalidates the original intent when Firestore retries the callback', async 
     mocks.transactionRead.mockResolvedValue(snapshot(record(date + 'T10:01:00Z')));
     return callback(tx());
   });
-  await expect(run()).rejects.toThrow(/newer/);
+  await expect(run({ ...task(), syncContract: { baseRevision: 0 } })).rejects.toThrow(/newer/);
   expect(mocks.transactionRead).toHaveBeenCalledTimes(2);
   expect(mocks.set).not.toHaveBeenCalled();
 });

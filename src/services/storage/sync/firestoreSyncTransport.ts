@@ -44,7 +44,7 @@ import {
 import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
 import type { DetachedOccupantWork } from './dayTaskOccupantDetach';
 import type { SpecialistNoteValue } from './dayTaskReplayGuard';
-import { UNKNOWN_SERVER_VERSION } from './syncTaskContractPolicy';
+import { resolveOptionalBaseRevision, UNKNOWN_SERVER_VERSION } from './syncTaskContractPolicy';
 import {
   adoptStoredClinicalDerivedState,
   withClearedStoredMovedFields,
@@ -108,14 +108,31 @@ const shouldRevalidateAgainstRemote = (
   return toMillis(remoteLastUpdated) > toMillis(expectedVersion);
 };
 
-const assertKnownWholeRecordBase = (task: SyncTask): void => {
+const assertKnownWholeRecordBase = (task: SyncTask, remoteData?: Record<string, unknown>): void => {
   const paths = normalizeChangedPaths(task.syncContract?.changedPaths);
-  if (
-    task.syncContract?.expectedVersion === UNKNOWN_SERVER_VERSION &&
-    (!paths.length || paths.includes('*'))
-  ) {
+  if (paths.length && !paths.includes('*')) return;
+
+  const expectedVersion = task.syncContract?.expectedVersion;
+  let knownBase = expectedVersion !== UNKNOWN_SERVER_VERSION;
+  if (knownBase && remoteData) {
+    const revision = resolveOptionalBaseRevision(task.syncContract?.baseRevision);
+    const remoteRevision = Number(
+      (remoteData.meta as { revision?: unknown } | undefined)?.revision
+    );
+    const currentRevision =
+      Number.isFinite(remoteRevision) && remoteRevision >= 0 ? remoteRevision : 0;
+    const expectedMillis = Date.parse(expectedVersion ?? '');
+    const matchingVersion =
+      Number.isFinite(expectedMillis) &&
+      expectedMillis === Date.parse(getRemoteLastUpdated(remoteData) ?? '');
+    knownBase =
+      revision !== undefined
+        ? revision === currentRevision && (expectedVersion === undefined || matchingVersion)
+        : matchingVersion;
+  }
+  if (!knownBase) {
     throw new ConcurrencyError(
-      'El censo pendiente no conserva una base verificable. Sus cambios se mantienen para revisión antes de publicar un registro completo.',
+      'El censo cambió o su base no es verificable. Conservamos los cambios para revisión.',
       'semantic_conflict'
     );
   }
@@ -191,7 +208,7 @@ const resolveRecordForSyncTask = async (
   }
   // A confirmed mutation can be acknowledged above. An opaque legacy snapshot without a
   // trustworthy base cannot prove what it owns, so keep it for review instead of replaying it.
-  assertKnownWholeRecordBase(task);
+  assertKnownWholeRecordBase(task, remoteData);
   if (detached) {
     ({ task, record } = detached);
     // Nothing else to publish: the stored day stays as it is.

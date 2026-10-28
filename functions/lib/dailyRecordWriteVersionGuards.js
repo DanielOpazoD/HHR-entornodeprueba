@@ -68,8 +68,17 @@ const assertExpectedVersion = ({ snapshot, expectedLastUpdated }) => {
 };
 
 // A local projection's clock is not a remote base. Known mutation ACKs run before this guard.
-const assertVerifiableWriteBase = ({ snapshot, syncContract, expectedLastUpdated }) => {
-  if (!snapshot.exists || resolveBaseRevision(syncContract) !== undefined) return;
+const assertVerifiableWriteBase = ({
+  snapshot,
+  syncContract,
+  expectedLastUpdated,
+  requireExactExpectedVersion = false,
+}) => {
+  if (
+    !snapshot.exists ||
+    (resolveBaseRevision(syncContract) !== undefined && !requireExactExpectedVersion)
+  )
+    return;
   const remoteVersion = toIsoTimestamp(snapshot.data()?.lastUpdated);
   const expectedVersion = toIsoTimestamp(expectedLastUpdated);
   if (!remoteVersion || !expectedVersion) {

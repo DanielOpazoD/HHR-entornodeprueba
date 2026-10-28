@@ -77,11 +77,16 @@ it('retains a refused creation when another tab creates the day at the same mill
   expect(
     (tasks[0].payload as { nursesDayShift: string[] }).nursesDayShift.every(value => !value)
   ).toBe(true);
+  const winner = structuredClone(remote());
   await reconnect();
   expect(remote().nursesDayShift).toEqual(['ENFERMERIA SINTETICA A']);
+  expect(remote()).toEqual(winner);
   expect(await queue()).toMatchObject([
-    { id: tasks[0].id, status: 'FAILED', payload: tasks[0].payload },
+    { id: tasks[0].id, opId: tasks[0].opId, status: 'CONFLICT' },
   ]);
+  const [retained] = await queue();
+  expect(retained.payload).toEqual(tasks[0].payload);
+  expect(retained.syncContract).toEqual(tasks[0].syncContract);
 });
 it('creates a genuinely absent day with no invented remote base', async () => {
   await expect(initializeDay(DATE)).resolves.toMatchObject({ date: DATE });

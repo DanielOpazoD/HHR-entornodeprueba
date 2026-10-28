@@ -186,16 +186,13 @@ export const expectRefusedNoteKept = async (
   expect(draftsFor(name)).toEqual([[DATE, entryId, text]]);
 };
 
-/**
- * A day write whose base is older than the stored day: client_only merges its changes onto that
- * day; enforced keeps it queued, since the authority refuses an older base. Held, never lost.
- */
+/** Asserts publication or queued retention, as requested by the case. */
 export const expectDayEditsPublishedOrKept = async (
-  enforced: boolean,
+  keepQueued: boolean,
   edits: Record<string, unknown>
 ) => {
   const tasks = await dayTasks();
-  if (!enforced) {
+  if (!keepQueued) {
     for (const [path, value] of Object.entries(edits))
       expect(getValueAtPath(remote(), path)).toEqual(value);
     expect(tasks).toEqual([]);

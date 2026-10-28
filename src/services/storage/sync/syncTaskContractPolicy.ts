@@ -29,7 +29,7 @@ const collectPatientEpisodeKeys = (patient: PatientData | undefined): string[] =
   return keys;
 };
 
-const resolveOptionalBaseRevision = (value: unknown): number | undefined => {
+export const resolveOptionalBaseRevision = (value: unknown): number | undefined => {
   if (typeof value !== 'number' && !(typeof value === 'string' && /^\d+$/.test(value.trim())))
     return undefined;
   const revision = Number(value);

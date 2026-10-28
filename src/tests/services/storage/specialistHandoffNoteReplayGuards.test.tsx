@@ -328,20 +328,24 @@ describe.each(MODES)('day write replay guards (%s)', (_mode, enforced) => {
     await note('R4', 'entry-A', 'Nota confirmada', '2026-10-24T10:50:00.000Z');
     // Another census save still shows the first projection and queues after the note edit.
     await saveWholeDay(await local(), '2026-10-24T10:55:00.000Z');
+    const [pending] = await dayTasks();
 
     await replay();
 
-    expect(remote().beds.R4.medicalHandoffNote).toBe('Nota confirmada');
-    expect(JSON.stringify((await local()).beds.R4)).not.toContain('Nota primera');
+    const [retained] = await dayTasks();
+    for (const record of [remote(), await local(), retained.payload as DailyRecord]) {
+      expect(record.beds.R4.medicalHandoffNote).toBe('Nota confirmada');
+      expect(JSON.stringify(record.beds.R4)).not.toContain('Nota primera');
+    }
     expect((await queue()).filter(task => task.type === 'UPDATE_SPECIALIST_HANDOFF')).toEqual([]);
-    await expectDayEditsPublishedOrKept(enforced, {
-      'beds.R6.handoffNote': 'Entrega E conservada',
-    });
+    await expectDayEditsPublishedOrKept(true, { 'beds.R6.handoffNote': 'Entrega E conservada' });
+    expect(retained).toMatchObject({ id: pending.id, opId: pending.opId, status: 'CONFLICT' });
+    expect(retained.syncContract).toEqual(pending.syncContract);
+    expect((await local()).beds.R6.handoffNote).toBe('Entrega E conservada');
   });
 
   it('keeps a confirmed note when retrying a whole-day task that existed before the note', async () => {
-    await readStored({ R4: A('R4'), R6: E() });
-    const shown = await local();
+    const shown = await readStored({ R4: A('R4'), R6: E() });
     await saveWholeDay({
       ...shown,
       beds: { ...shown.beds, R6: { ...shown.beds.R6, handoffNote: 'Entrega E conservada' } },
@@ -352,16 +356,21 @@ describe.each(MODES)('day write replay guards (%s)', (_mode, enforced) => {
     await replay();
     expect(remote().beds.R4.medicalHandoffNote).toBe('Nota confirmada');
     expect((await local()).beds.R4.medicalHandoffNote).toBe('Nota confirmada');
-
-    expect(await createDexieSyncQueueStore().requeueQuarantinedTask!(heldDay.id!, OWNER)).toBe(
-      true
-    );
+    const [afterNoteAck] = await dayTasks();
+    const store = createDexieSyncQueueStore();
+    expect(await store.requeueQuarantinedTask!(heldDay.id!, OWNER)).toBe(true);
     await replay();
 
-    expect(remote().beds.R4.medicalHandoffNote).toBe('Nota confirmada');
-    await expectDayEditsPublishedOrKept(enforced, {
-      'beds.R6.handoffNote': 'Entrega E conservada',
-    });
+    for (const record of [remote(), await local()]) {
+      expect(record.beds.R4.medicalHandoffNote).toBe('Nota confirmada');
+      expect(JSON.stringify(record.beds.R4)).not.toContain('Nota primera');
+    }
+    await expectDayEditsPublishedOrKept(true, { 'beds.R6.handoffNote': 'Entrega E conservada' });
+    const [retained] = await dayTasks();
+    expect(retained).toMatchObject({ id: heldDay.id, opId: heldDay.opId, status: 'CONFLICT' });
+    expect(retained.syncContract).toEqual(heldDay.syncContract);
+    expect(retained.payload).toEqual(afterNoteAck.payload);
+    expect((await local()).beds.R6.handoffNote).toBe('Entrega E conservada');
   });
 
   it('tells the view to refresh the day a refused note no longer shapes', async () => {

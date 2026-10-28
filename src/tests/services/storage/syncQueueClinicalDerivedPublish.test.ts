@@ -116,19 +116,12 @@ beforeEach(() => {
 });
 
 describe('queue publish to a split day', () => {
-  it.each([
-    ['an accepted task', undefined, `${date}T09:00:00.000Z`],
-    [
-      // A wildcard merge would keep the local moved fields and meta without the hygiene.
-      'a task revalidated against a newer remote',
-      { expectedVersion: `${date}T09:00:00.000Z`, changedPaths: ['*'] },
-      `${date}T09:30:00.000Z`,
-    ],
-  ])('drops the local moved fields for %s', async (_label, syncContract, storedAt) => {
+  it('drops the local moved fields for a full save against its current base', async () => {
+    const storedAt = `${date}T09:00:00.000Z`;
     mocks.read.mockResolvedValue(snapshot(splitStored(storedAt)));
     mocks.transactionRead.mockResolvedValue(snapshot(splitStored(storedAt)));
 
-    const outcome = await run(task(preSplitLocal(), syncContract));
+    const outcome = await run(task(preSplitLocal(), { expectedVersion: storedAt }));
 
     expect(mocks.set).toHaveBeenCalledOnce();
     expect(mocks.set.mock.calls[0][2]).toEqual({ merge: true });
@@ -145,6 +138,24 @@ describe('queue publish to a split day', () => {
     });
   });
 
+  it('refuses an opaque replay against a newer split day without writing', async () => {
+    const stored = splitStored(`${date}T09:30:00.000Z`);
+    mocks.read.mockResolvedValue(snapshot(stored));
+    mocks.transactionRead.mockResolvedValue(snapshot(stored));
+    const queued = task(preSplitLocal(), {
+      expectedVersion: `${date}T09:00:00.000Z`,
+      changedPaths: ['*'],
+    });
+    const original = structuredClone(queued);
+
+    await expect(run(queued)).rejects.toMatchObject({
+      name: 'ConcurrencyError',
+      reason: 'semantic_conflict',
+    });
+    expect(mocks.set).not.toHaveBeenCalled();
+    expect(queued).toEqual(original);
+  });
+
   it('leaves no other episode’s embedded copy under a bed’s new occupant (merge: true)', async () => {
     // Stored: ep_c (not split yet) in R2. Queued: ep_new took R2, ep_c moved to R4.
     const stored = day(
@@ -159,7 +170,7 @@ describe('queue publish to a split day', () => {
       R4: patient('R4', 'ep_c', moved('local-c')),
     });
 
-    await run(task(local));
+    await run(task(local, { expectedVersion: stored.lastUpdated }));
 
     const merged = applyMerge(sanitizeForFirestore(stored) as Holder, written()) as {
       beds: Record<string, Holder>;
@@ -192,7 +203,7 @@ describe('queue publish to an unmarked day', () => {
   ])('writes the queued record unchanged for %s', async (_label, stored) => {
     mocks.read.mockResolvedValue(stored());
     mocks.transactionRead.mockResolvedValue(stored());
-    const queued = task(preSplitLocal());
+    const queued = task(preSplitLocal(), { expectedVersion: `${date}T09:00:00.000Z` });
 
     const outcome = await run(queued);
 
