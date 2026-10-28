@@ -29,7 +29,9 @@ export const chunkForModule = (moduleId: string): string | undefined => {
   // Keep the shared resolver in that existing lazy chunk, outside offline census startup.
   if (
     has('/src/features/rayen-import/domain/enrichReportOnlyDischarges.ts') ||
-    has('/src/features/rayen-import/domain/historicalReportEpisodeRecovery.ts')
+    has('/src/features/rayen-import/domain/historicalReportEpisodeRecovery.ts') ||
+    // Both daily and monthly recovery acquire documentary evidence only while Eloisa is online.
+    has('/src/services/cudyr/cudyrMonthlyReportCapture.ts')
   ) {
     return 'replanRayenStructure';
   }

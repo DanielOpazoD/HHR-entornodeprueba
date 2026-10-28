@@ -2,7 +2,7 @@ import type { CudyrReportDataset, CudyrReportRow } from '@/types/domain/cudyrRep
 import type { CudyrSupplementReport } from '@/types/domain/cudyrSupplement';
 import { composeRayenGivenNames, normalizeOptionalPersonName } from '@/utils/eloisaPersonName';
 import { isValidRut } from '@/utils/rutUtils';
-import { cudyrDocumentKey, cudyrNameKey } from './cudyrSourceIdentity';
+import { cudyrDocumentKey, cudyrNameKey } from '@/domain/cudyr/cudyrSourceIdentity';
 
 const words = (value: string) => cudyrNameKey(value).replace(/\*/g, '').trim().split(/\s+/);
 export const cudyrOrderedIdentity = (document: string, name: string) =>

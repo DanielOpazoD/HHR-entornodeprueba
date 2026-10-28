@@ -57,6 +57,11 @@ const message = (error: unknown): string =>
 const READ_CONCURRENCY = 4;
 export { countClinicalFillEligiblePatients } from './domain/clinicalFillCandidates';
 export { createClinicalFillWatchdog } from './domain/clinicalFillWatchdog';
+export { selectHistoricalCudyrPersistence } from './hooks/historicalCudyrPersistenceSelection';
+export {
+  createDailyCudyrRecoveryReader,
+  collectDailyCudyrRecoveryEpisodes,
+} from './hooks/dailyCudyrRecoveryReader';
 
 export const runClinicalFill = async (
   record: DailyRecord,
@@ -70,7 +75,6 @@ export const runClinicalFill = async (
     ? await import('./domain/clinicalCarryoverVerification')
     : undefined;
   const captureEpisodes = deps.archiveCudyrCapture ? collectCudyrCaptureEpisodes(record) : [];
-  const summary = createClinicalFillSummary(eligible.length);
   const needs = (encId: string, source: Parameters<typeof needsClinicalRead>[2]) =>
     needsClinicalRead(deps.pendingReads, encId, source);
   const cudyrEpisodeIds = eligible.flatMap(({ patient }) =>
@@ -78,11 +82,30 @@ export const runClinicalFill = async (
       ? [patient.clinicalEpisodeId]
       : []
   );
+  const eligibleEpisodeIds = new Set(eligible.map(({ patient }) => patient.clinicalEpisodeId));
+  const bedEpisodeIds = new Set(
+    Object.values(record.beds).flatMap(patient => [
+      patient.clinicalEpisodeId,
+      patient.clinicalCrib?.clinicalEpisodeId,
+    ])
+  );
+  const historicalCudyrEpisodeIds = (
+    deps.historicalCudyrEpisodeIds ??
+    (deps.allowedClinicalEpisodeIds ? cudyrEpisodeIds : collectCudyrCaptureEpisodes(record))
+  ).filter(id => needs(id, 'cudyr') && (eligibleEpisodeIds.has(id) || !bedEpisodeIds.has(id)));
+  const historicalOnlyCount = new Set(
+    historicalCudyrEpisodeIds.filter(id => !eligibleEpisodeIds.has(id))
+  ).size;
+  const summary = createClinicalFillSummary(eligible.length + historicalOnlyCount);
   const readsStaffing = eligible.some(({ patient }) =>
     needs(patient.clinicalEpisodeId!, 'history')
   );
   const performance = createClinicalFillPerformance(deps.monotonicNow);
-  if (eligible.length === 0 && captureEpisodes.length === 0) {
+  if (
+    eligible.length === 0 &&
+    captureEpisodes.length === 0 &&
+    historicalCudyrEpisodeIds.length === 0
+  ) {
     if (!deps.pendingReads)
       summary.staffingProposal = inferNursingShifts([], fecha, deps.nurseCatalog, deps.tensCatalog);
     summary.performance = performance.finish(summary.incremental!);
@@ -93,7 +116,9 @@ export const runClinicalFill = async (
     censusDate: record.date,
     deps,
     captureEpisodes,
-    needsRead: Boolean(cudyrEpisodeIds.length || captureEpisodes.length),
+    needsRead: Boolean(
+      cudyrEpisodeIds.length || captureEpisodes.length || historicalCudyrEpisodeIds.length
+    ),
     trackRequest: performance.trackRequest,
     recordTimeout: performance.recordTimeout,
   });
@@ -111,12 +136,15 @@ export const runClinicalFill = async (
     persist: async () => undefined,
   };
   const pendingBatch: ClinicalFillPatchOperation[] = [];
-  const cudyr = cudyrPreflight.then(({ source, unavailableError }) => {
+  const cudyr = cudyrPreflight.then(async ({ source, unavailableError }) => {
     if (unavailableError) summary.errors.unshift(unavailableError);
+    const recovery = await deps.recoverMissingCudyr?.(record, historicalCudyrEpisodeIds, source);
+    if (recovery) summary.errors.push(...recovery.errors);
     return createClinicalCudyrCoordinator({
       censusDate: record.date,
-      clinicalEpisodeIds: cudyrEpisodeIds,
+      clinicalEpisodeIds: [...new Set([...cudyrEpisodeIds, ...historicalCudyrEpisodeIds])],
       source,
+      recovery,
       applyBatch: deps.applyHistoricalCudyrBatch,
       applySingle: deps.applyHistoricalCudyr,
       enqueueWrite: operation => writes.enqueue(operation, { scope: 'historical' }),
@@ -128,7 +156,7 @@ export const runClinicalFill = async (
     });
   });
   let done = 0;
-  const report = () => void onProgress?.({ done: ++done, total: eligible.length });
+  const report = () => void onProgress?.({ done: ++done, total: summary.total });
   const fillPatient = async (
     bedId: string,
     patient: PatientData,
@@ -361,6 +389,12 @@ export const runClinicalFill = async (
       fillPatient(bedId, patient, clinicalCrib).finally(report)
     )
   );
+
+  summary.patched += await (await cudyr).completeHistorical();
+  if (historicalOnlyCount) {
+    done += historicalOnlyCount;
+    onProgress?.({ done, total: summary.total });
+  }
 
   const batchPersistence = await persistClinicalBatch({
     operations: pendingBatch,

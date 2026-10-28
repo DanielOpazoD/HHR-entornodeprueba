@@ -20,16 +20,19 @@ export const callCudyrArchive = async <T>(
   beforeCall?: () => void
 ): Promise<T> => {
   const runtime = await defaultFunctionsRuntime.getRegionalFunctions('southamerica-east1');
-  beforeCall?.();
   const { httpsCallable } = await import('firebase/functions');
+  beforeCall?.();
   return (await httpsCallable<unknown, T>(runtime, endpoint, { timeout: 20000 })(request)).data;
 };
-export const importCudyrSupplement = (request: {
-  operationId: string;
-  capture?: { source: 'extension_monthly_report'; observedAt: string };
-  file: { name: string; base64: string };
-  report: CudyrSupplementReport;
-}) =>
+export const importCudyrSupplement = (
+  request: {
+    operationId: string;
+    capture?: { source: 'extension_monthly_report'; observedAt: string };
+    file: { name: string; base64: string };
+    report: CudyrSupplementReport;
+  },
+  beforeCall?: () => void
+) =>
   callCudyrArchive<{ persisted: boolean; id: string; status: string; captureStored?: boolean }>(
     'archiveCudyrHistory',
     {
@@ -37,7 +40,8 @@ export const importCudyrSupplement = (request: {
       kind: 'import-monthly-supplement',
       schemaVersion: 1,
       confirmed: true,
-    }
+    },
+    beforeCall
   );
 export const supplementMonths = (from: string, to: string) => {
   const months: string[] = [];

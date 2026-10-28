@@ -7,6 +7,7 @@ export interface ClinicalRetryToken {
   readonly type: 'clinical_retry';
   readonly source: DailyRecord | ConfirmedRayenCensusHandoff;
   readonly pendingClinicalEpisodeIds: readonly string[];
+  readonly pendingHistoricalCudyrEpisodeIds?: readonly string[];
   /** Aggregate from earlier attempts; used only to preserve run-level audit evidence. */
   readonly previousSummary?: ClinicalFillSummary;
   readonly pendingReads?: ClinicalReadSelection;

@@ -80,3 +80,45 @@ sobre censo, puntajes, exclusiones ni informes oficiales.
 ### Continuidad del cierre entre meses
 
 El informe mensual siguiente aporta la madrugada del día 1 al último turno del mes cerrado. Una nueva versión que solo modifica días posteriores no debe invalidar ese cierre. El servidor compara las categorías e identidades de esa primera madrugada y exige que el resto de las fuentes conserve exactamente la huella original. Si cambia, desaparece o se agrega una aplicación relevante, el cierre sí requiere revisión. No se reemplaza el informe oficial ni se recalculan sus pacientes a partir del censo operativo actual.
+
+## Recuperación desde Sincronizar censo diario
+
+El botón diario también busca categorías faltantes de noches ya cerradas en el
+censo seleccionado y en el anterior. Incluye los episodios presentes en los egresos,
+traslados y CMA activos del día seleccionado: un alta posterior no impide completar
+su noche anterior en un censo que ya existe. No vuelve a ingresar al paciente ni usa
+la cama actual para identificarlo. El guardado del día anterior mantiene los permisos
+administrativos y la autoridad de la corrida existentes.
+
+Cuando la consulta clínica no aporta una categoría, se obtiene y respalda un XLS
+mensual compartido por mes y corrida, exclusivamente para esos huecos. La columna
+calendario de la madrugada siguiente corresponde a la noche censal. Se exige documento
+propio RUT, nombre completo, un episodio único entre la noche censal y su día
+calendario de aplicación, incluidos sus movimientos, y una sola fila documental. Documentos compartidos, pasaportes sin tipificación en el
+XLS, reingresos ambiguos o categorías ausentes quedan pendientes para revisión.
+
+La categoría recuperada conserva la procedencia `Eloísa · informe mensual`, el archivo,
+la fila y la fecha fuente. No incorpora una hora, profesional, ítems o historial de
+aplicaciones que el XLS no contiene. El detalle del censo identifica la atribución a
+la madrugada como supuesto operativo del informe sin hora (CUD-06). El respaldo
+documental no equivale a confirmar
+el guardado del censo: se usa el escritor clínico vigente y se espera su respuesta.
+
+La recuperación solo completa huecos. Conserva valores ya aceptados, ajustes,
+puntajes antiguos, censos bloqueados o firmados y cambios concurrentes. Una lectura
+fallida no demuestra que no se aplicó CUDYR; queda un diagnóstico y el reintento del
+flujo diario, incluso si el episodio ya no tiene cama. No se crean censos faltantes ni
+se alteran las copias oficiales mensuales. Abrir el censo o exportarlo no inicia esta
+consulta. Repetir la sincronización de un hueco ya completado no repite su consulta
+mensual ni su escritura clínica.
+
+La atribución se vuelve a validar dentro de la transacción del lote clínico, leyendo
+ambos días. Un reingreso concurrente con el mismo documento bloquea la atribución.
+El orden de despliegue de [la protección y el productor](CUDYR_DOCUMENTARY_ROLLOUT.md)
+debe completarse antes de activar esta lectura. Por eso la recuperación documental
+solo se habilita en el modo clínico `enforced`
+y usa la versión 3 del contrato de campos existente. Los servidores anteriores
+rechazan esa versión antes de escribir; el flujo queda pendiente durante el despliegue,
+sin degradarse al escritor individual. Los lotes sin evidencia mensual conservan
+la versión 2. Los dos destinos siguen siendo el día seleccionado y su anterior;
+leer el día siguiente para comprobar identidad no lo convierte en destino de escritura.

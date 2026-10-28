@@ -16,8 +16,12 @@ export const cudyrApplicationSourceDate = (value?: string) => {
   return sourceDateFormatter.format(new Date(value));
 };
 
-export { cudyrDocumentKey, cudyrNameKey, cudyrFullNameKey } from './cudyrSourceIdentity';
-import { cudyrDocumentKey } from './cudyrSourceIdentity';
+export {
+  cudyrDocumentKey,
+  cudyrNameKey,
+  cudyrFullNameKey,
+} from '@/domain/cudyr/cudyrSourceIdentity';
+import { cudyrDocumentKey } from '@/domain/cudyr/cudyrSourceIdentity';
 import { createCudyrIdentityResolver, cudyrOrderedIdentity } from './cudyrNameReconciliation';
 import { resolveRepeatedMonthlyEpisodes } from './cudyrMonthlyEpisodeLink';
 export const isEloisaCudyr = (source: string) => /elo[ií]sa/i.test(source);

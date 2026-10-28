@@ -1,11 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { loadCudyrSupplements } from '@/services/cudyr/cudyrSupplementService';
-const request = vi.hoisted(() => vi.fn());
+import {
+  importCudyrSupplement,
+  loadCudyrSupplements,
+} from '@/services/cudyr/cudyrSupplementService';
+const { request, runtime } = vi.hoisted(() => ({ request: vi.fn(), runtime: vi.fn() }));
 vi.mock('firebase/functions', () => ({ httpsCallable: () => request }));
 vi.mock('@/services/firebase-runtime/functionsRuntime', () => ({
-  defaultFunctionsRuntime: { getRegionalFunctions: async () => ({}) },
+  defaultFunctionsRuntime: { getRegionalFunctions: runtime },
 }));
-beforeEach(() => request.mockReset());
+beforeEach(() => {
+  request.mockReset();
+  runtime.mockReset().mockResolvedValue({});
+});
 describe('complete persisted supplement pagination', () => {
   it('keeps the month readable beyond fifty immutable versions', async () => {
     for (let page = 0; page < 11; page++)
@@ -47,5 +53,38 @@ describe('complete persisted supplement pagination', () => {
       loadCudyrSupplements('2026-10-01', '2026-10-07', controller.signal)
     ).rejects.toThrow();
     expect(request).toHaveBeenCalledTimes(1);
+  });
+  it('checks the capture session after the Functions runtime finishes loading', async () => {
+    let release: (() => void) | undefined;
+    runtime.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          release = () => resolve({});
+        })
+    );
+    let sessionChanged = false;
+    const pending = importCudyrSupplement(
+      {
+        operationId: 'synthetic',
+        file: { name: 'synthetic.xls', base64: 'AA==' },
+        report: {
+          schemaVersion: 1,
+          source: 'eloisa_monthly_report',
+          month: '2026-10',
+          establishment: 'Hospital Hanga Roa',
+          generatedLabel: '',
+          sheet: 'Synthetic',
+          patients: [],
+        },
+      },
+      () => {
+        if (sessionChanged) throw new Error('Synthetic session changed');
+      }
+    );
+    sessionChanged = true;
+    if (!release) throw new Error('Runtime must be waiting');
+    release();
+    await expect(pending).rejects.toThrow('Synthetic session changed');
+    expect(request).not.toHaveBeenCalled();
   });
 });

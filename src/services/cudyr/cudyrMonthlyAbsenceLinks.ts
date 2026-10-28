@@ -1,5 +1,5 @@
 import { isValidRut } from '@/utils/rutUtils';
-import { cudyrDocumentKey, cudyrFullNameKey } from './cudyrSourceIdentity';
+import { cudyrDocumentKey, cudyrFullNameKey } from '@/domain/cudyr/cudyrSourceIdentity';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
 import type { ArchivedCudyrSupplement } from './cudyrSupplementService';
 import { monthlySourceIsFinal } from './cudyrMonthlyProjection';

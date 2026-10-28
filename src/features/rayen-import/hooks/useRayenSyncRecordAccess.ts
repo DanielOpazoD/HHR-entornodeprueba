@@ -48,7 +48,13 @@ export const useRayenSyncRecordAccess = (dailyRecord: DailyRecordRepository) => 
     [dailyRecord]
   );
 
+  const loadCudyrIdentityContext = useCallback(
+    (date: string) => dailyRecord.getAuthoritativeForDate(date),
+    [dailyRecord]
+  );
+
   return {
+    loadCudyrIdentityContext,
     patchClinicalRecord,
     loadFreshClinicalRecord,
     loadAuthoritativeStructuralRecord,

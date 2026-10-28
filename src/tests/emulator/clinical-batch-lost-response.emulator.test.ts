@@ -13,6 +13,12 @@ import {
 import { applyClinicalEnrichmentBatch } from '@/features/rayen-import/hooks/applyClinicalEnrichmentBatch';
 import type { RayenClinicalEnrichmentBatchPayload } from '@/features/rayen-import/bridge/rayenClinicalEnrichmentBatchClient';
 
+import { rebuildClinicalEnrichmentOperations } from '@/features/rayen-import/domain/rebuildClinicalEnrichmentOperations';
+import { applyHistoricalCudyrBatchAuthoritatively } from '@/features/rayen-import/hooks/applyHistoricalCudyr';
+import { buildMockDailyRecordRepository } from '@/tests/factories/dailyRecordRepositoryMock';
+import { DailyRecordSchema } from '@/schemas/zodSchemas';
+import type { DocumentaryCudyr } from '@/domain/evaluationScales/documentaryCudyr';
+
 // The browser bootstrap is outside this in-process transport test. Fail closed if
 // an uninjected path tries to use a configured client instead of the local admin SDK.
 vi.mock('@/firebaseConfig', () => ({
@@ -212,4 +218,221 @@ describeEmulator('clinical batch client recovers a lost committed response', () 
       ).toEqual([date]);
     }
   );
+  it.each([
+    'none',
+    'same-night-score',
+    'other-day-identity',
+    'current-none',
+    'current-other-day-identity',
+  ])('fills a documentary prior-night gap without replacing concurrent work=%s', async race => {
+    await db.recursiveDelete(db.doc(hospitalPath));
+    const sourceDate = '2026-05-14';
+    const currentScope = race.startsWith('current-');
+    const authorityDate = currentScope ? date : sourceDate;
+    const policy = {
+      schemaVersion: 2,
+      mode: 'preview' as const,
+      revision: 1,
+      clinicalBatchMode: 'enforced' as const,
+    };
+    await db.doc(`${hospitalPath}/settings/rayenImportPolicy`).set(policy);
+    const person = DataFactory.createMockPatient('R1', {
+      clinicalEpisodeId: 'synthetic-episode',
+      documentType: 'RUT',
+      patientName: 'Paciente Sintético',
+      rut: '11.111.111-1',
+    });
+    const prior = DataFactory.createMockDailyRecord(date, {
+      lastUpdated: `${date}T10:00:00.000Z`,
+      beds: { R1: person },
+    });
+    const source = DataFactory.createMockDailyRecord(authorityDate, {
+      lastUpdated: `${authorityDate}T10:00:00.000Z`,
+      ...(currentScope ? { beds: { R1: person } } : {}),
+      rayenSyncHistory: [
+        {
+          id: 'synthetic-run',
+          sourceDate: authorityDate,
+          status: 'applied',
+          policy,
+          startedAt: `${authorityDate}T10:00:00.000Z`,
+          by: 'Operador sintético',
+        },
+      ],
+    });
+    const ref = db.doc(recordPath);
+    await ref.set(
+      sanitizeForFirestore({ ...prior, meta: { revision: 2 } }) as FirebaseFirestore.DocumentData
+    );
+    await db.doc(`${hospitalPath}/dailyRecords/${authorityDate}`).set(
+      sanitizeForFirestore({
+        ...source,
+        ...(currentScope ? { meta: { revision: 2 } } : {}),
+      }) as FirebaseFirestore.DocumentData
+    );
+    if (currentScope)
+      await db
+        .doc(`${hospitalPath}/dailyRecords/${sourceDate}`)
+        .set({ date: sourceDate, beds: {} });
+    const read = async () => {
+      const data = (await ref.get()).data()!;
+      return DailyRecordSchema.parse({
+        ...data,
+        lastUpdated:
+          data.lastUpdated instanceof Timestamp
+            ? data.lastUpdated.toDate().toISOString()
+            : data.lastUpdated,
+      });
+    };
+    const repository = buildMockDailyRecordRepository();
+    repository.getAuthoritativeForDate = read;
+    const score: DocumentaryCudyr = {
+      category: 'C2',
+      recordedDate: date,
+      source: 'Eloísa · informe mensual',
+      documentaryEvidence: {
+        reportId: 'synthetic-archived-report',
+        sourceDate,
+        sourceRow: 5,
+        clinicalEpisodeId: 'synthetic-episode',
+        document: person.rut,
+        patientName: person.patientName,
+        documentType: 'RUT',
+      },
+    };
+    const api = createRayenClinicalEnrichmentFunctions({
+      firestore: db,
+      Timestamp,
+      resolveRoleForEmail: async () => 'admin',
+    });
+    const invoke = vi.fn(async (payload: RayenClinicalEnrichmentBatchPayload) => {
+      if (race.endsWith('other-day-identity'))
+        await db.doc(`${hospitalPath}/dailyRecords/${sourceDate}`).update({
+          'beds.R2': sanitizeForFirestore({
+            ...person,
+            bedId: 'R2',
+            clinicalEpisodeId: 'synthetic-readmission',
+          }),
+        });
+      if (race === 'same-night-score')
+        await ref.update({
+          'beds.R1.evaluationScores.cudyr': {
+            category: 'D1',
+            recordedDate: date,
+            source: 'Eloísa · Gestión de Camas',
+          },
+          'meta.revision': 3,
+          lastUpdated: `${date}T11:00:00.000Z`,
+        });
+      return api.applyRayenClinicalEnrichmentBatch.run(payload, makeContext());
+    });
+    const input = {
+      dailyRecord: repository,
+      sourceRecord: source,
+      censusDay: date,
+      items: [{ clinicalEpisodeId: 'synthetic-episode', cudyr: score }],
+      isAdmin: true,
+      runId: 'synthetic-run',
+      applyBatch: (options: Parameters<typeof applyClinicalEnrichmentBatch>[0]) =>
+        applyClinicalEnrichmentBatch({ ...options, invoke }),
+    };
+    const baseRecord = await read();
+    const operations = [
+      {
+        target: { censusDate: date, bedId: 'R1', clinicalEpisodeId: 'synthetic-episode' },
+        patch: {
+          'beds.R1.evaluationScores': { ...baseRecord.beds.R1.evaluationScores, cudyr: score },
+        },
+      },
+    ];
+    const execute = () =>
+      currentScope
+        ? applyClinicalEnrichmentBatch({
+            mode: 'enforced',
+            record: baseRecord,
+            runId: 'synthetic-run',
+            operations,
+            applyPatch: async () => {
+              throw new Error('No legacy writer');
+            },
+            refreshRecord: read,
+            invoke,
+            rebuildOperations: currentRecord =>
+              rebuildClinicalEnrichmentOperations({ baseRecord, currentRecord, operations }),
+          })
+        : applyHistoricalCudyrBatchAuthoritatively(input);
+    if (race.endsWith('other-day-identity')) {
+      await expect(execute()).rejects.toThrow();
+      expect((await read()).beds.R1.evaluationScores?.cudyr).toBeUndefined();
+      return;
+    }
+    await execute();
+    const reread = await read();
+    expect(reread.beds.R1.evaluationScores?.cudyr).toEqual(
+      race === 'same-night-score'
+        ? { category: 'D1', recordedDate: date, source: 'Eloísa · Gestión de Camas' }
+        : score
+    );
+    expect(reread.beds.R1.evaluationScores?.cudyr).not.toHaveProperty('recordedAt');
+    expect(invoke).toHaveBeenCalledOnce();
+    await execute();
+    expect(invoke).toHaveBeenCalledOnce();
+    expect(await read()).toEqual(reread);
+    if (race === 'current-none') {
+      await db.doc(`${hospitalPath}/dailyRecords/${sourceDate}`).update({
+        'beds.R2': sanitizeForFirestore({
+          ...person,
+          bedId: 'R2',
+          clinicalEpisodeId: 'later-readmission',
+        }),
+      });
+      const braden = {
+        code: 'BRADEN' as const,
+        name: 'Braden',
+        encounterEventId: 1,
+        total: 18,
+        severity: 'Bajo',
+        recordedDate: date,
+        recordedAt: `${date}T15:00:00-05:00`,
+      };
+      await applyClinicalEnrichmentBatch({
+        mode: 'enforced',
+        record: reread,
+        runId: 'synthetic-run',
+        operations: [
+          {
+            target: { censusDate: date, bedId: 'R1', clinicalEpisodeId: 'synthetic-episode' },
+            patch: { 'beds.R1.evaluationScores': { ...reread.beds.R1.evaluationScores, braden } },
+          },
+        ],
+        applyPatch: async () => {
+          throw new Error('No legacy writer');
+        },
+        refreshRecord: read,
+        // An older field-v2 client may echo an accepted documentary score while changing Braden.
+        invoke: payload => invoke({ ...payload, fieldContractVersion: 2 }),
+      });
+      expect((await read()).beds.R1.evaluationScores).toEqual({ cudyr: score, braden });
+      const withAdjacentScale = await read();
+      await expect(
+        applyClinicalEnrichmentBatch({
+          mode: 'enforced',
+          record: withAdjacentScale,
+          runId: 'synthetic-run',
+          operations: [
+            {
+              target: { censusDate: date, bedId: 'R1', clinicalEpisodeId: 'synthetic-episode' },
+              patch: { 'beds.R1.evaluationScores': { braden } },
+            },
+          ],
+          applyPatch: async () => {
+            throw new Error('No legacy writer');
+          },
+          refreshRecord: read,
+          invoke,
+        })
+      ).rejects.toThrow();
+      expect((await read()).beds.R1.evaluationScores).toEqual({ cudyr: score, braden });
+    }
+  });
 });

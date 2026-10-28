@@ -43,6 +43,12 @@ export const CudyrHistoryPanel = ({
         Fuente: {entry.source || 'No informada'} ·{' '}
         {official ? 'historial oficial.' : 'último valor disponible, no historial completo.'}
       </p>
+      {entry.documentaryEvidence && !entry.recordedAt && (
+        <p className="text-xs text-slate-500">
+          Informe sin hora: atribuido a la madrugada del{' '}
+          {formatIsoDay(entry.documentaryEvidence.sourceDate)}.
+        </p>
+      )}
       <div className="overflow-x-auto rounded-lg border border-slate-200">
         <table className="w-full text-left text-xs">
           <caption className="bg-slate-50 px-3 py-1.5 text-left font-semibold text-slate-500">

@@ -119,6 +119,41 @@ describe('ScoresDetailModal', () => {
       expect(screen.queryByText('Firma sincronizada')).not.toBeInTheDocument();
     }
   );
+  it('identifies a monthly result as a night attribution without inventing an application time or signer', async () => {
+    const user = userEvent.setup();
+    const scoreModel = buildScoresCellModel(
+      DataFactory.createMockPatient('R1', {
+        evaluationScores: {
+          cudyr: {
+            category: 'C2',
+            source: 'Eloísa · informe mensual',
+            recordedDate: '2026-10-26',
+            documentaryEvidence: {
+              reportId: 'synthetic-report',
+              sourceRow: 5,
+              sourceDate: '2026-10-27',
+              clinicalEpisodeId: 'synthetic-episode',
+              document: '11.111.111-1',
+              patientName: 'Paciente Sintético',
+              documentType: 'RUT',
+            },
+          },
+        },
+      }),
+      '2026-10-26'
+    );
+    render(
+      <ScoresDetailModal patientName="Paciente de prueba" model={scoreModel} onClose={vi.fn()} />
+    );
+    await user.click(screen.getByRole('tab', { name: 'CUDYR' }));
+    expect(
+      screen.getByText('Informe sin hora: atribuido a la madrugada del 27-10-2026.')
+    ).toBeInTheDocument();
+    expect(screen.getByText('Sin firma informada')).toBeInTheDocument();
+    expect(screen.queryByText('Firma sincronizada')).not.toBeInTheDocument();
+    expect(screen.queryByText(/08:00|00:00/)).not.toBeInTheDocument();
+  });
+
   it('separates results and history while preserving application dates without planned care', async () => {
     const user = userEvent.setup();
     render(

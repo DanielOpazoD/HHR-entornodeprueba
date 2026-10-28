@@ -6,12 +6,15 @@ import type {
 import {
   RAYEN_CLINICAL_ENRICHMENT_FIELDS,
   RAYEN_CLINICAL_ENRICHMENT_FIELD_CONTRACT_VERSION,
+  RAYEN_DOCUMENTARY_CUDYR_FIELD_CONTRACT_VERSION,
   RAYEN_CLINICAL_ENRICHMENT_MAX_BATCH_BYTES,
   RAYEN_CLINICAL_ENRICHMENT_MAX_TARGETS,
   type RayenClinicalCheckpointTarget,
   type RayenClinicalEnrichmentBatchPayload,
   type RayenClinicalEnrichmentTarget,
 } from '../bridge/rayenClinicalEnrichmentBatchClient';
+import type { PatientEvaluationScores } from '@/types/domain/evaluationScores';
+import { CUDYR_DOCUMENTARY_SOURCE } from '@/domain/evaluationScales/documentaryCudyr';
 import type { ClinicalEnrichmentBatchMode } from '../domain/clinicalEnrichmentBatchMode';
 
 const CHECKPOINT_FIELD = 'clinicalSyncCheckpoint';
@@ -120,6 +123,10 @@ export const prepareClinicalEnrichmentBatchPayload = ({
   const sections = operations.map(splitOperation);
   const patches = sections.flatMap(section => (section.patch ? [section.patch] : []));
   const checkpoints = sections.flatMap(section => (section.checkpoint ? [section.checkpoint] : []));
+  const hasDocumentaryCudyr = patches.some(target => {
+    const cudyr = (target.fields.evaluationScores as PatientEvaluationScores | undefined)?.cudyr;
+    return cudyr?.source === CUDYR_DOCUMENTARY_SOURCE || cudyr?.documentaryEvidence;
+  });
   const effectiveMode = mode === 'shadow' ? 'shadow' : 'enforced';
   const evidence = summarizeClinicalEnrichmentSections(patches, checkpoints, effectiveMode);
   const targetCount = new Set([...patches, ...checkpoints].map(clinicalEnrichmentTargetKey)).size;
@@ -146,7 +153,9 @@ export const prepareClinicalEnrichmentBatchPayload = ({
       runId,
       mutationId,
       expectedLastUpdated: record.lastUpdated,
-      fieldContractVersion: RAYEN_CLINICAL_ENRICHMENT_FIELD_CONTRACT_VERSION,
+      fieldContractVersion: hasDocumentaryCudyr
+        ? RAYEN_DOCUMENTARY_CUDYR_FIELD_CONTRACT_VERSION
+        : RAYEN_CLINICAL_ENRICHMENT_FIELD_CONTRACT_VERSION,
       ...(revision !== undefined && Number.isInteger(revision) && revision >= 0
         ? { baseRevision: revision }
         : {}),

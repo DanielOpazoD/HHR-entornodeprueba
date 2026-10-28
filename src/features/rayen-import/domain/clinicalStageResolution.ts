@@ -18,7 +18,8 @@ export const buildClinicalRetryToken = (
   failedEpisodeIds?: ReadonlySet<string>,
   previousSummary?: ClinicalFillSummary,
   completionFailed = false,
-  clinicalCohortEpisodeIds = allowedClinicalEpisodeIds
+  clinicalCohortEpisodeIds = allowedClinicalEpisodeIds,
+  historicalCudyrEpisodeIds: readonly string[] = []
 ): ClinicalRetryToken => {
   const candidates = collectClinicalFillCandidates(record, allowedClinicalEpisodeIds);
   let pending = candidates.filter(
@@ -53,6 +54,13 @@ export const buildClinicalRetryToken = (
     pendingClinicalEpisodeIds: [
       ...new Set(pending.map(candidate => candidate.patient.clinicalEpisodeId!)),
     ],
+    ...(historicalCudyrEpisodeIds.length
+      ? {
+          pendingHistoricalCudyrEpisodeIds: historicalCudyrEpisodeIds.filter(
+            id => !failedEpisodeIds || failedEpisodeIds.has(id)
+          ),
+        }
+      : {}),
     ...(previousSummary ? { previousSummary } : {}),
     ...(pendingReads ? { pendingReads } : {}),
   };
@@ -154,7 +162,8 @@ export const resolveClinicalStageResult = (
   allowedClinicalEpisodeIds: readonly string[] | undefined,
   summary: ClinicalFillSummary,
   completionFailed: boolean,
-  clinicalCohortEpisodeIds?: readonly string[]
+  clinicalCohortEpisodeIds?: readonly string[],
+  historicalCudyrEpisodeIds: readonly string[] = []
 ): ClinicalStageResult => {
   if (summary.errors.length === 0 && !completionFailed) return { status: 'complete' };
   const hasRetryableCudyrOutage = summary.errors.some(
@@ -172,6 +181,7 @@ export const resolveClinicalStageResult = (
       candidate.patient.clinicalEpisodeId ? [candidate.patient.clinicalEpisodeId] : []
     )
   );
+  historicalCudyrEpisodeIds.forEach(id => eligibleEpisodeIds.add(id));
   const failedEpisodeIds = new Set(
     summary.errors.flatMap(error =>
       error.clinicalEpisodeId && eligibleEpisodeIds.has(error.clinicalEpisodeId)
@@ -196,7 +206,8 @@ export const resolveClinicalStageResult = (
     hasGlobalFailure ? undefined : failedEpisodeIds,
     summary,
     completionFailed,
-    clinicalCohortEpisodeIds
+    clinicalCohortEpisodeIds,
+    historicalCudyrEpisodeIds
   );
   const hasCompletedTargets =
     summary.patched > 0 ||
