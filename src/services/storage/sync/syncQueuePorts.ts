@@ -15,6 +15,17 @@ export interface DailyRecordAuthorityAdoptionResult {
   record?: DailyRecord;
 }
 
+export interface DirectDailyRecordAckInput {
+  sentRecord: DailyRecord;
+  confirmedRecord: DailyRecord;
+  mutationId: string;
+  ownerKey: string | null;
+}
+
+export type DirectDailyRecordAckResult =
+  | { status: 'adopted'; record: DailyRecord }
+  | { status: 'retained'; record: DailyRecord; releasedHold: boolean };
+
 /**
  * A patch write: the record it was computed from, its patch, and how its writer prepares a
  * patched record for storage. The outbox applies it again on the day's stored record.
@@ -26,6 +37,7 @@ export interface DailyRecordPatchWrite {
 }
 
 export interface SyncQueueStorePort {
+  completeDirectDailyRecord?(input: DirectDailyRecordAckInput): Promise<DirectDailyRecordAckResult>;
   /** Serialize standalone capacity checks and writes in the same storage transaction. */
   withEnqueueTransaction?<T>(operation: () => Promise<T>): Promise<T>;
   listAll(ownerKey?: string | null): Promise<SyncTask[]>;

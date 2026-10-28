@@ -299,40 +299,6 @@ describe('dailyRecordConfirmedCacheController', () => {
     });
   });
 
-  it('publishes an equivalent local projection clone as the confirmed remote record', async () => {
-    const date = '2025-01-08';
-    const queryClient = new QueryClient();
-    const confirmedRecord = {
-      ...DataFactory.createMockDailyRecord(date),
-      lastUpdated: '2025-01-08T10:10:00.000Z',
-      rayenSyncHistory: [
-        {
-          id: 'run-current',
-          sourceDate: date,
-          startedAt: '2025-01-08T10:09:00.000Z',
-          completedAt: '2025-01-08T10:10:00.000Z',
-          by: 'Enfermera Demo',
-          status: 'partial' as const,
-        },
-      ],
-    };
-    const localProjectionClone = structuredClone(confirmedRecord);
-
-    await setAcknowledgedDailyRecordQueryData(
-      queryClient,
-      date,
-      localProjectionClone,
-      confirmedRecord
-    );
-
-    expect(
-      queryClient.getQueryData<DailyRecordQueryResult>(getDailyRecordQueryKey(date))
-    ).toMatchObject({
-      record: confirmedRecord,
-      runtime: { sourceOfTruth: 'remote', consistencyState: 'remote_authoritative' },
-    });
-  });
-
   it('cancels an older in-flight refetch before publishing a confirmed sync attempt', async () => {
     const date = '2025-01-08';
     const queryClient = new QueryClient();

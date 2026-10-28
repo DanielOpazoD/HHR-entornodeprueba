@@ -105,6 +105,7 @@ export const buildSaveResult = (date: string, state: RemoteWriteState) =>
     repairApplied: false,
     blockingError: state.blockingError,
     confirmedRecord: state.confirmedRecord,
+    localProjectionRecord: state.localProjectionRecord,
   });
 
 export const buildPartialUpdateResult = (

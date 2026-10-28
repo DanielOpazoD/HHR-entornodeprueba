@@ -93,6 +93,7 @@ const syncQueueEngine = createSyncQueueEngine({
 });
 
 export const {
+  completeDirectDailyRecordSyncTask,
   ackDailyRecordSyncTask,
   getPendingDailyRecordSyncTaskSnapshot,
   replacePendingDailyRecordSyncTaskWithLocalRecord,

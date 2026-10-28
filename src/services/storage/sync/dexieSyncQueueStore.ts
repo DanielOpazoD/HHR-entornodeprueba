@@ -20,6 +20,8 @@ import {
   listUnresolvedDailyRecordTasks,
 } from '@/services/storage/sync/dexieSyncQueueQuarantine';
 
+const loadAuthorityAck = () => import('./dexieSyncQueueAuthorityAck');
+
 const isReadyForClaim = (task: SyncTask, now: number): boolean => {
   if ((task.preOutboxHoldUntil || 0) > now) {
     return false;
@@ -90,6 +92,12 @@ const reconcileSpecialistHandoffProjections = async (): Promise<void> => {
 };
 
 export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
+  async completeDirectDailyRecord(input) {
+    const { completeDirectDailyRecord } = await loadAuthorityAck();
+    const result = await completeDirectDailyRecord(input);
+    if (result.status === 'adopted') mirrorTransactionalDailyRecordWrite(result.record);
+    return result;
+  },
   withEnqueueTransaction: operation =>
     hospitalDB.transaction('rw', hospitalDB.syncQueue, async () => operation()),
   async listAll(ownerKey) {
@@ -185,7 +193,7 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
     return replaced;
   },
   async adoptAuthoritativeDailyRecord(authoritativeRecord, ownerKey, buildReplacement) {
-    const { adoptAuthoritativeDailyRecordInOutbox } = await import('./dexieSyncQueueAuthorityAck');
+    const { adoptAuthoritativeDailyRecordInOutbox } = await loadAuthorityAck();
     const outcome = await adoptAuthoritativeDailyRecordInOutbox(
       authoritativeRecord,
       ownerKey,
@@ -298,7 +306,7 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
     await hospitalDB.syncQueue.delete(taskId);
   },
   async deleteClaimed(taskId, claim, authoritativeRecord, detachedConflicts) {
-    const { completeClaimedSyncTask } = await import('./dexieSyncQueueAuthorityAck');
+    const { completeClaimedSyncTask } = await loadAuthorityAck();
     const { confirmSpecialistHandoffProjection } = await import('./dexieDailyRecordOutbox');
     const result = await completeClaimedSyncTask(
       {

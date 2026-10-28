@@ -5,6 +5,7 @@
  */
 
 export {
+  completeDirectDailyRecordSyncTask,
   ackDailyRecordSyncTask,
   adoptAuthoritativeDailyRecordAtomically,
   clearAllSyncQueue,

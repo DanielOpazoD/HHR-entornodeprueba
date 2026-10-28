@@ -12,6 +12,7 @@ export const persistConfirmedRemoteRecordLocally = async ({
   authoritativeRecord,
   remoteState,
   adoptRemoteAuthorityRecord,
+  completeConfirmedLocalWrite,
   releaseLocalPreOutboxHold,
 }: {
   date: string;
@@ -19,11 +20,13 @@ export const persistConfirmedRemoteRecordLocally = async ({
   authoritativeRecord: DailyRecord;
   remoteState: RemoteWriteState;
   adoptRemoteAuthorityRecord?: (record: DailyRecord) => Promise<DailyRecord>;
+  completeConfirmedLocalWrite?: (record: DailyRecord) => Promise<DailyRecord | undefined>;
   releaseLocalPreOutboxHold?: () => Promise<void>;
 }): Promise<boolean> => {
-  if (adoptRemoteAuthorityRecord) {
+  const reconcile = completeConfirmedLocalWrite ?? adoptRemoteAuthorityRecord;
+  if (reconcile) {
     try {
-      remoteState.localProjectionRecord = await adoptRemoteAuthorityRecord(authoritativeRecord);
+      remoteState.localProjectionRecord = await reconcile(authoritativeRecord);
     } catch (error) {
       await releaseLocalPreOutboxHold?.();
       applyLocalPersistenceFailure(
