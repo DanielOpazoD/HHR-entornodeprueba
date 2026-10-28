@@ -28,20 +28,24 @@ export const cudyrCaptureState = (
     const unavailable = parts.some(item =>
       ['unavailable', 'legacy_extension'].includes(item.capture.status)
     );
+    const notObserved = parts.some(item => item.capture.status === 'not_observed');
     const status: CudyrReportStatus = !complete
       ? 'captura_incompleta'
       : unavailable
         ? 'fuente_no_disponible'
-        : 'sin_registro_observado';
+        : notObserved
+          ? 'sin_captura'
+          : 'sin_registro_observado';
     const representative = [...parts].sort(
       (a, b) => b.receivedAt.localeCompare(a.receivedAt) || a.id.localeCompare(b.id)
     )[0];
     return {
       latest: representative,
       status,
-      priority: !complete ? 2 : unavailable ? 1 : 0,
+      priority: !complete ? 3 : unavailable ? 2 : notObserved ? 1 : 0,
       warnings: [
         ...(!complete ? ['Faltan partes del guardado de la última captura.'] : []),
+        ...(notObserved ? ['El episodio no fue observado en la última consulta de CUDYR.'] : []),
         ...(parts.some(item => item.capture.metadataStatus === 'partial')
           ? ['La última captura contiene metadatos incompletos.']
           : []),

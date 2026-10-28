@@ -113,7 +113,10 @@ export const createClinicalCudyrCoordinator = ({
         ? buildImportedCudyr(row, priorCensusDay)
         : null;
     const episodeHistoryAuthoritative =
-      source.historyAvailable && (!row || row.source === 'gestion_camas');
+      source.historyAvailable &&
+      (row
+        ? row.source === 'gestion_camas'
+        : source.captureContract === 1 && source.observedEpisodeIds?.includes(clinicalEpisodeId));
     let priorPersisted = !priorCudyr;
     let historicalChanged = false;
 
@@ -159,7 +162,7 @@ export const createClinicalCudyrCoordinator = ({
       isAdministrativeCudyrAdjustment(existingCudyr) &&
       (currentCudyr
         ? !clinicalValuesEqual(existingCudyr, currentCudyr)
-        : episodeHistoryAuthoritative)
+        : source.historyAvailable && (!row || episodeHistoryAuthoritative))
     ) {
       onAdministrativeOverridePreserved();
       return { patient, historicalChanged };
