@@ -1,4 +1,9 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { SyncTask } from '@/services/storage/syncQueueTypes';
+import {
+  getValueAtPath,
+  hasSameComparableValue,
+} from '@/services/repositories/conflictResolutionUtils';
 import type { PatientData } from '@/types/domain/patient';
 import { hasSameBedOccupant } from '@/services/storage/sync/bedOccupantIdentity';
 import { hasSameNoteValue } from '@/services/storage/sync/dayTaskReplayGuard';
@@ -22,6 +27,8 @@ const isEmptyNoteValue = (value: unknown) =>
   (typeof value === 'object' &&
     Object.getPrototypeOf(value) === Object.prototype &&
     Object.keys(value).length === 0);
+export const hasSamePatchBaseValue = (left: unknown, right: unknown): boolean =>
+  hasSameComparableValue(left, right) || (isEmptyNoteValue(left) && isEmptyNoteValue(right));
 const hasSameNoteBase = (a: unknown, b: unknown) =>
   hasSameNoteValue(a, b) || (isEmptyNoteValue(a) && isEmptyNoteValue(b));
 /** A carried note is an edit only when its writer actually read the stored note as its base. */
@@ -76,6 +83,77 @@ export const assertFullSaveNoteBase = (
         throw new ConcurrencyError(
           'No se pudo comprobar que esta nota siga vigente. Recargue y revise la entrega médica antes de guardar.'
         );
+    }
+  }
+};
+
+const BED_SLOT_FIELDS = new Set(['isBlocked', 'blockedReason']);
+const BED_FIELD_PATH = /^beds\.([^.]+)(?:\.([^.]+))?/;
+
+/** A field edit belongs to the occupant it was written for; a whole-bed value compares by value. */
+export const assertSameOccupantAtPath = (
+  path: string,
+  writtenFor: DailyRecord,
+  projection: DailyRecord
+): void => {
+  const match = BED_FIELD_PATH.exec(path);
+  if (!match || BED_SLOT_FIELDS.has(match[2])) return;
+  const [, bedId, field] = match;
+  const writtenBed = writtenFor.beds?.[bedId];
+  const projectedBed = projection.beds?.[bedId];
+  if (
+    hasSameBedOccupant(writtenBed, projectedBed) &&
+    ((field && field !== 'clinicalCrib') ||
+      hasSameBedOccupant(writtenBed?.clinicalCrib, projectedBed?.clinicalCrib))
+  ) {
+    return;
+  }
+  throw new ConcurrencyError(
+    'La cama o la cuna cambió de paciente en otra pestaña. Recargue el censo antes de continuar.'
+  );
+};
+
+/** A full snapshot may replace pending values only when its writer actually read them. */
+export const assertPendingFullSaveBase = ({
+  incoming,
+  pending,
+  base,
+}: {
+  incoming: DailyRecord;
+  pending: SyncTask[];
+  base?: DailyRecord;
+}): void => {
+  const reject = (): never => {
+    throw new ConcurrencyError(
+      'El censo cambió. Recargue y revise los cambios pendientes.',
+      'semantic_conflict'
+    );
+  };
+  const writes = pending.map(task => ({
+    task,
+    ids: new Set(
+      [task.syncContract?.mutationId, ...(task.syncContract?.mutationIds ?? [])].filter(Boolean)
+    ),
+  }));
+  for (const { task, ids } of writes) {
+    // A strict superset proves incorporation; equal or unknown claims keep their protection.
+    if (
+      ids.size &&
+      writes.some(other => other.ids.size > ids.size && [...ids].every(id => other.ids.has(id)))
+    )
+      continue;
+    const current = task.payload as DailyRecord;
+    if (!current || current.date !== incoming.date || (base && base.date !== incoming.date))
+      reject();
+    const paths = task.syncContract?.changedPaths;
+    for (const path of paths?.length && !paths.includes('*')
+      ? paths
+      : Object.keys({ ...base, ...incoming, ...current })) {
+      if (path === 'lastUpdated') continue;
+      const value = getValueAtPath(current, path);
+      const read = base && hasSamePatchBaseValue(value, getValueAtPath(base, path));
+      assertSameOccupantAtPath(path, read ? base : incoming, current);
+      if (!read && !hasSamePatchBaseValue(value, getValueAtPath(incoming, path))) reject();
     }
   }
 };
