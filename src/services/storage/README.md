@@ -145,3 +145,10 @@ Cambios en esta capa requieren:
 - Los fallos `backing store` de IndexedDB deben tratarse como recuperables: se evita borrar la base
   local de inmediato y se privilegian reintentos en segundo plano antes de exponer fallback persistente.
 - Los avisos visibles priorizan lenguaje no técnico y reservan acciones avanzadas solo para casos persistentes.
+
+## Dotación compartida
+
+Los parches de enfermería y TENS, incluidos sus campos heredados y detalle por turno,
+comprueban la versión y escriben en una misma transacción de Firestore. Una base
+obsoleta genera conflicto y conserva el envío para su conciliación; no confirma
+una sustitución silenciosa del cambio de otro equipo (SAVE-01, SAVE-02).
