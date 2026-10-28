@@ -6,7 +6,7 @@ import {
 } from '@/features/rayen-import/domain/historicalCudyrPatch';
 import { collectDailyCudyrRecoveryEpisodes } from '@/features/rayen-import/hooks/dailyCudyrRecoveryReader';
 import { assertDocumentaryCudyrTarget } from '@/domain/evaluationScales/documentaryCudyr';
-import { recoverDailyCudyrGap } from '@/services/cudyr/dailyCudyrRecoveryPlan';
+import { recoverDailyCudyrGap, planDailyCudyrGaps } from '@/services/cudyr/dailyCudyrRecoveryPlan';
 import { DailyRecordSchema } from '@/schemas/zodSchemas';
 import {
   historicalDay,
@@ -14,6 +14,7 @@ import {
   documentary,
   patient,
   parsedSource,
+  now,
 } from './dailyCudyrRecovery.fixtures';
 
 const official = {
@@ -95,6 +96,45 @@ describe('accepted documentary CUDYR authority', () => {
       );
     }
   );
+  it('uses movement snapshots only as identity context, never as a score or occupancy source', () => {
+    const record = historicalDay();
+    record.discharges = [
+      {
+        ...currentDay().discharges[0],
+        originalData: {
+          ...patient(),
+          evaluationScores: { cudyr: { ...documentary(), category: 'D1' } },
+        },
+      },
+    ];
+    const before = structuredClone(record);
+    const gap = {
+      date: record.date,
+      sourceDate: '2026-10-27',
+      clinicalEpisodeId: patient().clinicalEpisodeId,
+      patient: record.beds.R1,
+    };
+    const source = parsedSource();
+    expect(
+      recoverDailyCudyrGap(gap, [record], {
+        ...source,
+        report: { ...source.report, patients: [] },
+      })
+    ).toBeNull();
+    expect(recoverDailyCudyrGap(gap, [record], source)).toEqual(documentary());
+    expect(
+      planDailyCudyrGaps(
+        [{ ...record, beds: {} }],
+        [patient().clinicalEpisodeId],
+        {
+          map: new Map(),
+          historyAvailable: true,
+        },
+        now()
+      )
+    ).toEqual([]);
+    expect(record).toEqual(before);
+  });
   it('isolates a conflict on a new occupant from the discharged episode and blocks a conflict on that episode', () => {
     const record = currentDay();
     record.beds = { R1: { ...patient(), clinicalEpisodeId: 'new-occupant' } };
