@@ -284,6 +284,15 @@ test.describe('Night admission critical sync recovery', () => {
     expect((retryCall.task.syncContract as { mutationId?: string } | undefined)?.mutationId).toBe(
       'e2e-night-diagnosis-retry'
     );
+    await expect
+      .poll(() => readQueuedDiagnosisRuntime(page), { timeout: 10_000 })
+      .toEqual({ status: 'PROCESSING', hasLease: true });
+    await expect(localSaveDetails).toContainText('Enviando', { timeout: 10_000 });
+    await expect(pendingSave).toBeVisible();
+    await expect(
+      localSaveDetails.getByRole('button', { name: 'Reintentar', exact: true })
+    ).toHaveCount(0);
+    expect(await readQueueCount(page)).toBe(1);
     retryCall.succeed();
     await waitForEmptyQueue(page);
     await expect(pendingSave).toHaveCount(0, { timeout: 10_000 });
