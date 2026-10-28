@@ -49,6 +49,7 @@ Budgets monitoreables desde `reports/operational-health.md`:
 
 Regla operativa:
 
+- Los presupuestos de pendientes incluyen `PENDING` y `PROCESSING`, como define el [runbook de sincronización](RUNBOOK_SYNC_RESILIENCE.md#procedimiento-22-estados-del-outbox-y-accion-humana).
 - si `getSyncQueueTelemetry()` devuelve `readState = unavailable`, tratar el estado de sync como
   `blocked` aunque los contadores aparezcan en `0`; primero revisar `IndexedDB` y telemetría de sync.
 

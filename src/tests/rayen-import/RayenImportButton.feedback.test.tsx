@@ -150,9 +150,7 @@ describe('RayenImportButton feedback', () => {
       );
       render(<RayenImportButton />);
       fireEvent.click(screen.getByRole('button', { name: 'Guardado pendiente · Ver detalle' }));
-      expect(
-        await screen.findByText(`Guardado local · ${status === 'PENDING' ? 25 : 1} por enviar`)
-      ).toBeInTheDocument();
+      expect(await screen.findByText('Guardado local · 25 por enviar')).toBeVisible();
       expect(screen.queryByText('Censo del 22-10-2026')).not.toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: 'Ver más envíos' }));
       expect(screen.queryByText('Censo del 22-10-2026')).not.toBeInTheDocument();

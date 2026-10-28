@@ -32,7 +32,7 @@ export const buildSyncQueueTelemetryFromRows = (
   now: number,
   batchSize: number
 ): SyncQueueTelemetry => {
-  const pendingRows = rows.filter(row => row.status === 'PENDING');
+  const pendingRows = rows.filter(row => row.status === 'PENDING' || row.status === 'PROCESSING');
   const directQueueRows = pendingRows.filter(row => row.origin === 'direct_queue');
   const pendingBudgetState = resolveSyncQueueBudgetState(
     pendingRows.length,
@@ -41,7 +41,7 @@ export const buildSyncQueueTelemetryFromRows = (
   );
   const oldestTimestamp = pendingRows.reduce<number>(
     (acc, row) => (row.timestamp < acc ? row.timestamp : acc),
-    Number.POSITIVE_INFINITY
+    Infinity
   );
   const oldestPendingAgeMs =
     Number.isFinite(oldestTimestamp) && oldestTimestamp > 0
@@ -49,7 +49,7 @@ export const buildSyncQueueTelemetryFromRows = (
       : 0;
   const oldestDirectQueueTimestamp = directQueueRows.reduce<number>(
     (acc, row) => (row.timestamp < acc ? row.timestamp : acc),
-    Number.POSITIVE_INFINITY
+    Infinity
   );
   const oldestDirectQueueAgeMs =
     Number.isFinite(oldestDirectQueueTimestamp) && oldestDirectQueueTimestamp > 0

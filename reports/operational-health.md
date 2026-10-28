@@ -7,6 +7,10 @@
 
 ## Sync Queue
 
+El conteo, la antigüedad y los reintentos pendientes incluyen envíos `PROCESSING`
+hasta su confirmación. Salud operacional conserva ese trabajo activo y la renovación
+de copias locales tras una actualización espera a que termine.
+
 La selección de trabajo listo usa los rangos activos del índice de estado y fecha.
 Los respaldos y cuarentenas permanecen guardados sin formar parte de ese recorrido;
 no cambian el orden global, los propietarios, las esperas ni los leases.
