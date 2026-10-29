@@ -949,6 +949,123 @@ test.describe('Production Preview Bootstrap', () => {
   });
 });
 
+test('aligns equivalent discharge and transfer columns despite different content lengths', async ({
+  page,
+}, testInfo) => {
+  await seedPersistedSessionAndRecord(page, {
+    discharges: [
+      {
+        ...buildViewportDischarges()[0],
+        patientName: 'ALTA SINTETICA CON NOMBRE LARGO PARA VALIDACION',
+        diagnosis: 'Diagnóstico de prueba',
+      },
+    ],
+    transfers: [
+      {
+        id: 'synthetic-aligned-transfer',
+        bedId: 'R6',
+        bedName: 'R6',
+        bedType: 'Adulto',
+        patientName: 'TRASLADO SINTETICO',
+        rut: '',
+        diagnosis:
+          'Diagnóstico sintético de mucha mayor longitud para comprobar que el texto se ajusta sin desplazar las columnas equivalentes',
+        evacuationMethod: 'Ambulancia',
+        receivingCenter: 'Hospital de destino sintético con nombre largo',
+        movementDate: PREVIEW_BOOTSTRAP_DATE,
+        time: '12:00',
+      },
+    ],
+  });
+  await page.goto('/?date=' + PREVIEW_BOOTSTRAP_DATE);
+  await expectSeededPatientVisible(page);
+  const discharges = page.locator('.census-movement-section').filter({
+    has: page.getByRole('heading', { name: 'Altas', exact: true }),
+  });
+  const transfers = page.locator('.census-movement-section').filter({
+    has: page.getByRole('heading', { name: 'Traslados', exact: true }),
+  });
+  for (const width of [1440, 1024, 375]) {
+    await page.setViewportSize({ width, height: 768 });
+    await expect(transfers.getByRole('row').last()).toBeVisible();
+    for (const column of [0, 1, 2, 5, 6]) {
+      const a = await discharges.getByRole('columnheader').nth(column).boundingBox();
+      const b = await transfers.getByRole('columnheader').nth(column).boundingBox();
+      if (!a || !b) throw new Error('Missing equivalent movement column');
+      expect(Math.abs(a.x - b.x)).toBeLessThanOrEqual(1);
+      expect(Math.abs(a.width - b.width)).toBeLessThanOrEqual(1);
+    }
+    for (const section of [discharges, transfers]) {
+      const menuButton = await section.getByTitle('Abrir menú de acciones').boundingBox();
+      const epicrisisButton = await section
+        .getByRole('button', { name: /epicrisis/i })
+        .boundingBox();
+      if (!menuButton || !epicrisisButton) throw new Error('Missing movement actions');
+      expect(
+        Math.abs(
+          menuButton.y + menuButton.height / 2 - epicrisisButton.y - epicrisisButton.height / 2
+        )
+      ).toBeLessThanOrEqual(1);
+      expect(
+        await section
+          .locator('th')
+          .nth(1)
+          .evaluate(el => getComputedStyle(el).paddingLeft)
+      ).toBe(
+        await section
+          .locator('td')
+          .nth(1)
+          .evaluate(el => getComputedStyle(el).paddingLeft)
+      );
+      await testInfo.attach('movement-' + width + '-' + (await section.locator('h2').innerText()), {
+        body: await section.screenshot(),
+        contentType: 'image/png',
+      });
+    }
+  }
+  const scroll = transfers.getByRole('region', { name: 'Traslados', exact: true });
+  await scroll.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect.poll(() => scroll.evaluate(el => el.scrollLeft)).toBeGreaterThan(0);
+  await page.emulateMedia({ media: 'print' });
+  for (const section of [discharges, transfers]) {
+    expect(await section.locator('table').evaluate(el => getComputedStyle(el).minWidth)).toBe(
+      '0px'
+    );
+    await expect(section.getByTitle('Abrir menú de acciones')).toBeHidden();
+  }
+});
+
+test('opens the full user menu without painting a logout-only loading panel', async ({ page }) => {
+  let release = () => {};
+  const ready = new Promise<void>(resolve => {
+    release = resolve;
+  });
+  await page.route('**/UserMenuPanel-*.js', async route => {
+    await ready;
+    await route.continue();
+  });
+  try {
+    await seedPersistedSessionAndRecord(page);
+    await page.goto('/?date=' + PREVIEW_BOOTSTRAP_DATE);
+    await expectSeededPatientVisible(page);
+    await page.getByTestId('authenticated-user-menu-button').click();
+    await expect(page.getByTestId('authenticated-user-menu-button')).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
+    await expect(page.getByTestId('user-profile-menu-panel')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Cerrar sesión', exact: true })).toHaveCount(0);
+    release();
+    const panel = page.getByTestId('user-profile-menu-panel');
+    await expect(panel).toBeVisible();
+    await expect(panel.getByRole('button', { name: 'Cambiar foto de perfil' })).toBeVisible();
+    await expect(panel.getByRole('button', { name: 'Cerrar sesión', exact: true })).toBeVisible();
+  } finally {
+    release();
+  }
+});
+
 test('shows transfer beds without their type suffixes', async ({ page }, testInfo) => {
   await seedPersistedSessionAndRecord(page, {
     transfers: ['MEDIA', 'INTERMEDIA'].map((bedType, index) => ({

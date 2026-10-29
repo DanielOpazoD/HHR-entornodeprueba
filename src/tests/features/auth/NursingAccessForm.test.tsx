@@ -76,10 +76,14 @@ describe('private individual access forms', () => {
     fireEvent.submit(screen.getByRole('form'));
     expect(establishNursingSession).toHaveBeenCalledOnce();
     expect(screen.getByLabelText('Usuario')).toBeDisabled();
+    expect(screen.getByRole('form')).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByRole('status')).toBeVisible();
+    expect(screen.getByRole('status')).toHaveTextContent('Validando tu acceso');
     expect(onSuccess).not.toHaveBeenCalled();
     finish();
     await waitFor(() => expect(onSuccess).toHaveBeenCalledOnce());
     expect(screen.getByLabelText('Contraseña')).toHaveValue('');
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
   it('shows generic errors without granting a session or switching to Google automatically', async () => {
@@ -95,6 +99,10 @@ describe('private individual access forms', () => {
     fireEvent.submit(screen.getByRole('form'));
     await screen.findByRole('alert');
     expect(onSuccess).not.toHaveBeenCalled();
+    expect(screen.getByRole('form')).toHaveAttribute('aria-busy', 'false');
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Ingresar$/ })).toBeEnabled();
+    expect(screen.getByLabelText('Contraseña')).toHaveValue('bad-private-password');
     expect(screen.queryByText(/private provider detail/)).not.toBeInTheDocument();
   });
   it('requires the previous password for a private change and clears all password fields afterwards', async () => {

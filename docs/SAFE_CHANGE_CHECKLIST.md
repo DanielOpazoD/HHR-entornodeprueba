@@ -84,6 +84,13 @@ La clasificación remota `docs-only` se decide en CI; no forzar ni omitir checks
 
 ### Checklist de cierre
 
+La respuesta visual del acceso, la apertura completa del menú de usuario y la
+alineación de altas/traslados del 29 octubre 2026 son `safe_local_ui`: conservan
+handlers, permisos, datos clínicos y fechas. Validar envío pendiente/error/reintento,
+primera apertura del menú, columnas equivalentes con textos de distinta longitud,
+scroll con teclado en móvil, impresión y movimiento reducido. Exigen pruebas
+focalizadas, build/budgets sin ampliar límites, revisión independiente y CI del head final.
+
 La comprobación previa de Eloísa, las lecturas clínicas frescas por captura y la
 configuración del gesto manual de especialidad son `critical_runtime`. Verificar
 el bloqueo sin nueva ejecución cuando falta una fuente y conservar el fallo real

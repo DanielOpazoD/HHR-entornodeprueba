@@ -1,16 +1,8 @@
 import type { TransferData } from '@/features/census/contracts/censusMovementContracts';
-import type { CensusMovementTableHeader } from '@/features/census/types/censusMovementTableTypes';
+import { buildCensusMovementTableHeaders } from './censusMovementTableHeaders';
 import { buildMovementRowActions } from '@/features/census/controllers/censusMovementRowActionsController';
 
-export const TRANSFERS_TABLE_HEADERS: readonly CensusMovementTableHeader[] = [
-  { label: 'Cama' },
-  { label: 'Paciente' },
-  { label: 'Diagnóstico' },
-  { label: 'Medio' },
-  { label: 'Centro Destino' },
-  { label: 'Fecha', className: 'text-center' },
-  { label: 'Acciones', className: 'text-right print:hidden' },
-] as const;
+export const TRANSFERS_TABLE_HEADERS = buildCensusMovementTableHeaders(['Medio', 'Centro Destino']);
 
 export const getTransferCenterLabel = (transfer: TransferData): string =>
   transfer.receivingCenter === 'Otro'

@@ -71,6 +71,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({
       )}
       <button
         onClick={toggle}
+        aria-expanded={isOpen}
         className="relative w-8 h-8 overflow-hidden rounded-full bg-white/[0.16] backdrop-blur-sm border border-white/[0.12] flex items-center justify-center text-white/90 font-semibold text-sm uppercase shadow-glass transition-transform active:scale-90"
         title={userLabel}
         aria-label={`Usuario ${userLabel}. Rol ${roleLabel}. Firebase ${connectionLabel}`}
@@ -100,7 +101,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({
 
       {isOpen && (
         <GlobalErrorBoundary fallbackComponent={logoutFallback}>
-          <Suspense fallback={logoutFallback}>
+          <Suspense fallback={null}>
             <UserMenuPanel
               userLabel={userLabel}
               userInitial={userInitial}

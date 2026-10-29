@@ -53,12 +53,26 @@ export const CensusMovementSectionLayout: React.FC<CensusMovementSectionLayoutPr
       {isEmpty ? (
         <p className="py-2.5 text-center text-xs text-slate-500">{emptyMessage}</p>
       ) : (
-        <div className="census-movement-table-scroll overflow-x-auto">
-          <table className={clsx('w-full text-left text-sm print:text-xs', tableClassName)}>
+        <div
+          className="census-movement-table-scroll overflow-x-auto"
+          tabIndex={0}
+          role="region"
+          aria-label={title}
+        >
+          <table
+            className={clsx(
+              'w-full text-left text-sm [&_td]:px-3 [&_td]:align-middle [&_td]:break-words print:text-xs',
+              tableClassName
+            )}
+          >
             <thead className="border-b border-slate-200 bg-slate-50/50 text-[10px] font-semibold uppercase tracking-[0.04em] text-slate-500">
               <tr>
                 {headers.map(header => (
-                  <th key={header.label} className={clsx('px-3 py-2', header.className)}>
+                  <th
+                    key={header.label}
+                    scope="col"
+                    className={clsx('px-3 py-2', header.className)}
+                  >
                     {header.label}
                   </th>
                 ))}

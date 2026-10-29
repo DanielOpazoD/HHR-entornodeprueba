@@ -19,7 +19,7 @@ export const CensusMovementActionsCell: React.FC<CensusMovementActionsCellProps>
 
   return (
     <td className="p-2 print:hidden align-middle">
-      <div className="flex items-center justify-end gap-2 h-full">
+      <div className="flex flex-wrap items-center justify-end gap-2 h-full">
         {presentation === 'menu' ? (
           <CensusMovementActionsMenu actions={actionViewModels} />
         ) : (

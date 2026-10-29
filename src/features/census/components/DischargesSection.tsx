@@ -24,6 +24,7 @@ export const DischargesSection: React.FC = () => {
       icon={<CheckCircle size={18} />}
       iconClassName="bg-green-50 text-green-600"
       headers={DISCHARGES_TABLE_HEADERS}
+      tableClassName="min-w-[60rem] table-fixed print:min-w-0 print:table-auto"
       getItemKey={item => item.id}
       renderRow={item => (
         <DischargeRow
