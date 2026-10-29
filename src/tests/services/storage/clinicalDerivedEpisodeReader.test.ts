@@ -357,4 +357,18 @@ describe('readClinicalDerivedDaySnapshot', () => {
     expect(JSON.stringify(recordOperationalTelemetry.mock.calls)).not.toContain('secret detail');
     expect(reportBasicReadPermissionDenied).not.toHaveBeenCalled();
   });
+
+  it('keeps the strict confirmation failure free of documents after a successful query', async () => {
+    firestore.getDocFromServer
+      .mockResolvedValueOnce(docSnapshot(DATE, day(4)))
+      .mockRejectedValueOnce({ code: 'unavailable' });
+    firestore.getDocsFromServer.mockResolvedValueOnce(
+      snapshotOf({ id: 'ep_a', data: episode('ep_a') })
+    );
+
+    expect(await readClinicalDerivedDaySnapshot(DATE)).toEqual({
+      status: 'failed',
+      code: 'unavailable',
+    });
+  });
 });

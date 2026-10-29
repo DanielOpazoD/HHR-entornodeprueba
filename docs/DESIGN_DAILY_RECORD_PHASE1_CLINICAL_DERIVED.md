@@ -259,9 +259,22 @@ Cómo cambia cada escritor del servidor:
       marcados, leídos del servidor. Un día que no se pudo leer queda indicado, no se omite.
     - La sección va en la raíz del archivo (en el respaldo local, junto a las fechas) y solo
       existe si hay días marcados: `{ [fecha]: { status: 'exported', layoutGeneration, docs } }`
-      o `{ status: 'unavailable', reason }`.
-    - Si algún día queda `unavailable`, el archivo se descarga igual, pero la exportación se
-      informa incompleta, con las fechas y la indicación de repetirla con conexión.
+      o `{ status: 'unavailable', reason }`. Si se obtuvieron documentos sin poder comprobar su
+      coherencia, la entrada `unavailable` conserva también `layoutGeneration` y `docs`.
+    - La exportación consulta la generación de la copia local entre dos lecturas del día del
+      servidor. Sólo informa completo si esa generación y revisión remotas fueron estables, no
+      hay escrituras pendientes del SDK, ningún documento va adelante de la revisión local y todos
+      encuentran un portador único al aplicar el restaurador. No exige igualdad de toda revisión
+      local/remota. Un día estable sin documentos sigue siendo válido (D3, D7).
+    - Si falla una lectura del día, cambia su generación/revisión o no se puede restaurar un
+      documento, el archivo conserva lo obtenido y se descarga igual. El aviso identifica las
+      fechas cuya restauración completa no pudo comprobarse. No reemplaza la copia local por el
+      día remoto ni confirma sus pendientes. Un documento esperado que aún no existe no se puede
+      distinguir de un episodio legítimamente embebido; no se inventa un manifiesto.
+    - La captura de respaldo y la confirmación estricta comparten el lector interno. Sólo la
+      primera puede devolver documentos no confirmados; no se usan para confirmar un guardado.
+      El veredicto de documento adelantado sólo cambia la exportación. Los archivos `exported`
+      anteriores se importan como antes; `unavailable`, aun con documentos, sigue siendo parcial.
     - La importación nunca reemplaza un registro local marcado más nuevo por uno sin marcador
       (P4a, en la higiene de escritura).
     - La importación (la local y la restauración del administrador) nunca escribe los

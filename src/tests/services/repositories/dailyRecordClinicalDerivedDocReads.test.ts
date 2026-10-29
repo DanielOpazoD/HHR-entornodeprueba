@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { isFirestoreEnabled, readDocs, readDoc, readSnapshot } = vi.hoisted(() => ({
+const { isFirestoreEnabled, readDocs, readDoc, readSnapshot, readBackup } = vi.hoisted(() => ({
   isFirestoreEnabled: vi.fn(() => true),
   readDocs: vi.fn(),
   readDoc: vi.fn(),
   readSnapshot: vi.fn(),
+  readBackup: vi.fn(),
 }));
 
 vi.mock('@/services/repositories/repositoryConfig', () => ({ isFirestoreEnabled }));
@@ -12,10 +13,12 @@ vi.mock('@/services/storage/firestore/clinicalDerivedEpisodeReader', () => ({
   readClinicalDerivedEpisodeDocs: readDocs,
   readClinicalDerivedEpisodeDoc: readDoc,
   readClinicalDerivedDaySnapshot: readSnapshot,
+  readClinicalDerivedBackupDay: readBackup,
 }));
 
 import {
   readClinicalDerivedDayDocs,
+  readClinicalDerivedBackupDay,
   readClinicalDerivedDaySnapshot,
   readClinicalDerivedEpisodeForDisplay,
 } from '@/services/repositories/dailyRecordClinicalDerivedReadService';
@@ -123,6 +126,47 @@ describe('clinicalDerived document reads for the staff tool, backups and the vit
       status: 'unmarked',
     });
     expect(readDocs).not.toHaveBeenCalled();
+  });
+
+  it('retains an unconfirmed backup capture without turning it into a resolved read', async () => {
+    const docs = [episodeDoc('ep_active')];
+    readBackup.mockResolvedValueOnce({
+      status: 'failed',
+      code: 'day_changed',
+      unconfirmedDocs: docs,
+    });
+
+    expect(await readClinicalDerivedBackupDay(marked)).toEqual({
+      status: 'unavailable',
+      reason: 'day_changed',
+      code: 'day_changed',
+      retained: { layoutGeneration: GENERATION, docs },
+    });
+    readBackup.mockResolvedValueOnce({ status: 'missing', unconfirmedDocs: docs });
+    expect(await readClinicalDerivedBackupDay(marked)).toEqual({
+      status: 'unavailable',
+      reason: 'day_missing',
+      retained: { layoutGeneration: GENERATION, docs },
+    });
+  });
+
+  it('does not read a backup with an unsupported marker, disabled Firestore or E2E overrides', async () => {
+    expect(
+      await readClinicalDerivedBackupDay({ ...marked, clinicalDerivedLayout: { version: 2 } })
+    ).toEqual({ status: 'unavailable', reason: 'unsupported_layout' });
+    isFirestoreEnabled.mockReturnValueOnce(false);
+    expect(await readClinicalDerivedBackupDay(marked)).toMatchObject({
+      status: 'unavailable',
+      reason: 'read_failed',
+      code: 'firestore_disabled',
+    });
+    window.__HHR_E2E_OVERRIDE__ = {};
+    expect(await readClinicalDerivedBackupDay(marked)).toMatchObject({
+      status: 'unavailable',
+      reason: 'read_failed',
+      code: 'firestore_disabled',
+    });
+    expect(readBackup).not.toHaveBeenCalled();
   });
 
   it('reads one episode for display from the SDK default source', async () => {

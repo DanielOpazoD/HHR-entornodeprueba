@@ -171,6 +171,65 @@ const dayVersionOf = (data: DocumentData | undefined): string => {
   ]);
 };
 
+export type ClinicalDerivedBackupReadResult =
+  | Extract<ClinicalDerivedDaySnapshotReadResult, { status: 'resolved' }>
+  | ((ClinicalDerivedReadFailure | { status: 'missing' }) & {
+      unconfirmedDocs?: ClinicalDerivedEpisodeDoc[];
+    });
+
+const readDaySnapshot = async (
+  date: string,
+  runtime: FirestoreServiceRuntimePort,
+  layoutGeneration?: string
+): Promise<ClinicalDerivedBackupReadResult> => {
+  let docs: ClinicalDerivedEpisodeDoc[] | undefined;
+  const retain = (failure: ClinicalDerivedReadFailure | { status: 'missing' }) =>
+    layoutGeneration !== undefined && docs !== undefined
+      ? { ...failure, unconfirmedDocs: docs }
+      : failure;
+  try {
+    const dayRef = getRecordDocRef(date, runtime);
+    const before = await getDocFromServer(dayRef).catch(error => toFailure(date, 'day', error));
+    if (layoutGeneration === undefined) {
+      if ('status' in before) return before;
+      if (!before.exists()) return { status: 'missing' };
+    }
+    const data = 'status' in before ? undefined : before.data();
+    const layout = readClinicalDerivedLayout(data);
+    const generation =
+      layoutGeneration ?? (layout.status === 'marked' ? layout.layout.generation : undefined);
+    const read = generation
+      ? await readClinicalDerivedEpisodeDocs(date, generation, {
+          source: 'server',
+          runtime,
+        })
+      : null;
+    if (read && read.status !== 'resolved') return read;
+    docs = read?.docs ?? [];
+    if ('status' in before) return retain(before);
+    if (!before.exists()) return retain({ status: 'missing' });
+    const day = docToRecord(before.data(), date);
+    if (
+      layoutGeneration !== undefined &&
+      (layout.status !== 'marked' || layout.layout.generation !== layoutGeneration)
+    ) {
+      return retain({ status: 'failed', code: 'generation_mismatch' });
+    }
+    const after = read ? await getDocFromServer(dayRef) : before;
+    // A race, not a broken read: no telemetry, the caller reports the day it could not confirm.
+    if (
+      dayVersionOf(after.data()) !== dayVersionOf(before.data()) ||
+      before.metadata.hasPendingWrites ||
+      after.metadata.hasPendingWrites
+    ) {
+      return retain({ status: 'failed', code: DAY_CHANGED_CODE });
+    }
+    return { status: 'resolved', day, docs };
+  } catch (error) {
+    return retain(toFailure(date, 'day', error));
+  }
+};
+
 /**
  * The day and its current episode documents in one coherent server read: the day, its
  * generation's documents, then the day again. The server writes a document in the same
@@ -183,31 +242,16 @@ export const readClinicalDerivedDaySnapshot = async (
   date: string,
   { runtime = defaultFirestoreServiceRuntime }: Pick<ClinicalDerivedReadOptions, 'runtime'> = {}
 ): Promise<ClinicalDerivedDaySnapshotReadResult> => {
-  try {
-    const dayRef = getRecordDocRef(date, runtime);
-    const before = await getDocFromServer(dayRef);
-    if (!before.exists()) return { status: 'missing' };
-    const day = docToRecord(before.data(), date);
-    const layout = readClinicalDerivedLayout(day);
-    const read =
-      layout.status === 'marked'
-        ? await readClinicalDerivedEpisodeDocs(date, layout.layout.generation, {
-            source: 'server',
-            runtime,
-          })
-        : null;
-    if (read && read.status !== 'resolved') return read;
-    const after = read ? await getDocFromServer(dayRef) : before;
-    // A race, not a broken read: no telemetry, the caller reports the day it could not confirm.
-    if (
-      dayVersionOf(after.data()) !== dayVersionOf(before.data()) ||
-      before.metadata.hasPendingWrites ||
-      after.metadata.hasPendingWrites
-    ) {
-      return { status: 'failed', code: DAY_CHANGED_CODE };
-    }
-    return { status: 'resolved', day, docs: read?.docs ?? [] };
-  } catch (error) {
-    return toFailure(date, 'day', error);
-  }
+  const read = await readDaySnapshot(date, runtime);
+  if (read.status === 'resolved') return read;
+  return read.status === 'missing'
+    ? { status: 'missing' }
+    : { status: read.status, code: read.code };
 };
+
+/** Retains the requested generation's documents for a backup, even when the day cannot confirm them. */
+export const readClinicalDerivedBackupDay = (
+  date: string,
+  layoutGeneration: string,
+  { runtime = defaultFirestoreServiceRuntime }: Pick<ClinicalDerivedReadOptions, 'runtime'> = {}
+): Promise<ClinicalDerivedBackupReadResult> => readDaySnapshot(date, runtime, layoutGeneration);
