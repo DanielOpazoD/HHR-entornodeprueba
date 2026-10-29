@@ -124,7 +124,7 @@ describe('daily record realtime subscription lifecycle', () => {
     expect(warnings.length).toBeGreaterThan(0);
     for (const [message, ...details] of warnings) {
       expect(message).not.toContain(privateConsumerDetail);
-      expect(details).toEqual([{ date }]);
+      expect(details).toEqual([{ date, stage: expect.stringMatching(/^(consumer|resolution)$/) }]);
     }
   };
 
