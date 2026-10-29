@@ -72,7 +72,6 @@ const createRuntime = (overrides: Record<string, unknown> = {}) => {
     openPrescriptionCenter: vi.fn(),
     openHospitalizedDocuments: vi.fn(),
     openOperationsCenter,
-    openRegimenQuickDialog: vi.fn(),
     ...overrides,
   });
   return { runtime, openOperationsCenter };
@@ -85,24 +84,27 @@ describe('Centro HHR shared shell runtime', () => {
     vi.restoreAllMocks();
   });
 
-  it('keeps the same modal root and focuses the active nav item across module changes', () => {
-    const { runtime } = createRuntime();
-    const root = runtime.prepareCenterModalRoot({
-      activeModule: 'home',
-      encId: '141121',
-      focusReturnTarget: null,
-    })!;
+  it.each(['lab', 'imaging', 'connection'])(
+    'keeps the same modal root and focuses the active nav item when opening %s',
+    module => {
+      const { runtime } = createRuntime();
+      const root = runtime.prepareCenterModalRoot({
+        activeModule: 'home',
+        encId: '141121',
+        focusReturnTarget: null,
+      })!;
 
-    root.querySelector<HTMLButtonElement>('[data-module="handoff"]')!.click();
+      root.querySelector<HTMLButtonElement>(`[data-module="${module}"]`)!.click();
 
-    expect(document.getElementById('hhr-prescription-print-modal')).toBe(root);
-    expect(root.dataset.encounterId).toBe('141121');
-    expect(root.dataset.activeModule).toBe('handoff');
-    expect(root.querySelector('.hhr-center-main')?.textContent).toBe('handoff');
-    expect(document.activeElement).toBe(
-      root.querySelector('[data-module="handoff"][aria-current="page"]')
-    );
-  });
+      expect(document.getElementById('hhr-prescription-print-modal')).toBe(root);
+      expect(root.dataset.encounterId).toBe('141121');
+      expect(root.dataset.activeModule).toBe(module);
+      expect(root.querySelector('.hhr-center-main')?.textContent).toBe(module);
+      expect(document.activeElement).toBe(
+        root.querySelector(`[data-module="${module}"][aria-current="page"]`)
+      );
+    }
+  );
 
   it('restores focus after dismissing the unique root', () => {
     vi.useFakeTimers();
