@@ -21,6 +21,8 @@ import {
   RAYEN_SYNC_ISSUE_SOURCES,
 } from '@/types/domain/rayenSync';
 
+const NonNegativeIntegerSchema = z.number().int().nonnegative();
+
 const MedicalHandoffActorSchema = z.object({
   uid: StringSchema,
   displayName: StringSchema,
@@ -69,10 +71,10 @@ const DailyRecordStaffingDetailsSchema = z.object({
 });
 
 const RayenSyncCoverageSchema = z.object({
-  total: z.number().int().nonnegative(),
-  completed: z.number().int().nonnegative(),
-  errors: z.number().int().nonnegative(),
-  sourceErrors: z.number().int().nonnegative(),
+  total: NonNegativeIntegerSchema,
+  completed: NonNegativeIntegerSchema,
+  errors: NonNegativeIntegerSchema,
+  sourceErrors: NonNegativeIntegerSchema,
   issues: nullableOptional(
     z.array(
       z.object({
@@ -85,24 +87,24 @@ const RayenSyncCoverageSchema = z.object({
   ),
   incremental: nullableOptional(
     z.object({
-      received: z.number().int().nonnegative(),
-      newFacts: z.number().int().nonnegative(),
-      duplicates: z.number().int().nonnegative(),
-      corrections: z.number().int().nonnegative(),
-      patientWrites: z.number().int().nonnegative(),
-      historySnapshots: z.number().int().nonnegative(),
-      clinicalTargets: nullableOptional(z.number().int().nonnegative()),
-      checkpointOnlyTargets: nullableOptional(z.number().int().nonnegative()),
+      received: NonNegativeIntegerSchema,
+      newFacts: NonNegativeIntegerSchema,
+      duplicates: NonNegativeIntegerSchema,
+      corrections: NonNegativeIntegerSchema,
+      patientWrites: NonNegativeIntegerSchema,
+      historySnapshots: NonNegativeIntegerSchema,
+      clinicalTargets: nullableOptional(NonNegativeIntegerSchema),
+      checkpointOnlyTargets: nullableOptional(NonNegativeIntegerSchema),
       batch: nullableOptional(
         z.object({
           mode: z.enum(['shadow', 'enforced']),
           parity: z.enum(['matched', 'mismatch', 'unavailable']),
-          clinicalTargets: z.number().int().nonnegative(),
-          checkpointOnlyTargets: z.number().int().nonnegative(),
-          checkpointTargets: z.number().int().nonnegative(),
-          requestedFields: z.number().int().nonnegative(),
-          backendTargets: nullableOptional(z.number().int().nonnegative()),
-          backendFields: nullableOptional(z.number().int().nonnegative()),
+          clinicalTargets: NonNegativeIntegerSchema,
+          checkpointOnlyTargets: NonNegativeIntegerSchema,
+          checkpointTargets: NonNegativeIntegerSchema,
+          requestedFields: NonNegativeIntegerSchema,
+          backendTargets: nullableOptional(NonNegativeIntegerSchema),
+          backendFields: nullableOptional(NonNegativeIntegerSchema),
         })
       ),
     })
@@ -111,23 +113,23 @@ const RayenSyncCoverageSchema = z.object({
 });
 
 const RayenSyncChangesSchema = z.object({
-  admissions: z.number().int().nonnegative(),
-  updates: z.number().int().nonnegative(),
-  moves: z.number().int().nonnegative(),
-  discharges: z.number().int().nonnegative(),
-  unchanged: z.number().int().nonnegative(),
+  admissions: NonNegativeIntegerSchema,
+  updates: NonNegativeIntegerSchema,
+  moves: NonNegativeIntegerSchema,
+  discharges: NonNegativeIntegerSchema,
+  unchanged: NonNegativeIntegerSchema,
 });
 
 const RayenSyncSourceSchema = z.object({
   extensionVersion: NullableOptionalStringSchema,
-  protocolVersion: nullableOptional(z.number().int().nonnegative()),
+  protocolVersion: nullableOptional(NonNegativeIntegerSchema),
   fichaMedico: nullableOptional(z.enum(['ready', 'missing', 'stale'])),
   gestionCamas: nullableOptional(z.enum(['ready', 'missing', 'stale'])),
 });
 
 const RayenSyncStaffingObservationSchema = z.object({
   ambiguousSections: z.array(z.enum(['nurse_day', 'nurse_night', 'tens_day', 'tens_night'])),
-  ignoredBoundaryRecords: z.number().int().nonnegative(),
+  ignoredBoundaryRecords: NonNegativeIntegerSchema,
   ignoredBoundaryEvidence: nullableOptional(
     z
       .array(
@@ -155,7 +157,7 @@ const RayenSyncStructuralReviewSchema = z.object({
   snapshotComplete: nullableOptional(z.boolean()),
   historicalCorrectionsPending: z.boolean(),
   historicalCorrectionsRequireFreshCapture: z.boolean(),
-  isolatedConflicts: z.number().int().nonnegative(),
+  isolatedConflicts: NonNegativeIntegerSchema,
   deferredHistoricalAdmissionBedIds: nullableOptional(
     z.array(StringSchema.min(1).max(32)).max(MAX_RAYEN_STRUCTURAL_REVIEW_ISSUES)
   ),
@@ -216,7 +218,7 @@ export const RayenSyncEventSchema = z.object({
     z.object({
       mode: z.enum(['preview', 'auto']),
       clinicalBatchMode: nullableOptional(z.enum(['off', 'shadow', 'enforced'])),
-      revision: z.number().int().nonnegative(),
+      revision: NonNegativeIntegerSchema,
     })
   ),
   // `.catch`: a requirement written by a newer client must not invalidate the whole event; the

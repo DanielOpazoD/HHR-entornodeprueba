@@ -155,7 +155,7 @@ const seedFailedDiagnosisTask = (page: Page) =>
               opId: `e2e-night-diagnosis-${Date.now()}`,
               type: 'UPDATE_DAILY_RECORD',
               payload: getRecord.result,
-              timestamp: Date.now(),
+              timestamp: Date.now() - 20_000,
               status: 'FAILED',
               retryCount: 2,
               error: 'Fallo sintético recuperable',
@@ -266,6 +266,7 @@ test.describe('Night admission critical sync recovery', () => {
     await ensureAuthenticated(page);
     await expect(page.getByTestId('census-table')).toBeVisible({ timeout: 20_000 });
     const syncTransport = await installSyncQueueTransportHarness(page);
+    await page.clock.setFixedTime(Date.now());
     await seedFailedDiagnosisTask(page);
     await expect
       .poll(() => readQueuedDiagnosisRuntime(page), { timeout: 10_000 })

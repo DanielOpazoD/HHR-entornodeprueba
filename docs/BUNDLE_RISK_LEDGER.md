@@ -334,3 +334,22 @@ la descarga del respaldo operan contra IndexedDB sin escribir en el servidor.
 La captura clínica, el guardado local y el worker no dependen de estas herramientas.
 Reversión: revertir el cambio del panel y sus dos exclusiones; preservar cualquier
 fila ya retirada, que nunca constituye un ACK remoto.
+
+## Reutilización de validadores de contadores (28 octubre 2026)
+
+Owner: schemas y census/sync. `dailyRecord.ts` comparte un validador privado de
+enteros no negativos entre sus 27 usos. Conserva las reglas y los wrappers de
+cada campo. No añade una dependencia ni cambia límites o exclusiones de precarga.
+
+La comparación local contra `b45aa6bbe` usa Node 22.22.2 y la misma configuración
+de producción. El shell pasa de 632.000 a 631.434 bytes. La precarga pasa de
+5.040.341 a 5.039.775 bytes y conserva sus 247 entradas. Ambos se reducen en
+566 bytes; el presupuesto del candidato pasa con 353 bytes de margen de precarga.
+Es una medición de tamaño, con un build por lado, no de latencia. El margen sigue
+siendo pequeño y no acredita capacidad para nuevas funcionalidades.
+
+La comparación de 272 entradas sintéticas conserva salidas e issues completos.
+Pasan las 34 pruebas existentes de las cinco suites de esquemas y validación
+afectadas, el presupuesto, el grafo de chunks y el margen de recursos. El cierre
+requiere revisión independiente y CI del SHA final según `SAFE_CHANGE_CHECKLIST.md`.
+Reversión: restaurar las construcciones individuales sin cambiar el contrato de datos.
