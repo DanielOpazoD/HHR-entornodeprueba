@@ -1,15 +1,20 @@
 import type { DailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import { toRecordTimestamp } from '@/services/repositories/dailyRecordConsistencyPolicy';
+import { wouldReplacePendingDailyRecordIdentity } from './dailyRecordPendingPatchController';
 
-const mustSurfaceIncomingRuntime = (incoming: DailyRecordQueryResult): boolean =>
-  incoming.runtime.availabilityState === 'temporarily_unavailable' ||
-  incoming.runtime.consistencyState === 'unavailable' ||
-  incoming.runtime.conflictSummary?.kind === 'remote_unavailable';
+const mustSurfaceIncomingRuntime = ({ runtime }: DailyRecordQueryResult): boolean =>
+  runtime.availabilityState === 'temporarily_unavailable' ||
+  runtime.consistencyState === 'unavailable' ||
+  runtime.consistencyState === 'blocked' ||
+  runtime.conflictSummary?.kind === 'remote_unavailable';
 
 const retainUnconfirmedResult = (result: DailyRecordQueryResult): DailyRecordQueryResult =>
   result.runtime.serverConfirmed
     ? { ...result, runtime: { ...result.runtime, serverConfirmed: false } }
     : result;
+
+const baseSource = ({ runtime }: DailyRecordQueryResult) =>
+  runtime.baseSource ?? runtime.sourceOfTruth;
 
 /**
  * Keeps monotonic confirmed data without hiding authority, absence or availability transitions.
@@ -20,46 +25,53 @@ export const reconcileDailyRecordQueryResult = (
   previous: DailyRecordQueryResult | undefined,
   incoming: DailyRecordQueryResult
 ): DailyRecordQueryResult => {
+  if (!previous?.record) return incoming;
+  const { record: previousRecord, runtime: previousRuntime } = previous;
+  const { record, runtime } = incoming;
   // A late local/cache-only miss cannot erase data.
-  if (incoming.runtime.availabilityState === 'unconfirmed_missing' && previous?.record) {
+  if (runtime.availabilityState === 'unconfirmed_missing') {
     return retainUnconfirmedResult(previous);
   }
+  const retainsPendingIdentity =
+    record &&
+    !runtime.serverConfirmed &&
+    wouldReplacePendingDailyRecordIdentity(runtime.date, record, previousRecord);
   if (
-    previous?.record &&
     mustSurfaceIncomingRuntime(incoming) &&
-    (!incoming.record ||
-      toRecordTimestamp(previous.record.lastUpdated) >=
-        toRecordTimestamp(incoming.record.lastUpdated))
+    (retainsPendingIdentity ||
+      !record ||
+      toRecordTimestamp(previousRecord.lastUpdated) >= toRecordTimestamp(record.lastUpdated))
   ) {
     // Show the read failure without replacing the last known data or its provenance.
     return {
       ...incoming,
-      record: previous.record,
+      record: previousRecord,
       runtime: {
-        ...incoming.runtime,
+        ...runtime,
         serverConfirmed: false,
-        sourceOfTruth: previous.runtime.sourceOfTruth,
+        baseSource: previousRuntime.baseSource,
+        sourceOfTruth: previousRuntime.sourceOfTruth,
       },
     };
   }
+  if (retainsPendingIdentity) return retainUnconfirmedResult(previous);
   if (
-    !previous?.record ||
-    !incoming.record ||
+    !record ||
     mustSurfaceIncomingRuntime(incoming) ||
-    (previous.runtime.sourceOfTruth === 'local' && incoming.runtime.sourceOfTruth !== 'local')
+    (baseSource(previous) === 'local' && baseSource(incoming) !== 'local')
   ) {
     return incoming;
   }
 
-  const previousTimestamp = toRecordTimestamp(previous.record.lastUpdated);
-  const incomingTimestamp = toRecordTimestamp(incoming.record.lastUpdated);
+  const previousTimestamp = toRecordTimestamp(previousRecord.lastUpdated);
+  const incomingTimestamp = toRecordTimestamp(record.lastUpdated);
   if (previousTimestamp > incomingTimestamp) {
     return retainUnconfirmedResult(previous);
   }
   if (
     previousTimestamp === incomingTimestamp &&
-    previous.runtime.sourceOfTruth === 'remote' &&
-    incoming.runtime.sourceOfTruth === 'local'
+    baseSource(previous) === 'remote' &&
+    baseSource(incoming) === 'local'
   ) {
     return retainUnconfirmedResult(previous);
   }

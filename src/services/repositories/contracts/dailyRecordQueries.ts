@@ -69,6 +69,7 @@ export type DailyRecordQueryAvailabilityState =
 
 export interface DailyRecordQueryRuntime {
   serverConfirmed: boolean;
+  baseSource?: DailyRecordSourceOfTruth;
   date: string;
   availabilityState: DailyRecordQueryAvailabilityState;
   consistencyState: DailyRecordReadConsistencyState | DailyRecordSyncConsistencyState;

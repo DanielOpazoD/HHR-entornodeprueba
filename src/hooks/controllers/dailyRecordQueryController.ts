@@ -65,33 +65,39 @@ const createRuntimeFromResult = (
   date: string,
   result: DailyRecordReadResult | SyncDailyRecordResult
 ): DailyRecordQueryRuntime => {
+  const {
+    consistencyState,
+    record,
+    sourceOfTruth,
+    retryability,
+    serverConfirmed,
+    conflictSummary,
+  } = result;
   const isSync = 'outcome' in result;
   const recoverable = isSync
-    ? result.consistencyState === 'local_kept' || result.consistencyState === 'blocked'
-    : result.retryability !== 'not_applicable' || result.sourceOfTruth === 'local';
-  const unavailable = isSync
-    ? result.consistencyState === 'blocked'
-    : result.consistencyState === 'unavailable';
+    ? consistencyState === 'local_kept' || consistencyState === 'blocked'
+    : retryability !== 'not_applicable' || sourceOfTruth === 'local';
+  const unavailable = isSync ? consistencyState === 'blocked' : consistencyState === 'unavailable';
   const missing = isSync
-    ? result.consistencyState === 'missing_remote'
-    : result.conflictSummary?.kind === 'remote_missing';
+    ? consistencyState === 'missing_remote'
+    : conflictSummary?.kind === 'remote_missing';
   return {
     date,
-    serverConfirmed: result.serverConfirmed,
-    availabilityState: result.record
+    serverConfirmed,
+    availabilityState: record
       ? recoverable
         ? 'recoverable_local'
         : 'resolved'
       : unavailable
         ? 'temporarily_unavailable'
-        : result.serverConfirmed && missing
+        : serverConfirmed && missing
           ? 'confirmed_missing'
           : 'unconfirmed_missing',
-    consistencyState: result.consistencyState,
-    sourceOfTruth: result.sourceOfTruth,
-    retryability: result.retryability,
+    consistencyState,
+    sourceOfTruth,
+    retryability,
     recoveryAction: result.recoveryAction,
-    conflictSummary: result.conflictSummary,
+    conflictSummary,
     observabilityTags: result.observabilityTags,
     userSafeMessage: result.userSafeMessage,
     repairApplied: result.repairApplied,
@@ -190,6 +196,7 @@ export const createDailyRecordSubscription = (
     previousResult: DailyRecordQueryResult | undefined,
     remoteCandidate?: DailyRecordQueryResult
   ) => {
+    const { record, runtime } = result;
     if (
       remoteCandidate?.record &&
       remoteCandidate.runtime.serverConfirmed &&
@@ -201,17 +208,18 @@ export const createDailyRecordSubscription = (
         previousResult?.record ?? undefined
       );
     }
-    const resolvedRecord = result.record
-      ? applyPendingExplicitCensusPatch(date, result.record, previousResult?.record ?? undefined)
-      : result.record;
+    const resolvedRecord = record
+      ? applyPendingExplicitCensusPatch(date, record, previousResult?.record ?? undefined)
+      : record;
     applyResolvedQueryResult({
       ...result,
       record: resolvedRecord,
       runtime:
-        resolvedRecord === result.record
-          ? result.runtime
+        resolvedRecord === record
+          ? runtime
           : {
-              ...result.runtime,
+              ...runtime,
+              baseSource: runtime.baseSource ?? runtime.sourceOfTruth,
               sourceOfTruth: 'local',
             },
     });
@@ -319,7 +327,7 @@ export const createDailyRecordSubscription = (
     result: DailyRecordQueryResult,
     hasPendingWrites: boolean
   ) => {
-    if (hasPendingWrites) {
+    if (!isSubscriptionActive || hasPendingWrites) {
       return;
     }
 
@@ -335,38 +343,25 @@ export const createDailyRecordSubscription = (
       return;
     }
 
-    const existingResult =
-      previousResult || createQueryResultFromRecord(date, null, result.runtime);
-    if (!existingResult.record) {
+    if (!previousResult?.record) {
       applyResolvedQueryResult(result);
       return;
     }
 
-    reconcileNullRealtimeRecord(existingResult);
+    reconcileNullRealtimeRecord(previousResult);
   };
 
-  if (typeof dailyRecord.subscribeDetailed === 'function') {
-    const stop = dailyRecord.subscribeDetailed(date, (result, hasPendingWrites) => {
-      if (!isSubscriptionActive) {
-        return;
-      }
-      handleResolvedRealtimeResult(
-        createDailyRecordQueryResult(result.record, createRuntimeFromResult(date, result)),
-        hasPendingWrites
-      );
-    });
-    return () => {
-      isSubscriptionActive = false;
-      stop();
-    };
-  }
-
-  const stop = dailyRecord.subscribe!(date, (record, hasPendingWrites) => {
-    if (!isSubscriptionActive) {
-      return;
-    }
-    handleResolvedRealtimeResult(createQueryResultFromRecord(date, record), hasPendingWrites);
-  });
+  const stop =
+    typeof dailyRecord.subscribeDetailed === 'function'
+      ? dailyRecord.subscribeDetailed(date, (result, hasPendingWrites) => {
+          handleResolvedRealtimeResult(
+            createDailyRecordQueryResult(result.record, createRuntimeFromResult(date, result)),
+            hasPendingWrites
+          );
+        })
+      : dailyRecord.subscribe!(date, (record, hasPendingWrites) => {
+          handleResolvedRealtimeResult(createQueryResultFromRecord(date, record), hasPendingWrites);
+        });
   return () => {
     isSubscriptionActive = false;
     stop();
@@ -411,6 +406,7 @@ export const setAuthoritativeDailyRecordRead = (
     return createQueryResultFromRecord(date, selected, {
       ...createDefaultRuntime(date, record),
       serverConfirmed: true,
+      baseSource: 'remote',
       consistencyState: 'remote_authoritative',
       sourceOfTruth: selected === record ? 'remote' : 'local',
       observabilityTags: ['daily_record', 'read', 'remote_confirmed'],

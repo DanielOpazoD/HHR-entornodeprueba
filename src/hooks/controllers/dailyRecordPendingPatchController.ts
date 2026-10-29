@@ -240,6 +240,21 @@ export const clearPendingDailyRecordPatchesForTests = (): void => {
   writePersistedStore({});
 };
 
+export const wouldReplacePendingDailyRecordIdentity = (
+  date: string,
+  incomingRecord: DailyRecord,
+  previousRecord: DailyRecord
+): boolean =>
+  getPendingEntriesForDate(date).some(({ patch }) =>
+    Object.keys(patch).some(path => {
+      const [, bedId] = path.split('.');
+      return !isSameEpisodeForExplicitCensusPatch(
+        incomingRecord.beds[bedId],
+        previousRecord.beds[bedId]
+      );
+    })
+  );
+
 const collectPendingExplicitCensusPatch = (
   date: string,
   incomingRecord: DailyRecord,

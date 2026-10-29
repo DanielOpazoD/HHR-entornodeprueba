@@ -115,6 +115,45 @@ afterEach(() => {
 });
 
 describe('daily record server confirmation through repository and query', () => {
+  it.each([false, true])(
+    'does not carry a previous patient diagnosis across repeated snapshots: confirmed %s',
+    async serverConfirmed => {
+      const previous = DataFactory.createMockDailyRecord(date);
+      previous.lastUpdated = '2026-10-27T12:00:00.000Z';
+      previous.beds.R1.clinicalEpisodeId = 'ep_previous_synthetic';
+      previous.beds.R1.patientName = 'Paciente sintético anterior';
+      previous.beds.R1.rut = '11.111.111-1';
+      const replacement = structuredClone(previous);
+      replacement.lastUpdated = '2026-10-27T13:00:00.000Z';
+      replacement.beds.R1.clinicalEpisodeId = 'ep_replacement_synthetic';
+      replacement.beds.R1.patientName = 'Paciente sintético siguiente';
+      replacement.beds.R1.rut = '22.222.222-2';
+      const subscription = openSubscription();
+      const metadata = { fromCache: !serverConfirmed, hasPendingWrites: false };
+      await subscription.emit(previous, false, { fromCache: true, hasPendingWrites: false });
+      const release = registerPendingDailyRecordPatch(date, { 'beds.R1.pathology': 'Pending A' });
+      cleanups.push(release);
+      await subscription.emit(previous, false, { fromCache: true, hasPendingWrites: false });
+      expect(subscription.read()?.record?.beds.R1.pathology).toBe('Pending A');
+      await subscription.emit(replacement, false, metadata);
+      await subscription.emit(replacement, false, metadata);
+      const patient = subscription.read()?.record?.beds.R1;
+      if (serverConfirmed) expect(patient?.clinicalEpisodeId).toBe('ep_replacement_synthetic');
+      expect(patient?.pathology).toBe(
+        patient?.clinicalEpisodeId === 'ep_previous_synthetic' ? 'Pending A' : ''
+      );
+      if (!serverConfirmed) {
+        await subscription.emit(
+          { ...previous, lastUpdated: '2026-10-27T14:00:00.000Z' },
+          false,
+          metadata
+        );
+        expect(subscription.read()?.record?.beds.R1.pathology).toBe('Pending A');
+        expect(getDailyRecordFreshnessStatus(date)).toBe('stale_due_to_inactivity');
+      }
+    }
+  );
+
   it.each([
     { fromCache: true, hasPendingWrites: false, confirmed: false },
     { fromCache: true, hasPendingWrites: true, confirmed: false },
