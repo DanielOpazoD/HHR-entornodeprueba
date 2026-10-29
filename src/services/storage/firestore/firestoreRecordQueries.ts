@@ -278,7 +278,8 @@ export const subscribeToRecord = (
     record: DailyRecord | null,
     hasPendingWrites: boolean,
     metadata?: FirestoreRecordSnapshotMetadata
-  ) => void
+  ) => void,
+  onError?: (error: unknown) => void
 ): (() => void) => {
   const docRef = getRecordDocRef(date);
 
@@ -312,6 +313,11 @@ export const subscribeToRecord = (
     },
     error => {
       logFirestoreQueryError('subscribeToRecord', error, { date });
+      try {
+        onError?.(error);
+      } catch {
+        firestoreQueryLogger.warn('Record listener error handler failed', { date });
+      }
     }
   );
 };

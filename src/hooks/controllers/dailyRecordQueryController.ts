@@ -33,7 +33,8 @@ interface DailyRecordReader {
   ) => () => void;
   subscribeDetailed?: (
     date: string,
-    callback: (result: SyncDailyRecordResult, hasPendingWrites: boolean) => void
+    callback: (result: SyncDailyRecordResult, hasPendingWrites: boolean) => void,
+    onFailure?: (result: SyncDailyRecordResult) => void
   ) => () => void;
 }
 
@@ -353,12 +354,25 @@ export const createDailyRecordSubscription = (
 
   const stop =
     typeof dailyRecord.subscribeDetailed === 'function'
-      ? dailyRecord.subscribeDetailed(date, (result, hasPendingWrites) => {
-          handleResolvedRealtimeResult(
-            createDailyRecordQueryResult(result.record, createRuntimeFromResult(date, result)),
-            hasPendingWrites
-          );
-        })
+      ? dailyRecord.subscribeDetailed(
+          date,
+          (result, hasPendingWrites) => {
+            handleResolvedRealtimeResult(
+              createDailyRecordQueryResult(result.record, createRuntimeFromResult(date, result)),
+              hasPendingWrites
+            );
+          },
+          result => {
+            if (!isSubscriptionActive) return;
+            realtimeRevision += 1;
+            applyResolvedQueryResult(
+              reconcileDailyRecordQueryResult(
+                queryClient.getQueryData<DailyRecordQueryResult>(queryKey),
+                createDailyRecordQueryResult(null, createRuntimeFromResult(date, result))
+              )
+            );
+          }
+        )
       : dailyRecord.subscribe!(date, (record, hasPendingWrites) => {
           handleResolvedRealtimeResult(createQueryResultFromRecord(date, record), hasPendingWrites);
         });

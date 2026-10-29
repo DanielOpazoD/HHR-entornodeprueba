@@ -53,7 +53,8 @@ const resolveSubscriptionResult = async (
   date: string,
   remoteRecord: DailyRecord | null,
   serverConfirmed: boolean,
-  localRecord?: DailyRecord | null
+  localRecord?: DailyRecord | null,
+  isCurrent: () => boolean = () => true
 ): Promise<SyncDailyRecordResult> => {
   localRecord = localRecord === undefined ? await getRecordFromIndexedDB(date) : localRecord;
   const remoteAvailability = remoteRecord
@@ -67,7 +68,7 @@ const resolveSubscriptionResult = async (
     remoteAvailability,
     clinicalConsistencyPhase: 'sync_publish',
   });
-  if (goldenPath.shouldHydrateLocal && remoteRecord) {
+  if (goldenPath.shouldHydrateLocal && remoteRecord && isCurrent()) {
     await hydrateLocalCache(goldenPath.selectedRecord || remoteRecord, date, localRecord);
   }
   const retainedRecord = await getPendingDailyRecordProjection(date);
@@ -96,38 +97,85 @@ const resolveSubscriptionResult = async (
 
 export const subscribeDetailed = (
   date: string,
-  callback: (result: SyncDailyRecordResult, hasPendingWrites: boolean) => void
+  callback: (result: SyncDailyRecordResult, hasPendingWrites: boolean) => void,
+  onFailure?: (result: SyncDailyRecordResult) => void
 ): (() => void) => {
-  let active = true;
+  let phase: 'listening' | 'failed' | 'stopped' = 'listening';
+  let issued = 0;
+  const isCurrent = (revision: number) => phase !== 'stopped' && revision === issued;
+  const deliver = (notify: () => void) => {
+    try {
+      notify();
+    } catch {
+      dailyRecordSyncLogger.warn('Daily record subscription consumer failed', { date });
+    }
+  };
+  const fail = () =>
+    deliver(() =>
+      onFailure?.(
+        createSyncDailyRecordResult({
+          date,
+          outcome: 'blocked',
+          record: null,
+          ...resolveDailyRecordSyncConsistency({
+            localRecord: null,
+            remoteRecord: null,
+            selectedRecord: null,
+            remoteAvailability: 'unavailable',
+          }),
+          retryability: 'manual_retry',
+        })
+      )
+    );
 
-  const unsubscribe = subscribeToRecord(date, (record, hasPendingWrites, metadata) => {
-    void (async () => {
-      if (!active) return;
+  const unsubscribe = subscribeToRecord(
+    date,
+    (record, hasPendingWrites, metadata) => {
+      if (phase !== 'listening') return;
+      const revision = ++issued;
+      void (async () => {
+        const migrated = record ? migrateLegacyData(record, date) : null;
+        const serverConfirmed = !hasPendingWrites && isServerConfirmedSnapshot(metadata);
+        const result = hasPendingWrites
+          ? createSyncDailyRecordResult({
+              date,
+              outcome: migrated ? 'clean' : 'blocked',
+              record: migrated,
+              consistencyState: migrated ? 'up_to_date' : 'blocked',
+              sourceOfTruth: migrated ? 'local' : 'none',
+              retryability: 'not_applicable',
+              recoveryAction: 'none',
+              conflictSummary: null,
+              observabilityTags: ['daily_record', 'sync', 'subscription_pending_write'],
+              repairApplied: false,
+            })
+          : await resolveSubscriptionResult(date, migrated, serverConfirmed, undefined, () =>
+              isCurrent(revision)
+            );
 
-      const migrated = record ? migrateLegacyData(record, date) : null;
-      const serverConfirmed = !hasPendingWrites && isServerConfirmedSnapshot(metadata);
-      const result = hasPendingWrites
-        ? createSyncDailyRecordResult({
-            date,
-            outcome: migrated ? 'clean' : 'blocked',
-            record: migrated,
-            consistencyState: migrated ? 'up_to_date' : 'blocked',
-            sourceOfTruth: migrated ? 'local' : 'none',
-            retryability: 'not_applicable',
-            recoveryAction: 'none',
-            conflictSummary: null,
-            observabilityTags: ['daily_record', 'sync', 'subscription_pending_write'],
-            repairApplied: false,
-          })
-        : await resolveSubscriptionResult(date, migrated, serverConfirmed);
-
-      if (!active) return;
-      callback(result, hasPendingWrites);
-    })();
-  });
+        return result;
+      })().then(
+        result => {
+          if (isCurrent(revision)) deliver(() => callback(result, hasPendingWrites));
+        },
+        () => {
+          if (!isCurrent(revision)) return;
+          dailyRecordSyncLogger.warn('Daily record subscription resolution failed', { date });
+          fail();
+        }
+      );
+    },
+    () => {
+      if (phase !== 'listening') return;
+      phase = 'failed';
+      issued += 1;
+      fail();
+    }
+  );
 
   return () => {
-    active = false;
+    phase = 'stopped';
+    issued += 1;
     unsubscribe();
   };
 };

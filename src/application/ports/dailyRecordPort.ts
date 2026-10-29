@@ -191,7 +191,8 @@ export interface DailyRecordRepositoryPort
   ) => () => void;
   subscribeDetailed: (
     date: string,
-    callback: (result: SyncDailyRecordResult, hasPendingWrites: boolean) => void
+    callback: (result: SyncDailyRecordResult, hasPendingWrites: boolean) => void,
+    onFailure?: (result: SyncDailyRecordResult) => void
   ) => () => void;
   deleteDay: (date: string) => Promise<void>;
   copyPatientToDateDetailed: (
@@ -247,8 +248,8 @@ export const defaultDailyRecordRepositoryPort: DailyRecordRepositoryPort = {
   updatePartialDetailed: updatePartialDailyRecord,
   subscribe: (date, callback) =>
     createLazySubscription(service => service.subscribe(date, callback)),
-  subscribeDetailed: (date, callback) =>
-    createLazySubscription(service => service.subscribeDetailed(date, callback)),
+  subscribeDetailed: (date, callback, onFailure) =>
+    createLazySubscription(service => service.subscribeDetailed(date, callback, onFailure)),
   deleteDay: deleteDailyRecord,
   copyPatientToDateDetailed: (sourceDate, sourceBedId, targetDate, targetBedId) =>
     withInitializationService(service =>
