@@ -1,7 +1,6 @@
 import type { DailyRecord } from '@/services/contracts/dailyRecordServiceContracts';
 import type { ClinicalDerivedEpisodeDoc } from '@/types/domain/clinicalDerived';
 import type { ApplicationIssue } from '@/shared/contracts/applicationOutcomeTypes';
-import type { ClinicalDerivedBackupReadResult } from '@/services/repositories/dailyRecordClinicalDerivedReadService';
 
 /**
  * JSON backups of split days (docs/DESIGN_DAILY_RECORD_PHASE1_CLINICAL_DERIVED.md, D10): the day
@@ -12,8 +11,13 @@ import type { ClinicalDerivedBackupReadResult } from '@/services/repositories/da
  * days (clinicalDerivedBackupRestore): only the server writes episode documents.
  */
 
+type ReadService = typeof import('@/services/repositories/dailyRecordClinicalDerivedReadService');
+
 type BackupGap =
-  | Extract<ClinicalDerivedBackupReadResult, { status: 'unavailable' }>['reason']
+  | Extract<
+      Awaited<ReturnType<ReadService['readClinicalDerivedBackupDay']>>,
+      { status: 'unavailable' }
+    >['reason']
   | 'doc_ahead'
   | 'not_restorable'
   | 'restore_unavailable';
@@ -51,7 +55,6 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> =>
 const READ_CONCURRENCY = 4;
 const READ_PATH_UNAVAILABLE = 'read_failed';
 
-type ReadService = typeof import('@/services/repositories/dailyRecordClinicalDerivedReadService');
 type RestoreService = typeof import('@/services/exporters/clinicalDerivedBackupRestore');
 
 const loadReadService = (): Promise<ReadService | null> =>
