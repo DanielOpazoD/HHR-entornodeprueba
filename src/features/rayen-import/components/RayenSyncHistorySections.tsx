@@ -1,3 +1,4 @@
+import { rayenSyncCoverageIssueKey } from '../domain/rayenSyncCoverageIssueKey';
 import { RayenSyncCaseDetail } from './RayenSyncCaseDetail';
 import React from 'react';
 import type { RayenSyncEvent } from '@/types/domain/rayenSync';
@@ -104,7 +105,7 @@ export const RayenSyncClinicalSection: React.FC<{
                   const target = rayenClinicalIssueTarget(issue, censusDate);
                   return (
                     <li
-                      key={`${issue.bedId}-${issue.diagnostic?.clinicalEpisodeId ?? ''}-${issue.source}-${issue.reason}`}
+                      key={rayenSyncCoverageIssueKey(issue, issue.diagnostic?.clinicalEpisodeId)}
                       className="py-1"
                     >
                       <RayenSyncCaseDetail diagnostic={issue.diagnostic} bedId={issue.bedId} />

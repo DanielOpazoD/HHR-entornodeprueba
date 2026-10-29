@@ -358,7 +358,9 @@ describe('daily documentary CUDYR recovery', () => {
       sourceDate: '2026-10-27',
       patient: record.beds.R1,
     };
-    expect(recoverDailyCudyrGap(target, [record], parsedSource())).toBeNull();
+    expect(recoverDailyCudyrGap(target, [record], parsedSource())).toEqual({
+      kind: 'attribution_unreliable',
+    });
     expect(() =>
       resolveHistoricalCudyrPatch(record, patient().clinicalEpisodeId, documentary())
     ).toThrow(/evidencia/);

@@ -1,4 +1,5 @@
 import type {
+  CudyrRecoveryDetail,
   RayenSyncCoverage,
   RayenSyncEvent,
   RayenSyncFailureReason,
@@ -49,6 +50,7 @@ export const formatRayenSyncDuration = (startedAt: string, completedAt?: string)
   return remainingMinutes ? `${hours} h ${remainingMinutes} min` : `${hours} h`;
 };
 
+const plural = (count: number, word: string): string => `${count} ${word}${count === 1 ? '' : 's'}`;
 export const presentRayenCoverage = (
   coverage: RayenSyncCoverage | undefined,
   hasSync: boolean,
@@ -61,27 +63,27 @@ export const presentRayenCoverage = (
       : { label: 'Sin sincronización', tone: 'muted' };
   }
   if (coverage.total === 0) return { label: 'Sin cobertura clínica', tone: 'muted' };
-  if (coverage.errors > 0) {
-    return {
-      label: `${coverage.completed}/${coverage.total} · ${coverage.errors} pendiente${coverage.errors === 1 ? '' : 's'}`,
-      tone: 'warning',
-    };
-  }
-  if (coverage.sourceErrors > 0) {
-    return { label: `${coverage.completed}/${coverage.total} · fuente parcial`, tone: 'warning' };
-  }
-  return { label: `${coverage.completed}/${coverage.total} completa`, tone: 'success' };
+  const pending = coverage.errors > 0;
+  const sourcePartial = coverage.sourceErrors > 0;
+  return {
+    label: `${coverage.completed}/${coverage.total}${
+      pending
+        ? ` · ${plural(coverage.errors, 'pendiente')}`
+        : sourcePartial
+          ? ' · fuente parcial'
+          : ' completa'
+    }`,
+    tone: pending || sourcePartial ? 'warning' : 'success',
+  };
 };
 
 export const presentRayenLegacyCoverageGap = (coverage: RayenSyncCoverage): string => {
   const gaps: string[] = [];
   if (coverage.errors > 0) {
-    gaps.push(
-      `${coverage.errors} paciente${coverage.errors === 1 ? '' : 's'} con información clínica incompleta`
-    );
+    gaps.push(`${plural(coverage.errors, 'paciente')} con información clínica incompleta`);
   }
   if (coverage.sourceErrors > 0) {
-    gaps.push(`${coverage.sourceErrors} falla${coverage.sourceErrors === 1 ? '' : 's'} de fuente`);
+    gaps.push(`${plural(coverage.sourceErrors, 'falla')} de fuente`);
   }
   const summary = gaps.join(' y ') || 'información clínica incompleta';
   return `Esta ejecución anterior registró ${summary}, pero no conservó la cama ni la etapa. Al reintentar, una nueva ejecución mostrará cama, fuente y causa si vuelve a ocurrir.`;
@@ -99,19 +101,23 @@ export const rayenPrimaryActionLabel = (
   return 'Sincronizar';
 };
 
-export const rayenFailureReasonLabel = (reason?: RayenSyncFailureReason): string => {
-  if (reason === 'extension_incompatible') return 'Extensión incompatible';
-  if (reason === 'ficha_medico_unavailable') return 'Ficha Médico no disponible';
-  if (reason === 'ficha_medico_stale') return 'Ficha Médico: lector bloqueado o desactualizado';
-  if (reason === 'gestion_camas_unavailable') return 'Gestión de Camas no disponible';
-  if (reason === 'snapshot_network_error') return 'Problema de conexión al leer Eloísa';
-  if (reason === 'snapshot_timeout') return 'Tiempo de espera al capturar Eloísa';
-  if (reason === 'snapshot_error') return 'No se pudo leer Eloísa';
-  if (reason === 'apply_unauthorized') return 'Sesión sin permisos para guardar';
-  if (reason === 'apply_conflict') return 'El censo cambió durante el guardado';
-  if (reason === 'apply_failed') return 'No se pudo aplicar el censo';
-  return 'Extensión no disponible';
+const failureReasonLabel: Record<RayenSyncFailureReason, string> = {
+  extension_unavailable: 'Extensión no disponible',
+  extension_incompatible: 'Extensión incompatible',
+  ficha_medico_unavailable: 'Ficha Médico no disponible',
+  ficha_medico_stale: 'Ficha Médico: lector bloqueado o desactualizado',
+  gestion_camas_unavailable: 'Gestión de Camas no disponible',
+  snapshot_network_error: 'Problema de conexión al leer Eloísa',
+  snapshot_timeout: 'Tiempo de espera al capturar Eloísa',
+  snapshot_error: 'No se pudo leer Eloísa',
+  apply_unauthorized: 'Sesión sin permisos para guardar',
+  apply_conflict: 'El censo cambió durante el guardado',
+  apply_failed: 'No se pudo aplicar el censo',
 };
+export const rayenFailureReasonLabel = (reason?: RayenSyncFailureReason): string =>
+  reason && Object.hasOwn(failureReasonLabel, reason)
+    ? failureReasonLabel[reason]
+    : failureReasonLabel.extension_unavailable;
 
 export type RayenSyncOutcomeTone = 'success' | 'warning' | 'danger' | 'info';
 
@@ -130,15 +136,16 @@ export const rayenSyncStatusLabel = (status?: RayenSyncStatus): string | null =>
   return null;
 };
 
+const unappliedChanges = (count: number): string =>
+  `${plural(count, 'cambio')} del censo no se ${count === 1 ? 'aplicó' : 'aplicaron'}`;
+
 export const presentRayenStructuralReviewSummary = (
   review?: RayenSyncStructuralReviewEvidence
 ): string[] => {
   if (!review) return [];
   const reasons: string[] = [];
   if (review.isolatedConflicts > 0) {
-    reasons.push(
-      `${review.isolatedConflicts} cambio${review.isolatedConflicts === 1 ? '' : 's'} del censo no se ${review.isolatedConflicts === 1 ? 'aplicó' : 'aplicaron'}`
-    );
+    reasons.push(unappliedChanges(review.isolatedConflicts));
   }
   if (review.historicalCorrectionsPending) {
     reasons.push('Correcciones históricas pendientes de confirmación');
@@ -178,7 +185,7 @@ export const presentRayenStructuralReviewDetails = (
   const unclassifiedCount = Math.max(review.isolatedConflicts - details.length, 0);
   if (unclassifiedCount > 0) {
     details.push(
-      `${unclassifiedCount} cambio${unclassifiedCount === 1 ? '' : 's'} del censo no se ${unclassifiedCount === 1 ? 'aplicó' : 'aplicaron'}; esta ejecución anterior no conservó la cama y la causa.`
+      `${unappliedChanges(unclassifiedCount)}; esta ejecución anterior no conservó la cama y la causa.`
     );
   }
   if (review.historicalCorrectionsPending) {
@@ -202,30 +209,30 @@ export const presentRayenDeferredHistoricalAdmissionNote = (
 };
 
 const partialReasons = (event: RayenSyncEvent): string[] => {
-  const reasons: string[] = [];
-  reasons.push(...presentRayenStructuralReviewSummary(event.structuralReview));
+  const reasons = presentRayenStructuralReviewSummary(event.structuralReview);
   if (event.coverage?.errors) {
-    reasons.push(
-      `${event.coverage.errors} paciente${event.coverage.errors === 1 ? '' : 's'} no se pudo completar`
-    );
+    reasons.push(`${plural(event.coverage.errors, 'paciente')} no se pudo completar`);
   }
-  const recordedSourceIssue = event.coverage?.issues?.some(
-    issue => issue.reason === 'source_unavailable' || issue.reason === 'source_timeout'
-  );
-  const recordLoadFailed = event.coverage?.issues?.some(
-    issue => issue.reason === 'record_load_failed'
-  );
-  const hasStructuredIssues = Boolean(event.coverage?.issues?.length);
-  if (event.coverage?.sourceErrors && (recordedSourceIssue === true || !hasStructuredIssues)) {
+  const issues = event.coverage?.issues ?? [];
+  if (
+    event.coverage?.sourceErrors &&
+    (!issues.length ||
+      issues.some(
+        issue => issue.reason === 'source_unavailable' || issue.reason === 'source_timeout'
+      ))
+  ) {
     reasons.push('Fuente clínica incompleta');
   }
-  if (recordLoadFailed) reasons.push('No se pudo cargar el censo HHR');
+  if (issues.some(issue => issue.reason === 'record_load_failed'))
+    reasons.push('No se pudo cargar el censo HHR');
   if (event.source?.gestionCamas && event.source.gestionCamas !== 'ready') {
     reasons.push('Gestión de Camas no disponible');
   }
   return reasons;
 };
 
+const unable = (action: string): string => `no se pudo ${action}`;
+const retryConnection = (detail: string): string => `${detail}; comprueba la conexión y reintenta`;
 const issueSourceLabel: Record<RayenSyncCoverageIssue['source'], string> = {
   census: 'Carga del censo HHR',
   devices: 'Dispositivos',
@@ -237,52 +244,59 @@ const issueSourceLabel: Record<RayenSyncCoverageIssue['source'], string> = {
   patch: 'Guardado del censo',
 };
 
-const issueReasonLabel: Record<RayenSyncCoverageIssue['reason'], string> = {
+const issueReasonLabel: Record<
+  RayenSyncCoverageIssue['reason'] | CudyrRecoveryDetail['kind'],
+  string
+> = {
   concurrent_write: 'el censo cambió mientras se guardaba; reintenta para completar este dato',
-  source_unavailable: 'no se pudo leer esta información; comprueba la ficha y reintenta',
-  source_timeout: 'la fuente demoró demasiado; comprueba la conexión y reintenta',
-  historical_archive_failed: 'no se pudo confirmar el guardado histórico del CUDYR; reintenta',
+  source_unavailable: unable('leer esta información; comprueba la ficha y reintenta'),
+  source_timeout: retryConnection('la fuente demoró demasiado'),
+  historical_archive_failed: 'recuperación histórica del CUDYR pendiente; revisa y reintenta',
   historical_census_write_failed:
     'las correcciones de días previos quedaron pendientes; reintenta la sincronización',
   structural_conflict:
     'la estructura de este episodio requiere revisión; los demás pacientes sí continuaron',
   sync_already_running: 'ya había otra sincronización clínica en curso; espera y reintenta',
-  record_load_failed: 'no se pudo cargar el censo actual; comprueba la conexión y reintenta',
-  write_failed: 'no se pudo confirmar el guardado; comprueba la conexión y reintenta',
+  record_load_failed: unable(retryConnection('cargar el censo actual')),
+  write_failed: unable(retryConnection('confirmar el guardado')),
   unexpected: 'ocurrió un error no esperado; reintenta y revisa el nuevo detalle',
+
+  read_failed: unable('consultar el informe; reintenta'),
+  attribution_unreliable: unable('atribuir al episodio; revisa la fuente'),
+  documentary_inconclusive: unable('recuperar una categoría; revisa la noche'),
+  archive_unconfirmed: unable('confirmar el respaldo documental; reintenta'),
 };
 
 export const presentRayenCoverageIssue = (issue: RayenSyncCoverageIssue): string => {
   const scope = issue.bedId === '*' ? 'General' : `Cama ${issue.bedId}`;
-  return `${scope} · ${issueSourceLabel[issue.source]}: ${issueReasonLabel[issue.reason]}.`;
+  const detail = issue.source === 'cudyr' ? issue.cudyrRecovery : undefined;
+  const label =
+    detail?.kind === 'read_failed' &&
+    (issue.reason === 'record_load_failed' || detail.targetDate === null)
+      ? 'contexto censal sin comprobar; reintenta'
+      : issueReasonLabel[detail?.kind ?? issue.reason];
+  return `${scope} · ${issueSourceLabel[issue.source]}: ${label}.`;
 };
 
 export const presentRayenSyncOutcome = (event: RayenSyncEvent): RayenSyncOutcomePresentation => {
-  const label = rayenSyncStatusLabel(event.status) ?? 'Parcial';
-  if (event.status === 'complete') {
-    return { label, detail: null, tone: 'success', unresolved: false };
-  }
-  if (event.status === 'failed') {
-    return {
-      label,
-      detail: rayenFailureReasonLabel(event.failureReason),
-      tone: 'danger',
-      unresolved: true,
-    };
-  }
-  if (event.status === 'applied') {
-    return {
-      label,
-      detail: 'Enriquecimiento clínico pendiente',
-      tone: 'info',
-      unresolved: true,
-    };
-  }
-  const reasons = partialReasons(event);
+  const status = event.status;
+  const complete = status === 'complete';
   return {
-    label,
-    detail: reasons.join(' · ') || 'Enriquecimiento clínico parcial',
-    tone: 'warning',
-    unresolved: true,
+    label: rayenSyncStatusLabel(status) ?? 'Parcial',
+    detail: complete
+      ? null
+      : status === 'failed'
+        ? rayenFailureReasonLabel(event.failureReason)
+        : status === 'applied'
+          ? 'Enriquecimiento clínico pendiente'
+          : partialReasons(event).join(' · ') || 'Enriquecimiento clínico parcial',
+    tone: complete
+      ? 'success'
+      : status === 'failed'
+        ? 'danger'
+        : status === 'applied'
+          ? 'info'
+          : 'warning',
+    unresolved: !complete,
   };
 };

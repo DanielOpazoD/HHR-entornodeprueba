@@ -37,6 +37,8 @@ export const cudyrMonthlyReportPorts = {
   save: importCudyrSupplement,
 };
 
+export class CudyrMonthlyReportArchiveError extends Error {}
+
 /** Archive the actual source bytes before using documentary categories in a census. */
 export const captureCudyrMonthlyReport = async (
   month: string,
@@ -51,16 +53,22 @@ export const captureCudyrMonthlyReport = async (
   const parsed = await ports.readFile(new File([bytes], `Categorizacion_${month}.xls`), signal);
   check();
   if (parsed.report.month !== month) throw new Error('El informe corresponde a otro mes.');
-  const saved = await ports.save(
-    {
-      ...parsed,
-      capture: { source: 'extension_monthly_report', observedAt: source.capturedAt },
-    },
-    check
-  );
+  let saved: Awaited<ReturnType<typeof ports.save>>;
+  try {
+    saved = await ports.save(
+      {
+        ...parsed,
+        capture: { source: 'extension_monthly_report', observedAt: source.capturedAt },
+      },
+      check
+    );
+  } catch {
+    check();
+    throw new CudyrMonthlyReportArchiveError('No se pudo confirmar el respaldo documental.');
+  }
   check();
   if (!saved.persisted || !saved.captureStored || !saved.id)
-    throw new Error('El servidor no confirmó el respaldo para reanudar.');
+    throw new CudyrMonthlyReportArchiveError('El servidor no confirmó el respaldo para reanudar.');
   return { report: parsed.report, reportId: saved.id, capturedAt: source.capturedAt };
 };
 export type CapturedCudyrMonthlyReport = Awaited<ReturnType<typeof captureCudyrMonthlyReport>>;

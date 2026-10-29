@@ -7,7 +7,6 @@ import {
   formatRayenSyncDuration,
   formatRayenSyncIslandTime,
   formatRayenSyncTargetDate,
-  rayenFailureReasonLabel,
 } from './rayenSyncPresentation';
 import { type RayenSyncRecoveryPresentation } from './rayenSyncRecoveryPresentation';
 import { RayenSyncRecoveryNotice } from './RayenSyncRecoveryNotice';
@@ -31,16 +30,6 @@ const statusStyles = {
   warning: { Icon: AlertTriangle, className: 'text-amber-700' },
   danger: { Icon: CircleX, className: 'text-red-700' },
   info: { Icon: Clock3, className: 'text-slate-500' },
-};
-
-const statusPresentation = (event: RayenSyncEvent) => {
-  const outcome = presentRayenSyncOutcome(event);
-  const { Icon, className } = statusStyles[outcome.tone];
-  return {
-    label: outcome.label,
-    icon: <Icon size={15} aria-hidden="true" />,
-    className,
-  };
 };
 
 const changesLabel = (event: RayenSyncEvent): string => {
@@ -152,8 +141,8 @@ const HistoryEvent: React.FC<{
   latest: boolean;
   targetDate?: string | null;
 }> = ({ event, latest, targetDate }) => {
-  const status = statusPresentation(event);
   const outcome = presentRayenSyncOutcome(event);
+  const { Icon, className } = statusStyles[outcome.tone];
   const duration = formatRayenSyncDuration(event.startedAt, event.completedAt);
   return (
     <li className="border-b border-slate-200 py-3 last:border-0">
@@ -173,9 +162,7 @@ const HistoryEvent: React.FC<{
             <span className="truncate font-semibold text-slate-600">{event.by}</span>
           </p>
           <p className="mt-1 text-sm font-medium text-slate-600">
-            {event.status === 'failed'
-              ? rayenFailureReasonLabel(event.failureReason)
-              : changesLabel(event)}
+            {event.status === 'failed' ? outcome.detail : changesLabel(event)}
           </p>
           {event.status !== 'failed' && outcome.detail && (
             <p
@@ -188,10 +175,10 @@ const HistoryEvent: React.FC<{
           )}
         </div>
         <span
-          className={`inline-flex shrink-0 items-center gap-1 text-xs font-semibold ${status.className}`}
+          className={`inline-flex shrink-0 items-center gap-1 text-xs font-semibold ${className}`}
         >
-          {status.icon}
-          {status.label}
+          <Icon size={15} aria-hidden="true" />
+          {outcome.label}
         </span>
       </div>
 

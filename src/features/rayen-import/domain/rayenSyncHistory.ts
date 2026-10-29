@@ -1,3 +1,4 @@
+import { rayenSyncCoverageIssueKey } from './rayenSyncCoverageIssueKey';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type {
@@ -58,20 +59,25 @@ export const buildRayenSyncChanges = (diff: CensusImportDiff) => ({
   unchanged: diff.summary.unchanged,
 });
 
+const runMetadata = ({
+  id,
+  sourceDate,
+  startedAt,
+  by,
+  source,
+  policy,
+  performance,
+}: RayenSyncRun) => ({ id, sourceDate, startedAt, by, source, policy, performance });
+
 export const buildAppliedRayenSyncEvent = (
   run: RayenSyncRun,
   diff: CensusImportDiff,
   appliedAt: string
 ): RayenSyncEvent => ({
-  id: run.id,
-  sourceDate: run.sourceDate,
-  startedAt: run.startedAt,
+  ...runMetadata(run),
   completedAt: appliedAt,
-  by: run.by,
   status: 'applied',
   changes: buildRayenSyncChanges(diff),
-  source: run.source,
-  policy: run.policy,
   reviewRequirement: run.reviewRequirement,
   performance: run.performance,
 });
@@ -81,15 +87,9 @@ export const buildFailedRayenSyncEvent = (
   reason: RayenSyncFailureReason,
   completedAt: string
 ): RayenSyncEvent => ({
-  id: run.id,
-  sourceDate: run.sourceDate,
-  startedAt: run.startedAt,
+  ...runMetadata(run),
   completedAt,
-  by: run.by,
   status: 'failed',
-  source: run.source,
-  policy: run.policy,
-  performance: run.performance,
   failureReason: reason,
 });
 
@@ -125,6 +125,9 @@ export const buildRayenSyncCoverage = (
       bedId: error.bedId,
       source: error.source,
       reason: error.reason,
+      ...(error.source === 'cudyr' && error.cudyrRecovery
+        ? { cudyrRecovery: error.cudyrRecovery }
+        : {}),
       ...(record
         ? {
             diagnostic: {
@@ -141,10 +144,7 @@ export const buildRayenSyncCoverage = (
           }
         : {}),
     };
-    issueMap.set(
-      `${issue.bedId}:${error.clinicalEpisodeId ?? ''}:${issue.source}:${issue.reason}`,
-      issue
-    );
+    issueMap.set(rayenSyncCoverageIssueKey(issue, error.clinicalEpisodeId), issue);
   });
   return {
     total,
