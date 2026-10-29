@@ -43,8 +43,7 @@
     repair.hidden = true;
     forget.hidden = true;
   };
-  const renderBadgeReport = (bar, report, { handoffLabelForIdentity,
-    connectionInitials, connectionTimeLabel }) => {
+  const renderBadgeReport = (bar, report, { connectionInitials, connectionTimeLabel }) => {
     const part = selector => bar.__hhrRoot?.querySelector(selector);
     const button = part('.hhr-ops-session');
     if (!button) return report;
@@ -52,13 +51,6 @@
     const camas = report.gestionCamas || {};
     const identity = ficha.identity || {};
     const name = identity.fullName || 'Sesión HHR';
-    const role = String(identity.role || '');
-    const handoffButton = part('.hhr-ops-handoff');
-    if (handoffButton) {
-      const handoffTitle = handoffLabelForIdentity(role, identity.practitionerRoleId);
-      handoffButton.dataset.tip = handoffTitle;
-      handoffButton.setAttribute('aria-label', handoffTitle);
-    }
     const state = ficha.status !== 'ready'
       ? 'is-offline'
       : camas.status === 'ready' ? 'is-ready' : 'is-degraded';

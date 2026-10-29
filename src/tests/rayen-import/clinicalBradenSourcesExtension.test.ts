@@ -19,14 +19,6 @@ const clinicalBatchPrintRuntimeSource = readFileSync(
   new URL('../../../extension/clinical-batch-print-runtime.js', import.meta.url),
   'utf8'
 );
-const scoresPresentationSource = readFileSync(
-  new URL('../../../extension/hhr-scores-presentation.js', import.meta.url),
-  'utf8'
-);
-const scoresCenterSource = readFileSync(
-  new URL('../../../extension/hhr-scores-center.js', import.meta.url),
-  'utf8'
-);
 const sliceBetween = (source: string, startMarker: string, endMarker: string) => {
   const start = source.indexOf(startMarker);
   const end = source.indexOf(endMarker, start + startMarker.length);
@@ -62,15 +54,6 @@ describe('extension BRADEN source reconciliation', () => {
     expect(source).toContain('BRADEN: evaluationReadErrors ? [] : bradenHistory.slice(0, 8)');
     expect(source).toContain('DOWNTON: evaluationReadErrors ? [] : downtonHistory.slice(0, 8)');
     expect(source).not.toContain('if (!bradenHistory.length || !downtonHistory.length)');
-  });
-
-  it('does not render or enable registration from a partial scale read', () => {
-    expect(scoresPresentationSource).toContain('if (unavailableReason) return [];');
-    expect(scoresPresentationSource).toContain(
-      'disabled: !canWriteInstrument || Boolean(uncertainWrite) || Boolean(unavailableReason)'
-    );
-    expect(scoresCenterSource).toContain('scoresPresentation.buildPatientPresentation({');
-    expect(scoresCenterSource).not.toContain('const history = unavailableReason');
   });
 
   it('fails closed when any required form source is unavailable', () => {

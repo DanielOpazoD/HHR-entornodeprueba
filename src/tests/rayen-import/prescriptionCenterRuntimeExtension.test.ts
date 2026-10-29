@@ -7,9 +7,6 @@ import { describe, expect, it, vi } from 'vitest';
 import '../../../extension/hhr-center-shell-runtime.js';
 import '../../../extension/hhr-prescription-center.js';
 import '../../../extension/hhr-hospitalized-documents-center.js';
-import '../../../extension/hhr-handoff-center.js';
-import '../../../extension/hhr-scores-presentation.js';
-import '../../../extension/hhr-scores-center.js';
 import '../../../extension/hhr-lab-center.js';
 
 type RuntimeOwner = {
@@ -46,12 +43,6 @@ const hospitalizedDocumentsSource = readFileSync(
   path.resolve('extension/hhr-hospitalized-documents-center.js'),
   'utf8'
 );
-const handoffSource = readFileSync(path.resolve('extension/hhr-handoff-center.js'), 'utf8');
-const scoresSource = readFileSync(path.resolve('extension/hhr-scores-center.js'), 'utf8');
-const scoresPresentationSource = readFileSync(
-  path.resolve('extension/hhr-scores-presentation.js'),
-  'utf8'
-);
 const labCenterSource = readFileSync(path.resolve('extension/hhr-lab-center.js'), 'utf8');
 const lineCount = (source: string) => source.split('\n').length;
 
@@ -63,8 +54,6 @@ describe('Centro HHR prescription runtime ownership', () => {
     expect(() => globalThis.HhrHospitalizedDocumentsCenterRuntime.create({})).toThrow(
       /Documentos Hospitalizados HHR/
     );
-    expect(() => globalThis.HhrHandoffCenterRuntime.create({})).toThrow(/Centro de Turno HHR/);
-    expect(() => globalThis.HhrScoresCenterRuntime.create({})).toThrow(/Centro de Scores HHR/);
     expect(() => globalThis.HhrLabCenterRuntime.create({})).toThrow(/Laboratorio HHR/);
     expect(() => globalThis.HhrCenterShellRuntime.create({})).toThrow(/shell del Centro HHR/);
   });
@@ -90,9 +79,6 @@ describe('Centro HHR prescription runtime ownership', () => {
     expect(scripts.indexOf('hhr-prescription-center.js')).toBeGreaterThan(-1);
     expect(scripts.indexOf('hhr-center-shell-runtime.js')).toBeGreaterThan(-1);
     expect(scripts.indexOf('hhr-hospitalized-documents-center.js')).toBeGreaterThan(-1);
-    expect(scripts.indexOf('hhr-handoff-center.js')).toBeGreaterThan(-1);
-    expect(scripts.indexOf('hhr-scores-presentation.js')).toBeGreaterThan(-1);
-    expect(scripts.indexOf('hhr-scores-center.js')).toBeGreaterThan(-1);
     expect(scripts.indexOf('hhr-lab-center.js')).toBeGreaterThan(-1);
     expect(scripts.indexOf('hhr-prescription-center.js')).toBeLessThan(
       scripts.indexOf('content-prescription-print.js')
@@ -103,15 +89,6 @@ describe('Centro HHR prescription runtime ownership', () => {
     expect(scripts.indexOf('hhr-hospitalized-documents-center.js')).toBeLessThan(
       scripts.indexOf('content-prescription-print.js')
     );
-    expect(scripts.indexOf('hhr-handoff-center.js')).toBeLessThan(
-      scripts.indexOf('content-prescription-print.js')
-    );
-    expect(scripts.indexOf('hhr-scores-presentation.js')).toBeLessThan(
-      scripts.indexOf('hhr-scores-center.js')
-    );
-    expect(scripts.indexOf('hhr-scores-center.js')).toBeLessThan(
-      scripts.indexOf('content-prescription-print.js')
-    );
     expect(scripts.indexOf('hhr-lab-center.js')).toBeLessThan(
       scripts.indexOf('content-prescription-print.js')
     );
@@ -119,10 +96,6 @@ describe('Centro HHR prescription runtime ownership', () => {
     expect(contentSource).toContain('hospitalizedDocumentsCenterOwner.create({');
     expect(contentSource).not.toContain('const createModal = (');
     expect(contentSource).not.toContain('const createHospitalizedDocumentsModal = (');
-    expect(contentSource).toContain('handoffCenterOwner.create({');
-    expect(contentSource).toContain('scoresCenterOwner.create({');
-    expect(contentSource).toContain('!handoffCenterOwner ||');
-    expect(contentSource).toContain('!scoresCenterOwner ||');
     expect(contentSource).not.toContain('const renderHandoffCenter =');
     expect(contentSource).not.toContain('const renderScoresCenter =');
     expect(contentSource).toContain('labCenterOwner.create({');
@@ -138,9 +111,6 @@ describe('Centro HHR prescription runtime ownership', () => {
     expect(lineCount(centerShellSource)).toBeLessThanOrEqual(400);
     expect(lineCount(prescriptionSource)).toBeLessThanOrEqual(700);
     expect(lineCount(hospitalizedDocumentsSource)).toBeLessThanOrEqual(400);
-    expect(lineCount(handoffSource)).toBeLessThanOrEqual(400);
-    expect(lineCount(scoresSource)).toBeLessThanOrEqual(450);
-    expect(lineCount(scoresPresentationSource)).toBeLessThanOrEqual(360);
     expect(lineCount(labCenterSource)).toBeLessThanOrEqual(850);
   });
 });
@@ -149,7 +119,5 @@ declare global {
   var HhrPrescriptionCenterRuntime: RuntimeOwner;
   var HhrCenterShellRuntime: RuntimeOwner;
   var HhrHospitalizedDocumentsCenterRuntime: RuntimeOwner;
-  var HhrHandoffCenterRuntime: RuntimeOwner;
-  var HhrScoresCenterRuntime: RuntimeOwner;
   var HhrLabCenterRuntime: RuntimeOwner;
 }

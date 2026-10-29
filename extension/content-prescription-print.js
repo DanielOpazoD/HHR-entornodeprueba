@@ -1,7 +1,7 @@
 /**
  * content-prescription-print.js (ISOLATED world)
  *
- * Adds a global, extensible HHR operations entry point across Ficha Médico. Prescription and
+ * Adds compact prescription and examination tools across Ficha Médico. Prescription and
  * indications shortcuts remain contextual to the nursing medication view. The panel asks the
  * service worker for official Eloisa reports and verified nursing workflows. Clinical writes are
  * delegated to the service worker and shown as synchronized only after a read-back succeeds.
@@ -16,8 +16,6 @@
   const centerShellOwner = globalThis.HhrCenterShellRuntime;
   const prescriptionCenterOwner = globalThis.HhrPrescriptionCenterRuntime;
   const hospitalizedDocumentsCenterOwner = globalThis.HhrHospitalizedDocumentsCenterRuntime;
-  const handoffCenterOwner = globalThis.HhrHandoffCenterRuntime;
-  const scoresCenterOwner = globalThis.HhrScoresCenterRuntime;
   const labCenterOwner = globalThis.HhrLabCenterRuntime;
   const clinicalWriteClientOwner = globalThis.HhrClinicalWriteClientRuntime;
   const dischargeActionsOwner = globalThis.HhrDischargeActionsRuntime;
@@ -29,9 +27,6 @@
   // event.key === 'Enter' || event.key === ' '
   // editor.addEventListener('keydown' -> event.stopPropagation(); restoreCanvasFocus = true;
   // canvas.focus({ preventScroll: true }); overlaysHost.appendChild(editor)
-  const vitalsHelper = globalThis.HhrVitals;
-  const vitalsCenterOwner = globalThis.HhrVitalsCenterRuntime;
-  // root.dataset.vitalsRequestGeneration !== requestGeneration
   const requestForms = globalThis.HhrRequestForms;
   const runtimeMessages = globalThis.HhrRayenMessageContract &&
     globalThis.HhrRayenMessageContract.types;
@@ -42,8 +37,6 @@
     !centerShellOwner ||
     !prescriptionCenterOwner ||
     !hospitalizedDocumentsCenterOwner ||
-    !handoffCenterOwner ||
-    !scoresCenterOwner ||
     !labCenterOwner ||
     !clinicalWriteClientOwner ||
     !dischargeActionsOwner ||
@@ -220,19 +213,9 @@
     setRouteChangeState,
   });
   const {
-    acknowledgeClinicalWrite,
-    clinicalWriteKey,
-    clinicalWriteRecoveryReady,
-    finishRouteChangeWrite,
     freezeClinicalModalForEncounterChange,
-    getActiveUncertainWrite,
     getClinicalGuard,
-    hydrateClinicalWriteProtection,
-    normalizedClinicalText,
-    releaseClinicalWriteProtection,
     runClinicalTransition,
-    setClinicalGuardState,
-    uncertainClinicalWrites,
   } = clinicalWriteClientRuntime;
 
   const ensureStyles = () => centerStyles.ensureCenterStyles(document, ui);
@@ -303,11 +286,6 @@
   let createModal;
   let createHospitalizedDocumentsModal;
 
-  const setSyncState = (element, text, state = '') => {
-    element.className = 'hhr-sync-state' + (state ? ' is-' + state : '');
-    setLiveRegion(element, text, state);
-  };
-
   const dischargeActionsRuntime = dischargeActionsOwner.create({
     documentRef: document,
     windowRef: window,
@@ -344,7 +322,6 @@
     downloadIndications,
     hasVisibleNursingRole,
     findToolbarAnchor,
-    createRegimenQuickDialog,
     createFavoritesDialog,
   } = medicationActionsRuntime;
 
@@ -362,7 +339,6 @@
     openPrescriptionCenter: (...args) => createModal(...args),
     openHospitalizedDocuments: (...args) => createHospitalizedDocumentsModal(...args),
     openOperationsCenter: (...args) => createOperationsCenterModal(...args),
-    openRegimenQuickDialog: () => createRegimenQuickDialog(),
     onCenterDismiss: clearActiveOperationsModule,
     onCenterModuleChange: setActiveOperationsModule,
   });
@@ -392,43 +368,6 @@
     openPrescriptionCenter: (...args) => createModal(...args),
   }).open;
 
-  const handoffCenterRuntime = handoffCenterOwner.create({
-    helper,
-    runtimeMessages,
-    runClinicalTransition,
-    normalizedText,
-    sendMessage,
-    clinicalWriteKey,
-    hydrateClinicalWriteProtection,
-    setClinicalGuardState,
-    setSyncState,
-    releaseClinicalWriteProtection,
-    uncertainClinicalWrites,
-    normalizedClinicalText,
-    finishRouteChangeWrite,
-    acknowledgeClinicalWrite,
-    clinicalWriteRecoveryReady,
-  });
-  const scoresCenterRuntime = scoresCenterOwner.create({
-    helper,
-    runtimeMessages,
-    runClinicalTransition,
-    normalizedText,
-    sendMessage,
-    setLiveRegion,
-    clinicalWriteKey,
-    hydrateClinicalWriteProtection,
-    setClinicalGuardState,
-    releaseClinicalWriteProtection,
-    uncertainClinicalWrites,
-    finishRouteChangeWrite,
-    acknowledgeClinicalWrite,
-    clinicalWriteRecoveryReady,
-    getActiveUncertainWrite,
-    showPageNotice,
-    trapModalFocus,
-  });
-
   const connectionInitials = value => {
     const parts = String(value || '').trim().split(/\s+/).filter(Boolean);
     if (!parts.length) return 'HHR';
@@ -456,8 +395,6 @@
     setLiveRegion,
     connectionInitials,
     connectionTimeLabel,
-    handoffLabelForIdentity: (role, practitionerRoleId) =>
-      helper.handoffLabelForIdentity(role, practitionerRoleId),
     operationsBarId: OPERATIONS_BAR_ID,
   });
   const {
@@ -513,35 +450,18 @@
       })
     : null;
 
-  const vitalsCenterRuntime = vitalsCenterOwner
-    ? vitalsCenterOwner.create({
-        vitalsHelper,
-        runtimeMessages,
-        currentRouteEncounterId,
-        normalizedText,
-        sendMessage,
-        openVitalsView: (root, encId, view) =>
-          createOperationsCenterModal('vitals', encId, root.__hhrFocusReturnTarget, root, {
-            vitalsView: view,
-          }),
-      })
-    : null;
-
   const HOME_SHORTCUTS = [
-    { module: 'recipes', icon: 'recipes', title: 'Recetas', desc: 'Imprime recetas del paciente actual o de todos los hospitalizados.' },
-    { module: 'handoff', icon: 'handoff', title: 'Entrega de turno', desc: 'Entregas médicas y de enfermería, visibles para todo el equipo.' },
-    { module: 'vitals', icon: 'vitals', title: 'Signos vitales', desc: 'Última toma, historial y tendencias por paciente.' },
-    { module: 'scores', icon: 'scores', title: 'Scores', desc: 'CUDYR, Downton y Braden de todo el censo.' },
+    { module: 'recipes', icon: 'recipes', title: 'Recetas', desc: 'Recetas e indicaciones del paciente o de los hospitalizados.' },
     { module: 'lab', icon: 'lab', title: 'Laboratorio', desc: 'Resultados Syslab y solicitud de exámenes de sangre.' },
-    { module: 'imaging', icon: 'imaging', title: 'Imágenes', desc: 'Solicitud con formularios oficiales; informes en preparación.' },
+    { module: 'imaging', icon: 'imaging', title: 'Imágenes', desc: 'Solicitudes de imagenología con formularios oficiales.' },
   ];
 
   const renderHomeCenter = (root, encId) => {
     const main = root.querySelector('.hhr-center-main');
     main.innerHTML = `
-      <div class="hhr-center-toolbar"><h2 class="hhr-center-heading">Inicio</h2></div>
+      <div class="hhr-center-toolbar"><h2 class="hhr-center-heading">Herramientas de Eloísa</h2></div>
       <div class="hhr-center-content">
-        <div class="hhr-home-section-title">Módulos</div>
+        <p class="hhr-home-intro">Recetas y exámenes a mano. El censo y el registro clínico completo están en HHR.</p>
         <div class="hhr-home-grid">
           ${HOME_SHORTCUTS.map(item => `
             <button class="hhr-home-card" type="button" data-module="${item.module}">
@@ -551,14 +471,7 @@
             </button>
           `).join('')}
         </div>
-        <div class="hhr-home-section-title">Documentos del censo</div>
-        <div class="hhr-home-grid hhr-home-grid-actions">
-          <button class="hhr-home-card is-action hhr-home-regimen" type="button">
-            <span class="hhr-home-card-icon">${ui.icons.regimen}</span>
-            <strong>Reg + BRADEN</strong>
-            <span class="hhr-home-card-desc">PDF global con régimen vigente y escala BRADEN de todos los pacientes, en un clic.</span>
-          </button>
-        </div>
+
       </div>
     `;
     main.querySelectorAll('.hhr-home-card[data-module]').forEach(card => {
@@ -568,9 +481,7 @@
         );
       });
     });
-    main.querySelector('.hhr-home-regimen').addEventListener('click', () => {
-      runClinicalTransition(root, () => createHospitalizedDocumentsModal('regimen', encId, root));
-    });
+
   };
 
   const barPart = (bar, selector) => {
@@ -578,14 +489,14 @@
     return root ? root.querySelector(selector) : null;
   };
 
-  const createOperationsCenterModal = (module, encId, returnFocusTarget = null, existingRoot = null, options = {}) => {
+  const createOperationsCenterModal = (module, encId, returnFocusTarget = null, existingRoot = null) => {
     if (existingRoot && typeof existingRoot.__hhrConnectionDispose === 'function') {
       invalidateConnectionState(existingRoot);
     }
     const focusReturnTarget = existingRoot && existingRoot.__hhrFocusReturnTarget
       ? existingRoot.__hhrFocusReturnTarget
       : returnFocusTarget || document.activeElement;
-    const activeModule = ['scores', 'connection', 'lab', 'imaging', 'vitals', 'home'].includes(module) ? module : 'handoff';
+    const activeModule = ['connection', 'lab', 'imaging', 'home'].includes(module) ? module : 'home';
     const root = prepareCenterModalRoot({
       existingRoot,
       activeModule,
@@ -594,9 +505,7 @@
     });
     if (!root) return;
     const renderModule = targetEncId => {
-      if (activeModule === 'handoff') handoffCenterRuntime.renderHandoffCenter(root, targetEncId);
-      else if (activeModule === 'scores') scoresCenterRuntime.renderScoresCenter(root, targetEncId);
-      else if (activeModule === 'lab') labCenterRuntime.renderLabRequestView(root, targetEncId);
+      if (activeModule === 'lab') labCenterRuntime.renderLabRequestView(root, targetEncId);
       else if (activeModule === 'imaging') {
         if (!imagingCenterRuntime) {
           root.querySelector('.hhr-center-main').innerHTML =
@@ -606,22 +515,10 @@
         }
         imagingCenterRuntime.renderImagingCenter(root, targetEncId);
       }
-      else if (activeModule === 'vitals') {
-        if (!vitalsCenterRuntime) {
-          root.querySelector('.hhr-center-main').innerHTML =
-            '<div class="hhr-center-toolbar"><h2 class="hhr-center-heading">Signos vitales</h2></div>' +
-            '<div class="hhr-center-content"><div class="hhr-rx-error">El Centro de Signos Vitales no quedó cargado. Recarga la extensión y la pestaña.</div></div>';
-          return;
-        }
-        vitalsCenterRuntime.renderVitalsCenter(root, targetEncId, options.vitalsView || 'overview');
-      }
       else if (activeModule === 'home') renderHomeCenter(root, targetEncId);
       else renderConnectionCenter(root, targetEncId);
     };
     setupCenterPatientContext(root, activeModule, encId, renderModule);
-    if (activeModule === 'vitals' && options.vitalsView !== 'detail') {
-      root.querySelector('.hhr-center-patientbar').hidden = true;
-    }
     renderModule(encId);
   };
 
@@ -655,26 +552,8 @@
     {
       key: 'recipes', label: 'Recetas', icon: 'recipes',
       tip: 'Recetas médicas',
-      note: 'Imprime recetas del paciente actual o de todos los hospitalizados.',
+      note: 'Recetas e indicaciones del paciente o de los hospitalizados.',
       aria: 'Abrir centro de recetas',
-    },
-    {
-      key: 'handoff', label: 'Turno', icon: 'handoff',
-      tip: 'Entrega de turno',
-      note: 'Registra y revisa la entrega de turno del servicio.',
-      aria: 'Entrega de turno',
-    },
-    {
-      key: 'vitals', label: 'Vitales', icon: 'vitals',
-      tip: 'Signos vitales',
-      note: 'Última toma, historial y tendencias del paciente actual.',
-      aria: 'Signos vitales',
-    },
-    {
-      key: 'scores', label: 'Scores', icon: 'scores',
-      tip: 'Scores de enfermería',
-      note: 'Instrumentos y escalas de evaluación por paciente.',
-      aria: 'Scores de enfermería',
     },
     {
       key: 'exams', label: 'Exámenes', icon: 'lab',
@@ -752,20 +631,8 @@
         centerShellRuntime.openCenterModule('recipes', bar.dataset.encounterId, shadow.querySelector('.hhr-ops-recipes'))
       );
       const sessionButton = shadow.querySelector('.hhr-ops-session');
-      const handoffButton = shadow.querySelector('.hhr-ops-handoff');
-      const vitalsButton = shadow.querySelector('.hhr-ops-vitals');
-      const scoresButton = shadow.querySelector('.hhr-ops-scores');
       sessionButton.addEventListener('click', () =>
         centerShellRuntime.openCenterModule('connection', bar.dataset.encounterId, sessionButton)
-      );
-      handoffButton.addEventListener('click', () =>
-        centerShellRuntime.openCenterModule('handoff', bar.dataset.encounterId, handoffButton)
-      );
-      scoresButton.addEventListener('click', () =>
-        centerShellRuntime.openCenterModule('scores', bar.dataset.encounterId, scoresButton)
-      );
-      vitalsButton.addEventListener('click', () =>
-        centerShellRuntime.openCenterModule('vitals', bar.dataset.encounterId, vitalsButton)
       );
       shadow.querySelector('.hhr-ops-favorites').addEventListener('click', () =>
         createFavoritesDialog()

@@ -115,8 +115,6 @@ export const prescriptionPrint = (
         author: string;
       };
       resolveHandoffKind: (role: unknown, practitionerRoleId: unknown) => string;
-      handoffLabelForIdentity: (role: unknown, practitionerRoleId: unknown) => string;
-      cudyrSourceNotice: (response: Record<string, unknown>) => string;
       handoffEncounterEventTypeId: (kind: string) => number;
       entryMatchesHandoffKind: (entry: unknown, kind: string) => boolean;
       deriveLatestShiftChange: (

@@ -10,11 +10,8 @@ const contentSource = [
   'hhr-prescription-center.js',
   'hhr-hospitalized-documents-center.js',
   'hhr-clinical-write-client-runtime.js',
-  'hhr-handoff-center.js',
-  'hhr-scores-center.js',
   'hhr-lab-center.js',
   'hhr-imaging-center.js',
-  'hhr-vitals-center.js',
   'hhr-discharge-actions-runtime.js',
 ]
   .map(file => readFileSync(path.resolve('extension', file), 'utf8'))
@@ -29,17 +26,12 @@ const labRequestStylesSource = readFileSync(
   'utf8'
 );
 const backgroundSource = readFileSync(path.resolve('extension/background.js'), 'utf8');
-const patientContextSource = readFileSync(
-  path.resolve('extension/fichamedico-patient-context.js'),
-  'utf8'
-);
-const messageContractSource = readFileSync(path.resolve('extension/message-contract.js'), 'utf8');
 
-describe('Centro HHR navigation and vital-signs overview', () => {
+describe('Centro HHR remaining tools and navigation', () => {
   it('keeps the Centro root mounted while switching modules', () => {
     const navigation = contentSource.slice(
       contentSource.indexOf('const wireCenterNavButtons'),
-      contentSource.indexOf("const regimenButton = root.querySelector('.hhr-center-regimen-print')")
+      contentSource.indexOf('const prepareCenterModalRoot')
     );
 
     expect(navigation).toContain('switchCenterModule(root, target');
@@ -59,25 +51,6 @@ describe('Centro HHR navigation and vital-signs overview', () => {
     expect(stylesSource).not.toContain('animation: hhr-modal-fade');
   });
 
-  it('opens vital signs with a census summary and preserves patient drill-down', () => {
-    expect(contentSource).toContain('type: runtimeMessages.VITALS_CENSUS_REQUEST');
-    expect(messageContractSource).toContain("VITALS_CENSUS_REQUEST: 'RAYEN_VITALS_CENSUS_REQUEST'");
-    expect(contentSource).toContain('Última toma disponible por paciente');
-    expect(contentSource).toContain("openVitalsView(root, patient.encounterId, 'detail')");
-    expect(contentSource).toContain('Todos los pacientes');
-    expect(contentSource).toContain("bed.className = 'hhr-vitals-bed'");
-    expect(contentSource).toContain("values.className = 'hhr-vitals-values'");
-    expect(contentSource).toContain('row.append(bed, identity)');
-    expect(contentSource).toContain(
-      'root.dataset.vitalsCensusRequestGeneration !== requestGeneration'
-    );
-    expect(contentSource).toContain('row.disabled = Boolean(patient.unavailableReason)');
-    expect(contentSource).toContain('if (!patient.unavailableReason) {');
-    expect(patientContextSource).toContain('const handleVitalsCensusRequest');
-    expect(patientContextSource).toContain('mapWithConcurrency(result.patients || [], 4');
-    expect(backgroundSource).toContain('[RUNTIME_MESSAGES.VITALS_CENSUS_REQUEST]: runtimeRoute(');
-  });
-
   it('opens any selected hospitalized patient with the complete individual recipe flow', () => {
     expect(contentSource).toContain('const currentPatientMatchesRoute = hasCurrentPatient');
     expect(contentSource).toContain(
@@ -89,23 +62,6 @@ describe('Centro HHR navigation and vital-signs overview', () => {
     expect(contentSource).toContain("currentTab.removeAttribute('aria-disabled')");
     expect(contentSource).toContain("currentTab.removeAttribute('title')");
     expect(contentSource).toContain('if (!requestedTab || requestedTab.disabled) return');
-  });
-
-  it('keeps Reg + BRADEN inside the mounted clinical center', () => {
-    expect(contentSource).toContain("createHospitalizedDocumentsModal('regimen', encId, root)");
-    const home = contentSource.slice(
-      contentSource.indexOf('const renderHomeCenter'),
-      contentSource.indexOf('const barPart')
-    );
-    expect(home).not.toContain('root.remove()');
-    expect(home).not.toContain('createRegimenQuickDialog()');
-  });
-
-  it('integrates handoff diagnosis and the latest vital-sign timestamp with patient identity', () => {
-    expect(contentSource).toContain("diagnosis.textContent = 'Dg: ' + patient.diagnosis");
-    expect(contentSource).toContain("time.className = 'hhr-vitals-patient-time'");
-    expect(contentSource).toContain("'Última toma · ' + latest.recordedAt");
-    expect(contentSource).not.toContain("time.className = 'hhr-vitals-summary-time'");
   });
 
   it('resolves a nursing medical epicrisis against the exact discharged patient', () => {
@@ -133,7 +89,7 @@ describe('Centro HHR navigation and vital-signs overview', () => {
     expect(contentSource).not.toContain("clinicalWriteKey('request-draft-imaging', encId)");
     expect(contentSource).toContain('<h2 class="hhr-center-heading">Imágenes</h2>');
     expect(contentSource).not.toContain("key: 'indications', label: 'Indicaciones'");
-    expect(contentSource).toContain("activeModule: isRegimen ? kind : 'recipes'");
+    expect(contentSource).toContain("activeModule: 'recipes'");
     expect(contentSource).toContain('data-rx-module="indications"');
     expect(contentSource).toContain('hhr-rx-module-tabs');
     expect(contentSource).not.toContain('data-module="indications"');
@@ -148,9 +104,7 @@ describe('Centro HHR navigation and vital-signs overview', () => {
   });
 
   it('opens laboratory on the exam-request view by default', () => {
-    expect(contentSource).toContain(
-      "else if (activeModule === 'lab') labCenterRuntime.renderLabRequestView(root, targetEncId)"
-    );
+    expect(contentSource).toContain("activeModule === 'lab'");
     expect(contentSource).toContain(
       "main.querySelector('.hhr-flow-tabs [data-flow=\"results\"]').addEventListener('click', () => {"
     );

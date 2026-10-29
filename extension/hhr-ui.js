@@ -69,17 +69,8 @@
     recipes: strokeIcon(
       '<path d="M10.6 20.4 3.6 13.4a4.95 4.95 0 0 1 7-7l7 7a4.95 4.95 0 0 1-7 7Z"/><path d="m8.6 8.6 6.8 6.8"/>'
     ),
-    regimen: strokeIcon(
-      '<path d="M4 2.5v6.5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2V2.5"/><path d="M7 2.5v19"/><path d="M20 15V2.5a5 5 0 0 0-4 4.9V13a2 2 0 0 0 2 2h2Z"/><path d="M20 15v6.5"/>'
-    ),
     indications: strokeIcon(
       '<path d="M14.5 2.5H6a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8L14.5 2.5Z"/><path d="M14 2.5V8h6"/><path d="M15.5 13h-7"/><path d="M15.5 17h-7"/>'
-    ),
-    handoff: strokeIcon(
-      '<path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 13-4 4 4 4"/><path d="M4 17h16"/>'
-    ),
-    scores: strokeIcon(
-      '<path d="M3 3.5v15a2.5 2.5 0 0 0 2.5 2.5H21"/><path d="M8 16.5v-4.5"/><path d="M13 16.5V8"/><path d="M18 16.5v-3"/>'
     ),
     lab: strokeIcon(
       '<path d="M9.5 2.5v6.6L4 18.9a1.9 1.9 0 0 0 1.7 2.8h12.6a1.9 1.9 0 0 0 1.7-2.8L14.5 9.1V2.5"/><path d="M8 2.5h8"/><path d="M6.6 15.5h10.8"/>'
@@ -87,7 +78,6 @@
     imaging: strokeIcon(
       '<circle cx="12" cy="12" r="3.2"/><path d="M4 8V6a2 2 0 0 1 2-2h2"/><path d="M16 4h2a2 2 0 0 1 2 2v2"/><path d="M20 16v2a2 2 0 0 1-2 2h-2"/><path d="M8 20H6a2 2 0 0 1-2-2v-2"/>'
     ),
-    vitals: strokeIcon('<path d="M3 12h4l2.5-6 5 12 2.5-6H21"/>'),
     star: strokeIcon(
       '<path d="m12 3 2.7 5.6 6.1.8-4.5 4.3 1.1 6.1L12 16.9l-5.4 2.9 1.1-6.1L3.2 9.4l6.1-.8L12 3Z"/>'
     ),

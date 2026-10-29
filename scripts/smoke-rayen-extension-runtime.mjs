@@ -392,13 +392,12 @@ try {
       operationBars: document.querySelectorAll('#hhr-clinical-operations-bar').length,
       prescriptionButtons: document.querySelectorAll('#hhr-prescription-print-button').length,
       encounterId: bar?.dataset.encounterId,
-      expectedModulesReady: [
-        '.hhr-ops-recipes',
-        '.hhr-ops-handoff',
-        '.hhr-ops-vitals',
-        '.hhr-ops-scores',
-        '.hhr-ops-exams',
-      ].every(selector => bar?.shadowRoot?.querySelector(selector)),
+      expectedModulesReady: ['.hhr-ops-recipes', '.hhr-ops-exams'].every(selector =>
+        bar?.shadowRoot?.querySelector(selector)
+      ),
+      retiredModulesAbsent: ['.hhr-ops-handoff', '.hhr-ops-vitals', '.hhr-ops-scores'].every(
+        selector => !bar?.shadowRoot?.querySelector(selector)
+      ),
     };
   });
   assert.deepEqual(initialRuntime, {
@@ -407,7 +406,30 @@ try {
     prescriptionButtons: 1,
     encounterId: '141121',
     expectedModulesReady: true,
+    retiredModulesAbsent: true,
   });
+
+  await page.locator('#hhr-clinical-operations-bar .brand').click();
+  const home = page.locator('#hhr-prescription-print-modal');
+  assert.deepEqual(
+    await home
+      .locator('.hhr-center-nav-button')
+      .evaluateAll(buttons => buttons.map(button => button.dataset.module)),
+    ['home', 'recipes', 'lab', 'imaging', 'connection']
+  );
+  assert.equal(await home.locator('.hhr-home-card').count(), 3);
+  assert.doesNotMatch(await home.innerText(), /Entrega de turno|Signos vitales|Scores|BRADEN/i);
+  assert.equal(
+    await home.locator('.hhr-center-app-link').getAttribute('href'),
+    'https://hhr-hospitalizados.app/'
+  );
+  assert.equal(
+    await home
+      .locator('.hhr-center-content')
+      .evaluate(element => element.scrollHeight <= element.clientHeight),
+    true
+  );
+  await home.locator('.hhr-rx-close').click();
 
   // Mutation-heavy React screens must not duplicate controls or destabilize reinjection.
   await page.evaluate(() => {

@@ -11,7 +11,6 @@ type MedicationActionsRuntime = {
   downloadIndications: (encId: string, button: HTMLButtonElement) => Promise<void>;
   hasVisibleNursingRole: () => boolean;
   findToolbarAnchor: (heading: Element) => Element;
-  createRegimenQuickDialog: () => void;
   readFavorites: () => Promise<Array<{ name: string; url: string }> | null | undefined>;
   writeFavorites: (list: Array<{ name: string; url: string }>) => Promise<boolean>;
   normalizeFavoriteUrl: (raw: string) => string;
@@ -34,14 +33,16 @@ const normalizedText = (value: unknown) =>
     .trim()
     .toLowerCase();
 
-const makeRuntime = (options: {
-  currentEncounter?: string;
-  sendMessage?: (message: Record<string, unknown>) => Promise<Record<string, unknown>>;
-  storedFavorites?: Array<{ name: string; url: string }> | null;
-  storageReadError?: boolean;
-  storageWriteError?: boolean;
-  deferWrites?: boolean;
-} = {}) => {
+const makeRuntime = (
+  options: {
+    currentEncounter?: string;
+    sendMessage?: (message: Record<string, unknown>) => Promise<Record<string, unknown>>;
+    storedFavorites?: Array<{ name: string; url: string }> | null;
+    storageReadError?: boolean;
+    storageWriteError?: boolean;
+    deferWrites?: boolean;
+  } = {}
+) => {
   const writes: Array<Array<{ name: string; url: string }>> = [];
   const pendingWrites: Array<() => void> = [];
   const feedback = vi.fn();
@@ -57,9 +58,7 @@ const makeRuntime = (options: {
         get: vi.fn((_key: string, callback: (stored: Record<string, unknown>) => void) => {
           if (options.storageReadError) runtimeState.lastError = { message: 'read failed' };
           callback(
-            options.storedFavorites === null
-              ? {}
-              : { hhrFavorites: options.storedFavorites || [] }
+            options.storedFavorites === null ? {} : { hhrFavorites: options.storedFavorites || [] }
           );
           delete runtimeState.lastError;
         }),
@@ -134,9 +133,9 @@ describe('HHR medication actions runtime', () => {
       path.resolve('extension/content-prescription-print.js'),
       'utf8'
     );
-    const manifest = JSON.parse(
-      readFileSync(path.resolve('extension/manifest.json'), 'utf8')
-    ) as { content_scripts: Array<{ matches?: string[]; js?: string[] }> };
+    const manifest = JSON.parse(readFileSync(path.resolve('extension/manifest.json'), 'utf8')) as {
+      content_scripts: Array<{ matches?: string[]; js?: string[] }>;
+    };
     const scripts = manifest.content_scripts
       .filter(entry => entry.matches?.includes('https://fichamedico.rayensalud.cl/*'))
       .flatMap(entry => entry.js || []);
@@ -149,7 +148,9 @@ describe('HHR medication actions runtime', () => {
     expect(scripts.indexOf('hhr-medication-actions-runtime.js')).toBeLessThan(
       scripts.indexOf('content-prescription-print.js')
     );
-    expect(contentSource).toContain('const medicationActionsOwner = globalThis.HhrMedicationActionsRuntime');
+    expect(contentSource).toContain(
+      'const medicationActionsOwner = globalThis.HhrMedicationActionsRuntime'
+    );
     expect(contentSource).toContain('!medicationActionsOwner ||');
     expect(contentSource).toContain('medicationActionsOwner.create({');
     [
@@ -157,7 +158,6 @@ describe('HHR medication actions runtime', () => {
       'const downloadIndications =',
       'const hasVisibleNursingRole =',
       'const findToolbarAnchor =',
-      'const createRegimenQuickDialog =',
       "const FAVORITES_STORAGE_KEY = 'hhrFavorites'",
       'const createFavoritesDialog =',
     ].forEach(definition => {
@@ -176,7 +176,10 @@ describe('HHR medication actions runtime', () => {
     `;
     let finishRequest: ((result: Record<string, unknown>) => void) | undefined;
     const sendMessage = vi.fn(
-      () => new Promise<Record<string, unknown>>(resolve => { finishRequest = resolve; })
+      () =>
+        new Promise<Record<string, unknown>>(resolve => {
+          finishRequest = resolve;
+        })
     );
     const { runtime, feedback } = makeRuntime({ sendMessage });
     const heading = runtime.findPharmaHeading();
@@ -207,48 +210,8 @@ describe('HHR medication actions runtime', () => {
     );
   });
 
-  it('keeps the regimen dialog contract and re-enables consecutive printing', async () => {
-    const sendMessage = vi.fn(async message => {
-      if (message.type === 'RAYEN_HOSPITALIZED_REGIMEN_OPTIONS_REQUEST') {
-        return {
-          patients: [{ regimen: true, braden: true }, { regimen: false, braden: true }],
-          regimenCount: 1,
-          bradenCount: 2,
-          regimenErrorCount: 0,
-          unavailableCount: 0,
-        };
-      }
-      return { count: 2, regimenCount: 1, bradenCount: 2 };
-    });
-    const { runtime, liveRegion } = makeRuntime({ sendMessage });
-
-    runtime.createRegimenQuickDialog();
-    await flushPromises();
-    const root = document.getElementById('hhr-prescription-print-modal') as HTMLElement;
-    const submit = root.querySelector('.hhr-rx-submit') as HTMLButtonElement;
-    expect(root.querySelector('[role="dialog"]')).not.toBeNull();
-    expect(root.textContent).toContain('2 pacientes hospitalizados');
-    expect(root.textContent).toContain('1 con régimen vigente');
-    expect(root.textContent).toContain('2 con BRADEN');
-    expect(submit.disabled).toBe(false);
-
-    submit.click();
-    await flushPromises();
-    expect(sendMessage).toHaveBeenLastCalledWith({
-      type: 'RAYEN_HOSPITALIZED_REGIMEN_PRINT_REQUEST',
-    });
-    expect(submit.disabled).toBe(false);
-    expect(submit.textContent).toBe('Imprimir nuevamente');
-    submit.click();
-    await flushPromises();
-    expect(sendMessage).toHaveBeenCalledTimes(3);
-    expect(sendMessage).toHaveBeenLastCalledWith({
-      type: 'RAYEN_HOSPITALIZED_REGIMEN_PRINT_REQUEST',
-    });
-    expect(liveRegion).toHaveBeenCalledWith(
-      expect.any(HTMLElement),
-      'Se abrió el régimen integrado de 2 pacientes: 1 con régimen vigente y 2 con BRADEN disponible.'
-    );
+  it('does not expose the retired regimen and Braden tool', () => {
+    expect(makeRuntime().runtime).not.toHaveProperty('createRegimenQuickDialog');
   });
 
   it('preserves favorites storage, validation, rendering and listeners', async () => {
@@ -369,9 +332,7 @@ describe('HHR medication actions runtime', () => {
     expect(add.disabled).toBe(false);
     expect(root.querySelectorAll('.hhr-fav-row')).toHaveLength(2);
 
-    const removeButtons = Array.from(
-      root.querySelectorAll<HTMLButtonElement>('.hhr-fav-remove')
-    );
+    const removeButtons = Array.from(root.querySelectorAll<HTMLButtonElement>('.hhr-fav-remove'));
     removeButtons[0].click();
     expect(removeButtons.every(button => button.disabled)).toBe(true);
     removeButtons[1].click();

@@ -106,6 +106,5 @@ export const makeRuntime = (sendMessage: (message: Message) => Promise<unknown>)
         .map(part => part[0])
         .join(''),
     connectionTimeLabel: () => 'Vence en 1 h',
-    handoffLabelForIdentity: () => 'Entrega médica',
     operationsBarId: 'operations-bar',
   });

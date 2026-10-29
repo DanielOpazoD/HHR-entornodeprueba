@@ -108,6 +108,19 @@
     return formatDateLabel(normalized) + ' ' + normalized.slice(11, 16);
   };
 
+  var toPrescriptionDate = function (value) {
+    var normalized = normalizeClinicalDateTime(value);
+    if (!/(?:Z|[+-]\d{2}:?\d{2})$/i.test(normalized)) return toIsoDate(normalized);
+    var instant = new Date(normalized);
+    if (Number.isNaN(instant.getTime())) return '';
+    var parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: EASTER_TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit',
+    }).formatToParts(instant);
+    return ['year', 'month', 'day'].map(function (type) {
+      return parts.find(function (part) { return part.type === type; }).value;
+    }).join('-');
+  };
+
   var formatAgeLabel = function (birthDate, referenceValue) {
     var birthMatch = String(birthDate || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (!birthMatch) return '';
@@ -223,6 +236,11 @@
   };
   var prescriptionEmissionKey = function (value) { var normalized = String(normalizeClinicalDateTime(value) || value || 'sin-fecha'); var epoch = Date.parse(normalized); return Number.isNaN(epoch) ? encodeURIComponent(normalized) : String(epoch); };
   var resolvePrescriptionEmissionDateTime = function (group, officialDateTime) { return group && group.printDateSource === 'indication' && group.printDateTime ? group.printDateTime : officialDateTime || ''; };
+  // Pharmacy ISO stamps without offsets are UTC; clinical display labels keep their local clock.
+  var prescriptionPublishDateTime = function (value) {
+    var stamp = String(value || '').trim();
+    return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?$/.test(stamp) ? stamp + 'Z' : stamp;
+  };
   var deriveProfessionalPrescriptionGroups = function (events) {
     var latestRows = new Map();
     for (var i = 0; i < (Array.isArray(events) ? events.length : 0); i += 1) {
@@ -232,7 +250,7 @@
         : [];
       for (var j = 0; j < rows.length; j += 1) {
         var row = rows[j] || {};
-        var dateTime = String(row.PUBLISH_DATETIME || event.publishDatetime || '');
+        var dateTime = prescriptionPublishDateTime(row.PUBLISH_DATETIME || event.publishDatetime);
         var medicationName = String(row.DESCRIPTOR || row.VIRTUAL_MEDICAL_PRODUCT || '').trim();
         if (!medicationName) continue;
         var sourceAuthor = normalizedAuthor(row.HCP_NAME);
@@ -279,7 +297,7 @@
             posology: String(row.POSOLOGY || '').trim(),
             route: String(row.ROUTE_ADMINISTRATION || '').trim(),
             note: String(row.MRE_ADMINISTRATION_NOTE || '').trim(),
-            date: toIsoDate(dateTime),
+            date: toPrescriptionDate(dateTime),
             dateTime: dateTime,
             sortDateTime: sortDateTime,
             eventDateTime: eventDateTime,
@@ -470,9 +488,9 @@
       return {
         ...group,
         validationDateTime: validationDateTime,
-        validationDate: toIsoDate(validationDateTime) || '',
+        validationDate: toPrescriptionDate(validationDateTime) || '',
         printDateTime: printDateTime,
-        printDate: toIsoDate(printDateTime) || group.latestDate || '',
+        printDate: toPrescriptionDate(printDateTime) || group.latestDate || '',
         printDateSource: indicationDateTime ? 'indication' : validationDateTime ? 'validation' : '',
       };
     });
@@ -1317,29 +1335,6 @@
     return 0;
   };
 
-  var handoffLabelForIdentity = function (role, practitionerRoleId) {
-    var kind = resolveHandoffKind(role, practitionerRoleId);
-    return kind === 'nursing'
-      ? 'Entrega de turno de enfermería'
-      : kind === 'medical'
-        ? 'Entrega de turno médica'
-        : 'Entrega de turno según rol clínico';
-  };
-
-  var cudyrSourceNotice = function (response) {
-    var result = response && typeof response === 'object' ? response : {};
-    var warning = String(result.cudyrWarning || '').trim();
-    var base = result.cudyrUnavailableReason
-      ? String(result.cudyrUnavailableReason)
-      : result.cudyrSource === 'gestion_camas+ficha_medico'
-        ? 'CUDYR desde Gestión de Camas cuando existe historial oficial; los pacientes ausentes se completan con el último valor de Ficha Médico.'
-        : result.cudyrHistoryAvailable
-          ? 'CUDYR desde la Lista de trabajo de Gestión de Camas: categoría, fecha/hora, autor e historial oficial.'
-          : 'CUDYR en modo de respaldo desde Ficha Médico: solo está disponible el último valor.' +
-            (warning ? '' : ' Conecta Gestión de Camas para ver el historial oficial.');
-    return [base, warning].filter(Boolean).join(' ');
-  };
-
   var shiftChangeKind = function (row) {
     if (!row || typeof row !== 'object') return '';
     var rawEventTypeId = row.encounterEventTypeId;
@@ -1532,8 +1527,6 @@
     deriveLatestBraden: deriveLatestBraden,
     deriveLatestNutritionOrder: deriveLatestNutritionOrder,
     resolveHandoffKind: resolveHandoffKind,
-    handoffLabelForIdentity: handoffLabelForIdentity,
-    cudyrSourceNotice: cudyrSourceNotice,
     handoffEncounterEventTypeId: handoffEncounterEventTypeId,
     entryMatchesHandoffKind: entryMatchesHandoffKind,
     deriveLatestShiftChange: deriveLatestShiftChange,

@@ -2,7 +2,7 @@
 (() => {
   'use strict';
 
-  const PATIENT_BOUND_MODULES = new Set(['vitals', 'lab', 'imaging']);
+  const PATIENT_BOUND_MODULES = new Set(['lab', 'imaging']);
 
   const create = dependencies => {
     const {
@@ -19,7 +19,6 @@
       openPrescriptionCenter,
       openHospitalizedDocuments,
       openOperationsCenter,
-      openRegimenQuickDialog,
       onCenterDismiss,
       onCenterModuleChange,
     } = dependencies || {};
@@ -37,8 +36,7 @@
       !runtimeMessages ||
       typeof openPrescriptionCenter !== 'function' ||
       typeof openHospitalizedDocuments !== 'function' ||
-      typeof openOperationsCenter !== 'function' ||
-      typeof openRegimenQuickDialog !== 'function'
+      typeof openOperationsCenter !== 'function'
     ) {
       throw new Error('No se pudo inicializar el shell del Centro HHR.');
     }
@@ -54,18 +52,6 @@
         {
           key: 'recipes', label: 'Rx', title: 'Recetas',
           icon: '<path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M7 14h10v7H7z"/>',
-        },
-        {
-          key: 'handoff', label: 'Turno', title: 'Entrega de turno',
-          icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM17 11l2 2 3-4"/>',
-        },
-        {
-          key: 'vitals', label: 'Vitales', title: 'Signos vitales',
-          icon: '<path d="M3 12h4l2.5-6 5 12 2.5-6H21"/>',
-        },
-        {
-          key: 'scores', label: 'Scores', title: 'Instrumentos',
-          icon: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2M14 7l2-2 2 2 4-4"/>',
         },
         {
           key: 'lab', label: 'Lab', title: 'Exámenes de laboratorio',
@@ -94,6 +80,7 @@
         <button class="hhr-rx-close" type="button" aria-label="Cerrar">&times;</button>
         <header class="hhr-center-header">
           <img alt="" aria-hidden="true"><strong>Centro HHR</strong>
+          <a class="hhr-center-app-link" href="https://hhr-hospitalizados.app/" target="_blank" rel="noopener noreferrer">Abrir HHR <span aria-hidden="true">↗</span></a>
         </header>
         <div class="hhr-center-patientbar" hidden>
           <span class="hhr-patientbar-tag">Paciente</span>
@@ -108,7 +95,7 @@
           </div>
         </div>
         <div class="hhr-center-shell">
-          <nav class="hhr-center-nav" aria-label="Módulos clínicos">${centerNavMarkup(activeModule)}</nav>
+          <nav class="hhr-center-nav" aria-label="Herramientas de Eloísa">${centerNavMarkup(activeModule)}</nav>
           <main class="hhr-center-main"></main>
         </div>
       </section>
@@ -126,7 +113,7 @@
     const openCenterModule = (module, encId, trigger) => {
       const targetModule = module || lastCenterModule;
       if (targetModule === 'recipes') openPrescriptionCenter(encId);
-      else if (targetModule === 'regimen' || targetModule === 'indications') {
+      else if (targetModule === 'indications') {
         openHospitalizedDocuments(targetModule, encId);
       } else openOperationsCenter(targetModule, encId, trigger);
     };
@@ -136,7 +123,7 @@
         root.__hhrConnectionDispose();
       }
       if (module === 'recipes') openPrescriptionCenter(encId, '', root);
-      else if (module === 'regimen' || module === 'indications') {
+      else if (module === 'indications') {
         openHospitalizedDocuments(module, encId, root);
       } else openOperationsCenter(module, encId, focusReturnTarget, root);
     };
@@ -152,19 +139,7 @@
           );
         });
       });
-      const regimenButton = root.querySelector('.hhr-center-regimen-print');
-      if (regimenButton) {
-        regimenButton.addEventListener('click', () => {
-          runClinicalTransition(root, () => {
-            if (typeof root.__hhrConnectionDispose === 'function') {
-              root.__hhrConnectionDispose();
-            }
-            root.__hhrDismiss = null;
-            root.remove();
-            openRegimenQuickDialog();
-          });
-        });
-      }
+
     };
 
     const prepareCenterModalRoot = ({ existingRoot = null, activeModule, encId, focusReturnTarget }) => {
