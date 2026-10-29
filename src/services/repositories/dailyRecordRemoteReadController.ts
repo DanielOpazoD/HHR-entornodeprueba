@@ -55,7 +55,11 @@ export const resolveRemoteGoldenPathReadResult = async ({
   const goldenPath = resolveDailyRecordPersistenceGoldenPath({
     localRecord: localCandidate?.record || null,
     remoteRecord: effectiveRemoteReadResult.record,
-    remoteAvailability: effectiveRemoteReadResult.record ? 'resolved' : 'missing',
+    remoteAvailability: effectiveRemoteReadResult.record
+      ? 'resolved'
+      : effectiveRemoteReadResult.serverConfirmed
+        ? 'missing'
+        : 'unavailable',
     localRepairApplied: localCandidate?.repairApplied || false,
     remoteRepairApplied:
       effectiveRemoteReadResult.compatibilityIntensity !== 'none' ||
@@ -91,7 +95,12 @@ export const resolveRemoteGoldenPathReadResult = async ({
   }
 
   const retainedRecord = await getPendingDailyRecordProjection(date);
-  if (retainedRecord) return createRetainedPendingProjectionReadResult(date, retainedRecord);
+  if (retainedRecord)
+    return createRetainedPendingProjectionReadResult(
+      date,
+      retainedRecord,
+      remoteReadResult.serverConfirmed
+    );
   return createGoldenPathReadResult(date, goldenPath, localCandidate, effectiveRemoteReadResult);
 };
 

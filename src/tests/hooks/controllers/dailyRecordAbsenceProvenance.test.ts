@@ -60,14 +60,25 @@ describe('absence evidence across local cache, Firebase and bootstrap', () => {
   });
   it('requires settled, authoritative absence for the exact selected date', async () => {
     const reader = {
-      getForDateWithMeta: vi
-        .fn()
-        .mockResolvedValue(createNotFoundDailyRecordReadResult(date, 'missing')),
+      getForDateWithMeta: vi.fn().mockResolvedValue({
+        ...createNotFoundDailyRecordReadResult(date, 'missing'),
+        serverConfirmed: true,
+      }),
     };
     const confirmed = await createDailyRecordQueryFn(reader, date, true)();
     expect(phase(confirmed)).toBe('confirmed_empty');
     expect(phase(confirmed, true)).toBe('remote_record_bootstrapping');
     expect(phase(confirmed, false, '2026-10-19')).toBe('remote_record_bootstrapping');
+    const unconfirmed = await createDailyRecordQueryFn(
+      {
+        getForDateWithMeta: vi
+          .fn()
+          .mockResolvedValue(createNotFoundDailyRecordReadResult(date, 'missing')),
+      },
+      date,
+      true
+    )();
+    expect(phase(unconfirmed)).toBe('remote_record_bootstrapping');
     expect(phase({ ...confirmed, runtime: { ...confirmed.runtime, conflictSummary: null } })).toBe(
       'remote_record_bootstrapping'
     );
@@ -75,9 +86,10 @@ describe('absence evidence across local cache, Firebase and bootstrap', () => {
   it('rejects cached absence after failed revalidation until a successful read', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const reader = {
-      getForDateWithMeta: vi
-        .fn()
-        .mockResolvedValue(createNotFoundDailyRecordReadResult(date, 'missing')),
+      getForDateWithMeta: vi.fn().mockResolvedValue({
+        ...createNotFoundDailyRecordReadResult(date, 'missing'),
+        serverConfirmed: true,
+      }),
     };
     const options = {
       queryKey: getDailyRecordQueryKey(date),

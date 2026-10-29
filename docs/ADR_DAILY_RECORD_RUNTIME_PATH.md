@@ -17,6 +17,28 @@
 
 Realtime subscription, initial query, local recovery and sync telemetry must speak that same contract.
 
+`serverConfirmed` records whether the accepted read observed the server without pending SDK
+writes. Storage derives it from explicit snapshot metadata. Requesting a server read, receiving
+a record or selecting a remote source does not establish that evidence. Missing metadata and
+local-only producers default to false. A server-only read without that evidence fails.
+
+Cached data remains available, but cannot confirm a missing census or complete remote
+revalidation after inactivity. A metadata-only transition to a server snapshot can complete that
+check without changing the census. Retaining older query data does not renew its prior
+confirmation. A retained outbox projection remains local even when the server was consulted;
+that observation neither acknowledges its edits nor makes its content a confirmed remote record.
+
+`baseSource` preserves the origin of a query result before applying pending local fields.
+When absent, it is the same as `sourceOfTruth`. Query precedence keeps that origin when
+retaining data across a failed read, while the displayed projection remains local. This
+provenance does not establish freshness or acknowledge any pending field.
+
+An unconfirmed read cannot replace the patient/episode reference of an optimistic pending
+field. Query precedence retains the previous census until confirmation or resolution of that
+pending edit, including unconfirmed bed moves. The incoming read failure remains visible.
+This can defer unrelated updates from the same snapshot; it does not discard the pending edit
+or create another persistent copy. Compatible episode ID hydration remains allowed.
+
 ## Why
 
 The most fragile boundary in the app is the intersection of TanStack Query cache, realtime Firestore, IndexedDB fallback and sync recovery. When each layer inferred “record missing” on its own, transient nulls could look like a genuinely missing day.

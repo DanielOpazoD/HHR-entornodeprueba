@@ -44,9 +44,24 @@ describe('Offline Persistence Integration', () => {
     vi.mocked(firestoreService.getRecordFromFirestoreDetailed).mockImplementation(async date => {
       try {
         const record = await firestoreService.getRecordFromFirestore(date);
-        return record ? { status: 'resolved', record } : { status: 'missing', record: null };
+        return record
+          ? {
+              serverConfirmed: false,
+              status: 'resolved',
+              record,
+            }
+          : {
+              serverConfirmed: false,
+              status: 'missing',
+              record: null,
+            };
       } catch (error) {
-        return { status: 'failed', record: null, error };
+        return {
+          serverConfirmed: false,
+          status: 'failed',
+          record: null,
+          error,
+        };
       }
     });
   });

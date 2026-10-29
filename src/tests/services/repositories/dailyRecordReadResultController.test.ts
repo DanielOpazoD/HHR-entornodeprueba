@@ -60,6 +60,7 @@ describe('dailyRecordReadResultController', () => {
       goldenPath,
       createLocalRuntimeReadCandidate(local.date, local),
       {
+        serverConfirmed: false,
         record: remote,
         source: 'firestore',
         compatibilityTier: 'current_firestore',
@@ -105,6 +106,7 @@ describe('dailyRecordReadResultController', () => {
       goldenPath,
       createLocalRuntimeReadCandidate(local.date, local),
       {
+        serverConfirmed: false,
         record: remote,
         source: 'firestore',
         compatibilityTier: 'current_firestore',

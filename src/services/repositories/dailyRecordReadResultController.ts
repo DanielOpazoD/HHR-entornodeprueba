@@ -35,6 +35,7 @@ export const createLocalRuntimeReadResult = (
   options: Partial<
     Pick<
       DailyRecordReadResult,
+      | 'serverConfirmed'
       | 'consistencyState'
       | 'sourceOfTruth'
       | 'retryability'
@@ -54,6 +55,7 @@ export const createLocalRuntimeReadResult = (
     repairApplied: candidate.repairApplied,
   });
   return createDailyRecordReadResult(date, candidate.record, source, {
+    serverConfirmed: options.serverConfirmed ?? false,
     compatibilityTier: 'local_runtime',
     compatibilityIntensity: candidate.compatibilityIntensity,
     migrationRulesApplied: candidate.migrationRulesApplied,
@@ -71,13 +73,15 @@ export const createLocalRuntimeReadResult = (
 /** The stored projection that unsynced local writes hold; it is ahead of the remote copy. */
 export const createRetainedPendingProjectionReadResult = (
   date: string,
-  retainedRecord: DailyRecord
+  retainedRecord: DailyRecord,
+  serverConfirmed: boolean = false
 ): DailyRecordReadResult =>
   createLocalRuntimeReadResult(
     date,
     createLocalRuntimeReadCandidate(date, retainedRecord),
     'indexeddb',
     {
+      serverConfirmed,
       consistencyState: 'local_authoritative',
       retryability: 'automatic_retry',
       recoveryAction: 'defer_remote_sync',
@@ -92,6 +96,7 @@ export const createGoldenPathReadResult = (
   remoteReadResult?: DailyRecordRemoteLoadResult
 ): DailyRecordReadResult => {
   const metadata = {
+    serverConfirmed: remoteReadResult?.serverConfirmed ?? false,
     consistencyState: goldenPath.consistencyState,
     sourceOfTruth: goldenPath.sourceOfTruth,
     retryability: goldenPath.retryability,

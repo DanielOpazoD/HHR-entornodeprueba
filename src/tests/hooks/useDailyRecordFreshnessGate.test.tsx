@@ -105,6 +105,7 @@ describe('daily record remote freshness gate', () => {
     queryClient.setQueryData(
       getDailyRecordQueryKey(date),
       createDailyRecordQueryResult(localRecord, {
+        serverConfirmed: false,
         date,
         availabilityState: 'resolved',
         consistencyState: 'local_only',
@@ -145,6 +146,7 @@ describe('daily record remote freshness gate', () => {
     await act(async () => {
       resolveRemoteRead!(
         createDailyRecordReadResult(date, remoteRecord, 'firestore', {
+          serverConfirmed: true,
           consistencyState: 'remote_authoritative',
           sourceOfTruth: 'remote',
           retryability: 'not_applicable',
@@ -186,6 +188,7 @@ describe('daily record remote freshness gate', () => {
     const localRecord = DataFactory.createMockDailyRecord(date);
     vi.mocked(dailyRecord.getForDateWithMeta).mockResolvedValue(
       createDailyRecordReadResult(date, localRecord, 'indexeddb', {
+        serverConfirmed: false,
         consistencyState: 'local_authoritative',
         sourceOfTruth: 'local',
         retryability: 'automatic_retry',
@@ -256,6 +259,7 @@ describe('daily record remote freshness gate', () => {
 
     vi.mocked(dailyRecord.getForDateWithMeta).mockResolvedValue(
       createDailyRecordReadResult(date, remoteRecord, 'firestore', {
+        serverConfirmed: true,
         consistencyState: 'remote_authoritative',
         sourceOfTruth: 'remote',
         retryability: 'not_applicable',
@@ -284,6 +288,7 @@ describe('daily record remote freshness gate', () => {
     queryClient.setQueryData(
       getDailyRecordQueryKey(date),
       createDailyRecordQueryResult(localRecord, {
+        serverConfirmed: false,
         date,
         availabilityState: 'resolved',
         consistencyState: 'local_only',
@@ -348,6 +353,7 @@ describe('daily record remote freshness gate', () => {
       .fn()
       .mockResolvedValueOnce(
         createDailyRecordQueryResult(firstRemoteRecord, {
+          serverConfirmed: true,
           date,
           availabilityState: 'resolved',
           consistencyState: 'remote_authoritative',
@@ -361,6 +367,7 @@ describe('daily record remote freshness gate', () => {
       )
       .mockResolvedValueOnce(
         createDailyRecordQueryResult(secondRemoteRecord, {
+          serverConfirmed: true,
           date,
           availabilityState: 'resolved',
           consistencyState: 'remote_authoritative',
@@ -413,6 +420,7 @@ describe('daily record remote freshness gate', () => {
     };
     const queryFn = vi.fn().mockResolvedValue(
       createDailyRecordQueryResult(remoteRecord, {
+        serverConfirmed: true,
         date,
         availabilityState: 'resolved',
         consistencyState: 'remote_authoritative',
@@ -432,6 +440,7 @@ describe('daily record remote freshness gate', () => {
     queryClient.setQueryData(
       getDailyRecordQueryKey(date),
       createDailyRecordQueryResult(localRecord, {
+        serverConfirmed: false,
         date,
         availabilityState: 'resolved',
         consistencyState: 'local_only',

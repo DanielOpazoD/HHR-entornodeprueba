@@ -50,6 +50,7 @@ describe('daily record patch retry ownership', () => {
       },
     };
     const runtime = {
+      serverConfirmed: true,
       date,
       availabilityState: 'resolved',
       consistencyState: 'remote_authoritative',
@@ -138,6 +139,7 @@ describe('daily record patch retry ownership', () => {
     queryClient.setQueryData(
       getDailyRecordQueryKey(date),
       createDailyRecordQueryResult(record, {
+        serverConfirmed: true,
         date,
         availabilityState: 'resolved',
         consistencyState: 'remote_authoritative',

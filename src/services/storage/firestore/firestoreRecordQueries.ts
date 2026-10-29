@@ -49,6 +49,7 @@ const logFirestoreQueryError = (
 
 export interface FirestoreSingleRecordReadResult {
   status: 'resolved' | 'missing' | 'failed';
+  serverConfirmed: boolean;
   record: DailyRecord | null;
   error?: unknown;
 }
@@ -57,6 +58,9 @@ export interface FirestoreRecordSnapshotMetadata {
   hasPendingWrites: boolean;
   fromCache: boolean;
 }
+
+export const isServerConfirmedSnapshot = (metadata?: FirestoreRecordSnapshotMetadata): boolean =>
+  metadata?.fromCache === false && metadata.hasPendingWrites === false;
 
 interface FirestoreSingleRecordReadOptions {
   /** Bypasses local Firestore cache when an accepted write needs an authoritative readback. */
@@ -72,21 +76,30 @@ export const getRecordFromFirestoreDetailed = async (
     const docSnap =
       options.source === 'server' ? await getDocFromServer(docRef) : await getDoc(docRef);
 
+    const metadata = docSnap.metadata;
+    const serverConfirmed = isServerConfirmedSnapshot(metadata);
+    if (options.source === 'server' && !serverConfirmed) {
+      throw new Error(`Server confirmation unavailable for ${date}`);
+    }
+
     if (docSnap.exists()) {
       return {
         status: 'resolved',
+        serverConfirmed,
         record: docToRecord(docSnap.data(), date),
       };
     }
 
     return {
       status: 'missing',
+      serverConfirmed,
       record: null,
     };
   } catch (error) {
     logFirestoreQueryError('getRecord', error, { date });
     return {
       status: 'failed',
+      serverConfirmed: false,
       record: null,
       error,
     };

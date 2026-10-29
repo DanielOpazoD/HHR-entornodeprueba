@@ -22,6 +22,7 @@ const queryResult = (
 ): DailyRecordQueryResult => ({
   record,
   runtime: {
+    serverConfirmed: false,
     date: '2025-01-08',
     availabilityState: record ? 'resolved' : 'confirmed_missing',
     consistencyState: record ? 'local_only' : 'missing',
@@ -36,6 +37,25 @@ const queryResult = (
 });
 
 describe('confirmed cache ordering across query and subscription', () => {
+  it('does not give retained local data the remote base of a failed candidate', () => {
+    const local = DataFactory.createMockDailyRecord('2025-01-08', {
+      lastUpdated: '2025-01-08T10:20:00.000Z',
+    });
+    const retained = reconcileDailyRecordQueryResult(
+      queryResult(local, 'local'),
+      queryResult({ ...local }, 'local', {
+        baseSource: 'remote',
+        consistencyState: 'unavailable',
+        availabilityState: 'temporarily_unavailable',
+      })
+    );
+    expect(retained.record).toBe(local);
+    const remote = { ...local, lastUpdated: '2025-01-08T10:10:00.000Z' };
+    expect(reconcileDailyRecordQueryResult(retained, queryResult(remote, 'remote')).record).toBe(
+      remote
+    );
+  });
+
   it('requires the known confirmed revision to clear an outstanding authority failure', () => {
     const confirmed = {
       ...DataFactory.createMockDailyRecord('2025-01-08'),
@@ -70,6 +90,7 @@ describe('confirmed cache ordering across query and subscription', () => {
         subscribeDetailed: vi.fn((_date, callback) => {
           callback(
             {
+              serverConfirmed: false,
               date,
               outcome: 'blocked',
               record: { ...previous, lastUpdated: '2025-01-08T10:00:00.000Z' },
@@ -173,6 +194,7 @@ describe('confirmed cache ordering across query and subscription', () => {
     const postAckRead = createReconciledDailyRecordQueryFn(
       {
         getForDateWithMeta: vi.fn().mockResolvedValue({
+          serverConfirmed: false,
           date,
           record: confirmedRecord,
           source: 'indexeddb',
@@ -198,6 +220,7 @@ describe('confirmed cache ordering across query and subscription', () => {
 
     publishDelayedSubscription(
       {
+        serverConfirmed: true,
         date,
         outcome: 'clean',
         record: staleRecord,

@@ -49,6 +49,7 @@ const pendingEdit = (): DailyRecord => ({
 });
 const newerRemote = (): DailyRecord => ({ ...base(), lastUpdated: '2026-10-24T10:02:00.000Z' });
 const remoteLoad = (record: DailyRecord) => ({
+  serverConfirmed: true,
   record,
   source: 'firestore' as const,
   compatibilityTier: 'current_firestore' as const,

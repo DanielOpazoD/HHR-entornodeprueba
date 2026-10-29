@@ -143,6 +143,7 @@ describe('definitive bed clear confirmation', () => {
   });
 
   const buildReadResult = (record: DailyRecord | null) => ({
+    serverConfirmed: false,
     date: mockDate,
     record,
     source: record ? ('indexeddb' as const) : ('not_found' as const),

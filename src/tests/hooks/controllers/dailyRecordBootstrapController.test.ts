@@ -45,6 +45,7 @@ describe('dailyRecordBootstrapController', () => {
         remoteSyncStatus: 'ready',
         record: null,
         runtime: {
+          serverConfirmed: true,
           date: '2025-01-08',
           availabilityState: 'confirmed_missing',
           consistencyState: 'missing',
@@ -66,6 +67,7 @@ describe('dailyRecordBootstrapController', () => {
         remoteSyncStatus: 'local_only',
         record: null,
         runtime: {
+          serverConfirmed: true,
           date: '2025-01-08',
           availabilityState: 'confirmed_missing',
           consistencyState: 'missing',

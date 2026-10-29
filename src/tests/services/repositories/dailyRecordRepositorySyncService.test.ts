@@ -14,7 +14,8 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   ),
 }));
 
-vi.mock('@/services/storage/firestore/firestoreRecordQueries', () => ({
+vi.mock('@/services/storage/firestore/firestoreRecordQueries', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/storage/firestore/firestoreRecordQueries')>()),
   subscribeToRecord: vi.fn(),
 }));
 
@@ -167,7 +168,7 @@ describe('dailyRecordRepositorySyncService', () => {
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(localRecord);
 
     vi.mocked(subscribeToRecord).mockImplementationOnce((_date, callback) => {
-      void callback(remoteRecord, false);
+      void callback(remoteRecord, false, { fromCache: false, hasPendingWrites: false });
       return vi.fn();
     });
 
@@ -211,6 +212,7 @@ describe('dailyRecordRepositorySyncService', () => {
 
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(localRecord);
     vi.mocked(loadRemoteRecordWithFallback).mockResolvedValueOnce({
+      serverConfirmed: true,
       record: null,
     } as Awaited<ReturnType<typeof loadRemoteRecordWithFallback>>);
 
@@ -260,7 +262,7 @@ describe('dailyRecordRepositorySyncService', () => {
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(localRecord);
 
     vi.mocked(subscribeToRecord).mockImplementationOnce((_date, callback) => {
-      void callback(null, false);
+      void callback(null, false, { fromCache: false, hasPendingWrites: false });
       return vi.fn();
     });
 
@@ -283,7 +285,7 @@ describe('dailyRecordRepositorySyncService', () => {
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(localRecord);
 
     vi.mocked(subscribeToRecord).mockImplementationOnce((_date, callback) => {
-      void callback(null, false);
+      void callback(null, false, { fromCache: false, hasPendingWrites: false });
       return vi.fn();
     });
 

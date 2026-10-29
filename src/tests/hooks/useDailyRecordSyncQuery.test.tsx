@@ -137,6 +137,7 @@ describe('useDailyRecordSyncQuery', () => {
   });
 
   const buildReadResult = (record: DailyRecord | null) => ({
+    serverConfirmed: false,
     date: mockDate,
     record,
     source: record ? ('indexeddb' as const) : ('not_found' as const),
@@ -153,20 +154,12 @@ describe('useDailyRecordSyncQuery', () => {
   });
 
   const buildUnavailableReadResult = () => ({
-    date: mockDate,
-    record: null,
-    source: 'not_found' as const,
-    compatibilityTier: 'none' as const,
-    compatibilityIntensity: 'none' as const,
-    migrationRulesApplied: [],
+    ...buildReadResult(null),
     consistencyState: 'unavailable' as const,
-    sourceOfTruth: 'none' as const,
     retryability: 'automatic_retry' as const,
     recoveryAction: 'defer_remote_sync' as const,
-    conflictSummary: null,
     observabilityTags: ['daily_record', 'read', 'remote_unavailable'],
     userSafeMessage: 'No se pudo consultar el registro remoto.',
-    repairApplied: false,
   });
 
   it('should fetch the record on mount', async () => {
@@ -240,6 +233,7 @@ describe('useDailyRecordSyncQuery', () => {
     await act(async () =>
       remote.resolve({
         ...buildReadResult(null),
+        serverConfirmed: true,
         conflictSummary: { kind: 'remote_missing', sourceOfTruth: 'none' },
       })
     );

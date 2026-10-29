@@ -63,6 +63,7 @@ describe('daily record freshness gate full-bed move patches', () => {
 
     vi.mocked(dailyRecord.getForDateWithMeta).mockResolvedValue(
       createDailyRecordReadResult(date, remoteRecord, 'firestore', {
+        serverConfirmed: true,
         consistencyState: 'remote_authoritative',
         sourceOfTruth: 'remote',
         retryability: 'not_applicable',
@@ -91,6 +92,7 @@ describe('daily record freshness gate full-bed move patches', () => {
     queryClient.setQueryData(
       getDailyRecordQueryKey(date),
       createDailyRecordQueryResult(localRecord, {
+        serverConfirmed: false,
         date,
         availabilityState: 'resolved',
         consistencyState: 'local_only',

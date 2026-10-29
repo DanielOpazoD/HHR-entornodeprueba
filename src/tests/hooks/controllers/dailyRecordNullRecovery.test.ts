@@ -26,6 +26,7 @@ vi.mock('@/services/repositories/dailyRecordOperationalTelemetry', () => ({
 const date = '2025-01-08';
 const readResult = (record: DailyRecord | null) =>
   createDailyRecordReadResult(date, record, record ? 'indexeddb' : 'not_found', {
+    serverConfirmed: !record,
     conflictSummary: record ? null : { kind: 'remote_missing', sourceOfTruth: 'none' },
   });
 const recordAt = (hour: string) => ({
@@ -214,6 +215,7 @@ describe('null realtime recovery ownership', () => {
     const previous: DailyRecordQueryResult = {
       record,
       runtime: {
+        serverConfirmed: false,
         date,
         availabilityState: 'resolved',
         consistencyState: outcome === 'authoritative' ? 'local_only' : 'remote_authoritative',
@@ -267,8 +269,11 @@ describe('null realtime recovery ownership', () => {
                 userSafeMessage: 'Synthetic unavailable',
               }
             : outcome === 'confirmed_missing'
-              ? { conflictSummary: { kind: 'remote_missing', sourceOfTruth: 'none' } }
-              : {}
+              ? {
+                  serverConfirmed: true,
+                  conflictSummary: { kind: 'remote_missing', sourceOfTruth: 'none' },
+                }
+              : { serverConfirmed: true }
         )
       );
       await settle();

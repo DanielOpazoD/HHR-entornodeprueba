@@ -105,6 +105,7 @@ const mockRecord = DataFactory.createMockDailyRecord(mockDate, {
 });
 
 const buildReadResult = () => ({
+  serverConfirmed: false,
   date: mockDate,
   record: mockRecord,
   source: 'indexeddb' as const,

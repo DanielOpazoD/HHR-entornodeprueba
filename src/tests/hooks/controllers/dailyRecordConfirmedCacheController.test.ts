@@ -64,6 +64,7 @@ describe('dailyRecordConfirmedCacheController', () => {
     const subscribeDetailed = vi.fn((_date, callback) => {
       callback(
         {
+          serverConfirmed: true,
           date,
           outcome: 'clean',
           record: staleRecord,
@@ -330,6 +331,7 @@ describe('dailyRecordConfirmedCacheController', () => {
       queryFn: async () => ({
         record: await staleRead,
         runtime: {
+          serverConfirmed: false,
           date,
           availabilityState: 'resolved' as const,
           consistencyState: 'remote_authoritative' as const,
@@ -422,6 +424,7 @@ describe('dailyRecordConfirmedCacheController', () => {
       queryClient.setQueryData<DailyRecordQueryResult>(getDailyRecordQueryKey(date), {
         record: newerRealtimeRecord,
         runtime: {
+          serverConfirmed: true,
           date,
           availabilityState: 'resolved',
           consistencyState: 'remote_authoritative',

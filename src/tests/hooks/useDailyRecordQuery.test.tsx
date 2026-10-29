@@ -10,7 +10,9 @@ import { type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { queryClient as appQueryClient } from '@/config/queryClient';
 import {
+  getDailyRecordFreshnessStatus,
   markDailyRecordTabHidden,
+  markDailyRecordTabVisible,
   resetDailyRecordFreshnessGateForTests,
 } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
@@ -66,6 +68,29 @@ describe('useDailyRecordQuery', () => {
     vi.unstubAllEnvs();
   });
 
+  it('does not renew freshness when mounting a previously confirmed query cache', async () => {
+    const client = createTestQueryClient({ defaultOptions: appQueryClient.getDefaultOptions() });
+    const repository = buildMockDailyRecordRepository();
+    const confirmed = createDailyRecordReadResult(date, mockRecord, 'firestore', {
+      serverConfirmed: true,
+    });
+    const cached = await createDailyRecordQueryFn(
+      { getForDateWithMeta: vi.fn().mockResolvedValue(confirmed) },
+      date
+    )();
+    client.setQueryData(getDailyRecordQueryKey(date), cached);
+    vi.mocked(repository.getForDateWithMeta).mockImplementation(() => new Promise(() => {}));
+    markDailyRecordTabHidden(0);
+    markDailyRecordTabVisible(360_000);
+
+    const { result } = renderHook(() => useDailyRecordQuery(date, false, 'ready'), {
+      wrapper: createWrapper(repository, client),
+    });
+
+    expect(result.current.data).toEqual(mockRecord);
+    expect(getDailyRecordFreshnessStatus(date)).toBe('stale_due_to_inactivity');
+  });
+
   it('revalidates a fresh cached absence before allowing empty UI on a new visit', async () => {
     const client = createTestQueryClient({ defaultOptions: appQueryClient.getDefaultOptions() });
     const cached = await createDailyRecordQueryFn(
@@ -106,7 +131,9 @@ describe('useDailyRecordQuery', () => {
     expect(result.current.isFetching).toBe(true);
     expect(phases).not.toContain('confirmed_empty');
     await act(async () => {
-      release(createDailyRecordReadResult(date, mockRecord, 'firestore'));
+      release(
+        createDailyRecordReadResult(date, mockRecord, 'firestore', { serverConfirmed: true })
+      );
     });
     await waitFor(() => expect(result.current.data).toEqual(mockRecord));
     expect(phases).not.toContain('confirmed_empty');
@@ -133,7 +160,7 @@ describe('useDailyRecordQuery', () => {
         defaultOptions: appQueryClient.getDefaultOptions(),
       });
       vi.mocked(dailyRecord.getForDateWithMeta).mockResolvedValue(
-        createDailyRecordReadResult(date, mockRecord, 'firestore')
+        createDailyRecordReadResult(date, mockRecord, 'firestore', { serverConfirmed: true })
       );
       const { result, unmount } = renderHook(() => useDailyRecordQuery(date, false, 'ready'), {
         wrapper: createWrapper(dailyRecord, queryClient),
@@ -191,7 +218,7 @@ describe('useDailyRecordQuery', () => {
   it('subscribes to realtime updates only when remote sync is ready', async () => {
     const dailyRecord = buildMockDailyRecordRepository();
     vi.mocked(dailyRecord.getForDateWithMeta).mockResolvedValue(
-      createDailyRecordReadResult(date, mockRecord, 'firestore')
+      createDailyRecordReadResult(date, mockRecord, 'firestore', { serverConfirmed: true })
     );
 
     const { result } = renderHook(() => useDailyRecordQuery(date, false, 'ready'), {
@@ -215,7 +242,8 @@ describe('useDailyRecordQuery', () => {
       createDailyRecordReadResult(
         requestedDate,
         DataFactory.createMockDailyRecord(requestedDate),
-        'firestore'
+        'firestore',
+        { serverConfirmed: true }
       )
     );
     vi.mocked(dailyRecord.subscribeDetailed).mockImplementation(requestedDate => {
@@ -343,7 +371,8 @@ describe('useDailyRecordQuery', () => {
       createDailyRecordReadResult(
         requestedDate,
         DataFactory.createMockDailyRecord(requestedDate),
-        'firestore'
+        'firestore',
+        { serverConfirmed: true }
       )
     );
     const remoteReadsOf = (requestedDate: string) =>

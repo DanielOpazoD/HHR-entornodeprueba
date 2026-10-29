@@ -1,3 +1,4 @@
+import { createSyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { createDailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
@@ -371,13 +372,22 @@ describe('dailyRecordQueryController', () => {
       'beds.R1.specialty': 'Otorrino libre',
     });
 
-    const subscribe = vi.fn((_date, callback) => {
-      callback(incomingRecord, false);
+    const subscribeDetailed = vi.fn((_date, callback) => {
+      callback(
+        createSyncDailyRecordResult({
+          date: '2025-01-08',
+          record: incomingRecord,
+          outcome: 'clean',
+          consistencyState: 'remote_applied',
+          serverConfirmed: true,
+        }),
+        false
+      );
       return vi.fn();
     });
 
     createDailyRecordSubscription(
-      { getForDateWithMeta: vi.fn(), subscribe },
+      { getForDateWithMeta: vi.fn(), subscribeDetailed },
       '2025-01-08',
       queryClient
     );

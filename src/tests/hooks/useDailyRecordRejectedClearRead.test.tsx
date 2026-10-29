@@ -4,6 +4,7 @@ import { UIProvider } from '@/context/UIContext';
 import { useDailyRecordSyncQuery } from '@/hooks/useDailyRecordSyncQuery';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 import { getDailyRecordQueryKey } from '@/hooks/controllers/dailyRecordQueryController';
@@ -69,8 +70,9 @@ vi.mock('@/application/daily-record/syncDailyRecordUseCase', () => ({
 }));
 
 const mockDate = '2025-12-27';
-const buildReadResult = (record: DailyRecord) => ({
+const buildReadResult = (record: DailyRecord): DailyRecordReadResult => ({
   date: mockDate,
+  serverConfirmed: false,
   record,
   source: 'indexeddb' as const,
   compatibilityTier: 'none' as const,

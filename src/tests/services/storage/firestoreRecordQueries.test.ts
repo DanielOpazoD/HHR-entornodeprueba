@@ -1,8 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { firestoreQueryLoggerError, observeDailyRecordServerSnapshot } = vi.hoisted(() => ({
+const {
+  firestoreQueryLoggerError,
+  observeDailyRecordServerSnapshot,
+  readSnapshot,
+  readServerSnapshot,
+} = vi.hoisted(() => ({
   firestoreQueryLoggerError: vi.fn(),
   observeDailyRecordServerSnapshot: vi.fn(),
+  readSnapshot: vi.fn(),
+  readServerSnapshot: vi.fn(),
 }));
 
 vi.mock('@/services/storage/firestore/dailyRecordSizeTelemetry', () => ({
@@ -14,8 +21,8 @@ vi.mock('firebase/firestore', async () => {
   return {
     ...actual,
     doc: vi.fn(() => 'availability-doc-ref'),
-    getDoc: vi.fn(),
-    getDocFromServer: vi.fn(),
+    getDoc: readSnapshot,
+    getDocFromServer: readServerSnapshot,
     getDocs: vi.fn(),
     getDocsFromServer: vi.fn(),
     limit: vi.fn((count: number) => ({ limit: count })),
@@ -82,6 +89,61 @@ describe('firestoreRecordQueries', () => {
       .mockReset()
       .mockReturnValue('records-collection' as never);
   });
+
+  it.each([
+    { fromCache: true, hasPendingWrites: false, serverConfirmed: false },
+    { fromCache: true, hasPendingWrites: true, serverConfirmed: false },
+    { fromCache: false, hasPendingWrites: false, serverConfirmed: true },
+    { fromCache: false, hasPendingWrites: true, serverConfirmed: false },
+  ])(
+    'preserves server evidence for positive and missing reads: $fromCache / $hasPendingWrites',
+    async ({ fromCache, hasPendingWrites, serverConfirmed }) => {
+      for (const exists of [true, false]) {
+        readSnapshot.mockResolvedValueOnce({
+          exists: () => exists,
+          data: () => ({ beds: {} }),
+          metadata: { fromCache, hasPendingWrites },
+        });
+        await expect(getRecordFromFirestoreDetailed('2026-10-27')).resolves.toMatchObject({
+          status: exists ? 'resolved' : 'missing',
+          serverConfirmed,
+        });
+      }
+    }
+  );
+
+  it('does not invent server evidence when snapshot metadata is absent', async () => {
+    readSnapshot.mockResolvedValueOnce({ exists: () => true, data: () => ({ beds: {} }) });
+    await expect(getRecordFromFirestoreDetailed('2026-10-27')).resolves.toMatchObject({
+      status: 'resolved',
+      serverConfirmed: false,
+    });
+  });
+
+  it.each([
+    { metadata: { fromCache: false, hasPendingWrites: false }, serverConfirmed: true },
+    { metadata: { fromCache: false, hasPendingWrites: true }, serverConfirmed: false },
+    { metadata: { fromCache: true, hasPendingWrites: false }, serverConfirmed: false },
+    { metadata: { fromCache: false }, serverConfirmed: false },
+    { metadata: undefined, serverConfirmed: false },
+  ])(
+    'uses returned metadata rather than the requested server source: $metadata',
+    async ({ metadata, serverConfirmed }) => {
+      for (const exists of [true, false]) {
+        readServerSnapshot.mockResolvedValueOnce({
+          exists: () => exists,
+          data: () => ({ beds: {} }),
+          metadata,
+        });
+        await expect(
+          getRecordFromFirestoreDetailed('2026-10-27', { source: 'server' })
+        ).resolves.toMatchObject({
+          status: serverConfirmed ? (exists ? 'resolved' : 'missing') : 'failed',
+          serverConfirmed,
+        });
+      }
+    }
+  );
 
   it('traverses every server page with a snapshot cursor and a bounded limit', async () => {
     const docs = Array.from({ length: 20 }, (_, index) => ({
@@ -249,6 +311,7 @@ describe('firestoreRecordQueries', () => {
     await expect(getRecordFromFirestoreDetailed('2026-03-17')).resolves.toEqual({
       status: 'missing',
       record: null,
+      serverConfirmed: false,
     });
 
     vi.mocked(getDoc).mockRejectedValueOnce(new Error('denied'));
@@ -262,6 +325,7 @@ describe('firestoreRecordQueries', () => {
     vi.mocked(getDocFromServer).mockResolvedValueOnce({
       exists: () => true,
       data: () => ({ beds: {}, marker: 'server-confirmed' }),
+      metadata: { fromCache: false, hasPendingWrites: false },
     } as never);
 
     await expect(getRecordFromFirestore('2026-03-19', { source: 'server' })).resolves.toEqual({

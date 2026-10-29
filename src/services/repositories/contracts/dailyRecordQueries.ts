@@ -33,6 +33,7 @@ export type DailyRecordReadSource =
   | 'not_found';
 
 export interface DailyRecordReadResult {
+  serverConfirmed: boolean;
   date: string;
   record: DailyRecord | null;
   source: DailyRecordReadSource;
@@ -67,6 +68,8 @@ export type DailyRecordQueryAvailabilityState =
   | 'temporarily_unavailable';
 
 export interface DailyRecordQueryRuntime {
+  serverConfirmed: boolean;
+  baseSource?: DailyRecordSourceOfTruth;
   date: string;
   availabilityState: DailyRecordQueryAvailabilityState;
   consistencyState: DailyRecordReadConsistencyState | DailyRecordSyncConsistencyState;
@@ -130,6 +133,7 @@ export const createDailyRecordReadResult = (
   options: Partial<
     Pick<
       DailyRecordReadResult,
+      | 'serverConfirmed'
       | 'compatibilityTier'
       | 'compatibilityIntensity'
       | 'migrationRulesApplied'
@@ -155,6 +159,7 @@ export const createDailyRecordReadResult = (
     date,
     record,
     source,
+    serverConfirmed: options.serverConfirmed ?? false,
     compatibilityTier: options.compatibilityTier || 'none',
     compatibilityIntensity: options.compatibilityIntensity || 'none',
     migrationRulesApplied: options.migrationRulesApplied || [],
@@ -177,6 +182,7 @@ export const createDailyRecordQueryResult = (
   record,
   runtime: {
     ...runtime,
+    serverConfirmed: runtime.serverConfirmed ?? false,
     conflictSummary: runtime.conflictSummary || null,
     observabilityTags: Array.from(new Set(runtime.observabilityTags)),
     repairApplied: runtime.repairApplied || false,

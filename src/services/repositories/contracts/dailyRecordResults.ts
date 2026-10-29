@@ -98,6 +98,7 @@ type UpdatePartialDailyRecordResultInput = Pick<
   >;
 
 export interface SyncDailyRecordResult {
+  serverConfirmed: boolean;
   date: string;
   outcome: 'clean' | 'missing' | 'blocked';
   record: DailyRecord | null;
@@ -237,6 +238,7 @@ export const createSyncDailyRecordResult = (
   assertDate(input.date, 'sync result');
   return {
     ...input,
+    serverConfirmed: input.serverConfirmed ?? false,
     conflictSummary: input.conflictSummary || null,
     observabilityTags: Array.from(new Set(input.observabilityTags || ['daily_record', 'sync'])),
     repairApplied: input.repairApplied || false,
