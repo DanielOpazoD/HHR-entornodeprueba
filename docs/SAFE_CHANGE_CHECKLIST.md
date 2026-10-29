@@ -84,6 +84,14 @@ La clasificación remota `docs-only` se decide en CI; no forzar ni omitir checks
 
 ### Checklist de cierre
 
+El feedback de descarga de egreso, el contexto/orden del menú de movimientos,
+los valores ausentes explícitos y los controles equivalentes son `safe_local_ui`.
+Reutilizan estados y datos disponibles. Verificar descarga pendiente, fallo y
+reintento; contexto y callbacks del paciente correcto; vacíos sin mutar registros;
+altura de controles, foco y encaje con puntero normal/táctil, impresión y movimiento
+reducido. Validar pruebas focalizadas, build/budgets, revisión independiente y CI
+del SHA final. No ampliar límites para financiar la presentación.
+
 La respuesta visual del acceso, la apertura completa del menú de usuario y la
 alineación de altas/traslados del 29 octubre 2026 son `safe_local_ui`: conservan
 handlers, permisos, datos clínicos y fechas. Validar envío pendiente/error/reintento,
