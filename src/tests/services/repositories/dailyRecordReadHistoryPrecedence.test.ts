@@ -181,6 +181,49 @@ describe.each(readModes)('daily record history through %s reads and real cache h
     }
   );
 
+  it.each([baseTime, laterTime])(
+    'keeps remote review evidence while protecting a local narrative at %s',
+    async lastUpdated => {
+      const patient = DataFactory.createMockPatient('R1', {
+        patientName: 'SYNTHETIC PATIENT',
+        clinicalEpisodeId: 'synthetic-episode',
+        admissionDate: date,
+        handoffNote: 'SYNTHETIC LOCAL NARRATIVE WITH COMPLETE DETAILS',
+      });
+      await seed(record({ beds: { R1: patient }, rayenSyncHistory: [event()] }));
+      const expected = reviewedEvent();
+      const result = await read(
+        mode,
+        record({
+          lastUpdated,
+          beds: { R1: { ...patient, handoffNote: 'SHORT' } },
+          rayenSyncHistory: [expected],
+        })
+      );
+      for (const selected of [result.record, await reopen()]) {
+        expect(selected?.beds.R1.handoffNote).toBe(patient.handoffNote);
+        expect(selected?.rayenSyncHistory).toEqual([expected]);
+      }
+    }
+  );
+
+  it.each(['local', 'remote', 'both'] as const)(
+    'handles an absent %s history without losing the other source',
+    async absent => {
+      const localHistory = absent === 'local' || absent === 'both' ? undefined : [event()];
+      const remoteHistory =
+        absent === 'remote' || absent === 'both' ? undefined : [reviewedEvent()];
+      await seed(record({ rayenSyncHistory: localHistory }));
+      const result = await read(
+        mode,
+        record({ lastUpdated: laterTime, rayenSyncHistory: remoteHistory })
+      );
+      const expected = remoteHistory ?? localHistory ?? [];
+      expect(result.record?.rayenSyncHistory ?? []).toEqual(expected);
+      expect((await reopen())?.rayenSyncHistory ?? []).toEqual(expected);
+    }
+  );
+
   it('keeps a genuinely newer local terminal event over an older remote event', async () => {
     const terminal = event({ status: 'complete', completedAt: laterTime });
     await seed(record({ lastUpdated: laterTime, rayenSyncHistory: [terminal] }));
@@ -266,4 +309,27 @@ describe.each(readModes)('daily record history through %s reads and real cache h
       expect(await hospitalDB.syncQueue.toArray()).toEqual(outboxBefore);
     }
   );
+});
+
+it('keeps original audit source records and arrays unchanged', async () => {
+  await hospitalDB.open();
+  await hospitalDB.dailyRecords.clear();
+  await hospitalDB.syncQueue.clear();
+  const local = createLocalRuntimeReadCandidate(date, record({ rayenSyncHistory: [event()] }));
+  const remote = record({ lastUpdated: laterTime, rayenSyncHistory: [reviewedEvent()] });
+  const before = structuredClone([local.record, remote]);
+  try {
+    const result = await resolveRemoteGoldenPathReadResult({
+      date,
+      localCandidate: local,
+      remoteReadResult: remoteLoad(remote),
+      persistHydratedRecord: async value => value,
+    });
+    expect(result.record?.rayenSyncHistory).toEqual([reviewedEvent()]);
+    expect([local.record, remote]).toEqual(before);
+  } finally {
+    await hospitalDB.dailyRecords.clear();
+    await hospitalDB.syncQueue.clear();
+    hospitalDB.close();
+  }
 });
