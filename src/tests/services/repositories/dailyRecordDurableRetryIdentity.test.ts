@@ -11,6 +11,7 @@ import {
   releaseDailyRecordPreOutboxHold,
 } from '@/services/storage/sync';
 import { createFirestoreSyncTransport } from '@/services/storage/sync/firestoreSyncTransport';
+import { docToRecord } from '@/services/storage/firestore/firestoreShared';
 import { buildDailyRecordSyncContract } from '@/services/storage/sync/syncTaskContractPolicy';
 import { resetSyncMutationIdentityForTests } from '@/services/storage/sync/syncMutationIdentity';
 import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
@@ -204,7 +205,7 @@ describe('durable daily record retry identity', () => {
 
     expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
     expect(boundary.publish).toHaveBeenCalledTimes(1);
-    expect(await hospitalDB.dailyRecords.get(date)).toEqual(remote);
+    expect(await hospitalDB.dailyRecords.get(date)).toEqual(docToRecord(remote, date));
   });
 
   it('publishes uncommitted A on retry with the original identity', async () => {
@@ -225,7 +226,7 @@ describe('durable daily record retry identity', () => {
     await recover('lose_response', true);
 
     expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
-    expect(await hospitalDB.dailyRecords.get(date)).toEqual(remote);
+    expect(await hospitalDB.dailyRecords.get(date)).toEqual(docToRecord(remote, date));
     expect(boundary.publish).toHaveBeenCalledTimes(1);
   });
 

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { VersionMismatchError } from '@/utils/integrityGuard';
 
 vi.mock('@/services/storage/firestore/firestoreRecordQueries', () => ({
   getRecordFromFirestore: vi.fn(),
@@ -108,6 +109,60 @@ describe('dailyRecordRemoteWriteController', () => {
         origin: 'partial_update_retry',
       })
     );
+  });
+
+  it('reuses durable acceptance without enqueueing or claiming a remote confirmation', async () => {
+    vi.mocked(isRetryableSyncError).mockReturnValue(true);
+
+    const result = await resolveRemoteWriteRecovery(
+      '2026-04-16',
+      buildRecord('2026-04-16', '2026-04-16T12:00:00.000Z'),
+      ['*'],
+      new Error('network down'),
+      '2026-04-16T11:00:00.000Z',
+      true,
+      true
+    );
+
+    expect(result).toMatchObject({
+      status: 'queued_for_retry',
+      queuedForRetry: true,
+      autoMerged: false,
+      decision: {
+        consistencyState: 'queued_for_retry',
+        userSafeMessage:
+          'Los cambios se guardaron localmente y quedaron pendientes de sincronización.',
+      },
+    });
+    expect(result).not.toHaveProperty('confirmedRecord');
+    expect(queueDailyRecordSyncTaskWithLocalRecord).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { error: new VersionMismatchError('Synthetic version mismatch'), kind: 'version_mismatch' },
+    {
+      error: Object.assign(new Error('Synthetic conflict'), { name: 'ConcurrencyError' }),
+      kind: 'concurrency',
+    },
+  ])('preserves $kind despite prior durable acceptance', async ({ error, kind }) => {
+    vi.mocked(isRetryableSyncError).mockReturnValue(true);
+    const result = await resolveRemoteWriteRecovery(
+      '2026-04-16',
+      buildRecord('2026-04-16', '2026-04-16T12:00:00.000Z'),
+      ['*'],
+      error,
+      undefined,
+      false,
+      true
+    );
+
+    expect(result).toMatchObject({
+      status: 'throw',
+      error,
+      queuedForRetry: false,
+      decision: { conflictSummary: { kind } },
+    });
+    expect(queueDailyRecordSyncTaskWithLocalRecord).not.toHaveBeenCalled();
   });
 
   describe('patient-erasure guard', () => {

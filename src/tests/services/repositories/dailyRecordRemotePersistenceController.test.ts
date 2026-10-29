@@ -416,7 +416,8 @@ describe('dailyRecordRemotePersistenceController', () => {
       ['beds.R1.patientName'],
       remoteError,
       '2026-05-23T10:00:00.000Z',
-      true
+      true,
+      false
     );
     expect(state.consistencyState).toBe('unrecoverable');
     expect(state.blockingError).toBe(blockingError);
@@ -459,6 +460,7 @@ describe('dailyRecordRemotePersistenceController', () => {
       ['discharges', 'cma'],
       remoteError,
       '2026-05-23T10:00:00.000Z',
+      false,
       false
     );
   });

@@ -39,7 +39,7 @@ export const createDailyRecordSyncQueueActions = ({
     try {
       await ensureReady();
       const key = getSyncTaskKey('UPDATE_DAILY_RECORD', record);
-      return key ? action(key) : false;
+      return key ? await action(key) : false;
     } catch (error) {
       onError(error);
       return false;
@@ -112,13 +112,16 @@ export const createDailyRecordSyncQueueActions = ({
     runPendingAction(
       record,
       syncContract,
-      key =>
-        store.releasePreOutboxHoldByKey(
+      async key => {
+        const released = await store.releasePreOutboxHoldByKey(
           'UPDATE_DAILY_RECORD',
           key,
           getOwnerKey(),
           syncContract?.mutationId
-        ),
+        );
+        if (released) triggerProcessing();
+        return released;
+      },
       error => logger.warn('Failed to release pre-outbox hold', error)
     );
 

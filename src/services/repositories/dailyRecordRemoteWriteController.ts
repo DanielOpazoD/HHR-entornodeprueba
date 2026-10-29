@@ -118,7 +118,8 @@ export const resolveRemoteWriteRecovery = async (
   changedPaths: string[],
   error: unknown,
   expectedVersion?: string,
-  allowConflictAutoMerge: boolean = true
+  allowConflictAutoMerge: boolean = true,
+  localWriteAlreadyQueued: boolean = false
 ): Promise<RemoteWriteRecoveryResult> => {
   const effectiveChangedPaths = resolveEffectiveChangedPaths(changedPaths);
   const conflictSummary = (kind: DailyRecordConflictSummary['kind'], message: string) =>
@@ -141,10 +142,12 @@ export const resolveRemoteWriteRecovery = async (
   }
 
   if (shouldQueueRetryableError(error)) {
-    const queued = await queueRecoveryTask(
-      record,
-      buildRecoveryTaskMeta(changedPaths, resolveRetryOrigin(changedPaths), expectedVersion)
-    );
+    const queued =
+      localWriteAlreadyQueued ||
+      (await queueRecoveryTask(
+        record,
+        buildRecoveryTaskMeta(changedPaths, resolveRetryOrigin(changedPaths), expectedVersion)
+      ));
     return resolveQueuedRetryRecoveryResult(
       queued,
       conflictSummary(
