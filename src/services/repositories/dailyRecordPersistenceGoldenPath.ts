@@ -26,6 +26,8 @@ export type DailyRecordRemoteAvailability =
 interface ResolveDailyRecordPersistenceGoldenPathInput {
   localRecord: DailyRecord | null;
   remoteRecord: DailyRecord | null;
+  /** Original audit source, before remoteRecord may be clinically merged. */
+  remoteHistorySource?: Pick<DailyRecord, 'lastUpdated' | 'rayenSyncHistory'>;
   remoteAvailability: DailyRecordRemoteAvailability;
   localRepairApplied?: boolean;
   remoteRepairApplied?: boolean;
@@ -92,6 +94,7 @@ export const hasRemoteClinicalTextShrinkage = (
 export const resolveDailyRecordPersistenceGoldenPath = ({
   localRecord,
   remoteRecord,
+  remoteHistorySource = remoteRecord ?? undefined,
   remoteAvailability,
   localRepairApplied = false,
   remoteRepairApplied = false,
@@ -106,21 +109,24 @@ export const resolveDailyRecordPersistenceGoldenPath = ({
         : localRecord && remoteRecord && shouldKeepLocalRecordOverRemote(localRecord, remoteRecord)
           ? resolveDailyRecordConflict(remoteRecord, localRecord)
           : resolvePreferredDailyRecord(localRecord, remoteRecord);
-  // With equal revisions, Firestore is authoritative for an existing audit event. The generic
-  // conflict merge prefers local on ties, which can retain a stale version of that same run.
-  const candidateRecord =
+  let candidateRecord = baseCandidateRecord;
+  if (
     baseCandidateRecord &&
     localRecord &&
     remoteRecord &&
-    toRecordTimestamp(localRecord.lastUpdated) === toRecordTimestamp(remoteRecord.lastUpdated)
-      ? {
-          ...baseCandidateRecord,
-          rayenSyncHistory: mergeRayenSyncHistory(
-            localRecord.rayenSyncHistory,
-            remoteRecord.rayenSyncHistory
-          ),
-        }
-      : baseCandidateRecord;
+    remoteHistorySource &&
+    remoteAvailability === 'resolved'
+  ) {
+    const localHistoryIsNewer =
+      toRecordTimestamp(localRecord.lastUpdated) >
+      toRecordTimestamp(remoteHistorySource.lastUpdated);
+    const history = mergeRayenSyncHistory(
+      (localHistoryIsNewer ? remoteHistorySource : localRecord).rayenSyncHistory,
+      (localHistoryIsNewer ? localRecord : remoteHistorySource).rayenSyncHistory
+    );
+    if (JSON.stringify(baseCandidateRecord.rayenSyncHistory ?? []) !== JSON.stringify(history))
+      candidateRecord = { ...baseCandidateRecord, rayenSyncHistory: history };
+  }
   const clinicalConsistency = candidateRecord
     ? applyDailyRecordClinicalConsistencyCheck(candidateRecord, {
         date: candidateRecord.date,
@@ -163,9 +169,9 @@ export const resolveDailyRecordPersistenceGoldenPath = ({
   // selected event, including review details, so a later local read cannot hide server evidence.
   const remoteAuditAdvanced = Boolean(
     localRecord &&
-      remoteRecord &&
-      JSON.stringify(selectedRecord?.rayenSyncHistory ?? []) !==
-        JSON.stringify(localRecord.rayenSyncHistory ?? [])
+    remoteRecord &&
+    JSON.stringify(selectedRecord?.rayenSyncHistory ?? []) !==
+      JSON.stringify(localRecord.rayenSyncHistory ?? [])
   );
 
   return {

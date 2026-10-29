@@ -55,6 +55,7 @@ export const resolveRemoteGoldenPathReadResult = async ({
   const goldenPath = resolveDailyRecordPersistenceGoldenPath({
     localRecord: localCandidate?.record || null,
     remoteRecord: effectiveRemoteReadResult.record,
+    remoteHistorySource: remoteReadResult.record ?? undefined,
     remoteAvailability: effectiveRemoteReadResult.record
       ? 'resolved'
       : effectiveRemoteReadResult.serverConfirmed

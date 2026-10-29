@@ -224,6 +224,52 @@ describe.each(readModes)('daily record history through %s reads and real cache h
     }
   );
 
+  it.each([undefined, [reviewedEvent()]])(
+    'preserves remote consistency when the selected audit does not change (%j)',
+    async history => {
+      await seed(record({ rayenSyncHistory: history }));
+      const result = await read(
+        mode,
+        record({ lastUpdated: laterTime, rayenSyncHistory: history })
+      );
+      expect(result.sourceOfTruth).toBe('remote');
+      expect(result.consistencyState).toBe(
+        mode === 'ordinary' ? 'remote_authoritative' : 'remote_applied'
+      );
+      expect(result.conflictSummary?.kind).toBe('hydrated_from_remote');
+      expect(result.serverConfirmed).toBe(true);
+    }
+  );
+
+  it('keeps the selected version and active run reference at the history limit', async () => {
+    const runs = Array.from({ length: 20 }, (_, index) =>
+      event({
+        id: `bounded-${index}`,
+        startedAt: `2026-10-26T09:${String(index).padStart(2, '0')}:00.000Z`,
+      })
+    );
+    const current = reviewedEvent();
+    current.id = 'active-run';
+    current.startedAt = '2026-10-26T09:59:00.000Z';
+    const old = event({ id: current.id, startedAt: '2026-10-26T08:00:00.000Z' });
+    const meta = { at: baseTime, by: 'SYNTHETIC', runId: current.id };
+    await seed(record({ rayenSync: meta, rayenSyncHistory: [old, runs[19]] }));
+    const result = await read(
+      mode,
+      record({
+        lastUpdated: laterTime,
+        rayenSync: meta,
+        rayenSyncHistory: [current, ...runs.slice(0, 19)],
+      })
+    );
+    for (const selected of [result.record, await reopen()]) {
+      expect(selected?.rayenSyncHistory).toHaveLength(20);
+      expect(selected?.rayenSyncHistory?.[0]).toEqual(current);
+      expect(selected?.rayenSync?.runId).toBe(current.id);
+      expect(selected?.rayenSyncHistory?.find(run => run.id === current.id)).toEqual(current);
+    }
+  });
+
   it('keeps a genuinely newer local terminal event over an older remote event', async () => {
     const terminal = event({ status: 'complete', completedAt: laterTime });
     await seed(record({ lastUpdated: laterTime, rayenSyncHistory: [terminal] }));
@@ -279,6 +325,33 @@ describe.each(readModes)('daily record history through %s reads and real cache h
     expect((await reopen())?.beds.R1.pathology).toBe('Puérpera');
   });
 
+  it('keeps a retired backup without reviving its send or changing the remote snapshot', async () => {
+    const localAudit = event({ id: 'local-retired-trace' });
+    const local = record({ rayenSyncHistory: [localAudit] });
+    await seed(local);
+    await hospitalDB.syncQueue.add({
+      opId: 'synthetic-retired-write',
+      type: 'UPDATE_DAILY_RECORD',
+      key: `daily:${date}`,
+      payload: local,
+      timestamp: Date.parse(baseTime),
+      retryCount: 1,
+      status: 'RETIRED',
+      retirement: { reason: 'manual_discard', retiredAt: baseTime, previousStatus: 'CONFLICT' },
+      syncContract: { expectedVersion: baseTime, changedPaths: ['rayenSyncHistory'] },
+    });
+    const backup = await hospitalDB.syncQueue.toArray();
+    const remote = record({ lastUpdated: laterTime, rayenSyncHistory: [reviewedEvent()] });
+    const result = await read(mode, remote);
+    expect(result.record?.rayenSyncHistory?.map(item => item.id)).toEqual([
+      'local-retired-trace',
+      'synthetic-run',
+    ]);
+    expect(remote.rayenSyncHistory).toEqual([reviewedEvent()]);
+    expect(await hospitalDB.syncQueue.toArray()).toEqual(backup);
+    expect((await reopen())?.rayenSyncHistory).toEqual(result.record?.rayenSyncHistory);
+  });
+
   it.each(unresolvedStates)(
     'retains the pending projection and outbox in state %s',
     async status => {
@@ -318,6 +391,16 @@ it('keeps original audit source records and arrays unchanged', async () => {
   const local = createLocalRuntimeReadCandidate(date, record({ rayenSyncHistory: [event()] }));
   const remote = record({ lastUpdated: laterTime, rayenSyncHistory: [reviewedEvent()] });
   const before = structuredClone([local.record, remote]);
+  for (const source of [local.record, remote]) {
+    Object.freeze(source);
+    if (source.rayenSyncHistory) {
+      Object.freeze(source.rayenSyncHistory);
+      for (const item of source.rayenSyncHistory) {
+        Object.freeze(item);
+        if (item.structuralReview) Object.freeze(item.structuralReview);
+      }
+    }
+  }
   try {
     const result = await resolveRemoteGoldenPathReadResult({
       date,
