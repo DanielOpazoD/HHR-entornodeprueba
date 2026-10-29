@@ -27,15 +27,19 @@ describe('UserMenu', () => {
     expect(button.textContent).toBe('d');
   });
 
-  it('shows dropdown when button is clicked', async () => {
+  it('shows the complete menu on the first click without an intermediate logout-only panel', async () => {
     render(<UserMenu {...defaultProps} />);
 
     fireEvent.click(screen.getByRole('button'));
-    await screen.findByTestId('user-profile-menu-panel');
 
+    expect(screen.queryByRole('button', { name: 'Cerrar sesión' })).not.toBeInTheDocument();
+    await screen.findByTestId('user-profile-menu-panel');
+    expect(screen.getByTestId('user-profile-menu-panel')).toBeVisible();
     expect(screen.getByText('doctor@hospital.cl')).toBeInTheDocument();
     expect(screen.getByText('Invitado')).toBeInTheDocument();
     expect(screen.getByText('Online')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cambiar foto de perfil' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeVisible();
   });
 
   it('displays role correctly', async () => {

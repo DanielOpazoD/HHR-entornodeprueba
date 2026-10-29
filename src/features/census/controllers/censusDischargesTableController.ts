@@ -1,17 +1,9 @@
 import type { DischargeData } from '@/features/census/contracts/censusMovementContracts';
-import type { CensusMovementTableHeader } from '@/features/census/types/censusMovementTableTypes';
+import { buildCensusMovementTableHeaders } from './censusMovementTableHeaders';
 import { buildMovementRowActions } from '@/features/census/controllers/censusMovementRowActionsController';
 import { canReclassifyHomeDischarge } from '@/application/census/movementTypeConversionPolicy';
 
-export const DISCHARGES_TABLE_HEADERS: readonly CensusMovementTableHeader[] = [
-  { label: 'Cama' },
-  { label: 'Paciente' },
-  { label: 'Diagnóstico' },
-  { label: 'Tipo Alta' },
-  { label: 'Estado' },
-  { label: 'Fecha', className: 'text-center' },
-  { label: 'Acciones', className: 'text-right print:hidden' },
-] as const;
+export const DISCHARGES_TABLE_HEADERS = buildCensusMovementTableHeaders(['Tipo Alta', 'Estado']);
 
 export const getDischargeStatusBadgeClassName = (status: DischargeData['status']): string => {
   return status === 'Fallecido' ? 'bg-black text-white' : 'bg-green-100 text-green-700';

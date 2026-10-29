@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapSeededRecord, buildCanonicalE2ERecord, clearAuth } from './fixtures/auth';
 import type { SyncTask } from '../src/services/storage/syncQueueTypes';
+import { installPreviewFirebaseRuntime } from './fixtures/previewFirebase';
 
 const expectLoginError = async (page: Page, code: string) => {
   const alertByTestId = page.getByTestId('login-error-alert');
@@ -69,6 +70,7 @@ const expectLoginIdle = async (page: Page) => {
 
 test.describe('Auth login resilience matrix', () => {
   test.beforeEach(async ({ page }) => {
+    await installPreviewFirebaseRuntime(page);
     await page.addInitScript(() => {
       window.localStorage.setItem('hhr_e2e_force_popup', 'true');
     });
@@ -122,6 +124,79 @@ test.describe('Auth login resilience matrix', () => {
     } finally {
       releaseModule();
       await page.unroute('**/*LoginPage*');
+    }
+  });
+
+  test('shows stable RUT loading feedback until rejection and permits retry', async ({
+    page,
+  }, testInfo) => {
+    let finish = () => {};
+    const reply = new Promise<void>(resolve => {
+      finish = resolve;
+    });
+    let calls = 0;
+    await page.route('https://*.cloudfunctions.net/**', async route => {
+      const headers = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      };
+      if (route.request().method() === 'OPTIONS') {
+        await route.fulfill({ status: 204, headers });
+        return;
+      }
+      if (!new URL(route.request().url()).pathname.includes('signInWithRut')) {
+        await route.abort();
+        return;
+      }
+      calls += 1;
+      await reply;
+      await route.fulfill({
+        status: 403,
+        headers,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          error: { status: 'PERMISSION_DENIED', message: 'Acceso sintético rechazado.' },
+        }),
+      });
+    });
+    try {
+      const form = page.getByRole('form', { name: 'Ingreso con usuario y contraseña' });
+      const username = page.getByLabel('Usuario', { exact: true });
+      const password = page.getByLabel('Contraseña', { exact: true });
+      await username.fill('111111111');
+      await password.fill('Synthetic example 1');
+      const before = await form.boundingBox();
+      await password.press('Enter');
+      const status = page.getByRole('status').filter({ hasText: 'Validando tu acceso' });
+      await expect(status).toBeVisible();
+      await expect(form).toHaveAttribute('aria-busy', 'true');
+      await expect(username).toBeDisabled();
+      await expect(page.getByTestId('login-google-button')).toBeDisabled();
+      await expect.poll(() => calls).toBe(1);
+      expect(await form.boundingBox()).toEqual(before);
+      for (const width of [1366, 375]) {
+        await page.setViewportSize({ width, height: 768 });
+        await expect(status).toBeInViewport({ ratio: 1 });
+        await testInfo.attach('rut-loading-' + width, {
+          body: await page.screenshot(),
+          contentType: 'image/png',
+        });
+      }
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      expect(
+        await status.locator('svg').evaluate(element => getComputedStyle(element).animationName)
+      ).toBe('none');
+      finish();
+      await expect(form.getByRole('alert')).toBeVisible();
+      await expect(status).toHaveCount(0);
+      await expect(username).toBeEnabled();
+      await expect(password).toHaveValue('Synthetic example 1');
+      await password.press('Enter');
+      await expect.poll(() => calls).toBe(2);
+      await expect(page.getByRole('button', { name: 'Ingresar', exact: true })).toBeEnabled();
+    } finally {
+      finish();
     }
   });
 
