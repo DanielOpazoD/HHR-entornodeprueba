@@ -94,14 +94,14 @@ const expectSyncContract = (expectedVersion: string, changedPaths: string[]) =>
 
 const expectDurableRetry = (expectedVersion: string, paths: string[], remoteCallOrder: number) => {
   expect(queueSyncTask).toHaveBeenCalledOnce();
-  const [record, metadata] = vi.mocked(queueSyncTask).mock.calls[0];
+  const [record, metadata = {}] = vi.mocked(queueSyncTask).mock.calls[0];
   expect(metadata).toEqual(expectSyncContract(expectedVersion, paths));
   expect(metadata.syncContract?.mutationId).toEqual(expect.any(String));
   expect(releaseDailyRecordPreOutboxHold).toHaveBeenCalledExactlyOnceWith(
     record,
     metadata.syncContract
   );
-  expect(queueSyncTask.mock.invocationCallOrder[0]).toBeLessThan(remoteCallOrder);
+  expect(vi.mocked(queueSyncTask).mock.invocationCallOrder[0]).toBeLessThan(remoteCallOrder);
   expect(ackDailyRecordSyncTask).not.toHaveBeenCalled();
 };
 
