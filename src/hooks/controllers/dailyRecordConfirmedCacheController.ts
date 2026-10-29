@@ -18,6 +18,7 @@ import {
 
 const createProjectionRuntime = (date: string, remote: boolean): DailyRecordQueryRuntime => ({
   date,
+  serverConfirmed: true,
   availabilityState: 'resolved',
   consistencyState: remote ? 'remote_authoritative' : 'local_only',
   sourceOfTruth: remote ? 'remote' : 'local',
@@ -89,7 +90,7 @@ export const setAcknowledgedDailyRecordQueryData = async (
           !retainedProjection &&
           cachedRecord?.lastUpdated === displayRecord.lastUpdated))
     ) {
-      return { ...previous, record };
+      return { ...previous, record, runtime: { ...previous.runtime, serverConfirmed: true } };
     }
     return createDailyRecordQueryResult(
       record,

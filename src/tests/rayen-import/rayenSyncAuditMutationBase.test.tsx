@@ -59,6 +59,7 @@ const record = (history: RayenSyncEvent[]): DailyRecord => ({
 });
 const queryResult = (value: DailyRecord | null) =>
   createDailyRecordQueryResult(value, {
+    serverConfirmed: false,
     date,
     availabilityState: 'resolved',
     consistencyState: 'local_only',
@@ -199,7 +200,7 @@ describe('Rayen audit through the query mutation and durable outbox', () => {
     await hospitalDB.dailyRecords.put(fresh);
     const { hook, dailyRecord } = mountTab(stale, stale);
     dailyRecord.getForDateWithMeta.mockResolvedValue(
-      createDailyRecordReadResult(date, fresh, 'firestore')
+      createDailyRecordReadResult(date, fresh, 'firestore', { serverConfirmed: true })
     );
     markDailyRecordTabHidden(0);
     markDailyRecordTabVisible(6 * 60 * 1000);

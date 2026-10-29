@@ -183,6 +183,7 @@ export const getForDateWithMeta = async (
           localCandidate,
           remoteReadResult: {
             record: e2eOverride,
+            serverConfirmed: true,
             source: 'firestore',
             compatibilityTier: 'current_firestore',
             compatibilityIntensity: 'none',

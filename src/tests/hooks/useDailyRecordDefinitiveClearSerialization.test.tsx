@@ -138,6 +138,7 @@ describe('definitive bed clear serialization', () => {
   });
 
   const buildReadResult = (record: DailyRecord | null) => ({
+    serverConfirmed: false,
     date: mockDate,
     record,
     source: record ? ('indexeddb' as const) : ('not_found' as const),

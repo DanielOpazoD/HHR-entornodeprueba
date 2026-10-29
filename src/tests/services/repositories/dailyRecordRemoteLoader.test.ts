@@ -18,6 +18,7 @@ describe('dailyRecordRemoteLoader', () => {
 
   it('returns firestore metadata when the primary remote record exists', async () => {
     vi.mocked(getRecordFromFirestoreDetailed).mockResolvedValue({
+      serverConfirmed: true,
       status: 'resolved',
       record: DataFactory.createMockDailyRecord(date, { schemaVersion: 1 }),
     });
@@ -33,6 +34,7 @@ describe('dailyRecordRemoteLoader', () => {
 
   it('returns not_found metadata when neither remote source has data', async () => {
     vi.mocked(getRecordFromFirestoreDetailed).mockResolvedValue({
+      serverConfirmed: false,
       status: 'missing',
       record: null,
     });
@@ -50,6 +52,7 @@ describe('dailyRecordRemoteLoader', () => {
   it('deduplicates concurrent remote loads for the same date', async () => {
     let resolveRemote:
       | ((value: {
+          serverConfirmed: boolean;
           status: 'resolved';
           record: ReturnType<typeof DataFactory.createMockDailyRecord>;
         }) => void)
@@ -70,6 +73,7 @@ describe('dailyRecordRemoteLoader', () => {
     }
 
     resolveRemote({
+      serverConfirmed: true,
       status: 'resolved',
       record: DataFactory.createMockDailyRecord(date),
     });
@@ -83,6 +87,7 @@ describe('dailyRecordRemoteLoader', () => {
   it('does not let a cached read satisfy a concurrent server-authoritative read', async () => {
     const resolvers: Array<
       (value: {
+        serverConfirmed: boolean;
         status: 'resolved';
         record: ReturnType<typeof DataFactory.createMockDailyRecord>;
       }) => void
@@ -104,15 +109,23 @@ describe('dailyRecordRemoteLoader', () => {
     expect(getRecordFromFirestoreDetailed).toHaveBeenNthCalledWith(2, date, {
       source: 'server',
     });
-    resolvers.forEach(resolve =>
-      resolve({ status: 'resolved', record: DataFactory.createMockDailyRecord(date) })
+    resolvers.forEach((resolve, index) =>
+      resolve({
+        serverConfirmed: index === 1,
+        status: 'resolved',
+        record: DataFactory.createMockDailyRecord(date),
+      })
     );
 
-    await expect(Promise.all([cachedRead, serverRead])).resolves.toHaveLength(2);
+    await expect(Promise.all([cachedRead, serverRead])).resolves.toMatchObject([
+      { serverConfirmed: false },
+      { serverConfirmed: true },
+    ]);
   });
 
   it('does not consult legacy storage in the hot path anymore', async () => {
     vi.mocked(getRecordFromFirestoreDetailed).mockResolvedValue({
+      serverConfirmed: false,
       status: 'missing',
       record: null,
     });
@@ -125,6 +138,7 @@ describe('dailyRecordRemoteLoader', () => {
 
   it('propagates failed remote reads so the repository can mark them unavailable', async () => {
     vi.mocked(getRecordFromFirestoreDetailed).mockResolvedValue({
+      serverConfirmed: false,
       status: 'failed',
       record: null,
       error: new Error('permission-denied'),

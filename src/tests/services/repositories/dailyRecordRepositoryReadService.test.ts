@@ -101,6 +101,7 @@ describe('dailyRecordRepositoryReadService', () => {
 
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(local);
     vi.mocked(loadRemoteRecordWithFallback).mockResolvedValueOnce({
+      serverConfirmed: false,
       record: remote,
       source: 'firestore',
       compatibilityTier: 'current_firestore',
@@ -147,6 +148,7 @@ describe('dailyRecordRepositoryReadService', () => {
     } as unknown as DailyRecord['beds'];
 
     vi.mocked(loadRemoteRecordWithFallback).mockResolvedValueOnce({
+      serverConfirmed: false,
       record: remote,
       source: 'firestore',
       compatibilityTier: 'current_firestore',
@@ -256,6 +258,7 @@ describe('dailyRecordRepositoryReadService', () => {
 
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(local);
     vi.mocked(loadRemoteRecordWithFallback).mockResolvedValueOnce({
+      serverConfirmed: false,
       record: remote,
       source: 'firestore',
       compatibilityTier: 'current_firestore',
@@ -317,6 +320,7 @@ describe('dailyRecordRepositoryReadService', () => {
 
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(local);
     vi.mocked(loadRemoteRecordWithFallback).mockResolvedValueOnce({
+      serverConfirmed: false,
       record: remote,
       source: 'firestore',
       compatibilityTier: 'current_firestore',
@@ -352,6 +356,7 @@ describe('dailyRecordRepositoryReadService', () => {
 
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(local);
     vi.mocked(loadRemoteRecordWithFallback).mockResolvedValueOnce({
+      serverConfirmed: false,
       record: remote,
       source: 'firestore',
       compatibilityTier: 'current_firestore',
@@ -433,6 +438,7 @@ describe('dailyRecordRepositoryReadService', () => {
   it('returns an explicit missing result when neither local nor remote has the record', async () => {
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(null);
     vi.mocked(loadRemoteRecordWithFallback).mockResolvedValueOnce({
+      serverConfirmed: true,
       record: null,
       source: 'not_found',
       compatibilityTier: 'none',

@@ -82,6 +82,7 @@ describe('CIE-10 Copy Bug Reproduction', () => {
     });
     vi.mocked(FirestoreRecordQueries.getRecordFromFirestore).mockResolvedValue(null);
     vi.mocked(FirestoreRecordQueries.getRecordFromFirestoreDetailed).mockResolvedValue({
+      serverConfirmed: false,
       status: 'missing',
       record: null,
     });
@@ -173,6 +174,7 @@ describe('CIE-10 Copy Bug Reproduction', () => {
     });
     vi.mocked(FirestoreRecordQueries.getRecordFromFirestore).mockResolvedValue(null);
     vi.mocked(FirestoreRecordQueries.getRecordFromFirestoreDetailed).mockResolvedValue({
+      serverConfirmed: false,
       status: 'missing',
       record: null,
     });

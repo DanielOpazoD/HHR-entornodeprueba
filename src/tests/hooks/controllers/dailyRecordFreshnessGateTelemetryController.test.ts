@@ -90,6 +90,7 @@ describe('dailyRecordFreshnessGate clinical input block telemetry', () => {
         queryFn: () =>
           Promise.resolve(
             createDailyRecordQueryResult(record, {
+              serverConfirmed: false,
               date,
               availabilityState: 'temporarily_unavailable',
               consistencyState: 'unavailable',

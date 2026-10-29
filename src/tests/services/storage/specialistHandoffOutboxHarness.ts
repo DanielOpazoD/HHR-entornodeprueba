@@ -45,7 +45,7 @@ const mergeDeep = (target: Doc, source: Doc) => {
 const remoteSnapshot = async () => ({
   exists: () => Boolean(h.remote),
   data: () => clone(h.remote),
-  metadata: {},
+  metadata: { fromCache: false, hasPendingWrites: false },
 });
 vi.mock('firebase/firestore', async importOriginal => ({
   ...(await importOriginal<typeof import('firebase/firestore')>()),

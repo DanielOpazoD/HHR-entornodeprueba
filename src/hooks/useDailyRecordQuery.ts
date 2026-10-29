@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../config/queryClient';
-import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
 import { useRepositories } from '@/services/RepositoryContext';
 import { useEffect, useRef } from 'react';
 import {
@@ -57,9 +56,7 @@ export const useDailyRecordQuery = (
     subscriptionSyncStatus
   );
   const previousShouldSyncFromRemoteRef = useRef(shouldSyncFromRemote);
-  const remoteConfirmedRef = useRef<string | null>(null);
   const prefetchedPreviousForRef = useRef<string | null>(null);
-  const lastRemoteConfirmedRecordRef = useRef<{ date: string; record: DailyRecord } | null>(null);
 
   const queryKey = getDailyRecordQueryKey(date);
   const query = useQuery<DailyRecordQueryResult>({
@@ -85,31 +82,12 @@ export const useDailyRecordQuery = (
     refetchOnReconnect: 'always',
   });
 
-  useEffect(() => {
-    if (!shouldSyncFromRemote || !query.data?.record) {
-      return;
-    }
-    if (
-      query.data.runtime.consistencyState === 'unavailable' ||
-      query.data.runtime.sourceOfTruth !== 'remote' ||
-      query.data.runtime.conflictSummary?.kind === 'remote_unavailable'
-    ) {
-      return;
-    }
-
-    const previousRecord =
-      lastRemoteConfirmedRecordRef.current?.date === date
-        ? lastRemoteConfirmedRecordRef.current.record
-        : null;
-    markDailyRecordRemoteConfirmed(date, {
-      source: 'query',
-      remoteLastUpdated: query.data.record.lastUpdated,
-      previousRecord,
-      confirmedRecord: query.data.record,
-    });
-    lastRemoteConfirmedRecordRef.current = { date, record: query.data.record };
-    remoteConfirmedRef.current = date;
-  }, [date, query.data, shouldSyncFromRemote]);
+  const hasConfirmedRemoteRead =
+    query.isFetchedAfterMount &&
+    query.data?.record &&
+    query.data.runtime.serverConfirmed &&
+    query.data.runtime.consistencyState !== 'unavailable' &&
+    query.data.runtime.conflictSummary?.kind !== 'remote_unavailable';
 
   useEffect(() => {
     const didRemoteSyncJustBecomeReady =
@@ -129,12 +107,12 @@ export const useDailyRecordQuery = (
     // The listener now opens before this flip, so it may already have delivered the
     // server document. Skipping the duplicate read only when the server has actually
     // confirmed keeps the remote-hydration guarantee intact in every other case.
-    if (remoteConfirmedRef.current === date) {
+    if (hasConfirmedRemoteRead) {
       return;
     }
 
     void query.refetch();
-  }, [date, query, shouldSyncFromRemote]);
+  }, [date, query, shouldSyncFromRemote, hasConfirmedRemoteRead]);
 
   useEffect(() => {
     if (!shouldSubscribeFromRemote) return;
@@ -191,14 +169,14 @@ export const useDailyRecordQuery = (
     if (import.meta.env.DEV) return;
     // Only after the current day is server-confirmed: the previous day is a
     // convenience, and it used to compete with the census for the same connection.
-    if (remoteConfirmedRef.current !== date) return;
+    if (!hasConfirmedRemoteRead) return;
     // Once per selected day. Each live update of today re-runs this effect, and the
     // 5-minute stale window turned that into a full re-read of yesterday every 5 minutes.
     if (prefetchedPreviousForRef.current === date) return;
     prefetchedPreviousForRef.current = date;
 
     prefetchPreviousDailyRecord(queryClient, dailyRecord, date);
-  }, [date, queryClient, dailyRecord, shouldSyncFromRemote, query.data]);
+  }, [date, queryClient, dailyRecord, shouldSyncFromRemote, hasConfirmedRemoteRead]);
 
   return {
     ...query,

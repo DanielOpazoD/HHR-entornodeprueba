@@ -6,6 +6,11 @@ const mustSurfaceIncomingRuntime = (incoming: DailyRecordQueryResult): boolean =
   incoming.runtime.consistencyState === 'unavailable' ||
   incoming.runtime.conflictSummary?.kind === 'remote_unavailable';
 
+const retainUnconfirmedResult = (result: DailyRecordQueryResult): DailyRecordQueryResult =>
+  result.runtime.serverConfirmed
+    ? { ...result, runtime: { ...result.runtime, serverConfirmed: false } }
+    : result;
+
 /**
  * Keeps monotonic confirmed data without hiding authority, absence or availability transitions.
  * A remote result always supersedes a local optimistic projection, even when its server timestamp
@@ -17,7 +22,7 @@ export const reconcileDailyRecordQueryResult = (
 ): DailyRecordQueryResult => {
   // A late local/cache-only miss cannot erase data.
   if (incoming.runtime.availabilityState === 'unconfirmed_missing' && previous?.record) {
-    return previous;
+    return retainUnconfirmedResult(previous);
   }
   if (
     previous?.record &&
@@ -30,7 +35,11 @@ export const reconcileDailyRecordQueryResult = (
     return {
       ...incoming,
       record: previous.record,
-      runtime: { ...incoming.runtime, sourceOfTruth: previous.runtime.sourceOfTruth },
+      runtime: {
+        ...incoming.runtime,
+        serverConfirmed: false,
+        sourceOfTruth: previous.runtime.sourceOfTruth,
+      },
     };
   }
   if (
@@ -45,14 +54,14 @@ export const reconcileDailyRecordQueryResult = (
   const previousTimestamp = toRecordTimestamp(previous.record.lastUpdated);
   const incomingTimestamp = toRecordTimestamp(incoming.record.lastUpdated);
   if (previousTimestamp > incomingTimestamp) {
-    return previous;
+    return retainUnconfirmedResult(previous);
   }
   if (
     previousTimestamp === incomingTimestamp &&
     previous.runtime.sourceOfTruth === 'remote' &&
     incoming.runtime.sourceOfTruth === 'local'
   ) {
-    return previous;
+    return retainUnconfirmedResult(previous);
   }
   return incoming;
 };

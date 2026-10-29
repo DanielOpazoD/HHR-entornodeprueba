@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import * as remoteConfirmation from '@/hooks/controllers/dailyRecordRemoteConfirmationController';
 import { QueryClient } from '@tanstack/react-query';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import {
@@ -23,14 +24,17 @@ vi.mock('@/services/repositories/dailyRecordOperationalTelemetry', () => ({
 describe('dailyRecordQueryController subscription freshness', () => {
   afterEach(() => {
     resetDailyRecordFreshnessGateForTests();
+    vi.restoreAllMocks();
   });
 
   it('confirms freshness when a non-pending snapshot selects the local record', () => {
+    const confirmation = vi.spyOn(remoteConfirmation, 'applyDailyRecordRemoteConfirmation');
     const queryClient = new QueryClient();
     const record = DataFactory.createMockDailyRecord('2025-01-08');
     let emit:
       | ((
           result: {
+            serverConfirmed: boolean;
             date: string;
             outcome: 'clean';
             record: typeof record;
@@ -63,6 +67,7 @@ describe('dailyRecordQueryController subscription freshness', () => {
     emit?.(
       {
         date: '2025-01-08',
+        serverConfirmed: true,
         outcome: 'clean',
         record,
         consistencyState: 'remote_applied',
@@ -77,6 +82,7 @@ describe('dailyRecordQueryController subscription freshness', () => {
     );
 
     expect(getDailyRecordFreshnessStatus('2025-01-08')).toBe('fresh_remote_confirmed');
+    expect(confirmation).toHaveBeenCalledWith(expect.anything(), { source: 'subscription' });
   });
 
   it('keeps clinical field locks when a realtime subscription hydrates newer remote data', () => {
@@ -115,6 +121,7 @@ describe('dailyRecordQueryController subscription freshness', () => {
     let emit:
       | ((
           result: {
+            serverConfirmed: boolean;
             date: string;
             outcome: 'clean';
             record: typeof remoteRecord;
@@ -151,6 +158,7 @@ describe('dailyRecordQueryController subscription freshness', () => {
     emit?.(
       {
         date: '2025-01-08',
+        serverConfirmed: true,
         outcome: 'clean',
         record: remoteRecord,
         consistencyState: 'remote_applied',

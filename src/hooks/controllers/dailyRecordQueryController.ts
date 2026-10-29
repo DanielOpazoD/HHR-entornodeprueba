@@ -1,4 +1,4 @@
-import type { QueryClient } from '@tanstack/react-query';
+import type { QueryClient, QueryFunctionContext } from '@tanstack/react-query';
 import { queryKeys } from '@/config/queryClient';
 import type { DailyRecord, DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
 import { hasSamePatientEpisodeIdentity } from '@/application/patient-flow/patientEpisodeIdentityPolicy';
@@ -44,6 +44,7 @@ const createDefaultRuntime = (
   record: DailyRecord | null
 ): DailyRecordQueryRuntime => ({
   date,
+  serverConfirmed: false,
   availabilityState: record ? 'resolved' : 'unconfirmed_missing',
   consistencyState: record ? 'local_only' : 'missing',
   sourceOfTruth: record ? 'local' : 'none',
@@ -60,58 +61,80 @@ const createQueryResultFromRecord = (
   runtime: DailyRecordQueryRuntime = createDefaultRuntime(date, record)
 ): DailyRecordQueryResult => createDailyRecordQueryResult(record, runtime);
 
-const createRuntimeFromReadResult = (result: DailyRecordReadResult): DailyRecordQueryRuntime => ({
-  date: result.date,
-  availabilityState: result.record
-    ? result.retryability !== 'not_applicable' || result.sourceOfTruth === 'local'
-      ? 'recoverable_local'
-      : 'resolved'
-    : result.consistencyState === 'unavailable'
-      ? 'temporarily_unavailable'
-      : result.conflictSummary?.kind === 'remote_missing'
-        ? 'confirmed_missing'
-        : 'unconfirmed_missing',
-  consistencyState: result.consistencyState,
-  sourceOfTruth: result.sourceOfTruth,
-  retryability: result.retryability,
-  recoveryAction: result.recoveryAction,
-  conflictSummary: result.conflictSummary,
-  observabilityTags: result.observabilityTags,
-  userSafeMessage: result.userSafeMessage,
-  repairApplied: result.repairApplied,
-});
-
-const createRuntimeFromSyncResult = (
+const createRuntimeFromResult = (
   date: string,
-  result: SyncDailyRecordResult
-): DailyRecordQueryRuntime => ({
-  date,
-  availabilityState: result.record
+  result: DailyRecordReadResult | SyncDailyRecordResult
+): DailyRecordQueryRuntime => {
+  const isSync = 'outcome' in result;
+  const recoverable = isSync
     ? result.consistencyState === 'local_kept' || result.consistencyState === 'blocked'
-      ? 'recoverable_local'
-      : 'resolved'
-    : result.consistencyState === 'blocked'
-      ? 'temporarily_unavailable'
-      : result.consistencyState === 'missing_remote'
-        ? 'confirmed_missing'
-        : 'unconfirmed_missing',
-  consistencyState: result.consistencyState,
-  sourceOfTruth: result.sourceOfTruth,
-  retryability: result.retryability,
-  recoveryAction: result.recoveryAction,
-  conflictSummary: result.conflictSummary,
-  observabilityTags: result.observabilityTags,
-  userSafeMessage: result.userSafeMessage,
-  repairApplied: result.repairApplied,
-});
+    : result.retryability !== 'not_applicable' || result.sourceOfTruth === 'local';
+  const unavailable = isSync
+    ? result.consistencyState === 'blocked'
+    : result.consistencyState === 'unavailable';
+  const missing = isSync
+    ? result.consistencyState === 'missing_remote'
+    : result.conflictSummary?.kind === 'remote_missing';
+  return {
+    date,
+    serverConfirmed: result.serverConfirmed,
+    availabilityState: result.record
+      ? recoverable
+        ? 'recoverable_local'
+        : 'resolved'
+      : unavailable
+        ? 'temporarily_unavailable'
+        : result.serverConfirmed && missing
+          ? 'confirmed_missing'
+          : 'unconfirmed_missing',
+    consistencyState: result.consistencyState,
+    sourceOfTruth: result.sourceOfTruth,
+    retryability: result.retryability,
+    recoveryAction: result.recoveryAction,
+    conflictSummary: result.conflictSummary,
+    observabilityTags: result.observabilityTags,
+    userSafeMessage: result.userSafeMessage,
+    repairApplied: result.repairApplied,
+  };
+};
 
 export const createDailyRecordQueryFn =
   (dailyRecord: DailyRecordReader, date: string, syncFromRemote: boolean = true) =>
   async (): Promise<DailyRecordQueryResult> => {
     const query = createGetDailyRecordQuery(date, syncFromRemote);
     const result = await dailyRecord.getForDateWithMeta(query.date, query.syncFromRemote);
-    return createDailyRecordQueryResult(result.record, createRuntimeFromReadResult(result));
+    return createDailyRecordQueryResult(
+      result.record,
+      createRuntimeFromResult(result.date, result)
+    );
   };
+
+const confirmAcceptedDailyRecordRead = (
+  date: string,
+  { record, runtime }: DailyRecordQueryResult,
+  previousRecord: DailyRecord | null | undefined,
+  source: 'query' | 'subscription'
+) => {
+  if (
+    !record ||
+    !runtime.serverConfirmed ||
+    runtime.consistencyState === 'unavailable' ||
+    runtime.conflictSummary?.kind === 'remote_unavailable'
+  ) {
+    return;
+  }
+  markDailyRecordRemoteConfirmed(date, {
+    source,
+    ...(runtime.sourceOfTruth === 'remote'
+      ? {
+          remoteLastUpdated: record.lastUpdated,
+          remoteHydratedNewerRecord: didDailyRecordFreshnessHydrateNewerRemote({ record, runtime }),
+          previousRecord,
+          confirmedRecord: record,
+        }
+      : {}),
+  });
+};
 
 export const createReconciledDailyRecordQueryFn = (
   dailyRecord: DailyRecordReader,
@@ -120,15 +143,21 @@ export const createReconciledDailyRecordQueryFn = (
   syncFromRemote: boolean = true
 ) => {
   const queryFn = createDailyRecordQueryFn(dailyRecord, date, syncFromRemote);
-  return async () => {
+  return async (context?: Pick<QueryFunctionContext, 'signal'>) => {
+    const signal = context?.signal;
     const key = getDailyRecordQueryKey(date);
     const startedWith = queryClient.getQueryData<DailyRecordQueryResult>(key);
     const incoming = await queryFn();
+    signal?.throwIfAborted();
     const current = queryClient.getQueryData<DailyRecordQueryResult>(key);
     // A newer realtime record owns the cache. An older in-flight miss must not
     // erase it, even when that miss was authoritative when the request began.
-    if (!incoming.record && current?.record && current !== startedWith) return current;
-    return reconcileDailyRecordQueryResult(current, incoming);
+    if (!incoming.record && current?.record && current !== startedWith) {
+      return { ...current, runtime: { ...current.runtime, serverConfirmed: false } };
+    }
+    const reconciled = reconcileDailyRecordQueryResult(current, incoming);
+    confirmAcceptedDailyRecordRead(date, reconciled, current?.record, 'query');
+    return reconciled;
   };
 };
 
@@ -158,12 +187,17 @@ export const createDailyRecordSubscription = (
 
   const applyResolvedRecord = (
     result: DailyRecordQueryResult,
-    previousResult: DailyRecordQueryResult | undefined
+    previousResult: DailyRecordQueryResult | undefined,
+    remoteCandidate?: DailyRecordQueryResult
   ) => {
-    if (result.record) {
+    if (
+      remoteCandidate?.record &&
+      remoteCandidate.runtime.serverConfirmed &&
+      remoteCandidate.runtime.sourceOfTruth === 'remote'
+    ) {
       releaseConfirmedPendingDailyRecordPatches(
         date,
-        result.record,
+        remoteCandidate.record,
         previousResult?.record ?? undefined
       );
     }
@@ -173,6 +207,13 @@ export const createDailyRecordSubscription = (
     applyResolvedQueryResult({
       ...result,
       record: resolvedRecord,
+      runtime:
+        resolvedRecord === result.record
+          ? result.runtime
+          : {
+              ...result.runtime,
+              sourceOfTruth: 'local',
+            },
     });
   };
 
@@ -194,7 +235,7 @@ export const createDailyRecordSubscription = (
         }
         const recovered = createDailyRecordQueryResult(
           reconciledResult.record,
-          createRuntimeFromReadResult(reconciledResult)
+          createRuntimeFromResult(reconciledResult.date, reconciledResult)
         );
         const resolved = reconcileDailyRecordQueryResult(previousResult, recovered);
         if (recovered.record) {
@@ -217,7 +258,11 @@ export const createDailyRecordSubscription = (
             // Retaining cached data is not an acknowledgement of pending edits.
             applyResolvedQueryResult(resolved);
           } else {
-            applyResolvedRecord(resolved, previousResult);
+            applyResolvedRecord(
+              resolved,
+              previousResult,
+              resolved === recovered ? recovered : undefined
+            );
           }
           return;
         }
@@ -263,7 +308,10 @@ export const createDailyRecordSubscription = (
             },
           }
         );
-        applyResolvedQueryResult(previousResult);
+        applyResolvedQueryResult({
+          ...previousResult,
+          runtime: { ...previousResult.runtime, serverConfirmed: false },
+        });
       });
   };
 
@@ -282,19 +330,8 @@ export const createDailyRecordSubscription = (
       if (reconciled === previousResult) {
         return;
       }
-      applyResolvedRecord(reconciled, previousResult);
-      if (
-        result.runtime.consistencyState !== 'unavailable' &&
-        result.runtime.conflictSummary?.kind !== 'remote_unavailable'
-      ) {
-        markDailyRecordRemoteConfirmed(date, {
-          source: 'subscription',
-          remoteLastUpdated: result.record.lastUpdated,
-          remoteHydratedNewerRecord: didDailyRecordFreshnessHydrateNewerRemote(result),
-          previousRecord: previousResult?.record,
-          confirmedRecord: result.record,
-        });
-      }
+      applyResolvedRecord(reconciled, previousResult, reconciled === result ? result : undefined);
+      confirmAcceptedDailyRecordRead(date, reconciled, previousResult?.record, 'subscription');
       return;
     }
 
@@ -314,7 +351,7 @@ export const createDailyRecordSubscription = (
         return;
       }
       handleResolvedRealtimeResult(
-        createDailyRecordQueryResult(result.record, createRuntimeFromSyncResult(date, result)),
+        createDailyRecordQueryResult(result.record, createRuntimeFromResult(date, result)),
         hasPendingWrites
       );
     });
@@ -364,23 +401,21 @@ export const setAuthoritativeDailyRecordRead = (
   date: string,
   record: DailyRecord
 ) =>
-  queryClient.setQueryData<DailyRecordQueryResult>(getDailyRecordQueryKey(date), previous =>
-    createQueryResultFromRecord(
+  queryClient.setQueryData<DailyRecordQueryResult>(getDailyRecordQueryKey(date), previous => {
+    const selected = applyPendingExplicitCensusPatch(
       date,
-      applyPendingExplicitCensusPatch(
-        date,
-        record,
-        previous?.record ?? undefined,
-        hasSamePatientEpisodeIdentity
-      ),
-      {
-        ...createDefaultRuntime(date, record),
-        consistencyState: 'remote_authoritative',
-        sourceOfTruth: 'remote',
-        observabilityTags: ['daily_record', 'read', 'remote_confirmed'],
-      }
-    )
-  );
+      record,
+      previous?.record ?? undefined,
+      hasSamePatientEpisodeIdentity
+    );
+    return createQueryResultFromRecord(date, selected, {
+      ...createDefaultRuntime(date, record),
+      serverConfirmed: true,
+      consistencyState: 'remote_authoritative',
+      sourceOfTruth: selected === record ? 'remote' : 'local',
+      observabilityTags: ['daily_record', 'read', 'remote_confirmed'],
+    });
+  });
 
 export const setDailyRecordQueryData = (
   queryClient: QueryClient,
@@ -396,7 +431,7 @@ export const setDailyRecordQueryData = (
       nextRecord
         ? createDefaultRuntime(date, nextRecord)
         : previousResult.runtime.availabilityState === 'temporarily_unavailable'
-          ? previousResult.runtime
+          ? { ...previousResult.runtime, serverConfirmed: false }
           : createDefaultRuntime(date, null)
     );
   });

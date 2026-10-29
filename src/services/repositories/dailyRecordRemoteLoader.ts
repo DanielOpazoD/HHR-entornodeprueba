@@ -11,6 +11,7 @@ export type DailyRecordRemoteSource = 'firestore' | 'not_found';
 export type DailyRecordRemoteCompatibilityTier = 'current_firestore' | 'none';
 
 export interface DailyRecordRemoteLoadResult {
+  serverConfirmed: boolean;
   record: DailyRecord | null;
   source: DailyRecordRemoteSource;
   compatibilityTier: DailyRecordRemoteCompatibilityTier;
@@ -25,37 +26,6 @@ interface DailyRecordRemoteLoadOptions {
   /** Structural CAS planning must bypass the Firestore SDK cache. */
   source?: 'default' | 'server';
 }
-
-const normalizeRemoteRecord = (
-  record: DailyRecord,
-  date: string
-): {
-  record: DailyRecord;
-  migrationRulesApplied: LegacyMigrationRule[];
-  compatibilityIntensity: MigrationCompatibilityIntensity;
-} => {
-  const migrated = migrateLegacyDataWithReport(record, date);
-  return {
-    record: migrated.record,
-    migrationRulesApplied: migrated.appliedRules,
-    compatibilityIntensity: migrated.compatibilityIntensity,
-  };
-};
-
-const createRemoteLoadResult = (
-  source: DailyRecordRemoteSource,
-  record: DailyRecord | null,
-  migrationRulesApplied: LegacyMigrationRule[] = [],
-  compatibilityIntensity: MigrationCompatibilityIntensity = 'none',
-  cachedLocally: boolean = false
-): DailyRecordRemoteLoadResult => ({
-  record,
-  source,
-  compatibilityTier: source === 'firestore' ? 'current_firestore' : 'none',
-  compatibilityIntensity,
-  migrationRulesApplied,
-  cachedLocally,
-});
 
 export const loadRemoteRecordWithFallback = async (
   date: string,
@@ -76,18 +46,18 @@ export const loadRemoteRecordWithFallback = async (
         throw remoteRead.error ?? new Error(`Remote Firestore read failed for ${date}`);
       }
 
-      if (remoteRead.record) {
-        const normalizedRemoteRecord = normalizeRemoteRecord(remoteRead.record, date);
-        return createRemoteLoadResult(
-          'firestore',
-          normalizedRemoteRecord.record,
-          normalizedRemoteRecord.migrationRulesApplied,
-          normalizedRemoteRecord.compatibilityIntensity,
-          false
-        );
-      }
-
-      return createRemoteLoadResult('not_found', null);
+      const migrated = remoteRead.record
+        ? migrateLegacyDataWithReport(remoteRead.record, date)
+        : null;
+      return {
+        record: migrated?.record ?? null,
+        source: remoteRead.record ? 'firestore' : 'not_found',
+        compatibilityTier: remoteRead.record ? 'current_firestore' : 'none',
+        compatibilityIntensity: migrated?.compatibilityIntensity ?? 'none',
+        migrationRulesApplied: migrated?.appliedRules ?? [],
+        cachedLocally: false,
+        serverConfirmed: remoteRead.serverConfirmed,
+      } satisfies DailyRecordRemoteLoadResult;
     },
     { thresholdMs: 220, context: date }
   ).finally(() => {

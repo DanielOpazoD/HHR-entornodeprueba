@@ -20,6 +20,7 @@ describe('daily record freshness cache', () => {
     remoteRecord.beds.R1.pathology = 'Diagnostico Firebase';
     const queryFn = vi.fn().mockResolvedValue(
       createDailyRecordQueryResult(remoteRecord, {
+        serverConfirmed: true,
         date,
         availabilityState: 'resolved',
         consistencyState: 'remote_authoritative',

@@ -269,7 +269,7 @@ export const ensureDailyRecordRemoteFreshness = ({
       staleTime: 0,
     })
     .then(result => {
-      if (isRemoteUnavailableRead(result)) {
+      if (!result.runtime.serverConfirmed || isRemoteUnavailableRead(result)) {
         setFreshnessStatus(state, 'blocked_until_remote_check');
         const blockedForMs = recordClinicalInputsBlockFailed(
           date,
@@ -306,7 +306,9 @@ export const ensureDailyRecordRemoteFreshness = ({
         ) ?? 0;
       state.confirmedResumeEpoch = resumeEpoch;
       state.lastRemoteConfirmedAt = completedAt;
-      state.remoteHydratedNewerRecord = didDailyRecordFreshnessHydrateNewerRemote(result);
+      state.remoteHydratedNewerRecord =
+        result.runtime.sourceOfTruth === 'remote' &&
+        didDailyRecordFreshnessHydrateNewerRemote(result);
       state.clinicalFieldLocksByBedId = state.remoteHydratedNewerRecord
         ? buildHydratedRemoteClinicalFieldLocks({
             previousRecord: previousResult?.record,
@@ -331,7 +333,7 @@ export const ensureDailyRecordRemoteFreshness = ({
       });
 
       const remoteNewerSummary = result.runtime.conflictSummary;
-      if (didDailyRecordFreshnessHydrateNewerRemote(result) && remoteNewerSummary) {
+      if (state.remoteHydratedNewerRecord && remoteNewerSummary) {
         dailyRecordObservability.recordEvent(
           'daily_record_resume_refresh_remote_newer',
           'success',

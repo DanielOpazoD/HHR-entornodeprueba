@@ -3,7 +3,7 @@ import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { getRecordForDate as getRecordFromIndexedDB } from '@/services/storage/indexeddb/indexedDbRecordService';
 import {
   subscribeToRecord,
-  type FirestoreRecordSnapshotMetadata,
+  isServerConfirmedSnapshot,
 } from '@/services/storage/firestore/firestoreRecordQueries';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { migrateLegacyData } from '@/services/repositories/dataMigration';
@@ -52,9 +52,15 @@ const hydrateLocalCache = async (
 const resolveSubscriptionResult = async (
   date: string,
   remoteRecord: DailyRecord | null,
-  remoteAvailability: 'resolved' | 'missing' | 'unavailable'
+  serverConfirmed: boolean,
+  localRecord?: DailyRecord | null
 ): Promise<SyncDailyRecordResult> => {
-  const localRecord = await getRecordFromIndexedDB(date);
+  localRecord = localRecord === undefined ? await getRecordFromIndexedDB(date) : localRecord;
+  const remoteAvailability = remoteRecord
+    ? 'resolved'
+    : serverConfirmed
+      ? 'missing'
+      : 'unavailable';
   const goldenPath = resolveDailyRecordPersistenceGoldenPath({
     localRecord,
     remoteRecord,
@@ -76,6 +82,7 @@ const resolveSubscriptionResult = async (
 
   return createSyncDailyRecordResult({
     date,
+    serverConfirmed,
     outcome:
       consistency.consistencyState === 'blocked'
         ? 'blocked'
@@ -83,14 +90,7 @@ const resolveSubscriptionResult = async (
           ? 'missing'
           : 'clean',
     record,
-    consistencyState: consistency.consistencyState,
-    sourceOfTruth: consistency.sourceOfTruth,
-    retryability: consistency.retryability,
-    recoveryAction: consistency.recoveryAction,
-    conflictSummary: consistency.conflictSummary,
-    observabilityTags: consistency.observabilityTags,
-    userSafeMessage: consistency.userSafeMessage,
-    repairApplied: consistency.repairApplied,
+    ...consistency,
   });
 };
 
@@ -105,13 +105,13 @@ export const subscribeDetailed = (
       if (!active) return;
 
       const migrated = record ? migrateLegacyData(record, date) : null;
-      const remoteAvailability = resolveRealtimeRemoteAvailability(migrated, metadata);
+      const serverConfirmed = !hasPendingWrites && isServerConfirmedSnapshot(metadata);
       const result = hasPendingWrites
         ? createSyncDailyRecordResult({
             date,
-            outcome: migrated ? 'clean' : 'missing',
+            outcome: migrated ? 'clean' : 'blocked',
             record: migrated,
-            consistencyState: migrated ? 'up_to_date' : 'missing_remote',
+            consistencyState: migrated ? 'up_to_date' : 'blocked',
             sourceOfTruth: migrated ? 'local' : 'none',
             retryability: 'not_applicable',
             recoveryAction: 'none',
@@ -119,7 +119,7 @@ export const subscribeDetailed = (
             observabilityTags: ['daily_record', 'sync', 'subscription_pending_write'],
             repairApplied: false,
           })
-        : await resolveSubscriptionResult(date, migrated, remoteAvailability);
+        : await resolveSubscriptionResult(date, migrated, serverConfirmed);
 
       if (!active) return;
       callback(result, hasPendingWrites);
@@ -130,21 +130,6 @@ export const subscribeDetailed = (
     active = false;
     unsubscribe();
   };
-};
-
-const resolveRealtimeRemoteAvailability = (
-  record: DailyRecord | null,
-  metadata?: FirestoreRecordSnapshotMetadata
-): 'resolved' | 'missing' | 'unavailable' => {
-  if (record) {
-    return 'resolved';
-  }
-
-  if (metadata?.fromCache) {
-    return 'unavailable';
-  }
-
-  return 'missing';
 };
 
 export const subscribe = (
@@ -164,41 +149,12 @@ export const syncWithFirestoreDetailed = async (date: string) => {
       const localRecord = await getRecordFromIndexedDB(date);
       try {
         const remoteResult = await loadRemoteRecordWithFallback(date);
-        const goldenPath = resolveDailyRecordPersistenceGoldenPath({
-          localRecord,
-          remoteRecord: remoteResult.record,
-          remoteAvailability: remoteResult.record ? 'resolved' : 'missing',
-          clinicalConsistencyPhase: 'sync_publish',
-        });
-        if (goldenPath.shouldHydrateLocal && remoteResult.record) {
-          await hydrateLocalCache(
-            goldenPath.selectedRecord || remoteResult.record,
-            date,
-            localRecord
-          );
-        }
-        const retainedRecord = await getPendingDailyRecordProjection(date);
-        const record = retainedRecord ?? goldenPath.selectedRecord;
-        const consistency = resolveDailyRecordSyncConsistency({
-          localRecord: retainedRecord ?? localRecord,
-          remoteRecord: remoteResult.record,
-          selectedRecord: record,
-          remoteAvailability: remoteResult.record ? 'resolved' : 'missing',
-          pendingLocalWritesRetained: Boolean(retainedRecord),
-        });
-        return createSyncDailyRecordResult({
+        return await resolveSubscriptionResult(
           date,
-          outcome: consistency.consistencyState === 'missing_remote' ? 'missing' : 'clean',
-          record,
-          consistencyState: consistency.consistencyState,
-          sourceOfTruth: consistency.sourceOfTruth,
-          retryability: consistency.retryability,
-          recoveryAction: consistency.recoveryAction,
-          conflictSummary: consistency.conflictSummary,
-          observabilityTags: consistency.observabilityTags,
-          userSafeMessage: consistency.userSafeMessage,
-          repairApplied: consistency.repairApplied,
-        });
+          remoteResult.record,
+          remoteResult.serverConfirmed,
+          localRecord
+        );
       } catch (err) {
         dailyRecordSyncLogger.warn(`Sync failed for ${date}`, err);
         const consistency = resolveDailyRecordSyncConsistency({
@@ -211,14 +167,7 @@ export const syncWithFirestoreDetailed = async (date: string) => {
           date,
           outcome: 'blocked',
           record: localRecord,
-          consistencyState: consistency.consistencyState,
-          sourceOfTruth: consistency.sourceOfTruth,
-          retryability: consistency.retryability,
-          recoveryAction: consistency.recoveryAction,
-          conflictSummary: consistency.conflictSummary,
-          observabilityTags: consistency.observabilityTags,
-          userSafeMessage: consistency.userSafeMessage,
-          repairApplied: consistency.repairApplied,
+          ...consistency,
         });
       }
     },
