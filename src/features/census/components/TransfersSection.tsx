@@ -24,6 +24,7 @@ export const TransfersSection: React.FC = () => {
       icon={<ArrowRightLeft size={18} />}
       iconClassName="bg-blue-50 text-blue-600"
       headers={TRANSFERS_TABLE_HEADERS}
+      tableClassName="min-w-[60rem] table-fixed print:min-w-0 print:table-auto"
       getItemKey={item => item.id}
       renderRow={item => (
         <TransferRow

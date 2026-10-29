@@ -440,7 +440,7 @@ Las pantallas de activación, cambio de clave y administración se cargan al abr
 
 ### Carga y disponibilidad sin conexión
 
-La administración de usuarios y permisos se carga al abrir su panel y necesita conexión para leer la autoridad vigente y modificar cuentas. Su chunk no pertenece al precache clínico. El menú de usuario se carga al abrirlo, permanece en precache y conserva un cierre de sesión inmediato aun si ese recurso tarda o falla. El monitor de sesiones individuales, la preservación de la cola y la semilla clínica continúan disponibles sin conexión. Los límites de tamaño permanecen sin cambios.
+La administración de usuarios y permisos se carga al abrir su panel y necesita conexión para leer la autoridad vigente y modificar cuentas. Su chunk no pertenece al precache clínico. El menú de usuario permanece en precache y se carga al abrirlo. La apertura espera al contenido completo: el primer panel visible contiene identidad, estado y acciones, sin un cuadro provisional de cierre de sesión. Un fallo de carga o render conserva el cierre de sesión de emergencia. El cambio de clave y el editor de avatar siguen cargándose al solicitarlos. El monitor de sesiones individuales, la preservación de la cola y la semilla clínica continúan disponibles sin conexión. Los límites de tamaño permanecen sin cambios.
 
 ### Administración de cuentas por RUT (PR 919)
 
@@ -482,6 +482,11 @@ invoca el módulo de mantenimiento local; la recuperación de bootstrap conserva
 su propio recorrido. Esto no demuestra por sí solo ahorro global de descarga.
 Durante la confirmación de recarga los accesos permanecen bloqueados, incluido
 Enter en el formulario RUT; cancelar conserva lo escrito y los errores visibles.
+Al enviar el formulario RUT se mantiene su geometría y aparece un panel de estado
+con indicador animado y texto de validación. Los controles permanecen bloqueados
+durante la solicitud; un fallo retira el estado de carga y permite reintentar con
+las entradas conservadas. El lector de pantalla recibe el estado fuera del formulario
+ocupado y el indicador respeta movimiento reducido. Esto usa el estado de envío existente.
 Si no puede iniciarse la navegación, el formulario se desbloquea con un mensaje
 recuperable. La precarga común
 de Firebase Auth/Functions se conserva: es útil también para RUT. No se difieren
