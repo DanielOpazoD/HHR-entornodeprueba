@@ -9,6 +9,7 @@ import type { RayenHistoryScaleEvent } from '../bridge/rayenImportBridge';
 import type { RayenCudyrCategoriesResponse } from './rayenCudyr';
 import type { NursingStaffingProposal, RayenNursingActivity } from './nursingShiftInference';
 import type {
+  CudyrRecoveryDetail,
   RayenClinicalPersistenceScope,
   RayenSyncIssueReason,
   RayenSyncIssueSource,
@@ -199,6 +200,7 @@ export interface HistoricalCudyrBatchExecutionResult {
 }
 
 export interface ClinicalFillError {
+  cudyrRecovery?: CudyrRecoveryDetail;
   bedId: string;
   clinicalEpisodeId?: string;
   source: RayenSyncIssueSource;

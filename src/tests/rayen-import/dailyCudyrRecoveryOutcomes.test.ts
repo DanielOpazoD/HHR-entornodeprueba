@@ -4,10 +4,12 @@ import { createDailyCudyrRecoveryReader } from '@/features/rayen-import/hooks/da
 import { presentRayenCoverageIssue } from '@/features/rayen-import/components/rayenSyncPresentation';
 import { buildRayenSyncCoverage } from '@/features/rayen-import/domain/rayenSyncHistory';
 import { DailyRecordSchema } from '@/schemas/zodSchemas';
+import { rayenClinicalIssueTarget } from '@/features/rayen-import/components/rayenSyncIssueSupport';
 import {
   now,
   patient,
   historicalDay,
+  currentDay,
   parsedSource,
 } from '@/tests/rayen-import/dailyCudyrRecovery.fixtures';
 
@@ -96,5 +98,61 @@ describe('daily documentary CUDYR recovery outcomes', () => {
     });
     expect(result.current.get(patient().clinicalEpisodeId)?.category).toBe('C2');
     expect(result.errors).toEqual([]);
+  });
+
+  it.each(['2026-10-26', '2026-10-27'])(
+    'links the unresolved night after selecting %s without guessing a historical bed',
+    async selectedDate => {
+      const previous = historicalDay();
+      const current = currentDay();
+      current.beds = {};
+      const selected = selectedDate === previous.date ? previous : current;
+      const report = parsedSource();
+      report.report.patients = [];
+      const reader = createDailyCudyrRecoveryReader({
+        signal: new AbortController().signal,
+        now,
+        loadDay: async date =>
+          date === previous.date ? previous : date === current.date ? current : null,
+        capture: async () => report,
+      });
+      const result = await reader(selected, [patient().clinicalEpisodeId], {
+        map: new Map(),
+        historyAvailable: true,
+      });
+      const coverage = buildRayenSyncCoverage(1, result.errors, now().toISOString(), selected);
+      expect(coverage.issues).toHaveLength(1);
+      expect(coverage.issues?.map(issue => rayenClinicalIssueTarget(issue, selectedDate))).toEqual([
+        { date: previous.date, bedId: null },
+      ]);
+    }
+  );
+
+  it('retains both unresolved nights for the same episode in the coverage', async () => {
+    const previous = historicalDay();
+    const current = currentDay();
+    current.beds = { R1: patient() };
+    const report = parsedSource();
+    report.report.patients = [];
+    const closed = () => new Date('2026-10-28T20:00:00-05:00');
+    report.capturedAt = closed().toISOString();
+    const reader = createDailyCudyrRecoveryReader({
+      signal: new AbortController().signal,
+      now: closed,
+      loadDay: async date => (date === previous.date ? previous : null),
+      capture: async () => report,
+    });
+    const result = await reader(current, [patient().clinicalEpisodeId], {
+      map: new Map(),
+      historyAvailable: true,
+    });
+    expect(result.errors).toHaveLength(2);
+    const coverage = buildRayenSyncCoverage(1, result.errors, closed().toISOString(), current);
+    expect(coverage.issues).toHaveLength(2);
+    expect(
+      coverage.issues?.map(issue => rayenClinicalIssueTarget(issue, current.date)?.date).sort()
+    ).toEqual([previous.date, current.date]);
+    expect(result.current.size).toBe(0);
+    expect(result.previous).toEqual([]);
   });
 });

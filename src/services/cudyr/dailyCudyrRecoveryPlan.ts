@@ -61,12 +61,17 @@ export const planDailyCudyrGaps = (
     });
   });
 
+export type DailyCudyrGapResolution =
+  | { kind: 'recovered'; cudyr: DocumentaryCudyr }
+  | { kind: 'attribution_unreliable' }
+  | { kind: 'documentary_inconclusive' };
+
 /** No name-only, bed, maternal-document or duplicate-episode attribution. Blank means unknown. */
 export const recoverDailyCudyrGap = (
   gap: DailyCudyrGap,
   records: readonly DailyRecord[],
   source: CapturedCudyrMonthlyReport
-): DocumentaryCudyr | null => {
+): DailyCudyrGapResolution => {
   const { patient, sourceDate } = gap;
   if (
     records.some(
@@ -74,17 +79,17 @@ export const recoverDailyCudyrGap = (
         patients(record).filter(p => p.clinicalEpisodeId === patient.clinicalEpisodeId).length > 1
     )
   )
-    return null;
+    return { kind: 'attribution_unreliable' };
   if (
     patient.clinicalEpisodeId !== gap.clinicalEpisodeId ||
     patient.documentType !== 'RUT' ||
     !isValidRut(patient.rut) ||
     !patient.patientName.trim() ||
     patient.neonatalMaternalRut ||
-    patient.identityStatus === 'provisional' ||
-    source.report.month !== sourceDate.slice(0, 7)
+    patient.identityStatus === 'provisional'
   )
-    return null;
+    return { kind: 'attribution_unreliable' };
+  if (source.report.month !== sourceDate.slice(0, 7)) return { kind: 'documentary_inconclusive' };
   const document = cudyrDocumentKey(patient.rut);
   const identity = cudyrIdentity(patient.rut, patient.patientName);
   if (
@@ -93,11 +98,12 @@ export const recoverDailyCudyrGap = (
       patient
     )
   )
-    return null;
+    return { kind: 'attribution_unreliable' };
   // A repeated documentary row may represent a readmission; do not pick the latest/first row.
   const rows = source.report.patients.filter(p => cudyrDocumentKey(p.document) === document);
+  if (rows.length === 0) return { kind: 'documentary_inconclusive' };
   if (rows.length !== 1 || cudyrIdentity(rows[0].document, rows[0].patientName) !== identity)
-    return null;
+    return { kind: 'attribution_unreliable' };
   const cells = rows[0].days.filter(d => d.sourceDate === sourceDate);
   const category = cells[0]?.category;
   if (
@@ -106,19 +112,22 @@ export const recoverDailyCudyrGap = (
     cells[0].state !== 'category' ||
     !/^[A-D][1-3]$/.test(category)
   )
-    return null;
+    return { kind: 'documentary_inconclusive' };
   return {
-    category,
-    recordedDate: gap.date,
-    source: CUDYR_DOCUMENTARY_SOURCE,
-    documentaryEvidence: {
-      reportId: source.reportId,
-      sourceRow: rows[0].sourceRow,
-      sourceDate,
-      clinicalEpisodeId: gap.clinicalEpisodeId,
-      document: patient.rut,
-      patientName: patient.patientName,
-      documentType: 'RUT',
+    kind: 'recovered',
+    cudyr: {
+      category,
+      recordedDate: gap.date,
+      source: CUDYR_DOCUMENTARY_SOURCE,
+      documentaryEvidence: {
+        reportId: source.reportId,
+        sourceRow: rows[0].sourceRow,
+        sourceDate,
+        clinicalEpisodeId: gap.clinicalEpisodeId,
+        document: patient.rut,
+        patientName: patient.patientName,
+        documentType: 'RUT',
+      },
     },
   };
 };

@@ -4,8 +4,8 @@
 
 El registro CUDYR proviene exclusivamente de Eloísa. HHR conserva los resultados y
 sus fuentes; no permite inventar escalas, autores ni horas. Abrir la vista y descargar
-Excel lee Firebase o una copia local de la sesión. Sólo «Completar y verificar mes»
-consulta los informes de Eloísa mediante la extensión.
+Excel lee Firebase o una copia local de la sesión. Las acciones explícitas de recuperación
+y sincronización consultan los informes de Eloísa mediante la extensión cuando los necesitan.
 
 Un mes aprobado se lee como una proyección oficial guardada, sin reconstruir cada día.
 La navegación reutiliza el caché por cuenta y sesión. La verificación remota comprueba
@@ -29,6 +29,13 @@ Para recuperar resultados no capturados antes del alta, **Actualizar CUDYR** con
 los informes históricos de Eloísa de las noches cerradas pendientes, independientemente
 de la ocupación actual. Un informe fallido o una identidad/episodio ambiguos mantienen
 la verificación pendiente; nunca se reconstruyen puntajes por suposición.
+
+En el historial de sincronización diaria, el aviso distingue una consulta fallida,
+una atribución insegura, un informe sin categoría recuperable y un respaldo documental
+sin confirmación. Una fila o celda vacía no demuestra que el CUDYR no se aplicó.
+Cada noche pendiente conserva su fecha; «Ver censo» abre ese día sin deducir la cama
+actual del paciente. Los avisos antiguos sin ese detalle mantienen una explicación
+general, porque no permiten reconstruir la causa original con certeza.
 
 Los días abiertos muestran progreso; no penalizan el acumulado cerrado. La aplicación
 puede registrarse hasta las 11:59 del día siguiente. La 01:00 es la referencia fija para

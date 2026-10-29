@@ -90,7 +90,9 @@ describe('accepted documentary CUDYR authority', () => {
         clinicalEpisodeId: patient().clinicalEpisodeId,
         patient: reread.beds.R1,
       };
-      expect(recoverDailyCudyrGap(gap, [reread], parsedSource())).toBeNull();
+      expect(recoverDailyCudyrGap(gap, [reread], parsedSource())).toEqual({
+        kind: 'attribution_unreliable',
+      });
       expect(() => assertDocumentaryCudyrTarget(reread, reread.beds.R1, documentary())).toThrow(
         /evidencia/
       );
@@ -120,8 +122,11 @@ describe('accepted documentary CUDYR authority', () => {
         ...source,
         report: { ...source.report, patients: [] },
       })
-    ).toBeNull();
-    expect(recoverDailyCudyrGap(gap, [record], source)).toEqual(documentary());
+    ).toEqual({ kind: 'documentary_inconclusive' });
+    expect(recoverDailyCudyrGap(gap, [record], source)).toEqual({
+      kind: 'recovered',
+      cudyr: documentary(),
+    });
     expect(
       planDailyCudyrGaps(
         [{ ...record, beds: {} }],

@@ -71,6 +71,17 @@ export const RAYEN_SYNC_ISSUE_REASONS = [
 ] as const;
 export type RayenSyncIssueReason = (typeof RAYEN_SYNC_ISSUE_REASONS)[number];
 
+export const CUDYR_RECOVERY_KINDS = [
+  'read_failed',
+  'attribution_unreliable',
+  'documentary_inconclusive',
+  'archive_unconfirmed',
+] as const;
+export type CudyrRecoveryDetail = {
+  kind: (typeof CUDYR_RECOVERY_KINDS)[number];
+  targetDate: string | null;
+};
+
 export type RayenSyncStructuralIssueReason =
   | 'unconfirmed-principal-bed'
   | 'principal-bed-collision'
@@ -118,6 +129,7 @@ export interface RayenSyncStructuralIssue {
 
 /** Sanitized patient-scoped diagnostic. Raw Eloísa/Firestore errors are never persisted. */
 export interface RayenSyncCoverageIssue {
+  cudyrRecovery?: CudyrRecoveryDetail;
   diagnostic?: RayenSyncDiagnosticContext;
   bedId: string;
   source: RayenSyncIssueSource;

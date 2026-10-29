@@ -36,14 +36,15 @@ export const rayenClinicalIssueTarget = (
   issue: RayenSyncCoverageIssue,
   censusDate?: string | null
 ): { date: string; bedId: string | null } | null => {
-  if (!validCensusDay(censusDate)) return null;
-  if (issue.reason === 'historical_census_write_failed') return null;
-  if (issue.reason === 'historical_archive_failed') {
-    // The coordinator archives D-1, but the recorded bed belongs to D. A move may have
-    // changed its historical location, so only the known day is a trustworthy target.
-    return { date: previousCensusIsoDay(censusDate), bedId: null };
-  }
-  return { date: censusDate, bedId: issue.bedId === '*' ? null : issue.bedId };
+  const detail = issue.source === 'cudyr' ? issue.cudyrRecovery : undefined;
+  const date = detail ? detail.targetDate : censusDate;
+  if (!validCensusDay(date)) return null;
+  if (!detail && issue.reason === 'historical_census_write_failed') return null;
+  const previousDay = !detail && issue.reason === 'historical_archive_failed';
+  return {
+    date: previousDay ? previousCensusIsoDay(date) : date,
+    bedId: detail || previousDay || issue.bedId === '*' ? null : issue.bedId,
+  };
 };
 
 export const rayenStructuralIssueHasCurrentBed = (

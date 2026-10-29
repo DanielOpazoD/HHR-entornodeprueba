@@ -6,7 +6,11 @@ import type {
 import { getNextDay } from '@/utils/clinicalDayUtils';
 import { previousCensusIsoDay } from '@/domain/evaluationScales/importedCudyr';
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
-import { captureCudyrMonthlyReport } from '@/services/cudyr/cudyrMonthlyReportCapture';
+import {
+  captureCudyrMonthlyReport,
+  CudyrMonthlyReportArchiveError,
+} from '@/services/cudyr/cudyrMonthlyReportCapture';
+import type { CudyrRecoveryDetail, RayenSyncIssueReason } from '@/types/domain/rayenSync';
 import { planDailyCudyrGaps, recoverDailyCudyrGap } from '@/services/cudyr/dailyCudyrRecoveryPlan';
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
@@ -62,14 +66,19 @@ export const createDailyCudyrRecoveryReader = ({
     check();
     const records = [record];
     const previousDate = previousCensusIsoDay(record.date);
-    const warn = (episode: string | undefined, detail: string) =>
+    const warn = (
+      episode: string | undefined,
+      cudyrRecovery: CudyrRecoveryDetail,
+      reason: RayenSyncIssueReason = 'source_unavailable'
+    ) =>
       result.errors.push(
         buildClinicalFillError({
           bedId: '*',
           ...(episode ? { clinicalEpisodeId: episode } : {}),
           source: 'cudyr',
-          reason: 'historical_archive_failed',
-          error: detail,
+          reason,
+          cudyrRecovery,
+          error: cudyrRecovery.kind,
         })
       );
     if (resolveCudyrPendingStatus(previousDate, now()).phase === 'overdue') {
@@ -90,13 +99,10 @@ export const createDailyCudyrRecoveryReader = ({
               )
           )
         )
-          warn(
-            undefined,
-            `No existe el censo ${previousDate}; no se puede recuperar allí el CUDYR de los egresados.`
-          );
+          warn(undefined, { kind: 'read_failed', targetDate: null });
       } catch {
         check();
-        warn(undefined, `No se pudo comprobar el censo ${previousDate} para recuperar CUDYR.`);
+        warn(undefined, { kind: 'read_failed', targetDate: null }, 'record_load_failed');
         return result;
       }
     }
@@ -111,7 +117,7 @@ export const createDailyCudyrRecoveryReader = ({
         if (next) records.push(next);
       } catch {
         check();
-        warn(undefined, `No se pudo comprobar el censo ${nextDate} para atribuir el CUDYR.`);
+        warn(undefined, { kind: 'read_failed', targetDate: null }, 'record_load_failed');
         return result;
       }
     }
@@ -133,24 +139,34 @@ export const createDailyCudyrRecoveryReader = ({
             gap =>
               resolveCudyrPendingStatus(gap.date, new Date(report.capturedAt)).phase !== 'overdue'
           )
-        )
-          throw new Error('El informe no acredita la consulta posterior al cierre del turno.');
-        for (const gap of monthGaps) {
-          const cudyr = recoverDailyCudyrGap(gap, records, report);
-          if (!cudyr) {
-            warn(
-              gap.patient.clinicalEpisodeId,
-              `CUDYR del ${gap.date} pendiente: el informe no contiene una categoría atribuible inequívocamente al episodio.`
-            );
-          } else if (gap.date === record.date) result.current.set(gap.clinicalEpisodeId, cudyr);
-          else result.previous.push({ clinicalEpisodeId: gap.clinicalEpisodeId, cudyr });
+        ) {
+          for (const gap of monthGaps)
+            warn(gap.clinicalEpisodeId, { kind: 'documentary_inconclusive', targetDate: gap.date });
+          continue;
         }
-      } catch {
+        for (const gap of monthGaps) {
+          const resolution = recoverDailyCudyrGap(gap, records, report);
+          if (resolution.kind !== 'recovered') {
+            warn(gap.clinicalEpisodeId, { kind: resolution.kind, targetDate: gap.date });
+          } else if (gap.date === record.date)
+            result.current.set(gap.clinicalEpisodeId, resolution.cudyr);
+          else
+            result.previous.push({
+              clinicalEpisodeId: gap.clinicalEpisodeId,
+              cudyr: resolution.cudyr,
+            });
+        }
+      } catch (error) {
         check();
+        const archiveFailed = error instanceof CudyrMonthlyReportArchiveError;
         for (const gap of monthGaps)
           warn(
-            gap.patient.clinicalEpisodeId,
-            `No se pudo recuperar el CUDYR del ${gap.date} desde el informe mensual. Puede reintentar.`
+            gap.clinicalEpisodeId,
+            {
+              kind: archiveFailed ? 'archive_unconfirmed' : 'read_failed',
+              targetDate: gap.date,
+            },
+            archiveFailed ? 'historical_archive_failed' : 'source_unavailable'
           );
       }
     }

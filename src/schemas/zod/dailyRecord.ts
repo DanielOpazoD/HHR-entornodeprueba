@@ -14,6 +14,7 @@ import { DischargeDataSchema, TransferDataSchema, CMADataSchema } from './moveme
 import { RayenSyncPerformanceSchema } from './rayenSyncPerformance';
 import { applyDailyRecordStaffingCompatibility } from '@/services/staff/dailyRecordStaffing';
 import {
+  CUDYR_RECOVERY_KINDS,
   MAX_RAYEN_STAFFING_BOUNDARY_EVIDENCE,
   MAX_RAYEN_STRUCTURAL_REVIEW_ISSUES,
   RAYEN_SYNC_FAILURE_REASONS,
@@ -22,6 +23,12 @@ import {
 } from '@/types/domain/rayenSync';
 
 const NonNegativeIntegerSchema = z.number().int().nonnegative();
+const OptionalBooleanSchema = nullableOptional(z.boolean());
+const OptionalNonNegativeIntegerSchema = nullableOptional(NonNegativeIntegerSchema);
+const StringArraySchema = z.array(StringSchema);
+const TwoStaffSlotsSchema = nullishDefault(StringArraySchema, () => ['', '']);
+const ThreeStaffSlotsSchema = nullishDefault(StringArraySchema, () => ['', '', '']);
+const EmptyStringArraySchema = nullishDefault(StringArraySchema, () => []);
 
 const MedicalHandoffActorSchema = z.object({
   uid: StringSchema,
@@ -58,15 +65,16 @@ const DetailedStaffAssignmentSchema = z.object({
   startTime: StringSchema,
   endTime: StringSchema,
 });
+const StaffAssignmentsSchema = z.array(DetailedStaffAssignmentSchema).prefault([]);
 
 const DailyRecordStaffingDetailsSchema = z.object({
   day: z.object({
-    nurses: z.array(DetailedStaffAssignmentSchema).prefault([]),
-    tens: z.array(DetailedStaffAssignmentSchema).prefault([]),
+    nurses: StaffAssignmentsSchema,
+    tens: StaffAssignmentsSchema,
   }),
   night: z.object({
-    nurses: z.array(DetailedStaffAssignmentSchema).prefault([]),
-    tens: z.array(DetailedStaffAssignmentSchema).prefault([]),
+    nurses: StaffAssignmentsSchema,
+    tens: StaffAssignmentsSchema,
   }),
 });
 
@@ -82,6 +90,13 @@ const RayenSyncCoverageSchema = z.object({
         diagnostic: RayenSyncDiagnosticContextSchema,
         source: z.enum(RAYEN_SYNC_ISSUE_SOURCES),
         reason: z.enum(RAYEN_SYNC_ISSUE_REASONS),
+        cudyrRecovery: z
+          .object({
+            kind: z.enum(CUDYR_RECOVERY_KINDS),
+            targetDate: z.iso.date().nullable(),
+          })
+          .optional()
+          .catch(undefined),
       })
     )
   ),
@@ -93,8 +108,8 @@ const RayenSyncCoverageSchema = z.object({
       corrections: NonNegativeIntegerSchema,
       patientWrites: NonNegativeIntegerSchema,
       historySnapshots: NonNegativeIntegerSchema,
-      clinicalTargets: nullableOptional(NonNegativeIntegerSchema),
-      checkpointOnlyTargets: nullableOptional(NonNegativeIntegerSchema),
+      clinicalTargets: OptionalNonNegativeIntegerSchema,
+      checkpointOnlyTargets: OptionalNonNegativeIntegerSchema,
       batch: nullableOptional(
         z.object({
           mode: z.enum(['shadow', 'enforced']),
@@ -103,8 +118,8 @@ const RayenSyncCoverageSchema = z.object({
           checkpointOnlyTargets: NonNegativeIntegerSchema,
           checkpointTargets: NonNegativeIntegerSchema,
           requestedFields: NonNegativeIntegerSchema,
-          backendTargets: nullableOptional(NonNegativeIntegerSchema),
-          backendFields: nullableOptional(NonNegativeIntegerSchema),
+          backendTargets: OptionalNonNegativeIntegerSchema,
+          backendFields: OptionalNonNegativeIntegerSchema,
         })
       ),
     })
@@ -122,7 +137,7 @@ const RayenSyncChangesSchema = z.object({
 
 const RayenSyncSourceSchema = z.object({
   extensionVersion: NullableOptionalStringSchema,
-  protocolVersion: nullableOptional(NonNegativeIntegerSchema),
+  protocolVersion: OptionalNonNegativeIntegerSchema,
   fichaMedico: nullableOptional(z.enum(['ready', 'missing', 'stale'])),
   gestionCamas: nullableOptional(z.enum(['ready', 'missing', 'stale'])),
 });
@@ -153,8 +168,8 @@ const RayenSyncStaffingObservationSchema = z.object({
 });
 
 const RayenSyncStructuralReviewSchema = z.object({
-  structureConfirmed: nullableOptional(z.boolean()),
-  snapshotComplete: nullableOptional(z.boolean()),
+  structureConfirmed: OptionalBooleanSchema,
+  snapshotComplete: OptionalBooleanSchema,
   historicalCorrectionsPending: z.boolean(),
   historicalCorrectionsRequireFreshCapture: z.boolean(),
   isolatedConflicts: NonNegativeIntegerSchema,
@@ -297,29 +312,29 @@ export const DailyRecordSchema: z.ZodType<DailyRecord, unknown> = z.preprocess(
       clinicalDerivedLayout: nullableOptional(z.unknown()),
       dateTimestamp: nullableOptional(z.number()),
       schemaVersion: z.number().prefault(1),
-      nurses: nullishDefault(z.array(StringSchema), () => ['', '']),
+      nurses: TwoStaffSlotsSchema,
       nurseName: NullableOptionalStringSchema,
-      nursesDayShift: nullishDefault(z.array(StringSchema), () => ['', '']),
-      nursesNightShift: nullishDefault(z.array(StringSchema), () => ['', '']),
-      tensDayShift: nullishDefault(z.array(StringSchema), () => ['', '', '']),
-      tensNightShift: nullishDefault(z.array(StringSchema), () => ['', '', '']),
+      nursesDayShift: TwoStaffSlotsSchema,
+      nursesNightShift: TwoStaffSlotsSchema,
+      tensDayShift: ThreeStaffSlotsSchema,
+      tensNightShift: ThreeStaffSlotsSchema,
       staffingDetailsV1: nullableOptional(DailyRecordStaffingDetailsSchema),
-      activeExtraBeds: nullishDefault(z.array(StringSchema), () => []),
+      activeExtraBeds: EmptyStringArraySchema,
       handoffDayChecklist: z
         .object({
-          escalaBraden: nullableOptional(z.boolean()),
-          escalaRiesgoCaidas: nullableOptional(z.boolean()),
-          escalaRiesgoLPP: nullableOptional(z.boolean()),
+          escalaBraden: OptionalBooleanSchema,
+          escalaRiesgoCaidas: OptionalBooleanSchema,
+          escalaRiesgoLPP: OptionalBooleanSchema,
         })
         .prefault({}),
       handoffNightChecklist: z
         .object({
-          estadistica: nullableOptional(z.boolean()),
-          categorizacionCudyr: nullableOptional(z.boolean()),
-          encuestaUTI: nullableOptional(z.boolean()),
-          encuestaMedias: nullableOptional(z.boolean()),
-          conteoMedicamento: nullableOptional(z.boolean()),
-          conteoNoControlados: nullableOptional(z.boolean()),
+          estadistica: OptionalBooleanSchema,
+          categorizacionCudyr: OptionalBooleanSchema,
+          encuestaUTI: OptionalBooleanSchema,
+          encuestaMedias: OptionalBooleanSchema,
+          conteoMedicamento: OptionalBooleanSchema,
+          conteoNoControlados: OptionalBooleanSchema,
           conteoNoControladosProximaFecha: NullableOptionalStringSchema,
         })
         .prefault({}),
@@ -377,7 +392,7 @@ export const DailyRecordSchema: z.ZodType<DailyRecord, unknown> = z.preprocess(
           ),
         })
       ),
-      cudyrLocked: nullableOptional(z.boolean()),
+      cudyrLocked: OptionalBooleanSchema,
       cudyrLockedAt: NullableOptionalStringSchema,
       cudyrLockedBy: NullableOptionalStringSchema,
       cudyrUpdatedAt: NullableOptionalStringSchema,
@@ -386,7 +401,7 @@ export const DailyRecordSchema: z.ZodType<DailyRecord, unknown> = z.preprocess(
       cudyrShiftDate: NullableOptionalStringSchema,
       cudyrCompletedAt: NullableOptionalStringSchema,
       cudyrCompletedBy: NullableOptionalStringSchema,
-      handoffNightReceives: nullishDefault(z.array(StringSchema), () => []),
+      handoffNightReceives: EmptyStringArraySchema,
     })
     .passthrough()
 );
