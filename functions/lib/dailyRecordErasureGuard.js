@@ -139,4 +139,60 @@ const findPatientErasures = (remote, local) => {
   return erasures;
 };
 
-module.exports = { findPatientErasures, movementAccountsForBed };
+/**
+ * Reject loss of a stored strong id only with concordant person/admission evidence.
+ * A different strong id may be a legitimate source adoption. Beds only locate diagnostics.
+ */
+const findPersistedEpisodeDowngrades = (remote, local) => {
+  const localPatients = collectPatients(local).filter(patient => !patient.isBlocked);
+  const survivingIds = new Set(localPatients.map(patient => scalar(patient.clinicalEpisodeId)));
+  for (const movement of [
+    ...(local.discharges || []),
+    ...(local.transfers || []),
+    ...(local.cma || []),
+  ]) {
+    if (scalar(movement.deletedAt)) continue;
+    survivingIds.add(scalar(movement.clinicalEpisodeId));
+    survivingIds.add(scalar(movement.originalData?.clinicalEpisodeId));
+  }
+  const weakPatients = localPatients.filter(patient => {
+    const id = scalar(patient.clinicalEpisodeId);
+    return !id || id.startsWith('legacy_ep_');
+  });
+  const downgrades = [];
+  for (const [bedId, bed] of Object.entries(remote.beds || {})) {
+    for (const [location, patient] of [
+      [bedId, bed],
+      [`${bedId} (cuna RN)`, bed?.clinicalCrib],
+    ]) {
+      const remoteEpisodeId = scalar(patient?.clinicalEpisodeId);
+      if (
+        !trimmedName(patient) ||
+        patient.isBlocked ||
+        !remoteEpisodeId ||
+        remoteEpisodeId.startsWith('legacy_ep_') ||
+        survivingIds.has(remoteEpisodeId) ||
+        !scalar(patient.firstSeenDate || patient.admissionDate)
+      )
+        continue;
+      const replacement = weakPatients.find(candidate => {
+        if (
+          (patient.documentType === 'Pasaporte' || candidate.documentType === 'Pasaporte') &&
+          scalar(patient.rut) !== scalar(candidate.rut)
+        )
+          return false;
+        return sameRelocatedEpisode(patient, candidate);
+      });
+      if (replacement)
+        downgrades.push({
+          bedId: location,
+          remotePatientName: trimmedName(patient),
+          remoteEpisodeId,
+          localEpisodeId: scalar(replacement.clinicalEpisodeId),
+        });
+    }
+  }
+  return downgrades;
+};
+
+module.exports = { findPatientErasures, movementAccountsForBed, findPersistedEpisodeDowngrades };

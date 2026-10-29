@@ -308,6 +308,17 @@ snapshots and their restore flow are described in
   other mutation has landed since.
 - **Erasure guard** — `assertNoPatientErasures` (server mirror) on save and patch; the patch
   exempts its declared `intentionalBedClear` target.
+- **Episode ID downgrade guard**. Save and patch reject a stored non-legacy episode ID
+  replaced by an empty or `legacy_ep_` ID for the same person and admission, before writing
+  the day, derived documents or history. The comparison spans main occupants and nested
+  cribs, independent of location. An ID retained by an occupant or a non-deleted closing
+  movement is accounted for. The rejection is `failed-precondition`, so the outbox retains
+  its payload and base as a validation failure without automatic retries. The user can
+  review it or explicitly discard its send with the existing downloadable backup.
+  Legacy-to-strong promotion and strong-to-strong source-ID adoption remain allowed;
+  Rayen currently uses the latter when reconciling an attached newborn. This guard does
+  not migrate IDs, fix the document-type collision in legacy generation, or cover direct
+  client writes without the authority callable.
 - **History** — slim snapshot after the commit, best effort; guarded Rayen patches create
   `history/rayen-{runId}` inside the transaction if it does not exist. The server parses
   `historyPolicy` but does not use it.

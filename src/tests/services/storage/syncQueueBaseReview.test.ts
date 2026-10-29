@@ -82,19 +82,21 @@ const snapshot = (data: unknown) => ({ exists: () => true, data: () => data });
 const store = () => createDexieSyncQueueStore();
 const transport = () =>
   createFirestoreSyncTransport({ getDb: () => ({}) as Firestore, ready: Promise.resolve() });
-const processTask = async (input: ReturnType<typeof task>) => {
-  await hospitalDB.dailyRecords.put(input.payload);
-  await hospitalDB.syncQueue.add(input);
-  await createSyncQueueEngine({
+const engine = (maxRetries = 1) =>
+  createSyncQueueEngine({
     store: store(),
     runtime: { isOnline: () => true, getOwnerKey: () => owner, onOnline: () => {} },
     transport: transport(),
     batchSize: 8,
     maxPendingTasks: 192,
-    maxRetries: 1,
+    maxRetries,
     baseRetryDelayMs: 1000,
     maxRetryDelayMs: 30000,
-  }).processQueue();
+  });
+const processTask = async (input: ReturnType<typeof task>, maxRetries = 1) => {
+  await hospitalDB.dailyRecords.put(input.payload);
+  await hospitalDB.syncQueue.add(input);
+  await engine(maxRetries).processQueue();
   return store().listAll(owner);
 };
 const recovery = (row: SyncTask) =>
@@ -253,6 +255,38 @@ describe('opaque daily-record base review', () => {
       meta: confirmed.meta,
     });
     expect(mocks.invoke).not.toHaveBeenCalled();
+    expect(mocks.set).not.toHaveBeenCalled();
+  });
+
+  it('retains a rejected episode downgrade without automatically sending it again', async () => {
+    mocks.mode = 'enforced';
+    mocks.invoke.mockRejectedValue({
+      code: 'functions/failed-precondition',
+      message:
+        'El guardado se bloqueó porque esta copia perdió la referencia del episodio en R1. ' +
+        'Recarga el censo y revisa el paciente y su ingreso antes de volver a guardar.',
+    });
+    const input = task();
+    const [row] = await processTask(input, 3);
+
+    expect(row).toMatchObject({
+      status: 'FAILED',
+      lastErrorCode: 'functions/failed-precondition',
+      lastErrorCategory: 'validation',
+      ownerKey: owner,
+      payload: input.payload,
+      syncContract: input.syncContract,
+    });
+    expect(listQuarantinedOperations([toSyncQueueOperationSnapshot(row)])[0]).toMatchObject({
+      canRetire: true,
+      detail: expect.stringContaining('Recarga el censo y revisa'),
+    });
+    hospitalDB.close();
+    await hospitalDB.open();
+    await engine(3).processQueue();
+    expect(await hospitalDB.syncQueue.toArray()).toEqual([row]);
+    expect(await hospitalDB.dailyRecords.get(date)).toEqual(input.payload);
+    expect(mocks.invoke).toHaveBeenCalledOnce();
     expect(mocks.set).not.toHaveBeenCalled();
   });
 
