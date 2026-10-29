@@ -11,12 +11,33 @@ import {
   type DocumentaryCudyr,
 } from '@/domain/evaluationScales/documentaryCudyr';
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
+import { cudyrModality } from '@/domain/cudyr/cudyrModality';
 import { isValidRut } from '@/utils/rutUtils';
 import { getNextDay } from '@/utils/clinicalDayUtils';
 import type { CudyrCategoryInput } from '@/domain/evaluationScales/importedCudyr';
 
 const patients = (record: DailyRecord): PatientData[] =>
   Object.values(record.beds).flatMap(p => (p.clinicalCrib ? [p, p.clinicalCrib] : [p]));
+
+const recoveryCandidates = (record: DailyRecord) =>
+  Object.entries(record.beds).flatMap(([bedId, patient]) => {
+    const candidates: {
+      patient: PatientData;
+      bedId: string;
+      section: 'census' | 'crib';
+    }[] = [{ patient, bedId, section: 'census' }];
+    if (patient.clinicalCrib)
+      candidates.push({ patient: patient.clinicalCrib, bedId, section: 'crib' });
+    return candidates;
+  });
+
+const hasDocumentaryIdentity = (patient: PatientData): boolean =>
+  patient.documentType === 'RUT' &&
+  isValidRut(patient.rut) &&
+  Boolean(patient.patientName.trim()) &&
+  !patient.neonatalMaternalRut &&
+  patient.identityStatus !== 'provisional';
+
 export interface DailyCudyrGap {
   clinicalEpisodeId: string;
   date: string;
@@ -37,7 +58,13 @@ export const planDailyCudyrGaps = (
       resolveCudyrPendingStatus(record.date, now).phase !== 'overdue'
     )
       return [];
-    return patients(record).flatMap(patient => {
+    return recoveryCandidates(record).flatMap(({ patient, bedId, section }) => {
+      const modality = cudyrModality({ ...patient, bedId, section });
+      if (
+        (modality === 'cuna' || modality === 'cma' || modality === 'uea') &&
+        !hasDocumentaryIdentity(patient)
+      )
+        return [];
       const id = patient.clinicalEpisodeId;
       const live = id ? source.map.get(id) : undefined;
       return id &&
@@ -80,14 +107,7 @@ export const recoverDailyCudyrGap = (
     )
   )
     return { kind: 'attribution_unreliable' };
-  if (
-    patient.clinicalEpisodeId !== gap.clinicalEpisodeId ||
-    patient.documentType !== 'RUT' ||
-    !isValidRut(patient.rut) ||
-    !patient.patientName.trim() ||
-    patient.neonatalMaternalRut ||
-    patient.identityStatus === 'provisional'
-  )
+  if (patient.clinicalEpisodeId !== gap.clinicalEpisodeId || !hasDocumentaryIdentity(patient))
     return { kind: 'attribution_unreliable' };
   if (source.report.month !== sourceDate.slice(0, 7)) return { kind: 'documentary_inconclusive' };
   const document = cudyrDocumentKey(patient.rut);
