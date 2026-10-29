@@ -9,14 +9,12 @@ import {
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordForDate: vi.fn(),
   saveRecord: vi.fn(),
-  saveRecordStrict: vi.fn(record =>
-    Promise.resolve({
-      ok: true,
-      operation: 'save',
-      store: 'indexeddb',
-      dates: [record.date],
-    })
-  ),
+  saveRecordStrict: vi.fn(async record => ({
+    ok: true,
+    operation: 'save',
+    store: 'indexeddb',
+    dates: [record.date],
+  })),
 }));
 
 vi.mock('@/services/storage/firestore/firestoreRecordQueries', () => ({
@@ -81,6 +79,7 @@ import {
 import {
   ackDailyRecordSyncTask,
   isRetryableSyncError,
+  releaseDailyRecordPreOutboxHold,
   queueDailyRecordSyncTaskWithLocalRecord as queueSyncTask,
 } from '@/services/storage/sync';
 
@@ -92,6 +91,19 @@ const expectSyncContract = (expectedVersion: string, changedPaths: string[]) =>
       recordRevision: expect.any(String),
     }),
   });
+
+const expectDurableRetry = (expectedVersion: string, paths: string[], remoteCallOrder: number) => {
+  expect(queueSyncTask).toHaveBeenCalledOnce();
+  const [record, metadata] = vi.mocked(queueSyncTask).mock.calls[0];
+  expect(metadata).toEqual(expectSyncContract(expectedVersion, paths));
+  expect(metadata.syncContract?.mutationId).toEqual(expect.any(String));
+  expect(releaseDailyRecordPreOutboxHold).toHaveBeenCalledExactlyOnceWith(
+    record,
+    metadata.syncContract
+  );
+  expect(queueSyncTask.mock.invocationCallOrder[0]).toBeLessThan(remoteCallOrder);
+  expect(ackDailyRecordSyncTask).not.toHaveBeenCalled();
+};
 
 describe('dailyRecordRepositoryWriteService outbox fallback', () => {
   beforeEach(() => {
@@ -105,30 +117,27 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
     vi.mocked(ackDailyRecordSyncTask).mockResolvedValue(true);
   });
 
-  it('queues full record when save to Firestore fails with retryable error', async () => {
+  it('retains the single durable full record after a retryable remote failure', async () => {
     vi.mocked(saveRecordToFirestore).mockRejectedValueOnce(new Error('Network timeout'));
     vi.mocked(isRetryableSyncError).mockReturnValue(true);
 
     const record = buildRecord('2026-02-19');
-    await save(record);
+    const result = await saveDetailed(record);
+    expect(result.outcome).toBe('queued');
+    expect(result.queuedForRetry).toBe(true);
 
     expect(queueSyncTask).toHaveBeenCalledWith(
       expect.objectContaining({ date: '2026-02-19' }),
       expect.objectContaining({
         contexts: ['clinical', 'staffing', 'movements', 'handoff', 'metadata'],
-        origin: 'full_save_retry',
-      })
+      }),
+      expect.objectContaining({ deferProcessing: true, preOutboxHoldReason: 'awaiting_remote_ack' })
     );
-  });
-
-  it('returns queued outcome through saveDetailed', async () => {
-    vi.mocked(saveRecordToFirestore).mockRejectedValueOnce(new Error('Network timeout'));
-    vi.mocked(isRetryableSyncError).mockReturnValue(true);
-
-    const result = await saveDetailed(buildRecord('2026-02-20'));
-
-    expect(result.outcome).toBe('queued');
-    expect(result.queuedForRetry).toBe(true);
+    expectDurableRetry(
+      record.lastUpdated,
+      ['*'],
+      vi.mocked(saveRecordToFirestore).mock.invocationCallOrder[0]
+    );
   });
 
   it('surfaces sync queue saturation as unrecoverable instead of pretending the retry was queued', async () => {
@@ -167,7 +176,7 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
     expect(saveToIndexedDB).not.toHaveBeenCalled();
   });
 
-  it('queues merged record when partial update fails with retryable error', async () => {
+  it('retains the single durable patched record after a retryable remote failure', async () => {
     const existing = buildRecord('2026-02-18');
     existing.beds = {
       R1: buildPatient('R1', 'Paciente Anterior'),
@@ -192,12 +201,13 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
       }),
       expect.objectContaining({
         contexts: ['clinical'],
-        origin: 'partial_update_retry',
-        syncContract: {
-          changedPaths: ['beds.R1.patientName'],
-          expectedVersion: existing.lastUpdated,
-        },
-      })
+      }),
+      expect.objectContaining({ deferProcessing: true, preOutboxHoldReason: 'awaiting_remote_ack' })
+    );
+    expectDurableRetry(
+      existing.lastUpdated,
+      ['beds.R1.patientName'],
+      vi.mocked(updateRecordPartialToFirestore).mock.invocationCallOrder[0]
     );
   });
 

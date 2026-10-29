@@ -61,6 +61,12 @@ describe('dailyRecordRemotePersistenceController', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     isFirestoreEnabledMock.mockReturnValue(true);
+    saveToIndexedDBMock.mockResolvedValue({
+      ok: true,
+      operation: 'save',
+      store: 'indexeddb',
+      dates: ['2026-05-23'],
+    });
   });
 
   afterEach(() => {
@@ -69,12 +75,6 @@ describe('dailyRecordRemotePersistenceController', () => {
 
   it('persists locally and skips remote write when Firestore is disabled', async () => {
     isFirestoreEnabledMock.mockReturnValue(false);
-    saveToIndexedDBMock.mockResolvedValue({
-      ok: true,
-      operation: 'save',
-      store: 'indexeddb',
-      dates: ['2026-05-23'],
-    });
     const state = createRemoteWriteState();
     const remoteWrite = vi.fn();
 
@@ -98,12 +98,6 @@ describe('dailyRecordRemotePersistenceController', () => {
   });
 
   it('marks the remote state as synced after a successful remote write', async () => {
-    saveToIndexedDBMock.mockResolvedValue({
-      ok: true,
-      operation: 'save',
-      store: 'indexeddb',
-      dates: ['2026-05-23'],
-    });
     const state = createRemoteWriteState();
     const remoteWrite = vi.fn().mockResolvedValue(undefined);
 
@@ -371,12 +365,6 @@ describe('dailyRecordRemotePersistenceController', () => {
   });
 
   it('applies recovery and returns early when remote recovery asks to throw', async () => {
-    saveToIndexedDBMock.mockResolvedValue({
-      ok: true,
-      operation: 'save',
-      store: 'indexeddb',
-      dates: ['2026-05-23'],
-    });
     const state = createRemoteWriteState();
     const remoteError = new Error('remote failed');
     const blockingError = new Error('manual review');
@@ -424,12 +412,6 @@ describe('dailyRecordRemotePersistenceController', () => {
   });
 
   it('propagates the no-auto-merge policy for a reclassification conflict', async () => {
-    saveToIndexedDBMock.mockResolvedValue({
-      ok: true,
-      operation: 'save',
-      store: 'indexeddb',
-      dates: ['2026-05-23'],
-    });
     resolveRemoteWriteRecoveryMock.mockResolvedValueOnce({
       status: 'throw',
       error: new Error('reload required'),
