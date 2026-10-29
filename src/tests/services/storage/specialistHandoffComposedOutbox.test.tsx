@@ -85,6 +85,7 @@ beforeEach(async () => {
   h.loseNextResponse = false;
   h.callableCalls = 0;
   h.authorityMode = false;
+  h.beforeDayTransaction = null;
 });
 afterEach(() => {
   cleanup();
@@ -302,19 +303,57 @@ describe('the note unit composed with the outbox compaction', () => {
     await hospitalDB.dailyRecords.put(base);
     h.remote = clone(base);
     await writeDay(base, { 'beds.R6.pathology': 'Dx E corregido' });
-    const online = await writeNote(await local(), 'R4', 'entry-A', 'Nota de A', { offline: false });
-    expect(online.result).toMatchObject({ updatedRemotely: true });
+    let releaseTransaction = () => {};
+    const held = new Promise<void>(resolve => {
+      releaseTransaction = resolve;
+    });
+    const entered = new Promise<void>(resolve => {
+      h.beforeDayTransaction = async () => {
+        resolve();
+        await held;
+      };
+    });
+    try {
+      const online = await writeNote(await local(), 'R4', 'entry-A', 'Nota de A', {
+        offline: false,
+      });
+      expect(online.result).toMatchObject({ updatedRemotely: true });
 
-    expect(noteOf(remote(), 'R4')).toBe('Nota de A');
-    expect(remote().beds.R6.pathology).toBe('Dx E');
-    expect(noteOf(await local(), 'R4')).toBe('Nota de A');
-    expect((await local()).beds.R6.pathology).toBe('Dx E corregido');
-    expect((await queue()).map(task => task.type)).toEqual(['UPDATE_DAILY_RECORD']);
+      expect(noteOf(remote(), 'R4')).toBe('Nota de A');
+      expect(remote().beds.R6.pathology).toBe('Dx E');
+      expect(noteOf(await local(), 'R4')).toBe('Nota de A');
+      expect((await local()).beds.R6.pathology).toBe('Dx E corregido');
+      expect((await queue()).map(task => task.type)).toEqual(['UPDATE_DAILY_RECORD']);
+      const [pendingDay] = await queue();
 
-    await reconnect();
-    expect(remote().beds.R6.pathology).toBe('Dx E corregido');
-    expect(noteOf(remote(), 'R4')).toBe('Nota de A');
-    expect(await queue()).toEqual([]);
+      await entered;
+      await reconnect();
+      expect(await queue()).toEqual([
+        expect.objectContaining({
+          id: pendingDay.id,
+          opId: pendingDay.opId,
+          type: 'UPDATE_DAILY_RECORD',
+          status: 'PROCESSING',
+          retryCount: 0,
+          lastErrorCode: undefined,
+        }),
+      ]);
+      expect(((await queue())[0].payload as DailyRecord).beds.R6.pathology).toBe('Dx E corregido');
+      expect(remote().beds.R6.pathology).toBe('Dx E');
+      releaseTransaction();
+      await vi.waitFor(async () => {
+        expect(remote().beds.R6.pathology).toBe('Dx E corregido');
+        expect(noteOf(remote(), 'R4')).toBe('Nota de A');
+        expect(await queue()).toEqual([]);
+      });
+    } finally {
+      releaseTransaction();
+      h.beforeDayTransaction = null;
+      await vi.waitFor(async () => {
+        const operations = await listRecentSyncQueueOperations(10);
+        expect(operations.filter(task => task.status === 'PROCESSING')).toEqual([]);
+      });
+    }
   });
 
   it('syncs two notes on different beds and a day edit, with nothing left behind', async () => {
