@@ -345,12 +345,25 @@ export const createDailyRecordSubscription = (
     reconcileNullRealtimeRecord(previousResult);
   };
 
-  const stop = dailyRecord.subscribeDetailed(date, (result, hasPendingWrites) => {
-    handleResolvedRealtimeResult(
-      createDailyRecordQueryResult(result.record, createRuntimeFromResult(date, result)),
-      hasPendingWrites
-    );
-  });
+  const stop = dailyRecord.subscribeDetailed(
+    date,
+    (result, hasPendingWrites) => {
+      handleResolvedRealtimeResult(
+        createDailyRecordQueryResult(result.record, createRuntimeFromResult(date, result)),
+        hasPendingWrites
+      );
+    },
+    result => {
+      if (!isSubscriptionActive) return;
+      realtimeRevision += 1;
+      applyResolvedQueryResult(
+        reconcileDailyRecordQueryResult(
+          queryClient.getQueryData<DailyRecordQueryResult>(queryKey),
+          createDailyRecordQueryResult(null, createRuntimeFromResult(date, result))
+        )
+      );
+    }
+  );
   return () => {
     isSubscriptionActive = false;
     stop();

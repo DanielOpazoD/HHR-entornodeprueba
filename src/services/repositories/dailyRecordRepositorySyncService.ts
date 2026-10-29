@@ -53,7 +53,8 @@ const resolveSubscriptionResult = async (
   date: string,
   remoteRecord: DailyRecord | null,
   serverConfirmed: boolean,
-  localRecord?: DailyRecord | null
+  localRecord?: DailyRecord | null,
+  isCurrent: () => boolean = () => true
 ): Promise<SyncDailyRecordResult> => {
   localRecord = localRecord === undefined ? await getRecordFromIndexedDB(date) : localRecord;
   const remoteAvailability = remoteRecord
@@ -67,7 +68,7 @@ const resolveSubscriptionResult = async (
     remoteAvailability,
     clinicalConsistencyPhase: 'sync_publish',
   });
-  if (goldenPath.shouldHydrateLocal && remoteRecord) {
+  if (goldenPath.shouldHydrateLocal && remoteRecord && isCurrent()) {
     await hydrateLocalCache(goldenPath.selectedRecord || remoteRecord, date, localRecord);
   }
   const retainedRecord = await getPendingDailyRecordProjection(date);
@@ -96,35 +97,74 @@ const resolveSubscriptionResult = async (
 
 export const subscribeDetailed = (
   date: string,
-  callback: (result: SyncDailyRecordResult, hasPendingWrites: boolean) => void
+  callback: (result: SyncDailyRecordResult, hasPendingWrites: boolean) => void,
+  onFailure?: (result: SyncDailyRecordResult) => void
 ): (() => void) => {
   let active = true;
+  let issued = 0;
+  const isCurrent = (revision: number) => active && revision === issued;
+  const reportFailure = (stage: 'consumer' | 'resolution') =>
+    dailyRecordSyncLogger.warn('Daily record subscription failed', { date, stage });
+  const deliver = (notify: () => void) => {
+    try {
+      notify();
+    } catch {
+      reportFailure('consumer');
+    }
+  };
+  const fail = () =>
+    deliver(() =>
+      onFailure?.(
+        createSyncDailyRecordResult({
+          date,
+          outcome: 'blocked',
+          record: null,
+          retryability: 'manual_retry',
+        })
+      )
+    );
 
-  const unsubscribe = subscribeToRecord(date, (record, hasPendingWrites, metadata) => {
-    void (async () => {
+  const unsubscribe = subscribeToRecord(
+    date,
+    (record, hasPendingWrites, metadata) => {
       if (!active) return;
-
-      const migrated = record ? migrateLegacyData(record, date) : null;
-      const serverConfirmed = !hasPendingWrites && isServerConfirmedSnapshot(metadata);
-      const result = hasPendingWrites
-        ? createSyncDailyRecordResult({
-            date,
-            outcome: migrated ? 'clean' : 'blocked',
-            record: migrated,
-            consistencyState: migrated ? 'up_to_date' : 'blocked',
-            sourceOfTruth: migrated ? 'local' : 'none',
-            retryability: 'not_applicable',
-            recoveryAction: 'none',
-            conflictSummary: null,
-            observabilityTags: ['daily_record', 'sync', 'subscription_pending_write'],
-            repairApplied: false,
-          })
-        : await resolveSubscriptionResult(date, migrated, serverConfirmed);
-
+      const revision = ++issued;
+      void (async () => {
+        const migrated = record ? migrateLegacyData(record, date) : null;
+        return hasPendingWrites
+          ? createSyncDailyRecordResult({
+              date,
+              outcome: migrated ? 'clean' : 'blocked',
+              record: migrated,
+              sourceOfTruth: migrated ? 'local' : 'none',
+              retryability: 'not_applicable',
+              recoveryAction: 'none',
+              observabilityTags: ['daily_record', 'sync', 'subscription_pending_write'],
+            })
+          : resolveSubscriptionResult(
+              date,
+              migrated,
+              isServerConfirmedSnapshot(metadata),
+              undefined,
+              () => isCurrent(revision)
+            );
+      })().then(
+        result => {
+          if (isCurrent(revision)) deliver(() => callback(result, hasPendingWrites));
+        },
+        () => {
+          if (!isCurrent(revision)) return;
+          reportFailure('resolution');
+          fail();
+        }
+      );
+    },
+    () => {
       if (!active) return;
-      callback(result, hasPendingWrites);
-    })();
-  });
+      active = false;
+      fail();
+    }
+  );
 
   return () => {
     active = false;

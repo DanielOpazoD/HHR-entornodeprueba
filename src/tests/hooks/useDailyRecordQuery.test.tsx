@@ -229,7 +229,11 @@ describe('useDailyRecordQuery', () => {
     });
 
     expect(dailyRecord.getForDateWithMeta).toHaveBeenCalledWith(date, true);
-    expect(dailyRecord.subscribeDetailed).toHaveBeenCalledWith(date, expect.any(Function));
+    expect(dailyRecord.subscribeDetailed).toHaveBeenCalledWith(
+      date,
+      expect.any(Function),
+      expect.any(Function)
+    );
   });
 
   it('keeps one live listener and releases it on date, offline, and unmount transitions', async () => {
@@ -340,7 +344,11 @@ describe('useDailyRecordQuery', () => {
     // The census still renders from local data, but the server connection is
     // no longer held back by the deferred hydration window.
     expect(dailyRecord.getForDateWithMeta).toHaveBeenCalledWith(date, false);
-    expect(dailyRecord.subscribeDetailed).toHaveBeenCalledWith(date, expect.any(Function));
+    expect(dailyRecord.subscribeDetailed).toHaveBeenCalledWith(
+      date,
+      expect.any(Function),
+      expect.any(Function)
+    );
   });
 
   it('keeps the listener closed when the runtime itself is not ready', async () => {

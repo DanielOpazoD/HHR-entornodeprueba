@@ -8,6 +8,7 @@ import {
   defaultDailyRecordRepositoryPort,
   defaultDailyRecordWritePort,
 } from '@/application/ports/dailyRecordPort';
+import { createSyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 
 const readService = {
   getAuthoritativeForDate: vi.fn(),
@@ -113,18 +114,46 @@ describe('dailyRecordPort lazy facade', () => {
 
   it('attaches and tears down the lazy sync subscription once the module resolves', async () => {
     const unsubscribe = vi.fn();
-    syncService.subscribeDetailed.mockReturnValue(unsubscribe);
+    const onRecord = vi.fn();
+    syncService.subscribeDetailed.mockImplementationOnce((date, callback) => {
+      callback(createSyncDailyRecordResult({ date, record: null, outcome: 'missing' }), false);
+      return unsubscribe;
+    });
 
-    const stop = defaultDailyRecordRepositoryPort.subscribeDetailed('2026-04-10', vi.fn());
+    const stop = defaultDailyRecordRepositoryPort.subscribeDetailed('2026-04-10', onRecord);
     await vi.waitFor(() => {
-      expect(syncService.subscribeDetailed).toHaveBeenCalledWith(
-        '2026-04-10',
-        expect.any(Function)
+      expect(onRecord).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ date: '2026-04-10', record: null, outcome: 'missing' }),
+        false
       );
     });
 
     stop();
 
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it('forwards a subscription failure through the lazy repository port', async () => {
+    const failure = createSyncDailyRecordResult({
+      date: '2026-04-10',
+      record: null,
+      outcome: 'blocked',
+    });
+    const unsubscribe = vi.fn();
+    const onFailure = vi.fn();
+    const onRecord = vi.fn();
+    syncService.subscribeDetailed.mockImplementationOnce((_date, _callback, failed) => {
+      failed?.(failure);
+      return unsubscribe;
+    });
+    const stop = defaultDailyRecordRepositoryPort.subscribeDetailed(
+      '2026-04-10',
+      onRecord,
+      onFailure
+    );
+    await vi.waitFor(() => expect(onFailure).toHaveBeenCalledExactlyOnceWith(failure));
+    expect(onRecord).not.toHaveBeenCalled();
+    stop();
     expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
 });
