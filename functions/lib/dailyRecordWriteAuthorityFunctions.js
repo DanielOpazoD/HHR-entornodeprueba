@@ -24,7 +24,10 @@ const {
   collectClinicalEpisodeCoverage,
   evaluateDailyRecordClinicalAuthority,
 } = require('./dailyRecordClinicalAuthorityPolicy');
-const { findPatientErasures } = require('./dailyRecordErasureGuard');
+const {
+  findPatientErasures,
+  findPersistedEpisodeDowngrades,
+} = require('./dailyRecordErasureGuard');
 const {
   SpecialtyDecisionError,
   parseSpecialtyIntent,
@@ -1234,6 +1237,18 @@ const assertNoPatientErasures = ({ snapshot, record, intentionalBedClear = null 
   );
 };
 
+const assertNoPersistedEpisodeDowngrades = ({ snapshot, record }) => {
+  if (!snapshot.exists) return;
+  const downgrades = findPersistedEpisodeDowngrades(snapshot.data() || {}, record);
+  if (!downgrades.length) return;
+  const detail = downgrades.map(item => item.bedId).join(', ');
+  throw new functions.https.HttpsError(
+    'failed-precondition',
+    `El guardado se bloqueó porque esta copia perdió la referencia del episodio en ${detail}. ` +
+      'Recarga el censo y revisa el paciente y su ingreso antes de volver a guardar.'
+  );
+};
+
 const createDailyRecordWriteAuthorityFunctions = ({
   firestore,
   Timestamp,
@@ -1359,6 +1374,7 @@ const createDailyRecordWriteAuthorityFunctions = ({
           assertExpectedVersion({ snapshot, expectedLastUpdated });
           assertExpectedRevision({ snapshot, syncContract });
           assertNoPatientErasures({ snapshot, record });
+          assertNoPersistedEpisodeDowngrades({ snapshot, record });
 
           const policySnapshot = await transaction.get(policyRef);
           const specialtyPolicySnapshot = specialtyEpisodeEnabled()
@@ -1861,6 +1877,7 @@ const createDailyRecordWriteAuthorityFunctions = ({
             record: patchedRecord,
             intentionalBedClear,
           });
+          assertNoPersistedEpisodeDowngrades({ snapshot, record: patchedRecord });
           patchedRecord.meta = buildNextMeta({ remoteData, syncContract, now });
           const derivedWrite = derivedSplit?.plan({ patchedRecord, now, mutationId });
 
