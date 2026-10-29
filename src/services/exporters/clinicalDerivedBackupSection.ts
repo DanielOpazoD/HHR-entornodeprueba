@@ -11,9 +11,23 @@ import type { ApplicationIssue } from '@/shared/contracts/applicationOutcomeType
  * days (clinicalDerivedBackupRestore): only the server writes episode documents.
  */
 
+type ReadService = typeof import('@/services/repositories/dailyRecordClinicalDerivedReadService');
+
+type BackupGap =
+  | Extract<
+      Awaited<ReturnType<ReadService['readClinicalDerivedBackupDay']>>,
+      { status: 'unavailable' }
+    >['reason']
+  | 'doc_ahead'
+  | 'not_restorable'
+  | 'restore_unavailable';
+
 export type ClinicalDerivedBackupDay =
   | { status: 'exported'; layoutGeneration: string; docs: ClinicalDerivedEpisodeDoc[] }
-  | { status: 'unavailable'; reason: string };
+  | ({ status: 'unavailable'; reason: BackupGap } & (
+      | { layoutGeneration: string; docs: ClinicalDerivedEpisodeDoc[] }
+      | { layoutGeneration?: never; docs?: never }
+    ));
 
 export type ClinicalDerivedBackupSection = Record<string, ClinicalDerivedBackupDay>;
 
@@ -41,24 +55,33 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> =>
 const READ_CONCURRENCY = 4;
 const READ_PATH_UNAVAILABLE = 'read_failed';
 
-type ReadService = typeof import('@/services/repositories/dailyRecordClinicalDerivedReadService');
+type RestoreService = typeof import('@/services/exporters/clinicalDerivedBackupRestore');
 
 const loadReadService = (): Promise<ReadService | null> =>
   import('@/services/repositories/dailyRecordClinicalDerivedReadService').catch(() => null);
 
+const loadRestoreService = (): Promise<RestoreService | null> =>
+  import('@/services/exporters/clinicalDerivedBackupRestore').catch(() => null);
+
 const readBackupDay = async (
   readService: ReadService | null,
+  restoreService: RestoreService | null,
   record: DailyRecord
 ): Promise<ClinicalDerivedBackupDay> => {
   if (!readService) return { status: 'unavailable', reason: READ_PATH_UNAVAILABLE };
-  const result = await readService.readClinicalDerivedDayDocs(record);
-  if (result.status === 'resolved') {
-    return { status: 'exported', layoutGeneration: result.layoutGeneration, docs: result.docs };
+  const result = await readService.readClinicalDerivedBackupDay(record);
+  if (result.status === 'unavailable') {
+    return result.retained
+      ? { status: 'unavailable', reason: result.reason, ...result.retained }
+      : { status: 'unavailable', reason: result.reason };
   }
-  return {
-    status: 'unavailable',
-    reason: result.status === 'unavailable' ? result.reason : 'unmarked',
-  };
+  const { layoutGeneration, docs } = result;
+  const reason = restoreService
+    ? restoreService.assessClinicalDerivedBackupDay(record, layoutGeneration, docs)
+    : 'restore_unavailable';
+  return reason === 'complete'
+    ? { status: 'exported', layoutGeneration, docs }
+    : { status: 'unavailable', reason, layoutGeneration, docs };
 };
 
 /**
@@ -70,12 +93,15 @@ export const buildClinicalDerivedBackupSection = async (
 ): Promise<ClinicalDerivedBackupSection | undefined> => {
   const marked = records.filter(record => record.clinicalDerivedLayout != null);
   if (marked.length === 0) return undefined;
-  const readService = await loadReadService();
+  const [readService, restoreService] = await Promise.all([
+    loadReadService(),
+    loadRestoreService(),
+  ]);
   const byDate = new Map<string, ClinicalDerivedBackupDay>();
   const pending = [...marked];
   const worker = async () => {
     for (let record = pending.shift(); record; record = pending.shift()) {
-      byDate.set(record.date, await readBackupDay(readService, record));
+      byDate.set(record.date, await readBackupDay(readService, restoreService, record));
     }
   };
   await Promise.all(Array.from({ length: Math.min(READ_CONCURRENCY, pending.length) }, worker));
@@ -99,15 +125,12 @@ export const loadClinicalDerivedDayRestore = async (
   section: unknown
 ): Promise<(record: DailyRecord) => ClinicalDerivedDayRestore> => {
   const entries = isPlainObject(section) ? section : {};
-  const restoreDay =
-    Object.keys(entries).length === 0
-      ? null
-      : await import('@/services/exporters/clinicalDerivedBackupRestore')
-          .then(module => module.restoreClinicalDerivedBackupDay)
-          .catch(() => null);
+  const restoreService = Object.keys(entries).length === 0 ? null : await loadRestoreService();
   return record => {
     if (entries[record.date] === undefined) return restoreWithoutSectionEntry(record);
-    return restoreDay ? restoreDay(record, entries) : { kind: 'incomplete', record };
+    return restoreService
+      ? restoreService.restoreClinicalDerivedBackupDay(record, entries)
+      : { kind: 'incomplete', record };
   };
 };
 
@@ -142,9 +165,7 @@ export const describeIncompleteClinicalDerivedBackup = (
     .map(([date]) => date);
   if (dates.length === 0) return undefined;
   const userSafeMessage =
-    `El respaldo se generó sin los datos clínicos por episodio de ${dates.length} ` +
-    `${dates.length === 1 ? 'día' : 'días'} (${dates.join(', ')}). ` +
-    'Vuelve a exportarlo con conexión al servidor.';
+    `No se comprobó la restauración de ${dates.join(', ')}. ` + 'El archivo conserva lo leído.';
   return {
     kind: 'unknown',
     code: 'clinical_derived_backup_incomplete',

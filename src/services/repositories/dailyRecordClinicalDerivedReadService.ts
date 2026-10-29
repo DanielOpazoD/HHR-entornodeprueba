@@ -293,6 +293,46 @@ export const readClinicalDerivedDaySnapshot = async (
   return { status: 'unavailable', reason: failureReason(read), code: read.code };
 };
 
+export type ClinicalDerivedBackupReadResult =
+  | Extract<ClinicalDerivedDayDocsResult, { status: 'resolved' }>
+  | {
+      status: 'unavailable';
+      reason: ClinicalDerivedFallbackReason | 'day_missing' | 'generation_mismatch' | 'day_changed';
+      code?: string;
+      retained?: { layoutGeneration: string; docs: ClinicalDerivedEpisodeDoc[] };
+    };
+
+/** A backup reads its local generation, retaining documents that could not be confirmed. */
+export const readClinicalDerivedBackupDay = async (
+  record: Pick<DailyRecord, 'date' | 'clinicalDerivedLayout'>
+): Promise<ClinicalDerivedBackupReadResult> => {
+  const layout = readClinicalDerivedLayout(record);
+  if (layout.status !== 'marked') return { status: 'unavailable', reason: 'unsupported_layout' };
+  if (!isFirestoreEnabled() || isE2EOverrideActive()) {
+    return { status: 'unavailable', reason: 'read_failed', code: FIRESTORE_DISABLED_CODE };
+  }
+  const loaded = await loadReaderOrReport(record.date, 'day');
+  if (loaded.status === 'failed') {
+    return { status: 'unavailable', reason: 'read_failed', code: loaded.code };
+  }
+  const layoutGeneration = layout.layout.generation;
+  const read = await loaded.reader.readClinicalDerivedBackupDay(record.date, layoutGeneration);
+  if (read.status === 'resolved') return { status: 'resolved', layoutGeneration, docs: read.docs };
+  return {
+    status: 'unavailable',
+    reason:
+      read.status === 'missing'
+        ? 'day_missing'
+        : read.code === 'generation_mismatch' || read.code === 'day_changed'
+          ? read.code
+          : failureReason(read),
+    ...(read.status === 'missing' ? {} : { code: read.code }),
+    ...(read.unconfirmedDocs === undefined
+      ? {}
+      : { retained: { layoutGeneration, docs: read.unconfirmedDocs } }),
+  };
+};
+
 export type ClinicalDerivedDisplayDocResult =
   | { status: 'skipped' }
   | { status: 'resolved'; doc: ClinicalDerivedEpisodeDoc | null; fromCache: boolean }

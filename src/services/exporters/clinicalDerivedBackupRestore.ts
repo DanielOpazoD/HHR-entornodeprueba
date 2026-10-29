@@ -8,6 +8,7 @@ import {
   CLINICAL_DERIVED_MOVED_FIELDS,
   applyMovedFields,
   collectClinicalDerivedEpisodes,
+  findStaleClinicalDerivedEpisodeIds,
   isClinicalDerivedDocId,
   readClinicalDerivedLayout,
 } from '@/services/storage/clinicalDerivedContract';
@@ -216,4 +217,16 @@ export const restoreClinicalDerivedBackupDay = (
     needsConfirmation: restored.size > 0,
     isKeptBy: (day, docs) => holdsRestoredEpisodes(restored, day, docs),
   };
+};
+
+export const assessClinicalDerivedBackupDay = (
+  record: DailyRecord,
+  layoutGeneration: string,
+  docs: readonly ClinicalDerivedEpisodeDoc[]
+): 'complete' | 'doc_ahead' | 'not_restorable' => {
+  const restored = restoreClinicalDerivedBackupDay(record, {
+    [record.date]: { status: 'exported', layoutGeneration, docs },
+  });
+  if (restored.kind !== 'embedded') return 'not_restorable';
+  return findStaleClinicalDerivedEpisodeIds(record, docs).length > 0 ? 'doc_ahead' : 'complete';
 };

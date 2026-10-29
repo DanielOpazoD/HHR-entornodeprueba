@@ -6,7 +6,10 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
-const mocks = vi.hoisted(() => ({ getLocal: vi.fn(), saveMany: vi.fn() }));
+const mocks = vi.hoisted(() => ({ getLocal: vi.fn(), saveMany: vi.fn(), readBackup: vi.fn() }));
+vi.mock('@/services/repositories/dailyRecordClinicalDerivedReadService', () => ({
+  readClinicalDerivedBackupDay: mocks.readBackup,
+}));
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordForDateStrict: mocks.getLocal,
   saveRecordsStrict: mocks.saveMany,
@@ -16,6 +19,10 @@ vi.mock('@/services/exporters/clinicalDerivedBackupRestore', () => {
 });
 
 import { importDataJSONDetailed } from '@/services/exporters/exportImportJson';
+import {
+  buildClinicalDerivedBackupSection,
+  describeIncompleteClinicalDerivedBackup,
+} from '@/services/exporters/clinicalDerivedBackupSection';
 
 const marker = { version: 1, generation: 'gen_synthetic_offline' };
 const day = (date: string, extra: Record<string, unknown> = {}) =>
@@ -63,4 +70,34 @@ it('imports every day and reports the split one partial', async () => {
   });
   const saved = mocks.saveMany.mock.calls[0][0] as DailyRecord[];
   expect(saved.map(record => record.date).sort()).toEqual(['2026-11-02', '2026-11-03']);
+});
+
+it('retains the captured documents and warns when the export validator cannot load', async () => {
+  const docs = [
+    {
+      schemaVersion: 1,
+      date: '2026-11-02',
+      clinicalEpisodeId: 'ep_synthetic_offline',
+      layoutGeneration: marker.generation,
+      dayRevision: 2,
+      vitalSignsHistory: null,
+    },
+  ];
+  mocks.readBackup.mockResolvedValue({
+    status: 'resolved',
+    layoutGeneration: marker.generation,
+    docs,
+  });
+
+  const section = await buildClinicalDerivedBackupSection([
+    day('2026-11-02', { clinicalDerivedLayout: marker }),
+  ]);
+
+  expect(section?.['2026-11-02']).toEqual({
+    status: 'unavailable',
+    reason: 'restore_unavailable',
+    layoutGeneration: marker.generation,
+    docs,
+  });
+  expect(describeIncompleteClinicalDerivedBackup(section)?.userSafeMessage).toContain('2026-11-02');
 });
