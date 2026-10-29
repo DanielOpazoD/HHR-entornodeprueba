@@ -1,32 +1,28 @@
 import React from 'react';
 import type { CensusMovementActionDescriptor } from '@/features/census/types/censusMovementActionTypes';
 import { useCensusMovementActionsCellModel } from '@/features/census/hooks/useCensusMovementActionsCellModel';
-import { CensusMovementActionsMenu } from '@/features/census/components/CensusMovementActionsMenu';
-import { CensusMovementActionButton } from '@/features/census/components/CensusMovementActionButton';
+import {
+  CensusMovementActionsMenu,
+  type CensusMovementMenuContext,
+} from '@/features/census/components/CensusMovementActionsMenu';
 
 interface CensusMovementActionsCellProps {
   actions: CensusMovementActionDescriptor[];
+  context: CensusMovementMenuContext;
   children?: React.ReactNode;
-  presentation?: 'buttons' | 'menu';
 }
 
 export const CensusMovementActionsCell: React.FC<CensusMovementActionsCellProps> = ({
   actions,
+  context,
   children,
-  presentation = 'buttons',
 }) => {
   const actionViewModels = useCensusMovementActionsCellModel(actions);
 
   return (
     <td className="p-2 print:hidden align-middle">
       <div className="flex flex-wrap items-center justify-end gap-2 h-full">
-        {presentation === 'menu' ? (
-          <CensusMovementActionsMenu actions={actionViewModels} />
-        ) : (
-          actionViewModels.map(action => (
-            <CensusMovementActionButton key={action.key} action={action} />
-          ))
-        )}
+        <CensusMovementActionsMenu actions={actionViewModels} context={context} />
         {children}
       </div>
     </td>

@@ -9,6 +9,7 @@ import { resolveCmaUndoButtonTitle } from '@/features/census/controllers/censusC
 import { useCensusMovementActionsCellModel } from '@/features/census/hooks/useCensusMovementActionsCellModel';
 import { MovementProvenanceBadge } from '@/features/census/components/MovementProvenanceBadge';
 import { CensusMovementPatientIdentity } from './CensusMovementPatientIdentity';
+import { UNREPORTED_MOVEMENT_VALUE } from './CensusMovementPrimaryCells';
 import { CensusMovementEpicrisisButton } from './CensusMovementEpicrisisButton';
 import { DeferredHospitalizationReportsDialog } from './DeferredHospitalizationReportsDialog';
 import { resolveCmaHistoricalAdmissionDate } from '@/types/domain/movements';
@@ -52,25 +53,21 @@ export const CmaSectionRow: React.FC<CmaSectionRowProps> = React.memo(
       {
         kind: 'undo',
         title: resolveCmaUndoButtonTitle(item),
-        className: '',
         onClick: () => void onUndo(item),
       },
       {
         kind: 'viewDocuments',
         title: 'Visualizar documentos clínicos',
-        className: '',
         onClick: () => setShowClinicalDocuments(true),
       },
       {
         kind: 'edit',
         title: 'Editar datos CMA',
-        className: '',
         onClick: openEditDialog,
       },
       {
         kind: 'convert',
         title: 'Convertir a alta domicilio',
-        className: '',
         onClick: () => void onConvertToDischarge(item),
       },
       ...(onConvertToTransfer
@@ -78,7 +75,6 @@ export const CmaSectionRow: React.FC<CmaSectionRowProps> = React.memo(
             {
               kind: 'convert' as const,
               title: 'Convertir a traslado',
-              className: '',
               onClick: () => void onConvertToTransfer(item),
             },
           ]
@@ -86,7 +82,6 @@ export const CmaSectionRow: React.FC<CmaSectionRowProps> = React.memo(
       {
         kind: 'delete',
         title: 'Eliminar registro',
-        className: '',
         onClick: () => void onDelete(item),
       },
     ]);
@@ -129,7 +124,9 @@ export const CmaSectionRow: React.FC<CmaSectionRowProps> = React.memo(
             admissionDate={resolveCmaHistoricalAdmissionDate(item)}
           />
           <td className="p-2">
-            <span className="text-[12px] text-slate-600">{item.diagnosis || '-'}</span>
+            <span className="text-[12px] text-slate-600">
+              {item.diagnosis.trim() ? item.diagnosis : UNREPORTED_MOVEMENT_VALUE}
+            </span>
           </td>
           <td className="p-2 text-center">
             <div className="flex flex-col items-center">
@@ -152,7 +149,7 @@ export const CmaSectionRow: React.FC<CmaSectionRowProps> = React.memo(
                 patientName={item.patientName}
                 onClick={() => setShowHospitalizationReports(true)}
               />
-              <CensusMovementActionsMenu actions={actionViewModels} />
+              <CensusMovementActionsMenu actions={actionViewModels} context={item} />
             </div>
           </td>
         </tr>

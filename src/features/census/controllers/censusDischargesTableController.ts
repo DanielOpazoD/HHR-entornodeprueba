@@ -33,7 +33,6 @@ export const buildDischargeRowActions = (
     {
       kind: 'viewDocuments' as const,
       title: 'Visualizar documentos clínicos',
-      className: 'text-blue-600 hover:text-blue-700',
       onClick: () => handlers.viewClinicalDocuments(discharge),
     },
   ];
@@ -42,7 +41,6 @@ export const buildDischargeRowActions = (
     actions.push({
       kind: 'hospitalizationReports' as const,
       title: 'Informes de hospitalización',
-      className: 'text-sky-600 hover:text-sky-700',
       onClick: () => handlers.openHospitalizationReports(discharge),
     });
   }
@@ -53,7 +51,6 @@ export const buildDischargeRowActions = (
       actions.push({
         kind: 'convert',
         title: 'Convertir a traslado',
-        className: 'text-orange-500 hover:text-orange-700',
         onClick: () => {
           void handlers.convertDischargeToTransfer?.(discharge.id);
         },
@@ -62,7 +59,6 @@ export const buildDischargeRowActions = (
     actions.push({
       kind: 'convert',
       title: 'Convertir a CMA',
-      className: 'text-orange-500 hover:text-orange-700',
       onClick: () => {
         void handlers.convertDischargeToCma(discharge.id);
       },

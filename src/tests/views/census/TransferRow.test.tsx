@@ -122,6 +122,32 @@ describe('TransferRow', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('shows explicit missing values without modifying the transfer', () => {
+    const item = DataFactory.createMockTransfer({
+      patientName: 'Paciente Sintético',
+      evacuationMethod: '',
+      receivingCenter: 'Otro',
+      receivingCenterOther: '',
+      diagnosis: '',
+    });
+    const original = structuredClone(item);
+    render(
+      <table>
+        <tbody>
+          <TransferRow
+            item={item}
+            recordDate="2026-02-14"
+            onUndo={vi.fn().mockResolvedValue(undefined)}
+            onEdit={vi.fn()}
+            onDelete={vi.fn().mockResolvedValue(undefined)}
+          />
+        </tbody>
+      </table>
+    );
+    expect(screen.getAllByText('Sin informar')).toHaveLength(3);
+    expect(item).toEqual(original);
+  });
+
   it('opens the Eloísa epicrisis search from the visible transfer action', async () => {
     const item = DataFactory.createMockTransfer({
       patientName: 'Paciente Traslado',

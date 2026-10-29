@@ -8,5 +8,5 @@ export const buildCensusMovementTableHeaders = (
   { label: 'Diagnóstico' },
   ...detailLabels.map(label => ({ label, className: 'w-[12%]' })),
   { label: 'Fecha', className: 'w-32 text-center' },
-  { label: 'Acciones', className: 'w-40 text-right print:hidden' },
+  { label: 'Acciones', className: 'w-44 text-right print:hidden' },
 ];

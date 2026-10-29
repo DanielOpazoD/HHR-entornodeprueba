@@ -2,6 +2,10 @@ import React from 'react';
 import type { CensusMovementRowBaseViewModel } from '@/features/census/types/censusMovementRowViewModelTypes';
 import { CensusMovementPatientIdentity } from './CensusMovementPatientIdentity';
 
+export const UNREPORTED_MOVEMENT_VALUE = (
+  <span className="text-slate-500 italic">Sin informar</span>
+);
+
 interface CensusMovementPrimaryCellsProps {
   viewModel: Pick<
     CensusMovementRowBaseViewModel,
@@ -26,6 +30,8 @@ export const CensusMovementPrimaryCells: React.FC<CensusMovementPrimaryCellsProp
       identifier={viewModel.rut}
       admissionDate={viewModel.admissionDate}
     />
-    <td className="p-2 text-slate-600">{viewModel.diagnosis}</td>
+    <td className="p-2 text-slate-600">
+      {viewModel.diagnosis.trim() ? viewModel.diagnosis : UNREPORTED_MOVEMENT_VALUE}
+    </td>
   </>
 );

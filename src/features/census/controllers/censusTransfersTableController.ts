@@ -39,7 +39,6 @@ export const buildTransferRowActions = (
     actions.push({
       kind: 'convert' as const,
       title: 'Convertir a alta domicilio',
-      className: 'text-orange-500 hover:text-orange-700',
       onClick: () => void handlers.convertTransferToHomeDischarge?.(transfer.id),
     });
   }
@@ -47,7 +46,6 @@ export const buildTransferRowActions = (
     actions.push({
       kind: 'convert' as const,
       title: 'Convertir a CMA',
-      className: 'text-orange-500 hover:text-orange-700',
       onClick: () => void handlers.convertTransferToCma?.(transfer.id),
     });
   }

@@ -122,7 +122,7 @@ El IEEH ya no se completa desde el censo: se llena en el panel IEEH de la epicri
 | `controllers/patientMovementCommandRuntimeController.ts`        | Bridge command -> action runtime                                |
 | `controllers/bedManagerModalController.ts`                      | Transiciones y validación del flujo de bloqueo de camas         |
 | `controllers/bedManagerGridItemsController.ts`                  | Mapeo puro de `DailyRecord` a props de grillas de camas         |
-| `controllers/censusMovementActionIconController.ts`             | Resolución de iconografía para acciones de movimientos          |
+| `components/censusMovementActionPresentation.tsx`               | Iconografía y estilo compartidos de acciones de movimientos     |
 | `components/patient-row/nameInputController.ts`                 | Contrato puro de display/edición del nombre del paciente        |
 | `src/hooks/useDischargeModalForm.ts`                            | Form flow de altas                                              |
 | `src/hooks/useTransferModalForm.ts`                             | Form flow de traslados                                          |
@@ -202,6 +202,10 @@ El IEEH ya no se completa desde el censo: se llena en el panel IEEH de la epicri
   teclado. No oculta columnas ni modifica preferencias de ancho. Impresión mantiene proporciones.
 - Altas, Traslados y Hospitalización Diurna comparten identidad, encabezados, fechas y superficies;
   se conservan los accesos a epicrisis y los menús de acciones en portal.
+- Los menús muestran cama y paciente, con deshacer/eliminar separados al final.
+  Opciones y Epicrisis comparten altura y foco; con puntero táctil ofrecen un mínimo de
+  44 px. Los valores ausentes se presentan como «Sin informar» sin modificar el registro.
+  La descarga del egreso muestra su estado pendiente usando la solicitud existente.
 - Validación visual reproducible: `npm run test:e2e:preview:census-bootstrap` usa datos sintéticos
   y cubre geometría de portátil, foco, admisión discreta, encabezado y menús sin recortes.
 

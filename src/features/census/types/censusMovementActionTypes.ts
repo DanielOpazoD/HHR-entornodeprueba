@@ -9,6 +9,5 @@ export type CensusMovementActionKind =
 export interface CensusMovementActionDescriptor {
   kind: CensusMovementActionKind;
   title: string;
-  className: string;
   onClick: () => void;
 }
