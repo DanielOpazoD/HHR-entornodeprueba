@@ -21,7 +21,6 @@ const { mockDailyRecordRepositoryPort } = vi.hoisted(() => ({
       queuedForRetry: false,
       autoMerged: false,
     }),
-    subscribe: vi.fn(() => vi.fn()),
     subscribeDetailed: vi.fn(() => vi.fn()),
     updatePartial: vi.fn().mockResolvedValue(undefined),
     updatePartialDetailed: vi.fn().mockResolvedValue({

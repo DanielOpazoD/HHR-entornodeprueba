@@ -211,7 +211,6 @@ describe('useDailyRecordQuery', () => {
     });
 
     expect(dailyRecord.getForDateWithMeta).toHaveBeenCalledWith(date, false);
-    expect(dailyRecord.subscribe).not.toHaveBeenCalled();
     expect(dailyRecord.subscribeDetailed).not.toHaveBeenCalled();
   });
 
@@ -360,7 +359,6 @@ describe('useDailyRecordQuery', () => {
     });
 
     expect(dailyRecord.subscribeDetailed).not.toHaveBeenCalled();
-    expect(dailyRecord.subscribe).not.toHaveBeenCalled();
   });
 
   it('prefetches the previous day once per selected day, not on every live update', async () => {

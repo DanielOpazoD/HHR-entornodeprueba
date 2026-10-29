@@ -14,7 +14,6 @@ const { repository } = vi.hoisted(() => ({
     getForDateWithMeta: vi.fn(),
     save: vi.fn(),
     saveDetailed: vi.fn(),
-    subscribe: vi.fn(() => vi.fn()),
     subscribeDetailed: vi.fn(() => vi.fn()),
     updatePartial: vi.fn(),
     updatePartialDetailed: vi.fn(),

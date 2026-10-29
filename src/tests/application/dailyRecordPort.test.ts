@@ -1,3 +1,4 @@
+import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.unmock('@/application/ports/dailyRecordPort');
@@ -36,8 +37,7 @@ const deletionService = {
 
 const syncService = {
   syncWithFirestoreDetailed: vi.fn(),
-  subscribe: vi.fn(),
-  subscribeDetailed: vi.fn(),
+  subscribeDetailed: vi.fn<DailyRecordRepositoryPort['subscribeDetailed']>(),
 };
 
 vi.mock('@/services/repositories/dailyRecordRepositoryReadService', () => readService);
@@ -99,13 +99,28 @@ describe('dailyRecordPort lazy facade', () => {
     expect(deletionService.deleteDailyRecordAcrossStores).toHaveBeenCalledWith('2026-04-10');
   });
 
+  it('does not attach a subscription cancelled before the lazy module resolves', async () => {
+    const unsubscribe = vi.fn();
+    syncService.subscribeDetailed.mockReturnValue(unsubscribe);
+
+    const stop = defaultDailyRecordRepositoryPort.subscribeDetailed('2026-04-10', vi.fn());
+    stop();
+    await vi.dynamicImportSettled();
+
+    expect(syncService.subscribeDetailed).not.toHaveBeenCalled();
+    expect(unsubscribe).not.toHaveBeenCalled();
+  });
+
   it('attaches and tears down the lazy sync subscription once the module resolves', async () => {
     const unsubscribe = vi.fn();
-    syncService.subscribe.mockReturnValue(unsubscribe);
+    syncService.subscribeDetailed.mockReturnValue(unsubscribe);
 
-    const stop = defaultDailyRecordRepositoryPort.subscribe('2026-04-10', vi.fn());
+    const stop = defaultDailyRecordRepositoryPort.subscribeDetailed('2026-04-10', vi.fn());
     await vi.waitFor(() => {
-      expect(syncService.subscribe).toHaveBeenCalledWith('2026-04-10', expect.any(Function));
+      expect(syncService.subscribeDetailed).toHaveBeenCalledWith(
+        '2026-04-10',
+        expect.any(Function)
+      );
     });
 
     stop();

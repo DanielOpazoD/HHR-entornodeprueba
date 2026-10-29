@@ -185,10 +185,6 @@ export interface DailyRecordRepositoryPort
     patch: DailyRecordPatch,
     options?: PartialUpdateDailyRecordOptions
   ) => Promise<UpdatePartialDailyRecordResult>;
-  subscribe: (
-    date: string,
-    callback: (record: DailyRecord | null, hasPendingWrites: boolean) => void
-  ) => () => void;
   subscribeDetailed: (
     date: string,
     callback: (result: SyncDailyRecordResult, hasPendingWrites: boolean) => void
@@ -245,8 +241,6 @@ export const defaultDailyRecordRepositoryPort: DailyRecordRepositoryPort = {
   adoptAuthoritativeRecord: adoptAuthoritativeDailyRecord,
   saveDetailed: saveDailyRecord,
   updatePartialDetailed: updatePartialDailyRecord,
-  subscribe: (date, callback) =>
-    createLazySubscription(service => service.subscribe(date, callback)),
   subscribeDetailed: (date, callback) =>
     createLazySubscription(service => service.subscribeDetailed(date, callback)),
   deleteDay: deleteDailyRecord,

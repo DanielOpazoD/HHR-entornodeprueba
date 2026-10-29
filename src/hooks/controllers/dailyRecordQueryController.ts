@@ -24,18 +24,13 @@ import type { SyncDailyRecordResult } from '@/services/repositories/contracts/da
 import { markDailyRecordRemoteConfirmed } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import { didDailyRecordFreshnessHydrateNewerRemote } from '@/hooks/controllers/dailyRecordFreshnessHydrationController';
 import { reconcileDailyRecordQueryResult } from '@/hooks/controllers/dailyRecordQueryResultPrecedence';
+import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 
-interface DailyRecordReader {
-  getForDateWithMeta: (date: string, syncFromRemote?: boolean) => Promise<DailyRecordReadResult>;
-  subscribe?: (
-    date: string,
-    callback: (record: DailyRecord | null, hasPendingWrites: boolean) => void
-  ) => () => void;
-  subscribeDetailed?: (
-    date: string,
-    callback: (result: SyncDailyRecordResult, hasPendingWrites: boolean) => void
-  ) => () => void;
-}
+type DailyRecordReader = Pick<DailyRecordRepositoryPort, 'getForDateWithMeta'>;
+type DailyRecordSubscriber = Pick<
+  DailyRecordRepositoryPort,
+  'getForDateWithMeta' | 'subscribeDetailed'
+>;
 
 export const getDailyRecordQueryKey = (date: string) => queryKeys.dailyRecord.byDate(date);
 
@@ -179,14 +174,13 @@ export const shouldUseDailyRecordRealtimeSync = (
   firestoreSyncState.mode === 'enabled';
 
 export const createDailyRecordSubscription = (
-  dailyRecord: DailyRecordReader,
+  dailyRecord: DailyRecordSubscriber,
   date: string,
   queryClient: QueryClient
 ) => {
   let isSubscriptionActive = true;
   let realtimeRevision = 0;
   const queryKey = getDailyRecordQueryKey(date);
-  if (!dailyRecord.subscribe && !dailyRecord.subscribeDetailed) return null;
 
   const applyResolvedQueryResult = (result: DailyRecordQueryResult) =>
     queryClient.setQueryData(queryKey, result);
@@ -351,17 +345,12 @@ export const createDailyRecordSubscription = (
     reconcileNullRealtimeRecord(previousResult);
   };
 
-  const stop =
-    typeof dailyRecord.subscribeDetailed === 'function'
-      ? dailyRecord.subscribeDetailed(date, (result, hasPendingWrites) => {
-          handleResolvedRealtimeResult(
-            createDailyRecordQueryResult(result.record, createRuntimeFromResult(date, result)),
-            hasPendingWrites
-          );
-        })
-      : dailyRecord.subscribe!(date, (record, hasPendingWrites) => {
-          handleResolvedRealtimeResult(createQueryResultFromRecord(date, record), hasPendingWrites);
-        });
+  const stop = dailyRecord.subscribeDetailed(date, (result, hasPendingWrites) => {
+    handleResolvedRealtimeResult(
+      createDailyRecordQueryResult(result.record, createRuntimeFromResult(date, result)),
+      hasPendingWrites
+    );
+  });
   return () => {
     isSubscriptionActive = false;
     stop();

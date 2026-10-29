@@ -1,3 +1,5 @@
+import { createUnconfirmedDailyRecordSubscriptionResult } from '@/tests/factories/dailyRecordSubscriptionResult';
+import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import {
   createDailyRecordReadResult,
   type DailyRecordReadResult,
@@ -40,12 +42,12 @@ const settle = async () => {
 function setup() {
   const client = new QueryClient();
   const read = Promise.withResolvers<DailyRecord | null>();
-  let emit!: (record: DailyRecord | null, pending: boolean) => void;
+  let emit!: Parameters<DailyRecordRepositoryPort['subscribeDetailed']>[1];
   setDailyRecordQueryData(client, date, recordAt('10'));
   const stop = createDailyRecordSubscription(
     {
       getForDateWithMeta: () => read.promise.then(readResult),
-      subscribe: (_date, callback) => {
+      subscribeDetailed: (_date, callback) => {
         emit = callback;
         return vi.fn();
       },
@@ -69,8 +71,8 @@ describe('null realtime recovery ownership', () => {
     'does not overwrite a newer snapshot with delayed %s',
     async outcome => {
       const s = setup();
-      s.emit(null, false);
-      s.emit(recordAt('12'), false);
+      s.emit(createUnconfirmedDailyRecordSubscriptionResult(date, null), false);
+      s.emit(createUnconfirmedDailyRecordSubscriptionResult(date, recordAt('12')), false);
       const current = s.value();
       if (outcome === 'error') s.read.reject(new Error('read failed'));
       else s.read.resolve(outcome === 'missing' ? null : recordAt('11'));
@@ -82,7 +84,7 @@ describe('null realtime recovery ownership', () => {
 
   it('preserves an edit published while the recovery is pending', async () => {
     const s = setup();
-    s.emit(null, false);
+    s.emit(createUnconfirmedDailyRecordSubscriptionResult(date, null), false);
     setDailyRecordQueryData(s.client, date, recordAt('13'));
     const current = s.value();
     s.read.resolve(null);
@@ -95,7 +97,7 @@ describe('null realtime recovery ownership', () => {
     const client = new QueryClient();
     const first = Promise.withResolvers<DailyRecord | null>();
     const second = Promise.withResolvers<DailyRecord | null>();
-    let emit!: (record: DailyRecord | null, pending: boolean) => void;
+    let emit!: Parameters<DailyRecordRepositoryPort['subscribeDetailed']>[1];
     setDailyRecordQueryData(client, date, recordAt('10'));
     const stop = createDailyRecordSubscription(
       {
@@ -103,7 +105,7 @@ describe('null realtime recovery ownership', () => {
           .fn()
           .mockImplementationOnce(() => first.promise.then(readResult))
           .mockImplementationOnce(() => second.promise.then(readResult)),
-        subscribe: (_date, callback) => {
+        subscribeDetailed: (_date, callback) => {
           emit = callback;
           return vi.fn();
         },
@@ -111,8 +113,8 @@ describe('null realtime recovery ownership', () => {
       date,
       client
     );
-    emit(null, false);
-    emit(null, false);
+    emit(createUnconfirmedDailyRecordSubscriptionResult(date, null), false);
+    emit(createUnconfirmedDailyRecordSubscriptionResult(date, null), false);
     first.resolve(null);
     await settle();
     expect(client.getQueryData(getDailyRecordQueryKey(date))).toMatchObject({
@@ -134,7 +136,7 @@ describe('null realtime recovery ownership', () => {
     const unregister = registerPendingDailyRecordPatch(date, {
       'beds.R1.pathology': 'Pending synthetic diagnosis',
     });
-    s.emit(null, false);
+    s.emit(createUnconfirmedDailyRecordSubscriptionResult(date, null), false);
     s.read.resolve({ ...previous, lastUpdated: `${date}T11:00:00.000Z` });
     await settle();
     expect(s.value()).toMatchObject({
@@ -147,7 +149,7 @@ describe('null realtime recovery ownership', () => {
   it('invalidates recovery even when an optimistic rollback restores the same object', async () => {
     const s = setup();
     const original = s.value();
-    s.emit(null, false);
+    s.emit(createUnconfirmedDailyRecordSubscriptionResult(date, null), false);
     setDailyRecordQueryData(s.client, date, recordAt('13'));
     s.client.setQueryData(getDailyRecordQueryKey(date), original);
     s.read.resolve(null);
@@ -160,7 +162,7 @@ describe('null realtime recovery ownership', () => {
     'discards recovery after cache %s and replacement',
     async action => {
       const s = setup();
-      s.emit(null, false);
+      s.emit(createUnconfirmedDailyRecordSubscriptionResult(date, null), false);
       const filters = { queryKey: getDailyRecordQueryKey(date), exact: true };
       if (action === 'remove') s.client.removeQueries(filters);
       else await s.client.resetQueries(filters);
@@ -175,7 +177,7 @@ describe('null realtime recovery ownership', () => {
 
   it('preserves a newer invalidation while recovery is pending', async () => {
     const s = setup();
-    s.emit(null, false);
+    s.emit(createUnconfirmedDailyRecordSubscriptionResult(date, null), false);
     await s.client.invalidateQueries({
       queryKey: getDailyRecordQueryKey(date),
       exact: true,
@@ -191,7 +193,7 @@ describe('null realtime recovery ownership', () => {
 
   it('allows an owned confirmation of absence', async () => {
     const s = setup();
-    s.emit(null, false);
+    s.emit(createUnconfirmedDailyRecordSubscriptionResult(date, null), false);
     s.read.resolve(null);
     await settle();
     expect(s.value()).toMatchObject({
@@ -229,11 +231,11 @@ describe('null realtime recovery ownership', () => {
     };
     client.setQueryData(getDailyRecordQueryKey(date), previous);
     const recovery = Promise.withResolvers<DailyRecordReadResult>();
-    let emit!: (record: DailyRecord | null, pending: boolean) => void;
+    let emit!: Parameters<DailyRecordRepositoryPort['subscribeDetailed']>[1];
     const stop = createDailyRecordSubscription(
       {
         getForDateWithMeta: () => recovery.promise,
-        subscribe: (_date, callback) => {
+        subscribeDetailed: (_date, callback) => {
           emit = callback;
           return vi.fn();
         },
@@ -250,7 +252,7 @@ describe('null realtime recovery ownership', () => {
         })
       : () => {};
     try {
-      emit(null, false);
+      emit(createUnconfirmedDailyRecordSubscriptionResult(date, null), false);
       const recoveredRecord =
         outcome === 'confirmed_missing' || outcome === 'unavailable'
           ? null

@@ -1,3 +1,5 @@
+import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
+import { createUnconfirmedDailyRecordSubscriptionResult } from '@/tests/factories/dailyRecordSubscriptionResult';
 /**
  * Integration Tests for DailyRecord Sync Flow
  * Tests useDailyRecordSync hook and its interaction with the repository and Firestore logic.
@@ -19,12 +21,11 @@ import { DataFactory } from '@/tests/factories/DataFactory';
 // ============================================================================
 
 // Mock Repository
-const mockSubscribe = vi.fn();
+const mockSubscribe = vi.fn<DailyRecordRepositoryPort['subscribeDetailed']>();
 const mockSyncWithFirestore = vi.fn();
 const mockSave = vi.fn();
 const mockUpdatePartial = vi.fn();
 const mockGetForDate = vi.fn();
-type SubscribeCallback = (record: DailyRecord, hasPendingWrites: boolean) => void;
 const { mockDailyRecordRepositoryPort } = vi.hoisted(() => ({
   mockDailyRecordRepositoryPort: {
     getForDate: vi.fn(),
@@ -33,8 +34,7 @@ const { mockDailyRecordRepositoryPort } = vi.hoisted(() => ({
     saveDetailed: vi.fn(),
     updatePartial: vi.fn(),
     updatePartialDetailed: vi.fn(),
-    subscribe: vi.fn(),
-    subscribeDetailed: undefined,
+    subscribeDetailed: vi.fn<DailyRecordRepositoryPort['subscribeDetailed']>(),
     syncWithFirestore: vi.fn(),
     syncWithFirestoreDetailed: vi.fn(),
     initializeDay: vi.fn(),
@@ -155,12 +155,10 @@ describe('DailyRecord Sync Integration', () => {
     mockDailyRecordRepositoryPort.updatePartialDetailed.mockImplementation(
       (date: string, partial: DailyRecordPatch) => mockUpdatePartial(date, partial)
     );
-    mockDailyRecordRepositoryPort.subscribe.mockImplementation(
-      (date: string, cb: SubscribeCallback) => {
-        mockSubscribe(date, cb);
-        return () => {};
-      }
-    );
+    mockDailyRecordRepositoryPort.subscribeDetailed.mockImplementation((date, cb) => {
+      mockSubscribe(date, cb);
+      return () => {};
+    });
     mockDailyRecordRepositoryPort.syncWithFirestoreDetailed.mockImplementation((date: string) =>
       mockSyncWithFirestore(date)
     );
@@ -214,7 +212,10 @@ describe('DailyRecord Sync Integration', () => {
     mockGetForDate.mockResolvedValue(remoteRecord);
 
     await act(async () => {
-      subscribeCallback(remoteRecord, false); // hasPendingWrites = false
+      subscribeCallback(
+        createUnconfirmedDailyRecordSubscriptionResult(remoteRecord.date, remoteRecord),
+        false
+      ); // hasPendingWrites = false
     });
 
     await waitFor(() => {
@@ -259,7 +260,7 @@ describe('DailyRecord Sync Integration', () => {
 
     await act(async () => {
       subscribeCallback(
-        {
+        createUnconfirmedDailyRecordSubscriptionResult('2024-12-28', {
           ...createMockRecord('2024-12-28'),
           beds: {
             R1: {
@@ -280,7 +281,7 @@ describe('DailyRecord Sync Integration', () => {
               isUPC: false,
             },
           },
-        },
+        }),
         true
       );
     });

@@ -1,5 +1,10 @@
+import { createUnconfirmedDailyRecordSubscriptionResult } from '@/tests/factories/dailyRecordSubscriptionResult';
+import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import { createSyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
-import { createDailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
+import {
+  createDailyRecordReadResult,
+  type DailyRecordQueryResult,
+} from '@/services/repositories/contracts/dailyRecordQueries';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
 import { DataFactory } from '@/tests/factories/DataFactory';
@@ -26,6 +31,22 @@ vi.mock('@/services/repositories/dailyRecordOperationalTelemetry', () => ({
     recordError: vi.fn(),
   },
 }));
+
+const localQueryResult = (record: DailyRecord): DailyRecordQueryResult => ({
+  record,
+  runtime: {
+    date: record.date,
+    serverConfirmed: false,
+    availabilityState: 'resolved',
+    consistencyState: 'local_only',
+    sourceOfTruth: 'local',
+    retryability: 'not_applicable',
+    recoveryAction: 'none',
+    conflictSummary: null,
+    observabilityTags: ['daily_record', 'read'],
+    repairApplied: false,
+  },
+});
 
 describe('dailyRecordQueryController', () => {
   afterEach(() => {
@@ -59,14 +80,16 @@ describe('dailyRecordQueryController', () => {
   it('creates subscriptions that ignore local echoes', () => {
     const queryClient = new QueryClient();
     const record = DataFactory.createMockDailyRecord('2025-01-08');
-    const subscribe = vi.fn((_date, callback) => {
-      callback(record, true);
-      callback(record, false);
-      return vi.fn();
-    });
+    const subscribeDetailed = vi.fn<DailyRecordRepositoryPort['subscribeDetailed']>(
+      (_date, callback) => {
+        callback(createUnconfirmedDailyRecordSubscriptionResult('2025-01-08', record), true);
+        callback(createUnconfirmedDailyRecordSubscriptionResult('2025-01-08', record), false);
+        return vi.fn();
+      }
+    );
 
     const unsubscribe = createDailyRecordSubscription(
-      { getForDateWithMeta: vi.fn(), subscribe },
+      { getForDateWithMeta: vi.fn(), subscribeDetailed },
       '2025-01-08',
       queryClient
     );
@@ -76,6 +99,8 @@ describe('dailyRecordQueryController', () => {
       record,
       runtime: {
         availabilityState: 'resolved',
+        sourceOfTruth: 'local',
+        serverConfirmed: false,
       },
     });
   });
@@ -90,25 +115,17 @@ describe('dailyRecordQueryController', () => {
       ...previousRecord,
       lastUpdated: '2025-01-08T10:10:00.000Z',
     };
-    queryClient.setQueryData(getDailyRecordQueryKey('2025-01-08'), {
-      record: previousRecord,
-      runtime: {
-        date: '2025-01-08',
-        availabilityState: 'resolved',
-        consistencyState: 'local_only',
-        sourceOfTruth: 'local',
-        retryability: 'not_applicable',
-        recoveryAction: 'none',
-        conflictSummary: null,
-        observabilityTags: ['daily_record', 'read'],
-        repairApplied: false,
-      },
-    });
+    queryClient.setQueryData(
+      getDailyRecordQueryKey('2025-01-08'),
+      localQueryResult(previousRecord)
+    );
 
-    const subscribe = vi.fn((_date, callback) => {
-      void callback(null, false);
-      return vi.fn();
-    });
+    const subscribeDetailed = vi.fn<DailyRecordRepositoryPort['subscribeDetailed']>(
+      (_date, callback) => {
+        callback(createUnconfirmedDailyRecordSubscriptionResult('2025-01-08', null), false);
+        return vi.fn();
+      }
+    );
 
     const unsubscribe = createDailyRecordSubscription(
       {
@@ -117,7 +134,7 @@ describe('dailyRecordQueryController', () => {
           .mockResolvedValue(
             createDailyRecordReadResult(recoveredRecord.date, recoveredRecord, 'indexeddb')
           ),
-        subscribe,
+        subscribeDetailed,
       },
       '2025-01-08',
       queryClient
@@ -160,28 +177,23 @@ describe('dailyRecordQueryController', () => {
       },
     };
 
-    queryClient.setQueryData(getDailyRecordQueryKey('2025-01-08'), {
-      record: previousRecord,
-      runtime: {
-        date: '2025-01-08',
-        availabilityState: 'resolved',
-        consistencyState: 'local_only',
-        sourceOfTruth: 'local',
-        retryability: 'not_applicable',
-        recoveryAction: 'none',
-        conflictSummary: null,
-        observabilityTags: ['daily_record', 'read'],
-        repairApplied: false,
-      },
-    });
+    queryClient.setQueryData(
+      getDailyRecordQueryKey('2025-01-08'),
+      localQueryResult(previousRecord)
+    );
 
-    const subscribe = vi.fn((_date, callback) => {
-      callback(staleRealtimeRecord, false);
-      return vi.fn();
-    });
+    const subscribeDetailed = vi.fn<DailyRecordRepositoryPort['subscribeDetailed']>(
+      (_date, callback) => {
+        callback(
+          createUnconfirmedDailyRecordSubscriptionResult('2025-01-08', staleRealtimeRecord),
+          false
+        );
+        return vi.fn();
+      }
+    );
 
     createDailyRecordSubscription(
-      { getForDateWithMeta: vi.fn(), subscribe },
+      { getForDateWithMeta: vi.fn(), subscribeDetailed },
       '2025-01-08',
       queryClient
     );
@@ -191,7 +203,7 @@ describe('dailyRecordQueryController', () => {
     });
   });
 
-  it('accepts a confirmed remote snapshot over a newer local optimistic cache', () => {
+  it('accepts a remote-authoritative snapshot over a newer local optimistic cache', () => {
     const queryClient = new QueryClient();
     const previousRecord = DataFactory.createMockDailyRecord('2025-01-08');
     previousRecord.lastUpdated = '2025-01-08T12:00:10.000Z';
@@ -205,39 +217,32 @@ describe('dailyRecordQueryController', () => {
     remoteRecord.beds.R1.secondarySpecialty = '';
     remoteRecord.beds.R1.status = PatientStatus.ESTABLE;
 
-    queryClient.setQueryData(getDailyRecordQueryKey('2025-01-08'), {
-      record: previousRecord,
-      runtime: {
-        date: '2025-01-08',
-        availabilityState: 'resolved',
-        consistencyState: 'local_only',
-        sourceOfTruth: 'local',
-        retryability: 'not_applicable',
-        recoveryAction: 'none',
-        conflictSummary: null,
-        observabilityTags: ['daily_record', 'read'],
-        repairApplied: false,
-      },
-    });
+    queryClient.setQueryData(
+      getDailyRecordQueryKey('2025-01-08'),
+      localQueryResult(previousRecord)
+    );
 
-    const subscribeDetailed = vi.fn((_date, callback) => {
-      callback(
-        {
-          date: '2025-01-08',
-          outcome: 'clean',
-          record: remoteRecord,
-          consistencyState: 'remote_applied',
-          sourceOfTruth: 'remote',
-          retryability: 'not_applicable',
-          recoveryAction: 'none',
-          conflictSummary: null,
-          observabilityTags: ['daily_record', 'sync'],
-          repairApplied: false,
-        },
-        false
-      );
-      return vi.fn();
-    });
+    const subscribeDetailed = vi.fn<DailyRecordRepositoryPort['subscribeDetailed']>(
+      (_date, callback) => {
+        callback(
+          {
+            date: '2025-01-08',
+            outcome: 'clean',
+            serverConfirmed: false,
+            record: remoteRecord,
+            consistencyState: 'remote_applied',
+            sourceOfTruth: 'remote',
+            retryability: 'not_applicable',
+            recoveryAction: 'none',
+            conflictSummary: null,
+            observabilityTags: ['daily_record', 'sync'],
+            repairApplied: false,
+          },
+          false
+        );
+        return vi.fn();
+      }
+    );
 
     createDailyRecordSubscription(
       { getForDateWithMeta: vi.fn(), subscribeDetailed },
@@ -284,20 +289,10 @@ describe('dailyRecordQueryController', () => {
     incomingRecord.beds.R1.status = PatientStatus.ESTABLE;
     incomingRecord.beds.R1.pathology = 'Diagnostico remoto concurrente';
 
-    queryClient.setQueryData(getDailyRecordQueryKey('2025-01-08'), {
-      record: previousRecord,
-      runtime: {
-        date: '2025-01-08',
-        availabilityState: 'resolved',
-        consistencyState: 'local_only',
-        sourceOfTruth: 'local',
-        retryability: 'not_applicable',
-        recoveryAction: 'none',
-        conflictSummary: null,
-        observabilityTags: ['daily_record', 'read'],
-        repairApplied: false,
-      },
-    });
+    queryClient.setQueryData(
+      getDailyRecordQueryKey('2025-01-08'),
+      localQueryResult(previousRecord)
+    );
 
     const unregister = registerPendingDailyRecordPatch('2025-01-08', {
       'beds.R1.pathology': 'Diagnostico local pendiente',
@@ -306,13 +301,18 @@ describe('dailyRecordQueryController', () => {
       'beds.R1.status': 'De cuidado',
     });
 
-    const subscribe = vi.fn((_date, callback) => {
-      callback(incomingRecord, false);
-      return vi.fn();
-    });
+    const subscribeDetailed = vi.fn<DailyRecordRepositoryPort['subscribeDetailed']>(
+      (_date, callback) => {
+        callback(
+          createUnconfirmedDailyRecordSubscriptionResult('2025-01-08', incomingRecord),
+          false
+        );
+        return vi.fn();
+      }
+    );
 
     createDailyRecordSubscription(
-      { getForDateWithMeta: vi.fn(), subscribe },
+      { getForDateWithMeta: vi.fn(), subscribeDetailed },
       '2025-01-08',
       queryClient
     );
@@ -353,38 +353,30 @@ describe('dailyRecordQueryController', () => {
     incomingRecord.beds.R1.admissionTime = '16:00';
     incomingRecord.beds.R1.specialty = 'Medicina';
 
-    queryClient.setQueryData(getDailyRecordQueryKey('2025-01-08'), {
-      record: previousRecord,
-      runtime: {
-        date: '2025-01-08',
-        availabilityState: 'resolved',
-        consistencyState: 'local_only',
-        sourceOfTruth: 'local',
-        retryability: 'not_applicable',
-        recoveryAction: 'none',
-        conflictSummary: null,
-        observabilityTags: ['daily_record', 'read'],
-        repairApplied: false,
-      },
-    });
+    queryClient.setQueryData(
+      getDailyRecordQueryKey('2025-01-08'),
+      localQueryResult(previousRecord)
+    );
 
     const unregister = registerPendingDailyRecordPatch('2025-01-08', {
       'beds.R1.specialty': 'Otorrino libre',
     });
 
-    const subscribeDetailed = vi.fn((_date, callback) => {
-      callback(
-        createSyncDailyRecordResult({
-          date: '2025-01-08',
-          record: incomingRecord,
-          outcome: 'clean',
-          consistencyState: 'remote_applied',
-          serverConfirmed: true,
-        }),
-        false
-      );
-      return vi.fn();
-    });
+    const subscribeDetailed = vi.fn<DailyRecordRepositoryPort['subscribeDetailed']>(
+      (_date, callback) => {
+        callback(
+          createSyncDailyRecordResult({
+            date: '2025-01-08',
+            record: incomingRecord,
+            outcome: 'clean',
+            consistencyState: 'remote_applied',
+            serverConfirmed: true,
+          }),
+          false
+        );
+        return vi.fn();
+      }
+    );
 
     createDailyRecordSubscription(
       { getForDateWithMeta: vi.fn(), subscribeDetailed },
@@ -412,26 +404,18 @@ describe('dailyRecordQueryController', () => {
     const previousRecord = DataFactory.createMockDailyRecord('2025-01-08');
     const deferred = Promise.withResolvers<DailyRecord | null>();
 
-    queryClient.setQueryData(getDailyRecordQueryKey('2025-01-08'), {
-      record: previousRecord,
-      runtime: {
-        date: '2025-01-08',
-        availabilityState: 'resolved',
-        consistencyState: 'local_only',
-        sourceOfTruth: 'local',
-        retryability: 'not_applicable',
-        recoveryAction: 'none',
-        conflictSummary: null,
-        observabilityTags: ['daily_record', 'read'],
-        repairApplied: false,
-      },
-    });
+    queryClient.setQueryData(
+      getDailyRecordQueryKey('2025-01-08'),
+      localQueryResult(previousRecord)
+    );
 
     const stop = vi.fn();
-    const subscribe = vi.fn((_date, callback) => {
-      void callback(null, false);
-      return stop;
-    });
+    const subscribeDetailed = vi.fn<DailyRecordRepositoryPort['subscribeDetailed']>(
+      (_date, callback) => {
+        callback(createUnconfirmedDailyRecordSubscriptionResult('2025-01-08', null), false);
+        return stop;
+      }
+    );
 
     const unsubscribe = createDailyRecordSubscription(
       {
@@ -442,7 +426,7 @@ describe('dailyRecordQueryController', () => {
               createDailyRecordReadResult('2025-01-08', record, record ? 'indexeddb' : 'not_found')
             )
           ),
-        subscribe,
+        subscribeDetailed,
       },
       '2025-01-08',
       queryClient
