@@ -51,38 +51,6 @@ const toRejectedOutboxPersistenceResult = (
       : 'No fue posible guardar el registro local junto a su tarea de sincronización.',
 });
 
-const applyRemoteRecovery = async (
-  date: string,
-  record: DailyRecord,
-  fields: string[],
-  error: unknown,
-  state: RemoteWriteState,
-  expectedVersion?: string,
-  allowConflictAutoMerge: boolean = true
-): Promise<'continue' | 'return'> => {
-  const recovery = await resolveRemoteWriteRecovery(
-    date,
-    record,
-    fields,
-    error,
-    expectedVersion,
-    allowConflictAutoMerge
-  );
-  if (recovery.status === 'throw') {
-    applyRecoveryDecisionToState(
-      state,
-      recovery.decision,
-      recovery.error instanceof Error ? recovery.error : undefined
-    );
-    return 'return';
-  }
-
-  state.queuedForRetry = recovery.queuedForRetry;
-  state.autoMerged = recovery.autoMerged;
-  applyRecoveryDecisionToState(state, recovery.decision);
-  return recovery.status === 'auto_merged' ? 'return' : 'continue';
-};
-
 const runWithOptionalPreOutboxRenewal = async <T>(
   remoteStep: () => Promise<T>,
   renewLocalPreOutboxHold?: () => Promise<void>,
@@ -446,14 +414,27 @@ export const persistLocalAndAttemptRemoteSync = async ({
   } catch (err) {
     onRemoteFailure(err);
     await releaseLocalPreOutboxHold?.();
-    return applyRemoteRecovery(
+    const recovery = await resolveRemoteWriteRecovery(
       date,
       record,
       changedPaths,
       err,
-      remoteState,
       expectedVersion,
-      allowConflictAutoMerge
+      allowConflictAutoMerge,
+      Boolean(queueLocalBeforeRemote)
     );
+    if (recovery.status === 'throw') {
+      applyRecoveryDecisionToState(
+        remoteState,
+        recovery.decision,
+        recovery.error instanceof Error ? recovery.error : undefined
+      );
+      return 'return';
+    }
+
+    remoteState.queuedForRetry = recovery.queuedForRetry;
+    remoteState.autoMerged = recovery.autoMerged;
+    applyRecoveryDecisionToState(remoteState, recovery.decision);
+    return recovery.status === 'auto_merged' ? 'return' : 'continue';
   }
 };

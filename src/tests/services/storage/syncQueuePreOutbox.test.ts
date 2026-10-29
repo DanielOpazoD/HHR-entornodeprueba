@@ -1,6 +1,9 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexedDBService';
+import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
+import { createDailyRecordSyncQueueActions } from '@/services/storage/sync/publicDailyRecordSyncQueueActions';
+import type { SyncTask } from '@/services/storage/syncQueueTypes';
 
 vi.mock('firebase/firestore', async importOriginal => {
   const actual = await importOriginal<typeof import('firebase/firestore')>();
@@ -198,9 +201,82 @@ describe('storage/sync pre-outbox guarantees', () => {
     expect(releasedTask.preOutboxHoldOwner).toBeUndefined();
     expect(releasedTask.preOutboxHoldUntil).toBeUndefined();
 
-    await (await import('@/services/storage/sync')).processSyncQueue();
-    expect(setDoc).toHaveBeenCalledTimes(1);
-    await expect(hospitalDB.syncQueue.toArray()).resolves.toHaveLength(0);
+    await vi.waitFor(() => expect(setDoc).toHaveBeenCalledTimes(1));
+    await vi.waitFor(async () => expect(await hospitalDB.syncQueue.toArray()).toHaveLength(0));
+  });
+
+  it.each([
+    'released',
+    'absent',
+    'other_owner',
+    'other_mutation',
+    'FAILED',
+    'CONFLICT',
+    'PROCESSING',
+    'RETIRED',
+    'store_error',
+  ] as const)('wakes only after an effective public hold release (%s)', async outcome => {
+    const record = makeRecord('2026-10-29', '2026-10-29T10:00:00.000Z');
+    const syncContract = { mutationId: 'synthetic-held-mutation' };
+    const row: SyncTask = {
+      opId: 'synthetic-held-operation',
+      type: 'UPDATE_DAILY_RECORD',
+      key: `daily:${record.date}`,
+      payload: record,
+      timestamp: 1,
+      retryCount: 0,
+      status:
+        outcome === 'FAILED' ||
+        outcome === 'CONFLICT' ||
+        outcome === 'PROCESSING' ||
+        outcome === 'RETIRED'
+          ? outcome
+          : 'PENDING',
+      ownerKey: outcome === 'other_owner' ? 'synthetic-other-owner' : 'synthetic-owner',
+      syncContract,
+      nextAttemptAt: 60_000,
+      preOutboxHoldState: 'AWAITING_REMOTE_ACK',
+      preOutboxHoldOwner: 'synthetic-tab',
+      preOutboxHoldUntil: 60_000,
+      preOutboxHoldHeartbeatAt: 1,
+      preOutboxHoldReason: 'awaiting_remote_ack',
+    };
+    if (outcome !== 'absent') await hospitalDB.syncQueue.add(row);
+    const before = await hospitalDB.syncQueue.toArray();
+    const store = createDexieSyncQueueStore();
+    if (outcome === 'store_error') {
+      vi.spyOn(store, 'releasePreOutboxHoldByKey').mockRejectedValueOnce(
+        new Error('Synthetic release failure')
+      );
+    }
+    const triggerProcessing = vi.fn();
+    const actions = createDailyRecordSyncQueueActions({
+      ensureReady: async () => {},
+      store,
+      getOwnerKey: () => 'synthetic-owner',
+      logger: { warn: vi.fn() },
+      replacePendingTask: async () => false,
+      triggerProcessing,
+    });
+    const released = await actions.releaseDailyRecordPreOutboxHold(
+      record,
+      outcome === 'other_mutation' ? { mutationId: 'synthetic-other-mutation' } : syncContract
+    );
+    expect(released).toBe(outcome === 'released');
+    expect(triggerProcessing).toHaveBeenCalledTimes(outcome === 'released' ? 1 : 0);
+    expect(await hospitalDB.syncQueue.toArray()).toEqual(
+      outcome === 'released'
+        ? before.map(task => ({
+            ...task,
+            nextAttemptAt: 0,
+            preOutboxHoldState: undefined,
+            preOutboxHoldOwner: undefined,
+            preOutboxHoldUntil: undefined,
+            preOutboxHoldHeartbeatAt: undefined,
+            preOutboxHoldReason: undefined,
+          }))
+        : before
+    );
   });
 
   it('renews an active pre-outbox remote-ack hold only for the owning mutation', async () => {

@@ -26,6 +26,7 @@ const h = vi.hoisted(() => ({
   callableCalls: 0,
   /** Day tasks publish through the real clinical authority handler instead of a direct write. */
   authorityMode: false,
+  beforeDayTransaction: null as (() => Promise<void>) | null,
 }));
 /** Shared fake state; vi.hoisted bindings cannot be exported directly. */
 export const harnessState = () => h;
@@ -51,16 +52,17 @@ vi.mock('firebase/firestore', async importOriginal => ({
   ...(await importOriginal<typeof import('firebase/firestore')>()),
   getDoc: vi.fn(() => remoteSnapshot()),
   getDocFromServer: vi.fn(() => remoteSnapshot()),
-  runTransaction: vi.fn(async (_db: unknown, run: (transaction: unknown) => unknown) =>
-    run({
+  runTransaction: vi.fn(async (_db: unknown, run: (transaction: unknown) => unknown) => {
+    if (h.beforeDayTransaction) await h.beforeDayTransaction();
+    return run({
       get: () => remoteSnapshot(),
       set: (_ref: unknown, data: Doc, options?: { merge?: boolean }) => {
         if (options?.merge && h.remote) mergeDeep(remoteDoc(), data);
         else h.remote = clone(data) as unknown as DailyRecord;
       },
       update: (_ref: unknown, data: Doc) => mergeDeep(remoteDoc(), data),
-    })
-  ),
+    });
+  }),
   deleteField: () => '__delete__',
 }));
 vi.mock('@/services/storage/firestore/firestoreShared', async importOriginal => ({

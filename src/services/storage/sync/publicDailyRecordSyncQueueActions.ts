@@ -32,18 +32,28 @@ export const createDailyRecordSyncQueueActions = ({
 }: DailyRecordSyncQueueActionDependencies) => {
   const runPendingAction = async (
     record: DailyRecord,
-    syncContract: SyncTask['syncContract'] | undefined,
     action: (key: string) => Promise<boolean>,
     onError: (error: unknown) => void
   ): Promise<boolean> => {
     try {
       await ensureReady();
       const key = getSyncTaskKey('UPDATE_DAILY_RECORD', record);
-      return key ? action(key) : false;
+      return key ? await action(key) : false;
     } catch (error) {
       onError(error);
       return false;
     }
+  };
+
+  const releasePreOutboxHold = async (key: string, mutationId?: string): Promise<boolean> => {
+    const released = await store.releasePreOutboxHoldByKey(
+      'UPDATE_DAILY_RECORD',
+      key,
+      getOwnerKey(),
+      mutationId
+    );
+    if (released) triggerProcessing();
+    return released;
   };
 
   const ackDailyRecordSyncTask = (
@@ -52,7 +62,6 @@ export const createDailyRecordSyncQueueActions = ({
   ): Promise<boolean> =>
     runPendingAction(
       record,
-      syncContract,
       async key => {
         const acknowledged = await store.deletePendingByKey(
           'UPDATE_DAILY_RECORD',
@@ -61,16 +70,7 @@ export const createDailyRecordSyncQueueActions = ({
           syncContract?.mutationId
         );
         // A direct patch cannot acknowledge the other mutations in a compacted task.
-        if (
-          !acknowledged &&
-          (await store.releasePreOutboxHoldByKey(
-            'UPDATE_DAILY_RECORD',
-            key,
-            getOwnerKey(),
-            syncContract?.mutationId
-          ))
-        )
-          triggerProcessing();
+        if (!acknowledged) await releasePreOutboxHold(key, syncContract?.mutationId);
         return acknowledged;
       },
       error => {
@@ -111,14 +111,7 @@ export const createDailyRecordSyncQueueActions = ({
   ): Promise<boolean> =>
     runPendingAction(
       record,
-      syncContract,
-      key =>
-        store.releasePreOutboxHoldByKey(
-          'UPDATE_DAILY_RECORD',
-          key,
-          getOwnerKey(),
-          syncContract?.mutationId
-        ),
+      key => releasePreOutboxHold(key, syncContract?.mutationId),
       error => logger.warn('Failed to release pre-outbox hold', error)
     );
 
@@ -129,7 +122,6 @@ export const createDailyRecordSyncQueueActions = ({
   ): Promise<boolean> =>
     runPendingAction(
       record,
-      syncContract,
       key =>
         store.renewPreOutboxHoldByKey(
           'UPDATE_DAILY_RECORD',
