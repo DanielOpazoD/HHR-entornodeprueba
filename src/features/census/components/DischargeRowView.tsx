@@ -1,6 +1,9 @@
 import React, { Suspense, lazy, useState } from 'react';
 import clsx from 'clsx';
-import { CensusMovementPrimaryCells } from '@/features/census/components/CensusMovementPrimaryCells';
+import {
+  CensusMovementPrimaryCells,
+  UNREPORTED_MOVEMENT_VALUE,
+} from '@/features/census/components/CensusMovementPrimaryCells';
 import { CensusMovementDateActionsCells } from '@/features/census/components/CensusMovementDateActionsCells';
 import type { DischargeRowViewModel } from '@/features/census/types/censusMovementRowViewModelTypes';
 import type { DischargeData } from '@/features/census/contracts/censusMovementContracts';
@@ -38,7 +41,11 @@ export const DischargeRowView: React.FC<DischargeRowViewProps> = ({
         )}
       >
         <CensusMovementPrimaryCells viewModel={viewModel} showBedType={false} />
-        <td className="p-2 text-xs text-slate-500">{viewModel.dischargeTypeLabel}</td>
+        <td className="p-2 text-xs text-slate-500">
+          {viewModel.dischargeTypeLabel.trim()
+            ? viewModel.dischargeTypeLabel
+            : UNREPORTED_MOVEMENT_VALUE}
+        </td>
         <td className="p-2">
           <span
             className={clsx(
@@ -50,6 +57,7 @@ export const DischargeRowView: React.FC<DischargeRowViewProps> = ({
           </span>
         </td>
         <CensusMovementDateActionsCells
+          context={viewModel}
           recordDate={recordDate}
           movementDate={viewModel.movementDate}
           movementTime={viewModel.movementTime}
@@ -64,7 +72,6 @@ export const DischargeRowView: React.FC<DischargeRowViewProps> = ({
               : undefined
           }
           actions={viewModel.actions}
-          actionsPresentation="menu"
         >
           {onOpenEpicrisis && (
             <CensusMovementEpicrisisButton

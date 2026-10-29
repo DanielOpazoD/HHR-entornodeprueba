@@ -13,6 +13,13 @@
   outline-offset: 2px;
 }
 
+@media (pointer: coarse) {
+  .census-movement-action {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+}
+
 /* Keep the turtle outside the table while matching the three movement cards below it. */
 @media screen and (min-width: 960px) {
   .census-table-scroll,

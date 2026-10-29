@@ -26,7 +26,6 @@ export const buildMovementRowActions = <TItem extends { id: string }>(
   {
     kind: 'undo',
     title: titles.undo,
-    className: 'text-slate-400 hover:text-slate-600',
     onClick: () => {
       void handlers.onUndo(item.id);
     },
@@ -34,7 +33,6 @@ export const buildMovementRowActions = <TItem extends { id: string }>(
   {
     kind: 'edit',
     title: titles.edit,
-    className: 'text-medical-500 hover:text-medical-700',
     onClick: () => {
       void handlers.onEdit(item);
     },
@@ -42,7 +40,6 @@ export const buildMovementRowActions = <TItem extends { id: string }>(
   {
     kind: 'delete',
     title: titles.delete,
-    className: 'text-red-400 hover:text-red-600',
     onClick: () => {
       void handlers.onDelete(item.id);
     },

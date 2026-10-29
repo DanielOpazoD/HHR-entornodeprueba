@@ -1036,6 +1036,156 @@ test('aligns equivalent discharge and transfer columns despite different content
   }
 });
 
+test('keeps movement context and explicit missing values visible in its action menu', async ({
+  page,
+}, testInfo) => {
+  await seedPersistedSessionAndRecord(page, {
+    transfers: [
+      {
+        id: 'synthetic-context-transfer',
+        bedId: 'R6',
+        bedName: 'R6',
+        bedType: 'Adulto',
+        patientName: 'TRASLADO SINTETICO CON CONTEXTO',
+        rut: '',
+        diagnosis: '',
+        evacuationMethod: '',
+        receivingCenter: '',
+        movementDate: PREVIEW_BOOTSTRAP_DATE,
+        time: '12:00',
+      },
+    ],
+  });
+  await page.goto('/?date=' + PREVIEW_BOOTSTRAP_DATE);
+  await expectSeededPatientVisible(page);
+  const section = page.locator('.census-movement-section').filter({
+    has: page.getByRole('heading', { name: 'Traslados', exact: true }),
+  });
+  await expect(section.getByText('Sin informar', { exact: true })).toHaveCount(3);
+  const trigger = section.getByTitle('Abrir menú de acciones');
+  const epicrisis = section.getByRole('button', { name: /epicrisis/i });
+  expect((await trigger.boundingBox())?.height).toBe(32);
+  expect((await epicrisis.boundingBox())?.height).toBe(32);
+  await trigger.click();
+  const menu = page.getByRole('menu');
+  await expect(menu.getByText('R6', { exact: true })).toBeVisible();
+  await expect(menu.getByText(/Traslado Sintetico con Contexto/i)).toBeVisible();
+  const actions = await menu.getByRole('menuitem').allTextContents();
+  expect(actions.at(-2)).toBe('Deshacer (Restaurar a Cama)');
+  expect(actions.at(-1)).toBe('Eliminar Registro');
+  await expect(menu.getByRole('separator')).toHaveCount(1);
+  await expect(menu).toBeInViewport({ ratio: 1 });
+  await testInfo.attach('movement-context-menu', {
+    body: await page.screenshot(),
+    contentType: 'image/png',
+  });
+  await trigger.click();
+  await epicrisis.focus();
+  await page.keyboard.press('Shift+Tab');
+  await expect(trigger).toBeFocused();
+  for (const control of [trigger, epicrisis]) {
+    await expect(control).toBeFocused();
+    expect(await control.evaluate(el => getComputedStyle(el).outlineStyle)).toBe('solid');
+    expect(await control.evaluate(el => getComputedStyle(el).outlineWidth)).toBe('2px');
+    await page.keyboard.press('Tab');
+  }
+});
+
+test('shows discharge download progress without changing the row and unlocks on failure', async ({
+  page,
+}, testInfo) => {
+  await page.addInitScript(() => {
+    window.addEventListener('message', event => {
+      if (event.source !== window || event.origin !== location.origin) return;
+      const data = event.data;
+      if (
+        data?.type === 'HHR_RAYEN_STATISTICAL_DISCHARGE_DOWNLOAD_REQUEST' &&
+        typeof data.reqId === 'string'
+      ) {
+        document.documentElement.dataset.syntheticDischargeRequest = data.reqId;
+      }
+    });
+  });
+  await seedPersistedSessionAndRecord(page, {
+    discharges: [
+      {
+        ...buildViewportDischarges()[0],
+        patientName: 'EGRESO SINTETICO CON RESPALDO',
+        clinicalEpisodeId: '900001',
+        movementProvenance: {
+          source: 'gestion_camas',
+          lineageId: 'synthetic-discharge',
+          syncRunId: 'synthetic-run',
+          classifiedAt: PREVIEW_BOOTSTRAP_DATE + 'T12:00:00.000Z',
+        },
+      },
+    ],
+  });
+  await page.goto('/?date=' + PREVIEW_BOOTSTRAP_DATE);
+  await expectSeededPatientVisible(page);
+  const section = page.locator('.census-movement-section').filter({
+    has: page.getByRole('heading', { name: 'Altas', exact: true }),
+  });
+  await section.scrollIntoViewIfNeeded();
+  const row = section.locator('tbody tr');
+  const before = await row.boundingBox();
+  await section.getByRole('button', { name: /Descargar PDF del egreso/ }).click();
+  const busy = section.getByRole('button', { name: /Descargando/ });
+  await expect(busy).toBeDisabled();
+  await expect(busy).toHaveText('Descargando…');
+  await expect(page.locator('html')).toHaveAttribute('data-synthetic-discharge-request', /.+/);
+  expect(await row.boundingBox()).toEqual(before);
+  await testInfo.attach('discharge-downloading', {
+    body: await section.screenshot(),
+    contentType: 'image/png',
+  });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  expect(await busy.locator('svg').evaluate(el => getComputedStyle(el).animationName)).toBe('none');
+  await page.evaluate(() => {
+    window.postMessage(
+      {
+        type: 'HHR_RAYEN_STATISTICAL_DISCHARGE_DOWNLOAD_RESULT',
+        reqId: document.documentElement.dataset.syntheticDischargeRequest,
+        ok: false,
+        error: 'Fallo sintético de descarga',
+      },
+      location.origin
+    );
+  });
+  await expect(section.getByRole('button', { name: /Descargar PDF del egreso/ })).toBeEnabled();
+  await expect(section.getByText('Egreso estad.', { exact: true })).toBeVisible();
+});
+
+test.describe('movement touch controls', () => {
+  test.use({ hasTouch: true, viewport: { width: 375, height: 812 } });
+  test('keeps paired controls usable without wrapping on touch devices', async ({
+    page,
+  }, testInfo) => {
+    await seedPersistedSessionAndRecord(page, { discharges: [buildViewportDischarges()[0]] });
+    await page.goto('/?date=' + PREVIEW_BOOTSTRAP_DATE);
+    await expectSeededPatientVisible(page);
+    expect(await page.evaluate(() => matchMedia('(pointer: coarse)').matches)).toBe(true);
+    const section = page.locator('.census-movement-section').filter({
+      has: page.getByRole('heading', { name: 'Altas', exact: true }),
+    });
+    const trigger = section.getByTitle('Abrir menú de acciones');
+    const epicrisis = section.getByRole('button', { name: /epicrisis/i });
+    const a = await trigger.boundingBox();
+    const b = await epicrisis.boundingBox();
+    if (!a || !b) throw new Error('Missing touch movement controls');
+    expect(a.width).toBeGreaterThanOrEqual(44);
+    expect(a.height).toBeGreaterThanOrEqual(44);
+    expect(b.height).toBe(a.height);
+    expect(a.y).toBe(b.y);
+    await trigger.click();
+    await expect(page.getByRole('menu')).toBeInViewport({ ratio: 1 });
+    await testInfo.attach('movement-touch-menu', {
+      body: await page.screenshot(),
+      contentType: 'image/png',
+    });
+  });
+});
+
 test('opens the full user menu without painting a logout-only loading panel', async ({ page }) => {
   let release = () => {};
   const ready = new Promise<void>(resolve => {
