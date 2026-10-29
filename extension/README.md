@@ -176,8 +176,7 @@ sin desplazar las acciones ni la tabla al iniciar una lectura.
 | `runtime-loader.js` | Verifica que PDF y planillas hayan quedado registrados durante el arranque permitido por MV3 |
 | `vendor-lock.json` | Versiones, licencias y SHA-256 de las librerías vendorizadas del paquete |
 | `hhr-prescription-center.js` | Superficie de Recetas del Centro HHR: paciente actual, hospitalizados, selección e impresión repetible |
-| `hhr-hospitalized-documents-center.js` | Superficie hospitalizada de Indicaciones y Regímenes + BRADEN |
-| `hhr-handoff-center.js`, `hhr-scores-center.js` | Superficies separadas de Entrega de turno y Scores |
+| `hhr-hospitalized-documents-center.js` | Superficie hospitalizada de Indicaciones |
 | `hhr-scores-presentation.js` | Modelo puro de presentación de Scores: normaliza historiales y deriva valores, etiquetas y estados de acción |
 | `hhr-lab-center.js` | Superficies de Laboratorio: consulta y análisis Syslab, solicitud imprimible y navegación entre ambos flujos |
 | `hhr-connection-center-runtime.js` | Ciclo de vida del panel de conexiones y su badge: solicitudes vigentes, sondeo cancelable e invalidación al cerrar o cambiar de módulo |
@@ -344,53 +343,36 @@ paneles u otras rutas sin episodio abre directamente **Hospitalizados** y deja d
 del paciente actual. Los accesos contextuales de Indicaciones y Receta médica se mantienen solamente en
 la tabla de fármacos de Gestión de cuidados.
 
-### Regímenes, BRADEN e indicaciones masivas
+### Centro compacto de Eloísa (0.48.59)
 
-- **Regímenes** genera una tabla clínica única para todos los pacientes hospitalizados. Conserva
-  servicio, cama, paciente/RUN, régimen y observación, y agrega en la misma fila la fecha del régimen
-  y el último BRADEN disponible: puntaje, clasificación y fecha/hora de aplicación. Si alguna lectura
-  de régimen o BRADEN falla, la impresión se bloquea para evitar presentar datos parciales como completos.
-  El último BRADEN se reconcilia siempre entre el historial y los formularios clínicos resumidos.
-- **Indicaciones** permite buscar y seleccionar uno, varios, los visibles o todos los hospitalizados.
-  Cada paciente conserva su `Reporte_Indicaciones_Paciente.pdf` oficial; la extensión une los documentos
-  seleccionados y abre un único diálogo de impresión. Las selecciones se validan nuevamente dentro de
-  la extensión y caducan a los 30 minutos.
+El inicio y la navegación ofrecen **Recetas**, **Laboratorio** e **Imágenes**, junto con
+**Sesión**. El acceso **Abrir HHR** permanece en el encabezado para abrir el censo y el
+registro clínico completo. La barra flotante conserva Recetas, Exámenes, favoritos y sesión.
+El inicio usa tres tarjetas equivalentes y una altura acotada; la navegación móvil distribuye
+sus cinco accesos sin huecos.
 
-### Entrega de turno y Scores
+Los módulos de Entrega de turno, Signos vitales y Scores se retiraron de la interfaz inyectada:
+se eliminaron sus controladores, declaraciones de carga, iconos, estilos y todos sus accesos.
+También se retiraron el documento Reg + BRADEN y su diálogo rápido. Los protocolos clínicos
+del puente usados por HHR y las protecciones persistidas de guardados anteriores conservan
+su contrato; no se borran registros ni se vacían protecciones al actualizar la interfaz.
 
-La lectura individual de escalas desde HHR requiere que el episodio pertenezca al snapshot vigente
-de la misma pestaña (también caduca su autorización). El panel interno de Ficha Médico conserva
-su acceso con la sesión autenticada de su propia pestaña; no se confía en un origen enviado por HHR.
+**Indicaciones**, dentro de Recetas, permite seleccionar uno o varios hospitalizados y reunir
+sus `Reporte_Indicaciones_Paciente.pdf` oficiales en un solo PDF. La selección caduca a los
+30 minutos y se valida nuevamente antes de imprimir.
 
-- **Turno** presenta a todos los hospitalizados en una tabla global, con su última entrega, fecha/hora,
-  profesional y estado. El ingreso respeta el límite oficial de 255 caracteres. Después de enviar una
-  entrega, la extensión vuelve a consultar Eloísa y solo muestra **Guardado en Eloísa** si encuentra el
-  registro exacto; también distingue firmado, pendiente de validación, error y escritura no verificable.
-  El selector de estación abre el reporte oficial de entrega de turno en el diálogo de impresión.
-- **Scores** ofrece un selector global para **CUDYR**, **Downton** y **Braden**, mostrando el último
-  valor y la última aplicación por paciente. Braden y Downton muestran el historial consultable que
-  entrega Eloísa y cargan dinámicamente el formulario oficial. CUDYR usa su formulario clínico oficial
-  y muestra explícitamente solo el último valor, porque el servicio disponible no expone historial.
-  Los tres instrumentos exigen el permiso clínico de ingreso antes de habilitar una escritura.
-  El lote pertenece a la pestaña que abrió Scores y conserva origen API, establecimiento, profesional
-  y rol (sin token). Formularios y guardados releen la sesión y rechazan cambios de identidad; un lote
-  anterior sin esta vinculación exige actualizar Scores. Renovar el token no cambia la identidad.
-- Toda escritura requiere una identidad clínica verificable en la sesión. El estado **Sincronizado en
-  Eloísa** aparece únicamente después de releer y comprobar el valor guardado; ante una respuesta
-  ambigua se conserva una protección persistente por paciente e instrumento hasta confirmar su estado,
-  para impedir una repetición accidental incluso si se recarga la vista. Un guardado verificado mantiene
-  la misma protección hasta que la interfaz confirma inmediatamente que recibió y presentó el resultado;
-  el tiempo por sí solo no libera una escritura clínica pendiente. Si ese acuse se pierde o la respuesta
-  es ambigua, la recuperación exige esperar al menos un minuto. Background obtiene una lectura fresca que
-  se muestra para revisión explícita y, tras la confirmación, ejecuta un segundo GET: solo libera si ambos
-  resultados coinciden exactamente y pertenecen a la misma generación protegida.
-- La protección técnica se guarda en `chrome.storage.local` para sobrevivir reinicios de Chrome y
-  actualizaciones de la extensión. Su clave usa SHA-256 y el marcador no contiene episodio, nombre, RUN,
-  observación, respuestas ni resultados clínicos. El desafío de revisión dura cinco minutos: almacena
-  únicamente el hash del token y un HMAC del resultado; ni el token crudo ni un hash directo de datos
-  clínicos quedan persistidos.
-- Antes de imprimir lotes o guardar un instrumento se revalida la hospitalización. CUDYR además
-  comprueba nuevamente el servicio clínico, porque el formulario aplicable cambia según el servicio.
+### Horario de emisión de recetas
+
+El historial de farmacia entrega `PUBLISH_DATETIME` ISO en UTC, también cuando omite el sufijo.
+Se explicita esa zona en el límite de lectura de las indicaciones y se presenta el instante con
+`Pacific/Easter`. Los valores que ya traen `Z` u offset se respetan; los textos clínicos de fecha
+legible conservan su hora local. La fecha calendario de la receta usa el mismo reloj, incluido
+el cruce de medianoche. Pantalla e impresión consumen la misma normalización.
+
+La zona IANA resuelve los cambios de horario estacional: no se resta un número fijo de horas.
+Ejemplo sintético: `2026-10-29T15:34:00` se presenta como `29-10-2026 10:34`.
+
+### Impresión de recetas e indicaciones
 
 1. Abre un paciente desde **Gestión de cuidados** y entra a **Resumen → Indicaciones
    (Medicamento)**.

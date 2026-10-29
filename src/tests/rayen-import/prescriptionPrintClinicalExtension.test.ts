@@ -192,35 +192,6 @@ describe('extension prescription operations', () => {
     expect(prescriptionPrint.resolveHandoffKind('Médico', '3')).toBe('');
     expect(prescriptionPrint.resolveHandoffKind('Enfermera', '7')).toBe('');
     expect(prescriptionPrint.resolveHandoffKind('Médico', '')).toBe('medical');
-    expect(prescriptionPrint.handoffLabelForIdentity('Médico', '1')).toBe(
-      'Entrega de turno médica'
-    );
-    expect(prescriptionPrint.handoffLabelForIdentity('Enfermera', '2')).toBe(
-      'Entrega de turno de enfermería'
-    );
-    expect(prescriptionPrint.handoffLabelForIdentity('Tecnólogo Médico', '3')).toBe(
-      'Entrega de turno según rol clínico'
-    );
-    expect(prescriptionPrint.handoffLabelForIdentity('Cirujano Dentista', '1')).toBe(
-      'Entrega de turno según rol clínico'
-    );
-    expect(prescriptionPrint.handoffLabelForIdentity('Médico', '3')).toBe(
-      'Entrega de turno según rol clínico'
-    );
-    expect(
-      prescriptionPrint.cudyrSourceNotice({
-        cudyrSource: 'gestion_camas+ficha_medico',
-        cudyrHistoryAvailable: true,
-        cudyrWarning: 'No fue posible atribuir todos los autores.',
-      })
-    ).toContain('No fue posible atribuir todos los autores.');
-    expect(
-      prescriptionPrint.cudyrSourceNotice({
-        cudyrSource: 'gestion_camas',
-        cudyrHistoryAvailable: true,
-        cudyrWarning: 'Definiciones incompletas.',
-      })
-    ).toContain('Definiciones incompletas.');
     expect(prescriptionPrint.handoffEncounterEventTypeId('medical')).toBe(1);
     expect(prescriptionPrint.handoffEncounterEventTypeId('nursing')).toBe(2);
     expect(

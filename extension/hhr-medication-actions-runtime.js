@@ -2,7 +2,7 @@
  * hhr-medication-actions-runtime.js (ISOLATED world)
  *
  * Owns the medication-related actions rendered by the Ficha Médico orchestrator: indications,
- * regimen/BRADEN printing and browser-local favorites. The consumer injects route, messaging and
+ * browser-local favorites. The consumer injects route, messaging and
  * shared-modal dependencies so this classic script stays testable and fails closed when incomplete.
  */
 (() => {
@@ -108,134 +108,6 @@
         .sort((a, b) => String(a.textContent || '').length - String(b.textContent || '').length)[0];
       if (!suspended) return heading.parentElement || heading;
       return suspended.closest('label') || suspended;
-    };
-
-    const createRegimenQuickDialog = () => {
-      const focusReturnTarget = documentRef.activeElement;
-      if (!closeModal()) return;
-      ensureStyles();
-      const root = documentRef.createElement('div');
-      root.id = modalId;
-      root.innerHTML = `
-        <div class="hhr-rx-backdrop" aria-hidden="true"></div>
-        <section class="hhr-rx-dialog hhr-rx-dialog-compact" role="dialog" aria-modal="true" aria-labelledby="hhr-rx-title">
-          <button class="hhr-rx-close" type="button" aria-label="Cerrar">&times;</button>
-          <header class="hhr-rx-header">
-            <h2 class="hhr-rx-title" id="hhr-rx-title">Regímenes y BRADEN</h2>
-            <p class="hhr-rx-subtitle">PDF global con régimen vigente y escala BRADEN de todos los hospitalizados.</p>
-          </header>
-          <div class="hhr-rx-body"><div class="hhr-rx-status">Verificando censo…</div></div>
-          <footer class="hhr-rx-footer">
-            <button class="hhr-rx-action hhr-rx-cancel" type="button">Cancelar</button>
-            <button class="hhr-rx-action hhr-rx-action-primary hhr-rx-submit" type="button" disabled>Imprimir PDF global</button>
-          </footer>
-        </section>
-      `;
-      documentRef.body.appendChild(root);
-      const body = root.querySelector('.hhr-rx-body');
-      const submit = root.querySelector('.hhr-rx-submit');
-      const cancel = root.querySelector('.hhr-rx-cancel');
-      const dismiss = modalDismissWithFocusRestore(root, focusReturnTarget);
-      root.__hhrDismiss = dismiss;
-      cancel.addEventListener('click', dismiss);
-      root.querySelector('.hhr-rx-close').addEventListener('click', dismiss);
-      root.querySelector('.hhr-rx-backdrop').addEventListener('click', dismiss);
-      root.addEventListener('keydown', event => {
-        if (event.key === 'Escape') {
-          event.preventDefault();
-          dismiss();
-          return;
-        }
-        trapModalFocus(root, event);
-      });
-      root.querySelector('.hhr-rx-close').focus();
-
-      const renderError = message => {
-        body.innerHTML = '';
-        const error = documentRef.createElement('div');
-        error.className = 'hhr-rx-error';
-        error.textContent = message;
-        body.appendChild(error);
-        submit.disabled = true;
-      };
-
-      sendMessage({
-        type: runtimeMessages.HOSPITALIZED_REGIMEN_OPTIONS_REQUEST,
-        currentEncId: '',
-      }).then(response => {
-        if (!root.isConnected) return;
-        if (!response || response.error) {
-          renderError((response && response.error) || 'No se pudo leer la lista de hospitalizados.');
-          return;
-        }
-        const patients = Array.isArray(response.patients) ? response.patients : [];
-        if (!patients.length) {
-          body.innerHTML = '<div class="hhr-rx-status">No hay pacientes hospitalizados disponibles.</div>';
-          return;
-        }
-        const regimenCount = Number.isFinite(Number(response.regimenCount))
-          ? Number(response.regimenCount)
-          : patients.filter(patient => patient.regimen).length;
-        const bradenCount = Number.isFinite(Number(response.bradenCount))
-          ? Number(response.bradenCount)
-          : patients.filter(patient => patient.braden).length;
-        body.innerHTML = '';
-        const summary = documentRef.createElement('div');
-        summary.className = 'hhr-lab-summary';
-        [
-          patients.length + (patients.length === 1 ? ' paciente hospitalizado' : ' pacientes hospitalizados'),
-          regimenCount + ' con régimen vigente',
-          bradenCount + ' con BRADEN',
-        ].forEach(text => {
-          const stat = documentRef.createElement('span');
-          stat.className = 'hhr-lab-stat';
-          stat.textContent = text;
-          summary.appendChild(stat);
-        });
-        body.appendChild(summary);
-        const blocked =
-          Number(response.regimenErrorCount || 0) > 0 ||
-          Number(response.unavailableCount || 0) > 0;
-        if (blocked) {
-          const notice = documentRef.createElement('div');
-          notice.className = 'hhr-center-notice';
-          notice.textContent =
-            'Faltan regímenes o resultados BRADEN por verificar. Cierra y reintenta antes de imprimir.';
-          body.appendChild(notice);
-        }
-        submit.disabled = blocked;
-        submit.onclick = async () => {
-          submit.disabled = true;
-          cancel.disabled = true;
-          submit.textContent = 'Preparando PDF…';
-          const result = await sendMessage({
-            type: runtimeMessages.HOSPITALIZED_REGIMEN_PRINT_REQUEST,
-          });
-          if (!root.isConnected) return;
-          cancel.disabled = false;
-          if (!result || result.error) {
-            renderError((result && result.error) || 'No se pudo preparar el documento.');
-            submit.disabled = false;
-            submit.textContent = 'Reintentar impresión';
-            return;
-          }
-          let feedback = body.querySelector('.hhr-rx-print-feedback');
-          if (!feedback) {
-            feedback = documentRef.createElement('div');
-            feedback.className = 'hhr-rx-status hhr-rx-print-feedback';
-            body.prepend(feedback);
-          }
-          setLiveRegion(
-            feedback,
-            'Se abrió el régimen integrado de ' + result.count + ' pacientes: ' +
-              result.regimenCount + ' con régimen vigente y ' + result.bradenCount +
-              ' con BRADEN disponible.'
-          );
-          cancel.textContent = 'Cerrar';
-          submit.disabled = false;
-          submit.textContent = 'Imprimir nuevamente';
-        };
-      });
     };
 
     const FAVORITES_STORAGE_KEY = 'hhrFavorites';
@@ -440,7 +312,6 @@
       downloadIndications,
       hasVisibleNursingRole,
       findToolbarAnchor,
-      createRegimenQuickDialog,
       readFavorites,
       writeFavorites,
       normalizeFavoriteUrl,

@@ -60,7 +60,6 @@ describe('Centro HHR directed repair report', () => {
       },
       connectionInitials: () => 'SR',
       connectionTimeLabel: () => 'Vence en 1 h',
-      handoffLabelForIdentity: () => 'Entrega médica',
       operationsBarId: 'operations-bar',
     });
     const root = document.createElement('div');

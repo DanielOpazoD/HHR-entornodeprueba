@@ -119,11 +119,9 @@ describe('native Eloisa laboratory viewer wiring', () => {
     expect(login).not.toContain('localStorage');
     expect(login).not.toContain('sessionStorage');
     expect(content).toContain("key: 'connection'");
+    expect(content).toContain("['connection', 'lab', 'imaging', 'home'].includes(module)");
     expect(content).toContain(
-      "['scores', 'connection', 'lab', 'imaging', 'vitals', 'home'].includes(module)"
-    );
-    expect(content).toContain(
-      "else if (activeModule === 'lab') labCenterRuntime.renderLabRequestView(root, targetEncId)"
+      "if (activeModule === 'lab') labCenterRuntime.renderLabRequestView(root, targetEncId)"
     );
     expect(content).toContain('else renderConnectionCenter(root, targetEncId)');
     expect(labCenter).toContain('Comparación');

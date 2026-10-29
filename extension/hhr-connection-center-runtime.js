@@ -19,7 +19,6 @@
       setLiveRegion,
       connectionInitials,
       connectionTimeLabel,
-      handoffLabelForIdentity,
       operationsBarId,
     } = dependencies || {};
 
@@ -32,7 +31,6 @@
       typeof setLiveRegion !== 'function' ||
       typeof connectionInitials !== 'function' ||
       typeof connectionTimeLabel !== 'function' ||
-      typeof handoffLabelForIdentity !== 'function' ||
       !operationsBarId
     ) {
       throw new Error('No se pudo inicializar el runtime de conexiones HHR.');
@@ -126,7 +124,7 @@
     const applyBadgeReport = (bar, report, epoch, requestId) => {
       if (runtimeDisposed || epoch !== badgeEpoch || requestId !== badgeRequestId || !report || !bar.isConnected) return report;
       return presentation.renderBadgeReport(bar, report, {
-        handoffLabelForIdentity, connectionInitials, connectionTimeLabel,
+        connectionInitials, connectionTimeLabel,
       });
     };
 

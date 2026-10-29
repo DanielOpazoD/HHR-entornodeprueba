@@ -21,8 +21,6 @@ const contentSource = [
   'hhr-center-shell-runtime.js',
   'hhr-prescription-center.js',
   'hhr-hospitalized-documents-center.js',
-  'hhr-handoff-center.js',
-  'hhr-scores-center.js',
   'hhr-lab-center.js',
   'hhr-discharge-actions-runtime.js',
   'hhr-connection-center-runtime.js',
@@ -122,8 +120,6 @@ describe('CodeRabbit clinical integration hardening', () => {
       'switchCenterModule(root, target, root.dataset.selectedEncounterId || encId'
     );
     expect(contentSource).toContain('const requestedEncId = selected');
-    expect(contentSource).toContain('root.dataset.handoffRequestGeneration !== requestGeneration');
-    expect(contentSource).toContain('root.dataset.vitalsRequestGeneration !== requestGeneration');
   });
 
   it('keeps transient request selections out of the clinical-write guard', () => {

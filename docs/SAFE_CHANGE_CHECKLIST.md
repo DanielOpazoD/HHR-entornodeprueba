@@ -84,6 +84,15 @@ La clasificación remota `docs-only` se decide en CI; no forzar ni omitir checks
 
 ### Checklist de cierre
 
+La simplificación del Centro HHR de Eloísa elimina las superficies de Turno, Vitales y
+Scores, incluido Reg + BRADEN, y conserva Recetas/Indicaciones, Laboratorio, Imágenes y
+Sesión. Verificar inicio, navegación, barra flotante, fuentes y ZIP sin owners retirados;
+acceso a HHR, foco/cierre, cambio de paciente, impresión y presentación móvil. Las emisiones
+ISO de farmacia sin offset se interpretan como UTC y se presentan con `Pacific/Easter`:
+probar verano/invierno, offsets explícitos, fecha calendario y consistencia de pantalla/PDF
+(TIME-02). Exige release gate de extensión, pruebas afectadas, revisión independiente y CI
+del SHA final; las protecciones persistentes y el puente clínico de HHR mantienen su contrato.
+
 El feedback de descarga de egreso, el contexto/orden del menú de movimientos,
 los valores ausentes explícitos y los controles equivalentes son `safe_local_ui`.
 Reutilizan estados y datos disponibles. Verificar descarga pendiente, fallo y
