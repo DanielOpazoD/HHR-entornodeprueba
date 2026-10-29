@@ -180,14 +180,6 @@ export const subscribeDetailed = (
   };
 };
 
-export const subscribe = (
-  date: string,
-  callback: (r: DailyRecord | null, hasPendingWrites: boolean) => void
-): (() => void) =>
-  subscribeDetailed(date, (result, hasPendingWrites) => {
-    callback(result.record, hasPendingWrites);
-  });
-
 export const syncWithFirestoreDetailed = async (date: string) => {
   if (!isFirestoreEnabled()) return null;
 

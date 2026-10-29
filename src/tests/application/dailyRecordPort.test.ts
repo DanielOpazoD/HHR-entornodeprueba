@@ -1,3 +1,4 @@
+import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.unmock('@/application/ports/dailyRecordPort');
@@ -37,8 +38,7 @@ const deletionService = {
 
 const syncService = {
   syncWithFirestoreDetailed: vi.fn(),
-  subscribe: vi.fn(),
-  subscribeDetailed: vi.fn(),
+  subscribeDetailed: vi.fn<DailyRecordRepositoryPort['subscribeDetailed']>(),
 };
 
 vi.mock('@/services/repositories/dailyRecordRepositoryReadService', () => readService);
@@ -100,13 +100,32 @@ describe('dailyRecordPort lazy facade', () => {
     expect(deletionService.deleteDailyRecordAcrossStores).toHaveBeenCalledWith('2026-04-10');
   });
 
+  it('does not attach a subscription cancelled before the lazy module resolves', async () => {
+    const unsubscribe = vi.fn();
+    syncService.subscribeDetailed.mockReturnValue(unsubscribe);
+
+    const stop = defaultDailyRecordRepositoryPort.subscribeDetailed('2026-04-10', vi.fn());
+    stop();
+    await vi.dynamicImportSettled();
+
+    expect(syncService.subscribeDetailed).not.toHaveBeenCalled();
+    expect(unsubscribe).not.toHaveBeenCalled();
+  });
+
   it('attaches and tears down the lazy sync subscription once the module resolves', async () => {
     const unsubscribe = vi.fn();
-    syncService.subscribe.mockReturnValue(unsubscribe);
+    const onRecord = vi.fn();
+    syncService.subscribeDetailed.mockImplementationOnce((date, callback) => {
+      callback(createSyncDailyRecordResult({ date, record: null, outcome: 'missing' }), false);
+      return unsubscribe;
+    });
 
-    const stop = defaultDailyRecordRepositoryPort.subscribe('2026-04-10', vi.fn());
+    const stop = defaultDailyRecordRepositoryPort.subscribeDetailed('2026-04-10', onRecord);
     await vi.waitFor(() => {
-      expect(syncService.subscribe).toHaveBeenCalledWith('2026-04-10', expect.any(Function));
+      expect(onRecord).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ date: '2026-04-10', record: null, outcome: 'missing' }),
+        false
+      );
     });
 
     stop();
@@ -124,7 +143,7 @@ describe('dailyRecordPort lazy facade', () => {
     const onFailure = vi.fn();
     const onRecord = vi.fn();
     syncService.subscribeDetailed.mockImplementationOnce((_date, _callback, failed) => {
-      failed(failure);
+      failed?.(failure);
       return unsubscribe;
     });
     const stop = defaultDailyRecordRepositoryPort.subscribeDetailed(

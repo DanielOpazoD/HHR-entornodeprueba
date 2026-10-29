@@ -35,7 +35,6 @@ const { mockDailyRecordPorts } = vi.hoisted(() => ({
     saveDetailed: vi.fn(),
     updatePartial: vi.fn(),
     updatePartialDetailed: vi.fn(),
-    subscribe: vi.fn(() => vi.fn()),
     subscribeDetailed: vi.fn(() => vi.fn()),
     syncWithFirestoreDetailed: vi.fn(),
     deleteDay: vi.fn(),

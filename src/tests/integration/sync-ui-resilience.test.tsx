@@ -1,3 +1,5 @@
+import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
+import { createUnconfirmedDailyRecordSubscriptionResult } from '@/tests/factories/dailyRecordSubscriptionResult';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useDailyRecordSyncQuery } from '@/hooks/useDailyRecordSyncQuery';
@@ -5,7 +7,7 @@ import { ConcurrencyError } from '@/services/storage/firestore';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
-const mockSubscribe = vi.fn();
+const mockSubscribe = vi.fn<DailyRecordRepositoryPort['subscribeDetailed']>();
 const mockGetForDate = vi.fn();
 const mockSave = vi.fn();
 const mockUpdatePartial = vi.fn();
@@ -19,8 +21,7 @@ const { mockDailyRecordRepositoryPort } = vi.hoisted(() => ({
     saveDetailed: vi.fn(),
     updatePartial: vi.fn(),
     updatePartialDetailed: vi.fn(),
-    subscribe: vi.fn(() => {}),
-    subscribeDetailed: undefined,
+    subscribeDetailed: vi.fn<DailyRecordRepositoryPort['subscribeDetailed']>(),
     initializeDay: vi.fn(),
     deleteDay: vi.fn(),
     getPreviousDay: vi.fn(),
@@ -130,15 +131,10 @@ describe('Sync UI Resilience Integration', () => {
     mockDailyRecordRepositoryPort.updatePartialDetailed.mockImplementation((requestDate, partial) =>
       mockUpdatePartial(requestDate, partial)
     );
-    (mockDailyRecordRepositoryPort.subscribe as ReturnType<typeof vi.fn>).mockImplementation(
-      (
-        requestDate: string,
-        callback: (record: DailyRecord | null, hasPendingWrites: boolean) => void
-      ) => {
-        mockSubscribe(requestDate, callback);
-        return () => {};
-      }
-    );
+    mockDailyRecordRepositoryPort.subscribeDetailed.mockImplementation((requestDate, callback) => {
+      mockSubscribe(requestDate, callback);
+      return () => {};
+    });
   });
 
   it('ignores remote echo updates while hasPendingWrites is true', async () => {
@@ -161,7 +157,7 @@ describe('Sync UI Resilience Integration', () => {
     const subscribeCallback = mockSubscribe.mock.calls[0][1];
 
     await act(async () => {
-      subscribeCallback(remoteEcho, true);
+      subscribeCallback(createUnconfirmedDailyRecordSubscriptionResult(date, remoteEcho), true);
     });
 
     expect(result.current.record?.beds.R1.patientName).toBe('Paciente Local');

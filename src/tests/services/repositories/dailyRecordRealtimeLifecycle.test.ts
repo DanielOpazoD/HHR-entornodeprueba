@@ -26,10 +26,7 @@ vi.mock('@/services/repositories/dailyRecordRemoteLoader', () => ({
 }));
 
 import { DataFactory } from '@/tests/factories/DataFactory';
-import {
-  subscribe,
-  subscribeDetailed,
-} from '@/services/repositories/dailyRecordRepositorySyncService';
+import { subscribeDetailed } from '@/services/repositories/dailyRecordRepositorySyncService';
 import {
   getRecordForDate,
   saveRecordStrict,
@@ -314,22 +311,4 @@ describe('daily record realtime subscription lifecycle', () => {
       expect(loadRemoteRecordWithFallback).not.toHaveBeenCalled();
     }
   );
-
-  it('keeps legacy raw subscribers from receiving a fabricated null after listener failure', async () => {
-    const onRecord = vi.fn<(record: DailyRecord | null, pending: boolean) => void>();
-    stops.push(subscribe(date, onRecord));
-    const { next, error } = listener();
-    next(recordFor('A'), false, confirmedMetadata);
-    await setImmediate();
-    error(new Error('Synthetic terminal SDK failure'));
-    await setImmediate();
-
-    expect(onRecord.mock.calls).toEqual([
-      [expect.objectContaining({ nursesDayShift: ['SYNTHETIC A'] }), false],
-    ]);
-    expect(getRecordForDate).toHaveBeenCalledTimes(1);
-    expect(saveRecordStrict).toHaveBeenCalledTimes(1);
-    expect(getPendingDailyRecordProjection).toHaveBeenCalledTimes(1);
-    expect(loadRemoteRecordWithFallback).not.toHaveBeenCalled();
-  });
 });

@@ -1,3 +1,5 @@
+import { createUnconfirmedDailyRecordSubscriptionResult } from '@/tests/factories/dailyRecordSubscriptionResult';
+import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
 import { DataFactory } from '@/tests/factories/DataFactory';
@@ -61,25 +63,27 @@ describe('dailyRecordConfirmedCacheController', () => {
     };
 
     await setRemoteConfirmedDailyRecordQueryData(queryClient, date, confirmedRecord);
-    const subscribeDetailed = vi.fn((_date, callback) => {
-      callback(
-        {
-          serverConfirmed: true,
-          date,
-          outcome: 'clean',
-          record: staleRecord,
-          consistencyState: 'remote_applied',
-          sourceOfTruth: 'remote',
-          retryability: 'not_applicable',
-          recoveryAction: 'none',
-          conflictSummary: null,
-          observabilityTags: ['daily_record', 'sync'],
-          repairApplied: false,
-        },
-        false
-      );
-      return vi.fn();
-    });
+    const subscribeDetailed = vi.fn<DailyRecordRepositoryPort['subscribeDetailed']>(
+      (_date, callback) => {
+        callback(
+          {
+            serverConfirmed: true,
+            date,
+            outcome: 'clean',
+            record: staleRecord,
+            consistencyState: 'remote_applied',
+            sourceOfTruth: 'remote',
+            retryability: 'not_applicable',
+            recoveryAction: 'none',
+            conflictSummary: null,
+            observabilityTags: ['daily_record', 'sync'],
+            repairApplied: false,
+          },
+          false
+        );
+        return vi.fn();
+      }
+    );
 
     createDailyRecordSubscription(
       { getForDateWithMeta: vi.fn(), subscribeDetailed },
@@ -205,10 +209,15 @@ describe('dailyRecordConfirmedCacheController', () => {
     createDailyRecordSubscription(
       {
         getForDateWithMeta: vi.fn(),
-        subscribe: vi.fn((_date, callback) => {
-          callback(laterRemoteRecord, false);
-          return vi.fn();
-        }),
+        subscribeDetailed: vi.fn<DailyRecordRepositoryPort['subscribeDetailed']>(
+          (_date, callback) => {
+            callback(
+              createUnconfirmedDailyRecordSubscriptionResult(date, laterRemoteRecord),
+              false
+            );
+            return vi.fn();
+          }
+        ),
       },
       date,
       queryClient
@@ -258,10 +267,15 @@ describe('dailyRecordConfirmedCacheController', () => {
     createDailyRecordSubscription(
       {
         getForDateWithMeta: vi.fn(),
-        subscribe: vi.fn((_date, callback) => {
-          callback(intermediateRemoteRecord, false);
-          return vi.fn();
-        }),
+        subscribeDetailed: vi.fn<DailyRecordRepositoryPort['subscribeDetailed']>(
+          (_date, callback) => {
+            callback(
+              createUnconfirmedDailyRecordSubscriptionResult(date, intermediateRemoteRecord),
+              false
+            );
+            return vi.fn();
+          }
+        ),
       },
       date,
       queryClient
