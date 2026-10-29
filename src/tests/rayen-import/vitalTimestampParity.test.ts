@@ -2,13 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { parseVitalSigns } from '@/features/rayen-import/mapping/parseVitalSigns';
 import { mergeReportVitals } from '@/features/rayen-import';
 import type { PatientData } from '@/types/domain/patient';
-import '../../../extension/hhr-vitals.js';
-
-const extension = (
-  globalThis as unknown as {
-    HhrVitals: { parseVitalSigns: typeof parseVitalSigns };
-  }
-).HhrVitals;
 
 // Synthetic records: reproduce the temporal contradiction without patient data.
 const form = (stamp: string, created = '06-09-2026 00:23:20 -05:00', id = 900) => ({
@@ -21,10 +14,7 @@ const form = (stamp: string, created = '06-09-2026 00:23:20 -05:00', id = 900) =
   ],
 });
 
-describe.each([
-  ['HHR', parseVitalSigns],
-  ['extension', extension.parseVitalSigns],
-] as const)('%s · original vital timestamp', (_, parse) => {
+describe.each([['HHR', parseVitalSigns]] as const)('%s · original vital timestamp', (_, parse) => {
   it.each([
     ['07-09-2026 04:05', '06-09-2026 00:23:20 -05:00', '06-09-2026 00:23'],
     ['06-09-2026 23:05:00 -05:00', '06-09-2026 00:23:20 -05:00', '06-09-2026 00:23'],

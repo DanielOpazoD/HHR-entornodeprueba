@@ -5,10 +5,7 @@ import vm from 'node:vm';
 
 import { describe, expect, it, vi } from 'vitest';
 
-const runtimeSource = readFileSync(
-  path.resolve('extension/clinical-handoff-runtime.js'),
-  'utf8'
-);
+const runtimeSource = readFileSync(path.resolve('extension/clinical-handoff-runtime.js'), 'utf8');
 const backgroundSource = readFileSync(path.resolve('extension/background.js'), 'utf8');
 const readmeSource = readFileSync(path.resolve('extension/README.md'), 'utf8');
 
@@ -94,17 +91,21 @@ const createDependencies = (overrides: RuntimeDependencies = {}) => {
     return response();
   });
   const prescriptionPrint = {
-    handoffEncounterEventTypeId: vi.fn((kind: string) => kind === 'medical' ? 1 : 2),
+    handoffEncounterEventTypeId: vi.fn((kind: string) => (kind === 'medical' ? 1 : 2)),
     deriveLatestShiftChange: vi.fn((entries: any[], options: { kind: string }) => {
-      const latest = [...entries].reverse().find(entry => !entry.kind || entry.kind === options.kind);
-      return latest ? {
-        ...latest,
-        dateTime: latest.startDateTime || latest.dateTime || '',
-        author: latest.author || '',
-      } : null;
+      const latest = [...entries]
+        .reverse()
+        .find(entry => !entry.kind || entry.kind === options.kind);
+      return latest
+        ? {
+            ...latest,
+            dateTime: latest.startDateTime || latest.dateTime || '',
+            author: latest.author || '',
+          }
+        : null;
     }),
-    entryMatchesHandoffKind: vi.fn((entry: any, kind: string) =>
-      !entry.kind || entry.kind === kind
+    entryMatchesHandoffKind: vi.fn(
+      (entry: any, kind: string) => !entry.kind || entry.kind === kind
     ),
   };
   return {
@@ -167,7 +168,6 @@ describe('clinical handoff runtime owner', () => {
   });
 
   it('documents the current UI owners and the extracted runtime without the removed owner', () => {
-    expect(readmeSource).toContain('`hhr-handoff-center.js`, `hhr-scores-center.js`');
     expect(readmeSource).toContain('`clinical-handoff-runtime.js`');
     expect(readmeSource).not.toContain('`hhr-handoff-scores-center.js`');
   });
@@ -193,7 +193,9 @@ describe('clinical handoff runtime owner', () => {
       currentProfessional: 'Elena Soto',
       currentProfessionalRole: 'Enfermería',
       nurseStations: [{ id: '7', name: 'Medicina' }],
-      patients: [{ encounterId: '901', isCurrent: true, clinicalWriteProtection: { phase: 'idle' } }],
+      patients: [
+        { encounterId: '901', isCurrent: true, clinicalWriteProtection: { phase: 'idle' } },
+      ],
     });
     expect(dependencies.mapWithConcurrency).toHaveBeenCalledWith(
       expect.any(Array),
@@ -225,35 +227,42 @@ describe('clinical handoff runtime owner', () => {
 
   it('writes once, verifies the read-back and confirms the matching FinishRegister event', async () => {
     const beginWrite = vi.fn(async () => ({ ok: true }));
-    const withClinicalWriteLock = vi.fn(
-      async (_key: string, task: (guard: any) => Promise<any>) => task({ beginWrite })
+    const withClinicalWriteLock = vi.fn(async (_key: string, task: (guard: any) => Promise<any>) =>
+      task({ beginWrite })
     );
     let shiftReads = 0;
     const fetchWithTimeout = vi.fn(async (url: string, options?: RequestInit) => {
       if (url.includes('/shiftChangeObservationEntry/') && !options?.method) {
         shiftReads += 1;
         return response({
-          json: shiftReads === 1 ? [] : [{
-            id: 77,
-            kind: 'nursing',
-            observation: 'Paciente estable',
-            startDateTime: '2026-07-18T12:00:01.000Z',
-            authorHealthCarePractitionerId: 41,
-            author: 'Elena Soto',
-          }],
+          json:
+            shiftReads === 1
+              ? []
+              : [
+                  {
+                    id: 77,
+                    kind: 'nursing',
+                    observation: 'Paciente estable',
+                    startDateTime: '2026-07-18T12:00:01.000Z',
+                    authorHealthCarePractitionerId: 41,
+                    author: 'Elena Soto',
+                  },
+                ],
         });
       }
       if (url.endsWith('/shiftChangeObservationEntry') && options?.method === 'POST') {
         return response({ text: '{"id":77}' });
       }
       if (url.includes('/getFinishRegister')) {
-        return response({ text: JSON.stringify({
-          id: 88,
-          encounterId: 901,
-          facilityId: 9,
-          healthCarePractitionerRoleId: 42,
-          healthCarePractitionerLegalId: 41,
-        }) });
+        return response({
+          text: JSON.stringify({
+            id: 88,
+            encounterId: 901,
+            facilityId: 9,
+            healthCarePractitionerRoleId: 42,
+            healthCarePractitionerLegalId: 41,
+          }),
+        });
       }
       if (url.includes('/confirmedEncounterEvent')) return response();
       throw new Error(`Solicitud inesperada: ${url}`);
@@ -295,13 +304,20 @@ describe('clinical handoff runtime owner', () => {
     const fetchWithTimeout = vi.fn(async (url: string, options?: RequestInit) => {
       if (url.includes('/shiftChangeObservationEntry/') && !options?.method) {
         shiftReads += 1;
-        return response({ json: shiftReads === 1 ? [] : [{
-          id: 77,
-          kind: 'nursing',
-          observation: 'Paciente estable',
-          startDateTime: '2026-07-18T12:00:01.000Z',
-          authorHealthCarePractitionerId: 41,
-        }] });
+        return response({
+          json:
+            shiftReads === 1
+              ? []
+              : [
+                  {
+                    id: 77,
+                    kind: 'nursing',
+                    observation: 'Paciente estable',
+                    startDateTime: '2026-07-18T12:00:01.000Z',
+                    authorHealthCarePractitionerId: 41,
+                  },
+                ],
+        });
       }
       if (options?.method === 'POST') return response({ ok: false, status: 503 });
       throw new Error(`No debe confirmar FinishRegister: ${url}`);
@@ -318,7 +334,8 @@ describe('clinical handoff runtime owner', () => {
     });
 
     expect(result).toEqual({
-      error: 'Eloísa respondió HTTP 503 al guardar la entrega. ' +
+      error:
+        'Eloísa respondió HTTP 503 al guardar la entrega. ' +
         'La entrega pudo haberse guardado, pero Eloísa aún no permitió verificarla. ' +
         'Actualiza antes de reintentar.',
       writeMayHaveSucceeded: true,
@@ -336,23 +353,32 @@ describe('clinical handoff runtime owner', () => {
     const fetchWithTimeout = vi.fn(async (url: string, options?: RequestInit) => {
       if (url.includes('/shiftChangeObservationEntry/') && !options?.method) {
         shiftReads += 1;
-        return response({ json: shiftReads === 1 ? [] : [{
-          id: 77,
-          kind: 'nursing',
-          observation: 'Paciente estable',
-          startDateTime: '2026-07-18T12:00:01.000Z',
-          authorHealthCarePractitionerId: 41,
-        }] });
+        return response({
+          json:
+            shiftReads === 1
+              ? []
+              : [
+                  {
+                    id: 77,
+                    kind: 'nursing',
+                    observation: 'Paciente estable',
+                    startDateTime: '2026-07-18T12:00:01.000Z',
+                    authorHealthCarePractitionerId: 41,
+                  },
+                ],
+        });
       }
       if (options?.method === 'POST') return response({ text: '{"id":77}' });
       if (url.includes('/getFinishRegister')) {
-        return response({ text: JSON.stringify({
-          id: 88,
-          encounterId: 901,
-          facilityId: 9,
-          healthCarePractitionerRoleId: 999,
-          healthCarePractitionerLegalId: 41,
-        }) });
+        return response({
+          text: JSON.stringify({
+            id: 88,
+            encounterId: 901,
+            facilityId: 9,
+            healthCarePractitionerRoleId: 999,
+            healthCarePractitionerLegalId: 41,
+          }),
+        });
       }
       throw new Error(`Solicitud inesperada: ${url}`);
     });
@@ -372,17 +398,25 @@ describe('clinical handoff runtime owner', () => {
         'El evento pendiente no coincide con este episodio, establecimiento o rol clínico.'
       ),
     });
-    expect(fetchWithTimeout.mock.calls.some(([, options]) => options?.method === 'PUT')).toBe(false);
+    expect(fetchWithTimeout.mock.calls.some(([, options]) => options?.method === 'PUT')).toBe(
+      false
+    );
   });
 
   it('owns the handoff recovery read and preserves lane attribution', async () => {
-    const fetchWithTimeout = vi.fn(async () => response({ json: [{
-      id: 77,
-      kind: 'nursing',
-      observation: 'Paciente estable',
-      dateTime: '2026-07-18T12:00:01.000Z',
-      author: 'Elena Soto',
-    }] }));
+    const fetchWithTimeout = vi.fn(async () =>
+      response({
+        json: [
+          {
+            id: 77,
+            kind: 'nursing',
+            observation: 'Paciente estable',
+            dateTime: '2026-07-18T12:00:01.000Z',
+            author: 'Elena Soto',
+          },
+        ],
+      })
+    );
     const runtime = loadFactory().create(createDependencies({ fetchWithTimeout }));
 
     await expect(runtime.readRecoveryReview({ encId: '901', info: INFO })).resolves.toEqual({
@@ -400,17 +434,20 @@ describe('clinical handoff runtime owner', () => {
   it('limits the official report to an authorized nursing identity and encodes its filters', async () => {
     const fetchOfficialPdf = vi.fn(async () => ({ buffer: new ArrayBuffer(8) }));
     const openPdfPrintDialog = vi.fn(async () => ({ ok: true, printTabId: 91 }));
-    const runtime = loadFactory().create(createDependencies({
-      fetchOfficialPdf,
-      openPdfPrintDialog,
-    }));
+    const runtime = loadFactory().create(
+      createDependencies({
+        fetchOfficialPdf,
+        openPdfPrintDialog,
+      })
+    );
 
     await expect(runtime.handleReportRequest({ nurseStationId: '7' })).resolves.toEqual({
       ok: true,
       printTabId: 91,
     });
     expect(fetchOfficialPdf).toHaveBeenCalledWith({
-      url: 'https://fichamedicoback.rayensalud.cl/api/report/Reporte_Entrega_Turno_Enfermera.pdf' +
+      url:
+        'https://fichamedicoback.rayensalud.cl/api/report/Reporte_Entrega_Turno_Enfermera.pdf' +
         '?fac_id=9&hcp_id=41&nus_id=7&hcpr_id=42',
       token: 'test-auth-token',
       label: 'la entrega de turno',

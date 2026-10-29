@@ -55,13 +55,13 @@ describe('extension prescription operations', () => {
       medication: 'Losartán 50 mg',
       posology: '1 cada 12 horas',
       date: '2026-07-09',
-      dateTime: '2026-07-09T11:15:00',
+      dateTime: '2026-07-09T11:15:00Z',
     });
     expect(groups[1]?.professionalRun).toBe('17.752.753-K');
-    expect(groups[1]?.latestDateTime).toBe('2026-07-09T11:15:00');
+    expect(groups[1]?.latestDateTime).toBe('2026-07-09T11:15:00Z');
     expect(groups[1]?.externalCount).toBe(0);
     expect(groups[0]?.key).toBe(
-      `professional:elena-diaz-emission-${Date.parse('2026-07-14T19:48:00')}`
+      `professional:elena-diaz-emission-${Date.parse('2026-07-14T19:48:00Z')}`
     );
   });
 
@@ -365,7 +365,7 @@ describe('extension prescription operations', () => {
       professionalRun: '11.111.111-1',
       validationDate: '2026-07-15',
       validationDateTime: '2026-07-15T10:00:00',
-      printDateTime: '2026-07-15T08:00:00',
+      printDateTime: '2026-07-15T08:00:00Z',
       printDateSource: 'indication',
     });
   });
