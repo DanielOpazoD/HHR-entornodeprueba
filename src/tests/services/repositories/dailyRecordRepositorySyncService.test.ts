@@ -29,7 +29,6 @@ vi.mock('@/services/repositories/dailyRecordRemoteLoader', () => ({
 
 import { loadRemoteRecordWithFallback } from '@/services/repositories/dailyRecordRemoteLoader';
 import {
-  subscribe,
   subscribeDetailed,
   syncWithFirestoreDetailed,
 } from '@/services/repositories/dailyRecordRepositorySyncService';
@@ -251,29 +250,6 @@ describe('dailyRecordRepositorySyncService', () => {
       recoveryAction: 'defer_remote_sync',
       retryability: 'automatic_retry',
     });
-  });
-
-  it('keeps the local record during subscription when Firestore emits a missing document', async () => {
-    const localRecord = {
-      date: '2026-03-03',
-      beds: { R1: { patientName: 'Paciente Local' } },
-      lastUpdated: '2026-03-03T12:00:00.000Z',
-    } as unknown as DailyRecord;
-    vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(localRecord);
-
-    vi.mocked(subscribeToRecord).mockImplementationOnce((_date, callback) => {
-      void callback(null, false, { fromCache: false, hasPendingWrites: false });
-      return vi.fn();
-    });
-
-    const callback = vi.fn();
-    const delivered = new Promise<void>(resolve =>
-      callback.mockImplementationOnce(() => resolve())
-    );
-    subscriptions.push(subscribe('2026-03-03', callback));
-    await delivered;
-
-    expect(callback).toHaveBeenCalledWith(localRecord, false);
   });
 
   it('emits detailed subscription consistency when Firestore emits a missing document', async () => {

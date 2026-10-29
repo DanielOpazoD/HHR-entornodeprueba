@@ -305,7 +305,6 @@ const globalDailyRecordRepositoryPortMock = {
     queuedForRetry: false,
     autoMerged: false,
   }),
-  subscribe: vi.fn(() => () => {}),
   subscribeDetailed: vi.fn(() => () => {}),
   initializeDay: vi.fn(),
   initializeDayDetailed: vi.fn(),

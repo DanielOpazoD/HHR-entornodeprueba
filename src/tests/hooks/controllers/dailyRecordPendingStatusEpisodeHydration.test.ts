@@ -1,3 +1,5 @@
+import { createUnconfirmedDailyRecordSubscriptionResult } from '@/tests/factories/dailyRecordSubscriptionResult';
+import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
 import { DataFactory } from '@/tests/factories/DataFactory';
@@ -65,13 +67,18 @@ describe('daily record pending status episode hydration', () => {
       'beds.R1.status': PatientStatus.GRAVE,
     });
 
-    const subscribe = vi.fn((_date, callback) => {
-      callback(incomingRecord, false);
-      return vi.fn();
-    });
+    const subscribeDetailed = vi.fn<DailyRecordRepositoryPort['subscribeDetailed']>(
+      (_date, callback) => {
+        callback(
+          createUnconfirmedDailyRecordSubscriptionResult('2025-01-08', incomingRecord),
+          false
+        );
+        return vi.fn();
+      }
+    );
 
     createDailyRecordSubscription(
-      { getForDateWithMeta: vi.fn(), subscribe },
+      { getForDateWithMeta: vi.fn(), subscribeDetailed },
       '2025-01-08',
       queryClient
     );
@@ -142,21 +149,23 @@ describe('daily record pending status episode hydration', () => {
       'beds.R1.status': PatientStatus.GRAVE,
     });
 
-    const subscribeDetailed = vi.fn((_date, callback) => {
-      for (const record of [firstIncomingRecord, secondIncomingRecord]) {
-        callback(
-          createSyncDailyRecordResult({
-            date: '2025-01-08',
-            record,
-            outcome: 'clean',
-            consistencyState: 'remote_applied',
-            serverConfirmed: true,
-          }),
-          false
-        );
+    const subscribeDetailed = vi.fn<DailyRecordRepositoryPort['subscribeDetailed']>(
+      (_date, callback) => {
+        for (const record of [firstIncomingRecord, secondIncomingRecord]) {
+          callback(
+            createSyncDailyRecordResult({
+              date: '2025-01-08',
+              record,
+              outcome: 'clean',
+              consistencyState: 'remote_applied',
+              serverConfirmed: true,
+            }),
+            false
+          );
+        }
+        return vi.fn();
       }
-      return vi.fn();
-    });
+    );
 
     createDailyRecordSubscription(
       { getForDateWithMeta: vi.fn(), subscribeDetailed },

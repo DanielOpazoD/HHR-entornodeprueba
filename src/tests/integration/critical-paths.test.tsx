@@ -35,9 +35,6 @@ const { mockDailyRecordRepositoryPort } = vi.hoisted(() => ({
     saveDetailed: vi.fn(),
     updatePartial: vi.fn(),
     updatePartialDetailed: vi.fn(),
-    subscribe: vi.fn(() => {
-      return () => {};
-    }),
     subscribeDetailed: vi.fn(() => {
       return () => {};
     }),

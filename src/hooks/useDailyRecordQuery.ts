@@ -118,10 +118,7 @@ export const useDailyRecordQuery = (
     if (!shouldSubscribeFromRemote) return;
 
     recordCensusSubscriptionStart(date);
-    const unsubscribe = createDailyRecordSubscription(dailyRecord, date, queryClient);
-    if (!unsubscribe) return;
-
-    return () => unsubscribe();
+    return createDailyRecordSubscription(dailyRecord, date, queryClient);
   }, [date, queryClient, dailyRecord, shouldSubscribeFromRemote]);
 
   useEffect(() => {
