@@ -9,12 +9,13 @@ import {
 } from './sessionStorageTransition';
 import {
   getStoredSessionOwnerKey,
-  SESSION_CLEANUP_PENDING_KEY,
   SESSION_OWNER_KEY,
+  setSessionCleanupFailed,
 } from './sessionOwnerKey';
 
 export { getStoredSessionOwnerKey };
 
+const CLEANUP_PENDING_KEY = 'hhr_session_cleanup_pending_v1';
 let failedCleanupGeneration: string | null | undefined;
 let pendingLocalAuthClosure: (() => Promise<void>) | undefined;
 
@@ -46,7 +47,7 @@ const KEYS_SURVIVING_LOGOUT = new Set([
   // Transition metadata is removed only after every cleanup step succeeds.
   SESSION_OWNER_KEY,
   SESSION_GENERATION_KEY,
-  SESSION_CLEANUP_PENDING_KEY,
+  CLEANUP_PENDING_KEY,
   'hhr_app_version',
   'hhr_firebase_config',
   'hhr_diagnosis_mode',
@@ -129,12 +130,12 @@ export const reconcileAuthorizedSessionOwner = (ownerKey: string): Promise<void>
     const previousOwnerKey = getStoredSessionOwnerKey();
     if (
       failedCleanupGeneration === localStorage.getItem(SESSION_GENERATION_KEY) ||
-      localStorage.getItem(SESSION_CLEANUP_PENDING_KEY) ||
+      localStorage.getItem(CLEANUP_PENDING_KEY) ||
       (previousOwnerKey && previousOwnerKey !== ownerKey)
     ) {
-      localStorage.setItem(SESSION_CLEANUP_PENDING_KEY, '1');
+      localStorage.setItem(CLEANUP_PENDING_KEY, '1');
       await clearSensitiveSessionState(previousOwnerKey);
-      localStorage.removeItem(SESSION_CLEANUP_PENDING_KEY);
+      localStorage.removeItem(CLEANUP_PENDING_KEY);
       localStorage.removeItem(SESSION_GENERATION_KEY);
     }
     setStoredSessionOwnerKey(ownerKey);
@@ -142,6 +143,7 @@ export const reconcileAuthorizedSessionOwner = (ownerKey: string): Promise<void>
     localStorage.setItem(SESSION_GENERATION_KEY, generation);
     setSessionGeneration(generation);
     failedCleanupGeneration = undefined;
+    setSessionCleanupFailed(false);
     if (!previousOwnerKey || previousOwnerKey === ownerKey) return;
     recordSyncQueueOwnershipTelemetry('session_owner_changed', {
       previousOwnerKey,
@@ -213,7 +215,7 @@ export const clearSessionScopedClientState = (
     }
     let metadataError: unknown;
     try {
-      localStorage.setItem(SESSION_CLEANUP_PENDING_KEY, '1');
+      localStorage.setItem(CLEANUP_PENDING_KEY, '1');
     } catch (error) {
       metadataError = error;
     }
@@ -233,9 +235,10 @@ export const clearSessionScopedClientState = (
       );
     setStoredSessionOwnerKey(null);
     localStorage.removeItem(SESSION_GENERATION_KEY);
-    localStorage.removeItem(SESSION_CLEANUP_PENDING_KEY);
+    localStorage.removeItem(CLEANUP_PENDING_KEY);
     setSessionGeneration(null);
     failedCleanupGeneration = undefined;
+    setSessionCleanupFailed(false);
     if (metadataError) throw metadataError;
     recordSyncQueueOwnershipTelemetry('session_owner_cleared', {
       ownerKey,
@@ -254,6 +257,7 @@ export const clearSessionScopedClientState = (
     });
   }).catch(async error => {
     failedCleanupGeneration = expectedGeneration;
+    setSessionCleanupFailed(true);
     recordOperationalTelemetry({
       category: 'auth',
       operation: 'session_cleanup_failed',

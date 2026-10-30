@@ -143,7 +143,7 @@ export interface SyncRuntimePort {
   isOnline(): boolean;
   onOnline(callback: () => void): void;
   getOwnerKey(): string | null;
-  /** The session's local cleanup is unfinished: queue work neither starts nor confirms. */
+  /** This document's logout cleanup failed: its queue work neither starts nor confirms. */
   isSessionClosing?(): boolean;
 }
 

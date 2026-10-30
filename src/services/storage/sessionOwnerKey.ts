@@ -9,9 +9,14 @@ export const SESSION_OWNER_KEY = 'hhr_session_owner_v1';
 export const getStoredSessionOwnerKey = (): string | null =>
   typeof localStorage === 'undefined' ? null : localStorage.getItem(SESSION_OWNER_KEY);
 
-/** localStorage key set while a session's local cleanup is unfinished, or failed and must retry. */
-export const SESSION_CLEANUP_PENDING_KEY = 'hhr_session_cleanup_pending_v1';
+let sessionCleanupFailed = false;
 
-/** While set, the queue may no longer match the stored days: nothing publishes or confirms. */
-export const isSessionCleanupPending = (): boolean =>
-  typeof localStorage !== 'undefined' && Boolean(localStorage.getItem(SESSION_CLEANUP_PENDING_KEY));
+/**
+ * This document's own logout cleanup failed and has not succeeded on retry. Its queue may no longer
+ * match the stored days, so its worker stands down. Kept in memory on purpose: it cannot outlive the
+ * document or stop another tab, whose session may be healthy.
+ */
+export const hasSessionCleanupFailed = (): boolean => sessionCleanupFailed;
+export const setSessionCleanupFailed = (failed: boolean): void => {
+  sessionCleanupFailed = failed;
+};

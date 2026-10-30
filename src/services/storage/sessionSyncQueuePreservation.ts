@@ -58,8 +58,8 @@ export const clearSessionDailyRecords = async (ownerKey: string | null): Promise
     await ensureDbReady();
     if (isDatabaseInFallbackMode()) {
       // No transaction spans the fallback store. Days go first: patient data leaves this browser
-      // even if the queue step fails, and a failed clear has not changed the queue. The pending
-      // cleanup keeps the queue worker out until this step succeeds on retry.
+      // even if the queue step fails, and a failed clear has not changed the queue. The failed
+      // cleanup stands this document's queue worker down until this step succeeds on retry.
       localPersistence.records.clear();
       await hospitalDB.transaction('rw', hospitalDB.syncQueue, () =>
         preserveSessionSyncQueue(ownerKey)

@@ -10,7 +10,11 @@ import {
   clearSessionScopedClientState,
   reconcileAuthorizedSessionOwner,
 } from '@/services/storage/sessionScopedStorageService';
-import { SESSION_CLEANUP_PENDING_KEY, SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
+import {
+  hasSessionCleanupFailed,
+  SESSION_OWNER_KEY,
+  setSessionCleanupFailed,
+} from '@/services/storage/sessionOwnerKey';
 import {
   SESSION_GENERATION_KEY,
   setSessionGeneration,
@@ -91,6 +95,7 @@ beforeEach(async () => {
 });
 afterEach(async () => {
   vi.restoreAllMocks();
+  setSessionCleanupFailed(false);
   await hospitalDB.syncQueue.clear();
   await hospitalDB.dailyRecords.clear();
   localStorage.clear();
@@ -246,13 +251,13 @@ describe('the queue after a session closes with unsent day work', () => {
     expect(await hospitalDB.syncQueue.count()).toBe(2);
   });
 
-  describe('while a failed cleanup is still pending', () => {
+  describe("after this document's logout cleanup failed", () => {
     const failCleanup = async () => {
       vi.spyOn(hospitalDB.dailyRecords, 'clear').mockRejectedValueOnce(
         new Error('synthetic failure')
       );
       await expect(closeSession()).rejects.toThrow('Session cleanup failed');
-      expect(localStorage.getItem(SESSION_CLEANUP_PENDING_KEY)).toBe('1');
+      expect(hasSessionCleanupFailed()).toBe(true);
     };
 
     it('does not send queued work', async () => {
@@ -267,14 +272,14 @@ describe('the queue after a session closes with unsent day work', () => {
       expect(await hospitalDB.syncQueue.get(id)).toEqual(before);
     });
 
-    it('does not send work claimed just before the cleanup failed', async () => {
+    it('does not send work whose claim was renewed just before the cleanup failed', async () => {
       const id = Number(await hospitalDB.syncQueue.add(dayWrite()));
       const store = createDexieSyncQueueStore();
-      const claimReady = store.claimReadyPending.bind(store);
-      store.claimReadyPending = async (...args) => {
-        const claimed = await claimReady(...args);
-        if (claimed.length) await failCleanup();
-        return claimed;
+      const renewClaim = store.renewClaim!.bind(store);
+      store.renewClaim = async (...args) => {
+        const renewed = await renewClaim(...args);
+        await failCleanup();
+        return renewed;
       };
       const run = vi.fn(async () => ({}));
 
@@ -298,19 +303,50 @@ describe('the queue after a session closes with unsent day work', () => {
       expect(await hospitalDB.dailyRecords.get(date)).toBeUndefined();
     });
 
-    it('blocks and releases that work once the cleanup succeeds on retry', async () => {
+    it('stands down even when the browser cannot record the pending cleanup', async () => {
+      const id = Number(await hospitalDB.syncQueue.add(dayWrite()));
+      const setItem = Storage.prototype.setItem;
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (
+        this: Storage,
+        key: string,
+        value: string
+      ) {
+        if (key === 'hhr_session_cleanup_pending_v1') throw new Error('synthetic quota');
+        setItem.call(this, key, value);
+      });
+      await failCleanup();
+      const run = vi.fn(async () => ({}));
+
+      await buildBrowserEngine(run).processQueue();
+
+      expect(run).not.toHaveBeenCalled();
+      expect(await hospitalDB.syncQueue.get(id)).toMatchObject({ payload: unsentDay });
+    });
+
+    it('works again, and blocks that work for review, once the cleanup succeeds on retry', async () => {
       const id = Number(await hospitalDB.syncQueue.add(dayWrite()));
       await failCleanup();
 
       await reconcileAuthorizedSessionOwner(nextOwner);
 
+      expect(hasSessionCleanupFailed()).toBe(false);
       expect(await hospitalDB.syncQueue.get(id)).toMatchObject({
         status: 'FAILED',
         ownerKey: owner,
         payload: unsentDay,
         projectionReleased: true,
       });
-      expect(localStorage.getItem(SESSION_CLEANUP_PENDING_KEY)).toBeNull();
     });
+  });
+
+  it('leaves another tab working when a logout elsewhere was interrupted', async () => {
+    localStorage.setItem('hhr_session_cleanup_pending_v1', '1');
+    const id = Number(await hospitalDB.syncQueue.add(dayWrite()));
+    const run = vi.fn(async () => ({}));
+
+    await buildBrowserEngine(run).processQueue();
+
+    expect(run).toHaveBeenCalledOnce();
+    expect(await hospitalDB.syncQueue.get(id)).toBeUndefined();
   });
 });

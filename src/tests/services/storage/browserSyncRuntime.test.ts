@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 const state = vi.hoisted(() => ({ owner: 'user', generation: null as string | null }));
 vi.mock('@/services/storage/sessionOwnerKey', () => ({
   getStoredSessionOwnerKey: () => state.owner,
-  isSessionCleanupPending: vi.fn(() => false),
+  hasSessionCleanupFailed: vi.fn(() => false),
 }));
 vi.mock('@/services/storage/sessionStorageTransition', () => ({
   getSessionGeneration: () => state.generation,

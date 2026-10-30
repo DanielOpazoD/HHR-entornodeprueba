@@ -276,7 +276,6 @@ export const createSyncQueueEngine = ({
 
             for (const task of readyTasks) {
               if (!task.id) continue;
-              if (isSessionClosing()) return;
 
               try {
                 const dispatchClaim = buildTaskClaim(task);
@@ -295,9 +294,11 @@ export const createSyncQueueEngine = ({
                   recordSyncQueueStaleClaimTelemetry(task, 'update');
                   continue;
                 }
+                // Checked here, after the last wait: the very next step is the send.
+                if (isSessionClosing()) return;
                 Object.assign(task, stored, { leaseUntil });
                 const result: Partial<SyncTransportResult> = (await transport.run(task)) || {};
-                // Its ACK would write a day the closing session cleared; the cleanup retry decides.
+                // Its ACK would write a day the failed logout cleared; the cleanup retry decides.
                 if (isSessionClosing()) return;
                 const claim = buildTaskClaim(task);
                 if (claim) {
