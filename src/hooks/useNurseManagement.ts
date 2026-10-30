@@ -11,6 +11,14 @@ import {
   updateDetailedStaffingStandardSlot,
 } from '@/services/staff/dailyRecordDetailedStaffing';
 
+/**
+ * A select has nobody to answer to. patchRecord already told the user and logged a refused write,
+ * and the select shows the stored name again, ready to retry.
+ */
+const settleStaffSelection = (write: Promise<void>): void => {
+  void Promise.resolve(write).catch(() => {});
+};
+
 export const useNurseManagement = (
   record: DailyRecord | null,
   patchRecord: ApplyDailyRecordPatch
@@ -18,13 +26,13 @@ export const useNurseManagement = (
   const recordRef = useLatestRef(record);
 
   const updateNurse = useCallback(
-    async (shift: 'day' | 'night', index: number, name: string) => {
+    (shift: 'day' | 'night', index: number, name: string) => {
       const currentRecord = recordRef.current;
       if (!currentRecord) return;
 
       const detail = resolveDetailedStaffingState(currentRecord, currentRecord.date);
       const updatedDetail = updateDetailedStaffingStandardSlot(detail, shift, 'nurse', index, name);
-      await patchRecord(buildDetailedStaffingPatch(updatedDetail));
+      settleStaffSelection(patchRecord(buildDetailedStaffingPatch(updatedDetail)));
     },
     [patchRecord, recordRef]
   );
@@ -44,13 +52,13 @@ export const useTensManagement = (
   const recordRef = useLatestRef(record);
 
   const updateTens = useCallback(
-    async (shift: 'day' | 'night', index: number, name: string) => {
+    (shift: 'day' | 'night', index: number, name: string) => {
       const currentRecord = recordRef.current;
       if (!currentRecord) return;
 
       const detail = resolveDetailedStaffingState(currentRecord, currentRecord.date);
       const updatedDetail = updateDetailedStaffingStandardSlot(detail, shift, 'tens', index, name);
-      await patchRecord(buildDetailedStaffingPatch(updatedDetail));
+      settleStaffSelection(patchRecord(buildDetailedStaffingPatch(updatedDetail)));
     },
     [patchRecord, recordRef]
   );
