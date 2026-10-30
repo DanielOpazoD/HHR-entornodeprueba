@@ -16,10 +16,8 @@ import {
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import { getSyncQueueTelemetry } from '@/services/storage/sync/publicSyncQueue';
 import { buildSyncQueueTelemetryFromRows } from '@/services/storage/sync/syncQueueTelemetryController';
-import {
-  getPendingDailyRecordProjection,
-  listDailyRecordProjectionHolders,
-} from '@/services/storage/sync/dailyRecordSyncQueueReadService';
+import { getPendingDailyRecordProjection } from '@/services/storage/sync/dailyRecordSyncQueueReadService';
+import { listDailyRecordProjectionHolders } from '@/services/storage/sync/dexieSyncQueueQuarantine';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 

@@ -7,7 +7,7 @@ import { dispatchDailyRecordStoreChanged } from '@/services/storage/indexeddb/in
 import { localPersistence } from '@/services/storage/localpersistence/localPersistenceService';
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import { clearSyncTaskRuntimeState } from '@/services/storage/sync/syncQueueTaskFactory';
-import { holdsDailyRecordProjection } from '@/services/storage/sync/dailyRecordSyncQueueReadService';
+import { holdsDailyRecordProjection } from '@/services/storage/sync/dexieSyncQueueQuarantine';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 
 /** A whole-day write that still holds the stored day, whose copy logout clears. */
@@ -80,7 +80,6 @@ export const clearSessionDailyRecords = async (ownerKey: string | null): Promise
       code: 'indexeddb_clear_all_records_failed',
       message: 'No fue posible limpiar los registros locales.',
       severity: 'warning',
-      userSafeMessage: 'No fue posible limpiar los registros locales.',
     });
     throw error;
   }

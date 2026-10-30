@@ -39,9 +39,9 @@ import { applyPatches } from '@/utils/patchUtils';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import {
   findReusableSyncTask,
+  listDailyRecordProjectionHolders,
   matchesOwner,
 } from '@/services/storage/sync/dexieSyncQueueQuarantine';
-import { listDailyRecordProjectionHolders } from '@/services/storage/sync/dailyRecordSyncQueueReadService';
 import {
   buildDailyRecordSyncContract,
   mergeSyncTaskContracts,

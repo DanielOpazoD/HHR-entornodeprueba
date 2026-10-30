@@ -16,10 +16,10 @@ import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
 import {
   discardQuarantinedTask,
   findReusableSyncTask,
+  listDailyRecordProjectionHolders,
   matchesOwner,
   requeueQuarantinedTask,
 } from '@/services/storage/sync/dexieSyncQueueQuarantine';
-import { listDailyRecordProjectionHolders } from '@/services/storage/sync/dailyRecordSyncQueueReadService';
 
 const loadAuthorityAck = () => import('./dexieSyncQueueAuthorityAck');
 

@@ -4,7 +4,7 @@ import { buildMonthRecordPrefix } from '@/services/storage/storageDateSupport';
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
 import { arePatchValuesDeepEqual } from '@/utils/patchValueEquality';
-import { listDailyRecordProjectionHolders } from '@/services/storage/sync/dailyRecordSyncQueueReadService';
+import { listDailyRecordProjectionHolders } from '@/services/storage/sync/dexieSyncQueueQuarantine';
 
 import { ensureDbReady, hospitalDB as db, isDatabaseInFallbackMode } from './indexedDbCore';
 import { dispatchDailyRecordStoreChanged } from './indexedDbRecordEvents';

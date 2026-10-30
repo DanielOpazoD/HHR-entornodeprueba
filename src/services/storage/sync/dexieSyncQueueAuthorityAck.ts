@@ -12,10 +12,10 @@ import { UNKNOWN_SERVER_VERSION } from '@/services/storage/sync/syncTaskContract
 import { hasSameComparableValue } from '@/services/repositories/conflictResolutionUtils';
 
 import {
-  matchesOwner,
   REUSABLE_TASK_STATES,
+  listDailyRecordProjectionHolders,
+  matchesOwner,
 } from '@/services/storage/sync/dexieSyncQueueQuarantine';
-import { listDailyRecordProjectionHolders } from '@/services/storage/sync/dailyRecordSyncQueueReadService';
 
 interface AckRuntime {
   db: typeof hospitalDB;
