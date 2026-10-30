@@ -320,4 +320,22 @@ describe('confirmed cache ordering across query and subscription', () => {
       });
     }
   );
+
+  it('lets only a remote result pass a shown version on revision alone', () => {
+    const shown = {
+      ...DataFactory.createMockDailyRecord('2025-01-08'),
+      lastUpdated: '2025-01-08T10:20:00.000Z',
+      meta: { revision: 10 },
+    };
+    const later = { ...shown, lastUpdated: '2025-01-08T10:00:00.000Z', meta: { revision: 11 } };
+
+    expect(
+      reconcileDailyRecordQueryResult(queryResult(shown, 'remote'), queryResult(later, 'local'))
+        .record
+    ).toBe(shown);
+    expect(
+      reconcileDailyRecordQueryResult(queryResult(shown, 'remote'), queryResult(later, 'remote'))
+        .record
+    ).toBe(later);
+  });
 });
