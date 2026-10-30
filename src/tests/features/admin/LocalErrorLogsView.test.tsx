@@ -68,4 +68,32 @@ describe('LocalErrorLogsView', () => {
     expect(fetchErrorLogs).toHaveBeenCalledTimes(2);
     expect(await screen.findByText('No hay errores locales registrados.')).toBeInTheDocument();
   });
+
+  it('does not pass a failed read off as an empty history', async () => {
+    vi.mocked(fetchErrorLogs).mockRejectedValueOnce(new Error('Synthetic store failure'));
+
+    render(<LocalErrorLogsView />);
+
+    expect(
+      await screen.findByText(
+        'No se pudo leer el historial de errores de este navegador. Eso no significa que no haya errores.'
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByText('No hay errores locales registrados.')).not.toBeInTheDocument();
+  });
+
+  it('says so when the history could not be cleared, and keeps showing it', async () => {
+    const user = userEvent.setup();
+    vi.mocked(clearErrorLogs).mockRejectedValueOnce(new Error('Synthetic store failure'));
+
+    render(<LocalErrorLogsView />);
+
+    expect(await screen.findByText('Fallo al guardar respaldo local')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Limpiar/i }));
+
+    expect(
+      await screen.findByText('No se pudo limpiar el historial de errores de este navegador.')
+    ).toBeInTheDocument();
+    expect(screen.getByText('Fallo al guardar respaldo local')).toBeInTheDocument();
+  });
 });

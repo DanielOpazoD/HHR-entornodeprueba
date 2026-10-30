@@ -76,8 +76,10 @@ export const LocalErrorLogsView: React.FC = () => {
     setLoadError(null);
     try {
       setLogs(await fetchErrorLogs(100));
-    } catch (error) {
-      setLoadError(String(error));
+    } catch {
+      setLoadError(
+        'No se pudo leer el historial de errores de este navegador. Eso no significa que no haya errores.'
+      );
     } finally {
       setLoading(false);
     }
@@ -105,8 +107,8 @@ export const LocalErrorLogsView: React.FC = () => {
     try {
       await clearErrorLogs();
       await loadLogs();
-    } catch (error) {
-      setLoadError(String(error));
+    } catch {
+      setLoadError('No se pudo limpiar el historial de errores de este navegador.');
     } finally {
       setClearing(false);
     }
@@ -174,7 +176,7 @@ export const LocalErrorLogsView: React.FC = () => {
         <div className="rounded-lg border border-slate-200 bg-white px-4 py-12 text-center text-sm text-slate-500">
           Cargando errores locales...
         </div>
-      ) : logs.length === 0 ? (
+      ) : logs.length === 0 && loadError ? null : logs.length === 0 ? (
         <div className="rounded-lg border border-dashed border-slate-300 bg-white px-4 py-12 text-center">
           <p className="font-semibold text-slate-700">No hay errores locales registrados.</p>
           <p className="mt-1 text-sm text-slate-500">

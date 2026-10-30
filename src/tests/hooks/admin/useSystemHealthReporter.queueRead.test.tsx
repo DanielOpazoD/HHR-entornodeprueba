@@ -4,6 +4,7 @@ import { useSystemHealthReporter } from '@/hooks/admin/useSystemHealthReporter';
 
 const mocks = vi.hoisted(() => ({
   operations: vi.fn(),
+  errorLogs: vi.fn(async () => [] as unknown[]),
   report: vi.fn(),
   auth: {
     currentUser: {
@@ -25,7 +26,7 @@ vi.mock('@/context/VersionContext', () => ({
   useVersion: () => ({ isOutdated: false, updateReason: 'current' }),
 }));
 vi.mock('@tanstack/react-query', () => ({ useIsMutating: () => 0 }));
-vi.mock('@/services/errorLogService', () => ({ fetchErrorLogs: async () => [] }));
+vi.mock('@/services/errorLogService', () => ({ fetchErrorLogs: mocks.errorLogs }));
 vi.mock('@/services/admin/healthService', () => ({ reportUserHealth: mocks.report }));
 vi.mock('@/services/storage/sync', () => ({
   listRecentSyncQueueOperations: mocks.operations,
@@ -58,4 +59,13 @@ it('still reports known queue counts when the recent-operation read rejects', as
       retryingSyncTasks: 1,
     })
   );
+});
+
+it('still reports its other counts when the local error history cannot be read', async () => {
+  mocks.operations.mockResolvedValue([]);
+  mocks.errorLogs.mockRejectedValueOnce(new Error('Synthetic store failure'));
+  renderHook(() => useSystemHealthReporter());
+
+  await waitFor(() => expect(mocks.report).toHaveBeenCalledTimes(1));
+  expect(mocks.report).toHaveBeenCalledWith(expect.objectContaining({ pendingSyncTasks: 3 }));
 });
