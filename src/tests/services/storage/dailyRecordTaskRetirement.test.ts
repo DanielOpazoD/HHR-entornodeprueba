@@ -14,6 +14,7 @@ import {
   reviewBlockedDailyRecordTask,
 } from '@/services/storage/sync/dailyRecordTaskRetirement';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
+import { getSyncQueueTelemetry } from '@/services/storage/sync/publicSyncQueue';
 import { listUnresolvedDailyRecordTasks } from '@/services/storage/sync/dexieSyncQueueQuarantine';
 import { buildSyncQueueTelemetryFromRows } from '@/services/storage/sync/syncQueueTelemetryController';
 import { getPendingDailyRecordProjection } from '@/services/storage/sync/dailyRecordSyncQueueReadService';
@@ -214,7 +215,9 @@ it('survives database reopening and session cleanup; another user cannot see or 
   localStorage.setItem(SESSION_OWNER_KEY, 'user:other');
   expect(await listDiscardedDailyRecordTasks()).toEqual([]);
   expect(await getDiscardedDailyRecordBackup(taskId)).toBeNull();
-  expect(await createDexieSyncQueueStore().countForeign('user:other')).toBe(0);
+  expect(await getSyncQueueTelemetry()).toMatchObject({ readState: 'ok', orphanedTasks: 0 });
+  await hospitalDB.syncQueue.add({ ...failed, opId: 'synthetic-foreign-positive' });
+  expect(await getSyncQueueTelemetry()).toMatchObject({ readState: 'ok', orphanedTasks: 1 });
 });
 
 it('keeps legacy ownerless sends as a backup private to the person who confirmed their withdrawal', async () => {

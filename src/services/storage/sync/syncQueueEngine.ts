@@ -222,10 +222,13 @@ export const createSyncQueueEngine = ({
       triggerProcessing,
       expectedTask,
     });
-  const getTelemetry = async (): Promise<SyncQueueTelemetry> => {
+  const getTelemetry = async (): Promise<SyncQueueTelemetry & { orphanedTasks: number }> => {
     const ownerKey = runtime.getOwnerKey();
-    const rows = await store.listAll(ownerKey);
-    return buildSyncQueueTelemetryFromRows(rows, Date.now(), batchSize);
+    const { rows, foreignCount } = await store.readTelemetryInputs(ownerKey);
+    return {
+      ...buildSyncQueueTelemetryFromRows(rows, Date.now(), batchSize),
+      orphanedTasks: foreignCount,
+    };
   };
 
   const listRecentOperations = async (limit: number): Promise<SyncQueueOperationSnapshot[]> => {

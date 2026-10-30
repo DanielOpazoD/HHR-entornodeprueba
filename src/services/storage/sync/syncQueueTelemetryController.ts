@@ -1,5 +1,8 @@
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
-import type { SyncQueueTelemetry } from '@/services/storage/sync/syncQueueTelemetryContracts';
+import type {
+  SyncQueueTelemetry,
+  SyncQueueTelemetryRow,
+} from '@/services/storage/sync/syncQueueTelemetryContracts';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import type { OperationalRuntimeState } from '@/services/observability/operationalRuntimeState';
 import type { OperationalTelemetryStatus } from '@/services/observability/operationalTelemetryTypes';
@@ -27,8 +30,8 @@ export interface SyncQueueTelemetrySnapshot extends SyncQueueTelemetry {
   capturedAt: number;
 }
 
-export const buildSyncQueueTelemetryFromRows = (
-  rows: SyncTask[],
+export const buildSyncQueueTelemetryFromRows = <T extends SyncQueueTelemetryRow>(
+  rows: readonly T[],
   now: number,
   batchSize: number
 ): SyncQueueTelemetry => {

@@ -1,4 +1,5 @@
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
+import type { SyncQueueTelemetryRow } from '@/services/storage/sync/syncQueueTelemetryContracts';
 import type { DailyRecord, DailyRecordPatch } from '@/services/storage/storageDailyRecordContracts';
 import type { PendingDailyRecordSyncTaskIdentity } from '@/services/storage/sync/pendingDailyRecordSyncTask';
 
@@ -132,7 +133,10 @@ export interface SyncQueueStorePort {
   ): Promise<boolean>;
   deleteAll(): Promise<void>;
   deleteByOwner(ownerKey: string | null): Promise<void>;
-  countForeign(ownerKey: string | null): Promise<number>;
+  readTelemetryInputs(ownerKey: string | null): Promise<{
+    rows: SyncQueueTelemetryRow[];
+    foreignCount: number;
+  }>;
 }
 
 export interface SyncRuntimePort {

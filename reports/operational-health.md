@@ -21,6 +21,10 @@ La selección de trabajo listo usa los rangos activos del índice de estado y fe
 Los respaldos y cuarentenas permanecen guardados sin formar parte de ese recorrido;
 no cambian el orden global, los propietarios, las esperas ni los leases.
 
+El sondeo de telemetría reúne los contadores propios y ajenos en una lectura del
+índice de estados vigentes. Los respaldos retirados permanecen descargables y no
+participan de esa lectura. Los fallos mantienen el estado de lectura no disponible.
+
 Las lecturas que atraviesan un cambio de propietario o de generación de sesión
 no publican resultados anteriores. La telemetría y el listado usan su estado de
 lectura no disponible; las APIs de compatibilidad conservan su fallback documentado.
