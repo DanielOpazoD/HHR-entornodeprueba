@@ -84,12 +84,16 @@ test.describe('Auth login resilience matrix', () => {
     const moduleReady = new Promise<void>(resolve => {
       releaseModule = resolve;
     });
-    await page.route('**/assets/App-*.js', async route => {
+    const appModuleUrl = /\/(?:assets\/App-[^/]+\.js|src\/App\.tsx)(?:\?.*)?$/;
+    let moduleRequested = false;
+    await page.route(appModuleUrl, async route => {
+      moduleRequested = true;
       await moduleReady;
       await route.continue();
     });
     try {
       await page.reload({ waitUntil: 'domcontentloaded' });
+      await expect.poll(() => moduleRequested).toBe(true);
       await expect(page.getByTestId('login-loading-shell')).toBeVisible();
       const username = page.getByLabel('Usuario', { exact: true });
       const password = page.getByLabel('Contraseña', { exact: true });
@@ -114,7 +118,7 @@ test.describe('Auth login resilience matrix', () => {
       );
     } finally {
       releaseModule();
-      await page.unroute('**/assets/App-*.js');
+      await page.unroute(appModuleUrl);
     }
   });
 
