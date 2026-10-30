@@ -64,7 +64,7 @@ describe('a refused staffing write', () => {
     );
   });
 
-  it('keeps the staffing modal open with its draft for a retry, then closes on success', async () => {
+  it('keeps the staffing modal open for a retry, then closes on success', async () => {
     const onClose = vi.fn();
     const onSave = vi.fn<() => Promise<void>>().mockRejectedValueOnce(refusal());
     onSave.mockResolvedValue(undefined);

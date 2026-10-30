@@ -219,7 +219,7 @@ export const StaffShiftDetailsModal: React.FC<StaffShiftDetailsModalProps> = ({
       await onSave(draft);
       onClose();
     } catch (error) {
-      // The save already told the user. The modal stays open with the draft, ready to retry.
+      // The save already told the user. The modal stays open, ready to retry.
       staffShiftDetailsLogger.warn('Staffing details save failed', error);
     } finally {
       setIsSaving(false);
