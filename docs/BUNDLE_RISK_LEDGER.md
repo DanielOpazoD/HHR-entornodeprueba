@@ -353,3 +353,34 @@ Pasan las 34 pruebas existentes de las cinco suites de esquemas y validación
 afectadas, el presupuesto, el grafo de chunks y el margen de recursos. El cierre
 requiere revisión independiente y CI del SHA final según `SAFE_CHANGE_CHECKLIST.md`.
 Reversión: restaurar las construcciones individuales sin cambiar el contrato de datos.
+
+## Admisión de lecturas puntuales sobre la caché vigente (29 octubre 2026)
+
+Owner: Daniel, con autorización explícita en este hilo para 4 KiB de precarga y
+1 KiB de arranque. La corrección impide que una lectura puntual tardía reemplace
+una publicación remota recibida mientras esperaba. Conserva la comprobación de
+base y la admisión final de QueryClient en el código clínico disponible offline.
+
+La base de main con #1085, `eed5a9cf5`, mide 5.038.866 bytes de precarga y
+630.911 bytes en el shell. La composición exacta de las fuentes funcionales de
+`6c1366c1f` con esa base mide 5.042.626 y 632.570 bytes, respectivamente, con
+Node 22.22.2, el mismo lockfile y el build de producción. Son tamaños de los
+artefactos locales, no latencia. Las 247 entradas del manifiesto coinciden con
+la contabilidad; no hay archivos ausentes ni exclusiones precargadas.
+
+Se aplican solo los aumentos aprobados: precarga 5.040.128 a 5.044.224 bytes y
+shell 632.000 a 633.024 bytes. La composición medida deja 1.598 y 454 bytes de
+margen. Los demás límites, la banda de advertencia y las exclusiones no cambian.
+El riesgo es ese pequeño aumento del paquete inicial, sin dependencias nuevas
+ni relecturas automáticas de red.
+
+La revisión independiente del código y las regresiones de IndexedDB, lecturas
+compartidas, inicialización y publicación final de QueryClient preceden a este
+ajuste. Las cuatro aserciones existentes de los dos límites siguen activas con los
+valores aprobados. El cierre requiere el presupuesto y CI del SHA final, sin
+repetir la matriz local según `SAFE_CHANGE_CHECKLIST.md`.
+
+Reversión: revertir juntos la corrección y este aumento, restaurando los dos
+límites anteriores. La reversión repone el riesgo de retroceso por lecturas
+tardías. No borra ni migra pendientes. Cualquier aumento adicional requiere
+otra decisión del dueño y nueva evidencia.

@@ -87,7 +87,7 @@ describe('bundle budget config', () => {
     ).toMatchObject({
       // Preserve confirmed-cache ordering, episode metadata and split-day write hygiene within
       // measured allowances (docs/BUNDLE_RISK_LEDGER.md).
-      maxBytes: 632000,
+      maxBytes: 633024,
       severity: 'error',
     });
   });
@@ -98,7 +98,7 @@ describe('bundle budget config', () => {
     // Preserve offline clinical validation with the measured security-upgrade allowance,
     // plus the option-C allowance and its bounded 8 KiB allocation for #1034 note replay.
     expect(config.precacheMaxBytes).toBe(
-      4840192 + 2048 + 67840 + 31744 + 2048 + 8192 + 40960 + 38912 + 8192
+      4840192 + 2048 + 67840 + 31744 + 2048 + 8192 + 40960 + 38912 + 8192 + 4096
     );
     expect(findBudget(config, '^vendor-zod-.*\\.js$')).toMatchObject({ maxBytes: 96000 });
     expect(
