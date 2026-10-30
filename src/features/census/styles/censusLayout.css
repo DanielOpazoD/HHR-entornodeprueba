@@ -13,6 +13,29 @@
   outline-offset: 2px;
 }
 
+@media screen and (min-width: 768px) and (max-width: 1023px) {
+  .census-toolbar-with-sync {
+    display: grid;
+    grid-template-columns: max-content max-content;
+  }
+
+  .census-toolbar-with-sync > .census-toolbar-staff {
+    grid-column: 1 / -1;
+    justify-self: center;
+  }
+}
+
+@media screen and (min-width: 1024px) {
+  .census-toolbar-with-sync {
+    display: grid;
+    grid-template-columns: max-content 15rem minmax(0, max-content);
+  }
+
+  .census-toolbar-with-sync > .census-toolbar-summary {
+    flex-wrap: wrap;
+  }
+}
+
 @media (pointer: coarse) {
   .census-movement-action {
     min-width: 2.75rem;

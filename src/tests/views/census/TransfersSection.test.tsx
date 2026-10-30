@@ -89,7 +89,7 @@ describe('TransfersSection', () => {
     } as unknown as DataValue);
 
     render(<TransfersSection />);
-    expect(screen.getByText(/No hay traslados registrados/)).toBeInTheDocument();
+    expect(screen.getByText('Sin registros para el día seleccionado.')).toBeInTheDocument();
   });
 
   it('renders transfer list and triggers actions', async () => {

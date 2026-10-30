@@ -1129,10 +1129,13 @@ test('shows discharge download progress without changing the row and unlocks on 
   await section.scrollIntoViewIfNeeded();
   const row = section.locator('tbody tr');
   const before = await row.boundingBox();
-  await section.getByRole('button', { name: /Descargar PDF del egreso/ }).click();
+  const download = section.getByRole('button', { name: /Descargar PDF del egreso/ });
+  const actionBefore = await download.boundingBox();
+  await download.click();
   const busy = section.getByRole('button', { name: /Descargando/ });
   await expect(busy).toBeDisabled();
-  await expect(busy).toHaveText('Descargando…');
+  await expect(busy).toHaveText('Egreso');
+  expect(await busy.boundingBox()).toEqual(actionBefore);
   await expect(page.locator('html')).toHaveAttribute('data-synthetic-discharge-request', /.+/);
   expect(await row.boundingBox()).toEqual(before);
   await testInfo.attach('discharge-downloading', {
@@ -1153,7 +1156,7 @@ test('shows discharge download progress without changing the row and unlocks on 
     );
   });
   await expect(section.getByRole('button', { name: /Descargar PDF del egreso/ })).toBeEnabled();
-  await expect(section.getByText('Egreso estad.', { exact: true })).toBeVisible();
+  await expect(section.getByRole('button', { name: /Descargar PDF del egreso/ })).toBeVisible();
 });
 
 test.describe('movement touch controls', () => {

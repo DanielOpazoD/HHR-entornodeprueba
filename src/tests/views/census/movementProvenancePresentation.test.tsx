@@ -69,7 +69,8 @@ describe('movement provenance presentation', () => {
     );
 
     const action = screen.getByRole('button', { name: /Descargar PDF del egreso/i });
-    expect(action).not.toHaveAttribute('title');
+    expect(action).toHaveTextContent('Egreso');
+    expect(action).toHaveAttribute('title', 'Descargar PDF del egreso');
     action.click();
     expect(onClick).toHaveBeenCalledOnce();
   });

@@ -13,7 +13,7 @@ describe('CensusMovementSectionLayout', () => {
         emptyMessage="No hay altas"
         icon={<CheckCircle size={18} />}
         iconClassName="bg-green-50 text-green-600"
-        isEmpty={true}
+        itemCount={0}
         headers={[]}
       >
         <tr>
@@ -24,6 +24,8 @@ describe('CensusMovementSectionLayout', () => {
 
     expect(screen.getByText('Altas')).toBeInTheDocument();
     expect(screen.getByText('No hay altas')).toBeInTheDocument();
+    expect(screen.getByLabelText('0 registros en esta sección')).toBeVisible();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 
   it('renders table and subtitle when content is not empty', () => {
@@ -34,7 +36,7 @@ describe('CensusMovementSectionLayout', () => {
         emptyMessage="No hay traslados"
         icon={<CheckCircle size={18} />}
         iconClassName="bg-blue-50 text-blue-600"
-        isEmpty={false}
+        itemCount={1}
         headers={[{ label: 'Paciente' }]}
       >
         <tr>
@@ -46,6 +48,8 @@ describe('CensusMovementSectionLayout', () => {
     expect(screen.getByText('CMA / PMA')).toBeInTheDocument();
     expect(screen.getByText('Paciente')).toBeInTheDocument();
     expect(screen.getByText('Jane Doe')).toBeInTheDocument();
+    expect(screen.getByLabelText('1 registro en esta sección')).toBeVisible();
+    expect(screen.queryByText('No hay traslados')).not.toBeInTheDocument();
   });
 
   it('applies optional className overrides for root, table and body', () => {
@@ -55,7 +59,7 @@ describe('CensusMovementSectionLayout', () => {
         emptyMessage="Sin datos"
         icon={<CheckCircle size={18} />}
         iconClassName="bg-medical-50 text-medical-600"
-        isEmpty={false}
+        itemCount={1}
         headers={[{ label: 'Paciente' }]}
         rootClassName="print:break-inside-avoid"
         tableClassName="text-left"
