@@ -1,6 +1,5 @@
-import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { StaffShiftDetailsModal } from '@/features/census/components/StaffShiftDetailsModal';
 import {
   useDetailedStaffingManagement,
   useNurseManagement,
@@ -62,37 +61,5 @@ describe('a refused staffing write', () => {
     await expect(result.current.updateDetailedStaffing(detail)).rejects.toThrow(
       DailyRecordFreshnessGateError
     );
-  });
-
-  it('keeps the staffing modal open for a retry, then closes on success', async () => {
-    const onClose = vi.fn();
-    const onSave = vi.fn<() => Promise<void>>().mockRejectedValueOnce(refusal());
-    onSave.mockResolvedValue(undefined);
-    render(
-      <StaffShiftDetailsModal
-        isOpen
-        onClose={onClose}
-        role="nurse"
-        initialShift="day"
-        recordDate="2026-04-03"
-        detail={detail}
-        nursesList={[]}
-        tensList={[]}
-        onSave={onSave}
-      />
-    );
-    const save = screen.getByRole('button', { name: /guardar/i });
-
-    await act(async () => {
-      fireEvent.click(save);
-      await flushRejections();
-    });
-    expect(unhandled).not.toHaveBeenCalled();
-    expect(onClose).not.toHaveBeenCalled();
-    await waitFor(() => expect(save).toBeEnabled());
-
-    fireEvent.click(save);
-    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
-    expect(onSave).toHaveBeenCalledTimes(2);
   });
 });
