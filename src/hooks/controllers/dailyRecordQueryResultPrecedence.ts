@@ -1,5 +1,8 @@
 import type { DailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
-import { toRecordTimestamp } from '@/services/repositories/dailyRecordConsistencyPolicy';
+import {
+  isRemoteRevisionAhead,
+  toRecordTimestamp,
+} from '@/services/repositories/dailyRecordConsistencyPolicy';
 import { wouldReplacePendingDailyRecordIdentity } from './dailyRecordPendingPatchController';
 
 const mustSurfaceIncomingRuntime = ({ runtime }: DailyRecordQueryResult): boolean =>
@@ -87,6 +90,9 @@ export const reconcileDailyRecordQueryResult = (
     return incoming;
   }
 
+  if (baseSource(incoming) === 'remote' && isRemoteRevisionAhead(previousRecord, record)) {
+    return incoming;
+  }
   const previousTimestamp = toRecordTimestamp(previousRecord.lastUpdated);
   const incomingTimestamp = toRecordTimestamp(record.lastUpdated);
   if (previousTimestamp > incomingTimestamp) {

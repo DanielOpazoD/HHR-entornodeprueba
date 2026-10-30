@@ -53,6 +53,46 @@ export const toRecordTimestamp = (value: string | undefined): number => {
   return Number.isFinite(millis) ? millis : 0;
 };
 
+type RevisionedRecord = { lastUpdated: string; meta?: { revision?: unknown } };
+
+const knownRevision = (record: RevisionedRecord): number | undefined => {
+  const revision = record.meta?.revision;
+  return typeof revision === 'number' && Number.isSafeInteger(revision) ? revision : undefined;
+};
+
+/**
+ * Server writes raise the revision inside their transaction; direct writes keep it and stamp the
+ * device's clock. So a higher revision on both sides is the later version whatever the clocks say.
+ * Without two known revisions, or with equal ones, there is no such proof and the clock decides.
+ */
+export const isRemoteRevisionAhead = (
+  local: RevisionedRecord | null | undefined,
+  remote: RevisionedRecord | null | undefined
+): boolean => {
+  if (!local || !remote) return false;
+  const localRevision = knownRevision(local);
+  const remoteRevision = knownRevision(remote);
+  return (
+    localRevision !== undefined && remoteRevision !== undefined && remoteRevision > localRevision
+  );
+};
+
+/**
+ * The local copy as read decisions must compare it: behind a remote of higher revision, so that
+ * case resolves exactly like an ascending clock. Never for a write being published, whose edits
+ * are not an older version of the remote day, and never as the copy to store or compare-and-swap.
+ */
+export const orderLocalBehindRemoteRevision = <T extends RevisionedRecord>(
+  local: T | null,
+  remote: T | null
+): T | null => {
+  if (!local || !remote || !isRemoteRevisionAhead(local, remote)) return local;
+  const remoteTimestamp = toRecordTimestamp(remote.lastUpdated);
+  return toRecordTimestamp(local.lastUpdated) < remoteTimestamp
+    ? local
+    : { ...local, lastUpdated: new Date(remoteTimestamp - 1).toISOString() };
+};
+
 const isLocalNewer = (localRecord: DailyRecord | null, remoteRecord: DailyRecord | null): boolean =>
   Boolean(
     localRecord &&

@@ -1,6 +1,7 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   resolveDailyRecordReadConsistency,
+  orderLocalBehindRemoteRevision,
   toRecordTimestamp,
 } from '@/services/repositories/dailyRecordConsistencyPolicy';
 import {
@@ -92,7 +93,7 @@ export const hasRemoteClinicalTextShrinkage = (
 };
 
 export const resolveDailyRecordPersistenceGoldenPath = ({
-  localRecord,
+  localRecord: storedLocalRecord,
   remoteRecord,
   remoteHistorySource = remoteRecord ?? undefined,
   remoteAvailability,
@@ -100,6 +101,7 @@ export const resolveDailyRecordPersistenceGoldenPath = ({
   remoteRepairApplied = false,
   clinicalConsistencyPhase = 'read_publish',
 }: ResolveDailyRecordPersistenceGoldenPathInput): DailyRecordPersistenceGoldenPathResult => {
+  const localRecord = orderLocalBehindRemoteRevision(storedLocalRecord, remoteRecord);
   const shouldProtectLocalClinicalText = hasRemoteClinicalTextShrinkage(localRecord, remoteRecord);
   const baseCandidateRecord =
     remoteAvailability === 'not_requested'

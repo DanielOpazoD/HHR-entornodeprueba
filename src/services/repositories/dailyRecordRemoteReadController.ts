@@ -8,6 +8,7 @@ import {
   resolveDailyRecordPersistenceGoldenPath,
 } from '@/services/repositories/dailyRecordPersistenceGoldenPath';
 import { resolveDailyRecordConflict } from '@/services/repositories/conflictResolutionMatrix';
+import { orderLocalBehindRemoteRevision } from '@/services/repositories/dailyRecordConsistencyPolicy';
 import {
   createGoldenPathReadResult,
   createSupersededReadResult,
@@ -56,15 +57,19 @@ export const resolveRemoteGoldenPathReadResult = async ({
   base = remoteReadResult.issuedAgainst,
   persistHydratedRecord = persistHydratedRecordToLocalCache,
 }: ResolveRemoteGoldenPathReadResultInput): Promise<DailyRecordReadResult> => {
-  const shouldProtectLocalClinicalText = hasRemoteClinicalTextShrinkage(
+  const comparableLocal = orderLocalBehindRemoteRevision(
     localCandidate?.record || null,
     remoteReadResult.record
   );
+  const shouldProtectLocalClinicalText = hasRemoteClinicalTextShrinkage(
+    comparableLocal,
+    remoteReadResult.record
+  );
   const effectiveRemoteReadResult =
-    localCandidate?.record && remoteReadResult.record && !shouldProtectLocalClinicalText
+    comparableLocal && remoteReadResult.record && !shouldProtectLocalClinicalText
       ? {
           ...remoteReadResult,
-          record: resolveDailyRecordConflict(remoteReadResult.record, localCandidate.record),
+          record: resolveDailyRecordConflict(remoteReadResult.record, comparableLocal),
         }
       : remoteReadResult;
   const goldenPath = resolveDailyRecordPersistenceGoldenPath({
