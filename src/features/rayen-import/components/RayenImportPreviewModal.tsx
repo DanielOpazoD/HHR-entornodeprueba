@@ -255,7 +255,7 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                       {entry.associatedClinicalCrib && (
                         <div className="ml-4 text-gray-600">
                           ↳ Alta asociada — {entry.associatedClinicalCrib.patientName}{' '}
-                          <span className="text-gray-400">(cuna RN; no suma egreso)</span>
+                          <span className="text-gray-400">(cuna RN)</span>
                         </div>
                       )}
                     </li>

@@ -4,7 +4,7 @@ import { resolveInitialLoginBackgroundMode } from '@/shared/ui/loginBackgroundMo
 
 import {
   LoginCardFrame,
-  LoginCredentialsPlaceholder,
+  LoginAccessLoadingPlaceholder,
   LoginScreenLayout,
 } from './LoginScreenLayout';
 
@@ -41,12 +41,12 @@ const LoadingIndicator = () => (
   </div>
 );
 
-const LoginShellLoadingScreen = () => {
+export const LoginShellLoadingScreen = () => {
   const backgroundMode = resolveInitialLoginBackgroundMode();
   return (
     <LoginScreenLayout mode={backgroundMode} testId="login-loading-shell">
       <LoginCardFrame>
-        <LoginCredentialsPlaceholder />
+        <LoginAccessLoadingPlaceholder />
       </LoginCardFrame>
     </LoginScreenLayout>
   );

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Eye, MoonStar, SunMedium } from 'lucide-react';
+import { Loader2, MoonStar, SunMedium } from 'lucide-react';
 import {
   type LoginBackgroundMode,
   resolveLoginBackgroundImage,
@@ -148,48 +148,34 @@ export const LoginCardFrame: React.FC<{ children: React.ReactNode }> = ({ childr
   </section>
 );
 
-/** Inert fallback, never asks the user to type before the real form can accept input. */
-export const LoginCredentialsPlaceholder = () => (
+export const LoginAccessPending = ({
+  title = 'Validando tu acceso…',
+  hint = 'Comprobando tu acceso. Un momento, por favor.',
+}: {
+  title?: string;
+  hint?: string;
+}) => (
+  <div
+    role="status"
+    aria-live="polite"
+    aria-atomic="true"
+    className="flex h-full flex-col items-center justify-center gap-4 rounded-xl border border-teal-200 bg-white/95 px-5 text-center shadow-sm backdrop-blur-sm"
+  >
+    <span className="flex h-12 w-12 items-center justify-center rounded-full bg-teal-800/10 text-teal-800">
+      <Loader2 className="h-6 w-6 motion-safe:animate-spin" aria-hidden="true" />
+    </span>
+    <div>
+      <p className="text-base font-semibold text-teal-950">{title}</p>
+      <p className="mt-1 text-xs leading-5 text-teal-900">{hint}</p>
+    </div>
+  </div>
+);
+
+/** Startup and the accepted-login transition share the active progress panel. */
+export const LoginAccessLoadingPlaceholder = () => (
   <div className="space-y-4" aria-busy="true">
-    <div className="space-y-2.5 text-sm text-slate-800">
-      <span role="status" className="sr-only">
-        Cargando acceso al sistema…
-      </span>
-      <label className="block text-sm font-medium text-slate-800">
-        Usuario
-        <input className={LOGIN_INPUT_CLASS} placeholder="Ej. 111111111" disabled />
-      </label>
-      <p className="mt-1! text-xs leading-5 text-stone-600">
-        RUT con dígito verificador, sin puntos ni guion.
-      </p>
-      <label className="block text-sm font-medium text-slate-800">
-        Contraseña
-        <span className="relative block">
-          <input
-            className={`${LOGIN_INPUT_CLASS} pr-12`}
-            type="password"
-            autoComplete="off"
-            disabled
-          />
-          <span
-            className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-stone-500"
-            aria-hidden="true"
-          >
-            <Eye size={18} />
-          </span>
-        </span>
-      </label>
-      <button type="button" className={LOGIN_SUBMIT_CLASS} disabled>
-        Ingresar
-      </button>
-      <div className="flex justify-between text-xs text-stone-600">
-        <button type="button" disabled className="underline underline-offset-4">
-          Olvidé mi contraseña
-        </button>
-        <button type="button" disabled className="underline underline-offset-4">
-          Primer ingreso
-        </button>
-      </div>
+    <div className="h-64">
+      <LoginAccessPending />
     </div>
     <div
       className="flex items-start gap-4 border-t border-stone-200 pt-3 text-xs text-stone-600"

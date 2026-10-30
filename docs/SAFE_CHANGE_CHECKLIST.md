@@ -84,6 +84,15 @@ La clasificación remota `docs-only` se decide en CI; no forzar ni omitir checks
 
 ### Checklist de cierre
 
+La continuidad visual del acceso y el espaciado de Enfermería/TENS son `safe_local_ui`.
+El ingreso aceptado mantiene el panel de progreso hasta que avanza la sesión; comprobar
+también error de autorización, cierre de sesión y carga inicial sin reaparecer credenciales.
+Las actualizaciones rutinarias del censo no insertan banners que desplacen el contenido:
+retirar la presentación sin alterar el bloqueo de edición ni la comprobación remota.
+Las altas de RN omiten la leyenda estadística en pantalla y conservan identidad, acciones
+y clasificación. Validar pruebas focalizadas, navegador con datos sintéticos, build/budgets,
+revisión independiente y CI del SHA definitivo.
+
 La simplificación del Centro HHR de Eloísa elimina las superficies de Turno, Vitales y
 Scores, incluido Reg + BRADEN, y conserva Recetas/Indicaciones, Laboratorio, Imágenes y
 Sesión. Verificar inicio, navegación, barra flotante, fuentes y ZIP sin owners retirados;
