@@ -141,3 +141,34 @@ it.each([
     expect(retryQuarantinedSyncTask).toHaveBeenCalledExactlyOnceWith(61);
   }
 );
+
+it('offers retirement with a backup, not a retry, for a census a closed session left unsent', () => {
+  render(
+    <RayenSyncQueueDetails
+      stats={{ pending: 0, failed: 1, conflict: 0, retrying: 0, acked: 0, oldestPendingAgeMs: 0 }}
+      operations={[
+        {
+          id: 44,
+          type: 'UPDATE_DAILY_RECORD',
+          status: 'FAILED',
+          retryCount: 0,
+          timestamp: 1,
+          key: 'daily:2026-10-24',
+          lastErrorCategory: 'authorization',
+          lastErrorCode: 'session_owner_logged_out',
+          localProjection: 'released',
+        },
+      ]}
+      working={false}
+      refresh={vi.fn().mockResolvedValue(undefined)}
+    />
+  );
+  fireEvent.click(screen.getByText('Guardado local · 1 por enviar'));
+  const [blocked] = screen.getAllByRole('listitem');
+  expect(within(blocked).getByText('Sesión cerrada')).toBeVisible();
+  expect(within(blocked).getByText(/el censo muestra la versión del servidor/)).toBeVisible();
+  expect(within(blocked).getByRole('button', { name: 'Descartar envío' })).toBeVisible();
+  expect(within(blocked).queryByRole('button', { name: /reintentar/i })).not.toBeInTheDocument();
+  expect(within(blocked).queryByText('Revisar reintento')).not.toBeInTheDocument();
+  expect(retryQuarantinedSyncTask).not.toHaveBeenCalled();
+});
