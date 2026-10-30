@@ -1,3 +1,8 @@
+export interface DailyRecordHandoffSharedChecklist {
+  crashCartReviewDate?: string;
+  crashCartCode?: string;
+}
+
 export interface DailyRecordHandoffDayChecklist {
   [key: string]: boolean | undefined;
   escalaBraden?: boolean;

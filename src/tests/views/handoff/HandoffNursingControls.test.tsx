@@ -67,7 +67,7 @@ describe('Nursing handoff controls', () => {
     const onChange = vi.fn();
     render(<HandoffNovedades value="Novedad sintética" onChange={onChange} />);
 
-    const notes = screen.getByRole('textbox', { name: 'Novedades' });
+    const notes = screen.getByRole('textbox', { name: 'Novedades & Pendientes' });
     expect(notes).toHaveValue('Novedad sintética');
     fireEvent.change(notes, { target: { value: 'Novedad actualizada' } });
     fireEvent.blur(notes);

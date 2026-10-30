@@ -194,6 +194,17 @@ export const buildHandoffPdfContent = async (
     currentY += 4;
   }
 
+  const sharedChecklist = record.handoffSharedChecklist;
+  if (sharedChecklist?.crashCartReviewDate || sharedChecklist?.crashCartCode) {
+    doc.setFontSize(6);
+    doc.text(
+      `Ultima fecha revision carro de paro: ${sharedChecklist.crashCartReviewDate ? formatDateDDMMYYYY(sharedChecklist.crashCartReviewDate) : '-'} | Codigo: ${sharedChecklist.crashCartCode || '-'}`,
+      margin,
+      currentY
+    );
+    currentY += 4;
+  }
+
   // 3. PATIENT TABLE
   const tableHeaders: string[][] = [
     ['Cama', 'Paciente', 'Diagnóstico', 'Est', 'DMI', 'Observaciones'],

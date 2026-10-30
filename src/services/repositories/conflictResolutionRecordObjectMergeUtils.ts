@@ -23,6 +23,13 @@ export const mergeRecordObjectFields = (
   preferLocal: boolean,
   traceContext: ConflictResolutionTraceContext
 ): Partial<DailyRecord> => ({
+  handoffSharedChecklist: mergeRecordObject(
+    remote,
+    local,
+    'handoffSharedChecklist',
+    preferLocal,
+    traceContext
+  ),
   handoffDayChecklist: mergeRecordObject(
     remote,
     local,

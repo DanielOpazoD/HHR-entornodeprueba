@@ -9,6 +9,7 @@ import type {
   MedicalSignatureTimestampByScope,
 } from './dailyRecordMedicalHandoff';
 import type {
+  DailyRecordHandoffSharedChecklist,
   DailyRecordHandoffDayChecklist,
   DailyRecordHandoffNightChecklist,
 } from './dailyRecordNursingHandoff';
@@ -28,6 +29,7 @@ export type {
 } from './dailyRecordMedicalHandoff';
 export type { DailyRecordPatch, DailyRecordPatchPath } from './dailyRecordPatch';
 export type {
+  DailyRecordHandoffSharedChecklist,
   DailyRecordHandoffDayChecklist,
   DailyRecordHandoffNightChecklist,
 } from './dailyRecordNursingHandoff';
@@ -77,6 +79,7 @@ export interface DailyRecord {
   activeExtraBeds: string[];
 
   // ===== Handoff Checklist - Day Shift (Turno Largo) =====
+  handoffSharedChecklist?: DailyRecordHandoffSharedChecklist;
   handoffDayChecklist?: DailyRecordHandoffDayChecklist;
 
   // ===== Handoff Checklist - Night Shift (Turno Noche) =====

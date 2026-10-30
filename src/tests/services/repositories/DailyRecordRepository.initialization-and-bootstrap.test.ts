@@ -32,6 +32,10 @@ describe('DailyRecordRepository initialization and bootstrap flows', () => {
       date: '2024-12-31',
       nursesNightShift: ['Nurse A', 'Nurse B'],
       handoffNightReceives: ['Receiver A', 'Receiver B'],
+      handoffSharedChecklist: {
+        crashCartReviewDate: '2024-12-30',
+        crashCartCode: '00123456',
+      },
       beds: { R1: buildPatient({ patientName: 'Patient X', admissionDate: '2024-12-30' }) },
     };
 
@@ -45,6 +49,8 @@ describe('DailyRecordRepository initialization and bootstrap flows', () => {
     expect(result.date).toBe(mockDate);
     expect(result.nursesDayShift).toEqual(['', '']);
     expect(result.beds.R1.patientName).toBe('Patient X');
+    expect(result.handoffSharedChecklist).toEqual(prevRecord.handoffSharedChecklist);
+    expect(result.handoffSharedChecklist).not.toBe(prevRecord.handoffSharedChecklist);
   });
 
   it('returns semantic initialization outcome through initializeDayDetailed', async () => {

@@ -1,4 +1,5 @@
 import { RayenSyncDiagnosticContextSchema } from './rayenSyncDiagnosticContext';
+import { isValidCrashCartReviewDate } from '@/domain/handoff/sharedChecklist';
 import * as z from 'zod';
 import { DailyRecord } from '@/types/domain/dailyRecord';
 import {
@@ -21,6 +22,11 @@ import {
   RAYEN_SYNC_ISSUE_REASONS,
   RAYEN_SYNC_ISSUE_SOURCES,
 } from '@/types/domain/rayenSync';
+
+export const HandoffSharedChecklistSchema = z.object({
+  crashCartReviewDate: nullableOptional(z.string().refine(isValidCrashCartReviewDate)),
+  crashCartCode: nullableOptional(z.string().regex(/^(?:[0-9]{8})?$/)),
+});
 
 const NonNegativeIntegerSchema = z.number().int().nonnegative();
 const OptionalBooleanSchema = nullableOptional(z.boolean());
@@ -334,6 +340,7 @@ export const DailyRecordSchema: z.ZodType<DailyRecord, unknown> = z.preprocess(
       tensNightShift: ThreeStaffSlotsSchema,
       staffingDetailsV1: nullableOptional(DailyRecordStaffingDetailsSchema),
       activeExtraBeds: EmptyStringArraySchema,
+      handoffSharedChecklist: nullableOptional(HandoffSharedChecklistSchema),
       handoffDayChecklist: z
         .object({
           escalaBraden: OptionalBooleanSchema,

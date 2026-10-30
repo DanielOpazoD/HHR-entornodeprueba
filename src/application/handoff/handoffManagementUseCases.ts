@@ -1,4 +1,5 @@
 import { readClinicalTimestamp } from '@/utils/dateDisplayUtils';
+import { isValidCrashCartReviewDate } from '@/domain/handoff/sharedChecklist';
 import {
   buildChecklistPatch,
   buildChecklistUpdateRecord,
@@ -49,7 +50,7 @@ interface PersistRecordInput {
 
 interface UpdateHandoffChecklistInput extends PersistRecordInput {
   field: string;
-  shift: 'day' | 'night';
+  shift: 'day' | 'night' | 'shared';
   value: boolean | string;
 }
 
@@ -108,6 +109,22 @@ export const executeUpdateHandoffChecklist = async (
 ): Promise<ApplicationOutcome<PersistedHandoffRecordOutput | null>> => {
   if (!input.record) {
     return createMissingRecordOutcome(null, 'update_handoff_checklist', 'No hay entrega activa.');
+  }
+
+  if (
+    input.shift === 'shared' &&
+    (typeof input.value !== 'string' ||
+      !(
+        (input.field === 'crashCartCode' && /^(?:[0-9]{8})?$/.test(input.value)) ||
+        (input.field === 'crashCartReviewDate' && isValidCrashCartReviewDate(input.value))
+      ))
+  ) {
+    return createValidationOutcome(
+      null,
+      'update_handoff_checklist',
+      'invalid_shared_checklist',
+      'Revise la fecha del carro de paro y use un código de 8 dígitos.'
+    );
   }
 
   const updatedRecord = buildChecklistUpdateRecord(
