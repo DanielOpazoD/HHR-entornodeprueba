@@ -238,8 +238,10 @@ export const createSyncQueueEngine = ({
     return rows.map(toSyncQueueOperationSnapshot);
   };
 
+  const isSessionClosing = () => runtime.isSessionClosing?.();
+
   const processQueue = async (): Promise<void> => {
-    if (isProcessing || runtime.isSessionClosing?.()) return;
+    if (isProcessing || isSessionClosing()) return;
     isProcessing = true;
 
     try {
@@ -274,7 +276,7 @@ export const createSyncQueueEngine = ({
 
             for (const task of readyTasks) {
               if (!task.id) continue;
-              if (runtime.isSessionClosing?.()) return;
+              if (isSessionClosing()) return;
 
               try {
                 const dispatchClaim = buildTaskClaim(task);
@@ -296,7 +298,7 @@ export const createSyncQueueEngine = ({
                 Object.assign(task, stored, { leaseUntil });
                 const result: Partial<SyncTransportResult> = (await transport.run(task)) || {};
                 // Its ACK would write a day the closing session cleared; the cleanup retry decides.
-                if (runtime.isSessionClosing?.()) return;
+                if (isSessionClosing()) return;
                 const claim = buildTaskClaim(task);
                 if (claim) {
                   const deleted = await store.deleteClaimed(

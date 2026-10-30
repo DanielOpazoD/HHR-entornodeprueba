@@ -267,6 +267,23 @@ describe('the queue after a session closes with unsent day work', () => {
       expect(await hospitalDB.syncQueue.get(id)).toEqual(before);
     });
 
+    it('does not send work claimed just before the cleanup failed', async () => {
+      const id = Number(await hospitalDB.syncQueue.add(dayWrite()));
+      const store = createDexieSyncQueueStore();
+      const claimReady = store.claimReadyPending.bind(store);
+      store.claimReadyPending = async (...args) => {
+        const claimed = await claimReady(...args);
+        if (claimed.length) await failCleanup();
+        return claimed;
+      };
+      const run = vi.fn(async () => ({}));
+
+      await buildEngine(store, owner, run, 100, createBrowserSyncRuntime()).processQueue();
+
+      expect(run).not.toHaveBeenCalled();
+      expect(await hospitalDB.syncQueue.get(id)).toMatchObject({ payload: unsentDay });
+    });
+
     it('does not confirm a send already under way, nor write the day back', async () => {
       const id = Number(await hospitalDB.syncQueue.add(dayWrite()));
       const run = vi.fn(async () => {
