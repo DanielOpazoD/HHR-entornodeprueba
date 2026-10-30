@@ -1,3 +1,4 @@
+import { readDailyRecordQuery } from '@/tests/utils/readDailyRecordQuery';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { waitFor } from '@testing-library/react';
 import { QueryClient } from '@tanstack/react-query';
@@ -10,7 +11,6 @@ import { getRecordFromFirestoreDetailed } from '@/services/storage/firestore/fir
 import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositoryReadService';
 import { subscribeDetailed } from '@/services/repositories/dailyRecordRepositorySyncService';
 import {
-  createDailyRecordQueryFn,
   createDailyRecordSubscription,
   getDailyRecordQueryKey,
 } from '@/hooks/controllers/dailyRecordQueryController';
@@ -163,7 +163,7 @@ describeEmulator('server confirmation with real Firestore cache metadata', () =>
       await waitFor(() => expect(read()?.runtime.serverConfirmed).toBe(false));
       expect(read()?.record).toBeNull();
       expect(read()?.runtime.availabilityState).not.toBe('confirmed_missing');
-      const result = await createDailyRecordQueryFn({ getForDateWithMeta }, date)();
+      const result = await readDailyRecordQuery({ getForDateWithMeta }, date);
       expect(result.record).toBeNull();
       expect(result.runtime.availabilityState).not.toBe('confirmed_missing');
       expect(result.runtime.serverConfirmed).toBe(false);

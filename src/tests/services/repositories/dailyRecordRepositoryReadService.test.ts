@@ -12,6 +12,11 @@ import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordForDate: vi.fn(),
+  captureLocalRecordBase: async (date: string) => ({
+    kind: 'stored',
+    record: await getRecordFromIndexedDB(date),
+  }),
+  inspectLocalRecordAdmission: async () => ({ status: 'admitted' }),
   getPreviousDayRecord: vi.fn(),
   getAllDates: vi.fn(),
   saveRecord: vi.fn(),
@@ -125,7 +130,7 @@ describe('dailyRecordRepositoryReadService', () => {
           R2: expect.objectContaining({ patientName: 'REMOTE NEW PATIENT' }),
         }),
       }),
-      { preserveUnresolvedWrites: true }
+      { preserveUnresolvedWrites: true, expectedBase: { kind: 'stored', record: local } }
     );
   });
 
@@ -284,7 +289,7 @@ describe('dailyRecordRepositoryReadService', () => {
           }),
         }),
       }),
-      { preserveUnresolvedWrites: true }
+      { preserveUnresolvedWrites: true, expectedBase: { kind: 'stored', record: local } }
     );
   });
 
@@ -346,7 +351,7 @@ describe('dailyRecordRepositoryReadService', () => {
           }),
         }),
       }),
-      { preserveUnresolvedWrites: true }
+      { preserveUnresolvedWrites: true, expectedBase: { kind: 'stored', record: local } }
     );
   });
 
@@ -375,7 +380,7 @@ describe('dailyRecordRepositoryReadService', () => {
         date: remote.date,
         lastUpdated: remote.lastUpdated,
       }),
-      { preserveUnresolvedWrites: true }
+      { preserveUnresolvedWrites: true, expectedBase: { kind: 'stored', record: local } }
     );
   });
 

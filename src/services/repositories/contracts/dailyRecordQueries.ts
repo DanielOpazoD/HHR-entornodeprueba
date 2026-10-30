@@ -33,6 +33,7 @@ export type DailyRecordReadSource =
   | 'not_found';
 
 export interface DailyRecordReadResult {
+  publication?: 'superseded';
   serverConfirmed: boolean;
   date: string;
   record: DailyRecord | null;
@@ -133,6 +134,7 @@ export const createDailyRecordReadResult = (
   options: Partial<
     Pick<
       DailyRecordReadResult,
+      | 'publication'
       | 'serverConfirmed'
       | 'compatibilityTier'
       | 'compatibilityIntensity'
@@ -159,6 +161,7 @@ export const createDailyRecordReadResult = (
     date,
     record,
     source,
+    ...(options.publication ? { publication: options.publication } : {}),
     serverConfirmed: options.serverConfirmed ?? false,
     compatibilityTier: options.compatibilityTier || 'none',
     compatibilityIntensity: options.compatibilityIntensity || 'none',

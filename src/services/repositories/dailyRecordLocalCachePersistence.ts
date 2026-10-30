@@ -2,6 +2,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   saveRecordStrict as saveToIndexedDB,
   type LocalRecordWriteResult,
+  type LocalRecordBase,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { prepareDailyRecordForPersistence } from '@/services/repositories/dailyRecordPersistencePreparation';
 
@@ -26,4 +27,26 @@ export const persistHydratedRecordToLocalCache = async (
     throw toLocalPersistenceError(result);
   }
   return result.retainedRecord ?? validatedRecord;
+};
+
+export type PointReadHydration =
+  | { status: 'written' | 'retained_pending'; record: DailyRecord }
+  | { status: 'superseded'; stored: DailyRecord | null };
+
+export const persistPointReadToLocalCache = async (
+  record: DailyRecord,
+  date: string,
+  base: LocalRecordBase,
+  previousRecord: DailyRecord | null
+): Promise<PointReadHydration> => {
+  const validatedRecord = prepareDailyRecordForPersistence(record, date, previousRecord);
+  const result = await saveToIndexedDB(validatedRecord, {
+    preserveUnresolvedWrites: true,
+    expectedBase: base,
+  });
+  if (!result.ok) throw toLocalPersistenceError(result);
+  if (result.superseded) return { status: 'superseded', stored: result.superseded.stored };
+  return result.retainedRecord
+    ? { status: 'retained_pending', record: result.retainedRecord }
+    : { status: 'written', record: validatedRecord };
 };

@@ -11,7 +11,7 @@ import {
 } from '@/services/repositories/contracts/dailyRecordResults';
 import {
   createDailyRecordSubscription,
-  createReconciledDailyRecordQueryFn,
+  createDailyRecordQueryOptions,
   getDailyRecordQueryKey,
   setDailyRecordQueryData,
 } from '@/hooks/controllers/dailyRecordQueryController';
@@ -135,7 +135,7 @@ describe.each(['subscription', 'query', 'null-recovery', 'unavailable'] as const
     it.each(['replacement', 'move'] as const)(
       'retains each pending edit through repeated unconfirmed %s results',
       async change => {
-        const { client, key, previous, incoming, reader, publish, read } = setup();
+        const { client, previous, incoming, reader, publish, read } = setup();
         const release = registerPendingDailyRecordPatch(date, {
           'beds.R1.pathology': 'Pending A',
           'beds.R2.pathology': 'Pending C',
@@ -153,8 +153,7 @@ describe.each(['subscription', 'query', 'null-recovery', 'unavailable'] as const
             : {}),
         });
         const options = {
-          queryKey: key,
-          queryFn: createReconciledDailyRecordQueryFn(reader, date, client),
+          ...createDailyRecordQueryOptions(reader, date, client),
           staleTime: 0,
         };
         for (let attempt = 0; attempt < 2; attempt += 1) {

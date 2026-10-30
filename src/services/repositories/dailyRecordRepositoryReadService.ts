@@ -1,6 +1,7 @@
 import { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   getRecordForDate as getRecordFromIndexedDB,
+  captureLocalRecordBase,
   getPreviousDayRecord as getPreviousDayFromIndexedDB,
   getAllDates as getAllDatesFromIndexedDB,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
@@ -168,7 +169,8 @@ export const getForDateWithMeta = async (
     'dailyRecord.getForDate',
     async () => {
       const query = createGetDailyRecordQuery(date, syncFromRemote);
-      const indexedDbLocalRecord = await getRecordFromIndexedDB(query.date);
+      const base = await captureLocalRecordBase(query.date);
+      const indexedDbLocalRecord = base.kind === 'stored' ? base.record : null;
       const e2eOverride = getE2EOverrideRecord(query.date);
       const localRecord = e2eOverride
         ? getE2ELocalStorageRecord(query.date) || indexedDbLocalRecord
@@ -199,6 +201,7 @@ export const getForDateWithMeta = async (
           date: query.date,
           localCandidate,
           loadRemoteRecordWithFallback,
+          base,
           logRemoteFetchAttempt,
           onRemoteFetchFailure: (err, failedDate) => {
             dailyRecordReadLogger.warn(`Remote fetch failed for ${failedDate}`, err);

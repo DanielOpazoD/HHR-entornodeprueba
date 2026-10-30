@@ -1,3 +1,4 @@
+import { readDailyRecordQuery } from '@/tests/utils/readDailyRecordQuery';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
 import { DataFactory } from '@/tests/factories/DataFactory';
@@ -8,8 +9,7 @@ import {
   getForDateWithMeta,
 } from '@/services/repositories/dailyRecordRepositoryReadService';
 import {
-  createDailyRecordQueryFn,
-  createReconciledDailyRecordQueryFn,
+  createDailyRecordQueryOptions,
   createDailyRecordSubscription,
   getDailyRecordQueryKey,
 } from '@/hooks/controllers/dailyRecordQueryController';
@@ -36,6 +36,8 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordForDate: mocks.getLocal,
+  captureLocalRecordBase: async () => ({ kind: 'stored', record: await mocks.getLocal() }),
+  inspectLocalRecordAdmission: async () => ({ status: 'admitted' }),
   saveRecord: vi.fn(),
   saveRecordStrict: mocks.save,
 }));
@@ -239,7 +241,7 @@ describe('daily record server confirmation through repository and query', () => 
       const refresh = ensureDailyRecordRemoteFreshness({
         date,
         queryClient: client,
-        queryFn: createReconciledDailyRecordQueryFn({ getForDateWithMeta }, date, client),
+        ...createDailyRecordQueryOptions({ getForDateWithMeta }, date, client),
         reason: 'resume',
       });
       if (serverConfirmed) {
@@ -267,8 +269,10 @@ describe('daily record server confirmation through repository and query', () => 
     });
     client.setQueryData(
       getDailyRecordQueryKey(date),
-      await createDailyRecordQueryFn({ getForDateWithMeta }, date)()
+      await readDailyRecordQuery({ getForDateWithMeta }, date)
     );
+    markDailyRecordTabHidden(0);
+    markDailyRecordTabVisible(6 * 60 * 1000);
     mocks.getRemote.mockResolvedValueOnce({
       status: 'resolved',
       record: createRecord(),
@@ -278,7 +282,7 @@ describe('daily record server confirmation through repository and query', () => 
       ensureDailyRecordRemoteFreshness({
         date,
         queryClient: client,
-        queryFn: createReconciledDailyRecordQueryFn({ getForDateWithMeta }, date, client),
+        ...createDailyRecordQueryOptions({ getForDateWithMeta }, date, client),
         reason: 'resume',
       })
     ).rejects.toThrow();
@@ -292,7 +296,7 @@ describe('daily record server confirmation through repository and query', () => 
     'only confirms absence with server evidence: %s',
     async serverConfirmed => {
       mocks.getRemote.mockResolvedValue({ status: 'missing', record: null, serverConfirmed });
-      const result = await createDailyRecordQueryFn({ getForDateWithMeta }, date)();
+      const result = await readDailyRecordQuery({ getForDateWithMeta }, date);
       expect(result.record).toBeNull();
       if (serverConfirmed) expect(result.runtime.availabilityState).toBe('confirmed_missing');
       else expect(result.runtime.availabilityState).not.toBe('confirmed_missing');
@@ -328,7 +332,7 @@ describe('daily record server confirmation through repository and query', () => 
           deliverRemote = resolve;
         })
       );
-      const queryFn = createReconciledDailyRecordQueryFn({ getForDateWithMeta }, date, client);
+      const queryFn = createDailyRecordQueryOptions({ getForDateWithMeta }, date, client).queryFn;
       const query = client.fetchQuery({
         queryKey: getDailyRecordQueryKey(date),
         queryFn: async (...args: Parameters<typeof queryFn>) => {

@@ -4,7 +4,7 @@ import { QueryClient } from '@tanstack/react-query';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import type { DailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import {
-  createReconciledDailyRecordQueryFn,
+  createDailyRecordQueryOptions,
   createDailyRecordSubscription,
   getDailyRecordQueryKey,
 } from '@/hooks/controllers/dailyRecordQueryController';
@@ -130,14 +130,14 @@ describe('confirmed cache ordering across query and subscription', () => {
     const read = new Promise<typeof older>(resolve => {
       finishRead = resolve;
     });
-    const queryFn = createReconciledDailyRecordQueryFn(
+    const queryFn = createDailyRecordQueryOptions(
       {
         getForDateWithMeta: () =>
           read.then(record => createDailyRecordReadResult(date, record, 'indexeddb')),
       },
       date,
       queryClient
-    );
+    ).queryFn;
     queryClient.setQueryData(getDailyRecordQueryKey(date), queryResult(older, 'remote'));
     const pending = queryClient.fetchQuery({ queryKey: getDailyRecordQueryKey(date), queryFn });
     queryClient.setQueryData(getDailyRecordQueryKey(date), queryResult(newer, 'remote'));
@@ -191,7 +191,7 @@ describe('confirmed cache ordering across query and subscription', () => {
     );
     await setRemoteConfirmedDailyRecordQueryData(queryClient, date, confirmedRecord);
 
-    const postAckRead = createReconciledDailyRecordQueryFn(
+    const postAckRead = createDailyRecordQueryOptions(
       {
         getForDateWithMeta: vi.fn().mockResolvedValue({
           serverConfirmed: false,
@@ -212,7 +212,7 @@ describe('confirmed cache ordering across query and subscription', () => {
       },
       date,
       queryClient
-    );
+    ).queryFn;
     queryClient.setQueryData<DailyRecordQueryResult>(
       getDailyRecordQueryKey(date),
       await postAckRead()

@@ -3,7 +3,7 @@ import { queryKeys } from '../config/queryClient';
 import { useRepositories } from '@/services/RepositoryContext';
 import { useEffect, useRef } from 'react';
 import {
-  createReconciledDailyRecordQueryFn,
+  createDailyRecordQueryOptions,
   createDailyRecordSubscription,
   getDailyRecordQueryKey,
   invalidateDailyRecordQuery,
@@ -58,15 +58,8 @@ export const useDailyRecordQuery = (
   const previousShouldSyncFromRemoteRef = useRef(shouldSyncFromRemote);
   const prefetchedPreviousForRef = useRef<string | null>(null);
 
-  const queryKey = getDailyRecordQueryKey(date);
   const query = useQuery<DailyRecordQueryResult>({
-    queryKey,
-    queryFn: createReconciledDailyRecordQueryFn(
-      dailyRecord,
-      date,
-      queryClient,
-      shouldSyncFromRemote
-    ),
+    ...createDailyRecordQueryOptions(dailyRecord, date, queryClient, shouldSyncFromRemote),
     enabled: !!date,
     // Negative cache entries must be revalidated on every visit. Another workstation
     // may have created this census since the previous confirmed absence.

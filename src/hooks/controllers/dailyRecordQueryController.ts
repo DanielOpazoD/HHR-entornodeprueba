@@ -23,7 +23,14 @@ import { dailyRecordObservability } from '@/services/repositories/dailyRecordOpe
 import type { SyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { markDailyRecordRemoteConfirmed } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import { didDailyRecordFreshnessHydrateNewerRemote } from '@/hooks/controllers/dailyRecordFreshnessHydrationController';
-import { reconcileDailyRecordQueryResult } from '@/hooks/controllers/dailyRecordQueryResultPrecedence';
+import {
+  reconcileDailyRecordQueryResult,
+  settleFinishedPointRead,
+} from '@/hooks/controllers/dailyRecordQueryResultPrecedence';
+import {
+  createPointReadPublication,
+  publishDailyRecordQueryData,
+} from '@/hooks/controllers/dailyRecordPointReadPublication';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 
 type DailyRecordReader = Pick<DailyRecordRepositoryPort, 'getForDateWithMeta'>;
@@ -99,17 +106,6 @@ const createRuntimeFromResult = (
   };
 };
 
-export const createDailyRecordQueryFn =
-  (dailyRecord: DailyRecordReader, date: string, syncFromRemote: boolean = true) =>
-  async (): Promise<DailyRecordQueryResult> => {
-    const query = createGetDailyRecordQuery(date, syncFromRemote);
-    const result = await dailyRecord.getForDateWithMeta(query.date, query.syncFromRemote);
-    return createDailyRecordQueryResult(
-      result.record,
-      createRuntimeFromResult(result.date, result)
-    );
-  };
-
 const confirmAcceptedDailyRecordRead = (
   date: string,
   { record, runtime }: DailyRecordQueryResult,
@@ -137,28 +133,41 @@ const confirmAcceptedDailyRecordRead = (
   });
 };
 
-export const createReconciledDailyRecordQueryFn = (
+export const createDailyRecordQueryOptions = (
   dailyRecord: DailyRecordReader,
   date: string,
   queryClient: QueryClient,
   syncFromRemote: boolean = true
 ) => {
-  const queryFn = createDailyRecordQueryFn(dailyRecord, date, syncFromRemote);
-  return async (context?: Pick<QueryFunctionContext, 'signal'>) => {
-    const signal = context?.signal;
-    const key = getDailyRecordQueryKey(date);
-    const startedWith = queryClient.getQueryData<DailyRecordQueryResult>(key);
-    const incoming = await queryFn();
-    signal?.throwIfAborted();
-    const current = queryClient.getQueryData<DailyRecordQueryResult>(key);
-    // A newer realtime record owns the cache. An older in-flight miss must not
-    // erase it, even when that miss was authoritative when the request began.
-    if (!incoming.record && current?.record && current !== startedWith) {
-      return { ...current, runtime: { ...current.runtime, serverConfirmed: false } };
-    }
-    const reconciled = reconcileDailyRecordQueryResult(current, incoming);
-    confirmAcceptedDailyRecordRead(date, reconciled, current?.record, 'query');
-    return reconciled;
+  return {
+    queryKey: getDailyRecordQueryKey(date),
+    structuralSharing: publishDailyRecordQueryData,
+    queryFn: async (context?: Pick<QueryFunctionContext, 'signal'>) => {
+      const signal = context?.signal;
+      const key = getDailyRecordQueryKey(date);
+      const startedWith = queryClient.getQueryData<DailyRecordQueryResult>(key);
+      const query = createGetDailyRecordQuery(date, syncFromRemote);
+      const read = await dailyRecord.getForDateWithMeta(query.date, query.syncFromRemote);
+      const incoming = createDailyRecordQueryResult(
+        read.record,
+        createRuntimeFromResult(date, read)
+      );
+      signal?.throwIfAborted();
+      const current = queryClient.getQueryData<DailyRecordQueryResult>(key);
+      const { result, confirms } = settleFinishedPointRead({
+        startedWith,
+        current,
+        incoming,
+        superseded: read.publication === 'superseded',
+      });
+      return createPointReadPublication(
+        result,
+        current,
+        () => queryClient.getQueryData<DailyRecordQueryResult>(key),
+        accepted => confirmAcceptedDailyRecordRead(date, accepted, current?.record, 'query'),
+        confirms
+      );
+    },
   };
 };
 
@@ -383,12 +392,7 @@ export const prefetchPreviousDailyRecord = (
   date: string
 ) =>
   queryClient.prefetchQuery({
-    queryKey: getDailyRecordQueryKey(buildPreviousDayDate(date)),
-    queryFn: createReconciledDailyRecordQueryFn(
-      dailyRecord,
-      buildPreviousDayDate(date),
-      queryClient
-    ),
+    ...createDailyRecordQueryOptions(dailyRecord, buildPreviousDayDate(date), queryClient),
     staleTime: 5 * 60 * 1000,
   });
 

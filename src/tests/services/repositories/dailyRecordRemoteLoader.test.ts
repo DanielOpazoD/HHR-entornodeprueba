@@ -68,6 +68,8 @@ describe('dailyRecordRemoteLoader', () => {
     const firstCall = loadRemoteRecordWithFallback(date);
     const secondCall = loadRemoteRecordWithFallback(date);
 
+    await vi.waitFor(() => expect(resolveRemote).toBeDefined());
+
     if (!resolveRemote) {
       throw new Error('Remote resolver was not captured');
     }
@@ -100,6 +102,7 @@ describe('dailyRecordRemoteLoader', () => {
     );
 
     const cachedRead = loadRemoteRecordWithFallback(date);
+    await vi.waitFor(() => expect(getRecordFromFirestoreDetailed).toHaveBeenCalledOnce());
     const serverRead = loadRemoteRecordWithFallback(date, { source: 'server' });
 
     expect(getRecordFromFirestoreDetailed).toHaveBeenCalledTimes(2);

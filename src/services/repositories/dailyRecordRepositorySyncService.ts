@@ -1,6 +1,11 @@
 import { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
-import { getRecordForDate as getRecordFromIndexedDB } from '@/services/storage/indexeddb/indexedDbRecordService';
+import {
+  captureLocalRecordBase,
+  inspectLocalRecordAdmission,
+  type LocalRecordBase,
+  getRecordForDate as getRecordFromIndexedDB,
+} from '@/services/storage/indexeddb/indexedDbRecordService';
 import {
   subscribeToRecord,
   isServerConfirmedSnapshot,
@@ -13,8 +18,12 @@ import { createSyncDailyRecordResult } from '@/services/repositories/contracts/d
 import { dailyRecordSyncLogger } from '@/services/repositories/repositoryLoggers';
 import { resolveDailyRecordSyncConsistency } from '@/services/repositories/dailyRecordConsistencyPolicy';
 import { resolveDailyRecordPersistenceGoldenPath } from '@/services/repositories/dailyRecordPersistenceGoldenPath';
-import { persistHydratedRecordToLocalCache } from '@/services/repositories/dailyRecordLocalCachePersistence';
+import {
+  persistHydratedRecordToLocalCache,
+  persistPointReadToLocalCache,
+} from '@/services/repositories/dailyRecordLocalCachePersistence';
 import { AdmissionDatePolicyViolationError } from '@/application/patient-flow/admissionDatePolicy';
+import { createSupersededReadResult } from '@/services/repositories/dailyRecordReadResultController';
 import type { SyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { buildDailyRecordSyncContract } from '@/services/storage/sync/syncTaskContractPolicy';
 import { adoptAuthoritativeDailyRecordAtomically } from '@/services/storage/sync';
@@ -54,7 +63,8 @@ const resolveSubscriptionResult = async (
   remoteRecord: DailyRecord | null,
   serverConfirmed: boolean,
   localRecord?: DailyRecord | null,
-  isCurrent: () => boolean = () => true
+  isCurrent: () => boolean = () => true,
+  pointReadBase?: LocalRecordBase
 ): Promise<SyncDailyRecordResult> => {
   localRecord = localRecord === undefined ? await getRecordFromIndexedDB(date) : localRecord;
   const remoteAvailability = remoteRecord
@@ -68,10 +78,53 @@ const resolveSubscriptionResult = async (
     remoteAvailability,
     clinicalConsistencyPhase: 'sync_publish',
   });
-  if (goldenPath.shouldHydrateLocal && remoteRecord && isCurrent()) {
+  let superseded: { stored: DailyRecord | null } | undefined;
+  if (pointReadBase) {
+    let admitted = false;
+    if (goldenPath.shouldHydrateLocal && remoteRecord) {
+      try {
+        const hydration = await persistPointReadToLocalCache(
+          goldenPath.selectedRecord || remoteRecord,
+          date,
+          pointReadBase,
+          localRecord
+        );
+        if (hydration.status === 'superseded') superseded = hydration;
+        admitted = true;
+      } catch (error) {
+        if (!(error instanceof AdmissionDatePolicyViolationError)) throw error;
+        dailyRecordSyncLogger.warn(
+          `Skipped local hydration for ${date} due to admissionDate validation`,
+          error
+        );
+      }
+    }
+    if (!admitted) {
+      const admission = await inspectLocalRecordAdmission(
+        date,
+        pointReadBase,
+        goldenPath.selectedRecord
+      );
+      if (admission.status === 'superseded') superseded = admission;
+    }
+  } else if (goldenPath.shouldHydrateLocal && remoteRecord && isCurrent()) {
     await hydrateLocalCache(goldenPath.selectedRecord || remoteRecord, date, localRecord);
   }
   const retainedRecord = await getPendingDailyRecordProjection(date);
+  if (superseded) {
+    const result = createSupersededReadResult(date, superseded.stored, retainedRecord);
+    return createSyncDailyRecordResult({
+      date,
+      outcome: 'blocked',
+      record: result.record,
+      serverConfirmed: false,
+      publication: 'superseded',
+      sourceOfTruth: result.sourceOfTruth,
+      retryability: 'automatic_retry',
+      recoveryAction: 'defer_remote_sync',
+      observabilityTags: ['daily_record', 'sync', 'point_read_superseded'],
+    });
+  }
   const record = retainedRecord ?? goldenPath.selectedRecord;
   const consistency = resolveDailyRecordSyncConsistency({
     localRecord: retainedRecord ?? localRecord,
@@ -178,14 +231,17 @@ export const syncWithFirestoreDetailed = async (date: string) => {
   return measureRepositoryOperation(
     'dailyRecord.syncWithFirestore',
     async () => {
-      const localRecord = await getRecordFromIndexedDB(date);
+      const base = await captureLocalRecordBase(date);
+      const localRecord = base.kind === 'stored' ? base.record : null;
       try {
-        const remoteResult = await loadRemoteRecordWithFallback(date);
+        const remoteResult = await loadRemoteRecordWithFallback(date, { base });
         return await resolveSubscriptionResult(
           date,
           remoteResult.record,
           remoteResult.serverConfirmed,
-          localRecord
+          localRecord,
+          undefined,
+          remoteResult.issuedAgainst ?? base
         );
       } catch (err) {
         dailyRecordSyncLogger.warn(`Sync failed for ${date}`, err);

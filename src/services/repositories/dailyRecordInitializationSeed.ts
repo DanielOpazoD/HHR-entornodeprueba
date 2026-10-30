@@ -9,6 +9,7 @@ export type DailyRecordInitializationSeedSource =
   | 'copy_source'
   | 'remote_firestore'
   | 'remote_legacy'
+  | 'local_current'
   | 'fresh';
 
 export interface DailyRecordInitializationSeed {

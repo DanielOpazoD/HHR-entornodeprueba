@@ -186,3 +186,15 @@ export const createBridgedDailyRecordReadResult = (
     repairApplied: consistency.repairApplied,
   });
 };
+
+export const createSupersededReadResult = (
+  date: string,
+  stored: DailyRecord | null,
+  pending: DailyRecord | null
+): DailyRecordReadResult => {
+  const record = pending ?? stored;
+  const result = record
+    ? createLocalRuntimeReadResult(date, createLocalRuntimeReadCandidate(date, record), 'indexeddb')
+    : createNotFoundDailyRecordReadResult(date, 'not_requested');
+  return { ...result, serverConfirmed: false, publication: 'superseded' };
+};

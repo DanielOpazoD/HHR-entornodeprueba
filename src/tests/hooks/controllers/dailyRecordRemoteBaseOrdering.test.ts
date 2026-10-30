@@ -11,7 +11,7 @@ import {
 } from '@/services/repositories/contracts/dailyRecordResults';
 import {
   createDailyRecordSubscription,
-  createReconciledDailyRecordQueryFn,
+  createDailyRecordQueryOptions,
   getDailyRecordQueryKey,
   setAuthoritativeDailyRecordRead,
   setDailyRecordQueryData,
@@ -93,8 +93,7 @@ describe.each(['query', 'null-recovery', 'null-recovery-error'] as const)(
             createDailyRecordReadResult(date, local, 'indexeddb')
           );
           const options = {
-            queryKey: key,
-            queryFn: createReconciledDailyRecordQueryFn(reader, date, client),
+            ...createDailyRecordQueryOptions(reader, date, client),
             staleTime: 0,
           };
           for (let attempt = 0; attempt < 2; attempt += 1) {

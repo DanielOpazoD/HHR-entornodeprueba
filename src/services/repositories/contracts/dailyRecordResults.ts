@@ -98,6 +98,7 @@ type UpdatePartialDailyRecordResultInput = Pick<
   >;
 
 export interface SyncDailyRecordResult {
+  publication?: 'superseded';
   serverConfirmed: boolean;
   date: string;
   outcome: 'clean' | 'missing' | 'blocked';

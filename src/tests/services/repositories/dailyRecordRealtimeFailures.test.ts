@@ -52,7 +52,7 @@ import { subscribeDetailed } from '@/services/repositories/dailyRecordRepository
 import { subscribeToRecord } from '@/services/storage/firestore/firestoreRecordQueries';
 import {
   createDailyRecordSubscription,
-  createReconciledDailyRecordQueryFn,
+  createDailyRecordQueryOptions,
   getDailyRecordQueryKey,
 } from '@/hooks/controllers/dailyRecordQueryController';
 import { resetDailyRecordFreshnessGateForTests } from '@/hooks/controllers/dailyRecordFreshnessGateController';
@@ -338,11 +338,11 @@ describe('daily census after a terminal SDK listener failure', () => {
         serverConfirmed: true,
       })
     );
-    const result = await createReconciledDailyRecordQueryFn(
+    const result = await createDailyRecordQueryOptions(
       { getForDateWithMeta },
       date,
       queryClient
-    )();
+    ).queryFn();
     queryClient.setQueryData(getDailyRecordQueryKey(date), result);
     expect(visible()?.record?.tensDayShift).toEqual(['SINTETICO REMOTO']);
     expect(visible()?.runtime.serverConfirmed).toBe(true);

@@ -1,10 +1,8 @@
+import { readDailyRecordQuery } from '@/tests/utils/readDailyRecordQuery';
 import { describe, expect, it, vi } from 'vitest';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { createDailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
-import {
-  createDailyRecordQueryFn,
-  getDailyRecordQueryKey,
-} from '@/hooks/controllers/dailyRecordQueryController';
+import { getDailyRecordQueryKey } from '@/hooks/controllers/dailyRecordQueryController';
 
 vi.mock('@/services/repositories/dailyRecordOperationalTelemetry', () => ({
   dailyRecordObservability: { recordEvent: vi.fn(), recordError: vi.fn() },
@@ -19,7 +17,7 @@ describe('daily record metadata read contract', () => {
         .mockResolvedValue(createDailyRecordReadResult(record.date, record, 'indexeddb')),
     };
 
-    await expect(createDailyRecordQueryFn(repository, '2025-01-08')()).resolves.toMatchObject({
+    await expect(readDailyRecordQuery(repository, '2025-01-08')).resolves.toMatchObject({
       record,
       runtime: {
         availabilityState: 'recoverable_local',
@@ -40,7 +38,7 @@ describe('daily record metadata read contract', () => {
       });
       const repository = { getForDateWithMeta: vi.fn().mockResolvedValue(result) };
 
-      await expect(createDailyRecordQueryFn(repository, result.date)()).resolves.toMatchObject({
+      await expect(readDailyRecordQuery(repository, result.date)).resolves.toMatchObject({
         record: null,
         runtime: {
           availabilityState:
@@ -74,9 +72,7 @@ describe('daily record metadata read contract', () => {
       }),
     };
 
-    await expect(
-      createDailyRecordQueryFn(repository, '2025-01-08', false)()
-    ).resolves.toMatchObject({
+    await expect(readDailyRecordQuery(repository, '2025-01-08', false)).resolves.toMatchObject({
       record,
       runtime: {
         sourceOfTruth: 'local',

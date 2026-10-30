@@ -39,6 +39,19 @@ pending edit, including unconfirmed bed moves. The incoming read failure remains
 This can defer unrelated updates from the same snapshot; it does not discard the pending edit
 or create another persistent copy. Compatible episode ID hydration remains allowed.
 
+Point reads admit cache hydration against the raw local row captured before their remote
+request. Joined requests inherit the issuer's base. The comparison, unresolved-write check
+and cache write share the IndexedDB transaction. An unknown base permits only an absent row;
+a superseded read preserves the current copy without claiming a new remote confirmation.
+Initialization and explicit sync use the same admission. The fallback check is synchronous
+within one tab and does not provide a cross-tab transaction.
+Failed local admission aborts initialization instead of treating an existing remote day as absent.
+
+Query callers use `createDailyRecordQueryOptions` so admission also runs at QueryClient's
+actual publication, after the query promise settles. A superseded point read keeps the
+intervening publication and its own evidence. It does not acknowledge edits or renew
+freshness. The existing realtime ordering and clock-based field reconciliation remain separate.
+
 ## Why
 
 The most fragile boundary in the app is the intersection of TanStack Query cache, realtime Firestore, IndexedDB fallback and sync recovery. When each layer inferred “record missing” on its own, transient nulls could look like a genuinely missing day.
