@@ -9,8 +9,6 @@ import {
 } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import type { HydratedRemoteClinicalFieldLocksByBedId } from '@/hooks/controllers/dailyRecordHydratedRemotePatchRiskController';
 
-export type DailyRecordFreshnessMessageLevel = 'none' | 'subtle' | 'notice' | 'warning';
-
 export interface DailyRecordFreshnessUiState {
   status: DailyRecordFreshnessStatus;
   isClinicalEditingBlocked: boolean;
@@ -18,8 +16,6 @@ export interface DailyRecordFreshnessUiState {
   remoteHydratedNewerRecord: boolean;
   clinicalFieldLocksByBedId: HydratedRemoteClinicalFieldLocksByBedId;
   lastRemoteConfirmedAt?: number;
-  messageLevel: DailyRecordFreshnessMessageLevel;
-  userMessage?: string;
 }
 
 const BLOCKING_FRESHNESS_STATUSES = new Set<DailyRecordFreshnessStatus>([
@@ -27,22 +23,6 @@ const BLOCKING_FRESHNESS_STATUSES = new Set<DailyRecordFreshnessStatus>([
   'refreshing_on_resume',
   'blocked_until_remote_check',
 ]);
-
-const resolveFreshnessMessageLevel = (
-  status: DailyRecordFreshnessStatus
-): DailyRecordFreshnessMessageLevel => {
-  if (status === 'blocked_until_remote_check') {
-    return 'warning';
-  }
-  return 'none';
-};
-
-const resolveFreshnessUserMessage = (status: DailyRecordFreshnessStatus): string | undefined => {
-  if (status === 'blocked_until_remote_check') {
-    return 'Estamos actualizando los datos. Intente nuevamente en unos segundos.';
-  }
-  return undefined;
-};
 
 export const useDailyRecordFreshnessUi = (date: string): DailyRecordFreshnessUiState => {
   const snapshot = useSyncExternalStore(
@@ -63,8 +43,6 @@ export const useDailyRecordFreshnessUi = (date: string): DailyRecordFreshnessUiS
       remoteHydratedNewerRecord,
       clinicalFieldLocksByBedId,
       lastRemoteConfirmedAt,
-      messageLevel: resolveFreshnessMessageLevel(snapshot),
-      userMessage: resolveFreshnessUserMessage(snapshot),
     }),
     [clinicalFieldLocksByBedId, lastRemoteConfirmedAt, remoteHydratedNewerRecord, snapshot]
   );

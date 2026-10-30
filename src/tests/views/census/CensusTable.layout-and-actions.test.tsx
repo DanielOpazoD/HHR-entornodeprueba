@@ -20,6 +20,19 @@ import { useAuth } from '@/context/AuthContext';
 import { useCensusActionCommands } from '@/features/census/context/censusActionContexts';
 import { CensusTable } from '@/features/census/components/CensusTable';
 import { DataFactory } from '../../factories/DataFactory';
+import {
+  ensureDailyRecordRemoteFreshness,
+  getDailyRecordFreshnessStatus,
+  markDailyRecordTabHidden,
+  markDailyRecordTabVisible,
+  resetDailyRecordFreshnessGateForTests,
+} from '@/hooks/controllers/dailyRecordFreshnessGateController';
+import {
+  getFirestoreSyncState,
+  setFirestoreEnabled,
+  setFirestoreSyncState,
+} from '@/services/repositories/repositoryConfig';
+import { createTestQueryClient } from '@/tests/utils/queryClientTestUtils';
 
 vi.mock('@/features/census/context/censusActionContexts', () => ({
   useCensusActionCommands: vi.fn(),
@@ -272,6 +285,40 @@ describe('CensusTable layout and actions', () => {
     expect(emptyRows).toHaveLength(REGULAR_BEDS.length + 1);
     expect(screen.getByText('E1')).toBeInTheDocument();
     expect(screen.queryByText('E2')).not.toBeInTheDocument();
+  });
+
+  it('keeps the census visible without an updating banner when a remote check is pending', async () => {
+    const previousSyncState = getFirestoreSyncState();
+    const queryClient = createTestQueryClient();
+    try {
+      setFirestoreEnabled(true);
+      resetDailyRecordFreshnessGateForTests();
+      markDailyRecordTabHidden(0);
+      markDailyRecordTabVisible(6 * 60 * 1000);
+      await expect(
+        ensureDailyRecordRemoteFreshness({
+          date: mockRecord.date,
+          queryClient,
+          queryFn: async () => {
+            throw new Error('Fallo sintético de comprobación');
+          },
+          reason: 'clinical_patch',
+          now: 6 * 60 * 1000,
+        })
+      ).rejects.toThrow('Fallo sintético de comprobación');
+      expect(getDailyRecordFreshnessStatus(mockRecord.date)).toBe('blocked_until_remote_check');
+
+      render(<CensusTable currentDateString={mockRecord.date} />);
+
+      expect(screen.getByTestId('census-table-shell')).toBeVisible();
+      expect(screen.queryByText(/Estamos actualizando los datos/)).not.toBeInTheDocument();
+    } finally {
+      act(() => {
+        resetDailyRecordFreshnessGateForTests();
+        setFirestoreSyncState(previousSyncState);
+      });
+      queryClient.clear();
+    }
   });
 
   it('should handle "Clear All" with confirmation', async () => {

@@ -65,7 +65,7 @@ describe('dischargeRowViewController', () => {
 
     expect(viewModel.isAssociatedClinicalCrib).toBe(true);
     expect(viewModel.bedName).toBe('C-H4C1');
-    expect(viewModel.dischargeTypeLabel).toBe('Alta asociada · no suma egreso');
+    expect(viewModel.dischargeTypeLabel).toBe('Alta asociada');
   });
 
   it.each(['R3', 'C-R3'])('keeps a standalone crib distinct after discharge: %s', bedName => {
@@ -86,7 +86,7 @@ describe('dischargeRowViewController', () => {
     };
     const viewModel = resolveDischargeRowViewModel(discharge, handlers);
     expect(viewModel.bedName).toBe('C-R3');
-    expect(viewModel.dischargeTypeLabel).toContain('no suma egreso');
+    expect(viewModel.dischargeTypeLabel).toBe('Alta en cuna');
     viewModel.actions[0].onClick();
     expect(noop).toHaveBeenCalledWith(discharge.id);
     expect(discharge.isNested).toBe(false);

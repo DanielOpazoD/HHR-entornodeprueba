@@ -35,7 +35,7 @@ export const TensSelector: React.FC<TensSelectorProps> = ({
   const { setShowTensManager, staffIdentities = [], staffUsage } = useStaffContext();
   const [showAllNames, setShowAllNames] = React.useState<Record<string, boolean>>({});
   const selectClassName =
-    'py-0 pl-1 pr-4 border border-slate-200 text-[10px] focus:ring-1 focus:outline-none text-slate-700 h-[20px] w-[60px] appearance-none transition-all';
+    'block py-0 pl-1.5 pr-4 border border-slate-200 text-[10px] focus:ring-1 focus:outline-none text-slate-700 h-[20px] w-[60px] appearance-none transition-all';
   const resolvedTensOptions = React.useMemo(
     () =>
       buildResolvedStaffSelectionOptions(
@@ -62,7 +62,7 @@ export const TensSelector: React.FC<TensSelectorProps> = ({
 
   return (
     <div
-      className={`census-toolbar-card rounded-xl border border-slate-200 bg-white min-h-20 px-2 py-1 flex flex-col justify-between gap-0.5 hover:border-slate-300 transition-colors w-fit overflow-visible ${className || ''}`}
+      className={`census-toolbar-card rounded-xl border border-slate-200 bg-white min-h-20 px-3 py-1.5 flex flex-col justify-between gap-0.5 hover:border-slate-300 transition-colors w-fit overflow-visible ${className || ''}`}
     >
       <div className="flex justify-between items-center pb-0.5 border-b border-slate-100">
         <button

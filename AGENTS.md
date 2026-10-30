@@ -73,11 +73,12 @@ lea este archivo.
 
 ### Trabajo con el responsable
 
-| Regla                                                                                                                                                       | Qué la impone |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
-| Avanzar sin pedir permiso en el trabajo reversible. Preguntar solo ante lo irreversible o lo que decide el responsable.                                     | **[docs]**    |
-| Informar en español claro, sin jerga.                                                                                                                       | **[docs]**    |
-| Estas decisiones no se reabren: la ventana de 48 horas de `canWritePreviousDay` se mantiene, y el endpoint de resumen clínico con IA se retiró a propósito. | **[docs]**    |
+| Regla                                                                                                                                                       | Qué la impone                                                                                |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Avanzar sin pedir permiso en el trabajo reversible. Preguntar solo ante lo irreversible o lo que decide el responsable.                                     | **[docs]**                                                                                   |
+| Informar en español claro, sin jerga.                                                                                                                       | **[docs]**                                                                                   |
+| Las actualizaciones rutinarias del censo son silenciosas: no insertar alertas que desplacen encabezados o filas.                                            | Contrato UI de frescura sin mensajes; regresión en `CensusTable.layout-and-actions.test.tsx` |
+| Estas decisiones no se reabren: la ventana de 48 horas de `canWritePreviousDay` se mantiene, y el endpoint de resumen clínico con IA se retiró a propósito. | **[docs]**                                                                                   |
 
 ## Mantener esta tabla
 

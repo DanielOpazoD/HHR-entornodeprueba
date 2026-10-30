@@ -69,6 +69,7 @@ const expectLoginIdle = async (page: Page) => {
 };
 
 test.describe('Auth login resilience matrix', () => {
+  test.use({ serviceWorkers: 'block' });
   test.beforeEach(async ({ page }) => {
     await installPreviewFirebaseRuntime(page);
     await page.addInitScript(() => {
@@ -78,12 +79,12 @@ test.describe('Auth login resilience matrix', () => {
     await expect(page.getByTestId('login-google-button')).toBeVisible();
   });
 
-  test('keeps RUT credential geometry while its functional module loads', async ({ page }) => {
+  test('shows access progress while the application module loads', async ({ page }, testInfo) => {
     let releaseModule!: () => void;
     const moduleReady = new Promise<void>(resolve => {
       releaseModule = resolve;
     });
-    await page.route('**/*LoginPage*', async route => {
+    await page.route('**/assets/App-*.js', async route => {
       await moduleReady;
       await route.continue();
     });
@@ -93,37 +94,27 @@ test.describe('Auth login resilience matrix', () => {
       const username = page.getByLabel('Usuario', { exact: true });
       const password = page.getByLabel('Contraseña', { exact: true });
       const submit = page.getByRole('button', { name: 'Ingresar', exact: true });
-      await expect(username).toBeDisabled();
-      const before = await Promise.all([
-        username.boundingBox(),
-        password.boundingBox(),
-        submit.boundingBox(),
-      ]);
+      await expect(page.getByRole('status')).toContainText('Validando tu acceso');
+      await expect(username).toHaveCount(0);
+      await expect(password).toHaveCount(0);
+      await expect(submit).toHaveCount(0);
+      await testInfo.attach('access-progress-startup', {
+        body: await page.screenshot(),
+        contentType: 'image/png',
+      });
       const wallpaper = await page.getByTestId('login-background-image').getAttribute('style');
       releaseModule();
       await expect(username).toBeEnabled();
-      const after = await Promise.all([
-        username.boundingBox(),
-        password.boundingBox(),
-        submit.boundingBox(),
-      ]);
-      for (let index = 0; index < before.length; index += 1) {
-        const initial = before[index];
-        const ready = after[index];
-        expect(initial).not.toBeNull();
-        expect(ready).not.toBeNull();
-        if (!initial || !ready) throw new Error('Credential field was not rendered');
-        for (const dimension of ['x', 'y', 'width', 'height'] as const) {
-          expect(Math.abs(initial[dimension] - ready[dimension])).toBeLessThanOrEqual(2);
-        }
-      }
+      await expect(password).toBeEnabled();
+      await expect(submit).toBeEnabled();
+      await expect(page.getByText('Validando tu acceso…', { exact: true })).toHaveCount(0);
       await expect(page.getByTestId('login-background-image')).toHaveAttribute(
         'style',
         wallpaper || ''
       );
     } finally {
       releaseModule();
-      await page.unroute('**/*LoginPage*');
+      await page.unroute('**/assets/App-*.js');
     }
   });
 

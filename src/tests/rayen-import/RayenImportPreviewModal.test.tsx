@@ -169,7 +169,8 @@ describe('Rayen synchronization decisions and pulse', () => {
     );
 
     expect(screen.getByText(/Alta asociada — RN de Maeva Tuki Garcia/)).toBeVisible();
-    expect(screen.getByText(/cuna RN; no suma egreso/)).toBeVisible();
+    expect(screen.getByText('(cuna RN)')).toBeVisible();
+    expect(screen.queryByText(/no suma egreso/)).not.toBeInTheDocument();
   });
 
   it('shows independent document evidence in the review decision', () => {

@@ -10,7 +10,10 @@ import { LoginPage } from '@/features/auth/public';
 import { GlobalErrorBoundary } from '@/components/shared/GlobalErrorBoundary';
 import { VersionProvider } from '@/context/VersionContext';
 import { VersionMismatchOverlay } from '@/components/shared/VersionMismatchOverlay';
-import { InitialLoadingScreen } from '@/components/ui/InitialLoadingScreen';
+import {
+  InitialLoadingScreen,
+  LoginShellLoadingScreen,
+} from '@/components/ui/InitialLoadingScreen';
 import { ViewLoader } from '@/components/ui/ViewLoader';
 import { BootstrapRouteChrome } from '@/app-shell/bootstrap/BootstrapCensusChrome';
 import {
@@ -75,6 +78,10 @@ const resolveLoginInitialAuthError = (
 
 function App() {
   const bootstrapState = useAppBootstrapState();
+  const [loginCompletionPending, setLoginCompletionPending] = React.useState(false);
+  React.useEffect(() => {
+    setLoginCompletionPending(false);
+  }, [bootstrapState.auth.sessionState]);
   markPerf('app:first-render');
   React.useEffect(() => {
     if (bootstrapState.status === 'authenticated') {
@@ -165,10 +172,14 @@ function App() {
   }
 
   if (bootstrapState.status === 'unauthenticated') {
+    const initialAuthError = resolveLoginInitialAuthError(bootstrapState.auth);
+    if (loginCompletionPending && !initialAuthError) {
+      return <LoginShellLoadingScreen />;
+    }
     return (
       <LoginPage
-        onLoginSuccess={() => {}}
-        initialAuthError={resolveLoginInitialAuthError(bootstrapState.auth)}
+        onLoginSuccess={() => setLoginCompletionPending(true)}
+        initialAuthError={initialAuthError}
       />
     );
   }

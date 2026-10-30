@@ -1,6 +1,9 @@
 import React, { useState, useRef, useEffect, useId } from 'react';
-import { Loader2 } from 'lucide-react';
-import { LOGIN_INPUT_CLASS, LOGIN_SUBMIT_CLASS } from '@/components/ui/LoginScreenLayout';
+import {
+  LOGIN_INPUT_CLASS,
+  LOGIN_SUBMIT_CLASS,
+  LoginAccessPending,
+} from '@/components/ui/LoginScreenLayout';
 import PasswordInput from '@/components/ui/PasswordInput';
 import {
   accountErrorMessage,
@@ -321,25 +324,13 @@ export default function NursingAccessForm({ onSuccess, disabled, onBusyChange }:
         )}
       </form>
       {busy && (
-        <div
-          role="status"
-          aria-live="polite"
-          aria-atomic="true"
-          className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 rounded-xl border border-teal-200 bg-white/95 px-5 text-center shadow-sm backdrop-blur-sm"
-        >
-          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-teal-800/10 text-teal-800">
-            <Loader2 className="h-6 w-6 motion-safe:animate-spin" aria-hidden="true" />
-          </span>
-          <div>
-            <p className="text-base font-semibold text-teal-950">
-              {mode === 'request' ? 'Enviando código de recuperación…' : 'Validando tu acceso…'}
-            </p>
-            <p className="mt-1 text-xs leading-5 text-teal-900">
-              {mode === 'request'
-                ? 'Espera un momento mientras enviamos tu solicitud.'
-                : 'Comprobando tu acceso. Un momento, por favor.'}
-            </p>
-          </div>
+        <div className="absolute inset-0 z-10">
+          <LoginAccessPending
+            title={mode === 'request' ? 'Enviando código de recuperación…' : undefined}
+            hint={
+              mode === 'request' ? 'Espera un momento mientras enviamos tu solicitud.' : undefined
+            }
+          />
         </div>
       )}
     </div>

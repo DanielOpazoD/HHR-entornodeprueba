@@ -39,7 +39,6 @@ describe('daily record remote freshness gate', () => {
 
     expect(result.current.status).toBe('fresh_remote_confirmed');
     expect(result.current.isClinicalEditingBlocked).toBe(false);
-    expect(result.current.messageLevel).toBe('none');
 
     act(() => {
       markDailyRecordTabHidden(0);
@@ -51,8 +50,6 @@ describe('daily record remote freshness gate', () => {
     });
     expect(result.current.isClinicalEditingBlocked).toBe(true);
     expect(result.current.isQuietlyRefreshing).toBe(true);
-    expect(result.current.messageLevel).toBe('none');
-    expect(result.current.userMessage).toBeUndefined();
 
     act(() => {
       markDailyRecordRemoteConfirmed(date, {
@@ -65,8 +62,6 @@ describe('daily record remote freshness gate', () => {
       expect(result.current.status).toBe('fresh_remote_confirmed');
     });
     expect(result.current.isClinicalEditingBlocked).toBe(false);
-    expect(result.current.messageLevel).toBe('none');
-    expect(result.current.userMessage).toBeUndefined();
   });
 
   it('hydrates a newer remote record before applying a clinical patch after stale resume', async () => {

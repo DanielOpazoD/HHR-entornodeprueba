@@ -28,17 +28,18 @@ describe('InitialLoadingScreen', () => {
     expect(resolveInitialLoadingScreenVariant('/whatsapp')).toBe('default');
   });
 
-  it('renders the login shell without a startup spinner for the root route', () => {
+  it('renders the shared access progress panel for the root route', () => {
     window.localStorage.setItem('hhr_login_background_mode', 'day');
 
-    const { container } = render(<InitialLoadingScreen pathname="/" />);
+    render(<InitialLoadingScreen pathname="/" />);
 
     expect(screen.getByTestId('login-loading-shell')).toBeInTheDocument();
     expect(screen.getByTestId('login-loading-shell')).toHaveAttribute(
       'data-background-mode',
       'day'
     );
-    expect(container.querySelector('.animate-spin')).toBeNull();
+    expect(screen.getByRole('status')).toHaveTextContent('Validando tu acceso');
+    expect(screen.queryByLabelText('Usuario')).not.toBeInTheDocument();
     expect(screen.queryByTestId('initial-loading-spinner')).not.toBeInTheDocument();
   });
 

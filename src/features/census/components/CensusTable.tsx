@@ -266,19 +266,6 @@ export const CensusTable: React.FC<CensusTableProps> = ({
       data-testid="census-table-shell"
     >
       <div className="relative overflow-visible">
-        {freshnessUi.userMessage ? (
-          <div
-            className={`mb-2 rounded-md border px-3 py-2 text-sm ${
-              freshnessUi.messageLevel === 'warning'
-                ? 'border-amber-200 bg-amber-50 text-amber-800'
-                : 'border-sky-100 bg-sky-50 text-sky-700'
-            }`}
-            role="status"
-            aria-live="polite"
-          >
-            {freshnessUi.userMessage}
-          </div>
-        ) : null}
         {activeAttentionLabel ? (
           <div
             className="flex min-h-8 items-center justify-between gap-3 rounded-t-xl border-b border-slate-200 bg-slate-50/90 px-3 py-1 text-xs text-slate-700"
