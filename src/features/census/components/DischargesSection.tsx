@@ -20,7 +20,7 @@ export const DischargesSection: React.FC = () => {
     <CensusMovementSection
       model={sectionModel}
       title="Altas"
-      emptyMessage="No hay altas registradas para este día."
+      emptyMessage="Sin registros para el día seleccionado."
       icon={<CheckCircle size={18} />}
       iconClassName="bg-green-50 text-green-600"
       headers={DISCHARGES_TABLE_HEADERS}

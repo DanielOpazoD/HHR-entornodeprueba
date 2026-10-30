@@ -97,36 +97,34 @@ export const CensusStaffHeader = React.memo(function CensusStaffHeader({
     <div className="flex w-full flex-col items-center gap-2 animate-fade-in has-[[data-overlay-open]]:relative has-[[data-overlay-open]]:z-40">
       <div className="flex w-full flex-col items-stretch gap-2">
         <div
-          className="census-toolbar flex flex-wrap items-stretch justify-center gap-2 xl:flex-nowrap"
+          className={`census-toolbar flex flex-wrap items-stretch justify-center gap-2 xl:flex-nowrap ${!readOnly && !readModel.specialistAccess ? 'census-toolbar-with-sync' : ''}`}
           data-testid="census-staff-and-sync"
         >
-          {/* Staff Selectors */}
           {!readModel.specialistAccess && (
-            <NurseSelector
-              nursesDayShift={readModel.staffSelectorsState.nursesDayShift}
-              nursesNightShift={readModel.staffSelectorsState.nursesNightShift}
-              nursesList={nursesList}
-              onUpdateNurse={updateNurse}
-              shiftIndicators={readModel.staffIndicatorsState.nurseIndicators}
-              onOpenDetailedStaffing={readOnly ? undefined : () => openDetail('nurse')}
-              className={`self-stretch ${readModel.selectorsClassName}`}
-            />
-          )}
-
-          {!readModel.specialistAccess && (
-            <TensSelector
-              tensDayShift={readModel.staffSelectorsState.tensDayShift}
-              tensNightShift={readModel.staffSelectorsState.tensNightShift}
-              tensList={tensList}
-              onUpdateTens={updateTens}
-              shiftIndicators={readModel.staffIndicatorsState.tensIndicators}
-              onOpenDetailedStaffing={readOnly ? undefined : () => openDetail('tens')}
-              className={`self-stretch ${readModel.selectorsClassName}`}
-            />
+            <div className="census-toolbar-staff flex max-w-full flex-wrap items-stretch justify-center gap-2">
+              <NurseSelector
+                nursesDayShift={readModel.staffSelectorsState.nursesDayShift}
+                nursesNightShift={readModel.staffSelectorsState.nursesNightShift}
+                nursesList={nursesList}
+                onUpdateNurse={updateNurse}
+                shiftIndicators={readModel.staffIndicatorsState.nurseIndicators}
+                onOpenDetailedStaffing={readOnly ? undefined : () => openDetail('nurse')}
+                className={`self-stretch ${readModel.selectorsClassName}`}
+              />
+              <TensSelector
+                tensDayShift={readModel.staffSelectorsState.tensDayShift}
+                tensNightShift={readModel.staffSelectorsState.tensNightShift}
+                tensList={tensList}
+                onUpdateTens={updateTens}
+                shiftIndicators={readModel.staffIndicatorsState.tensIndicators}
+                onOpenDetailedStaffing={readOnly ? undefined : () => openDetail('tens')}
+                className={`self-stretch ${readModel.selectorsClassName}`}
+              />
+            </div>
           )}
 
           {!readOnly && !readModel.specialistAccess && (
-            <div className="w-60 max-w-full shrink-0 self-stretch">
+            <div className="census-toolbar-sync w-60 max-w-full shrink-0 self-stretch">
               <Suspense fallback={<RayenOperationsLoadingCard />}>
                 <RayenImportButton
                   selectedDate={selectedDate}

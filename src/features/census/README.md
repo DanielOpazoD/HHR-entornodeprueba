@@ -287,6 +287,10 @@ confirmación permanecen en sus capas actuales.
 
 ### Controles compactos del censo
 
+- Enfermería, TENS, Eloísa y el resumen conservan una sola fila por defecto desde 1024 px, con el mismo orden de teclado y la altura de las tarjetas. El reflujo en dos filas se limita a anchos menores; Moa opcional puede pasar debajo del resumen sin desplazar los cuatro cuadros principales. Los controles de catálogo y configuración tienen una zona de clic mayor sin desplazar los selectores.
+- El PDF de egreso se presenta como botón de descarga y mantiene sus dimensiones mientras espera; las etiquetas de procedencia sin acción siguen siendo informativas.
+- Cada sección de movimientos indica cuántos registros muestra, incluyendo filas de RN; ese contador no modifica las estadísticas de egreso. Los estados vacíos son compactos y se refieren al día seleccionado.
+
 - El reloj del encabezado de Scores filtra escalas por reaplicar y permite volver al censo completo.
 - El selector de especialidad del paciente incorpora el icono de opciones del censo: conserva los permisos, reglas automáticas y asignación asistida existentes.
 - La esquina del resumen alterna camas/movimientos y cumplimiento CUDYR del mes seleccionado. La vista mensual se carga sólo al abrirla, reutiliza el reporte guardado de HHR y su caché por sesión, sin consultar Eloísa. Excluye hoy y días futuros en Rapa Nui; las ventanas de aplicación abiertas tampoco contribuyen al consolidado. Una lectura pendiente o fallida nunca se presenta como oficial.

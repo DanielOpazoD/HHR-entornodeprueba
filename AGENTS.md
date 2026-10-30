@@ -77,6 +77,7 @@ lea este archivo.
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | Avanzar sin pedir permiso en el trabajo reversible. Preguntar solo ante lo irreversible o lo que decide el responsable.                                     | **[docs]**                                                                                   |
 | Informar en español claro, sin jerga.                                                                                                                       | **[docs]**                                                                                   |
+| Los cuatro cuadros del encabezado del censo se mantienen en una fila por defecto en escritorio y portátil; el reflujo se reserva para pantallas estrechas.  | CSS del censo; regresión de 1024 px en `census-13-inch-visual.spec.ts`                       |
 | Las actualizaciones rutinarias del censo son silenciosas: no insertar alertas que desplacen encabezados o filas.                                            | Contrato UI de frescura sin mensajes; regresión en `CensusTable.layout-and-actions.test.tsx` |
 | Estas decisiones no se reabren: la ventana de 48 horas de `canWritePreviousDay` se mantiene, y el endpoint de resumen clínico con IA se retiró a propósito. | **[docs]**                                                                                   |
 

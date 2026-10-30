@@ -34,7 +34,7 @@ describe('statistical discharge download feedback', () => {
     const busy = screen.getByRole('button', { name: /Descargando/ });
     expect(busy).toBeDisabled();
     expect(busy).toHaveAttribute('aria-busy', 'true');
-    expect(busy).toHaveTextContent('Descargando…');
+    expect(busy).toHaveTextContent('Egreso');
     fireEvent.click(busy);
     expect(requestRayenStatisticalDischargeReport).toHaveBeenCalledExactlyOnceWith('900001');
 
@@ -45,7 +45,7 @@ describe('statistical discharge download feedback', () => {
     );
     const retry = screen.getByRole('button', { name: /Descargar PDF del egreso/ });
     expect(retry).toBeEnabled();
-    expect(retry).toHaveTextContent('Egreso estad.');
+    expect(retry).toHaveTextContent('Egreso');
     fireEvent.click(retry);
     await waitFor(() => expect(notifications.success).toHaveBeenCalledOnce());
     expect(requestRayenStatisticalDischargeReport).toHaveBeenCalledTimes(2);

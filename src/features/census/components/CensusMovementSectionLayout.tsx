@@ -7,7 +7,7 @@ interface CensusMovementSectionLayoutProps {
   emptyMessage: string;
   icon: React.ReactNode;
   iconClassName: string;
-  isEmpty: boolean;
+  itemCount: number;
   headers: readonly CensusMovementTableHeader[];
   children: React.ReactNode;
   subtitle?: string;
@@ -21,7 +21,7 @@ export const CensusMovementSectionLayout: React.FC<CensusMovementSectionLayoutPr
   emptyMessage,
   icon,
   iconClassName,
-  isEmpty,
+  itemCount,
   headers,
   children,
   subtitle,
@@ -35,24 +35,35 @@ export const CensusMovementSectionLayout: React.FC<CensusMovementSectionLayoutPr
       rootClassName
     )}
   >
-    <div className="census-movement-heading flex min-h-9 items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-1.5">
+    <div
+      className={clsx(
+        'census-movement-heading flex min-h-10 flex-wrap items-center justify-between gap-x-4 gap-y-1 bg-slate-50 px-3 py-1.5',
+        itemCount > 0 && 'border-b border-slate-200'
+      )}
+    >
       <div className="flex items-center gap-2">
         <div className={clsx('rounded-md p-1', iconClassName)}>{icon}</div>
-        <div>
+        <div className="flex flex-wrap items-baseline gap-x-1.5">
           <h2 className="text-sm font-semibold text-slate-800 leading-tight">{title}</h2>
+          <span
+            className="text-xs tabular-nums text-slate-500"
+            aria-label={`${itemCount} ${itemCount === 1 ? 'registro' : 'registros'} en esta sección`}
+            title="Cantidad de registros mostrados"
+          >
+            · {itemCount}
+          </span>
           {subtitle ? (
-            <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">
+            <span className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">
               {subtitle}
-            </p>
+            </span>
           ) : null}
         </div>
       </div>
+      {itemCount === 0 && <p className="text-xs text-slate-500">{emptyMessage}</p>}
     </div>
 
     <div>
-      {isEmpty ? (
-        <p className="py-2.5 text-center text-xs text-slate-500">{emptyMessage}</p>
-      ) : (
+      {itemCount > 0 && (
         <div
           className="census-movement-table-scroll overflow-x-auto"
           tabIndex={0}

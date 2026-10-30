@@ -291,9 +291,9 @@ test('keeps the census and movement sections complete in the printable view', as
     pages.push(content.items.map(item => ('str' in item ? item.str : '')).join(' '));
   }
   for (const [heading, emptyMessage] of [
-    ['Altas', 'No hay altas registradas para este día.'],
-    ['Traslados', 'No hay traslados registrados para hoy.'],
-    ['Hospitalización Diurna', 'No hay registros de Hospitalización Diurna para hoy.'],
+    ['Altas', 'Sin registros para el día seleccionado.'],
+    ['Traslados', 'Sin registros para el día seleccionado.'],
+    ['Hospitalización Diurna', 'Sin registros para el día seleccionado.'],
   ]) {
     const headingPage = pages.findIndex(content => content.includes(heading));
     expect(headingPage).toBeGreaterThanOrEqual(0);
@@ -308,9 +308,28 @@ test('keeps toolbar cards at their own height when opening monthly CUDYR', async
   await expect(page.getByTestId('rayen-operations-bar')).toBeVisible();
   const cards = page
     .getByTestId('census-staff-and-sync')
-    .locator(':scope > :not(.census-toolbar-summary)');
+    .locator('.census-toolbar-staff > .census-toolbar-card, [data-testid="rayen-operations-bar"]');
   for (const width of [1280, 1024, 390]) {
     await page.setViewportSize({ width, height: 832 });
+    if (width >= 1024) {
+      const bounds = await page
+        .getByTestId('census-staff-and-sync')
+        .locator(
+          '.census-toolbar-staff > .census-toolbar-card, [data-testid="rayen-operations-bar"], [data-testid="census-summary-switcher"]'
+        )
+        .evaluateAll(elements =>
+          elements.map(element => {
+            const box = element.getBoundingClientRect();
+            return { top: box.top, left: box.left, right: box.right };
+          })
+        );
+      expect(bounds).toHaveLength(4);
+      for (const box of bounds) {
+        expect(Math.abs(box.top - bounds[0].top)).toBeLessThanOrEqual(1);
+        expect(box.left).toBeGreaterThanOrEqual(0);
+        expect(box.right).toBeLessThanOrEqual(width);
+      }
+    }
     const before = await cards.evaluateAll(elements =>
       elements.map(el => el.getBoundingClientRect().height)
     );

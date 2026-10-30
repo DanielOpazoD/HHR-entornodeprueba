@@ -84,7 +84,7 @@ describe('DischargesSection', () => {
     } as unknown as MovementsValue);
 
     render(<DischargesSection />);
-    expect(screen.getByText(/No hay altas registradas/)).toBeInTheDocument();
+    expect(screen.getByText('Sin registros para el día seleccionado.')).toBeInTheDocument();
   });
 
   it('renders discharge list and triggers actions', async () => {

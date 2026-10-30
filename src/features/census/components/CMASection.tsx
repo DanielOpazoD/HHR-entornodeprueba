@@ -36,7 +36,7 @@ export const CMASection: React.FC = () => {
       model={sectionModel}
       title="Hospitalización Diurna"
       subtitle="CMA / PMA"
-      emptyMessage="No hay registros de Hospitalización Diurna para hoy."
+      emptyMessage="Sin registros para el día seleccionado."
       icon={<Scissors size={18} />}
       iconClassName="bg-medical-50 text-medical-600"
       headers={CMA_TABLE_HEADERS}
