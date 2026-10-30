@@ -13,7 +13,7 @@ export const getStoredSessionOwnerKey = (): string | null =>
 export const SESSION_CLEANUP_PENDING_KEY = 'hhr_session_cleanup_pending_v1';
 
 export const isSessionCleanupPending = (): boolean =>
-  typeof localStorage !== 'undefined' && Boolean(localStorage.getItem(SESSION_CLEANUP_PENDING_KEY));
+  localStorage.getItem(SESSION_CLEANUP_PENDING_KEY) !== null;
 
 let sessionCleanupFailed = false;
 

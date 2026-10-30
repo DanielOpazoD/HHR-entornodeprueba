@@ -25,8 +25,6 @@ const isDailyRecordWriteForDate = (task: SyncTask, date: string): boolean =>
 const listDayTasks = (date: string): Promise<SyncTask[]> =>
   hospitalDB.syncQueue.where('key').equals(`daily:${date}`).toArray();
 
-const payloadOf = (task: SyncTask) => task.payload as Partial<DailyRecord> | null | undefined;
-
 /** Read the pending projection after remote work finishes, even if its timestamp did not change. */
 export const getPendingDailyRecordProjection = async (
   date: string
@@ -66,8 +64,7 @@ export const getDailyRecordWriteStateForVersion = async (
     .filter(
       task =>
         holdsDailyRecordProjection(task, date) &&
-        payloadOf(task)?.date === date &&
-        payloadOf(task)?.lastUpdated === lastUpdated
+        (task.payload as Partial<DailyRecord> | null | undefined)?.lastUpdated === lastUpdated
     )
     .map(task => task.status);
   if (statuses.includes('CONFLICT')) return 'conflict';
