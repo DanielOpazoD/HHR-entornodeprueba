@@ -85,14 +85,12 @@ export const reconcileDailyRecordQueryResult = (
   if (
     !record ||
     mustSurfaceIncomingRuntime(incoming) ||
-    (baseSource(previous) === 'local' && baseSource(incoming) !== 'local')
+    (baseSource(previous) === 'local' && baseSource(incoming) !== 'local') ||
+    (baseSource(incoming) === 'remote' && isRemoteRevisionAhead(previousRecord, record))
   ) {
     return incoming;
   }
 
-  if (baseSource(incoming) === 'remote' && isRemoteRevisionAhead(previousRecord, record)) {
-    return incoming;
-  }
   const previousTimestamp = toRecordTimestamp(previousRecord.lastUpdated);
   const incomingTimestamp = toRecordTimestamp(record.lastUpdated);
   if (previousTimestamp > incomingTimestamp) {

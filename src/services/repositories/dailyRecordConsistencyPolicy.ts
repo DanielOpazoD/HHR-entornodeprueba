@@ -55,11 +55,6 @@ export const toRecordTimestamp = (value: string | undefined): number => {
 
 type RevisionedRecord = { lastUpdated: string; meta?: { revision?: unknown } };
 
-const knownRevision = (record: RevisionedRecord): number | undefined => {
-  const revision = record.meta?.revision;
-  return typeof revision === 'number' && Number.isSafeInteger(revision) ? revision : undefined;
-};
-
 /**
  * Server writes raise the revision inside their transaction; direct writes keep it and stamp the
  * device's clock. So a higher revision on both sides is the later version whatever the clocks say.
@@ -69,11 +64,12 @@ export const isRemoteRevisionAhead = (
   local: RevisionedRecord | null | undefined,
   remote: RevisionedRecord | null | undefined
 ): boolean => {
-  if (!local || !remote) return false;
-  const localRevision = knownRevision(local);
-  const remoteRevision = knownRevision(remote);
+  const localRevision = local?.meta?.revision;
+  const remoteRevision = remote?.meta?.revision;
   return (
-    localRevision !== undefined && remoteRevision !== undefined && remoteRevision > localRevision
+    typeof localRevision === 'number' &&
+    typeof remoteRevision === 'number' &&
+    remoteRevision > localRevision
   );
 };
 
