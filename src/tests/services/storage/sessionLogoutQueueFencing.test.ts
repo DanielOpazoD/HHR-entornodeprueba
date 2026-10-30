@@ -323,6 +323,20 @@ describe('the queue after a session closes with unsent day work', () => {
       expect(await hospitalDB.syncQueue.get(id)).toMatchObject({ payload: unsentDay });
     });
 
+    it('stands down when the cleanup for a change of owner fails', async () => {
+      await hospitalDB.syncQueue.add(dayWrite());
+      vi.spyOn(hospitalDB.dailyRecords, 'clear').mockRejectedValueOnce(
+        new Error('synthetic failure')
+      );
+      await expect(reconcileAuthorizedSessionOwner(nextOwner)).rejects.toThrow();
+      const run = vi.fn(async () => ({}));
+
+      await buildBrowserEngine(run).processQueue();
+
+      expect(hasSessionCleanupFailed()).toBe(true);
+      expect(run).not.toHaveBeenCalled();
+    });
+
     it('works again, and blocks that work for review, once the cleanup succeeds on retry', async () => {
       const id = Number(await hospitalDB.syncQueue.add(dayWrite()));
       await failCleanup();
@@ -336,6 +350,25 @@ describe('the queue after a session closes with unsent day work', () => {
         payload: unsentDay,
         projectionReleased: true,
       });
+    });
+  });
+
+  it('does not send from a reloaded document until admission completes the pending cleanup', async () => {
+    const id = Number(await hospitalDB.syncQueue.add(dayWrite()));
+    localStorage.setItem('hhr_session_cleanup_pending_v1', '1');
+    setSessionGeneration(null);
+    const run = vi.fn(async () => ({}));
+
+    await buildBrowserEngine(run).processQueue();
+    expect(run).not.toHaveBeenCalled();
+
+    await reconcileAuthorizedSessionOwner(owner);
+    await buildBrowserEngine(run).processQueue();
+    expect(run).not.toHaveBeenCalled();
+    expect(await hospitalDB.syncQueue.get(id)).toMatchObject({
+      status: 'FAILED',
+      payload: unsentDay,
+      projectionReleased: true,
     });
   });
 

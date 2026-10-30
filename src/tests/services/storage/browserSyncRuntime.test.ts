@@ -3,6 +3,7 @@ const state = vi.hoisted(() => ({ owner: 'user', generation: null as string | nu
 vi.mock('@/services/storage/sessionOwnerKey', () => ({
   getStoredSessionOwnerKey: () => state.owner,
   hasSessionCleanupFailed: vi.fn(() => false),
+  isSessionCleanupPending: vi.fn(() => false),
 }));
 vi.mock('@/services/storage/sessionStorageTransition', () => ({
   getSessionGeneration: () => state.generation,

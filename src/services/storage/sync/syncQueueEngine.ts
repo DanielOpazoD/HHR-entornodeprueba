@@ -238,10 +238,10 @@ export const createSyncQueueEngine = ({
     return rows.map(toSyncQueueOperationSnapshot);
   };
 
-  const isSessionClosing = () => runtime.isSessionClosing?.();
+  const isFenced = () => runtime.isFenced?.();
 
   const processQueue = async (): Promise<void> => {
-    if (isProcessing || isSessionClosing()) return;
+    if (isProcessing || isFenced()) return;
     isProcessing = true;
 
     try {
@@ -295,11 +295,11 @@ export const createSyncQueueEngine = ({
                   continue;
                 }
                 // Checked here, after the last wait: the very next step is the send.
-                if (isSessionClosing()) return;
+                if (isFenced()) return;
                 Object.assign(task, stored, { leaseUntil });
                 const result: Partial<SyncTransportResult> = (await transport.run(task)) || {};
                 // Its ACK would write a day the failed logout cleared; the cleanup retry decides.
-                if (isSessionClosing()) return;
+                if (isFenced()) return;
                 const claim = buildTaskClaim(task);
                 if (claim) {
                   const deleted = await store.deleteClaimed(

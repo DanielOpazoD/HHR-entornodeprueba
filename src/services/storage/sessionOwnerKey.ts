@@ -9,6 +9,12 @@ export const SESSION_OWNER_KEY = 'hhr_session_owner_v1';
 export const getStoredSessionOwnerKey = (): string | null =>
   typeof localStorage === 'undefined' ? null : localStorage.getItem(SESSION_OWNER_KEY);
 
+/** Set in localStorage while a logout cleanup is unfinished; the next admission completes it. */
+export const SESSION_CLEANUP_PENDING_KEY = 'hhr_session_cleanup_pending_v1';
+
+export const isSessionCleanupPending = (): boolean =>
+  typeof localStorage !== 'undefined' && Boolean(localStorage.getItem(SESSION_CLEANUP_PENDING_KEY));
+
 let sessionCleanupFailed = false;
 
 /**
