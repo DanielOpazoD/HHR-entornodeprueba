@@ -65,8 +65,9 @@ describe('census measurement release gate', () => {
     expect(flow.flows.censoRecordReadyMs.enforcedMaxMs).toBe(5000);
     const bundle = JSON.parse(read('scripts/config/bundle-budget.json'));
     // The measured 40 KiB Zod security allowance and the owner-approved 2026-10-25 raise
-    // of 38 KiB, plus the bounded shared crash-cart allowance (BUNDLE_RISK_LEDGER.md).
-    expect(bundle.precacheMaxBytes).toBe(4952064 + 40960 + 38912 + 8192 + 4096 + 2048);
+    // of 38 KiB, plus the bounded shared crash-cart allowance and the census program's measured uses
+    // (BUNDLE_RISK_LEDGER.md).
+    expect(bundle.precacheMaxBytes).toBe(4952064 + 40960 + 38912 + 8192 + 4096 + 2048 + 512);
     expect(
       bundle.startupChunkBudgets.find(
         (b: { label: string }) => b.label === 'app-authenticated-shell'
