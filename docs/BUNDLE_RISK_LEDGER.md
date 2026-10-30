@@ -409,3 +409,18 @@ isolation, legacy records, fieldwise merge, year/month carryover and both PDFs.
 Rollback: revert the shared-checklist feature and these allowances together.
 Existing records remain readable because the new root is optional; do not erase
 stored shared reviews or modify clinical records as part of rollback.
+
+## Programa del censo diario (2026-10-30)
+
+Owner: census save and sync program. The owner authorized up to +8,192 bytes of
+precache over 5,046,272 for this program, to be raised per PR only as CI requires.
+Each use is listed here; the cap stops at 5,054,464.
+
+- PR #1093, JSON importer stores only date keys: +512 bytes (5,046,272 → 5,046,784).
+  Five source lines. Main was already at the cap: CI shows 4928.0 KB of 4928.0 KB
+  on both sides, so the overrun is under 51 bytes.
+
+Keep all offline assets, exclusions, warning ratios and other limits unchanged.
+
+Rollback: revert the importer check and this allowance together. Rows stored by
+earlier imports are not touched by this change or by its rollback.

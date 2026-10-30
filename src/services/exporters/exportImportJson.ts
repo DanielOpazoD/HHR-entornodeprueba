@@ -61,6 +61,11 @@ export const importDataJSONDetailed = async (file: File): Promise<JsonImportResu
     Object.entries(payload).forEach(([key, value]) => {
       // The episode documents of split days are not a day: they go back into their days below.
       if (key === CLINICAL_DERIVED_BACKUP_SECTION) return;
+      // Anything else that is not a date is not a day, however well it parses with defaults.
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) {
+        skippedEntries.push(key);
+        return;
+      }
       try {
         const parsed = parseDailyRecordWithDefaultsReport(value, key);
         importedRecords.push(parsed.record);
