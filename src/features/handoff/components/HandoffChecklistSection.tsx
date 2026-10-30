@@ -56,7 +56,7 @@ export const HandoffChecklistSection: React.FC<HandoffChecklistSectionProps> = (
   if (!shouldRender) return null;
 
   return (
-    <div className="min-w-0 bg-white rounded-2xl border border-slate-200/80 p-3 sm:p-4 print:hidden shadow-sm ring-1 ring-black/[0.02]">
+    <div className="handoff-header min-w-0 bg-white rounded-2xl border border-slate-200/80 p-3 sm:p-4 print:hidden shadow-sm ring-1 ring-black/[0.02]">
       {/* Row 1: Shift tabs + CUDYR action (same line) */}
       <div className="flex min-w-0 items-center gap-2 mb-3 pb-3 border-b border-slate-100">
         {showShiftSwitcher && setSelectedShift && (
@@ -66,7 +66,7 @@ export const HandoffChecklistSection: React.FC<HandoffChecklistSectionProps> = (
       </div>
 
       {/* Row 2: Staff names — min-h ensures consistent height between day/night shifts */}
-      <div className="grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-2 items-center mb-3 pb-3 border-b border-slate-100 min-h-[32px]">
+      <div className="handoff-staff grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-2 items-center mb-3 pb-3 border-b border-slate-100 min-h-[32px]">
         <HandoffStaffDisplay label="Entrega" type="delivers" nurses={deliversList} compact />
 
         {isReceivesEditable ? (

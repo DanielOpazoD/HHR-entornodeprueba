@@ -1,4 +1,5 @@
 import React from 'react';
+import './nursingHandoff.css';
 import { HandoffChecklistSection } from './HandoffChecklistSection';
 import { HandoffCudyrPrint } from './HandoffCudyrPrint';
 import { HandoffPrintHeader } from './HandoffPrintHeader';
@@ -151,7 +152,9 @@ const HandoffViewContent: React.FC<HandoffViewContentProps> = ({
   );
   const nursingHeaderAction = !isMedical && clinicalConflictAction;
   return (
-    <div className="space-y-3 print:space-y-2 animate-fade-in pb-20 font-sans max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 print:max-w-none print:w-full print:px-0 print:pb-0">
+    <div
+      className={`${isMedical ? '' : 'nursing-handoff '}space-y-3 print:space-y-2 animate-fade-in pb-20 font-sans max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 print:max-w-none print:w-full print:px-0 print:pb-0`}
+    >
       <HandoffPrintHeader
         title={title}
         dateString={formatPrintDate()}

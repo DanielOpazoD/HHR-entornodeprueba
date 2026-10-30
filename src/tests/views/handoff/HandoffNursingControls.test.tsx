@@ -3,10 +3,26 @@ import userEvent from '@testing-library/user-event';
 import type { FormEvent } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { HandoffChecklistNight } from '@/features/handoff/components/HandoffChecklistNight';
+import { HandoffChecklistDay } from '@/features/handoff/components/HandoffChecklistDay';
 import { HandoffNovedades } from '@/features/handoff/components/HandoffNovedades';
 import { HandoffShiftSwitcher } from '@/features/handoff/components/HandoffShiftSwitcher';
 
 describe('Nursing handoff controls', () => {
+  it.each([
+    { Component: HandoffChecklistDay, name: 'Escala Braden', field: 'escalaBraden' },
+    { Component: HandoffChecklistNight, name: 'Estadística', field: 'estadistica' },
+  ])(
+    'preserves the $field checkbox update when using the shared control',
+    ({ Component, name, field }) => {
+      const onUpdate = vi.fn();
+      const { rerender } = render(<Component onUpdate={onUpdate} />);
+      fireEvent.click(screen.getByRole('checkbox', { name }));
+      expect(onUpdate).toHaveBeenCalledExactlyOnceWith(field, true);
+      rerender(<Component onUpdate={onUpdate} readOnly />);
+      expect(screen.getByRole('checkbox', { name })).toBeDisabled();
+    }
+  );
+
   it('switches the active shift without submitting a surrounding form', async () => {
     const user = userEvent.setup();
     const setSelectedShift = vi.fn();
