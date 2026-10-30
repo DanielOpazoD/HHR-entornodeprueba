@@ -1,51 +1,54 @@
 import * as z from 'zod';
 import { nullableOptional } from './helpers';
 
+const NonNegativeIntegerSchema = z.number().int().nonnegative();
+const OptionalNonNegativeIntegerSchema = nullableOptional(NonNegativeIntegerSchema);
+
 const PersistenceTraceSchema = z.object({
-  callableAttempts: z.number().int().nonnegative(),
-  clientRetries: z.number().int().nonnegative(),
-  transactionRetries: z.number().int().nonnegative(),
+  callableAttempts: NonNegativeIntegerSchema,
+  clientRetries: NonNegativeIntegerSchema,
+  transactionRetries: NonNegativeIntegerSchema,
 });
 
 export const RayenSyncPerformanceSchema = z.object({
   stagesMs: z.object({
-    preflight: nullableOptional(z.number().int().nonnegative()),
-    dualCapture: nullableOptional(z.number().int().nonnegative()),
-    captureHealthBefore: nullableOptional(z.number().int().nonnegative()),
-    captureFichaMedico: nullableOptional(z.number().int().nonnegative()),
-    fichaContext: nullableOptional(z.number().int().nonnegative()),
-    fichaListsAndCatalog: nullableOptional(z.number().int().nonnegative()),
-    fichaPatientReads: nullableOptional(z.number().int().nonnegative()),
-    fichaDiagnosisCoding: nullableOptional(z.number().int().nonnegative()),
-    captureGestionCamas: nullableOptional(z.number().int().nonnegative()),
-    captureHealthAfter: nullableOptional(z.number().int().nonnegative()),
-    reconciliation: nullableOptional(z.number().int().nonnegative()),
-    historicalEvidence: nullableOptional(z.number().int().nonnegative()),
-    reviewWait: nullableOptional(z.number().int().nonnegative()),
-    structuralPersistence: nullableOptional(z.number().int().nonnegative()),
-    clinicalReads: nullableOptional(z.number().int().nonnegative()),
-    writeQueueWait: nullableOptional(z.number().int().nonnegative()),
-    persistence: nullableOptional(z.number().int().nonnegative()),
-    currentClinicalPersistence: nullableOptional(z.number().int().nonnegative()),
-    historicalCudyrPersistence: nullableOptional(z.number().int().nonnegative()),
+    preflight: OptionalNonNegativeIntegerSchema,
+    dualCapture: OptionalNonNegativeIntegerSchema,
+    captureHealthBefore: OptionalNonNegativeIntegerSchema,
+    captureFichaMedico: OptionalNonNegativeIntegerSchema,
+    fichaContext: OptionalNonNegativeIntegerSchema,
+    fichaListsAndCatalog: OptionalNonNegativeIntegerSchema,
+    fichaPatientReads: OptionalNonNegativeIntegerSchema,
+    fichaDiagnosisCoding: OptionalNonNegativeIntegerSchema,
+    captureGestionCamas: OptionalNonNegativeIntegerSchema,
+    captureHealthAfter: OptionalNonNegativeIntegerSchema,
+    reconciliation: OptionalNonNegativeIntegerSchema,
+    historicalEvidence: OptionalNonNegativeIntegerSchema,
+    reviewWait: OptionalNonNegativeIntegerSchema,
+    structuralPersistence: OptionalNonNegativeIntegerSchema,
+    clinicalReads: OptionalNonNegativeIntegerSchema,
+    writeQueueWait: OptionalNonNegativeIntegerSchema,
+    persistence: OptionalNonNegativeIntegerSchema,
+    currentClinicalPersistence: OptionalNonNegativeIntegerSchema,
+    historicalCudyrPersistence: OptionalNonNegativeIntegerSchema,
   }),
   counters: z.object({
-    requests: z.number().int().nonnegative(),
-    cacheHits: z.number().int().nonnegative(),
-    patches: z.number().int().nonnegative(),
-    retries: z.number().int().nonnegative(),
-    timeouts: z.number().int().nonnegative(),
-    administrativeOverridesPreserved: nullableOptional(z.number().int().nonnegative()),
+    requests: NonNegativeIntegerSchema,
+    cacheHits: NonNegativeIntegerSchema,
+    patches: NonNegativeIntegerSchema,
+    retries: NonNegativeIntegerSchema,
+    timeouts: NonNegativeIntegerSchema,
+    administrativeOverridesPreserved: OptionalNonNegativeIntegerSchema,
   }),
   sourceQuality: nullableOptional(
     z.object({
       treatingPhysicians: nullableOptional(
         z.object({
-          encounters: z.number().int().nonnegative(),
-          catalogEntries: z.number().int().nonnegative(),
-          assignedEncounters: z.number().int().nonnegative(),
-          sourceResolvedNames: z.number().int().nonnegative(),
-          plannedResolvedNames: z.number().int().nonnegative(),
+          encounters: NonNegativeIntegerSchema,
+          catalogEntries: NonNegativeIntegerSchema,
+          assignedEncounters: NonNegativeIntegerSchema,
+          sourceResolvedNames: NonNegativeIntegerSchema,
+          plannedResolvedNames: NonNegativeIntegerSchema,
         })
       ),
     })

@@ -9,6 +9,9 @@ import {
 } from './helpers';
 import { PatientDataSchema } from './patient';
 
+const OptionalBooleanSchema = nullableOptional(z.boolean());
+const OptionalPatientDataSchema = nullableOptional(PatientDataSchema);
+
 export const IeehDataSchema = z.object({
   diagnosticoPrincipal: NullableOptionalStringSchema,
   cie10Code: NullableOptionalStringSchema,
@@ -81,9 +84,9 @@ export const DischargeDataSchema: z.ZodType<DischargeData, unknown> = z
     age: NullableOptionalStringSchema,
     insurance: NullableOptionalStringSchema,
     origin: NullableOptionalStringSchema,
-    isRapanui: nullableOptional(z.boolean()),
-    originalData: nullableOptional(PatientDataSchema),
-    isNested: nullableOptional(z.boolean()),
+    isRapanui: OptionalBooleanSchema,
+    originalData: OptionalPatientDataSchema,
+    isNested: OptionalBooleanSchema,
     ieehData: nullableOptional(IeehDataSchema),
   })
   .passthrough();
@@ -110,9 +113,9 @@ export const TransferDataSchema: z.ZodType<TransferData, unknown> = z
     age: NullableOptionalStringSchema,
     insurance: NullableOptionalStringSchema,
     origin: NullableOptionalStringSchema,
-    isRapanui: nullableOptional(z.boolean()),
-    originalData: nullableOptional(PatientDataSchema),
-    isNested: nullableOptional(z.boolean()),
+    isRapanui: OptionalBooleanSchema,
+    originalData: OptionalPatientDataSchema,
+    isNested: OptionalBooleanSchema,
   })
   .passthrough();
 
@@ -136,6 +139,6 @@ export const CMADataSchema: z.ZodType<CMAData, unknown> = z
     enteredBy: NullableOptionalStringSchema,
     timestamp: NullableOptionalStringSchema,
     originalBedId: NullableOptionalStringSchema,
-    originalData: nullableOptional(PatientDataSchema),
+    originalData: OptionalPatientDataSchema,
   })
   .passthrough();

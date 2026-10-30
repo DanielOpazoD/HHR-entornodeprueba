@@ -24,6 +24,8 @@ const SpecialtyValueSchema = z.union([
   SpecialtyEnumSchema,
   StringSchema.transform(value => value.trim()),
 ]);
+const RawSpecialtySchema = z.union([SpecialtyEnumSchema, StringSchema]);
+const OptionalRawSpecialtySchema = nullableOptional(RawSpecialtySchema);
 export const SpecialtySchema = z.preprocess(val => {
   // Migrate legacy values to the new combined specialty
   if (val === 'Ginecología' || val === 'Obstetricia') {
@@ -55,6 +57,8 @@ export const DeviceInfoSchema = z.object({
   note: NullableOptionalStringSchema,
 });
 
+const OptionalDeviceInfoSchema = nullableOptional(DeviceInfoSchema);
+
 /**
  * Cierre clínico verificado en Eloísa mientras la cama sigue ocupada. `confirmed` en el alta médica
  * o en la de enfermería habilita el recordatorio de egreso pendiente en Gestión de Camas.
@@ -81,12 +85,12 @@ export const DeviceDetailsSchema = z.preprocess(
   },
   z
     .object({
-      CUP: nullableOptional(DeviceInfoSchema),
-      CVC: nullableOptional(DeviceInfoSchema),
-      VMI: nullableOptional(DeviceInfoSchema),
-      'VVP#1': nullableOptional(DeviceInfoSchema),
-      'VVP#2': nullableOptional(DeviceInfoSchema),
-      'VVP#3': nullableOptional(DeviceInfoSchema),
+      CUP: OptionalDeviceInfoSchema,
+      CVC: OptionalDeviceInfoSchema,
+      VMI: OptionalDeviceInfoSchema,
+      'VVP#1': OptionalDeviceInfoSchema,
+      'VVP#2': OptionalDeviceInfoSchema,
+      'VVP#3': OptionalDeviceInfoSchema,
     })
     .catchall(DeviceInfoSchema)
 );
@@ -120,31 +124,33 @@ const MedicalHandoffAuditActorSchema = z.object({
   role: NullableOptionalStringSchema,
 });
 
+const OptionalMedicalHandoffAuditActorSchema = nullableOptional(MedicalHandoffAuditActorSchema);
+
 const MedicalHandoffAuditSchema = z.object({
   lastSpecialistUpdateAt: NullableOptionalStringSchema,
-  lastSpecialistUpdateBy: nullableOptional(MedicalHandoffAuditActorSchema),
-  lastSpecialistUpdateSpecialty: nullableOptional(z.union([z.nativeEnum(Specialty), StringSchema])),
+  lastSpecialistUpdateBy: OptionalMedicalHandoffAuditActorSchema,
+  lastSpecialistUpdateSpecialty: OptionalRawSpecialtySchema,
   originalNoteAt: NullableOptionalStringSchema,
-  originalNoteBy: nullableOptional(MedicalHandoffAuditActorSchema),
+  originalNoteBy: OptionalMedicalHandoffAuditActorSchema,
   currentStatus: z.enum(['updated_by_specialist', 'confirmed_current']).optional(),
   currentStatusDate: NullableOptionalStringSchema,
   currentStatusAt: NullableOptionalStringSchema,
-  currentStatusBy: nullableOptional(MedicalHandoffAuditActorSchema),
-  currentStatusSpecialty: nullableOptional(z.union([z.nativeEnum(Specialty), StringSchema])),
+  currentStatusBy: OptionalMedicalHandoffAuditActorSchema,
+  currentStatusSpecialty: OptionalRawSpecialtySchema,
 });
 
 const MedicalHandoffEntrySchema = z.object({
   id: StringSchema,
-  specialty: z.union([z.nativeEnum(Specialty), StringSchema]),
+  specialty: RawSpecialtySchema,
   note: DefaultEmptyStringSchema,
   originalNoteAt: NullableOptionalStringSchema,
-  originalNoteBy: nullableOptional(MedicalHandoffAuditActorSchema),
+  originalNoteBy: OptionalMedicalHandoffAuditActorSchema,
   updatedAt: NullableOptionalStringSchema,
-  updatedBy: nullableOptional(MedicalHandoffAuditActorSchema),
+  updatedBy: OptionalMedicalHandoffAuditActorSchema,
   currentStatus: z.enum(['updated_by_specialist', 'confirmed_current']).optional(),
   currentStatusDate: NullableOptionalStringSchema,
   currentStatusAt: NullableOptionalStringSchema,
-  currentStatusBy: nullableOptional(MedicalHandoffAuditActorSchema),
+  currentStatusBy: OptionalMedicalHandoffAuditActorSchema,
 });
 
 const ClinicalSyncFactCheckpointSchema = z.object({
@@ -274,7 +280,7 @@ export const PatientDataSchema: z.ZodType<PatientData, unknown> = z.lazy(() =>
       ginecobstetriciaType: nullableOptional(
         emptyStringToUndefined(z.enum(['Obstétrica', 'Ginecológica']))
       ),
-      secondarySpecialty: nullableOptional(z.union([z.nativeEnum(Specialty), StringSchema])),
+      secondarySpecialty: OptionalRawSpecialtySchema,
       status: z.nativeEnum(PatientStatus).prefault(PatientStatus.EMPTY),
       admissionDate: DefaultEmptyStringSchema,
       admissionTime: DefaultEmptyStringSchema,

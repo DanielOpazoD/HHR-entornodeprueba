@@ -29,6 +29,20 @@ const StringArraySchema = z.array(StringSchema);
 const TwoStaffSlotsSchema = nullishDefault(StringArraySchema, () => ['', '']);
 const ThreeStaffSlotsSchema = nullishDefault(StringArraySchema, () => ['', '', '']);
 const EmptyStringArraySchema = nullishDefault(StringArraySchema, () => []);
+const OptionalMedicalSignatureSchema = nullableOptional(
+  z.object({
+    doctorName: StringSchema,
+    signedAt: StringSchema,
+    userAgent: NullableOptionalStringSchema,
+  })
+);
+const OptionalMedicalHandoffScopesSchema = nullableOptional(
+  z.object({
+    all: NullableOptionalStringSchema,
+    upc: NullableOptionalStringSchema,
+    'no-upc': NullableOptionalStringSchema,
+  })
+);
 
 const MedicalHandoffActorSchema = z.object({
   uid: StringSchema,
@@ -346,50 +360,14 @@ export const DailyRecordSchema: z.ZodType<DailyRecord, unknown> = z.preprocess(
       ),
       medicalHandoffDoctor: NullableOptionalStringSchema,
       medicalHandoffSentAt: NullableOptionalStringSchema,
-      medicalHandoffSentAtByScope: nullableOptional(
-        z.object({
-          all: NullableOptionalStringSchema,
-          upc: NullableOptionalStringSchema,
-          'no-upc': NullableOptionalStringSchema,
-        })
-      ),
-      medicalSignatureLinkTokenByScope: nullableOptional(
-        z.object({
-          all: NullableOptionalStringSchema,
-          upc: NullableOptionalStringSchema,
-          'no-upc': NullableOptionalStringSchema,
-        })
-      ),
-      medicalSignature: nullableOptional(
-        z.object({
-          doctorName: StringSchema,
-          signedAt: StringSchema,
-          userAgent: NullableOptionalStringSchema,
-        })
-      ),
+      medicalHandoffSentAtByScope: OptionalMedicalHandoffScopesSchema,
+      medicalSignatureLinkTokenByScope: OptionalMedicalHandoffScopesSchema,
+      medicalSignature: OptionalMedicalSignatureSchema,
       medicalSignatureByScope: nullableOptional(
         z.object({
-          all: nullableOptional(
-            z.object({
-              doctorName: StringSchema,
-              signedAt: StringSchema,
-              userAgent: NullableOptionalStringSchema,
-            })
-          ),
-          upc: nullableOptional(
-            z.object({
-              doctorName: StringSchema,
-              signedAt: StringSchema,
-              userAgent: NullableOptionalStringSchema,
-            })
-          ),
-          'no-upc': nullableOptional(
-            z.object({
-              doctorName: StringSchema,
-              signedAt: StringSchema,
-              userAgent: NullableOptionalStringSchema,
-            })
-          ),
+          all: OptionalMedicalSignatureSchema,
+          upc: OptionalMedicalSignatureSchema,
+          'no-upc': OptionalMedicalSignatureSchema,
         })
       ),
       cudyrLocked: OptionalBooleanSchema,

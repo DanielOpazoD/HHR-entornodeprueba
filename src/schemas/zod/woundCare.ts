@@ -3,18 +3,20 @@
  */
 
 import * as z from 'zod';
-import { nullableOptional } from './helpers';
+import { nullableOptional, StringSchema, NullableOptionalStringSchema } from './helpers';
 
 // ============================================================================
 // Audit Actor
 // ============================================================================
 
 export const WoundCareAuditActorSchema = z.object({
-  uid: z.string(),
-  email: z.string(),
-  displayName: z.string(),
-  role: z.string(),
+  uid: StringSchema,
+  email: StringSchema,
+  displayName: StringSchema,
+  role: StringSchema,
 });
+
+const OptionalWoundCareAuditActorSchema = nullableOptional(WoundCareAuditActorSchema);
 
 // ============================================================================
 // Consent
@@ -24,21 +26,21 @@ export const ConsentStatusSchema = z.enum(['pending', 'signed', 'revoked']);
 
 export const WoundCareConsentSchema = z
   .object({
-    id: z.string(),
-    patientRut: z.string(),
-    patientName: z.string(),
-    episodeKey: z.string(),
+    id: StringSchema,
+    patientRut: StringSchema,
+    patientName: StringSchema,
+    episodeKey: StringSchema,
     status: ConsentStatusSchema,
-    consentFileStoragePath: z.string(),
-    consentFileDownloadUrl: z.string(),
-    consentFileMimeType: z.string(),
+    consentFileStoragePath: StringSchema,
+    consentFileDownloadUrl: StringSchema,
+    consentFileMimeType: StringSchema,
     consentFileSize: z.number(),
-    signedAt: z.string(),
-    uploadedAt: z.string(),
+    signedAt: StringSchema,
+    uploadedAt: StringSchema,
     uploadedBy: WoundCareAuditActorSchema,
-    revokedAt: nullableOptional(z.string()),
-    revokedBy: nullableOptional(WoundCareAuditActorSchema),
-    revocationReason: nullableOptional(z.string()),
+    revokedAt: NullableOptionalStringSchema,
+    revokedBy: OptionalWoundCareAuditActorSchema,
+    revocationReason: NullableOptionalStringSchema,
   })
   .passthrough();
 
@@ -48,28 +50,28 @@ export const WoundCareConsentSchema = z
 
 export const WoundCarePhotoSchema = z
   .object({
-    id: z.string(),
-    patientRut: z.string(),
-    patientName: z.string(),
-    episodeKey: z.string(),
-    consentId: nullableOptional(z.string()),
-    storagePath: z.string(),
-    thumbnailStoragePath: z.string(),
-    downloadUrl: z.string(),
-    thumbnailDownloadUrl: z.string(),
-    mimeType: z.string(),
+    id: StringSchema,
+    patientRut: StringSchema,
+    patientName: StringSchema,
+    episodeKey: StringSchema,
+    consentId: NullableOptionalStringSchema,
+    storagePath: StringSchema,
+    thumbnailStoragePath: StringSchema,
+    downloadUrl: StringSchema,
+    thumbnailDownloadUrl: StringSchema,
+    mimeType: StringSchema,
     originalFileSize: z.number(),
     compressedFileSize: z.number(),
     width: z.number(),
     height: z.number(),
-    description: nullableOptional(z.string()),
-    bodyLocation: nullableOptional(z.string()),
-    takenAt: z.string(),
-    uploadedAt: z.string(),
+    description: NullableOptionalStringSchema,
+    bodyLocation: NullableOptionalStringSchema,
+    takenAt: StringSchema,
+    uploadedAt: StringSchema,
     uploadedBy: WoundCareAuditActorSchema,
-    uploadedViaSessionId: nullableOptional(z.string()),
-    deletedAt: nullableOptional(z.string()),
-    deletedBy: nullableOptional(WoundCareAuditActorSchema),
+    uploadedViaSessionId: NullableOptionalStringSchema,
+    deletedAt: NullableOptionalStringSchema,
+    deletedBy: OptionalWoundCareAuditActorSchema,
     isDeleted: z.boolean().prefault(false),
   })
   .passthrough();
@@ -80,17 +82,17 @@ export const WoundCarePhotoSchema = z
 
 export const WoundCareMobileUploadSessionSchema = z
   .object({
-    sessionId: z.string(),
-    hospitalId: z.string(),
-    episodeKey: z.string(),
-    patientRut: z.string(),
-    patientName: z.string(),
+    sessionId: StringSchema,
+    hospitalId: StringSchema,
+    episodeKey: StringSchema,
+    patientRut: StringSchema,
+    patientName: StringSchema,
     createdBy: WoundCareAuditActorSchema,
-    createdAt: z.string(),
-    expiresAt: z.string(),
+    createdAt: StringSchema,
+    expiresAt: StringSchema,
     scope: z.literal('wound_care_upload_only'),
-    revokedAt: nullableOptional(z.string()),
-    revokedBy: nullableOptional(WoundCareAuditActorSchema),
+    revokedAt: NullableOptionalStringSchema,
+    revokedBy: OptionalWoundCareAuditActorSchema,
   })
   .passthrough();
 
