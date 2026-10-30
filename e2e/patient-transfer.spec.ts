@@ -49,7 +49,7 @@ test.describe('Patient Transfer Flow', () => {
   test('should render transfer workspace with available patient context', async ({ page }) => {
     await expect(page.locator('main')).toContainText(/traslado|transfer/i);
     await expect(page.locator('main')).toContainText(
-      /No hay traslados registrados para hoy|Traslados/i
+      /Sin registros para el día seleccionado|Traslados/i
     );
     await expect(page.locator('[data-testid="patient-row"][data-bed-id="R1"]').first()).toBeVisible(
       {

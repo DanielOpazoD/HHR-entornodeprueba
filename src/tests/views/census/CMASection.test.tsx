@@ -90,9 +90,7 @@ describe('CMASection', () => {
 
   it('renders empty state when there are no CMA records', () => {
     render(<CMASection />);
-    expect(
-      screen.getByText(/No hay registros de Hospitalización Diurna para hoy/)
-    ).toBeInTheDocument();
+    expect(screen.getByText('Sin registros para el día seleccionado.')).toBeInTheDocument();
   });
 
   it('updates intervention type and discharge time fields', () => {
