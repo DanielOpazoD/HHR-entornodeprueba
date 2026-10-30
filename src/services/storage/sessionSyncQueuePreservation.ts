@@ -37,8 +37,7 @@ const preserveSessionSyncQueue = async (ownerKey: string | null): Promise<void> 
         ? {
             ...clearSyncTaskRuntimeState(),
             status: 'FAILED' as const,
-            error:
-              'Sesión cerrada. Revisa los cambios pendientes con su usuario original antes de reintentar.',
+            error: 'Sesión cerrada. Revisa los cambios pendientes con su usuario original.',
             lastErrorCode: 'session_owner_logged_out',
             lastErrorCategory: 'authorization' as const,
             lastErrorSeverity: 'medium' as const,
@@ -59,7 +58,8 @@ export const clearSessionDailyRecords = async (ownerKey: string | null): Promise
     await ensureDbReady();
     if (isDatabaseInFallbackMode()) {
       // No transaction spans the fallback store. Days go first: patient data leaves this browser
-      // even if the queue step fails, and a failed clear has not changed the queue.
+      // even if the queue step fails, and a failed clear has not changed the queue. The pending
+      // cleanup keeps the queue worker out until this step succeeds on retry.
       localPersistence.records.clear();
       await hospitalDB.transaction('rw', hospitalDB.syncQueue, () =>
         preserveSessionSyncQueue(ownerKey)

@@ -143,6 +143,8 @@ export interface SyncRuntimePort {
   isOnline(): boolean;
   onOnline(callback: () => void): void;
   getOwnerKey(): string | null;
+  /** The session's local cleanup is unfinished: queue work neither starts nor confirms. */
+  isSessionClosing?(): boolean;
 }
 
 export interface SyncTransportPort {

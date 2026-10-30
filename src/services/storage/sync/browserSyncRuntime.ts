@@ -1,7 +1,10 @@
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { startBrowserSyncWakeup } from './browserSyncWakeup';
 import type { SyncRuntimePort } from '@/services/storage/sync/syncQueuePorts';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
+import {
+  getStoredSessionOwnerKey,
+  isSessionCleanupPending,
+} from '@/services/storage/sessionOwnerKey';
 
 export const createBrowserSyncRuntime = (): SyncRuntimePort => {
   let onlineListenerRegistered = false;
@@ -21,5 +24,6 @@ export const createBrowserSyncRuntime = (): SyncRuntimePort => {
       onlineListenerRegistered = true;
     },
     getOwnerKey: () => getStoredSessionOwnerKey(),
+    isSessionClosing: isSessionCleanupPending,
   };
 };

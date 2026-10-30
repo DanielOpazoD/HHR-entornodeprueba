@@ -166,9 +166,41 @@ it('offers retirement with a backup, not a retry, for a census a closed session 
   fireEvent.click(screen.getByText('Guardado local · 1 por enviar'));
   const [blocked] = screen.getAllByRole('listitem');
   expect(within(blocked).getByText('Sesión cerrada')).toBeVisible();
-  expect(within(blocked).getByText(/descarga su respaldo/)).toBeVisible();
+  expect(within(blocked).getByText(/quedó pendiente al cerrar sesión/)).toBeVisible();
+  expect(within(blocked).getByText(/No se puede reenviar/)).toBeVisible();
+  expect(within(blocked).queryByText(/antes de reenviarlos/)).not.toBeInTheDocument();
+  expect(within(blocked).queryByText(/versión del servidor/)).not.toBeInTheDocument();
   expect(within(blocked).getByRole('button', { name: 'Descartar envío' })).toBeVisible();
   expect(within(blocked).queryByRole('button', { name: /reintentar/i })).not.toBeInTheDocument();
   expect(within(blocked).queryByText('Revisar reintento')).not.toBeInTheDocument();
   expect(retryQuarantinedSyncTask).not.toHaveBeenCalled();
+});
+
+it('never promises a resend for a released census that kept an earlier diagnosis', () => {
+  render(
+    <RayenSyncQueueDetails
+      stats={{ pending: 0, failed: 1, conflict: 0, retrying: 0, acked: 0, oldestPendingAgeMs: 0 }}
+      operations={[
+        {
+          id: 45,
+          type: 'UPDATE_DAILY_RECORD',
+          status: 'FAILED',
+          retryCount: 0,
+          timestamp: 1,
+          key: 'daily:2026-10-24',
+          lastErrorCategory: 'validation',
+          lastErrorCode: 'functions/failed-precondition',
+          projectionReleased: true,
+        },
+      ]}
+      working={false}
+      refresh={vi.fn().mockResolvedValue(undefined)}
+    />
+  );
+  fireEvent.click(screen.getByText('Guardado local · 1 por enviar'));
+  const [blocked] = screen.getAllByRole('listitem');
+  expect(within(blocked).getByText('Sin copia local')).toBeVisible();
+  expect(within(blocked).getByText(/No se puede reenviar/)).toBeVisible();
+  expect(within(blocked).queryByText(/antes de reenviarlos/)).not.toBeInTheDocument();
+  expect(within(blocked).getByRole('button', { name: 'Descartar envío' })).toBeVisible();
 });
