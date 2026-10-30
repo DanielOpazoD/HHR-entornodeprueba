@@ -96,9 +96,10 @@ describe('bundle budget config', () => {
     const config = readBundleBudgetConfig();
 
     // Preserve offline clinical validation with the measured security-upgrade allowance,
-    // plus note replay and the bounded 2 KiB shared crash-cart checklist allowance.
+    // plus note replay, the bounded 2 KiB shared crash-cart checklist allowance and the census
+    // program's measured uses.
     expect(config.precacheMaxBytes).toBe(
-      4840192 + 2048 + 67840 + 31744 + 2048 + 8192 + 40960 + 38912 + 8192 + 4096 + 2048
+      4840192 + 2048 + 67840 + 31744 + 2048 + 8192 + 40960 + 38912 + 8192 + 4096 + 2048 + 512
     );
     expect(findBudget(config, '^vendor-zod-.*\\.js$')).toMatchObject({ maxBytes: 96000 });
     expect(
