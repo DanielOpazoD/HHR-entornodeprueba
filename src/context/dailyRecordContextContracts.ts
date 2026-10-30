@@ -122,7 +122,7 @@ export interface DailyRecordBedActions {
 export interface DailyRecordStaffActions {
   updateNurse: (shift: 'day' | 'night', index: number, name: string) => void;
   updateTens: (shift: 'day' | 'night', index: number, name: string) => void;
-  updateDetailedStaffing: (detail: DailyRecordStaffingDetailsV1) => void;
+  updateDetailedStaffing: (detail: DailyRecordStaffingDetailsV1) => Promise<void> | void;
 }
 
 export interface DailyRecordMovementActions extends PatientMovementActions {

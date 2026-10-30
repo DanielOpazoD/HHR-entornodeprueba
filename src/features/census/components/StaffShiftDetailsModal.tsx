@@ -1,6 +1,7 @@
 import React from 'react';
 import { Clock3, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
+import { createScopedLogger } from '@/services/utils/loggerScope';
 import { getShiftSchedule } from '@/utils/clinicalDayUtils';
 import type {
   DailyRecordStaffingDetailsV1,
@@ -18,6 +19,8 @@ import {
   buildResolvedStaffSelectionOptions,
   normalizeStaffSelectionValue,
 } from '@/services/staff/staffSelectionPresentation';
+
+const staffShiftDetailsLogger = createScopedLogger('StaffShiftDetailsModal');
 
 interface StaffShiftDetailsModalProps {
   isOpen: boolean;
@@ -215,6 +218,9 @@ export const StaffShiftDetailsModal: React.FC<StaffShiftDetailsModalProps> = ({
     try {
       await onSave(draft);
       onClose();
+    } catch (error) {
+      // The save already told the user. The modal stays open, ready to retry.
+      staffShiftDetailsLogger.warn('Staffing details save failed', error);
     } finally {
       setIsSaving(false);
     }

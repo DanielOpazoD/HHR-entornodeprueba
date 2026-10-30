@@ -194,6 +194,47 @@ describe('useDailyRecordQuery', () => {
     }
   );
 
+  it('keeps edits blocked without a stray rejection when the resume read fails, then recovers', async () => {
+    const unhandled = vi.fn();
+    process.on('unhandledRejection', unhandled);
+    const dailyRecord = buildMockDailyRecordRepository();
+    const confirmed = createDailyRecordReadResult(date, mockRecord, 'firestore', {
+      serverConfirmed: true,
+    });
+    vi.mocked(dailyRecord.getForDateWithMeta)
+      .mockResolvedValueOnce(confirmed)
+      .mockRejectedValueOnce(new Error('sin conexión con el servidor'))
+      .mockResolvedValue(confirmed);
+    const { result, unmount } = renderHook(() => useDailyRecordQuery(date, false, 'ready'), {
+      wrapper: createWrapper(dailyRecord),
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    const returnToStaleTab = async (now: number) => {
+      act(() => {
+        focusManager.setFocused(false);
+        markDailyRecordTabHidden(now - 360000);
+      });
+      vi.spyOn(Date, 'now').mockReturnValue(now);
+      await act(async () => {
+        focusManager.setFocused(true);
+        window.dispatchEvent(new Event('focus'));
+      });
+    };
+    const startedAt = Date.parse('2026-04-03T12:00:00.000Z');
+
+    await returnToStaleTab(startedAt + 360000);
+    await waitFor(() =>
+      expect(getDailyRecordFreshnessStatus(date)).toBe('blocked_until_remote_check')
+    );
+    await act(() => new Promise(resolve => setTimeout(resolve, 0)));
+    expect(unhandled).not.toHaveBeenCalled();
+
+    await returnToStaleTab(startedAt + 720000);
+    await waitFor(() => expect(getDailyRecordFreshnessStatus(date)).toBe('fresh_remote_confirmed'));
+    process.off('unhandledRejection', unhandled);
+    unmount();
+  });
+
   it('reads the daily record locally when remote sync is not ready', async () => {
     const dailyRecord = buildMockDailyRecordRepository();
     vi.mocked(dailyRecord.getForDateWithMeta).mockResolvedValue(

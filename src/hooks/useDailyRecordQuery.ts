@@ -129,7 +129,10 @@ export const useDailyRecordQuery = (
         queryClient.getQueryData<DailyRecordQueryResult>(getDailyRecordQueryKey(date))?.record ??
           null
       );
-      void ensureFreshDailyRecordQuery(date, { dailyRecord, queryClient }, 'resume');
+      // The gate already recorded a failed read and keeps clinical edits blocked until one confirms.
+      void ensureFreshDailyRecordQuery(date, { dailyRecord, queryClient }, 'resume').catch(
+        () => {}
+      );
     };
 
     const handleVisibilityChange = () => {
