@@ -35,10 +35,10 @@ export const MovementsSummary: React.FC<MovementsSummaryProps> = ({
   const { discharges, transfers, cma } = movementsSummaryViewModel;
 
   return (
-    <div className="min-w-0 w-full space-y-4 print:space-y-2 print:text-[11px] print:leading-tight">
+    <div className="handoff-movements min-w-0 w-full space-y-4 print:space-y-2 print:text-[11px] print:leading-tight">
       {/* Discharges - Filtered by shift */}
-      <div className="min-w-0 max-w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 p-4 print:rounded-xl print:p-0 print:shadow-none print:border-none print:bg-transparent">
-        <h3 className="font-semibold text-sm text-slate-700 mb-3 flex items-center gap-2 print:font-bold print:text-sm print:mb-1 print:text-black">
+      <div className="handoff-movement" data-empty={discharges.items.length === 0}>
+        <h3 className="handoff-movement-title">
           <UserMinus
             size={16}
             className="shrink-0 text-teal-600 print:w-4 print:h-4 print:text-red-500"
@@ -47,9 +47,7 @@ export const MovementsSummary: React.FC<MovementsSummaryProps> = ({
           Altas
         </h3>
         {discharges.items.length === 0 ? (
-          <p className="rounded-lg bg-slate-50 px-3 py-2 text-slate-500 text-sm leading-5 print:rounded-none print:bg-transparent print:p-0 print:text-slate-400 print:italic print:text-[10px]">
-            {discharges.emptyMessage}
-          </p>
+          <p className="handoff-movement-empty">{discharges.emptyMessage}</p>
         ) : (
           <div
             className="max-w-full overflow-x-auto print:overflow-visible"
@@ -57,22 +55,22 @@ export const MovementsSummary: React.FC<MovementsSummaryProps> = ({
             aria-label="Altas del turno"
             tabIndex={0}
           >
-            <table className="w-full min-w-[720px] table-fixed text-left text-sm print:text-[10px] border-collapse print:min-w-0 print:[&_th]:p-1 print:[&_td]:p-1 [&_td]:align-top [&_td]:whitespace-normal [&_td]:[overflow-wrap:anywhere]">
+            <table className="handoff-movement-table">
               <thead>
-                <tr className="border-b border-slate-200 text-slate-500 text-xs uppercase font-bold">
+                <tr>
                   <th scope="col" className="w-[8%] p-2 border-r border-slate-200 print:w-12">
                     Cama
                   </th>
-                  <th scope="col" className="w-[23%] p-2 border-r border-slate-200 print:w-40">
+                  <th scope="col" className="w-[22%] p-2 border-r border-slate-200 print:w-40">
                     Paciente / Rut
                   </th>
-                  <th scope="col" className="w-[31%] p-2 border-r border-slate-200 print:w-56">
+                  <th scope="col" className="w-[25%] p-2 border-r border-slate-200 print:w-56">
                     Diagnóstico
                   </th>
-                  <th scope="col" className="w-[20%] p-2 border-r border-slate-200">
+                  <th scope="col" className="w-[25%] p-2 border-r border-slate-200">
                     Tipo de alta
                   </th>
-                  <th scope="col" className="w-[8%] p-2 border-r border-slate-200 print:w-20">
+                  <th scope="col" className="w-[10%] p-2 border-r border-slate-200 print:w-20">
                     Estado
                   </th>
                   <th scope="col" className="w-[10%] p-2 print:w-20">
@@ -108,8 +106,8 @@ export const MovementsSummary: React.FC<MovementsSummaryProps> = ({
       </div>
 
       {/* Transfers - Filtered by shift */}
-      <div className="min-w-0 max-w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 p-4 print:rounded-xl print:p-0 print:shadow-none print:border-none print:bg-transparent">
-        <h3 className="font-semibold text-sm text-slate-700 mb-3 flex items-center gap-2 print:font-bold print:text-sm print:mb-1 print:text-black">
+      <div className="handoff-movement" data-empty={transfers.items.length === 0}>
+        <h3 className="handoff-movement-title">
           <ArrowRightLeft
             size={16}
             className="shrink-0 text-teal-600 print:w-4 print:h-4 print:text-blue-500"
@@ -118,9 +116,7 @@ export const MovementsSummary: React.FC<MovementsSummaryProps> = ({
           Traslados
         </h3>
         {transfers.items.length === 0 ? (
-          <p className="rounded-lg bg-slate-50 px-3 py-2 text-slate-500 text-sm leading-5 print:rounded-none print:bg-transparent print:p-0 print:text-slate-400 print:italic print:text-[10px]">
-            {transfers.emptyMessage}
-          </p>
+          <p className="handoff-movement-empty">{transfers.emptyMessage}</p>
         ) : (
           <div
             className="max-w-full overflow-x-auto print:overflow-visible"
@@ -128,28 +124,28 @@ export const MovementsSummary: React.FC<MovementsSummaryProps> = ({
             aria-label="Traslados del turno"
             tabIndex={0}
           >
-            <table className="w-full min-w-[720px] table-fixed text-left text-sm print:text-[10px] border-collapse print:min-w-0 print:[&_th]:p-1 print:[&_td]:p-1 [&_td]:align-top [&_td]:whitespace-normal [&_td]:[overflow-wrap:anywhere]">
+            <table className="handoff-movement-table">
               <thead>
-                <tr className="border-b border-slate-200 text-slate-500 text-xs uppercase font-bold">
-                  <th scope="col" className="w-[7%] p-2 border-r border-slate-200 print:w-12">
+                <tr>
+                  <th scope="col" className="w-[8%] p-2 border-r border-slate-200 print:w-12">
                     Cama
                   </th>
-                  <th scope="col" className="w-[21%] p-2 border-r border-slate-200 print:w-32">
+                  <th scope="col" className="w-[22%] p-2 border-r border-slate-200 print:w-32">
                     Paciente / Rut
                   </th>
                   <th scope="col" className="w-[25%] p-2 border-r border-slate-200 print:w-40">
                     Diagnóstico
                   </th>
-                  <th scope="col" className="w-[12%] p-2 border-r border-slate-200 print:w-20">
+                  <th scope="col" className="w-[10%] p-2 border-r border-slate-200 print:w-20">
                     Medio
                   </th>
                   <th scope="col" className="w-[15%] p-2 border-r border-slate-200 print:w-32">
                     Centro Destino
                   </th>
-                  <th scope="col" className="w-[11%] p-2 border-r border-slate-200 print:w-24">
+                  <th scope="col" className="w-[10%] p-2 border-r border-slate-200 print:w-24">
                     Acompañante
                   </th>
-                  <th scope="col" className="w-[9%] p-2 print:w-20">
+                  <th scope="col" className="w-[10%] p-2 print:w-20">
                     Hora Egreso
                   </th>
                 </tr>
@@ -185,8 +181,8 @@ export const MovementsSummary: React.FC<MovementsSummaryProps> = ({
       </div>
 
       {/* CMA - Day shift only */}
-      <div className="min-w-0 max-w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 p-4 print:rounded-xl print:p-0 print:shadow-none print:border-none print:bg-transparent">
-        <h3 className="font-semibold text-sm text-slate-700 mb-3 flex items-center gap-2 print:font-bold print:text-sm print:mb-1 print:text-black">
+      <div className="handoff-movement" data-empty={cma.items.length === 0}>
+        <h3 className="handoff-movement-title">
           <Sun
             size={16}
             className="shrink-0 text-teal-600 print:w-4 print:h-4 print:text-orange-500"
@@ -195,9 +191,7 @@ export const MovementsSummary: React.FC<MovementsSummaryProps> = ({
           Hospitalización Diurna / CMA
         </h3>
         {cma.items.length === 0 ? (
-          <p className="rounded-lg bg-slate-50 px-3 py-2 text-slate-500 text-sm leading-5 print:rounded-none print:bg-transparent print:p-0 print:text-slate-400 print:italic print:text-[10px]">
-            {cma.emptyMessage}
-          </p>
+          <p className="handoff-movement-empty">{cma.emptyMessage}</p>
         ) : (
           <div
             className="max-w-full overflow-x-auto print:overflow-visible"
@@ -205,19 +199,19 @@ export const MovementsSummary: React.FC<MovementsSummaryProps> = ({
             aria-label="Hospitalización diurna / CMA"
             tabIndex={0}
           >
-            <table className="w-full min-w-[720px] table-fixed text-left text-sm print:text-[10px] border-collapse print:min-w-0 print:[&_th]:p-1 print:[&_td]:p-1 [&_td]:align-top [&_td]:whitespace-normal [&_td]:[overflow-wrap:anywhere]">
+            <table className="handoff-movement-table">
               <thead>
-                <tr className="border-b border-slate-200 text-slate-500 text-xs uppercase font-bold">
-                  <th scope="col" className="w-[9%] p-2 border-r border-slate-200 print:w-16">
+                <tr>
+                  <th scope="col" className="w-[8%] p-2 border-r border-slate-200 print:w-16">
                     Cama
                   </th>
-                  <th scope="col" className="w-[26%] p-2 border-r border-slate-200 print:w-56">
+                  <th scope="col" className="w-[22%] p-2 border-r border-slate-200 print:w-56">
                     Paciente / Rut
                   </th>
-                  <th scope="col" className="w-[39%] p-2 border-r border-slate-200 print:w-72">
+                  <th scope="col" className="w-[25%] p-2 border-r border-slate-200 print:w-72">
                     Diagnóstico
                   </th>
-                  <th scope="col" className="w-[26%] p-2">
+                  <th scope="col" className="w-[45%] p-2">
                     Tipo
                   </th>
                 </tr>

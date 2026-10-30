@@ -56,7 +56,7 @@ export const HandoffPatientCell: React.FC<HandoffPatientCellProps> = ({ patient,
   const photoCountDescription = describePhotoCount(photoCount);
 
   return (
-    <td className="p-2 border-r border-slate-200/60 min-w-[150px] align-middle print:min-w-0 print:w-auto print:text-[10px] print:p-1">
+    <td className="handoff-patient-cell p-2 border-r border-slate-200/60 min-w-[150px] align-middle print:min-w-0 print:w-auto print:text-[10px] print:p-1">
       <div className="font-medium text-slate-800 flex flex-col gap-0.5 leading-snug print:leading-none">
         <div className="flex items-center gap-1 flex-wrap">
           {isSubRow && <Baby size={14} className="text-pink-400 print:hidden" />}

@@ -220,3 +220,13 @@ Rollback: revertir el cambio completo de dependencias y adaptadores; restaurar
 versiones vulnerables vuelve a bloquear la auditoría y no constituye cierre del incidente.
 Gates: `typecheck`, `lint`, `ci:release-gate`, `test:release-confidence` y
 `check:dependency-vulnerabilities`, con scorecard del commit final.
+
+La cohesión visual de la entrega de enfermería es `safe_local_ui`: encabezado y
+checklists alineados, jerarquía de pacientes, columnas comunes de movimientos,
+secciones vacías compactas, foco de observaciones y cama fija al desplazar la tabla.
+Conserva campos, filtros de turno, permisos, debounce y persistencia. Verificar
+escritorio, portátil y móvil con nombres y diagnósticos largos; ambos turnos,
+casillas y fecha de próximo conteo, edición/recarga, lectura sola, teclado y contexto
+de cama tras desplazamiento. Impresión y PDF conservan todo el contenido; el aviso
+de desplazamiento y la posición fija sólo corresponden a pantalla. Exige pruebas
+focalizadas, build/budgets sin ampliar límites, revisión independiente y CI del SHA final.

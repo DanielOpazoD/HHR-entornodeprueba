@@ -113,8 +113,9 @@ export const HandoffRow: React.FC<HandoffRowProps> = ({
 
   return (
     <tr
+      data-nested={isSubRow}
       className={clsx(
-        'border-b border-slate-100/80 hover:bg-blue-50/30 transition-all duration-150 text-sm print:last:border-b-0',
+        'handoff-patient-row border-b border-slate-100/80 hover:bg-blue-50/30 transition-all duration-150 text-sm print:last:border-b-0',
         isSubRow ? 'bg-pink-50/40 print:!bg-white' : 'bg-white'
       )}
     >
