@@ -25,6 +25,7 @@ vi.mock('@/firebaseConfig', () => ({
   auth: null,
 }));
 
+import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositoryReadService';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import {
@@ -32,7 +33,6 @@ import {
   getRecordForDate,
   saveRecord,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
-import { clearAllSyncQueue } from '@/services/storage/sync';
 
 const buildRecord = (date: string, lastUpdated: string): DailyRecord => ({
   date,
@@ -112,7 +112,7 @@ describeEmulator('Firestore discharge-bed consistency flow', () => {
   beforeEach(async () => {
     await testEnv.clearFirestore();
     await clearAllRecords();
-    await clearAllSyncQueue();
+    await hospitalDB.syncQueue.clear();
     setFirestoreEnabled(true);
     activeDb = nurseDb;
   });

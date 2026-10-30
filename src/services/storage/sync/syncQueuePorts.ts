@@ -131,8 +131,6 @@ export interface SyncQueueStorePort {
     authoritativeRecord?: DailyRecord,
     detachedConflicts?: SyncTask[]
   ): Promise<boolean>;
-  deleteAll(): Promise<void>;
-  deleteByOwner(ownerKey: string | null): Promise<void>;
   readTelemetryInputs(ownerKey: string | null): Promise<{
     rows: SyncQueueTelemetryRow[];
     foreignCount: number;

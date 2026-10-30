@@ -8,8 +8,6 @@ export {
   completeDirectDailyRecordSyncTask,
   ackDailyRecordSyncTask,
   adoptAuthoritativeDailyRecordAtomically,
-  clearAllSyncQueue,
-  clearSyncQueueForOwner,
   discardQuarantinedSyncTask,
   retryQuarantinedSyncTask,
   ensureSyncQueueOnlineListener,

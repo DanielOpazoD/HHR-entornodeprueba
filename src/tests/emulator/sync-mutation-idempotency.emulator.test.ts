@@ -36,11 +36,11 @@ vi.mock('@/services/storage/firestore/dailyRecordAuthorityCallableClient', () =>
     mockAuthorityCallable(...args),
 }));
 
+import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { clearAllRecords, saveRecord } from '@/services/storage/indexeddb/indexedDbRecordService';
 import {
-  clearAllSyncQueue,
   getSyncQueueStats,
   processSyncQueue,
   queueDailyRecordSyncTaskWithLocalRecord,
@@ -120,7 +120,7 @@ describeEmulator('Firestore emulator mutation idempotency', () => {
   beforeEach(async () => {
     await testEnv.clearFirestore();
     await clearAllRecords();
-    await clearAllSyncQueue();
+    await hospitalDB.syncQueue.clear();
     mockAuthorityCallable.mockReset();
     mockAuthorityCallable.mockImplementation(
       async ({ date, mode, record }: { date: string; mode: 'enforced'; record: DailyRecord }) => ({

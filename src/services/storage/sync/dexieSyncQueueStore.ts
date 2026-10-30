@@ -336,17 +336,6 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
       dispatchDailyRecordStoreChanged({ operation: 'save', dates: [result.noteProjectionDate] });
     return result.deleted;
   },
-  async deleteAll() {
-    await hospitalDB.syncQueue.clear();
-  },
-  async deleteByOwner(ownerKey) {
-    await hospitalDB.syncQueue
-      .filter(
-        task =>
-          task.retirement?.reason !== 'manual_discard' && matchesOwner(ownerKey, task.ownerKey)
-      )
-      .delete();
-  },
   async readTelemetryInputs(ownerKey) {
     const rows: SyncQueueTelemetryRow[] = [];
     let foreignCount = 0;

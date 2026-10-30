@@ -380,46 +380,6 @@ export const processSyncQueue = async (): Promise<void> => {
   }
 };
 
-export const clearSyncQueueForOwner = async (ownerKey: string | null, strict = false) => {
-  try {
-    await ensureDbReady();
-    await syncQueueStore.deleteByOwner(ownerKey);
-  } catch (error) {
-    syncObservability.logger.error('Failed to clear sync queue for owner', error);
-    recordOperationalTelemetry({
-      category: 'sync',
-      operation: 'sync_queue_owner_clear_failure',
-      status: 'failed',
-      runtimeState: 'blocked',
-      issues: [
-        toSyncIssueMessage(error, 'La cola de sincronizacion no pudo limpiarse para esta sesion.'),
-      ],
-      context: {
-        ownerKey,
-      },
-    });
-    if (strict) throw error;
-  }
-};
-
-export const clearAllSyncQueue = async (): Promise<void> => {
-  try {
-    await ensureDbReady();
-    await syncQueueStore.deleteAll();
-  } catch (error) {
-    syncObservability.logger.error('Failed to clear full sync queue', error);
-    recordOperationalTelemetry({
-      category: 'sync',
-      operation: 'sync_queue_clear_all_failure',
-      status: 'failed',
-      runtimeState: 'blocked',
-      issues: [
-        toSyncIssueMessage(error, 'La cola de sincronizacion no pudo limpiarse por completo.'),
-      ],
-    });
-  }
-};
-
 export const ensureSyncQueueOnlineListener = (): void => {
   syncQueueEngine.ensureOnlineListener();
 };
