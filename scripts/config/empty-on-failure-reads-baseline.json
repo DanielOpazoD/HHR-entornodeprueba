@@ -21,7 +21,6 @@
     "src/services/storage/indexeddb/indexedDbAuditLogService.ts::getAuditLogsForDate",
     "src/services/storage/indexeddb/indexedDbAuditLogService.ts::getAuditLogsInRange",
     "src/services/storage/indexeddb/indexedDbCatalogService.ts::getCatalogValues",
-    "src/services/storage/indexeddb/indexedDbErrorLogService.ts::getErrorLogs",
     "src/services/storage/indexeddb/indexedDbRecordService.ts::getAllDates",
     "src/services/storage/indexeddb/indexedDbRecordService.ts::getAllRecords",
     "src/services/storage/indexeddb/indexedDbRecordService.ts::getAllRecordsSorted",

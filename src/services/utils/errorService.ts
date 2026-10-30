@@ -100,7 +100,11 @@ class ErrorService {
         stack: event.reason?.stack,
         context: {
           type: 'unhandledrejection',
-          reason: event.reason,
+          // An Error clones and serializes to nothing useful; keep its cause readable locally.
+          reason:
+            event.reason instanceof Error
+              ? { name: event.reason.name, message: event.reason.message }
+              : event.reason,
         },
       });
     });

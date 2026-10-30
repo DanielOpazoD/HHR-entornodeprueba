@@ -54,7 +54,8 @@ export const useSystemHealthReporter = (enabled = true) => {
 
     const reportHealth = async () => {
       try {
-        const logs = await fetchErrorLogs(100);
+        // The store records its own failed read. The rest of the report remains known.
+        const logs = await fetchErrorLogs(100).catch(() => []);
         const localErrorCount = logs.length;
         const [syncTelemetry, recentSyncOperations] = await Promise.all([
           getSyncQueueTelemetry(),

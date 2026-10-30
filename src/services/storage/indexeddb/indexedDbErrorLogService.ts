@@ -30,7 +30,7 @@ export const getErrorLogs = async (limit = 50): Promise<ErrorLog[]> => {
       userSafeMessage: 'No fue posible recuperar logs de errores locales.',
       context: { limit },
     });
-    return [];
+    throw error;
   }
 };
 
@@ -45,5 +45,6 @@ export const clearErrorLogs = async (): Promise<void> => {
       severity: 'warning',
       userSafeMessage: 'No fue posible limpiar logs de errores locales.',
     });
+    throw error;
   }
 };
