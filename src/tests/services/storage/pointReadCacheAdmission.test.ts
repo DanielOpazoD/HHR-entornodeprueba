@@ -5,6 +5,8 @@ import * as indexedDbCore from '@/services/storage/indexeddb/indexedDbCore';
 import { localPersistence } from '@/services/storage/localpersistence/localPersistenceService';
 import {
   captureLocalRecordBase,
+  getRecordForDate,
+  getRecordForDateStrict,
   inspectLocalRecordAdmission,
   saveRecordStrict,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
@@ -123,6 +125,14 @@ describe('atomic point read cache admission', () => {
       new Error('Synthetic IDB failure')
     );
     expect(await captureLocalRecordBase(date)).toEqual({ kind: 'unknown' });
+  });
+
+  it('preserves the legacy nullable read while strict and captured reads expose a failure', async () => {
+    const failure = new Error('Synthetic legacy IDB failure');
+    vi.spyOn(hospitalDB.dailyRecords, 'get').mockRejectedValue(failure);
+    expect(await getRecordForDate(date)).toBeNull();
+    expect(await captureLocalRecordBase(date)).toEqual({ kind: 'unknown' });
+    await expect(getRecordForDateStrict(date)).rejects.toBe(failure);
   });
 
   it('checks and preserves the synchronous fallback row when it changes during a read', async () => {

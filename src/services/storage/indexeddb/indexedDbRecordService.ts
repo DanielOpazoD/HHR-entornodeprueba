@@ -145,24 +145,32 @@ export const getRecordForDateStrict = async (date: string): Promise<DailyRecord 
   return record || null;
 };
 
+const reportRecordReadFailure = (date: string, error: unknown): void => {
+  recordOperationalErrorTelemetry('indexeddb', 'indexeddb_get_record_for_date', error, {
+    code: 'indexeddb_get_record_for_date_failed',
+    message: `No fue posible obtener el registro del dia ${date}.`,
+    severity: 'warning',
+    userSafeMessage: 'No fue posible recuperar el registro solicitado.',
+    context: { date },
+  });
+};
+
 export const captureLocalRecordBase = async (date: string): Promise<LocalRecordBase> => {
   try {
     return { kind: 'stored', record: await getRecordForDateStrict(date) };
   } catch (error) {
-    recordOperationalErrorTelemetry('indexeddb', 'indexeddb_get_record_for_date', error, {
-      code: 'indexeddb_get_record_for_date_failed',
-      message: `No fue posible obtener el registro del dia ${date}.`,
-      severity: 'warning',
-      userSafeMessage: 'No fue posible recuperar el registro solicitado.',
-      context: { date },
-    });
+    reportRecordReadFailure(date, error);
     return { kind: 'unknown' };
   }
 };
 
 export const getRecordForDate = async (date: string): Promise<DailyRecord | null> => {
-  const base = await captureLocalRecordBase(date);
-  return base.kind === 'stored' ? base.record : null;
+  try {
+    return await getRecordForDateStrict(date);
+  } catch (error) {
+    reportRecordReadFailure(date, error);
+    return null;
+  }
 };
 
 const admitsPointRead = (
