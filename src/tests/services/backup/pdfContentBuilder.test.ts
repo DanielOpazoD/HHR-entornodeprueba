@@ -172,7 +172,7 @@ describe('pdfContentBuilder', () => {
 
     expect(mockDoc.addPage).toHaveBeenCalled();
     expect(mockDoc.text).toHaveBeenCalledWith(
-      'NOVEDADES DEL TURNO',
+      'Novedades & Pendientes',
       expect.any(Number),
       expect.any(Number)
     );

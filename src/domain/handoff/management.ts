@@ -20,12 +20,17 @@ export const normalizeMedicalHandoffActor = (
 
 export const buildChecklistUpdateRecord = (
   record: DailyRecord,
-  shift: 'day' | 'night',
+  shift: 'day' | 'night' | 'shared',
   field: string,
   value: boolean | string
 ): DailyRecord => {
   const updatedRecord = { ...record };
-  if (shift === 'day') {
+  if (shift === 'shared') {
+    updatedRecord.handoffSharedChecklist = {
+      ...record.handoffSharedChecklist,
+      [field]: value,
+    };
+  } else if (shift === 'day') {
     updatedRecord.handoffDayChecklist = {
       ...updatedRecord.handoffDayChecklist,
       [field]: value as boolean,
@@ -200,11 +205,16 @@ export const buildResetMedicalHandoffRecord = (record: DailyRecord): DailyRecord
 // ---------------------------------------------------------------------------
 
 export const buildChecklistPatch = (
-  shift: 'day' | 'night',
+  shift: 'day' | 'night' | 'shared',
   field: string,
   value: boolean | string
 ): DailyRecordPatch => {
-  const key = shift === 'day' ? 'handoffDayChecklist' : 'handoffNightChecklist';
+  const key =
+    shift === 'shared'
+      ? 'handoffSharedChecklist'
+      : shift === 'day'
+        ? 'handoffDayChecklist'
+        : 'handoffNightChecklist';
   return { [`${key}.${field}`]: value } as DailyRecordPatch;
 };
 

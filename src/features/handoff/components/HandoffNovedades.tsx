@@ -55,7 +55,7 @@ export const HandoffNovedades: React.FC<HandoffNovedadesProps> = ({
           className="shrink-0 text-teal-600 print:w-4 print:h-4 print:text-amber-500"
           aria-hidden="true"
         />
-        Novedades
+        Novedades &amp; Pendientes
       </h3>
 
       {/* Screen: Textarea */}

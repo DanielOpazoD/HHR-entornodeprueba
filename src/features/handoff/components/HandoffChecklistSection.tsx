@@ -2,6 +2,7 @@ import React from 'react';
 import type { DailyRecord } from '@/domain/handoff/recordContracts';
 import { HandoffStaffSelector } from './HandoffStaffSelector';
 import { HandoffStaffDisplay } from './HandoffStaffDisplay';
+import { HandoffSharedChecklist } from './HandoffSharedChecklist';
 import { HandoffChecklistDay } from './HandoffChecklistDay';
 import { HandoffChecklistNight } from './HandoffChecklistNight';
 import { HandoffShiftSwitcher } from './HandoffShiftSwitcher';
@@ -21,7 +22,11 @@ interface HandoffChecklistSectionProps {
     type: 'delivers' | 'receives' | 'tens',
     list: string[]
   ) => void;
-  onUpdateChecklist: (shift: 'day' | 'night', field: string, value: boolean | string) => void;
+  onUpdateChecklist: (
+    shift: 'day' | 'night' | 'shared',
+    field: string,
+    value: boolean | string
+  ) => void;
   /** Optional action rendered at the right of the shift tabs row (e.g. CUDYR button) */
   extraAction?: React.ReactNode;
 }
@@ -81,6 +86,12 @@ export const HandoffChecklistSection: React.FC<HandoffChecklistSectionProps> = (
       </div>
 
       {/* Row 3: Checklist — min-h ensures consistent height between day/night */}
+      <HandoffSharedChecklist
+        key={record.date}
+        data={record.handoffSharedChecklist}
+        onUpdate={(field, value) => onUpdateChecklist('shared', field, value)}
+        readOnly={readOnly}
+      />
       <div className="min-h-[28px]">
         {activeChecklistShift === 'day' ? (
           <HandoffChecklistDay

@@ -17,7 +17,7 @@ export const useHandoffGeneralPersistenceActions = (runtime: HandoffPersistenceR
     runtime;
 
   const updateHandoffChecklist = useCallback(
-    (shift: 'day' | 'night', field: string, value: boolean | string) => {
+    (shift: 'day' | 'night' | 'shared', field: string, value: boolean | string) => {
       void runMutation<PersistedHandoffRecordOutput>(
         record =>
           executeUpdateHandoffChecklist({

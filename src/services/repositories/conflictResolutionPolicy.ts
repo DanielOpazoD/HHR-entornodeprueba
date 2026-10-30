@@ -60,6 +60,7 @@ export const RECORD_STRUCTURAL_FIELDS = new Set([
   'rayenSyncHistory',
   'rayenBedCollisionResolutions',
   'handoffDayChecklist',
+  'handoffSharedChecklist',
   'handoffNightChecklist',
   'medicalHandoffBySpecialty',
   'medicalSignature',

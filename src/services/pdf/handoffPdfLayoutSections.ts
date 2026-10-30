@@ -106,9 +106,8 @@ export const addStaffAndChecklist = (
 
   const checklist =
     selectedShift === 'day' ? record.handoffDayChecklist : record.handoffNightChecklist;
-  if (!checklist) {
-    return currentY;
-  }
+  const sharedChecklist = record.handoffSharedChecklist;
+  if (!checklist && !sharedChecklist) return currentY;
 
   type FullChecklist = {
     escalaBraden?: boolean;
@@ -123,7 +122,8 @@ export const addStaffAndChecklist = (
     conteoNoControladosProximaFecha?: string;
   };
 
-  const cl = checklist as FullChecklist;
+  const cl = (checklist || {}) as FullChecklist;
+
   const checklistItems: string[] = [];
 
   if (selectedShift === 'day') {
@@ -157,7 +157,16 @@ export const addStaffAndChecklist = (
     currentY
   );
 
-  return currentY + 4;
+  currentY += 4;
+  if (sharedChecklist?.crashCartReviewDate || sharedChecklist?.crashCartCode) {
+    doc.text(
+      `Ultima fecha revision carro de paro: ${sharedChecklist.crashCartReviewDate ? formatDateDDMMYYYY(sharedChecklist.crashCartReviewDate) : '-'} | Codigo: ${sharedChecklist.crashCartCode || '-'}`,
+      margin,
+      currentY
+    );
+    currentY += 4;
+  }
+  return currentY;
 };
 
 export const addNovedadesSection = (
@@ -178,7 +187,7 @@ export const addNovedadesSection = (
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
-  doc.text('NOVEDADES DEL TURNO', margin, currentY);
+  doc.text('Novedades & Pendientes', margin, currentY);
   currentY += 4;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);

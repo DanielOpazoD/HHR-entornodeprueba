@@ -13,7 +13,11 @@ export interface ConfirmMedicalSpecialtyNoChangesInput {
 }
 
 export interface HandoffManagementActions {
-  updateHandoffChecklist: (shift: 'day' | 'night', field: string, value: boolean | string) => void;
+  updateHandoffChecklist: (
+    shift: 'day' | 'night' | 'shared',
+    field: string,
+    value: boolean | string
+  ) => void;
   updateHandoffNovedades: (shift: 'day' | 'night' | 'medical', value: string) => void;
   updateMedicalSpecialtyNote: (
     specialty: MedicalSpecialty,

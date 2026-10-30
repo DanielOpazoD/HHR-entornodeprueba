@@ -28,6 +28,7 @@ export interface HandoffDailyRecordContract {
   tensDayShift?: string[];
   tensNightShift?: string[];
   activeExtraBeds: string[];
+  handoffSharedChecklist?: ApplicationDailyRecord['handoffSharedChecklist'];
   handoffDayChecklist?: ApplicationDailyRecord['handoffDayChecklist'];
   handoffNightChecklist?: ApplicationDailyRecord['handoffNightChecklist'];
   handoffNovedadesDayShift?: string;

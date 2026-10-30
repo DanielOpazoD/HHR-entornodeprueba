@@ -62,6 +62,11 @@ const FIELD_LABELS: Array<{
     label: 'Novedades enfermería turno noche',
   },
   {
+    test: path => path.startsWith('handoffSharedChecklist'),
+    module: 'nursing_handoff',
+    label: 'Revisión carro de paro',
+  },
+  {
     test: path => path.startsWith('handoffDayChecklist'),
     module: 'nursing_handoff',
     label: 'Checklist enfermería turno largo',

@@ -70,6 +70,8 @@ type TopLevelValueMap = {
 type TopLevelPath = keyof TopLevelValueMap;
 
 type HandoffDayChecklistPath = `handoffDayChecklist.${string}`;
+type HandoffSharedChecklistPath =
+  `handoffSharedChecklist.${'crashCartReviewDate' | 'crashCartCode'}`;
 type HandoffNightChecklistPath = `handoffNightChecklist.${string}`;
 type HandoffStaffPath =
   | `handoffDayDelivers`
@@ -95,6 +97,7 @@ export type DailyRecordPatchPath =
   | PatientClinicalCribPath
   | PatientDeviceDetailsPath
   | HandoffDayChecklistPath
+  | HandoffSharedChecklistPath
   | HandoffNightChecklistPath
   | HandoffStaffPath
   | MedicalSignaturePath;
@@ -108,29 +111,31 @@ export type DailyRecordPatch = {
       ? number
       : K extends PatientImportedCudyrPath
         ? ImportedCudyr
-        : K extends HandoffDayChecklistPath | HandoffNightChecklistPath
-          ? boolean | string
-          : K extends HandoffStaffPath
-            ? string[]
-            :
-                | string
-                | number
-                | boolean
-                | string[]
-                | PatientData
-                | CudyrScore
-                | DeviceDetails
-                | PatientEvaluationScores
-                | PatientVitalSigns
-                | PatientVitalSigns[]
-                | PatientStatus
-                | Specialty
-                | ClinicalEvent[]
-                | DeviceInstance[]
-                | FhirResource
-                | Record<string, unknown>
-                | null
-                | undefined;
+        : K extends HandoffSharedChecklistPath
+          ? string
+          : K extends HandoffDayChecklistPath | HandoffNightChecklistPath
+            ? boolean | string
+            : K extends HandoffStaffPath
+              ? string[]
+              :
+                  | string
+                  | number
+                  | boolean
+                  | string[]
+                  | PatientData
+                  | CudyrScore
+                  | DeviceDetails
+                  | PatientEvaluationScores
+                  | PatientVitalSigns
+                  | PatientVitalSigns[]
+                  | PatientStatus
+                  | Specialty
+                  | ClinicalEvent[]
+                  | DeviceInstance[]
+                  | FhirResource
+                  | Record<string, unknown>
+                  | null
+                  | undefined;
 } & {
   [key: string]: unknown;
 };

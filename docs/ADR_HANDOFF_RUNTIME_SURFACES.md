@@ -40,6 +40,10 @@
 - Record changes and persistence use `application/handoff/handoffManagementUseCases.ts`;
   `handoffManagementPersistenceController.ts` only builds audit payloads. Do not
   restore test-only persistence builders alongside the canonical use cases.
+- The crash-cart review date and eight-digit code belong to `handoffSharedChecklist`,
+  shared by both nursing shifts. Store the code as text to preserve leading zeros;
+  inherit both values when copying a day, and include them in both nursing PDFs.
+  Existing days without this optional checklist remain valid.
 
 ## How To Change Safely
 

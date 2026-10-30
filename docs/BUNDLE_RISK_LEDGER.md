@@ -384,3 +384,28 @@ Reversión: revertir juntos la corrección y este aumento, restaurando los dos
 límites anteriores. La reversión repone el riesgo de retroceso por lecturas
 tardías. No borra ni migra pendientes. Cualquier aumento adicional requiere
 otra decisión del dueño y nueva evidencia.
+
+## Revisión compartida del carro de paro (2026-10-30)
+
+Owner: nursing handoff. Full replication of old-program PRs #177 and #178 adds
+an optional review date and eight-digit text code shared by both shifts, copied
+with the daily record and included in both PDFs. Schema validation, fieldwise
+conflict merge and day initialization remain on the existing synchronous paths.
+The nursing controls and PDF generation retain their existing lazy boundaries.
+
+With Node 22.22.2, the same lockfile and local build settings, main
+`54a36c54925539c4493ac5d1cac6add80646fa1f` measures 632,904 bytes for the
+authenticated shell and 5,042,651 bytes for 247 precache assets. The feature
+measures 633,857 and 5,045,484 bytes respectively: +953 bytes (0.15%) and
++2,833 bytes (0.06%). The baseline has only 120 shell bytes of headroom.
+
+Allow only +1,536 bytes for the shell (633,024 → 634,560) and +2,048 bytes
+for precache (5,044,224 → 5,046,272), using existing precache headroom for
+the rest. Keep all offline assets, exclusions, warning ratios and other limits
+unchanged. Final-build budgets and startup/preview checks remain release gates.
+Guardrails cover leading zeros, invalid dates/codes, shared shifts, draft/date
+isolation, legacy records, fieldwise merge, year/month carryover and both PDFs.
+
+Rollback: revert the shared-checklist feature and these allowances together.
+Existing records remain readable because the new root is optional; do not erase
+stored shared reviews or modify clinical records as part of rollback.

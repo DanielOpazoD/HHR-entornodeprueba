@@ -94,6 +94,10 @@ describe('clinicalConflictCenterController', () => {
       module: 'nursing_handoff',
       label: 'Nota enfermería turno largo',
     });
+    expect(classifyClinicalConflictPath('handoffSharedChecklist.crashCartCode')).toMatchObject({
+      module: 'nursing_handoff',
+      label: 'Revisión carro de paro',
+    });
     expect(classifyClinicalConflictPath('medicalHandoffBySpecialty.cirugia.note')).toMatchObject({
       module: 'medical_handoff',
       label: 'Entrega médica por especialidad',

@@ -9,6 +9,7 @@ import type { ZodSafeParseResult } from 'zod';
 import { normalizeLegacyNullsDeep } from './zod/legacyNormalization';
 import {
   DailyRecordSchema,
+  HandoffSharedChecklistSchema,
   RayenBedCollisionResolutionReceiptSchema,
   RayenSyncEventSchema,
   RayenSyncMetaSchema,
@@ -135,6 +136,7 @@ export const parseDailyRecordWithDefaultsReport = (
   const salvagedDischarges = salvageArrayItems<DischargeData>(raw.discharges, DischargeDataSchema);
   const salvagedTransfers = salvageArrayItems<TransferData>(raw.transfers, TransferDataSchema);
   const salvagedCma = salvageArrayItems<CMAData>(raw.cma, CMADataSchema);
+  const sharedChecklist = HandoffSharedChecklistSchema.safeParse(raw.handoffSharedChecklist);
   // El historial de sincronización se salvaba a cero: cualquier reparación
   // estructural del registro (una cama rota, un enum desconocido) lo perdía
   // entero y la siguiente corrida lo reescribía con un solo evento.
@@ -171,6 +173,7 @@ export const parseDailyRecordWithDefaultsReport = (
           })
         : undefined,
       handoffDayChecklist: (raw.handoffDayChecklist as DailyRecord['handoffDayChecklist']) || {},
+      handoffSharedChecklist: sharedChecklist.success ? sharedChecklist.data : undefined,
       handoffNightChecklist:
         (raw.handoffNightChecklist as DailyRecord['handoffNightChecklist']) || {},
       handoffNovedadesDayShift:
