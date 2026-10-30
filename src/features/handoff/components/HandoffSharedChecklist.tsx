@@ -14,11 +14,11 @@ export const HandoffSharedChecklist: React.FC<HandoffSharedChecklistProps> = ({
   readOnly,
 }) => {
   const inputClass =
-    'rounded border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-50 disabled:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500';
+    'handoff-review-input rounded border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-50 disabled:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500';
 
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-2.5 pb-2.5 border-b border-slate-100/80 text-sm text-slate-700">
-      <label className="flex flex-wrap items-center gap-2">
+    <div className="handoff-review flex flex-wrap items-center gap-x-4 gap-y-2 mb-2.5 pb-2.5 border-b border-slate-100/80 text-sm text-slate-700">
+      <label className="handoff-review flex flex-wrap items-center gap-2">
         Última fecha revisión carro de paro
         <input
           type="date"

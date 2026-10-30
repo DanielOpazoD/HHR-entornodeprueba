@@ -1,0 +1,288 @@
+@media screen {
+  .handoff-shifts {
+    flex: 0 1 auto;
+  }
+  .handoff-shifts button {
+    flex: 1 0 auto;
+    white-space: nowrap;
+  }
+  .handoff-staff {
+    gap: 0.75rem 1.5rem;
+    min-height: 2rem;
+    margin-bottom: 0.625rem;
+    padding-bottom: 0.625rem;
+  }
+  .handoff-review {
+    gap: 0.75rem 1.5rem;
+  }
+  .handoff-review label {
+    font-size: 0.75rem;
+  }
+  .handoff-review-input {
+    height: 2rem;
+    border-radius: 0.5rem;
+    border-color: #cbd5e1;
+    font-size: 0.75rem;
+  }
+  .handoff-review-input:focus-visible {
+    outline: 2px solid #0f766e;
+    outline-offset: 2px;
+    box-shadow: none;
+  }
+  .handoff-checklist {
+    display: grid;
+    grid-template-columns: 5.5rem minmax(0, 1fr);
+    align-items: start;
+    gap: 0.75rem;
+  }
+  .handoff-checklist > div:first-child {
+    width: auto;
+    min-height: 2rem;
+  }
+  .handoff-checklist-items {
+    display: grid;
+    align-items: start;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.375rem 1rem;
+  }
+  .handoff-checklist-item {
+    cursor: pointer;
+  }
+  .handoff-checklist-item:has(input:disabled) {
+    cursor: default;
+  }
+  .handoff-checklist-items > div {
+    align-content: start;
+  }
+  .handoff-checklist-items input[type='date'] {
+    border-color: #cbd5e1;
+  }
+  .nursing-handoff .handoff-patient-table {
+    container-type: inline-size;
+  }
+  .handoff-scroll-hint {
+    display: none;
+    padding: 0.5rem 0.75rem;
+    margin: 0;
+    color: #475569;
+    background: #f8fafc;
+    font-size: 0.75rem;
+  }
+  .nursing-handoff .handoff-patients:focus-visible {
+    outline: 2px solid #0f766e;
+    outline-offset: -2px;
+  }
+  .nursing-handoff .handoff-patients table {
+    min-width: 920px;
+  }
+  .nursing-handoff .handoff-patients tr {
+    --handoff-row-bg: #fff;
+  }
+  .nursing-handoff .handoff-patients tr[data-nested='true'] {
+    --handoff-row-bg: #fdf2f8;
+  }
+  .nursing-handoff .handoff-patients tbody tr:hover {
+    --handoff-row-bg: #f8fafc;
+    background: var(--handoff-row-bg);
+  }
+  .nursing-handoff .handoff-patients tbody tr:focus-within {
+    --handoff-row-bg: #f0fdfa;
+    background: var(--handoff-row-bg);
+  }
+  .nursing-handoff .handoff-patients tr > :first-child:not([colspan]) {
+    position: sticky;
+    inset-inline-start: 0;
+    z-index: 1;
+    background: var(--handoff-row-bg);
+    box-shadow: 1px 0 #e2e8f0;
+  }
+  .nursing-handoff .handoff-patients thead tr > :first-child {
+    background: #e0f2fe;
+    z-index: 2;
+  }
+  .nursing-handoff .handoff-patient-cell > div > div:first-child {
+    flex-wrap: nowrap;
+    align-items: start;
+    gap: 0.5rem;
+  }
+  .nursing-handoff .handoff-patient-cell > div > div:first-child > span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .nursing-handoff .handoff-patient-cell button {
+    flex-shrink: 0;
+    min-width: 1.5rem;
+    min-height: 1.5rem;
+    display: grid;
+    place-items: center;
+    border-radius: 0.25rem;
+  }
+  .nursing-handoff .handoff-patient-cell button:focus-visible {
+    outline: 2px solid #0f766e;
+    outline-offset: 2px;
+  }
+  .nursing-handoff .handoff-patient-cell .font-mono {
+    font-size: 0.6875rem;
+    line-height: 1.4;
+  }
+  .handoff-observations {
+    padding: 0.5rem 0.75rem;
+  }
+  .handoff-observations textarea,
+  .handoff-observations > div {
+    min-height: 4rem;
+    border-radius: 0.5rem;
+    line-height: 1.5;
+  }
+  .handoff-observations textarea:focus {
+    border-color: #0f766e;
+    --tw-ring-color: #99f6e4;
+  }
+}
+.handoff-movement {
+  min-width: 0;
+  max-width: 100%;
+  padding: 1rem;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  box-shadow: 0 1px 2px #0000000d;
+}
+.handoff-movement-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  color: #334155;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.handoff-movement-empty {
+  padding: 0.5rem 0.75rem;
+  background: #f8fafc;
+  border-radius: 0.5rem;
+  color: #64748b;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+.handoff-movement[data-empty='true'] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.375rem 1rem;
+  padding: 0.75rem 1rem;
+}
+.handoff-movement[data-empty='true'] .handoff-movement-title {
+  margin: 0;
+}
+.handoff-movement[data-empty='true'] .handoff-movement-empty {
+  padding: 0;
+  background: none;
+  font-size: 0.75rem;
+}
+.handoff-movement-table {
+  width: 100%;
+  min-width: 720px;
+  table-layout: fixed;
+  text-align: left;
+  font-size: 0.875rem;
+  border-collapse: collapse;
+}
+.handoff-movement-table :is(th, td) {
+  vertical-align: top;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+@container (max-width: 919px) {
+  .handoff-scroll-hint {
+    display: block;
+  }
+}
+@media (min-width: 900px) {
+  .handoff-staff {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 899px) {
+  .handoff-checklist-items {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 639px) {
+  .handoff-shifts {
+    flex: 1;
+  }
+  .handoff-checklist {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.25rem;
+  }
+  .handoff-checklist-items > div {
+    grid-column: 1 / -1;
+  }
+  .handoff-review label:first-child {
+    display: grid;
+    gap: 0.375rem;
+  }
+}
+@media print {
+  .handoff-checklist,
+  .handoff-checklist-items {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+  }
+  .handoff-scroll-hint {
+    display: none;
+  }
+  .nursing-handoff .handoff-patients {
+    overflow: visible;
+  }
+  .handoff-movement,
+  .handoff-movement[data-empty='true'] {
+    display: block;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .handoff-movement-title {
+    margin-bottom: 0.25rem;
+    color: #000;
+    font-weight: 700;
+  }
+  .handoff-movement-empty {
+    padding: 0;
+    background: transparent;
+    font-size: 10px;
+    font-style: italic;
+  }
+  .handoff-movement-table {
+    min-width: 0;
+    font-size: 10px;
+  }
+  .handoff-movement-table :is(th, td) {
+    padding: 0.25rem;
+  }
+}
+
+.handoff-movement-table thead tr {
+  border-bottom: 1px solid #e2e8f0;
+  color: #64748b;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+@media screen {
+  .nursing-handoff .handoff-patients th:nth-child(2) {
+    width: 13rem;
+  }
+}
+
+@media screen and (max-width: 359px) {
+  .handoff-shifts button svg {
+    display: none;
+  }
+}

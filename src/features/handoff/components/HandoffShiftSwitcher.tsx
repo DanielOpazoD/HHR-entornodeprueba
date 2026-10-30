@@ -11,7 +11,7 @@ export const HandoffShiftSwitcher: React.FC<HandoffShiftSwitcherProps> = ({
   selectedShift,
   setSelectedShift,
 }) => (
-  <div className="flex min-w-0 flex-1 sm:flex-none bg-slate-100/80 p-1 rounded-xl border border-slate-200/60">
+  <div className="handoff-shifts flex min-w-0 flex-1 sm:flex-none bg-slate-100/80 p-1 rounded-xl border border-slate-200/60">
     <button
       type="button"
       onClick={() => setSelectedShift('day')}
