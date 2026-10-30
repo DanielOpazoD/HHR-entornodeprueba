@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { clearAllRecords } from '@/services/storage/indexeddb/indexedDbRecordService';
-import { preserveSessionSyncQueue } from '@/services/storage/sessionSyncQueuePreservation';
+import { clearSessionDailyRecords } from '@/services/storage/sessionSyncQueuePreservation';
 import {
   clearSessionScopedClientState,
   getStoredSessionOwnerKey,
@@ -12,14 +11,11 @@ import {
 } from '@/services/storage/sessionStorageTransition';
 import { AUDIT_CONNECTION_OUTBOX_PREFIX } from '@/services/admin/auditSession/auditConnectionOutbox';
 
-vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
-  clearAllRecords: vi.fn().mockResolvedValue(undefined),
-}));
 vi.mock('@/services/storage/sync', () => ({
   recordSyncQueueOwnershipTelemetry: vi.fn(),
 }));
 vi.mock('@/services/storage/sessionSyncQueuePreservation', () => ({
-  preserveSessionSyncQueue: vi.fn().mockResolvedValue(undefined),
+  clearSessionDailyRecords: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
   recordOperationalTelemetry: vi.fn(),
@@ -56,7 +52,7 @@ describe('session cleanup isolation', () => {
     localStorage.setItem('hhr_session_owner_v1', 'user:old');
     const cleanupStarted = createSignal();
     let finishCleanup!: () => void;
-    vi.mocked(clearAllRecords).mockImplementationOnce(
+    vi.mocked(clearSessionDailyRecords).mockImplementationOnce(
       () =>
         new Promise<void>(resolve => {
           finishCleanup = resolve;
@@ -83,9 +79,9 @@ describe('session cleanup isolation', () => {
     localStorage.setItem('hhr_session_owner_v1', 'user:old');
     localStorage.setItem('hhr_private', 'old');
     sessionStorage.setItem('hhr_private', 'old');
-    vi.mocked(clearAllRecords).mockRejectedValueOnce(new Error('store unavailable'));
+    vi.mocked(clearSessionDailyRecords).mockRejectedValueOnce(new Error('store unavailable'));
     await clearSessionScopedClientState('manual').catch(() => undefined);
-    expect(preserveSessionSyncQueue).toHaveBeenCalledWith('user:old');
+    expect(clearSessionDailyRecords).toHaveBeenCalledWith('user:old');
     expect(localStorage.getItem('hhr_private')).toBeNull();
     expect(sessionStorage.getItem('hhr_private')).toBeNull();
   });
@@ -113,7 +109,7 @@ describe('session cleanup isolation', () => {
     });
     await expect(clearSessionScopedClientState('manual', signOut)).rejects.toThrow('blocked');
     expect(signOut).toHaveBeenCalledTimes(1);
-    expect(clearAllRecords).not.toHaveBeenCalled();
+    expect(clearSessionDailyRecords).not.toHaveBeenCalled();
     vi.restoreAllMocks();
     expect(sessionStorage.getItem('hhr_private')).toBeNull();
   });
@@ -132,8 +128,7 @@ describe('session cleanup isolation', () => {
     const signOut = vi.fn().mockResolvedValue(undefined);
     await expect(clearSessionScopedClientState('manual', signOut)).rejects.toThrow('quota');
     expect(signOut).toHaveBeenCalledTimes(1);
-    expect(clearAllRecords).toHaveBeenCalledTimes(1);
-    expect(preserveSessionSyncQueue).toHaveBeenCalledTimes(1);
+    expect(clearSessionDailyRecords).toHaveBeenCalledTimes(1);
     expect(sessionStorage.getItem('hhr_private')).toBeNull();
   });
 
@@ -144,7 +139,7 @@ describe('session cleanup isolation', () => {
     const signOut = vi.fn().mockRejectedValue(new Error('auth unavailable'));
     await expect(clearSessionScopedClientState('manual', signOut)).rejects.toThrow();
     expect(signOut).toHaveBeenCalledTimes(1);
-    expect(clearAllRecords).not.toHaveBeenCalled();
+    expect(clearSessionDailyRecords).not.toHaveBeenCalled();
     expect(localStorage.getItem('hhr_new_session_data')).toBe('keep');
   });
 
@@ -156,7 +151,7 @@ describe('session cleanup isolation', () => {
     const signOut = vi.fn().mockResolvedValue(undefined);
     await clearSessionScopedClientState('manual', signOut);
     expect(signOut).toHaveBeenCalledTimes(1);
-    expect(clearAllRecords).not.toHaveBeenCalled();
+    expect(clearSessionDailyRecords).not.toHaveBeenCalled();
     expect(getStoredSessionOwnerKey()).toBe('user:replacement');
     expect(localStorage.getItem('hhr_new_session_data')).toBe('keep');
     expect(sessionStorage.getItem('hhr_private')).toBeNull();
@@ -213,7 +208,7 @@ describe('session cleanup isolation', () => {
 
   it('does not publish an owner after failed cleanup and retries before admission', async () => {
     await reconcileAuthorizedSessionOwner('user:old');
-    vi.mocked(clearAllRecords).mockRejectedValueOnce(new Error('store unavailable'));
+    vi.mocked(clearSessionDailyRecords).mockRejectedValueOnce(new Error('store unavailable'));
     await expect(clearSessionScopedClientState('manual')).rejects.toThrow();
     expect(getStoredSessionOwnerKey()).toBe('user:old');
     // A replacement login persists Firebase before storage admission. Retrying
@@ -222,7 +217,7 @@ describe('session cleanup isolation', () => {
     sessionStorage.setItem('firebase:authUser:synthetic', firebaseEntry);
     sessionStorage.setItem('hhr_previous_session_data', 'remove');
     await reconcileAuthorizedSessionOwner('user:new');
-    expect(clearAllRecords).toHaveBeenCalledTimes(2);
+    expect(clearSessionDailyRecords).toHaveBeenCalledTimes(2);
     expect(getStoredSessionOwnerKey()).toBe('user:new');
     expect(sessionStorage.getItem('firebase:authUser:synthetic')).toBe(firebaseEntry);
     expect(sessionStorage.getItem('hhr_previous_session_data')).toBeNull();
@@ -234,7 +229,7 @@ describe('session cleanup isolation', () => {
       clearSessionScopedClientState('manual'),
       clearSessionScopedClientState('manual'),
     ]);
-    expect(clearAllRecords).toHaveBeenCalledTimes(1);
+    expect(clearSessionDailyRecords).toHaveBeenCalledTimes(1);
   });
 
   it('ignores a queued old closure after the same user starts a new generation', async () => {
@@ -247,7 +242,7 @@ describe('session cleanup isolation', () => {
     localStorage.setItem('hhr_new_session_data', 'keep');
     await clearSessionScopedClientState('manual', signOut, oldGeneration);
     expect(signOut).not.toHaveBeenCalled();
-    expect(clearAllRecords).toHaveBeenCalledTimes(1);
+    expect(clearSessionDailyRecords).toHaveBeenCalledTimes(1);
     expect(localStorage.getItem('hhr_new_session_data')).toBe('keep');
   });
 

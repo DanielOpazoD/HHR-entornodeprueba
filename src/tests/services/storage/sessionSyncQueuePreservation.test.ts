@@ -1,7 +1,14 @@
 import 'fake-indexeddb/auto';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+const storage = vi.hoisted(() => ({ fallback: false }));
+vi.mock('@/services/storage/indexeddb/indexedDbCore', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/storage/indexeddb/indexedDbCore')>()),
+  isDatabaseInFallbackMode: () => storage.fallback,
+}));
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
-import { preserveSessionSyncQueue } from '@/services/storage/sessionSyncQueuePreservation';
+import { STORAGE_KEY } from '@/services/storage/localstorage/localStorageCore';
+import { localPersistence } from '@/services/storage/localpersistence/localPersistenceService';
+import { clearSessionDailyRecords } from '@/services/storage/sessionSyncQueuePreservation';
 import { matchesTaskClaim } from '@/services/storage/sync/syncQueueTaskFactory';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
@@ -21,14 +28,19 @@ const task = (opId: string, ownerKey?: string): SyncTask => ({
 });
 describe('individual session logout preserves pending edits', () => {
   beforeEach(async () => {
+    storage.fallback = false;
     await hospitalDB.syncQueue.clear();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    localStorage.clear();
   });
   it('keeps payload, identity and expected revision, fences late acknowledgements and isolates the next user', async () => {
     const own = task('own', owner);
     const other = task('other', 'user:other');
     const id = await hospitalDB.syncQueue.add(own);
     await hospitalDB.syncQueue.add(other);
-    await preserveSessionSyncQueue(owner);
+    await clearSessionDailyRecords(owner);
     const preserved = await hospitalDB.syncQueue.get(id);
     expect(preserved).toMatchObject({
       payload: own.payload,
@@ -57,11 +69,32 @@ describe('individual session logout preserves pending edits', () => {
       verifiedRunId: 'original-run',
     };
     await hospitalDB.syncQueue.add({ ...task('retired', owner), status: 'RETIRED', retirement });
-    await preserveSessionSyncQueue(owner);
+    await clearSessionDailyRecords(owner);
     const all = await hospitalDB.syncQueue.toArray();
     expect(all).toHaveLength(3);
     expect(all.find(t => t.opId === 'retired')).toMatchObject({ status: 'RETIRED', retirement });
     expect(all.find(t => t.opId === 'conflict')?.status).toBe('CONFLICT');
     expect(await createDexieSyncQueueStore().listAll('user:next')).toEqual([]);
+  });
+  it('removes fallback patient days at logout even when the queue step fails', async () => {
+    storage.fallback = true;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ '2026-01-01': { date: '2026-01-01' } }));
+    vi.spyOn(hospitalDB, 'transaction').mockRejectedValueOnce(new Error('synthetic queue failure'));
+
+    await expect(clearSessionDailyRecords(owner)).rejects.toThrow('synthetic queue failure');
+
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+  });
+  it('changes nothing in the queue when fallback patient days cannot be removed', async () => {
+    storage.fallback = true;
+    const id = await hospitalDB.syncQueue.add(task('own', owner));
+    const before = await hospitalDB.syncQueue.get(id);
+    vi.spyOn(localPersistence.records, 'clear').mockImplementationOnce(() => {
+      throw new Error('synthetic clear failure');
+    });
+
+    await expect(clearSessionDailyRecords(owner)).rejects.toThrow('synthetic clear failure');
+
+    expect(await hospitalDB.syncQueue.get(id)).toEqual(before);
   });
 });

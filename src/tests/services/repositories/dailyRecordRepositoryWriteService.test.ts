@@ -259,7 +259,7 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
     expect(result.outcome).toBe('clean');
     expect(result.savedLocally).toBe(true);
     expect(result.updatedRemotely).toBe(true);
-    expect(saveToIndexedDB).toHaveBeenCalledWith(remote);
+    expect(saveToIndexedDB).toHaveBeenCalledWith(remote, expect.anything());
     expect(queueSyncTask).toHaveBeenCalledWith(
       expect.objectContaining({
         date: '2026-02-18',

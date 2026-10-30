@@ -15,9 +15,9 @@ import {
 } from '@/services/storage/sync/dailyRecordTaskRetirement';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import { getSyncQueueTelemetry } from '@/services/storage/sync/publicSyncQueue';
-import { listUnresolvedDailyRecordTasks } from '@/services/storage/sync/dexieSyncQueueQuarantine';
 import { buildSyncQueueTelemetryFromRows } from '@/services/storage/sync/syncQueueTelemetryController';
 import { getPendingDailyRecordProjection } from '@/services/storage/sync/dailyRecordSyncQueueReadService';
+import { listDailyRecordProjectionHolders } from '@/services/storage/sync/dexieSyncQueueQuarantine';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 
@@ -128,7 +128,7 @@ it('withdraws only the reviewed send, preserves its backup and lets the next rem
   });
   expect(await hospitalDB.dailyRecords.get(DATE)).toEqual(record);
   expect((await hospitalDB.syncQueue.get(otherId))?.status).toBe('PENDING');
-  expect(await listUnresolvedDailyRecordTasks(DATE)).toEqual([]);
+  expect(await listDailyRecordProjectionHolders(DATE)).toEqual([]);
   expect(await getPendingDailyRecordProjection(DATE)).toBeNull();
   const store = createDexieSyncQueueStore();
   const telemetry = buildSyncQueueTelemetryFromRows(await store.listAll(OWNER), Date.now(), 5);
@@ -273,5 +273,5 @@ it('does not reuse a retired backup when a fresh edit is queued for that date', 
     })
   ).toBe('created');
   expect((await hospitalDB.syncQueue.get(taskId))?.payload).toEqual(record);
-  expect((await listUnresolvedDailyRecordTasks(DATE)).map(task => task.payload)).toEqual([fresh]);
+  expect((await listDailyRecordProjectionHolders(DATE)).map(task => task.payload)).toEqual([fresh]);
 });

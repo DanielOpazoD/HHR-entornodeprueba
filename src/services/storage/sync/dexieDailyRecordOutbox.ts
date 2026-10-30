@@ -39,7 +39,7 @@ import { applyPatches } from '@/utils/patchUtils';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import {
   findReusableSyncTask,
-  listUnresolvedDailyRecordTasks,
+  listDailyRecordProjectionHolders,
   matchesOwner,
 } from '@/services/storage/sync/dexieSyncQueueQuarantine';
 import {
@@ -292,7 +292,7 @@ const saveSpecialistHandoffInOutbox = (
       ...(stored && patchWrite ? buildPatchRebase(patchWrite)(stored, []) : record),
       lastUpdated: before.lastUpdated,
     };
-    const projected = !(await listUnresolvedDailyRecordTasks(record.date)).length;
+    const projected = !(await listDailyRecordProjectionHolders(record.date)).length;
     const persistedRecord = projected ? projection : (stored ?? record);
     if (projected) await hospitalDB.dailyRecords.put(projection);
     const existing = task.key
@@ -387,7 +387,7 @@ const settleSpecialistHandoffProjection = (task: SyncTask, confirmed: boolean): 
     const { date } = task.payload as SpecialistHandoffSyncPayload;
     const projection = task.handoffProjection;
     const stored = await hospitalDB.dailyRecords.get(date);
-    const dayTasks = (await listUnresolvedDailyRecordTasks(date)).filter(dayTask => dayTask.id);
+    const dayTasks = (await listDailyRecordProjectionHolders(date)).filter(dayTask => dayTask.id);
     if (!confirmed && projection?.released) return false;
     if (task.id && !confirmed)
       await hospitalDB.syncQueue.update(task.id, {
@@ -514,6 +514,8 @@ export const saveDailyRecordInOutbox = (
       );
   return hospitalDB
     .transaction('rw', hospitalDB.dailyRecords, hospitalDB.syncQueue, async () => {
+      // First: this may release a write without its copy, which must not be reused below.
+      const holders = await listDailyRecordProjectionHolders(record.date);
       const existing = task.key
         ? await findReusableSyncTask(task.type, task.key, task.ownerKey)
         : null;
@@ -527,7 +529,7 @@ export const saveDailyRecordInOutbox = (
         rebase,
         stored,
         wholeRecordBase,
-        unresolved: (await listUnresolvedDailyRecordTasks(record.date)).filter(
+        unresolved: holders.filter(
           candidate =>
             candidate.type === task.type && matchesOwner(task.ownerKey, candidate.ownerKey)
         ),

@@ -124,6 +124,8 @@ describe('storage/sync cuarentena y recuperación', () => {
       code: 'permission-denied',
       message: 'Missing or insufficient permissions',
     });
+    // The quarantined write still holds the stored day, as it does in use.
+    await hospitalDB.dailyRecords.put(makeRecord('2025-02-03', 'v1'));
 
     const result = await queueDailyRecordSyncTaskWithLocalRecord(makeRecord('2025-02-03', 'v2'));
 

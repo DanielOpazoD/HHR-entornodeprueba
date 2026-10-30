@@ -117,10 +117,13 @@ it.each(['manual', 'automatic'] as const)(
           syncContract: previous.syncContract,
           status: 'FAILED',
           lastErrorCode: 'session_owner_logged_out',
+          projectionReleased: true,
         });
         expect(saved?.leaseOwner).toBeUndefined();
         expect(saved?.attemptId).toBeUndefined();
-      } else expect(saved).toEqual(previous);
+      } else if (previous.status === 'RETIRED') expect(saved).toEqual(previous);
+      // Blocked sends keep their status and diagnosis; only the cleared day stops being theirs.
+      else expect(saved).toEqual({ ...previous, projectionReleased: true });
     }
     const processing = original('processing');
     expect(
@@ -134,9 +137,18 @@ it.each(['manual', 'automatic'] as const)(
       status: 'FAILED',
       payload: processing.payload,
     });
-    expect(await store.listAll('user:next-account')).toEqual([expect.objectContaining(foreign)]);
+    // Its day was cleared too: blocked, unchanged, for its own owner to review.
+    const foreignKept = expect.objectContaining({
+      opId: foreign.opId,
+      ownerKey: foreign.ownerKey,
+      payload: foreign.payload,
+      syncContract: foreign.syncContract,
+      status: 'FAILED',
+      projectionReleased: true,
+    });
+    expect(await store.listAll('user:next-account')).toEqual([foreignKept]);
     await reconcileAuthorizedSessionOwner('user:next-account');
-    expect(await store.listAll('user:next-account')).toEqual([expect.objectContaining(foreign)]);
+    expect(await store.listAll('user:next-account')).toEqual([foreignKept]);
     const owned = original('pending');
     expect(await requeueQuarantinedTask(owned.id, 'user:next-account')).toBe(false);
     await reconcileAuthorizedSessionOwner(owner);
@@ -163,7 +175,13 @@ it('does not silently adopt or delete unattributed work when the previous owner 
     })
   );
   await clearSessionScopedClientState('automatic');
-  expect(await hospitalDB.syncQueue.get(own)).toMatchObject({ ownerKey: owner, status: 'PENDING' });
+  // Its copy went with the days, so it waits for its owner's review instead of publishing.
+  expect(await hospitalDB.syncQueue.get(own)).toMatchObject({
+    ownerKey: owner,
+    payload: { nurses: ['SYNTHETIC PENDING'] },
+    status: 'FAILED',
+    projectionReleased: true,
+  });
   expect(await hospitalDB.syncQueue.get(orphan)).toMatchObject({
     ownerKey: 'unattributed:legacy',
     status: 'CONFLICT',

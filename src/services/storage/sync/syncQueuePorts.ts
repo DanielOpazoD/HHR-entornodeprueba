@@ -143,6 +143,8 @@ export interface SyncRuntimePort {
   isOnline(): boolean;
   onOnline(callback: () => void): void;
   getOwnerKey(): string | null;
+  /** A logout cleanup failed here, or awaits admission: queue work neither starts nor confirms. */
+  isFenced?(): boolean;
 }
 
 export interface SyncTransportPort {

@@ -1,7 +1,11 @@
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { startBrowserSyncWakeup } from './browserSyncWakeup';
 import type { SyncRuntimePort } from '@/services/storage/sync/syncQueuePorts';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
+import {
+  getStoredSessionOwnerKey,
+  hasSessionCleanupFailed,
+  isSessionCleanupPending,
+} from '@/services/storage/sessionOwnerKey';
 
 export const createBrowserSyncRuntime = (): SyncRuntimePort => {
   let onlineListenerRegistered = false;
@@ -21,5 +25,9 @@ export const createBrowserSyncRuntime = (): SyncRuntimePort => {
       onlineListenerRegistered = true;
     },
     getOwnerKey: () => getStoredSessionOwnerKey(),
+    // A pending cleanup only fences a document not yet admitted: admission completes it, and a tab
+    // already admitted must not stall on one left by another tab that was closed mid-logout.
+    isFenced: () =>
+      hasSessionCleanupFailed() || (!getSessionGeneration() && isSessionCleanupPending()),
   };
 };

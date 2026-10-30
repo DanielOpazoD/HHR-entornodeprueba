@@ -141,13 +141,18 @@ const resolvePartialUpdateBaseRecord = async (
       return null;
     }
 
-    const localResult = await saveToIndexedDB(remoteRecord);
+    // Admitted like a read, against the copy found absent: one that a pending write holds, or
+    // that another tab stored during the fetch, stays and becomes the base instead.
+    const localResult = await saveToIndexedDB(remoteRecord, {
+      preserveUnresolvedWrites: true,
+      expectedBase: { kind: 'stored', record: null },
+    });
     if (!localResult.ok) {
       throw localResult.error instanceof Error
         ? localResult.error
         : new Error(localResult.userSafeMessage || 'No fue posible guardar la base remota local.');
     }
-    return remoteRecord;
+    return localResult.superseded?.stored ?? localResult.retainedRecord ?? remoteRecord;
   } catch (error) {
     dailyRecordWriteLogger.warn(
       `Remote base fetch failed for ${date}; partial update aborted`,

@@ -21,6 +21,8 @@ export const RayenSyncQueueDetails: React.FC<{
   const [reviewingCensus, setReviewingCensus] = React.useState<number | null>(null);
   const [showBackups, setShowBackups] = React.useState(false);
   const policyBlocked = operations.some(isPolicyBlockedCudyrArchive);
+  // Their edits left the stored day: they cannot be resent, only reviewed and entered again.
+  const releasedIds = new Set(operations.filter(op => op.projectionReleased).map(op => op.id));
   const blocked = listQuarantinedOperations(
     operations.filter(op => !isPolicyBlockedCudyrArchive(op))
   );
@@ -75,13 +77,27 @@ export const RayenSyncQueueDetails: React.FC<{
                 <span className="min-w-0 flex-1">
                   {operation.targetLabel}
                   <span className="block text-[10px] text-slate-500">
-                    {operation.categoryLabel}
+                    {!releasedIds.has(operation.id)
+                      ? operation.categoryLabel
+                      : operation.code === 'session_owner_logged_out'
+                        ? 'Sesión cerrada'
+                        : 'Sin copia local'}
                   </span>
-                  {operation.recovery === 'review_base' && (
+                  {releasedIds.has(operation.id) ? (
                     <span className="block text-[10px] text-amber-700">
-                      Los cambios siguen guardados en este equipo. Solicita su revisión antes de
-                      reenviarlos.
+                      {operation.code === 'session_owner_logged_out'
+                        ? 'Este envío quedó pendiente al cerrar sesión. '
+                        : 'Este envío perdió su copia local. '}
+                      No se puede reenviar: descarga su copia, compárala con el censo y vuelve a
+                      ingresar a mano lo que falte.
                     </span>
+                  ) : (
+                    operation.recovery === 'review_base' && (
+                      <span className="block text-[10px] text-amber-700">
+                        Los cambios siguen guardados en este equipo. Solicita su revisión antes de
+                        reenviarlos.
+                      </span>
+                    )
                   )}
                   {operation.recovery === 'review_authorization' && (
                     <span className="block text-[10px] text-amber-700">

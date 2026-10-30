@@ -16,9 +16,9 @@ import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
 import {
   discardQuarantinedTask,
   findReusableSyncTask,
+  listDailyRecordProjectionHolders,
   matchesOwner,
   requeueQuarantinedTask,
-  listUnresolvedDailyRecordTasks,
 } from '@/services/storage/sync/dexieSyncQueueQuarantine';
 
 const loadAuthorityAck = () => import('./dexieSyncQueueAuthorityAck');
@@ -31,7 +31,9 @@ const LIVE_STATUSES = Object.keys({
 } satisfies Record<Exclude<SyncTask['status'], 'RETIRED'>, true>).sort();
 
 const isReadyForClaim = (task: SyncTask, now: number): boolean => {
-  if ((task.preOutboxHoldUntil || 0) > now) {
+  // A released day write no longer has its edits on the stored day: it never publishes as is,
+  // even if a tab from an older version requeued it.
+  if (task.projectionReleased || (task.preOutboxHoldUntil || 0) > now) {
     return false;
   }
 
@@ -320,7 +322,7 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
       {
         db: hospitalDB,
         matchesClaim: matchesTaskClaim,
-        pending: listUnresolvedDailyRecordTasks,
+        pending: listDailyRecordProjectionHolders,
         confirmNote: confirmSpecialistHandoffProjection,
       },
       taskId,

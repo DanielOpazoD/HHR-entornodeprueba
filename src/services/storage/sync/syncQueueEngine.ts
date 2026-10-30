@@ -168,7 +168,9 @@ export const createSyncQueueEngine = ({
     const syncContract = buildSyncTaskContract(type, payload, meta?.syncContract);
 
     const pendingTasks = await countActiveTasks(ownerKey);
-    if (!existing && pendingTasks >= maxPendingTasks) {
+    // Only a write folding into an active task leaves the count unchanged: a blocked one revives,
+    // and one without its copy is released in the store's transaction and a new task is created.
+    if (existing?.status !== 'PENDING' && pendingTasks >= maxPendingTasks) {
       return {
         accepted: false,
         mode: 'rejected_backpressure',
@@ -236,8 +238,10 @@ export const createSyncQueueEngine = ({
     return rows.map(toSyncQueueOperationSnapshot);
   };
 
+  const isFenced = () => runtime.isFenced?.();
+
   const processQueue = async (): Promise<void> => {
-    if (isProcessing) return;
+    if (isProcessing || isFenced()) return;
     isProcessing = true;
 
     try {
@@ -290,8 +294,12 @@ export const createSyncQueueEngine = ({
                   recordSyncQueueStaleClaimTelemetry(task, 'update');
                   continue;
                 }
+                // Checked here, after the last wait: the very next step is the send.
+                if (isFenced()) return;
                 Object.assign(task, stored, { leaseUntil });
                 const result: Partial<SyncTransportResult> = (await transport.run(task)) || {};
+                // Its ACK would write a day the failed logout cleared; the cleanup retry decides.
+                if (isFenced()) return;
                 const claim = buildTaskClaim(task);
                 if (claim) {
                   const deleted = await store.deleteClaimed(

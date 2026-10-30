@@ -4,6 +4,7 @@ import { buildMonthRecordPrefix } from '@/services/storage/storageDateSupport';
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
 import { arePatchValuesDeepEqual } from '@/utils/patchValueEquality';
+import { listDailyRecordProjectionHolders } from '@/services/storage/sync/dexieSyncQueueQuarantine';
 
 import { ensureDbReady, hospitalDB as db, isDatabaseInFallbackMode } from './indexedDbCore';
 import { dispatchDailyRecordStoreChanged } from './indexedDbRecordEvents';
@@ -188,15 +189,9 @@ const inspectIndexedDbAdmission = async (
   expectedBase?: LocalRecordBase,
   candidate: DailyRecord | null = null
 ): Promise<LocalRecordAdmission> => {
-  const tasks = await db.syncQueue.where('type').equals('UPDATE_DAILY_RECORD').toArray();
+  const holders = await listDailyRecordProjectionHolders(date);
   const stored = (await db.dailyRecords.get(date)) ?? null;
-  if (
-    tasks.some(
-      task =>
-        task.key === `daily:${date}` &&
-        ['PENDING', 'PROCESSING', 'FAILED', 'CONFLICT'].includes(task.status)
-    )
-  ) {
+  if (holders.length) {
     if (!stored) throw new Error('No existe la copia local de una escritura pendiente.');
     return { status: 'retained_pending', record: stored };
   }
@@ -217,7 +212,8 @@ export const inspectLocalRecordAdmission = async (
       ? { status: 'admitted' }
       : { status: 'superseded', stored };
   }
-  return db.transaction('r', db.dailyRecords, db.syncQueue, () =>
+  // Read-write: a holder whose copy is already gone is released in this same transaction.
+  return db.transaction('rw', db.dailyRecords, db.syncQueue, () =>
     inspectIndexedDbAdmission(date, expectedBase, candidate)
   );
 };
@@ -366,6 +362,26 @@ export const deleteRecordStrict = async (date: string): Promise<LocalRecordWrite
       'No fue posible eliminar el registro local.'
     );
   }
+};
+
+/**
+ * Deletes a stored day to refresh it, unless a day write still holds it, checked in the transaction
+ * that deletes. Returns whether it was deleted; a storage failure throws, it is not "nothing held".
+ */
+export const deleteUnheldRecord = async (date: string): Promise<boolean> => {
+  await ensureDbReady();
+  if (isDatabaseInFallbackMode()) {
+    localPersistence.records.deleteForDate(date);
+  } else {
+    const held = await db.transaction('rw', db.dailyRecords, db.syncQueue, async () => {
+      if ((await listDailyRecordProjectionHolders(date)).length) return true;
+      await db.dailyRecords.delete(date);
+      return false;
+    });
+    if (held) return false;
+  }
+  dispatchDailyRecordStoreChanged({ operation: 'delete', dates: [date] });
+  return true;
 };
 
 export const deleteRecord = async (date: string): Promise<void> => {

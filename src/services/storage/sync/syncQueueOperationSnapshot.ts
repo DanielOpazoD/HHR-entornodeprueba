@@ -28,6 +28,7 @@ export interface SyncQueueOperationSnapshot {
   origin?: SyncTask['origin'];
   recoveryPolicy?: SyncTask['recoveryPolicy'];
   syncContract?: SyncTask['syncContract'];
+  projectionReleased?: SyncTask['projectionReleased'];
 }
 
 export const toSyncQueueOperationSnapshot = (row: SyncTask): SyncQueueOperationSnapshot => ({
@@ -57,4 +58,5 @@ export const toSyncQueueOperationSnapshot = (row: SyncTask): SyncQueueOperationS
   origin: row.origin,
   recoveryPolicy: row.recoveryPolicy,
   syncContract: sanitizeSyncContractForOperationalSnapshot(row.syncContract),
+  projectionReleased: row.projectionReleased,
 });

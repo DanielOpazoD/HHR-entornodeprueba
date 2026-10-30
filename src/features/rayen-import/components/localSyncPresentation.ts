@@ -74,7 +74,10 @@ export const targetLabelFromKey = (
 const resolveQuarantineRecovery = (
   operation: SyncQueueOperation
 ): QuarantinedOperationView['recovery'] => {
-  if (requiresDailyRecordBaseReview(operation)) return 'review_base';
+  // A closed session cleared the day these edits were made on: like a write without a known base,
+  // they cannot be resent as they are, only reviewed and retired with a backup.
+  if (operation.projectionReleased || requiresDailyRecordBaseReview(operation))
+    return 'review_base';
   if (operation.status === 'FAILED' && operation.lastErrorCategory === 'authorization')
     return 'review_authorization';
   if (operation.status !== 'CONFLICT') return 'retry';
