@@ -158,7 +158,7 @@ export const getSyncQueueTelemetry = async (): Promise<SyncQueueTelemetry> => {
     await ensureDbReady();
     const telemetry = await syncQueueEngine.getTelemetry();
     const ownerKey = getSyncOwnerKey();
-    const orphanedTasks = await syncQueueStore.countForeign(ownerKey);
+    const { orphanedTasks } = telemetry;
     assertCurrentSession();
     recordSyncQueueBudgetTelemetry(telemetry, {
       source: 'public_sync_queue',

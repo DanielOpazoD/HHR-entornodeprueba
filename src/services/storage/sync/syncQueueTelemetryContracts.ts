@@ -2,6 +2,12 @@ import type {
   SyncQueueBudgetState,
   SyncQueueRuntimeState,
 } from '@/services/storage/sync/syncQueueOperationalBudgets';
+import type { SyncTask } from '@/services/storage/syncQueueTypes';
+
+export type SyncQueueTelemetryRow = Pick<
+  SyncTask,
+  'status' | 'timestamp' | 'origin' | 'retryCount'
+>;
 
 export interface SyncQueueTelemetry {
   pending: number;

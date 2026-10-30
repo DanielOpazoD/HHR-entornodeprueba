@@ -10,6 +10,7 @@ import { localPersistence } from '@/services/storage/localpersistence/localPersi
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
+import type { SyncQueueTelemetryRow } from '@/services/storage/sync/syncQueueTelemetryContracts';
 import { matchesTaskClaim } from '@/services/storage/sync/syncQueueTaskFactory';
 import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
 import {
@@ -21,6 +22,13 @@ import {
 } from '@/services/storage/sync/dexieSyncQueueQuarantine';
 
 const loadAuthorityAck = () => import('./dexieSyncQueueAuthorityAck');
+
+const LIVE_STATUSES = Object.keys({
+  PENDING: true,
+  PROCESSING: true,
+  FAILED: true,
+  CONFLICT: true,
+} satisfies Record<Exclude<SyncTask['status'], 'RETIRED'>, true>).sort();
 
 const isReadyForClaim = (task: SyncTask, now: number): boolean => {
   if ((task.preOutboxHoldUntil || 0) > now) {
@@ -337,9 +345,25 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
       )
       .delete();
   },
-  async countForeign(ownerKey) {
-    return hospitalDB.syncQueue
-      .filter(task => task.status !== 'RETIRED' && !!task.ownerKey && task.ownerKey !== ownerKey)
-      .count();
+  async readTelemetryInputs(ownerKey) {
+    const rows: SyncQueueTelemetryRow[] = [];
+    let foreignCount = 0;
+    const tasks = await hospitalDB.syncQueue
+      .where('status')
+      .between(LIVE_STATUSES[0], LIVE_STATUSES[LIVE_STATUSES.length - 1], true, true)
+      .toArray();
+    for (const task of tasks) {
+      if (matchesOwner(ownerKey, task.ownerKey)) {
+        rows.push({
+          status: task.status,
+          timestamp: task.timestamp,
+          origin: task.origin,
+          retryCount: task.retryCount,
+        });
+      } else {
+        foreignCount += 1;
+      }
+    }
+    return { rows, foreignCount };
   },
 });

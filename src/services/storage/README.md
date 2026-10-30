@@ -49,6 +49,8 @@ para centralizar `runtime.ready`, `getDoc/setDoc` y preparación de suscripcione
 El motor comparte una sola lectura de contadores mediante su telemetría. Las APIs de
 estadísticas agregadas conservan su contrato y aislamiento por sesión en la fachada
 pública, sin retener cálculos sin consumidores dentro del motor de envíos.
+La telemetría lee los estados vigentes por el índice existente y obtiene los contadores
+propios y ajenos en una sola captura, sin recorrer los respaldos retirados.
 La fachada pública vive en `sync/publicSyncQueue.ts`.
 Sus lecturas comprueban el propietario y la generación de sesión antes de devolver
 resultados. Si cambian mientras espera IndexedDB, usan el diagnóstico de lectura
