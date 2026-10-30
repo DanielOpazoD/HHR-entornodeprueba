@@ -1,6 +1,12 @@
 import 'fake-indexeddb/auto';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+const storage = vi.hoisted(() => ({ fallback: false }));
+vi.mock('@/services/storage/indexeddb/indexedDbCore', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/storage/indexeddb/indexedDbCore')>()),
+  isDatabaseInFallbackMode: () => storage.fallback,
+}));
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
+import { STORAGE_KEY } from '@/services/storage/localstorage/localStorageCore';
 import { clearSessionDailyRecords } from '@/services/storage/sessionSyncQueuePreservation';
 import { matchesTaskClaim } from '@/services/storage/sync/syncQueueTaskFactory';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
@@ -21,7 +27,12 @@ const task = (opId: string, ownerKey?: string): SyncTask => ({
 });
 describe('individual session logout preserves pending edits', () => {
   beforeEach(async () => {
+    storage.fallback = false;
     await hospitalDB.syncQueue.clear();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    localStorage.clear();
   });
   it('keeps payload, identity and expected revision, fences late acknowledgements and isolates the next user', async () => {
     const own = task('own', owner);
@@ -63,5 +74,14 @@ describe('individual session logout preserves pending edits', () => {
     expect(all.find(t => t.opId === 'retired')).toMatchObject({ status: 'RETIRED', retirement });
     expect(all.find(t => t.opId === 'conflict')?.status).toBe('CONFLICT');
     expect(await createDexieSyncQueueStore().listAll('user:next')).toEqual([]);
+  });
+  it('removes fallback patient days at logout even when the queue step fails', async () => {
+    storage.fallback = true;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ '2026-01-01': { date: '2026-01-01' } }));
+    vi.spyOn(hospitalDB, 'transaction').mockRejectedValueOnce(new Error('synthetic queue failure'));
+
+    await expect(clearSessionDailyRecords(owner)).rejects.toThrow('synthetic queue failure');
+
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
   });
 });
