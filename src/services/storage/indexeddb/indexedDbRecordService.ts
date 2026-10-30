@@ -3,11 +3,19 @@ import { localPersistence } from '@/services/storage/localpersistence/localPersi
 import { buildMonthRecordPrefix } from '@/services/storage/storageDateSupport';
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
+import { arePatchValuesDeepEqual } from '@/utils/patchValueEquality';
 
 import { ensureDbReady, hospitalDB as db, isDatabaseInFallbackMode } from './indexedDbCore';
 import { dispatchDailyRecordStoreChanged } from './indexedDbRecordEvents';
 
 export type LocalRecordWriteStore = 'indexeddb' | 'fallback' | 'e2e' | 'none';
+
+export type LocalRecordBase = { kind: 'stored'; record: DailyRecord | null } | { kind: 'unknown' };
+
+export type LocalRecordAdmission =
+  | { status: 'admitted' }
+  | { status: 'retained_pending'; record: DailyRecord }
+  | { status: 'superseded'; stored: DailyRecord | null };
 
 export interface LocalRecordWriteResult {
   ok: boolean;
@@ -17,6 +25,7 @@ export interface LocalRecordWriteResult {
   error?: unknown;
   userSafeMessage?: string;
   retainedRecord?: DailyRecord;
+  superseded?: { stored: DailyRecord | null };
 }
 
 const toRecordMap = (records: DailyRecord[]): Record<string, DailyRecord> => {
@@ -136,66 +145,128 @@ export const getRecordForDateStrict = async (date: string): Promise<DailyRecord 
   return record || null;
 };
 
+const reportRecordReadFailure = (date: string, error: unknown): void => {
+  recordOperationalErrorTelemetry('indexeddb', 'indexeddb_get_record_for_date', error, {
+    code: 'indexeddb_get_record_for_date_failed',
+    message: `No fue posible obtener el registro del dia ${date}.`,
+    severity: 'warning',
+    userSafeMessage: 'No fue posible recuperar el registro solicitado.',
+    context: { date },
+  });
+};
+
+export const captureLocalRecordBase = async (date: string): Promise<LocalRecordBase> => {
+  try {
+    return { kind: 'stored', record: await getRecordForDateStrict(date) };
+  } catch (error) {
+    reportRecordReadFailure(date, error);
+    return { kind: 'unknown' };
+  }
+};
+
 export const getRecordForDate = async (date: string): Promise<DailyRecord | null> => {
   try {
     return await getRecordForDateStrict(date);
   } catch (error) {
-    recordOperationalErrorTelemetry('indexeddb', 'indexeddb_get_record_for_date', error, {
-      code: 'indexeddb_get_record_for_date_failed',
-      message: `No fue posible obtener el registro del dia ${date}.`,
-      severity: 'warning',
-      userSafeMessage: 'No fue posible recuperar el registro solicitado.',
-      context: { date },
-    });
+    reportRecordReadFailure(date, error);
     return null;
   }
 };
 
+const admitsPointRead = (
+  base: LocalRecordBase,
+  stored: DailyRecord | null,
+  candidate: DailyRecord | null
+): boolean =>
+  base.kind === 'unknown'
+    ? stored === null
+    : arePatchValuesDeepEqual(stored, base.record) ||
+      (candidate !== null && arePatchValuesDeepEqual(stored, candidate));
+
+const inspectIndexedDbAdmission = async (
+  date: string,
+  expectedBase?: LocalRecordBase,
+  candidate: DailyRecord | null = null
+): Promise<LocalRecordAdmission> => {
+  const tasks = await db.syncQueue.where('type').equals('UPDATE_DAILY_RECORD').toArray();
+  const stored = (await db.dailyRecords.get(date)) ?? null;
+  if (
+    tasks.some(
+      task =>
+        task.key === `daily:${date}` &&
+        ['PENDING', 'PROCESSING', 'FAILED', 'CONFLICT'].includes(task.status)
+    )
+  ) {
+    if (!stored) throw new Error('No existe la copia local de una escritura pendiente.');
+    return { status: 'retained_pending', record: stored };
+  }
+  return expectedBase && !admitsPointRead(expectedBase, stored, candidate)
+    ? { status: 'superseded', stored }
+    : { status: 'admitted' };
+};
+
+export const inspectLocalRecordAdmission = async (
+  date: string,
+  expectedBase: LocalRecordBase,
+  candidate: DailyRecord | null
+): Promise<LocalRecordAdmission> => {
+  await ensureDbReady();
+  if (isDatabaseInFallbackMode()) {
+    const stored = localPersistence.records.getForDate(date);
+    return admitsPointRead(expectedBase, stored, candidate)
+      ? { status: 'admitted' }
+      : { status: 'superseded', stored };
+  }
+  return db.transaction('r', db.dailyRecords, db.syncQueue, () =>
+    inspectIndexedDbAdmission(date, expectedBase, candidate)
+  );
+};
+
 export const saveRecordStrict = async (
   record: DailyRecord,
-  options: { preserveUnresolvedWrites?: boolean } = {}
+  options:
+    | { preserveUnresolvedWrites?: false }
+    | { preserveUnresolvedWrites: true; expectedBase?: LocalRecordBase } = {}
 ): Promise<LocalRecordWriteResult> => {
   try {
     await ensureDbReady();
     const store = resolveActiveWriteStore();
-    const retainPendingProjection = async (): Promise<DailyRecord | undefined> => {
-      const tasks = await db.syncQueue.where('type').equals('UPDATE_DAILY_RECORD').toArray();
-      if (
-        !tasks.some(
-          task =>
-            task.key === `daily:${record.date}` &&
-            ['PENDING', 'PROCESSING', 'FAILED', 'CONFLICT'].includes(task.status)
-        )
-      )
-        return;
-      const local = await db.dailyRecords.get(record.date);
-      if (!local) throw new Error('No existe la copia local de una escritura pendiente.');
-      return local;
-    };
+    const result = {
+      ok: true,
+      operation: 'save',
+      store,
+      dates: [record.date],
+    } satisfies LocalRecordWriteResult;
     if (isDatabaseInFallbackMode()) {
-      // Keep the fallback independent of the unavailable IndexedDB/outbox.
-      // Transactional outbox writes cannot be admitted in this mode.
+      const stored = localPersistence.records.getForDate(record.date);
+      if (
+        options.preserveUnresolvedWrites &&
+        options.expectedBase &&
+        !admitsPointRead(options.expectedBase, stored, record)
+      ) {
+        return { ...result, superseded: { stored } };
+      }
       localPersistence.records.save(record);
-      syncE2ERuntimeRecordMirror(record);
-      dispatchDailyRecordStoreChanged({ operation: 'save', dates: [record.date] });
-      return { ok: true, operation: 'save', store, dates: [record.date] };
-    }
-    if (options.preserveUnresolvedWrites) {
-      // The snapshot check and cache write share the outbox transaction scope.
-      // A realtime echo must not replace the revision still awaiting its command ACK.
-      const retainedRecord = await db.transaction('rw', db.dailyRecords, db.syncQueue, async () => {
-        const pending = await retainPendingProjection();
-        if (!pending) await db.dailyRecords.put(record);
-        return pending;
+    } else if (options.preserveUnresolvedWrites) {
+      const admission = await db.transaction('rw', db.dailyRecords, db.syncQueue, async () => {
+        const admission = await inspectIndexedDbAdmission(
+          record.date,
+          options.expectedBase,
+          record
+        );
+        if (admission.status === 'admitted') await db.dailyRecords.put(record);
+        return admission;
       });
-      if (retainedRecord)
-        return { ok: true, operation: 'save', store, dates: [record.date], retainedRecord };
+      if (admission.status === 'retained_pending')
+        return { ...result, retainedRecord: admission.record };
+      if (admission.status === 'superseded')
+        return { ...result, superseded: { stored: admission.stored } };
     } else {
       await db.dailyRecords.put(record);
     }
     syncE2ERuntimeRecordMirror(record);
     dispatchDailyRecordStoreChanged({ operation: 'save', dates: [record.date] });
-    return { ok: true, operation: 'save', store, dates: [record.date] };
+    return result;
   } catch (error) {
     recordOperationalErrorTelemetry('indexeddb', 'indexeddb_save_record', error, {
       code: 'indexeddb_save_record_failed',

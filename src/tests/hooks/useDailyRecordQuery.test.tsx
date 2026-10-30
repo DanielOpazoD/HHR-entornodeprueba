@@ -1,7 +1,5 @@
-import {
-  createDailyRecordQueryFn,
-  getDailyRecordQueryKey,
-} from '@/hooks/controllers/dailyRecordQueryController';
+import { readDailyRecordQuery } from '@/tests/utils/readDailyRecordQuery';
+import { getDailyRecordQueryKey } from '@/hooks/controllers/dailyRecordQueryController';
 import { createNotFoundDailyRecordReadResult } from '@/services/repositories/dailyRecordReadResultController';
 import { resolveDailyRecordBootstrapPhase } from '@/hooks/controllers/dailyRecordBootstrapController';
 import { QueryClientProvider, focusManager, onlineManager } from '@tanstack/react-query';
@@ -74,10 +72,10 @@ describe('useDailyRecordQuery', () => {
     const confirmed = createDailyRecordReadResult(date, mockRecord, 'firestore', {
       serverConfirmed: true,
     });
-    const cached = await createDailyRecordQueryFn(
+    const cached = await readDailyRecordQuery(
       { getForDateWithMeta: vi.fn().mockResolvedValue(confirmed) },
       date
-    )();
+    );
     client.setQueryData(getDailyRecordQueryKey(date), cached);
     vi.mocked(repository.getForDateWithMeta).mockImplementation(() => new Promise(() => {}));
     markDailyRecordTabHidden(0);
@@ -93,14 +91,14 @@ describe('useDailyRecordQuery', () => {
 
   it('revalidates a fresh cached absence before allowing empty UI on a new visit', async () => {
     const client = createTestQueryClient({ defaultOptions: appQueryClient.getDefaultOptions() });
-    const cached = await createDailyRecordQueryFn(
+    const cached = await readDailyRecordQuery(
       {
         getForDateWithMeta: vi
           .fn()
           .mockResolvedValue(createNotFoundDailyRecordReadResult(date, 'missing')),
       },
       date
-    )();
+    );
     client.setQueryData(getDailyRecordQueryKey(date), cached);
     let release!: (value: ReturnType<typeof createDailyRecordReadResult>) => void;
     const repository = buildMockDailyRecordRepository();

@@ -3,6 +3,11 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordForDate: vi.fn(),
+  captureLocalRecordBase: async (date: string) => ({
+    kind: 'stored',
+    record: await getRecordFromIndexedDB(date),
+  }),
+  inspectLocalRecordAdmission: async () => ({ status: 'admitted' }),
   saveRecord: vi.fn(),
   saveRecordStrict: vi.fn(record =>
     Promise.resolve({
@@ -137,7 +142,7 @@ describe('dailyRecordRepositorySyncService', () => {
         date: '2026-03-03',
         lastUpdated: '2026-03-03T12:00:00.000Z',
       }),
-      { preserveUnresolvedWrites: true }
+      { preserveUnresolvedWrites: true, expectedBase: { kind: 'stored', record: localRecord } }
     );
   });
 

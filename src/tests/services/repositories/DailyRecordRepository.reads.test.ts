@@ -87,6 +87,11 @@ vi.mock('@/services/storage/migration/legacyCatalogReadBridge', () => ({
 vi.mock('@/services/storage/indexedDBService', () => indexedDbFacadeMock);
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordForDate: indexedDbFacadeMock.getRecordForDate,
+  captureLocalRecordBase: async (date: string) => ({
+    kind: 'stored',
+    record: await indexedDbFacadeMock.getRecordForDate(date),
+  }),
+  inspectLocalRecordAdmission: async () => ({ status: 'admitted' }),
   getPreviousDayRecord: indexedDbFacadeMock.getPreviousDayRecord,
   saveRecord: indexedDbFacadeMock.saveRecord,
   saveRecordStrict: indexedDbFacadeMock.saveRecordStrict,

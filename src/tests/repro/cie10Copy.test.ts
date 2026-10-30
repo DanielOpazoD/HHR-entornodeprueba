@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect } from 'vitest';
 import { initializeDay } from '@/services/repositories/dailyRecordRepositoryInitializationService';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
@@ -35,6 +35,16 @@ vi.mock('../../services/storage/migration/legacyRecordReadBridge', () => ({
 
 describe('CIE-10 Copy Bug Reproduction', () => {
   type CudyrType = NonNullable<PatientData['cudyr']>;
+
+  beforeEach(() => {
+    vi.mocked(IndexedDBService.captureLocalRecordBase).mockImplementation(async date => ({
+      kind: 'stored',
+      record: await IndexedDBService.getRecordForDate(date),
+    }));
+    vi.mocked(IndexedDBService.inspectLocalRecordAdmission).mockResolvedValue({
+      status: 'admitted',
+    });
+  });
 
   it('should copy CIE-10 fields from previous day', async () => {
     const prevDate = '2026-01-17';

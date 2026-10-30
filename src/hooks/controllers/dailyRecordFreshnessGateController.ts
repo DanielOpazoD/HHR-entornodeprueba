@@ -17,6 +17,7 @@ import {
 import { DailyRecordFreshnessGateError } from '@/hooks/controllers/dailyRecordFreshnessGateError';
 import { applyDailyRecordRemoteConfirmation } from '@/hooks/controllers/dailyRecordRemoteConfirmationController';
 import { didDailyRecordFreshnessHydrateNewerRemote } from '@/hooks/controllers/dailyRecordFreshnessHydrationController';
+import { retainedPointReadPublication } from '@/hooks/controllers/dailyRecordPointReadPublication';
 
 export { DailyRecordFreshnessGateError } from '@/hooks/controllers/dailyRecordFreshnessGateError';
 
@@ -43,6 +44,7 @@ interface EnsureDailyRecordRemoteFreshnessInput {
   date: string;
   queryClient: QueryClient;
   queryFn: () => Promise<DailyRecordQueryResult>;
+  structuralSharing?: (previous: unknown, incoming: unknown) => unknown;
   reason: 'resume' | 'clinical_patch' | 'clinical_save';
   now?: number;
 }
@@ -215,6 +217,7 @@ export const ensureDailyRecordRemoteFreshness = ({
   date,
   queryClient,
   queryFn,
+  structuralSharing,
   reason,
   now = getNow(),
 }: EnsureDailyRecordRemoteFreshnessInput): Promise<DailyRecordQueryResult> => {
@@ -232,6 +235,7 @@ export const ensureDailyRecordRemoteFreshness = ({
     return queryClient.fetchQuery({
       queryKey: getDailyRecordFreshnessQueryKey(date),
       queryFn,
+      structuralSharing,
       staleTime: 0,
     });
   }
@@ -266,10 +270,23 @@ export const ensureDailyRecordRemoteFreshness = ({
     .fetchQuery({
       queryKey: getDailyRecordFreshnessQueryKey(date),
       queryFn,
+      structuralSharing,
       staleTime: 0,
     })
-    .then(result => {
-      if (!result.runtime.serverConfirmed || isRemoteUnavailableRead(result)) {
+    .then(fetched => {
+      const result =
+        queryClient.getQueryData<DailyRecordQueryResult>(getDailyRecordFreshnessQueryKey(date)) ??
+        fetched;
+      const retained = retainedPointReadPublication(fetched);
+      const retainsFreshConfirmation =
+        !requiresRemoteFreshness(date) &&
+        typeof state.lastRemoteConfirmedAt === 'number' &&
+        getNow() - state.lastRemoteConfirmedAt < DAILY_RECORD_RESUME_STALE_THRESHOLD_MS;
+      if (
+        !result.runtime.serverConfirmed ||
+        isRemoteUnavailableRead(result) ||
+        (retained && !retainsFreshConfirmation)
+      ) {
         setFreshnessStatus(state, 'blocked_until_remote_check');
         const blockedForMs = recordClinicalInputsBlockFailed(
           date,
@@ -294,6 +311,8 @@ export const ensureDailyRecordRemoteFreshness = ({
           'Estamos verificando los últimos datos. Intente nuevamente en unos segundos.'
         );
       }
+
+      if (retained) return result;
 
       const completedAt = now;
       const blockedForMs =

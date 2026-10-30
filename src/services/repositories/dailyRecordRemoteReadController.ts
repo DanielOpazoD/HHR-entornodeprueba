@@ -1,5 +1,8 @@
 import { AdmissionDatePolicyViolationError } from '@/application/patient-flow/admissionDatePolicy';
-import { persistHydratedRecordToLocalCache } from '@/services/repositories/dailyRecordLocalCachePersistence';
+import {
+  persistHydratedRecordToLocalCache,
+  persistPointReadToLocalCache,
+} from '@/services/repositories/dailyRecordLocalCachePersistence';
 import {
   hasRemoteClinicalTextShrinkage,
   resolveDailyRecordPersistenceGoldenPath,
@@ -7,6 +10,7 @@ import {
 import { resolveDailyRecordConflict } from '@/services/repositories/conflictResolutionMatrix';
 import {
   createGoldenPathReadResult,
+  createSupersededReadResult,
   createRetainedPendingProjectionReadResult,
   type LocalRuntimeReadCandidate,
 } from '@/services/repositories/dailyRecordReadResultController';
@@ -16,10 +20,16 @@ import type { DailyRecordReadResult } from '@/services/repositories/contracts/da
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { getPendingDailyRecordProjection } from '@/services/storage/sync/dailyRecordSyncQueueReadService';
 
+import {
+  inspectLocalRecordAdmission,
+  type LocalRecordBase,
+} from '@/services/storage/indexeddb/indexedDbRecordService';
+
 interface ResolveRemoteGoldenPathReadResultInput {
   date: string;
   localCandidate: LocalRuntimeReadCandidate | null;
   remoteReadResult: DailyRecordRemoteLoadResult;
+  base?: LocalRecordBase;
   persistHydratedRecord?: (
     record: DailyRecord,
     date: string,
@@ -30,7 +40,11 @@ interface ResolveRemoteGoldenPathReadResultInput {
 interface AttemptRemoteGoldenPathReadInput {
   date: string;
   localCandidate: LocalRuntimeReadCandidate | null;
-  loadRemoteRecordWithFallback: (date: string) => Promise<DailyRecordRemoteLoadResult>;
+  base?: LocalRecordBase;
+  loadRemoteRecordWithFallback: (
+    date: string,
+    options?: { base?: LocalRecordBase }
+  ) => Promise<DailyRecordRemoteLoadResult>;
   logRemoteFetchAttempt?: (date: string) => void;
   onRemoteFetchFailure?: (error: unknown, date: string) => void;
 }
@@ -39,6 +53,7 @@ export const resolveRemoteGoldenPathReadResult = async ({
   date,
   localCandidate,
   remoteReadResult,
+  base = remoteReadResult.issuedAgainst,
   persistHydratedRecord = persistHydratedRecordToLocalCache,
 }: ResolveRemoteGoldenPathReadResultInput): Promise<DailyRecordReadResult> => {
   const shouldProtectLocalClinicalText = hasRemoteClinicalTextShrinkage(
@@ -80,9 +95,27 @@ export const resolveRemoteGoldenPathReadResult = async ({
       ? goldenPath.selectedRecord || effectiveRemoteReadResult.record
       : null);
 
+  let pointReadAdmitted = false;
   if (recordToHydrate) {
     try {
-      await persistHydratedRecord(recordToHydrate, date, localCandidate?.record || null);
+      if (base) {
+        const hydration = await persistPointReadToLocalCache(
+          recordToHydrate,
+          date,
+          base,
+          localCandidate?.record || null
+        );
+        if (hydration.status === 'superseded') {
+          return createSupersededReadResult(
+            date,
+            hydration.stored,
+            await getPendingDailyRecordProjection(date)
+          );
+        }
+        pointReadAdmitted = true;
+      } else {
+        await persistHydratedRecord(recordToHydrate, date, localCandidate?.record || null);
+      }
     } catch (error) {
       if (error instanceof AdmissionDatePolicyViolationError) {
         dailyRecordReadLogger.warn(
@@ -95,6 +128,16 @@ export const resolveRemoteGoldenPathReadResult = async ({
     }
   }
 
+  if (base && !pointReadAdmitted) {
+    const admission = await inspectLocalRecordAdmission(date, base, goldenPath.selectedRecord);
+    if (admission.status === 'superseded') {
+      return createSupersededReadResult(
+        date,
+        admission.stored,
+        await getPendingDailyRecordProjection(date)
+      );
+    }
+  }
   const retainedRecord = await getPendingDailyRecordProjection(date);
   if (retainedRecord)
     return createRetainedPendingProjectionReadResult(
@@ -109,16 +152,18 @@ export const attemptRemoteGoldenPathRead = async ({
   date,
   localCandidate,
   loadRemoteRecordWithFallback,
+  base,
   logRemoteFetchAttempt,
   onRemoteFetchFailure,
 }: AttemptRemoteGoldenPathReadInput): Promise<DailyRecordReadResult> => {
   try {
     logRemoteFetchAttempt?.(date);
-    const remoteReadResult = await loadRemoteRecordWithFallback(date);
+    const remoteReadResult = await loadRemoteRecordWithFallback(date, { base });
     return resolveRemoteGoldenPathReadResult({
       date,
       localCandidate,
       remoteReadResult,
+      base: remoteReadResult.issuedAgainst ?? base,
     });
   } catch (error) {
     onRemoteFetchFailure?.(error, date);

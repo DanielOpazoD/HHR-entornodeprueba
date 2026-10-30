@@ -1,3 +1,7 @@
+import {
+  captureLocalRecordBase,
+  type LocalRecordBase,
+} from '@/services/storage/indexeddb/indexedDbRecordService';
 import { DailyRecord } from '@/types/domain/dailyRecord';
 import { getRecordFromFirestoreDetailed } from '@/services/storage/firestore/firestoreRecordQueries';
 import { migrateLegacyDataWithReport } from '@/services/repositories/dataMigration';
@@ -12,6 +16,7 @@ export type DailyRecordRemoteCompatibilityTier = 'current_firestore' | 'none';
 
 export interface DailyRecordRemoteLoadResult {
   serverConfirmed: boolean;
+  issuedAgainst?: LocalRecordBase;
   record: DailyRecord | null;
   source: DailyRecordRemoteSource;
   compatibilityTier: DailyRecordRemoteCompatibilityTier;
@@ -25,6 +30,7 @@ const remoteLoadInFlight = new Map<string, Promise<DailyRecordRemoteLoadResult>>
 interface DailyRecordRemoteLoadOptions {
   /** Structural CAS planning must bypass the Firestore SDK cache. */
   source?: 'default' | 'server';
+  base?: LocalRecordBase;
 }
 
 export const loadRemoteRecordWithFallback = async (
@@ -41,6 +47,8 @@ export const loadRemoteRecordWithFallback = async (
   const request = measureRepositoryOperation(
     'dailyRecord.loadRemoteWithFallback',
     async () => {
+      const issuedAgainst =
+        source === 'default' ? (options.base ?? (await captureLocalRecordBase(date))) : undefined;
       const remoteRead = await getRecordFromFirestoreDetailed(date, { source });
       if (remoteRead.status === 'failed') {
         throw remoteRead.error ?? new Error(`Remote Firestore read failed for ${date}`);
@@ -51,6 +59,7 @@ export const loadRemoteRecordWithFallback = async (
         : null;
       return {
         record: migrated?.record ?? null,
+        issuedAgainst,
         source: remoteRead.record ? 'firestore' : 'not_found',
         compatibilityTier: remoteRead.record ? 'current_firestore' : 'none',
         compatibilityIntensity: migrated?.compatibilityIntensity ?? 'none',

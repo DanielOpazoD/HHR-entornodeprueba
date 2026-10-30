@@ -1,8 +1,8 @@
+import { readDailyRecordQuery } from '@/tests/utils/readDailyRecordQuery';
 import { describe, expect, it, vi } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
 import {
-  createDailyRecordQueryFn,
-  createReconciledDailyRecordQueryFn,
+  createDailyRecordQueryOptions,
   getDailyRecordQueryKey,
 } from '@/hooks/controllers/dailyRecordQueryController';
 import { resolveDailyRecordBootstrapPhase } from '@/hooks/controllers/dailyRecordBootstrapController';
@@ -31,7 +31,7 @@ describe('absence evidence across local cache, Firebase and bootstrap', () => {
         .fn()
         .mockResolvedValue(createNotFoundDailyRecordReadResult(date, 'not_requested')),
     };
-    const result = await createDailyRecordQueryFn(reader, date, false)();
+    const result = await readDailyRecordQuery(reader, date, false);
     expect(result.runtime.availabilityState).toBe('unconfirmed_missing');
     expect(phase(result)).toBe('remote_record_bootstrapping');
   });
@@ -50,8 +50,8 @@ describe('absence evidence across local cache, Firebase and bootstrap', () => {
             })
         ),
     };
-    const local = await createDailyRecordQueryFn(reader, date, false)();
-    const pending = createDailyRecordQueryFn(reader, date, true)();
+    const local = await readDailyRecordQuery(reader, date, false);
+    const pending = readDailyRecordQuery(reader, date, true);
     expect(phase(local, true)).toBe('remote_record_bootstrapping');
     release(
       createDailyRecordReadResult(date, DataFactory.createMockDailyRecord(date), 'firestore')
@@ -65,11 +65,11 @@ describe('absence evidence across local cache, Firebase and bootstrap', () => {
         serverConfirmed: true,
       }),
     };
-    const confirmed = await createDailyRecordQueryFn(reader, date, true)();
+    const confirmed = await readDailyRecordQuery(reader, date, true);
     expect(phase(confirmed)).toBe('confirmed_empty');
     expect(phase(confirmed, true)).toBe('remote_record_bootstrapping');
     expect(phase(confirmed, false, '2026-10-19')).toBe('remote_record_bootstrapping');
-    const unconfirmed = await createDailyRecordQueryFn(
+    const unconfirmed = await readDailyRecordQuery(
       {
         getForDateWithMeta: vi
           .fn()
@@ -77,7 +77,7 @@ describe('absence evidence across local cache, Firebase and bootstrap', () => {
       },
       date,
       true
-    )();
+    );
     expect(phase(unconfirmed)).toBe('remote_record_bootstrapping');
     expect(phase({ ...confirmed, runtime: { ...confirmed.runtime, conflictSummary: null } })).toBe(
       'remote_record_bootstrapping'
@@ -92,8 +92,7 @@ describe('absence evidence across local cache, Firebase and bootstrap', () => {
       }),
     };
     const options = {
-      queryKey: getDailyRecordQueryKey(date),
-      queryFn: createDailyRecordQueryFn(reader, date, true),
+      ...createDailyRecordQueryOptions(reader, date, client, true),
       staleTime: 0,
     };
     const currentPhase = () => {
@@ -134,16 +133,16 @@ describe('absence evidence across local cache, Firebase and bootstrap', () => {
           })
       ),
     };
-    const pending = createReconciledDailyRecordQueryFn(reader, date, client)();
+    const pending = createDailyRecordQueryOptions(reader, date, client).queryFn();
     const record = DataFactory.createMockDailyRecord(date);
-    const fresh = await createDailyRecordQueryFn(
+    const fresh = await readDailyRecordQuery(
       {
         getForDateWithMeta: vi
           .fn()
           .mockResolvedValue(createDailyRecordReadResult(date, record, 'firestore')),
       },
       date
-    )();
+    );
     client.setQueryData(getDailyRecordQueryKey(date), fresh);
     release(createNotFoundDailyRecordReadResult(date, 'missing'));
     expect((await pending).record).toEqual(record);

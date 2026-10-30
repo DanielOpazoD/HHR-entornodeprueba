@@ -27,8 +27,17 @@ import {
   createInitializeDayResult,
 } from '@/services/repositories/contracts/dailyRecordResults';
 import { dailyRecordInitializationLogger } from '@/services/repositories/repositoryLoggers';
-import { persistHydratedRecordToLocalCache } from '@/services/repositories/dailyRecordLocalCachePersistence';
+import {
+  persistPointReadToLocalCache,
+  type PointReadHydration,
+} from '@/services/repositories/dailyRecordLocalCachePersistence';
+import {
+  inspectLocalRecordAdmission,
+  type LocalRecordBase,
+  type LocalRecordAdmission,
+} from '@/services/storage/indexeddb/indexedDbRecordService';
 import { AdmissionDatePolicyViolationError } from '@/application/patient-flow/admissionDatePolicy';
+import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 
 export interface DailyRecordInitializationResult {
   record: DailyRecord;
@@ -86,46 +95,35 @@ const buildCopySourceMeta = (
   };
 };
 
-const cacheInitializationRecordIfNeeded = async (
-  record: DailyRecord,
-  copySourceRecord: DailyRecord | null
-): Promise<void> => {
-  if (!copySourceRecord) {
-    return;
-  }
-
+const admitInitializationRecord = async (
+  date: string,
+  record: DailyRecord | null,
+  copySourceRecord: DailyRecord | null,
+  base: LocalRecordBase
+): Promise<LocalRecordAdmission | PointReadHydration> => {
   try {
-    await persistHydratedRecordToLocalCache(record, record.date);
+    if (record && copySourceRecord)
+      return await persistPointReadToLocalCache(record, date, base, null);
   } catch (error) {
     if (error instanceof AdmissionDatePolicyViolationError) {
       dailyRecordInitializationLogger.warn(
-        `Skipped initialization cache write for ${record.date} due to admissionDate validation`,
+        `Skipped initialization cache write for ${date} due to admissionDate validation`,
         error
       );
-      return;
+    } else {
+      throw error;
     }
-    throw error;
   }
+  return inspectLocalRecordAdmission(date, base, record);
 };
 
 const loadRemoteInitializationSeed = async (
   date: string,
   copySourceRecord: DailyRecord | null
 ): Promise<DailyRecordInitializationSeed | null> => {
+  let remoteResult: Awaited<ReturnType<typeof loadRemoteRecordWithFallback>>;
   try {
-    const remoteResult = await loadRemoteRecordWithFallback(date);
-    if (!remoteResult.record) return null;
-
-    const enrichedRecord = enrichInitializationRecordFromCopySource(
-      remoteResult.record,
-      copySourceRecord
-    );
-    await cacheInitializationRecordIfNeeded(enrichedRecord, copySourceRecord);
-
-    return createRemoteInitializationSeed({
-      ...remoteResult,
-      record: enrichedRecord,
-    });
+    remoteResult = await loadRemoteRecordWithFallback(date);
   } catch (err) {
     dailyRecordInitializationLogger.warn(
       `Failed to check remote sources for ${date} during init`,
@@ -133,6 +131,28 @@ const loadRemoteInitializationSeed = async (
     );
     return null;
   }
+  const enrichedRecord = remoteResult.record
+    ? enrichInitializationRecordFromCopySource(remoteResult.record, copySourceRecord)
+    : null;
+  const admission = await admitInitializationRecord(
+    date,
+    enrichedRecord,
+    copySourceRecord,
+    remoteResult.issuedAgainst ?? { kind: 'unknown' }
+  );
+  if (admission.status === 'superseded' || admission.status === 'retained_pending') {
+    const record = admission.status === 'superseded' ? admission.stored : admission.record;
+    if (!record)
+      throw new ConcurrencyError('El censo cambió durante su apertura. Vuelva a abrir el día.');
+    return {
+      record,
+      source: 'local_current',
+      compatibilityTier: 'local_runtime',
+      compatibilityIntensity: 'none',
+    };
+  }
+  if (!enrichedRecord) return null;
+  return createRemoteInitializationSeed({ ...remoteResult, record: enrichedRecord });
 };
 
 const resolveInitializationSeed = async (

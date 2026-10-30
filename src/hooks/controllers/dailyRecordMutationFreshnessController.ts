@@ -5,7 +5,7 @@ import type {
   PartialUpdateDailyRecordOptions,
   SaveDailyRecordOptions,
 } from '@/services/repositories/contracts/dailyRecordCommands';
-import { createReconciledDailyRecordQueryFn } from '@/hooks/controllers/dailyRecordQueryController';
+import { createDailyRecordQueryOptions } from '@/hooks/controllers/dailyRecordQueryController';
 import {
   DailyRecordFreshnessGateError,
   ensureDailyRecordRemoteFreshness,
@@ -87,7 +87,7 @@ export const ensureFreshDailyRecordQuery = (
   ensureDailyRecordRemoteFreshness({
     date,
     queryClient,
-    queryFn: createReconciledDailyRecordQueryFn(dailyRecord, date, queryClient, true),
+    ...createDailyRecordQueryOptions(dailyRecord, date, queryClient, true),
     reason,
   });
 

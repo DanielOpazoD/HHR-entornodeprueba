@@ -16,6 +16,30 @@ const retainUnconfirmedResult = (result: DailyRecordQueryResult): DailyRecordQue
 const baseSource = ({ runtime }: DailyRecordQueryResult) =>
   runtime.baseSource ?? runtime.sourceOfTruth;
 
+export const settleFinishedPointRead = ({
+  startedWith,
+  current,
+  incoming,
+  superseded,
+}: {
+  startedWith: DailyRecordQueryResult | undefined;
+  current: DailyRecordQueryResult | undefined;
+  incoming: DailyRecordQueryResult;
+  superseded: boolean;
+}): { result: DailyRecordQueryResult; confirms: boolean } => {
+  if (!incoming.record && current?.record && current !== startedWith) {
+    return { result: retainUnconfirmedResult(current), confirms: false };
+  }
+  if (
+    current?.record &&
+    current !== startedWith &&
+    (superseded || (baseSource(current) === 'remote' && current.record !== startedWith?.record))
+  ) {
+    return { result: current, confirms: false };
+  }
+  return { result: reconcileDailyRecordQueryResult(current, incoming), confirms: !superseded };
+};
+
 /**
  * Keeps monotonic confirmed data without hiding authority, absence or availability transitions.
  * A remote result always supersedes a local optimistic projection, even when its server timestamp
