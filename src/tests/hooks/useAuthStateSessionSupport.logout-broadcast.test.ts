@@ -6,22 +6,19 @@ import {
   SESSION_GENERATION_KEY,
   setSessionGeneration,
 } from '@/services/storage/sessionStorageTransition';
-import { preserveSessionSyncQueue } from '@/services/storage/sessionSyncQueuePreservation';
+import { clearSessionDailyRecords } from '@/services/storage/sessionSyncQueuePreservation';
 import { clearSyncQueueForOwner } from '@/services/storage/sync';
 
 vi.mock('@/application/ports/auditPort', () => ({
   defaultAuditPort: { logUserLogout: vi.fn().mockResolvedValue(undefined) },
 }));
 vi.mock('@/config/queryClient', () => ({ clearQueryCache: vi.fn() }));
-vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
-  clearAllRecords: vi.fn().mockResolvedValue(undefined),
-}));
 vi.mock('@/services/storage/sync', () => ({
   clearSyncQueueForOwner: vi.fn().mockResolvedValue(undefined),
   recordSyncQueueOwnershipTelemetry: vi.fn(),
 }));
 vi.mock('@/services/storage/sessionSyncQueuePreservation', () => ({
-  preserveSessionSyncQueue: vi.fn().mockResolvedValue(undefined),
+  clearSessionDailyRecords: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
   recordOperationalTelemetry: vi.fn(),
@@ -85,7 +82,7 @@ describe('createHandleLogout when the cross-tab channel fails', () => {
       expect(localStorage.getItem(SESSION_GENERATION_KEY)).toBeNull();
       expect(localStorage.getItem(persistedAuthKey)).toBeNull();
       expect(sessionStorage.getItem('hhr_logged_this_session')).toBeNull();
-      expect(preserveSessionSyncQueue).toHaveBeenCalledExactlyOnceWith(ownerKey);
+      expect(clearSessionDailyRecords).toHaveBeenCalledExactlyOnceWith(ownerKey);
       expect(clearSyncQueueForOwner).not.toHaveBeenCalled();
     }
   );

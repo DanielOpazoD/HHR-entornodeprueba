@@ -18,8 +18,8 @@ import {
   findReusableSyncTask,
   matchesOwner,
   requeueQuarantinedTask,
-  listUnresolvedDailyRecordTasks,
 } from '@/services/storage/sync/dexieSyncQueueQuarantine';
+import { listDailyRecordProjectionHolders } from '@/services/storage/sync/dailyRecordSyncQueueReadService';
 
 const loadAuthorityAck = () => import('./dexieSyncQueueAuthorityAck');
 
@@ -31,7 +31,8 @@ const LIVE_STATUSES = Object.keys({
 } satisfies Record<Exclude<SyncTask['status'], 'RETIRED'>, true>).sort();
 
 const isReadyForClaim = (task: SyncTask, now: number): boolean => {
-  if ((task.preOutboxHoldUntil || 0) > now) {
+  // A released day write no longer has its edits on the stored day: it never publishes as is.
+  if (task.localProjection === 'released' || (task.preOutboxHoldUntil || 0) > now) {
     return false;
   }
 
@@ -181,6 +182,7 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
         if (
           !existing ||
           existing.status !== 'PENDING' ||
+          existing.localProjection === 'released' ||
           existing.type !== task.type ||
           existing.key !== task.key ||
           !matchesOwner(task.ownerKey, existing.ownerKey) ||
@@ -320,7 +322,7 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
       {
         db: hospitalDB,
         matchesClaim: matchesTaskClaim,
-        pending: listUnresolvedDailyRecordTasks,
+        pending: listDailyRecordProjectionHolders,
         confirmNote: confirmSpecialistHandoffProjection,
       },
       taskId,

@@ -4,14 +4,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HandoffMedicalObservationsCell } from '@/features/handoff/components/HandoffMedicalObservationsCell';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { clearSessionScopedClientState } from '@/services/storage/sessionScopedStorageService';
-vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
-  clearAllRecords: vi.fn().mockResolvedValue(undefined),
-}));
 vi.mock('@/services/storage/sync', () => ({
   recordSyncQueueOwnershipTelemetry: vi.fn(),
 }));
 vi.mock('@/services/storage/sessionSyncQueuePreservation', () => ({
-  preserveSessionSyncQueue: vi.fn().mockResolvedValue(undefined),
+  clearSessionDailyRecords: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
   recordOperationalTelemetry: vi.fn(),

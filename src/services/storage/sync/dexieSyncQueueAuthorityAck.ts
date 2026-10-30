@@ -14,13 +14,13 @@ import { hasSameComparableValue } from '@/services/repositories/conflictResoluti
 import {
   matchesOwner,
   REUSABLE_TASK_STATES,
-  listUnresolvedDailyRecordTasks,
 } from '@/services/storage/sync/dexieSyncQueueQuarantine';
+import { listDailyRecordProjectionHolders } from '@/services/storage/sync/dailyRecordSyncQueueReadService';
 
 interface AckRuntime {
   db: typeof hospitalDB;
   matchesClaim: typeof matchesTaskClaim;
-  pending: typeof listUnresolvedDailyRecordTasks;
+  pending: typeof listDailyRecordProjectionHolders;
   confirmNote: (task: SyncTask) => Promise<boolean>;
 }
 
@@ -44,7 +44,7 @@ export const completeDirectDailyRecord = async ({
     throw new SyncQueueAckError('sync_ack_invalid_record', 'Invalid direct ACK identity.');
   }
   return hospitalDB.transaction('rw', hospitalDB.dailyRecords, hospitalDB.syncQueue, async () => {
-    const unresolved = await listUnresolvedDailyRecordTasks(sentRecord.date);
+    const unresolved = await listDailyRecordProjectionHolders(sentRecord.date);
     const matching = unresolved.filter(
       task =>
         task.type === 'UPDATE_DAILY_RECORD' &&
@@ -182,9 +182,9 @@ export const adoptAuthoritativeDailyRecordInOutbox: NonNullable<
   SyncQueueStorePort['adoptAuthoritativeDailyRecord']
 > = (authoritativeRecord, ownerKey, buildReplacement) =>
   hospitalDB.transaction('rw', hospitalDB.dailyRecords, hospitalDB.syncQueue, async () => {
-    const unresolvedTasks = (await listUnresolvedDailyRecordTasks(authoritativeRecord.date)).filter(
-      task => matchesOwner(ownerKey, task.ownerKey)
-    );
+    const unresolvedTasks = (
+      await listDailyRecordProjectionHolders(authoritativeRecord.date)
+    ).filter(task => matchesOwner(ownerKey, task.ownerKey));
     const blocked = { status: 'blocked' as const };
     if (unresolvedTasks.length === 0) {
       await hospitalDB.dailyRecords.put(authoritativeRecord);

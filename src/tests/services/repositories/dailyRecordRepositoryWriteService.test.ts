@@ -259,7 +259,11 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
     expect(result.outcome).toBe('clean');
     expect(result.savedLocally).toBe(true);
     expect(result.updatedRemotely).toBe(true);
-    expect(saveToIndexedDB).toHaveBeenCalledWith(remote);
+    // The fetched base goes through admission: it never replaces a copy a pending write holds.
+    expect(saveToIndexedDB).toHaveBeenCalledWith(remote, {
+      preserveUnresolvedWrites: true,
+      expectedBase: { kind: 'stored', record: null },
+    });
     expect(queueSyncTask).toHaveBeenCalledWith(
       expect.objectContaining({
         date: '2026-02-18',

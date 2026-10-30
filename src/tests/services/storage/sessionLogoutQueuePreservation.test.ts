@@ -117,10 +117,13 @@ it.each(['manual', 'automatic'] as const)(
           syncContract: previous.syncContract,
           status: 'FAILED',
           lastErrorCode: 'session_owner_logged_out',
+          localProjection: 'released',
         });
         expect(saved?.leaseOwner).toBeUndefined();
         expect(saved?.attemptId).toBeUndefined();
-      } else expect(saved).toEqual(previous);
+      } else if (previous.status === 'RETIRED') expect(saved).toEqual(previous);
+      // Blocked sends keep their status and diagnosis; only the cleared day stops being theirs.
+      else expect(saved).toEqual({ ...previous, localProjection: 'released' });
     }
     const processing = original('processing');
     expect(

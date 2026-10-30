@@ -30,14 +30,6 @@ export const matchesOwner = (
  */
 export const REUSABLE_TASK_STATES = new Set<SyncTask['status']>(['PENDING', 'FAILED', 'CONFLICT']);
 
-// Keys are namespaced by type; completed writes leave the queue.
-export const listUnresolvedDailyRecordTasks = async (date: string): Promise<SyncTask[]> =>
-  hospitalDB.syncQueue
-    .where('key')
-    .equals(`daily:${date}`)
-    .filter(task => task.status !== 'RETIRED' || task.retirement?.reason !== 'manual_discard')
-    .toArray();
-
 export const findReusableSyncTask = async (
   type: SyncTask['type'],
   key: string,
@@ -47,7 +39,9 @@ export const findReusableSyncTask = async (
     task =>
       task.type === type &&
       matchesOwner(ownerKey, task.ownerKey) &&
-      REUSABLE_TASK_STATES.has(task.status)
+      REUSABLE_TASK_STATES.has(task.status) &&
+      // A fresh edit lands on the stored day, which no longer holds a released task's edits.
+      task.localProjection !== 'released'
   ) || null;
 
 const QUARANTINED_TASK_STATES = new Set<SyncTask['status']>(['FAILED', 'CONFLICT']);
@@ -63,7 +57,9 @@ export const requeueQuarantinedTask = (
       !task ||
       !matchesOwner(ownerKey, task.ownerKey) ||
       !QUARANTINED_TASK_STATES.has(task.status) ||
-      requiresDailyRecordBaseReview(task)
+      requiresDailyRecordBaseReview(task) ||
+      // Its edits are no longer on the stored day: only a review and retirement with backup remain.
+      task.localProjection === 'released'
     ) {
       return false;
     }

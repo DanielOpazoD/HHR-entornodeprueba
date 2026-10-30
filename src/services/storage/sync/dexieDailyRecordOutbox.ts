@@ -39,9 +39,9 @@ import { applyPatches } from '@/utils/patchUtils';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import {
   findReusableSyncTask,
-  listUnresolvedDailyRecordTasks,
   matchesOwner,
 } from '@/services/storage/sync/dexieSyncQueueQuarantine';
+import { listDailyRecordProjectionHolders } from '@/services/storage/sync/dailyRecordSyncQueueReadService';
 import {
   buildDailyRecordSyncContract,
   mergeSyncTaskContracts,
@@ -292,7 +292,7 @@ const saveSpecialistHandoffInOutbox = (
       ...(stored && patchWrite ? buildPatchRebase(patchWrite)(stored, []) : record),
       lastUpdated: before.lastUpdated,
     };
-    const projected = !(await listUnresolvedDailyRecordTasks(record.date)).length;
+    const projected = !(await listDailyRecordProjectionHolders(record.date)).length;
     const persistedRecord = projected ? projection : (stored ?? record);
     if (projected) await hospitalDB.dailyRecords.put(projection);
     const existing = task.key
@@ -387,7 +387,7 @@ const settleSpecialistHandoffProjection = (task: SyncTask, confirmed: boolean): 
     const { date } = task.payload as SpecialistHandoffSyncPayload;
     const projection = task.handoffProjection;
     const stored = await hospitalDB.dailyRecords.get(date);
-    const dayTasks = (await listUnresolvedDailyRecordTasks(date)).filter(dayTask => dayTask.id);
+    const dayTasks = (await listDailyRecordProjectionHolders(date)).filter(dayTask => dayTask.id);
     if (!confirmed && projection?.released) return false;
     if (task.id && !confirmed)
       await hospitalDB.syncQueue.update(task.id, {
@@ -527,7 +527,7 @@ export const saveDailyRecordInOutbox = (
         rebase,
         stored,
         wholeRecordBase,
-        unresolved: (await listUnresolvedDailyRecordTasks(record.date)).filter(
+        unresolved: (await listDailyRecordProjectionHolders(record.date)).filter(
           candidate =>
             candidate.type === task.type && matchesOwner(task.ownerKey, candidate.ownerKey)
         ),

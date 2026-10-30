@@ -4,6 +4,7 @@ import { buildMonthRecordPrefix } from '@/services/storage/storageDateSupport';
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
 import { arePatchValuesDeepEqual } from '@/utils/patchValueEquality';
+import { listDailyRecordProjectionHolders } from '@/services/storage/sync/dailyRecordSyncQueueReadService';
 
 import { ensureDbReady, hospitalDB as db, isDatabaseInFallbackMode } from './indexedDbCore';
 import { dispatchDailyRecordStoreChanged } from './indexedDbRecordEvents';
@@ -188,15 +189,9 @@ const inspectIndexedDbAdmission = async (
   expectedBase?: LocalRecordBase,
   candidate: DailyRecord | null = null
 ): Promise<LocalRecordAdmission> => {
-  const tasks = await db.syncQueue.where('type').equals('UPDATE_DAILY_RECORD').toArray();
+  const holders = await listDailyRecordProjectionHolders(date);
   const stored = (await db.dailyRecords.get(date)) ?? null;
-  if (
-    tasks.some(
-      task =>
-        task.key === `daily:${date}` &&
-        ['PENDING', 'PROCESSING', 'FAILED', 'CONFLICT'].includes(task.status)
-    )
-  ) {
+  if (holders.length) {
     if (!stored) throw new Error('No existe la copia local de una escritura pendiente.');
     return { status: 'retained_pending', record: stored };
   }
@@ -217,7 +212,8 @@ export const inspectLocalRecordAdmission = async (
       ? { status: 'admitted' }
       : { status: 'superseded', stored };
   }
-  return db.transaction('r', db.dailyRecords, db.syncQueue, () =>
+  // Read-write: a holder whose copy is already gone is released in this same transaction.
+  return db.transaction('rw', db.dailyRecords, db.syncQueue, () =>
     inspectIndexedDbAdmission(date, expectedBase, candidate)
   );
 };

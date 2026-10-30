@@ -61,6 +61,12 @@ export interface SyncTask {
   syncContract?: SyncTaskContract;
   /** Local projection ancestry only; these ids never acknowledge publication of another task. */
   localProjectionBaseIds?: string[];
+  /**
+   * The stored day no longer holds this day write's edits: a closed session cleared that copy.
+   * The task keeps its payload, contract and diagnosis for its owner's review or retirement with a
+   * backup. It never holds, absorbs or publishes the day again. Absent: it still holds the copy.
+   */
+  localProjection?: 'released';
   /** A note's base and its projected or already-held day values, settled on refusal or ACK. */
   handoffProjection?: {
     replaced: Record<string, unknown>;

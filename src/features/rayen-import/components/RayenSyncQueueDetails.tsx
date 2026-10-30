@@ -83,6 +83,12 @@ export const RayenSyncQueueDetails: React.FC<{
                       reenviarlos.
                     </span>
                   )}
+                  {operation.recovery === 'review_released' && (
+                    <span className="block text-[10px] text-amber-700">
+                      Quedaron sin enviar al cerrar sesión y el censo muestra la versión del
+                      servidor. Para conservarlos, descarta el envío y descarga su respaldo.
+                    </span>
+                  )}
                   {operation.recovery === 'review_authorization' && (
                     <span className="block text-[10px] text-amber-700">
                       {operation.retryGuidance}
@@ -108,7 +114,8 @@ export const RayenSyncQueueDetails: React.FC<{
                       Descartar envío
                     </button>
                   )}
-                  {operation.recovery === 'review_base' ? null : operation.recovery ===
+                  {operation.recovery === 'review_base' ||
+                  operation.recovery === 'review_released' ? null : operation.recovery ===
                     'review_authorization' ? (
                     <details
                       className="text-right"
