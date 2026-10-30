@@ -43,9 +43,9 @@ export const resolveDischargeRowViewModel = (
   isAssociatedClinicalCrib: isClinicalCribDischarge(item),
   dischargeTypeLabel:
     item.isNested === true
-      ? 'Alta asociada · no suma egreso'
+      ? 'Alta asociada'
       : isClinicalCribDischarge(item)
-        ? 'Alta en cuna · no suma egreso'
+        ? 'Alta en cuna'
         : item.dischargeType || '-',
   statusLabel: item.status,
   statusBadgeClassName: getDischargeStatusBadgeClassName(item.status),

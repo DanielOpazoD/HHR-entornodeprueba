@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, act, waitFor } from '@testing-library/react';
+import { render, screen, act, waitFor, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import App from '@/App';
 import type { AuthSessionState } from '@/types/authSessionTypes';
@@ -60,6 +60,8 @@ describe('Flicker-Free Login Flow', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
+    sessionStorage.clear();
     // Mock reload safely without breaking location
     const originalLocation = window.location;
     Object.defineProperty(window, 'location', {
@@ -73,6 +75,34 @@ describe('Flicker-Free Login Flow', () => {
       writable: true,
     });
   });
+
+  it.each([
+    ['unauthenticated', { status: 'unauthenticated', user: null }],
+    [
+      'auth_error',
+      { status: 'auth_error', user: null, error: { message: 'Validación sintética fallida' } },
+    ],
+    [
+      'unauthorized',
+      { status: 'unauthorized', user: null, reason: 'Acceso sintético no autorizado' },
+    ],
+  ] satisfies [string, AuthSessionState][])(
+    'restores credential entry if session resolution ends in %s',
+    async (_status, sessionState) => {
+      mockUseAuthState.mockReturnValue(createAuthState());
+      const { rerender } = render(<App />);
+      act(() => screen.getByTestId('login-btn').click());
+      expect(
+        within(screen.getByTestId('login-loading-shell')).getByRole('status')
+      ).toHaveTextContent('Validando tu acceso');
+
+      mockUseAuthState.mockReturnValue(createAuthState({ sessionState }));
+      await act(async () => rerender(<App />));
+
+      expect(screen.getByTestId('login-btn')).toBeVisible();
+      expect(screen.queryByText('Validando tu acceso…')).not.toBeInTheDocument();
+    }
+  );
 
   it('should transition smoothly without window.location.reload when login succeeds', async () => {
     // 1. Initial State: Not logged in
@@ -96,6 +126,11 @@ describe('Flicker-Free Login Flow', () => {
     act(() => {
       loginBtn.click();
     });
+
+    expect(within(screen.getByTestId('login-loading-shell')).getByRole('status')).toHaveTextContent(
+      'Validando tu acceso'
+    );
+    expect(screen.queryByTestId('login-btn')).not.toBeInTheDocument();
 
     // 3. Verify window.location.reload WAS NOT called
     expect(window.location.reload).not.toHaveBeenCalled();
@@ -124,5 +159,9 @@ describe('Flicker-Free Login Flow', () => {
     await waitFor(() => {
       expect(screen.queryByTestId('login-btn')).toBeNull();
     });
+
+    mockUseAuthState.mockReturnValue(createAuthState());
+    await act(async () => rerender(<App />));
+    expect(screen.getByTestId('login-btn')).toBeVisible();
   });
 });
