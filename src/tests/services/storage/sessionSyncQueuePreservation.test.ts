@@ -7,6 +7,7 @@ vi.mock('@/services/storage/indexeddb/indexedDbCore', async importOriginal => ({
 }));
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { STORAGE_KEY } from '@/services/storage/localstorage/localStorageCore';
+import { localPersistence } from '@/services/storage/localpersistence/localPersistenceService';
 import { clearSessionDailyRecords } from '@/services/storage/sessionSyncQueuePreservation';
 import { matchesTaskClaim } from '@/services/storage/sync/syncQueueTaskFactory';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
@@ -83,5 +84,17 @@ describe('individual session logout preserves pending edits', () => {
     await expect(clearSessionDailyRecords(owner)).rejects.toThrow('synthetic queue failure');
 
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+  });
+  it('changes nothing in the queue when fallback patient days cannot be removed', async () => {
+    storage.fallback = true;
+    const id = await hospitalDB.syncQueue.add(task('own', owner));
+    const before = await hospitalDB.syncQueue.get(id);
+    vi.spyOn(localPersistence.records, 'clear').mockImplementationOnce(() => {
+      throw new Error('synthetic clear failure');
+    });
+
+    await expect(clearSessionDailyRecords(owner)).rejects.toThrow('synthetic clear failure');
+
+    expect(await hospitalDB.syncQueue.get(id)).toEqual(before);
   });
 });

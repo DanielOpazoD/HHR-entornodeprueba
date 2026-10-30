@@ -364,6 +364,26 @@ export const deleteRecordStrict = async (date: string): Promise<LocalRecordWrite
   }
 };
 
+/**
+ * Deletes a stored day to refresh it, unless a day write still holds it, checked in the transaction
+ * that deletes. Returns whether it was deleted; a storage failure throws, it is not "nothing held".
+ */
+export const deleteUnheldRecord = async (date: string): Promise<boolean> => {
+  await ensureDbReady();
+  if (isDatabaseInFallbackMode()) {
+    localPersistence.records.deleteForDate(date);
+  } else {
+    const held = await db.transaction('rw', db.dailyRecords, db.syncQueue, async () => {
+      if ((await listDailyRecordProjectionHolders(date)).length) return true;
+      await db.dailyRecords.delete(date);
+      return false;
+    });
+    if (held) return false;
+  }
+  dispatchDailyRecordStoreChanged({ operation: 'delete', dates: [date] });
+  return true;
+};
+
 export const deleteRecord = async (date: string): Promise<void> => {
   await deleteRecordStrict(date);
 };

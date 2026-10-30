@@ -66,7 +66,7 @@ export interface SyncTask {
    * The task keeps its payload, contract and diagnosis for its owner's review or retirement with a
    * backup. It never holds, absorbs or publishes the day again. Absent: it still holds the copy.
    */
-  localProjection?: 'released';
+  projectionReleased?: true;
   /** A note's base and its projected or already-held day values, settled on refusal or ACK. */
   handoffProjection?: {
     replaced: Record<string, unknown>;

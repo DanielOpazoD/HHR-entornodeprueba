@@ -32,7 +32,7 @@ export interface SyncQueueOperation {
   contexts?: SyncQueueOperationSnapshot['contexts'];
   origin?: SyncQueueOperationSnapshot['origin'];
   recoveryPolicy?: SyncQueueOperationSnapshot['recoveryPolicy'];
-  localProjection?: SyncQueueOperationSnapshot['localProjection'];
+  projectionReleased?: SyncQueueOperationSnapshot['projectionReleased'];
 }
 
 export const EMPTY_SYNC_QUEUE_STATS: SyncQueueStats = {

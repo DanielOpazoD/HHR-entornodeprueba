@@ -41,7 +41,7 @@ export const findReusableSyncTask = async (
       matchesOwner(ownerKey, task.ownerKey) &&
       REUSABLE_TASK_STATES.has(task.status) &&
       // A fresh edit lands on the stored day, which no longer holds a released task's edits.
-      task.localProjection !== 'released'
+      !task.projectionReleased
   ) || null;
 
 const QUARANTINED_TASK_STATES = new Set<SyncTask['status']>(['FAILED', 'CONFLICT']);
@@ -59,7 +59,7 @@ export const requeueQuarantinedTask = (
       !QUARANTINED_TASK_STATES.has(task.status) ||
       requiresDailyRecordBaseReview(task) ||
       // Its edits are no longer on the stored day: only a review and retirement with backup remain.
-      task.localProjection === 'released'
+      task.projectionReleased
     ) {
       return false;
     }

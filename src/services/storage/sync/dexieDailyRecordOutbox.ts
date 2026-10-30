@@ -514,6 +514,8 @@ export const saveDailyRecordInOutbox = (
       );
   return hospitalDB
     .transaction('rw', hospitalDB.dailyRecords, hospitalDB.syncQueue, async () => {
+      // First: this may release a write without its copy, which must not be reused below.
+      const holders = await listDailyRecordProjectionHolders(record.date);
       const existing = task.key
         ? await findReusableSyncTask(task.type, task.key, task.ownerKey)
         : null;
@@ -527,7 +529,7 @@ export const saveDailyRecordInOutbox = (
         rebase,
         stored,
         wholeRecordBase,
-        unresolved: (await listDailyRecordProjectionHolders(record.date)).filter(
+        unresolved: holders.filter(
           candidate =>
             candidate.type === task.type && matchesOwner(task.ownerKey, candidate.ownerKey)
         ),

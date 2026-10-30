@@ -2,10 +2,18 @@ import React from 'react';
 import type { SyncQueueOperation, SyncQueueStats } from '@/hooks/useSyncQueueMonitor';
 import { discardQuarantinedSyncTask, retryQuarantinedSyncTask } from '@/services/storage/sync';
 import { isPolicyBlockedCudyrArchive } from '@/services/storage/sync/cudyrPolicyBlockedRecovery';
-import { listQuarantinedOperations, targetLabelFromKey } from './localSyncPresentation';
+import {
+  listQuarantinedOperations,
+  targetLabelFromKey,
+  type QuarantinedOperationView,
+} from './localSyncPresentation';
 import { lazyWithRetry } from '@/utils/lazyWithRetry';
 
 const DailyRecordTaskRecovery = lazyWithRetry(() => import('./DailyRecordTaskRecovery'));
+
+/** A closed session cleared the day this send was made on: it can only be reviewed and retired. */
+const isClosedSessionReview = (operation: QuarantinedOperationView): boolean =>
+  operation.recovery === 'review_base' && operation.code === 'session_owner_logged_out';
 
 /** On-demand detail inside the existing Eloísa panel; never another census overlay. */
 export const RayenSyncQueueDetails: React.FC<{
@@ -75,18 +83,13 @@ export const RayenSyncQueueDetails: React.FC<{
                 <span className="min-w-0 flex-1">
                   {operation.targetLabel}
                   <span className="block text-[10px] text-slate-500">
-                    {operation.categoryLabel}
+                    {isClosedSessionReview(operation) ? 'Sesión cerrada' : operation.categoryLabel}
                   </span>
                   {operation.recovery === 'review_base' && (
                     <span className="block text-[10px] text-amber-700">
-                      Los cambios siguen guardados en este equipo. Solicita su revisión antes de
-                      reenviarlos.
-                    </span>
-                  )}
-                  {operation.recovery === 'review_released' && (
-                    <span className="block text-[10px] text-amber-700">
-                      Quedaron sin enviar al cerrar sesión y el censo muestra la versión del
-                      servidor. Para conservarlos, descarta el envío y descarga su respaldo.
+                      {isClosedSessionReview(operation)
+                        ? 'Este envío quedó pendiente al cerrar sesión y el censo muestra la versión del servidor. Para conservar estos cambios, descarta el envío y descarga su respaldo.'
+                        : 'Los cambios siguen guardados en este equipo. Solicita su revisión antes de reenviarlos.'}
                     </span>
                   )}
                   {operation.recovery === 'review_authorization' && (
@@ -114,8 +117,7 @@ export const RayenSyncQueueDetails: React.FC<{
                       Descartar envío
                     </button>
                   )}
-                  {operation.recovery === 'review_base' ||
-                  operation.recovery === 'review_released' ? null : operation.recovery ===
+                  {operation.recovery === 'review_base' ? null : operation.recovery ===
                     'review_authorization' ? (
                     <details
                       className="text-right"

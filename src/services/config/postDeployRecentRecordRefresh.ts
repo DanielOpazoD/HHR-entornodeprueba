@@ -2,7 +2,7 @@ import { recordOperationalTelemetry } from '@/services/observability/operational
 import type { OperationalOutcomeLike } from '@/services/observability/operationalTelemetryContracts';
 import type { SyncQueueTelemetry } from '@/services/storage/sync';
 import { getSyncQueueTelemetry } from '@/services/storage/sync';
-import { deleteRecord } from '@/services/storage/indexeddb/indexedDbRecordService';
+import { deleteUnheldRecord } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 
 export const POST_DEPLOY_RECENT_RECORD_REFRESH_KEY = 'hhr_post_deploy_recent_record_refresh_v1';
@@ -43,7 +43,8 @@ interface ExecutePostDeployRecentRecordRefreshParams {
   readMarker?: () => PostDeployRecentRecordRefreshMarker | null;
   clearMarker?: () => void;
   readSyncQueueTelemetry?: () => Promise<SyncQueueTelemetry>;
-  deleteLocalRecord?: (date: string) => Promise<void>;
+  /** Resolves false when the day stays, because a pending write holds it. */
+  deleteLocalRecord?: (date: string) => Promise<boolean>;
   syncRemoteRecord: (date: string) => Promise<OperationalOutcomeLike>;
 }
 
@@ -182,7 +183,7 @@ export const executePostDeployRecentRecordRefresh = async ({
   readMarker = readPostDeployRecentRecordRefreshMarker,
   clearMarker = clearPostDeployRecentRecordRefreshMarker,
   readSyncQueueTelemetry = getSyncQueueTelemetry,
-  deleteLocalRecord = deleteRecord,
+  deleteLocalRecord = deleteUnheldRecord,
   syncRemoteRecord,
 }: ExecutePostDeployRecentRecordRefreshParams): Promise<PostDeployRecentRecordRefreshResult> => {
   const marker = readMarker();
@@ -209,7 +210,7 @@ export const executePostDeployRecentRecordRefresh = async ({
       return result;
     }
 
-    if (hasPendingLocalSyncWork(queueTelemetry)) {
+    const skipQueueNotEmpty = () => {
       const result = {
         status: 'skipped_queue_not_empty' as const,
         dates,
@@ -218,10 +219,13 @@ export const executePostDeployRecentRecordRefresh = async ({
       };
       recordPostDeployRefreshTelemetry(result.status, result);
       return result;
-    }
+    };
+
+    if (hasPendingLocalSyncWork(queueTelemetry)) return skipQueueNotEmpty();
 
     for (const date of dates) {
-      await deleteLocalRecord(date);
+      // The telemetry above is already old, and leaves out other owners' work.
+      if (!(await deleteLocalRecord(date))) return skipQueueNotEmpty();
       await syncRemoteRecord(date);
     }
 

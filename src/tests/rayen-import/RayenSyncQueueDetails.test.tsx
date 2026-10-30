@@ -156,7 +156,7 @@ it('offers retirement with a backup, not a retry, for a census a closed session 
           key: 'daily:2026-10-24',
           lastErrorCategory: 'authorization',
           lastErrorCode: 'session_owner_logged_out',
-          localProjection: 'released',
+          projectionReleased: true,
         },
       ]}
       working={false}
@@ -166,7 +166,7 @@ it('offers retirement with a backup, not a retry, for a census a closed session 
   fireEvent.click(screen.getByText('Guardado local · 1 por enviar'));
   const [blocked] = screen.getAllByRole('listitem');
   expect(within(blocked).getByText('Sesión cerrada')).toBeVisible();
-  expect(within(blocked).getByText(/el censo muestra la versión del servidor/)).toBeVisible();
+  expect(within(blocked).getByText(/descarga su respaldo/)).toBeVisible();
   expect(within(blocked).getByRole('button', { name: 'Descartar envío' })).toBeVisible();
   expect(within(blocked).queryByRole('button', { name: /reintentar/i })).not.toBeInTheDocument();
   expect(within(blocked).queryByText('Revisar reintento')).not.toBeInTheDocument();

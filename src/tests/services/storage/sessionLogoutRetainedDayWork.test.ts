@@ -36,6 +36,10 @@ import { updatePartialDetailed } from '@/services/repositories/dailyRecordReposi
 import { loadRemoteRecordWithFallback } from '@/services/repositories/dailyRecordRemoteLoader';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
+import { createSyncQueueEngine } from '@/services/storage/sync/syncQueueEngine';
+import { toSyncQueueOperationSnapshot } from '@/services/storage/sync/syncQueueOperationSnapshot';
+import { reviewBlockedDailyRecordTask } from '@/services/storage/sync/dailyRecordTaskRetirement';
+import { listQuarantinedOperations } from '@/features/rayen-import/components/localSyncPresentation';
 import { requeueQuarantinedTask } from '@/services/storage/sync/dexieSyncQueueQuarantine';
 import { reconcileSpecialistHandoffProjections } from '@/services/storage/sync/dexieDailyRecordOutbox';
 import { getDailyRecordWriteStateForVersion } from '@/services/storage/sync/dailyRecordSyncQueueReadService';
@@ -82,6 +86,21 @@ const dayWrite = (overrides: Partial<SyncTask> = {}): SyncTask => ({
   },
   ...overrides,
 });
+const buildEngine = (
+  store: ReturnType<typeof createDexieSyncQueueStore>,
+  ownerKey: string,
+  run: () => Promise<unknown>
+) =>
+  createSyncQueueEngine({
+    store,
+    runtime: { isOnline: () => false, getOwnerKey: () => ownerKey, onOnline: () => {} },
+    transport: { run },
+    batchSize: 10,
+    maxPendingTasks: 100,
+    maxRetries: 3,
+    baseRetryDelayMs: 10,
+    maxRetryDelayMs: 100,
+  } as Parameters<typeof createSyncQueueEngine>[0]);
 const closeSession = () =>
   clearSessionScopedClientState('manual', vi.fn().mockResolvedValue(undefined));
 
@@ -195,12 +214,12 @@ describe('a census day with an edit left unsent by a closed session', () => {
     expect(await store.findReusableTask('UPDATE_DAILY_RECORD', `daily:${date}`, owner)).toBeNull();
 
     expect(await hospitalDB.syncQueue.get(id)).toEqual(retained);
-    // Signing in as owner closed the next person's session: their send waits for them, unsent.
+    // Their day was cleared too: their send waits for them, unsent.
     expect(await hospitalDB.syncQueue.get(foreign)).toMatchObject({
       ownerKey: nextOwner,
       payload: unsentDay,
       status: 'FAILED',
-      localProjection: 'released',
+      projectionReleased: true,
     });
   });
 
@@ -230,7 +249,7 @@ describe('a census day with an edit left unsent by a closed session', () => {
       serverDay.nursesDayShift
     );
     expect(recoverable(await hospitalDB.syncQueue.get(blocked))).toEqual(before);
-    expect(await hospitalDB.syncQueue.get(blocked)).toHaveProperty('localProjection', 'released');
+    expect(await hospitalDB.syncQueue.get(blocked)).toHaveProperty('projectionReleased', true);
 
     await hospitalDB.dailyRecords.clear();
     await hospitalDB.syncQueue.add(dayWrite({ opId: 'synthetic-active', ownerKey: nextOwner }));
@@ -310,5 +329,131 @@ describe('a census day with an edit left unsent by a closed session', () => {
     expect(shown.nursesDayShift).toEqual(['SYNTHETIC OTHER TAB']);
     expect(shown.nursesNightShift).toEqual(['SYNTHETIC NEW EDIT']);
     expect((await hospitalDB.syncQueue.toArray()).map(task => task.payload)).toEqual([shown]);
+  });
+
+  it("cuts off another person's send already being sent when their day is cleared", async () => {
+    const claim = {
+      leaseOwner: 'synthetic-worker',
+      attemptId: 'synthetic-attempt',
+      leaseUntil: 9e15,
+    };
+    await hospitalDB.dailyRecords.put(unsentDay);
+    const id = Number(
+      await hospitalDB.syncQueue.add(
+        dayWrite({ ownerKey: nextOwner, status: 'PROCESSING', ...claim })
+      )
+    );
+    await closeSession();
+    const kept = await hospitalDB.syncQueue.get(id);
+    const store = createDexieSyncQueueStore();
+
+    expect(kept).toMatchObject({ status: 'FAILED', ownerKey: nextOwner, payload: unsentDay });
+    expect(kept?.attemptId).toBeUndefined();
+    expect(await store.renewClaim!(id, 9e15 + 1, claim)).toBeNull();
+    expect(await store.deleteClaimed(id, claim, { ...unsentDay, lastUpdated: 'synthetic' })).toBe(
+      false
+    );
+    expect(
+      await store.deletePendingByKey(
+        'UPDATE_DAILY_RECORD',
+        `daily:${date}`,
+        nextOwner,
+        'synthetic-unsent-edit'
+      )
+    ).toBe(false);
+    expect(await hospitalDB.syncQueue.get(id)).toEqual(kept);
+    expect(await hospitalDB.dailyRecords.get(date)).toBeUndefined();
+  });
+
+  it('does not dispatch a send whose session closed after it was claimed', async () => {
+    await hospitalDB.dailyRecords.put(unsentDay);
+    const id = Number(await hospitalDB.syncQueue.add(dayWrite({ ownerKey: nextOwner })));
+    const store = createDexieSyncQueueStore();
+    const claimReady = store.claimReadyPending.bind(store);
+    store.claimReadyPending = async (...args) => {
+      const claimed = await claimReady(...args);
+      if (claimed.length) await closeSession();
+      return claimed;
+    };
+    const run = vi.fn(async () => ({}));
+
+    await buildEngine(store, nextOwner, run).processQueue();
+
+    expect(run).not.toHaveBeenCalled();
+    expect(await hospitalDB.syncQueue.get(id)).toMatchObject({
+      status: 'FAILED',
+      payload: unsentDay,
+    });
+  });
+
+  it('never claims a released send that a tab from an older version requeued', async () => {
+    await hospitalDB.syncQueue.add(dayWrite({ projectionReleased: true }));
+    const claim = {
+      leaseOwner: 'synthetic-worker',
+      attemptId: 'synthetic-attempt',
+      leaseUntil: 9e15,
+    };
+
+    expect(
+      await createDexieSyncQueueStore().claimReadyPending(Date.now(), 10, owner, claim)
+    ).toEqual([]);
+  });
+
+  it("offers the owner its send for review when someone else's session cleared its day", async () => {
+    const id = Number(await hospitalDB.syncQueue.add(dayWrite({ ownerKey: nextOwner })));
+    await closeSession();
+    await reconcileAuthorizedSessionOwner(nextOwner);
+    const kept = await hospitalDB.syncQueue.get(id);
+
+    expect(listQuarantinedOperations([toSyncQueueOperationSnapshot(kept!)])).toMatchObject([
+      { id, recovery: 'review_base', canRetire: true },
+    ]);
+    expect(await reviewBlockedDailyRecordTask(id)).toMatchObject({ task: { payload: unsentDay } });
+  });
+
+  it.each(['FAILED', 'CONFLICT'] as const)(
+    'keeps a %s send without its copy when a new edit is the first thing to touch the day',
+    async status => {
+      const id = Number(await hospitalDB.syncQueue.add(dayWrite({ status })));
+      const before = await hospitalDB.syncQueue.get(id);
+      const edited = { ...serverDay, nursesNightShift: ['SYNTHETIC NEW EDIT'] };
+
+      await createDexieSyncQueueStore().saveDailyRecordWithTask(
+        edited,
+        dayWrite({
+          opId: 'synthetic-new-edit',
+          payload: edited,
+          syncContract: {
+            changedPaths: ['nursesNightShift'],
+            expectedVersion: serverDay.lastUpdated,
+            mutationId: 'synthetic-new-edit',
+          },
+        })
+      );
+
+      expect(await hospitalDB.syncQueue.get(id)).toEqual({ ...before, projectionReleased: true });
+      expect(await hospitalDB.syncQueue.count()).toBe(2);
+    }
+  );
+
+  it('keeps a blocked send without its copy when a whole-day save comes first', async () => {
+    const id = Number(await hospitalDB.syncQueue.add(dayWrite({ status: 'FAILED' })));
+    const before = await hospitalDB.syncQueue.get(id);
+    const engine = buildEngine(createDexieSyncQueueStore(), owner, vi.fn());
+
+    const result = await engine.queueDailyRecordTaskWithLocalRecord(
+      { ...serverDay, nursesNightShift: ['SYNTHETIC NEW EDIT'] },
+      {
+        syncContract: {
+          mutationId: 'synthetic-new-edit',
+          expectedVersion: serverDay.lastUpdated,
+          changedPaths: ['*'],
+        },
+      },
+      { deferProcessing: true }
+    );
+
+    expect(result.mode).toBe('created');
+    expect(await hospitalDB.syncQueue.get(id)).toEqual({ ...before, projectionReleased: true });
   });
 });

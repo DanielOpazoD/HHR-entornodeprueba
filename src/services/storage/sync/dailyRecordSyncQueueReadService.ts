@@ -8,15 +8,14 @@ import type { DailyRecordQueuedWriteState, SyncTask } from '@/services/storage/s
 
 const ACTIVE_WRITE_STATES = new Set<SyncTask['status']>(['PENDING', 'PROCESSING']);
 const BLOCKED_WRITE_STATES = new Set<SyncTask['status']>(['FAILED', 'CONFLICT']);
-const UNRESOLVED_WRITE_STATES = new Set<SyncTask['status']>([
-  'PENDING',
-  'PROCESSING',
-  'FAILED',
-  'CONFLICT',
-]);
+const UNRESOLVED_WRITE_STATES = new Set([...ACTIVE_WRITE_STATES, ...BLOCKED_WRITE_STATES]);
 
 const isDailyRecordWriteForDate = (task: SyncTask, date: string): boolean =>
   task.type === 'UPDATE_DAILY_RECORD' && task.key === `daily:${date}`;
+
+/** Tasks keyed to the census date, through the queue's key index. */
+const listDayTasks = (date: string): Promise<SyncTask[]> =>
+  hospitalDB.syncQueue.where('key').equals(`daily:${date}`).toArray();
 
 const payloadOf = (task: SyncTask) => task.payload as Partial<DailyRecord> | null | undefined;
 
@@ -27,7 +26,7 @@ const payloadOf = (task: SyncTask) => task.payload as Partial<DailyRecord> | nul
  */
 export const holdsDailyRecordProjection = (task: SyncTask, date: string): boolean =>
   isDailyRecordWriteForDate(task, date) &&
-  task.localProjection !== 'released' &&
+  !task.projectionReleased &&
   (task.status !== 'RETIRED' || task.retirement?.reason !== 'manual_discard');
 
 /**
@@ -37,9 +36,7 @@ export const holdsDailyRecordProjection = (task: SyncTask, date: string): boolea
  * and the next edit gets its own task. Any other write without its copy still fails closed.
  */
 export const listDailyRecordProjectionHolders = async (date: string): Promise<SyncTask[]> => {
-  const holders = (
-    await hospitalDB.syncQueue.where('key').equals(`daily:${date}`).toArray()
-  ).filter(task => holdsDailyRecordProjection(task, date));
+  const holders = (await listDayTasks(date)).filter(task => holdsDailyRecordProjection(task, date));
   if (
     !holders.length ||
     holders.some(
@@ -50,7 +47,7 @@ export const listDailyRecordProjectionHolders = async (date: string): Promise<Sy
     return holders;
   }
   for (const task of holders) {
-    await hospitalDB.syncQueue.update(task.id!, { localProjection: 'released' });
+    await hospitalDB.syncQueue.update(task.id!, { projectionReleased: true });
   }
   return [];
 };
@@ -75,9 +72,8 @@ export const getPendingDailyRecordProjection = async (
  */
 export const hasUnresolvedDailyRecordWriteForDate = async (date: string): Promise<boolean> => {
   await ensureDbReady();
-  const tasks = await hospitalDB.syncQueue.where('type').equals('UPDATE_DAILY_RECORD').toArray();
   // A released write still counts until its owner retires it: its edits were never published.
-  return tasks.some(
+  return (await listDayTasks(date)).some(
     task => isDailyRecordWriteForDate(task, date) && UNRESOLVED_WRITE_STATES.has(task.status)
   );
 };
@@ -91,8 +87,7 @@ export const getDailyRecordWriteStateForVersion = async (
   lastUpdated: string
 ): Promise<DailyRecordQueuedWriteState> => {
   await ensureDbReady();
-  const tasks = await hospitalDB.syncQueue.where('type').equals('UPDATE_DAILY_RECORD').toArray();
-  const statuses = tasks
+  const statuses = (await listDayTasks(date))
     .filter(
       task =>
         holdsDailyRecordProjection(task, date) &&

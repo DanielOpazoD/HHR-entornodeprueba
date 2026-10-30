@@ -59,7 +59,7 @@ describe('postDeployRecentRecordRefresh', () => {
   });
 
   it('deletes local records for today and yesterday, syncs them remotely, and clears marker', async () => {
-    const deleteLocalRecord = vi.fn().mockResolvedValue(undefined);
+    const deleteLocalRecord = vi.fn().mockResolvedValue(true);
     const syncRemoteRecord = vi.fn().mockResolvedValue({ status: 'success', issues: [] });
     const clearMarker = vi.fn();
 
@@ -81,7 +81,7 @@ describe('postDeployRecentRecordRefresh', () => {
   });
 
   it('does not delete local records when the sync queue has pending or unresolved work', async () => {
-    const deleteLocalRecord = vi.fn().mockResolvedValue(undefined);
+    const deleteLocalRecord = vi.fn().mockResolvedValue(true);
     const syncRemoteRecord = vi.fn().mockResolvedValue({ status: 'success', issues: [] });
     const clearMarker = vi.fn();
 
@@ -101,7 +101,7 @@ describe('postDeployRecentRecordRefresh', () => {
   });
 
   it('does not delete local records when queue telemetry cannot be trusted', async () => {
-    const deleteLocalRecord = vi.fn().mockResolvedValue(undefined);
+    const deleteLocalRecord = vi.fn().mockResolvedValue(true);
     const syncRemoteRecord = vi.fn().mockResolvedValue({ status: 'success', issues: [] });
 
     const result = await executePostDeployRecentRecordRefresh({

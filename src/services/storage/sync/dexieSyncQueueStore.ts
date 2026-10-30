@@ -31,8 +31,9 @@ const LIVE_STATUSES = Object.keys({
 } satisfies Record<Exclude<SyncTask['status'], 'RETIRED'>, true>).sort();
 
 const isReadyForClaim = (task: SyncTask, now: number): boolean => {
-  // A released day write no longer has its edits on the stored day: it never publishes as is.
-  if (task.localProjection === 'released' || (task.preOutboxHoldUntil || 0) > now) {
+  // A released day write no longer has its edits on the stored day: it never publishes as is,
+  // even if a tab from an older version requeued it.
+  if (task.projectionReleased || (task.preOutboxHoldUntil || 0) > now) {
     return false;
   }
 
@@ -182,7 +183,6 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
         if (
           !existing ||
           existing.status !== 'PENDING' ||
-          existing.localProjection === 'released' ||
           existing.type !== task.type ||
           existing.key !== task.key ||
           !matchesOwner(task.ownerKey, existing.ownerKey) ||

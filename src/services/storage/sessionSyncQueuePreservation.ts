@@ -18,8 +18,9 @@ const holdsClearedDay = (task: SyncTask): boolean => {
 
 /**
  * Keep owned edits recoverable after logout, without allowing the next actor to publish them.
- * Every day write, of any owner, loses its stored copy with the days: it is released, so no
- * session reads, absorbs or publishes it as that day again.
+ * Every day write, of any owner, loses its stored copy with the days: it is released and blocked,
+ * with no attempt left to continue, so no session reads, absorbs or publishes it as that day again
+ * and its owner finds it ready for review.
  */
 const preserveSessionSyncQueue = async (ownerKey: string | null): Promise<void> => {
   for (const task of await hospitalDB.syncQueue.toArray()) {
@@ -28,11 +29,11 @@ const preserveSessionSyncQueue = async (ownerKey: string | null): Promise<void> 
     const releases = holdsClearedDay(task);
     if (!owned && !releases) continue;
     await hospitalDB.syncQueue.update(task.id, {
-      ...(releases ? { localProjection: 'released' as const } : {}),
+      ...(releases ? { projectionReleased: true as const } : {}),
       // Unattributed legacy work is not silently adopted by the person signing in next.
       ...(owned ? { ownerKey: task.ownerKey || `unattributed:${task.opId}` } : {}),
       // Already blocked sends and retired backups keep their original status and diagnosis.
-      ...(owned && (task.status === 'PENDING' || task.status === 'PROCESSING')
+      ...(task.status === 'PENDING' || task.status === 'PROCESSING'
         ? {
             ...clearSyncTaskRuntimeState(),
             status: 'FAILED' as const,
@@ -49,23 +50,20 @@ const preserveSessionSyncQueue = async (ownerKey: string | null): Promise<void> 
 };
 
 /**
- * Clears every stored day and keeps the queue recoverable in one transaction: either both commit
- * or neither does, so a failed logout never leaves a day write without its copy, nor a released
- * write beside a copy that should be gone.
+ * Clears every stored day and keeps the queue recoverable, in one transaction when the days live in
+ * IndexedDB: either both commit or neither does. Any failure fails the logout, which keeps the next
+ * person out and retries this step.
  */
 export const clearSessionDailyRecords = async (ownerKey: string | null): Promise<void> => {
   try {
     await ensureDbReady();
     if (isDatabaseInFallbackMode()) {
-      // No transaction spans the fallback store. Patient days leave this browser even if the
-      // queue step fails; that failure still fails the logout, which retries the cleanup.
-      try {
-        await hospitalDB.transaction('rw', hospitalDB.syncQueue, () =>
-          preserveSessionSyncQueue(ownerKey)
-        );
-      } finally {
-        localPersistence.records.clear();
-      }
+      // No transaction spans the fallback store. Days go first: patient data leaves this browser
+      // even if the queue step fails, and a failed clear has not changed the queue.
+      localPersistence.records.clear();
+      await hospitalDB.transaction('rw', hospitalDB.syncQueue, () =>
+        preserveSessionSyncQueue(ownerKey)
+      );
     } else {
       await hospitalDB.transaction(
         'rw',

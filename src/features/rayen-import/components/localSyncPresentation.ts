@@ -35,9 +35,7 @@ interface QuarantinedOperationTarget {
 export type QuarantinedOperationView = QuarantinedOperationTarget &
   (
     | { recovery: 'review_authorization'; retryGuidance: string }
-    | {
-        recovery: 'retry' | 'review_base' | 'review_released' | 'discard_note' | 'discard_detached';
-      }
+    | { recovery: 'retry' | 'review_base' | 'discard_note' | 'discard_detached' }
   );
 
 export const targetLabelFromKey = (
@@ -76,9 +74,10 @@ export const targetLabelFromKey = (
 const resolveQuarantineRecovery = (
   operation: SyncQueueOperation
 ): QuarantinedOperationView['recovery'] => {
-  // Its edits left the stored day with a closed session: retirement keeps them as a backup.
-  if (operation.localProjection === 'released') return 'review_released';
-  if (requiresDailyRecordBaseReview(operation)) return 'review_base';
+  // A closed session cleared the day these edits were made on: like a write without a known base,
+  // they cannot be resent as they are, only reviewed and retired with a backup.
+  if (operation.projectionReleased || requiresDailyRecordBaseReview(operation))
+    return 'review_base';
   if (operation.status === 'FAILED' && operation.lastErrorCategory === 'authorization')
     return 'review_authorization';
   if (operation.status !== 'CONFLICT') return 'retry';
@@ -102,12 +101,9 @@ export const listQuarantinedOperations = (
         categoryLabel:
           recovery === 'review_base'
             ? 'Requiere revisión de la versión de origen'
-            : recovery === 'review_released'
-              ? 'Sesión cerrada'
-              : isPolicyBlockedCudyrArchive(operation)
-                ? 'Autorización anterior'
-                : (CATEGORY_LABELS[operation.lastErrorCategory ?? 'unknown'] ??
-                  'Error desconocido'),
+            : isPolicyBlockedCudyrArchive(operation)
+              ? 'Autorización anterior'
+              : (CATEGORY_LABELS[operation.lastErrorCategory ?? 'unknown'] ?? 'Error desconocido'),
         canRetire:
           operation.type === 'UPDATE_DAILY_RECORD' &&
           /^daily:\d{4}-\d{2}-\d{2}$/.test(operation.key ?? ''),
