@@ -39,6 +39,62 @@ describe('previous-day admission Ficha fallback', () => {
     });
   });
 
+  describe('when the first flow row is stamped around the admission time', () => {
+    const verifyWithFirstRowAt = (rowTime: string) => {
+      const admission = motherAndNewbornDiff.admissions[0];
+      const source = {
+        ...admission.source!,
+        encounterId: '148000',
+        room: 'Habitación 2',
+        bed: 'C1',
+        admissionDatetime: '2026-07-26T02:40:39.05-06:00',
+        verifiedBedPlacement: undefined,
+      };
+      return verifyPreviousDayAdmissionPlacements(
+        {
+          ...motherAndNewbornDiff,
+          admissions: [
+            {
+              ...admission,
+              bedId: 'H2C1',
+              patient: { ...admission.patient, bedId: 'H2C1', clinicalCrib: undefined },
+              source,
+            },
+          ],
+        },
+        '2026-07-26',
+        {
+          fetchReport: vi.fn().mockResolvedValue({ base64: 'cGRm' }),
+          extractText: vi
+            .fn()
+            .mockResolvedValue(
+              [`RUN: ${source.run}`, `26/07/2026 ${rowTime} Habitación 2 C1`].join('\n')
+            ),
+        }
+      );
+    };
+
+    it.each(['02:40:38', '02:40:39', '02:39:45'])(
+      'proves the night placement with a row at %s',
+      async rowTime => {
+        const verified = await verifyWithFirstRowAt(rowTime);
+
+        expect(verified.admissions[0].source?.verifiedBedPlacement).toMatchObject({
+          source: 'patient-flow-report',
+          bedId: 'H2C1',
+        });
+        expect(verified.deferredHistoricalAdmissionBedIds).toBeUndefined();
+      }
+    );
+
+    it('still ignores a row well before the admission', async () => {
+      const verified = await verifyWithFirstRowAt('02:30:00');
+
+      expect(verified.admissions[0].source?.verifiedBedPlacement).toBeUndefined();
+      expect(verified.deferredHistoricalAdmissionBedIds).toEqual(['H2C1']);
+    });
+  });
+
   it('keeps the current-day admission without a conflict when only a later placement exists', async () => {
     const unverifiedDiff: CensusImportDiff = {
       ...motherAndNewbornDiff,

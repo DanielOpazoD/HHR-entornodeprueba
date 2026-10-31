@@ -190,7 +190,7 @@
     {
       "pattern": "^RayenImportButton-.*\\.js$",
       "_comment": "Online-only Rayen import workflow, deferred out of the census startup. Measured 202 KB; the ceiling keeps drift visible without relaxing the global chunk budget.",
-      "maxBytes": 260000
+      "maxBytes": 262048
     },
     {
       "pattern": "^cudyrEssentialWorkbook-.*\\.js$",

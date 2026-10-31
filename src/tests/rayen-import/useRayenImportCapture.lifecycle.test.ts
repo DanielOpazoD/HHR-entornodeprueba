@@ -131,7 +131,7 @@ describe('useRayenImportCapture lifecycle guards', () => {
         setStaffingProposalError: vi.fn(),
         clearSyncTimeout,
         syncRequestController: {
-          start: vi.fn(),
+          start: vi.fn().mockReturnValue('request-1'),
           cancel: vi.fn(),
           getRunId: vi.fn().mockReturnValue('run-1'),
         },
@@ -146,6 +146,7 @@ describe('useRayenImportCapture lifecycle guards', () => {
     const [onError] = bridge.subscribeErrors.mock.calls[0] as unknown as [
       (error: string, requestId: string, timeoutStage?: string) => void,
     ];
+    act(() => onError('capture failed', 'request-1', 'ficha_main_relay'));
     act(() => onError('capture failed', 'request-1', 'ficha_main_relay'));
     expect(clearSyncTimeout).toHaveBeenCalledOnce();
     expect(preparedSyncContextRef.current).toBeNull();
