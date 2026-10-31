@@ -6,16 +6,11 @@ import { RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS } from '@/features/rayen-import/
 
 const mocks = vi.hoisted(() => ({
   refresh: vi.fn(),
-  warning: vi.fn(),
   health: {
     connection: 'ready',
     canSync: true,
     message: 'Extensión operativa.',
   },
-}));
-
-vi.mock('@/context/UIContext', () => ({
-  useNotification: () => ({ warning: mocks.warning }),
 }));
 
 vi.mock('@/features/rayen-import/hooks/useRayenExtensionHealth', () => ({
@@ -59,54 +54,42 @@ describe('RayenDayBootstrapButton', () => {
     expect(screen.getByText('Revisar evidencia del día antes de importar')).toBeVisible();
   });
 
-  it('copies the prior census before checking Eloísa and starting a reviewed import', async () => {
-    const order: string[] = [];
-    mocks.refresh.mockImplementation(async () => {
-      order.push('health');
-      return { connection: 'ready', canSync: true, message: 'Operativa.' };
-    });
-    const onCopyPrevious = vi.fn(async () => {
-      order.push('copy');
-      return true;
-    });
-    const onCreateBlank = vi.fn();
-    const onReady = vi.fn(() => order.push('review'));
+  it('copies the prior census and then requests the reviewed import', async () => {
+    const onReady = vi.fn();
+    const onCopyPrevious = vi.fn().mockResolvedValue(true);
     render(
       <RayenDayBootstrapButton
         copySourceDate="2026-09-23"
         onCopyPrevious={onCopyPrevious}
-        onCreateBlank={onCreateBlank}
         onReady={onReady}
       />
     );
+
     fireEvent.click(screen.getByRole('button', { name: /Copiar censo y sincronizar/i }));
-    await waitFor(() => expect(onCopyPrevious).toHaveBeenCalledOnce());
-    expect(mocks.refresh).toHaveBeenCalledOnce();
-    expect(onCreateBlank).not.toHaveBeenCalled();
-    expect(onReady).toHaveBeenCalledOnce();
-    expect(mocks.warning).not.toHaveBeenCalled();
-    expect(order).toEqual(['copy', 'health', 'review']);
+
+    await waitFor(() => expect(onReady).toHaveBeenCalledOnce());
+    expect(onCopyPrevious.mock.invocationCallOrder[0]).toBeLessThan(
+      onReady.mock.invocationCallOrder[0]
+    );
   });
 
-  it('keeps the copied census and warns when Eloísa is unavailable', async () => {
+  it('requests the import without warning even if Eloísa is not answering yet', async () => {
+    mocks.refresh.mockRejectedValue(new Error('Eloísa dormida'));
     mocks.health.connection = 'offline';
     mocks.health.canSync = false;
-    mocks.health.message = 'Extensión no disponible.';
-    mocks.refresh.mockResolvedValue({ connection: 'offline', canSync: false });
-    const onCopyPrevious = vi.fn().mockResolvedValue(true);
     const onReady = vi.fn();
     render(
       <RayenDayBootstrapButton
         copySourceDate="2026-09-23"
-        onCopyPrevious={onCopyPrevious}
-        onCreateBlank={vi.fn()}
+        onCopyPrevious={vi.fn().mockResolvedValue(true)}
         onReady={onReady}
       />
     );
+
     fireEvent.click(screen.getByRole('button', { name: /Copiar censo y sincronizar/i }));
-    await waitFor(() => expect(onCopyPrevious).toHaveBeenCalledOnce());
-    await waitFor(() => expect(mocks.warning).toHaveBeenCalledOnce());
-    expect(onReady).not.toHaveBeenCalled();
+
+    await waitFor(() => expect(onReady).toHaveBeenCalledOnce());
+    expect(mocks.refresh).not.toHaveBeenCalled();
   });
 
   it('does not start Eloísa when the previous-day copy fails', async () => {
