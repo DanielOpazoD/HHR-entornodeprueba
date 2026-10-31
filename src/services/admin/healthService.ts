@@ -44,10 +44,12 @@ const isHealthPermissionError = (error: unknown): boolean => {
 };
 
 export const reportUserHealth = async (status: UserHealthStatus): Promise<void> => {
+  // Recent events can name patients, so they stay on the device. Rules reject any key they don't list.
+  const { recentEvents: _deviceOnly, oldestDirectQueueAgeMs: _notPublished, ...published } = status;
   try {
     const path = `${STATS_DOC}/${HEALTH_COLLECTION}/${USERS_SUBCOLLECTION}`;
     await firestoreDb.setDoc(path, status.uid, {
-      ...status,
+      ...published,
       lastSeen: new Date().toISOString(),
     });
   } catch (error) {
