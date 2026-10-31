@@ -94,6 +94,23 @@ describe('syslab-proxy', () => {
     expect(response.body).toContain('VITE_SYSLAB_API_URL');
   });
 
+  it('answers a health check as disconnected when the proxy is not configured', async () => {
+    const handler = await loadHandler();
+    delete process.env.SYSLAB_PROXY_URL;
+    delete process.env.VITE_SYSLAB_API_URL;
+
+    const response = await handler({
+      httpMethod: 'GET',
+      headers: { authorization: 'Bearer token-123' },
+      body: null,
+      rawQuery: 'action=health',
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toContain('"connected":false');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('uses VITE_SYSLAB_API_URL as fallback when SYSLAB_PROXY_URL is missing', async () => {
     const handler = await loadHandler();
     delete process.env.SYSLAB_PROXY_URL;
@@ -162,7 +179,22 @@ describe('syslab-proxy', () => {
       rawQuery: 'action=health',
     });
 
-    expect(response.statusCode).toBe(503);
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toContain('"connected":false');
+  });
+
+  it('answers disconnected when the upstream health check is not ok', async () => {
+    const handler = await loadHandler();
+    fetchMock.mockResolvedValue({ ok: false, status: 502 });
+
+    const response = await handler({
+      httpMethod: 'GET',
+      headers: { authorization: 'Bearer token-123' },
+      body: null,
+      rawQuery: 'action=health',
+    });
+
+    expect(response.statusCode).toBe(200);
     expect(response.body).toContain('"connected":false');
   });
 
