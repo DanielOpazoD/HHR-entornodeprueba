@@ -82,7 +82,7 @@ export const recordClinicalInputsBlockFailed = (
 ): number => {
   const blockedForMs =
     typeof state.blockedStartedAt === 'number' ? Math.max(0, failedAt - state.blockedStartedAt) : 0;
-  dailyRecordObservability.recordEvent('daily_record_clinical_inputs_block_failed', 'failed', {
+  dailyRecordObservability.recordEvent('daily_record_clinical_inputs_block_failed', 'degraded', {
     runtimeState: 'blocked',
     issues: ['No se pudo confirmar Firebase y los campos clínicos siguieron bloqueados.'],
     context: {
