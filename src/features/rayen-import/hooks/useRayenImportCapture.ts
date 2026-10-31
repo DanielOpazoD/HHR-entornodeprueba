@@ -71,6 +71,9 @@ interface UseRayenImportCaptureInput {
   ) => void;
 }
 
+const isRelayTimeout = (stage?: string): boolean =>
+  stage === 'ficha_main_relay' || stage === 'ficha_tab_relay';
+
 /** Owns extension capture subscriptions and the preflight/request lifecycle for one import flow. */
 export const useRayenImportCapture = ({
   currentRecord,
@@ -93,6 +96,7 @@ export const useRayenImportCapture = ({
   previewSnapshot,
 }: UseRayenImportCaptureInput) => {
   const capturePreparationLockRef = useRef<CapturePreparationLock | null>(null);
+  const relayRetryRunRef = useRef<string | null>(null);
   const mountedRef = useRef(true);
   useEffect(() => {
     mountedRef.current = true;
@@ -103,6 +107,49 @@ export const useRayenImportCapture = ({
       capturePreparationLockRef.current = null;
     };
   }, [dispatchExecution]);
+  const startCaptureRequest = useCallback(
+    ({ range, selectedDate }: PreparedRayenSyncContext, runId: string): string => {
+      const requestId = syncRequestController.start(range.dateStart, range.dateEnd, runId, () => {
+        // A capture timer owns only the wait for that response, never later review or
+        // persistence. Derive this guard from the stage rather than a parallel UI flag.
+        if (
+          executionRef.current.stage?.type !== 'capturing' ||
+          !isRayenSyncExecutionCurrent(executionRef.current, {
+            runId: runId,
+            requestId,
+            selectedDate,
+          })
+        ) {
+          return;
+        }
+        dispatchExecution({
+          type: 'transition',
+          runId: runId,
+          requestId,
+          selectedDate,
+          stage: { type: 'failed' },
+        });
+        preparedSyncContextRef.current = null;
+        recordRunPerformance({ counters: { timeouts: 1 } }, runId);
+        void failRun('snapshot_timeout', runId);
+        setState(previous => ({
+          ...previous,
+          error:
+            'No se recibió la captura de Eloísa dentro del plazo. Verifica que ambas fuentes sigan conectadas y vuelve a intentarlo.',
+        }));
+      });
+      return requestId;
+    },
+    [
+      dispatchExecution,
+      executionRef,
+      failRun,
+      preparedSyncContextRef,
+      recordRunPerformance,
+      setState,
+      syncRequestController,
+    ]
+  );
   useEffect(
     () =>
       rayenImportBridge.subscribeToRayenSnapshots((snapshot, bundle, requestId) => {
@@ -123,6 +170,25 @@ export const useRayenImportCapture = ({
           if (
             !isRayenSyncExecutionCurrent(executionRef.current, { runId, requestId, selectedDate })
           ) {
+            return;
+          }
+          // A Ficha Médico tab idle for hours can miss its first read and answer the next in seconds.
+          // The capture only reads, so it gets one silent retry before anyone is told.
+          const prepared = preparedSyncContextRef.current;
+          const context = executionRef.current.context;
+          if (
+            isRelayTimeout(timeoutStage) &&
+            prepared &&
+            context &&
+            relayRetryRunRef.current !== runId
+          ) {
+            relayRetryRunRef.current = runId;
+            recordRunPerformance({ counters: { retries: 1 } }, runId);
+            const retryRequestId = startCaptureRequest(prepared, runId);
+            dispatchExecution({
+              type: 'activate',
+              context: { ...context, requestId: retryRequestId },
+            });
             return;
           }
           clearSyncTimeout();
@@ -148,6 +214,7 @@ export const useRayenImportCapture = ({
     [
       clearSyncTimeout,
       recordRunPerformance,
+      startCaptureRequest,
       dispatchExecution,
       failRun,
       executionRef,
@@ -323,40 +390,7 @@ export const useRayenImportCapture = ({
           },
           run.id
         );
-        const requestId = syncRequestController.start(
-          preparedContext.range.dateStart,
-          preparedContext.range.dateEnd,
-          run.id,
-          () => {
-            // A capture timer owns only the wait for that response, never later review or
-            // persistence. Derive this guard from the stage rather than a parallel UI flag.
-            if (
-              executionRef.current.stage?.type !== 'capturing' ||
-              !isRayenSyncExecutionCurrent(executionRef.current, {
-                runId: run.id,
-                requestId,
-                selectedDate,
-              })
-            ) {
-              return;
-            }
-            dispatchExecution({
-              type: 'transition',
-              runId: run.id,
-              requestId,
-              selectedDate,
-              stage: { type: 'failed' },
-            });
-            preparedSyncContextRef.current = null;
-            recordRunPerformance({ counters: { timeouts: 1 } }, run.id);
-            void failRun('snapshot_timeout', run.id);
-            setState(previous => ({
-              ...previous,
-              error:
-                'No se recibió la captura de Eloísa dentro del plazo. Verifica que ambas fuentes sigan conectadas y vuelve a intentarlo.',
-            }));
-          }
-        );
+        const requestId = startCaptureRequest(preparedContext, run.id);
         dispatchExecution({
           type: 'activate',
           context: createRayenSyncExecutionContext(preparedContext, requestId, policy),
