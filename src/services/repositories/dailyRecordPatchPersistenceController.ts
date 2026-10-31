@@ -2,7 +2,10 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import Dexie from 'dexie';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { normalizeDailyRecordInvariants } from '@/utils/recordInvariants';
-import { normalizeMovementBedConsistency } from '@/services/repositories/clinicalMovementBedConsistencyPolicy';
+import {
+  listMovementRepairsWorthReviewing,
+  normalizeMovementBedConsistency,
+} from '@/services/repositories/clinicalMovementBedConsistencyPolicy';
 import { validateAndSalvageRecord } from '@/services/repositories/helpers/validationHelper';
 import { applyPatches } from '@/utils/patchUtils';
 import { logError } from '@/services/utils/errorService';
@@ -55,8 +58,10 @@ export const preparePatchedRecordPersistence = (
     Object.assign(mergedPatches, movementConsistency.patches);
   }
 
-  // Clearing the bed of a discharged or moved patient is expected, not a repair worth reviewing.
-  const repairPaths = Object.keys(normalized.patches);
+  const repairPaths = [
+    ...Object.keys(normalized.patches),
+    ...listMovementRepairsWorthReviewing(movementConsistency.patches, current),
+  ];
 
   if (!shouldSkipStructuralNormalization && repairPaths.length > 0) {
     // Diagnostics use errorLogs, outside the outbox's dailyRecords/syncQueue transaction.

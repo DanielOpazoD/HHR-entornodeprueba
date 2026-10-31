@@ -1,7 +1,10 @@
 import { CURRENT_SCHEMA_VERSION } from '@/constants/version';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { normalizeDailyRecordInvariants } from '@/utils/recordInvariants';
-import { normalizeMovementBedConsistency } from '@/services/repositories/clinicalMovementBedConsistencyPolicy';
+import {
+  listMovementRepairsWorthReviewing,
+  normalizeMovementBedConsistency,
+} from '@/services/repositories/clinicalMovementBedConsistencyPolicy';
 import { validateAndSalvageRecord } from '@/services/repositories/helpers/validationHelper';
 import { logError } from '@/services/utils/errorService';
 import { ensureDailyRecordDateTimestamp } from '@/services/repositories/dailyRecordMetadataDomainService';
@@ -10,13 +13,18 @@ import { assertAdmissionDatePersistencePolicy } from '@/services/repositories/da
 import { buildInvariantRepairReviewContext } from '@/services/repositories/invariantRepairReviewContext';
 import { ensureDailyRecordClinicalEpisodeIds } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
 
-const normalizePreparedRecord = (record: DailyRecord): DailyRecord => {
+const normalizePreparedRecord = (
+  record: DailyRecord,
+  previousRecord: DailyRecord | null | undefined
+): DailyRecord => {
   const normalized = normalizeDailyRecordInvariants(record);
   const movementConsistency = normalizeMovementBedConsistency(normalized.record);
   const validatedRecord = ensureDailyRecordClinicalEpisodeIds(movementConsistency.record);
 
-  // Clearing the bed of a discharged or moved patient is expected, not a repair worth reviewing.
-  const repairPaths = Object.keys(normalized.patches);
+  const repairPaths = [
+    ...Object.keys(normalized.patches),
+    ...listMovementRepairsWorthReviewing(movementConsistency.patches, previousRecord),
+  ];
 
   if (repairPaths.length > 0) {
     logError(
@@ -44,5 +52,5 @@ export const prepareDailyRecordForPersistence = (
   const recordWithSchemaDefaults = validateAndSalvageRecord(record, date);
   assertAdmissionDatePersistencePolicy(date, recordWithSchemaDefaults, previousRecord);
   ensureDailyRecordDateTimestamp(recordWithSchemaDefaults);
-  return normalizePreparedRecord(recordWithSchemaDefaults);
+  return normalizePreparedRecord(recordWithSchemaDefaults, previousRecord);
 };

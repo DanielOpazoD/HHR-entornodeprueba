@@ -166,6 +166,48 @@ describe('dailyRecordPatchPersistenceController', () => {
     );
   });
 
+  it('asks for review when a stored movement has to clear a bed again', () => {
+    const discharge = {
+      id: 'discharge-1',
+      bedId: 'R1',
+      patientName: 'Paciente Egresado',
+      rut: '33.333.333-3',
+      admissionDate: '2026-02-10',
+      status: 'Vivo',
+      movementDate: '2026-02-18',
+    };
+    const reoccupied = {
+      ...current,
+      beds: {
+        R1: {
+          bedId: 'R1',
+          patientName: 'Paciente Egresado',
+          rut: '33.333.333-3',
+          pathology: 'Diagnostico',
+          admissionDate: '2026-02-10',
+          status: 'Estable',
+          bedMode: 'Cama',
+          hasCompanionCrib: false,
+        },
+      },
+      discharges: [discharge],
+    } as unknown as DailyRecord;
+    applyPatchesMock.mockReturnValue(reoccupied);
+    normalizeDailyRecordInvariantsMock.mockReturnValue({ record: reoccupied, patches: {} });
+
+    preparePatchedRecordPersistence(
+      { ...current, discharges: [discharge] } as unknown as DailyRecord,
+      '2026-04-19',
+      { 'beds.R1.patientName': 'Paciente Egresado' }
+    );
+
+    expect(logErrorMock).toHaveBeenCalledWith(
+      'Invariant repair applied on updatePartial',
+      undefined,
+      expect.objectContaining({ repairPaths: ['beds.R1'] })
+    );
+  });
+
   it('logs clinically reviewable context when invariant repairs are merged', () => {
     const patch: DailyRecordPatch = { 'beds.R1.patientName': 'Paciente Demo' };
 
