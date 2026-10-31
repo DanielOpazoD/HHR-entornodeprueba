@@ -12,8 +12,9 @@ import {
 } from '@/domain/evaluationScales/documentaryCudyr';
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
 import { cudyrModality } from '@/domain/cudyr/cudyrModality';
+import { isCudyrPatientEligible } from '@/domain/cudyr/cudyrEligibility';
 import { isValidRut } from '@/utils/rutUtils';
-import { getNextDay } from '@/utils/clinicalDayUtils';
+import { getNextDay, normalizeDateOnly } from '@/utils/clinicalDayUtils';
 import type { CudyrCategoryInput } from '@/domain/evaluationScales/importedCudyr';
 
 const patients = (record: DailyRecord): PatientData[] =>
@@ -91,7 +92,9 @@ export const planDailyCudyrGaps = (
 export type DailyCudyrGapResolution =
   | { kind: 'recovered'; cudyr: DocumentaryCudyr }
   | { kind: 'attribution_unreliable' }
-  | { kind: 'documentary_inconclusive' };
+  | { kind: 'documentary_inconclusive' }
+  // CUD-07: no record was expected, so a blank report is the answer rather than a missing one.
+  | { kind: 'not_applicable' };
 
 /** No name-only, bed, maternal-document or duplicate-episode attribution. Blank means unknown. */
 export const recoverDailyCudyrGap = (
@@ -100,6 +103,11 @@ export const recoverDailyCudyrGap = (
   source: CapturedCudyrMonthlyReport
 ): DailyCudyrGapResolution => {
   const { patient, sourceDate } = gap;
+  // Only a recorded admission can prove the short stay; a missing date stays inconclusive.
+  const withoutCategory = (): DailyCudyrGapResolution =>
+    normalizeDateOnly(patient.admissionDate) && !isCudyrPatientEligible(gap.date, patient)
+      ? { kind: 'not_applicable' }
+      : { kind: 'documentary_inconclusive' };
   if (
     records.some(
       record =>
@@ -121,7 +129,7 @@ export const recoverDailyCudyrGap = (
     return { kind: 'attribution_unreliable' };
   // A repeated documentary row may represent a readmission; do not pick the latest/first row.
   const rows = source.report.patients.filter(p => cudyrDocumentKey(p.document) === document);
-  if (rows.length === 0) return { kind: 'documentary_inconclusive' };
+  if (rows.length === 0) return withoutCategory();
   if (rows.length !== 1 || cudyrIdentity(rows[0].document, rows[0].patientName) !== identity)
     return { kind: 'attribution_unreliable' };
   const cells = rows[0].days.filter(d => d.sourceDate === sourceDate);
@@ -132,7 +140,7 @@ export const recoverDailyCudyrGap = (
     cells[0].state !== 'category' ||
     !/^[A-D][1-3]$/.test(category)
   )
-    return { kind: 'documentary_inconclusive' };
+    return withoutCategory();
   return {
     kind: 'recovered',
     cudyr: {
