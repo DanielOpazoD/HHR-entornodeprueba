@@ -39,11 +39,14 @@ const decodePdfBase64 = (base64: string): ArrayBuffer => {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
 };
 
-const secondBefore = (localTimestamp: string): string => {
+const secondsBefore = (localTimestamp: string, seconds: number): string => {
   const parsed = new Date(`${localTimestamp}Z`);
   if (Number.isNaN(parsed.getTime())) return localTimestamp;
-  return new Date(parsed.getTime() - 1000).toISOString().slice(0, 19);
+  return new Date(parsed.getTime() - seconds * 1000).toISOString().slice(0, 19);
 };
+
+/** Eloísa stamps the admission and its first bed row separately, seconds apart in either order. */
+const ADMISSION_FLOW_TOLERANCE_SECONDS = 60;
 
 const candidateKey = (entry: AdmissionEntry): string =>
   entry.source?.encounterId?.trim() ||
@@ -263,9 +266,9 @@ const verifyCandidate = async (
     if (patientRunFromFlowReport(text) !== normalizeRut(source.run)) {
       return deferredResult;
     }
-    const nightCutoff = secondBefore(`${nextDay}T${nightEnd}:00`);
+    const nightCutoff = secondsBefore(`${nextDay}T${nightEnd}:00`, 1);
     const placement = latestPatientFlowPlacement(text, {
-      notBefore: admissionStamp,
+      notBefore: secondsBefore(admissionStamp, ADMISSION_FLOW_TOLERANCE_SECONDS),
       notAfter: nightCutoff,
     });
     if (!placement) {
