@@ -123,15 +123,35 @@ describeEmulator('health report against the deployed rules', () => {
     await environment?.cleanup();
   });
 
-  it('publishes what the rules accept', async () => {
-    await reportUserHealth(status());
+  it('publishes the full report, with the detail of recent events', async () => {
+    const report = status();
+    report.recentEvents = [
+      {
+        id: 'operational:daily_record:daily_record_bed_patch_failed:2026-05-21T14:05:00.000Z',
+        source: 'operational',
+        category: 'daily_record',
+        severity: 'critical',
+        status: 'open',
+        timestamp: '2026-05-21T14:05:00.000Z',
+        message: 'Edición rechazada',
+        contextSummary: ['paciente: Paciente Sintético', 'rut: 11.111.111-1', 'cama: R1'],
+      },
+    ];
+
+    await reportUserHealth(report);
     const [, , published] = vi.mocked(firestoreDb.setDoc).mock.calls[0];
 
     await assertSucceeds(reporter().set(published as object));
-    expect(published).not.toHaveProperty('recentEvents');
+    expect(published).toHaveProperty('recentEvents', report.recentEvents);
   });
 
-  it('keeps recent events on the device, because the rules refuse them', async () => {
-    await assertFails(reporter().set({ uid, recentEvents: [] }));
+  it('refuses a report with an unbounded list of events', async () => {
+    await assertFails(
+      reporter().set({ uid, recentEvents: Array.from({ length: 51 }, () => ({})) })
+    );
+  });
+
+  it('still refuses keys the report does not define', async () => {
+    await assertFails(reporter().set({ uid, unknownField: true }));
   });
 });
