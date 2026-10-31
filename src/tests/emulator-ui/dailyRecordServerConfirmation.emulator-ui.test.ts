@@ -11,10 +11,12 @@ import { getRecordFromFirestoreDetailed } from '@/services/storage/firestore/fir
 import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositoryReadService';
 import { subscribeDetailed } from '@/services/repositories/dailyRecordRepositorySyncService';
 import {
+  createDailyRecordQueryOptions,
   createDailyRecordSubscription,
   getDailyRecordQueryKey,
 } from '@/hooks/controllers/dailyRecordQueryController';
 import {
+  ensureDailyRecordRemoteFreshness,
   getDailyRecordFreshnessStatus,
   markDailyRecordTabHidden,
   markDailyRecordTabVisible,
@@ -143,6 +145,65 @@ describeEmulator('server confirmation with real Firestore cache metadata', () =>
     } finally {
       await db.enableNetwork();
     }
+  });
+
+  describe('returning to a tab after a long absence', () => {
+    const returnToTab = async (whileHidden: () => Promise<unknown> = async () => {}) => {
+      openReader();
+      await seedRecord();
+      const client = new QueryClient();
+      const repository = { getForDateWithMeta, subscribeDetailed };
+      const stop = createDailyRecordSubscription(repository, date, client);
+      cleanups.push(() => {
+        stop?.();
+        client.clear();
+      });
+      const options = createDailyRecordQueryOptions(repository, date, client);
+      const key = getDailyRecordQueryKey(date);
+      await client.fetchQuery({ ...options, staleTime: 0 });
+      markDailyRecordTabHidden(0);
+      await whileHidden();
+      markDailyRecordTabVisible(720_000);
+      expect(getDailyRecordFreshnessStatus(date)).toBe('stale_due_to_inactivity');
+
+      await ensureDailyRecordRemoteFreshness({
+        date,
+        queryClient: client,
+        ...options,
+        reason: 'resume',
+      });
+
+      expect(getDailyRecordFreshnessStatus(date)).toBe('fresh_remote_confirmed');
+      return client.getQueryData<DailyRecordQueryResult>(key);
+    };
+
+    it('reopens editing when nothing changed in the meantime', async () => {
+      const shown = await returnToTab();
+
+      expect(shown?.runtime.serverConfirmed).toBe(true);
+    });
+
+    it('reopens editing and shows what another user wrote in the meantime', async () => {
+      const shown = await returnToTab(async () => {
+        await environment.withSecurityRulesDisabled(context =>
+          context
+            .firestore()
+            .doc(recordPath)
+            .update({
+              nursesDayShift: ['Synthetic nurse C'],
+              lastUpdated: new Date().toISOString(),
+            })
+        );
+        await waitFor(async () =>
+          expect((await getRecordFromFirestoreDetailed(date)).record?.nursesDayShift).toEqual([
+            'Synthetic nurse C',
+          ])
+        );
+      });
+
+      expect(shown?.runtime.serverConfirmed).toBe(true);
+      expect(shown?.record?.nursesDayShift).toEqual(['Synthetic nurse C']);
+    });
   });
 
   it('does not confirm an offline absence and rejects a server-only read', async () => {

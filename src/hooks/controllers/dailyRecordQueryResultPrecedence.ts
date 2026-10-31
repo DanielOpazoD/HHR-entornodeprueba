@@ -97,7 +97,18 @@ export const reconcileDailyRecordQueryResult = (
     baseSource(previous) === 'remote' &&
     baseSource(incoming) === 'local'
   ) {
-    return retainUnconfirmedResult(previous);
+    // The local copy matches the version on screen, so it keeps its remote provenance. A server
+    // read still proves that version current; only a cached one leaves it unconfirmed.
+    return runtime.serverConfirmed
+      ? {
+          record: previousRecord,
+          runtime: {
+            ...runtime,
+            baseSource: 'remote',
+            sourceOfTruth: previousRuntime.sourceOfTruth,
+          },
+        }
+      : retainUnconfirmedResult(previous);
   }
   return incoming;
 };
