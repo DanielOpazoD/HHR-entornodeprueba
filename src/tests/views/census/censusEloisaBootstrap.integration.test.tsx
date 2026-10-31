@@ -312,7 +312,7 @@ describe('Crear desde Eloísa · costura CensusView → RayenImportButton', () =
     expect(mocks.triggerImport).toHaveBeenCalledWith(expect.anything(), expect.anything(), {
       reviewRequirement: 'day_bootstrap',
     });
-    expect(mocks.refreshHealth).toHaveBeenCalledTimes(2);
+    expect(mocks.refreshHealth).toHaveBeenCalledTimes(1);
   });
 
   it('starts the reviewed import for a missing historical census older than two months', async () => {

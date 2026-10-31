@@ -89,7 +89,7 @@ const handleHealth = async (proxyUrl: string, requestOrigin?: string) => {
     const response = await proxyFetch(`${proxyUrl}/health`, { method: 'GET' });
     if (!response.ok) {
       return buildJsonResponse(
-        503,
+        200,
         { success: false, connected: false, status: response.status },
         { requestOrigin }
       );
@@ -102,7 +102,7 @@ const handleHealth = async (proxyUrl: string, requestOrigin?: string) => {
     );
   } catch (error) {
     return buildJsonResponse(
-      503,
+      200,
       {
         success: false,
         connected: false,
@@ -241,22 +241,19 @@ export const createSyslabProxyHandler = (
       return buildJsonResponse(statusCode, { error: message }, { requestOrigin });
     }
 
-    const proxyUrl = getProxyUrl();
-    if (!proxyUrl) {
-      return buildJsonResponse(
-        503,
-        {
-          success: false,
-          error:
-            'El servicio de laboratorio no está configurado. ' +
-            'Configure la variable SYSLAB_PROXY_URL o VITE_SYSLAB_API_URL.',
-        },
-        { requestOrigin }
-      );
-    }
-
     const params = new URLSearchParams(event.rawQuery || '');
     const action = params.get('action');
+
+    const proxyUrl = getProxyUrl();
+    if (!proxyUrl) {
+      const error =
+        'El servicio de laboratorio no está configurado. ' +
+        'Configure la variable SYSLAB_PROXY_URL o VITE_SYSLAB_API_URL.';
+      // A health check answered: disconnected is its result, not a failed request.
+      return action === 'health'
+        ? buildJsonResponse(200, { success: false, connected: false, error }, { requestOrigin })
+        : buildJsonResponse(503, { success: false, error }, { requestOrigin });
+    }
 
     try {
       if (action !== 'health' && action !== 'search' && action !== 'details' && action !== 'pdf') {

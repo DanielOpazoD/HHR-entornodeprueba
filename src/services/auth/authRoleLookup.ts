@@ -14,6 +14,8 @@ type CheckUserRoleCallableData = {
 export const AUTH_ROLE_LOOKUP_UNAVAILABLE_CODE = 'auth/role-lookup-unavailable';
 export const AUTH_ROLE_LOOKUP_TIMEOUT_MS = AUTH_BOOTSTRAP_TIMEOUTS_MS.default;
 const RECENT_ROLE_LOOKUP_REUSE_MS = 10_000;
+/** A role service that does not answer usually does on the next try: a cold start or a waking tab. */
+const ROLE_LOOKUP_RETRY_DELAYS_MS = [1_000, 3_000];
 
 export const resolveCallableRole = (
   response: CheckUserRoleCallableData | null | undefined
@@ -26,8 +28,11 @@ export const resolveCallableRole = (
   return role;
 };
 
+const wait = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
+
 export const createAuthRoleLookupService = (
-  functionsRuntime: Pick<FunctionsRuntime, 'getFunctions'> = defaultFunctionsRuntime
+  functionsRuntime: Pick<FunctionsRuntime, 'getFunctions'> = defaultFunctionsRuntime,
+  retryDelaysMs: readonly number[] = ROLE_LOOKUP_RETRY_DELAYS_MS
 ) => {
   // Login and the auth-state observer can request the same role concurrently;
   // share the in-flight callable and its freshly settled result so one sign-in
@@ -42,7 +47,8 @@ export const createAuthRoleLookupService = (
 
   const runRoleLookup = async (
     cleanEmail: string,
-    generation: number
+    generation: number,
+    attempt = 0
   ): Promise<UserRole | null> => {
     try {
       markPerf('auth-role:lookup-start');
@@ -78,6 +84,16 @@ export const createAuthRoleLookupService = (
         ].includes(code)
       ) {
         return null;
+      }
+      const delayMs = retryDelaysMs[attempt];
+      // Offline, a retry cannot answer; a cleared generation means the session moved on.
+      if (
+        delayMs !== undefined &&
+        globalThis.navigator?.onLine !== false &&
+        generation === lookupGeneration
+      ) {
+        await wait(delayMs);
+        return runRoleLookup(cleanEmail, generation, attempt + 1);
       }
       throw createAuthError(
         AUTH_ROLE_LOOKUP_UNAVAILABLE_CODE,
