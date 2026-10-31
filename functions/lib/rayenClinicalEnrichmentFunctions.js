@@ -1,6 +1,8 @@
 const functions = require('firebase-functions/v1');
 // Retain the original endpoint for already-loaded clients during the regional rollout.
-const clinicalFunctions = functions.region('us-central1', 'southamerica-east1');
+const clinicalFunctions = functions
+  .region('us-central1', 'southamerica-east1')
+  .runWith({ memory: '1GB' });
 const { performance } = require('node:perf_hooks');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
 const { sanitizeLogValue } = require('./logging/redaction');
