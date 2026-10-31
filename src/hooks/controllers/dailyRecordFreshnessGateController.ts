@@ -295,7 +295,8 @@ export const ensureDailyRecordRemoteFreshness = ({
           getNow(),
           resumeEpoch
         );
-        dailyRecordObservability.recordEvent('daily_record_resume_refresh_failed', 'failed', {
+        // Recovers by itself on the next confirmed read. A refused edit reports its own failure.
+        dailyRecordObservability.recordEvent('daily_record_resume_refresh_failed', 'degraded', {
           runtimeState: 'blocked',
           issues: ['No se pudo confirmar Firebase antes de aceptar una edición clínica.'],
           context: {
