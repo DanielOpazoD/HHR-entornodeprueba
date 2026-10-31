@@ -151,7 +151,7 @@ describe('submitPrescriptionPhoto', () => {
       expect(storedBlobs).toEqual({});
     });
 
-    it('still lets a valid PIN open the picker and readonly lists', async () => {
+    it('still lets a valid PIN open the readonly list', async () => {
       const { admin, accessConfig } = buildAdminHarness();
       await seedPin(accessConfig, '7351');
       const handler = createListUploadReadonlyRecordsHandler({
