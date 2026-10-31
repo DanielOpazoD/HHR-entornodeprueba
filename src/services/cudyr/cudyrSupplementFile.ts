@@ -1,4 +1,7 @@
 import type { CudyrSupplementParseResult } from '@/types/domain/cudyrSupplement';
+// The worker is not precached, so its first read after a release also downloads it.
+const READ_TIMEOUT_MS = 30000;
+
 export const readCudyrSupplementFile = async (file: File, signal: AbortSignal) => {
   if (!/\.(xls|xlsx)$/i.test(file.name) || file.size > 262144 || file.size < 8)
     throw new Error('Seleccione un XLS/XLSX de hasta 256 KiB.');
@@ -23,7 +26,7 @@ export const readCudyrSupplementFile = async (file: File, signal: AbortSignal) =
     const timeout = setTimeout(() => {
       finish();
       reject(new Error('El archivo excedió el tiempo de lectura.'));
-    }, 10000);
+    }, READ_TIMEOUT_MS);
     signal.addEventListener('abort', abort, { once: true });
     worker.onerror = () => {
       finish();
