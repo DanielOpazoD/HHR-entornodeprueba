@@ -124,7 +124,7 @@ describe('systemHealthReporterController', () => {
     expect(status.appVersion).toContain('authority:client_only');
   });
 
-  it('builds recent user health events with safe operational context', () => {
+  it('builds recent user health events with their operational context', () => {
     const events = buildRecentUserHealthEvents({
       localErrors: [
         {
@@ -138,7 +138,7 @@ describe('systemHealthReporterController', () => {
           context: {
             module: 'Censo diario',
             action: 'Guardar dia',
-            patientName: 'No debe exponerse',
+            patientName: 'Paciente Sintético',
             rut: '11111111-1',
           },
         },
@@ -181,8 +181,8 @@ describe('systemHealthReporterController', () => {
       action: 'Guardar dia',
       route: '/censo',
     });
-    expect(JSON.stringify(events)).not.toContain('No debe exponerse');
-    expect(JSON.stringify(events)).not.toContain('11111111-1');
+    expect(JSON.stringify(events)).toContain('Paciente Sintético');
+    expect(JSON.stringify(events)).toContain('11111111-1');
   });
 
   it('keeps sync truth selection successes visible for convergence monitoring', () => {
@@ -202,7 +202,7 @@ describe('systemHealthReporterController', () => {
             route: '/censo',
             clinicalDate: '2026-05-21',
             bedLabel: 'Cama R1',
-            patientName: 'Paciente no debe exponerse',
+            patientName: 'Paciente Sintético',
             rut: '11111111-1',
             clientId: 'anon_a1b2c3',
             tabId: 'anon_d4e5f6',
@@ -225,14 +225,16 @@ describe('systemHealthReporterController', () => {
       telemetryStatus: 'success',
       runtimeState: 'recoverable',
       contextSummary: [
+        'paciente: Paciente Sintético',
+        'rut: 11111111-1',
         'fecha clinica: 2026-05-21',
         'cama: Cama R1',
         'module: Censo diario',
         'action: Verdad clinica aceptada',
       ],
     });
-    expect(JSON.stringify(events)).not.toContain('Paciente no debe exponerse');
-    expect(JSON.stringify(events)).not.toContain('11111111-1');
+    expect(JSON.stringify(events)).toContain('Paciente Sintético');
+    expect(JSON.stringify(events)).toContain('11111111-1');
   });
 
   it('infers actionable local error origin from route when module is missing', () => {
@@ -252,7 +254,7 @@ describe('systemHealthReporterController', () => {
             clinicalDate: '2026-05-21',
             bedLabel: 'Cama R1',
             fieldLabel: 'Diagnostico',
-            patientName: 'No debe exponerse',
+            patientName: 'Paciente Sintético',
           },
         },
       ],
@@ -269,13 +271,14 @@ describe('systemHealthReporterController', () => {
       action: 'Guardar diagnostico',
       route: '/censo',
       contextSummary: [
+        'paciente: Paciente Sintético',
         'fecha clinica: 2026-05-21',
         'cama: Cama R1',
         'campo: Diagnostico',
         'button: Guardar diagnostico',
       ],
     });
-    expect(JSON.stringify(events)).not.toContain('No debe exponerse');
+    expect(JSON.stringify(events)).toContain('Paciente Sintético');
   });
 
   it('keeps a broader default operational window for actionable health triage', () => {
@@ -305,7 +308,7 @@ describe('systemHealthReporterController', () => {
     });
   });
 
-  it('keeps non-sensitive clinical context for admin health triage', () => {
+  it('keeps identity and clinical context for admin health triage', () => {
     const events = buildRecentUserHealthEvents({
       localErrors: [],
       operationalEvents: [
@@ -326,8 +329,8 @@ describe('systemHealthReporterController', () => {
             fieldKey: 'pathology',
             fieldLabel: 'Diagnostico',
             patchType: 'UPDATE_PATIENT',
-            diagnosis: 'Neumonia no debe exponerse',
-            patientName: 'Paciente no debe exponerse',
+            diagnosis: 'Neumonia sintética',
+            patientName: 'Paciente Sintético',
             rut: '11111111-1',
           },
         },
@@ -345,15 +348,16 @@ describe('systemHealthReporterController', () => {
       action: 'Guardar diagnostico',
       route: '/censo',
       contextSummary: [
+        'paciente: Paciente Sintético',
+        'rut: 11111111-1',
+        'diagnostico: Neumonia sintética',
         'fecha clinica: 2026-05-21',
         'cama: Cama R1',
         'campo: Diagnostico',
         'tipo: UPDATE_PATIENT',
+        'cama: R1',
       ],
     });
-    expect(JSON.stringify(events)).not.toContain('Neumonia no debe exponerse');
-    expect(JSON.stringify(events)).not.toContain('Paciente no debe exponerse');
-    expect(JSON.stringify(events)).not.toContain('11111111-1');
   });
 
   it('adds actionable sync queue operations to recent health events', () => {
