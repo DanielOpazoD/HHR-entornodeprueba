@@ -136,3 +136,24 @@ Al actualizar Firebase CLI o parsers transitivos de Functions, validar los dos
 lockfiles, ejecutar el gate de release y el pack de confianza con emuladores, y
 comprobar el runtime PDF de Functions. Un CLI actualizado o un CI aprobado no
 acreditan publicación de Functions, reglas ni activación de un layout clínico.
+
+## Permiso que Storage necesita para aplicar sus reglas
+
+Las reglas de Storage leen Firestore (`firestore.get`, `firestore.exists`) para comprobar el acceso. Para eso, el agente de Storage del proyecto necesita el rol `roles/firebaserules.firestoreServiceAgent`. Sin él, toda verificación se deniega y **cualquier usuario recibe 403 en cualquier carpeta**, aunque su rol sea correcto.
+
+Pasó entre el 19-10-2026 (`6033ba0f2`, primeras lecturas de Firestore en esas reglas) y el 31-10-2026. La app solo mostraba «No se pudo confirmar el respaldo por permisos de Storage».
+
+Para comprobarlo:
+
+```bash
+gcloud projects get-iam-policy hhr-pruebas --format=json \
+  | grep -B4 'gcp-sa-firebasestorage' | grep role
+```
+
+Para aplicarlo en un proyecto nuevo:
+
+```bash
+gcloud projects add-iam-policy-binding <proyecto> \
+  --member=serviceAccount:service-<numero>@gcp-sa-firebasestorage.iam.gserviceaccount.com \
+  --role=roles/firebaserules.firestoreServiceAgent --condition=None
+```
