@@ -77,7 +77,7 @@
                'appVersion',
                'platform',
                'userAgent'
-             ]);
+             , 'recentEvents', 'oldestDirectQueueAgeMs']);
     }
 
     function hasOnlySystemHealthResolutionKeys(payload) {
@@ -147,6 +147,9 @@
              isSystemHealthCounter(payload, 'retryingSyncTasks') &&
              isSystemHealthCounter(payload, 'syncOrphanedTasks') &&
              isSystemHealthAgeMs(payload, 'oldestPendingAgeMs') &&
+             isSystemHealthAgeMs(payload, 'oldestDirectQueueAgeMs') &&
+             (!('recentEvents' in payload) ||
+               (payload.recentEvents is list && payload.recentEvents.size() <= 50)) &&
              isOptionalEnum(payload, 'remoteSyncReason', [
                'ready',
                'auth_loading',
