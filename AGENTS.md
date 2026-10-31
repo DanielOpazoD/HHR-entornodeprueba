@@ -60,26 +60,28 @@ lea este archivo.
 
 ### Producción y pull requests
 
-| Regla                                                                                                                                                        | Qué la impone                             |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------- |
-| Publicar, desplegar Functions o reglas, o cambiar la configuración de Netlify, solo si el responsable lo pide. Un merge a `main` ya publica.                 | **[docs]**                                |
-| `ci-summary` es el único check requerido, y `main` exige ramas al día. No saltarlo ni relajarlo.                                                             | Ruleset de `main`                         |
-| CI del SHA final acredita sus controles: no duplicar la matriz local. Verificar alcance y fallos conocidos; ver `docs/SAFE_CHANGE_CHECKLIST.md`.             | `ci-summary`; **[docs]** para no duplicar |
-| Un agente mergea solo sus propias PRs, en verde y de a una. Las PRs de otros hilos no se tocan.                                                              | Ruleset en parte; **[docs]**              |
-| Antes de decir «listo», comprobar que la PR se puede mergear con `main` (`gh pr view --json mergeStateStatus`) y decir con qué evidencia se probó el cambio. | **[docs]**                                |
-| Una PR resuelve una sola cosa. No corregir de paso lo que no se pidió.                                                                                       | **[docs]**                                |
-| Los commits se escriben en inglés (Conventional Commits). Los títulos y descripciones de PR, en español.                                                     | **[docs]**                                |
-| Nunca usar `git stash` sin una etiqueta propia, porque el stash se comparte entre worktrees y sesiones.                                                      | **[docs]**                                |
+| Regla                                                                                                                                                        | Qué la impone                               |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------- |
+| Las reglas se editan en `rules/`; `firestore.rules` y `storage.rules` se generan. Editar el archivo generado se pierde al correr las pruebas.                | `check-rules-generated` en `check:security` |
+| Publicar, desplegar Functions o reglas, o cambiar la configuración de Netlify, solo si el responsable lo pide. Un merge a `main` ya publica.                 | **[docs]**                                  |
+| `ci-summary` es el único check requerido, y `main` exige ramas al día. No saltarlo ni relajarlo.                                                             | Ruleset de `main`                           |
+| CI del SHA final acredita sus controles: no duplicar la matriz local. Verificar alcance y fallos conocidos; ver `docs/SAFE_CHANGE_CHECKLIST.md`.             | `ci-summary`; **[docs]** para no duplicar   |
+| Un agente mergea solo sus propias PRs, en verde y de a una. Las PRs de otros hilos no se tocan.                                                              | Ruleset en parte; **[docs]**                |
+| Antes de decir «listo», comprobar que la PR se puede mergear con `main` (`gh pr view --json mergeStateStatus`) y decir con qué evidencia se probó el cambio. | **[docs]**                                  |
+| Una PR resuelve una sola cosa. No corregir de paso lo que no se pidió.                                                                                       | **[docs]**                                  |
+| Los commits se escriben en inglés (Conventional Commits). Los títulos y descripciones de PR, en español.                                                     | **[docs]**                                  |
+| Nunca usar `git stash` sin una etiqueta propia, porque el stash se comparte entre worktrees y sesiones.                                                      | **[docs]**                                  |
 
 ### Trabajo con el responsable
 
-| Regla                                                                                                                                                       | Qué la impone                                                                                |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| Avanzar sin pedir permiso en el trabajo reversible. Preguntar solo ante lo irreversible o lo que decide el responsable.                                     | **[docs]**                                                                                   |
-| Informar en español claro, sin jerga.                                                                                                                       | **[docs]**                                                                                   |
-| Los cuatro cuadros del encabezado del censo se mantienen en una fila por defecto en escritorio y portátil; el reflujo se reserva para pantallas estrechas.  | CSS del censo; regresión de 1024 px en `census-13-inch-visual.spec.ts`                       |
-| Las actualizaciones rutinarias del censo son silenciosas: no insertar alertas que desplacen encabezados o filas.                                            | Contrato UI de frescura sin mensajes; regresión en `CensusTable.layout-and-actions.test.tsx` |
-| Estas decisiones no se reabren: la ventana de 48 horas de `canWritePreviousDay` se mantiene, y el endpoint de resumen clínico con IA se retiró a propósito. | **[docs]**                                                                                   |
+| Regla                                                                                                                                                                                                                                                       | Qué la impone                                                                                |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Avanzar sin pedir permiso en el trabajo reversible. Preguntar solo ante lo irreversible o lo que decide el responsable.                                                                                                                                     | **[docs]**                                                                                   |
+| Informar en español claro, sin jerga.                                                                                                                                                                                                                       | **[docs]**                                                                                   |
+| Los cuatro cuadros del encabezado del censo se mantienen en una fila por defecto en escritorio y portátil; el reflujo se reserva para pantallas estrechas.                                                                                                  | CSS del censo; regresión de 1024 px en `census-13-inch-visual.spec.ts`                       |
+| Lo recuperable se resuelve solo y en silencio. Solo se avisa lo que una persona debe resolver: una edición que no se guardó y no se recuperará sola, o datos en riesgo. Una mejora de sincronización parte de evidencia real y se mide después de publicar. | **[docs]**                                                                                   |
+| Las actualizaciones rutinarias del censo son silenciosas: no insertar alertas que desplacen encabezados o filas.                                                                                                                                            | Contrato UI de frescura sin mensajes; regresión en `CensusTable.layout-and-actions.test.tsx` |
+| Estas decisiones no se reabren: la ventana de 48 horas de `canWritePreviousDay` se mantiene, y el endpoint de resumen clínico con IA se retiró a propósito.                                                                                                 | **[docs]**                                                                                   |
 
 ## Mantener esta tabla
 
