@@ -56,6 +56,55 @@ describe('confirmed cache ordering across query and subscription', () => {
     );
   });
 
+  describe('when a read returns the local copy of the version on screen', () => {
+    const shown = DataFactory.createMockDailyRecord('2025-01-08', {
+      lastUpdated: '2025-01-08T10:20:00.000Z',
+    });
+    const localCopy = (serverConfirmed: boolean) =>
+      queryResult({ ...shown }, 'local', { serverConfirmed, consistencyState: 'repaired_local' });
+
+    it('counts a server read as confirming that version, keeping its remote provenance', () => {
+      const previous = queryResult(shown, 'remote', {
+        serverConfirmed: true,
+        consistencyState: 'remote_applied',
+      });
+
+      const result = reconcileDailyRecordQueryResult(previous, localCopy(true));
+
+      expect(result.record).toBe(shown);
+      expect(result.runtime).toMatchObject({
+        serverConfirmed: true,
+        sourceOfTruth: 'remote',
+        baseSource: 'remote',
+        conflictSummary: null,
+      });
+    });
+
+    it('recovers from a failed read as soon as the server answers again', () => {
+      const failed = queryResult(shown, 'remote', {
+        consistencyState: 'unavailable',
+        availabilityState: 'temporarily_unavailable',
+      });
+
+      const result = reconcileDailyRecordQueryResult(failed, localCopy(true));
+
+      expect(result.runtime).toMatchObject({
+        serverConfirmed: true,
+        availabilityState: 'resolved',
+        consistencyState: 'repaired_local',
+      });
+    });
+
+    it('leaves that version unconfirmed when the read only reached the cache', () => {
+      const previous = queryResult(shown, 'remote', { serverConfirmed: true });
+
+      const result = reconcileDailyRecordQueryResult(previous, localCopy(false));
+
+      expect(result.record).toBe(shown);
+      expect(result.runtime).toMatchObject({ serverConfirmed: false, sourceOfTruth: 'remote' });
+    });
+  });
+
   it('requires the known confirmed revision to clear an outstanding authority failure', () => {
     const confirmed = {
       ...DataFactory.createMockDailyRecord('2025-01-08'),
