@@ -52,9 +52,10 @@ const isHealthPermissionError = (error: unknown): boolean => {
 const toPublishedHealthEvent = (event: UserHealthRecentEvent): UserHealthRecentEvent => {
   const operation =
     event.operation && /^[\w.:-]+$/.test(event.operation) ? event.operation : undefined;
+  const { operation: _unchecked, ...rest } = event;
   return {
-    ...event,
-    operation,
+    ...rest,
+    ...(operation ? { operation } : {}),
     message: operation || classifyOperationalTelemetryIssue(event.message),
     ...(event.route ? { route: event.route.split(/[?#]/)[0] } : {}),
     ...(event.issues ? { issues: event.issues.map(classifyOperationalTelemetryIssue) } : {}),
