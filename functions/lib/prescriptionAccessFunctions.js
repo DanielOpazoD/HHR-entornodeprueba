@@ -122,6 +122,16 @@ const resolveCallerRole = async (context, resolveRoleForEmail) => {
   return resolveRoleForEmail(email, context);
 };
 
+// A valid PIN authorizes on its own, so a role that could not be read must not stop it.
+const resolveCallerRoleBeforePin = async (context, payload, resolveRoleForEmail) => {
+  try {
+    return await resolveCallerRole(context, resolveRoleForEmail);
+  } catch (error) {
+    if (!payload.pin) throw error;
+    return 'unauthorized';
+  }
+};
+
 const optionalString = (value, maxLength = 512) =>
   typeof value === 'string' && value.trim() ? value.trim().slice(0, maxLength) : undefined;
 
@@ -299,7 +309,7 @@ const createValidatePinHandler =
 
 const resolveUploadPickerAccess = async ({ firestore, context, payload, resolveRoleForEmail }) => {
   if (context?.auth) {
-    const role = await resolveCallerRole(context, resolveRoleForEmail);
+    const role = await resolveCallerRoleBeforePin(context, payload, resolveRoleForEmail);
     if (AUTHENTICATED_UPLOAD_ALLOWED_ROLES.has(role)) return;
     if (payload.pin) {
       await validatePinAgainstConfig(firestore, payload.pin);
@@ -570,7 +580,7 @@ const createListUploadReadonlyRecordsHandler =
  */
 const resolveUploaderIdentity = async ({ firestore, context, payload, resolveRoleForEmail }) => {
   if (context?.auth) {
-    const role = await resolveCallerRole(context, resolveRoleForEmail);
+    const role = await resolveCallerRoleBeforePin(context, payload, resolveRoleForEmail);
     if (AUTHENTICATED_UPLOAD_ALLOWED_ROLES.has(role)) {
       return {
         source: 'authenticated',

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   buildAdminHarness,
+  createListUploadReadonlyRecordsHandler,
   createSetPinHandler,
   createSubmitHandler,
   seedPin,
@@ -114,6 +115,70 @@ describe('submitPrescriptionPhoto', () => {
     await expect(
       handler(payload, { auth: { uid: 'visit-1', token: { email: 'visit@h.cl' } } })
     ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+
+  describe('when the role of a signed-in caller cannot be read', () => {
+    const session = { auth: { uid: 'google-1', token: { email: 'google@h.cl' } } };
+    const rolesReadError = new Error('Synthetic roles read unavailable');
+
+    it('still accepts a valid PIN, as a QR upload', async () => {
+      const { admin, accessConfig, writtenPrescriptions, storedBlobs } = buildAdminHarness();
+      await seedPin(accessConfig, '7351');
+      const handler = createSubmitHandler({
+        firestore: admin.firestore(),
+        storage: admin.storage(),
+        resolveRoleForEmail: vi.fn().mockRejectedValue(rolesReadError),
+      });
+
+      const { id } = (await handler(validPayload(), session)) as { id: string };
+
+      expect(writtenPrescriptions[id].uploader).toMatchObject({ source: 'qr_pin' });
+      expect(Object.keys(storedBlobs)).toHaveLength(2);
+    });
+
+    it('still rejects a wrong PIN and stores nothing', async () => {
+      const { admin, accessConfig, storedBlobs } = buildAdminHarness();
+      await seedPin(accessConfig, '7351');
+      const handler = createSubmitHandler({
+        firestore: admin.firestore(),
+        storage: admin.storage(),
+        resolveRoleForEmail: vi.fn().mockRejectedValue(rolesReadError),
+      });
+
+      await expect(handler(validPayload({ pin: '0000' }), session)).rejects.toMatchObject({
+        code: 'permission-denied',
+      });
+      expect(storedBlobs).toEqual({});
+    });
+
+    it('still lets a valid PIN open the picker and readonly lists', async () => {
+      const { admin, accessConfig } = buildAdminHarness();
+      await seedPin(accessConfig, '7351');
+      const handler = createListUploadReadonlyRecordsHandler({
+        firestore: admin.firestore(),
+        storage: admin.storage(),
+        resolveRoleForEmail: vi.fn().mockRejectedValue(rolesReadError),
+      });
+
+      await expect(handler({ pin: '7351', date: '2026-05-04' }, session)).resolves.toMatchObject({
+        date: '2026-05-04',
+      });
+      await expect(handler({ date: '2026-05-04' }, session)).rejects.toBe(rolesReadError);
+    });
+
+    it('reports the failed read when there is no PIN to fall back on', async () => {
+      const { admin, storedBlobs } = buildAdminHarness();
+      const handler = createSubmitHandler({
+        firestore: admin.firestore(),
+        storage: admin.storage(),
+        resolveRoleForEmail: vi.fn().mockRejectedValue(rolesReadError),
+      });
+      const payload = validPayload();
+      delete (payload as Record<string, unknown>).pin;
+
+      await expect(handler(payload, session)).rejects.toBe(rolesReadError);
+      expect(storedBlobs).toEqual({});
+    });
   });
 
   it('rejects an unsupported prescription type', async () => {
