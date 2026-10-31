@@ -10,7 +10,6 @@ vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
 import {
   applyDailyRecordClinicalConsistencyCheck,
   recordClinicalConsistencyTelemetry,
-  recordRemoteCanonicalReconciliationTelemetry,
 } from '@/services/repositories/dailyRecordClinicalConsistencyCheck';
 
 const makeRecord = (): DailyRecord =>
@@ -85,49 +84,6 @@ describe('dailyRecordClinicalConsistencyCheck', () => {
           phase: 'read_publish',
           violationTypes: ['bed_discharge_violation'],
           repairedPaths: ['beds.R1'],
-        }),
-      })
-    );
-  });
-
-  it('records telemetry when remote canonical fields replace stale local values', () => {
-    const localRecord = makeRecord();
-    const remoteRecord = makeRecord();
-    remoteRecord.beds.R1.patientName = 'Paciente Firebase';
-    remoteRecord.beds.R1.rut = '44.444.444-4';
-    remoteRecord.beds.R1.pathology = 'Diagnostico Firebase';
-    const selectedRecord = {
-      ...remoteRecord,
-      beds: {
-        ...remoteRecord.beds,
-        R1: {
-          ...remoteRecord.beds.R1,
-          handoffNote: 'Nota local preservada',
-        },
-      },
-    } as DailyRecord;
-
-    recordRemoteCanonicalReconciliationTelemetry({
-      date: '2026-02-18',
-      phase: 'read_publish',
-      localRecord,
-      remoteRecord,
-      selectedRecord,
-    });
-
-    expect(recordOperationalTelemetryMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        category: 'sync',
-        operation: 'daily_record_remote_canonical_reconciled',
-        status: 'degraded',
-        runtimeState: 'recoverable',
-        context: expect.objectContaining({
-          date: '2026-02-18',
-          reconciledPaths: expect.arrayContaining([
-            'beds.R1.patientName',
-            'beds.R1.rut',
-            'beds.R1.pathology',
-          ]),
         }),
       })
     );

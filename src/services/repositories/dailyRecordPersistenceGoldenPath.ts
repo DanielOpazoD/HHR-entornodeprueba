@@ -12,7 +12,6 @@ import type { PatientData } from '@/types/domain/patient';
 import {
   applyDailyRecordClinicalConsistencyCheck,
   recordClinicalConsistencyTelemetry,
-  recordRemoteCanonicalReconciliationTelemetry,
   type DailyRecordClinicalConsistencyPhase,
 } from '@/services/repositories/dailyRecordClinicalConsistencyCheck';
 import { mergeRayenSyncHistory } from '@/services/repositories/dailyRecordRayenSyncHistoryPolicy';
@@ -137,13 +136,6 @@ export const resolveDailyRecordPersistenceGoldenPath = ({
     recordClinicalConsistencyTelemetry(clinicalConsistency);
   }
   const selectedRecord = clinicalConsistency?.record ?? candidateRecord;
-  recordRemoteCanonicalReconciliationTelemetry({
-    date: selectedRecord?.date || localRecord?.date || remoteRecord?.date || '',
-    phase: clinicalConsistencyPhase,
-    localRecord,
-    remoteRecord,
-    selectedRecord,
-  });
   const selectedStore = !selectedRecord
     ? 'none'
     : shouldProtectLocalClinicalText

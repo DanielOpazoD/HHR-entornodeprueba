@@ -169,3 +169,16 @@ export const normalizeMovementBedConsistency = (
     patches,
   };
 };
+
+/**
+ * A bed cleared by a movement recorded in this same write is that movement taking effect. Clearing
+ * it for a movement already stored means a later write put the patient back, which deserves review.
+ */
+export const listMovementRepairsWorthReviewing = (
+  patches: Record<string, unknown>,
+  previous: DailyRecord | null | undefined
+): string[] => {
+  if (!previous) return Object.keys(patches);
+  const stored = collectConfirmedMovementsByBed(previous);
+  return Object.keys(patches).filter(path => stored.has(path.slice('beds.'.length)));
+};
