@@ -420,6 +420,10 @@ Each use is listed here; the cap stops at 5,054,464.
   Five source lines. Main was already at the cap: CI shows 4928.0 KB of 4928.0 KB
   on both sides, so the overrun is under 51 bytes.
 
+- PR #1106, Eloísa capture retry: chunk `RayenImportButton` 260,000 → 262,048 bytes. CI measured
+  254.2 KB against 253.9 KB. It is online-only and loads after the census, so startup is unaffected.
+  Precache unchanged. The owner granted full authority over this program on 2026-10-31.
+
 Keep all offline assets, exclusions, warning ratios and other limits unchanged.
 
 Rollback: revert the importer check and this allowance together. Rows stored by
