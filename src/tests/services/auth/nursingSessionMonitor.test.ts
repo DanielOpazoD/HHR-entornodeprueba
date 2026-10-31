@@ -24,6 +24,7 @@ describe('managed RUT session monitoring', () => {
   });
   afterEach(() => {
     stop?.();
+    vi.restoreAllMocks();
     vi.useRealTimers();
   });
 
@@ -62,6 +63,51 @@ describe('managed RUT session monitoring', () => {
     expect(revoked).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(60_000);
     expect(revoked).toHaveBeenCalledOnce();
+  });
+
+  const setVisibility = (state: DocumentVisibilityState) => {
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue(state);
+    document.dispatchEvent(new Event('visibilitychange'));
+  };
+
+  it('asks the server nothing while the tab is hidden and checks again on return', async () => {
+    lookup.role.mockResolvedValueOnce('admin').mockResolvedValueOnce(null);
+    const revoked = vi.fn().mockResolvedValue(undefined);
+    stop = watchNursingSession(user(), revoked);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(lookup.role).toHaveBeenCalledOnce();
+
+    setVisibility('hidden');
+    await vi.advanceTimersByTimeAsync(600_000);
+    expect(lookup.role).toHaveBeenCalledOnce();
+    expect(revoked).not.toHaveBeenCalled();
+
+    setVisibility('visible');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(lookup.clear).toHaveBeenCalledOnce();
+    expect(lookup.role).toHaveBeenCalledTimes(2);
+    expect(revoked).toHaveBeenCalledOnce();
+  });
+
+  it('still closes a hidden session at 12 hours', async () => {
+    lookup.role.mockResolvedValue('admin');
+    const revoked = vi.fn().mockResolvedValue(undefined);
+    stop = watchNursingSession(user(Date.now() / 1000 - 43_140), revoked);
+    await vi.advanceTimersByTimeAsync(0);
+    setVisibility('hidden');
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(lookup.role).toHaveBeenCalledOnce();
+    expect(revoked).toHaveBeenCalledOnce();
+  });
+
+  it('ignores returning to the tab after detachment', async () => {
+    lookup.role.mockResolvedValue('admin');
+    stop = watchNursingSession(user(), vi.fn().mockResolvedValue(undefined));
+    await vi.advanceTimersByTimeAsync(0);
+    stop();
+    setVisibility('visible');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(lookup.role).toHaveBeenCalledOnce();
   });
 
   it('ignores an obsolete denial and stops polling after detachment', async () => {
