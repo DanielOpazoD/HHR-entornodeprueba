@@ -30,6 +30,7 @@ import {
   ensureFreshDailyRecordQuery,
   type SaveDailyRecordMutationInput,
 } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
+import { useDailyRecordFreshnessRecovery } from '@/hooks/useDailyRecordFreshnessRecovery';
 export { usePatchDailyRecordMutation } from '@/hooks/usePatchDailyRecordMutation';
 
 /**
@@ -113,6 +114,8 @@ export const useDailyRecordQuery = (
     recordCensusSubscriptionStart(date);
     return createDailyRecordSubscription(dailyRecord, date, queryClient);
   }, [date, queryClient, dailyRecord, shouldSubscribeFromRemote]);
+
+  useDailyRecordFreshnessRecovery(date, shouldSyncFromRemote, dailyRecord, queryClient);
 
   useEffect(() => {
     if (!shouldSyncFromRemote) return;
