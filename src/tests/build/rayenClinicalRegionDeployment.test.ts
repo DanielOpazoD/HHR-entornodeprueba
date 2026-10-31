@@ -14,13 +14,16 @@ describe('clinical callable regional rollout', () => {
         `
       const { createRayenClinicalEnrichmentFunctions } = require('./functions/lib/rayenClinicalEnrichmentFunctions');
       const callable = createRayenClinicalEnrichmentFunctions({}).${NAME};
-      console.log(JSON.stringify(callable.__endpoint.region));
+      console.log(JSON.stringify(callable.__endpoint));
     `,
       ],
       { cwd: process.cwd(), encoding: 'utf8' }
     );
 
-    expect(JSON.parse(output)).toEqual(['us-central1', 'southamerica-east1']);
+    const endpoint = JSON.parse(output);
+    expect(endpoint.region).toEqual(['us-central1', 'southamerica-east1']);
+    // At the default 256 MB this batch took about 11 s on a cold instance; its siblings use 1 GB.
+    expect(endpoint.availableMemoryMb).toBe(1024);
   });
 
   it('fails deployment verification if either compatibility or destination endpoint is absent', () => {
