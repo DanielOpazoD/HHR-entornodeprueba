@@ -2,7 +2,6 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { normalizeMovementBedConsistency } from '@/services/repositories/clinicalMovementBedConsistencyPolicy';
-import { resolvePatientFieldSyncOwnership } from '@/services/repositories/dailyRecordSyncOwnershipPolicy';
 
 export type DailyRecordClinicalConsistencyPhase =
   | 'read_publish'
@@ -119,84 +118,6 @@ export const recordClinicalConsistencyTelemetry = (
       violationTypes: Array.from(new Set(result.violations.map(violation => violation.type))),
       violationPaths: result.violations.map(violation => violation.path),
       repairedPaths: result.repairedPaths,
-    },
-  });
-};
-
-const valuesAreEqual = (left: unknown, right: unknown): boolean =>
-  JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
-
-const collectRemoteCanonicalReconciledPaths = (
-  localRecord: DailyRecord | null,
-  remoteRecord: DailyRecord | null,
-  selectedRecord: DailyRecord | null
-): string[] => {
-  if (!localRecord || !remoteRecord || !selectedRecord) {
-    return [];
-  }
-
-  const bedIds = new Set([
-    ...Object.keys(localRecord.beds || {}),
-    ...Object.keys(remoteRecord.beds || {}),
-    ...Object.keys(selectedRecord.beds || {}),
-  ]);
-  const reconciledPaths: string[] = [];
-
-  bedIds.forEach(bedId => {
-    const localPatient = localRecord.beds?.[bedId] as unknown as
-      | Record<string, unknown>
-      | undefined;
-    const remotePatient = remoteRecord.beds?.[bedId] as unknown as
-      | Record<string, unknown>
-      | undefined;
-    const selectedPatient = selectedRecord.beds?.[bedId] as unknown as
-      | Record<string, unknown>
-      | undefined;
-    if (!localPatient || !remotePatient || !selectedPatient) return;
-
-    const fields = new Set([...Object.keys(localPatient), ...Object.keys(remotePatient)]);
-    fields.forEach(field => {
-      if (resolvePatientFieldSyncOwnership(field) !== 'remoteCanonical') return;
-      if (valuesAreEqual(localPatient[field], remotePatient[field])) return;
-      if (!valuesAreEqual(selectedPatient[field], remotePatient[field])) return;
-      reconciledPaths.push(`beds.${bedId}.${field}`);
-    });
-  });
-
-  return reconciledPaths;
-};
-
-export const recordRemoteCanonicalReconciliationTelemetry = ({
-  date,
-  phase,
-  localRecord,
-  remoteRecord,
-  selectedRecord,
-}: DailyRecordClinicalConsistencyContext & {
-  localRecord: DailyRecord | null;
-  remoteRecord: DailyRecord | null;
-  selectedRecord: DailyRecord | null;
-}): void => {
-  const reconciledPaths = collectRemoteCanonicalReconciledPaths(
-    localRecord,
-    remoteRecord,
-    selectedRecord
-  );
-  if (reconciledPaths.length === 0) {
-    return;
-  }
-
-  recordOperationalTelemetry({
-    category: 'sync',
-    operation: 'daily_record_remote_canonical_reconciled',
-    status: 'degraded',
-    runtimeState: 'recoverable',
-    issues: ['Campos canónicos remotos reemplazaron valores locales desactualizados.'],
-    context: {
-      date,
-      phase,
-      reconciledPaths,
-      reconciledCount: reconciledPaths.length,
     },
   });
 };
