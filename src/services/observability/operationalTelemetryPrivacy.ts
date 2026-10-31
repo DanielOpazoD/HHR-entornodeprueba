@@ -130,7 +130,7 @@ const COUNT_KEYS = tokens(`
   eligibleCount correctionCount limitCount categorizedCount localErrorCount droppedCount
 `);
 const DURATION_KEYS = tokens(`
-  durationMs elapsedMs timeoutMs remainingMs ttlMs ageMs pendingAgeMs oldestPendingAgeMs debounceMs
+  durationMs elapsedMs timeoutMs remainingMs ttlMs ageMs pendingAgeMs oldestPendingAgeMs debounceMs blockedForMs
   driftSeconds remainingSeconds
 `);
 const SIZE_KEYS = tokens(`

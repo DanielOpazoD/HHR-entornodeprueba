@@ -73,6 +73,20 @@ Umbrales operativos:
 
 ## Diagnostico rapido del arranque
 
+Al volver a una pestaña inactiva, la comprobación remota se reintenta automáticamente
+mientras esté visible y conectada. Para comprobar su resultado, buscar
+`daily_record_clinical_inputs_block_completed` en la telemetría local o los logs de
+`operational-telemetry`: se conserva una sola finalización por bloqueo, con
+`blockedForMs` medido hasta que responde la lectura o confirma la suscripción.
+La duración numérica sobrevive al filtro de privacidad; no genera correos ni avisos.
+Las confirmaciones habituales sin bloqueo no producen esta señal.
+
+Los eventos antiguos de inicio o fallo sin finalización no demuestran un bloqueo
+todavía activo: antes se descartaban las finalizaciones exitosas. Comparar muestras
+posteriores al cambio, sin confundir una lectura remota con la confirmación de una
+edición pendiente. Esta señal mide la espera para habilitar edición, no el tiempo
+de guardado del outbox.
+
 Cuando el incidente ocurre "solo al abrir" o "tras F5", revisar este orden antes de asumir
 pérdida real de datos:
 

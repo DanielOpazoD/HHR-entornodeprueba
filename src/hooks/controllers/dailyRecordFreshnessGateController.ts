@@ -315,7 +315,7 @@ export const ensureDailyRecordRemoteFreshness = ({
 
       if (retained) return result;
 
-      const completedAt = now;
+      const completedAt = getNow();
       const blockedForMs =
         recordClinicalInputsBlockCompleted(
           date,
