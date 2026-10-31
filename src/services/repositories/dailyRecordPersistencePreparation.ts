@@ -15,10 +15,8 @@ const normalizePreparedRecord = (record: DailyRecord): DailyRecord => {
   const movementConsistency = normalizeMovementBedConsistency(normalized.record);
   const validatedRecord = ensureDailyRecordClinicalEpisodeIds(movementConsistency.record);
 
-  const repairPaths = [
-    ...Object.keys(normalized.patches),
-    ...Object.keys(movementConsistency.patches),
-  ];
+  // Clearing the bed of a discharged or moved patient is expected, not a repair worth reviewing.
+  const repairPaths = Object.keys(normalized.patches);
 
   if (repairPaths.length > 0) {
     logError(

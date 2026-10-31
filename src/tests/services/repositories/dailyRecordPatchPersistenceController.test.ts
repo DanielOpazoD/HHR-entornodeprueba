@@ -159,7 +159,11 @@ describe('dailyRecordPatchPersistenceController', () => {
       patientName: '',
       rut: '',
     });
-    expect(logErrorMock).toHaveBeenCalled();
+    expect(logErrorMock).not.toHaveBeenCalledWith(
+      'Invariant repair applied on updatePartial',
+      undefined,
+      expect.objectContaining({ repairPaths: expect.arrayContaining(['beds.R1']) })
+    );
   });
 
   it('logs clinically reviewable context when invariant repairs are merged', () => {

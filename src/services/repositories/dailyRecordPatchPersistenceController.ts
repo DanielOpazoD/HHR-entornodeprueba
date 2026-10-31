@@ -55,10 +55,8 @@ export const preparePatchedRecordPersistence = (
     Object.assign(mergedPatches, movementConsistency.patches);
   }
 
-  const repairPaths = [
-    ...Object.keys(normalized.patches),
-    ...Object.keys(movementConsistency.patches),
-  ];
+  // Clearing the bed of a discharged or moved patient is expected, not a repair worth reviewing.
+  const repairPaths = Object.keys(normalized.patches);
 
   if (!shouldSkipStructuralNormalization && repairPaths.length > 0) {
     // Diagnostics use errorLogs, outside the outbox's dailyRecords/syncQueue transaction.
