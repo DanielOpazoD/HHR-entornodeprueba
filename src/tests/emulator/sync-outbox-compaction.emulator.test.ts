@@ -33,11 +33,7 @@ import {
   saveRecord,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
-import {
-  clearAllSyncQueue,
-  processSyncQueue,
-  queueDailyRecordSyncTaskWithLocalRecord,
-} from '@/services/storage/sync';
+import { processSyncQueue, queueDailyRecordSyncTaskWithLocalRecord } from '@/services/storage/sync';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 
 const DATE = getTodayISO();
@@ -112,7 +108,7 @@ describeEmulator('the outbox publishes compacted offline work through Firestore'
     vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', 'client_only');
     await testEnv.clearFirestore();
     await clearAllRecords();
-    await clearAllSyncQueue();
+    await hospitalDB.syncQueue.clear();
     await seedRemote(baseRecord());
     await saveRecord(baseRecord());
   });

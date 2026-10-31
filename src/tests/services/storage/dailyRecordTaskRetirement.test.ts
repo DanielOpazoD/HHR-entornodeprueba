@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
+import { clearSessionDailyRecords } from '@/services/storage/sessionSyncQueuePreservation';
 import {
   SESSION_GENERATION_KEY,
   setSessionGeneration,
@@ -203,7 +204,7 @@ it.each(['owner', 'generation', 'shared-generation'] as const)(
 
 it('survives database reopening and session cleanup; another user cannot see or download the backup', async () => {
   expect(await retireReviewedDailyRecordTask(await reviewTask())).toBe(true);
-  await createDexieSyncQueueStore().deleteByOwner(OWNER);
+  await clearSessionDailyRecords(OWNER);
   hospitalDB.close();
   await hospitalDB.open();
   expect((await listDiscardedDailyRecordTasks()).map(task => task.id)).toEqual([taskId]);

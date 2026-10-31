@@ -31,13 +31,13 @@ import {
   ConcurrencyError,
   saveRecordToFirestore,
 } from '@/services/storage/firestore/firestoreRecordWrites';
+import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
 import { docToRecord } from '@/services/storage/firestore/firestoreShared';
 import { assertNoPatientErasures } from '@/services/repositories/dailyRecordRemoteWriteController';
 import { DataRegressionError } from '@/utils/integrityGuard';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { clearAllRecords } from '@/services/storage/indexeddb/indexedDbRecordService';
-import { clearAllSyncQueue } from '@/services/storage/sync';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 
 const buildRecord = (date: string, lastUpdated: string): DailyRecord => ({
@@ -119,7 +119,7 @@ describeEmulator('Firestore emulator atomic write guards', () => {
   beforeEach(async () => {
     await testEnv.clearFirestore();
     await clearAllRecords();
-    await clearAllSyncQueue();
+    await hospitalDB.syncQueue.clear();
     setFirestoreEnabled(true);
     activeDb = nurseDb;
   });

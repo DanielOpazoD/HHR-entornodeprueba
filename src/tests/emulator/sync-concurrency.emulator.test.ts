@@ -33,6 +33,7 @@ import {
   saveRecordToFirestore,
   updateRecordPartial,
 } from '@/services/storage/firestore/firestoreRecordWrites';
+import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
 import { getRecordDocRef } from '@/services/storage/firestore/firestoreShared';
 import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositoryReadService';
@@ -43,7 +44,7 @@ import {
   getRecordForDate,
   saveRecord,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
-import { clearAllSyncQueue, processSyncQueue } from '@/services/storage/sync';
+import { processSyncQueue } from '@/services/storage/sync';
 import {
   buildDetailedStaffingPatch,
   resolveDetailedStaffingState,
@@ -139,7 +140,7 @@ describeEmulator('Firestore emulator sync concurrency flow', () => {
     vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', 'client_only');
     await testEnv.clearFirestore();
     await clearAllRecords();
-    await clearAllSyncQueue();
+    await hospitalDB.syncQueue.clear();
     setFirestoreEnabled(true);
     activeDb = nurseDb;
   });

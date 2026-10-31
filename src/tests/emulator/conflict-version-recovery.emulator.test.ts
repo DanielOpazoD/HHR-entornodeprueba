@@ -36,13 +36,13 @@ vi.mock('@/services/repositories/ports/repositoryAuditPort', async () => ({
   logRepositoryConflictAutoMerged: vi.fn().mockResolvedValue(undefined),
 }));
 
+import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { attemptConflictAutoMergeRecovery } from '@/services/repositories/dailyRecordConflictAutoMergeController';
 import { restoreDailyRecordVersion } from '@/services/repositories/dailyRecordVersionRestoreController';
 import { markHistorySnapshotTaken } from '@/services/storage/firestore/historySnapshotCadence';
 import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { clearAllRecords } from '@/services/storage/indexeddb/indexedDbRecordService';
-import { clearAllSyncQueue } from '@/services/storage/sync';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 
 const buildRecord = (date: string, lastUpdated: string): DailyRecord => ({
@@ -124,7 +124,7 @@ describeEmulator('Firestore emulator conflict version recovery', () => {
   beforeEach(async () => {
     await testEnv.clearFirestore();
     await clearAllRecords();
-    await clearAllSyncQueue();
+    await hospitalDB.syncQueue.clear();
     setFirestoreEnabled(true);
     activeDb = nurseDb;
   });

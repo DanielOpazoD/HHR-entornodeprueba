@@ -7,14 +7,12 @@ import {
   setSessionGeneration,
 } from '@/services/storage/sessionStorageTransition';
 import { clearSessionDailyRecords } from '@/services/storage/sessionSyncQueuePreservation';
-import { clearSyncQueueForOwner } from '@/services/storage/sync';
 
 vi.mock('@/application/ports/auditPort', () => ({
   defaultAuditPort: { logUserLogout: vi.fn().mockResolvedValue(undefined) },
 }));
 vi.mock('@/config/queryClient', () => ({ clearQueryCache: vi.fn() }));
 vi.mock('@/services/storage/sync', () => ({
-  clearSyncQueueForOwner: vi.fn().mockResolvedValue(undefined),
   recordSyncQueueOwnershipTelemetry: vi.fn(),
 }));
 vi.mock('@/services/storage/sessionSyncQueuePreservation', () => ({
@@ -83,7 +81,6 @@ describe('createHandleLogout when the cross-tab channel fails', () => {
       expect(localStorage.getItem(persistedAuthKey)).toBeNull();
       expect(sessionStorage.getItem('hhr_logged_this_session')).toBeNull();
       expect(clearSessionDailyRecords).toHaveBeenCalledExactlyOnceWith(ownerKey);
-      expect(clearSyncQueueForOwner).not.toHaveBeenCalled();
     }
   );
 });

@@ -26,10 +26,10 @@ vi.mock('@/firebaseConfig', () => ({
 
 import { executeDeleteDailyRecord } from '@/application/daily-record/commands/deleteDailyRecordCommand';
 import { defaultDailyRecordWritePort } from '@/application/ports/dailyRecordPort';
+import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { clearAllRecords } from '@/services/storage/indexeddb/indexedDbRecordService';
-import { clearAllSyncQueue } from '@/services/storage/sync';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 
 const CURRENT_RECORD_DATE = getTodayISO();
@@ -78,7 +78,7 @@ describeEmulator('Firestore emulator — DAILY_RECORD_DELETED fail-closed', () =
   beforeEach(async () => {
     await testEnv.clearFirestore();
     await clearAllRecords();
-    await clearAllSyncQueue();
+    await hospitalDB.syncQueue.clear();
     setFirestoreEnabled(true);
     activeDb = adminDb;
   });
