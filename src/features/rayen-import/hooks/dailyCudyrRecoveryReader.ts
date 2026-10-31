@@ -146,6 +146,7 @@ export const createDailyCudyrRecoveryReader = ({
         }
         for (const gap of monthGaps) {
           const resolution = recoverDailyCudyrGap(gap, records, report);
+          if (resolution.kind === 'not_applicable') continue;
           if (resolution.kind !== 'recovered') {
             warn(gap.clinicalEpisodeId, { kind: resolution.kind, targetDate: gap.date });
           } else if (gap.date === record.date)
