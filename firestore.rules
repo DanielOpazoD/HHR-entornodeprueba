@@ -498,54 +498,7 @@ service cloud.firestore {
       return isOptionalBoundedInt(payload, key, 864000000);
     }
     function hasOnlySystemHealthKeys(payload) {
-      return payload.keys().hasOnly([
-               'uid',
-               'email',
-               'displayName',
-               'lastSeen',
-               'isOnline',
-               'isOutdated',
-               'pendingMutations',
-               'pendingSyncTasks',
-               'failedSyncTasks',
-               'conflictSyncTasks',
-               'retryingSyncTasks',
-               'syncOrphanedTasks',
-               'oldestPendingAgeMs',
-               'remoteSyncReason',
-               'versionUpdateReason',
-               'localErrorCount',
-               'degradedLocalPersistence',
-               'repositoryWarningCount',
-               'slowestRepositoryOperationMs',
-               'operationalObservedCount',
-               'operationalFailureCount',
-               'operationalRetryableCount',
-               'operationalRecoverableCount',
-               'operationalDegradedCount',
-               'operationalBlockedCount',
-               'operationalUnauthorizedCount',
-               'operationalLastHourObservedCount',
-               'operationalSyncObservedCount',
-               'operationalIndexedDbObservedCount',
-               'operationalClinicalDocumentObservedCount',
-               'operationalCreateDayObservedCount',
-               'operationalHandoffObservedCount',
-               'operationalExportBackupObservedCount',
-               'operationalDailyRecordRecoveredRealtimeNullCount',
-               'operationalDailyRecordConfirmedRealtimeNullCount',
-               'operationalSyncReadUnavailableCount',
-               'operationalIndexedDbFallbackModeCount',
-               'operationalAuthBootstrapTimeoutCount',
-               'operationalTopObservedCategory',
-               'operationalTopObservedOperation',
-               'latestOperationalOperation',
-               'latestOperationalRuntimeState',
-               'latestOperationalIssueAt',
-               'appVersion',
-               'platform',
-               'userAgent'
-             , 'recentEvents', 'oldestDirectQueueAgeMs']);
+      return payload.keys().hasOnly(['uid', 'email', 'displayName', 'lastSeen', 'isOnline', 'isOutdated', 'pendingMutations', 'pendingSyncTasks', 'failedSyncTasks', 'conflictSyncTasks', 'retryingSyncTasks', 'syncOrphanedTasks', 'oldestPendingAgeMs', 'remoteSyncReason', 'versionUpdateReason', 'localErrorCount', 'degradedLocalPersistence', 'repositoryWarningCount', 'slowestRepositoryOperationMs', 'operationalObservedCount', 'operationalFailureCount', 'operationalRetryableCount', 'operationalRecoverableCount', 'operationalDegradedCount', 'operationalBlockedCount', 'operationalUnauthorizedCount', 'operationalLastHourObservedCount', 'operationalSyncObservedCount', 'operationalIndexedDbObservedCount', 'operationalClinicalDocumentObservedCount', 'operationalCreateDayObservedCount', 'operationalHandoffObservedCount', 'operationalExportBackupObservedCount', 'operationalDailyRecordRecoveredRealtimeNullCount', 'operationalDailyRecordConfirmedRealtimeNullCount', 'operationalSyncReadUnavailableCount', 'operationalIndexedDbFallbackModeCount', 'operationalAuthBootstrapTimeoutCount', 'operationalTopObservedCategory', 'operationalTopObservedOperation', 'latestOperationalOperation', 'latestOperationalRuntimeState', 'latestOperationalIssueAt', 'appVersion', 'platform', 'userAgent', 'recentEvents', 'oldestDirectQueueAgeMs']);
     }
     function hasOnlySystemHealthResolutionKeys(payload) {
       return payload.keys().hasOnly(['resolutionKey', 'status', 'updatedAt', 'resolvedAt', 'resolvedByUid', 'resolvedByEmail', 'resolvedByName', 'reopenedAt', 'reopenedByUid', 'reopenedByEmail', 'reopenedByName', 'note', 'history']);

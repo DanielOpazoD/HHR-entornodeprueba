@@ -76,8 +76,10 @@
                'latestOperationalIssueAt',
                'appVersion',
                'platform',
-               'userAgent'
-             , 'recentEvents', 'oldestDirectQueueAgeMs']);
+               'userAgent',
+               'recentEvents',
+               'oldestDirectQueueAgeMs'
+             ]);
     }
 
     function hasOnlySystemHealthResolutionKeys(payload) {
