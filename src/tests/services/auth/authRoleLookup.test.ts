@@ -70,6 +70,20 @@ describe('authRoleLookup', () => {
     });
   });
 
+  it('maps a server failure reading the roles to the retryable role-validation path', async () => {
+    httpsCallableMock.mockReturnValue(
+      vi.fn().mockRejectedValue({
+        code: 'functions/internal',
+        message: 'Error retrieving account permissions.',
+      })
+    );
+    const service = createAuthRoleLookupService();
+
+    await expect(
+      service.getDynamicRoleForEmail('server-failure@hospital.cl')
+    ).rejects.toMatchObject({ code: AUTH_ROLE_LOOKUP_UNAVAILABLE_CODE });
+  });
+
   it('maps a callable deadline to the existing retryable role-validation path', async () => {
     const checkUserRoleCall = vi.fn().mockRejectedValue({
       code: 'functions/deadline-exceeded',

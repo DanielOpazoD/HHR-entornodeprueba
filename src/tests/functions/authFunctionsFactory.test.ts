@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('firebase-functions/v1', () => ({
   https: {
@@ -22,6 +22,7 @@ vi.mock('firebase-functions/v1', () => ({
 
 const require = createRequire(import.meta.url);
 const { createAuthFunctions } = require('../../../functions/lib/auth/authFunctionsFactory.js');
+const { createAuthHelpers } = require('../../../functions/lib/auth/authHelpersFactory.js');
 
 describe('functions authFunctionsFactory', () => {
   beforeEach(() => {
@@ -165,6 +166,56 @@ describe('functions authFunctionsFactory', () => {
       synced: true,
     });
   });
+  describe('when config/roles cannot be read', () => {
+    const setCustomUserClaims = vi.fn();
+    const context = {
+      auth: {
+        uid: 'google-doctor',
+        token: {
+          email: 'doctor@example.invalid',
+          firebase: { sign_in_provider: 'google.com' },
+        },
+      },
+    };
+    const createFailingRolesApi = () => {
+      const getUser = vi.fn().mockResolvedValue({ customClaims: { role: 'doctor_urgency' } });
+      const auth = { getUser, setCustomUserClaims };
+      const firestore = {
+        collection: (name: string) => ({
+          doc: () => ({
+            get: async () => {
+              if (name === 'config') throw new Error('Synthetic roles read unavailable');
+              return { exists: false, data: () => ({}) };
+            },
+          }),
+        }),
+        doc: () => ({ get: async () => ({ exists: false, data: () => ({}) }) }),
+      };
+      return createAuthFunctions({ auth, helpers: createAuthHelpers({ auth, firestore }) });
+    };
+
+    beforeEach(() => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+    });
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('answers checkUserRole with a failure the client cannot take for a denial', async () => {
+      await expect(createFailingRolesApi().checkUserRole.run({}, context)).rejects.toMatchObject({
+        code: 'internal',
+      });
+    });
+
+    it('leaves the role claim of the session in place', async () => {
+      await expect(
+        createFailingRolesApi().syncCurrentUserRoleClaim.run({}, context)
+      ).rejects.toMatchObject({ code: 'internal' });
+      expect(setCustomUserClaims).not.toHaveBeenCalled();
+    });
+  });
+
   it('does not rewrite managed authorization versions through legacy claim synchronization', async () => {
     const setCustomUserClaims = vi.fn();
     const api = createAuthFunctions({
