@@ -65,9 +65,11 @@ describe('authRoleLookup', () => {
     const checkUserRoleCall = vi.fn().mockRejectedValue(new Error('network down'));
     httpsCallableMock.mockReturnValue(checkUserRoleCall);
 
-    await expect(getDynamicRoleForEmail('network-failure@hospital.cl')).rejects.toMatchObject({
-      code: AUTH_ROLE_LOOKUP_UNAVAILABLE_CODE,
-    });
+    const service = createAuthRoleLookupService(undefined, []);
+
+    await expect(
+      service.getDynamicRoleForEmail('network-failure@hospital.cl')
+    ).rejects.toMatchObject({ code: AUTH_ROLE_LOOKUP_UNAVAILABLE_CODE });
   });
 
   it('maps a server failure reading the roles to the retryable role-validation path', async () => {
@@ -77,7 +79,7 @@ describe('authRoleLookup', () => {
         message: 'Error retrieving account permissions.',
       })
     );
-    const service = createAuthRoleLookupService();
+    const service = createAuthRoleLookupService(undefined, []);
 
     await expect(
       service.getDynamicRoleForEmail('server-failure@hospital.cl')
@@ -90,7 +92,7 @@ describe('authRoleLookup', () => {
       message: 'deadline-exceeded',
     });
     httpsCallableMock.mockReturnValue(checkUserRoleCall);
-    const service = createAuthRoleLookupService();
+    const service = createAuthRoleLookupService(undefined, []);
 
     await expect(service.getDynamicRoleForEmail('slow-network@hospital.cl')).rejects.toMatchObject({
       code: AUTH_ROLE_LOOKUP_UNAVAILABLE_CODE,
@@ -107,6 +109,67 @@ describe('authRoleLookup', () => {
     httpsCallableMock.mockReturnValue(vi.fn().mockRejectedValue({ code }));
     const service = createAuthRoleLookupService();
     await expect(service.getDynamicRoleForEmail('denied@hospital.test')).resolves.toBeNull();
+  });
+
+  describe('when the role service does not answer', () => {
+    const answerAfterFailures = (failures: number) => {
+      const call = vi.fn();
+      for (let i = 0; i < failures; i += 1) call.mockRejectedValueOnce(new Error('network down'));
+      call.mockResolvedValue({ data: { role: 'viewer' } });
+      httpsCallableMock.mockReturnValue(call);
+      return call;
+    };
+
+    it('retries in silence and resolves when it answers', async () => {
+      const call = answerAfterFailures(2);
+      const service = createAuthRoleLookupService(undefined, [1, 1]);
+
+      await expect(service.getDynamicRoleForEmail('retry@hospital.cl')).resolves.toBe('viewer');
+      expect(call).toHaveBeenCalledTimes(3);
+    });
+
+    it('reports it as unavailable when the attempts run out', async () => {
+      const call = answerAfterFailures(3);
+      const service = createAuthRoleLookupService(undefined, [1, 1]);
+
+      await expect(service.getDynamicRoleForEmail('retry@hospital.cl')).rejects.toMatchObject({
+        code: AUTH_ROLE_LOOKUP_UNAVAILABLE_CODE,
+      });
+      expect(call).toHaveBeenCalledTimes(3);
+    });
+
+    it('never retries a denial', async () => {
+      const call = vi.fn().mockRejectedValue({ code: 'functions/permission-denied' });
+      httpsCallableMock.mockReturnValue(call);
+      const service = createAuthRoleLookupService(undefined, [1, 1]);
+
+      await expect(service.getDynamicRoleForEmail('denied@hospital.cl')).resolves.toBeNull();
+      expect(call).toHaveBeenCalledOnce();
+    });
+
+    it('does not retry while offline', async () => {
+      const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+      const call = answerAfterFailures(1);
+      const service = createAuthRoleLookupService(undefined, [1, 1]);
+
+      await expect(service.getDynamicRoleForEmail('offline@hospital.cl')).rejects.toMatchObject({
+        code: AUTH_ROLE_LOOKUP_UNAVAILABLE_CODE,
+      });
+      expect(call).toHaveBeenCalledOnce();
+      online.mockRestore();
+    });
+
+    it('stops retrying when the session is cleared', async () => {
+      const call = vi.fn().mockRejectedValue(new Error('network down'));
+      httpsCallableMock.mockReturnValue(call);
+      const service = createAuthRoleLookupService(undefined, [1, 1]);
+
+      const lookup = service.getDynamicRoleForEmail('moved@hospital.cl');
+      service.clearRecentLookups();
+
+      await expect(lookup).rejects.toMatchObject({ code: AUTH_ROLE_LOOKUP_UNAVAILABLE_CODE });
+      expect(call).toHaveBeenCalledOnce();
+    });
   });
 
   it('supports injected functions runtimes', async () => {
