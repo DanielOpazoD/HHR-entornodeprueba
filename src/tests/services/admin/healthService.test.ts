@@ -119,6 +119,8 @@ describe('healthService', () => {
             status: 'open',
             timestamp: '2026-05-21T14:03:00.000Z',
             message: 'TypeError at https://synthetic.invalid/x?token=synthetic-secret',
+            operation: 'failed apiKey=synthetic-secret',
+            route: '/censo?token=synthetic-secret#synthetic-secret',
             issues: ['Failed with apiKey=synthetic-secret'],
             contextSummary: ['paciente: Paciente Sintético', 'rut: 11.111.111-1', 'cama: R1'],
           },
@@ -127,6 +129,7 @@ describe('healthService', () => {
 
       const published = JSON.stringify(vi.mocked(firestoreDb.setDoc).mock.lastCall?.[2]);
       expect(published).not.toContain('synthetic-secret');
+      expect(published).toContain('"route":"/censo"');
       expect(published).toContain('paciente: Paciente Sintético');
       expect(published).toContain('rut: 11.111.111-1');
     });

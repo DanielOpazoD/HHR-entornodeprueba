@@ -49,11 +49,17 @@ const isHealthPermissionError = (error: unknown): boolean => {
  * Patient detail travels in contextSummary on purpose. Exception text can carry URLs or
  * credentials and never leaves the device raw, so it is published as a stable code.
  */
-const toPublishedHealthEvent = (event: UserHealthRecentEvent): UserHealthRecentEvent => ({
-  ...event,
-  message: event.operation || classifyOperationalTelemetryIssue(event.message),
-  ...(event.issues ? { issues: event.issues.map(classifyOperationalTelemetryIssue) } : {}),
-});
+const toPublishedHealthEvent = (event: UserHealthRecentEvent): UserHealthRecentEvent => {
+  const operation =
+    event.operation && /^[\w.:-]+$/.test(event.operation) ? event.operation : undefined;
+  return {
+    ...event,
+    operation,
+    message: operation || classifyOperationalTelemetryIssue(event.message),
+    ...(event.route ? { route: event.route.split(/[?#]/)[0] } : {}),
+    ...(event.issues ? { issues: event.issues.map(classifyOperationalTelemetryIssue) } : {}),
+  };
+};
 
 export const reportUserHealth = async (status: UserHealthStatus): Promise<void> => {
   try {
