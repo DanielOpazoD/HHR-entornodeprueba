@@ -69,7 +69,7 @@ const ALLOWED_OPERATIONS = new Set([
     initialize_daily_record delete_daily_record safe_parse_daily_record refresh_daily_record
     recover_today_empty_daily_record post_deploy_recent_record_refresh daily_record_bed_patch_failed
     daily_record_clinical_authority daily_record_clinical_consistency
-    daily_record_remote_canonical_reconciled daily_record_clinical_patch_blocked_until_fresh
+    daily_record_clinical_patch_blocked_until_fresh
     daily_record_size_observed clinical_derived_read
     daily_record_resume_refresh_started daily_record_resume_refresh_completed
     daily_record_resume_refresh_failed daily_record_resume_refresh_remote_newer

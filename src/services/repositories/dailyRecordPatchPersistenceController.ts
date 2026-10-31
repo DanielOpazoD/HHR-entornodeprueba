@@ -2,7 +2,10 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import Dexie from 'dexie';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { normalizeDailyRecordInvariants } from '@/utils/recordInvariants';
-import { normalizeMovementBedConsistency } from '@/services/repositories/clinicalMovementBedConsistencyPolicy';
+import {
+  listMovementRepairsWorthReviewing,
+  normalizeMovementBedConsistency,
+} from '@/services/repositories/clinicalMovementBedConsistencyPolicy';
 import { validateAndSalvageRecord } from '@/services/repositories/helpers/validationHelper';
 import { applyPatches } from '@/utils/patchUtils';
 import { logError } from '@/services/utils/errorService';
@@ -57,7 +60,7 @@ export const preparePatchedRecordPersistence = (
 
   const repairPaths = [
     ...Object.keys(normalized.patches),
-    ...Object.keys(movementConsistency.patches),
+    ...listMovementRepairsWorthReviewing(movementConsistency.patches, current),
   ];
 
   if (!shouldSkipStructuralNormalization && repairPaths.length > 0) {
