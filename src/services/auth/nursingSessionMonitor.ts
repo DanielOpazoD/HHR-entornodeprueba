@@ -21,6 +21,8 @@ export const watchNursingSession = (user: User, onRevoked: () => Promise<void>):
         await onRevoked();
         return;
       }
+      // A hidden tab edits nothing and the server rejects a revoked account anyway; check on return.
+      if (document.visibilityState === 'hidden') return;
       // Bootstrap just validated this session. Reuse only the existing short-lived
       // lookup (or join it in flight); periodic revocation checks still force a read.
       if (forceFreshLookup) clearRecentAuthRoleLookups();
@@ -35,9 +37,14 @@ export const watchNursingSession = (user: User, onRevoked: () => Promise<void>):
     }
   };
   const timer = setInterval(() => void check(true), 60000);
+  const checkOnReturn = () => {
+    if (document.visibilityState === 'visible') void check(true);
+  };
+  document.addEventListener('visibilitychange', checkOnReturn);
   void check();
   return () => {
     active = false;
     clearInterval(timer);
+    document.removeEventListener('visibilitychange', checkOnReturn);
   };
 };
