@@ -107,9 +107,7 @@ export const parseOperationalTelemetryBody = (
 export const shouldAlertOperationalTelemetry = (
   event: Pick<SanitizedOperationalTelemetryEvent, 'status' | 'operation'>
 ): boolean =>
-  event.operation === OPERATIONAL_TELEMETRY_PROBE_OPERATION ||
-  event.status === 'failed' ||
-  (event.status === 'partial' && event.operation === 'rayen_sync_run');
+  event.operation === OPERATIONAL_TELEMETRY_PROBE_OPERATION || event.status === 'failed';
 
 const PRIVACY_NOTE =
   'Por privacidad, los mensajes de error detallados NO salen del dispositivo: quedan solo en el ' +

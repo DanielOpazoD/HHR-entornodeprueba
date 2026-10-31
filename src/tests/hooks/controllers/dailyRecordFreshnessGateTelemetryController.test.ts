@@ -112,7 +112,7 @@ describe('dailyRecordFreshnessGate clinical input block telemetry', () => {
 
     expect(mockRecordEvent).toHaveBeenCalledWith(
       'daily_record_clinical_inputs_block_failed',
-      'failed',
+      'degraded',
       expect.objectContaining({
         context: expect.objectContaining({
           date,
