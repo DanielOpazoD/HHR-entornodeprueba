@@ -45,6 +45,12 @@ describe('CUDYR recovery for a patient under eight hours at the cutoff', () => {
     });
   });
 
+  it('stays inconclusive when the admission date is missing, since nothing proves the short stay', () => {
+    expect(recover(otherPatient({ admissionDate: '' }))).toEqual({
+      kind: 'documentary_inconclusive',
+    });
+  });
+
   it('keeps a valid record found for a patient who was not eligible (CUD-02)', () => {
     const resolution = recover({
       ...patient(),

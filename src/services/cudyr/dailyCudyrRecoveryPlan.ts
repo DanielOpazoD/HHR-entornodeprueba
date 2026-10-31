@@ -14,7 +14,7 @@ import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
 import { cudyrModality } from '@/domain/cudyr/cudyrModality';
 import { isCudyrPatientEligible } from '@/domain/cudyr/cudyrEligibility';
 import { isValidRut } from '@/utils/rutUtils';
-import { getNextDay } from '@/utils/clinicalDayUtils';
+import { getNextDay, normalizeDateOnly } from '@/utils/clinicalDayUtils';
 import type { CudyrCategoryInput } from '@/domain/evaluationScales/importedCudyr';
 
 const patients = (record: DailyRecord): PatientData[] =>
@@ -103,10 +103,11 @@ export const recoverDailyCudyrGap = (
   source: CapturedCudyrMonthlyReport
 ): DailyCudyrGapResolution => {
   const { patient, sourceDate } = gap;
+  // Only a recorded admission can prove the short stay; a missing date stays inconclusive.
   const withoutCategory = (): DailyCudyrGapResolution =>
-    isCudyrPatientEligible(gap.date, patient)
-      ? { kind: 'documentary_inconclusive' }
-      : { kind: 'not_applicable' };
+    normalizeDateOnly(patient.admissionDate) && !isCudyrPatientEligible(gap.date, patient)
+      ? { kind: 'not_applicable' }
+      : { kind: 'documentary_inconclusive' };
   if (
     records.some(
       record =>
