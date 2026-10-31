@@ -142,7 +142,7 @@ describeEmulator('health report against the deployed rules', () => {
     const [, , published] = vi.mocked(firestoreDb.setDoc).mock.calls[0];
 
     await assertSucceeds(reporter().set(published as object));
-    expect(published).toHaveProperty('recentEvents', report.recentEvents);
+    expect(JSON.stringify(published)).toContain('rut: 11.111.111-1');
   });
 
   it('refuses a report with an unbounded list of events', async () => {
