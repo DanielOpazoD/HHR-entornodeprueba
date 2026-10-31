@@ -1,5 +1,6 @@
 import { firestoreDb } from '@/services/storage/firestore';
 import { healthServiceLogger } from '@/services/admin/adminLoggers';
+import { classifyOperationalTelemetryIssue } from '@/services/observability/operationalTelemetryPrivacy';
 export type {
   SystemHealthIncidentResolution,
   SystemHealthIncidentResolutionActor,
@@ -28,6 +29,7 @@ import type {
   SystemHealthIncidentResolutionActor,
   SystemHealthIncidentResolutionHistoryEntry,
   SystemHealthIncidentResolutionState,
+  UserHealthRecentEvent,
   UserHealthStatus,
 } from '@/services/admin/healthService.contracts';
 
@@ -43,11 +45,31 @@ const isHealthPermissionError = (error: unknown): boolean => {
   return code.includes('permission') || message.includes('missing or insufficient permissions');
 };
 
+/**
+ * Patient detail travels in contextSummary on purpose. Exception text can carry URLs or
+ * credentials and never leaves the device raw, so it is published as a stable code.
+ */
+const toPublishedHealthEvent = (event: UserHealthRecentEvent): UserHealthRecentEvent => {
+  const operation =
+    event.operation && /^[\w.:-]+$/.test(event.operation) ? event.operation : undefined;
+  const { operation: _unchecked, ...rest } = event;
+  return {
+    ...rest,
+    ...(operation ? { operation } : {}),
+    message: operation || classifyOperationalTelemetryIssue(event.message),
+    ...(event.route ? { route: event.route.split(/[?#]/)[0] } : {}),
+    ...(event.issues ? { issues: event.issues.map(classifyOperationalTelemetryIssue) } : {}),
+  };
+};
+
 export const reportUserHealth = async (status: UserHealthStatus): Promise<void> => {
   try {
     const path = `${STATS_DOC}/${HEALTH_COLLECTION}/${USERS_SUBCOLLECTION}`;
     await firestoreDb.setDoc(path, status.uid, {
       ...status,
+      ...(status.recentEvents
+        ? { recentEvents: status.recentEvents.map(toPublishedHealthEvent) }
+        : {}),
       lastSeen: new Date().toISOString(),
     });
   } catch (error) {

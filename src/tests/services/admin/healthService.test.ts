@@ -107,6 +107,33 @@ describe('healthService', () => {
       );
     });
 
+    it('publishes patient detail but never raw exception text', async () => {
+      await reportUserHealth({
+        ...mockStatus,
+        recentEvents: [
+          {
+            id: 'local_error:1',
+            source: 'local_error',
+            category: 'local_error',
+            severity: 'critical',
+            status: 'open',
+            timestamp: '2026-05-21T14:03:00.000Z',
+            message: 'TypeError at https://synthetic.invalid/x?token=synthetic-secret',
+            operation: 'failed apiKey=synthetic-secret',
+            route: '/censo?token=synthetic-secret#synthetic-secret',
+            issues: ['Failed with apiKey=synthetic-secret'],
+            contextSummary: ['paciente: Paciente Sintético', 'rut: 11.111.111-1', 'cama: R1'],
+          },
+        ],
+      });
+
+      const published = JSON.stringify(vi.mocked(firestoreDb.setDoc).mock.lastCall?.[2]);
+      expect(published).not.toContain('synthetic-secret');
+      expect(published).toContain('"route":"/censo"');
+      expect(published).toContain('paciente: Paciente Sintético');
+      expect(published).toContain('rut: 11.111.111-1');
+    });
+
     it('should handle errors gracefully', async () => {
       vi.mocked(firestoreDb.setDoc).mockRejectedValueOnce(new Error('Firebase Error'));
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});

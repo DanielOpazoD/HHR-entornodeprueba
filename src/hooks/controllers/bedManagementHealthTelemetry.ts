@@ -193,6 +193,7 @@ export const buildBedPatchFailureTelemetryEvent = (
   error: unknown
 ): Omit<OperationalTelemetryEvent, 'timestamp'> => {
   const metadata = getPatchFieldMetadata(action);
+  const patient = metadata.bedId ? record.beds?.[metadata.bedId] : undefined;
   return {
     category: 'daily_record',
     operation: 'daily_record_bed_patch_failed',
@@ -208,6 +209,10 @@ export const buildBedPatchFailureTelemetryEvent = (
       clinicalDate: record.date,
       bedId: metadata.bedId,
       bedLabel: metadata.bedId ? getBedLabel(metadata.bedId) : undefined,
+      patientName: patient?.patientName || undefined,
+      rut: patient?.rut || undefined,
+      clinicalEpisodeId: patient?.clinicalEpisodeId || undefined,
+      pathology: patient?.pathology || undefined,
       fieldKey: metadata.fieldKey,
       fieldLabel: metadata.fieldLabel,
       patchType: action.type,

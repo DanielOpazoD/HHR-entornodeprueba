@@ -52,6 +52,14 @@ export const canReportSystemHealthForRuntime = (
 ): boolean => canReportSystemHealthForRole(role) && remoteSyncStatus === 'ready';
 
 const CONTEXT_SUMMARY_LABELS: Record<string, string> = {
+  patientname: 'paciente',
+  patient: 'paciente',
+  rut: 'rut',
+  clinicalepisodeid: 'episodio',
+  episodeid: 'episodio',
+  pathology: 'diagnostico',
+  diagnosis: 'diagnostico',
+  diagnostico: 'diagnostico',
   clinicaldate: 'fecha clinica',
   bedlabel: 'cama',
   fieldlabel: 'campo',
@@ -60,6 +68,14 @@ const CONTEXT_SUMMARY_LABELS: Record<string, string> = {
   fieldkey: 'campo',
 };
 const CONTEXT_KEYS = [
+  'patientname',
+  'patient',
+  'rut',
+  'clinicalepisodeid',
+  'episodeid',
+  'pathology',
+  'diagnosis',
+  'diagnostico',
   'clinicaldate',
   'bedlabel',
   'fieldlabel',
@@ -75,7 +91,6 @@ const CONTEXT_KEYS = [
   'button',
 ];
 const CONTEXT_SUMMARY_PRIORITY = new Map(CONTEXT_KEYS.map((key, index) => [key, index]));
-const PRIVATE_CONTEXT_KEYS = new Set(['patient', 'patientname', 'rut', 'diagnosis', 'diagnostico']);
 const toContextString = (
   context: Record<string, unknown> | undefined,
   key: string
@@ -130,10 +145,7 @@ const buildContextSummary = (context: Record<string, unknown> | undefined): stri
     .filter(([key, value]) => {
       const normalizedKey = key.toLowerCase();
       return (
-        !PRIVATE_CONTEXT_KEYS.has(normalizedKey) &&
-        CONTEXT_KEYS.includes(normalizedKey) &&
-        typeof value === 'string' &&
-        value.trim().length > 0
+        CONTEXT_KEYS.includes(normalizedKey) && typeof value === 'string' && value.trim().length > 0
       );
     })
     .sort(
@@ -145,7 +157,7 @@ const buildContextSummary = (context: Record<string, unknown> | undefined): stri
       const normalizedKey = key.toLowerCase();
       return `${CONTEXT_SUMMARY_LABELS[normalizedKey] || key}: ${String(value).trim()}`;
     })
-    .slice(0, 4);
+    .slice(0, 8);
 };
 
 const getModuleFromContext = (context: Record<string, unknown> | undefined): string | undefined =>

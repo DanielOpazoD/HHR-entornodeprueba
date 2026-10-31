@@ -76,7 +76,9 @@
                'latestOperationalIssueAt',
                'appVersion',
                'platform',
-               'userAgent'
+               'userAgent',
+               'recentEvents',
+               'oldestDirectQueueAgeMs'
              ]);
     }
 
@@ -147,6 +149,9 @@
              isSystemHealthCounter(payload, 'retryingSyncTasks') &&
              isSystemHealthCounter(payload, 'syncOrphanedTasks') &&
              isSystemHealthAgeMs(payload, 'oldestPendingAgeMs') &&
+             isSystemHealthAgeMs(payload, 'oldestDirectQueueAgeMs') &&
+             (!('recentEvents' in payload) ||
+               (payload.recentEvents is list && payload.recentEvents.size() <= 50)) &&
              isOptionalEnum(payload, 'remoteSyncReason', [
                'ready',
                'auth_loading',
