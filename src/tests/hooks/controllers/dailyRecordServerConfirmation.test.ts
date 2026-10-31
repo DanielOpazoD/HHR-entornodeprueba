@@ -47,10 +47,6 @@ vi.mock('@/services/storage/firestore/firestoreRecordQueries', async importOrigi
   getRecordFromFirestoreDetailed: mocks.getRemote,
 }));
 vi.mock('@/services/repositories/repositoryConfig', () => ({ isFirestoreEnabled: () => true }));
-vi.mock('@/services/repositories/dailyRecordOperationalTelemetry', () => ({
-  dailyRecordObservability: { recordEvent: vi.fn(), recordError: vi.fn() },
-}));
-
 const date = '2026-10-27';
 const createRecord = () =>
   DataFactory.createMockDailyRecord(date, {

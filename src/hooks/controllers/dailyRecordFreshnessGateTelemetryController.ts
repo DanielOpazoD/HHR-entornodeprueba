@@ -50,25 +50,20 @@ export const recordClinicalInputsBlockCompleted = (
   }
 
   const blockedForMs = Math.max(0, completedAt - state.blockedStartedAt);
-  dailyRecordObservability.recordEvent('daily_record_clinical_inputs_block_completed', 'success', {
-    issues: [],
-    context: {
-      date,
-      source,
-      endedWith: 'fresh_remote_confirmed',
-      resumeEpoch,
-      blockedForMs,
-    },
-  });
-  dailyRecordObservability.recordEvent('daily_record_clinical_inputs_block_duration', 'success', {
-    issues: [],
-    context: {
-      date,
-      source,
-      resumeEpoch,
-      blockedForMs,
-    },
-  });
+  dailyRecordObservability.recordOutcome(
+    'daily_record_clinical_inputs_block_completed',
+    { status: 'success' },
+    {
+      allowSuccess: true,
+      context: {
+        date,
+        source,
+        endedWith: 'fresh_remote_confirmed',
+        resumeEpoch,
+        blockedForMs,
+      },
+    }
+  );
   state.blockedStartedAt = undefined;
   return blockedForMs;
 };
