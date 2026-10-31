@@ -12,6 +12,10 @@ import { useDailyRecordFreshnessRecovery } from '@/hooks/useDailyRecordFreshness
 import { createDailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import { buildMockDailyRecordRepository } from '@/tests/factories/dailyRecordRepositoryMock';
 import { DataFactory } from '@/tests/factories/DataFactory';
+import {
+  clearOperationalTelemetryEvents,
+  getOperationalTelemetryEvents,
+} from '@/services/observability/operationalTelemetryService';
 
 const date = '2026-05-16';
 const record = DataFactory.createMockDailyRecord(date);
@@ -50,6 +54,7 @@ describe('freshness check that could not confirm', () => {
     vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility);
     queryClient = new QueryClient();
     resetDailyRecordFreshnessGateForTests();
+    clearOperationalTelemetryEvents();
     reads.mockReset();
   });
   afterEach(() => {
@@ -57,6 +62,7 @@ describe('freshness check that could not confirm', () => {
     vi.restoreAllMocks();
     queryClient.clear();
     resetDailyRecordFreshnessGateForTests();
+    clearOperationalTelemetryEvents();
   });
 
   it('reopens editing by itself once the server answers', async () => {
@@ -68,6 +74,12 @@ describe('freshness check that could not confirm', () => {
 
     expect(reads).toHaveBeenCalledTimes(1);
     expect(getDailyRecordFreshnessStatus(date)).toBe('fresh_remote_confirmed');
+    expect(getOperationalTelemetryEvents()).toContainEqual(
+      expect.objectContaining({
+        operation: 'daily_record_clinical_inputs_block_completed',
+        status: 'success',
+      })
+    );
 
     await vi.advanceTimersByTimeAsync(120_000);
     expect(reads).toHaveBeenCalledTimes(1);

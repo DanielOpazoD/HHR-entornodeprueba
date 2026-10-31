@@ -14,13 +14,6 @@ import {
   resetDailyRecordFreshnessGateForTests,
 } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 
-vi.mock('@/services/repositories/dailyRecordOperationalTelemetry', () => ({
-  dailyRecordObservability: {
-    recordEvent: vi.fn(),
-    recordError: vi.fn(),
-  },
-}));
-
 describe('dailyRecordQueryController subscription freshness', () => {
   afterEach(() => {
     resetDailyRecordFreshnessGateForTests();

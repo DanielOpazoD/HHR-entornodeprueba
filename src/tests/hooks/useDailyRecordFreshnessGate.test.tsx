@@ -383,7 +383,6 @@ describe('daily record remote freshness gate', () => {
         queryClient,
         queryFn,
         reason: 'clinical_patch',
-        now: 6 * 60 * 1000,
       });
     });
     await ensureDailyRecordRemoteFreshness({
@@ -391,7 +390,7 @@ describe('daily record remote freshness gate', () => {
       queryClient,
       queryFn,
       reason: 'clinical_patch',
-      now: 12 * 60 * 1000,
+      now: Date.now() + 6 * 60 * 1000,
     });
 
     expect(queryFn).toHaveBeenCalledTimes(2);
