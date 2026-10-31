@@ -421,8 +421,8 @@ export const useRayenImportCapture = ({
       setStaffingProposal,
       setStaffingProposalError,
       setState,
+      startCaptureRequest,
       startRun,
-      syncRequestController,
     ]
   );
 };
