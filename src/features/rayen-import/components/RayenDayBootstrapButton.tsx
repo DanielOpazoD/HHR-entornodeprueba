@@ -1,6 +1,5 @@
 import React from 'react';
 import { RefreshCw } from 'lucide-react';
-import { useNotification } from '@/context/UIContext';
 import { RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS } from '../bridge/extensionHealthBridge';
 import { useRayenExtensionHealth } from '../hooks/useRayenExtensionHealth';
 
@@ -25,7 +24,6 @@ export const RayenDayBootstrapButton: React.FC<RayenDayBootstrapButtonProps> = (
 }) => {
   const extension = useRayenExtensionHealth();
   const connectionDetailId = React.useId();
-  const { warning } = useNotification();
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [manualAvailable, setManualAvailable] = React.useState(false);
@@ -48,25 +46,9 @@ export const RayenDayBootstrapButton: React.FC<RayenDayBootstrapButtonProps> = (
           setError('No se pudo copiar el censo anterior. Inténtalo de nuevo.');
           return;
         }
-        setStep('checking');
-        let canSync = false;
-        try {
-          const health = await extension.refresh({
-            timeoutMs: RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS,
-            showChecking: true,
-          });
-          canSync = health.canSync;
-        } catch {
-          // A copied census remains usable when the extension is unavailable.
-        }
-        if (canSync) {
-          onReady();
-        } else {
-          warning(
-            'Censo copiado',
-            'Eloísa no está disponible. Usa Sincronizar cuando vuelva la conexión.'
-          );
-        }
+        // The request waits in the sync button until both sources answer, so a slow or sleeping
+        // Eloísa tab delays the sync instead of dropping it. The first import is still reviewed.
+        onReady();
       } catch {
         setError('No se pudo copiar el censo anterior. Inténtalo de nuevo.');
       } finally {
