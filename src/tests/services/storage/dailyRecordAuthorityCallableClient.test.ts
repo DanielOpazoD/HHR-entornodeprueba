@@ -39,6 +39,7 @@ describe('dailyRecordAuthorityCallableClient', () => {
 
   it('keeps transient authority failures retryable', () => {
     expect(shouldRetryDailyRecordAuthorityError({ code: 'functions/unavailable' })).toBe(true);
+    expect(shouldRetryDailyRecordAuthorityError({ code: 'functions/internal' })).toBe(true);
   });
 
   it('does not retry a normalized concurrency conflict', () => {

@@ -29,6 +29,8 @@ const createAuthHelpers = ({ auth, firestore }) => {
         'resolveRoleForEmail dynamic lookup failed',
         sanitizeLogValue({ email: cleanEmail, error })
       );
+      // Only a role read that succeeded can deny. Callers stay closed and report the failure.
+      throw error;
     }
 
     return 'unauthorized';
