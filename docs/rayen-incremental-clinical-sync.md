@@ -57,11 +57,12 @@ activa conserva instancia y etiqueta. Los instantes con offset se convierten con
 hospitalario; para instancias antiguas sin marca se reconoce también la hora que guardaba
 el parser anterior, sin cambiar su procedencia ni duplicarlas.
 
-**Límite de compatibilidad:** fecha/hora, ubicación y nota no prueban origen: las rutas manuales
-también los guardan o permiten editarlos. Por eso una instancia antigua sin `source` nunca se
-retira automáticamente por ausencia ni se convierte en importada al coincidir con una fila.
-Los dispositivos sin instancia se conservan. Este cambio no resuelve retrospectivamente los
-registros de origen desconocido; no ejecuta migraciones ni scripts sobre pacientes reales.
+**Instancias antiguas sin `source`:** fecha, hora y ubicación no prueban origen, porque las rutas
+manuales también las guardan. Sí lo prueba una nota con vencimiento ISO
+(`Vence: 2026-11-28T02:00:00-03:00`), que solo escribe la importación JSON: esa instancia se
+retira por ausencia y queda marcada `source: eloisa`. El resto de las instancias sin marca se
+conserva. El 2026-11-01 las 18 instancias activas del censo tenían esa nota. Los dispositivos sin
+instancia se conservan. No hay migraciones ni scripts sobre pacientes reales.
 
 PDF, fuente fallida, error de sesión, JSON malformado, filas sin instalación resoluble o día
 histórico nunca autorizan retiro por ausencia. Una lista JSON vacía válida sí lo autoriza.

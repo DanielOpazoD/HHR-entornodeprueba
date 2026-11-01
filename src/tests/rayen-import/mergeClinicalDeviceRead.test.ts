@@ -134,6 +134,56 @@ describe('current complete Eloísa JSON device reconciliation', () => {
     expect(sync(before, [])).toBe(before);
   });
 
+  it('retires unmarked instances whose note only the JSON import writes, keeps the listed one, and can reactivate', () => {
+    const legacy = (type: string, date: string, time: string, id: string) => ({
+      id,
+      type,
+      clinicalEpisodeId: 'synthetic-device-episode',
+      status: 'Active' as const,
+      installationDate: date,
+      installationTime: time,
+      location: 'Ubicación sintética',
+      note: 'Ubicación sintética · Vence: 2026-11-28T02:00:00-03:00',
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    const before: PatientData = {
+      ...base(),
+      devices: ['CVC', 'VVP#1', 'VVP#2', 'VVP#3'],
+      deviceInstanceHistory: [
+        legacy('CVC', '2026-10-15', '18:00', 'old-cvc'),
+        legacy('VVP#1', '2026-10-15', '23:11', 'old-vvp-1'),
+        legacy('VVP#2', '2026-10-16', '23:06', 'old-vvp-2'),
+        legacy('CVC', '2026-10-16', '13:15', 'listed-cvc'),
+        { ...legacy('VVP#3', '2026-10-16', '01:00', 'manual-vvp'), source: 'manual' as const },
+      ],
+    };
+
+    const result = sync(before, [cvc]);
+
+    expect(result.devices).toEqual(['CVC', 'VVP#3']);
+    const byId = (patient: PatientData, id: string) =>
+      history(patient).find(item => item.id === id)!;
+    for (const id of ['old-cvc', 'old-vvp-1', 'old-vvp-2']) {
+      expect(byId(result, id)).toMatchObject({
+        status: 'Removed',
+        removalDate: DAY,
+        removalSource: 'eloisa-absence',
+      });
+    }
+    expect(byId(result, 'listed-cvc').status).toBe('Active');
+    expect(byId(result, 'manual-vvp').status).toBe('Active');
+    expect(history(result)).toHaveLength(5);
+    expect(sync(result, [cvc]).devices).toEqual(result.devices);
+
+    const relisted = sync(result, [
+      cvc,
+      { ...row('Vía venosa periférica', '14:25'), installationDatetime: '2026-10-15T23:11:00' },
+    ]);
+    expect(byId(relisted, 'old-vvp-1').status).toBe('Active');
+    expect(history(relisted)).toHaveLength(5);
+  });
+
   it('converts offset installation and removal events to Rapa Nui, including the previous calendar day', () => {
     const before = sync(base(), [row('CVC', '00:25')]);
     expect(history(before)[0]).toMatchObject({

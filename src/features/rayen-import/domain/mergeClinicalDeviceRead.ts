@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
+import type { DeviceInstance } from '@/types/domain/devices';
 import type { PatientData } from '../contracts/rayenDomainContracts';
 import type { ClinicalFillDeps } from '../contracts/clinicalFillContracts';
 import type { DeviceRead } from './clinicalPatientReaders';
@@ -39,7 +40,12 @@ const datedStamp = (raw?: string | null): { date: string; time: string } | undef
   return { date: match[1], time: `${match[2]}:${match[3]}` };
 };
 
-/** Only today's complete JSON may retire imported instances; manual/legacy origins stay intact. */
+// Instances saved before `source` existed: only the JSON import writes an ISO expiration in the note.
+const LEGACY_IMPORT_NOTE = /Vence: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
+const cameFromEloisa = (item: DeviceInstance): boolean =>
+  item.source === 'eloisa' || (!item.source && LEGACY_IMPORT_NOTE.test(item.note ?? ''));
+
+/** Only today's complete JSON may retire imported instances; manual origins stay intact. */
 const reconcileDeviceRetirements = (
   patient: PatientData,
   entries: RayenInvasiveDeviceEntry[],
@@ -63,7 +69,7 @@ const reconcileDeviceRetirements = (
       !installed ||
       `${installed.date}T${installed.time}` > `${current.iso}T${current.hhmm}` ||
       item.status !== 'Active' ||
-      item.source !== 'eloisa' ||
+      !cameFromEloisa(item) ||
       item.clinicalEpisodeId !== patient.clinicalEpisodeId ||
       (item.patientRut && item.patientRut !== patient.rut) ||
       !item.installationDate ||
@@ -95,6 +101,7 @@ const reconcileDeviceRetirements = (
     changedTypes.add(item.type);
     const retired = {
       ...item,
+      source: 'eloisa' as const,
       status: 'Removed' as const,
       removalDate: explicit?.date ?? current.iso,
       removalSource: explicit ? ('eloisa' as const) : ('eloisa-absence' as const),
