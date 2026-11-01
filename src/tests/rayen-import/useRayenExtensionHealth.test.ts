@@ -1,3 +1,4 @@
+import type { RayenExtensionHealthReport } from '@/features/rayen-import/bridge/extensionHealthBridge';
 import { mocks, makeReport, expectConnection } from './support/extensionHealthHarness';
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -337,6 +338,68 @@ describe('useRayenExtensionHealth', () => {
 
     // Sólo se absorbe la ausencia de respuesta; un reporte que llega manda siempre.
     expect(absorbTransientHealthFailure(healthy, blocked)).toBe(blocked);
+  });
+
+  it.each(['relay_disconnected', 'session_unverified'] as const)(
+    'conserva la conexión si un informe solo dice que no pudo comprobar (%s)',
+    reason => {
+      const healthy = deriveHealthState(makeReport());
+      const missed = deriveHealthState(
+        makeReport({ gestionCamas: { status: 'stale', reason, message: 'Sin respuesta.' } })
+      );
+      expectConnection(missed, 'blocked', false);
+      expect(absorbTransientHealthFailure(healthy, missed)).toBe(healthy);
+    }
+  );
+
+  it.each(['session_expired', 'tab_missing', 'outdated_tab'] as const)(
+    'avisa de inmediato cuando la fuente realmente terminó (%s)',
+    reason => {
+      const healthy = deriveHealthState(makeReport());
+      const ended = deriveHealthState(
+        makeReport({ fichaMedico: { status: 'stale', reason, message: 'Terminó.' } })
+      );
+      expect(absorbTransientHealthFailure(healthy, ended)).toBe(ended);
+    }
+  );
+
+  it('declara el corte si la comprobación sigue fallando al vencer el arriendo', () => {
+    const checkedAt = new Date(Date.now() - RAYEN_EXTENSION_HEALTH_LEASE_MS - 1).toISOString();
+    const lastGood = deriveHealthState(makeReport({ checkedAt }));
+    const missed = deriveHealthState(
+      makeReport({
+        gestionCamas: { status: 'stale', reason: 'relay_disconnected', message: 'Sin respuesta.' },
+      })
+    );
+    expect(absorbTransientHealthFailure(lastGood, missed)).toBe(missed);
+  });
+
+  it('un informe empujado por la extensión tampoco apaga la conexión por un sondeo perdido', async () => {
+    mocks.requestHealth.mockResolvedValue({ report: makeReport() });
+    const { result } = renderHook(() => useRayenExtensionHealth());
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(result.current.connection).toBe('ready');
+    const push = (gestionCamas: RayenExtensionHealthReport['gestionCamas']) =>
+      act(() => {
+        window.dispatchEvent(
+          new MessageEvent('message', {
+            source: window,
+            origin: window.location.origin,
+            data: {
+              type: 'HHR_RAYEN_EXTENSION_HEALTH_PUSH',
+              report: makeReport({ gestionCamas }),
+            },
+          })
+        );
+      });
+
+    push({ status: 'stale', reason: 'relay_disconnected', message: 'Sin respuesta.' });
+    expectConnection(result.current, 'ready', true);
+
+    push({ status: 'stale', reason: 'session_expired', message: 'Venció.' });
+    expectConnection(result.current, 'blocked', false);
   });
 
   it('espacia los reintentos automáticos sin pasarse del techo', () => {
