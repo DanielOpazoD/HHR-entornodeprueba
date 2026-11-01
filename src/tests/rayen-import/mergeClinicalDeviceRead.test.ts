@@ -285,6 +285,26 @@ describe('current complete Eloísa JSON device reconciliation', () => {
     expect(sync(edited, []).devices).toEqual(['CVC']);
   });
 
+  it('does not reactivate an absence retirement that nursing edited afterwards', () => {
+    const retired = sync(sync(base(), [cvc]), []);
+    const edited = {
+      ...retired,
+      deviceInstanceHistory: updateDeviceHistoryRecord({
+        history: history(retired),
+        id: history(retired)[0].id,
+        updates: { location: 'Ubicación corregida' },
+      }),
+    };
+
+    const result = sync(edited, [cvc]);
+
+    expect(result.devices).toEqual([]);
+    expect(history(result)[0]).toMatchObject({
+      status: 'Removed',
+      location: 'Ubicación corregida',
+    });
+  });
+
   it('preserves manual installations with dates and times produced by the nursing controller', () => {
     const empty = base();
     const manual = buildDeviceBundleChangeResult({
