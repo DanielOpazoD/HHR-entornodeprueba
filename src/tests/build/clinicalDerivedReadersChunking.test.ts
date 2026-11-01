@@ -45,7 +45,6 @@ describe('clinicalDerived readers chunking', () => {
     'src/features/census/components/patient-row/VitalsCell.tsx',
     'src/features/census/components/patient-row/clinicalDerivedDayContext.ts',
     'src/features/rayen-import/hooks/useRayenClinicalFill.ts',
-    'src/features/rayen-import/hooks/patchFreshClinicalRecord.ts',
     'src/services/repositories/dailyRecordRepositoryInitializationService.ts',
     'src/services/exporters/exportService.ts',
     'src/services/admin/dataMaintenanceService.ts',
