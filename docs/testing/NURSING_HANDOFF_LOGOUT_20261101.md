@@ -63,7 +63,7 @@ final anterior acredita esos ajustes; no se retiró ninguna prueba.
 Reproducción de los casos nuevos:
 
 ```sh
-npx vitest run src/tests/services/storage/nursingHandoffSession.test.ts src/tests/services/storage/nursingHandoffRecoveryTransport.test.ts src/tests/hooks/useNursingHandoffLogout.test.tsx src/tests/components/UserMenu.test.tsx src/tests/services/storage/sessionLogoutQueueFencing.test.ts src/tests/services/storage/dailyRecordAuthorityLostResponse.test.ts --maxWorkers=1
+npx vitest run src/tests/services/storage/nursingHandoffSession.test.ts src/tests/services/storage/nursingHandoffRecoveryTransport.test.ts src/tests/components/useNursingHandoffLogout.test.tsx src/tests/components/UserMenu.test.tsx src/tests/services/storage/sessionLogoutQueueFencing.test.ts src/tests/services/storage/dailyRecordAuthorityLostResponse.test.ts --maxWorkers=1
 ```
 
 La corrida de 56 suites también incluyó todas las `syncQueue*`, `sessionLogout*`,
@@ -108,7 +108,7 @@ acreditó la matriz CI completa. La rama queda para revisión del responsable.
 - `src/services/storage/sync/syncQueuePorts.ts`
 - `src/services/storage/syncQueueTypes.ts`
 - `src/tests/components/UserMenu.test.tsx`
-- `src/tests/hooks/useNursingHandoffLogout.test.tsx`
+- `src/tests/components/useNursingHandoffLogout.test.tsx`
 - `src/tests/services/storage/dailyRecordAuthorityLostResponse.test.ts`
 - `src/tests/services/storage/nursingHandoffRecoveryTransport.test.ts`
 - `src/tests/services/storage/nursingHandoffSession.test.ts`
