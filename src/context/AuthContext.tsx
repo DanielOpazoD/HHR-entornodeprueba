@@ -7,7 +7,13 @@
  * Roles: 'viewer' (read-only) | 'editor' (full access) | 'admin' (full access + admin features)
  */
 
-import React, { createContext, useContext, ReactNode, useMemo } from 'react';
+import React, { createContext, useContext, ReactNode, useMemo, lazy, Suspense } from 'react';
+const NursingHandoffLogoutDialog = lazy(
+  () => import('@/components/layout/NursingHandoffLogoutDialog')
+);
+const NursingHandoffSessionNotice = lazy(
+  () => import('@/components/layout/NursingHandoffSessionNotice')
+);
 import { useAuthState } from '@/hooks/useAuthState';
 import { useAuthClaimRefreshScheduler } from '@/hooks/useAuthClaimRefreshScheduler';
 import type { UserRole, AuthUser } from '@/types/authRoleTypes';
@@ -91,7 +97,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     role: value.currentUser?.role ?? null,
   });
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+      <Suspense fallback={null}>
+        {authState.logoutPrompt && <NursingHandoffLogoutDialog {...authState.logoutPrompt} />}
+        {authorizedUser && (
+          <NursingHandoffSessionNotice key={authorizedUser.uid} uid={authorizedUser.uid} />
+        )}
+      </Suspense>
+    </AuthContext.Provider>
+  );
 };
 
 // ============================================================================

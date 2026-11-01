@@ -111,6 +111,7 @@ export const invokeAuthority = async (
     `${operation}DailyRecordWithClinicalAuthority`,
     { timeout: DAILY_RECORD_AUTHORITY_CALLABLE_TIMEOUT_MS }
   );
+  check();
   try {
     const result = await callable(withClientRuntimeContractVersion(payload));
     check();

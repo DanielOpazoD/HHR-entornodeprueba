@@ -41,6 +41,45 @@ sola escrituras clínicas ya iniciadas fuera del flujo de autenticación.
 
 ## Objetivo
 
+### Entrega de enfermería al relevar el equipo compartido
+
+Decisión del responsable del 01-11-2026 (SAVE-01/03): sólo la entrega de enfermería
+se recupera automáticamente al volver su propietario. Las demás tareas conservan
+su retención actual; no se purgan, reasignan ni reintentan por este flujo.
+
+`sync/nursingHandoffTasks.ts` reconoce las rutas explícitas de
+`syncContract.changedPaths`: notas de enfermería de cama y cuna, novedades de día
+y noche, checklist compartido/de día/de noche y las listas de responsables que
+escribe `domain/handoff/management.ts`. `contexts: ['handoff']` también describe
+entrega médica y no sirve para distinguirlas. Un envío antiguo que sólo declara
+`*`, una cama completa o ninguna ruta no permite identificar con certeza una
+edición de enfermería: queda retenido como antes, sin inferirla del texto guardado.
+
+Antes del cierre manual se intenta `processSyncQueue` durante un máximo de diez
+segundos, seleccionando sólo tareas propias con esas rutas. El botón permanece
+en «Guardando…». Sin conexión, la decisión es inmediata. Si no hay confirmación,
+se ofrecen Reintentar, Descargar copia y salir o Cancelar. La descarga reutiliza
+el respaldo JSON existente, marcado `remotelyConfirmed: false`; no elimina ni
+retira la tarea. Cancelar conserva sesión y trabajo. El cierre automático hace
+el mismo intento y después continúa la limpieza existente, sin diálogo. Los
+plazos de ocho horas de inactividad y doce de sesión individual no cambian.
+
+Al ingresar A, sólo sus tareas `session_owner_logged_out` con rutas de enfermería
+vuelven a pendientes; también las de enfermería que agotaron reintentos de red y
+quedaron con la proyección liberada al salir. Conflictos y fallos de validación
+siguen en revisión. La proyección antigua sigue liberada. El transporte parte
+del censo remoto y aplica sólo esas rutas, con versión y revisión originales;
+si cambiaron, o falta una base verificable, conserva un conflicto para la revisión
+existente. Las comprobaciones de paciente/episodio siguen vigentes. Un ACK de la
+entrega no confirma las otras rutas de una tarea mixta: éstas siguen retenidas
+con su payload original. Se comprueban propietario, generación y actor real otra
+vez antes de invocar Firebase, después de las cargas asíncronas.
+
+Al ingresar B se muestra un único aviso discreto, sin desplazar el censo, con la
+identidad de quien dejó una entrega retenida y sin su contenido. No se habilita
+su envío bajo B. Las pruebas sintéticas están en `nursingHandoffSession.test.ts`,
+`nursingHandoffRecoveryTransport.test.ts` y `useNursingHandoffLogout.test.tsx`.
+
 ### Acceso principal con selector Google (FedCM)
 
 `VITE_GOOGLE_SIGN_IN_CLIENT_ID` muestra el único botón oficial GIS con
@@ -143,7 +182,7 @@ esos contadores no representan necesariamente nuevas consultas de red.
 
 ### Inactividad compartida
 
-Las 8 horas de inactividad se coordinan por usuario y origen entre pestañas. Cada
+La hora de inactividad se coordina por usuario y origen entre pestañas. Cada
 pestaña conserva un temporizador, pero antes de cerrar relee la última actividad
 compartida; al volver a primer plano comprueba el plazo sin convertir la visibilidad
 en actividad. Ratón, teclado, toque y scroll actualizan la marca local, con publicación
@@ -179,7 +218,7 @@ Cierre: budgets, preview y pruebas de sesión verdes en el head final.
 
 Chrome confirmó dos pestañas autenticadas, una marca de actividad compartida que
 avanza tras teclado y recuperación de sesión al recargar y al cerrar/abrir una pestaña.
-Las 8 horas y sus carreras se prueban con reloj controlado, sin adelantar el reloj ni
+La hora de inactividad y sus carreras se prueban con reloj controlado, sin adelantar el reloj ni
 forzar logout de una sesión clínica real.
 
 ## 3.1 Convergencia obligatoria con Netlify Functions

@@ -52,6 +52,17 @@ beforeEach(() => {
   vi.clearAllMocks();
   readServer.mockResolvedValue(snapshot());
 });
+
+it('checks the leaving session again after loading the callable, before sending any payload', async () => {
+  let allowed = true;
+  const pending = save(payload, () => {
+    if (!allowed) throw new Error('Synthetic session changed during module load');
+  });
+  allowed = false;
+  await expect(pending).rejects.toThrow('Synthetic session changed');
+  expect(invoke).not.toHaveBeenCalled();
+  expect(readServer).not.toHaveBeenCalled();
+});
 afterEach(() => {
   vi.useRealTimers();
 });

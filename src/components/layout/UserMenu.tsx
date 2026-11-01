@@ -21,7 +21,7 @@ interface UserMenuProps {
   remoteSyncStatus?: AuthContextType['remoteSyncStatus'];
   avatarUrl?: string | null;
   onOpenAvatarSettings?: () => void;
-  onLogout: () => void;
+  onLogout: () => void | Promise<void>;
 }
 
 export const UserMenu: React.FC<UserMenuProps> = ({
@@ -36,6 +36,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({
   onLogout,
 }) => {
   const [passwordOpen, setPasswordOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const { isOpen, menuRef, toggle, close } = useDropdownMenu();
   const roleLabel = getRoleDisplayLabel(role);
   const connectionLabel =
@@ -49,26 +50,41 @@ export const UserMenu: React.FC<UserMenuProps> = ({
   const isRemoteReady = remoteSyncStatus ? remoteSyncStatus === 'ready' : isFirebaseConnected;
   const userLabel = isIndividualAccount ? displayName || 'Enfermería' : userEmail;
   const userInitial = userLabel.charAt(0);
+  const requestLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      const pending = onLogout();
+      if (pending) await pending;
+      close();
+    } finally {
+      setLoggingOut(false);
+    }
+  };
 
   const logoutFallback = (
     <button
       className="absolute right-0 mt-2 rounded-lg bg-white px-4 py-3 text-sm text-red-600 shadow-lg"
-      onClick={() => {
-        onLogout();
-        close();
-      }}
+      disabled={loggingOut}
+      onClick={() => void requestLogout()}
     >
-      Cerrar sesión
+      {loggingOut ? 'Guardando…' : 'Cerrar sesión'}
     </button>
   );
 
   return (
-    <div className="relative" ref={menuRef}>
+    <div className="relative flex items-center gap-2" ref={menuRef}>
       {passwordOpen && (
         <Suspense fallback={null}>
           <NursingPasswordDialog onClose={() => setPasswordOpen(false)} />
         </Suspense>
       )}
+      <span
+        className="hidden max-w-[10rem] truncate text-xs font-medium text-white lg:block"
+        data-testid="active-account-name"
+      >
+        {userLabel}
+      </span>
       <button
         onClick={toggle}
         aria-expanded={isOpen}
@@ -112,7 +128,8 @@ export const UserMenu: React.FC<UserMenuProps> = ({
               avatarUrl={avatarUrl}
               onChangePassword={() => setPasswordOpen(true)}
               onOpenAvatarSettings={onOpenAvatarSettings}
-              onLogout={onLogout}
+              onLogout={() => void requestLogout()}
+              loggingOut={loggingOut}
               close={close}
             />
           </Suspense>

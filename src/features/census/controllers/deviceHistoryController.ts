@@ -191,6 +191,7 @@ export const buildInitialDeviceHistory = ({
       type: device,
       ...owner,
       status: 'Active',
+      source: 'manual',
       installationDate: detail?.installationDate || timestamp.date,
       installationTime: '00:00',
       location: '',
@@ -234,6 +235,7 @@ export const syncDeviceHistoryForSelection = ({
       history[activeIdx] = {
         ...history[activeIdx],
         status: 'Removed',
+        removalSource: 'manual',
         removalDate: timestamp.date,
         removalTime: timestamp.time,
         updatedAt: timestamp.nowMs,
@@ -248,6 +250,8 @@ export const syncDeviceHistoryForSelection = ({
       type: oldDevice,
       ...owner,
       status: 'Removed',
+      source: 'manual',
+      removalSource: 'manual',
       removalDate: timestamp.date,
       removalTime: timestamp.time,
       installationDate: oldDetails?.installationDate || timestamp.date,
@@ -274,6 +278,7 @@ export const syncDeviceHistoryForSelection = ({
       type: nextDevice,
       ...owner,
       status: 'Active',
+      source: 'manual',
       installationDate: timestamp.date,
       installationTime: timestamp.time,
       location: '',
@@ -318,6 +323,7 @@ export const syncDeviceHistoryForDetails = ({
         history[activeIdx] = {
           ...history[activeIdx],
           installationDate: detail.installationDate,
+          source: 'manual',
           updatedAt: timestamp.nowMs,
         };
         changed = true;
@@ -331,6 +337,7 @@ export const syncDeviceHistoryForDetails = ({
         type: deviceType,
         ...owner,
         status: 'Active',
+        source: 'manual',
         installationDate: detail.installationDate || timestamp.date,
         installationTime: timestamp.time,
         location: '',

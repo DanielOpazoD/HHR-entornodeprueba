@@ -10,6 +10,8 @@ import type {
 } from '@/services/storage/sync/syncQueuePorts';
 import { UNKNOWN_SERVER_VERSION } from '@/services/storage/sync/syncTaskContractPolicy';
 import { hasSameComparableValue } from '@/services/repositories/conflictResolutionUtils';
+import { isNursingHandoffPath } from './nursingHandoffTasks';
+import { clearSyncTaskRuntimeState } from './syncQueueTaskFactory';
 
 import {
   REUSABLE_TASK_STATES,
@@ -149,6 +151,7 @@ export const completeClaimedSyncTask = async (
           task.syncContract?.expectedVersion === UNKNOWN_SERVER_VERSION &&
           hasSameComparableValue(local, { ...payload, lastUpdated: UNKNOWN_SERVER_VERSION });
         if (
+          !task.nursingHandoffRecovery &&
           local &&
           local.lastUpdated !== payload.lastUpdated &&
           local.lastUpdated !== authoritativeRecord.lastUpdated &&
@@ -167,7 +170,23 @@ export const completeClaimedSyncTask = async (
       if (existing?.id) await db.syncQueue.put({ ...conflict, id: existing.id });
       else await db.syncQueue.add({ ...conflict, ownerKey: task.ownerKey });
     }
-    await db.syncQueue.delete(taskId);
+    const remaining = task.nursingHandoffRecovery
+      ? (task.syncContract?.changedPaths?.filter(path => !isNursingHandoffPath(path)) ?? [])
+      : [];
+    if (remaining.length) {
+      // Preserve the unrelated work and its original payload; this ACK confirms only nursing.
+      await db.syncQueue.update(taskId, {
+        ...clearSyncTaskRuntimeState(),
+        status: 'FAILED',
+        projectionReleased: true,
+        nursingHandoffRecovery: undefined,
+        syncContract: { ...task.syncContract, changedPaths: remaining },
+        lastErrorCode: 'session_owner_logged_out',
+        lastErrorCategory: 'authorization',
+        lastErrorAction: 'review_owned_pending_changes',
+        error: 'Sesión cerrada. Revisa los cambios pendientes con su usuario original.',
+      });
+    } else await db.syncQueue.delete(taskId);
     return { deleted: true, adopted, noteProjectionDate };
   });
   // The server now holds this record: drafts with exactly its text for the same patient are saved.

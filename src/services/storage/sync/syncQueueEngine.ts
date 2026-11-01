@@ -39,6 +39,12 @@ import {
 } from '@/services/storage/sync/syncQueueEnqueuePolicy';
 import { replacePendingDailyRecordTask } from '@/services/storage/sync/syncQueuePendingDailyRecordReplacement';
 import type { PendingDailyRecordSyncTaskIdentity } from '@/services/storage/sync/pendingDailyRecordSyncTask';
+import { hasPendingNursingHandoff } from './nursingHandoffTasks';
+
+export interface ProcessSyncQueueOptions {
+  nursingHandoffOnly?: boolean;
+  signal?: AbortSignal;
+}
 
 const SYNC_QUEUE_LEASE_MS = 30_000;
 
@@ -240,9 +246,16 @@ export const createSyncQueueEngine = ({
 
   const isFenced = () => runtime.isFenced?.();
 
-  const processQueue = async (): Promise<void> => {
+  const processQueue = async (options: ProcessSyncQueueOptions = {}): Promise<void> => {
     if (isProcessing || isFenced()) return;
     isProcessing = true;
+    const owner = runtime.getOwnerKey();
+    const generation = runtime.getSessionGeneration?.();
+    const stopped = () =>
+      isFenced() ||
+      options.signal?.aborted ||
+      owner !== runtime.getOwnerKey() ||
+      generation !== runtime.getSessionGeneration?.();
 
     try {
       // Never dispatch from a day whose note projections could not be repaired.
@@ -259,6 +272,7 @@ export const createSyncQueueEngine = ({
         'syncQueue.process',
         async () => {
           while (true) {
+            if (stopped()) return;
             const now = Date.now();
             const readyTasks = await store.claimReadyPending(
               now,
@@ -268,7 +282,10 @@ export const createSyncQueueEngine = ({
                 leaseOwner: workerId,
                 leaseUntil: now + SYNC_QUEUE_LEASE_MS,
                 attemptId: createSyncQueueAttemptId(),
-              }
+              },
+              ...(options.nursingHandoffOnly
+                ? [(task: SyncTask) => task.ownerKey === owner && hasPendingNursingHandoff(task)]
+                : [])
             );
             if (readyTasks.length === 0) {
               return;
@@ -295,11 +312,32 @@ export const createSyncQueueEngine = ({
                   continue;
                 }
                 // Checked here, after the last wait: the very next step is the send.
-                if (isFenced()) return;
+                if (stopped()) return;
                 Object.assign(task, stored, { leaseUntil });
-                const result: Partial<SyncTransportResult> = (await transport.run(task)) || {};
+                const actorChanged = () =>
+                  hasPendingNursingHandoff(task) &&
+                  runtime.getActorKey &&
+                  runtime.getActorKey() !== owner;
+                const assertCanPublish = () => {
+                  if (stopped() || actorChanged()) throw new Error('La sesión del envío cambió.');
+                };
+                assertCanPublish();
+                let cancelWait: (() => void) | undefined;
+                let response: SyncTransportResult | void;
+                try {
+                  response = await Promise.race([
+                    transport.run(task, assertCanPublish),
+                    new Promise<void>(resolve => {
+                      cancelWait = () => resolve();
+                      options.signal?.addEventListener('abort', cancelWait, { once: true });
+                    }),
+                  ]);
+                } finally {
+                  if (cancelWait) options.signal?.removeEventListener('abort', cancelWait);
+                }
+                const result: Partial<SyncTransportResult> = response || {};
                 // Its ACK would write a day the failed logout cleared; the cleanup retry decides.
-                if (isFenced()) return;
+                if (stopped()) return;
                 const claim = buildTaskClaim(task);
                 if (claim) {
                   const deleted = await store.deleteClaimed(
@@ -313,6 +351,7 @@ export const createSyncQueueEngine = ({
                   }
                 }
               } catch (error) {
+                if (stopped()) return;
                 await handleTaskFailure(task, error);
               }
             }

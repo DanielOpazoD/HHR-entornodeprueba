@@ -53,6 +53,7 @@ import {
 import type { AuthRuntimeSnapshot } from '@/services/auth/authRuntimeSnapshot';
 import { onAuthChannelMessage } from '@/services/auth/authBroadcastChannel';
 import { clearQueryCache } from '@/config/queryClient';
+import { useNursingHandoffLogout, type NursingLogoutPrompt } from '@/hooks/useNursingHandoffLogout';
 
 const shouldInitializeAsUnauthenticated = (): boolean => {
   const hasActiveSession = hasActiveFirebaseSession();
@@ -93,6 +94,7 @@ export interface UseAuthStateReturn {
   authRuntime: AuthRuntimeSnapshot;
   /** Signs out the current user */
   handleLogout: (reason?: 'manual' | 'automatic') => Promise<void>;
+  logoutPrompt?: NursingLogoutPrompt | null;
 
   // Role-based properties
   /** Current user's role */
@@ -163,10 +165,11 @@ export const useAuthState = (): UseAuthStateReturn => {
   const currentUser = getAuthSessionStateUser(sessionState);
   const [authLoading, setAuthLoading] = useState(!initializesUnauthenticated);
   const isOnline = useOnlineStatus();
-  const handleLogout = useMemo(
+  const closeSession = useMemo(
     () => createHandleLogout(currentUser, signOut, setSessionState),
     [currentUser, setSessionState]
   );
+  const { handleLogout, logoutPrompt } = useNursingHandoffLogout(currentUser, closeSession);
   const isFirebaseConnected = useFirebaseConnectionStatus(
     currentUser,
     isOnline,
@@ -270,6 +273,7 @@ export const useAuthState = (): UseAuthStateReturn => {
     remoteSyncState: operationalState.remoteSyncState,
     authRuntime: operationalState.authRuntime,
     handleLogout,
+    logoutPrompt,
     role: operationalState.role,
     isEditor: operationalState.isEditor,
     isViewer: operationalState.isViewer,

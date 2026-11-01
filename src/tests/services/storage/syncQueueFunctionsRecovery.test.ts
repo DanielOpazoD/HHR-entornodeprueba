@@ -3,12 +3,13 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import { createSyncQueueEngine } from '@/services/storage/sync/syncQueueEngine';
+import type { SyncTransportPort } from '@/services/storage/sync/syncQueuePorts';
 import {
   loadFunctionsModule,
   isFunctionsReloadRequired,
 } from '@/services/firebase-runtime/functionsModuleLoader';
 
-const createEngine = (run: () => Promise<void>) =>
+const createEngine = (run: SyncTransportPort['run']) =>
   createSyncQueueEngine({
     store: createDexieSyncQueueStore(),
     runtime: { isOnline: () => true, getOwnerKey: () => null, onOnline: () => undefined },
@@ -144,9 +145,9 @@ it.each([5_000, 15_000, 30_000, 45_000, 59_000])(
     });
     now += reloadAfterMs;
     await loadFunctionsModule();
-    const synced = vi.fn(async () => {});
+    const synced = vi.fn<SyncTransportPort['run']>(async () => {});
     await createEngine(synced).processQueue();
-    expect(synced).toHaveBeenCalledWith(expect.objectContaining({ retryCount: 2, payload }));
+    expect(synced.mock.calls[0][0]).toEqual(expect.objectContaining({ retryCount: 2, payload }));
     expect(await hospitalDB.syncQueue.count()).toBe(0);
   }
 );
