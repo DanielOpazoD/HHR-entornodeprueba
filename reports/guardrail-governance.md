@@ -3,7 +3,7 @@
 - Version: `1`
 - Blocking tiers: `5`
 - Report-only guards: `18`
-- Quality aggregate checks: `66`
+- Quality aggregate checks: `62`
 
 ## Blocking Tiers
 
@@ -50,12 +50,12 @@
 
 | Group | Checks |
 | --- | --- |
-| boundaries | `check:architecture, check:application-port-boundary, check:legacy-staff-boundary, check:core-test-boundary, check:census-feature-boundary, check:census-export-contract-boundary, check:clinical-documents-feature-boundary, check:handoff-pdf-contract-boundary, check:feature-public-api-boundary, check:lazy-views-feature-entrypoints, check:feature-dependencies, check:shared-layer-boundary, check:barrel-boundaries, check:handoff-context-boundaries, check:storage-context-boundaries, check:core-type-facade-boundaries, check:root-domain-barrels, check:persistence-hub-boundaries, check:legacy-localstorage-imports, check:legacy-bridge-boundary, check:legacy-read-gating, check:folder-dependencies, check:module-dependencies, check:census-runtime-boundary, check:runtime-adapter-boundary, check:native-dialogs, check:clinical-clock, check:firestore-runtime-boundary, check:domain-hotspot-boundary, check:legacy-permissions-boundary` |
+| boundaries | `check:architecture, check:application-port-boundary, check:legacy-staff-boundary, check:core-test-boundary, check:census-feature-boundary, check:census-export-contract-boundary, check:clinical-documents-feature-boundary, check:handoff-pdf-contract-boundary, check:feature-public-api-boundary, check:lazy-views-feature-entrypoints, check:feature-dependencies, check:shared-layer-boundary, check:barrel-boundaries, check:handoff-context-boundaries, check:storage-context-boundaries, check:core-type-facade-boundaries, check:root-domain-barrels, check:persistence-hub-boundaries, check:legacy-localstorage-imports, check:folder-dependencies, check:module-dependencies, check:census-runtime-boundary, check:runtime-adapter-boundary, check:native-dialogs, check:clinical-clock, check:empty-on-failure-reads, check:import-cycles, check:firestore-runtime-boundary, check:domain-hotspot-boundary, check:legacy-permissions-boundary` |
 | tests | `check:core-trivial-tests, check:test-governance, check:unit-shard-balance, check:ci-runtime-telemetry, check:test-runtime-governance, check:test-failure-catalog, check:flaky-quarantine` |
-| hygiene | `check:core-console-usage, check:repo-hygiene` |
-| governance-inputs | `report:legacy-bridge, report:compatibility-governance` |
+| hygiene | `check:core-console-usage, check:declared-dependencies, check:repo-hygiene` |
+| governance-inputs | `report:compatibility-governance` |
 | governance | `check:legacy-retirement-debt, check:compatibility-import-governance, check:schema-governance, check:runtime-contracts, check:sync-invariants, check:serverless-runtime-governance, check:serverless-sensitive-coverage, check:docs-drift, check:operational-runbooks, check:firestore-emulator-governance, check:ci-artifact-contracts, check:guardrail-governance, check:release-evidence-contract` |
-| size | `check:module-size, check:handoff-module-size, check:census-module-size, check:hook-hotspots, check:hotspot-growth, check:extension-hotspots, check:bundle-risk-ledger` |
+| size | `check:module-size, check:extension-hotspots, check:bundle-risk-ledger` |
 | reports | `check:report-freshness` |
 | type-safety | `check:critical-any, check:source-any` |
 | security | `check:clinical-mutation-audit-policy, check:security` |

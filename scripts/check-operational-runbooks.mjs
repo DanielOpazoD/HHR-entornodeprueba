@@ -36,26 +36,19 @@ const requiredDocs = [
     file: 'docs/RUNBOOK_SYNC_RESILIENCE.md',
     patterns: [
       'reports/operational-health.md',
-      'legacy bridge',
       'conflictos por contexto',
       'RUNBOOK_OPERATIONAL_BUDGETS.md',
     ],
   },
   {
     file: 'docs/RUNBOOK_SUPPORT_OPERATIONS.md',
-    patterns: [
-      'report:operational-health',
-      'report:legacy-bridge',
-      'check:operational-runbooks',
-      'legacy bridge',
-    ],
+    patterns: ['report:operational-health', 'check:operational-runbooks'],
   },
   {
     file: 'docs/RUNBOOK_OPERATIONAL_BUDGETS.md',
     patterns: [
       'warningOldestPendingAgeMs',
       'criticalOldestPendingAgeMs',
-      'legacy-bridge-governance.md',
       'reports/operational-health.md',
     ],
   },
@@ -98,7 +91,6 @@ const requiredKeys = [
   'syncQueue',
   'syncDomainProfiles',
   'conflictContexts',
-  'legacyBridge',
   'compatibilityGovernance',
   'localPersistence',
   'frontendStartup',
@@ -112,10 +104,6 @@ if (missingKeys.length > 0) {
 
 if (!Array.isArray(report.syncDomainProfiles) || report.syncDomainProfiles.length === 0) {
   fail('reports/operational-health.json must include syncDomainProfiles entries');
-}
-
-if (!report.legacyBridge || typeof report.legacyBridge !== 'object') {
-  fail('reports/operational-health.json must include legacyBridge summary');
 }
 
 if (!report.compatibilityGovernance || typeof report.compatibilityGovernance !== 'object') {

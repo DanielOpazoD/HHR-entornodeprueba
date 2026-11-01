@@ -5,7 +5,6 @@ import {
   buildPatient,
   firestoreMock,
   indexedDbFacadeMock,
-  legacyFirebaseMock,
   mockDate,
   mockRecord,
   Repository,
@@ -144,16 +143,14 @@ describe('DailyRecordRepository initialization and bootstrap flows', () => {
     );
   });
 
-  it('creates a fresh record when Firestore has no record and legacy is isolated from initialization hot path', async () => {
+  it('creates a fresh record when Firestore has no record', async () => {
     indexedDbFacadeMock.getRecordForDate.mockResolvedValueOnce(null);
     firestoreMock.getRecordFromFirestore.mockResolvedValueOnce(null);
-    legacyFirebaseMock.getLegacyRecord.mockResolvedValueOnce(mockRecord);
 
     const result = await Repository.initializeDay(mockDate);
 
     expect(result.date).toBe(mockDate);
     expect(result.beds).toBeDefined();
-    expect(legacyFirebaseMock.getLegacyRecord).not.toHaveBeenCalled();
   });
 
   it('creates a fresh record if no previous day exists', async () => {

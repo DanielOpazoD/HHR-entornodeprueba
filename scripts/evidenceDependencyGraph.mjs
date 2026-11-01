@@ -14,10 +14,6 @@ export const EVIDENCE_DEPENDENCY_GRAPH = {
     command: 'report:bundle-risk-ledger',
     artifacts: ['reports/bundle-risk-ledger.json', 'reports/bundle-risk-ledger.md'],
   }),
-  'legacy-bridge': reportNode({
-    command: 'report:legacy-bridge',
-    artifacts: ['reports/legacy-bridge-governance.json', 'reports/legacy-bridge-governance.md'],
-  }),
   'compatibility-governance': reportNode({
     command: 'report:compatibility-governance',
     artifacts: ['reports/compatibility-governance.json', 'reports/compatibility-governance.md'],
@@ -48,9 +44,7 @@ export const EVIDENCE_DEPENDENCY_GRAPH = {
   'operational-health': reportNode({
     command: 'report:operational-health',
     artifacts: ['reports/operational-health.json', 'reports/operational-health.md'],
-    dependencies: [
-      'critical-coverage',
-    ],
+    dependencies: ['critical-coverage'],
     fileDependencies: [
       'reports/e2e/preview-bootstrap/report.json',
       'reports/e2e/preview-bootstrap/ci-provenance.json',
@@ -81,7 +75,10 @@ export const EVIDENCE_DEPENDENCY_GRAPH = {
   }),
   'clinical-release-validation': reportNode({
     command: 'report:clinical-release-validation',
-    artifacts: ['reports/clinical-release-validation.json', 'reports/clinical-release-validation.md'],
+    artifacts: [
+      'reports/clinical-release-validation.json',
+      'reports/clinical-release-validation.md',
+    ],
   }),
   'runtime-contracts': reportNode({
     command: 'report:runtime-contracts',
@@ -154,10 +151,11 @@ export const EVIDENCE_DEPENDENCY_GRAPH = {
   }),
   'ci-runtime-observed-profile': reportNode({
     command: 'report:ci-runtime-observed-profile',
-    artifacts: ['reports/ci-runtime-observed-profile.json', 'reports/ci-runtime-observed-profile.md'],
-    dependencies: [
-      'unit-shard-runtime-profile',
+    artifacts: [
+      'reports/ci-runtime-observed-profile.json',
+      'reports/ci-runtime-observed-profile.md',
     ],
+    dependencies: ['unit-shard-runtime-profile'],
     fileDependencies: [
       'scripts/collect-github-actions-runtime.mjs',
       'scripts/check-ci-runtime-telemetry.mjs',
@@ -192,11 +190,13 @@ export const EVIDENCE_DEPENDENCY_GRAPH = {
   }),
   'release-readiness-scorecard': reportNode({
     command: 'report:release-readiness-scorecard',
-    artifacts: ['reports/release-readiness-scorecard.json', 'reports/release-readiness-scorecard.md'],
+    artifacts: [
+      'reports/release-readiness-scorecard.json',
+      'reports/release-readiness-scorecard.md',
+    ],
     dependencies: [
       'quality-metrics',
       'bundle-risk-ledger',
-      'legacy-bridge',
       'compatibility-governance',
       'legacy-retirement-debt',
       'compatibility-import-governance',
@@ -214,8 +214,7 @@ export const getEvidenceNode = id => EVIDENCE_DEPENDENCY_GRAPH[id] || null;
 
 export const getEvidenceReportDependencies = id => getEvidenceNode(id)?.dependencies || [];
 
-export const getEvidenceReportFileDependencies = id =>
-  getEvidenceNode(id)?.fileDependencies || [];
+export const getEvidenceReportFileDependencies = id => getEvidenceNode(id)?.fileDependencies || [];
 
 export const getEvidenceReportArtifacts = id => getEvidenceNode(id)?.artifacts || [];
 

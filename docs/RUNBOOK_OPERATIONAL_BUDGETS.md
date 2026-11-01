@@ -7,7 +7,6 @@ Centralizar los thresholds monitorables y los reportes base para soporte e ingen
 Fuentes obligatorias:
 
 - `reports/operational-health.md`
-- `reports/legacy-bridge-governance.md`
 - `docs/RUNBOOK_SYNC_RESILIENCE.md`
 - `docs/RUNBOOK_SUPPORT_OPERATIONS.md`
 
@@ -73,16 +72,6 @@ Contextos que soporte debe reconocer:
 - `unknown`
 
 Cada contexto tiene acción asociada en `reports/operational-health.md`.
-
-## Legacy Bridge
-
-La política vigente se resume en `reports/legacy-bridge-governance.md`.
-
-Controles mínimos:
-
-1. no volver a habilitar hot path legacy
-2. mantener entrypoints explícitas
-3. observar fase de retiro antes de cualquier cambio operativo
 
 ## Runtime Asset Margin
 
@@ -168,7 +157,6 @@ Regla práctica:
 ## Comandos
 
 ```bash
-npm run report:legacy-bridge
 npm run report:operational-health
 npm run report:runtime-asset-margin
 npm run check:docs-drift

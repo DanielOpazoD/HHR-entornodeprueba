@@ -149,7 +149,6 @@ Expected:
 
 - Inspect/Modify: `src/services/storage/README.md`
 - Inspect/Modify: `src/services/storage/migration/legacyFirestoreBridge.ts`
-- Inspect/Modify: `src/services/storage/legacyfirebase/**`
 - Test: `src/tests/integration/**`
 - Test: `vitest.rules.config.ts`
 
@@ -158,7 +157,6 @@ Expected:
 Run:
 
 ```bash
-rg -n "legacyFirestoreBridge|legacyFirebase|migration/" src
 sed -n '60,140p' src/services/storage/README.md
 ```
 
@@ -339,8 +337,7 @@ Matriz:
 
 1. terminar Fase 1 en `scripts/` y docs históricas restantes
 2. consolidar 1 o 2 pares de tests duplicados más, sin cruzar layers
-3. preparar auditoría de legacy bridge
-4. dejar FHIR/terminology fuera de la ola low-risk
+3. dejar FHIR/terminology fuera de la ola low-risk
 
 ## Señales para frenar
 

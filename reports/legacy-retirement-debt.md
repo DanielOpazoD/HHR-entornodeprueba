@@ -3,24 +3,17 @@
 - Generated: stable:legacy-retirement-debt
 - Policy version: 2026-06-v1
 - Status: ok
-- Open surfaces: 4/4
+- Open surfaces: 3/4
 
 ## Surfaces
 
 | Surface | Owner | Phase | Status | Signal | Next action |
 | --- | --- | --- | --- | --- | --- |
-| Legacy read bridge | storage/repositories | restrict | ok | entrypoints=2/2, importers=1/1 | Keep the bridge import surface flat, then remove legacyRecordBridgeService from the daily-record read path after a clean disabled-mode release. |
 | Role aliases | auth/security | observe | ok | governedEntries=4/4, missing=0 | Audit production role sources before deleting legacy viewer role compatibility from helpers, Firestore rules and Storage rules. |
 | Legacy clinical document hydration | clinical-documents | restrict | ok | consumers=3/3, unapproved=0 | Keep all read/import/workspace hydration behind ClinicalDocumentCompatibilityPort, then retire schema v1 defaults after a clean current-schema release window. |
 | Legacy episode hydration | census/clinical-documents | restrict | ok | consumers=1/1, unapproved=0 | Keep legacy episode-key parsing confined to patient-flow; migrate callers to lookup-key helpers and block UI-level ad hoc parsing. |
 
 ## Evidence
-
-### Legacy read bridge
-
-- Retirement criteria: VITE_LEGACY_COMPATIBILITY_MODE=disabled survives one release window and legacy bridge telemetry shows no required daily-record bridge usage.
-- Guardrails: check:legacy-read-gating, check:legacy-bridge-boundary, report:legacy-bridge
-- Reports: reports/legacy-bridge-governance.md, reports/legacy-retirement-debt.md
 
 ### Role aliases
 

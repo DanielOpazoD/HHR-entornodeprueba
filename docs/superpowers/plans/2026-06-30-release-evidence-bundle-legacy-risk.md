@@ -58,7 +58,7 @@
 - Create: `docs/LEGACY_RETIREMENT_PLAN.md`
 - Create or modify: `src/tests/build/legacyRetirementPlan.test.ts`
 
-- [ ] Add a failing test requiring the plan to name the three active priorities: legacy read bridge, role aliases, and legacy clinical document/episode hydration.
+- [ ] Add a failing test requiring the plan to name the active priorities: role aliases and legacy clinical document/episode hydration.
 - [ ] Write the plan with scope, non-goals, phases, and closure signals.
 - [ ] Re-run `npx vitest run src/tests/build/legacyRetirementPlan.test.ts`.
 

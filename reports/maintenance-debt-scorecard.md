@@ -26,9 +26,8 @@ Worktree: clean
 ## Legacy Retirement Debt
 
 - Status: ok
-- Open surfaces: 4 / 4
+- Open surfaces: 3 / 4
 
-- Legacy read bridge: ok (restrict, owner storage/repositories; entrypoints=2/2, importers=1/1) - next: Keep the bridge import surface flat, then remove legacyRecordBridgeService from the daily-record read path after a clean disabled-mode release.
 - Role aliases: ok (observe, owner auth/security; governedEntries=4/4, missing=0) - next: Audit production role sources before deleting legacy viewer role compatibility from helpers, Firestore rules and Storage rules.
 - Legacy clinical document hydration: ok (restrict, owner clinical-documents; consumers=3/3, unapproved=0) - next: Keep all read/import/workspace hydration behind ClinicalDocumentCompatibilityPort, then retire schema v1 defaults after a clean current-schema release window.
 - Legacy episode hydration: ok (restrict, owner census/clinical-documents; consumers=1/1, unapproved=0) - next: Keep legacy episode-key parsing confined to patient-flow; migrate callers to lookup-key helpers and block UI-level ad hoc parsing.

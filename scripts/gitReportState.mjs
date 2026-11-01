@@ -24,8 +24,6 @@ const GENERATED_REPORT_STATUS_SUFFIXES = new Set([
   'reports/e2e/clinical-visual-release-report.json',
   'reports/guardrail-governance.json',
   'reports/guardrail-governance.md',
-  'reports/legacy-bridge-governance.json',
-  'reports/legacy-bridge-governance.md',
   'reports/maintenance-debt-scorecard.json',
   'reports/maintenance-debt-scorecard.md',
   'reports/operational-health.json',
