@@ -8,6 +8,7 @@ import {
   loadCudyrSupplements,
   type ArchivedCudyrSupplement,
 } from './cudyrSupplementService';
+import { readInCudyrWorker } from './cudyrWorkerRead';
 
 export const selectCudyrSourceReports = (
   data: CudyrReportDataset,
@@ -45,38 +46,16 @@ export const selectCudyrSourceReports = (
 const readSourceMatrix = (
   buffer: ArrayBuffer,
   signal: AbortSignal
-): Promise<CudyrSourceSheet['matrix']> => {
-  signal.throwIfAborted();
-  return new Promise((resolve, reject) => {
-    const worker = new Worker(new URL('./cudyrSupplement.worker.ts', import.meta.url), {
-      type: 'module',
-    });
-    const finish = () => {
-      clearTimeout(timer);
-      signal.removeEventListener('abort', abort);
-      worker.terminate();
-    };
-    const abort = () => {
-      finish();
-      reject(new Error('Consulta cancelada.'));
-    };
-    const timer = setTimeout(() => {
-      finish();
-      reject(new Error('Tiempo de lectura del informe agotado.'));
-    }, 10000);
-    signal.addEventListener('abort', abort, { once: true });
-    worker.onerror = () => {
-      finish();
-      reject(new Error('No se pudo leer el informe original.'));
-    };
-    worker.onmessage = event => {
-      finish();
-      if (event.data.kind === 'workbook' && event.data.matrix) resolve(event.data.matrix);
-      else reject(new Error(event.data.error || 'Informe original no válido.'));
-    };
-    worker.postMessage({ buffer, kind: 'workbook' }, [buffer]);
-  });
-};
+): Promise<CudyrSourceSheet['matrix']> =>
+  readInCudyrWorker(
+    { buffer, kind: 'workbook' },
+    signal,
+    'No se pudo leer el informe original.',
+    (data: { kind?: string; matrix?: CudyrSourceSheet['matrix']; error?: string }) => {
+      if (data.kind === 'workbook' && data.matrix) return data.matrix;
+      throw new Error(data.error || 'Informe original no válido.');
+    }
+  );
 
 export const loadCudyrSourceSheets = async (data: CudyrReportDataset, signal: AbortSignal) => {
   const generation = getSessionGeneration(),

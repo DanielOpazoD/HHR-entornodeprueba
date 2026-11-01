@@ -15,14 +15,14 @@ class SlowWorker {
   }
 }
 
-const read = () =>
+const read = (signal = new AbortController().signal) =>
   readCudyrSupplementFile(
     {
       name: 'Categorizacion_2026-10.xls',
       size: 64,
       arrayBuffer: async () => new ArrayBuffer(64),
     } as File,
-    new AbortController().signal
+    signal
   );
 
 describe('reading the monthly CUDYR report', () => {
@@ -40,6 +40,15 @@ describe('reading the monthly CUDYR report', () => {
     const pending = read();
     await vi.advanceTimersByTimeAsync(12_000);
     await expect(pending).resolves.toMatchObject({ report });
+  });
+
+  it('stops the read when it is cancelled', async () => {
+    SlowWorker.replyAfterMs = 60_000;
+    const controller = new AbortController();
+    const failure = expect(read(controller.signal)).rejects.toThrow('Lectura cancelada.');
+    await vi.advanceTimersByTimeAsync(1_000);
+    controller.abort();
+    await failure;
   });
 
   it('still reports a worker that never answers', async () => {
