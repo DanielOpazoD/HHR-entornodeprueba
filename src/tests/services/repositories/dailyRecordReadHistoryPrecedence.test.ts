@@ -1,4 +1,5 @@
 import 'fake-indexeddb/auto';
+import { MAX_RAYEN_SYNC_HISTORY } from '@/types/domain/rayenSync';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { CURRENT_SCHEMA_VERSION } from '@/constants/version';
@@ -158,7 +159,7 @@ describe.each(readModes)('daily record history through %s reads and real cache h
   );
 
   it.each([baseTime, laterTime])(
-    'keeps the newest 20 distinct runs across both sources after reopening at %s',
+    'keeps the newest distinct runs up to the limit across both sources after reopening at %s',
     async lastUpdated => {
       const runs = Array.from({ length: 25 }, (_, index) =>
         event({
@@ -172,9 +173,10 @@ describe.each(readModes)('daily record history through %s reads and real cache h
         mode,
         record({ lastUpdated, rayenSyncHistory: runs.filter((_, index) => index % 2 === 1) })
       );
-      const expectedIds = [
-        24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5,
-      ].map(index => `synthetic-run-${index}`);
+      const expectedIds = Array.from(
+        { length: MAX_RAYEN_SYNC_HISTORY },
+        (_, index) => 24 - index
+      ).map(index => `synthetic-run-${index}`);
 
       expect(result.record?.rayenSyncHistory?.map(run => run.id)).toEqual(expectedIds);
       expect((await reopen())?.rayenSyncHistory?.map(run => run.id)).toEqual(expectedIds);
@@ -242,7 +244,7 @@ describe.each(readModes)('daily record history through %s reads and real cache h
   );
 
   it('keeps the selected version and active run reference at the history limit', async () => {
-    const runs = Array.from({ length: 20 }, (_, index) =>
+    const runs = Array.from({ length: MAX_RAYEN_SYNC_HISTORY }, (_, index) =>
       event({
         id: `bounded-${index}`,
         startedAt: `2026-10-26T09:${String(index).padStart(2, '0')}:00.000Z`,
@@ -253,17 +255,19 @@ describe.each(readModes)('daily record history through %s reads and real cache h
     current.startedAt = '2026-10-26T09:59:00.000Z';
     const old = event({ id: current.id, startedAt: '2026-10-26T08:00:00.000Z' });
     const meta = { at: baseTime, by: 'SYNTHETIC', runId: current.id };
-    await seed(record({ rayenSync: meta, rayenSyncHistory: [old, runs[19]] }));
+    await seed(
+      record({ rayenSync: meta, rayenSyncHistory: [old, runs[MAX_RAYEN_SYNC_HISTORY - 1]] })
+    );
     const result = await read(
       mode,
       record({
         lastUpdated: laterTime,
         rayenSync: meta,
-        rayenSyncHistory: [current, ...runs.slice(0, 19)],
+        rayenSyncHistory: [current, ...runs.slice(0, MAX_RAYEN_SYNC_HISTORY - 1)],
       })
     );
     for (const selected of [result.record, await reopen()]) {
-      expect(selected?.rayenSyncHistory).toHaveLength(20);
+      expect(selected?.rayenSyncHistory).toHaveLength(MAX_RAYEN_SYNC_HISTORY);
       expect(selected?.rayenSyncHistory?.[0]).toEqual(current);
       expect(selected?.rayenSync?.runId).toBe(current.id);
       expect(selected?.rayenSyncHistory?.find(run => run.id === current.id)).toEqual(current);

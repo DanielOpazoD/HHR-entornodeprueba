@@ -1,3 +1,4 @@
+import { MAX_RAYEN_SYNC_HISTORY } from '@/types/domain/rayenSync';
 // @vitest-environment node
 
 import { describe, expect, it } from 'vitest';
@@ -43,6 +44,6 @@ describe('dailyRecordRayenSyncHistoryPolicy', () => {
         event(`run-${index}`, `2026-07-14T11:${String(index).padStart(2, '0')}:00.000Z`, 'complete')
       )
     );
-    expect(bounded).toHaveLength(20);
+    expect(bounded).toHaveLength(MAX_RAYEN_SYNC_HISTORY);
   });
 });

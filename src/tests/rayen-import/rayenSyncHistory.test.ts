@@ -77,7 +77,7 @@ describe('rayen sync history', () => {
     expect(JSON.stringify(event)).not.toMatch(/patient|rut|diagn|indication/i);
   });
 
-  it('orders newest first, deduplicates by run id and caps the day at twenty events', () => {
+  it('orders newest first, deduplicates by run id and caps the day at the history limit', () => {
     let history = Array.from({ length: MAX_RAYEN_SYNC_HISTORY + 4 }, (_, index) =>
       buildAppliedRayenSyncEvent(
         run(`run-${index}`, `2026-07-14T10:${String(index).padStart(2, '0')}:00.000Z`),
@@ -89,7 +89,7 @@ describe('rayen sync history', () => {
     history = upsertRayenSyncEvent(history, replacement);
 
     expect(history).toHaveLength(MAX_RAYEN_SYNC_HISTORY);
-    expect(history[0].id).toBe('run-23');
+    expect(history[0].id).toBe(`run-${MAX_RAYEN_SYNC_HISTORY + 3}`);
     expect(history.filter(event => event.id === replacement.id)).toEqual([replacement]);
   });
 

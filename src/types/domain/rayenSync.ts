@@ -1,6 +1,6 @@
 /** Persisted, privacy-safe evidence for one user-initiated Eloísa synchronization. */
 
-export const MAX_RAYEN_SYNC_HISTORY = 20;
+export const MAX_RAYEN_SYNC_HISTORY = 8;
 export const MAX_RAYEN_STAFFING_BOUNDARY_EVIDENCE = 40;
 export const MAX_RAYEN_STRUCTURAL_REVIEW_ISSUES = 12;
 
