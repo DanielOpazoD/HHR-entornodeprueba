@@ -37,10 +37,8 @@
               `/api/encounter/entrySummary/invasiveDeviceEntry/${encodeURIComponent(encId)}/` +
               `${eventTypeId}/${encodeURIComponent(session.info.practitionerId)}`,
           });
-          if (!Array.isArray(result.data) || result.data.some(entry =>
-            !entry || typeof entry !== 'object' || Array.isArray(entry) ||
-            typeof entry.name !== 'string' || !entry.name.trim()
-          )) throw new TypeError('Respuesta JSON inválida.');
+          if (!Array.isArray(result.data) || !result.data.every(entry => typeof entry?.name === 'string' && entry.name.trim()))
+            throw new TypeError('Respuesta JSON inválida.');
           const entries = result.data
             .map(entry => ({
               name: String(entry.name || ''),

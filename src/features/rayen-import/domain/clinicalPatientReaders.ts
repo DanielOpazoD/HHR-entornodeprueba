@@ -1,4 +1,4 @@
-import { DeviceEntriesSchema } from './mergeClinicalDeviceRead';
+import { DeviceEntriesSchema } from '../mapping/mapDeviceToInstance';
 import type { RayenPatientClinicalBundle } from '../contracts/patientClinicalBundle';
 import { needsClinicalRead, type ClinicalReadSelection } from '../contracts/clinicalReadSelection';
 import type { ClinicalFillDeps } from '../contracts/clinicalFillContracts';

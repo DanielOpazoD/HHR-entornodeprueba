@@ -7,24 +7,11 @@ import type { DeviceRead } from './clinicalPatientReaders';
 import { parseInvasiveDevices } from '../mapping/parseInvasiveDevices';
 import {
   mapInvasiveDevices,
+  DeviceEntriesSchema,
   mapRayenInvasiveDeviceEntries,
   type RayenInvasiveDeviceEntry,
 } from '../mapping/mapDeviceToInstance';
 import { mergeReportDevices, sameDeviceInstallation } from './mergeReportDevices';
-
-// A malformed/partial row cannot certify the absence of any installation.
-export const DeviceEntriesSchema = z.array(
-  z.object({
-    name: z.string().trim().min(1),
-    location: z.string().nullish(),
-    measuredNumber: z.union([z.number(), z.string()]).nullish(),
-    installationDatetime: z.string().nullish(),
-    expirationDatetime: z.string().nullish(),
-    removedDatetime: z.string().nullish(),
-    archived: z.boolean().optional(),
-    deleted: z.boolean().optional(),
-  })
-);
 
 const datedStamp = (raw?: string | null): { date: string; time: string } | undefined => {
   const match = raw?.match(
