@@ -182,7 +182,7 @@ esos contadores no representan necesariamente nuevas consultas de red.
 
 ### Inactividad compartida
 
-Las 8 horas de inactividad se coordinan por usuario y origen entre pestañas. Cada
+La hora de inactividad se coordina por usuario y origen entre pestañas. Cada
 pestaña conserva un temporizador, pero antes de cerrar relee la última actividad
 compartida; al volver a primer plano comprueba el plazo sin convertir la visibilidad
 en actividad. Ratón, teclado, toque y scroll actualizan la marca local, con publicación
@@ -218,7 +218,7 @@ Cierre: budgets, preview y pruebas de sesión verdes en el head final.
 
 Chrome confirmó dos pestañas autenticadas, una marca de actividad compartida que
 avanza tras teclado y recuperación de sesión al recargar y al cerrar/abrir una pestaña.
-Las 8 horas y sus carreras se prueban con reloj controlado, sin adelantar el reloj ni
+La hora de inactividad y sus carreras se prueban con reloj controlado, sin adelantar el reloj ni
 forzar logout de una sesión clínica real.
 
 ## 3.1 Convergencia obligatoria con Netlify Functions

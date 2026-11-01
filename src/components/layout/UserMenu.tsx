@@ -73,12 +73,18 @@ export const UserMenu: React.FC<UserMenuProps> = ({
   );
 
   return (
-    <div className="relative" ref={menuRef}>
+    <div className="relative flex items-center gap-2" ref={menuRef}>
       {passwordOpen && (
         <Suspense fallback={null}>
           <NursingPasswordDialog onClose={() => setPasswordOpen(false)} />
         </Suspense>
       )}
+      <span
+        className="hidden max-w-[10rem] truncate text-xs font-medium text-white lg:block"
+        data-testid="active-account-name"
+      >
+        {userLabel}
+      </span>
       <button
         onClick={toggle}
         aria-expanded={isOpen}
