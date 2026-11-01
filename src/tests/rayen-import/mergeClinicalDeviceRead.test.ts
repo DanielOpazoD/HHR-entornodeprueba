@@ -196,11 +196,11 @@ describe('current complete Eloísa JSON device reconciliation', () => {
     expect(sync(before, [])).toBe(before);
   });
 
-  it('converts offset installation and removal events to Rapa Nui, including the previous calendar day', () => {
+  it('keeps the source installation clock and converts an explicit removal to Rapa Nui', () => {
     const before = sync(base(), [row('CVC', '00:25')]);
     expect(history(before)[0]).toMatchObject({
-      installationDate: '2026-10-15',
-      installationTime: '22:25',
+      installationDate: '2026-10-16',
+      installationTime: '00:25',
     });
     const result = sync(before, [
       { ...row('CVC', '00:25'), removedDatetime: '2026-10-18T00:58:33.14-03:00' },

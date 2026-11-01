@@ -23,16 +23,13 @@ const buildNote = (device: MappedDevice): string =>
   [device.location, device.note].filter(part => part.trim().length > 0).join(' · ');
 
 export const sameDeviceInstallation = (
-  item: Pick<DeviceInstance, 'type' | 'installationDate' | 'installationTime' | 'source'>,
+  item: Pick<DeviceInstance, 'type' | 'installationDate' | 'installationTime'>,
   device: MappedDevice
 ): boolean =>
   canonicalizeRayenDeviceType(item.type) === canonicalizeRayenDeviceType(device.type) &&
   Boolean(item.installationDate && item.installationTime) &&
-  ((item.installationDate === device.installationDate &&
-    item.installationTime === device.installationTime) ||
-    (!item.source &&
-      item.installationDate === device.legacyInstallation?.date &&
-      item.installationTime === device.legacyInstallation?.time));
+  item.installationDate === device.installationDate &&
+  item.installationTime === device.installationTime;
 
 const canonicalizePersistedDeviceType = (type: string): string =>
   /^VVP#\d+$/i.test(type.trim()) ? type.trim().toUpperCase() : canonicalizeRayenDeviceType(type);
@@ -123,14 +120,6 @@ export const mergeReportDevices = (
       ? {
           ...incoming,
           type: matching.type,
-          ...(!matching.source &&
-          incoming.legacyInstallation?.date === matching.installationDate &&
-          incoming.legacyInstallation?.time === matching.installationTime
-            ? {
-                installationDate: matching.installationDate,
-                installationTime: matching.installationTime!,
-              }
-            : {}),
         }
       : incoming;
     if (

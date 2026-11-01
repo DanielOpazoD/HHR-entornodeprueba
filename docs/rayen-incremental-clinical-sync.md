@@ -53,9 +53,8 @@ retiros se revierte al sincronizar.
 
 La identidad del dispositivo es tipo base más fecha/hora de instalación, dentro del paciente y
 episodio; el número de VVP es sólo su etiqueta local. Al desaparecer otra VVP, la que sigue
-activa conserva instancia y etiqueta. Los instantes con offset se convierten con el reloj
-hospitalario; para instancias antiguas sin marca se reconoce también la hora que guardaba
-el parser anterior, sin cambiar su procedencia ni duplicarlas.
+activa conserva instancia y etiqueta. La hora de instalación se compara tal como la entrega la
+fuente, igual que la guardaba la importación y la lectura por PDF.
 
 **Instancias antiguas sin `source`:** fecha, hora y ubicación no prueban origen, porque las rutas
 manuales también las guardan. Sí lo prueba una nota con vencimiento ISO
