@@ -18,6 +18,26 @@ const contract = (
 ).HhrEloisaPatientCodeContract;
 
 describe('extension/HHR manual patient code compatibility', () => {
+  it.each([
+    ['2026-10-29T00:58:33.14-03:00', '2026-10-28', '22:58'],
+    ['2026-10-29T03:58:00Z', '2026-10-28', '22:58'],
+    ['2026-08-28T06:35:00-06:00', '2026-08-28', '06:35'],
+    ['2026-10-28T22:58:00', '2026-10-28', '22:58'],
+  ])('keeps the admission of %s in Rapa Nui local time', (admissionDatetime, date, time) => {
+    const payload = contract.buildPayload({
+      capturedAt: '2026-10-29T04:00:00.000Z',
+      patient: {
+        encounterId: '98765',
+        firstGivenName: 'Ana',
+        firstFamilyName: 'Rapa',
+        run: '11.111.111-1',
+        admissionDatetime,
+      },
+      deviceEntries: [],
+    });
+    expect(payload).toMatchObject({ admissionDate: date, admissionTime: time });
+  });
+
   it('creates a code in the extension that HHR reads without losing accents or devices', async () => {
     const payload = contract.buildPayload({
       capturedAt: '2026-08-28T20:15:00.000Z',

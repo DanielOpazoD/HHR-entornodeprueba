@@ -20,11 +20,11 @@
   };
   const isoParts = value => {
     const source = text(value);
-    const dateMatch = source.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})/);
+    const dateMatch = source.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})(?!.*(?:Z|[+-]\d{2}:?\d{2})$)/);
     if (dateMatch) return { date: dateMatch[1], time: dateMatch[2] };
     const parsed = new Date(source);
     if (!source || Number.isNaN(parsed.getTime())) return { date: '', time: '' };
-    return { date: parsed.toISOString().slice(0, 10), time: parsed.toISOString().slice(11, 16) };
+    const local = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Pacific/Easter', dateStyle: 'short', timeStyle: 'short' }).format(parsed); return { date: local.slice(0, 10), time: local.slice(11, 16) };
   };
   const biologicalSex = patient => {
     const value = text(patient.gender || patient.administrativeSex || patient.sex).toLowerCase();
