@@ -154,7 +154,12 @@ describe('rayen sync history', () => {
     );
 
     expect(coverage.issues).toEqual([
-      { bedId: 'H2C1', source: 'staffing', reason: 'source_unavailable' },
+      {
+        bedId: 'H2C1',
+        source: 'staffing',
+        reason: 'source_unavailable',
+        cause: expect.any(String),
+      },
     ]);
     expect(JSON.stringify(coverage)).not.toContain('Error interno');
   });

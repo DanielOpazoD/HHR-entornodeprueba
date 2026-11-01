@@ -71,6 +71,18 @@ export const RAYEN_SYNC_ISSUE_REASONS = [
 ] as const;
 export type RayenSyncIssueReason = (typeof RAYEN_SYNC_ISSUE_REASONS)[number];
 
+export const CLINICAL_READ_ERROR_CODES = [
+  'episode_not_authorized',
+  'session_required',
+  'permission_denied',
+  'source_timeout',
+  'source_unavailable',
+  'invalid_request',
+  'invalid_response',
+  'unexpected',
+] as const;
+export type ClinicalReadErrorCode = (typeof CLINICAL_READ_ERROR_CODES)[number];
+
 export const CUDYR_RECOVERY_KINDS = [
   'read_failed',
   'attribution_unreliable',
@@ -134,6 +146,8 @@ export interface RayenSyncCoverageIssue {
   bedId: string;
   source: RayenSyncIssueSource;
   reason: RayenSyncIssueReason;
+  /** Why the source could not be read, as a code: the raw message is never persisted. */
+  cause?: ClinicalReadErrorCode;
 }
 
 /**
