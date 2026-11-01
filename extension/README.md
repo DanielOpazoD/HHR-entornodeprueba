@@ -343,6 +343,13 @@ paneles u otras rutas sin episodio abre directamente **Hospitalizados** y deja d
 del paciente actual. Los accesos contextuales de Indicaciones y Receta médica se mantienen solamente en
 la tabla de fármacos de Gestión de cuidados.
 
+### El permiso de lectura sobrevive al reposo (0.48.61)
+
+El service worker se duerme a los pocos segundos sin actividad y perdía los permisos de lectura por
+episodio mientras una persona revisaba la propuesta. HHR tenía que repetir la captura completa. Ahora
+el permiso se conserva en `chrome.storage.session`, con los mismos 5 minutos y por pestaña y episodio.
+Ese almacenamiento vive en memoria, se borra al cerrar Chrome y no es accesible para los content scripts.
+
 ### Una sola captura por sincronización (0.48.60)
 
 Al reiniciarse, el service worker reinyecta los puentes de la página de HHR. Siete de ellos sumaban

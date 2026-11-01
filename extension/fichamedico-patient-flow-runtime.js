@@ -34,6 +34,7 @@
     const handle = async (message, sender) => {
       const encId = String(message && message.encId || '');
       if (!/^\d+$/.test(encId)) return { error: 'El episodio clínico no es válido para consultar su trazabilidad.' };
+      await authorization.ready;
       if (!isAuthorized(sender, encId)) return { error: 'La trazabilidad no fue autorizada por el snapshot de esta pestaña.' };
       const session = await resolveSession();
       if (session.error) return session;
@@ -54,6 +55,7 @@
       }
     };
     return Object.freeze({
+      authorizationReady: authorization.ready,
       authorizeSnapshotResponse,
       authorizeBundleResponse,
       authorizeVerifiedEncounter,

@@ -1,9 +1,33 @@
-/** Short-lived exact-episode authorization scoped to one trusted HHR tab. */
+/**
+ * Short-lived exact-episode authorization scoped to one trusted HHR tab.
+ * The worker sleeps within seconds, so a person reviewing a sync would lose grants kept only in
+ * memory. `chrome.storage.session` is memory-only, cleared with the browser, closed to content
+ * scripts by default. `has` stays synchronous and denies until `ready`: callers await it first.
+ */
 (function (root) {
   'use strict';
-  const create = ({ trustedOrigins, ttlMs = 5 * 60 * 1000 }) => {
+  const STORAGE_KEY = 'hhrTabEncounterAuthorization';
+  const create = ({ trustedOrigins, ttlMs = 5 * 60 * 1000, storage = root.chrome?.storage?.session }) => {
     const authorizedByTab = new Map();
     const generationByTab = new Map();
+    const persist = () => {
+      const stored = [...authorizedByTab].map(([tabId, { encounterIds, expiresAt }]) => [
+        tabId, { encounterIds: [...encounterIds], expiresAt },
+      ]);
+      // A lost write only sends HHR through its existing recovery, which re-proves the episodes.
+      Promise.resolve(storage?.set({ [STORAGE_KEY]: stored })).catch(() => undefined);
+    };
+    const restore = async () => {
+      const stored = (await storage?.get(STORAGE_KEY))?.[STORAGE_KEY];
+      if (!Array.isArray(stored)) return;
+      for (const [tabId, grant] of stored) {
+        // A grant issued while this read was pending is newer than the stored one.
+        if (grant?.expiresAt >= Date.now() && !authorizedByTab.has(tabId)) {
+          authorizedByTab.set(tabId, { encounterIds: new Set(grant.encounterIds), expiresAt: grant.expiresAt });
+        }
+      }
+    };
+    const ready = restore().catch(() => undefined);
     const trustedTabId = sender => {
       try {
         const origin = sender?.origin || new URL(sender?.url).origin;
@@ -23,12 +47,14 @@
       const items = selectItems(response);
       if (!Array.isArray(items)) {
         authorizedByTab.delete(tabId);
+        persist();
         return response;
       }
       const encounterIds = new Set(
         items.map(item => String(item?.encounterId || '')).filter(id => /^\d+$/.test(id))
       );
       authorizedByTab.set(tabId, { encounterIds, expiresAt: Date.now() + ttlMs });
+      persist();
       return response;
     };
     const add = (sender, encId) => {
@@ -41,6 +67,7 @@
         : new Set();
       encounterIds.add(encounterId);
       authorizedByTab.set(tabId, { encounterIds, expiresAt: Date.now() + ttlMs });
+      persist();
       return true;
     };
     const has = (sender, encId) => {
@@ -49,11 +76,12 @@
       const current = authorizedByTab.get(tabId);
       if (!current || current.expiresAt < Date.now()) {
         authorizedByTab.delete(tabId);
+        persist();
         return false;
       }
       return current.encounterIds.has(String(encId || ''));
     };
-    return Object.freeze({ add, authorizeResponse, has });
+    return Object.freeze({ add, authorizeResponse, has, ready });
   };
   root.HhrTabEncounterAuthorization = Object.freeze({ create });
 })(typeof self !== 'undefined' ? self : globalThis);
