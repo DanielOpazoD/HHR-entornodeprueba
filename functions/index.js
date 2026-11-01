@@ -40,9 +40,16 @@ const { createDailyRecordHistoryFunctions } = require('./lib/pruneDailyRecordHis
 
 const { createAccountFunctions } = require('./lib/accounts/accountFunctions');
 
+const { createDailyRecordRestoreFunctions } = require('./lib/dailyRecordRestoreFunctions');
+
 const authHelpers = createAuthHelpers({ auth, firestore });
 
 module.exports = {
+  ...createDailyRecordRestoreFunctions({
+    firestore,
+    Timestamp,
+    resolveRoleForEmail: authHelpers.resolveRoleForEmail,
+  }),
   ...createDailyRecordHistoryFunctions({ firestore }),
   ...createAccountFunctions({ auth, firestore, helpers: authHelpers }),
   ...createMinsalFunctions({
