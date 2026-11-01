@@ -9,13 +9,23 @@
 # The .deb files apt downloads are kept beside the browser cache. When the
 # Ubuntu mirror is slow (25 MB took 10 minutes on 2026-10-22), apt installs
 # the same packages from disk and only refreshes its package lists.
+#
+# A mirror can also stop answering without closing the connection. apt then waits
+# until the step's 15 minutes run out (seen four times on 2026-10-31), so it gets a
+# stall limit that lets its own retries and the retry below run.
 set -euo pipefail
 
 sources_dir=${APT_SOURCES_DIR:-/etc/apt/sources.list.d}
 disabled_dir=${APT_DISABLED_SOURCES_DIR:-/etc/apt/sources.list.d.ci-disabled}
 archives_dir=${APT_ARCHIVES_DIR:-/var/cache/apt/archives}
 deb_cache=${CHROMIUM_DEB_CACHE:-$HOME/.cache/hhr-chromium-debs}
+apt_conf_dir=${APT_CONF_DIR:-/etc/apt/apt.conf.d}
 sudo_cmd=${CI_SUDO-sudo}
+
+limit_apt_stalls() {
+  printf 'Acquire::http::Timeout "30";\nAcquire::https::Timeout "30";\nAcquire::Retries "2";\n' |
+    $sudo_cmd tee "$apt_conf_dir/99hhr-ci-stall-limit" >/dev/null
+}
 
 seed_cached_debs() {
   # A cache miss has no folder yet; under pipefail a failing find would abort the install.
@@ -37,6 +47,7 @@ install_chromium() {
   npx playwright install --with-deps chromium
 }
 
+limit_apt_stalls
 seed_cached_debs
 if install_chromium; then
   keep_downloaded_debs

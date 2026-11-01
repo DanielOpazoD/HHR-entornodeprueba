@@ -27,6 +27,8 @@ const runInstall = (
   const disabled = path.join(root, 'disabled');
   const archives = path.join(root, 'archives');
   const debCache = path.join(root, 'deb-cache');
+  const aptConf = path.join(root, 'apt.conf.d');
+  fs.mkdirSync(aptConf);
   fs.mkdirSync(bin);
   fs.mkdirSync(sources);
   if (debCacheExists) fs.mkdirSync(debCache);
@@ -61,11 +63,13 @@ const runInstall = (
       APT_SOURCES_DIR: sources,
       APT_DISABLED_SOURCES_DIR: disabled,
       APT_ARCHIVES_DIR: archives,
+      APT_CONF_DIR: aptConf,
       CHROMIUM_DEB_CACHE: debCache,
       CI_SUDO: '',
     },
   });
   return {
+    aptStallLimit: fs.readFileSync(path.join(aptConf, '99hhr-ci-stall-limit'), 'utf8'),
     status: result.status,
     output: `${result.stdout}${result.stderr}`,
     calls: fs.readFileSync(calls, 'utf8').trim().split('\n'),
@@ -82,6 +86,13 @@ it('installs once and leaves apt sources alone when the first attempt succeeds',
   expect(result.calls).toEqual(['playwright install --with-deps chromium']);
   expect(result.remaining).toEqual(['microsoft-prod.list', 'ubuntu.sources']);
   expect(result.disabled).toEqual([]);
+});
+
+it('limits how long apt waits on a mirror that stops answering', () => {
+  const { aptStallLimit, status } = runInstall(0);
+  expect(status).toBe(0);
+  expect(aptStallLimit).toContain('Acquire::https::Timeout "30";');
+  expect(aptStallLimit).toContain('Acquire::http::Timeout "30";');
 });
 
 it('retries once with only the Ubuntu archive when a third-party repository breaks apt', () => {
