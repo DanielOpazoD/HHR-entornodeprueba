@@ -74,7 +74,7 @@ const createAuthFunctions = ({ auth, helpers }) => ({
       throw new functions.https.HttpsError('internal', 'Failed to sync current user role claim');
     }
   }),
-  checkUserRole: functions.https.onCall(async (_data, context) => {
+  checkUserRole: functions.runWith({ memory: '1GB' }).https.onCall(async (_data, context) => {
     const email = requireAuthenticatedEmail(context);
 
     try {
