@@ -3,7 +3,6 @@ const functions = require('firebase-functions/v1');
 
 const POLICY_SCHEMA_VERSION = 2;
 const LEGACY_POLICY_SCHEMA_VERSION = 1;
-const IMPORT_MODES = new Set(['preview', 'auto']);
 
 const failPolicyAuthority = () => {
   throw new functions.https.HttpsError(
@@ -17,7 +16,7 @@ const parseGlobalPolicy = snapshot => {
   const policy = snapshot.data?.() || {};
   if (
     policy.schemaVersion !== POLICY_SCHEMA_VERSION ||
-    !IMPORT_MODES.has(policy.mode) ||
+    policy.mode !== 'preview' ||
     policy.clinicalBatchMode !== 'enforced' ||
     !Number.isInteger(policy.revision) ||
     policy.revision < 1
@@ -34,7 +33,7 @@ const parseLegacyGlobalPolicy = snapshot => {
   const policy = snapshot.data?.() || {};
   if (
     policy.schemaVersion !== LEGACY_POLICY_SCHEMA_VERSION ||
-    !IMPORT_MODES.has(policy.mode) ||
+    policy.mode !== 'preview' ||
     !Number.isInteger(policy.revision) ||
     policy.revision < 1
   ) {

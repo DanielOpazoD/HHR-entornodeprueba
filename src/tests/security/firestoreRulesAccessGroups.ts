@@ -1546,21 +1546,13 @@ export function registerFirestoreRulesAccessGroups({
     });
 
     it('Only admins can create the strict global Rayen import policy', async () => {
-      await assertSucceeds(
-        admin()
-          .doc(rayenImportPolicyPath)
-          .set(rayenPolicy(1, 'user_admin', 'auto'))
-      );
+      await assertSucceeds(admin().doc(rayenImportPolicyPath).set(rayenPolicy(1)));
       await assertFails(nurse().doc(rayenImportPolicyPath).set(rayenPolicy(1, 'user_nurse')));
     });
 
     it('Requires sequential Rayen policy revisions and the authenticated actor', async () => {
       await setupDoc(admin(), rayenImportPolicyPath, rayenPolicy(1));
-      await assertSucceeds(
-        admin()
-          .doc(rayenImportPolicyPath)
-          .set(rayenPolicy(2, 'user_admin', 'auto', 'enforced'))
-      );
+      await assertSucceeds(admin().doc(rayenImportPolicyPath).set(rayenPolicy(2)));
       await assertFails(admin().doc(rayenImportPolicyPath).set(rayenPolicy(4)));
       await assertFails(admin().doc(rayenImportPolicyPath).set(rayenPolicy(3, 'another-admin')));
       await assertFails(admin().doc(rayenImportPolicyPath).delete());
@@ -1575,10 +1567,20 @@ export function registerFirestoreRulesAccessGroups({
         updatedByUid: 'legacy-admin',
       });
 
-      await assertSucceeds(
+      await assertSucceeds(admin().doc(rayenImportPolicyPath).set(rayenPolicy(4)));
+    });
+
+    it('Rejects retired auto import policy on create and update', async () => {
+      await assertFails(
         admin()
           .doc(rayenImportPolicyPath)
-          .set(rayenPolicy(4, 'user_admin', 'auto', 'enforced'))
+          .set(rayenPolicy(1, 'user_admin', 'auto'))
+      );
+      await setupDocBypass(rayenImportPolicyPath, rayenPolicy(1));
+      await assertFails(
+        admin()
+          .doc(rayenImportPolicyPath)
+          .set(rayenPolicy(2, 'user_admin', 'auto'))
       );
     });
 
