@@ -4,10 +4,6 @@ import {
 } from '../contracts/clinicalReadError';
 import { requestViaBridgeChannel } from './bridgeRequestChannel';
 import { CLINICAL_READ_TIMEOUT_MS } from '../contracts/clinicalReadPolicy';
-import {
-  RAYEN_PATIENT_CLINICAL_BUNDLE_CAPABILITY,
-  hasRayenExtensionCapability,
-} from './extensionHealthBridge';
 import type {
   RayenDeviceReportResult,
   RayenHistoryScaleEvent,
@@ -84,9 +80,7 @@ const allSectionsFailed = (
 
 /**
  * Las tres lecturas clínicas de un paciente en UN solo mensaje a la extensión.
- * Devuelve `null` cuando la extensión instalada no declara la capability
- * (extensión antigua): el caller usa entonces los tres canales individuales
- * sin pagar un timeout. Un fallo de mensajería degrada las tres secciones con
+ * Un fallo de mensajería degrada las tres secciones con
  * `{error}` y el caller reintenta cada fuente por su canal individual.
  */
 export const requestPatientClinicalBundle = (
@@ -99,9 +93,6 @@ export const requestPatientClinicalBundle = (
   signal?: AbortSignal
 ): Promise<RayenPatientClinicalBundle | null> => {
   if (typeof window === 'undefined' || !encId || !fecha) return Promise.resolve(null);
-  if (!hasRayenExtensionCapability(RAYEN_PATIENT_CLINICAL_BUNDLE_CAPABILITY)) {
-    return Promise.resolve(null);
-  }
   return requestViaBridgeChannel<RayenPatientClinicalBundle>({
     prefix: 'clinical-bundle',
     requestType: RAYEN_PATIENT_CLINICAL_BUNDLE_REQUEST_TYPE,

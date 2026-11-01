@@ -8,7 +8,6 @@ import {
 export interface ClinicalCudyrSource {
   map: Map<string, RayenCudyrCategory>;
   historyAvailable: boolean;
-  captureContract?: 1;
   observedEpisodeIds?: string[];
   metadataStatus?: 'complete' | 'partial';
 }
@@ -78,7 +77,6 @@ export const captureClinicalCudyrSource = async ({
       source: {
         map: new Map(normalizeItems(response).map(item => [item.encId, item])),
         historyAvailable,
-        captureContract: response.captureContract,
         observedEpisodeIds: response.observedEpisodeIds,
         metadataStatus: response.metadataStatus,
       },

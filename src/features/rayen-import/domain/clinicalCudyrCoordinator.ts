@@ -169,7 +169,7 @@ export const createClinicalCudyrCoordinator = ({
       source.historyAvailable &&
       (row
         ? row.source === 'gestion_camas'
-        : source.captureContract === 1 && source.observedEpisodeIds?.includes(clinicalEpisodeId));
+        : source.observedEpisodeIds?.includes(clinicalEpisodeId));
     const { priorPersisted, historicalChanged } = await applyPrevious(clinicalEpisodeId, bedId);
 
     const existingCudyr = patient.evaluationScores?.cudyr;

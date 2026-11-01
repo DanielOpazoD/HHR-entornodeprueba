@@ -1,8 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS,
-  RAYEN_PATIENT_FLOW_CAPABILITY,
-  RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_CAPABILITY,
   requestRayenExtensionHealth,
   type RayenExtensionHealthReport,
 } from '@/features/rayen-import/bridge/extensionHealthBridge';
@@ -31,7 +29,6 @@ const healthyReport: RayenExtensionHealthReport = {
   version: '5.0.0',
   protocolVersion: 5,
   checkedAt: '2026-09-09T12:00:00.000Z',
-  capabilities: [RAYEN_PATIENT_FLOW_CAPABILITY, RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_CAPABILITY],
   fichaMedico: { status: 'ready', message: 'Conectado' },
   gestionCamas: { status: 'ready', message: 'Conectado' },
 };
@@ -192,43 +189,6 @@ describe('createRayenSnapshotEvidenceClient', () => {
       expect(requestRayenExtensionHealth).toHaveBeenCalledTimes(2);
       expect(counters).toEqual({ requests: 5, cacheHits: 2, timeouts: 1 });
       expect(vi.getTimerCount()).toBe(0);
-    }
-  );
-
-  it.each([
-    { capabilities: [] },
-    { capabilities: [RAYEN_PATIENT_FLOW_CAPABILITY] },
-    { capabilities: [RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_CAPABILITY] },
-  ])(
-    'only calls capabilities confirmed in an actual report: $capabilities',
-    async ({ capabilities }) => {
-      vi.mocked(requestRayenExtensionHealth).mockResolvedValue({
-        report: { ...healthyReport, capabilities },
-      });
-      const { client } = setup();
-      const [flow, discharge] = await Promise.all([
-        client.fetchPatientFlowReport('101'),
-        client.fetchStatisticalDischarge('101'),
-      ]);
-      if (capabilities.includes(RAYEN_PATIENT_FLOW_CAPABILITY)) {
-        expect(flow).toEqual({ base64: 'patient-flow-pdf' });
-        expect(requestPatientFlowReport).toHaveBeenCalledTimes(1);
-      } else {
-        expect(flow.error).toBe('La extensión instalada no admite trazabilidad de camas.');
-        expect(requestPatientFlowReport).not.toHaveBeenCalled();
-      }
-      if (capabilities.includes(RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_CAPABILITY)) {
-        expect(discharge).toEqual({ base64: 'discharge-pdf' });
-        expect(requestStatisticalDischargeEvidence).toHaveBeenCalledTimes(1);
-      } else {
-        expect(discharge.error).toBe(
-          'La extensión instalada no admite lectura del egreso individual.'
-        );
-        expect(requestStatisticalDischargeEvidence).not.toHaveBeenCalled();
-      }
-      await client.fetchPatientFlowReport('102');
-      await client.fetchStatisticalDischarge('102');
-      expect(requestRayenExtensionHealth).toHaveBeenCalledTimes(1);
     }
   );
 

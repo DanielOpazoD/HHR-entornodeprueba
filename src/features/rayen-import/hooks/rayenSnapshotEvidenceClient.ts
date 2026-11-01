@@ -5,8 +5,6 @@ import {
   RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS,
   type RayenExtensionHealthCheck,
   requestRayenExtensionHealth,
-  supportsPatientFlowReport,
-  supportsStatisticalDischargeEvidence,
 } from '../bridge/extensionHealthBridge';
 import { createPatientFlowRequestCache } from '../domain/patientFlowRequestCache';
 import { isRayenTimeoutMessage } from '../domain/rayenSyncPerformance';
@@ -47,7 +45,7 @@ export const createRayenSnapshotEvidenceClient = (
   const getExtensionHealth = () => {
     if (!extensionHealth) {
       extensionHealth = readExtensionHealth().then(health => {
-        // Keep verified capabilities for this run; a later stage may retry a failed handshake.
+        // Keep the verified report for this run; a later stage may retry a failed handshake.
         if (!health.report) extensionHealth = null;
         return health;
       });
@@ -59,9 +57,6 @@ export const createRayenSnapshotEvidenceClient = (
     async encId => {
       const health = await getExtensionHealth();
       if (!health.report) return { base64: '', error: health.error };
-      if (!supportsPatientFlowReport(health.report)) {
-        return { base64: '', error: 'La extensión instalada no admite trazabilidad de camas.' };
-      }
       const read = async (timeoutMs: number) => {
         counters.requests += 1;
         const result = await requestPatientFlowReport(encId, timeoutMs);
@@ -83,12 +78,6 @@ export const createRayenSnapshotEvidenceClient = (
     async (encId: string) => {
       const health = await getExtensionHealth();
       if (!health.report) return { base64: '', error: health.error };
-      if (!supportsStatisticalDischargeEvidence(health.report)) {
-        return {
-          base64: '',
-          error: 'La extensión instalada no admite lectura del egreso individual.',
-        };
-      }
       counters.requests += 1;
       const result = await requestStatisticalDischargeEvidence(encId);
       if (isRayenTimeoutMessage(result.error)) counters.timeouts += 1;

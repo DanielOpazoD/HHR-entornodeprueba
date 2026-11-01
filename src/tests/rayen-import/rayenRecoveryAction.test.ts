@@ -1,20 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { deriveRayenRecoveryAction } from '@/features/rayen-import/bridge/rayenRecoveryAction';
 import {
-  RAYEN_HHR_CONNECTION_REPAIR_BRIDGE_CAPABILITY,
   RAYEN_EXTENSION_PROTOCOL_VERSION,
   type RayenExtensionHealthReport,
 } from '@/features/rayen-import/bridge/extensionHealthBridge';
 
 const report = (
   ficha: RayenExtensionHealthReport['fichaMedico'],
-  camas: RayenExtensionHealthReport['gestionCamas'],
-  capabilities = [RAYEN_HHR_CONNECTION_REPAIR_BRIDGE_CAPABILITY]
+  camas: RayenExtensionHealthReport['gestionCamas']
 ): RayenExtensionHealthReport => ({
-  version: '0.48.12',
+  version: '0.48.61',
   protocolVersion: RAYEN_EXTENSION_PROTOCOL_VERSION,
   checkedAt: '2026-09-30T12:00:00.000Z',
-  capabilities,
   fichaMedico: ficha,
   gestionCamas: camas,
   hhr: { status: 'ready', reason: 'connected', message: 'HHR vigente.' },
@@ -29,13 +26,6 @@ describe('deriveRayenRecoveryAction', () => {
       'solo falta Gestión de Camas',
       'blocked',
       report(ready, { status: 'missing', reason: 'tab_missing', message: 'No abierta.' }),
-      'connect-gc',
-      'Abrir Gestión de Camas',
-    ],
-    [
-      'extensión anterior sin motivo para Gestión de Camas',
-      'blocked',
-      report(ready, { status: 'missing', message: 'No abierta.' }, []),
       'connect-gc',
       'Abrir Gestión de Camas',
     ],
@@ -102,17 +92,5 @@ describe('deriveRayenRecoveryAction', () => {
         ),
       })
     ).toEqual({ kind: 'repair', label: 'Abrir conexión limpia' });
-  });
-
-  it('degrada a comprobación si el runtime existe pero el puente HHR todavía es antiguo', () => {
-    expect(
-      deriveRayenRecoveryAction({
-        connection: 'blocked',
-        working: false,
-        report: report({ status: 'stale', reason: 'outdated_tab', message: 'Antigua.' }, ready, [
-          'clean-connection-repair',
-        ]),
-      })
-    ).toEqual({ kind: 'refresh', label: 'Reintentar comprobación' });
   });
 });

@@ -42,39 +42,37 @@ const prescriptions = (value: unknown): value is ClinicalAntecedentPrescription[
       record(item) && stringFields(item, ['id', 'date', 'status', 'type']) && strings(item.items)
   );
 
-/** Accept legacy extensions; whitelist new fields instead of spreading bridge input. */
+/** Whitelist the current extension payload instead of spreading bridge input. */
 export const decodeClinicalAntecedentDetail = (
   value: unknown
 ): ClinicalAntecedentDetail | undefined => {
   if (!record(value) || !stringFields(value, ['reason', 'history', 'professional'])) return;
-  if (value.attachments !== undefined && !attachments(value.attachments)) return;
-  if (
-    value.careType !== undefined &&
-    value.careType !== 'emergency' &&
-    value.careType !== 'outpatient'
-  )
-    return;
-  if (value.patientName !== undefined && typeof value.patientName !== 'string') return;
-  if (value.diagnoses !== undefined && !strings(value.diagnoses)) return;
-  if (value.indications !== undefined && !strings(value.indications)) return;
-  if (value.physicalExams !== undefined && !exams(value.physicalExams)) return;
-  if (value.prescriptions !== undefined && !prescriptions(value.prescriptions)) return;
+  if (!attachments(value.attachments)) return;
+  if (value.careType !== 'emergency' && value.careType !== 'outpatient') return;
+  if (typeof value.patientName !== 'string') return;
+  if (!strings(value.diagnoses)) return;
+  if (!strings(value.indications)) return;
+  if (!exams(value.physicalExams)) return;
+  if (!prescriptions(value.prescriptions)) return;
   return {
     reason: value.reason as string,
     history: value.history as string,
     professional: value.professional as string,
-    attachments: (
-      (value.attachments as ClinicalAntecedentDetail['attachments'] | undefined) ?? []
-    ).map(({ id, label }) => ({ id, label })),
-    careType: value.careType as ClinicalAntecedentDetail['careType'],
-    patientName: value.patientName as string | undefined,
-    diagnoses: value.diagnoses as string[] | undefined,
-    indications: value.indications as string[] | undefined,
-    physicalExams: (value.physicalExams as ClinicalAntecedentDetail['physicalExams'])?.map(
-      ({ name, fields }) => ({ name, fields: fields.map(({ label, value }) => ({ label, value })) })
-    ),
-    prescriptions: (value.prescriptions as ClinicalAntecedentDetail['prescriptions'])?.map(
-      ({ id, date, status, type, items }) => ({ id, date, status, type, items })
-    ),
+    attachments: value.attachments.map(({ id, label }) => ({ id, label })),
+    careType: value.careType,
+    patientName: value.patientName,
+    diagnoses: value.diagnoses,
+    indications: value.indications,
+    physicalExams: value.physicalExams.map(({ name, fields }) => ({
+      name,
+      fields: fields.map(({ label, value }) => ({ label, value })),
+    })),
+    prescriptions: value.prescriptions.map(({ id, date, status, type, items }) => ({
+      id,
+      date,
+      status,
+      type,
+      items,
+    })),
   };
 };

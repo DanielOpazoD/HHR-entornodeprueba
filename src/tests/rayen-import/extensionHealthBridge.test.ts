@@ -4,18 +4,14 @@ import {
   RAYEN_EXTENSION_HEALTH_REQUEST_TYPE,
   RAYEN_EXTENSION_HEALTH_RESULT_TYPE,
   RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS,
-  hasRayenExtensionCapability,
   isRayenExtensionHealthReport,
   requestRayenExtensionHealth,
-  resetRayenExtensionCapabilitiesForTests,
   subscribeToRayenExtensionHealthPush,
-  supportsPatientDocumentManager,
-  supportsPatientFlowReport,
   type RayenExtensionHealthReport,
 } from '@/features/rayen-import/bridge/extensionHealthBridge';
 
 const report: RayenExtensionHealthReport = {
-  version: '0.5.0',
+  version: '0.48.61',
   runtimeGeneration: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
   runtimeStartedAt: 1_788_445_690_306,
   protocolVersion: 1,
@@ -47,15 +43,6 @@ describe('extensionHealthBridge', () => {
       })
     ).toBe(false);
     expect(isRayenExtensionHealthReport({ ...report, capabilities: [false] })).toBe(false);
-    expect(supportsPatientFlowReport(report)).toBe(true);
-    expect(supportsPatientFlowReport({ ...report, capabilities: undefined })).toBe(false);
-    expect(
-      supportsPatientDocumentManager({
-        ...report,
-        capabilities: ['patient-document-manager'],
-      })
-    ).toBe(true);
-    expect(supportsPatientDocumentManager(report)).toBe(false);
   });
 
   it('correlates the health response and returns the extension report', async () => {
@@ -161,8 +148,7 @@ describe('extensionHealthBridge', () => {
     await expect(request).resolves.toEqual({ report });
   });
 
-  it('entrega los reportes empujados por la extensión y recuerda sus capabilities', () => {
-    resetRayenExtensionCapabilitiesForTests();
+  it('entrega los reportes empujados por la extensión al suscriptor', () => {
     const received: RayenExtensionHealthReport[] = [];
     const unsubscribe = subscribeToRayenExtensionHealthPush(pushed => received.push(pushed));
     const pushedReport = { ...report, capabilities: ['health-push'] };
@@ -192,7 +178,6 @@ describe('extensionHealthBridge', () => {
       })
     );
     expect(received).toEqual([pushedReport]);
-    expect(hasRayenExtensionCapability('health-push')).toBe(true);
 
     unsubscribe();
     window.dispatchEvent(
@@ -203,7 +188,6 @@ describe('extensionHealthBridge', () => {
       })
     );
     expect(received).toHaveLength(1);
-    resetRayenExtensionCapabilitiesForTests();
   });
 
   it('ends a synchronization preflight at its explicit bounded timeout', async () => {
@@ -224,7 +208,7 @@ describe('extension health report · vigencia absoluta', () => {
     const { isRayenExtensionHealthReport, RAYEN_EXTENSION_PROTOCOL_VERSION } =
       await import('@/features/rayen-import/bridge/extensionHealthBridge');
     const base = {
-      version: '0.48.5',
+      version: '0.48.61',
       protocolVersion: RAYEN_EXTENSION_PROTOCOL_VERSION,
       checkedAt: '2026-09-02T13:41:09.361Z',
       fichaMedico: {

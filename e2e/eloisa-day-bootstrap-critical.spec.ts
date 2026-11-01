@@ -41,7 +41,7 @@ const installFakeExtensionHealth = async (page: Page) => {
           type: 'HHR_RAYEN_EXTENSION_HEALTH_RESULT',
           reqId: event.data.reqId,
           report: {
-            version: 'e2e-bootstrap',
+            version: '0.48.61',
             protocolVersion: 5,
             capabilities: ['sync-preflight-verification'],
             syncPreflight: event.data.verifySessions === true,

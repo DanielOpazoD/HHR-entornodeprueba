@@ -77,7 +77,6 @@ const clientBuild = await build({
   stdin: {
     contents: `
       export { requestPatientClinicalBundle } from './src/features/rayen-import/bridge/patientClinicalBundleChannel';
-      export { rememberRayenExtensionCapabilities } from './src/features/rayen-import/bridge/extensionHealthBridge';
     `,
     resolveDir: ROOT,
   },
@@ -244,10 +243,6 @@ try {
 
   await hhr.addScriptTag({ content: clientBuild.outputFiles[0].text });
   await hhr.evaluate(() => {
-    // This fixture mounts only the read client, without the application shell/health subscriber.
-    HhrUpgradeClinicalClient.rememberRayenExtensionCapabilities({
-      capabilities: ['patient-clinical-bundle'],
-    });
     window.__hhrUpgradeReads = {};
     window.__hhrUpgradeRequestIds = [];
     window.addEventListener('message', event => {

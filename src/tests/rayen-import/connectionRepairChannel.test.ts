@@ -7,7 +7,7 @@ import {
 import { RAYEN_EXTENSION_PROTOCOL_VERSION } from '@/features/rayen-import/bridge/extensionHealthBridge';
 
 const healthReport = {
-  version: '0.48.12',
+  version: '0.48.61',
   protocolVersion: RAYEN_EXTENSION_PROTOCOL_VERSION,
   checkedAt: new Date().toISOString(),
   fichaMedico: { status: 'ready' as const, message: 'Ficha vigente.' },

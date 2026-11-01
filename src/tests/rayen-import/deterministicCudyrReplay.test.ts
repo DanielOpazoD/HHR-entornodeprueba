@@ -130,7 +130,6 @@ describe('CUDYR through the persisted clinical replay', () => {
           items: [],
           source: 'gestion_camas',
           historyAvailable: true,
-          captureContract: 1,
           observedEpisodeIds: [],
         },
       ];
@@ -155,7 +154,6 @@ describe('CUDYR through the persisted clinical replay', () => {
                 : [],
             source: 'gestion_camas',
             historyAvailable: true,
-            captureContract: emptyEvidence === 'observed episode only' ? 1 : undefined,
             observedEpisodeIds:
               emptyEvidence === 'observed episode only' ? [patient.encounterId] : undefined,
           },

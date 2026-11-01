@@ -17,7 +17,6 @@ const response = (): RayenCudyrCategoriesResponse => ({
   items: [],
   source: 'gestion_camas',
   historyAvailable: true,
-  captureContract: 1,
   observedEpisodeIds: [],
   metadataStatus: 'complete',
 });
@@ -47,13 +46,11 @@ const dependencies = (source = response()) => ({
 });
 
 describe('CUDYR synchronization after the episode leaves current beds', () => {
-  it.each(['missing', 'other-episode', 'legacy', 'legacy-observed'])(
+  it.each(['missing', 'other-episode'])(
     'preserves the accepted night result with a %s source row',
     async kind => {
       const source = response();
       if (kind === 'other-episode') source.items = [{ ...row, encId: 'synthetic-new-episode' }];
-      if (kind.startsWith('legacy')) source.captureContract = undefined;
-      if (kind === 'legacy-observed') source.observedEpisodeIds = [episode];
       const rec = census();
       const before = structuredClone(rec);
       const deps = dependencies(source);
@@ -71,7 +68,7 @@ describe('CUDYR synchronization after the episode leaves current beds', () => {
           evaluations: [],
           capture: expect.objectContaining({
             clinicalEpisodeId: episode,
-            status: kind.startsWith('legacy') ? 'legacy_extension' : 'not_observed',
+            status: 'not_observed',
           }),
         })
       );

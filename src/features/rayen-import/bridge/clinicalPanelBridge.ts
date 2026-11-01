@@ -92,7 +92,7 @@ export const requestClinicalPanel = (
       signal?.removeEventListener('abort', onAbort);
     };
 
-    // Cancels the HHR wait only; older extensions may finish their read in the background.
+    // Cancels the HHR wait; the extension may finish its read in the background.
     const onAbort = (): void => {
       cleanup();
       resolve(failure('Consulta del panel clínico cancelada.'));

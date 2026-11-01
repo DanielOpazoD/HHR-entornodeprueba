@@ -25,7 +25,7 @@ const report = (
   camas: SourceFixture = ready,
   capabilities = ['clean-connection-repair']
 ) => ({
-  version: '0.48.12',
+  version: '0.48.61',
   capabilities,
   fichaMedico: ficha,
   gestionCamas: camas,

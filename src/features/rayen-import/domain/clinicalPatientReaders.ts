@@ -60,11 +60,9 @@ const settleOnce = async <T>(
 
 /**
  * Las tres lecturas de Eloísa de un paciente (dispositivos, historial de
- * escalas y formularios). Con la capability `patient-clinical-bundle`, las
- * tres viajan en UN solo mensaje a la extensión; una sección que falle se
- * reintenta una única vez por su canal individual (máximo dos intentos por
- * fuente, igual que el camino legado). Sin la capability, cada fuente usa su
- * canal individual con un reintento propio.
+ * escalas y formularios) viajan en un solo mensaje. Una sección que falle se
+ * reintenta una única vez por su canal individual. Las recuperaciones parciales
+ * consultan sólo las fuentes pendientes por sus canales individuales.
  */
 const readPatientSources = async ({
   encId,

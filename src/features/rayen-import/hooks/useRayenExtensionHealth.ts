@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { normalizeHealthExpiry } from '../bridge/sourceHealthExpiry';
 import {
-  RAYEN_HEALTH_PUSH_CAPABILITY,
-  RAYEN_SYNC_PREFLIGHT_VERIFICATION_CAPABILITY,
   RAYEN_EXTENSION_PROTOCOL_VERSION,
   requestRayenExtensionHealth,
   subscribeToRayenExtensionHealthPush,
@@ -50,8 +48,7 @@ export const RAYEN_EXTENSION_HEALTH_LEASE_MS = 150_000;
 /** Reintento activo tras una conexión caída, con espera creciente para no saturar. */
 export const RAYEN_EXTENSION_HEALTH_RECOVERY_BASE_DELAY_MS = 3_000;
 export const RAYEN_EXTENSION_HEALTH_RECOVERY_MAX_DELAY_MS = 30_000;
-/** Refresco preventivo para extensiones compatibles anteriores a `health-push`. */
-export const RAYEN_EXTENSION_LEGACY_REFRESH_MS = 90_000;
+export const RAYEN_EXTENSION_MINIMUM_VERSION = '0.48.61';
 
 export const rayenExtensionHealthRecoveryDelayMs = (attempt: number): number =>
   Math.min(
@@ -71,7 +68,7 @@ export const expireRayenExtensionHealthState = (
   now = Date.now()
 ): RayenExtensionHealthState => {
   const report = previous.report;
-  if (!report) return previous;
+  if (!report || previous.connection === 'incompatible') return previous;
   const checkedAt = Date.parse(report.checkedAt);
   if (Number.isFinite(checkedAt) && now - checkedAt < RAYEN_EXTENSION_HEALTH_LEASE_MS) {
     return previous;
@@ -124,11 +121,22 @@ const deriveHealthState = (
     };
   }
 
-  if (report.protocolVersion !== RAYEN_EXTENSION_PROTOCOL_VERSION) {
+  const version = report.version.split('.').map(Number);
+  const minimum = RAYEN_EXTENSION_MINIMUM_VERSION.split('.').map(Number);
+  const differentSegment =
+    Array.from(
+      { length: Math.max(version.length, minimum.length) },
+      (_, index) => (version[index] ?? 0) - (minimum[index] ?? 0)
+    ).find(difference => difference !== 0) ?? 0;
+  if (
+    report.protocolVersion !== RAYEN_EXTENSION_PROTOCOL_VERSION ||
+    !/^\d+(?:\.\d+){0,3}$/.test(report.version) ||
+    differentSegment < 0
+  ) {
     return {
       connection: 'incompatible',
       report,
-      message: `Extensión v${report.version} incompatible. Recarga la versión incluida en el proyecto.`,
+      message: `Extensión v${report.version} incompatible. Actualiza a la versión ${RAYEN_EXTENSION_MINIMUM_VERSION} o superior y recarga la extensión Eloísa.`,
       canSync: false,
     };
   }
@@ -145,8 +153,7 @@ const deriveHealthState = (
     };
   }
 
-  // Vigencia de Ficha Médico (extensión ≥ 0.48.5; sesiones de 24 h que vencen a hora
-  // fija, típicamente en plena mañana): mismo criterio que Gestión de Camas.
+  // Vigencia de Ficha Médico: mismo criterio que Gestión de Camas.
   const fichaMedicoRemainingSeconds = report.fichaMedico.remainingSeconds;
   if (
     typeof fichaMedicoRemainingSeconds === 'number' &&
@@ -260,18 +267,15 @@ export const useRayenExtensionHealth = () => {
           ? requestRayenExtensionHealth(options.timeoutMs, { verifySessions: true })
           : requestRayenExtensionHealth(options.timeoutMs));
         const next = deriveHealthState(result.report, result.error);
-        const requiresUpdate =
-          options.showChecking &&
-          result.report &&
-          (!result.report.capabilities?.includes(RAYEN_SYNC_PREFLIGHT_VERIFICATION_CAPABILITY) ||
-            result.report.syncPreflight !== true);
-        const applied: RayenExtensionHealthState = requiresUpdate
+        const unverifiedPreflight =
+          options.showChecking && next.canSync && result.report?.syncPreflight !== true;
+        const applied: RayenExtensionHealthState = unverifiedPreflight
           ? {
-              connection: 'incompatible',
+              connection: 'blocked',
               report: result.report,
               canSync: false,
               message:
-                'Actualiza y recarga la extensión Eloísa para comprobar ambas conexiones antes de sincronizar.',
+                'No se pudieron comprobar ambas conexiones antes de sincronizar. Vuelve a intentar.',
             }
           : options.showChecking
             ? next
@@ -392,25 +396,6 @@ export const useRayenExtensionHealth = () => {
     }, delay + 10);
     return () => window.clearTimeout(timer);
   }, [health.report?.checkedAt]);
-
-  // Protocol v5 predates the active heartbeat capability. Keep those compatible
-  // installations fresh before their 150 s lease expires, avoiding a periodic
-  // false offline state during long-running sessions.
-  useEffect(() => {
-    const report = health.report;
-    if (
-      health.connection !== 'ready' ||
-      !report ||
-      report.capabilities?.includes(RAYEN_HEALTH_PUSH_CAPABILITY) === true
-    ) {
-      return undefined;
-    }
-    const timer = window.setTimeout(
-      () => void refresh({ showChecking: false }),
-      RAYEN_EXTENSION_LEGACY_REFRESH_MS
-    );
-    return () => window.clearTimeout(timer);
-  }, [health.connection, health.report, refresh]);
 
   useEffect(() => {
     const report = health.report;

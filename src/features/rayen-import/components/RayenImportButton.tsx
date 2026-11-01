@@ -4,10 +4,7 @@ import { useDailyRecordData } from '@/context/DailyRecordContext';
 import { useRayenImport } from '../hooks/useRayenImport';
 import { useRayenFillProgress } from '../hooks/useRayenFillStatus';
 import { useRayenExtensionHealth } from '../hooks/useRayenExtensionHealth';
-import {
-  RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS,
-  RAYEN_SYNC_PREFLIGHT_VERIFICATION_CAPABILITY,
-} from '../bridge/extensionHealthBridge';
+import { RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS } from '../bridge/extensionHealthBridge';
 import { RayenImportPreviewModal } from './RayenImportPreviewModal';
 import { RayenImportFlowStatus } from './RayenImportFlowStatus';
 import { RayenNursingShiftProposalModal } from './RayenNursingShiftProposalModal';
@@ -168,9 +165,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
   );
 
   const bootstrapRecordReady = Boolean(recordForSelectedDate);
-  const canAutoStart =
-    extension.canSync &&
-    extension.report?.capabilities?.includes(RAYEN_SYNC_PREFLIGHT_VERIFICATION_CAPABILITY) === true;
+  const canAutoStart = extension.canSync;
   React.useEffect(() => {
     if (
       autoStartRequestId === undefined ||

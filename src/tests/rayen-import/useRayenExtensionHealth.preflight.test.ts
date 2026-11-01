@@ -365,28 +365,14 @@ describe('useRayenExtensionHealth synchronization preflight', () => {
     expect(mocks.requestHealth).toHaveBeenLastCalledWith(undefined, { verifySessions: true });
   });
 
-  it('requires an extension that can verify source sessions before synchronization', async () => {
-    mocks.requestHealth.mockResolvedValue({
-      report: makeReport({ capabilities: ['health-push'] }),
-    });
-    const { result } = renderHook(() => useRayenExtensionHealth());
-    await act(async () => Promise.resolve());
-
-    await act(async () => {
-      const preflight = await result.current.refresh({ showChecking: true });
-      expectConnection(preflight, 'incompatible', false);
-      expect(preflight.message).toContain('Actualiza');
-    });
-  });
-
-  it('rejects a green response from an old relay that dropped active verification', async () => {
+  it('rejects a green response without active verification', async () => {
     mocks.requestHealth.mockResolvedValue({ report: makeReport({ syncPreflight: false }) });
     const { result } = renderHook(() => useRayenExtensionHealth());
     await act(async () => Promise.resolve());
     await act(async () => {
       const preflight = await result.current.refresh({ showChecking: true });
-      expectConnection(preflight, 'incompatible', false);
-      expect(preflight.message).toContain('Actualiza');
+      expectConnection(preflight, 'blocked', false);
+      expect(preflight.message).toContain('No se pudieron comprobar');
     });
   });
 });

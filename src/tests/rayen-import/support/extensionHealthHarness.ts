@@ -2,7 +2,6 @@ import { expect, vi } from 'vitest';
 import type { RayenExtensionHealthState } from '@/features/rayen-import/hooks/useRayenExtensionHealth';
 import {
   RAYEN_EXTENSION_PROTOCOL_VERSION,
-  RAYEN_HEALTH_PUSH_CAPABILITY,
   type RayenExtensionHealthReport,
 } from '@/features/rayen-import/bridge/extensionHealthBridge';
 
@@ -19,10 +18,10 @@ vi.mock('@/features/rayen-import/bridge/extensionHealthBridge', async importOrig
 export const makeReport = (
   overrides: Partial<RayenExtensionHealthReport> = {}
 ): RayenExtensionHealthReport => ({
-  version: '0.6.0',
+  version: '0.48.61',
   protocolVersion: RAYEN_EXTENSION_PROTOCOL_VERSION,
   syncPreflight: true,
-  capabilities: [RAYEN_HEALTH_PUSH_CAPABILITY, 'sync-preflight-verification'],
+  capabilities: ['health-push', 'sync-preflight-verification'],
   checkedAt: new Date().toISOString(),
   fichaMedico: { status: 'ready', message: 'Ficha Médico disponible.' },
   gestionCamas: { status: 'ready', message: 'Gestión de Camas disponible.' },

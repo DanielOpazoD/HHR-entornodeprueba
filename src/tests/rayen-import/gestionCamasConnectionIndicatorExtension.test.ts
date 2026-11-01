@@ -28,7 +28,7 @@ const messages = {
 };
 const ready = { status: 'ready', reason: 'connected', message: 'Vigente.' };
 const report = (ficha = ready, camas = ready) => ({
-  version: '0.48.12',
+  version: '0.48.61',
   capabilities: ['clean-connection-repair'],
   fichaMedico: ficha,
   gestionCamas: camas,

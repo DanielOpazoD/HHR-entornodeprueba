@@ -42,6 +42,32 @@ describe('deriveHealthState', () => {
     expectConnection(deriveHealthState(null, 'Sin extensión.'), 'offline', false);
   });
 
+  it.each([
+    ['0.48.9', false],
+    ['0.48.60', false],
+    ['0.6.0', false],
+    ['0.48', false],
+    ['0.48.61', true],
+    ['0.48.61.0', true],
+    ['0.48.62', true],
+    ['0.48.100', true],
+    ['0.49.0', true],
+    ['1.0', true],
+    ['unknown', false],
+    ['', false],
+  ])('compares extension %s numerically before allowing sync', (version, supported) => {
+    const state = deriveHealthState(makeReport({ version }));
+    expectConnection(state, supported ? 'ready' : 'incompatible', supported);
+    if (!supported) expect(state.message).toContain('Actualiza');
+  });
+
+  it('preserves incompatibility when its health lease expires', () => {
+    const state = deriveHealthState(makeReport({ version: '0.48.60' }));
+    expect(
+      expireRayenExtensionHealthState(state, Date.now() + RAYEN_EXTENSION_HEALTH_LEASE_MS)
+    ).toBe(state);
+  });
+
   it('explica cuando Gestión de Camas funciona solo en segundo plano', () => {
     const state = deriveHealthState(
       makeReport({

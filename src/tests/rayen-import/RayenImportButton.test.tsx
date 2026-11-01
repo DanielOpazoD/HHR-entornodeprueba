@@ -75,7 +75,7 @@ describe('RayenImportButton', () => {
     const readyHealth = {
       connection: 'ready',
       report: {
-        version: '0.6.0',
+        version: '0.48.61',
         protocolVersion: RAYEN_EXTENSION_PROTOCOL_VERSION,
         checkedAt: '2026-07-14T05:00:00.000Z',
         fichaMedico: { status: 'ready', message: 'Ficha Médico disponible.' },
@@ -308,7 +308,7 @@ describe('RayenImportButton', () => {
     const blockedHealth = {
       connection: 'blocked',
       report: {
-        version: '0.6.0',
+        version: '0.48.61',
         protocolVersion: RAYEN_EXTENSION_PROTOCOL_VERSION,
         checkedAt: '2026-07-14T05:00:00.000Z',
         fichaMedico: { status: 'ready', message: 'Ficha Médico disponible.' },
@@ -361,11 +361,11 @@ describe('RayenImportButton', () => {
     expect(mocks.triggerImport).not.toHaveBeenCalled();
   });
 
-  it('keeps the button disabled when Ficha Médico is unavailable and offers only the check', async () => {
+  it('keeps sync disabled and offers clean repair when Ficha Médico is unavailable', async () => {
     const blockedHealth = {
       connection: 'blocked',
       report: {
-        version: '0.6.0',
+        version: '0.48.61',
         protocolVersion: RAYEN_EXTENSION_PROTOCOL_VERSION,
         checkedAt: '2026-07-14T05:00:00.000Z',
         fichaMedico: { status: 'missing', message: 'Abre Ficha Médico e inicia sesión.' },
@@ -384,15 +384,11 @@ describe('RayenImportButton', () => {
     render(<RayenImportButton />);
     expect(screen.getByTestId('rayen-import-button')).toBeDisabled();
     fireEvent.click(screen.getByTestId('rayen-connection-monitor-trigger'));
-    // Con Ficha Médico caída, conectar GC no aplica; queda solo la comprobación.
+    // Con Ficha Médico caída, la extensión vigente ofrece la reparación dirigida.
     expect(screen.queryByTestId('rayen-monitor-connect-gc')).not.toBeInTheDocument();
-    // Al abrir, el monitor ejecuta primero su comprobación automática. Esperar
-    // a que termine evita intentar pulsar el fallback mientras está desactivado.
     await waitFor(() => expect(mocks.refreshHealth).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(screen.getByTestId('rayen-monitor-refresh')).toBeEnabled());
-    fireEvent.click(screen.getByTestId('rayen-monitor-refresh'));
-
-    await waitFor(() => expect(mocks.refreshHealth).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.getByTestId('rayen-monitor-repair')).toBeEnabled());
+    expect(screen.queryByTestId('rayen-monitor-refresh')).not.toBeInTheDocument();
     expect(mocks.triggerImport).not.toHaveBeenCalled();
   });
 

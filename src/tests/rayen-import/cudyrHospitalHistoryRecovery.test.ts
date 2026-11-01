@@ -87,7 +87,6 @@ describe('historical hospital admission from the official flow report', () => {
       source: {
         map: new Map(),
         historyAvailable: true,
-        captureContract: 1,
         observedEpisodeIds: [],
       },
       recoverPlacements: async () => placements(),
@@ -132,7 +131,6 @@ describe('historical hospital admission from the official flow report', () => {
           ],
         ]),
         historyAvailable: true,
-        captureContract: 1,
         observedEpisodeIds: [episode],
       },
       recoverPlacements: async () => flow,
