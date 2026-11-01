@@ -104,7 +104,7 @@ describe('firestoreRecordWrites', () => {
     expect(setDoc).not.toHaveBeenCalled();
   });
 
-  it('runs shadow authority validation without blocking direct full-record saves', async () => {
+  it('ignores retired shadow configuration and preserves direct full-record saves without a policy', async () => {
     (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE =
       'shadow';
     mockGetCurrentUser.mockReturnValue({
@@ -112,7 +112,6 @@ describe('firestoreRecordWrites', () => {
       email: 'nurse@example.com',
       isAnonymous: false,
     });
-    mockSpecialistCallable.mockRejectedValueOnce(new Error('shadow unavailable'));
 
     const result = await saveRecordToFirestore(
       {
@@ -125,20 +124,7 @@ describe('firestoreRecordWrites', () => {
       '2026-03-16T10:00:00.000Z'
     );
 
-    expect(mockSpecialistCallable).toHaveBeenCalledWith(
-      expect.objectContaining({
-        date: '2026-03-16',
-        dryRun: true,
-        expectedLastUpdated: '2026-03-16T10:00:00.000Z',
-        mode: 'shadow',
-        origin: 'shadow_save',
-        record: expect.objectContaining({ date: '2026-03-16' }),
-      })
-    );
-    expect(firestoreWriteLoggerWarn).toHaveBeenCalledWith(
-      'Daily record authority shadow validation failed',
-      expect.objectContaining({ date: '2026-03-16', error: expect.any(Error) })
-    );
+    expect(mockSpecialistCallable).not.toHaveBeenCalled();
     expect(saveRecordAtomically).toHaveBeenCalledWith(
       { date: '2026-03-16' },
       expect.objectContaining({ date: '2026-03-16' }),

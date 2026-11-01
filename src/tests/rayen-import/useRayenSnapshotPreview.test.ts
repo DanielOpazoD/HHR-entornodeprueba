@@ -73,7 +73,7 @@ const noChangeDiff = {
   },
 } as CensusImportDiff;
 
-const autoApplyDiff = {
+const admissionDiff = {
   ...noChangeDiff,
   admissions: [{ bedId: 'R1' }],
   unchangedCount: 0,
@@ -107,13 +107,10 @@ const initialState: RayenImportState = {
   error: null,
 };
 
-const renderPreview = (
-  mode: 'auto' | 'preview',
-  {
-    monotonicNow = Date.now,
-    reviewRequirement,
-  }: { monotonicNow?: () => number; reviewRequirement?: 'day_bootstrap' } = {}
-) => {
+const renderPreview = ({
+  monotonicNow = Date.now,
+  reviewRequirement,
+}: { monotonicNow?: () => number; reviewRequirement?: 'day_bootstrap' } = {}) => {
   const setState = vi.fn();
   const dispatchExecution = vi.fn();
   const runClinicalStage = vi.fn().mockResolvedValue({ status: 'complete' });
@@ -153,7 +150,7 @@ const renderPreview = (
     sourceDate: record.date,
     startedAt: '2026-08-25T10:00:00.000Z',
     by: 'Operador HHR',
-    policy: { mode, clinicalBatchMode: 'enforced', revision: 1 },
+    policy: { mode: 'preview', clinicalBatchMode: 'enforced', revision: 1 },
     reviewRequirement,
   };
   const hook = renderHook(() =>
@@ -211,37 +208,32 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
     vi.clearAllMocks();
   });
 
-  it('persists and continues clinical work through the automatic route', async () => {
+  it('requires human review even for a conflict-free admission', async () => {
     mocks.prepareRayenStructuralPlan.mockResolvedValue({
-      diff: autoApplyDiff,
+      diff: admissionDiff,
       replanDiff: vi.fn(),
     });
-    const result = committedResult(autoApplyDiff);
-    mocks.applyConfirmedRayenImport.mockResolvedValue(result);
-    const harness = renderPreview('auto');
+    const harness = renderPreview();
 
     await act(async () => harness.result.current(snapshot, {} as never, 'run-1', 'request-1'));
 
-    expect(mocks.applyConfirmedRayenImport).toHaveBeenCalledOnce();
-    expect(harness.runClinicalStage).toHaveBeenCalledWith({ source: 'snapshot-commit' });
-    expect(harness.dispatchExecution).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'transition', stage: { type: 'persisting_structure' } })
-    );
+    expect(mocks.applyConfirmedRayenImport).not.toHaveBeenCalled();
+    expect(harness.runClinicalStage).not.toHaveBeenCalled();
     expect(appliedState(harness.setState)).toMatchObject({
-      diff: autoApplyDiff,
-      result,
-      isPreviewOpen: false,
-      hasSkippedItems: false,
+      diff: admissionDiff,
+      result: null,
+      isPreviewOpen: true,
+      error: null,
     });
     expect(harness.failRun).not.toHaveBeenCalled();
   });
 
-  it('keeps a day created from Eloisa under human review despite the automatic policy', async () => {
+  it('keeps a day created from Eloisa under human review', async () => {
     mocks.prepareRayenStructuralPlan.mockResolvedValue({
-      diff: autoApplyDiff,
+      diff: admissionDiff,
       replanDiff: vi.fn(),
     });
-    const harness = renderPreview('auto', { reviewRequirement: 'day_bootstrap' });
+    const harness = renderPreview({ reviewRequirement: 'day_bootstrap' });
 
     await act(async () => harness.result.current(snapshot, {} as never, 'run-1', 'request-1'));
 
@@ -250,7 +242,7 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
       expect.objectContaining({ stage: { type: 'persisting_structure' } })
     );
     expect(appliedState(harness.setState)).toMatchObject({
-      diff: autoApplyDiff,
+      diff: admissionDiff,
       isPreviewOpen: true,
       result: null,
       error: null,
@@ -260,10 +252,10 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
 
   it('starts review timing only when a structural plan waits for a person', async () => {
     mocks.prepareRayenStructuralPlan.mockResolvedValue({
-      diff: autoApplyDiff,
+      diff: admissionDiff,
       replanDiff: vi.fn(),
     });
-    const harness = renderPreview('preview', { monotonicNow: () => 4_200 });
+    const harness = renderPreview({ monotonicNow: () => 4_200 });
 
     await act(async () => harness.result.current(snapshot, {} as never, 'run-1', 'request-1'));
 
@@ -277,14 +269,14 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
     expect(mocks.applyConfirmedRayenImport).not.toHaveBeenCalled();
   });
 
-  it('measures automatic structural persistence without inventing review wait', async () => {
+  it('measures no-change structural persistence without inventing review wait', async () => {
     mocks.prepareRayenStructuralPlan.mockResolvedValue({
-      diff: autoApplyDiff,
+      diff: noChangeDiff,
       replanDiff: vi.fn(),
     });
-    mocks.applyConfirmedRayenImport.mockResolvedValue(committedResult(autoApplyDiff));
+    mocks.applyConfirmedRayenImport.mockResolvedValue(committedResult(noChangeDiff));
     const monotonicNow = vi.fn().mockReturnValueOnce(1_000).mockReturnValueOnce(1_240);
-    const harness = renderPreview('auto', { monotonicNow });
+    const harness = renderPreview({ monotonicNow });
 
     await act(async () => harness.result.current(snapshot, {} as never, 'run-1', 'request-1'));
 
@@ -307,7 +299,7 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
     });
     const result = committedResult(noChangeDiff);
     mocks.applyConfirmedRayenImport.mockResolvedValue(result);
-    const harness = renderPreview('preview');
+    const harness = renderPreview();
 
     await act(async () => harness.result.current(snapshot, {} as never, 'run-1', 'request-1'));
 
@@ -333,7 +325,7 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
     };
     mocks.prepareRayenStructuralPlan.mockResolvedValue({ diff, replanDiff: vi.fn() });
     mocks.applyConfirmedRayenImport.mockResolvedValue(committedResult(diff));
-    const harness = renderPreview('preview');
+    const harness = renderPreview();
     harness.runClinicalStage.mockImplementation(async () => {
       harness.executionRef.current.stage = { type: 'complete' };
       return { status: 'complete' };
@@ -345,16 +337,16 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
     expect(harness.runClinicalStage).toHaveBeenCalledOnce();
   });
 
-  it('surfaces omissions from the automatic route without failing the run', async () => {
+  it('surfaces omissions from the no-change route without failing the run', async () => {
     mocks.prepareRayenStructuralPlan.mockResolvedValue({
-      diff: autoApplyDiff,
+      diff: noChangeDiff,
       replanDiff: vi.fn(),
     });
-    const result = committedResult(autoApplyDiff, {
+    const result = committedResult(noChangeDiff, {
       skipped: [{ kind: 'admission', bedId: 'R1' }],
     });
     mocks.applyConfirmedRayenImport.mockResolvedValue(result);
-    const harness = renderPreview('auto');
+    const harness = renderPreview();
 
     await act(async () => harness.result.current(snapshot, {} as never, 'run-1', 'request-1'));
 
@@ -371,10 +363,10 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
 
   it('continues clinical work and requests a fresh capture after a committed correction fails', async () => {
     mocks.prepareRayenStructuralPlan.mockResolvedValue({
-      diff: autoApplyDiff,
+      diff: noChangeDiff,
       replanDiff: vi.fn(),
     });
-    const result = committedResult(autoApplyDiff, {
+    const result = committedResult(noChangeDiff, {
       confirmedHandoff: { source: 'committed-correction' },
     });
     const error = new RayenHistoricalCorrectionAfterCommitError(
@@ -382,7 +374,7 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
       new Error('historical conflict')
     );
     mocks.applyConfirmedRayenImport.mockRejectedValue(error);
-    const harness = renderPreview('auto');
+    const harness = renderPreview();
 
     await act(async () => harness.result.current(snapshot, {} as never, 'run-1', 'request-1'));
 
@@ -414,7 +406,7 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
     const freshRecord = { ...record, lastUpdated: '2026-08-25T09:01:00.000Z' };
     const error = new RayenStructuralPlanChangedError(freshRecord, replannedDiff);
     mocks.applyConfirmedRayenImport.mockRejectedValue(error);
-    const harness = renderPreview('preview');
+    const harness = renderPreview();
 
     await act(async () => harness.result.current(snapshot, {} as never, 'run-1', 'request-1'));
 
@@ -437,7 +429,7 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
 
   it('continues a committed clinical handoff after its UI execution is superseded', async () => {
     mocks.prepareRayenStructuralPlan.mockResolvedValue({
-      diff: autoApplyDiff,
+      diff: noChangeDiff,
       replanDiff: vi.fn(),
     });
     let resolvePersistence!: (value: unknown) => void;
@@ -446,7 +438,7 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
         resolvePersistence = resolve;
       })
     );
-    const harness = renderPreview('auto');
+    const harness = renderPreview();
 
     const persistence = harness.result.current(snapshot, {} as never, 'run-1', 'request-1');
     await vi.waitFor(() => expect(mocks.applyConfirmedRayenImport).toHaveBeenCalledOnce());
@@ -455,7 +447,7 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
       context: { ...harness.executionRef.current.context, requestId: 'request-2' },
       stage: { type: 'cancelled' },
     } as never;
-    resolvePersistence(committedResult(autoApplyDiff));
+    resolvePersistence(committedResult(noChangeDiff));
 
     await act(async () => persistence);
 

@@ -33,7 +33,6 @@ export const isServerClinicalWriteFenceActive = async (
 
 const AUTHORITY_MODE_RANK: Record<DailyRecordAuthorityMode, number> = {
   client_only: 0,
-  shadow: 1,
   enforced: 2,
 };
 
@@ -45,18 +44,6 @@ const strongestAuthorityMode = (
   return AUTHORITY_MODE_RANK[serverMode] > AUTHORITY_MODE_RANK[configuredMode]
     ? serverMode
     : configuredMode;
-};
-
-export const isServerClinicalBatchEnforced = async (
-  runtime: FirestoreServiceRuntimePort
-): Promise<boolean> => {
-  try {
-    return (await readServerClinicalAuthorityMode(runtime)) === 'enforced';
-  } catch {
-    // Firestore rules remain the final fail-closed fence. A transient policy read must not
-    // manufacture authority; the direct write will be rejected if enforcement is already live.
-    return false;
-  }
 };
 
 /**

@@ -52,7 +52,7 @@ vi.mock('@/features/rayen-import/components/RayenImportPreviewModal', () => ({
  * que ninguna prueba pueda pasar por un valor ausente que finja una política ya confirmada.
  */
 const importState = (overrides: Record<string, unknown> = {}): Record<string, unknown> => ({
-  mode: 'auto',
+  mode: 'preview',
   policyStatus: 'ready',
   policyBlockReason: null,
   execution: null,

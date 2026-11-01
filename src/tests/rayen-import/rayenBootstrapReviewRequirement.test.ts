@@ -62,7 +62,7 @@ describe('requisito de revisión por inicio del día · dominio ↔ esquema', ()
     expect(event.reviewRequirement).toBeUndefined();
   });
 
-  it('el esquema del evento acepta y preserva el requisito', () => {
+  it('el esquema conserva el modo auto histórico junto al requisito', () => {
     const parsed = RayenSyncEventSchema.safeParse({
       id: 'run-bootstrap',
       sourceDate: '2026-09-09',
@@ -76,6 +76,7 @@ describe('requisito de revisión por inicio del día · dominio ↔ esquema', ()
 
     expect(parsed.success).toBe(true);
     expect(parsed.success && parsed.data.reviewRequirement).toBe('day_bootstrap');
+    expect(parsed.success && parsed.data.policy?.mode).toBe('auto');
   });
 
   it('un requisito desconocido no descarta el evento ni el historial', () => {

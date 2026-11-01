@@ -198,10 +198,9 @@ describe('sync queue clinical authority', () => {
     );
   });
 
-  it('runs shadow authority validation but keeps direct outbox publish when shadow fails', async () => {
+  it('ignores retired shadow configuration and keeps direct outbox publish without a policy', async () => {
     (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE =
       'shadow';
-    mockAuthorityCallable.mockRejectedValueOnce(new Error('shadow unavailable'));
     const local = makeRecord('2025-01-18');
     local.beds.R1 = {
       bedId: 'R1',
@@ -235,21 +234,7 @@ describe('sync queue clinical authority', () => {
     Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
     await processSyncQueue();
 
-    expect(mockAuthorityCallable).toHaveBeenCalledWith(
-      expect.objectContaining({
-        date: '2025-01-18',
-        dryRun: true,
-        expectedLastUpdated: '2025-01-18T10:00:00.000Z',
-        mode: 'shadow',
-        origin: 'full_save_retry',
-        record: expect.objectContaining({ date: '2025-01-18' }),
-        syncContract: expect.objectContaining({
-          expectedVersion: '2025-01-18T10:00:00.000Z',
-          changedPaths: ['beds.R1.pathology'],
-          clinicalEpisodeKeys: ['ep-shadow-outbox'],
-        }),
-      })
-    );
+    expect(mockAuthorityCallable).not.toHaveBeenCalled();
     expect(setDoc).toHaveBeenCalledWith(
       { id: 'sync-authority-doc-ref' },
       expect.objectContaining({ date: '2025-01-18' }),

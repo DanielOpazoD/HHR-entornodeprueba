@@ -45,7 +45,7 @@ const record = {
   lastUpdated: '2026-09-10T12:00:00.000Z',
   activeExtraBeds: [],
 } as DailyRecord;
-const policy = { mode: 'auto' as const, clinicalBatchMode: 'enforced' as const, revision: 7 };
+const policy = { mode: 'preview' as const, clinicalBatchMode: 'enforced' as const, revision: 7 };
 
 const readyHealth: RayenExtensionHealthState = {
   connection: 'ready',

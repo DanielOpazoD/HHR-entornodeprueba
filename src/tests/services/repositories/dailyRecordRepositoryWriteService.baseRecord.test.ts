@@ -439,7 +439,7 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
     vi.mocked(updateRecordPartialToFirestore).mockResolvedValueOnce({
       success: true,
       date: '2026-02-13',
-      mode: 'shadow',
+      mode: 'enforced',
       authorityStatus: 'ok',
       coverage: {
         activePatients: 1,

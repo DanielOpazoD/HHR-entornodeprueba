@@ -183,14 +183,14 @@ describe('opaque daily-record base review', () => {
     }
   );
 
-  it('requires review when the server fence makes shadow mode publish through the callable', async () => {
-    mocks.mode = 'shadow';
+  it('requires review when the server fence promotes client_only to the callable', async () => {
+    mocks.mode = 'client_only';
     mocks.fence = true;
     mocks.invoke.mockRejectedValue({ code: 'functions/aborted', message: 'revision_mismatch' });
     const input = task();
     const [row] = await processTask(input);
     await expectDurableReview(row, input);
-    expect(mocks.invoke).toHaveBeenCalledWith(expect.objectContaining({ mode: 'shadow' }));
+    expect(mocks.invoke).toHaveBeenCalledWith(expect.objectContaining({ mode: 'enforced' }));
     expect(mocks.invoke.mock.calls[0][0].dryRun).toBeUndefined();
   });
 
@@ -230,14 +230,6 @@ describe('opaque daily-record base review', () => {
     expect(row).toMatchObject({ status: 'CONFLICT', lastErrorCode: 'unknown' });
     expect(recovery(row)).toBe('retry');
     expect(row.error).toContain('authority omitted the committed record');
-  });
-
-  it('keeps direct publish after a shadow dry-run version rejection', async () => {
-    mocks.mode = 'shadow';
-    mocks.invoke.mockRejectedValue({ code: 'functions/aborted', message: 'version_mismatch' });
-    expect(await processTask(task())).toEqual([]);
-    expect(mocks.invoke).toHaveBeenCalledWith(expect.objectContaining({ dryRun: true }));
-    expect(mocks.set).toHaveBeenCalledOnce();
   });
 
   it('acknowledges its exact uncompacted receipt before rejecting the old base', async () => {

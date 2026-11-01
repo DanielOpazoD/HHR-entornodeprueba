@@ -52,8 +52,6 @@ import {
   shouldRouteClinicalAuthorityPatch,
   shouldRouteStructuralBedPatchViaCallable,
   shouldRouteSpecialistPatchViaCallable,
-  tryShadowDailyRecordPatchViaCallable,
-  tryShadowDailyRecordSaveViaCallable,
   type DailyRecordPartialWriteOptions,
   type DailyRecordSaveWriteOptions,
 } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
@@ -97,7 +95,7 @@ export const saveRecordToFirestore = async (
             date: record.date,
             record,
             expectedLastUpdated,
-            mode: callableAuthorityMode || 'shadow',
+            mode: 'enforced',
             origin: options.origin ?? 'direct_save',
             syncContract: options.syncContract,
           }),
@@ -108,8 +106,6 @@ export const saveRecordToFirestore = async (
         }
       );
     }
-
-    await tryShadowDailyRecordSaveViaCallable(record, expectedLastUpdated, options.syncContract);
 
     const committedAt = Timestamp.now();
     const receipt = createDirectFirestoreWriteReceipt(record, committedAt.toDate());
@@ -338,12 +334,12 @@ export const updateRecordPartial = async (
           ? clinicalAuthorityMode === 'enforced'
             ? 'enforced'
             : clinicalAuthorityFenced
-              ? clinicalAuthorityMode || 'shadow'
+              ? clinicalAuthorityMode || 'enforced'
               : null
           : isE2EForcedMovementPatch
             ? 'enforced'
             : structuralAuthorityFenced
-              ? structuralAuthorityMode || 'shadow'
+              ? structuralAuthorityMode || 'enforced'
               : null;
         if (
           shouldUseAuthorityCallable &&
@@ -358,7 +354,7 @@ export const updateRecordPartial = async (
                 date,
                 patch: callablePatch,
                 expectedLastUpdated,
-                mode: options.specialtyIntent ? 'enforced' : callableAuthorityMode || 'shadow',
+                mode: 'enforced',
                 origin: 'direct_partial_update',
                 intentionalBedClear,
                 specialtyIntent: options.specialtyIntent,
@@ -372,14 +368,6 @@ export const updateRecordPartial = async (
           );
         }
 
-        if (isClinicalPatchForAuthority) {
-          await tryShadowDailyRecordPatchViaCallable(
-            date,
-            authorityPatch,
-            expectedLastUpdated,
-            buildAuthorityPatchSyncContract(options.syncContract, authorityPatch)
-          );
-        }
         const isStaffingPatch = Object.keys(sanitizedPatch).some(path =>
           /^(nurses|nurseName|nursesDayShift|nursesNightShift|tensDayShift|tensNightShift|staffingDetailsV1)(\.|$)/.test(
             path

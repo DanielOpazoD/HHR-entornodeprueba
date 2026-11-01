@@ -152,7 +152,7 @@ describe('authority commit with lost response', () => {
     await expect(save(payload)).rejects.toBe(error);
   });
 
-  it.each([{ dryRun: true }, { mode: 'shadow' as const }, { syncContract: {} }])(
+  it.each([{ dryRun: true }, { syncContract: {} }])(
     'does not recover non-committing or unidentified calls %j',
     async overrides => {
       const error = failure();

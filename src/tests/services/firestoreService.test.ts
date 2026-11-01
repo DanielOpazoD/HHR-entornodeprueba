@@ -76,8 +76,6 @@ vi.mock('@/services/storage/firestore/firestoreDailyRecordAuthorityRouting', asy
     shouldRouteDailyRecordSaveViaCallable: vi.fn().mockResolvedValue(false),
     shouldRouteStructuralBedPatchViaCallable: vi.fn().mockResolvedValue(false),
     shouldRouteSpecialistPatchViaCallable: vi.fn().mockResolvedValue(false),
-    tryShadowDailyRecordPatchViaCallable: vi.fn().mockResolvedValue(undefined),
-    tryShadowDailyRecordSaveViaCallable: vi.fn().mockResolvedValue(undefined),
   };
 });
 

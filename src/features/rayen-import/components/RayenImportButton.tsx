@@ -41,7 +41,7 @@ const SYNC_QUEUE_PAGE_SIZE = 12;
  * when the last sync of this day ran and who ran it (`record.rayenSync`, stamped on every apply).
  *
  * Clicking asks the extension for a fresh snapshot; when it arrives, the hook either opens the
- * preview (default) or applies automatically (experimental mode). While the whole flow runs
+ * preview for human review. While the whole flow runs
  * (snapshot → plan → background device/scale/CUDYR fill) the button shows a spinning
  * "Sincronizando…" state so it's clear the sync is actually in progress.
  */
@@ -73,7 +73,6 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
   const autoStartHandledRef = React.useRef<number | null>(null);
   const autoStartInFlightRef = React.useRef<number | null>(null);
   const {
-    mode,
     policyStatus,
     policyBlockReason,
     execution,
@@ -181,7 +180,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
     if (!policyReady || !bootstrapRecordReady || !canAutoStart) return;
     autoStartInFlightRef.current = autoStartRequestId;
     // The census did not exist a moment ago; this first import defines the whole day, so it is
-    // reviewed by a human even when the global policy would otherwise apply it unattended.
+    // reviewed by a human, with the requirement recorded for this attempt.
     void handleSync({ reviewRequirement: 'day_bootstrap' }).then(outcome => {
       autoStartInFlightRef.current = null;
       if (outcome === 'blocked') return;
@@ -389,11 +388,6 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
           >
             <RefreshCw size={13} strokeWidth={1.5} aria-hidden="true" />
             {primaryActionLabel}
-            {mode === 'auto' && (
-              <span className="rounded bg-white/20 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">
-                Auto
-              </span>
-            )}
           </button>
         </div>
       </div>
