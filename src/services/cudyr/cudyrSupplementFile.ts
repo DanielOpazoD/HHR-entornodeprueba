@@ -1,6 +1,5 @@
 import type { CudyrSupplementParseResult } from '@/types/domain/cudyrSupplement';
-// The worker is not precached, so its first read after a release also downloads it.
-const READ_TIMEOUT_MS = 30000;
+import { readInCudyrWorker } from './cudyrWorkerRead';
 
 export const readCudyrSupplementFile = async (file: File, signal: AbortSignal) => {
   if (!/\.(xls|xlsx)$/i.test(file.name) || file.size > 262144 || file.size < 8)
@@ -10,37 +9,15 @@ export const readCudyrSupplementFile = async (file: File, signal: AbortSignal) =
   let binary = '';
   for (const byte of new Uint8Array(buffer)) binary += String.fromCharCode(byte);
   const base64 = btoa(binary);
-  const result = await new Promise<CudyrSupplementParseResult>((resolve, reject) => {
-    const worker = new Worker(new URL('./cudyrSupplement.worker.ts', import.meta.url), {
-      type: 'module',
-    });
-    const finish = () => {
-      clearTimeout(timeout);
-      signal.removeEventListener('abort', abort);
-      worker.terminate();
-    };
-    const abort = () => {
-      finish();
-      reject(new Error('Lectura cancelada.'));
-    };
-    const timeout = setTimeout(() => {
-      finish();
-      reject(new Error('El archivo excedió el tiempo de lectura.'));
-    }, READ_TIMEOUT_MS);
-    signal.addEventListener('abort', abort, { once: true });
-    worker.onerror = () => {
-      finish();
-      reject(new Error('No se pudo iniciar la lectura del archivo.'));
-    };
-    worker.onmessage = (
-      event: MessageEvent<{ result?: CudyrSupplementParseResult; error?: string }>
-    ) => {
-      finish();
-      if (event.data.result) resolve(event.data.result);
-      else reject(new Error(event.data.error || 'Archivo no válido.'));
-    };
-    worker.postMessage(buffer, [buffer]);
-  });
+  const result = await readInCudyrWorker(
+    buffer,
+    signal,
+    'No se pudo iniciar la lectura del archivo.',
+    (data: { result?: CudyrSupplementParseResult; error?: string }) => {
+      if (data.result) return data.result;
+      throw new Error(data.error || 'Archivo no válido.');
+    }
+  );
   if (!result.ok)
     throw new Error(
       result.issues
