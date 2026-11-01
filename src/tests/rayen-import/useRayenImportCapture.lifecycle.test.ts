@@ -201,6 +201,15 @@ describe('useRayenImportCapture lifecycle guards', () => {
         1
       )
     );
+    // The first attempt gets a silent retry; only the second reaches the person.
+    act(() =>
+      onError(
+        'No se pudo leer Rayen. Recarga la pestaña de Ficha Médico (Cmd+R) para activar la extensión y reintenta. Detalle: Failed to fetch',
+        'request-1',
+        undefined,
+        1
+      )
+    );
     expect(recordRunPerformance).toHaveBeenCalledWith({ counters: { retries: 1 } }, 'run-1');
     expect(failRun).toHaveBeenCalledWith('snapshot_network_error', 'run-1');
     const stateUpdater = setState.mock.calls[0]?.[0] as (

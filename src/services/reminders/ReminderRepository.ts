@@ -71,16 +71,17 @@ export const createReminderRepository = ({
       },
       error => {
         reminderRepositoryLogger.error('Error subscribing reminders', error);
-        reminderObservability.recordEvent('subscribe_reminders', 'failed', {
-          issues: ['No fue posible suscribirse a los avisos.'],
-          context: {
-            errorKind: isReminderPermissionDeniedError(error) ? 'permission_denied' : 'unknown',
-          },
-        });
-        options.onError?.(
-          error,
-          isReminderPermissionDeniedError(error) ? 'permission_denied' : 'unknown'
+        const permissionDenied = isReminderPermissionDeniedError(error);
+        // A session that just ended loses this listener as well: logged, but nobody gets mailed.
+        reminderObservability.recordEvent(
+          'subscribe_reminders',
+          permissionDenied ? 'degraded' : 'failed',
+          {
+            issues: ['No fue posible suscribirse a los avisos.'],
+            context: { errorKind: permissionDenied ? 'permission_denied' : 'unknown' },
+          }
         );
+        options.onError?.(error, permissionDenied ? 'permission_denied' : 'unknown');
         callback([]);
       }
     );

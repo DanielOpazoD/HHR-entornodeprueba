@@ -6,6 +6,9 @@ const {
   selectDailyRecordHistory,
 } = require('./dailyRecordHistoryRetention');
 
+// Copies can weigh some 300 KB, and a batch of 400 stopped this run at the same day every time.
+const DELETE_BATCH_SIZE = 20;
+
 const runDailyRecordHistoryPrune = async ({
   firestore,
   apply = false,
@@ -55,9 +58,9 @@ const runDailyRecordHistoryPrune = async ({
     counts.snapshotsKept += copies.docs.length;
     if (outOfTime()) break;
     if (!apply) continue;
-    for (let offset = 0; offset < deleteIds.length; offset += 400) {
+    for (let offset = 0; offset < deleteIds.length; offset += DELETE_BATCH_SIZE) {
       if (outOfTime()) break;
-      const ids = deleteIds.slice(offset, offset + 400);
+      const ids = deleteIds.slice(offset, offset + DELETE_BATCH_SIZE);
       const batch = firestore.batch();
       for (const id of ids) batch.delete(history.doc(id));
       await batch.commit();
@@ -79,9 +82,12 @@ const createDailyRecordHistoryFunctions = ({ firestore }) => ({
       try {
         const counts = await runDailyRecordHistoryPrune({ firestore, apply: true });
         functions.logger.info('daily_record_history_prune', counts);
-      } catch (_error) {
-        // Do not expose raw SDK errors, paths or snapshot contents in telemetry.
-        functions.logger.error('daily_record_history_prune_failed', { failed: true });
+      } catch (error) {
+        // Only the numeric status: no raw SDK errors, paths or snapshot contents in telemetry.
+        functions.logger.error('daily_record_history_prune_failed', {
+          failed: true,
+          code: Number.isInteger(error?.code) ? error.code : null,
+        });
         throw new Error('Daily record history pruning failed');
       }
     }),
