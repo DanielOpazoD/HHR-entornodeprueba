@@ -22,13 +22,14 @@ lea este archivo.
 
 ### Datos clínicos
 
-| Regla                                                                                                                                                                                                     | Qué la impone                                   |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| La identidad es paciente más episodio. La cama es una ubicación. Madre y recién nacido son personas distintas (ID-01 a ID-03).                                                                            | Pruebas de identidad y de RN                    |
-| Un pasaporte nunca se convierte en RUT ni se compara como RUT. No copiar `/[^0-9kK]/` fuera de `src/utils/rutUtils.ts`.                                                                                   | Pruebas puntuales; **[docs]** para código nuevo |
-| «Hoy», la hora y el turno salen del reloj del hospital, Pacific/Easter (`src/utils/clinicalTimeZone.ts`). No cortar un instante ISO para obtener una fecha, tampoco en Functions ni en Netlify (TIME-02). | `npm run check:clinical-clock`                  |
-| Un paciente que falta en una fuente parcial o fallida no está dado de alta ni borrado (CEN-01).                                                                                                           | Pruebas de egreso y de sincronización           |
-| No tocar CUDYR saneado, decisiones manuales, censos verificados ni horas oficiales de egreso de Eloísa (TIME-03, CUD-01).                                                                                 | **[docs]**                                      |
+| Regla                                                                                                                                                                                                       | Qué la impone                                                |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| La identidad es paciente más episodio. La cama es una ubicación. Madre y recién nacido son personas distintas (ID-01 a ID-03).                                                                              | Pruebas de identidad y de RN                                 |
+| Un pasaporte nunca se convierte en RUT ni se compara como RUT. No copiar `/[^0-9kK]/` fuera de `src/utils/rutUtils.ts`.                                                                                     | Pruebas puntuales; **[docs]** para código nuevo              |
+| «Hoy», la hora y el turno salen del reloj del hospital, Pacific/Easter (`src/utils/clinicalTimeZone.ts`). No cortar un instante ISO para obtener una fecha, tampoco en Functions ni en Netlify (TIME-02).   | `npm run check:clinical-clock`                               |
+| Un paciente que falta en una fuente parcial o fallida no está dado de alta ni borrado (CEN-01).                                                                                                             | Pruebas de egreso y de sincronización                        |
+| `nurse_hospital` sincroniza CUDYR con las mismas fechas y caminos que `admin`. Esto no habilita `setAdminCudyrResult`, otros campos clínicos ni otros roles, y conserva la ventana estructural de 48 horas. | Pruebas de autoridad CUDYR diaria, reenvío y archivo mensual |
+| No tocar CUDYR saneado, decisiones manuales, censos verificados ni horas oficiales de egreso de Eloísa (TIME-03, CUD-01).                                                                                   | **[docs]**                                                   |
 
 ### Guardado y sincronización
 

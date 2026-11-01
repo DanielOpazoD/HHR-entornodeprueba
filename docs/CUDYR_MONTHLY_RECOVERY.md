@@ -87,8 +87,14 @@ El botón diario también busca categorías faltantes de noches ya cerradas en e
 censo seleccionado y en el anterior. Incluye los episodios presentes en los egresos,
 traslados y CMA activos del día seleccionado: un alta posterior no impide completar
 su noche anterior en un censo que ya existe. No vuelve a ingresar al paciente ni usa
-la cama actual para identificarlo. El guardado del día anterior mantiene los permisos
-administrativos y la autoridad de la corrida existentes.
+la cama actual para identificarlo. Por decisión del responsable del 01-11-2026, enfermería hospitalizada sincroniza CUDYR
+con las mismas fechas y caminos que administración, tanto en la recuperación diaria
+como en la mensual. El guardado del día anterior mantiene la autoridad de la corrida.
+Esto no habilita `setAdminCudyrResult`, otros campos clínicos ni otros roles; tampoco
+cambia la ventana de 48 horas de `canWritePreviousDay`. No se cambian las reglas:
+los archivos CUDYR se escriben solo por callable para ambos roles, y las
+escrituras generales del censo conservan su ventana. Se conservan los ajustes
+administrativos y el CUDYR saneado (CUD-01).
 
 Cuando la consulta clínica no aporta una categoría, se obtiene y respalda un XLS
 mensual compartido por mes y corrida, exclusivamente para esos huecos. La columna

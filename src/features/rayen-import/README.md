@@ -103,8 +103,8 @@ admite el día inmediatamente anterior y nunca se degrada al escritor individual
 revisión, el reintento reconstruye el valor completo de scores desde el documento vigente para no
 pisar Braden o Downton concurrentes.
 Cada ejecución congela además su `sourceDate`; el lote debe declarar la misma `authorityDate` y el
-backend la contrasta con el documento que contiene el evento. Sólo un administrador puede escribir
-un día distinto del origen. Los reintentos exactos se resuelven por `runId`/`mutationId` antes de
+backend la contrasta con el documento que contiene el evento. Administrador y enfermería hospitalizada pueden sincronizar CUDYR en el día inmediatamente
+anterior al origen; el lote histórico no admite otros campos clínicos. Los reintentos exactos se resuelven por `runId`/`mutationId` antes de
 depender del estado clínico mutable, por lo que conservan idempotencia aunque el paciente ya haya
 egresado.
 `shadow` puede dividir una observación grande porque no persiste. Si una ejecución `enforced`

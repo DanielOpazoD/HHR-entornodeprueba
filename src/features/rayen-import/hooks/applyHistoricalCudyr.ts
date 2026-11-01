@@ -1,3 +1,4 @@
+import type { UserRole } from '@/types/authRoleTypes';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import type {
   HistoricalCudyrBatchExecutionResult,
@@ -25,12 +26,13 @@ const previousIsoDay = (day: string): string | null => {
 const canWriteAuthoritativeHistoricalDay = ({
   censusDay,
   sourceDate,
-  isAdmin,
+  role,
 }: {
   censusDay: string;
   sourceDate: string;
-  isAdmin: boolean;
-}): boolean => isAdmin && previousIsoDay(sourceDate) === censusDay;
+  role: UserRole | null;
+}): boolean =>
+  (role === 'admin' || role === 'nurse_hospital') && previousIsoDay(sourceDate) === censusDay;
 
 /**
  * Persists the previous census day's CUDYR values through the same authoritative callable used
@@ -42,7 +44,7 @@ export const applyHistoricalCudyrBatchAuthoritatively = async ({
   sourceRecord,
   censusDay,
   items,
-  isAdmin,
+  role,
   runId,
   applyBatch,
 }: {
@@ -50,7 +52,7 @@ export const applyHistoricalCudyrBatchAuthoritatively = async ({
   sourceRecord: DailyRecord;
   censusDay: string;
   items: HistoricalCudyrBatchItem[];
-  isAdmin: boolean;
+  role: UserRole | null;
   runId: string;
   applyBatch?: ApplyClinicalEnrichmentBatch;
 }): Promise<HistoricalCudyrBatchExecutionResult> => {
@@ -60,7 +62,7 @@ export const applyHistoricalCudyrBatchAuthoritatively = async ({
     !canWriteAuthoritativeHistoricalDay({
       censusDay,
       sourceDate: sourceRecord.date,
-      isAdmin,
+      role,
     })
   ) {
     return {
