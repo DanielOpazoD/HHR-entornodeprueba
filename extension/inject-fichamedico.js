@@ -11,7 +11,7 @@
  */
 (() => {
   'use strict';
-  const INJECT_VERSION = '0.48.61';
+  const INJECT_VERSION = '0.48.62';
   // Install the bridge probe separately so an older, compatible MAIN reader can keep its
   // captured session when this script is re-injected after an extension update.
   const bridgeRuntime = globalThis.HhrBridgeGeneration.createMain({ version: INJECT_VERSION });
@@ -101,7 +101,7 @@
   let epicrisisCapture = null;
   const epicrisisPdfCandidates = new Map();
   const CLINICAL_READ_CACHE_TTL_MS = 30 * 1000;
-  const DIAGNOSIS_CATALOG_CACHE_TTL_MS = 60 * 60 * 1000;
+  const DIAGNOSIS_CATALOG_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
   const CLINICAL_READ_CACHE_MAX_ENTRIES = 300;
   const clinicalReadCache = new Map();
   const clearClinicalReadCache = () => clinicalReadCache.clear();

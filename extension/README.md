@@ -343,6 +343,12 @@ paneles u otras rutas sin episodio abre directamente **Hospitalizados** y deja d
 del paciente actual. Los accesos contextuales de Indicaciones y Receta médica se mantienen solamente en
 la tabla de fármacos de Gestión de cuidados.
 
+### El catálogo de diagnósticos dura 12 horas (0.48.62)
+
+El catálogo CIE-10 casi no cambia, pero se volvía a leer tras una hora. Como las sincronizaciones suelen
+estar separadas por horas, la mayoría pagaba de 4 a 5 s. Una clasificación nueva en Eloísa puede tardar
+hasta 12 horas en mostrar su código en una pestaña ya abierta; recargar Ficha Médico lo actualiza.
+
 ### El permiso de lectura sobrevive al reposo (0.48.61)
 
 El service worker se duerme a los pocos segundos sin actividad y perdía los permisos de lectura por

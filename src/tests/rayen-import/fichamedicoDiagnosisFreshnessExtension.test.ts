@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   createFichamedicoReadHarness as createHarness,
@@ -66,6 +66,44 @@ describe('Ficha Médico · actualización del diagnóstico clínico', () => {
       expect({ headerCalls, diagnosisCalls }).toEqual({ headerCalls: 2, diagnosisCalls: 2 });
     }
   );
+
+  describe('entre sincronizaciones separadas por horas', () => {
+    afterEach(() => vi.useRealTimers());
+
+    it('reutiliza el catálogo durante 12 horas y después vuelve a leerlo', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-11-01T12:00:00Z'));
+      let catalogCalls = 0;
+      const harness = await createHarness((rawUrl: string) => {
+        const url = new URL(rawUrl);
+        if (url.pathname === LIST_PATH) {
+          return url.searchParams.get('filterType') === '3'
+            ? [{ id: 101, diagnosisId: 4405, diagnosisName: 'Neumonía bacteriana' }]
+            : [];
+        }
+        if (url.pathname.includes('/patientHeaderData/101/')) {
+          return { haoDiagId: 4405, haoDiagName: 'Neumonía bacteriana' };
+        }
+        if (url.pathname.includes('/diagnosisEntry/')) return [];
+        if (url.pathname === '/api/core/diagnosisClassify') {
+          catalogCalls += 1;
+          return [{ id: 4405, name: 'Neumonía bacteriana', internalCode: 'J15' }];
+        }
+        return [];
+      });
+      const sync = (reqId: string) => harness.send({ type: 'RAYEN_EXT_READ_REQUEST', reqId });
+
+      await sync('primera');
+      vi.setSystemTime(new Date('2026-11-01T23:59:00Z'));
+      const later = await sync('casi-12-horas');
+      expect(later?.snapshot?.encounters?.[0]).toMatchObject({ diagnosisCode: 'J15' });
+      expect(catalogCalls).toBe(1);
+
+      vi.setSystemTime(new Date('2026-11-02T00:01:00Z'));
+      await sync('pasadas-12-horas');
+      expect(catalogCalls).toBe(2);
+    });
+  });
 
   it('recupera CIE-10 del diagnóstico de ingreso por ID oficial y consulta el catálogo una sola vez', async () => {
     let catalogCalls = 0;

@@ -120,6 +120,7 @@ export const createFichamedicoReadHarness = async (apiResolver: (url: string) =>
   XMLHttpRequestMock.prototype.open = () => undefined;
   XMLHttpRequestMock.prototype.setRequestHeader = () => undefined;
   const context = vm.createContext({
+    Date,
     console,
     URL,
     Headers,
