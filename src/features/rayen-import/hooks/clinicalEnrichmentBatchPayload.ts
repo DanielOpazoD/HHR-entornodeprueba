@@ -110,7 +110,7 @@ export const prepareClinicalEnrichmentBatchPayload = ({
   operations,
   mutationId,
 }: {
-  mode: Exclude<ClinicalEnrichmentBatchMode, 'off'>;
+  mode: ClinicalEnrichmentBatchMode;
   record: DailyRecord;
   authorityDate?: string;
   runId: string;
@@ -127,8 +127,7 @@ export const prepareClinicalEnrichmentBatchPayload = ({
     const cudyr = (target.fields.evaluationScores as PatientEvaluationScores | undefined)?.cudyr;
     return cudyr?.source === CUDYR_DOCUMENTARY_SOURCE || cudyr?.documentaryEvidence;
   });
-  const effectiveMode = mode === 'shadow' ? 'shadow' : 'enforced';
-  const evidence = summarizeClinicalEnrichmentSections(patches, checkpoints, effectiveMode);
+  const evidence = summarizeClinicalEnrichmentSections(patches, checkpoints, mode);
   const targetCount = new Set([...patches, ...checkpoints].map(clinicalEnrichmentTargetKey)).size;
   const sectionsPayload = { patches, ...(checkpoints.length > 0 ? { checkpoints } : {}) };
 
@@ -159,8 +158,8 @@ export const prepareClinicalEnrichmentBatchPayload = ({
       ...(revision !== undefined && Number.isInteger(revision) && revision >= 0
         ? { baseRevision: revision }
         : {}),
-      mode: effectiveMode,
-      dryRun: effectiveMode === 'shadow',
+      mode: mode,
+      dryRun: false,
       ...sectionsPayload,
     },
     evidence,

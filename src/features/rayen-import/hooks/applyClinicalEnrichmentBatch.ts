@@ -21,7 +21,6 @@ import {
 } from '../observability/rayenSyncDiagnostics';
 import {
   assertCommittedResponse,
-  applyLegacyClinicalEnrichmentOperations,
   buildBoundedClinicalBatchChunks,
   isClinicalBatchRetryableError,
   isClinicalBatchVersionConflict,
@@ -32,7 +31,6 @@ import {
   selectRebuiltChunkOperations,
   withClinicalBatchRetryCount,
   withPersistenceFailureEvidence,
-  type BoundedClinicalBatchChunk,
 } from './clinicalEnrichmentBatchExecutionSupport';
 
 const authorityRevision = (record: DailyRecord): unknown =>
@@ -47,7 +45,6 @@ interface ApplyClinicalEnrichmentBatchInput {
   operations: ClinicalFillPatchOperation[];
   /** Revalidates original record-derived values at the write turn and after a version conflict. */
   rebuildOperations?: (record: DailyRecord) => ClinicalFillPatchOperation[];
-  applyPatch: (operation: ClinicalFillPatchOperation) => Promise<void>;
   /** Must read server authority, without merging pending local projections. */
   refreshRecord: () => Promise<DailyRecord>;
   /** Local refresh after a committed batch; its result is unused. Defaults to `refreshRecord`. */
@@ -55,59 +52,6 @@ interface ApplyClinicalEnrichmentBatchInput {
   invoke?: typeof callRayenClinicalEnrichmentBatch;
   createMutationId?: () => string;
 }
-
-interface ObserveClinicalEnrichmentBatchInput {
-  record: DailyRecord;
-  runId: string;
-  operations: ClinicalFillPatchOperation[];
-  invoke?: typeof callRayenClinicalEnrichmentBatch;
-  createMutationId?: () => string;
-}
-
-export const observeClinicalEnrichmentBatch = async ({
-  record,
-  runId,
-  operations,
-  invoke = callRayenClinicalEnrichmentBatch,
-  createMutationId = createSyncMutationId,
-}: ObserveClinicalEnrichmentBatchInput): Promise<ClinicalFillBatchEvidence> => {
-  try {
-    const chunks = buildBoundedClinicalBatchChunks({
-      mode: 'shadow',
-      record,
-      runId,
-      operations,
-      createMutationId,
-    });
-    const evidence: ClinicalFillBatchEvidence[] = [];
-    for (const chunk of chunks) {
-      const prepared = prepareClinicalEnrichmentBatchPayload({
-        mode: 'shadow',
-        record,
-        runId,
-        operations: chunk.operations,
-        mutationId: chunk.mutationId,
-      });
-      if (!prepared.payload) continue;
-      const response = await invoke(prepared.payload);
-      evidence.push(assertCommittedResponse(response, prepared.payload));
-    }
-    return mergeBatchEvidence(evidence, 'shadow');
-  } catch (error) {
-    reportRayenSyncWarning('clinical_batch_shadow_observation_failed', {
-      batchRunId: runId,
-      batchMode: 'shadow',
-      errorKind: classifyRayenSyncError(error),
-    });
-    return prepareClinicalEnrichmentBatchPayload({
-      mode: 'shadow',
-      record,
-      runId,
-      operations,
-      mutationId: createMutationId(),
-    }).evidence;
-  }
-};
 
 /** Executes one bounded authority call; enforced never changes persistence owner mid-run. */
 export const applyClinicalEnrichmentBatch = async ({
@@ -117,103 +61,11 @@ export const applyClinicalEnrichmentBatch = async ({
   runId,
   operations,
   rebuildOperations,
-  applyPatch,
   refreshRecord,
   refreshCommittedRecord = refreshRecord,
   invoke = callRayenClinicalEnrichmentBatch,
   createMutationId = createSyncMutationId,
 }: ApplyClinicalEnrichmentBatchInput): Promise<ClinicalFillBatchApplyResult> => {
-  if (mode === 'off') {
-    return applyLegacyClinicalEnrichmentOperations(operations, applyPatch);
-  }
-  const invokeChecked = async (
-    payload: RayenClinicalEnrichmentBatchPayload
-  ): Promise<{
-    response: Awaited<ReturnType<typeof callRayenClinicalEnrichmentBatch>>;
-    batch: ClinicalFillBatchEvidence;
-  }> => {
-    const response = await invoke(payload);
-    const batch = assertCommittedResponse(response, payload);
-    return { response, batch };
-  };
-
-  if (mode === 'shadow') {
-    const legacy = await applyLegacyClinicalEnrichmentOperations(operations, applyPatch);
-    let shadowRecord: DailyRecord;
-    try {
-      shadowRecord = await refreshRecord();
-    } catch (error) {
-      reportRayenSyncWarning('clinical_batch_shadow_refresh_failed', {
-        runId,
-        batchMode: 'shadow',
-        errorKind: classifyRayenSyncError(error),
-      });
-      const { evidence } = prepareClinicalEnrichmentBatchPayload({
-        mode,
-        record,
-        authorityDate,
-        runId,
-        operations,
-        mutationId: createMutationId(),
-      });
-      return { ...legacy, batch: evidence };
-    }
-    let chunks: BoundedClinicalBatchChunk[];
-    try {
-      chunks = buildBoundedClinicalBatchChunks({
-        mode,
-        record: shadowRecord,
-        authorityDate,
-        runId,
-        operations,
-        createMutationId,
-      });
-    } catch (error) {
-      reportRayenSyncWarning('clinical_batch_shadow_observation_failed', {
-        batchRunId: runId,
-        batchMode: 'shadow',
-        errorKind: classifyRayenSyncError(error),
-      });
-      const { evidence } = prepareClinicalEnrichmentBatchPayload({
-        mode,
-        record: shadowRecord,
-        authorityDate,
-        runId,
-        operations,
-        mutationId: createMutationId(),
-      });
-      return { ...legacy, batch: evidence };
-    }
-    const batchEvidence: ClinicalFillBatchEvidence[] = [];
-    for (const chunk of chunks) {
-      const prepared = prepareClinicalEnrichmentBatchPayload({
-        mode,
-        record: shadowRecord,
-        authorityDate,
-        runId,
-        operations: chunk.operations,
-        mutationId: chunk.mutationId,
-      });
-      if (!prepared.payload) continue;
-      const batch = await invokeChecked(prepared.payload)
-        .then(result => result.batch)
-        .catch(error => {
-          reportRayenSyncWarning('clinical_batch_shadow_observation_failed', {
-            batchRunId: runId,
-            batchMode: 'shadow',
-            errorKind: classifyRayenSyncError(error),
-          });
-          return summarizeClinicalEnrichmentSections(
-            prepared.payload?.patches ?? [],
-            prepared.payload?.checkpoints ?? [],
-            'shadow'
-          );
-        });
-      batchEvidence.push(batch);
-    }
-    return { ...legacy, batch: mergeBatchEvidence(batchEvidence, 'shadow') };
-  }
-
   return runExclusiveDailyRecordWrite(
     record.date,
     async () => {
@@ -273,7 +125,10 @@ export const applyClinicalEnrichmentBatch = async ({
       }
 
       let activePayload = prepared.payload;
-      let checked: Awaited<ReturnType<typeof invokeChecked>>;
+      let checked: {
+        response: Awaited<ReturnType<typeof invoke>>;
+        batch: ClinicalFillBatchEvidence;
+      };
       const invokeEnforced = async (payload: RayenClinicalEnrichmentBatchPayload) => {
         callableAttempts += 1;
         let response: Awaited<ReturnType<typeof callRayenClinicalEnrichmentBatch>>;

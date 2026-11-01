@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   resolveClinicalEnrichmentBatchModeForRun,
   resolveClinicalEnrichmentBatchPolicyForRun,
-  usesLegacyClinicalWriter,
 } from '@/features/rayen-import/domain/clinicalEnrichmentBatchMode';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
@@ -65,29 +64,27 @@ describe('clinicalEnrichmentBatchMode', () => {
     }
   );
 
-  it('uses off only for an existing legacy event and rejects missing run evidence', () => {
-    expect(resolveClinicalEnrichmentBatchModeForRun(record(undefined), 'latest-run')).toBe('off');
+  it('rejects legacy events and missing run evidence', () => {
+    expect(resolveClinicalEnrichmentBatchModeForRun(record(undefined), 'latest-run')).toBe(
+      'unavailable'
+    );
     expect(resolveClinicalEnrichmentBatchModeForRun(record('enforced'), 'unknown-run')).toBe(
       'unavailable'
     );
     expect(resolveClinicalEnrichmentBatchModeForRun({ date: '2026-08-04' })).toBe('unavailable');
   });
 
-  it('preserves only the revision-zero off default used before policy initialization', () => {
-    const legacyDefault = record(undefined);
-    legacyDefault.rayenSyncHistory![0].policy!.revision = 0;
-    expect(resolveClinicalEnrichmentBatchPolicyForRun(legacyDefault)).toEqual({
-      runId: 'latest-run',
-      importMode: 'preview',
-      clinicalBatchMode: 'off',
-      revision: 0,
-      sourceDate: '2026-08-04',
-      recordScope: 'run',
-    });
+  it.each(['off', 'shadow', undefined] as const)(
+    'leaves retired or missing policy %s unavailable',
+    mode => {
+      expect(resolveClinicalEnrichmentBatchPolicyForRun(record(mode))).toBe('unavailable');
+    }
+  );
 
-    const invalidEnforced = record('enforced');
-    invalidEnforced.rayenSyncHistory![0].policy!.revision = 0;
-    expect(resolveClinicalEnrichmentBatchPolicyForRun(invalidEnforced)).toBe('unavailable');
+  it('rejects uninitialized enforced policy', () => {
+    const invalid = record('enforced');
+    invalid.rayenSyncHistory![0].policy!.revision = 0;
+    expect(resolveClinicalEnrichmentBatchPolicyForRun(invalid)).toBe('unavailable');
   });
 
   it('rejects malformed structural policy evidence at runtime', () => {
@@ -95,11 +92,5 @@ describe('clinicalEnrichmentBatchMode', () => {
     Object.assign(malformed.rayenSyncHistory![0].policy!, { mode: 'unsafe-auto' });
 
     expect(resolveClinicalEnrichmentBatchPolicyForRun(malformed)).toBe('unavailable');
-  });
-
-  it('reserves the established writer for off and shadow modes', () => {
-    expect(usesLegacyClinicalWriter('off')).toBe(true);
-    expect(usesLegacyClinicalWriter('shadow')).toBe(true);
-    expect(usesLegacyClinicalWriter('enforced')).toBe(false);
   });
 });

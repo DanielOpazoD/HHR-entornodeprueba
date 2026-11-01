@@ -83,7 +83,7 @@ const installSyntheticEloisa = async (page: Page) => {
     ({ censusDay, dischargeDay, sharedRun, motherEpisode }) => {
       localStorage.setItem(
         'hhr_e2e_rayen_import_policy',
-        JSON.stringify({ mode: 'preview', clinicalBatchMode: 'off', revision: 1 })
+        JSON.stringify({ mode: 'preview', clinicalBatchMode: 'enforced', revision: 1 })
       );
       window.addEventListener('message', event => {
         if (event.origin !== window.location.origin || !event.data) return;

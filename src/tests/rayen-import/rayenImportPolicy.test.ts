@@ -11,7 +11,7 @@ describe('rayen import policy', () => {
     expect(DEFAULT_RAYEN_IMPORT_MODE).toBe('preview');
     expect(DEFAULT_RAYEN_IMPORT_POLICY).toEqual({
       mode: 'preview',
-      clinicalBatchMode: 'off',
+      clinicalBatchMode: 'enforced',
       revision: 0,
     });
   });
@@ -38,7 +38,7 @@ describe('rayen import policy', () => {
         updatedAt: Timestamp.fromDate(new Date(1_000)),
         updatedByUid: 'admin-1',
       })
-    ).toEqual({ mode: 'auto', clinicalBatchMode: 'off', revision: 4 });
+    ).toEqual({ mode: 'auto', clinicalBatchMode: 'enforced', revision: 4 });
   });
 
   it('rejects malformed or unversioned automation policies', () => {
@@ -105,4 +105,19 @@ describe('rayen import policy', () => {
       })
     ).toBeNull();
   });
+  it.each(['off', 'shadow', undefined])(
+    'rejects retired or absent global clinical mode %s',
+    clinicalBatchMode => {
+      expect(
+        normalizeRayenImportPolicy({
+          schemaVersion: 2,
+          mode: 'preview',
+          clinicalBatchMode,
+          revision: 7,
+          updatedAt: Timestamp.fromDate(new Date(1_000)),
+          updatedByUid: 'synthetic-admin',
+        })
+      ).toBeNull();
+    }
+  );
 });

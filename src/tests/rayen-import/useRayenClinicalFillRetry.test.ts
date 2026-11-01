@@ -178,7 +178,8 @@ describe('useRayenClinicalFillRetry', () => {
           startedAt: '2026-08-08T09:00:00.000Z',
           by: 'Operador HHR',
           status: 'applied' as const,
-          policy: { mode: 'preview' as const, revision: 1 },
+          sourceDate: '2026-07-14',
+          policy: { mode: 'preview' as const, clinicalBatchMode: 'enforced' as const, revision: 1 },
         },
       ],
     } as DailyRecord;

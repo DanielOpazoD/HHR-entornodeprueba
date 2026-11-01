@@ -8,33 +8,28 @@ const makeSummary = (
 ): RayenClinicalEnrichmentRolloutSummary => ({
   parityContractVersion: 2,
   total: 4,
-  shadowRuns: 4,
-  enforcedWrites: 0,
-  matchedShadowRuns: 4,
-  mismatchedShadowRuns: 0,
-  unavailableShadowRuns: 0,
+  enforcedWrites: 4,
   failureCount: 0,
   blockedCount: 0,
   permissionDeniedCount: 0,
   evidenceHours: 9,
   cleanWindowRuns: 4,
-  cleanMatchedShadowRuns: 4,
-  cleanEnforcedWrites: 0,
+  cleanEnforcedWrites: 4,
   cleanEvidenceHours: 9,
-  recommendation: 'ready_for_enforced',
+  recommendation: 'monitor_enforced',
   ...overrides,
 });
 
 describe('RayenClinicalEnrichmentRolloutCard', () => {
-  it('shows when the transactional batch has enough safe shadow evidence', () => {
+  it('shows confirmed transactional batch monitoring', () => {
     render(<RayenClinicalEnrichmentRolloutCard summary={makeSummary()} />);
 
     expect(screen.getByText('Lote clínico transaccional')).toBeInTheDocument();
-    expect(screen.getByText('Listo para activar el lote')).toBeInTheDocument();
-    expect(screen.getByText('Paridad OK')).toBeInTheDocument();
+    expect(screen.getByText('Lote activo en monitoreo')).toBeInTheDocument();
+    expect(screen.queryByText('Shadow')).not.toBeInTheDocument();
     expect(screen.getByText('Permisos denegados')).toBeInTheDocument();
     expect(screen.getByText(/contrato v2/i)).toBeInTheDocument();
-    expect(screen.getByText(/la racha limpia decide el gate/i)).toBeInTheDocument();
+    expect(screen.getByText(/la racha muestra ejecuciones sin fallos/i)).toBeInTheDocument();
     expect(screen.getAllByText('9')).toHaveLength(2);
   });
 
@@ -42,14 +37,11 @@ describe('RayenClinicalEnrichmentRolloutCard', () => {
     render(
       <RayenClinicalEnrichmentRolloutCard
         summary={makeSummary({
-          matchedShadowRuns: 3,
-          mismatchedShadowRuns: 1,
           recommendation: 'investigate',
         })}
       />
     );
 
-    expect(screen.getByText('Investigar antes de activar')).toBeInTheDocument();
-    expect(screen.getByText('Mismatch')).toBeInTheDocument();
+    expect(screen.getByText('Revisar fallos del lote')).toBeInTheDocument();
   });
 });

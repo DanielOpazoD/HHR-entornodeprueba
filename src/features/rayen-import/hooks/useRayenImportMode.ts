@@ -8,7 +8,6 @@ import {
 import {
   initializeRayenImportPolicy,
   migrateRayenImportPolicy,
-  saveRayenClinicalBatchMode,
   saveRayenImportPolicy,
   subscribeToRayenImportPolicy,
 } from '../settings/rayenImportPolicyService';
@@ -62,7 +61,6 @@ export interface UseRayenImportModeResult {
   initializeSafePolicy: () => Promise<void>;
   migrateLegacyPolicy: () => Promise<void>;
   setMode: (mode: RayenImportMode) => Promise<void>;
-  setClinicalBatchMode: (mode: ClinicalEnrichmentBatchMode) => Promise<void>;
 }
 
 const safePolicy = (): RayenImportPolicy => ({ ...DEFAULT_RAYEN_IMPORT_POLICY });
@@ -152,27 +150,6 @@ export const useRayenImportMode = (updatedByUid?: string | null): UseRayenImport
     [status, updatedByUid]
   );
 
-  const setClinicalBatchMode = useCallback(
-    async (clinicalBatchMode: ClinicalEnrichmentBatchMode): Promise<void> => {
-      if (!updatedByUid || status !== 'ready') {
-        throw new Error('La política global aún no está disponible para edición.');
-      }
-      setIsSaving(true);
-      setError(null);
-      try {
-        await saveRayenClinicalBatchMode({ clinicalBatchMode, updatedByUid });
-      } catch (saveError) {
-        setError(
-          saveError instanceof Error ? saveError.message : 'No se pudo guardar la política global.'
-        );
-        throw saveError;
-      } finally {
-        setIsSaving(false);
-      }
-    },
-    [status, updatedByUid]
-  );
-
   const initializeSafePolicy = useCallback(async (): Promise<void> => {
     if (!updatedByUid || status !== 'unconfigured') {
       throw new Error('La política global no requiere inicialización.');
@@ -221,6 +198,5 @@ export const useRayenImportMode = (updatedByUid?: string | null): UseRayenImport
     initializeSafePolicy,
     migrateLegacyPolicy,
     setMode,
-    setClinicalBatchMode,
   };
 };

@@ -40,7 +40,6 @@ const setup = (current: DailyRecord) => {
     mode: 'enforced',
     record: record(),
     runId: 'run-recovery',
-    applyPatch: deps.applyPatch,
     refreshRecord: deps.refreshRecord,
     applyBatch: input =>
       applyClinicalEnrichmentBatch({

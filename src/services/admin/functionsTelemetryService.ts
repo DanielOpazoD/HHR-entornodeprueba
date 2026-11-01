@@ -25,8 +25,6 @@ const DAILY_RECORD_AUTHORITY_OPERATIONS = new Set([
 ]);
 const RAYEN_CLINICAL_ENRICHMENT_SERVICE = 'rayenClinicalEnrichment';
 const RAYEN_CLINICAL_ENRICHMENT_OPERATION = 'applyRayenClinicalEnrichmentBatch';
-export const MIN_MATCHED_SHADOW_RUNS = 4;
-export const MIN_SHADOW_EVIDENCE_HOURS = 8;
 
 interface RawTelemetryRecord {
   id?: string;
@@ -210,12 +208,6 @@ const resolveClinicalEnrichmentRecommendation = (
     return 'investigate';
   }
   if (summary.cleanEnforcedWrites > 0) return 'monitor_enforced';
-  if (
-    summary.cleanMatchedShadowRuns >= MIN_MATCHED_SHADOW_RUNS &&
-    summary.cleanEvidenceHours >= MIN_SHADOW_EVIDENCE_HOURS
-  ) {
-    return 'ready_for_enforced';
-  }
   return 'insufficient_data';
 };
 
@@ -225,8 +217,8 @@ const isClinicalEnrichmentBlockingSignal = (entry: FunctionsTelemetryEntry): boo
   const authorityStatus = readStringContext(entry.context, 'authorityStatus');
   return (
     entry.status !== 'success' ||
-    (mode !== 'shadow' && mode !== 'enforced') ||
-    (mode === 'shadow' && parity !== 'matched') ||
+    mode !== 'enforced' ||
+    parity !== 'matched' ||
     authorityStatus === 'blocked' ||
     entry.errorCode === 'failed-precondition' ||
     entry.errorCode === 'permission-denied'
@@ -251,7 +243,8 @@ export const buildRayenClinicalEnrichmentRolloutSummary = (
   const allBatchEntries = entries.filter(
     entry =>
       entry.service === RAYEN_CLINICAL_ENRICHMENT_SERVICE &&
-      entry.operation === RAYEN_CLINICAL_ENRICHMENT_OPERATION
+      entry.operation === RAYEN_CLINICAL_ENRICHMENT_OPERATION &&
+      readStringContext(entry.context, 'mode') === 'enforced'
   );
   const parityContractVersion = allBatchEntries.reduce(
     (latest, entry) =>
@@ -279,19 +272,10 @@ export const buildRayenClinicalEnrichmentRolloutSummary = (
   const base = batchEntries.reduce(
     (summary, entry) => {
       const mode = readStringContext(entry.context, 'mode');
-      const parity = readStringContext(entry.context, 'resultParity');
       const authorityStatus = readStringContext(entry.context, 'authorityStatus');
-      const shadow = mode === 'shadow';
       return {
         total: summary.total + 1,
-        shadowRuns: summary.shadowRuns + (shadow ? 1 : 0),
         enforcedWrites: summary.enforcedWrites + (mode === 'enforced' ? 1 : 0),
-        matchedShadowRuns: summary.matchedShadowRuns + (shadow && parity === 'matched' ? 1 : 0),
-        mismatchedShadowRuns:
-          summary.mismatchedShadowRuns + (shadow && parity === 'mismatch' ? 1 : 0),
-        unavailableShadowRuns:
-          summary.unavailableShadowRuns +
-          (shadow && parity !== 'matched' && parity !== 'mismatch' ? 1 : 0),
         failureCount: summary.failureCount + (entry.status === 'failure' ? 1 : 0),
         blockedCount:
           summary.blockedCount +
@@ -302,11 +286,7 @@ export const buildRayenClinicalEnrichmentRolloutSummary = (
     },
     {
       total: 0,
-      shadowRuns: 0,
       enforcedWrites: 0,
-      matchedShadowRuns: 0,
-      mismatchedShadowRuns: 0,
-      unavailableShadowRuns: 0,
       failureCount: 0,
       blockedCount: 0,
       permissionDeniedCount: 0,
@@ -319,11 +299,6 @@ export const buildRayenClinicalEnrichmentRolloutSummary = (
     firstEntryAt: firstTimestamp != null ? new Date(firstTimestamp).toISOString() : undefined,
     lastEntryAt: lastTimestamp != null ? new Date(lastTimestamp).toISOString() : undefined,
     cleanWindowRuns: cleanWindowEntries.length,
-    cleanMatchedShadowRuns: cleanWindowEntries.filter(
-      entry =>
-        readStringContext(entry.context, 'mode') === 'shadow' &&
-        readStringContext(entry.context, 'resultParity') === 'matched'
-    ).length,
     cleanEnforcedWrites: cleanWindowEntries.filter(
       entry => readStringContext(entry.context, 'mode') === 'enforced'
     ).length,

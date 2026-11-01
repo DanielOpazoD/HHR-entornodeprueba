@@ -1,7 +1,6 @@
+import { runClinicalFill, type ClinicalFillDeps } from './support/batchClinicalFill';
 import { captureClinicalCudyrSource } from '@/features/rayen-import/domain/clinicalCudyrPreflight';
 import { describe, expect, it, vi } from 'vitest';
-import { runClinicalFill } from '@/features/rayen-import/clinicalFillRunner';
-import type { ClinicalFillDeps } from '@/features/rayen-import/contracts/clinicalFillContracts';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { buildCudyrCaptureParts } from '@/features/rayen-import/domain/cudyrCapturePlan';
 import { persistCudyrSyncCapture } from '@/features/rayen-import/domain/persistCudyrSyncCapture';

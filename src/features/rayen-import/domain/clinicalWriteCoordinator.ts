@@ -20,7 +20,6 @@ export const createClinicalWriteCoordinator = (
   signal?: AbortSignal
 ) => {
   let queue: Promise<void> = Promise.resolve();
-  let historySnapshotCaptured = false;
   const enqueue = <T>(
     operation: () => Promise<T>,
     options: { scope?: 'current' | 'historical' } = {}
@@ -45,23 +44,6 @@ export const createClinicalWriteCoordinator = (
     return pending;
   };
 
-  const applyPatientPatch = (
-    operation: (captureHistorySnapshot: boolean) => Promise<void>,
-    options: { clinicalChange?: boolean } = {}
-  ) =>
-    enqueue(
-      async () => {
-        const captureHistorySnapshot = options.clinicalChange !== false && !historySnapshotCaptured;
-        await operation(captureHistorySnapshot);
-        if (captureHistorySnapshot) {
-          historySnapshotCaptured = true;
-          metrics.historySnapshots += 1;
-        }
-        metrics.patientWrites += 1;
-      },
-      { scope: 'current' }
-    );
-
   const applyBatch = <T extends ClinicalBatchWriteMetrics>(
     operation: () => Promise<T>,
     options: { scope?: 'current' | 'historical' } = {}
@@ -73,5 +55,5 @@ export const createClinicalWriteCoordinator = (
       return result;
     }, options);
 
-  return { enqueue, applyPatientPatch, applyBatch };
+  return { enqueue, applyBatch };
 };
