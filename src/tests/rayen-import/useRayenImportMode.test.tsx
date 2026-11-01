@@ -30,17 +30,17 @@ describe('useRayenImportMode', () => {
     policyService.subscribe.mockReturnValue(vi.fn());
     policyService.initialize.mockResolvedValue({
       mode: 'preview',
-      clinicalBatchMode: 'off',
+      clinicalBatchMode: 'enforced',
       revision: 1,
     });
     policyService.migrate.mockResolvedValue({
       mode: 'auto',
-      clinicalBatchMode: 'off',
+      clinicalBatchMode: 'enforced',
       revision: 5,
     });
     policyService.save.mockResolvedValue({
       mode: 'preview',
-      clinicalBatchMode: 'off',
+      clinicalBatchMode: 'enforced',
       revision: 2,
     });
     policyService.saveClinical.mockResolvedValue({
@@ -82,28 +82,9 @@ describe('useRayenImportMode', () => {
       });
     });
     expect(result.current.mode).toBe('preview');
-    expect(result.current.clinicalBatchMode).toBe('off');
+    expect(result.current.clinicalBatchMode).toBe('enforced');
     expect(result.current.policy.revision).toBe(0);
     expect(result.current.status).toBe('fallback');
-  });
-
-  it('applies the server-confirmed off mode as the explicit clinical rollback', () => {
-    const { result } = renderHook(() => useRayenImportMode());
-    act(() => {
-      policyService.handlers?.onSnapshot({
-        policy: { mode: 'auto', clinicalBatchMode: 'off', revision: 9 },
-        exists: true,
-        fromCache: false,
-        hasPendingWrites: false,
-      });
-    });
-    expect(result.current).toEqual(
-      expect.objectContaining({
-        mode: 'auto',
-        clinicalBatchMode: 'off',
-        status: 'ready',
-      })
-    );
   });
 
   it('does not trust an unacknowledged local auto write', () => {
@@ -132,7 +113,11 @@ describe('useRayenImportMode', () => {
       });
     });
     expect(result.current).toEqual(
-      expect.objectContaining({ mode: 'preview', clinicalBatchMode: 'off', status: 'unconfigured' })
+      expect.objectContaining({
+        mode: 'preview',
+        clinicalBatchMode: 'enforced',
+        status: 'unconfigured',
+      })
     );
   });
 
@@ -140,7 +125,7 @@ describe('useRayenImportMode', () => {
     const { result } = renderHook(() => useRayenImportMode('admin-1'));
     act(() => {
       policyService.handlers?.onSnapshot({
-        policy: { mode: 'auto', clinicalBatchMode: 'off', revision: 4 },
+        policy: { mode: 'auto', clinicalBatchMode: 'enforced', revision: 4 },
         exists: true,
         requiresMigration: true,
         fromCache: false,
@@ -151,7 +136,7 @@ describe('useRayenImportMode', () => {
     expect(result.current).toEqual(
       expect.objectContaining({
         mode: 'auto',
-        clinicalBatchMode: 'off',
+        clinicalBatchMode: 'enforced',
         status: 'migration-required',
       })
     );
@@ -183,7 +168,7 @@ describe('useRayenImportMode', () => {
     const { result } = renderHook(() => useRayenImportMode('admin-1'));
     act(() => {
       policyService.handlers?.onSnapshot({
-        policy: { mode: 'preview', clinicalBatchMode: 'off', revision: 1 },
+        policy: { mode: 'preview', clinicalBatchMode: 'enforced', revision: 1 },
         exists: true,
         fromCache: false,
         hasPendingWrites: false,
@@ -208,42 +193,5 @@ describe('useRayenImportMode', () => {
     expect(policyService.initialize).toHaveBeenCalledWith({ updatedByUid: 'admin-1' });
     expect(policyService.save).not.toHaveBeenCalled();
     expect(policyService.saveClinical).not.toHaveBeenCalled();
-  });
-
-  it('does not allow an unconfigured policy to skip safe initialization', async () => {
-    const { result } = renderHook(() => useRayenImportMode('admin-1'));
-    act(() => {
-      policyService.handlers?.onSnapshot({
-        policy: null,
-        exists: false,
-        fromCache: false,
-        hasPendingWrites: false,
-      });
-    });
-    await expect(result.current.setMode('auto')).rejects.toThrow(
-      'La política global aún no está disponible para edición.'
-    );
-    await expect(result.current.setClinicalBatchMode('enforced')).rejects.toThrow(
-      'La política global aún no está disponible para edición.'
-    );
-    expect(policyService.save).not.toHaveBeenCalled();
-    expect(policyService.saveClinical).not.toHaveBeenCalled();
-  });
-
-  it('updates the clinical mode through the same confirmed global policy', async () => {
-    const { result } = renderHook(() => useRayenImportMode('admin-1'));
-    act(() => {
-      policyService.handlers?.onSnapshot({
-        policy: { mode: 'preview', clinicalBatchMode: 'shadow', revision: 2 },
-        exists: true,
-        fromCache: false,
-        hasPendingWrites: false,
-      });
-    });
-    await act(() => result.current.setClinicalBatchMode('enforced'));
-    expect(policyService.saveClinical).toHaveBeenCalledWith({
-      clinicalBatchMode: 'enforced',
-      updatedByUid: 'admin-1',
-    });
   });
 });

@@ -1,8 +1,7 @@
+import { runClinicalFill, type ClinicalFillDeps } from './support/batchClinicalFill';
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
-import { runClinicalFill } from '@/features/rayen-import/clinicalFillRunner';
 import type {
-  ClinicalFillDeps,
   ClinicalFillError,
   ClinicalFillSummary,
 } from '@/features/rayen-import/contracts/clinicalFillContracts';

@@ -1,5 +1,5 @@
+import { runClinicalFill, type ClinicalFillDeps } from './support/batchClinicalFill';
 import { describe, expect, it, vi } from 'vitest';
-import { runClinicalFill, type ClinicalFillDeps } from '@/features/rayen-import';
 import { prepareDailyRecordForPersistence } from '@/services/repositories/dailyRecordPersistencePreparation';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
@@ -77,7 +77,7 @@ describe('clinical fill fixed point', () => {
     const retryApply = vi.fn().mockResolvedValue(undefined);
     const retry = await runClinicalFill(hydrated, '2026-07-10', deps(retryApply));
 
-    expect(first.incremental).toMatchObject({ patientWrites: 10, historySnapshots: 1 });
+    expect(first.incremental).toMatchObject({ patientWrites: 1, historySnapshots: 1 });
     expect(retry).toMatchObject({ total: 10, patched: 0, errors: [] });
     expect(retry.incremental).toMatchObject({ patientWrites: 0, historySnapshots: 0 });
     expect(retry.performance?.counters.patches).toBe(0);

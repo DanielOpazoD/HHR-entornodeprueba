@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
-import {
-  applyHistoricalCudyrBatch,
-  applyHistoricalCudyrBatchAuthoritatively,
-} from '@/features/rayen-import/hooks/applyHistoricalCudyr';
+import { applyHistoricalCudyrBatchAuthoritatively } from '@/features/rayen-import/hooks/applyHistoricalCudyr';
 import { patchDailyRecordWithCompatibility } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ImportedCudyr } from '@/types/domain/evaluationScores';
@@ -47,7 +44,9 @@ describe('historical CUDYR remote authority', () => {
     } as unknown as DailyRecordRepositoryPort;
 
     await expect(
-      applyHistoricalCudyrBatch({
+      applyHistoricalCudyrBatchAuthoritatively({
+        sourceRecord: sourceRecord(),
+        runId: 'synthetic-run',
         dailyRecord: repository,
         censusDay: '2026-07-29',
         items: [{ clinicalEpisodeId: '142000', cudyr }],
@@ -116,12 +115,14 @@ describe('historical CUDYR remote authority', () => {
     const repository = {
       getAuthoritativeForDate: vi.fn().mockResolvedValue(record('revision-1')),
     } as unknown as DailyRecordRepositoryPort;
-    const applyBatch = vi.fn().mockImplementation(
-      async (input: { rebuildOperations: (record: DailyRecord) => unknown[] }) => {
-        expect(input.rebuildOperations(administrativeRecord)).toEqual([]);
-        return { patientWrites: 0, historySnapshots: 0, retries: 1 };
-      }
-    );
+    const applyBatch = vi
+      .fn()
+      .mockImplementation(
+        async (input: { rebuildOperations: (record: DailyRecord) => unknown[] }) => {
+          expect(input.rebuildOperations(administrativeRecord)).toEqual([]);
+          return { patientWrites: 0, historySnapshots: 0, retries: 1 };
+        }
+      );
 
     await expect(
       applyHistoricalCudyrBatchAuthoritatively({

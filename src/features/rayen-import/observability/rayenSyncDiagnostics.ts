@@ -25,8 +25,6 @@ export type RayenSyncDiagnosticCode =
   | 'clinical_batch_base_rebased'
   | 'clinical_batch_base_refresh_failed'
   | 'clinical_batch_local_refresh_deferred'
-  | 'clinical_batch_shadow_observation_failed'
-  | 'clinical_batch_shadow_refresh_failed'
   | 'clinical_fill_failed'
   | 'clinical_fill_partial'
   | 'clinical_fill_queue_task_failed'
@@ -51,7 +49,7 @@ interface RayenSyncDiagnosticData {
   issueReason?: RayenSyncIssueReason;
   issueCount?: number;
   patientCount?: number;
-  batchMode?: 'shadow' | 'enforced';
+  batchMode?: 'enforced';
   durationMs?: number;
   /** Stage names of a transition the execution graph refused. */
   from?: string | null;

@@ -1,100 +1,14 @@
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
-import { patchDailyRecordWithCompatibility } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
-import { isDailyRecordWriteRejectedResult } from '@/services/repositories/contracts/dailyRecordResults';
-import type { ImportedCudyr } from '@/types/domain/evaluationScores';
 import type {
-  HistoricalCudyrApplyResult,
   HistoricalCudyrBatchExecutionResult,
   HistoricalCudyrBatchItem,
-  HistoricalCudyrBatchItemResult,
 } from '../contracts/clinicalFillContracts';
-import { resolveHistoricalCudyrPatch } from '../domain/historicalCudyrPatch';
-import { canWritePreviousDay } from '../domain/previousDayCorrections';
-import type { RayenClinicalWriteGuard } from '@/types/domain/rayenSync';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import { resolveHistoricalCudyrBatchOperation } from '../domain/historicalCudyrPatch';
-import { CUDYR_DOCUMENTARY_SOURCE } from '@/domain/evaluationScales/documentaryCudyr';
 import { readClinicalFillDerivedView } from './clinicalFillDerivedView';
 
 type ApplyClinicalEnrichmentBatch =
   typeof import('./applyClinicalEnrichmentBatch').applyClinicalEnrichmentBatch;
-
-const concurrencyError = (message: string): Error => {
-  const error = new Error(message);
-  error.name = 'ConcurrencyError';
-  return error;
-};
-
-const isConcurrencyFailure = (error: unknown): boolean =>
-  error instanceof Error && error.name === 'ConcurrencyError';
-
-const writeHistoricalCudyrBatch = async ({
-  dailyRecord,
-  censusDay,
-  items,
-  writeGuard,
-}: {
-  dailyRecord: DailyRecordRepositoryPort;
-  censusDay: string;
-  items: HistoricalCudyrBatchItem[];
-  writeGuard?: RayenClinicalWriteGuard;
-}): Promise<HistoricalCudyrBatchItemResult[]> => {
-  const historicalDay = await dailyRecord.getAuthoritativeForDate(censusDay);
-  if (!historicalDay) {
-    return items.map(({ clinicalEpisodeId }) => ({
-      clinicalEpisodeId,
-      persisted: false,
-      changed: false,
-      applicable: false,
-    }));
-  }
-  const historicalView = await readClinicalFillDerivedView(historicalDay, () =>
-    dailyRecord.getAuthoritativeForDate(censusDay)
-  );
-  const historicalRecord = historicalView.record;
-
-  const resolutions = items.map(({ clinicalEpisodeId, cudyr }) => ({
-    clinicalEpisodeId,
-    resolution: resolveHistoricalCudyrPatch(historicalRecord, clinicalEpisodeId, cudyr),
-  }));
-  const patch = Object.assign(
-    {},
-    ...resolutions.flatMap(({ resolution }) => (resolution.patch ? [resolution.patch] : []))
-  );
-  if (Object.keys(patch).length === 0) {
-    return resolutions.map(({ clinicalEpisodeId, resolution }) => ({
-      clinicalEpisodeId,
-      persisted: resolution.matched && !resolution.administrativeOverridePreserved,
-      changed: false,
-      ...(!resolution.matched ? { applicable: false as const } : {}),
-      ...(resolution.administrativeOverridePreserved
-        ? { administrativeOverridePreserved: true as const }
-        : {}),
-    }));
-  }
-
-  const result = await patchDailyRecordWithCompatibility(dailyRecord, censusDay, patch, {
-    baseRecord: historicalView.day,
-    ...(writeGuard ? { rayenClinicalWriteGuard: writeGuard } : {}),
-  });
-  if (isDailyRecordWriteRejectedResult(result)) {
-    if (result?.conflictSummary?.kind === 'concurrency') {
-      throw concurrencyError(result.userSafeMessage || 'El censo cambió durante el guardado.');
-    }
-    if (result?.blockingError) throw result.blockingError;
-    throw new Error(result?.userSafeMessage || 'El guardado histórico del CUDYR fue bloqueado.');
-  }
-  if (result?.blockingError) throw result.blockingError;
-  return resolutions.map(({ clinicalEpisodeId, resolution }) => ({
-    clinicalEpisodeId,
-    persisted: resolution.matched && !resolution.administrativeOverridePreserved,
-    changed: Boolean(resolution.patch),
-    ...(!resolution.matched ? { applicable: false as const } : {}),
-    ...(resolution.administrativeOverridePreserved
-      ? { administrativeOverridePreserved: true as const }
-      : {}),
-  }));
-};
 
 const uniqueBatchItems = (items: HistoricalCudyrBatchItem[]): HistoricalCudyrBatchItem[] => [
   ...new Map(items.map(item => [item.clinicalEpisodeId, item])).values(),
@@ -117,54 +31,6 @@ const canWriteAuthoritativeHistoricalDay = ({
   sourceDate: string;
   isAdmin: boolean;
 }): boolean => isAdmin && previousIsoDay(sourceDate) === censusDay;
-
-export const applyHistoricalCudyrBatch = async ({
-  dailyRecord,
-  censusDay,
-  items,
-  isAdmin,
-  writeGuard,
-}: {
-  dailyRecord: DailyRecordRepositoryPort;
-  censusDay: string;
-  items: HistoricalCudyrBatchItem[];
-  isAdmin: boolean;
-  writeGuard?: RayenClinicalWriteGuard;
-}): Promise<HistoricalCudyrBatchItemResult[]> => {
-  const uniqueItems = uniqueBatchItems(items);
-  if (uniqueItems.length === 0) return [];
-  if (
-    uniqueItems.some(
-      item => item.cudyr.source === CUDYR_DOCUMENTARY_SOURCE || item.cudyr.documentaryEvidence
-    )
-  )
-    throw new Error(
-      'La recuperación mensual requiere el lote clínico con validación atómica de identidad.'
-    );
-  const canWriteTargetDay = writeGuard
-    ? canWriteAuthoritativeHistoricalDay({
-        censusDay,
-        sourceDate: writeGuard.sourceDate,
-        isAdmin,
-      })
-    : canWritePreviousDay(censusDay, isAdmin);
-  if (!canWriteTargetDay) {
-    return uniqueItems.map(({ clinicalEpisodeId }) => ({
-      clinicalEpisodeId,
-      persisted: false,
-      changed: false,
-      applicable: false,
-    }));
-  }
-  const input = { dailyRecord, censusDay, items: uniqueItems, writeGuard };
-  try {
-    return await writeHistoricalCudyrBatch(input);
-  } catch (error) {
-    if (!isConcurrencyFailure(error)) throw error;
-    // One bounded retry rehydrates the latest revision and recomputes the whole granular batch.
-    return writeHistoricalCudyrBatch(input);
-  }
-};
 
 /**
  * Persists the previous census day's CUDYR values through the same authoritative callable used
@@ -272,9 +138,6 @@ export const applyHistoricalCudyrBatchAuthoritatively = async ({
       runId,
       operations,
       rebuildOperations,
-      applyPatch: async () => {
-        throw new Error('El modo enforced no permite el escritor histórico individual.');
-      },
       refreshRecord: loadHistoricalRecord,
     });
     persistence = batchResult.persistence;
@@ -298,31 +161,4 @@ export const applyHistoricalCudyrBatchAuthoritatively = async ({
     ...(persistence ? { persistence } : {}),
     ...(!persistence && retries > 0 ? { retries } : {}),
   };
-};
-
-export const applyHistoricalCudyr = async ({
-  dailyRecord,
-  clinicalEpisodeId,
-  censusDay,
-  cudyr,
-  isAdmin,
-  writeGuard,
-}: {
-  dailyRecord: DailyRecordRepositoryPort;
-  clinicalEpisodeId: string;
-  censusDay: string;
-  cudyr: ImportedCudyr;
-  isAdmin: boolean;
-  writeGuard?: RayenClinicalWriteGuard;
-}): Promise<HistoricalCudyrApplyResult> => {
-  const [result] = await applyHistoricalCudyrBatch({
-    dailyRecord,
-    censusDay,
-    items: [{ clinicalEpisodeId, cudyr }],
-    isAdmin,
-    writeGuard,
-  });
-  if (!result) return { persisted: false, changed: false, applicable: false };
-  const { clinicalEpisodeId: _clinicalEpisodeId, ...singleResult } = result;
-  return singleResult;
 };

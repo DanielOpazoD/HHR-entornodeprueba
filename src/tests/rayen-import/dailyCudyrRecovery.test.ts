@@ -1,15 +1,11 @@
+import { runClinicalFill, type ClinicalFillDeps } from './support/batchClinicalFill';
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
-import { runClinicalFill } from '@/features/rayen-import/clinicalFillRunner';
-import type { ClinicalFillDeps } from '@/features/rayen-import/contracts/clinicalFillContracts';
 import { createDailyCudyrRecoveryReader } from '@/features/rayen-import/hooks/dailyCudyrRecoveryReader';
 import { captureCudyrMonthlyReport } from '@/services/cudyr/cudyrMonthlyReportCapture';
 import { parseCudyrSupplementBinary } from '@/services/cudyr/cudyrSupplementBinary';
 import { recoverDailyCudyrGap, planDailyCudyrGaps } from '@/services/cudyr/dailyCudyrRecoveryPlan';
-import {
-  resolveHistoricalCudyrPatch,
-  resolveHistoricalCudyrBatchOperation,
-} from '@/features/rayen-import/domain/historicalCudyrPatch';
+import { resolveHistoricalCudyrBatchOperation } from '@/features/rayen-import/domain/historicalCudyrPatch';
 import { rebuildClinicalEnrichmentOperations } from '@/features/rayen-import/domain/rebuildClinicalEnrichmentOperations';
 import { applyPatches } from '@/utils/patchUtils';
 import { DailyRecordSchema } from '@/schemas/zodSchemas';
@@ -103,17 +99,18 @@ describe('daily documentary CUDYR recovery', () => {
         applyHistoricalCudyrBatch: async (date, items) => {
           expect(date).toBe(previous.date);
           return items.map(item => {
-            const resolution = resolveHistoricalCudyrPatch(
+            const resolution = resolveHistoricalCudyrBatchOperation(
               previous,
               item.clinicalEpisodeId,
               item.cudyr
             );
-            if (resolution.patch) previous = applyPatches(previous, resolution.patch);
+            if (resolution.operation?.patch)
+              previous = applyPatches(previous, resolution.operation?.patch);
             return {
               clinicalEpisodeId: item.clinicalEpisodeId,
               persisted: resolution.matched,
               ...(!resolution.matched ? { applicable: false } : {}),
-              changed: Boolean(resolution.patch),
+              changed: Boolean(resolution.operation?.patch),
             };
           });
         },
@@ -283,7 +280,8 @@ describe('daily documentary CUDYR recovery', () => {
           },
         };
       expect(
-        resolveHistoricalCudyrPatch(record, patient().clinicalEpisodeId, documentary()).patch
+        resolveHistoricalCudyrBatchOperation(record, patient().clinicalEpisodeId, documentary())
+          .operation
       ).toBeNull();
       expect(
         resolveHistoricalCudyrBatchOperation(record, patient().clinicalEpisodeId, documentary())
@@ -295,16 +293,16 @@ describe('daily documentary CUDYR recovery', () => {
     const score = documentary();
     const record = historicalDay();
     record.beds.R1.rut = '22.222.222-2';
-    expect(() => resolveHistoricalCudyrPatch(record, patient().clinicalEpisodeId, score)).toThrow(
-      /evidencia/
-    );
+    expect(() =>
+      resolveHistoricalCudyrBatchOperation(record, patient().clinicalEpisodeId, score)
+    ).toThrow(/evidencia/);
     const duplicate = historicalDay();
     duplicate.beds.R2 = patient();
-    expect(resolveHistoricalCudyrPatch(duplicate, patient().clinicalEpisodeId, score).matched).toBe(
-      false
-    );
+    expect(
+      resolveHistoricalCudyrBatchOperation(duplicate, patient().clinicalEpisodeId, score).matched
+    ).toBe(false);
     expect(() =>
-      resolveHistoricalCudyrPatch(
+      resolveHistoricalCudyrBatchOperation(
         { ...historicalDay(), cudyrLocked: true },
         patient().clinicalEpisodeId,
         score
@@ -362,7 +360,7 @@ describe('daily documentary CUDYR recovery', () => {
       kind: 'attribution_unreliable',
     });
     expect(() =>
-      resolveHistoricalCudyrPatch(record, patient().clinicalEpisodeId, documentary())
+      resolveHistoricalCudyrBatchOperation(record, patient().clinicalEpisodeId, documentary())
     ).toThrow(/evidencia/);
   });
   it.each([false, true])(

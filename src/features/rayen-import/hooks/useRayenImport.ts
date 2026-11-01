@@ -86,7 +86,6 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     currentRecord?.date ?? ''
   );
   const {
-    patchClinicalRecord,
     loadCudyrIdentityContext,
     loadFreshClinicalRecord,
     loadAuthoritativeStructuralRecord,
@@ -170,11 +169,10 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     loadLocalRecord: loadLocalStructuralRecord,
     recordRunPerformance,
   });
-  const { applyHistoricalCudyr, applyHistoricalCudyrBatch, applyHistoricalCudyrEnforcedBatch } =
-    useHistoricalCudyrPersistence({
-      dailyRecord,
-      isAdmin,
-    });
+  const { applyHistoricalCudyrEnforcedBatch } = useHistoricalCudyrPersistence({
+    dailyRecord,
+    isAdmin,
+  });
   const {
     staffingProposal,
     setStaffingProposal,
@@ -195,10 +193,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     nurseCatalog: nursesList,
     tensCatalog: tensList,
     loadDailyRecord: loadAuthoritativeStructuralRecord,
-    patchDailyRecord: patchClinicalRecord,
     loadCudyrIdentityContext,
-    applyHistoricalCudyr,
-    applyHistoricalCudyrBatch,
     applyHistoricalCudyrEnforcedBatch,
     completeRun: completeRunSerialized,
     onStaffingProposal: () => undefined,

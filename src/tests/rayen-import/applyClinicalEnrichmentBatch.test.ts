@@ -6,91 +6,6 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { createDependencies, operations, record } from './applyClinicalEnrichmentBatch.fixtures';
 
 describe('applyClinicalEnrichmentBatch', () => {
-  it('keeps off mode on the established sequential path with one history snapshot', async () => {
-    const deps = createDependencies();
-    const result = await applyClinicalEnrichmentBatch({
-      mode: 'off',
-      record,
-      runId: 'run-1',
-      operations,
-      ...deps,
-    });
-
-    expect(deps.invoke).not.toHaveBeenCalled();
-    expect(deps.applyPatch).toHaveBeenCalledTimes(2);
-    expect(deps.applyPatch.mock.calls[0]?.[0].target.captureHistorySnapshot).toBe(true);
-    expect(deps.applyPatch.mock.calls[1]?.[0].target.captureHistorySnapshot).toBe(false);
-    expect(result).toEqual({ patientWrites: 2, historySnapshots: 1 });
-  });
-
-  it('validates in shadow but persists through the established path', async () => {
-    const deps = createDependencies();
-    const result = await applyClinicalEnrichmentBatch({
-      mode: 'shadow',
-      record,
-      runId: 'run-1',
-      operations,
-      ...deps,
-    });
-
-    expect(deps.invoke).toHaveBeenCalledWith(
-      expect.objectContaining({
-        runId: 'run-1',
-        mutationId: 'mutation-fixed',
-        mode: 'shadow',
-        dryRun: true,
-        baseRevision: 7,
-        patches: [
-          expect.objectContaining({
-            bedId: 'H2C1',
-            clinicalEpisodeId: 'episode-1',
-            fields: expect.objectContaining({ evaluationScores: expect.anything() }),
-          }),
-          expect.objectContaining({ bedId: 'H2C2', clinicalEpisodeId: 'episode-2' }),
-        ],
-      })
-    );
-    const payload = deps.invoke.mock.calls[0]?.[0];
-    expect(payload.checkpoints).toEqual([
-      expect.objectContaining({
-        bedId: 'H2C1',
-        clinicalEpisodeId: 'episode-1',
-        checkpoint: expect.objectContaining({ version: 1 }),
-      }),
-    ]);
-    expect(payload.patches[0]?.fields).not.toHaveProperty('clinicalSyncCheckpoint');
-    expect(deps.applyPatch).toHaveBeenCalledTimes(2);
-    expect(deps.applyPatch.mock.invocationCallOrder.at(-1)).toBeLessThan(
-      deps.invoke.mock.invocationCallOrder[0]
-    );
-    expect(deps.refreshRecord).toHaveBeenCalledTimes(1);
-    expect(result.patientWrites).toBe(2);
-  });
-
-  it('builds shadow guards from the record refreshed after legacy writes', async () => {
-    const deps = createDependencies();
-    deps.refreshRecord.mockResolvedValue({
-      ...record,
-      lastUpdated: '2026-07-28T10:01:00.000Z',
-      meta: { revision: 9 },
-    });
-
-    await applyClinicalEnrichmentBatch({
-      mode: 'shadow',
-      record,
-      runId: 'run-shadow-fresh',
-      operations,
-      ...deps,
-    });
-
-    expect(deps.invoke).toHaveBeenCalledWith(
-      expect.objectContaining({
-        expectedLastUpdated: '2026-07-28T10:01:00.000Z',
-        baseRevision: 9,
-      })
-    );
-  });
-
   it('uses one enforced mutation and refreshes local state after success', async () => {
     const deps = createDependencies();
     const result = await applyClinicalEnrichmentBatch({
@@ -215,32 +130,6 @@ describe('applyClinicalEnrichmentBatch', () => {
     ).rejects.toThrow('confirmación inválida');
     expect(deps.applyPatch).not.toHaveBeenCalled();
     expect(deps.refreshRecord).toHaveBeenCalledTimes(1);
-  });
-
-  it('records a semantic shadow mismatch without blocking established writes', async () => {
-    const deps = createDependencies();
-    deps.invoke.mockImplementation(async (payload: RayenClinicalEnrichmentBatchPayload) => ({
-      success: true,
-      authorityStatus: 'ok' as const,
-      date: payload.date,
-      mode: payload.mode,
-      targetCount: 2,
-      fieldCount: 3,
-      resultParity: 'mismatch' as const,
-      patientWrites: 0,
-      historySnapshots: 0,
-    }));
-
-    const result = await applyClinicalEnrichmentBatch({
-      mode: 'shadow',
-      record,
-      runId: 'run-shadow-mismatch',
-      operations,
-      ...deps,
-    });
-
-    expect(deps.applyPatch).toHaveBeenCalledTimes(2);
-    expect(result.batch?.parity).toBe('mismatch');
   });
 
   it('blocks enforced mode when the backend result does not match the requested values', async () => {
@@ -445,30 +334,6 @@ describe('applyClinicalEnrichmentBatch', () => {
       patientWrites: 0,
       historySnapshots: 0,
       batch: { mode: 'enforced', requestedFields: 0 },
-    });
-  });
-
-  it('continues legacy writes after one patient fails and snapshots the first success', async () => {
-    const deps = createDependencies();
-    deps.applyPatch
-      .mockRejectedValueOnce(new Error('conflicto paciente 1'))
-      .mockResolvedValueOnce(undefined);
-
-    const result = await applyClinicalEnrichmentBatch({
-      mode: 'off',
-      record,
-      runId: 'run-1',
-      operations,
-      ...deps,
-    });
-
-    expect(deps.applyPatch).toHaveBeenCalledTimes(2);
-    expect(deps.applyPatch.mock.calls[0]?.[0].target.captureHistorySnapshot).toBe(true);
-    expect(deps.applyPatch.mock.calls[1]?.[0].target.captureHistorySnapshot).toBe(true);
-    expect(result).toEqual({
-      patientWrites: 1,
-      historySnapshots: 1,
-      failures: [{ index: 0, message: 'conflicto paciente 1' }],
     });
   });
 

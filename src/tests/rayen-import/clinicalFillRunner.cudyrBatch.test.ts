@@ -1,5 +1,5 @@
+import { runClinicalFill, type ClinicalFillDeps } from './support/batchClinicalFill';
 import { describe, expect, it, vi } from 'vitest';
-import { runClinicalFill, type ClinicalFillDeps } from '@/features/rayen-import';
 import { resolveClinicalStageResult } from '@/features/rayen-import/domain/clinicalStageResolution';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 

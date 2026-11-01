@@ -1,6 +1,5 @@
+import { runClinicalFill, type ClinicalFillDeps } from './support/batchClinicalFill';
 import { describe, expect, it, vi } from 'vitest';
-import { runClinicalFill } from '@/features/rayen-import/clinicalFillRunner';
-import type { ClinicalFillDeps } from '@/features/rayen-import/contracts/clinicalFillContracts';
 import type { RayenCudyrCategoriesResponse } from '@/features/rayen-import/contracts/rayenCudyr';
 import { buildImportedCudyr } from '@/domain/evaluationScales/importedCudyr';
 import { buildInitializedDayRecord } from '@/services/repositories/dailyRecordInitializationSupport';

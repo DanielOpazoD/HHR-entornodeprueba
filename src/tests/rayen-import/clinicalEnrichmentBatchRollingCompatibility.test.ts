@@ -46,7 +46,6 @@ describe('clinical enrichment rolling compatibility', () => {
       record,
       runId: 'run-checkpoint-only',
       operations: [operation],
-      applyPatch,
       refreshRecord: vi.fn().mockResolvedValue(record),
       invoke,
       createMutationId: () => 'mutation-fixed',

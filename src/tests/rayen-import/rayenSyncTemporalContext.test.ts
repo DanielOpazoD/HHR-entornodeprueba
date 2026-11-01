@@ -61,7 +61,7 @@ describe('prepareRayenSyncTemporalContext', () => {
         loadFreshRecord: vi.fn().mockResolvedValue(fresh),
         now: () => new Date('2026-08-08T18:00:00.000Z'),
       });
-      const policy = { mode: 'preview', clinicalBatchMode: 'shadow', revision: 12 } as const;
+      const policy = { mode: 'preview', clinicalBatchMode: 'enforced', revision: 12 } as const;
 
       const context = createRayenSyncExecutionContext(prepared, `request-${lookbackDays}`, policy);
 

@@ -29,7 +29,20 @@ vi.mock('@/features/rayen-import/hooks/useRayenFillStatus', () => ({
   registerRayenFillAbort: vi.fn(),
 }));
 
-const legacyRunEvidence = (runId = 'legacy-run') => ({
+vi.mock('@/features/rayen-import/bridge/clinicalFillReaders', () => ({
+  createClinicalFillReaders: () => ({
+    fetchCudyrCategories: async () => ({
+      items: [],
+      source: 'gestion_camas',
+      historyAvailable: true,
+    }),
+  }),
+}));
+vi.mock('@/services/cudyr/cudyrArchiveQueue', () => ({
+  persistCudyrArchivePart: async () => 'persisted',
+}));
+
+const enforcedRunEvidence = (runId = 'legacy-run') => ({
   rayenSync: { runId },
   rayenSyncHistory: [
     {
@@ -37,7 +50,8 @@ const legacyRunEvidence = (runId = 'legacy-run') => ({
       startedAt: '2026-07-14T10:00:00.000Z',
       by: 'Operador HHR',
       status: 'applied' as const,
-      policy: { mode: 'preview' as const, revision: 1 },
+      sourceDate: '2026-07-14',
+      policy: { mode: 'preview' as const, clinicalBatchMode: 'enforced' as const, revision: 1 },
     },
   ],
 });
@@ -70,7 +84,7 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
       discharges: [],
       transfers: [],
       cma: [],
-      ...legacyRunEvidence('run-historical'),
+      ...enforcedRunEvidence('run-historical'),
     } as unknown as DailyRecord;
     const handoff = confirmedHandoff(record, '2026-07-14');
 
@@ -85,7 +99,7 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
       discharges: [],
       transfers: [],
       cma: [],
-      ...legacyRunEvidence('run-confirmed'),
+      ...enforcedRunEvidence('run-confirmed'),
     } as unknown as DailyRecord;
     const loadDailyRecord = vi.fn();
     const completeRun = vi.fn().mockResolvedValue(undefined);
@@ -94,8 +108,6 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
         nurseCatalog: [],
         tensCatalog: [],
         loadDailyRecord,
-        patchDailyRecord: vi.fn(),
-        applyHistoricalCudyr: vi.fn(),
         completeRun,
         onStaffingProposal: vi.fn(),
         createId: () => 'id',
@@ -133,7 +145,7 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
       discharges: [],
       transfers: [],
       cma: [],
-      ...legacyRunEvidence('run-historical-pending'),
+      ...enforcedRunEvidence('run-historical-pending'),
     } as unknown as DailyRecord;
     const completeRun = vi.fn().mockResolvedValue(undefined);
     const { result } = renderHook(() =>
@@ -141,8 +153,6 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
         nurseCatalog: [],
         tensCatalog: [],
         loadDailyRecord: vi.fn(),
-        patchDailyRecord: vi.fn(),
-        applyHistoricalCudyr: vi.fn(),
         completeRun,
         onStaffingProposal: vi.fn(),
         createId: () => 'id',
@@ -183,7 +193,7 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
       discharges: [],
       transfers: [],
       cma: [],
-      ...legacyRunEvidence('run-historical-failed'),
+      ...enforcedRunEvidence('run-historical-failed'),
     } as unknown as DailyRecord;
     const completeRun = vi.fn().mockResolvedValue(undefined);
     const { result } = renderHook(() =>
@@ -191,8 +201,6 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
         nurseCatalog: [],
         tensCatalog: [],
         loadDailyRecord: vi.fn(),
-        patchDailyRecord: vi.fn(),
-        applyHistoricalCudyr: vi.fn(),
         completeRun,
         onStaffingProposal: vi.fn(),
         createId: () => 'id',
@@ -235,7 +243,7 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
       discharges: [],
       transfers: [],
       cma: [],
-      ...legacyRunEvidence('run-structural-conflict'),
+      ...enforcedRunEvidence('run-structural-conflict'),
     } as unknown as DailyRecord;
     const handoff = resolveConfirmedRayenCensusHandoff(
       {
@@ -256,8 +264,6 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
         nurseCatalog: [],
         tensCatalog: [],
         loadDailyRecord: vi.fn(),
-        patchDailyRecord: vi.fn(),
-        applyHistoricalCudyr: vi.fn(),
         completeRun,
         onStaffingProposal: vi.fn(),
         createId: () => 'id',
@@ -275,7 +281,7 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
         total: 0,
         errors: [],
       }),
-      expect.anything(),
+      null,
       'run-structural-conflict',
       {
         retry: false,
@@ -300,11 +306,11 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
       discharges: [],
       transfers: [],
       cma: [],
-      ...legacyRunEvidence('run-first'),
+      ...enforcedRunEvidence('run-first'),
     } as unknown as DailyRecord;
     const queuedRecord = {
       ...firstRecord,
-      ...legacyRunEvidence('run-queued'),
+      ...enforcedRunEvidence('run-queued'),
     } as unknown as DailyRecord;
     const authoritativeQueuedRecord = {
       ...queuedRecord,
@@ -322,8 +328,6 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
         nurseCatalog: [],
         tensCatalog: [],
         loadDailyRecord,
-        patchDailyRecord: vi.fn(),
-        applyHistoricalCudyr: vi.fn(),
         completeRun,
         onStaffingProposal: vi.fn(),
         createId: () => 'id',
@@ -359,7 +363,7 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
       discharges: [],
       transfers: [],
       cma: [],
-      ...legacyRunEvidence('run-first'),
+      ...enforcedRunEvidence('run-first'),
     } as unknown as DailyRecord;
     const queuedRecord = {
       ...firstRecord,
@@ -370,7 +374,7 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
           clinicalEpisodeId: 'episode-queued',
         },
       },
-      ...legacyRunEvidence('run-queued'),
+      ...enforcedRunEvidence('run-queued'),
     } as unknown as DailyRecord;
     const authoritativeQueuedRecord = {
       date: queuedRecord.date,
@@ -395,8 +399,6 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
         nurseCatalog: [],
         tensCatalog: [],
         loadDailyRecord,
-        patchDailyRecord: vi.fn(),
-        applyHistoricalCudyr: vi.fn(),
         completeRun,
         onStaffingProposal: vi.fn(),
         createId: () => 'id',
@@ -434,15 +436,15 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
       discharges: [],
       transfers: [],
       cma: [],
-      ...legacyRunEvidence('run-first'),
+      ...enforcedRunEvidence('run-first'),
     } as unknown as DailyRecord;
     const queuedRecord = {
       ...firstRecord,
-      ...legacyRunEvidence('run-queued'),
+      ...enforcedRunEvidence('run-queued'),
     } as unknown as DailyRecord;
     const newerRecord = {
       ...queuedRecord,
-      ...legacyRunEvidence('run-newer'),
+      ...enforcedRunEvidence('run-newer'),
     } as unknown as DailyRecord;
     const loadDailyRecord = vi.fn().mockResolvedValue(newerRecord);
     const completeRun = vi.fn((record: DailyRecord) => {
@@ -456,8 +458,6 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
         nurseCatalog: [],
         tensCatalog: [],
         loadDailyRecord,
-        patchDailyRecord: vi.fn(),
-        applyHistoricalCudyr: vi.fn(),
         completeRun,
         onStaffingProposal: vi.fn(),
         createId: () => 'id',

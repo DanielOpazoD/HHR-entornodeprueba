@@ -1,10 +1,6 @@
 import { useCallback } from 'react';
 import type { useRepositories } from '@/services/RepositoryContext';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
-import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
-import type { ClinicalFillPatchTarget } from '../contracts/clinicalFillContracts';
-import type { RayenClinicalWriteGuard } from '@/types/domain/rayenSync';
-import { patchFreshClinicalRecord } from './patchFreshClinicalRecord';
 
 type DailyRecordRepository = ReturnType<typeof useRepositories>['dailyRecord'];
 
@@ -15,16 +11,6 @@ type DailyRecordRepository = ReturnType<typeof useRepositories>['dailyRecord'];
  * orquestador (que está en el límite de tamaño del módulo) y se leen juntos.
  */
 export const useRayenSyncRecordAccess = (dailyRecord: DailyRecordRepository) => {
-  const patchClinicalRecord = useCallback(
-    (
-      patch: DailyRecordPatch,
-      target: ClinicalFillPatchTarget,
-      writeGuard: RayenClinicalWriteGuard,
-      baseRecord: DailyRecord
-    ) => patchFreshClinicalRecord(dailyRecord, patch, target, writeGuard, baseRecord),
-    [dailyRecord]
-  );
-
   const loadFreshClinicalRecord = useCallback(
     async (date: string): Promise<DailyRecord> => {
       const result = await dailyRecord.getForDateWithMeta(date, true);
@@ -55,7 +41,6 @@ export const useRayenSyncRecordAccess = (dailyRecord: DailyRecordRepository) => 
 
   return {
     loadCudyrIdentityContext,
-    patchClinicalRecord,
     loadFreshClinicalRecord,
     loadAuthoritativeStructuralRecord,
     loadLocalStructuralRecord,

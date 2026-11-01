@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createClinicalCudyrCoordinator } from '@/features/rayen-import/domain/clinicalCudyrCoordinator';
-import {
-  resolveHistoricalCudyrPatch,
-  resolveHistoricalCudyrBatchOperation,
-} from '@/features/rayen-import/domain/historicalCudyrPatch';
+import { resolveHistoricalCudyrBatchOperation } from '@/features/rayen-import/domain/historicalCudyrPatch';
 import { collectDailyCudyrRecoveryEpisodes } from '@/features/rayen-import/hooks/dailyCudyrRecoveryReader';
 import { assertDocumentaryCudyrTarget } from '@/domain/evaluationScales/documentaryCudyr';
 import { recoverDailyCudyrGap, planDailyCudyrGaps } from '@/services/cudyr/dailyCudyrRecoveryPlan';
@@ -58,9 +55,11 @@ describe('accepted documentary CUDYR authority', () => {
   it('does not propose a historical replacement for a documentary result', () => {
     const record = historicalDay();
     record.beds.R1.evaluationScores = { cudyr: documentary() };
-    expect(resolveHistoricalCudyrPatch(record, patient().clinicalEpisodeId, official)).toEqual({
+    expect(
+      resolveHistoricalCudyrBatchOperation(record, patient().clinicalEpisodeId, official)
+    ).toEqual({
       matched: true,
-      patch: null,
+      operation: null,
     });
     expect(
       resolveHistoricalCudyrBatchOperation(record, patient().clinicalEpisodeId, official)

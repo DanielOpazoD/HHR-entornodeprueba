@@ -1,8 +1,7 @@
+import { runClinicalFill, type ClinicalFillDeps } from './support/batchClinicalFill';
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { runClinicalFill } from '@/features/rayen-import/clinicalFillRunner';
 import { createClinicalWriteCoordinator } from '@/features/rayen-import/domain/clinicalWriteCoordinator';
-import type { ClinicalFillDeps } from '@/features/rayen-import/contracts/clinicalFillContracts';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 const record = (count = 1) =>
@@ -164,7 +163,10 @@ describe('serialized clinical writes after cancellation', () => {
       const write = vi.fn().mockResolvedValue({ patientWrites: 1, historySnapshots: 1 });
       const queued =
         kind === 'patient'
-          ? coordinator.applyPatientPatch(write)
+          ? coordinator.applyBatch(async () => {
+              await write();
+              return { patientWrites: 1, historySnapshots: 1 };
+            })
           : kind === 'batch'
             ? coordinator.applyBatch(write)
             : coordinator.enqueue(write, { scope: 'historical' });

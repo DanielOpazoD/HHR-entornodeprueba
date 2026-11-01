@@ -1,10 +1,10 @@
+import type { ClinicalFillDeps } from '@/features/rayen-import/contracts/clinicalFillContracts';
 import { describe, expect, it, vi } from 'vitest';
 import { cudyrPlacementsFromPatientFlow } from '@/features/rayen-import/mapping/cudyrPatientFlowPlacements';
 import { persistCudyrSyncCapture } from '@/features/rayen-import/domain/persistCudyrSyncCapture';
 import { startCudyrSyncCapture } from '@/features/rayen-import/domain/startCudyrSyncCapture';
 import { presentRayenCoverageIssue } from '@/features/rayen-import/components/rayenSyncPresentation';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import type { ClinicalFillDeps } from '@/features/rayen-import/contracts/clinicalFillContracts';
 
 const observedAt = '2026-10-10T04:16:00.000Z';
 const flow = `Paciente: RN Ejemplo RUN Materno/progenitor(a): 11.111.111-1

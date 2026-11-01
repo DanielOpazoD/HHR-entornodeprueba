@@ -1,7 +1,6 @@
+import { runClinicalFill, type ClinicalFillDeps } from './support/batchClinicalFill';
 import { describe, expect, it, vi } from 'vitest';
-import { runClinicalFill } from '@/features/rayen-import/clinicalFillRunner';
-import type { ClinicalFillDeps } from '@/features/rayen-import/contracts/clinicalFillContracts';
-import { resolveHistoricalCudyrPatch } from '@/features/rayen-import/domain/historicalCudyrPatch';
+import { resolveHistoricalCudyrBatchOperation } from '@/features/rayen-import/domain/historicalCudyrPatch';
 import { buildInitializedDayRecord } from '@/services/repositories/dailyRecordInitializationSupport';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { applyPatches } from '@/utils/patchUtils';
@@ -57,16 +56,17 @@ describe('daily sync recovers the prior night after discharge', () => {
       applyHistoricalCudyrBatch: async (day, items) => {
         expect(day).toBe(historical.date);
         return items.map(item => {
-          const result = resolveHistoricalCudyrPatch(
+          const result = resolveHistoricalCudyrBatchOperation(
             historical,
             item.clinicalEpisodeId,
             item.cudyr
           );
-          if (result.patch) historical = applyPatches(historical, result.patch);
+          if (result.operation?.patch)
+            historical = applyPatches(historical, result.operation?.patch);
           return {
             clinicalEpisodeId: item.clinicalEpisodeId,
             persisted: result.matched,
-            changed: Boolean(result.patch),
+            changed: Boolean(result.operation?.patch),
           };
         });
       },

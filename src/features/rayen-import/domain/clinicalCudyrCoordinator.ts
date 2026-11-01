@@ -31,11 +31,6 @@ interface ClinicalCudyrCoordinatorInput {
     censusDay: string,
     items: HistoricalCudyrBatchItem[]
   ) => Promise<HistoricalCudyrBatchItemResult[] | HistoricalCudyrBatchExecutionResult>;
-  applySingle?: (
-    clinicalEpisodeId: string,
-    censusDay: string,
-    cudyr: HistoricalCudyrBatchItem['cudyr']
-  ) => Promise<HistoricalCudyrApplyResult>;
   enqueueWrite: <T>(operation: () => Promise<T>) => Promise<T>;
   onPersistenceEvidence: (evidence: ClinicalPersistenceEvidence) => void;
   onRetries: (count: number) => void;
@@ -68,7 +63,6 @@ export const createClinicalCudyrCoordinator = ({
   source,
   recovery,
   applyBatch,
-  applySingle,
   enqueueWrite,
   onPersistenceEvidence,
   onRetries,
@@ -122,18 +116,12 @@ export const createClinicalCudyrCoordinator = ({
     let priorPersisted = !priorCudyr;
     let historicalChanged = false;
 
-    if (
-      priorCudyr &&
-      (batchResults || applySingle || priorCudyr.source === CUDYR_DOCUMENTARY_SOURCE)
-    ) {
+    if (priorCudyr && (batchResults || priorCudyr.source === CUDYR_DOCUMENTARY_SOURCE)) {
       try {
-        if (!batchResults && !applySingle)
-          throw new Error('No hay escritor autorizado para el censo histórico.');
-        const batchOutcome = batchResults ? await batchResults : null;
-        if (batchOutcome?.status === 'rejected') throw batchOutcome.error;
-        const result = batchOutcome
-          ? batchOutcome.results.get(clinicalEpisodeId)
-          : await enqueueWrite(() => applySingle!(clinicalEpisodeId, priorCensusDay, priorCudyr));
+        if (!batchResults) throw new Error('No hay escritor autorizado para el censo histórico.');
+        const batchOutcome = await batchResults;
+        if (batchOutcome.status === 'rejected') throw batchOutcome.error;
+        const result = batchOutcome.results.get(clinicalEpisodeId);
         const notApplicable =
           result?.applicable === false && priorCudyr.source !== CUDYR_DOCUMENTARY_SOURCE;
         const administrativeOverridePreserved = Boolean(result?.administrativeOverridePreserved);

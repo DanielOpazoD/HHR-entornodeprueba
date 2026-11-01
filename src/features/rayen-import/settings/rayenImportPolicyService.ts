@@ -8,7 +8,6 @@ import {
   RAYEN_IMPORT_POLICY_SCHEMA_VERSION,
   DEFAULT_RAYEN_IMPORT_POLICY,
   normalizeRayenImportPolicy,
-  type ClinicalEnrichmentBatchMode,
   type RayenImportMode,
   type RayenImportPolicy,
 } from './rayenImportSettings';
@@ -38,7 +37,7 @@ const e2ePolicyOverride = (): RayenImportPolicy | null => {
     if (
       !value ||
       (value.mode !== 'preview' && value.mode !== 'auto') ||
-      !['off', 'shadow', 'enforced'].includes(String(value.clinicalBatchMode)) ||
+      value.clinicalBatchMode !== 'enforced' ||
       !Number.isInteger(value.revision) ||
       Number(value.revision) < 1
     ) {
@@ -147,18 +146,7 @@ export const saveRayenImportPolicy = async ({
 }): Promise<RayenImportPolicy> =>
   saveRayenPolicyUpdate({ update: { mode }, updatedByUid, runtime });
 
-export const saveRayenClinicalBatchMode = async ({
-  clinicalBatchMode,
-  updatedByUid,
-  runtime,
-}: {
-  clinicalBatchMode: ClinicalEnrichmentBatchMode;
-  updatedByUid: string;
-  runtime?: FirestoreServiceRuntimePort;
-}): Promise<RayenImportPolicy> =>
-  saveRayenPolicyUpdate({ update: { clinicalBatchMode }, updatedByUid, runtime });
-
-/** Atomically preserves the structural mode while converting a confirmed v1 policy to v2/off. */
+/** Atomically preserves the structural mode while converting a confirmed v1 policy to v2/enforced. */
 export const migrateRayenImportPolicy = async ({
   updatedByUid,
   runtime,

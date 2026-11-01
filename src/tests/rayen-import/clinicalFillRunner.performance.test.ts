@@ -1,8 +1,7 @@
+import { runClinicalFill, type ClinicalFillDeps } from './support/batchClinicalFill';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  runClinicalFill,
   type ClinicalFillBatchApplyResult,
-  type ClinicalFillDeps,
   type ClinicalFillPatchOperation,
   type ClinicalFillPersistenceStrategy,
 } from '@/features/rayen-import';
@@ -58,10 +57,6 @@ const deps = (overrides: Partial<ClinicalFillDeps> = {}): ClinicalFillDeps => ({
 const deferredPersistence = (
   persist: (operations: ClinicalFillPatchOperation[]) => Promise<ClinicalFillBatchApplyResult>
 ): ClinicalFillPersistenceStrategy => ({ disposition: 'deferred', persist });
-
-const observedPersistence = (
-  persist: Extract<ClinicalFillPersistenceStrategy, { disposition: 'observe' }>['persist']
-): ClinicalFillPersistenceStrategy => ({ disposition: 'observe', persist });
 
 describe('runClinicalFill performance pipeline', () => {
   afterEach(() => {
@@ -253,34 +248,6 @@ describe('runClinicalFill performance pipeline', () => {
     });
   });
 
-  it('reports only the patients that fail on the established fallback path', async () => {
-    const applyBatch = vi.fn().mockResolvedValue({
-      patientWrites: 4,
-      historySnapshots: 1,
-      failures: [{ index: 1, message: 'conflicto paciente 2' }],
-    });
-
-    const summary = await runClinicalFill(
-      record(5),
-      '2026-07-10',
-      deps({ persistenceStrategy: deferredPersistence(applyBatch) })
-    );
-
-    expect(summary).toMatchObject({
-      total: 5,
-      patched: 4,
-      errors: [
-        {
-          bedId: 'R2',
-          source: 'patch',
-          reason: 'write_failed',
-          message: 'conflicto paciente 2',
-        },
-      ],
-      incremental: { patientWrites: 4, historySnapshots: 1 },
-    });
-  });
-
   it('counts a failed transactional retry in aggregate performance', async () => {
     const failure = Object.assign(new Error('backend no disponible'), {
       clinicalBatchRetries: 1,
@@ -302,100 +269,6 @@ describe('runClinicalFill performance pipeline', () => {
     });
     expect(summary.performance).not.toHaveProperty('persistenceTrace');
     expect(summary.errors).toHaveLength(2);
-  });
-
-  it('keeps shadow persistence per patient and observes the collected batch afterwards', async () => {
-    const observeBatch = vi.fn().mockResolvedValue({
-      mode: 'shadow',
-      parity: 'matched',
-      clinicalTargets: 5,
-      checkpointTargets: 5,
-      checkpointOnlyTargets: 0,
-      requestedFields: 10,
-      backendTargets: 5,
-      backendFields: 10,
-    });
-    const dependencies = deps({ persistenceStrategy: observedPersistence(observeBatch) });
-
-    const summary = await runClinicalFill(record(5), '2026-07-10', dependencies);
-
-    expect(dependencies.applyPatch).toHaveBeenCalledTimes(5);
-    expect(observeBatch).toHaveBeenCalledTimes(1);
-    expect(observeBatch.mock.calls[0]?.[0]).toHaveLength(5);
-    expect(summary).toMatchObject({
-      total: 5,
-      patched: 5,
-      errors: [],
-      incremental: { batch: { parity: 'matched', clinicalTargets: 5 } },
-    });
-  });
-
-  it('reports a bounded correlated diagnostic when the shadow observer throws', async () => {
-    const observeBatch = vi.fn().mockRejectedValue(new Error('sensitive provider detail'));
-    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    logger.clearEntries();
-
-    const summary = await runClinicalFill(
-      record(1),
-      '2026-07-10',
-      deps({
-        persistenceStrategy: observedPersistence(observeBatch),
-        diagnosticRunId: 'sync-run',
-      })
-    );
-
-    expect(summary).toMatchObject({
-      total: 1,
-      patched: 1,
-      errors: [],
-      incremental: { batch: { mode: 'shadow', parity: 'unavailable' } },
-    });
-    expect(logger.getEntries()).toContainEqual(
-      expect.objectContaining({
-        level: 'warn',
-        message: 'clinical_batch_shadow_observation_failed',
-        context: 'RayenSync',
-        data: {
-          runId: 'sync-run',
-          errorKind: 'unexpected',
-          patientCount: 1,
-          batchMode: 'shadow',
-        },
-      })
-    );
-    expect(JSON.stringify(logger.getEntries())).not.toContain('sensitive provider detail');
-  });
-
-  it('persists legacy patches before waiting for the bounded shadow parity result', async () => {
-    let releaseObservation: (() => void) | undefined;
-    const observeBatch = vi.fn(
-      () =>
-        new Promise<{
-          mode: 'shadow';
-          parity: 'matched';
-          clinicalTargets: number;
-          checkpointTargets: number;
-          checkpointOnlyTargets: number;
-          requestedFields: number;
-        }>(resolve => {
-          releaseObservation = () =>
-            resolve({
-              mode: 'shadow',
-              parity: 'matched',
-              clinicalTargets: 1,
-              checkpointTargets: 1,
-              checkpointOnlyTargets: 0,
-              requestedFields: 2,
-            });
-        })
-    );
-
-    const dependencies = deps({ persistenceStrategy: observedPersistence(observeBatch) });
-    const pending = runClinicalFill(record(1), '2026-07-10', dependencies);
-    await vi.waitFor(() => expect(dependencies.applyPatch).toHaveBeenCalledTimes(1));
-    expect(observeBatch).toHaveBeenCalledTimes(1);
-    releaseObservation?.();
-    await expect(pending).resolves.toMatchObject({ total: 1, patched: 1, errors: [] });
   });
 
   it('bounds each source independently so slow PDFs do not block history or forms', async () => {

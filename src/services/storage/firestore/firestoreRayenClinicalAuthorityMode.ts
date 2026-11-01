@@ -14,16 +14,7 @@ const readServerClinicalAuthorityMode = async (
   if (!snapshot.exists()) return null;
   const policy = snapshot.data();
   if (policy.schemaVersion !== 2) return null;
-  switch (policy.clinicalBatchMode) {
-    case 'enforced':
-      return 'enforced';
-    case 'shadow':
-      return 'shadow';
-    case 'off':
-      return 'client_only';
-    default:
-      return null;
-  }
+  return policy.clinicalBatchMode === 'enforced' ? 'enforced' : null;
 };
 
 export const isServerClinicalWriteFenceActive = async (

@@ -14,7 +14,7 @@ export interface RayenImportPolicy {
 
 export const RAYEN_IMPORT_POLICY_SCHEMA_VERSION = 2;
 export const DEFAULT_RAYEN_IMPORT_MODE: RayenImportMode = 'preview';
-export const DEFAULT_RAYEN_CLINICAL_BATCH_MODE: ClinicalEnrichmentBatchMode = 'off';
+export const DEFAULT_RAYEN_CLINICAL_BATCH_MODE: ClinicalEnrichmentBatchMode = 'enforced';
 export const DEFAULT_RAYEN_IMPORT_POLICY: Readonly<RayenImportPolicy> = Object.freeze({
   mode: DEFAULT_RAYEN_IMPORT_MODE,
   clinicalBatchMode: DEFAULT_RAYEN_CLINICAL_BATCH_MODE,
@@ -47,11 +47,11 @@ const hasValidMetadata = (value: Record<string, unknown>): boolean =>
   value.updatedAt instanceof Timestamp;
 
 const isClinicalBatchMode = (value: unknown): value is ClinicalEnrichmentBatchMode =>
-  value === 'off' || value === 'shadow' || value === 'enforced';
+  value === 'enforced';
 
 /**
  * Converts a persisted policy into the small operational contract used by a sync run.
- * Schema v1 is accepted only as an explicit compatibility state with the clinical batch disabled.
+ * Schema v1 is accepted only for explicit migration before a run may start.
  * Invalid payloads are rejected instead of enabling either automatic import or batch authority.
  */
 export const normalizeRayenImportPolicy = (value: unknown): RayenImportPolicy | null => {

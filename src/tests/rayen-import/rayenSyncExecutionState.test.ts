@@ -24,7 +24,7 @@ const context = (
   target: selectedDate === '2026-08-08' ? 'current' : 'historical',
   lookbackDays: selectedDate === '2026-08-08' ? 0 : 1,
   baseRevision: 'revision-1',
-  policy: Object.freeze({ mode: 'preview', clinicalBatchMode: 'shadow', revision: 3 }),
+  policy: Object.freeze({ mode: 'preview', clinicalBatchMode: 'enforced', revision: 3 }),
   policyRevision: 3,
   queryRange: Object.freeze({ dateStart: selectedDate, dateEnd: '2026-08-09' }),
   preparedAt: '2026-08-08T18:00:00.000Z',

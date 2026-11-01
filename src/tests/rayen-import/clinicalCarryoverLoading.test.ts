@@ -1,6 +1,5 @@
+import { runClinicalFill, type ClinicalFillDeps } from './support/batchClinicalFill';
 import { describe, expect, it, vi } from 'vitest';
-import { runClinicalFill } from '@/features/rayen-import/clinicalFillRunner';
-import type { ClinicalFillDeps } from '@/features/rayen-import/contracts/clinicalFillContracts';
 import { buildInitializedDayRecord } from '@/services/repositories/dailyRecordInitializationSupport';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
 

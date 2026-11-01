@@ -27,55 +27,10 @@ const operations: ClinicalFillPatchOperation[] = [
 ];
 
 describe('createClinicalEnrichmentPersistenceStrategy', () => {
-  it('keeps off mode on immediate writes without allocating a batch run', async () => {
-    const strategy = createClinicalEnrichmentPersistenceStrategy({
-      mode: 'off',
-      record: record('initial'),
-      runId: 'sync-run',
-      applyPatch: vi.fn(),
-      refreshRecord: vi.fn(),
-    });
-
-    expect(strategy.disposition).toBe('immediate');
-    await strategy.persist(operations);
-  });
-
-  it('observes shadow parity against the record refreshed after immediate writes', async () => {
-    const refreshed = record('refreshed');
-    const refreshRecord = vi.fn().mockResolvedValue(refreshed);
-    const observeBatch = vi.fn().mockResolvedValue({
-      mode: 'shadow',
-      parity: 'matched',
-      clinicalTargets: 1,
-      checkpointOnlyTargets: 0,
-      checkpointTargets: 1,
-      requestedFields: 2,
-    });
-    const strategy = createClinicalEnrichmentPersistenceStrategy({
-      mode: 'shadow',
-      record: record('initial'),
-      runId: 'sync-shadow',
-      applyPatch: vi.fn(),
-      refreshRecord,
-      observeBatch,
-    });
-
-    expect(strategy.disposition).toBe('observe');
-    await strategy.persist(operations);
-
-    expect(refreshRecord).toHaveBeenCalledOnce();
-    expect(observeBatch).toHaveBeenCalledWith({
-      record: refreshed,
-      runId: 'sync-shadow',
-      operations,
-    });
-  });
-
   it('defers the original base and revalidation to the actual batch write turn', async () => {
     const initial = record('initial');
     const refreshed = record('after-queued-manual-write');
     const rebuilt = [{ ...operations[0]!, clinicalFieldCount: 2 }];
-    const applyPatch = vi.fn().mockResolvedValue(undefined);
     const refreshRecord = vi.fn().mockResolvedValue(refreshed);
     const applyBatch = vi.fn().mockResolvedValue({ patientWrites: 1, historySnapshots: 1 });
     const rebuildOperations = vi.fn().mockReturnValue(rebuilt);
@@ -83,7 +38,6 @@ describe('createClinicalEnrichmentPersistenceStrategy', () => {
       mode: 'enforced',
       record: initial,
       runId: 'sync-enforced',
-      applyPatch,
       refreshRecord,
       applyBatch,
       rebuildOperations,
@@ -96,7 +50,7 @@ describe('createClinicalEnrichmentPersistenceStrategy', () => {
     expect(refreshRecord).not.toHaveBeenCalled();
     expect(rebuildOperations).not.toHaveBeenCalled();
     const request = applyBatch.mock.calls[0]?.[0];
-    expect(request).toMatchObject({ record: initial, operations, refreshRecord, applyPatch });
+    expect(request).toMatchObject({ record: initial, operations, refreshRecord });
     expect(request).not.toHaveProperty('refreshCommittedRecord');
     expect(request.rebuildOperations(refreshed)).toBe(rebuilt);
     expect(rebuildOperations).toHaveBeenCalledWith({
@@ -113,7 +67,6 @@ describe('createClinicalEnrichmentPersistenceStrategy', () => {
       mode: 'enforced',
       record: record('initial'),
       runId: 'sync-enforced',
-      applyPatch: vi.fn(),
       refreshRecord: vi.fn(),
       refreshCommittedRecord,
       applyBatch,

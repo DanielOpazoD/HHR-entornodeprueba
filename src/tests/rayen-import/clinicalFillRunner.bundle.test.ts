@@ -1,5 +1,5 @@
+import { runClinicalFill, type ClinicalFillDeps } from './support/batchClinicalFill';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { runClinicalFill, type ClinicalFillDeps } from '@/features/rayen-import';
 import type { RayenPatientClinicalBundle } from '@/features/rayen-import/contracts/patientClinicalBundle';
 import { mapHistoryScalesPayload } from '@/features/rayen-import/bridge/patientClinicalBundleChannel';
 import { readClinicalPatientSources } from '@/features/rayen-import/domain/clinicalPatientReaders';

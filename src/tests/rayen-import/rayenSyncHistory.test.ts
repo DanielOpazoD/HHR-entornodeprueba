@@ -1,3 +1,5 @@
+import { DailyRecordSchema } from '@/schemas/zod/dailyRecord';
+import { buildInitializedDayRecord } from '@/services/repositories/dailyRecordInitializationSupport';
 import { describe, expect, it } from 'vitest';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
 import {
@@ -48,6 +50,21 @@ const diff = (changes = 1): CensusImportDiff =>
   }) as CensusImportDiff;
 
 describe('rayen sync history', () => {
+  it.each(['off', 'shadow'] as const)(
+    'preserves historical %s events on census parsing',
+    clinicalBatchMode => {
+      const event = {
+        ...buildAppliedRayenSyncEvent(run(), diff(), '2026-07-14T10:01:00.000Z'),
+        policy: { mode: 'preview' as const, clinicalBatchMode, revision: 3 },
+      };
+      const record = DailyRecordSchema.parse({
+        ...buildInitializedDayRecord('2026-07-14', null),
+        rayenSyncHistory: [event],
+      });
+      expect(record.rayenSyncHistory).toEqual([event]);
+    }
+  );
+
   it('creates the first aggregate-only applied event and its legacy projection', () => {
     const performance = {
       stagesMs: { preflight: 120, dualCapture: 850 },

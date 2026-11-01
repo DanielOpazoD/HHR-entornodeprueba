@@ -14,43 +14,26 @@ de escribir. Cada `runId` genera como máximo un snapshot histórico por día de
 sincronización estructural que originó el enriquecimiento y se conserva en todos sus lotes; el
 `mutationId` identifica cada mutación acotada y se conserva entre reintentos de transporte.
 
-## Modos
+## Persistencia del cliente
 
-- `off`: conserva la semántica compatible de escrituras por paciente. Una vez migrada la política
-  a esquema v2, cada parche clínico pasa por el callable de autoridad con el `runId`, la revisión y
-  la política congelados; el navegador no recupera escritura clínica directa.
-- `shadow`: las escrituras por paciente continúan apenas quedan listas mediante esa misma autoridad
-  guardada; al final se observa el mismo
-  lote en backend con `dryRun`. Se conserva para diagnóstico controlado, no como ruta operativa
-  habitual. Un fallo del observador no revierte la persistencia clínica y la llamada queda acotada
-  a 20 s.
-- `enforced`: el callable aplica el lote. Los errores transitorios tienen un reintento idempotente,
-  pero nunca hacen fallback porque su resultado puede ser ambiguo. Un callable ausente, un lote que
-  excede el límite o una respuesta sin paridad confirmada dejan los datos pendientes y reintentables.
-  Rechazos de autenticación, revisión, episodio o allowlist se muestran como conflicto y tampoco
-  hacen fallback silencioso. Solo se activa explícitamente después de la promoción operativa basada
-  en el gate de paridad.
+El cliente sólo ejecuta `enforced`: el callable aplica un lote transaccional. Los errores
+transitorios admiten un reintento idempotente; un callable ausente, un lote excesivo o una
+respuesta sin paridad confirmada dejan los datos pendientes y reintentables. Nunca cambia
+al escritor individual. Una corrida registrada como `off`, `shadow` o sin modo se resuelve
+como `unavailable` y conserva la posibilidad de reintento, sin iniciar el enriquecimiento.
 
-Esta política define únicamente quién escribe el enriquecimiento clínico de Rayen. Cambiarla a
-`off` o `shadow` nunca rebaja por sí solo la autoridad independiente configurada para el resto del
-censo (`VITE_DAILY_RECORD_AUTHORITY_MODE`).
+Los eventos históricos mantienen esos modos en sus esquemas de lectura y presentación.
+Functions y reglas conservan sus contratos para navegadores anteriores; retirarlos requiere
+otro cambio. `DailyRecordAuthorityMode` y el modo de importación `preview|auto` son
+conceptos independientes y conservan sus opciones.
 
-El cliente resuelve uno de estos modos una sola vez al iniciar cada ejecución y lo traduce a una
-estrategia discriminada: escritura inmediata (`off`), escritura inmediata con observación posterior
-(`shadow`) o autoridad diferida al lote (`enforced`). El runner no admite combinar observador y
-autoridad en una misma ejecución; así se conserva un único propietario de cada escritura clínica.
+La política global de Firestore debe estar confirmada por servidor, con revisión monotónica.
+Cada ejecución congela sus valores en `rayenSyncHistory`. Una política ausente, inválida,
+pendiente o sólo en caché bloquea nuevas sincronizaciones. El cliente acepta exclusivamente
+`enforced` en la política v2. La inicialización y la migración administrativa explícita de v1
+producen v2/enforced, conservando el modo estructural y avanzando la revisión. El selector
+«Persistencia clínica» ya no existe en Configuración.
 
-Los dos modos —importación estructural y persistencia clínica— viven en una única política global de
-Firestore, confirmada por servidor y con revisión monotónica. Cada ejecución congela ambos valores y
-su revisión en `rayenSyncHistory`. Una política ausente, inválida, pendiente o servida sólo desde
-caché bloquea el inicio de nuevas sincronizaciones: nunca se interpreta como un rollback. Un
-documento v1 confirmado por servidor puede leerse para mostrar el estado seguro `off`, pero deja
-la sincronización bloqueada hasta que un administrador ejecute su migración atómica a v2 desde
-Configuración; la migración conserva el modo estructural, mantiene `off` y avanza la revisión.
-Si el documento no existe, un administrador debe usar **Inicializar política segura** antes de la
-primera sincronización.
-La fase clínica vuelve a leer el modo congelado desde el evento del `runId`; si ese evento aún no
-está disponible, deja el lote pendiente para reintento y tampoco activa escrituras por paciente.
 El callable vuelve a verificar, dentro de la misma transacción, el documento global y el evento del
 `runId`: modo estructural, modo clínico y revisión deben seguir coincidiendo. Una modificación de la
 política durante una ejecución invalida ese lote y exige iniciar una sincronización nueva.
@@ -97,28 +80,13 @@ no puede introducir esos campos desde el navegador.
    aunque el modo operativo vuelva después a `off` o `shadow`. Recargar las pestañas v1 que sigan
    abiertas. Elevar en un despliegue posterior el piso del backend a cliente v2 es un endurecimiento
    operativo independiente; no es requisito para activar el cerco.
-4. Antes de una nueva promoción o después de cambios en el contrato, desplegar `shadow` durante
-   varias ejecuciones y al menos dos turnos; revisar
-   `functionsTelemetry` con
-   `service = rayenClinicalEnrichment`.
-   Cada entrada declara `parityContractVersion`; el gate usa solo la versión más reciente y conserva
-   las anteriores como auditoría. Un cambio de versión reinicia las cuatro ejecuciones y las ocho
-   horas exigidas. La versión 3 corresponde a la vista combinada de los días divididos (ver "Días
-   divididos") y solo la declaran las entradas de un día marcado o de una escritura del lote que lo
-   marca; un día sin marcador sigue declarando la 2, igual que antes. Así, desplegar Functions con
-   la variable apagada no cambia la evidencia, y la primera entrada v3 tras la activación la
-   reinicia: desde ahí la evidencia v2 ya no cuenta.
-5. Usar el gate **Lote clínico transaccional** del panel técnico. Para recomendar `enforced` exige
-   al menos 4 ejecuciones shadow coincidentes, 8 horas entre la primera y última evidencia, ninguna
-   paridad ausente y cero señales bloqueantes.
-6. Exigir paridad `matched`, cero rechazos inesperados de `permission-denied`,
-   `failed-precondition` y `aborted`, y ausencia de degradación clínica.
-7. Comparar `targetCount`, `fieldCount`, duración y cobertura con el flujo actual. La telemetría no
-   contiene RUT, nombres, camas, ENC_ID ni valores clínicos.
-8. En Configuración → Integraciones, activar explícitamente **Lote transaccional**; no existe
-   promoción automática. Verificar en el historial que el run declara `lote enforced` y la revisión
-   esperada. Vigilar reintentos y volver explícitamente a **Compatibilidad por paciente** (`off`)
-   ante errores sostenidos.
+4. Revisar las ejecuciones `enforced` y su paridad `matched` en el historial y en el panel
+   **Lote clínico transaccional**. El panel muestra fallos, bloqueos, permisos y la racha de
+   ejecuciones confirmadas del contrato de paridad vigente. Los eventos anteriores permanecen
+   disponibles en la lista de telemetría, sin un gate de promoción desde shadow.
+5. Exigir cero rechazos inesperados de `permission-denied`, `failed-precondition` y `aborted`,
+   y ausencia de degradación clínica. Comparar cantidades, duración y cobertura con la evidencia
+   previa, sin incluir valores clínicos en la telemetría.
 
 ## Días divididos (fase 1a)
 
@@ -266,11 +234,8 @@ Desde `DESIGN_DAILY_RECORD_PHASE1_CLINICAL_DERIVED.md`, `clinicalSyncCheckpoint`
 Antes de retirar un adaptador de compatibilidad, validar al menos: día actual sin cambios, día actual
 con cambios, día histórico, conflicto estructural aislado y recuperación clínica parcial.
 
-## Rollback
+## Recuperación
 
-Un administrador selecciona **Compatibilidad por paciente** (`off`) en Configuración → Integraciones
-y espera la confirmación del servidor antes de iniciar otra sincronización. No requiere migración y
-no desactiva el cerco del esquema v2: las escrituras compatibles siguen pasando por el callable con
-la política congelada. Los recibos son metadatos acotados y los campos clínicos conservan exactamente
-el mismo esquema que el flujo por paciente. No se debe modificar una variable local para simular el
-rollback ni degradar el documento de política a v1.
+Un fallo deja el lote pendiente para el reintento autorizado. Este cliente no ofrece rollback a
+escrituras por paciente ni modifica automáticamente la política global. La compatibilidad del
+servidor con navegadores anteriores se conserva hasta su retiro en otra PR.

@@ -75,7 +75,8 @@ const splitDay = (revision = 5, marked = true): DailyRecord =>
         startedAt: `${DATE}T09:00:00.000Z`,
         by: 'Operador Sintético',
         status: 'applied',
-        policy: { mode: 'preview', revision: 1 },
+        sourceDate: DATE,
+        policy: { mode: 'preview', clinicalBatchMode: 'enforced', revision: 1 },
       },
     ],
   }) as unknown as DailyRecord;
@@ -108,8 +109,6 @@ const renderFill = (loadDailyRecord: () => Promise<DailyRecord>) => {
       nurseCatalog: [],
       tensCatalog: [],
       loadDailyRecord: vi.fn(loadDailyRecord),
-      patchDailyRecord,
-      applyHistoricalCudyr: vi.fn(),
       completeRun,
       onStaffingProposal: vi.fn(),
       createId: () => 'id',
@@ -146,10 +145,10 @@ describe('Rayen clinical fill on a split day (D10)', () => {
     mocks.createStrategy.mockReturnValue({ disposition: 'immediate', persist: vi.fn() });
   });
 
-  it('overlays the reloaded day for the fill, the batch and the patch base; never the audit record', async () => {
+  it('overlays the reloaded day for the fill and the batch; never the audit record', async () => {
     const loaded = splitDay();
     const loadDailyRecord = vi.fn(async () => loaded);
-    const { fill, completeRun, patchDailyRecord } = renderFill(loadDailyRecord);
+    const { fill, completeRun } = renderFill(loadDailyRecord);
     mocks.readDocs.mockResolvedValue(docsAt(5));
 
     await act(async () => {
@@ -162,9 +161,6 @@ describe('Rayen clinical fill on a split day (D10)', () => {
     expect(newbornHistory(filled)).toBeUndefined();
     expect(metaOf(filled)).toEqual(metaOf(loaded));
     expect(strategyInput().record).toBe(filled);
-    await strategyInput().applyPatch({ patch: {}, target: { bedId: 'R1' } });
-    await mocks.runClinicalFill.mock.calls[0][2].applyPatch({}, { bedId: 'R1' });
-    expect(patchDailyRecord.mock.calls.map(call => call[3])).toEqual([filled, filled]);
     // The audit completion and the retry evidence keep the day as read, without documents.
     expect(completeRun.mock.calls[0][0]).toBe(loaded);
     expect(motherHistory(loaded)).toEqual(reading('embedded-mother'));
@@ -344,20 +340,17 @@ describe('Rayen clinical fill on a split day (D10)', () => {
   it('does no extra read and passes the same record on an unmarked day', async () => {
     const unmarked = splitDay(5, false);
     const loadDailyRecord = vi.fn(async () => unmarked);
-    const { fill, completeRun, patchDailyRecord } = renderFill(loadDailyRecord);
+    const { fill, completeRun } = renderFill(loadDailyRecord);
 
     await act(async () => {
       await fill(unmarked);
     });
     expect(await strategyInput().refreshRecord()).toBe(unmarked);
-    await strategyInput().applyPatch({ patch: {}, target: { bedId: 'R1' } });
-
     expect(loadDailyRecord).toHaveBeenCalledTimes(2);
     expect(mocks.readDocs).not.toHaveBeenCalled();
     expect(mocks.readDoc).not.toHaveBeenCalled();
     expect(mocks.runClinicalFill.mock.calls[0][0]).toBe(unmarked);
     expect(strategyInput().record).toBe(unmarked);
-    expect(patchDailyRecord.mock.calls[0][3]).toBe(unmarked);
     expect(completeRun.mock.calls[0][0]).toBe(unmarked);
   });
 });

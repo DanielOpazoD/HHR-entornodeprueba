@@ -1,6 +1,5 @@
 import React from 'react';
 import { useRayenImportMode } from '../hooks/useRayenImportMode';
-import type { ClinicalEnrichmentBatchMode } from '../settings/rayenImportSettings';
 import { useAuth } from '@/context/AuthContext';
 
 interface OptionProps<T extends string> {
@@ -57,17 +56,8 @@ const Option = <T extends string>({
  */
 export const RayenImportModeSetting: React.FC = () => {
   const { currentUser } = useAuth();
-  const {
-    mode,
-    clinicalBatchMode,
-    status,
-    isSaving,
-    error,
-    initializeSafePolicy,
-    migrateLegacyPolicy,
-    setMode,
-    setClinicalBatchMode,
-  } = useRayenImportMode(currentUser?.uid);
+  const { mode, status, isSaving, error, initializeSafePolicy, migrateLegacyPolicy, setMode } =
+    useRayenImportMode(currentUser?.uid);
   const disabled = status !== 'ready' || isSaving;
 
   return (
@@ -96,42 +86,6 @@ export const RayenImportModeSetting: React.FC = () => {
           onSelect={setMode}
           disabled={disabled}
         />
-      </div>
-      <div className="mt-5 border-t border-gray-200 pt-4">
-        <h4 className="text-sm font-semibold text-gray-800">Persistencia clínica</h4>
-        <p className="mb-3 text-xs text-gray-500">
-          Define quién guarda signos vitales, escalas y dispositivos. El modo queda congelado al
-          comenzar cada sincronización.
-        </p>
-        <div className="space-y-2">
-          <Option<ClinicalEnrichmentBatchMode>
-            name="rayen-clinical-batch-mode"
-            value="off"
-            current={clinicalBatchMode}
-            title="Compatibilidad por paciente"
-            description="Ruta de rollback explícita: conserva las escrituras individuales conocidas."
-            onSelect={setClinicalBatchMode}
-            disabled={disabled}
-          />
-          <Option<ClinicalEnrichmentBatchMode>
-            name="rayen-clinical-batch-mode"
-            value="shadow"
-            current={clinicalBatchMode}
-            title="Validación paralela"
-            description="Guarda por paciente y compara el lote en backend sin darle autoridad."
-            onSelect={setClinicalBatchMode}
-            disabled={disabled}
-          />
-          <Option<ClinicalEnrichmentBatchMode>
-            name="rayen-clinical-batch-mode"
-            value="enforced"
-            current={clinicalBatchMode}
-            title="Lote transaccional"
-            description="El backend es la única autoridad. Un fallo deja los datos reintentables y nunca degrada silenciosamente."
-            onSelect={setClinicalBatchMode}
-            disabled={disabled}
-          />
-        </div>
       </div>
       {status === 'loading' && (
         <p className="mt-3 rounded bg-slate-50 p-2 text-xs text-slate-600">
@@ -163,12 +117,6 @@ export const RayenImportModeSetting: React.FC = () => {
         <p className="mt-3 rounded bg-amber-50 p-2 text-xs text-amber-700">
           Modo experimental global activo: el censo se actualizará automáticamente al recibir datos
           de Rayen. Los conflictos continúan requiriendo revisión.
-        </p>
-      )}
-      {clinicalBatchMode === 'enforced' && (
-        <p className="mt-3 rounded bg-teal-50 p-2 text-xs text-teal-800">
-          Lote transaccional activo. Para volver al flujo individual, selecciona explícitamente
-          «Compatibilidad por paciente».
         </p>
       )}
     </div>

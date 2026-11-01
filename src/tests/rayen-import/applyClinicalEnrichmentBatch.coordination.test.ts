@@ -200,28 +200,6 @@ describe('clinical batches share the census write turn', () => {
     }
   );
 
-  it.each(['off', 'shadow'] as const)(
-    'does not nest a lock around the %s repository writer',
-    async mode => {
-      const deps = createDependencies();
-      const persisted: string[] = [];
-      deps.applyPatch.mockImplementation(operation =>
-        runWithDailyRecordWriteLock(record.date, undefined, async () => {
-          persisted.push(operation.target.clinicalEpisodeId);
-        })
-      );
-      await applyClinicalEnrichmentBatch({
-        mode,
-        record,
-        runId: 'compatible-run',
-        operations,
-        ...deps,
-      });
-      expect(persisted).toEqual(['episode-1', 'episode-2']);
-      expect(getDailyRecordWriteState(record.date).pendingCount).toBe(0);
-    }
-  );
-
   it('retains its turn while replaying an ambiguous request with the same mutation identity', async () => {
     const deps = createDependencies();
     const retried = deferred();

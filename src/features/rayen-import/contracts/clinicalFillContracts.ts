@@ -93,18 +93,12 @@ export interface ClinicalFillDeps {
   archiveCudyrCapture?: (
     request: import('@/types/domain/cudyrHistory').ArchiveCudyrHistoryRequest
   ) => Promise<'persisted' | 'queued' | 'failed'>;
-  applyHistoricalCudyr?: (
-    encId: string,
-    censusDay: string,
-    cudyr: ImportedCudyr
-  ) => Promise<HistoricalCudyrApplyResult>;
   applyHistoricalCudyrBatch?: (
     censusDay: string,
     items: HistoricalCudyrBatchItem[]
   ) => Promise<HistoricalCudyrBatchItemResult[] | HistoricalCudyrBatchExecutionResult>;
-  applyPatch: (patch: DailyRecordPatch, target: ClinicalFillPatchTarget) => Promise<void>;
   /** Selects exactly one persistence owner for the whole fill run. */
-  persistenceStrategy?: ClinicalFillPersistenceStrategy;
+  persistenceStrategy: ClinicalFillPersistenceStrategy;
   now: () => Date;
   createId: () => string;
   monotonicNow?: () => number;
@@ -119,7 +113,7 @@ export interface ClinicalFillPatchOperation {
 }
 
 export interface ClinicalFillBatchEvidence {
-  mode: 'shadow' | 'enforced';
+  mode: 'enforced';
   parity: 'matched' | 'mismatch' | 'unavailable';
   clinicalTargets: number;
   checkpointOnlyTargets: number;
@@ -134,31 +128,13 @@ export interface ClinicalFillBatchApplyResult {
   historySnapshots: number;
   retries?: number;
   persistence?: ClinicalPersistenceEvidence;
-  failures?: ClinicalFillBatchApplyFailure[];
   batch?: ClinicalFillBatchEvidence;
 }
 
-/**
- * A run may write each patient immediately, observe those writes afterwards, or defer all
- * writes to one authority batch. The discriminant prevents mixed ownership configurations.
- */
-export type ClinicalFillPersistenceStrategy =
-  | {
-      disposition: 'immediate';
-      persist: (operations: ClinicalFillPatchOperation[]) => Promise<void>;
-    }
-  | {
-      disposition: 'observe';
-      persist: (operations: ClinicalFillPatchOperation[]) => Promise<ClinicalFillBatchEvidence>;
-    }
-  | {
-      disposition: 'deferred';
-      persist: (operations: ClinicalFillPatchOperation[]) => Promise<ClinicalFillBatchApplyResult>;
-    };
-
-export interface ClinicalFillBatchApplyFailure {
-  index: number;
-  message: string;
+/** Defers the run to one authoritative transaction. */
+export interface ClinicalFillPersistenceStrategy {
+  disposition: 'deferred';
+  persist: (operations: ClinicalFillPatchOperation[]) => Promise<ClinicalFillBatchApplyResult>;
 }
 
 export interface ClinicalFillPatchTarget {
