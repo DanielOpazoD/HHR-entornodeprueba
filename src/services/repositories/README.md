@@ -43,18 +43,13 @@ primitives Firestore; no sustituirlas por nuevos singletons internos.
 - `dataMigration.ts` normaliza payloads históricos antes de usar el modelo actual.
 - `schemaGovernance.ts`, `schemaEvolutionPolicy.ts` y `migrationLedger.ts` definen
   versión y evolución; la compatibilidad histórica permanece protegida.
-- `legacyRecordBridgeService.ts` es el acceso explícito al bridge de registros.
-  No integrarlo al hot path ni abrirlo desde un barrel de conveniencia.
-- `legacyBridgeGovernance.ts` y `legacyBridgeAudit.ts` gobiernan su uso y retiro.
-- Catálogos conservan su fallback en `legacyCatalogReadBridge`; no confundirlo
-  con lectura ordinaria de registros diarios.
 - `runtimeCompatibilityPolicy.ts` clasifica la compatibilidad cliente/backend y
   las restricciones de versión; `runtimeContractGovernance.ts` cruza contratos
   runtime, versiones de schema y el ledger de migración.
 - `dailyRecordAggregate.ts` concentra las operaciones del agregado.
 
 Los informes generados son evidencia, no otra implementación de la política:
-`reports/legacy-bridge-governance.md`, `reports/runtime-contracts.md`,
+`reports/runtime-contracts.md`,
 `reports/schema-evolution.md` y `reports/operational-health.md`.
 No retirar lectores históricos, aliases o grace paths sin demostrar que sus
 consumidores operativos desaparecieron.

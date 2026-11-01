@@ -2,22 +2,19 @@
 
 ## Propósito
 
-Capa de persistencia concreta: IndexedDB, localStorage, Firestore bridge y sincronización.
+Capa de persistencia concreta: IndexedDB, localStorage, Firestore y sincronización.
 
 ## Entry points canónicos
 
-| Path                                        | Uso soportado                                               |
-| ------------------------------------------- | ----------------------------------------------------------- |
-| `storage/firestore`                         | lectura/escritura remota de registros y catálogos           |
-| `storage/sync`                              | cola, retry, métricas y telemetría de sincronización        |
-| `storage/core`                              | disponibilidad de IndexedDB, fallback y mantenimiento/reset |
-| `storage/records`                           | acceso directo al record store local                        |
-| `storage/runtime`                           | bootstrap/bindings y política visible de fallback           |
-| `storage/migration/legacyRecordReadBridge`  | bridge angosto para reads legacy de registros               |
-| `storage/migration/legacyCatalogReadBridge` | bridge angosto para fallbacks legacy de catálogos           |
+| Path                | Uso soportado                                               |
+| ------------------- | ----------------------------------------------------------- |
+| `storage/firestore` | lectura/escritura remota de registros y catálogos           |
+| `storage/sync`      | cola, retry, métricas y telemetría de sincronización        |
+| `storage/core`      | disponibilidad de IndexedDB, fallback y mantenimiento/reset |
+| `storage/records`   | acceso directo al record store local                        |
+| `storage/runtime`   | bootstrap/bindings y política visible de fallback           |
 
-La fachada `index.ts` se mantiene como compatibilidad mínima; nuevos imports legacy deben entrar
-por los bridges angostos explícitos.
+La fachada `index.ts` se mantiene como compatibilidad mínima.
 
 ## Mapa
 
@@ -31,8 +28,6 @@ por los bridges angostos explícitos.
 | `core/`                                       | Entry point público de disponibilidad y mantenimiento |
 | `records/`                                    | Entry point público del record store local            |
 | `runtime/`                                    | Entry point público de bootstrap y fallback UI        |
-| `migration/legacyRecordReadBridge.ts`         | Bridge canónico para reads legacy de DailyRecord      |
-| `migration/legacyCatalogReadBridge.ts`        | Bridge canónico para fallbacks legacy de catálogos    |
 | `tableConfigService.ts`                       | Persistencia de configuración de tablas               |
 | `uiSettingsService.ts`                        | Persistencia de preferencias UI                       |
 | `localpersistence/localPersistenceService.ts` | Fallback local unificado (records/settings)           |
@@ -89,19 +84,6 @@ Los adapters de storage que necesiten `DailyRecord` deben importarlo desde
 - `indexedDBService.ts` es la fachada principal para persistencia local real.
 - `unifiedLocalService.ts` conserva compatibilidad útil para acceso local no-demo.
 - `localStorageService.ts` sigue existiendo solo como gateway legacy mínimo y deprecated.
-- `migration/legacyRecordReadBridge.ts` es el entrypoint soportado para reads legacy de DailyRecord.
-- `migration/legacyCatalogReadBridge.ts` es el entrypoint soportado para fallbacks legacy de catálogos.
-- La compatibilidad legacy que entra por Firebase debe preservarse como frontera explícita de lectura
-  y normalización; la simplificación de storage no debe convertirla otra vez en fallback implícito
-  del hot path ni retirar los paths todavía soportados para registros históricos.
-- `legacyFirebaseRecordService.ts` se mantiene como fachada pública interna para record reads, rangos, suscripciones y discovery, con módulos especializados por responsabilidad.
-- La compatibilidad legacy ya no participa del camino caliente de `DailyRecord`; se importa
-  explícitamente desde `legacyRecordBridgeService.ts` cuando se requiere migración controlada.
-- Paths legacy todavía soportados para `DailyRecord`:
-  - `hospitals/hanga_roa/dailyRecords/{date}`
-  - `hospitals/hhr/dailyRecords/{date}`
-  - `dailyRecords/{date}`
-  - `records/{date}`
 
 ## Recomendación
 
@@ -137,7 +119,7 @@ Cambios en esta capa requieren:
   - `storage/sync`
   - tests de `syncQueueService` y `sync-resilience`
 - Los puertos de `sync/` deben permanecer agnósticos de React/UI.
-- `legacyFirebase*` y `localStorageService.ts` son compatibilidad controlada; no deben
+- `localStorageService.ts` es compatibilidad controlada; no debe
   reingresar al camino caliente del registro diario.
 
 ## Operación

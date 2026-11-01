@@ -39,18 +39,9 @@ describe('maintenanceDebtScorecardSupport', () => {
     expect(
       buildLegacyRetirementDebtRows({
         status: 'ok',
-        openSurfaceCount: 2,
+        openSurfaceCount: 1,
         maxOpenSurfaces: 4,
         surfaces: [
-          {
-            id: 'legacy-read-bridge',
-            label: 'Legacy read bridge',
-            owner: 'storage/repositories',
-            phase: 'restrict',
-            status: 'ok',
-            signal: 'entrypoints=2/2, importers=1/1',
-            nextAction: 'Keep bridge import surface flat.',
-          },
           {
             id: 'role-aliases',
             label: 'Role aliases',
@@ -64,18 +55,9 @@ describe('maintenanceDebtScorecardSupport', () => {
       })
     ).toEqual({
       status: 'ok',
-      openSurfaceCount: 2,
+      openSurfaceCount: 1,
       maxOpenSurfaces: 4,
       rows: [
-        {
-          id: 'legacy-read-bridge',
-          label: 'Legacy read bridge',
-          owner: 'storage/repositories',
-          phase: 'restrict',
-          status: 'ok',
-          signal: 'entrypoints=2/2, importers=1/1',
-          nextAction: 'Keep bridge import surface flat.',
-        },
         {
           id: 'role-aliases',
           label: 'Role aliases',

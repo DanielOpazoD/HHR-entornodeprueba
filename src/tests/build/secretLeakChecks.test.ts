@@ -76,7 +76,7 @@ describe('secretLeakChecks', () => {
 
   it('flags hardcoded Firebase web configuration inside source files', () => {
     const failures = findSecretLeakFailuresForFile({
-      file: 'src/services/storage/legacyfirebase/legacyFirebaseCore.ts',
+      file: 'src/config/firebaseConfig.ts',
       content: [
         'const config = {',
         "  apiKey: 'AIzaSyB0MKYu-efNbYEZnyTy7KHqWVQvBVwozwM',",

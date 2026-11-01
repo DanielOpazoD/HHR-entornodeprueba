@@ -16,7 +16,6 @@ import { isFirestoreEnabled, setFirestoreEnabled } from '@/services/repositories
 import { save, updatePartial } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { syncWithFirestore } from '@/services/repositories/dailyRecordRepositorySyncService';
 import {
-  bridgeLegacyRecordForDate,
   getAvailableDates,
   getForDate,
   getForDateWithMeta,
@@ -31,13 +30,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 
-const { legacyFirebaseMock, indexedDbFacadeMock, firestoreMock, logErrorMock } = vi.hoisted(() => ({
-  legacyFirebaseMock: {
-    getLegacyRecord: vi.fn().mockResolvedValue(null),
-    getLegacyNurseCatalog: vi.fn().mockResolvedValue([]),
-    getLegacyTensCatalog: vi.fn().mockResolvedValue([]),
-    getLegacyRecordsRange: vi.fn().mockResolvedValue([]),
-  },
+const { indexedDbFacadeMock, firestoreMock, logErrorMock } = vi.hoisted(() => ({
   indexedDbFacadeMock: {
     getRecordForDate: vi.fn().mockResolvedValue(null),
     getPreviousDayRecord: vi.fn().mockResolvedValue(null),
@@ -82,16 +75,8 @@ vi.mock('@/services/utils/errorService', () => ({
   logError: logErrorMock,
 }));
 
-export { firestoreMock, indexedDbFacadeMock, legacyFirebaseMock, logErrorMock };
+export { firestoreMock, indexedDbFacadeMock, logErrorMock };
 
-vi.mock('@/services/storage/migration/legacyRecordReadBridge', () => ({
-  getLegacyRecord: legacyFirebaseMock.getLegacyRecord,
-  getLegacyRecordsRange: legacyFirebaseMock.getLegacyRecordsRange,
-}));
-vi.mock('@/services/storage/migration/legacyCatalogReadBridge', () => ({
-  getLegacyNurseCatalog: legacyFirebaseMock.getLegacyNurseCatalog,
-  getLegacyTensCatalog: legacyFirebaseMock.getLegacyTensCatalog,
-}));
 vi.mock('@/services/storage/indexedDBService', () => indexedDbFacadeMock);
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordForDate: indexedDbFacadeMock.getRecordForDate,
@@ -153,7 +138,6 @@ vi.mock('@/services/storage/sync', () => ({
 }));
 
 export const Repository = {
-  bridgeLegacyRecord: bridgeLegacyRecordForDate,
   copyPatientToDate,
   copyPatientToDateDetailed,
   deleteDay,

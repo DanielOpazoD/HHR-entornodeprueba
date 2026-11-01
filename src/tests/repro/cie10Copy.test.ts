@@ -29,9 +29,6 @@ vi.mock('@/services/storage/firestore', async importOriginal => {
     saveRecordToFirestore: vi.fn(),
   };
 });
-vi.mock('../../services/storage/migration/legacyRecordReadBridge', () => ({
-  getLegacyRecord: vi.fn().mockResolvedValue(null),
-}));
 
 describe('CIE-10 Copy Bug Reproduction', () => {
   type CudyrType = NonNullable<PatientData['cudyr']>;

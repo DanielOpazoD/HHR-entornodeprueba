@@ -60,7 +60,6 @@ Checks prioritarios:
 - `npm run check:module-size`
 - `npm run check:hook-hotspots`
 - `npm run check:hotspot-growth`
-- `npm run check:legacy-bridge-boundary`
 - `npm run check:compatibility-import-governance`
 - `npm run check:bundle-budget`
 - `npm run check:chunk-graph`
@@ -70,7 +69,6 @@ Reportes prioritarios:
 - `npm run report:quality-metrics`
 - `npm run report:maintenance-debt-scorecard`
 - `npm run report:operational-health`
-- `npm run report:legacy-bridge`
 - `npm run report:compatibility-governance`
 
 Gates por nivel:
@@ -194,8 +192,6 @@ Done cuantitativo sugerido:
 
 - Inspect/Modify: `src/services/storage/README.md`
 - Inspect/Modify: `src/services/storage/migration/legacyFirestoreBridge.ts`
-- Inspect/Modify: `src/services/storage/legacyfirebase/**`
-- Create/Test: `src/tests/integration/legacy-bridge-contract.test.ts`
 - Inspect/Modify: `scripts/**` para auditoría/migración
 
 - [ ] **Step 1: Inventariar bridges y paths legacy**
@@ -203,7 +199,6 @@ Done cuantitativo sugerido:
 Run:
 
 ```bash
-rg -n 'legacyFirestoreBridge|legacyFirebase|migration/' src
 sed -n '60,140p' src/services/storage/README.md
 ```
 
@@ -219,7 +214,6 @@ Objetivo del test:
 Run:
 
 ```bash
-npm run report:legacy-bridge
 npm run report:compatibility-governance
 ```
 
@@ -240,12 +234,10 @@ Orden:
 Run:
 
 ```bash
-npm run check:legacy-bridge-boundary
 npm run check:compatibility-import-governance
 npm run typecheck
 npm run check:quality
 npm run test:ci:unit
-npx vitest run src/tests/integration/legacy-bridge-contract.test.ts
 ```
 
 Si toca storage/auth/runtime:
@@ -457,8 +449,7 @@ Ruta sugerida:
 1. terminar Fase 1 en `scripts/`
 2. seguir archivando docs históricas de baja encontrabilidad
 3. consolidar 1 o 2 pares adicionales de tests duplicados sin cruzar layers
-4. preparar contract test y auditoría para legacy bridge
-5. dejar FHIR y terminology fuera de la ola low-risk
+4. dejar FHIR y terminology fuera de la ola low-risk
 
 ## Señales para frenar o abortar
 

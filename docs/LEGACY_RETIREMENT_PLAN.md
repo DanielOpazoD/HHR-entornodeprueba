@@ -2,25 +2,23 @@
 
 Estado: activo
 Owner: architecture
-Última actualización: 2026-06-30
+Última actualización: 2026-11-01
 
 ## Scope
 
 Este plan reduce superficie legacy sin reescribir flujos clínicos estables. La prioridad es retirar o encapsular compatibilidad que todavía aparece en rutas vivas, manteniendo los guardrails actuales verdes.
 
+El puente de lectura de Firebase antiguo fue retirado. Se conservan las
+normalizaciones de documentos históricos del camino vigente.
+
 ## Priorities
 
-1. legacy read bridge
-   - Mantener cada lectura legacy detrás de `isLegacyBridgeEnabled()`.
-   - Convertir consumidores restantes a repositorios canónicos cuando exista evidencia de que la fuente nueva cubre el caso real.
-   - No permitir consumidores nuevos sin entrada explícita en gobernanza.
-
-2. role aliases
+1. role aliases
    - Medir y cerrar alias heredados como `viewer_census`.
    - Mantener autocorrección solo mientras existan cuentas/configuraciones reales con alias.
    - Retirar write-back de canonización cuando la auditoría de roles reporte cero alias.
 
-3. legacy clinical document and legacy episode hydration
+2. legacy clinical document and legacy episode hydration
    - Mantener la hidratación legacy de documentos clínicos y legacy episode keys encapsulada en controllers dedicados.
    - No propagar shape legacy hacia UI, repositories nuevos ni casos de uso.
    - Migrar documentos/episodios antiguos solo con evidencia de compatibilidad y rollback.
@@ -29,12 +27,12 @@ Este plan reduce superficie legacy sin reescribir flujos clínicos estables. La 
 
 - No reescribir Firestore, IndexedDB ni el modelo clínico completo en una sola rama.
 - No eliminar compatibilidad si todavía protege datos reales no migrados.
-- No relajar `check:legacy-read-gating`, `check:compatibility-import-governance` ni reglas de schema/runtime contracts.
+- No relajar `check:compatibility-import-governance` ni reglas de schema/runtime contracts.
 
 ## Phases
 
 1. Inventory
-   - Ejecutar reportes de compatibility governance y legacy bridge.
+   - Ejecutar reportes de compatibility governance.
    - Identificar consumidores por owner y riesgo clínico.
 
 2. Encapsulation
@@ -47,8 +45,6 @@ Este plan reduce superficie legacy sin reescribir flujos clínicos estables. La 
 
 ## Closure signals
 
-- `check:legacy-read-gating` pasa con cero consumidores no gateados.
-- 0 new legacy read bridge consumers aparecen en reportes de diff respecto del último release.
 - `report:compatibility-import-governance` reporta cero imports no autorizados.
 - Auditoría de role aliases reporta cero entradas legacy en config/roles y custom claims.
 - 0 legacy role aliases detected for 2 consecutive releases antes de retirar el write-back de canonización.

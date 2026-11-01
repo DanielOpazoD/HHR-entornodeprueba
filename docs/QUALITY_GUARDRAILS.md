@@ -130,7 +130,6 @@ Para una revisión local de deuda, reutilizar los productores existentes, en ord
 
 ```sh
 npm run report:quality-metrics
-npm run report:legacy-bridge
 npm run report:compatibility-governance
 npm run report:legacy-retirement-debt
 npm run report:maintenance-debt-scorecard

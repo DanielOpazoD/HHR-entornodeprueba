@@ -236,7 +236,6 @@ canónico está en el [runbook de evidencia](docs/RUNBOOK_RELEASE_EVIDENCE_CONTR
 Ejemplos de snapshots versionados (excepción al `.gitignore`; verificar vigencia antes de citarlos):
 
 - [reports/architectural-hotspots.md](reports/architectural-hotspots.md)
-- [reports/legacy-bridge-governance.md](reports/legacy-bridge-governance.md)
 - [reports/runtime-contracts.md](reports/runtime-contracts.md)
 
 Para regenerar evidencia, seguir el

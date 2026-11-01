@@ -23,22 +23,17 @@ Este runbook complementa `docs/RUNBOOK_SYNC_RESILIENCE.md` con una pauta más op
 2. Validar que no existan usuarios con estado crítico por más de 15 minutos.
 3. Confirmar que no hay alertas repetidas de `permission-denied` en consola.
 4. Registrar incidentes abiertos/cerrados del día.
-5. Revisar `reports/operational-health.md` y `reports/legacy-bridge-governance.md` antes de cambios manuales.
+5. Revisar `reports/operational-health.md` antes de cambios manuales.
 6. Si el cambio o incidente afecta `Censo Diario`, usar también:
    - [docs/CENSUS_OPERATIONAL_VALIDATION_CHECKLIST.md](./CENSUS_OPERATIONAL_VALIDATION_CHECKLIST.md)
 
-## Controles Nuevos (Auth + Legacy)
+## Controles Nuevos (Auth)
 
 - Login redirect protegido:
   - Se usa marca temporal `hhr_auth_bootstrap_pending_v1` para evitar rebote prematuro a Login durante retorno de Google redirect.
   - Timeout extendido de bootstrap auth a 45s cuando la marca está activa.
   - Heartbeat de lock multi-pestaña durante popup (`hhr_google_login_lock_v1`) para evitar colisiones en inicios largos.
   - Política unificada de errores de auth popup/COOP (`authErrorPolicy`) para decidir cuándo mostrar acceso alternativo por redirect.
-- Legacy fallback con menor ruido:
-  - Bloqueo persistente por sesión cuando hay `permission-denied` en legacy.
-  - Cache temporal de fechas no encontradas (evita reintentos repetidos sobre rutas legacy inválidas).
-  - Cache temporal por grupo de ruta denegada (evita reprobar la misma familia de rutas en la sesión).
-  - Logs de repositorio legacy sólo en modo debug explícito (`VITE_DEBUG_LEGACY_FIREBASE=true`).
 - Backups Storage (contrato de fecha):
   - Servicios de respaldo (`censo`, `CUDYR`, `PDF`) validan fecha de entrada con formato `YYYY-MM-DD` y calendario válido.
   - Entradas inválidas se degradan de forma segura (sin romper UI ni cola).
@@ -138,11 +133,8 @@ Criterio de cierre:
 ## Variables de Diagnóstico (solo soporte técnico)
 
 - `VITE_DEBUG_REPOSITORY=true`:
-  - Habilita logs de trazas de repositorio (Firestore + fallback legacy).
+  - Habilita logs de trazas de repositorio (Firestore).
   - Mantener desactivado en operación normal para evitar ruido.
-- `VITE_DEBUG_LEGACY_FIREBASE=true`:
-  - Habilita logs detallados de rutas legacy.
-  - Usar sólo para diagnóstico acotado y luego desactivar.
 - Trazas `[StoragePerf]`:
   - Se emiten automáticamente como advertencia cuando una operación Storage supera el umbral de latencia.
   - No requieren activar flags adicionales en operación normal.
@@ -181,7 +173,6 @@ Criterio de cierre:
 ## Comandos de Diagnóstico Técnico
 
 ```bash
-npm run report:legacy-bridge
 npm run report:operational-health
 npm run check:operational-runbooks
 npm run typecheck
@@ -197,12 +188,6 @@ npm run test:e2e:critical:ci
 npm run test:e2e -- e2e/auth-multi-tab-lock.spec.ts
 npm run test -- src/tests/security/netlifyHeadersStatic.test.ts
 ```
-
-## Legacy bridge
-
-- Tratar `legacy bridge` como compatibilidad administrada, no como fallback general.
-- Antes de usarlo, confirmar fase actual en `reports/legacy-bridge-governance.md`.
-- Si aparece uso nuevo o inesperado del bridge, abrir incidente técnico y registrar entrypoint afectada.
 
 Parámetros opcionales para carga de cola:
 

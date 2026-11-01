@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-10-21T01:51:14.319Z",
+  "generatedAt": "2026-11-01T00:48:09.879Z",
   "version": 1,
   "blockingTierCount": 5,
   "reportOnlyCount": 18,
-  "qualityCheckCount": 66,
+  "qualityCheckCount": 62,
   "releaseConfidence": {
     "script": "test:release-confidence",
     "requiredScripts": [
@@ -265,18 +265,6 @@
         "group": "boundaries"
       },
       {
-        "id": "check:legacy-bridge-boundary",
-        "group": "boundaries"
-      },
-      {
-        "id": "check:legacy-read-gating",
-        "group": "boundaries"
-      },
-      {
-        "id": "report:legacy-bridge",
-        "group": "governance-inputs"
-      },
-      {
         "id": "report:compatibility-governance",
         "group": "governance-inputs"
       },
@@ -329,22 +317,6 @@
         "group": "size"
       },
       {
-        "id": "check:handoff-module-size",
-        "group": "size"
-      },
-      {
-        "id": "check:census-module-size",
-        "group": "size"
-      },
-      {
-        "id": "check:hook-hotspots",
-        "group": "size"
-      },
-      {
-        "id": "check:hotspot-growth",
-        "group": "size"
-      },
-      {
         "id": "check:extension-hotspots",
         "group": "size"
       },
@@ -362,6 +334,18 @@
       },
       {
         "id": "check:clinical-clock",
+        "group": "boundaries"
+      },
+      {
+        "id": "check:declared-dependencies",
+        "group": "hygiene"
+      },
+      {
+        "id": "check:empty-on-failure-reads",
+        "group": "boundaries"
+      },
+      {
+        "id": "check:import-cycles",
         "group": "boundaries"
       },
       {

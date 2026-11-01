@@ -36,7 +36,6 @@ const repositoryFiles = [
   'src/services/repositories/dailyRecordRepositoryInitializationService.ts',
   'src/services/repositories/dailyRecordRepositorySyncService.ts',
   'src/services/repositories/monthIntegrity.ts',
-  'src/services/repositories/legacyRecordBridgeService.ts',
   'src/services/repositories/dailyRecordRemoteLoader.ts',
 ];
 
@@ -74,18 +73,16 @@ const extractConstArrayStrings = (content, name) => {
 };
 
 const extractSetStrings = (content, name) => {
-  const match = content.match(new RegExp(`const\\s+${name}\\s*=\\s*new Set\\(\\[([\\s\\S]*?)\\]\\)`, 'm'));
+  const match = content.match(
+    new RegExp(`const\\s+${name}\\s*=\\s*new Set\\(\\[([\\s\\S]*?)\\]\\)`, 'm')
+  );
   if (!match) return [];
 
   return [...match[1].matchAll(/'([^']+)'/g)].map(item => item[1]);
 };
 
 const extractRoleNormalizationBridges = content =>
-  [
-    ...content.matchAll(
-      /role\s*===\s*'([^']+)'\s*\?\s*'([^']+)'\s*:\s*role/g
-    ),
-  ].map(match => ({
+  [...content.matchAll(/role\s*===\s*'([^']+)'\s*\?\s*'([^']+)'\s*:\s*role/g)].map(match => ({
     from: match[1],
     to: match[2],
   }));
@@ -200,7 +197,6 @@ const systemHealthBudgets = extractObjectNumbers(
 );
 const syncDomainProfiles = extractSyncDomainProfiles(syncDomainPolicyContent);
 const conflictContexts = extractConflictRunbookActions(conflictDomainContent);
-const legacyBridgeReport = readJsonReport('reports/legacy-bridge-governance.json');
 const compatibilityGovernanceReport = readJsonReport('reports/compatibility-governance.json');
 const compatibilityImportGovernanceReport = readJsonReport(
   'reports/compatibility-import-governance.json'
@@ -266,7 +262,9 @@ const buildAssets = largestBuildAssets.map(asset =>
     budgetConfig: bundleBudgetConfig,
   })
 );
-const bootstrapTelemetrySignals = extractBootstrapTelemetrySignals(bootstrapRuntimeTelemetryContent);
+const bootstrapTelemetrySignals = extractBootstrapTelemetrySignals(
+  bootstrapRuntimeTelemetryContent
+);
 const frontendStartup = summarizeFrontendStartupHealth({
   previewGate: summarizePreviewGate(previewBootstrapReport),
   criticalAssets: selectFrontendStartupCriticalAssets({
@@ -298,7 +296,6 @@ const summary = {
   },
   syncDomainProfiles,
   conflictContexts,
-  legacyBridge: legacyBridgeReport,
   compatibilityGovernance: compatibilityGovernanceReport
     ? {
         policyVersion: compatibilityGovernanceReport.policyVersion ?? 'unknown',
@@ -362,7 +359,10 @@ const summary = {
     maxThresholdMs: thresholds.reduce((max, item) => Math.max(max, item.thresholdMs), 0),
     minThresholdMs:
       thresholds.length > 0
-        ? thresholds.reduce((min, item) => Math.min(min, item.thresholdMs), thresholds[0].thresholdMs)
+        ? thresholds.reduce(
+            (min, item) => Math.min(min, item.thresholdMs),
+            thresholds[0].thresholdMs
+          )
         : 0,
     thresholds,
   },
@@ -424,16 +424,6 @@ ${summary.syncDomainProfiles
 ${Object.entries(summary.conflictContexts)
   .map(([context, action]) => `| \`${context}\` | ${action} |`)
   .join('\n')}
-
-## Legacy Bridge Governance
-
-- Policy version: ${summary.legacyBridge?.policyVersion ?? 'unknown'}
-- Allowed modes: ${
-  Array.isArray(summary.legacyBridge?.allowedModes)
-    ? summary.legacyBridge.allowedModes.join(', ')
-    : 'unknown'
-}
-- Hot path policy: ${summary.legacyBridge?.hotPathPolicy ?? 'unknown'}
 
 ## Compatibility Governance
 

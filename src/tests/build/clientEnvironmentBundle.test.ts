@@ -11,7 +11,6 @@ it('bundles consumed client settings without serializing unrelated configuration
   vi.stubEnv('NODE_ENV', 'production');
   vi.stubEnv('VITE_UNUSED_CONFIGURATION_PROBE', 'unused-configuration-marker');
   vi.stubEnv('VITE_FIREBASE_APP_ID', 'synthetic-app-marker');
-  vi.stubEnv('VITE_LEGACY_FIREBASE_PROJECT_ID', 'synthetic-legacy-marker');
   const cacheDir = mkdtempSync(join(tmpdir(), 'hhr-client-env-build-'));
 
   try {
@@ -27,15 +26,8 @@ it('bundles consumed client settings without serializing unrelated configuration
         rollupOptions: {
           // Keep public readers alive: an empty, tree-shaken bundle would falsely pass.
           preserveEntrySignatures: 'strict',
-          input: [
-            'src/config/envValidator.ts',
-            'src/services/storage/legacyfirebase/legacyFirebaseCore.ts',
-          ],
-          external: id =>
-            id === 'zod' ||
-            id.startsWith('firebase/') ||
-            id.includes('loggerScope') ||
-            id === './legacyFirebaseLogger',
+          input: ['src/config/envValidator.ts'],
+          external: id => id === 'zod' || id.startsWith('firebase/') || id.includes('loggerScope'),
           output: { format: 'es' },
         },
       },
@@ -48,7 +40,6 @@ it('bundles consumed client settings without serializing unrelated configuration
       .join('\n');
 
     expect(code).toContain('synthetic-app-marker');
-    expect(code).toContain('synthetic-legacy-marker');
     expect(code).not.toContain('unused-configuration-marker');
   } finally {
     rmSync(cacheDir, { recursive: true, force: true });

@@ -10,19 +10,13 @@ const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx']);
 const RESTRICTED_EXACT_IMPORTS = new Set([
   '@/services/storage/firestoreService',
   '@/services/storage/syncQueueService',
-  '@/services/storage/legacyFirebaseService',
 ]);
 
-const RESTRICTED_SUFFIXES = [
-  '/storage/firestoreService',
-  '/storage/syncQueueService',
-  '/storage/legacyFirebaseService',
-];
+const RESTRICTED_SUFFIXES = ['/storage/firestoreService', '/storage/syncQueueService'];
 
 const ALLOWED_IMPORTERS = new Set([
   'src/services/storage/firestore/index.ts',
   'src/services/storage/sync/index.ts',
-  'src/services/storage/legacyFirebaseService.ts',
 ]);
 
 const IMPORT_EXPORT_REGEX =

@@ -63,12 +63,10 @@ metadatos; el despliegue beta no cambia su destino ni sus permisos.
 
 ---
 
-## 🛡️ Validación en Código
+## 🛡️ Acceso vigente
 
-El bloqueo activo vive en `src/services/storage/legacyfirebase/legacyFirebaseCore.ts`: si
-`VITE_LEGACY_FIREBASE_PROJECT_ID` apunta a `hospital-hanga-roa`, `resolveLegacyFirebaseConfig`
-devuelve `null` y la app no abre esa conexión. Lo cubre
-`src/tests/services/storage/legacyFirebaseCore.test.ts`.
+El puente de lectura del Firebase histórico fue retirado. La aplicación usa el
+camino de persistencia vigente y mantiene la normalización de documentos antiguos.
 
 ---
 
@@ -99,7 +97,6 @@ Síntoma típico: `Cross-Origin-Opener-Policy policy would block the window.clos
 y el **censo del día no sincroniza** (sin sesión, Firestore deniega la lectura y la app cae al
 cache local vacío).
 
-El bridge legacy queda desactivado por defecto con `VITE_LEGACY_COMPATIBILITY_MODE=disabled`.
 No configurar `VITE_LEGACY_FIREBASE_*` para `hospital-hanga-roa` en este repositorio.
 
 ---

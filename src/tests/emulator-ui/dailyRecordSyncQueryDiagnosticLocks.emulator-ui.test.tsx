@@ -57,10 +57,6 @@ vi.mock('@/context/VersionContext', () => ({
   }),
 }));
 
-vi.mock('@/services/storage/migration/legacyRecordReadBridge', () => ({
-  getLegacyRecord: vi.fn().mockResolvedValue(null),
-}));
-
 let activeDb: unknown;
 const currentUser = {
   email: 'hospitalizados@hospitalhangaroa.cl',

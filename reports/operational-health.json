@@ -92,58 +92,6 @@
     "metadata": "Alinear timestamps, schemaVersion y campos de control antes de reabrir.",
     "unknown": "Inspeccionar paths afectados y escalar si el contexto no se puede clasificar."
   },
-  "legacyBridge": {
-    "generatedAt": "stable:legacy-bridge-governance",
-    "policyVersion": "2026-03-v2",
-    "allowedModes": [
-      "explicit_bridge",
-      "disabled"
-    ],
-    "hotPathPolicy": "disabled",
-    "allowedEntrypoints": [
-      "DailyRecordRepository.bridgeLegacyRecord",
-      "legacyRecordBridgeService.bridgeLegacyRecordsRange"
-    ],
-    "allowedImporters": [
-      "src/services/repositories/dailyRecordRepositoryReadService.ts"
-    ],
-    "retirementPhaseRules": {
-      "observe": "Use only while hot path isolation or governance prerequisites are incomplete.",
-      "restrict": "Default stage once bridge is explicit-only and auditable.",
-      "retire_ready": "Allowed only when runtime mode is disabled and a release window passed without dependency."
-    },
-    "retirementGates": [
-      {
-        "id": "hot-path-isolation",
-        "label": "Hot path isolated",
-        "rationale": "Legacy compatibility must stay outside read/write/sync hot paths."
-      },
-      {
-        "id": "explicit-usage-observed",
-        "label": "Explicit usage observed and auditable",
-        "rationale": "Any remaining bridge usage must be measurable before restricting or retiring it."
-      },
-      {
-        "id": "migration-rules-governed",
-        "label": "Migration rules governed",
-        "rationale": "Legacy imports must keep using the governed migration pipeline and schema checks."
-      },
-      {
-        "id": "release-window-clear",
-        "label": "Release window without bridge dependency",
-        "rationale": "The bridge can retire only after at least one release window with no required usage."
-      }
-    ],
-    "candidatePathTemplates": [
-      "hospitals/hanga_roa/dailyRecords/:date",
-      "hospitals/hhr/dailyRecords/:date",
-      "dailyRecords/:date",
-      "records/:date",
-      "hospitals/hanga_roa/dailyRecords",
-      "hospitals/hhr/dailyRecords",
-      "dailyRecords"
-    ]
-  },
   "compatibilityGovernance": {
     "policyVersion": "2026-04-v1",
     "trackedEntries": 4,
@@ -508,8 +456,8 @@
     ]
   },
   "repositoryPerformance": {
-    "monitoredOperations": 8,
-    "maxThresholdMs": 400,
+    "monitoredOperations": 6,
+    "maxThresholdMs": 250,
     "minThresholdMs": 120,
     "thresholds": [
       {
@@ -535,16 +483,6 @@
       {
         "file": "src/services/repositories/monthIntegrity.ts",
         "thresholdMs": 250,
-        "context": null
-      },
-      {
-        "file": "src/services/repositories/legacyRecordBridgeService.ts",
-        "thresholdMs": 220,
-        "context": null
-      },
-      {
-        "file": "src/services/repositories/legacyRecordBridgeService.ts",
-        "thresholdMs": 400,
         "context": null
       },
       {

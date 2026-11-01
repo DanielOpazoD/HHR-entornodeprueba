@@ -77,12 +77,6 @@ no modifica los umbrales del snapshot generado a continuación.
 | `metadata` | Alinear timestamps, schemaVersion y campos de control antes de reabrir. |
 | `unknown` | Inspeccionar paths afectados y escalar si el contexto no se puede clasificar. |
 
-## Legacy Bridge Governance
-
-- Policy version: 2026-03-v2
-- Allowed modes: explicit_bridge, disabled
-- Hot path policy: disabled
-
 ## Compatibility Governance
 
 - Policy version: 2026-04-v1
@@ -200,9 +194,9 @@ no modifica los umbrales del snapshot generado a continuación.
 
 ## Repository Performance Thresholds
 
-- Monitored operations: 8
+- Monitored operations: 6
 - Min threshold (ms): 120
-- Max threshold (ms): 400
+- Max threshold (ms): 250
 
 | File | Threshold (ms) | Context |
 | --- | ---: | --- |
@@ -211,8 +205,6 @@ no modifica los umbrales del snapshot generado a continuación.
 | `src/services/repositories/dailyRecordRepositoryInitializationService.ts` | 180 | - |
 | `src/services/repositories/dailyRecordRepositorySyncService.ts` | 200 | - |
 | `src/services/repositories/monthIntegrity.ts` | 250 | - |
-| `src/services/repositories/legacyRecordBridgeService.ts` | 220 | - |
-| `src/services/repositories/legacyRecordBridgeService.ts` | 400 | - |
 | `src/services/repositories/dailyRecordRemoteLoader.ts` | 220 | - |
 
 ## Runbooks

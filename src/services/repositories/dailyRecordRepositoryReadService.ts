@@ -5,9 +5,7 @@ import {
   getPreviousDayRecord as getPreviousDayFromIndexedDB,
   getAllDates as getAllDatesFromIndexedDB,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
-import { logLegacyInfo } from '@/services/storage/legacyfirebase/legacyFirebaseLogger';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
-import { bridgeLegacyRecord } from '@/services/repositories/legacyRecordBridgeService';
 import type {
   DailyRecordReadResult,
   LocalDailyRecordReadResult,
@@ -24,7 +22,6 @@ import {
   shouldHintLocalSync,
 } from '@/services/observability/localSyncDiagnostics';
 import {
-  createBridgedDailyRecordReadResult,
   createLocalRuntimeReadCandidate,
   createLocalRuntimeReadResult,
   createNotFoundDailyRecordReadResult,
@@ -57,10 +54,6 @@ const loadDailyRecordRemoteLoader = async (): Promise<DailyRecordRemoteLoaderMod
   return dailyRecordRemoteLoaderPromise;
 };
 
-const isRepositoryDebugEnabled = () =>
-  import.meta.env.DEV &&
-  String(import.meta.env.VITE_DEBUG_REPOSITORY || '').toLowerCase() === 'true';
-
 const getE2EOverrideRecord = (date: string): DailyRecord | null => {
   if (typeof window === 'undefined' || !window.__HHR_E2E_OVERRIDE__) {
     return null;
@@ -82,12 +75,6 @@ const getE2ELocalStorageRecord = (date: string): DailyRecord | null => {
   } catch {
     return null;
   }
-};
-
-const logRemoteFetchAttempt = (date: string): void => {
-  if (!isRepositoryDebugEnabled()) return;
-  logLegacyInfo(`[Repository DEBUG] Attempting Firestore fetch for ${date}`);
-  logLegacyInfo(`[Repository] Checking remote + legacy fallback for ${date}...`);
 };
 
 // Dev-only: the first time a remote read fails on localhost (usually an incomplete
@@ -202,7 +189,6 @@ export const getForDateWithMeta = async (
           localCandidate,
           loadRemoteRecordWithFallback,
           base,
-          logRemoteFetchAttempt,
           onRemoteFetchFailure: (err, failedDate) => {
             dailyRecordReadLogger.warn(`Remote fetch failed for ${failedDate}`, err);
             emitLocalSyncHintOnce();
@@ -218,11 +204,6 @@ export const getForDateWithMeta = async (
     },
     { thresholdMs: 120, context: date }
   );
-};
-
-export const bridgeLegacyRecordForDate = async (date: string): Promise<DailyRecordReadResult> => {
-  const bridged = await bridgeLegacyRecord(date);
-  return createBridgedDailyRecordReadResult(date, bridged);
 };
 
 // Startup asks for the available dates twice, in parallel, through two different

@@ -2,7 +2,10 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { formatLegacyRetirementDebtMarkdown, loadLegacyRetirementDebtReport } from './legacyRetirementDebtSupport.mjs';
+import {
+  formatLegacyRetirementDebtMarkdown,
+  loadLegacyRetirementDebtReport,
+} from './legacyRetirementDebtSupport.mjs';
 
 const ROOT = process.cwd();
 const REPORTS_DIR = path.join(ROOT, 'reports');
@@ -11,9 +14,11 @@ let report;
 try {
   report = loadLegacyRetirementDebtReport(ROOT);
 } catch (error) {
-  console.error(`[legacy-retirement-debt] ${error instanceof Error ? error.message : String(error)}`);
   console.error(
-    '[legacy-retirement-debt] Run npm run report:legacy-bridge and npm run report:compatibility-governance before generating this report.'
+    `[legacy-retirement-debt] ${error instanceof Error ? error.message : String(error)}`
+  );
+  console.error(
+    '[legacy-retirement-debt] Run npm run report:compatibility-governance before generating this report.'
   );
   process.exit(1);
 }
@@ -30,4 +35,6 @@ fs.writeFileSync(
   'utf8'
 );
 
-console.log('[legacy-retirement-debt] Report generated at reports/legacy-retirement-debt.{md,json}');
+console.log(
+  '[legacy-retirement-debt] Report generated at reports/legacy-retirement-debt.{md,json}'
+);

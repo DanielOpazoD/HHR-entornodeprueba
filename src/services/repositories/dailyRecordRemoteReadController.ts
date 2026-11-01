@@ -45,7 +45,6 @@ interface AttemptRemoteGoldenPathReadInput {
     date: string,
     options?: { base?: LocalRecordBase }
   ) => Promise<DailyRecordRemoteLoadResult>;
-  logRemoteFetchAttempt?: (date: string) => void;
   onRemoteFetchFailure?: (error: unknown, date: string) => void;
 }
 
@@ -153,11 +152,9 @@ export const attemptRemoteGoldenPathRead = async ({
   localCandidate,
   loadRemoteRecordWithFallback,
   base,
-  logRemoteFetchAttempt,
   onRemoteFetchFailure,
 }: AttemptRemoteGoldenPathReadInput): Promise<DailyRecordReadResult> => {
   try {
-    logRemoteFetchAttempt?.(date);
     const remoteReadResult = await loadRemoteRecordWithFallback(date, { base });
     return resolveRemoteGoldenPathReadResult({
       date,

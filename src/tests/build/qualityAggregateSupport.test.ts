@@ -11,7 +11,7 @@ import {
 
 const checks = [
   { id: 'check:architecture', group: 'boundaries' },
-  { id: 'report:legacy-bridge', group: 'governance-inputs' },
+  { id: 'report:compatibility-governance', group: 'governance-inputs' },
   { id: 'check:schema-governance', group: 'governance' },
   { id: 'check:critical-any', group: 'type-safety' },
   { id: 'check:repo-hygiene', group: 'hygiene' },

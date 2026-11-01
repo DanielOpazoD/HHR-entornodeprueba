@@ -39,7 +39,8 @@ const walkFiles = (root, relativeDir, files = []) => {
 };
 
 const collectDetectedConsumers = ({ root, detection }) => {
-  const roots = asArray(detection?.sourceRoots).length > 0 ? asArray(detection.sourceRoots) : ['src'];
+  const roots =
+    asArray(detection?.sourceRoots).length > 0 ? asArray(detection.sourceRoots) : ['src'];
   const markers = asArray(detection?.markers).filter(Boolean);
   if (markers.length === 0) return [];
 
@@ -82,12 +83,6 @@ export const collectObservedLegacyConsumers = ({
 const countCompatibilityEntries = compatibilityGovernanceReport =>
   asArray(compatibilityGovernanceReport?.entries).length;
 
-const countBridgeEntrypoints = legacyBridgeReport =>
-  asArray(legacyBridgeReport?.allowedEntrypoints).length;
-
-const countBridgeImporters = legacyBridgeReport =>
-  asArray(legacyBridgeReport?.allowedImporters).length;
-
 const createSurfaceResult = ({ surface, status, signal, issues }) => ({
   id: surface.id,
   label: surface.label || surface.id,
@@ -101,32 +96,6 @@ const createSurfaceResult = ({ surface, status, signal, issues }) => ({
   nextAction: surface.nextAction || '',
   issues,
 });
-
-const buildLegacyReadBridgeSurface = ({ surface, legacyBridgeReport }) => {
-  const entrypoints = countBridgeEntrypoints(legacyBridgeReport);
-  const importers = countBridgeImporters(legacyBridgeReport);
-  const maxEntrypoints = asNumber(surface.maxAuthorizedEntrypoints);
-  const maxImporters = asNumber(surface.maxAuthorizedImporters);
-  const hasEntrypointBudget = hasNumericBudget(surface.maxAuthorizedEntrypoints);
-  const hasImporterBudget = hasNumericBudget(surface.maxAuthorizedImporters);
-  const issues = [];
-
-  if (hasEntrypointBudget && entrypoints > maxEntrypoints) {
-    issues.push(
-      `${surface.id} authorized entrypoints ${entrypoints} exceed budget ${maxEntrypoints}`
-    );
-  }
-  if (hasImporterBudget && importers > maxImporters) {
-    issues.push(`${surface.id} authorized importers ${importers} exceed budget ${maxImporters}`);
-  }
-
-  return createSurfaceResult({
-    surface,
-    status: issues.length === 0 ? 'ok' : 'degraded',
-    signal: `entrypoints=${entrypoints}/${hasEntrypointBudget ? maxEntrypoints : 'n/a'}, importers=${importers}/${hasImporterBudget ? maxImporters : 'n/a'}`,
-    issues,
-  });
-};
 
 const buildRoleAliasSurface = ({ surface, compatibilityGovernanceReport }) => {
   const governedEntries = countCompatibilityEntries(compatibilityGovernanceReport);
@@ -190,15 +159,7 @@ const buildGenericSurface = surface =>
     issues: [],
   });
 
-const buildSurface = ({
-  surface,
-  legacyBridgeReport,
-  compatibilityGovernanceReport,
-  observedConsumersBySurface,
-}) => {
-  if (surface.id === 'legacy-read-bridge') {
-    return buildLegacyReadBridgeSurface({ surface, legacyBridgeReport });
-  }
+const buildSurface = ({ surface, compatibilityGovernanceReport, observedConsumersBySurface }) => {
   if (surface.id === 'role-aliases') {
     return buildRoleAliasSurface({ surface, compatibilityGovernanceReport });
   }
@@ -211,14 +172,12 @@ const buildSurface = ({
 
 export const buildLegacyRetirementDebtReport = ({
   config,
-  legacyBridgeReport = {},
   compatibilityGovernanceReport = {},
   observedConsumersBySurface = {},
 }) => {
   const surfaces = asArray(config?.surfaces).map(surface =>
     buildSurface({
       surface,
-      legacyBridgeReport,
       compatibilityGovernanceReport,
       observedConsumersBySurface,
     })
@@ -256,11 +215,7 @@ export const loadLegacyRetirementDebtReport = (root = process.cwd()) => {
 
   return buildLegacyRetirementDebtReport({
     config,
-    legacyBridgeReport: readRequiredJson(root, 'reports/legacy-bridge-governance.json'),
-    compatibilityGovernanceReport: readRequiredJson(
-      root,
-      'reports/compatibility-governance.json'
-    ),
+    compatibilityGovernanceReport: readRequiredJson(root, 'reports/compatibility-governance.json'),
     observedConsumersBySurface,
   });
 };

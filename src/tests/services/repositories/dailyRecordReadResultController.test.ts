@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  createBridgedDailyRecordReadResult,
   createGoldenPathReadResult,
   createLocalRuntimeReadCandidate,
   createLocalRuntimeReadResult,
@@ -154,18 +153,4 @@ describe('dailyRecordReadResultController', () => {
       expect(result).not.toHaveProperty('shouldHydrateLocal');
     }
   );
-
-  it('creates bridged read results with compatibility metadata intact', () => {
-    const bridged = createBridgedDailyRecordReadResult('2026-04-15', {
-      record: buildRecord('2026-04-15', '2026-04-15T09:00:00.000Z'),
-      source: 'legacy_bridge',
-      compatibilityTier: 'legacy_bridge',
-      compatibilityIntensity: 'legacy_schema_bridge',
-      migrationRulesApplied: ['schema_defaults_applied'],
-    });
-
-    expect(bridged.source).toBe('legacy_bridge');
-    expect(bridged.compatibilityTier).toBe('legacy_bridge');
-    expect(bridged.migrationRulesApplied).toEqual(['schema_defaults_applied']);
-  });
 });

@@ -1,14 +1,19 @@
 #!/usr/bin/env node
 
-import { formatLegacyRetirementDebtMarkdown, loadLegacyRetirementDebtReport } from './legacyRetirementDebtSupport.mjs';
+import {
+  formatLegacyRetirementDebtMarkdown,
+  loadLegacyRetirementDebtReport,
+} from './legacyRetirementDebtSupport.mjs';
 
 let report;
 try {
   report = loadLegacyRetirementDebtReport();
 } catch (error) {
-  console.error(`[legacy-retirement-debt] ${error instanceof Error ? error.message : String(error)}`);
   console.error(
-    '[legacy-retirement-debt] Run npm run report:legacy-bridge and npm run report:compatibility-governance before this check.'
+    `[legacy-retirement-debt] ${error instanceof Error ? error.message : String(error)}`
+  );
+  console.error(
+    '[legacy-retirement-debt] Run npm run report:compatibility-governance before this check.'
   );
   process.exit(1);
 }

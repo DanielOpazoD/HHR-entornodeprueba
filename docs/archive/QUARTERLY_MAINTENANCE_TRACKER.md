@@ -18,7 +18,6 @@
 | `TQ05` | completado             | Auditoría de permisos ejecutada; `check-legacy-permissions-boundary` sigue verde y `operationalAccessPolicy` mantiene el boundary                         |
 | `TQ06` | no requerido por ahora | No apareció drift nuevo en permisos legacy; no fue necesario migrar consumers                                                                             |
 | `TQ07` | completado             | Se auditó el seam `legacy-firebase`; ya no quedaban imports source directos al facade deprecated                                                          |
-| `TQ08` | completado             | `legacyFirebaseService.ts` se retiró y los tests migraron al bridge canónico `storage/migration/legacyFirestoreBridge`                                    |
 | `TQ09` | completado             | Auditoría de shims sin consumers reales ejecutada; se detectaron controladores handoff deprecated sin referencias                                         |
 | `TQ10` | completado             | Se retiraron `medicalPatientHandoffRenderController.ts`, `medicalPatientHandoffViewController.ts` y `handoffScreenController.ts`                          |
 | `TQ11` | completado             | `report:quality-metrics` y `report-compatibility-governance` regenerados tras la ola                                                                      |
