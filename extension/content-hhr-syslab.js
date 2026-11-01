@@ -73,7 +73,8 @@
     });
   });
 
-  window.addEventListener('message', event => {
+  window.removeEventListener('message', globalThis.__hhrSyslabRelayListener);
+  window.addEventListener('message', (globalThis.__hhrSyslabRelayListener = event => {
     if (!chrome.runtime?.id || event.source !== window || event.origin !== window.location.origin) return;
     const data = event.data;
     const route = data && routes[data.type];
@@ -94,5 +95,5 @@
         reqId: data.reqId,
         error: errorMessage(error),
       }));
-  });
+  }));
 })();

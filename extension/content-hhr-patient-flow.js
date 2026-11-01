@@ -8,7 +8,8 @@
 
   const post = message => chrome.runtime?.id && window.postMessage(message, window.location.origin);
 
-  window.addEventListener('message', event => {
+  window.removeEventListener('message', globalThis.__hhrPatientFlowRelayListener);
+  window.addEventListener('message', (globalThis.__hhrPatientFlowRelayListener = event => {
     if (!chrome.runtime?.id || event.source !== window || event.origin !== window.location.origin) return;
     const data = event.data;
     if (!data || data.type !== 'HHR_RAYEN_PATIENT_FLOW_REQUEST') return;
@@ -31,5 +32,5 @@
           error: String(error),
         });
       });
-  });
+  }));
 })();

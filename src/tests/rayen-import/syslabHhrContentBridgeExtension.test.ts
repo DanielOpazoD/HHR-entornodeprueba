@@ -24,6 +24,7 @@ const createHarness = (sendMessage = vi.fn(async () => ({ ok: true }))) => {
   const postMessage = vi.fn();
   const windowObject = {
     location: { origin: 'http://localhost:3000' },
+    removeEventListener: () => undefined,
     addEventListener: vi.fn((type: string, listener: typeof onMessage) => {
       if (type === 'message') onMessage = listener;
     }),
@@ -54,7 +55,7 @@ describe('HHR Syslab content bridge', () => {
     origin => {
       const addEventListener = vi.fn();
       const context = vm.createContext({
-        window: { location: { origin }, addEventListener },
+        window: { location: { origin }, addEventListener, removeEventListener: () => undefined },
         chrome: { runtime: { id: 'current-extension', onMessage: { addListener: vi.fn() } } },
         HhrRayenMessageContract: { types: runtimeTypes },
       });
@@ -67,7 +68,11 @@ describe('HHR Syslab content bridge', () => {
   it('installs only on trusted HHR origins', () => {
     const addEventListener = vi.fn();
     const context = vm.createContext({
-      window: { location: { origin: 'http://localhost:4000' }, addEventListener },
+      window: {
+        location: { origin: 'http://localhost:4000' },
+        addEventListener,
+        removeEventListener: () => undefined,
+      },
       HhrRayenMessageContract: { types: runtimeTypes },
     });
 

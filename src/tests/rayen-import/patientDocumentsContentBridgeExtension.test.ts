@@ -12,6 +12,7 @@ describe('HHR patient documents content bridge', () => {
     const context = vm.createContext({
       window: {
         location: { origin: 'http://localhost:4000' },
+        removeEventListener: () => undefined,
         addEventListener,
         postMessage: vi.fn(),
       },
@@ -35,6 +36,7 @@ describe('HHR patient documents content bridge', () => {
       const postMessage = vi.fn();
       const windowObject = {
         location: { origin },
+        removeEventListener: () => undefined,
         addEventListener: vi.fn((type: string, listener: typeof onMessage) => {
           if (type === 'message') onMessage = listener;
         }),
