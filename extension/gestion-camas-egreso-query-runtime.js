@@ -50,12 +50,12 @@
       return { item: lookup.selectEncounter(rows, target.encounterId, target.dischargeDay) };
     };
     const request = async (runs, targets, sender) => {
+      const authorize = authorizeVerifiedEncounter(sender);
       const session = await resolveSession();
       if (!session.record) {
         return { error: session.error || 'Conecta Gestión de Camas para consultar egresos.' };
       }
-      const record = session.record;
-      if (!record.facId) return { error: 'Gestión de Camas no informó el establecimiento.' };
+      const record = session.record; if (!record.facId) return { error: 'Gestión de Camas no informó el establecimiento.' };
       const results = [];
       for (const target of lookup.normalizeTargets(runs, targets)) {
         const { run, encounterId } = target;
@@ -68,7 +68,7 @@
           }
           const selectedEncounterId = lookup.encounterIdOf(result.item, encounterId);
           if (result.item && /^\d+$/.test(selectedEncounterId)) {
-            authorizeVerifiedEncounter(sender, selectedEncounterId);
+            authorize(selectedEncounterId);
           }
           results.push({
             run,

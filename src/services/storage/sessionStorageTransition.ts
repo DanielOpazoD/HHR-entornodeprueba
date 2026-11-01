@@ -11,7 +11,11 @@ export const getLogoutGeneration = (): string | null => {
   return admittedGeneration;
 };
 export const setSessionGeneration = (generation: string | null): void => {
+  if (admittedGeneration === generation) return;
   admittedGeneration = generation;
+  if (typeof window !== 'undefined') {
+    window.postMessage({ type: 'HHR_RAYEN_SESSION_CHANGED' }, window.location.origin);
+  }
 };
 
 export const runSessionStorageTransition = <T>(operation: () => Promise<T>): Promise<T> => {

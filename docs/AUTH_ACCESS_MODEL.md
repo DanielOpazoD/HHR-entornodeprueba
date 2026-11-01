@@ -39,6 +39,15 @@ serialización local, pero no se garantiza exclusión entre documentos. No se us
 timeouts para declarar una limpieza completada. Esta protección no cancela por sí
 sola escrituras clínicas ya iniciadas fuera del flujo de autenticación.
 
+### Permisos de lectura de la extensión por sesión HHR
+
+Cada cambio de generación admitida, incluido el cierre de sesión, envía por el puente existente
+`HHR_RAYEN_SESSION_CHANGED`. La extensión revoca en silencio los permisos de episodio de esa
+pestaña en memoria y en `chrome.storage.session`; las capturas y consultas de egreso anteriores
+no pueden reconcederlos al terminar. Una captura nueva puede autorizar episodios bajo la nueva
+sesión. Se conservan el límite de cinco minutos, el aislamiento entre pestañas y la sesión
+compartida de Eloísa. Requiere la extensión 0.48.63; no cambia la versión mínima de HHR.
+
 ## Objetivo
 
 ### Entrega de enfermería al relevar el equipo compartido
