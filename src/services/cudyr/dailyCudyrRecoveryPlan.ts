@@ -94,7 +94,10 @@ export type DailyCudyrGapResolution =
   | { kind: 'attribution_unreliable' }
   | { kind: 'documentary_inconclusive' }
   // CUD-07: no record was expected, so a blank report is the answer rather than a missing one.
-  | { kind: 'not_applicable' };
+  | { kind: 'not_applicable' }
+  // CUD-07: the closed night's report answered for others, not for this patient. Nothing failed:
+  // the CUDYR views show it as «Sin registro», and that is where a person can act on it.
+  | { kind: 'not_recorded' };
 
 /** No name-only, bed, maternal-document or duplicate-episode attribution. Blank means unknown. */
 export const recoverDailyCudyrGap = (
@@ -104,10 +107,15 @@ export const recoverDailyCudyrGap = (
 ): DailyCudyrGapResolution => {
   const { patient, sourceDate } = gap;
   // Only a recorded admission can prove the short stay; a missing date stays inconclusive.
-  const withoutCategory = (): DailyCudyrGapResolution =>
-    normalizeDateOnly(patient.admissionDate) && !isCudyrPatientEligible(gap.date, patient)
-      ? { kind: 'not_applicable' }
-      : { kind: 'documentary_inconclusive' };
+  const withoutCategory = (): DailyCudyrGapResolution => {
+    if (!normalizeDateOnly(patient.admissionDate)) return { kind: 'documentary_inconclusive' };
+    if (!isCudyrPatientEligible(gap.date, patient)) return { kind: 'not_applicable' };
+    // A report with no category at all for that morning may simply not be complete yet.
+    const reportAnswersThatDay = source.report.patients.some(row =>
+      row.days.some(day => day.sourceDate === sourceDate && day.state === 'category')
+    );
+    return reportAnswersThatDay ? { kind: 'not_recorded' } : { kind: 'documentary_inconclusive' };
+  };
   if (
     records.some(
       record =>
