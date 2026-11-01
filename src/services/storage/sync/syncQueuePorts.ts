@@ -47,7 +47,8 @@ export interface SyncQueueStorePort {
     now: number,
     limit: number,
     ownerKey: string | null | undefined,
-    claim: SyncQueueLeaseClaim
+    claim: SyncQueueLeaseClaim,
+    accept?: (task: SyncTask) => boolean
   ): Promise<SyncTask[]>;
   findReusableTask(
     type: SyncTask['type'],
@@ -141,12 +142,15 @@ export interface SyncRuntimePort {
   isOnline(): boolean;
   onOnline(callback: () => void): void;
   getOwnerKey(): string | null;
+  getSessionGeneration?(): string | null;
+  /** Actual authenticated actor, checked again after lazy transport loads. */
+  getActorKey?(): string | null;
   /** A logout cleanup failed here, or awaits admission: queue work neither starts nor confirms. */
   isFenced?(): boolean;
 }
 
 export interface SyncTransportPort {
-  run(task: SyncTask): Promise<SyncTransportResult | void>;
+  run(task: SyncTask, assertCanPublish?: () => void): Promise<SyncTransportResult | void>;
 }
 
 export interface SyncTransportResult {

@@ -243,7 +243,7 @@ describe('transactional outbox authority ACK', () => {
     await engine.processQueue();
 
     expect(callable).toHaveBeenCalledOnce();
-    expect(callable).toHaveBeenCalledWith(expect.objectContaining({ record: newer() }));
+    expect(callable.mock.calls[0][0]).toEqual(expect.objectContaining({ record: newer() }));
     expect(await hospitalDB.dailyRecords.get(date)).toEqual(authorizedB);
     expect(await hospitalDB.syncQueue.count()).toBe(0);
   });

@@ -12,6 +12,7 @@ interface UserMenuPanelProps {
   onChangePassword: () => void;
   onOpenAvatarSettings?: () => void;
   onLogout: () => void;
+  loggingOut?: boolean;
   close: () => void;
 }
 
@@ -26,6 +27,7 @@ export default function UserMenuPanel({
   onChangePassword,
   onOpenAvatarSettings,
   onLogout,
+  loggingOut = false,
   close,
 }: UserMenuPanelProps) {
   return (
@@ -96,14 +98,12 @@ export default function UserMenuPanel({
           </button>
         )}
         <button
-          onClick={() => {
-            onLogout();
-            close();
-          }}
+          disabled={loggingOut}
+          onClick={onLogout}
           className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-medium text-red-500 hover:bg-red-50 rounded-lg transition-colors"
         >
           <LogOut size={14} />
-          Cerrar sesión
+          {loggingOut ? 'Guardando…' : 'Cerrar sesión'}
         </button>
       </div>
     </div>

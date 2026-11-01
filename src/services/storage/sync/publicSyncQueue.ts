@@ -8,7 +8,10 @@ import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueu
 import { createFirestoreSyncTransport } from '@/services/storage/sync/firestoreSyncTransport';
 import { createDailyRecordSyncQueueActions } from '@/services/storage/sync/publicDailyRecordSyncQueueActions';
 import { createQuarantinedSyncTaskActions } from '@/services/storage/sync/publicQuarantinedSyncTaskActions';
-import { createSyncQueueEngine } from '@/services/storage/sync/syncQueueEngine';
+import {
+  createSyncQueueEngine,
+  type ProcessSyncQueueOptions,
+} from '@/services/storage/sync/syncQueueEngine';
 import type { SyncQueueEnqueueResult } from '@/services/storage/sync/syncQueueEngineContracts';
 import type { SyncQueueEnqueueOptions } from '@/services/storage/sync/syncQueueEnqueuePolicy';
 import type { SyncQueueOperationSnapshot } from '@/services/storage/sync/syncQueueOperationSnapshot';
@@ -361,10 +364,10 @@ export const { retryQuarantinedSyncTask, discardQuarantinedSyncTask } =
     triggerProcessing: syncQueueEngine.triggerProcessing,
   });
 
-export const processSyncQueue = async (): Promise<void> => {
+export const processSyncQueue = async (options?: ProcessSyncQueueOptions): Promise<void> => {
   try {
     await ensureDbReady();
-    await syncQueueEngine.processQueue();
+    await syncQueueEngine.processQueue(options);
   } catch (error) {
     syncObservability.logger.error('Failed to process queue', error);
     recordOperationalTelemetry({

@@ -67,6 +67,10 @@ export interface SyncTask {
    * backup. It never holds, absorbs or publishes the day again. Absent: it still holds the copy.
    */
   projectionReleased?: true;
+  /** Replays only declared nursing fields from a released copy, with its original version. */
+  nursingHandoffRecovery?: true;
+  /** Staff identity only, for the shared-computer notice; never handoff content. */
+  nursingHandoffOwnerLabel?: string;
   /** A note's base and its projected or already-held day values, settled on refusal or ACK. */
   handoffProjection?: {
     replaced: Record<string, unknown>;

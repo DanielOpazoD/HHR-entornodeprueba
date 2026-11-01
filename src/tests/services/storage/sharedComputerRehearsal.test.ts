@@ -24,6 +24,9 @@ import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type { SyncTransportPort } from '@/services/storage/sync/syncQueuePorts';
 
 // Network delivery is controlled; storage, ownership, worker and recovery are production code.
+vi.mock('@/services/firebase-runtime/authRuntime', () => ({
+  defaultAuthRuntime: { getCurrentUser: () => ({ uid: 'hhrn_synthetic-a' }) },
+}));
 vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
   recordOperationalTelemetry: vi.fn(),
 }));
