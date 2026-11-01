@@ -62,7 +62,7 @@ se ofrecen Reintentar, Descargar copia y salir o Cancelar. La descarga reutiliza
 el respaldo JSON existente, marcado `remotelyConfirmed: false`; no elimina ni
 retira la tarea. Cancelar conserva sesión y trabajo. El cierre automático hace
 el mismo intento y después continúa la limpieza existente, sin diálogo. Los
-plazos de ocho horas de inactividad y doce de sesión individual no cambian.
+plazos de una hora de inactividad y doce de sesión individual no cambian.
 
 Al ingresar A, sólo sus tareas `session_owner_logged_out` con rutas de enfermería
 vuelven a pendientes; también las de enfermería que agotaron reintentos de red y
