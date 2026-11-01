@@ -96,7 +96,8 @@ const recoverLostAuthorityResponse = async (
 
 export const invokeAuthority = async (
   operation: 'save' | 'patch',
-  payload: DailyRecordAuthorityCallablePayload | DailyRecordAuthorityPatchCallablePayload
+  payload: DailyRecordAuthorityCallablePayload | DailyRecordAuthorityPatchCallablePayload,
+  assertCanPublish?: () => void
 ): Promise<DailyRecordAuthorityCallableResponse> => {
   const functions = await defaultFunctionsRuntime.getRegionalFunctions(
     DAILY_RECORD_AUTHORITY_FUNCTIONS_REGION
@@ -107,6 +108,7 @@ export const invokeAuthority = async (
     `${operation}DailyRecordWithClinicalAuthority`,
     { timeout: DAILY_RECORD_AUTHORITY_CALLABLE_TIMEOUT_MS }
   );
+  assertCanPublish?.();
   try {
     return (await callable(withClientRuntimeContractVersion(payload))).data;
   } catch (error) {

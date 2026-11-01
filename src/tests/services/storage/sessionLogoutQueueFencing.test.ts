@@ -1,6 +1,10 @@
 /* Synthetic only: a closed session's unsent work must stop competing for the day and the queue. */
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+const { actor } = vi.hoisted(() => ({ actor: { uid: 'synthetic-original' } }));
+vi.mock('@/services/firebase-runtime/authRuntime', () => ({
+  defaultAuthRuntime: { getCurrentUser: () => ({ uid: actor.uid }) },
+}));
 vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
   recordOperationalTelemetry: vi.fn(),
 }));
@@ -85,6 +89,7 @@ const closeSession = () =>
   clearSessionScopedClientState('manual', vi.fn().mockResolvedValue(undefined));
 
 beforeEach(async () => {
+  actor.uid = 'synthetic-original';
   localStorage.clear();
   sessionStorage.clear();
   setSessionGeneration('synthetic-generation');
@@ -104,6 +109,17 @@ afterEach(async () => {
 });
 
 describe('the queue after a session closes with unsent day work', () => {
+  it('never sends the original nursing work while Firebase already authenticates the next actor', async () => {
+    const id = Number(await hospitalDB.syncQueue.add(dayWrite()));
+    actor.uid = 'synthetic-next';
+    const run = vi.fn(async () => ({}));
+    await buildBrowserEngine(run).processQueue();
+    expect(run).not.toHaveBeenCalled();
+    expect(await hospitalDB.syncQueue.get(id)).toMatchObject({
+      ownerKey: owner,
+      payload: unsentDay,
+    });
+  });
   it("cuts off another person's send already being sent when their day is cleared", async () => {
     const claim = {
       leaseOwner: 'synthetic-worker',
