@@ -127,8 +127,7 @@ export const buildRayenSyncCoverage = (
           movement =>
             !movement.deletedAt &&
             error.clinicalEpisodeId &&
-            (movement.clinicalEpisodeId || movement.originalData?.clinicalEpisodeId) ===
-              error.clinicalEpisodeId
+            movement.clinicalEpisodeId === error.clinicalEpisodeId
         )
       : [];
     const moved = !candidates.length && movements.length === 1 ? movements[0] : undefined;
