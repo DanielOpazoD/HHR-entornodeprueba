@@ -36,11 +36,14 @@ const {
   createMedicalHandoffSpreadsheetFunctions,
 } = require('./lib/medicalHandoffSpreadsheetFunctions');
 
+const { createDailyRecordHistoryFunctions } = require('./lib/pruneDailyRecordHistory');
+
 const { createAccountFunctions } = require('./lib/accounts/accountFunctions');
 
 const authHelpers = createAuthHelpers({ auth, firestore });
 
 module.exports = {
+  ...createDailyRecordHistoryFunctions({ firestore }),
   ...createAccountFunctions({ auth, firestore, helpers: authHelpers }),
   ...createMinsalFunctions({
     firestore,

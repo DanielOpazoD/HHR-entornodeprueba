@@ -44,6 +44,35 @@ Reglas de toda fase:
 - La autoridad del servidor, las reglas y el contrato de verdad no se relajan para ganar velocidad.
 - Antes de mover datos clínicos existentes debe haber un respaldo verificable.
 
+## Retención de copias (decisión del responsable, 2026-11-01)
+
+Para un día cuya fecha sea anterior a hoy menos 30 días en `Pacific/Easter`, conservar
+solo las dos copias más recientes de `dailyRecords/{fecha}/history`, comparadas por el
+instante `snapshotTimestamp`, y eliminar el resto, incluidas las copias históricas.
+Una copia sin fecha válida se conserva y no cuenta entre esas dos. El día exactamente
+a 30 días y los más recientes no se podan. Se mantienen las dos copias más la versión
+vigente que se muestra; el documento del día no se modifica.
+
+`pruneDailyRecordHistory` ejecuta esta política a las 04:30 del hospital, en lotes de
+hasta 400 borrados, y deja de iniciar trabajo a los 480 segundos. La siguiente corrida
+repite la selección sobre lo restante. No toca `clinicalDerived`, `conflictSnapshots`,
+`specialtyDecisions`, colas ni outbox; tampoco cambia la creación de copias.
+
+La primera revisión manual usa credenciales ADC de `gcloud auth application-default login`
+o `GOOGLE_APPLICATION_CREDENTIALS`, sin leer contenido clínico:
+
+```sh
+node scripts/prune-daily-record-history.mjs --project hhr-pruebas
+node scripts/prune-daily-record-history.mjs --project hhr-pruebas --apply
+```
+
+Sin `--apply` solo cuenta. Rechaza otros proyectos salvo con `FIRESTORE_EMULATOR_HOST`.
+Los conteos abarcan los días revisados y las copias leídas: `snapshotsToDelete` son las
+candidatas; `snapshotsDeleted` solo las confirmadas; `snapshotsKept` las que siguen
+presentes (todas en dry-run, también las pendientes al cortar por tiempo).
+No registrar datos de pacientes ni contenido de copias. El despliegue y la primera
+limpieza manual quedan a cargo del responsable.
+
 ## Medición (fase 0)
 
 `daily_record_size_observed` (categoría `daily_record`) sale del listener del día cuando llega una

@@ -78,6 +78,7 @@ cache('./lib/authFunctions', {
 for (const [request, factory] of [
   ['./lib/accounts/accountFunctions', 'createAccountFunctions'],
   ['./lib/minsalFunctions', 'createMinsalFunctions'],
+  ['./lib/pruneDailyRecordHistory', 'createDailyRecordHistoryFunctions'],
   ['./lib/handoffSignatureFunctions', 'createHandoffSignatureFunctions'],
   ['./lib/dailyRecordWriteAuthorityFunctions', 'createDailyRecordWriteAuthorityFunctions'],
   ['./lib/adminCudyrResultFunctions', 'createAdminCudyrResultFunctions'],

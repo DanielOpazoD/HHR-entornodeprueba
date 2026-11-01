@@ -237,11 +237,13 @@ jobs:
             setAdminCudyrResult \
             configureSpecialtyPolicy \
             publishSpecialtyMemory \
-            requestSpecialtyJevSuggestion
+            requestSpecialtyJevSuggestion \
+            pruneDailyRecordHistory
           # Las callables de autoridad deben vivir en la región del cliente y en
           # ninguna otra: esta es la evidencia de que el borrado surtió efecto.
           node scripts/check-firebase-function-regions.mjs \
             "$RUNNER_TEMP/firebase/functions-list.json" \
+            pruneDailyRecordHistory@southamerica-east1 \
             applyRayenClinicalEnrichmentBatch@southamerica-east1 \
             applyRayenClinicalEnrichmentBatch@us-central1 \
             saveDailyRecordWithClinicalAuthority@southamerica-east1 \

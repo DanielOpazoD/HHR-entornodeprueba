@@ -320,6 +320,8 @@ describe('validated Functions deployment', () => {
       'node scripts/capture-firebase-functions-list.mjs \\\n  --project hhr-pruebas'
     );
     expect(verifyStep.run).not.toContain('firebase functions:list');
+    expect(verifyStep.run).toContain('pruneDailyRecordHistory');
+    expect(verifyStep.run).toContain('pruneDailyRecordHistory@southamerica-east1');
     expect(workflow.jobs.deploy['timeout-minutes']).toBe(30);
     // The lookup matches the job name GitHub builds from both workflow files.
     expect(`${caller.jobs['deploy-functions'].name} / ${workflow.jobs.deploy.name}`).toBe(
