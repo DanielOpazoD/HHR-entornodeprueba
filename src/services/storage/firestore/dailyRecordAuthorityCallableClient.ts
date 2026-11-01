@@ -1,3 +1,5 @@
+import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
+import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
 import type { SyncTaskContract } from '@/services/storage/syncQueueTypes';
 import type { DailyRecordAuthorityMode } from '@/services/storage/firestore/dailyRecordAuthorityMode';
@@ -114,8 +116,17 @@ export const AUTHORITY_READBACK_TIMEOUT_MS = 5_000;
 const invokeAuthority = async (
   operation: 'save' | 'patch',
   payload: DailyRecordAuthorityCallablePayload | DailyRecordAuthorityPatchCallablePayload
-): Promise<DailyRecordAuthorityCallableResponse> =>
-  (await import('./dailyRecordAuthorityTransport')).invokeAuthority(operation, payload);
+): Promise<DailyRecordAuthorityCallableResponse> => {
+  const owner = getStoredSessionOwnerKey(),
+    generation = getSessionGeneration();
+  const check = () => {
+    if (owner !== getStoredSessionOwnerKey() || generation !== getSessionGeneration())
+      throw new Error('La sesión cambió.');
+  };
+  const transport = await import('./dailyRecordAuthorityTransport');
+  check();
+  return transport.invokeAuthority(operation, payload, check);
+};
 
 export const saveDailyRecordWithClinicalAuthorityCallable = (
   payload: DailyRecordAuthorityCallablePayload

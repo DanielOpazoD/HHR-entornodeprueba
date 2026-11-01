@@ -15,18 +15,21 @@ export const useHistoricalCudyrPersistence = ({
       sourceRecord: DailyRecord,
       censusDay: string,
       items: HistoricalCudyrBatchItem[],
-      runId: string
+      runId: string,
+      checkSession?: () => void
     ) =>
-      import('./applyHistoricalCudyr').then(({ applyHistoricalCudyrBatchAuthoritatively }) =>
-        applyHistoricalCudyrBatchAuthoritatively({
+      import('./applyHistoricalCudyr').then(({ applyHistoricalCudyrBatchAuthoritatively }) => {
+        checkSession?.();
+        return applyHistoricalCudyrBatchAuthoritatively({
+          checkSession,
           dailyRecord,
           sourceRecord,
           censusDay,
           items,
           isAdmin,
           runId,
-        })
-      ),
+        });
+      }),
     [dailyRecord, isAdmin]
   );
 

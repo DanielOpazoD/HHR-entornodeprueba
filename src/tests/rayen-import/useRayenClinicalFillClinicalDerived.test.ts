@@ -243,7 +243,8 @@ describe('Rayen clinical fill on a split day (D10)', () => {
         errors: [expect.objectContaining({ message: 'clinical_record_load_failed' })],
       }),
       null,
-      RUN_ID
+      RUN_ID,
+      { checkSession: expect.any(Function) }
     );
     expect(outcome).toEqual({
       status: 'failed',

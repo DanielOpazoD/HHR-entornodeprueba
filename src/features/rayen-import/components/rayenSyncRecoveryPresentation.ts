@@ -13,7 +13,8 @@ export interface RayenSyncRecoveryPresentation {
 export const presentRayenSyncRecovery = (
   event: RayenSyncEvent | undefined,
   connection: RayenExtensionConnectionState,
-  synchronizationRunning = false
+  synchronizationRunning = false,
+  clinicalRetryAvailable = false
 ): RayenSyncRecoveryPresentation | null => {
   if (!event) return null;
   const outcome = presentRayenSyncOutcome(event);
@@ -93,7 +94,8 @@ export const presentRayenSyncRecovery = (
       event.status === 'applied' || event.structuralReview?.structureConfirmed === true;
     // Terminal partial runs are immutable. A new capture obtains a new server-authorized run;
     // sending the closed run straight to the clinical writer cannot succeed.
-    const clinicalOnly = !structuralReviewPending && event.status === 'applied';
+    const clinicalOnly =
+      clinicalRetryAvailable && !structuralReviewPending && event.status === 'applied';
     const closedClinicalRun = !structuralReviewPending && structureConfirmed && !clinicalOnly;
     return {
       title:

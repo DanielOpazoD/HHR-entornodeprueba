@@ -62,18 +62,22 @@ export const planSharedStaffCatalog = (
 };
 
 export const publishSharedStaffCatalog = async (
-  incoming: EloisaStaffIdentity[]
+  incoming: EloisaStaffIdentity[],
+  check: () => void = () => undefined
 ): Promise<EloisaStaffIdentity[]> => {
   await runtime.ready;
+  check();
   const sharedRef = ref(SHARED_STAFF_DOC),
     nurseRef = ref(SETTINGS_DOCS.NURSES),
     tensRef = ref(SETTINGS_DOCS.TENS);
   return runTransaction(runtime.getDb(), async transaction => {
+    check();
     const [shared, nurses, tens] = await Promise.all([
       transaction.get(sharedRef),
       transaction.get(nurseRef),
       transaction.get(tensRef),
     ]);
+    check();
     const previous = identities(shared.data()?.list);
     const { list: nurseList, nurses: legacyNurses } = nurses.data() ?? {};
     const nurseNames = list(nurseList ?? legacyNurses);

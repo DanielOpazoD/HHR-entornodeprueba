@@ -63,6 +63,13 @@ La política global se lee desde Firestore y cada ejecución conserva `mode`,
 ni modifica ese documento. Caché, documentos inválidos o falta de conexión bloquean una nueva
 corrida hasta confirmar la política con el servidor.
 
+La fase clínica conserva el propietario y la generación de sesión desde su inicio. Si cambian
+mientras espera lecturas, su turno de escritura o una respuesta, interrumpe la corrida sin
+reenviar, adoptar resultados ni completar su auditoría con la cuenta siguiente. Los envíos ya
+confirmados y el trabajo durable se conservan (SAVE-01, SAVE-03); la siguiente cuenta inicia
+su propia sincronización. Una corrida interrumpida sin token de reintento no se reanuda
+desde su estado `applied`; requiere salir de Eloísa y ejecutar una captura nueva.
+
 La misma política global gobierna de forma independiente la persistencia clínica:
 
 - **`off`:** rollback explícito a la semántica compatible por paciente. Tras migrar la política a
