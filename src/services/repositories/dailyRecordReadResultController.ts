@@ -150,43 +150,6 @@ export const createNotFoundDailyRecordReadResult = (
     }),
   });
 
-export const createBridgedDailyRecordReadResult = (
-  date: string,
-  bridged: {
-    record: DailyRecord | null;
-    source: DailyRecordReadResult['source'];
-    compatibilityTier: DailyRecordReadResult['compatibilityTier'];
-    compatibilityIntensity: DailyRecordReadResult['compatibilityIntensity'];
-    migrationRulesApplied: DailyRecordReadResult['migrationRulesApplied'];
-  }
-): DailyRecordReadResult => {
-  if (!bridged.record) {
-    return createNotFoundDailyRecordReadResult(date, 'missing');
-  }
-
-  const consistency = resolveDailyRecordReadConsistency({
-    localRecord: bridged.record,
-    remoteRecord: null,
-    selectedRecord: bridged.record,
-    remoteAvailability: 'not_requested',
-    repairApplied:
-      bridged.compatibilityIntensity !== 'none' || bridged.migrationRulesApplied.length > 0,
-  });
-  return createDailyRecordReadResult(date, bridged.record, bridged.source, {
-    compatibilityTier: bridged.compatibilityTier,
-    compatibilityIntensity: bridged.compatibilityIntensity,
-    migrationRulesApplied: bridged.migrationRulesApplied,
-    consistencyState: consistency.consistencyState,
-    sourceOfTruth: consistency.sourceOfTruth,
-    retryability: consistency.retryability,
-    recoveryAction: consistency.recoveryAction,
-    conflictSummary: consistency.conflictSummary,
-    observabilityTags: consistency.observabilityTags,
-    userSafeMessage: consistency.userSafeMessage,
-    repairApplied: consistency.repairApplied,
-  });
-};
-
 export const createSupersededReadResult = (
   date: string,
   stored: DailyRecord | null,

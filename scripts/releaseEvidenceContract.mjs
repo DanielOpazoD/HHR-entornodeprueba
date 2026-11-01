@@ -92,12 +92,6 @@ export const RELEASE_EVIDENCE_INVENTORY = [
     consumers: ['scorecard de release'],
   }),
   supportingReport({
-    id: 'legacy-bridge',
-    label: 'Puentes legacy',
-    owner: 'Architecture',
-    consumers: ['scorecard de release'],
-  }),
-  supportingReport({
     id: 'compatibility-governance',
     label: 'Gobernanza de compatibilidad',
     owner: 'Architecture',
@@ -202,9 +196,7 @@ export const getReleaseEvidenceRefreshSteps = ({ skipReportIds = [] } = {}) => {
       // order. Running the standalone producer here would regenerate those
       // inputs and make earlier consumers stale again.
       command:
-        id === RELEASE_READINESS_SCORECARD_ID
-          ? RELEASE_READINESS_FINALIZER_COMMAND
-          : node.command,
+        id === RELEASE_READINESS_SCORECARD_ID ? RELEASE_READINESS_FINALIZER_COMMAND : node.command,
       artifacts: node.artifacts,
     });
   };
@@ -223,9 +215,7 @@ export const getReleaseEvidenceFreshnessContracts = () =>
       file,
       field: 'gitSha',
       refreshScript:
-        id === RELEASE_READINESS_SCORECARD_ID
-          ? RELEASE_READINESS_FINALIZER_COMMAND
-          : node.command,
+        id === RELEASE_READINESS_SCORECARD_ID ? RELEASE_READINESS_FINALIZER_COMMAND : node.command,
       dependsOn: getEvidenceReportDependencyFiles(id),
     };
   });

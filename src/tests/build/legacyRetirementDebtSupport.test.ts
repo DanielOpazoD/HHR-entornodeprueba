@@ -14,18 +14,6 @@ const baseConfig = {
   maxOpenSurfaces: 4,
   surfaces: [
     {
-      id: 'legacy-read-bridge',
-      label: 'Legacy read bridge',
-      owner: 'storage/repositories',
-      phase: 'restrict',
-      maxAuthorizedEntrypoints: 2,
-      maxAuthorizedImporters: 1,
-      guardrails: ['check:legacy-read-gating', 'check:legacy-bridge-boundary'],
-      evidenceReports: ['reports/legacy-bridge-governance.md'],
-      retirementCriteria: 'No required legacy bridge usage for one release window.',
-      nextAction: 'Keep imports flat until the runtime mode can move to disabled.',
-    },
-    {
       id: 'role-aliases',
       label: 'Role aliases',
       owner: 'auth/security',
@@ -37,14 +25,6 @@ const baseConfig = {
       nextAction: 'Audit production role sources before removing write-back canonicalization.',
     },
   ],
-};
-
-const bridgeReport = {
-  allowedEntrypoints: [
-    'DailyRecordRepository.bridgeLegacyRecord',
-    'legacyRecordBridgeService.bridgeLegacyRecordsRange',
-  ],
-  allowedImporters: ['src/services/repositories/dailyRecordRepositoryReadService.ts'],
 };
 
 const compatibilityReport = {
@@ -61,21 +41,15 @@ describe('legacyRetirementDebtSupport', () => {
   it('builds a deterministic report with surface budgets and release posture', () => {
     const report = buildLegacyRetirementDebtReport({
       config: baseConfig,
-      legacyBridgeReport: bridgeReport,
       compatibilityGovernanceReport: compatibilityReport,
     });
 
     expect(report.generatedAt).toBe(LEGACY_RETIREMENT_DEBT_GENERATED_AT);
     expect(report.status).toBe('ok');
-    expect(report.openSurfaceCount).toBe(2);
+    expect(report.openSurfaceCount).toBe(1);
     expect(report.maxOpenSurfaces).toBe(4);
     expect(report.surfaces).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({
-          id: 'legacy-read-bridge',
-          status: 'ok',
-          signal: expect.stringContaining('entrypoints=2/2'),
-        }),
         expect.objectContaining({
           id: 'role-aliases',
           status: 'ok',
@@ -92,17 +66,16 @@ describe('legacyRetirementDebtSupport', () => {
         surfaces: [
           {
             ...baseConfig.surfaces[0],
-            maxAuthorizedImporters: 0,
+            maxGovernedEntries: 0,
           },
         ],
       },
-      legacyBridgeReport: bridgeReport,
       compatibilityGovernanceReport: compatibilityReport,
     });
 
     expect(report.status).toBe('degraded');
     expect(report.issues).toEqual(
-      expect.arrayContaining([expect.stringContaining('legacy-read-bridge authorized importers')])
+      expect.arrayContaining([expect.stringContaining('role-aliases governed entries')])
     );
   });
 
@@ -250,7 +223,6 @@ describe('legacyRetirementDebtSupport', () => {
   it('renders a concise markdown table for release evidence', () => {
     const report = buildLegacyRetirementDebtReport({
       config: baseConfig,
-      legacyBridgeReport: bridgeReport,
       compatibilityGovernanceReport: compatibilityReport,
     });
 
@@ -258,7 +230,6 @@ describe('legacyRetirementDebtSupport', () => {
 
     expect(markdown).toContain('# Legacy Retirement Debt Snapshot');
     expect(markdown).toContain('| Surface | Owner | Phase | Status | Signal | Next action |');
-    expect(markdown).toContain('Legacy read bridge');
     expect(markdown).toContain('Role aliases');
   });
 });

@@ -435,14 +435,6 @@ Si el conflicto fue clasificado por contexto, priorizar esta revisión:
 
 Referencia: `reports/operational-health.md` y `conflictos por contexto` allí listados.
 
-## Legacy bridge controlado
-
-Si el incidente involucra carga histórica o migración:
-
-1. revisar `reports/legacy-bridge-governance.md`
-2. confirmar que el `legacy bridge` no se reinsertó en el hot path
-3. usar solo entrypoints explícitas de bridge, nunca lecturas directas legacy
-
 ## Diagnóstico local (desarrollo/soporte técnico)
 
 Comandos:

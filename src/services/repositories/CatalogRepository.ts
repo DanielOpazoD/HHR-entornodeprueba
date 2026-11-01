@@ -15,12 +15,7 @@ import {
   saveProfessionalsCatalogToFirestore,
   subscribeToProfessionalsCatalog,
 } from '../storage/firestore';
-import {
-  getLegacyNurseCatalog,
-  getLegacyTensCatalog,
-} from '../storage/migration/legacyCatalogReadBridge';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
-import { isLegacyBridgeEnabled } from '@/services/repositories/legacyCompatibilityPolicy';
 import type { ProfessionalCatalogItem } from '@/types/domain/professionals';
 import {
   normalizeProfessionalCatalog,
@@ -61,21 +56,6 @@ export const getNurses = async (): Promise<string[]> => {
       if (remoteList.length > 0) {
         await saveCatalog('nurses', remoteList);
         return remoteList;
-      }
-
-      // 3. Fallback to Legacy Production — only when the legacy bridge is
-      // enabled. Mirrors the record bridge gate so VITE_LEGACY_COMPATIBILITY_MODE=
-      // disabled (e.g. local dev without legacy config) skips the read instead of
-      // erroring on missing VITE_LEGACY_FIREBASE_* vars.
-      if (isLegacyBridgeEnabled()) {
-        const legacyList = await getLegacyNurseCatalog();
-        if (legacyList.length > 0) {
-          catalogRepositoryLogger.warn('Migrated nurse catalog from legacy source');
-          await saveCatalog('nurses', legacyList);
-          // Also save to Beta so it persists there
-          await saveNurseCatalogToFirestore(legacyList);
-          return legacyList;
-        }
       }
     } catch (err) {
       catalogRepositoryLogger.warn('Failed to fetch nurses from remote', err);
@@ -162,19 +142,6 @@ export const getTens = async (): Promise<string[]> => {
       if (remoteList.length > 0) {
         await saveCatalog('tens', remoteList);
         return remoteList;
-      }
-
-      // 3. Fallback to Legacy Production — only when the legacy bridge is
-      // enabled (see getNurses for rationale).
-      if (isLegacyBridgeEnabled()) {
-        const legacyList = await getLegacyTensCatalog();
-        if (legacyList.length > 0) {
-          catalogRepositoryLogger.warn('Migrated TENS catalog from legacy source');
-          await saveCatalog('tens', legacyList);
-          // Also save to Beta
-          await saveTensCatalogToFirestore(legacyList);
-          return legacyList;
-        }
       }
     } catch (err) {
       catalogRepositoryLogger.warn('Failed to fetch TENS from remote', err);

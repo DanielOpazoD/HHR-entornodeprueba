@@ -60,7 +60,7 @@ dotenv files; CI has no such files. Never include their values in reports.
 Client configuration readers must use explicit `import.meta.env.VITE_*` accesses.
 Reading the whole object makes Vite embed unrelated settings in that consumer,
 including optional feature configuration that belongs outside startup. Keep the
-validator schema and legacy Firebase safety checks intact when narrowing reads.
+validator schema intact when narrowing reads.
 
 On the 2026-10-03 baseline (`a303c302`), identical local dependencies produced a
 630,040-byte authenticated shell with the local environment versus 627,734 bytes

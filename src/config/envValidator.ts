@@ -29,14 +29,6 @@ const clientEnvSchema = z.object({
   VITE_FIREBASE_MESSAGING_SENDER_ID: isDevMode ? nonEmpty : optionalStr,
   VITE_FIREBASE_APP_ID: isDevMode ? nonEmpty : optionalStr,
 
-  /* ── Legacy Firebase (migration support, always optional) ────────── */
-  VITE_LEGACY_FIREBASE_API_KEY: optionalStr,
-  VITE_LEGACY_FIREBASE_AUTH_DOMAIN: optionalStr,
-  VITE_LEGACY_FIREBASE_PROJECT_ID: optionalStr,
-  VITE_LEGACY_FIREBASE_STORAGE_BUCKET: optionalStr,
-  VITE_LEGACY_FIREBASE_MESSAGING_SENDER_ID: optionalStr,
-  VITE_LEGACY_FIREBASE_APP_ID: optionalStr,
-
   /* ── AI providers (local dev keys) ──────────────────────────────── */
   VITE_LOCAL_GEMINI_API_KEY: optionalStr,
   VITE_LOCAL_OPENAI_API_KEY: optionalStr,
@@ -58,9 +50,7 @@ const clientEnvSchema = z.object({
   VITE_AUTH_PREFER_REDIRECT_ON_LOCALHOST: optionalStr,
   VITE_AUTH_AUTO_REDIRECT_FALLBACK: optionalStr,
 
-  /* ── Debug / legacy ─────────────────────────────────────────────── */
-  VITE_DEBUG_LEGACY_FIREBASE: optionalStr,
-  VITE_LEGACY_COMPATIBILITY_MODE: optionalStr,
+  /* ── Debug / E2E ─────────────────────────────────────────────── */
   VITE_DEBUG_REPOSITORY: optionalStr,
   VITE_E2E_MODE: optionalStr,
 
@@ -102,13 +92,6 @@ export function validateClientEnv(): ClientEnvValidationResult {
     VITE_FIREBASE_STORAGE_BUCKET: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
     VITE_FIREBASE_MESSAGING_SENDER_ID: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
     VITE_FIREBASE_APP_ID: import.meta.env.VITE_FIREBASE_APP_ID,
-    VITE_LEGACY_FIREBASE_API_KEY: import.meta.env.VITE_LEGACY_FIREBASE_API_KEY,
-    VITE_LEGACY_FIREBASE_AUTH_DOMAIN: import.meta.env.VITE_LEGACY_FIREBASE_AUTH_DOMAIN,
-    VITE_LEGACY_FIREBASE_PROJECT_ID: import.meta.env.VITE_LEGACY_FIREBASE_PROJECT_ID,
-    VITE_LEGACY_FIREBASE_STORAGE_BUCKET: import.meta.env.VITE_LEGACY_FIREBASE_STORAGE_BUCKET,
-    VITE_LEGACY_FIREBASE_MESSAGING_SENDER_ID: import.meta.env
-      .VITE_LEGACY_FIREBASE_MESSAGING_SENDER_ID,
-    VITE_LEGACY_FIREBASE_APP_ID: import.meta.env.VITE_LEGACY_FIREBASE_APP_ID,
     VITE_LOCAL_GEMINI_API_KEY: import.meta.env.VITE_LOCAL_GEMINI_API_KEY,
     VITE_LOCAL_OPENAI_API_KEY: import.meta.env.VITE_LOCAL_OPENAI_API_KEY,
     VITE_LOCAL_ANTHROPIC_API_KEY: import.meta.env.VITE_LOCAL_ANTHROPIC_API_KEY,
@@ -124,8 +107,6 @@ export function validateClientEnv(): ClientEnvValidationResult {
       .VITE_DOCUMENT_SCANNER_LOCAL_QUEUE_PASSWORD,
     VITE_AUTH_PREFER_REDIRECT_ON_LOCALHOST: import.meta.env.VITE_AUTH_PREFER_REDIRECT_ON_LOCALHOST,
     VITE_AUTH_AUTO_REDIRECT_FALLBACK: import.meta.env.VITE_AUTH_AUTO_REDIRECT_FALLBACK,
-    VITE_DEBUG_LEGACY_FIREBASE: import.meta.env.VITE_DEBUG_LEGACY_FIREBASE,
-    VITE_LEGACY_COMPATIBILITY_MODE: import.meta.env.VITE_LEGACY_COMPATIBILITY_MODE,
     VITE_DEBUG_REPOSITORY: import.meta.env.VITE_DEBUG_REPOSITORY,
     VITE_E2E_MODE: import.meta.env.VITE_E2E_MODE,
     VITE_WHATSAPP_BOT_URL: import.meta.env.VITE_WHATSAPP_BOT_URL,

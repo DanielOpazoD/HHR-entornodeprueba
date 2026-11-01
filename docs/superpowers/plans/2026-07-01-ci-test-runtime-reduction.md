@@ -35,7 +35,7 @@
 
 - Keep the release-blocking check contract as `quality-static`.
 - Split the internal static aggregate into six governed groups:
-  - `boundaries`: architecture, feature, storage, runtime, legacy bridge, localStorage, and module dependency boundaries.
+  - `boundaries`: architecture, feature, storage, runtime, localStorage, and module dependency boundaries.
   - `governance`: generated governance inputs plus schema, runtime contracts, serverless governance, docs drift, runbooks, and guardrail governance.
   - `security`: secret/rules/security checks plus explicit-any and repo hygiene policies.
   - `size`: module-size, hotspot, bundle-risk, and growth budgets.

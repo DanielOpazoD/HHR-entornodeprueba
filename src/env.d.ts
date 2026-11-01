@@ -8,12 +8,6 @@ interface ImportMetaEnv {
   readonly VITE_FIREBASE_STORAGE_BUCKET: string;
   readonly VITE_FIREBASE_MESSAGING_SENDER_ID: string;
   readonly VITE_FIREBASE_APP_ID: string;
-  readonly VITE_LEGACY_FIREBASE_API_KEY?: string;
-  readonly VITE_LEGACY_FIREBASE_AUTH_DOMAIN?: string;
-  readonly VITE_LEGACY_FIREBASE_PROJECT_ID?: string;
-  readonly VITE_LEGACY_FIREBASE_STORAGE_BUCKET?: string;
-  readonly VITE_LEGACY_FIREBASE_MESSAGING_SENDER_ID?: string;
-  readonly VITE_LEGACY_FIREBASE_APP_ID?: string;
   readonly VITE_LOCAL_GEMINI_API_KEY?: string;
   readonly VITE_LOCAL_OPENAI_API_KEY?: string;
   readonly VITE_LOCAL_ANTHROPIC_API_KEY?: string;
@@ -29,8 +23,6 @@ interface ImportMetaEnv {
   readonly VITE_DOCUMENT_SCANNER_LOCAL_QUEUE_PASSWORD?: string;
   readonly VITE_AUTH_PREFER_REDIRECT_ON_LOCALHOST?: string;
   readonly VITE_AUTH_AUTO_REDIRECT_FALLBACK?: string;
-  readonly VITE_DEBUG_LEGACY_FIREBASE?: string;
-  readonly VITE_LEGACY_COMPATIBILITY_MODE?: string;
   readonly VITE_DEBUG_REPOSITORY?: string;
   readonly VITE_WHATSAPP_BOT_URL?: string;
   readonly VITE_OPERATIONAL_TELEMETRY_ENDPOINT?: string;

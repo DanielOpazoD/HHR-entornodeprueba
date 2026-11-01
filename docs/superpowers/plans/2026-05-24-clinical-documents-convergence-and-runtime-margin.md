@@ -129,7 +129,6 @@ importers and the narrow bridges are the canonical paths.
 - [x] Confirm no active source importers with `rg -n "legacyFirestoreBridge" src scripts functions netlify`.
 - [x] Remove the retired compatibility entry from `scripts/config/compatibility-governance.json`.
 - [x] Remove the retired file from storage boundary exceptions.
-- [x] Update docs to point readers at `legacyRecordReadBridge` and `legacyCatalogReadBridge`.
 - [x] Run compatibility and boundary checks.
 
 ### Task 7: Add Clinical Content-Loss Regression Coverage

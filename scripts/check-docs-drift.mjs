@@ -13,9 +13,6 @@ const checks = [
   {
     file: 'src/services/repositories/README.md',
     patterns: [
-      'legacyRecordBridgeService.ts',
-      'legacyBridgeGovernance.ts',
-      'reports/legacy-bridge-governance.md',
       'schemaEvolutionPolicy.ts',
       'migrationLedger.ts',
       'runtimeContractGovernance.ts',

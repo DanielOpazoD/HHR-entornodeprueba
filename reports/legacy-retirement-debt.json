@@ -2,29 +2,9 @@
   "generatedAt": "stable:legacy-retirement-debt",
   "policyVersion": "2026-06-v1",
   "status": "ok",
-  "openSurfaceCount": 4,
+  "openSurfaceCount": 3,
   "maxOpenSurfaces": 4,
   "surfaces": [
-    {
-      "id": "legacy-read-bridge",
-      "label": "Legacy read bridge",
-      "owner": "storage/repositories",
-      "phase": "restrict",
-      "status": "ok",
-      "signal": "entrypoints=2/2, importers=1/1",
-      "guardrails": [
-        "check:legacy-read-gating",
-        "check:legacy-bridge-boundary",
-        "report:legacy-bridge"
-      ],
-      "evidenceReports": [
-        "reports/legacy-bridge-governance.md",
-        "reports/legacy-retirement-debt.md"
-      ],
-      "retirementCriteria": "VITE_LEGACY_COMPATIBILITY_MODE=disabled survives one release window and legacy bridge telemetry shows no required daily-record bridge usage.",
-      "nextAction": "Keep the bridge import surface flat, then remove legacyRecordBridgeService from the daily-record read path after a clean disabled-mode release.",
-      "issues": []
-    },
     {
       "id": "role-aliases",
       "label": "Role aliases",
