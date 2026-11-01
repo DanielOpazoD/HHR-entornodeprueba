@@ -1,4 +1,5 @@
 import { callCudyrArchive, supplementMonths } from './cudyrSupplementService';
+import { readInCudyrWorker } from './cudyrWorkerRead';
 import type { CudyrCensusSource, ArchivedCudyrCensus } from '@/types/domain/cudyrCensusEvidence';
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
@@ -47,35 +48,14 @@ export const readCudyrCensusFile = async (
   base64: string,
   signal: AbortSignal
 ): Promise<CudyrCensusSource> => {
-  signal.throwIfAborted();
   const buffer = Uint8Array.from(atob(base64), c => c.charCodeAt(0)).buffer;
-  return new Promise((resolve, reject) => {
-    const worker = new Worker(new URL('./cudyrSupplement.worker.ts', import.meta.url), {
-      type: 'module',
-    });
-    const finish = () => {
-      clearTimeout(timer);
-      signal.removeEventListener('abort', abort);
-      worker.terminate();
-    };
-    const abort = () => {
-      finish();
-      reject(new Error('Consulta cancelada.'));
-    };
-    const timer = setTimeout(() => {
-      finish();
-      reject(new Error('Tiempo de lectura agotado.'));
-    }, 10000);
-    signal.addEventListener('abort', abort, { once: true });
-    worker.onerror = () => {
-      finish();
-      reject(new Error('No se pudo leer el censo.'));
-    };
-    worker.onmessage = event => {
-      finish();
-      if (event.data.kind === 'census' && event.data.report) resolve(event.data.report);
-      else reject(new Error(event.data.error || 'Censo no reconocido.'));
-    };
-    worker.postMessage({ buffer, kind: 'census' }, [buffer]);
-  });
+  return readInCudyrWorker(
+    { buffer, kind: 'census' },
+    signal,
+    'No se pudo leer el censo.',
+    (data: { kind?: string; report?: CudyrCensusSource; error?: string }) => {
+      if (data.kind === 'census' && data.report) return data.report;
+      throw new Error(data.error || 'Censo no reconocido.');
+    }
+  );
 };
