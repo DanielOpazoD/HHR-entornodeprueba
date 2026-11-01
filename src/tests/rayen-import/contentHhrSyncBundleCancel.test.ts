@@ -51,6 +51,7 @@ const createHarness = (respond: (message: Record<string, unknown>) => Promise<un
   );
   const windowObject = {
     location: { origin: ORIGIN },
+    removeEventListener: () => undefined,
     addEventListener: vi.fn((type: string, listener: (event: PageMessage) => void) => {
       if (type === 'message') listeners.push(listener);
     }),
@@ -189,6 +190,7 @@ describe('content-hhr-sync-bundle relay · cancellation', () => {
     const postMessage = vi.fn();
     const windowObject = {
       location: { origin: ORIGIN },
+      removeEventListener: () => undefined,
       addEventListener: vi.fn((type: string, listener: (event: PageMessage) => void) => {
         if (type === 'message') listeners.push(listener);
       }),

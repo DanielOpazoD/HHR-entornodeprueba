@@ -5,7 +5,8 @@
   if (!requestType || !globalThis.HhrAppOrigins?.has(window.location.origin)) return;
   const resultType = 'HHR_RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_RESULT';
   const post = message => chrome.runtime?.id && window.postMessage(message, window.location.origin);
-  window.addEventListener('message', event => {
+  window.removeEventListener('message', globalThis.__hhrStatisticalEvidenceRelayListener);
+  window.addEventListener('message', (globalThis.__hhrStatisticalEvidenceRelayListener = event => {
     if (!chrome.runtime?.id || event.source !== window || event.origin !== window.location.origin ||
         event.data?.type !== 'HHR_RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_REQUEST') return;
     Promise.resolve().then(() => chrome.runtime.sendMessage({ type: requestType, encId: event.data.encId }))
@@ -26,5 +27,5 @@
           error: message,
         });
       });
-  });
+  }));
 })();

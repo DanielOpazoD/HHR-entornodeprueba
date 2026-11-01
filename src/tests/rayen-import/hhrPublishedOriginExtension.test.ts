@@ -77,6 +77,7 @@ function harness(file: string, origin: string) {
   const postMessage = vi.fn();
   const window = {
     location: { origin },
+    removeEventListener: () => undefined,
     addEventListener: (_type: string, listener: (event: object) => void) =>
       listeners.push(listener),
     postMessage,

@@ -27,6 +27,7 @@ describe('HHR statistical-discharge content bridge', () => {
     const sendMessage = vi.fn(async () => ({ ok: true }));
     const windowObject = {
       location: { origin: 'http://localhost:3000' },
+      removeEventListener: () => undefined,
       addEventListener: vi.fn((type: string, listener: typeof onMessage) => {
         if (type === 'message') onMessage = listener;
       }),
@@ -79,6 +80,7 @@ describe('HHR statistical-discharge content bridge', () => {
     const sendMessage = vi.fn(async () => ({ ok: true, base64: 'JVBERg==' }));
     const windowObject = {
       location: { origin: 'http://localhost:3001' },
+      removeEventListener: () => undefined,
       addEventListener: vi.fn((type: string, listener: typeof onMessage) => {
         if (type === 'message') onMessage = listener;
       }),
@@ -127,6 +129,7 @@ describe('HHR statistical-discharge content bridge', () => {
     const sendMessage = vi.fn(async () => ({ error: 'La sesión cambió.' }));
     const windowObject = {
       location: { origin: 'http://localhost:3000' },
+      removeEventListener: () => undefined,
       addEventListener: vi.fn((type: string, listener: typeof onMessage) => {
         if (type === 'message') onMessage = listener;
       }),
@@ -177,6 +180,7 @@ describe('HHR statistical-discharge content bridge', () => {
     });
     const windowObject = {
       location: { origin: 'http://localhost:3000' },
+      removeEventListener: () => undefined,
       addEventListener: vi.fn((type: string, listener: typeof onMessage) => {
         if (type === 'message') onMessage = listener;
       }),

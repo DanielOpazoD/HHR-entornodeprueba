@@ -3,7 +3,8 @@
   'use strict'; const runtimeMessages = globalThis.HhrRayenMessageContract && globalThis.HhrRayenMessageContract.types;
   if (!runtimeMessages || !globalThis.HhrAppOrigins?.has(window.location.origin)) return;
   const post = message => chrome.runtime?.id && window.postMessage(message, window.location.origin);
-  window.addEventListener('message', event => {
+  window.removeEventListener('message', globalThis.__hhrEpicrisisRelayListener);
+  window.addEventListener('message', (globalThis.__hhrEpicrisisRelayListener = event => {
     if (!chrome.runtime?.id || event.source !== window || event.origin !== window.location.origin) return;
     const data = event.data;
     if (!data || data.type !== 'HHR_RAYEN_EPICRISIS_DOWNLOAD_REQUEST') return;
@@ -33,5 +34,5 @@
         error: String(error),
       });
     });
-  });
+  }));
 })();

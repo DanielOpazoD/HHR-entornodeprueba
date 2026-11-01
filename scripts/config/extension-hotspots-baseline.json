@@ -165,31 +165,31 @@
       "hotspots": {}
     },
     "content-hhr-epicrisis.js": {
-      "maxLines": 38,
+      "maxLines": 39,
       "hotspots": {}
     },
     "content-hhr-patient-documents.js": {
-      "maxLines": 31,
+      "maxLines": 32,
       "hotspots": {}
     },
     "content-hhr-patient-flow.js": {
-      "maxLines": 36,
+      "maxLines": 37,
       "hotspots": {}
     },
     "content-hhr-statistical-discharge.js": {
-      "maxLines": 29,
+      "maxLines": 30,
       "hotspots": {}
     },
     "content-hhr-statistical-evidence.js": {
-      "maxLines": 31,
+      "maxLines": 32,
       "hotspots": {}
     },
     "content-hhr-sync-bundle.js": {
-      "maxLines": 53,
+      "maxLines": 54,
       "hotspots": {}
     },
     "content-hhr-syslab.js": {
-      "maxLines": 99,
+      "maxLines": 100,
       "hotspots": {}
     },
     "content-hhr.js": {

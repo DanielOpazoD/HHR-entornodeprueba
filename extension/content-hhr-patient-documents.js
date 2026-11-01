@@ -5,7 +5,8 @@
     globalThis.HhrRayenMessageContract.types;
   if (!runtimeMessages || !globalThis.HhrAppOrigins?.has(window.location.origin)) return;
 
-  window.addEventListener('message', event => {
+  window.removeEventListener('message', globalThis.__hhrPatientDocumentsRelayListener);
+  window.addEventListener('message', (globalThis.__hhrPatientDocumentsRelayListener = event => {
     if (!chrome.runtime?.id || event.source !== window || event.origin !== window.location.origin) return;
     const data = event.data;
     if (data && data.type === 'HHR_RAYEN_CLINICAL_ACTION_REQUEST') {
@@ -26,5 +27,5 @@
     const postDocument = response => chrome.runtime?.id && window.postMessage({ type: 'HHR_RAYEN_PATIENT_DOCUMENT_OPEN_RESULT', reqId: data.reqId, ok: response?.ok === true, opened: response?.opened === true, error: response?.error }, window.location.origin);
     chrome.runtime.sendMessage({ type: runtimeMessages.PATIENT_DOCUMENT_MANAGER_REQUEST, encId: data.encId, operation: 'open-document', documentId: data.documentId })
       .then(postDocument).catch(() => postDocument({ ok: false, opened: false, error: 'No se pudo conectar con la extensión Eloísa.' }));
-  });
+  }));
 })();

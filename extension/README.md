@@ -343,6 +343,13 @@ paneles u otras rutas sin episodio abre directamente **Hospitalizados** y deja d
 del paciente actual. Los accesos contextuales de Indicaciones y Receta médica se mantienen solamente en
 la tabla de fármacos de Gestión de cuidados.
 
+### Una sola captura por sincronización (0.48.60)
+
+Al reiniciarse, el service worker reinyecta los puentes de la página de HHR. Siete de ellos sumaban
+un escuchador en cada reinyección, y cada sincronización lanzaba capturas duplicadas. El permiso de
+lectura del episodio solo se registraba al terminar la última, y HHR ya estaba leyendo con la primera.
+Ahora cada puente reemplaza su escuchador anterior.
+
 ### Centro compacto de Eloísa (0.48.59)
 
 El inicio y la navegación ofrecen **Recetas**, **Laboratorio** e **Imágenes**, junto con

@@ -12,6 +12,7 @@ describe('HHR epicrisis content bridge', () => {
     const context = vm.createContext({
       window: {
         location: { origin: 'http://localhost:4000' },
+        removeEventListener: () => undefined,
         addEventListener,
         postMessage: vi.fn(),
       },
@@ -40,6 +41,7 @@ describe('HHR epicrisis content bridge', () => {
       }));
       const windowObject = {
         location: { origin },
+        removeEventListener: () => undefined,
         addEventListener: vi.fn((type: string, listener: typeof onMessage) => {
           if (type === 'message') onMessage = listener;
         }),

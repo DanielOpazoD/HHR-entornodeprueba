@@ -6,7 +6,8 @@
   if (!runtimeMessages || !globalThis.HhrAppOrigins?.has(window.location.origin)) return;
   const post = message => chrome.runtime?.id && window.postMessage(message, window.location.origin);
 
-  window.addEventListener('message', event => {
+  window.removeEventListener('message', globalThis.__hhrSyncBundleRelayListener);
+  window.addEventListener('message', (globalThis.__hhrSyncBundleRelayListener = event => {
     if (!chrome.runtime?.id || event.source !== window || event.origin !== window.location.origin) return;
     if (event.data?.type === 'HHR_RAYEN_CANCEL_SYNC_BUNDLE') {
       const requestId = event.data.requestId;
@@ -48,5 +49,5 @@
         requestId: data.requestId,
         error: String(error),
       }));
-  });
+  }));
 })();
