@@ -4,7 +4,7 @@ export type { ClinicalEnrichmentBatchMode } from '../domain/clinicalEnrichmentBa
 
 /** Global, fail-safe policy for applying Eloísa census imports. */
 
-export type RayenImportMode = 'preview' | 'auto';
+export type RayenImportMode = 'preview';
 
 export interface RayenImportPolicy {
   mode: RayenImportMode;
@@ -52,11 +52,11 @@ const isClinicalBatchMode = (value: unknown): value is ClinicalEnrichmentBatchMo
 /**
  * Converts a persisted policy into the small operational contract used by a sync run.
  * Schema v1 is accepted only for explicit migration before a run may start.
- * Invalid payloads are rejected instead of enabling either automatic import or batch authority.
+ * Invalid payloads are rejected instead of enabling batch authority.
  */
 export const normalizeRayenImportPolicy = (value: unknown): RayenImportPolicy | null => {
   if (!isRecord(value)) return null;
-  if (value.mode !== 'preview' && value.mode !== 'auto') return null;
+  if (value.mode !== 'preview') return null;
   if (!hasValidMetadata(value)) return null;
 
   if (value.schemaVersion === 1 && hasOnlyFields(value, RAYEN_IMPORT_POLICY_V1_FIELDS)) {

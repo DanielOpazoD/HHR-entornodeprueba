@@ -52,11 +52,11 @@ describe('hospital-day authority at 02:00 UTC', () => {
     const input = (date: string) => ({
       policySnapshot: {
         exists: true,
-        data: () => ({ schemaVersion: 1, mode: 'auto', revision: 1 }),
+        data: () => ({ schemaVersion: 1, mode: 'preview', revision: 1 }),
       },
       record: {
         date,
-        rayenSyncHistory: [{ status: 'applied', policy: { mode: 'auto', revision: 1 } }],
+        rayenSyncHistory: [{ status: 'applied', policy: { mode: 'preview', revision: 1 } }],
       },
       payload: { date, authorityDate: date, legacyAuthorityInference: true },
     });
