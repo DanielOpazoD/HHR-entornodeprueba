@@ -52,7 +52,7 @@ describe('historical CUDYR remote authority', () => {
         sourceRecord: sourceRecord(),
         censusDay: '2026-07-29',
         items: [{ clinicalEpisodeId: '142000', cudyr }],
-        isAdmin: true,
+        role: 'admin',
         runId: 'run-a',
         applyBatch,
         checkSession: () => {
@@ -63,136 +63,148 @@ describe('historical CUDYR remote authority', () => {
     expect(applyBatch).not.toHaveBeenCalled();
   });
 
-  it('never consults a local fallback when Firestore authority is unavailable', async () => {
-    const repository = {
-      getAuthoritativeForDate: vi.fn().mockRejectedValue(new Error('Firestore unavailable')),
-      getForDateWithMeta: vi.fn().mockResolvedValue({ record: record('local-stale') }),
-    } as unknown as DailyRecordRepositoryPort;
+  it.each(['admin', 'nurse_hospital'] as const)(
+    'never consults a local fallback when Firestore authority is unavailable (%s)',
+    async role => {
+      const repository = {
+        getAuthoritativeForDate: vi.fn().mockRejectedValue(new Error('Firestore unavailable')),
+        getForDateWithMeta: vi.fn().mockResolvedValue({ record: record('local-stale') }),
+      } as unknown as DailyRecordRepositoryPort;
 
-    await expect(
-      applyHistoricalCudyrBatchAuthoritatively({
-        sourceRecord: sourceRecord(),
-        runId: 'synthetic-run',
-        dailyRecord: repository,
-        censusDay: '2026-07-29',
-        items: [{ clinicalEpisodeId: '142000', cudyr }],
-        isAdmin: true,
-      })
-    ).rejects.toThrow('Firestore unavailable');
+      await expect(
+        applyHistoricalCudyrBatchAuthoritatively({
+          sourceRecord: sourceRecord(),
+          runId: 'synthetic-run',
+          dailyRecord: repository,
+          censusDay: '2026-07-29',
+          items: [{ clinicalEpisodeId: '142000', cudyr }],
+          role,
+        })
+      ).rejects.toThrow('Firestore unavailable');
 
-    expect(repository.getForDateWithMeta).not.toHaveBeenCalled();
-    expect(patchDailyRecordWithCompatibility).not.toHaveBeenCalled();
-  });
+      expect(repository.getForDateWithMeta).not.toHaveBeenCalled();
+      expect(patchDailyRecordWithCompatibility).not.toHaveBeenCalled();
+    }
+  );
 
-  it('preserves an authoritative administrative result and adjacent scales', async () => {
-    const historicalRecord = record('revision-1');
-    historicalRecord.beds.H2C1.evaluationScores = {
-      braden: { total: 18 },
-      downton: { total: 2 },
-      cudyr: {
-        category: 'D2',
-        recordedDate: '2026-07-29',
-        source: 'HHR · ajuste administrativo',
-      },
-    } as never;
-    const repository = {
-      getAuthoritativeForDate: vi.fn().mockResolvedValue(historicalRecord),
-    } as unknown as DailyRecordRepositoryPort;
-    const applyBatch = vi.fn();
-
-    await expect(
-      applyHistoricalCudyrBatchAuthoritatively({
-        dailyRecord: repository,
-        sourceRecord: sourceRecord(),
-        censusDay: '2026-07-29',
-        items: [{ clinicalEpisodeId: '142000', cudyr }],
-        isAdmin: true,
-        runId: 'run-authoritative',
-        applyBatch,
-      })
-    ).resolves.toEqual({
-      results: [
-        {
-          clinicalEpisodeId: '142000',
-          persisted: false,
-          changed: false,
-          administrativeOverridePreserved: true,
+  it.each(['admin', 'nurse_hospital'] as const)(
+    'preserves an authoritative administrative result and adjacent scales (%s)',
+    async role => {
+      const historicalRecord = record('revision-1');
+      historicalRecord.beds.H2C1.evaluationScores = {
+        braden: { total: 18 },
+        downton: { total: 2 },
+        cudyr: {
+          category: 'D2',
+          recordedDate: '2026-07-29',
+          source: 'HHR · ajuste administrativo',
         },
-      ],
-    });
+      } as never;
+      const repository = {
+        getAuthoritativeForDate: vi.fn().mockResolvedValue(historicalRecord),
+      } as unknown as DailyRecordRepositoryPort;
+      const applyBatch = vi.fn();
 
-    expect(applyBatch).not.toHaveBeenCalled();
-    expect(historicalRecord.beds.H2C1.evaluationScores).toMatchObject({
-      braden: { total: 18 },
-      downton: { total: 2 },
-      cudyr: { category: 'D2', source: 'HHR · ajuste administrativo' },
-    });
-  });
+      await expect(
+        applyHistoricalCudyrBatchAuthoritatively({
+          dailyRecord: repository,
+          sourceRecord: sourceRecord(),
+          censusDay: '2026-07-29',
+          items: [{ clinicalEpisodeId: '142000', cudyr }],
+          role,
+          runId: 'run-authoritative',
+          applyBatch,
+        })
+      ).resolves.toEqual({
+        results: [
+          {
+            clinicalEpisodeId: '142000',
+            persisted: false,
+            changed: false,
+            administrativeOverridePreserved: true,
+          },
+        ],
+      });
 
-  it('drops a rebuilt operation when a concurrent administrative adjustment becomes authoritative', async () => {
-    const administrativeRecord = record('revision-2');
-    administrativeRecord.beds.H2C1.evaluationScores = {
-      cudyr: {
-        category: 'D2',
-        recordedDate: '2026-07-29',
-        source: 'HHR · ajuste administrativo',
-      },
-    } as never;
-    const repository = {
-      getAuthoritativeForDate: vi.fn().mockResolvedValue(record('revision-1')),
-    } as unknown as DailyRecordRepositoryPort;
-    const applyBatch = vi
-      .fn()
-      .mockImplementation(
-        async (input: { rebuildOperations: (record: DailyRecord) => unknown[] }) => {
-          expect(input.rebuildOperations(administrativeRecord)).toEqual([]);
-          return { patientWrites: 0, historySnapshots: 0, retries: 1 };
-        }
-      );
+      expect(applyBatch).not.toHaveBeenCalled();
+      expect(historicalRecord.beds.H2C1.evaluationScores).toMatchObject({
+        braden: { total: 18 },
+        downton: { total: 2 },
+        cudyr: { category: 'D2', source: 'HHR · ajuste administrativo' },
+      });
+    }
+  );
 
-    await expect(
-      applyHistoricalCudyrBatchAuthoritatively({
-        dailyRecord: repository,
-        sourceRecord: sourceRecord(),
-        censusDay: '2026-07-29',
-        items: [{ clinicalEpisodeId: '142000', cudyr }],
-        isAdmin: true,
-        runId: 'run-concurrent-admin',
-        applyBatch,
-      })
-    ).resolves.toEqual({
-      results: [
-        {
-          clinicalEpisodeId: '142000',
-          persisted: false,
-          changed: false,
-          administrativeOverridePreserved: true,
+  it.each(['admin', 'nurse_hospital'] as const)(
+    'drops a rebuilt operation when a concurrent administrative adjustment becomes authoritative (%s)',
+    async role => {
+      const administrativeRecord = record('revision-2');
+      administrativeRecord.beds.H2C1.evaluationScores = {
+        cudyr: {
+          category: 'D2',
+          recordedDate: '2026-07-29',
+          source: 'HHR · ajuste administrativo',
         },
-      ],
-      retries: 1,
-    });
-  });
+      } as never;
+      const repository = {
+        getAuthoritativeForDate: vi.fn().mockResolvedValue(record('revision-1')),
+      } as unknown as DailyRecordRepositoryPort;
+      const applyBatch = vi
+        .fn()
+        .mockImplementation(
+          async (input: { rebuildOperations: (record: DailyRecord) => unknown[] }) => {
+            expect(input.rebuildOperations(administrativeRecord)).toEqual([]);
+            return { patientWrites: 0, historySnapshots: 0, retries: 1 };
+          }
+        );
 
-  it('keeps enforced work pending when the authoritative remote read fails', async () => {
-    const repository = {
-      getAuthoritativeForDate: vi.fn().mockRejectedValue(new Error('remote read failed')),
-      getForDateWithMeta: vi.fn().mockResolvedValue({ record: record('local-stale') }),
-    } as unknown as DailyRecordRepositoryPort;
-    const applyBatch = vi.fn();
+      await expect(
+        applyHistoricalCudyrBatchAuthoritatively({
+          dailyRecord: repository,
+          sourceRecord: sourceRecord(),
+          censusDay: '2026-07-29',
+          items: [{ clinicalEpisodeId: '142000', cudyr }],
+          role,
+          runId: 'run-concurrent-admin',
+          applyBatch,
+        })
+      ).resolves.toEqual({
+        results: [
+          {
+            clinicalEpisodeId: '142000',
+            persisted: false,
+            changed: false,
+            administrativeOverridePreserved: true,
+          },
+        ],
+        retries: 1,
+      });
+    }
+  );
 
-    await expect(
-      applyHistoricalCudyrBatchAuthoritatively({
-        dailyRecord: repository,
-        sourceRecord: sourceRecord(),
-        censusDay: '2026-07-29',
-        items: [{ clinicalEpisodeId: '142000', cudyr }],
-        isAdmin: true,
-        runId: 'run-remote-failure',
-        applyBatch,
-      })
-    ).rejects.toThrow('remote read failed');
+  it.each(['admin', 'nurse_hospital'] as const)(
+    'keeps enforced work pending when the authoritative remote read fails (%s)',
+    async role => {
+      const repository = {
+        getAuthoritativeForDate: vi.fn().mockRejectedValue(new Error('remote read failed')),
+        getForDateWithMeta: vi.fn().mockResolvedValue({ record: record('local-stale') }),
+      } as unknown as DailyRecordRepositoryPort;
+      const applyBatch = vi.fn();
 
-    expect(repository.getForDateWithMeta).not.toHaveBeenCalled();
-    expect(applyBatch).not.toHaveBeenCalled();
-  });
+      await expect(
+        applyHistoricalCudyrBatchAuthoritatively({
+          dailyRecord: repository,
+          sourceRecord: sourceRecord(),
+          censusDay: '2026-07-29',
+          items: [{ clinicalEpisodeId: '142000', cudyr }],
+          role,
+          runId: 'run-remote-failure',
+          applyBatch,
+        })
+      ).rejects.toThrow('remote read failed');
+
+      expect(repository.getForDateWithMeta).not.toHaveBeenCalled();
+      expect(applyBatch).not.toHaveBeenCalled();
+    }
+  );
 });

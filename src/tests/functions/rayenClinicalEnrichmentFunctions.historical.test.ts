@@ -50,198 +50,236 @@ const createHistoricalAdmin = () => {
 describe('applyRayenClinicalEnrichmentBatch historical authority', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('authorizes an admin CUDYR patch from the frozen source-day run', async () => {
-    const admin = createHistoricalAdmin();
+  it.each(['admin', 'nurse_hospital'])(
+    'authorizes a CUDYR patch from the frozen source-day run (%s)',
+    async role => {
+      const admin = createHistoricalAdmin();
 
-    await expect(
-      createApi(admin, 'admin').applyRayenClinicalEnrichmentBatch.run(
-        makeHistoricalCudyrPayload(),
-        makeContext()
-      )
-    ).resolves.toMatchObject({
-      success: true,
-      authorityStatus: 'ok',
-      revision: 5,
-      targetScope: 'historical',
-      transactionAttempts: 1,
-      transactionRetries: 0,
-    });
+      await expect(
+        createApi(admin, role).applyRayenClinicalEnrichmentBatch.run(
+          makeHistoricalCudyrPayload(),
+          makeContext()
+        )
+      ).resolves.toMatchObject({
+        success: true,
+        authorityStatus: 'ok',
+        revision: 5,
+        targetScope: 'historical',
+        transactionAttempts: 1,
+        transactionRetries: 0,
+      });
 
-    expect(admin.telemetryAdd).toHaveBeenCalledWith(
-      expect.objectContaining({
-        context: expect.objectContaining({
-          targetScope: 'historical',
-          transactionAttempts: 1,
-          transactionRetries: 0,
-        }),
-      })
-    );
+      expect(admin.telemetryAdd).toHaveBeenCalledWith(
+        expect.objectContaining({
+          context: expect.objectContaining({
+            targetScope: 'historical',
+            transactionAttempts: 1,
+            transactionRetries: 0,
+          }),
+        })
+      );
 
-    expect(admin.policyGet).toHaveBeenCalledOnce();
-    expect(admin.recordGet).toHaveBeenCalledTimes(2);
-    expect(admin.set).toHaveBeenCalledWith(
-      admin.docRef,
-      expect.objectContaining({
-        beds: expect.objectContaining({
-          H2C1: expect.objectContaining({
-            evaluationScores: expect.objectContaining({
-              cudyr: expect.objectContaining({ category: 'C1' }),
+      expect(admin.policyGet).toHaveBeenCalledOnce();
+      expect(admin.recordGet).toHaveBeenCalledTimes(2);
+      expect(admin.set).toHaveBeenCalledWith(
+        admin.docRef,
+        expect.objectContaining({
+          beds: expect.objectContaining({
+            H2C1: expect.objectContaining({
+              evaluationScores: expect.objectContaining({
+                cudyr: expect.objectContaining({ category: 'C1' }),
+              }),
             }),
           }),
-        }),
-      })
-    );
-  });
+        })
+      );
+    }
+  );
 
-  it('merges a narrow CUDYR correction without changing adjacent historical scores', async () => {
-    const target = makeClinicalRecord();
-    target.date = '2026-07-27';
-    target.lastUpdated = '2026-07-27T10:00:00.000Z';
-    (target.beds.H2C1 as { evaluationScores?: unknown }).evaluationScores = {
-      braden: { total: 17 },
-      downton: { total: 3 },
-    };
-    const admin = createClinicalAdminMock(target, {
-      authorityDate: '2026-07-28',
-      authorityRemoteData: makeClinicalRecord(),
-    });
+  it.each(['admin', 'nurse_hospital'])(
+    'merges a narrow CUDYR correction without changing adjacent historical scores (%s)',
+    async role => {
+      const target = makeClinicalRecord();
+      target.date = '2026-07-27';
+      target.lastUpdated = '2026-07-27T10:00:00.000Z';
+      (target.beds.H2C1 as { evaluationScores?: unknown }).evaluationScores = {
+        braden: { total: 17 },
+        downton: { total: 3 },
+      };
+      const admin = createClinicalAdminMock(target, {
+        authorityDate: '2026-07-28',
+        authorityRemoteData: makeClinicalRecord(),
+      });
 
-    await createApi(admin, 'admin').applyRayenClinicalEnrichmentBatch.run(
-      makeHistoricalCudyrPayload(),
-      makeContext()
-    );
+      await createApi(admin, role).applyRayenClinicalEnrichmentBatch.run(
+        makeHistoricalCudyrPayload(),
+        makeContext()
+      );
 
-    expect(admin.set).toHaveBeenCalledWith(
-      admin.docRef,
-      expect.objectContaining({
-        beds: expect.objectContaining({
-          H2C1: expect.objectContaining({
-            evaluationScores: {
-              braden: { total: 17 },
-              downton: { total: 3 },
-              cudyr: expect.objectContaining({ category: 'C1' }),
-            },
+      expect(admin.set).toHaveBeenCalledWith(
+        admin.docRef,
+        expect.objectContaining({
+          beds: expect.objectContaining({
+            H2C1: expect.objectContaining({
+              evaluationScores: {
+                braden: { total: 17 },
+                downton: { total: 3 },
+                cudyr: expect.objectContaining({ category: 'C1' }),
+              },
+            }),
           }),
-        }),
-      })
-    );
-  });
+        })
+      );
+    }
+  );
 
-  it('rejects replacing a historical administrative CUDYR adjustment', async () => {
-    const target = makeClinicalRecord();
-    target.date = '2026-07-27';
-    target.lastUpdated = '2026-07-27T10:00:00.000Z';
-    (target.beds.H2C1 as { evaluationScores?: unknown }).evaluationScores = {
-      braden: { total: 17 },
-      downton: { total: 3 },
-      cudyr: {
-        category: 'D2',
-        recordedDate: '2026-07-27',
-        source: 'HHR · ajuste administrativo',
-      },
-    };
-    const admin = createClinicalAdminMock(target, {
-      authorityDate: '2026-07-28',
-      authorityRemoteData: makeClinicalRecord(),
-    });
-
-    await expect(
-      createApi(admin, 'admin').applyRayenClinicalEnrichmentBatch.run(
-        makeHistoricalCudyrPayload(),
-        makeContext()
-      )
-    ).rejects.toMatchObject({
-      code: 'failed-precondition',
-      message: 'An administrative CUDYR adjustment cannot be replaced by synchronization.',
-    });
-
-    expect(admin.set).not.toHaveBeenCalled();
-  });
-
-  it('requires an administrator for a previous-day CUDYR correction', async () => {
-    const admin = createHistoricalAdmin();
-
-    await expect(
-      createApi(admin, 'nurse_hospital').applyRayenClinicalEnrichmentBatch.run(
-        makeHistoricalCudyrPayload(),
-        makeContext()
-      )
-    ).rejects.toMatchObject({ code: 'permission-denied' });
-    expect(admin.recordGet).toHaveBeenCalledTimes(2);
-    expect(admin.policyGet).not.toHaveBeenCalled();
-    expect(admin.set).not.toHaveBeenCalled();
-  });
-
-  it('rejects a request that omits the source-day authority binding', async () => {
-    const admin = createHistoricalAdmin();
-    const payload = { ...makeHistoricalCudyrPayload(), authorityDate: undefined };
-
-    await expect(
-      createApi(admin, 'admin').applyRayenClinicalEnrichmentBatch.run(payload, makeContext())
-    ).rejects.toMatchObject({ code: 'failed-precondition' });
-    expect(admin.recordGet).toHaveBeenCalledTimes(1);
-    expect(admin.set).not.toHaveBeenCalled();
-  });
-
-  it('accepts an exact historical retry before revalidating mutable patient state', async () => {
-    const payload = makeHistoricalCudyrPayload();
-    const target = makeClinicalRecord();
-    target.date = payload.date;
-    target.lastUpdated = payload.expectedLastUpdated;
-    target.beds = {} as typeof target.beds;
-    target.meta = {
-      revision: 6,
-      clinicalEnrichmentReceipts: [
-        {
-          runId: payload.runId,
-          mutationId: payload.mutationId,
-          canonicalDigest: digestPayload(payload),
-          fieldContractVersion: 2,
+  it.each(['admin', 'nurse_hospital'])(
+    'rejects replacing a historical administrative CUDYR adjustment (%s)',
+    async role => {
+      const target = makeClinicalRecord();
+      target.date = '2026-07-27';
+      target.lastUpdated = '2026-07-27T10:00:00.000Z';
+      (target.beds.H2C1 as { evaluationScores?: unknown }).evaluationScores = {
+        braden: { total: 17 },
+        downton: { total: 3 },
+        cudyr: {
+          category: 'D2',
+          recordedDate: '2026-07-27',
+          source: 'HHR · ajuste administrativo',
         },
-      ],
-    } as never;
-    const admin = createClinicalAdminMock(target, {
-      authorityDate: payload.authorityDate,
-      authorityRemoteData: makeClinicalRecord(),
-    });
+      };
+      const admin = createClinicalAdminMock(target, {
+        authorityDate: '2026-07-28',
+        authorityRemoteData: makeClinicalRecord(),
+      });
 
-    await expect(
-      createApi(admin, 'admin').applyRayenClinicalEnrichmentBatch.run(payload, makeContext())
-    ).resolves.toMatchObject({ authorityStatus: 'idempotent', revision: 6 });
-    expect(admin.policyGet).not.toHaveBeenCalled();
-    expect(admin.set).not.toHaveBeenCalled();
-  });
+      await expect(
+        createApi(admin, role).applyRayenClinicalEnrichmentBatch.run(
+          makeHistoricalCudyrPayload(),
+          makeContext()
+        )
+      ).rejects.toMatchObject({
+        code: 'failed-precondition',
+        message: 'An administrative CUDYR adjustment cannot be replaced by synchronization.',
+      });
 
-  it('rejects non-CUDYR fields in a previous-day clinical batch', async () => {
-    const admin = createHistoricalAdmin();
-    const payload = {
-      ...makeHistoricalCudyrPayload(),
-      patches: [
-        {
-          bedId: 'H2C1',
-          clinicalEpisodeId: 'episode-secret-1',
-          fields: { vitalSigns: { systolic: 90 } },
-        },
-      ],
-    };
+      expect(admin.set).not.toHaveBeenCalled();
+    }
+  );
 
-    await expect(
-      createApi(admin, 'admin').applyRayenClinicalEnrichmentBatch.run(payload, makeContext())
-    ).rejects.toMatchObject({ code: 'invalid-argument' });
-    expect(admin.set).not.toHaveBeenCalled();
-  });
+  it.each(['doctor_urgency', 'doctor_specialist', 'editor', 'viewer'])(
+    'rejects %s for previous-day CUDYR synchronization',
+    async role => {
+      const admin = createHistoricalAdmin();
+      await expect(
+        createApi(admin, role).applyRayenClinicalEnrichmentBatch.run(
+          makeHistoricalCudyrPayload(),
+          makeContext()
+        )
+      ).rejects.toMatchObject({ code: 'permission-denied' });
+      expect(admin.set).not.toHaveBeenCalled();
+    }
+  );
 
-  it('rejects changing another score inside a historical CUDYR value', async () => {
-    const admin = createHistoricalAdmin();
-    const payload = makeHistoricalCudyrPayload();
-    payload.patches[0].fields.evaluationScores = {
-      ...payload.patches[0].fields.evaluationScores,
-      braden: { total: 8 },
-    } as never;
+  it.each(['admin', 'nurse_hospital'])(
+    'rejects a request that omits the source-day authority binding (%s)',
+    async role => {
+      const admin = createHistoricalAdmin();
+      const payload = { ...makeHistoricalCudyrPayload(), authorityDate: undefined };
 
-    await expect(
-      createApi(admin, 'admin').applyRayenClinicalEnrichmentBatch.run(payload, makeContext())
-    ).rejects.toMatchObject({ code: 'invalid-argument' });
-    expect(admin.set).not.toHaveBeenCalled();
-  });
+      await expect(
+        createApi(admin, role).applyRayenClinicalEnrichmentBatch.run(payload, makeContext())
+      ).rejects.toMatchObject({ code: 'failed-precondition' });
+      expect(admin.recordGet).toHaveBeenCalledTimes(1);
+      expect(admin.set).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(['admin', 'nurse_hospital'])(
+    'accepts an exact historical retry before revalidating mutable patient state (%s)',
+    async role => {
+      const payload = makeHistoricalCudyrPayload();
+      const target = makeClinicalRecord();
+      target.date = payload.date;
+      target.lastUpdated = payload.expectedLastUpdated;
+      target.beds = {} as typeof target.beds;
+      target.meta = {
+        revision: 6,
+        clinicalEnrichmentReceipts: [
+          {
+            runId: payload.runId,
+            mutationId: payload.mutationId,
+            canonicalDigest: digestPayload(payload),
+            fieldContractVersion: 2,
+          },
+        ],
+      } as never;
+      const admin = createClinicalAdminMock(target, {
+        authorityDate: payload.authorityDate,
+        authorityRemoteData: makeClinicalRecord(),
+      });
+
+      await expect(
+        createApi(admin, role).applyRayenClinicalEnrichmentBatch.run(payload, makeContext())
+      ).resolves.toMatchObject({ authorityStatus: 'idempotent', revision: 6 });
+      expect(admin.policyGet).not.toHaveBeenCalled();
+      expect(admin.set).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(['admin', 'nurse_hospital'])(
+    'rejects a CUDYR target outside D and D-1 (%s)',
+    async role => {
+      const admin = createHistoricalAdmin();
+      await expect(
+        createApi(admin, role).applyRayenClinicalEnrichmentBatch.run(
+          {
+            ...makeHistoricalCudyrPayload(),
+            date: '2026-07-26',
+          },
+          makeContext()
+        )
+      ).rejects.toMatchObject({ code: 'invalid-argument' });
+      expect(admin.set).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(['admin', 'nurse_hospital'])(
+    'rejects non-CUDYR fields in a previous-day clinical batch (%s)',
+    async role => {
+      const admin = createHistoricalAdmin();
+      const payload = {
+        ...makeHistoricalCudyrPayload(),
+        patches: [
+          {
+            bedId: 'H2C1',
+            clinicalEpisodeId: 'episode-secret-1',
+            fields: { vitalSigns: { systolic: 90 } },
+          },
+        ],
+      };
+
+      await expect(
+        createApi(admin, role).applyRayenClinicalEnrichmentBatch.run(payload, makeContext())
+      ).rejects.toMatchObject({ code: 'invalid-argument' });
+      expect(admin.set).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(['admin', 'nurse_hospital'])(
+    'rejects changing another score inside a historical CUDYR value (%s)',
+    async role => {
+      const admin = createHistoricalAdmin();
+      const payload = makeHistoricalCudyrPayload();
+      payload.patches[0].fields.evaluationScores = {
+        ...payload.patches[0].fields.evaluationScores,
+        braden: { total: 8 },
+      } as never;
+
+      await expect(
+        createApi(admin, role).applyRayenClinicalEnrichmentBatch.run(payload, makeContext())
+      ).rejects.toMatchObject({ code: 'invalid-argument' });
+      expect(admin.set).not.toHaveBeenCalled();
+    }
+  );
 });

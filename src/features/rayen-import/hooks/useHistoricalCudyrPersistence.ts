@@ -1,3 +1,4 @@
+import type { UserRole } from '@/types/authRoleTypes';
 import { useCallback } from 'react';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import type { HistoricalCudyrBatchItem } from '../contracts/clinicalFillContracts';
@@ -5,10 +6,10 @@ import type { DailyRecord } from '../contracts/rayenDomainContracts';
 
 export const useHistoricalCudyrPersistence = ({
   dailyRecord,
-  isAdmin,
+  role,
 }: {
   dailyRecord: DailyRecordRepositoryPort;
-  isAdmin: boolean;
+  role: UserRole | null;
 }) => {
   const applyHistoricalCudyrEnforcedBatch = useCallback(
     (
@@ -26,11 +27,11 @@ export const useHistoricalCudyrPersistence = ({
           sourceRecord,
           censusDay,
           items,
-          isAdmin,
+          role,
           runId,
         });
       }),
-    [dailyRecord, isAdmin]
+    [dailyRecord, role]
   );
 
   return { applyHistoricalCudyrEnforcedBatch };

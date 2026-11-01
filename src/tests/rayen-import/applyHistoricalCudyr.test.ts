@@ -1,3 +1,4 @@
+import { canWritePreviousDay } from '@/features/rayen-import/domain/previousDayCorrections';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import { applyHistoricalCudyrBatchAuthoritatively } from '@/features/rayen-import/hooks/applyHistoricalCudyr';
@@ -50,92 +51,110 @@ const recordWithTwoEpisodes = (revision: string): DailyRecord =>
 describe('applyHistoricalCudyr', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('persists historical CUDYR through one enforced batch authorized by the source run', async () => {
-    const historicalRecord = recordWithTwoEpisodes('revision-1');
-    const repository = {
-      getAuthoritativeForDate: vi.fn().mockResolvedValue(historicalRecord),
-    } as unknown as DailyRecordRepositoryPort;
-    const applyBatch = vi.fn().mockResolvedValue({
-      patientWrites: 2,
-      historySnapshots: 1,
-      persistence: {
-        scope: 'historical',
-        callableAttempts: 2,
-        clientRetries: 1,
-        transactionRetries: 0,
-      },
-    });
-    const secondCudyr: ImportedCudyr = { ...cudyr, category: 'B2', author: 'Otra enfermera' };
-    const sourceRecord = {
-      ...record('revision-source'),
-      date: '2026-07-30',
-    } as unknown as DailyRecord;
+  it('keeps the structural 48-hour window unchanged for a non-admin operator', () => {
+    vi.useFakeTimers();
+    try {
+      const day = '2026-07-29';
+      const midnight = new Date(`${day}T00:00:00`).getTime();
+      vi.setSystemTime(midnight + 172_800_000 - 1);
+      expect(canWritePreviousDay(day, false)).toBe(true);
+      vi.setSystemTime(midnight + 172_800_000);
+      expect(canWritePreviousDay(day, false)).toBe(false);
+      expect(canWritePreviousDay(day, true)).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 
-    await expect(
-      applyHistoricalCudyrBatchAuthoritatively({
-        dailyRecord: repository,
-        sourceRecord,
-        censusDay: '2026-07-29',
-        items: [
-          { clinicalEpisodeId: '142000', cudyr },
-          { clinicalEpisodeId: '142001', cudyr: secondCudyr },
+  it.each(['admin', 'nurse_hospital'] as const)(
+    'persists historical CUDYR for %s through the source run',
+    async role => {
+      const historicalRecord = recordWithTwoEpisodes('revision-1');
+      const repository = {
+        getAuthoritativeForDate: vi.fn().mockResolvedValue(historicalRecord),
+      } as unknown as DailyRecordRepositoryPort;
+      const applyBatch = vi.fn().mockResolvedValue({
+        patientWrites: 2,
+        historySnapshots: 1,
+        persistence: {
+          scope: 'historical',
+          callableAttempts: 2,
+          clientRetries: 1,
+          transactionRetries: 0,
+        },
+      });
+      const secondCudyr: ImportedCudyr = { ...cudyr, category: 'B2', author: 'Otra enfermera' };
+      const sourceRecord = {
+        ...record('revision-source'),
+        date: '2026-07-30',
+      } as unknown as DailyRecord;
+
+      await expect(
+        applyHistoricalCudyrBatchAuthoritatively({
+          dailyRecord: repository,
+          sourceRecord,
+          censusDay: '2026-07-29',
+          items: [
+            { clinicalEpisodeId: '142000', cudyr },
+            { clinicalEpisodeId: '142001', cudyr: secondCudyr },
+          ],
+          role,
+          runId: 'run-authoritative',
+          applyBatch,
+        })
+      ).resolves.toEqual({
+        results: [
+          { clinicalEpisodeId: '142000', persisted: true, changed: true },
+          { clinicalEpisodeId: '142001', persisted: true, changed: true },
         ],
-        isAdmin: true,
-        runId: 'run-authoritative',
-        applyBatch,
-      })
-    ).resolves.toEqual({
-      results: [
-        { clinicalEpisodeId: '142000', persisted: true, changed: true },
-        { clinicalEpisodeId: '142001', persisted: true, changed: true },
-      ],
-      persistence: {
-        scope: 'historical',
-        callableAttempts: 2,
-        clientRetries: 1,
-        transactionRetries: 0,
-      },
-    });
+        persistence: {
+          scope: 'historical',
+          callableAttempts: 2,
+          clientRetries: 1,
+          transactionRetries: 0,
+        },
+      });
 
-    expect(repository.getAuthoritativeForDate).toHaveBeenCalledOnce();
-    expect(applyBatch).toHaveBeenCalledWith(
-      expect.objectContaining({
-        mode: 'enforced',
-        record: historicalRecord,
-        authorityDate: '2026-07-30',
-        runId: 'run-authoritative',
-        operations: [
+      expect(repository.getAuthoritativeForDate).toHaveBeenCalledOnce();
+      expect(applyBatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mode: 'enforced',
+          record: historicalRecord,
+          authorityDate: '2026-07-30',
+          runId: 'run-authoritative',
+          operations: [
+            expect.objectContaining({
+              patch: { 'beds.H2C1.evaluationScores': { cudyr } },
+            }),
+            expect.objectContaining({
+              patch: { 'beds.H2C2.evaluationScores': { cudyr: secondCudyr } },
+            }),
+          ],
+        })
+      );
+      const rebuildOperations = applyBatch.mock.calls[0]?.[0].rebuildOperations as (
+        record: DailyRecord
+      ) => unknown[];
+      const concurrentRecord = {
+        ...historicalRecord,
+        beds: {
+          ...historicalRecord.beds,
+          H2C1: {
+            ...historicalRecord.beds.H2C1,
+            evaluationScores: { braden: { total: 19 } },
+          },
+        },
+      } as unknown as DailyRecord;
+      expect(rebuildOperations(concurrentRecord)).toEqual(
+        expect.arrayContaining([
           expect.objectContaining({
             patch: { 'beds.H2C1.evaluationScores': { cudyr } },
           }),
-          expect.objectContaining({
-            patch: { 'beds.H2C2.evaluationScores': { cudyr: secondCudyr } },
-          }),
-        ],
-      })
-    );
-    const rebuildOperations = applyBatch.mock.calls[0]?.[0].rebuildOperations as (
-      record: DailyRecord
-    ) => unknown[];
-    const concurrentRecord = {
-      ...historicalRecord,
-      beds: {
-        ...historicalRecord.beds,
-        H2C1: {
-          ...historicalRecord.beds.H2C1,
-          evaluationScores: { braden: { total: 19 } },
-        },
-      },
-    } as unknown as DailyRecord;
-    expect(rebuildOperations(concurrentRecord)).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          patch: { 'beds.H2C1.evaluationScores': { cudyr } },
-        }),
-      ])
-    );
-    expect(patchDailyRecordWithCompatibility).not.toHaveBeenCalled();
-  });
+        ])
+      );
+      expect(patchDailyRecordWithCompatibility).not.toHaveBeenCalled();
+    }
+  );
 
   it('treats a missing historical census as not applicable without invoking authority', async () => {
     const repository = {
@@ -153,7 +172,7 @@ describe('applyHistoricalCudyr', () => {
         sourceRecord,
         censusDay: '2026-07-29',
         items: [{ clinicalEpisodeId: '142000', cudyr }],
-        isAdmin: true,
+        role: 'admin',
         runId: 'run-authoritative',
         applyBatch,
       })
@@ -187,7 +206,7 @@ describe('applyHistoricalCudyr', () => {
       sourceRecord,
       censusDay: '2026-07-29',
       items: [{ clinicalEpisodeId: '142000', cudyr }],
-      isAdmin: true,
+      role: 'admin',
       runId: 'run-legacy-telemetry',
       applyBatch: vi.fn().mockResolvedValue({
         patientWrites: 1,
@@ -201,9 +220,14 @@ describe('applyHistoricalCudyr', () => {
   });
 
   it.each([
-    { censusDay: '2026-07-28', isAdmin: true, label: 'a day outside the source run' },
-    { censusDay: '2026-07-29', isAdmin: false, label: 'a non-admin writer' },
-  ])('does not invoke authority for $label', async ({ censusDay, isAdmin }) => {
+    { censusDay: '2026-07-28', role: 'admin', label: 'an admin day outside the source run' },
+    {
+      censusDay: '2026-07-28',
+      role: 'nurse_hospital',
+      label: 'a nurse day outside the source run',
+    },
+    { censusDay: '2026-07-29', role: 'doctor_urgency', label: 'a non-CUDYR writer' },
+  ] as const)('does not invoke authority for $label', async ({ censusDay, role }) => {
     const repository = {
       getAuthoritativeForDate: vi.fn().mockResolvedValue(record('revision-1')),
     } as unknown as DailyRecordRepositoryPort;
@@ -219,7 +243,7 @@ describe('applyHistoricalCudyr', () => {
         sourceRecord,
         censusDay,
         items: [{ clinicalEpisodeId: '142000', cudyr }],
-        isAdmin,
+        role,
         runId: 'run-authoritative',
         applyBatch,
       })
@@ -267,7 +291,7 @@ describe('applyHistoricalCudyr', () => {
         { clinicalEpisodeId: '142000', cudyr },
         { clinicalEpisodeId: '142001', cudyr: secondCudyr },
       ],
-      isAdmin: true,
+      role: 'admin',
       runId: 'run-authoritative',
       applyBatch,
     });

@@ -330,7 +330,7 @@ describeEmulator('clinical batch client recovers a lost committed response', () 
       sourceRecord: source,
       censusDay: date,
       items: [{ clinicalEpisodeId: 'synthetic-episode', cudyr: score }],
-      isAdmin: true,
+      role: 'admin' as const,
       runId: 'synthetic-run',
       applyBatch: (options: Parameters<typeof applyClinicalEnrichmentBatch>[0]) =>
         applyClinicalEnrichmentBatch({ ...options, invoke }),
