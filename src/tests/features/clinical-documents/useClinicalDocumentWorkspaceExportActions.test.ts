@@ -1,30 +1,20 @@
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import React from 'react';
 
 import { createClinicalDocumentDraft } from '@/features/clinical-documents/domain/factories';
 import type { ClinicalDocumentRecord } from '@/features/clinical-documents/domain/entities';
 import { useClinicalDocumentWorkspaceExportActions } from '@/features/clinical-documents/hooks/useClinicalDocumentWorkspaceExportActions';
-import {
-  clinicalDocumentDraftReducer,
-  createClinicalDocumentDraftReducerInitialState,
-} from '@/features/clinical-documents/hooks/clinicalDocumentDraftReducer';
-import type { ClinicalDocumentWorkspaceDraftState } from '@/features/clinical-documents/hooks/useClinicalDocumentWorkspaceDraft';
-import * as pdfExportUseCase from '@/application/clinical-documents/clinicalDocumentPdfExportUseCase';
+import { httpsCallable } from 'firebase/functions';
+import { generateClinicalDocumentPdfBlob } from '@/features/clinical-documents/services/clinicalDocumentPdfService';
 import * as printOpenUseCase from '@/application/clinical-documents/clinicalDocumentPrintOpenUseCase';
+
+vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn() }));
+vi.mock('@/features/clinical-documents/services/clinicalDocumentPdfService', () => ({
+  generateClinicalDocumentPdfBlob: vi.fn(),
+}));
 
 const recordCriticalClinicalAction = vi.hoisted(() => vi.fn());
 const logEvent = vi.hoisted(() => vi.fn());
-
-vi.mock('@/application/clinical-documents/clinicalDocumentPdfExportUseCase', async () => {
-  const actual = await vi.importActual<
-    typeof import('@/application/clinical-documents/clinicalDocumentPdfExportUseCase')
-  >('@/application/clinical-documents/clinicalDocumentPdfExportUseCase');
-  return {
-    ...actual,
-    executeExportClinicalDocumentPdf: vi.fn(),
-  };
-});
 
 vi.mock('@/application/clinical-documents/clinicalDocumentPrintOpenUseCase', async () => {
   const actual = await vi.importActual<
@@ -89,201 +79,9 @@ describe('useClinicalDocumentWorkspaceExportActions', () => {
     info: vi.fn(),
   };
 
-  let applyPdfExportResult: ClinicalDocumentWorkspaceDraftState['applyPdfExportResult'];
-
   beforeEach(() => {
     vi.clearAllMocks();
-    applyPdfExportResult = vi.fn();
     vi.mocked(printOpenUseCase.executeOpenClinicalDocumentPrint).mockResolvedValue(true);
-    vi.mocked(pdfExportUseCase.executeExportClinicalDocumentPdf).mockResolvedValue({
-      status: 'success',
-      data: {
-        pdf: {
-          exportStatus: 'exported',
-          fileId: 'pdf-1',
-        },
-      },
-      issues: [],
-    });
-  });
-
-  it.each(['success', 'failure', 'exception'] as const)(
-    'keeps a newly selected document intact when an older PDF finishes with %s',
-    async outcome => {
-      let complete!: (
-        value: Awaited<ReturnType<typeof pdfExportUseCase.executeExportClinicalDocumentPdf>>
-      ) => void;
-      let fail!: (error: Error) => void;
-      vi.mocked(pdfExportUseCase.executeExportClinicalDocumentPdf).mockImplementation(
-        () =>
-          new Promise((resolve, reject) => {
-            complete = resolve;
-            fail = reject;
-          })
-      );
-      const original = buildRecord();
-      const other = { ...original, id: 'another-document', episodeKey: 'another-episode' };
-      const { result } = renderHook(() => {
-        const [state, dispatch] = React.useReducer(clinicalDocumentDraftReducer, {
-          ...createClinicalDocumentDraftReducerInitialState(),
-          draft: original,
-        });
-        const select = (document: ClinicalDocumentRecord) =>
-          dispatch({ type: 'LOAD_DOCUMENT', document, snapshot: JSON.stringify(document) });
-        const actions = useClinicalDocumentWorkspaceExportActions({
-          selectedDocument: state.draft,
-          hospitalId: 'hhr',
-          notify,
-          applyPdfExportResult: result => dispatch({ type: 'APPLY_PDF_EXPORT_RESULT', result }),
-        });
-        return { ...actions, draft: state.draft, select };
-      });
-      let upload!: Promise<void>;
-      act(() => {
-        upload = result.current.handleUploadPdf();
-      });
-      await waitFor(() =>
-        expect(pdfExportUseCase.executeExportClinicalDocumentPdf).toHaveBeenCalledTimes(1)
-      );
-      act(() => {
-        result.current.select(other);
-      });
-      await act(async () => {
-        if (outcome === 'exception') fail(new Error('Unavailable'));
-        else
-          complete(
-            outcome === 'success'
-              ? {
-                  status: 'success',
-                  data: { pdf: { exportStatus: 'exported', fileId: 'synthetic-pdf' } },
-                  issues: [],
-                }
-              : {
-                  status: 'failed',
-                  data: null,
-                  issues: [{ kind: 'unknown', message: 'Unavailable' }],
-                }
-          );
-        await upload;
-      });
-      expect(result.current.draft).toEqual(other);
-      expect(result.current.isUploadingPdf).toBe(false);
-      expect(recordCriticalClinicalAction).toHaveBeenCalledWith(
-        expect.objectContaining({ documentId: original.id })
-      );
-    }
-  );
-
-  it('exports draft documents to Drive without requiring a signature state', async () => {
-    const { result } = renderHook(() =>
-      useClinicalDocumentWorkspaceExportActions({
-        selectedDocument: buildRecord(),
-        hospitalId: 'hhr',
-        notify,
-        applyPdfExportResult,
-      })
-    );
-
-    await act(async () => {
-      await result.current.handleUploadPdf();
-    });
-
-    expect(pdfExportUseCase.executeExportClinicalDocumentPdf).toHaveBeenCalledWith(
-      expect.objectContaining({
-        record: expect.objectContaining({ status: 'draft' }),
-        hospitalId: 'hhr',
-        fileName: expect.any(String),
-      })
-    );
-    expect(recordCriticalClinicalAction).toHaveBeenCalledWith(
-      expect.objectContaining({
-        category: 'export',
-        action: 'clinical_document_pdf_exported',
-        outcome: 'success',
-        clinicalDate: '2026-03-06',
-        bedId: 'R1',
-        patientRut: '11.111.111-1',
-        documentType: 'epicrisis',
-        exportType: 'pdf',
-      })
-    );
-    expect(logEvent).toHaveBeenCalledWith(
-      'CLINICAL_DOCUMENT_EXPORTED',
-      'clinicalDocument',
-      expect.any(String),
-      expect.objectContaining({
-        templateId: 'epicrisis',
-        patientName: 'Paciente Test',
-        exportType: 'pdf',
-      }),
-      '11.111.111-1',
-      '2026-03-06'
-    );
-  });
-
-  it('marks the draft as failed when the export use case fails', async () => {
-    vi.mocked(pdfExportUseCase.executeExportClinicalDocumentPdf).mockResolvedValue({
-      status: 'failed',
-      data: null,
-      issues: [{ kind: 'unknown', message: 'drive down' }],
-    });
-    const document = buildRecord();
-
-    const { result } = renderHook(() =>
-      useClinicalDocumentWorkspaceExportActions({
-        selectedDocument: document,
-        hospitalId: 'hhr',
-        notify,
-        applyPdfExportResult,
-      })
-    );
-
-    await act(async () => {
-      await result.current.handleUploadPdf();
-    });
-
-    expect(notify.error).toHaveBeenCalledWith('Falló la exportación', 'drive down');
-    expect(recordCriticalClinicalAction).toHaveBeenCalledWith(
-      expect.objectContaining({
-        action: 'clinical_document_pdf_exported',
-        outcome: 'failed',
-        exportType: 'pdf',
-        issues: ['drive down'],
-      })
-    );
-    expect(applyPdfExportResult).toHaveBeenCalledWith({
-      target: document,
-      status: 'failed',
-      errorMessage: 'drive down',
-    });
-  });
-
-  it('prefers userSafeMessage when the export use case fails', async () => {
-    vi.mocked(pdfExportUseCase.executeExportClinicalDocumentPdf).mockResolvedValue({
-      status: 'failed',
-      data: null,
-      userSafeMessage: 'El respaldo en Drive no está disponible temporalmente.',
-      issues: [{ kind: 'unknown', message: 'drive raw failure' }],
-    });
-    const document = buildRecord();
-
-    const { result } = renderHook(() =>
-      useClinicalDocumentWorkspaceExportActions({
-        selectedDocument: document,
-        hospitalId: 'hhr',
-        notify,
-        applyPdfExportResult,
-      })
-    );
-
-    await act(async () => {
-      await result.current.handleUploadPdf();
-    });
-
-    expect(notify.error).toHaveBeenCalledWith(
-      'Falló la exportación',
-      'El respaldo en Drive no está disponible temporalmente.'
-    );
   });
 
   it('warns when print preview cannot be prepared', async () => {
@@ -293,9 +91,7 @@ describe('useClinicalDocumentWorkspaceExportActions', () => {
     const { result } = renderHook(() =>
       useClinicalDocumentWorkspaceExportActions({
         selectedDocument: document,
-        hospitalId: 'hhr',
         notify,
-        applyPdfExportResult,
       })
     );
 
@@ -315,18 +111,17 @@ describe('useClinicalDocumentWorkspaceExportActions', () => {
         issues: ['No se pudo preparar la impresión del documento clínico.'],
       })
     );
-    expect(pdfExportUseCase.executeExportClinicalDocumentPdf).not.toHaveBeenCalled();
+    expect(httpsCallable).not.toHaveBeenCalled();
+    expect(generateClinicalDocumentPdfBlob).not.toHaveBeenCalled();
   });
 
-  it('opens print preview and synchronizes the PDF with Drive automatically', async () => {
+  it('opens print preview and audits it without generating or uploading a PDF', async () => {
     const document = buildRecord();
 
     const { result } = renderHook(() =>
       useClinicalDocumentWorkspaceExportActions({
         selectedDocument: document,
-        hospitalId: 'hhr',
         notify,
-        applyPdfExportResult,
       })
     );
 
@@ -337,14 +132,6 @@ describe('useClinicalDocumentWorkspaceExportActions', () => {
     expect(printOpenUseCase.executeOpenClinicalDocumentPrint).toHaveBeenCalledWith(document, {
       annexMode: 'include',
     });
-    expect(pdfExportUseCase.executeExportClinicalDocumentPdf).toHaveBeenCalledWith(
-      expect.objectContaining({
-        record: expect.objectContaining({ id: document.id }),
-        hospitalId: 'hhr',
-        fileName: expect.any(String),
-        annexMode: 'include',
-      })
-    );
     expect(recordCriticalClinicalAction).toHaveBeenCalledWith(
       expect.objectContaining({
         action: 'clinical_document_print_preview_opened',
@@ -365,6 +152,8 @@ describe('useClinicalDocumentWorkspaceExportActions', () => {
       '11.111.111-1',
       '2026-03-06'
     );
+    expect(httpsCallable).not.toHaveBeenCalled();
+    expect(generateClinicalDocumentPdfBlob).not.toHaveBeenCalled();
     expect(notify.success).not.toHaveBeenCalled();
   });
 
@@ -376,9 +165,7 @@ describe('useClinicalDocumentWorkspaceExportActions', () => {
     const { result } = renderHook(() =>
       useClinicalDocumentWorkspaceExportActions({
         selectedDocument: document,
-        hospitalId: 'hhr',
         notify,
-        applyPdfExportResult,
       })
     );
 
@@ -389,11 +176,8 @@ describe('useClinicalDocumentWorkspaceExportActions', () => {
     expect(printOpenUseCase.executeOpenClinicalDocumentPrint).toHaveBeenCalledWith(document, {
       annexMode: 'exclude',
     });
-    expect(pdfExportUseCase.executeExportClinicalDocumentPdf).toHaveBeenCalledWith(
-      expect.objectContaining({
-        annexMode: 'exclude',
-      })
-    );
+    expect(httpsCallable).not.toHaveBeenCalled();
+    expect(generateClinicalDocumentPdfBlob).not.toHaveBeenCalled();
   });
 
   it('prints only the annex on demand', async () => {
@@ -403,9 +187,7 @@ describe('useClinicalDocumentWorkspaceExportActions', () => {
     const { result } = renderHook(() =>
       useClinicalDocumentWorkspaceExportActions({
         selectedDocument: document,
-        hospitalId: 'hhr',
         notify,
-        applyPdfExportResult,
       })
     );
 
@@ -420,6 +202,7 @@ describe('useClinicalDocumentWorkspaceExportActions', () => {
       }),
       { annexMode: 'annex_only' }
     );
-    expect(pdfExportUseCase.executeExportClinicalDocumentPdf).not.toHaveBeenCalled();
+    expect(httpsCallable).not.toHaveBeenCalled();
+    expect(generateClinicalDocumentPdfBlob).not.toHaveBeenCalled();
   });
 });

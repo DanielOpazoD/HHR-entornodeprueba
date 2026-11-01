@@ -11,7 +11,6 @@ import {
   clinicalDocumentDraftReducer,
   createClinicalDocumentDraftReducerInitialState,
   type ClinicalDocumentDraftBaseState,
-  type ClinicalDocumentPdfExportResult,
 } from '@/features/clinical-documents/hooks/clinicalDocumentDraftReducer';
 import { useClinicalDocumentDraftAutosave } from '@/features/clinical-documents/hooks/useClinicalDocumentDraftAutosave';
 import { useClinicalDocumentDraftRemoteSync } from '@/features/clinical-documents/hooks/useClinicalDocumentDraftRemoteSync';
@@ -35,7 +34,6 @@ export interface ClinicalDocumentWorkspaceDraftState {
   draft: ClinicalDocumentRecord | null;
   hasLocalDraftChanges: boolean;
   setDraft: Dispatch<SetStateAction<ClinicalDocumentRecord | null>>;
-  applyPdfExportResult: (result: ClinicalDocumentPdfExportResult) => void;
   isSaving: boolean;
   lastSavedAt: string | undefined;
   setIsSaving: Dispatch<SetStateAction<boolean>>;
@@ -181,16 +179,11 @@ export const useClinicalDocumentWorkspaceDraft = ({
     [state.isSaving]
   );
 
-  const applyPdfExportResult = useCallback((result: ClinicalDocumentPdfExportResult) => {
-    dispatch({ type: 'APPLY_PDF_EXPORT_RESULT', result });
-  }, []);
-
   return {
     draft: state.draft,
     hasLocalDraftChanges,
     lastSavedAt: state.baseState.updatedAt || undefined,
     setDraft,
-    applyPdfExportResult,
     isSaving: state.isSaving,
     setIsSaving,
     validationIssues,

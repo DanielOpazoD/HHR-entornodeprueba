@@ -70,7 +70,6 @@ interface BuildSheetPropsParams {
   lastSavedAt?: string;
   hasLocalDraftChanges: boolean;
   flushPendingAutosave: ClinicalDocumentsWorkspaceSheetModelProps['flushPendingAutosave'];
-  isUploadingPdf: boolean;
   validationIssues: ClinicalDocumentsWorkspaceSheetModelProps['validationIssues'];
   attachments: ClinicalDocumentsWorkspaceSheetModelProps['attachments'];
   patientAttachments: ClinicalDocumentsWorkspaceSheetModelProps['patientAttachments'];
@@ -85,7 +84,6 @@ interface BuildSheetPropsParams {
   suggestAttachmentName: ClinicalDocumentsWorkspaceSheetModelProps['onSuggestAttachmentName'];
   uploadPastedImage: ClinicalDocumentsWorkspaceSheetModelProps['onUploadPastedImage'];
   handlePrint: () => Promise<void>;
-  handleUploadPdf: () => Promise<void>;
   draft: ClinicalDocumentsWorkspaceSheetModelProps['selectedDocument'];
   restoreTemplateContent: ClinicalDocumentsWorkspaceSheetModelProps['onRestoreTemplate'];
   notifications: NotificationHelpers;
@@ -212,7 +210,6 @@ export const buildClinicalDocumentsWorkspaceSheetProps = ({
   lastSavedAt,
   hasLocalDraftChanges,
   flushPendingAutosave,
-  isUploadingPdf,
   validationIssues,
   attachments,
   patientAttachments,
@@ -227,7 +224,6 @@ export const buildClinicalDocumentsWorkspaceSheetProps = ({
   suggestAttachmentName,
   uploadPastedImage,
   handlePrint,
-  handleUploadPdf,
   draft,
   restoreTemplateContent,
   notifications,
@@ -276,7 +272,6 @@ export const buildClinicalDocumentsWorkspaceSheetProps = ({
   lastSavedAt,
   hasLocalDraftChanges,
   flushPendingAutosave,
-  isUploadingPdf,
   validationIssues,
   attachments,
   currentDocumentId: selectedDocument?.id ?? null,
@@ -292,7 +287,6 @@ export const buildClinicalDocumentsWorkspaceSheetProps = ({
   onSuggestAttachmentName: suggestAttachmentName,
   onUploadPastedImage: uploadPastedImage,
   onPrint: handlePrint,
-  onUploadPdf: () => void handleUploadPdf(),
   onRestoreTemplate: () =>
     void executeClinicalDocumentTemplateRestore({
       draft,

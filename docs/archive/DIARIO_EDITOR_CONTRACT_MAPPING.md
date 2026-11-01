@@ -24,7 +24,6 @@ Mapear el modelo del editor `reports` de `Diario` al nuevo módulo `clinical-doc
 - La persistencia vive en `hospitals/{hospitalId}/clinicalDocuments/{documentId}`.
 - El contexto clínico viene del paciente hospitalizado activo del censo.
 - La vinculación longitudinal se resuelve con `episodeKey = {rut}__{admissionDate}`.
-- La exportación PDF puede respaldarse en Google Drive usando la infraestructura existente de HHR.
 - Los permisos se controlan con roles HHR (`admin`, `doctor_urgency`, `nurse_hospital`).
 
 ## Plantilla v1 cerrada

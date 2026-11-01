@@ -20,7 +20,7 @@
 2. `useClinicalDocumentWorkspaceDraft` hidrata documentos legacy al esquema actual, mantiene draft local y resuelve conflictos remotos.
 3. `ClinicalDocumentSheet` compone subcomponentes puros y usa `useClinicalDocumentSheetState` para estado UI no persistente.
 4. `useClinicalDocumentWorkspaceDocumentActions` crea y elimina borradores.
-5. `useClinicalDocumentWorkspaceExportActions` imprime y exporta PDF.
+5. `useClinicalDocumentWorkspaceExportActions` imprime y exporta JSON.
 6. Repositorio y templates validan contratos runtime antes de devolver o persistir datos.
 
 ## Draft, autosave y compatibilidad
@@ -68,14 +68,14 @@
 - `clinicalDocumentPrintDomSanitizer`: limpia la hoja para impresión.
 - `clinicalDocumentPrintHtmlBuilder`: construye el HTML imprimible.
 - `clinicalDocumentBrowserPrintService`: abre impresión desde la misma página.
+- Imprimir abre la vista previa sin generar ni subir un PDF.
+- La búsqueda global conserva la descarga/vista previa PDF. Los metadatos PDF antiguos siguen
+  siendo compatibles al leer documentos, sin nuevas exportaciones a Drive.
 - `clinicalDocumentPdfRenderService`: orquesta render backend y fallback snapshot.
 - `clinicalDocumentPdfSnapshotSupport`: encapsula el frame aislado y el snapshot DOM->PDF.
-- `clinicalDocumentPdfBinarySupport`: concentra conversión `Blob <-> base64/pdf`.
+- `clinicalDocumentPdfBinarySupport`: decodifica el PDF base64 del render backend.
 - Los resultados esperados de exportación/impresión deben resolverse con outcomes tipados y
-  notices compartidos; errores recuperables de Drive no deben volver a salir como excepciones
-  “normales” dentro del workspace.
-- El status de Drive debe diferenciar pendiente, exportado con enlace disponible y fallo recuperable
-  con reintento visible.
+  notices compartidos.
 - `useClinicalDocumentWorkspaceDocumentActions` debe tratar outcomes fallidos como estado esperado:
   crear y eliminar no deben depender de `throw` para informar bloqueos o
   degradaciones recuperables al usuario.
@@ -103,12 +103,8 @@
 - La hoja principal no debe recuperar `if` especiales por `documentType`; la extensibilidad entra por definiciones/section renderers.
 - Todo documento/template leído o persistido debe pasar por contratos runtime antes de salir del repositorio.
 - La impresión/exportación debe reportar fallos por telemetría operativa y no depender de logs sueltos.
-- Los errores de Drive recuperables deben salir con `userSafeMessage` y degradar a feedback visible,
-  no romper el workspace por excepciones sin clasificar.
 - Fechas visibles del workspace, sidebar y nombres de PDF deben reutilizar presentation helpers
   compartidos; no deben reaparecer variantes locales de fecha u origen documental en controllers.
-- La fecha visible del nombre de PDF debe salir del helper compartido del feature; no se debe
-  volver a formatear inline según origen (`finf`, `sourceDailyRecordDate`, `audit.updatedAt`).
 - Los servicios del feature que lean/escriban settings remotos deben consumir puertos/runtime adapters
   inyectables; `defaultFirestoreRuntime` no debe reaparecer como dependencia directa del feature.
 - `check:repo-hygiene` bloquea imports profundos nuevos desde fuera de la feature para que

@@ -33,7 +33,6 @@ export interface ClinicalDocumentSheetProps {
   lastSavedAt?: string;
   hasLocalDraftChanges: boolean;
   flushPendingAutosave: () => void;
-  isUploadingPdf: boolean;
   toolbar?: ReactNode;
   activeTitleTarget: string | null;
   activeEditorSectionId: string | null;
@@ -78,7 +77,6 @@ export interface ClinicalDocumentSheetProps {
   };
   validationIssues: Array<{ message: string }>;
   onPrint: () => void;
-  onUploadPdf: () => void;
   patchDocumentTitle: (title: string) => void;
   patchPatientInfoTitle: (title: string) => void;
   patchPatientField: (fieldId: string, value: string) => void;

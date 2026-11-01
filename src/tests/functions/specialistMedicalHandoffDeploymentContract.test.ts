@@ -85,7 +85,6 @@ for (const [request, factory] of [
   ['./lib/rayenClinicalEnrichmentFunctions', 'createRayenClinicalEnrichmentFunctions'],
   ['./lib/specialtyPolicyFunctions', 'createSpecialtyPolicyFunctions'],
   ['./lib/specialtyJevFunctions', 'createSpecialtyJevFunctions'],
-  ['./lib/clinicalDocumentExportFunctions', 'createClinicalDocumentExportFunctions'],
   ['./lib/clinicalDocumentPdfRenderFunctions', 'createClinicalDocumentPdfRenderFunctions'],
   ['./lib/woundCareMobileUploadFunctions', 'createWoundCareMobileUploadFunctions'],
   ['./lib/documentScannerFunctions', 'createDocumentScannerFunctions'],

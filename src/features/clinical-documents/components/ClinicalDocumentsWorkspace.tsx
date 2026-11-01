@@ -157,9 +157,6 @@ export const ClinicalDocumentsWorkspace: React.FC<ClinicalDocumentsWorkspaceProp
       isSaving={sheetProps.isSaving}
       lastSavedAt={sheetProps.lastSavedAt}
       hasLocalDraftChanges={sheetProps.hasLocalDraftChanges}
-      isUploadingPdf={sheetProps.isUploadingPdf}
-      pdf={sheetProps.selectedDocument.pdf}
-      onUploadPdf={sheetProps.onUploadPdf}
     />
   ) : null;
 

@@ -8,8 +8,6 @@ import type {
 } from '@/features/clinical-documents/domain/entities';
 import { createClinicalDocumentDraft } from '@/features/clinical-documents/domain/factories';
 import * as clinicalDocumentUseCases from '@/application/clinical-documents/clinicalDocumentUseCases';
-import * as clinicalDocumentPdfExportUseCase from '@/application/clinical-documents/clinicalDocumentPdfExportUseCase';
-import type { ExportClinicalDocumentPdfOutput } from '@/application/clinical-documents/clinicalDocumentPdfExportUseCase';
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
 import { ClinicalDocumentRepository } from '@/services/repositories/ClinicalDocumentRepository';
 import { ClinicalDocumentTemplateRepository } from '@/services/repositories/ClinicalDocumentTemplateRepository';
@@ -168,16 +166,6 @@ vi.mock('@/application/clinical-documents/clinicalDocumentUseCases', async () =>
   };
 });
 
-vi.mock('@/application/clinical-documents/clinicalDocumentPdfExportUseCase', async () => {
-  const actual = await vi.importActual<
-    typeof import('@/application/clinical-documents/clinicalDocumentPdfExportUseCase')
-  >('@/application/clinical-documents/clinicalDocumentPdfExportUseCase');
-  return {
-    ...actual,
-    executeExportClinicalDocumentPdf: vi.fn(),
-  };
-});
-
 describe('ClinicalDocumentsWorkspace behavior', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -232,14 +220,6 @@ describe('ClinicalDocumentsWorkspace behavior', () => {
     vi.mocked(clinicalDocumentUseCases.executeDeleteClinicalDocument).mockResolvedValue(
       deleteResult
     );
-    const exportResult: ApplicationOutcome<ExportClinicalDocumentPdfOutput | null> = {
-      status: 'success',
-      data: { pdf: { exportStatus: 'exported' } },
-      issues: [],
-    };
-    vi.mocked(clinicalDocumentPdfExportUseCase.executeExportClinicalDocumentPdf).mockResolvedValue(
-      exportResult
-    );
   });
 
   it('renders read-only sheet actions for nurse role', async () => {
@@ -259,7 +239,7 @@ describe('ClinicalDocumentsWorkspace behavior', () => {
     });
 
     expect(screen.queryByRole('button', { name: /guardar/i })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /drive/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /drive/i })).not.toBeInTheDocument();
   });
 
   it('blocks editing for non-admin users when the episode is closed', async () => {

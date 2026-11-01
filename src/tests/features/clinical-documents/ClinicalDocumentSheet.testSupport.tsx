@@ -84,7 +84,6 @@ export const buildPersonalIndicationsCatalog = (
 
 export const defaultHandlers = {
   onPrint: vi.fn(),
-  onUploadPdf: vi.fn(),
   hasLocalDraftChanges: false,
   flushPendingAutosave: vi.fn(),
   onRestoreTemplate: vi.fn(),

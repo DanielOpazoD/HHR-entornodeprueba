@@ -70,6 +70,31 @@ describe('ClinicalDocumentRepository.listByEpisodeKeys', () => {
     expect(firestoreDb.subscribeQuery).not.toHaveBeenCalled();
   });
 
+  it.each(['pending', 'exported', 'failed'] as const)(
+    'reads historical PDF metadata with %s status without rewriting the document',
+    async exportStatus => {
+      const pdf = {
+        exportStatus,
+        exportError: 'Synthetic historical export error',
+        fileId: 'synthetic-legacy-file',
+        webViewLink: 'https://drive.google.com/file/d/synthetic-legacy-file/view',
+        folderPath: 'Synthetic/Epicrisis',
+        exportedAt: '2026-03-05T10:00:00.000Z',
+      };
+      const document = {
+        ...buildDoc('legacy-pdf', 'rut-1__2026-03-01', '2026-03-05T10:00:00.000Z'),
+        pdf,
+      };
+      vi.mocked(firestoreDb.getDoc).mockResolvedValueOnce(document);
+
+      const result = await ClinicalDocumentRepository.get(document.id, 'hhr');
+
+      expect(result?.pdf).toEqual(pdf);
+      expect(firestoreDb.setDoc).not.toHaveBeenCalled();
+      expect(firestoreDb.updateDoc).not.toHaveBeenCalled();
+    }
+  );
+
   it('trims, deduplicates and ignores blank episode keys before querying', async () => {
     vi.mocked(firestoreDb.getDocs).mockResolvedValueOnce([
       buildDoc('d-1', 'rut-1__2026-03-01', '2026-03-05T10:00:00.000Z'),

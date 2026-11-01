@@ -15,7 +15,7 @@ No new document-type behavior should be reintroduced through ad hoc `if` branche
 
 ## Why
 
-`clinical-documents` has high branch complexity because it combines templates, drafts, autosave, signing, printing, PDF export, Drive integration and compatibility migration. The cost of change stays acceptable only if extensibility points remain explicit and runtime validation stays centralized.
+`clinical-documents` has high branch complexity because it combines templates, drafts, autosave, signing, printing, PDF export and compatibility migration. The cost of change stays acceptable only if extensibility points remain explicit and runtime validation stays centralized.
 
 ## Source Of Truth
 
@@ -49,7 +49,7 @@ keeps its original destination; invalidating its response does not abort the rem
 
 - New section behavior must be registered, not hard-coded in the sheet.
 - Read/write/export paths must validate contracts before leaving repositories/services.
-- Recoverable Drive/export failures must return user-safe outcomes, not raw exceptions as “normal flow”.
+- Recoverable export failures must return user-safe outcomes, not raw exceptions as “normal flow”.
 - External callers must not depend on internal hooks/controllers/components.
 - Section types and validation belong to `src/domain/clinical-documents`.
   The feature reuses that contract. An explicit `section.layout` survives
