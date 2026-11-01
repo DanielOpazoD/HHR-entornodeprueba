@@ -38,7 +38,6 @@ export interface RayenCudyrCategoriesResponse {
   source?: RayenCudyrSource;
   /** True only when Gestión de Camas supplied the official per-episode history. */
   historyAvailable?: boolean;
-  captureContract?: 1;
   observedEpisodeIds?: string[];
   metadataStatus?: 'complete' | 'partial';
   warning?: string;

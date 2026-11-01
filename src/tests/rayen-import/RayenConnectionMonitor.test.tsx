@@ -49,7 +49,7 @@ const baseExtension = (
   message: 'Extensión Eloísa v0.48.3 operativa.',
   canSync: true,
   report: {
-    version: '0.48.3',
+    version: '0.48.61',
     protocolVersion: RAYEN_EXTENSION_PROTOCOL_VERSION,
     checkedAt: new Date(NOW - 45_000).toISOString(),
     capabilities: ['clean-connection-repair', 'hhr-connection-repair-bridge'],
@@ -122,7 +122,7 @@ describe('RayenConnectionMonitor', () => {
     // La vigencia larga se lee en horas; la identidad sigue primero.
     expect(screen.getByText('Daniel Opazo · Médico · vence en ~23 h')).toBeVisible();
     expect(screen.getByText(/vence en ~30 min · verificada hace 3 min/)).toBeVisible();
-    expect(screen.getByText(/v0\.48\.3 · estado hace 45 s/)).toBeVisible();
+    expect(screen.getByText(/v0\.48\.61 · estado hace 45 s/)).toBeVisible();
     expect(screen.queryByTestId('rayen-compatible-reader-version-notice')).not.toBeInTheDocument();
     // Con todo verde no corresponde ofrecer la conexión de Gestión de Camas.
     expect(screen.queryByTestId('rayen-monitor-connect-gc')).not.toBeInTheDocument();
@@ -132,14 +132,14 @@ describe('RayenConnectionMonitor', () => {
     const extension = baseExtension({
       report: {
         ...baseExtension().report!,
-        version: '0.48.39',
+        version: '0.48.61',
         fichaMedico: {
           ...baseExtension().report!.fichaMedico,
-          bridgeVersion: '0.48.38',
+          bridgeVersion: '0.48.56',
         },
         gestionCamas: {
           ...baseExtension().report!.gestionCamas,
-          bridgeVersion: '0.48.39',
+          bridgeVersion: '0.48.61',
         },
       },
     });
@@ -148,7 +148,7 @@ describe('RayenConnectionMonitor', () => {
     expect(screen.getByText('Conectada')).toBeVisible();
     expect(extension.canSync).toBe(true);
     expect(screen.getByTestId('rayen-compatible-reader-version-notice')).toHaveTextContent(
-      'Ficha Médico conserva un lector de otra versión (extensión v0.48.39)'
+      'Ficha Médico conserva un lector de otra versión (extensión v0.48.61)'
     );
     expect(screen.queryByTestId('rayen-monitor-repair')).not.toBeInTheDocument();
 
@@ -156,7 +156,7 @@ describe('RayenConnectionMonitor', () => {
       baseExtension({
         report: {
           ...extension.report!,
-          fichaMedico: { ...extension.report!.fichaMedico, bridgeVersion: '0.48.39' },
+          fichaMedico: { ...extension.report!.fichaMedico, bridgeVersion: '0.48.61' },
         },
       })
     );

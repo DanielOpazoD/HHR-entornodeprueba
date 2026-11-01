@@ -40,7 +40,6 @@ describe('retry of an inconclusive documentary CUDYR read', () => {
       fetchCudyrCategories: vi.fn().mockResolvedValue({
         source: 'gestion_camas',
         historyAvailable: true,
-        captureContract: 1,
         observedEpisodeIds: [],
         metadataStatus: 'complete',
         items: [],

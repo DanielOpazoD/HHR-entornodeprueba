@@ -1,7 +1,6 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import * as extensionHealth from '@/features/rayen-import/bridge/extensionHealthBridge';
 import {
   requestPatientClinicalBundle,
   RAYEN_PATIENT_CLINICAL_BUNDLE_REQUEST_TYPE,
@@ -20,7 +19,6 @@ describe('device evidence capability negotiation', () => {
   });
 
   it('negotiates JSON in the bundled channel too, preserving the normalized section', async () => {
-    vi.spyOn(extensionHealth, 'hasRayenExtensionCapability').mockReturnValue(true);
     const postMessage = vi.spyOn(window, 'postMessage').mockImplementation(message => {
       queueMicrotask(() =>
         window.dispatchEvent(
@@ -50,18 +48,8 @@ describe('device evidence capability negotiation', () => {
     );
   });
 
-  it('does not contact an extension without bundle support', async () => {
-    vi.spyOn(extensionHealth, 'hasRayenExtensionCapability').mockReturnValue(false);
-    const postMessage = vi.spyOn(window, 'postMessage');
-    await expect(
-      requestPatientClinicalBundle('synthetic-episode', '2026-09-05')
-    ).resolves.toBeNull();
-    expect(postMessage).not.toHaveBeenCalled();
-  });
-
   it('keeps successful sections when the worker responds just after its 45 s backend deadline', async () => {
     vi.useFakeTimers();
-    vi.spyOn(extensionHealth, 'hasRayenExtensionCapability').mockReturnValue(true);
     vi.spyOn(window, 'postMessage').mockImplementation(message => {
       const request = message as { reqId: string };
       setTimeout(() => {

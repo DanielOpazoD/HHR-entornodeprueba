@@ -22,7 +22,7 @@ test.describe('Rayen delayed extension health preflight', () => {
       let verifiedRequests = 0;
       let captureRequests = 0;
       const report = (syncPreflight: boolean) => ({
-        version: 'e2e-preflight',
+        version: '0.48.61',
         protocolVersion: 5,
         capabilities: ['health-push', 'sync-preflight-verification'],
         syncPreflight,
@@ -126,7 +126,7 @@ test.describe('Rayen delayed extension health preflight', () => {
               type: 'HHR_RAYEN_EXTENSION_HEALTH_RESULT',
               reqId,
               report: {
-                version: 'e2e-delayed',
+                version: '0.48.61',
                 protocolVersion: 5,
                 capabilities: ['sync-preflight-verification'],
                 syncPreflight: event.data.verifySessions === true,
@@ -193,7 +193,7 @@ test.describe('Rayen delayed extension health preflight', () => {
     expect(result?.state).toMatchObject({
       connection: 'ready',
       canSync: true,
-      message: 'Extensión Eloísa ve2e-delayed operativa.',
+      message: 'Extensión Eloísa v0.48.61 operativa.',
     });
   });
 });

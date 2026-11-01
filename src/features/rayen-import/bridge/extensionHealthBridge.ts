@@ -14,37 +14,6 @@ export const RAYEN_EXTENSION_PASSIVE_HEALTH_TIMEOUT_MS = 10_000;
 /** GC renewal can need 4 × 5 s: relay, rejected token, recapture, renewed-token probe. */
 export const RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS = 25_000;
 export const RAYEN_EXTENSION_PROTOCOL_VERSION = 5;
-export const RAYEN_PATIENT_FLOW_CAPABILITY = 'patient-flow-report';
-export const RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_CAPABILITY = 'statistical-discharge-evidence';
-export const RAYEN_PATIENT_CLINICAL_BUNDLE_CAPABILITY = 'patient-clinical-bundle';
-export const RAYEN_PATIENT_DOCUMENT_MANAGER_CAPABILITY = 'patient-document-manager';
-export const RAYEN_HEALTH_PUSH_CAPABILITY = 'health-push';
-export const RAYEN_SYNC_PREFLIGHT_VERIFICATION_CAPABILITY = 'sync-preflight-verification';
-export const RAYEN_CLEAN_CONNECTION_REPAIR_CAPABILITY = 'clean-connection-repair';
-export const RAYEN_HHR_CONNECTION_REPAIR_BRIDGE_CAPABILITY = 'hhr-connection-repair-bridge';
-
-/**
- * Última lista de capabilities reportada por la extensión en esta pestaña.
- * Permite que canales opcionales (p.ej. el paquete clínico por paciente)
- * decidan sin plumbing extra si la extensión instalada los soporta; una
- * extensión antigua simplemente no declara la capability y el caller usa su
- * camino legado sin pagar timeouts.
- */
-let lastKnownCapabilities: readonly string[] = [];
-
-export const rememberRayenExtensionCapabilities = (
-  report: RayenExtensionHealthReport | null
-): void => {
-  if (report?.capabilities) lastKnownCapabilities = [...report.capabilities];
-};
-
-export const hasRayenExtensionCapability = (capability: string): boolean =>
-  lastKnownCapabilities.includes(capability);
-
-export const resetRayenExtensionCapabilitiesForTests = (): void => {
-  lastKnownCapabilities = [];
-};
-
 export type RayenSourceAvailability = 'ready' | 'missing' | 'stale';
 
 export interface RayenSourceHealth {
@@ -150,18 +119,6 @@ export const isRayenExtensionHealthReport = (
   );
 };
 
-export const supportsPatientFlowReport = (report: RayenExtensionHealthReport | null): boolean =>
-  report?.capabilities?.includes(RAYEN_PATIENT_FLOW_CAPABILITY) === true;
-
-export const supportsPatientDocumentManager = (
-  report: RayenExtensionHealthReport | null
-): boolean => report?.capabilities?.includes(RAYEN_PATIENT_DOCUMENT_MANAGER_CAPABILITY) === true;
-
-export const supportsStatisticalDischargeEvidence = (
-  report: RayenExtensionHealthReport | null
-): boolean =>
-  report?.capabilities?.includes(RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_CAPABILITY) === true;
-
 /**
  * Escucha los reportes de salud que la extensión empuja sola (capability
  * `health-push`): un latido periódico con chrome.alarms y un push inmediato
@@ -177,7 +134,6 @@ export const subscribeToRayenExtensionHealthPush = (
     const data = event.data as { type?: unknown; report?: unknown } | null;
     if (!data || data.type !== RAYEN_EXTENSION_HEALTH_PUSH_TYPE) return;
     if (!isRayenExtensionHealthReport(data.report)) return;
-    rememberRayenExtensionCapabilities(data.report);
     onReport(data.report);
   };
   window.addEventListener('message', onMessage);
@@ -214,7 +170,6 @@ export const requestRayenExtensionHealth = (
       }
       cleanup();
       if (isRayenExtensionHealthReport(data.report)) {
-        rememberRayenExtensionCapabilities(data.report);
         resolve({ report: data.report });
         return;
       }

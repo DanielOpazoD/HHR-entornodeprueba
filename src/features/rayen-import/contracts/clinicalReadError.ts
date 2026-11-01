@@ -8,7 +8,7 @@ export interface ClinicalReadFailure {
   errorCode?: ClinicalReadErrorCode;
 }
 
-/** Only a missing code permits legacy decoding. Unknown/new codes never authorize recovery. */
+/** Only a missing code permits text decoding. Unknown/new codes never authorize recovery. */
 export const decodeClinicalReadFailure = (
   data: { error?: unknown; errorCode?: unknown },
   fallback?: string

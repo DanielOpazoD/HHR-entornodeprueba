@@ -12,7 +12,7 @@ import {
   requestEgresoLookup,
 } from './rayenImportBridge';
 
-/** Bind one stage's cancellation to every clinical channel, including legacy fallbacks. */
+/** Bind one stage's cancellation to every clinical channel, including individual recovery reads. */
 export const createClinicalFillReaders = (
   signal: AbortSignal,
   candidates: readonly ClinicalFillCandidate[] = []

@@ -555,6 +555,16 @@ local previo, la sincronización se detiene sin confirmarlo como un censo vacío
 Los registros no escritos, movimientos ausentes y posibles desfases de reloj entre informes
 requieren evidencia adicional: no se inventan ni se corrigen con una resta horaria fija.
 
+### Versión de la extensión
+
+`useRayenExtensionHealth.deriveHealthState` exige protocolo 5 y versión mínima `0.48.61`,
+comparada por segmentos numéricos. Una versión inferior queda `incompatible`, sin poder
+sincronizar y con la descarga de actualización disponible. La extensión vigente aporta
+latidos, verificación activa de sesiones, reparación y paquete clínico sin negociación
+por capacidades. Los canales individuales conservan la recuperación de fuentes fallidas
+y las consultas parciales. Los lectores de capturas históricas conservan `legacy_extension`.
+El aviso de lector de otra versión sigue siendo necesario tras actualizar con pestañas abiertas.
+
 ### Códigos estables de errores de lectura
 
 El puente normaliza `errorCode` y conserva `error` como mensaje compatible. El productor
@@ -564,8 +574,9 @@ actual de formularios distingue `episode_not_authorized`, `session_required`,
 por paciente comparten este contrato. Un HTTP 204 o una lista vacía válida siguen siendo
 respuestas completas; un JSON con forma inesperada no acredita ausencia de formularios.
 
-HHR prefiere un código explícito sobre el mensaje. Con una extensión anterior, sólo la
-frase exacta histórica de rechazo del episodio habilita la recuperación de autorización.
+HHR prefiere un código explícito sobre el mensaje. La extensión vigente todavía envía errores
+sin código en dispositivos, historial y fallos del agregado; se conserva su clasificación por texto. Sólo la frase exacta de rechazo del
+episodio habilita la recuperación de autorización cuando falta el código.
 Un código desconocido queda como fallo `unexpected` y nunca habilita esa recuperación.
 El código no concede permisos: siguen siendo obligatorias la identidad y la evidencia del
 episodio. Se conservan vigencia, cancelación, máximo de reintentos y datos CUDYR oficiales.

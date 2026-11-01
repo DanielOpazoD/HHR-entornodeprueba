@@ -1,8 +1,4 @@
-import {
-  RAYEN_HHR_CONNECTION_REPAIR_BRIDGE_CAPABILITY,
-  type RayenExtensionHealthReport,
-  type RayenSourceHealth,
-} from './extensionHealthBridge';
+import { type RayenExtensionHealthReport, type RayenSourceHealth } from './extensionHealthBridge';
 import type { RayenExtensionConnectionState } from '../hooks/useRayenExtensionHealth';
 
 export type RayenRecoveryActionKind = 'none' | 'refresh' | 'connect-gc' | 'repair';
@@ -35,10 +31,8 @@ export const deriveRayenRecoveryAction = ({
   const camasReady = camas.status === 'ready';
   const fichaExpiring =
     ficha.expiring === true || (ficha.remainingSeconds ?? Number.POSITIVE_INFINITY) < 240;
-  const supportsRepair =
-    report.capabilities?.includes(RAYEN_HHR_CONNECTION_REPAIR_BRIDGE_CAPABILITY) === true;
 
-  if (fichaReady && fichaExpiring && supportsRepair) {
+  if (fichaReady && fichaExpiring) {
     return { kind: 'repair', label: 'Abrir conexión limpia' };
   }
 
@@ -66,20 +60,18 @@ export const deriveRayenRecoveryAction = ({
   ) {
     return { kind: 'connect-gc', label: 'Renovar Gestión de Camas', renewGestionCamas: true };
   }
-  if (supportsRepair) {
-    const sources = [ficha, camas];
-    if (sources.some(source => hasReason(source, ['session_expired']))) {
-      return { kind: 'repair', label: 'Iniciar sesión en pestañas nuevas' };
-    }
-    if (sources.some(source => hasReason(source, ['outdated_tab']))) {
-      return { kind: 'repair', label: 'Abrir conexión limpia' };
-    }
-    if (sources.some(source => hasReason(source, ['relay_disconnected']))) {
-      return { kind: 'repair', label: 'Restablecer enlaces' };
-    }
-    if (!fichaReady || !camasReady) {
-      return { kind: 'repair', label: 'Abrir pestañas necesarias' };
-    }
+  const sources = [ficha, camas];
+  if (sources.some(source => hasReason(source, ['session_expired']))) {
+    return { kind: 'repair', label: 'Iniciar sesión en pestañas nuevas' };
+  }
+  if (sources.some(source => hasReason(source, ['outdated_tab']))) {
+    return { kind: 'repair', label: 'Abrir conexión limpia' };
+  }
+  if (sources.some(source => hasReason(source, ['relay_disconnected']))) {
+    return { kind: 'repair', label: 'Restablecer enlaces' };
+  }
+  if (!fichaReady || !camasReady) {
+    return { kind: 'repair', label: 'Abrir pestañas necesarias' };
   }
 
   if (connection === 'ready') return { kind: 'none' };

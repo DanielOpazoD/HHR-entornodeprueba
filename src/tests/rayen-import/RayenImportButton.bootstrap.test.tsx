@@ -1,6 +1,7 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import * as healthBridge from '@/features/rayen-import/bridge/extensionHealthBridge';
 import { RayenImportButton } from '@/features/rayen-import/components/RayenImportButton';
 import { RAYEN_EXTENSION_PROTOCOL_VERSION } from '@/features/rayen-import/bridge/extensionHealthBridge';
 
@@ -89,7 +90,7 @@ describe('RayenImportButton · inicio del día desde Eloísa', () => {
     const readyHealth = {
       connection: 'ready',
       report: {
-        version: '0.6.0',
+        version: '0.48.61',
         protocolVersion: RAYEN_EXTENSION_PROTOCOL_VERSION,
         capabilities: ['sync-preflight-verification'],
         checkedAt: '2026-09-09T05:00:00.000Z',
@@ -104,6 +105,58 @@ describe('RayenImportButton · inicio del día desde Eloísa', () => {
       ...readyHealth,
       refresh: mocks.refreshHealth,
     });
+  });
+
+  it('blocks an obsolete extension, keeps its update download and enables the minimum version', async () => {
+    const actualHealth = await vi.importActual<
+      typeof import('@/features/rayen-import/hooks/useRayenExtensionHealth')
+    >('@/features/rayen-import/hooks/useRayenExtensionHealth');
+    const report: healthBridge.RayenExtensionHealthReport = {
+      version: '0.48.60',
+      protocolVersion: RAYEN_EXTENSION_PROTOCOL_VERSION,
+      syncPreflight: true,
+      checkedAt: new Date().toISOString(),
+      fichaMedico: { status: 'ready', message: 'Ficha sintética conectada.' },
+      gestionCamas: { status: 'ready', message: 'Camas sintéticas conectadas.' },
+    };
+    const request = vi.spyOn(healthBridge, 'requestRayenExtensionHealth');
+    request.mockResolvedValue({ report });
+    mocks.useRayenExtensionHealth.mockImplementation(actualHealth.useRayenExtensionHealth);
+    mocks.useDailyRecordData.mockReturnValue({ record: {} });
+    try {
+      render(<RayenImportButton />);
+      const button = screen.getByTestId('rayen-import-button');
+      await waitFor(() =>
+        expect(button).toHaveAttribute('title', expect.stringContaining('Actualiza'))
+      );
+      expect(button).toBeDisabled();
+      fireEvent.click(button);
+      expect(mocks.triggerImport).not.toHaveBeenCalled();
+      expect(screen.getByRole('button', { name: 'Actualización necesaria' })).toBeEnabled();
+      expect(screen.getByText(/Descargar ZIP/)).toHaveAttribute('download');
+
+      const current = { ...report, version: '0.48.61', checkedAt: new Date().toISOString() };
+      request.mockResolvedValue({ report: current });
+      act(() => {
+        window.dispatchEvent(
+          new MessageEvent('message', {
+            source: window,
+            origin: window.location.origin,
+            data: { type: healthBridge.RAYEN_EXTENSION_HEALTH_PUSH_TYPE, report: current },
+          })
+        );
+      });
+      await waitFor(() => expect(button).toBeEnabled());
+      fireEvent.click(button);
+      await waitFor(() => expect(mocks.triggerImport).toHaveBeenCalledOnce());
+      expect(mocks.triggerImport).toHaveBeenCalledWith(
+        expect.objectContaining({ connection: 'ready', canSync: true }),
+        expect.anything(),
+        undefined
+      );
+    } finally {
+      request.mockRestore();
+    }
   });
 
   it('exige revisión humana del intento aunque la política global sea automática', async () => {
@@ -234,11 +287,14 @@ describe('RayenImportButton · inicio del día desde Eloísa', () => {
     expect(onAutoStartHandled).toHaveBeenCalledTimes(1);
   });
 
-  it('does not repeatedly preflight an old extension that cannot verify both source sessions', () => {
+  it('does not preflight an incompatible version during automatic startup', async () => {
+    const { deriveHealthState } = await vi.importActual<
+      typeof import('@/features/rayen-import/hooks/useRayenExtensionHealth')
+    >('@/features/rayen-import/hooks/useRayenExtensionHealth');
     const ready = mocks.useRayenExtensionHealth();
     mocks.useRayenExtensionHealth.mockReturnValue({
       ...ready,
-      report: { ...ready.report, capabilities: ['health-push'] },
+      ...deriveHealthState({ ...ready.report, version: '0.48.60' }),
     });
     const view = render(<RayenImportButton autoStartRequestId={20} onAutoStartHandled={vi.fn()} />);
     view.rerender(<RayenImportButton autoStartRequestId={20} onAutoStartHandled={vi.fn()} />);

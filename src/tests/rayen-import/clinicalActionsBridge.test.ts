@@ -47,7 +47,7 @@ describe('clinical action message lifetime', () => {
     expect(await pending).toMatchObject({ ok: true, entries: [] });
     expect(vi.getTimerCount()).toBe(0);
   });
-  it('conserva el detalle durante una actualización escalonada de la extensión', async () => {
+  it('conserva el detalle completo de la extensión vigente', async () => {
     const post = vi.spyOn(window, 'postMessage').mockImplementation(() => {});
     const pending = requestClinicalAction('123', 'detail', 'Primaria:8');
     const reqId = post.mock.calls[0][0].reqId;
@@ -59,7 +59,18 @@ describe('clinical action message lifetime', () => {
           type: 'HHR_RAYEN_CLINICAL_ACTION_RESULT',
           reqId,
           ok: true,
-          detail: { reason: 'Motivo', history: 'Evolución', professional: 'Profesional' },
+          detail: {
+            reason: 'Motivo',
+            history: 'Evolución',
+            professional: 'Profesional',
+            attachments: [],
+            careType: 'outpatient',
+            patientName: 'Paciente sintético',
+            diagnoses: [],
+            indications: [],
+            physicalExams: [],
+            prescriptions: [],
+          },
         },
       })
     );

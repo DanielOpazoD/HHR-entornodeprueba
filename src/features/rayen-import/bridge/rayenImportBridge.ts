@@ -275,7 +275,6 @@ export const requestCudyrCategories = (
           : undefined,
       historyAvailable:
         typeof data.historyAvailable === 'boolean' ? data.historyAvailable : undefined,
-      captureContract: data.captureContract === 1 ? 1 : undefined,
       observedEpisodeIds: Array.isArray(data.observedEpisodeIds)
         ? data.observedEpisodeIds.filter((id): id is string => typeof id === 'string')
         : undefined,

@@ -19,7 +19,6 @@ const history = [
 ];
 const source: ClinicalCudyrSource = {
   historyAvailable: true,
-  captureContract: 1,
   observedEpisodeIds: ['episode-test'],
   metadataStatus: 'complete',
   map: new Map([
@@ -66,13 +65,12 @@ describe('ordinary sync permanent CUDYR archive', () => {
     });
   });
 
-  it('distinguishes an observed empty history from a missing episode, unavailable source and older extension', () => {
+  it('distinguishes an observed empty history from a missing episode and unavailable source', () => {
     const status = (next: ClinicalCudyrSource) =>
       buildCudyrCaptureParts({ ...input, source: next })[0].capture?.status;
     expect(status({ ...source, map: new Map() })).toBe('observed');
     expect(status({ ...source, map: new Map(), observedEpisodeIds: [] })).toBe('not_observed');
     expect(status({ ...source, historyAvailable: false })).toBe('unavailable');
-    expect(status({ ...source, captureContract: undefined })).toBe('legacy_extension');
   });
 
   it('splits history into complete numbered parts without truncating or inventing source IDs', () => {
@@ -110,7 +108,6 @@ describe('ordinary sync permanent CUDYR archive', () => {
       items: [...source.map.values()],
       source: 'gestion_camas',
       historyAvailable: true,
-      captureContract: 1,
       observedEpisodeIds: source.observedEpisodeIds,
       metadataStatus: 'complete',
     });
@@ -153,7 +150,6 @@ describe('ordinary sync permanent CUDYR archive', () => {
           items: [],
           source: 'gestion_camas',
           historyAvailable: mode !== 'unavailable',
-          captureContract: 1,
           observedEpisodeIds: ['episode-test'],
           metadataStatus: mode === 'partial' ? 'partial' : 'complete',
         };

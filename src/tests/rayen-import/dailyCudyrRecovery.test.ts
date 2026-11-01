@@ -73,7 +73,6 @@ describe('daily documentary CUDYR recovery', () => {
         fetchCudyrCategories: async () => ({
           source: 'gestion_camas',
           historyAvailable: true,
-          captureContract: 1,
           observedEpisodeIds: [],
           metadataStatus: 'complete',
           items: [

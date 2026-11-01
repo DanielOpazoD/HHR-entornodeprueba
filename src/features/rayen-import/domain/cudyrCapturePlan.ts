@@ -64,11 +64,9 @@ export const buildCudyrCaptureParts = ({
   const totalParts = Math.max(1, Math.ceil(evaluations.length / 32));
   const status = !source.historyAvailable
     ? 'unavailable'
-    : source.captureContract !== 1
-      ? 'legacy_extension'
-      : source.observedEpisodeIds?.includes(clinicalEpisodeId)
-        ? 'observed'
-        : 'not_observed';
+    : source.observedEpisodeIds?.includes(clinicalEpisodeId)
+      ? 'observed'
+      : 'not_observed';
   const parts: ArchiveCudyrHistoryRequest[] = Array.from({ length: totalParts }, (_, part) => ({
     schemaVersion: 1,
     authorityDate,
@@ -81,11 +79,9 @@ export const buildCudyrCaptureParts = ({
       observedAt,
       status,
       metadataStatus:
-        source.captureContract !== 1
-          ? 'unknown'
-          : source.metadataStatus === 'complete' && row?.metadataComplete !== false
-            ? 'complete'
-            : 'partial',
+        source.metadataStatus === 'complete' && row?.metadataComplete !== false
+          ? 'complete'
+          : 'partial',
       part,
       totalParts,
       totalEvaluations: evaluations.length,

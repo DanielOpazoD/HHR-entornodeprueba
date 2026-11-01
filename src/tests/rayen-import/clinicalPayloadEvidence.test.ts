@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import * as health from '@/features/rayen-import/bridge/extensionHealthBridge';
 import {
   requestDeviceReport,
   requestHistoryScales,
@@ -37,7 +36,6 @@ const channels = [
 let response: Record<string, unknown>;
 beforeEach(() => {
   response = {};
-  vi.spyOn(health, 'hasRayenExtensionCapability').mockReturnValue(true);
   vi.spyOn(window, 'postMessage').mockImplementation(message => {
     queueMicrotask(() =>
       window.dispatchEvent(

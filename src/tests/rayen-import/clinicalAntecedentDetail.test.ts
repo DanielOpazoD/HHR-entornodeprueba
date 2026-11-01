@@ -1,9 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { decodeClinicalAntecedentDetail } from '@/features/rayen-import/bridge/clinicalAntecedentDetail';
 
-const detail = { reason: 'Motivo', history: 'Evolución', professional: 'Profesional' };
+const detail = {
+  reason: 'Motivo',
+  history: 'Evolución',
+  professional: 'Profesional',
+  attachments: [],
+  careType: 'outpatient',
+  patientName: 'Paciente sintético',
+  diagnoses: [],
+  indications: [],
+  physicalExams: [],
+  prescriptions: [],
+};
 describe('antecedent detail bridge validation', () => {
-  it('acepta la extensión antigua y excluye campos desconocidos y URLs firmadas', () => {
+  it('excluye campos desconocidos y URLs firmadas del contrato vigente', () => {
     expect(
       decodeClinicalAntecedentDetail({ ...detail, signedUrl: 'https://example.test?sig=secret' })
     ).toMatchObject({ ...detail, attachments: [] });

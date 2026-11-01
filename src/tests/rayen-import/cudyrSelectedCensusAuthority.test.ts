@@ -33,7 +33,6 @@ describe('CUDYR selected census authority', () => {
       fetchCudyrCategories: vi.fn().mockResolvedValue({
         source: 'gestion_camas',
         historyAvailable: true,
-        captureContract: 1,
         metadataStatus: 'complete',
         observedEpisodeIds: ['E1'],
         items: [

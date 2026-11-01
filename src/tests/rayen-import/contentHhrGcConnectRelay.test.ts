@@ -290,7 +290,7 @@ describe('content-hhr · relé de conexión de Gestión de Camas', () => {
   });
 
   it('reutiliza la reparación limpia del runtime y conserva la correlación de la página', async () => {
-    const report = { version: '0.48.12', checkedAt: '2026-09-04T12:00:00.000Z' };
+    const report = { version: '0.48.61', checkedAt: '2026-09-04T12:00:00.000Z' };
     const sendMessage = vi.fn(async () => ({
       ok: false,
       state: 'needs-login',

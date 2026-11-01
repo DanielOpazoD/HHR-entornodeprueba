@@ -36,7 +36,7 @@ vi.mock('@/features/rayen-import/hooks/useRayenExtensionHealth', () => ({
   useRayenExtensionHealth: () => ({
     connection: 'ready',
     report: {
-      version: '0.6.0',
+      version: '0.48.61',
       protocolVersion: RAYEN_EXTENSION_PROTOCOL_VERSION,
       checkedAt: '2026-07-14T05:00:00.000Z',
       fichaMedico: { status: 'ready', message: 'Ficha Médico disponible.' },

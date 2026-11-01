@@ -3,11 +3,6 @@ import { createClinicalFillReaders } from '@/features/rayen-import/bridge/clinic
 import type { PatientData } from '@/types/domain/patient';
 import { requestEgresoLookup } from '@/features/rayen-import/bridge/rayenImportBridge';
 
-vi.mock('@/features/rayen-import/bridge/extensionHealthBridge', () => ({
-  RAYEN_PATIENT_CLINICAL_BUNDLE_CAPABILITY: 'patient-clinical-bundle',
-  hasRayenExtensionCapability: () => true,
-}));
-
 const readers = (signal: AbortSignal) => {
   const api = createClinicalFillReaders(signal);
   return [

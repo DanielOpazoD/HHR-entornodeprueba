@@ -314,7 +314,6 @@ const clinicalRun = (record: ReturnType<typeof historicalDay>, episode: string) 
       source: 'gestion_camas',
       historyAvailable: true,
       items: [],
-      captureContract: 1,
       observedEpisodeIds: [],
       metadataStatus: 'complete',
     }),

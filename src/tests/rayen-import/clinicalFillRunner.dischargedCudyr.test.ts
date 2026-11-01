@@ -40,7 +40,6 @@ describe('daily sync recovers the prior night after discharge', () => {
       fetchCudyrCategories: async () => ({
         source: 'gestion_camas',
         historyAvailable: true,
-        captureContract: 1,
         observedEpisodeIds: [patient.clinicalEpisodeId],
         metadataStatus: 'complete',
         items: [
