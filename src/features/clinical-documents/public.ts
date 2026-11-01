@@ -34,7 +34,6 @@ export {
 } from './controllers/clinicalAttachmentPathController';
 export { resolveClinicalAttachmentFilePolicy } from './controllers/clinicalAttachmentFilePolicy';
 export { parseClinicalAttachmentRecord } from './contracts/clinicalAttachmentRuntimeContracts';
-export { exportClinicalDocumentPdfViaBackend } from './services/clinicalDocumentBackendExportService';
 export { generateClinicalDocumentPdfBlob } from './services/clinicalDocumentPdfService';
 export { openClinicalDocumentBrowserPrintPreview } from './services/clinicalDocumentPrintPdfService';
 export type { ClinicalDocumentAnnexPrintMode } from './services/clinicalDocumentPrintSupport';

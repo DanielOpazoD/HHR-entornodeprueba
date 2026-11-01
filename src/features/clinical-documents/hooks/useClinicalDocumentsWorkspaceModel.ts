@@ -84,7 +84,6 @@ export const useClinicalDocumentsWorkspaceModel = ({
     draft,
     hasLocalDraftChanges,
     setDraft,
-    applyPdfExportResult,
     isSaving,
     lastSavedAt,
     validationIssues,
@@ -265,12 +264,10 @@ export const useClinicalDocumentsWorkspaceModel = ({
     [handleImportWithAi, isImportingWithAi]
   );
 
-  const { handleExportJson, handlePrint, handlePrintAnnex, handleUploadPdf, isUploadingPdf } =
+  const { handleExportJson, handlePrint, handlePrintAnnex } =
     useClinicalDocumentWorkspaceExportActions({
       selectedDocument,
-      hospitalId,
       notify: notifyPort,
-      applyPdfExportResult,
     });
 
   const scrollToAnnex = useCallback(() => {
@@ -314,7 +311,6 @@ export const useClinicalDocumentsWorkspaceModel = ({
       lastSavedAt,
       hasLocalDraftChanges,
       flushPendingAutosave,
-      isUploadingPdf,
       validationIssues,
       attachments,
       patientAttachments,
@@ -329,7 +325,6 @@ export const useClinicalDocumentsWorkspaceModel = ({
       suggestAttachmentName,
       uploadPastedImage,
       handlePrint,
-      handleUploadPdf,
       draft,
       restoreTemplateContent,
       notifications: { info, confirm },

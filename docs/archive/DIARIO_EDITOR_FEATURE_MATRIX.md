@@ -16,7 +16,6 @@
 | Host adapter / boundary            | Sí                 | Parcial                |
 | Firma y bloqueo                    | Parcial/según host | Sí                     |
 | Realtime Firestore                 | No aplica          | Sí                     |
-| Respaldo a Google Drive            | No acoplado        | Sí                     |
 | Lectura por enfermería             | Según host         | Sí                     |
 
 ## Paridad mínima exigida en HHR v1
@@ -33,4 +32,3 @@
 
 - No se generalizan todavía todas las plantillas visibles en UI.
 - El host adapter no está extraído como paquete aislado; se implementa dentro de la feature.
-- El respaldo a Drive usa primero la infraestructura actual de HHR antes de endurecerlo con Functions.

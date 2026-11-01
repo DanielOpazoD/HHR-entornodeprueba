@@ -35,7 +35,6 @@ export {
 export { duplicateClinicalDocumentDraft } from './domain/factories';
 export { parseClinicalAttachmentRecord } from './contracts/clinicalAttachmentRuntimeContracts';
 export { safeParseClinicalDocumentRecord } from './contracts/clinicalDocumentRuntimeContracts';
-export { exportClinicalDocumentPdfViaBackend } from './services/clinicalDocumentBackendExportService';
 export { generateClinicalDocumentPdfBlob } from './services/clinicalDocumentPdfService';
 export { openClinicalDocumentBrowserPrintPreview } from './services/clinicalDocumentPrintPdfService';
 export type { ClinicalDocumentAnnexPrintMode } from './services/clinicalDocumentPrintSupport';

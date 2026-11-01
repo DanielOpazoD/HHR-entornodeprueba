@@ -5,11 +5,7 @@ import type {
 import type { ConfirmOptions } from '@/context/uiContracts';
 import { getClinicalDocumentDefinition } from '@/features/clinical-documents/domain/definitions';
 import { hydrateClinicalDocumentRecord } from '@/application/ports/clinicalDocumentCompatibilityPort';
-import {
-  formatClinicalDocumentDateTime as formatClinicalDocumentDateTimePresentation,
-  formatClinicalDocumentPdfDate,
-  resolveClinicalDocumentSourceDateLabel,
-} from '@/shared/clinical-documents/clinicalDocumentPresentation';
+import { formatClinicalDocumentDateTime as formatClinicalDocumentDateTimePresentation } from '@/shared/clinical-documents/clinicalDocumentPresentation';
 
 /** Serializes a clinical document record to JSON, returning empty string for null. */
 export const serializeClinicalDocument = (record: ClinicalDocumentRecord | null): string =>
@@ -90,26 +86,6 @@ export const buildClinicalDocumentActor = (
   displayName: formatClinicalDocumentAuthorName(user?.displayName || user?.email || 'Usuario'),
   role: role || 'viewer',
 });
-
-const resolveClinicalDocumentPdfDate = (record: ClinicalDocumentRecord): string => {
-  const reportDate = record.patientFields.find(field => field.id === 'finf')?.value;
-  return (
-    formatClinicalDocumentPdfDate(reportDate) ||
-    resolveClinicalDocumentSourceDateLabel(record.sourceDailyRecordDate) ||
-    formatClinicalDocumentPdfDate(record.audit.updatedAt) ||
-    'Sin fecha'
-  );
-};
-
-const resolveClinicalDocumentPdfPatientName = (record: ClinicalDocumentRecord): string => {
-  const fieldName = record.patientFields.find(field => field.id === 'nombre')?.value?.trim();
-  const patientName = record.patientName.trim();
-  return (fieldName || patientName || 'Paciente').replace(/\s+/g, ' ');
-};
-
-/** Builds the PDF download filename from the document's date and patient name. */
-export const buildClinicalDocumentPdfFileName = (record: ClinicalDocumentRecord): string =>
-  `${resolveClinicalDocumentPdfDate(record)} - ${resolveClinicalDocumentPdfPatientName(record)}.pdf`;
 
 /** Assembles the notification port (success, warning, error, info, confirm) for workspace actions. */
 export const buildClinicalDocumentWorkspaceNotifyPort = (

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  buildClinicalDocumentPdfFileName,
   formatClinicalDocumentAuthorName,
   formatClinicalDocumentDateTime,
   getClinicalDocumentPatientFieldLabel,
@@ -65,20 +64,6 @@ describe('clinicalDocumentWorkspaceController', () => {
 
   it('formats timestamps without seconds', () => {
     expect(formatClinicalDocumentDateTime('2026-03-06T15:45:10.000Z')).toMatch(/\d{2}.*\d{2}/);
-  });
-
-  it('builds the PDF file name from clinical date and patient name', () => {
-    const record = buildRecord();
-    record.patientName = 'Felipe Reyes Opazo';
-    record.patientFields = record.patientFields.map(field =>
-      field.id === 'nombre'
-        ? { ...field, value: 'Felipe Reyes Opazo' }
-        : field.id === 'finf'
-          ? { ...field, value: '2026-03-08' }
-          : field
-    );
-
-    expect(buildClinicalDocumentPdfFileName(record)).toBe('08-03-2026 - Felipe Reyes Opazo.pdf');
   });
 
   it('formats author names as first name plus first surname', () => {

@@ -1,9 +1,6 @@
 import { firestoreDb } from '@/services/storage/firestore';
 import { getActiveHospitalId } from '@/constants/firestorePaths';
-import type {
-  ClinicalDocumentPdfMeta,
-  ClinicalDocumentRecord,
-} from '@/domain/clinical-documents/entities';
+import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import {
   buildClinicalDocumentIntegrityHash,
   buildClinicalDocumentRenderedText,
@@ -305,20 +302,6 @@ export const ClinicalDocumentRepository = {
       status: patch.status,
       audit: patch.audit,
       isActiveEpisodeDocument: false,
-    });
-  },
-
-  async savePdfMetadata(
-    documentId: string,
-    pdf: ClinicalDocumentPdfMeta,
-    hospitalId: string = getActiveHospitalId()
-  ): Promise<void> {
-    if (!isFirestoreEnabled()) {
-      return;
-    }
-
-    await firestoreDb.updateDoc(getClinicalDocumentsCollectionPath(hospitalId), documentId, {
-      pdf: sanitizeForFirestore(pdf),
     });
   },
 

@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
+import { httpsCallable } from 'firebase/functions';
+import { generateClinicalDocumentPdfBlob } from '@/features/clinical-documents/services/clinicalDocumentPdfService';
 import { ClinicalDocumentsWorkspace } from '@/features/clinical-documents/components/ClinicalDocumentsWorkspace';
 import type {
   ClinicalDocumentRecord,
@@ -8,13 +10,16 @@ import type {
 } from '@/features/clinical-documents/domain/entities';
 import { createClinicalDocumentDraft } from '@/features/clinical-documents/domain/factories';
 import * as clinicalDocumentUseCases from '@/application/clinical-documents/clinicalDocumentUseCases';
-import * as clinicalDocumentPdfExportUseCase from '@/application/clinical-documents/clinicalDocumentPdfExportUseCase';
-import type { ExportClinicalDocumentPdfOutput } from '@/application/clinical-documents/clinicalDocumentPdfExportUseCase';
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
 import { ClinicalDocumentRepository } from '@/services/repositories/ClinicalDocumentRepository';
 import { ClinicalDocumentTemplateRepository } from '@/services/repositories/ClinicalDocumentTemplateRepository';
 import type { PatientData } from '@/types/domain/patient';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
+
+vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn() }));
+vi.mock('@/features/clinical-documents/services/clinicalDocumentPdfService', () => ({
+  generateClinicalDocumentPdfBlob: vi.fn(),
+}));
 
 const { openClinicalDocumentBrowserPrintPreview } = vi.hoisted(() => ({
   openClinicalDocumentBrowserPrintPreview: vi.fn(async () => true),
@@ -168,16 +173,6 @@ vi.mock('@/application/clinical-documents/clinicalDocumentUseCases', async () =>
   };
 });
 
-vi.mock('@/application/clinical-documents/clinicalDocumentPdfExportUseCase', async () => {
-  const actual = await vi.importActual<
-    typeof import('@/application/clinical-documents/clinicalDocumentPdfExportUseCase')
-  >('@/application/clinical-documents/clinicalDocumentPdfExportUseCase');
-  return {
-    ...actual,
-    executeExportClinicalDocumentPdf: vi.fn(),
-  };
-});
-
 describe('ClinicalDocumentsWorkspace', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -232,17 +227,9 @@ describe('ClinicalDocumentsWorkspace', () => {
     vi.mocked(clinicalDocumentUseCases.executeDeleteClinicalDocument).mockResolvedValue(
       deleteResult
     );
-    const exportResult: ApplicationOutcome<ExportClinicalDocumentPdfOutput | null> = {
-      status: 'success',
-      data: { pdf: { exportStatus: 'exported' } },
-      issues: [],
-    };
-    vi.mocked(clinicalDocumentPdfExportUseCase.executeExportClinicalDocumentPdf).mockResolvedValue(
-      exportResult
-    );
   });
 
-  it('renders the real shell and wires create/print/drive through use-case boundaries', async () => {
+  it('renders the real shell and wires create/print through use-case boundaries', async () => {
     render(
       <ClinicalDocumentsWorkspace
         patient={workspacePatient}
@@ -276,49 +263,10 @@ describe('ClinicalDocumentsWorkspace', () => {
 
     await waitFor(() => {
       expect(openClinicalDocumentBrowserPrintPreview).toHaveBeenCalled();
-      expect(
-        clinicalDocumentPdfExportUseCase.executeExportClinicalDocumentPdf
-      ).toHaveBeenCalledWith(
-        expect.objectContaining({
-          record: expect.objectContaining({
-            id: clinicalDocument.id,
-            status: 'draft',
-          }),
-          hospitalId: 'hhr',
-          fileName: expect.any(String),
-        })
-      );
+      expect(httpsCallable).not.toHaveBeenCalled();
+      expect(generateClinicalDocumentPdfBlob).not.toHaveBeenCalled();
+      expect(screen.queryByRole('button', { name: /drive/i })).not.toBeInTheDocument();
       expect(notificationApi.info).not.toHaveBeenCalled();
-    });
-  });
-
-  it('supports manual drive upload on the real shell boundary', async () => {
-    render(
-      <ClinicalDocumentsWorkspace
-        patient={workspacePatient}
-        currentDateString="2026-03-06"
-        bedId="R1"
-      />
-    );
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /drive/i })).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /drive/i }));
-
-    await waitFor(() => {
-      expect(
-        clinicalDocumentPdfExportUseCase.executeExportClinicalDocumentPdf
-      ).toHaveBeenCalledWith(
-        expect.objectContaining({
-          record: expect.objectContaining({
-            id: clinicalDocument.id,
-          }),
-          hospitalId: 'hhr',
-          fileName: expect.any(String),
-        })
-      );
     });
   });
 

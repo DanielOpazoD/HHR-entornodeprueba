@@ -22,7 +22,6 @@ const {
 } = require('./lib/rayenClinicalEnrichmentFunctions');
 const { createSpecialtyPolicyFunctions } = require('./lib/specialtyPolicyFunctions');
 const { createSpecialtyJevFunctions } = require('./lib/specialtyJevFunctions');
-const { createClinicalDocumentExportFunctions } = require('./lib/clinicalDocumentExportFunctions');
 const {
   createClinicalDocumentPdfRenderFunctions,
 } = require('./lib/clinicalDocumentPdfRenderFunctions');
@@ -88,10 +87,6 @@ module.exports = {
     resolveRoleForEmail: authHelpers.resolveRoleForEmail,
   }),
   ...createSpecialtyJevFunctions({
-    firestore,
-    resolveRoleForEmail: authHelpers.resolveRoleForEmail,
-  }),
-  ...createClinicalDocumentExportFunctions({
     firestore,
     resolveRoleForEmail: authHelpers.resolveRoleForEmail,
   }),

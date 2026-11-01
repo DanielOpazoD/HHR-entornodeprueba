@@ -171,7 +171,6 @@ Eliminar los ciclos reportados por `check:architecture` sin introducir facades c
 ### Archivos objetivo
 
 - `src/application/clinical-documents/clinicalDocumentEditorUseCases.ts`
-- `src/application/clinical-documents/clinicalDocumentPdfExportUseCase.ts`
 - `src/application/clinical-documents/clinicalDocumentTemplateUseCases.ts`
 - `src/application/clinical-documents/clinicalDocumentUseCases.ts`
 - `src/application/ports/clinicalDocumentPort.ts`

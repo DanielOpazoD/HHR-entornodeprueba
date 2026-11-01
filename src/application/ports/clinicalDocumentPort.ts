@@ -1,8 +1,5 @@
 import { ClinicalDocumentRepository } from '@/services/repositories/ClinicalDocumentRepository';
-import type {
-  ClinicalDocumentPdfMeta,
-  ClinicalDocumentRecord,
-} from '@/features/clinical-documents/internal';
+import type { ClinicalDocumentRecord } from '@/features/clinical-documents/internal';
 
 export interface ClinicalDocumentPort {
   listByEpisode: (episodeKey: string, hospitalId?: string) => Promise<ClinicalDocumentRecord[]>;
@@ -18,11 +15,6 @@ export interface ClinicalDocumentPort {
     record: ClinicalDocumentRecord,
     hospitalId?: string
   ) => Promise<ClinicalDocumentRecord>;
-  savePdfMetadata: (
-    documentId: string,
-    pdf: ClinicalDocumentPdfMeta,
-    hospitalId?: string
-  ) => Promise<void>;
   lockDocumentsByEpisodeKey: (
     episodeKey: string,
     hospitalId?: string,
@@ -49,8 +41,6 @@ export const defaultClinicalDocumentPort: ClinicalDocumentPort = {
   saveDraft: async (record, hospitalId) => ClinicalDocumentRepository.saveDraft(record, hospitalId),
   createDraft: async (record, hospitalId) =>
     ClinicalDocumentRepository.createDraft(record, hospitalId),
-  savePdfMetadata: async (documentId, pdf, hospitalId) =>
-    ClinicalDocumentRepository.savePdfMetadata(documentId, pdf, hospitalId),
   lockDocumentsByEpisodeKey: async (episodeKey, hospitalId, options) =>
     ClinicalDocumentRepository.lockDocumentsByEpisodeKey(episodeKey, hospitalId, options),
   delete: async (documentId, hospitalId) =>

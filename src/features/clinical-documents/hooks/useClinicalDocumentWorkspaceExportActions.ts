@@ -1,51 +1,28 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 
-import type { ConfirmOptions } from '@/context/uiContracts';
 import type { ClinicalDocumentRecord } from '@/features/clinical-documents/domain/entities';
-import { buildClinicalDocumentPdfFileName } from '@/features/clinical-documents/controllers/clinicalDocumentWorkspaceController';
-import type { ExportClinicalDocumentPdfOutput } from '@/application/clinical-documents/clinicalDocumentPdfExportUseCase';
 import {
   buildClinicalDocumentJsonFileName,
   stringifyClinicalDocumentJsonExport,
 } from '@/application/clinical-documents/clinicalDocumentJsonUseCases';
-import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
-import { resolveFailedApplicationOutcomeMessage } from '@/shared/contracts/applicationOutcomeMessage';
 import type { ClinicalDocumentAnnexPrintMode } from '@/features/clinical-documents/services/clinicalDocumentPrintSupport';
-import { recordOperationalOutcome } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { recordCriticalClinicalAction } from '@/services/observability/criticalClinicalActionRecorder';
 import type { OperationalTelemetryStatus } from '@/services/observability/operationalTelemetryTypes';
 import { useAuditContext } from '@/context/AuditContext';
 import { resolveClinicalDocumentExceptionMessage } from './clinicalDocumentWorkspaceActionSupport';
-import type { ClinicalDocumentWorkspaceDraftState } from './useClinicalDocumentWorkspaceDraft';
 
 interface NotificationPort {
   success: (title: string, message?: string) => void;
   warning: (title: string, message?: string) => void;
   error: (title: string, message?: string) => void;
   info: (title: string, message?: string) => void;
-  confirm?: (options: ConfirmOptions) => Promise<boolean>;
 }
 
 interface UseClinicalDocumentWorkspaceExportActionsParams {
   selectedDocument: ClinicalDocumentRecord | null;
-  hospitalId: string;
   notify: NotificationPort;
-  applyPdfExportResult: ClinicalDocumentWorkspaceDraftState['applyPdfExportResult'];
 }
-
-interface UploadPdfOptions {
-  notifySuccess?: boolean;
-  successTitle?: string;
-  successMessage?: string;
-  recordOverride?: ClinicalDocumentRecord;
-  annexMode?: ClinicalDocumentAnnexPrintMode;
-}
-
-const loadClinicalDocumentPdfExportUseCase = async () =>
-  import('@/application/clinical-documents/clinicalDocumentPdfExportUseCase').then(
-    module => module.executeExportClinicalDocumentPdf
-  );
 
 const loadClinicalDocumentPrintUseCase = async () =>
   import('@/application/clinical-documents/clinicalDocumentPrintOpenUseCase').then(
@@ -96,18 +73,15 @@ const recordClinicalDocumentExportCriticalAction = ({
 
 export const useClinicalDocumentWorkspaceExportActions = ({
   selectedDocument,
-  hospitalId,
   notify,
-  applyPdfExportResult,
 }: UseClinicalDocumentWorkspaceExportActionsParams) => {
-  const [isUploadingPdf, setIsUploadingPdf] = useState(false);
   const { logEvent } = useAuditContext();
 
   const logClinicalDocumentExportAudit = useCallback(
     (
       document: ClinicalDocumentRecord,
       action: 'CLINICAL_DOCUMENT_EXPORTED' | 'CLINICAL_DOCUMENT_PRINTED',
-      exportType: 'json' | 'pdf' | 'print',
+      exportType: 'json' | 'print',
       context?: Record<string, unknown>
     ) => {
       logEvent(
@@ -177,108 +151,6 @@ export const useClinicalDocumentWorkspaceExportActions = ({
     [logClinicalDocumentExportAudit, notify]
   );
 
-  const handleUploadPdf = useCallback(
-    async (options: UploadPdfOptions = {}) => {
-      if (!selectedDocument) {
-        return;
-      }
-
-      const recordToExport = options.recordOverride || selectedDocument;
-      setIsUploadingPdf(true);
-      try {
-        const executeExportClinicalDocumentPdf = await loadClinicalDocumentPdfExportUseCase();
-        const result: ApplicationOutcome<ExportClinicalDocumentPdfOutput | null> =
-          await executeExportClinicalDocumentPdf({
-            record: recordToExport,
-            hospitalId,
-            fileName: buildClinicalDocumentPdfFileName(recordToExport),
-            annexMode: options.annexMode,
-          });
-        recordOperationalOutcome('export', 'export_clinical_document_pdf', result, {
-          date: recordToExport.sourceDailyRecordDate,
-          context: { documentId: recordToExport.id },
-          allowSuccess: true,
-        });
-        const outcomeError = resolveFailedApplicationOutcomeMessage(
-          result,
-          'No se pudo exportar el PDF clínico.'
-        );
-        if (outcomeError || !result.data) {
-          recordOperationalTelemetry({
-            category: 'export',
-            status: 'failed',
-            operation: 'export_clinical_document_pdf',
-            date: recordToExport.sourceDailyRecordDate,
-            issues: [outcomeError || 'No se pudo exportar el PDF clínico.'],
-            context: { documentId: recordToExport.id },
-          });
-          recordClinicalDocumentExportCriticalAction({
-            document: recordToExport,
-            action: 'clinical_document_pdf_exported',
-            outcome: 'failed',
-            exportType: 'pdf',
-            issues: [outcomeError || 'No se pudo exportar el PDF clínico.'],
-          });
-          applyPdfExportResult({
-            target: recordToExport,
-            status: 'failed',
-            errorMessage: outcomeError || 'No se pudo exportar el PDF clínico.',
-          });
-          notify.error('Falló la exportación', outcomeError || 'El PDF no se pudo subir.');
-          return;
-        }
-        const exportedPdf = result.data.pdf;
-        recordClinicalDocumentExportCriticalAction({
-          document: recordToExport,
-          action: 'clinical_document_pdf_exported',
-          outcome: 'success',
-          exportType: 'pdf',
-          context: {
-            fileId: exportedPdf.fileId,
-            annexMode: options.annexMode,
-          },
-        });
-        logClinicalDocumentExportAudit(recordToExport, 'CLINICAL_DOCUMENT_EXPORTED', 'pdf', {
-          fileId: exportedPdf.fileId,
-          annexMode: options.annexMode,
-        });
-        applyPdfExportResult({ target: recordToExport, status: 'success', pdf: exportedPdf });
-        if (options.notifySuccess !== false) {
-          notify.success(
-            options.successTitle || 'PDF exportado',
-            options.successMessage ||
-              'El documento quedó respaldado en el Google Drive institucional.'
-          );
-        }
-      } catch (error) {
-        const errorMessage = resolveClinicalDocumentExceptionMessage(
-          error,
-          'El documento quedó guardado, pero el PDF no se pudo subir.'
-        );
-        recordOperationalTelemetry({
-          category: 'export',
-          status: 'failed',
-          operation: 'export_clinical_document_pdf',
-          date: recordToExport.sourceDailyRecordDate,
-          issues: [errorMessage],
-          context: { documentId: recordToExport.id },
-        });
-        recordClinicalDocumentExportCriticalAction({
-          document: recordToExport,
-          action: 'clinical_document_pdf_exported',
-          outcome: 'failed',
-          exportType: 'pdf',
-          issues: [errorMessage],
-        });
-        applyPdfExportResult({ target: recordToExport, status: 'failed', errorMessage });
-        notify.error('Falló la exportación', errorMessage);
-      } finally {
-        setIsUploadingPdf(false);
-      }
-    },
-    [hospitalId, logClinicalDocumentExportAudit, notify, selectedDocument, applyPdfExportResult]
-  );
-
   const handlePrint = useCallback(async () => {
     if (!selectedDocument) return;
     const executeOpenClinicalDocumentPrint = await loadClinicalDocumentPrintUseCase();
@@ -330,8 +202,7 @@ export const useClinicalDocumentWorkspaceExportActions = ({
     logClinicalDocumentExportAudit(selectedDocument, 'CLINICAL_DOCUMENT_PRINTED', 'print', {
       annexMode,
     });
-    await handleUploadPdf({ notifySuccess: false, annexMode });
-  }, [handleUploadPdf, logClinicalDocumentExportAudit, notify, selectedDocument]);
+  }, [logClinicalDocumentExportAudit, notify, selectedDocument]);
 
   const handlePrintAnnex = useCallback(async () => {
     if (!selectedDocument?.annexContent?.trim()) {
@@ -357,7 +228,5 @@ export const useClinicalDocumentWorkspaceExportActions = ({
     handleExportJson,
     handlePrint,
     handlePrintAnnex,
-    handleUploadPdf,
-    isUploadingPdf,
   };
 };

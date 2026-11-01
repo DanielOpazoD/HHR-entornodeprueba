@@ -3,7 +3,7 @@
  *
  * Centered editing tools: Undo/Redo, Print, Format, Restore, Zoom +/-
  * Undo/Redo react to the active editor's history state.
- * LAB moved to sidebar. Status (autosave, Drive) in header right side.
+ * LAB moved to sidebar. Autosave status in header right side.
  */
 
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
