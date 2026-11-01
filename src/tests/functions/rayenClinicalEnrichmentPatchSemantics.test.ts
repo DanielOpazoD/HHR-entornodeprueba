@@ -123,6 +123,44 @@ describe('Rayen clinical enrichment patch semantics', () => {
     );
   });
 
+  it('accepts device origins and absence retirement without a time, and does not restore them', async () => {
+    const remote = makeClinicalRecord();
+    const retired = {
+      id: 'synthetic-retired-device',
+      type: 'CVC',
+      source: 'eloisa',
+      clinicalEpisodeId: remote.beds.H2C1.clinicalEpisodeId,
+      installationDate: '2026-07-27',
+      installationTime: '09:30',
+      status: 'Removed',
+      removalDate: remote.date,
+      removalSource: 'eloisa-absence',
+      createdAt: 1,
+      updatedAt: 2,
+    };
+    remote.beds.H2C1 = {
+      ...remote.beds.H2C1,
+      devices: ['CVC'],
+      deviceInstanceHistory: [{ ...retired, status: 'Active' }],
+    } as never;
+    const payload = makePayload();
+    payload.patches[0].fields = {
+      devices: [],
+      deviceDetails: { CVC: { installationDate: '2026-07-27', removalDate: remote.date } },
+      deviceInstanceHistory: [retired],
+    } as never;
+    const admin = createClinicalAdminMock(remote);
+    await createApi(admin).applyRayenClinicalEnrichmentBatch.run(payload, makeContext());
+    const saved = admin.set.mock.calls[0][1];
+    expect(saved.beds.H2C1.devices).toEqual([]);
+    expect(saved.beds.H2C1.deviceInstanceHistory).toEqual([retired]);
+    expect(saved.beds.H2C1.deviceInstanceHistory[0]).not.toHaveProperty('removalTime');
+    const parsed = parseClinicalEnrichmentPayload(payload);
+    expect(clinicalEnrichmentMatches(saved, parsed.targets, parsed.fieldContractVersion)).toBe(
+      true
+    );
+  });
+
   it('preserves nested siblings for unversioned rolling-deployment clients', async () => {
     const remote = makeClinicalRecord();
     remote.beds.H2C1 = {

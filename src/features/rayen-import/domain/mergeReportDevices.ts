@@ -2,8 +2,8 @@
  * Merges the invasive devices parsed from a patient's Ficha Médico PDF into their HHR device
  * model (`devices` / `deviceDetails` / `deviceInstanceHistory`). Self-contained on purpose: the
  * census device controller can't be imported here (census already depends on rayen-import, so
- * that would be a circular feature dependency). Additive + idempotent — it never removes a device
- * the nurse manages, and re-running only refreshes an already-Active instance in place.
+ * that would be a circular feature dependency). Matches installation identity before type labels;
+ * only a current JSON read may undo a retirement inferred from absence.
  */
 
 import type { PatientData } from '../contracts/rayenDomainContracts';
@@ -16,10 +16,23 @@ import { clinicalValuesEqual } from './clinicalIncrementalSync';
 export interface MergeDevicesContext {
   now: Date;
   createId: () => string;
+  allowAbsenceReactivation?: boolean;
 }
 
 const buildNote = (device: MappedDevice): string =>
   [device.location, device.note].filter(part => part.trim().length > 0).join(' · ');
+
+export const sameDeviceInstallation = (
+  item: Pick<DeviceInstance, 'type' | 'installationDate' | 'installationTime' | 'source'>,
+  device: MappedDevice
+): boolean =>
+  canonicalizeRayenDeviceType(item.type) === canonicalizeRayenDeviceType(device.type) &&
+  Boolean(item.installationDate && item.installationTime) &&
+  ((item.installationDate === device.installationDate &&
+    item.installationTime === device.installationTime) ||
+    (!item.source &&
+      item.installationDate === device.legacyInstallation?.date &&
+      item.installationTime === device.legacyInstallation?.time));
 
 const canonicalizePersistedDeviceType = (type: string): string =>
   /^VVP#\d+$/i.test(type.trim()) ? type.trim().toUpperCase() : canonicalizeRayenDeviceType(type);
@@ -71,20 +84,59 @@ export const mergeReportDevices = (
   const activeTypes = new Set(normalizedPatient.devices ?? []);
 
   for (const incoming of devices) {
-    let device = incoming;
-    if (patient.clinicalCarryover) {
-      const base = (type: string) =>
-        /^VVP#\d+$/i.test(type) ? 'VVP' : canonicalizeRayenDeviceType(type);
-      const sameInstance = history.filter(
+    const owned = (item: DeviceInstance) =>
+      item.clinicalEpisodeId === patient.clinicalEpisodeId &&
+      (!item.patientRut || item.patientRut === patient.rut);
+    const matches = history.filter(item => owned(item) && sameDeviceInstallation(item, incoming));
+    if (
+      matches.length > 1 ||
+      history.some(
         item =>
-          item.clinicalEpisodeId === patient.clinicalEpisodeId &&
-          base(item.type) === base(incoming.type) &&
-          Boolean(item.installationDate && item.installationTime) &&
-          item.installationDate === incoming.installationDate &&
-          item.installationTime === incoming.installationTime
-      );
-      if (sameInstance.length > 1 || sameInstance[0]?.status === 'Removed') continue;
-      if (sameInstance.length === 1) device = { ...incoming, type: sameInstance[0].type };
+          !item.clinicalEpisodeId &&
+          (!item.patientRut || item.patientRut === patient.rut) &&
+          item.status === 'Removed' &&
+          sameDeviceInstallation(item, incoming)
+      )
+    )
+      continue;
+    // Undated PDF rows remain additive/idempotent, but cannot establish retirement identity.
+    const undated =
+      matches.length === 0 && !patient.clinicalCarryover
+        ? history.filter(
+            item =>
+              item.type === incoming.type &&
+              item.status === 'Active' &&
+              item.source !== 'manual' &&
+              (!item.clinicalEpisodeId || owned(item)) &&
+              (!item.installationTime || !incoming.installationDate || !incoming.installationTime)
+          )
+        : [];
+    const matching = matches[0] ?? (undated.length === 1 ? undated[0] : undefined);
+    const reactivating =
+      matching?.status === 'Removed' &&
+      matching.source !== 'manual' &&
+      matching.removalSource === 'eloisa-absence' &&
+      ctx.allowAbsenceReactivation;
+    // Nursing/explicit/legacy retirements are never undone by an old source row.
+    if (matching?.status === 'Removed' && !reactivating) continue;
+    let device = matching
+      ? {
+          ...incoming,
+          type: matching.type,
+        }
+      : incoming;
+    if (
+      !matching &&
+      /^VVP#\d+$/i.test(device.type) &&
+      (activeTypes.has(device.type) || history.some(item => item.type === device.type))
+    ) {
+      let number = 1;
+      while (
+        activeTypes.has(`VVP#${number}`) ||
+        history.some(item => item.type === `VVP#${number}`)
+      )
+        number++;
+      device = { ...incoming, type: `VVP#${number}` };
     }
     activeTypes.add(device.type);
     const note = buildNote(device);
@@ -94,24 +146,36 @@ export const mergeReportDevices = (
       note: note || deviceDetails[device.type]?.note,
     };
 
-    const activeIdx = history.findIndex(
-      item =>
-        item.type === device.type &&
-        item.status === 'Active' &&
-        (!patient.clinicalCarryover ||
-          (Boolean(device.installationDate && device.installationTime) &&
-            item.installationDate === device.installationDate &&
-            item.installationTime === device.installationTime))
-    );
+    delete deviceDetails[device.type].removalDate;
+    const activeIdx = matching
+      ? history.indexOf(matching)
+      : history.findIndex(
+          item =>
+            item.type === device.type &&
+            item.status === 'Active' &&
+            item.source !== 'manual' &&
+            // Retain the legacy undated PDF refresh, without claiming its unknown origin.
+            !item.installationTime &&
+            !patient.clinicalCarryover &&
+            (!item.clinicalEpisodeId || owned(item))
+        );
     if (activeIdx >= 0) {
       const current = history[activeIdx];
       const refreshed = {
         ...history[activeIdx],
+        // A dated source row proves an unmarked instance came from Eloísa.
+        ...(matches[0] && !current.source ? { source: 'eloisa' as const } : {}),
+        status: 'Active' as const,
         installationDate: device.installationDate || history[activeIdx].installationDate,
         installationTime: device.installationTime || history[activeIdx].installationTime,
         location: device.location || history[activeIdx].location,
         note: note || history[activeIdx].note,
       };
+      if (reactivating) {
+        delete refreshed.removalDate;
+        delete refreshed.removalTime;
+        delete refreshed.removalSource;
+      }
       history[activeIdx] = clinicalValuesEqual(current, refreshed)
         ? current
         : { ...refreshed, updatedAt: nowMs };
@@ -123,6 +187,7 @@ export const mergeReportDevices = (
         patientRut: normalizedPatient.rut,
         patientName: normalizedPatient.patientName,
         status: 'Active',
+        source: 'eloisa',
         installationDate: device.installationDate,
         installationTime: device.installationTime,
         location: device.location,
