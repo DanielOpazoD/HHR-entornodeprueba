@@ -193,7 +193,7 @@ test.describe('Rayen delayed extension health preflight', () => {
     expect(result?.state).toMatchObject({
       connection: 'ready',
       canSync: true,
-      message: 'Extensión Eloísa ve2e-delayed operativa.',
+      message: 'Extensión Eloísa v0.48.61 operativa.',
     });
   });
 });
