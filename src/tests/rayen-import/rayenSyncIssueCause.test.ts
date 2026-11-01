@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildRayenSyncCoverage } from '@/features/rayen-import/domain/rayenSyncHistory';
 import { RayenSyncMetaSchema } from '@/schemas/zod/dailyRecord';
 import type { ClinicalFillError } from '@/features/rayen-import/contracts/clinicalFillContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 const failure = (message: string, reason: ClinicalFillError['reason'] = 'source_unavailable') =>
   ({
@@ -50,5 +51,51 @@ describe('the sync history explains why a source could not be read', () => {
     const unknown = read('causa_de_una_version_futura');
     expect(unknown?.cause).toBeUndefined();
     expect(unknown?.reason).toBe('source_unavailable');
+  });
+
+  it('names a patient discharged today by exact episode, not as an old unidentified attempt', () => {
+    const record = {
+      date: '2026-11-01',
+      beds: {},
+      discharges: [
+        {
+          id: 'alta',
+          bedId: 'R2',
+          patientName: 'Paciente Sintética',
+          rut: '11.111.111-1',
+          clinicalEpisodeId: 'E1',
+        },
+      ],
+    } as unknown as DailyRecord;
+    const error = { ...failure('Fuente no disponible'), bedId: '*' };
+    const issue = buildRayenSyncCoverage(1, [error], '2026-11-01T18:50:00.000Z', record)
+      .issues?.[0];
+    expect(issue?.diagnostic).toMatchObject({
+      patientName: 'Paciente Sintética',
+      document: '11.111.111-1',
+      bedId: 'R2',
+      clinicalEpisodeId: 'E1',
+    });
+  });
+
+  it('does not borrow the identity of a deleted movement', () => {
+    const record = {
+      date: '2026-11-01',
+      beds: {},
+      discharges: [
+        {
+          id: 'alta',
+          bedId: 'R2',
+          patientName: 'Paciente Sintética',
+          rut: '11.111.111-1',
+          clinicalEpisodeId: 'E1',
+          deletedAt: '2026-11-01T12:00:00.000Z',
+        },
+      ],
+    } as unknown as DailyRecord;
+    const error = { ...failure('Fuente no disponible'), bedId: '*' };
+    const issue = buildRayenSyncCoverage(1, [error], '2026-11-01T18:50:00.000Z', record)
+      .issues?.[0];
+    expect(issue?.diagnostic?.patientName).toBeUndefined();
   });
 });

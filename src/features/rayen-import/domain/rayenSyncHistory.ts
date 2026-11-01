@@ -121,7 +121,18 @@ export const buildRayenSyncCoverage = (
           )
         )
       : [];
-    const patient = candidates.length === 1 ? candidates[0] : undefined;
+    // A patient discharged or moved today has left the beds but is still this exact episode.
+    const movements = record
+      ? [...(record.discharges ?? []), ...(record.transfers ?? []), ...(record.cma ?? [])].filter(
+          movement =>
+            !movement.deletedAt &&
+            error.clinicalEpisodeId &&
+            movement.clinicalEpisodeId === error.clinicalEpisodeId
+        )
+      : [];
+    const moved = !candidates.length && movements.length === 1 ? movements[0] : undefined;
+    const patient = candidates.length === 1 ? candidates[0] : moved;
+    const movedBed = moved && 'bedId' in moved ? moved.bedId : undefined;
     const issue: RayenSyncCoverageIssue = {
       bedId: error.bedId,
       source: error.source,
@@ -136,7 +147,7 @@ export const buildRayenSyncCoverage = (
         ? {
             diagnostic: {
               censusDate: record.date,
-              bedId: error.bedId.slice(0, 80),
+              bedId: (error.bedId === '*' && movedBed ? movedBed : error.bedId).slice(0, 80),
               clinicalEpisodeId: (error.clinicalEpisodeId ?? '').slice(0, 100),
               ...(patient
                 ? {

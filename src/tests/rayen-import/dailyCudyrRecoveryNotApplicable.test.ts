@@ -39,10 +39,35 @@ describe('CUDYR recovery for a patient under eight hours at the cutoff', () => {
     expect(recover(otherPatient(admission))).toEqual({ kind: 'not_applicable' });
   });
 
-  it('still reports the gap for an eligible patient with no record', () => {
+  it('answers «not recorded» for an eligible patient when the report covers that morning', () => {
     expect(recover(otherPatient({ admissionDate: '2026-10-20' }))).toEqual({
+      kind: 'not_recorded',
+    });
+  });
+
+  it('stays inconclusive when the report has no category at all for that morning', () => {
+    const empty = parsedSource();
+    empty.report.patients = [];
+    const eligible = otherPatient({ admissionDate: '2026-10-20' });
+    expect(recoverDailyCudyrGap(gapFor(eligible), [dayWith(eligible)], empty)).toEqual({
       kind: 'documentary_inconclusive',
     });
+  });
+
+  it('does not mark the sync as failed for a CUDYR nobody recorded', async () => {
+    const eligible = otherPatient({ admissionDate: '2026-10-20' });
+    const reader = createDailyCudyrRecoveryReader({
+      signal: new AbortController().signal,
+      now,
+      loadDay: async () => dayWith(eligible),
+      capture: async () => parsedSource(),
+    });
+    const result = await reader({ ...currentDay(), beds: {} }, [eligible.clinicalEpisodeId], {
+      map: new Map(),
+      historyAvailable: true,
+    });
+    expect(result.errors).toEqual([]);
+    expect(result.previous).toEqual([]);
   });
 
   it('stays inconclusive when the admission date is missing, since nothing proves the short stay', () => {
