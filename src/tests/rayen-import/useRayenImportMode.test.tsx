@@ -6,10 +6,6 @@ import type { RayenImportPolicySubscription } from '@/features/rayen-import/sett
 const policyService = vi.hoisted(() => ({
   handlers: null as RayenImportPolicySubscription | null,
   subscribe: vi.fn(),
-  initialize: vi.fn(),
-  migrate: vi.fn(),
-  save: vi.fn(),
-  saveClinical: vi.fn(),
 }));
 
 vi.mock('@/features/rayen-import/settings/rayenImportPolicyService', () => ({
@@ -17,10 +13,6 @@ vi.mock('@/features/rayen-import/settings/rayenImportPolicyService', () => ({
     policyService.handlers = handlers;
     return policyService.subscribe(handlers);
   },
-  initializeRayenImportPolicy: policyService.initialize,
-  migrateRayenImportPolicy: policyService.migrate,
-  saveRayenImportPolicy: policyService.save,
-  saveRayenClinicalBatchMode: policyService.saveClinical,
 }));
 
 describe('useRayenImportMode', () => {
@@ -28,33 +20,13 @@ describe('useRayenImportMode', () => {
     vi.clearAllMocks();
     policyService.handlers = null;
     policyService.subscribe.mockReturnValue(vi.fn());
-    policyService.initialize.mockResolvedValue({
-      mode: 'preview',
-      clinicalBatchMode: 'enforced',
-      revision: 1,
-    });
-    policyService.migrate.mockResolvedValue({
-      mode: 'auto',
-      clinicalBatchMode: 'enforced',
-      revision: 5,
-    });
-    policyService.save.mockResolvedValue({
-      mode: 'preview',
-      clinicalBatchMode: 'enforced',
-      revision: 2,
-    });
-    policyService.saveClinical.mockResolvedValue({
-      mode: 'preview',
-      clinicalBatchMode: 'enforced',
-      revision: 3,
-    });
   });
 
-  it('activates auto only from a server-confirmed policy', () => {
+  it('accepts only a server-confirmed policy', () => {
     const { result } = renderHook(() => useRayenImportMode());
     act(() => {
       policyService.handlers?.onSnapshot({
-        policy: { mode: 'auto', clinicalBatchMode: 'enforced', revision: 7 },
+        policy: { mode: 'preview', clinicalBatchMode: 'enforced', revision: 7 },
         exists: true,
         fromCache: false,
         hasPendingWrites: false,
@@ -62,20 +34,20 @@ describe('useRayenImportMode', () => {
     });
     expect(result.current).toEqual(
       expect.objectContaining({
-        mode: 'auto',
+        mode: 'preview',
         clinicalBatchMode: 'enforced',
-        policy: { mode: 'auto', clinicalBatchMode: 'enforced', revision: 7 },
+        policy: { mode: 'preview', clinicalBatchMode: 'enforced', revision: 7 },
         status: 'ready',
         error: null,
       })
     );
   });
 
-  it('fails closed when an auto policy is only available from cache', () => {
+  it('fails closed when a policy is only available from cache', () => {
     const { result } = renderHook(() => useRayenImportMode());
     act(() => {
       policyService.handlers?.onSnapshot({
-        policy: { mode: 'auto', clinicalBatchMode: 'enforced', revision: 7 },
+        policy: { mode: 'preview', clinicalBatchMode: 'enforced', revision: 7 },
         exists: true,
         fromCache: true,
         hasPendingWrites: false,
@@ -87,11 +59,11 @@ describe('useRayenImportMode', () => {
     expect(result.current.status).toBe('fallback');
   });
 
-  it('does not trust an unacknowledged local auto write', () => {
+  it('does not trust an unacknowledged local policy write', () => {
     const { result } = renderHook(() => useRayenImportMode());
     act(() => {
       policyService.handlers?.onSnapshot({
-        policy: { mode: 'auto', clinicalBatchMode: 'enforced', revision: 8 },
+        policy: { mode: 'preview', clinicalBatchMode: 'enforced', revision: 8 },
         exists: true,
         fromCache: false,
         hasPendingWrites: true,
@@ -121,11 +93,11 @@ describe('useRayenImportMode', () => {
     );
   });
 
-  it('blocks a confirmed v1 policy until an administrator migrates it atomically', async () => {
-    const { result } = renderHook(() => useRayenImportMode('admin-1'));
+  it('blocks a confirmed v1 policy requiring migration', () => {
+    const { result } = renderHook(() => useRayenImportMode());
     act(() => {
       policyService.handlers?.onSnapshot({
-        policy: { mode: 'auto', clinicalBatchMode: 'enforced', revision: 4 },
+        policy: { mode: 'preview', clinicalBatchMode: 'enforced', revision: 4 },
         exists: true,
         requiresMigration: true,
         fromCache: false,
@@ -135,14 +107,11 @@ describe('useRayenImportMode', () => {
 
     expect(result.current).toEqual(
       expect.objectContaining({
-        mode: 'auto',
+        mode: 'preview',
         clinicalBatchMode: 'enforced',
         status: 'migration-required',
       })
     );
-    await expect(result.current.setMode('preview')).rejects.toThrow('no está disponible');
-    await act(() => result.current.migrateLegacyPolicy());
-    expect(policyService.migrate).toHaveBeenCalledWith({ updatedByUid: 'admin-1' });
   });
 
   it('fails closed on malformed data or subscription errors', () => {
@@ -162,36 +131,5 @@ describe('useRayenImportMode', () => {
     expect(result.current).toEqual(
       expect.objectContaining({ mode: 'preview', status: 'fallback' })
     );
-  });
-
-  it('saves through the global service using the authenticated administrator', async () => {
-    const { result } = renderHook(() => useRayenImportMode('admin-1'));
-    act(() => {
-      policyService.handlers?.onSnapshot({
-        policy: { mode: 'preview', clinicalBatchMode: 'enforced', revision: 1 },
-        exists: true,
-        fromCache: false,
-        hasPendingWrites: false,
-      });
-    });
-    await act(() => result.current.setMode('auto'));
-    expect(policyService.save).toHaveBeenCalledWith({ mode: 'auto', updatedByUid: 'admin-1' });
-    expect(result.current.isSaving).toBe(false);
-  });
-
-  it('allows an administrator to initialize the safe policy when the document is absent', async () => {
-    const { result } = renderHook(() => useRayenImportMode('admin-1'));
-    act(() => {
-      policyService.handlers?.onSnapshot({
-        policy: null,
-        exists: false,
-        fromCache: false,
-        hasPendingWrites: false,
-      });
-    });
-    await act(() => result.current.initializeSafePolicy());
-    expect(policyService.initialize).toHaveBeenCalledWith({ updatedByUid: 'admin-1' });
-    expect(policyService.save).not.toHaveBeenCalled();
-    expect(policyService.saveClinical).not.toHaveBeenCalled();
   });
 });

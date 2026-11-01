@@ -20,33 +20,46 @@ describe('rayen import policy', () => {
     expect(
       normalizeRayenImportPolicy({
         schemaVersion: 2,
-        mode: 'auto',
+        mode: 'preview',
         clinicalBatchMode: 'enforced',
         revision: 4,
         updatedAt: Timestamp.fromDate(new Date(1_000)),
         updatedByUid: 'admin-1',
       })
-    ).toEqual({ mode: 'auto', clinicalBatchMode: 'enforced', revision: 4 });
+    ).toEqual({ mode: 'preview', clinicalBatchMode: 'enforced', revision: 4 });
   });
 
   it('parses a valid v1 policy only as the safe source for an explicit migration', () => {
     expect(
       normalizeRayenImportPolicy({
         schemaVersion: 1,
-        mode: 'auto',
+        mode: 'preview',
         revision: 4,
         updatedAt: Timestamp.fromDate(new Date(1_000)),
         updatedByUid: 'admin-1',
       })
-    ).toEqual({ mode: 'auto', clinicalBatchMode: 'enforced', revision: 4 });
+    ).toEqual({ mode: 'preview', clinicalBatchMode: 'enforced', revision: 4 });
   });
 
-  it('rejects malformed or unversioned automation policies', () => {
-    expect(normalizeRayenImportPolicy({ mode: 'auto', revision: 1 })).toBeNull();
+  it.each([1, 2])('rejects the retired auto mode in global policy v%s', schemaVersion => {
+    expect(
+      normalizeRayenImportPolicy({
+        schemaVersion,
+        mode: 'auto',
+        ...(schemaVersion === 2 ? { clinicalBatchMode: 'enforced' } : {}),
+        revision: 4,
+        updatedAt: Timestamp.fromDate(new Date(1_000)),
+        updatedByUid: 'synthetic-admin',
+      })
+    ).toBeNull();
+  });
+
+  it('rejects malformed or unversioned policies', () => {
+    expect(normalizeRayenImportPolicy({ mode: 'preview', revision: 1 })).toBeNull();
     expect(
       normalizeRayenImportPolicy({
         schemaVersion: 2,
-        mode: 'auto',
+        mode: 'preview',
         clinicalBatchMode: 'enforced',
         revision: 1,
         updatedAt: {},
@@ -66,7 +79,7 @@ describe('rayen import policy', () => {
     expect(
       normalizeRayenImportPolicy({
         schemaVersion: 2,
-        mode: 'auto',
+        mode: 'preview',
         clinicalBatchMode: 'enforced',
         revision: 1,
         updatedAt: Timestamp.fromDate(new Date(1_000)),
@@ -77,7 +90,7 @@ describe('rayen import policy', () => {
     expect(
       normalizeRayenImportPolicy({
         schemaVersion: 2,
-        mode: 'auto',
+        mode: 'preview',
         clinicalBatchMode: 'enforced',
         revision: 0,
         updatedAt: {},
@@ -87,7 +100,7 @@ describe('rayen import policy', () => {
     expect(
       normalizeRayenImportPolicy({
         schemaVersion: 2,
-        mode: 'auto',
+        mode: 'preview',
         clinicalBatchMode: 'fallback',
         revision: 1,
         updatedAt: Timestamp.fromDate(new Date(1_000)),
@@ -97,7 +110,7 @@ describe('rayen import policy', () => {
     expect(
       normalizeRayenImportPolicy({
         schemaVersion: 2,
-        mode: 'auto',
+        mode: 'preview',
         clinicalBatchMode: ['enforced'],
         revision: 1,
         updatedAt: Timestamp.fromDate(new Date(1_000)),
