@@ -40,6 +40,7 @@ const patient = (): PatientData => ({
   deviceInstanceHistory: [
     {
       id: 'synthetic-device',
+      source: 'eloisa',
       type: 'CVC',
       clinicalEpisodeId: 'synthetic-1',
       patientRut: '12345678-5',
@@ -184,17 +185,22 @@ describe('clinical carryover seed', () => {
 import {
   verifyCarriedVitals,
   verifyCarriedDevices,
-  reconcileCarriedDeviceRetirements as reconcileRetirements,
 } from '@/features/rayen-import/domain/clinicalCarryoverVerification';
+import { mergeClinicalDeviceRead } from '@/features/rayen-import/domain/mergeClinicalDeviceRead';
+import type { RayenInvasiveDeviceEntry } from '@/features/rayen-import/mapping/mapDeviceToInstance';
 import { mergeReportVitals } from '@/features/rayen-import/domain/mergeReportVitals';
 import { mergeReportDevices } from '@/features/rayen-import/domain/mergeReportDevices';
 import { buildClinicalPatientPatch } from '@/features/rayen-import/domain/clinicalPatientPatch';
 
 const reconcileCarriedDeviceRetirements = (
   patient: PatientData,
-  entries: Parameters<typeof reconcileRetirements>[1],
+  entries: RayenInvasiveDeviceEntry[],
   date: string
-) => reconcileRetirements(patient, entries, date, new Date('2026-10-19T16:00:00Z'));
+) =>
+  mergeClinicalDeviceRead(patient, { source: 'json', entries, textItems: [] }, date, {
+    now: () => new Date('2026-10-19T16:00:00Z'),
+    createId: () => 'synthetic-new-device',
+  });
 
 describe('first synchronization after carryover', () => {
   it('never turns an empty or failed source response into verification', () => {
@@ -253,9 +259,9 @@ describe('first synchronization after carryover', () => {
     );
     expect(resynced.devices).toEqual([]);
   });
-  it('does not infer retirement from absence, ambiguity or a future removal', () => {
+  it('retires imported absence, but not ambiguity or a future removal', () => {
     const copied = seed(patient());
-    expect(reconcileCarriedDeviceRetirements(copied, [], '2026-10-19')).toBe(copied);
+    expect(reconcileCarriedDeviceRetirements(copied, [], '2026-10-19').devices).toEqual([]);
     const entry = {
       name: 'CVC',
       installationDatetime: '2026-10-17T09:30:00',

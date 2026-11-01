@@ -16,4 +16,16 @@ export const updateDeviceHistoryRecord = ({
   updates: Partial<DeviceInstance>;
   updatedAt?: number;
 }): DeviceInstance[] =>
-  history.map(item => (item.id === id ? { ...item, ...updates, updatedAt } : item));
+  history.map(item =>
+    item.id === id
+      ? {
+          ...item,
+          ...updates,
+          source: 'manual',
+          ...(updates.status === 'Removed' || updates.removalDate || updates.removalTime
+            ? { removalSource: 'manual' as const }
+            : {}),
+          updatedAt,
+        }
+      : item
+  );
