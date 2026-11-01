@@ -38,6 +38,40 @@ escrituras paralelas.
 - Cada fuente conserva una ventana acotada de 128 hechos recientes. Es el solapamiento que permite
   reconocer reintentos y correcciones tardías sin crecimiento ilimitado.
 
+## Retiro de dispositivos invasivos
+
+Sólo una lectura JSON válida del día calendario actual de `Pacific/Easter` representa la lista
+completa de dispositivos activos del episodio. Las instancias nuevas importadas guardan
+`source: eloisa`; las creadas por los controles de enfermería guardan `source: manual`.
+Editar la instalación desde la configuración o editar su historial también la protege como manual.
+Una instancia activa de ese mismo episodio, con instalación fechada y hora conocida, marcada
+`eloisa` y ausente de la lista pasa a `Removed`, con la fecha hospitalaria de lectura y sin hora
+de retiro. `removalSource: eloisa-absence` permite reactivarla sin duplicación cuando reaparece
+su misma instalación. Un retiro explícito válido usa su fecha/hora convertida a Rapa Nui y
+`removalSource: eloisa`; un retiro de enfermería guarda `manual`. Ninguno de estos últimos
+retiros se revierte al sincronizar.
+
+La identidad del dispositivo es tipo base más fecha/hora de instalación, dentro del paciente y
+episodio; el número de VVP es sólo su etiqueta local. Al desaparecer otra VVP, la que sigue
+activa conserva instancia y etiqueta. Los instantes con offset se convierten con el reloj
+hospitalario; para instancias antiguas sin marca se reconoce también la hora que guardaba
+el parser anterior, sin cambiar su procedencia ni duplicarlas.
+
+**Límite de compatibilidad:** fecha/hora, ubicación y nota no prueban origen: las rutas manuales
+también los guardan o permiten editarlos. Por eso una instancia antigua sin `source` nunca se
+retira automáticamente por ausencia ni se convierte en importada al coincidir con una fila.
+Los dispositivos sin instancia se conservan. Este cambio no resuelve retrospectivamente los
+registros de origen desconocido; no ejecuta migraciones ni scripts sobre pacientes reales.
+
+PDF, fuente fallida, error de sesión, JSON malformado, filas sin instalación resoluble o día
+histórico nunca autorizan retiro por ausencia. Una lista JSON vacía válida sí lo autoriza.
+El retiro y la reactivación actualizan el resumen `devices`/`deviceDetails`, conservan el
+historial y son silenciosos e idempotentes. Los sembradores existentes del cliente y servidor
+conservan los marcadores y no arrastran instancias retiradas como activas. El contrato v2
+existente del lote acepta las propiedades opcionales y reemplaza el historial completo;
+no requiere cambiar Functions ni reglas. El endurecimiento de filas inválidas de la extensión
+requiere distribuir el paquete actualizado por el flujo habitual.
+
 ## Escrituras y consistencia
 
 ### Fecha y hora de signos vitales

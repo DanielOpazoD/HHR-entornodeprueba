@@ -9,6 +9,10 @@ export interface DeviceInstance {
   installationTime?: string;
   removalDate?: string;
   removalTime?: string;
+  /** Absent on legacy instances: never infer origin from dates or editable notes. */
+  source?: 'eloisa' | 'manual';
+  /** Only absence-based retirement may be undone by a later complete JSON read. */
+  removalSource?: 'eloisa-absence' | 'eloisa' | 'manual';
   location?: string;
   status: 'Active' | 'Removed';
   note?: string;
