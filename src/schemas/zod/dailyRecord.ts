@@ -19,6 +19,7 @@ import {
   MAX_RAYEN_STAFFING_BOUNDARY_EVIDENCE,
   MAX_RAYEN_STRUCTURAL_REVIEW_ISSUES,
   RAYEN_SYNC_FAILURE_REASONS,
+  CLINICAL_READ_ERROR_CODES,
   RAYEN_SYNC_ISSUE_REASONS,
   RAYEN_SYNC_ISSUE_SOURCES,
 } from '@/types/domain/rayenSync';
@@ -110,6 +111,7 @@ const RayenSyncCoverageSchema = z.object({
         diagnostic: RayenSyncDiagnosticContextSchema,
         source: z.enum(RAYEN_SYNC_ISSUE_SOURCES),
         reason: z.enum(RAYEN_SYNC_ISSUE_REASONS),
+        cause: z.enum(CLINICAL_READ_ERROR_CODES).optional().catch(undefined),
         cudyrRecovery: z
           .object({
             kind: z.enum(CUDYR_RECOVERY_KINDS),

@@ -155,4 +155,28 @@ describe('daily documentary CUDYR recovery outcomes', () => {
     expect(result.current.size).toBe(0);
     expect(result.previous).toEqual([]);
   });
+
+  it('records why the monthly report could not be read', async () => {
+    const previous = historicalDay();
+    const current = currentDay();
+    current.beds = { R1: patient() };
+    const closed = () => new Date('2026-10-28T20:00:00-05:00');
+    const reader = createDailyCudyrRecoveryReader({
+      signal: new AbortController().signal,
+      now: closed,
+      loadDay: async date => (date === previous.date ? previous : null),
+      capture: async () => {
+        throw new Error('El archivo excedió el tiempo de lectura.');
+      },
+    });
+    const result = await reader(current, [patient().clinicalEpisodeId], {
+      map: new Map(),
+      historyAvailable: true,
+    });
+    const coverage = buildRayenSyncCoverage(1, result.errors, closed().toISOString(), current);
+    expect(coverage.issues?.[0]).toMatchObject({
+      cause: 'source_timeout',
+      cudyrRecovery: { kind: 'read_failed' },
+    });
+  });
 });

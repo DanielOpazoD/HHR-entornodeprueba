@@ -16,6 +16,7 @@ import type {
   RayenSyncStructuralReviewEvidence,
 } from '@/types/domain/rayenSync';
 import type { ClinicalFillError } from '../contracts/clinicalFillContracts';
+import { classifyClinicalReadCause } from '../contracts/clinicalReadError';
 import {
   MAX_RAYEN_STAFFING_BOUNDARY_EVIDENCE,
   MAX_RAYEN_SYNC_HISTORY,
@@ -125,6 +126,9 @@ export const buildRayenSyncCoverage = (
       bedId: error.bedId,
       source: error.source,
       reason: error.reason,
+      ...(error.reason === 'source_unavailable' || error.reason === 'source_timeout'
+        ? { cause: classifyClinicalReadCause(error.message) }
+        : {}),
       ...(error.source === 'cudyr' && error.cudyrRecovery
         ? { cudyrRecovery: error.cudyrRecovery }
         : {}),

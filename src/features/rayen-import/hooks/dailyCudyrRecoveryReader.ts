@@ -69,7 +69,8 @@ export const createDailyCudyrRecoveryReader = ({
     const warn = (
       episode: string | undefined,
       cudyrRecovery: CudyrRecoveryDetail,
-      reason: RayenSyncIssueReason = 'source_unavailable'
+      reason: RayenSyncIssueReason = 'source_unavailable',
+      error: unknown = cudyrRecovery.kind
     ) =>
       result.errors.push(
         buildClinicalFillError({
@@ -78,7 +79,7 @@ export const createDailyCudyrRecoveryReader = ({
           source: 'cudyr',
           reason,
           cudyrRecovery,
-          error: cudyrRecovery.kind,
+          error,
         })
       );
     if (resolveCudyrPendingStatus(previousDate, now()).phase === 'overdue') {
@@ -167,7 +168,8 @@ export const createDailyCudyrRecoveryReader = ({
               kind: archiveFailed ? 'archive_unconfirmed' : 'read_failed',
               targetDate: gap.date,
             },
-            archiveFailed ? 'historical_archive_failed' : 'source_unavailable'
+            archiveFailed ? 'historical_archive_failed' : 'source_unavailable',
+            error
           );
       }
     }

@@ -1,15 +1,8 @@
+import { CLINICAL_READ_ERROR_CODES, type ClinicalReadErrorCode } from '@/types/domain/rayenSync';
+
 /** Additive wire contract: messages are presentation; codes select recovery. */
-export const CLINICAL_READ_ERROR_CODES = [
-  'episode_not_authorized',
-  'session_required',
-  'permission_denied',
-  'source_timeout',
-  'source_unavailable',
-  'invalid_request',
-  'invalid_response',
-  'unexpected',
-] as const;
-export type ClinicalReadErrorCode = (typeof CLINICAL_READ_ERROR_CODES)[number];
+export { CLINICAL_READ_ERROR_CODES };
+export type { ClinicalReadErrorCode };
 export interface ClinicalReadFailure {
   error?: string;
   errorCode?: ClinicalReadErrorCode;
@@ -43,3 +36,9 @@ export const decodeClinicalReadFailure = (
             : 'source_unavailable';
   return { error: message, errorCode: code };
 };
+
+/** Bounded cause kept in the sync history, so a repeated failure explains itself. */
+export const classifyClinicalReadCause = (message: string): ClinicalReadErrorCode =>
+  /excedió el tiempo|no respondió/i.test(message)
+    ? 'source_timeout'
+    : (decodeClinicalReadFailure({ error: message }).errorCode ?? 'unexpected');
