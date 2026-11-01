@@ -1,5 +1,4 @@
 import { useCallback } from 'react';
-import { requiresReview } from '../domain/reconcileCensus';
 import type { RayenCensusSnapshot, RayenSyncBundle } from '../contracts/rayenSnapshot';
 import { getRayenImportErrorMessage } from './rayenImportState';
 import { defaultMonotonicNow, elapsedMilliseconds } from '../domain/rayenSyncPerformance';
@@ -145,13 +144,6 @@ export const useRayenSnapshotPreview = ({
         },
         run.id
       );
-      const previousDayEdits = diff.previousDayEdits ?? [];
-      const needsReview = requiresReview(diff) || previousDayEdits.length > 0;
-      // A brand-new day created from Eloísa decides the entire occupancy in one write, and its
-      // diff is clean by construction (every patient is an admission), so `needsReview` alone
-      // would let the global `auto` policy apply it unattended. An attempt-scoped requirement
-      // tightens the policy without falsifying the policy actually recorded in history.
-      const canAutoApply = run.policy?.mode === 'auto' && !needsReview && !run.reviewRequirement;
       const structuralConflictCount = Math.max(diff.conflicts.length, diff.summary.conflicts);
       execution.recordOutcome({ structuralConflicts: structuralConflictCount });
       const persistConvergedStructure = () =>
@@ -244,36 +236,6 @@ export const useRayenSnapshotPreview = ({
           continueAfterCommit,
           finishFailedPersistence,
         });
-      if (canAutoApply) {
-        await runPreparedStructuralPersistence(
-          () => {
-            execution.transition({ type: 'persisting_structure' });
-            setState({
-              diff,
-              isPreviewOpen: false,
-              result: null,
-              hasSkippedItems: false,
-              error: null,
-            });
-          },
-          outcome => {
-            const requiresFreshCapture = outcome.kind === 'requires_fresh_capture';
-            return continueClinicalAfterCommit(outcome.commit, () =>
-              setState(prev => ({
-                ...prev,
-                diff: outcome.commit.diff,
-                isPreviewOpen: false,
-                result: outcome.result,
-                hasSkippedItems: requiresFreshCapture || outcome.commit.hasSkippedItems,
-                ...(requiresFreshCapture
-                  ? { error: getRayenImportErrorMessage(outcome.error) }
-                  : {}),
-              }))
-            );
-          }
-        );
-        return;
-      }
       let hasUnresolvedConflicts = structuralConflictCount > 0;
       let hasNoApplicableChanges = hasNoApplicableRayenStructuralChanges(diff);
       let noChangePersistenceCompleted = false;
@@ -299,11 +261,7 @@ export const useRayenSnapshotPreview = ({
                     noChangeResult.historicalCorrectionsPending ||
                     noChangeRequiresFreshCapture
                   : false,
-                error:
-                  noChangeCorrectionError ??
-                  (!noChangePersistenceCompleted && run.policy?.mode === 'auto' && needsReview
-                    ? 'El modo automático requiere revisión: hay conflictos, altas administrativas pendientes o correcciones de días previos.'
-                    : null),
+                error: noChangeCorrectionError,
               }
             : previous
         );

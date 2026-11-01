@@ -8,6 +8,7 @@ import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 import { queueDailyRecordSyncTaskWithLocalRecord } from '@/services/storage/sync';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenSyncEvent } from '@/types/domain/rayenSync';
+import { MAX_RAYEN_SYNC_HISTORY } from '@/types/domain/rayenSync';
 
 vi.mock('@/services/repositories/repositoryConfig', async original => ({
   ...(await original<typeof import('@/services/repositories/repositoryConfig')>()),
@@ -104,8 +105,8 @@ describe('Rayen history rebase against the writer base', () => {
     });
   }
 
-  it('merges different ids from a nonempty base, keeps stable ordering and caps at 20', async () => {
-    const history = Array.from({ length: 20 }, (_, index) => ({
+  it('merges different ids from a nonempty base, keeps stable ordering and caps at the limit', async () => {
+    const history = Array.from({ length: MAX_RAYEN_SYNC_HISTORY }, (_, index) => ({
       ...event(`old-${index}`, 'complete'),
       startedAt: `${date}T10:${String(index).padStart(2, '0')}:00.000Z`,
     }));
@@ -116,11 +117,11 @@ describe('Rayen history rebase against the writer base', () => {
       write(base, [event('R2', 'complete'), ...history]),
     ]);
     const stored = await readHistory();
-    expect(stored).toHaveLength(20);
+    expect(stored).toHaveLength(MAX_RAYEN_SYNC_HISTORY);
     expect(stored?.slice(0, 3)).toEqual([
       event('R1', 'failed'),
       event('R2', 'complete'),
-      history[19],
+      history[MAX_RAYEN_SYNC_HISTORY - 1],
     ]);
     expect(stored?.some(item => item.id === 'old-0')).toBe(false);
   });

@@ -28,6 +28,23 @@ describe('applyRayenClinicalEnrichmentBatch rollout authority', () => {
     expect(admin.set).not.toHaveBeenCalled();
   });
 
+  it.each([1, 2] as const)(
+    'rejects retired auto policy schema v%s before writing',
+    async policySchemaVersion => {
+      const admin = createClinicalAdminMock(undefined, { importMode: 'auto', policySchemaVersion });
+      const { authorityDate, ...legacyPayload } = makePayload();
+      void authorityDate;
+
+      await expect(
+        createApi(admin).applyRayenClinicalEnrichmentBatch.run(
+          policySchemaVersion === 1 ? legacyPayload : makePayload(),
+          makeContext()
+        )
+      ).rejects.toMatchObject({ code: 'failed-precondition' });
+      expect(admin.set).not.toHaveBeenCalled();
+    }
+  );
+
   it('rejects a batch when its run did not freeze an authoritative policy', async () => {
     const admin = createClinicalAdminMock(undefined, { runPolicy: 'missing' });
 

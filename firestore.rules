@@ -560,7 +560,7 @@ service cloud.firestore {
                'schemaVersion', 'mode', 'clinicalBatchMode', 'revision', 'updatedAt', 'updatedByUid'
              ]) &&
              policy.schemaVersion == 2 &&
-             policy.mode in ['preview', 'auto'] &&
+             policy.mode == 'preview' &&
              policy.clinicalBatchMode == 'enforced' &&
              policy.revision is int &&
              policy.revision >= 1 &&

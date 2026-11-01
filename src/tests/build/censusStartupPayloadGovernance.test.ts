@@ -123,28 +123,6 @@ describe('census startup payload', () => {
     expect(drawer).not.toMatch(/import\s+\{\s*ClinicalPanelAntecedents\s*\}\s+from/);
   });
 
-  it('keeps configuration independent of the import workflow and preserves offline budgets', () => {
-    const file = 'src/features/admin/components/ConfigurationView.tsx';
-    const entry = '@/features/rayen-import/configuration';
-    expect(read(file)).toContain(entry);
-    expect(read(file)).not.toMatch(/from '@\/features\/rayen-import'/);
-    expect(read('src/features/rayen-import/configuration.ts')).toContain(
-      "from './components/RayenImportModeSetting'"
-    );
-    expect(read('src/features/rayen-import/configuration.ts')).not.toMatch(
-      /from '\.\/index'|from '\.'/
-    );
-    const publicApi = JSON.parse(read('scripts/feature-public-api-allowlist.json'));
-    const dependencies = JSON.parse(read('scripts/feature-dependency-allowlist.json'));
-    expect(publicApi.exceptionsByFeature['rayen-import']).toContain(`${file} -> ${entry}`);
-    expect(dependencies.violations).toContain(
-      `feature-must-use-public-api|${file}|${entry}|rayen-import`
-    );
-    const budget = JSON.parse(read('scripts/config/bundle-budget.json'));
-    expect(budget.precacheIgnoredAssetPatterns.join('\n')).not.toContain('RayenImportModeSetting');
-    expect(read('vite.config.ts')).not.toContain('**/assets/RayenImportModeSetting-*.js');
-  });
-
   it('does not pretend the CIE-10 search or the Rayen import work offline', () => {
     const budget = JSON.parse(read('scripts/config/bundle-budget.json'));
     // The catalogue itself is already outside precache; caching only its wrapper

@@ -90,18 +90,32 @@ export const expireRayenExtensionHealthState = (
   };
 };
 
+/** Razones que dicen «no pude comprobar», no «esta sesión terminó». */
+const UNCONFIRMED_SOURCE_REASONS: ReadonlySet<string> = new Set([
+  'relay_disconnected',
+  'session_unverified',
+]);
+
+const isUnconfirmedSourceFailure = (next: RayenExtensionHealthState): boolean => {
+  if (!next.report) return next.connection === 'offline';
+  if (next.connection !== 'blocked' || !next.blockedBy) return false;
+  const source = next.report[next.blockedBy];
+  return source.status === 'stale' && UNCONFIRMED_SOURCE_REASONS.has(source.reason ?? '');
+};
+
 /**
- * Un sondeo perdido no es una desconexión. Mientras el último diagnóstico bueno siga
- * dentro de su arriendo, se conserva y se reintenta en segundo plano: el corte real lo
- * sigue declarando `expireRayenExtensionHealthState` al vencer ese mismo arriendo, de
- * modo que esto no prolonga ninguna credencial ni inventa una conexión sana.
+ * Un sondeo perdido no es una desconexión. Con la pestaña fuente en segundo plano o Rayen lento,
+ * una comprobación puede agotar su tiempo con la sesión intacta (visto el 01-11: tres cortes falsos
+ * en 18 min, de 2 a 55 s). Mientras el último diagnóstico bueno siga dentro de su arriendo, se
+ * conserva: el corte real lo declara `expireRayenExtensionHealthState` al vencer ese arriendo, y
+ * una pestaña cerrada o una sesión vencida se muestran de inmediato. Sincronizar comprueba aparte.
  */
 export const absorbTransientHealthFailure = (
   previous: RayenExtensionHealthState,
   next: RayenExtensionHealthState,
   now = Date.now()
 ): RayenExtensionHealthState => {
-  if (next.report || next.connection !== 'offline') return next;
+  if (!isUnconfirmedSourceFailure(next)) return next;
   const previousReport = previous.report;
   if (!previousReport || previous.connection !== 'ready') return next;
   const checkedAt = Date.parse(previousReport.checkedAt);
@@ -345,7 +359,11 @@ export const useRayenExtensionHealth = () => {
     // un push fresco manda sobre cualquier chequeo en vuelo más antiguo.
     const unsubscribePush = subscribeToRayenExtensionHealthPush(report => {
       requestSequence.current += 1;
-      publishHealth(deriveHealthState(report));
+      const next = deriveHealthState(report);
+      // Una sincronización en comprobación quiere la verdad, no el último verde.
+      publishHealth(
+        activePreflight.current ? next : absorbTransientHealthFailure(latestHealth.current, next)
+      );
     });
     return () => {
       active = false;

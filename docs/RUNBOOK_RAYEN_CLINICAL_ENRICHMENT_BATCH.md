@@ -24,15 +24,14 @@ como `unavailable` y conserva la posibilidad de reintento, sin iniciar el enriqu
 
 Los eventos históricos mantienen esos modos en sus esquemas de lectura y presentación.
 Functions y reglas conservan sus contratos para navegadores anteriores; retirarlos requiere
-otro cambio. `DailyRecordAuthorityMode` y el modo de importación `preview|auto` son
-conceptos independientes y conservan sus opciones.
+otro cambio. `DailyRecordAuthorityMode` conserva sus opciones. La importación sólo admite
+`preview` con revisión humana; `auto` se conserva en la lectura del historial antiguo.
 
 La política global de Firestore debe estar confirmada por servidor, con revisión monotónica.
 Cada ejecución congela sus valores en `rayenSyncHistory`. Una política ausente, inválida,
 pendiente o sólo en caché bloquea nuevas sincronizaciones. El cliente acepta exclusivamente
-`enforced` en la política v2. La inicialización y la migración administrativa explícita de v1
-producen v2/enforced, conservando el modo estructural y avanzando la revisión. El selector
-«Persistencia clínica» ya no existe en Configuración.
+`preview/enforced` en la política v2. Configuración ya no ofrece selectores de importación ni
+persistencia clínica y el cliente sólo lee el documento global; cada corrida conserva su evidencia.
 
 El callable vuelve a verificar, dentro de la misma transacción, el documento global y el evento del
 `runId`: modo estructural, modo clínico y revisión deben seguir coincidiendo. Una modificación de la
