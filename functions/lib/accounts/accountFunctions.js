@@ -11,9 +11,9 @@ const createAccountFunctions = dependencies => {
     ...dependencies,
     finalizePassword: credentials.finalizePassword,
   });
-  const callable = (handler, secrets = [], regions) =>
+  const callable = (handler, secrets = [], regions, memory = '256MB') =>
     (regions ? functions.region(...regions) : functions)
-      .runWith({ timeoutSeconds: 60, maxInstances: 10, secrets })
+      .runWith({ timeoutSeconds: 60, maxInstances: 10, secrets, memory })
       .https.onCall(async (data, context) => {
         try {
           return await handler(data, context);
@@ -29,7 +29,9 @@ const createAccountFunctions = dependencies => {
   const signInWithRut = callable(
     credentials.signInWithRut,
     [],
-    ['us-central1', 'southamerica-east1']
+    ['us-central1', 'southamerica-east1'],
+    // Password verification is CPU work, and Gen1 CPU scales with memory.
+    '1GB'
   );
   return {
     createNursingAccount: callable(admin.createAccount),

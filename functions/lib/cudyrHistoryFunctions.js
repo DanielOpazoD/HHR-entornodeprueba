@@ -61,6 +61,7 @@ const createCudyrHistoryFunctions = ({
   };
   const archiveCudyrHistory = functions
     .region('southamerica-east1')
+    .runWith({ memory: '1GB' })
     .https.onCall(async (data, context) => {
       const { email, role } = await assertAuthorizedDailyRecordWriter({
         context,
@@ -288,6 +289,7 @@ const createCudyrHistoryFunctions = ({
 
   const readCudyrHistory = functions
     .region('southamerica-east1')
+    .runWith({ memory: '1GB' })
     .https.onCall(async (data, context) => {
       if (!context.auth)
         throw new functions.https.HttpsError('unauthenticated', 'Sign in to read CUDYR history.');
