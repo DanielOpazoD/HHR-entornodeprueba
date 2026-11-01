@@ -29,7 +29,7 @@ const readConfirmedAuthorityMutation = async (
   payload: DailyRecordAuthorityCallablePayload | DailyRecordAuthorityPatchCallablePayload
 ): Promise<DailyRecordAuthorityCallableResponse | null> => {
   const mutationId = payload.syncContract?.mutationId;
-  if (!mutationId || payload.dryRun || payload.mode !== 'enforced') return null;
+  if (!mutationId || payload.dryRun) return null;
   try {
     const snapshot = await getDocFromServer(getRecordDocRef(payload.date));
     if (!snapshot?.exists() || snapshot.metadata.fromCache || snapshot.metadata.hasPendingWrites)
@@ -66,7 +66,6 @@ const recoverLostAuthorityResponse = async (
   payload: DailyRecordAuthorityCallablePayload | DailyRecordAuthorityPatchCallablePayload
 ): Promise<DailyRecordAuthorityCallableResponse> => {
   if (
-    payload.mode === 'enforced' &&
     !payload.dryRun &&
     payload.syncContract?.mutationId &&
     ['deadline-exceeded', 'unavailable', 'internal', 'unknown'].includes(

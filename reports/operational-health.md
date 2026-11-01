@@ -7,6 +7,15 @@
 
 ## Sync Queue
 
+El cliente usa `enforced` para guardar por autoridad, también si falla una primera
+lectura de política y una posterior acredita el modo o el cerco. Si se pierde la
+respuesta, conserva la recuperación por comprobante exacto de mutación. Se retiran
+las validaciones `shadow` del cliente; el servidor mantiene compatibilidad con
+pestañas anteriores. Las escrituras directas permitidas, las lecturas de política,
+el cerco y la conservación de pendientes siguen vigentes (SAVE-01, SAVE-02).
+La evidencia local usa datos sintéticos; no acredita un despliegue ni una
+medición posterior en producción.
+
 Una copia completa cuya base cambió o no es verificable conserva un motivo de
 revisión estable. El panel y la cola impiden reenviarla sin cambios; permiten
 revisar y descargar su respaldo o confirmar su retirada. Ni el bloqueo ni la
