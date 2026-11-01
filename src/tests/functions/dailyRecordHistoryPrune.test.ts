@@ -115,7 +115,7 @@ describe('daily record history retention policy', () => {
 });
 
 describe('bounded history-only pruning', () => {
-  it('prunes orphan parents in 400-operation batches, leaving recent days and other collections alone', async () => {
+  it('prunes orphan parents in small batches, because copies can be large, leaving recent days and other collections alone', async () => {
     const days = new Map([
       ['2026-01-01', copies(803)],
       ['2026-10-02', copies(3)],
@@ -132,7 +132,7 @@ describe('bounded history-only pruning', () => {
       snapshotsToDelete: 801,
       stoppedForTime: false,
     });
-    expect(db.batches).toEqual([400, 400, 1]);
+    expect(db.batches).toEqual([...Array(40).fill(20), 1]);
     expect([...(days.get('2026-01-01')?.keys() || [])]).toEqual(['copy-801', 'copy-802']);
     expect(db.readDays).toEqual(['2026-01-01']);
     expect(
@@ -161,13 +161,13 @@ describe('bounded history-only pruning', () => {
     });
     expect(first).toEqual({
       daysReviewed: 1,
-      snapshotsDeleted: 400,
-      snapshotsKept: 403,
+      snapshotsDeleted: 20,
+      snapshotsKept: 783,
       snapshotsToDelete: 801,
       stoppedForTime: true,
     });
     const second = await runDailyRecordHistoryPrune({ firestore: db.firestore, now, apply: true });
-    expect(second.snapshotsDeleted).toBe(402);
+    expect(second.snapshotsDeleted).toBe(782);
     expect([...days.values()].map(day => day.size)).toEqual([2, 2]);
     expect(
       (await runDailyRecordHistoryPrune({ firestore: db.firestore, now, apply: true }))
