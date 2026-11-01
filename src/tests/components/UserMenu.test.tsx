@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { UserMenu } from '@/components/layout/UserMenu';
 
 describe('UserMenu', () => {
@@ -27,6 +27,19 @@ describe('UserMenu', () => {
     expect(button.textContent).toBe('d');
   });
 
+  it('keeps the active account name on screen without opening the menu', () => {
+    render(
+      <UserMenu
+        {...defaultProps}
+        userEmail="opaque@accounts.hhr.invalid"
+        displayName="Enfermera Sintética"
+        isIndividualAccount
+      />
+    );
+
+    expect(screen.getByTestId('active-account-name')).toHaveTextContent('Enfermera Sintética');
+  });
+
   it('shows the complete menu on the first click without an intermediate logout-only panel', async () => {
     render(<UserMenu {...defaultProps} />);
 
@@ -35,7 +48,9 @@ describe('UserMenu', () => {
     expect(screen.queryByRole('button', { name: 'Cerrar sesión' })).not.toBeInTheDocument();
     await screen.findByTestId('user-profile-menu-panel');
     expect(screen.getByTestId('user-profile-menu-panel')).toBeVisible();
-    expect(screen.getByText('doctor@hospital.cl')).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('user-profile-menu-panel')).getByText('doctor@hospital.cl')
+    ).toBeInTheDocument();
     expect(screen.getByText('Invitado')).toBeInTheDocument();
     expect(screen.getByText('Online')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cambiar foto de perfil' })).toBeVisible();
@@ -69,7 +84,7 @@ describe('UserMenu', () => {
     fireEvent.click(screen.getByText('Cerrar sesión'));
 
     // Dropdown should be closed
-    expect(screen.queryByText('doctor@hospital.cl')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('user-profile-menu-panel')).not.toBeInTheDocument();
   });
 
   it('has correct title attribute with email', async () => {
@@ -118,7 +133,9 @@ describe('UserMenu', () => {
       screen.getByTestId('user-profile-menu-preview').querySelector('.absolute.right-1.top-1')
     ).toBeNull();
     expect(screen.getAllByAltText('Foto de perfil de doctor@hospital.cl')).toHaveLength(2);
-    expect(screen.getByText('doctor@hospital.cl')).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('user-profile-menu-panel')).getByText('doctor@hospital.cl')
+    ).toBeInTheDocument();
     expect(screen.getByText('Invitado')).toBeInTheDocument();
     expect(screen.getByText('Online')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cambiar foto de perfil' })).toBeInTheDocument();
@@ -133,7 +150,7 @@ describe('UserMenu', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cambiar foto de perfil' }));
 
     expect(defaultProps.onOpenAvatarSettings).toHaveBeenCalled();
-    expect(screen.queryByText('doctor@hospital.cl')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('user-profile-menu-panel')).not.toBeInTheDocument();
   });
 
   it('shows offline state in dropdown when not connected', async () => {
@@ -164,10 +181,12 @@ describe('UserMenu', () => {
 
     fireEvent.click(screen.getByRole('button'));
     await screen.findByTestId('user-profile-menu-panel');
-    expect(screen.getByText('doctor@hospital.cl')).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('user-profile-menu-panel')).getByText('doctor@hospital.cl')
+    ).toBeInTheDocument();
 
     fireEvent.mouseDown(document.body);
-    expect(screen.queryByText('doctor@hospital.cl')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('user-profile-menu-panel')).not.toBeInTheDocument();
   });
   it('shows the individual name and password action without disclosing the internal login alias', async () => {
     render(
@@ -180,7 +199,9 @@ describe('UserMenu', () => {
     );
     fireEvent.click(screen.getByRole('button'));
     await screen.findByTestId('user-profile-menu-panel');
-    expect(screen.getByText('Enfermera Sintética')).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('user-profile-menu-panel')).getByText('Enfermera Sintética')
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cambiar mi clave' })).toBeInTheDocument();
     expect(screen.queryByText('opaque@accounts.hhr.invalid')).not.toBeInTheDocument();
   });
