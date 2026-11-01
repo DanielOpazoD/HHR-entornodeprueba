@@ -343,6 +343,12 @@ paneles u otras rutas sin episodio abre directamente **Hospitalizados** y deja d
 del paciente actual. Los accesos contextuales de Indicaciones y Receta médica se mantienen solamente en
 la tabla de fármacos de Gestión de cuidados.
 
+### El código de traspaso usa la hora de Rapa Nui (0.48.63)
+
+Eloísa puede entregar el ingreso con hora continental. El código de traspaso copiaba esa hora sin
+convertirla, y un ingreso de madrugada quedaba con otro día y otra hora. Ahora una hora con desfase se
+convierte a Rapa Nui; una sin desfase ya es local y no cambia.
+
 ### El catálogo de diagnósticos dura 12 horas (0.48.62)
 
 El catálogo CIE-10 casi no cambia, pero se volvía a leer tras una hora. Como las sincronizaciones suelen
