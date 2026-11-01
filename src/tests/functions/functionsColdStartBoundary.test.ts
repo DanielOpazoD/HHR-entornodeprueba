@@ -25,3 +25,25 @@ describe('Firebase Functions cold-start boundary', () => {
     });
   });
 });
+
+it('discovers the gen1 history schedule with the real Firebase SDK', () => {
+  const probe = `
+    const f = require('./functions/index.js').pruneDailyRecordHistory;
+    process.stdout.write(JSON.stringify({ endpoint: f.__endpoint, trigger: f.__trigger }));
+  `;
+  const output = execFileSync(process.execPath, ['-e', probe], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env: { ...process.env, GCLOUD_PROJECT: 'demo-history-prune' },
+  });
+  const { endpoint, trigger } = JSON.parse(output);
+  expect(endpoint.platform).toBe('gcfv1');
+  expect(endpoint.region).toEqual(['southamerica-east1']);
+  expect(endpoint.availableMemoryMb).toBe(512);
+  expect(endpoint.timeoutSeconds).toBe(540);
+  expect(endpoint.scheduleTrigger).toMatchObject({
+    schedule: '30 4 * * *',
+    timeZone: 'Pacific/Easter',
+  });
+  expect(trigger.schedule).toMatchObject({ schedule: '30 4 * * *', timeZone: 'Pacific/Easter' });
+});

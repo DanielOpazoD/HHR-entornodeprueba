@@ -3,6 +3,9 @@
  * (version restore uses conflictSnapshots/). A device keeps at most one per document per hour, so
  * a busy shift stops uploading the whole day with every save. Explicit 'snapshot' requests, such
  * as the single copy before each clinical import run, bypass this cadence.
+ * Retention decided 2026-11-01: after 30 hospital-calendar days, the server keeps only the
+ * two newest dated history copies (including historical days), plus copies without a valid date.
+ * The current daily document and conflictSnapshots are not pruned.
  * See docs/ADR_DAILY_RECORD_DOCUMENT_GRANULARITY.md (phase 0).
  */
 export const HISTORY_SNAPSHOT_INTERVAL_MS = 60 * 60 * 1000;
