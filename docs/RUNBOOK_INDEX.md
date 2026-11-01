@@ -39,6 +39,11 @@ Abrir en este orden:
 4. [RUNBOOK_SYNC_RESILIENCE.md](./RUNBOOK_SYNC_RESILIENCE.md)
 5. [RUNBOOK_OPERATIONAL_BUDGETS.md](./RUNBOOK_OPERATIONAL_BUDGETS.md)
 
+### Restaurar un día o recuperar la base completa
+
+Abrir [RUNBOOK_DAILY_RECORD_RESTORE.md](./RUNBOOK_DAILY_RECORD_RESTORE.md): pantalla administrativa,
+copia previa para deshacer, límites atómicos y recuperación gestionada a una base nueva.
+
 ### Reglas, Firestore/Storage o runtime sensible
 
 Usa cuando:

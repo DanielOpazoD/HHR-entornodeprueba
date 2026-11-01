@@ -48,6 +48,12 @@ telemetría agregada sin identificadores de pacientes ni valores clínicos.
 para eliminar el resultado. Exige administrador, coincidencia exacta del episodio clínico y
 control optimista de versión; conserva las demás escalas y guarda historia y auditoría.
 
+`previewDailyRecordRestore` y `restoreDailyRecord` exigen administrador y viven en
+`southamerica-east1`. La vista previa no escribe. La restauración exige la fecha como
+confirmación y control optimista de versión, guarda antes una copia del día vigente y
+reemplaza el día y su auditoría en una sola transacción. Procedimiento:
+[RUNBOOK_DAILY_RECORD_RESTORE.md](./RUNBOOK_DAILY_RECORD_RESTORE.md).
+
 `openMedicalHandoffSpreadsheet` recibe como máximo 80 filas, no acepta RUT ni columnas
 arbitrarias, valida claves estables y envía la carga únicamente a una URL institucional
 de Apps Script configurada en el backend. El secreto compartido nunca se expone al navegador.

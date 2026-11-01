@@ -235,6 +235,8 @@ jobs:
             "$RUNNER_TEMP/firebase/functions-list.json" \
             applyRayenClinicalEnrichmentBatch \
             setAdminCudyrResult \
+            previewDailyRecordRestore \
+            restoreDailyRecord \
             configureSpecialtyPolicy \
             publishSpecialtyMemory \
             requestSpecialtyJevSuggestion \
