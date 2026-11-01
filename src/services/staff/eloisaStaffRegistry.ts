@@ -1,3 +1,5 @@
+import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
+import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { liveQuery } from 'dexie';
 import { ensureDbReady, hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import {
@@ -20,10 +22,18 @@ export const readEloisaStaff = async (): Promise<EloisaStaffIdentity[]> => {
 export const saveDiscoveredStaff = async (
   incoming: EloisaStaffIdentity[]
 ): Promise<EloisaStaffIdentity[]> => {
+  const owner = getStoredSessionOwnerKey(),
+    generation = getSessionGeneration();
+  const check = () => {
+    if (owner !== getStoredSessionOwnerKey() || generation !== getSessionGeneration())
+      throw new Error('La sesión cambió.');
+  };
   await ensureDbReady();
+  check();
   let identities = await hospitalDB.transaction('rw', hospitalDB.catalogs, async () => {
     const previous = ((await hospitalDB.catalogs.get(catalogId()))?.list ??
       []) as EloisaStaffIdentity[];
+    check();
     const next = mergeStaffRegistries(incoming, previous);
     if (JSON.stringify(next) !== JSON.stringify(previous)) {
       await hospitalDB.catalogs.put({
@@ -34,10 +44,14 @@ export const saveDiscoveredStaff = async (
     }
     return next;
   });
+  check();
   if (isFirestoreEnabled()) {
     const { publishSharedStaffCatalog } = await import('./sharedEloisaStaffCatalog');
-    identities = await publishSharedStaffCatalog(identities);
-    await cacheSharedStaff(identities);
+    check();
+    identities = await publishSharedStaffCatalog(identities, check);
+    check();
+    await cacheSharedStaff(identities, check);
+    check();
   }
   return identities;
 };
@@ -69,11 +83,16 @@ export const registerEloisaStaff = async <T extends StaffObservation>(
   });
 };
 
-const cacheSharedStaff = async (entries: EloisaStaffIdentity[]) => {
+const cacheSharedStaff = async (
+  entries: EloisaStaffIdentity[],
+  check: () => void = () => undefined
+) => {
   await ensureDbReady();
+  check();
   await hospitalDB.transaction('rw', hospitalDB.catalogs, async () => {
     const current = ((await hospitalDB.catalogs.get(catalogId()))?.list ??
       []) as EloisaStaffIdentity[];
+    check();
     const merged = mergeStaffRegistries(current, entries);
     if (JSON.stringify(current) !== JSON.stringify(merged))
       await hospitalDB.catalogs.put({

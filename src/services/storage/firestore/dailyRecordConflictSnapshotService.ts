@@ -151,7 +151,7 @@ export const listConflictVersionSnapshots = async (
   const nowMs = Date.now();
   return querySnapshot.docs
     .map(snap => ({ id: snap.id, data: snap.data() }))
-    .filter(({ data }) => isConflictSnapshotRecoverable(data, nowMs))
+    .filter(({ data }) => !data.snapshotType && isConflictSnapshotRecoverable(data, nowMs))
     .map(({ id, data }) => toConflictVersionSnapshot(id, data));
 };
 
@@ -168,6 +168,6 @@ export const getConflictVersionSnapshot = async (
   const snap = await getDoc(snapshotRef);
   if (!snap.exists()) return null;
   const data = snap.data();
-  if (!isConflictSnapshotRecoverable(data, Date.now())) return null;
+  if (data.snapshotType || !isConflictSnapshotRecoverable(data, Date.now())) return null;
   return toConflictVersionSnapshot(snap.id, data);
 };

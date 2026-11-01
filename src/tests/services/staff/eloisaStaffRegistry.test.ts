@@ -1,13 +1,14 @@
+import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import 'fake-indexeddb/auto';
 import Dexie from 'dexie';
-import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
-const { db } = vi.hoisted(() => ({ db: { current: null as unknown } }));
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+const { db } = vi.hoisted(() => ({ db: { current: null as unknown, ready: vi.fn() } }));
 vi.mock('@/services/repositories/repositoryConfig', () => ({ isFirestoreEnabled: () => false }));
 vi.mock('@/services/storage/indexeddb/indexedDbCore', () => ({
   get hospitalDB() {
     return db.current;
   },
-  ensureDbReady: async () => {},
+  ensureDbReady: db.ready,
 }));
 import { registerEloisaStaff, readEloisaStaff } from '@/services/staff/eloisaStaffRegistry';
 import { inferNursingShifts } from '@/features/rayen-import/domain/inferNursingShifts';
@@ -20,12 +21,22 @@ const activity = (author: string) => ({
   recordedAt: '2026-09-05T12:00:00',
 });
 beforeEach(async () => {
+  db.ready.mockReset().mockResolvedValue(undefined);
   await database.table('catalogs').clear();
 });
+afterEach(() => setSessionGeneration(null));
 afterAll(async () => {
   await database.delete();
 });
 describe('local staff discovery persistence', () => {
+  it('stops discovery before writing when storage readiness crosses the session boundary', async () => {
+    setSessionGeneration('session-a');
+    db.ready.mockImplementationOnce(async () => setSessionGeneration('session-b'));
+    await expect(registerEloisaStaff([activity('SYNTHETIC NURSE')])).rejects.toThrow(
+      'La sesión cambió.'
+    );
+    expect(await database.table('catalogs').count()).toBe(0);
+  });
   it('requires review when an un-IDd short name can belong to either of two professionals', async () => {
     const observations = await registerEloisaStaff(
       [

@@ -82,6 +82,7 @@ for (const [request, factory] of [
   ['./lib/handoffSignatureFunctions', 'createHandoffSignatureFunctions'],
   ['./lib/dailyRecordWriteAuthorityFunctions', 'createDailyRecordWriteAuthorityFunctions'],
   ['./lib/adminCudyrResultFunctions', 'createAdminCudyrResultFunctions'],
+  ['./lib/dailyRecordRestoreFunctions', 'createDailyRecordRestoreFunctions'],
   ['./lib/cudyrHistoryFunctions', 'createCudyrHistoryFunctions'],
   ['./lib/rayenClinicalEnrichmentFunctions', 'createRayenClinicalEnrichmentFunctions'],
   ['./lib/specialtyPolicyFunctions', 'createSpecialtyPolicyFunctions'],
