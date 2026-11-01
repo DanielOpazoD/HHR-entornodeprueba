@@ -1,3 +1,5 @@
+import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
+import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import { withClientRuntimeContractVersion } from '@/services/storage/clinicalAuthorityClientVersion';
 import {
@@ -83,8 +85,16 @@ export interface RayenClinicalEnrichmentBatchResponse {
 export const callRayenClinicalEnrichmentBatch = async (
   payload: RayenClinicalEnrichmentBatchPayload
 ): Promise<RayenClinicalEnrichmentBatchResponse> => {
+  const owner = getStoredSessionOwnerKey(),
+    generation = getSessionGeneration();
+  const check = () => {
+    if (owner !== getStoredSessionOwnerKey() || generation !== getSessionGeneration())
+      throw new Error('La sesión cambió.');
+  };
   const functions = await defaultFunctionsRuntime.getRegionalFunctions('southamerica-east1');
+  check();
   const { httpsCallable } = await import('firebase/functions');
+  check();
   const callable = httpsCallable<
     RayenClinicalEnrichmentBatchPayload,
     RayenClinicalEnrichmentBatchResponse
@@ -92,5 +102,6 @@ export const callRayenClinicalEnrichmentBatch = async (
     timeout: RAYEN_CLINICAL_ENRICHMENT_TIMEOUT_MS,
   });
   const result = await callable(withClientRuntimeContractVersion(payload));
+  check();
   return result.data;
 };

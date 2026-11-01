@@ -33,7 +33,10 @@ const LIVE_STATUSES = Object.keys({
 const isReadyForClaim = (task: SyncTask, now: number): boolean => {
   // A released day write no longer has its edits on the stored day: it never publishes as is,
   // even if a tab from an older version requeued it.
-  if (task.projectionReleased || (task.preOutboxHoldUntil || 0) > now) {
+  if (
+    (task.projectionReleased && !task.nursingHandoffRecovery) ||
+    (task.preOutboxHoldUntil || 0) > now
+  ) {
     return false;
   }
 
@@ -126,14 +129,20 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
     now: number,
     limit: number,
     ownerKey: string | null | undefined,
-    claim: SyncQueueLeaseClaim
+    claim: SyncQueueLeaseClaim,
+    accept?: (task: SyncTask) => boolean
   ): Promise<SyncTask[]> {
     return hospitalDB.transaction('rw', hospitalDB.syncQueue, async () => {
       const readState = (status: 'PENDING' | 'PROCESSING') =>
         hospitalDB.syncQueue
           .where('[status+timestamp]')
           .between([status, Dexie.minKey], [status, Dexie.maxKey], true, true)
-          .filter(task => matchesOwner(ownerKey, task.ownerKey) && isReadyForClaim(task, now))
+          .filter(
+            task =>
+              matchesOwner(ownerKey, task.ownerKey) &&
+              isReadyForClaim(task, now) &&
+              (!accept || accept(task))
+          )
           .limit(limit)
           .toArray();
       const candidates = await Promise.all([readState('PENDING'), readState('PROCESSING')]);

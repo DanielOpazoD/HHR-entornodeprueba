@@ -120,7 +120,8 @@ describe('useRayenClinicalFill authority revalidation', () => {
       freshRecord,
       expect.objectContaining({ total: 0, errors: [] }),
       expect.anything(),
-      'run-persisted-later'
+      'run-persisted-later',
+      { checkSession: expect.any(Function) }
     );
   });
 
@@ -139,7 +140,8 @@ describe('useRayenClinicalFill authority revalidation', () => {
       freshRecord,
       expect.objectContaining({ total: 0, errors: [] }),
       expect.anything(),
-      'run-persisted-later'
+      'run-persisted-later',
+      { checkSession: expect.any(Function) }
     );
   });
   it.each(['off', 'shadow', undefined] as const)(

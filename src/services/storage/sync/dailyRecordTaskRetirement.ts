@@ -13,6 +13,9 @@ export interface DailyRecordTaskReview {
   generation: string;
 }
 
+export const serializeDailyRecordTaskBackup = (task: SyncTask): string =>
+  JSON.stringify({ schemaVersion: 1, remotelyConfirmed: false, task }, null, 2);
+
 const sessionMatches = (owner: string, generation: string): boolean =>
   owner === getStoredSessionOwnerKey() &&
   generation === getSessionGeneration() &&
@@ -108,9 +111,7 @@ export const listDiscardedDailyRecordTasks = async (): Promise<SyncTask[]> => {
 
 export const getDiscardedDailyRecordBackup = async (taskId: number): Promise<string | null> => {
   const task = (await listDiscardedDailyRecordTasks()).find(row => row.id === taskId);
-  return task
-    ? JSON.stringify({ schemaVersion: 1, remotelyConfirmed: false, task }, null, 2)
-    : null;
+  return task ? serializeDailyRecordTaskBackup(task) : null;
 };
 
 export const getDailyRecordReviewBackup = async (
@@ -119,6 +120,6 @@ export const getDailyRecordReviewBackup = async (
   if (!sessionMatches(review.owner, review.generation)) return null;
   const current = await reviewBlockedDailyRecordTask(review.task.id);
   return current && JSON.stringify(current) === JSON.stringify(review)
-    ? JSON.stringify({ schemaVersion: 1, remotelyConfirmed: false, task: review.task }, null, 2)
+    ? serializeDailyRecordTaskBackup(review.task)
     : null;
 };

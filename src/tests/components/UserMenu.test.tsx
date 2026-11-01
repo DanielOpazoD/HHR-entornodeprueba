@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { UserMenu } from '@/components/layout/UserMenu';
 
 describe('UserMenu', () => {
@@ -85,6 +85,25 @@ describe('UserMenu', () => {
 
     // Dropdown should be closed
     expect(screen.queryByTestId('user-profile-menu-panel')).not.toBeInTheDocument();
+  });
+
+  it('keeps the logout button visible as Guardando while the nursing handoff is being sent', async () => {
+    let finish!: () => void;
+    const pending = new Promise<void>(resolve => {
+      finish = resolve;
+    });
+    render(<UserMenu {...defaultProps} onLogout={() => pending} />);
+    fireEvent.click(screen.getByRole('button'));
+    await screen.findByTestId('user-profile-menu-panel');
+    fireEvent.click(screen.getByText('Cerrar sesión'));
+    expect(screen.getByText('Guardando…')).toBeDisabled();
+    expect(
+      within(screen.getByTestId('user-profile-menu-panel')).getByText('doctor@hospital.cl')
+    ).toBeVisible();
+    await act(async () => finish());
+    await waitFor(() =>
+      expect(screen.queryByTestId('user-profile-menu-panel')).not.toBeInTheDocument()
+    );
   });
 
   it('has correct title attribute with email', async () => {

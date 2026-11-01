@@ -171,7 +171,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
   });
   const { applyHistoricalCudyrEnforcedBatch } = useHistoricalCudyrPersistence({
     dailyRecord,
-    isAdmin,
+    role,
   });
   const {
     staffingProposal,

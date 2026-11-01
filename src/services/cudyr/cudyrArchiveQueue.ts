@@ -15,14 +15,17 @@ export type CudyrArchiveDisposition = 'persisted' | 'queued' | 'failed';
 /** Save before sending. An ambiguous response keeps the exact source snapshot for replay. */
 export const persistCudyrArchivePart = async (
   request: ArchiveCudyrHistoryRequest,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  checkSession: () => void = () => undefined
 ): Promise<CudyrArchiveDisposition> => {
-  await ensureDbReady();
   const owner = getStoredSessionOwnerKey();
   const generation = getSessionGeneration();
-  if (!owner || !generation || isDatabaseInFallbackMode()) return 'failed';
   const sameSession = () =>
     owner === getStoredSessionOwnerKey() && generation === getSessionGeneration();
+  checkSession();
+  await ensureDbReady();
+  checkSession();
+  if (!owner || !generation || !sameSession() || isDatabaseInFallbackMode()) return 'failed';
   const id = crypto.randomUUID();
   const key = `cudyr:${id}`;
   const store = createDexieSyncQueueStore();
@@ -35,6 +38,7 @@ export const persistCudyrArchivePart = async (
       preOutboxHoldReason: 'awaiting_remote_ack',
     }
   );
+  checkSession();
   if (!queued.accepted || !sameSession()) return 'failed';
   let acknowledged = false;
   let onAbort: (() => void) | undefined;
@@ -49,17 +53,20 @@ export const persistCudyrArchivePart = async (
         archiveCudyrHistory(request).then(resolve, reject);
       }
     );
+    checkSession();
+    if (!sameSession()) return 'queued';
     assertCudyrArchiveAcknowledged(request, result);
     acknowledged = true;
     if (sameSession()) await store.deletePendingByKey('ARCHIVE_CUDYR', key, owner);
-    return 'persisted';
+    checkSession();
+    return sameSession() ? 'persisted' : 'queued';
   } catch {
-    return acknowledged ? 'persisted' : 'queued';
+    return acknowledged && sameSession() ? 'persisted' : 'queued';
   } finally {
     if (onAbort) signal?.removeEventListener('abort', onAbort);
     if (!acknowledged && sameSession()) {
       await store.releasePreOutboxHoldByKey('ARCHIVE_CUDYR', key, owner).catch(() => undefined);
-      void processSyncQueue();
+      if (sameSession()) void processSyncQueue();
     }
   }
 };

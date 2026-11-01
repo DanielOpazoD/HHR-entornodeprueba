@@ -1,6 +1,7 @@
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { startBrowserSyncWakeup } from './browserSyncWakeup';
 import type { SyncRuntimePort } from '@/services/storage/sync/syncQueuePorts';
+import { defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
 import {
   getStoredSessionOwnerKey,
   hasSessionCleanupFailed,
@@ -25,6 +26,11 @@ export const createBrowserSyncRuntime = (): SyncRuntimePort => {
       onlineListenerRegistered = true;
     },
     getOwnerKey: () => getStoredSessionOwnerKey(),
+    getSessionGeneration,
+    getActorKey: () => {
+      const uid = defaultAuthRuntime.getCurrentUser()?.uid;
+      return uid ? `user:${uid}` : null;
+    },
     // A pending cleanup only fences a document not yet admitted: admission completes it, and a tab
     // already admitted must not stall on one left by another tab that was closed mid-logout.
     isFenced: () =>

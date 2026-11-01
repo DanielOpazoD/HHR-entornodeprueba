@@ -1,3 +1,4 @@
+import { DeviceEntriesSchema } from '../mapping/mapDeviceToInstance';
 import type { RayenPatientClinicalBundle } from '../contracts/patientClinicalBundle';
 import { needsClinicalRead, type ClinicalReadSelection } from '../contracts/clinicalReadSelection';
 import type { ClinicalFillDeps } from '../contracts/clinicalFillContracts';
@@ -78,10 +79,13 @@ const readPatientSources = async ({
     performance.recordRetries(1);
   };
   const toDeviceRead = async (report: DeviceReport): Promise<DeviceRead> => {
-    if (report.error) {
-      performance.recordTimeout(report.error);
-      throw Object.assign(new Error(report.error), { errorCode: report.errorCode });
+    if (report.error || report.errorCode) {
+      performance.recordTimeout(report.error || report.errorCode);
+      throw Object.assign(new Error(report.error || report.errorCode), {
+        errorCode: report.errorCode,
+      });
     }
+    if (report.source === 'json') DeviceEntriesSchema.parse(report.entries);
     if (Array.isArray(report.entries)) {
       return { entries: report.entries, source: report.source, textItems: [] };
     }

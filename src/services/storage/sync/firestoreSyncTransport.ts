@@ -47,6 +47,7 @@ import {
 import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
 import type { DetachedOccupantWork } from './dayTaskOccupantDetach';
 import type { SpecialistNoteValue } from './dayTaskReplayGuard';
+import { nursingHandoffPaths } from './nursingHandoffTasks';
 import { resolveOptionalBaseRevision, UNKNOWN_SERVER_VERSION } from './syncTaskContractPolicy';
 import {
   adoptStoredClinicalDerivedState,
@@ -174,6 +175,8 @@ const resolveRecordForSyncTask = async (
   const docRef = getRecordDocRef(record.date, runtime);
   const remoteSnap = await (transaction ? transaction.get(docRef) : getDoc(docRef));
   if (!remoteSnap.exists()) {
+    if (task.nursingHandoffRecovery)
+      throw new ConcurrencyError('La entrega retenida requiere revisar el censo que falta.');
     assertKnownWholeRecordBase(task);
     return {
       record: checks?.keepStoredNoteFields(task, record, undefined, checks.noteValues) ?? record,
@@ -212,6 +215,23 @@ const resolveRecordForSyncTask = async (
   ) {
     return alreadyApplied(detached);
   }
+  if (task.nursingHandoffRecovery) {
+    // A released snapshot has no local projection to support a whole-day publish. Only its
+    // nursing paths are replayed, against the exact original version, including equal-time revisions.
+    const paths = nursingHandoffPaths(task);
+    const base = task.syncContract;
+    if (
+      !paths.length ||
+      !base?.expectedVersion ||
+      base.expectedVersion !== remoteLastUpdated ||
+      (base.baseRevision !== undefined &&
+        base.baseRevision !==
+          resolveOptionalBaseRevision(
+            (remoteData.meta as { revision?: unknown } | undefined)?.revision
+          ))
+    )
+      throw new ConcurrencyError('El censo cambió. La entrega retenida se conserva para revisión.');
+  }
   // A confirmed mutation can be acknowledged above. An opaque legacy snapshot without a
   // trustworthy base cannot prove what it owns, so keep it for review instead of replaying it.
   assertKnownWholeRecordBase(task, remoteData);
@@ -222,6 +242,11 @@ const resolveRecordForSyncTask = async (
   }
 
   const remoteRecord = docToRecord(remoteData, record.date);
+  if (task.nursingHandoffRecovery) {
+    record = resolveDailyRecordConflict(remoteRecord, record, {
+      changedPaths: task.syncContract?.changedPaths,
+    });
+  }
   // A stale whole-day save can carry a refused note too. Strip it before either acceptance or
   // conflict merging, so merging arrays cannot hide that the value belongs to the note's task.
   record = checks?.keepStoredNoteFields(task, record, remoteRecord, checks.noteValues) ?? record;
@@ -310,9 +335,30 @@ const assertResolvedClinicalAuthority = (
 const syncDailyRecord = async (
   task: SyncTask,
   record: DailyRecord,
-  runtime: FirestoreServiceRuntimePort
+  runtime: FirestoreServiceRuntimePort,
+  assertCanPublish?: () => void
 ): Promise<SyncTransportResult | void> => {
   if (await runE2ESyncTransport(task)) return;
+  if (task.nursingHandoffRecovery) {
+    const paths = nursingHandoffPaths(task);
+    const mutationId = task.syncContract?.mutationId ?? task.opId;
+    task = {
+      ...task,
+      syncContract: {
+        ...task.syncContract,
+        changedPaths: paths,
+        // A subset cannot acknowledge the other fields of a compacted/original mutation.
+        mutationId:
+          paths.length === task.syncContract?.changedPaths?.length
+            ? mutationId
+            : `${mutationId}:nursing-recovery`,
+        mutationIds:
+          paths.length === task.syncContract?.changedPaths?.length
+            ? task.syncContract?.mutationIds
+            : undefined,
+      },
+    };
+  }
   const outbox = await import('./dexieDailyRecordOutbox');
   // Only a whole-record write needs to know what the day's queued notes want written.
   const changedPaths = task.syncContract?.changedPaths ?? [];
@@ -344,14 +390,18 @@ const syncDailyRecord = async (
       const effectiveAuthorityMode = await resolveEffectiveDailyRecordAuthorityMode(runtime);
       const writeFenceActive = await isServerClinicalWriteFenceActive(runtime);
       if (effectiveAuthorityMode === 'enforced' || writeFenceActive) {
-        const response = await saveDailyRecordWithClinicalAuthorityCallable({
-          date: recordToWrite.date,
-          record: recordToWrite,
-          expectedLastUpdated: task.syncContract?.expectedVersion,
-          mode: 'enforced',
-          origin: task.origin,
-          syncContract: resolved.detached?.task.syncContract ?? task.syncContract,
-        }).catch(error => {
+        assertCanPublish?.();
+        const response = await saveDailyRecordWithClinicalAuthorityCallable(
+          {
+            date: recordToWrite.date,
+            record: recordToWrite,
+            expectedLastUpdated: task.syncContract?.expectedVersion,
+            mode: 'enforced',
+            origin: task.origin,
+            syncContract: resolved.detached?.task.syncContract ?? task.syncContract,
+          },
+          assertCanPublish
+        ).catch(error => {
           if (
             error instanceof ConcurrencyError &&
             error.reason === 'version_mismatch' &&
@@ -393,6 +443,7 @@ const syncDailyRecord = async (
         detached = current.detached;
         if (current.resolution === 'already_applied') return current;
         assertResolvedClinicalAuthority(task, current);
+        assertCanPublish?.();
         // D9: the stored day keeps its split-day marker, meta and moved fields, and a create
         // never carries the marker (the rule would deny this entry forever; queues are never
         // purged). merge: true keeps omitted keys, so a moved field another episode left in the
@@ -431,7 +482,7 @@ const syncDailyRecord = async (
 export const createFirestoreSyncTransport = (
   runtime: FirestoreServiceRuntimePort = defaultFirestoreServiceRuntime
 ): SyncTransportPort => ({
-  async run(task: SyncTask) {
+  async run(task: SyncTask, assertCanPublish?: () => void) {
     switch (task.type) {
       case 'ARCHIVE_CUDYR':
         await import('./cudyrArchiveTransport').then(({ replayCudyrArchive }) =>
@@ -439,7 +490,7 @@ export const createFirestoreSyncTransport = (
         );
         return;
       case 'UPDATE_DAILY_RECORD':
-        return syncDailyRecord(task, task.payload as DailyRecord, runtime);
+        return syncDailyRecord(task, task.payload as DailyRecord, runtime, assertCanPublish);
       case 'UPDATE_SPECIALIST_HANDOFF':
         return loadSpecialistMedicalHandoffClient().then(({ replaySpecialistHandoff }) =>
           replaySpecialistHandoff(task)

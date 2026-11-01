@@ -1,3 +1,6 @@
+import type { UserRole } from '@/types/authRoleTypes';
+import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
+import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import type {
   HistoricalCudyrBatchExecutionResult,
@@ -25,12 +28,13 @@ const previousIsoDay = (day: string): string | null => {
 const canWriteAuthoritativeHistoricalDay = ({
   censusDay,
   sourceDate,
-  isAdmin,
+  role,
 }: {
   censusDay: string;
   sourceDate: string;
-  isAdmin: boolean;
-}): boolean => isAdmin && previousIsoDay(sourceDate) === censusDay;
+  role: UserRole | null;
+}): boolean =>
+  (role === 'admin' || role === 'nurse_hospital') && previousIsoDay(sourceDate) === censusDay;
 
 /**
  * Persists the previous census day's CUDYR values through the same authoritative callable used
@@ -38,29 +42,39 @@ const canWriteAuthoritativeHistoricalDay = ({
  * user-initiated synchronization run; no per-record writer participates in enforced mode.
  */
 export const applyHistoricalCudyrBatchAuthoritatively = async ({
+  checkSession,
   dailyRecord,
   sourceRecord,
   censusDay,
   items,
-  isAdmin,
+  role,
   runId,
   applyBatch,
 }: {
+  checkSession?: () => void;
   dailyRecord: DailyRecordRepositoryPort;
   sourceRecord: DailyRecord;
   censusDay: string;
   items: HistoricalCudyrBatchItem[];
-  isAdmin: boolean;
+  role: UserRole | null;
   runId: string;
   applyBatch?: ApplyClinicalEnrichmentBatch;
 }): Promise<HistoricalCudyrBatchExecutionResult> => {
+  const owner = getStoredSessionOwnerKey(),
+    generation = getSessionGeneration();
+  const check = () => {
+    checkSession?.();
+    if (owner !== getStoredSessionOwnerKey() || generation !== getSessionGeneration())
+      throw new Error('La sesión cambió.');
+  };
+  check();
   const uniqueItems = uniqueBatchItems(items);
   if (uniqueItems.length === 0) return { results: [] };
   if (
     !canWriteAuthoritativeHistoricalDay({
       censusDay,
       sourceDate: sourceRecord.date,
-      isAdmin,
+      role,
     })
   ) {
     return {
@@ -75,14 +89,16 @@ export const applyHistoricalCudyrBatchAuthoritatively = async ({
 
   const loadHistoricalRecord = async (): Promise<DailyRecord> => {
     const historicalRecord = await dailyRecord.getAuthoritativeForDate(censusDay);
+    check();
     if (!historicalRecord) throw new Error('No existe el censo histórico para archivar CUDYR.');
-    return (
-      await readClinicalFillDerivedView(historicalRecord, () =>
-        dailyRecord.getAuthoritativeForDate(censusDay)
-      )
-    ).record;
+    const view = await readClinicalFillDerivedView(historicalRecord, () =>
+      dailyRecord.getAuthoritativeForDate(censusDay)
+    );
+    check();
+    return view.record;
   };
   const historicalRecord = await dailyRecord.getAuthoritativeForDate(censusDay);
+  check();
   // A previous CUDYR application can exist even when HHR has no census for that owning night.
   // There is no destination to amend in that case, so the archive is not applicable and must not
   // turn an otherwise successful current-day synchronization into a visible partial conflict.
@@ -99,6 +115,7 @@ export const applyHistoricalCudyrBatchAuthoritatively = async ({
   const historicalView = await readClinicalFillDerivedView(historicalRecord, () =>
     dailyRecord.getAuthoritativeForDate(censusDay)
   );
+  check();
   const resolutions = uniqueItems.map(({ clinicalEpisodeId, cudyr }) => ({
     clinicalEpisodeId,
     ...resolveHistoricalCudyrBatchOperation(historicalView.record, clinicalEpisodeId, cudyr),
@@ -131,7 +148,9 @@ export const applyHistoricalCudyrBatchAuthoritatively = async ({
   if (operations.length > 0) {
     const authoritativeApplyBatch =
       applyBatch ?? (await import('./applyClinicalEnrichmentBatch')).applyClinicalEnrichmentBatch;
+    check();
     const batchResult = await authoritativeApplyBatch({
+      checkSession: check,
       mode: 'enforced',
       record: historicalView.day,
       authorityDate: sourceRecord.date,
@@ -140,6 +159,7 @@ export const applyHistoricalCudyrBatchAuthoritatively = async ({
       rebuildOperations,
       refreshRecord: loadHistoricalRecord,
     });
+    check();
     persistence = batchResult.persistence;
     retries = batchResult.retries ?? 0;
   }

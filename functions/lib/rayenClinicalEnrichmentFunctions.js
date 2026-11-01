@@ -313,10 +313,10 @@ const createRayenClinicalEnrichmentFunctions = ({
               record: authoritySnapshot.data() || {},
               payload,
             });
-            if (payload.date !== sourceDate && writerRole !== 'admin') {
+            if (payload.date !== sourceDate && !['admin', 'nurse_hospital'].includes(writerRole)) {
               throw new functions.https.HttpsError(
                 'permission-denied',
-                'This daily-record operation requires an administrator.'
+                'Historical CUDYR synchronization requires an administrator or hospital nurse.'
               );
             }
           }
@@ -348,10 +348,13 @@ const createRayenClinicalEnrichmentFunctions = ({
             payload,
           });
           policyRevision = batchAuthority.policyRevision;
-          if (payload.date !== batchAuthority.sourceDate && writerRole !== 'admin') {
+          if (
+            payload.date !== batchAuthority.sourceDate &&
+            !['admin', 'nurse_hospital'].includes(writerRole)
+          ) {
             throw new functions.https.HttpsError(
               'permission-denied',
-              'This daily-record operation requires an administrator.'
+              'Historical CUDYR synchronization requires an administrator or hospital nurse.'
             );
           }
 

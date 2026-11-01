@@ -173,6 +173,7 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
       expect.anything(),
       'run-historical-pending',
       {
+        checkSession: expect.any(Function),
         retry: false,
         structuralReview: {
           structureConfirmed: true,
@@ -221,6 +222,7 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
       expect.anything(),
       'run-historical-failed',
       {
+        checkSession: expect.any(Function),
         retry: false,
         structuralReview: {
           structureConfirmed: true,
@@ -284,6 +286,7 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
       null,
       'run-structural-conflict',
       {
+        checkSession: expect.any(Function),
         retry: false,
         structuralReview: {
           structureConfirmed: true,

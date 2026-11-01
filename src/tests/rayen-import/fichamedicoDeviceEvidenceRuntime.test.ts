@@ -87,6 +87,21 @@ describe('Ficha Médico device evidence runtime', () => {
     expect(fetchDeviceReportBuffer).toHaveBeenCalledTimes(1);
   });
 
+  it.each([[null], [{ name: '' }], [false]])(
+    'falls back to PDF on malformed rows without certifying absence (%j)',
+    async data => {
+      readJson.mockResolvedValue({ data });
+      expect(
+        await create().fetchDeviceEvidence({
+          encId: 'synthetic-episode',
+          fecha: '2026-07-28',
+          info,
+          acceptEntries: true,
+        })
+      ).toEqual({ buffer, source: 'pdf' });
+    }
+  );
+
   it('prefers the direct JSON projection without leaking extra patient fields', async () => {
     readJson.mockResolvedValue({
       data: [
