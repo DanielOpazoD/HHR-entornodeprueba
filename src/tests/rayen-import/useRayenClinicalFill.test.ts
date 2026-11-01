@@ -88,7 +88,8 @@ describe('useRayenClinicalFill', () => {
         ],
       }),
       null,
-      'legacy-run'
+      'legacy-run',
+      { checkSession: expect.any(Function) }
     );
     expect(clinicalResult).toEqual({
       status: 'failed',
@@ -142,7 +143,8 @@ describe('useRayenClinicalFill', () => {
         ],
       }),
       null,
-      'run-load-failed'
+      'run-load-failed',
+      { checkSession: expect.any(Function) }
     );
     expect(mocks.beginRayenFill).not.toHaveBeenCalled();
     expect(mocks.endRayenFill).not.toHaveBeenCalled();

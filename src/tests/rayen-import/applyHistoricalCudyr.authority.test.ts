@@ -37,6 +37,32 @@ const sourceRecord = (): DailyRecord =>
   ({ ...record('revision-source'), date: '2026-07-30' }) as unknown as DailyRecord;
 
 describe('historical CUDYR remote authority', () => {
+  it('stops before dispatch when the historical authoritative read crosses the session boundary', async () => {
+    let changed = false;
+    const applyBatch = vi.fn();
+    const dailyRecord = {
+      getAuthoritativeForDate: vi.fn(async () => {
+        changed = true;
+        return record('revision-1');
+      }),
+    } as unknown as DailyRecordRepositoryPort;
+    await expect(
+      applyHistoricalCudyrBatchAuthoritatively({
+        dailyRecord,
+        sourceRecord: sourceRecord(),
+        censusDay: '2026-07-29',
+        items: [{ clinicalEpisodeId: '142000', cudyr }],
+        role: 'admin',
+        runId: 'run-a',
+        applyBatch,
+        checkSession: () => {
+          if (changed) throw new Error('La sesión cambió.');
+        },
+      })
+    ).rejects.toThrow('La sesión cambió.');
+    expect(applyBatch).not.toHaveBeenCalled();
+  });
+
   it.each(['admin', 'nurse_hospital'] as const)(
     'never consults a local fallback when Firestore authority is unavailable (%s)',
     async role => {

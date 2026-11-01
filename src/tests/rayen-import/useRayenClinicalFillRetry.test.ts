@@ -31,7 +31,11 @@ const record = {
 
 const useRetryHarness = (
   onStart: (candidate: DailyRecord) => boolean,
-  retryRequest: ClinicalRetryToken | null = null,
+  retryRequest: ClinicalRetryToken | null = {
+    type: 'clinical_retry',
+    source: record,
+    pendingClinicalEpisodeIds: [],
+  },
   activeRecord: DailyRecord = record
 ) => {
   const [state, setState] = useState<RayenImportState>(INITIAL_RAYEN_IMPORT_STATE);
@@ -72,12 +76,14 @@ describe('useRayenClinicalFillRetry', () => {
     expect(result.current.state.error).toContain('otra sincronización en curso');
   });
 
-  it('starts a persisted retry once the controller adopts its execution', async () => {
+  it('starts a token-authorized retry once the controller adopts its execution', async () => {
     const { result } = renderHook(() => useRetryHarness(() => true));
 
     await act(async () => result.current.retry());
 
-    expect(result.current.runClinicalStage).toHaveBeenCalledWith(record);
+    expect(result.current.runClinicalStage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'clinical_retry', source: record })
+    );
     expect(result.current.execution.stage).toEqual({ type: 'syncing_clinical' });
     expect(result.current.state.error).toBeNull();
   });
@@ -166,7 +172,14 @@ describe('useRayenClinicalFillRetry', () => {
     await act(async () => result.current.retry());
 
     expect(result.current.retryTokenRef.current).toBeNull();
-    expect(result.current.runClinicalStage).toHaveBeenCalledWith(record);
+    expect(result.current.runClinicalStage).not.toHaveBeenCalled();
+  });
+
+  it('does not resume an interrupted applied run without a retry token', async () => {
+    const { result } = renderHook(() => useRetryHarness(() => true, null));
+    await act(async () => result.current.retry());
+    expect(result.current.runClinicalStage).not.toHaveBeenCalled();
+    expect(result.current.execution.stage).toBeNull();
   });
 
   it('uses the confirmed handoff run when its embedded snapshot has stale run evidence', async () => {

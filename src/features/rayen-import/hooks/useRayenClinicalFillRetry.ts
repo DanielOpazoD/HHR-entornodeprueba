@@ -31,8 +31,8 @@ const canResumeClinicalFill = (record: DailyRecord | null | undefined): record i
   );
   if (structuralReviewPending) return false;
 
-  // Applied legacy records may need the runner's fresh server read to recover policy metadata.
-  // The writer still verifies that policy; a terminal partial run needs a new capture instead.
+  // Only a retry token from a completed attempt can authorize another attempt.
+  // An interrupted applied run requires a new capture, including after a session change.
   return sync.status === 'applied';
 };
 
@@ -67,7 +67,7 @@ export const useRayenClinicalFillRetry = ({
       }
     }
     const record = activeRecord;
-    if (!canResumeClinicalFill(record)) {
+    if (!retryRequest || !canResumeClinicalFill(record)) {
       setState(prev => ({
         ...prev,
         error:
@@ -90,5 +90,5 @@ export const useRayenClinicalFillRetry = ({
       return;
     }
     setState(prev => ({ ...prev, error: null }));
-    await runClinicalStage(retryRequest ?? record);
+    await runClinicalStage(retryRequest);
   }, [currentRecord, currentRecordRef, onStart, retryTokenRef, runClinicalStage, setState]);

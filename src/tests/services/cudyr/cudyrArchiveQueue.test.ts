@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const h = vi.hoisted(() => ({
+  ready: vi.fn(),
   archive: vi.fn(),
   queue: vi.fn(),
   process: vi.fn(),
@@ -12,7 +13,7 @@ const h = vi.hoisted(() => ({
 }));
 vi.mock('@/services/cudyr/cudyrHistoryService', () => ({ archiveCudyrHistory: h.archive }));
 vi.mock('@/services/storage/indexeddb/indexedDbCore', () => ({
-  ensureDbReady: async () => {},
+  ensureDbReady: h.ready,
   isDatabaseInFallbackMode: () => h.fallback,
 }));
 vi.mock('@/services/storage/sync/dexieSyncQueueStore', () => ({
@@ -57,6 +58,7 @@ beforeEach(() => {
   h.owner = 'user:synthetic';
   h.generation = 'session-test';
   h.fallback = false;
+  h.ready.mockResolvedValue(undefined);
   h.queue.mockResolvedValue({ accepted: true });
   h.archive.mockResolvedValue({
     success: true,
@@ -70,6 +72,17 @@ beforeEach(() => {
 });
 
 describe('durable CUDYR archive handoff', () => {
+  it('does not enqueue or dispatch A capture when storage readiness crosses into B', async () => {
+    h.ready.mockImplementation(async () => {
+      h.owner = 'user:synthetic-b';
+      h.generation = 'synthetic-generation-b';
+    });
+    expect(await persistCudyrArchivePart(request)).toBe('failed');
+    expect(h.queue).not.toHaveBeenCalled();
+    expect(h.archive).not.toHaveBeenCalled();
+    expect(h.remove).not.toHaveBeenCalled();
+  });
+
   it('saves the exact snapshot before sending and removes it only after a complete acknowledgement', async () => {
     expect(await persistCudyrArchivePart(request)).toBe('persisted');
     expect(h.queue).toHaveBeenCalledWith(
@@ -154,6 +167,27 @@ describe('durable CUDYR archive handoff', () => {
     expect(h.archive).not.toHaveBeenCalled();
     expect(h.remove).not.toHaveBeenCalled();
   });
+  it('retains a late remote ACK without adopting or replaying it in B', async () => {
+    h.archive.mockImplementation(async () => {
+      h.generation = 'synthetic-session-b';
+      return { success: true, persisted: true, results: [], captureReceiptId: 'receipt' };
+    });
+    expect(await persistCudyrArchivePart(request)).toBe('queued');
+    expect(h.remove).not.toHaveBeenCalled();
+    expect(h.release).not.toHaveBeenCalled();
+    expect(h.process).not.toHaveBeenCalled();
+  });
+
+  it('does not restart queue processing when releasing a hold crosses the session boundary', async () => {
+    h.archive.mockRejectedValue(new Error('offline'));
+    h.release.mockImplementation(async () => {
+      h.generation = 'synthetic-session-b';
+      return true;
+    });
+    expect(await persistCudyrArchivePart(request)).toBe('queued');
+    expect(h.process).not.toHaveBeenCalled();
+  });
+
   it('keeps confirmed remote success if only local acknowledgement cleanup fails', async () => {
     h.remove.mockRejectedValue(new Error('local storage unavailable'));
     expect(await persistCudyrArchivePart(request)).toBe('persisted');

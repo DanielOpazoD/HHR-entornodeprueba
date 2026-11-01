@@ -264,6 +264,13 @@ describe('RayenImportButton history and progress', () => {
           ],
         },
       });
+      mocks.useRayenImport.mockReturnValue({
+        ...mocks.useRayenImport(),
+        execution: {
+          stage: { type: 'partial', retry: 'clinical_only' },
+          context: { runId: 'run-applied' },
+        },
+      });
       mocks.retryClinicalFill.mockResolvedValue(undefined);
       mocks.refreshHealth.mockResolvedValue({ ...mocks.useRayenExtensionHealth(), canSync });
       render(<RayenImportButton />);

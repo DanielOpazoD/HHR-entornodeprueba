@@ -287,6 +287,19 @@ describe('rayen sync presentation', () => {
     );
   });
 
+  it('requires a new sync for an interrupted applied run instead of offering to resume it', () => {
+    const event: RayenSyncEvent = {
+      id: 'interrupted-a',
+      startedAt: '2026-11-01T10:00:00Z',
+      by: 'SYNTHETIC A',
+      status: 'applied',
+    };
+    expect(presentRayenSyncRecovery(event, 'ready')).toMatchObject({ action: 'retry_full' });
+    expect(presentRayenSyncRecovery(event, 'ready', false, true)).toMatchObject({
+      action: 'retry_clinical',
+    });
+  });
+
   it('offers reviewed recovery only after the connection is ready again', () => {
     const event: RayenSyncEvent = {
       id: 'run-failed',

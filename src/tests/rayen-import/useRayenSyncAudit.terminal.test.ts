@@ -1,3 +1,4 @@
+import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useRayenSyncAudit } from '@/features/rayen-import/hooks/useRayenSyncAudit';
@@ -48,8 +49,58 @@ const deferred = <T>() => {
 
 describe('useRayenSyncAudit terminal outcomes', () => {
   afterEach(() => {
+    setSessionGeneration(null);
     vi.restoreAllMocks();
     logger.clearEntries();
+  });
+
+  it('does not retry or write a recovery event under a replacement session', async () => {
+    setSessionGeneration('synthetic-generation-a');
+    const patchDailyRecord = vi.fn(async () => {
+      setSessionGeneration('synthetic-generation-b');
+      const conflict = new Error('synthetic revision conflict');
+      conflict.name = 'ConcurrencyError';
+      throw conflict;
+    });
+    const currentRecordRef = { current: record() };
+    const { result } = renderHook(() =>
+      useRayenSyncAudit({
+        currentRecordRef,
+        patchDailyRecord,
+        actor: 'SYNTHETIC A',
+        createId: () => 'synthetic-run-a',
+        loadDailyRecord: async () => currentRecordRef.current,
+      })
+    );
+    act(() => result.current.startRun());
+    const applied = result.current.applyRunToRecord(currentRecordRef.current, diff()).record;
+    currentRecordRef.current = applied;
+    await act(async () => {
+      await expect(
+        result.current.completeRun(applied, { total: 1, patched: 1, errors: [] })
+      ).rejects.toThrow('La sesión cambió.');
+    });
+    expect(patchDailyRecord).toHaveBeenCalledOnce();
+    expect(currentRecordRef.current.rayenSyncHistory?.[0].status).toBe('applied');
+  });
+
+  it('honors the phase session even when the audit waited in the persistence queue', async () => {
+    const patchDailyRecord = vi.fn();
+    const { result } = renderHook(() =>
+      useRayenSyncAudit({
+        currentRecordRef: { current: record() },
+        patchDailyRecord,
+        actor: 'SYNTHETIC A',
+      })
+    );
+    await expect(
+      result.current.completeRun(record(), { total: 0, patched: 0, errors: [] }, null, 'run-a', {
+        checkSession: () => {
+          throw new Error('La sesión cambió.');
+        },
+      })
+    ).rejects.toThrow('La sesión cambió.');
+    expect(patchDailyRecord).not.toHaveBeenCalled();
   });
 
   it('persists a completed outcome exactly once under concurrent completion callbacks', async () => {

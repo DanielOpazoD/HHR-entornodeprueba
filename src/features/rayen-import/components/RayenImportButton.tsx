@@ -134,8 +134,16 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
     [recordForSelectedDate?.rayenSyncHistory]
   );
   const recovery = React.useMemo(
-    () => presentRayenSyncRecovery(history[0], extension.connection, captureBlocked),
-    [extension.connection, history, captureBlocked]
+    () =>
+      presentRayenSyncRecovery(
+        history[0],
+        extension.connection,
+        captureBlocked,
+        execution?.stage?.type === 'partial' &&
+          execution.stage.retry === 'clinical_only' &&
+          (execution.context?.runId ?? execution.pending?.runId) === history[0]?.id
+      ),
+    [extension.connection, history, captureBlocked, execution]
   );
 
   const handleSync = React.useCallback(
